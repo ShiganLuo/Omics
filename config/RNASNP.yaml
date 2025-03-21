@@ -1,0 +1,44 @@
+genome: 
+  human: "/ChIP_seq_2/Data/index/Homo_sapiens/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa"
+  mouse: "/ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa"
+#隐式依赖,can't define in config yaml,you need handle it in snakefile
+genome_dict: 
+  human: "/ChIP_seq_2/Data/index/Homo_sapiens/GENCODE/GRCh38/GRCh38.primary_assembly.genome.dict"
+  mouse: "/ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/GRCm39.primary_assembly.genome.dict"
+# The STAR paramenters
+STAR:
+  human:
+    genome_fa: "/ChIP_seq_2/Data/index/Homo_sapiens/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa"
+    genome_gtf: "/ChIP_seq_2/Data/index/Homo_sapiens/GENCODE/GRCh38/gencode.v47.primary_assembly.annotation.gtf"
+    genome_index: "/ChIP_seq_2/Data/index/Homo_sapiens/GENCODE/GRCh38/star"
+  mouse:
+    genome_fa: "/ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa"
+    genome_gtf: "/ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/gencode.vM36.primary_assembly.annotation.gtf"
+    genome_index: "/ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/star"
+  procedure: "/opt/STAR-2.7.11b/bin/Linux_x86_64/STAR"
+  read_length: "149"
+addReadsGroup:
+  RGLB: "mRNA"
+  RGPL: "illumina"
+  RGPU: "Illumina_NextSeq_500"
+conda:
+  cfDNA_base: "/home/luosg/miniconda3/envs/cfDNA_base"
+  GCBias: "/home/luosg/miniconda3/envs/GCBias"
+  TE: "/home/luosg/miniconda3/envs/TE"
+  TElocal: "/home/luosg/miniconda3/envs/TElocal"
+  RNA-SNP: "/home/luosg/miniconda3/envs/RNA-SNP"
+
+TEtranscripts:
+  human:
+    exon_gtf: "/ChIP_seq_2/Data/index/Homo_sapiens/GENCODE/GRCh38/exon.gtf"
+    TE_gtf: "/ChIP_seq_2/Data/index/Homo_sapiens/GENCODE/GRCh38/GRCh38_GENCODE_rmsk_TE.gtf"
+  mouse:
+    exon_gtf: "/ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/exon.gtf"
+    TE_gtf: "/ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.gtf"
+TElocal:
+  mouse:
+    exon_gtf: "/ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/exon.gtf"
+    TEind: "/ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/TElocal/GRCm39_GENCODE_rmsk_TE.gtf.locInd"
+
+annotation: 
+  mouse: "/ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/geneIDAnnotation.csv"

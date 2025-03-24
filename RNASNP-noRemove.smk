@@ -337,5 +337,6 @@ rule stringTie:
         stringtie -o {output.gtf} {input.bam} > {log.log} 2>&1
         """
 
+#####################annovar########################
 
 

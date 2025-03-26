@@ -306,7 +306,7 @@ MAplot = function (res, outjpeg,mode = "gene",geneAnnotation = "", nlabel = 10, 
   dev.off()
 }
 
-plot_PCANorm = function(res,outjpeg){
+plot_PCANorm = function(res,outjpeg,sampleNumber,controName,experimentName){
   cpm = res[,-c(1:6)]
   # print(head(cpm))
   pca_result <- prcomp(t(cpm))
@@ -318,7 +318,7 @@ plot_PCANorm = function(res,outjpeg){
     Sample = colnames(cpm)
   )
   # 假设样本有分组信息，这里简单模拟
-  pca_data$Group <- factor(rep(c("wild type", "Eif2ak4-/- (GCN2 knock-out)"), each = 3))
+  pca_data$Group <- factor(rep(c(controlName, experimentName), each = sampleNumber))
 
   # 步骤4：绘制PCA图
   p = ggplot(pca_data, aes(x = PC1, y = PC2, color = Group, label = Sample)) +
@@ -438,7 +438,9 @@ sample_annoQ = ce[[3]]
 sampleNumberQ = length(control)
 cat("control:",control,"\n")
 cat("experiment:",experiment,"\n")
-
+cat("sampleNumber:",sampleNumberQ,"\n")
+controlName = pattern[1]
+experimentName = pattern[2]
 
 plot_heatmap = function(res,mode,sample_anno = sample_annoQ,outdir = args$outdir,dataType=""){
     print(sample_anno)
@@ -453,19 +455,49 @@ plot_heatmap = function(res,mode,sample_anno = sample_annoQ,outdir = args$outdir
       downfile = paste(outdir,"DESeq2/upDown/TEcount_",dataType,"_down.csv",sep="")
       updownfile = paste(outdir,"DESeq2/upDown/TEcount_",dataType,"_updown.csv",sep="")
       updown = ScreenFeature(res,upfile,downfile,updownfile)
-      df = rbind(updown[[1]],updown[[2]])
-      updown_heatmap(df,outjpeg=paste(outdir,"DESeq2/heatmap/TEcount_",dataType,"_updown.jpeg",sep=""),coldata = sample_anno)
-      updown_heatmap(updown[[1]],outjpeg=paste(outdir,"DESeq2/heatmap/TEcount_",dataType,"_up.jpeg",sep=""),coldata = sample_anno)
-      updown_heatmap(updown[[2]],outjpeg=paste(outdir,"DESeq2/heatmap/TEcount_",dataType,"_down.jpeg",sep=""),coldata = sample_anno)
+      df_up = updown[[1]]
+      df_down = updown[[2]]
+      df = rbind(df_up,df_down)
+      if ( nrow(df_up) >= 2) {
+        updown_heatmap(df_up,outjpeg=paste(outdir,"DESeq2/heatmap/TEcount_",dataType,"_up.jpeg",sep=""),coldata = sample_anno)
+      } else {
+        print("上调基因数量小于2,无法绘制热图")
+      }
+      if ( nrow(df_down) >= 2) {
+        updown_heatmap(df_down,outjpeg=paste(outdir,"DESeq2/heatmap/TEcount_",dataType,"_down.jpeg",sep=""),coldata = sample_anno)
+        
+      } else {
+        print("下调基因数量小于2,无法绘制热图")
+      }
+      if ( nrow(df) >= 2) {
+        updown_heatmap(df,outjpeg=paste(outdir,"DESeq2/heatmap/TEcount_",dataType,"_updown.jpeg",sep=""),coldata = sample_anno)
+        
+      } else {
+        print("失调基因数量小于2,无法绘制热图")
+      }
     } else if ( mode == "TElocal" ){
         upfile = paste(outdir,"DESeq2/upDown/TElocal_TE_up.csv",sep = "")
         downfile = paste(outdir,"DESeq2/upDown/TElocal_TE_down.csv",sep = "")
         updownfile = paste(outdir,"DESeq2/upDown/TElocal_TE_updown.csv",sep = "")
         updown = ScreenFeature(res,upfile,downfile,updownfile)
-        df = rbind(updown[[1]],updown[[2]])
-        updown_heatmap(df,outjpeg=paste(outdir,"DESeq2/heatmap/TElocal_updown.jpeg",sep=""),coldata = sample_anno)
-        updown_heatmap(updown[[1]],outjpeg=paste(outdir,"DESeq2/heatmap/TElocal_up.jpeg",sep=""),coldata = sample_anno)
-        updown_heatmap(updown[[2]],outjpeg=paste(outdir,"DESeq2/heatmap/TElocal_down.jpeg",sep=""),coldata = sample_anno)
+        df_up = updown[[1]]
+        df_down = updown[[2]]
+        df = rbind(df_up,df_down)
+        if ( nrow(df_up) >= 2) {
+          updown_heatmap(df_up,outjpeg=paste(outdir,"DESeq2/heatmap/TElocal_up.jpeg",sep=""),coldata = sample_anno)
+        } else {
+          print("上调基因数量小于2,无法绘制热图")
+        }
+        if ( nrow(df_down) >= 2) {
+          updown_heatmap(df_down,outjpeg=paste(outdir,"DESeq2/heatmap/TElocal_down.jpeg",sep=""),coldata = sample_anno) 
+        } else {
+          print("下调基因数量小于2,无法绘制热图")
+        }
+        if ( nrow(df) >= 2) {
+          updown_heatmap(df,outjpeg=paste(outdir,"DESeq2/heatmap/TElocal_updown.jpeg",sep=""),coldata = sample_anno)
+        } else {
+          print("失调基因数量小于2,无法绘制热图")
+        }
     } else {
       stop("mode error: During heatmap creation, please enter the correct mode, TEcount or TElocal")
     }
@@ -506,81 +538,83 @@ if (args$mode == "TEcount"){
           dir.create(paste(outdir,"DESeq2/plot/",sep=""),recursive = TRUE,showWarnings = FALSE)
       }
       outjpeg = paste(outdir , "DESeq2/plot/cpmPCA.jpeg",sep = "")
-      plot_PCANorm(res,outjpeg)
-  } else {
-      if ( "all" %in% TEcountMode){
-      ## TEcount_read generate three dataframe: Gene_TE,TE,Gene
-        for ( dataType in names(dfList)){
-          df = dfList[[dataType]]
-          ## DESeq2Analysis generate a list, first element is res(dataframe combine counts), second element is dds(DESeqDataSet object)
-          outfile = paste(outdir,"DESeq2/TEcount_",dataType,".csv",sep="")
-          resDds = DESeq2Analysis(df,resfile = outfile,normMethods = "DESeq2", sampleNumber = sampleNumberQ)
-          if ( dataType == "Gene_TE" ){
-            res1 = resDds[[1]]
-            dds1 = resDds[[2]]
-            res1 = TEFilter(res1)
-              if ( "heatmap" %in% figure){
-                plot_heatmap(res = res1,mode = "TEcount",dataType = dataType)
-              }
-              if ( "volcano" %in% figure){
-                plot_volcano(mode = "TEcount",res = res1,dataType = dataType)
-              }
-          } else {
-          res1 = resDds[[1]]
-          dds1 = resDds[[2]]
+      plot_PCANorm(res,outjpeg,sampleNumberQ,controlName,experimentName)
+  } 
+  if ( "all" %in% TEcountMode){
+  ## TEcount_read generate three dataframe: Gene_TE,TE,Gene
+    for ( dataType in names(dfList)){
+      df = dfList[[dataType]]
+      ## DESeq2Analysis generate a list, first element is res(dataframe combine counts), second element is dds(DESeqDataSet object)
+      outfile = paste(outdir,"DESeq2/TEcount_",dataType,".csv",sep="")
+      resDds = DESeq2Analysis(df,resfile = outfile,normMethods = "DESeq2", sampleNumber = sampleNumberQ)
+      if ( dataType == "Gene_TE" ){
+        res1 = resDds[[1]]
+        dds1 = resDds[[2]]
+        res1 = TEFilter(res1)
           if ( "heatmap" %in% figure){
             plot_heatmap(res = res1,mode = "TEcount",dataType = dataType)
           }
           if ( "volcano" %in% figure){
             plot_volcano(mode = "TEcount",res = res1,dataType = dataType)
           }
-          }
-        }
-      # !("all" %in% TEcountMode)避免重复执行，浪费资源
-      } else if ( "Gene_TE" %in% TEcountMode && !("all" %in% TEcountMode) ){
-        df = dfList[["Gene_TE"]]
-        ## DESeq2Analysis generate a list, first element is res(dataframe combine counts), second element is dds(DESeqDataSet object)
-        outfile = paste(outdir,"DESeq2/TEcount_Gene_TE.csv",sep="")
-        resDds = DESeq2Analysis(df,resfile = outfile,normMethods = "DESeq2", sampleNumber = sampleNumberQ)
-        res1 = resDds[[1]]
-        dds1 = resDds[[2]]
-        res1 = TEFilter(res1)
-        if ( "heatmap" %in% figure){
-          plot_heatmap(res = res1,mode = "TEcount",dataType = "Gene_TE")
-        }
-        if ( "volcano" %in% figure){
-          plot_volcano(mode = "TEcount",res = res1,dataType = "Gene_TE")
-        }
-      #!("all" %in% TEcountMode)避免重复执行，浪费资源
-      } else if ( "TE" %in% TEcountMode && !("all" %in% TEcountMode) ){
-        df = dfList[["TE"]]
-        ## DESeq2Analysis generate a list, first element is res(dataframe combine counts), second element is dds(DESeqDataSet object)
-        outfile = paste(outdir,"DESeq2/TEcount_TE.csv",sep="")
-        resDds = DESeq2Analysis(df,resfile = outfile,normMethods = "DESeq2", sampleNumber = sampleNumberQ)
-        res1 = resDds[[1]]
-        dds1 = resDds[[2]]
-        if ( "heatmap" %in% figure){
-          plot_heatmap(res = res1,mode = "TEcount",dataType = "TE")
-        }
-        if ( "volcano" %in% figure){
-          plot_volcano(mode = "TEcount",res = res1,dataType = "TE")
-        }
-      #!("all" %in% TEcountMode)避免重复执行，浪费资源
-      } else if ( "Gene" %in% TEcountMode !("all" %in% TEcountMode) ){
-        df = dfList[["Gene"]]
-        ## DESeq2Analysis generate a list, first element is res(dataframe combine counts), second element is dds(DESeqDataSet object)
-        outfile = paste(outdir,"DESeq2/TEcount_Gene.csv",sep="")
-        resDds = DESeq2Analysis(df,resfile = outfile,normMethods = "DESeq2", sampleNumber = sampleNumberQ)
-        res1 = resDds[[1]]
-        dds = resDds[[2]]
-        if ( "heatmap" %in% figure){
-          plot_heatmap(res = res1,mode = "TEcount",dataType = "Gene")
-        }
-        if ( "volcano" %in% figure){
-          plot_volcano(mode = "TEcount",res = res1,dataType = "Gene")
-        }
+      } else {
+      res1 = resDds[[1]]
+      dds1 = resDds[[2]]
+      if ( "heatmap" %in% figure){
+        plot_heatmap(res = res1,mode = "TEcount",dataType = dataType)
       }
+      if ( "volcano" %in% figure){
+        plot_volcano(mode = "TEcount",res = res1,dataType = dataType)
+      }
+      }
+    }
+  # !("all" %in% TEcountMode)避免重复执行，浪费资源
+  } else if ( "Gene_TE" %in% TEcountMode && !("all" %in% TEcountMode) ){
+    df = dfList[["Gene_TE"]]
+    ## DESeq2Analysis generate a list, first element is res(dataframe combine counts), second element is dds(DESeqDataSet object)
+    outfile = paste(outdir,"DESeq2/TEcount_Gene_TE.csv",sep="")
+    resDds = DESeq2Analysis(df,resfile = outfile,normMethods = "DESeq2", sampleNumber = sampleNumberQ)
+    res1 = resDds[[1]]
+    dds1 = resDds[[2]]
+    res1 = TEFilter(res1)
+    if ( "heatmap" %in% figure){
+      plot_heatmap(res = res1,mode = "TEcount",dataType = "Gene_TE")
+    }
+    if ( "volcano" %in% figure){
+      plot_volcano(mode = "TEcount",res = res1,dataType = "Gene_TE")
+    }
+  #!("all" %in% TEcountMode)避免重复执行，浪费资源
+  } else if ( "TE" %in% TEcountMode && !("all" %in% TEcountMode) ){
+    df = dfList[["TE"]]
+    ## DESeq2Analysis generate a list, first element is res(dataframe combine counts), second element is dds(DESeqDataSet object)
+    outfile = paste(outdir,"DESeq2/TEcount_TE.csv",sep="")
+    resDds = DESeq2Analysis(df,resfile = outfile,normMethods = "DESeq2", sampleNumber = sampleNumberQ)
+    res1 = resDds[[1]]
+    dds1 = resDds[[2]]
+    if ( "heatmap" %in% figure){
+      plot_heatmap(res = res1,mode = "TEcount",dataType = "TE")
+    }
+    if ( "volcano" %in% figure){
+      plot_volcano(mode = "TEcount",res = res1,dataType = "TE")
+    }
+  #!("all" %in% TEcountMode)避免重复执行，浪费资源
+  } else if ( "Gene" %in% TEcountMode && !("all" %in% TEcountMode) ){
+    df = dfList[["Gene"]]
+    ## DESeq2Analysis generate a list, first element is res(dataframe combine counts), second element is dds(DESeqDataSet object)
+    outfile = paste(outdir,"DESeq2/TEcount_Gene.csv",sep="")
+    resDds = DESeq2Analysis(df,resfile = outfile,normMethods = "DESeq2", sampleNumber = sampleNumberQ)
+    res1 = resDds[[1]]
+    dds = resDds[[2]]
+    if ( "heatmap" %in% figure){
+      plot_heatmap(res = res1,mode = "TEcount",dataType = "Gene")
+    }
+    if ( "volcano" %in% figure){
+      plot_volcano(mode = "TEcount",res = res1,dataType = "Gene")
+    }
+  } else {
+    stop("请输入正确的TEcountMode,Gene_TE,TE,Gene or all")
   }
+
 } else if ( args$mode == "TElocal"){
   ## TElocal_read generate a dataframe: TEsite
   df = TElocal_read(infile,control,experiment)

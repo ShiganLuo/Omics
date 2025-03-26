@@ -11,16 +11,14 @@ def request():
     ##对于能通过依赖关系寻找的中间文件不需要重复定义，否则执行次数会过多
     output = dict()
     ### star_align
-    # output['star_align'] =  expand(outdir + "/2pass/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam", sample_id=samples, genome=genomes)
-    # output['VarientCalling'] = [expand(outdir+"/Split/vcf/{genome}/{sample_id}.vcf.gz",sample_id=samples,genome=genomes)]
-    # output['filter'] = [expand(outdir+"/filter/vcf/{genome}/{sample_id}.vcf.gz",sample_id=samples,genome=genomes)]
-    # output['count_Gene'] = [expand(outdir + "/counts/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam",sample_id=samples,genome=genomes)]
-    # output['count_TE'] = [expand(outdir + "/counts/{sample_id}/{genome}/{sample_id}TElocal.cntTable",sample_id=samples,genome=genomes)]
-    # output['combineTEcount'] = [expand(outdir + "/counts/{genome}TEcount.cntTable",genome=genomes)]
-    # output['combineTElocal'] = [expand(outdir + "/counts/{genome}TElocal.cntTable",genome=genomes)]
-    # output['gtf'] = [expand(outdir + "/2pass/{sample_id}/{genome}/{sample_id}.gtf",sample_id=samples,genome=genomes)]
+    output['star_align'] =  expand(outdir + "/2pass/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam", sample_id=samples, genome=genomes)
+    output['VarientCalling'] = [expand(outdir+"/Split/vcf/{genome}/{sample_id}.vcf.gz",sample_id=samples,genome=genomes)]
+    output['filter'] = [expand(outdir+"/filter/vcf/{genome}/{sample_id}.vcf.gz",sample_id=samples,genome=genomes)]
+    output['count_Gene'] = [expand(outdir + "/counts/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam",sample_id=samples,genome=genomes)]
+    output['count_TE'] = [expand(outdir + "/counts/{sample_id}/{genome}/{sample_id}TElocal.cntTable",sample_id=samples,genome=genomes)]
     output['combineTEcount'] = [expand(outdir + "/counts/{genome}TEcount.cntTable",genome=genomes)]
     output['combineTElocal'] = [expand(outdir + "/counts/{genome}TElocal.cntTable",genome=genomes)]
+    output['gtf'] = [expand(outdir + "/2pass/{sample_id}/{genome}/{sample_id}.gtf",sample_id=samples,genome=genomes)]
     # output['gatk_index'] = []
     return list(output.values())
 # print(request())

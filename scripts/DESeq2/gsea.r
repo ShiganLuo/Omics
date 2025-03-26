@@ -4,6 +4,8 @@ suppressPackageStartupMessages(library(fgsea))
 suppressPackageStartupMessages(library(argparse))
 suppressPackageStartupMessages(library(tibble))
 suppressPackageStartupMessages(library(stringr))
+##to do: fulfill plot_enrichment
+
 prepare_ranked_list <- function(ranked_list) { 
   # if duplicate gene names present, average the values
   if( sum(duplicated(ranked_list$gene_name)) > 0) {
@@ -23,7 +25,7 @@ prepare_ranked_list <- function(ranked_list) {
     # print(ranked_list)
 }
 
-GSEA_prepare = function(res,mode = "gene",AnnotationFile="",outfile=""){
+GSEA_prepare = function(res,mode = "Gene",AnnotationFile="",outfile=""){
   "GSEA_prepare function: prepare the data for GSEA analysis
   AnnotatilFile : gene_id,gene_type,gene_name. gmt file is symbols based" 
   if ( mode == "Gene"){
@@ -57,10 +59,12 @@ waterfall_plot <- function (rnk,geneset,outjpeg,graph_title) {
   fgsea_results <- fgsea(pathways = hallmark_pathway,
                   stats = rnk,
                   minSize = 15,
-                  maxSize = 500
+                  maxSize = 500,
+                  nPermSimple = 10000
                   )
-  fgsea_results %>% arrange (desc(NES)) %>% select (pathway, padj, NES) %>% head()
-
+  fgsea_results <- fgsea_results[!is.na(fgsea_results$pval), ] # remove line whose pval = NA
+  fgsea_results = fgsea_results %>% arrange (desc(NES)) %>% select (pathway, padj, NES) 
+  
   fgsea_results %>% 
     mutate(short_name = str_split_fixed(pathway, "_",2)[,2])%>% # removes 'HALLMARK_' from the pathway title 
     ggplot( aes(reorder(short_name,NES), NES)) +

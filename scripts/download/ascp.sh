@@ -3,8 +3,7 @@
 ## id=$1 should be run number,such as SRR16119550
 ## type=$2 should be LibraryLayout,such as PAIRED
 ## log=$3 should log path
-## dest=$4 should be outdir path
-function GEOdownload(){
+function ENAdownload(){
     #parllel子进程可能访问不到外部变量
     key=~/miniconda3/envs/RNA-SNP/etc/asperaweb_id_dsa.openssh
     id=$1
@@ -45,8 +44,4 @@ function GEOdownload(){
     fi
 }
 # 导出函数
-export -f GEOdownload
-# sralist=/ChIP_seq_2/StemCells/log/download/check.log
-# log=/ChIP_seq_2/StemCells/log/callSNP/ascp_download1.log
-# : > ${log}
-# nohup awk -F " " '$3 == "fq文件不存在" {print $1,$2}' ${sralist} | parallel -j 5 --joblog /ChIP_seq_2/StemCells/log/download/parallel.log --colsep ' ' GEOdownload {1} {2} ${log} > /ChIP_seq_2/StemCells/log/callSNP/ascp.log 2>&1 &
+export -f ENAdownload

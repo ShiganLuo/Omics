@@ -1,3 +1,4 @@
+shell.prefix("set -x; set -e;")
 configfile: "config/RNASNP.yaml"
 indir = config.get('indir', '../data')  # 如果没有传递 indir，则使用 'data' 作为默认值
 outdir = config.get('outdir', '../output')  # 如果没有传递 outdir，则使用 'output' 作为默认值
@@ -19,6 +20,7 @@ def request():
     output['combineTEcount'] = [expand(outdir + "/counts/{genome}TEcount.cntTable",genome=genomes)]
     output['combineTElocal'] = [expand(outdir + "/counts/{genome}TElocal.cntTable",genome=genomes)]
     output['gtf'] = [expand(outdir + "/2pass/{sample_id}/{genome}/{sample_id}.gtf",sample_id=samples,genome=genomes)]
+    output['annovar'] = expand(outdir + "/annovar/{genome}/{sample_id}/{sample_id}.GRCm39_multianno.csv",sample_id=samples,genome=genomes)
     # output['gatk_index'] = []
     return list(output.values())
 # print(request())
@@ -39,7 +41,7 @@ rule trimming:
         outdir=outdir+"/cutadapt",
         quality=30,
         trim_galore="/opt/TrimGalore-0.6.10/trim_galore"
-    threads: 8
+    threads: 6
     log:
         log=outdir+"/log/{sample_id}/trimming.txt"
     shell:
@@ -336,5 +338,92 @@ rule stringTie:
         """
 
 #####################annovar########################
-
-
+rule commonExpression:
+    input:
+        infile = outdir + "/counts/{genome}TEcount.cntTable"
+    output:
+        outfile = outdir + "/counts/{genome}TEcountCommon.cntTable"
+    log:
+        log = outdir + "/log/{genome}/commonExpression.log"
+    conda:
+        config['conda']['RNA-SNP']
+    params:
+        script = "scripts/SNP/commonExpression.py"
+    shell:
+        """
+            python {params.script} --input {input.infile} --output {output.outfile} > {log.log} 2>&1
+        """
+rule getBed:
+    input:
+        infile = outdir + "/counts/{genome}TEcountCommon.cntTable"
+    output:
+        outfile = outdir + "/counts/{genome}TEcountCommon.bed"
+    log:
+        log = outdir + "/log/{genome}/getBed.log"
+    conda:
+        config['conda']['RNA-SNP']
+    params:
+        script = "scripts/SNP/getBed.py",
+        exon_gtf = lambda wildcards: config['getBed'][wildcards.genome]['exon_gtf'],
+        TE_gtf = lambda wildcards: config['getBed'][wildcards.genome]['TE_gtf']
+    shell:
+        """
+            python {params.script} \
+                --input {input.infile} \
+                --output {output.outfile} \
+                --exonGtf {params.exon_gtf} \
+                --TEGtf {params.TE_gtf} > {log.log} 2>&1
+        """
+rule vcfIntersectBed:
+    input:
+        vcf = outdir + "/filter/vcf/{genome}/{sample_id}.vcf.gz",
+        bed = outdir + "/counts/{genome}TEcountCommon.bed"
+    output:
+        outfile = outdir + "/filter/vcf/{genome}/{sample_id}Common.vcf"
+    log:
+        log = outdir + "/log/{genome}/{sample_id}/vcfIntersectBed.log"
+    conda:
+        config['conda']['RNA-SNP']
+    shell:
+        """
+            bedtools intersect -a {input.vcf} -b {input.bed} -wa -wb > {output.outfile} 2>{log.log}
+        """
+rule annovar_convert:
+    input:
+        vcf = outdir + "/filter/vcf/{genome}/{sample_id}Common.vcf"
+    output:
+        avinput = outdir + "/annovar/{genome}/{sample_id}/{sample_id}.avinput"
+    log:
+        log = outdir + "/log/{genome}/{sample_id}/annovar_convert.log"
+    params:
+        convert = "/opt/annovar/convert2annovar.pl"
+    shell:
+        """
+        /usr/bin/perl {params.convert} \
+        -format vcf4 \
+        -withfreq {input.vcf} > {output.avinput} 2>{log.log}
+        """
+rule annovar_table:
+    input:
+        avinput = outdir + "/annovar/{genome}/{sample_id}/{sample_id}.avinput"
+    output:
+        outfile = outdir + "/annovar/{genome}/{sample_id}/{sample_id}.GRCm39_multianno.csv"
+    log:
+        log = outdir + "/log/{genome}/{sample_id}/annovar_table.log"
+    params:
+        db = lambda wildcards: config['annovar'][wildcards.genome]['db'],
+        buildver = lambda wildcards: config['annovar'][wildcards.genome]['buildver'],
+        # annotate = "/opt/annovar/annotate_variation.pl",
+        table = "/opt/annovar/table_annovar.pl",
+        out = outdir + "/annovar/{genome}/{sample_id}/{sample_id}"
+    shell:
+        """
+        /usr/bin/perl {params.table} \
+        {input.avinput} {params.db} \
+        -buildver {params.buildver} \
+        -out {params.out} \
+        -remove -protocol refGene \
+        -operation g \
+        -nastring . \
+        -csvout > {log.log} 2>&1
+        """

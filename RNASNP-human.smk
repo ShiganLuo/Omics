@@ -1,3 +1,4 @@
+shell.prefix("set -x; set -e;")
 configfile: "config/RNASNP.yaml"
 indir = config.get('indir', '../data')  # 如果没有传递 indir，则使用 'data' 作为默认值
 outdir = config.get('outdir', '../output')  # 如果没有传递 outdir，则使用 'output' 作为默认值

@@ -8,12 +8,14 @@ function NCBIdownload(){
         prefetch $1 -O ${outdir}
         mv ${1}/${1}.sra ./
         fastq-dump --split-3 --gzip ${1}.sra
+        #--split-files
 
     }
-    if prefetch $ID -O /ChIP_seq_2/StemCells/data/fq;then
+    if pre_donwload $ID -O /ChIP_seq_2/StemCells/data/fq;then
         echo "${ID} 下载成功" >> ${log}
     else
         echo "${ID} 下载失败" >> ${log}
+    
 
 }
 export -f NCBIdownload

@@ -1,5 +1,6 @@
 #!/bin/bash
 # conda:RAN-SNP
+#########################prepare for fq###########################
 source workflow/scripts/download/metadata.sh
 function GSMInfo(){
     sampleInfo="data/GSM.csv"
@@ -11,17 +12,19 @@ export -f GSMInfo
 # GSMInfo
 source workflow/scripts/download/ascp.sh
 function fqDownload(){
-    sampleInfo="data/sampleInfo.csv"
-    log="log/fqDownload.log"
-    dest="data/fq"
+    # sampleInfo="data/sampleInfo.csv"
+    # log="log/fqDownload.log"
+    # dest="data/fq"
     # awk -F'\t' '{print $3,$6}' ${sampleInfo} | while read -r SRR layout;do
     #     echo "ENAdownload ${SRR} ${layout} ${log} ${dest}"
     # done | parallel -j 4
     # ENAdownload SRR25808408 PAIRED log/fqDownload.log data/fq
     # Ensure sufficient network bandwidth,otherwise the download fastq.gz may be damaged.
-    ENAdownload SRR25808406 PAIRED log/fqDownload.log data/fq
-    ENAdownload SRR25808407 PAIRED log/fqDownload.log data/fq
-    ENAdownload SRR25808409 PAIRED log/fqDownload.log data/fq
+    # ENAdownload SRR15731262 PAIRED log/fqDownload.log data/GSE183522/fq
+    ENAdownload SRR16117863 PAIRED log/fqDownload.log data/GSE185005/fq
+
+
 }
 export -f fqDownload
-fqDownload 
+fqDownload
+#########################prepare for annovar###########################

@@ -42,3 +42,14 @@ TElocal:
 
 annotation: 
   mouse: "/ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/geneIDAnnotation.csv"
+
+getBed:
+  mouse:
+    exon_gtf: "/ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/exon.gtf"
+    TE_gtf: "/ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.gtf"
+
+annovar:
+  mouse:
+    db: "/ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/annovar/GRCm39/"
+    buildver: "GRCm39"
+

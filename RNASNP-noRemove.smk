@@ -28,7 +28,7 @@ rule all:
     input:
         request()
         
-rule trimming:
+rule trimming_PAIRED:
     input:
         fastq1=indir+"/fq/{sample_id}_1.fq.gz",
         fastq2=indir+"/fq/{sample_id}_2.fq.gz"
@@ -53,7 +53,26 @@ rule trimming:
         mv {params.outdir}/{wildcards.sample_id}_1.fq.gz_trimming_report.txt {output.report1}
         mv {params.outdir}/{wildcards.sample_id}_2.fq.gz_trimming_report.txt {output.report2}
         """
-
+rule trimming_SINGLE:
+    input:
+        fastq=indir+"/fq/{sample_id}.fq.gz"
+    output:
+        fastq=outdir+"/cutadapt/{sample_id}.fq.gz",
+        report=outdir+"/log/{sample_id}/trimming_statistics.txt"
+    params:
+        outdir=outdir+"/cutadapt",
+        quality=30,
+        trim_galore="/opt/TrimGalore-0.6.10/trim_galore"
+    threads: 6
+    log:
+        log=outdir+"/log/{sample_id}/trimming.txt"
+    shell:
+        """
+        {params.trim_galore} --phred33 --cores {threads} --quality {params.quality} \
+            -o {params.outdir} --basename {wildcards.sample_id} {input.fastq} > {log.log} 2>&1
+        mv {params.outdir}/{wildcards.sample_id}_val.fq.gz {output.fastq}
+        mv {params.outdir}/{wildcards.sample_id}.fq.gz_trimming_report.txt {output.report}
+        """
 
 # rule star_index:
 #     input:
@@ -384,6 +403,7 @@ rule vcfIntersectBed:
         log = outdir + "/log/{genome}/{sample_id}/vcfIntersectBed.log"
     conda:
         config['conda']['RNA-SNP']
+    threads:4 #防止同时执行太多，爆内存
     shell:
         """
             bedtools intersect -a {input.vcf} -b {input.bed} -wa -wb > {output.outfile} 2>{log.log}
@@ -397,6 +417,7 @@ rule annovar_convert:
         log = outdir + "/log/{genome}/{sample_id}/annovar_convert.log"
     params:
         convert = "/opt/annovar/convert2annovar.pl"
+    threads:4 #防止同时执行太多，爆内存
     shell:
         """
         /usr/bin/perl {params.convert} \
@@ -416,6 +437,7 @@ rule annovar_table:
         # annotate = "/opt/annovar/annotate_variation.pl",
         table = "/opt/annovar/table_annovar.pl",
         out = outdir + "/annovar/{genome}/{sample_id}/{sample_id}"
+    threads:4 #防止同时执行太多，爆内存
     shell:
         """
         /usr/bin/perl {params.table} \

@@ -10,10 +10,17 @@ for DESeq.r, gsea.r you can Rscript script.r --help for quickly know how to use 
 
 20250326:
 
+    - 支持命令行方式传递参数
+    - 合并kegg.r和go.r
+
+20250326:
+
     - 修复TEcoutnmode
     - DESeq2.r支持根据group.csv调整DESeq2condition
     - 修复plot_PCANorm写死样本数目和样本组名称的错误
     - plot_heatmap()函数添加判断只有上调、下调或失调基因数量大于2才进行热图绘制，防止程序中断
+20250328:
+    - TEsite_subfamily添加命令行参数支持
 
 ## geas.r
 
@@ -26,6 +33,4 @@ temporary for mouse
 
 for go-kegg.r you can Rscript script.r --help for quickly know how to use it.
 
-20250326:
-    - 支持命令行方式传递参数
-    - 合并kegg.r和go.r
+

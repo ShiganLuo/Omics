@@ -21,8 +21,18 @@ function fqDownload(){
     # ENAdownload SRR25808408 PAIRED log/fqDownload.log data/fq
     # Ensure sufficient network bandwidth,otherwise the download fastq.gz may be damaged.
     # ENAdownload SRR15731262 PAIRED log/fqDownload.log data/GSE183522/fq
-    ENAdownload SRR16117863 PAIRED log/fqDownload.log data/GSE185005/fq
-
+    # ENAdownload SRR16117863 PAIRED log/fqDownload.log data/GSE185005/fq
+    # ENAdownload SRR16117860 PAIRED log/fqDownload.log data/GSE185005/fq
+    # ENAdownload SRR16117857 PAIRED log/fqDownload.log data/GSE185005/fq
+    ENAdownload SRR23635563 PAIRED log/fqDownload.log data/GSE224794/fq
+    ENAdownload SRR18181017 PAIRED log/fqDownload.log data/GSE204801/fq
+    ENAdownload SRR18181018 PAIRED log/fqDownload.log data/GSE204801/fq
+    ENAdownload SRR18181020 PAIRED log/fqDownload.log data/GSE204801/fq
+    ENAdownload SRR13633379 PAIRED log/fqDownload.log data/GSE166216/fq
+    ENAdownload SRR13633380 PAIRED log/fqDownload.log data/GSE166216/fq
+    ENAdownload SRR13633381 PAIRED log/fqDownload.log data/GSE166216/fq
+    ENAdownload SRR13633383 PAIRED log/fqDownload.log data/GSE166216/fq
+    
 
 }
 export -f fqDownload

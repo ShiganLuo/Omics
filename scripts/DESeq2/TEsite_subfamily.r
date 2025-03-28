@@ -1,6 +1,7 @@
 suppressPackageStartupMessages(library(dplyr))
 suppressPackageStartupMessages(library(tidyr))
 suppressPackageStartupMessages(library(ggplot2))
+suppressPackageStartupMessages(library(argparse))
 TEsiteSta = function(df,outjpeg,top = 10,mainTitle="TE subfamily",outfile = ""){
     df <- df %>% mutate(index = rownames(df)) %>%
     separate(index, into = c("site", "subfamily", "family", "class"), sep = ":")
@@ -26,19 +27,42 @@ TEsiteSta = function(df,outjpeg,top = 10,mainTitle="TE subfamily",outfile = ""){
         plot.title = element_text(hjust = 0.5),  # 标题居中
         axis.title = element_text(colour = "black"),  # 设置坐标轴标题颜色
         axis.text.x = element_text(angle = 90, hjust = 1)
-    )+
-    scale_fill_manual(values = family_color_mapping)
+    )
     jpeg(width = 150, height = 150, units = "mm", res = 300, file = outjpeg)
         print(p)
     dev.off()
 
 }
-infile = "/ChIP_seq_2/StemCells/RNASNP202503/waitingflow/output/DESeq2/upDown/TElocal_TE_up.csv"
-outjpeg = "output/DESeq2/TE/TElocal_TE_up_subfamily.jpeg"
-df = read.csv(infile,sep = "\t",header = T,row.names=1)
-TEsiteSta(df,outjpeg,mainTitle = "Upregulated TEs",outfile = "output/DESeq2/TE/TElocal_TE_up_subfamily.csv")
+parser <- ArgumentParser(description='TE subfamily statistics for TElocal using DESeq2 results')
+parser$add_argument('-u', '--up', type='character',required = TRUE,
+                    help='path to upregulated TElocal DESeq2 result file')
+parser$add_argument('-d', '--down', type='character',required = TRUE,
+                    help='path to downregulated TElocal DESeq2 result file')
+parser$add_argument('-o', '--outdir', type='character', required=TRUE,
+                    help='path to output dir')
+parser$add_argument('-t', '--graphTitle', type='character', default="",
+                    help='graph title suffix')
+args <- parser$parse_args()
+up = args$up
+down = args$down
+outdir = args$outdir
+graphTitle = args$graphTitle
+print(paste("upregulated TElocal DESeq2 result file:",up,sep=""))
+print(paste("downregulated TElocal DESeq2 result file:",down,sep=""))
+print(paste("output dir:",outdir,sep=""))
+print(paste("graph title: ",graphTitle,sep=""))
+if ( !dir.exists(paste(outdir,"DESeq2/TE/",sep=""))){
+    dir.create(paste(outdir,"DESeq2/TE/",sep=""),recursive = TRUE,showWarnings = FALSE)
+}
 
-infile = "/ChIP_seq_2/StemCells/RNASNP202503/waitingflow/output/DESeq2/upDown/TElocal_TE_down.csv"
-outjpeg = "output/DESeq2/TE/TElocal_TE_down_subfamily.jpeg"
-df = read.csv(infile,sep = "\t",header = T,row.names=1)
-TEsiteSta(df,outjpeg,mainTitle = "Downregulated TEs",outfile = "output/DESeq2/TE/TElocal_TE_down_subfamily.csv")
+outjpeg = paste(outdir,"DESeq2/TE/TElocal_TE_up_subfamily.jpeg",sep="")
+title = paste("Upregulated TE subfamily after",graphTitle,sep="")
+outfile = paste(outdir,"DESeq2/TE/TElocal_TE_up_subfamily.csv",sep="")
+df = read.csv(up,sep = "\t",header = T,row.names=1)
+TEsiteSta(df,outjpeg,mainTitle = title,outfile = outfile)
+
+outjpeg = paste(outdir,"DESeq2/TE/TElocal_TE_down_subfamily.jpeg",sep="")
+title = paste("Downregulated TE subfamily after",graphTitle,sep="")
+outfile = paste(outdir,"DESeq2/TE/TElocal_TE_down_subfamily.csv",sep="")
+df = read.csv(down,sep = "\t",header = T,row.names=1)
+TEsiteSta(df,outjpeg,mainTitle = title,outfile = outfile)

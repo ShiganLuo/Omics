@@ -14,6 +14,7 @@ def combineTE(infiles: list[str],outfile: str,split:str):
     for infile in infiles:
         newColName = os.path.basename(infile).split(f"{split}")[0]
         print(newColName)
+        #默认会去除引号，可以使用 quotechar 参数来指定如何处理引号，quotechar='"'保留
         df = pd.read_csv(infile,sep="\t",header=0)
         df.columns.values[1] = newColName
         dfList.append(df)
@@ -36,7 +37,7 @@ def getTE(df:pd.DataFrame,outfile:str):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="A script to combine the output of TEcount and TElocal.")
-    parser.add_argument('-p','--procedure',type=str,required=True,choices=['TEcount', 'TElocal'],
+    parser.add_argument('-p','--procedure',type=str,required=True,choices=['TEcount', 'TElocal','TEcountStringTie'],
                         help="name of your procedur,TEcount or TElocal")
     parser.add_argument('-i','--inputDir',type=str,required=True,help="Directory path of your input file")
     parser.add_argument('-o','--output',type=str,required=True,help="Path to your output file")
@@ -56,3 +57,12 @@ if __name__ == "__main__":
         # df = pd.read_csv(outfile,sep="\t",header=0)
         # outfile = "output/RNASNP202503TElocal_TE.cntTable"
         # getTE(df,outfile)
+    elif args.procedure == "TEcountStringTie":
+        ## TEStringtie
+        infiles = fileList(args.inputDir,"TEcountStringTie.cntTable")
+        print(f"TEcountStringTie.cntTable file path : {infiles}")
+        combineTE(infiles,args.output,"TEcountStringTie")
+        print(f"write file into {args.output}")
+    else:
+        print(f"Please check your procedure name {args.procedure},muste be TEcount or TElocal or TEcountStringTie")
+        exit(1)

@@ -4,7 +4,7 @@ indir = config.get('indir', '../data')  # 如果没有传递 indir，则使用 '
 outdir = config.get('outdir', '../output')  # 如果没有传递 outdir，则使用 'output' 作为默认值
 samples = glob_wildcards(indir + "/fq/{sample_id}_1.fq.gz").sample_id
 # genomes = ['human','mouse']
-genomes = ['mouse']
+genomes = ['human','mouse']
 print("数据输入路径:", indir,"\t数据输出路径:", outdir)   
 print(samples)
 print(config['genome'])
@@ -12,15 +12,11 @@ def request():
     ##对于能通过依赖关系寻找的中间文件不需要重复定义，否则执行次数会过多
     output = dict()
     ### star_align
-    output['star_align'] =  expand(outdir + "/2pass/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam", sample_id=samples, genome=genomes)
-    output['VarientCalling'] = [expand(outdir+"/Split/vcf/{genome}/{sample_id}.vcf.gz",sample_id=samples,genome=genomes)]
-    output['filter'] = [expand(outdir+"/filter/vcf/{genome}/{sample_id}.vcf.gz",sample_id=samples,genome=genomes)]
-    output['count_Gene'] = [expand(outdir + "/counts/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam",sample_id=samples,genome=genomes)]
-    output['count_TE'] = [expand(outdir + "/counts/{sample_id}/{genome}/{sample_id}TElocal.cntTable",sample_id=samples,genome=genomes)]
-    output['combineTEcount'] = [expand(outdir + "/counts/{genome}TEcount.cntTable",genome=genomes)]
-    output['combineTElocal'] = [expand(outdir + "/counts/{genome}TElocal.cntTable",genome=genomes)]
-    output['gtf'] = [expand(outdir + "/2pass/{sample_id}/{genome}/{sample_id}.gtf",sample_id=samples,genome=genomes)]
-    output['annovar'] = expand(outdir + "/annovar/{genome}/{sample_id}/{sample_id}.GRCm39_multianno.csv",sample_id=samples,genome=genomes)
+    # output['star_align'] =  expand(outdir + "/2pass/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam", sample_id=samples, genome=genomes)
+    ### xenofilter
+    output['xenofilter'] = [outdir + "/xenofilterR/bam"]
+    output['VarientCalling'] = [expand(outdir+"/Split/vcf/{sample_id}.vcf.gz",sample_id=samples)]
+    output['filter'] = [expand(outdir+"/filter/vcf/{sample_id}.vcf.gz",sample_id=samples)]
     # output['gatk_index'] = []
     return list(output.values())
 # print(request())
@@ -28,22 +24,22 @@ rule all:
     input:
         request()
         
-rule trimming_PAIRED:
+rule trimming:
     input:
-        fastq1=indir+"/fq/{sample_id}_1.fq.gz",
-        fastq2=indir+"/fq/{sample_id}_2.fq.gz"
+        fastq1 = indir + "/fq/{sample_id}_1.fq.gz",
+        fastq2 = indir + "/fq/{sample_id}_2.fq.gz"
     output:
-        fastq1=outdir+"/cutadapt/{sample_id}_1.fq.gz",
-        fastq2=outdir+"/cutadapt/{sample_id}_2.fq.gz",
-        report1=outdir+"/log/{sample_id}/trimming_statistics_1.txt",
-        report2=outdir+"/log/{sample_id}/trimming_statistics_2.txt"
+        fastq1 = outdir + "/cutadapt/{sample_id}_1.fq.gz",
+        fastq2 = outdir + "/cutadapt/{sample_id}_2.fq.gz",
+        report1 = outdir + "/log/human/{sample_id}/trimming_statistics_1.txt",
+        report2 = outdir + "/log/human/{sample_id}/trimming_statistics_2.txt"
     params:
         outdir=outdir+"/cutadapt",
         quality=30,
         trim_galore="/opt/TrimGalore-0.6.10/trim_galore"
-    threads: 6
+    threads: 8
     log:
-        log=outdir+"/log/{sample_id}/trimming.txt"
+        log=outdir+"/log/human/{sample_id}/trimming.txt"
     shell:
         """
         {params.trim_galore} --phred33 --paired  --cores {threads} --quality {params.quality} \
@@ -53,26 +49,7 @@ rule trimming_PAIRED:
         mv {params.outdir}/{wildcards.sample_id}_1.fq.gz_trimming_report.txt {output.report1}
         mv {params.outdir}/{wildcards.sample_id}_2.fq.gz_trimming_report.txt {output.report2}
         """
-rule trimming_SINGLE:
-    input:
-        fastq=indir+"/fq/{sample_id}.fq.gz"
-    output:
-        fastq=outdir+"/cutadapt/{sample_id}.fq.gz",
-        report=outdir+"/log/{sample_id}/trimming_statistics.txt"
-    params:
-        outdir=outdir+"/cutadapt",
-        quality=30,
-        trim_galore="/opt/TrimGalore-0.6.10/trim_galore"
-    threads: 6
-    log:
-        log=outdir+"/log/{sample_id}/trimming.txt"
-    shell:
-        """
-        {params.trim_galore} --phred33 --cores {threads} --quality {params.quality} \
-            -o {params.outdir} --basename {wildcards.sample_id} {input.fastq} > {log.log} 2>&1
-        mv {params.outdir}/{wildcards.sample_id}_val.fq.gz {output.fastq}
-        mv {params.outdir}/{wildcards.sample_id}.fq.gz_trimming_report.txt {output.report}
-        """
+
 
 # rule star_index:
 #     input:
@@ -82,7 +59,6 @@ rule trimming_SINGLE:
 #         genome_index = directory("/ChIP_seq_2/Data/index/Homo_sapiens/GENCODE/GRCh38/star")
 #     log:
 #         log=outdir+"/log/{genome}/star_index.log"
-#       threads:16
 #     params:
 #         STAR = config["STAR"]["procedure"],
 #         read_length = config["STAR"]["read_length"],
@@ -90,7 +66,7 @@ rule trimming_SINGLE:
 #     shell:
 #         """
 #         {params.STAR} --runMode genomeGenerate \
-#             --runThreadN {threads} \
+#             --runThreadN {params.index_core} \
 #             --genomeDir {output.genome_index} \
 #             --genomeFastaFiles {input.genome_fa} \
 #             --sjdbGTFfile {input.genome_gtf} \
@@ -105,7 +81,7 @@ rule star_align:
     output:
         outfile = outdir + "/2pass/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam"
     log:
-        log=outdir+"/log/{sample_id}/{genome}/star_align.log"
+        log=outdir+"/log/human/{sample_id}/{genome}/star_align.log"
     threads:25
     params:
         outPrefix = outdir + "/2pass/{sample_id}/{genome}/{sample_id}",
@@ -122,19 +98,69 @@ rule star_align:
             --outSAMattributes NM \
             --outFileNamePrefix {params.outPrefix} > {log.log} 2>&1
         """
-
-rule addReadsGroup:
+# 生成Xenofilter输入CSV,第一列为比对到需要的基因组bam，第二列比对到怀疑有小鼠基因组污染的bam
+rule generate_xenofilter_input:
     input:
-        bam = outdir + "/2pass/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam"
+        expand(outdir + "/2pass/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam", 
+               sample_id=samples, genome=genomes)
     output:
-        bam = temp(outdir + "/RG/{genome}/{sample_id}.bam"),
-        bai = temp(outdir + "/RG/{genome}/{sample_id}.bam.bai")
+        csvIn = outdir + "/xenofilterR/xenofilterR_input.csv",
+        csvRe = outdir +"/xenofilterR/xenofilterR_reName.csv"
+    run:
+        import csv
+        with open(output.csvIn, 'w', newline='') as f:
+            writer = csv.writer(f)
+            for sample in samples:
+                row = [
+                    f"{outdir}/2pass/{sample}/human/{sample}Aligned.sortedByCoord.out.bam",
+                    f"{outdir}/2pass/{sample}/mouse/{sample}Aligned.sortedByCoord.out.bam"
+                ]
+                writer.writerow(row)
+        with open(output.csvRe, 'w', newline='') as f:
+            writer = csv.writer(f)
+            for sample in samples:
+                row = [f"{sample}_xenofilterR"]
+                writer.writerow(row)
+
+
+# XenofilterR处理规则
+rule XenofilterR:
+    input:
+        csvIn = outdir + "/xenofilterR/xenofilterR_input.csv",
+        csvRe = outdir +"/xenofilterR/xenofilterR_reName.csv"
+    output:
+        outdir = directory(outdir + "/xenofilterR/bam")
     log:
-        log = outdir + "/log/{genome}/{sample_id}/addReadsGroup.log"
+        log = outdir + "/log/human/XenofilterR.log"
+    threads: 3
+    params:
+        script = "scripts/XenofilteR.r",
+        threshold=8
+    shell:
+        """
+        #-p不仅递归创建还不会警告
+        mkdir -p {output.outdir}
+        /usr/bin/Rscript {params.script} \
+            --inputFile {input.csvIn} \
+            --renameFile {input.csvRe} \
+            --outputDir {output.outdir} \
+            --MM {params.threshold} \
+            --workers {threads} > {log.log} 2>&1
+        """
+#####################SNP########################
+rule  addReadsGroup:
+    input:
+        outdir = outdir + "/xenofilterR/bam",
+    output:
+        bam = temp(outdir + "/RG/{sample_id}.bam"),
+        bai = temp(outdir + "/RG/{sample_id}.bam.bai")
+    log:
+        log = outdir + "/log/human/{sample_id}/addReadsGroup.log"
     threads:16
     conda:
         config['conda']['cfDNA_base']
     params:
+        bam = outdir + "/xenofilterR/bam/Filtered_bams/{sample_id}_xenofilterR_Filtered.bam",#放入params躲避检查，隐式依赖
         id="{sample_id}",
         java="--java-options -Xmx15G",
         RGLB=config["addReadsGroup"]["RGLB"],
@@ -144,43 +170,60 @@ rule addReadsGroup:
         """
         echo "sample_id: {wildcards.sample_id}" >> {log.log}
         gatk AddOrReplaceReadGroups {params.java} \
-            --INPUT {input.bam} --OUTPUT {output.bam} \
+            --INPUT {params.bam} --OUTPUT {output.bam} \
             -SO coordinate --RGLB {params.RGLB} --RGPL {params.RGPL} --RGPU {params.RGPU} --RGSM {params.id} > {log.log} 2>&1
         samtools index -@ {threads} {output.bam} >> {log.log} 2>&1
         """
 rule MarkDuplicates:
     input:
-        bam = outdir + "/RG/{genome}/{sample_id}.bam"
+        bam=outdir+"/RG/{sample_id}.bam"
     output:
-        bam=temp(outdir+"/bam-sorted-Markdup/{genome}/{sample_id}.bam"),
-        bai=temp(outdir+"/bam-sorted-Markdup/{genome}/{sample_id}.bai"),
-        metrics=temp(outdir+"/log/{genome}/{sample_id}/Markdup-metrics.txt")
+        bam=temp(outdir+"/bam-sorted-Markdup/{sample_id}.bam"),
+        bai=temp(outdir+"/bam-sorted-Markdup/{sample_id}.bai"),
+        metrics=temp(outdir+"/log/{sample_id}/Markdup-metrics.txt")
     log:
-        log=outdir+"/bam-sorted-Markdup/log/{genome}/{sample_id}/MarkDuplicates.log"
+        log=outdir+"/bam-sorted-Markdup/log/{sample_id}/MarkDuplicates.log"
     threads: 16
     conda:
         config['conda']['cfDNA_base']
+    params:
+        javaOptions="-Xms20g -Xmx30g -XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10"
     shell:
         """
-        gatk MarkDuplicates \
+        gatk --java-options "{params.javaOptions}" MarkDuplicates \
             --INPUT {input.bam} \
             --OUTPUT {output.bam}   \
             --CREATE_INDEX true \
             --VALIDATION_STRINGENCY SILENT \
             --METRICS_FILE {output.metrics} > {log.log} 2>&1
         """
+# rule gatk_index:
+#     input:
+#         genome=config['genome']['human']
+#     output:
+#         outdict="/ChIP_seq_2/Data/index/Homo_sapiens/GENCODE/GRCh38/GRCh38.primary_assembly.genome.dict"
+#     log:
+#         log=outdir+"/log/gatk_index.log"
+#     conda:
+#         config['conda']['cfDNA_base']
+#     params:
+#     shell:
+#         """
+#         gatk CreateSequenceDictionary -R {input.genome} -O {output.outdict} > {log.log} 2>&1
+#         samtools faidx {input.genome} >> {log.log} 2>&1
+#         """
 
 rule SplitNCigarReads:
     input:
-        genome = lambda wildcards: config['genome'][wildcards.genome],
-        bam=outdir+"/bam-sorted-Markdup/{genome}/{sample_id}.bam",
-        indict = lambda wildcards: config['genome_dict'][wildcards.genome]
+        genome=config['genome']['human'],
+        bam=outdir+"/bam-sorted-Markdup/{sample_id}.bam",
+        indict=config['genome_dict']['human']
     output:
-        bam = outdir+"/Split/bam/{genome}/{sample_id}.bam"
+        bam = outdir+"/Split/bam/{sample_id}.bam"
     params:
         javaOptions="-Xms20g -Xmx30g -XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10"
     log:
-        log=outdir+"/log/{genome}/{sample_id}/SplitNCigarReads.log"
+        log=outdir+"/log/human/{sample_id}/SplitNCigarReads.log"
     conda:
         config['conda']['cfDNA_base']
     shell:
@@ -192,14 +235,14 @@ rule SplitNCigarReads:
       """
 rule VarientCalling:
     input:
-        genome = lambda wildcards: config['genome'][wildcards.genome],
-        bam=outdir+"/Split/bam/{genome}/{sample_id}.bam"
+        genome=config['genome']['human'],
+        bam=outdir+"/Split/bam/{sample_id}.bam"
     output:
-        vcf=outdir+"/Split/vcf/{genome}/{sample_id}.vcf.gz"
+        vcf=outdir+"/Split/vcf/{sample_id}.vcf.gz"
     conda:
         config['conda']['cfDNA_base']
     log:
-        log=outdir+"/log/{genome}/{sample_id}/VarientCalling.log"
+        log=outdir+"/log/human/{sample_id}/VarientCalling.log"
     params:
         javaOptions="-Xms20g -Xmx30g -XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10"
     shell:
@@ -214,17 +257,17 @@ rule VarientCalling:
         """
 rule vcf_filter:
     input:
-        genome = lambda wildcards: config['genome'][wildcards.genome],
-        vcf=outdir+"/Split/vcf/{genome}/{sample_id}.vcf.gz",
+        genome=config['genome'],
+        vcf=outdir+"/Split/vcf/{sample_id}.vcf.gz",
     output:
-        vcf=outdir+"/filter/vcf/{genome}/{sample_id}.vcf.gz",
+        vcf=outdir+"/filter/vcf/{sample_id}.vcf.gz",
     log:
-        log=outdir+"/log/{genome}/{sample_id}/vcf_filter.log"
+        log=outdir+"/log/human/{sample_id}/vcf_filter.log"
     conda:
         config['conda']['cfDNA_base']
     params:
-        javaOptions="-Xms20g -Xmx30g -XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10",
-        vcf = outdir+"/filter/vcf/{genome}/{sample_id}.vcf",
+        javaOptions="-Xms20g -Xmx30g -XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10"
+        vcf = outdir+"/filter/vcf/{sample_id}.vcf",
     shell:
         """
         gatk --java-options "{params.javaOptions}" VariantFiltration \
@@ -246,12 +289,12 @@ rule TEtranscript_prepare:
         fastq2 = outdir + "/cutadapt/{sample_id}_2.fq.gz",
         genome_index = lambda wildcards: config['STAR'][wildcards.genome]['genome_index']
     output:
-        outfile = outdir + "/counts/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam"
+        outfile = outdir + "/counts/{sample_id}/human/{sample_id}Aligned.sortedByCoord.out.bam"
     log:
-        log=outdir+"/log/{genome}/{sample_id}/TEtranscript_prepare.log"
+        log=outdir+"/log/human/{sample_id}/TEtranscript_prepare.log"
     threads: 15
     params:
-        outPrefix = outdir + "/counts/{sample_id}/{genome}/{sample_id}",
+        outPrefix = outdir + "/counts/{sample_id}/human/{sample_id}",
         STAR = config["STAR"]["procedure"]
     shell:
         """
@@ -266,16 +309,16 @@ rule TEtranscript_prepare:
         """
 rule TEcount:
     input:
-        bam = outdir + "/counts/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam"
+        bam = outdir + "/counts/{sample_id}/human/{sample_id}Aligned.sortedByCoord.out.bam"
     output:
-        project = outdir + "/counts/{sample_id}/{genome}/{sample_id}TEcount.cntTable"
+        project = outdir + "/counts/{sample_id}/human/{sample_id}TEcount.cntTable"
     params:
         project = "{sample_id}TEcount",
-        outdir = outdir + "/counts/{sample_id}/{genome}",
+        outdir = outdir + "/counts/{sample_id}/human",
         TE_gtf = lambda wildcards: config['TEtranscripts'][wildcards.genome]['TE_gtf'],
         exon_gtf = lambda wildcards: config['TEtranscripts'][wildcards.genome]['exon_gtf']
     log:
-        log=outdir+"/log/{genome}/{sample_id}/TEtranscripts.log"
+        log=outdir+"/log/human/{sample_id}/TEtranscripts.log"
     conda:
         config['conda']['TE']
     shell:
@@ -288,32 +331,32 @@ rule TEcount:
 
 rule combine_TEcount:
     input:
-        fileList = expand(outdir + "/counts/{sample_id}/{genome}/{sample_id}TEcount.cntTable",sample_id=samples,genome=genomes)
+        fileList = expand(outdir + "/counts/{sample_id}/human/{sample_id}TEcount.cntTable",sample_id=samples,genome=genomes)
     output:
-        outfile = outdir + "/counts/{genome}TEcount.cntTable"
+        outfile = outdir + "/counts/humanTEcount.cntTable"
     conda:
         config['conda']['RNA-SNP']
     params:
         combineTE = "scripts/combineTE.py",
         indir = outdir + "/counts"
     log:
-        log = outdir + "/log/{genome}/combine_TEcount.log"
+        log = outdir + "/log/human/combine_TEcount.log"
     shell:
         """
         python {params.combineTE} -p TEcount -i {params.indir} -o {output.outfile} > {log.log} 2>&1
         """
 rule TElocal:
     input:
-        bam = outdir + "/counts/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam"
+        bam = outdir + "/counts/{sample_id}/human/{sample_id}Aligned.sortedByCoord.out.bam"
     output:
-        project = outdir + "/counts/{sample_id}/{genome}/{sample_id}TElocal.cntTable"
+        project = outdir + "/counts/{sample_id}/human/{sample_id}TElocal.cntTable"
     params:
         project = "{sample_id}TElocal",
         TE = lambda wildcards: config['TElocal'][wildcards.genome]['TEind'],
         GTF = lambda wildcards: config['TElocal'][wildcards.genome]['exon_gtf'],
         procedure = "/opt/TElocal/TElocal"
     log:
-        log = outdir+"/log/{genome}/{sample_id}/TElocal.log"
+        log = outdir+"/log/human/{sample_id}/TElocal.log"
     conda:
         config['conda']['TElocal']
     shell:
@@ -327,16 +370,16 @@ rule TElocal:
 
 rule combine_TElocal:
     input:
-        fileList = expand(outdir + "/counts/{sample_id}/{genome}/{sample_id}TElocal.cntTable",sample_id=samples,genome=genomes)
+        fileList = expand(outdir + "/counts/{sample_id}/human/{sample_id}TElocal.cntTable",sample_id=samples,genome=genomes)
     output:
-        outfile = outdir + "/counts/{genome}TElocal.cntTable"
+        outfile = outdir + "/counts/humanTElocal.cntTable"
     conda:
         config['conda']['RNA-SNP']
     params:
         combineTE = "scripts/combineTE.py",
         indir = outdir + "/counts"
     log:
-        log = outdir + "/log/{genome}/combine_TElocal.log"
+        log = outdir + "/log/human/combine_TElocal.log"
     shell:
         """
         python {params.combineTE} -p TElocal -i {params.indir} -o {output.outfile} > {log.log} 2>&1
@@ -344,26 +387,121 @@ rule combine_TElocal:
 ###################转录组gtf#######################
 rule stringTie:
     input:
-        bam = outdir + "/2pass/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam"
+        bam = outdir + "/2pass/{sample_id}/human/{sample_id}Aligned.sortedByCoord.out.bam"
     output:
-        gtf = outdir + "/2pass/{sample_id}/{genome}/{sample_id}.gtf"
+        gtf = outdir + "/2pass/{sample_id}/human/{sample_id}.gtf"
     conda:
         config['conda']['RNA-SNP']
     log:
-        log = outdir + "/log/{genome}/{sample_id}/stringTie.log"
+        log = outdir + "/log/human/{sample_id}/stringTie.log"
     shell:
         """
         stringtie -o {output.gtf} {input.bam} > {log.log} 2>&1
         """
+rule stringTieMerge:
+    input:
+        gtf = expand(outdir + "/2pass/{sample_id}/human/{sample_id}.gtf",sample_id=samples,genome=genomes)
+    output:
+        outfile = outdir + "/2pass/human.gtf"
+    conda:
+        config['conda']['RNA-SNP']
+    log:
+        log = outdir + "/log/human/stringTieMerge.log"
+    shell:
+        """
+        stringtie --merge {input.gtf} -o {output.outfile} > {log.log} 2>&1
+        """
+
+rule TEcountStringTie:
+    input:
+        bam = outdir + "/counts/{sample_id}/human/{sample_id}Aligned.sortedByCoord.out.bam",
+        gtf = outdir + "/2pass/human.gtf"
+    output:
+        project = outdir + "/counts/{sample_id}/human/{sample_id}TEcountStringTie.cntTable"
+    params:
+        project = "{sample_id}TEcountStringTie",
+        outdir = outdir + "/counts/{sample_id}/human",
+        TE_gtf = lambda wildcards: config['TEtranscripts'][wildcards.genome]['TE_gtf'],
+    threads:5 #防止过多并行运行爆内存
+    log:
+        log=outdir+"/log/human/{sample_id}/TEtranscriptsStringTie.log"
+    conda:
+        config['conda']['TE']
+    shell:
+        """
+        TEcount --sortByPos --format BAM --mode multi \
+        -b {input.bam} --GTF {input.gtf} --TE {params.TE_gtf} \
+        --project {params.project} --outdir {params.outdir} \
+        > {log.log} 2>&1
+        """
+
+rule combine_TEStringtie:
+    input:
+        fileList = expand(outdir + "/counts/{sample_id}/human/{sample_id}TEcountStringTie.cntTable",sample_id=samples,genome=genomes)
+    output:
+        outfile = outdir + "/counts/humanTEcountStringTie.cntTable"
+    conda:
+        config['conda']['RNA-SNP']
+    params:
+        combineTE = "scripts/combineTE.py",
+        indir = outdir + "/counts"
+    log:
+        log = outdir + "/log/human/combine_TEcountStringTie.log"
+    shell:
+        """
+        python {params.combineTE} -p TEcountStringTie -i {params.indir} -o {output.outfile} > {log.log} 2>&1
+        """
+
+rule getStringtieBed:
+    input:
+        gtf = outdir + "/2pass/human.gtf",
+        infile = outdir + "/counts/humanTEcountStringTie.cntTable"
+    output:
+        genefile = outdir + "/2pass/human_STG.bed",
+        TEfile = outdir + "/2pass/human_TE.bed"
+    log:
+        log = outdir + "/log/human/getStringtieBed.log"
+    conda:
+        config['conda']['RNA-SNP']
+    threads:2
+    params:
+        script = "scripts/SNP/getBed.py",
+        TE_gtf = lambda wildcards: config['TEtranscripts'][wildcards.genome]['TE_gtf']
+    shell:
+        """
+        python {params.script} \
+            --mode StringTie \
+            --input {input.infile} \
+            --output {output.genefile} \
+            --output {output.TEfile} \
+            --exonGtf {input.gtf} \
+            --TEGtf {params.TE_gtf} > {log.log} 2>&1
+        """
+rule StgTEOverlap:
+    input:
+        genefile = outdir + "/2pass/human_STG.bed",
+        TEfile = outdir + "/2pass/human_TE.bed"
+    output:
+        outfile = outdir + "/2pass/human_StgTEOverlap.bed"
+    log:
+        log = outdir + "/log/human_StgTEOverlap.log"
+    conda:
+        config['conda']['RNA-SNP']
+    threads:2
+    shell:
+        """
+        bedtools intersect -a {input.genefile} -b {input.TEfile} -wa -wb > {output.outfile} 2>{log.log}
+        """
+
 
 #####################annovar########################
 rule commonExpression:
     input:
-        infile = outdir + "/counts/{genome}TEcount.cntTable"
+        infile = outdir + "/counts/humanTEcount.cntTable"
     output:
-        outfile = outdir + "/counts/{genome}TEcountCommon.cntTable"
+        outfile = outdir + "/counts/humanTEcountCommon.cntTable"
     log:
-        log = outdir + "/log/{genome}/commonExpression.log"
+        log = outdir + "/log/human/commonExpression.log"
     conda:
         config['conda']['RNA-SNP']
     params:
@@ -374,11 +512,11 @@ rule commonExpression:
         """
 rule getBed:
     input:
-        infile = outdir + "/counts/{genome}TEcountCommon.cntTable"
+        infile = outdir + "/counts/humanTEcountCommon.cntTable"
     output:
-        outfile = outdir + "/counts/{genome}TEcountCommon.bed"
+        outfile = outdir + "/counts/humanTEcountCommon.bed"
     log:
-        log = outdir + "/log/{genome}/getBed.log"
+        log = outdir + "/log/human/getBed.log"
     conda:
         config['conda']['RNA-SNP']
     params:
@@ -395,12 +533,12 @@ rule getBed:
         """
 rule vcfIntersectBed:
     input:
-        vcf = outdir + "/filter/vcf/{genome}/{sample_id}.vcf.gz",
-        bed = outdir + "/counts/{genome}TEcountCommon.bed"
+        vcf = outdir + "/filter/vcf/human/{sample_id}.vcf.gz",
+        bed = outdir + "/counts/humanTEcountCommon.bed"
     output:
-        outfile = outdir + "/filter/vcf/{genome}/{sample_id}Common.vcf"
+        outfile = outdir + "/filter/vcf/human/{sample_id}Common.vcf"
     log:
-        log = outdir + "/log/{genome}/{sample_id}/vcfIntersectBed.log"
+        log = outdir + "/log/human/{sample_id}/vcfIntersectBed.log"
     conda:
         config['conda']['RNA-SNP']
     threads:4 #防止同时执行太多，爆内存
@@ -410,11 +548,11 @@ rule vcfIntersectBed:
         """
 rule annovar_convert:
     input:
-        vcf = outdir + "/filter/vcf/{genome}/{sample_id}Common.vcf"
+        vcf = outdir + "/filter/vcf/human/{sample_id}Common.vcf"
     output:
-        avinput = outdir + "/annovar/{genome}/{sample_id}/{sample_id}.avinput"
+        avinput = outdir + "/annovar/human/{sample_id}/{sample_id}.avinput"
     log:
-        log = outdir + "/log/{genome}/{sample_id}/annovar_convert.log"
+        log = outdir + "/log/human/{sample_id}/annovar_convert.log"
     params:
         convert = "/opt/annovar/convert2annovar.pl"
     threads:4 #防止同时执行太多，爆内存
@@ -426,17 +564,17 @@ rule annovar_convert:
         """
 rule annovar_table:
     input:
-        avinput = outdir + "/annovar/{genome}/{sample_id}/{sample_id}.avinput"
+        avinput = outdir + "/annovar/human/{sample_id}/{sample_id}.avinput"
     output:
-        outfile = outdir + "/annovar/{genome}/{sample_id}/{sample_id}.GRCm39_multianno.csv"
+        outfile = outdir + "/annovar/human/{sample_id}/{sample_id}.GRCm39_multianno.csv"
     log:
-        log = outdir + "/log/{genome}/{sample_id}/annovar_table.log"
+        log = outdir + "/log/human/{sample_id}/annovar_table.log"
     params:
         db = lambda wildcards: config['annovar'][wildcards.genome]['db'],
         buildver = lambda wildcards: config['annovar'][wildcards.genome]['buildver'],
         # annotate = "/opt/annovar/annotate_variation.pl",
         table = "/opt/annovar/table_annovar.pl",
-        out = outdir + "/annovar/{genome}/{sample_id}/{sample_id}"
+        out = outdir + "/annovar/human/{sample_id}/{sample_id}"
     threads:4 #防止同时执行太多，爆内存
     shell:
         """

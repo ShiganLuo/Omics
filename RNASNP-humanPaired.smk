@@ -106,9 +106,9 @@ rule star_align:
     params:
         outPrefix = outdir + "/2pass/{sample_id}/{genome}/{sample_id}",
         STAR = config["STAR"]["procedure"],
-        # 动态判断输入参数
+        # 动态判断输入参数,加上genome_index，如果三个参数，即为双端测序，两个参数即为单端测序
         input_params = lambda wildcards, input: \
-            f"{input[0]} {input[1]}" if len(input) == 2 else f"{input[0]}"
+            f"{input[0]} {input[1]}" if len(input) == 3 else f"{input[0]}"
     shell:
         """
         mkdir -p $(dirname {params.outPrefix})
@@ -341,8 +341,9 @@ rule TEtranscript_prepare:
     params:
         outPrefix = outdir + "/counts/{sample_id}/{genome}/{sample_id}",
         STAR = config["STAR"]["procedure"],
+        # 动态判断输入参数,加上genome_index，如果三个参数，即为双端测序，两个参数即为单端测序
         input_params = lambda wildcards, input: \
-            f"{input[0]} {input[1]}" if len(input) == 2 else f"{input[0]}"
+            f"{input[0]} {input[1]}" if len(input) == 3 else f"{input[0]}"
     shell:
         """
         {params.STAR} --runThreadN {threads} \

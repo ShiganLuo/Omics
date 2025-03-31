@@ -4,6 +4,7 @@ retrieve=/opt/annovar/retrieve_seq_from_fasta.pl
 convert=/opt/annovar/convert2annovar.pl
 annotate=/opt/annovar/annotate_variation.pl
 table=/opt/annovar/table_annovar.pl
+#conda:RNA-SNP
 ## notice: Again do not use annotate_variation unless you are an expert and know the intricate differences of the many arguments.
 set -e
 #############1
@@ -60,8 +61,11 @@ function GenePred(){
     refGene=$2
     gtfToGenePred -genePredExt ${gtf} ${refGene}
 }
-gtf=/ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/gencode.vM36.primary_assembly.annotation.gtf
-refGene=/ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/annovar/GRCm39/GRCm39_refGene.txt
+# gtf=/ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/gencode.vM36.primary_assembly.annotation.gtf
+# refGene=/ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/annovar/GRCm39/GRCm39_refGene.txt
+# GenePred ${gtf} ${refGene}
+# gtf=/ChIP_seq_2/Data/index/Homo_sapiens/GENCODE/GRCh38/gencode.v47.primary_assembly.annotation.gtf
+# refGene=/ChIP_seq_2/Data/index/Homo_sapiens/GENCODE/GRCh38/annovar/GRCh38/GRCh38_refGene.txt
 # GenePred ${gtf} ${refGene}
 function retrieve(){
     genome=$1
@@ -72,11 +76,14 @@ function retrieve(){
     --seqfile ${genome} ${refGene} \
     --out ${refGeneMrna}
 }
-genome=/ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa
-refGene=/ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/annovar/GRCm39/GRCm39_refGene.txt
-refGeneMrna=/ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/annovar/GRCm39/GRCm39_refGeneMrna.fa
+# genome=/ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa
+# refGene=/ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/annovar/GRCm39/GRCm39_refGene.txt
+# refGeneMrna=/ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/annovar/GRCm39/GRCm39_refGeneMrna.fa
 # retrieve ${genome} ${refGene} ${refGeneMrna}
-
+# genome=/ChIP_seq_2/Data/index/Homo_sapiens/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa
+# refGene=/ChIP_seq_2/Data/index/Homo_sapiens/GENCODE/GRCh38/annovar/GRCh38/GRCh38_refGene.txt
+# refGeneMrna=/ChIP_seq_2/Data/index/Homo_sapiens/GENCODE/GRCh38/annovar/GRCh38/GRCh38_refGeneMrna.fa
+# retrieve ${genome} ${refGene} ${refGeneMrna}
 function convert(){
     vcf=$1
     out=$2
@@ -105,4 +112,4 @@ avinput=/ChIP_seq_2/StemCells/RNASNP202503/waitingflow/output/annovar/SRR1776273
 db=/ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/annovar/GRCm39/
 buildver=GRCm39
 out=/ChIP_seq_2/StemCells/RNASNP202503/waitingflow/output/annovar/SRR17762738_table
-table ${avinput} ${db} ${out} ${buildver} 
+# table ${avinput} ${db} ${out} ${buildver} 

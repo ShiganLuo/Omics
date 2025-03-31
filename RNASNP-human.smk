@@ -9,17 +9,26 @@ single_samples = [sample for sample in Allsamples if re.match(r"^SRR\d+$", sampl
 samples = paired_samples + single_samples
 print(samples)
 # genomes
-genomes=['mouse']
+genomes1=['mouse','human']
+genomes=['human']
 
 def request():
     ##对于能通过依赖关系寻找的中间文件不需要重复定义，否则执行次数会过多
     output = dict()
     ### star_align
-    # output['star_align'] =  expand(outdir + "/2pass/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam", sample_id=samples, genome=genomes)
-    ### xenofilter
-    output['xenofilter'] = [outdir + "/xenofilterR/bam"]
-    output['VarientCalling'] = [expand(outdir+"/Split/vcf/{sample_id}.vcf.gz",sample_id=samples)]
-    output['filter'] = [expand(outdir+"/filter/vcf/{sample_id}.vcf.gz",sample_id=samples)]
+    output['star_align'] =  [expand(outdir + "/2pass/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam", sample_id=samples, genome=genomes1)]
+    output['xenoInput'] = [
+        outdir + "/xenofilterR/xenofilterR_input.csv",
+        outdir +"/xenofilterR/xenofilterR_reName.csv"
+    ]
+    output['VarientCalling'] = [expand(outdir + "/Split/vcf/human/{sample_id}.vcf.gz",sample_id=samples)]
+    output['filter'] = [expand(outdir + "/filter/vcf/human/{sample_id}.vcf.gz",sample_id=samples)]
+    output['count_Gene'] = [expand(outdir + "/counts/{sample_id}/human/{sample_id}Aligned.sortedByCoord.out.bam",sample_id=samples)]
+    output['count_TE'] = [expand(outdir + "/counts/{sample_id}/human/{sample_id}TElocal.cntTable",sample_id=samples)]
+    output['combineTEcount'] = [expand(outdir + "/counts/humanTEcount.cntTable")]
+    output['combineTElocal'] = [expand(outdir + "/counts/humanTElocal.cntTable")]
+    output['gtf'] = [expand(outdir + "/2pass/{sample_id}/human/{sample_id}.gtf",sample_id=samples)]
+    output['annovar'] = expand(outdir + "/annovar/human/{sample_id}/{sample_id}.GRCm39_multianno.csv",sample_id=samples)
     # output['gatk_index'] = []
     return list(output.values())
 # print(request())
@@ -198,8 +207,8 @@ rule  addReadsGroup:
     input:
         outdir = outdir + "/xenofilterR/bam",
     output:
-        bam = temp(outdir + "/RG/{sample_id}.bam"),
-        bai = temp(outdir + "/RG/{sample_id}.bam.bai")
+        bam = temp(outdir + "/RG/human/{sample_id}.bam"),
+        bai = temp(outdir + "/RG/human/{sample_id}.bam.bai")
     log:
         log = outdir + "/log/human/{sample_id}/addReadsGroup.log"
     threads:16
@@ -222,13 +231,13 @@ rule  addReadsGroup:
         """
 rule MarkDuplicates:
     input:
-        bam=outdir+"/RG/{sample_id}.bam"
+        bam = outdir + "/RG/human/{sample_id}.bam"
     output:
-        bam=temp(outdir+"/bam-sorted-Markdup/{sample_id}.bam"),
-        bai=temp(outdir+"/bam-sorted-Markdup/{sample_id}.bai"),
-        metrics=temp(outdir+"/log/{sample_id}/Markdup-metrics.txt")
+        bam=temp(outdir + "/bam-sorted-Markdup/human/{sample_id}.bam"),
+        bai=temp(outdir + "/bam-sorted-Markdup/human/{sample_id}.bai"),
+        metrics=temp(outdir + "/log/human/{sample_id}/Markdup-metrics.txt")
     log:
-        log=outdir+"/bam-sorted-Markdup/log/{sample_id}/MarkDuplicates.log"
+        log=outdir+"/bam-sorted-Markdup/log/human/{sample_id}/MarkDuplicates.log"
     threads: 16
     conda:
         config['conda']['cfDNA_base']
@@ -261,15 +270,15 @@ rule MarkDuplicates:
 
 rule SplitNCigarReads:
     input:
-        genome=config['genome']['human'],
-        bam=outdir+"/bam-sorted-Markdup/{sample_id}.bam",
-        indict=config['genome_dict']['human']
+        genome = config['genome']['human'],
+        bam = outdir + "/bam-sorted-Markdup/human/{sample_id}.bam",
+        indict = config['genome_dict']['human']
     output:
-        bam = outdir+"/Split/bam/{sample_id}.bam"
+        bam = outdir + "/Split/bam/human/{sample_id}.bam"
     params:
         javaOptions="-Xms20g -Xmx30g -XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10"
     log:
-        log=outdir+"/log/human/{sample_id}/SplitNCigarReads.log"
+        log = outdir + "/log/human/{sample_id}/SplitNCigarReads.log"
     conda:
         config['conda']['cfDNA_base']
     shell:
@@ -281,10 +290,10 @@ rule SplitNCigarReads:
       """
 rule VarientCalling:
     input:
-        genome=config['genome']['human'],
-        bam=outdir+"/Split/bam/{sample_id}.bam"
+        genome = config['genome']['human'],
+        bam = outdir + "/Split/bam/human/{sample_id}.bam"
     output:
-        vcf=outdir+"/Split/vcf/{sample_id}.vcf.gz"
+        vcf = outdir + "/Split/vcf/human/{sample_id}.vcf.gz"
     conda:
         config['conda']['cfDNA_base']
     log:
@@ -303,16 +312,16 @@ rule VarientCalling:
         """
 rule vcf_filter:
     input:
-        genome=config['genome'],
-        vcf=outdir+"/Split/vcf/{sample_id}.vcf.gz",
+        genome = config['genome']['human'],
+        vcf = outdir + "/Split/vcf/human/{sample_id}.vcf.gz"
     output:
-        vcf=outdir+"/filter/vcf/{sample_id}.vcf.gz",
+        vcf = outdir + "/filter/vcf/human/{sample_id}.vcf.gz"
     log:
         log=outdir+"/log/human/{sample_id}/vcf_filter.log"
     conda:
         config['conda']['cfDNA_base']
     params:
-        javaOptions="-Xms20g -Xmx30g -XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10"
+        javaOptions="-Xms20g -Xmx30g -XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10",
         vcf = outdir+"/filter/vcf/{sample_id}.vcf",
     shell:
         """
@@ -332,14 +341,14 @@ rule vcf_filter:
 rule TEtranscript_prepare:
     input:
         get_alignment_input,
-        genome_index = lambda wildcards: config['STAR'][wildcards.genome]['genome_index']
+        genome_index = config['STAR']['human']['genome_index']
     output:
-        outfile = outdir + "/counts/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam"
+        outfile = outdir + "/counts/{sample_id}/human/{sample_id}Aligned.sortedByCoord.out.bam"
     log:
-        log=outdir+"/log/{genome}/{sample_id}/TEtranscript_prepare.log"
+        log=outdir+"/log/human/{sample_id}/TEtranscript_prepare.log"
     threads: 15
     params:
-        outPrefix = outdir + "/counts/{sample_id}/{genome}/{sample_id}",
+        outPrefix = outdir + "/counts/{sample_id}/human/{sample_id}",
         STAR = config["STAR"]["procedure"],
         # 动态判断输入参数,加上genome_index，如果三个参数，即为双端测序，两个参数即为单端测序
         input_params = lambda wildcards, input: \
@@ -363,8 +372,8 @@ rule TEcount:
     params:
         project = "{sample_id}TEcount",
         outdir = outdir + "/counts/{sample_id}/human",
-        TE_gtf = lambda wildcards: config['TEtranscripts'][wildcards.genome]['TE_gtf'],
-        exon_gtf = lambda wildcards: config['TEtranscripts'][wildcards.genome]['exon_gtf']
+        TE_gtf = config['TEtranscripts']['human']['TE_gtf'],
+        exon_gtf = config['TEtranscripts']['human']['exon_gtf']
     log:
         log=outdir+"/log/human/{sample_id}/TEtranscripts.log"
     conda:
@@ -379,7 +388,7 @@ rule TEcount:
 
 rule combine_TEcount:
     input:
-        fileList = expand(outdir + "/counts/{sample_id}/human/{sample_id}TEcount.cntTable",sample_id=samples,genome=genomes)
+        fileList = expand(outdir + "/counts/{sample_id}/human/{sample_id}TEcount.cntTable",sample_id=samples)
     output:
         outfile = outdir + "/counts/humanTEcount.cntTable"
     conda:
@@ -400,8 +409,8 @@ rule TElocal:
         project = outdir + "/counts/{sample_id}/human/{sample_id}TElocal.cntTable"
     params:
         project = "{sample_id}TElocal",
-        TE = lambda wildcards: config['TElocal'][wildcards.genome]['TEind'],
-        GTF = lambda wildcards: config['TElocal'][wildcards.genome]['exon_gtf'],
+        TE = config['TElocal']['human']['TEind'],
+        GTF = config['TElocal']['human']['exon_gtf'],
         procedure = "/opt/TElocal/TElocal"
     log:
         log = outdir+"/log/human/{sample_id}/TElocal.log"
@@ -418,7 +427,7 @@ rule TElocal:
 
 rule combine_TElocal:
     input:
-        fileList = expand(outdir + "/counts/{sample_id}/human/{sample_id}TElocal.cntTable",sample_id=samples,genome=genomes)
+        fileList = expand(outdir + "/counts/{sample_id}/human/{sample_id}TElocal.cntTable",sample_id=samples)
     output:
         outfile = outdir + "/counts/humanTElocal.cntTable"
     conda:
@@ -448,7 +457,7 @@ rule stringTie:
         """
 rule stringTieMerge:
     input:
-        gtf = expand(outdir + "/2pass/{sample_id}/human/{sample_id}.gtf",sample_id=samples,genome=genomes)
+        gtf = expand(outdir + "/2pass/{sample_id}/human/{sample_id}.gtf",sample_id=samples)
     output:
         outfile = outdir + "/2pass/human.gtf"
     conda:
@@ -469,7 +478,7 @@ rule TEcountStringTie:
     params:
         project = "{sample_id}TEcountStringTie",
         outdir = outdir + "/counts/{sample_id}/human",
-        TE_gtf = lambda wildcards: config['TEtranscripts'][wildcards.genome]['TE_gtf'],
+        TE_gtf = config['TEtranscripts']['human']['TE_gtf'],
     threads:5 #防止过多并行运行爆内存
     log:
         log=outdir+"/log/human/{sample_id}/TEtranscriptsStringTie.log"
@@ -485,7 +494,7 @@ rule TEcountStringTie:
 
 rule combine_TEStringtie:
     input:
-        fileList = expand(outdir + "/counts/{sample_id}/human/{sample_id}TEcountStringTie.cntTable",sample_id=samples,genome=genomes)
+        fileList = expand(outdir + "/counts/{sample_id}/human/{sample_id}TEcountStringTie.cntTable",sample_id=samples)
     output:
         outfile = outdir + "/counts/humanTEcountStringTie.cntTable"
     conda:
@@ -514,7 +523,7 @@ rule getStringtieBed:
     threads:2
     params:
         script = "scripts/SNP/getBed.py",
-        TE_gtf = lambda wildcards: config['TEtranscripts'][wildcards.genome]['TE_gtf']
+        TE_gtf = config['TEtranscripts']['human']['TE_gtf']
     shell:
         """
         python {params.script} \
@@ -569,8 +578,8 @@ rule getBed:
         config['conda']['RNA-SNP']
     params:
         script = "scripts/SNP/getBed.py",
-        exon_gtf = lambda wildcards: config['getBed'][wildcards.genome]['exon_gtf'],
-        TE_gtf = lambda wildcards: config['getBed'][wildcards.genome]['TE_gtf']
+        exon_gtf = config['getBed']['human']['exon_gtf'],
+        TE_gtf = config['getBed']['human']['TE_gtf']
     shell:
         """
             python {params.script} \
@@ -618,8 +627,8 @@ rule annovar_table:
     log:
         log = outdir + "/log/human/{sample_id}/annovar_table.log"
     params:
-        db = lambda wildcards: config['annovar'][wildcards.genome]['db'],
-        buildver = lambda wildcards: config['annovar'][wildcards.genome]['buildver'],
+        db = config['annovar']['human']['db'],
+        buildver = config['annovar']['human']['buildver'],
         # annotate = "/opt/annovar/annotate_variation.pl",
         table = "/opt/annovar/table_annovar.pl",
         out = outdir + "/annovar/human/{sample_id}/{sample_id}"

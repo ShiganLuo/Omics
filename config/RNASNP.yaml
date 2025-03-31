@@ -39,17 +39,27 @@ TElocal:
   mouse:
     exon_gtf: "/ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/exon.gtf"
     TEind: "/ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/TElocal/GRCm39_GENCODE_rmsk_TE.gtf.locInd"
+  human:
+    exon_gtf: "/ChIP_seq_2/Data/index/Homo_sapiens/GENCODE/GRCh38/exon.gtf"
+    TEind: "/ChIP_seq_2/Data/index/Homo_sapiens/GENCODE/GRCh38/TElocal/GRCh38_GENCODE_rmsk_TE.gtf.locInd"
 
 annotation: 
   mouse: "/ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/geneIDAnnotation.csv"
+  human: "/ChIP_seq_2/Data/index/Homo_sapiens/GENCODE/GRCh38/geneIDAnnotation.csv"
 
 getBed:
   mouse:
     exon_gtf: "/ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/exon.gtf"
     TE_gtf: "/ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.gtf"
+  human:
+    exon_gtf: "/ChIP_seq_2/Data/index/Homo_sapiens/GENCODE/GRCh38/exon.gtf"
+    TE_gtf: "/ChIP_seq_2/Data/index/Homo_sapiens/GENCODE/GRCh38/GRCh38_GENCODE_rmsk_TE.gtf"
 
 annovar:
   mouse:
     db: "/ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/annovar/GRCm39/"
     buildver: "GRCm39"
+  human:
+    db: "/ChIP_seq_2/Data/index/Homo_sapiens/GENCODE/GRCh38/annovar/GRCh38/"
+    buildver: "GRCh38"
 

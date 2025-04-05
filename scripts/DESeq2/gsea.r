@@ -4,6 +4,7 @@ suppressPackageStartupMessages(library(fgsea))
 suppressPackageStartupMessages(library(argparse))
 suppressPackageStartupMessages(library(tibble))
 suppressPackageStartupMessages(library(stringr))
+suppressPackageStartupMessages(library(data.table))
 ##to do: fulfill plot_enrichment
 
 prepare_ranked_list <- function(ranked_list) { 
@@ -53,18 +54,26 @@ GSEA_prepare = function(res,mode = "Gene",AnnotationFile="",outfile=""){
   return(res_prot_ranked)
 }
 
-waterfall_plot <- function (rnk,geneset,outjpeg,graph_title) {
+waterfall_plot <- function (rnk,geneset,outjpeg,graph_title,outfile) {
   # read in file containing lists of genes for each pathway
-  hallmark_pathway <- gmtPathways(geneset)
-  fgsea_results <- fgsea(pathways = hallmark_pathway,
-                  stats = rnk,
-                  minSize = 15,
-                  maxSize = 500,
-                  nPermSimple = 10000
-                  )
-  fgsea_results <- fgsea_results[!is.na(fgsea_results$pval), ] # remove line whose pval = NA
-  fgsea_results = fgsea_results %>% arrange (desc(NES)) %>% select (pathway, padj, NES) 
-  
+  if (!file.exists(outfile)){
+    hallmark_pathway <- gmtPathways(geneset)
+    fgsea_results <- fgsea(pathways = hallmark_pathway,
+                    stats = rnk,
+                    minSize = 15,
+                    maxSize = 500,
+                    nPermSimple = 10000
+                    )
+    fwrite(fgsea_results, file = outfile)
+    fgsea_results <- fgsea_results[!is.na(fgsea_results$pval), ] # remove line whose pval = NA
+    fgsea_results = fgsea_results %>% arrange (desc(NES)) %>% select (pathway, padj, NES) 
+    
+  } else {
+    fgsea_results = fread(outfile)
+    fgsea_results <- fgsea_results[!is.na(fgsea_results$pval), ] # remove line whose pval = NA
+    fgsea_results = fgsea_results %>% arrange (desc(NES)) %>% select (pathway, padj, NES) 
+  }
+
   fgsea_results %>% 
     mutate(short_name = str_split_fixed(pathway, "_",2)[,2])%>% # removes 'HALLMARK_' from the pathway title 
     ggplot( aes(reorder(short_name,NES), NES)) +
@@ -125,10 +134,16 @@ if ( !dir.exists(paste(outdir,"DESeq2/GSEA/",sep=""))){
 if ( mode == "Gene"){
     df = read.csv(matrix,sep="\t",row.names=1,header=T);
     outRnk = paste(outdir,"DESeq2/GSEA/TEcount_Gene_GSEA.rnk",sep="")
-
-    rnk = GSEA_prepare(df,mode = "Gene",outfile = outRnk,AnnotationFile=annotation)
+    outFgsea = paste(outdir,"DESeq2/GSEA/TEcount_Gene_GSEA.csv",sep="")
+    if (!file.exists(outRnk)) {
+      rnk = GSEA_prepare(df,mode = "Gene",outfile = outRnk,AnnotationFile=annotation)
+    } else {
+      rnkP = read.csv(outRnk,sep = "\t",header = T)
+      rnk = setNames(rnkP[[2]], rnkP[[1]])
+    }
+    
     outEnrichJpeg = paste(outdir,"DESeq2/GSEA/TEcount_Gene_GSEA.jpeg",sep="")
-    outEnrich = waterfall_plot(rnk,geneset = gmt,outjpeg = outEnrichJpeg, graph_title= graphTitle)
+    outEnrich = waterfall_plot(rnk,geneset = gmt,outjpeg = outEnrichJpeg, graph_title = graphTitle,outfile = outFgsea)
 } else if ( mode == "TE"){
     stop("haven't develop method for this mode")
 } else {

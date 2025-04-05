@@ -5,7 +5,7 @@ suppressPackageStartupMessages(library(dplyr))
 suppressPackageStartupMessages(library(stringr))
 suppressPackageStartupMessages(library(fgsea))
 suppressPackageStartupMessages(library(argparse))
-DESeq2Analysis = function(dat,resfile="",normMethods="cpm",sampleNumber){
+DESeq2Analysis = function(dat,resfile="",normMethods="cpm",colData){
     cat("\nDESeq2Analysis function\n")
     print(paste0("outfile path : ",resfile))
     print(paste0("the methods of normalizing raw counts : ",normMethods))
@@ -16,10 +16,10 @@ DESeq2Analysis = function(dat,resfile="",normMethods="cpm",sampleNumber){
     ####### DESeq2 analysis
     #prepare Step : Specify the order of grouping factors
     #Note that the sample order in the expression matrix and the grouping order here must correspond one to one
-    coldata <- data.frame(condition = factor(rep(c('control', 'experiment'), each = sampleNumber), levels = c('control', 'experiment')))
+    # coldata <- data.frame(condition = factor(rep(c('control', 'experiment'), each = sampleNumber), levels = c('control', 'experiment')))
     
     #Step 1 : build a DESeqDataSet object
-    dds <- DESeqDataSetFromMatrix(countData = dat, colData = coldata, design= ~condition)
+    dds <- DESeqDataSetFromMatrix(countData = dat, colData = colData, design= ~condition)
 
     #Step 2 : Calculate the difference fold and obtain the p value
     #Note: parallel = TRUE can run in multiple threads. It is recommended to enable it when the amount of data is large.
@@ -306,7 +306,7 @@ MAplot = function (res, outjpeg,mode = "gene",geneAnnotation = "", nlabel = 10, 
   dev.off()
 }
 
-plot_PCANorm = function(res,outjpeg,sampleNumber,controName,experimentName){
+plot_PCANorm = function(res,outjpeg,colData){
   cpm = res[,-c(1:6)]
   # print(head(cpm))
   pca_result <- prcomp(t(cpm))
@@ -318,8 +318,8 @@ plot_PCANorm = function(res,outjpeg,sampleNumber,controName,experimentName){
     Sample = colnames(cpm)
   )
   # 假设样本有分组信息，这里简单模拟
-  pca_data$Group <- factor(rep(c(controlName, experimentName), each = sampleNumber))
-
+  # pca_data$Group <- factor(rep(c(controlName, experimentName), each = sampleNumber))
+  pca_data$Group = colData
   # 步骤4：绘制PCA图
   p = ggplot(pca_data, aes(x = PC1, y = PC2, color = Group, label = Sample)) +
     geom_point(size = 3) +
@@ -353,7 +353,7 @@ TEcount_read = function(infile,control,experiment){
 
     ###Differential analysis of TEs with different genetic backgrounds
     TEcount = read.csv(infile,sep="\t",row.names=1,header=TRUE)
-    TEcount = TEcount[,c(control,experiment)] # sampe with DESeq2 condition
+    TEcount = TEcount[,c(control,experiment)] # sampe with DESeq2 condition and subset group sample
 
     ### only TE
     df_TE <- TEcount[grepl("^[^:]+:[^:]+:[^:]+$", rownames(TEcount)), ]
@@ -370,7 +370,7 @@ TElocal_read = function(infile,control,experiment){
     # control and experiment: c() ->
     # decide which column is control,which column is experiment,and sort the dataframe according to it
     TElocal = read.csv(infile,sep="\t",row.names=1,header=TRUE)
-    TElocal = TElocal[,c(control,experiment)] # sampe with DESeq2 condition
+    TElocal = TElocal[,c(control,experiment)] # sampe with DESeq2 condition and subset group sample
     ### only TE
     df_TE <- TElocal[grepl("^[^:]+:[^:]+:[^:]+:[^:]+$", rownames(TElocal)), ]
     df_TE = df_TE[rowMeans(df_TE) > 5,]
@@ -419,11 +419,10 @@ paraserPattern = function(pattern,group){
   df_group = read.csv(group,sep="\t",header=TRUE)
   controlStr = pattern[1]
   experimentStr = pattern[2]
+  print(controlStr)
+  print(experimentStr)
   control = as.vector(df_group$sample[df_group$group == controlStr])
   experiment = as.vector(df_group$sample[df_group$group == experimentStr])
-  if (length(control) != length(experiment)){
-    stop("control and experiment samples are not equal")
-  }
   ### for heatmap
   sample_anno = subset(df_group, group %in% c(controlStr, experimentStr))
   rownames(sample_anno) = sample_anno$sample
@@ -435,12 +434,23 @@ ce = paraserPattern(pattern,group)
 control = ce[[1]]
 experiment = ce[[2]]
 sample_annoQ = ce[[3]]
-sampleNumberQ = length(control)
+### DESeq2
+controlSample_Number = length(control)
+experimentSample_Number = length(experiment)
+colDataQ = data.frame(
+  condition = factor(c(rep('control',each=controlSample_Number),
+  rep('experiment',each=experimentSample_Number)),
+  levels = c('control', 'experiment'))
+)
 cat("control:",control,"\n")
 cat("experiment:",experiment,"\n")
-cat("sampleNumber:",sampleNumberQ,"\n")
+cat("control sampleNumber:",controlSample_Number," experiment sampleNumber:",experimentSample_Number,"\n")
 controlName = pattern[1]
 experimentName = pattern[2]
+### pca
+colDataPca = factor(
+  c(rep(controlName,controlSample_Number),rep(experimentName,experimentSample_Number))
+)
 
 plot_heatmap = function(res,mode,sample_anno = sample_annoQ,outdir = args$outdir,dataType=""){
     print(sample_anno)
@@ -533,12 +543,12 @@ if (args$mode == "TEcount"){
   dfList = TEcount_read(infile,control,experiment)
   if ( "pca" %in% figure){
     df = dfList[["Gene"]]
-      res = DESeq2Analysis(df,normMethods = "cpm",sampleNumber = sampleNumberQ)[[1]]
+      res = DESeq2Analysis(df,normMethods = "cpm",colData = colDataQ)[[1]]
       if(!dir.exists(paste(outdir,"DESeq2/plot/",sep=""))){
           dir.create(paste(outdir,"DESeq2/plot/",sep=""),recursive = TRUE,showWarnings = FALSE)
       }
       outjpeg = paste(outdir , "DESeq2/plot/cpmPCA.jpeg",sep = "")
-      plot_PCANorm(res,outjpeg,sampleNumberQ,controlName,experimentName)
+      plot_PCANorm(res,outjpeg,colData = colDataPca)
   } 
   if ( "all" %in% TEcountMode){
   ## TEcount_read generate three dataframe: Gene_TE,TE,Gene
@@ -546,7 +556,7 @@ if (args$mode == "TEcount"){
       df = dfList[[dataType]]
       ## DESeq2Analysis generate a list, first element is res(dataframe combine counts), second element is dds(DESeqDataSet object)
       outfile = paste(outdir,"DESeq2/TEcount_",dataType,".csv",sep="")
-      resDds = DESeq2Analysis(df,resfile = outfile,normMethods = "DESeq2", sampleNumber = sampleNumberQ)
+      resDds = DESeq2Analysis(df,resfile = outfile,normMethods = "DESeq2", colData = colDataQ)
       if ( dataType == "Gene_TE" ){
         res1 = resDds[[1]]
         dds1 = resDds[[2]]
@@ -573,7 +583,7 @@ if (args$mode == "TEcount"){
     df = dfList[["Gene_TE"]]
     ## DESeq2Analysis generate a list, first element is res(dataframe combine counts), second element is dds(DESeqDataSet object)
     outfile = paste(outdir,"DESeq2/TEcount_Gene_TE.csv",sep="")
-    resDds = DESeq2Analysis(df,resfile = outfile,normMethods = "DESeq2", sampleNumber = sampleNumberQ)
+    resDds = DESeq2Analysis(df,resfile = outfile,normMethods = "DESeq2", colData = colDataQ)
     res1 = resDds[[1]]
     dds1 = resDds[[2]]
     res1 = TEFilter(res1)
@@ -588,7 +598,7 @@ if (args$mode == "TEcount"){
     df = dfList[["TE"]]
     ## DESeq2Analysis generate a list, first element is res(dataframe combine counts), second element is dds(DESeqDataSet object)
     outfile = paste(outdir,"DESeq2/TEcount_TE.csv",sep="")
-    resDds = DESeq2Analysis(df,resfile = outfile,normMethods = "DESeq2", sampleNumber = sampleNumberQ)
+    resDds = DESeq2Analysis(df,resfile = outfile,normMethods = "DESeq2", colData = colDataQ)
     res1 = resDds[[1]]
     dds1 = resDds[[2]]
     if ( "heatmap" %in% figure){
@@ -602,7 +612,7 @@ if (args$mode == "TEcount"){
     df = dfList[["Gene"]]
     ## DESeq2Analysis generate a list, first element is res(dataframe combine counts), second element is dds(DESeqDataSet object)
     outfile = paste(outdir,"DESeq2/TEcount_Gene.csv",sep="")
-    resDds = DESeq2Analysis(df,resfile = outfile,normMethods = "DESeq2", sampleNumber = sampleNumberQ)
+    resDds = DESeq2Analysis(df,resfile = outfile,normMethods = "DESeq2", colData = colDataQ)
     res1 = resDds[[1]]
     dds = resDds[[2]]
     if ( "heatmap" %in% figure){
@@ -620,7 +630,7 @@ if (args$mode == "TEcount"){
   df = TElocal_read(infile,control,experiment)
   ## DESeq2Analysis generate a list, first element is res(dataframe combine counts), second element is dds(DESeqDataSet object)
   outfile = paste(outdir,"DESeq2/TElocal_TE.csv",sep="")
-  resDds = DESeq2Analysis(df,resfile = outfile,sampleNumber = sampleNumberQ)
+  resDds = DESeq2Analysis(df,resfile = outfile,colData = colDataQ)
   res1 = resDds[[1]]
   dds1 = resDds[[2]]
   if ( "heatmap" %in% figure){

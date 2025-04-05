@@ -29,9 +29,11 @@ function fqDownload(){
     # ENAdownload SRR18181018 PAIRED log/fqDownload.log data/GSE204801/fq
     # ENAdownload SRR18181020 PAIRED log/fqDownload.log data/GSE204801/fq
     # ENAdownload SRR13633379 PAIRED log/fqDownload.log data/GSE166216/fq
-    ENAdownload SRR13633380 PAIRED log/fqDownload.log data/GSE166216/fq
-    ENAdownload SRR13633381 PAIRED log/fqDownload.log data/GSE166216/fq
-    ENAdownload SRR13633383 PAIRED log/fqDownload.log data/GSE166216/fq
+    # ENAdownload SRR13633380 PAIRED log/fqDownload.log data/GSE166216/fq
+    # ENAdownload SRR13633381 PAIRED log/fqDownload.log data/GSE166216/fq
+    # ENAdownload SRR13633383 PAIRED log/fqDownload.log data/GSE166216/fq
+    ENAdownload SRR25690002 PAIRED log/fqDownload.log data/GSE224794/fq
+    ENAdownload SRR25690001 PAIRED log/fqDownload.log data/GSE224794/fq
     
 
 }

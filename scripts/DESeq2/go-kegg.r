@@ -4,21 +4,44 @@ suppressPackageStartupMessages(library(enrichplot))
 suppressPackageStartupMessages(library(ggplot2))
 suppressPackageStartupMessages(library(dplyr))
 suppressPackageStartupMessages(library(argparse))
-go_plot = function(gene_list,gofile,gojpeg,top=10,mainTitle = "GO Enrichment Analysis"){
-    gene_info <- bitr(gene_list, fromType = "ENSEMBL", toType = "ENTREZID", OrgDb = org.Mm.eg.db,drop = TRUE)
-    # Get a unique Entrez ID
-    entrez_ids <- unique(gene_info$ENTREZID)
+suppressPackageStartupMessages(library(org.Hs.eg.db))
+go_plot = function(gene_list,gofile,gojpeg,top=10,mainTitle = "GO Enrichment Analysis",species = "mouse"){
+    if (!file.exists(gofile)) {
+        if ( species == "mouse") {
+            gene_info <- bitr(gene_list, fromType = "ENSEMBL", toType = "ENTREZID", OrgDb = org.Mm.eg.db,drop = TRUE)
+            # Get a unique Entrez ID
+            entrez_ids <- unique(gene_info$ENTREZID)
+            print(paste("entrez_ids:",length(entrez_ids)))
+            ego <- enrichGO(gene = entrez_ids,
+                        OrgDb = org.Mm.eg.db,
+                        ont = "ALL",  # 选择 "ALL" 表示同时分析 BP、CC 和 MF
+                        pAdjustMethod = "BH",
+                        qvalueCutoff = 0.05,
+                        pvalueCutoff = 0.05,
+                        readable = TRUE)
+            df = ego@result
+        } else if ( species == "human") {
+            gene_info <- bitr(gene_list, fromType = "ENSEMBL", toType = "ENTREZID", OrgDb = org.Hs.eg.db,drop = TRUE)
+            # Get a unique Entrez ID
+            entrez_ids <- unique(gene_info$ENTREZID)
+            print(paste("entrez_ids:",length(entrez_ids)))
+            ego <- enrichGO(gene = entrez_ids,
+            OrgDb = org.Hs.eg.db,
+            ont = "ALL",  # 选择 "ALL" 表示同时分析 BP、CC 和 MF
+            pAdjustMethod = "BH",
+            qvalueCutoff = 0.05,
+            pvalueCutoff = 0.05,
+            readable = TRUE)
+            df = ego@result
+        } else {
+            stop("species not supported")
+        }
+        write.table(ego@result, gofile, sep="\t", quote=FALSE, row.names=FALSE)
+    } else {
+        df = read.csv(gofile,sep = "\t",header = T)
+    }
 
-    ego <- enrichGO(gene = entrez_ids,
-                    OrgDb = org.Mm.eg.db,
-                    ont = "ALL",  # 选择 "ALL" 表示同时分析 BP、CC 和 MF
-                    pAdjustMethod = "BH",
-                    qvalueCutoff = 0.05,
-                    pvalueCutoff = 0.05,
-                    readable = TRUE)
-    df = ego@result
-    write.table(ego@result, gofile, sep="\t", quote=FALSE, row.names=FALSE)
-    # df = read.csv(gofile,sep = "\t",header = T)
+    
     df = df %>% arrange(pvalue, Count) %>% slice_head(n = top) 
     p = ggplot(df, aes(x = reorder(df[,"Description"],  -log10(df[,"pvalue"])), y = -log10(df[,"pvalue"]))) +
         geom_point(aes(color = -log10(df[,"pvalue"]), size = Count )) +
@@ -57,20 +80,43 @@ go_plot = function(gene_list,gofile,gojpeg,top=10,mainTitle = "GO Enrichment Ana
 # gene_list <- sapply(strsplit(rownames(df), "\\."), `[`, 1)
 # outfile = "output/DESeq2/go/TEcount_Gene_down_GO.txt"
 # go_plot(gene_list,gofile = outfile,gojpeg = "output/DESeq2/go/TEcount_Gene_down_GO.jpeg",mainTitle = "Downregulated genes after GCN2 knock-out")
-kegg_plot = function(gene_list,keggfile,keggjpeg,top=10,mainTitle = "kegg Enrichment Analysis"){
-    gene_info <- bitr(gene_list, fromType="ENSEMBL", toType="ENTREZID", OrgDb=org.Mm.eg.db)
-    entrez_ids <- unique(gene_info$ENTREZID)
-    ekegg <- enrichKEGG(
-        gene = entrez_ids,     
-        organism = "mmu",     
-        keyType = "kegg",      
-        pvalueCutoff = 0.05,  
-        qvalueCutoff = 0.05,   
-        pAdjustMethod = "BH"
-    )
-    df = ekegg@result
-    write.table(ekegg@result, keggfile, sep="\t", quote=FALSE, row.names=FALSE)
-    # df = read.csv(keggfile,sep = "\t",header = T)
+kegg_plot = function(gene_list,keggfile,keggjpeg,top=10,mainTitle = "kegg Enrichment Analysis",species = "mouse"){
+    if (!file.exists(keggfile)){
+        if ( species == "mouse") {
+            gene_info <- bitr(gene_list, fromType = "ENSEMBL", toType = "ENTREZID", OrgDb = org.Mm.eg.db)
+            entrez_ids <- unique(gene_info$ENTREZID)
+            print(paste("entrez_ids:",length(entrez_ids)))
+            ekegg <- enrichKEGG(
+                gene = entrez_ids,     
+                organism = "mmu",     
+                keyType = "kegg",      
+                pvalueCutoff = 0.05,  
+                qvalueCutoff = 0.05,   
+                pAdjustMethod = "BH"
+            )
+            df = ekegg@result
+        } else if ( species == "human") {
+            gene_info <- bitr(gene_list, fromType = "ENSEMBL", toType = "ENTREZID", OrgDb = org.Hs.eg.db)
+            entrez_ids <- unique(gene_info$ENTREZID)
+            print(paste("entrez_ids:",length(entrez_ids)))
+            ekegg <- enrichKEGG(
+                gene = entrez_ids,     
+                organism = "hsa",     
+                keyType = "kegg",      
+                pvalueCutoff = 0.05,  
+                qvalueCutoff = 0.05,   
+                pAdjustMethod = "BH"
+            )
+            df = ekegg@result
+        } else {
+            stop("species not supported")
+        }
+        write.table(ekegg@result, keggfile, sep="\t", quote=FALSE, row.names=FALSE)
+    } else {
+        df = read.csv(keggfile,sep = "\t",header = T)
+    }
+
+    
     df = df %>% arrange(pvalue, Count) %>% slice_head(n = top) 
     p = ggplot(df, aes(x = reorder(df[,"Description"],  -log10(df[,"pvalue"])), y = -log10(df[,"pvalue"]))) +
         geom_point(aes(color = -log10(df[,"pvalue"]), size = Count )) +
@@ -98,7 +144,7 @@ kegg_plot = function(gene_list,keggfile,keggjpeg,top=10,mainTitle = "kegg Enrich
     dev.off()
 
 }
-parser <- ArgumentParser(description='go enrichment analysis for the output of DESeq2')
+parser <- ArgumentParser(description='go and kegg enrichment analysis for the output of DESeq2')
 parser$add_argument('-m', '--mode', type='character', required=TRUE,nargs="+",choices=c("go","kegg"),
                     help='mode: go or kegg ')
 parser$add_argument('-u', '--up', type='character', required=TRUE,
@@ -107,14 +153,17 @@ parser$add_argument('-d', '--down', type='character', required=TRUE,
                     help='up: the up feature file of DESeq2 analysis')
 parser$add_argument('-o', '--outdir', type='character', required=TRUE,
                     help='outdir: output dir')
-parser$add_argument('-t', '--title', type='character', required=TRUE,
+parser$add_argument('-t', '--title', type='character',default="",
                     help='title: the main title suffix of go jpeg;such Upregulated/Downregulated genes after [title]')
+parser$add_argument('-s', '--species', type='character', default="mouse",
+                    help='species: the species of the input file; default is mouse')
 args <- parser$parse_args()
 mode = args$mode
 up = args$up
 down = args$down
 outdir = args$outdir
 title = args$title
+species = args$species
 
 cat("mode:",mode,"\n")
 print(paste("mode: ",mode,sep=""))
@@ -136,30 +185,40 @@ if ( "go" %in% mode) {
         dir.create(paste(outdir,"/DESeq2/go/",sep=""),recursive = TRUE,showWarnings = FALSE)
     }
     # print(upBaseName)
+    if (title != "") {
+        uptitle = paste("Upregulated genes after ",title,sep="")
+        downtitle = paste("Downregulated genes after ",title,sep="")
+    } else {
+        uptitle = "Upregulated genes"
+        downtitle = "Downregulated genes"
+    }
     outfile = paste(outdir,"DESeq2/go/",upBaseName,"_GO.csv",sep="")
     outjpeg = paste(outdir,"DESeq2/go/",upBaseName,"_GO.jpeg",sep="")
-    uptitle = paste("Upregulated genes after ",title,sep="")
-    go_plot(gene_list_up,gofile = outfile,gojpeg = outjpeg,mainTitle = uptitle)
+    go_plot(gene_list_up,gofile = outfile,gojpeg = outjpeg,mainTitle = uptitle,species = species)
 
     outfile = paste(outdir,"DESeq2/go/",downBaseName,"_GO.csv",sep="")
     outjpeg = paste(outdir,"DESeq2/go/",downBaseName,"_GO.jpeg",sep="")
-    downtitle = paste("Downregulated genes after ",title,sep="")
-    go_plot(gene_list_down,gofile = outfile,gojpeg = outjpeg,mainTitle = downtitle)
+    go_plot(gene_list_down,gofile = outfile,gojpeg = outjpeg,mainTitle = downtitle,species = species)
 }
 
 if ( "kegg" %in% mode) {
     if ( !dir.exists(paste(outdir,"/DESeq2/kegg/",sep=""))){
         dir.create(paste(outdir,"/DESeq2/kegg/",sep=""),recursive = TRUE,showWarnings = FALSE)
     }
+    if (title != "") {
+        uptitle = paste("Upregulated genes after ",title,sep="")
+        downtitle = paste("Downregulated genes after ",title,sep="")
+    } else {
+        uptitle = "Upregulated genes"
+        downtitle = "Downregulated genes"
+    }
     outfile = paste(outdir,"DESeq2/kegg/",upBaseName,"_kegg.csv",sep="")
     outjpeg = paste(outdir,"DESeq2/kegg/",upBaseName,"_kegg.jpeg",sep="")
-    uptitle = paste("Upregulated genes after ",title,sep="")
-    kegg_plot(gene_list_up,keggfile = outfile,keggjpeg = outjpeg,mainTitle = uptitle)
+    kegg_plot(gene_list_up,keggfile = outfile,keggjpeg = outjpeg,mainTitle = uptitle,species = species)
 
     outfile = paste(outdir,"DESeq2/kegg/",downBaseName,"_kegg.csv",sep="")
     outjpeg = paste(outdir,"DESeq2/kegg/",downBaseName,"_kegg.jpeg",sep="")
-    downtitle = paste("Downregulated genes after ",title,sep="")
-    kegg_plot(gene_list_down,keggfile = outfile,keggjpeg = outjpeg,mainTitle = downtitle)
+    kegg_plot(gene_list_down,keggfile = outfile,keggjpeg = outjpeg,mainTitle = downtitle,species = species)
 }
 
 

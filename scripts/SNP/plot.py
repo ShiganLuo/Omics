@@ -7,7 +7,8 @@ import matplotlib.cm as cm
 import matplotlib.colors as mcolors
 import numpy as np
 import re
-def CaculateNumber(controlFiles:list[str],experimentFiles:list[str],controlName:str,experiemtName:str):
+import argparse
+def CaculateNumber(controlFiles:list[str],experimentFiles:list[str],controlName:str,experiemtName:str,outfile:str=None,geneId:str="ENSMUSG"):
     """
     CaculateNumber function"
     This script is used to caculate the number of total,TE and exon records in each sample and group them into a DataFrame 
@@ -15,39 +16,42 @@ def CaculateNumber(controlFiles:list[str],experimentFiles:list[str],controlName:
     infile:
      - sep with tab
      - the thirteen column of the bed file is used to distinguish TE and exon records.
-     - TE records have 2 colons in the thirteen column, while exon records start with "ENSMUSG" on behalf of mouse.
+     - TE records have 2 colons in the thirteen column, 
+     - while exon records start with "ENSMUSG" on behalf of mouse.ENSG:human
     """
     rows = []
     
     for infile in controlFiles:
         df = pd.read_csv(infile,sep="\t",header=None)
         countTE = df[df[13].str.count(":") == 2].shape[0]
-        countExon = df[df[13].str.startswith("ENSMUSG", na=False)].shape[0]
+        countExon = df[df[13].str.startswith(geneId, na=False)].shape[0]
         countTotal = df.shape[0]
         if countTE + countExon != countTotal:
             raise ValueError(f"Error: {infile} has {countTotal} records, but {countTE} TE records and {countExon} Gene records")
-        sample = os.path.basename(infile).split(".bed")[0]
+        sample = os.path.basename(infile).split("Common")[0]
         rows.append({"Sample":sample,"Total":countTotal,"TE":countTE,"Gene":countExon,"group":f"{controlName}"})
         
     for infile in experimentFiles:
         df = pd.read_csv(infile,sep="\t",header=None)
         countTE = df[df[13].str.count(":") == 2].shape[0]
-        countExon = df[df[13].str.startswith("ENSMUSG", na=False)].shape[0]
+        countExon = df[df[13].str.startswith(geneId, na=False)].shape[0]
         countTotal = df.shape[0]
         if countTE + countExon != countTotal:
             raise ValueError(f"Error: {infile} has {countTotal} records, but {countTE} TE records and {countExon} Gene records")
-        sample = os.path.basename(infile).split(".bed")[0]
+        sample = os.path.basename(infile).split("Common")[0]
         rows.append({"Sample":sample,"Total":countTotal,"TE":countTE,"Gene":countExon,"group":f"{experiemtName}"})
     df = pd.DataFrame(rows)
+    if outfile != None:
+        df.to_csv(outfile,index=False)
     return df
-def plotNumber(df:pd.DataFrame,outfile:str):
+def plotNumber(df:pd.DataFrame,outfile:str,controlName:str,experimentName:str):
     """
     plotNumber function: plot the output of CaculateNumber function
     """
     df_melted = df.melt(id_vars=["Sample", "group"], value_vars=["TE", "Gene"], var_name="Category", value_name="Count")
     group_colors = {
-    "wild type": "blue",
-    "Eif2ak4-/- (GCN2 knock-out)": "red"
+    controlName: "blue",
+    experimentName: "red"
     }
 
     plt.figure(figsize=(14, 10),dpi=300)
@@ -61,8 +65,8 @@ def plotNumber(df:pd.DataFrame,outfile:str):
         xtick.set_color(group_colors[group])  # 设置颜色
     
     # legend for xtick
-    handles_group = [mpatches.Patch(color=group_colors["wild type"], label="wild type"),
-           mpatches.Patch(color=group_colors["Eif2ak4-/- (GCN2 knock-out)"], label="Eif2ak4-/- (GCN2 knock-out)")]
+    handles_group = [mpatches.Patch(color=group_colors[controlName], label=experimentName),
+           mpatches.Patch(color=group_colors[experimentName], label=experimentName)]
     legend1 = plt.legend(handles=handles_cat, title="feature", loc="upper right",bbox_to_anchor=(1.1, 1))  # 原来的 TE / Exon 图例
     legend2 = plt.legend(handles=handles_group, title="Group", loc="lower right",bbox_to_anchor=(1.1, 1))
     plt.gca().add_artist(legend1)
@@ -282,22 +286,61 @@ def plotIntervalDistribution(df:pd.DataFrame,outfile:str):
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description="plot common vcf and annovar file")
+    parser.add_argument('--mode', type=str,required=True,default="vcf",choices=["vcf","annovar"],help='experiment group name')
+    parser.add_argument('--control', type=str, required=True,nargs='+', help='Paths to control files')
+    parser.add_argument('--experiment', type=str, required=True,nargs='+', help='Path to experimet files')
+    parser.add_argument('--outdir', type=str,required=True,help='Path to output directory')
+    parser.add_argument('--controlName', type=str,required=True,help='control group name')
+    parser.add_argument('--experimentName', type=str,required=True,help='experiment group name')
+    parser.add_argument('--species', type=str,default="mouse",help='species name mouse or human')
+    args = parser.parse_args()
+    control = args.control
+    experiment = args.experiment
+    outdir = args.outdir
+    controlName = args.controlName
+    experimentName = args.experimentName
+    species = args.species
+    if not os.path.exists(outdir):
+        os.makedirs(outdir)
     ################## intersected vcf statistics#################################
-    control = ["/ChIP_seq_2/StemCells/RNASNP202503/waitingflow/output/vcf/SRR17762751.bed",
-               "/ChIP_seq_2/StemCells/RNASNP202503/waitingflow/output/vcf/SRR17762748.bed",
-               "/ChIP_seq_2/StemCells/RNASNP202503/waitingflow/output/vcf/SRR17762744.bed"]
-    experiment = ["/ChIP_seq_2/StemCells/RNASNP202503/waitingflow/output/vcf/SRR17762742.bed",
-                  "/ChIP_seq_2/StemCells/RNASNP202503/waitingflow/output/vcf/SRR17762738.bed",
-                  "/ChIP_seq_2/StemCells/RNASNP202503/waitingflow/output/vcf/SRR17762739.bed"]
+    # control = ["/ChIP_seq_2/StemCells/RNASNP202503/waitingflow/output/vcf/SRR17762751.bed",
+    #            "/ChIP_seq_2/StemCells/RNASNP202503/waitingflow/output/vcf/SRR17762748.bed",
+    #            "/ChIP_seq_2/StemCells/RNASNP202503/waitingflow/output/vcf/SRR17762744.bed"]
+    # experiment = ["/ChIP_seq_2/StemCells/RNASNP202503/waitingflow/output/vcf/SRR17762742.bed",
+    #               "/ChIP_seq_2/StemCells/RNASNP202503/waitingflow/output/vcf/SRR17762738.bed",
+    #               "/ChIP_seq_2/StemCells/RNASNP202503/waitingflow/output/vcf/SRR17762739.bed"]
     # ###
-    outfile = "/ChIP_seq_2/StemCells/RNASNP202503/waitingflow/output/plot/NumberBar.png"
-    df = CaculateNumber(control,experiment,"wild type","Eif2ak4-/- (GCN2 knock-out)")
-    # print(df)
-    plotNumber(df,outfile)
+    # outfile = "/ChIP_seq_2/StemCells/RNASNP202503/waitingflow/output/plot/NumberBar.png"
+    # df = CaculateNumber(control,experiment,"wild type","Eif2ak4-/- (GCN2 knock-out)")
+    # # print(df)
+    # plotNumber(df,outfile)
     # ### 
     # df = TopAlterFeature(control,experiment,"wild type","Eif2ak4-/- (GCN2 knock-out)",5)
     # outfile = "/ChIP_seq_2/StemCells/RNASNP202503/waitingflow/output/plot/TopAlterFeature.png"
     # plotTopfeature(df,outfile)
+    if args.mode == "vcf":
+        outfile = os.path.join(outdir,"NumberBar.csv")
+        if species == "mouse":
+            df = CaculateNumber(control,experiment,controlName,experimentName,outfile)
+        elif species == "human":
+            df = CaculateNumber(control,experiment,controlName,experimentName,outfile,geneId="ENSG")
+        else:
+            raise ValueError("species must be mouse or human")
+        outfile = os.path.join(outdir,"NumberBar.png")
+        plotNumber(df,outfile,controlName,experimentName)
+
+        outfile = os.path.join(outdir,"TopAlterFeature.csv")
+        df = TopAlterFeature(control,experiment,controlName,experimentName,5,outfile)
+        outfile = os.path.join(outdir,"TopAlterFeature.png")
+        plotTopfeature(df,outfile)
+    elif args.mode == "annovar":
+        outfile = os.path.join(outdir,"IntervalDistribution.csv")
+        df = caculateIntervalDistribution(control,experiment,controlName,experimentName,outfile)
+        outfile = os.path.join(outdir,"IntervalDistribution.png")
+        plotIntervalDistribution(df,outfile)
+    else:
+        raise ValueError("mode must be vcf or annovar")
     ################## intersected vcf statistics#################################
     # control = ["/ChIP_seq_2/StemCells/RNASNP202503/waitingflow/output/annovar/SRR17762751/SRR17762751.GRCm39_multianno.csv",
     #            "/ChIP_seq_2/StemCells/RNASNP202503/waitingflow/output/annovar/SRR17762748/SRR17762748.GRCm39_multianno.csv",
@@ -308,6 +351,7 @@ if __name__ == '__main__':
     # df = caculateIntervalDistribution(control,experiment,"wild type","Eif2ak4-/- (GCN2 knock-out)","a.csv")
     # outfile = "/ChIP_seq_2/StemCells/RNASNP202503/waitingflow/output/plot/IntervalDistribution.png"
     # plotIntervalDistribution(df,outfile)
+
 
 
     

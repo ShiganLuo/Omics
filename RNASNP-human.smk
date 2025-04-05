@@ -18,8 +18,7 @@ def request():
     ### star_align
     output['star_align'] =  [expand(outdir + "/2pass/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam", sample_id=samples, genome=genomes1)]
     output['xenoInput'] = [
-        outdir + "/xenofilterR/xenofilterR_input.csv",
-        outdir +"/xenofilterR/xenofilterR_reName.csv"
+        outdir + "/xenofilterR/xenofilterR_input.csv"
     ]
     output['VarientCalling'] = [expand(outdir + "/Split/vcf/human/{sample_id}.vcf.gz",sample_id=samples)]
     output['filter'] = [expand(outdir + "/filter/vcf/human/{sample_id}.vcf.gz",sample_id=samples)]
@@ -27,8 +26,8 @@ def request():
     output['count_TE'] = [expand(outdir + "/counts/{sample_id}/human/{sample_id}TElocal.cntTable",sample_id=samples)]
     output['combineTEcount'] = [expand(outdir + "/counts/humanTEcount.cntTable")]
     output['combineTElocal'] = [expand(outdir + "/counts/humanTElocal.cntTable")]
-    output['gtf'] = [expand(outdir + "/2pass/{sample_id}/human/{sample_id}.gtf",sample_id=samples)]
-    output['annovar'] = expand(outdir + "/annovar/human/{sample_id}/{sample_id}.GRCm39_multianno.csv",sample_id=samples)
+    output['stringTieOverlap'] = [expand(outdir + "/2pass/{genome}_StgTEOverlap.bed",genome=genomes)]
+    output['annovar'] = expand(outdir + "/annovar/human/{sample_id}/{sample_id}.GRCh38_multianno.csv",sample_id=samples)
     # output['gatk_index'] = []
     return list(output.values())
 # print(request())
@@ -160,7 +159,7 @@ rule generate_xenofilter_input:
                sample_id=samples, genome=genomes)
     output:
         csvIn = outdir + "/xenofilterR/xenofilterR_input.csv",
-        csvRe = outdir +"/xenofilterR/xenofilterR_reName.csv"
+        # csvRe = outdir +"/xenofilterR/xenofilterR_reName.csv"
     run:
         import csv
         with open(output.csvIn, 'w', newline='') as f:
@@ -171,33 +170,32 @@ rule generate_xenofilter_input:
                     f"{outdir}/2pass/{sample}/mouse/{sample}Aligned.sortedByCoord.out.bam"
                 ]
                 writer.writerow(row)
-        with open(output.csvRe, 'w', newline='') as f:
-            writer = csv.writer(f)
-            for sample in samples:
-                row = [f"{sample}_xenofilterR"]
-                writer.writerow(row)
+        # 选择重命名文件
+        # with open(output.csvRe, 'w', newline='') as f:
+        #     writer = csv.writer(f)
+        #     for sample in samples:
+        #         row = [f"{sample}_xenofilterR"]
+        #         writer.writerow(row)
 
 
 # XenofilterR处理规则
 rule XenofilterR:
     input:
         csvIn = outdir + "/xenofilterR/xenofilterR_input.csv",
-        csvRe = outdir +"/xenofilterR/xenofilterR_reName.csv"
     output:
-        outdir = directory(outdir + "/xenofilterR/bam")
+        # expand(outdir + "/xenofilterR/Filtered_bams/{sample_id}_Filtered.bam",sample_id=samples),
+        # expand(outdir + "/xenofilterR/Filtered_bams/{sample_id}_Filtered.bam.bai",sample_id=samples)
+        outdir = directory(outdir + "/xenofilterR/bam") #XenofilteR设计不合理，没办法
     log:
         log = outdir + "/log/human/XenofilterR.log"
-    threads: 3
+    threads: 6
     params:
         script = "scripts/XenofilteR.r",
         threshold=8
     shell:
         """
-        #-p不仅递归创建还不会警告
-        mkdir -p {output.outdir}
         /usr/bin/Rscript {params.script} \
             --inputFile {input.csvIn} \
-            --renameFile {input.csvRe} \
             --outputDir {output.outdir} \
             --MM {params.threshold} \
             --workers {threads} > {log.log} 2>&1
@@ -205,7 +203,7 @@ rule XenofilterR:
 #####################SNP########################
 rule  addReadsGroup:
     input:
-        outdir = outdir + "/xenofilterR/bam",
+        outdir = outdir + "/xenofilterR/bam"
     output:
         bam = temp(outdir + "/RG/human/{sample_id}.bam"),
         bai = temp(outdir + "/RG/human/{sample_id}.bam.bai")
@@ -215,7 +213,7 @@ rule  addReadsGroup:
     conda:
         config['conda']['cfDNA_base']
     params:
-        bam = outdir + "/xenofilterR/bam/Filtered_bams/{sample_id}_xenofilterR_Filtered.bam",#放入params躲避检查，隐式依赖
+        bam = outdir + "/xenofilterR/bam/Filtered_bams/{sample_id}Aligned.sortedByCoord.out_Filtered.bam",
         id="{sample_id}",
         java="--java-options -Xmx15G",
         RGLB=config["addReadsGroup"]["RGLB"],
@@ -322,7 +320,7 @@ rule vcf_filter:
         config['conda']['cfDNA_base']
     params:
         javaOptions="-Xms20g -Xmx30g -XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10",
-        vcf = outdir+"/filter/vcf/{sample_id}.vcf",
+        vcf = outdir+"/filter/vcf/human/{sample_id}.vcf",
     shell:
         """
         gatk --java-options "{params.javaOptions}" VariantFiltration \
@@ -623,7 +621,7 @@ rule annovar_table:
     input:
         avinput = outdir + "/annovar/human/{sample_id}/{sample_id}.avinput"
     output:
-        outfile = outdir + "/annovar/human/{sample_id}/{sample_id}.GRCm39_multianno.csv"
+        outfile = outdir + "/annovar/human/{sample_id}/{sample_id}.GRCh38_multianno.csv"
     log:
         log = outdir + "/log/human/{sample_id}/annovar_table.log"
     params:

@@ -1,4 +1,4 @@
-library(XenofilteR)
+suppressPackageStartupMessages(library(XenofilteR))
 suppressPackageStartupMessages(library(argparse))
 # 获取命令行参数
 parser <- ArgumentParser(description='XenofilteR: 去除比对到人基因组的bam文件中小鼠基因组的污染')
@@ -20,17 +20,25 @@ output_folder <- args$outputDir # 第三个参数：输出文件夹路径
 MM <- as.numeric(args$MM)  # 第四个参数：MM,根据read长度调整,150默认为8
 workers <- as.numeric(args$workers)  # 第五个参数：workers,默认为1
 
+if (!dir.exists(output_folder)) {
+    cat("Output directory does not exist. Creating it: ", output_folder, "\n")
+    dir.create(output_folder, recursive = TRUE)
+}
 # 创建并设置并行处理的参数
 bp.param <- SnowParam(workers = workers, type = "SOCK")
 
 # 执行 XenofilteR 函数
 if(is.null(args$renameFile)){
+    print("---1----")
     sample <- read.table(csv_file, sep = ",", header = FALSE)
-    XenofilteR(sample, destination.folder = output_folder, bp.param = bp.param, MM)
-}else {
+    XenofilteR(sample.list = sample, destination.folder = output_folder, bp.param = bp.param, MM_threshold = MM)
+    
+} else {
+    print("---2----")
     sample <- read.table(csv_file, sep = ",", header = FALSE)
     output <- readLines(args$renameFile)
-    XenofilteR(sample, destination.folder = output_folder, bp.param = bp.param, output, MM)
+    XenofilteR(sample.list = sample, destination.folder = output_folder, bp.param = bp.param, output.names = output, MM_threshold = MM)
+    
 }
 
 

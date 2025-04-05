@@ -56,13 +56,13 @@ if ( !dir.exists(paste(outdir,"DESeq2/TE/",sep=""))){
 }
 
 outjpeg = paste(outdir,"DESeq2/TE/TElocal_TE_up_subfamily.jpeg",sep="")
-title = paste("Upregulated TE subfamily after",graphTitle,sep="")
+title = paste("Upregulated TE subfamily",graphTitle,sep="")
 outfile = paste(outdir,"DESeq2/TE/TElocal_TE_up_subfamily.csv",sep="")
 df = read.csv(up,sep = "\t",header = T,row.names=1)
 TEsiteSta(df,outjpeg,mainTitle = title,outfile = outfile)
 
 outjpeg = paste(outdir,"DESeq2/TE/TElocal_TE_down_subfamily.jpeg",sep="")
-title = paste("Downregulated TE subfamily after",graphTitle,sep="")
+title = paste("Downregulated TE subfamily",graphTitle,sep="")
 outfile = paste(outdir,"DESeq2/TE/TElocal_TE_down_subfamily.csv",sep="")
 df = read.csv(down,sep = "\t",header = T,row.names=1)
 TEsiteSta(df,outjpeg,mainTitle = title,outfile = outfile)

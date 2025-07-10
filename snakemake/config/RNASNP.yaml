@@ -1,0 +1,88 @@
+genome: 
+  human: "/ChIP_seq_2/Data/index/Homo_sapiens/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa"
+  mouse: "/ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa"
+  size:
+    GRCh37: 2864785220
+    GRCh38: 2913022398
+    T2T/CHM13CAT_v2: 3117292070
+    GRCm37: 2620345972
+    GRCm38: 2652783500
+    GRCm39: 2654621783
+    dm3: 162367812
+    dm6: 142573017
+    GRCz10: 1369631918
+    GRCz11: 1368780147
+    WBcel235: 100286401
+    TAIR10: 119482012
+    mouse: 2654621783
+    human: 2913022398
+#隐式依赖,can't define in config yaml,you need handle it in snakefile
+genome_dict: 
+  human: "/ChIP_seq_2/Data/index/Homo_sapiens/GENCODE/GRCh38/GRCh38.primary_assembly.genome.dict"
+  mouse: "/ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/GRCm39.primary_assembly.genome.dict"
+# The STAR paramenters
+STAR:
+  human:
+    genome_fa: "/ChIP_seq_2/Data/index/Homo_sapiens/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa"
+    genome_gtf: "/ChIP_seq_2/Data/index/Homo_sapiens/GENCODE/GRCh38/gencode.v47.primary_assembly.annotation.gtf"
+    genome_index: "/ChIP_seq_2/Data/index/Homo_sapiens/GENCODE/GRCh38/star"
+  mouse:
+    genome_fa: "/ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa"
+    genome_gtf: "/ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/gencode.vM36.primary_assembly.annotation.gtf"
+    genome_index: "/ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/star"
+  procedure: "/opt/STAR-2.7.11b/bin/Linux_x86_64/STAR"
+  read_length: "149"
+addReadsGroup:
+  RGLB: "mRNA"
+  RGPL: "illumina"
+  RGPU: "Illumina_NextSeq_500"
+conda:
+  cfDNA_base: "/home/luosg/miniconda3/envs/cfDNA_base"
+  GCBias: "/home/luosg/miniconda3/envs/GCBias"
+  TE: "/home/luosg/miniconda3/envs/TE"
+  TElocal: "/home/luosg/miniconda3/envs/TElocal"
+  RNA-SNP: "/home/luosg/miniconda3/envs/RNA-SNP"
+
+  
+TEtranscripts:
+  human:
+    gtf: "/ChIP_seq_2/Data/index/Homo_sapiens/GENCODE/GRCh38/gencode.v47.primary_assembly.annotation.gtf"
+    TE_gtf: "/ChIP_seq_2/Data/index/Homo_sapiens/GENCODE/GRCh38/GRCh38_GENCODE_rmsk_TE.gtf"
+  mouse:
+    gtf: "/ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/gencode.vM36.primary_assembly.annotation.gtf"
+    TE_gtf: "/ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.gtf"
+
+TElocal:
+  human:
+    gtf: "/ChIP_seq_2/Data/index/Homo_sapiens/GENCODE/GRCh38/gencode.v47.primary_assembly.annotation.gtf"
+    TEind: "/ChIP_seq_2/Data/index/Homo_sapiens/GENCODE/GRCh38/TElocal/GRCh38_GENCODE_rmsk_TE.gtf.locInd"
+  mouse:
+    gtf: "/ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/gencode.vM36.primary_assembly.annotation.gtf"
+    TEind: "/ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/TElocal/GRCm39_GENCODE_rmsk_TE.gtf.locInd"
+
+annotation: 
+  mouse: "/ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/geneIDAnnotation.csv"
+  human: "/ChIP_seq_2/Data/index/Homo_sapiens/GENCODE/GRCh38/geneIDAnnotation.csv"
+
+getBed:
+  human:
+    gtf: "/ChIP_seq_2/Data/index/Homo_sapiens/GENCODE/GRCh38/gencode.v47.primary_assembly.annotation.gtf"
+    TE_gtf: "/ChIP_seq_2/Data/index/Homo_sapiens/GENCODE/GRCh38/GRCh38_GENCODE_rmsk_TE.gtf"
+  mouse:
+    gtf: "/ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/gencode.vM36.primary_assembly.annotation.gtf"
+    TE_gtf: "/ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.gtf"
+
+annovar:
+  mouse:
+    db: "/ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/annovar/GRCm39/"
+    buildver: "GRCm39"
+  human:
+    db: "/ChIP_seq_2/Data/index/Homo_sapiens/GENCODE/GRCh38/annovar/GRCh38/"
+    buildver: "GRCh38"
+
+stringTie:
+  human: 
+    gtf: "/ChIP_seq_2/Data/index/Homo_sapiens/GENCODE/GRCh38/gencode.v47.primary_assembly.annotation.gtf"
+  mouse: 
+    gtf: "/ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/gencode.vM36.primary_assembly.annotation.gtf"
+

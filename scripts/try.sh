@@ -36,5 +36,5 @@ function stringTie(){
 gtf=SRR13633379.gtf
 bam=/ChIP_seq_2/StemCells/RNASNP_PT/output/GSE166216/2pass/SRR13633379/mouse/SRR13633379Aligned.sortedByCoord.out.bam
 refGtf=/ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/exon.gtf
-stringTie ${gtf} ${bam} ${refGtf}
-gffcompare -r ${refGtf} -o comparison ${gtf}
+# stringTie ${gtf} ${bam} ${refGtf}
+# gffcompare -r ${refGtf} -o comparison ${gtf}

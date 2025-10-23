@@ -1,17 +1,17 @@
 #!/bin/bash
 function star_index(){
-    STAR=/opt/STAR-2.7.11b/bin/Linux_x86_64/STAR
-    genome_index=$1
-    genome_fa=$2
-    genome_gtf=$3
-    read_lenth=$4
-    index_core=$5
+    local genome_index=$1
+    local genome_fa=$2
+    local genome_gtf=$3
+    local read_lenth=$4
+    local index_core=$5
+    local STAR=$6
     ${STAR} --runMode genomeGenerate \
     --runThreadN ${index_core} \
     --genomeDir ${genome_index} \
     --genomeFastaFiles ${genome_fa} \
     --sjdbGTFfile ${genome_gtf} \
-    --sjdbOverhang ${read_lenth}
+    --sjdbOverhang ${read_lenth} # readLength-1
 }
 export -f star_index
 #### example

@@ -19,7 +19,7 @@ export -f starPrepare
 # starPrepare ${fa} ${read_length}
 fa=$1
 read_length=$2
-starPrepare ${fa} ${read_length}
+# starPrepare ${fa} ${read_length}
 
 
 

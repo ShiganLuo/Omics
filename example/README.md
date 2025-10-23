@@ -60,4 +60,5 @@ snakemake -s workflow/snakemake/RNASNP-noRemove.smk --config indir="../../data/G
 
     - 20250329: 暂时分开单双端测序流程，再原双端测序中加入single_samples变量，使得不至于影响原来双端测序流程，
     又能兼容先运行单端测序流程，再运行双端测序流程
-    - 202503291724: 合并单双端测序流程，并完善人类流程
+    - 20250329: 合并单双端测序流程，并完善人类流程
+    - 20251021: 拆分模块，将成型流程置于example，根目录为当前运行流程run.smk

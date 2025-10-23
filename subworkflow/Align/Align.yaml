@@ -1,0 +1,6 @@
+genome:
+  human:
+    genome_index: "/home/luosg/genome/Human/GENCODE/GRCh38/STAR_index"
+Procedure:
+  trim_galore: "/opt/TrimGalore-0.6.10/trim_galore"
+  STAR: "/opt/STAR-2.7.11b/bin/Linux_x86_64/STAR"

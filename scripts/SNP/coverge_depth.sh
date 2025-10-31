@@ -20,25 +20,25 @@ export -f depth
 # depth ${bam} ${outfile} ${genomeSize}
 # depth /ChIP_seq_2/Data/serum/cfDNA/output/RG/V350318972.bam /ChIP_seq_2/Data/serum/cfDNA/output/RG/stats/depth_coverge.csv
 
-#### human
-### GSE204801
-for i in /ChIP_seq_2/StemCells/RNASNP_PT/output/GSE204801/xenofilterR/bam/Filtered_bams/*.bam; do
-    # echo "Processing $i"
-    sample_id=$(basename -s Aligned.sortedByCoord.out_Filtered.bam ${i})
-    # echo ${sample_id}
-    echo "depth ${i} /ChIP_seq_2/StemCells/RNASNP_PT/output/GSE204801/xenofilterR/stats/${sample_id}_depth_coverge.csv 2913022398"
-done | parallel -j 5
-### GSE224794
-for i in /ChIP_seq_2/StemCells/RNASNP_PT/output/GSE224794/xenofilterR/bam/Filtered_bams/*.bam; do
-    # echo "Processing $i"
-    sample_id=$(basename -s Aligned.sortedByCoord.out_Filtered.bam ${i})
-    # echo ${sample_id}
-    echo "depth ${i} /ChIP_seq_2/StemCells/RNASNP_PT/output/GSE224794/xenofilterR/stats/${sample_id}_depth_coverge.csv 2913022398"
-done | parallel -j 5
-### ZLC
-for i in /ChIP_seq_2/StemCells/RNASNP_PT/output/ZLC/xenofilterR/bam/Filtered_bams/*.bam; do
-    # echo "Processing $i"
-    sample_id=$(basename -s Aligned.sortedByCoord.out_Filtered.bam ${i})
-    # echo ${sample_id}
-    echo "depth ${i} /ChIP_seq_2/StemCells/RNASNP_PT/output/ZLC/xenofilterR/stats/${sample_id}_depth_coverge.csv 2913022398"
-done | parallel -j 2
+# #### human
+# ### GSE204801
+# for i in /ChIP_seq_2/StemCells/RNASNP_PT/output/GSE204801/xenofilterR/bam/Filtered_bams/*.bam; do
+#     # echo "Processing $i"
+#     sample_id=$(basename -s Aligned.sortedByCoord.out_Filtered.bam ${i})
+#     # echo ${sample_id}
+#     echo "depth ${i} /ChIP_seq_2/StemCells/RNASNP_PT/output/GSE204801/xenofilterR/stats/${sample_id}_depth_coverge.csv 2913022398"
+# done | parallel -j 5
+# ### GSE224794
+# for i in /ChIP_seq_2/StemCells/RNASNP_PT/output/GSE224794/xenofilterR/bam/Filtered_bams/*.bam; do
+#     # echo "Processing $i"
+#     sample_id=$(basename -s Aligned.sortedByCoord.out_Filtered.bam ${i})
+#     # echo ${sample_id}
+#     echo "depth ${i} /ChIP_seq_2/StemCells/RNASNP_PT/output/GSE224794/xenofilterR/stats/${sample_id}_depth_coverge.csv 2913022398"
+# done | parallel -j 5
+# ### ZLC
+# for i in /ChIP_seq_2/StemCells/RNASNP_PT/output/ZLC/xenofilterR/bam/Filtered_bams/*.bam; do
+#     # echo "Processing $i"
+#     sample_id=$(basename -s Aligned.sortedByCoord.out_Filtered.bam ${i})
+#     # echo ${sample_id}
+#     echo "depth ${i} /ChIP_seq_2/StemCells/RNASNP_PT/output/ZLC/xenofilterR/stats/${sample_id}_depth_coverge.csv 2913022398"
+# done | parallel -j 2

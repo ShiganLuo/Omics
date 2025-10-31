@@ -49,13 +49,30 @@ def get_snakefile_path(module_name:str)->str:
 alignSmk = get_snakefile_path("Align")
 include: alignSmk
 logging.info(f"Include Align workflow: {alignSmk}")
-samples = samples[0:1]  # For test purpose, process only first 1 samples
 rule all:
     input:
-        expand(outdir + "/2pass/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam", sample_id=samples,genome=genomes)
+        expand(outdir + "/2pass/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam", sample_id=samples,genome=genomes),
+        outdir + "/multiqc/multiqc_report.html",
 
 
-
+rule multiqc:
+    input: 
+        star = expand(outdir + "/2pass/{sample_id}/{genome}/{sample_id}.final.out",sample_id=samples,genome=genomes),
+        cutadapt_single = expand(outdir + "/log/{sample_id}/trimming_statistics.txt",sample_id=samples),
+        cutadapt_paired1 = expand(outdir + "/log/{sample_id}/trimming_statistics_1.txt",sample_id=samples),
+        cutadapt_paired2 = expand(outdir + "/log/{sample_id}/trimming_statistics_2.txt",sample_id=samples)
+    output:
+        outdir + "/multiqc/multiqc_report.html"
+    params:
+        multiqc_indir = outdir,
+        multiqc_outdir = outdir + "/multiqc/"
+    conda:
+        config['conda']['genomeStability']
+    shell:
+        """
+        multiqc {params.multiqc_indir} -o {params.multiqc_outdir}
+        """
+    
 
 
 

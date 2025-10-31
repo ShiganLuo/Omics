@@ -21,8 +21,8 @@ rule trimming_Paired:
         fastq1 = indir + "/{sample_id}_1.fastq.gz",
         fastq2 = indir + "/{sample_id}_2.fastq.gz"
     output:
-        fastq1 = outdir + "/cutadapt/{sample_id}_1.fq.gz",
-        fastq2 = outdir + "/cutadapt/{sample_id}_2.fq.gz",
+        fastq1 = temp(outdir + "/cutadapt/{sample_id}_1.fq.gz"),
+        fastq2 = temp(outdir + "/cutadapt/{sample_id}_2.fq.gz"),
         report1 = outdir + "/log/{sample_id}/trimming_statistics_1.txt",
         report2 = outdir + "/log/{sample_id}/trimming_statistics_2.txt"
     params:
@@ -39,14 +39,14 @@ rule trimming_Paired:
             -o {params.outdir} --basename {wildcards.sample_id} {input.fastq1} {input.fastq2} > {log.log} 2>&1
         mv {params.outdir}/{wildcards.sample_id}_val_1.fq.gz {output.fastq1}
         mv {params.outdir}/{wildcards.sample_id}_val_2.fq.gz {output.fastq2}
-        mv {params.outdir}/{wildcards.sample_id}_1.fq.gz_trimming_report.txt {output.report1}
-        mv {params.outdir}/{wildcards.sample_id}_2.fq.gz_trimming_report.txt {output.report2}
+        mv {params.outdir}/{wildcards.sample_id}_1.fastq.gz_trimming_report.txt {output.report1}
+        mv {params.outdir}/{wildcards.sample_id}_2.fastq.gz_trimming_report.txt {output.report2}
         """
 rule trimming_Single:
     input:
         fastq = indir + "/{sample_id}.fastq.gz"
     output:
-        fastq = outdir + "/cutadapt/{sample_id}Single.fq.gz",
+        fastq = temp(outdir + "/cutadapt/{sample_id}Single.fq.gz"),
         report = outdir + "/log/{sample_id}/trimming_statistics.txt"
     params:
         outdir = outdir + "/cutadapt",
@@ -60,7 +60,7 @@ rule trimming_Single:
         {params.trim_galore} --phred33  --cores {threads} --quality {params.quality} \
             -o {params.outdir} --basename {wildcards.sample_id} {input.fastq} > {log.log} 2>&1
         mv {params.outdir}/{wildcards.sample_id}_trimmed.fq.gz {output.fastq}
-        mv {params.outdir}/{wildcards.sample_id}.fq.gz_trimming_report.txt {output.report}
+        mv {params.outdir}/{wildcards.sample_id}.fastq.gz_trimming_report.txt {output.report}
         """
 
 def get_alignment_input(wildcards):

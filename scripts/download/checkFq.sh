@@ -1,23 +1,40 @@
 #!/bin/bash
 ## check whether fq has been download already or not
 
-
-function check(){
-    filePath=$1
-    awk -F "\t" '{print $6,$7}' ${filePath} | while read -r SRR libraryOut;do
-        dir=/ChIP_seq_2/StemCells/data/fq
-        log=/ChIP_seq_2/StemCells/log/download
-        if [ -e ${dir}/${SRR}_1.fastq.gz ] && [ -e ${dir}/${SRR}_2.fastq.gz ]; then
-            echo -e "${SRR}\t${libraryOut}\tfq文件存在" >> ${log}/check.log
-        else
-            echo -e "${SRR}\t${libraryOut}\tfq文件不存在" >> ${log}/check.log
-        fi
-    done
+function isFqExist(){
+    local sraNumber=$1
+    local fqDir=$2
+    local log=$3
+    cd ${fqDir}
+    if [[ (-f ${sraNumber}_1.fastq.gz  && -f ${sraNumber}_2.fastq.gz)  ||  -f ${sraNumber}.fastq.gz ]]; then
+        echo -e "${sraNumber}\tfq文件存在" >> ${log}
+    else
+        echo -e "${sraNumber}\tfq文件不存在" >> ${log}
+    fi
 }
-:> /ChIP_seq_2/StemCells/log/download/check.log
-file1=/ChIP_seq_2/StemCells/data/Human_bulk.csv
-file2=/ChIP_seq_2/StemCells/data/Mouse_bulk.csv
-file3=/ChIP_seq_2/StemCells/data/Mouse_ATAC.csv
-check ${file1}
-check ${file2}
-check ${file3}
+export -f isFqExist
+
+function gzipTest(){
+    local dir=$1
+    local log=$2
+
+    for f in ${1}*.gz; do
+        gzip -t "$f" >/dev/null 2>&1 \
+        && echo "OK:    $f" \
+        || echo "ERROR: $f"
+    done > ${log} 2>&1
+}
+export -f gzipTest
+
+function gzipTestForSra(){
+    local fqDir=$1
+    local sraNumber=$2
+    local log=$3
+    for f in ${fqDir}/${sraNumber}*.gz; do
+        gzip -t "$f" >/dev/null 2>&1 \
+        && echo "OK:    $f" \
+        || echo "ERROR: $f"
+    done >> ${log} 2>&1
+}
+
+export -f gzipTestForSra

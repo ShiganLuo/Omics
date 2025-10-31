@@ -4,12 +4,14 @@
 ##outdir=$2 output dir
 ##log=$3 log file
 function NCBIdownload(){
-    ID=$1
-    outdir=$2
-    log=$3
+    local ID=$1
+    local outdir=$2
+    local log=$3
     pre_donwload(){
         prefetch ${ID} -O ${outdir}
         mv ${outdir}/${ID}/${ID}.sra ${outdir}
+        rmdir ${outdir}/${ID}
+        cd ${outdir}
         fastq-dump --split-3 --gzip ${outdir}/${ID}.sra
         #--split-files
 

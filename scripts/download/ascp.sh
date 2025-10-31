@@ -7,36 +7,56 @@
 ## dest=$4 should be output dir
 function ENAdownload(){
     #parllel子进程可能访问不到外部变量
-    key=~/miniconda3/envs/RNA-SNP/etc/asperaweb_id_dsa.openssh
+    # key=~/miniconda3/envs/RNA-SNP/etc/asperaweb_id_dsa.openssh
     id=$1
     type=$2
     log=$3
     dest=$4
+    key=$5
     echo "${id} ${type}开始处理"
     charNumber=$(echo ${id} | wc -m)
     if [[ ${charNumber} -eq 12 ]];then
+        echo "sra number 为11位"
         x6=${id:0:6}
         x2=${id: -2}
         x2="0${x2}"
         echo ${x6}
         echo ${x2}
+        file_path=(
+        "era-fasp@fasp.sra.ebi.ac.uk:/vol1/fastq/${x6}/${x2}/${id}/${id}_1.fastq.gz"
+        "era-fasp@fasp.sra.ebi.ac.uk:/vol1/fastq/${x6}/${x2}/${id}/${id}_2.fastq.gz"
+        "era-fasp@fasp.sra.ebi.ac.uk:/vol1/fastq/${x6}/${x2}/${id}/${id}.fastq.gz"
+        )
+        echo ${file_path[@]}
     elif [[ ${charNumber} -eq 11 ]];then
+        echo "sra number 为10位"
         x6=${id:0:6}
         x2=${id: -1}
         x2="00${x2}"
         echo ${x6}
         echo ${x2}
+        file_path=(
+        "era-fasp@fasp.sra.ebi.ac.uk:/vol1/fastq/${x6}/${x2}/${id}/${id}_1.fastq.gz"
+        "era-fasp@fasp.sra.ebi.ac.uk:/vol1/fastq/${x6}/${x2}/${id}/${id}_2.fastq.gz"
+        "era-fasp@fasp.sra.ebi.ac.uk:/vol1/fastq/${x6}/${x2}/${id}/${id}.fastq.gz"
+        )
+        echo ${file_path[@]}
+    elif [[ ${charNumber} -eq 10 ]];then
+        echo "sra number 为9位"
+        x6=${id:0:6}
+        echo=${x6}
+        file_path=(
+        "era-fasp@fasp.sra.ebi.ac.uk:/vol1/fastq/${x6}/${id}/${id}_1.fastq.gz"
+        "era-fasp@fasp.sra.ebi.ac.uk:/vol1/fastq/${x6}/${id}/${id}_2.fastq.gz"
+        "era-fasp@fasp.sra.ebi.ac.uk:/vol1/fastq/${x6}/${id}/${id}.fastq.gz"
+        )
+        echo ${file_path[@]}
     else
-        echo "sra Number既不是11位(老),也不是12位(新)"
+        echo -e "The format of the sra Number is incorrect. Please check.\nIt must be an 11-digit, 10-digit, or 9-digit number starting with SRR."
         exit 1  # 终止整个脚本执行，并返回状态码 1
-
     fi
-    file_path=(
-    "era-fasp@fasp.sra.ebi.ac.uk:/vol1/fastq/${x6}/${x2}/${id}/${id}_1.fastq.gz"
-    "era-fasp@fasp.sra.ebi.ac.uk:/vol1/fastq/${x6}/${x2}/${id}/${id}_2.fastq.gz"
-    "era-fasp@fasp.sra.ebi.ac.uk:/vol1/fastq/${x6}/${x2}/${id}/${id}.fastq.gz"
-    )
-    echo ${file_path[@]}
+
+    
     function ascp_download(){
         ascp -k 1 -T -l 200m -P 33001 --file-checksum=md5 --overwrite=always -i ${key} $1 ${dest}
     }

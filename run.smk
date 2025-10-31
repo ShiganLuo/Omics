@@ -1,4 +1,5 @@
 shell.prefix("set -x; set -e;")
+
 import logging
 import os
 from snakemake.io import glob_wildcards
@@ -33,6 +34,10 @@ logging.info("preparing samples...")
 paired_samples, single_samples, samples = get_samples(indir,outdir)
 logging.info("samples prepared.")
 
+configfilePath = os.path.join(SNAKEFILE_DIR,"config","run.yaml")
+configfile: configfilePath
+logging.info(f"add cofigfile {configfilePath}")
+
 def get_snakefile_path(module_name:str)->str:
     """
     function: Get the absolute path of a module in the core_snakefile_path/subworkflow/ directory.
@@ -52,15 +57,15 @@ logging.info(f"Include Align workflow: {alignSmk}")
 rule all:
     input:
         expand(outdir + "/2pass/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam", sample_id=samples,genome=genomes),
-        outdir + "/multiqc/multiqc_report.html",
+        # outdir + "/multiqc/multiqc_report.html",
 
 
 rule multiqc:
     input: 
-        star = expand(outdir + "/2pass/{sample_id}/{genome}/{sample_id}.final.out",sample_id=samples,genome=genomes),
-        cutadapt_single = expand(outdir + "/log/{sample_id}/trimming_statistics.txt",sample_id=samples),
-        cutadapt_paired1 = expand(outdir + "/log/{sample_id}/trimming_statistics_1.txt",sample_id=samples),
-        cutadapt_paired2 = expand(outdir + "/log/{sample_id}/trimming_statistics_2.txt",sample_id=samples)
+        star = expand(outdir + "/2pass/{sample_id}/{genome}/{sample_id}Log.final.out",sample_id=samples,genome=genomes),
+        cutadapt_single = expand(outdir + "/log/{sample_id}/trimming_statistics.txt",sample_id=single_samples),
+        cutadapt_paired1 = expand(outdir + "/log/{sample_id}/trimming_statistics_1.txt",sample_id=paired_samples),
+        cutadapt_paired2 = expand(outdir + "/log/{sample_id}/trimming_statistics_2.txt",sample_id=paired_samples)
     output:
         outdir + "/multiqc/multiqc_report.html"
     params:

@@ -1,5 +1,5 @@
-SNAKEFILE_FULL_PATH = workflow.snakefile
-SNAKEFILE_DIR = os.path.dirname(SNAKEFILE_FULL_PATH)
+SNAKEFILE_FULL_PATH_Align = workflow.snakefile
+SNAKEFILE_DIR_Align = os.path.dirname(SNAKEFILE_FULL_PATH_Align)
 def get_yaml_path(module_name:str)->str:
     """
     function: Get the absolute path of a module in the workflow/RNA-SNP/snakemake/subworkflow/ directory.
@@ -9,7 +9,7 @@ def get_yaml_path(module_name:str)->str:
 
     return: Absolute path of the module file.
     """
-    module_path = os.path.join(SNAKEFILE_DIR,f"{module_name}.yaml")
+    module_path = os.path.join(SNAKEFILE_DIR_Align ,f"{module_name}.yaml")
     if not os.path.exists(module_path):
         raise FileNotFoundError(f"Module configfile {module_name}.yaml not found at {module_path}")
     return module_path
@@ -76,6 +76,7 @@ def get_alignment_input(wildcards):
 
     return: A list of input file paths for the STAR alignment step. 
     """
+    logging.info(f"[get_alignment_input] called with wildcards: {wildcards}")
     # 构造可能的输入路径
     paired_r1 = f"{outdir}/cutadapt/{wildcards.sample_id}_1.fq.gz"
     paired_r2 = f"{outdir}/cutadapt/{wildcards.sample_id}_2.fq.gz"

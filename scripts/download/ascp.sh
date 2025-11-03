@@ -8,11 +8,11 @@
 function ENAdownload(){
     #parllel子进程可能访问不到外部变量
     # key=~/miniconda3/envs/RNA-SNP/etc/asperaweb_id_dsa.openssh
-    id=$1
-    type=$2
-    log=$3
-    dest=$4
-    key=$5
+    local id=$1
+    local type=$2
+    local log=$3
+    local dest=$4
+    local key=$5
     echo "${id} ${type}开始处理"
     charNumber=$(echo ${id} | wc -m)
     if [[ ${charNumber} -eq 12 ]];then

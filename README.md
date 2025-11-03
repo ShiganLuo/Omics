@@ -9,7 +9,7 @@
 2. 运行
 
 ```sh
-snakemake -s workflow/RNA-SNP/run.smk --config indir=data/fq outdir=output --cores 45
+snakemake -s workflow/RNA-SNP/run.smk --config indir=data/fq outdir=output --cores 45 --use-conda
 ```
 
 注意：

@@ -56,8 +56,8 @@ include: alignSmk
 logging.info(f"Include Align workflow: {alignSmk}")
 rule all:
     input:
-        expand(outdir + "/2pass/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam", sample_id=samples,genome=genomes),
-        # outdir + "/multiqc/multiqc_report.html",
+        # expand(outdir + "/2pass/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam", sample_id=samples,genome=genomes),
+        outdir + "/multiqc/multiqc_report.html",
 
 
 rule multiqc:

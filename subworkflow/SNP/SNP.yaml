@@ -1,0 +1,8 @@
+addReadsGroup:
+  RGLB: "mRNA"
+  RGPL: "Illumina"
+  RGPU: "Illumina_NextSeq_500"
+Procedure:
+  gatk: "/opt/gatk-4.6.0.0/gatk"
+  samtools: "/usr/bin/samtools"
+  bgzip: "/usr/bin/bgzip"

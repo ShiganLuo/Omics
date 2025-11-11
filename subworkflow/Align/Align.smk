@@ -122,3 +122,38 @@ rule star_align:
             --outSAMattributes NM \
             --outFileNamePrefix {params.outPrefix} > {log.log} 2>&1
         """
+
+rule featureCounts_single_noMultiple:
+    input:
+        bams = expand(outdir + "/2pass/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam",sample_id=single_samples,genome=genomes)
+    output:
+        outfile = outdir + "/count/featureCounts/{genome}_single_count.tsv"
+    log:
+        outdir + "/log/count/{genome}_featureCounts_single_noMultiple.log"
+    threads:
+        25
+    params:
+        featureCounts = config['Procedure']['featureCounts'],
+        gtf = lambda wildcards: config["genome"][wildcards.genome]["gtf"]
+    shell:
+        """
+        {params.featureCounts} -T {threads} -t exon -g gene_id -a {params.gtf} -o {output.outfile} {input.bams} > {log} 2>&1
+        """
+
+rule featureCounts_paired_noMultiple:
+    input:
+        bams = expand(outdir + "/2pass/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam",sample_id=paired_samples,genome=genomes)
+    output:
+        outfile = outdir + "/count/featureCounts/{genome}_paired_count.tsv"
+    log:
+        outdir + "/log/count/{genome}_featureCounts_paired_noMultiple.log"
+    threads:
+        25
+    params:
+        featureCounts = config['Procedure']['featureCounts'],
+        gtf = lambda wildcards: config["genome"][wildcards.genome]["gtf"]
+    shell:
+        """
+        # for multiple -M -O
+        {params.featureCounts} -T {threads} -B -p -t exon -g gene_id -a {params.gtf} -o {output.outfile} {input.bams} > {log} 2>&1
+        """

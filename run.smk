@@ -1,7 +1,8 @@
 shell.prefix("set -x; set -e;")
-
 import logging
 import os
+from itertools import chain
+import sys
 from snakemake.io import glob_wildcards
 logging.basicConfig(
 	level=logging.INFO,
@@ -14,25 +15,87 @@ SNAKEFILE_FULL_PATH = workflow.snakefile
 SNAKEFILE_DIR = os.path.dirname(SNAKEFILE_FULL_PATH)
 indir = config.get('indir', '../data')
 outdir = config.get('outdir', '../output')
-genomes = config.get('genomes', ['human'])
+metadata = config.get('metadata')
 logging.info("Workflow RNA-SNP started.")
-logging.info(f"Genomes to be processed: {genomes}")
+logging.info(f"metadata file path: {metadata}")
 logging.info(f"Input directory: {indir}")
 logging.info(f"Output directory: {outdir}")
 logging.info(f"Snakefile path: {SNAKEFILE_FULL_PATH}")
 logging.info(f"Execution directory: {EXECUTION_DIR}")
+sys.path.append(f"{SNAKEFILE_DIR}/utils")
+from fastq_utils import SNPMetadata
+snpMetadata = SNPMetadata(metadata,indir,f"{outdir}/log/utils/fastq_utils.log")
+groups = snpMetadata.run()
+def get_output_files(groups):
+    outfiles = []
+    paired_samples = []
+    single_samples = []
+    all_samples = []
+    genomes = []
+    for organism, types in groups.items():
+        genomes.append(organism)
+        for TYPE, samples in types.items():
+            if TYPE == "PAIRED":
+                outfiles.append(
+                    expand(
+                        outdir + "/2pass/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam",
+                        sample_id=samples,
+                        genome=organism
+                    )
+                )
+                paired_samples.append(samples)
+                all_samples.append(samples)
+            elif TYPE == "SINGLE":
+                outfiles.append(
+                    expand(
+                        outdir + "/2pass/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam",
+                        sample_id=samples,
+                        genome=organism
+                    )
+                )
+                single_samples.append(samples)
+                all_samples.append(samples)
+            else:
+                continue
+    # flatten
+    outfiles_flatten = list(chain.from_iterable(outfiles))
+    paired_samples = list(chain.from_iterable(paired_samples))
+    single_samples = list(chain.from_iterable(single_samples))
+    all_samples = list(chain.from_iterable(all_samples))
+    logging.info(f"rule all input files:{outfiles_flatten}")
+    return outfiles_flatten,paired_samples,single_samples,all_samples,genomes
 
-def get_samples(indir:str,outdir:str)->list:
-    paired_samples = glob_wildcards(indir + "/{sample_id}_1.fastq.gz").sample_id
-    Allsamples = glob_wildcards(indir + "/{sample_id}.fastq.gz").sample_id
-    single_samples = [sample for sample in Allsamples if re.match(r"^SRR\d+$", sample)]
-    samples = paired_samples + single_samples
-    logging.info(f"Detected paired samples: {paired_samples}")
-    logging.info(f"Detected single samples: {single_samples}")
-    return paired_samples, single_samples, samples
-logging.info("preparing samples...")
-paired_samples, single_samples, samples = get_samples(indir,outdir)
-logging.info("samples prepared.")
+outfiles_flatten,paired_samples,single_samples,all_samples,genomes = get_output_files(groups)
+logging.info(f"genomes:{genomes}\npaired_sampes:{paired_samples}\nsingle_samples:{single_samples}\nall input files:{outfiles_flatten}")
+def get_multiqc_file(paired_samples,single_samples,all_samples,genomes):
+    outfiles = []
+    outfiles.append(
+        expand(
+            outdir + "/2pass/{sample_id}/{genome}/{sample_id}Log.final.out",
+            sample_id=all_samples,
+            genome=genomes
+        )
+    )
+    outfiles.append(
+        expand(outdir + "/log/{sample_id}/trimming_statistics_1.txt",sample_id=paired_samples)
+    )
+    outfiles.append(
+        expand(outdir + "/log/{sample_id}/trimming_statistics_2.txt",sample_id=paired_samples)
+    )
+    outfiles.append(
+        expand(
+            outdir + "/2pass/{sample_id}/{genome}/{sample_id}Log.final.out",
+            sample_id=all_samples,
+            genome=genomes
+        )
+    )
+    outfiles.append(
+        expand(outdir + "/log/{sample_id}/trimming_statistics.txt",sample_id=single_samples),
+    )
+    # flatten
+    outfiles_flatten = list(chain.from_iterable(outfiles))
+    logging.info(f"rule multiqc input files:{outfiles_flatten}")
+    return outfiles_flatten
 
 configfilePath = os.path.join(SNAKEFILE_DIR,"config","run.yaml")
 configfile: configfilePath
@@ -56,29 +119,22 @@ include: alignSmk
 logging.info(f"Include Align workflow: {alignSmk}")
 rule all:
     input:
-        # expand(outdir + "/2pass/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam", sample_id=samples,genome=genomes),
-        outdir + "/multiqc/multiqc_report.html",
+        outfiles_flatten
+        # outdir + "/multiqc/multiqc_report.html",
 
 
 rule multiqc:
     input: 
-        star = expand(outdir + "/2pass/{sample_id}/{genome}/{sample_id}Log.final.out",sample_id=samples,genome=genomes),
-        cutadapt_single = expand(outdir + "/log/{sample_id}/trimming_statistics.txt",sample_id=single_samples),
-        cutadapt_paired1 = expand(outdir + "/log/{sample_id}/trimming_statistics_1.txt",sample_id=paired_samples),
-        cutadapt_paired2 = expand(outdir + "/log/{sample_id}/trimming_statistics_2.txt",sample_id=paired_samples)
+        get_multiqc_file(paired_samples,single_samples,all_samples,genomes)
     output:
         outdir + "/multiqc/multiqc_report.html"
     params:
         multiqc_indir = outdir,
         multiqc_outdir = outdir + "/multiqc/"
     conda:
-        config['conda']['genomeStability']
+        config['conda']['RNA-SNP']
     shell:
         """
         multiqc {params.multiqc_indir} -o {params.multiqc_outdir}
         """
     
-
-
-
-

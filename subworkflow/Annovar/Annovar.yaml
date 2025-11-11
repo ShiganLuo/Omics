@@ -1,0 +1,15 @@
+Procedure:
+  Rscript: "/usr/bin/Rscript"
+  perl: "/usr/bin/perl"
+  table_annovar: "/opt/annovar/table_annovar.pl"
+bed:
+  human:
+    gtf: ""
+    TE_gtf: ""
+annovar:
+  mouse:
+    db: "/ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/annovar/GRCm39/"
+    buildver: "GRCm39"
+  human:
+    db: "/ChIP_seq_2/Data/index/Homo_sapiens/GENCODE/GRCh38/annovar/GRCh38/"
+    buildver: "GRCh38"

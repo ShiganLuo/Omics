@@ -1,6 +1,8 @@
 genome:
   human:
     genome_index: "/home/luosg/genome/Human/GENCODE/GRCh38/STAR_index"
+    gtf: "/home/luosg/genome/Human/GENCODE/GRCh38/gencode.v49.primary_assembly.annotation.gtf"
 Procedure:
   trim_galore: "/opt/TrimGalore-0.6.10/trim_galore"
   STAR: "/opt/STAR-2.7.11b/bin/Linux_x86_64/STAR"
+  featureCounts: "/opt/subread-2.1.1-Linux-x86_64/bin/featureCounts"

@@ -6,3 +6,5 @@ channels:
 dependencies:
   - python=3.11
   - multiqc=1.32
+  - TEtranscripts=2.2.3
+  - TElocal=1.1.1

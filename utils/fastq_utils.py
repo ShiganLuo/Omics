@@ -35,7 +35,7 @@ class SNPMetadata:
     
     def loadMeta(self):
         df = pd.read_csv(self.meta,sep="\t")
-        requeired_column = ["data_id","sample_id","organism"]
+        requeired_column = ["Data_id","Sample_id","organism"]
 
         missing_cols = [col for col in requeired_column if col not in df.columns]
         if missing_cols:
@@ -72,11 +72,11 @@ class SNPMetadata:
         """
         Function: Divide into different organisms, then group by single/double-ended.
 
-        Datasheet (df) must contain the columns: sample_id, organism
+        Datasheet (df) must contain the columns: Sample_id, organism
         """
         groups: DefaultDict[str, DefaultDict[str, List[str]]] = defaultdict(lambda: defaultdict(list))
         for _, row in df.iterrows():
-            sample = row["sample_id"]
+            sample = row["Sample_id"]
             organism = row["organism"].strip().replace(" ", "_")
             TYPE = self.isPairedEndSample(sample)  # 'SE' 或 'PE'
             groups[organism][TYPE].append(sample)
@@ -88,10 +88,10 @@ class SNPMetadata:
         """
         fqDir = Path(self.fqDir)
         outDir = fqDir
-        samples = df['sample_id'].unique()
+        samples = df['Sample_id'].unique()
         for sample in samples:
-            df_sample = df[df['sample_id'] == sample]
-            sra_numbers = df_sample['data_id'].values
+            df_sample = df[df['Sample_id'] == sample]
+            sra_numbers = df_sample['Data_id'].values
             self.logger.info(f"\n{sample}: {sra_numbers}")
 
             out_r1 = os.path.join(outDir, f"{sample}_1.fastq.gz")
@@ -119,7 +119,7 @@ class SNPMetadata:
                 fq_r1 = [f for f in fq_all if '_1' in os.path.basename(f)]
                 fq_r2 = [f for f in fq_all if '_2' in os.path.basename(f)]
                 if fq_r1 and fq_r2:
-                    self.logger.info(f"Deteceted paired-end sample: {sample}, 2 data_id")
+                    self.logger.info(f"Deteceted paired-end sample: {sample}, 2 Data_id")
                     out_r1 = os.path.join(outDir, f"{sample}_1.fastq.gz")
                     out_r2 = os.path.join(outDir, f"{sample}_2.fastq.gz")
                     cmd_r1 = f"mv {fq_r1[0]} {out_r1}"
@@ -128,7 +128,7 @@ class SNPMetadata:
                     subprocess.run(cmd_r1, shell=True, check=True)
                     subprocess.run(cmd_r2, shell=True, check=True)
                 else:
-                    self.logger.info(f"Deteceted single-end sample: {sample}, 1 data_id")
+                    self.logger.info(f"Deteceted single-end sample: {sample}, 1 Data_id")
                     out = os.path.join(outDir, f"{sample}.fastq.gz")
                     cmd = f"mv {fq_all[0]} {out}"
                     self.logger.info(f"prepare to excute command:\n{cmd}")
@@ -148,7 +148,7 @@ class SNPMetadata:
                 fq_r2 = [f for f in fq_all if '_2' in os.path.basename(f)]
 
                 if fq_r1 and fq_r2:
-                    self.logger.info(f"Deteceted paired-end sample: {sample}, {len(sra_numbers)} data_id")
+                    self.logger.info(f"Deteceted paired-end sample: {sample}, {len(sra_numbers)} Data_id")
                     fq_r1.sort()
                     fq_r2.sort()
                     out_r1 = os.path.join(outDir, f"{sample}_1.fastq.gz")
@@ -165,7 +165,7 @@ class SNPMetadata:
                     subprocess.run(cmd_rm2,shell=True,check=True)
                     self.logger.info(f"Merged paired files:\n  {out_r1}\n  {out_r2}")
                 else:
-                    self.logger.info(f"Detected single-end sample: {sample}, {len(sra_numbers)} data_id")
+                    self.logger.info(f"Detected single-end sample: {sample}, {len(sra_numbers)} Data_id")
                     fq_all.sort()
                     out_single = os.path.join(outDir, f"{sample}.fastq.gz")
                     cmd = f"cat {' '.join(fq_all)} > {out_single}"
@@ -179,7 +179,7 @@ class SNPMetadata:
         df = self.loadMeta()
         self.logger.info(f"metadata was successfully load")
         try:
-            self.logger.info(f"combine and rename fastq file to sample_id.fastq.gz")
+            self.logger.info(f"combine and rename fastq file to Sample_id.fastq.gz")
             self.combineFastq(df)
         except Exception as e:
             self.logger.error(f"combine fastq file failed,error message: {e}")

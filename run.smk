@@ -34,39 +34,26 @@ def get_output_files(groups):
     genomes = []
     for organism, types in groups.items():
         genomes.append(organism)
+        outfiles.append(outdir + f"/counts/TEcount/{organism}/all_TEcount.cntTable")
+        outfiles.append(outdir + f"/counts/TElocal/{organism}/all_TElocal.cntTable")
         for TYPE, samples in types.items():
             if TYPE == "PAIRED":
-                outfiles.append(
-                    expand(
-                        outdir + "/2pass/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam",
-                        sample_id=samples,
-                        genome=organism
-                    )
-                )
                 paired_samples.append(samples)
                 all_samples.append(samples)
             elif TYPE == "SINGLE":
-                outfiles.append(
-                    expand(
-                        outdir + "/2pass/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam",
-                        sample_id=samples,
-                        genome=organism
-                    )
-                )
                 single_samples.append(samples)
                 all_samples.append(samples)
             else:
                 continue
     # flatten
-    outfiles_flatten = list(chain.from_iterable(outfiles))
+    outfiles_flatten = outfiles
     paired_samples = list(chain.from_iterable(paired_samples))
     single_samples = list(chain.from_iterable(single_samples))
     all_samples = list(chain.from_iterable(all_samples))
-    logging.info(f"rule all input files:{outfiles_flatten}")
     return outfiles_flatten,paired_samples,single_samples,all_samples,genomes
 
 outfiles_flatten,paired_samples,single_samples,all_samples,genomes = get_output_files(groups)
-logging.info(f"genomes:{genomes}\npaired_sampes:{paired_samples}\nsingle_samples:{single_samples}\nall input files:{outfiles_flatten}")
+logging.info(f"genomes:{genomes}\npaired_sampes:{paired_samples}\nsingle_samples:{single_samples}\nrule all input files:{outfiles_flatten}")
 def get_multiqc_file(paired_samples,single_samples,all_samples,genomes):
     outfiles = []
     outfiles.append(
@@ -94,7 +81,6 @@ def get_multiqc_file(paired_samples,single_samples,all_samples,genomes):
     )
     # flatten
     outfiles_flatten = list(chain.from_iterable(outfiles))
-    logging.info(f"rule multiqc input files:{outfiles_flatten}")
     return outfiles_flatten
 
 configfilePath = os.path.join(SNAKEFILE_DIR,"config","run.yaml")
@@ -117,6 +103,10 @@ def get_snakefile_path(module_name:str)->str:
 alignSmk = get_snakefile_path("Align")
 include: alignSmk
 logging.info(f"Include Align workflow: {alignSmk}")
+TEtranscriptsSmk = get_snakefile_path("TEtranscripts")
+include: TEtranscriptsSmk
+logging.info(f"Include Align workflow: {TEtranscriptsSmk}")
+
 rule all:
     input:
         outfiles_flatten
@@ -132,7 +122,7 @@ rule multiqc:
         multiqc_indir = outdir,
         multiqc_outdir = outdir + "/multiqc/"
     conda:
-        config['conda']['RNA-SNP']
+        config['conda']['run']
     shell:
         """
         multiqc {params.multiqc_indir} -o {params.multiqc_outdir}

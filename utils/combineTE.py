@@ -30,6 +30,7 @@ def fileList(path:str,pattern:str):
     from pathlib import Path
     matching_files = Path(path).rglob(f"*{pattern}")
     return [str(f) for f in matching_files]
+
 def getTE(df:pd.DataFrame,outfile:str):
     pattern = r'^[^:]+:[^:]+:[^:]+:[^:]+$'
     df_TE = df[df['gene/TE'].str.match(pattern,na=False)]

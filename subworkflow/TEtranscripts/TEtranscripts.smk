@@ -16,49 +16,18 @@ def get_yaml_path(module_name:str)->str:
 TEtranscriptsYaml = get_yaml_path("TEtranscripts")
 configfile: TEtranscriptsYaml
 
-def get_alignment_input(wildcards):
-    """
-    function: Dynamically determines the input file type: paired-end or single-end sequencing.
-    Based on the paired_samples and single_samples lists.This function is called in the star_align rule.
-
-    param: 
-        wildcards: Snakemake wildcards object containing the sample_id.
-        paired_samples = ['sample1', 'sample2', ...]
-        single_samples = ['sample3', 'sample4', ...]
-    These lists must be defined in the Snakefile or config file.
-
-    return: A list of input file paths for the STAR alignment step. 
-    """
-    logging.info(f"[get_alignment_input] called with wildcards: {wildcards}")
-    # 构造可能的输入路径
-    paired_r1 = f"{outdir}/cutadapt/{wildcards.sample_id}_1.fq.gz"
-    paired_r2 = f"{outdir}/cutadapt/{wildcards.sample_id}_2.fq.gz"
-    single = f"{outdir}/cutadapt/{wildcards.sample_id}Single.fq.gz"
-    
-    # 检查文件实际存在情况
-    if wildcards.sample_id in paired_samples:
-        logging.info(f"双端测序：{[paired_r1, paired_r2]}")
-        return [paired_r1, paired_r2]
-    elif wildcards.sample_id in single_samples:
-        logging.info(f"单端测序：{[single]}")
-        return [single]
-    else:
-        raise FileNotFoundError(
-            f"Missing input files for sample {wildcards.sample_id}\n"
-            f"Checked paths:\n- {paired_r1}\n- {paired_r2}\n- {single}"
-        )
 rule TEtranscript_prepare:
     input:
         get_alignment_input,
-        genome_index = lambda wildcards: config['STAR'][wildcards.genome]['genome_index']
+        genome_index = lambda wildcards: config['genome'][wildcards.genome]['genome_index']
     output:
-        outfile = outdir + "/counts/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam"
+        outfile = outdir + "/counts/bam/{genome}/{sample_id}Aligned.sortedByCoord.out.bam"
     log:
-        log=outdir+"/log/{genome}/{sample_id}/TEtranscript_prepare.log"
+        outdir + "/log/TEtranscript/{genome}/{sample_id}/TEtranscript_prepare.log"
     threads: 15
     params:
-        outPrefix = outdir + "/counts/{sample_id}/{genome}/{sample_id}",
-        STAR = config["STAR"]["procedure"],
+        outPrefix = outdir + "/counts/bam/{genome}/{sample_id}",
+        STAR = config['Procedure']['STAR'],
         # 动态判断输入参数,加上genome_index，如果三个参数，即为双端测序，两个参数即为单端测序
         input_params = lambda wildcards, input: \
             f"{input[0]} {input[1]}" if len(input) == 3 else f"{input[0]}"
@@ -71,84 +40,82 @@ rule TEtranscript_prepare:
             --outSAMtype BAM SortedByCoordinate \
             --outFileNamePrefix {params.outPrefix} \
             --outFilterMultimapNmax 100 \
-            --winAnchorMultimapNmax 100  > {log.log} 2>&1
+            --winAnchorMultimapNmax 100  > {log} 2>&1
         """
 
 rule TEcount:
     input:
-        bam = outdir + "/counts/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam"
+        bam = outdir + "/counts/bam/{genome}/{sample_id}Aligned.sortedByCoord.out.bam"
     output:
-        project = outdir + "/counts/{sample_id}/{genome}/{sample_id}TEcount.cntTable"
+        project = outdir + "/counts/TEcount/{genome}/{sample_id}TEcount.cntTable"
     params:
         project = "{sample_id}TEcount",
-        outdir = outdir + "/counts/{sample_id}/{genome}",
+        outdir = outdir + "/counts/TEcount/{genome}",
         TE_gtf = lambda wildcards: config['TEtranscripts'][wildcards.genome]['TE_gtf'],
-        gtf = lambda wildcards: config['TEtranscripts'][wildcards.genome]['gtf']
+        gtf = lambda wildcards: config['genome'][wildcards.genome]['gtf']
     log:
-        log = outdir + "/log/{genome}/{sample_id}/TEtranscripts.log"
+        outdir + "/log/TEtranscript/{genome}/{sample_id}/TEcount.log"
     conda:
-        config['conda']['RNA-SNP']
+        config['conda']['run']
     shell:
         """
         TEcount --sortByPos --format BAM --mode multi \
         -b {input.bam} --GTF {params.gtf} --TE {params.TE_gtf} \
         --project {params.project} --outdir {params.outdir} \
-        > {log.log} 2>&1
+        > {log} 2>&1
         """
 
 rule combine_TEcount:
     input:
-        fileList = expand(outdir + "/counts/{sample_id}/{genome}/{sample_id}TEcount.cntTable",sample_id=samples)
+        fileList = expand(outdir + "/counts/TEcount/{genome}/{sample_id}TEcount.cntTable",sample_id=all_samples,genome=genomes)
     output:
-        outfile = outdir + "/counts/{genome}TEcount.cntTable"
+        outfile = outdir + "/counts/TEcount/{genome}/all_TEcount.cntTable"
     conda:
-        config['conda']['RNA-SNP']
+        config['conda']['run']
     params:
-        combineTE = "scripts/combineTE.py",
-        indir = outdir + "/counts"
+        combineTE = SNAKEFILE_DIR + "/utils/combineTE.py",
+        indir = outdir + "/counts/TEcount/{genome}"
     log:
-        log = outdir + "/log/human/combine_TEcount.log"
+        outdir + "/log/TEtranscript/{genome}/combine_TEcount.log"
     shell:
         """
-        python {params.combineTE} -p TEcount -i {params.indir} -o {output.outfile} > {log.log} 2>&1
+        python {params.combineTE} -p TEcount -i {params.indir} -o {output.outfile} > {log} 2>&1
         """
 
 rule TElocal:
     input:
-        bam = outdir + "/counts/{sample_id}/human/{sample_id}Aligned.sortedByCoord.out.bam"
+        bam = outdir + "/counts/bam/{genome}/{sample_id}Aligned.sortedByCoord.out.bam"
     output:
-        project = outdir + "/counts/{sample_id}/human/{sample_id}TElocal.cntTable"
+        project = outdir + "/counts/TElocal/{genome}/{sample_id}TElocal.cntTable"
+    log:
+        outdir + "/log/TEtranscript/{genome}/{sample_id}/TElocal.log"
     params:
         project = "{sample_id}TElocal",
-        TE = config['TElocal']['human']['TEind'],
-        GTF = config['TElocal']['human']['gtf'],
-        procedure = "/opt/TElocal/TElocal"
-    log:
-        log = outdir+"/log/human/{sample_id}/TElocal.log"
+        TE = lambda wildcards: config['TElocal'][wildcards.genome]['TEind'],
+        GTF = lambda wildcards: config['genome'][wildcards.genome]['gtf']
     conda:
-        config['conda']['TElocal']
+        config['conda']['run']
     shell:
         """
-        which python
-        {params.procedure} --sortByPos -b {input.bam} \
+        TElocal --sortByPos -b {input.bam} \
         --GTF {params.GTF} --TE {params.TE} \
-        --project {params.project} > {log.log} 2>&1
+        --project {params.project} > {log} 2>&1
         mv {params.project}.cntTable {output.project}
         """
 
 rule combine_TElocal:
     input:
-        fileList = expand(outdir + "/counts/{sample_id}/human/{sample_id}TElocal.cntTable",sample_id=samples)
+        fileList = expand(outdir + "/counts/TElocal/{genome}/{sample_id}TElocal.cntTable",sample_id=all_samples,genome=genomes)
     output:
-        outfile = outdir + "/counts/humanTElocal.cntTable"
+        outfile = outdir + "/counts/TElocal/{genome}/all_TElocal.cntTable"
     conda:
-        config['conda']['RNA-SNP']
+        config['conda']['run']
     params:
-        combineTE = "scripts/combineTE.py",
-        indir = outdir + "/counts"
+        combineTE = SNAKEFILE_DIR + "/utils/combineTE.py",
+        indir = outdir + "/counts/TElocal/{genome}"
     log:
-        log = outdir + "/log/human/combine_TElocal.log"
+        outdir + "/log/TEtranscript/{genome}/combine_TElocal.log"
     shell:
         """
-        python {params.combineTE} -p TElocal -i {params.indir} -o {output.outfile} > {log.log} 2>&1
+        python {params.combineTE} -p TElocal -i {params.indir} -o {output.outfile} > {log} 2>&1
         """

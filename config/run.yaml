@@ -1,2 +1,2 @@
 conda:
-  genomeStability: "/home/luosg/anaconda3/envs/genomeStability"
+  run: "/home/luosg/anaconda3/envs/genomeStability"

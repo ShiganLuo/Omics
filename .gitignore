@@ -1,3 +1,4 @@
 */.snakemake
 rnafusion
 rnasplice
+**/__pycache__

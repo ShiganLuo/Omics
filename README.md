@@ -7,6 +7,7 @@
 注意：
 - trim_galore只是打包程序，需要确保cutadapt存在
 - 物种名是动态变化的，在yaml中，相关文件的键需要根据metadata改变，如果物种名为有空格隔开，需要改空格为_，如Mus musculus -> Mus_musculus
+- 如果要采用SNP流程并且使用XenofilterR去除基因组污染，也需要手动修改规则，第一个需要修改的规则是将generate_xenofilter_input input中的genome="Mus_musculus"修改成你得污染物种；第二个需要修改的规则是：addReadsGroup params中的wildcards.genome == "Homo_sapiens"改成目标物种（非污染物种）
 
 2. 修改scripts下RNA-SNP_prepare.sh脚本，执行
 
@@ -35,3 +36,8 @@ snakemake -s workflow/RNA-SNP/run.smk --config indir=data/fq outdir=output metad
   - `outdir=value`：指定输出文件目录
   - `metadata=value`: 指定fastaq元信息，必须包含["data_id","sample_id","organism"],详见utils/fastq_utils.py如何处理metadata
 
+
+## 流程脆弱之处
+1. XenofilterR与SNP衔接
+为了支持去除bam中的污染序列，采用了XenofilterR,这个R脚本输入是个文件，没有提供命令行参数。需要使用临时目录作为input，同时对addReadsGroup规则
+的params区分了污染物种和非污染物种的bam，以正确生成vcf。之所以说是脆弱，要想跑通它，需要理解并修改这两个规则。其它只要按照yaml填空就行

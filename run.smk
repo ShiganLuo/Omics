@@ -105,7 +105,7 @@ include: alignSmk
 logging.info(f"Include Align workflow: {alignSmk}")
 TEtranscriptsSmk = get_snakefile_path("TEtranscripts")
 include: TEtranscriptsSmk
-logging.info(f"Include Align workflow: {TEtranscriptsSmk}")
+logging.info(f"Include TEtranscripts workflow: {TEtranscriptsSmk}")
 
 rule all:
     input:

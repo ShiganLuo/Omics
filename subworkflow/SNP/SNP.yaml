@@ -6,3 +6,8 @@ Procedure:
   gatk: "/opt/gatk-4.6.0.0/gatk"
   samtools: "/usr/bin/samtools"
   bgzip: "/usr/bin/bgzip"
+genome:
+  human: 
+    fasta: "/disk5/luosg/Reference/GENCODE/human/GRCh38/GRCh38.primary_assembly.genome.fa"
+    dict: "/disk5/luosg/Reference/GENCODE/human/GRCh38/GRCh38.primary_assembly.genome.dict"
+    fai: "/disk5/luosg/Reference/GENCODE/human/GRCh38/GRCh38.primary_assembly.genome.fa.fai"

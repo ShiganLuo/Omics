@@ -25,7 +25,7 @@ rule stringTie:
     log:
         log = outdir + "/log/{genome}/{sample_id}/stringTie.log"
     conda:
-        config['conda']['RNA-SNP']
+        config['conda']['run']
     params:
         gtf = lambda wildcards: config['stringTie'][wildcards.genome]['gtf'] #最好使用完整的gtf文件，更有利于准确判断是否是新转录本
     threads: 5
@@ -42,7 +42,7 @@ rule stringTieMerge:
     log:
         log = outdir + "/log/{genome}/stringTieMerge.log"
     conda:
-        config['conda']['RNA-SNP']
+        config['conda']['run']
     params:
         gtf = lambda wildcards: config['stringTie'][wildcards.genome]['gtf'] #最好使用完整的gtf文件，更有利于准确判断是否是新转录本
     shell:
@@ -64,7 +64,7 @@ rule TEcountStringTie:
     log:
         log = outdir + "/log/{genome}/{sample_id}/TEtranscriptsStringTie.log"
     conda:
-        config['conda']['RNA-SNP']
+        config['conda']['run']
     shell:
         """
         TEcount --sortByPos --format BAM --mode multi \
@@ -84,7 +84,7 @@ rule combine_TEStringtie:
         combineTE = "scripts/combineTE.py",
         indir = outdir + "/counts"
     conda:
-        config['conda']['RNA-SNP']
+        config['conda']['run']
     shell:
         """
         python {params.combineTE} -p TEcountStringTie -i {params.indir} -o {output.outfile} > {log.log} 2>&1
@@ -100,7 +100,7 @@ rule getStringtieBed:
     log:
         log = outdir + "/log/{genome}/getStringtieBed.log"
     conda:
-        config['conda']['RNA-SNP']
+        config['conda']['run']
     threads:2
     params:
         script = "scripts/SNP/getBed.py",
@@ -124,7 +124,7 @@ rule StgTEOverlap:
     log:
         log = outdir + "/log/{genome}_StgTEOverlap.log"
     conda:
-        config['conda']['RNA-SNP']
+        config['conda']['run']
     threads:2
     shell:
         """

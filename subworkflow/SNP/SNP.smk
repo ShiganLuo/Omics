@@ -15,7 +15,7 @@ def get_yaml_path(module_name:str)->str:
     return module_path
 SNPYaml = get_yaml_path("SNP")
 configfile: SNPYaml
-logging.info(f"Include Align config: {SNPYaml}")
+logging.info(f"Include SNP config: {SNPYaml}")
 
 rule addReadsGroup:
     input:

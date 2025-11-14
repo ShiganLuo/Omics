@@ -15,7 +15,7 @@ def get_yaml_path(module_name:str)->str:
     return module_path
 AnnovarYaml = get_yaml_path("Annovar")
 configfile: AnnovarYaml
-logging.info(f"Include Align config: {AnnovarYaml}")
+logging.info(f"Include Annovar config: {AnnovarYaml}")
 logging.info(f"main snakefile directory: {SNAKEFILE_DIR}")
 
 rule TEcoutCPM:

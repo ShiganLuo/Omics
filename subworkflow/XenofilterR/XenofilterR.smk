@@ -15,11 +15,14 @@ def get_yaml_path(module_name:str)->str:
     return module_path
 XenofilterRYaml = get_yaml_path("XenofilterR")
 configfile: XenofilterRYaml
+logging.info(f"Include XenofilterR config: {XenofilterRYaml}")
+logging.info(f"main snakefile excute path: {EXECUTION_DIR}")
+logging.info(f"human_samples: {human_samples}")
 # first col: target(human) genome,second col: contaminating genome. human sample may contaminated by mouse genome
 rule generate_xenofilter_input:
     input:
         expand(outdir + "/2pass/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam", 
-               sample_id=all_samples, genome="Mus_musculus")
+               sample_id=human_samples, genome="Mus_musculus")
     output:
         csvIn = outdir + "/xenofilterR/xenofilterR_input.csv",
         # csvRe = outdir +"/xenofilterR/xenofilterR_reName.csv"
@@ -27,7 +30,7 @@ rule generate_xenofilter_input:
         import csv
         with open(output.csvIn, 'w', newline='') as f:
             writer = csv.writer(f)
-            for sample in all_samples:
+            for sample in human_samples:
                 row = [
                     f"{outdir}/2pass/{sample}/Homo_sapiens/{sample}Aligned.sortedByCoord.out.bam",
                     f"{outdir}/2pass/{sample}/Mus_musculus/{sample}Aligned.sortedByCoord.out.bam"

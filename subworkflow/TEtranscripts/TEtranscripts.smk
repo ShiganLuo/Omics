@@ -15,7 +15,7 @@ def get_yaml_path(module_name:str)->str:
     return module_path
 TEtranscriptsYaml = get_yaml_path("TEtranscripts")
 configfile: TEtranscriptsYaml
-
+logging.info(f"Include TEtranscripts config: {TEtranscriptsYaml}")
 rule TEtranscript_prepare:
     input:
         get_alignment_input,

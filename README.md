@@ -7,14 +7,16 @@
 注意：
 - trim_galore只是打包程序，需要确保cutadapt存在
 - 物种名是动态变化的，在yaml中，相关文件的键需要根据metadata改变，如果物种名为有空格隔开，需要改空格为_，如Mus musculus -> Mus_musculus
-- 如果要采用SNP流程并且使用XenofilterR去除基因组污染，也需要手动修改规则，第一个需要修改的规则是将generate_xenofilter_input input中的genome="Mus_musculus"修改成你得污染物种；第二个需要修改的规则是：addReadsGroup params中的wildcards.genome == "Homo_sapiens"改成目标物种（非污染物种）
+- 如果要采用SNP流程并且使用XenofilterR去除基因组污染，也需要手动修改规则：
+第一个需要修改的规则是将generate_xenofilter_input input中的genome="Mus_musculus"修改成你得污染物种；另外sample_id=human_samples改成目标物种smaple_id；此外run中的：for sample in human_samples:也得改成目标物种sample_id
+第二个需要修改的规则是：addReadsGroup params中的wildcards.genome == "Homo_sapiens"改成目标物种（非污染物种）
 
 2. 修改scripts下RNA-SNP_prepare.sh脚本，执行
 
 3. 运行
 
 ```sh
-snakemake -s workflow/RNA-SNP/run.smk --config indir=data/fq outdir=output metadata=data/target_fq.tsv--cores 45 --use-conda
+snakemake -s workflow/RNA-SNP/run.smk --config indir=data/fq outdir=output metadata=data/target_fq.tsv --cores 45 --use-conda
 ```
 4. 亮点
 

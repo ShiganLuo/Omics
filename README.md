@@ -61,7 +61,7 @@ snakemake -s workflow/RNA-SNP/run.smk --config indir=data/fq outdir=output metad
 - `--config`
   - `indir=value`：指定 fastq.gz 输入路径
   - `outdir=value`：指定输出文件目录
-  - `metadata=value`: 指定fastaq元信息，必须包含["data_id","sample_id","organism"],详见utils/fastq_utils.py如何处理metadata
+  - `metadata=value`: 指定fastaq元信息，必须包含["Data_id","Sample_id","organism"],详见utils/fastq_utils.py如何处理metadata
 
 
 ## 流程脆弱之处

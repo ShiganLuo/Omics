@@ -32,7 +32,7 @@ snakemake -s workflow/RNA-SNP/run.smk --config indir=data/fq outdir=output metad
 
 ### Align
 
-1. **变量**
+1. **流程控制变量**
 - single_samples: 单端样本id列表
 - paired_samples: 双端样本id列表
 - genomes: 物种列表
@@ -43,13 +43,13 @@ snakemake -s workflow/RNA-SNP/run.smk --config indir=data/fq outdir=output metad
 
 ### TEtranscripts
 
-1. **变量**
+1. **流程控制变量**
 - all_samples: 样本id列表
 - genomes: 物种列表
 
 ### XenofilterR
 
-1. **变量**
+1. **流程控制变量**
 - XenofilterR_target_samples: 代表可能含有其它物种序列污染的样本列表，在示例流程中为用小鼠饲养层细胞培育的干细胞
 - XenofilterR_pollution_source_genome: 代表污染来源基因组字符串，在示例流程中为小鼠
 

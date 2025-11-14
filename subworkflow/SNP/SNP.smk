@@ -24,13 +24,13 @@ rule addReadsGroup:
         bam = temp(outdir + "/SNP/RG/{genome}/{sample_id}.bam"),
         bai = temp(outdir + "/SNP/RG/{genome}/{sample_id}.bam.bai")
     log:
-        outdir + "/log/{genome}/{sample_id}/addReadsGroup.log"
+        outdir + "/log/SNP/{genome}/{sample_id}/addReadsGroup.log"
     threads:16
     params:
         bam = lambda wildcards: \
-            outdir + "/xenofilterR/bam/Filtered_bams/{sample_id}Aligned.sortedByCoord.out_Filtered.bam" \
+            f"{outdir}/xenofilterR/bam/Filtered_bams/{wildcards.sample_id}Aligned.sortedByCoord.out_Filtered.bam" \
             if wildcards.genome == "Homo_sapiens" else \
-            outdir + "/2pass/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam",
+            f"{outdir}/2pass/{wildcards.sample_id}/{wildcards.genome}/{wildcards.sample_id}Aligned.sortedByCoord.out.bam",
         id = "{sample_id}",
         javaOptions = "--java-options -Xmx15G",
         RGLB = config["addReadsGroup"]["RGLB"],
@@ -40,10 +40,10 @@ rule addReadsGroup:
         samtools = config["Procedure"]["samtools"]
     shell:
         """
-        echo "sample_id: {wildcards.sample_id}" >> {log}
+        echo "sample_id: {wildcards.sample_id}" > {log}
         {params.gatk} AddOrReplaceReadGroups {params.javaOptions} \
             --INPUT {params.bam} --OUTPUT {output.bam} \
-            -SO coordinate --RGLB {params.RGLB} --RGPL {params.RGPL} --RGPU {params.RGPU} --RGSM {params.id} > {log} 2>&1
+            -SO coordinate --RGLB {params.RGLB} --RGPL {params.RGPL} --RGPU {params.RGPU} --RGSM {params.id} >> {log} 2>&1
         {params.samtools} index -@ {threads} {output.bam} >> {log} 2>&1
         """
 
@@ -55,7 +55,7 @@ rule MarkDuplicates:
         bai = temp(outdir + "/SNP/bam-sorted-Markdup/{genome}{sample_id}.bai"),
         metrics = temp(outdir + "/SNP/bam-sorted-Markdup/{genome}/{sample_id}_Markdup-metrics.txt")
     log:
-        outdir + "/SNP/{genome}/{sample_id}/{sample_id}_MarkDuplicates.log"
+        outdir + "/log/SNP/{genome}/{sample_id}/{sample_id}_MarkDuplicates.log"
     threads: 16
     params:
         javaOptions = "-Xms20g -Xmx30g -XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10",

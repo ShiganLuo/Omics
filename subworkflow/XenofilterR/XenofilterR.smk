@@ -17,12 +17,12 @@ XenofilterRYaml = get_yaml_path("XenofilterR")
 configfile: XenofilterRYaml
 logging.info(f"Include XenofilterR config: {XenofilterRYaml}")
 logging.info(f"main snakefile excute path: {EXECUTION_DIR}")
-logging.info(f"human_samples: {human_samples}")
+logging.info(f"XenofilterR target samples: {XenofilterR_target_samples} XenofilterR pollution source genome{XenofilterR_pollution_source_genome}")
 # first col: target(human) genome,second col: contaminating genome. human sample may contaminated by mouse genome
 rule generate_xenofilter_input:
     input:
         expand(outdir + "/2pass/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam", 
-               sample_id=human_samples, genome="Mus_musculus")
+               sample_id=XenofilterR_target_samples, genome=XenofilterR_pollution_source_genome)
     output:
         csvIn = outdir + "/xenofilterR/xenofilterR_input.csv",
         # csvRe = outdir +"/xenofilterR/xenofilterR_reName.csv"
@@ -30,7 +30,7 @@ rule generate_xenofilter_input:
         import csv
         with open(output.csvIn, 'w', newline='') as f:
             writer = csv.writer(f)
-            for sample in human_samples:
+            for sample in XenofilteR_target_samples:
                 row = [
                     f"{outdir}/2pass/{sample}/Homo_sapiens/{sample}Aligned.sortedByCoord.out.bam",
                     f"{outdir}/2pass/{sample}/Mus_musculus/{sample}Aligned.sortedByCoord.out.bam"
@@ -41,11 +41,9 @@ rule XenofilterR:
     input:
         csvIn = outdir + "/xenofilterR/xenofilterR_input.csv",
     output:
-        # expand(outdir + "/xenofilterR/Filtered_bams/{sample_id}_Filtered.bam",sample_id=all_samples),
-        # expand(outdir + "/xenofilterR/Filtered_bams/{sample_id}_Filtered.bam.bai",sample_id=all_samples)
         outdir = directory(outdir + "/xenofilterR/bam") #XenofilteR设计不合理，没办法
     log:
-        outdir + "/log/human/XenofilterR.log"
+        outdir + "/log/XenofilterR/XenofilterR.log"
     threads: 6
     params:
         script = SNAKEFILE_DIR + "/utils/XenofilteR.r",

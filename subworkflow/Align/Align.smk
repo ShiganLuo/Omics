@@ -23,15 +23,15 @@ rule trimming_Paired:
     output:
         fastq1 = temp(outdir + "/cutadapt/{sample_id}_1.fq.gz"),
         fastq2 = temp(outdir + "/cutadapt/{sample_id}_2.fq.gz"),
-        report1 = outdir + "/log/{sample_id}/trimming_statistics_1.txt",
-        report2 = outdir + "/log/{sample_id}/trimming_statistics_2.txt"
+        report1 = outdir + "/log/Align/{sample_id}/trimming_statistics_1.txt",
+        report2 = outdir + "/log/Align/{sample_id}/trimming_statistics_2.txt"
     params:
         outdir = outdir + "/cutadapt",
         quality = 30,
         trim_galore = config['Procedure']['trim_galore']
     threads: 6
     log:
-        log = outdir + "/log/{sample_id}/trimming.txt"
+        log = outdir + "/log/Align/{sample_id}/trimming.txt"
     shell:
         """
         # trim_galore can automatically judge the fq quality scoring system,it's no need to add such as --phred33 --phred64
@@ -47,14 +47,14 @@ rule trimming_Single:
         fastq = indir + "/{sample_id}.fastq.gz"
     output:
         fastq = temp(outdir + "/cutadapt/{sample_id}Single.fq.gz"),
-        report = outdir + "/log/{sample_id}/trimming_statistics.txt"
+        report = outdir + "/log/Align/{sample_id}/trimming_statistics.txt"
     params:
         outdir = outdir + "/cutadapt",
         quality = 30,
         trim_galore = config['Procedure']['trim_galore']
     threads: 6
     log:
-        log = outdir + "/log/{sample_id}/trimming.txt"
+        log = outdir + "/log/Align/{sample_id}/trimming.txt"
     shell:
         """
         {params.trim_galore} --phred33  --cores {threads} --quality {params.quality} \
@@ -102,7 +102,7 @@ rule star_align:
     output:
         outfile = outdir + "/2pass/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam"
     log:
-        log = outdir + "/log/{sample_id}/{genome}/star_align.log"
+        outdir + "/log/Align/{sample_id}/{genome}/star_align.log"
     threads: 25
     params:
         outPrefix = outdir + "/2pass/{sample_id}/{genome}/{sample_id}",
@@ -120,16 +120,16 @@ rule star_align:
             --readFilesIn {params.input_params} \
             --outSAMtype BAM SortedByCoordinate \
             --outSAMattributes NM \
-            --outFileNamePrefix {params.outPrefix} > {log.log} 2>&1
+            --outFileNamePrefix {params.outPrefix} > {log} 2>&1
         """
 
 rule featureCounts_single_noMultiple:
     input:
         bams = expand(outdir + "/2pass/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam",sample_id=single_samples,genome=genomes)
     output:
-        outfile = outdir + "/count/featureCounts/{genome}_single_count.tsv"
+        outfile = outdir + "/counts/featureCounts/{genome}_single_count.tsv"
     log:
-        outdir + "/log/count/{genome}_featureCounts_single_noMultiple.log"
+        outdir + "/log/Align/{genome}_featureCounts_single_noMultiple.log"
     threads:
         25
     params:
@@ -144,9 +144,9 @@ rule featureCounts_paired_noMultiple:
     input:
         bams = expand(outdir + "/2pass/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam",sample_id=paired_samples,genome=genomes)
     output:
-        outfile = outdir + "/count/featureCounts/{genome}_paired_count.tsv"
+        outfile = outdir + "/counts/featureCounts/{genome}_paired_count.tsv"
     log:
-        outdir + "/log/count/{genome}_featureCounts_paired_noMultiple.log"
+        outdir + "/log/Align/{genome}_featureCounts_paired_noMultiple.log"
     threads:
         25
     params:

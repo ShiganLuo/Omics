@@ -7,9 +7,6 @@
 注意：
 - trim_galore只是打包程序，需要确保cutadapt存在
 - 物种名是动态变化的，在yaml中，相关文件的键需要根据metadata改变，如果物种名为有空格隔开，需要改空格为_，如Mus musculus -> Mus_musculus
-- 如果要采用SNP流程并且使用XenofilterR去除基因组污染，也需要手动修改规则：
-第一个需要修改的规则是将generate_xenofilter_input input中的genome="Mus_musculus"修改成你得污染物种；另外sample_id=human_samples改成目标物种smaple_id；此外run中的：for sample in human_samples:也得改成目标物种sample_id
-第二个需要修改的规则是：addReadsGroup params中的wildcards.genome == "Homo_sapiens"改成目标物种（非污染物种）
 
 2. 修改scripts下RNA-SNP_prepare.sh脚本，执行
 
@@ -30,6 +27,34 @@ snakemake -s workflow/RNA-SNP/run.smk --config indir=data/fq outdir=output metad
   _R1*fastq , _R2*fastq or _R1*fq , _R2*fq
   _1*fastq , _2*fastq or _1*fq , _2*fq
 单端测序文件：非双端测序文件
+
+## subworkflow像解
+
+### Align
+
+1. **变量**
+- single_samples: 单端样本id列表
+- paired_samples: 双端样本id列表
+- genomes: 物种列表
+
+### Annovar
+
+### StringTie
+
+### TEtranscripts
+
+1. **变量**
+- all_samples: 样本id列表
+- genomes: 物种列表
+
+### XenofilterR
+
+1. **变量**
+- XenofilterR_target_samples: 代表可能含有其它物种序列污染的样本列表，在示例流程中为用小鼠饲养层细胞培育的干细胞
+- XenofilterR_pollution_source_genome: 代表污染来源基因组字符串，在示例流程中为小鼠
+
+解释：
+- 各subworkflow变量需要在run.smk中定义，各subworkflow同名变量是同一个变量，均来自run.smk
 
 ## 参数详解
 

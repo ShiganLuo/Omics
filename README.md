@@ -28,7 +28,7 @@ snakemake -s workflow/RNA-SNP/run.smk --config indir=data/fq outdir=output metad
 - 单端测序文件：非双端测序文件模式
 - 具体查看utils/fastq_utils.py
 
-## subworkflow像解
+## subworkflow详解
 
 ### Align
 

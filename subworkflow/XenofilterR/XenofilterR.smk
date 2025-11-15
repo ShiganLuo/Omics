@@ -17,7 +17,7 @@ XenofilterRYaml = get_yaml_path("XenofilterR")
 configfile: XenofilterRYaml
 logging.info(f"Include XenofilterR config: {XenofilterRYaml}")
 logging.info(f"main snakefile excute path: {EXECUTION_DIR}")
-logging.info(f"XenofilterR target samples: {XenofilterR_target_samples} XenofilterR pollution source genome{XenofilterR_pollution_source_genome}")
+logging.info(f"XenofilterR target samples: {XenofilterR_target_samples} XenofilterR pollution source genome: {XenofilterR_pollution_source_genome}")
 # first col: target(human) genome,second col: contaminating genome. human sample may contaminated by mouse genome
 rule generate_xenofilter_input:
     input:

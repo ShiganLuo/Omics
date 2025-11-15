@@ -52,11 +52,11 @@ rule MarkDuplicates:
         bam = outdir + "/SNP/RG/{genome}/{sample_id}.bam"
     output:
         bam = temp(outdir + "/SNP/bam-sorted-Markdup/{genome}/{sample_id}.bam"),
-        bai = temp(outdir + "/SNP/bam-sorted-Markdup/{genome}{sample_id}.bai"),
+        bai = temp(outdir + "/SNP/bam-sorted-Markdup/{genome}/{sample_id}.bai"),
         metrics = temp(outdir + "/SNP/bam-sorted-Markdup/{genome}/{sample_id}_Markdup-metrics.txt")
     log:
         outdir + "/log/SNP/{genome}/{sample_id}/{sample_id}_MarkDuplicates.log"
-    threads: 16
+    threads: 8
     params:
         javaOptions = "-Xms20g -Xmx30g -XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10",
         gatk = config["Procedure"]["gatk"]
@@ -87,42 +87,44 @@ rule MarkDuplicates:
 
 rule SplitNCigarReads:
     input:
-        genome = config['genome']['human']['fasta'],
         bam = outdir + "/SNP/bam-sorted-Markdup/{genome}/{sample_id}.bam",
-        indict = config['genome']['human']['dict'],
-        fai = config['genome']['human']['fai']
     output:
         bam = outdir + "/SNP/Split/{genome}/{sample_id}.bam"
     params:
         javaOptions = "-Xms20g -Xmx30g -XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10",
-        gatk = config["Procedure"]["gatk"]
+        gatk = config["Procedure"]["gatk"],
+        genome = lambda wildcards: config['genome'][wildcards.genome]['fasta'],
+        indict = lambda wildcards: config['genome'][wildcards.genome]['dict'],
+        fai = lambda wildcards: config['genome'][wildcards.genome]['fai']
+    threads: 8 
     log:
         outdir + "/log/SNP/{genome}/{sample_id}/{sample_id}_SplitNCigarReads.log"
     shell:
         """
         {params.gatk} --java-options "{params.javaOptions}" SplitNCigarReads \
-        -R {input.genome} \
+        -R {params.genome} \
         -I {input.bam} \
         -O {output.bam} > {log} 2>&1
       """
 
 rule VarientCalling:
     input:
-        genome = config['genome']['human']['fasta'],
         bam = outdir + "/SNP/Split/{genome}/{sample_id}.bam",
-        fai = config['genome']['human']['fai']
     output:
         vcf = outdir + "/SNP/vcf/origin/{genome}/{sample_id}.vcf.gz"
     log:
         outdir + "/log/SNP/{genome}/{sample_id}/{sample_id}_VarientCalling.log"
     params:
         javaOptions = "-Xms20g -Xmx30g -XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10",
-        gatk = config["Procedure"]["gatk"]
+        gatk = config["Procedure"]["gatk"],
+        genome = lambda wildcards: config['genome'][wildcards.genome]['fasta'],
+        fai = lambda wildcards: config['genome'][wildcards.genome]['fai']
+    threads: 8
     shell:
         """
         {params.gatk} --java-options "{params.javaOptions}" \
 		HaplotypeCaller \
-		-R {input.genome} \
+		-R {params.genome} \
 		-I {input.bam} \
 		-O {output.vcf} \
 		-dont-use-soft-clipped-bases \
@@ -131,22 +133,23 @@ rule VarientCalling:
 
 rule vcf_filter:
     input:
-        genome = config['genome']['human']['fasta'],
         vcf = outdir + "/SNP/vcf/origin/{genome}/{sample_id}.vcf.gz",
-        fai = config['genome']['human']['fai']
     output:
         vcf = outdir + "/SNP/vcf/filter/{genome}/{sample_id}.vcf.gz"
     log:
         outdir + "/log/SNP/{genome}/{sample_id}/{sample_id}_vcf_filter.log"
+    threads: 8
     params:
         javaOptions = "-Xms20g -Xmx30g -XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10",
         vcf = outdir + "/SNP/vcf/filter/{genome}/{sample_id}.vcf",
         gatk = config["Procedure"]["gatk"],
         bgzip = config["Procedure"]["bgzip"],
+        genome = lambda wildcards: config['genome'][wildcards.genome]['fasta'],
+        fai = lambda wildcards: config['genome'][wildcards.genome]['fai']
     shell:
         """
         {params.gatk} --java-options "{params.javaOptions}" VariantFiltration \
-        --R {input.genome} \
+        --R {params.genome} \
         --V {input.vcf} \
         --window 35 \
         --cluster 3 \

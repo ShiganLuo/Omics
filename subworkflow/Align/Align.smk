@@ -127,7 +127,7 @@ rule featureCounts_single_noMultiple:
     input:
         bams = expand(outdir + "/2pass/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam",sample_id=single_samples,genome=genomes)
     output:
-        outfile = outdir + "/counts/featureCounts/{genome}_single_count.tsv"
+        outfile = outdir + "/counts/featureCounts/{genome}/{genome}_single_count.tsv"
     log:
         outdir + "/log/Align/{genome}_featureCounts_single_noMultiple.log"
     threads:
@@ -144,7 +144,7 @@ rule featureCounts_paired_noMultiple:
     input:
         bams = expand(outdir + "/2pass/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam",sample_id=paired_samples,genome=genomes)
     output:
-        outfile = outdir + "/counts/featureCounts/{genome}_paired_count.tsv"
+        outfile = outdir + "/counts/featureCounts/{genome}/{genome}_paired_count.tsv"
     log:
         outdir + "/log/Align/{genome}_featureCounts_paired_noMultiple.log"
     threads:

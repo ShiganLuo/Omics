@@ -7,11 +7,11 @@ Procedure:
   samtools: "/usr/bin/samtools"
   bgzip: "/usr/bin/bgzip"
 genome:
-  Homo_sapiens: 
-    fasta: "/disk5/luosg/Reference/GENCODE/human/GRCh38/GRCh38.primary_assembly.genome.fa"
-    dict: "/disk5/luosg/Reference/GENCODE/human/GRCh38/GRCh38.primary_assembly.genome.dict"
-    fai: "/disk5/luosg/Reference/GENCODE/human/GRCh38/GRCh38.primary_assembly.genome.fa.fai"
-  Mus_musculus:
-    fasta: "/disk5/luosg/Reference/GENCODE/mouse/GRCm39/GRCm39.primary_assembly.genome.fa"
-    dict: "/disk5/luosg/Reference/GENCODE/mouse/GRCm39/GRCm39.primary_assembly.genome.dict"
-    fai: "/disk5/luosg/Reference/GENCODE/mouse/GRCm39/GRCm39.primary_assembly.genome.fa.fai"
+  human: 
+    fasta: "/home/luosg/genome/Human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa"
+    dict: "/home/luosg/genome/Human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.dict"
+    fai: "/home/luosg/genome/Human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa.fai"
+  mouse:
+    fasta: "/home/luosg/genome/Mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa"
+    dict: "/home/luosg/genome/Mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.dict"
+    fai: "/home/luosg/genome/Mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa.fai"

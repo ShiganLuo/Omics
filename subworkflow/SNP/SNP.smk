@@ -1,5 +1,6 @@
 SNAKEFILE_FULL_PATH_SNP = workflow.snakefile
 SNAKEFILE_DIR_SNP = os.path.dirname(SNAKEFILE_FULL_PATH_SNP)
+
 def get_yaml_path(module_name:str)->str:
     """
     function: Get the absolute path of a module in the workflow/RNA-SNP/snakemake/subworkflow/ directory.
@@ -13,6 +14,7 @@ def get_yaml_path(module_name:str)->str:
     if not os.path.exists(module_path):
         raise FileNotFoundError(f"Module configfile {module_name}.yaml not found at {module_path}")
     return module_path
+
 SNPYaml = get_yaml_path("SNP")
 configfile: SNPYaml
 logging.info(f"Include SNP config: {SNPYaml}")
@@ -46,6 +48,7 @@ rule addReadsGroup:
             -SO coordinate --RGLB {params.RGLB} --RGPL {params.RGPL} --RGPU {params.RGPU} --RGSM {params.id} >> {log} 2>&1
         {params.samtools} index -@ {threads} {output.bam} >> {log} 2>&1
         """
+
 
 rule MarkDuplicates:
     input:

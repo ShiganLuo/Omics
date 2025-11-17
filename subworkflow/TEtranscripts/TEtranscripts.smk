@@ -21,7 +21,7 @@ rule TEtranscript_prepare:
         get_alignment_input,
         genome_index = lambda wildcards: config['genome'][wildcards.genome]['genome_index']
     output:
-        outfile = outdir + "/counts/bam/{genome}/{sample_id}Aligned.sortedByCoord.out.bam"
+        outfile = temp(outdir + "/counts/bam/{genome}/{sample_id}Aligned.sortedByCoord.out.bam")
     log:
         outdir + "/log/TEtranscript/{genome}/{sample_id}/TEtranscript_prepare.log"
     threads: 15

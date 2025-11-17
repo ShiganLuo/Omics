@@ -34,8 +34,6 @@ def get_output_files(groups):
     genomes = []
     for organism, types in groups.items():
         genomes.append(organism)
-        outfiles.append(outdir + f"/counts/TEcount/{organism}/all_TEcount.cntTable")
-        outfiles.append(outdir + f"/counts/TElocal/{organism}/all_TElocal.cntTable")
         for TYPE, samples in types.items():
             if TYPE == "PAIRED":
                 paired_samples.append(samples)
@@ -46,13 +44,17 @@ def get_output_files(groups):
             else:
                 continue
     # flatten
-    outfiles_flatten = outfiles
+    
     paired_samples = list(chain.from_iterable(paired_samples))
     single_samples = list(chain.from_iterable(single_samples))
     all_samples = list(chain.from_iterable(all_samples))
+    outfiles = expand(outdir + "/SNP/vcf/filter/{genome}/{sample_id}.vcf.gz",genome=genomes,sample_id=all_samples)
+    outfiles_flatten = outfiles
     return outfiles_flatten,paired_samples,single_samples,all_samples,genomes
 
 outfiles_flatten,paired_samples,single_samples,all_samples,genomes = get_output_files(groups)
+XenofilterR_target_samples=all_samples
+XenofilterR_pollution_source_genome="mouse"
 logging.info(f"genomes:{genomes}\npaired_sampes:{paired_samples}\nsingle_samples:{single_samples}\nrule all input files:{outfiles_flatten}")
 def get_multiqc_file(paired_samples,single_samples,all_samples,genomes):
     outfiles = []
@@ -106,6 +108,13 @@ logging.info(f"Include Align workflow: {alignSmk}")
 TEtranscriptsSmk = get_snakefile_path("TEtranscripts")
 include: TEtranscriptsSmk
 logging.info(f"Include TEtranscripts workflow: {TEtranscriptsSmk}")
+SNPSmk = get_snakefile_path("SNP")
+include: SNPSmk
+logging.info(f"Include SNP workflow: {SNPSmk}")
+XenofilterRSmk = get_snakefile_path("XenofilterR")
+include: XenofilterRSmk
+logging.info(f"Include XenofilterR workflow: {XenofilterRSmk}")
+
 
 rule all:
     input:

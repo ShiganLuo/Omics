@@ -1,12 +1,11 @@
 #!/bin/bash
 #建立注释库
-retrieve=/opt/annovar/retrieve_seq_from_fasta.pl
-convert=/opt/annovar/convert2annovar.pl
-annotate=/opt/annovar/annotate_variation.pl
-table=/opt/annovar/table_annovar.pl
+retrieve_pl=/opt/annovar/retrieve_seq_from_fasta.pl
+convert_pl=/opt/annovar/convert2annovar.pl
+annotate_pl=/opt/annovar/annotate_variation.pl
+table_pl=/opt/annovar/table_annovar.pl
 #conda:RNA-SNP
 ## notice: Again do not use annotate_variation unless you are an expert and know the intricate differences of the many arguments.
-set -e
 #############1
 # echo "gffread BettaSplendens/genomic.gff -T -o BettaSplendens/BettaSplendens.gtf"
 # gffread BettaSplendens/genomic.gff -T -o BettaSplendens/BettaSplendens.gtf
@@ -56,10 +55,12 @@ set -e
 #     -operation g \
 #     -nastring . \
 #     -csvout
+set -e
 function GenePred(){
-    gtf=$1
-    refGene=$2
+    local gtf=$1
+    local refGene=$2
     gtfToGenePred -genePredExt ${gtf} ${refGene}
+    # mamba install bioconda::ucsc-gtftogenepred
 }
 # gtf=/ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/gencode.vM36.primary_assembly.annotation.gtf
 # refGene=/ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/annovar/GRCm39/GRCm39_refGene.txt
@@ -68,10 +69,13 @@ function GenePred(){
 # refGene=/ChIP_seq_2/Data/index/Homo_sapiens/GENCODE/GRCh38/annovar/GRCh38/GRCh38_refGene.txt
 # GenePred ${gtf} ${refGene}
 function retrieve(){
-    genome=$1
-    refGene=$2
-    refGeneMrna=$3
-    perl ${retrieve} \
+    local retrieve_pl=$1
+    local genome=$2
+    local refGene=$3
+    local refGeneMrna=$4
+    dir=$(dirname ${refGene})
+    mkdir -p ${dir}
+    perl ${retrieve_pl} \
     --format refGene \
     --seqfile ${genome} ${refGene} \
     --out ${refGeneMrna}
@@ -79,27 +83,26 @@ function retrieve(){
 # genome=/ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa
 # refGene=/ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/annovar/GRCm39/GRCm39_refGene.txt
 # refGeneMrna=/ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/annovar/GRCm39/GRCm39_refGeneMrna.fa
-# retrieve ${genome} ${refGene} ${refGeneMrna}
-# genome=/ChIP_seq_2/Data/index/Homo_sapiens/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa
-# refGene=/ChIP_seq_2/Data/index/Homo_sapiens/GENCODE/GRCh38/annovar/GRCh38/GRCh38_refGene.txt
-# refGeneMrna=/ChIP_seq_2/Data/index/Homo_sapiens/GENCODE/GRCh38/annovar/GRCh38/GRCh38_refGeneMrna.fa
-# retrieve ${genome} ${refGene} ${refGeneMrna}
+# retrieve ${retrieve_pl} ${genome} ${refGene} ${refGeneMrna}
+
 function convert(){
-    vcf=$1
-    out=$2
-    perl ${convert} \
+    local convert_pl=$1
+    local vcf=$2
+    local out=$3
+    perl ${convert_pl} \
     -format vcf4 \
     -withfreq ${vcf} > ${out}
 }
 vcf=/ChIP_seq_2/StemCells/RNASNP202503/waitingflow/output/vcf/SRR17762738.bed
 out=/ChIP_seq_2/StemCells/RNASNP202503/waitingflow/output/vcf/SRR17762738.avinput
-# convert ${vcf} ${out}
+# convert ${convert_pl} ${vcf} ${out}
 function table(){
-    avinput=$1
-    db=$2
-    out=$3
-    buildver=$4
-    perl ${table} \
+    local table_pl=$1
+    local avinput=$2
+    local db=$3
+    local out=$4
+    local buildver=$5
+    perl ${table_pl} \
     ${avinput} ${db} \
     -buildver ${buildver} \
     -out ${out} \
@@ -112,4 +115,4 @@ avinput=/ChIP_seq_2/StemCells/RNASNP202503/waitingflow/output/annovar/SRR1776273
 db=/ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/annovar/GRCm39/
 buildver=GRCm39
 out=/ChIP_seq_2/StemCells/RNASNP202503/waitingflow/output/annovar/SRR17762738_table
-# table ${avinput} ${db} ${out} ${buildver} 
+# table ${table_pl} ${avinput} ${db} ${out} ${buildver} 

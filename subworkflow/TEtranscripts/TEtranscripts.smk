@@ -73,6 +73,9 @@ def get_cntTable_for_TEcount(wildcards):
     for sample_id, genome in paired_sample_genome_pairs:
         if genome == wildcards.genome:
             cntTable.append(f"{outdir}/counts/TEcount/{genome}/{sample_id}TEcount.cntTable")
+    
+    if len(cntTable) == 0:
+        raise ValueError(f"rule combine_TElocal didn't get any input files,genome: {wildcards.genome}\nsingle_sample_genome_pairs:{single_sample_genome_pairs}\npaired_sample_genome_pairs:{paired_sample_genome_pairs}")
     return cntTable
 
 rule combine_TEcount:
@@ -121,6 +124,9 @@ def get_cntTable_for_TElocal(wildcards):
     for sample_id, genome in paired_sample_genome_pairs:
         if genome == wildcards.genome:
             cntTable.append(f"{outdir}/counts/TElocal/{genome}/{sample_id}TElocal.cntTable")
+    
+    if len(cntTable) == 0:
+        raise ValueError(f"rule combine_TElocal didn't get any input files,genome: {wildcards.genome}\nsingle_sample_genome_pairs:{single_sample_genome_pairs}\npaired_sample_genome_pairs:{paired_sample_genome_pairs}")
     return cntTable
 
 rule combine_TElocal:

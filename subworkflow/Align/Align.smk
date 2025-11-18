@@ -122,12 +122,13 @@ rule star_align:
             --outSAMattributes NM \
             --outFileNamePrefix {params.outPrefix} > {log} 2>&1
         """
-
 def get_bams_for_featureCounts_single(wildcards):
     bams = []
     for sample_id, genome in single_sample_genome_pairs:
         if genome == wildcards.genome:
             bams.append(f"{outdir}/2pass/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam")
+    if len(bams) == 0:
+        raise ValueError(f"rule featureCounts_single_noMultiple didn't get any input bams, genome: {wildcards.genome},\nsingle_sample_genome_pairs: {single_sample_genome_pairs}")
     return bams
 
 rule featureCounts_single_noMultiple:
@@ -138,7 +139,7 @@ rule featureCounts_single_noMultiple:
     log:
         outdir + "/log/Align/{genome}_featureCounts_single_noMultiple.log"
     threads:
-        25
+        20
     params:
         featureCounts = config['Procedure']['featureCounts'],
         gtf = lambda wildcards: config["genome"][wildcards.genome]["gtf"]
@@ -152,6 +153,8 @@ def get_bams_for_featureCounts_paired(wildcards):
     for sample_id, genome in paired_sample_genome_pairs:
         if genome == wildcards.genome:
             bams.append(f"{outdir}/2pass/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam")
+    if len(bams) == 0:
+        raise ValueError(f"rule featureCounts_paired_noMultiple didn't get any input bams, genome: {wildcards.genome},\npaired_sample_genome_pairs:{paired_sample_genome_pairs}")
     return bams
 
 rule featureCounts_paired_noMultiple:
@@ -162,33 +165,12 @@ rule featureCounts_paired_noMultiple:
     log:
         outdir + "/log/Align/{genome}_featureCounts_paired_noMultiple.log"
     threads:
-        25
+        20
     params:
         featureCounts = config['Procedure']['featureCounts'],
         gtf = lambda wildcards: config["genome"][wildcards.genome]["gtf"]
     shell:
         """
         # for multiple -M -O
-        {params.featureCounts} -T {threads} -B -p -t exon -g gene_id -a {params.gtf} -o {output.outfile} {input.bams} > {log} 2>&1
+        {params.featureCounts} -T {threads} -B -p --countReadPairs -t exon -g gene_id -a {params.gtf} -o {output.outfile} {input.bams} > {log} 2>&1
         """
-
-rule featureCounts_combine:
-    input:
-        PE = outdir + "/counts/featureCounts/{genome}/{genome}_paired_count.tsv"
-        SE = outdir + "/counts/featureCounts/{genome}/{genome}_single_count.tsv"
-    output:
-        outfile = outdir + "/counts/featureCounts/{genome}/{genome}_count.tsv"
-    threads:
-        1
-    conda:
-        config['conda']['run']
-    run:
-        import pandas as pd
-        df_PE = pd.read_csv(input.PE,sep="\t",comment='#')
-        df_PE.columns = [extract_sample_name(c) for c in df_PE.columns]
-        df_SE = pd.read_csv(input.SE,sep="\t",comment='#')
-        df_SE.drop(columns=['Chr', 'Start', 'End', 'Strand',"Length"],inplace=True)
-        df_SE.columns = [extract_sample_name(c) for c in df_SE.columns]
-        df_new = pd.merge(df_PE,df_SE,on="Geneid")
-        df_new.to_csv(output.outfile,sep="\t",index=False)
-    

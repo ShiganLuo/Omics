@@ -24,18 +24,20 @@ snakemake -s workflow/RNA-SNP/run.smk --config indir=data/fq outdir=output metad
 注意：
 
 - 双端测序文件：
-  `_R1*fastq` , `_R2*fastq` or `_R1*fq` , `_R2*fq` or `_1*fastq` , `_2*fastq` or `_1*fq` , `_2*fq`
+  `_R1*fastq` , `_R2*fastq` or `_R1*fq` , `_R2*fq`
+  `_1*fastq` , `_2*fastq` or `_1*fq` , `_2*fq`
 - 单端测序文件：非双端测序文件模式
 - 具体查看utils/fastq_utils.py
 
-## subworkflow详解
+## subworkflow像解
 
 ### Align
 
 1. **流程控制变量**
 - single_samples: 单端样本id列表
 - paired_samples: 双端样本id列表
-- genomes: 物种列表
+- single_sample_genome_pairs: 单端样本id，物种配对列表，如：[(SE_sample_id， organsim)……]
+- paired_sample_genome_pairs: 双端样本id，物种配对列表，如：[(SE_sample_id， organsim)……]
 
 ### Annovar
 
@@ -44,8 +46,9 @@ snakemake -s workflow/RNA-SNP/run.smk --config indir=data/fq outdir=output metad
 ### TEtranscripts
 
 1. **流程控制变量**
-- all_samples: 样本id列表
-- genomes: 物种列表
+
+- single_sample_genome_pairs: 单端样本id，物种配对列表，如：[(SE_sample_id， organsim)……]
+- paired_sample_genome_pairs: 双端样本id，物种配对列表，如：[(SE_sample_id， organsim)……]
 
 ### XenofilterR
 

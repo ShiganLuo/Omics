@@ -62,6 +62,7 @@ function GenePred(){
     gtfToGenePred -genePredExt ${gtf} ${refGene}
     # mamba install bioconda::ucsc-gtftogenepred
 }
+export -f GenePred
 # gtf=/ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/gencode.vM36.primary_assembly.annotation.gtf
 # refGene=/ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/annovar/GRCm39/GRCm39_refGene.txt
 # GenePred ${gtf} ${refGene}
@@ -80,6 +81,7 @@ function retrieve(){
     --seqfile ${genome} ${refGene} \
     --out ${refGeneMrna}
 }
+export -f retrieve
 # genome=/ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa
 # refGene=/ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/annovar/GRCm39/GRCm39_refGene.txt
 # refGeneMrna=/ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/annovar/GRCm39/GRCm39_refGeneMrna.fa
@@ -93,6 +95,7 @@ function convert(){
     -format vcf4 \
     -withfreq ${vcf} > ${out}
 }
+export -f convert
 vcf=/ChIP_seq_2/StemCells/RNASNP202503/waitingflow/output/vcf/SRR17762738.bed
 out=/ChIP_seq_2/StemCells/RNASNP202503/waitingflow/output/vcf/SRR17762738.avinput
 # convert ${convert_pl} ${vcf} ${out}
@@ -111,6 +114,7 @@ function table(){
     -nastring . \
     -csvout
 }
+export -f table
 avinput=/ChIP_seq_2/StemCells/RNASNP202503/waitingflow/output/annovar/SRR17762738.avinput
 db=/ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/annovar/GRCm39/
 buildver=GRCm39

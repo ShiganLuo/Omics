@@ -1,39 +1,58 @@
 import pandas as pd
+import logging
+import sys
+logging.basicConfig(
+	level=logging.INFO,
+	format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+	stream=sys.stdout,
+	datefmt='%Y-%m-%d %H:%M:%S'
+)
 
-def geneIDAnnotation(gtf:str,outfile:str):
-    # 解析 GTF 文件（跳过注释行）
-    gtf = pd.read_csv(gtf, sep="\t", comment="#", header=None, names=[
-        "seqname", "source", "feature", "start", "end", "score", "strand", "frame", "attribute"
-    ])
 
-    # 解析 gene_id 和 gene_name
-    def extract_gene_info(attr):
-        gene_id, gene_name = None, None
-        attributes = attr.split(";")
-        for item in attributes:
-            item = item.strip()
-            if item.startswith("gene_id"):
-                gene_id = item.split('"')[1]
-            elif item.startswith("gene_name"):
-                gene_name = item.split('"')[1]
-            elif item.startswith("gene_type"):
-                gene_type = item.split('"')[1]
-        return gene_id, gene_name, gene_type
+import pandas as pd
+import re
+from pathlib import Path
+from typing import Union
 
-    # 应用解析函数
-    gtf[["gene_id", "gene_name","gene_type"]] = gtf["attribute"].apply(lambda x: pd.Series(extract_gene_info(x)))
+def geneIDAnnotation(gtf_path: Union[str, Path]) -> pd.DataFrame:
+    gtf = pd.read_csv(
+        gtf_path,
+        sep="\t", 
+        comment="#", 
+        header=None, 
+        names=["seqname", "source", "feature", "start", "end", "score", "strand", "frame", "attribute"]
+    )
 
-    # 删除无效基因（可能有些行没有 gene_id）
-    gtf_filtered = gtf.dropna(subset=["gene_id"]).drop_duplicates(subset=["gene_id", "gene_name","gene_type"], keep="first")
+    gtf['gene_id'] = gtf['attribute'].str.extract(r'gene_id\s*"(.*?)"')
+    gtf['gene_name'] = gtf['attribute'].str.extract(r'gene_name\s*"(.*?)"')
+    gtf['gene_type'] = gtf['attribute'].str.extract(r'gene_type\s*"(.*?)"')
+    gtf_filtered = gtf.dropna(subset=["gene_id"])
+    gtf_filtered = gtf_filtered.drop_duplicates(
+        subset=["gene_id", "gene_name", "gene_type"], 
+        keep="first"
+    )
 
-    # 仅保留 gene_id 和 gene_name，并按原顺序输出
-    gtf_filtered[["gene_id", "gene_name","gene_type"]].to_csv(outfile, sep="\t", index=False, header=True)
+    return gtf_filtered[["gene_id", "gene_name", "gene_type"]]
 
-    print(f"去重后的基因信息已保存至 {outfile}")
+def renameIndex(
+        df_annotation:pd.DataFrame,
+        df:pd.DataFrame
+) -> pd.DataFrame:
+    """
+    rename df index from gene_id to gene_name
+    """
+    df_map = df_annotation.drop_duplicates(subset=["gene_id"], keep="first")
+    gene_id_to_name_map = df_map.set_index('gene_id')['gene_name']
+    new_index = df.index.map(gene_id_to_name_map)
+    df_new = df.copy()
+    df_new.index = new_index
+    df_new.index.name = 'gene_name'
+    return df_new
 
 if __name__ == '__main__':
     # gtf =  "/ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/gencode.vM36.primary_assembly.annotation.gtf"
     # outfile = "/ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/geneIDAnnotation.csv"
     gtf = "/ChIP_seq_2/Data/index/Homo_sapiens/GENCODE/GRCh38/gencode.v47.primary_assembly.annotation.gtf"
     outfile = "/ChIP_seq_2/Data/index/Homo_sapiens/GENCODE/GRCh38/geneIDAnnotation.csv"
-    geneIDAnnotation(gtf,outfile)
+    df = geneIDAnnotation(gtf,outfile)
+    df[["gene_id", "gene_name","gene_type"]].to_csv(outfile, sep="\t", index=False, header=True)

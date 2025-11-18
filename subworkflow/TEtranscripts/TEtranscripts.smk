@@ -65,9 +65,19 @@ rule TEcount:
         > {log} 2>&1
         """
 
+def get_cntTable_for_TEcount(wildcards):
+    cntTable = []
+    for sample_id, genome in single_sample_genome_pairs:
+        if genome == wildcards.genome:
+            cntTable.append(f"{outdir}/counts/TEcount/{genome}/{sample_id}TEcount.cntTable")
+    for sample_id, genome in paired_sample_genome_pairs:
+        if genome == wildcards.genome:
+            cntTable.append(f"{outdir}/counts/TEcount/{genome}/{sample_id}TEcount.cntTable")
+    return cntTable
+
 rule combine_TEcount:
     input:
-        fileList = expand(outdir + "/counts/TEcount/{genome}/{sample_id}TEcount.cntTable",sample_id=all_samples,genome=genomes)
+        fileList = get_cntTable_for_TEcount
     output:
         outfile = outdir + "/counts/TEcount/{genome}/all_TEcount.cntTable"
     conda:
@@ -103,9 +113,19 @@ rule TElocal:
         mv {params.project}.cntTable {output.project}
         """
 
+def get_cntTable_for_TElocal(wildcards):
+    cntTable = []
+    for sample_id, genome in single_sample_genome_pairs:
+        if genome == wildcards.genome:
+            cntTable.append(f"{outdir}/counts/TElocal/{genome}/{sample_id}TElocal.cntTable")
+    for sample_id, genome in paired_sample_genome_pairs:
+        if genome == wildcards.genome:
+            cntTable.append(f"{outdir}/counts/TElocal/{genome}/{sample_id}TElocal.cntTable")
+    return cntTable
+
 rule combine_TElocal:
     input:
-        fileList = expand(outdir + "/counts/TElocal/{genome}/{sample_id}TElocal.cntTable",sample_id=all_samples,genome=genomes)
+        fileList = get_cntTable_for_TElocal
     output:
         outfile = outdir + "/counts/TElocal/{genome}/all_TElocal.cntTable"
     conda:

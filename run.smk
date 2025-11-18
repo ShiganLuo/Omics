@@ -32,30 +32,39 @@ def get_output_files(groups):
     single_samples = []
     all_samples = []
     genomes = []
+    XenofilterR_target_samples = []
+    single_sample_genome_pairs = [] # [(SE,organism)……]
+    paired_sample_genome_pairs = [] # [(PE,organism)……]
+    XenofilterR_pollution_source_genome = "Homo_sapiens"
     for organism, types in groups.items():
         genomes.append(organism)
+        outfiles.append(outdir + f"/counts/featureCounts/{organism}/{organism}_single_count.tsv")
+        outfiles.append(outdir + f"/counts/featureCounts/{organism}/{organism}_paired_count.tsv")
         for TYPE, samples in types.items():
             if TYPE == "PAIRED":
-                paired_samples.append(samples)
-                all_samples.append(samples)
+                for sample in samples:
+                    paired_samples.append(sample)
+                    all_samples.append(sample)
+                    paired_sample_genome_pairs.append((organism,sample))
+                    if organism == XenofilterR_pollution_source_genome:
+                        XenofilterR_target_samples.append(sample)
             elif TYPE == "SINGLE":
-                single_samples.append(samples)
-                all_samples.append(samples)
+                for sample in samples:
+                    single_samples.append(sample)
+                    all_samples.append(sample)
+                    single_sample_genome_pairs.append((organism,sample))
+                    if organism == XenofilterR_pollution_source_genome:
+                        XenofilterR_target_samples.append(sample)
             else:
                 continue
-    # flatten
-    
-    paired_samples = list(chain.from_iterable(paired_samples))
-    single_samples = list(chain.from_iterable(single_samples))
-    all_samples = list(chain.from_iterable(all_samples))
-    outfiles = expand(outdir + "/SNP/vcf/filter/{genome}/{sample_id}.vcf.gz",genome=genomes,sample_id=all_samples)
-    outfiles_flatten = outfiles
-    return outfiles_flatten,paired_samples,single_samples,all_samples,genomes
+    return outfiles,paired_samples,single_samples,all_samples,genomes,XenofilterR_target_samples,single_sample_genome_pairs,paired_sample_genome_pairs
 
-outfiles_flatten,paired_samples,single_samples,all_samples,genomes = get_output_files(groups)
-XenofilterR_target_samples=all_samples
-XenofilterR_pollution_source_genome="mouse"
-logging.info(f"genomes:{genomes}\npaired_sampes:{paired_samples}\nsingle_samples:{single_samples}\nrule all input files:{outfiles_flatten}")
+outfiles_flatten,paired_samples,single_samples,all_samples,genomes,XenofilterR_target_samples,single_sample_genome_pairs,paired_sample_genome_pairs = get_output_files(groups)
+XenofilterR_pollution_source_genome = "Homo_sapiens"
+logging.info(f"genomes:{genomes}\npaired_sampes:{paired_samples}\nsingle_samples:{single_samples}\nall input files:\
+{outfiles_flatten}\nXenofilterR_target_samples:{XenofilterR_target_samples}\n\
+XenofilterR_pollution_source_genome:{XenofilterR_pollution_source_genome}\n\
+single_sample_genome_pairs:{single_sample_genome_pairs}\npaired_sample_genome_pairs:{paired_sample_genome_pairs}")
 def get_multiqc_file(paired_samples,single_samples,all_samples,genomes):
     outfiles = []
     outfiles.append(
@@ -89,6 +98,7 @@ configfilePath = os.path.join(SNAKEFILE_DIR,"config","run.yaml")
 configfile: configfilePath
 logging.info(f"add cofigfile {configfilePath}")
 
+
 def get_snakefile_path(module_name:str)->str:
     """
     function: Get the absolute path of a module in the core_snakefile_path/subworkflow/ directory.
@@ -105,17 +115,12 @@ def get_snakefile_path(module_name:str)->str:
 alignSmk = get_snakefile_path("Align")
 include: alignSmk
 logging.info(f"Include Align workflow: {alignSmk}")
-TEtranscriptsSmk = get_snakefile_path("TEtranscripts")
-include: TEtranscriptsSmk
-logging.info(f"Include TEtranscripts workflow: {TEtranscriptsSmk}")
 SNPSmk = get_snakefile_path("SNP")
 include: SNPSmk
 logging.info(f"Include SNP workflow: {SNPSmk}")
 XenofilterRSmk = get_snakefile_path("XenofilterR")
 include: XenofilterRSmk
-logging.info(f"Include XenofilterR workflow: {XenofilterRSmk}")
-
-
+logging.info(f"Include XenofilterR workflow: {SNPSmk}")
 rule all:
     input:
         outfiles_flatten
@@ -137,3 +142,7 @@ rule multiqc:
         multiqc {params.multiqc_indir} -o {params.multiqc_outdir}
         """
     
+
+
+
+

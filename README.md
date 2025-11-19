@@ -53,7 +53,8 @@ snakemake -s workflow/RNA-SNP/run.smk --config indir=data/fq outdir=output metad
 ### XenofilterR
 
 1. **流程控制变量**
-- XenofilterR_target_samples: 代表可能含有其它物种序列污染的样本列表，在示例流程中为用小鼠饲养层细胞培育的干细胞
+- XenofilterR_target_samples: 代表可能含有其它物种序列污染的样本列表，在示例流程中为用小鼠饲养层细胞培育的人类干细胞
+- XenofilterR_target_genome: 代表目标物种，在示例流程中为人类
 - XenofilterR_pollution_source_genome: 代表污染来源基因组字符串，在示例流程中为小鼠
 
 解释：

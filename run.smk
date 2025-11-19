@@ -7,6 +7,7 @@ from snakemake.io import glob_wildcards
 logging.basicConfig(
 	level=logging.INFO,
 	format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    stream=sys.stdout,
 	datefmt='%Y-%m-%d %H:%M:%S'
 )
 # containerize: "quay.nju.edu.cn"
@@ -35,32 +36,39 @@ def get_output_files(groups):
     XenofilterR_target_samples = []
     single_sample_genome_pairs = [] # [(SE,organism)……]
     paired_sample_genome_pairs = [] # [(PE,organism)……]
-    XenofilterR_pollution_source_genome = "Homo_sapiens"
+    XenofilterR_target_genome = "human"
+    XenofilterR_pollution_source_genome = "mouse"
     for organism, types in groups.items():
         genomes.append(organism)
-        outfiles.append(outdir + f"/counts/featureCounts/{organism}/{organism}_single_count.tsv")
-        outfiles.append(outdir + f"/counts/featureCounts/{organism}/{organism}_paired_count.tsv")
+        # outfiles.append(outdir + "/counts/TElocal/{organism}/all_TElocal.cntTable")
+        # outfiles.append(outdir + "/counts/TEcount/{organism}/all_TEcount.cntTable")
         for TYPE, samples in types.items():
             if TYPE == "PAIRED":
+                # outfiles.append(outdir + f"/counts/featureCounts/{organism}/{organism}_paired_count.tsv")
                 for sample in samples:
+                    outfiles.append(f"{outdir}/SNP/vcf/filter/{organism}/{sample}.vcf.gz")
+                    # outfiles.append(f"{outdir}/2pass/{sample}/{organism}/{sample}Aligned.sortedByCoord.out.bam")
                     paired_samples.append(sample)
                     all_samples.append(sample)
-                    paired_sample_genome_pairs.append((organism,sample))
-                    if organism == XenofilterR_pollution_source_genome:
+                    paired_sample_genome_pairs.append((sample,organism))
+                    if organism == XenofilterR_target_genome:
                         XenofilterR_target_samples.append(sample)
             elif TYPE == "SINGLE":
+                # outfiles.append(outdir + f"/counts/featureCounts/{organism}/{organism}_single_count.tsv")
                 for sample in samples:
+                    outfiles.append(f"{outdir}/SNP/vcf/filter/{organism}/{sample}.vcf.gz")
+                    # outfiles.append(f"{outdir}/2pass/{sample}/{organism}/{sample}Aligned.sortedByCoord.out.bam")
                     single_samples.append(sample)
                     all_samples.append(sample)
-                    single_sample_genome_pairs.append((organism,sample))
-                    if organism == XenofilterR_pollution_source_genome:
+                    single_sample_genome_pairs.append((sample,organism))
+                    if organism == XenofilterR_target_genome:
                         XenofilterR_target_samples.append(sample)
             else:
                 continue
-    return outfiles,paired_samples,single_samples,all_samples,genomes,XenofilterR_target_samples,single_sample_genome_pairs,paired_sample_genome_pairs
+    return outfiles,paired_samples,single_samples,all_samples,genomes,XenofilterR_target_samples,XenofilterR_target_genome,XenofilterR_pollution_source_genome,single_sample_genome_pairs,paired_sample_genome_pairs
 
-outfiles_flatten,paired_samples,single_samples,all_samples,genomes,XenofilterR_target_samples,single_sample_genome_pairs,paired_sample_genome_pairs = get_output_files(groups)
-XenofilterR_pollution_source_genome = "Homo_sapiens"
+outfiles_flatten,paired_samples,single_samples,all_samples,genomes,XenofilterR_target_samples,XenofilterR_target_genome,XenofilterR_pollution_source_genome,single_sample_genome_pairs,paired_sample_genome_pairs = get_output_files(groups)
+
 logging.info(f"genomes:{genomes}\npaired_sampes:{paired_samples}\nsingle_samples:{single_samples}\nall input files:\
 {outfiles_flatten}\nXenofilterR_target_samples:{XenofilterR_target_samples}\n\
 XenofilterR_pollution_source_genome:{XenofilterR_pollution_source_genome}\n\

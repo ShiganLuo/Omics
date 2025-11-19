@@ -17,12 +17,12 @@ XenofilterRYaml = get_yaml_path("XenofilterR")
 configfile: XenofilterRYaml
 logging.info(f"Include XenofilterR config: {XenofilterRYaml}")
 logging.info(f"main snakefile excute path: {EXECUTION_DIR}")
-logging.info(f"XenofilterR target samples: {XenofilterR_target_samples} XenofilterR pollution source genome: {XenofilterR_pollution_source_genome}")
+logging.info(f"XenofilterR target samples: {XenofilterR_target_samples}\nXenofilterR_target_genome: {XenofilterR_target_genome}\nXenofilterR pollution source genome: {XenofilterR_pollution_source_genome}")
 # first col: target(human) genome,second col: contaminating genome. human sample may contaminated by mouse genome
 rule generate_xenofilter_input:
     input:
         expand(outdir + "/2pass/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam", 
-               sample_id=XenofilterR_target_samples, genome=XenofilterR_pollution_source_genome)
+               sample_id=XenofilterR_target_samples, genome=[XenofilterR_target_genome,XenofilterR_pollution_source_genome])
     output:
         csvIn = outdir + "/xenofilterR/xenofilterR_input.csv",
         # csvRe = outdir +"/xenofilterR/xenofilterR_reName.csv"
@@ -32,8 +32,8 @@ rule generate_xenofilter_input:
             writer = csv.writer(f)
             for sample in XenofilteR_target_samples:
                 row = [
-                    f"{outdir}/2pass/{sample}/Homo_sapiens/{sample}Aligned.sortedByCoord.out.bam",
-                    f"{outdir}/2pass/{sample}/Mus_musculus/{sample}Aligned.sortedByCoord.out.bam"
+                    f"{outdir}/2pass/{sample}/{XenofilterR_target_genome}/{sample}Aligned.sortedByCoord.out.bam",
+                    f"{outdir}/2pass/{sample}/{XenofilterR_pollution_source_genome}/{sample}Aligned.sortedByCoord.out.bam"
                 ]
                 writer.writerow(row)
 

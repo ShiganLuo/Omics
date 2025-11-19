@@ -66,6 +66,7 @@ rule TEcount:
         """
 
 def get_cntTable_for_TEcount(wildcards):
+    logging.info(f"[get_cntTable_for_TEcount] called with wildcards: {wildcards}")
     cntTable = []
     for sample_id, genome in single_sample_genome_pairs:
         if genome == wildcards.genome:
@@ -117,6 +118,7 @@ rule TElocal:
         """
 
 def get_cntTable_for_TElocal(wildcards):
+    logging.info(f"[get_cntTable_for_TElocal] called with wildcards: {wildcards}")
     cntTable = []
     for sample_id, genome in single_sample_genome_pairs:
         if genome == wildcards.genome:

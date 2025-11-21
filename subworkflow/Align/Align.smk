@@ -103,7 +103,7 @@ rule star_align:
         outfile = outdir + "/2pass/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam"
     log:
         outdir + "/log/Align/{sample_id}/{genome}/star_align.log"
-    threads: 8
+    threads: 12
     params:
         outPrefix = outdir + "/2pass/{sample_id}/{genome}/{sample_id}",
         # 动态判断输入参数,加上genome_index，如果三个参数，即为双端测序，两个参数即为单端测序

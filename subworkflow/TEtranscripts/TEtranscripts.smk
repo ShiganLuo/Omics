@@ -23,8 +23,11 @@ rule TEtranscript_prepare:
     output:
         outfile = temp(outdir + "/counts/bam/{genome}/{sample_id}Aligned.sortedByCoord.out.bam")
     log:
-        outdir + "/log/TEtranscript/{genome}/{sample_id}/TEtranscript_prepare.log"
-    threads: 15
+        log = outdir + "/log/TEtranscript/{genome}/{sample_id}/TEtranscript_prepare.log",
+        STAR_log = outdir + "/log/TEtranscript/{genome}/{sample_id}/{sample_id}Log.out",
+        STAR_progress = outdir + "/log/TEtranscript/{genome}/{sample_id}/{sample_id}Log.progress.out",
+        STAR_final = outdir + "/log/TEtranscript/{genome}/{sample_id}/{sample_id}Log.final.out"
+    threads: 12
     params:
         outPrefix = outdir + "/counts/bam/{genome}/{sample_id}",
         STAR = config['Procedure']['STAR'],
@@ -40,7 +43,10 @@ rule TEtranscript_prepare:
             --outSAMtype BAM SortedByCoordinate \
             --outFileNamePrefix {params.outPrefix} \
             --outFilterMultimapNmax 100 \
-            --winAnchorMultimapNmax 100  > {log} 2>&1
+            --winAnchorMultimapNmax 100  > {log.log} 2>&1
+        mv {params.outPrefix}Log.out {log.STAR_log}
+        mv {params.outPrefix}Log.progress.out {log.STAR_progress}
+        mv {params.outPrefix}Log.final.out {log.STAR_final}
         """
 
 rule TEcount:

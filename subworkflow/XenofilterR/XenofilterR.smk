@@ -26,16 +26,23 @@ rule generate_xenofilter_input:
     output:
         csvIn = outdir + "/xenofilterR/xenofilterR_input.csv",
         # csvRe = outdir +"/xenofilterR/xenofilterR_reName.csv"
+    log:
+        outdir + "/log/XenofilterR/generate_xenofilter_input.log"
     run:
         import csv
-        with open(output.csvIn, 'w', newline='') as f:
-            writer = csv.writer(f)
-            for sample in XenofilteR_target_samples:
-                row = [
-                    f"{outdir}/2pass/{sample}/{XenofilterR_target_genome}/{sample}Aligned.sortedByCoord.out.bam",
-                    f"{outdir}/2pass/{sample}/{XenofilterR_pollution_source_genome}/{sample}Aligned.sortedByCoord.out.bam"
-                ]
-                writer.writerow(row)
+        try:
+            with open(output.csvIn, 'w', newline='') as f:
+                writer = csv.writer(f)
+                for sample in XenofilterR_target_samples:
+                    row = [
+                        f"{outdir}/2pass/{sample}/{XenofilterR_target_genome}/{sample}Aligned.sortedByCoord.out.bam",
+                        f"{outdir}/2pass/{sample}/{XenofilterR_pollution_source_genome}/{sample}Aligned.sortedByCoord.out.bam"
+                    ]
+                    writer.writerow(row)
+        except Exception as e:
+            with open(log, 'a') as log_file:
+                log_file.write(f"Error generating XenofilterR input CSV: {e}\n")
+            raise e
 
 rule XenofilterR:
     input:

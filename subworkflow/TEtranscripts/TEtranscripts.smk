@@ -44,9 +44,9 @@ rule TEtranscript_prepare:
             --outFileNamePrefix {params.outPrefix} \
             --outFilterMultimapNmax 100 \
             --winAnchorMultimapNmax 100  > {log.log} 2>&1
-        mv {params.outPrefix}Log.out {log.STAR_log}
-        mv {params.outPrefix}Log.progress.out {log.STAR_progress}
-        mv {params.outPrefix}Log.final.out {log.STAR_final}
+        cp {params.outPrefix}Log.out {log.STAR_log}
+        cp {params.outPrefix}Log.progress.out {log.STAR_progress}
+        cp {params.outPrefix}Log.final.out {log.STAR_final}
         """
 
 rule TEcount:

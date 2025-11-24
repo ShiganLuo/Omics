@@ -51,16 +51,16 @@ rule XenofilterR:
         outdir = directory(outdir + "/xenofilterR/bam") #XenofilteR设计不合理，没办法
     log:
         outdir + "/log/XenofilterR/XenofilterR.log"
-    threads: 6
+    threads: 1
     params:
         script = SNAKEFILE_DIR + "/utils/XenofilteR.r",
-        threshold = 8,
+        MM = 8,
         Rscript = config["Procedure"]["Rscript"]
     shell:
         """
         {params.Rscript} {params.script} \
             --inputFile {input.csvIn} \
             --outputDir {output.outdir} \
-            --MM {params.threshold} \
+            --MM {params.MM} \
             --workers {threads} > {log} 2>&1
         """

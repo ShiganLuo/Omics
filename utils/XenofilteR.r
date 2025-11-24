@@ -1,5 +1,6 @@
 suppressPackageStartupMessages(library(XenofilteR))
 suppressPackageStartupMessages(library(argparse))
+suppressPackageStartupMessages(library(BiocParallel))
 # 获取命令行参数
 parser <- ArgumentParser(description='XenofilteR: 去除比对到人基因组的bam文件中小鼠基因组的污染')
 parser$add_argument('-i', '--inputFile', type='character', required=TRUE,
@@ -30,12 +31,12 @@ bp.param <- SnowParam(workers = workers, type = "SOCK")
 # 执行 XenofilteR 函数
 if(is.null(args$renameFile)){
     print("---1----")
-    sample <- read.table(csv_file, sep = ",", header = FALSE)
+    sample <- read.table(csv_file, sep = ",", header = FALSE,stringsAsFactors = FALSE)
     XenofilteR(sample.list = sample, destination.folder = output_folder, bp.param = bp.param, MM_threshold = MM)
     
 } else {
     print("---2----")
-    sample <- read.table(csv_file, sep = ",", header = FALSE)
+    sample <- read.table(csv_file, sep = ",", header = FALSE, stringsAsFactors = FALSE)
     output <- readLines(args$renameFile)
     XenofilteR(sample.list = sample, destination.folder = output_folder, bp.param = bp.param, output.names = output, MM_threshold = MM)
     

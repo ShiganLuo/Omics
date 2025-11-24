@@ -145,19 +145,17 @@ export -f GetGSM
 ## infile=$1 should inclue the GSM number that you want; for example the GSM libraryStrategy should be RNAseq which was decided by GetGSM
 ## it is no need to excute again this function as long as there exists 
 function GetHtml(){
-    infile=$1
-    log=$2
+    GSM=$1
+    outdir=$2
+    log=$3
     echo "GetHtml begin" > ${log}
     baseurl="https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc="
-    awk '{print $1}' ${infile} | while read -r GSM;do
-        echo $GSM
-        url="${baseurl}${GSM}"
-        if wget  -O "/ChIP_seq_2/StemCells/data/GSM/${GSM}.html" $url;then
-            echo "Get ${url} successfully"
-        else
-            echo "Get ${url} unsuccessfully" >> ${log}
-        fi
-    done
+    url="${baseurl}${GSM}"
+    if wget  -O "${outdir}/${GSM}.html" $url;then
+        echo "Get ${url} successfully"
+    else
+        echo "Get ${url} unsuccessfully" >> ${log}
+    fi
 }
 export -f GetHtml
 ### GetHtml function parameter introduction

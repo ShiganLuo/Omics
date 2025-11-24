@@ -1,6 +1,6 @@
 from bs4 import BeautifulSoup
 import csv
-
+import glob
 def getPuropose(infile:str,purpose:str):
     with open(infile, encoding="utf-8") as f:
         html = f.read()
@@ -38,11 +38,64 @@ def table2csv(table,outfile:str):
         writer = csv.writer(f)
         writer.writerows(data)
 
-if __name__ == '__main__':
-    infile = "/ChIP_seq_2/StemCells/ChIPseq_Sox2/data/sample.html"
-    tables = getPuropose(infile,'table')
+def getTrInofromation(
+        html_path:str,
+        text:str
+):
+    with open(html_path, encoding="utf-8") as f:
+        html = f.read()
+    soup = BeautifulSoup(html, "html.parser")
+    result = {}
+    for tr in soup.find_all("tr"):
+        tds = tr.find_all("td")
+        if len(tds) < 2:
+            continue
+        key = tds[0].get_text(strip=True)
+        value_td = tds[1]
+        if key == text:
+            information = value_td.get_text(separator = "\n",strip=True)
+            for line in information.split("\n"):
+                if ":" in line:
+                    sub_key, sub_value = line.split(":", 1)
+                    result[sub_key.strip()] = sub_value.strip()
+    return result
+    
 
-    table2csv(tables[2],"/ChIP_seq_2/StemCells/ChIPseq_Sox2/data/sample.csv")
+
+
+if __name__ == '__main__':
+    infile = "/home/luosg/Data/genomeStability/data/GSM/GSM2786643.html"
+    infiles = glob.glob("/home/luosg/Data/genomeStability/data/GSM/*.html")
+    outfile = "/home/luosg/Data/genomeStability/data/Characteristics.csv"
+
+    all_samples = {} 
+
+    for infile in infiles:
+        print(f"Processing {infile}")
+        GSM = infile.split("/")[-1].replace(".html","")
+        dictInformation = getTrInofromation(infile,"Characteristics")
+        all_samples[GSM] = dictInformation
+    all_keys = set()
+    for info in all_samples.values():
+        if info is None:
+            continue
+        all_keys |= info.keys()
+    all_keys = sorted(all_keys)
+    with open(outfile, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=["GSM"] + all_keys)
+        writer.writeheader()
+
+        for gsm, info in all_samples.items():
+            row = {"GSM": gsm}
+            if info is None:
+                writer.writerow(row)
+                continue
+            row.update(info)  
+            writer.writerow(row)
+
+        
+
+
 
 
 

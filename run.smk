@@ -52,6 +52,9 @@ def get_output_files(groups):
                     all_samples.append(sample)
                     paired_sample_genome_pairs.append((sample,organism))
                     if organism == XenofilterR_target_genome:
+                        if sample == "GSM8086251":
+                            print("-------1---------")
+                            continue
                         XenofilterR_target_samples.append(sample)
             elif TYPE == "SINGLE":
                 # outfiles.append(outdir + f"/counts/featureCounts/{organism}/{organism}_single_count.tsv")

@@ -34,7 +34,7 @@ rule XenofilterR:
         bams = get_inputFile_for_XenofilterR
     output:
         csvIn = outdir + "/xenofilterR/{sample_id}/{sample_id}.csv",
-        outBam = temp(outdir + "/xenofilterR/{sample_id}/{sample_id}_Filtered.bam")
+        outBam = temp(outdir + "/xenofilterR/{sample_id}/{sample_id}_Filtered.bam"),
         outBai = temp(outdir + "/xenofilterR/{sample_id}/{sample_id}_Filtered.bam.bai")
     log:
         outdir + "/log/XenofilterR/{sample_id}/XenofilterR.log"
@@ -61,3 +61,4 @@ rule XenofilterR:
         mv {params.tempBam} {output.outBam} # XenofilteR would run failed if it find Filtered_bams dir exist
         mv {params.tempBai} {output.outBai}
         """
+

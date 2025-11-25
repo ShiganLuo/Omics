@@ -71,7 +71,5 @@ snakemake -s workflow/RNA-SNP/run.smk --config indir=data/fq outdir=output metad
   - `metadata=value`: 指定fastaq元信息，必须包含["data_id","sample_id","organism"],详见utils/fastq_utils.py如何处理metadata
 
 
-## 流程脆弱之处
-1. XenofilterR与SNP衔接
-为了支持去除bam中的污染序列，采用了XenofilterR,这个R脚本输入是个文件，没有提供命令行参数。需要使用临时目录作为input，同时对addReadsGroup规则
-的params区分了污染物种和非污染物种的bam，以正确生成vcf。之所以说是脆弱，要想跑通它，需要理解并修改这两个规则。其它只要按照yaml填空就行
+## 待改进之处
+- 目前只支持一对污染物种运行，可以针对XenofilterR和SNP规则进行修改使其支持

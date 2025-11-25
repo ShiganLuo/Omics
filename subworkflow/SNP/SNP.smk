@@ -23,7 +23,7 @@ logging.info(f"Include SNP config: {SNPYaml}")
 def get_bam_for_addReadsGroup(wildcards):
     logging.info(f"[get_bam_for_addReadsGroup] called with wildcards: {wildcards}")
     bam = None
-    if wildcards.genome == XenofilterR_target_genome:
+    if wildcards.sample_id in XenofilterR_target_samples:
         bam = f"{outdir}/xenofilterR/{wildcards.sample_id}/{wildcards.sample_id}_Filtered.bam"
     else:
         bam = f"{outdir}/2pass/{wildcards.sample_id}/{wildcards.genome}/{wildcards.sample_id}Aligned.sortedByCoord.out.bam"

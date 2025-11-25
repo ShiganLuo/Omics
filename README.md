@@ -41,6 +41,9 @@ snakemake -s workflow/RNA-SNP/run.smk --config indir=data/fq outdir=output metad
 
 ### Annovar
 
+### SNP
+- XenofilterR_target_genome: 代表可能含有其它物种序列污染的样本列表，在示例流程中为用小鼠饲养层细胞培育的人类干细胞
+
 ### StringTie
 
 ### TEtranscripts

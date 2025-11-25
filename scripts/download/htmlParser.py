@@ -42,6 +42,9 @@ def getTrInofromation(
         html_path:str,
         text:str
 ):
+    """
+    提取GSM html页面信息,为"Characteristics"设计
+    """
     with open(html_path, encoding="utf-8") as f:
         html = f.read()
     soup = BeautifulSoup(html, "html.parser")

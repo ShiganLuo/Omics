@@ -1,3 +1,4 @@
+import os
 SNAKEFILE_FULL_PATH_SNP = workflow.snakefile
 SNAKEFILE_DIR_SNP = os.path.dirname(SNAKEFILE_FULL_PATH_SNP)
 
@@ -19,9 +20,23 @@ SNPYaml = get_yaml_path("SNP")
 configfile: SNPYaml
 logging.info(f"Include SNP config: {SNPYaml}")
 
+def get_bam_for_addReadsGroup(wildcards):
+    logging.info(f"[get_bam_for_addReadsGroup] called with wildcards: {wildcards}")
+    bam = None
+    if wildcards.genome == XenofilterR_target_genome:
+        bam = f"{outdir}/xenofilterR/{wildcards.sample_id}/{wildcards.sample_id}_Filtered.bam"
+    else:
+        bam = f"{outdir}/2pass/{wildcards.sample_id}/{wildcards.genome}/{wildcards.sample_id}Aligned.sortedByCoord.out.bam"
+    pattern_xeno = re.compile(r".*/xenofilterR/.+_Filtered\.bam$")
+    pattern_2pass = re.compile(r".*/2pass/.+/.+/.+Aligned\.sortedByCoord\.out\.bam$")
+    if not (pattern_xeno.match(bam) or pattern_2pass.match(bam)):
+        raise ValueError(f"[get_bam_for_addReadsGroup] BAM path does not match expected pattern: {bam}")
+
+    return bam
+    
 rule addReadsGroup:
     input:
-        outdir = outdir + "/xenofilterR/bam"
+        bam = get_bam_for_addReadsGroup
     output:
         bam = temp(outdir + "/SNP/RG/{genome}/{sample_id}.bam"),
         bai = temp(outdir + "/SNP/RG/{genome}/{sample_id}.bam.bai")
@@ -29,10 +44,6 @@ rule addReadsGroup:
         outdir + "/log/SNP/{genome}/{sample_id}/addReadsGroup.log"
     threads:16
     params:
-        bam = lambda wildcards: \
-            f"{outdir}/xenofilterR/bam/Filtered_bams/{wildcards.sample_id}Aligned.sortedByCoord.out_Filtered.bam" \
-            if wildcards.genome == "Homo_sapiens" else \
-            f"{outdir}/2pass/{wildcards.sample_id}/{wildcards.genome}/{wildcards.sample_id}Aligned.sortedByCoord.out.bam",
         id = "{sample_id}",
         javaOptions = "--java-options -Xmx15G",
         RGLB = config["addReadsGroup"]["RGLB"],
@@ -44,7 +55,7 @@ rule addReadsGroup:
         """
         echo "sample_id: {wildcards.sample_id}" > {log}
         {params.gatk} AddOrReplaceReadGroups {params.javaOptions} \
-            --INPUT {params.bam} --OUTPUT {output.bam} \
+            --INPUT {input.bam} --OUTPUT {output.bam} \
             -SO coordinate --RGLB {params.RGLB} --RGPL {params.RGPL} --RGPU {params.RGPU} --RGSM {params.id} >> {log} 2>&1
         {params.samtools} index -@ {threads} {output.bam} >> {log} 2>&1
         """

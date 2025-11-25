@@ -1,3 +1,4 @@
+from pdb import run
 import pandas as pd
 import re
 def compute_cpm(counts_df:pd.DataFrame,length:str):
@@ -53,7 +54,7 @@ def combine_PE_SE(PE:str,SE:str):
     df_PE = pd.read_csv(PE,sep="\t",comment='#')
     df_PE.columns = [extract_sample_name(c) for c in df_PE.columns]
     df_SE = pd.read_csv(SE,sep="\t",comment='#')
-    df_SE.drop(columns=['Chr', 'Start', 'End', 'Strand',"Length"],inplace=True)
+    df_SE.drop(columns=['Chr', 'Start', 'End', 'Strand','Length'],inplace=True)
     df_SE.columns = [extract_sample_name(c) for c in df_SE.columns]
     df_new = pd.merge(df_PE,df_SE,on="Geneid")
     return df_new
@@ -66,8 +67,12 @@ if __name__ == "__main__":
     # tpm1.to_csv("/home/luosg/Data/genomeStability/output/count/featureCounts/human_paired_tpm.tsv",sep="\t")
     # tpm2 = run_norm("/home/luosg/Data/genomeStability/output/count/featureCounts/human_single_count.tsv","tpm")
     # tpm2.to_csv("/home/luosg/Data/genomeStability/output/count/featureCounts/human_single_tpm.tsv",sep="\t")  
-    df = combine_PE_SE("/home/luosg/Data/genomeStability/output/count/featureCounts/human_paired_count.tsv","/home/luosg/Data/genomeStability/output/count/featureCounts/human_single_count.tsv")
-    df.to_csv("/home/luosg/Data/genomeStability/output/count/featureCounts/human_cout.tsv",sep="\t",index=False)
+    # df = combine_PE_SE("/home/luosg/Data/genomeStability/output/counts/featureCounts/human/human_paired_count.tsv",
+    #                    "/home/luosg/Data/genomeStability/output/counts/featureCounts/human/human_single_count.tsv")
+    # df.to_csv("/home/luosg/Data/genomeStability/output/counts/featureCounts/human/huam_all_count.tsv",sep="\t",index=False)
+    df_tpm = run_norm("/home/luosg/Data/genomeStability/output/counts/featureCounts/human/huam_all_count.tsv","tpm")
+    df_tpm.to_csv("/home/luosg/Data/genomeStability/output/counts/featureCounts/human/human_all_tpm.tsv",sep="\t")
+
 
 
     

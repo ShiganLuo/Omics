@@ -75,7 +75,8 @@ class SNPMetadata:
         Datasheet (df) must contain the columns: Sample_id, organism
         """
         groups: DefaultDict[str, DefaultDict[str, List[str]]] = defaultdict(lambda: defaultdict(list))
-        for _, row in df.iterrows():
+        df_unique = df.drop_duplicates(subset=["Sample_id", "organism"])
+        for _, row in df_unique.iterrows():
             sample = row["Sample_id"]
             organism = row["organism"].strip().replace(" ", "_")
             TYPE = self.isPairedEndSample(sample)  # 'SE' 或 'PE'

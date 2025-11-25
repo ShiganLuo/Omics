@@ -1,5 +1,6 @@
 SNAKEFILE_FULL_PATH_XenofilterR = workflow.snakefile
 SNAKEFILE_DIR_XenofilterR = os.path.dirname(SNAKEFILE_FULL_PATH_XenofilterR)
+import csv
 def get_yaml_path(module_name:str)->str:
     """
     function: Get the absolute path of a module in the workflow/RNA-SNP/snakemake/subworkflow/ directory.
@@ -19,48 +20,44 @@ logging.info(f"Include XenofilterR config: {XenofilterRYaml}")
 logging.info(f"main snakefile excute path: {EXECUTION_DIR}")
 logging.info(f"XenofilterR target samples: {XenofilterR_target_samples}\nXenofilterR_target_genome: {XenofilterR_target_genome}\nXenofilterR pollution source genome: {XenofilterR_pollution_source_genome}")
 # first col: target(human) genome,second col: contaminating genome. human sample may contaminated by mouse genome
-rule generate_xenofilter_input:
-    input:
-        expand(outdir + "/2pass/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam", 
-               sample_id=XenofilterR_target_samples, genome=[XenofilterR_target_genome,XenofilterR_pollution_source_genome])
-    output:
-        csvIn = outdir + "/xenofilterR/xenofilterR_input.csv",
-        # csvRe = outdir +"/xenofilterR/xenofilterR_reName.csv"
-    log:
-        outdir + "/log/XenofilterR/generate_xenofilter_input.log"
-    run:
-        import csv
-        try:
-            with open(output.csvIn, 'w', newline='') as f:
-                writer = csv.writer(f)
-                for sample in XenofilterR_target_samples:
-                    row = [
-                        f"{outdir}/2pass/{sample}/{XenofilterR_target_genome}/{sample}Aligned.sortedByCoord.out.bam",
-                        f"{outdir}/2pass/{sample}/{XenofilterR_pollution_source_genome}/{sample}Aligned.sortedByCoord.out.bam"
-                    ]
-                    writer.writerow(row)
-        except Exception as e:
-            with open(log, 'a') as log_file:
-                log_file.write(f"Error generating XenofilterR input CSV: {e}\n")
-            raise e
+
+def get_inputFile_for_XenofilterR(wildcards):
+    logging.info(f"[get_inputFile_for_XenofilterR] called with wildcards: {wildcards}")
+    row = [
+        f"{outdir}/2pass/{wildcards.sample_id}/{XenofilterR_target_genome}/{wildcards.sample_id}Aligned.sortedByCoord.out.bam",
+        f"{outdir}/2pass/{wildcards.sample_id}/{XenofilterR_pollution_source_genome}/{wildcards.sample_id}Aligned.sortedByCoord.out.bam"
+    ]
+    return row
 
 rule XenofilterR:
     input:
-        csvIn = outdir + "/xenofilterR/xenofilterR_input.csv",
+        bams = get_inputFile_for_XenofilterR
     output:
-        outdir = directory(outdir + "/xenofilterR/bam") #XenofilteR设计不合理，没办法
+        csvIn = outdir + "/xenofilterR/{sample_id}/{sample_id}.csv",
+        outBam = temp(outdir + "/xenofilterR/{sample_id}/{sample_id}_Filtered.bam")
+        outBai = temp(outdir + "/xenofilterR/{sample_id}/{sample_id}_Filtered.bam.bai")
     log:
-        outdir + "/log/XenofilterR/XenofilterR.log"
-    threads: 1
+        outdir + "/log/XenofilterR/{sample_id}/XenofilterR.log"
+    threads: 8
     params:
-        script = SNAKEFILE_DIR + "/utils/XenofilteR.r",
+        csv_content = lambda wildcards, input: ",".join(input.bams),
+        outdir = lambda wildcards: f"{outdir}/xenofilterR/{wildcards.sample_id}",
+        outSampleName = lambda wildcards: wildcards.sample_id,
+        tempBam = lambda wildcards: f"{outdir}/xenofilterR/{wildcards.sample_id}/Filtered_bams/{wildcards.sample_id}_Filtered.bam",
+        tempBai = lambda wildcards: f"{outdir}/xenofilterR/{wildcards.sample_id}/Filtered_bams/{wildcards.sample_id}_Filtered.bam.bai",
         MM = 8,
+        script = SNAKEFILE_DIR + "/utils/XenofilteR.r",
         Rscript = config["Procedure"]["Rscript"]
     shell:
         """
+        echo "{params.csv_content}" > {output.csvIn}
+        # rename ignorme .bam
         {params.Rscript} {params.script} \
-            --inputFile {input.csvIn} \
-            --outputDir {output.outdir} \
+            --inputFile {output.csvIn} \
+            --outputDir {params.outdir} \
+            --renameSamples {params.outSampleName} \
             --MM {params.MM} \
-            --workers {threads} > {log} 2>&1
+            --workers 1 > {log} 2>&1
+        mv {params.tempBam} {output.outBam} # XenofilteR would run failed if it find Filtered_bams dir exist
+        mv {params.tempBai} {output.outBai}
         """

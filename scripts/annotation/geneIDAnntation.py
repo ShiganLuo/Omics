@@ -36,17 +36,20 @@ def geneIDAnnotation(gtf_path: Union[str, Path]) -> pd.DataFrame:
 
 def renameIndex(
         df_annotation:pd.DataFrame,
-        df:pd.DataFrame
+        df:pd.DataFrame,
+        col:str,
 ) -> pd.DataFrame:
     """
     rename df index from gene_id to gene_name
     """
     df_map = df_annotation.drop_duplicates(subset=["gene_id"], keep="first")
     gene_id_to_name_map = df_map.set_index('gene_id')['gene_name']
-    new_index = df.index.map(gene_id_to_name_map)
+    print(gene_id_to_name_map)
+    new_index = df[col].map(gene_id_to_name_map)
     df_new = df.copy()
     df_new.index = new_index
     df_new.index.name = 'gene_name'
+    df_new.drop(columns=[col],inplace=True)
     return df_new
 
 if __name__ == '__main__':

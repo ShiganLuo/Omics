@@ -1,6 +1,8 @@
 import pandas as pd
 import logging
 import sys
+from pathlib import Path
+from typing import Union
 logging.basicConfig(
 	level=logging.INFO,
 	format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -8,11 +10,6 @@ logging.basicConfig(
 	datefmt='%Y-%m-%d %H:%M:%S'
 )
 
-
-import pandas as pd
-import re
-from pathlib import Path
-from typing import Union
 
 def geneIDAnnotation(gtf_path: Union[str, Path]) -> pd.DataFrame:
     gtf = pd.read_csv(
@@ -44,7 +41,6 @@ def renameIndex(
     """
     df_map = df_annotation.drop_duplicates(subset=["gene_id"], keep="first")
     gene_id_to_name_map = df_map.set_index('gene_id')['gene_name']
-    print(gene_id_to_name_map)
     new_index = df[col].map(gene_id_to_name_map)
     df_new = df.copy()
     df_new.index = new_index
@@ -57,5 +53,5 @@ if __name__ == '__main__':
     # outfile = "/ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/geneIDAnnotation.csv"
     gtf = "/ChIP_seq_2/Data/index/Homo_sapiens/GENCODE/GRCh38/gencode.v47.primary_assembly.annotation.gtf"
     outfile = "/ChIP_seq_2/Data/index/Homo_sapiens/GENCODE/GRCh38/geneIDAnnotation.csv"
-    df = geneIDAnnotation(gtf,outfile)
-    df[["gene_id", "gene_name","gene_type"]].to_csv(outfile, sep="\t", index=False, header=True)
+    df = geneIDAnnotation(gtf)
+    df.to_csv(outfile, sep="\t", index=False, header=True)

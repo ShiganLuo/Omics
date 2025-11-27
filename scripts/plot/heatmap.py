@@ -37,7 +37,7 @@ def plot_heatmap_with_group_colors(
             )[0]
     
     n_rows = heatmap_data.shape[0]
-    fig = plt.figure(figsize=(6, 10))
+    fig = plt.figure(figsize=(7, 11))
     gs = gridspec.GridSpec(2, 2, width_ratios=[colorbar_width, 1],height_ratios = [1,x_annotation_height],wspace=0,hspace=0.3)
     # ---------------------
     # 颜色条
@@ -153,7 +153,7 @@ def imshow_heatmap(
 if __name__ == "__main__":
     df = pd.read_csv("/home/luosg/Data/genomeStability/output/result/gsva230/gseapy.gene_set.gsva.report.csv")
     # print(df.head())
-    df_group = pd.read_csv("/home/luosg/Data/genomeStability/data/target_fq_detailed.tsv",sep="\t")
+    df_group = pd.read_csv("/home/luosg/Data/genomeStability/data/target_fq.tsv",sep="\t")
     sample_rename_map = dict(zip(df_group['Sample_id'],df_group['Status']))
     pathway_rename_map = {
         "DNA Double Strand Break Response": "DSBR",
@@ -163,8 +163,8 @@ if __name__ == "__main__":
         "Nucleotide Excision Repair": "NER",
         "Base Excision Repair": "BER",
         "Translesion synthesis by Y family DNA polymerases bypasses lesions on DNA template":"TLS",
-        "Activation of ATR in response to replication stress": "RS",
         "Fanconi Anemia Pathway": "FA",
+        "Activation of ATR in response to replication stress": "RS",
         "Telomere Maintenance": "TM",
         "Mitotic Spindle Checkpoint": "MSC",
         "Cell Cycle Checkpoints": "CCC"
@@ -176,5 +176,5 @@ if __name__ == "__main__":
                  outplot = "/home/luosg/Data/genomeStability/output/result/gsva230/heatmap230.png",
                  row_rename_map = sample_rename_map,
                  column_rename_map = pathway_rename_map,
-                 title="Heatmap of GSVA Scores",
+                 title="",
                  xlabel="Pathways")

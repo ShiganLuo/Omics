@@ -15,7 +15,7 @@ def run_gsva(
 
 if __name__ == "__main__":
     run_gsva(
-        count_matrix= "/home/luosg/Data/genomeStability/output/result/matrix/tpm230.csv",
-        gmt_pathway= "/home/luosg/Data/genomeStability/data/geneset/final.gmt",
+        count_matrix= "/home/luosg/Data/genomeStability/output/result/matrix/tpm230.tsv",
+        gmt_pathway= "/home/luosg/Data/genomeStability/data/final.gmt",
         outdir= "/home/luosg/Data/genomeStability/output/result/gsva230"
     )

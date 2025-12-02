@@ -38,6 +38,7 @@ def get_output_files(groups):
     paired_sample_genome_pairs = [] # [(PE,organism)……]
     XenofilterR_target_genome = "human"
     XenofilterR_pollution_source_genome = "mouse"
+    XenofilterR_wrong_samples = ["GSM7668934","GSM7668935","GSM7668936","GSM8086251"]
     for organism, types in groups.items():
         genomes.append(organism)
         # outfiles.append(outdir + "/counts/TElocal/{organism}/all_TElocal.cntTable")
@@ -52,7 +53,7 @@ def get_output_files(groups):
                     all_samples.append(sample)
                     paired_sample_genome_pairs.append((sample,organism))
                     if organism == XenofilterR_target_genome:
-                        if sample == "GSM8086251":
+                        if sample in XenofilterR_wrong_samples:
                             print("-------1---------")
                             continue
                         XenofilterR_target_samples.append(sample)

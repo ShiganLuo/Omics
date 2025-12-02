@@ -34,7 +34,20 @@ class SNPMetadata:
             self.logger.addHandler(ch)
     
     def loadMeta(self):
-        df = pd.read_csv(self.meta,sep="\t")
+        
+        with open(self.meta, "r", encoding="utf-8") as f:
+            sample = f.read(2048)  # 只读前 2KB，提高速度
+        comma_count = sample.count(',')
+        tab_count = sample.count('\t')
+        if comma_count == 0 and tab_count == 0:
+            raise ValueError("Metadata file seems not to be CSV or TSV (no ',' or '\\t' found).")
+        if tab_count >= comma_count:
+            sep = "\t"
+        else:
+            sep = ","
+        self.logger.info(f"Detected separator '{sep}' for metadata file {self.meta}")
+
+        df = pd.read_csv(self.meta,sep=sep)
         requeired_column = ["Data_id","Sample_id","organism"]
 
         missing_cols = [col for col in requeired_column if col not in df.columns]

@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import colorsys
 import numpy as np
+import re
 
 
 def genotype(text:str):

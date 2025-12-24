@@ -99,7 +99,25 @@ def ascp_download(
     )
     return res.returncode == 0
 
+def gzip_test(path: Path, logger: logging.Logger) -> bool:
+    """
+    gzip -t 校验，成功返回 True
+    """
+    if not path.exists():
+        logger.warning(f"文件不存在，跳过 gzip 校验: {path}")
+        return False
 
+    res = subprocess.run(
+        ["gzip", "-t", str(path)],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL
+    )
+
+    if res.returncode != 0:
+        logger.warning(f"gzip 校验失败: {path}")
+        return False
+
+    return True
 # ============================================================
 # 自旋重试
 # ============================================================
@@ -148,17 +166,36 @@ def ena_download_spin(
     paths = build_ena_paths(srr_id)
     dest.mkdir(parents=True, exist_ok=True)
 
+    # 目标本地文件路径
+    local_files = [
+        dest / Path(p).name for p in paths
+    ]
+
     if library_type == "PAIRED":
 
         def paired_try():
+            # 尝试真正的 paired
             if (ascp_download(paths[0], dest, key, logger) and
                     ascp_download(paths[1], dest, key, logger)):
-                return True
-            return ascp_download(paths[2], dest, key, logger)
+
+                if (gzip_test(local_files[0], logger) and
+                        gzip_test(local_files[1], logger)):
+                    return True
+
+                logger.warning("PAIRED 文件 gzip 校验失败，触发重试")
+
+            # 尝试 merged
+            if ascp_download(paths[2], dest, key, logger):
+                if gzip_test(local_files[2], logger):
+                    return True
+
+                logger.warning("merged fastq gzip 校验失败，触发重试")
+
+            return False
 
         spin_until_success(
             paired_try,
-            f"{srr_id} PAIRED 下载",
+            f"{srr_id} PAIRED 下载 + gzip 校验",
             logger,
             sleep_base,
             sleep_max
@@ -167,15 +204,29 @@ def ena_download_spin(
     elif library_type == "SINGLE":
 
         def single_try():
+            # 优先标准 single
             if ascp_download(paths[2], dest, key, logger):
-                return True
+                if gzip_test(local_files[2], logger):
+                    return True
+                logger.warning("single fastq gzip 校验失败，触发重试")
+
+            # 兜底 _1
             if ascp_download(paths[0], dest, key, logger):
-                return True
-            return ascp_download(paths[1], dest, key, logger)
+                if gzip_test(local_files[0], logger):
+                    return True
+                logger.warning("_1.fastq.gz gzip 校验失败，触发重试")
+
+            # 兜底 _2
+            if ascp_download(paths[1], dest, key, logger):
+                if gzip_test(local_files[1], logger):
+                    return True
+                logger.warning("_2.fastq.gz gzip 校验失败，触发重试")
+
+            return False
 
         spin_until_success(
             single_try,
-            f"{srr_id} SINGLE 下载",
+            f"{srr_id} SINGLE 下载 + gzip 校验",
             logger,
             sleep_base,
             sleep_max
@@ -183,6 +234,7 @@ def ena_download_spin(
 
     else:
         raise ValueError("Library type 必须是 PAIRED 或 SINGLE")
+
 
 
 # ============================================================

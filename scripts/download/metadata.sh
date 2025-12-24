@@ -144,7 +144,7 @@ export -f GetGSM
 ### GetHtml function parameter introduction
 ## infile=$1 should inclue the GSM number that you want; for example the GSM libraryStrategy should be RNAseq which was decided by GetGSM
 ## it is no need to excute again this function as long as there exists 
-function GetHtml(){
+function GetGSMHtml(){
     GSM=$1
     outdir=$2
     log=$3
@@ -157,7 +157,7 @@ function GetHtml(){
         echo "Get ${url} unsuccessfully" >> ${log}
     fi
 }
-export -f GetHtml
+export -f GetGSMHtml
 ### GetHtml function parameter introduction
 ## the third col of infile must be GSM which was decided by GetGSM function
 function JudgeRNAseq(){

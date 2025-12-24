@@ -68,8 +68,8 @@ def getTrInofromation(
 
 if __name__ == '__main__':
     # infile = "/home/luosg/Data/genomeStability/data/GSM/GSM2786643.html"
-    infiles = glob.glob("/home/luosg/Data/genomeStability/data/GSM/*.html")
-    outfile = "/home/luosg/Data/genomeStability/data/Characteristics.csv"
+    infiles = glob.glob("/disk5/luosg/GCN2_20251224/data/GCN2pub/html/*.html")
+    outfile = "/disk5/luosg/GCN2_20251224/data/GCN2pub/Characteristics.csv"
 
     all_samples = {} 
 

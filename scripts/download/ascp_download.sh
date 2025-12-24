@@ -44,7 +44,7 @@ function ENAdownload(){
     elif [[ ${charNumber} -eq 10 ]];then
         echo "sra number 为9位"
         x6=${id:0:6}
-        echo=${x6}
+        echo ${x6}
         file_path=(
         "era-fasp@fasp.sra.ebi.ac.uk:/vol1/fastq/${x6}/${id}/${id}_1.fastq.gz"
         "era-fasp@fasp.sra.ebi.ac.uk:/vol1/fastq/${x6}/${id}/${id}_2.fastq.gz"

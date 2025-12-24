@@ -4,7 +4,8 @@ import subprocess
 import logging
 import argparse
 from pathlib import Path
-from typing import List
+from typing import List, Tuple
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 
 # ============================================================
@@ -44,20 +45,15 @@ def build_ena_paths(srr_id: str) -> List[str]:
         x6 = srr_id[:6]
         x2 = f"0{srr_id[-2:]}"
         base = f"/vol1/fastq/{x6}/{x2}/{srr_id}"
-
     elif n == 10:
         x6 = srr_id[:6]
         x2 = f"00{srr_id[-1]}"
         base = f"/vol1/fastq/{x6}/{x2}/{srr_id}"
-
     elif n == 9:
         x6 = srr_id[:6]
         base = f"/vol1/fastq/{x6}/{srr_id}"
-
     else:
-        raise ValueError(
-            f"非法 SRR ID: {srr_id}（长度应为 9/10/11）"
-        )
+        raise ValueError(f"非法 SRR ID: {srr_id}")
 
     prefix = "era-fasp@fasp.sra.ebi.ac.uk:"
     return [
@@ -68,67 +64,40 @@ def build_ena_paths(srr_id: str) -> List[str]:
 
 
 # ============================================================
-# ascp 下载
+# ascp + gzip
 # ============================================================
 
-def ascp_download(
-    remote: str,
-    dest: Path,
-    key: Path,
-    logger: logging.Logger
-) -> bool:
+def ascp_download(remote: str, dest: Path, key: Path) -> bool:
     cmd = [
-        "ascp",
-        "-k", "1",
-        "-T",
-        "-l", "200m",
+        "ascp", "-k", "1", "-T", "-l", "200m",
         "-P", "33001",
         "--file-checksum=md5",
         "--overwrite=always",
         "-i", str(key),
-        remote,
-        str(dest)
+        remote, str(dest)
     ]
-
-    logger.debug("CMD: " + " ".join(cmd))
-
-    res = subprocess.run(
+    return subprocess.run(
         cmd,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL
-    )
-    return res.returncode == 0
+    ).returncode == 0
 
-def gzip_test(path: Path, logger: logging.Logger) -> bool:
-    """
-    gzip -t 校验，成功返回 True
-    """
+
+def gzip_test(path: Path) -> bool:
     if not path.exists():
-        logger.warning(f"文件不存在，跳过 gzip 校验: {path}")
         return False
-
-    res = subprocess.run(
+    return subprocess.run(
         ["gzip", "-t", str(path)],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL
-    )
+    ).returncode == 0
 
-    if res.returncode != 0:
-        logger.warning(f"gzip 校验失败: {path}")
-        return False
 
-    return True
 # ============================================================
-# 自旋重试
+# 自旋
 # ============================================================
 
-def spin_until_success(
-    try_func,
-    desc: str,
-    logger: logging.Logger,
-    sleep_base: int,
-    sleep_max: int
-):
+def spin_until_success(try_func, desc, logger, sleep_base, sleep_max):
     attempt = 1
     sleep_time = sleep_base
 
@@ -139,17 +108,14 @@ def spin_until_success(
             logger.info(f"[SUCCESS] {desc}")
             return
 
-        logger.warning(
-            f"[FAIL] {desc}，{sleep_time}s 后重试"
-        )
-
+        logger.warning(f"[FAIL] {desc}，{sleep_time}s 后重试")
         time.sleep(sleep_time)
         sleep_time = min(sleep_time * 2, sleep_max)
         attempt += 1
 
 
 # ============================================================
-# 主下载逻辑
+# 单 SRR 下载（内部自旋）
 # ============================================================
 
 def ena_download_spin(
@@ -161,140 +127,94 @@ def ena_download_spin(
     sleep_base: int,
     sleep_max: int
 ):
-    logger.info(f"{srr_id} {library_type} 开始自旋下载")
-
     paths = build_ena_paths(srr_id)
+    local = [dest / Path(p).name for p in paths]
     dest.mkdir(parents=True, exist_ok=True)
 
-    # 目标本地文件路径
-    local_files = [
-        dest / Path(p).name for p in paths
-    ]
+    logger.info(f"{srr_id} {library_type} 开始下载")
 
     if library_type == "PAIRED":
 
         def paired_try():
-            # 尝试真正的 paired
-            if (ascp_download(paths[0], dest, key, logger) and
-                    ascp_download(paths[1], dest, key, logger)):
+            if (ascp_download(paths[0], dest, key) and
+                    ascp_download(paths[1], dest, key)):
+                return gzip_test(local[0]) and gzip_test(local[1])
 
-                if (gzip_test(local_files[0], logger) and
-                        gzip_test(local_files[1], logger)):
-                    return True
-
-                logger.warning("PAIRED 文件 gzip 校验失败，触发重试")
-
-            # 尝试 merged
-            if ascp_download(paths[2], dest, key, logger):
-                if gzip_test(local_files[2], logger):
-                    return True
-
-                logger.warning("merged fastq gzip 校验失败，触发重试")
+            if ascp_download(paths[2], dest, key):
+                return gzip_test(local[2])
 
             return False
 
         spin_until_success(
-            paired_try,
-            f"{srr_id} PAIRED 下载 + gzip 校验",
-            logger,
-            sleep_base,
-            sleep_max
+            paired_try, f"{srr_id} PAIRED", logger,
+            sleep_base, sleep_max
         )
 
-    elif library_type == "SINGLE":
+    else:  # SINGLE
 
         def single_try():
-            # 优先标准 single
-            if ascp_download(paths[2], dest, key, logger):
-                if gzip_test(local_files[2], logger):
-                    return True
-                logger.warning("single fastq gzip 校验失败，触发重试")
-
-            # 兜底 _1
-            if ascp_download(paths[0], dest, key, logger):
-                if gzip_test(local_files[0], logger):
-                    return True
-                logger.warning("_1.fastq.gz gzip 校验失败，触发重试")
-
-            # 兜底 _2
-            if ascp_download(paths[1], dest, key, logger):
-                if gzip_test(local_files[1], logger):
-                    return True
-                logger.warning("_2.fastq.gz gzip 校验失败，触发重试")
-
+            for i in (2, 0, 1):
+                if ascp_download(paths[i], dest, key):
+                    if gzip_test(local[i]):
+                        return True
             return False
 
         spin_until_success(
-            single_try,
-            f"{srr_id} SINGLE 下载 + gzip 校验",
-            logger,
-            sleep_base,
-            sleep_max
+            single_try, f"{srr_id} SINGLE", logger,
+            sleep_base, sleep_max
         )
-
-    else:
-        raise ValueError("Library type 必须是 PAIRED 或 SINGLE")
-
 
 
 # ============================================================
-# argparse CLI
+# SRR 解析（关键：灵活）
+# ============================================================
+
+def load_tasks(args) -> List[Tuple[str, str]]:
+    tasks = []
+
+    if args.meta:
+        for line in args.meta.open():
+            if line.startswith("#") or not line.strip():
+                continue
+            srr, lib = line.strip().split()[:2]
+            tasks.append((srr, lib))
+
+    elif args.srr_list:
+        for line in args.srr_list.open():
+            if line.strip():
+                tasks.append((line.strip(), args.library_type))
+
+    else:
+        tasks.append((args.srr_id, args.library_type))
+
+    return tasks
+
+
+# ============================================================
+# argparse
 # ============================================================
 
 def parse_args():
-    parser = argparse.ArgumentParser(
-        description="ENA fastq downloader with infinite retry (spin)"
-    )
+    p = argparse.ArgumentParser("ENA downloader (spin + parallel)")
+    p.add_argument("--srr-id")
+    p.add_argument("--srr-list", type=Path)
+    p.add_argument("--meta", type=Path,
+                   help="TSV: SRR<TAB>PAIRED|SINGLE")
 
-    parser.add_argument(
-        "-i", "--srr-id",
-        required=True,
-        help="SRR accession, e.g. SRR16119550"
-    )
+    p.add_argument("-t", "--library-type",
+                   choices=["PAIRED", "SINGLE"])
 
-    parser.add_argument(
-        "-t", "--library-type",
-        required=True,
-        choices=["PAIRED", "SINGLE"],
-        help="Library layout: PAIRED or SINGLE"
-    )
+    p.add_argument("-o", "--outdir", type=Path, required=True)
+    p.add_argument("-k", "--key", type=Path, required=True)
+    p.add_argument("-l", "--log", type=Path, required=True)
 
-    parser.add_argument(
-        "-o", "--outdir",
-        required=True,
-        type=Path,
-        help="Output directory for fastq files"
-    )
+    p.add_argument("--jobs", type=int, default=1,
+                   help="并行 SRR 数（默认 1）")
 
-    parser.add_argument(
-        "-k", "--key",
-        required=True,
-        type=Path,
-        help="Aspera private key (asperaweb_id_dsa.openssh)"
-    )
+    p.add_argument("--sleep-base", type=int, default=10)
+    p.add_argument("--sleep-max", type=int, default=300)
 
-    parser.add_argument(
-        "-l", "--log",
-        required=True,
-        type=Path,
-        help="Log file path"
-    )
-
-    parser.add_argument(
-        "--sleep-base",
-        type=int,
-        default=10,
-        help="Initial sleep seconds between retries (default: 10)"
-    )
-
-    parser.add_argument(
-        "--sleep-max",
-        type=int,
-        default=300,
-        help="Maximum sleep seconds between retries (default: 300)"
-    )
-
-    return parser.parse_args()
+    return p.parse_args()
 
 
 # ============================================================
@@ -303,18 +223,32 @@ def parse_args():
 
 def main():
     args = parse_args()
-
     logger = setup_logger(args.log)
 
-    ena_download_spin(
-        srr_id=args.srr_id,
-        library_type=args.library_type,
-        dest=args.outdir,
-        key=args.key,
-        logger=logger,
-        sleep_base=args.sleep_base,
-        sleep_max=args.sleep_max
-    )
+    tasks = load_tasks(args)
+    logger.info(f"共 {len(tasks)} 个 SRR，jobs={args.jobs}")
+
+    if args.jobs == 1:
+        for srr, lib in tasks:
+            ena_download_spin(
+                srr, lib, args.outdir,
+                args.key, logger,
+                args.sleep_base, args.sleep_max
+            )
+    else:
+        with ThreadPoolExecutor(max_workers=args.jobs) as ex:
+            futures = [
+                ex.submit(
+                    ena_download_spin,
+                    srr, lib,
+                    args.outdir, args.key,
+                    logger,
+                    args.sleep_base, args.sleep_max
+                )
+                for srr, lib in tasks
+            ]
+            for _ in as_completed(futures):
+                pass
 
 
 if __name__ == "__main__":

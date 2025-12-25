@@ -8,7 +8,7 @@ from typing import DefaultDict, List, Dict
 import subprocess
 import os
 
-class SNPMetadata:
+class MetadataUtils:
     def __init__(self,meta:str,fqDir:str,log_file: str = None):
         self.meta = meta
         self.fqDir = Path(fqDir)
@@ -204,6 +204,6 @@ class SNPMetadata:
 
 
 if __name__ == "__main__":
-    snpMetadata = SNPMetadata("/disk5/luosg/Totipotent20251031/data/target_fq.tsv","/disk5/luosg/Totipotent20251031/data/fq")
-    list1 = snpMetadata.run()
+    metadataUtils = MetadataUtils("/disk5/luosg/Totipotent20251031/data/target_fq.tsv","/disk5/luosg/Totipotent20251031/data/fq")
+    list1 = metadataUtils.run()
     print(list1)

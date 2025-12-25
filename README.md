@@ -73,3 +73,17 @@ snakemake -s workflow/RNA-SNP/run.smk --config indir=data/fq outdir=output metad
 
 ## 待改进之处
 - 目前只支持一对污染物种运行，可以针对XenofilterR和SNP规则进行修改使其支持
+
+## 设计规范
+
+1. capability 以 最终结果 为中心设计; 每个 capability 只有一个 facade rule
+
+2. 可替换实现用 include + config dispatch
+
+3. schema / defaults 只声明，不参与运行
+
+4. 文件命名通过 contract 函数统一管理
+
+5. work/ ≠ results/，下游不碰中间态
+
+6. 下游通过 rules.xxx.input 耦合能力，而不是路径

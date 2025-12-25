@@ -1,2 +1,2 @@
 conda:
-  run: "/home/luosg/anaconda3/envs/genomeStability"
+  run: "~/miniconda3/envs/RNA_SNP"

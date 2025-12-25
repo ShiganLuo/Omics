@@ -1,20 +1,8 @@
 SNAKEFILE_FULL_PATH_Align = workflow.snakefile
 SNAKEFILE_DIR_Align = os.path.dirname(SNAKEFILE_FULL_PATH_Align)
-
 alignYaml = get_yaml_path("Align",SNAKEFILE_DIR_Align)
 configfile: alignYaml
 logging.info(f"Include Align config: {alignYaml}")
-
-if config["Procedure"]["aligner"] == "star":
-    include: "align_star.smk"
-    logging.info("--------1-----------")
-
-elif config["Procedure"]["aligner"] == "hista2":
-    include: "align_hista2.smk"
-    logging.info("--------2-----------")
-else:
-    # 默认使用star比对
-    include: "align_star.smk"
 
 rule trimming_Paired:
     input:
@@ -98,6 +86,17 @@ def get_alignment_input(wildcards):
 
 rule alignment_result:
     input:
-        outdir + "/2pass/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam"
+        outdir + "/Align/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam"
 
 
+if config["Procedure"]["aligner"] == "star":
+    include: "align_star.smk"
+    logging.info("aligner: star, load align_star.smk")
+
+elif config["Procedure"]["aligner"] == "hisat2":
+    include: "align_hisat2.smk"
+    logging.info("aligner: hisat2, load align_hisat2.smk")
+else:
+    # 默认使用star比对
+    include: "align_star.smk"
+    logging.info("default: load align_star.smk")

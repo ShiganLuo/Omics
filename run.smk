@@ -59,14 +59,14 @@ def get_output_Count(groups:Dict[str, Dict[str, List[str]]]):
                     paired_samples.append(sample_id)
                     all_samples.append(sample_id)
                     paired_sample_genome_pairs.append((sample_id,genome))
-                    outfiles.append(f"{outdir}/2pass/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam")
+                    outfiles.append(f"{outdir}/Align/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam")
             elif libraryStrategy == "SINGLE":
                 outfiles.append(f"{outdir}/counts/featureCounts/{genome}/{genome}_single_count.tsv")
                 for sample_id in samples:
                     paired_samples.append(sample_id)
                     all_samples.append(sample_id)
                     single_sample_genome_pairs.append((sample_id,genome))
-                    outfiles.append(f"{outdir}/2pass/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam")
+                    outfiles.append(f"{outdir}/Align/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam")
             else:
                 continue
 get_output_Count(groups)

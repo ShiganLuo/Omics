@@ -3,7 +3,9 @@ genome:
     genome_index: "/disk5/luosg/Reference/GENCODE/mouse/GRCm39/index_star2_7"
     gtf: "/disk5/luosg/Reference/GENCODE/mouse/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf"
 Procedure:
-  aligner: "hista2"
+  aligner: "hisat2"
   trim_galore: "/opt/TrimGalore-0.6.10/trim_galore"
   STAR: "/opt/STAR-2.7.11b/bin/Linux_x86_64/STAR"
+  hisat2: "/opt/hisat2-2.2.1/hisat2"
+  hisat2-build: "/opt/hisat2-2.2.1/hisat2-build"
 

@@ -14,8 +14,8 @@ logging.basicConfig(
 EXECUTION_DIR = os.getcwd()
 SNAKEFILE_FULL_PATH = workflow.snakefile
 SNAKEFILE_DIR = os.path.dirname(SNAKEFILE_FULL_PATH)
-indir = config.get('indir', '../data')
-outdir = config.get('outdir', '../output')
+indir = config.get('indir', 'data')
+outdir = config.get('outdir', 'output')
 metadata = config.get('metadata')
 logging.info("Workflow RNA-SNP started.")
 logging.info(f"metadata file path: {metadata}")

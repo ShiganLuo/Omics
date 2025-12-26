@@ -1,7 +1,35 @@
+rule star_index:
+    input:
+        fasta = lambda wildcards: config['genome'][wildcards.genome]['fasta'],
+        gtf = lambda wildcards: config['genome'][wildcards.genome]['gtf']
+    output:
+        # 以索引目录下的核心文件作为标记
+        index_file = outdir + "/genome/{genome}/index/star/Genome"
+    log:
+        outdir + "/log/genome/{genome}/star_index.log"
+    threads: 12
+    conda:
+        config['conda']['run']
+    params:
+        STAR = config.get('Procedure',{}).get('STAR') or 'STAR',
+        # 索引目录路径
+        index_dir = outdir + "/genome/{genome}/index/star"
+    shell:
+        """
+        mkdir -p {params.index_dir}
+        {params.STAR} --runMode genomeGenerate \
+            --runThreadN {threads} \
+            --genomeDir {params.index_dir} \
+            --genomeFastaFiles {input.fasta} \
+            --sjdbGTFfile {input.gtf} \
+            --sjdbOverhang 100 > {log} 2>&1
+        """
+
 rule star_align:
     input:
         fastq = get_alignment_input,
-        genome_index = lambda wildcards: config['genome'][wildcards.genome]['star_index']
+        # 修改为指向 index 规则的输出文件目录
+        genome_index = outdir + "/genome/{genome}/index/star"
     output:
         outfile = outdir + "/Align/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam"
     log:
@@ -11,9 +39,8 @@ rule star_align:
         config['conda']['run']
     params:
         outPrefix = outdir + "/Align/{sample_id}/{genome}/{sample_id}",
-        # 动态判断输入参数,加上genome_index，如果三个参数，即为双端测序，两个参数即为单端测序
         input_params = lambda wildcards, input: \
-            f"{input[0]} {input[1]}" if len(input) == 3 else f"{input[0]}",
+            f"{input.fastq[0]} {input.fastq[1]}" if len(input.fastq) == 2 else f"{input.fastq[0]}",
         STAR = config.get('Procedure',{}).get('STAR') or 'STAR'
     shell:
         """

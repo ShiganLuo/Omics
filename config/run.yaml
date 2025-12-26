@@ -1,2 +1,2 @@
 conda:
-  run: "~/miniconda3/envs/RNA_SNP"
+  run: "/home/luosg/miniconda3/envs/RNA_SNP"

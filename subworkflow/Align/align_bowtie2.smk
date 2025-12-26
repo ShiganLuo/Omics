@@ -14,7 +14,7 @@ rule bowtie2_index_small:
     log:
         outdir + "/log/Align/bowtie2/{genome}/bowtie2_index.log"
     params:
-        bowtie2_build_cmd = config.get('tools', {}).get('bowtie2-build', 'bowtie2-build'),
+        bowtie2_build_cmd = config.get('tools', {}).get('bowtie2-build') or 'bowtie2-build',
         index_prefix = outdir + "/genome/{genome}/index/GRCm39.primary_assembly.genome"
     conda:
         config['conda']['run']
@@ -39,8 +39,8 @@ rule bowtie2_align:
     log:
         outdir + "/log/Align/bowtie2/{genome}/{sample_id}/bowtie2_align.log"
     params:
-        bowtie2_cmd = config.get('tools',{}).get('bowtie2','bowtie2'),
-        samtools_cmd = config.get('tools',{}).get('samtools','samtools'),
+        bowtie2_cmd = config.get('tools',{}).get('bowtie2') or 'bowtie2',
+        samtools_cmd = config.get('tools',{}).get('samtools') or 'samtools',
         index_prefix = outdir + "/genome/{genome}/index/GRCm39.primary_assembly.genome"
     conda:
         config['conda']['run']

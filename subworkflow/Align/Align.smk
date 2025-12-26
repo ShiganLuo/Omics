@@ -16,8 +16,10 @@ rule trimming_Paired:
     params:
         outdir = outdir + "/cutadapt",
         quality = 30,
-        trim_galore = config['Procedure']['trim_galore']
+        trim_galore = config.get('Procedure',{}).get('trim_galore') or 'trim_galore'
     threads: 6
+    conda:
+        config['conda']['run']
     log:
         log = outdir + "/log/Align/{sample_id}/trimming.txt"
     shell:
@@ -39,8 +41,10 @@ rule trimming_Single:
     params:
         outdir = outdir + "/cutadapt",
         quality = 30,
-        trim_galore = config['Procedure']['trim_galore']
+        trim_galore = config.get('Procedure',{}).get('trim_galore') or 'trim_galore'
     threads: 6
+    conda:
+        config['conda']['run']
     log:
         log = outdir + "/log/Align/{sample_id}/trimming.txt"
     shell:

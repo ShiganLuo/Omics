@@ -272,18 +272,11 @@ def convert_featurecounts_gene_ids(
 if __name__ == "__main__":
     human_gtf = "/disk5/luosg/Reference/GENCODE/human/GRCh38/gencode.v49.primary_assembly.basic.annotation.gtf"
     mouse_gtf = "/disk5/luosg/Reference/GENCODE/mouse/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf"
-    ### featurcounts
-    convert_featurecounts_gene_ids("/disk5/luosg/GCN2_20251224/output/counts/featureCounts/mouse/GCN2seq_paired_count.tpm",
-                             mouse_gtf,
-                             "/disk5/luosg/GCN2_20251224/output/counts/featureCounts/mouse/GCN2seq_paired_count_name.tpm")
-    convert_featurecounts_gene_ids("/disk5/luosg/GCN2_20251224/output/counts/featureCounts/mouse/GCN2pub_paired_count.tpm",
+    ## TEtranscripts and TElocal
+    convert_TEtranscripts_gene_ids("/disk5/luosg/GCN2_20251224/output/TEtranscripts/TEcount/mouse/all_TEcount.cntTable",
                                    mouse_gtf,
-                                   "/disk5/luosg/GCN2_20251224/output/counts/featureCounts/mouse/GCN2pub_paired_count_name.tpm")
-    ### TEtranscripts and TElocal
-    # convert_TEtranscripts_gene_ids("/disk5/luosg/Totipotent20251031/output/counts/TEcount/human/all_TEcount.cntTable",
-    #                                human_gtf,
-    #                                "GRCh38_gene_map.pkl",
-    #                                "/disk5/luosg/Totipotent20251031/output/counts/TEcount/human/all_TEcount_name.cntTable")
+                                   "GRCm39_gene_map.pkl",
+                                   "/disk5/luosg/GCN2_20251224/output/TEtranscripts/TEcount/mouse/all_TEcount.cntTable_name.tsv")
     # convert_TEtranscripts_gene_ids("/disk5/luosg/Totipotent20251031/output/counts/TElocal/human/all_TElocal.cntTable",
     #                             human_gtf,
     #                             "GRCh38_gene_map.pkl",

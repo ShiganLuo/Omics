@@ -145,9 +145,12 @@ export -f GetGSM
 ## infile=$1 should inclue the GSM number that you want; for example the GSM libraryStrategy should be RNAseq which was decided by GetGSM
 ## it is no need to excute again this function as long as there exists 
 function GetGSMHtml(){
-    GSM=$1
-    outdir=$2
-    log=$3
+    local GSM=$1
+    local outdir=$2
+    local log=$3
+    mkdir -p ${outdir}
+    log_dir=$(dirname ${log})
+    mkdir -p ${log_dir}
     echo "GetHtml begin" > ${log}
     baseurl="https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc="
     url="${baseurl}${GSM}"

@@ -33,7 +33,6 @@ configfile: configfilePath
 logging.info(f"add cofigfile {configfilePath}")
 metadataUtils = MetadataUtils(metadata,indir,f"{outdir}/log/utils/fastq_utils.log")
 groups = metadataUtils.run()
-
 # control variable
 outfiles = []
 genomes = []
@@ -86,9 +85,8 @@ def get_output_TEtranscripts(groups:Dict[str, Dict[str, List[str]]]):
                     paired_sample_genome_pairs.append((sample_id,genome))
                     outfiles.append(f"{outdir}/TEtranscripts/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam")
             elif libraryStrategy == "SINGLE":
-                outfiles.append(f"{outdir}/counts/featureCounts/{genome}/{genome}_single_count.tsv")
                 for sample_id in samples:
-                    paired_samples.append(sample_id)
+                    single_samples.append(sample_id)
                     all_samples.append(sample_id)
                     single_sample_genome_pairs.append((sample_id,genome))
                     outfiles.append(f"{outdir}/TEtranscripts/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam")
@@ -102,7 +100,7 @@ def get_output_SNP(groups:Dict[str, Dict[str, List[str]]]):
 def get_output_XenofilterR(groups:Dict[str, Dict[str, List[str]]]):
     include: "subworkflow/XenofilterR/XenofilterR.smk"
 
-logging.info(f"genomes:{genomes}\npaired_sampes:{paired_samples}\nsingle_samples:{single_samples}\nall output files:{outfiles}\n\
+logging.info(f"genomes:{genomes}\npaired_samples:{paired_samples}\nsingle_samples:{single_samples}\nall output files:{outfiles}\n\
 XenofilterR_target_samples:{XenofilterR_target_samples}\nXenofilterR_pollution_source_genome:{XenofilterR_pollution_source_genome}\n\
 paired_sample_genome_pairs:{paired_sample_genome_pairs}\nsingle_sample_genome_pairs:{single_sample_genome_pairs}")
 

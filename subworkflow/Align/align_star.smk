@@ -24,12 +24,20 @@ rule star_index:
             --sjdbGTFfile {input.gtf} \
             --sjdbOverhang 100 > {log} 2>&1
         """
+def get_star_index(wildcards):
+    logging.info(f"[get_star_index] called with wildcards: {wildcards}")
+    star_index_dir = config.get('genome',{}).get(wildcards.genome,{}).get('star_index_dir') or None
+    if star_index_dir:
+        first_file = os.path.join(star_index_dir, "Genome")
+        if os.path.exists(first_file):
+            return star_index_dir
+
+    return outdir + f"/genome/{wildcards.genome}/index/star"
 
 rule star_align:
     input:
         fastq = get_alignment_input,
-        # 修改为指向 index 规则的输出文件目录
-        genome_index = outdir + "/genome/{genome}/index/star"
+        genome_index = get_star_index
     output:
         outfile = outdir + "/Align/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam"
     log:

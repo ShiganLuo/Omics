@@ -20,13 +20,22 @@ rule hisat2_index:
         {params.HISAT2_BUILD} -p {threads} {input.fasta} {params.prefix} > {log} 2>&1
         """
 
+def get_hisat2_index(wildcards):
+    logging.info(f"[get_hisat2_index] called with wildcards: {wildcards}")
+    config_index_prefix = config.get('genome',{}).get(wildcards.genome,{}).get('hisat2_index_prefx') or None
+    if config_index_prefix:
+        first_file = f"{config_index_prefix}.1.ht2"
+        if os.path.exists(first_file):
+            return [f"{config_index_prefix}.{idx}.ht2" for idx in [1, 2, 3, 4, 5, 6, 7, 8]]
+    return expand(
+        outdir + f"/genome/{wildcards.genome}/index/hista2/{wildcards.genome}.{{idx}}.ht2",
+        idx = [1, 2, 3, 4, 5, 6, 7, 8]
+    )
+
 rule hisat2_align:
     input:
         fastq = get_alignment_input,
-        index = lambda wildcards: expand(
-            outdir + f"/genome/{wildcards.genome}/index/hista2/{wildcards.genome}.{{idx}}.ht2",
-            idx = [1, 2, 3, 4, 5, 6, 7, 8]
-        )
+        index = get_hisat2_index
     output:
         outfile = outdir + "/Align/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam"
     log:
@@ -37,7 +46,7 @@ rule hisat2_align:
     params:
         HISAT2 = config.get('Procedure',{}).get('hisat2') or 'hisat2',
         SAMTOOLS = config.get('Procedure',{}).get('samtools') or 'samtools',
-        index_prefix = lambda wildcards, input: input.index[0].replace(".1.ht2", ""),
+        index_prefix = lambda wildcards, input: input.index[0].rsplit('.', 2)[0],
         input_params = lambda wildcards, input: \
             f"-1 {input.fastq[0]} -2 {input.fastq[1]}" if len(input.fastq) == 2 else f"-U {input.fastq[0]}"
     shell:

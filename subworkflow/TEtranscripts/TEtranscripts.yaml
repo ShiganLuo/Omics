@@ -6,8 +6,9 @@ Procedure:
 genome:
   mouse:
     fasta: "/disk5/luosg/Reference/GENCODE/mouse/GRCm39/GRCm39.primary_assembly.genome.fa"
-    star_index: "/disk5/luosg/Reference/GENCODE/mouse/GRCm39/index_star2_7"
+    star_index_dir: "/disk5/luosg/Reference/GENCODE/mouse/GRCm39/index_star2_7"
     gtf: "/disk5/luosg/Reference/GENCODE/mouse/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf"
+    hisat2_index_prefx: "/disk5/luosg/Reference/GENCODE/mouse/GRCm39/hista2/mouse"
 TEtranscripts:
   mouse:
     TE_gtf: "/disk5/luosg/Reference/GENCODE/mouse/GRCm39/GRCm39_GENCODE_rmsk_TE.gtf"

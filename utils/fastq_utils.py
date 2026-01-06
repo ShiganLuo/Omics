@@ -48,7 +48,7 @@ class MetadataUtils:
         self.logger.info(f"Detected separator '{sep}' for metadata file {self.meta}")
 
         df = pd.read_csv(self.meta,sep=sep)
-        requeired_column = ["Data_id","Sample_id","organism"]
+        requeired_column = ["Data_id","Sample_id","Organism"]
 
         missing_cols = [col for col in requeired_column if col not in df.columns]
         if missing_cols:
@@ -81,19 +81,19 @@ class MetadataUtils:
             else:
                 return "SINGLE"            
 
-    def classify_organism(self, df: pd.DataFrame) -> Dict[str, Dict[str, List[str]]]:
+    def classify_Organism(self, df: pd.DataFrame) -> Dict[str, Dict[str, List[str]]]:
         """
-        Function: Divide into different organisms, then group by single/double-ended.
+        Function: Divide into different Organisms, then group by single/double-ended.
 
-        Datasheet (df) must contain the columns: Sample_id, organism
+        Datasheet (df) must contain the columns: Sample_id, Organism
         """
         groups: DefaultDict[str, DefaultDict[str, List[str]]] = defaultdict(lambda: defaultdict(list))
-        df_unique = df.drop_duplicates(subset=["Sample_id", "organism"])
+        df_unique = df.drop_duplicates(subset=["Sample_id", "Organism"])
         for _, row in df_unique.iterrows():
             sample = row["Sample_id"]
-            organism = row["organism"].strip().replace(" ", "_")
+            Organism = row["Organism"].strip().replace(" ", "_")
             TYPE = self.isPairedEndSample(sample)  # 'SE' 或 'PE'
-            groups[organism][TYPE].append(sample)
+            groups[Organism][TYPE].append(sample)
         return groups
 
     def combineFastq(self,df:pd.DataFrame):
@@ -200,7 +200,7 @@ class MetadataUtils:
             raise
         self.logger.info(f"classify fastq library strategy, single-end or paired-end")
         self.logger.info(f"To determine the species to which each sample belongs, and whether it was single-end sequencing or paired-end sequencing.")
-        return self.classify_organism(df)
+        return self.classify_Organism(df)
 
 
 if __name__ == "__main__":

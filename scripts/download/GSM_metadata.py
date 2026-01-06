@@ -469,82 +469,97 @@ def extract_gsm_batch(html_dir: str, outfile: str | None = None) -> pd.DataFrame
 
 def extract_sra_library_and_runs(html_path: str) -> Dict[str, object]:
     """
-    Extract GSM, Library metadata and Run (SRR) information
+    Extract Sample_id (GSM), Organism, Library metadata and Run (SRR) information
     from an NCBI SRA Experiment (SRX) HTML page.
-
-    Priority rules
-    --------------
-    - GSM is extracted from: Library -> Name
-    - Library fields come from the structured 'Library' block
-    - Runs are extracted from the SRR table
 
     Returns
     -------
     {
-        "SRX": "SRX25503118",
-        "GSM": "GSM8426620",
+        "SRX": "SRX25503102",
+        "Sample_id": "GSM8426615",
+        "Organism": "Mus musculus",
         "library": {...},
         "runs": [...]
     }
     """
-    srx = html_path.split("/")[-1].replace(".html", "")
+    srx = os.path.basename(html_path).replace(".html", "")
 
     with open(html_path, encoding="utf-8") as f:
         soup = BeautifulSoup(f.read(), "html.parser")
 
     result: Dict[str, object] = {
         "SRX": srx,
-        "GSM": None,
+        "Sample_id": None,
+        "Organism": None,
         "library": {},
         "runs": []
     }
 
-    # ---------- Library ----------
+    # ============================================================
+    # 1. Organism (from summary line)
+    # ============================================================
+    summary = soup.find("p", class_="details")
+    if summary:
+        bold = summary.find("b")
+        if bold:
+            text = bold.get_text(strip=True)
+            # Expected pattern:
+            # SRXxxxx: GSMxxxx: <title> ; Organism ; Strategy
+            parts = [p.strip() for p in text.split(";")]
+            if len(parts) >= 2:
+                result["Organism"] = parts[1]
+
+    # ============================================================
+    # 2. Library block (and Sample_id)
+    # ============================================================
     for div in soup.find_all("div", class_="expand showed sra-full-data"):
         if div.get_text(strip=True).startswith("Library"):
             for sub in div.find_all("div"):
                 text = sub.get_text(strip=True)
-                if ":" in text:
-                    key, value = text.split(":", 1)
-                    key = key.strip()
-                    value = value.strip()
-                    result["library"][key] = value
+                if ":" not in text:
+                    continue
 
-                    # GSM is stored as Library -> Name
-                    if key == "Name" and value.startswith("GSM"):
-                        result["GSM"] = value
+                key, value = map(str.strip, text.split(":", 1))
+                result["library"][key] = value
+
+                # GSM → Sample_id
+                if key == "Name" and value.startswith("GSM"):
+                    result["Sample_id"] = value
             break
 
-    # ---------- Runs ----------
+    # ============================================================
+    # 3. Runs table (SRR → Data_id)
+    # ============================================================
     table = soup.find("table")
     if table:
         rows = table.find_all("tr")[1:]  # skip header
         for tr in rows:
             tds = tr.find_all("td")
-            if len(tds) >= 5:
-                srr = tds[0].get_text(strip=True)
-                if not srr.startswith("SRR"):
-                    continue
+            if len(tds) < 5:
+                continue
 
-                result["runs"].append({
-                    "SRR": srr,
-                    "spots": tds[1].get_text(strip=True),
-                    "bases": tds[2].get_text(strip=True),
-                    "size": tds[3].get_text(strip=True),
-                    "published": tds[4].get_text(strip=True),
-                })
+            srr = tds[0].get_text(strip=True)
+            if not srr.startswith("SRR"):
+                continue
+
+            result["runs"].append({
+                "Data_id": srr,
+                "spots": tds[1].get_text(strip=True),
+                "bases": tds[2].get_text(strip=True),
+                "size": tds[3].get_text(strip=True),
+                "published": tds[4].get_text(strip=True),
+            })
 
     return result
-
 
 def extract_sra_batch(
     html_dir: str,
     outfile: Optional[str] = None
 ) -> pd.DataFrame:
     """
-    Batch-parse SRX HTML files and extract SRX–GSM–SRR relationships.
+    Batch-parse SRX HTML files.
 
-    Each row corresponds to one SRR.
+    Each row corresponds to one SRR (Data_id).
     """
     records: List[Dict[str, str]] = []
 
@@ -552,12 +567,18 @@ def extract_sra_batch(
         parsed = extract_sra_library_and_runs(html)
 
         srx = parsed["SRX"]
-        gsm = parsed["GSM"]
+        sample_id = parsed["Sample_id"]
+        organism = parsed["Organism"]
         library = parsed["library"]
         runs = parsed["runs"]
 
+        # No runs (rare, but possible)
         if not runs:
-            row = {"SRX": srx, "GSM": gsm}
+            row = {
+                "SRX": srx,
+                "Sample_id": sample_id,
+                "Organism": organism,
+            }
             row.update(library)
             records.append(row)
             continue
@@ -565,7 +586,8 @@ def extract_sra_batch(
         for run in runs:
             row = {
                 "SRX": srx,
-                "GSM": gsm,
+                "Sample_id": sample_id,
+                "Organism": organism,
             }
             row.update(library)
             row.update(run)
@@ -573,13 +595,13 @@ def extract_sra_batch(
 
     df = pd.DataFrame(records)
 
-    # Optional CSV export
     if outfile:
         sep = "\t" if outfile.endswith(".tsv") else ","
-        df.to_csv(outfile, index=False, encoding="utf-8",sep=sep)
+        df.to_csv(outfile, index=False, encoding="utf-8", sep=sep)
         logging.info(f"[DONE] Extracted → {outfile}")
 
     return df
+
 # ============================================================
 # CLI
 # ============================================================

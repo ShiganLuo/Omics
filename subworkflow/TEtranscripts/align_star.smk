@@ -1,7 +1,17 @@
+def get_star_index(wildcards):
+    logging.info(f"[get_star_index] called with wildcards: {wildcards}")
+    star_index_dir = config.get('genome',{}).get(wildcards.genome,{}).get('star_index_dir') or None
+    if star_index_dir:
+        first_file = os.path.join(star_index_dir, "Genome")
+        if os.path.exists(first_file):
+            return star_index_dir
+
+    return outdir + f"/genome/{wildcards.genome}/index/star"
+
 rule TEtranscript_prepare_star:
     input:
         get_alignment_input,
-        genome_index = lambda wildcards: config['genome'][wildcards.genome]['genome_index']
+        genome_index = get_star_index
     output:
         outfile = temp(outdir + "/TEtranscripts/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam")
     log:

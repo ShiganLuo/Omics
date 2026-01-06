@@ -15,7 +15,7 @@ logging.basicConfig(
 	datefmt='%Y-%m-%d %H:%M:%S'
 
 )
-def extract_geo_info(filepath, output_tsv):
+def extract_geo_info(filepath:str, output_tsv:str) -> List[Dict[str, str]]:
     """
     Extract all entries (Title, Organism, FTP, Accession) from a GEO text file, even if the order or line breaks are not fixed, and save it as TSV.
 

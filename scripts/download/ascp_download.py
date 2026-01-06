@@ -6,6 +6,8 @@ import argparse
 from pathlib import Path
 from typing import List, Tuple
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import pandas as pd
+
 
 
 # ============================================================
@@ -169,15 +171,58 @@ def ena_download_spin(
 # SRR 解析（关键：灵活）
 # ============================================================
 
+
+
 def load_tasks(args) -> List[Tuple[str, str]]:
-    tasks = []
+    """
+    Load (SRR, library_type) tasks.
+
+    Meta mode (recommended)
+    -----------------------
+    - Meta file MUST contain a header
+    - Supports CSV / TSV automatically
+    - Column access is strictly based on column names
+    - Default columns:
+        SRR     : SRR accession
+        Layout  : PAIRED | SINGLE
+    """
+    tasks: List[Tuple[str, str]] = []
 
     if args.meta:
-        for line in args.meta.open():
-            if line.startswith("#") or not line.strip():
-                continue
-            srr, lib = line.strip().split()[:2]
-            tasks.append((srr, lib))
+        # ---------- Read meta table ----------
+        try:
+            df = pd.read_csv(
+                args.meta,
+                sep=None,          # auto-detect CSV / TSV
+                engine="python",
+                comment="#"
+            )
+        except Exception as e:
+            raise ValueError(f"Failed to read meta file: {args.meta}") from e
+
+        # ---------- Validate columns ----------
+        srr_col = args.srr_col_name
+        lib_col = args.lib_col_name
+
+        missing = {c for c in (srr_col, lib_col) if c not in df.columns}
+        if missing:
+            raise ValueError(
+                f"Missing required columns in meta file: {missing}. "
+                f"Available columns: {list(df.columns)}"
+            )
+
+        # ---------- Normalize & validate ----------
+        df = df[[srr_col, lib_col]].dropna()
+
+        df[lib_col] = df[lib_col].str.upper()
+        invalid = df[~df[lib_col].isin({"PAIRED", "SINGLE"})]
+        if not invalid.empty:
+            raise ValueError(
+                f"Invalid library layout values found:\n{invalid}"
+            )
+
+        # ---------- Build tasks ----------
+        tasks = list(df.itertuples(index=False, name=None))
 
     elif args.srr_list:
         for line in args.srr_list.open():
@@ -190,31 +235,62 @@ def load_tasks(args) -> List[Tuple[str, str]]:
     return tasks
 
 
+
+
 # ============================================================
 # argparse
 # ============================================================
 
 def parse_args():
+    """
+    Parse command-line arguments for ENA downloader.
+
+    Meta file rules
+    ---------------
+    - Meta file MUST contain a header
+    - Column access is strictly based on column names
+    - Default column names:
+        SRR     : SRR accession
+        Layout  : library layout (PAIRED | SINGLE)
+    """
     p = argparse.ArgumentParser("ENA downloader (spin + parallel)")
-    p.add_argument("--srr-id")
-    p.add_argument("--srr-list", type=Path)
+
+    # ---------- Input modes ----------
+    p.add_argument("--srr-id",
+                   help="Single SRR accession")
+
+    p.add_argument("--srr-list", type=Path,
+                   help="File with one SRR accession per line")
+
     p.add_argument("--meta", type=Path,
-                   help="TSV: SRR<TAB>PAIRED|SINGLE")
+                   help="Meta table with header (recommended)")
 
+    # ---------- Meta column names ----------
+    p.add_argument("--srr-col-name",
+                   default="SRR",
+                   help="SRR column name in meta file (default: SRR)")
+
+    p.add_argument("--lib-col-name",
+                   default="Layout",
+                   help="Library layout column name (default: Layout)")
+
+    # ---------- Library type ----------
     p.add_argument("-t", "--library-type",
-                   choices=["PAIRED", "SINGLE"])
+                   choices=["PAIRED", "SINGLE"],
+                   help="Library type (used with --srr-id or --srr-list)")
 
+    # ---------- Output / logging ----------
     p.add_argument("-o", "--outdir", type=Path, required=True)
     p.add_argument("-k", "--key", type=Path, required=True)
     p.add_argument("-l", "--log", type=Path, required=True)
 
-    p.add_argument("--jobs", type=int, default=1,
-                   help="并行 SRR 数（默认 1）")
-
+    # ---------- Parallel / retry ----------
+    p.add_argument("--jobs", type=int, default=1)
     p.add_argument("--sleep-base", type=int, default=10)
     p.add_argument("--sleep-max", type=int, default=300)
 
     return p.parse_args()
+
 
 
 # ============================================================

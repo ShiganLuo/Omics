@@ -90,7 +90,7 @@ def get_alignment_input(wildcards):
 
 rule alignment_result:
     input:
-        outdir + "/Align/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam"
+        outdir + "/Align/{sample_id}/{genome}/{sample_id}.Aligned.sortedByCoord.out.bam"
 
 
 if config["Procedure"]["aligner"] == "star":

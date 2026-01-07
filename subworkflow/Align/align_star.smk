@@ -28,10 +28,11 @@ def get_star_index(wildcards):
     logging.info(f"[get_star_index] called with wildcards: {wildcards}")
     star_index_dir = config.get('genome',{}).get(wildcards.genome,{}).get('star_index_dir') or None
     if star_index_dir:
+        logging.info(f"[get_star_index] using provided star_index_dir: {star_index_dir}")
         first_file = os.path.join(star_index_dir, "Genome")
         if os.path.exists(first_file):
             return star_index_dir
-
+    logging.info(f"[get_star_index] using default star_index_dir")
     return outdir + f"/genome/{wildcards.genome}/index/star"
 
 rule star_align:
@@ -39,14 +40,14 @@ rule star_align:
         fastq = get_alignment_input,
         genome_index = get_star_index
     output:
-        outfile = outdir + "/Align/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam"
+        outfile = outdir + "/Align/{sample_id}/{genome}/{sample_id}.Aligned.sortedByCoord.out.bam"
     log:
         outdir + "/log/Align/{sample_id}/{genome}/star_align.log"
     threads: 12
     conda:
         config['conda']['run']
     params:
-        outPrefix = outdir + "/Align/{sample_id}/{genome}/{sample_id}",
+        outPrefix = outdir + "/Align/{sample_id}/{genome}/{sample_id}.",
         input_params = lambda wildcards, input: \
             f"{input.fastq[0]} {input.fastq[1]}" if len(input.fastq) == 2 else f"{input.fastq[0]}",
         STAR = config.get('Procedure',{}).get('STAR') or 'STAR'

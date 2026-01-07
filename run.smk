@@ -58,14 +58,14 @@ def get_output_Count(groups:Dict[str, Dict[str, List[str]]]):
                     paired_samples.append(sample_id)
                     all_samples.append(sample_id)
                     paired_sample_genome_pairs.append((sample_id,genome))
-                    outfiles.append(f"{outdir}/Align/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam")
+                    outfiles.append(f"{outdir}/Align/{sample_id}/{genome}/{sample_id}.Aligned.sortedByCoord.out.bam")
             elif libraryStrategy == "SINGLE":
                 outfiles.append(f"{outdir}/counts/featureCounts/{genome}/{genome}_single_count.tsv")
                 for sample_id in samples:
                     paired_samples.append(sample_id)
                     all_samples.append(sample_id)
                     single_sample_genome_pairs.append((sample_id,genome))
-                    outfiles.append(f"{outdir}/Align/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam")
+                    outfiles.append(f"{outdir}/Align/{sample_id}/{genome}/{sample_id}.Aligned.sortedByCoord.out.bam")
             else:
                 continue
 # get_output_Count(groups)
@@ -83,20 +83,42 @@ def get_output_TEtranscripts(groups:Dict[str, Dict[str, List[str]]]):
                     paired_samples.append(sample_id)
                     all_samples.append(sample_id)
                     paired_sample_genome_pairs.append((sample_id,genome))
-                    outfiles.append(f"{outdir}/TEtranscripts/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam")
+                    outfiles.append(f"{outdir}/TEtranscripts/{sample_id}/{genome}/{sample_id}.Aligned.sortedByCoord.out.bam")
             elif libraryStrategy == "SINGLE":
                 for sample_id in samples:
                     single_samples.append(sample_id)
                     all_samples.append(sample_id)
                     single_sample_genome_pairs.append((sample_id,genome))
-                    outfiles.append(f"{outdir}/TEtranscripts/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam")
+                    outfiles.append(f"{outdir}/TEtranscripts/{sample_id}/{genome}/{sample_id}.Aligned.sortedByCoord.out.bam")
             else:
                 continue    
-get_output_TEtranscripts(groups)
+# get_output_TEtranscripts(groups)
+
+def get_output_ncRNAseq(groups:Dict[str, Dict[str, List[str]]]):
+    include: "subworkflow/ncRNAseq/ncRNAseq.smk"
+    for genome, library_sample in groups.items():
+        genomes.append(genome)
+        for libraryStrategy, samples in library_sample.items():
+            if libraryStrategy == "PAIRED":
+                for sample_id in samples:
+                    paired_samples.append(sample_id)
+                    all_samples.append(sample_id)
+                    paired_sample_genome_pairs.append((sample_id,genome))
+            elif libraryStrategy == "SINGLE":
+                for sample_id in samples:
+                    single_samples.append(sample_id)
+                    all_samples.append(sample_id)
+                    single_sample_genome_pairs.append((sample_id,genome))
+                    # outfiles.append(f"{outdir}/fastx_trimmer/{sample_id}_fastx1_trimmed.fq.gz")
+                    # outfiles.append(f"{outdir}/cutadapt/{sample_id}_cutadapt2_trimmed.fq.gz")
+                    outfiles.append(f"{outdir}/ncRNAseq/star/{genome}/{sample_id}.Aligned.sortedByCoord.out.bam")
+            else:
+                continue    
+
+get_output_ncRNAseq(groups)
 
 def get_output_SNP(groups:Dict[str, Dict[str, List[str]]]):
     include: "subworkflow/SNP/SNP.smk"
-    logging.info(f"Include SNP workflow: {SNPSmk}")
 def get_output_XenofilterR(groups:Dict[str, Dict[str, List[str]]]):
     include: "subworkflow/XenofilterR/XenofilterR.smk"
 

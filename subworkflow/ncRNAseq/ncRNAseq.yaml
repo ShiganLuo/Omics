@@ -1,0 +1,13 @@
+Parameters:
+  fastx_trimmer:
+    f_keep_base: 5
+Procedure:
+  fastx_trimme: ""
+  cutadapt: ""
+  STAR: "/opt/STAR-2.7.10b/bin/Linux_x86_64/STAR"
+
+genome:
+  mouse:
+    fasta: "/disk5/luosg/Reference/GENCODE/mouse/GRCm38/GRCm38.primary_assembly.genome.fa"
+    star_index_dir: ""
+    gtf: "/disk5/luosg/Reference/GENCODE/mouse/GRCm38/gencode.vM23.primary_assembly.annotation.gtf"

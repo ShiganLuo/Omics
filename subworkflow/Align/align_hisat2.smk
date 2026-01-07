@@ -37,7 +37,7 @@ rule hisat2_align:
         fastq = get_alignment_input,
         index = get_hisat2_index
     output:
-        outfile = outdir + "/Align/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam"
+        outfile = outdir + "/Align/{sample_id}/{genome}/{sample_id}.Aligned.sortedByCoord.out.bam"
     log:
         outdir + "/log/Align/{sample_id}/{genome}/hisat2_align.log"
     threads: 12

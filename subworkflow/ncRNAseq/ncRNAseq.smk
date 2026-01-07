@@ -110,7 +110,7 @@ rule star_align_ncRNAseq_single:
         unmapped = outdir + "/ncRNAseq/star/{genome}/{sample_id}.Unmapped.out.mate1"
     log:
         outdir + "/log/ncRNAseq/STAR/{genome}/{sample_id}.log"
-    threads: 4
+    threads: 14
     params:
         prefix = outdir + "/ncRNAseq/star/{genome}/{sample_id}.",
         STAR = config.get('Procedure', {}).get('STAR', "STAR") or "STAR"
@@ -124,7 +124,6 @@ rule star_align_ncRNAseq_single:
             --genomeDir {input.genome_index} \
             --genomeLoad LoadAndRemove \
             --readFilesCommand unpigz -c \
-            --readStrand Unstranded \
             --limitBAMsortRAM 20000000000 \
             --outFileNamePrefix {params.prefix} \
             --outReadsUnmapped Fastx \

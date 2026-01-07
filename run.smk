@@ -111,7 +111,7 @@ def get_output_ncRNAseq(groups:Dict[str, Dict[str, List[str]]]):
                     single_sample_genome_pairs.append((sample_id,genome))
                     # outfiles.append(f"{outdir}/fastx_trimmer/{sample_id}_fastx1_trimmed.fq.gz")
                     # outfiles.append(f"{outdir}/cutadapt/{sample_id}_cutadapt2_trimmed.fq.gz")
-                    outfiles.append(f"{outdir}/ncRNAseq/star/{genome}/{sample_id}.Aligned.sortedByCoord.out.bam")
+                    outfiles.append(f"{outdir}/ncRNAseq/bam/{genome}/{sample_id}.Aligned.sortedByCoord.out.bam")
             else:
                 continue    
 

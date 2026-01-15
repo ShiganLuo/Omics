@@ -78,7 +78,6 @@ def violin_by_method_celltype_step(df_dict: dict, outplot: str):
         linewidth=1.5,
         dodge=True
     )
-
     # 计算每个方法+cell_type的小提琴中心点
     violin_positions = {}
     for method_idx, method in enumerate(methods):
@@ -119,10 +118,13 @@ def violin_by_method_celltype_step(df_dict: dict, outplot: str):
                     "***" if p<0.001 else
                     "**" if p<0.01 else
                     "*" if p<0.05 else "ns",
-                    ha='center', va='bottom', fontsize=10)
+                    ha='center', va='bottom', fontsize=14)
 
-    ax.set_xlabel('Method')
-    ax.set_ylabel('GSI')
+    ax.set_xlabel('Method',fontsize=16)
+    ax.set_ylabel('LV1',fontsize=16)
+    ax.tick_params(axis='x', labelsize=14)
+    ax.tick_params(axis='y', labelsize=14)
+    ax.legend(fontsize=13)
     plt.tight_layout()
     plt.savefig(outplot, dpi=300)
     plt.close()
@@ -130,15 +132,15 @@ def violin_by_method_celltype_step(df_dict: dict, outplot: str):
 
 def combine_run():
     Latent = {
-        "pca": "/home/luosg/Data/genomeStability/output/result/latent/fa_factors.csv",
-        "nmf": "/home/luosg/Data/genomeStability/output/result/latent/nmf_factors.csv",
-        "factor": "/home/luosg/Data/genomeStability/output/result/latent/pca_factors.csv"
+        "pca": "/disk5/luosg/Totipotent20251031/RNAseqML/latent/fa_factors.csv",
+        "nmf": "/disk5/luosg/Totipotent20251031/RNAseqML/latent/nmf_factors.csv",
+        "factor": "/disk5/luosg/Totipotent20251031/RNAseqML/latent/pca_factors.csv"
     }
-    outdir="/home/luosg/Data/genomeStability/output/result/latent"
+    outdir="/disk5/luosg/Totipotent20251031/RNAseqML/latent"
     df_dict = {}
     for method, infile in Latent.items():
         df = pd.read_csv(infile, index_col=0)
-        df_annotation = pd.read_csv("/home/luosg/Data/genomeStability/data/target_fq.tsv", sep="\t")
+        df_annotation = pd.read_csv("/disk5/luosg/Totipotent20251031/data/RNAseqML/target_fq.tsv", sep="\t")
         df_annotation.drop_duplicates(subset=["Sample_id"], inplace=True)
         Sample_to_Status_map = df_annotation.set_index('Sample_id')['Status']
         new_index = df.index.map(Sample_to_Status_map)

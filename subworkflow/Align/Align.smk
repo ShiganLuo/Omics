@@ -42,6 +42,7 @@ rule trimming_Paired:
         mv {params.outdir}/{wildcards.sample_id}_1.fastq.gz_trimming_report.txt {output.report1}
         mv {params.outdir}/{wildcards.sample_id}_2.fastq.gz_trimming_report.txt {output.report2}
         """
+
 rule trimming_Single:
     input:
         fastq = indir + "/{sample_id}.fastq.gz"

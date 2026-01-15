@@ -27,6 +27,7 @@ sys.path.append(f"{SNAKEFILE_DIR}/utils")
 from fastq_utils import SNPMetadata
 snpMetadata = SNPMetadata(metadata,indir,f"{outdir}/log/utils/fastq_utils.log")
 groups = snpMetadata.run()
+
 def get_output_files(groups):
     outfiles = []
     paired_samples = []

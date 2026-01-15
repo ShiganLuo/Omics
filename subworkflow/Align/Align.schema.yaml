@@ -1,0 +1,32 @@
+$schema: "http://json-schema.org/draft-07/schema#"
+description: "Snakemake pipeline configuration schema"
+
+type: object
+properties:
+  genome:
+    type: object
+    additionalProperties: # 允许 mouse, human 等任意物种名
+      type: object
+      required: [fasta, gtf] # 强制要求这两项
+      properties:
+        fasta: {type: string, minLength: 1}
+        gtf: {type: string, minLength: 1}
+        hisat2_index: {type: string}
+        star_index: {type: string}
+
+  Procedure:
+    type: object
+    required: [aligner]
+    properties:
+      aligner:
+        enum: ["hisat2", "star"] # 限制只能填这两个
+      # 以下工具路径允许为 string 或 null (对应 YAML 中的空值)
+      trim_galore: {type: ["string", "null"]}
+      STAR: {type: ["string", "null"]}
+      hisat2: {type: ["string", "null"]}
+      hisat2-build: {type: ["string", "null"]}
+      samtools: {type: ["string", "null"]}
+
+required:
+  - genome
+  - Procedure

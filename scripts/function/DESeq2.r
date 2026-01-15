@@ -26,7 +26,16 @@ ensure_dir <- function(dir){
   if(!dir.exists(dir)) dir.create(dir, recursive = TRUE, showWarnings = FALSE)
 }
 
-msg <- function(...) message("[DESeq2Script] ", paste(..., collapse = " "))
+log_msg <- function(level = c("INFO","WARN","ERROR"), ..., quit = FALSE) {
+  level <- match.arg(level)
+  msg <- paste(...)
+  prefix <- paste0(
+    "[", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "] ",
+    "[", level, "] "
+  )
+  message(prefix, msg)
+  if (quit) stop(msg, call. = FALSE)
+}
 
 # ---------------------------
 # DESeq2Analysis: core function
@@ -48,17 +57,17 @@ DESeq2Analysis <- function(counts_df, colData, resfile = NULL,
          ") does not match number of rows in colData (", nrow(colData), ").")
   }
 
-  msg("Building DESeqDataSet...")
+  log_msg("INFO","Building DESeqDataSet...")
   dds <- DESeqDataSetFromMatrix(countData = as.matrix(counts_df),
                                 colData = colData,
                                 design = ~ condition)
 
-  msg("Running DESeq() ...")
+  log_msg("INFO","Running DESeq() ...")
   dds <- tryCatch({
     DESeq(dds, fitType = fitType, minReplicatesForReplace = minReplicatesForReplace,
           parallel = parallel)
   }, error = function(e){
-    stop("DESeq() failed: ", e$message)
+    log_msg("ERROR","DESeq() failed: ", e$message, quit = TRUE)
   })
 
   # normalized counts
@@ -81,7 +90,7 @@ DESeq2Analysis <- function(counts_df, colData, resfile = NULL,
   rownames(combined) <- rownames(res_df)
 
   if(!is.null(resfile) && nzchar(resfile)){
-    msg("Writing results to: ", resfile)
+    log_msg("INFO","Writing results to: ", resfile)
     ensure_dir(dirname(resfile))
     write.table(combined, file = resfile, sep = "\t", quote = FALSE, col.names = NA)
   }
@@ -131,7 +140,7 @@ ScreenFeature <- function(res_df, upfile = NULL, downfile = NULL, updownfile = N
     if(!is.null(path) && nzchar(path)){
       ensure_dir(dirname(path))
       write.table(df, file = path, sep = "\t", quote = FALSE, col.names = NA)
-      msg("Wrote file:", path)
+      log_msg("INFO","Wrote file:", path)
     }
   }
 
@@ -175,7 +184,7 @@ updown_heatmap <- function(res_df, outfile, coldata = NULL, brewer_palette = "Rd
                      fontsize_row = row_font,
                      border_color = NA)
   dev.off()
-  msg("Heatmap saved to:", outfile)
+  log_msg("INFO","Heatmap saved to:", outfile)
 }
 
 # ---------------------------
@@ -243,7 +252,7 @@ plot_volcano <- function(res_df, outfile, mode = c("gene","TE"), geneAnnotation 
 
   ensure_dir(dirname(outfile))
   ggsave(outfile, plot = p, width = 8, height = 6, dpi = 300)
-  msg("Volcano plot saved to:", outfile)
+  log_msg("INFO","Volcano plot saved to:", outfile)
 }
 
 plot_MA <- function(res_df, outfile, mode = c("gene","TE"), geneAnnotation = NULL,
@@ -286,7 +295,7 @@ plot_MA <- function(res_df, outfile, mode = c("gene","TE"), geneAnnotation = NUL
 
   ensure_dir(dirname(outfile))
   ggsave(outfile, plot = p, width = 8, height = 6, dpi = 300)
-  msg("MA plot saved to:", outfile)
+  log_msg("INFO","MA plot saved to:", outfile)
 }
 
 # ---------------------------
@@ -371,7 +380,7 @@ colDataPca <- factor(c(rep(controlStr, length(control)), rep(experimentStr, leng
 
 outdir <- args$outdir
 ensure_dir(outdir)
-msg("Mode:", args$mode, "Matrix:", args$matrix, "Outdir:", outdir)
+log_msg("INFO","Mode:", args$mode, "Matrix:", args$matrix, "Outdir:", outdir)
 
 # main branch
 if(args$mode == "TEcount"){
@@ -396,7 +405,7 @@ if(args$mode == "TEcount"){
            title = "PCA Plot of CPM Values") +
       theme_minimal()
     ggsave(pca_out, plot = p, width = 8, height = 6, dpi = 300)
-    msg("PCA saved to:", pca_out)
+    log_msg("INFO","PCA saved to:", pca_out)
   }
 
   # which TEcount parts to process
@@ -404,7 +413,7 @@ if(args$mode == "TEcount"){
 
   for(dataType in modes_to_run){
     if(!(dataType %in% names(dfList))){
-      msg("Skipping unknown dataType:", dataType); next
+      log_msg("INFO","Skipping unknown dataType:", dataType); next
     }
     df <- dfList[[dataType]]
     outfile <- file.path(outdir, "DESeq2", paste0("TEcount_", dataType, ".tsv"))
@@ -430,15 +439,15 @@ if(args$mode == "TEcount"){
       if(nrow(sf$up) >= 2){
         up_file <- file.path(heat_dir, paste0("TEcount_", dataType, "_up.png"))
         updown_heatmap(sf$up, up_file, coldata = sample_anno)
-      } else msg("Less than 2 up genes; skip heatmap for up.")
+      } else log_msg("INFO","Less than 2 up genes; skip heatmap for up.")
       if(nrow(sf$down) >= 2){
         down_file <- file.path(heat_dir, paste0("TEcount_", dataType, "_down.png"))
         updown_heatmap(sf$down, down_file, coldata = sample_anno)
-      } else msg("Less than 2 down genes; skip heatmap for down.")
+      } else log_msg("INFO","Less than 2 down genes; skip heatmap for down.")
       if(nrow(rbind(sf$up, sf$down)) >= 2){
         all_file <- file.path(heat_dir, paste0("TEcount_", dataType, "_updown.png"))
         updown_heatmap(rbind(sf$up, sf$down), all_file, coldata = sample_anno)
-      } else msg("Less than 2 dysregulated genes; skip combined heatmap.")
+      } else log_msg("INFO","Less than 2 dysregulated genes; skip combined heatmap.")
     }
 
     if("volcano" %in% args$figure){
@@ -483,7 +492,7 @@ if(args$mode == "TEcount"){
     plot_MA(res_comb, file.path(vol_dir, "TElocal_MA.png"), mode = "TE")
   }
 } else {
-  stop("Unsupported mode: ", args$mode)
+  log_msg("ERROR","Unsupported mode:", args$mode, quit = TRUE)
 }
 
-msg("DESeq2 workflow finished.")
+log_msg("INFO","DESeq2 workflow finished.")

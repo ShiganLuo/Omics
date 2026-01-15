@@ -1,0 +1,16 @@
+Parameters:
+  fastx_trimmer:
+    f_keep_base: 5
+Procedure:
+  aligner: "hisat2"
+  fastx_trimme: ""
+  cutadapt: ""
+  STAR: "/opt/STAR-2.7.10b/bin/Linux_x86_64/STAR"
+  hisat2: "/opt/hisat2-2.2.1/hisat2"
+  hisat2-build: "/opt/hisat2-2.2.1/hisat2-build"
+
+genome:
+  mouse:
+    fasta: "/disk5/luosg/Reference/GENCODE/mouse/GRCm38/GRCm38.primary_assembly.genome.fa"
+    star_index_dir: ""
+    gtf: "/disk5/luosg/Reference/GENCODE/mouse/GRCm38/gencode.vM23.primary_assembly.annotation.gtf"

@@ -1,11 +1,14 @@
 genome:
-  human:
-    genome_index: "/home/luosg/genome/Human/GENCODE/GRCh38/STAR_index"
-    gtf: "/home/luosg/genome/Human/GENCODE/GRCh38/gencode.v49.primary_assembly.annotation.gtf"
   mouse:
-    genome_index: "/home/luosg/genome/Mouse/GENCODE/GRCm39/STAR_index"
-    gtf: "/home/luosg/genome/Mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.annotation.gtf"
+    fasta: "/disk5/luosg/Reference/GENCODE/mouse/GRCm39/GRCm39.primary_assembly.genome.fa"
+    star_index_dir: "/disk5/luosg/Reference/GENCODE/mouse/GRCm39/index_star2_7"
+    gtf: "/disk5/luosg/Reference/GENCODE/mouse/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf"
+    hisat2_index: ""
 Procedure:
+  aligner: "hisat2"
   trim_galore: "/opt/TrimGalore-0.6.10/trim_galore"
   STAR: "/opt/STAR-2.7.11b/bin/Linux_x86_64/STAR"
-  featureCounts: "/opt/subread-2.1.1-Linux-x86_64/bin/featureCounts"
+  hisat2: "/opt/hisat2-2.2.1/hisat2"
+  hisat2-build: "/opt/hisat2-2.2.1/hisat2-build"
+  samtools: ""
+

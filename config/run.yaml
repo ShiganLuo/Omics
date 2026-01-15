@@ -1,2 +1,3 @@
 conda:
-  run: "/home/luosg/anaconda3/envs/genomeStability"
+  run: "/home/luosg/miniconda3/envs/RNA_SNP"
+  smallRNAseq: "/home/luosg/miniconda3/envs/smallRNAseq"

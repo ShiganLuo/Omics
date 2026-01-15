@@ -2,8 +2,14 @@ import pandas as pd
 import pickle
 import os
 from typing import Dict
-import glob
-from pathlib import Path
+import logging
+import sys
+logging.basicConfig(
+	level=logging.INFO,
+	format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+	stream=sys.stdout,  # 指定输出到 stdout 而不是 stderr
+	datefmt='%Y-%m-%d %H:%M:%S'
+)
 
 
 def get_file_signature(file_path: str) -> Dict:
@@ -35,10 +41,10 @@ def load_cache_if_valid(cache_path: str, gtf_signature: dict):
 
     cached_sig = cache.get("signature", {})
     if cached_sig == gtf_signature:
-        print(f"缓存匹配，直接加载：{cache_path}")
+        logging.info(f"缓存匹配，直接加载：{cache_path}")
         return cache["gene_map"]
 
-    print("检测到缓存与当前 GTF 不一致 → 忽略缓存并重建")
+    logging.info("检测到缓存与当前 GTF 不一致 → 忽略缓存并重建")
     return None
 
 
@@ -74,7 +80,7 @@ def parse_gtf_gene_map(gtf_path: str) -> dict:
             if gid and gname:
                 gene_map[gid] = gname
 
-    print(f"GTF 解析完成，共 {len(gene_map)} 个基因")
+    logging.info(f"GTF 解析完成，共 {len(gene_map)} 个基因")
     return gene_map
 
 
@@ -92,12 +98,12 @@ def load_gtf_gene_map(gtf_path: str, cache_path="gene_map.pkl") -> dict:
         return gene_map
 
     # 解析 GTF
-    print("开始解析 GTF（可能耗时较长）...")
+    logging.info("开始解析 GTF（可能耗时较长）...")
     gene_map = parse_gtf_gene_map(gtf_path)
 
     # 保存缓存
     save_cache(cache_path, gene_map, gtf_signature)
-    print(f"缓存已写入：{cache_path}")
+    logging.info(f"缓存已写入：{cache_path}")
 
     return gene_map
 
@@ -119,7 +125,7 @@ def convert_annovar_gene_ids(multiano_path, gtf_path,
                              cache_path="gene_map.pkl",
                              save_path=None):
     df = pd.read_csv(multiano_path)
-    print("读取 multiano.csv 行数:", len(df))
+    logging.info(f"读取 multiano.csv 行数:{len(df)}")
 
     gene_map = load_gtf_gene_map(gtf_path, cache_path)
 
@@ -127,7 +133,7 @@ def convert_annovar_gene_ids(multiano_path, gtf_path,
 
     if save_path:
         df.to_csv(save_path, index=False)
-        print("结果已保存：", save_path)
+        logging.info("结果已保存：", save_path)
 
     return df
 
@@ -144,6 +150,7 @@ def extract_gene_name_or_keep(df: pd.DataFrame,pattern:str) -> pd.DataFrame:
     )
     
     return df
+
 def convert_TEtranscripts_gene_ids(
         TEtranscripts_path:str,
         gtf_path:str,
@@ -156,7 +163,7 @@ def convert_TEtranscripts_gene_ids(
         repl=r'\1',
         regex=True
     )
-    print("读取 TEtranscripts file 行数:", len(df))
+    logging.info(f"读取 TEtranscripts file 行数:{len(df)}")
     gene_map = load_gtf_gene_map(gtf_path, cache_path)
     df['gene_name'] = translate_gene_ids(df,gene_map,"gene/TE")
     if "TEcount" in TEtranscripts_path:
@@ -178,30 +185,111 @@ def convert_TEtranscripts_gene_ids(
     return df_reordered
 
 
+def convert_featurecounts_gene_ids(
+    count: str | pd.DataFrame,
+    gtf_path: str,
+    cache_path: str = "gene_map.pkl",
+    save_path: str | None = None
+) -> pd.DataFrame:
+    """
+    Convert featureCounts Geneid to gene_name and aggregate expression values
+    at gene level.
+
+    This function maps Ensembl gene IDs (Geneid) produced by featureCounts
+    to gene symbols (gene_name) using a GTF annotation file, and then collapses
+    multiple rows belonging to the same gene_name by summing expression values.
+
+    Notes
+    -----
+    Why summation instead of averaging?
+
+    In featureCounts output, a single gene_name may correspond to multiple
+    Geneid entries due to:
+        - multiple Ensembl gene versions (e.g. ENSMUSGxxxx.x)
+        - multiple transcript-derived features aggregated at gene level
+        - duplicated or split annotations in the GTF
+
+    Expression values (counts, CPM, TPM, etc.) represent *abundance* or
+    *read support* for genomic features. When multiple Geneid entries map
+    to the same gene_name, their values should be **summed** to obtain the
+    total gene-level expression.
+
+    Averaging would artificially reduce expression levels and break the
+    biological interpretation, because:
+        - expression is additive, not an intensity per feature
+        - downstream analyses (DESeq2, edgeR, limma, etc.) assume summed counts
+        - TPM/CPM values are proportional to total transcript abundance
+
+    Therefore, summation is the correct and standard approach for collapsing
+    transcript-/ID-level data into gene-level expression matrices.
+
+    Parameters
+    ----------
+    count : str | pd.DataFrame
+        featureCounts output file path or a loaded DataFrame
+    gtf_path : str
+        Path to the GTF annotation file used for Geneid → gene_name mapping
+    cache_path : str, optional
+        Cache file path for storing parsed gene ID mapping (default: "gene_map.pkl")
+    save_path : str | None, optional
+        If provided, save the converted gene-level table to this path
+
+    Returns
+    -------
+    pd.DataFrame
+        Gene-level expression DataFrame with unique gene_name as rows
+    """
+    if isinstance(count, pd.DataFrame):
+        df = count.copy()
+    else:
+        df = pd.read_csv(count, sep="\t")
+
+    if "Geneid" not in df.columns:
+        raise ValueError("Input count data must contain 'Geneid' column")
+
+    df["Geneid"] = df["Geneid"].astype(str).str.strip()
+    logging.info(f"读取 count 行数:{len(df)}")
+
+    gene_map = load_gtf_gene_map(gtf_path, cache_path)
+    df["gene_name"] = translate_gene_ids(df, gene_map, "Geneid")
+
+    cols = df.columns.tolist()
+    cols.remove("gene_name")
+    cols.remove("Geneid")
+    df = df[["gene_name"] + cols]
+    df = (
+        df
+        .groupby('gene_name', as_index=False)
+        .sum(numeric_only=True)
+    )
+    if save_path is not None:
+        df.to_csv(save_path, sep="\t", index=False)
+
+    return df
+
 
 
 if __name__ == "__main__":
     human_gtf = "/disk5/luosg/Reference/GENCODE/human/GRCh38/gencode.v49.primary_assembly.basic.annotation.gtf"
     mouse_gtf = "/disk5/luosg/Reference/GENCODE/mouse/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf"
-    
-    ### TEtranscripts and TElocal
-    convert_TEtranscripts_gene_ids("/disk5/luosg/Totipotent20251031/output/counts/TEcount/human/all_TEcount.cntTable",
-                                   human_gtf,
-                                   "GRCh38_gene_map.pkl",
-                                   "/disk5/luosg/Totipotent20251031/output/counts/TEcount/human/all_TEcount_name.cntTable")
-    convert_TEtranscripts_gene_ids("/disk5/luosg/Totipotent20251031/output/counts/TElocal/human/all_TElocal.cntTable",
-                                human_gtf,
-                                "GRCh38_gene_map.pkl",
-                                "/disk5/luosg/Totipotent20251031/output/counts/TElocal/human/all_TElocal_name.cntTable")
-    convert_TEtranscripts_gene_ids("/disk5/luosg/Totipotent20251031/output/counts/TEcount/mouse/all_TEcount.cntTable",
-                            mouse_gtf,
-                            "GRCm39_gene_map.pkl",
-                            "/disk5/luosg/Totipotent20251031/output/counts/TEcount/mouse/all_TEcount_name.cntTable")
-    convert_TEtranscripts_gene_ids("/disk5/luosg/Totipotent20251031/output/counts/TElocal/mouse/all_TElocal.cntTable",
-                        mouse_gtf,
-                        "GRCm39_gene_map.pkl",
-                        "/disk5/luosg/Totipotent20251031/output/counts/TElocal/mouse/all_TElocal_name.cntTable")
-    #### totionly
+    ## TEtranscripts and TElocal
+    convert_TEtranscripts_gene_ids("/disk5/luosg/GCN2_20251224/output/TEtranscripts/TEcount/mouse/all_TEcount.cntTable",
+                                   mouse_gtf,
+                                   "GRCm39_gene_map.pkl",
+                                   "/disk5/luosg/GCN2_20251224/output/TEtranscripts/TEcount/mouse/all_TEcount.cntTable_name.tsv")
+    # convert_TEtranscripts_gene_ids("/disk5/luosg/Totipotent20251031/output/counts/TElocal/human/all_TElocal.cntTable",
+    #                             human_gtf,
+    #                             "GRCh38_gene_map.pkl",
+    #                             "/disk5/luosg/Totipotent20251031/output/counts/TElocal/human/all_TElocal_name.cntTable")
+    # convert_TEtranscripts_gene_ids("/disk5/luosg/Totipotent20251031/output/counts/TEcount/mouse/all_TEcount.cntTable",
+    #                         mouse_gtf,
+    #                         "GRCm39_gene_map.pkl",
+    #                         "/disk5/luosg/Totipotent20251031/output/counts/TEcount/mouse/all_TEcount_name.cntTable")
+    # convert_TEtranscripts_gene_ids("/disk5/luosg/Totipotent20251031/output/counts/TElocal/mouse/all_TElocal.cntTable",
+    #                     mouse_gtf,
+    #                     "GRCm39_gene_map.pkl",
+    #                     "/disk5/luosg/Totipotent20251031/output/counts/TElocal/mouse/all_TElocal_name.cntTable")
+    # #### totionly
     # files = {
     #     "ci8CLC": "/disk5/luosg/Totipotent20251031/output/SNP/vcf/intersect/annotate/ci8CLC/table/toti_only.vcf.GRCh38_multianno.csv",
     #     "hTBLC": "/disk5/luosg/Totipotent20251031/output/SNP/vcf/intersect/annotate/hTBLC/table/toti_only.vcf.GRCh38_multianno.csv",
@@ -243,10 +331,10 @@ if __name__ == "__main__":
     #     if infile.parent.parent.name in target_names:
     #         basePrefix = infile.with_suffix('')
     #         outfile = f"{str(basePrefix)}_with_names.csv" 
-    #         print(infile)
-    #         print(outfile)
+    #         logging.info(infile)
+    #         logging.info(outfile)
     #         if infile.parent.parent.parent.name in human:
-    #             print("human\n")
+    #             logging.info("human\n")
     #             convert_annovar_gene_ids(
     #                 multiano_path=infile,
     #                 gtf_path=human_gtf,
@@ -254,7 +342,7 @@ if __name__ == "__main__":
     #                 save_path=outfile
     #             )
     #         elif infile.parent.parent.parent.name in mouse:
-    #             print("mouse\n")
+    #             logging.info("mouse\n")
     #             convert_annovar_gene_ids(
     #                 multiano_path=infile,
     #                 gtf_path=mouse_gtf,
@@ -264,5 +352,5 @@ if __name__ == "__main__":
     #         else:
     #             raise ValueError("something wrong!")
     #     else:
-    #         print("skip: " + str(infile))
+    #         logging.info("skip: " + str(infile))
 

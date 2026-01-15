@@ -1,21 +1,9 @@
 SNAKEFILE_FULL_PATH_Align = workflow.snakefile
 SNAKEFILE_DIR_Align = os.path.dirname(SNAKEFILE_FULL_PATH_Align)
-def get_yaml_path(module_name:str)->str:
-    """
-    function: Get the absolute path of a module in the workflow/RNA-SNP/snakemake/subworkflow/ directory.
-
-    param: 
-        module_name: Name of the module (without .smk extension).
-
-    return: Absolute path of the module file.
-    """
-    module_path = os.path.join(SNAKEFILE_DIR_Align ,f"{module_name}.yaml")
-    if not os.path.exists(module_path):
-        raise FileNotFoundError(f"Module configfile {module_name}.yaml not found at {module_path}")
-    return module_path
-alignYaml = get_yaml_path("Align")
+alignYaml = get_yaml_path("Align",SNAKEFILE_DIR_Align)
 configfile: alignYaml
 logging.info(f"Include Align config: {alignYaml}")
+
 rule trimming_Paired:
     input:
         fastq1 = indir + "/{sample_id}_1.fastq.gz",
@@ -28,8 +16,10 @@ rule trimming_Paired:
     params:
         outdir = outdir + "/cutadapt",
         quality = 30,
-        trim_galore = config['Procedure']['trim_galore']
+        trim_galore = config.get('Procedure',{}).get('trim_galore') or 'trim_galore'
     threads: 6
+    conda:
+        config['conda']['run']
     log:
         log = outdir + "/log/Align/{sample_id}/trimming.txt"
     shell:
@@ -52,8 +42,10 @@ rule trimming_Single:
     params:
         outdir = outdir + "/cutadapt",
         quality = 30,
-        trim_galore = config['Procedure']['trim_galore']
+        trim_galore = config.get('Procedure',{}).get('trim_galore') or 'trim_galore'
     threads: 6
+    conda:
+        config['conda']['run']
     log:
         log = outdir + "/log/Align/{sample_id}/trimming.txt"
     shell:
@@ -96,82 +88,20 @@ def get_alignment_input(wildcards):
             f"Checked paths:\n- {paired_r1}\n- {paired_r2}\n- {single}"
         )
 
-rule star_align:
-    input:
-        fastq = get_alignment_input,
-        genome_index = lambda wildcards: config['genome'][wildcards.genome]['genome_index']
-    output:
-        outfile = outdir + "/2pass/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam"
-    log:
-        outdir + "/log/Align/{sample_id}/{genome}/star_align.log"
-    threads: 12
-    params:
-        outPrefix = outdir + "/2pass/{sample_id}/{genome}/{sample_id}",
-        # 动态判断输入参数,加上genome_index，如果三个参数，即为双端测序，两个参数即为单端测序
-        input_params = lambda wildcards, input: \
-            f"{input[0]} {input[1]}" if len(input) == 3 else f"{input[0]}",
-        STAR = config['Procedure']['STAR']
-    shell:
-        """
-        mkdir -p $(dirname {params.outPrefix})
-        {params.STAR} --runThreadN {threads} \
-            --genomeDir {input.genome_index} \
-            --twopassMode Basic \
-            --readFilesCommand zcat \
-            --readFilesIn {params.input_params} \
-            --outSAMtype BAM SortedByCoordinate \
-            --outSAMattributes NM \
-            --outFileNamePrefix {params.outPrefix} > {log} 2>&1
-        """
-def get_bams_for_featureCounts_single(wildcards):
-    bams = []
-    for sample_id, genome in single_sample_genome_pairs:
-        if genome == wildcards.genome:
-            bams.append(f"{outdir}/2pass/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam")
-    if len(bams) == 0:
-        raise ValueError(f"rule featureCounts_single_noMultiple didn't get any input bams, genome: {wildcards.genome},\nsingle_sample_genome_pairs: {single_sample_genome_pairs}")
-    return bams
 
-rule featureCounts_single_noMultiple:
+rule alignment_result:
     input:
-        bams = get_bams_for_featureCounts_single
-    output:
-        outfile = outdir + "/counts/featureCounts/{genome}/{genome}_single_count.tsv"
-    log:
-        outdir + "/log/Align/{genome}_featureCounts_single_noMultiple.log"
-    threads:
-        20
-    params:
-        featureCounts = config['Procedure']['featureCounts'],
-        gtf = lambda wildcards: config["genome"][wildcards.genome]["gtf"]
-    shell:
-        """
-        {params.featureCounts} -T {threads} -t exon -g gene_id -a {params.gtf} -o {output.outfile} {input.bams} > {log} 2>&1
-        """
+        outdir + "/Align/{sample_id}/{genome}/{sample_id}.Aligned.sortedByCoord.out.bam"
 
-def get_bams_for_featureCounts_paired(wildcards):
-    bams = []
-    for sample_id, genome in paired_sample_genome_pairs:
-        if genome == wildcards.genome:
-            bams.append(f"{outdir}/2pass/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam")
-    if len(bams) == 0:
-        raise ValueError(f"rule featureCounts_paired_noMultiple didn't get any input bams, genome: {wildcards.genome},\npaired_sample_genome_pairs:{paired_sample_genome_pairs}")
-    return bams
 
-rule featureCounts_paired_noMultiple:
-    input:
-        bams = get_bams_for_featureCounts_paired
-    output:
-        outfile = outdir + "/counts/featureCounts/{genome}/{genome}_paired_count.tsv"
-    log:
-        outdir + "/log/Align/{genome}_featureCounts_paired_noMultiple.log"
-    threads:
-        20
-    params:
-        featureCounts = config['Procedure']['featureCounts'],
-        gtf = lambda wildcards: config["genome"][wildcards.genome]["gtf"]
-    shell:
-        """
-        # for multiple -M -O
-        {params.featureCounts} -T {threads} -B -p --countReadPairs -t exon -g gene_id -a {params.gtf} -o {output.outfile} {input.bams} > {log} 2>&1
-        """
+if config["Procedure"]["aligner"] == "star":
+    include: "align_star.smk"
+    logging.info("aligner: star, load align_star.smk")
+
+elif config["Procedure"]["aligner"] == "hisat2":
+    include: "align_hisat2.smk"
+    logging.info("aligner: hisat2, load align_hisat2.smk")
+else:
+    # 默认使用star比对
+    include: "align_star.smk"
+    logging.info("default: load align_star.smk")

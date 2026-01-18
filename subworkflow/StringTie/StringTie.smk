@@ -15,8 +15,8 @@ def get_yaml_path(module_name:str)->str:
     return module_path
 StringTieYaml = get_yaml_path("StringTie")
 configfile: StringTieYaml
-logging.info(f"Include StringTie config: {StringTieYaml}")
-logging.info(f"genomes:{genomes}, samples: {samples}")
+logger.info(f"Include StringTie config: {StringTieYaml}")
+logger.info(f"genomes:{genomes}, samples: {samples}")
 rule stringTie:
     input:
         bam = outdir + "/2pass/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam"

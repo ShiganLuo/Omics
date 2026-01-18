@@ -6,11 +6,11 @@ import gzip
 import logging
 from pathlib import Path
 
-# 初始化全局日志
-logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] [%(name)s] %(message)s')
 logger = logging.getLogger(__name__)
 
-class SVAnalysis:
+
+class VEP_SV:
     def __init__(self, vep_cache_dir, species="mus_musculus", assembly="GRCm39"):
         """
         初始化分析类
@@ -135,7 +135,7 @@ class SVAnalysis:
         logger.info(f"VEP annotation finished: {out_vcf}")
 
 if __name__ == "__main__":
-    analysis = SVAnalysis(
+    analysis = VEP_SV(
         vep_cache_dir="/home/luosg/.vep",
         species="mus_musculus",
         assembly="GRCm39"

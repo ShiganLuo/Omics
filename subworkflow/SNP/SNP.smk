@@ -18,10 +18,10 @@ def get_yaml_path(module_name:str)->str:
 
 SNPYaml = get_yaml_path("SNP")
 configfile: SNPYaml
-logging.info(f"Include SNP config: {SNPYaml}")
+logger.info(f"Include SNP config: {SNPYaml}")
 
 def get_bam_for_addReadsGroup(wildcards):
-    logging.info(f"[get_bam_for_addReadsGroup] called with wildcards: {wildcards}")
+    logger.info(f"[get_bam_for_addReadsGroup] called with wildcards: {wildcards}")
     bam = None
     if wildcards.sample_id in XenofilterR_target_samples:
         bam = f"{outdir}/xenofilterR/{wildcards.sample_id}/{wildcards.sample_id}_Filtered.bam"

@@ -1,3 +1,5 @@
+import logging
+logger = logging.getLogger("align_star")
 rule star_index:
     input:
         fasta = lambda wildcards: config['genome'][wildcards.genome]['fasta'],
@@ -25,14 +27,14 @@ rule star_index:
             --sjdbOverhang 100 > {log} 2>&1
         """
 def get_star_index(wildcards):
-    logging.info(f"[get_star_index] called with wildcards: {wildcards}")
+    logger.info(f"[get_star_index] called with wildcards: {wildcards}")
     star_index_dir = config.get('genome',{}).get(wildcards.genome,{}).get('star_index_dir') or None
     if star_index_dir:
-        logging.info(f"[get_star_index] using provided star_index_dir: {star_index_dir}")
+        logger.info(f"[get_star_index] using provided star_index_dir: {star_index_dir}")
         first_file = os.path.join(star_index_dir, "Genome")
         if os.path.exists(first_file):
             return star_index_dir
-    logging.info(f"[get_star_index] using default star_index_dir")
+    logger.info(f"[get_star_index] using default star_index_dir")
     return outdir + f"/genome/{wildcards.genome}/index/star"
 
 rule star_align:

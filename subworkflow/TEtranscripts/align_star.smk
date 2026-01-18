@@ -1,5 +1,5 @@
 def get_star_index(wildcards):
-    logging.info(f"[get_star_index] called with wildcards: {wildcards}")
+    logger.info(f"[get_star_index] called with wildcards: {wildcards}")
     star_index_dir = config.get('genome',{}).get(wildcards.genome,{}).get('star_index_dir') or None
     if star_index_dir:
         first_file = os.path.join(star_index_dir, "Genome")
@@ -13,7 +13,7 @@ rule TEtranscript_prepare_star:
         get_alignment_input,
         genome_index = get_star_index
     output:
-        outfile = temp(outdir + "/TEtranscripts/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam")
+        outfile = temp(outdir + "/TEtranscripts/{sample_id}/{genome}/{sample_id}.Aligned.sortedByCoord.out.bam")
     log:
         log = outdir + "/log/TEtranscripts/{genome}/{sample_id}/star_align.log",
         STAR_log = outdir + "/log/TEtranscripts/{genome}/{sample_id}/{sample_id}Log.out",

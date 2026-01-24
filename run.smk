@@ -1,9 +1,11 @@
 shell.prefix("set -x; set -e;")
-import logging
 import os
 from itertools import chain
 import sys
 from snakemake.io import glob_wildcards
+from snakemake.logging import logger
+import logging
+
 logging.basicConfig(
 	level=logger.INFO,
 	format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -11,6 +13,7 @@ logging.basicConfig(
 	datefmt='%Y-%m-%d %H:%M:%S'
 )
 logger = logging.getLogger("run")
+
 # containerize: "quay.nju.edu.cn"
 EXECUTION_DIR = os.getcwd()
 SNAKEFILE_FULL_PATH = workflow.snakefile
@@ -116,10 +119,13 @@ def get_output_ncRNAseq(groups:Dict[str, Dict[str, List[str]]]):
             else:
                 continue    
 
-get_output_ncRNAseq(groups)
+# get_output_ncRNAseq(groups)
+
+
 
 def get_output_SNP(groups:Dict[str, Dict[str, List[str]]]):
     include: "subworkflow/SNP/SNP.smk"
+    
 def get_output_XenofilterR(groups:Dict[str, Dict[str, List[str]]]):
     include: "subworkflow/XenofilterR/XenofilterR.smk"
 

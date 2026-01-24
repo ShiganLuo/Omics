@@ -81,7 +81,8 @@ def TEfamily(
     DEG_file: str,
     outPrefix: str,
     logfc_col: str = "log2FoldChange",
-    p_col: str = "pvalue"
+    p_col: str = "pvalue",
+    figsize:tuple = (10,6)
 ):
     df_TE = pd.read_csv(DEG_file, sep="\t")
 
@@ -114,7 +115,7 @@ def TEfamily(
 
     # ---------------- 绘图 ----------------
     sns.set_style("white")
-    fig, ax = plt.subplots(figsize=(9, 6))
+    fig, ax = plt.subplots(figsize=figsize)
 
     up_df   = result[result["regulation"] == "Up"].sort_values("count", ascending=False)
     down_df = result[result["regulation"] == "Down"].sort_values("count", ascending=False)
@@ -141,19 +142,19 @@ def TEfamily(
     xticks = list(range(len(up_families))) + list(range(offset, offset + len(down_families)))
     xlabels = up_families + down_families
     ax.set_xticks(xticks)
-    ax.set_xticklabels(xlabels, rotation=45, ha="right")
+    ax.set_xticklabels(xlabels, rotation=45, ha="right",fontsize=13)
 
-    ax.set_ylabel("Count", fontsize=12)
+    ax.set_ylabel("Count", fontsize=15)
 
     # 最高值
     y_max = max(result["count"])
 
     # 小标题：Up 和 Down
     ax.hlines(y=y_max*1.1, xmin=0, xmax=len(up_families)-1, color="black", linewidth=1.5)
-    ax.text((len(up_families)-1)/2, y_max*1.13, "Upregulated", ha="center", fontsize=12)
+    ax.text((len(up_families)-1)/2, y_max*1.13, "Upregulated", ha="center", fontsize=15)
 
     ax.hlines(y=y_max*1.1, xmin=offset, xmax=offset+len(down_families)-1, color="black", linewidth=1.5)
-    ax.text(offset + (len(down_families)-1)/2, y_max*1.13, "Downregulated", ha="center", fontsize=12)
+    ax.text(offset + (len(down_families)-1)/2, y_max*1.13, "Downregulated", ha="center", fontsize=15)
 
     ax.set_ylim(0, y_max * 1.25)
 
@@ -163,11 +164,12 @@ def TEfamily(
 
 
 if __name__ == "__main__":
-    TEfamily("/disk5/luosg/Totipotent20251031/output/result/ci8CLC/DESeq2/TEcount_TE.tsv",
-             "/disk5/luosg/Totipotent20251031/output/result/ci8CLC/DESeq2/plot/TEfamily/ci8CLC")
-    TEfamily("/disk5/luosg/Totipotent20251031/output/result/ciTotiSC/DESeq2/TEcount_TE.tsv",
-            "/disk5/luosg/Totipotent20251031/output/result/ciTotiSC/DESeq2/plot/TEfamily/ciTotiSC")
-    TEfamily("/disk5/luosg/Totipotent20251031/output/result/hTBLC/DESeq2/TEcount_TE.tsv",
-            "/disk5/luosg/Totipotent20251031/output/result/hTBLC/DESeq2/plot/TEfamily/hTBLC")    
-    TEfamily("/disk5/luosg/Totipotent20251031/output/result/TLSC/DESeq2/TEcount_TE.tsv",
-            "/disk5/luosg/Totipotent20251031/output/result/TLSC/DESeq2/plot/TEfamily/TLSC")   
+    # TEfamily("/disk5/luosg/Totipotent20251031/Totipotent/result/ci8CLC/DESeq2/TEcount_TE.tsv",
+    #          "/disk5/luosg/Totipotent20251031/Totipotent/result/ci8CLC/DESeq2/plot/TEfamily/ci8CLC")
+    # TEfamily("/disk5/luosg/Totipotent20251031/Totipotent/result/ciTotiSC/DESeq2/TEcount_TE.tsv",
+    #         "/disk5/luosg/Totipotent20251031/Totipotent/result/ciTotiSC/DESeq2/plot/TEfamily/ciTotiSC")
+    TEfamily("/disk5/luosg/Totipotent20251031/Totipotent/result/hTBLC/DESeq2/TEcount_TE.tsv",
+            "/disk5/luosg/Totipotent20251031/Totipotent/result/hTBLC/DESeq2/plot/TEfamily/hTBLC",
+            figsize=(12,7.2))    
+    # TEfamily("/disk5/luosg/Totipotent20251031/Totipotent/result/TLSC/DESeq2/TEcount_TE.tsv",
+    #         "/disk5/luosg/Totipotent20251031/Totipotent/result/TLSC/DESeq2/plot/TEfamily/TLSC")   

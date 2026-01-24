@@ -4,11 +4,11 @@ SNAKEFILE_DIR_TEtranscripts = os.path.dirname(SNAKEFILE_FULL_PATH_TEtranscripts)
 TEtranscriptsYaml = get_yaml_path("TEtranscripts",SNAKEFILE_DIR_TEtranscripts)
 configfile: TEtranscriptsYaml
 logger = logging.getLogger("TEtranscripts")
-logger.info(f"Include TEtranscripts config: {TEtranscriptsYaml}")
+
 
 rule TEcount:
     input:
-        bam = outdir + "/TEtranscripts/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam"
+        bam = outdir + "/TEtranscripts/{sample_id}/{genome}/{sample_id}.Aligned.sortedByCoord.out.bam"
     output:
         project = outdir + "/TEtranscripts/TEcount/{genome}/{sample_id}TEcount.cntTable"
     params:
@@ -61,7 +61,7 @@ rule combine_TEcount:
 
 rule TElocal:
     input:
-        bam = outdir + "/TEtranscripts/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam"
+        bam = outdir + "/TEtranscripts/{sample_id}/{genome}/{sample_id}.Aligned.sortedByCoord.out.bam"
     output:
         project = outdir + "/TEtranscripts/TElocal/{genome}/{sample_id}TElocal.cntTable"
     log:

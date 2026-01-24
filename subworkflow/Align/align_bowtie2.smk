@@ -1,3 +1,5 @@
+import logging
+logger = logging.getLogger("align_bowtie2")
 BW2_IDX_SUFFIX = ["1.bt2", "2.bt2", "3.bt2", "4.bt2", "rev.1.bt2", "rev.2.bt2"]
 
 rule bowtie2_index_small:

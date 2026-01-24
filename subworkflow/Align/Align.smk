@@ -34,6 +34,7 @@ rule trimming_Paired:
         mv {params.outdir}/{wildcards.sample_id}_1.fastq.gz_trimming_report.txt {output.report1}
         mv {params.outdir}/{wildcards.sample_id}_2.fastq.gz_trimming_report.txt {output.report2}
         """
+
 rule trimming_Single:
     input:
         fastq = indir + "/{sample_id}.fastq.gz"
@@ -71,6 +72,7 @@ def get_alignment_input(wildcards):
     return: A list of input file paths for the STAR alignment step. 
     """
     logger.info(f"[get_alignment_input] called with wildcards: {wildcards}")
+    logger.info(f"[get_alignment_input] called with wildcards: {wildcards}")
     # 构造可能的输入路径
     paired_r1 = f"{outdir}/cutadapt/{wildcards.sample_id}_1.fq.gz"
     paired_r2 = f"{outdir}/cutadapt/{wildcards.sample_id}_2.fq.gz"
@@ -79,8 +81,10 @@ def get_alignment_input(wildcards):
     # 检查文件实际存在情况
     if wildcards.sample_id in paired_samples:
         logger.info(f"双端测序：{[paired_r1, paired_r2]}")
+        logger.info(f"双端测序：{[paired_r1, paired_r2]}")
         return [paired_r1, paired_r2]
     elif wildcards.sample_id in single_samples:
+        logger.info(f"单端测序：{[single]}")
         logger.info(f"单端测序：{[single]}")
         return [single]
     else:
@@ -98,11 +102,14 @@ rule alignment_result:
 if config["Procedure"]["aligner"] == "star":
     include: "align_star.smk"
     logger.info("aligner: star, load align_star.smk")
+    logger.info("aligner: star, load align_star.smk")
 
 elif config["Procedure"]["aligner"] == "hisat2":
     include: "align_hisat2.smk"
     logger.info("aligner: hisat2, load align_hisat2.smk")
+    logger.info("aligner: hisat2, load align_hisat2.smk")
 else:
     # 默认使用star比对
     include: "align_star.smk"
+    logger.info("default: load align_star.smk")
     logger.info("default: load align_star.smk")

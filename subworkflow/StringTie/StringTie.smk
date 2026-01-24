@@ -3,10 +3,8 @@ SNAKEFILE_FULL_PATH_StringTie = workflow.snakefile
 SNAKEFILE_DIR_StringTie = os.path.dirname(SNAKEFILE_FULL_PATH_StringTie)
 StringTieYaml = get_yaml_path("StringTie",SNAKEFILE_DIR_StringTie)
 configfile: StringTieYaml
-logger = logging.getLogger("StringTie")
-logger.info(f"Include StringTie config: {StringTieYaml}")
-logger.info(f"genomes:{genomes}, samples: {samples}")
-
+logging.info(f"Include StringTie config: {StringTieYaml}")
+logging.info(f"genomes:{genomes}, samples: {samples}")
 rule stringTie:
     input:
         bam = outdir + "/2pass/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam"

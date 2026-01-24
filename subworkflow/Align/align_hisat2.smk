@@ -1,3 +1,5 @@
+import logging
+logger = logging.getLogger("align_hisat2")
 rule hisat2_index:
     input:
         fasta = lambda wildcards: config["genome"][wildcards.genome]["fasta"]

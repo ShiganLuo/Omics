@@ -2,7 +2,7 @@
 import os
 
 def get_hisat2_index(wildcards):
-    logging.info(f"[get_hisat2_index] called with wildcards: {wildcards}")
+    logger.info(f"[get_hisat2_index] called with wildcards: {wildcards}")
     config_index_prefix = config.get('genome',{}).get(wildcards.genome,{}).get('hisat2_index_prefx') or None
     if config_index_prefix:
         first_file = f"{config_index_prefix}.1.ht2"
@@ -18,7 +18,7 @@ rule TEtranscript_prepare_hisat2:
         fastq = get_alignment_input,
         index = get_hisat2_index 
     output:
-        outfile = temp(outdir + "/TEtranscripts/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam")
+        outfile = temp(outdir + "/TEtranscripts/{sample_id}/{genome}/{sample_id}.Aligned.sortedByCoord.out.bam")
     log:
         outdir + "/log/TEtranscripts/{sample_id}/{genome}/hisat2_align.log"
     threads: 12

@@ -134,57 +134,57 @@ if __name__ == "__main__":
         outdir= "/disk5/luosg/Totipotent20251031/PRJNA663159/count/gsva"
     )
     ################ gsea preprank
-    # infiles = {
-    #     "ci8CLC": "/disk5/luosg/Totipotent20251031/output/result/ci8CLC/DESeq2/TEcount_Gene_name.tsv",
-    #     "hTBLC": "/disk5/luosg/Totipotent20251031/output/result/hTBLC/DESeq2/TEcount_Gene_name.tsv",
-    #     "TLSC": "/disk5/luosg/Totipotent20251031/output/result/TLSC/DESeq2/TEcount_Gene_name.tsv",
-    #     "ciTotiSC": "/disk5/luosg/Totipotent20251031/output/result/ciTotiSC/DESeq2/TEcount_Gene_name.tsv"
-    # }
-    # human_cell = ["ci8CLC","hTBLC"]
-    # mouse_cell = ["TLSC","ciTotiSC"]
-    # for cell,infile in infiles.items():
-    #     df = pd.read_csv(infile,sep="\t",index_col=0)
-    #     geneRank = df["log2FoldChange"]
-    #     outdir = Path(infile).parent.parent / "gsea"
-    #     # if cell in human_cell:
-    #     #     gsea_results = run_gsea(geneRank,
-    #     #                             "/disk5/luosg/Totipotent20251031/data/geneset/GSI_human.gmt",
-    #     #                             str(outdir))
-    #     # elif cell in mouse_cell:
-    #     #     gsea_results = run_gsea(geneRank,
-    #     #                 "/disk5/luosg/Totipotent20251031/data/geneset/GSI_mouse.gmt",
-    #     #                 str(outdir))
-    #     # else:
-    #     #     raise ValueError("not support cell")
-    #     report = outdir / "gseapy.gene_set.prerank.report.csv"
-    #     rnk = outdir / "prerank_data.rnk"
-    #     df_gsea = pd.read_csv(str(report))
-    #     df_rnk = pd.read_csv(str(rnk),header=None,sep="\t")
-    #     geneRnk = df_rnk[0].to_list()
-    #     outfile = outdir / f"{Path(infile).parent.parent.name}.png"
-    #     i = 0
-    #     if i == 0:
-    #         color_map = plot_gsea_from_csv(report,
-    #                         geneRnk,outfile,
-    #                         fig_size=(12,8),
-    #                         title_font=15,
-    #                         label_font=12,
-    #                         legend_bottom= -0.22)
-    #     else:
-    #         plot_gsea_from_csv(report,
-    #                         geneRnk,outfile,
-    #                         fig_size=(12,8),
-    #                         color_map=color_map,
-    #                         title_font=15,
-    #                         label_font=12,
-    #                         legend_bottom= -0.12)
-    #     i += 1
+    infiles = {
+        "ci8CLC": "/disk5/luosg/Totipotent20251031/Totipotent/result/ci8CLC/DESeq2/TEcount_Gene_name.tsv",
+        "hTBLC": "/disk5/luosg/Totipotent20251031/Totipotent/result/hTBLC/DESeq2/TEcount_Gene_name.tsv",
+        "TLSC": "/disk5/luosg/Totipotent20251031/Totipotent/result/TLSC/DESeq2/TEcount_Gene_name.tsv",
+        "ciTotiSC": "/disk5/luosg/Totipotent20251031/Totipotent/result/ciTotiSC/DESeq2/TEcount_Gene_name.tsv"
+    }
+    human_cell = ["ci8CLC","hTBLC"]
+    mouse_cell = ["TLSC","ciTotiSC"]
+    for cell,infile in infiles.items():
+        df = pd.read_csv(infile,sep="\t",index_col=0)
+        geneRank = df["log2FoldChange"]
+        outdir = Path(infile).parent.parent / "gsea"
+        # if cell in human_cell:
+        #     gsea_results = run_gsea(geneRank,
+        #                             "/disk5/luosg/Totipotent20251031/data/geneset/GSI_human.gmt",
+        #                             str(outdir))
+        # elif cell in mouse_cell:
+        #     gsea_results = run_gsea(geneRank,
+        #                 "/disk5/luosg/Totipotent20251031/data/geneset/GSI_mouse.gmt",
+        #                 str(outdir))
+        # else:
+        #     raise ValueError("not support cell")
+        report = outdir / "gseapy.gene_set.prerank.report.csv"
+        rnk = outdir / "prerank_data.rnk"
+        df_gsea = pd.read_csv(str(report))
+        df_rnk = pd.read_csv(str(rnk),header=None,sep="\t")
+        geneRnk = df_rnk[0].to_list()
+        outfile = outdir / f"{Path(infile).parent.parent.name}.png"
+        i = 0
+        if i == 0:
+            color_map = plot_gsea_from_csv(report,
+                            geneRnk,outfile,
+                            fig_size=(12.1,8),
+                            title_font=16,
+                            label_font=13,
+                            legend_bottom= -0.12)
+        else:
+            plot_gsea_from_csv(report,
+                            geneRnk,outfile,
+                            fig_size=(12.1,8),
+                            color_map=color_map,
+                            title_font=16,
+                            label_font=13,
+                            legend_bottom= -0.12)
+        i += 1
    
     ########## multiple curve plot
-    # df_gsea = pd.read_csv("/home/luosg/Data/genomeStability/output/result/gsea/gseapy.gene_set.prerank.report.csv")
-    # df_rnk = pd.read_csv("/home/luosg/Data/genomeStability/output/result/gsea/prerank_data.rnk",header=None,sep="\t")
+    # df_gsea = pd.read_csv("/home/luosg/Data/genomeStability/Totipotent/result/gsea/gseapy.gene_set.prerank.report.csv")
+    # df_rnk = pd.read_csv("/home/luosg/Data/genomeStability/Totipotent/result/gsea/prerank_data.rnk",header=None,sep="\t")
     # geneRnk = df_rnk[0].to_list()
-    # plot_gsea_from_csv("/home/luosg/Data/genomeStability/output/result/gsea/gseapy.gene_set.prerank.report.csv",
-    #                    geneRnk,"/home/luosg/Data/genomeStability/output/result/gsea/all.png",5)
+    # plot_gsea_from_csv("/home/luosg/Data/genomeStability/Totipotent/result/gsea/gseapy.gene_set.prerank.report.csv",
+    #                    geneRnk,"/home/luosg/Data/genomeStability/Totipotent/result/gsea/all.png",5)
 
     

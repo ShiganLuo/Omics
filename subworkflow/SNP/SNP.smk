@@ -1,27 +1,14 @@
 import os
+import logging
 SNAKEFILE_FULL_PATH_SNP = workflow.snakefile
 SNAKEFILE_DIR_SNP = os.path.dirname(SNAKEFILE_FULL_PATH_SNP)
-
-def get_yaml_path(module_name:str)->str:
-    """
-    function: Get the absolute path of a module in the workflow/RNA-SNP/snakemake/subworkflow/ directory.
-
-    param: 
-        module_name: Name of the module (without .smk extension).
-
-    return: Absolute path of the module file.
-    """
-    module_path = os.path.join(SNAKEFILE_DIR_SNP ,f"{module_name}.yaml")
-    if not os.path.exists(module_path):
-        raise FileNotFoundError(f"Module configfile {module_name}.yaml not found at {module_path}")
-    return module_path
-
-SNPYaml = get_yaml_path("SNP")
+logger = logging.getLogger("SNP")
+SNPYaml = get_yaml_path("SNP",SNAKEFILE_DIR_SNP)
 configfile: SNPYaml
-logging.info(f"Include SNP config: {SNPYaml}")
+logger.info(f"Include SNP config: {SNPYaml}")
 
 def get_bam_for_addReadsGroup(wildcards):
-    logging.info(f"[get_bam_for_addReadsGroup] called with wildcards: {wildcards}")
+    logger.info(f"[get_bam_for_addReadsGroup] called with wildcards: {wildcards}")
     bam = None
     if wildcards.sample_id in XenofilterR_target_samples:
         bam = f"{outdir}/xenofilterR/{wildcards.sample_id}/{wildcards.sample_id}_Filtered.bam"

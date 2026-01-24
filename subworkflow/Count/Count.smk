@@ -1,11 +1,14 @@
+import logging
 SNAKEFILE_FULL_PATH_Count = workflow.snakefile
 SNAKEFILE_DIR_Count = os.path.dirname(SNAKEFILE_FULL_PATH_Count)
 countYaml = get_yaml_path("Count",SNAKEFILE_DIR_Count)
 configfile: countYaml
-logging.info(f"Include Count config: {countYaml}")
+logger = logging.getLogger("Count")
+logger.info(f"Include Count config: {countYaml}")
 
 
 def get_bams_for_featureCounts_single(wildcards):
+    logger.info(f"[get_bams_for_featureCounts_single] called with wildcards: {wildcards}")
     bams = []
     for sample_id, genome in single_sample_genome_pairs:
         if genome == wildcards.genome:
@@ -32,6 +35,7 @@ rule featureCounts_single_noMultiple:
         """
 
 def get_bams_for_featureCounts_paired(wildcards):
+    logger.info(f"[get_bams_for_featureCounts_paired] called with wildcards: {wildcards}")
     bams = []
     for sample_id, genome in paired_sample_genome_pairs:
         if genome == wildcards.genome:
@@ -57,6 +61,7 @@ rule featureCounts_paired_noMultiple:
         # for multiple -M -O
         {params.featureCounts} -T {threads} -B -p --countReadPairs -t exon -g gene_id -a {params.gtf} -o {output.outfile} {input.bams} > {log} 2>&1
         """
+
 
 rule featureCounts_result:
     input:

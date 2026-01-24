@@ -1,31 +1,21 @@
+import logging
 SNAKEFILE_FULL_PATH_XenofilterR = workflow.snakefile
 SNAKEFILE_DIR_XenofilterR = os.path.dirname(SNAKEFILE_FULL_PATH_XenofilterR)
 import csv
-def get_yaml_path(module_name:str)->str:
-    """
-    function: Get the absolute path of a module in the workflow/RNA-SNP/snakemake/subworkflow/ directory.
-
-    param: 
-        module_name: Name of the module (without .smk extension).
-
-    return: Absolute path of the module file.
-    """
-    module_path = os.path.join(SNAKEFILE_DIR_XenofilterR ,f"{module_name}.yaml")
-    if not os.path.exists(module_path):
-        raise FileNotFoundError(f"Module configfile {module_name}.yaml not found at {module_path}")
-    return module_path
-XenofilterRYaml = get_yaml_path("XenofilterR")
+XenofilterRYaml = get_yaml_path("XenofilterR",SNAKEFILE_DIR_XenofilterR)
 configfile: XenofilterRYaml
-logging.info(f"Include XenofilterR config: {XenofilterRYaml}")
-logging.info(f"main snakefile excute path: {EXECUTION_DIR}")
-logging.info(f"XenofilterR target samples: {XenofilterR_target_samples}\nXenofilterR_target_genome: {XenofilterR_target_genome}\nXenofilterR pollution source genome: {XenofilterR_pollution_source_genome}")
+logger = logging.getLogger("XenofilterR")
+logger.info(f"Include XenofilterR config: {XenofilterRYaml}")
+logger.info(f"main snakefile excute path: {EXECUTION_DIR}")
+
+logger.info(f"XenofilterR target samples: {XenofilterR_target_samples}\nXenofilterR_target_genome: {XenofilterR_target_genome}\nXenofilterR pollution source genome: {XenofilterR_pollution_source_genome}")
 # first col: target(human) genome,second col: contaminating genome. human sample may contaminated by mouse genome
 
 def get_inputFile_for_XenofilterR(wildcards):
-    logging.info(f"[get_inputFile_for_XenofilterR] called with wildcards: {wildcards}")
+    logger.info(f"[get_inputFile_for_XenofilterR] called with wildcards: {wildcards}")
     row = [
         f"{outdir}/2pass/{wildcards.sample_id}/{XenofilterR_target_genome}/{wildcards.sample_id}Aligned.sortedByCoord.out.bam",
-        f"{outdir}/2pass/{wildcards.sample_id}/{XenofilterR_pollution_source_genome}/{wildcards.sample_id}Aligned.sortedByCoord.out.bam"
+        f"{outdir}/2pass/{wildcards.sample_id}/{XenofilterR_pollution_source_genome}/{wildcards.sample_id}.Aligned.sortedByCoord.out.bam"
     ]
     return row
 

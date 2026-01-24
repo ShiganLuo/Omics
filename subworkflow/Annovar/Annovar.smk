@@ -1,22 +1,11 @@
+import logging
 SNAKEFILE_FULL_PATH_Annovar = workflow.snakefile
 SNAKEFILE_DIR_Annovar = os.path.dirname(SNAKEFILE_FULL_PATH_Annovar)
-def get_yaml_path(module_name:str)->str:
-    """
-    function: Get the absolute path of a module in the workflow/RNA-SNP/snakemake/subworkflow/ directory.
-
-    param: 
-        module_name: Name of the module (without .smk extension).
-
-    return: Absolute path of the module file.
-    """
-    module_path = os.path.join(SNAKEFILE_DIR_Annovar ,f"{module_name}.yaml")
-    if not os.path.exists(module_path):
-        raise FileNotFoundError(f"Module configfile {module_name}.yaml not found at {module_path}")
-    return module_path
-AnnovarYaml = get_yaml_path("Annovar")
+AnnovarYaml = get_yaml_path("Annovar",SNAKEFILE_DIR_Annovar)
 configfile: AnnovarYaml
-logging.info(f"Include Annovar config: {AnnovarYaml}")
-logging.info(f"main snakefile directory: {SNAKEFILE_DIR}")
+logger = logging.getLogger("Annovar")
+logger.info(f"Include Annovar config: {AnnovarYaml}")
+logger.info(f"main snakefile directory: {SNAKEFILE_DIR}")
 
 rule TEcoutCPM:
     input:

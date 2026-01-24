@@ -1,12 +1,14 @@
-name: run
+name: RNA
 channels:
-  - bioconda
   - conda-forge
-  - defaults
+  - bioconda
+  - grst
 dependencies:
   - python=3.11
   - multiqc=1.32
   - TEtranscripts=2.2.3
   - TElocal=1.1.1
   - cutadapt=4.4
+
+# pip
 

@@ -1,22 +1,12 @@
+import logging
 SNAKEFILE_FULL_PATH_StringTie = workflow.snakefile
 SNAKEFILE_DIR_StringTie = os.path.dirname(SNAKEFILE_FULL_PATH_StringTie)
-def get_yaml_path(module_name:str)->str:
-    """
-    function: Get the absolute path of a module in the workflow/RNA-SNP/snakemake/subworkflow/ directory.
-
-    param: 
-        module_name: Name of the module (without .smk extension).
-
-    return: Absolute path of the module file.
-    """
-    module_path = os.path.join(SNAKEFILE_DIR_StringTie ,f"{module_name}.yaml")
-    if not os.path.exists(module_path):
-        raise FileNotFoundError(f"Module configfile {module_name}.yaml not found at {module_path}")
-    return module_path
-StringTieYaml = get_yaml_path("StringTie")
+StringTieYaml = get_yaml_path("StringTie",SNAKEFILE_DIR_StringTie)
 configfile: StringTieYaml
-logging.info(f"Include StringTie config: {StringTieYaml}")
-logging.info(f"genomes:{genomes}, samples: {samples}")
+logger = logging.getLogger("StringTie")
+logger.info(f"Include StringTie config: {StringTieYaml}")
+logger.info(f"genomes:{genomes}, samples: {samples}")
+
 rule stringTie:
     input:
         bam = outdir + "/2pass/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam"

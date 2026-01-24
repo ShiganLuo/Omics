@@ -5,11 +5,12 @@ from itertools import chain
 import sys
 from snakemake.io import glob_wildcards
 logging.basicConfig(
-	level=logging.INFO,
+	level=logger.INFO,
 	format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    stream=sys.stdout,
+    stream=sys.stderr,
 	datefmt='%Y-%m-%d %H:%M:%S'
 )
+logger = logging.getLogger("run")
 # containerize: "quay.nju.edu.cn"
 EXECUTION_DIR = os.getcwd()
 SNAKEFILE_FULL_PATH = workflow.snakefile
@@ -17,12 +18,12 @@ SNAKEFILE_DIR = os.path.dirname(SNAKEFILE_FULL_PATH)
 indir = config.get('indir', 'data')
 outdir = config.get('outdir', 'output')
 metadata = config.get('metadata')
-logging.info("Workflow RNA-SNP started.")
-logging.info(f"metadata file path: {metadata}")
-logging.info(f"Input directory: {indir}")
-logging.info(f"Output directory: {outdir}")
-logging.info(f"Snakefile path: {SNAKEFILE_FULL_PATH}")
-logging.info(f"Execution directory: {EXECUTION_DIR}")
+logger.info("Workflow RNA-SNP started.")
+logger.info(f"metadata file path: {metadata}")
+logger.info(f"Input directory: {indir}")
+logger.info(f"Output directory: {outdir}")
+logger.info(f"Snakefile path: {SNAKEFILE_FULL_PATH}")
+logger.info(f"Execution directory: {EXECUTION_DIR}")
 
 sys.path.append(f"{SNAKEFILE_DIR}/utils")
 from fastq_utils import MetadataUtils
@@ -30,7 +31,7 @@ from smk_utils import get_yaml_path
 from typing import DefaultDict, List, Dict
 configfilePath = os.path.join(SNAKEFILE_DIR,"config","run.yaml")
 configfile: configfilePath
-logging.info(f"add cofigfile {configfilePath}")
+logger.info(f"add cofigfile {configfilePath}")
 metadataUtils = MetadataUtils(metadata,indir,f"{outdir}/log/utils/fastq_utils.log")
 groups = metadataUtils.run()
 # control variable
@@ -122,7 +123,7 @@ def get_output_SNP(groups:Dict[str, Dict[str, List[str]]]):
 def get_output_XenofilterR(groups:Dict[str, Dict[str, List[str]]]):
     include: "subworkflow/XenofilterR/XenofilterR.smk"
 
-logging.info(f"genomes:{genomes}\npaired_samples:{paired_samples}\nsingle_samples:{single_samples}\nall output files:{outfiles}\n\
+logger.info(f"genomes:{genomes}\npaired_samples:{paired_samples}\nsingle_samples:{single_samples}\nall output files:{outfiles}\n\
 XenofilterR_target_samples:{XenofilterR_target_samples}\nXenofilterR_pollution_source_genome:{XenofilterR_pollution_source_genome}\n\
 paired_sample_genome_pairs:{paired_sample_genome_pairs}\nsingle_sample_genome_pairs:{single_sample_genome_pairs}")
 

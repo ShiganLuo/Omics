@@ -1,8 +1,10 @@
+import logging
 SNAKEFILE_FULL_PATH_TEtranscripts = workflow.snakefile
 SNAKEFILE_DIR_TEtranscripts = os.path.dirname(SNAKEFILE_FULL_PATH_TEtranscripts)
 TEtranscriptsYaml = get_yaml_path("TEtranscripts",SNAKEFILE_DIR_TEtranscripts)
 configfile: TEtranscriptsYaml
-logging.info(f"Include TEtranscripts config: {TEtranscriptsYaml}")
+logger = logging.getLogger("TEtranscripts")
+logger.info(f"Include TEtranscripts config: {TEtranscriptsYaml}")
 
 rule TEcount:
     input:
@@ -27,7 +29,7 @@ rule TEcount:
         """
 
 def get_cntTable_for_TEcount(wildcards):
-    logging.info(f"[get_cntTable_for_TEcount] called with wildcards: {wildcards}")
+    logger.info(f"[get_cntTable_for_TEcount] called with wildcards: {wildcards}")
     cntTable = []
     for sample_id, genome in single_sample_genome_pairs:
         if genome == wildcards.genome:
@@ -79,7 +81,7 @@ rule TElocal:
         """
 
 def get_cntTable_for_TElocal(wildcards):
-    logging.info(f"[get_cntTable_for_TElocal] called with wildcards: {wildcards}")
+    logger.info(f"[get_cntTable_for_TElocal] called with wildcards: {wildcards}")
     cntTable = []
     for sample_id, genome in single_sample_genome_pairs:
         if genome == wildcards.genome:
@@ -117,12 +119,12 @@ rule TEtranscripts_result:
 
 if config["Procedure"]["aligner"] == "star":
     include: "align_star.smk"
-    logging.info("aligner: star, load align_star.smk")
+    logger.info("aligner: star, load align_star.smk")
 
 elif config["Procedure"]["aligner"] == "hisat2":
     include: "align_hisat2.smk"
-    logging.info("aligner: hisat2, load align_hisat2.smk")
+    logger.info("aligner: hisat2, load align_hisat2.smk")
 else:
     # 默认使用star比对
     include: "align_star.smk"
-    logging.info("default: load align_star.smk")
+    logger.info("default: load align_star.smk")

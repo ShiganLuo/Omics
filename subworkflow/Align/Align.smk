@@ -1,8 +1,10 @@
+import logging
 SNAKEFILE_FULL_PATH_Align = workflow.snakefile
 SNAKEFILE_DIR_Align = os.path.dirname(SNAKEFILE_FULL_PATH_Align)
 alignYaml = get_yaml_path("Align",SNAKEFILE_DIR_Align)
 configfile: alignYaml
-logging.info(f"Include Align config: {alignYaml}")
+logger = logging.getLogger("Align")
+logger.info(f"Include Align config: {alignYaml}")
 
 rule trimming_Paired:
     input:
@@ -68,7 +70,7 @@ def get_alignment_input(wildcards):
 
     return: A list of input file paths for the STAR alignment step. 
     """
-    logging.info(f"[get_alignment_input] called with wildcards: {wildcards}")
+    logger.info(f"[get_alignment_input] called with wildcards: {wildcards}")
     # 构造可能的输入路径
     paired_r1 = f"{outdir}/cutadapt/{wildcards.sample_id}_1.fq.gz"
     paired_r2 = f"{outdir}/cutadapt/{wildcards.sample_id}_2.fq.gz"
@@ -76,10 +78,10 @@ def get_alignment_input(wildcards):
     
     # 检查文件实际存在情况
     if wildcards.sample_id in paired_samples:
-        logging.info(f"双端测序：{[paired_r1, paired_r2]}")
+        logger.info(f"双端测序：{[paired_r1, paired_r2]}")
         return [paired_r1, paired_r2]
     elif wildcards.sample_id in single_samples:
-        logging.info(f"单端测序：{[single]}")
+        logger.info(f"单端测序：{[single]}")
         return [single]
     else:
         raise FileNotFoundError(
@@ -95,12 +97,12 @@ rule alignment_result:
 
 if config["Procedure"]["aligner"] == "star":
     include: "align_star.smk"
-    logging.info("aligner: star, load align_star.smk")
+    logger.info("aligner: star, load align_star.smk")
 
 elif config["Procedure"]["aligner"] == "hisat2":
     include: "align_hisat2.smk"
-    logging.info("aligner: hisat2, load align_hisat2.smk")
+    logger.info("aligner: hisat2, load align_hisat2.smk")
 else:
     # 默认使用star比对
     include: "align_star.smk"
-    logging.info("default: load align_star.smk")
+    logger.info("default: load align_star.smk")

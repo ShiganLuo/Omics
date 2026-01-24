@@ -1,8 +1,12 @@
+import logging
 SNAKEFILE_FULL_PATH_ncRNAseq = workflow.snakefile
 SNAKEFILE_DIR_ncRNAseq = os.path.dirname(SNAKEFILE_FULL_PATH_ncRNAseq)
 ncRNAseqYaml = get_yaml_path("ncRNAseq",SNAKEFILE_DIR_ncRNAseq)
-configfile: ncRNAseqYaml 
-logging.info(f"Include ncRNAseq config: {ncRNAseqYaml}")
+configfile: ncRNAseqYaml
+logger = logging.getLogger("ncRNAseq")
+logger.info(f"Include ncRNAseq config: {ncRNAseqYaml}")
+
+
 # from https://doi.org/10.1093/nar/gkae1288
 rule fastx_trimmer:
     """
@@ -61,20 +65,46 @@ rule cutadapt_ncRNAseq_single:
         """
 
 
+rule featureCounts_single_ncRNAseq:
+    input:
+        bams = get_bams_for_featureCounts_single
+    output:
+        outfile = outdir + "/counts/featureCounts/{genome}/{genome}_single_ncRNAseq_count.tsv"
+    log:
+        outdir + "/log/Align/{genome}_featureCounts_single_ncRNAseq.log"
+    threads:
+        20
+    params:
+        featureCounts = config['Procedure']['featureCounts'],
+        gff3 = lambda wildcards: config["genome"][wildcards.genome]["ncRNAseq_gff"]
+    shell:
+        """
+        # for ncRNAseq single-end
+        {params.featureCounts} \
+            -T {threads} \
+            -a {params.gff3} \
+            -minOverlap 15 \
+            -fracOverlap 0.00 \
+            -s 1 \
+            -M \
+            -O -fraction \
+            -o {output.outfile} {input.bams} > {log} 2>&1
+        """
 
 rule ncRNAseq_result:
     input:
-        bam = outdir + "/ncRNAseq/bam/{genome}/{sample_id}.Aligned.sortedByCoord.out.bam"
+        bam = outdir + "/ncRNAseq/bam/{genome}/{sample_id}.Aligned.sortedByCoord.out.bam",
+        ncRNAseq_single = outdir + "/counts/featureCounts/{genome}/{genome}_single_ncRNAseq_count.tsv"
 
 
 if config["Procedure"]["aligner"] == "star":
     include: "ncRNAseq_star.smk"
-    logging.info("aligner: star, load ncRNAseq_star.smk")
+    logger.info("aligner: star, load ncRNAseq_star.smk")
 
 elif config["Procedure"]["aligner"] == "hisat2":
     include: "ncRNAseq_hisat2.smk"
-    logging.info("aligner: hisat2, load ncRNAseq_hisat2.smk")
+    logger.info("aligner: hisat2, load ncRNAseq_hisat2.smk")
 else:
     # 默认使用star比对
     include: "ncRNAseq_star.smk"
-    logging.info("default: load ncRNAseq_star.smk")
+    logger.info("default: load ncRNAseq_star.smk")

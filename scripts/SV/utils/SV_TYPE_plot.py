@@ -96,40 +96,35 @@ def plot_stacking_bar(
     legend_fontsize: int = 13,
     legend_title_fontsize: int = 16,
     rotation: int = 45,
-    colormap: str = "tab20"
+    colormap: str = "tab20",
+    # ========= 新增参数 =========
+    show_block_counts: bool = False,
+    show_total_counts: bool = False,
+    block_count_fmt: str = "{count}",
+    total_count_fmt: str = "n={total}",
 ):
     """
-    绘制突变分布的堆叠柱状图，支持比例转化、样本分组上色以及双图例显示。
-
-    Args:
-        df_counts (pd.DataFrame): 输入数据，行名为突变类型，列名为样本名。
-        xlabels (List[str], optional): X轴刻度标签。默认为 DataFrame 的列名。
-        groups (List[str], optional): 样本对应的分组信息，长度需与样本数一致。
-        group_colors (Dict[str, str], optional): 分组名到颜色值的映射字典。
-        title (str, optional): 图表标题。
-        xlabel (str, optional): X轴标题。
-        ylabel (str, optional): Y轴标题。
-        legend_title_type (str, optional): 突变类型图例的标题。
-        legend_title_group (str, optional): 分组图例的标题。
-        save_path (Union[str, Path], optional): 图片保存路径。
-        legend_width (float, optional): 右侧预留给图例的宽度比例 (0-1)。
-        figsize (tuple, optional): 画布尺寸。
-        legend_fontsize (int, optional): 图例字体大小。
-        legend_title_fontsize (int, optional): 图例标题及轴标签字体大小。
-        rotation (int, optional): X轴刻度标签旋转角度。
-        colormap (str, optional): 柱状图使用的颜色映射。
+    绘制突变分布的堆叠柱状图（比例），支持：
+    - 色块内绝对计数标注
+    - 柱子顶部总计数标注
+    - 双图例（突变类型 / 样本分组）
     """
-    
-    # 1. 比例转化：处理单列或多列情况
-    # 确保 sum 不为 0 以免除以 0
+
+    # -------------------------------
+    # 1. 比例转化
+    # -------------------------------
+    logger.info(f"\n{df_counts.head()}")
     df_prop = df_counts.div(df_counts.sum(axis=0).replace(0, 1), axis=1)
+    logger.info(f"\n{df_prop.head()}")
 
     fig, ax = plt.subplots(figsize=figsize)
 
-    # ======== 右侧预留空间给图例 ========
+    # 右侧预留空间给图例
     fig.subplots_adjust(right=1 - legend_width)
 
-    # 2. 绘制堆叠柱状图 (转置后行为样本，列为类型)
+    # -------------------------------
+    # 2. 绘制堆叠柱状图
+    # -------------------------------
     df_prop.T.plot(
         kind="bar",
         stacked=True,
@@ -142,22 +137,22 @@ def plot_stacking_bar(
     n_samples = df_counts.shape[1]
 
     # -------------------------------
-    # X 轴标签设置
+    # 3. X 轴刻度标签
     # -------------------------------
     if xlabels is None:
         xlabels = df_counts.columns.tolist()
 
     if len(xlabels) != n_samples:
-        raise ValueError("xlabels 长度必须与样本数量 (columns) 一致")
+        raise ValueError("xlabels 长度必须与样本数量一致")
 
-    # 设置刻度标签（针对单组样本，ax.set_xticklabels 前需确保有 ticks）
     ax.set_xticks(range(n_samples))
-    ax.set_xticklabels(xlabels, rotation=rotation, ha='right')
+    ax.set_xticklabels(xlabels, rotation=rotation, ha="right")
 
     # -------------------------------
-    # 根据分组上色 (X轴标签颜色)
+    # 4. 根据分组给 X 轴标签上色
     # -------------------------------
     xlabel_colors = ["black"] * n_samples
+
     if groups is not None:
         if len(groups) != n_samples:
             raise ValueError("groups 长度必须与样本数量一致")
@@ -173,13 +168,75 @@ def plot_stacking_bar(
         label.set_color(c)
 
     # -------------------------------
-    # 第一个图例：类型
+    # 5. 色块计数 / 柱子总数标注
+    # -------------------------------
+    if show_block_counts or show_total_counts:
+        df_counts_T = df_counts.T   # 行：样本，列：类型
+        df_prop_T = df_prop.T
+
+        n_types = df_counts.shape[0]
+
+        # -------------------------------
+        # 色块内部绝对计数（修正版）
+        # -------------------------------
+        if show_block_counts:
+            df_counts_T = df_counts.T   # 行：sample，列：type
+            df_prop_T = df_prop.T
+
+            n_samples = df_counts_T.shape[0]
+            n_types = df_counts_T.shape[1]
+
+            patch_idx = 0
+            for i_type in range(n_types):
+                for i_sample in range(n_samples):
+                    patch = ax.patches[patch_idx]
+                    patch_idx += 1
+
+                    height = patch.get_height()
+                    if height <= 0:
+                        continue
+
+                    count = df_counts_T.iloc[i_sample, i_type]
+                    prop = df_prop_T.iloc[i_sample, i_type]
+
+                    x = patch.get_x() + patch.get_width() / 2
+                    y = patch.get_y() + height / 2
+
+                    ax.text(
+                        x,
+                        y,
+                        block_count_fmt.format(count=count, prop=prop),
+                        ha="center",
+                        va="center",
+                        fontsize=10,
+                    )
+
+        # ---- 每根柱子的总计数 ----
+        if show_total_counts:
+            totals = df_counts.sum(axis=0).values
+            for i, total in enumerate(totals):
+                ax.text(
+                    i,
+                    1.02,
+                    total_count_fmt.format(total=total),
+                    ha="center",
+                    va="bottom",
+                    fontsize=11,
+                    fontweight="bold",
+                    transform=ax.get_xaxis_transform(),
+                )
+
+    # -------------------------------
+    # 6. 图例 1：突变类型
     # -------------------------------
     legend_types = df_prop.index.tolist()
-    logger.info(legend_types)
     cmap_types = plt.get_cmap(colormap)
+
     types_patches = [
-        mpatches.Patch(color=cmap_types(i / max(len(legend_types)-1, 1)), label=legend_types[i])
+        mpatches.Patch(
+            color=cmap_types(i / max(len(legend_types) - 1, 1)),
+            label=legend_types[i]
+        )
         for i in range(len(legend_types))
     ]
 
@@ -195,15 +252,15 @@ def plot_stacking_bar(
     ax.add_artist(legend1)
 
     # -------------------------------
-    # 第二个图例：样本分组
+    # 7. 图例 2：样本分组
     # -------------------------------
     if groups is not None:
-        # 保持分组出现的原始顺序
         unique_groups = list(dict.fromkeys(groups))
         group_patches = [
             mpatches.Patch(color=group_colors[g], label=g)
             for g in unique_groups
         ]
+
         ax.legend(
             handles=group_patches,
             title=legend_title_group,
@@ -215,23 +272,26 @@ def plot_stacking_bar(
         )
 
     # -------------------------------
-    # 轴细节优化
+    # 8. 轴与样式优化
     # -------------------------------
     ax.set_xlabel(xlabel, fontsize=legend_title_fontsize)
     ax.set_ylabel(ylabel, fontsize=legend_title_fontsize)
     ax.set_title(title, fontsize=legend_title_fontsize + 2)
-    
-    # 移除上方和右侧边框
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
 
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+
+    # -------------------------------
+    # 9. 保存或显示
+    # -------------------------------
     if save_path:
         save_path = Path(save_path)
         save_path.parent.mkdir(parents=True, exist_ok=True)
-        plt.savefig(save_path, dpi=300) # bbox_inches='tight' is not allowed
+        plt.savefig(save_path, dpi=300)
         plt.close(fig)
     else:
         plt.show()
+
 
 def plot_sv_length_boxplot(
     ctrl_df: pd.DataFrame,

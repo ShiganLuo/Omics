@@ -47,7 +47,7 @@ def run_pbsv_diff_analysis(
     plot_sv_type_barplot(
         summary_df=type_summary,
         outpng = plot_dir / "sv_type_barplot.png",
-        title="SV type comparison (pbsv)",
+        xlabel="SV type",
         ylabel="SV count",
     )
 
@@ -87,9 +87,11 @@ def run_pbsv_diff_analysis(
 
     logging.info("pbsv SV differential analysis finished.")
     logging.info(f"Results saved in: {outdir}")
+    out_svtype_image = plot_dir / "sv_type_barplot.png"
+    logging.info(f"SV type distribution plot: {out_svtype_image}")
     plot_svtype_comparison(
         type_summary,
-        "/disk5/luosg/Totipotent20251031/PacBio/DEG/plot/sv_type.png",
+        str(out_svtype_image),
         legend_map={
         "Control": "DMSO",
         "Experiment": "PlaB"
@@ -99,10 +101,10 @@ def main():
     parser = argparse.ArgumentParser(
         description="pbsv SV differential analysis (VCF / VCF.GZ)"
     )
-    parser.add_argument("--control", required=True, help="Control pbsv VCF(.gz)")
-    parser.add_argument("--experiment", required=True, help="Experiment pbsv VCF(.gz)")
-    parser.add_argument("--outdir", default="pbsv_sv_diff")
-    parser.add_argument("--large-sv-threshold", type=int, default=10_000)
+    parser.add_argument("-c","--control", required=True, help="Control pbsv VCF(.gz)")
+    parser.add_argument("-e","--experiment", required=True, help="Experiment pbsv VCF(.gz)")
+    parser.add_argument("-o","--outdir", default="pbsv_sv_diff")
+    parser.add_argument("-s","--large-sv-threshold", type=int, default=10_000)
 
     args = parser.parse_args()
 

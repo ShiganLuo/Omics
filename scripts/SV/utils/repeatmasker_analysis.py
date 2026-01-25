@@ -9,25 +9,53 @@ from collections import Counter
 from scipy.stats import fisher_exact
 from collections import Counter
 from typing import List, Tuple, Literal, Dict, defaultdict
+import subprocess
+import logging
+from pathlib import Path
+import tempfile
+import shutil
+
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] [%(name)s] %(message)s')
 logger = logging.getLogger(__name__)
 
+def run_cmd(cmd:list):
+        """
+        执行外部命令，返回 stdout
+        - 命令不存在：给出清晰提示
+        - 命令执行失败：打印 stdout / stderr
+        """
+        cmd_str = " ".join(cmd)
+        cmd_bin = cmd[0]
 
-import subprocess
-import logging
-from pathlib import Path
-import tempfile
-import shutil
+        logger.info(f"Running: {cmd_str}")
 
-logger = logging.getLogger(__name__)
+        # 1️⃣ 预检查：命令是否存在（比 FileNotFoundError 更友好）
+        if shutil.which(cmd_bin) is None:
+            logger.error(f"Command not found: '{cmd_bin}'")
+            logger.error("Please make sure it is installed and in $PATH")
+            raise RuntimeError(f"Command not found: {cmd_bin}")
 
-import subprocess
-import logging
-from pathlib import Path
-import tempfile
-import shutil
+        try:
+            result = subprocess.run(
+                cmd,
+                check=True,
+                capture_output=True,
+                text=True
+            )
 
-logger = logging.getLogger(__name__)
+            if result.stdout:
+                logger.info(f"Command Output:\n{result.stdout}")
+
+            return result.stdout
+
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Command failed with return code {e.returncode}")
+            logger.error(f"STDOUT:\n{e.stdout or '[empty]'}")
+            logger.error(f"STDERR:\n{e.stderr or '[empty]'}")
+            raise RuntimeError(
+                f"Command execution failed: {cmd_str}"
+            ) from e
+
 
 def run_te_annotation_pipeline(
     input_fasta: str, 
@@ -69,7 +97,7 @@ def run_te_annotation_pipeline(
         ]
 
         try:
-            subprocess.run(rm_cmd, check=True)
+            run_cmd(rm_cmd)
             
             for item in tmp_path.iterdir():
                 if item.is_file():
@@ -90,11 +118,6 @@ def run_te_annotation_pipeline(
 
     return result_out if result_out.exists() else None
 
-
-import pandas as pd
-from collections import Counter, defaultdict
-from typing import List, Tuple, Literal, Dict
-from scipy.stats import fisher_exact
 
 class RepeatMaskerOutCompare:
     """

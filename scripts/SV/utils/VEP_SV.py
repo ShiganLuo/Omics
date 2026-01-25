@@ -18,7 +18,7 @@ class VEP_SV:
         :param species: 物种名称 (如 mus_musculus)
         :param assembly: 基因组版本 (如 GRCm39)
         """
-        self.vep_cache_dir = os.path.abspath(vep_cache_dir)
+        self.vep_cache_dir = str(Path(vep_cache_dir).expanduser().resolve()) # 支持 ~ 和绝对路径
         self.species = species
         self.assembly = assembly
         
@@ -27,24 +27,45 @@ class VEP_SV:
             os.makedirs(self.vep_cache_dir, exist_ok=True)
             logger.info(f"Created VEP cache directory: {self.vep_cache_dir}")
 
-    def _run_cmd(self, cmd):
-            """执行外部命令，返回标准输出，并记录标准错误"""
-            try:
-                logger.info(f"Running: {' '.join(cmd)}")
-                # 捕获 stdout 和 stderr
-                result = subprocess.run(cmd, check=True, capture_output=True, text=True)
-                
-                # 如果 stdout 有内容，记录下来（SURVIVOR 的核心日志就在这里）
-                if result.stdout:
-                    logger.info(f"Command Output:\n{result.stdout}")
-                
-                return result.stdout
-            except subprocess.CalledProcessError as e:
-                # 命令失败时打印详细的错误信息
-                logger.error(f"Command failed with return code {e.returncode}")
-                logger.error(f"STDOUT: {e.stdout}")
-                logger.error(f"STDERR: {e.stderr}")
-                raise
+
+    def _run_cmd(self, cmd:list):
+        """
+        执行外部命令，返回 stdout
+        - 命令不存在：给出清晰提示
+        - 命令执行失败：打印 stdout / stderr
+        """
+        cmd_str = " ".join(cmd)
+        cmd_bin = cmd[0]
+
+        logger.info(f"Running: {cmd_str}")
+
+        # 1️⃣ 预检查：命令是否存在（比 FileNotFoundError 更友好）
+        if shutil.which(cmd_bin) is None:
+            logger.error(f"Command not found: '{cmd_bin}'")
+            logger.error("Please make sure it is installed and in $PATH")
+            raise RuntimeError(f"Command not found: {cmd_bin}")
+
+        try:
+            result = subprocess.run(
+                cmd,
+                check=True,
+                capture_output=True,
+                text=True
+            )
+
+            if result.stdout:
+                logger.info(f"Command Output:\n{result.stdout}")
+
+            return result.stdout
+
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Command failed with return code {e.returncode}")
+            logger.error(f"STDOUT:\n{e.stdout or '[empty]'}")
+            logger.error(f"STDERR:\n{e.stderr or '[empty]'}")
+            raise RuntimeError(
+                f"Command execution failed: {cmd_str}"
+            ) from e
+
 
     def vep_annotation_install(self):
         """安装类指定的 VEP 缓存"""
@@ -56,7 +77,7 @@ class VEP_SV:
         ]
         self._run_cmd(cmd)
 
-    def merge_sv_survivor(self, vcf_files, out_vcf, dist=500, min_support=1):
+    def merge_sv_survivor(self, vcf_files:list, out_vcf:str, dist:int = 500, min_support:int = 1):
             """
             强制使用本地绝对路径，解决 SURVIVOR 读取失败问题(SURVIVOR在读取临时文件时有时有bug,多个样本时尤其明显,会被认为是同一个样本)
             """
@@ -106,7 +127,7 @@ class VEP_SV:
                     shutil.rmtree(tmp_folder)
                     logger.info("Cleaned up temporary files.")
 
-    def extract_specific_sv(self, in_vcf, out_vcf, vec="10"):
+    def extract_specific_sv(self, in_vcf:str, out_vcf:str, vec:str = "10"):
         """
         提取特定的 SUPP_VEC 变异
         SUPP_VEC 是一个二进制字符串，表示每个样本中变异的支持情况，由 SURVIVOR 生成
@@ -115,10 +136,11 @@ class VEP_SV:
         self._run_cmd(cmd)
         logger.info(f"Extracted SVs (VEC={vec}) to: {out_vcf}")
 
-    def annotate_sv_vep(self, in_vcf, out_vcf):
+    def annotate_sv_vep(self, in_vcf:str, out_vcf:str):
         """运行 VEP 注释，使用类初始化的参数"""
         # 检查特定物种的缓存子目录是否存在
         species_cache = os.path.join(self.vep_cache_dir, self.species)
+        logger.info(species_cache)
         if not os.path.exists(species_cache):
             logger.warning(f"Cache for {self.species} not found. Attempting install...")
             self.vep_annotation_install()

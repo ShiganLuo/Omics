@@ -8,6 +8,7 @@ Procedure:
   STAR: "/home/zhousha/tools/STAR-2.7.11b/bin/Linux_x86_64/STAR"
   hisat2: "/home/zhousha/tools/hisat2-2.2.1/hisat2"
   hisat2-build: "/home/zhousha/tools/hisat2-2.2.1/hisat2-build"
+  featureCounts: "/home/zhousha/tools/subread-2.1.1-Linux-x86_64/bin/featureCounts"
 
 genome:
   mouse:

@@ -3,13 +3,11 @@ import os
 from itertools import chain
 import sys
 from snakemake.io import glob_wildcards
-from snakemake.logging import logger
 import logging
-
 logging.basicConfig(
-	level=logger.INFO,
+	level=logging.INFO,
 	format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    stream=sys.stderr,
+    stream=sys.stdout,
 	datefmt='%Y-%m-%d %H:%M:%S'
 )
 logger = logging.getLogger("run")
@@ -116,10 +114,11 @@ def get_output_ncRNAseq(groups:Dict[str, Dict[str, List[str]]]):
                     # outfiles.append(f"{outdir}/fastx_trimmer/{sample_id}_fastx1_trimmed.fq.gz")
                     # outfiles.append(f"{outdir}/cutadapt/{sample_id}_cutadapt2_trimmed.fq.gz")
                     outfiles.append(f"{outdir}/ncRNAseq/bam/{genome}/{sample_id}.Aligned.sortedByCoord.out.bam")
+                    outfiles.append(f"{outdir}/counts/featureCounts/{genome}/{genome}_single_ncRNAseq_count.tsv")
             else:
-                continue    
+                continue
 
-# get_output_ncRNAseq(groups)
+get_output_ncRNAseq(groups)
 
 
 

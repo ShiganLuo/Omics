@@ -64,10 +64,19 @@ rule cutadapt_ncRNAseq_single:
             > {log} 2>&1
         """
 
+def get_bams_for_featureCounts_single_ncRNAseq(wildcards):
+    logger.info(f"[get_bams_for_featureCounts_single_ncRNAseq] called with wildcards: {wildcards}")
+    bams = []
+    for sample_id, genome in single_sample_genome_pairs:
+        if genome == wildcards.genome:
+            bams.append(f"{outdir}/ncRNAseq/bam/{genome}/{sample_id}.Aligned.sortedByCoord.out.bam")
+    if len(bams) == 0:
+        raise ValueError(f"rule featureCounts_single_noMultiple didn't get any input bams, genome: {wildcards.genome},\nsingle_sample_genome_pairs: {single_sample_genome_pairs}")
+    return bams
 
 rule featureCounts_single_ncRNAseq:
     input:
-        bams = get_bams_for_featureCounts_single
+        bams = get_bams_for_featureCounts_single_ncRNAseq
     output:
         outfile = outdir + "/counts/featureCounts/{genome}/{genome}_single_ncRNAseq_count.tsv"
     log:
@@ -83,11 +92,15 @@ rule featureCounts_single_ncRNAseq:
         {params.featureCounts} \
             -T {threads} \
             -a {params.gff3} \
-            -minOverlap 15 \
-            -fracOverlap 0.00 \
+            -F GFF3 \
+            -t miRNA \
+            -g Name \
+            --minOverlap 15 \
+            --fracOverlap 0.00 \
             -s 1 \
             -M \
-            -O -fraction \
+            -O \
+            --fraction \
             -o {output.outfile} {input.bams} > {log} 2>&1
         """
 

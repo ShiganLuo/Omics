@@ -29,7 +29,7 @@ snakemake -s workflow/RNA-SNP/run.smk --config indir=data/fq outdir=output metad
 - 单端测序文件：非双端测序文件模式
 - 具体查看utils/fastq_utils.py
 
-## subworkflow像解
+## subworkflow详解
 
 ### Align
 
@@ -87,3 +87,75 @@ snakemake -s workflow/RNA-SNP/run.smk --config indir=data/fq outdir=output metad
 5. work/ ≠ results/，下游不碰中间态
 
 6. 下游通过 rules.xxx.input 耦合能力，而不是路径
+
+## 下游分析
+
+### annotation
+
+  - gene_id2name: 映射基因id到基因名称
+  - geneIDAnnotation: 注释基因id
+  - vcf_annovar: annovar注释vcf
+
+### count
+
+  - count: RNAseq count标准化
+  - normalization: r版本，待完善
+
+### download
+
+  - ascp_download: 通过ascp下载对应 sra id(run number)代表的fastq序列
+  - GSE_runinfo: 获取GSE对应的run信息
+  - GSM_metadata: 获取GSM对应信息
+  - GSM_resolver: 解析多种输入的  GSM id
+  - old/*: 一些旧有脚本，已通过python重构
+
+### function
+
+  - DESeq2: 批量差异分析
+  - gmt.py: GSEA富集分析
+  - go-kegg_back: GO,KEGG富集分析，绘制背对背柱状图
+  - go-kegg: GO,KEGG富集分析，绘制散点图
+  - gsea: GSEA富集分析
+  - TEsite_subfamily: 统计差异分析中TE subfamily情况
+
+### fusion
+
+  - fusionGeneAnnotation: 融合基因名称注释
+  - volcanoImportant: 融合基因火山图
+
+### gatk
+
+  - gatkPrepare: gatk上游分析shell脚本
+
+### map
+
+  - star: star比对shell脚本
+  - starPrepare: star建立索引shell脚本
+
+### plot
+
+  - heatmap: 热图
+  - pie: 饼状图
+  - violin: 小提琴图 
+
+### SNP
+
+  - bash/*: 一些shell脚本
+  - count/*: count分析脚本
+  - python/*: 一些老旧Python脚本
+  - QC/*: 质量控制
+  - Rscript/*: 一些老旧R脚本
+  - Terr_RNA/*: 端粒转录序列分析
+  - vcf/*: vcf分析脚本
+
+### SV
+  - pbsv_sv_diff_analysis: 比较对照组和实验组结构变异类型差异情况
+  - PlaB_only: 比较实验组特有alt序列与对照组对应alt序列注释情况差异，绘制富集图，以及一些统计
+  - utils/repeatmasker_analysis: 注释序列重复元件情况，比较不同序列注释结果
+  - utils/repeatmasker_plot: 绘制重复序列注释结果差异富集柱状图
+  - utils/SV_TYPE_plot: 绘制结构变异类型图
+  - utils/SV_TYPE: 统计vcf中结构变异情况
+
+### train
+
+潜在因子分析

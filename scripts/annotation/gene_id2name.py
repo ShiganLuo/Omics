@@ -154,18 +154,20 @@ def extract_gene_name_or_keep(df: pd.DataFrame,pattern:str) -> pd.DataFrame:
 def convert_TEtranscripts_gene_ids(
         TEtranscripts_path:str,
         gtf_path:str,
+        geneId_col:str = "gene/TE",
         cache_path:str="gene_map.pkl",
-        save_path:str=None):
+        save_path:str=None
+    ) -> pd.DataFrame:
     df = pd.read_csv(TEtranscripts_path,sep="\t")
-    df["gene/TE"] = df["gene/TE"].astype(str).str.strip()
-    df["gene/TE"] = df["gene/TE"].str.replace(
+    df[geneId_col] = df[geneId_col].astype(str).str.strip()
+    df[geneId_col] = df[geneId_col].str.replace(
         pat=r'^\"(.*)\"$',
         repl=r'\1',
         regex=True
     )
     logging.info(f"读取 TEtranscripts file 行数:{len(df)}")
     gene_map = load_gtf_gene_map(gtf_path, cache_path)
-    df['gene_name'] = translate_gene_ids(df,gene_map,"gene/TE")
+    df['gene_name'] = translate_gene_ids(df,gene_map,geneId_col)
     if "TEcount" in TEtranscripts_path:
         pattern = r'^([^:]+):[^:]+:[^:]+$'
         df = extract_gene_name_or_keep(df,pattern)
@@ -175,7 +177,7 @@ def convert_TEtranscripts_gene_ids(
     else:
         raise ValueError("目前只支持TEtranscripts和TElocal的定量输出文件")
     cols = df.columns.tolist()
-    cols.remove('gene/TE')
+    cols.remove(geneId_col)
     name_index = cols.index('gene_name')
     cols.pop(name_index)
     cols.insert(0, 'gene_name')
@@ -275,8 +277,9 @@ if __name__ == "__main__":
     ## TEtranscripts and TElocal
     convert_TEtranscripts_gene_ids("/disk5/luosg/GCN2_20251224/output/TEtranscripts/TEcount/mouse/all_TEcount.cntTable",
                                    mouse_gtf,
-                                   "GRCm39_gene_map.pkl",
-                                   "/disk5/luosg/GCN2_20251224/output/TEtranscripts/TEcount/mouse/all_TEcount.cntTable_name.tsv")
+                                   geneId_col="gene/TE",
+                                   cache_path="GRCm39_gene_map.pkl",
+                                   save_path="/disk5/luosg/GCN2_20251224/output/TEtranscripts/TEcount/mouse/all_TEcount.cntTable_name.tsv")
     # convert_TEtranscripts_gene_ids("/disk5/luosg/Totipotent20251031/output/counts/TElocal/human/all_TElocal.cntTable",
     #                             human_gtf,
     #                             "GRCh38_gene_map.pkl",

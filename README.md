@@ -151,6 +151,7 @@ snakemake -s workflow/RNA-SNP/run.smk --config indir=data/fq outdir=output metad
 ### SV
   - pbsv_sv_diff_analysis: 比较对照组和实验组结构变异类型差异情况
   - PlaB_only: 比较实验组特有alt序列与对照组对应alt序列注释情况差异，绘制富集图，以及一些统计
+  - run_circos: 绘制vcf的结构变异circos图，注意vcf文件寻找模式替换
   - utils/repeatmasker_analysis: 注释序列重复元件情况，比较不同序列注释结果
   - utils/repeatmasker_plot: 绘制重复序列注释结果差异富集柱状图
   - utils/SV_TYPE_plot: 绘制结构变异类型图

@@ -4,13 +4,17 @@ from typing import Dict, List, Tuple
 import pysam
 from pyfaidx import Fasta
 import subprocess
+import logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] [%(name)s] %(message)s')
+logger = logging.getLogger(__name__)
 
 
 class SVCircosPrepare():
     """
     SV Circos preparation utility class.
     """
-    main_chrom = ["chr" + c for c in range(1, 20)] + ['X', 'Y', 'M']
+    main_chrom = ["chr" + str(c) for c in range(1, 20)] + ['chrX', 'chrY', 'chrM']
+    logger.info(f"Main chromosomes set: {main_chrom}")
     def __init__(self,vcf_path: str, fasta_path: str, outdir: str):
         self.vcf_path = vcf_path
         self.fasta_path = fasta_path
@@ -39,8 +43,10 @@ class SVCircosPrepare():
 
         # ---------- case 2: compressed VCF ----------
         if vcf_path.suffixes[-2:] == [".vcf", ".gz"]:
-            tbi = vcf_path.with_suffix(".vcf.gz.tbi")
-            csi = vcf_path.with_suffix(".vcf.gz.csi")
+            logger.info(f"Detected compressed VCF: {vcf_path}")
+            tbi = vcf_path.with_suffix(".gz.tbi")
+            csi = vcf_path.with_suffix(".gz.csi")
+            logger.info(f"Checking for index files: {tbi} / {csi}")
 
             if not tbi.exists() and not csi.exists():
                 # create index only
@@ -72,7 +78,7 @@ class SVCircosPrepare():
         """
         fasta_path = self.fasta_path
         fa = Fasta(fasta_path)
-        chrom_sizes = {chrom: len(fa[chrom]) for chrom in fa.keys()}
+        chrom_sizes = {chrom: len(fa[chrom]) for chrom in fa.keys() if chrom in self.main_chrom}
         return chrom_sizes
 
 
@@ -107,30 +113,21 @@ class SVCircosPrepare():
             return None, None
         return m.group(1), int(m.group(2))
 
-
-    def parse_sv_vcf(self) -> Dict[str, List[Tuple]]:
+    def parse_sv_vcf_for_circle(self) -> Dict[str, List[Tuple]]:
         """
-        Parse SV VCF and extract coordinates by SV type.
-
-        Returns
-        -------
-        dict:
-            {
-            "DEL": [(chr, start, end)],
-            "DUP": [(chr, start, end)],
-            "INV": [(chr, start, end)],
-            "INS": [(chr, start, end)],
-            "BND": [(chr1, pos1, chr2, pos2)]
-            }
+        Parse SV VCF and organize coordinates for Circle plot tracks.
+        - Blocks: DEL (start, end)
+        - Points: INS, DUP, INV (individual breakpoints)
+        - Links: TRA (inter-chromosomal connections)
         """
         vcf = self.open_vcf_autotabix()
-
+        
         sv_records = {
-            "DEL": [],
-            "DUP": [],
-            "INV": [],
-            "INS": [],
-            "BND": [],
+            "DEL": [],  # (chrom, start, end)
+            "INS": [],  # (chrom, start, end)
+            "DUP": [],  # (chrom, start, end)
+            "INV": [],  # (chrom, start, end)
+            "TRA": []    # (c1, p1, c2, p2)
         }
 
         for rec in vcf:
@@ -138,68 +135,56 @@ class SVCircosPrepare():
             pos1 = rec.pos
             info = rec.info
             svtype = info.get("SVTYPE")
+            end = getattr(rec, 'stop', None)
+            if end is None:
+                end_val = info.get("END") # (end,)
+                if end_val is not None:
+                    end = end_val[0] if isinstance(end_val, (list, tuple)) else end_val
 
-            if svtype in ("DEL", "DUP", "INV"):
-                end = info.get("END")
-                if end:
-                    sv_records[svtype].append(
-                        (chrom1, pos1, end)
-                    )
-            elif svtype == "INS":
-                svlen = info.get("SVLEN")
+            if chrom1 not in self.main_chrom:
+                continue
 
-                if svlen is None:
-                    end = pos1 + 1
+            if svtype in ("INS","DUP", "INV","DEL") and end is not None:
+                if svtype == "INS":
+                    sv_records[svtype].append((chrom1,pos1, pos1 + 1)) # INS 位置记录为单点，end = pos + 1,vcf中记录为插入位置+插入长度
                 else:
-                    if isinstance(svlen, (tuple, list)):
-                        svlen = svlen[0]
-                    end = pos1 + abs(int(svlen))
+                    sv_records[svtype].append((chrom1,pos1, int(end)))
+                continue
+            if svtype == "BND":
+                alt = str(rec.alts[0])
+                chrom2, pos2, _ = self.parse_complex_bnd(alt)
+                
+                if not chrom2 or chrom2 not in self.main_chrom:
+                    continue
 
-                sv_records["INS"].append(
-                    (chrom1, pos1, end)
-                )
+                if chrom1 != chrom2:
+                    # 识别为 TRA Link (跨圆心连线)
+                    link = tuple(sorted([(chrom1, pos1), (chrom2, pos2)]))
+                    sv_records["TRA"].append((link[0][0], link[0][1], link[1][0], link[1][1]))
+                else:
+                    # 同染色体 BND 转为 DEL Block (外圈色块)
+                    if self.is_deletion_link(alt):
+                        start, end = min(pos1, pos2), max(pos1, pos2)
+                        sv_records["DEL"].append((chrom1, start, end))
 
-            elif svtype == "BND":
-                alt = rec.alts[0]
-                chrom2, pos2 = self.parse_bnd_alt(alt)
-                if chrom2:
-                    sv_records["BND"].append(
-                        (chrom1, pos1, chrom2, pos2)
-                    )
-
+        # 去重处理
+        for key in sv_records:
+                    sv_records[key] = list(set(sv_records[key]))
+        
         return sv_records
 
+    def parse_complex_bnd(self, alt: str) -> Tuple:
+        """Extract chrom2 and pos2 from BND ALT field."""
+        match = re.search(r'([\[\]])(.+?):(\d+)([\[\]])', alt)
+        if match:
+            b1, chrom2, pos2, b2 = match.groups()
+            return chrom2, int(pos2), b1
+        return None, None, None
 
-    # -----------------------------
-    # Circos 输入文件生成
-    # -----------------------------
-    def write_interval_file(
-        sv_records: Dict[str, List[Tuple]],
-        out_file: str,
-        svtypes=("DEL", "DUP", "INV", "INS"),
-    ):
-        """
-        Write interval-type SVs for Circos plots.
-        """
-        with open(out_file, "w") as f:
-            for svtype in svtypes:
-                for chrom, start, end in sv_records.get(svtype, []):
-                    f.write(f"{chrom} {start} {end} {svtype}\n")
+    def is_deletion_link(self, alt: str) -> bool:
+        """Identify if BND ALT brackets indicate a deletion connection."""
+        return ("[" in alt and not alt.startswith("[")) or ("]" in alt and alt.startswith("]"))
 
-
-    def write_link_file(
-        sv_records: Dict[str, List[Tuple]],
-        out_file: str,
-    ):
-        """
-        Write BND SVs as Circos link format.
-        """
-        with open(out_file, "w") as f:
-            for chrom1, pos1, chrom2, pos2 in sv_records.get("BND", []):
-                f.write(
-                    f"{chrom1} {pos1} {pos1 + 1} "
-                    f"{chrom2} {pos2} {pos2 + 1}\n"
-                )
 
     def run_sv_to_circos(
         self
@@ -222,22 +207,27 @@ class SVCircosPrepare():
         )
 
         # VCF
-        sv_records = self.parse_sv_vcf()
+        sv_records = self.parse_sv_vcf_for_circle()
 
-        self.write_interval_file(
-            sv_records,
-            outdir / "sv_intervals.txt",
-        )
+        # Write Circos input files
+        with open(outdir / "blocks_del.bed", "w") as f_blocks:
+            for chrom, start, end in sv_records["DEL"]:
+                f_blocks.write(f"{chrom}\t{start}\t{end}\n")
+        with open(outdir / "points_ins.bed", "w") as f_points_ins:
+            for chrom, pos, end in sv_records["INS"]:
+                f_points_ins.write(f"{chrom}\t{pos}\t{end}\n")
+        with open(outdir / "points_dup.bed", "w") as f_points_dup:
+            for chrom, pos, end in sv_records["DUP"]:
+                f_points_dup.write(f"{chrom}\t{pos}\t{end}\n")
+        with open(outdir / "points_inv.bed", "w") as f_points_inv:
+            for chrom, pos, end in sv_records["INV"]:
+                f_points_inv.write(f"{chrom}\t{pos}\t{end}\n")
+        with open(outdir / "links_tra.bed", "w") as f_links:
+            for c1, p1, c2, p2 in sv_records["TRA"]:
+                f_links.write(f"{c1}\t{p1}\t{c2}\t{p2}\n")
+        
 
-        SVCircosPrepare.write_link_file(
-            sv_records,
-            outdir / "sv_links.txt",
-        )
 
-
-# -----------------------------
-# CLI 入口（可选）
-# -----------------------------
 if __name__ == "__main__":
     import argparse
 

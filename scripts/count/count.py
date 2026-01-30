@@ -1,157 +1,163 @@
 import pandas as pd
 import re
 import sys
+import os
+import logging
 from pathlib import Path
+
 current_path = Path(__file__).resolve()
 scripts_dir = current_path.parents[1]
 sys.path.append(str(scripts_dir))
-from annotation.gene_id2name import convert_featurecounts_gene_ids
 
-def compute_cpm(counts_df:pd.DataFrame,length:str):
-    counts_only = counts_df.drop(columns=[length])
-    cpm = counts_only.div(counts_only.sum(axis=0), axis=1) * 1e6
-    return cpm
+try:
+    from annotation.gene_id2name import convert_featurecounts_gene_ids
+except ImportError:
+    pass
 
-def compute_rpkm(counts_df:pd.DataFrame,length:str):
-    """
-    rpkm or fpkm, SE or PE
-    """
-    counts_only = counts_df.drop(columns=[length])
-    gene_length_kb = counts_df[length] / 1000  # bp -> kb
-    rpkm = counts_only.div(gene_length_kb, axis=0)
-    rpkm = rpkm.div(rpkm.sum(axis=0) / 1e6, axis=1)
-    return rpkm
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
-def compute_tpm(counts_df:pd.DataFrame,length:str):
-    counts_only = counts_df.drop(columns=[length])
-    gene_length_kb = counts_df[length] / 1000
-    rpk = counts_only.div(gene_length_kb, axis=0)
-    tpm = rpk.div(rpk.sum(axis=0), axis=1) * 1e6
-    return tpm
+class RNASeqNormalizer:
+    def __init__(self, gtf_path=None):
+        self.gtf_path = gtf_path
 
-def extract_sample_name(
-    col: str,
-    pattern_aligned: str = r'([^/]+?)Aligned',
-    pattern_fallback: str = r'/([^/]+)\.[^.]+$'
-):
-    """
-    Extract sample name from featureCounts / BAM column names.
+    @staticmethod
+    def compute_cpm(counts_df: pd.DataFrame, length: str):
+        """
+        Formula:
+        $$CPM = \frac{C_i}{N} \cdot 10^6$$
+        where $C_i$ is the count of gene $i$ and $N$ is the total library size.
+        """
+        counts_only = counts_df.drop(columns=[length])
+        cpm = counts_only.div(counts_only.sum(axis=0), axis=1) * 1e6
+        return cpm
 
-    Rules:
-    1. If the column name contains 'Aligned', extract the part before 'Aligned'
-       e.g. GSM5837959Aligned.sortedByCoord.out -> GSM5837959
-    2. Otherwise, try to extract the filename (without extension) from a file path
-       e.g. /path/to/SRR123456.fastq.gz -> SRR123456
-    3. If no pattern matches, return the original column name
-    """
+    @staticmethod
+    def compute_rpkm(counts_df: pd.DataFrame, length: str):
+        """
+        Formula:
+        $$RPKM = \frac{C_i}{\frac{L_i}{10^3} \cdot \frac{N}{10^6}}$$
+        where $L_i$ is gene length in bp.
+        """
+        counts_only = counts_df.drop(columns=[length])
+        gene_length_kb = counts_df[length] / 1000
+        rpkm = counts_only.div(gene_length_kb, axis=0)
+        rpkm = rpkm.div(rpkm.sum(axis=0) / 1e6, axis=1)
+        return rpkm
 
-    # 1. Prefer extracting the part before 'Aligned'
-    m = re.search(pattern_aligned, col)
-    if m:
-        return m.group(1)
+    @staticmethod
+    def compute_tpm(counts_df: pd.DataFrame, length: str):
+        """
+        Formula:
+        $$TPM_i = \frac{rpk_i}{\sum rpk} \cdot 10^6$$
+        where $rpk_i = \frac{C_i}{L_i/10^3}$.
+        """
+        counts_only = counts_df.drop(columns=[length])
+        gene_length_kb = counts_df[length] / 1000
+        rpk = counts_only.div(gene_length_kb, axis=0)
+        tpm = rpk.div(rpk.sum(axis=0), axis=1) * 1e6
+        return tpm
 
-    # 2. Fallback: extract filename without extension from path
-    m = re.search(pattern_fallback, col)
-    if m:
-        return m.group(1)
+    @staticmethod
+    def extract_sample_name(
+        col: str,
+        pattern_aligned: str = r'([^/]+?)Aligned',
+        pattern_fallback: str = r'/([^/]+)\.[^.]+$'
+    ):
+        """
+        Extract sample name from featureCounts / BAM column names.
 
-    # 3. No match: return original value
-    return col
+        Rules:
+        1. If the column name contains 'Aligned', extract the part before 'Aligned'
+        2. Otherwise, try to extract the filename (without extension) from a file path
+        3. If no pattern matches, return the original column name
+        """
+        m = re.search(pattern_aligned, col)
+        if m:
+            return m.group(1)
+        m = re.search(pattern_fallback, col)
+        if m:
+            return m.group(1)
+        return col
 
+    def run_norm(
+        self,
+        infile: str,
+        gtf: str = None,
+        method: str = "tpm",
+        convert_to_gene_name: bool = True,
+        remove_version: bool = True
+    ) -> pd.DataFrame:
+        """
+        Perform gene expression normalization on featureCounts output.
 
-def run_norm(
-    infile: str,
-    gtf: str,
-    method: str = "tpm"
-) -> pd.DataFrame:
-    """
-    Perform gene expression normalization on featureCounts output.
+        Normalization Methods:
+        - CPM: Counts Per Million
+        - RPKM: Reads Per Kilobase Million
+        - TPM: Transcripts Per Million
 
-    This function reads a featureCounts count matrix, preprocesses it by
-    removing genomic coordinate columns, normalizes raw counts using the
-    specified method (CPM / RPKM / FPKM / TPM), and converts gene IDs to
-    gene names based on the provided GTF annotation.
+        Parameters
+        ----------
+        infile : str
+            Path to featureCounts output.
+        method : str
+            'cpm', 'rpkm', 'fpkm', or 'tpm'.
+        gtf : str
+            Path to GTF annotation file.
+        convert_to_gene_name : bool
+            Whether to convert gene IDs to gene names.
+        remove_version : bool
+            Whether to remove version numbers from gene IDs.
 
-    Parameters
-    ----------
-    infile : str
-        Path to the featureCounts output file (tab-separated).
-        The file must contain at least the following columns:
-        'Geneid', 'Length', and sample count columns.
+        Returns
+        -------
+        pd.DataFrame
+            Normalized matrix.
+        """
+        logger.info(f"Starting normalization using method: {method},convert_to_gene_name: {convert_to_gene_name}, remove_version: {remove_version}")
+        target_gtf = gtf or self.gtf_path
+        df_counts = pd.read_csv(infile, sep="\t", comment='#')
+        df_counts.drop(columns=['Chr', 'Start', 'End', 'Strand'], inplace=True, errors='ignore')
+        df_counts = df_counts.set_index('Geneid')
+        df_counts.columns = [self.extract_sample_name(c) for c in df_counts.columns]
+        
+        if method == "cpm":
+            df = self.compute_cpm(df_counts, length="Length")
+        elif method in ["rpkm", "fpkm"]:
+            df = self.compute_rpkm(df_counts, length="Length")
+        elif method == "tpm":
+            df = self.compute_tpm(df_counts, length="Length")
+        else:
+            raise ValueError("please input correct normalization method")
+            
+        df = df.reset_index()
+        if convert_to_gene_name:
+            if not target_gtf or os.path.getsize(target_gtf) == 0:
+                raise ValueError("GTF file is missing or empty.")
+            df = convert_featurecounts_gene_ids(df, target_gtf)
+        else:
+            if remove_version:
+                df['Geneid'] = df['Geneid'].apply(lambda x: x.split('.')[0])
+        
+        return df
 
-    method : str
-        Normalization method to apply.
-        Supported methods:
-        - 'cpm'   : Counts Per Million
-        - 'rpkm'  : Reads Per Kilobase Million
-        - 'fpkm'  : Fragments Per Kilobase Million (treated the same as RPKM)
-        - 'tpm'   : Transcripts Per Million
-
-    gtf : str
-        Path to the GTF annotation file used to map gene IDs
-        (e.g. Ensembl IDs) to gene names.
-
-    Returns
-    -------
-    pd.DataFrame
-        A normalized gene expression matrix with gene names as rows
-        and samples as columns.
-
-    Raises
-    ------
-    ValueError
-        If an unsupported normalization method is provided.
-    """
-    df_counts = pd.read_csv(infile,
-                            sep="\t",
-                            comment='#')
-    df_counts.drop(columns=['Chr', 'Start', 'End', 'Strand'],inplace=True)
-    df_counts = df_counts.set_index('Geneid')
-    df_counts.columns = [extract_sample_name(c) for c in df_counts.columns]
-    df = pd.DataFrame()
-    if method == "cpm":
-        df = compute_cpm(df_counts,length="Length")
-    elif method == "rpkm" or method == "fpkm":
-        df = compute_rpkm(df_counts,length="Length")
-    elif method == "tpm":
-        df = compute_tpm(df_counts,length="Length")
-    else:
-        raise ValueError("please input correct normalization method")
-    df = df.reset_index()
-    df_new = convert_featurecounts_gene_ids(df,gtf)
-    return df_new
-
-def combine_PE_SE(PE:str,SE:str):
-    df_PE = pd.read_csv(PE,sep="\t",comment='#')
-    df_PE.columns = [extract_sample_name(c) for c in df_PE.columns]
-    df_SE = pd.read_csv(SE,sep="\t",comment='#')
-    df_SE.drop(columns=['Chr', 'Start', 'End', 'Strand','Length'],inplace=True)
-    df_SE.columns = [extract_sample_name(c) for c in df_SE.columns]
-    df_new = pd.merge(df_PE,df_SE,on="Geneid")
-    return df_new
-
-
-
+    def combine_PE_SE(self, PE: str, SE: str):
+        df_PE = pd.read_csv(PE, sep="\t", comment='#')
+        df_PE.columns = [self.extract_sample_name(c) for c in df_PE.columns]
+        df_SE = pd.read_csv(SE, sep="\t", comment='#')
+        df_SE.drop(columns=['Chr', 'Start', 'End', 'Strand', 'Length'], inplace=True)
+        df_SE.columns = [self.extract_sample_name(c) for c in df_SE.columns]
+        return pd.merge(df_PE, df_SE, on="Geneid")
 
 if __name__ == "__main__":
-    human_gtf = "/disk5/luosg/Reference/GENCODE/human/GRCh38/gencode.v49.primary_assembly.basic.annotation.gtf"
-    mouse_gtf = "/disk5/luosg/Reference/GENCODE/mouse/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf"
-    # tpm1 = run_norm("/home/luosg/Data/genomeStability/output/count/featureCounts/human_paired_count.tsv","tpm")
-    # tpm1.to_csv("/home/luosg/Data/genomeStability/output/count/featureCounts/human_paired_tpm.tsv",sep="\t")
-    # tpm2 = run_norm("/home/luosg/Data/genomeStability/output/count/featureCounts/human_single_count.tsv","tpm")
-    # tpm2.to_csv("/home/luosg/Data/genomeStability/output/count/featureCounts/human_single_tpm.tsv",sep="\t")  
-    # df = combine_PE_SE("/home/luosg/Data/genomeStability/output/counts/featureCounts/human/human_paired_count.tsv",
-    #                    "/home/luosg/Data/genomeStability/output/counts/featureCounts/human/human_single_count.tsv")
-    # df.to_csv("/home/luosg/Data/genomeStability/output/counts/featureCounts/human/huam_all_count.tsv",sep="\t",index=False)
-    df_tpm1 = run_norm("/disk5/luosg/GCN2_20251224/output/counts/featureCounts/mouse/GCN2pub_paired_count.tsv",mouse_gtf,"tpm")
-    df_tpm2 = run_norm("/disk5/luosg/GCN2_20251224/output/counts/featureCounts/mouse/GCN2seq_paired_count.tsv",mouse_gtf,"tpm")
-    print(df_tpm1.shape)
-    print(df_tpm2.shape)
-    df_new = pd.merge(df_tpm1,df_tpm2,on="gene_name",how="inner")
-    print(df_new.shape)
-    df_new.to_csv("/disk5/luosg/GCN2_20251224/output/counts/featureCounts/mouse/GCN2_paired_count.tpm",sep="\t",index=False)
-
-
-
-
+    human_gtf = "/data/pub/zhousha/Reference/human/GENCODE/GRCh38/gencode.v49.primary_assembly.basic.annotation.gtf"
+    normalizer = RNASeqNormalizer(gtf_path=human_gtf)
     
+    tpm = normalizer.run_norm(
+        "/data/pub/zhousha/Totipotent20251031/RNAseqML/matrix/huam_all_count.tsv",
+        method="tpm",
+        convert_to_gene_name=False,
+        remove_version=True
+    )
+    tpm.to_csv("/data/pub/zhousha/Totipotent20251031/RNAseqML/matrix/human_all_tpm.tsv", sep="\t", index=False)
+    df = pd.read_csv("/data/pub/zhousha/Totipotent20251031/RNAseqML/matrix/human_all_tpm.tsv", sep="\t", index_col=0)

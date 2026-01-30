@@ -259,11 +259,11 @@ def convert_featurecounts_gene_ids(
     cols.remove("gene_name")
     cols.remove("Geneid")
     df = df[["gene_name"] + cols]
-    df = (
-        df
-        .groupby('gene_name', as_index=False)
-        .sum(numeric_only=True)
-    )
+    # df = (
+    #     df
+    #     .groupby('gene_name', as_index=False)
+    #     .sum(numeric_only=True)
+    # )
     if save_path is not None:
         df.to_csv(save_path, sep="\t", index=False)
 

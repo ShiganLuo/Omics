@@ -118,6 +118,22 @@ snakemake -s workflow/RNA-SNP/run.smk --config indir=data/fq outdir=output metad
   - gsea: GSEA富集分析
   - TEsite_subfamily: 统计差异分析中TE subfamily情况
 
+#### DESeq2
+
+举例
+
+```sh
+Rscript workflow/scripts/DESeq2/DESeq2.r --mode TEcount \
+    --matrix output/${outdir}/counts/mouseTEcount.cntTable \
+    --group ${group} \
+    --pattern  ${control} ${experiment} \
+    --outdir output/${outdir}/ \
+    --annotation /ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/geneIDAnnotation.csv \
+    --figure pca heatmap volcano \
+    --TEcountMode all
+```
+
+
 ### fusion
 
   - fusionGeneAnnotation: 融合基因名称注释

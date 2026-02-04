@@ -61,7 +61,7 @@ class RNASeqNormalizer:
     @staticmethod
     def extract_sample_name(
         col: str,
-        pattern_aligned: str = r'([^/]+?)Aligned',
+        pattern_aligned: str = r'([^/]+?)\.Aligned',
         pattern_fallback: str = r'/([^/]+)\.[^.]+$'
     ):
         """

@@ -13,7 +13,7 @@ rule TEtranscript_prepare_star:
         get_alignment_input,
         genome_index = get_star_index
     output:
-        outfile = temp(outdir + "/TEtranscripts/{sample_id}/{genome}/{sample_id}.Aligned.sortedByCoord.out.bam")
+        outfile = temp(outdir + "/TEtranscripts/bam/{sample_id}/{genome}/{sample_id}.Aligned.sortedByCoord.out.bam")
     log:
         log = outdir + "/log/TEtranscripts/{genome}/{sample_id}/star_align.log",
         STAR_log = outdir + "/log/TEtranscripts/{genome}/{sample_id}/{sample_id}Log.out",
@@ -21,7 +21,7 @@ rule TEtranscript_prepare_star:
         STAR_final = outdir + "/log/TEtranscripts/{genome}/{sample_id}/{sample_id}Log.final.out"
     threads: 12
     params:
-        outPrefix = outdir + "/counts/bam/{genome}/{sample_id}",
+        outPrefix = outdir + "/TEtranscripts/bam/{sample_id}/{genome}/{sample_id}.",
         STAR = config['Procedure']['STAR'],
         # 动态判断输入参数,加上genome_index，如果三个参数，即为双端测序，两个参数即为单端测序
         input_params = lambda wildcards, input: \

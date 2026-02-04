@@ -18,7 +18,7 @@ rule TEtranscript_prepare_hisat2:
         fastq = get_alignment_input,
         index = get_hisat2_index 
     output:
-        outfile = temp(outdir + "/TEtranscripts/{sample_id}/{genome}/{sample_id}.Aligned.sortedByCoord.out.bam")
+        outfile = temp(outdir + "/TEtranscripts/bam/{sample_id}/{genome}/{sample_id}.Aligned.sortedByCoord.out.bam")
     log:
         outdir + "/log/TEtranscripts/{sample_id}/{genome}/hisat2_align.log"
     threads: 12

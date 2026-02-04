@@ -144,23 +144,23 @@ def main():
     paraser = argparse.ArgumentParser(description="PlaB specific SV analysis pipeline")
     paraser.add_argument("-c","--dmso_vcf",type=str,required=True,help="DMSO sample VCF path")
     paraser.add_argument("-e","--plab_vcf",type=str,required=True,help="PlaB sample VCF path")
-    paraser.add_argument("-o","--work_dir",type=str,required=True,help="Working directory for intermediate and final results")
+    paraser.add_argument("-o","--out_dir",type=str,required=True,help="Working directory for intermediate and final results")
     paraser.add_argument("-d","--dist",type=int,default=500,help="SURVIVOR merge distance threshold")
     args = paraser.parse_args()
     annotated_vcf = run_PlaB_only_annotation(
         dmso_vcf=args.dmso_vcf,
         plab_vcf=args.plab_vcf,
-        work_dir=args.work_dir,
+        work_dir=args.out_dir,
         dist=args.dist
     )
     run_PlaB_specific_vcf_analysis(
         vcf=annotated_vcf,
-        outdir=f"{args.work_dir}/PlaB"
+        outdir=f"{args.out_dir}/PlaB"
     )
     run_PlaB_enricher(
-        vcf_01=f"{args.work_dir}/PlaB_only.vcf",
+        vcf_01=f"{args.out_dir}/PlaB_only.vcf",
         vcf_1x=args.dmso_vcf,
-        outdir=f"{args.work_dir}/PlaB_enrichment"
+        outdir=f"{args.out_dir}/PlaB_enrichment"
     )
 
 if __name__ == "__main__":

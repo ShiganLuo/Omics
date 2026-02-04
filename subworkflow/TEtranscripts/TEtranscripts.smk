@@ -8,7 +8,7 @@ logger = logging.getLogger("TEtranscripts")
 
 rule TEcount:
     input:
-        bam = outdir + "/TEtranscripts/{sample_id}/{genome}/{sample_id}.Aligned.sortedByCoord.out.bam"
+        bam = outdir + "/TEtranscripts/bam/{sample_id}/{genome}/{sample_id}.Aligned.sortedByCoord.out.bam"
     output:
         project = outdir + "/TEtranscripts/TEcount/{genome}/{sample_id}TEcount.cntTable"
     params:
@@ -17,7 +17,7 @@ rule TEcount:
         TE_gtf = lambda wildcards: config['TEtranscripts'][wildcards.genome]['TE_gtf'],
         gtf = lambda wildcards: config['genome'][wildcards.genome]['gtf']
     log:
-        outdir + "/log/TEtranscript/{genome}/{sample_id}/TEcount.log"
+        outdir + "/log/TEtranscripts/{genome}/{sample_id}/TEcount.log"
     conda:
         config['conda']['run']
     shell:
@@ -61,11 +61,11 @@ rule combine_TEcount:
 
 rule TElocal:
     input:
-        bam = outdir + "/TEtranscripts/{sample_id}/{genome}/{sample_id}.Aligned.sortedByCoord.out.bam"
+        bam = outdir + "/TEtranscripts/bam/{sample_id}/{genome}/{sample_id}.Aligned.sortedByCoord.out.bam"
     output:
         project = outdir + "/TEtranscripts/TElocal/{genome}/{sample_id}TElocal.cntTable"
     log:
-        outdir + "/log/TEtranscript/{genome}/{sample_id}/TElocal.log"
+        outdir + "/log/TEtranscripts/{genome}/{sample_id}/TElocal.log"
     params:
         project = "{sample_id}TElocal",
         TE = lambda wildcards: config['TElocal'][wildcards.genome]['TEind'],

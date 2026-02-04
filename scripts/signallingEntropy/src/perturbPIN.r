@@ -1,5 +1,6 @@
 ### time to simulate behaviour for changes on PIN
 ### reduce PIN
+#' @export
 reducePIN <- function(adj.m, perc, sn=123){
   set.seed(sn)
   allEdges <- which(lower.tri(adj.m) & adj.m==1)
@@ -10,6 +11,7 @@ reducePIN <- function(adj.m, perc, sn=123){
 }
 
 ### enlarge PIN
+#' @export
 enlargePIN <- function(adj.m, perc, sn=123){
   set.seed(sn)
   allEdges <- which(lower.tri(adj.m) & adj.m==1)
@@ -24,6 +26,7 @@ enlargePIN <- function(adj.m, perc, sn=123){
 }
  
 ### rewire PIN
+#' @export
 rewirePIN <- function(adj.m, perc, sn=123){
   set.seed(sn)
   
@@ -46,6 +49,7 @@ rewirePIN <- function(adj.m, perc, sn=123){
 }
 
 ### flip PIN
+#' @export
 flipPIN <- function(adj.m, perc, sn=123){
   set.seed(sn)
   rmEdges <- which(lower.tri(adj.m) & adj.m==1)

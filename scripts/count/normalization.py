@@ -4,7 +4,7 @@ import sys
 import os
 import logging
 from pathlib import Path
-
+from typing import Literal
 current_path = Path(__file__).resolve()
 scripts_dir = current_path.parents[1]
 sys.path.append(str(scripts_dir))
@@ -22,7 +22,7 @@ class RNASeqNormalizer:
         self.gtf_path = gtf_path
 
     @staticmethod
-    def compute_cpm(counts_df: pd.DataFrame, length: str):
+    def compute_cpm(counts_df: pd.DataFrame, length: str = "Length"):
         """
         Formula:
         $$CPM = \frac{C_i}{N} \cdot 10^6$$
@@ -33,7 +33,7 @@ class RNASeqNormalizer:
         return cpm
 
     @staticmethod
-    def compute_rpkm(counts_df: pd.DataFrame, length: str):
+    def compute_rpkm(counts_df: pd.DataFrame, length: str = "Length"):
         """
         Formula:
         $$RPKM = \frac{C_i}{\frac{L_i}{10^3} \cdot \frac{N}{10^6}}$$
@@ -46,7 +46,7 @@ class RNASeqNormalizer:
         return rpkm
 
     @staticmethod
-    def compute_tpm(counts_df: pd.DataFrame, length: str):
+    def compute_tpm(counts_df: pd.DataFrame, length: str = "Length"):
         """
         Formula:
         $$TPM_i = \frac{rpk_i}{\sum rpk} \cdot 10^6$$
@@ -84,7 +84,7 @@ class RNASeqNormalizer:
         self,
         infile: str,
         gtf: str = None,
-        method: str = "tpm",
+        method: Literal["cpm", "rpkm", "fpkm", "tpm", "count"] = "tpm",
         convert_to_gene_name: bool = True,
         remove_version: bool = True
     ) -> pd.DataFrame:
@@ -101,7 +101,8 @@ class RNASeqNormalizer:
         infile : str
             Path to featureCounts output.
         method : str
-            'cpm', 'rpkm', 'fpkm', or 'tpm'.
+            'cpm', 'rpkm', 'fpkm', 'tpm' or 'count'.
+            count: do nothing
         gtf : str
             Path to GTF annotation file.
         convert_to_gene_name : bool
@@ -112,7 +113,7 @@ class RNASeqNormalizer:
         Returns
         -------
         pd.DataFrame
-            Normalized matrix.
+            Normalized matrix or count matrix
         """
         logger.info(f"Starting normalization using method: {method},convert_to_gene_name: {convert_to_gene_name}, remove_version: {remove_version}")
         target_gtf = gtf or self.gtf_path
@@ -128,7 +129,8 @@ class RNASeqNormalizer:
         elif method == "tpm":
             df = self.compute_tpm(df_counts, length="Length")
         else:
-            raise ValueError("please input correct normalization method")
+            df_counts.drop(columns = ["Length"])
+            logger.info("don't apply any normalization methods,only drop Length column")
             
         df = df.reset_index()
         if convert_to_gene_name:

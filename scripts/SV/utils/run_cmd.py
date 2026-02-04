@@ -10,6 +10,7 @@ def run_cmd_list(cmd:list):
         - 命令不存在：给出清晰提示
         - 命令执行失败：打印 stdout / stderr
         """
+        cmd = [str(arg) for arg in cmd] # 确保所有参数均为字符串
         cmd_str = " ".join(cmd)
         cmd_bin = cmd[0]
 

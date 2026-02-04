@@ -103,7 +103,9 @@ def run_PlaB_specific_vcf_analysis(
 def run_PlaB_enricher(
         vcf_01:str,
         vcf_1x:str,
-        outdir:str
+        outdir:str,
+        min_svlen:int = 2000,
+        max_svlen:int = 10000
 ):
     """
     Docstring for run_PlaB_enricher
@@ -118,11 +120,11 @@ def run_PlaB_enricher(
     logger.info(f"Output directory: {outdir}")
 
     logger.info(f"Extracting TE candidate insertions from VCFs...: {vcf_01}, {vcf_1x}")
-    fa_01 = f"{outdir}/fa/01/INS_2-10kb_01.fa"
-    extract_te_candidate_ins(vcf_01,fa_01)
+    fa_01 = f"{outdir}/fa/01/INS_{min_svlen/1000}-{max_svlen/1000}kb_01.fa"
+    extract_te_candidate_ins(vcf_01,fa_01,min_len=min_svlen,max_len=max_svlen)
     out_01 = run_te_annotation_pipeline(fa_01,f"{outdir}/repeatmasker/01",species="mus musculus")
-    fa_1x = f"{outdir}/fa/1x/INS_2-10kb_1x.fa"
-    extract_te_candidate_ins(vcf_1x,fa_1x)
+    fa_1x = f"{outdir}/fa/1x/INS_{min_svlen/1000}-{max_svlen/1000}_1x.fa"
+    extract_te_candidate_ins(vcf_1x,fa_1x,min_len=min_svlen,max_len=max_svlen)
     out_1x = run_te_annotation_pipeline(fa_1x,f"{outdir}/repeatmasker/1x",species="mus musculus")
 
     logger.info("Performing enrichment test between PlaB only and DMSO SV insertions...")

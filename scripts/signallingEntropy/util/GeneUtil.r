@@ -1,3 +1,8 @@
+box::use(
+  data.table[...],
+  bi = biomaRt,
+  stats[setNames]
+)
 #' Convert gene symbols in an expression matrix to Entrez Gene IDs
 #'
 #' @param expr_mat Gene expression matrix/data.frame/data.table.
@@ -35,7 +40,7 @@ symbol_expr_to_entrez <- function(
   )
 
   # ---- detect input type ----
-  is_dt <- data.table::is.data.table(expr_mat)
+  is_dt <- is.data.table(expr_mat)
 
   # ---- extract gene symbols ----
   if (is_dt) {
@@ -125,24 +130,21 @@ symbol_expr_to_entrez <- function(
 string_to_adj <- function(file_path,
                           convert_to_entrez = TRUE,
                           species = 9606,
-                          score_scale = c(0,1)) {
-  require(data.table)
-  require(biomaRt)
+                          score_scale = c(0, 1)) {
   # 1. 读 STRING 文件
   dt <- fread(file_path, header = TRUE)
   dt[, c("protein1", "protein2") :=
       lapply(.SD, sub, pattern = "^[0-9]+\\.", replacement = ""),
    .SDcols = c("protein1", "protein2")]
 
-  print(head(dt))
   if(!all(c("protein1","protein2","combined_score") %in% names(dt))) {
     log_msg("ERROR", "STRING file must have columns: protein1, protein2, combined_score",quit=TRUE)
   }
-  
+
   # 2. 可选 ID 转换
   if(convert_to_entrez) {
     log_msg("INFO","Converting ENSEMBL Protein IDs to Entrez Gene IDs via biomaRt...")
-    
+
     # 2a. 判断 species
     mart_dataset <- switch(as.character(species),
                            "9606" = "hsapiens_gene_ensembl",
@@ -150,19 +152,19 @@ string_to_adj <- function(file_path,
                            "10090" = "mmusculus_gene_ensembl",
                            "mouse" = "mmusculus_gene_ensembl",
                            log_msg("ERROR","Unsupported species. Please provide Taxonomy ID or human/mouse",quit=TRUE))
-    
+
     tryCatch({
-      ensembl <- useMart("ensembl", dataset = mart_dataset)
+      ensembl <- bi$useMart("ensembl", dataset = mart_dataset)
     }, error = function(e) {
       log_msg("ERROR","Failed to connect to Ensembl BioMart. Please check your internet connection.",quit=TRUE)
     })
-    
-    res <-getBM(
+
+    res <- bi$getBM(
       attributes = c("ensembl_peptide_id","ensembl_gene_id"),
       mart = ensembl,
     )
     # 2b. 批量获取映射
-    mapping <- getBM(
+    mapping <- bi$getBM(
       attributes = c("ensembl_peptide_id","ensembl_gene_id"),
       filters = "ensembl_peptide_id",
       values = unique(c(dt$protein1, dt$protein2)),
@@ -170,31 +172,31 @@ string_to_adj <- function(file_path,
     )
     
     map_tbl <- setNames(mapping$ensembl_gene_id, mapping$ensembl_peptide_id)
-    print(head(map_tbl))
+
     dt[, protein1 := map_tbl[protein1]]
     dt[, protein2 := map_tbl[protein2]]
-    
+
     # 删除没有映射的行
     dt <- dt[!is.na(protein1) & !is.na(protein2)]
   }
-  
+
   # 3. 统一 protein 列名
   proteins <- unique(c(dt$protein1, dt$protein2))
-  
+
   # 4. 创建空矩阵
   adj.m <- matrix(0, nrow = length(proteins), ncol = length(proteins),
                   dimnames = list(proteins, proteins))
-  
+
   # 5. 填充邻接矩阵
   dt[, score := combined_score]
-  
+
   # 线性缩放 combined_score 到 score_scale
   min_s <- min(dt$score, na.rm = TRUE)
   max_s <- max(dt$score, na.rm = TRUE)
   target_min <- score_scale[1]
   target_max <- score_scale[2]
   dt[, score := (score - min_s) / (max_s - min_s) * (target_max - target_min) + target_min]
-  
+
   # 填充矩阵（无向图）
   for(i in seq_len(nrow(dt))) {
     p1 <- dt$protein1[i]
@@ -203,6 +205,91 @@ string_to_adj <- function(file_path,
     adj.m[p1, p2] <- s
     adj.m[p2, p1] <- s
   }
+
+  adj.m
+}
+
+#' Build a Binary Adjacency Matrix from a STRING Interaction File
+#'
+#' @description 
+#' This function processes a STRING database interaction file to create a symmetric binary 
+#' adjacency matrix. It includes data cleaning (removing taxonomy prefixes), confidence 
+#' threshold filtering, and optional ID mapping from Ensembl protein IDs to Gene IDs.
+#'
+#' @param file_path Character. The file path to the STRING interaction data (typically a .txt or .csv).
+#' @param cutoff Numeric. The confidence score threshold for filtering interactions. 
+#' Defaults to 700 (STRING "High Confidence" threshold).
+#' @param convert_to_entrez Logical. Whether to convert Ensembl protein IDs (ENSP) 
+#' to Ensembl Gene IDs (ENSG) using biomaRt. Defaults to TRUE.
+#' @param species Character or Numeric. Taxonomy ID or name (e.g., 9606 or "human") 
+#' to specify the biomaRt dataset. Supported: Human (9606) and Mouse (10090).
+#'
+#' @return A symmetric binary adjacency matrix (0/1) where rows and columns are 
+#' gene/protein identifiers.
+#' 
+#' @details 
+#' The function ensures the output is an unweighted, undirected graph representation 
+#' by symmetrizing the matrix. If ID conversion is enabled, proteins that cannot be 
+#' mapped to a gene ID will be removed.
+#'
+#' @import data.table
+#' @import biomaRt
+#' @export
+string_to_adj_binary <- function(file_path,
+                                 cutoff = 700,
+                                 convert_to_entrez = TRUE,
+                                 species = 9606) {
+  # 1. 读取并清洗数据
+  dt <- fread(file_path, header = TRUE)
+  # 移除 ID 前缀 (如 "9606.")
+  dt[, c("protein1", "protein2") := 
+       lapply(.SD, sub, pattern = "^[0-9]+\\.", replacement = ""),
+     .SDcols = c("protein1", "protein2")]
+
+  # 2. 阈值过滤 (核心修改：只保留高置信度的边)
+  dt <- dt[combined_score >= cutoff]
+
+  if(nrow(dt) == 0) stop("No interactions found above the specified cutoff.")
+
+  # 3. ID 转换
+  if(convert_to_entrez) {
+    mart_dataset <- switch(as.character(species),
+                           "9606" = "hsapiens_gene_ensembl",
+                           "human" = "hsapiens_gene_ensembl",
+                           "10090" = "mmusculus_gene_ensembl",
+                           "mouse" = "mmusculus_gene_ensembl",
+                           stop("Unsupported species"))
+    tryCatch({
+      ensembl <- bi$useMart("ensembl", dataset = mart_dataset)
+    }, error = function(e) {
+      log_msg("ERROR","Failed to connect to Ensembl BioMart. Please check your internet connection.",quit=TRUE)
+    })
+
+    mapping <- bi$getBM(
+      attributes = c("ensembl_peptide_id", "ensembl_gene_id"),
+      filters = "ensembl_peptide_id",
+      values = unique(c(dt$protein1, dt$protein2)),
+      mart = ensembl
+    )
+    
+    map_tbl <- setNames(mapping$ensembl_gene_id, mapping$ensembl_peptide_id)
+    dt[, protein1 := map_tbl[protein1]]
+    dt[, protein2 := map_tbl[protein2]]
+    dt <- dt[!is.na(protein1) & !is.na(protein2)]
+  }
+
+  # 4. 构建 0/1 矩阵
+  proteins <- unique(c(dt$protein1, dt$protein2))
+  adj.m <- matrix(0, nrow = length(proteins), ncol = length(proteins),
+                  dimnames = list(proteins, proteins))
+
+  # 5. 填充矩阵
+  idx_matrix <- as.matrix(dt[, .(protein1, protein2)])
+  adj.m[idx_matrix] <- 1
   
-  return(adj.m)
+  # 对称化 (无向图)
+  idx_matrix_rev <- as.matrix(dt[, .(protein2, protein1)])
+  adj.m[idx_matrix_rev] <- 1
+  
+  adj.m
 }

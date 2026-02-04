@@ -1,9 +1,10 @@
+libs <- c("dplyr", "tidyr", "igraph")
+suppressPackageStartupMessages(suppressWarnings(lapply(libs, library, character.only = TRUE)))
 ### STRING correction
 ### Input: p.m: probability matrix, thresh: a threshold, ppiString: the list of String interactions each with a specific score 
 ### Output: filtered adjacency matrix by the specified threshold
+#' @export
 correctSTRING <- function(p.m, thresh, ppiString){
-  library(tidyr)
-  library(dplyr)
   
   # keep only String interactions > thresh
   filteredString <- ppiString %>% filter(combined_score > thresh) %>%
@@ -24,8 +25,8 @@ correctSTRING <- function(p.m, thresh, ppiString){
 ### topological correction
 ### Input: p.m probability matrix, thresh: a threshold, corrmethod: topological method between "jaccard", "dice", "invlogweighted"
 ### Output: adjacency matrix filtered by the specified threshold and method
+#' @export
 correctTopology <- function(p.m, thresh, corrmethod){
-  library(igraph)
   
   g <- graph_from_adjacency_matrix(ifelse(p.m>0,1,0))
   
@@ -46,6 +47,7 @@ correctTopology <- function(p.m, thresh, corrmethod){
 ### neighGPath: semantic neighborhood matrix corresponding to a correction method among "Resnik", "Lin", "Rel", "Jiang", "Wang"
 ### generated from GOSemSim with "org.Hs.eg.db" OrgDb and "biological process" (BP) ontology
 ### Output: adjacency matrix filtered by the specified threshold and method
+#' @export
 correctSemantic <- function(p.m, thresh, neighGPath){
   load(neighGPath)      # neighG
   cat("neighG loaded \n")

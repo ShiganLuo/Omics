@@ -9,6 +9,11 @@ def get_star_index(wildcards):
     return outdir + f"/genome/{wildcards.genome}/index/star"
 
 rule TEtranscript_prepare_star:
+    """
+    STAR alignment to do TE analysis.
+    --outFilterMultimapNmax 100 : allow each read to map to at most 100 genomic locations
+    --winAnchorMultimapNmax 100 : allow each alignment seed (anchor) to map to at most 100 locations
+    """
     input:
         get_alignment_input,
         genome_index = get_star_index
@@ -28,6 +33,7 @@ rule TEtranscript_prepare_star:
             f"{input[0]} {input[1]}" if len(input) == 3 else f"{input[0]}"
     shell:
         """
+        # Allows for a large number of multi-maps 
         {params.STAR} --runThreadN {threads} \
             --genomeDir {input.genome_index} \
             --readFilesCommand zcat \

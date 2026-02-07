@@ -123,7 +123,7 @@ snakemake -s workflow/RNA-SNP/run.smk --config indir=data/fq outdir=output metad
 举例
 
 ```sh
-Rscript workflow/scripts/DESeq2/DESeq2.r --mode TEcount \
+Rscript workflow/scripts/function/DESeq2.r --mode TEcount \
     --matrix output/${outdir}/counts/mouseTEcount.cntTable \
     --group ${group} \
     --pattern  ${control} ${experiment} \

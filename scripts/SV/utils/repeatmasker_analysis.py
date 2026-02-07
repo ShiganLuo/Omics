@@ -14,7 +14,7 @@ import logging
 from pathlib import Path
 import tempfile
 import shutil
-from run_cmd import run_cmd_list
+from .run_cmd import run_cmd_list
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] [%(name)s] %(message)s')
 logger = logging.getLogger(__name__)

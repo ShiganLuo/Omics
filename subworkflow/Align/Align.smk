@@ -72,7 +72,6 @@ def get_alignment_input(wildcards):
     return: A list of input file paths for the STAR alignment step. 
     """
     logger.info(f"[get_alignment_input] called with wildcards: {wildcards}")
-    logger.info(f"[get_alignment_input] called with wildcards: {wildcards}")
     # 构造可能的输入路径
     paired_r1 = f"{outdir}/cutadapt/{wildcards.sample_id}_1.fq.gz"
     paired_r2 = f"{outdir}/cutadapt/{wildcards.sample_id}_2.fq.gz"

@@ -3,7 +3,7 @@ import os
 
 def get_hisat2_index(wildcards):
     logger.info(f"[get_hisat2_index] called with wildcards: {wildcards}")
-    config_index_prefix = config.get('genome',{}).get(wildcards.genome,{}).get('hisat2_index_prefx') or None
+    config_index_prefix = config.get('genome',{}).get(wildcards.genome,{}).get('hisat2_index_prefix') or None
     if config_index_prefix:
         first_file = f"{config_index_prefix}.1.ht2"
         if os.path.exists(first_file):

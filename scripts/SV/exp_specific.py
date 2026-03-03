@@ -1,3 +1,5 @@
+import os
+
 from utils.VEP_SV import VEP_SV
 from utils.SV_TYPE import parse_pbsv_vcf,run_sv_stratification,extract_te_candidate_ins,generate_plot_input
 from utils.SV_TYPE_plot import plot_stacking_bar,plot_multi_smooth_curves
@@ -12,88 +14,39 @@ logger = logging.getLogger(__name__)
 
 
 def run_exp_specific_annotation(
-    dmso_vcf:str, 
-    plab_vcf:str, 
-    work_dir:str, 
+    ctrl_vcf:str, 
+    exp_vcf:str, 
+    outprefix:str, 
     vep_cache:str = "~/.vep",
     species:str = "mus_musculus",
     assembly:str ="GRCm39",
     dist:int = 500,
-    min_support:int = 1
+    min_support:int = 1,
+    annotate_format:str = "vcf"
 ):
     """
-    Overall purpose:
-    - Merge structural variant (SV) calls from two samples (control and treatment),
-        extract variants that are specific to the treatment (PlaB), and annotate those
-        treatment-specific SVs using VEP. The function writes intermediate files into
-        the provided working directory and returns the path to the annotated VCF.
-
-    Use cases:
-    - Comparative SV analysis between a control (e.g. DMSO) and a treatment (PlaB)
-        to discover treatment-specific structural variants followed by functional annotation.
-
-    Data flow (input -> processing -> output):
-    - Input: `dmso_vcf`, `plab_vcf`, and parameters controlling merge/annotation behavior.
-    - Processing: call SURVIVOR merge via `analysis.merge_sv_survivor` -> extract treatment-only
-        entries by support vector -> annotate extracted VCF via VEP (`analysis.annotate_sv_vep`).
-    - Output: annotated VCF file path string.
-
+    Function: Run a pipeline to identify and annotate treatment-specific SVs using VEP.
+    Steps:
+    1. Merge control and experiment VCFs using SURVIVOR with specified distance and support thresholds.
+    2. Extract SVs specific to the experiment (SUPP_VEC='01') using bcftools.
+    3. Annotate the extracted SVs with VEP, using the provided cache, species, and assembly parameters. Output format can be VCF or tab
     Parameters:
-    - dmso_vcf (str): required. Path to the control sample VCF (.vcf or .vcf.gz). Must be readable.
-        Constraint: VCF should contain fields compatible with SURVIVOR/pbsv (e.g. SUPP_VEC) if used upstream.
-    - plab_vcf (str): required. Path to the treatment (PlaB) sample VCF. Same constraints as `dmso_vcf`.
-    - work_dir (str): required. Directory where intermediate and result files are written. The directory
-        will be created if not present. Caller must ensure write permission and sufficient disk space.
-    - vep_cache (str): optional (default "~/.vep"). Path to VEP cache directory used to accelerate VEP annotation.
-        Constraint: if provided, it should be accessible and contain the expected VEP cache files.
-    - species (str): required (default "mus_musculus"). Species identifier for VEP.
-    - assembly (str): required (default "GRCm39"). Genome assembly identifier for VEP.
-    - dist (int): required (default 500). Merge distance threshold for SURVIVOR (in base pairs). Must be >= 0.
-    - min_support (int): required (default 1). Minimum support samples for SURVIVOR merging. Must be >= 1.
-
+    - ctrl_vcf: path to control VCF (e.g. DMSO)
+    - exp_vcf: path to experiment VCF (e.g. PlaB)
+    - outprefix: prefix for output files
+    - vep_cache: path to VEP cache directory
+    - species: species name for VEP annotation (e.g. "mus_musculus")
+    - assembly: genome assembly for VEP annotation (e.g. "GRCm39")
+    - dist: distance threshold for SURVIVOR merging (default 500 bp)
+    - min_support: minimum support for SURVIVOR merging (default 1)
+    - annotate_format: output format for VEP annotation ("vcf" or "tab", default "vcf")
     Returns:
-    - str: absolute path to the annotated VCF file (e.g. /path/to/PlaB_only_annotated.vcf).
-        The file is a standard VCF and may include VEP annotation fields (e.g. CSQ).
-        On failure the function raises an exception and does not return a sentinel value.
-
-    Exceptions & error handling:
-    - Possible exceptions: FileNotFoundError, PermissionError, OSError, ValueError, RuntimeError.
-        - FileNotFoundError: when input VCFs or required resources (e.g. VEP cache) are missing.
-        - PermissionError/OSError: when unable to create or write into `work_dir` or temporary files.
-        - ValueError: invalid parameter values (e.g. negative `dist`).
-        - RuntimeError: underlying tools (SURVIVOR, VEP) fail during execution.
-    - Caller should catch and handle these exceptions; for long-running steps (VEP) consider adding
-        external retry, timeout, or job scheduling.
-
-    Implementation notes:
-    - Algorithmic idea: perform proximity-based SV merging using SURVIVOR, filter merged records by
-        support vector (vec="01" to indicate presence only in the second input), then annotate the
-        filtered VCF using VEP via the `VEP_SV` helper class.
-    - Complexity: relies on external tools; this function does not maintain persistent internal state.
-    - Dependencies: `VEP_SV` and its methods `merge_sv_survivor`, `extract_specific_sv`, and `annotate_sv_vep`.
-
-    Performance:
-    - Time complexity: dominated by VEP annotation and merge operations; roughly O(N) to O(N log N)
-        where N is the number of input SV records. VEP typically dominates runtime and scales at least linearly.
-    - Space complexity: disk I/O heavy; memory usage depends on VEP and SURVIVOR internals.
-    - For large inputs (tens of thousands of SVs) run on nodes with sufficient CPU/memory and fast disk.
-
-    Example:
-    - annotated = run_exp_specific_annotation(
-                dmso_vcf="/data/DMSO.sv.vcf.gz",
-                plab_vcf="/data/PlaB.sv.vcf.gz",
-                work_dir="/results/PlaB_SV",
-                vep_cache="/opt/vep",
-                species="mus_musculus",
-                assembly="GRCm39",
-                dist=500,
-                min_support=1
-        )
+    - Path to the annotated VCF or tab file containing experiment-specific SVs with VEP annotations.
 
     """
     
-    work_path = Path(work_dir).absolute()
-    work_path.mkdir(parents=True, exist_ok=True)
+    outdir = os.path.dirname(outprefix)
+    os.makedirs(outdir, exist_ok=True)
     
     analysis = VEP_SV(
         vep_cache_dir=vep_cache,
@@ -102,79 +55,43 @@ def run_exp_specific_annotation(
     )
     
 
-    merged_vcf = work_path / "merged_sv.vcf"
-    specific_vcf = work_path / "PlaB_only.vcf"
-    annotated_vcf = work_path / "PlaB_only_annotated.vcf"
+    merged_vcf = f"{outprefix}_merged.vcf"
+    specific_vcf = f"{outprefix}_only.vcf"
+    annotated_file = f"{outprefix}_annotated.{annotate_format}"
 
     logger.info(">>> Starting Pipeline: Merge -> Extract -> Annotate")
     
     # 合并 (注意列表顺序: DMSO 在前, PlaB 在后，对应 SUPP_VEC='01')
-    raw_inputs = [dmso_vcf, plab_vcf]
-    analysis.merge_sv_survivor(raw_inputs, str(merged_vcf), dist=dist, min_support=min_support)
+    raw_inputs = [ctrl_vcf, exp_vcf]
+    analysis.merge_sv_survivor(raw_inputs, merged_vcf, dist=dist, min_support=min_support)
     
     # 提取 PlaB 独有 (Vector 为 01)
-    analysis.extract_specific_sv(str(merged_vcf), str(specific_vcf), vec="01")
+    analysis.extract_specific_sv(merged_vcf, specific_vcf, vec="01")
     
-    analysis.annotate_sv_vep(str(specific_vcf), str(annotated_vcf))
+    analysis.annotate_sv_vep(specific_vcf, annotated_file, result_format=annotate_format)
     
-    logger.info(f">>> Pipeline Finished. Annotated VCF: {annotated_vcf}")
+    logger.info(f">>> Pipeline Finished. Annotated VCF: {annotated_file}")
     
-    return str(annotated_vcf)
+    return annotated_file
 
 def run_vcf_analysis(
         vcf:str,
         outdir:str
 ):
     """
-    Overall purpose:
-    - Produce stratified statistics and visualizations for a SV VCF.
-        This includes generation of count tables and two types of plots: a stacked bar
-        chart for size bins and a smoothed curve of SV length counts.
-
-    Use cases:
-    - Post-annotation exploration of treatment-specific SVs to summarize distributions
-        by SV type and size for reporting or downstream analyses.
-
-    Data flow (input -> processing -> output):
-    - Input: a single VCF file path and an output directory.
-    - Processing: call `run_sv_stratification` to build stratified matrices and summaries,
-        then call plotting helpers to render PNG files.
-    - Output: files are written to `outdir/table` and `outdir/plot` (tables and images).
-
+    Function: Analyze the annotated VCF to generate summary statistics and visualizations.
+    Steps:
+    1. Parse the annotated VCF to extract SV type and size information.
+    2. Generate a size distribution plot (stacked bar) for different SV types.
+    3. Generate a curve plot showing SV count across size bins, highlighting specific size thresholds (e.g. 6kb).
     Parameters:
-    - vcf (str): required. Path to the PlaB-specific VCF. Must exist and be parseable by `parse_pbsv_vcf`.
-    - outdir (str): required. Output directory where `table/` and `plot/` subdirectories will be created.
-        Caller must ensure write permission.
-
+    - vcf: path to the annotated VCF file containing experiment-specific SVs with VEP annotations.
+    - outdir: directory where output tables and plots will be saved. Subdirectories "table" and "plot" will be created within this directory.
     Returns:
-    - None. Side effects include writing the following artifacts:
-        - `outdir/table/*` : stratification tables produced by `run_sv_stratification`.
-        - `outdir/plot/size_bin.png` : stacked bar chart of size bins.
-        - `outdir/plot/svlen_count.png` : smoothed SV length count curve.
-
-    Exceptions & error handling:
-    - Possible exceptions: FileNotFoundError, PermissionError, OSError, RuntimeError.
-        - FileNotFoundError: if the input VCF is missing or required intermediate files are absent.
-        - PermissionError/OSError: if the function cannot create directories or write files.
-        - RuntimeError: if downstream stratification or plotting functions fail.
-    - Caller should validate the input VCF contains fields required for stratification (e.g. sv type, svlen).
-
-    Implementation notes:
-    - Algorithmic idea: build stratified count matrices using `run_sv_stratification`, then
-        convert parsed VCF data into plotting-friendly structures (`generate_plot_input`) and
-        call plotting routines.
-    - Complexity: dominated by upstream parsing and stratification routines; function itself
-        orchestrates those steps and calls plotting helpers.
-    - Dependencies: `run_sv_stratification`, `parse_pbsv_vcf`, `generate_plot_input`,
-        `plot_stacking_bar`, `plot_multi_smooth_curves`.
-
-    Performance:
-    - Time complexity: roughly O(N) where N is the number of SV records; memory usage
-        grows with the size of intermediate data frames. For very large VCFs, consider
-        sampling or running on machines with more memory.
-
-    Example:
-    - run_exp_specific_vcf_analysis(vcf="/results/PlaB_only_annotated.vcf", outdir="/results/PlaB")
+    - None. Side effects include:
+        - A size distribution plot saved as "size_bin.png" in the "plot" subdirectory.
+        - A curve plot of SV count across size bins saved as "svlen_count.png" in the "plot" subdirectory.
+        - Intermediate tables used for plotting saved in the "table" subdirectory.
 
     """
     outdir = Path(outdir)
@@ -213,67 +130,24 @@ def run_exp_enricher(
         max_svlen:int = 10000
 ):
     """
-    Overall purpose:
-    - Extract insertion candidate sequences from foreground (PlaB-only) and background (DMSO)
-        VCFs within a specified length range, annotate these sequences with RepeatMasker, and
-        perform a comparative enrichment test at the repeat subfamily level.
-
-    Use cases:
-    - Investigate whether treatment-specific insertions are enriched for particular
-        transposable element families/subfamilies as biological evidence supporting downstream experiments.
-
-    Data flow (input -> processing -> output):
-    - Input: two VCFs (foreground and background) and a length interval (min/max).
-    - Processing: extract candidate insertion sequences -> run RepeatMasker for fg/bg ->
-        use `RepeatMaskerOutCompare` to compute enrichment statistics -> write CSV and plot results.
-    - Output: RepeatMasker outputs under `outdir/repeatmasker`, enrichment CSV and a PNG figure
-        containing significant subfamilies (FDR < 0.05).
-
+    Function: Perform enrichment analysis of repeat elements in experiment-specific SV insertions compared to control SV insertions.
+    Steps:
+    1. Extract candidate TE insertions from both experiment-specific (SUPP_VEC='01') and control (SUPP_VEC='1x') VCFs, filtering by specified SV length range.
+    2. Annotate the extracted candidate insertions using RepeatMasker to identify repeat element composition.
+    3. Perform enrichment analysis comparing the repeat element composition of experiment-specific insertions to control insertions, focusing on subfamily level and applying a divergence filter (e.g. max_div=3).
+    4. Generate a plot visualizing significantly enriched subfamilies (FDR < 0.05) in the experiment-specific insertions.
     Parameters:
-    - vcf_01 (str): required. Path to the PlaB-only VCF (foreground). INS records will be extracted
-        and filtered by length.
-    - vcf_1x (str): required. Path to the DMSO VCF (background) used to construct the background annotation.
-    - outdir (str): required. Root output directory where `fa/` and `repeatmasker/` subdirectories will be created.
-    - min_svlen (int): required (default 2000). Minimum insertion length (bp). Must be >= 0 and <= max_svlen.
-    - max_svlen (int): required (default 10000). Maximum insertion length (bp). Must be >= min_svlen.
-
+    - vcf_01: path to the VCF file containing experiment-specific SVs (SUPP_VEC='01').
+    - vcf_1x: path to the VCF file containing control SVs (SUPP_VEC='1x').
+    - outdir: directory where output tables and plots will be saved. Subdirectories "fa" and "repeatmasker" will be created within this directory for intermediate files.
+    - min_svlen: minimum SV length (in bp) for candidate insertion extraction (default 2000 bp).
+    - max_svlen: maximum SV length (in bp) for candidate insertion extraction (default 10000 bp).
     Returns:
     - None. Side effects include:
-        - `outdir/repeatmasker/PlaBOnlyEnrichment.csv` : enrichment test results (subfamily, fg/bg counts, p-value, fdr, etc.).
-        - `outdir/repeatmasker/PlaBOnlyEnrichment.png` : visualization for significant subfamilies (FDR < 0.05).
-
-    Exceptions & error handling:
-    - Possible exceptions: FileNotFoundError, PermissionError, OSError, ValueError, RuntimeError.
-        - FileNotFoundError: when input VCFs or expected RepeatMasker outputs are missing.
-        - ValueError: when `min_svlen` > `max_svlen` or invalid numeric arguments are provided.
-        - RuntimeError: when RepeatMasker annotation or enrichment calculation fails.
-    - Caller must ensure RepeatMasker and its databases are installed and available in the runtime environment.
-        The pipeline creates intermediate files and therefore requires sufficient disk space.
-
-    Implementation notes:
-    - Algorithmic idea: use `extract_te_candidate_ins` to generate FASTA sequences for candidate insertions,
-        run `run_te_annotation_pipeline` (RepeatMasker) on foreground and background FASTAs, then use
-        `RepeatMaskerOutCompare.enrichment_test` to compute enrichment statistics at the subfamily level.
-    - Complexity: the most expensive step is RepeatMasker annotation, which scales with the number
-        and length of sequences and the size of the repeat database.
-    - Dependencies: `extract_te_candidate_ins`, `run_te_annotation_pipeline`, `RepeatMaskerOutCompare`, `plot_enrichment`.
-
-    Performance:
-    - Time complexity: dominated by RepeatMasker runtime; expected to increase approximately linearly
-        with the number of base pairs annotated but can be substantial for large datasets.
-    - Space complexity: significant disk usage for FASTA and RepeatMasker outputs; memory requirements
-        depend on RepeatMasker implementation and dataset size.
-    - For very large candidate sets, consider batching or running on an HPC environment. Increasing
-        `min_svlen` reduces candidate set size as a practical control.
-
-    Example:
-    - run_exp_enricher(
-                vcf_01="/results/PlaB_only.vcf",
-                vcf_1x="/data/DMSO.sv.vcf.gz",
-                outdir="/results/PlaB_enrichment",
-                min_svlen=2000,
-                max_svlen=10000
-        )
+        - FASTA files of candidate insertions saved in the "fa" subdirectory.
+        - RepeatMasker annotation outputs saved in the "repeatmasker" subdirectory.
+        - An enrichment results CSV file saved as "PlaBOnlyEnrichment.csv" in the "repeatmasker" subdirectory.
+        - An enrichment plot saved as "PlaBOnlyEnrichment.png" in the "repeatmasker" subdirectory.
 
     """
     logger.info("Starting PlaB specific insertion enrichment analysis...")
@@ -306,46 +180,32 @@ def main():
     paraser = argparse.ArgumentParser(description="PlaB specific SV analysis pipeline")
     paraser.add_argument("-c","--ctrl_vcf",type=str,required=True,help="control sample VCF path")
     paraser.add_argument("-e","--exp_vcf",type=str,required=True,help="experiment sample VCF path")
-    paraser.add_argument("-o","--out_dir",type=str,required=True,help="out directory for intermediate and final results")
+    paraser.add_argument("-o","--outprefix",type=str,required=True,help="out prefix for merged, specific, and annotated files")
     paraser.add_argument("-d","--dist",type=int,default=500,help="SURVIVOR merge distance threshold")
+    paraser.add_argument("--vep_cache",type=str,default="~/.vep",help="VEP cache directory")
+    paraser.add_argument("--species",type=str,default="mus_musculus",help="species name for VEP annotation")
+    paraser.add_argument("--assembly",type=str,default="GRCm39",help="genome assembly for VEP annotation")
+    paraser.add_argument("--annotate_format",type=str,choices=["vcf","tab"],default="tab",help="output format for VEP annotation")
     args = paraser.parse_args()
 
-    annotated_vcf = run_exp_specific_annotation(
-        dmso_vcf=args.dmso_vcf,
-        plab_vcf=args.plab_vcf,
-        work_dir=args.out_dir,
-        dist=args.dist
+    annotated_file = run_exp_specific_annotation(
+        ctrl_vcf=args.ctrl_vcf,
+        exp_vcf=args.exp_vcf,
+        outprefix=args.outprefix,
+        dist=args.dist,
+        annotate_format=args.annotate_format
     )
 
+    outdir = os.path.dirname(args.outprefix)
     run_vcf_analysis(
-        vcf=annotated_vcf,
-        outdir=f"{args.out_dir}/PlaB"
+        vcf=f"{args.outprefix}_only.vcf",
+        outdir=outdir
     )
     run_exp_enricher(
-        vcf_01=f"{args.out_dir}/PlaB_only.vcf",
-        vcf_1x=args.dmso_vcf,
-        outdir=f"{args.out_dir}/PlaB_enrichment"
+        vcf_01=f"{args.outprefix}_only.vcf",
+        vcf_1x=args.ctrl_vcf,
+        outdir=f"{outdir}/enrichment"
     )
 
 if __name__ == "__main__":
-    # main()
-    config1 = {
-        "vcf": "/data/pub/zhousha/Totipotent20251031/data/Pacbio/PlaB06/unphased/DMSO_P6.sv.vcf.gz",
-        "outdir": "/data/pub/zhousha/Totipotent20251031/PacBio/SV/DMSO_P6"
-    }
-    config2 = {
-        "vcf": "/data/pub/zhousha/Totipotent20251031/data/Pacbio/PlaB06/unphased/PlaB_P6.sv.vcf.gz",
-        "outdir": "/data/pub/zhousha/Totipotent20251031/PacBio/SV/PlaB_P6"
-    }
-    config3 = {
-        "vcf": "/data/pub/zhousha/Totipotent20251031/data/Pacbio/PlaB20/unphased/DMSO_P20.sv.vcf",
-        "outdir": "/data/pub/zhousha/Totipotent20251031/PacBio/SV/DMSO_P20"
-    }
-    config4 = {
-        "vcf": "/data/pub/zhousha/Totipotent20251031/data/Pacbio/PlaB20/unphased/PlaB_P20.sv.vcf",
-        "outdir": "/data/pub/zhousha/Totipotent20251031/PacBio/SV/PlaB_P20"
-    }
-    run_vcf_analysis(**config1)
-    run_vcf_analysis(**config2)
-    run_vcf_analysis(**config3)
-    run_vcf_analysis(**config4)
+    main()

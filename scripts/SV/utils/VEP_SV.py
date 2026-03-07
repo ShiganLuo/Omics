@@ -5,6 +5,7 @@ import tempfile
 import gzip
 import logging
 from pathlib import Path
+import pandas as pd
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] [%(name)s] %(message)s')
 logger = logging.getLogger(__name__)
@@ -136,8 +137,19 @@ class VEP_SV:
         self._run_cmd(cmd)
         logger.info(f"Extracted SVs (VEC={vec}) to: {out_vcf}")
 
-    def annotate_sv_vep(self, in_vcf:str, out_vcf:str):
-        """运行 VEP 注释，使用类初始化的参数"""
+    def annotate_sv_vep(
+            self, 
+            in_vcf:str, 
+            outfile:str,
+            result_format:str = "vcf"
+        ):
+        """
+        Function: Annotate SVs using VEP with comprehensive options for structural variants.
+        Parameters:
+        - in_vcf: input VCF file containing SVs
+        - outfile: output file path for annotated results
+        - result_format: output format (vcf or tab) --{result_format} will be passed to VEP
+        """
         # 检查特定物种的缓存子目录是否存在
         species_cache = os.path.join(self.vep_cache_dir, self.species)
         logger.info(species_cache)
@@ -146,15 +158,34 @@ class VEP_SV:
             self.vep_annotation_install()
 
         cmd = [
-            "vep", "-i", in_vcf, "-o", out_vcf,
+            "vep", "-i", in_vcf, "-o", outfile,
             "--cache", "--dir_cache", self.vep_cache_dir,
             "--species", self.species,
             "--assembly", self.assembly,
-            "--format", "vcf", "--vcf", "--force_overwrite",
+            "--format", "vcf", f"--{result_format}", "--force_overwrite",
             "--everything", "--pick", "--per_gene", "--offline"
         ]
         self._run_cmd(cmd)
-        logger.info(f"VEP annotation finished: {out_vcf}")
+        logger.info(f"VEP annotation finished: {outfile}")
+
+
+def read_vep_tab(
+        table_file:str,
+        col_line_prefiex: str = "#Uploaded_variation"
+):
+    """
+    Function: Read VEP annotation results which is tab-delimited format and return a DataFrame.
+    """
+    header_line = None
+    with open(table_file) as f:
+        for i, line in enumerate(f):
+            if line.startswith(col_line_prefiex):
+                header_line = i
+                break
+    if header_line is None:
+        raise ValueError(f"Header line starting with '{col_line_prefiex}' not found in {table_file}")
+    df = pd.read_csv(table_file, sep='\t', skiprows=header_line)
+    return df
 
 if __name__ == "__main__":
     analysis = VEP_SV(

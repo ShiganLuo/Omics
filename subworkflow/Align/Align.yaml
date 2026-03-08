@@ -1,13 +1,13 @@
 genome:
   mouse:
-    fasta: "/disk5/luosg/Reference/GENCODE/mouse/GRCm39/GRCm39.primary_assembly.genome.fa"
+    fasta: "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa"
     star_index_dir: ""
-    gtf: "/disk5/luosg/Reference/GENCODE/mouse/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf"
-    hisat2_index_prefix: "/disk5/luosg/Reference/GENCODE/mouse/GRCm39/hisat2/mouse"
+    gtf: "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf"
+    hisat2_index_prefix: ""
 Procedure:
-  aligner: "hisat2"
-  trim_galore: "/opt/TrimGalore-0.6.10/trim_galore"
-  STAR: "/opt/STAR-2.7.11b/bin/Linux_x86_64/STAR"
-  hisat2: "/opt/hisat2-2.2.1/hisat2"
-  hisat2-build: "/opt/hisat2-2.2.1/hisat2-build"
+  aligner: "star"
+  trim_galore: "/home/zhousha/tools/TrimGalore-0.6.10/trim_galore"
+  STAR: "/home/zhousha/tools/STAR-2.7.11b/bin/Linux_x86_64/STAR"
+  hisat2: "/home/zhousha/tools/hisat2-2.2.1/hisat2"
+  hisat2-build: "/home/zhousha/tools/hisat2-2.2.1/hisat2-build"
   samtools: ""

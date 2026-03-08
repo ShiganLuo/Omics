@@ -70,7 +70,7 @@ def get_output_Count(groups:Dict[str, Dict[str, List[str]]]):
                     outfiles.append(f"{outdir}/Align/{sample_id}/{genome}/{sample_id}.Aligned.sortedByCoord.out.bam")
             else:
                 continue
-# get_output_Count(groups)
+get_output_Count(groups)
 
 def get_output_TEtranscripts(groups:Dict[str, Dict[str, List[str]]]):
     include: "subworkflow/Align/Align.smk"
@@ -94,7 +94,7 @@ def get_output_TEtranscripts(groups:Dict[str, Dict[str, List[str]]]):
                     outfiles.append(f"{outdir}/TEtranscripts/bam/{sample_id}/{genome}/{sample_id}.Aligned.sortedByCoord.out.bam")
             else:
                 continue    
-get_output_TEtranscripts(groups)
+# get_output_TEtranscripts(groups)
 
 def get_output_ncRNAseq(groups:Dict[str, Dict[str, List[str]]]):
     include: "subworkflow/ncRNAseq/ncRNAseq.smk"

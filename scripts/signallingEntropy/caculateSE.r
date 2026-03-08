@@ -95,9 +95,11 @@ signalling_entropy_parallel <- function(string_path,
     return(final_entropy_df)
 }
 
-signalling_entropy_parallel(string_path = "/data/pub/zhousha/Totipotent20251031/data/STRING/9606.protein.links.v12.0.txt",
+signalling_entropy_parallel(
+          string_path = "/data/pub/zhousha/Totipotent20251031/data/STRING/9606.protein.links.v12.0.txt",
           exp_path = "/data/pub/zhousha/Totipotent20251031/RNAseqML/matrix/human_all_tpm.tsv",
           out_adj_path = "/data/pub/zhousha/Totipotent20251031/data/STRING/9606_adj_matrix.tsv",
           rewrite_adj = TRUE,
           n_cores = 1,
-          result_output_path = "/data/pub/zhousha/Totipotent20251031/RNAseqML/signalling/signalling_entropy_local.txt")
+          result_output_path = "/data/pub/zhousha/Totipotent20251031/RNAseqML/signalling/signalling_entropy_local.txt"
+        )

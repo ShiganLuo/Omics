@@ -6,7 +6,7 @@ rule star_index:
         gtf = lambda wildcards: config['genome'][wildcards.genome]['gtf']
     output:
         # 以索引目录下的核心文件作为标记
-        index_file = outdir + "/genome/{genome}/index/star/Genome"
+        index_file = directory(outdir + "/genome/{genome}/index/star")
     log:
         outdir + "/log/genome/{genome}/star_index.log"
     threads: 12

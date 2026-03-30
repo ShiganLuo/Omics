@@ -5,6 +5,7 @@ import tempfile
 import gzip
 import logging
 from pathlib import Path
+import pandas as pd
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] [%(name)s] %(message)s')
 logger = logging.getLogger(__name__)
@@ -78,54 +79,62 @@ class VEP_SV:
         self._run_cmd(cmd)
 
     def merge_sv_survivor(self, vcf_files:list, out_vcf:str, dist:int = 500, min_support:int = 1):
-            """
-            强制使用本地绝对路径，解决 SURVIVOR 读取失败问题(SURVIVOR在读取临时文件时有时有bug,多个样本时尤其明显,会被认为是同一个样本)
-            """
-            # 在输出目录旁创建一个实体的临时文件夹
-            work_dir = os.path.dirname(os.path.abspath(out_vcf))
-            tmp_folder = os.path.join(work_dir, "survivor_tmp")
-            os.makedirs(tmp_folder, exist_ok=True)
-            
-            decompressed_list = []
-            try:
-                for i, vcf in enumerate(vcf_files):
-                    # 显式获取样本名并生成绝对路径
-                    s_name = f"Sample_{i}" # 强制用不同名字避免任何冲突
-                    tmp_vcf = os.path.abspath(os.path.join(tmp_folder, f"S{i}.vcf"))
-                    
-                    logger.info(f"Decompressing {vcf} to {tmp_vcf}")
-                    if vcf.endswith(".gz"):
-                        with gzip.open(vcf, 'rb') as f_in, open(tmp_vcf, 'wb') as f_out:
-                            shutil.copyfileobj(f_in, f_out)
-                    else:
-                        shutil.copy2(vcf, tmp_vcf)
-                    decompressed_list.append(tmp_vcf)
+        """
+        Function: Merge SVs from multiple VCF files using SURVIVOR, with robust handling of temporary files to avoid issues with SURVIVOR's file reading.
+        Parameters:
+            - vcf_files: list of input VCF file paths (can be gzipped)
+            - out_vcf: output VCF file path
+            - dist: maximum distance between SVs to be merged
+            - min_support: minimum support for SVs to be merged
+        Returns:
+            - Merged VCF file at out_vcf
+        Note: use absolute paths for all temporary files to avoid SURVIVOR reading issues, especially when handling multiple samples.
+        """
+        # 在输出目录旁创建一个实体的临时文件夹
+        work_dir = os.path.dirname(os.path.abspath(out_vcf))
+        tmp_folder = os.path.join(work_dir, "survivor_tmp")
+        os.makedirs(tmp_folder, exist_ok=True)
+        
+        decompressed_list = []
+        try:
+            for i, vcf in enumerate(vcf_files):
+                # 显式获取样本名并生成绝对路径
+                s_name = f"Sample_{i}" # 强制用不同名字避免任何冲突
+                tmp_vcf = os.path.abspath(os.path.join(tmp_folder, f"S{i}.vcf"))
+                
+                logger.info(f"Decompressing {vcf} to {tmp_vcf}")
+                if vcf.endswith(".gz"):
+                    with gzip.open(vcf, 'rb') as f_in, open(tmp_vcf, 'wb') as f_out:
+                        shutil.copyfileobj(f_in, f_out)
+                else:
+                    shutil.copy2(vcf, tmp_vcf)
+                decompressed_list.append(tmp_vcf)
 
-                # 写入列表文件，强制使用 \n 换行
-                tmp_list = os.path.abspath(os.path.join(tmp_folder, "vcf_list.txt"))
-                with open(tmp_list, "w", newline='\n') as f:
-                    for path in decompressed_list:
-                        f.write(f"{path}\n")
+            # 写入列表文件，强制使用 \n 换行
+            tmp_list = os.path.abspath(os.path.join(tmp_folder, "vcf_list.txt"))
+            with open(tmp_list, "w", newline='\n') as f:
+                for path in decompressed_list:
+                    f.write(f"{path}\n")
 
-                logger.info(f"Final VCF list path: {tmp_list}")
-                logger.info(f"VCF list content:\n{open(tmp_list).read()}")
+            logger.info(f"Final VCF list path: {tmp_list}")
+            logger.info(f"VCF list content:\n{open(tmp_list).read()}")
 
-                # 执行 SURVIVOR
-                cmd = ["SURVIVOR", "merge", tmp_list, str(dist), str(min_support), "1", "1", "0", "50", out_vcf]
-                self._run_cmd(cmd)
+            # 执行 SURVIVOR
+            cmd = ["SURVIVOR", "merge", tmp_list, str(dist), str(min_support), "1", "1", "0", "50", out_vcf]
+            self._run_cmd(cmd)
 
-                # 验证结果
-                with open(out_vcf, 'r') as f:
-                    for line in f:
-                        if line.startswith("#CHROM"):
-                            cols = line.strip().split('\t')
-                            logger.info(f"Merge Check - Columns: {len(cols)}, Samples: {cols[9:]}")
-                            break
-            finally:
-                # 如果成功了就清理，没成功你可以注释掉这行进去看文件在不在
-                if os.path.exists(out_vcf) and os.path.getsize(out_vcf) > 0:
-                    shutil.rmtree(tmp_folder)
-                    logger.info("Cleaned up temporary files.")
+            # 验证结果
+            with open(out_vcf, 'r') as f:
+                for line in f:
+                    if line.startswith("#CHROM"):
+                        cols = line.strip().split('\t')
+                        logger.info(f"Merge Check - Columns: {len(cols)}, Samples: {cols[9:]}")
+                        break
+        finally:
+            # 如果成功了就清理，没成功你可以注释掉这行进去看文件在不在
+            if os.path.exists(out_vcf) and os.path.getsize(out_vcf) > 0:
+                shutil.rmtree(tmp_folder)
+                logger.info("Cleaned up temporary files.")
 
     def extract_specific_sv(self, in_vcf:str, out_vcf:str, vec:str = "10"):
         """
@@ -166,6 +175,25 @@ class VEP_SV:
         ]
         self._run_cmd(cmd)
         logger.info(f"VEP annotation finished: {outfile}")
+
+
+def read_vep_tab(
+        table_file:str,
+        col_line_prefiex: str = "#Uploaded_variation"
+):
+    """
+    Function: Read VEP annotation results which is tab-delimited format and return a DataFrame.
+    """
+    header_line = None
+    with open(table_file) as f:
+        for i, line in enumerate(f):
+            if line.startswith(col_line_prefiex):
+                header_line = i
+                break
+    if header_line is None:
+        raise ValueError(f"Header line starting with '{col_line_prefiex}' not found in {table_file}")
+    df = pd.read_csv(table_file, sep='\t', skiprows=header_line)
+    return df
 
 if __name__ == "__main__":
     analysis = VEP_SV(

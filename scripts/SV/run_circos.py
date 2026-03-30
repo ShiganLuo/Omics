@@ -16,7 +16,9 @@ def run_cricos_pipelien(
         prepare_script: str = "utils/sv_circos_prepare.py",
         circos_script: str = "utils/circos.r",
         ins_bin_size: int = 100000,
-        ins_plot_type: Literal["points","bar"] = "bar"
+        ins_plot_type: Literal["points","bar"] = "bar",
+        genome: str = "mm39",
+        cytoband_file: str = "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/mm39.cytoBand.txt",
 ):
     """
     参数化的 SV Circos 绘图流程
@@ -51,23 +53,31 @@ def run_cricos_pipelien(
         ]
         run_cmd_list(prepare_cmd)
         logger.info(">>> Starting Circos Plotting")
+
         outImage = sample_outdir / f"{name}_sv_circos.png"
         circos_cmd = [
             "Rscript", circos_script,
             "--input_dir", str(sample_outdir),
             "--output", str(outImage),
-            "--genome", "mm39",
+            "--genome", genome,
             "--ins_bin_size", ins_bin_size,
-            "--ins_plot_type", ins_plot_type
+            "--ins_plot_type", ins_plot_type,
+            "--cytoband", cytoband_file
         ]
         run_cmd_list(circos_cmd)
 
 
 if __name__ == "__main__":
-    indir = "/data/pub/zhousha/Totipotent20251031/data/Pacbio"
     fasta = "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa"
-    outdir = "/data/pub/zhousha/Totipotent20251031/PacBio/circos"
-    run_cricos_pipelien(indir, fasta, outdir,vcf_pattern="**/unphased/*.vcf*", outfile_name_mode="sample")
-    indir = "/data/pub/zhousha/Totipotent20251031/PacBio/SV"
-    outdir = "/data/pub/zhousha/Totipotent20251031/PacBio/circos"
-    run_cricos_pipelien(indir, fasta, outdir,vcf_pattern="**/PlaB_only.vcf*", outfile_name_mode="parent")
+    indir = "/data/pub/zhousha/Totipotent20251031/PacBio/SV/PlaB06_vs_DMSO06"
+    outdir = "/data/pub/zhousha/Totipotent20251031/PacBio/SV/PlaB06_vs_DMSO06/circos"
+    # run_cricos_pipelien(indir, fasta, outdir,vcf_pattern="PlaB_only.vcf", outfile_name_mode="sample")
+    indir = "/data/pub/zhousha/Totipotent20251031/PacBio/SV/PlaB20_vs_DMSO20"
+    outdir = "/data/pub/zhousha/Totipotent20251031/PacBio/SV/PlaB20_vs_DMSO20/circos"
+    run_cricos_pipelien(indir, fasta, outdir,vcf_pattern="PlaB_only.vcf", outfile_name_mode="sample")
+    indir = "/data/pub/zhousha/Totipotent20251031/PacBio/SV/DMSO20_vs_DMSO06"
+    outdir = "/data/pub/zhousha/Totipotent20251031/PacBio/SV/DMSO20_vs_DMSO06/circos"
+    run_cricos_pipelien(indir, fasta, outdir,vcf_pattern="DMSO_only.vcf", outfile_name_mode="sample")
+    indir = "/data/pub/zhousha/Totipotent20251031/PacBio/SV/PlaB20_vs_PlaB06"
+    outdir = "/data/pub/zhousha/Totipotent20251031/PacBio/SV/PlaB20_vs_PlaB06/circos"
+    run_cricos_pipelien(indir, fasta, outdir,vcf_pattern="PlaB_only.vcf", outfile_name_mode="sample")

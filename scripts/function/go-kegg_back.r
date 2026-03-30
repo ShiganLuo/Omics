@@ -9,9 +9,6 @@ suppressPackageStartupMessages({
   library(dplyr)
 })
 
-# ============================================================
-# 1. 从 enrichment 表中定义 Up / Down 基因
-# ============================================================
 define_up_down_genes <- function(
   infile,
   gene_col,
@@ -39,9 +36,6 @@ define_up_down_genes <- function(
   list(up = up, down = down)
 }
 
-# ============================================================
-# 2. GO / KEGG enrichment（真正的核心模块）
-# ============================================================
 run_go_kegg <- function(
   genes,
   species = c("human", "mouse"),
@@ -92,9 +86,7 @@ run_go_kegg <- function(
   as.data.frame(res@result)
 }
 
-# ============================================================
-# 3. 背靠背 GO / KEGG 柱状图
-# ============================================================
+
 plot_back_to_back <- function(
   up_df,
   down_df,
@@ -144,9 +136,7 @@ plot_back_to_back <- function(
   ggsave(outfile, p, width = 8, height = 6)
 }
 
-# ============================================================
-# 4. 总控流程（围绕 GO / KEGG）
-# ============================================================
+
 run_pipeline <- function(
   infile,
   outdir,

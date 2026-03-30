@@ -96,7 +96,7 @@ class SVCircosPrepare():
 
 
     @staticmethod
-    def parse_bnd_alt(alt: str) -> Tuple[str, int]:
+    def parse_bnd_alt(alt: str) -> Tuple[str, int] | Tuple[None, None]:
         """
         Parse BND ALT field to extract partner chromosome and position.
 
@@ -150,7 +150,7 @@ class SVCircosPrepare():
                 else:
                     sv_records[svtype].append((chrom1,pos1, int(end)))
                 continue
-            if svtype == "BND":
+            if svtype == "BND" or svtype == "TRA":
                 alt = str(rec.alts[0])
                 chrom2, pos2, _ = self.parse_complex_bnd(alt)
                 
@@ -196,33 +196,33 @@ class SVCircosPrepare():
         - generate Circos input files
         """
         outdir = self.outdir
-        outdir = Path(outdir)
-        outdir.mkdir(parents=True, exist_ok=True)
+        outdir_p = Path(outdir)
+        outdir_p.mkdir(parents=True, exist_ok=True)
 
         # FASTA
         chrom_sizes = self.parse_fasta_chrom_sizes()
         SVCircosPrepare.write_circos_karyotype(
             chrom_sizes,
-            outdir / "karyotype.txt",
+            str(outdir_p  / "karyotype.txt"),
         )
 
         # VCF
         sv_records = self.parse_sv_vcf_for_circle()
 
         # Write Circos input files
-        with open(outdir / "blocks_del.bed", "w") as f_blocks:
+        with open(outdir_p / "blocks_del.bed", "w") as f_blocks:
             for chrom, start, end in sv_records["DEL"]:
                 f_blocks.write(f"{chrom}\t{start}\t{end}\n")
-        with open(outdir / "points_ins.bed", "w") as f_points_ins:
+        with open(outdir_p / "points_ins.bed", "w") as f_points_ins:
             for chrom, pos, end in sv_records["INS"]:
                 f_points_ins.write(f"{chrom}\t{pos}\t{end}\n")
-        with open(outdir / "points_dup.bed", "w") as f_points_dup:
+        with open(outdir_p / "points_dup.bed", "w") as f_points_dup:
             for chrom, pos, end in sv_records["DUP"]:
                 f_points_dup.write(f"{chrom}\t{pos}\t{end}\n")
-        with open(outdir / "points_inv.bed", "w") as f_points_inv:
+        with open(outdir_p / "points_inv.bed", "w") as f_points_inv:
             for chrom, pos, end in sv_records["INV"]:
                 f_points_inv.write(f"{chrom}\t{pos}\t{end}\n")
-        with open(outdir / "links_tra.bed", "w") as f_links:
+        with open(outdir_p / "links_tra.bed", "w") as f_links:
             for c1, p1, c2, p2 in sv_records["TRA"]:
                 f_links.write(f"{c1}\t{p1}\t{c2}\t{p2}\n")
         

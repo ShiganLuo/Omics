@@ -95,11 +95,27 @@ signalling_entropy_parallel <- function(string_path,
     return(final_entropy_df)
 }
 
-signalling_entropy_parallel(
-          string_path = "/data/pub/zhousha/Totipotent20251031/data/STRING/9606.protein.links.v12.0.txt",
-          exp_path = "/data/pub/zhousha/Totipotent20251031/RNAseqML/matrix/human_all_tpm.tsv",
-          out_adj_path = "/data/pub/zhousha/Totipotent20251031/data/STRING/9606_adj_matrix.tsv",
-          rewrite_adj = TRUE,
-          n_cores = 1,
-          result_output_path = "/data/pub/zhousha/Totipotent20251031/RNAseqML/signalling/signalling_entropy_local.txt"
-        )
+plot_signalling_entropy <- function(entropy_df, output_path = "signalling_entropy_plot.png") {
+    library(ggplot2)
+    p <- ggplot(entropy_df, aes(x = SampleID, y = SignallingEntropyRate)) +
+        geom_bar(stat = "identity", fill = "steelblue") +
+        theme_minimal() +
+        theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+        labs(title = "Signalling Entropy Rate per Sample", x = "Sample ID", y = "Signalling Entropy Rate")
+    
+    ggsave(output_path, plot = p, width = 10, height = 6)
+    log_msg("INFO", paste("Signalling entropy plot saved to:", output_path))
+}
+# signalling_entropy_parallel(
+#           string_path = "/data/pub/zhousha/Totipotent20251031/data/STRING/10090.protein.links.v12.0.txt",
+#           exp_path = "/data/pub/zhousha/20260207_Exome/output/RNAseq/counts/featureCounts/mouse/mouse_all_tpm.tsv",
+#           out_adj_path = "/data/pub/zhousha/Totipotent20251031/data/STRING/10090_adj_matrix.tsv",
+#           rewrite_adj = TRUE,
+#           species = 10090,
+#           n_cores = 6,
+#           result_output_path = "/data/pub/zhousha/20260207_Exome/output/RNAseq/results/signallingEntropy/signalling_entropy_local.txt"
+#         )
+plot_signalling_entropy(
+    entropy_df = read.table("/data/pub/zhousha/20260207_Exome/output/RNAseq/results/signallingEntropy/signalling_entropy_local.txt", header = TRUE, sep = "\t"),
+    output_path = "/data/pub/zhousha/20260207_Exome/output/RNAseq/results/signallingEntropy/signalling_entropy_plot.png"
+)

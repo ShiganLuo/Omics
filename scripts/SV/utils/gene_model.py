@@ -50,7 +50,10 @@ def merge_intervals(intervals: List[Tuple[int, int]]) -> List[Tuple[int, int]]:
             merged.append((start, end))
     return merged
 
-def get_gene_structure_by_transcript(db: gffutils.FeatureDB, gene_name: str) -> Tuple[Dict[str, Dict[str, List[Tuple[int, int]]]], gffutils.Feature]:
+def get_gene_structure_by_transcript(
+        db: gffutils.FeatureDB, 
+        gene_name: str
+    ) -> Tuple[Dict[str, Dict[str, List[Tuple[int, int]]]], gffutils.Feature]:
     """
     Return gene structure grouped by transcript (all isoforms).
     Output format:

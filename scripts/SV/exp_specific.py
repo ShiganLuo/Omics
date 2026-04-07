@@ -76,7 +76,7 @@ def run_exp_specific_annotation(
 
 def run_vcf_analysis(
         vcf:str,
-        outdir:str
+        out_dir:str
 ):
     """
     Function: Analyze the annotated VCF to generate summary statistics and visualizations.
@@ -94,7 +94,7 @@ def run_vcf_analysis(
         - Intermediate tables used for plotting saved in the "table" subdirectory.
 
     """
-    outdir = Path(outdir)
+    outdir = Path(out_dir)
     outdir_table = outdir / "table"
     outdir_table.mkdir(parents=True,exist_ok=True)
     outdir_plot = outdir / "plot"
@@ -119,13 +119,13 @@ def run_vcf_analysis(
                              x_label="svlen",
                              y_label="count",
                              title="",
-                             outfig=outpng_curve,
+                             outfig=str(outpng_curve),
                              highlight_x_values=[6000])
 
 def run_exp_enricher(
         vcf_01:str,
         vcf_1x:str,
-        outdir:str,
+        out_dir:str,
         min_svlen:int = 2000,
         max_svlen:int = 10000
 ):
@@ -151,7 +151,7 @@ def run_exp_enricher(
 
     """
     logger.info("Starting PlaB specific insertion enrichment analysis...")
-    outdir = Path(outdir)
+    outdir = Path(out_dir)
     outdir.mkdir(parents=True,exist_ok=True)
     logger.info(f"Output directory: {outdir}")
 
@@ -164,7 +164,7 @@ def run_exp_enricher(
     out_1x = run_te_annotation_pipeline(fa_1x,f"{outdir}/repeatmasker/1x",species="mus musculus")
 
     logger.info("Performing enrichment test between PlaB only and DMSO SV insertions...")
-    repeatMaskerOutCompare = RepeatMaskerOutCompare(bg_out=out_1x,fg_out=out_01)
+    repeatMaskerOutCompare = RepeatMaskerOutCompare(bg_out=str(out_1x),fg_out=str(out_01))
     df = repeatMaskerOutCompare.enrichment_test(level="subfamily",max_div=3)
     out_enrich_csv = f"{outdir}/repeatmasker/PlaBOnlyEnrichment.csv"
     df.to_csv(out_enrich_csv,sep="\t",index=False)
@@ -199,12 +199,12 @@ def main():
     outdir = os.path.dirname(args.outprefix)
     run_vcf_analysis(
         vcf=f"{args.outprefix}_only.vcf",
-        outdir=outdir
+        out_dir=outdir
     )
     run_exp_enricher(
         vcf_01=f"{args.outprefix}_only.vcf",
         vcf_1x=args.ctrl_vcf,
-        outdir=f"{outdir}/enrichment"
+        out_dir=f"{outdir}/enrichment"
     )
 
 if __name__ == "__main__":

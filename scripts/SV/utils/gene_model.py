@@ -157,11 +157,11 @@ def plot_gene_model_all_transcripts(
 
         # Exons
         for start, end in exons:
-            ax.add_patch(patches.Rectangle((start, y_base-0.1), end-start, 0.2, color='skyblue', ec='red', zorder=2))
+            ax.add_patch(patches.Rectangle((start, y_base-0.1), end-start, 0.2, color='red', ec='red', zorder=2))
         
         # UTRs
         for start, end in utrs:
-            ax.add_patch(patches.Rectangle((start, y_base-0.05), end-start, 0.1, color='lightgreen', ec='green', zorder=3))
+            ax.add_patch(patches.Rectangle((start, y_base-0.05), end-start, 0.1, color='green', ec='green', zorder=3))
         
         # Transcript label
         ax.text(gene.start-50, y_base, tx_id, fontsize=8, ha='right', va='center')
@@ -228,7 +228,8 @@ def run():
         "PlaB_P6": "/data/pub/zhousha/Totipotent20251031/PacBio/SV/PlaB06_vs_DMSO06/gene",
         "PlaB_P20": "/data/pub/zhousha/Totipotent20251031/PacBio/SV/PlaB20_vs_DMSO20/gene"
     }
-    genes = ["Fhit","Alk","Lrp1b"]
+    # genes = ["Fhit","Alk","Lrp1b"]
+    genes = ["Ciita","Fgfr2"]
     db = create_db("/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf")
     for sample, vcf in vcfs.items():
         outdir = outdirs[sample]

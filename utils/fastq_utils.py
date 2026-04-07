@@ -69,7 +69,7 @@ class MetadataUtils:
         SINGLE: not PAIRED
         """
         fqDir = self.fqDir
-        fastq_files = list(fqDir.glob(f"{sample}*.gz"))
+        fastq_files = list(fqDir.rglob(f"{sample}*.gz"))
         if not fastq_files:
             self.logger.error(f"not find corresponding fastq file for {sample},please check it")
             return "NULL"

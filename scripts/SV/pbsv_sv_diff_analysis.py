@@ -11,10 +11,10 @@ logger = logging.getLogger(__name__)
 def run_pbsv_diff_analysis(
     ctrl_vcf: str,
     exp_vcf: str,
-    outdir: str,
+    out_dir: str,
     large_sv_threshold: int,
 ):
-    outdir = Path(outdir)
+    outdir = Path(out_dir)
     table_dir = outdir / "table"
     table_dir.mkdir(parents=True,exist_ok=True)
     plot_dir = outdir / "plot"
@@ -111,7 +111,7 @@ def main():
     run_pbsv_diff_analysis(
         ctrl_vcf=args.control,
         exp_vcf=args.experiment,
-        outdir=args.outdir,
+        out_dir=args.outdir,
         large_sv_threshold=args.large_sv_threshold,
     )
 

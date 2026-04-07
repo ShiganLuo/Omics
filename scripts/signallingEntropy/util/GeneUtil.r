@@ -1,7 +1,9 @@
 box::use(
   data.table[...],
   bi = biomaRt,
-  stats[setNames]
+  stats[setNames],
+  ./LogUtil[log_msg]
+
 )
 #' Convert gene symbols in an expression matrix to Entrez Gene IDs
 #'
@@ -239,6 +241,7 @@ string_to_adj_binary <- function(file_path,
                                  cutoff = 700,
                                  convert_to_entrez = TRUE,
                                  species = 9606) {
+  log_msg("INFO", "Processing STRING file to build binary adjacency matrix...")
   # 1. 读取并清洗数据
   dt <- fread(file_path, header = TRUE)
   # 移除 ID 前缀 (如 "9606.")

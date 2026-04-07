@@ -50,7 +50,14 @@ def merge_intervals(intervals: List[Tuple[int, int]]) -> List[Tuple[int, int]]:
             merged.append((start, end))
     return merged
 
+<<<<<<< HEAD
 def get_gene_structure_by_transcript(db: gffutils.FeatureDB, gene_name: str) -> Tuple[Dict[str, Dict[str, List[Tuple[int, int]]]], gffutils.Feature]:
+=======
+def get_gene_structure_by_transcript(
+        db: gffutils.FeatureDB, 
+        gene_name: str
+    ) -> Tuple[Dict[str, Dict[str, List[Tuple[int, int]]]], gffutils.Feature]:
+>>>>>>> 0ea0c995979175199379f89ae752af4c876178c6
     """
     Return gene structure grouped by transcript (all isoforms).
     Output format:
@@ -157,11 +164,19 @@ def plot_gene_model_all_transcripts(
 
         # Exons
         for start, end in exons:
+<<<<<<< HEAD
             ax.add_patch(patches.Rectangle((start, y_base-0.1), end-start, 0.2, color='red', ec='red', zorder=2))
         
         # UTRs
         for start, end in utrs:
             ax.add_patch(patches.Rectangle((start, y_base-0.05), end-start, 0.1, color='green', ec='green', zorder=3))
+=======
+            ax.add_patch(patches.Rectangle((start, y_base-0.1), end-start, 0.2, color='skyblue', ec='red', zorder=2))
+        
+        # UTRs
+        for start, end in utrs:
+            ax.add_patch(patches.Rectangle((start, y_base-0.05), end-start, 0.1, color='lightgreen', ec='green', zorder=3))
+>>>>>>> 0ea0c995979175199379f89ae752af4c876178c6
         
         # Transcript label
         ax.text(gene.start-50, y_base, tx_id, fontsize=8, ha='right', va='center')
@@ -228,8 +243,12 @@ def run():
         "PlaB_P6": "/data/pub/zhousha/Totipotent20251031/PacBio/SV/PlaB06_vs_DMSO06/gene",
         "PlaB_P20": "/data/pub/zhousha/Totipotent20251031/PacBio/SV/PlaB20_vs_DMSO20/gene"
     }
+<<<<<<< HEAD
     # genes = ["Fhit","Alk","Lrp1b"]
     genes = ["Ciita","Fgfr2"]
+=======
+    genes = ["Fhit","Alk","Lrp1b"]
+>>>>>>> 0ea0c995979175199379f89ae752af4c876178c6
     db = create_db("/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf")
     for sample, vcf in vcfs.items():
         outdir = outdirs[sample]

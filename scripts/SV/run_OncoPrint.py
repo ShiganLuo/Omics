@@ -1,5 +1,9 @@
 from utils.VEP_SV import read_vep_tab
+<<<<<<< HEAD
 from utils.LogUtil import setup_logger
+=======
+from utils.util import setup_logger
+>>>>>>> 0ea0c995979175199379f89ae752af4c876178c6
 import pandas as pd
 from typing import List, Dict, Optional
 import logging

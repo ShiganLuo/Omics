@@ -1,5 +1,8 @@
 # RNASNP
 
+- 快速迁移
+- 模块化编写
+
 ## 快速开始
 
 1. 创建envs中的conda环境，对于各个subworflow，配置好同名yaml内容

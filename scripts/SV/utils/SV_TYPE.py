@@ -159,7 +159,7 @@ def run_sv_stratification(vcf_file, output_dir, run_cmd_func=None):
 
 def extract_te_candidate_ins(
     vcf_file: str,
-    output_fasta: str,
+    output_fasta_str: str,
     min_len: int = 2000,
     max_len: int = 10000
 ) -> Optional[Path]:
@@ -209,7 +209,7 @@ def extract_te_candidate_ins(
     - The FASTA header format is:
         >{ID}_{CHROM}_{POS}_len{LENGTH}
     """
-    output_fasta = Path(output_fasta)
+    output_fasta = Path(output_fasta_str)
     output_fasta.parent.mkdir(parents=True, exist_ok=True)
 
     logger = logging.getLogger(__name__)

@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.stats import mannwhitneyu,chi2_contingency
 import matplotlib.patches as mpatches
-from typing import List, Union, Dict
+from typing import List, Union, Dict, Optional
 import logging
 from scipy.interpolate import make_interp_spline
 from scipy.ndimage import gaussian_filter1d
@@ -82,15 +82,15 @@ def plot_sv_type_barplot(
 
 def plot_stacking_bar(
     df_counts: pd.DataFrame,
-    xlabels: List[str] = None,
-    groups: List[str] = None,
-    group_colors: Dict[str, str] = None,
+    xlabels: Optional[List[str]] = None,
+    groups: Optional[List[str]] = None,
+    group_colors: Optional[Dict[str, str]] = None,
     title: str = "Mutation Distribution (Proportion)",
     xlabel: str = "Sample",
     ylabel: str = "Proportion",
     legend_title_type: str = "Mutation Type",
     legend_title_group: str = "Sample Group",
-    save_path: Union[str, Path] = None,
+    save_path: Optional[Union[str, Path]] = None,
     legend_width: float = 0.25,
     figsize: tuple = (12, 6),
     legend_fontsize: int = 13,

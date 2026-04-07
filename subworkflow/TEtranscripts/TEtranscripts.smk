@@ -37,7 +37,6 @@ def get_cntTable_for_TEcount(wildcards):
     for sample_id, genome in paired_sample_genome_pairs:
         if genome == wildcards.genome:
             cntTable.append(f"{outdir}/TEtranscripts/TEcount/{genome}/{sample_id}TEcount.cntTable")
-    
     if len(cntTable) == 0:
         raise ValueError(f"rule combine_TElocal didn't get any input files,genome: {wildcards.genome}\nsingle_sample_genome_pairs:{single_sample_genome_pairs}\npaired_sample_genome_pairs:{paired_sample_genome_pairs}")
     return cntTable
@@ -46,7 +45,7 @@ rule combine_TEcount:
     input:
         fileList = get_cntTable_for_TEcount
     output:
-        outfile = outdir + "/TEtranscripts/TEcount/{genome}/all_TEcount.cntTable"
+        outfile = outdir + "/TEtranscripts/TEcount/{genome}/all_TEcount.tsv"
     conda:
         config['conda']['run']
     params:
@@ -98,7 +97,7 @@ rule combine_TElocal:
     input:
         fileList = get_cntTable_for_TElocal
     output:
-        outfile = outdir + "/TEtranscripts/TElocal/{genome}/all_TElocal.cntTable"
+        outfile = outdir + "/TEtranscripts/TElocal/{genome}/all_TElocal.tsv"
     conda:
         config['conda']['run']
     params:
@@ -113,8 +112,8 @@ rule combine_TElocal:
 
 rule TEtranscripts_result:
     input:
-        TEcount = outdir + "/TEtranscripts/TEcount/{genome}/all_TEcount.cntTable",
-        TElocal = outdir + "/TEtranscripts/TElocal/{genome}/all_TElocal.cntTable"
+        TEcount = outdir + "/TEtranscripts/TEcount/{genome}/all_TEcount.tsv",
+        TElocal = outdir + "/TEtranscripts/TElocal/{genome}/all_TElocal.tsv"
 
 
 if config["Procedure"]["aligner"] == "star":

@@ -19,6 +19,14 @@ logger = logging.getLogger(__name__)
 
 class RNASeqNormalizer:
     def __init__(self, gtf_path=None):
+        """
+        Initialize the RNASeqNormalizer.
+
+        Parameters
+        ----------
+        gtf_path : str, optional
+            Path to the GTF annotation file. rename gene_id to gene_name if provided. If not provided, gene_id will be used as is.
+        """
         self.gtf_path = gtf_path
 
     @staticmethod
@@ -152,14 +160,14 @@ class RNASeqNormalizer:
         return pd.merge(df_PE, df_SE, on="Geneid")
 
 if __name__ == "__main__":
-    human_gtf = "/data/pub/zhousha/Reference/human/GENCODE/GRCh38/gencode.v49.primary_assembly.basic.annotation.gtf"
-    normalizer = RNASeqNormalizer(gtf_path=human_gtf)
+    gtf = "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf"
+    normalizer = RNASeqNormalizer(gtf_path=gtf)
     
     tpm = normalizer.run_norm(
-        "/data/pub/zhousha/Totipotent20251031/RNAseqML/matrix/huam_all_count.tsv",
+        "/data/pub/zhousha/20260207_Exome/output/RNAseq/counts/featureCounts/mouse/mouse_paired_count.tsv",
         method="tpm",
         convert_to_gene_name=False,
         remove_version=True
     )
-    tpm.to_csv("/data/pub/zhousha/Totipotent20251031/RNAseqML/matrix/human_all_tpm.tsv", sep="\t", index=False)
-    df = pd.read_csv("/data/pub/zhousha/Totipotent20251031/RNAseqML/matrix/human_all_tpm.tsv", sep="\t", index_col=0)
+    tpm.to_csv("/data/pub/zhousha/20260207_Exome/output/RNAseq/counts/featureCounts/mouse/mouse_all_tpm.tsv", sep="\t", index=False)
+    # df = pd.read_csv("/data/pub/zhousha/Totipotent20251031/RNAseqML/matrix/mouse_all_tpm.tsv", sep="\t", index_col=0)

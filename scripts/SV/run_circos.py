@@ -1,5 +1,5 @@
 
-from utils.run_cmd import run_cmd_list
+from utils.CmdUtil import _run_cmd
 import logging
 import re
 from pathlib import Path
@@ -51,7 +51,7 @@ def run_cricos_pipelien(
             "--fasta", fasta,
             "--outdir", str(sample_outdir)
         ]
-        run_cmd_list(prepare_cmd)
+        _run_cmd(prepare_cmd)
         logger.info(">>> Starting Circos Plotting")
 
         outImage = sample_outdir / f"{name}_sv_circos.png"
@@ -64,7 +64,7 @@ def run_cricos_pipelien(
             "--ins_plot_type", ins_plot_type,
             "--cytoband", cytoband_file
         ]
-        run_cmd_list(circos_cmd)
+        _run_cmd(circos_cmd)
 
 
 if __name__ == "__main__":

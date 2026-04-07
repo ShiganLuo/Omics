@@ -7,11 +7,7 @@ import numpy as np
 import logging
 logger = logging.getLogger(__name__)
 
-<<<<<<< HEAD
 def enrich_go(
-=======
-def enrich_go_kegg(
->>>>>>> 0ea0c995979175199379f89ae752af4c876178c6
         gene_list:list, 
         organism:str = 'Human', 
         outdir:str = 'enrichment_results', 
@@ -50,10 +46,7 @@ def enrich_go_kegg(
         df = enr.results
         results_dict[cat] = df
         
-<<<<<<< HEAD
-=======
         # 可视化 top_n
->>>>>>> 0ea0c995979175199379f89ae752af4c876178c6
         if not df.empty:
             top_df = df.sort_values('Adjusted P-value').head(top_n)
             plt.figure(figsize=(8,6))
@@ -63,11 +56,6 @@ def enrich_go_kegg(
             plt.tight_layout()
             plt.savefig(os.path.join(outdir, f'{cat}_top{top_n}.png'))
             plt.close()
-<<<<<<< HEAD
-        else:
-            logger.warning(f"No significant enrichment found for {cat} with cutoff {cutoff}.")
-=======
->>>>>>> 0ea0c995979175199379f89ae752af4c876178c6
     
 def enrich_kegg(
         gene_list:list, 
@@ -82,10 +70,7 @@ def enrich_kegg(
         gene_list=gene_list,
         gene_sets=kegg_cat,
         organism=organism,
-<<<<<<< HEAD
-=======
         description='KEGG',
->>>>>>> 0ea0c995979175199379f89ae752af4c876178c6
         outdir=outdir,
         cutoff=cutoff
     )
@@ -112,8 +97,4 @@ if __name__ == "__main__":
     # --- 使用示例 ---
     df = pd.read_csv("/disk5/luosg/Totipotent20251031/output/SNP/vcf/intersect/annotate/ci8CLC/ci8CLC_gene_counts.csv",index_col=0)
     gene_list = df.index.to_list()
-<<<<<<< HEAD
-    results = enrich_go(gene_list,outdir="/disk5/luosg/Totipotent20251031/output/SNP/vcf/intersect/annotate/ci8CLC/go")
-=======
     results = enrich_go_kegg(gene_list,outdir="/disk5/luosg/Totipotent20251031/output/SNP/vcf/intersect/annotate/ci8CLC/go")
->>>>>>> 0ea0c995979175199379f89ae752af4c876178c6

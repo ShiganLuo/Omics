@@ -99,16 +99,12 @@ def annotate_hotspots_with_bedtools(hotspot_file: str, gtf_file: str, output_fil
     except FileNotFoundError:
         print("BEDTools is not installed or not found in PATH.")
 
-<<<<<<< HEAD
-
-=======
 def tab_parser(
         table_file: str,
         **kwargs
 ):
     df = read_vep_tab(table_file, **kwargs)
     print(df["miRNA"].value_counts())
->>>>>>> 0ea0c995979175199379f89ae752af4c876178c6
     
 
 def main():
@@ -127,11 +123,7 @@ def main():
     #     gtf_file="/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf",
     #     output_file="/data/pub/zhousha/Totipotent20251031/PacBio/SV/PlaB06_vs_DMSO06/hotspots/annotated_hotspots.tsv"
     # )
-<<<<<<< HEAD
-
-=======
     tab_parser("/data/pub/zhousha/Totipotent20251031/PacBio/SV/PlaB06_vs_DMSO06/PlaB_annotated.tab")
->>>>>>> 0ea0c995979175199379f89ae752af4c876178c6
     pass
 
 if __name__ == "__main__":

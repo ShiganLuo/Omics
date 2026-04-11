@@ -1,0 +1,15 @@
+{
+   "fqdir": "/data/pub/zhousha/20260411_MERIPseq/data/meta/fastq",
+   "logdir": "/data/pub/zhousha/20260411_MERIPseq/log",
+   "outdir": "/data/pub/zhousha/20260411_MERIPseq/output",
+   "genome": {
+        "fasta": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa"
+   },
+   "Procedure": {
+        "trim_galore": "/home/zhousha/tools/TrimGalore-0.6.10/trim_galore",
+        "hisat2": "/home/zhousha/tools/hisat2-2.2.1/hisat2",
+        "hisat2_build": "/home/zhousha/tools/hisat2-2.2.1/hisat2-build",
+        "samtools": null,
+        "deepTools": null
+   }
+} 

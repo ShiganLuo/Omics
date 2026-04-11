@@ -1,23 +1,27 @@
 import logging
 logger = logging.getLogger(__name__)
+indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
-
+logdir = config.get("logdir", "log")
+fasta = config.get('genome',{}).get('fasta')
+paired_samples = config.get('paired_samples', [])
+single_samples = config.get('single_samples', [])
 rule hisat2_index:
     input:
-        fasta = lambda wildcards: config["genome"][wildcards.genome]["fasta"]
+        fasta = fasta
     output:
         index = expand(
-            outdir + "/genome/{{genome}}/index/hista2/{{genome}}.{idx}.ht2",
+            outdir + "/genome.{idx}.ht2",
             idx = [1, 2, 3, 4, 5, 6, 7, 8]
         )
     threads: 8
     conda:
         "hisat2.yaml"
     params:
-        prefix = lambda wildcards: outdir + f"/genome/{wildcards.genome}/index/hista2/{wildcards.genome}",
+        prefix = outdir + "/genome",
         HISAT2_BUILD = config.get('Procedure',{}).get('hisat2-build') or 'hisat2-build'
     log:
-        outdir + "/log/genome/{genome}/hisat2_build.log"
+        logdir + "/hisat2_build.log"
     shell:
         """
         mkdir -p $(dirname {params.prefix})
@@ -26,15 +30,13 @@ rule hisat2_index:
 
 def get_hisat2_index(wildcards):
     logger.info(f"[get_hisat2_index] called with wildcards: {wildcards}")
-    config_index_prefix = config.get('genome',{}).get(wildcards.genome,{}).get('hisat2_index_prefix') or None
+    config_index_prefix = config.get('genome',{}).get('hisat2_index_prefix') or None
     if config_index_prefix:
         first_file = f"{config_index_prefix}.1.ht2"
         if os.path.exists(first_file):
             return [f"{config_index_prefix}.{idx}.ht2" for idx in [1, 2, 3, 4, 5, 6, 7, 8]]
-    return expand(
-        outdir + f"/genome/{wildcards.genome}/index/hista2/{wildcards.genome}.{{idx}}.ht2",
-        idx = [1, 2, 3, 4, 5, 6, 7, 8]
-    )
+    return [outdir + f"/genome.{idx}.ht2" for idx in [1, 2, 3, 4, 5, 6, 7, 8]]
+
 
 def get_alignment_input(wildcards):
     """
@@ -51,10 +53,10 @@ def get_alignment_input(wildcards):
     """
     logger.info(f"[get_alignment_input] called with wildcards: {wildcards}")
     # 构造可能的输入路径
-    paired_r1 = f"{outdir}/cutadapt/{wildcards.sample_id}_1.fq.gz"
-    paired_r2 = f"{outdir}/cutadapt/{wildcards.sample_id}_2.fq.gz"
-    single = f"{outdir}/cutadapt/{wildcards.sample_id}Single.fq.gz"
-    
+    paired_r1 = f"{indir}/{wildcards.sample_id}_1.fq.gz"
+    paired_r2 = f"{indir}/{wildcards.sample_id}_2.fq.gz"
+    single = f"{indir}/{wildcards.sample_id}.fq.gz"
+
     # 检查文件实际存在情况
     if wildcards.sample_id in paired_samples:
         logger.info(f"双端测序：{[paired_r1, paired_r2]}")
@@ -65,19 +67,17 @@ def get_alignment_input(wildcards):
         logger.info(f"单端测序：{[single]}")
         return [single]
     else:
-        raise FileNotFoundError(
-            f"Missing input files for sample {wildcards.sample_id}\n"
-            f"Checked paths:\n- {paired_r1}\n- {paired_r2}\n- {single}"
-        )
+        logger.error(f"样本 {wildcards.sample_id} 未在 paired_samples 或 single_samples 中定义")
+        raise ValueError(f"Sample {wildcards.sample_id} not defined in paired_samples or single_samples")
 
 rule hisat2_align:
     input:
         fastq = get_alignment_input,
         index = get_hisat2_index
     output:
-        outfile = outdir + "/Align/{sample_id}/{genome}/{sample_id}.Aligned.sortedByCoord.out.bam"
+        outfile = outdir + "/{sample_id}.bam"
     log:
-        outdir + "/log/Align/{sample_id}/{genome}/hisat2_align.log"
+        logdir + "/{sample_id}/hisat2_align.log"
     threads: 12
     conda:
         "hisat2.yaml"
@@ -95,3 +95,7 @@ rule hisat2_align:
             -p {threads} 2> {log} | \
         {params.SAMTOOLS} sort -@ {threads} -@ {threads} -o {output.outfile}
         """
+
+rule hisat2_result:
+    input:
+        bam = outdir + "/{sample_id}.bam"

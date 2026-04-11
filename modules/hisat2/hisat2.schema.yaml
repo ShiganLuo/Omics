@@ -10,10 +10,17 @@ outdir:
     type: string
     default: "output"
 
-genome:
-    type: object
-    additionalProperties:
-        type: object
-        properties:
-            fasta: {type: string}
-            hisat2_index_prefix: {type: string}
+logdir:
+    type: string
+    default: "log"
+indir:
+    type: string
+    default: "input"
+paired_samples:
+    type: array
+    items:
+        type: string
+single_samples:
+    type: array
+    items:
+        type: string

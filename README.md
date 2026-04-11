@@ -91,6 +91,9 @@ snakemake -s workflow/RNA-SNP/run.smk --config indir=data/fq outdir=output metad
 
 6. 下游通过 rules.xxx.input 耦合能力，而不是路径
 
+规则尽量不硬编码路径，只接受indir、outdir和logdir，还有生成的wildcards
+规则应该尽可能少涉及与执行无关的信息
+
 ## 下游分析
 
 ### annotation

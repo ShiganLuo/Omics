@@ -1,0 +1,19 @@
+Procedure:
+    type: object
+    properties:
+      # 以下工具路径允许为 string 或 null (对应 YAML 中的空值)
+      hisat2: {type: ["string", "null"]}
+      samtools: {type: ["string", "null"]}
+      hisat2-build: {type: ["string", "null"]}
+
+outdir:
+    type: string
+    default: "output"
+
+genome:
+    type: object
+    additionalProperties:
+        type: object
+        properties:
+            fasta: {type: string}
+            hisat2_index_prefix: {type: string}

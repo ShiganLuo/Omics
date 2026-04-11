@@ -1,0 +1,354 @@
+import os
+import shutil
+import re
+import logging
+import pandas as pd
+from pathlib import Path
+from collections import defaultdict
+from dataclasses import dataclass
+from typing import List, Tuple, Dict, Optional
+from enum import Enum, unique
+import argparse
+
+@unique
+class FastqMode(str, Enum):
+    FASTQ_META = "FASTQ_META"
+    FASTQ_DIR = "FASTQ_DIR"
+
+@dataclass
+class SampleInfo:
+    sample_id: str = ""
+    organism: str = ""
+    layout: str = "UNKNOWN"  # SE / PE / UNKNOWN
+    design: str = ""
+    fastq_1: Optional[Path] = None
+    fastq_2: Optional[Path] = None
+
+
+class MetadataVariantsUtils:
+    """
+    Utilities for variant-analysis metadata parsing and FASTQ preparation.
+
+    note:
+    Each data_id corresponds to a single FASTQ file, 
+    while the relationship between sample_id and data_id can be either one-to-one or one-to-many.
+
+    Features:
+    - Supports meta with explicit fastq paths or only sample_id + design.
+    - Validates fastq existence.
+    - Determines SE/PE.
+    - Handles sample_id + data_id read merging.
+    - Establishes standardized symlinks in work directory.
+    """
+
+    DESIGN_PATTERN = re.compile(r"^(ctr|exp)_(.+)$")
+
+    def __init__(
+        self,
+        outdir: str,
+        meta: Optional[str] = None,
+        fastq_dir: Optional[str] = None,
+        log: Optional[str] = None,
+        required_cols: set = {"sample_id", "design", "fastq_1", "fastq_2"},
+        data_id_col: str = "data_id",
+    ):
+        
+        self.outdir = Path(outdir)
+        self.outdir.mkdir(parents=True, exist_ok=True)
+
+        self.meta = Path(meta) if meta else None
+        self.fastq_dir = Path(fastq_dir) if fastq_dir else None
+
+        self.required_cols = required_cols        
+        self.data_id_col = data_id_col
+        self.samples_dict = defaultdict(SampleInfo)
+
+        self.logger = logging.getLogger(self.__class__.__name__)
+        self.logger.setLevel(logging.INFO)
+        if not self.logger.handlers:
+            handler = logging.FileHandler(log) if log else logging.StreamHandler()
+            handler.setFormatter(
+                logging.Formatter(
+                    "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+                    "%Y-%m-%d %H:%M:%S",
+                )
+            )
+            self.logger.addHandler(handler)
+
+
+    def load_meta(self) -> pd.DataFrame:
+        """
+        function: load metadata from meta file, sep can be \t or ,
+        """
+        with open(self.meta, "r", encoding="utf-8") as f:
+            head = f.read(2048)
+
+        sep = "\t" if head.count("\t") >= head.count(",") else ","
+        df = pd.read_csv(self.meta, sep=sep)
+
+        return df
+
+
+
+    def build_design_pairs(
+            self, 
+            design_col:str = "design"
+        ) -> List[Tuple[str, str, str]]:
+        """
+        Determine ctr/exp pairs based on the design stored in self.samples_dict.
+        ctr_x vs exp_x1, exp_x2 ...
+        only get the first ctr for each exp, if there are multiple ctr with the same tag, will log a warning and only use the first one.
+        return a list of tuple: (organism, ctr_sample_id, exp_sample_id)
+        """
+        groups: Dict[str, Dict[str, List[SampleInfo]]] = defaultdict(lambda: defaultdict(list))
+        
+        for sample_id, info in self.samples_dict.items():
+            design_val = getattr(info, design_col, "")
+            if not design_val:
+                continue
+            m  = self.DESIGN_PATTERN.match(design_val)
+            if not m:
+                self.logger.warning(f"Invalid design format for {sample_id}: {design_val}")
+                continue
+            role, tag = m.groups()
+            groups[tag][role].append(info)
+        
+        pairs = []
+        for tag, g in groups.items():
+            if "ctr" not in g or "exp" not in g:
+                self.logger.warning(f"Incomplete design group for tag '{tag}': missing ctr or exp")
+                continue
+            for exp_sample_info in g["exp"]:
+                if len(g["ctr"]) > 1:
+                    self.logger.warning(f"Multiple ctr samples for tag '{tag}': {g['ctr']}. Only using the first one: {g['ctr'][0].sample_id}")
+                pairs.append((exp_sample_info.organism,g["ctr"][0].sample_id, exp_sample_info.sample_id))  # 每个 exp 对应 ctr
+        return pairs
+
+
+    def prepare_fastq_meta(
+            self, 
+            df: pd.DataFrame,
+            outdir:Path,
+            sample_id_col:str = 'sample_id', 
+            data_id_col:str = 'data_id',
+            design_col:str = 'design',
+            fastq_r1_col:str = 'fastq_1',
+            fastq_r2_col:str = "fastq_2",
+            organism_col:str = "organism"
+            ) -> None:
+        """
+            data_id represents a unique FASTQ file.
+            If the relationship between sample_id and fastq is one-to-one, a symbolic link is created with the filename prefixed by sample_id.
+            If the relationship is one-to-many, FASTQ files corresponding to different data_ids are merged and renamed using the sample_id prefix.
+
+            supplement smaple_id,layout,fastq_1 or fastq_2 information
+        """
+
+        if data_id_col not in df.columns:
+            df[data_id_col] = df[sample_id_col]
+
+        if not self.required_cols.issubset(df.columns):
+            raise ValueError(f"Metadata must contain columns: {self.required_cols}")
+
+
+        raw_fq_dir = outdir / "raw_fastq"
+        raw_fq_dir.mkdir(parents=True, exist_ok=True)
+
+        newdf = df.groupby(sample_id_col)
+
+        for sample_id, df_sample in newdf:
+            data_ids = df_sample[data_id_col].values
+            if len(data_ids) < 1:
+                raise ValueError(f"something wrong: {sample_id} have no {data_id_col} meta")
+            
+            self.samples_dict[sample_id].sample_id = sample_id
+            self.samples_dict[sample_id].design = df_sample[design_col].values[0] if design_col in df_sample.columns else ""
+            self.samples_dict[sample_id].organism = df_sample[organism_col].values[0] if organism_col in df_sample.columns else "UNKNOWN"
+
+            if len(data_ids) == 1:
+                self.logger.info(f"Detect the relationship between {sample_id} and {data_ids[0]} is one-to-one")
+                origin_r1 = df_sample[fastq_r1_col].values[0]
+                origin_r2 = df_sample[fastq_r2_col].values[0] if fastq_r2_col in df_sample.columns else None
+                origin_r1 = Path(origin_r1) if origin_r1 else None
+                origin_r2 = Path(origin_r2) if origin_r2 else None
+                
+                if pd.notna(origin_r1) and pd.notna(origin_r2):
+                    self.logger.info(f"Detect {data_ids[0]} is Paired END")
+                    self.samples_dict[sample_id].layout = "PE"
+                    rename_r1 = raw_fq_dir / f"{sample_id}_1.fq.gz"
+                    rename_r2 = raw_fq_dir / f"{sample_id}_2.fq.gz"
+                    self._link_file(origin_r1,rename_r1)
+                    self._link_file(origin_r2,rename_r2)
+                    self.samples_dict[sample_id].fastq_1 = rename_r1
+                    self.samples_dict[sample_id].fastq_2 = rename_r2
+                elif pd.notna(origin_r1):
+                    self.logger.info(f"Detect {data_ids[0]} is Single End")
+                    self.samples_dict[sample_id].layout = "SE"
+                    rename_r1 = raw_fq_dir / f"{sample_id}.fq.gz"
+                    self._link_file(origin_r1,rename_r1)
+                    self.samples_dict[sample_id].fastq_1 = rename_r1
+                else:
+                    self.logger.warning(f"{sample_id} have no fastqs, skip it")
+                    continue
+            else:
+                self.logger.info(f"Detect the relationship between {sample_id} and {data_ids[0]} is one-to-many")
+                origin_r1_list = sorted([r for r in df_sample[fastq_r1_col].values if pd.notna(r)])
+                origin_r2_list = sorted([r for r in df_sample[fastq_r2_col].values if pd.notna(r)]) if fastq_r2_col in df_sample.columns else []
+                
+                origin_r1_list_path = [Path(r1) for r1 in origin_r1_list]
+                origin_r2_list_path = [Path(r2) for r2 in origin_r2_list]
+
+                if len(origin_r1_list_path) > 0 and len(origin_r2_list_path) > 0:
+                    self.logger.info(f"Detect the fastq of {sample_id} is Paired END")
+                    self.samples_dict[sample_id].layout = "PE"
+                    merge_rename_r1 = raw_fq_dir / f"{sample_id}_1.fq.gz"
+                    merge_rename_r2 = raw_fq_dir / f"{sample_id}_2.fq.gz"
+                    self._merge_files(origin_r1_list_path, merge_rename_r1)
+                    self._merge_files(origin_r2_list_path, merge_rename_r2)
+                    self.samples_dict[sample_id].fastq_1 = merge_rename_r1
+                    self.samples_dict[sample_id].fastq_2 = merge_rename_r2
+                elif len(origin_r1_list_path) > 0:
+                    self.logger.info(f"Detect the fastq of {sample_id} is Single END")
+                    self.samples_dict[sample_id].layout = "SE"
+                    merge_rename_r1 = raw_fq_dir / f"{sample_id}.fq.gz"
+                    self._merge_files(origin_r1_list_path, merge_rename_r1)
+                    self.samples_dict[sample_id].fastq_1 = merge_rename_r1
+                else:
+                    self.logger.warning(f"{sample_id} have no fastqs, skip it")
+                    continue
+
+    def prepare_fastq_dir(
+        self,
+        fq_dir: Path,
+        outdir: Path,
+        fq_pattern: str = r"*fq.gz",
+        fq_r1_pattern: str = r"(_R?1)[^0-9]*\.f(ast)?q",
+        fq_r2_pattern: str = r"(_R?2)[^0-9]*\.f(ast)?q"
+    ) -> None:
+        """
+        自动检测 FASTQ，处理多 Lane 合并或单文件软连，并填充 self.samples_dict。
+        """
+        temp_files = defaultdict(lambda: {"fastq_1": [], "fastq_2": []})
+
+        self.logger.info(f"Scanning directory: {fq_dir} with pattern: {fq_pattern}")
+
+        for fq_file in fq_dir.rglob(fq_pattern):
+            fq_name = fq_file.name
+
+            sample_id = re.sub(r"(_R?1|_R?2).*", "", fq_name)
+            
+            if re.search(fq_r1_pattern, fq_name):
+                temp_files[sample_id]["fastq_1"].append(fq_file)
+            elif re.search(fq_r2_pattern, fq_name):
+                temp_files[sample_id]["fastq_2"].append(fq_file)
+            else:
+                self.logger.warning(f"File {fq_name} did not match R1 or R2 patterns.")
+
+        raw_fq_dir = outdir / "raw_fastq"
+        raw_fq_dir.mkdir(parents=True, exist_ok=True)
+
+        for sample_id, reads in temp_files.items():
+
+            sample_info = self.samples_dict[sample_id]
+            sample_info.sample_id = sample_id
+            
+            for r_key in ["fastq_1", "fastq_2"]:
+                files = sorted(reads[r_key])
+                if not files:
+                    continue
+                
+                suffix = "".join(files[0].suffixes)
+                r_idx = "1" if r_key == "fastq_1" else "2"
+                target_path = raw_fq_dir / f"{sample_id}_{r_idx}{suffix}"
+
+                if len(files) > 1:
+                    self.logger.info(f"[{sample_id}] Merging {len(files)} files into {target_path.name}")
+                    self._merge_files(files, target_path)
+                else:
+                    self.logger.info(f"[{sample_id}] Creating symlink for {target_path.name}")
+                    self._link_file(files[0],target_path)
+
+                if r_key == "fastq_1":
+                    sample_info.fastq_1 = target_path
+                else:
+                    sample_info.fastq_2 = target_path
+
+            # 判定 Layout
+            if sample_info.fastq_1 and sample_info.fastq_2:
+                sample_info.layout = "PE"
+            elif sample_info.fastq_1:
+                sample_info.layout = "SE"
+            
+            self.logger.info(f"Sample {sample_id} layout inferred as: {sample_info.layout}")
+
+        self.logger.info(f"Successfully processed {len(self.samples_dict)} samples.")
+                
+
+    def _merge_files(self, files: List[Path], out: Path):
+        if out.exists():
+            self.logger.info(f"[SKIP] Merged file already exists: {out}")
+            return
+        self.logger.info(f"[MERGE] Creating {out} from {len(files)} files")
+        with open(out, "wb") as w:
+            for f in sorted(files):
+                self.logger.info(f"  -> Merging file: {f}")
+                with open(f, "rb") as r:
+                    shutil.copyfileobj(r, w) # stream copy to handle large files efficiently
+
+    def _link_file(self, src: Path, dst: Path):
+        if dst.is_symlink():
+            if dst.resolve() == src.resolve():
+                self.logger.info(f"[SKIP] Link already correct: {dst}")
+                return
+            dst.unlink()
+
+        elif dst.exists():
+            raise RuntimeError(f"Destination exists and is not symlink: {dst}")
+
+        os.symlink(src.resolve(), dst)
+        self.logger.info(f"[LINK] {dst} -> {src}")
+
+    def group_pairs_by_organism(
+        self, pairs: List[Tuple[str, str]], samples: Dict[str, SampleInfo]
+    ) -> Dict[str, List[Tuple[str, str]]]:
+        out = defaultdict(list)
+        for ctr, exp in pairs:
+            org = samples.get(ctr, SampleInfo()).organism or "UNKNOWN"
+            out[org].append((ctr, exp))
+        return out
+
+    def run(self):
+        if self.meta:
+            df = self.load_meta()
+            self.prepare_fastq_meta(df = df,
+                                    outdir = self.outdir,
+                                    data_id_col = self.data_id_col,
+                                )
+            pairs = self.build_design_pairs()
+            return self.samples_dict, pairs, str(self.outdir / "raw_fastq")
+        elif self.fastq_dir:
+            self.prepare_fastq_dir(self.fastq_dir,self.outdir,fq_pattern="*fq.gz")
+            return self.samples_dict, [], str(self.outdir / "raw_fastq")
+        else:
+            raise ValueError("Either meta or fastq_dir must be provided.")
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Metadata Variants Utils")
+    parser.add_argument("--meta", help="Path to metadata file (CSV/TSV)")
+    parser.add_argument("--outdir", required=True, help="Output directory for processed FASTQ and logs")
+    parser.add_argument("--fastq_dir", help="Directory containing FASTQ files (if not specified in meta)")
+    parser.add_argument("--log", help="Path to log file (default: stdout)")
+
+    args = parser.parse_args()
+
+    metadataVariantsUtils = MetadataVariantsUtils(
+        meta=args.meta,
+        outdir=args.outdir,
+        fastq_dir=args.fastq_dir,
+        log=args.log
+    )
+    res = metadataVariantsUtils.run()
+    return res    
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,17 @@
+Procedure:
+    type: object
+    properties:
+      STAR: {type: ["string", "null"]}
+
+outdir:
+    type: string
+    default: "output"
+
+genome:
+    type: object
+    additionalProperties:
+        type: object
+        properties:
+            fasta: {type: string}
+            gtf: {type: string}
+            star_index_dir: {type: string}

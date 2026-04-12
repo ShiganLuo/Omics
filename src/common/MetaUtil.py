@@ -35,7 +35,7 @@ class SampleInfo:
     fastq_1: Optional[Path] = None
     fastq_2: Optional[Path] = None
 
-
+DESIGN_PATTERN = re.compile(r"^(ctr|exp)_(.+)$")
 class MetadataUtils:
     """
     Utilities for variant-analysis metadata parsing and FASTQ preparation.
@@ -110,7 +110,7 @@ class MetadataUtils:
             design_val = getattr(info, design_col, "")
             if not design_val:
                 continue
-            m  = self.DESIGN_PATTERN.match(design_val)
+            m  = DESIGN_PATTERN.match(design_val)
             if not m:
                 logger.warning(f"Invalid design format for {sample_id}: {design_val}")
                 continue

@@ -42,7 +42,7 @@ igv_config = {
         "logdir": logdir,
         "Procedure": {
             "samtools": config.get('Procedure',{}).get('samtools'),
-            "bamCoverage": config.get('Procedure',{}).get('deepTools')
+            "deepTools": config.get('Procedure',{}).get('deepTools')
         }
     }
 module igv:
@@ -54,7 +54,7 @@ use rule wig from igv as MERIP_wig
 
 exomePeak_config = {
         "indir": igv_config["outdir"] + "/dedup",
-        "outdir": outdir,
+        "outdir": f"{outdir}/exomePeak",
         "logdir": logdir,
         "ip_samples": ip_samples,
         "input_samples": input_samples,

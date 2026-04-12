@@ -12,12 +12,14 @@ from common.LogUtil import setup_logger
 fqdir = config.get('fqdir', 'data/fastq')
 logdir = config.get('logdir', 'log')
 outdir = config.get('outdir', 'output')
+meta = config.get('meta', None)
 logger = setup_logger("root", f"{logdir}/workflow.log")
 logger.info(f"fastq input directory: {fqdir}; Output directory: {outdir}; Log file: {logdir}/workflow.log")
 logger.info(f"Workflow Root directory: {ROOT_DIR}")
 
 
 metadataUtil = MetadataUtils(
+    meta=meta,
     outdir=outdir,
     fastq_dir=fqdir,
 )
@@ -36,7 +38,6 @@ treated_input_samples = []
 
 # function to get the output files for WES analysis
 def get_MERIP_outfiles(samples_info_dict:Dict[str, any]):
-    include: "subworkflow/MERIP.smk"
     for sample_id, sample_info in samples_info_dict.items():
         if sample_info.layout == "PE":
             paired_samples.append(sample_id)
@@ -63,11 +64,19 @@ def get_MERIP_outfiles(samples_info_dict:Dict[str, any]):
             treated_input_samples.append(sample_id)
         else:
             logger.error(f"Unknown design type for sample {sample_id}: {sample_info.design}")
+    outfiles.append(f"{outdir}/exomePeak/exomePeak_diff_peaks.tsv")
+    outfiles.append(f"{outdir}/exomePeak/exomePeak_sig_siff_peaks.tsv")
+    outfiles.append(f"{outdir}/exomePeak/exomePeak_con_sig_diff_peaks.tsv")
+    include: "subworkflow/MERIP.smk"
     return outfiles
 
 get_MERIP_outfiles(samples_info_dict)
 logger.info(f"Paired samples: {paired_samples}")
 logger.info(f"Single samples: {single_samples}")
+logger.info(f"IP samples: {ip_samples}")
+logger.info(f"Input samples: {input_samples}")
+logger.info(f"Treated IP samples: {treated_ip_samples}")
+logger.info(f"Treated Input samples: {treated_input_samples}")
 logger.info(f"Final output files for MERIP subworkflow: {outfiles}")
 
 rule all:

@@ -1,6 +1,6 @@
 # Load required libraries
-library("argparse")
-library("exomePeak")
+library(argparse)
+library(exomePeak)
 
 options(width = 60)
 
@@ -35,8 +35,8 @@ write_peak_outputs <- function(result, outprefix) {
   con_peaks <- result$con_peaks
   all_peaks <- result$all_peaks
 
-  con_df <- as.data.frame(mcols(con_peaks))
-  all_df <- as.data.frame(mcols(all_peaks))
+  con_df <- as.data.frame(con_peaks) # Convert GRanges to data frame for coordinate columns
+  all_df <- as.data.frame(all_peaks)
 
   write.table(con_df,
               file = paste0(outprefix, "peak_consistent_peaks.tsv"),
@@ -62,7 +62,7 @@ write_diff_outputs <- function(result, outprefix) {
 
 
   if (!is.null(result$diff_peaks)) {
-    diff_df <- as.data.frame(mcols(result$diff_peaks))
+    diff_df <- as.data.frame(result$diff_peaks)
     write.table(diff_df,
                 file = paste0(outprefix, "diff_peaks.tsv"),
                 sep = "\t", quote = FALSE, row.names = FALSE)
@@ -74,7 +74,7 @@ write_diff_outputs <- function(result, outprefix) {
   }
 
   if (!is.null(result$sig_siff_peaks)) {
-    sig_siff_df <- as.data.frame(mcols(result$sig_siff_peaks))
+    sig_siff_df <- as.data.frame(result$sig_siff_peaks)
     write.table(sig_siff_df,
                 file = paste0(outprefix, "sig_siff_peaks.tsv"),
                 sep = "\t", quote = FALSE, row.names = FALSE)
@@ -86,7 +86,7 @@ write_diff_outputs <- function(result, outprefix) {
   }
 
   if (!is.null(result$con_sig_diff_peaks)) {
-    con_sig_diff_df <- as.data.frame(mcols(result$con_sig_diff_peaks))
+    con_sig_diff_df <- as.data.frame(result$con_sig_diff_peaks)
     write.table(con_sig_diff_df,
                 file = paste0(outprefix, "con_sig_diff_peaks.tsv"),
                 sep = "\t", quote = FALSE, row.names = FALSE)

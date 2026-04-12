@@ -5,6 +5,7 @@ Procedure:
       hisat2: {type: ["string", "null"]}
       samtools: {type: ["string", "null"]}
       hisat2-build: {type: ["string", "null"]}
+      hisat2_index_prefix: {type: ["string", "null"]}
 
 outdir:
     type: string

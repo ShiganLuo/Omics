@@ -11,17 +11,17 @@ rule hisat2_index:
         fasta = fasta
     output:
         index = expand(
-            outdir + "/genome.{idx}.ht2",
+            outdir + "/index/genome.{idx}.ht2",
             idx = [1, 2, 3, 4, 5, 6, 7, 8]
         )
     threads: 8
     conda:
         "hisat2.yaml"
     params:
-        prefix = outdir + "/genome",
+        prefix = outdir + "/index/genome",
         HISAT2_BUILD = config.get('Procedure',{}).get('hisat2-build') or 'hisat2-build'
     log:
-        logdir + "/hisat2_build.log"
+        logdir + "/index/hisat2_build.log"
     shell:
         """
         mkdir -p $(dirname {params.prefix})
@@ -35,7 +35,7 @@ def get_hisat2_index(wildcards):
         first_file = f"{config_index_prefix}.1.ht2"
         if os.path.exists(first_file):
             return [f"{config_index_prefix}.{idx}.ht2" for idx in [1, 2, 3, 4, 5, 6, 7, 8]]
-    return [outdir + f"/genome.{idx}.ht2" for idx in [1, 2, 3, 4, 5, 6, 7, 8]]
+    return [outdir + f"/index/genome.{idx}.ht2" for idx in [1, 2, 3, 4, 5, 6, 7, 8]]
 
 
 def get_alignment_input(wildcards):

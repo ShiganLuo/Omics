@@ -1,4 +1,5 @@
 #!/bin/bash
+
 function star_index(){
     local genome_index=$1
     local genome_fa=$2
@@ -15,12 +16,13 @@ function star_index(){
 }
 export -f star_index
 #### example
-# genome_index=/ChIP_seq_2/Data/F24A040011431_HOMnkgoT_0115/data/index/199
-# genome_fa=/ChIP_seq_2/StemCells/data/genome/GRCh38.primary_assembly.genome.fa
-# genome_gtf=/ChIP_seq_2/StemCells/data/genome/gencode.v47.primary_assembly.annotation.gtf
-# read_lenth=199
-# index_core=25
-# star_index ${genome_index} ${genome_fa} ${genome_gtf} ${read_lenth} ${index_core}
+genome_index=/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/star
+genome_fa=/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa
+genome_gtf=/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf
+read_lenth=150
+index_core=25
+STAR=/home/zhousha/tools/STAR-2.7.11b/bin/Linux_x86_64/STAR
+star_index ${genome_index} ${genome_fa} ${genome_gtf} ${read_lenth} ${index_core} ${STAR}
 
 ### star_rRNAIndex function introduction
 ##don't need gtf,because what we care is map ,not transcripts annotation

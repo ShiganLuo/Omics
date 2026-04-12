@@ -6,7 +6,24 @@ Procedure:
 outdir:
     type: string
     default: "output"
-
+indir:
+    type: string
+    default: "input"
+logdir:
+    type: string
+    default: "log"
+paired_samples:
+    type: array
+    items:
+        type: object
+        properties:
+            sample_id: {type: string}
+single_samples:
+    type: array
+    items:
+        type: object
+        properties:
+            sample_id: {type: string}
 genome:
     type: object
     additionalProperties:

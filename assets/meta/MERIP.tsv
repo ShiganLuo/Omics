@@ -1,0 +1,9 @@
+GSM	sample_id	design	fastq_1	fastq_2
+GSM8354142	SRR29583211	ip	/data/pub/zhousha/20260411_MERIPseq/data/meta/fastq/SRR29583211_1.fastq.gz	/data/pub/zhousha/20260411_MERIPseq/data/meta/fastq/SRR29583211_2.fastq.gz
+GSM8354143	SRR29583210	ip	/data/pub/zhousha/20260411_MERIPseq/data/meta/fastq/SRR29583210_1.fastq.gz	/data/pub/zhousha/20260411_MERIPseq/data/meta/fastq/SRR29583210_2.fastq.gz
+GSM8354144	SRR29583209	input	/data/pub/zhousha/20260411_MERIPseq/data/meta/fastq/SRR29583209_1.fastq.gz	/data/pub/zhousha/20260411_MERIPseq/data/meta/fastq/SRR29583209_2.fastq.gz
+GSM8354145	SRR29583208	input	/data/pub/zhousha/20260411_MERIPseq/data/meta/fastq/SRR29583208_1.fastq.gz	/data/pub/zhousha/20260411_MERIPseq/data/meta/fastq/SRR29583208_2.fastq.gz
+GSM8354146	SRR29583207	treated_ip	/data/pub/zhousha/20260411_MERIPseq/data/meta/fastq/SRR29583207_1.fastq.gz	/data/pub/zhousha/20260411_MERIPseq/data/meta/fastq/SRR29583207_2.fastq.gz
+GSM8354147	SRR29583206	treated_ip	/data/pub/zhousha/20260411_MERIPseq/data/meta/fastq/SRR29583206_1.fastq.gz	/data/pub/zhousha/20260411_MERIPseq/data/meta/fastq/SRR29583206_2.fastq.gz
+GSM8354148	SRR29583205	treated_input	/data/pub/zhousha/20260411_MERIPseq/data/meta/fastq/SRR29583205_1.fastq.gz	/data/pub/zhousha/20260411_MERIPseq/data/meta/fastq/SRR29583205_2.fastq.gz
+GSM8354149	SRR29583204	treated_input	/data/pub/zhousha/20260411_MERIPseq/data/meta/fastq/SRR29583204_1.fastq.gz	/data/pub/zhousha/20260411_MERIPseq/data/meta/fastq/SRR29583204_2.fastq.gz

@@ -8,8 +8,8 @@ rule dedup:
     input:
         bam = indir + "/{sample_id}.bam"
     output:
-        bam = temp(outdir + "/dedup/{sample_id}.dedup.bam"),
-        bai = temp(outdir + "/dedup/{sample_id}.dedup.bam.bai"),
+        bam = outdir + "/dedup/{sample_id}.dedup.bam",
+        bai = outdir + "/dedup/{sample_id}.dedup.bam.bai",
     log:
         logdir + "/{sample_id}/samtools_dedup.log"
     threads: 12
@@ -22,14 +22,14 @@ rule dedup:
         {params.samtools} sort -n -@ {threads} {input.bam} \
         | {params.samtools} fixmate -m - - \
         | {params.samtools} sort -@ {threads} - \
-        | {params.samtools} markdup -r -@ {threads} - {output.bam}
-
-        {params.samtools} index -@ {threads} {output.bam}
+        | {params.samtools} markdup -r -@ {threads} - {output.bam} 2>{log} && \
+        {params.samtools} index -@ {threads} {output.bam} >> {log} 2>&1
         """
 
 rule wig:
     input:
-        bam = outdir + "/dedup/{sample_id}.dedup.bam"
+        bam = outdir + "/dedup/{sample_id}.dedup.bam",
+        bai = outdir + "/dedup/{sample_id}.dedup.bam.bai"
     output:
         bigwig = outdir + "/{sample_id}.bigwig"
     log:

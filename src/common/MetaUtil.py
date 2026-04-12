@@ -14,12 +14,24 @@ logger = logging.getLogger(__name__)
 class FastqMode(str, Enum):
     FASTQ_META = "FASTQ_META"
     FASTQ_DIR = "FASTQ_DIR"
+@unique
+class Layout(str, Enum):
+    SE = "SE"
+    PE = "PE"
+    UNKNOWN = "UNKNOWN"
+
+@unique
+class MERIPDesign(str, Enum):
+    IP = "ip"
+    INPUT = "input"
+    TREATED_IP = "treated_ip"
+    TREATED_INPUT = "treated_input"
 
 @dataclass
 class SampleInfo:
     sample_id: str = ""
     organism: str = ""
-    layout: str = "UNKNOWN"  # SE / PE / UNKNOWN
+    layout: Layout = Layout.UNKNOWN
     fastq_1: Optional[Path] = None
     fastq_2: Optional[Path] = None
 
@@ -166,7 +178,7 @@ class MetadataUtils:
                 
                 if pd.notna(origin_r1) and pd.notna(origin_r2):
                     logger.info(f"Detect {data_ids[0]} is Paired END")
-                    self.samples_dict[sample_id].layout = "PE"
+                    self.samples_dict[sample_id].layout = Layout.PE
                     rename_r1 = raw_fq_dir / f"{sample_id}_1.fq.gz"
                     rename_r2 = raw_fq_dir / f"{sample_id}_2.fq.gz"
                     self._link_file(origin_r1,rename_r1)
@@ -175,7 +187,7 @@ class MetadataUtils:
                     self.samples_dict[sample_id].fastq_2 = rename_r2
                 elif pd.notna(origin_r1):
                     logger.info(f"Detect {data_ids[0]} is Single End")
-                    self.samples_dict[sample_id].layout = "SE"
+                    self.samples_dict[sample_id].layout = Layout.SE
                     rename_r1 = raw_fq_dir / f"{sample_id}.fq.gz"
                     self._link_file(origin_r1,rename_r1)
                     self.samples_dict[sample_id].fastq_1 = rename_r1
@@ -192,7 +204,7 @@ class MetadataUtils:
 
                 if len(origin_r1_list_path) > 0 and len(origin_r2_list_path) > 0:
                     logger.info(f"Detect the fastq of {sample_id} is Paired END")
-                    self.samples_dict[sample_id].layout = "PE"
+                    self.samples_dict[sample_id].layout = Layout.PE
                     merge_rename_r1 = raw_fq_dir / f"{sample_id}_1.fq.gz"
                     merge_rename_r2 = raw_fq_dir / f"{sample_id}_2.fq.gz"
                     self._merge_files(origin_r1_list_path, merge_rename_r1)
@@ -201,7 +213,7 @@ class MetadataUtils:
                     self.samples_dict[sample_id].fastq_2 = merge_rename_r2
                 elif len(origin_r1_list_path) > 0:
                     logger.info(f"Detect the fastq of {sample_id} is Single END")
-                    self.samples_dict[sample_id].layout = "SE"
+                    self.samples_dict[sample_id].layout = Layout.SE
                     merge_rename_r1 = raw_fq_dir / f"{sample_id}.fq.gz"
                     self._merge_files(origin_r1_list_path, merge_rename_r1)
                     self.samples_dict[sample_id].fastq_1 = merge_rename_r1
@@ -269,10 +281,10 @@ class MetadataUtils:
 
             # 判定 Layout
             if sample_info.fastq_1 and sample_info.fastq_2:
-                sample_info.layout = "PE"
+                sample_info.layout = Layout.PE
             elif sample_info.fastq_1:
-                sample_info.layout = "SE"
-            
+                sample_info.layout = Layout.SE
+
             logger.info(f"Sample {sample_id} layout inferred as: {sample_info.layout}")
 
         logger.info(f"Successfully processed {len(self.samples_dict)} samples.")

@@ -3,9 +3,16 @@ Procedure:
     properties:
       STAR: {type: ["string", "null"]}
 
+indir:
+    type: string
+    default: "output/hisat2"
 outdir:
     type: string
     default: "output"
+logdir:
+    type: string
+    default: "logs"
+
 
 genome:
     type: object

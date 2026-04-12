@@ -51,3 +51,19 @@ module igv:
 logger.info(f"igv_config: {igv_config}")
 use rule dedup from igv as MERIP_dedup
 use rule wig from igv as MERIP_wig
+
+exomePeak_config = {
+        "indir": igv_config["outdir"] + "/dedup",
+        "outdir": outdir,
+        "logdir": logdir,
+        "ip_samples": ip_samples,
+        "input_samples": input_samples,
+        "treated_ip_samples": treated_ip_samples,
+        "treated_input_samples": treated_input_samples,
+    }
+module exomePeak:
+    snakefile: "../modules/exomePeak/exomePeak.smk"
+    config: exomePeak_config
+logger.info(f"exomePeak_config: {exomePeak_config}")
+use rule diff_exomePeak from exomePeak as MERIP_diff_exomePeak
+use rule call_exomePeak from exomePeak as MERIP_call_exomePeak

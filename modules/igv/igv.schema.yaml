@@ -1,0 +1,18 @@
+Procedure:
+    type: object
+    properties:
+      deepTools: {type: ["string", "null"]}
+
+indir:
+    type: string
+    default: "output/hisat2"
+outdir:
+    type: string
+    default: "output"
+logdir:
+    type: string
+    default: "logs"
+
+wig_bin:
+    type: integer
+    default: 25

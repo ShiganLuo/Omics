@@ -5,3 +5,4 @@ channels:
 dependencies:
   - samtools=1.23
   - deeptools=3.5.1
+  - matplotlib=3.7

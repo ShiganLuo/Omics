@@ -29,24 +29,40 @@ outfiles = []
 paired_samples = []
 single_samples = []
 
+ip_samples = []
+input_samples = []
+treated_ip_samples = []
+treated_input_samples = []
+
 # function to get the output files for WES analysis
 def get_MERIP_outfiles(samples_info_dict:Dict[str, any]):
     include: "subworkflow/MERIP.smk"
     for sample_id, sample_info in samples_info_dict.items():
         if sample_info.layout == "PE":
             paired_samples.append(sample_id)
-            outfiles.append(f"{outdir}/cutadapt/{sample_id}_1.fq.gz")
-            outfiles.append(f"{outdir}/cutadapt/{sample_id}_2.fq.gz")
-            outfiles.append(f"{outdir}/hisat2/{sample_id}.bam")
-            outfiles.append(f"{outdir}/igv/{sample_id}.bigwig")
+            # outfiles.append(f"{outdir}/cutadapt/{sample_id}_1.fq.gz")
+            # outfiles.append(f"{outdir}/cutadapt/{sample_id}_2.fq.gz")
+            # outfiles.append(f"{outdir}/hisat2/{sample_id}.bam")
+            # outfiles.append(f"{outdir}/igv/{sample_id}.bigwig")
+            outfiles.append(f"{outdir}/igv/dedup/{sample_id}.dedup.bam")
         elif sample_info.layout == "SE":
             single_samples.append(sample_id)
-            outfiles.append(f"{outdir}/cutadapt/{sample_id}.fq.gz")
-            outfiles.append(f"{outdir}/hisat2/{sample_id}.bam")
-            outfiles.append(f"{outdir}/igv/{sample_id}.bigwig")
+            # outfiles.append(f"{outdir}/cutadapt/{sample_id}.fq.gz")
+            # outfiles.append(f"{outdir}/hisat2/{sample_id}.bam")
+            # outfiles.append(f"{outdir}/igv/{sample_id}.bigwig")
+            outfiles.append(f"{outdir}/igv/dedup/{sample_id}.dedup.bam")
         else:
             logger.error(f"Unknown layout type for sample {sample_id}: {sample_info.layout}")
-
+        if sample_info.design == "ip":
+            ip_samples.append(sample_id)
+        elif sample_info.design == "input":
+            input_samples.append(sample_id)
+        elif sample_info.design == "treated_ip":
+            treated_ip_samples.append(sample_id)
+        elif sample_info.design == "treated_input":
+            treated_input_samples.append(sample_id)
+        else:
+            logger.error(f"Unknown design type for sample {sample_id}: {sample_info.design}")
     return outfiles
 
 get_MERIP_outfiles(samples_info_dict)

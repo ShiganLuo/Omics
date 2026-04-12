@@ -1,0 +1,7 @@
+name: hisat2
+channels:
+  - bioconda
+  - conda-forge
+dependencies:
+  - bioconductor-exomepeak=2.17.0
+  - r-base=3.6.3

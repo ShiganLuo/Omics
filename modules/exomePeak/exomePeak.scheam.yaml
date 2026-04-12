@@ -1,0 +1,25 @@
+indir:
+    type: string
+    default: "output/hisat2"
+outdir:
+    type: string
+    default: "output"
+logdir:
+    type: string
+    default: "logs"
+ip_samples:
+    type: array
+    items:
+        type: string
+input_samples:
+    type: array
+    items:
+        type: string
+treated_ip_samples:
+    type: array
+    items:
+        type: string
+treated_input_samples:
+    type: array
+    items:
+        type: string

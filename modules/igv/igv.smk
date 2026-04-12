@@ -8,8 +8,8 @@ rule dedup:
     input:
         bam = indir + "/{sample_id}.bam"
     output:
-        bam = temp(outdir + "/dedup/{sample_id}.dedup.bam"),
-        bai = temp(outdir + "/dedup/{sample_id}.dedup.bam.bai"),
+        bam = outdir + "/dedup/{sample_id}.dedup.bam",
+        bai = outdir + "/dedup/{sample_id}.dedup.bam.bai",
     log:
         logdir + "/{sample_id}/samtools_dedup.log"
     threads: 12

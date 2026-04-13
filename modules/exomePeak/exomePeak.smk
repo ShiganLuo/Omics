@@ -3,6 +3,7 @@ logger = logging.getLogger(__name__)
 indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
+gtf = config.get("gtf","")
 ip_samples = config.get("ip_samples", [])
 input_samples = config.get("input_samples", [])
 treated_ip_samples = config.get("treated_ip_samples", [])
@@ -26,12 +27,12 @@ rule diff_exomePeak:
     input:
         **get_input_for_diff_exomePeak()
     output:
-        diff_peak_bed = outdir + "/con_sig_diff_peaks.bed",
-        diff_peak_xls = outdir + "/con_sig_diff_peaks.xls",
-        sig_siff_bed = outdir + "/sig_diff_peak.bed",
-        sig_siff_xls = outdir + "/sig_diff_peak.xls",
-        con_sig_diff_bed = outdir + "/con_sig_diff_peak.bed"
-        con_sig_diff_xls = outdir + "/con_sig_diff_peak.xls"
+        diff_peak_bed = outdir + "/diff_peaks_gene_names.bed",
+        diff_peak_xls = outdir + "/diff_peaks_gene_names.xls",
+        sig_siff_bed = outdir + "/sig_diff_peak_gene_names.bed",
+        sig_siff_xls = outdir + "/sig_diff_peak_gene_names.xls",
+        con_sig_diff_bed = outdir + "/con_sig_diff_peak_gene_names.bed"
+        con_sig_diff_xls = outdir + "/con_sig_diff_peak_gene_names.xls"
     log:
         logdir + "/endpoint/exomePeak.log"
     conda:
@@ -42,12 +43,43 @@ rule diff_exomePeak:
     shell:
         """
         Rscript bin/exomePeak.r \
-        --ip_bams {input.ip_bams} \
-        --input_bams {input.input_bams} \
-        --treated_ip_bams {input.treated_ip_bams} \
-        --treated_input_bams {input.treated_input_bams} \
-        --outprefix {outdir} \
-        > {log} 2>&1
+            --gtf {gtf} \
+            --ip_bams {input.ip_bams} \
+            --input_bams {input.input_bams} \
+            --treated_ip_bams {input.treated_ip_bams} \
+            --treated_input_bams {input.treated_input_bams} \
+            --outprefix {outdir} \
+            > {log} 2>&1
+        
+        python bin/geneId2name.py \
+            --infile {outdir}/diff_peaks.bed \
+            --gtf {gtf} \
+            --outfile {outdir}/diff_peaks_gene_names.bed
+        python bin/geneId2name.py \
+            --infile {outdir}/diff_peaks.xls \
+            --gtf {gtf} \
+            --outfile {outdir}/diff_peaks_gene_names.xls
+
+        python bin/geneId2name.py \
+            --infile {outdir}/con_sig_diff_peak.bed \
+            --gtf {gtf} \
+            --outfile {outdir}/con_sig_diff_peak_gene_names.bed
+        python bin/geneId2name.py \
+            --infile {outdir}/con_sig_diff_peak.xls \
+            --gtf {gtf} \
+            --outfile {outdir}/con_sig_diff_peak_gene_names.xls
+        
+        python bin/geneId2name.py \
+            --infile {outdir}/sig_diff_peak.bed \
+            --gtf {gtf} \
+            --outfile {outdir}/sig_diff_peak_gene_names.bed
+        python bin/geneId2name.py \
+            --infile {outdir}/sig_diff_peak.xls \
+            --gtf {gtf} \
+            --outfile {outdir}/sig_diff_peak_gene_names.xls
+        
+        rm -f {outdir}/diff_peaks.bed {outdir}/diff_peaks.xls {outdir}/con_sig_diff_peak.bed {outdir}/con_sig_diff_peak.xls {outdir}/sig_diff_peak.bed {outdir}/sig_diff_peak.xls
+
         """
 
 def get_input_for_call_exomePeak():
@@ -62,10 +94,10 @@ rule call_exomePeak:
     input:
         get_input_for_call_exomePeak()
     output:
-        all_peak_bed = outdir + "/all_peaks.bed",
-        all_peak_xls = outdir + "/all_peaks.xls",
-        con_peaks_bed = outdir + "/con_peaks.bed",
-        con_peaks_xls = outdir + "/con_peaks.xls"
+        all_peak_bed = outdir + "/all_peaks_gene_names.bed",
+        all_peak_xls = outdir + "/all_peaks_gene_names.xls",
+        con_peaks_bed = outdir + "/con_peaks_gene_names.bed",
+        con_peaks_xls = outdir + "/con_peaks_gene_names.xls"
     log:
         logdir + "/endpoint/call_exomePeak.log"
     conda:
@@ -76,10 +108,30 @@ rule call_exomePeak:
     shell:
         """
         Rscript bin/exomePeak.r \
+        --gtf {gtf} \
         --ip_bams {input.ip_bams} \
         --input_bams {input.input_bams} \
         --outprefix {outdir} \
         > {log} 2>&1
+
+        python bin/geneId2name.py \
+            --infile {outdir}/all_peaks.bed \
+            --gtf {gtf} \
+            --outfile {outdir}/all_peaks_gene_names.bed
+        python bin/geneId2name.py \
+            --infile {outdir}/all_peaks.xls \
+            --gtf {gtf} \
+            --outfile {outdir}/all_peaks_gene_names.xls
+        
+        python bin/geneId2name.py \
+            --infile {outdir}/con_peaks.bed \
+            --gtf {gtf} \
+            --outfile {outdir}/con_peaks_gene_names.bed
+        python bin/geneId2name.py \
+            --infile {outdir}/con_peaks.xls \
+            --gtf {gtf} \
+            --outfile {outdir}/con_peaks_gene_names.xls
+        rm -f {outdir}/all_peaks.bed {outdir}/all_peaks.xls {outdir}/con_peaks.bed {outdir}/con_peaks.xls
         """
 
 rule exomePeak_result:

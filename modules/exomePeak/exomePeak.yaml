@@ -5,3 +5,4 @@ channels:
 dependencies:
   - bioconductor-exomepeak=2.17.0
   - r-base=3.6.3
+  - pandas=1.2.4

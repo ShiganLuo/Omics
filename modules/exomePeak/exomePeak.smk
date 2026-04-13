@@ -26,9 +26,12 @@ rule diff_exomePeak:
     input:
         **get_input_for_diff_exomePeak()
     output:
-        diff_peak = outdir + "/exomePeak_diff_peaks.tsv",
-        sig_siff_peak = outdir + "/exomePeak_sig_siff_peaks.tsv",
-        con_sig_diff_peak = outdir + "/exomePeak_con_sig_diff_peaks.tsv"
+        diff_peak_bed = outdir + "/con_sig_diff_peaks.bed",
+        diff_peak_xls = outdir + "/con_sig_diff_peaks.xls",
+        sig_siff_bed = outdir + "/sig_diff_peak.bed",
+        sig_siff_xls = outdir + "/sig_diff_peak.xls",
+        con_sig_diff_bed = outdir + "/con_sig_diff_peak.bed"
+        con_sig_diff_xls = outdir + "/con_sig_diff_peak.xls"
     log:
         logdir + "/endpoint/exomePeak.log"
     conda:
@@ -43,7 +46,7 @@ rule diff_exomePeak:
         --input_bams {input.input_bams} \
         --treated_ip_bams {input.treated_ip_bams} \
         --treated_input_bams {input.treated_input_bams} \
-        --outprefix {outdir}/exomePeak \
+        --outprefix {outdir} \
         > {log} 2>&1
         """
 
@@ -59,8 +62,10 @@ rule call_exomePeak:
     input:
         get_input_for_call_exomePeak()
     output:
-        consistent_peak = outdir + "/exomePeak_consistent_peaks.tsv",
-        all_peak = outdir + "/exomePeak_all_peaks.tsv"
+        all_peak_bed = outdir + "/all_peaks.bed",
+        all_peak_xls = outdir + "/all_peaks.xls",
+        con_peaks_bed = outdir + "/con_peaks.bed",
+        con_peaks_xls = outdir + "/con_peaks.xls"
     log:
         logdir + "/endpoint/call_exomePeak.log"
     conda:
@@ -73,14 +78,12 @@ rule call_exomePeak:
         Rscript bin/exomePeak.r \
         --ip_bams {input.ip_bams} \
         --input_bams {input.input_bams} \
-        --outprefix {outdir}/exomePeak \
+        --outprefix {outdir} \
         > {log} 2>&1
         """
+
 rule exomePeak_result:
     input:
-        diff_peak = outdir + "/exomePeak_diff_peaks.tsv",
-        sig_siff_peak = outdir + "/exomePeak_sig_siff_peaks.tsv",
-        con_sig_diff_peak = outdir + "/exomePeak_con_sig_diff_peaks.tsv",
-        consistent_peak = outdir + "/exomePeak_consistent_peaks.tsv",
-        all_peak = outdir + "/exomePeak_all_peaks.tsv"
+        call_exomePeak = rules.call_exomePeak.output,
+        diff_exomePeak = rules.diff_exomePeak.output
 

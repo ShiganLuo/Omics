@@ -64,9 +64,7 @@ def get_MERIP_outfiles(samples_info_dict:Dict[str, any]):
             treated_input_samples.append(sample_id)
         else:
             logger.error(f"Unknown design type for sample {sample_id}: {sample_info.design}")
-    outfiles.append(f"{outdir}/exomePeak/exomePeak_diff_peaks.tsv")
-    outfiles.append(f"{outdir}/exomePeak/exomePeak_sig_siff_peaks.tsv")
-    outfiles.append(f"{outdir}/exomePeak/exomePeak_con_sig_diff_peaks.tsv")
+    outfiles.append(f"{outdir}/exomePeak/sig_diff_peak.xls")
     include: "subworkflow/MERIP.smk"
     return outfiles
 

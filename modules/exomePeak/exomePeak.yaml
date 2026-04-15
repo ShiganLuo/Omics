@@ -1,8 +1,14 @@
-name: hisat2
+name: exomePeak
 channels:
   - bioconda
   - conda-forge
 dependencies:
   - bioconductor-exomepeak=2.17.0
   - r-base=3.6.3
+  - bioconductor-clusterprofiler=3.12.0
+  - bioconductor-org.mm.eg.db=3.8.2
+  - bioconductor-org.hs.eg.db=3.8.2
+  - bioconductor-enrichplot=1.4.0
+  - r-ggplot2=3.3.3
+  - r-dplyr=1.0.6
   - pandas=1.2.4

@@ -39,7 +39,7 @@ rule diff_exomePeak:
         "exomePeak.yaml"
     threads: 1
     params:
-        exomePeak = config.get('Procedure',{}).get('exomePeak') or 'exomePeak'
+        exomePeak = config.get('Procedure',{}).get('exomePeak') or 'exomePeak',
     shell:
         """
         Rscript bin/exomePeak.r \
@@ -51,29 +51,29 @@ rule diff_exomePeak:
             --outprefix {outdir} \
             > {log} 2>&1
         
-        python bin/geneId2name.py \
+        Rscript bin/geneId2name.r \
             --infile {outdir}/diff_peaks.bed \
             --gtf {gtf} \
             --outfile {outdir}/diff_peaks_gene_names.bed
-        python bin/geneId2name.py \
+        Rscript bin/geneId2name.r \
             --infile {outdir}/diff_peaks.xls \
             --gtf {gtf} \
             --outfile {outdir}/diff_peaks_gene_names.xls
 
-        python bin/geneId2name.py \
+        Rscript bin/geneId2name.r \
             --infile {outdir}/con_sig_diff_peak.bed \
             --gtf {gtf} \
             --outfile {outdir}/con_sig_diff_peak_gene_names.bed
-        python bin/geneId2name.py \
+        Rscript bin/geneId2name.r \
             --infile {outdir}/con_sig_diff_peak.xls \
             --gtf {gtf} \
             --outfile {outdir}/con_sig_diff_peak_gene_names.xls
         
-        python bin/geneId2name.py \
+        Rscript bin/geneId2name.r \
             --infile {outdir}/sig_diff_peak.bed \
             --gtf {gtf} \
             --outfile {outdir}/sig_diff_peak_gene_names.bed
-        python bin/geneId2name.py \
+        Rscript bin/geneId2name.r \
             --infile {outdir}/sig_diff_peak.xls \
             --gtf {gtf} \
             --outfile {outdir}/sig_diff_peak_gene_names.xls
@@ -114,20 +114,20 @@ rule call_exomePeak:
         --outprefix {outdir} \
         > {log} 2>&1
 
-        python bin/geneId2name.py \
+        Rscript bin/geneId2name.r \
             --infile {outdir}/all_peaks.bed \
             --gtf {gtf} \
             --outfile {outdir}/all_peaks_gene_names.bed
-        python bin/geneId2name.py \
+        Rscript bin/geneId2name.r \
             --infile {outdir}/all_peaks.xls \
             --gtf {gtf} \
             --outfile {outdir}/all_peaks_gene_names.xls
         
-        python bin/geneId2name.py \
+        Rscript bin/geneId2name.r \
             --infile {outdir}/con_peaks.bed \
             --gtf {gtf} \
             --outfile {outdir}/con_peaks_gene_names.bed
-        python bin/geneId2name.py \
+        Rscript bin/geneId2name.r \
             --infile {outdir}/con_peaks.xls \
             --gtf {gtf} \
             --outfile {outdir}/con_peaks_gene_names.xls

@@ -176,12 +176,15 @@ run_pipeline <- function(
       up_res,
       down_res,
       top = top,
-      title = paste(toupper(type), "enrichment"),
+      title = paste("LINE1", toupper(type), "enrichment"),
       outfile = file.path(outdir, paste0(type, "_back_to_back.png"))
     )
   }
 }
 
+# ============================================================
+# 5. 示例：你的 LINE1 enrichment
+# ============================================================
 run_pipeline(
   infile = "/data/pub/zhousha/20260411_MERIPseq/output/exomePeak/con_sig_diff_peak_name.xls",
   outdir = "/data/pub/zhousha/20260411_MERIPseq/output/exomePeak/plot",

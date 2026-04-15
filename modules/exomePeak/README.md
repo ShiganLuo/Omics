@@ -1,3 +1,4 @@
+# exomePeak
 An Introduction to exomePeak
 > Author: Jia Meng, PhD, 2019-05-03
 Installation
@@ -258,3 +259,11 @@ sessionInfo()
 ## [34] htmltools_0.3.6        assertthat_0.2.1       stringi_1.4.3         
 ## [37] RCurl_1.95-4.12        crayon_1.3.4
 ```
+
+# geneId2name.r
+
+
+# go-kegg_back.r
+
+当前环境版本有点老，不建议执行
+兼容基因列表为空的情况，只支持人类和小鼠

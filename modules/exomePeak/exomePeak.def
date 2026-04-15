@@ -1,0 +1,24 @@
+Bootstrap: docker
+From: ubuntu:22.04
+
+%files
+    exomePeak.tar.gz /opt/myenv.tar.gz
+
+%post
+    set -e
+
+    apt-get update && apt-get install -y \
+        bzip2 \
+        ca-certificates \
+        python3
+
+    ln -sf /usr/bin/python3 /usr/bin/python
+
+    mkdir -p /opt/conda_env
+    tar -xzf /opt/myenv.tar.gz -C /opt/conda_env
+
+    # 用系统 python
+    python /opt/conda_env/bin/conda-unpack
+
+%environment
+    export PATH=/opt/conda_env/bin:$PATH

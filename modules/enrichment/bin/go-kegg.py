@@ -6,28 +6,16 @@ import os
 import numpy as np
 from typing import List, Dict, Literal
 
-def enrich_go_kegg(gene_list: List[str], organism: Literal['human', 'mouse'] = 'human', outdir='enrichment_results', top_n=10):
+
+def enrich_go_kegg_analysis(gene_list: List[str], organism: Literal['human', 'mouse'] = 'human', outdir='enrichment_results') -> Dict[str, pd.DataFrame]:
     """
-    输入基因列表，做 GO 和 KEGG 富集分析，并输出结果和柱状图。
-    
-    Args:
-        gene_list (list): 基因名列表，例如 ['TP53','BRCA1',...]
-        organism (str): 'Human' 或 'Mouse'
-        outdir (str): 输出结果的文件夹
-        top_n (int): 绘制柱状图显示的前 top N 项
-        
-    Returns:
-        dict: {'GO_BP': df, 'GO_CC': df, 'GO_MF': df, 'KEGG': df}
+    只做GO和KEGG富集分析，返回结果字典，不绘图。
     """
-    
     os.makedirs(outdir, exist_ok=True)
     results_dict = {}
-    
-    # --- GO 富集分析 ---
     go_categories = ['GO_Biological_Process_2021',
                      'GO_Cellular_Component_2021',
                      'GO_Molecular_Function_2021']
-    
     for cat in go_categories:
         enr = gp.enrichr(
             gene_list=gene_list,
@@ -38,19 +26,6 @@ def enrich_go_kegg(gene_list: List[str], organism: Literal['human', 'mouse'] = '
         )
         df = enr.results
         results_dict[cat] = df
-        
-        # 可视化 top_n
-        if not df.empty:
-            top_df = df.sort_values('Adjusted P-value').head(top_n)
-            plt.figure(figsize=(8,6))
-            sns.barplot(x=-np.log10(top_df['Adjusted P-value']), y=top_df['Term'], color='skyblue')
-            plt.xlabel('-log10(FDR)')
-            plt.title(f'{cat} Top {top_n} Enrichment')
-            plt.tight_layout()
-            plt.savefig(os.path.join(outdir, f'{cat}_top{top_n}.png'))
-            plt.close()
-    
-    # --- KEGG 富集分析 ---
     kegg_cat = 'KEGG_2021_Human' if organism.lower()=='human' else 'KEGG_2019_Mouse'
     enr_kegg = gp.enrichr(
         gene_list=gene_list,
@@ -61,26 +36,50 @@ def enrich_go_kegg(gene_list: List[str], organism: Literal['human', 'mouse'] = '
     )
     df_kegg = enr_kegg.results
     results_dict['KEGG'] = df_kegg
-    
-    if not df_kegg.empty:
-        top_df = df_kegg.sort_values('Adjusted P-value').head(top_n)
-        plt.figure(figsize=(8,6))
-        sns.barplot(x=-np.log10(top_df['Adjusted P-value']), y=top_df['Term'], color='lightgreen')
-        plt.xlabel('-log10(FDR)')
-        plt.title(f'KEGG Top {top_n} Enrichment')
-        plt.tight_layout()
-        plt.savefig(os.path.join(outdir, f'KEGG_top{top_n}.png'))
-        plt.close()
-    
     # 保存结果表
     for key, df in results_dict.items():
         df.to_csv(os.path.join(outdir, f'{key}_enrichment.csv'), index=False)
-    
     print(f"富集分析完成，结果保存在文件夹: {outdir}")
     return results_dict
+
+def plot_enrichment_bar(df: pd.DataFrame, outpath: str, top_n=10, kind='GO', title=None):
+    """
+    只负责绘制GO/KEGG富集柱状图。
+    """
+    if df.empty:
+        print(f"{kind} enrichment result is empty, skip plot.")
+        return
+    top_df = df.sort_values('Adjusted P-value').head(top_n).copy()
+    top_df['-log10(FDR)'] = -np.log10(top_df['Adjusted P-value'])
+    if kind == 'KEGG':
+        colors = top_df['Adjusted P-value'].apply(lambda x: '#762a83' if x < 0.01 else '#c2a5cf')
+        ylabel = 'Pathway'
+    else:
+        colors = top_df['Adjusted P-value'].apply(lambda x: '#1b7837' if x < 0.01 else '#a6dba0')
+        ylabel = 'Term'
+    plt.figure(figsize=(9, 0.6*len(top_df)+2))
+    bar = sns.barplot(
+        x='-log10(FDR)', y=ylabel, data=top_df,
+        palette=colors, edgecolor='black'
+    )
+    for i, (v, n) in enumerate(zip(top_df['-log10(FDR)'], top_df['Overlap'])):
+        bar.text(v + 0.05, i, f'n={n}', va='center', fontsize=10, color='black')
+    plt.xlabel('-log10(FDR)', fontsize=13, fontweight='bold')
+    plt.ylabel(ylabel, fontsize=13, fontweight='bold')
+    if title is None:
+        title = f'{kind} Top {top_n} Enrichment'
+    plt.title(title, fontsize=15, fontweight='bold')
+    plt.tight_layout()
+    plt.savefig(outpath, dpi=150)
+    plt.close()
 
 if __name__ == "__main__":
     # --- 使用示例 ---
     df = pd.read_csv("/data/pub/zhousha/20260411_MERIPseq/output/exomePeak/con_sig_diff_peak_name.xls", sep="\t")
     gene_list = df["gene_name"].dropna().unique().tolist()
-    results = enrich_go_kegg(gene_list,outdir="/data/pub/zhousha/20260411_MERIPseq/output/exomePeak/plot/py", organism="mouse", top_n=10)
+    outdir = "/data/pub/zhousha/20260411_MERIPseq/output/exomePeak/plot/py"
+    results = enrich_go_kegg_analysis(gene_list, outdir=outdir, organism="mouse")
+    # 分别绘图
+    for key, df in results.items():
+        kind = 'KEGG' if key == 'KEGG' else 'GO'
+        plot_enrichment_bar(df, os.path.join(outdir, f'{key}_top10.png'), top_n=10, kind=kind, title=None)

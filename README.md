@@ -15,9 +15,15 @@
 
 3. 运行
 
+--config参数可以在main.json对应字段中填写
+
 ```sh
-snakemake -s workflow/RNA-SNP/run.smk --config indir=data/fq outdir=output metadata=data/target_fq.tsv --cores 45 --use-conda
+snakemake -s workflow/RNA-SNP/main.smk --config indir=data/fq outdir=output metadata=data/target_fq.tsv --cores 45 --use-conda --conda-prefix /path/to/enviroment
 ```
+好用参数：--rerun-triggers input
+
+- --conda-prefix 制定conda包下载地址
+
 4. 亮点
 
 - 支持多个物种
@@ -79,19 +85,11 @@ snakemake -s workflow/RNA-SNP/run.smk --config indir=data/fq outdir=output metad
 
 ## 设计规范
 
-1. capability 以 最终结果 为中心设计; 每个 capability 只有一个 facade rule
+1. 规则可复用，灵活性高
+2. 可指定分析终点
 
-2. 可替换实现用 include + config dispatch
-
-3. schema / defaults 只声明，不参与运行
-
-4. 文件命名通过 contract 函数统一管理
-
-5. work/ ≠ results/，下游不碰中间态
-
-6. 下游通过 rules.xxx.input 耦合能力，而不是路径
-
-规则尽量不硬编码路径，只接受indir、outdir和logdir，还有生成的wildcards
+## 注意事项
+规则尽量不硬编码路径，只接受indir, outdir和logdir，还有生成的wildcards
 规则应该尽可能少涉及与执行无关的信息
 
 ## 下游分析

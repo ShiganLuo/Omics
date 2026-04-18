@@ -25,7 +25,8 @@ hisat2_config = {
             "hisat2": config.get('Procedure',{}).get('hisat2')
         },
         "genome": {
-            "fasta": config.get('genome',{}).get('fasta')
+            "fasta": config.get('genome',{}).get('fasta'),
+            "index_prefix": config.get('genome',{}).get('hisat2_index_prefix'),
         }
     }
 module hisat2:

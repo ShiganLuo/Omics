@@ -129,7 +129,8 @@ def parser_metadata(
     """
     meta_sep = detect_delimiter(meta_experiment_file)
     df = pd.read_csv(meta_experiment_file, sep=meta_sep)
-    df_filtered = df[df[condition_col] == condition_value]
+    # df_filtered = df[df[condition_col] == condition_value]
+    df_filtered = df[df[condition_col].str.contains(condition_value, na=False)]
     logger.info(f"Filtered metadata: {len(df_filtered)} records match the condition '{condition_value}' in column '{condition_col}'.")
     ftp_urls = []
 
@@ -158,7 +159,14 @@ def main():
     ftp_urls = parser_metadata(
         meta_experiment_file=experiment_metadata_file,
         ftp_ref_file=ftp_ref_file,
-        output_dir=output_dir
+        output_dir=output_dir,
+        condition_value="B2 CoD2 Human p65KO"
+    )
+    ftp_urls += parser_metadata(
+        meta_experiment_file=experiment_metadata_file,
+        ftp_ref_file=ftp_ref_file,
+        output_dir=output_dir,
+        condition_value="B2 CoD3 Human p65KO"
     )
     logger.info(f"Total matched FTP URLs: {len(ftp_urls)}")
     # Parallel download for FTP URLs

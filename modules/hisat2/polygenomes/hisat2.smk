@@ -3,25 +3,28 @@ logger = logging.getLogger(__name__)
 indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
-fasta = config.get('genome',{}).get('fasta')
 paired_samples = config.get('paired_samples', [])
 single_samples = config.get('single_samples', [])
 rule hisat2_index:
     input:
-        fasta = fasta
+        fasta = lambda wildcards: config["genome"][wildcards.genome]["fasta"]
     output:
-        index = expand(
-            outdir + "/index/genome.{idx}.ht2",
-            idx = [1, 2, 3, 4, 5, 6, 7, 8]
-        )
+        ix1 = outdir + "/index/{genome}.1.ht2",
+        ix2 = outdir + "/index/{genome}.2.ht2",
+        ix3 = outdir + "/index/{genome}.3.ht2",
+        ix4 = outdir + "/index/{genome}.4.ht2",
+        ix5 = outdir + "/index/{genome}.5.ht2",
+        ix6 = outdir + "/index/{genome}.6.ht2",
+        ix7 = outdir + "/index/{genome}.7.ht2",
+        ix8 = outdir + "/index/{genome}.8.ht2"
     threads: 8
     conda:
-        "hisat2.yaml"
+        "../hisat2.yaml"
     params:
         prefix = outdir + "/index/genome",
         HISAT2_BUILD = config.get('Procedure',{}).get('hisat2-build') or 'hisat2-build'
     log:
-        logdir + "/index/hisat2_build.log"
+        logdir + "/index/{genome}/hisat2_build.log"
     shell:
         """
         mkdir -p $(dirname {params.prefix})
@@ -30,12 +33,15 @@ rule hisat2_index:
 
 def get_hisat2_index(wildcards):
     logger.info(f"[get_hisat2_index] called with wildcards: {wildcards}")
-    config_index_prefix = config.get('genome',{}).get('index_prefix') or None
+    config_index_prefix = config.get('genome',{}).get(wildcards.genome).get('index_prefix') or None
     if config_index_prefix:
         first_file = f"{config_index_prefix}.1.ht2"
         if os.path.exists(first_file):
+            logger.info(f"genome {wildcards.genome}'s hisat index  exists, use it")
             return [f"{config_index_prefix}.{idx}.ht2" for idx in [1, 2, 3, 4, 5, 6, 7, 8]]
-    return [outdir + f"/index/genome.{idx}.ht2" for idx in [1, 2, 3, 4, 5, 6, 7, 8]]
+        else:
+            logger.info(f"genome {wildcards.genome}'s hisat index doesn't exists, generate it from {config['genome'][wildcards.genome]}")
+    return [outdir + f"/index/{wildcards.genome}.{idx}.ht2" for idx in [1, 2, 3, 4, 5, 6, 7, 8]]
 
 
 def get_alignment_input(wildcards):
@@ -75,12 +81,12 @@ rule hisat2_align:
         fastq = get_alignment_input,
         index = get_hisat2_index
     output:
-        outfile = outdir + "/{sample_id}.bam"
+        outfile = outdir + "/{genome}/{sample_id}.bam"
     log:
-        logdir + "/{sample_id}/hisat2_align.log"
+        logdir + "/{sample_id}/{genome}/hisat2_align.log"
     threads: 12
     conda:
-        "hisat2.yaml"
+        "../hisat2.yaml"
     params:
         HISAT2 = config.get('Procedure',{}).get('hisat2') or 'hisat2',
         SAMTOOLS = config.get('Procedure',{}).get('samtools') or 'samtools',
@@ -98,4 +104,4 @@ rule hisat2_align:
 
 rule hisat2_result:
     input:
-        bam = outdir + "/{sample_id}.bam"
+        bam = outdir + "/{genome}/{sample_id}.bam"

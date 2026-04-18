@@ -1,8 +1,8 @@
 {
-   "fqdir": "/data/pub/zhousha/20260411_MERIPseq/data/meta/fastq",
-   "logdir": "/data/pub/zhousha/20260411_MERIPseq/log",
-   "outdir": "/data/pub/zhousha/20260411_MERIPseq/output",
-   "meta": "/data/pub/zhousha/20260411_MERIPseq/data/meta.tsv",
+   "fqdir": null,
+   "logdir": "/data/pub/zhousha/20260411_RNAseq/log",
+   "outdir": "/data/pub/zhousha/20260411_RNAseq/output",
+   "meta": "/data/pub/zhousha/20260411_RNAseq/data/meta_input.tsv",
    "genome": {
         "fasta": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
         "gtf": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf"

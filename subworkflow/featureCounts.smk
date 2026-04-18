@@ -10,7 +10,7 @@ cutadapt_config = {
     }
 module cutadapt:
     snakefile: "../modules/cutadapt/cutadapt.smk"
-    config: config
+    config: cutadapt_config
 use rule trimming_Paired from cutadapt as RNA_SNP_trimming_Paired
 use rule trimming_Single from cutadapt as RNA_SNP_trimming_Single
 

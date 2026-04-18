@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from typing import List, Tuple, Dict, Optional
 from enum import Enum, unique
 import argparse
+import math
 logger = logging.getLogger(__name__)
 @unique
 class FastqMode(str, Enum):
@@ -57,8 +58,9 @@ class MetadataUtils:
         outdir: str,
         meta: Optional[str] = None,
         fastq_dir: Optional[str] = None,
-        required_cols: set = {"sample_id", "design", "fastq_1", "fastq_2"},
+        required_cols: set = {"sample_id", "fastq_1", "fastq_2"},
         data_id_col: str = "data_id",
+        design_col: str = "design"
     ):
         """
         Function: Initialize MetadataUtils.
@@ -66,9 +68,12 @@ class MetadataUtils:
             - outdir: Output directory for processed FASTQ and logs.
             - meta: Path to metadata file (CSV/TSV) containing sample information and optionally FASTQ paths.
             - fastq_dir: Directory containing FASTQ files (if not specified in meta).
-            - required_cols: Set of required columns in the metadata file. Default includes 'sample_id', 'design', 'fastq_1', 'fastq_2'.
+            - required_cols: Set of required columns in the metadata file. Default includes 'sample_id', 'fastq_1', 'fastq_2'.
             - data_id_col: Column name in metadata that represents unique FASTQ identifiers (default: 'data_id').
+            - design_col: sample compare mode
+        Note:
             - fq_pattern: Glob pattern to identify FASTQ files in fastq_dir (default: '*fq.gz').
+
         """
         if not meta and not fastq_dir:
             raise ValueError("Either meta or fastq_dir must be provided.")
@@ -78,6 +83,7 @@ class MetadataUtils:
         self.fastq_dir = Path(fastq_dir) if fastq_dir else None
         self.required_cols = required_cols        
         self.data_id_col = data_id_col
+        self.design_col = design_col
         self.samples_dict = defaultdict(SampleInfo)
 
     def load_meta(self) -> pd.DataFrame:
@@ -95,8 +101,7 @@ class MetadataUtils:
 
 
     def build_design_pairs(
-            self, 
-            design_col:str = "design"
+            self
         ) -> List[Tuple[str, str, str]]:
         """
         Determine ctr/exp pairs based on the design stored in self.samples_dict.
@@ -105,10 +110,17 @@ class MetadataUtils:
         return a list of tuple: (organism, ctr_sample_id, exp_sample_id)
         """
         groups: Dict[str, Dict[str, List[SampleInfo]]] = defaultdict(lambda: defaultdict(list))
-        
+        design_col = self.design_col
         for sample_id, info in self.samples_dict.items():
             design_val = getattr(info, design_col, "")
-            if not design_val:
+            if design_val is None:
+                logger.info(f"{sample_id} design value is None, skipping it")
+                continue
+            if isinstance(design_val, bytes):
+                design_val = design_val.decode("utf-8")
+
+            if isinstance(design_val, float) and math.isnan(design_val):
+                logger.info(f"{sample_id} design value is None, skipping it")
                 continue
             m  = DESIGN_PATTERN.match(design_val)
             if not m:
@@ -330,7 +342,11 @@ class MetadataUtils:
                                     outdir = self.outdir,
                                     data_id_col = self.data_id_col,
                                 )
-            pairs = self.build_design_pairs()
+            if df[self.design_col].isnull().all():
+                logger.info(f"meta {self.design_col} is all none, skip build_design_pairs")
+                pairs = []
+            else:
+                pairs = self.build_design_pairs()
             return self.samples_dict, pairs, str(self.outdir / "raw_fastq")
         elif self.fastq_dir:
             self.prepare_fastq_dir(self.fastq_dir,self.outdir)

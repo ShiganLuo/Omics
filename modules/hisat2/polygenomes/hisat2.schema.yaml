@@ -6,12 +6,14 @@ Procedure:
       samtools: {type: ["string", "null"]}
       hisat2-build: {type: ["string", "null"]}
       hisat2_index_prefix: {type: ["string", "null"]}
-
 genome:
     type: object
-    required: ["fasta"]
-    fasta: {type: "string"}
-    index_prefix: {type: ["string", "null"]}
+    additionalProperties:
+      type: object
+      required: ["fasta"]
+      properties:
+        fasta: {type: "string"}
+        index_prefix: {type: ["string", "null"]}
 outdir:
     type: string
     default: "output"

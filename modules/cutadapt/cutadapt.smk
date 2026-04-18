@@ -36,7 +36,7 @@ rule trimming_Single:
     input:
         fastq = indir + "/{sample_id}.fq.gz"
     output:
-        fastq = temp(outdir + "/{sample_id}.fq.gz"),
+        fastq = temp(outdir + "/{sample_id}.single.fq.gz"),
         report = logdir + "/{sample_id}/trimming_statistics.txt"
     params:
         outdir = outdir,

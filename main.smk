@@ -48,7 +48,7 @@ def get_MERIP_outfiles(samples_info_dict:Dict[str, any]):
             outfiles.append(f"{outdir}/igv/dedup/{sample_id}.dedup.bam")
         elif sample_info.layout == "SE":
             single_samples.append(sample_id)
-            # outfiles.append(f"{outdir}/cutadapt/{sample_id}.fq.gz")
+            # outfiles.append(f"{outdir}/cutadapt/{sample_id}.single.fq.gz")
             # outfiles.append(f"{outdir}/hisat2/{sample_id}.bam")
             # outfiles.append(f"{outdir}/igv/{sample_id}.bigwig")
             outfiles.append(f"{outdir}/igv/dedup/{sample_id}.dedup.bam")
@@ -70,7 +70,26 @@ def get_MERIP_outfiles(samples_info_dict:Dict[str, any]):
     include: "subworkflow/MERIP.smk"
     return outfiles
 
-get_MERIP_outfiles(samples_info_dict)
+# get_MERIP_outfiles(samples_info_dict)
+
+def get_CoCultrue_outfiles(samples_info_dict:Dict[str, any]):
+    for sample_id, sample_info in samples_info_dict.items():
+        if sample_info.layout == "PE":
+            paired_samples.append(sample_id)
+            outfiles.append(f"{outdir}/SOAPnuke/{sample_id}_1.fq.gz")
+            outfiles.append(f"{outdir}/SOAPnuke/{sample_id}_2.fq.gz")
+            outfiles.append(f"{outdir}/hisat2/GRCm39/{sample_id}.bam")
+            outfiles.append(f"{outdir}/hisat2/GRCh38/{sample_id}.bam")
+        elif sample_info.layout == "SE":
+            single_samples.append(sample_id)
+            outfiles.append(f"{outdir}/SOAPnuke/{sample_id}.single.fq.gz")
+            outfiles.append(f"{outdir}/hisat2/GRCm39/{sample_id}.bam")
+            outfiles.append(f"{outdir}/hisat2/GRCh38/{sample_id}.bam")
+        else:
+            logger.error(f"Unknown layout type for sample {sample_id}: {sample_info.layout}")
+    include: "subworkflow/CoCulture.smk"
+    return outfiles
+get_CoCultrue_outfiles(samples_info_dict)
 logger.info(f"Paired samples: {paired_samples}")
 logger.info(f"Single samples: {single_samples}")
 logger.info(f"IP samples: {ip_samples}")

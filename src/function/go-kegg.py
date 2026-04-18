@@ -4,8 +4,9 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import os
 import numpy as np
+from typing import List, Dict, Literal
 
-def enrich_go_kegg(gene_list, organism='Human', outdir='enrichment_results', top_n=10):
+def enrich_go_kegg(gene_list: List[str], organism: Literal['human', 'mouse'] = 'human', outdir='enrichment_results', top_n=10):
     """
     输入基因列表，做 GO 和 KEGG 富集分析，并输出结果和柱状图。
     
@@ -50,12 +51,11 @@ def enrich_go_kegg(gene_list, organism='Human', outdir='enrichment_results', top
             plt.close()
     
     # --- KEGG 富集分析 ---
-    kegg_cat = 'KEGG_2021_Human' if organism.lower()=='human' else 'KEGG_2021_Mouse'
+    kegg_cat = 'KEGG_2021_Human' if organism.lower()=='human' else 'KEGG_2019_Mouse'
     enr_kegg = gp.enrichr(
         gene_list=gene_list,
         gene_sets=kegg_cat,
         organism=organism,
-        description='KEGG',
         outdir=outdir,
         cutoff=0.05
     )
@@ -81,6 +81,6 @@ def enrich_go_kegg(gene_list, organism='Human', outdir='enrichment_results', top
 
 if __name__ == "__main__":
     # --- 使用示例 ---
-    df = pd.read_csv("/disk5/luosg/Totipotent20251031/output/SNP/vcf/intersect/annotate/ci8CLC/ci8CLC_gene_counts.csv",index_col=0)
-    gene_list = df.index.to_list()
-    results = enrich_go_kegg(gene_list,outdir="/disk5/luosg/Totipotent20251031/output/SNP/vcf/intersect/annotate/ci8CLC/go")
+    df = pd.read_csv("/data/pub/zhousha/20260411_MERIPseq/output/exomePeak/con_sig_diff_peak_name.xls", sep="\t")
+    gene_list = df["gene_name"].dropna().unique().tolist()
+    results = enrich_go_kegg(gene_list,outdir="/data/pub/zhousha/20260411_MERIPseq/output/exomePeak/plot/py", organism="mouse", top_n=10)

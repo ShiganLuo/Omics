@@ -77,13 +77,10 @@ import logging
 import sys
 import pandas as pd
 from pathlib import Path
-logging.basicConfig(
-	level=logging.INFO,
-	format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-	stream=sys.stdout,  # 指定输出到 stdout 而不是 stderr
-	datefmt='%Y-%m-%d %H:%M:%S'
-)
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from common.LogUtil import setup_logger
 
+logger = logging.getLogger(__name__)
 
 
 # ============================================================
@@ -94,7 +91,11 @@ logging.basicConfig(
 # ============================================================
 # Downloader (concurrent + retry + cache)
 # ============================================================
-
+proxies = {
+    "http": os.environ.get("all_proxy"),
+    "https": os.environ.get("all_proxy")
+}
+logger.info(f"proxies: {proxies}")
 def build_ncbi_url(acc: str) -> str:
     """
     Construct the appropriate NCBI webpage URL based on the accession prefix.
@@ -138,11 +139,12 @@ def build_ncbi_url(acc: str) -> str:
 
 
 def download_one(
-    acc: str,
-    outdir: str,
-    retries: int,
-    force: bool
-) -> bool:
+        acc: str,
+        outdir: str,
+        retries: int,
+        force: bool,
+        verify_ssl: bool | str
+    ) -> bool:
     """
     Download a single NCBI HTML page corresponding to a given accession.
 
@@ -184,7 +186,11 @@ def download_one(
 
     for attempt in range(1, retries + 1):
         try:
-            r = requests.get(url, timeout=30)
+            r = requests.get(
+                    url, timeout=30, verify=verify_ssl,
+                    proxies=proxies
+                )
+            
             r.raise_for_status()
 
             with open(out_html, "w", encoding="utf-8") as f:
@@ -194,7 +200,7 @@ def download_one(
             return True
 
         except Exception as e:
-            logging.warning(f"[RETRY {attempt}/{retries}] {acc}: {e}")
+            logging.warning(f"[RETRY {attempt}/{retries}] {acc} {url}: {e}")
             time.sleep(2)
 
     logging.error(f"[FAIL] {acc}")
@@ -202,12 +208,13 @@ def download_one(
 
 
 def download_batch(
-    acc_list: List[str],
-    html_dir: str,
-    workers: int,
-    retries: int,
-    force: bool
-):
+        acc_list: List[str],
+        html_dir: str,
+        workers: int,
+        retries: int,
+        force: bool,
+        verify_ssl: bool | str
+    ):
     """
     Batch-download NCBI HTML pages for a list of accessions using multithreading.
 
@@ -241,7 +248,7 @@ def download_batch(
 
     with ThreadPoolExecutor(max_workers=workers) as exe:
         futures = {
-            exe.submit(download_one, acc, html_dir, retries, force): acc
+            exe.submit(download_one, acc, html_dir, retries, force, verify_ssl): acc
             for acc in acc_list
         }
 
@@ -345,9 +352,9 @@ def extract_gse_ids(html_path: str) -> List[str]:
     return gse_ids
 
 def extract_relations_txt(
-    html_path: str,
-    item: Literal["SRA", "BioSample"] = "SRA"
-) -> List[str]:
+        html_path: str,
+        item: Literal["SRA", "BioSample"] = "SRA"
+    ) -> List[str]:
     """
     Extract relation accession IDs (e.g. SRA or BioSample) from a GEO GSM HTML page.
 
@@ -526,7 +533,18 @@ def extract_sra_library_and_runs(html_path: str) -> Dict[str, object]:
                 if key == "Name" and value.startswith("GSM"):
                     result["Sample_id"] = value
             break
-
+    if not result["Sample_id"]:
+        logging.warning(f"{srx} - Sample_id (GSM) not found in Library block by method 1, trying method 2...")
+        for div in soup.find_all("div", class_="sra-full-data"):
+            if div.get_text(strip=True).startswith("Experiment attributes"):
+                span = div.find("span")
+                if span:
+                    text = span.get_text(strip=True)
+                    if text.startswith("GSM"):
+                        result["Sample_id"] = text
+                break  # 只处理第一个 Experiment attributes div
+    if not result["Sample_id"]:
+        logging.error(f"{srx} - Sample_id (GSM) not found in Library block by both methods")
     # ============================================================
     # 3. Runs table (SRR → Data_id)
     # ============================================================
@@ -621,14 +639,34 @@ def main():
     parser.add_argument("--workers", type=int, default=4, help="Concurrent downloads")
     parser.add_argument("--retries", type=int, default=3, help="Retry times")
     parser.add_argument("--force", action="store_true", help="Force re-download")
+    parser.add_argument("--log",type=str,default="info.log")
+    parser.add_argument(
+        "--ca-bundle",
+        default=None,
+        help="Path to custom CA bundle PEM file for HTTPS verification"
+    )
+    parser.add_argument(
+        "--insecure",
+        action="store_true",
+        help="Disable HTTPS certificate verification (not recommended)"
+    )
 
     args = parser.parse_args()
 
-    outdir = Path(args.outdir)
-    outdir.mkdir(parents=True, exist_ok=True)
-    html_dir = outdir / "html"
-    html_dir.mkdir(parents=True, exist_ok=True)
-
+    outdir = args.outdir
+    os.makedirs(outdir, exist_ok=True)
+    html_dir = os.path.join(outdir, "html")
+    os.makedirs(html_dir, exist_ok=True)
+    log_dir = os.path.dirname(args.log)
+    os.makedirs(log_dir, exist_ok=True)
+    logger = setup_logger("root",args.log)
+    logger.info(f"Starting GSM metadata download and extraction")
+    verify_ssl: bool | str = False if args.insecure else (args.ca_bundle or True)
+    if args.insecure:
+        requests.packages.urllib3.disable_warnings()  # suppress InsecureRequestWarning
+        logger.warning("HTTPS certificate verification is disabled (--insecure)")
+    elif args.ca_bundle:
+        logger.info(f"Using custom CA bundle: {args.ca_bundle}")
     resolver = GSMResolver(
         gsm=args.gsm,
         gsm_file=args.gsm_file,
@@ -644,11 +682,12 @@ def main():
             str(html_dir),
             args.workers,
             args.retries,
-            args.force
+            args.force,
+            verify_ssl
         )
 
     if args.mode in ("extract", "both"):
-        gsm_outfile = outdir / "gsm_metadata.csv"
+        gsm_outfile = os.path.join(outdir,"gsm_metadata.csv")
         gsm_meta = extract_gsm_batch(str(html_dir), str(gsm_outfile))
         srx_list = gsm_meta["SRA"].dropna().str.split(",").explode().unique().tolist()
         download_batch(
@@ -656,9 +695,10 @@ def main():
             str(html_dir),
             args.workers,
             args.retries,
-            args.force
+            args.force,
+            verify_ssl
         )
-        sra_outfile = outdir / "sra_metadata.csv"
+        sra_outfile = os.path.join(outdir,"sra_metadata.csv")
         sra_meta = extract_sra_batch(str(html_dir), str(sra_outfile))
         
 

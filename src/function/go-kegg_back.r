@@ -176,22 +176,19 @@ run_pipeline <- function(
       up_res,
       down_res,
       top = top,
-      title = paste("LINE1", toupper(type), "enrichment"),
+      title = paste(toupper(type), "enrichment"),
       outfile = file.path(outdir, paste0(type, "_back_to_back.png"))
     )
   }
 }
 
-# ============================================================
-# 5. 示例：你的 LINE1 enrichment
-# ============================================================
 run_pipeline(
-  infile = "/disk5/luosg/DIPseq20251215/output/LINE1/LINE1_enrichment_per_gene.tsv",
-  outdir = "/disk5/luosg/DIPseq20251215/output/LINE1/GO_KEGG",
-  species = "human",
-  gene_col = "gene_id",
-  value_col = "total_enrichment",
-  p_col = "total_pvalue",
+  infile = "/data/pub/zhousha/20260411_MERIPseq/output/exomePeak/con_sig_diff_peak_name.xls",
+  outdir = "/data/pub/zhousha/20260411_MERIPseq/output/exomePeak/plot",
+  species = "mouse",
+  gene_col = "gene_name",
+  value_col = "fold_enrchment",
+  p_col = "lg.p",
   up_cutoff = 1,
   p_cutoff = 0.05,
   top = 10

@@ -57,6 +57,7 @@ exomePeak_config = {
         "indir": igv_config["outdir"] + "/dedup",
         "outdir": f"{outdir}/exomePeak",
         "logdir": logdir,
+        "gtf": config.get("gtf",""),
         "ip_samples": ip_samples,
         "input_samples": input_samples,
         "treated_ip_samples": treated_ip_samples,

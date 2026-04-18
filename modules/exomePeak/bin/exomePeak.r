@@ -4,100 +4,27 @@ library(exomePeak)
 
 options(width = 60)
 
-run_peak_calling <- function(gtf, ip_bams, input_bams) {
+run_peak_calling <- function(gtf, ip_bams, input_bams, outdir = "./") {
   result <- exomepeak(GENE_ANNO_GTF = gtf,
                       IP_BAM = ip_bams,
-                      INPUT_BAM = input_bams)
+                      INPUT_BAM = input_bams,
+                      OUT_DIR = outdir)
   print(names(result))
   result
 }
 
-run_diff_analysis <- function(gtf, ip_bams, input_bams, treated_ip_bams, treated_input_bams) {
+run_diff_analysis <- function(gtf, ip_bams, input_bams, treated_ip_bams, treated_input_bams, outdir = "./") {
   result <- exomepeak(GENE_ANNO_GTF = gtf,
                       IP_BAM = ip_bams,
                       INPUT_BAM = input_bams,
                       TREATED_IP_BAM = treated_ip_bams,
-                      TREATED_INPUT_BAM = treated_input_bams)
+                      TREATED_INPUT_BAM = treated_input_bams,
+                      OUT_DIR = outdir)
   print(names(result))
   print(is.na(result$con_sig_diff_peaks))
   result
 }
 
-write_peak_outputs <- function(result, outprefix) {
-  if (is.null(outprefix) || outprefix == "") {
-    return(invisible(NULL))
-  }
-  out_dir <- dirname(outprefix)
-  if (out_dir != "." && !dir.exists(out_dir)) {
-    dir.create(out_dir, recursive = TRUE)
-  }
-
-  con_peaks <- result$con_peaks
-  all_peaks <- result$all_peaks
-
-  con_df <- as.data.frame(con_peaks) # Convert GRanges to data frame for coordinate columns
-  all_df <- as.data.frame(all_peaks)
-
-  write.table(con_df,
-              file = paste0(outprefix, "peak_consistent_peaks.tsv"),
-              sep = "\t", quote = FALSE, row.names = FALSE)
-  write.table(all_df,
-              file = paste0(outprefix, "peak_all_peaks.tsv"),
-              sep = "\t", quote = FALSE, row.names = FALSE)
-
-  summary_lines <- c(
-    paste0("names(result): ", paste(names(result), collapse = ","))
-  )
-  writeLines(summary_lines, con = paste0(outprefix, "peak_summary.txt"))
-}
-
-write_diff_outputs <- function(result, outprefix) {
-  if (is.null(outprefix) || outprefix == "") {
-    return(invisible(NULL))
-  }
-  out_dir <- dirname(outprefix)
-  if (out_dir != "." && !dir.exists(out_dir)) {
-    dir.create(out_dir, recursive = TRUE)
-  }
-
-
-  if (!is.null(result$diff_peaks)) {
-    diff_df <- as.data.frame(result$diff_peaks)
-    write.table(diff_df,
-                file = paste0(outprefix, "diff_peaks.tsv"),
-                sep = "\t", quote = FALSE, row.names = FALSE)
-  } else {
-    lines <- c(
-      "No significant differential peaks identified with the specified thresholds."
-    )
-    writeLines(lines, con = paste0(outprefix, "diff_peaks.tsv"))
-  }
-
-  if (!is.null(result$sig_siff_peaks)) {
-    sig_siff_df <- as.data.frame(result$sig_siff_peaks)
-    write.table(sig_siff_df,
-                file = paste0(outprefix, "sig_siff_peaks.tsv"),
-                sep = "\t", quote = FALSE, row.names = FALSE)
-  } else {
-    lines <- c(
-      "No significant differential peaks identified with the specified thresholds."
-    )
-    writeLines(lines, con = paste0(outprefix, "sig_siff_peaks.tsv"))
-  }
-
-  if (!is.null(result$con_sig_diff_peaks)) {
-    con_sig_diff_df <- as.data.frame(result$con_sig_diff_peaks)
-    write.table(con_sig_diff_df,
-                file = paste0(outprefix, "con_sig_diff_peaks.tsv"),
-                sep = "\t", quote = FALSE, row.names = FALSE)
-  } else {
-    lines <- c(
-      "No significant differential peaks identified among the consistent peaks with the specified thresholds."
-    )
-    writeLines(lines, con = paste0(outprefix, "con_sig_diff_peaks.tsv"))
-  }
-
-}
 
 main <- function() {
   parser <- ArgumentParser(description = "exomePeak peak calling and differential analysis")
@@ -106,7 +33,7 @@ main <- function() {
   parser$add_argument("--input_bams", nargs = "+", required = TRUE, help = "List of Input BAM files")
   parser$add_argument("--treated_ip_bams", nargs = "*", help = "List of treated IP BAM files")
   parser$add_argument("--treated_input_bams", nargs = "*", help = "List of treated Input BAM files")
-  parser$add_argument("--outprefix", default = "", help = "Output file prefix (can include directory)")
+  parser$add_argument("--outdir", default = "", help = "Output directory for results")
 
   args <- parser$parse_args()
 
@@ -117,13 +44,14 @@ main <- function() {
                                      ip_bams = args$ip_bams,
                                      input_bams = args$input_bams,
                                      treated_ip_bams = args$treated_ip_bams,
-                                     treated_input_bams = args$treated_input_bams)
-    write_diff_outputs(diff_result, args$outprefix)
+                                     treated_input_bams = args$treated_input_bams,
+                                     outdir = args$outdir
+                                     )
   } else {
     peak_result <- run_peak_calling(gtf = args$gtf,
                                   ip_bams = args$ip_bams,
-                                  input_bams = args$input_bams)
-    write_peak_outputs(peak_result, args$outprefix)
+                                  input_bams = args$input_bams,
+                                  outdir = args$outdir)
   }
 }
 

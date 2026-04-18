@@ -6,28 +6,29 @@
 # awk -F'\t' '{print $1}' ${meta} | while read -r GSM;do
 #     GetGSMHtml ${GSM} ${html_outdir} ${html_log}
 # done
-GSM_parser=/data/pub/zhousha/20260411_MERIPseq/workflow/RNA-SNP/src/download/GSM_metadata.py
-ASCP_downloader=/data/pub/zhousha/20260411_MERIPseq/workflow/RNA-SNP/src/download/ascp_download.py
+GSM_parser=/data/pub/zhousha/20260417_RNAseq/workflow/RNA-SNP/src/download/GSM_metadata.py
+ASCP_downloader=/data/pub/zhousha/20260417_RNAseq/workflow/RNA-SNP/src/download/ascp_download.py
 ascp_key=/home/zhousha/miniforge3/envs/RNA/etc/asperaweb_id_dsa.openssh
 function download_pipeline(){
     meta=$1
     outdir=$2
     log=$3
-    # python  ${GSM_parser}\
-    #     --mode both \
-    #     --gsm-file ${meta} \
-    #     --outdir ${outdir} \
-    
-    python ${ASCP_downloader} \
-        --meta ${outdir}/sra_metadata.csv \
-        --srr-col-name Data_id \
-        --outdir ${outdir}/fastq \
-        --key ${ascp_key} \
+    python  ${GSM_parser}\
+        --mode both \
+        --gsm-file ${meta} \
+        --outdir ${outdir} \
         --log ${log}
+    
+    # python ${ASCP_downloader} \
+    #     --meta ${outdir}/sra_metadata.csv \
+    #     --srr-col-name Data_id \
+    #     --outdir ${outdir}/fastq \
+    #     --key ${ascp_key} \
+    #     --log ${log}
 }
-meat=/data/pub/zhousha/20260411_MERIPseq/data/meta.tsv
-outdir=/data/pub/zhousha/20260411_MERIPseq/data/meta
-log=/data/pub/zhousha/20260411_MERIPseq/log/download/ascp_download.log
+meat=/data/pub/zhousha/20260417_RNAseq/data/meta/meta.csv
+outdir=/data/pub/zhousha/20260417_RNAseq/data/meta
+log=/data/pub/zhousha/20260417_RNAseq/log/download/GSM_metadata.log
 download_pipeline ${meat} ${outdir} ${log}
 
 

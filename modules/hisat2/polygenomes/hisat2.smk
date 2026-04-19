@@ -9,19 +9,19 @@ rule hisat2_index:
     input:
         fasta = lambda wildcards: config["genome"][wildcards.genome]["fasta"]
     output:
-        ix1 = outdir + "/index/{genome}.1.ht2",
-        ix2 = outdir + "/index/{genome}.2.ht2",
-        ix3 = outdir + "/index/{genome}.3.ht2",
-        ix4 = outdir + "/index/{genome}.4.ht2",
-        ix5 = outdir + "/index/{genome}.5.ht2",
-        ix6 = outdir + "/index/{genome}.6.ht2",
-        ix7 = outdir + "/index/{genome}.7.ht2",
-        ix8 = outdir + "/index/{genome}.8.ht2"
+        ix1 = outdir + "/index/{genome}/{genome}.1.ht2",
+        ix2 = outdir + "/index/{genome}/{genome}.2.ht2",
+        ix3 = outdir + "/index/{genome}/{genome}.3.ht2",
+        ix4 = outdir + "/index/{genome}/{genome}.4.ht2",
+        ix5 = outdir + "/index/{genome}/{genome}.5.ht2",
+        ix6 = outdir + "/index/{genome}/{genome}.6.ht2",
+        ix7 = outdir + "/index/{genome}/{genome}.7.ht2",
+        ix8 = outdir + "/index/{genome}/{genome}.8.ht2"
     threads: 8
     conda:
         "../hisat2.yaml"
     params:
-        prefix = outdir + "/index/genome",
+        prefix = lambda wildcards: outdir + f"/index/{wildcards.genome}/{wildcards.genome}",
         HISAT2_BUILD = config.get('Procedure',{}).get('hisat2-build') or 'hisat2-build'
     log:
         logdir + "/index/{genome}/hisat2_build.log"
@@ -41,7 +41,7 @@ def get_hisat2_index(wildcards):
             return [f"{config_index_prefix}.{idx}.ht2" for idx in [1, 2, 3, 4, 5, 6, 7, 8]]
         else:
             logger.info(f"genome {wildcards.genome}'s hisat index doesn't exists, generate it from {config['genome'][wildcards.genome]}")
-    return [outdir + f"/index/{wildcards.genome}.{idx}.ht2" for idx in [1, 2, 3, 4, 5, 6, 7, 8]]
+    return [outdir + f"/index/{wildcards.genome}/{wildcards.genome}.{idx}.ht2" for idx in [1, 2, 3, 4, 5, 6, 7, 8]]
 
 
 def get_alignment_input(wildcards):

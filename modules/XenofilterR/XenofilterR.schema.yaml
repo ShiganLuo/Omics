@@ -1,2 +1,13 @@
 Procedure:
   Rscript: "/usr/bin/Rscript"
+
+
+indir:
+    type: string
+    default: "output/raw_fastq"
+outdir:
+    type: string
+    default: "output"
+logdir:
+    type: string
+    default: "logs"

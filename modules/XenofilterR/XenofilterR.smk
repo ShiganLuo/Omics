@@ -1,22 +1,13 @@
 import logging
-SNAKEFILE_FULL_PATH_XenofilterR = workflow.snakefile
-SNAKEFILE_DIR_XenofilterR = os.path.dirname(SNAKEFILE_FULL_PATH_XenofilterR)
-import csv
-XenofilterRYaml = get_yaml_path("XenofilterR",SNAKEFILE_DIR_XenofilterR)
-configfile: XenofilterRYaml
-logger = logging.getLogger("XenofilterR")
-logger.info(f"Include XenofilterR config: {XenofilterRYaml}")
-logger.info(f"main snakefile excute path: {EXECUTION_DIR}")
-
-logger.info(f"XenofilterR target samples: {XenofilterR_target_samples}\nXenofilterR_target_genome: {XenofilterR_target_genome}\nXenofilterR pollution source genome: {XenofilterR_pollution_source_genome}")
+logger = logging.getLogger(__name__)
+outdir = config.get("outdir", "output")
+logdir = config.get("logdir", "log")
+indir= config.get("indir", "output/raw_fastq")
 # first col: target(human) genome,second col: contaminating genome. human sample may contaminated by mouse genome
 
 def get_inputFile_for_XenofilterR(wildcards):
     logger.info(f"[get_inputFile_for_XenofilterR] called with wildcards: {wildcards}")
-    row = [
-        f"{outdir}/2pass/{wildcards.sample_id}/{XenofilterR_target_genome}/{wildcards.sample_id}Aligned.sortedByCoord.out.bam",
-        f"{outdir}/2pass/{wildcards.sample_id}/{XenofilterR_pollution_source_genome}/{wildcards.sample_id}.Aligned.sortedByCoord.out.bam"
-    ]
+    row = []
     return row
 
 rule XenofilterR:

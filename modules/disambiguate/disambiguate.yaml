@@ -1,7 +1,7 @@
-name: SOAPnuke
+name: disambiguate
 channels:
   - bioconda
   - conda-forge
-  - huazou
 dependencies:
-  - soapnuke=2.0.6
+  - ngs-disambiguate=2018.05.03
+

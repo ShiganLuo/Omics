@@ -1,0 +1,26 @@
+Procedure:
+    type: object
+    properties:
+      ngs_disambiguate: {type: ["string", "null"]}
+
+bam:
+    type: object
+    properties:
+      aligner: {type: ["string", "hisat2"]} # tophat,hisat2,bwa or star
+
+genome_pairs:
+  type: array
+  items:
+    type: string
+  minItems: 2
+  maxItems: 2
+
+indir:
+    type: string
+    default: "output/raw_fastq"
+outdir:
+    type: string
+    default: "output"
+logdir:
+    type: string
+    default: "logs"

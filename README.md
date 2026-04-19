@@ -19,10 +19,11 @@
 
 ```sh
 snakemake -s workflow/RNA-SNP/main.smk --config indir=data/fq outdir=output metadata=data/target_fq.tsv --cores 45 --use-conda --conda-prefix /path/to/enviroment
+
 ```
 好用参数：--rerun-triggers input
 
-- --conda-prefix 制定conda包下载地址
+- --conda-prefix 制定conda包下载地址，比如：/data/pub/zhousha/env/mutation_0.1
 
 4. 亮点
 

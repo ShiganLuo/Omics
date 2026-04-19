@@ -1,0 +1,14 @@
+Procedure:
+    type: object
+    properties:
+      neodisambiguate: {type: ["string", "null"]}
+
+indir:
+    type: string
+    default: "output/raw_fastq"
+outdir:
+    type: string
+    default: "output"
+logdir:
+    type: string
+    default: "logs"

@@ -1,13 +1,16 @@
 import logging
 logger = logging.getLogger(__name__)
+indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
-indir= config.get("indir", "output/raw_fastq")
 # first col: target(human) genome,second col: contaminating genome. human sample may contaminated by mouse genome
 
 def get_inputFile_for_XenofilterR(wildcards):
     logger.info(f"[get_inputFile_for_XenofilterR] called with wildcards: {wildcards}")
-    row = []
+    row = [
+        f"{indir}/{wildcards.pollution_source_genome}/{wildcards.sample_id}.bam",
+        f"{indir}/{wildcards.host_genome}/{wildcards.sample_id}.bam"    
+        ]
     return row
 
 rule XenofilterR:
@@ -24,11 +27,13 @@ rule XenofilterR:
         csv_content = lambda wildcards, input: ",".join(input.bams),
         outdir = lambda wildcards: f"{outdir}/xenofilterR/{wildcards.sample_id}",
         outSampleName = lambda wildcards: wildcards.sample_id,
-        tempBam = lambda wildcards: f"{outdir}/xenofilterR/{wildcards.sample_id}/Filtered_bams/{wildcards.sample_id}_Filtered.bam",
-        tempBai = lambda wildcards: f"{outdir}/xenofilterR/{wildcards.sample_id}/Filtered_bams/{wildcards.sample_id}_Filtered.bam.bai",
+        tempBam = lambda wildcards: f"{outdir}/xenofilterR/{wildcards.host_genome}/{wildcards.sample_id}/Filtered_bams/{wildcards.sample_id}_Filtered.bam",
+        tempBai = lambda wildcards: f"{outdir}/xenofilterR/{wildcards.host_genome}/{wildcards.sample_id}/Filtered_bams/{wildcards.sample_id}_Filtered.bam.bai",
         MM = 8,
-        script = SNAKEFILE_DIR + "/utils/XenofilteR.r",
-        Rscript = config["Procedure"]["Rscript"]
+        script = SNAKEFILE_DIR + "/utils/XenofilteR.r",xenofilterR/{wildcards.sample_id}/Filtered_bams
+        Rscript = config.get('Procedure',{}).get('Rscript') or 'Rscript'
+    conda:
+        "XenofilterR.yaml"
     shell:
         """
         echo "{params.csv_content}" > {output.csvIn}

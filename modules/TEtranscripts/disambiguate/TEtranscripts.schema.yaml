@@ -1,0 +1,37 @@
+Procedure:
+    type: object
+    properties:
+      TElocal: {type: ["string", "null"]}
+      TEcount: {type: ["string", "null"]}
+genome:
+    type: object
+    additionalProperties:
+      type: object
+      required: ["fasta"]
+      properties:
+        gtf: {type: "string"}
+        TE_gtf: {type: ["string", "null"]}
+        TEind: {type: ["string", "null"]}
+genome_pairs:
+  type: array
+  items:
+    type: string
+  minItems: 2
+  maxItems: 2
+paired_samples:
+    type: array
+    items:
+        type: string
+single_samples:
+    type: array
+    items:
+        type: string
+indir:
+    type: string
+    default: "output/disambiguate"
+outdir:
+    type: string
+    default: "output"
+logdir:
+    type: string
+    default: "logs"

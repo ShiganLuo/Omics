@@ -1,7 +1,7 @@
-name: SOAPnuke
+name: neodisambiguate
 channels:
   - bioconda
   - conda-forge
-  - huazou
 dependencies:
-  - soapnuke=2.0.6
+  - neodisambiguate=1.1.1
+  

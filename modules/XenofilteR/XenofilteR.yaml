@@ -1,0 +1,10 @@
+name: XenofilteR
+channels:
+  - bioconda
+  - conda-forge
+  - nki-avl
+  - r
+dependencies:
+  - xenofilter=1.6
+  - r-argparse
+  - bioconductor-biocparallel=1.16.6

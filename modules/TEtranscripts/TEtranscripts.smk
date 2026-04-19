@@ -1,9 +1,8 @@
 import logging
-SNAKEFILE_FULL_PATH_TEtranscripts = workflow.snakefile
-SNAKEFILE_DIR_TEtranscripts = os.path.dirname(SNAKEFILE_FULL_PATH_TEtranscripts)
-TEtranscriptsYaml = get_yaml_path("TEtranscripts",SNAKEFILE_DIR_TEtranscripts)
-configfile: TEtranscriptsYaml
-logger = logging.getLogger("TEtranscripts")
+logger = logging.getLogger(__name__)
+outdir = config.get("outdir", "output")
+logdir = config.get("logdir", "log")
+indir= config.get("indir", "output/raw_fastq")
 
 
 rule TEcount:
@@ -19,7 +18,7 @@ rule TEcount:
     log:
         outdir + "/log/TEtranscripts/{genome}/{sample_id}/TEcount.log"
     conda:
-        config['conda']['run']
+        "TEtranscripts.yaml"
     shell:
         """
         TEcount --sortByPos --format BAM --mode multi \
@@ -47,7 +46,7 @@ rule combine_TEcount:
     output:
         outfile = outdir + "/TEtranscripts/TEcount/{genome}/all_TEcount.tsv"
     conda:
-        config['conda']['run']
+        "TEtranscripts.yaml"
     params:
         combineTE = SNAKEFILE_DIR + "/utils/combineTE.py",
         indir = outdir + "/TEtranscripts/TEcount/{genome}"
@@ -99,7 +98,7 @@ rule combine_TElocal:
     output:
         outfile = outdir + "/TEtranscripts/TElocal/{genome}/all_TElocal.tsv"
     conda:
-        config['conda']['run']
+        "TEtranscripts.yaml"
     params:
         combineTE = SNAKEFILE_DIR + "/utils/combineTE.py",
         indir = outdir + "/TEtranscripts/TElocal/{genome}"
@@ -116,14 +115,3 @@ rule TEtranscripts_result:
         TElocal = outdir + "/TEtranscripts/TElocal/{genome}/all_TElocal.tsv"
 
 
-if config["Procedure"]["aligner"] == "star":
-    include: "align_star.smk"
-    logger.info("aligner: star, load align_star.smk")
-
-elif config["Procedure"]["aligner"] == "hisat2":
-    include: "align_hisat2.smk"
-    logger.info("aligner: hisat2, load align_hisat2.smk")
-else:
-    # 默认使用star比对
-    include: "align_star.smk"
-    logger.info("default: load align_star.smk")

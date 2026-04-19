@@ -1,0 +1,9 @@
+name: TEtranscripts
+channels:
+  - bioconda
+  - conda-forge
+dependencies:
+  - tetranscripts=2.2.3
+  - pip
+  - pip:
+      - TElocal=1.1.1

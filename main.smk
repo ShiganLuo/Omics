@@ -31,11 +31,15 @@ outfiles = []
 paired_samples = []
 single_samples = []
 
+#exomePeak
 ip_samples = []
 input_samples = []
 treated_ip_samples = []
 treated_input_samples = []
 
+# TEtranscripts
+single_sample_genome_pairs = []
+paired_sample_genome_pairs = []
 # function to get the output files for WES analysis
 def get_MERIP_outfiles(samples_info_dict:Dict[str, any]):
     for sample_id, sample_info in samples_info_dict.items():
@@ -74,15 +78,25 @@ def get_CoCultrue_outfiles(samples_info_dict:Dict[str, any]):
     for sample_id, sample_info in samples_info_dict.items():
         if sample_info.layout == "PE":
             paired_samples.append(sample_id)
+            paired_sample_genome_pairs.append((sample_id, sample_info.organism))
             outfiles.append(f"{outdir}/SOAPnuke/{sample_id}_1.fq.gz")
             outfiles.append(f"{outdir}/SOAPnuke/{sample_id}_2.fq.gz")
             outfiles.append(f"{outdir}/hisat2/GRCm39/{sample_id}.bam")
             outfiles.append(f"{outdir}/hisat2/GRCh38/{sample_id}.bam")
+            outfiles.append(f"{outdir}/disambiguate/{sample_id}/{sample_id}.disambiguatedSpeciesA.bam")
+            outfiles.append(f"{outdir}/disambiguate/{sample_id}/{sample_id}.disambiguatedSpeciesB.bam")
+            outfiles.append(f"{outdir}/TEtranscripts/TEcount/GRCm39/all_TEcount.tsv")
+            outfiles.append(f"{outdir}/TEtranscripts/TEcount/GRCh38/all_TEcount.tsv")
         elif sample_info.layout == "SE":
             single_samples.append(sample_id)
+            single_sample_genome_pairs.append((sample_id, sample_info.organism))
             outfiles.append(f"{outdir}/SOAPnuke/{sample_id}.single.fq.gz")
             outfiles.append(f"{outdir}/hisat2/GRCm39/{sample_id}.bam")
             outfiles.append(f"{outdir}/hisat2/GRCh38/{sample_id}.bam")
+            outfiles.append(f"{outdir}/disambiguate/{sample_id}/{sample_id}.disambiguatedSpeciesA.bam")
+            outfiles.append(f"{outdir}/disambiguate/{sample_id}/{sample_id}.disambiguatedSpeciesB.bam")
+            outfiles.append(f"{outdir}/TEtranscripts/TEcount/GRCm39/all_TEcount.tsv")
+            outfiles.append(f"{outdir}/TEtranscripts/TEcount/GRCh38/all_TEcount.tsv")
         else:
             logger.error(f"Unknown layout type for sample {sample_id}: {sample_info.layout}")
     include: "subworkflow/CoCulture.smk"

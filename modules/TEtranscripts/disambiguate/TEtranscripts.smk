@@ -25,12 +25,12 @@ rule TEcount:
     output:
         project = outdir + "/TEcount/{genome}/{sample_id}.TEcount.cntTable"
     params:
-        project = lambda wildcards: f"{wildcards.genome}/{wildcards.sample_id}.TEcount",
-        outdir = outdir + "/TEcount",
+        project = lambda wildcards: f"{wildcards.sample_id}.TEcount",
+        outdir = lambda wildcards: outdir + f"/TEcount/{wildcards.genome}",
         TE_gtf = lambda wildcards: config['genome'][wildcards.genome]['TE_gtf'],
         gtf = lambda wildcards: config['genome'][wildcards.genome]['gtf']
     log:
-        outdir + "/log/{sample_id}/{genome}_TEcount.log"
+        logdir + "/{sample_id}/{genome}/TEcount.log"
     threads: 2
     conda:
         "../TEtranscripts.yaml"
@@ -65,7 +65,7 @@ rule combine_TEcount:
         indir = outdir + "/TEcount/{genome}"
     threads: 2
     log:
-        outdir + "/log/all/{genome}_combine_TEcount.log"
+        logdir + "/all/{genome}_combine_TEcount.log"
     shell:
         """
         python {params.combineTE} -p TEcount -i {params.indir} -o {output.outfile} > {log} 2>&1
@@ -87,9 +87,9 @@ rule TElocal:
     output:
         project = outdir + "/TElocal/{genome}/{sample_id}.TElocal.cntTable"
     log:
-        outdir + "/log/{sample_id}/{genome}_TElocal.log"
+        logdir + "/{sample_id}/{genome}/TElocal.log"
     params:
-        project = lambda wildcards: f"{wildcards.genome}/{wildcards.sample_id}.TElocal",
+        project = lambda wildcards: f"{wildcards.sample_id}.TElocal",
         TE = lambda wildcards: config['genome'][wildcards.genome]['TEind'],
         GTF = lambda wildcards: config['genome'][wildcards.genome]['gtf']
     threads: 2
@@ -126,7 +126,7 @@ rule combine_TElocal:
         combineTE = "../bin/combineTE.py",
         indir = outdir + "/TElocal/{genome}"
     log:
-        outdir + "/log/all/{genome}_combine_TElocal.log"
+        logdir + "/all/{genome}_combine_TElocal.log"
     shell:
         """
         python {params.combineTE} -p TElocal -i {params.indir} -o {output.outfile} > {log} 2>&1

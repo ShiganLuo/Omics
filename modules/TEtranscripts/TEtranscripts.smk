@@ -69,7 +69,7 @@ rule TElocal:
         TE = lambda wildcards: config['TElocal'][wildcards.genome]['TEind'],
         GTF = lambda wildcards: config['genome'][wildcards.genome]['gtf']
     conda:
-        config['conda']['run']
+        "TEtranscripts.yaml"
     shell:
         """
         TElocal --sortByPos -b {input.bam} \

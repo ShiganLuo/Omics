@@ -14,6 +14,29 @@ def get_inputFile_for_ngs_disambiguate(wildcards):
         "bamB": f"{indir}/{genomeB}/{wildcards.sample_id}.bam"
     }
 
+rule name_sort:
+    input:
+        bam = indir + "/{sample_id}.bam"
+    output:
+        bam = outdir + "/dedup/{sample_id}.dedup.bam",
+        bai = outdir + "/dedup/{sample_id}.dedup.bam.bai",
+    log:
+        logdir + "/{sample_id}/samtools_dedup.log"
+    threads: 12
+    conda:
+        "igv.yaml"
+    params:
+        samtools = config.get('Procedure',{}).get('samtools') or 'samtools'
+    shell:
+        """
+        {params.samtools} sort \
+            -n \
+            -@ {threads} \
+            -o {output.bam} \
+            {input.bam} \
+            > {log} 2>&1
+        {params.samtools} index {output.bam}
+        """
 rule ngs_disambiguate:
     input:
         bamA = lambda wildcards: get_inputFile_for_ngs_disambiguate(wildcards)["bamA"],

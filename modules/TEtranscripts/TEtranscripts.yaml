@@ -5,5 +5,7 @@ channels:
 dependencies:
   - tetranscripts=2.2.3
   - pip
+  - pysocks
+  - pandas
   - pip:
-      - TElocal=1.1.1
+      - TElocal==1.1.1

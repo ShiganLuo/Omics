@@ -1,8 +1,13 @@
 {
-     "fqdir": null,
-     "logdir": "/data/pub/zhousha/20260411_RNAseq/log",
-     "outdir": "/data/pub/zhousha/20260411_RNAseq/output",
-     "meta": "/data/pub/zhousha/20260411_RNAseq/data/meta_input.tsv",
+     "ROOT_DIR": null,
+     "indir": null,
+     "logdir": null,
+     "outdir": null,
+     "paired_samples": [],
+     "single_samples": [],
+     "single_sample_genome_pairs": [],
+     "paired_sample_genome_pairs": [],
+     "outfiles": [],
      "genome": {
                "GRCm39": {
                     "fasta": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",

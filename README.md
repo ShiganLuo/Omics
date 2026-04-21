@@ -88,14 +88,17 @@ snakemake -s workflow/RNA-SNP/main.smk --config indir=data/fq outdir=output meta
 
 1. 规则可复用，灵活性高
 2. 可指定分析终点
+3. 具备强大的元信息处理
 
 ## 注意事项
+
 规则尽量不硬编码路径，只接受indir, outdir和logdir，还有生成的wildcards
 规则应该尽可能少涉及与执行无关的信息
 
 ## 待做
-- [ ] 元信息控制CoCulture流程，记得完善json
+- [x] 元信息控制CoCulture流程，记得完善json
 - [ ] RNAseq流程重写
+- [ ] 多模块并行，（指定.snakemake生成与不同位置，或者拼接规则）
 
 ## 下游分析
 

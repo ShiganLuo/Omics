@@ -93,6 +93,10 @@ snakemake -s workflow/RNA-SNP/main.smk --config indir=data/fq outdir=output meta
 规则尽量不硬编码路径，只接受indir, outdir和logdir，还有生成的wildcards
 规则应该尽可能少涉及与执行无关的信息
 
+## 待做
+- [ ] 元信息控制CoCulture流程，记得完善json
+- [ ] RNAseq流程重写
+
 ## 下游分析
 
 ### annotation

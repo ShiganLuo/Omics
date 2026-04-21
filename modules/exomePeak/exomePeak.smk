@@ -31,7 +31,7 @@ rule diff_exomePeak:
         diff_peak_xls = outdir + "/diff_peaks_gene_names.xls",
         sig_siff_bed = outdir + "/sig_diff_peak_gene_names.bed",
         sig_siff_xls = outdir + "/sig_diff_peak_gene_names.xls",
-        con_sig_diff_bed = outdir + "/con_sig_diff_peak_gene_names.bed"
+        con_sig_diff_bed = outdir + "/con_sig_diff_peak_gene_names.bed",
         con_sig_diff_xls = outdir + "/con_sig_diff_peak_gene_names.xls"
     log:
         logdir + "/endpoint/exomePeak.log"

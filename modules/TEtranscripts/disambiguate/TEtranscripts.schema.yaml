@@ -35,3 +35,6 @@ outdir:
 logdir:
     type: string
     default: "logs"
+root_workdir:
+    type: string
+    default: "./" # path to the root working directory, used for resolving relative paths in config

@@ -4,6 +4,7 @@ logger = logging.getLogger(__name__)
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 indir = config.get("indir", "output/disambiguate")
+ROOT_DIR = config.get("ROOT_DIR", "./")
 genome_pairs: Tuple[str, str] = config.get("genome_pairs", ())
 genomeA, genomeB = genome_pairs
 paired_samples = config.get('paired_samples', [])
@@ -61,7 +62,7 @@ rule combine_TEcount:
     conda:
         "../TEtranscripts.yaml"
     params:
-        combineTE = "../bin/combineTE.py",
+        combineTE = ROOT_DIR +"/modules/TEtranscripts/bin/combineTE.py",
         indir = outdir + "/TEcount/{genome}"
     threads: 2
     log:
@@ -123,7 +124,7 @@ rule combine_TElocal:
     conda:
         "../TEtranscripts.yaml"
     params:
-        combineTE = "../bin/combineTE.py",
+        combineTE = ROOT_DIR +"/modules/TEtranscripts/bin/combineTE.py",
         indir = outdir + "/TElocal/{genome}"
     log:
         logdir + "/all/{genome}_combine_TElocal.log"

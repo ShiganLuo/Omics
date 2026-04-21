@@ -1,8 +1,74 @@
+shell.prefix("set -x; set -e;")
+import os
 import logging
-logger = logging.getLogger(__name__)
+import sys
+from typing import Dict
+SNAKEFILE_FULL_PATH = workflow.snakefile
+ROOT_DIR = os.path.dirname(os.path.dirname(SNAKEFILE_FULL_PATH))
+sys.path.append(f"{ROOT_DIR}/src")
+from common.MetaUtil import MetadataUtils
+from common.LogUtil import setup_logger
+configfile: f"{ROOT_DIR}/config/CoCulture.json"
+fqdir = config.get('fqdir', 'data/fastq')
+logdir = config.get('logdir', 'log')
+outdir = config.get('outdir', 'output')
+meta = config.get('meta', None)
+logger = setup_logger("root", f"{logdir}/workflow.log")
+logger.info(f"Workflow Root directory: {ROOT_DIR}")
+logger.info(f"fastq input directory: {fqdir}; Output directory: {outdir}; Log file: {logdir}/workflow.log; meta file: {meta}")
+metadataUtil = MetadataUtils(
+    meta=meta,
+    outdir=outdir,
+    fastq_dir=fqdir,
+)
+samples_info_dict, pairs, raw_fastq_dir = metadataUtil.run()
+# Define global variables
+outfiles = []
+paired_samples = []
+single_samples = []
+single_sample_genome_pairs = []
+paired_sample_genome_pairs = []
+def get_CoCultrue_outfiles(samples_info_dict:Dict[str,any]):
+    for sample_id, sample_info in samples_info_dict.items():
+        if sample_info.layout == "PE":
+            paired_samples.append(sample_id)
+            paired_sample_genome_pairs.append((sample_id, sample_info.organism))
+            outfiles.append(f"{outdir}/SOAPnuke/{sample_id}_1.fq.gz")
+            outfiles.append(f"{outdir}/SOAPnuke/{sample_id}_2.fq.gz")
+            outfiles.append(f"{outdir}/hisat2/GRCm39/{sample_id}.bam")
+            outfiles.append(f"{outdir}/hisat2/GRCh38/{sample_id}.bam")
+            outfiles.append(f"{outdir}/TEtranscripts/TEcount/GRCm39/all_TEcount.tsv")
+            outfiles.append(f"{outdir}/TEtranscripts/TEcount/GRCh38/all_TEcount.tsv")
+        elif sample_info.layout == "SE":
+            single_samples.append(sample_id)
+            single_sample_genome_pairs.append((sample_id, sample_info.organism))
+            outfiles.append(f"{outdir}/SOAPnuke/{sample_id}.single.fq.gz")
+            outfiles.append(f"{outdir}/hisat2/GRCm39/{sample_id}.bam")
+            outfiles.append(f"{outdir}/hisat2/GRCh38/{sample_id}.bam")
+            # outfiles.append(f"{outdir}/disambiguate/{sample_id}/{sample_id}.disambiguatedSpecies_GRCm39.bam")
+            # outfiles.append(f"{outdir}/disambiguate/{sample_id}/{sample_id}.disambiguatedSpecies_GRCh38.bam")
+            outfiles.append(f"{outdir}/TEtranscripts/TEcount/GRCm39/all_TEcount.tsv")
+            outfiles.append(f"{outdir}/TEtranscripts/TEcount/GRCh38/all_TEcount.tsv")
+        else:
+            logger.error(f"Unknown layout type for sample {sample_id}: {sample_info.layout}")
+    logger.info(f"Paired sample genome pairs: {paired_sample_genome_pairs}")
+    logger.info(f"Single sample genome pairs: {single_sample_genome_pairs}")
+    logger.info(f" raw_fastq_dir: {raw_fastq_dir}")
+get_CoCultrue_outfiles(samples_info_dict)
+logger.info(f"Parser control Variables:")
+logger.info(f"Paired samples: {paired_samples}")
+logger.info(f"Single samples: {single_samples}")
+logger.info(f"Final output files: {outfiles}")
+logger.info(f"Single sample genome pairs: {single_sample_genome_pairs}")
+logger.info(f"Paired sample genome pairs: {paired_sample_genome_pairs}")
+rule all:
+    input:
+        outfiles
+
+
 aligner = config.get('Procedure',{}).get('aligner')
 SOAPnuke_cofig = {
-        "indir": workdir,
+        "indir": raw_fastq_dir,
         "outdir":  f"{outdir}/SOAPnuke",
         "logdir": logdir
 }
@@ -23,16 +89,7 @@ hisat2_config = {
         "Procedure": {
             "hisat2": config.get('Procedure',{}).get('hisat2')
         },
-        "genome": {
-            "GRCm39": {
-                "fasta": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
-                "index_prefix": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/hisat2/genome"
-            },
-            "GRCh38": {
-                "fasta": "/data/pub/zhousha/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa",
-                "index_prefix": None
-            }
-        }
+        "genome": config.get("genome", {})
     }
 
 module hisat2:
@@ -47,7 +104,7 @@ disambiguate_config = {
         "indir": hisat2_config["outdir"],
         "outdir": f"{outdir}/disambiguate",
         "logdir": logdir,
-        "genome_pairs": config.get("genome_pairs", ("GRCm39", "GRCh38")),
+        "genome_pairs": config.get("genome_pairs", []),
         "bam": {
             "aligner": config.get('Procedure',{}).get('aligner') or 'hisat2'
         },
@@ -66,21 +123,11 @@ TEtranscripts_config = {
         "indir": disambiguate_config["outdir"],
         "outdir": f"{outdir}/TEtranscripts",
         "logdir": logdir,
+        "ROOT_DIR": ROOT_DIR,
         "genome_pairs": disambiguate_config["genome_pairs"],
         "single_samples": single_samples,
         "paired_samples": paired_samples,
-        "genome": {
-            "GRCm39": {
-                "gtf": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf",
-                "TE_gtf": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.gtf",
-                "TEind": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.gtf.locInd"
-            },
-            "GRCh38": {
-                "gtf": "/data/pub/zhousha/Reference/human/GENCODE/GRCh38/gencode.v49.primary_assembly.basic.annotation.gtf",
-                "TE_gtf": "/data/pub/zhousha/Reference/human/GENCODE/GRCh38/GRCh38_GENCODE_rmsk_TE.gtf",
-                "TEind": "/data/pub/zhousha/Reference/human/GENCODE/GRCh38/GRCh38_GENCODE_rmsk_TE.gtf.locInd"
-            }
-        },
+        "genome": config.get("genome", {}),
         "Procedure": {
             "TEcount": config.get('Procedure',{}).get('TEcount') or 'TEcount',
             "TElocal": config.get('Procedure',{}).get('TElocal') or 'TElocal'

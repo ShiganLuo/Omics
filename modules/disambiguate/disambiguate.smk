@@ -1,11 +1,11 @@
 
 import logging
-from typing import Tuple
+from typing import List
 logger = logging.getLogger(__name__)
 indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
-genome_pairs: Tuple[str, str] = config.get("genome_pairs", {})
+genome_pairs: List[str] = config.get("genome_pairs", [])
 genomeA, genomeB = genome_pairs
 
 
@@ -50,10 +50,12 @@ rule ngs_disambiguate:
             {params.bamA_sortN} \
             {params.bamB_sortN} \
             >> {log} 2>&1
+        rm -f {params.bamA_sortN} {params.bamB_sortN}
         """
 
 rule disambiguate_sort_rename:
     input:
+        summary = outdir + "/{sample_id}/{sample_id}_summary.txt",
         raw_bamA = outdir + "/{sample_id}/{sample_id}.disambiguatedSpeciesA.bam",
         raw_bamB = outdir + "/{sample_id}/{sample_id}.disambiguatedSpeciesB.bam",
         raw_ambiguousA = outdir + "/{sample_id}/{sample_id}.ambiguousSpeciesA.bam",
@@ -64,7 +66,9 @@ rule disambiguate_sort_rename:
         ambiguous_bamA = outdir + "/{sample_id}/{sample_id}" + f".ambiguousSpecies_{genome_pairs[0]}.bam",
         ambiguous_bamB = outdir + "/{sample_id}/{sample_id}" + f".ambiguousSpecies_{genome_pairs[1]}.bam"
     params:
-        samtools = config.get("Procedure", {}).get("samtools", "samtools")
+        samtools = config.get("Procedure", {}).get("samtools", "samtools"),
+        speciesA = genome_pairs[0],
+        speciesB = genome_pairs[1]
     threads: 4
     conda:
         "disambiguate.yaml"
@@ -72,6 +76,8 @@ rule disambiguate_sort_rename:
         logdir + "/{sample_id}/sort_rename.log"
     shell:
         """
+        sed -i '1s/unique species A pairs/unique species {params.speciesA} pairs/; \
+            1s/unique species B pairs/unique species {params.speciesB} pairs/' {input.summary}
         {params.samtools} sort -@ {threads} -o {output.clean_bamA} {input.raw_bamA}
         {params.samtools} sort -@ {threads} -o {output.clean_bamB} {input.raw_bamB}
 

@@ -60,6 +60,7 @@ module disambiguate:
     config: disambiguate_config
 logger.info(f"disambiguate config: {disambiguate_config}")
 use rule ngs_disambiguate from disambiguate as CoCulture_ngs_disambiguate
+use rule disambiguate_sort_rename from disambiguate as CoCulture_disambiguate_sort_rename
 
 TEtranscripts_config = {
         "indir": disambiguate_config["outdir"],

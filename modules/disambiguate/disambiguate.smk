@@ -5,8 +5,10 @@ logger = logging.getLogger(__name__)
 indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
-genome_pairs: Tuple[str, str] = config.get("genome_pairs", ())
+genome_pairs: Tuple[str, str] = config.get("genome_pairs", {})
 genomeA, genomeB = genome_pairs
+
+
 def get_inputFile_for_ngs_disambiguate(wildcards):
     logger.info(f"[get_inputFile_for_ngs_disambiguate] called with wildcards: {wildcards}")
     return {
@@ -14,60 +16,72 @@ def get_inputFile_for_ngs_disambiguate(wildcards):
         "bamB": f"{indir}/{genomeB}/{wildcards.sample_id}.bam"
     }
 
-rule name_sort:
-    input:
-        bam = indir + "/{sample_id}.bam"
-    output:
-        bam = outdir + "/dedup/{sample_id}.dedup.bam",
-        bai = outdir + "/dedup/{sample_id}.dedup.bam.bai",
-    log:
-        logdir + "/{sample_id}/samtools_dedup.log"
-    threads: 12
-    conda:
-        "igv.yaml"
-    params:
-        samtools = config.get('Procedure',{}).get('samtools') or 'samtools'
-    shell:
-        """
-        {params.samtools} sort \
-            -n \
-            -@ {threads} \
-            -o {output.bam} \
-            {input.bam} \
-            > {log} 2>&1
-        {params.samtools} index {output.bam}
-        """
 rule ngs_disambiguate:
     input:
-        bamA = lambda wildcards: get_inputFile_for_ngs_disambiguate(wildcards)["bamA"],
-        bamB = lambda wildcards: get_inputFile_for_ngs_disambiguate(wildcards)["bamB"]
+        bamA = lambda wc: get_inputFile_for_ngs_disambiguate(wc)["bamA"],
+        bamB = lambda wc: get_inputFile_for_ngs_disambiguate(wc)["bamB"]
     output:
-        clean_bamA = outdir + "/{sample_id}/{sample_id}.disambiguatedSpeciesA.bam",
-        clean_bamB = outdir + "/{sample_id}/{sample_id}.disambiguatedSpeciesB.bam",
-        ambiguous_bamA = outdir + "/{sample_id}/{sample_id}.ambiguousSpeciesA.bam",
-        ambiguous_bamB = outdir + "/{sample_id}/{sample_id}.ambiguousSpeciesB.bam",
+        raw_bamA = temp(outdir + "/{sample_id}/{sample_id}.disambiguatedSpeciesA.bam"),
+        raw_bamB = temp(outdir + "/{sample_id}/{sample_id}.disambiguatedSpeciesB.bam"),
+        raw_ambiguousA = temp(outdir + "/{sample_id}/{sample_id}.ambiguousSpeciesA.bam"),
+        raw_ambiguousB = temp(outdir + "/{sample_id}/{sample_id}.ambiguousSpeciesB.bam"),
         summary = outdir + "/{sample_id}/{sample_id}_summary.txt"
     params:
-        outdir = lambda wildcards: f"{outdir}/{wildcards.sample_id}",
-        aligner = config.get("bam", {}).get("aligner") or "hisat2",
-        ngs_disambiguate = config.get("Procedure", {}).get("ngs_disambiguate") or "ngs_disambiguate"
+        bamA_sortN = temp(outdir + "/{sample_id}/{sample_id}.bamA.sortN.bam"),
+        bamB_sortN = temp(outdir + "/{sample_id}/{sample_id}.bamB.sortN.bam"),
+        outdir = lambda wc: f"{outdir}/{wc.sample_id}",
+        aligner = config.get("bam", {}).get("aligner", "hisat2"),
+        ngs_disambiguate = config.get("Procedure", {}).get("ngs_disambiguate", "ngs_disambiguate"),
+        samtools = config.get("Procedure", {}).get("samtools", "samtools")
+    threads: 4
     conda:
         "disambiguate.yaml"
-    threads: 4 # for memory limit, we set threads to 4, but it can be adjusted according to the actual situation
     log:
         logdir + "/{sample_id}/ngs_disambiguate.log"
     shell:
         """
+        {params.samtools} sort -n -@ {threads} -o {params.bamA_sortN} {input.bamA} 2>> {log}
+        {params.samtools} sort -n -@ {threads} -o {params.bamB_sortN} {input.bamB} 2>> {log}
+
         {params.ngs_disambiguate} \
             -s {wildcards.sample_id} \
             -o {params.outdir} \
             -a {params.aligner} \
-            {input.bamA} \
-            {input.bamB} \
-            > {log} 2>&1
+            {params.bamA_sortN} \
+            {params.bamB_sortN} \
+            >> {log} 2>&1
         """
 
+rule disambiguate_sort_rename:
+    input:
+        raw_bamA = outdir + "/{sample_id}/{sample_id}.disambiguatedSpeciesA.bam",
+        raw_bamB = outdir + "/{sample_id}/{sample_id}.disambiguatedSpeciesB.bam",
+        raw_ambiguousA = outdir + "/{sample_id}/{sample_id}.ambiguousSpeciesA.bam",
+        raw_ambiguousB = outdir + "/{sample_id}/{sample_id}.ambiguousSpeciesB.bam"
+    output:
+        clean_bamA = outdir + "/{sample_id}/{sample_id}" + f".disambiguatedSpecies_{genome_pairs[0]}.bam",
+        clean_bamB = outdir + "/{sample_id}/{sample_id}" + f".disambiguatedSpecies_{genome_pairs[1]}.bam",
+        ambiguous_bamA = outdir + "/{sample_id}/{sample_id}" + f".ambiguousSpecies_{genome_pairs[0]}.bam",
+        ambiguous_bamB = outdir + "/{sample_id}/{sample_id}" + f".ambiguousSpecies_{genome_pairs[1]}.bam"
+    params:
+        samtools = config.get("Procedure", {}).get("samtools", "samtools")
+    threads: 4
+    conda:
+        "disambiguate.yaml"
+    log:
+        logdir + "/{sample_id}/sort_rename.log"
+    shell:
+        """
+        {params.samtools} sort -@ {threads} -o {output.clean_bamA} {input.raw_bamA}
+        {params.samtools} sort -@ {threads} -o {output.clean_bamB} {input.raw_bamB}
+
+        {params.samtools} sort -@ {threads} -o {output.ambiguous_bamA} {input.raw_ambiguousA}
+        {params.samtools} sort -@ {threads} -o {output.ambiguous_bamB} {input.raw_ambiguousB}
+
+        {params.samtools} index {output.clean_bamA}
+        {params.samtools} index {output.clean_bamB}
+        """
 rule ngs_disambiguate_result:
     input:
-        bamA = outdir + "/{sample_id}/{sample_id}.disambiguatedSpeciesA_{genomeA}.bam",
-        bamB = outdir + "/{sample_id}/{sample_id}.disambiguatedSpeciesB_{genomeB}.bam"
+        bamA = lambda wc: f"{outdir}/{wc.sample_id}/{wc.sample_id}.disambiguatedSpecies_{genome_pairs[0]}.bam",
+        bamB = lambda wc: f"{outdir}/{wc.sample_id}/{wc.sample_id}.disambiguatedSpecies_{genome_pairs[1]}.bam"

@@ -12,9 +12,9 @@ single_samples = config.get('single_samples', [])
 def get_input_for_TEcount(wildcards):
     logger.info(f"[get_input_for_TEcount] called with wildcards: {wildcards}")
     if wildcards.genome == genomeA:
-        bam = indir + "/{sample_id}/{sample_id}.disambiguatedSpeciesA.bam"
+        bam = indir + f"/{wildcards.sample_id}/{wildcards.sample_id}.disambiguatedSpecies_{wildcards.genome}.bam"
     elif wildcards.genome == genomeB:
-        bam = indir + "/{sample_id}/{sample_id}.disambiguatedSpeciesB.bam"
+        bam = indir + f"/{wildcards.sample_id}/{wildcards.sample_id}.disambiguatedSpecies_{wildcards.genome}.bam"
     else:
         raise ValueError(f"wildcards.genome {wildcards.genome} is not in genome_pairs {genome_pairs}")
     return bam
@@ -74,9 +74,9 @@ rule combine_TEcount:
 def get_input_for_TElocal(wildcards):
     logger.info(f"[get_input_for_TElocal] called with wildcards: {wildcards}")
     if wildcards.genome == genomeA:
-        bam = indir + "/{sample_id}/{sample_id}.disambiguatedSpeciesA.bam"
+        bam = indir + f"/{wildcards.sample_id}/{wildcards.sample_id}.disambiguatedSpecies_{wildcards.genome}.bam"
     elif wildcards.genome == genomeB:
-        bam = indir + "/{sample_id}/{sample_id}.disambiguatedSpeciesB.bam"
+        bam = indir + f"/{wildcards.sample_id}/{wildcards.sample_id}.disambiguatedSpecies_{wildcards.genome}.bam"
     else:
         raise ValueError(f"wildcards.genome {wildcards.genome} is not in genome_pairs {genome_pairs}")
     return bam

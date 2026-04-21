@@ -83,8 +83,8 @@ def get_CoCultrue_outfiles(samples_info_dict:Dict[str, any]):
             outfiles.append(f"{outdir}/SOAPnuke/{sample_id}_2.fq.gz")
             outfiles.append(f"{outdir}/hisat2/GRCm39/{sample_id}.bam")
             outfiles.append(f"{outdir}/hisat2/GRCh38/{sample_id}.bam")
-            outfiles.append(f"{outdir}/disambiguate/{sample_id}/{sample_id}.disambiguatedSpeciesA.bam")
-            outfiles.append(f"{outdir}/disambiguate/{sample_id}/{sample_id}.disambiguatedSpeciesB.bam")
+            # outfiles.append(f"{outdir}/disambiguate/{sample_id}/{sample_id}.disambiguatedSpecies_GRCm39.bam")
+            # outfiles.append(f"{outdir}/disambiguate/{sample_id}/{sample_id}.disambiguatedSpecies_GRCh38.bam")
             outfiles.append(f"{outdir}/TEtranscripts/TEcount/GRCm39/all_TEcount.tsv")
             outfiles.append(f"{outdir}/TEtranscripts/TEcount/GRCh38/all_TEcount.tsv")
         elif sample_info.layout == "SE":
@@ -93,8 +93,8 @@ def get_CoCultrue_outfiles(samples_info_dict:Dict[str, any]):
             outfiles.append(f"{outdir}/SOAPnuke/{sample_id}.single.fq.gz")
             outfiles.append(f"{outdir}/hisat2/GRCm39/{sample_id}.bam")
             outfiles.append(f"{outdir}/hisat2/GRCh38/{sample_id}.bam")
-            outfiles.append(f"{outdir}/disambiguate/{sample_id}/{sample_id}.disambiguatedSpeciesA.bam")
-            outfiles.append(f"{outdir}/disambiguate/{sample_id}/{sample_id}.disambiguatedSpeciesB.bam")
+            # outfiles.append(f"{outdir}/disambiguate/{sample_id}/{sample_id}.disambiguatedSpecies_GRCm39.bam")
+            # outfiles.append(f"{outdir}/disambiguate/{sample_id}/{sample_id}.disambiguatedSpecies_GRCh38.bam")
             outfiles.append(f"{outdir}/TEtranscripts/TEcount/GRCm39/all_TEcount.tsv")
             outfiles.append(f"{outdir}/TEtranscripts/TEcount/GRCh38/all_TEcount.tsv")
         else:

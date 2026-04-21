@@ -2,6 +2,7 @@ Procedure:
     type: object
     properties:
       ngs_disambiguate: {type: ["string", "null"]}
+      samtools: {type: ["string", "null"]}
 
 bam:
     type: object

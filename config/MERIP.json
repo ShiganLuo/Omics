@@ -1,19 +1,26 @@
 {
-   "fqdir": null,
-   "logdir": "/data/pub/zhousha/20260411_RNAseq/log",
-   "outdir": "/data/pub/zhousha/20260411_RNAseq/output",
-   "meta": "/data/pub/zhousha/20260411_RNAseq/data/meta_input.tsv",
-   "genome": {
-        "fasta": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
-        "gtf": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf"
-   },
-   "Procedure": {
-        "trim_galore": "/home/zhousha/tools/TrimGalore-0.6.10/trim_galore",
-        "hisat2": "/home/zhousha/tools/hisat2-2.2.1/hisat2",
-        "hisat2_build": "/home/zhousha/tools/hisat2-2.2.1/hisat2-build",
-        "hisat2_index_prefix": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/hisat2/genome",
-        "star_index_dir": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/star",
-        "samtools": null,
-        "deepTools": null
-   }
+     "ROOT_DIR": null,
+     "indir": null,
+     "logdir": null,
+     "outdir": null,
+     "paired_samples": [],
+     "single_samples": [],
+     "ip_samples": [],
+     "input_samples": [],
+     "treated_ip_samples": [],
+     "treated_input_samples": [],
+     "outfiles": [],
+     "genome": {
+          "fasta": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
+          "gtf": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf"
+     },
+     "Procedure": {
+          "trim_galore": "/home/zhousha/tools/TrimGalore-0.6.10/trim_galore",
+          "hisat2": "/home/zhousha/tools/hisat2-2.2.1/hisat2",
+          "hisat2_build": "/home/zhousha/tools/hisat2-2.2.1/hisat2-build",
+          "hisat2_index_prefix": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/hisat2/genome",
+          "star_index_dir": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/star",
+          "samtools": null,
+          "deepTools": null
+     }
 } 

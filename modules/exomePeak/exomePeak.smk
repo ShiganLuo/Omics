@@ -3,7 +3,6 @@ logger = logging.getLogger(__name__)
 indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
-gtf = config.get("gtf","")
 ip_samples = config.get("ip_samples", [])
 input_samples = config.get("input_samples", [])
 treated_ip_samples = config.get("treated_ip_samples", [])
@@ -40,10 +39,11 @@ rule diff_exomePeak:
     threads: 1
     params:
         exomePeak = config.get('Procedure',{}).get('exomePeak') or 'exomePeak',
+        gtf = config.get("gtf","")
     shell:
         """
         Rscript bin/exomePeak.r \
-            --gtf {gtf} \
+            --gtf {params.gtf} \
             --ip_bams {input.ip_bams} \
             --input_bams {input.input_bams} \
             --treated_ip_bams {input.treated_ip_bams} \
@@ -53,29 +53,29 @@ rule diff_exomePeak:
         
         Rscript bin/geneId2name.r \
             --infile {outdir}/diff_peaks.bed \
-            --gtf {gtf} \
+            --gtf {params.gtf} \
             --outfile {outdir}/diff_peaks_gene_names.bed
         Rscript bin/geneId2name.r \
             --infile {outdir}/diff_peaks.xls \
-            --gtf {gtf} \
+            --gtf {params.gtf} \
             --outfile {outdir}/diff_peaks_gene_names.xls
 
         Rscript bin/geneId2name.r \
             --infile {outdir}/con_sig_diff_peak.bed \
-            --gtf {gtf} \
+            --gtf {params.gtf} \
             --outfile {outdir}/con_sig_diff_peak_gene_names.bed
         Rscript bin/geneId2name.r \
             --infile {outdir}/con_sig_diff_peak.xls \
-            --gtf {gtf} \
+            --gtf {params.gtf} \
             --outfile {outdir}/con_sig_diff_peak_gene_names.xls
         
         Rscript bin/geneId2name.r \
             --infile {outdir}/sig_diff_peak.bed \
-            --gtf {gtf} \
+            --gtf {params.gtf} \
             --outfile {outdir}/sig_diff_peak_gene_names.bed
         Rscript bin/geneId2name.r \
             --infile {outdir}/sig_diff_peak.xls \
-            --gtf {gtf} \
+            --gtf {params.gtf} \
             --outfile {outdir}/sig_diff_peak_gene_names.xls
         
         rm -f {outdir}/diff_peaks.bed {outdir}/diff_peaks.xls {outdir}/con_sig_diff_peak.bed {outdir}/con_sig_diff_peak.xls {outdir}/sig_diff_peak.bed {outdir}/sig_diff_peak.xls
@@ -104,11 +104,12 @@ rule call_exomePeak:
         "exomePeak.yaml"
     threads: 12
     params:
-        exomePeak = config.get('Procedure',{}).get('exomePeak') or 'exomePeak'
+        exomePeak = config.get('Procedure',{}).get('exomePeak') or 'exomePeak',
+        gtf = config.get("gtf","")
     shell:
         """
         Rscript bin/exomePeak.r \
-        --gtf {gtf} \
+        --gtf {params.gtf} \
         --ip_bams {input.ip_bams} \
         --input_bams {input.input_bams} \
         --outprefix {outdir} \
@@ -116,20 +117,20 @@ rule call_exomePeak:
 
         Rscript bin/geneId2name.r \
             --infile {outdir}/all_peaks.bed \
-            --gtf {gtf} \
+            --gtf {params.gtf} \
             --outfile {outdir}/all_peaks_gene_names.bed
         Rscript bin/geneId2name.r \
             --infile {outdir}/all_peaks.xls \
-            --gtf {gtf} \
+            --gtf {params.gtf} \
             --outfile {outdir}/all_peaks_gene_names.xls
         
         Rscript bin/geneId2name.r \
             --infile {outdir}/con_peaks.bed \
-            --gtf {gtf} \
+            --gtf {params.gtf} \
             --outfile {outdir}/con_peaks_gene_names.bed
         Rscript bin/geneId2name.r \
             --infile {outdir}/con_peaks.xls \
-            --gtf {gtf} \
+            --gtf {params.gtf} \
             --outfile {outdir}/con_peaks_gene_names.xls
         rm -f {outdir}/all_peaks.bed {outdir}/all_peaks.xls {outdir}/con_peaks.bed {outdir}/con_peaks.xls
         """

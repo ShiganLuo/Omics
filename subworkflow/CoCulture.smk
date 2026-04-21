@@ -1,74 +1,21 @@
 shell.prefix("set -x; set -e;")
-import os
-import logging
-import sys
-from typing import Dict
-SNAKEFILE_FULL_PATH = workflow.snakefile
-ROOT_DIR = os.path.dirname(os.path.dirname(SNAKEFILE_FULL_PATH))
-sys.path.append(f"{ROOT_DIR}/src")
-from common.MetaUtil import MetadataUtils
-from common.LogUtil import setup_logger
-configfile: f"{ROOT_DIR}/config/CoCulture.json"
-fqdir = config.get('fqdir', 'data/fastq')
-logdir = config.get('logdir', 'log')
-outdir = config.get('outdir', 'output')
-meta = config.get('meta', None)
-logger = setup_logger("root", f"{logdir}/workflow.log")
-logger.info(f"Workflow Root directory: {ROOT_DIR}")
-logger.info(f"fastq input directory: {fqdir}; Output directory: {outdir}; Log file: {logdir}/workflow.log; meta file: {meta}")
-metadataUtil = MetadataUtils(
-    meta=meta,
-    outdir=outdir,
-    fastq_dir=fqdir,
-)
-samples_info_dict, pairs, raw_fastq_dir = metadataUtil.run()
-# Define global variables
-outfiles = []
-paired_samples = []
-single_samples = []
-single_sample_genome_pairs = []
-paired_sample_genome_pairs = []
-def get_CoCultrue_outfiles(samples_info_dict:Dict[str,any]):
-    for sample_id, sample_info in samples_info_dict.items():
-        if sample_info.layout == "PE":
-            paired_samples.append(sample_id)
-            paired_sample_genome_pairs.append((sample_id, sample_info.organism))
-            outfiles.append(f"{outdir}/SOAPnuke/{sample_id}_1.fq.gz")
-            outfiles.append(f"{outdir}/SOAPnuke/{sample_id}_2.fq.gz")
-            outfiles.append(f"{outdir}/hisat2/GRCm39/{sample_id}.bam")
-            outfiles.append(f"{outdir}/hisat2/GRCh38/{sample_id}.bam")
-            outfiles.append(f"{outdir}/TEtranscripts/TEcount/GRCm39/all_TEcount.tsv")
-            outfiles.append(f"{outdir}/TEtranscripts/TEcount/GRCh38/all_TEcount.tsv")
-        elif sample_info.layout == "SE":
-            single_samples.append(sample_id)
-            single_sample_genome_pairs.append((sample_id, sample_info.organism))
-            outfiles.append(f"{outdir}/SOAPnuke/{sample_id}.single.fq.gz")
-            outfiles.append(f"{outdir}/hisat2/GRCm39/{sample_id}.bam")
-            outfiles.append(f"{outdir}/hisat2/GRCh38/{sample_id}.bam")
-            # outfiles.append(f"{outdir}/disambiguate/{sample_id}/{sample_id}.disambiguatedSpecies_GRCm39.bam")
-            # outfiles.append(f"{outdir}/disambiguate/{sample_id}/{sample_id}.disambiguatedSpecies_GRCh38.bam")
-            outfiles.append(f"{outdir}/TEtranscripts/TEcount/GRCm39/all_TEcount.tsv")
-            outfiles.append(f"{outdir}/TEtranscripts/TEcount/GRCh38/all_TEcount.tsv")
-        else:
-            logger.error(f"Unknown layout type for sample {sample_id}: {sample_info.layout}")
-    logger.info(f"Paired sample genome pairs: {paired_sample_genome_pairs}")
-    logger.info(f"Single sample genome pairs: {single_sample_genome_pairs}")
-    logger.info(f" raw_fastq_dir: {raw_fastq_dir}")
-get_CoCultrue_outfiles(samples_info_dict)
-logger.info(f"Parser control Variables:")
-logger.info(f"Paired samples: {paired_samples}")
-logger.info(f"Single samples: {single_samples}")
-logger.info(f"Final output files: {outfiles}")
-logger.info(f"Single sample genome pairs: {single_sample_genome_pairs}")
-logger.info(f"Paired sample genome pairs: {paired_sample_genome_pairs}")
+from snakemake.logging import logger
+ROOT_DIR = config.get("ROOT_DIR", ".")
+indir = config.get("indir","data/fastq")
+outdir = config.get("outdir","output")
+logdir = config.get("logdir","logs")
+paired_samples = config.get("paired_samples", [])
+single_samples = config.get("single_samples", [])
+genome_pairs = config.get("genome_pairs", [])
+genome = config.get("genome", {})
+outfiles = config.get("outfiles", [])
 rule all:
     input:
         outfiles
 
-
 aligner = config.get('Procedure',{}).get('aligner')
 SOAPnuke_cofig = {
-        "indir": raw_fastq_dir,
+        "indir": indir,
         "outdir":  f"{outdir}/SOAPnuke",
         "logdir": logdir
 }

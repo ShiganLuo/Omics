@@ -1,8 +1,18 @@
-import logging
-logger = logging.getLogger(__name__)
+shell.prefix("set -x; set -e;")
+from snakemake.logging import logger
+ROOT_DIR = config.get("ROOT_DIR", ".")
+indir = config.get("indir","data/fastq")
+outdir = config.get("outdir","output")
+logdir = config.get("logdir","logs")
+paired_samples = config.get("paired_samples", [])
+single_samples = config.get("single_samples", [])
 aligner = config.get('aligner', 'hisat2')
+outfiles = config.get("outfiles", [])
+rule all:
+    input:
+        outfiles
 cutadapt_config = {
-        "indir": workdir,
+        "indir": indir,
         "outdir":  f"{outdir}/cutadapt",
         "logdir": logdir,
         "Procedure": {
@@ -13,8 +23,8 @@ module cutadapt:
     snakefile: "../modules/cutadapt/cutadapt.smk"
     config: cutadapt_config
 logger.info(f"cutadapt_config: {cutadapt_config}")
-use rule trimming_Paired from cutadapt as MERIP_trimming_Paired
-use rule trimming_Single from cutadapt as MERIP_trimming_Single
+use rule trimming_Paired from cutadapt as RNAseq_trimming_Paired
+use rule trimming_Single from cutadapt as RNAseq_trimming_Single
 
 if aligner == 'hisat2':
     hisat2_config = {
@@ -31,11 +41,11 @@ if aligner == 'hisat2':
             }
         }
     module hisat2:
-        snakefile: "../modules/hisat2/hisat2.smk"
+        snakefile: "../modules/hisat2/TEtranscripts/hisat2.smk"
         config: hisat2_config
     logger.info(f"hisat2_config: {hisat2_config}")
-    use rule hisat2_align from hisat2 as MERIP_hisat2_align
-    use rule hisat2_index from hisat2 as MERIP_hisat2_index
+    use rule hisat2_align from hisat2 as RNAseq_hisat2_align
+    use rule hisat2_index from hisat2 as RNAseq_hisat2_index
 elif aligner == 'star':
     star_config = {
             "indir": cutadapt_config["outdir"],
@@ -47,16 +57,40 @@ elif aligner == 'star':
                 "star": config.get('Procedure',{}).get('star')
             },
             "genome": {
-                "fasta": config.get('genome',{}).get('fasta')
+                "fasta": config.get('genome',{}).get('fasta'),
+                "gtf": config.get('genome',{}).get('gtf'),
+                "index_dir": config.get('genome',{}).get('star_index_dir')
             }
         }
     module star:
-        snakefile: "../modules/star/star.smk"
+        snakefile: "../modules/star/TEtranscripts/star.smk"
         config: star_config
     logger.info(f"star_config: {star_config}")
-    use rule star_align from star as MERIP_star_align
-    use rule star_index from star as MERIP_star_index
+    use rule star_align from star as RNAseq_star_align
+    use rule star_index from star as RNAseq_star_index
 else:
     raise ValueError(f"Unsupported aligner: {aligner}")
 
 
+TEtranscripts_config = {
+        "indir": f"{outdir}/star" if aligner == 'star' else f"{outdir}/hisat2",
+        "outdir":  f"{outdir}/TEtranscripts",
+        "logdir": logdir,
+        "single_samples": single_samples,
+        "paired_samples": paired_samples,
+        "Procedure": {
+            "TEcount": config.get('Procedure',{}).get('TEcount') or 'TEcount',
+            "TElocal": config.get('Procedure',{}).get('TElocal') or 'TElocal'
+        },
+        "genome": {
+            "gtf": config.get('genome',{}).get('gtf'),
+            "TEind": config.get('genome',{}).get('TEind'),
+            "TE_gtf": config.get('genome',{}).get('TE_gtf')
+        }
+    }
+logger.info(f"TEtranscripts_config: {TEtranscripts_config}")
+module TEtranscripts:
+    snakefile: "../modules/TEtranscripts/TEtranscripts.smk"
+    config: TEtranscripts_config
+
+use rule * from TEtranscripts as RNAseq_*

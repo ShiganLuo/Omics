@@ -1,12 +1,7 @@
 #!/bin/bash
-# Rscript /data/pub/zhousha/20260411_MERIPseq/workflow/RNA-SNP/modules/exomePeak/bin/exomePeak.r \
-#     --gtf /data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf \
-#     --ip_bams /data/pub/zhousha/20260411_MERIPseq/output/igv/dedup/SRR29583211.dedup.bam /data/pub/zhousha/20260411_MERIPseq/output/igv/dedup/SRR29583210.dedup.bam \
-#     --input_bams /data/pub/zhousha/20260411_MERIPseq/output/igv/dedup/SRR29583209.dedup.bam /data/pub/zhousha/20260411_MERIPseq/output/igv/dedup/SRR29583208.dedup.bam \
-#     --treated_ip_bams /data/pub/zhousha/20260411_MERIPseq/output/igv/dedup/SRR29583207.dedup.bam /data/pub/zhousha/20260411_MERIPseq/output/igv/dedup/SRR29583206.dedup.bam \
-#     --treated_input_bams /data/pub/zhousha/20260411_MERIPseq/output/igv/dedup/SRR29583205.dedup.bam /data/pub/zhousha/20260411_MERIPseq/output/igv/dedup/SRR29583204.dedup.bam \
-#     --outprefix /data/pub/zhousha/20260411_MERIPseq/output/exomePeak/Dox
-dir=/data/pub/zhousha/20260411_RNAseq/output/disambiguate
-find ${dir} -name "*_summary.txt" | while read file; do
-    sed -i '1s/unique species A pairs/unique species GRCm39 pairs/; 1s/unique species B pairs/unique species GRCh38 pairs/' ${file}
-done
+python /data/pub/zhousha/20260422_RNAseq/workflow/RNA-SNP/run.py \
+    -m /data/pub/zhousha/20260422_RNAseq/data/meta.tsv \
+    -w RNAseq -o /data/pub/zhousha/20260422_RNAseq/output \
+    -t 48 \
+    --log /data/pub/zhousha/20260422_RNAseq/log/RNAseq.log \
+    --conda-prefix /data/pub/zhousha/env/mutation_0.1/

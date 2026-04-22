@@ -7,7 +7,6 @@ genome:
     type: object
     additionalProperties:
       type: object
-      required: ["fasta"]
       properties:
         gtf: {type: "string"}
         TE_gtf: {type: ["string", "null"]}
@@ -35,6 +34,7 @@ outdir:
 logdir:
     type: string
     default: "logs"
-root_workdir:
+
+ROOT_DIR:
     type: string
     default: "./" # path to the root working directory, used for resolving relative paths in config

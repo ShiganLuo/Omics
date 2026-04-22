@@ -84,7 +84,7 @@ rule star_align:
         get_alignment_input,
         genome_index = get_star_index
     output:
-        outfile = temp(outdir + "/{sample_id}.bam")
+        bam = temp(outdir + "/{sample_id}/{sample_id}.bam")
     log:
         log = logdir + "/{sample_id}/star_align.log",
         STAR_log = logdir + "/{sample_id}/star_Log.out",
@@ -94,7 +94,7 @@ rule star_align:
     conda:
         "../star.yaml"
     params:
-        outPrefix = outdir + "/{sample_id}.",
+        outPrefix = outdir + "/{sample_id}/{sample_id}.",
         STAR = config.get('Procedure',{}).get('STAR') or 'STAR',
         # 动态判断输入参数,加上genome_index，如果三个参数，即为双端测序，两个参数即为单端测序
         input_params = lambda wildcards, input: \
@@ -110,6 +110,7 @@ rule star_align:
             --outFileNamePrefix {params.outPrefix} \
             --outFilterMultimapNmax 100 \
             --winAnchorMultimapNmax 100  > {log.log} 2>&1
+        mv {params.outPrefix}Aligned.sortedByCoord.out.bam {output.bam}
         cp {params.outPrefix}Log.out {log.STAR_log}
         cp {params.outPrefix}Log.progress.out {log.STAR_progress}
         cp {params.outPrefix}Log.final.out {log.STAR_final}

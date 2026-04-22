@@ -94,3 +94,24 @@ module TEtranscripts:
     config: TEtranscripts_config
 
 use rule * from TEtranscripts as RNAseq_*
+
+DESeq2_config = {
+        "indir": TEtranscripts_config["outdir"],
+        "outdir":  f"{outdir}/DESeq2",
+        "logdir": logdir,
+        "control_samples": config.get("control_samples", []),
+        "control_group_name": config.get("control_group_name", "control"),
+        "treatment_samples": config.get("treatment_samples", []),
+        "experimental_group_name": config.get("experimental_group_name", "treatment"),
+        "genome": {
+            "geneIDAnno": config.get('genome',{}).get('geneIDAnno')
+        },
+        "Procedure": {
+            "DESeq2": config.get('Procedure',{}).get('DESeq2') or 'DESeq2'
+        }
+    }
+module DESeq2:
+    snakefile: "../modules/DESeq2/DESeq2.smk"
+    config: DESeq2_config
+logger.info(f"DESeq2_config: {DESeq2_config}")
+use rule DESeq2_TEcount from DESeq2 as RNAseq_DESeq2_TEcount

@@ -9,7 +9,7 @@ paired_samples = config.get("paired_samples", [])
 
 rule TEcount:
     input:
-        bam = indir + "/{sample_id}.bam"
+        bam = indir + "/{sample_id}/{sample_id}.bam"
     output:
         project = outdir + "/TEcount/{sample_id}.TEcount.cntTable"
     params:
@@ -60,7 +60,7 @@ rule combine_TEcount:
 
 rule TElocal:
     input:
-        bam = indir + "/{sample_id}.bam"
+        bam = indir + "/{sample_id}/{sample_id}.bam"
     output:
         project = outdir + "/TElocal/{sample_id}.TElocal.cntTable"
     log:

@@ -5,6 +5,10 @@
     "logdir": null,
     "paired_samples": [],
     "single_samples": [],
+    "control_group_name":null,
+    "treatment_group_name":null,
+    "control_samples": [],
+    "treatment_samples": [],
     "aligner": "star",
     "Procedure": {
         "TEcount": null,
@@ -17,9 +21,10 @@
     "genome": {
         "fasta": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
         "gtf": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf",
+        "geneIDAnno": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/geneIDAnnotation.csv",
         "TE_gtf": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.gtf",
         "TEind": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.gtf.locInd",
-        "hisat2_index_prefix": null,
-        "star_index_dir": null
+        "hisat2_index_prefix": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/hisat2/genome",
+        "star_index_dir": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/star"
     }
 }

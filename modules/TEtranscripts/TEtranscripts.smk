@@ -1,27 +1,30 @@
-import logging
-logger = logging.getLogger(__name__)
+from snakemake.logging import logger
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 indir= config.get("indir", "output/raw_fastq")
+ROOT_DIR = config.get("ROOT_DIR", "./")
+single_samples = config.get("single_samples", [])
+paired_samples = config.get("paired_samples", [])
 
 
 rule TEcount:
     input:
-        bam = outdir + "/TEtranscripts/bam/{sample_id}/{genome}/{sample_id}.Aligned.sortedByCoord.out.bam"
+        bam = indir + "/{sample_id}.bam"
     output:
-        project = outdir + "/TEtranscripts/TEcount/{genome}/{sample_id}TEcount.cntTable"
+        project = outdir + "/TEcount/{sample_id}.TEcount.cntTable"
     params:
-        project = "{sample_id}TEcount",
-        outdir = outdir + "/TEtranscripts/TEcount/{genome}",
-        TE_gtf = lambda wildcards: config['TEtranscripts'][wildcards.genome]['TE_gtf'],
-        gtf = lambda wildcards: config['genome'][wildcards.genome]['gtf']
+        project = "{sample_id}.TEcount",
+        outdir = outdir + "/TEtranscripts/TEcount",
+        TE_gtf = lambda wildcards: config['genome']['TE_gtf'],
+        gtf = lambda wildcards: config['genome']['gtf'],
+        TEcount = config.get('Procedure',{}).get('TEcount') or 'TEcount'
     log:
-        outdir + "/log/TEtranscripts/{genome}/{sample_id}/TEcount.log"
+        logdir + "/{sample_id}/TEcount.log"
     conda:
         "TEtranscripts.yaml"
     shell:
         """
-        TEcount --sortByPos --format BAM --mode multi \
+        {params.TEcount} --sortByPos --format BAM --mode multi \
         -b {input.bam} --GTF {params.gtf} --TE {params.TE_gtf} \
         --project {params.project} --outdir {params.outdir} \
         > {log} 2>&1
@@ -30,28 +33,26 @@ rule TEcount:
 def get_cntTable_for_TEcount(wildcards):
     logger.info(f"[get_cntTable_for_TEcount] called with wildcards: {wildcards}")
     cntTable = []
-    for sample_id, genome in single_sample_genome_pairs:
-        if genome == wildcards.genome:
-            cntTable.append(f"{outdir}/TEtranscripts/TEcount/{genome}/{sample_id}TEcount.cntTable")
-    for sample_id, genome in paired_sample_genome_pairs:
-        if genome == wildcards.genome:
-            cntTable.append(f"{outdir}/TEtranscripts/TEcount/{genome}/{sample_id}TEcount.cntTable")
+    for sample_id in single_samples:
+        cntTable.append(f"{outdir}/TEcount/{sample_id}.TEcount.cntTable")
+    for sample_id in paired_samples:
+        cntTable.append(f"{outdir}/TEcount/{sample_id}.TEcount.cntTable")
     if len(cntTable) == 0:
-        raise ValueError(f"rule combine_TElocal didn't get any input files,genome: {wildcards.genome}\nsingle_sample_genome_pairs:{single_sample_genome_pairs}\npaired_sample_genome_pairs:{paired_sample_genome_pairs}")
+        raise ValueError(f"rule combine_TElocal didn't get any input files,single_samples:{single_samples},paired_samples:{paired_samples}")
     return cntTable
 
 rule combine_TEcount:
     input:
         fileList = get_cntTable_for_TEcount
     output:
-        outfile = outdir + "/TEtranscripts/TEcount/{genome}/all_TEcount.tsv"
+        outfile = outdir + "/TEcount/all_TEcount.tsv"
     conda:
         "TEtranscripts.yaml"
     params:
-        combineTE = SNAKEFILE_DIR + "/utils/combineTE.py",
-        indir = outdir + "/TEtranscripts/TEcount/{genome}"
+        combineTE = ROOT_DIR + "/TEtranscripts/bin/combineTE.py",
+        indir = outdir + "/TEtranscripts/TEcount"
     log:
-        outdir + "/log/TEtranscript/{genome}/combine_TEcount.log"
+        logdir + "/TEtranscripts/combine_TEcount.log"
     shell:
         """
         python {params.combineTE} -p TEcount -i {params.indir} -o {output.outfile} > {log} 2>&1
@@ -59,20 +60,22 @@ rule combine_TEcount:
 
 rule TElocal:
     input:
-        bam = outdir + "/TEtranscripts/bam/{sample_id}/{genome}/{sample_id}.Aligned.sortedByCoord.out.bam"
+        bam = indir + "/{sample_id}.bam"
     output:
-        project = outdir + "/TEtranscripts/TElocal/{genome}/{sample_id}TElocal.cntTable"
+        project = outdir + "/TElocal/{sample_id}.TElocal.cntTable"
     log:
-        outdir + "/log/TEtranscripts/{genome}/{sample_id}/TElocal.log"
+        logdir + "/{sample_id}/TElocal.log"
     params:
-        project = "{sample_id}TElocal",
-        TE = lambda wildcards: config['TElocal'][wildcards.genome]['TEind'],
-        GTF = lambda wildcards: config['genome'][wildcards.genome]['gtf']
+        project = "{sample_id}.TElocal",
+        TE = lambda wildcards: config['genome']['TEind'],
+        GTF = lambda wildcards: config['genome']['gtf'],
+        TElocal = config.get('Procedure',{}).get('TElocal') or 'TElocal'
+    threads: 2
     conda:
         "TEtranscripts.yaml"
     shell:
         """
-        TElocal --sortByPos -b {input.bam} \
+        {params.TElocal} --sortByPos -b {input.bam} \
         --GTF {params.GTF} --TE {params.TE} \
         --project {params.project} > {log} 2>&1
         mv {params.project}.cntTable {output.project}
@@ -81,29 +84,27 @@ rule TElocal:
 def get_cntTable_for_TElocal(wildcards):
     logger.info(f"[get_cntTable_for_TElocal] called with wildcards: {wildcards}")
     cntTable = []
-    for sample_id, genome in single_sample_genome_pairs:
-        if genome == wildcards.genome:
-            cntTable.append(f"{outdir}/TEtranscripts/TElocal/{genome}/{sample_id}TElocal.cntTable")
-    for sample_id, genome in paired_sample_genome_pairs:
-        if genome == wildcards.genome:
-            cntTable.append(f"{outdir}/TEtranscripts/TElocal/{genome}/{sample_id}TElocal.cntTable")
+    for sample_id in single_samples:
+        cntTable.append(f"{outdir}/TElocal/{sample_id}.TElocal.cntTable")
+    for sample_id in paired_samples:
+        cntTable.append(f"{outdir}/TElocal/{sample_id}.TElocal.cntTable")
     
     if len(cntTable) == 0:
-        raise ValueError(f"rule combine_TElocal didn't get any input files,genome: {wildcards.genome}\nsingle_sample_genome_pairs:{single_sample_genome_pairs}\npaired_sample_genome_pairs:{paired_sample_genome_pairs}")
+        raise ValueError(f"rule combine_TElocal didn't get any input files,single_samples:{single_samples},paired_samples:{paired_samples}")
     return cntTable
 
 rule combine_TElocal:
     input:
         fileList = get_cntTable_for_TElocal
     output:
-        outfile = outdir + "/TEtranscripts/TElocal/{genome}/all_TElocal.tsv"
+        outfile = outdir + "/TElocal/all_TElocal.tsv"
     conda:
         "TEtranscripts.yaml"
     params:
-        combineTE = SNAKEFILE_DIR + "/utils/combineTE.py",
-        indir = outdir + "/TEtranscripts/TElocal/{genome}"
+        combineTE = ROOT_DIR + "/utils/combineTE.py",
+        indir = outdir + "/TEtranscripts/TElocal"
     log:
-        outdir + "/log/TEtranscript/{genome}/combine_TElocal.log"
+        outdir + "/log/TEtranscript/combine_TElocal.log"
     shell:
         """
         python {params.combineTE} -p TElocal -i {params.indir} -o {output.outfile} > {log} 2>&1
@@ -111,7 +112,7 @@ rule combine_TElocal:
 
 rule TEtranscripts_result:
     input:
-        TEcount = outdir + "/TEtranscripts/TEcount/{genome}/all_TEcount.tsv",
-        TElocal = outdir + "/TEtranscripts/TElocal/{genome}/all_TElocal.tsv"
+        TEcount = outdir + "/TEcount/all_TEcount.tsv",
+        TElocal = outdir + "/TElocal/all_TElocal.tsv"
 
 

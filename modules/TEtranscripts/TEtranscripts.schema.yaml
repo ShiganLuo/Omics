@@ -1,81 +1,34 @@
-$schema: "http://json-schema.org/draft-07/schema#"
-description: "RNA-seq / TE pipeline configuration schema"
-
-type: object
-required:
-  - genome
-  - Procedure
-
-properties:
-  genome:
-    type: object
-    description: Genome reference configuration by species
-    additionalProperties:
-      type: object
-      required:
-        - fasta
-        - gtf
-      properties:
-        fasta:
-          type: string
-          minLength: 1
-          description: Genome FASTA file
-        gtf:
-          type: string
-          minLength: 1
-          description: Gene annotation GTF file
-        hisat2_index:
-          type: string
-          description: HISAT2 genome index prefix
-        star_index:
-          type: string
-          description: STAR genome index directory
-
-  TEtranscripts:
-    type: object
-    description: TEtranscripts configuration by species
-    additionalProperties:
-      type: object
-      required:
-        - TE_gtf
-      properties:
-        TE_gtf:
-          type: string
-          minLength: 1
-          description: Transposable element GTF file
-
-  TElocal:
-    type: object
-    description: TElocal configuration by species
-    additionalProperties:
-      type: object
-      required:
-        - TEind
-      properties:
-        TEind:
-          type: string
-          minLength: 1
-          description: TElocal TE index file
-
-  Procedure:
-    type: object
-    description: Pipeline procedure and tool configuration
-    required:
-      - aligner
-    properties:
-      aligner:
+paired_samples:
+    type: array
+    items:
         type: string
-        enum: ["hisat2", "STAR"]
-        description: Selected aligner
-      STAR:
-        type: ["string", "null"]
-        description: Path to STAR executable
-      hisat2:
-        type: ["string", "null"]
-        description: Path to hisat2 executable
-      hisat2-build:
-        type: ["string", "null"]
-        description: Path to hisat2-build executable
-      samtools:
-        type: ["string", "null"]
-        description: Path to samtools executable
+single_samples:
+    type: array
+    items:
+        type: string
+indir:
+    type: string
+    default: "output/disambiguate"
+outdir:
+    type: string
+    default: "output"
+logdir:
+    type: string
+    default: "logs"
+
+ROOT_DIR:
+    type: string
+    default: "./" # path to the root working directory, used for resolving relative paths in config
+
+Procedure:
+    type: object
+    properties:
+      TElocal: {type: ["string", "null"]}
+      TEcount: {type: ["string", "null"]}
+
+genome:
+    type: object
+    properties:
+      gtf: {type: "string"}
+      TE_gtf: {type: ["string", "null"]}
+      TEind: {type: ["string", "null"]}

@@ -1,5 +1,4 @@
-import logging
-logger = logging.getLogger(__name__)
+from snakemake.logging import logger
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 indir= config.get("indir", "output/raw_fastq")

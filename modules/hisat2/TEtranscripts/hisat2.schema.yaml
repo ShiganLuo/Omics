@@ -2,8 +2,10 @@ Procedure:
     type: object
     properties:
       # 以下工具路径允许为 string 或 null (对应 YAML 中的空值)
-      STAR: {type: ["string", "null"]},
-      star_index_dir: {type: ["string", "null"]}
+      hisat2: {type: ["string", "null"]},
+      hisat2-build: {type: ["string", "null"]},
+      index_prefix: {type: ["string", "null"]},
+      samtools: {type: ["string", "null"]}
 
 genome:
     type: object

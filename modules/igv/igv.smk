@@ -1,5 +1,4 @@
-import logging
-logger = logging.getLogger(__name__)
+from snakemake.logging import logger
 indir = config.get('indir', "input")
 outdir = config.get('outdir', "output")
 logdir = config.get('logdir', "log")

@@ -9,9 +9,9 @@ Procedure:
 
 genome:
     type: object
-    required: ["fasta"]
-    fasta: {type: "string"}
-    index_prefix: {type: ["string", "null"]}
+    proerties:
+      fasta: {type: "string"}
+      index_prefix: {type: ["string", "null"]}
 outdir:
     type: string
     default: "output"

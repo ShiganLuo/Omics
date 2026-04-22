@@ -59,10 +59,10 @@ def runCoCulture(
     datajson["single_samples"] = single_samples
     datajson["single_sample_genome_pairs"] = single_sample_genome_pairs
     datajson["paired_sample_genome_pairs"] = paired_sample_genome_pairs
-    input_json = os.path.join(outdir, "raw.json")
-    with open(input_json, 'w', encoding='utf-8') as wf:
+    instance_json = os.path.join(outdir, "raw.json")
+    with open(instance_json, 'w', encoding='utf-8') as wf:
         json.dump(datajson, wf, indent=2, ensure_ascii=False)
-    return input_json
+    return instance_json
 
 def runMERIP(
     input_json: str,
@@ -70,6 +70,16 @@ def runMERIP(
     indir:str,
     outdir: str,
 ):
+    """
+    Function: Prepare input JSON for MERIP workflow based on the provided model JSON template and sample information.
+    Parameters:
+    - input_json: Path to the model JSON template file.
+    - samples_info_dict: A dictionary containing sample information, where keys are sample IDs and values are objects with attributes 'layout' and 'design'.
+    - indir: Input directory containing raw data (e.g., FASTQ files).
+    - outdir: Output directory where results will be stored.
+    Returns:
+    - instance_json: Path to the generated input JSON file that will be used for the MERIP workflow.
+    """
     datajsonTemplate = _load_model_json(input_json)
     datajson = deepcopy(datajsonTemplate)
     datajson["ROOT_DIR"] = os.path.dirname(__file__)
@@ -121,20 +131,53 @@ def runMERIP(
     datajson["input_samples"] = input_samples
     datajson["treated_ip_samples"] = treated_ip_samples
     datajson["treated_input_samples"] = treated_input_samples
-    input_json = os.path.join(outdir, "raw.json")
-    with open(input_json, 'w', encoding='utf-8') as wf:
+    instance_json = os.path.join(outdir, "raw.json")
+    with open(instance_json, 'w', encoding='utf-8') as wf:
         json.dump(datajson, wf, indent=2, ensure_ascii=False)
-    return input_json
+    return instance_json
+
+def runRNAseq(
+    input_json: str,
+    samples_info_dict:Dict[str, Any],
+    indir:str,
+    outdir: str,
+):
+    datajsonTemplate = _load_model_json(input_json)
+    datajson = deepcopy(datajsonTemplate)
+    datajson["ROOT_DIR"] = os.path.dirname(__file__)
+    datajson["indir"] = indir
+    datajson["outdir"] = outdir
+    logdir = os.path.join(outdir, "log")
+    os.makedirs(logdir, exist_ok=True)
+    datajson["logdir"] = logdir
+    outfiles = []
+    paired_samples = []
+    single_samples = []
+    for sample_id, sample_info in samples_info_dict.items():
+        if sample_info.layout == "PE":
+            paired_samples.append(sample_id)
+        elif sample_info.layout == "SE":
+            single_samples.append(sample_id)
+        else:
+            logger.error(f"Unknown layout type for sample {sample_id}: {sample_info.layout}")
+    outfiles.append(f"{outdir}/TEtranscripts/TEcount/all_TEcount.tsv")
+    datajson["outfiles"] = outfiles
+    datajson["paired_samples"] = paired_samples
+    datajson["single_samples"] = single_samples
+    instance_json = os.path.join(outdir, "raw.json")
+    with open(instance_json, 'w', encoding='utf-8') as wf:
+        json.dump(datajson, wf, indent=2, ensure_ascii=False)
+    return instance_json
 
 def parse_args():
     parser = argparse.ArgumentParser(description="workflow")
     parser.add_argument('-m','--meta', type=str, required=True, help='meta input file or data dir which condatain fastq file')
-    parser.add_argument('-w','--workflow_name', type=str, choices=["CoCulture", "MERIP"],default='CoCulture' ,help='workflow name')
+    parser.add_argument('-w','--workflow_name', type=str, choices=["CoCulture", "MERIP", "RNAseq"],default='CoCulture' ,help='workflow name')
     parser.add_argument('-o','--output_dir', type=str, required=True, help='output dir')
-    parser.add_argument('-t','--threads', type=int, default=1, help='threads')
+    parser.add_argument('-t','--threads', type=int, default=10, help='threads')
     parser.add_argument('--dry-run', action='store_true', help='dry run')
     parser.add_argument('--log', type=str, default='workflow.log', help='log file')
-    parser.add_argument('--conda_prefix', type=str, default='/data/pub/zhousha/env/mutation_0.1', help='conda prefix for snakemake')
+    parser.add_argument('--conda-prefix', type=str, default='/data/pub/zhousha/env/mutation_0.1', help='conda prefix for snakemake')
     parser.add_argument('--rerun-trigger', type=str, default="input", choices=["code", "input", "mtime", "params", "software-env"],help='snakemake rerun-triggers, e.g.  code, input, mtime, params, software-env')
     args = parser.parse_args()
     return args
@@ -161,18 +204,27 @@ if __name__ == "__main__":
         input_json = runCoCulture(model_json, samples_info_dict, raw_fastq_dir, abs_outdir)
         if args.dry_run:
             logger.info(f"Dry run mode, generated input json: {input_json}")
-            cmds = ["snakemake","-s", f"{ROOT_DIR}/subworkflow/CoCulture.smk", "--configfile", input_json, "--cores", str(args.threads), "--conda-prefix", args.conda_prefix, "--rerun-triggers", args.rerun_trigger, "--dry-run"]
+            cmds = ["snakemake","-s", f"{ROOT_DIR}/subworkflow/CoCulture.smk", "--configfile", input_json, "--cores", str(args.threads), "--conda-prefix", args.conda_prefix, "--rerun-triggers", args.rerun_trigger, "--use-conda","--dry-run"]
         else:
-            cmds = ["snakemake","-s", f"{ROOT_DIR}/subworkflow/CoCulture.smk", "--configfile", input_json, "--cores", str(args.threads), "--conda-prefix", args.conda_prefix, "--rerun-triggers", args.rerun_trigger]
+            cmds = ["snakemake","-s", f"{ROOT_DIR}/subworkflow/CoCulture.smk", "--configfile", input_json, "--cores", str(args.threads), "--conda-prefix", args.conda_prefix, "--rerun-triggers", args.rerun_trigger, "--use-conda"]
         _run_cmd(cmds)
     elif args.workflow_name == "MERIP":
         model_json = os.path.join(ROOT_DIR, "config/MERIP.json")
         input_json = runMERIP(model_json, samples_info_dict, raw_fastq_dir, abs_outdir)
         if args.dry_run:
             logger.info(f"Dry run mode, generated input json: {input_json}")
-            cmds = ["snakemake","-s", f"{ROOT_DIR}/subworkflow/MERIP.smk", "--configfile", input_json, "--cores", str(args.threads), "--conda-prefix", args.conda_prefix, "--rerun-triggers", args.rerun_trigger, "--dry-run"]
+            cmds = ["snakemake","-s", f"{ROOT_DIR}/subworkflow/MERIP.smk", "--configfile", input_json, "--cores", str(args.threads), "--conda-prefix", args.conda_prefix, "--rerun-triggers", args.rerun_trigger, "--use-conda","--dry-run"]
         else:
-            cmds = ["snakemake","-s", f"{ROOT_DIR}/subworkflow/MERIP.smk", "--configfile", input_json, "--cores", str(args.threads), "--conda-prefix", args.conda_prefix, "--rerun-triggers", args.rerun_trigger]
+            cmds = ["snakemake","-s", f"{ROOT_DIR}/subworkflow/MERIP.smk", "--configfile", input_json, "--cores", str(args.threads), "--conda-prefix", args.conda_prefix, "--rerun-triggers", args.rerun_trigger, "--use-conda"]
+        _run_cmd(cmds)
+    elif args.workflow_name == "RNAseq":
+        model_json = os.path.join(ROOT_DIR, "config/RNAseq.json")
+        input_json = runRNAseq(model_json, samples_info_dict, raw_fastq_dir, abs_outdir)
+        if args.dry_run:
+            logger.info(f"Dry run mode, generated input json: {input_json}")
+            cmds = ["snakemake","-s", f"{ROOT_DIR}/subworkflow/RNAseq.smk", "--configfile", input_json, "--cores", str(args.threads), "--conda-prefix", args.conda_prefix, "--rerun-triggers", args.rerun_trigger, "--use-conda","--dry-run"]
+        else:
+            cmds = ["snakemake","-s", f"{ROOT_DIR}/subworkflow/RNAseq.smk", "--configfile", input_json, "--cores", str(args.threads), "--conda-prefix", args.conda_prefix, "--rerun-triggers", args.rerun_trigger, "--use-conda"]
         _run_cmd(cmds)
     else:
         logger.error(f"Unknown workflow name: {args.workflow_name}")

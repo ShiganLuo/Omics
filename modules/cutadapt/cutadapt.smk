@@ -1,5 +1,4 @@
-import logging
-logger = logging.getLogger(__name__)
+from snakemake.logging import logger
 outdir = config.get("outdir", "output")
 indir = config.get("indir", "output/raw_fastq")
 logdir = config.get("logdir", "log")
@@ -14,7 +13,7 @@ rule trimming_Paired:
         report2 = logdir + "/{sample_id}/trimming_statistics_2.txt"
     params:
         outdir = outdir,
-        quality = 25,
+        quality = 35,
         trim_galore = config.get('Procedure',{}).get('trim_galore') or 'trim_galore'
     threads: 6
     conda:

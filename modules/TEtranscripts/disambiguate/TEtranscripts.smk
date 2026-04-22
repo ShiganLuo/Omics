@@ -1,6 +1,5 @@
-import logging
 from typing import Tuple
-logger = logging.getLogger(__name__)
+from snakemake.logging import logger
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 indir = config.get("indir", "output/disambiguate")
@@ -29,7 +28,8 @@ rule TEcount:
         project = lambda wildcards: f"{wildcards.sample_id}.TEcount",
         outdir = lambda wildcards: outdir + f"/TEcount/{wildcards.genome}",
         TE_gtf = lambda wildcards: config['genome'][wildcards.genome]['TE_gtf'],
-        gtf = lambda wildcards: config['genome'][wildcards.genome]['gtf']
+        gtf = lambda wildcards: config['genome'][wildcards.genome]['gtf'],
+        TEcount = config.get('Procedure',{}).get('TEcount') or 'TEcount'
     log:
         logdir + "/{sample_id}/{genome}/TEcount.log"
     threads: 2
@@ -37,7 +37,7 @@ rule TEcount:
         "../TEtranscripts.yaml"
     shell:
         """
-        TEcount --sortByPos --format BAM --mode multi \
+        {params.TEcount} --sortByPos --format BAM --mode multi \
         -b {input.bamA} --GTF {params.gtf} --TE {params.TE_gtf} \
         --project {params.project} --outdir {params.outdir} \
         > {log} 2>&1
@@ -51,7 +51,7 @@ def get_cntTable_for_TEcount(wildcards):
     for sample_id in paired_samples:
         cntTable.append(f"{outdir}/TEcount/{wildcards.genome}/{sample_id}.TEcount.cntTable")
     if len(cntTable) == 0:
-        raise ValueError(f"rule combine_TElocal didn't get any input files,genome: {wildcards.genome}\nsingle_sample_genome_pairs:{single_sample_genome_pairs}\npaired_sample_genome_pairs:{paired_sample_genome_pairs}")
+        raise ValueError(f"rule combine_TElocal didn't get any input files,genome: {wildcards.genome}")
     return cntTable
 
 rule combine_TEcount:
@@ -92,13 +92,14 @@ rule TElocal:
     params:
         project = lambda wildcards: f"{wildcards.sample_id}.TElocal",
         TE = lambda wildcards: config['genome'][wildcards.genome]['TEind'],
-        GTF = lambda wildcards: config['genome'][wildcards.genome]['gtf']
+        GTF = lambda wildcards: config['genome'][wildcards.genome]['gtf'],
+        TElocal = config.get('Procedure',{}).get('TElocal') or 'TElocal'
     threads: 2
     conda:
         "../TEtranscripts.yaml"
     shell:
         """
-        TElocal --sortByPos -b {input.bam} \
+        {params.TElocal} --sortByPos -b {input.bam} \
         --GTF {params.GTF} --TE {params.TE} \
         --project {params.project} > {log} 2>&1
         mv {params.project}.cntTable {output.project}
@@ -113,7 +114,7 @@ def get_cntTable_for_TElocal(wildcards):
         cntTable.append(f"{outdir}/TElocal/{wildcards.genome}/{sample_id}.TElocal.cntTable")
     
     if len(cntTable) == 0:
-        raise ValueError(f"rule combine_TElocal didn't get any input files,genome: {wildcards.genome}\nsingle_sample_genome_pairs:{single_sample_genome_pairs}\npaired_sample_genome_pairs:{paired_sample_genome_pairs}")
+        raise ValueError(f"rule combine_TElocal didn't get any input files,genome: {wildcards.genome}")
     return cntTable
 
 rule combine_TElocal:

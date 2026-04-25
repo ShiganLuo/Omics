@@ -1,7 +1,9 @@
 #!/bin/bash
-python /data/pub/zhousha/20260422_RNAseq/workflow/RNA-SNP/run.py \
-    -m /data/pub/zhousha/20260422_RNAseq/data/meta.tsv \
-    -w RNAseq -o /data/pub/zhousha/20260422_RNAseq/output \
+python /data/pub/zhousha/20260422_ClIPseq/workflow/RNA-SNP/run.py \
+    -m /data/pub/zhousha/20260422_ClIPseq/data/meta/fastq \
+    -w CLIP \
+    -o /data/pub/zhousha/20260422_ClIPseq/output \
     -t 48 \
-    --log /data/pub/zhousha/20260422_RNAseq/log/RNAseq.log \
-    --conda-prefix /data/pub/zhousha/env/mutation_0.1/
+    --log /data/pub/zhousha/20260422_ClIPseq/log/CLIP.log \
+    --conda-prefix /data/pub/zhousha/env/mutation_0.1/ \
+    --dry-run

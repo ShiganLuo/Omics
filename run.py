@@ -173,7 +173,7 @@ def runRNAseq(
         json.dump(datajson, wf, indent=2, ensure_ascii=False)
     return instance_json
 
-def runCLIPseq(
+def runCLIP(
     input_json: str,
     samples_info_dict:Dict[str, Any],
     indir:str,
@@ -216,7 +216,7 @@ def runCLIPseq(
 def parse_args():
     parser = argparse.ArgumentParser(description="workflow")
     parser.add_argument('-m','--meta', type=str, required=True, help='meta input file or data dir which condatain fastq file')
-    parser.add_argument('-w','--workflow_name', type=str, choices=["CoCulture", "MERIP", "RNAseq"],default='CoCulture' ,help='workflow name')
+    parser.add_argument('-w','--workflow_name', type=str, choices=["CoCulture", "MERIP", "RNAseq", "CLIP"],default='CoCulture' ,help='workflow name')
     parser.add_argument('-o','--output_dir', type=str, required=True, help='output dir')
     parser.add_argument('-t','--threads', type=int, default=10, help='threads')
     parser.add_argument('--dry-run', action='store_true', help='dry run')
@@ -225,17 +225,23 @@ def parse_args():
     parser.add_argument('--rerun-trigger', type=str, default="input", choices=["code", "input", "mtime", "params", "software-env"],help='snakemake rerun-triggers, e.g.  code, input, mtime, params, software-env')
     parser.add_argument('--conda-frontend', type=str, choices=["conda", "mamba"], default="mamba", help='conda frontend for snakemake')
     parser.add_argument('--config', type=str, help='extra config json file to override workflow defaults')
-    # 支持 --key=value 形式的额外参数
+    # 支持 --key=value 和 --key value 两种形式的额外参数
     args, unknown = parser.parse_known_args()
     extra_args = {}
-    for arg in unknown:
+    i = 0
+    while i < len(unknown):
+        arg = unknown[i]
         if arg.startswith('--'):
-            keyval = arg[2:]
-            if '=' in keyval:
-                k, v = keyval.split('=', 1)
+            key = arg[2:]
+            if '=' in key:
+                k, v = key.split('=', 1)
                 extra_args[k] = v
+            elif i + 1 < len(unknown) and not unknown[i + 1].startswith('--'):
+                extra_args[key] = unknown[i + 1]
+                i += 1
             else:
-                extra_args[keyval] = True
+                extra_args[key] = True
+        i += 1
     args.extra_args = extra_args
     return args
 
@@ -271,6 +277,9 @@ if __name__ == "__main__":
         workflow_config.update(user_config)
     # 命令行额外参数覆盖
     workflow_config.update(args.extra_args)
+    # 移除关键路径参数，防止与函数签名冲突
+    for k in ["indir", "outdir", "logdir"]:
+        workflow_config.pop(k, None)
     # 传递给下游函数
     if args.workflow_name == "CoCulture":
         input_json = runCoCulture(model_json, samples_info_dict, raw_fastq_dir, abs_outdir, **workflow_config)
@@ -281,9 +290,9 @@ if __name__ == "__main__":
     elif args.workflow_name == "RNAseq":
         input_json = runRNAseq(model_json, samples_info_dict, raw_fastq_dir, abs_outdir, **workflow_config)
         smk = "RNAseq.smk"
-    elif args.workflow_name == "CLIPseq":
-        input_json = runCLIPseq(model_json, samples_info_dict, raw_fastq_dir, abs_outdir, **workflow_config)
-        smk = "CLIPseq.smk"
+    elif args.workflow_name == "CLIP":
+        input_json = runCLIP(model_json, samples_info_dict, raw_fastq_dir, abs_outdir, **workflow_config)
+        smk = "CLIP.smk"
     else:
         logger.error(f"Unknown workflow name: {args.workflow_name}")
         exit(1)

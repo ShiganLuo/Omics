@@ -102,7 +102,7 @@ DESeq2_config = {
         "control_samples": config.get("control_samples", []),
         "control_group_name": config.get("control_group_name", "control"),
         "treatment_samples": config.get("treatment_samples", []),
-        "experimental_group_name": config.get("experimental_group_name", "treatment"),
+        "treatment_group_name": config.get("treatment_group_name", "treatment"),
         "genome": {
             "geneIDAnno": config.get('genome',{}).get('geneIDAnno')
         },

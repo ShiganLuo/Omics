@@ -2,6 +2,7 @@ from snakemake.logging import logger
 indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
+ROOT_DIR = config.get("ROOT_DIR", ".")
 ip_samples = config.get("ip_samples", [])
 input_samples = config.get("input_samples", [])
 treated_ip_samples = config.get("treated_ip_samples", [])
@@ -37,11 +38,11 @@ rule diff_exomePeak:
         "exomePeak.yaml"
     threads: 1
     params:
-        exomePeak = config.get('Procedure',{}).get('exomePeak') or 'exomePeak',
-        gtf = config.get("gtf","")
+        gtf = config.get("gtf",""),
+        exomePeak_script = ROOT_DIR + "/modules/exomePeak/bin/exomePeak.r",
     shell:
         """
-        Rscript bin/exomePeak.r \
+        Rscript {params.exomePeak_script} \
             --gtf {params.gtf} \
             --ip_bams {input.ip_bams} \
             --input_bams {input.input_bams} \
@@ -103,31 +104,32 @@ rule call_exomePeak:
         "exomePeak.yaml"
     threads: 12
     params:
-        exomePeak = config.get('Procedure',{}).get('exomePeak') or 'exomePeak',
+        exomePeak_script = ROOT_DIR + "/modules/exomePeak/bin/exomePeak.r",
+        geneId2name_script = ROOT_DIR + "/modules/exomePeak/bin/geneId2name.r",
         gtf = config.get("gtf","")
     shell:
         """
-        Rscript bin/exomePeak.r \
+        Rscript {params.exomePeak_script} \
         --gtf {params.gtf} \
         --ip_bams {input.ip_bams} \
         --input_bams {input.input_bams} \
         --outprefix {outdir} \
         > {log} 2>&1
 
-        Rscript bin/geneId2name.r \
+        Rscript {params.geneId2name_script} \
             --infile {outdir}/all_peaks.bed \
             --gtf {params.gtf} \
             --outfile {outdir}/all_peaks_gene_names.bed
-        Rscript bin/geneId2name.r \
+        Rscript {params.geneId2name_script} \
             --infile {outdir}/all_peaks.xls \
             --gtf {params.gtf} \
             --outfile {outdir}/all_peaks_gene_names.xls
         
-        Rscript bin/geneId2name.r \
+        Rscript {params.geneId2name_script} \
             --infile {outdir}/con_peaks.bed \
             --gtf {params.gtf} \
             --outfile {outdir}/con_peaks_gene_names.bed
-        Rscript bin/geneId2name.r \
+        Rscript {params.geneId2name_script} \
             --infile {outdir}/con_peaks.xls \
             --gtf {params.gtf} \
             --outfile {outdir}/con_peaks_gene_names.xls

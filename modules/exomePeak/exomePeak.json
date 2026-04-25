@@ -1,0 +1,11 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "logs",
+    "ROOT_DIR": "/path/to/workflow/directory",
+    "gtf": "path/to/gtf_file.gtf",
+    "ip_samples": ["ip_sample1", "ip_sample2"],
+    "input_samples": ["input_sample1", "input_sample2"],
+    "treated_ip_samples": ["treated_ip_sample1", "treated_ip_sample2"],
+    "treated_input_samples": ["treated_input_sample1", "treated_input_sample2"]
+}

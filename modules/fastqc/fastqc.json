@@ -1,0 +1,8 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "logs",
+    "Procedure": {
+        "fastqc": "path/to/fastqc"
+    }
+}

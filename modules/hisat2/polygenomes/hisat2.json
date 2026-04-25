@@ -1,0 +1,16 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "logs",
+    "Procedure": {
+        "hisat2": "path/to/hisat2",
+        "samtools": "path/to/samtools",
+        "hisat2-build": "path/to/hisat2-build"
+    },
+    "genome": {
+        "fasta": "path/to/genome.fa",
+        "index_prefix": "path/to/hisat2_index_prefix"
+    },
+    "paired_samples": ["sample1", "sample2"],
+    "single_samples": ["sample3", "sample4"]
+}

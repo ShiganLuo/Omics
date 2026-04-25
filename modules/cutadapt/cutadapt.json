@@ -1,0 +1,13 @@
+{
+    "Procedure":{
+        "trim_galore": "path/to/trim_galore"
+    },
+    "Params": {
+        "trim_galore": {
+            "quality": 25
+        }
+    },
+    "indir": "output/raw_fastq",
+    "outdir": "output",
+    "logdir": "logs"
+}

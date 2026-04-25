@@ -1,0 +1,31 @@
+{
+  "indir": "output/raw_fastq",
+  "outdir": "output",
+  "logdir": "logs",
+  "Procedure": {
+    "gatk": "path/to/gatk",
+    "samtools": "path/to/samtools",
+    "bgzip": "path/to/bgzip"
+  },
+  "Params": {
+    "gatk": {
+      "addReadsGroup": {
+        "RGLB": "mRNA",
+        "RGPL": "Illumina",
+        "RGPU": "Illumina_NextSeq_500"
+      }
+    }
+  },
+  "genome": {
+    "human": {
+      "fasta": "path/to/human_genome.fa",
+      "dict": "path/to/human_genome.dict",
+      "fai": "path/to/human_genome.fa.fai"
+    },
+    "mouse": {
+      "fasta": "path/to/mouse_genome.fa",
+      "dict": "path/to/mouse_genome.dict",
+      "fai": "path/to/mouse_genome.fa.fai"
+    }
+  }
+}

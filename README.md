@@ -39,6 +39,13 @@ snakemake -s workflow/RNA-SNP/main.smk --config indir=data/fq outdir=output meta
 - 单端测序文件：非双端测序文件模式
 - 具体查看utils/fastq_utils.py
 
+## run.py
+
+读取模板json，调用指定分析流程:
+  - 解析meta信息，覆盖相关字段
+  - 模板json默认配置保留
+  - 支持命令行参数更新指定字段
+
 ## modules
 
 见各模块下json文件
@@ -68,6 +75,7 @@ snakemake -s workflow/RNA-SNP/main.smk --config indir=data/fq outdir=output meta
 1. 规则可复用，灵活性高
 2. 可指定分析终点
 3. 具备强大的元信息处理
+4. 尽量在流程开始前规范化输入信息，流程本身不承担规范责任
 
 
 ## 待做

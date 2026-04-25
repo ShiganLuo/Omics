@@ -5,8 +5,6 @@
      "outdir": null,
      "paired_samples": [],
      "single_samples": [],
-     "single_sample_genome_pairs": [],
-     "paired_sample_genome_pairs": [],
      "outfiles": [],
      "genome": {
                "GRCm39": {

@@ -10,6 +10,7 @@ def combine_files_by_line(input_files: List[str], output_file: str) -> None:
         df = pd.read_csv(file,sep="\t")
         df_list.append(df)
     combined_df = pd.concat(df_list, ignore_index=True)
+    combined_df = combined_df.sort_values()
     combined_df.to_csv(output_file, index=False, sep="\t")
 
 def main():

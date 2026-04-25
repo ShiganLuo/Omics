@@ -64,12 +64,9 @@ def runCoCulture(
     outfiles = []
     paired_samples = []
     single_samples = []
-    single_sample_genome_pairs = []
-    paired_sample_genome_pairs = []
     for sample_id, sample_info in samples_info_dict.items():
         if sample_info.layout == "PE":
             paired_samples.append(sample_id)
-            paired_sample_genome_pairs.append((sample_id, sample_info.organism))
             outfiles.append(f"{outdir}/SOAPnuke/{sample_id}_1.fq.gz")
             outfiles.append(f"{outdir}/SOAPnuke/{sample_id}_2.fq.gz")
             outfiles.append(f"{outdir}/hisat2/GRCm39/{sample_id}.bam")
@@ -78,7 +75,6 @@ def runCoCulture(
             outfiles.append(f"{outdir}/TEtranscripts/TEcount/GRCh38/all_TEcount.tsv")
         elif sample_info.layout == "SE":
             single_samples.append(sample_id)
-            single_sample_genome_pairs.append((sample_id, sample_info.organism))
             outfiles.append(f"{outdir}/SOAPnuke/{sample_id}.single.fq.gz")
             outfiles.append(f"{outdir}/hisat2/GRCm39/{sample_id}.bam")
             outfiles.append(f"{outdir}/hisat2/GRCh38/{sample_id}.bam")
@@ -90,8 +86,6 @@ def runCoCulture(
     datajson["outfiles"] = outfiles
     datajson["paired_samples"] = paired_samples
     datajson["single_samples"] = single_samples
-    datajson["single_sample_genome_pairs"] = single_sample_genome_pairs
-    datajson["paired_sample_genome_pairs"] = paired_sample_genome_pairs
     instance_json = os.path.join(outdir, "raw.json")
     with open(instance_json, 'w', encoding='utf-8') as wf:
         json.dump(datajson, wf, indent=2, ensure_ascii=False)

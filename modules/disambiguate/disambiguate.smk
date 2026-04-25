@@ -93,15 +93,16 @@ rule disambiguate_sort_rename:
 
 rule disambiguate_report:
     input:
-        reports = expand(indir + "/disambiguate/{sample_id}/{sample_id}_summary_renamed.tsv", sample_id=paired_samples + single_samples)
+        reports = expand(outdir + "/{sample_id}/{sample_id}_summary_renamed.tsv", sample_id=paired_samples + single_samples)
     output:
         report = outdir + "/disambiguate_qc.tsv"
-    conda:
-        "CoCulture_Report.yaml"
     params:
         combine_script = ROOT_DIR + "/modules/disambiguate/combineDisambiguateQC.py"
     log:
         logdir + "/disambiguate_report.log"
+    conda:
+        "disambiguate.yaml"
+    threads: 1
     shell:
         """
         python {params.combine_script} \

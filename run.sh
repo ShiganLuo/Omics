@@ -1,5 +1,6 @@
 #!/bin/bash
-python /data/pub/zhousha/20260422_ClIPseq/workflow/RNA-SNP/run.py \
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+python ${SCRIPT_DIR}/run.py \
     -m /data/pub/zhousha/20260422_ClIPseq/data/meta/fastq \
     -w CLIP \
     -o /data/pub/zhousha/20260422_ClIPseq/output \

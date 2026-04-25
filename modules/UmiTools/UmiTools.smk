@@ -42,7 +42,6 @@ rule umi_tools_dedup_for_star:
         log = logdir + "/{sample_id}/umi_tools_dedup_run.txt"
     shell:
         """
-        mkdir -p {params.outdir}
         {params.umi_tools} dedup --method={params.method} \
             -I {input.bam} -S {output.bam} > {log} 2>&1
         """

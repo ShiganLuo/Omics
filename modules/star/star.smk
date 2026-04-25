@@ -80,7 +80,8 @@ rule star_align:
         fastq = get_alignment_input,
         genome_index = get_star_index
     output:
-        outfile = outdir + "/{sample_id}/{sample_id}.bam"
+        bam = outdir + "/{sample_id}/{sample_id}.bam",
+        bai = outdir + "/{sample_id}/{sample_id}.bam.bai"
     log:
         logdir + "/{sample_id}/star_align.log"
     threads: 12
@@ -90,7 +91,8 @@ rule star_align:
         outPrefix = outdir + "/{sample_id}/{sample_id}.",
         input_params = lambda wildcards, input: \
             f"{input.fastq[0]} {input.fastq[1]}" if len(input.fastq) == 2 else f"{input.fastq[0]}",
-        STAR = config.get('Procedure',{}).get('STAR') or 'STAR'
+        STAR = config.get('Procedure',{}).get('STAR') or 'STAR',
+        SAMTOOLS = config.get('Procedure',{}).get('samtools') or 'samtools',
     shell:
         """
         mkdir -p $(dirname {params.outPrefix})
@@ -102,7 +104,8 @@ rule star_align:
             --outSAMtype BAM SortedByCoordinate \
             --outSAMattributes NM \
             --outFileNamePrefix {params.outPrefix} > {log} 2>&1
-        mv {params.outPrefix}Aligned.sortedByCoord.out.bam {output.outfile}
+        mv {params.outPrefix}Aligned.sortedByCoord.out.bam {output.bam}
+        {params.SAMTOOLS} index {output.bam}
         cp {params.outPrefix}Log.out {log.STAR_log}
         cp {params.outPrefix}Log.progress.out {log.STAR_progress}
         cp {params.outPrefix}Log.final.out {log.STAR_final}

@@ -95,6 +95,8 @@ rule hisat2_align:
         {params.SAMTOOLS} sort -@ {threads} -@ {threads} -o {output.outfile}
         """
 
+
+
 rule hisat2_result:
     input:
         bam = outdir + "/{sample_id}.bam"

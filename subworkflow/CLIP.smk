@@ -82,7 +82,7 @@ if aligner == 'hisat2':
             }
         }
     module hisat2:
-        snakefile: "../modules/hisat2/TEtranscripts/hisat2.smk"
+        snakefile: "../modules/hisat2/hisat2.smk"
         config: hisat2_config
     logger.info(f"hisat2_config: {hisat2_config}")
     use rule hisat2_align from hisat2 as CLIP_hisat2_align
@@ -112,23 +112,24 @@ elif aligner == 'star':
 else:
     raise ValueError(f"Unsupported aligner: {aligner}")
 
-UmiTools_config = {
-        "indir": f"{outdir}/star" if aligner == 'star' else f"{outdir}/hisat2",
-        "outdir":  f"{outdir}/UmiTools",
+igv_config = {
+        "indir": hisat2_config["outdir"] if aligner == 'hisat2' else star_config["outdir"], 
+        "outdir":  f"{outdir}/igv",
         "logdir": logdir,
         "Procedure": {
-            "umi_tools": config.get('Procedure',{}).get('umi_tools')
+            "samtools": config.get('Procedure',{}).get('samtools'),
+            "deepTools": config.get('Procedure',{}).get('deepTools')
         }
     }
-module UmiTools:
-    snakefile: "../modules/UmiTools/UmiTools.smk"
-    config: UmiTools_config
-logger.info(f"UmiTools_config: {UmiTools_config}")
-use rule umi_tools_dedup_for_hisat2 from UmiTools as CLIP_umi_tools_dedup_for_hisat2
-use rule umi_tools_dedup_for_star from UmiTools as CLIP_umi_tools_dedup_for_star
+module igv:
+    snakefile: "../modules/igv/igv.smk"
+    config: igv_config
+logger.info(f"igv_config: {igv_config}")
+use rule dedup_star from igv as CLIP_dedup_star
+use rule dedup_hisat2 from igv as CLIP_dedup_hisat2
 
 PureCLIP_config = {
-        "indir": UmiTools_config["outdir"],
+        "indir": igv_config["outdir"] + "/dedup",
         "outdir":  f"{outdir}/PureCLIP",
         "logdir": logdir,
         "Procedure": {

@@ -4,3 +4,4 @@ channels:
   - conda-forge
 dependencies:
   - umi_tools=1.0.1
+  - openssl=1.0

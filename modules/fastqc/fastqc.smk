@@ -43,19 +43,23 @@ rule fastqc:
     input:
         get_fastqc_input
     output:
-        directory(outdir + "/{sample_id}"),
-        log = logdir + "/{sample_id}/fastqc." + log_suffix
+        outdir = directory(outdir + "/{sample_id}"),
+        flag = outdir + "/{sample_id}/fastqc." + log_suffix
     params:
         fastqc = config.get("Procedure", {}).get("fastqc") or "fastqc"
     threads: 2
+    log:
+        log = logdir + "/{sample_id}/fastqc." + log_suffix
     conda:
         "fastqc.yaml"
     shell:
         """
+        touch {output.flag}
         {params.fastqc} \
             --threads {threads} \
-            -o {output} \
+            -o {output.outdir} \
+            -t {threads} \
             {input} \
-            > {output.log} 2>&1
+            > {log.log} 2>&1
         """
 

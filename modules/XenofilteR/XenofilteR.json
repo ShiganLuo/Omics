@@ -1,0 +1,9 @@
+{
+    "indir": "output/raw_fastq",
+    "outdir": "output",
+    "logdir": "logs",
+    "Procedure": {
+        "Rscript": "/usr/bin/Rscript"
+    }
+
+}

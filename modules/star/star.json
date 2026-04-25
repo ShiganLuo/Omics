@@ -1,0 +1,14 @@
+{
+    "indir": "output/hisat2",
+    "outdir": "output",
+    "logdir": "logs",
+    "Procedure": {
+        "STAR": "path/to/STAR"
+    },
+    "genome": {
+        "fasta": "path/to/genome.fa",
+        "gtf": "path/to/annotation.gtf",
+        "star_index_dir": "path/to/star_index"
+    }
+
+}

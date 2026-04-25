@@ -1,0 +1,8 @@
+{
+    "Procedure": {
+        "neodisambiguate": "path/to/neodisambiguate"
+    },
+    "indir": "output/raw_fastq",
+    "outdir": "output",
+    "logdir": "logs"
+}

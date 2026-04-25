@@ -28,8 +28,8 @@ rule ngs_disambiguate:
         bamA_sortN = temp(outdir + "/{sample_id}/{sample_id}.bamA.sortN.bam"),
         bamB_sortN = temp(outdir + "/{sample_id}/{sample_id}.bamB.sortN.bam"),
         outdir = lambda wc: f"{outdir}/{wc.sample_id}",
-        aligner = config.get("bam", {}).get("aligner", "hisat2"),
-        ngs_disambiguate = config.get("Procedure", {}).get("ngs_disambiguate", "ngs_disambiguate"),
+        aligner = config.get("Params", {}).get("ngs_disambiguate", {}).get("aligner") or "hisat2",
+        ngs_disambiguate = config.get("Procedure", {}).get("ngs_disambiguate") or "ngs_disambiguate",
         samtools = config.get("Procedure", {}).get("samtools", "samtools")
     threads: 4
     conda:

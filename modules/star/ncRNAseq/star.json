@@ -1,0 +1,23 @@
+{
+  "indir": "output/fastqc",
+  "outdir": "output/star",
+  "logdir": "logs",
+  "Procedure": {
+    "aligner": "star",
+    "STAR": "/home/zhousha/tools/STAR-2.7.11b/bin/Linux_x86_64/STAR",
+    "featureCounts": "/home/zhousha/tools/subread-2.1.1-Linux-x86_64/bin/featureCounts",
+    "fastx_trimmer": "",
+    "cutadapt": "",
+    "hisat2": "/home/zhousha/tools/hisat2-2.2.1/hisat2",
+    "hisat2-build": "/home/zhousha/tools/hisat2-2.2.1/hisat2-build"
+  },
+  "genome": {
+    "fasta": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm38/GRCm38.primary_assembly.genome.fa",
+    "gtf": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm38/gencode.vM23.primary_assembly.annotation.gtf",
+    "star_index_dir": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm38/star_index",
+    "hisat2_index_prefx": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm38/hisat2_index_prefix",
+    "ncRNAseq_gff": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm38/mmu.gff3"
+  },
+  "paired_samples": ["sample1", "sample2"],
+  "single_samples": ["sample3", "sample4"]
+}

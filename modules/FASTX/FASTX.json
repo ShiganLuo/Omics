@@ -1,0 +1,15 @@
+{
+    "Procedure": {
+        "fastx_toolkit": "path/to/fastx_toolkit"
+    },
+    "Params": {
+        "fastx_toolkit": {
+            "q": 10,
+            "p": 100,
+            "Q": 33
+        }
+    },
+    "indir": "output/raw_fastq",
+    "outdir": "output",
+    "logdir": "logs"
+}

@@ -39,39 +39,17 @@ snakemake -s workflow/RNA-SNP/main.smk --config indir=data/fq outdir=output meta
 - 单端测序文件：非双端测序文件模式
 - 具体查看utils/fastq_utils.py
 
-## subworkflow详解
+## modules
 
-### Align
+见各模块下json文件
+问题：
+- 哪些字段可以为空（初步想法是，标注null的字段可以为空，不标注的不可以不传递）
+- 字段值约束如何做（初步想法是，增加字段名_comment作为字段约束，后续可以在流程内加约束条件）
+- 模块接口（初步想法是通过indir,outdir；拿indir举个例子，有内层结构就input/内层路径，无内层结构就input）
 
-1. **流程控制变量**
-- single_samples: 单端样本id列表
-- paired_samples: 双端样本id列表
-- single_sample_genome_pairs: 单端样本id，物种配对列表，如：[(SE_sample_id， organsim)……]
-- paired_sample_genome_pairs: 双端样本id，物种配对列表，如：[(SE_sample_id， organsim)……]
+## subworkflow
 
-### Annovar
-
-### SNP
-- XenofilterR_target_genome: 代表可能含有其它物种序列污染的样本列表，在示例流程中为用小鼠饲养层细胞培育的人类干细胞
-
-### StringTie
-
-### TEtranscripts
-
-1. **流程控制变量**
-
-- single_sample_genome_pairs: 单端样本id，物种配对列表，如：[(SE_sample_id， organsim)……]
-- paired_sample_genome_pairs: 双端样本id，物种配对列表，如：[(SE_sample_id， organsim)……]
-
-### XenofilterR
-
-1. **流程控制变量**
-- XenofilterR_target_samples: 代表可能含有其它物种序列污染的样本列表，在示例流程中为用小鼠饲养层细胞培育的人类干细胞
-- XenofilterR_target_genome: 代表目标物种，在示例流程中为人类
-- XenofilterR_pollution_source_genome: 代表污染来源基因组字符串，在示例流程中为小鼠
-
-解释：
-- 各subworkflow变量需要在run.smk中定义，各subworkflow同名变量是同一个变量，均来自run.smk
+无
 
 ## 参数详解
 
@@ -81,19 +59,15 @@ snakemake -s workflow/RNA-SNP/main.smk --config indir=data/fq outdir=output meta
   - `metadata=value`: 指定fastaq元信息，必须包含["Data_id","Sample_id","Organism"],详见utils/fastq_utils.py如何处理metadata
 
 
-## 待改进之处
-- 目前只支持一对污染物种运行，可以针对XenofilterR和SNP规则进行修改使其支持
-
 ## 设计规范
+
+规则尽量不硬编码路径，只接受indir, outdir和logdir，还有生成的wildcards
+规则应该尽可能少涉及与执行无关的信息
 
 1. 规则可复用，灵活性高
 2. 可指定分析终点
 3. 具备强大的元信息处理
 
-## 注意事项
-
-规则尽量不硬编码路径，只接受indir, outdir和logdir，还有生成的wildcards
-规则应该尽可能少涉及与执行无关的信息
 
 ## 待做
 - [x] 元信息控制CoCulture流程，记得完善json

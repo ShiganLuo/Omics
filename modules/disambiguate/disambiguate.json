@@ -1,0 +1,16 @@
+{
+  "indir": "output/raw_fastq",
+  "outdir": "output",
+  "logdir": "logs",
+  "Procedure": {
+    "ngs_disambiguate": "path/to/ngs_disambiguate",
+    "samtools": "path/to/samtools"
+  },
+  "Params": {
+    "ngs_disambiguate": {
+      "aligner": "hisat2",
+      "aligner_comment": "Tophat, Hisat2, STAR or BWA mem"
+    }
+  },
+  "genome_pairs": ["genome1", "genome2"]
+}

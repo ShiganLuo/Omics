@@ -1,0 +1,11 @@
+{
+  "indir": "output/star",
+  "outdir": "output/stringtie",
+  "logdir": "logs",
+  "Procedure": {
+    "stringtie": "path/to/stringtie"
+  },
+  "genome": {
+    "gtf": "path/to/annotation.gtf"
+  }
+}

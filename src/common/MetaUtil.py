@@ -233,16 +233,19 @@ class MetadataUtils:
                     logger.warning(f"{sample_id} have no fastqs, skip it")
                     continue
 
+
     def prepare_fastq_dir(
         self,
         fq_dir: Path,
         outdir: Path,
-        fq_pattern: str = r"\.f(ast)?q.gz",
-        fq_r1_pattern: str = r"(_R?1)[^0-9]*\.f(ast)?q",
-        fq_r2_pattern: str = r"(_R?2)[^0-9]*\.f(ast)?q"
+        fq_pattern: str = r"\.f(ast)?q.gz$"
     ) -> None:
         """
         自动检测 FASTQ，处理多 Lane 合并或单文件软连，并填充 self.samples_dict。
+        修复：
+        1. 单端测序文件 sample_id 不应带 _1/_2 后缀。
+        2. 单端文件命名为 {sample_id}.fq.gz，双端为 {sample_id}_1.fq.gz/{sample_id}_2.fq.gz。
+        3. 能正确识别单端和双端。
         """
         temp_files = defaultdict(lambda: {"fastq_1": [], "fastq_2": []})
 
@@ -254,48 +257,63 @@ class MetadataUtils:
                 logger.debug(f"Skipping non-FASTQ file: {fq_name}")
                 continue
 
-            sample_id = re.sub(r"(_R?1|_R?2).*", "", fq_name)
-            
-            if re.search(fq_r1_pattern, fq_name):
-                temp_files[sample_id]["fastq_1"].append(fq_file)
-            elif re.search(fq_r2_pattern, fq_name):
-                temp_files[sample_id]["fastq_2"].append(fq_file)
+            # 优先识别 _R1/_R2 或 _1/_2，sample_id 不带 lane/read后缀
+            m = re.match(r"(.+?)(?:_R?([12]))[^/]*\.f(ast)?q(?:\.gz)?$", fq_name)
+            if m:
+                sample_id, read_num = m.group(1), m.group(2)
+                if read_num == "1":
+                    temp_files[sample_id]["fastq_1"].append(fq_file)
+                elif read_num == "2":
+                    temp_files[sample_id]["fastq_2"].append(fq_file)
             else:
-                logger.warning(f"File {fq_name} did not match R1 or R2 patterns.")
+                # 单端：去掉扩展名
+                sample_id = re.sub(r"\.(f(ast)?q)(\.gz)?$", "", fq_name)
+                temp_files[sample_id]["fastq_1"].append(fq_file)
+                logger.warning(f"File {fq_name} did not match R1 or R2 patterns, treat as SE: sample_id={sample_id}")
 
         raw_fq_dir = outdir / "raw_fastq"
         raw_fq_dir.mkdir(parents=True, exist_ok=True)
 
         for sample_id, reads in temp_files.items():
-
             sample_info = self.samples_dict[sample_id]
             sample_info.sample_id = sample_id
-            
-            for r_key in ["fastq_1", "fastq_2"]:
-                files = sorted(reads[r_key])
-                if not files:
-                    continue
-                
-                r_idx = "1" if r_key == "fastq_1" else "2"
-                target_path = raw_fq_dir / f"{sample_id}_{r_idx}.fq.gz"
 
-                if len(files) > 1:
-                    logger.info(f"[{sample_id}] Merging {len(files)} files into {target_path.name}")
-                    self._merge_files(files, target_path)
+            files_r1 = sorted(reads["fastq_1"])
+            files_r2 = sorted(reads["fastq_2"])
+
+            if files_r1 and files_r2:
+                # PE
+                target_r1 = raw_fq_dir / f"{sample_id}_1.fq.gz"
+                target_r2 = raw_fq_dir / f"{sample_id}_2.fq.gz"
+                if len(files_r1) > 1:
+                    logger.info(f"[{sample_id}] Merging {len(files_r1)} R1 files into {target_r1.name}")
+                    self._merge_files(files_r1, target_r1)
                 else:
-                    logger.info(f"[{sample_id}] Creating symlink for {target_path.name}")
-                    self._link_file(files[0],target_path)
-
-                if r_key == "fastq_1":
-                    sample_info.fastq_1 = target_path
+                    logger.info(f"[{sample_id}] Creating symlink for {target_r1.name}")
+                    self._link_file(files_r1[0], target_r1)
+                if len(files_r2) > 1:
+                    logger.info(f"[{sample_id}] Merging {len(files_r2)} R2 files into {target_r2.name}")
+                    self._merge_files(files_r2, target_r2)
                 else:
-                    sample_info.fastq_2 = target_path
-
-            # 判定 Layout
-            if sample_info.fastq_1 and sample_info.fastq_2:
+                    logger.info(f"[{sample_id}] Creating symlink for {target_r2.name}")
+                    self._link_file(files_r2[0], target_r2)
+                sample_info.fastq_1 = target_r1
+                sample_info.fastq_2 = target_r2
                 sample_info.layout = Layout.PE
-            elif sample_info.fastq_1:
+            elif files_r1:
+                # SE
+                target_se = raw_fq_dir / f"{sample_id}.fq.gz"
+                if len(files_r1) > 1:
+                    logger.info(f"[{sample_id}] Merging {len(files_r1)} SE files into {target_se.name}")
+                    self._merge_files(files_r1, target_se)
+                else:
+                    logger.info(f"[{sample_id}] Creating symlink for {target_se.name}")
+                    self._link_file(files_r1[0], target_se)
+                sample_info.fastq_1 = target_se
                 sample_info.layout = Layout.SE
+            else:
+                logger.warning(f"Sample {sample_id} has no FASTQ files, skipping.")
+                continue
 
             logger.info(f"Sample {sample_id} layout inferred as: {sample_info.layout}")
 

@@ -72,7 +72,7 @@ snakemake -s workflow/RNA-SNP/main.smk --config indir=data/fq outdir=output meta
 
 ## 待做
 - [x] 元信息控制CoCulture流程，记得完善json
-- [ ] RNAseq流程重写
+- [x] RNAseq流程重写
 - [ ] 多模块并行，（指定.snakemake生成与不同位置，或者拼接规则）
 
 ## 下游分析

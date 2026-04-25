@@ -6,7 +6,7 @@ logdir = config.get("logdir","logs")
 outfiles = config.get("outfiles", [])
 paired_samples = config.get("paired_samples", [])
 single_samples = config.get("single_samples", [])
-
+aligner = config.get('aligner', 'star')
 
 rule all:
     input:

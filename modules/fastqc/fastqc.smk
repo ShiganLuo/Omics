@@ -54,12 +54,12 @@ rule fastqc:
         "fastqc.yaml"
     shell:
         """
-        touch {output.flag}
         {params.fastqc} \
             --threads {threads} \
             -o {output.outdir} \
             -t {threads} \
             {input} \
             > {log.log} 2>&1
+        touch {output.flag}
         """
 

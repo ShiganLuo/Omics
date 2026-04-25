@@ -86,7 +86,7 @@ def runCoCulture(
             outfiles.append(f"{outdir}/TEtranscripts/TEcount/GRCh38/all_TEcount.tsv")
         else:
             logger.error(f"Unknown layout type for sample {sample_id}: {sample_info.layout}")
-
+    outfiles.append(f"{outdir}/disambiguate/disambiguate_qc.tsv")
     datajson["outfiles"] = outfiles
     datajson["paired_samples"] = paired_samples
     datajson["single_samples"] = single_samples
@@ -228,6 +228,7 @@ def runCLIP(
                 outfiles.append(f"{outdir}/hisat2/{sample_id}.bam")
             outfiles.append(f"{outdir}/fastqc/raw/{sample_id}/fastqc.raw.txt")
             outfiles.append(f"{outdir}/fastqc/trimmed/{sample_id}/fastqc.trimmed.txt")
+            outfiles.append(f"{outdir}/PureCLIP/{sample_id}.pureclip.sites.bed")
             # outfiles.append(f"{outdir}/igv/{sample_id}.bigwig")
         elif sample_info.layout == "SE":
             single_samples.append(sample_id)
@@ -239,6 +240,7 @@ def runCLIP(
             # outfiles.append(f"{outdir}/igv/{sample_id}.bigwig")
             outfiles.append(f"{outdir}/fastqc/raw/{sample_id}/fastqc.raw.txt")
             outfiles.append(f"{outdir}/fastqc/trimmed/{sample_id}/fastqc.trimmed.txt")
+            outfiles.append(f"{outdir}/PureCLIP/{sample_id}.pureclip.sites.bed")
         else:
             logger.error(f"Unknown layout type for sample {sample_id}: {sample_info.layout}")
     datajson["outfiles"] = outfiles

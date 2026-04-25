@@ -37,7 +37,7 @@ cutadapt_config = {
         },
         "Params": {
             "trim_galore": {
-                "quality": config.get('Params',{}).get("trim_galore", {}).get('quality') or 25
+                "quality": config.get('Params',{}).get("trim_galore", {}).get('quality')
             }
         }
     }
@@ -112,6 +112,37 @@ elif aligner == 'star':
 else:
     raise ValueError(f"Unsupported aligner: {aligner}")
 
+UmiTools_config = {
+        "indir": f"{outdir}/star" if aligner == 'star' else f"{outdir}/hisat2",
+        "outdir":  f"{outdir}/UmiTools",
+        "logdir": logdir,
+        "Procedure": {
+            "umi_tools": config.get('Procedure',{}).get('umi_tools')
+        }
+    }
+module UmiTools:
+    snakefile: "../modules/UmiTools/UmiTools.smk"
+    config: UmiTools_config
+logger.info(f"UmiTools_config: {UmiTools_config}")
+use rule umi_tools_dedup_for_hisat2 from UmiTools as CLIP_umi_tools_dedup_for_hisat2
+use rule umi_tools_dedup_for_star from UmiTools as CLIP_umi_tools_dedup_for_star
+
+PureCLIP_config = {
+        "indir": UmiTools_config["outdir"],
+        "outdir":  f"{outdir}/PureCLIP",
+        "logdir": logdir,
+        "Procedure": {
+            "PureCLIP": config.get('Procedure',{}).get('PureCLIP')
+        },
+        "genome": {
+            "fasta": config.get('genome',{}).get('fasta')
+        }
+    }
+module PureCLIP:
+    snakefile: "../modules/PureCLIP/PureCLIP.smk"
+    config: PureCLIP_config
+logger.info(f"PureCLIP_config: {PureCLIP_config}")
+use rule pureclip from PureCLIP as CLIP_pureclip
 # igv_config = {
 #         "indir": hisat2_config["outdir"],
 #         "outdir":  f"{outdir}/igv",

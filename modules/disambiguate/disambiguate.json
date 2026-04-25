@@ -2,6 +2,9 @@
   "indir": "output/raw_fastq",
   "outdir": "output",
   "logdir": "logs",
+  "ROOT_DIR": ".",
+  "paired_samples": ["sample1", "sample2"],
+  "single_samples": ["sample3", "sample4"],
   "Procedure": {
     "ngs_disambiguate": "path/to/ngs_disambiguate",
     "samtools": "path/to/samtools"

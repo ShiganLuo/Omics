@@ -3,6 +3,9 @@ from snakemake.logging import logger
 indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
+ROOT_DIR = config.get("ROOT_DIR", ".")
+paired_samples =  config.get("paired_samples", [])
+single_samples = config.get("single_samples", [])
 genome_pairs: List[str] = config.get("genome_pairs", [])
 genomeA, genomeB = genome_pairs
 
@@ -23,7 +26,7 @@ rule ngs_disambiguate:
         raw_bamB = temp(outdir + "/{sample_id}/{sample_id}.disambiguatedSpeciesB.bam"),
         raw_ambiguousA = temp(outdir + "/{sample_id}/{sample_id}.ambiguousSpeciesA.bam"),
         raw_ambiguousB = temp(outdir + "/{sample_id}/{sample_id}.ambiguousSpeciesB.bam"),
-        summary = outdir + "/{sample_id}/{sample_id}_summary.txt"
+        summary = outdir + "/{sample_id}/{sample_id}_summary.tsv"
     params:
         bamA_sortN = temp(outdir + "/{sample_id}/{sample_id}.bamA.sortN.bam"),
         bamB_sortN = temp(outdir + "/{sample_id}/{sample_id}.bamB.sortN.bam"),
@@ -53,7 +56,7 @@ rule ngs_disambiguate:
 
 rule disambiguate_sort_rename:
     input:
-        summary = outdir + "/{sample_id}/{sample_id}_summary.txt",
+        summary = outdir + "/{sample_id}/{sample_id}_summary.tsv",
         raw_bamA = outdir + "/{sample_id}/{sample_id}.disambiguatedSpeciesA.bam",
         raw_bamB = outdir + "/{sample_id}/{sample_id}.disambiguatedSpeciesB.bam",
         raw_ambiguousA = outdir + "/{sample_id}/{sample_id}.ambiguousSpeciesA.bam",
@@ -62,7 +65,8 @@ rule disambiguate_sort_rename:
         clean_bamA = outdir + "/{sample_id}/{sample_id}" + f".disambiguatedSpecies_{genome_pairs[0]}.bam",
         clean_bamB = outdir + "/{sample_id}/{sample_id}" + f".disambiguatedSpecies_{genome_pairs[1]}.bam",
         ambiguous_bamA = outdir + "/{sample_id}/{sample_id}" + f".ambiguousSpecies_{genome_pairs[0]}.bam",
-        ambiguous_bamB = outdir + "/{sample_id}/{sample_id}" + f".ambiguousSpecies_{genome_pairs[1]}.bam"
+        ambiguous_bamB = outdir + "/{sample_id}/{sample_id}" + f".ambiguousSpecies_{genome_pairs[1]}.bam",
+        clean_summary = outdir + "/{sample_id}/{sample_id}_summary_renamed.tsv"
     params:
         samtools = config.get("Procedure", {}).get("samtools", "samtools"),
         speciesA = genome_pairs[0],
@@ -74,8 +78,8 @@ rule disambiguate_sort_rename:
         logdir + "/{sample_id}/sort_rename.log"
     shell:
         """
-        sed -i '1s/unique species A pairs/unique species {params.speciesA} pairs/; \
-            1s/unique species B pairs/unique species {params.speciesB} pairs/' {input.summary}
+        sed '1s/unique species A pairs/unique species {params.speciesA} pairs/; \
+            1s/unique species B pairs/unique species {params.speciesB} pairs/' {input.summary} > {output.clean_summary}
         {params.samtools} sort -@ {threads} -o {output.clean_bamA} {input.raw_bamA}
         {params.samtools} sort -@ {threads} -o {output.clean_bamB} {input.raw_bamB}
 
@@ -84,6 +88,26 @@ rule disambiguate_sort_rename:
 
         {params.samtools} index {output.clean_bamA}
         {params.samtools} index {output.clean_bamB}
+        rm -f {input.summary}
+        """
+
+rule disambiguate_report:
+    input:
+        reports = expand(indir + "/disambiguate/{sample_id}/{sample_id}_summary_renamed.tsv", sample_id=paired_samples + single_samples)
+    output:
+        report = outdir + "/disambiguate_qc.tsv"
+    conda:
+        "CoCulture_Report.yaml"
+    params:
+        combine_script = ROOT_DIR + "/modules/disambiguate/combineDisambiguateQC.py"
+    log:
+        logdir + "/disambiguate_report.log"
+    shell:
+        """
+        python {params.combine_script} \
+            -i {input.reports} \
+            -o {output.report} \
+            >> {log} 2>&1
         """
 rule ngs_disambiguate_result:
     input:

@@ -76,6 +76,7 @@ snakemake -s workflow/RNA-SNP/main.smk --config indir=data/fq outdir=output meta
 2. 可指定分析终点
 3. 具备强大的元信息处理
 4. 尽量在流程开始前规范化输入信息，流程本身不承担规范责任
+5. 对于目录输出，尽量在output指定flag并在shell中创建，以便于流程串联
 
 
 ## 待做

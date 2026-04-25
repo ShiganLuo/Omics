@@ -226,8 +226,8 @@ def runCLIP(
                 outfiles.append(f"{outdir}/star/{sample_id}/{sample_id}.bam")
             elif datajson["aligner"] == "hisat2":
                 outfiles.append(f"{outdir}/hisat2/{sample_id}.bam")
-            outfiles.append(f"{logdir}/{sample_id}/fastqc.raw.txt")
-            outfiles.append(f"{logdir}/{sample_id}/fastqc.trimmed.txt")
+            outfiles.append(f"{outdir}/fastqc/raw/{sample_id}/fastqc.raw.txt")
+            outfiles.append(f"{outdir}/fastqc/trimmed/{sample_id}/fastqc.trimmed.txt")
             # outfiles.append(f"{outdir}/igv/{sample_id}.bigwig")
         elif sample_info.layout == "SE":
             single_samples.append(sample_id)
@@ -237,8 +237,8 @@ def runCLIP(
             elif datajson["aligner"] == "hisat2":
                 outfiles.append(f"{outdir}/hisat2/{sample_id}.bam")
             # outfiles.append(f"{outdir}/igv/{sample_id}.bigwig")
-            outfiles.append(f"{logdir}/{sample_id}/fastqc.raw.txt")
-            outfiles.append(f"{logdir}/{sample_id}/fastqc.trimmed.txt")
+            outfiles.append(f"{outdir}/fastqc/raw/{sample_id}/fastqc.raw.txt")
+            outfiles.append(f"{outdir}/fastqc/trimmed/{sample_id}/fastqc.trimmed.txt")
         else:
             logger.error(f"Unknown layout type for sample {sample_id}: {sample_info.layout}")
     datajson["outfiles"] = outfiles

@@ -1,3 +1,11 @@
+from snakemake.logging import logger
+import os
+indir = config.get("indir", "output/cutadapt")
+outdir = config.get("outdir", "output/star")
+logdir = config.get("logdir", "log")
+paired_samples = config.get("paired_samples", [])
+single_samples = config.get("single_samples", [])
+# need test
 rule star_index_ncRNAseq:
     input:
         fasta = lambda wildcards: config['genome'][wildcards.genome]['fasta'],

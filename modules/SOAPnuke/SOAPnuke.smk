@@ -45,7 +45,7 @@ rule soapnuke_filter_paired:
 
 rule soapnuke_filter_single:
     input:
-        fastq = indir + "/{sample_id}.fq.gz"
+        fastq = indir + "/{sample_id}.single.fq.gz"
     output:
         clean_fastq = outdir + "/{sample_id}.single.fq.gz"
     log:

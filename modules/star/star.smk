@@ -35,7 +35,7 @@ rule star_index:
         """
 def get_star_index(wildcards):
     logger.info(f"[get_star_index] called with wildcards: {wildcards}")
-    star_index_dir = config.get('genome',{}).get(wildcards.genome,{}).get('star_index_dir') or None
+    star_index_dir = config.get('genome',{}).get('index_dir') or None
     if star_index_dir:
         logger.info(f"[get_star_index] using provided star_index_dir: {star_index_dir}")
         first_file = os.path.join(star_index_dir, "Genome")
@@ -80,7 +80,7 @@ rule star_align:
         fastq = get_alignment_input,
         genome_index = get_star_index
     output:
-        outfile = outdir + "/{sample_id}.bam"
+        outfile = outdir + "/{sample_id}/{sample_id}.bam"
     log:
         logdir + "/{sample_id}/star_align.log"
     threads: 12
@@ -107,4 +107,4 @@ rule star_align:
 
 rule star_result:
     input:
-        star_align = outdir + "/{sample_id}.bam"
+        star_align = outdir + "/{sample_id}/{sample_id}.bam"

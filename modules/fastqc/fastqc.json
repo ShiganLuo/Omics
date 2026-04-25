@@ -3,6 +3,8 @@
     "outdir": "output",
     "logdir": "logs",
     "log_suffix": "txt",
+    "paired_samples": ["sample1", "sample2"],
+    "single_samples": ["sample3", "sample4"],
     "Procedure": {
         "fastqc": null
     }

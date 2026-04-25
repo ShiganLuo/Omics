@@ -13,9 +13,11 @@ rule all:
         outfiles
 fastqc_raw_config = {
         "indir": indir,
-        "outdir":  f"{outdir}/fastqc/untrimmed",
+        "outdir":  f"{outdir}/fastqc/raw",
         "logdir": logdir,
-        "log_suffix": "_raw.txt",
+        "log_suffix": "raw.txt",
+        "paired_samples": paired_samples,
+        "single_samples": single_samples,
         "Procedure": {
             "fastqc": config.get("Procedure", {}).get("fastqc") or "fastqc"
         }
@@ -50,7 +52,9 @@ fastqc_trimmed_config = {
         "indir": cutadapt_config["outdir"],
         "outdir":  f"{outdir}/fastqc/trimmed",
         "logdir": logdir,
-        "log_suffix": "_trimmed.txt",
+        "paired_samples": paired_samples,
+        "single_samples": single_samples,
+        "log_suffix": "trimmed.txt",
         "Procedure": {
             "fastqc": config.get("Procedure", {}).get("fastqc")
         }
@@ -100,7 +104,7 @@ elif aligner == 'star':
             }
         }
     module star:
-        snakefile: "../modules/star/TEtranscripts/star.smk"
+        snakefile: "../modules/star/star.smk"
         config: star_config
     logger.info(f"star_config: {star_config}")
     use rule star_align from star as CLIP_star_align

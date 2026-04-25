@@ -33,7 +33,7 @@ rule trimming_Paired:
 
 rule trimming_Single:
     input:
-        fastq = indir + "/{sample_id}.fq.gz"
+        fastq = indir + "/{sample_id}.single.fq.gz"
     output:
         fastq = temp(outdir + "/{sample_id}.single.fq.gz"),
         report = logdir + "/{sample_id}/trimming_statistics.txt"
@@ -51,7 +51,7 @@ rule trimming_Single:
         {params.trim_galore} --phred33  --cores {threads} --quality {params.quality} \
             -o {params.outdir} --basename {wildcards.sample_id} {input.fastq} > {log.log} 2>&1
         mv {params.outdir}/{wildcards.sample_id}_trimmed.fq.gz {output.fastq}
-        mv {params.outdir}/{wildcards.sample_id}.fq.gz_trimming_report.txt {output.report}
+        mv {params.outdir}/{wildcards.sample_id}.single.fq.gz_trimming_report.txt {output.report}
         """
 
 
@@ -64,5 +64,5 @@ rule triming_paired_reslut:
 
 rule triming_single_result:
     input:
-        fastq = outdir + "/{sample_id}.fq.gz",
+        fastq = outdir + "/{sample_id}.single.fq.gz",
         report = logdir + "/{sample_id}/trimming_statistics.txt"

@@ -200,7 +200,7 @@ class MetadataUtils:
                 elif pd.notna(origin_r1):
                     logger.info(f"Detect {data_ids[0]} is Single End")
                     self.samples_dict[sample_id].layout = Layout.SE
-                    rename_r1 = raw_fq_dir / f"{sample_id}.fq.gz"
+                    rename_r1 = raw_fq_dir / f"{sample_id}.single.fq.gz"
                     self._link_file(origin_r1,rename_r1)
                     self.samples_dict[sample_id].fastq_1 = rename_r1
                 else:
@@ -226,7 +226,7 @@ class MetadataUtils:
                 elif len(origin_r1_list_path) > 0:
                     logger.info(f"Detect the fastq of {sample_id} is Single END")
                     self.samples_dict[sample_id].layout = Layout.SE
-                    merge_rename_r1 = raw_fq_dir / f"{sample_id}.fq.gz"
+                    merge_rename_r1 = raw_fq_dir / f"{sample_id}.single.fq.gz"
                     self._merge_files(origin_r1_list_path, merge_rename_r1)
                     self.samples_dict[sample_id].fastq_1 = merge_rename_r1
                 else:
@@ -302,7 +302,7 @@ class MetadataUtils:
                 sample_info.layout = Layout.PE
             elif files_r1:
                 # SE
-                target_se = raw_fq_dir / f"{sample_id}.fq.gz"
+                target_se = raw_fq_dir / f"{sample_id}.single.fq.gz"
                 if len(files_r1) > 1:
                     logger.info(f"[{sample_id}] Merging {len(files_r1)} SE files into {target_se.name}")
                     self._merge_files(files_r1, target_se)

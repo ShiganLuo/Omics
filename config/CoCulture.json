@@ -37,5 +37,10 @@
           "TElocal": null,
           "ngs_disambiguate":null,
           "SOAPnuke": null
-     }
+     },
+    "Params": {
+        "trim_galore": {
+            "quality": 25
+        }
+    }
 } 

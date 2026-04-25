@@ -46,6 +46,7 @@ snakemake -s workflow/RNA-SNP/main.smk --config indir=data/fq outdir=output meta
 - 哪些字段可以为空（初步想法是，标注null的字段可以为空，不标注的不可以不传递）
 - 字段值约束如何做（初步想法是，增加字段名_comment作为字段约束，后续可以在流程内加约束条件）
 - 模块接口（初步想法是通过indir,outdir；拿indir举个例子，有内层结构就input/内层路径，无内层结构就input）
+- 是否需要给文件输入输出加后缀，还是同样的文件格式都是sample_id为文件名
 
 ## subworkflow
 

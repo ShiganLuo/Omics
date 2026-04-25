@@ -7,6 +7,7 @@ logger = logging.getLogger("Annovar")
 logger.info(f"Include Annovar config: {AnnovarYaml}")
 logger.info(f"main snakefile directory: {SNAKEFILE_DIR}")
 
+# need test
 rule TEcoutCPM:
     input:
        infile = outdir + "/counts/humanTEcount.cntTable"

@@ -78,6 +78,7 @@ TEtranscripts_config = {
         "logdir": logdir,
         "single_samples": single_samples,
         "paired_samples": paired_samples,
+        "ROOT_DIR": ROOT_DIR,
         "Procedure": {
             "TEcount": config.get('Procedure',{}).get('TEcount') or 'TEcount',
             "TElocal": config.get('Procedure',{}).get('TElocal') or 'TElocal'
@@ -99,10 +100,11 @@ DESeq2_config = {
         "indir": TEtranscripts_config["outdir"],
         "outdir":  f"{outdir}/DESeq2",
         "logdir": logdir,
+        "ROOT_DIR": ROOT_DIR,
         "control_samples": config.get("control_samples", []),
         "control_group_name": config.get("control_group_name", "control"),
         "treatment_samples": config.get("treatment_samples", []),
-        "treatment_group_name": config.get("treatment_group_name", "treatment"),
+        "experimental_group_name": config.get("experimental_group_name", "treatment"),
         "genome": {
             "geneIDAnno": config.get('genome',{}).get('geneIDAnno')
         },

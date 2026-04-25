@@ -11,71 +11,116 @@ single_samples = config.get("single_samples", [])
 rule all:
     input:
         outfiles
+fastqc_raw_config = {
+        "indir": indir,
+        "outdir":  f"{outdir}/fastqc/untrimmed",
+        "logdir": logdir,
+        "log_suffix": "_raw.txt",
+        "Procedure": {
+            "fastqc": config.get("Procedure", {}).get("fastqc") or "fastqc"
+        }
+    }
+module fastqc_raw:
+    snakefile: "../modules/fastqc/fastqc.smk"
+    config: fastqc_raw_config
+logger.info(f"fastqc_raw_config: {fastqc_raw_config}")
+use rule fastqc from fastqc_raw as CLIP_fastqc
+
 cutadapt_config = {
         "indir": indir,
         "outdir":  f"{outdir}/cutadapt",
         "logdir": logdir,
         "Procedure": {
             "trim_galore": config.get('Procedure',{}).get('trim_galore')
+        },
+        "Params": {
+            "trim_galore": {
+                "quality": config.get('Params',{}).get("trim_galore", {}).get('quality') or 25
+            }
         }
     }
 module cutadapt:
     snakefile: "../modules/cutadapt/cutadapt.smk"
     config: cutadapt_config
 logger.info(f"cutadapt_config: {cutadapt_config}")
-use rule trimming_Paired from cutadapt as MERIP_trimming_Paired
+use rule trimming_Paired from cutadapt as CLIP_trimming_Paired
+use rule trimming_Single from cutadapt as CLIP_trimming_Single
 
-hisat2_config = {
+fastqc_trimmed_config = {
         "indir": cutadapt_config["outdir"],
-        "outdir":  f"{outdir}/hisat2",
+        "outdir":  f"{outdir}/fastqc/trimmed",
         "logdir": logdir,
-        "paired_samples": paired_samples,
-        "single_samples": single_samples,
+        "log_suffix": "_trimmed.txt",
         "Procedure": {
-            "hisat2": config.get('Procedure',{}).get('hisat2')
-        },
-        "genome": {
-            "fasta": config.get('genome',{}).get('fasta'),
-            "index_prefix": config.get('genome',{}).get('hisat2_index_prefix'),
+            "fastqc": config.get("Procedure", {}).get("fastqc")
         }
     }
-module hisat2:
-    snakefile: "../modules/hisat2/hisat2.smk"
-    config: hisat2_config
-logger.info(f"hisat2_config: {hisat2_config}")
+module fastqc_trimmed:
+    snakefile: "../modules/fastqc/fastqc.smk"
+    config: fastqc_trimmed_config
+logger.info(f"fastqc_trimmed_config: {fastqc_trimmed_config}")
+use rule fastqc from fastqc_trimmed as CLIP_fastqc_trimmed
 
-use rule hisat2_align from hisat2 as MERIP_hisat2_align
-use rule hisat2_index from hisat2 as MERIP_hisat2_index
 
-igv_config = {
-        "indir": hisat2_config["outdir"],
-        "outdir":  f"{outdir}/igv",
-        "logdir": logdir,
-        "Procedure": {
-            "samtools": config.get('Procedure',{}).get('samtools'),
-            "deepTools": config.get('Procedure',{}).get('deepTools')
+if aligner == 'hisat2':
+    hisat2_config = {
+            "indir": cutadapt_config["outdir"],
+            "outdir":  f"{outdir}/hisat2",
+            "logdir": logdir,
+            "paired_samples": paired_samples,
+            "single_samples": single_samples,
+            "Procedure": {
+                "hisat2": config.get('Procedure',{}).get('hisat2')
+            },
+            "genome": {
+                "fasta": config.get('genome',{}).get('fasta'),
+                "index_dir": config.get('genome',{}).get('hisat2_index_dir')
+            }
         }
-    }
-module igv:
-    snakefile: "../modules/igv/igv.smk"
-    config: igv_config
-logger.info(f"igv_config: {igv_config}")
-use rule dedup from igv as MERIP_dedup
-use rule wig from igv as MERIP_wig
+    module hisat2:
+        snakefile: "../modules/hisat2/TEtranscripts/hisat2.smk"
+        config: hisat2_config
+    logger.info(f"hisat2_config: {hisat2_config}")
+    use rule hisat2_align from hisat2 as CLIP_hisat2_align
+    use rule hisat2_index from hisat2 as CLIP_hisat2_index
+elif aligner == 'star':
+    star_config = {
+            "indir": cutadapt_config["outdir"],
+            "outdir":  f"{outdir}/star",
+            "logdir": logdir,
+            "paired_samples": paired_samples,
+            "single_samples": single_samples,
+            "Procedure": {
+                "star": config.get('Procedure',{}).get('star')
+            },
+            "genome": {
+                "fasta": config.get('genome',{}).get('fasta'),
+                "gtf": config.get('genome',{}).get('gtf'),
+                "index_dir": config.get('genome',{}).get('star_index_dir')
+            }
+        }
+    module star:
+        snakefile: "../modules/star/TEtranscripts/star.smk"
+        config: star_config
+    logger.info(f"star_config: {star_config}")
+    use rule star_align from star as CLIP_star_align
+    use rule star_index from star as CLIP_star_index
+else:
+    raise ValueError(f"Unsupported aligner: {aligner}")
 
-exomePeak_config = {
-        "indir": igv_config["outdir"] + "/dedup",
-        "outdir": f"{outdir}/exomePeak",
-        "logdir": logdir,
-        "gtf": config.get("genome",{}).get("gtf"),
-        "ip_samples": ip_samples,
-        "input_samples": input_samples,
-        "treated_ip_samples": treated_ip_samples,
-        "treated_input_samples": treated_input_samples,
-    }
-module exomePeak:
-    snakefile: "../modules/exomePeak/exomePeak.smk"
-    config: exomePeak_config
-logger.info(f"exomePeak_config: {exomePeak_config}")
-use rule diff_exomePeak from exomePeak as MERIP_diff_exomePeak
-use rule call_exomePeak from exomePeak as MERIP_call_exomePeak
+# igv_config = {
+#         "indir": hisat2_config["outdir"],
+#         "outdir":  f"{outdir}/igv",
+#         "logdir": logdir,
+#         "Procedure": {
+#             "samtools": config.get('Procedure',{}).get('samtools'),
+#             "deepTools": config.get('Procedure',{}).get('deepTools')
+#         }
+#     }
+# module igv:
+#     snakefile: "../modules/igv/igv.smk"
+#     config: igv_config
+# logger.info(f"igv_config: {igv_config}")
+# use rule dedup from igv as CLIP_dedup
+# use rule wig from igv as CLIP_wig
+

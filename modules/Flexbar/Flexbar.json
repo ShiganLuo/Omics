@@ -1,0 +1,15 @@
+{
+    "Procedure": {
+        "flexbar": null
+    },
+    "Params": {
+        "flexbar": {
+            "barcode_file": "barcodes.fasta",
+            "barcode_min_overlap": 1,
+            "barcode_allow_mismatch": 0
+        }
+    },
+    "indir": "output/raw_fastq",
+    "outdir": "output",
+    "logdir": "logs"
+}

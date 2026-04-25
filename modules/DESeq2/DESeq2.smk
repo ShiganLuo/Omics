@@ -14,8 +14,8 @@ rule DESeq2_TEcount:
     output:
         deseq2_results = directory(outdir + "/TEcount")
     params:
-        DESeq2_script = ROOT_DIR + "/DESeq2/bin/DESeq2.r",
-        write_group_script = ROOT_DIR + "/DESeq2/bin/write_group_tsv.py",
+        DESeq2_script = ROOT_DIR + "/modules/DESeq2/bin/DESeq2.r",
+        write_group_script = ROOT_DIR + "/modules/DESeq2/bin/write_group_tsv.py",
         control_group_name = control_group_name,
         experimental_group_name = experimental_group_name,
         control_samples = ','.join(control_samples),
@@ -33,7 +33,7 @@ rule DESeq2_TEcount:
             -c {params.control_samples} \
             -t {params.treatment_samples} \
             -p {params.control_group_name} \
-            -e {params.experimental_group_name}
+            -e {params.experimental_group_name} > {log} 2>&1
         Rscript {params.DESeq2_script} \
             -m TEcount \
             -i {input.count_matrix} \
@@ -42,5 +42,5 @@ rule DESeq2_TEcount:
             -f heatmap volcano pca \
             -o {params.outdir}/TEcount \
             -a {params.geneIDAnno} \
-            -Tcm all > {log} 2>&1
+            -Tcm all >> {log} 2>&1
         """

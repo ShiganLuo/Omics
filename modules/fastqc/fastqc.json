@@ -2,7 +2,8 @@
     "indir": "input",
     "outdir": "output",
     "logdir": "logs",
+    "log_suffix": "txt",
     "Procedure": {
-        "fastqc": "path/to/fastqc"
+        "fastqc": null
     }
 }

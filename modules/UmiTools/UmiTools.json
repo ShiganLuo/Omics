@@ -1,0 +1,13 @@
+{
+    "Procedure": {
+        "umi_tools": "path/to/umi_tools"
+    },
+    "Params": {
+        "umi_tools": {
+            "method": "unique"
+        }
+    },
+    "indir": "output",
+    "outdir": "output",
+    "logdir": "logs"
+}

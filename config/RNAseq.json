@@ -26,5 +26,10 @@
         "TEind": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.gtf.locInd",
         "hisat2_index_prefix": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/hisat2/genome",
         "star_index_dir": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/star"
+    },
+    "Params": {
+        "trim_galore": {
+            "quality": 25
+        }
     }
 }

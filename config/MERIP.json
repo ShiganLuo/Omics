@@ -22,5 +22,10 @@
           "star_index_dir": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/star",
           "samtools": null,
           "deepTools": null
-     }
+     },
+    "Params": {
+        "trim_galore": {
+            "quality": 25
+        }
+    }
 } 

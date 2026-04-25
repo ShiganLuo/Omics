@@ -1,0 +1,14 @@
+{
+    "Procedure": {
+        "pureclip": "path/to/pureclip"
+    },
+    "Params": {
+        "pureclip": {
+            "ld": true,
+            "nt": 8
+        }
+    },
+    "indir": "output",
+    "outdir": "output",
+    "logdir": "logs"
+}

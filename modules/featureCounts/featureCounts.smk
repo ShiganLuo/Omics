@@ -6,7 +6,7 @@ configfile: countYaml
 logger = logging.getLogger("Count")
 logger.info(f"Include Count config: {countYaml}")
 
-
+# need test
 def get_bams_for_featureCounts_single(wildcards):
     logger.info(f"[get_bams_for_featureCounts_single] called with wildcards: {wildcards}")
     bams = []

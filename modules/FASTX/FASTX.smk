@@ -3,12 +3,12 @@ outdir = config.get("outdir", "output")
 indir = config.get("indir", "output/raw_fastq")
 logdir = config.get("logdir", "log")
 
-rule fastx_quality_filter:
+# not test
+rule fastx_quality_filter_single:
     input:
         fastq = indir + "/{sample_id}.fq.gz"
     output:
-        fastq = temp(outdir + "/{sample_id}.filtered.fq.gz"),
-        report = logdir + "/{sample_id}/fastx_statistics.txt"
+        fastq = temp(outdir + "/{sample_id}.fq.gz"),
     params:
         fastx_toolkit = config.get('Procedure',{}).get('fastx_toolkit') or 'fastq_quality_filter',
         q = config.get('Params',{}).get("fastx_toolkit", {}).get('q') or 10,
@@ -19,11 +19,9 @@ rule fastx_quality_filter:
     conda:
         "FASTX.yaml"
     log:
-        log = logdir + "/{sample_id}/fastx.txt"
+        logdir + "/{sample_id}/fastx.txt"
     shell:
         """
-        mkdir -p {params.outdir}
         {params.fastx_toolkit} -Q {params.Q} -q {params.q} -p {params.p} \
-            -i {input.fastq} -o {output.fastq} > {log.log} 2>&1
-        echo "fastx_toolkit finished for {wildcards.sample_id}" > {output.report}
+            -i {input.fastq} -o {output.fastq} > {log} 2>&1
         """

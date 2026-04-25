@@ -13,7 +13,7 @@ rule trimming_Paired:
         report2 = logdir + "/{sample_id}/trimming_statistics_2.txt"
     params:
         outdir = outdir,
-        quality = config.get('Params',{}).get("cutadapt", {}).get('quality') or 25,
+        quality = config.get('Params',{}).get("trim_galore", {}).get('quality') or 25,
         trim_galore = config.get('Procedure',{}).get('trim_galore') or 'trim_galore'
     threads: 6
     conda:

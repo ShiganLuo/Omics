@@ -51,7 +51,10 @@ disambiguate_config = {
         "indir": hisat2_config["outdir"],
         "outdir": f"{outdir}/disambiguate",
         "logdir": logdir,
+        "ROOT_DIR": ROOT_DIR,
         "genome_pairs": config.get("genome_pairs", []),
+        "single_samples": single_samples,
+        "paired_samples": paired_samples,
         "bam": {
             "aligner": config.get('Procedure',{}).get('aligner') or 'hisat2'
         },
@@ -65,6 +68,7 @@ module disambiguate:
 logger.info(f"disambiguate config: {disambiguate_config}")
 use rule ngs_disambiguate from disambiguate as CoCulture_ngs_disambiguate
 use rule disambiguate_sort_rename from disambiguate as CoCulture_disambiguate_sort_rename
+use rule disambiguate_report from disambiguate as CoCulture_disambiguate_report
 
 TEtranscripts_config = {
         "indir": disambiguate_config["outdir"],

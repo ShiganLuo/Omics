@@ -6,4 +6,4 @@ python /data/pub/zhousha/20260422_ClIPseq/workflow/RNA-SNP/run.py \
     -t 48 \
     --log /data/pub/zhousha/20260422_ClIPseq/log/CLIP.log \
     --conda-prefix /data/pub/zhousha/env/mutation_0.1/ \
-    --Params.trim_galore.quality 10 
+    --Params.trim_galore.quality 10

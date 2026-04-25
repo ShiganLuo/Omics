@@ -87,7 +87,7 @@ rule star_align:
     conda:
         "star.yaml"
     params:
-        outPrefix = outdir + "/{sample_id}.",
+        outPrefix = outdir + "/{sample_id}/{sample_id}.",
         input_params = lambda wildcards, input: \
             f"{input.fastq[0]} {input.fastq[1]}" if len(input.fastq) == 2 else f"{input.fastq[0]}",
         STAR = config.get('Procedure',{}).get('STAR') or 'STAR'
@@ -103,6 +103,9 @@ rule star_align:
             --outSAMattributes NM \
             --outFileNamePrefix {params.outPrefix} > {log} 2>&1
         mv {params.outPrefix}Aligned.sortedByCoord.out.bam {output.outfile}
+        cp {params.outPrefix}Log.out {log.STAR_log}
+        cp {params.outPrefix}Log.progress.out {log.STAR_progress}
+        cp {params.outPrefix}Log.final.out {log.STAR_final}
         """
 
 rule star_result:

@@ -8,6 +8,9 @@
             "nt": 8
         }
     },
+    "genome": {
+        "fasta": "/path/to/genome.fa"
+    },
     "indir": "output",
     "outdir": "output",
     "logdir": "logs"

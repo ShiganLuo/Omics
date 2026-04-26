@@ -148,4 +148,3 @@ rule TEtranscripts_result:
         TEcount = outdir + "/TEcount/{genome}/all_TEcount.tsv",
         TElocal = outdir + "/TElocal/{genome}/all_TElocal.tsv"
 
-

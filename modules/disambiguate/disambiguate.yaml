@@ -5,5 +5,4 @@ channels:
 dependencies:
   - ngs-disambiguate=2018.05.03
   - samtools=1.23
-  - pandas=3.0.2
-  - python=3.11.15
+  - pandas=3.0.1

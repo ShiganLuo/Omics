@@ -8,12 +8,11 @@ rule pureclip:
         fasta = config.get('genome',{}).get('fasta')
     output:
         sites = outdir + "/{sample_id}.pureclip.sites.bed",
-        log = logdir + "/{sample_id}/pureclip.txt"
     params:
         pureclip = config.get('Procedure',{}).get('pureclip') or 'pureclip',
         ld = '--ld' if config.get('Params',{}).get('pureclip',{}).get('ld', True) else '',
         outdir = outdir
-    threads: 2
+    threads: 8
     conda:
         "PureCLIP.yaml"
     log:

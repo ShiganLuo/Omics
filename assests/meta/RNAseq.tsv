@@ -1,0 +1,7 @@
+sample_id	data_id	fastq_1	fastq_2	design
+GSM4260785	SRR10875545	/data/pub/zhousha/20260417_RNAseq/data/fastq/SRR10875545_1.fastq.gz	/data/pub/zhousha/20260417_RNAseq/data/fastq/SRR10875545_2.fastq.gz	
+GSM4260782	SRR10875542	/data/pub/zhousha/20260417_RNAseq/data/fastq/SRR10875542_1.fastq.gz	/data/pub/zhousha/20260417_RNAseq/data/fastq/SRR10875542_2.fastq.gz	
+GSM4260784	SRR10875544	/data/pub/zhousha/20260417_RNAseq/data/fastq/SRR10875544_1.fastq.gz	/data/pub/zhousha/20260417_RNAseq/data/fastq/SRR10875544_2.fastq.gz	
+GSM4260780	SRR10875540	/data/pub/zhousha/20260417_RNAseq/data/fastq/SRR10875540_1.fastq.gz	/data/pub/zhousha/20260417_RNAseq/data/fastq/SRR10875540_2.fastq.gz	
+GSM4260783	SRR10875543	/data/pub/zhousha/20260417_RNAseq/data/fastq/SRR10875543_1.fastq.gz	/data/pub/zhousha/20260417_RNAseq/data/fastq/SRR10875543_2.fastq.gz	
+GSM4260781	SRR10875541	/data/pub/zhousha/20260417_RNAseq/data/fastq/SRR10875541_1.fastq.gz	/data/pub/zhousha/20260417_RNAseq/data/fastq/SRR10875541_2.fastq.gz	

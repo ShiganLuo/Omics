@@ -8,6 +8,7 @@
 # done
 GSM_parser=/data/pub/zhousha/20260417_RNAseq/workflow/RNA-SNP/src/download/GSM_metadata.py
 ASCP_downloader=/data/pub/zhousha/20260417_RNAseq/workflow/RNA-SNP/src/download/ascp_download.py
+meta_input_generator=/data/pub/zhousha/20260417_RNAseq/workflow/RNA-SNP/src/download/generate_meta_input.py
 ascp_key=/home/zhousha/miniforge3/envs/RNA/etc/asperaweb_id_dsa.openssh
 function download_pipeline(){
     meta=$1
@@ -24,12 +25,17 @@ function download_pipeline(){
     #     --srr-col-name Data_id \
     #     --outdir ${outdir}/fastq \
     #     --key ${ascp_key} \
-    #     --log ${log}
+    #     --log ${log}\
+    python ${meta_input_generator} \
+        -i ${outdir}/sra_metadata.csv \
+        -d ${outdir}/fastq \
+        -o ${outdir}/meta_input.tsv
 }
 meat=/data/pub/zhousha/20260417_RNAseq/data/meta/meta.csv
 outdir=/data/pub/zhousha/20260417_RNAseq/data/meta
 log=/data/pub/zhousha/20260417_RNAseq/log/download/GSM_metadata.log
-download_pipeline ${meat} ${outdir} ${log}
+# download_pipeline ${meat} ${outdir} ${log}
+python 
 
 
 

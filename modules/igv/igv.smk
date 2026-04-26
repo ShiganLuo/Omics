@@ -2,7 +2,6 @@ from snakemake.logging import logger
 indir = config.get('indir', "input")
 outdir = config.get('outdir', "output")
 logdir = config.get('logdir', "log")
-wig_bin = config.get('wig',{}).get('bin', 25)
 rule dedup_hisat2:
     input:
         bam = indir + "/{sample_id}.bam"
@@ -58,11 +57,20 @@ rule wig:
         "igv.yaml"
     threads: 12 
     params:
-        bin=wig_bin,
-        deepTools = config.get('Procedure',{}).get('deepTools') or 'deepTools'
+        binSize= config.get('Params',{}).get('bamCoverage',{}).get('binSize') or 50,
+        bamCoverage = config.get('Procedure',{}).get('bamCoverage') or 'bamCoverage',
+        normalizeUsing = config.get('Params', {}).get('bamCoverage',{}).get('normalizeUsing') or "CPM",
+        offset = config.get('Params', {}).get('bamCoverage',{}).get('offset') or None
     shell:
         """
-        bamCoverage --binSize {params.bin} --numberOfProcessors {threads} --extendReads --normalizeUsing CPM -b {input.bam} -o {output.bigwig} > {log.log} 2>&1 
+        {params.bamCoverage} \
+            --binSize {params.binSize} \
+            --numberOfProcessors {threads} \
+            --extendReads \
+            --normalizeUsing {params.normalizeUsing} \
+            --offset {params.offset} \
+            -b {input.bam} \
+            -o {output.bigwig} > {log.log} 2>&1 
         """
 rule igv_result:
     input:

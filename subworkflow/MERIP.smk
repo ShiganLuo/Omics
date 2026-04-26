@@ -57,7 +57,14 @@ igv_config = {
         "logdir": logdir,
         "Procedure": {
             "samtools": config.get('Procedure',{}).get('samtools'),
-            "deepTools": config.get('Procedure',{}).get('deepTools')
+            "bamCoverage": config.get('Procedure',{}).get('bamCoverage')
+        },
+        "Params": {
+            "bamCoverage": {
+                "binSize": config.get('Params',{}).get('bamCoverage',{}).get('binSize'),
+                "normalizeUsing": config.get('Params',{}).get('bamCoverage',{}).get('normalizeUsing'),
+                "offset": config.get('Params',{}).get('bamCoverage',{}).get('offset')
+            }
         }
     }
 module igv:

@@ -22,11 +22,16 @@
           "hisat2": "/home/zhousha/tools/hisat2-2.2.1/hisat2",
           "hisat2_build": "/home/zhousha/tools/hisat2-2.2.1/hisat2-build",
           "samtools": null,
-          "deepTools": null
+          "bamCoverage": null
      },
     "Params": {
         "trim_galore": {
             "quality": 25
+        },
+        "bamCoverage": {
+            "binSize": 50,
+            "normalizeUsing": "CPM",
+            "offset": "0"
         }
     }
 }

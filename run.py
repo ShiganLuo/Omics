@@ -223,7 +223,7 @@ def runCLIP(
             outfiles.append(f"{outdir}/fastqc/raw/{sample_id}/fastqc.raw.txt")
             outfiles.append(f"{outdir}/fastqc/trimmed/{sample_id}/fastqc.trimmed.txt")
             outfiles.append(f"{outdir}/PureCLIP/{sample_id}.pureclip.sites.bed")
-            # outfiles.append(f"{outdir}/igv/{sample_id}.bigwig")
+            outfiles.append(f"{outdir}/igv/{sample_id}.bigwig")
         elif sample_info.layout == "SE":
             single_samples.append(sample_id)
             outfiles.append(f"{outdir}/cutadapt/{sample_id}.single.fq.gz")
@@ -231,7 +231,7 @@ def runCLIP(
                 outfiles.append(f"{outdir}/star/{sample_id}/{sample_id}.bam")
             elif datajson["aligner"] == "hisat2":
                 outfiles.append(f"{outdir}/hisat2/{sample_id}.bam")
-            # outfiles.append(f"{outdir}/igv/{sample_id}.bigwig")
+            outfiles.append(f"{outdir}/igv/{sample_id}.bigwig")
             outfiles.append(f"{outdir}/fastqc/raw/{sample_id}/fastqc.raw.txt")
             outfiles.append(f"{outdir}/fastqc/trimmed/{sample_id}/fastqc.trimmed.txt")
             outfiles.append(f"{outdir}/PureCLIP/{sample_id}.pureclip.sites.bed")
@@ -240,6 +240,9 @@ def runCLIP(
     datajson["outfiles"] = outfiles
     datajson["paired_samples"] = paired_samples
     datajson["single_samples"] = single_samples
+    datajson["Params"]["bamCoverage"]["offset"] = "-1"
+    datajson["Params"]["bamCoverage"]["binSize"] = 1
+    datajson["Params"]["bamCoverage"]["normalizeUsing"] = "CPM"
     instance_json = os.path.join(outdir, "raw.json")
     with open(instance_json, 'w', encoding='utf-8') as wf:
         json.dump(datajson, wf, indent=2, ensure_ascii=False)

@@ -118,7 +118,14 @@ igv_config = {
         "logdir": logdir,
         "Procedure": {
             "samtools": config.get('Procedure',{}).get('samtools'),
-            "deepTools": config.get('Procedure',{}).get('deepTools')
+            "bamCoverage": config.get('Procedure',{}).get('bamCoverage')
+        },
+        "Params": {
+            "bamCoverage": {
+                "binSize": config.get('Params',{}).get('bamCoverage',{}).get('binSize'),
+                "normalizeUsing": config.get('Params',{}).get('bamCoverage',{}).get('normalizeUsing'),
+                "offset": config.get('Params',{}).get('bamCoverage',{}).get('offset')
+            }
         }
     }
 module igv:
@@ -127,6 +134,7 @@ module igv:
 logger.info(f"igv_config: {igv_config}")
 use rule dedup_star from igv as CLIP_dedup_star
 use rule dedup_hisat2 from igv as CLIP_dedup_hisat2
+use rule wig from igv as CLIP_wig
 
 PureCLIP_config = {
         "indir": igv_config["outdir"] + "/dedup",
@@ -150,7 +158,7 @@ use rule pureclip from PureCLIP as CLIP_pureclip
 #         "logdir": logdir,
 #         "Procedure": {
 #             "samtools": config.get('Procedure',{}).get('samtools'),
-#             "deepTools": config.get('Procedure',{}).get('deepTools')
+#             "bamCoverage": config.get('Procedure',{}).get('bamCoverage')
 #         }
 #     }
 # module igv:

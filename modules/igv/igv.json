@@ -2,9 +2,15 @@
     "indir": "output/hisat2",
     "outdir": "output",
     "logdir": "logs",
-    "wig_bin": 25,
     "Procedure": {
-        "deepTools": "path/to/deepTools"
+        "deepTools": "path/to/bamCoverage"
+    },
+    "Params":{
+        "bamCoverage": {
+            "binSize": 50,
+            "normalizeUsing": "CPM",
+            "offset": null
+        }
     }
 
 }

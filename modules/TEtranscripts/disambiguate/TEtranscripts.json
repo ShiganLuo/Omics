@@ -1,0 +1,25 @@
+{
+    "indir": "output/disambiguate",
+    "outdir": "output",
+    "logdir": "logs",
+    "ROOT_DIR": "/path/to/workflow/directory",
+    "Procedure": {
+        "TElocal": "path/to/TElocal",
+        "TEcount": "path/to/TEcount"
+    },
+     "genome": {
+               "genome1": {
+                    "gtf": "/path/to/genome/gtf",
+                    "TE_gtf": "/path/to/genome/TE_gtf",
+                    "TEind": "/path/to/genome/TEind"
+               },
+               "genome2": {
+                    "gtf": "/path/to/genome/gtf",
+                    "TE_gtf": "/path/to/genome/TE_gtf",
+                    "TEind": "/path/to/genome/TEind"
+               }
+     },
+    "paired_samples": ["sample1", "sample2"],
+    "single_samples": ["sample3", "sample4"],
+    "genome_pairs": ["genome1", "genome2"]
+}

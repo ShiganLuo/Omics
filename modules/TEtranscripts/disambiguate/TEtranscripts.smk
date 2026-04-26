@@ -58,18 +58,22 @@ rule combine_TEcount:
     input:
         get_cntTable_for_TEcount
     output:
-        outfile = outdir + "/TEcount/{genome}/all_TEcount.tsv"
+        outfile_id = outdir + "/TEcount/{genome}/all_TEcount.tsv",
+        outfile_name = outdir + "/TEcount/{genome}/all_TEcount_name.tsv"
     conda:
         "../TEtranscripts.yaml"
     params:
         combineTE = ROOT_DIR +"/modules/TEtranscripts/bin/combineTE.py",
-        indir = outdir + "/TEcount/{genome}"
-    threads: 2
+        geneId2Name = ROOT_DIR +"/modules/TEtranscripts/bin/geneId2Name.py",
+        indir = outdir + "/TEcount/{genome}",
+        gtf = lambda wildcards: config['genome'][wildcards.genome]['gtf']
+    threads: 1
     log:
         logdir + "/all/{genome}_combine_TEcount.log"
     shell:
         """
-        python {params.combineTE} -p TEcount -i {params.indir} -o {output.outfile} > {log} 2>&1
+        python {params.combineTE} -p TEcount -i {params.indir} -o {output.outfile_id} > {log} 2>&1
+        python {params.geneId2Name} -c {output.outfile_id} -g {params.gtf} -o {output.outfile_name} >> {log} 2>&1
         """
 
 def get_input_for_TElocal(wildcards):
@@ -121,17 +125,22 @@ rule combine_TElocal:
     input:
         get_cntTable_for_TElocal
     output:
-        outfile = outdir + "/TElocal/{genome}/all_TElocal.tsv"
+        outfile_id = outdir + "/TElocal/{genome}/all_TElocal.tsv",
+        outfile_name = outdir + "/TElocal/{genome}/all_TElocal_name.tsv"
     conda:
         "../TEtranscripts.yaml"
     params:
         combineTE = ROOT_DIR +"/modules/TEtranscripts/bin/combineTE.py",
-        indir = outdir + "/TElocal/{genome}"
+        geneId2Name = ROOT_DIR +"/modules/TEtranscripts/bin/geneId2Name.py",
+        indir = outdir + "/TElocal/{genome}",
+        gtf = lambda wildcards: config['genome'][wildcards.genome]['gtf']
+    threads: 1
     log:
         logdir + "/all/{genome}_combine_TElocal.log"
     shell:
         """
-        python {params.combineTE} -p TElocal -i {params.indir} -o {output.outfile} > {log} 2>&1
+        python {params.combineTE} -p TElocal -i {params.indir} -o {output.outfile_id} > {log} 2>&1
+        python {params.geneId2Name} -c {output.outfile_id} -g {params.gtf} -o {output.outfile_name} >> {log} 2>&1
         """
 
 rule TEtranscripts_result:

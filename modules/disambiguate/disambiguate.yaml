@@ -4,5 +4,5 @@ channels:
   - conda-forge
 dependencies:
   - ngs-disambiguate=2018.05.03
-  - samtools=1.23
-  - pandas=3.0.1
+  - samtools=0.1.19
+  - pandas=3.0.2

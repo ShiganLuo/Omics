@@ -33,7 +33,7 @@ rule ngs_disambiguate:
         outdir = lambda wc: f"{outdir}/{wc.sample_id}",
         aligner = config.get("Params", {}).get("ngs_disambiguate", {}).get("aligner") or "hisat2",
         ngs_disambiguate = config.get("Procedure", {}).get("ngs_disambiguate") or "ngs_disambiguate",
-        samtools = config.get("Procedure", {}).get("samtools", "samtools")
+        samtools = config.get("Procedure", {}).get("samtools") or "samtools"
     threads: 4
     conda:
         "disambiguate.yaml"
@@ -68,7 +68,7 @@ rule disambiguate_sort_rename:
         ambiguous_bamB = outdir + "/{sample_id}/{sample_id}" + f".ambiguousSpecies_{genome_pairs[1]}.bam",
         clean_summary = outdir + "/{sample_id}/{sample_id}_summary_renamed.tsv"
     params:
-        samtools = config.get("Procedure", {}).get("samtools", "samtools"),
+        samtools = config.get("Procedure", {}).get("samtools") or "samtools",
         speciesA = genome_pairs[0],
         speciesB = genome_pairs[1]
     threads: 4

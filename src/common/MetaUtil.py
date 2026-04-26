@@ -372,7 +372,7 @@ class MetadataUtils:
         else:
             raise ValueError("Either meta or fastq_dir must be provided.")
 
-
+    
 def main():
     parser = argparse.ArgumentParser(description="Metadata Variants Utils")
     parser.add_argument("--meta", help="Path to metadata file (CSV/TSV)")

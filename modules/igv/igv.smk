@@ -68,7 +68,7 @@ rule wig:
             --numberOfProcessors {threads} \
             --extendReads \
             --normalizeUsing {params.normalizeUsing} \
-            --offset {params.offset} \
+            --Offset {params.offset} \
             -b {input.bam} \
             -o {output.bigwig} > {log.log} 2>&1 
         """

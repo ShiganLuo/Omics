@@ -124,7 +124,8 @@ igv_config = {
             "bamCoverage": {
                 "binSize": config.get('Params',{}).get('bamCoverage',{}).get('binSize'),
                 "normalizeUsing": config.get('Params',{}).get('bamCoverage',{}).get('normalizeUsing'),
-                "offset": config.get('Params',{}).get('bamCoverage',{}).get('offset')
+                "offset": config.get('Params',{}).get('bamCoverage',{}).get('offset'),
+                "extendReads": config.get('Params',{}).get('bamCoverage',{}).get('extendReads')
             }
         }
     }

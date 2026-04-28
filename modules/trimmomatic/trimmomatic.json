@@ -1,0 +1,15 @@
+{
+    "indir": "/path/to/input/fastq",
+    "outdir": "/path/to/output/trimmed_fastq",
+    "logdir": "/path/to/logs",
+    "Params": {
+        "trimmomatic": {
+            "quality": 20,
+            "adapter_pe": "/path/to/adapter_pe/fasta",
+            "adapter_se": "/path/to/adapter_se/fasta"
+        }
+    },
+    "Procedure": {
+        "trimmomatic": "/path/to/trimmomatic.jar"
+    }
+}

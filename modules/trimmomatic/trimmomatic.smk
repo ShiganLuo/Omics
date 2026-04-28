@@ -9,7 +9,8 @@ rule trimmomatic_Paired:
         fastq2 = indir + "/{sample_id}_2.fq.gz"
     output:
         fastq1 = temp(outdir + "/{sample_id}_1.fq.gz"),
-        fastq2 = temp(outdir + "/{sample_id}_2.fq.gz")
+        fastq2 = temp(outdir + "/{sample_id}_2.fq.gz"),
+        report = outdir + "/{sample_id}/trimmomatic_report.txt"
     params:
         outdir = outdir,
         trimmomatic = config.get('Procedure',{}).get('trimmomatic') or 'trimmomatic',
@@ -28,6 +29,7 @@ rule trimmomatic_Paired:
         """
         {params.cmd} PE -threads {threads} \
             {input.fastq1} {input.fastq2} \
+            -summary {output.report} \
             {output.fastq1} {params.outdir}/{wildcards.sample_id}_1.unpaired.fq.gz \
             {output.fastq2} {params.outdir}/{wildcards.sample_id}_2.unpaired.fq.gz \
             ILLUMINACLIP:{params.adapter}:2:30:10 \
@@ -42,6 +44,7 @@ rule trimmomatic_Single:
         fastq = indir + "/{sample_id}.single.fq.gz"
     output:
         fastq = temp(outdir + "/{sample_id}.single.fq.gz"),
+        report = outdir + "/{sample_id}/trimmomatic_report.txt"
     params:
         outdir = outdir,
         trimmomatic = config.get('Procedure',{}).get('trimmomatic') or 'trimmomatic',
@@ -60,6 +63,7 @@ rule trimmomatic_Single:
         """
         {params.cmd} SE -threads {threads} \
             {input.fastq} {output.fastq} \
+            -summary {output.report} \
             ILLUMINACLIP:{params.adapter}:2:30:10 \
             LEADING:3 TRAILING:3 \
             SLIDINGWINDOW:4:15 \

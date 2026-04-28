@@ -10,13 +10,15 @@
     "control_samples": [],
     "treatment_samples": [],
     "aligner": "star",
+    "trimmer": "cutadapt",
     "Procedure": {
         "TEcount": null,
         "TElocal": null,
         "trim_galore": "/home/zhousha/tools/TrimGalore-0.6.10/trim_galore",
         "hisat2": "/home/zhousha/tools/hisat2-2.2.1/hisat2",
         "hisat2_build": "/home/zhousha/tools/hisat2-2.2.1/hisat2-build",
-        "samtools": null
+        "samtools": null,
+        "trimmomatic": "/home/zhousha/tools/trimmomatic/trimmomatic-0.40.jars"
     },
     "genome": {
         "fasta": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
@@ -30,6 +32,10 @@
     "Params": {
         "trim_galore": {
             "quality": 25
+        },
+        "trimmomatic": {
+            "adapter_pe": "/home/zhousha/tools/trimmomatic/adapters/TruSeq3-PE-2.fa",
+            "adapter_se": "/home/zhousha/tools/trimmomatic/adapters/TruSeq3-SE.fa"
         }
     }
 }

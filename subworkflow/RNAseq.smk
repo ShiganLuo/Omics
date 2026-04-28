@@ -7,28 +7,53 @@ logdir = config.get("logdir","logs")
 paired_samples = config.get("paired_samples", [])
 single_samples = config.get("single_samples", [])
 aligner = config.get('aligner', 'hisat2')
+trimmer = config.get('trimmer', 'cutadapt')
 outfiles = config.get("outfiles", [])
 rule all:
     input:
         outfiles
-cutadapt_config = {
-        "indir": indir,
-        "outdir":  f"{outdir}/cutadapt",
-        "logdir": logdir,
-        "Procedure": {
-            "trim_galore": config.get('Procedure',{}).get('trim_galore')
+if trimmer == "cutadapt":
+    cutadapt_config = {
+            "indir": indir,
+            "outdir":  f"{outdir}/cutadapt",
+            "logdir": logdir,
+            "Procedure": {
+                "trim_galore": config.get('Procedure',{}).get('trim_galore')
+            }
         }
-    }
-module cutadapt:
-    snakefile: "../modules/cutadapt/cutadapt.smk"
-    config: cutadapt_config
-logger.info(f"cutadapt_config: {cutadapt_config}")
-use rule trimming_Paired from cutadapt as RNAseq_trimming_Paired
-use rule trimming_Single from cutadapt as RNAseq_trimming_Single
+    module cutadapt:
+        snakefile: "../modules/cutadapt/cutadapt.smk"
+        config: cutadapt_config
+    logger.info(f"cutadapt_config: {cutadapt_config}")
+    use rule trimming_Paired from cutadapt as RNAseq_trimming_Paireds
+    use rule trimming_Single from cutadapt as RNAseq_trimming_Single
+elif trimmer == "trimmomatic":
+    trimmomatic_config = {
+            "indir": indir,
+            "outdir":  f"{outdir}/trimmomatic",
+            "logdir": logdir,
+            "Procedure": {
+                "trimmomatic": config.get('Procedure',{}).get('trimmomatic')
+            },
+            "Params": {
+                "trimmomatic": {
+                    "adapter_pe": config.get('Params',{}).get("trimmomatic", {}).get('adapter_pe'),
+                    "adapter_se": config.get('Params',{}).get("trimmomatic", {}).get('adapter_se')
+                }
+            }
+        }
+    module trimmomatic:
+        snakefile: "../modules/trimmomatic/trimmomatic.smk"
+        config: trimmomatic_config
+    logger.info(f"trimmomatic_config: {trimmomatic_config}")
+    use rule trimmomatic_Paired from trimmomatic as RNAseq_trimmomatic_Paireds
+    use rule trimmomatic_Single from trimmomatic as RNAseq_trimmomatic_Singles
+else:
+    raise ValueError(f"Unsupported trimmer: {trimmer}")
 
 if aligner == 'hisat2':
     hisat2_config = {
-            "indir": cutadapt_config["outdir"],
+            "indir": cutadapt_config["outdir"] if trimmer == "cutadapt" else trimmomatic_config["outdir"],
             "outdir":  f"{outdir}/hisat2",
             "logdir": logdir,
             "paired_samples": paired_samples,
@@ -48,7 +73,7 @@ if aligner == 'hisat2':
     use rule hisat2_index from hisat2 as RNAseq_hisat2_index
 elif aligner == 'star':
     star_config = {
-            "indir": cutadapt_config["outdir"],
+            "indir": cutadapt_config["outdir"] if trimmer == "cutadapt" else trimmomatic_config["outdir"],
             "outdir":  f"{outdir}/star",
             "logdir": logdir,
             "paired_samples": paired_samples,

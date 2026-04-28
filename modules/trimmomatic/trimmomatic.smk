@@ -22,7 +22,7 @@ rule trimmomatic_Paired:
         )
     threads: 6
     conda:
-        "trimmomatic.yaml"
+        "trimmomatic.yaml" if not str(config.get('Procedure',{}).get('trimmomatic')).endswith(".jar") else None
     log:
         log = logdir + "/{sample_id}/trimmomatic.txt"
     shell:

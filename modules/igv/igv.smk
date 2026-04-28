@@ -60,7 +60,8 @@ rule wig:
         binSize= config.get('Params',{}).get('bamCoverage',{}).get('binSize') or 50,
         bamCoverage = config.get('Procedure',{}).get('bamCoverage') or 'bamCoverage',
         normalizeUsing = config.get('Params', {}).get('bamCoverage',{}).get('normalizeUsing') or "CPM",
-        offset = config.get('Params', {}).get('bamCoverage',{}).get('offset') or None
+        offset = config.get('Params', {}).get('bamCoverage',{}).get('offset') or None,
+        extendReads = config.get('Params', {}).get('bamCoverage',{}).get('extendReads') or False
     shell:
         """
         {params.bamCoverage} \
@@ -69,9 +70,11 @@ rule wig:
             --extendReads \
             --normalizeUsing {params.normalizeUsing} \
             --Offset {params.offset} \
+            --extendReads {params.extendReads} \
             -b {input.bam} \
             -o {output.bigwig} > {log.log} 2>&1 
         """
+
 rule igv_result:
     input:
         bigwig = outdir + "/{sample_id}.bigwig"

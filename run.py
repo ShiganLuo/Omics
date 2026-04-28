@@ -247,6 +247,7 @@ def runCLIP(
     datajson["Params"]["bamCoverage"]["offset"] = "-1"
     datajson["Params"]["bamCoverage"]["binSize"] = 1
     datajson["Params"]["bamCoverage"]["normalizeUsing"] = "CPM"
+    datajson["Params"]["bamCoverage"]["extendReads"] = 1
     instance_json = os.path.join(outdir, "raw.json")
     with open(instance_json, 'w', encoding='utf-8') as wf:
         json.dump(datajson, wf, indent=2, ensure_ascii=False)

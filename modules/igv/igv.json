@@ -9,7 +9,8 @@
         "bamCoverage": {
             "binSize": 50,
             "normalizeUsing": "CPM",
-            "offset": null
+            "offset": null,
+            "extendReads": false
         }
     }
 

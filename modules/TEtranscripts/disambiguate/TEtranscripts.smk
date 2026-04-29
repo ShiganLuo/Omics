@@ -69,7 +69,7 @@ rule combine_TEcount:
         gtf = lambda wildcards: config['genome'][wildcards.genome]['gtf']
     threads: 1
     log:
-        logdir + "/all/{genome}_combine_TEcount.log"
+        logdir + "/all/TEtranscripts/{genome}_combine_TEcount.log"
     shell:
         """
         python {params.combineTE} -p TEcount -i {params.indir} -o {output.outfile_id} > {log} 2>&1
@@ -136,7 +136,7 @@ rule combine_TElocal:
         gtf = lambda wildcards: config['genome'][wildcards.genome]['gtf']
     threads: 1
     log:
-        logdir + "/all/{genome}_combine_TElocal.log"
+        logdir + "/all/TEtranscripts/{genome}_combine_TElocal.log"
     shell:
         """
         python {params.combineTE} -p TElocal -i {params.indir} -o {output.outfile_id} > {log} 2>&1

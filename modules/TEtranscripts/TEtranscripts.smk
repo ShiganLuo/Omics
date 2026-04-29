@@ -14,7 +14,7 @@ rule TEcount:
         project = outdir + "/TEcount/{sample_id}.TEcount.cntTable"
     params:
         project = "{sample_id}.TEcount",
-        outdir = outdir + "/TEtranscripts/TEcount",
+        outdir = outdir + "/TEcount",
         TE_gtf = lambda wildcards: config['genome']['TE_gtf'],
         gtf = lambda wildcards: config['genome']['gtf'],
         TEcount = config.get('Procedure',{}).get('TEcount') or 'TEcount'
@@ -38,7 +38,7 @@ def get_cntTable_for_TEcount(wildcards):
     for sample_id in paired_samples:
         cntTable.append(f"{outdir}/TEcount/{sample_id}.TEcount.cntTable")
     if len(cntTable) == 0:
-        raise ValueError(f"rule combine_TElocal didn't get any input files,single_samples:{single_samples},paired_samples:{paired_samples}")
+        raise ValueError(f"rule combine_TEcount didn't get any input files,single_samples:{single_samples},paired_samples:{paired_samples}")
     return cntTable
 
 rule combine_TEcount:
@@ -49,10 +49,10 @@ rule combine_TEcount:
     conda:
         "TEtranscripts.yaml"
     params:
-        combineTE = ROOT_DIR + "/TEtranscripts/bin/combineTE.py",
-        indir = outdir + "/TEtranscripts/TEcount"
+        combineTE = ROOT_DIR + "/modules/TEtranscripts/bin/combineTE.py",
+        indir = outdir + "/TEcount"
     log:
-        logdir + "/TEtranscripts/combine_TEcount.log"
+        logdir + "/all/TEtranscripts/combine_TEcount.log"
     shell:
         """
         python {params.combineTE} -p TEcount -i {params.indir} -o {output.outfile} > {log} 2>&1
@@ -101,10 +101,10 @@ rule combine_TElocal:
     conda:
         "TEtranscripts.yaml"
     params:
-        combineTE = ROOT_DIR + "/utils/combineTE.py",
-        indir = outdir + "/TEtranscripts/TElocal"
+        combineTE = ROOT_DIR + "/modules/TEtranscripts/bin/combineTE.py",
+        indir = outdir + "/TElocal"
     log:
-        outdir + "/log/TEtranscript/combine_TElocal.log"
+        logdir + "/all/TEtranscripts/combine_TElocal.log"
     shell:
         """
         python {params.combineTE} -p TElocal -i {params.indir} -o {output.outfile} > {log} 2>&1

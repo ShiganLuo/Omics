@@ -227,7 +227,9 @@ def runCLIP(
             outfiles.append(f"{outdir}/fastqc/raw/{sample_id}/fastqc.raw.txt")
             outfiles.append(f"{outdir}/fastqc/trimmed/{sample_id}/fastqc.trimmed.txt")
             outfiles.append(f"{outdir}/PureCLIP/{sample_id}.pureclip.sites.bed")
-            outfiles.append(f"{outdir}/igv/{sample_id}.bigwig")
+            outfiles.append(f"{outdir}/bedtools/{sample_id}/{sample_id}.bed")
+            outfiles.append(f"{outdir}/bedtools/{sample_id}/{sample_id}.plus.bedgraph")
+            outfiles.append(f"{outdir}/bedtools/{sample_id}/{sample_id}.minus.bedgraph")
         elif sample_info.layout == "SE":
             single_samples.append(sample_id)
             outfiles.append(f"{outdir}/cutadapt/{sample_id}.single.fq.gz")
@@ -235,24 +237,32 @@ def runCLIP(
                 outfiles.append(f"{outdir}/star/{sample_id}/{sample_id}.bam")
             elif datajson["aligner"] == "hisat2":
                 outfiles.append(f"{outdir}/hisat2/{sample_id}.bam")
-            outfiles.append(f"{outdir}/igv/{sample_id}.bigwig")
             outfiles.append(f"{outdir}/fastqc/raw/{sample_id}/fastqc.raw.txt")
             outfiles.append(f"{outdir}/fastqc/trimmed/{sample_id}/fastqc.trimmed.txt")
             outfiles.append(f"{outdir}/PureCLIP/{sample_id}.pureclip.sites.bed")
+            outfiles.append(f"{outdir}/bedtools/{sample_id}/{sample_id}.bed")
+            outfiles.append(f"{outdir}/bedtools/{sample_id}/{sample_id}.plus.bedgraph")
+            outfiles.append(f"{outdir}/bedtools/{sample_id}/{sample_id}.minus.bedgraph")
+
         else:
             logger.error(f"Unknown layout type for sample {sample_id}: {sample_info.layout}")
     datajson["outfiles"] = outfiles
     datajson["paired_samples"] = paired_samples
     datajson["single_samples"] = single_samples
+    # parameters suggest by https://doi.org/10.1016/j.ymeth.2019.11.008
     datajson["Params"]["bamCoverage"]["offset"] = "-1"
     datajson["Params"]["bamCoverage"]["binSize"] = 1
     datajson["Params"]["bamCoverage"]["normalizeUsing"] = "CPM"
     datajson["Params"]["bamCoverage"]["extendReads"] = 1
+    datajson["Params"]["STAR"]["alignEndsType"] = "Extend5pOfRead1"
+    datajson["Params"]["STAR"]["outFilterMismatchNoverReadLmax"] = 0.04
+    datajson["Params"]["STAR"]["outFilterMismatchNmax"] = 999
+    datajson["Params"]["STAR"]["outFilterMultimapNmax"] = 999
     instance_json = os.path.join(outdir, "raw.json")
     with open(instance_json, 'w', encoding='utf-8') as wf:
         json.dump(datajson, wf, indent=2, ensure_ascii=False)
     return instance_json
-    pass
+
 def parse_args():
     parser = argparse.ArgumentParser(description="workflow")
     parser.add_argument('-m','--meta', type=str, required=True, help='meta input file or data dir which condatain fastq file')

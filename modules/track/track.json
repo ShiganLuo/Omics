@@ -1,0 +1,11 @@
+{
+    "indir": "/path/to/input/directory",
+    "outdir": "/path/to/output/directory",
+    "logdir": "/path/to/log/directory",
+    "ROOT_DIR": "/path/to/root/directory",
+    "samples": [
+        "sample1",
+        "sample2",
+        "sample3"
+    ]
+}

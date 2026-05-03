@@ -21,6 +21,10 @@ rule star_index:
         "star.yaml"
     params:
         STAR = config.get('Procedure',{}).get('STAR') or 'STAR',
+        alignEndsType = config.get('Params',{}).get('STAR', {}).get('alignEndsType') or 'Local',
+        outFilterMismatchNoverReadLmax = config.get('Params',{}).get('STAR', {}).get('outFilterMismatchNoverReadLmax') or 1.0,
+        outFilterMismatchNmax = config.get('Params',{}).get('STAR', {}).get('outFilterMismatchNmax') or 10,
+        outFilterMultimapNmax = config.get('Params',{}).get('STAR', {}).get('outFilterMultimapNmax') or 10,
         # 索引目录路径
         index_dir = outdir + "/index"
     shell:
@@ -31,7 +35,12 @@ rule star_index:
             --genomeDir {params.index_dir} \
             --genomeFastaFiles {input.fasta} \
             --sjdbGTFfile {input.gtf} \
-            --sjdbOverhang 100 > {log} 2>&1
+            --sjdbOverhang 100 \
+            --alignEndsType {params.alignEndsType} \
+            --outFilterMismatchNoverReadLmax {params.outFilterMismatchNoverReadLmax} \
+            --outFilterMismatchNmax {params.outFilterMismatchNmax} \
+            --outFilterMultimapNmax {params.outFilterMultimapNmax} \
+            > {log} 2>&1
         """
 def get_star_index(wildcards):
     logger.info(f"[get_star_index] called with wildcards: {wildcards}")

@@ -137,6 +137,39 @@ use rule dedup_star from igv as CLIP_dedup_star
 use rule dedup_hisat2 from igv as CLIP_dedup_hisat2
 use rule wig from igv as CLIP_wig
 
+genome_config = {
+        "genome": {
+            "fasta": config.get('genome',{}).get('fasta')
+        },
+        "outdir": outdir,
+        "logdir": logdir,
+        "Procedure": {
+            "samtools": config.get('Procedure',{}).get('samtools')
+        }
+    }
+module genome:
+    snakefile: "../modules/genome/genome.smk"
+    config: genome_config
+logger.info(f"genome_config: {genome_config}")
+use rule chromosome_sizes from genome as CLIP_chromosome_sizes
+
+bedtools_config = {
+        "indir": igv_config["outdir"] + "/dedup",
+        "outdir":  f"{outdir}/bedtools",
+        "logdir": logdir,
+        "Procedure": {
+            "bedtools": config.get('Procedure',{}).get('bedtools')
+        },
+        "genome": {
+            "chrom_sizes": config.get('genome',{}).get('chrom_sizes') or f"{outdir}/genome/chrom.sizes"
+        }
+    }
+module bedtools:
+    snakefile: "../modules/bedtools/bedtools.smk"
+    config: bedtools_config
+logger.info(f"bedtools_config: {bedtools_config}")
+use rule iCLIP_bedtools from bedtools as CLIP_bedtools
+
 PureCLIP_config = {
         "indir": igv_config["outdir"] + "/dedup",
         "outdir":  f"{outdir}/PureCLIP",
@@ -153,19 +186,5 @@ module PureCLIP:
     config: PureCLIP_config
 logger.info(f"PureCLIP_config: {PureCLIP_config}")
 use rule pureclip from PureCLIP as CLIP_pureclip
-# igv_config = {
-#         "indir": hisat2_config["outdir"],
-#         "outdir":  f"{outdir}/igv",
-#         "logdir": logdir,
-#         "Procedure": {
-#             "samtools": config.get('Procedure',{}).get('samtools'),
-#             "bamCoverage": config.get('Procedure',{}).get('bamCoverage')
-#         }
-#     }
-# module igv:
-#     snakefile: "../modules/igv/igv.smk"
-#     config: igv_config
-# logger.info(f"igv_config: {igv_config}")
-# use rule dedup from igv as CLIP_dedup
-# use rule wig from igv as CLIP_wig
+
 

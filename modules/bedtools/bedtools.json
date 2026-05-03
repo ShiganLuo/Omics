@@ -1,0 +1,12 @@
+
+{
+    "indir": "output/raw_fastq",
+	"outdir": "output/igv",
+	"logdir": "output/log",
+	"Procedure": {
+        "bedtools": "path/to/bedtools"
+	},
+	"genome": {
+		"chrom_sizes": "/path/to/chromo.sizes"
+	}
+}

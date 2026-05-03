@@ -9,6 +9,15 @@
         "fasta": "path/to/genome.fa",
         "gtf": "path/to/annotation.gtf",
         "star_index_dir": "path/to/star_index"
+    },
+    "Params": {
+        "STAR": {
+            "alignEndsType": "Local",
+            "outFilterMismatchNoverReadLmax": 1.0,
+            "outFilterMismatchNmax": 10,
+            "outFilterMultimapNmax": 10
+        }
     }
+
 
 }

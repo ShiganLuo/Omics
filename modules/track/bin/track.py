@@ -30,6 +30,7 @@ def ucsc_track_format(
             track_name = sra_id
         track_line = f'track type=bigWig name="{track_name}" description="{track_name}" bigDataUrl={bigwig_file}'
         track_lines.append(track_line)
+    track_lines = sorted(track_lines)
     with open(output, 'w') as f:
         f.write('\n'.join(track_lines))
     return track_lines

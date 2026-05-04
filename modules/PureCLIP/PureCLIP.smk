@@ -8,6 +8,7 @@ rule pureclip:
         fasta = config.get('genome',{}).get('fasta')
     output:
         sites = outdir + "/{sample_id}.pureclip.sites.bed",
+        region = outdir + "/{sample_id}.pureclip.region.bed"
     params:
         pureclip = config.get('Procedure',{}).get('pureclip') or 'pureclip',
         ld = '--ld' if config.get('Params',{}).get('pureclip',{}).get('ld', True) else '',
@@ -20,6 +21,10 @@ rule pureclip:
     shell:
         """
         {params.pureclip} {params.ld} -nt {threads} \
-            -i {input.bam} -bai {input.bam}.bai -g {input.fasta} \
-            -o {output.sites} > {log} 2>&1
+            -i {input.bam} \
+            -bai {input.bam}.bai \
+            -g {input.fasta} \
+            -o {output.sites} \
+            -or {output.region} \
+            > {log} 2>&1
         """

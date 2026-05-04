@@ -1,11 +1,35 @@
 {
-    "indir": "/path/to/input/directory",
-    "outdir": "/path/to/output/directory",
-    "logdir": "/path/to/log/directory",
+    "indir": "output",
+    "outdir": "output",
+    "logdir": "logs",
     "ROOT_DIR": "/path/to/root/directory",
     "samples": [
         "sample1",
         "sample2",
         "sample3"
-    ]
+    ],
+    "igv": {
+        "js": "https://cdn.jsdelivr.net/npm/igv/dist/igv.min.js",
+        "id": "mm39",
+        "name": "Mouse (GRCm39/mm39)",
+        "publicPathMap": {
+            "/data/pub/zhousha/20260422_ClIPseq/output/CLIP/": "/clip/",
+            "/data/pub/zhousha/Reference/": "/ref/"
+        },
+        "fastaURL": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
+        "indexURL": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa.fai",
+        "cytobandURL": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/mm39.cytoBand.txt",
+        "tracks": [
+            {
+            "name": "Gencode vm39 genes",
+            "format": "gtf",
+            "url": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf"
+            },
+            {
+                "name": "Gencode vm39 repeats",
+                "format": "gtf",
+                "url": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.gtf"
+            }
+        ]
+    }
 }

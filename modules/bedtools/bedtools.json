@@ -4,7 +4,8 @@
 	"outdir": "output/igv",
 	"logdir": "output/log",
 	"Procedure": {
-        "bedtools": "path/to/bedtools"
+        "bedtools": "path/to/bedtools",
+		"bedGraphToBigWig": "path/to/bedGraphToBigWig"
 	},
 	"genome": {
 		"chrom_sizes": "/path/to/chromo.sizes"

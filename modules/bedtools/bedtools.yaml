@@ -5,3 +5,4 @@ channels:
   - defaults
 dependencies:
   - bedtools=2.31.1
+  - ucsc-bedgraphtobigwig=377

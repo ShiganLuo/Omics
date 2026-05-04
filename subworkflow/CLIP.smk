@@ -187,4 +187,19 @@ module PureCLIP:
 logger.info(f"PureCLIP_config: {PureCLIP_config}")
 use rule pureclip from PureCLIP as CLIP_pureclip
 
+track_config = {
+        "indir": bedtools_config["outdir"],
+        "outdir":  f"{outdir}/track",
+        "logdir": logdir,
+        "samples": single_samples + paired_samples,
+        "igv": config.get('Params', {}).get('igv', {}),
+    }
+module track:
+    snakefile: "../modules/track/track.smk"
+    config: track_config
+logger.info(f"track_config: {track_config}")
+use rule igv_track_iclip from track as CLIP_igv_track_iclip
+use rule ucsc_track_iclip from track as CLIP_ucsc_track_iclip
+
+
 

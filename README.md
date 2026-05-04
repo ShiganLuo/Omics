@@ -1,174 +1,110 @@
-# Omics
+# RNA-SNP Workflow
 
-记录各种组学分析流程，实践最佳流程管理
+这里是 `RNA-SNP` 相关的统一工作流入口。当前目录下的 `run.py` 会根据样本元信息和 `workflow_name` 选择对应的 Snakemake 子流程，并自动生成各流程所需的 `raw.json` 配置文件。
 
+## 目录结构
+
+- `run.py`：统一入口脚本，读取元信息、合并配置并调用 Snakemake。
+- `run.sh`：当前项目里常用的一键运行示例。
+- `config/`：各工作流的模板配置文件。
+- `subworkflow/`：各分析流程的 Snakemake 主入口。
+- `modules/`：可复用模块定义。
+- `example/`：示例配置和示例流程文件。
+
+## 支持的工作流
+
+`run.py` 通过 `-w/--workflow_name` 选择工作流：
+
+| 工作流 | 说明 | 典型输出 |
+| --- | --- | --- |
+| `CoCulture` | 共培养样本分析，支持多个物种 | 物种区分后的 BAM、下游统计结果 |
+| `MERIP` | MeRIP-seq / m6A-seq 分析 | dedup BAM、peak 结果、IGV 可视化 |
+| `RNAseq` | 常规转录组分析 | count 矩阵、TE 表达结果 |
+| `CLIP` | iCLIP / CLIP-seq 分析 | 质控、比对、PureCLIP、bedGraph / bigWig、IGV 页面 |
 
 ## 快速开始
 
-1. 创建envs中的conda环境，对于各个subworflow，配置好同名yaml内容
+1. 准备输入数据。
+   - 如果传入的是元信息文件，通常应包含样本、物种、测序布局等信息。
+   - 如果传入的是 fastq 目录，`run.py` 会直接从目录中解析样本信息。
+2. 确认 `envs/` 下的 conda 环境已准备好。
+3. 使用 `run.py` 启动对应流程。
 
-注意：
-- trim_galore只是打包程序，需要确保cutadapt存在
-- 物种名是动态变化的，在yaml中，相关文件的键需要根据metadata改变，如果物种名为有空格隔开，需要改空格为_，如Mus musculus -> Mus_musculus
+推荐示例：
 
-2. 修改scripts下RNA-SNP_prepare.sh脚本，执行
-
-3. 运行
-
---config参数可以在main.json对应字段中填写
-
-```sh
-snakemake -s workflow/RNA-SNP/main.smk --config indir=data/fq outdir=output metadata=data/target_fq.tsv --cores 45 --use-conda --conda-prefix /path/to/enviroment
-
-```
-好用参数：--rerun-triggers input
-
-- --conda-prefix 制定conda包下载地址，比如：/data/pub/zhousha/env/mutation_0.1
-
-4. 亮点
-
-- 支持多个物种
-- 支持单端测序和双端测序文件
-- 统一的日志管理
-
-注意：
-
-- 双端测序文件：
-  `_R1*fastq` , `_R2*fastq` or `_R1*fq` , `_R2*fq`
-  `_1*fastq` , `_2*fastq` or `_1*fq` , `_2*fq`
-- 单端测序文件：非双端测序文件模式
-- 具体查看utils/fastq_utils.py
-
-## run.py
-
-读取模板json，调用指定分析流程:
-  - 解析meta信息，覆盖相关字段
-  - 模板json默认配置保留
-  - 支持命令行参数更新指定字段
-
-## modules
-
-见各模块下json文件
-问题：
-- 哪些字段可以为空（初步想法是，标注null的字段可以为空，不标注的不可以不传递）
-- 字段值约束如何做（初步想法是，增加字段名_comment作为字段约束，后续可以在流程内加约束条件）
-- 模块接口（初步想法是通过indir,outdir；拿indir举个例子，有内层结构就input/内层路径，无内层结构就input）
-- 是否需要给文件输入输出加后缀，还是同样的文件格式都是sample_id为文件名
-
-## subworkflow
-
-无
-
-## 参数详解
-
-- `--config`
-  - `indir=value`：指定 fastq.gz 输入路径
-  - `outdir=value`：指定输出文件目录
-  - `metadata=value`: 指定fastaq元信息，必须包含["Data_id","Sample_id","Organism"],详见utils/fastq_utils.py如何处理metadata
-
-
-## 设计规范
-
-规则尽量不硬编码路径，只接受indir, outdir和logdir，还有生成的wildcards
-规则应该尽可能少涉及与执行无关的信息
-
-1. 规则可复用，灵活性高
-2. 可指定分析终点
-3. 具备强大的元信息处理
-4. 尽量在流程开始前规范化输入信息，流程本身不承担规范责任
-5. 对于目录输出，尽量在output指定flag并在shell中创建（建议放在命令最后执行，以便于snakemake确保所有文件生成），以便于流程串联
-
-
-## 待做
-- [x] 元信息控制CoCulture流程，记得完善json
-- [x] RNAseq流程重写
-- [ ] 多模块并行，（指定.snakemake生成与不同位置，或者拼接规则）
-
-## 下游分析
-
-### annotation
-
-  - gene_id2name: 映射基因id到基因名称
-  - geneIDAnnotation: 注释基因id
-  - vcf_annovar: annovar注释vcf
-
-### count
-
-  - count: RNAseq count标准化
-  - normalization: r版本，待完善
-
-### download
-
-  - ascp_download: 通过ascp下载对应 sra id(run number)代表的fastq序列
-  - GSE_runinfo: 获取GSE对应的run信息
-  - GSM_metadata: 获取GSM对应信息
-  - GSM_resolver: 解析多种输入的  GSM id
-  - old/*: 一些旧有脚本，已通过python重构
-
-### function
-
-  - DESeq2: 批量差异分析
-  - gmt.py: GSEA富集分析
-  - go-kegg_back: GO,KEGG富集分析，绘制背对背柱状图
-  - go-kegg: GO,KEGG富集分析，绘制散点图
-  - gsea: GSEA富集分析
-  - TEsite_subfamily: 统计差异分析中TE subfamily情况
-
-#### DESeq2
-
-举例
-
-```sh
-Rscript workflow/scripts/function/DESeq2.r --mode TEcount \
-    --matrix output/${outdir}/counts/mouseTEcount.cntTable \
-    --group ${group} \
-    --pattern  ${control} ${experiment} \
-    --outdir output/${outdir}/ \
-    --annotation /ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/geneIDAnnotation.csv \
-    --figure pca heatmap volcano \
-    --TEcountMode all
+```bash
+python workflow/RNA-SNP/run.py \
+  -m data/meta/fastq \
+  -w CLIP \
+  -o output \
+  -t 48 \
+  --log log/CLIP.log \
+  --conda-prefix /data/pub/zhousha/env/mutation_0.1 \
+  --Params.trim_galore.quality 10
 ```
 
+如果只是想检查流程而不真正执行，可加上 `--dry-run`。
 
-### fusion
+## `run.py` 参数说明
 
-  - fusionGeneAnnotation: 融合基因名称注释
-  - volcanoImportant: 融合基因火山图
+- `-m, --meta`：元信息文件或 fastq 目录。
+- `-w, --workflow_name`：工作流名称，可选 `CoCulture`、`MERIP`、`RNAseq`、`CLIP`。
+- `-o, --output_dir`：输出目录。
+- `-t, --threads`：Snakemake 线程数。
+- `--dry-run`：只生成计划，不执行。
+- `--log`：日志文件路径。
+- `--conda-prefix`：conda 包缓存目录。
+- `--rerun-trigger`：Snakemake 的重跑触发条件，默认 `input`。
+- `--conda-frontend`：`conda` 或 `mamba`。
 
-### gatk
+`run.py` 还支持额外参数透传给配置文件：
 
-  - gatkPrepare: gatk上游分析shell脚本
+- `--key value`
+- `--key=value`
+- 嵌套字段：`--Params.trim_galore.quality 10`
 
-### map
+## 输入约定
 
-  - star: star比对shell脚本
-  - starPrepare: star建立索引shell脚本
+- 单端文件：通常识别为单个 `fq.gz` / `fastq.gz` 文件。
+- 双端文件：通常识别为成对的 `*_1.fq.gz`、`*_2.fq.gz`，或 `*_R1.fq.gz`、`*_R2.fq.gz`。
+- `trim_galore` 只是包装命令，实际运行时仍需要 `cutadapt`。
+- 如果样本物种名包含空格，配置文件内部会统一规范化，例如 `Mus musculus` -> `Mus_musculus`。
 
-### plot
+## 输出约定
 
-  - heatmap: 热图
-  - pie: 饼状图
-  - violin: 小提琴图 
+每次运行都会在 `output/<workflow_name>/` 下生成对应结果，同时写出 `raw.json` 和 `log/` 目录。
 
-### SNP
+对于 `CLIP` 流程，当前还会额外生成：
 
-  - bash/*: 一些shell脚本
-  - count/*: count分析脚本
-  - python/*: 一些老旧Python脚本
-  - QC/*: 质量控制
-  - Rscript/*: 一些老旧R脚本
-  - Terr_RNA/*: 端粒转录序列分析
-  - vcf/*: vcf分析脚本
+- `bedtools/`：用于覆盖度和可视化的中间结果。
+- `track/igv_track_iclip.html`：可直接打开的 IGV 浏览页面。
 
-### SV
-  - pbsv_sv_diff_analysis: 比较对照组和实验组结构变异类型差异情况
-  - PlaB_only: 比较实验组特有alt序列与对照组对应alt序列注释情况差异，绘制富集图，以及一些统计
-  - run_circos: 绘制vcf的结构变异circos图，注意vcf文件寻找模式替换
-  - utils/repeatmasker_analysis: 注释序列重复元件情况，比较不同序列注释结果
-  - utils/repeatmasker_plot: 绘制重复序列注释结果差异富集柱状图
-  - utils/SV_TYPE_plot: 绘制结构变异类型图
-  - utils/SV_TYPE: 统计vcf中结构变异情况
+其中 `track` 模块会把 bigWig 和参考基因组资源整理成可在浏览器中访问的路径，因此如果在本机或服务器查看 IGV 页面，需要保证这些资源由 nginx 或其他静态服务正确暴露。
 
-### train
+## 当前流程特点
 
-潜在因子分析
+- 支持多个工作流统一入口。
+- 支持单端和双端测序。
+- 配置通过模板 JSON 合并生成，便于复用和覆盖。
+- 日志和输出目录由流程自动创建。
+
+## 运行示例
+
+当前仓库中已有的示例脚本可以直接参考 `run.sh`。它对应的典型执行方式是：
+
+```bash
+bash workflow/RNA-SNP/run.sh
+```
+
+如果需要手动调用 Snakemake，也可以参考 `run.py` 最终拼接出来的命令形式。
+
+## 备注
+
+- `modules/track/README.md` 说明了 IGV / UCSC track 的生成方式。
+- `subworkflow/README.md` 说明了各子流程的职责和输入输出。
+- 如果后续新增 workflow，建议同步补充：
+  - `config/<workflow>.json`
+  - `subworkflow/<workflow>.smk`
+  - `subworkflow/<workflow>.json`
+  `subworkflow/<workflow>.yaml`
+  - `run.py` 中的分发逻辑

@@ -228,8 +228,8 @@ def runCLIP(
             outfiles.append(f"{outdir}/fastqc/trimmed/{sample_id}/fastqc.trimmed.txt")
             outfiles.append(f"{outdir}/PureCLIP/{sample_id}.pureclip.sites.bed")
             outfiles.append(f"{outdir}/bedtools/{sample_id}/{sample_id}.bed")
-            outfiles.append(f"{outdir}/bedtools/{sample_id}/{sample_id}.plus.bedgraph")
-            outfiles.append(f"{outdir}/bedtools/{sample_id}/{sample_id}.minus.bedgraph")
+            outfiles.append(f"{outdir}/bedtools/{sample_id}/{sample_id}.plus.bw")
+            outfiles.append(f"{outdir}/bedtools/{sample_id}/{sample_id}.minus.bw")
         elif sample_info.layout == "SE":
             single_samples.append(sample_id)
             outfiles.append(f"{outdir}/cutadapt/{sample_id}.single.fq.gz")
@@ -241,11 +241,11 @@ def runCLIP(
             outfiles.append(f"{outdir}/fastqc/trimmed/{sample_id}/fastqc.trimmed.txt")
             outfiles.append(f"{outdir}/PureCLIP/{sample_id}.pureclip.sites.bed")
             outfiles.append(f"{outdir}/bedtools/{sample_id}/{sample_id}.bed")
-            outfiles.append(f"{outdir}/bedtools/{sample_id}/{sample_id}.plus.bedgraph")
-            outfiles.append(f"{outdir}/bedtools/{sample_id}/{sample_id}.minus.bedgraph")
-
+            outfiles.append(f"{outdir}/bedtools/{sample_id}/{sample_id}.plus.bw")
+            outfiles.append(f"{outdir}/bedtools/{sample_id}/{sample_id}.minus.bw")
         else:
             logger.error(f"Unknown layout type for sample {sample_id}: {sample_info.layout}")
+    outfiles.append(f"{outdir}/track/igv_track_iclip.html")
     datajson["outfiles"] = outfiles
     datajson["paired_samples"] = paired_samples
     datajson["single_samples"] = single_samples

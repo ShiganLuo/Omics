@@ -5,6 +5,7 @@ import html
 import json
 import logging
 import os
+import re
 from typing import Dict, List, Sequence, Tuple, Union
 from urllib.parse import urlparse
 
@@ -13,30 +14,15 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 
 
 def validate_igv_config(config_data: Dict) -> Tuple[bool, List[str]]:
-    """Validate an IGV.js browser config dictionary.
-
-    Parameters
-    ----------
-    config_data : dict
-        IGV.js browser configuration loaded from JSON.
-
-    Returns
-    -------
-    tuple[bool, list[str]]
-        A tuple containing the validation result and a list of error messages.
-    """
     errors: List[str] = []
 
     if not isinstance(config_data, dict):
         return False, ["IGV config must be a JSON object/dictionary"]
 
-    # Require id, name, and tracks. Accept either top-level fasta/index or a
-    # `reference` object that provides those URLs.
     for key in ["id", "name", "tracks"]:
         if key not in config_data:
             errors.append(f"Missing required top-level key: {key}")
 
-    # Accept reference object as alternative to top-level fasta/index
     has_top_level_fasta = "fastaURL" in config_data and "indexURL" in config_data
     has_reference = isinstance(config_data.get("reference"), dict) and (
         "fastaURL" in config_data["reference"] and "indexURL" in config_data["reference"]
@@ -51,24 +37,23 @@ def validate_igv_config(config_data: Dict) -> Tuple[bool, List[str]]:
         elif isinstance(value, str) and not value.strip():
             errors.append(f"Top-level key '{key}' cannot be empty")
 
-    # Validate fasta/index presence in either top-level or reference and ensure strings
-    def _validate_url_string(v, context_name):
-        if v is None:
+    def _validate_url_string(value, context_name):
+        if value is None:
             return
-        if not isinstance(v, str) or not v.strip():
+        if not isinstance(value, str) or not value.strip():
             errors.append(f"{context_name} must be a non-empty string")
-        else:
-            parsed = urlparse(v)
-            if parsed.scheme and parsed.scheme not in {"http", "https", "file"}:
-                errors.append(f"{context_name} has unsupported URL scheme '{parsed.scheme}'")
+            return
+        parsed = urlparse(value)
+        if parsed.scheme and parsed.scheme not in {"http", "https", "file"}:
+            errors.append(f"{context_name} has unsupported URL scheme '{parsed.scheme}'")
 
     if has_top_level_fasta:
         _validate_url_string(config_data.get("fastaURL"), "Top-level 'fastaURL'")
         _validate_url_string(config_data.get("indexURL"), "Top-level 'indexURL'")
     if has_reference:
-        ref = config_data.get("reference", {})
-        _validate_url_string(ref.get("fastaURL"), "reference.fastaURL")
-        _validate_url_string(ref.get("indexURL"), "reference.indexURL")
+        reference = config_data.get("reference", {})
+        _validate_url_string(reference.get("fastaURL"), "reference.fastaURL")
+        _validate_url_string(reference.get("indexURL"), "reference.indexURL")
 
     tracks = config_data.get("tracks")
     if not isinstance(tracks, list):
@@ -102,26 +87,12 @@ def validate_igv_config(config_data: Dict) -> Tuple[bool, List[str]]:
             else:
                 parsed = urlparse(track_url)
                 if parsed.scheme and parsed.scheme not in {"http", "https", "file"}:
-                    errors.append(
-                        f"Track entry at index {index} has unsupported URL scheme '{parsed.scheme}'"
-                    )
+                    errors.append(f"Track entry at index {index} has unsupported URL scheme '{parsed.scheme}'")
 
     return len(errors) == 0, errors
 
 
 def _track_type(file_path: str) -> str:
-    """Infer the IGV track type from a file extension.
-
-    Parameters
-    ----------
-    file_path : str
-        Track file path.
-
-    Returns
-    -------
-    str
-        IGV track type string.
-    """
     suffix = os.path.splitext(file_path)[1].lower()
     if suffix in {".bw", ".bigwig"}:
         return "bigWig"
@@ -131,64 +102,75 @@ def _track_type(file_path: str) -> str:
 
 
 def _track_name(file_path: str) -> str:
-    """Derive a display name from a track file path.
+    return os.path.splitext(os.path.basename(file_path))[0]
 
-    Parameters
-    ----------
-    file_path : str
-        Track file path.
 
-    Returns
-    -------
-    str
-        Base name without the final extension.
-    """
-    return os.path.basename(file_path).split(".")[0]
+def _parse_track_identity(track_name: str) -> Dict[str, str]:
+    raw_name = track_name.strip()
+    tokens = [token for token in re.split(r"[._\-]+", raw_name) if token]
+
+    strand_map = {
+        "plus": "plus",
+        "p": "plus",
+        "pos": "plus",
+        "positive": "plus",
+        "forward": "plus",
+        "fwd": "plus",
+        "minus": "minus",
+        "m": "minus",
+        "neg": "minus",
+        "negative": "minus",
+        "reverse": "minus",
+        "rev": "minus",
+    }
+    drop_tokens = {"bigwig", "bw", "bedgraph", "track", "signal", "coverage", "sorted", "dedup", "unique", "rmdup", "wig"}
+
+    strand = "unknown"
+    cleaned_tokens: List[str] = []
+    for token in tokens:
+        lowered = token.lower()
+        if lowered in strand_map:
+            strand = strand_map[lowered]
+            continue
+        if lowered in drop_tokens:
+            continue
+        cleaned_tokens.append(token)
+
+    if not cleaned_tokens:
+        cleaned_tokens = tokens or [raw_name]
+
+    group_tokens: List[str] = []
+    for token in cleaned_tokens:
+        lowered = token.lower()
+        if re.fullmatch(r"rep\d+", lowered):
+            continue
+        if re.fullmatch(r"r\d+", lowered):
+            continue
+        if re.fullmatch(r"lane\d+", lowered):
+            continue
+        if re.fullmatch(r"l\d+", lowered):
+            continue
+        if re.fullmatch(r"read\d+", lowered):
+            continue
+        group_tokens.append(token)
+
+    sample = "_".join(cleaned_tokens) if cleaned_tokens else raw_name
+    group = "_".join(group_tokens) if group_tokens else sample
+    return {"sample": sample, "group": group, "strand": strand}
 
 
 def _ensure_parent_dir(file_path: str) -> None:
-    """Create the parent directory for a file path when needed.
-
-    Parameters
-    ----------
-    file_path : str
-        Target file path.
-    """
     parent_dir = os.path.dirname(file_path)
     if parent_dir:
         os.makedirs(parent_dir, exist_ok=True)
 
 
 def _load_json_file(file_path: str) -> Dict:
-    """Load a JSON file into a dictionary.
-
-    Parameters
-    ----------
-    file_path : str
-        JSON file path.
-
-    Returns
-    -------
-    dict
-        Parsed JSON object.
-    """
-    with open(file_path, "r") as f:
-        return json.load(f)
+    with open(file_path, "r", encoding="utf-8") as handle:
+        return json.load(handle)
 
 
 def _as_path_map(path_map: Union[Dict, List]) -> List[Tuple[str, str]]:
-    """Normalize a public path mapping into a sorted list of prefix pairs.
-
-    Parameters
-    ----------
-    path_map : dict or list
-        Mapping from local prefixes to public URL prefixes.
-
-    Returns
-    -------
-    list[tuple[str, str]]
-        Path prefix pairs sorted from longest source prefix to shortest.
-    """
     if isinstance(path_map, dict):
         items = list(path_map.items())
     elif isinstance(path_map, list):
@@ -204,22 +186,6 @@ def _as_path_map(path_map: Union[Dict, List]) -> List[Tuple[str, str]]:
 
 
 def _rewrite_resource_url(resource_url: str, output_dir: str, path_map: List[Tuple[str, str]]) -> str:
-    """Rewrite a resource URL to a public or relative path.
-
-    Parameters
-    ----------
-    resource_url : str
-        Original resource URL or file path.
-    output_dir : str
-        Directory containing the generated HTML output.
-    path_map : list[tuple[str, str]]
-        Public path mappings for absolute local prefixes.
-
-    Returns
-    -------
-    str
-        Rewritten URL suitable for use in the generated HTML.
-    """
     if not isinstance(resource_url, str) or not resource_url.strip():
         return resource_url
 
@@ -240,20 +206,6 @@ def _rewrite_resource_url(resource_url: str, output_dir: str, path_map: List[Tup
 
 
 def _normalize_browser_config(browser_config: Dict, output_dir: str) -> Dict:
-    """Rewrite IGV browser config URLs to match the deployment layout.
-
-    Parameters
-    ----------
-    browser_config : dict
-        IGV browser configuration.
-    output_dir : str
-        Directory containing the generated HTML output.
-
-    Returns
-    -------
-    dict
-        Updated browser configuration.
-    """
     path_map = _as_path_map(browser_config.get("publicPathMap", []))
 
     for key in ["fastaURL", "indexURL", "cytobandURL"]:
@@ -272,41 +224,24 @@ def _normalize_browser_config(browser_config: Dict, output_dir: str) -> Dict:
         browser_config["reference"] = reference
         browser_config["genome"] = reference.get("id") or reference.get("name") or browser_config.get("id")
 
-    # Remove duplicate top-level fasta/index/cytoband keys once moved into `reference`.
-    # IGV prefers a single `reference` object; keeping both forms is redundant and
-    # may confuse downstream validators or consumers.
-    for _key in ("fastaURL", "indexURL", "cytobandURL"):
-        if _key in browser_config and isinstance(browser_config.get("reference"), Dict):
-            # Only delete if the same value exists in reference (safe no-op otherwise)
+    for key in ("fastaURL", "indexURL", "cytobandURL"):
+        if key in browser_config and isinstance(browser_config.get("reference"), dict):
             try:
-                if browser_config.get(_key) == browser_config["reference"].get(_key):
-                    del browser_config[_key]
+                if browser_config.get(key) == browser_config["reference"].get(key):
+                    del browser_config[key]
             except Exception:
-                # If anything unexpected happens, leave the top-level key intact.
                 pass
 
     for track in browser_config.get("tracks", []):
-        if isinstance(track, dict) and "url" in track:
+        if isinstance(track, Dict) and "url" in track:
             track["url"] = _rewrite_resource_url(track["url"], output_dir, path_map)
+        if isinstance(track, Dict) and "indexURL" in track:
+            track["indexURL"] = _rewrite_resource_url(track["indexURL"], output_dir, path_map)
 
     return browser_config
 
 
 def _track_color(track_name: str, index: int) -> str:
-    """Select a display color for a track.
-
-    Parameters
-    ----------
-    track_name : str
-        Track name.
-    index : int
-        Track index in the generated list.
-
-    Returns
-    -------
-    str
-        Hex color string.
-    """
     lowered_name = track_name.lower()
     if "plus" in lowered_name:
         return "#1f77b4"
@@ -316,27 +251,6 @@ def _track_color(track_name: str, index: int) -> str:
 
 
 def _build_igv_track_record(track_file: str, output_dir: str, index: int) -> Dict:
-    """Build a single IGV track record from an input file.
-
-    Parameters
-    ----------
-    track_file : str
-        Input track file path.
-    output_dir : str
-        Directory containing the generated HTML output.
-    index : int
-        Track index in the generated list.
-
-    Returns
-    -------
-    dict
-        IGV track configuration entry.
-
-    Raises
-    ------
-    ValueError
-        If the input file is not a supported bigWig track.
-    """
     track_type = _track_type(track_file)
     if track_type != "bigWig":
         raise ValueError(f"IGV.js recommended input type is bigWig: {track_file}")
@@ -348,44 +262,130 @@ def _build_igv_track_record(track_file: str, output_dir: str, index: int) -> Dic
         "type": "wig",
         "format": "bigwig",
         "color": _track_color(track_name, index),
+        "displayMode": "COLLAPSED",
         "autoscale": True,
-        "height": 50,
+        "height": 25,
     }
 
 
 def _build_igv_tracks(track_files: Sequence[str], output_dir: str) -> List[Dict]:
-    """Build IGV track records for all input files.
-
-    Parameters
-    ----------
-    track_files : sequence of str
-        Input track files.
-    output_dir : str
-        Directory containing the generated HTML output.
-
-    Returns
-    -------
-    list[dict]
-        IGV track records.
-    """
     return [_build_igv_track_record(track_file, output_dir, index) for index, track_file in enumerate(track_files)]
 
 
+def _build_grouped_track_manifest(tracks: Sequence[Dict]) -> List[Dict]:
+    grouped: Dict[str, Dict] = {}
+    for index, track in enumerate(tracks):
+        track_name = str(track.get("name", f"track_{index + 1}"))
+        identity = _parse_track_identity(track_name)
+        group_name = identity["group"]
+        sample_name = identity["sample"]
+        strand = identity["strand"]
+
+        group_entry = grouped.setdefault(group_name, {"group": group_name, "samples": {}})
+        sample_entry = group_entry["samples"].setdefault(sample_name, {"sample": sample_name, "tracks": []})
+
+        sample_entry["tracks"].append(
+            {
+                "key": f"generated_track_{index + 1}",
+                "name": track_name,
+                "strand": strand,
+                "config": track,
+            }
+        )
+
+    grouped_list: List[Dict] = []
+    for group_name in sorted(grouped):
+        sample_list: List[Dict] = []
+        samples = grouped[group_name]["samples"]
+        for sample_name in sorted(samples):
+            sample_tracks = sorted(samples[sample_name]["tracks"], key=lambda item: item["name"].lower())
+            sample_list.append({"sample": sample_name, "tracks": sample_tracks})
+        grouped_list.append({"group": group_name, "samples": sample_list})
+    return grouped_list
+
+
+def _split_eager_and_deferred_tracks(tracks: Sequence[Dict]) -> Tuple[List[Dict], List[Dict]]:
+    deferred_formats = {"gtf", "gff", "gff3"}
+    eager: List[Dict] = []
+    deferred: List[Dict] = []
+
+    for track in tracks:
+        if not isinstance(track, dict):
+            continue
+        track_format = str(track.get("format", "")).lower()
+        if track_format in deferred_formats:
+            deferred.append(track)
+        else:
+            eager.append(track)
+
+    return eager, deferred
+
+
+def _build_reference_track_group(tracks: Sequence[Dict]) -> List[Dict]:
+    if not tracks:
+        return []
+
+    reference_items: List[Dict] = []
+    for index, track in enumerate(tracks):
+        track_name = str(track.get("name", f"reference_track_{index + 1}"))
+        reference_items.append(
+            {
+                "key": f"reference_track_{index + 1}",
+                "name": track_name,
+                "strand": "annotation",
+                "config": track,
+            }
+        )
+
+    reference_items = sorted(reference_items, key=lambda item: item["name"].lower())
+    return [
+        {
+            "group": "Reference_annotations",
+            "samples": [
+                {
+                    "sample": "reference",
+                    "tracks": reference_items,
+                }
+            ],
+        }
+    ]
+
+
+def _render_igv_html(template_path: str, title: str, igv_js: str, browser_config: Dict, grouped_manifest: List[Dict]) -> str:
+    browser_json = json.dumps(browser_config, ensure_ascii=False, separators=(",", ":"))
+    grouped_json = json.dumps(grouped_manifest, ensure_ascii=False, separators=(",", ":"))
+
+    if os.path.exists(template_path):
+        with open(template_path, "r", encoding="utf-8") as handle:
+            template = handle.read()
+        return (
+            template.replace("{{TITLE}}", html.escape(title))
+            .replace("{{IGV_JS}}", igv_js)
+            .replace("{{BROWSER_CONFIG}}", browser_json)
+            .replace("{{GROUPED_MANIFEST}}", grouped_json)
+        )
+
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>{html.escape(title)}</title>
+<script src="{igv_js}"></script>
+</head>
+<body>
+<div id="igv-browser" style="height:100vh"></div>
+<script>
+const options = {browser_json};
+const groupedManifest = {grouped_json};
+console.log('IGV fallback template loaded', options, groupedManifest);
+</script>
+</body>
+</html>
+"""
+
+
 def ucsc_track_format(track_files: Sequence[str], output: str) -> List[str]:
-    """Write a UCSC track list for the provided files.
-
-    Parameters
-    ----------
-    track_files : sequence of str
-        Input track files.
-    output : str
-        Output text file path.
-
-    Returns
-    -------
-    list[str]
-        Sorted UCSC track lines.
-    """
     output_dir = os.path.dirname(output)
     if output_dir:
         os.makedirs(output_dir, exist_ok=True)
@@ -394,13 +394,12 @@ def ucsc_track_format(track_files: Sequence[str], output: str) -> List[str]:
     for track_file in track_files:
         track_type = _track_type(track_file)
         track_name = _track_name(track_file)
-        relative_url = os.path.relpath(track_file, start=output_dir or ".")
-        track_line = f'track type={track_type} name="{track_name}" description="{track_name}" bigDataUrl={relative_url}'
+        track_line = f'track type={track_type} name="{track_name}" description="{track_name}" bigDataUrl={track_file}'
         track_lines.append(track_line)
 
     track_lines = sorted(track_lines)
-    with open(output, "w") as f:
-        f.write("\n".join(track_lines) + ("\n" if track_lines else ""))
+    with open(output, "w", encoding="utf-8") as handle:
+        handle.write("\n".join(track_lines) + ("\n" if track_lines else ""))
     return track_lines
 
 
@@ -410,36 +409,40 @@ def igvjs_track_format(
     config: str,
     title: str = "IGV Browser",
 ) -> Dict:
-    """Generate an IGV.js HTML page from track files and a browser config.
-
-    Parameters
-    ----------
-    track_files : sequence of str
-        Input track files.
-    output : str
-        Output HTML file path.
-    config : str
-        JSON file containing the base IGV browser configuration.
-    title : str, optional
-        Title shown in the HTML page.
-
-    Returns
-    -------
-    dict
-        Final IGV browser configuration used to render the page.
-
-    Raises
-    ------
-    ValueError
-        If the resulting IGV configuration is invalid.
-    """
     output_dir = os.path.dirname(output)
     _ensure_parent_dir(output)
     track_files = sorted(track_files)
+
     browser_config = _load_json_file(config)
+    path_map = _as_path_map(browser_config.get("publicPathMap", []))
+
     igv_js = browser_config.get("js", "https://cdn.jsdelivr.net/npm/igv/dist/igv.min.js")
-    browser_config["tracks"] = browser_config.get("tracks", []) + _build_igv_tracks(track_files, output_dir)
+    igv_js = _rewrite_resource_url(igv_js, output_dir, path_map)
+
+    generated_tracks = _build_igv_tracks(track_files, output_dir)
+    for track in generated_tracks:
+        if "url" in track:
+            track["url"] = _rewrite_resource_url(track["url"], output_dir or ".", path_map)
+
+    browser_config["tracks"] = browser_config.get("tracks", [])
     browser_config = _normalize_browser_config(browser_config, output_dir or ".")
+
+    normalized_base_tracks = browser_config.get("tracks", [])
+    eager_base_tracks, deferred_base_tracks = _split_eager_and_deferred_tracks(normalized_base_tracks)
+    # Load both eager and deferred (e.g. GTF) base tracks into the browser by default
+    # so reference/annotation tracks are visible on initial load. Assign a high
+    # order for reference tracks so they appear below sample tracks.
+    REFERENCE_TRACK_ORDER_BASE = 1000000
+    for idx, t in enumerate(deferred_base_tracks):
+        if isinstance(t, dict) and t.get("order") is None:
+            try:
+                t["order"] = REFERENCE_TRACK_ORDER_BASE + idx
+            except Exception:
+                pass
+
+    browser_config["tracks"] = eager_base_tracks + deferred_base_tracks
+
+    grouped_manifest = _build_grouped_track_manifest(generated_tracks) + _build_reference_track_group(deferred_base_tracks)
 
     is_valid, errors = validate_igv_config(browser_config)
     if not is_valid:
@@ -448,73 +451,16 @@ def igvjs_track_format(
             logging.warning("  - %s", error)
         raise ValueError("Invalid IGV config, see log for details")
 
-    html_text = f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>{html.escape(title)}</title>
-<script src="{igv_js}"></script>
-<style>
-html, body {{
-  margin: 0;
-  padding: 0;
-  height: 100%;
-    background: #ffffff;
-    color: #111111;
-  font-family: Arial, sans-serif;
-}}
-header {{
-  padding: 16px 20px 8px;
-    border-bottom: 1px solid #ddd;
-}}
-h1 {{
-  margin: 0;
-  font-size: 18px;
-  font-weight: 600;
-}}
-#igv-browser {{
-  height: calc(100vh - 58px);
-}}
-</style>
-</head>
-<body>
-<div id="igv-browser"></div>
+    template_path = os.path.join(os.path.dirname(__file__), "igv_template.html")
+    html_text = _render_igv_html(template_path, title, igv_js, browser_config, grouped_manifest)
 
-<script>
-const options = {json.dumps(browser_config, ensure_ascii=False, indent=2)};
-igv.createBrowser(document.getElementById('igv-browser'), options)
-  .then(browser => console.log("IGV loaded"));
-</script>
-</body>
-</html>
-"""
-
-    with open(output, "w", encoding="utf-8") as f:
-        f.write(html_text)
+    with open(output, "w", encoding="utf-8") as handle:
+        handle.write(html_text)
 
     return browser_config
 
 
 def build_track_files(inputs: Sequence[str], output: str, mode: str, config: str = "") -> None:
-    """Dispatch track generation to the requested output mode.
-
-    Parameters
-    ----------
-    inputs : sequence of str
-        Input track files.
-    output : str
-        Output file path.
-    mode : str
-        Output mode, either ``ucsc`` or ``igv``.
-    config : str
-        IGV browser JSON config file path.
-
-    Raises
-    ------
-    ValueError
-        If ``mode`` is unsupported.
-    """
     if mode == "ucsc":
         ucsc_track_format(inputs, output)
     elif mode == "igv":
@@ -526,12 +472,6 @@ def build_track_files(inputs: Sequence[str], output: str, mode: str, config: str
 
 
 def main() -> None:
-    """Run the command-line interface for track generation.
-
-    Returns
-    -------
-    None
-    """
     parser = argparse.ArgumentParser(description="Generate UCSC track files or IGV.js HTML from coverage tracks.")
     parser.add_argument("-i", "--input", required=True, nargs="+", help="Input track files.")
     parser.add_argument("-o", "--output", required=True, help="Output file path.")

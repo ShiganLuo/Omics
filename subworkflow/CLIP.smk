@@ -200,6 +200,8 @@ module track:
 logger.info(f"track_config: {track_config}")
 use rule igv_track_iclip from track as CLIP_igv_track_iclip
 use rule ucsc_track_iclip from track as CLIP_ucsc_track_iclip
+use rule ucsc_track_bedtools from track as CLIP_ucsc_track_bedtools
+use rule igv_track_bedtools from track as CLIP_igv_track_bed
 
 
 

@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>{{TITLE}}</title>
+<script src="{{IGV_JS}}"></script>
+<style>
+:root {
+    --bg: #f7f9fb;
+    --panel: #ffffff;
+    --line: #d5dbe3;
+    --text: #17212b;
+    --subtext: #5b6a79;
+    --accent: #175ec7;
+    --accent-soft: #e9f1ff;
+}
+html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Helvetica Neue", "Segoe UI", sans-serif;
+}
+.layout {
+    display: grid;
+    grid-template-columns: 320px minmax(0, 1fr);
+    height: 100vh;
+}
+.layout.sidebar-collapsed {
+    grid-template-columns: 56px minmax(0, 1fr);
+}
+.sidebar {
+    border-right: 1px solid var(--line);
+    background: var(--panel);
+    overflow: auto;
+    padding: 12px;
+    transition: width 0.18s ease, padding 0.18s ease;
+    position: relative;
+}
+.sidebar-collapsed .sidebar {
+    padding: 10px 6px;
+    overflow: hidden;
+}
+.sidebar-toggle {
+    width: 100%;
+    margin-bottom: 10px;
+    background: var(--accent-soft);
+    border-color: var(--accent);
+}
+.sidebar-collapsed .sidebar-toggle {
+    margin-bottom: 0;
+}
+.sidebar-content {
+    display: block;
+}
+.sidebar-collapsed .sidebar-content {
+    display: none;
+}
+.reference-area {
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    margin-bottom: 12px;
+    overflow: hidden;
+    background: #fcfdff;
+}
+.reference-title {
+    padding: 8px 10px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--accent);
+    background: #eef5ff;
+    border-bottom: 1px solid var(--line);
+}
+.reference-container {
+    padding: 8px 10px 10px;
+}
+.title {
+    margin: 0 0 4px;
+    font-size: 17px;
+    font-weight: 600;
+}
+.subtitle {
+    margin: 0 0 10px;
+    color: var(--subtext);
+    font-size: 12px;
+}
+.search {
+    width: 100%;
+    box-sizing: border-box;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 8px 10px;
+    margin-bottom: 10px;
+}
+.controls {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+button {
+    border: 1px solid var(--line);
+    background: var(--panel);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 6px 10px;
+    cursor: pointer;
+}
+button.primary {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-soft);
+}
+.group {
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    margin-bottom: 10px;
+    overflow: hidden;
+}
+.group-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #f2f6fb;
+    padding: 8px 10px;
+    font-size: 13px;
+    font-weight: 600;
+    gap: 8px;
+}
+.group-actions {
+    display: flex;
+    gap: 6px;
+}
+.group-body {
+    padding: 6px 10px 10px;
+}
+.sample {
+    margin-top: 8px;
+}
+.sample-name {
+    margin: 0 0 5px;
+    font-size: 12px;
+    color: var(--subtext);
+    font-weight: 600;
+}
+.track-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 4px 0;
+    font-size: 12px;
+}
+.track-meta {
+    color: var(--subtext);
+    font-size: 11px;
+}
+.group-sentinel {
+    text-align: center;
+    color: var(--subtext);
+    font-size: 12px;
+    padding: 10px 6px 8px;
+}
+.group-empty {
+    border: 1px dashed var(--line);
+    border-radius: 10px;
+    color: var(--subtext);
+    text-align: center;
+    font-size: 12px;
+    padding: 14px 10px;
+}
+.main {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+.main-head {
+    border-bottom: 1px solid var(--line);
+    background: var(--panel);
+    padding: 10px 12px;
+    font-size: 13px;
+    color: var(--subtext);
+}
+#igv-browser {
+    flex: 1;
+    min-height: 0;
+}
+
+#igv-browser .igv-viewport,
+#igv-browser .igv-axis-column,
+#igv-browser .igv-sample-info-column,
+#igv-browser .igv-sample-name-column,
+#igv-browser .igv-scrollbar-column,
+#igv-browser .igv-track-drag-column,
+#igv-browser .igv-gear-menu-column {
+    background: #f7f9fb;
+}
+
+#igv-browser .igv-viewport {
+    background-image: linear-gradient(180deg, rgba(255,255,255,0.65), rgba(255,255,255,0.65));
+}
+
+#igv-browser .igv-track-label {
+    background-color: #ffffff;
+}
+
+@media (max-width: 960px) {
+    .layout {
+        grid-template-columns: 1fr;
+        grid-template-rows: 42vh 58vh;
+    }
+    .sidebar {
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+    }
+}
+</style>
+</head>
+<body>
+<div class="layout" id="layout-root">
+    <aside class="sidebar">
+        <button id="sidebar-toggle" class="sidebar-toggle">收起侧栏</button>
+        <div class="sidebar-content">
+            <h1 class="title">{{TITLE}}</h1>
+            <p class="subtitle">按分组动态加载轨道，默认不全量加载以提升首屏速度。</p>
+            <input id="group-search" class="search" type="search" placeholder="筛选分组或样本" />
+            <div class="controls">
+                <button id="expand-all">展开全部</button>
+                <button id="collapse-all">折叠全部</button>
+            </div>
+            <div id="group-container"></div>
+            <div class="reference-area">
+                <div class="reference-title">参考注释 / GTF</div>
+                <div id="reference-container" class="reference-container"></div>
+            </div>
+        </div>
+    </aside>
+    <section class="main">
+        <div class="main-head" id="status-text">正在初始化 IGV 浏览器...</div>
+        <div id="igv-browser"></div>
+    </section>
+</div>
+
+<script>
+const options = {{BROWSER_CONFIG}};
+const groupedManifest = {{GROUPED_MANIFEST}};
+
+const groupContainer = document.getElementById('group-container');
+const referenceContainer = document.getElementById('reference-container');
+const layoutRoot = document.getElementById('layout-root');
+const sidebarToggle = document.getElementById('sidebar-toggle');
+const sidebarPanel = document.querySelector('.sidebar');
+const searchInput = document.getElementById('group-search');
+const statusText = document.getElementById('status-text');
+const expandAllButton = document.getElementById('expand-all');
+const collapseAllButton = document.getElementById('collapse-all');
+
+const loadedTracks = new Map();
+// For the "依次加载"视觉效果 we append sample groups one-by-one.
+const GROUP_BATCH_SIZE = 1;
+const INITIAL_GROUP_BATCH = 1;
+
+const SAMPLE_TRACK_ORDER_BASE = 1000;
+const REFERENCE_TRACK_ORDER_BASE = 1000000;
+let nextSampleTrackOrder = SAMPLE_TRACK_ORDER_BASE;
+let nextReferenceTrackOrder = REFERENCE_TRACK_ORDER_BASE;
+
+// Simple serial queue to avoid interleaved load/remove causing annotation tracks
+// to appear between sample tracks. All operations that change browser tracks
+// should be enqueued via `enqueue` so they run one-at-a-time.
+let loadQueue = Promise.resolve();
+function enqueue(fn) {
+    const next = loadQueue.then(() => fn());
+    // prevent unhandled rejection from breaking the chain
+    loadQueue = next.catch(() => {});
+    return next;
+}
+
+let activeManifest = groupedManifest;
+let activeSampleManifest = [];
+let referenceManifest = [];
+let renderedGroupCount = 0;
+let sentinelNode = null;
+let groupObserver = null;
+let browser = null;
+
+const annotationBackgroundColor = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim() || '#f7f9fb';
+
+function patchAnnotationDrawingHooks(targetBrowser) {
+    if (!targetBrowser || !igv || !igv.IGVGraphics || typeof igv.IGVGraphics.fillRect !== 'function') {
+        return;
+    }
+
+    if (!targetBrowser.__igvOriginalCreateTrack) {
+        targetBrowser.__igvOriginalCreateTrack = targetBrowser.createTrack.bind(targetBrowser);
+        targetBrowser.createTrack = async (config) => {
+            const track = await targetBrowser.__igvOriginalCreateTrack(config);
+            patchTrackDrawing(track);
+            return track;
+        };
+    }
+
+    if (!igv.__igvOriginalFillRect) {
+        igv.__igvOriginalFillRect = igv.IGVGraphics.fillRect.bind(igv.IGVGraphics);
+        igv.IGVGraphics.fillRect = (context, x, y, width, height, options = {}) => {
+            if (globalThis.__igvDrawingTrackType === 'annotation') {
+                const fillStyle = options.fillStyle;
+                if (fillStyle === 'white' || fillStyle === 'rgb(255, 255, 255)') {
+                    options = {...options, fillStyle: annotationBackgroundColor};
+                }
+            }
+            return igv.__igvOriginalFillRect(context, x, y, width, height, options);
+        };
+    }
+}
+
+function patchTrackDrawing(track) {
+    if (!track || track.__igvDrawingHooked) {
+        return;
+    }
+
+    if (track.type === 'annotation' && typeof track.draw === 'function') {
+        const originalDraw = track.draw.bind(track);
+        track.draw = (options) => {
+            const previousTrackType = globalThis.__igvDrawingTrackType;
+            globalThis.__igvDrawingTrackType = 'annotation';
+            try {
+                return originalDraw(options);
+            } finally {
+                globalThis.__igvDrawingTrackType = previousTrackType;
+            }
+        };
+        track.__igvDrawingHooked = true;
+    }
+}
+
+function _removeLoadedTrackByKey(trackKey) {
+    const entry = loadedTracks.get(trackKey);
+    if (!entry) return;
+    try {
+        if (browser && typeof browser.removeTrack === 'function' && entry.track) {
+            // Try to remove the actual track object from the browser
+            browser.removeTrack(entry.track);
+        }
+    } catch (e) {
+        // ignore - removal might not be supported
+        console.warn('removeTrack failed', e);
+    }
+}
+
+async function reloadReferenceTracks() {
+    if (!referenceManifest || referenceManifest.length === 0) return;
+    for (const groupEntry of referenceManifest) {
+        for (const sample of groupEntry.samples) {
+            for (const trackMeta of sample.tracks) {
+                const cachedEntry = loadedTracks.get(trackMeta.key);
+                if (cachedEntry && cachedEntry.trackView && cachedEntry.track && typeof cachedEntry.track.updateViews === 'function') {
+                    await cachedEntry.track.updateViews();
+                }
+            }
+        }
+    }
+}
+
+function setStatus(message) {
+    statusText.textContent = message;
+}
+
+function setSidebarCollapsed(isCollapsed) {
+    layoutRoot.classList.toggle('sidebar-collapsed', isCollapsed);
+    sidebarToggle.textContent = isCollapsed ? '展开侧栏' : '收起侧栏';
+}
+
+function isReferenceGroup(groupEntry) {
+    return groupEntry && groupEntry.group === 'Reference_annotations';
+}
+
+function splitSampleAndReferenceManifest(data) {
+    referenceManifest = data.filter(isReferenceGroup);
+    activeSampleManifest = data.filter(groupEntry => !isReferenceGroup(groupEntry));
+}
+
+function softHideTrackView(trackView) {
+    if (!trackView) return;
+    trackView._softHidden = true;
+    const hideElement = (element) => {
+        if (element) element.style.display = 'none';
+    };
+    hideElement(trackView.axis);
+    for (const viewport of trackView.viewports || []) {
+        hideElement(viewport.viewportElement);
+    }
+    hideElement(trackView.sampleInfoViewport && trackView.sampleInfoViewport.viewport);
+    hideElement(trackView.sampleNameViewport && trackView.sampleNameViewport.viewport);
+    hideElement(trackView.outerScroll);
+    hideElement(trackView.dragHandle);
+    hideElement(trackView.gearContainer);
+}
+
+function softShowTrackView(trackView) {
+    if (!trackView) return;
+    trackView._softHidden = false;
+    const showElement = (element) => {
+        if (element) element.style.display = '';
+    };
+    showElement(trackView.axis);
+    for (const viewport of trackView.viewports || []) {
+        showElement(viewport.viewportElement);
+    }
+    showElement(trackView.sampleInfoViewport && trackView.sampleInfoViewport.viewport);
+    showElement(trackView.sampleNameViewport && trackView.sampleNameViewport.viewport);
+    showElement(trackView.outerScroll);
+    showElement(trackView.dragHandle);
+    showElement(trackView.gearContainer);
+}
+
+function flattenGroupTracks(groupEntry) {
+    const tracks = [];
+    for (const sample of groupEntry.samples) {
+        for (const track of sample.tracks) {
+            tracks.push(track);
+        }
+    }
+    return tracks;
+}
+
+async function loadTrackDirect(trackMeta, checkbox, isReferenceTrack = false, refreshReferences = true, forceReload = false) {
+    if (!browser) {
+        return;
+    }
+    const cachedEntry = loadedTracks.get(trackMeta.key);
+    if (cachedEntry && cachedEntry.trackView && !forceReload) {
+        softShowTrackView(cachedEntry.trackView);
+        if (cachedEntry.track && typeof cachedEntry.track.updateViews === 'function') {
+            await cachedEntry.track.updateViews();
+        }
+        if (checkbox) checkbox.checked = true;
+        setStatus(`已从缓存恢复轨道: ${trackMeta.name}`);
+        return;
+    }
+    try {
+        if (checkbox) checkbox.disabled = true;
+        const trackConfig = JSON.parse(JSON.stringify(trackMeta.config));
+        if (trackConfig.order === undefined) {
+            trackConfig.order = isReferenceTrack ? nextReferenceTrackOrder++ : nextSampleTrackOrder++;
+        }
+        const loadedTrack = await browser.loadTrack(trackConfig);
+        loadedTracks.set(trackMeta.key, {track: loadedTrack, trackView: loadedTrack.trackView});
+        setStatus(`已加载轨道: ${trackMeta.name}`);
+    } catch (error) {
+        console.error('Track load failed', trackMeta, error);
+        if (checkbox) checkbox.checked = false;
+        setStatus(`加载失败: ${trackMeta.name}`);
+    } finally {
+        if (checkbox) checkbox.disabled = false;
+    }
+}
+
+async function loadTrack(trackMeta, checkbox, isReferenceTrack = false, refreshReferences = true, forceReload = false) {
+    // Ensure track load operations are serialized to avoid interleaving issues.
+    return enqueue(() => loadTrackDirect(trackMeta, checkbox, isReferenceTrack, refreshReferences, forceReload));
+}
+
+function unloadTrack(trackMeta, checkbox) {
+    if (!browser) {
+        return;
+    }
+    const cachedEntry = loadedTracks.get(trackMeta.key);
+    if (!cachedEntry || !cachedEntry.trackView) {
+        return;
+    }
+    if (typeof browser.removeTrack === 'function' && cachedEntry.track) {
+        try {
+            browser.removeTrack(cachedEntry.track);
+        } catch (error) {
+            console.warn('removeTrack failed, falling back to hide', error);
+            softHideTrackView(cachedEntry.trackView);
+        }
+    } else {
+        softHideTrackView(cachedEntry.trackView);
+    }
+    if (checkbox) checkbox.checked = false;
+    setStatus(`已隐藏并缓存轨道: ${trackMeta.name}`);
+}
+
+async function loadGroup(groupEntry, hostNode) {
+    const checkboxes = hostNode.querySelectorAll('input[data-track-key]');
+    const tracks = flattenGroupTracks(groupEntry);
+    const isReference = isReferenceGroup(groupEntry);
+    setStatus(`正在加载分组: ${groupEntry.group} (${tracks.length} 条轨道)`);
+    for (const trackMeta of tracks) {
+        const checkbox = hostNode.querySelector(`input[data-track-key="${trackMeta.key}"]`);
+        if (checkbox && !checkbox.checked) {
+            checkbox.checked = true;
+            await loadTrack(trackMeta, checkbox, isReference);
+        }
+    }
+    for (const checkbox of checkboxes) {
+        checkbox.disabled = false;
+    }
+}
+
+function unloadGroup(groupEntry, hostNode) {
+    const tracks = flattenGroupTracks(groupEntry);
+    for (const trackMeta of tracks) {
+        const checkbox = hostNode.querySelector(`input[data-track-key="${trackMeta.key}"]`);
+        unloadTrack(trackMeta, checkbox);
+    }
+    setStatus(`已卸载分组: ${groupEntry.group}`);
+}
+
+function createGroupNode(groupEntry) {
+    const groupNode = document.createElement('section');
+    groupNode.className = 'group';
+    groupNode.dataset.group = groupEntry.group.toLowerCase();
+
+    const groupHead = document.createElement('div');
+    groupHead.className = 'group-head';
+    const totalTracks = flattenGroupTracks(groupEntry).length;
+    groupHead.innerHTML = `<span>${groupEntry.group} (${totalTracks})</span>`;
+
+    const actions = document.createElement('div');
+    actions.className = 'group-actions';
+    const loadButton = document.createElement('button');
+    loadButton.className = 'primary';
+    loadButton.textContent = '加载分组';
+    const unloadButton = document.createElement('button');
+    unloadButton.textContent = '卸载分组';
+    const toggleButton = document.createElement('button');
+    toggleButton.textContent = '折叠';
+
+    actions.append(loadButton, unloadButton, toggleButton);
+    groupHead.append(actions);
+    groupNode.append(groupHead);
+
+    const body = document.createElement('div');
+    body.className = 'group-body';
+    groupNode.append(body);
+
+    for (const sample of groupEntry.samples) {
+        const sampleNode = document.createElement('div');
+        sampleNode.className = 'sample';
+        sampleNode.dataset.sample = sample.sample.toLowerCase();
+        const sampleName = document.createElement('p');
+        sampleName.className = 'sample-name';
+        sampleName.textContent = sample.sample;
+        sampleNode.append(sampleName);
+
+        for (const trackMeta of sample.tracks) {
+            const row = document.createElement('label');
+            row.className = 'track-item';
+            row.innerHTML = `
+                <span>${trackMeta.name} <span class="track-meta">[${trackMeta.strand}]</span></span>
+                <input type="checkbox" data-track-key="${trackMeta.key}" />
+            `;
+            const checkbox = row.querySelector('input');
+            checkbox.addEventListener('change', async (event) => {
+                if (event.target.checked) {
+                    await loadTrack(trackMeta, checkbox, false);
+                } else {
+                    unloadTrack(trackMeta, checkbox);
+                }
+            });
+            sampleNode.append(row);
+        }
+        body.append(sampleNode);
+    }
+
+    loadButton.addEventListener('click', async () => {
+        loadButton.disabled = true;
+        try {
+            await loadGroup(groupEntry, groupNode);
+        } finally {
+            loadButton.disabled = false;
+        }
+    });
+    unloadButton.addEventListener('click', () => unloadGroup(groupEntry, groupNode));
+
+    let collapsed = false;
+    toggleButton.addEventListener('click', () => {
+        collapsed = !collapsed;
+        body.style.display = collapsed ? 'none' : '';
+        toggleButton.textContent = collapsed ? '展开' : '折叠';
+    });
+
+    return groupNode;
+}
+
+function resetGroupRenderState() {
+    if (groupObserver) {
+        groupObserver.disconnect();
+    }
+    groupContainer.innerHTML = '';
+    renderedGroupCount = 0;
+    sentinelNode = null;
+}
+
+function resetReferenceRenderState() {
+    referenceContainer.innerHTML = '';
+}
+
+function renderReferenceGroups(data) {
+    resetReferenceRenderState();
+    if (!data || data.length === 0) {
+        const emptyNode = document.createElement('div');
+        emptyNode.className = 'group-empty';
+        emptyNode.textContent = '无参考注释';
+        referenceContainer.append(emptyNode);
+        return;
+    }
+
+    for (const groupEntry of data) {
+        const groupNode = createGroupNode(groupEntry);
+        const body = groupNode.querySelector('.group-body');
+        const toggleButton = groupNode.querySelector('.group-head button:last-child');
+        if (body) body.style.display = '';
+        if (toggleButton) toggleButton.textContent = '折叠';
+        referenceContainer.append(groupNode);
+    }
+}
+
+function appendGroupBatch(batchSize) {
+    // kept for compatibility but we drive sequential appends via appendGroupSequentially
+    appendGroupSequentially(renderedGroupCount);
+}
+
+function appendGroupSequentially(index) {
+    if (index >= activeSampleManifest.length) {
+        // finished appending all sample groups; render reference area at the bottom
+        renderReferenceGroups(referenceManifest);
+        return;
+    }
+
+    const groupNode = createGroupNode(activeSampleManifest[index]);
+    groupContainer.append(groupNode);
+    renderedGroupCount = index + 1;
+
+    // Schedule next append to create a visible "依次加载" effect
+    setTimeout(() => appendGroupSequentially(index + 1), 120);
+}
+
+function initGroupObserver() {
+    // Observer-based lazy loading is intentionally disabled for the one-by-one
+    // sequential append effect. Keep the function as a no-op for compatibility.
+}
+
+function renderGroups(data) {
+    activeManifest = data;
+    splitSampleAndReferenceManifest(data);
+    resetGroupRenderState();
+
+    if (!activeSampleManifest.length) {
+        const emptyNode = document.createElement('div');
+        emptyNode.className = 'group-empty';
+        emptyNode.textContent = '没有匹配的分组';
+        groupContainer.append(emptyNode);
+        // still render reference area at bottom
+        renderReferenceGroups(referenceManifest);
+        return;
+    }
+
+    // Start sequential append of sample groups; reference groups will be rendered
+    // after all sample groups have been appended so the GTF area stays at bottom.
+    appendGroupSequentially(0);
+}
+
+function filterManifest(query) {
+    if (!query) {
+        return groupedManifest;
+    }
+
+    const lowered = query.toLowerCase();
+    return groupedManifest.filter((groupEntry) => {
+        if (groupEntry.group.toLowerCase().includes(lowered)) {
+            return true;
+        }
+        for (const sample of groupEntry.samples) {
+            if (sample.sample.toLowerCase().includes(lowered)) {
+                return true;
+            }
+            for (const track of sample.tracks) {
+                if (track.name.toLowerCase().includes(lowered)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    });
+}
+
+function applyFilter() {
+    const query = searchInput.value.trim();
+    const filtered = filterManifest(query);
+    renderGroups(filtered);
+
+    if (query) {
+        setStatus(`筛选后显示 ${filtered.length} / ${groupedManifest.length} 个分组（懒加载渲染）`);
+    } else {
+        setStatus(`初始化中: 共 ${groupedManifest.length} 个分组，默认仅加载基础轨道。`);
+    }
+}
+
+function applyExpandCollapse(expand) {
+    const sections = groupContainer.querySelectorAll('.group');
+    for (const section of sections) {
+        const body = section.querySelector('.group-body');
+        const toggle = section.querySelector('.group-head button:last-child');
+        if (!body || !toggle) {
+            continue;
+        }
+        body.style.display = expand ? '' : 'none';
+        toggle.textContent = expand ? '折叠' : '展开';
+    }
+}
+
+function findFirstTrackMeta() {
+    // Prefer sample tracks first so preloaded/auto-loaded track is from samples
+    const orderedGroups = [...activeSampleManifest, ...referenceManifest];
+    for (const group of orderedGroups) {
+        for (const sample of group.samples) {
+            if (sample.tracks && sample.tracks.length > 0) {
+                for (const track of sample.tracks) {
+                    return track;
+                }
+            }
+        }
+    }
+    return null;
+}
+
+function syncCheckboxForTrack(trackKey, checked) {
+    const checkbox = document.querySelector(`input[data-track-key="${trackKey}"]`);
+    if (checkbox) {
+        checkbox.checked = checked;
+    }
+}
+
+searchInput.addEventListener('input', applyFilter);
+expandAllButton.addEventListener('click', () => applyExpandCollapse(true));
+collapseAllButton.addEventListener('click', () => applyExpandCollapse(false));
+sidebarToggle.addEventListener('click', () => {
+    const collapsed = layoutRoot.classList.contains('sidebar-collapsed');
+    setSidebarCollapsed(!collapsed);
+});
+
+renderGroups(groupedManifest);
+setSidebarCollapsed(false);
+setStatus(`初始化中: 共 ${groupedManifest.length} 个分组，GTF 参考注释固定在底部，样本分组按序依次渲染。`);
+
+igv.createBrowser(document.getElementById('igv-browser'), options)
+    .then(async (createdBrowser) => {
+        browser = createdBrowser;
+        patchAnnotationDrawingHooks(browser);
+        for (const trackView of browser.trackViews || []) {
+            patchTrackDrawing(trackView.track);
+        }
+        setStatus(`IGV 已就绪。已加载基础轨道 ${(options.tracks || []).length} 条，可按组动态加载。`);
+
+        const firstTrack = findFirstTrackMeta();
+        if (firstTrack) {
+            await loadTrack(firstTrack, null);
+            syncCheckboxForTrack(firstTrack.key, true);
+            setStatus(`IGV 已就绪。已自动预加载首条轨道: ${firstTrack.name}`);
+        }
+    })
+    .catch((error) => {
+        console.error('IGV initialization failed', error);
+        setStatus('IGV 初始化失败，请检查浏览器控制台日志。');
+    });
+</script>
+</body>
+</html>

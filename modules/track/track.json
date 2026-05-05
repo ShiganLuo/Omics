@@ -9,27 +9,29 @@
         "sample3"
     ],
     "igv": {
-        "js": "https://cdn.jsdelivr.net/npm/igv/dist/igv.min.js",
-        "id": "mm39",
-        "name": "Mouse (GRCm39/mm39)",
-        "publicPathMap": {
-            "/data/pub/zhousha/20260422_ClIPseq/output/CLIP/": "/clip/",
-            "/data/pub/zhousha/Reference/": "/ref/"
-        },
-        "fastaURL": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
-        "indexURL": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa.fai",
-        "cytobandURL": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/mm39.cytoBand.txt",
-        "tracks": [
-            {
-            "name": "Gencode vm39 genes",
-            "format": "gtf",
-            "url": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf"
+            "js": "/data/pub/zhousha/Reference/igv.min.js",
+            "id": "mm39",
+            "name": "Mouse (GRCm39/mm39)",
+            "publicPathMap": {
+                "/data/pub/zhousha/": "/data/",
+                "/data/pub/zhousha/Reference/": "/ref/"
             },
-            {
-                "name": "Gencode vm39 repeats",
-                "format": "gtf",
-                "url": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.gtf"
-            }
-        ]
-    }
+            "fastaURL": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
+            "indexURL": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa.fai",
+            "cytobandURL": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/mm39.cytoBand.txt",
+            "tracks": [
+                {
+                    "name": "Gencode vM38 genes",
+                    "format": "gtf",
+                    "url": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/gencode.vM38.basic.gene_exon.sorted.gtf.gz",
+                    "indexUrl": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/gencode.vM38.basic.gene_exon.sorted.gtf.gz.tbi"
+                },
+                {
+                    "name": "Gencode rmsk repeats",
+                    "format": "gtf",
+                    "url": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.sorted.gtf.gz",
+                    "indexUrl": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.sorted.gtf.gz.tbi"
+                }
+            ]
+        }
 }

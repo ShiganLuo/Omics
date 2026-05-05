@@ -246,6 +246,7 @@ def runCLIP(
         else:
             logger.error(f"Unknown layout type for sample {sample_id}: {sample_info.layout}")
     outfiles.append(f"{outdir}/track/igv_track_iclip.html")
+    outfiles.append(f"{outdir}/track/ucsc_track_iclip.txt")
     datajson["outfiles"] = outfiles
     datajson["paired_samples"] = paired_samples
     datajson["single_samples"] = single_samples
@@ -258,6 +259,11 @@ def runCLIP(
     datajson["Params"]["STAR"]["outFilterMismatchNoverReadLmax"] = 0.04
     datajson["Params"]["STAR"]["outFilterMismatchNmax"] = 999
     datajson["Params"]["STAR"]["outFilterMultimapNmax"] = 999
+    datajson["Params"]["igv"]["js"] = "/data/pub/zhousha/Reference/igv.min.js"
+    datajson["Params"]["igv"]["publicPathMap"] = {
+        "/data/pub/zhousha/": "/data/",
+        "/data/pub/zhousha/Reference/": "/ref/"
+    }
     instance_json = os.path.join(outdir, "raw.json")
     with open(instance_json, 'w', encoding='utf-8') as wf:
         json.dump(datajson, wf, indent=2, ensure_ascii=False)

@@ -22,6 +22,51 @@
 | `RNAseq` | 常规转录组分析 | count 矩阵、TE 表达结果 |
 | `CLIP` | iCLIP / CLIP-seq 分析 | 质控、比对、PureCLIP、bedGraph / bigWig、IGV 页面 |
 
+### CLIP
+
+igv模块准备:
+
+```json
+  "igv": {
+        "js": "/data/pub/zhousha/Reference/igv.min.js",
+        "id": "mm39",
+        "name": "Mouse (GRCm39/mm39)",
+        "publicPathMap": {
+            "/data/pub/zhousha/": "/data/",
+            "/data/pub/zhousha/Reference/": "/ref/"
+        },
+        "fastaURL": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
+        "indexURL": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa.fai",
+        "cytobandURL": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/mm39.cytoBand.txt",
+        "tracks": [
+            {
+                "name": "Gencode vM38 genes",
+                "format": "gtf",
+                "url": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/gencode.vM38.basic.gene_exon.sorted.gtf.gz",
+                "indexUrl": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/gencode.vM38.basic.gene_exon.sorted.gtf.gz.tbi"
+            },
+            {
+                "name": "Gencode rmsk repeats",
+                "format": "gtf",
+                "url": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.sorted.gtf.gz",
+                "indexUrl": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.sorted.gtf.gz.tbi"
+            }
+        ]
+    }
+```
+1. 注释轨道
+
+- 注释轨道需要自己建立索引，以防止浏览器全量加载注释卡死（F12观察返回码是否为200,200则是没有配置索引）
+```sh
+tabix -g gff [gft.gz]
+```
+- nginx需要确保sendfile是开启状态(on)
+
+2. publicPathMap
+
+为了让nginx能够获取流程生成html内的内容，特意配置了这个map，以生成相对路径让nginx能够读取
+
+
 ## 快速开始
 
 1. 准备输入数据。

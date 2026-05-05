@@ -40,11 +40,11 @@
             "alignEndsType": "Extend5pOfRead1"
         },
         "igv": {
-            "js": "https://cdn.jsdelivr.net/npm/igv/dist/igv.min.js",
+            "js": "/data/pub/zhousha/Reference/igv.min.js",
             "id": "mm39",
             "name": "Mouse (GRCm39/mm39)",
             "publicPathMap": {
-                "/data/pub/zhousha/20260422_ClIPseq/output/CLIP/": "/clip/",
+                "/data/pub/zhousha/": "/data/",
                 "/data/pub/zhousha/Reference/": "/ref/"
             },
             "fastaURL": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
@@ -52,14 +52,16 @@
             "cytobandURL": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/mm39.cytoBand.txt",
             "tracks": [
                 {
-                "name": "Gencode vm39 genes",
-                "format": "gtf",
-                "url": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf"
+                    "name": "Gencode vM38 genes",
+                    "format": "gtf",
+                    "url": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/gencode.vM38.basic.gene_exon.sorted.gtf.gz",
+                    "indexURL": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/gencode.vM38.basic.gene_exon.sorted.gtf.gz.tbi"
                 },
                 {
-                    "name": "Gencode vm39 repeats",
+                    "name": "Gencode rmsk repeats",
                     "format": "gtf",
-                    "url": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.gtf"
+                    "url": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.sorted.gtf.gz",
+                    "indexURL": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.sorted.gtf.gz.tbi"
                 }
             ]
         }

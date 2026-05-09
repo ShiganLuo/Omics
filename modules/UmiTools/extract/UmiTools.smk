@@ -18,8 +18,12 @@ rule UmiTools_extract_single:
     threads: 2
     shell:
         """
-        {params.umi_tools} extract --extract-method={params.extract_method}
-            --bc-pattern={params.bc_pattern} -L {log} -I {input.fastq} -S {output.fastq}
+        {params.umi_tools} extract \
+            --extract-method={params.extract_method} \
+            --bc-pattern={params.bc_pattern} \
+            -I {input.fastq} \
+            -S {output.fastq} \
+            > {log} 2>&1
         """
 
 rule UmiTools_extract_paired:
@@ -48,5 +52,5 @@ rule UmiTools_extract_paired:
             --bc-pattern2={params.bc_pattern2} \
             --read2-in={input.fastq2} \
             --read2-out={output.fastq2} \
-            -L {log} 
+            > {log} 2>&1
         """

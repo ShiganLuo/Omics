@@ -2,10 +2,23 @@ from snakemake.logging import logger
 outdir = config.get("outdir", "output")
 indir = config.get("indir", "output/raw_fastq")
 logdir = config.get("logdir", "log")
+mode = config.get("mode") or None
+def get_input_for_trimming_Paired(wildcards):
+    logger.info(f"Getting input for trimming_Paired with mode: {mode}")
+    if mode == "UMI":
+        return [
+            f"{indir}/{wildcards.sample_id}_1.umi.fq.gz",
+            f"{indir}/{wildcards.sample_id}_2.umi.fq.gz"
+        ]
+    else:
+        return [
+            f"{indir}/{wildcards.sample_id}_1.fq.gz",
+            f"{indir}/{wildcards.sample_id}_2.fq.gz"
+        ]
+
 rule trimming_Paired:
     input:
-        fastq1 = indir + "/{sample_id}_1.fq.gz",
-        fastq2 = indir + "/{sample_id}_2.fq.gz"
+        get_input_for_trimming_Paired
     output:
         fastq1 = temp(outdir + "/{sample_id}_1.fq.gz"),
         fastq2 = temp(outdir + "/{sample_id}_2.fq.gz"),
@@ -24,16 +37,23 @@ rule trimming_Paired:
         """
         # trim_galore can automatically judge the fq quality scoring system,it's no need to add such as --phred33 --phred64
         {params.trim_galore} --paired  --cores {threads} --quality {params.quality} \
-            -o {params.outdir} --basename {wildcards.sample_id} {input.fastq1} {input.fastq2} > {log.log} 2>&1
+            -o {params.outdir} --basename {wildcards.sample_id} {input[0]} {input[1]} > {log.log} 2>&1
         mv {params.outdir}/{wildcards.sample_id}_val_1.fq.gz {output.fastq1}
         mv {params.outdir}/{wildcards.sample_id}_val_2.fq.gz {output.fastq2}
         mv {params.outdir}/{wildcards.sample_id}_1.fq.gz_trimming_report.txt {output.report1}
         mv {params.outdir}/{wildcards.sample_id}_2.fq.gz_trimming_report.txt {output.report2}
         """
 
+def get_input_for_trimming_Single(wildcards):
+    logger.info(f"Getting input for trimming_Paired with mode: {mode}")
+    if mode == "UMI":
+        return f"{indir}/{wildcards.sample_id}.umi.single.fq.gz",
+    else:
+        return f"{indir}/{wildcards.sample_id}.single.fq.gz",
+
 rule trimming_Single:
     input:
-        fastq = indir + "/{sample_id}.single.fq.gz"
+        fastq = get_input_for_trimming_Single
     output:
         fastq = temp(outdir + "/{sample_id}.single.fq.gz"),
         report = logdir + "/{sample_id}/trimming_statistics.txt"
@@ -55,14 +75,4 @@ rule trimming_Single:
         """
 
 
-rule triming_paired_reslut:
-    input:
-        fastq1 = outdir + "/{sample_id}_1.fq.gz",
-        fastq2 = outdir + "/{sample_id}_2.fq.gz",
-        report1 = logdir + "/{sample_id}/trimming_statistics_1.txt",
-        report2 = logdir + "/{sample_id}/trimming_statistics_2.txt",
 
-rule triming_single_result:
-    input:
-        fastq = outdir + "/{sample_id}.single.fq.gz",
-        report = logdir + "/{sample_id}/trimming_statistics.txt"

@@ -39,6 +39,11 @@
         "STAR": {
             "alignEndsType": "Extend5pOfRead1"
         },
+        "umi_tools": {
+            "extract_method": "string",
+            "bc_pattern": "NNNXXXXNN",
+            "bc_pattern2": "NNNXXXXNN"
+        },
         "igv": {
             "js": "/data/pub/zhousha/Reference/igv.min.js",
             "id": "mm39",

@@ -1,7 +1,7 @@
 name: UmiTools
 channels:
-  - bioconda
   - conda-forge
+  - bioconda
 dependencies:
-  - umi_tools=1.0.1
-  - openssl=1.0
+  - umi_tools=1.1.6
+  - samtools=1.23.1

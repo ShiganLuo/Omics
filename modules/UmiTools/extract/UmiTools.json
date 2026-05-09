@@ -1,0 +1,15 @@
+{
+    "Procedure": {
+        "umi_tools": "path/to/umi_tools"
+    },
+    "Params": {
+        "umi_tools": {
+            "extract_method": "string",
+            "bc_pattern": "NNNXXXXNN",
+            "bc_pattern2": "NNNXXXXNN"
+        }
+    },
+    "indir": "output",
+    "outdir": "output",
+    "logdir": "logs"
+}

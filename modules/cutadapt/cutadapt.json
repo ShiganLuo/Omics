@@ -7,6 +7,7 @@
             "quality": 25
         }
     },
+    "mode": null,
     "indir": "output/raw_fastq",
     "outdir": "output",
     "logdir": "logs"

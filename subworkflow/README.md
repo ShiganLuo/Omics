@@ -7,6 +7,7 @@
 ## 各工作流简介
 
 ### 1. CLIP.smk
+
 - **用途**：iCLIP/CLIP-seq 数据分析全流程。
 - **主要模块**：
   - fastqc_raw：原始数据质控
@@ -19,6 +20,41 @@
 
 待做：
 - [] 增加UMI提取方式字段
+
+### UMI-tools工作原理
+
+Read: TAGCCGGCTTTGCCCAATTGCCAAATTTTGGGGCCCCTATGAGCTAG Barcode: NNNXXXXNN
+
+Barcode: TAGCCGGCT
+UMI: TAGCT
+library barcode: CCGG
+Processed data: CCGGTTGCCCAATTGCCAAATTTTGGGGCCCCTATGAGCTAG
+
+
+
+### UMI提取和trim顺序
+
+UMI提取依赖序列不被破坏，建议先提取UMI，再做trim比较安全
+
+### 常见UMI模式
+
+1. NNNXXXXNN
+
+常见iCLIP实验
+
+2. NNNNNXXXXXXNNNN
+
+[iCLIP2 protocol](https://doi.org/10.1016/j.ymeth.2019.10.003)
+
+解释：
+
+- N为随机序列，即UMI
+- XXXX为barcode，用于区分样本，后续demultiplex拆分样本(如果有多个样本的话)
+
+注意：
+
+如果是单个样本，X需要被替换为N，即全是UMI
+
 
 ### 2. CoCulture.smk
 - **用途**：共培养体系转录组分析。

@@ -101,6 +101,7 @@ python workflow/RNA-SNP/run.py \
 - `--conda-prefix`：conda 包缓存目录。
 - `--rerun-trigger`：Snakemake 的重跑触发条件，默认 `input`。
 - `--conda-frontend`：`conda` 或 `mamba`。
+- `--snakemake-args`：透传给 Snakemake 的额外参数，放在这个标志后面，例如 `--snakemake-args --keep-going --rerun-incomplete`。
 
 `run.py` 还支持额外参数透传给配置文件：
 

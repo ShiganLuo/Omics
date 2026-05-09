@@ -27,11 +27,32 @@ module fastqc_raw:
     config: fastqc_raw_config
 logger.info(f"fastqc_raw_config: {fastqc_raw_config}")
 use rule fastqc from fastqc_raw as CLIP_fastqc
-
-cutadapt_config = {
+UmiTools_extract_config = {
         "indir": indir,
+        "outdir": f"{outdir}/umi_tools_extract",
+        "logdir": logdir,
+        "Procedure": {
+            "umi_tools": config.get('Procedure',{}).get('umi_tools') or 'umi_tools',
+            "extract_method": config.get('Procedure',{}).get('extract_method') or 'string'
+        },
+        "Params": {
+            "umi_tools": {
+                "bc_pattern": config.get('Params',{}).get('umi_tools',{}).get('bc_pattern') or 'NNNXXXXNN',
+                "bc_pattern2": config.get('Params',{}).get('umi_tools',{}).get('bc_pattern2') or 'NNNXXXXNN',
+            }
+        }
+    }
+module UmiTools_extract:
+    snakefile: "../modules/UmiTools/extract/UmiTools.smk"
+    config: UmiTools_extract_config
+logger.info(f"UmiTools_extract_config: {UmiTools_extract_config}")
+use rule UmiTools_extract_single from UmiTools_extract as CLIP_UmiTools_extract_single
+use rule UmiTools_extract_paired from UmiTools_extract as CLIP_UmiTools_extract_paired
+cutadapt_config = {
+        "indir": UmiTools_extract_config["outdir"],
         "outdir":  f"{outdir}/cutadapt",
         "logdir": logdir,
+        "mode": "UMI",
         "Procedure": {
             "trim_galore": config.get('Procedure',{}).get('trim_galore')
         },
@@ -111,31 +132,25 @@ elif aligner == 'star':
     use rule star_index from star as CLIP_star_index
 else:
     raise ValueError(f"Unsupported aligner: {aligner}")
-
-igv_config = {
-        "indir": hisat2_config["outdir"] if aligner == 'hisat2' else star_config["outdir"], 
-        "outdir":  f"{outdir}/igv",
+umi_tools_dedup_config = {
+        "indir": star_config["outdir"] if aligner == 'star' else hisat2_config["outdir"],
+        "outdir":  f"{outdir}/umi_tools_dedup",
         "logdir": logdir,
         "Procedure": {
-            "samtools": config.get('Procedure',{}).get('samtools'),
-            "bamCoverage": config.get('Procedure',{}).get('bamCoverage')
+            "umi_tools": config.get('Procedure',{}).get('umi_tools')
         },
         "Params": {
-            "bamCoverage": {
-                "binSize": config.get('Params',{}).get('bamCoverage',{}).get('binSize'),
-                "normalizeUsing": config.get('Params',{}).get('bamCoverage',{}).get('normalizeUsing'),
-                "offset": config.get('Params',{}).get('bamCoverage',{}).get('offset'),
-                "extendReads": config.get('Params',{}).get('bamCoverage',{}).get('extendReads')
+            "umi_tools": {
+                "method": config.get('Params',{}).get('umi_tools',{}).get('method') or 'unique'
             }
         }
     }
-module igv:
-    snakefile: "../modules/igv/igv.smk"
-    config: igv_config
-logger.info(f"igv_config: {igv_config}")
-use rule dedup_star from igv as CLIP_dedup_star
-use rule dedup_hisat2 from igv as CLIP_dedup_hisat2
-use rule wig from igv as CLIP_wig
+module UmiTools_dedup:
+    snakefile: "../modules/UmiTools/UmiTools.smk"
+    config: umi_tools_dedup_config
+logger.info(f"umi_tools_dedup_config: {umi_tools_dedup_config}")
+use rule umi_tools_dedup_for_star from UmiTools_dedup as CLIP_umi_tools_dedup_for_star
+use rule umi_tools_dedup_for_hisat2 from UmiTools_dedup as CLIP_umi_tools_dedup_for_hisat2
 
 genome_config = {
         "genome": {
@@ -154,7 +169,7 @@ logger.info(f"genome_config: {genome_config}")
 use rule chromosome_sizes from genome as CLIP_chromosome_sizes
 
 bedtools_config = {
-        "indir": igv_config["outdir"] + "/dedup",
+        "indir": umi_tools_dedup_config["outdir"],
         "outdir":  f"{outdir}/bedtools",
         "logdir": logdir,
         "Procedure": {
@@ -171,7 +186,7 @@ logger.info(f"bedtools_config: {bedtools_config}")
 use rule iCLIP_bedtools from bedtools as CLIP_bedtools
 
 PureCLIP_config = {
-        "indir": igv_config["outdir"] + "/dedup",
+        "indir": umi_tools_dedup_config["outdir"],
         "outdir":  f"{outdir}/PureCLIP",
         "logdir": logdir,
         "Procedure": {

@@ -8,11 +8,11 @@ rule umi_tools_dedup_for_hisat2:
         bam = indir + "/{sample_id}.bam"
     output:
         bam = temp(outdir + "/{sample_id}.dedup.bam"),
-        log = logdir + "/{sample_id}/umi_tools_dedup.txt"
+        bai = temp(outdir + "/{sample_id}.dedup.bam.bai"),
     params:
         umi_tools = config.get('Procedure',{}).get('umi_tools') or 'umi_tools',
-        method = config.get('Params',{}).get('umi_tools',{}).get('method', 'unique'),
-        outdir = outdir
+        method = config.get('Params',{}).get('umi_tools',{}).get('method') or 'unique',
+        samtools = config.get('Procedure',{}).get('samtools') or 'samtools'
     threads: 2
     conda:
         "UmiTools.yaml"
@@ -20,9 +20,12 @@ rule umi_tools_dedup_for_hisat2:
         log = logdir + "/{sample_id}/umi_tools_dedup_run.txt"
     shell:
         """
-        mkdir -p {params.outdir}
-        {params.umi_tools} dedup --method={params.method} \
-            -I {input.bam} -S {output.bam} > {log} 2>&1
+        {params.umi_tools} dedup \
+            --method={params.method} \
+            -I {input.bam} \
+            -S {output.bam} \
+            > {log} 2>&1
+        {params.samtools} index {output.bam}
         """
 
 rule umi_tools_dedup_for_star:
@@ -30,11 +33,11 @@ rule umi_tools_dedup_for_star:
         bam = indir + "/{sample_id}/{sample_id}.bam"
     output:
         bam = temp(outdir + "/{sample_id}.dedup.bam"),
-        log = logdir + "/{sample_id}/umi_tools_dedup.txt"
+        bai = temp(outdir + "/{sample_id}.dedup.bam.bai")
     params:
         umi_tools = config.get('Procedure',{}).get('umi_tools') or 'umi_tools',
-        method = config.get('Params',{}).get('umi_tools',{}).get('method', 'unique'),
-        outdir = outdir
+        method = config.get('Params',{}).get('umi_tools',{}).get('method') or 'unique',
+        samtools = config.get('Procedure',{}).get('samtools') or 'samtools'
     threads: 2
     conda:
         "UmiTools.yaml"
@@ -44,4 +47,5 @@ rule umi_tools_dedup_for_star:
         """
         {params.umi_tools} dedup --method={params.method} \
             -I {input.bam} -S {output.bam} > {log} 2>&1
+        {params.samtools} index {output.bam}
         """

@@ -278,8 +278,22 @@ def parse_args():
     parser.add_argument('--dry-run', action='store_true', help='dry run')
     parser.add_argument('--log', type=str, default='workflow.log', help='log file')
     parser.add_argument('--conda-prefix', type=str, default='/data/pub/zhousha/env/mutation_0.1', help='conda prefix for snakemake')
-    parser.add_argument('--rerun-trigger', type=str, default="input", choices=["code", "input", "mtime", "params", "software-env"],help='snakemake rerun-triggers, e.g.  code, input, mtime, params, software-env')
+    parser.add_argument(
+        '--rerun-trigger', '--rerun-triggers',
+        dest='rerun_trigger',
+        nargs='+',
+        default=["input"],
+        choices=["code", "input", "mtime", "params", "software-env"],
+        help='snakemake rerun-triggers, e.g. code input mtime params software-env'
+    )
     parser.add_argument('--conda-frontend', type=str, choices=["conda", "mamba"], default="mamba", help='conda frontend for snakemake')
+    parser.add_argument(
+        '--snakemake-args',
+        nargs=argparse.REMAINDER,
+        default=[],
+        help='additional arguments forwarded to snakemake; place them after this flag'
+    )
+    
     # 支持 --key=value 和 --key value 两种形式的额外参数
     args, unknown = parser.parse_known_args()
     extra_args = {}
@@ -299,6 +313,30 @@ def parse_args():
         i += 1
     args.extra_args = extra_args
     return args
+
+
+def build_snakemake_cmd(root_dir, smk, input_json, threads, conda_prefix, rerun_trigger, dry_run, conda_frontend, snakemake_args):
+    cmd = [
+        "snakemake",
+        "-s",
+        f"{root_dir}/subworkflow/{smk}",
+        "--configfile",
+        input_json,
+        "--cores",
+        str(threads),
+        "--conda-prefix",
+        conda_prefix,
+        "--rerun-triggers",
+        *rerun_trigger,
+        "--use-conda",
+        "--conda-frontend",
+        conda_frontend,
+    ]
+    if dry_run:
+        cmd.append("--dry-run")
+    if snakemake_args:
+        cmd.extend(snakemake_args)
+    return cmd
 
 
 if __name__ == "__main__":
@@ -351,7 +389,15 @@ if __name__ == "__main__":
         exit(1)
     if args.dry_run:
         logger.info(f"Dry run mode, generated input json: {input_json}")
-        cmds = ["snakemake","-s", f"{ROOT_DIR}/subworkflow/{smk}", "--configfile", input_json, "--cores", str(args.threads), "--conda-prefix", args.conda_prefix, "--rerun-triggers", args.rerun_trigger, "--use-conda","--dry-run", "--conda-frontend",args.conda_frontend]
-    else:
-        cmds = ["snakemake","-s", f"{ROOT_DIR}/subworkflow/{smk}", "--configfile", input_json, "--cores", str(args.threads), "--conda-prefix", args.conda_prefix, "--rerun-triggers", args.rerun_trigger, "--use-conda", "--conda-frontend",args.conda_frontend]
+    cmds = build_snakemake_cmd(
+        ROOT_DIR,
+        smk,
+        input_json,
+        args.threads,
+        args.conda_prefix,
+        args.rerun_trigger,
+        args.dry_run,
+        args.conda_frontend,
+        args.snakemake_args,
+    )
     _run_cmd(cmds)

@@ -6,8 +6,7 @@ indir = config.get("indir", "output/disambiguate")
 ROOT_DIR = config.get("ROOT_DIR", "./")
 genome_pairs: Tuple[str, str] = config.get("genome_pairs", ())
 genomeA, genomeB = genome_pairs
-paired_samples = config.get('paired_samples', [])
-single_samples = config.get('single_samples', [])
+samples = config.get("samples", [])
 
 def get_input_for_TEcount(wildcards):
     logger.info(f"[get_input_for_TEcount] called with wildcards: {wildcards}")
@@ -46,12 +45,10 @@ rule TEcount:
 def get_cntTable_for_TEcount(wildcards):
     logger.info(f"[get_cntTable_for_TEcount] called with wildcards: {wildcards}")
     cntTable = []
-    for sample_id in single_samples:
-        cntTable.append(f"{outdir}/TEcount/{wildcards.genome}/{sample_id}.TEcount.cntTable")
-    for sample_id in paired_samples:
+    for sample_id in samples:
         cntTable.append(f"{outdir}/TEcount/{wildcards.genome}/{sample_id}.TEcount.cntTable")
     if len(cntTable) == 0:
-        raise ValueError(f"rule combine_TElocal didn't get any input files,genome: {wildcards.genome}")
+        raise ValueError(f"rule combine_TEcount didn't get any input files,genome: {wildcards.genome}")
     return cntTable
 
 rule combine_TEcount:
@@ -112,11 +109,9 @@ rule TElocal:
 def get_cntTable_for_TElocal(wildcards):
     logger.info(f"[get_cntTable_for_TElocal] called with wildcards: {wildcards}")
     cntTable = []
-    for sample_id in single_samples:
+    for sample_id in samples:
         cntTable.append(f"{outdir}/TElocal/{wildcards.genome}/{sample_id}.TElocal.cntTable")
-    for sample_id in paired_samples:
-        cntTable.append(f"{outdir}/TElocal/{wildcards.genome}/{sample_id}.TElocal.cntTable")
-    
+
     if len(cntTable) == 0:
         raise ValueError(f"rule combine_TElocal didn't get any input files,genome: {wildcards.genome}")
     return cntTable

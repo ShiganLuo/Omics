@@ -10,4 +10,4 @@ python ${SCRIPT_DIR}/run.py \
     --Params.trim_galore.quality 10 \
     --Params.umi_tools.bc_pattern "NNNNNNNNNNNNNNN" \
     --Params.umi_tools.bc_pattern2 "NNNNNNNNNNNNNNN" \
-    --rerun-trigger input code mtime params software-env 
+    --rerun-trigger input code mtime params software-env

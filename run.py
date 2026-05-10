@@ -130,14 +130,14 @@ def runMERIP(
     for sample_id, sample_info in samples_info_dict.items():
         if sample_info.layout == "PE":
             paired_samples.append(sample_id)
-            # outfiles.append(f"{outdir}/cutadapt/{sample_id}_1.fq.gz")
-            # outfiles.append(f"{outdir}/cutadapt/{sample_id}_2.fq.gz")
+            # outfiles.append(f"{outdir}/cutadapt/{sample_id}/{sample_id}_1.fq.gz")
+            # outfiles.append(f"{outdir}/cutadapt/{sample_id}/{sample_id}_2.fq.gz")
             # outfiles.append(f"{outdir}/hisat2/{sample_id}.bam")
             # outfiles.append(f"{outdir}/igv/{sample_id}.bigwig")
             outfiles.append(f"{outdir}/igv/dedup/{sample_id}.dedup.bam")
         elif sample_info.layout == "SE":
             single_samples.append(sample_id)
-            # outfiles.append(f"{outdir}/cutadapt/{sample_id}.single.fq.gz")
+            # outfiles.append(f"{outdir}/cutadapt/{sample_id}/{sample_id}.single.fq.gz")
             # outfiles.append(f"{outdir}/hisat2/{sample_id}.bam")
             # outfiles.append(f"{outdir}/igv/{sample_id}.bigwig")
             outfiles.append(f"{outdir}/igv/dedup/{sample_id}.dedup.bam")
@@ -218,8 +218,8 @@ def runCLIP(
     for sample_id, sample_info in samples_info_dict.items():
         if sample_info.layout == "PE":
             paired_samples.append(sample_id)
-            outfiles.append(f"{outdir}/cutadapt/{sample_id}_1.fq.gz")
-            outfiles.append(f"{outdir}/cutadapt/{sample_id}_2.fq.gz")
+            outfiles.append(f"{outdir}/cutadapt/{sample_id}/{sample_id}_1.fq.gz")
+            outfiles.append(f"{outdir}/cutadapt/{sample_id}/{sample_id}_2.fq.gz")
             if datajson["aligner"] == "star":
                 outfiles.append(f"{outdir}/star/{sample_id}/{sample_id}.bam")
             elif datajson["aligner"] == "hisat2":
@@ -232,7 +232,7 @@ def runCLIP(
             outfiles.append(f"{outdir}/bedtools/{sample_id}/{sample_id}.minus.bw")
         elif sample_info.layout == "SE":
             single_samples.append(sample_id)
-            outfiles.append(f"{outdir}/cutadapt/{sample_id}.single.fq.gz")
+            outfiles.append(f"{outdir}/cutadapt/{sample_id}/{sample_id}.single.fq.gz")
             if datajson["aligner"] == "star":
                 outfiles.append(f"{outdir}/star/{sample_id}/{sample_id}.bam")
             elif datajson["aligner"] == "hisat2":

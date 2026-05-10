@@ -84,8 +84,8 @@ rule star_align:
         get_alignment_input,
         genome_index = get_star_index
     output:
-        bam = temp(outdir + "/{sample_id}/{sample_id}.bam"),
-        bai = temp(outdir + "/{sample_id}/{sample_id}.bam.bai")
+        bam = outdir + "/{sample_id}/{sample_id}.bam",
+        bai = outdir + "/{sample_id}/{sample_id}.bam.bai"
     log:
         logdir + "/{sample_id}/star_align.log"
     threads: 12

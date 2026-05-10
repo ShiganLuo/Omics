@@ -19,7 +19,6 @@
                     "TEind": "/path/to/genome/TEind"
                }
      },
-    "paired_samples": ["sample1", "sample2"],
-    "single_samples": ["sample3", "sample4"],
+    "samples": ["sample1", "sample2", "sample3"],
     "genome_pairs": ["genome1", "genome2"]
 }

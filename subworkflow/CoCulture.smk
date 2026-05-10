@@ -76,8 +76,7 @@ TEtranscripts_config = {
         "logdir": logdir,
         "ROOT_DIR": ROOT_DIR,
         "genome_pairs": disambiguate_config["genome_pairs"],
-        "single_samples": single_samples,
-        "paired_samples": paired_samples,
+        "samples": single_samples + paired_samples,
         "genome": config.get("genome", {}),
         "Procedure": {
             "TEcount": config.get('Procedure',{}).get('TEcount') or 'TEcount',

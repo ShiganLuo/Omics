@@ -3,8 +3,7 @@ outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 indir= config.get("indir", "output/raw_fastq")
 ROOT_DIR = config.get("ROOT_DIR", "./")
-single_samples = config.get("single_samples", [])
-paired_samples = config.get("paired_samples", [])
+samples = config.get("samples", [])
 
 
 rule TEcount:
@@ -33,12 +32,11 @@ rule TEcount:
 def get_cntTable_for_TEcount(wildcards):
     logger.info(f"[get_cntTable_for_TEcount] called with wildcards: {wildcards}")
     cntTable = []
-    for sample_id in single_samples:
+    for sample_id in samples:
         cntTable.append(f"{outdir}/TEcount/{sample_id}.TEcount.cntTable")
-    for sample_id in paired_samples:
-        cntTable.append(f"{outdir}/TEcount/{sample_id}.TEcount.cntTable")
+
     if len(cntTable) == 0:
-        raise ValueError(f"rule combine_TEcount didn't get any input files,single_samples:{single_samples},paired_samples:{paired_samples}")
+        raise ValueError(f"rule combine_TEcount didn't get any input files,samples:{samples}")
     return cntTable
 
 rule combine_TEcount:
@@ -84,13 +82,11 @@ rule TElocal:
 def get_cntTable_for_TElocal(wildcards):
     logger.info(f"[get_cntTable_for_TElocal] called with wildcards: {wildcards}")
     cntTable = []
-    for sample_id in single_samples:
+    for sample_id in samples:
         cntTable.append(f"{outdir}/TElocal/{sample_id}.TElocal.cntTable")
-    for sample_id in paired_samples:
-        cntTable.append(f"{outdir}/TElocal/{sample_id}.TElocal.cntTable")
-    
+
     if len(cntTable) == 0:
-        raise ValueError(f"rule combine_TElocal didn't get any input files,single_samples:{single_samples},paired_samples:{paired_samples}")
+        raise ValueError(f"rule combine_TElocal didn't get any input files,samples:{samples}")
     return cntTable
 
 rule combine_TElocal:

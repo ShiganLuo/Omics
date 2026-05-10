@@ -12,6 +12,5 @@
         "TE_gtf": "path/to/TE_annotation.gtf",
         "TEind": "path/to/TE_index"
     },
-    "paired_samples": ["sample1", "sample2"],
-    "single_samples": ["sample3", "sample4"]
+    "samples": ["sample1", "sample2", "sample3"]
 }

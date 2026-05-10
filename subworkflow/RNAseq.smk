@@ -101,8 +101,7 @@ TEtranscripts_config = {
         "indir": f"{outdir}/star" if aligner == 'star' else f"{outdir}/hisat2",
         "outdir":  f"{outdir}/TEtranscripts",
         "logdir": logdir,
-        "single_samples": single_samples,
-        "paired_samples": paired_samples,
+        "samples": single_samples + paired_samples,
         "ROOT_DIR": ROOT_DIR,
         "Procedure": {
             "TEcount": config.get('Procedure',{}).get('TEcount') or 'TEcount',

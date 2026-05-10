@@ -74,7 +74,7 @@ rule hisat2_align:
         fastq = get_alignment_input,
         index = get_hisat2_index
     output:
-        outfile = outdir + "/{sample_id}.bam"
+        outfile = outdir + "/{sample_id}/{sample_id}.bam"
     log:
         logdir + "/{sample_id}/hisat2_align.log"
     threads: 12
@@ -99,4 +99,4 @@ rule hisat2_align:
 
 rule hisat2_result:
     input:
-        bam = outdir + "/{sample_id}.bam"
+        bam = outdir + "/{sample_id}/{sample_id}.bam"

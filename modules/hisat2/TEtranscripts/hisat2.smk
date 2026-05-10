@@ -75,9 +75,9 @@ rule TEtranscript_prepare_hisat2:
         fastq = get_alignment_input,
         index = get_hisat2_index 
     output:
-        outfile = temp(outdir + "/{sample_id}.bam")
+        outfile = temp(outdir + "/{sample_id}/{sample_id}.bam")
     log:
-        outdir + "/log/TEtranscripts/{sample_id}/{genome}/hisat2_align.log"
+        outdir + "/log/TEtranscripts/{sample_id}/hisat2_align.log"
     threads: 12
     conda:
         config['conda']['run']

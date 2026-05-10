@@ -1,34 +1,35 @@
-import logging
-SNAKEFILE_FULL_PATH_Count = workflow.snakefile
-SNAKEFILE_DIR_Count = os.path.dirname(SNAKEFILE_FULL_PATH_Count)
-countYaml = get_yaml_path("Count",SNAKEFILE_DIR_Count)
-configfile: countYaml
-logger = logging.getLogger("Count")
-logger.info(f"Include Count config: {countYaml}")
+from snakemake.logging import logger
+indir = config.get("indir", "output")
+outdir = config.get("outdir", "output")
+logdir = config.get("logdir", "log")
+ROOT_DIR = config.get("ROOT_DIR", "./")
+single_samples = config.get("single_samples", [])
+paired_samples = config.get("paired_samples", [])
 
 # need test
 def get_bams_for_featureCounts_single(wildcards):
     logger.info(f"[get_bams_for_featureCounts_single] called with wildcards: {wildcards}")
     bams = []
-    for sample_id, genome in single_sample_genome_pairs:
-        if genome == wildcards.genome:
-            bams.append(f"{outdir}/Align/{sample_id}/{genome}/{sample_id}.Aligned.sortedByCoord.out.bam")
+    for sample_id in single_samples:
+        bams.append(f"{indir}/{sample_id}/{sample_id}.bam")
     if len(bams) == 0:
-        raise ValueError(f"rule featureCounts_single_noMultiple didn't get any input bams, genome: {wildcards.genome},\nsingle_sample_genome_pairs: {single_sample_genome_pairs}")
+        raise ValueError(f"rule featureCounts_single_noMultiple didn't get any input bams")
     return bams
 
 rule featureCounts_single_noMultiple:
     input:
         bams = get_bams_for_featureCounts_single
     output:
-        outfile = outdir + "/counts/featureCounts/{genome}/{genome}_single_count.tsv"
+        outfile = outdir + "/all_single_featureCounts.tsv"
     log:
-        outdir + "/log/Align/{genome}_featureCounts_single_noMultiple.log"
+        logdir + "/all/featureCounts/featureCounts_single_noMultiple.log"
+    conda: 
+        "featureCounts.yaml"
     threads:
-        20
+        10
     params:
-        featureCounts = config['Procedure']['featureCounts'],
-        gtf = lambda wildcards: config["genome"][wildcards.genome]["gtf"]
+        featureCounts = config.get('Procedure',{}).get('featureCounts') or 'featureCounts',
+        gtf = config["genome"]["gtf"]
     shell:
         """
         {params.featureCounts} -T {threads} -t exon -g gene_id -a {params.gtf} -o {output.outfile} {input.bams} > {log} 2>&1
@@ -37,25 +38,27 @@ rule featureCounts_single_noMultiple:
 def get_bams_for_featureCounts_paired(wildcards):
     logger.info(f"[get_bams_for_featureCounts_paired] called with wildcards: {wildcards}")
     bams = []
-    for sample_id, genome in paired_sample_genome_pairs:
-        if genome == wildcards.genome:
-            bams.append(f"{outdir}/Align/{sample_id}/{genome}/{sample_id}.Aligned.sortedByCoord.out.bam")
+    for sample_id in paired_samples:
+        bams.append(f"{indir}/{sample_id}/{sample_id}.bam")
+
     if len(bams) == 0:
-        raise ValueError(f"rule featureCounts_paired_noMultiple didn't get any input bams, genome: {wildcards.genome},\npaired_sample_genome_pairs:{paired_sample_genome_pairs}")
+        raise ValueError(f"rule featureCounts_paired_noMultiple didn't get any input bams")
     return bams
 
 rule featureCounts_paired_noMultiple:
     input:
         bams = get_bams_for_featureCounts_paired
     output:
-        outfile = outdir + "/counts/featureCounts/{genome}/{genome}_paired_count.tsv"
+        outfile = outdir + "/all_paired_featureCounts.tsv",
     log:
-        outdir + "/log/Align/{genome}_featureCounts_paired_noMultiple.log"
+        logdir + "/all/featureCounts/featureCounts_paired_noMultiple.log"
+    conda:
+        "featureCounts.yaml"
     threads:
-        20
+        10
     params:
-        featureCounts = config['Procedure']['featureCounts'],
-        gtf = lambda wildcards: config["genome"][wildcards.genome]["gtf"]
+        featureCounts = config.get('Procedure',{}).get('featureCounts') or 'featureCounts',
+        gtf = config["genome"]["gtf"]
     shell:
         """
         # for multiple -M -O
@@ -65,5 +68,5 @@ rule featureCounts_paired_noMultiple:
 
 rule featureCounts_result:
     input:
-        paired = outdir + "/counts/featureCounts/{genome}/{genome}_paired_count.tsv",
-        single = outdir + "/counts/featureCounts/{genome}/{genome}_single_count.tsv"
+        paired = outdir + "all_paired_featureCounts.tsv",
+        single = outdir + "all_single_featureCounts.tsv"

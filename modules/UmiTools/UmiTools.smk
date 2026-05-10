@@ -47,5 +47,5 @@ rule umi_tools_dedup_for_star:
         """
         {params.umi_tools} dedup --method={params.method} \
             -I {input.bam} -S {output.bam} > {log} 2>&1
-        {params.samtools} index {output.bam}
+        {params.samtools} index {output.bam} 2>{log}
         """

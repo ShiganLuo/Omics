@@ -5,6 +5,7 @@ logdir = config.get("logdir", "log")
 rule pureclip:
     input:
         bam = indir + "/{sample_id}.dedup.bam",
+        bai = indir + "/{sample_id}.dedup.bam.bai",
         fasta = config.get('genome',{}).get('fasta')
     output:
         sites = outdir + "/{sample_id}.pureclip.sites.bed",
@@ -22,7 +23,7 @@ rule pureclip:
         """
         {params.pureclip} {params.ld} -nt {threads} \
             -i {input.bam} \
-            -bai {input.bam}.bai \
+            -bai {input.bai} \
             -g {input.fasta} \
             -o {output.sites} \
             -or {output.region} \

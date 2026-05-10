@@ -92,10 +92,7 @@ rule star_align:
         bam = outdir + "/{sample_id}/{sample_id}.bam",
         bai = outdir + "/{sample_id}/{sample_id}.bam.bai"
     log:
-        log = logdir + "/{sample_id}/star_align.log",
-        STAR_log = logdir + "/{sample_id}/star_Log.out",
-        STAR_progress = logdir + "/{sample_id}/star_Log.progress.out",
-        STAR_final = logdir + "/{sample_id}/star_Log.final.out"
+        logdir + "/{sample_id}/star_align.log"
     threads: 12
     conda:
         "star.yaml"
@@ -115,12 +112,9 @@ rule star_align:
             --readFilesIn {params.input_params} \
             --outSAMtype BAM SortedByCoordinate \
             --outSAMattributes NM \
-            --outFileNamePrefix {params.outPrefix} > {log.log} 2>&1
-        mv {params.outPrefix}Aligned.sortedByCoord.out.bam {output.bam}
-        {params.SAMTOOLS} index {output.bam}
-        cp {params.outPrefix}Log.out {log.STAR_log}
-        cp {params.outPrefix}Log.progress.out {log.STAR_progress}
-        cp {params.outPrefix}Log.final.out {log.STAR_final}
+            --outFileNamePrefix {params.outPrefix} > {log} 2>&1
+        mv {params.outPrefix}Aligned.sortedByCoord.out.bam {output.bam} 2> {log}
+        {params.SAMTOOLS} index {output.bam} 2>{log}
         """
 
 rule star_result:

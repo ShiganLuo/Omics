@@ -4,3 +4,4 @@ channels:
   - bioconda
 dependencies:
   - star=2.7.11b
+  - samtools=1.23.1

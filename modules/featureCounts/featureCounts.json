@@ -4,6 +4,11 @@
   "logdir": "logs",
   "Procedure": {
     "featureCounts": "/path/to/featureCounts"
-  }
+  },
+  "single_samples": ["sample1"],
+  "paired_samples": ["sample2", "sample3"],
+  "genome": {
+        "gtf": "path/to/annotation.gtf"
+    }
 
 }

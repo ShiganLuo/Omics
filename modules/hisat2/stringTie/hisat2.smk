@@ -54,9 +54,9 @@ def get_alignment_input(wildcards):
     """
     logger.info(f"[get_alignment_input] called with wildcards: {wildcards}")
     # 构造可能的输入路径
-    paired_r1 = f"{indir}/{wildcards.sample_id}_1.fq.gz"
-    paired_r2 = f"{indir}/{wildcards.sample_id}_2.fq.gz"
-    single = f"{indir}/{wildcards.sample_id}.single.fq.gz"
+    paired_r1 = f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}_1.fq.gz"
+    paired_r2 = f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}_2.fq.gz"
+    single = f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}.single.fq.gz"
 
     # 检查文件实际存在情况
     if wildcards.sample_id in paired_samples:

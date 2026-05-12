@@ -1,0 +1,27 @@
+Procedure:
+    type: object
+    properties:
+      # 以下工具路径允许为 string 或 null (对应 YAML 中的空值)
+      gatk: {type: ["string", "null"]}
+    description: "GATK工具的路径，默认为null，表示使用环境变量中的gatk命令"
+
+outdir:
+    type: string
+    default: "output"
+    description: "GATK分析结果的输出目录路径，默认为output"
+
+fasta:
+    type: string
+    description: "参考基因组的FASTA文件路径，必须提供"
+
+tmp_dir:
+    type: string
+    default: "tmp"
+    description: "GATK运行时的临时文件目录路径，建议设置在一个具有足够空间的磁盘位置"
+
+fai_index:
+    type: string
+    description: "参考基因组的fai索引文件路径"
+dict_index:
+    type: string
+    description: "参考基因组的dict索引文件路径"

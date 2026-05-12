@@ -1,3 +1,0 @@
-conda:
-  run: "/home/zhousha/miniforge3/envs/RNA"
-  smallRNAseq: "/home/zhousha/miniforge3/envs/py27"

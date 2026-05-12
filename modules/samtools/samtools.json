@@ -1,0 +1,13 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "log",
+    "Procedure": {
+        "samtools": "/path/to/samtools"
+    },
+    "Params": {
+        "samtools": {
+            "onlykeep_properpair": false
+        }
+    }
+}

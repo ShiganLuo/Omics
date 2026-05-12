@@ -11,8 +11,22 @@ rule all:
     input:
         outfiles
 
-module fastqc:
-	snakefile: "../modules/fastqc/fastqc.smk"
+fastqc_raw_config = {
+        "indir": indir,
+        "outdir":  f"{outdir}/fastqc/raw",
+        "logdir": logdir,
+        "log_suffix": "raw.txt",
+        "paired_samples": paired_samples,
+        "single_samples": single_samples,
+        "Procedure": {
+            "fastqc": config.get("Procedure", {}).get("fastqc") or "fastqc"
+        }
+    }
+module fastqc_raw:
+    snakefile: "../modules/fastqc/fastqc.smk"
+    config: fastqc_raw_config
+logger.info(f"fastqc_raw_config: {fastqc_raw_config}")
+use rule fastqc from fastqc_raw as WES_fastqc_raw
 
 cutadapt_config = {
         "indir": indir,
@@ -27,11 +41,29 @@ cutadapt_config = {
             }
         },
     }
+
 module cutadapt:
     snakefile: "../modules/cutadapt/cutadapt.smk"
     config: cutadapt_config
 logger.info(f"Cutadapt parameters: {cutadapt_config}")
 use rule trimming_Paired from cutadapt as WES_trimming_Paired
+
+fastqc_trimmed_config = {
+        "indir": cutadapt_config["outdir"],
+        "outdir":  f"{outdir}/fastqc/trimmed",
+        "logdir": logdir,
+        "paired_samples": paired_samples,
+        "single_samples": single_samples,
+        "log_suffix": "trimmed.txt",
+        "Procedure": {
+            "fastqc": config.get("Procedure", {}).get("fastqc")
+        }
+    }
+module fastqc_trimmed:
+    snakefile: "../modules/fastqc/fastqc.smk"
+    config: fastqc_trimmed_config
+logger.info(f"fastqc_trimmed_config: {fastqc_trimmed_config}")
+use rule fastqc from fastqc_trimmed as WES_fastqc_trimmed
 
 bwa_mem2_confg = {
     "indir": cutadapt_config["outdir"],
@@ -97,6 +129,7 @@ gatk_prepare_config = {
 module gatk_prepare:
     snakefile: "../modules/gatk/gatk_prepare.smk"
     config: gatk_prepare_config
+use rule gatk_index from gatk_prepare as WES_gatk_index
 use rule addReadsGroup from gatk_prepare as WES_addReadsGroup
 use rule MarkDuplicates from gatk_prepare as WES_MarkDuplicates
 
@@ -111,7 +144,7 @@ gatk_somatic_config = {
 }
 module gatk_somatic:
     snakefile: "../modules/gatk/gatk_somatic/gatk_somatic.smk"
-    config: gatk_prepare_config
+    config: gatk_somatic_config
 use rule somaticMutect2 from gatk_somatic as WES_somaticMutect2
 use rule gatk_index from gatk_prepare as WES_gatk_index
 

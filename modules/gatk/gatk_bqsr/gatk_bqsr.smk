@@ -42,7 +42,7 @@ rule ApplyBQSR:
     log:
         outdir + "/log/gatk/{genome}/{sample_id}/ApplyBQSR.log"
     conda:
-        "gatk.yaml"
+        "../gatk.yaml"
     threads:
         8
     params:

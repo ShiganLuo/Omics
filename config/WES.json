@@ -1,0 +1,43 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "logs",
+    "paired_samples": [],
+    "single_samples": [],
+    "Procedure": {
+        "fastqc": null,
+        "bwaMem2": null,
+        "samtools": null,
+        "bgzip": null,
+        "gatk": null
+    },
+    "Params": {
+        "trim_galore": {
+            "quality": 25
+        },
+        "samtools": {
+            "onlykeep_properpair": false
+        },
+        "gatk": {
+            "addReadsGroup": {
+                "RGLB": "mRNA",
+                "RGPL": "Illumina",
+                "RGPU": "Illumina_NextSeq_500"
+            },
+            "VariantFiltration": {
+                "FS_threshold": 20.0,
+                "QD_threshold": 2.0,
+                "DP_threshold": 10.0,
+                "QUAL_threshold": 20.0
+            }
+        }
+    },
+    "genome": {
+        "fasta": null,
+        "dict": null,
+        "fai": null,
+        "bwaMem2_index_prefix": null,
+        "known_sites": null,
+        "interval": null
+    }
+}

@@ -1,0 +1,21 @@
+
+{
+  "indir": "output/raw_fastq",
+  "outdir": "output",
+  "logdir": "logs",
+  "Procedure": {
+    "gatk": "path/to/gatk"
+  },
+  "Params": {
+    "gatk": {
+        "mutect2": null
+    }
+  },
+  "genome":{
+    "fai_index": "path/to/genome.fa.fai",
+    "dict_index": "path/to/genome.dict",
+    "fasta": "path/to/genome.fa",
+    "known_sites": "path/to/known_sites.vcf.gz",
+    "interval": "path/to/interval.list"
+  }
+}

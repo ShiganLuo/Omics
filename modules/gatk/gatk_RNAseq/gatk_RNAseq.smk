@@ -1,105 +1,24 @@
-import os
-import logging
-SNAKEFILE_FULL_PATH_SNP = workflow.snakefile
-SNAKEFILE_DIR_SNP = os.path.dirname(SNAKEFILE_FULL_PATH_SNP)
-logger = logging.getLogger("SNP")
-SNPYaml = get_yaml_path("SNP",SNAKEFILE_DIR_SNP)
-configfile: SNPYaml
-logger.info(f"Include SNP config: {SNPYaml}")
+from snakemake.logging import logger
+import re
+indir = config.get("indir") or "input"
+outdir = config.get("outdir") or "output"
+logdir = config.get("logdir") or "log"
 
-def get_bam_for_addReadsGroup(wildcards):
-    logger.info(f"[get_bam_for_addReadsGroup] called with wildcards: {wildcards}")
-    bam = None
-    if wildcards.sample_id in XenofilterR_target_samples:
-        bam = f"{outdir}/xenofilterR/{wildcards.sample_id}/{wildcards.sample_id}_Filtered.bam"
-    else:
-        bam = f"{outdir}/2pass/{wildcards.sample_id}/{wildcards.genome}/{wildcards.sample_id}Aligned.sortedByCoord.out.bam"
-    pattern_xeno = re.compile(r".*/xenofilterR/.+_Filtered\.bam$")
-    pattern_2pass = re.compile(r".*/2pass/.+/.+/.+Aligned\.sortedByCoord\.out\.bam$")
-    if not (pattern_xeno.match(bam) or pattern_2pass.match(bam)):
-        raise ValueError(f"[get_bam_for_addReadsGroup] BAM path does not match expected pattern: {bam}")
-
-    return bam
-    
-rule addReadsGroup:
-    input:
-        bam = get_bam_for_addReadsGroup
-    output:
-        bam = temp(outdir + "/SNP/RG/{genome}/{sample_id}.bam"),
-        bai = temp(outdir + "/SNP/RG/{genome}/{sample_id}.bam.bai")
-    log:
-        outdir + "/log/SNP/{genome}/{sample_id}/addReadsGroup.log"
-    threads:16
-    params:
-        id = "{sample_id}",
-        javaOptions = "--java-options -Xmx15G",
-        RGLB = config["addReadsGroup"]["RGLB"],
-        RGPL = config["addReadsGroup"]["RGPL"],
-        RGPU = config["addReadsGroup"]["RGPU"],
-        gatk = config["Procedure"]["gatk"],
-        samtools = config["Procedure"]["samtools"]
-    shell:
-        """
-        echo "sample_id: {wildcards.sample_id}" > {log}
-        {params.gatk} AddOrReplaceReadGroups {params.javaOptions} \
-            --INPUT {input.bam} --OUTPUT {output.bam} \
-            -SO coordinate --RGLB {params.RGLB} --RGPL {params.RGPL} --RGPU {params.RGPU} --RGSM {params.id} >> {log} 2>&1
-        {params.samtools} index -@ {threads} {output.bam} >> {log} 2>&1
-        """
-
-
-rule MarkDuplicates:
-    input:
-        bam = outdir + "/SNP/RG/{genome}/{sample_id}.bam"
-    output:
-        bam = temp(outdir + "/SNP/bam-sorted-Markdup/{genome}/{sample_id}.bam"),
-        bai = temp(outdir + "/SNP/bam-sorted-Markdup/{genome}/{sample_id}.bai"),
-        metrics = temp(outdir + "/SNP/bam-sorted-Markdup/{genome}/{sample_id}_Markdup-metrics.txt")
-    log:
-        outdir + "/log/SNP/{genome}/{sample_id}/{sample_id}_MarkDuplicates.log"
-    threads: 8
-    params:
-        javaOptions = "-Xms20g -Xmx30g -XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10",
-        gatk = config["Procedure"]["gatk"]
-    shell:
-        """
-        {params.gatk} --java-options "{params.javaOptions}" MarkDuplicates \
-            --INPUT {input.bam} \
-            --OUTPUT {output.bam}   \
-            --CREATE_INDEX true \
-            --VALIDATION_STRINGENCY SILENT \
-            --METRICS_FILE {output.metrics} > {log} 2>&1
-        """
-# rule gatk_index:
-#     input:
-#         genome=config['genome']['human']
-#     output:
-#         outdict="/ChIP_seq_2/Data/index/Homo_sapiens/GENCODE/GRCh38/GRCh38.primary_assembly.genome.dict"
-#     log:
-#         outdir+"/log/gatk_index.log"
-#     params:
-#         gatk = config["Procedure"]["gatk"],
-#         samtools = config["Procedure"]["samtools"]
-#     shell:
-#         """
-#         {params.gatk} CreateSequenceDictionary -R {input.genome} -O {output.outdict} > {log} 2>&1
-#         {params.samtools} faidx {input.genome} >> {log} 2>&1
-#         """
 
 rule SplitNCigarReads:
     input:
-        bam = outdir + "/SNP/bam-sorted-Markdup/{genome}/{sample_id}.bam",
+        bam = indir + "/bam-sorted-Markdup/{sample_id}.bam",
     output:
-        bam = outdir + "/SNP/Split/{genome}/{sample_id}.bam"
+        bam = outdir + "/Split/{sample_id}/{sample_id}.bam"
     params:
         javaOptions = "-Xms20g -Xmx30g -XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10",
         gatk = config["Procedure"]["gatk"],
-        genome = lambda wildcards: config['genome'][wildcards.genome]['fasta'],
-        indict = lambda wildcards: config['genome'][wildcards.genome]['dict'],
-        fai = lambda wildcards: config['genome'][wildcards.genome]['fai']
+        genome = lambda wildcards: config['genome']['fasta'],
+        indict = lambda wildcards: config['genome']['dict_index'],
+        fai = lambda wildcards: config['genome']['fai_index']
     threads: 8 
     log:
-        outdir + "/log/SNP/{genome}/{sample_id}/{sample_id}_SplitNCigarReads.log"
+        logdir + "/{sample_id}/SplitNCigarReads.log"
     shell:
         """
         {params.gatk} --java-options "{params.javaOptions}" SplitNCigarReads \
@@ -110,16 +29,16 @@ rule SplitNCigarReads:
 
 rule VarientCalling:
     input:
-        bam = outdir + "/SNP/Split/{genome}/{sample_id}.bam",
+        bam = outdir + "/Split/{sample_id}/{sample_id}.bam"
     output:
-        vcf = outdir + "/SNP/vcf/origin/{genome}/{sample_id}.vcf.gz"
+        vcf = outdir + "/vcf/{sample_id}/{sample_id}.vcf.gz"
     log:
-        outdir + "/log/SNP/{genome}/{sample_id}/{sample_id}_VarientCalling.log"
+        logdir + "/{sample_id}/VarientCalling.log"
     params:
         javaOptions = "-Xms20g -Xmx30g -XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10",
         gatk = config["Procedure"]["gatk"],
-        genome = lambda wildcards: config['genome'][wildcards.genome]['fasta'],
-        fai = lambda wildcards: config['genome'][wildcards.genome]['fai']
+        genome = lambda wildcards: config['genome']['fasta'],
+        fai = lambda wildcards: config['genome']['fai_index']
     threads: 8
     shell:
         """
@@ -134,19 +53,19 @@ rule VarientCalling:
 
 rule vcf_filter:
     input:
-        vcf = outdir + "/SNP/vcf/origin/{genome}/{sample_id}.vcf.gz",
+        vcf = outdir + "/vcf/{sample_id}/{sample_id}.vcf.gz"
     output:
-        vcf = outdir + "/SNP/vcf/filter/{genome}/{sample_id}.vcf.gz"
+        vcf = outdir + "/vcf-filtered/{sample_id}/{sample_id}.vcf.gz"
     log:
-        outdir + "/log/SNP/{genome}/{sample_id}/{sample_id}_vcf_filter.log"
+        logdir + "/{sample_id}/vcf_filter.log"
     threads: 8
     params:
         javaOptions = "-Xms20g -Xmx30g -XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10",
         vcf = outdir + "/SNP/vcf/filter/{genome}/{sample_id}.vcf",
         gatk = config["Procedure"]["gatk"],
         bgzip = config["Procedure"]["bgzip"],
-        genome = lambda wildcards: config['genome'][wildcards.genome]['fasta'],
-        fai = lambda wildcards: config['genome'][wildcards.genome]['fai']
+        genome = lambda wildcards: config['genome']['fasta'],
+        fai = lambda wildcards: config['genome']['fai_index']
     shell:
         """
         {params.gatk} --java-options "{params.javaOptions}" VariantFiltration \

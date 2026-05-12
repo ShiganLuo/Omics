@@ -6,11 +6,6 @@
   "Procedure": {
     "gatk": "path/to/gatk"
   },
-  "Params": {
-    "gatk": {
-        "mutect2": null
-    }
-  },
   "genome":{
     "fai_index": "path/to/genome.fa.fai",
     "dict_index": "path/to/genome.dict",

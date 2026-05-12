@@ -1,0 +1,27 @@
+
+{
+  "indir": "output/raw_fastq",
+  "outdir": "output",
+  "logdir": "logs",
+  "Procedure": {
+    "gatk": "path/to/gatk",
+    "bgzip": "path/to/bgzip"
+  },
+  "Params": {
+    "gatk": {
+        "VariantFiltration": {
+            "FS_threshold": 20.0,
+            "QD_threshold": 2.0,
+            "DP_threshold": 10.0,
+            "QUAL_threshold": 20.0
+        }
+    }
+  },
+  "genome":{
+    "fai_index": "path/to/genome.fa.fai",
+    "dict_index": "path/to/genome.dict",
+    "fasta": "path/to/genome.fa",
+    "known_sites": "path/to/known_sites.vcf.gz",
+    "interval": "path/to/interval.list"
+  }
+}

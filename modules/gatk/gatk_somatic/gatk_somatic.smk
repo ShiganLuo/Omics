@@ -27,10 +27,12 @@ def get_input_somaticMutect2(wildcards):
         in_dict["experimental_bam"] = f"{indir}/bam-sorted-Markdup/{wildcards.experimental_sample_id}.bam"
 
     if fai_index and dict_index:
+        logger.info(f"Using provided fai_index: {fai_index} and dict_index: {dict_index}")
         in_dict["fai"] = fai_index
         in_dict["dict"] = dict_index
         in_dict["fasta"] = fasta
     else:
+        logger.info("No fai_index or dict_index specified in config, using rule to generate them.")
         in_dict["fai"] = f"{outdir}/index/genome.fa.fai"
         in_dict["dict"] = f"{outdir}/index/genome.dict"
         in_dict["fasta"] = f"{outdir}/index/genome.fa"

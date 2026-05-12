@@ -1,0 +1,15 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "log",
+    "paired_samples": ["sample1","sample2"],
+    "single_samples": ["sample3","sample4"],
+    "genome": {
+        "fasta": "/path/to/fasta",
+        "index_prefix": "/path/to/bwa_mem2/index/prefix"
+    },
+    "Procedur": {
+        "bwaMem2": "/path/to/bwaMem2",
+        "samtools": "path/to/bwa-mem2"
+    }
+}

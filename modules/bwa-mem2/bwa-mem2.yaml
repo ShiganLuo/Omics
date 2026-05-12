@@ -1,7 +1,7 @@
-name: gatk4
+name: bwa-mem2
 channels:
   - conda-forge
   - bioconda
 dependencies:
-  - gatk4=4.6.2.0
+  - bwa-mem2=2.3
   - samtools=1.23

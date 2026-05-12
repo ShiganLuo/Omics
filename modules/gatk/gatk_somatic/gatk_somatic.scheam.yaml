@@ -1,0 +1,22 @@
+Procedure:
+    type: object
+    properties:
+      # 以下工具路径允许为 string 或 null (对应 YAML 中的空值)
+      gatk: {type: ["string", "null"]}
+    description: "GATK工具的路径，默认为null，表示使用环境变量中的gatk命令"
+
+pairs:
+    type: array
+    items:
+        type: object
+        properties:
+            normal_sample_id:
+                type: string
+                description: "正常样本的ID，必须提供"
+            experimental_sample_id:
+                type: string
+                description: "实验样本的ID，必须提供"
+mutect2_parameters:
+    type: string
+    default: ""
+    description: "传递给Mutect2的额外参数，默认为空字符串"

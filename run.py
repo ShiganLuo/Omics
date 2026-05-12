@@ -111,8 +111,6 @@ def runMERIP(
     Returns:
     - instance_json: Path to the generated input JSON file that will be used for the MERIP workflow.
     """
-    datajsonTemplate = _load_model_json(input_json)
-    datajson = deepcopy(datajsonTemplate)
     datajson["ROOT_DIR"] = os.path.dirname(__file__)
     datajson["indir"] = indir
     datajson["outdir"] = outdir
@@ -173,8 +171,6 @@ def runRNAseq(
     indir:str,
     outdir: str,
 ):
-    datajsonTemplate = _load_model_json(input_json)
-    datajson = deepcopy(datajsonTemplate)
     datajson["ROOT_DIR"] = os.path.dirname(__file__)
     datajson["indir"] = indir
     datajson["outdir"] = outdir
@@ -269,10 +265,40 @@ def runCLIP(
         json.dump(datajson, wf, indent=2, ensure_ascii=False)
     return instance_json
 
+def runWES(
+    datajson: Dict[str, Any],
+    samples_info_dict:Dict[str, Any],
+    indir:str,
+    outdir: str,
+):
+    datajson["ROOT_DIR"] = os.path.dirname(__file__)
+    datajson["indir"] = indir
+    datajson["outdir"] = outdir
+    logdir = os.path.join(outdir, "log")
+    os.makedirs(logdir, exist_ok=True)
+    datajson["logdir"] = logdir
+    outfiles = []
+    paired_samples = []
+    single_samples = []
+    for sample_id, sample_info in samples_info_dict.items():
+        if sample_info.layout == "PE":
+            paired_samples.append(sample_id)
+            outfiles.append(f"{outdir}/cutadapt/{sample_id}/{sample_id}_1.fq.gz")
+            outfiles.append(f"{outdir}/cutadapt/{sample_id}/{sample_id}_2.fq.gz")
+            outfiles.append(f"{outdir}/hisat2/{sample_id}.bam")
+        elif sample_info.layout == "SE":
+            single_samples.append(sample_id)
+            outfiles.append(f"{outdir}/cutadapt/{sample_id}/{sample_id}.single.fq.gz")
+            outfiles.append(f"{outdir}/hisat2/{sample_id}.bam")
+        else:
+            logger.error(f"Unknown layout type for sample {sample_id}: {sample_info.layout}")
+    datajson["outfiles"] = outfiles
+    datajson["paired_samples"] = paired_samples
+    datajson["single_samples"] = single_samples
 def parse_args():
     parser = argparse.ArgumentParser(description="workflow")
     parser.add_argument('-m','--meta', type=str, required=True, help='meta input file or data dir which condatain fastq file')
-    parser.add_argument('-w','--workflow_name', type=str, choices=["CoCulture", "MERIP", "RNAseq", "CLIP"],default='CoCulture' ,help='workflow name')
+    parser.add_argument('-w','--workflow_name', type=str, choices=["CoCulture", "MERIP", "RNAseq", "CLIP", "WES"],default='CoCulture' ,help='workflow name')
     parser.add_argument('-o','--output_dir', type=str, required=True, help='output dir')
     parser.add_argument('-t','--threads', type=int, default=10, help='threads')
     parser.add_argument('--dry-run', action='store_true', help='dry run')
@@ -358,20 +384,18 @@ if __name__ == "__main__":
     samples_info_dict, pairs, raw_fastq_dir = metadataUtil.run()
     os.makedirs(abs_outdir, exist_ok=True)
     
-    # 根据 workflow_name 选择 json 模板
     model_json = os.path.join(ROOT_DIR, f"config/{args.workflow_name}.json")
-    # 读取默认参数
     workflow_config = _load_model_json(model_json)
-    # 命令行额外参数覆盖（先处理非点号参数）
+    # Merge flat arguments
     flat_args = {k: v for k, v in args.extra_args.items() if '.' not in k}
     workflow_config.update(flat_args)
-    # 递归合并点号语法参数
+    # combine with dot_args
     dot_args = parse_dot_args(args.extra_args)
     for key_tuple, v in dot_args.items():
         logger.info(f"Setting config parameter {'.'.join(key_tuple)} to {v} from command line")
         dict_set_by_path(workflow_config, list(key_tuple), v)
     
-    # 传递给 downstream 函数，直接传递 workflow_config（已合并参数）
+
     if args.workflow_name == "CoCulture":
         input_json = runCoCulture(deepcopy(workflow_config), samples_info_dict, raw_fastq_dir, abs_outdir)
         smk = "CoCulture.smk"
@@ -384,6 +408,9 @@ if __name__ == "__main__":
     elif args.workflow_name == "CLIP":
         input_json = runCLIP(deepcopy(workflow_config), samples_info_dict, raw_fastq_dir, abs_outdir)
         smk = "CLIP.smk"
+    elif args.workflow_name == "WES":
+        input_json = runWES(deepcopy(workflow_config), samples_info_dict, raw_fastq_dir, abs_outdir)
+        smk = "WES.smk"
     else:
         logger.error(f"Unknown workflow name: {args.workflow_name}")
         exit(1)

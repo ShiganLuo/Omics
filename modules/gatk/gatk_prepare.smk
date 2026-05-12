@@ -1,17 +1,18 @@
+from snakemake.logging import logger
+indir = config.get("indir") or "input"
 outdir = config.get("outdir") or "output"
-fasta = config.get("fasta")
-################################################################
-# SNV (indexing, addReadsGroup, MarkDuplicates)
-################################################################
+logdir = config.get("logdir") or "log"
+fasta = config.get("genome",{}).get("fasta")
+
 rule gatk_index:
     input:
         fasta = fasta
     output:
-        fai_index = outdir + "/gatk/index/{genome}/{genome}.fa.fai",
-        dict_index = outdir + "/gatk/index/{genome}/{genome}.dict",
-        fasta_link = outdir + "/gatk/index/{genome}/{genome}.fa"
+        fai_index = outdir + "/index/genome.fa.fai",
+        dict_index = outdir + "/index/genome.dict",
+        fasta_link = outdir + "/index/genome.fa"
     log:
-        outdir + "/log/gatk/{genome}/{genome}_indexing.log"
+        logdir + "/index/gatk_index.log"
     threads: 4
     conda:
         "gatk.yaml"
@@ -26,12 +27,12 @@ rule gatk_index:
 
 rule addReadsGroup:
     input:
-        bam = outdir + "/samtools/bam-sorted/{genome}/{sample_id}.bam",
+        bam = indir + "/{sample_id}/{sample_id}.bam",
     output:
-        bam = temp(outdir + "/gatk/RG/{genome}/{sample_id}.bam"),
-        bai = temp(outdir + "/gatk/RG/{genome}/{sample_id}.bam.bai")
+        bam = temp(outdir + "/RG/{sample_id}/{sample_id}.bam"),
+        bai = temp(outdir + "/RG/{sample_id}/{sample_id}.bam.bai")
     log:
-        outdir + "/log/gatk/{genome}/{sample_id}/addReadsGroup.log"
+        logdir + "/{sample_id}/addReadsGroup.log"
     threads: 8
     conda:
         "gatk.yaml"
@@ -55,14 +56,14 @@ rule addReadsGroup:
 
 rule MarkDuplicates:
     input:
-        bam = outdir + "/gatk/RG/{genome}/{sample_id}.bam",
-        bai = outdir + "/gatk/RG/{genome}/{sample_id}.bam.bai"
+        bam = outdir + "/RG/{sample_id}/{sample_id}.bam",
+        bai = outdir + "/RG/{sample_id}/{sample_id}.bam.bai"
     output:
-        bam = outdir + "/gatk/bam-sorted-Markdup/{genome}/{sample_id}.bam",
-        bai = outdir + "/gatk/bam-sorted-Markdup/{genome}/{sample_id}.bai",
-        metrics = outdir + "/gatk/bam-sorted-Markdup/{genome}/{sample_id}_Markdup-metrics.txt"
+        bam = outdir + "/bam-sorted-Markdup/{sample_id}/{sample_id}.bam",
+        bai = outdir + "/bam-sorted-Markdup/{sample_id}/{sample_id}.bai",
+        metrics = outdir + "/bam-sorted-Markdup/{sample_id}/{sample_id}_Markdup-metrics.txt"
     log:
-        outdir + "/log/gatk/{genome}/{sample_id}/MarkDuplicates.log"
+        logdir + "/{sample_id}/MarkDuplicates.log"
     threads: 8
     conda:
         "gatk.yaml"
@@ -81,9 +82,9 @@ rule MarkDuplicates:
 
 rule gatk_prepare_result:
     input:
-        bam = outdir + "/gatk/bam-sorted-Markdup/{genome}/{sample_id}.bam",
-        bai = outdir + "/gatk/bam-sorted-Markdup/{genome}/{sample_id}.bai",
-        metrics = outdir + "/gatk/bam-sorted-Markdup/{genome}/{sample_id}_Markdup-metrics.txt"
+        bam = outdir + "/bam-sorted-Markdup/{sample_id}/{sample_id}.bam",
+        bai = outdir + "/bam-sorted-Markdup/{sample_id}/{sample_id}.bai",
+        metrics = outdir + "/bam-sorted-Markdup/{sample_id}/{sample_id}_Markdup-metrics.txt"
 
 
 

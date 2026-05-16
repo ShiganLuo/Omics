@@ -1,23 +1,23 @@
 import os
-from Snakemake.logging import logger
+from snakemake.logging import logger
 indir = config.get("indir","input")
 outdir = config.get("outdir","output")
 logdir = config.get("logdir","log")
-fasta = config.get("fasta")
+fasta = config.get("genome",{}).get("fasta")
 paired_samples = config.get("paired_samples")
 single_samples = config.get("single_samples")
 BWAMEM2_IDX_SUFFIX = ["0123", "amb", "ann", "bwt.2bit.64", "pac"]
 #Mapping with bwa
 rule bwaMem2_index:
     input:
-        fa = fasta
+        fasta = fasta
     output:
         index = expand(
             outdir + "/index/genome.{ext}",
             ext = BWAMEM2_IDX_SUFFIX
         )
     log:
-        logdir + "/index//bwa_mem2-index.log"
+        logdir + "/index/bwa_mem2-index.log"
     threads: 15
     conda:
         "bwa-mem2.yaml"
@@ -26,26 +26,20 @@ rule bwaMem2_index:
         index_prefix = outdir + "/index/genome"
     shell:
         """
-        {params.bwa_mem2} index -p {params.index_prefix} {input.fa} > {log} 2>&1
+        {params.bwa_mem2} index -p {params.index_prefix} {input.fasta} > {log} 2>&1
         """
 def get_bwaMem2_index(wildcards):
     logger.info(f"[get_bwaMem2_index] called with wildcards: {wildcards}")
     config_index_prefix = config.get('genome',{}).get("index_prefix") or None
     if config_index_prefix:
-        first_file = f"{config_index_prefix}.123"
+        first_file = f"{config_index_prefix}.0123"
         if os.path.exists(first_file):
-            return expand(
-                config_index_prefix + ".{ext}",
-                ext = BWAMEM2_IDX_SUFFIX
-            )
+            return [f"{config_index_prefix}.{ext}" for ext in BWAMEM2_IDX_SUFFIX]
         else:
             logger.info(f"Config index prefix {config_index_prefix} provided, but does not exist. Falling back to default index path.")
     else:
         logger.info(f"No config index prefix provided. Using default index path.")
-    return expand(
-        outdir + f"/genome.{ext}",
-        ext = BWAMEM2_IDX_SUFFIX
-    )
+    return [f"{outdir}/index/genome.{ext}" for ext in BWAMEM2_IDX_SUFFIX]
 
 def get_alignment_input(wildcards):
     """
@@ -62,9 +56,9 @@ def get_alignment_input(wildcards):
     """
     logger.info(f"[get_alignment_input] called with wildcards: {wildcards}")
     # 构造可能的输入路径
-    paired_r1 = f"{indir}/cutadapt/{wildcards.sample_id}/{wildcards.sample_id}_1.fq.gz"
-    paired_r2 = f"{indir}/cutadapt/{wildcards.sample_id}/{wildcards.sample_id}_2.fq.gz"
-    single = f"{indir}/cutadapt/{wildcards.sample_id}/{wildcards.sample_id}single.fq.gz"
+    paired_r1 = f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}_1.fq.gz"
+    paired_r2 = f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}_2.fq.gz"
+    single = f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}single.fq.gz"
     
     # 检查文件实际存在情况
     if wildcards.sample_id in paired_samples:

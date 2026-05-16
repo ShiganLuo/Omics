@@ -265,7 +265,7 @@ def runCLIP(
         json.dump(datajson, wf, indent=2, ensure_ascii=False)
     return instance_json
 
-def runWES(
+def runMutation(
     datajson: Dict[str, Any],
     samples_info_dict:Dict[str, Any],
     indir:str,
@@ -281,24 +281,27 @@ def runWES(
     paired_samples = []
     single_samples = []
     for sample_id, sample_info in samples_info_dict.items():
+        if sample_info.workflow != "Mutation":
+            continue
         if sample_info.layout == "PE":
             paired_samples.append(sample_id)
-            outfiles.append(f"{outdir}/cutadapt/{sample_id}/{sample_id}_1.fq.gz")
-            outfiles.append(f"{outdir}/cutadapt/{sample_id}/{sample_id}_2.fq.gz")
-            outfiles.append(f"{outdir}/hisat2/{sample_id}.bam")
+            outfiles.append(f"{outdir}/mutation/gatk/germline/vcf-filtered/{sample_id}/{sample_id}.vcf.gz")
         elif sample_info.layout == "SE":
             single_samples.append(sample_id)
-            outfiles.append(f"{outdir}/cutadapt/{sample_id}/{sample_id}.single.fq.gz")
-            outfiles.append(f"{outdir}/hisat2/{sample_id}.bam")
+            outfiles.append(f"{outdir}/mutation/gatk/germline/vcf-filtered/{sample_id}/{sample_id}.vcf.gz")
         else:
             logger.error(f"Unknown layout type for sample {sample_id}: {sample_info.layout}")
     datajson["outfiles"] = outfiles
     datajson["paired_samples"] = paired_samples
     datajson["single_samples"] = single_samples
+    instance_json = os.path.join(outdir, "raw.json")
+    with open(instance_json, 'w', encoding='utf-8') as wf:
+        json.dump(datajson, wf, indent=2, ensure_ascii=False)
+    return instance_json
 def parse_args():
     parser = argparse.ArgumentParser(description="workflow")
     parser.add_argument('-m','--meta', type=str, required=True, help='meta input file or data dir which condatain fastq file')
-    parser.add_argument('-w','--workflow_name', type=str, choices=["CoCulture", "MERIP", "RNAseq", "CLIP", "WES"],default='CoCulture' ,help='workflow name')
+    parser.add_argument('-w','--workflow_name', type=str, choices=["CoCulture", "MERIP", "RNAseq", "CLIP", "Mutation"],default='CoCulture' ,help='workflow name')
     parser.add_argument('-o','--output_dir', type=str, required=True, help='output dir')
     parser.add_argument('-t','--threads', type=int, default=10, help='threads')
     parser.add_argument('--dry-run', action='store_true', help='dry run')
@@ -408,9 +411,9 @@ if __name__ == "__main__":
     elif args.workflow_name == "CLIP":
         input_json = runCLIP(deepcopy(workflow_config), samples_info_dict, raw_fastq_dir, abs_outdir)
         smk = "CLIP.smk"
-    elif args.workflow_name == "WES":
-        input_json = runWES(deepcopy(workflow_config), samples_info_dict, raw_fastq_dir, abs_outdir)
-        smk = "WES.smk"
+    elif args.workflow_name == "Mutation":
+        input_json = runMutation(deepcopy(workflow_config), samples_info_dict, raw_fastq_dir, abs_outdir)
+        smk = "Mutation.smk"
     else:
         logger.error(f"Unknown workflow name: {args.workflow_name}")
         exit(1)
@@ -427,4 +430,5 @@ if __name__ == "__main__":
         args.conda_frontend,
         args.snakemake_args,
     )
+    logger.info(cmds)
     _run_cmd(cmds)

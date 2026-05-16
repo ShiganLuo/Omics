@@ -1,7 +1,13 @@
+from snakemake.logging import logger
+indir = config.get("indir") or "input"
 outdir = config.get("outdir") or "output"
+logdir = config.get("logdir") or "log"
 fasta = config.get("fasta")
 fai_index = config.get("genome", {}).get("fai_index")
 dict_index = config.get("genome", {}).get("dict_index")
+interval = config.get("reference", {}).get("interval")
+known_sites = config.get("reference", {}).get("known_sites", [])
+
 def get_input_HaplotypeCaller(wildcards):
     """
     This function determines the appropriate input BAM file for the HaplotypeCaller step based on the presence of known_sites and interval parameters.
@@ -10,24 +16,24 @@ def get_input_HaplotypeCaller(wildcards):
     """
     in_dcit = {}
     if known_sites and interval:
-        print(f"Using known_sites: {known_sites} and interval: {interval}")
+        logger.info(f"Using known_sites: {known_sites} and interval: {interval}")
         include: "bqsr.smk"
-        in_dcit["bam"] = f"{indir}/bqsr/{wildcards.sample_id}.sorted.markdup.BQSR.bam"
+        in_dcit["bam"] = f"{indir}/bqsr/wildcards.sample_id/{wildcards.sample_id}.sorted.markdup.BQSR.bam"
     else:
-        print("No known_sites or interval specified in config, proceeding without them.")
-        in_dcit["bam"] = f"{indir}/bam-sorted-Markdup/{wildcards.sample_id}.bam"
+        logger.info("No known_sites or interval specified in config, proceeding without them.")
+        in_dcit["bam"] = f"{indir}/bam-sorted-Markdup/{wildcards.sample_id}/{wildcards.sample_id}.bam"
 
     if fai_index and dict_index:
         in_dcit["fai"] = fai_index
         in_dcit["dict"] = dict_index
     else:
-        in_dcit["fai"] = f"{outdir}/index/genome.fa.fai"
-        in_dcit["dict"] = f"{outdir}/index/genome.dict"
+        in_dcit["fai"] = f"{indir}/index/genome.fa.fai"
+        in_dcit["dict"] = f"{indir}/index/genome.dict"
     return in_dcit
 
 rule HaplotypeCaller:
     input:
-        bam = get_input_HaplotypeCaller
+        unpack(get_input_HaplotypeCaller)
     output:
         vcf = outdir + "/vcf/{sample_id}/{sample_id}.vcf.gz"
     log:
@@ -52,7 +58,7 @@ rule filterHaplotypeCallerVcf:
     input:
         vcf = outdir + "/vcf/{sample_id}/{sample_id}.vcf.gz"
     output:
-        vcf = outdir+"/vcf-filtered/{sample_id}/{sample_id}.vcf.gz"
+        vcf = outdir + "/vcf-filtered/{sample_id}/{sample_id}.vcf.gz"
     log:
         logdir + "/{sample_id}/haplotypeCaller-filtered.log"
     conda:

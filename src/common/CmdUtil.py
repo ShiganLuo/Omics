@@ -79,7 +79,7 @@ def _run_cmd_p36(cmd: List[str]) -> str:
         logger.error(f"Execution failed: {str(e)}")
         raise RuntimeError(f"Command execution failed: {cmd_str}") from e
 
-def _run_cmd(cmd:list) -> str:
+def _run_cmd(cmd:List) -> str:
     """
     execute complex command and return stdout
     - Command not found: give clear message

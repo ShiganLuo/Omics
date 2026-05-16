@@ -1,4 +1,4 @@
-from sanemake.logging import logger
+from snakemake.logging import logger
 indir = config.get("indir","input")
 outdir = config.get("outdir", "output")
 outdir = config.get("outdir", "output")

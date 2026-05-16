@@ -13,7 +13,7 @@ rule all:
 
 fastqc_raw_config = {
         "indir": indir,
-        "outdir":  f"{outdir}/fastqc/raw",
+        "outdir":  f"{outdir}/quality/fastqc/raw",
         "logdir": logdir,
         "log_suffix": "raw.txt",
         "paired_samples": paired_samples,
@@ -26,11 +26,11 @@ module fastqc_raw:
     snakefile: "../modules/fastqc/fastqc.smk"
     config: fastqc_raw_config
 logger.info(f"fastqc_raw_config: {fastqc_raw_config}")
-use rule fastqc from fastqc_raw as WES_fastqc_raw
+use rule fastqc from fastqc_raw as Mutation_fastqc_raw
 
 cutadapt_config = {
         "indir": indir,
-        "outdir": f"{outdir}/cutadapt",
+        "outdir": f"{outdir}/fastq/cutadapt",
         "logdir": logdir,
         "Procedure": {
             "trim_galore": config.get('Procedure',{}).get('trim_galore')
@@ -46,11 +46,11 @@ module cutadapt:
     snakefile: "../modules/cutadapt/cutadapt.smk"
     config: cutadapt_config
 logger.info(f"Cutadapt parameters: {cutadapt_config}")
-use rule trimming_Paired from cutadapt as WES_trimming_Paired
+use rule trimming_Paired from cutadapt as Mutation_trimming_Paired
 
 fastqc_trimmed_config = {
         "indir": cutadapt_config["outdir"],
-        "outdir":  f"{outdir}/fastqc/trimmed",
+        "outdir":  f"{outdir}/quality/fastqc/trimmed",
         "logdir": logdir,
         "paired_samples": paired_samples,
         "single_samples": single_samples,
@@ -63,11 +63,11 @@ module fastqc_trimmed:
     snakefile: "../modules/fastqc/fastqc.smk"
     config: fastqc_trimmed_config
 logger.info(f"fastqc_trimmed_config: {fastqc_trimmed_config}")
-use rule fastqc from fastqc_trimmed as WES_fastqc_trimmed
+use rule fastqc from fastqc_trimmed as Mutation_fastqc_trimmed
 
 bwa_mem2_confg = {
     "indir": cutadapt_config["outdir"],
-    "outdir":  f"{outdir}/bwa_mem2",
+    "outdir":  f"{outdir}/bam/bwa_mem2",
     "logdir": logdir,
     "paired_samples": paired_samples,
     "single_samples": single_samples,
@@ -85,13 +85,13 @@ module bwa_mem2:
     snakefile: "../modules/bwa-mem2/bwa-mem2.smk"
     config: bwa_mem2_confg
 logger.info(f"BWA-MEM2 parameters: {bwa_mem2_confg}")
-use rule bwaMem2_index from bwa_mem2 as WES_bwaMem2_index
-use rule bwaMem2_alignment from bwa_mem2 as WES_bwaMem2_alignment
+use rule bwaMem2_index from bwa_mem2 as Mutation_bwaMem2_index
+use rule bwaMem2_alignment from bwa_mem2 as Mutation_bwaMem2_alignment
 
 samtools_config = {
     "indir": bwa_mem2_confg["outdir"],
     "outdir": bwa_mem2_confg["outdir"],
-    "logdir": logdir
+    "logdir": logdir,
     "Procedure": {
         "samtools": config.get("Procedure",{}).get("samtools")
     },
@@ -105,47 +105,73 @@ samtools_config = {
 module samtools:
     snakefile: "../modules/samtools/samtools.smk"
     config: samtools_config
-logger.info(f"Samtools parameters: {samtools_config}")
-use rule bam_sort from samtools as WES_bam_sort
+logger.info(f"samtools parameters: {samtools_config}")
+use rule bam_sort from samtools as Mutation_bam_sort
 
 
 gatk_prepare_config = {
     "indir": bwa_mem2_confg["outdir"],
-    "outdir": f"{outdir}/gatk",
-    "logdir": logdir
+    "outdir": f"{outdir}/mutation/gatk",
+    "logdir": logdir,
     "Procedure": {
         "gatk": config.get("Procedure", {}).get("gatk"),
         "samtools": config.get("Procedure", {}).get("samtools"),
     },
-    "addReadsGroup": {
-        "RGLB": config.get("addReadsGroup", {}).get("RGLB"),
-        "RGPL": config.get("addReadsGroup", {}).get("RGPL"),
-        "RGPU": config.get("addReadsGroup", {}).get("RGPU")
+    "Params": {
+        "gatk": {
+            "addReadsGroup": {
+                "RGLB": config.get("addReadsGroup", {}).get("RGLB"),
+                "RGPL": config.get("addReadsGroup", {}).get("RGPL"),
+                "RGPU": config.get("addReadsGroup", {}).get("RGPU")
+            }
+        }
     },
-
-    "fasta": fasta,
-    "tmp_dir": config.get("tmp_dir")
+    "genome": {
+        "fasta": config.get("genome",{}).get("fasta"),
+        "fai_index": config.get("genome",{}).get("fai_index"),
+        "dict_index": config.get("genome",{}).get("dict_index")
+    }
 }
 module gatk_prepare:
     snakefile: "../modules/gatk/gatk_prepare.smk"
     config: gatk_prepare_config
-use rule gatk_index from gatk_prepare as WES_gatk_index
-use rule addReadsGroup from gatk_prepare as WES_addReadsGroup
-use rule MarkDuplicates from gatk_prepare as WES_MarkDuplicates
+logger.info(f"gatk_prepare parameters: {gatk_prepare_config}")
+use rule gatk_index from gatk_prepare as Mutation_gatk_index
+use rule addReadsGroup from gatk_prepare as Mutation_addReadsGroup
+use rule MarkDuplicates from gatk_prepare as Mutation_MarkDuplicates
 
 gatk_somatic_config = {
+    "indir": gatk_prepare_config["outdir"],
+    "outdir": f"{outdir}/mutation/gatk/somatic",
+    "logdir": logdir,
     "Procedure": {
         "gatk": config.get("Procedure", {}).get("gatk"),
     },
-    "outdir": outdir,
-    "fasta": fasta,
-    "tmp_dir": config.get("tmp_dir"),
-    "mutect2_parameters": config.get("mutect2_parameters")
+    "genome": {
+        "fasta": config.get("genome",{}).get("fasta")
+    }
 }
 module gatk_somatic:
     snakefile: "../modules/gatk/gatk_somatic/gatk_somatic.smk"
     config: gatk_somatic_config
-use rule somaticMutect2 from gatk_somatic as WES_somaticMutect2
-use rule gatk_index from gatk_prepare as WES_gatk_index
+logger.info(f"gatk_somatic parameters: {gatk_somatic_config}")
+use rule somaticMutect2 from gatk_somatic as Mutation_somaticMutect2
 
-
+gatk_germline_config = {
+    "indir": gatk_prepare_config["outdir"],
+    "outdir": f"{outdir}/mutation/gatk/germline",
+    "logdir": logdir,
+    "Procedure": {
+        "gatk": config.get("Procedure", {}).get("gatk"),
+    },
+    "genome": {
+        "fasta": config.get("genome",{}).get("fasta"),
+        "fai_index": config.get("genome",{}).get("fai_index"),
+        "dict_index": config.get("genome",{}).get("dict_index")
+    }
+}
+module gatk_germline:
+    snakefile: "../modules/gatk/gatk_germline/gatk_germline.smk"
+    config: gatk_germline_config
+logger.info(f"gatk_germline parameters: {gatk_germline_config}")
+use rule * from  gatk_germline as Mutation_*

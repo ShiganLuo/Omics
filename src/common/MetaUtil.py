@@ -35,6 +35,7 @@ class SampleInfo:
     layout: Layout = Layout.UNKNOWN
     fastq_1: Optional[Path] = None
     fastq_2: Optional[Path] = None
+    workflow: Optional[str] = None
 
 DESIGN_PATTERN = re.compile(r"^(ctr|exp)_(.+)$")
 class MetadataUtils:
@@ -150,7 +151,8 @@ class MetadataUtils:
             design_col:str = 'design',
             fastq_r1_col:str = 'fastq_1',
             fastq_r2_col:str = "fastq_2",
-            organism_col:str = "organism"
+            organism_col:str = "organism",
+            workflow_col:str = "workflow"
             ) -> None:
         """
             data_id represents a unique FASTQ file.
@@ -180,7 +182,7 @@ class MetadataUtils:
             self.samples_dict[sample_id].sample_id = sample_id
             self.samples_dict[sample_id].design = df_sample[design_col].values[0] if design_col in df_sample.columns else ""
             self.samples_dict[sample_id].organism = df_sample[organism_col].values[0] if organism_col in df_sample.columns else "UNKNOWN"
-
+            self.samples_dict[sample_id].workflow = df_sample[workflow_col].values[0] if workflow_col in df_sample.columns else None
             if len(data_ids) == 1:
                 logger.info(f"Detect the relationship between {sample_id} and {data_ids[0]} is one-to-one")
                 origin_r1 = df_sample[fastq_r1_col].values[0]

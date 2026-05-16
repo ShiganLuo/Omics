@@ -1,3 +1,8 @@
 {
-    
+  "indir": "output/raw_fastq",
+  "outdir": "output",
+  "logdir": "logs",
+  "Procedure": {
+    "gatk": "path/to/gatk"
+  }
 }

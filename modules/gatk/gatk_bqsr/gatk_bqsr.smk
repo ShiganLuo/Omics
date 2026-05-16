@@ -1,20 +1,21 @@
+from snakemake.logging import logger
+indir = config.get("indir") or "input"
+outdir = config.get("outdir") or "output"
+logdir = config.get("logdir") or "log"
 interval = config.get("reference", {}).get("interval")
 known_sites = config.get("reference", {}).get("known_sites", [])
 
-################################################################
-# SNV (BaseRecalibrator, ApplyBQSR) no longer used
-################################################################
 
 rule BaseRecalibrator:
     input:
-        bam = outdir + "/{genome}/gatk/bam-sorted-Markdup/{sample_id}.bam",
-        bai = outdir + "/{genome}/gatk/bam-sorted-Markdup/{sample_id}.bai",
+        bam = indir + "/{sample_id}/{sample_id}.bam",
+        bai = indir + "/{sample_id}/{sample_id}.bai",
         ref = fasta,
         interval = interval
     output:
-        table = outdir + "/{genome}/gatk/bqsr/{sample_id}.recal_data.table"
+        table = outdir + "/bqsr/{sample_id}.recal_data.table"
     log:
-        outdir + "/log/gatk/{genome}/{sample_id}/gatk_bqsr.log"
+        logdir + "/{sample_id}/gatk_bqsr.log"
     threads: 8
     conda:
         "../gatk.yaml"
@@ -34,19 +35,19 @@ rule BaseRecalibrator:
 
 rule ApplyBQSR:
     input:
-        bam = outdir + "/{genome}/gatk/bam-sorted-Markdup/{sample_id}.bam",
-        table = outdir + "/{genome}/gatk/bqsr/{sample_id}.recal_data.table",
+        bam = indir + "/bam-sorted-Markdup/{sample_id}.bam",
+        table = outdir + "/bqsr/{sample_id}.recal_data.table"
         ref = fasta
     output:
         bam = outdir + "/{genome}/gatk/bqsr/{sample_id}.sorted.markdup.BQSR.bam"
     log:
-        outdir + "/log/gatk/{genome}/{sample_id}/ApplyBQSR.log"
+        logdir + "/{sample_id}/ApplyBQSR.log"
     conda:
         "../gatk.yaml"
     threads:
         8
     params:
-        javaOptions = f"--java-options -Xmx30G -Djava.io.tmpdir={TMP_DIR}",
+        javaOptions = f"--java-options -Xmx30G",
         gatk = config.get("Procedure", {}).get("gatk") or "gatk",
         interval = interval
     shell:

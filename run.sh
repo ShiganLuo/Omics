@@ -1,10 +1,12 @@
 #!/bin/bash
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 python ${SCRIPT_DIR}/run.py \
-    -m /data/pub/zhousha/professional_practice/data/meta.tsv \
+    -m /data/pub/zhousha/20260207_Exome/data/Exome/samplesheet.csv \
     -w Mutation \
-    -o /data/pub/zhousha/professional_practice/output \
+    -o /data/pub/zhousha/20260207_Exome/output \
     -t 48 \
-    --log /data/pub/zhousha/professional_practice/log/Mutation.log \
-    --conda-prefix /data/pub/zhousha/env/mutation_0.1/
+    --log /data/pub/zhousha/20260207_Exome/log/Mutation.log \
+    --conda-prefix /data/pub/zhousha/env/mutation_0.1/ \
+    --genome.fasta /data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa \
+    --dry-run
 

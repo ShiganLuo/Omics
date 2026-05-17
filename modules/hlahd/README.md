@@ -1,6 +1,6 @@
 #
 
-只适用于人类
+只适用于人类，都是人类基因
 
 1. 建立hla基因索引
 wget ftp://ftp.ebi.ac.uk/pub/databases/ipd/imgt/hla/hla_gen.fasta

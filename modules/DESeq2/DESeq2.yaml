@@ -1,0 +1,19 @@
+name: DESeq2
+channels:
+  - conda-forge
+  - bioconda
+  - r
+  - defaults
+dependencies:
+  - r-base=4.3
+  - bioconductor-deseq2
+  - bioconductor-edger
+  - r-pheatmap
+  - r-ggplot2
+  - r-ggrepel
+  - r-rcolorbrewer
+  - r-argparse
+  - r-dplyr
+  - r-stringr
+  - r-tibble
+  - python=3.10

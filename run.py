@@ -2,12 +2,13 @@ import argparse
 from copy import deepcopy
 import json
 import os
-from src.common.MetaUtil import MetadataUtils
+from src.common.MetaUtil import MetadataUtils, DesignPair
 from src.common.LogUtil import setup_logger
 from src.common.CmdUtil import _run_cmd
 import logging
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 logger = logging.getLogger(__name__)
+
 
 def smart_cast(val):
     """尝试将字符串转换为 int/float/bool，否则原样返回"""
@@ -268,6 +269,7 @@ def runCLIP(
 def runMutation(
     datajson: Dict[str, Any],
     samples_info_dict:Dict[str, Any],
+    designPair: List[DesignPair],
     indir:str,
     outdir: str,
 ):
@@ -280,15 +282,24 @@ def runMutation(
     outfiles = []
     paired_samples = []
     single_samples = []
+    mutect2_samples = []
+    for designPair in designPair:
+        outfiles.append(f"{outdir}/mutation/gatk/somatic/mutect2-vcf/{designPair.ctr_sample_id}_vs_{designPair.exp_sample_id}/{designPair.ctr_sample_id}_vs_{designPair.exp_sample_id}.vcf.gz")
+        mutect2_samples.append(designPair.ctr_sample_id)
+        mutect2_samples.append(designPair.exp_sample_id)
     for sample_id, sample_info in samples_info_dict.items():
-        if sample_info.workflow != "Mutation":
-            continue
         if sample_info.layout == "PE":
             paired_samples.append(sample_id)
-            outfiles.append(f"{outdir}/mutation/gatk/germline/vcf-filtered/{sample_id}/{sample_id}.vcf.gz")
+            if sample_id in mutect2_samples:
+                logger.info(f"Sample {sample_id} is involved in mutect2 analysis, skipping germline workflow for this sample.")
+                continue
+            # outfiles.append(f"{outdir}/mutation/gatk/germline/vcf-filtered/{sample_id}/{sample_id}.vcf.gz")
         elif sample_info.layout == "SE":
             single_samples.append(sample_id)
-            outfiles.append(f"{outdir}/mutation/gatk/germline/vcf-filtered/{sample_id}/{sample_id}.vcf.gz")
+            if sample_id in mutect2_samples:
+                logger.info(f"Sample {sample_id} is involved in mutect2 analysis, skipping germline workflow for this sample.")
+                continue
+            # outfiles.append(f"{outdir}/mutation/gatk/germline/vcf-filtered/{sample_id}/{sample_id}.vcf.gz")
         else:
             logger.error(f"Unknown layout type for sample {sample_id}: {sample_info.layout}")
     datajson["outfiles"] = outfiles
@@ -384,7 +395,7 @@ if __name__ == "__main__":
             outdir = abs_outdir,
             fastq_dir = args.meta,
         )
-    samples_info_dict, pairs, raw_fastq_dir = metadataUtil.run()
+    samples_info_dict, designPair, raw_fastq_dir = metadataUtil.run()
     os.makedirs(abs_outdir, exist_ok=True)
     
     model_json = os.path.join(ROOT_DIR, f"config/{args.workflow_name}.json")
@@ -397,7 +408,7 @@ if __name__ == "__main__":
     for key_tuple, v in dot_args.items():
         logger.info(f"Setting config parameter {'.'.join(key_tuple)} to {v} from command line")
         dict_set_by_path(workflow_config, list(key_tuple), v)
-    
+    logger.info(f"Samples info dict: {samples_info_dict}")
 
     if args.workflow_name == "CoCulture":
         input_json = runCoCulture(deepcopy(workflow_config), samples_info_dict, raw_fastq_dir, abs_outdir)
@@ -412,7 +423,7 @@ if __name__ == "__main__":
         input_json = runCLIP(deepcopy(workflow_config), samples_info_dict, raw_fastq_dir, abs_outdir)
         smk = "CLIP.smk"
     elif args.workflow_name == "Mutation":
-        input_json = runMutation(deepcopy(workflow_config), samples_info_dict, raw_fastq_dir, abs_outdir)
+        input_json = runMutation(deepcopy(workflow_config), samples_info_dict, designPair, raw_fastq_dir, abs_outdir)
         smk = "Mutation.smk"
     else:
         logger.error(f"Unknown workflow name: {args.workflow_name}")

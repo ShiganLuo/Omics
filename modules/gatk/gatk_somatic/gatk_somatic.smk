@@ -23,8 +23,8 @@ def get_input_somaticMutect2(wildcards):
         in_dict["experimental_bam"] = f"{indir}/bqsr/{wildcards.experimental_sample_id}.sorted.markdup.BQSR.bam"
     else:
         logger.info("No known_sites or interval specified in config, proceeding without them.")
-        in_dict["normal_bam"] = f"{indir}/bam-sorted-Markdup/{wildcards.normal_sample_id}.bam"
-        in_dict["experimental_bam"] = f"{indir}/bam-sorted-Markdup/{wildcards.experimental_sample_id}.bam"
+        in_dict["normal_bam"] = f"{indir}/bam-sorted-Markdup/{wildcards.normal_sample_id}/{wildcards.normal_sample_id}.bam"
+        in_dict["experimental_bam"] = f"{indir}/bam-sorted-Markdup/{wildcards.experimental_sample_id}/{wildcards.experimental_sample_id}.bam"
 
     if fai_index and dict_index:
         logger.info(f"Using provided fai_index: {fai_index} and dict_index: {dict_index}")
@@ -33,9 +33,9 @@ def get_input_somaticMutect2(wildcards):
         in_dict["fasta"] = fasta
     else:
         logger.info("No fai_index or dict_index specified in config, using rule to generate them.")
-        in_dict["fai"] = f"{outdir}/index/genome.fa.fai"
-        in_dict["dict"] = f"{outdir}/index/genome.dict"
-        in_dict["fasta"] = f"{outdir}/index/genome.fa"
+        in_dict["fai"] = f"{indir}/index/genome.fa.fai"
+        in_dict["dict"] = f"{indir}/index/genome.dict"
+        in_dict["fasta"] = f"{indir}/index/genome.fa"
     return in_dict
 
 
@@ -43,7 +43,7 @@ rule somaticMutect2:
     input:
        unpack(get_input_somaticMutect2)
     output:
-        vcf = outdir + "/mutect2-vcf/{normal_sample_id}_{experimental_sample_id}.vcf.gz"
+        vcf = outdir + "/mutect2-vcf/{normal_sample_id}_vs_{experimental_sample_id}/{normal_sample_id}_vs_{experimental_sample_id}.vcf.gz"
     log:
         logdir + "/all/gatk/{normal_sample_id}_{experimental_sample_id}/mutect2.log"
     conda:

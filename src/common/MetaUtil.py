@@ -37,6 +37,11 @@ class SampleInfo:
     fastq_2: Optional[Path] = None
     workflow: Optional[str] = None
 
+@dataclass
+class DesignPair:
+    organism: str
+    ctr_sample_id: str
+    exp_sample_id: str
 DESIGN_PATTERN = re.compile(r"^(ctr|exp)_(.+)$")
 class MetadataUtils:
     """
@@ -103,12 +108,12 @@ class MetadataUtils:
 
     def build_design_pairs(
             self
-        ) -> List[Tuple[str, str, str]]:
+        ) -> List[DesignPair]:
         """
         Determine ctr/exp pairs based on the design stored in self.samples_dict.
         ctr_x vs exp_x1, exp_x2 ...
         only get the first ctr for each exp, if there are multiple ctr with the same tag, will log a warning and only use the first one.
-        return a list of tuple: (organism, ctr_sample_id, exp_sample_id)
+        return a list of DesignPair objects
         """
         groups: Dict[str, Dict[str, List[SampleInfo]]] = defaultdict(lambda: defaultdict(list))
         design_col = self.design_col
@@ -138,7 +143,12 @@ class MetadataUtils:
             for exp_sample_info in g["exp"]:
                 if len(g["ctr"]) > 1:
                     logger.warning(f"Multiple ctr samples for tag '{tag}': {g['ctr']}. Only using the first one: {g['ctr'][0].sample_id}")
-                pairs.append((exp_sample_info.organism,g["ctr"][0].sample_id, exp_sample_info.sample_id))  # 每个 exp 对应 ctr
+                designPair = DesignPair(
+                    organism=exp_sample_info.organism,
+                    ctr_sample_id=g["ctr"][0].sample_id,
+                    exp_sample_id=exp_sample_info.sample_id
+                )
+                pairs.append(designPair)
         return pairs
 
 

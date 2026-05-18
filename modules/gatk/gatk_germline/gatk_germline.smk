@@ -2,7 +2,7 @@ from snakemake.logging import logger
 indir = config.get("indir") or "input"
 outdir = config.get("outdir") or "output"
 logdir = config.get("logdir") or "log"
-fasta = config.get("fasta")
+fasta = config.get("genome", {}).get("fasta")
 fai_index = config.get("genome", {}).get("fai_index")
 dict_index = config.get("genome", {}).get("dict_index")
 interval = config.get("reference", {}).get("interval")
@@ -14,22 +14,26 @@ def get_input_HaplotypeCaller(wildcards):
     If both known_sites and interval are provided, it assumes that BQSR has been performed and uses the BQSR-corrected BAM file. Otherwise, it falls back to using the MarkDuplicates BAM file. 
     It also checks for the presence of the corresponding index files and includes them as input if they exist.
     """
-    in_dcit = {}
+    in_dict = {}
     if known_sites and interval:
         logger.info(f"Using known_sites: {known_sites} and interval: {interval}")
         include: "bqsr.smk"
-        in_dcit["bam"] = f"{indir}/bqsr/wildcards.sample_id/{wildcards.sample_id}.sorted.markdup.BQSR.bam"
+        in_dict["bam"] = f"{indir}/bqsr/wildcards.sample_id/{wildcards.sample_id}.sorted.markdup.BQSR.bam"
     else:
         logger.info("No known_sites or interval specified in config, proceeding without them.")
-        in_dcit["bam"] = f"{indir}/bam-sorted-Markdup/{wildcards.sample_id}/{wildcards.sample_id}.bam"
+        in_dict["bam"] = f"{indir}/bam-sorted-Markdup/{wildcards.sample_id}/{wildcards.sample_id}.bam"
 
-    if fai_index and dict_index:
-        in_dcit["fai"] = fai_index
-        in_dcit["dict"] = dict_index
+    if fai_index and dict_index and fasta:
+        logger.info(f"Using provided fai_index: {fai_index} , dict_index: {dict_index}")
+        in_dict["fai"] = fai_index
+        in_dict["dict"] = dict_index
+        in_dict["fasta"] = fasta
     else:
-        in_dcit["fai"] = f"{indir}/index/genome.fa.fai"
-        in_dcit["dict"] = f"{indir}/index/genome.dict"
-    return in_dcit
+        logger.info("No fai_index or dict_index specified in config, using rule to generate them.")
+        in_dict["fai"] = f"{indir}/index/genome.fa.fai"
+        in_dict["dict"] = f"{indir}/index/genome.dict"
+        in_dict["fasta"] = f"{indir}/index/genome.fa"
+    return in_dict
 
 rule HaplotypeCaller:
     input:
@@ -41,22 +45,35 @@ rule HaplotypeCaller:
     conda:
         "../gatk.yaml"
     params:
-        ref = fasta,
         javaOptions =  "-Xms20g -Xmx30g -XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10",
         gatk = config.get("Procedure", {}).get("gatk") or "gatk"
     threads: 10
     shell:
         """
         {params.gatk} --java-options "{params.javaOptions}" HaplotypeCaller \
-            -R {params.ref} \
+            -R {input.fasta} \
             -I {input.bam} \
             -O {output.vcf} \
             > {log} 2>&1
         """
 
+def get_input_filterHaplotypeCallerVcf(wildcards):
+    in_dict = {}
+    in_dict["vcf"] = f"{outdir}/vcf/{wildcards.sample_id}/{wildcards.sample_id}.vcf.gz"
+    if fai_index and dict_index and fasta:
+        logger.info(f"Using provided fai_index: {fai_index} and dict_index: {dict_index}")
+        in_dict["fai"] = fai_index
+        in_dict["dict"] = dict_index
+        in_dict["fasta"] = fasta
+    else:
+        logger.info("No fai_index or dict_index specified in config, using rule to generate them.")
+        in_dict["fai"] = f"{indir}/index/genome.fa.fai"
+        in_dict["dict"] = f"{indir}/index/genome.dict"
+        in_dict["fasta"] = f"{indir}/index/genome.fa"
+    return in_dict
 rule filterHaplotypeCallerVcf:
     input:
-        vcf = outdir + "/vcf/{sample_id}/{sample_id}.vcf.gz"
+        unpack(get_input_filterHaplotypeCallerVcf)
     output:
         vcf = outdir + "/vcf-filtered/{sample_id}/{sample_id}.vcf.gz"
     log:
@@ -65,8 +82,7 @@ rule filterHaplotypeCallerVcf:
         "../gatk.yaml"
     threads: 10
     params:
-        ref = fasta,
-        javaOptions = "--java-options -Xmx35G", # "--java-options -Xmx15G",
+        javaOptions = "-Xmx35G", # "--java-options -Xmx15G",
         gatk = config.get("Procedure", {}).get("gatk") or "gatk",
         FS_threshold = config.get("Params", {}).get("gatk", {}).get("FS_threshold") or 20.0,
         QD_threshold = config.get("Params", {}).get("gatk", {}).get("QD_threshold") or 2.0,
@@ -75,7 +91,7 @@ rule filterHaplotypeCallerVcf:
     shell:
         """
         {params.gatk} --java-options "{params.javaOptions}" VariantFiltration \
-            -R {params.ref} -V {input.vcf} -O {output.vcf} \
+            -R {input.fasta} -V {input.vcf} -O {output.vcf} \
             -window 35 -cluster 3 \
             --filter-name FS -filter "FS > {params.FS_threshold}" \
             --filter-name QD -filter "QD < {params.QD_threshold}" \

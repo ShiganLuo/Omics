@@ -6,8 +6,8 @@ outdir = config.get("outdir","output")
 logdir = config.get("logdir","logs")
 paired_samples = config.get("paired_samples", [])
 single_samples = config.get("single_samples", [])
-aligner = config.get('aligner', 'hisat2')
-trimmer = config.get('trimmer', 'cutadapt')
+aligner_TEtranscripts = config.get('Params',{}).get('workflow', {}).get('aligner_TEtranscripts') or "star"
+trimmer = config.get('Params',{}).get('workflow', {}).get('trimmer') or "cutadapt"
 outfiles = config.get("outfiles", [])
 rule all:
     input:
@@ -51,7 +51,7 @@ elif trimmer == "trimmomatic":
 else:
     raise ValueError(f"Unsupported trimmer: {trimmer}")
 
-if aligner == 'hisat2':
+if aligner_TEtranscripts == 'hisat2':
     hisat2_config_for_TEtranscripts = {
             "indir": cutadapt_config["outdir"] if trimmer == "cutadapt" else trimmomatic_config["outdir"],
             "outdir":  f"{outdir}/TEtranscripts/bam",
@@ -63,9 +63,9 @@ if aligner == 'hisat2':
             },
             "Params": {
                 "hisat2": {
-                    "score_min": config.get('Params',{}).get('hisat2', {}).get('score_min') or "L,0,-0.2",
-                    "flag_params": config.get('Params',{}).get('hisat2', {}).get('flag_params') or "--no-mixed --no-discordant",
-                    "k": config.get('Params',{}).get('hisat2', {}).get('k') or 100
+                    "score_min": config.get('Params',{}).get('hisat2_TEtranscripts', {}).get('score_min') or "L,0,-0.2",
+                    "flag_params": config.get('Params',{}).get('hisat2_TEtranscripts', {}).get('flag_params') or "--no-mixed --no-discordant",
+                    "k": config.get('Params',{}).get('hisat2_TEtranscripts', {}).get('k') or 100
                 }
             },
             "genome": {
@@ -77,9 +77,9 @@ if aligner == 'hisat2':
         snakefile: "../modules/hisat2/hisat2.smk"
         config: hisat2_config_for_TEtranscripts
     logger.info(f"hisat2_config: {hisat2_config_for_TEtranscripts}")
-    use rule hisat2_align from hisat2 as RNAseq_hisat2_align_for_TEtranscripts
-    use rule hisat2_index from hisat2 as RNAseq_hisat2_index_for_TEtranscripts
-elif aligner == 'star':
+    use rule hisat2_align from hisat2_for_TEtranscripts as RNAseq_hisat2_align_for_TEtranscripts
+    use rule hisat2_index from hisat2_for_TEtranscripts as RNAseq_hisat2_index_for_TEtranscripts
+elif aligner_TEtranscripts == 'star':
     star_config_for_TEtranscripts = {
             "indir": cutadapt_config["outdir"] if trimmer == "cutadapt" else trimmomatic_config["outdir"],
             "outdir":  f"{outdir}/TEtranscripts/bam",
@@ -91,11 +91,11 @@ elif aligner == 'star':
             },
             "Params": {
                 "STAR": {
-                    "alignEndsType": config.get('Params',{}).get('STAR', {}).get('alignEndsType') or "Local",
-                    "outFilterMismatchNoverReadLmax": config.get('Params',{}).get('STAR', {}).get('outFilterMismatchNoverReadLmax') or 1.0,
-                    "outFilterMismatchNmax": config.get('Params',{}).get('STAR', {}).get('outFilterMismatchNmax') or 10,
-                    "outFilterMultimapNmax": config.get('Params',{}).get('STAR', {}).get('outFilterMultimapNmax') or 100,
-                    "winAnchorMultimapNmax": config.get('Params',{}).get('STAR', {}).get('winAnchorMultimapNmax') or 100
+                    "alignEndsType": config.get('Params',{}).get('STAR_TEtranscripts', {}).get('alignEndsType') or "Local",
+                    "outFilterMismatchNoverReadLmax": config.get('Params',{}).get('STAR_TEtranscripts', {}).get('outFilterMismatchNoverReadLmax') or 1.0,
+                    "outFilterMismatchNmax": config.get('Params',{}).get('STAR_TEtranscripts', {}).get('outFilterMismatchNmax') or 10,
+                    "outFilterMultimapNmax": config.get('Params',{}).get('STAR_TEtranscripts', {}).get('outFilterMultimapNmax') or 100,
+                    "winAnchorMultimapNmax": config.get('Params',{}).get('STAR_TEtranscripts', {}).get('winAnchorMultimapNmax') or 100
                 }
             },
             "genome": {
@@ -108,14 +108,14 @@ elif aligner == 'star':
         snakefile: "../modules/star/star.smk"
         config: star_config_for_TEtranscripts
     logger.info(f"star_config: {star_config_for_TEtranscripts}")
-    use rule star_align from star as RNAseq_star_align_for_TEtranscripts
-    use rule star_index from star as RNAseq_star_index_for_TEtranscripts
+    use rule star_align from star_for_TEtranscripts as RNAseq_star_align_for_TEtranscripts
+    use rule star_index from star_for_TEtranscripts as RNAseq_star_index_for_TEtranscripts
 else:
-    raise ValueError(f"Unsupported aligner: {aligner}")
+    raise ValueError(f"Unsupported aligner_TEtranscripts: {aligner_TEtranscripts}")
 
 
 TEtranscripts_config = {
-        "indir": f"{outdir}/star" if aligner == 'star' else f"{outdir}/hisat2",
+        "indir": star_config_for_TEtranscripts["outdir"] if aligner_TEtranscripts == 'star' else hisat2_config_for_TEtranscripts["outdir"],
         "outdir":  f"{outdir}/TEtranscripts",
         "logdir": logdir,
         "samples": single_samples + paired_samples,
@@ -130,11 +130,11 @@ TEtranscripts_config = {
             "TE_gtf": config.get('genome',{}).get('TE_gtf')
         }
     }
-logger.info(f"TEtranscripts_config: {TEtranscripts_config}")
+
 module TEtranscripts:
     snakefile: "../modules/TEtranscripts/TEtranscripts.smk"
     config: TEtranscripts_config
-
+logger.info(f"TEtranscripts_config: {TEtranscripts_config}")
 use rule * from TEtranscripts as RNAseq_*
 
 DESeq2_config = {
@@ -160,10 +160,36 @@ logger.info(f"DESeq2_config: {DESeq2_config}")
 use rule DESeq2_TEcount from DESeq2 as RNAseq_DESeq2_TEcount
 
 
-
+hisat2_config_for_StringTie = {
+    "indir": cutadapt_config["outdir"] if trimmer == "cutadapt" else trimmomatic_config["outdir"],
+    "outdir":  f"{outdir}/stringtie/bam",
+    "logdir": logdir,
+    "paired_samples": paired_samples,
+    "single_samples": single_samples,
+    "Procedure": {
+        "hisat2": config.get('Procedure',{}).get('hisat2')
+    },
+    "Params": {
+        "hisat2": {
+            "k": config.get('Params',{}).get('hisat2_stringtie', {}).get('k') or 1,
+            "flag_params": config.get('Params',{}).get('hisat2_stringtie', {}).get('flag_params') or "-q --no-unal --dta",
+        }
+    },
+    "genome": {
+        "fasta": config.get('genome',{}).get('fasta'),
+        "index_prefix": config.get('genome',{}).get('hisat2_index_prefix')
+    }
+}
+module hisat2_for_StringTie:
+    snakefile: "../modules/hisat2/hisat2.smk"
+    config: hisat2_config_for_StringTie
+logger.info(f"hisat2_config_for_StringTie: {hisat2_config_for_StringTie}")
+use rule hisat2_align from hisat2_for_StringTie as RNAseq_hisat2_align_for_StringTie
+use rule hisat2_index from hisat2_for_StringTie as RNAseq_hisat2_index_for_StringTie
+ 
 StringTie_config = {
-        "indir": f"{outdir}/star" if aligner == 'star' else f"{outdir}/hisat2",
-        "outdir":  f"{outdir}/stringTie",
+        "indir": hisat2_config_for_StringTie["outdir"],
+        "outdir":  f"{outdir}/stringtie",
         "logdir": logdir,
         "samples": single_samples + paired_samples,
         "genome": {

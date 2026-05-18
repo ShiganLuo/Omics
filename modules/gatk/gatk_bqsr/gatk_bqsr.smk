@@ -47,12 +47,12 @@ rule ApplyBQSR:
     threads:
         8
     params:
-        javaOptions = f"--java-options -Xmx30G",
+        javaOptions = "-Xmx30G",
         gatk = config.get("Procedure", {}).get("gatk") or "gatk",
         interval = interval
     shell:
         """
-        {params.gatk} {params.javaOptions} ApplyBQSR \
+        {params.gatk}  --java-options "{params.javaOptions}" ApplyBQSR \
             -R {input.ref} \
             -I {input.bam} \
             -bqsr {input.table} \

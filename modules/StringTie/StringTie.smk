@@ -1,120 +1,39 @@
-import logging
-SNAKEFILE_FULL_PATH_StringTie = workflow.snakefile
-SNAKEFILE_DIR_StringTie = os.path.dirname(SNAKEFILE_FULL_PATH_StringTie)
-StringTieYaml = get_yaml_path("StringTie",SNAKEFILE_DIR_StringTie)
-configfile: StringTieYaml
-logging.info(f"Include StringTie config: {StringTieYaml}")
-logging.info(f"genomes:{genomes}, samples: {samples}")
+from snakemake.logging import logger
+indir = config.get("indir") or "input"
+outdir = config.get("outdir") or "output"
+logdir = config.get("logdir") or "log"
+samples = config.get("samples") or []
 rule stringTie:
     input:
-        bam = outdir + "/2pass/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam"
+        bam = indir + "/{sample_id}/{sample_id}.bam"
     output:
-        gtf = outdir + "/stringTie/{sample_id}/{genome}/{sample_id}.gtf"
+        gtf = outdir + "/{sample_id}/{sample_id}.gtf"
     log:
-        log = outdir + "/log/{genome}/{sample_id}/stringTie.log"
+        logdir + "/{sample_id}/stringTie.log"
     conda:
-        config['conda']['run']
+        "StringTie.yaml"
     params:
-        gtf = lambda wildcards: config['stringTie'][wildcards.genome]['gtf'] #最好使用完整的gtf文件，更有利于准确判断是否是新转录本
+        gtf = config.get('genome', {}).get('gtf'), #最好使用完整的gtf文件，更有利于准确判断是否是新转录本
+        stringtie = config.get("Procedure", {}).get("stringtie") or "stringtie"
     threads: 5
     shell:
         """
-        stringtie -o {output.gtf} {input.bam} -G {params.gtf} -p {threads} > {log.log} 2>&1
+        {params.stringtie} -o {output.gtf} {input.bam} -G {params.gtf} -p {threads} > {log} 2>&1
         """
 
 rule stringTieMerge:
     input:
-        gtf = expand(outdir + "/stringTie/{sample_id}/{genome}/{sample_id}.gtf",sample_id=samples,genome=genomes)
+        gtfs = expand(outdir + "/{sample_id}/{sample_id}.gtf",sample_id=samples)
     output:
-        outfile = outdir + "/stringTie/{genome}.gtf"
+        gtf = outdir + "/stringTieMerge.gtf"
     log:
-        log = outdir + "/log/{genome}/stringTieMerge.log"
+        logdir + "/all/stringtie/stringTieMerge.log"
     conda:
-        config['conda']['run']
+        "StringTie.yaml"
     params:
-        gtf = lambda wildcards: config['stringTie'][wildcards.genome]['gtf'] #最好使用完整的gtf文件，更有利于准确判断是否是新转录本
+        gtf = config.get('genome', {}).get('gtf'), #最好使用完整的gtf文件，更有利于准确判断是否是新转录本
+        stringtie = config.get("Procedure", {}).get("stringtie") or "stringtie"
     shell:
         """
-        stringtie --merge {input.gtf} -o {output.outfile} -G {params.gtf} > {log.log} 2>&1
-        """
-
-rule TEcountStringTie:
-    input:
-        bam = outdir + "/counts/{sample_id}/{genome}/{sample_id}Aligned.sortedByCoord.out.bam",
-        gtf = outdir + "/stringTie/{genome}.gtf"
-    output:
-        project = outdir + "/counts/{sample_id}/{genome}/{sample_id}TEcountStringTie.cntTable"
-    params:
-        project = "{sample_id}TEcountStringTie",
-        outdir = outdir + "/counts/{sample_id}/{genome}",
-        TE_gtf = lambda wildcards: config['TEtranscripts'][wildcards.genome]['TE_gtf'],
-    threads:5 #防止过多并行运行爆内存
-    log:
-        log = outdir + "/log/{genome}/{sample_id}/TEtranscriptsStringTie.log"
-    conda:
-        config['conda']['run']
-    shell:
-        """
-        TEcount --sortByPos --format BAM --mode multi \
-        -b {input.bam} --GTF {input.gtf} --TE {params.TE_gtf} \
-        --project {params.project} --outdir {params.outdir} \
-        > {log.log} 2>&1
-        """
-
-rule combine_TEStringtie:
-    input:
-        fileList = expand(outdir + "/counts/{sample_id}/{genome}/{sample_id}TEcountStringTie.cntTable",sample_id=samples,genome=genomes)
-    output:
-        outfile = outdir + "/counts/{genome}TEcountStringTie.cntTable"
-    log:
-        log = outdir + "/log/{genome}/combine_TEcountStringTie.log"
-    params:
-        combineTE = "scripts/combineTE.py",
-        indir = outdir + "/counts"
-    conda:
-        config['conda']['run']
-    shell:
-        """
-        python {params.combineTE} -p TEcountStringTie -i {params.indir} -o {output.outfile} > {log.log} 2>&1
-        """
-
-rule getStringtieBed:
-    input:
-        gtf = outdir + "/stringTie/{genome}.gtf",
-        infile = outdir + "/counts/{genome}TEcountStringTie.cntTable"
-    output:
-        genefile = outdir + "/stringTie/{genome}_STG.bed",
-        TEfile = outdir + "/stringTie/{genome}_TE.bed"
-    log:
-        log = outdir + "/log/{genome}/getStringtieBed.log"
-    conda:
-        config['conda']['run']
-    threads:2
-    params:
-        script = "scripts/SNP/getBed.py",
-        TE_gtf = lambda wildcards: config['TEtranscripts'][wildcards.genome]['TE_gtf']
-    shell:
-        """
-        python {params.script} \
-            --mode StringTie \
-            --input {input.infile} \
-            --output {output.genefile} \
-            --output {output.TEfile} \
-            --Gtf {input.gtf} \
-            --TEGtf {params.TE_gtf} > {log.log} 2>&1
-        """
-rule StgTEOverlap:
-    input:
-        genefile = outdir + "/stringTie/{genome}_STG.bed",
-        TEfile = outdir + "/stringTie/{genome}_TE.bed"
-    output:
-        outfile = outdir + "/stringTie/{genome}_StgTEOverlap.bed"
-    log:
-        log = outdir + "/log/{genome}_StgTEOverlap.log"
-    conda:
-        config['conda']['run']
-    threads:2
-    shell:
-        """
-        bedtools intersect -a {input.genefile} -b {input.TEfile} -wa -wb > {output.outfile} 2>{log.log}
+        {params.stringtie} --merge {input.gtfs} -o {output.gtf} -G {params.gtf} > {log} 2>&1
         """

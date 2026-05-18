@@ -2,20 +2,23 @@
     "indir": "output/hisat2",
     "outdir": "output",
     "logdir": "logs",
+    "paired_samples": ["sample1", "sample2"],
+    "single_samples": ["sample3", "sample4"],
     "Procedure": {
         "STAR": "path/to/STAR"
     },
     "genome": {
         "fasta": "path/to/genome.fa",
         "gtf": "path/to/annotation.gtf",
-        "star_index_dir": "path/to/star_index"
+        "index_dir": "path/to/star_index_dir"
     },
     "Params": {
         "STAR": {
             "alignEndsType": "Local",
             "outFilterMismatchNoverReadLmax": 1.0,
             "outFilterMismatchNmax": 10,
-            "outFilterMultimapNmax": 10
+            "outFilterMultimapNmax": 10,
+            "winAnchorMultimapNmax": 50
         }
     }
 

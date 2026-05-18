@@ -81,18 +81,25 @@ rule hisat2_align:
     conda:
         "hisat2.yaml"
     params:
-        HISAT2 = config.get('Procedure',{}).get('hisat2') or 'hisat2',
-        SAMTOOLS = config.get('Procedure',{}).get('samtools') or 'samtools',
+        hisat2 = config.get('Procedure',{}).get('hisat2') or 'hisat2',
+        samtools = config.get('Procedure',{}).get('samtools') or 'samtools',
+        score_min = config.get('Params',{}).get('hisat2', {}).get('score_min') or "L,0,-0.2",
+        flag_params = config.get('Params',{}).get('hisat2', {}).get('flag_params') or "",
+        k = config.get('Params',{}).get('hisat2', {}).get('k') or 5,
         index_prefix = lambda wildcards, input: input.index[0].rsplit('.', 2)[0],
         input_params = lambda wildcards, input: \
             f"-1 {input.fastq[0]} -2 {input.fastq[1]}" if len(input.fastq) == 2 else f"-U {input.fastq[0]}"
     shell:
         """
         mkdir -p $(dirname {output.outfile})
-        {params.HISAT2} -x {params.index_prefix} \
+        {params.hisat2} \
+            -x {params.index_prefix} \
+            --score-min {params.score_min} \
+            -k {params.k} \
+            {params.flag_params} \
             {params.input_params} \
             -p {threads} 2> {log} | \
-        {params.SAMTOOLS} sort -@ {threads} -o {output.outfile}
+        {params.samtools} sort -@ {threads} -o {output.outfile}
         """
 
 

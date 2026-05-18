@@ -7,6 +7,13 @@
         "samtools": "path/to/samtools",
         "hisat2-build": "path/to/hisat2-build"
     },
+    "Params": {
+        "hisat2": {
+            "score_min": "L,0,-0.2",
+            "flag_params": "",
+            "k": 5
+        }
+    },
     "genome": {
         "fasta": "path/to/genome.fa",
         "index_prefix": "path/to/hisat2_index_prefix"

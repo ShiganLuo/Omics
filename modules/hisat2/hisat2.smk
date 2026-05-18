@@ -1,4 +1,6 @@
 from snakemake.logging import logger
+import os
+import time
 indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
@@ -74,7 +76,8 @@ rule hisat2_align:
         fastq = get_alignment_input,
         index = get_hisat2_index
     output:
-        outfile = outdir + "/{sample_id}/{sample_id}.bam"
+        outfile = outdir + "/{sample_id}/{sample_id}.bam",
+        splice = outdir + "/{sample_id}/novel_splice.txt"
     log:
         logdir + "/{sample_id}/hisat2_align.log"
     threads: 12
@@ -86,21 +89,33 @@ rule hisat2_align:
         score_min = config.get('Params',{}).get('hisat2', {}).get('score_min') or "L,0,-0.2",
         flag_params = config.get('Params',{}).get('hisat2', {}).get('flag_params') or "",
         k = config.get('Params',{}).get('hisat2', {}).get('k') or 5,
+        unmapped_prefix = lambda wildcards: f"{outdir}/{wildcards.sample_id}/unmapped",
         index_prefix = lambda wildcards, input: input.index[0].rsplit('.', 2)[0],
         input_params = lambda wildcards, input: \
             f"-1 {input.fastq[0]} -2 {input.fastq[1]}" if len(input.fastq) == 2 else f"-U {input.fastq[0]}"
-    shell:
-        """
-        mkdir -p $(dirname {output.outfile})
-        {params.hisat2} \
-            -x {params.index_prefix} \
-            --score-min {params.score_min} \
-            -k {params.k} \
-            {params.flag_params} \
-            {params.input_params} \
-            -p {threads} 2> {log} | \
-        {params.samtools} sort -@ {threads} -o {output.outfile}
-        """
+    run:
+        current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
+        script = f"{outdir}/{wildcards.sample_id}/hisat2_align.{current_time}.sh"
+        cmd1 = [
+            f"{params.hisat2}",
+            "-x", params.index_prefix,
+            "--score-min", params.score_min,
+            "-k", str(params.k),
+            "--novel-splicesite-outfile", output.splice,
+            "--un-conc-gz", params.unmapped_prefix,
+            params.flag_params,
+            params.input_params,
+            "-p", str(threads)
+        ]
+        cmd2 = [
+            f"{params.samtools}", "sort", "-@", str(threads), "-o", output.outfile
+        ]
+        with open(script, 'w') as f:
+            f.write("#!/bin/bash\n")
+            f.write(" ".join(cmd1) +"\n")
+            f.write(" ".join(cmd2) + "\n")
+        shell(f"bash {script} > {log} 2>&1")
+
 
 
 

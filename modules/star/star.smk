@@ -25,6 +25,7 @@ rule star_index:
         outFilterMismatchNoverReadLmax = config.get('Params',{}).get('STAR', {}).get('outFilterMismatchNoverReadLmax') or 1.0,
         outFilterMismatchNmax = config.get('Params',{}).get('STAR', {}).get('outFilterMismatchNmax') or 10,
         outFilterMultimapNmax = config.get('Params',{}).get('STAR', {}).get('outFilterMultimapNmax') or 10,
+        winAnchorMultimapNmax = config.get('Params',{}).get('STAR', {}).get('winAnchorMultimapNmax') or 50,
         # 索引目录路径
         index_dir = outdir + "/index"
     shell:

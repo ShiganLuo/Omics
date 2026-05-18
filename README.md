@@ -154,3 +154,4 @@ bash workflow/RNA-SNP/run.sh
   - `subworkflow/<workflow>.json`
   `subworkflow/<workflow>.yaml`
   - `run.py` 中的分发逻辑
+- 各软件传递参数的默认值均为软件或者适配流程的默认值

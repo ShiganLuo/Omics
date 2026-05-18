@@ -1,0 +1,16 @@
+Procedure:
+    type: object
+    properties:
+      # 以下工具路径允许为 string 或 null (对应 YAML 中的空值)
+      msisensor-pro: {type: ["string", "null"]}
+outdir:
+    type: string
+    default: "output"
+reference: # path of your reference genome
+  type: string
+genome_version:
+  type: string
+sample4baseline: #path of the sample info for baseline building, see template at demo/data_input/data4baseline/sample4baseline_info.tsv
+  type: string
+sample4test: #path of the sample info for MSI evaluating, see template at demo/data_input/data4test/tumor_only.samples.info.tsv
+  type: string

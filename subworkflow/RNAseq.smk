@@ -52,34 +52,51 @@ else:
     raise ValueError(f"Unsupported trimmer: {trimmer}")
 
 if aligner == 'hisat2':
-    hisat2_config = {
+    hisat2_config_for_TEtranscripts = {
             "indir": cutadapt_config["outdir"] if trimmer == "cutadapt" else trimmomatic_config["outdir"],
-            "outdir":  f"{outdir}/hisat2",
+            "outdir":  f"{outdir}/TEtranscripts/bam",
             "logdir": logdir,
             "paired_samples": paired_samples,
             "single_samples": single_samples,
             "Procedure": {
                 "hisat2": config.get('Procedure',{}).get('hisat2')
             },
+            "Params": {
+                "hisat2": {
+                    "score_min": config.get('Params',{}).get('hisat2', {}).get('score_min') or "L,0,-0.2",
+                    "flag_params": config.get('Params',{}).get('hisat2', {}).get('flag_params') or "--no-mixed --no-discordant",
+                    "k": config.get('Params',{}).get('hisat2', {}).get('k') or 100
+                }
+            },
             "genome": {
-                "fasta": config.get('genome',{}).get('fasta')
+                "fasta": config.get('genome',{}).get('fasta'),
+                "index_prefix": config.get('genome',{}).get('hisat2_index_prefix')
             }
         }
-    module hisat2:
-        snakefile: "../modules/hisat2/TEtranscripts/hisat2.smk"
-        config: hisat2_config
-    logger.info(f"hisat2_config: {hisat2_config}")
-    use rule hisat2_align from hisat2 as RNAseq_hisat2_align
-    use rule hisat2_index from hisat2 as RNAseq_hisat2_index
+    module hisat2_for_TEtranscripts:
+        snakefile: "../modules/hisat2/hisat2.smk"
+        config: hisat2_config_for_TEtranscripts
+    logger.info(f"hisat2_config: {hisat2_config_for_TEtranscripts}")
+    use rule hisat2_align from hisat2 as RNAseq_hisat2_align_for_TEtranscripts
+    use rule hisat2_index from hisat2 as RNAseq_hisat2_index_for_TEtranscripts
 elif aligner == 'star':
-    star_config = {
+    star_config_for_TEtranscripts = {
             "indir": cutadapt_config["outdir"] if trimmer == "cutadapt" else trimmomatic_config["outdir"],
-            "outdir":  f"{outdir}/star",
+            "outdir":  f"{outdir}/TEtranscripts/bam",
             "logdir": logdir,
             "paired_samples": paired_samples,
             "single_samples": single_samples,
             "Procedure": {
                 "star": config.get('Procedure',{}).get('star')
+            },
+            "Params": {
+                "STAR": {
+                    "alignEndsType": config.get('Params',{}).get('STAR', {}).get('alignEndsType') or "Local",
+                    "outFilterMismatchNoverReadLmax": config.get('Params',{}).get('STAR', {}).get('outFilterMismatchNoverReadLmax') or 1.0,
+                    "outFilterMismatchNmax": config.get('Params',{}).get('STAR', {}).get('outFilterMismatchNmax') or 10,
+                    "outFilterMultimapNmax": config.get('Params',{}).get('STAR', {}).get('outFilterMultimapNmax') or 100,
+                    "winAnchorMultimapNmax": config.get('Params',{}).get('STAR', {}).get('winAnchorMultimapNmax') or 100
+                }
             },
             "genome": {
                 "fasta": config.get('genome',{}).get('fasta'),
@@ -87,12 +104,12 @@ elif aligner == 'star':
                 "index_dir": config.get('genome',{}).get('star_index_dir')
             }
         }
-    module star:
-        snakefile: "../modules/star/TEtranscripts/star.smk"
-        config: star_config
-    logger.info(f"star_config: {star_config}")
-    use rule star_align from star as RNAseq_star_align
-    use rule star_index from star as RNAseq_star_index
+    module star_for_TEtranscripts:
+        snakefile: "../modules/star/star.smk"
+        config: star_config_for_TEtranscripts
+    logger.info(f"star_config: {star_config_for_TEtranscripts}")
+    use rule star_align from star as RNAseq_star_align_for_TEtranscripts
+    use rule star_index from star as RNAseq_star_index_for_TEtranscripts
 else:
     raise ValueError(f"Unsupported aligner: {aligner}")
 
@@ -141,3 +158,23 @@ module DESeq2:
     config: DESeq2_config
 logger.info(f"DESeq2_config: {DESeq2_config}")
 use rule DESeq2_TEcount from DESeq2 as RNAseq_DESeq2_TEcount
+
+
+
+StringTie_config = {
+        "indir": f"{outdir}/star" if aligner == 'star' else f"{outdir}/hisat2",
+        "outdir":  f"{outdir}/stringTie",
+        "logdir": logdir,
+        "samples": single_samples + paired_samples,
+        "genome": {
+            "gtf": config.get('genome',{}).get('gtf')
+        },
+        "Procedure": {
+            "stringtie": config.get("Procedure", {}).get("stringtie") or "stringtie"
+        }
+    }
+logger.info(f"StringTie_config: {StringTie_config}")
+module StringTie:
+    snakefile: "../modules/StringTie/StringTie.smk"
+    config: StringTie_config
+use rule * from StringTie as RNAseq_*

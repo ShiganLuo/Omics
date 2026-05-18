@@ -25,7 +25,7 @@ rule stringTieMerge:
     input:
         gtfs = expand(outdir + "/{sample_id}/{sample_id}.gtf",sample_id=samples)
     output:
-        gtf = outdir + "/stringTieMerge.gtf"
+        gtf = outdir + "/stringtie_merged.gtf"
     log:
         logdir + "/all/stringtie/stringTieMerge.log"
     conda:

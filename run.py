@@ -188,7 +188,8 @@ def runRNAseq(
             single_samples.append(sample_id)
         else:
             logger.error(f"Unknown layout type for sample {sample_id}: {sample_info.layout}")
-    outfiles.append(f"{outdir}/TEtranscripts/TEcount/all_TEcount.tsv")
+    # outfiles.append(f"{outdir}/TEtranscripts/TEcount/all_TEcount.tsv")
+    outfiles.append(f"{outdir}/stringtie/stringtie_merged.gtf")
     datajson["outfiles"] = outfiles
     datajson["paired_samples"] = paired_samples
     datajson["single_samples"] = single_samples

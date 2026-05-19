@@ -15,7 +15,7 @@ rule all:
 if trimmer == "cutadapt":
     cutadapt_config = {
             "indir": indir,
-            "outdir":  f"{outdir}/cutadapt",
+            "outdir":  f"{outdir}/fastq/cutadapt",
             "logdir": logdir,
             "Procedure": {
                 "trim_galore": config.get('Procedure',{}).get('trim_galore')

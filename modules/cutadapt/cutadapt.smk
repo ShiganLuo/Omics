@@ -20,8 +20,8 @@ rule trimming_Paired:
     input:
         get_input_for_trimming_Paired
     output:
-        fastq1 = temp(outdir + "/{sample_id}/{sample_id}_1.fq.gz"),
-        fastq2 = temp(outdir + "/{sample_id}/{sample_id}_2.fq.gz"),
+        fastq1 = outdir + "/{sample_id}/{sample_id}_1.fq.gz",
+        fastq2 = outdir + "/{sample_id}/{sample_id}_2.fq.gz",
         report1 = outdir + "/{sample_id}/trimming_statistics_1.txt",
         report2 = outdir + "/{sample_id}/trimming_statistics_2.txt"
     params:
@@ -57,7 +57,7 @@ rule trimming_Single:
     input:
         fastq = get_input_for_trimming_Single
     output:
-        fastq = temp(outdir + "/{sample_id}/{sample_id}.single.fq.gz"),
+        fastq = outdir + "/{sample_id}/{sample_id}.single.fq.gz",
         report = outdir + "/{sample_id}/trimming_statistics.txt"
     params:
         outdir = outdir + "/{sample_id}",

@@ -98,7 +98,7 @@ rule hisat2_align:
         {params.HISAT2} -x {params.index_prefix} \
             {params.input_params} \
             -p {threads} 2> {log} | \
-        {params.SAMTOOLS} sort -@ {threads} -@ {threads} -o {output.outfile}
+        {params.SAMTOOLS} sort -@ {threads} -o {output.outfile}
         """
 
 rule hisat2_result:

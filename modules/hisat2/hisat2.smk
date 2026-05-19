@@ -96,7 +96,7 @@ rule hisat2_align:
     run:
         current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
         script = f"{outdir}/{wildcards.sample_id}/hisat2_align.{current_time}.sh"
-        cmd1 = [
+        cmd = [
             f"{params.hisat2}",
             "-x", params.index_prefix,
             "--score-min", params.score_min,
@@ -105,15 +105,12 @@ rule hisat2_align:
             "--un-conc-gz", params.unmapped_prefix,
             params.flag_params,
             params.input_params,
-            "-p", str(threads)
-        ]
-        cmd2 = [
-            f"{params.samtools}", "sort", "-@", str(threads), "-o", output.outfile
+            "-p", str(threads),
+            "|", f"{params.samtools}", "sort", "-@", str(threads), "-o", output.outfile
         ]
         with open(script, 'w') as f:
             f.write("#!/bin/bash\n")
-            f.write(" ".join(cmd1) +"\n")
-            f.write(" ".join(cmd2) + "\n")
+            f.write(" ".join(cmd) +"\n")
         shell(f"bash {script} > {log} 2>&1")
 
 

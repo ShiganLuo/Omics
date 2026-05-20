@@ -84,9 +84,9 @@ def parse_stringtie_gtf(gtf: str) -> Dict:
 	Returns
 	-------
 	tx_coords : dict
-		Dictionary mapping transcript_id to (chrom, start, end, strand).
+		Dictionary mapping transcript_id to (chrom, start, end, strand, cov, fpkm, tpm).
 	"""
-	tx_coords = dict()  # transcript_id: (chrom, start, end, strand)
+	tx_coords = dict()  # transcript_id: (chrom, start, end, strand, cov, fpkm, tpm)
 	with open(gtf) as f:
 		for line in f:
 			if line.startswith('#') or line.strip() == '':
@@ -101,7 +101,10 @@ def parse_stringtie_gtf(gtf: str) -> Dict:
 			attrs = parse_gtf_attributes(attr)
 			tx_id = attrs.get('transcript_id', None)
 			if tx_id:
-				tx_coords[tx_id] = (chrom, start, end, strand)
+				cov = attrs.get('cov', '.')
+				fpkm = attrs.get('FPKM', '.')
+				tpm = attrs.get('TPM', '.')
+				tx_coords[tx_id] = (chrom, start, end, strand, cov, fpkm, tpm)
 	return tx_coords
 
 def classify_te_position(tx_start: int, tx_end: int, strand: str, te_start: int, te_end: int, internal_distance: int) -> str:
@@ -160,18 +163,21 @@ def main(stringtie_gtf, te_gtf, output, internal_distance: int):
 	Writes a TSV file with TE counts and TE names by position.
 	"""
 	tx_coords = parse_stringtie_gtf(stringtie_gtf)
-	chrom_filter = {chrom for chrom, _, _, _ in tx_coords.values()}
+	chrom_filter = {chrom for chrom, _, _, _, _, _, _ in tx_coords.values()}
 	te_tree = parse_te_gtf(te_gtf, classification_level='gene_id', chrom_filter=chrom_filter)
 	with open(output, 'w') as out:
 		out.write(
-			'transcript_id\tTE_count\t'
+			'transcript_id\tchrom\tstart\tend\tstrand\tcov\tFPKM\tTPM\tTE_count\t'
 			'TE_5p_count\tTE_3p_count\tTE_internal_count\t'
 			'TE_5p_names\tTE_3p_names\tTE_internal_names\n'
 		)
-		for tx_id, (chrom, start, end, strand) in tx_coords.items():
+		for tx_id, (chrom, start, end, strand, cov, fpkm, tpm) in tx_coords.items():
 			hits = te_tree[chrom].overlap(start, end + 1)
 			if not hits:
-				out.write(f'{tx_id}\t0\t.\t0\t0\t0\t.\t.\t.\n')
+				out.write(
+					f'{tx_id}\t{chrom}\t{start}\t{end}\t{strand}\t{cov}\t{fpkm}\t{tpm}\t'
+					'0\t0\t0\t0\t.\t.\t.\n'
+				)
 				continue
 			te_types = {iv.data for iv in hits}
 			five_prime = set()
@@ -186,7 +192,7 @@ def main(stringtie_gtf, te_gtf, output, internal_distance: int):
 				else:
 					internal.add(iv.data)
 			out.write(
-				f'{tx_id}\t{len(te_types)}\t'
+				f'{tx_id}\t{chrom}\t{start}\t{end}\t{strand}\t{cov}\t{fpkm}\t{tpm}\t{len(te_types)}\t'
 				f'{len(five_prime)}\t{len(three_prime)}\t{len(internal)}\t'
 				f'{";".join(sorted(five_prime)) if five_prime else "."}\t'
 				f'{";".join(sorted(three_prime)) if three_prime else "."}\t'

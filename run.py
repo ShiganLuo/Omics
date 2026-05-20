@@ -184,8 +184,10 @@ def runRNAseq(
     for sample_id, sample_info in samples_info_dict.items():
         if sample_info.layout == "PE":
             paired_samples.append(sample_id)
+            outfiles.append(f"{outdir}/stringtie/{sample_id}/{sample_id}_TE_chimeric_transcripts.txt")
         elif sample_info.layout == "SE":
             single_samples.append(sample_id)
+            outfiles.append(f"{outdir}/stringtie/{sample_id}/{sample_id}_TE_chimeric_transcripts.txt")
         else:
             logger.error(f"Unknown layout type for sample {sample_id}: {sample_info.layout}")
     # outfiles.append(f"{outdir}/TEtranscripts/TEcount/all_TEcount.tsv")

@@ -2,10 +2,13 @@
   "indir": "output/star",
   "outdir": "output/stringtie",
   "logdir": "logs",
+  "ROOT_DIR": ".",
+  "samples": ["sample1", "sample2"],
   "Procedure": {
     "stringtie": "path/to/stringtie"
   },
   "genome": {
-    "gtf": "path/to/annotation.gtf"
+    "gtf": "path/to/annotation.gtf",
+    "TE_gtf": "path/to/TE_annotation.gtf"
   }
 }

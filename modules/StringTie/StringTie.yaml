@@ -4,3 +4,4 @@ channels:
   - bioconda
 dependencies:
   - stringtie=3.0.3
+  - intervaltree=3.1.0

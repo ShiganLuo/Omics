@@ -192,8 +192,10 @@ StringTie_config = {
         "outdir":  f"{outdir}/stringtie",
         "logdir": logdir,
         "samples": single_samples + paired_samples,
+        "ROOT_DIR": ROOT_DIR,
         "genome": {
-            "gtf": config.get('genome',{}).get('gtf')
+            "gtf": config.get('genome',{}).get('gtf'),
+            "TE_gtf": config.get('genome',{}).get('TE_gtf')
         },
         "Procedure": {
             "stringtie": config.get("Procedure", {}).get("stringtie") or "stringtie"

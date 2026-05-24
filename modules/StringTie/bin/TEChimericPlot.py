@@ -4,8 +4,8 @@ import argparse
 import csv
 import os
 from collections import OrderedDict, defaultdict
-from typing import Dict, Iterable, List, Tuple, Optional, Sequence
-import numpy as np
+from typing import Dict, List, Tuple, Optional, Any
+import json
 from matplotlib.patches import Polygon
 import matplotlib.pyplot as plt
 
@@ -114,14 +114,51 @@ def find_input_file(input_dir: str, sample: str, suffix: str) -> str:
 	raise FileNotFoundError(f'Missing input file for sample {sample}: {path}')
 
 
-def write_summary(path: str, rows: Iterable[Dict[str, str]], header: List[str]) -> None:
-	"""Write a list of dict rows to a TSV file."""
-	with open(path, 'w', newline='') as fh:
+def write_json(
+	path: str,
+	data: Any,
+	indent: int = 4,
+	sort_keys: bool = False,
+	ensure_ascii: bool = False,
+) -> None:
+	"""
+	Write arbitrary Python object / nested dict to JSON.
+
+	Parameters
+	----------
+	path
+		Output JSON file path.
+
+	data
+		Arbitrary serializable object.
+
+	indent
+		JSON indentation level.
+
+	sort_keys
+		Whether to sort keys.
+
+	ensure_ascii
+		Whether to escape non-ASCII characters.
+	"""
+
+	with open(path, 'w', encoding='utf-8') as fh:
+
+		json.dump(
+			data,
+			fh,
+			indent=indent,
+			sort_keys=sort_keys,
+			ensure_ascii=ensure_ascii,
+		)
+
+def write_summary(path: str, rows: List[Dict[str, str]], header: List[str]) -> None:
+	"""Write list of dict rows to TSV file with specified header."""
+	with open(path, 'w', newline='', encoding='utf-8') as fh:
 		writer = csv.DictWriter(fh, fieldnames=header, delimiter='\t')
 		writer.writeheader()
 		for row in rows:
 			writer.writerow(row)
-
 
 def build_count_ticks(values: List[int]) -> List[int]:
 	"""Build integer tick marks based on the maximum value."""
@@ -137,12 +174,6 @@ def build_count_ticks(values: List[int]) -> List[int]:
 	return list(range(0, max_val + step, step))
 
 
-
-from collections import defaultdict
-from typing import Dict, List, Optional
-
-import numpy as np
-from matplotlib.patches import Polygon
 
 
 def plot_group_proportions(
@@ -599,7 +630,7 @@ def main() -> None:
 		'sample', 'group', 'total_tx', 'chimeric_tx',
 		'five_any', 'three_any', 'end_any', 'internal_any', 'none',
 	]
-	write_summary(f'{args.out_prefix}.sample_summary.tsv', sample_summaries, sample_header)
+	write_summary(f'{args.out_prefix}_sample_summary.tsv', sample_summaries, sample_header)
 
 	group_rows_out = {}
 	for group, counts in group_summary.items():
@@ -609,7 +640,6 @@ def main() -> None:
 			+ counts['end_any']
 			+ counts['internal_any']
 		)
-		denom = total_chimeric if total_chimeric > 0 else 1
 		row = {
 			'five_any': counts['five_any'],
 			'three_any': counts['three_any'],
@@ -617,13 +647,9 @@ def main() -> None:
 			'internal_any': counts['internal_any'],
 		}
 		group_rows_out[group] = row
-	group_header = [
-		'group', 'chimeric_tx',
-		'five_any', 'three_any', 'end_any', 'internal_any',
-		'five_any_prop', 'three_any_prop', 'end_any_prop', 'internal_any_prop',
-	]
-	# write_summary(f'{args.out_prefix}.group_summary.tsv', group_rows_out, group_header)
-
+	write_summary(f'{args.out_prefix}_group_summary.tsv', [
+		{'group': group, **row}
+		for group, row in group_rows_out.items()], ['group', 'five_any', 'three_any', 'end_any', 'internal_any'])
 	te_rows_out = []
 	te_overall = defaultdict(lambda: {'five': 0, 'three': 0})
 	for group, te_map in group_te_counts.items():
@@ -643,7 +669,7 @@ def main() -> None:
 
 	te_rows_out.sort(key=lambda r: (r['group'], r['te_type']))
 	te_header = ['group', 'te_type', 'five_count', 'three_count', 'total_count']
-	write_summary(f'{args.out_prefix}.te_type_counts.tsv', te_rows_out, te_header)
+	write_summary(f'{args.out_prefix}_te_type_counts.tsv', te_rows_out, te_header)
 
 	overall_rows = []
 	for te_name, counts in te_overall.items():
@@ -666,13 +692,13 @@ def main() -> None:
 
 	if not args.no_plot:
 		plot_group_proportions(
-			f'{args.out_prefix}.group_stacked.png',
+			f'{args.out_prefix}_group_stacked.png',
 			group_te_counts=group_rows_out,			
 		)
-		plot_te_type_top(f'{args.out_prefix}.te_type_top.png', overall_rows, args.te_type_top)
+		plot_te_type_top(f'{args.out_prefix}_te_type_top.png', overall_rows, args.te_type_top)
 		if not args.no_group_plot:
 			plot_te_type_grouped(
-				f'{args.out_prefix}.te_type_by_group.png',
+				f'{args.out_prefix}_te_type_by_group.png',
 				group_te_counts,
 				ordered_te,
 			)

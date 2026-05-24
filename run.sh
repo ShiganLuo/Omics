@@ -19,3 +19,4 @@ python ${SCRIPT_DIR}/run.py \
     --conda-prefix /data/pub/zhousha/env/mutation_0.1/ \
     --genome.fasta /data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa \
     --rerun-triggers input
+

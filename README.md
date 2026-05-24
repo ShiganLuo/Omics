@@ -158,4 +158,5 @@ bash workflow/RNA-SNP/run.sh
 
 ## 待做
 
-- [ ] 实际执行包装成shell，兼容HPC
+- [ ] 实际执行包装成shell，兼容HPC。简单代码，是放在shell，还是直接在run中运行
+- [ ] 元信息待增加分组名

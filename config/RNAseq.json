@@ -9,6 +9,7 @@
     "treatment_group_name":null,
     "control_samples": [],
     "treatment_samples": [],
+    "sample_groups": {},
     "Procedure": {
         "TEcount": null,
         "TElocal": null,

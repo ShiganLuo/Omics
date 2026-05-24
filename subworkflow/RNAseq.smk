@@ -193,6 +193,7 @@ StringTie_config = {
         "logdir": logdir,
         "samples": single_samples + paired_samples,
         "ROOT_DIR": ROOT_DIR,
+        "sample_groups": config.get('sample_groups'),
         "genome": {
             "gtf": config.get('genome',{}).get('gtf'),
             "TE_gtf": config.get('genome',{}).get('TE_gtf')

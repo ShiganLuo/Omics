@@ -192,6 +192,17 @@ def runRNAseq(
             logger.error(f"Unknown layout type for sample {sample_id}: {sample_info.layout}")
     # outfiles.append(f"{outdir}/TEtranscripts/TEcount/all_TEcount.tsv")
     outfiles.append(f"{outdir}/stringtie/stringtie_merged.gtf")
+    outfiles.append(f"{outdir}/stringtie/result/TE_chimeric/TE_chimeric_group_stacked.png")
+    outfiles.append(f"{outdir}/stringtie/result/TE_chimeric/TE_chimeric_te_type_top.png")
+    outfiles.append(f"{outdir}/stringtie/result/TE_chimeric/TE_chimeric_te_type_by_group.png")
+    outfiles.append(f"{outdir}/stringtie/result/TE_chimeric/TE_chimeric_sample_summary.tsv")
+    outfiles.append(f"{outdir}/stringtie/result/TE_chimeric/TE_chimeric_group_summary.tsv")
+    outfiles.append(f"{outdir}/stringtie/result/TE_chimeric/TE_chimeric_te_type_counts.tsv")
+    sample_groups = {}
+    for sample_id in samples_info_dict:
+        group_key = sample_id.split('-', 1)[0]
+        sample_groups.setdefault(group_key, []).append(sample_id)
+    datajson["sample_groups"] = sample_groups
     datajson["outfiles"] = outfiles
     datajson["paired_samples"] = paired_samples
     datajson["single_samples"] = single_samples

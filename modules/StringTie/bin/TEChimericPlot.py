@@ -4,7 +4,10 @@ import argparse
 import csv
 import os
 from collections import OrderedDict, defaultdict
-from typing import Dict, Iterable, List, Tuple
+from typing import Dict, Iterable, List, Tuple, Optional, Sequence
+import numpy as np
+from matplotlib.patches import Polygon
+import matplotlib.pyplot as plt
 
 
 def detect_delimiter(path: str) -> str:
@@ -51,7 +54,7 @@ def parse_int(value: str) -> int:
 
 
 def summarize_chimeric_file(path: str, require_te: bool) -> Dict[str, int]:
-	"""Summarize 5'/3' chimeric transcript counts for one sample file."""
+	"""Summarize transcript counts with TE in 5'/3'/end/internal regions."""
 	counts = defaultdict(int)
 	with open(path, 'r') as fh:
 		reader = csv.DictReader(fh, delimiter='\t')
@@ -61,26 +64,19 @@ def summarize_chimeric_file(path: str, require_te: bool) -> Dict[str, int]:
 				continue
 			te_5p = parse_int(row.get('TE_5p_count', '0'))
 			te_3p = parse_int(row.get('TE_3p_count', '0'))
+			te_end = parse_int(row.get('TE_end_unknown_count', '0'))
+			te_internal = parse_int(row.get('TE_internal_count', '0'))
 
-			is_5p = te_5p > 0
-			is_3p = te_3p > 0
-			if is_5p and not is_3p:
-				counts['five_only'] += 1
-			elif is_3p and not is_5p:
-				counts['three_only'] += 1
-			elif is_5p and is_3p:
-				counts['both'] += 1
-			else:
+			if te_5p > 0:
+				counts['five_any'] += 1
+			if te_3p > 0:
+				counts['three_any'] += 1
+			if te_end > 0:
+				counts['end_any'] += 1
+			if te_internal > 0:
+				counts['internal_any'] += 1
+			if te_5p == 0 and te_3p == 0 and te_end == 0 and te_internal == 0:
 				counts['none'] += 1
-
-			if not (is_5p or is_3p):
-				counts['dominant_none'] += 1
-			elif te_5p > te_3p:
-				counts['dominant_five'] += 1
-			elif te_3p > te_5p:
-				counts['dominant_three'] += 1
-			else:
-				counts['dominant_tie'] += 1
 	return counts
 
 
@@ -141,36 +137,319 @@ def build_count_ticks(values: List[int]) -> List[int]:
 	return list(range(0, max_val + step, step))
 
 
-def plot_group_proportions(path: str, group_rows: List[Dict[str, str]]) -> None:
-	"""Plot stacked proportions of 5'/3' chimeric transcripts by group."""
-	try:
-		import matplotlib.pyplot as plt
-	except ImportError as exc:
-		raise RuntimeError('matplotlib is required for plotting.') from exc
 
-	groups = [row['group'] for row in group_rows]
-	five = [float(row['five_only_prop']) for row in group_rows]
-	three = [float(row['three_only_prop']) for row in group_rows]
-	both = [float(row['both_prop']) for row in group_rows]
+from collections import defaultdict
+from typing import Dict, List, Optional
 
-	fig, ax = plt.subplots(figsize=(8, 4))
-	bottom = [0.0] * len(groups)
-	bar_kwargs = dict(width=0.6)
-	ax.bar(groups, five, label="5' only", color='#4E79A7', **bar_kwargs)
-	bottom = [b + v for b, v in zip(bottom, five)]
-	ax.bar(groups, three, bottom=bottom, label="3' only", color='#F28E2B', **bar_kwargs)
-	bottom = [b + v for b, v in zip(bottom, three)]
-	ax.bar(groups, both, bottom=bottom, label="5' & 3'", color='#59A14F', **bar_kwargs)
+import numpy as np
+from matplotlib.patches import Polygon
 
-	ax.set_ylabel('Proportion of chimeric transcripts')
-	ax.set_ylim(0, 1)
-	ax.set_yticks([0.0, 0.2, 0.4, 0.6, 0.8, 1.0])
-	ax.tick_params(axis='both', labelsize=9)
-	ax.set_title("5'/3' TE chimeric transcript composition")
-	ax.legend(frameon=False)
+
+def plot_group_proportions(
+	path: str,
+	group_te_counts: Dict[str, Dict[str, int]],
+	ordered_te: Optional[List[str]] = None,
+	group_colors: Optional[Dict[str, str]] = None,
+	fig_title:str = "",
+	x_label: str = "Group",
+	y_label: str = "Transcript",
+	legend_title: str = "TE insert position",
+	normalize: bool = False,
+	fill_between_groups: bool = True,
+	fill_alpha: float = 0.18,
+	bar_width: float = 1,
+	component_height: float = 1,
+	group_gap: float = 0.35,
+	dpi: int = 300,
+) -> None:
+	"""
+	Plot stacked horizontal bar chart for TE composition across groups.
+
+	Parameters
+	----------
+	path
+		Output image path.
+
+	group_te_counts
+		Structure:
+
+		{
+			group_name: {
+				te_name: count
+			}
+		}
+
+	ordered_te
+		TE display order.
+		If None, automatically inferred from all groups.
+
+	group_colors
+		Color mapping for each TE component.
+
+	normalize
+		If True:
+			draw proportions (0~1)
+
+		If False:
+			draw raw counts
+
+	fill_between_groups
+		Whether to fill polygons between adjacent groups
+		for the same TE component.
+
+	fill_alpha
+		Polygon transparency.
+
+	component_height
+		Component height.
+
+	group_gap
+		Vertical gap between groups.
+
+	Notes
+	-----
+	Each group is one stacked horizontal bar.
+
+	Polygon filling connects the same TE component
+	between adjacent groups.
+	"""
+
+	# ------------------------------------------------------------------
+	# infer ordered_te
+	# ------------------------------------------------------------------
+	if ordered_te is None:
+
+		all_te = set()
+
+		for te_map in group_te_counts.values():
+			all_te.update(te_map.keys())
+
+		ordered_te = sorted(all_te)
+
+	if not ordered_te:
+		return
+
+	group_names = list(group_te_counts.keys())
+	n_groups = len(group_names)
+	n_legend = len(group_te_counts[group_names[0]])
+
+
+	if group_colors is None:
+
+		palette = [
+			'#4E79A7',
+			'#F28E2B',
+			'#59A14F',
+			'#E15759',
+			'#B07AA1',
+			'#76B7B2',
+			'#EDC948',
+			'#9C755F',
+			'#BAB0AC',
+		]
+
+		group_colors = {
+			te: palette[i % len(palette)]
+			for i, te in enumerate(ordered_te)
+		}
+
+
+	plot_values = defaultdict(dict)
+
+	for group in group_names:
+
+		te_map = group_te_counts[group]
+
+		numeric_te_map = {}
+
+		for te, v in te_map.items():
+
+			try:
+				numeric_te_map[te] = float(v)
+			except (TypeError, ValueError):
+				numeric_te_map[te] = 0.0
+
+		total = sum(numeric_te_map.values())
+
+		for te in ordered_te:
+
+			value = numeric_te_map.get(te, 0.0)
+
+			if normalize:
+
+				if total > 0:
+					value = value / total
+				else:
+					value = 0.0
+
+			plot_values[group][te] = value
+
+	# ------------------------------------------------------------------
+	# figure
+	# ------------------------------------------------------------------
+	fig_width = n_groups * (bar_width + group_gap) + 2
+
+	fig_height = component_height * n_legend
+	fig, ax = plt.subplots(figsize=(fig_width, fig_height))
+
+
+	x_positions = {}
+
+	current_x = 0.0
+
+	for group in group_names:
+
+		x_positions[group] = current_x
+
+		current_x += bar_width + group_gap
+
+	# ------------------------------------------------------------------
+	# boundaries
+	#
+	# boundaries[group][te] = (y0, y1)
+	# ------------------------------------------------------------------
+	boundaries = defaultdict(dict)
+
+	# ------------------------------------------------------------------
+	# draw stacked bars
+	# ------------------------------------------------------------------
+	for group in group_names:
+
+		x = x_positions[group]
+
+		bottom = 0.0
+
+		for te in ordered_te:
+
+			value = plot_values[group][te]
+
+			y0 = bottom
+			y1 = bottom + value
+
+			boundaries[group][te] = (y0, y1)
+
+			if value > 0:
+
+				ax.bar(
+					x=x,
+					height=value,
+					bottom=bottom,
+					width=bar_width,
+					color=group_colors[te],
+					edgecolor='none',
+					label=te,
+					zorder=3,
+				)
+
+			bottom = y1
+
+	# ------------------------------------------------------------------
+	# polygon filling between adjacent groups
+	# ------------------------------------------------------------------
+	if fill_between_groups and n_groups >= 2:
+
+		for te in ordered_te:
+
+			for i in range(n_groups - 1):
+
+				group_a = group_names[i]
+				group_b = group_names[i + 1]
+
+				x_a = x_positions[group_a]
+				x_b = x_positions[group_b]
+
+				y0_a, y1_a = boundaries[group_a].get(
+					te,
+					(0, 0),
+				)
+
+				y0_b, y1_b = boundaries[group_b].get(
+					te,
+					(0, 0),
+				)
+
+				# skip empty
+				if (
+					(y1_a - y0_a) == 0
+					and
+					(y1_b - y0_b) == 0
+				):
+					continue
+
+				polygon = Polygon(
+					[
+						(x_a + bar_width / 2, y0_a),
+						(x_b - bar_width / 2, y0_b),
+						(x_b - bar_width / 2, y1_b),
+						(x_a + bar_width / 2, y1_a),
+					],
+					closed=True,
+					facecolor=group_colors[te],
+					alpha=fill_alpha,
+					edgecolor='none',
+					zorder=1,
+				)
+
+				ax.add_patch(polygon)
+
+
+	ax.set_xticks(
+		[
+			x_positions[group]
+			for group in group_names
+		]
+	)
+
+	ax.set_xticklabels(
+		group_names,
+		rotation=45,
+		ha='right',
+	)
+
+	# ------------------------------------------------------------------
+	# aesthetics
+	# ------------------------------------------------------------------
+	if normalize:
+		ax.set_ylim(0, 1)
+		ax.set_ylabel(y_label + " (proportion)")
+	else:
+		ax.set_ylabel(y_label+ "(count)")
+
+	ax.set_xlabel(x_label)
+
+	ax.set_title(fig_title)
+
+	ax.grid(
+		axis='y',
+		linestyle='--',
+		alpha=0.3,
+		zorder=0,
+	)
+
+	# ------------------------------------------------------------------
+	# legend
+	# ------------------------------------------------------------------
+	handles, labels = ax.get_legend_handles_labels()
+
+	unique = dict(zip(labels, handles))
+
+	ax.legend(
+		unique.values(),
+		unique.keys(),
+		frameon=False,
+		loc=(1.02, 0.5),
+		title=legend_title,
+	)
+
 	plt.tight_layout()
-	fig.savefig(path, dpi=150)
 
+	fig.savefig(
+		path,
+		dpi=dpi,
+		bbox_inches='tight',
+	)
+
+	plt.close(fig)
 
 def plot_te_type_top(path: str, te_rows: List[Dict[str, str]], top_n: int) -> None:
 	"""Plot overall top TE types with 5'/3' counts."""
@@ -280,21 +559,29 @@ def main() -> None:
 		counts = summarize_chimeric_file(input_file, args.require_te)
 		te_counts = summarize_te_types(input_file, args.require_te)
 
-		total = counts['five_only'] + counts['three_only'] + counts['both'] + counts['none']
-		total_chimeric = counts['five_only'] + counts['three_only'] + counts['both']
+		total = (
+			counts['five_any']
+			+ counts['three_any']
+			+ counts['end_any']
+			+ counts['internal_any']
+			+ counts['none']
+		)
+		total_chimeric = (
+			counts['five_any']
+			+ counts['three_any']
+			+ counts['end_any']
+			+ counts['internal_any']
+		)
 		row = {
 			'sample': sample,
 			'group': group,
 			'total_tx': str(total),
 			'chimeric_tx': str(total_chimeric),
-			'five_only': str(counts['five_only']),
-			'three_only': str(counts['three_only']),
-			'both': str(counts['both']),
+			'five_any': str(counts['five_any']),
+			'three_any': str(counts['three_any']),
+			'end_any': str(counts['end_any']),
+			'internal_any': str(counts['internal_any']),
 			'none': str(counts['none']),
-			'dominant_five': str(counts['dominant_five']),
-			'dominant_three': str(counts['dominant_three']),
-			'dominant_tie': str(counts['dominant_tie']),
-			'dominant_none': str(counts['dominant_none']),
 		}
 		sample_summaries.append(row)
 
@@ -310,37 +597,32 @@ def main() -> None:
 
 	sample_header = [
 		'sample', 'group', 'total_tx', 'chimeric_tx',
-		'five_only', 'three_only', 'both', 'none',
-		'dominant_five', 'dominant_three', 'dominant_tie', 'dominant_none',
+		'five_any', 'three_any', 'end_any', 'internal_any', 'none',
 	]
 	write_summary(f'{args.out_prefix}.sample_summary.tsv', sample_summaries, sample_header)
 
-	group_rows_out = []
+	group_rows_out = {}
 	for group, counts in group_summary.items():
-		total_chimeric = counts['five_only'] + counts['three_only'] + counts['both']
+		total_chimeric = (
+			counts['five_any']
+			+ counts['three_any']
+			+ counts['end_any']
+			+ counts['internal_any']
+		)
 		denom = total_chimeric if total_chimeric > 0 else 1
 		row = {
-			'group': group,
-			'chimeric_tx': str(total_chimeric),
-			'five_only': str(counts['five_only']),
-			'three_only': str(counts['three_only']),
-			'both': str(counts['both']),
-			'five_only_prop': f"{counts['five_only'] / denom:.6f}",
-			'three_only_prop': f"{counts['three_only'] / denom:.6f}",
-			'both_prop': f"{counts['both'] / denom:.6f}",
-			'dominant_five': str(counts['dominant_five']),
-			'dominant_three': str(counts['dominant_three']),
-			'dominant_tie': str(counts['dominant_tie']),
+			'five_any': counts['five_any'],
+			'three_any': counts['three_any'],
+			'end_any': counts['end_any'],
+			'internal_any': counts['internal_any'],
 		}
-		group_rows_out.append(row)
-
+		group_rows_out[group] = row
 	group_header = [
 		'group', 'chimeric_tx',
-		'five_only', 'three_only', 'both',
-		'five_only_prop', 'three_only_prop', 'both_prop',
-		'dominant_five', 'dominant_three', 'dominant_tie',
+		'five_any', 'three_any', 'end_any', 'internal_any',
+		'five_any_prop', 'three_any_prop', 'end_any_prop', 'internal_any_prop',
 	]
-	write_summary(f'{args.out_prefix}.group_summary.tsv', group_rows_out, group_header)
+	# write_summary(f'{args.out_prefix}.group_summary.tsv', group_rows_out, group_header)
 
 	te_rows_out = []
 	te_overall = defaultdict(lambda: {'five': 0, 'three': 0})
@@ -383,7 +665,10 @@ def main() -> None:
 	ordered_te = [row['te_type'] for row in overall_rows_sorted[: args.te_type_top]]
 
 	if not args.no_plot:
-		plot_group_proportions(f'{args.out_prefix}.group_stacked.png', group_rows_out)
+		plot_group_proportions(
+			f'{args.out_prefix}.group_stacked.png',
+			group_te_counts=group_rows_out,			
+		)
 		plot_te_type_top(f'{args.out_prefix}.te_type_top.png', overall_rows, args.te_type_top)
 		if not args.no_group_plot:
 			plot_te_type_grouped(

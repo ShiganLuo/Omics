@@ -207,3 +207,4 @@ module StringTie:
     snakefile: "../modules/StringTie/StringTie.smk"
     config: StringTie_config
 use rule * from StringTie as RNAseq_*
+

@@ -2,6 +2,9 @@
 
 这里是 `Omics` 相关的统一工作流入口。当前目录下的 `run.py` 会根据样本元信息和 `workflow_name` 选择对应的 Snakemake 子流程，并自动生成各流程所需的 `raw.json` 配置文件。
 
+- README.md为人类阅读文档
+- 目录名.md为agent加载的skill
+
 ## 目录结构
 
 - `run.py`：统一入口脚本，读取元信息、合并配置并调用 Snakemake。
@@ -160,3 +163,4 @@ bash workflow/RNA-SNP/run.sh
 
 - [ ] 实际执行包装成shell，兼容HPC。简单代码，是放在shell，还是直接在run中运行
 - [ ] 元信息待增加分组名
+- [ ] 添加项目skill文档

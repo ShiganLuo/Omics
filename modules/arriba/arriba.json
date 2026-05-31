@@ -1,0 +1,22 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "logs",
+    "genome": {
+        "fasta": "path/to/genome.fa",
+        "gtf": "path/to/annotation.gtf"
+    },
+    "Procedure": {
+        "arriba": "arriba"
+    },
+    "Params": {
+        "arriba": {
+            "blacklist": "path/to/blacklist.tsv.gz",
+            "known_fusions": "path/to/known_fusions.tsv.gz",
+            "t": "/path/to/tags.tsv",
+            "d": "/path/to/structural_variants_from_WGS.tsv",
+            "E": 0.3,
+            "p": "/path/to/protein_domains.gff3"
+        }
+    }
+}

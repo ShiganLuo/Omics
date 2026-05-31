@@ -64,3 +64,4 @@ rule somaticMutect2:
             {params.parameters} \
             --native-pair-hmm-threads {threads} > {log} 2>&1
         """
+

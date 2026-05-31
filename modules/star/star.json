@@ -14,11 +14,29 @@
     },
     "Params": {
         "STAR": {
+            "sjdbOverhang": 100,
             "alignEndsType": "Local",
             "outFilterMismatchNoverReadLmax": 1.0,
             "outFilterMismatchNmax": 10,
             "outFilterMultimapNmax": 10,
-            "winAnchorMultimapNmax": 50
+            "winAnchorMultimapNmax": 50,
+            "genomeLoad": "NoSharedMemory",
+            "limitBAMsortRAM": 0,
+            "outReadsUnmapped": null,
+            "outFilterMismatchNoverLmax": 0.3,
+            "outFilterMatchNminOverLread": 0.66,
+            "alignSJoverhangMin": 5,
+            "alignSJDBoverhangMin": 3,
+            "chimSegmentMin": 0,
+            "chimOutType": "Junctions",
+            "chimJunctionOverhangMin": 20,
+            "outSAMstrandField": null,
+            "chimScoreMin": 0,
+            "chimScoreDropMax": 20,
+            "chimScoreJunctionNonGTAG": -1,
+            "chimScoreSeparation": 10,
+            "alignSJstitchMismatchNmax": "0 -1 0 0",
+            "chimSegmentReadGapMax": 0
         }
     }
 

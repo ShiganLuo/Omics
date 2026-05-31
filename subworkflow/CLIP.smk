@@ -116,7 +116,7 @@ elif aligner == 'star':
             "paired_samples": paired_samples,
             "single_samples": single_samples,
             "Procedure": {
-                "star": config.get('Procedure',{}).get('star')
+                "STAR": config.get('Procedure',{}).get('STAR')
             },
             "genome": {
                 "fasta": config.get('genome',{}).get('fasta'),

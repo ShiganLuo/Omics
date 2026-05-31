@@ -31,11 +31,23 @@ elif aligner == "star":
         "indir": cutadapt_config["outdir"],
         "outdir":  outdir,
         "Procedure": {
-            "star": config.get('Procedure',{}).get('star')
+            "STAR": config.get('Procedure',{}).get('STAR')
+        },
+        "Params": {
+            "STAR": {
+                "genomeLoad": config.get('Params',{}).get('STAR', {}).get('genomeLoad') or 'LoadAndRemove',
+                "limitBAMsortRAM": config.get('Params',{}).get('STAR', {}).get('limitBAMsortRAM') or 20000000000,
+                "outReadsUnmapped": config.get('Params',{}).get('STAR', {}).get('outReadsUnmapped') or 'Fastx',
+                "outFilterMultimapNmax": config.get('Params',{}).get('STAR', {}).get('outFilterMultimapNmax') or 99999,
+                "outFilterMismatchNoverLmax": config.get('Params',{}).get('STAR', {}).get('outFilterMismatchNoverLmax') or 0.1,
+                "outFilterMatchNminOverLread": config.get('Params',{}).get('STAR', {}).get('outFilterMatchNminOverLread') or 0.66,
+                "alignSJoverhangMin": config.get('Params',{}).get('STAR', {}).get('alignSJoverhangMin') or 999,
+                "alignSJDBoverhangMin": config.get('Params',{}).get('STAR', {}).get('alignSJDBoverhangMin') or 999
+            }
         }
     }
     module star:
-        snakefile: "../modules/star/ncRNAseq/star.smk"
+        snakefile: "../modules/star/star.smk"
         config: star_config
     use rule star_align from star as RNA_SNP_star_align
 else:

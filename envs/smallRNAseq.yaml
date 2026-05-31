@@ -1,9 +1,0 @@
-name: py27
-channels:
-  - bioconda
-  - conda-forge
-  - defaults
-dependencies:
-  - python=2.7
-  - cutadapt=1.8.3
-  - fastx_toolkit=0.0.14

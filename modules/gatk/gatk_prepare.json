@@ -4,8 +4,7 @@
   "logdir": "logs",
   "Procedure": {
     "gatk": "path/to/gatk",
-    "samtools": "path/to/samtools",
-    "bgzip": "path/to/bgzip"
+    "samtools": "path/to/samtools"
   },
   "Params": {
     "gatk": {

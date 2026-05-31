@@ -1,11 +1,7 @@
 ---
-name: Omics workflow skill 入口
+name: Omics
 description: Omics 工作流入口技能与子技能组织说明
 ---
-
-# 版本记录
-
-- 2026-05-28: 初始化入口技能，记录 run.py 行为与受管技能
 
 # 目的
 

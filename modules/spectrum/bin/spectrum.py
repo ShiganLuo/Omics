@@ -1,3 +1,5 @@
+import argparse
+import csv
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -65,7 +67,7 @@ def build_group_dataframe(all_counts, sample_groups):
                 tri_df.loc[tri, group] = num
     return tri_df
 
-def plot_stacked_bar(tri_df, output_file):
+def plot_stacked_bar(tri_df, output_file, show_plot=True):
     """绘制堆积柱状图"""
     tri_df.plot(kind="bar", stacked=True, figsize=(20,6))
     plt.ylabel("Mutation count")
@@ -74,9 +76,10 @@ def plot_stacked_bar(tri_df, output_file):
     plt.xticks(rotation=90)
     plt.tight_layout()
     plt.savefig(output_file, dpi=300)
-    plt.show()
+    if show_plot:
+        plt.show()
 
-def plot_heatmap(tri_df, output_file):
+def plot_heatmap(tri_df, output_file, show_plot=True):
     """绘制热图"""
     plt.figure(figsize=(12,8))
     sns.heatmap(tri_df, cmap="Reds", annot=False)
@@ -85,9 +88,10 @@ def plot_heatmap(tri_df, output_file):
     plt.xlabel("Group")
     plt.tight_layout()
     plt.savefig(output_file, dpi=300)
-    plt.show()
+    if show_plot:
+        plt.show()
 
-def mutation_spectrum_analysis(vcf_files, sample_groups, ref_fasta, output_prefix):
+def mutation_spectrum_analysis(vcf_files, sample_groups, ref_fasta, output_prefix, show_plot=True):
     ref_seq = load_reference_genome(ref_fasta)
     all_counts = {}
     for sample, vcf in vcf_files.items():
@@ -96,30 +100,44 @@ def mutation_spectrum_analysis(vcf_files, sample_groups, ref_fasta, output_prefi
     
     tri_df = build_group_dataframe(all_counts, sample_groups)
     tri_df.to_csv(f"{output_prefix}.csv")
-    plot_stacked_bar(tri_df, f"{output_prefix}_stacked_bar.png")
-    plot_heatmap(tri_df, f"{output_prefix}_heatmap.png")
+    plot_stacked_bar(tri_df, f"{output_prefix}_stacked_bar.png", show_plot=show_plot)
+    plot_heatmap(tri_df, f"{output_prefix}_heatmap.png", show_plot=show_plot)
     
     return tri_df
 
+def read_mapping_tsv(file_path, key_col, value_col):
+    mapping = {}
+    with open(file_path, newline="") as handle:
+        reader = csv.DictReader(handle, delimiter="\t")
+        if key_col not in reader.fieldnames or value_col not in reader.fieldnames:
+            raise ValueError(f"Missing required columns: {key_col}, {value_col}")
+        for row in reader:
+            key = row[key_col].strip()
+            value = row[value_col].strip()
+            if key:
+                mapping[key] = value
+    return mapping
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="Mutation spectrum analysis")
+    parser.add_argument("--vcf-map", help="TSV with columns: sample, vcf")
+    parser.add_argument("--group-map", help="TSV with columns: sample, group")
+    parser.add_argument("--ref-fasta", required=True, help="Reference FASTA")
+    parser.add_argument("--output-prefix", required=True, help="Output prefix")
+    parser.add_argument("--no-show", action="store_true", help="Do not show plots")
+    return parser.parse_args()
+
 if __name__ == "__main__":
-    # 样本名: VCF 文件
-    vcf_files = {
-        "KSR_1": "/data/pub/zhousha/20260207_Exome/output/Mutation/mutation/gatk/somatic/mutect2-vcf/E14-1_vs_KSR-1/E14-1_vs_KSR-1.vcf.gz",
-        "KSR_2": "/data/pub/zhousha/20260207_Exome/output/Mutation/mutation/gatk/somatic/mutect2-vcf/E14-1_vs_KSR-2/E14-1_vs_KSR-2.vcf.gz",
-        "TLSC_1": "/data/pub/zhousha/20260207_Exome/output/Mutation/mutation/gatk/somatic/mutect2-vcf/E14-1_vs_TLSC-1/E14-1_vs_TLSC-1.vcf.gz",
-        "TLSC_2": "/data/pub/zhousha/20260207_Exome/output/Mutation/mutation/gatk/somatic/mutect2-vcf/E14-1_vs_TLSC-2/E14-1_vs_TLSC-2.vcf.gz"
-    }
-    
-    # 样本分组
-    sample_groups = {
-        "KSR_1": "KSR",
-        "KSR_2": "KSR",
-        "TLSC_1": "TLSC",
-        "TLSC_2": "TLSC"
-    }
+    args = parse_args()
+    if not args.vcf_map or not args.group_map:
+        raise SystemExit("--vcf-map and --group-map are required")
 
-    
-    ref_fasta = "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa"
-    output_prefix = "/data/pub/zhousha/20260207_Exome/output/Mutation/results/spectrum/mutation_spectrum_group"
-
-    tri_df = mutation_spectrum_analysis(vcf_files, sample_groups, ref_fasta, output_prefix)
+    vcf_files = read_mapping_tsv(args.vcf_map, "sample", "vcf")
+    sample_groups = read_mapping_tsv(args.group_map, "sample", "group")
+    mutation_spectrum_analysis(
+        vcf_files,
+        sample_groups,
+        args.ref_fasta,
+        args.output_prefix,
+        show_plot=not args.no_show,
+    )

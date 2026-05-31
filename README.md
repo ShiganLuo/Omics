@@ -158,7 +158,7 @@ bash workflow/RNA-SNP/run.sh
   `subworkflow/<workflow>.yaml`
   - `run.py` 中的分发逻辑
 - 各软件传递参数的默认值均为软件或者适配流程的默认值
-
+- " ".join(cmd)。cmd不能包含None
 ## 待做
 
 - [ ] 实际执行包装成shell，兼容HPC。简单代码，是放在shell，还是直接在run中运行

@@ -3,10 +3,6 @@ name: subworkflow编写规范
 description: 撰写subworkflow时需要遵循此套规范
 ---
 
-# 版本记录
-
-- 2026-05-28: 初始化规范，补充 run.py 统一配置与不支持拼接 subworkflow 的说明
-
 # 目的
 
 本规范用于统一 Snakemake 子工作流（subworkflow）的结构、变量命名、模块引用方式和参数传递方式，保证可复用、可维护、可扩展。

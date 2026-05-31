@@ -104,33 +104,22 @@ def mutation_spectrum_analysis(vcf_files, sample_groups, ref_fasta, output_prefi
 if __name__ == "__main__":
     # 样本名: VCF 文件
     vcf_files = {
-        "SL_3": "/disk5/luosg/Totipotent20251031/PRJNA663159/SNV/GSM4777769.vcf.gz",
-        "SL_5": "/disk5/luosg/Totipotent20251031/PRJNA663159/SNV/GSM4777770.vcf.gz",
-        "2iL_3": "/disk5/luosg/Totipotent20251031/PRJNA663159/SNV/GSM4777771.vcf.gz",
-        "2iL_5": "/disk5/luosg/Totipotent20251031/PRJNA663159/SNV/GSM4777772.vcf.gz",
-        "A2iL_3": "/disk5/luosg/Totipotent20251031/PRJNA663159/SNV/GSM4777773.vcf.gz",
-        "A2iL_5": "/disk5/luosg/Totipotent20251031/PRJNA663159/SNV/GSM4777774.vcf.gz",
-        "LCDM_3": "/disk5/luosg/Totipotent20251031/PRJNA663159/SNV/GSM4777775.vcf.gz",
-        "LCDM_5": "/disk5/luosg/Totipotent20251031/PRJNA663159/SNV/GSM4777776.vcf.gz",
-        "2iL-F_3": "/disk5/luosg/Totipotent20251031/PRJNA663159/SNV/GSM4777777.vcf.gz",
-        "2iL-F_5": "/disk5/luosg/Totipotent20251031/PRJNA663159/SNV/GSM4777778.vcf.gz"
+        "KSR_1": "/data/pub/zhousha/20260207_Exome/output/Mutation/mutation/gatk/somatic/mutect2-vcf/E14-1_vs_KSR-1/E14-1_vs_KSR-1.vcf.gz",
+        "KSR_2": "/data/pub/zhousha/20260207_Exome/output/Mutation/mutation/gatk/somatic/mutect2-vcf/E14-1_vs_KSR-2/E14-1_vs_KSR-2.vcf.gz",
+        "TLSC_1": "/data/pub/zhousha/20260207_Exome/output/Mutation/mutation/gatk/somatic/mutect2-vcf/E14-1_vs_TLSC-1/E14-1_vs_TLSC-1.vcf.gz",
+        "TLSC_2": "/data/pub/zhousha/20260207_Exome/output/Mutation/mutation/gatk/somatic/mutect2-vcf/E14-1_vs_TLSC-2/E14-1_vs_TLSC-2.vcf.gz"
     }
     
     # 样本分组
     sample_groups = {
-        "SL_3": "SL",
-        "SL_5": "SL",
-        "2iL_3": "2iL",
-        "2iL_5": "2iL",
-        "A2iL_3": "A2iL",
-        "A2iL_5": "A2iL",
-        "LCDM_3": "LCDM",
-        "LCDM_5": "LCDM",
-        "2iL-F_3": "2iL-F",
-        "2iL-F_5": "2iL-F"
+        "KSR_1": "KSR",
+        "KSR_2": "KSR",
+        "TLSC_1": "TLSC",
+        "TLSC_2": "TLSC"
     }
+
     
-    ref_fasta = "/disk5/luosg/Reference/GENCODE/mouse/GRCm38/GRCm38.primary_assembly.genome.fa"
-    output_prefix = "/disk5/luosg/Totipotent20251031/PRJNA663159/SNV/spectrum/mutation_spectrum_group"
+    ref_fasta = "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa"
+    output_prefix = "/data/pub/zhousha/20260207_Exome/output/Mutation/results/spectrum/mutation_spectrum_group"
 
     tri_df = mutation_spectrum_analysis(vcf_files, sample_groups, ref_fasta, output_prefix)

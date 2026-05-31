@@ -1,5 +1,6 @@
 shell.prefix("set -x; set -e;")
 from snakemake.logging import logger
+import os
 ROOT_DIR = config.get("ROOT_DIR", ".")
 indir = config.get("indir","data/fastq")
 outdir = config.get("outdir","output")
@@ -30,7 +31,7 @@ if trimmer == "cutadapt":
 elif trimmer == "trimmomatic":
     trimmomatic_config = {
             "indir": indir,
-            "outdir":  f"{outdir}/trimmomatic",
+            "outdir":  f"{outdir}/fastq/trimmomatic",
             "logdir": logdir,
             "Procedure": {
                 "trimmomatic": config.get('Procedure',{}).get('trimmomatic')
@@ -92,8 +93,6 @@ elif aligner_TEtranscripts == 'star':
             "Params": {
                 "STAR": {
                     "alignEndsType": config.get('Params',{}).get('STAR_TEtranscripts', {}).get('alignEndsType') or "Local",
-                    "outFilterMismatchNoverReadLmax": config.get('Params',{}).get('STAR_TEtranscripts', {}).get('outFilterMismatchNoverReadLmax') or 1.0,
-                    "outFilterMismatchNmax": config.get('Params',{}).get('STAR_TEtranscripts', {}).get('outFilterMismatchNmax') or 10,
                     "outFilterMultimapNmax": config.get('Params',{}).get('STAR_TEtranscripts', {}).get('outFilterMultimapNmax') or 100,
                     "winAnchorMultimapNmax": config.get('Params',{}).get('STAR_TEtranscripts', {}).get('winAnchorMultimapNmax') or 100
                 }
@@ -202,9 +201,146 @@ StringTie_config = {
             "stringtie": config.get("Procedure", {}).get("stringtie") or "stringtie"
         }
     }
-logger.info(f"StringTie_config: {StringTie_config}")
 module StringTie:
     snakefile: "../modules/StringTie/StringTie.smk"
     config: StringTie_config
 use rule * from StringTie as RNAseq_*
+logger.info(f"StringTie_config: {StringTie_config}")
 
+
+rmrRNA_config = {
+    "indir": cutadapt_config["outdir"] if trimmer == "cutadapt" else trimmomatic_config["outdir"],
+    "outdir":  f"{outdir}/rRNA",
+    "logdir": logdir,
+    "paired_samples": paired_samples,
+    "single_samples": single_samples,
+    "ROOT_DIR": ROOT_DIR,
+    "genome": {
+        "fasta": config.get('genome',{}).get('fasta'),
+        "gtf": config.get('genome',{}).get('gtf')
+    },
+    "Params": {
+        "RmrRNA": {
+            "sam-append-comment": config.get('Params',{}).get('RmrRNA_rRNA', {}).get('sam-append-comment')
+        }
+    }
+}
+
+module RmrRNA:
+    snakefile: "../modules/RmrRNA/RmrRNA.smk"
+    config: rmrRNA_config
+use rule * from RmrRNA as RNAseq_rRNA_*
+
+logger.info(f"rmrRNA_config: {rmrRNA_config}")
+bowtie2_rRNA_config = {
+    "indir": cutadapt_config["outdir"] if trimmer == "cutadapt" else trimmomatic_config["outdir"],
+    "outdir":  f"{outdir}/rRNA",
+    "logdir": logdir,
+    "paired_samples": paired_samples,
+    "single_samples": single_samples,
+    "Procedure": {
+        "bowtie2": config.get('Procedure',{}).get('bowtie2'),
+        "bowtie2-build": config.get('Procedure',{}).get('bowtie2-build')
+    },
+    "genome": {
+        "fasta": config.get('genome',{}).get('rRNA_fasta') if config.get('genome',{}).get('rRNA_fasta') else f"{rmrRNA_config['outdir']}/rRNA.fasta",
+        "index_prefix": config.get('genome',{}).get('bowtie2_index_prefix_for_rRNA') if config.get('genome',{}).get('rRNA_fasta') else None
+    },
+    "Params": {
+        "bowtie2": {
+            "sam-append-comment": config.get('Params',{}).get('bowtie2_rRNA', {}).get('sam-append-comment')
+        }
+    }
+}
+module bowtie2_for_rRNA:
+    snakefile: "../modules/bowtie2/bowtie2.smk"
+    config: bowtie2_rRNA_config
+use rule * from bowtie2_for_rRNA as RNAseq_rRNA_*
+
+star_config_for_fusion = {
+    "indir": bowtie2_rRNA_config["outdir"],
+    "outdir":  f"{outdir}/fusion/star",
+    "logdir": logdir,
+    "paired_samples": paired_samples,
+    "single_samples": single_samples,
+    "fastq_sample_suffix": "unmapped",
+    "Procedure": {
+        "STAR": config.get('Procedure',{}).get('STAR')
+    },
+    "Params": {
+        "STAR": {
+            "outFilterMultimapNmax": config.get('Params',{}).get('STAR_fusion', {}).get('outFilterMultimapNmax') or 1,
+            "outFilterMismatchNmax": config.get('Params',{}).get('STAR_fusion', {}).get('outFilterMismatchNmax') or 3,
+            "chimSegmentMin": config.get('Params',{}).get('STAR_fusion', {}).get('chimSegmentMin') or 10,
+            "chimOutType": config.get('Params',{}).get('STAR_fusion', {}).get('chimOutType') or "Junctions WithinBAM SoftClip SeparateSAMold",
+            "chimJunctionOverhangMin": config.get('Params',{}).get('STAR_fusion', {}).get('chimJunctionOverhangMin') or 10,
+            "outSAMstrandField": config.get('Params',{}).get('STAR_fusion', {}).get('outSAMstrandField') or "intronMotif",
+            "chimScoreMin": config.get('Params',{}).get('STAR_fusion', {}).get('chimScoreMin') or 1,
+            "chimScoreDropMax": config.get('Params',{}).get('STAR_fusion', {}).get('chimScoreDropMax') or 30,
+            "chimScoreJunctionNonGTAG": config.get('Params',{}).get('STAR_fusion', {}).get('chimScoreJunctionNonGTAG') or 0,
+            "chimScoreSeparation": config.get('Params',{}).get('STAR_fusion', {}).get('chimScoreSeparation') or 1,
+            "alignSJstitchMismatchNmax": config.get('Params',{}).get('STAR_fusion', {}).get('alignSJstitchMismatchNmax') or "5 -1 5 5",
+            "chimSegmentReadGapMax": config.get('Params',{}).get('STAR_fusion', {}).get('chimSegmentReadGapMax') or 3,
+        }
+    },
+    "genome": {
+        "fasta": config.get('genome',{}).get('fasta'),
+        "gtf": config.get('genome',{}).get('gtf'),
+        "index_dir": config.get('genome',{}).get('star_index_dir')
+    }
+}
+module star_for_fusion:
+    snakefile: "../modules/star/star.smk"
+    config: star_config_for_fusion
+use rule * from star_for_fusion as RNAseq_fusion_*
+logger.info(f"star_config_for_fusion: {star_config_for_fusion}")
+
+gatk_prepare_config = {
+    "indir": star_config_for_fusion["outdir"],
+    "outdir":  f"{outdir}/fusion/bam",
+    "logdir": logdir,
+    "paired_samples": paired_samples,
+    "single_samples": single_samples,
+    "Procedure": {
+        "gatk": config.get("Procedure", {}).get("gatk"),
+        "samtools": config.get("Procedure", {}).get("samtools")
+    },
+    "genome": {
+        "fasta": config.get('genome',{}).get('fasta'),
+        "gtf": config.get('genome',{}).get('gtf')
+    }
+}
+
+module gatk_prepare:
+    snakefile: "../modules/gatk/gatk_prepare.smk"
+    config: gatk_prepare_config
+use rule * from gatk_prepare as RNAseq_fusion_*
+logger.info(f"gatk_prepare_config: {gatk_prepare_config}")
+
+arriba_config = {
+        "indir": f"{gatk_prepare_config['outdir']}/bam-sorted-Markdup",
+        "outdir":  f"{outdir}/fusion/arriba",
+        "logdir": logdir,
+        "genome": {
+            "fasta": config.get('genome',{}).get('fasta'),
+            "gtf": config.get('genome',{}).get('gtf')
+        },
+        "Params": {
+            "arriba": {
+                "blacklist": config.get('Params',{}).get('arriba',{}).get('blacklist'),
+                "known_fusions": config.get('Params',{}).get('arriba',{}).get('known_fusions'),
+                "t": config.get('Params',{}).get('arriba',{}).get('t'),
+                "d": config.get('Params',{}).get('arriba',{}).get('d'),
+                "E": config.get('Params',{}).get('arriba',{}).get('E'),
+                "p": config.get('Params',{}).get('arriba',{}).get('p')
+            }
+        },
+        "Procedure": {
+            "arriba": config.get('Procedure',{}).get('arriba') or 'arriba'
+        }
+    }
+module arriba:
+    snakefile: "../modules/arriba/arriba.smk"
+    config: arriba_config
+use rule * from arriba as RNAseq_fusion_*
+logger.info(f"arriba_config: {arriba_config}")

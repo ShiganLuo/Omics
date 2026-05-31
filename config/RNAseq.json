@@ -17,7 +17,7 @@
         "hisat2": "/home/zhousha/tools/hisat2-2.2.1/hisat2",
         "hisat2_build": "/home/zhousha/tools/hisat2-2.2.1/hisat2-build",
         "samtools": null,
-        "star": "/home/zhousha/tools/STAR-2.7.11b/bin/Linux_x86_64/STAR",
+        "STAR": "/home/zhousha/tools/STAR-2.7.11b/bin/Linux_x86_64/STAR",
         "trimmomatic": "/home/zhousha/tools/trimmomatic/trimmomatic-0.40.jar"
     },
     "genome": {
@@ -27,7 +27,9 @@
         "TE_gtf": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.gtf",
         "TEind": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.gtf.locInd",
         "hisat2_index_prefix": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/hisat2/genome",
-        "star_index_dir": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/star"
+        "star_index_dir": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/star",
+        "rRNA_fasta": null,
+        "bowtie2_index_prefix_for_rRNA": null
     },
     "Params": {
         "workflow": {
@@ -48,6 +50,20 @@
             "outFilterMultimapNmax": 10,
             "winAnchorMultimapNmax": 50
         },
+        "STAR_fusion": {
+            "outFilterMultimapNmax": 1,
+            "outFilterMismatchNmax": 3,
+            "chimSegmentMin": 10,
+            "chimOutType": "Junctions WithinBAM SoftClip SeparateSAMold",
+            "chimJunctionOverhangMin": 10,
+            "outSAMstrandField": "intronMotif",
+            "chimScoreMin": 1,
+            "chimScoreDropMax": 30,
+            "chimScoreJunctionNonGTAG": 0,
+            "chimScoreSeparation": 1,
+            "alignSJstitchMismatchNmax": "5 -1 5 5",
+            "chimSegmentReadGapMax": 3
+        },
         "hisat2_TEtranscripts": {
             "score_min": "L,0,-0.2",
             "flag_params": "",
@@ -56,6 +72,13 @@
         "hisat2_stringtie": {
             "k": 1,
             "flag_params": "-q --no-unal --dta"
+        },
+        "arriba": {
+            "blacklist": "/data/pub/zhousha/Reference/arriba_v2.5.1/database/blacklist_mm39_GRCm39_v2.5.1.tsv.gz",
+            "known_fusions": "/data/pub/zhousha/Reference/arriba_v2.5.1/database/known_fusions_mm39_GRCm39_v2.5.1.tsv.gz",
+            "t": null,
+            "d": null,
+            "E": 0.3
         }
     }
 }

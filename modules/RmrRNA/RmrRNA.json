@@ -1,0 +1,11 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "log",
+    "ROOT_DIR": "path/to/ROOT_DIR",
+    "genome": {
+        "rRNA_fasta": "path/to/rRNA_reference.fa",
+        "genome_fasta": "path/to/genome.fa",
+        "gtf": "path/to/annotation.gtf"
+    }
+}

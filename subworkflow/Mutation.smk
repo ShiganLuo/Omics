@@ -6,7 +6,7 @@ logdir = config.get("logdir","logs")
 outfiles = config.get("outfiles", [])
 paired_samples = config.get("paired_samples", [])
 single_samples = config.get("single_samples", [])
-
+ROOT_DIR = config.get("ROOT_DIR", ".")
 rule all:
     input:
         outfiles
@@ -175,3 +175,25 @@ module gatk_germline:
     config: gatk_germline_config
 logger.info(f"gatk_germline parameters: {gatk_germline_config}")
 use rule * from  gatk_germline as Mutation_*
+
+if config.get("Params", {}).get("somatic_spectrum", {}).get("sample_somatic_vcf_dict", {}) and  config.get("Params", {}).get("somatic_spectrum", {}).get("sample_group_dict", {}):
+    logger.info(f"sample_somatic_vcf_dict and sample_group_dict provided for somatic_spectrum. Will run somatic_spectrum module.")
+    somatic_spectrum_config = {
+        "indir": gatk_somatic_config["outdir"],
+        "outdir": f"{outdir}/mutation/spectrum",
+        "logdir": logdir,
+        "ROOT_DIR":ROOT_DIR,
+        "sample_somatic_vcf_dict": config.get("Params", {}).get("somatic_spectrum", {}).get("sample_somatic_vcf_dict", {}),
+        "sample_group_dict": config.get("Params", {}).get("somatic_spectrum", {}).get("sample_group_dict", {}),
+        "genome": {
+            "fasta": config.get("genome",{}).get("fasta")
+        }
+    }
+    module somatic_spectrum:
+        snakefile: "../modules/spectrum/spectrum.smk"
+        config: somatic_spectrum_config
+    logger.info(f"somatic_spectrum parameters: {somatic_spectrum_config}")
+    use rule somatic_spectrum from somatic_spectrum as Mutation_somatic_spectrum
+else:
+    logger.info(f"sample_somatic_vcf_dict or sample_group_dict not provided for somatic_spectrum. Skipping somatic_spectrum module.")
+

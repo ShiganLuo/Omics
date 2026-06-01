@@ -1,0 +1,10 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "log",
+    "sample_vcf_dict": {},
+    "sample_group_dict": {},
+    "genome": {
+        "fasta": ""
+    }
+}

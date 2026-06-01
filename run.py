@@ -299,11 +299,18 @@ def runMutation(
     paired_samples = []
     single_samples = []
     mutect2_samples = []
+    sample_somatic_vcf_dict = {}
+    sample_group_dict = {}
     for designPair in designPair:
-        outfiles.append(f"{outdir}/mutation/gatk/somatic/mutect2-vcf/{designPair.ctr_sample_id}_vs_{designPair.exp_sample_id}/{designPair.ctr_sample_id}_vs_{designPair.exp_sample_id}.vcf.gz")
+        somatic_file = f"{outdir}/mutation/gatk/somatic/mutect2-vcf/{designPair.ctr_sample_id}_vs_{designPair.exp_sample_id}/{designPair.ctr_sample_id}_vs_{designPair.exp_sample_id}.vcf.gz"
+        sample_somatic_vcf_dict[designPair.exp_sample_id] = somatic_file
+        sample_group_dict[designPair.exp_sample_id] = designPair.exp_group
+        outfiles.append(somatic_file)
         mutect2_samples.append(designPair.ctr_sample_id)
         mutect2_samples.append(designPair.exp_sample_id)
+    
     for sample_id, sample_info in samples_info_dict.items():
+        
         if sample_info.layout == "PE":
             paired_samples.append(sample_id)
             if sample_id in mutect2_samples:
@@ -318,6 +325,9 @@ def runMutation(
             # outfiles.append(f"{outdir}/mutation/gatk/germline/vcf-filtered/{sample_id}/{sample_id}.vcf.gz")
         else:
             logger.error(f"Unknown layout type for sample {sample_id}: {sample_info.layout}")
+    outfiles.append(f"{outdir}/mutation/spectrum/somatic_spectrum_stacked_bar.png")
+    datajson["Params"]["somatic_spectrum"]["sample_somatic_vcf_dict"] = sample_somatic_vcf_dict
+    datajson["Params"]["somatic_spectrum"]["sample_group_dict"] = sample_group_dict
     datajson["outfiles"] = outfiles
     datajson["paired_samples"] = paired_samples
     datajson["single_samples"] = single_samples

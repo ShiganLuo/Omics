@@ -120,8 +120,8 @@ def read_mapping_tsv(file_path, key_col, value_col):
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Mutation spectrum analysis")
-    parser.add_argument("--vcf-map", help="TSV with columns: sample, vcf")
-    parser.add_argument("--group-map", help="TSV with columns: sample, group")
+    parser.add_argument("--vcf-map", help="TSV with columns: experiment_sample_id, vcf")
+    parser.add_argument("--group-map", help="TSV with columns: experiment_sample_id, group")
     parser.add_argument("--ref-fasta", required=True, help="Reference FASTA")
     parser.add_argument("--output-prefix", required=True, help="Output prefix")
     parser.add_argument("--no-show", action="store_true", help="Do not show plots")
@@ -132,8 +132,8 @@ if __name__ == "__main__":
     if not args.vcf_map or not args.group_map:
         raise SystemExit("--vcf-map and --group-map are required")
 
-    vcf_files = read_mapping_tsv(args.vcf_map, "sample", "vcf")
-    sample_groups = read_mapping_tsv(args.group_map, "sample", "group")
+    vcf_files = read_mapping_tsv(args.vcf_map, "experiment_sample_id", "vcf")
+    sample_groups = read_mapping_tsv(args.group_map, "experiment_sample_id", "group")
     mutation_spectrum_analysis(
         vcf_files,
         sample_groups,

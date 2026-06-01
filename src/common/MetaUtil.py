@@ -36,12 +36,14 @@ class SampleInfo:
     fastq_1: Optional[Path] = None
     fastq_2: Optional[Path] = None
     workflow: Optional[str] = None
+    group: Optional[str] = None
 
 @dataclass
 class DesignPair:
     organism: str
     ctr_sample_id: str
     exp_sample_id: str
+    exp_group: Optional[str] = None
 DESIGN_PATTERN = re.compile(r"^(ctr|exp)_(.+)$")
 class MetadataUtils:
     """
@@ -66,7 +68,8 @@ class MetadataUtils:
         fastq_dir: Optional[str] = None,
         required_cols: set = {"sample_id", "fastq_1", "fastq_2"},
         data_id_col: str = "data_id",
-        design_col: str = "design"
+        design_col: str = "design",
+        group_col: str = "group",
     ):
         """
         Function: Initialize MetadataUtils.
@@ -77,6 +80,7 @@ class MetadataUtils:
             - required_cols: Set of required columns in the metadata file. Default includes 'sample_id', 'fastq_1', 'fastq_2'.
             - data_id_col: Column name in metadata that represents unique FASTQ identifiers (default: 'data_id').
             - design_col: sample compare mode
+            - group_col: Column name in metadata that represents sample groups (default: 'group').
         Note:
             - fq_pattern: Glob pattern to identify FASTQ files in fastq_dir (default: '*fq.gz').
 
@@ -90,6 +94,7 @@ class MetadataUtils:
         self.required_cols = required_cols        
         self.data_id_col = data_id_col
         self.design_col = design_col
+        self.group_col = group_col
         self.samples_dict = defaultdict(SampleInfo)
 
     def load_meta(self) -> pd.DataFrame:
@@ -146,7 +151,8 @@ class MetadataUtils:
                 designPair = DesignPair(
                     organism=exp_sample_info.organism,
                     ctr_sample_id=g["ctr"][0].sample_id,
-                    exp_sample_id=exp_sample_info.sample_id
+                    exp_sample_id=exp_sample_info.sample_id,
+                    exp_group=exp_sample_info.group
                 )
                 pairs.append(designPair)
         return pairs
@@ -162,7 +168,8 @@ class MetadataUtils:
             fastq_r1_col:str = 'fastq_1',
             fastq_r2_col:str = "fastq_2",
             organism_col:str = "organism",
-            workflow_col:str = "workflow"
+            workflow_col:str = "workflow",
+            group_col:str = "group"
             ) -> None:
         """
             data_id represents a unique FASTQ file.
@@ -193,6 +200,7 @@ class MetadataUtils:
             self.samples_dict[sample_id].design = df_sample[design_col].values[0] if design_col in df_sample.columns else ""
             self.samples_dict[sample_id].organism = df_sample[organism_col].values[0] if organism_col in df_sample.columns else "UNKNOWN"
             self.samples_dict[sample_id].workflow = df_sample[workflow_col].values[0] if workflow_col in df_sample.columns else None
+            self.samples_dict[sample_id].group = df_sample[group_col].values[0] if group_col in df_sample.columns else None
             if len(data_ids) == 1:
                 logger.info(f"Detect the relationship between {sample_id} and {data_ids[0]} is one-to-one")
                 origin_r1 = df_sample[fastq_r1_col].values[0]

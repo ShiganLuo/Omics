@@ -5,34 +5,50 @@ indir = config.get("indir") or "input"
 outdir = config.get("outdir") or "output"
 logdir = config.get("logdir") or "log"
 ROOT_DIR = config.get("ROOT_DIR", ".")
-
-def get_input_for_somatic_spectrum(wildcards):
-    vcf_files = []
-    for normal_sample_id in config.get("normal_samples", []):
-        for experimental_sample_id in config.get("experimental_samples", []):
-            vcf_path = f"{outdir}/mutect2-vcf/{normal_sample_id}_vs_{experimental_sample_id}/{normal_sample_id}_vs_{experimental_sample_id}.vcf.gz"
-            vcf_files.append(vcf_path)
-    return vcf_files
+experiment_somatic_vcf_dict = config.get("sample_somatic_vcf_dict", {})
+somatic_mutation_vcf_files = experiment_somatic_vcf_dict.values()
+experiment_group_dict = config.get("sample_group_dict", {})
 
 rule somatic_spectrum:
     input: 
-        get_input_for_somatic_spectrum
+        somatic_mutation_vcf_files
     output:
-        spectrum_png = outdir + "/mutect2-vcf/spectrum/somatic_spectrum.png"
+        spectrum_png = outdir + "/somatic_spectrum_stacked_bar.png"
     log:
-        logdir + "/all/gatk/somatic_spectrum.log"
+        logdir + "/all/spectrum/somatic_spectrum.log"
     conda:
-        "../gatk.yaml"
+        "spectrum.yaml"
     params:
-        spectrum_script = os.path.join(ROOT_DIR, "modules/spectrum/bin/spectrum.py")
+        spectrum_script = os.path.join(ROOT_DIR, "modules/spectrum/bin/spectrum.py"),
+        outprefix = outdir + "/somatic_spectrum"
     run:
-        current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
-        script = f"{outdir}/somatic_spectrum.{current_time}.sh"
-        cmd = ["python", params.spectrum_script, 
-                "--vcf_files"] + input + [
-                "--output", output.spectrum_png
-                ]
-        with open(script, "w") as f:
-            f.write("#!/bin/bash\n")
-            f.write(" ".join(cmd) + "\n")
-        shell("bash {script} > {log} 2>&1")
+        try:
+            current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
+            script = f"{outdir}/somatic_spectrum.{current_time}.sh"
+            experiment_vcf_map_file = os.path.join(outdir, "experiment_vcf_map.tsv")
+            with open(experiment_vcf_map_file, "w") as f:
+                f.write("experiment_sample_id\tvcf\n")
+                for experiment_id, vcf_file in experiment_somatic_vcf_dict.items():
+                    f.write(f"{experiment_id}\t{vcf_file}\n")
+            experiment_group_map_file = os.path.join(outdir, "experiment_group_map.tsv")
+            with open(experiment_group_map_file, "w") as f:
+                f.write("experiment_sample_id\tgroup\n")
+                for experiment_id, group_id in experiment_group_dict.items():
+                    f.write(f"{experiment_id}\t{group_id}\n")
+            fasta = config.get('genome', {}).get('fasta')
+            if not os.path.exists(fasta):
+                raise ValueError(f"Reference fasta file not found: {fasta}")
+            cmd = ["python", params.spectrum_script, 
+                    "--vcf-map", experiment_vcf_map_file,
+                    "--group-map", experiment_group_map_file,
+                    "--ref-fasta", fasta,
+                    "--output-prefix", params.outprefix
+                    ]
+            with open(script, "w") as f:
+                f.write("#!/bin/bash\n")
+                f.write(" ".join(cmd) + "\n")
+            shell("bash {script} > {log} 2>&1")
+        except Exception as e:
+            with open(log) as f:
+                f.write(f"Error in somatic_spectrum rule: {str(e)}\n")
+            raise e

@@ -7,9 +7,9 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # awk -F'\t' '{print $1}' ${meta} | while read -r GSM;do
 #     GetGSMHtml ${GSM} ${html_outdir} ${html_log}
 # done
-GSM_parser=/data/pub/zhousha/20260417_RNAseq/workflow/RNA-SNP/src/download/GSM_metadata.py
-ASCP_downloader=/data/pub/zhousha/20260417_RNAseq/workflow/RNA-SNP/src/download/ascp_download.py
-meta_input_generator=/data/pub/zhousha/20260417_RNAseq/workflow/RNA-SNP/src/download/generate_meta_input.py
+GSM_parser=${SCRIPT_DIR}/GSM_metadata.py
+ASCP_downloader=${SCRIPT_DIR}/ascp_download.py
+meta_input_generator=${SCRIPT_DIR}/generate_meta_input.py
 ENA_ascp_key=${SCRIPT_DIR}/assests/asperaweb_id_dsa.openssh
 CNGB_ascp_key=${SCRIPT_DIR}/assests/aspera01.openssh
 function download_pipeline(){

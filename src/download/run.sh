@@ -1,4 +1,5 @@
 #!/bin/bash
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # source /disk5/luosg/RNAseq_DicerDHEL120260105/workflow/RNA-SNP/scripts/download/metadata.sh
 # meta=/disk5/luosg/RNAseq_DicerDHEL120260105/data/README.md
 # html_outdir=/disk5/luosg/RNAseq_DicerDHEL120260105/data/html
@@ -9,7 +10,8 @@
 GSM_parser=/data/pub/zhousha/20260417_RNAseq/workflow/RNA-SNP/src/download/GSM_metadata.py
 ASCP_downloader=/data/pub/zhousha/20260417_RNAseq/workflow/RNA-SNP/src/download/ascp_download.py
 meta_input_generator=/data/pub/zhousha/20260417_RNAseq/workflow/RNA-SNP/src/download/generate_meta_input.py
-ascp_key=/home/zhousha/miniforge3/envs/RNA/etc/asperaweb_id_dsa.openssh
+ENA_ascp_key=${SCRIPT_DIR}/assests/asperaweb_id_dsa.openssh
+CNGB_ascp_key=${SCRIPT_DIR}/assests/aspera01.openssh
 function download_pipeline(){
     meta=$1
     outdir=$2
@@ -35,7 +37,6 @@ meat=/data/pub/zhousha/20260417_RNAseq/data/meta/meta.csv
 outdir=/data/pub/zhousha/20260417_RNAseq/data/meta
 log=/data/pub/zhousha/20260417_RNAseq/log/download/GSM_metadata.log
 # download_pipeline ${meat} ${outdir} ${log}
-python 
 
 
 

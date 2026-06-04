@@ -24,8 +24,29 @@ plot_sv_circos_from_files <- function(
   bin_size = 1e6 # 1Mb bins for bar plot
   ) {
   
-  # 1. 图像输出设置
-  png(filename = outImg, width = 2400, height = 2400, res = 300)
+  ext <- tolower(tools::file_ext(outImg))
+
+  switch(
+      ext,
+      png = png(
+          filename = outImg,
+          width = 2400,
+          height = 2400,
+          res = 300
+      ),
+      pdf = pdf(
+          file = outImg,
+          width = 8,
+          height = 8
+      ),
+      svg = svg(
+          filename = outImg,
+          width = 8,
+          height = 8
+      ),
+      stop("Unsupported image format: ", ext)
+  )
+
   circos.clear()
   # cytoband = read.cytoband(species = genome)$df
   # write.table(cytoband, file = "debug_cytoband.txt", sep = "\t", row.names = FALSE, col.names = TRUE, quote = FALSE)

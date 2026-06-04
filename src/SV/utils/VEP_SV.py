@@ -1,14 +1,15 @@
-import subprocess
 import os
+import sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+from common.LogUtil import setup_logger
+import subprocess
 import shutil
-import tempfile
 import gzip
 import logging
 from pathlib import Path
 import pandas as pd
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] [%(name)s] %(message)s')
-logger = logging.getLogger(__name__)
+logger = setup_logger("VEP_SV", level=logging.INFO)
 
 
 class VEP_SV:

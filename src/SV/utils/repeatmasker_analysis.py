@@ -1,26 +1,19 @@
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+from common.LogUtil import setup_logger
+from common.CmdUtil import _run_cmd
 from pathlib import Path
 import logging
-import subprocess
 import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
-import numpy as np
-from collections import Counter
 from scipy.stats import fisher_exact
-from collections import Counter
-from typing import List, Tuple, Literal, Dict, defaultdict
-import subprocess
+from typing import List, Literal, Dict, defaultdict, Optional
 import logging
 from pathlib import Path
 import tempfile
 import shutil
-try:
-    from .CmdUtil import _run_cmd
-except Exception:
-    from CmdUtil import _run_cmd
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] [%(name)s] %(message)s')
-logger = logging.getLogger(__name__)
+logger = setup_logger("RepeatMaskerAnalysis", level=logging.INFO)
 
 
 def run_te_annotation_pipeline(
@@ -28,7 +21,7 @@ def run_te_annotation_pipeline(
     output_dir: str, 
     species: str = "mus musculus",
     threads: int = 8
-) -> Path:
+) -> Optional[Path]:
     """
     Executes the RepeatMasker pipeline, ensuring all output files are preserved 
     in the destination directory while cleaning up temporary working folders.
@@ -63,7 +56,8 @@ def run_te_annotation_pipeline(
         ]
 
         try:
-            _run_cmd(rm_cmd)
+            stdout = _run_cmd(rm_cmd)
+            logger.info(f"RepeatMasker completed successfully:\n{stdout}")
             
             for item in tmp_path.iterdir():
                 if item.is_file():
@@ -71,8 +65,8 @@ def run_te_annotation_pipeline(
                 elif item.is_dir() and not item.name.startswith("RM_"):
                     shutil.move(str(item), str(final_out_path / item.name))
 
-        except subprocess.CalledProcessError:
-            logger.error("RepeatMasker failed during execution.")
+        except Exception as e:
+            logger.error(f"RepeatMasker failed during execution: {e}")
             return None
 
     result_out = final_out_path / f"{fasta_path.name}.out"

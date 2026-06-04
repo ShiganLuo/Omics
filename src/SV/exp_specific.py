@@ -1,16 +1,17 @@
 import os
-
+import sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from common.LogUtil import setup_logger
 from utils.VEP_SV import VEP_SV
 from utils.SV_TYPE import parse_pbsv_vcf,run_sv_stratification,extract_te_candidate_ins,generate_plot_input
 from utils.SV_TYPE_plot import plot_stacking_bar,plot_multi_smooth_curves
 from utils.repeatmasker_analysis import run_te_annotation_pipeline,RepeatMaskerOutCompare
 from utils.repeatmasker_plot import plot_enrichment
+from typing import Literal
 from pathlib import Path
 import logging
-import pandas as pd
 import argparse
-logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] [%(name)s] %(message)s')
-logger = logging.getLogger(__name__)
+logger = setup_logger("ExpSpecificSVPipeline", level=logging.INFO)
 
 
 def run_exp_specific_annotation(
@@ -76,7 +77,8 @@ def run_exp_specific_annotation(
 
 def run_vcf_analysis(
         vcf:str,
-        out_dir:str
+        out_dir:str,
+        image_format:Literal["png", "pdf", "svg"] = "png"
 ):
     """
     Function: Analyze the annotated VCF to generate summary statistics and visualizations.
@@ -101,7 +103,7 @@ def run_vcf_analysis(
     outdir_plot.mkdir(parents=True,exist_ok=True)
     logger.info("Starting VCF analysis and visualization...")
     matrix,summary = run_sv_stratification(vcf,str(outdir_table))
-    outpng_bar = outdir_plot / "size_bin.png"
+    outpng_bar = outdir_plot / f"size_bin.{image_format}"
     plot_stacking_bar(matrix,
                       xlabel="bin",
                       ylabel="count",
@@ -114,7 +116,7 @@ def run_vcf_analysis(
     # ##### svlen count
     df_sta = parse_pbsv_vcf(vcf)
     plot_data = generate_plot_input(df_sta)
-    outpng_curve = outdir_plot / "svlen_count.png"
+    outpng_curve = outdir_plot / f"svlen_count.{image_format}"
     plot_multi_smooth_curves(plot_data,
                              x_label="svlen",
                              y_label="count",
@@ -127,7 +129,8 @@ def run_exp_enricher(
         vcf_1x:str,
         out_dir:str,
         min_svlen:int = 2000,
-        max_svlen:int = 10000
+        max_svlen:int = 10000,
+        image_format:Literal["png", "pdf", "svg"] = "png"
 ):
     """
     Function: Perform enrichment analysis of repeat elements in experiment-specific SV insertions compared to control SV insertions.
@@ -142,6 +145,7 @@ def run_exp_enricher(
     - outdir: directory where output tables and plots will be saved. Subdirectories "fa" and "repeatmasker" will be created within this directory for intermediate files.
     - min_svlen: minimum SV length (in bp) for candidate insertion extraction (default 2000 bp).
     - max_svlen: maximum SV length (in bp) for candidate insertion extraction (default 10000 bp).
+    - image_format: format for saving plots (default "png").
     Returns:
     - None. Side effects include:
         - FASTA files of candidate insertions saved in the "fa" subdirectory.
@@ -172,7 +176,7 @@ def run_exp_enricher(
 
     logger.info("Generating enrichment plot for significant subfamilies (FDR < 0.05)...")
     df = df[df["fdr"] < 0.05]
-    out_enrich_png = f"{outdir}/repeatmasker/PlaBOnlyEnrichment.png"
+    out_enrich_png = f"{outdir}/repeatmasker/PlaBOnlyEnrichment.{image_format}"
     plot_enrichment(df,out_enrich_png)
     logger.info(f"Generating enrichment plot: {out_enrich_png}")
 
@@ -186,6 +190,7 @@ def main():
     paraser.add_argument("--species",type=str,default="mus_musculus",help="species name for VEP annotation")
     paraser.add_argument("--assembly",type=str,default="GRCm39",help="genome assembly for VEP annotation")
     paraser.add_argument("--annotate_format",type=str,choices=["vcf","tab"],default="tab",help="output format for VEP annotation")
+    paraser.add_argument("--image_format",type=str,choices=["png","pdf","svg"],default="png",help="format for saving plots")
     args = paraser.parse_args()
 
     annotated_file = run_exp_specific_annotation(
@@ -193,18 +198,20 @@ def main():
         exp_vcf=args.exp_vcf,
         outprefix=args.outprefix,
         dist=args.dist,
-        annotate_format=args.annotate_format
+        annotate_format=args.annotate_format,
     )
 
     outdir = os.path.dirname(args.outprefix)
     run_vcf_analysis(
         vcf=f"{args.outprefix}_only.vcf",
-        out_dir=outdir
+        out_dir=outdir,
+        image_format=args.image_format
     )
     run_exp_enricher(
         vcf_01=f"{args.outprefix}_only.vcf",
         vcf_1x=args.ctrl_vcf,
-        out_dir=f"{outdir}/enrichment"
+        out_dir=f"{outdir}/enrichment",
+        image_format=args.image_format
     )
 
 if __name__ == "__main__":

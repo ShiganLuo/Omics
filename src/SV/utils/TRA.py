@@ -1,13 +1,13 @@
-from __future__ import annotations
+
+import os
+import sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+from common.LogUtil import setup_logger
 from typing import List, Tuple, Dict, Optional, Iterable
 import pysam
 import logging
 from dataclasses import dataclass
-
-try:
-    from .LogUtil import setup_logger
-except Exception:
-    from LogUtil import setup_logger
+logger = setup_logger("TRAAnnotation", level=logging.INFO)
 
 
 # =========================

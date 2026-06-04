@@ -1,11 +1,14 @@
+import os
+import sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from common.LogUtil import setup_logger
 from pathlib import Path
 import pandas as pd
 import argparse
 import logging
 from utils.SV_TYPE_plot import plot_sv_type_barplot,plot_sv_length_boxplot,plot_large_sv_barplot,plot_svtype_comparison
 from utils.SV_TYPE import parse_pbsv_vcf
-logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] [%(name)s] %(message)s')
-logger = logging.getLogger(__name__)
+logger = setup_logger("pbsv_sv_diff_analysis", level=logging.INFO)
 
 
 def run_pbsv_diff_analysis(
@@ -85,10 +88,10 @@ def run_pbsv_diff_analysis(
             ylabel=f"SV count (≥{large_sv_threshold} bp)",
         )
 
-    logging.info("pbsv SV differential analysis finished.")
-    logging.info(f"Results saved in: {outdir}")
+    logger.info("pbsv SV differential analysis finished.")
+    logger.info(f"Results saved in: {outdir}")
     out_svtype_image = plot_dir / "sv_type_barplot.png"
-    logging.info(f"SV type distribution plot: {out_svtype_image}")
+    logger.info(f"SV type distribution plot: {out_svtype_image}")
     plot_svtype_comparison(
         type_summary,
         str(out_svtype_image),

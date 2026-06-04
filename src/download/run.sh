@@ -37,6 +37,20 @@ meat=/data/pub/zhousha/20260417_RNAseq/data/meta/meta.csv
 outdir=/data/pub/zhousha/20260417_RNAseq/data/meta
 log=/data/pub/zhousha/20260417_RNAseq/log/download/GSM_metadata.log
 # download_pipeline ${meat} ${outdir} ${log}
-
-
-
+function cngb_download(){
+    ip=$1
+    outdir=$2
+    echo "ascp \
+        -P 33001 \
+        -v \
+        -i ${CNGB_ascp_key} \
+        -T \
+        -D \
+        -l 100m \
+        -k1 \
+        -d ${ip} \
+        ${outdir}"
+}
+ip=aspera01@download.cncb.ac.cn:gsa6/CRA024880
+outdir=/data/pub/zhousha/20260207_Exome/data/tRNA/fastq
+cngb_download ${ip} ${outdir}

@@ -6,11 +6,12 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from common.LogUtil import setup_logger
 from common.SepUtil import detect_delimiter
 from common.MatchUtil import run_accession_match
+from common.LogUtil import setup_logger
 import pandas as pd
 from concurrent.futures import ThreadPoolExecutor
 from typing import Optional, List
-import logging
-logger = logging.getLogger(__name__)
+
+logger = setup_logger("FTPDownloader")
 
 def download_files_from_ftp(server, username=None, password=None, remote_dir="/", local_dir="./downloads"):
     """
@@ -150,7 +151,7 @@ def parser_metadata(
 
     return matched_urls
 
-def main():
+def CNP_download():
     experiment_metadata_file = "/data/pub/zhousha/20260411_RNAseq/data/meta/metadata_CNP0003135_experiment.tsv"
     ftp_ref_file = "/data/pub/zhousha/20260411_RNAseq/data/meta/data_download_links_CNP0003135_ftp.txt"
     output_dir = "/data/pub/zhousha/20260411_RNAseq/data/fastq"
@@ -183,5 +184,24 @@ def main():
 
     logger.info("All downloads completed.")
 
+def CNGB_download():
+    runinfo_file = "/data/pub/zhousha/20260207_Exome/data/tRNA/run.tsv"
+    df = pd.read_csv(runinfo_file, sep="\t")
+    ftp_cols = [col for col in df.columns if "DownLoad" in col]
+    ftp_urls = []
+    for col in ftp_cols:
+        ftp_urls.extend(df[col].dropna().tolist())
+    logger.info(f"Total FTP URLs to download: {len(ftp_urls)}")
+    # Parallel download for FTP URLs
+    def download_url(url):
+        if url.startswith("ftp://"):
+            server = url.split("/")[2]
+            remote_file_path = "/" + "/".join(url.split("/")[3:])
+            local_file_path = os.path.join("/data/pub/zhousha/20260207_Exome/data/tRNA/fastq", os.path.basename(remote_file_path))
+            logger.info(f"Server: {server}, Remote file path: {remote_file_path}, Local file path: {local_file_path}")
+            download_file_from_ftp(server, remote_file_path=remote_file_path, local_file_path=local_file_path)
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        executor.map(download_url, ftp_urls)
 if __name__ == "__main__":
-    main()
+    # CNP_download()
+    CNGB_download()

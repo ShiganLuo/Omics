@@ -1,14 +1,16 @@
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+from common.LogUtil import setup_logger
 import pandas as pd
 import gzip
 import logging
 import numpy as np
-import subprocess
 from pathlib import Path
 from typing import Optional
 import json
 import re
-logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] [%(name)s] %(message)s')
-logger = logging.getLogger(__name__)
+logger = setup_logger("SVType", level=logging.INFO) 
 
 
 def open_vcf(path: str):

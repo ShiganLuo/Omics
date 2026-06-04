@@ -1,3 +1,7 @@
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from common.LogUtil import setup_logger
 import pandas as pd
 import logging
 from enricher.function import enrich_go, enrich_kegg
@@ -5,12 +9,8 @@ from utils.VEP_SV import read_vep_tab
 import os
 import logging
 import subprocess
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-StreamHandler = logging.StreamHandler()
-StreamHandler.setFormatter(formatter)
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-logger.addHandler(StreamHandler)
+import argparse 
+logger = setup_logger("SVEnrichment", level=logging.INFO)
 
 def sv_go(
         anno_file: str,
@@ -20,7 +20,7 @@ def sv_go(
         **kwargs
 ):
     """
-    Funtion: 
+    Function: Perform GO and KEGG enrichment analysis on structural variants.
     """
     os.makedirs(outdir, exist_ok=True)
     df = read_vep_tab(anno_file, **kwargs)
@@ -107,11 +107,18 @@ def tab_parser(
     print(df["miRNA"].value_counts())
     
 
+def parse_args():
+    parser = argparse.ArgumentParser(description="Run SV enrichment analysis")
+    parser.add_argument("-a", "--anno_file", required=True, help="Path to annotated SV file (tab-delimited)")
+    parser.add_argument("-o", "--outdir", default="enrichment_results", help="Output directory for enrichment results")
+    parser.add_argument("--gene_col", default="SYMBOL", help="Column name for gene symbols in the annotation file")
+    parser.add_argument("--IMPACT_filter", nargs="+", default=["HIGH", "MODERATE", "LOW"], help="IMPACT levels to include in enrichment")
+    return parser.parse_args()
 def main():
-    # anno_file = "/data/pub/zhousha/Totipotent20251031/PacBio/SV/PlaB06_vs_DMSO06/PlaB_annotated.tab"
-    # outdir = "/data/pub/zhousha/Totipotent20251031/PacBio/SV/PlaB06_vs_DMSO06/enrichment"
-
-    # sv_go(anno_file, outdir=outdir,gene_col="SYMBOL")
+    args = parse_args()
+    anno_file = args.anno_file
+    outdir = args.outdir
+    sv_go(anno_file, outdir=outdir,gene_col="SYMBOL")
 
     # hot_spot(
     #     annotated_tab="/data/pub/zhousha/Totipotent20251031/PacBio/SV/PlaB06_vs_DMSO06/PlaB_annotated.tab",

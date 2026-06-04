@@ -1,15 +1,17 @@
+import argparse
+import os
+import sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from common.LogUtil import setup_logger
 from utils.VEP_SV import read_vep_tab
-<<<<<<< HEAD
-from utils.LogUtil import setup_logger
-=======
-from utils.util import setup_logger
->>>>>>> 0ea0c995979175199379f89ae752af4c876178c6
 import pandas as pd
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Tuple, Callable
 import logging
 import matplotlib.pyplot as plt
-from scipy.stats import chi2_contingency
 import numpy as np
+from scipy.stats import chi2_contingency, fisher_exact, ttest_ind, mannwhitneyu
+
+logger = setup_logger("OncoPrint", level=logging.INFO)
 
 def tab_parser(
         table_file: str,
@@ -186,12 +188,6 @@ def Deseq2_oncoprint_data(
     logger.info("Merging completed")
 
     return result_df
-
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-from typing import Dict, Tuple, Optional, Callable
-from scipy.stats import chi2_contingency, fisher_exact, ttest_ind, mannwhitneyu
 
 
 # =========================
@@ -452,6 +448,16 @@ def plot_comparison_broken_bar(
     plt.savefig(out_png, dpi=dpi)
     plt.close()
 
+def parser_args(
+        
+) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Run OncoPrint analysis for SV data")
+    parser.add_argument("--tab_files", nargs="+", required=True, help="List of VEP annotation tab files (format: sample=path)")
+    parser.add_argument("--cosmic_file", required=True, help="Path to COSMIC cancer gene list file")
+    parser.add_argument("--oncoprint_file", required=True, help="Path to output oncoprint matrix file")
+    parser.add_argument("--deseq2_files", nargs="+", required=True, help="List of DESeq2 result files")
+    parser.add_argument("--condition_names", nargs="+", required=True, help="List of condition names corresponding to DESeq2 files")
+    return parser.parse_args()
 
 def main():
     vcfs = {

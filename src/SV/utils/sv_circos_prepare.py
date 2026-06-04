@@ -1,13 +1,18 @@
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+from common.LogUtil import setup_logger
 import re
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Literal, Union
 import pysam
 from pyfaidx import Fasta
 import subprocess
 import logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] [%(name)s] %(message)s')
-logger = logging.getLogger(__name__)
+logger = setup_logger("SVCircosPrepare", level=logging.INFO)
 
+
+ImageFormat = Literal["png", "pdf", "svg"]
 
 class SVCircosPrepare():
     """
@@ -15,10 +20,11 @@ class SVCircosPrepare():
     """
     main_chrom = ["chr" + str(c) for c in range(1, 20)] + ['chrX', 'chrY', 'chrM']
     logger.info(f"Main chromosomes set: {main_chrom}")
-    def __init__(self,vcf_path: str, fasta_path: str, outdir: str):
+    def __init__(self,vcf_path: str, fasta_path: str, outdir: str, image_format: Union[ImageFormat,List[ImageFormat]] = ["png"]):
         self.vcf_path = vcf_path
         self.fasta_path = fasta_path
         self.outdir = outdir    
+        self.image_format = image_format
 
     def open_vcf_autotabix(self) -> pysam.VariantFile:
         """

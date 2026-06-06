@@ -1,5 +1,19 @@
 library(ComplexHeatmap)
 library(grid)
+#' Generate an OncoPrint heatmap for structural variants.
+#'
+#' Reads a CSV matrix of SV alterations per gene/sample, dynamically
+#' constructs alteration-drawing functions for each SV type present, and
+#' renders an OncoPrint heatmap using \code{ComplexHeatmap}.
+#'
+#' @param oncoprint_matrix_file Character; path to a CSV file with samples
+#'   as columns, genes as rows, and comma-separated SV-type strings as
+#'   cell values.
+#' @param outpng Character; output PNG file path.
+#' @param alteration_colors Named character vector mapping SV type names
+#'   (e.g. \code{"INS"}, \code{"DEL"}) to hex colour codes.
+#' @return Returns \code{NULL} invisibly.  Writes the OncoPrint plot to
+#'   \code{outpng}.
 sv_plot = function(
     oncoprint_matrix_file,
     outpng = "oncoprint_plot.png",

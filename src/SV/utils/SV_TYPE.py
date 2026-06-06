@@ -15,7 +15,18 @@ logger = setup_logger("SVType", level=logging.INFO)
 
 def open_vcf(path: str):
     """
-    Open VCF or VCF.GZ file
+    Open a VCF or VCF.GZ file for reading.
+
+    Parameters
+    ----------
+    path : str
+        Path to a VCF file. Gzip-compressed (``.vcf.gz``) files are handled
+        automatically.
+
+    Returns
+    -------
+    file object
+        An open text-mode file handle.
     """
     if path.endswith(".gz"):
         return gzip.open(path, "rt")
@@ -24,7 +35,20 @@ def open_vcf(path: str):
 
 def parse_pbsv_vcf(vcf_file: str) -> pd.DataFrame:
     """
-    Parse pbsv SV VCF into DataFrame
+    Parse a pbsv SV VCF file into a DataFrame.
+
+    Extracts chrom, start, end, svtype, and svlen from each variant record.
+
+    Parameters
+    ----------
+    vcf_file : str
+        Path to the pbsv VCF file (plain or gzip-compressed).
+
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame with columns ``'chrom'``, ``'start'``, ``'end'``,
+        ``'svtype'``, and ``'svlen'``.
     """
     records = []
 
@@ -69,9 +93,24 @@ def parse_pbsv_vcf(vcf_file: str) -> pd.DataFrame:
 
 def generate_plot_input(df, bins=50):
     """
-    对 svlen 进行对数空间分箱，计算频率占比
-    :param df: 包含 svtype 和 svlen 的 DataFrame
-    :param bins: 分箱数量，越多越精细（建议 30-100）
+    Generate plot-ready data by log-space binning of SV lengths.
+
+    Computes per-SV-type proportional distributions over log-spaced bins
+    suitable for smooth curve plotting.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame containing ``'svtype'`` and ``'svlen'`` columns.
+    bins : int, optional
+        Number of logarithmic bins. Higher values give finer resolution.
+        Default is ``50``.
+
+    Returns
+    -------
+    list of dict
+        Each dict contains keys ``'x'`` (bin midpoints), ``'y'`` (proportions),
+        ``'label'`` (SV type), and ``'color'`` (hex color string).
     """
     color_map = {
         "DEL": "#E41A1C", "INS": "#377EB8", 
@@ -115,10 +154,27 @@ def generate_plot_input(df, bins=50):
 
 def run_sv_stratification(vcf_file, output_dir, run_cmd_func=None):
     """
-    独立的分层统计函数
-    :param vcf_file: 输入的 VCF 文件路径 (str 或 Path)
-    :param output_dir: 统计结果存放目录
-    :param run_cmd_func: 可选。用于执行 shell 命令的函数。如果为 None，则使用默认的 subprocess。
+    Run SV stratification analysis and generate summary reports.
+
+    Parses a pbsv VCF, bins SVs by size and type, and exports a
+    cross-tabulation matrix, chromosome distribution, and JSON summary.
+
+    Parameters
+    ----------
+    vcf_file : str or Path
+        Path to the input VCF file.
+    output_dir : str or Path
+        Directory where output reports will be saved.
+    run_cmd_func : callable, optional
+        Custom function for executing shell commands. If ``None``, the
+        default ``subprocess`` runner is used. Currently unused.
+
+    Returns
+    -------
+    tuple of (pd.DataFrame, dict)
+        A cross-tabulation matrix of SV type vs. size group, and a summary
+        dictionary with total count, type/size breakdowns, and
+        heavy-rearrangement count.
     """
     vcf_path = Path(vcf_file)
     out_path = Path(output_dir)

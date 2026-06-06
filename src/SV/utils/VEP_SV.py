@@ -15,10 +15,21 @@ logger = setup_logger("VEP_SV", level=logging.INFO)
 class VEP_SV:
     def __init__(self, vep_cache_dir, species="mus_musculus", assembly="GRCm39"):
         """
-        初始化分析类
-        :param vep_cache_dir: VEP 缓存的根目录
-        :param species: 物种名称 (如 mus_musculus)
-        :param assembly: 基因组版本 (如 GRCm39)
+        Initialize the VEP_SV analysis class.
+
+        Parameters
+        ----------
+        vep_cache_dir : str
+            Root directory for the VEP cache. Created automatically if it
+            does not exist.
+        species : str, optional
+            Species name used by VEP. Default is ``"mus_musculus"``.
+        assembly : str, optional
+            Genome assembly version. Default is ``"GRCm39"``.
+
+        Returns
+        -------
+        None
         """
         self.vep_cache_dir = str(Path(vep_cache_dir).expanduser().resolve()) # 支持 ~ 和绝对路径
         self.species = species
@@ -32,9 +43,25 @@ class VEP_SV:
 
     def _run_cmd(self, cmd:list):
         """
-        执行外部命令，返回 stdout
-        - 命令不存在：给出清晰提示
-        - 命令执行失败：打印 stdout / stderr
+        Execute an external command and return its stdout.
+
+        Checks that the command binary exists before execution and raises
+        informative errors on failure.
+
+        Parameters
+        ----------
+        cmd : list of str
+            Command and arguments as a list (e.g. ``["vep", "-i", "in.vcf"]``).
+
+        Returns
+        -------
+        str
+            Standard output of the executed command.
+
+        Raises
+        ------
+        RuntimeError
+            If the command binary is not found or execution fails.
         """
         cmd_str = " ".join(cmd)
         cmd_bin = cmd[0]
@@ -70,7 +97,16 @@ class VEP_SV:
 
 
     def vep_annotation_install(self):
-        """安装类指定的 VEP 缓存"""
+        """
+        Install VEP cache for the configured species and assembly.
+
+        Calls ``vep_install`` with the instance's species, assembly, and
+        cache directory settings.
+
+        Returns
+        -------
+        None
+        """
         cmd = [
             "vep_install", "-a", "cf", 
             "-s", self.species, 
@@ -81,15 +117,27 @@ class VEP_SV:
 
     def merge_sv_survivor(self, vcf_files:list, out_vcf:str, dist:int = 500, min_support:int = 1):
         """
-        Function: Merge SVs from multiple VCF files using SURVIVOR, with robust handling of temporary files to avoid issues with SURVIVOR's file reading.
-        Parameters:
-            - vcf_files: list of input VCF file paths (can be gzipped)
-            - out_vcf: output VCF file path
-            - dist: maximum distance between SVs to be merged
-            - min_support: minimum support for SVs to be merged
-        Returns:
-            - Merged VCF file at out_vcf
-        Note: use absolute paths for all temporary files to avoid SURVIVOR reading issues, especially when handling multiple samples.
+        Merge SVs from multiple VCF files using SURVIVOR.
+
+        Handles decompression of gzipped VCFs, writes a temporary file list,
+        and cleans up intermediate files on success. Uses absolute paths for
+        all temporary files to avoid SURVIVOR reading issues.
+
+        Parameters
+        ----------
+        vcf_files : list of str
+            Input VCF file paths (plain or gzip-compressed).
+        out_vcf : str
+            Output merged VCF file path.
+        dist : int, optional
+            Maximum distance between SVs to merge (bp). Default is ``500``.
+        min_support : int, optional
+            Minimum number of supporting samples. Default is ``1``.
+
+        Returns
+        -------
+        None
+            Writes the merged VCF to *out_vcf*.
         """
         # 在输出目录旁创建一个实体的临时文件夹
         work_dir = os.path.dirname(os.path.abspath(out_vcf))
@@ -139,8 +187,24 @@ class VEP_SV:
 
     def extract_specific_sv(self, in_vcf:str, out_vcf:str, vec:str = "10"):
         """
-        提取特定的 SUPP_VEC 变异
-        SUPP_VEC 是一个二进制字符串，表示每个样本中变异的支持情况，由 SURVIVOR 生成
+        Extract SVs matching a specific SUPP_VEC value using bcftools.
+
+        SUPP_VEC is a binary string indicating per-sample support, generated
+        by SURVIVOR during merging.
+
+        Parameters
+        ----------
+        in_vcf : str
+            Input VCF file path.
+        out_vcf : str
+            Output VCF file path for extracted variants.
+        vec : str, optional
+            SUPP_VEC value to filter by. Default is ``"10"``.
+
+        Returns
+        -------
+        None
+            Writes filtered VCF to *out_vcf*.
         """
         cmd = ["bcftools", "view", "-i", f"INFO/SUPP_VEC='{vec}'", in_vcf, "-o", out_vcf]
         self._run_cmd(cmd)
@@ -153,11 +217,26 @@ class VEP_SV:
             result_format:str = "vcf"
         ):
         """
-        Function: Annotate SVs using VEP with comprehensive options for structural variants.
-        Parameters:
-        - in_vcf: input VCF file containing SVs
-        - outfile: output file path for annotated results
-        - result_format: output format (vcf or tab) --{result_format} will be passed to VEP
+        Annotate structural variants using Ensembl VEP.
+
+        Automatically installs the VEP cache for the configured species if
+        not already present. Runs VEP in offline mode with ``--everything``
+        and ``--pick`` flags.
+
+        Parameters
+        ----------
+        in_vcf : str
+            Input VCF file containing SVs.
+        outfile : str
+            Output file path for annotated results.
+        result_format : str, optional
+            Output format passed to VEP via ``--{result_format}``.
+            Default is ``"vcf"``.
+
+        Returns
+        -------
+        None
+            Writes annotated output to *outfile*.
         """
         # 检查特定物种的缓存子目录是否存在
         species_cache = os.path.join(self.vep_cache_dir, self.species)
@@ -183,7 +262,28 @@ def read_vep_tab(
         col_line_prefiex: str = "#Uploaded_variation"
 ):
     """
-    Function: Read VEP annotation results which is tab-delimited format and return a DataFrame.
+    Read a VEP tab-delimited annotation result file into a DataFrame.
+
+    Locates the header line by searching for a line starting with
+    *col_line_prefiex*, then reads the remaining rows as a DataFrame.
+
+    Parameters
+    ----------
+    table_file : str
+        Path to the VEP tab-delimited output file.
+    col_line_prefiex : str, optional
+        Prefix used to identify the header line. Default is
+        ``"#Uploaded_variation"``.
+
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame containing the VEP annotation results.
+
+    Raises
+    ------
+    ValueError
+        If no header line matching *col_line_prefiex* is found.
     """
     header_line = None
     with open(table_file) as f:

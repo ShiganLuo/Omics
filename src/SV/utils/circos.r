@@ -4,6 +4,16 @@ suppressPackageStartupMessages({
   library(ComplexHeatmap)
   library(grid)
 })
+#' Log a timestamped message to stderr.
+#'
+#' @param level Character string; one of \code{"INFO"}, \code{"WARN"}, or
+#'   \code{"ERROR"}.
+#' @param ... Additional arguments passed to \code{paste()} to compose the
+#'   message body.
+#' @param quit Logical; if \code{TRUE} the function raises an error after
+#'   logging, terminating execution. Default is \code{FALSE}.
+#' @return Called for its side effect (message output). Returns \code{NULL}
+#'   invisibly.
 log_msg <- function(level = c("INFO","WARN","ERROR"), ..., quit = FALSE) {
   level <- match.arg(level)
   msg <- paste(...)
@@ -14,6 +24,27 @@ log_msg <- function(level = c("INFO","WARN","ERROR"), ..., quit = FALSE) {
   message(prefix, msg)
   if (quit) stop(msg, call. = FALSE)
 }
+#' Plot an SV Circos diagram from pre-processed BED files.
+#'
+#' Reads structural-variant BED files (DEL, DUP, INV, INS, TRA) and renders
+#' them on a Circos ideogram.  Supports multiple output image formats and
+#' two INS display modes (jittered points or binned bar).
+#'
+#' @param file_list Named list with elements \code{DEL}, \code{DUP},
+#'   \code{INV}, \code{INS}, and \code{TRA}, each a path to the
+#'   corresponding BED file.
+#' @param genome Character; genome assembly identifier (e.g.
+#'   \code{"mm39"}, \code{"hg38"}).  Used to fetch the default ideogram.
+#' @param cytoband_file Character or \code{NULL}; path to a local cytoband
+#'   file that overrides the built-in genome ideogram.
+#' @param show_legend Logical; whether to draw an SV-type legend.
+#' @param outImg Character; output image path.  Extension determines
+#'   format (\code{png}, \code{pdf}, or \code{svg}).
+#' @param ins_plot_type Character; \code{"points"} for jittered dots or
+#'   \code{"bar"} for a binned coverage histogram.
+#' @param bin_size Numeric; bin width in base pairs for the INS bar plot.
+#' @return Invisibly returns \code{NULL}.  Writes the Circos plot to
+#'   \code{outImg}.
 plot_sv_circos_from_files <- function(
   file_list, 
   genome = "mm39", 
@@ -63,7 +94,13 @@ plot_sv_circos_from_files <- function(
   }
   
   # 内部辅助函数：确保染色体以 "chr" 开头
-  fix_chr <- function(df) {
+    #' Ensure chromosome names start with \code{"chr"} prefix.
+    #'
+    #' @param df A data frame whose first column (and third column if it is
+    #'   character, as in TRA data) contains chromosome names.
+    #' @return The data frame with chromosome names normalised to
+    #'   \code{"chr"}-prefixed form.
+    fix_chr <- function(df) {
     if (nrow(df) == 0) return(df)
     df[[1]] <- ifelse(grepl("^chr", df[[1]]), df[[1]], paste0("chr", df[[1]]))
     if (ncol(df) >= 3 && is.character(df[[3]])) { # 针对 TRA 的第二坐标列
@@ -216,6 +253,14 @@ plot_sv_circos_from_files <- function(
   dev.off()
 }
 
+#' Parse a human-readable bin-size string into an integer.
+#'
+#' Accepts values suffixed with \code{k} (kilobases), \code{m} (megabases),
+#' or \code{g} (gigabases), or plain numeric strings such as \code{"1e6"}.
+#'
+#' @param x Character string representing the bin size (e.g.
+#'   \code{"500k"}, \code{"2M"}, \code{"1e6"}).
+#' @return Integer value in base pairs.
 parse_bin_size <- function(x) {
   x <- tolower(x)
   if (grepl("k$", x)) return(as.integer(as.numeric(sub("k$", "", x)) * 1e3))
@@ -246,6 +291,12 @@ group_ins$add_argument("-b","--ins_bin_size", type="character", default=1e6, hel
 # 解析参数
 args <- parser$parse_args()
 
+#' CLI entry point for the SV Circos plotter.
+#'
+#' Parses command-line arguments, builds the file-list from the input
+#' directory, and calls \code{plot_sv_circos_from_files}.
+#'
+#' @return Returns \code{NULL} invisibly.
 main <- function() {
   # 构建文件路径列表
   file_list <- list(

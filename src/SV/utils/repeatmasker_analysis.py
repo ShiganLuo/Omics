@@ -23,17 +23,26 @@ def run_te_annotation_pipeline(
     threads: int = 8
 ) -> Optional[Path]:
     """
-    Executes the RepeatMasker pipeline, ensuring all output files are preserved 
-    in the destination directory while cleaning up temporary working folders.
+    Execute the RepeatMasker pipeline for transposable element annotation.
 
-    Args:
-        input_fasta: Path to the input FASTA file.
-        output_dir: Target directory for the generated annotation results.
-        species: Genomic repeat library species identifier.
-        threads: Number of CPU cores for parallel execution.
+    Runs RepeatMasker on the input FASTA, moves results to the output
+    directory, and cleans up temporary working folders.
 
-    Returns:
-        Path: The path to the primary .out result file, or None if unsuccessful.
+    Parameters
+    ----------
+    input_fasta : str
+        Path to the input FASTA file.
+    output_dir : str
+        Target directory for the generated annotation results.
+    species : str, optional
+        Genomic repeat library species identifier. Default is "mus musculus".
+    threads : int, optional
+        Number of CPU cores for parallel execution. Default is 8.
+
+    Returns
+    -------
+    Optional[Path]
+        Path to the primary .out result file, or None if unsuccessful.
     """
     fasta_path = Path(input_fasta)
     final_out_path = Path(output_dir)
@@ -86,6 +95,16 @@ class RepeatMaskerOutCompare:
     """
 
     def __init__(self, bg_out: str, fg_out: str):
+        """
+        Initialize the comparator with foreground and background .out files.
+
+        Parameters
+        ----------
+        bg_out : str
+            Path to the background RepeatMasker .out file.
+        fg_out : str
+            Path to the foreground RepeatMasker .out file.
+        """
         self.bg_out = bg_out
         self.fg_out = fg_out
 
@@ -97,7 +116,24 @@ class RepeatMaskerOutCompare:
         min_len: int = 10
     ) -> List[Dict]:
         """
-        Parse .out file including subfamily (repeat name), class, and family.
+        Parse a RepeatMasker .out file extracting subfamily, class, and family.
+
+        Parameters
+        ----------
+        path : str
+            Path to the RepeatMasker .out file.
+        min_score : int, optional
+            Minimum Smith-Waterman score to retain a hit. Default is 225.
+        max_div : float, optional
+            Maximum percent divergence allowed. Default is 25.0.
+        min_len : int, optional
+            Minimum fragment length in bp. Default is 10.
+
+        Returns
+        -------
+        List[Dict]
+            List of repeat records with keys: subfamily, class, family,
+            length, div.
         """
         repeats = []
 
@@ -149,7 +185,19 @@ class RepeatMaskerOutCompare:
         level: Literal["class", "family", "subfamily"] = "class"
     ) -> Dict[str, int]:
         """
-        Sum up total base pairs for the chosen level.
+        Aggregate total base pairs per repeat element at the specified level.
+
+        Parameters
+        ----------
+        repeats : List[Dict]
+            List of repeat records as returned by ``parse_repeatmasker_out``.
+        level : {"class", "family", "subfamily"}, optional
+            Taxonomic level at which to aggregate. Default is "class".
+
+        Returns
+        -------
+        Dict[str, int]
+            Mapping from repeat element name to total base pairs.
         """
         length_map = defaultdict(int)
         for r in repeats:
@@ -165,8 +213,28 @@ class RepeatMaskerOutCompare:
         min_len: int = 10
     ) -> pd.DataFrame:
         """
-        Perform enrichment analysis with BP lengths. 
-        Set max_div low (e.g., 5.0) to find active L1 subfamilies.
+        Perform Fisher's exact test enrichment analysis on repeat elements.
+
+        Compares foreground vs. background base-pair proportions for each
+        repeat at the given taxonomic level.
+
+        Parameters
+        ----------
+        level : {"class", "family", "subfamily"}, optional
+            Taxonomic level for comparison. Default is "subfamily".
+        min_score : int, optional
+            Minimum Smith-Waterman score filter. Default is 225.
+        max_div : float, optional
+            Maximum percent divergence filter. Default is 25.0.
+        min_len : int, optional
+            Minimum fragment length in bp. Default is 10.
+
+        Returns
+        -------
+        pd.DataFrame
+            Enrichment results with columns: repeat, fg_bp, bg_bp,
+            fg_ratio, bg_ratio, odds_ratio, p_value, fdr.
+            Sorted by p-value ascending.
         """
         fg_raw = self.parse_repeatmasker_out(
             self.fg_out, min_score=min_score, max_div=max_div, min_len=min_len

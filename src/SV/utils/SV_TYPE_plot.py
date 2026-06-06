@@ -1,22 +1,21 @@
-import sys
 import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-from common.LogUtil import setup_logger
 from pathlib import Path
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.stats import mannwhitneyu,chi2_contingency
+from scipy.stats import mannwhitneyu,chi2_contingency,fisher_exact
 import matplotlib.patches as mpatches
 from typing import List, Union, Dict, Optional
 import logging
 from scipy.interpolate import make_interp_spline
 from scipy.ndimage import gaussian_filter1d
-logger = setup_logger("SVTypePlot", level=logging.INFO)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] [%(name)s] %(message)s')
+logger = logging.getLogger(__name__)
+
 
 def plot_sv_type_barplot(
     summary_df: pd.DataFrame,
-    outpng: Path,
+    outpng: str,
     xlabel: str,
     ylabel: str,
     figsize: tuple = (6, 4),
@@ -25,39 +24,37 @@ def plot_sv_type_barplot(
     pivot_values: str = "count"
 ):
     """
-    根据汇总数据绘制 SV 类型分布的分组柱状图（宽幅布局）。
+    Plot a grouped bar chart of SV type distribution (wide layout).
 
-    该函数将输入的长格式 (Long-format) DataFrame 转换为宽格式 (Wide-format)，
-    并生成一张对比不同样本组 (Group) 间结构变异类型 (SV Type) 数量的条形图。
+    Pivots a long-format DataFrame into wide format and draws a side-by-side
+    bar chart comparing structural variant counts across sample groups.
 
-    功能步骤:
-    1. 自动创建输出目录（如果不存在）。
-    2. 执行透视表操作 (Pivot)，将变异类型设为行，样本组设为列。
-    3. 绘制分组柱状图，并进行精简的视觉美化（去除上、右边框）。
-    4. 以 300 DPI 的高分辨率保存图像。
+    Parameters
+    ----------
+    summary_df : pd.DataFrame
+        Long-format DataFrame containing columns for pivot index, columns,
+        and values.
+    outpng : str
+        Output file path for the saved PNG image.
+    xlabel : str
+        Label for the x-axis (e.g. ``"SV Type"``).
+    ylabel : str
+        Label for the y-axis (e.g. ``"Count"`` or ``"Number of SVs"``).
+    figsize : tuple, optional
+        Figure size ``(width, height)`` in inches. Default is ``(6, 4)``.
+    pivot_index : str, optional
+        Column name used as pivot table row index. Default is ``"svtype"``.
+    pivot_columns : str, optional
+        Column name used as pivot table columns. Default is ``"group"``.
+    pivot_values : str, optional
+        Column name used as pivot table values. Default is ``"count"``.
 
-    Args:
-        summary_df (pd.DataFrame): 包含统计结果的 DataFrame，需包含透视所需的索引、列和值。
-        outpng (Path): 图片保存的完整路径（包含文件名，建议以 .png 结尾）。
-        xlabel (str): X 轴标题（通常为 "SV Type"）。
-        ylabel (str): Y 轴标题（通常为 "Count" 或 "Number of SVs"）。
-        figsize (tuple, optional): 画布尺寸 (宽, 高)。 默认为 (6, 4)。
-        pivot_index (str, optional): 用于透视表行索引的列名。 默认为 "svtype"。
-        pivot_columns (str, optional): 用于透视表分组列的列名。 默认为 "group"。
-        pivot_values (str, optional): 用于透视表统计值的列名。 默认为 "count"。
-
-    Returns:
-        None: 该函数直接保存文件到磁盘并关闭画布。
-        
-    Example:
-        >>> summary = pd.DataFrame({
-        ...     'svtype': ['DEL', 'INS', 'DEL', 'INS'],
-        ...     'group': ['DMSO', 'DMSO', 'PlaB', 'PlaB'],
-        ...     'count': [800, 1200, 863, 1475]
-        ... })
-        >>> plot_sv_type_barplot(summary, Path("reports/sv_dist.png"), "SV Type", "Count")
+    Returns
+    -------
+    None
+        Saves the figure to *outpng* at 300 DPI and closes the canvas.
     """
-    outpng.parent.mkdir(parents=True, exist_ok=True)
+    os.makedirs(os.path.dirname(outpng), exist_ok=True)
     
     # 将长格式转换为宽格式绘图
     pivot = (
@@ -106,10 +103,59 @@ def plot_stacking_bar(
     total_count_fmt: str = "n={total}",
 ):
     """
-    绘制突变分布的堆叠柱状图（比例），支持：
-    - 色块内绝对计数标注
-    - 柱子顶部总计数标注
-    - 双图例（突变类型 / 样本分组）
+    Plot a stacked bar chart of mutation distribution (proportions).
+
+    Supports in-block absolute count labels, per-bar total count labels,
+    and dual legends for mutation types and sample groups.
+
+    Parameters
+    ----------
+    df_counts : pd.DataFrame
+        Count matrix with mutation types as rows and samples as columns.
+    xlabels : list of str, optional
+        Custom x-axis tick labels. If ``None``, uses column names of
+        *df_counts*.
+    groups : list of str, optional
+        Sample group assignments (length must equal number of columns).
+    group_colors : dict, optional
+        Mapping from group name to color. Auto-generated if ``None``.
+    title : str, optional
+        Plot title. Default is ``"Mutation Distribution (Proportion)"``.
+    xlabel : str, optional
+        X-axis label. Default is ``"Sample"``.
+    ylabel : str, optional
+        Y-axis label. Default is ``"Proportion"``.
+    legend_title_type : str, optional
+        Title for the mutation-type legend. Default is ``"Mutation Type"``.
+    legend_title_group : str, optional
+        Title for the sample-group legend. Default is ``"Sample Group"``.
+    save_path : str or Path, optional
+        If provided, figure is saved to this path; otherwise displayed.
+    legend_width : float, optional
+        Fraction of figure width reserved for legends. Default is ``0.25``.
+    figsize : tuple, optional
+        Figure size ``(width, height)``. Default is ``(12, 6)``.
+    legend_fontsize : int, optional
+        Font size for legend labels. Default is ``13``.
+    legend_title_fontsize : int, optional
+        Font size for legend titles. Default is ``16``.
+    rotation : int, optional
+        Rotation angle for x-tick labels. Default is ``45``.
+    colormap : str, optional
+        Matplotlib colormap name. Default is ``"tab20"``.
+    show_block_counts : bool, optional
+        If ``True``, annotate each block with its absolute count.
+    show_total_counts : bool, optional
+        If ``True``, annotate each bar top with its total count.
+    block_count_fmt : str, optional
+        Format string for block count labels. Default is ``"{count}"``.
+    total_count_fmt : str, optional
+        Format string for total count labels. Default is ``"n={total}"``.
+
+    Returns
+    -------
+    None
+        Displays the plot or saves it to *save_path*.
     """
 
     # -------------------------------
@@ -296,40 +342,72 @@ def plot_stacking_bar(
 
 
 def plot_sv_length_boxplot(
-    ctrl_df: pd.DataFrame,
-    exp_df: pd.DataFrame,
+    data_dict: Dict[str, pd.DataFrame],
     svlen_col: str,
-    group_labels: tuple,
-    outpng: Path,
+    outpng: str,
     ylabel: str,
     figsize: tuple = (4, 5),
     jitter_width: float = 0.08,
     point_alpha: float = 0.6,
     large_sv_threshold: int = 10_000,
 ):
-    outpng.parent.mkdir(parents=True,exist_ok=True)
-    # -------------------------
-    # 数据筛选
-    # -------------------------
-    ctrl_df = ctrl_df.loc[ctrl_df[svlen_col] >= large_sv_threshold, :]
-    exp_df = exp_df.loc[exp_df[svlen_col] >= large_sv_threshold, :]
+    """
+    Plot grouped boxplots of SV lengths with jittered points and significance brackets.
 
-    ctrl_raw = ctrl_df[svlen_col]
-    exp_raw = exp_df[svlen_col]
+    Filters SVs below *large_sv_threshold*, applies log10 transformation,
+    performs pairwise Mann-Whitney U tests, and annotates significance.
 
-    ctrl_len = np.log10(ctrl_raw + 1)
-    exp_len = np.log10(exp_raw + 1)
+    Parameters
+    ----------
+    data_dict : dict of str to pd.DataFrame
+        Mapping of group labels to DataFrames containing SV records.
+    svlen_col : str
+        Column name for SV length.
+    outpng : str
+        Output file path for the saved PNG image.
+    ylabel : str
+        Label for the y-axis.
+    figsize : tuple, optional
+        Figure size ``(width, height)``. Default is ``(4, 5)``.
+    jitter_width : float, optional
+        Standard deviation of jitter noise for strip plot. Default is ``0.08``.
+    point_alpha : float, optional
+        Transparency of jitter points. Default is ``0.6``.
+    large_sv_threshold : int, optional
+        Minimum SV length to include (bp). Default is ``10000``.
+
+    Returns
+    -------
+    None
+        Saves the figure to *outpng* at 300 DPI and closes the canvas.
+    """
+    os.makedirs(os.path.dirname(outpng), exist_ok=True)
+
+    # -------------------------
+    # 数据筛选和转换
+    # -------------------------
+    filtered_data = {}
+    log_lengths = {}
+
+    for group, df in data_dict.items():
+        filtered_df = df.loc[df[svlen_col] >= large_sv_threshold, :]
+        filtered_data[group] = filtered_df
+        log_lengths[group] = np.log10(filtered_df[svlen_col] + 1)
 
     # -------------------------
     # 统计检验（原始长度）
     # -------------------------
-    p_value = np.nan
-    if len(ctrl_raw) > 0 and len(exp_raw) > 0:
-        _, p_value = mannwhitneyu(
-            ctrl_raw,
-            exp_raw,
-            alternative="two-sided"
-        )
+    group_labels = list(data_dict.keys())
+    p_values = {}
+
+    for i, group1 in enumerate(group_labels):
+        for group2 in group_labels[i + 1:]:
+            raw1 = filtered_data[group1][svlen_col]
+            raw2 = filtered_data[group2][svlen_col]
+
+            if len(raw1) > 0 and len(raw2) > 0:
+                _, p_value = mannwhitneyu(raw1, raw2, alternative="two-sided")
+                p_values[(group1, group2)] = p_value
 
     def p_to_label(p):
         if p < 1e-3:
@@ -341,16 +419,14 @@ def plot_sv_length_boxplot(
         else:
             return "ns"
 
-    p_label = p_to_label(p_value)
-
     # -------------------------
     # 作图
     # -------------------------
     fig, ax = plt.subplots(figsize=figsize)
 
     box = ax.boxplot(
-        [ctrl_len, exp_len],
-        labels=list(group_labels),
+        log_lengths.values(),
+        labels=group_labels,
         patch_artist=True,
         showfliers=False,
         boxprops=dict(edgecolor="black"),
@@ -359,46 +435,42 @@ def plot_sv_length_boxplot(
         capprops=dict(color="black"),
     )
 
-    colors = ["#4C72B0", "#DD8452"]
+    colors = plt.cm.tab10.colors[:len(group_labels)]
     for patch, color in zip(box["boxes"], colors):
         patch.set_facecolor(color)
         patch.set_alpha(0.6)
 
     # 抖点
-    x_ctrl = np.random.normal(1, jitter_width, size=len(ctrl_len))
-    x_exp  = np.random.normal(2, jitter_width, size=len(exp_len))
-
-    ax.scatter(
-        x_ctrl, ctrl_len,
-        s=10, marker=".",
-        color=colors[0],
-        alpha=point_alpha, linewidths=0
-    )
-    ax.scatter(
-        x_exp, exp_len,
-        s=10, marker=".",
-        color=colors[1],
-        alpha=point_alpha, linewidths=0
-    )
+    for i, (group, lengths) in enumerate(log_lengths.items(), start=1):
+        x_jitter = np.random.normal(i, jitter_width, size=len(lengths))
+        ax.scatter(
+            x_jitter, lengths,
+            s=10, marker=".",
+            color=colors[i - 1],
+            alpha=point_alpha, linewidths=0
+        )
 
     # -------------------------
     # 统计横盖（bracket）
     # -------------------------
-    y_max = max(ctrl_len.max(), exp_len.max())
+    y_max = max(max(lengths) for lengths in log_lengths.values())
     h = 0.03
     y = y_max + h
 
-    ax.plot([1, 1, 2, 2], [y, y + h, y + h, y],
-            lw=1.2, color="black")
+    for (group1, group2), p_value in p_values.items():
+        x1 = group_labels.index(group1) + 1
+        x2 = group_labels.index(group2) + 1
 
-    ax.text(
-        1.5,
-        y + h * 1.1,
-        f"{p_label}",
-        ha="center",
-        va="bottom",
-        fontsize=9
-    )
+        ax.plot([x1, x1, x2, x2], [y, y + h, y + h, y], lw=1.2, color="black")
+        ax.text(
+            (x1 + x2) / 2,
+            y + h * 1.1,
+            p_to_label(p_value),
+            ha="center",
+            va="bottom",
+            fontsize=9
+        )
+        y += h * 2  # 增加高度避免重叠
 
     # -------------------------
     # 样式（无标题）
@@ -418,13 +490,37 @@ def plot_sv_length_boxplot(
 
 def plot_large_sv_barplot(
     summary_df: pd.DataFrame,
-    outpng: Path,
+    outpng: str,
     size_threshold: int,
     title: str,
     ylabel: str,
     figsize: tuple = (6, 4),
 ):
-    outpng.parent.mkdir(parents=True,exist_ok=True)
+    """
+    Plot a grouped bar chart of SV counts filtered by a size threshold.
+
+    Parameters
+    ----------
+    summary_df : pd.DataFrame
+        Long-format DataFrame with columns ``"svtype"``, ``"group"``, and
+        ``"count"``.
+    outpng : str
+        Output file path for the saved PNG image.
+    size_threshold : int
+        SV size cutoff used in the plot title.
+    title : str
+        Plot title.
+    ylabel : str
+        Label for the y-axis.
+    figsize : tuple, optional
+        Figure size ``(width, height)``. Default is ``(6, 4)``.
+
+    Returns
+    -------
+    None
+        Saves the figure to *outpng* at 300 DPI and closes the canvas.
+    """
+    os.makedirs(os.path.dirname(outpng), exist_ok=True)
     pivot = (
         summary_df.pivot(index="svtype", columns="group", values="count")
         .fillna(0)
@@ -447,18 +543,85 @@ def plot_large_sv_barplot(
 
 
 def plot_svtype_comparison(
-    df,
-    out_png,
-    group_col="group",
-    svtype_col="svtype",
-    count_col="count",
-    group_order=("Control", "Experiment"),
-    svtype_order=("BND", "DEL", "DUP", "INS", "INV"),
-    legend_map=None,
-    figsize=(9, 5),
-    ylabel="SV count",
-    dpi=300,
-):
+    df: pd.DataFrame,
+    out_png: str,
+    group_col: str = "group",
+    svtype_col: str = "svtype",
+    count_col: str = "count",
+    group_order: tuple = ("Control", "Experiment"),
+    svtype_order: tuple = ("BND", "DEL", "DUP", "INS", "INV"),
+    legend_map: Optional[Dict[str, str]] = None,
+    figsize: tuple = (9, 6),
+    ylabel: str = "SV count",
+    dpi: int = 300,
+    use_broken_axis: bool = True,
+    do_test: bool = True,
+    test_method: str = "chi2",
+    colors: Optional[Dict[str, str]] = None,
+    bracket_gap: float = 20.0,
+    tick_depth: float = 6.0,
+    bracket_lw: float = 0.8,
+) -> None:
+    """
+    Plot a grouped bar chart comparing SV type counts across multiple groups.
+
+    Performs chi-squared tests per SV type across all groups and optionally
+    annotates pairwise significance on a broken y-axis.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Long-format DataFrame with group, SV type, and count columns.
+    out_png : str
+        Output file path for the saved image.
+    group_col : str, optional
+        Column identifying sample groups. Default is ``"group"``.
+    svtype_col : str, optional
+        Column identifying SV types. Default is ``"svtype"``.
+    count_col : str, optional
+        Column with counts. Default is ``"count"``.
+    group_order : tuple of str, optional
+        Ordered group names to display. Any number of groups supported.
+    svtype_order : tuple of str, optional
+        Ordered SV types to display.
+    legend_map : dict, optional
+        Mapping from group name to legend label. Defaults to identity.
+    figsize : tuple, optional
+        Figure size ``(width, height)``. Default is ``(9, 5)``.
+    ylabel : str, optional
+        Y-axis label. Default is ``"SV count"``.
+    dpi : int, optional
+        Resolution in dots per inch. Default is ``300``.
+    use_broken_axis : bool, optional
+        If ``True``, use a split y-axis to accommodate large count
+        differences. Default is ``True``.
+    do_test : bool, optional
+        If ``True``, perform chi-squared tests and annotate significance.
+        Default is ``True``.
+    test_method : str, optional
+        Statistical test method: ``"chi2"`` or ``"fisher"``.
+        Default is ``"chi2"``.
+    colors : dict, optional
+        Mapping from group name to color. Auto-generated from ``tab10``
+        if ``None``.
+    bracket_gap : float, optional
+        Vertical gap in display points between stacked bracket units
+        within the same SV type. Default is ``10.0``.
+    tick_depth : float, optional
+        Depth of the outward diagonal ticks in display points. Larger
+        values produce steeper ticks. Default is ``6.0``.
+    bracket_lw : float, optional
+        Line width for bracket lines and ticks. Default is ``0.8``.
+
+    Returns
+    -------
+    None
+        Saves the figure to *out_png* at the specified DPI.
+    """
+    outdir = os.path.dirname(out_png)
+    os.makedirs(outdir, exist_ok=True)
+
+    n_groups = len(group_order)
 
     if legend_map is None:
         legend_map = {g: g for g in group_order}
@@ -469,7 +632,7 @@ def plot_svtype_comparison(
         .fillna(0)
     )
 
-    def p_to_star(p):
+    def p_to_star(p: float) -> str:
         if p < 1e-4:
             return "****"
         elif p < 1e-3:
@@ -481,119 +644,158 @@ def plot_svtype_comparison(
         else:
             return "ns"
 
-    stars = {}
-    for sv in pivot.index:
-        g1, g2 = group_order
-        table = [
-            [pivot.loc[sv, g1], pivot[g1].sum() - pivot.loc[sv, g1]],
-            [pivot.loc[sv, g2], pivot[g2].sum() - pivot.loc[sv, g2]],
-        ]
-        _, p, _, _ = chi2_contingency(table)
-        stars[sv] = p_to_star(p)
+    # ---------- significance: pairwise chi2 ----------
+    all_pairs: Dict[str, List[tuple]] = {}
+    if do_test:
+        for sv in pivot.index:
+            pairs = []
+            for i, g1 in enumerate(group_order):
+                for g2 in group_order[i + 1:]:
+                    idx1 = list(group_order).index(g1)
+                    idx2 = list(group_order).index(g2)
+                    table = np.array([
+                        [pivot.loc[sv, g1], pivot[g1].sum() - pivot.loc[sv, g1]],
+                        [pivot.loc[sv, g2], pivot[g2].sum() - pivot.loc[sv, g2]],
+                    ])
+                    # Skip degenerate tables
+                    if table.min() < 0 or table.sum() == 0 or (table.sum(axis=0) == 0).any() or (table.sum(axis=1) == 0).any():
+                        continue
+                    try:
+                        if test_method == "fisher":
+                            _, p = fisher_exact(table)
+                        else:
+                            _, p, _, _ = chi2_contingency(table)
+                    except ValueError:
+                        continue
+                    pairs.append((idx1, idx2, p_to_star(p)))
+            all_pairs[sv] = pairs
 
-    sig_sv = [sv for sv, s in stars.items() if s != "ns"]
-    low_max = (
-        pivot.loc[sig_sv].values.max() * 1.15
-        if sig_sv else
-        np.median(pivot.values) * 1.5
-    )
+    # ---------- colors ----------
+    if colors is None:
+        cmap = plt.cm.tab10
+        colors = {g: cmap(i / max(n_groups - 1, 1)) for i, g in enumerate(group_order)}
 
-    global_max = pivot.values.max()
-    high_min = low_max * 1.1
-    high_max = global_max * 1.15   # ⬅️ 预留空间给显著帽子
-
+    # ---------- axis setup ----------
     x = np.arange(len(pivot.index))
-    width = 0.36
+    total_width = 0.8
+    bar_width = total_width / n_groups
+    offsets = [bar_width * (i - (n_groups - 1) / 2) for i in range(n_groups)]
 
-    fig, (ax_top, ax_bottom) = plt.subplots(
-        2, 1, sharex=True,
-        figsize=figsize,
-        gridspec_kw={"height_ratios": [1, 3]},
-    )
+    # Auto-detect whether broken axis is needed
+    global_max = pivot.values.max()
+    sig_sv_list = [sv for sv, pairs in all_pairs.items()
+                   if any(s != "ns" for _, _, s in pairs)]
+    if sig_sv_list:
+        sig_max = pivot.loc[sig_sv_list].values.max()
+    else:
+        sig_max = np.median(pivot.values)
 
-    colors = {
-        group_order[0]: "#4C72B0",
-        group_order[1]: "#DD8452",
-    }
+    # If the max bar is not significantly taller than the rest, skip broken axis
+    need_broken = use_broken_axis and (global_max > sig_max * 2.0)
 
-    for ax in (ax_top, ax_bottom):
-        ax.bar(x - width / 2, pivot[group_order[0]], width,
-               color=colors[group_order[0]], label=legend_map[group_order[0]])
-        ax.bar(x + width / 2, pivot[group_order[1]], width,
-               color=colors[group_order[1]], label=legend_map[group_order[1]])
+    if need_broken:
+        low_max = sig_max * 1.15
+        high_min = low_max * 1.1
+        high_max = global_max * 1.15
 
-    ax_bottom.set_ylim(0, low_max)
-    ax_top.set_ylim(high_min, high_max)
-
-    # ---------- fixed broken axis (LEFT ONLY, SAFE) ----------
-    d = 0.008
-
-    # top panel: bottom edge
-    ax_top.plot(
-        (-d, +d),
-        (-d, +d),
-        transform=ax_top.transAxes,
-        color="black",
-        clip_on=False,
-    )
-
-    # bottom panel: top edge
-    ax_bottom.plot(
-        (-d, +d),
-        (1 - d, 1 + d),
-        transform=ax_bottom.transAxes,
-        color="black",
-        clip_on=False,
-    )
-
-
-    # ---------- significance (VISUALLY CONSISTENT, SAFE) ----------
-    LEG_PT = 8     # 显著腿高度（物理单位）
-    TEXT_PT = 3
-
-    fig.canvas.draw()  # 保证 transform 可用
-
-    for i, sv in enumerate(pivot.index):
-        y1 = pivot.loc[sv, group_order[0]]
-        y2 = pivot.loc[sv, group_order[1]]
-        y_base = max(y1, y2)
-
-        ax = ax_bottom if y_base <= low_max else ax_top
-
-        # data -> display
-        trans = ax.transData
-        inv = ax.transData.inverted()
-
-        _, y_disp = trans.transform((0, y_base))
-        _, y_hat = inv.transform((0, y_disp + LEG_PT))
-        _, y_text = inv.transform((0, y_disp + LEG_PT + TEXT_PT))
-
-        x1 = x[i] - width / 2
-        x2 = x[i] + width / 2
-
-        ax.plot([x1, x1], [y1, y_hat], lw=1.2, c="black")
-        ax.plot([x2, x2], [y2, y_hat], lw=1.2, c="black")
-        ax.plot([x1, x2], [y_hat, y_hat], lw=1.2, c="black")
-
-        ax.text(
-            x[i], y_text, stars[sv],
-            ha="center", va="bottom",
-            fontsize=12,
-            fontweight="bold",
+        fig, (ax_top, ax_bottom) = plt.subplots(
+            2, 1, sharex=True,
+            figsize=figsize,
+            gridspec_kw={"height_ratios": [1, 3]},
         )
 
+        axes = (ax_top, ax_bottom)
+
+        for ax in axes:
+            for i, g in enumerate(group_order):
+                ax.bar(x + offsets[i], pivot[g], bar_width,
+                       color=colors[g], label=legend_map[g])
+
+        ax_bottom.set_ylim(0, low_max)
+        ax_top.set_ylim(high_min, high_max)
+
+        # broken marks
+        d = 0.008
+        ax_top.plot((-d, +d), (-d, +d), transform=ax_top.transAxes,
+                     color="black", clip_on=False)
+        ax_bottom.plot((-d, +d), (1 - d, 1 + d), transform=ax_bottom.transAxes,
+                        color="black", clip_on=False)
+    else:
+        fig, ax = plt.subplots(figsize=figsize)
+        for i, g in enumerate(group_order):
+            ax.bar(x + offsets[i], pivot[g], bar_width,
+                   color=colors[g], label=legend_map[g])
+
+        axes = (ax,)
+        ax_top = ax_bottom = ax
+
+    # ---------- significance brackets (宝盖头 style) ----------
+    if do_test:
+        LEG_PT = 8
+        TEXT_PT = 3
+
+        fig.canvas.draw()
+
+        for i_sv, sv in enumerate(pivot.index):
+            pairs = all_pairs.get(sv, [])
+            if not pairs:
+                continue
+
+            y_base = max(pivot.loc[sv, g] for g in group_order)
+            bracket_offset = 0.0
+
+            for idx1, idx2, star in pairs:
+                if need_broken:
+                    ax = ax_bottom if y_base <= low_max else ax_top
+                else:
+                    ax = ax_top
+
+                trans = ax.transData
+                inv = ax.transData.inverted()
+
+                _, y_disp = trans.transform((0, y_base))
+                y_hat_disp = y_disp + LEG_PT + bracket_offset
+                y_text_disp = y_hat_disp + TEXT_PT
+                _, y_hat = inv.transform((0, y_hat_disp))
+                _, y_text = inv.transform((0, y_text_disp))
+
+                x1 = x[i_sv] + offsets[idx1]
+                x2 = x[i_sv] + offsets[idx2]
+
+                is_sig = star != "ns"
+                fs = 12 if is_sig else 9
+                fw = "bold" if is_sig else "normal"
+
+                # 宝盖头 bracket as single polyline to avoid line-cap overlap
+                tick_x = bar_width * 0.25
+                _, y_tick = inv.transform((0, y_hat_disp - tick_depth))
+
+                ax.plot(
+                    [x1 - tick_x, x1, x2, x2 + tick_x],
+                    [y_tick, y_hat, y_hat, y_tick],
+                    lw=bracket_lw, c="black",
+                )
+
+                ax.text((x1 + x2) / 2, y_text, star,
+                        ha="center", va="bottom",
+                        fontsize=fs, fontweight=fw, color="black")
+
+                bracket_offset += tick_depth + TEXT_PT + bracket_gap
+
+    # ---------- formatting ----------
     ax_bottom.set_xticks(x)
     ax_bottom.set_xticklabels(pivot.index)
     ax_bottom.set_ylabel(ylabel)
 
-    ax_top.tick_params(axis="x", bottom=False, labelbottom=False)
-    ax_top.spines["bottom"].set_visible(False)
+    if need_broken:
+        ax_top.tick_params(axis="x", bottom=False, labelbottom=False)
+        ax_top.spines["bottom"].set_visible(False)
 
-    for ax in (ax_top, ax_bottom):
+    for ax in axes:
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
 
-    ax_top.legend(frameon=False)
+    axes[0].legend(frameon=False)
 
     plt.tight_layout()
     plt.savefig(out_png, dpi=dpi)
@@ -610,8 +812,33 @@ def plot_multi_smooth_curves(
         highlight_x_values: List[float] = None # 新增参数：用于绘制竖直线的 X 值列表
 ) -> plt.Figure:
     """
-    极致平滑版本：使用高斯滤波处理数据，解决震荡和负数问题
-    新增功能：可在指定 X 轴位置绘制竖直线
+    Plot multiple smoothed SV length distribution curves on a log-scale x-axis.
+
+    Uses Gaussian filtering on log-spaced interpolated data to produce smooth
+    curves, with optional vertical reference lines at specified x positions.
+
+    Parameters
+    ----------
+    datasets : list of dict
+        Each dict must contain ``'x'`` (list of bin midpoints) and ``'y'``
+        (list of proportions). Optional keys: ``'label'``, ``'color'``.
+    outfig : str
+        Output file path. If ``None``, the figure is only displayed.
+    x_label : str, optional
+        X-axis label. Default is ``"SV Length (bp)"``.
+    y_label : str, optional
+        Y-axis label. Default is ``"Proportion"``.
+    title : str, optional
+        Plot title. Default is ``"SV Length Distribution"``.
+    smooth_sigma : float, optional
+        Gaussian filter sigma controlling smoothness. Default is ``2.0``.
+    highlight_x_values : list of float, optional
+        X positions at which to draw vertical dashed reference lines.
+
+    Returns
+    -------
+    matplotlib.figure.Figure
+        The generated figure object.
     """
     fig = plt.figure(figsize=(10, 6))
     ax = fig.gca() # 获取当前 Axes 对象，方便后面添加注释

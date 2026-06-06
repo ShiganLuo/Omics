@@ -5,28 +5,49 @@ import seaborn as sns
 import os
 import numpy as np
 import logging
+from typing import List, Optional
 logger = logging.getLogger(__name__)
 
 def enrich_go(
-        gene_list:list, 
-        organism:str = 'Human', 
-        outdir:str = 'enrichment_results', 
-        top_n:int = 10,
-        cutoff:float = 0.05
-    ):
+        gene_list: List[str],
+        organism: str = 'Human',
+        outdir: str = 'enrichment_results',
+        top_n: int = 10,
+        cutoff: float = 0.05,
+        image_formats: Optional[List[str]] = None
+    ) -> dict:
     """
-    Function: Perform GO and KEGG enrichment analysis using gseapy's enrichr function, and visualize the top enriched terms.
-    
-    Parameters:
-        gene_list (list): List of gene symbols to be analyzed for enrichment.
-        organism (str): Organism name for enrichment analysis (e.g. 'Human' or 'Mouse'). Default is 'Human'.
-        outdir (str): Directory to save enrichment results and plots. Default is 'enrichment_results'.
-        top_n (int): Number of top enriched terms to visualize in bar plots. Default is 10.
-        
-    Returns:
-        dict: {'GO_BP': df, 'GO_CC': df, 'GO_MF': df}
+    Perform GO enrichment analysis and visualize top enriched terms.
+
+    Runs Gene Ontology (Biological Process, Cellular Component, Molecular
+    Function) enrichment via gseapy's ``enrichr`` and saves bar plots of
+    the top-ranked terms.
+
+    Parameters
+    ----------
+    gene_list : list of str
+        Gene symbols to analyze for enrichment.
+    organism : str, default="Human"
+        Organism name (``"Human"`` or ``"Mouse"``).
+    outdir : str, default="enrichment_results"
+        Directory to save enrichment results and plots.
+    top_n : int, default=10
+        Number of top enriched terms to visualize in bar plots.
+    cutoff : float, default=0.05
+        Adjusted p-value cutoff for significance.
+    image_formats : list of str, optional
+        Output image formats (e.g. ``["png", "pdf"]``). Defaults to
+        ``["png"]``.
+
+    Returns
+    -------
+    dict
+        Mapping of GO category name to its enrichment results DataFrame.
+        Keys: ``"GO_Biological_Process_2021"``, ``"GO_Cellular_Component_2021"``,
+        ``"GO_Molecular_Function_2021"``.
     """
-    
+    if image_formats is None:
+        image_formats = ['png']
     os.makedirs(outdir, exist_ok=True)
     results_dict = {}
     
@@ -54,16 +75,47 @@ def enrich_go(
             plt.xlabel('-log10(FDR)')
             plt.title(f'{cat} Top {top_n} Enrichment')
             plt.tight_layout()
-            plt.savefig(os.path.join(outdir, f'{cat}_top{top_n}.png'))
+            for fmt in image_formats:
+                plt.savefig(os.path.join(outdir, f'{cat}_top{top_n}.{fmt}'))
             plt.close()
     
 def enrich_kegg(
-        gene_list:list, 
-        organism:str = 'Human', 
-        outdir:str = 'enrichment_results', 
-        top_n:int = 10,
-        cutoff:float = 0.05
-    ):
+        gene_list: List[str],
+        organism: str = 'Human',
+        outdir: str = 'enrichment_results',
+        top_n: int = 10,
+        cutoff: float = 0.05,
+        image_formats: Optional[List[str]] = None
+    ) -> dict:
+    """
+    Perform KEGG pathway enrichment analysis and visualize top terms.
+
+    Runs KEGG pathway enrichment via gseapy's ``enrichr`` and saves bar
+    plots of the top-ranked pathways.
+
+    Parameters
+    ----------
+    gene_list : list of str
+        Gene symbols to analyze for enrichment.
+    organism : str, default="Human"
+        Organism name (``"Human"`` or ``"Mouse"``).
+    outdir : str, default="enrichment_results"
+        Directory to save enrichment results and plots.
+    top_n : int, default=10
+        Number of top enriched pathways to visualize in bar plots.
+    cutoff : float, default=0.05
+        Adjusted p-value cutoff for significance.
+    image_formats : list of str, optional
+        Output image formats (e.g. ``["png", "pdf"]``). Defaults to
+        ``["png"]``.
+
+    Returns
+    -------
+    dict
+        Mapping of ``"KEGG"`` to its enrichment results DataFrame.
+    """
+    if image_formats is None:
+        image_formats = ['png']
     results_dict = {}
     kegg_cat = 'KEGG_2021_Human' if organism.lower()=='human' else 'KEGG_2021_Mouse'
     enr_kegg = gp.enrichr(
@@ -84,7 +136,8 @@ def enrich_kegg(
         plt.xlabel('-log10(FDR)')
         plt.title(f'KEGG Top {top_n} Enrichment')
         plt.tight_layout()
-        plt.savefig(os.path.join(outdir, f'KEGG_top{top_n}.png'))
+        for fmt in image_formats:
+            plt.savefig(os.path.join(outdir, f'KEGG_top{top_n}.{fmt}'))
         plt.close()
     
     for key, df in results_dict.items():

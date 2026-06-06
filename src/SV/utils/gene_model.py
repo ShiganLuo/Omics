@@ -22,6 +22,21 @@ import vcf  # pip install PyVCF
 # 1. Gene structure parsing
 # -----------------------------
 def create_db(gtf_file: str) -> gffutils.FeatureDB:
+    """Create or load a gffutils database from a GTF/GFF3 annotation file.
+
+    If the database file (``<gtf_file>.db``) already exists on disk it is
+    reused; otherwise a new one is created.
+
+    Parameters
+    ----------
+    gtf_file : str
+        Path to a GTF or GFF3 gene annotation file.
+
+    Returns
+    -------
+    gffutils.FeatureDB
+        The parsed annotation database.
+    """
     db_file = gtf_file + ".db"
     if not os.path.exists(db_file):
         gffutils.create_db(
@@ -93,6 +108,24 @@ def get_gene_structure_by_transcript(
 Mutation = Dict[str, Union[int, str]]
 
 def load_mutations(mutation_file: Optional[str]) -> List[Mutation]:
+    """Load mutation records from a VCF or CSV file.
+
+    Supported formats:
+
+    * **VCF** – classifies each record as SNV, INDEL, or SV (by SVTYPE).
+    * **CSV** – requires columns ``pos`` and ``type``; an optional ``label``
+      column is also read.
+
+    Parameters
+    ----------
+    mutation_file : str or None
+        Path to the mutation file. If ``None`` an empty list is returned.
+
+    Returns
+    -------
+    list of dict
+        Each dict contains keys ``pos``, ``type``, and ``label``.
+    """
     if not mutation_file:
         return []
     
@@ -141,6 +174,28 @@ def plot_gene_model_all_transcripts(
     output: str="gene_model.png",
     show_mutation_label: bool=False
 ) -> None:
+    """Plot a gene model showing all transcripts with optional mutation overlay.
+
+    Draws exons (sky-blue rectangles), UTRs (green rectangles), intron
+    connectors, a strand arrow, and coloured mutation/SV markers.  The
+    figure is saved to *output* at 300 DPI.
+
+    Parameters
+    ----------
+    gene : gffutils.Feature
+        The gene feature, used for coordinate range and strand info.
+    transcripts : dict
+        Mapping of transcript ID to ``{'exons': [...], 'UTRs': [...]}``.
+    mutations : list of dict, optional
+        Each dict must contain ``pos`` (int) and ``type`` (str).
+    figsize : tuple of float, optional
+        Figure width and height in inches, by default ``(10, 2)``.
+    output : str, optional
+        Path for the saved figure, by default ``"gene_model.png"``.
+    show_mutation_label : bool, optional
+        Whether to annotate each mutation with its label text, by default
+        ``False``.
+    """
     mutations = mutations or []
     fig, ax = plt.subplots(figsize=figsize)
     n_transcripts = len(transcripts)
@@ -199,6 +254,12 @@ def plot_gene_model_all_transcripts(
 # 4. CLI entry
 # -----------------------------
 def main() -> None:
+    """CLI entry point for the gene-model plotting tool.
+
+    Parses command-line arguments (GTF, gene name, mutations file, output
+    path, figure size, and label toggle) and generates the gene model
+    figure.
+    """
     parser = argparse.ArgumentParser(description="Draw gene model with mutations/SVs (CSV or VCF)")
     parser.add_argument("-t","--gtf", required=True, help="GTF/GFF3 gene annotation file")
     parser.add_argument("-g","--gene", required=True, help="Gene symbol or ID to plot")
@@ -223,6 +284,12 @@ def main() -> None:
     )
 
 def run():
+    """Batch gene-model plotter for predefined samples and genes.
+
+    Iterates over a hardcoded set of VCF samples (PlaB_P6, PlaB_P20) and
+    gene names (Fhit, Alk, Lrp1b), loading a shared GFF annotation
+    database and writing one gene-model PNG per gene per sample.
+    """
     vcfs = {
         "PlaB_P6": "/data/pub/zhousha/Totipotent20251031/PacBio/SV/PlaB06_vs_DMSO06/PlaB_only.vcf",
         "PlaB_P20": "/data/pub/zhousha/Totipotent20251031/PacBio/SV/PlaB20_vs_DMSO20/PlaB_only.vcf"

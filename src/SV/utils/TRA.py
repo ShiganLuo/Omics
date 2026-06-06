@@ -91,10 +91,25 @@ def parse_tra_from_vcf(vcf_path: str, logger: logging.Logger) -> List[TRARecord]
 
 def _parse_bnd_alt(alt: str) -> Tuple[str, int]:
     """
-    Parse BND ALT field to extract partner breakpoint.
+    Parse a BND ALT field to extract the partner chromosome and position.
 
-    Example:
-        N]chr2:12345] -> (chr2, 12345)
+    Handles standard BND notation such as ``N]chr2:12345]`` or
+    ``[chr2:12345[N``.
+
+    Parameters
+    ----------
+    alt : str
+        The ALT allele string from a VCF BND record.
+
+    Returns
+    -------
+    Tuple[str, int]
+        Partner chromosome name and breakpoint position.
+
+    Raises
+    ------
+    ValueError
+        If the ALT string does not match the expected BND format.
     """
     import re
     match = re.search(r'[\[\]](.+):(\d+)[\[\]]', alt)
@@ -109,10 +124,18 @@ def _parse_bnd_alt(alt: str) -> Tuple[str, int]:
 
 def load_te_bed(bed_path: str) -> List[TERange]:
     """
-    Load TE annotation BED.
+    Load transposable element annotations from a BED file.
 
-    Expected format:
-        chrom start end te_name
+    Parameters
+    ----------
+    bed_path : str
+        Path to the TE annotation BED file. Each line should have at
+        least four tab-separated columns: chrom, start, end, te_name.
+
+    Returns
+    -------
+    List[TERange]
+        List of TE range records.
     """
     te_list: List[TERange] = []
     with open(bed_path) as f:
@@ -133,7 +156,24 @@ def query_te_overlap(
     window: int = 200
 ) -> List[TERange]:
     """
-    Query TE overlaps within a window around breakpoint.
+    Find TE annotations overlapping a window around a breakpoint position.
+
+    Parameters
+    ----------
+    chrom : str
+        Chromosome of the breakpoint.
+    pos : int
+        Breakpoint coordinate.
+    te_list : List[TERange]
+        List of TE annotations to search against.
+    window : int, optional
+        Flanking window size in bp on each side of the position.
+        Default is 200.
+
+    Returns
+    -------
+    List[TERange]
+        TE records that overlap the specified window.
     """
     result: List[TERange] = []
     for te in te_list:
@@ -155,7 +195,23 @@ def extract_reads(
     window: int = 200
 ) -> Iterable[pysam.AlignedSegment]:
     """
-    Fetch reads around breakpoint.
+    Fetch aligned reads from a BAM file around a genomic position.
+
+    Parameters
+    ----------
+    bam : pysam.AlignmentFile
+        Open pysam BAM file handle.
+    chrom : str
+        Chromosome name.
+    pos : int
+        Central position to fetch reads around.
+    window : int, optional
+        Flanking window size in bp. Default is 200.
+
+    Returns
+    -------
+    Iterable[pysam.AlignedSegment]
+        Iterator over aligned reads in the specified region.
     """
     return bam.fetch(chrom, max(0, pos - window), pos + window)
 
@@ -164,7 +220,18 @@ def count_support_reads(
     reads: Iterable[pysam.AlignedSegment]
 ) -> Dict[str, int]:
     """
-    Count split and discordant reads.
+    Count split and discordant reads from an iterable of alignments.
+
+    Parameters
+    ----------
+    reads : Iterable[pysam.AlignedSegment]
+        Iterator of aligned reads to examine.
+
+    Returns
+    -------
+    Dict[str, int]
+        Dictionary with keys 'split' (soft-clipped reads) and
+        'discordant' (improperly paired reads).
     """
     split = 0
     discordant = 0
@@ -259,12 +326,24 @@ def annotate_tra_te(
     logger: Optional[logging.Logger] = None
 ) -> Dict[str, bool]:
     """
-    Annotate all TRA events for TE mediation.
+    Annotate all TRA events in a VCF for TE mediation.
+
+    Parameters
+    ----------
+    vcf_path : str
+        Path to the input VCF file containing TRA records.
+    bam_path : str
+        Path to the BAM file for read-evidence analysis.
+    te_bed : str
+        Path to the TE annotation BED file.
+    logger : logging.Logger, optional
+        Logger instance. A new one is created if not provided.
 
     Returns
     -------
     Dict[str, bool]
-        Mapping from TRA ID to TE-mediated flag.
+        Mapping from TRA record ID to a boolean indicating whether
+        the event is likely TE-mediated.
     """
     if logger is None:
         logger = setup_logger(__name__)

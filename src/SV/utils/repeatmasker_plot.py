@@ -4,6 +4,21 @@ import numpy as np
 import pandas as pd
 
 def plot_enrichment(df:pd.DataFrame,outpng:str, top_n:int=15):
+    """
+    Plot a horizontal bar chart of top enriched repeat subfamilies.
+
+    Filters out infinite odds ratios, selects the top N entries, and
+    generates a seaborn bar plot saved to the output path.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Enrichment results containing at least 'odds_ratio' and 'repeat' columns.
+    outpng : str
+        Output file path for the saved figure (PNG).
+    top_n : int, optional
+        Number of top repeats to display, ranked by odds ratio. Default is 15.
+    """
     # 过滤掉 Odds Ratio 为 inf 的项以便绘图，或给它们一个固定最大值
     plot_df = df.replace([np.inf, -np.inf], np.nan).dropna(subset=['odds_ratio']).copy()
     plot_df = plot_df.sort_values('odds_ratio', ascending=False).head(top_n)

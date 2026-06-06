@@ -25,6 +25,17 @@ class SVVEPAnalyzer:
     }
 
     def __init__(self, vcf_path: str):
+        """
+        Initialize the SV VEP analyzer for a given VCF file.
+
+        Parses the CSQ header format and pre-computes field indices
+        for high-performance lookups.
+
+        Parameters
+        ----------
+        vcf_path : str
+            Path to the VEP-annotated VCF file.
+        """
         self.vcf_path = vcf_path
         self.vcf = VCF(vcf_path)
         self.csq_fields = self._extract_csq_fields()
@@ -38,7 +49,20 @@ class SVVEPAnalyzer:
 
     def _extract_csq_fields(self) -> List[str]:
         """
-        Extract CSQ format fields from VCF header.
+        Extract CSQ format field names from the VCF header.
+
+        Scans the VCF header for the ``##INFO=<ID=CSQ`` line and
+        parses the pipe-delimited field names.
+
+        Returns
+        -------
+        List[str]
+            Ordered list of CSQ field names.
+
+        Raises
+        ------
+        ValueError
+            If the CSQ header line is not found in the VCF.
         """
         for header_line in self.vcf.raw_header.split("\n"):
             if header_line.startswith("##INFO=<ID=CSQ"):
@@ -51,7 +75,17 @@ class SVVEPAnalyzer:
 
     def _classify_variant(self, consequences: List[str]) -> str:
         """
-        Classify SV functional impact category.
+        Classify a structural variant into a functional impact category.
+
+        Parameters
+        ----------
+        consequences : List[str]
+            List of VEP consequence terms (e.g., "transcript_ablation").
+
+        Returns
+        -------
+        str
+            One of "gene_disrupting", "intergenic", or "gene_overlapping".
         """
         if any(term in self.DISRUPTIVE_TERMS for term in consequences):
             return "gene_disrupting"
@@ -63,7 +97,16 @@ class SVVEPAnalyzer:
 
     def analyze(self) -> Dict[str, int]:
         """
-        Analyze entire VCF and return summary statistics.
+        Analyze all variants in the VCF and return summary statistics.
+
+        Iterates over every variant, classifies it via the CSQ annotation,
+        and tallies counts per category.
+
+        Returns
+        -------
+        Dict[str, int]
+            Summary counts with keys: total_sv, gene_disrupting,
+            gene_overlapping, intergenic.
         """
         stats = {
             "total_sv": 0,

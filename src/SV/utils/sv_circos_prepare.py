@@ -21,6 +21,19 @@ class SVCircosPrepare():
     main_chrom = ["chr" + str(c) for c in range(1, 20)] + ['chrX', 'chrY', 'chrM']
     logger.info(f"Main chromosomes set: {main_chrom}")
     def __init__(self,vcf_path: str, fasta_path: str, outdir: str, image_format: Union[ImageFormat,List[ImageFormat]] = ["png"]):
+        """Initialize SVCircosPrepare with input/output paths and image format.
+
+        Parameters
+        ----------
+        vcf_path : str
+            Path to the input VCF file (plain .vcf or compressed .vcf.gz).
+        fasta_path : str
+            Path to the reference FASTA file.
+        outdir : str
+            Output directory for generated Circos input files.
+        image_format : Union[ImageFormat, List[ImageFormat]], optional
+            Output image format(s), by default ``["png"]``.
+        """
         self.vcf_path = vcf_path
         self.fasta_path = fasta_path
         self.outdir = outdir    
@@ -93,8 +106,14 @@ class SVCircosPrepare():
         chrom_sizes: Dict[str, int],
         out_file: str,
     ):
-        """
-        Write Circos karyotype file.
+        """Write a Circos karyotype file from chromosome sizes.
+
+        Parameters
+        ----------
+        chrom_sizes : dict of str to int
+            Mapping of chromosome names to their lengths in base pairs.
+        out_file : str
+            Output file path where the karyotype will be written.
         """
         with open(out_file, "w") as f:
             for chrom, length in chrom_sizes.items():

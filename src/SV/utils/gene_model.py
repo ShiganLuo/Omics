@@ -266,6 +266,48 @@ def plot_gene_model_all_transcripts(
 # -----------------------------
 # 4. CLI entry
 # -----------------------------
+def _plot_gene_worker(
+    gene_name: str,
+    gtf_file: str,
+    mutations: Optional[List[Mutation]],
+    figsize: Tuple[float, float],
+    output_dir: str,
+    image_formats: Optional[List[PlotFormat]],
+    show_mutation_label: bool,
+) -> None:
+    """Worker function for parallel gene model plotting.
+
+    Parameters
+    ----------
+    gene_name : str
+        Gene symbol or ID.
+    gtf_file : str
+        Path to GTF/GFF3 file (each process creates its own db connection).
+    mutations : list of dict or None
+        Mutation records to overlay.
+    figsize : tuple of float
+        Figure size ``(width, height)``.
+    output_dir : str
+        Output directory.
+    image_formats : list of str
+        Image formats to save.
+    show_mutation_label : bool
+        Whether to show mutation labels.
+    """
+    db = create_db(gtf_file)
+    transcripts, gene = get_gene_structure_by_transcript(db, gene_name)
+    outpng = f"{output_dir}/{gene_name}_gene_model"
+    plot_gene_model_all_transcripts(
+        gene,
+        transcripts,
+        mutations=mutations,
+        figsize=figsize,
+        output=outpng,
+        image_formats=image_formats,
+        show_mutation_label=show_mutation_label,
+    )
+
+
 def main() -> None:
     """CLI entry point for the gene-model plotting tool.
 
@@ -288,22 +330,22 @@ def main() -> None:
     mutations = load_mutations(args.mutations)
     os.makedirs(args.output, exist_ok=True)
 
-    def _plot_one(gene_name: str) -> None:
-        db = create_db(args.gtf)
-        transcripts, gene = get_gene_structure_by_transcript(db, gene_name)
-        outpng = f"{args.output}/{gene_name}_gene_model"
-        plot_gene_model_all_transcripts(
-            gene,
-            transcripts,
-            mutations=mutations,
-            figsize=(fig_width, fig_height),
-            output=outpng,
-            image_formats=args.formats,
-            show_mutation_label=args.show_labels
-        )
-
     with concurrent.futures.ProcessPoolExecutor(max_workers=args.threads) as executor:
-        list(executor.map(_plot_one, args.genes))
+        futures = [
+            executor.submit(
+                _plot_gene_worker,
+                gene_name,
+                args.gtf,
+                mutations,
+                (fig_width, fig_height),
+                args.output,
+                args.formats,
+                args.show_labels,
+            )
+            for gene_name in args.genes
+        ]
+        for f in concurrent.futures.as_completed(futures):
+            f.result()  # raise if any worker failed
 
 def run():
     """Batch gene-model plotter for predefined samples and genes.

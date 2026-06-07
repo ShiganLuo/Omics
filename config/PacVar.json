@@ -1,0 +1,40 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "logs",
+    "samples": [],
+    "Procedure": {
+        "pbmm2": null,
+        "samtools": null,
+        "deepvariant": null,
+        "gatk": null,
+        "pbsv": null,
+        "bgzip": null,
+        "tabix": null,
+        "bcftools": null,
+        "hiphase": null,
+        "trgt": null
+    },
+    "Params": {
+        "skip_snp": false,
+        "skip_sv": false,
+        "skip_phase": false,
+        "skip_repeat": false,
+        "snv_caller": "deepvariant",
+        "deepvariant": {
+            "model_type": "PACBIO"
+        },
+        "trgt": {
+            "karyotype": "XX",
+            "repeat_id": "HTT"
+        }
+    },
+    "reference": {
+        "repeat_bed": null
+    },
+    "genome": {
+        "fasta": null,
+        "fai": null,
+        "dict": null
+    }
+}

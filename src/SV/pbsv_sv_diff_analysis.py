@@ -7,7 +7,7 @@ import argparse
 import os
 import logging
 from typing import Dict, List, Literal, Optional
-from utils.SV_TYPE_plot import plot_sv_type_barplot,plot_sv_length_boxplot,plot_large_sv_barplot,plot_svtype_comparison
+from utils.SV_TYPE_plot import plot_sv_type_barplot,plot_sv_length_boxplot,plot_large_sv_barplot,plot_group_type_comparison
 from utils.SV_TYPE import parse_pbsv_vcf
 logger = setup_logger("pbsvDiffAnalysis", level=logging.INFO)
 
@@ -114,9 +114,12 @@ def run_pbsv_diff_analysis(
     for fmt in plot_formats:
         out_svtype_image = f"{out_dir}/plot/sv_type_barplot_comparison.{fmt}"
         logging.info(f"SV type distribution plot: {out_svtype_image}")
-        plot_svtype_comparison(
-            type_summary,
-            out_svtype_image,
+        plot_group_type_comparison(
+            df=type_summary,
+            out_png=out_svtype_image,
+            group_col="group",
+            type_col="svtype",
+            count_col="count",
             group_order=list(group_vcf.keys()),
         )
 

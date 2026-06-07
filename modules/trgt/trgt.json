@@ -1,0 +1,22 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "logs",
+    "samples": [],
+    "Procedure": {
+        "trgt": null
+    },
+    "Params": {
+        "trgt": {
+            "karyotype": "XX",
+            "repeat_id": "HTT"
+        }
+    },
+    "reference": {
+        "repeat_bed": null
+    },
+    "genome": {
+        "fasta": null,
+        "fai": null
+    }
+}

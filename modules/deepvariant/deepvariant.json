@@ -1,0 +1,18 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "logs",
+    "samples": [],
+    "Procedure": {
+        "deepvariant": null
+    },
+    "Params": {
+        "deepvariant": {
+            "model_type": "PACBIO"
+        }
+    },
+    "genome": {
+        "fasta": null,
+        "fai": null
+    }
+}

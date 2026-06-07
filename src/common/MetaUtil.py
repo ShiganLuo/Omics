@@ -60,7 +60,7 @@ class MetadataUtils:
     - Handles sample_id + data_id read merging.
     - Establishes standardized symlinks in work directory.
     """
-
+    
     def __init__(
         self,
         outdir: str,
@@ -96,6 +96,8 @@ class MetadataUtils:
         self.design_col = design_col
         self.group_col = group_col
         self.samples_dict = defaultdict(SampleInfo)
+        self.raw_fq_dir = self.outdir / "fastq" / "raw_fastq"
+        self.raw_fq_dir.mkdir(parents=True, exist_ok=True)
 
     def load_meta(self) -> pd.DataFrame:
         """
@@ -161,7 +163,6 @@ class MetadataUtils:
     def prepare_fastq_meta(
             self, 
             df: pd.DataFrame,
-            outdir:Path,
             sample_id_col:str = 'sample_id', 
             data_id_col:str = 'data_id',
             design_col:str = 'design',
@@ -186,8 +187,7 @@ class MetadataUtils:
             raise ValueError(f"Metadata must contain columns: {self.required_cols}")
 
 
-        raw_fq_dir = outdir / "raw_fastq"
-        raw_fq_dir.mkdir(parents=True, exist_ok=True)
+        raw_fq_dir = self.raw_fq_dir
 
         newdf = df.groupby(sample_id_col)
 
@@ -291,8 +291,7 @@ class MetadataUtils:
                 temp_files[sample_id]["fastq_1"].append(fq_file)
                 logger.warning(f"File {fq_name} did not match R1 or R2 patterns, treat as SE: sample_id={sample_id}")
 
-        raw_fq_dir = outdir / "raw_fastq"
-        raw_fq_dir.mkdir(parents=True, exist_ok=True)
+        raw_fq_dir = self.raw_fq_dir
 
         for sample_id, reads in temp_files.items():
             sample_info = self.samples_dict[sample_id]
@@ -385,10 +384,10 @@ class MetadataUtils:
                 pairs = []
             else:
                 pairs = self.build_design_pairs()
-            return self.samples_dict, pairs, str(self.outdir / "raw_fastq")
+            return self.samples_dict, pairs, str(self.raw_fq_dir)
         elif self.fastq_dir:
             self.prepare_fastq_dir(self.fastq_dir,self.outdir)
-            return self.samples_dict, [], str(self.outdir / "raw_fastq")
+            return self.samples_dict, [], str(self.raw_fq_dir)
         else:
             raise ValueError("Either meta or fastq_dir must be provided.")
 

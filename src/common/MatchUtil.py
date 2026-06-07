@@ -1,6 +1,8 @@
 from typing import List,Tuple
 import logging
-logger = logging.getLogger(__name__)
+from LogUtil import setup_logger
+logger = setup_logger(__name__, logging.INFO)
+
 def run_accession_match(
     ftp_urls: List[str],
     run_accessions: List[str]

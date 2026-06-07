@@ -4,7 +4,8 @@ import time
 indir = config.get("indir","data/fastq")
 outdir = config.get("outdir","output")
 logdir = config.get("logdir","logs")
-
+ROOT_DIR = config.get("ROOT_DIR", ".")
+samples = config.get("samples",[])
 rule arriba:
     input:
         bam = indir + "/{sample_id}/{sample_id}.bam",
@@ -55,6 +56,31 @@ rule arriba:
             f.write(" ".join(cmd) + "\n")
         shell("bash {script} > {log} 2>&1")
 
+rule arriba_report:
+    input:
+        passed_fusions = expand(outdir + "/{sample_id}/{sample_id}_passed_fusions.tsv", sample_id=samples),
+        discarded_fusions = expand(outdir + "/{sample_id}/{sample_id}_discarded_fusions.tsv", sample_id=samples)
+    output:
+        report = outdir + "/../arriba_report/arriba_fusion_report.html"
+    log:
+        logdir + "/all/arriba_report.log"
+    conda:
+        "arriba.yaml"
+    params:
+        summary_script = os.path.join(ROOT_DIR, "modules/arriba/bin/summarize_arriba_fusions.py")
+    run:
+        current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
+        script = f"{outdir}/arriba_report.{current_time}.sh"
+        cmd = [
+            "python", params.summary_script,
+            "-p", ",".join(input.passed_fusions),
+            "-d", ",".join(input.discarded_fusions),
+            "-o", outdir + "/../arriba_report"
+        ]
+        with open(script, "w") as f:
+            f.write("#!/bin/bash\n")
+            f.write(" ".join(cmd) + "\n")
+        shell("bash {script} > {log} 2>&1")
 rule arriba_result:
     input:
         passed_fusion_tsv = outdir + "/{sample_id}/{sample_id}_passed_fusions.tsv",

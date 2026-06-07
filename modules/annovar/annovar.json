@@ -1,0 +1,18 @@
+{
+  "Procedure": {
+    "Rscript": "/usr/bin/Rscript",
+    "perl": "/usr/bin/perl",
+    "table_annovar": "/opt/annovar/table_annovar.pl"
+  },
+  "genome": {
+    "gtf": "",
+    "TE_gtf": ""
+  },
+  "Params": {
+    "annovar": {
+      "db": "/ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/annovar/GRCm39/",
+      "buildver": "GRCm39"
+    }
+  }
+
+}

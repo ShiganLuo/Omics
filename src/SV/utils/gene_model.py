@@ -11,12 +11,16 @@ Features:
 
 import os
 from typing import List, Tuple, Dict, Optional, Union
+from typing import Literal
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import pandas as pd
 import gffutils
 import argparse
+import concurrent.futures
 import vcf  # pip install PyVCF
+
+PlotFormat = Literal["png", "pdf", "svg", "jpg", "jpeg", "tiff"]
 
 # -----------------------------
 # 1. Gene structure parsing
@@ -171,14 +175,15 @@ def plot_gene_model_all_transcripts(
     transcripts: Dict[str, Dict[str, List[Tuple[int,int]]]],
     mutations: Optional[List[Mutation]] = None,
     figsize: Tuple[float,float]=(10,2),
-    output: str="gene_model.png",
+    output: str="gene_model",
+    image_formats: Optional[List[PlotFormat]] = None,
     show_mutation_label: bool=False
 ) -> None:
     """Plot a gene model showing all transcripts with optional mutation overlay.
 
     Draws exons (sky-blue rectangles), UTRs (green rectangles), intron
     connectors, a strand arrow, and coloured mutation/SV markers.  The
-    figure is saved to *output* at 300 DPI.
+    figure is saved to *output* at 300 DPI in all requested formats.
 
     Parameters
     ----------
@@ -191,11 +196,17 @@ def plot_gene_model_all_transcripts(
     figsize : tuple of float, optional
         Figure width and height in inches, by default ``(10, 2)``.
     output : str, optional
-        Path for the saved figure, by default ``"gene_model.png"``.
+        Base path for the saved figure (without extension), by default
+        ``"gene_model"``.
+    image_formats : list of str, optional
+        Output image formats (e.g. ``["png", "pdf"]``). Default is
+        ``["png"]``.
     show_mutation_label : bool, optional
         Whether to annotate each mutation with its label text, by default
         ``False``.
     """
+    if image_formats is None:
+        image_formats = ["png"]
     mutations = mutations or []
     fig, ax = plt.subplots(figsize=figsize)
     n_transcripts = len(transcripts)
@@ -246,9 +257,11 @@ def plot_gene_model_all_transcripts(
     ax.set_xlabel(f"{gene.chrom}:{gene.start}-{gene.end}")
     ax.set_title(f"Gene model: {gene.attributes.get('gene_name',[''])[0]}")
     plt.tight_layout()
-    plt.savefig(output, dpi=300)
+    for fmt in image_formats:
+        outpath = f"{output}.{fmt}"
+        plt.savefig(outpath, dpi=300)
+        print(f"Gene model figure saved to {outpath}")
     plt.close()
-    print(f"Gene model figure saved to {output}")
 
 # -----------------------------
 # 4. CLI entry
@@ -262,26 +275,35 @@ def main() -> None:
     """
     parser = argparse.ArgumentParser(description="Draw gene model with mutations/SVs (CSV or VCF)")
     parser.add_argument("-t","--gtf", required=True, help="GTF/GFF3 gene annotation file")
-    parser.add_argument("-g","--gene", required=True, help="Gene symbol or ID to plot")
+    parser.add_argument("-g","--gene",action="append",dest="genes",required=True,help="Gene symbol or ID to plot. Can be specified multiple times.")
     parser.add_argument("-m","--mutations", required=False, help="CSV or VCF of mutations")
-    parser.add_argument("-o","--output", default="gene_model.png", help="Output figure path")
-    parser.add_argument("-f","--figsize", default="10,2", help="Figure size as width,height")
+    parser.add_argument("-o","--output", default=".", help="Output directory path")
+    parser.add_argument("-s","--figsize", default="10,2", help="Figure size as width,height")
+    parser.add_argument("-f","--format",action="append",dest="formats",metavar="FMT",help="Image output format (png, pdf, svg, ...). Can be specified multiple times. Default: png.")
+    parser.add_argument("-j","--threads",type=int,default=1,help="Number of threads for parallel plotting (default: 1)")
     parser.add_argument("--show_labels", action="store_true", help="Show mutation labels")
     args = parser.parse_args()
 
     fig_width, fig_height = map(float, args.figsize.split(","))
-    db = create_db(args.gtf)
-    transcripts, gene = get_gene_structure_by_transcript(db, args.gene)
     mutations = load_mutations(args.mutations)
-    outpng = f"{args.output}/{args.gene}_gene_model.png"
-    plot_gene_model_all_transcripts(
-        gene,
-        transcripts,
-        mutations=mutations,
-        figsize=(fig_width, fig_height),
-        output=outpng,
-        show_mutation_label=args.show_labels
-    )
+    os.makedirs(args.output, exist_ok=True)
+
+    def _plot_one(gene_name: str) -> None:
+        db = create_db(args.gtf)
+        transcripts, gene = get_gene_structure_by_transcript(db, gene_name)
+        outpng = f"{args.output}/{gene_name}_gene_model"
+        plot_gene_model_all_transcripts(
+            gene,
+            transcripts,
+            mutations=mutations,
+            figsize=(fig_width, fig_height),
+            output=outpng,
+            image_formats=args.formats,
+            show_mutation_label=args.show_labels
+        )
+
+    with concurrent.futures.ProcessPoolExecutor(max_workers=args.threads) as executor:
+        list(executor.map(_plot_one, args.genes))
 
 def run():
     """Batch gene-model plotter for predefined samples and genes.
@@ -304,10 +326,9 @@ def run():
         outdir = outdirs[sample]
         os.makedirs(outdir, exist_ok=True)
         for gene_name in genes:
-            outpng = f"{outdir}/{gene_name}_gene_model.png"
+            outpng = f"{outdir}/{gene_name}_gene_model"
             transcripts, gene = get_gene_structure_by_transcript(db, gene_name)
             mutations = load_mutations(vcf)
-            outpng = f"{outdir}/{gene_name}_gene_model.png"
             plot_gene_model_all_transcripts(
                 gene,
                 transcripts,
@@ -317,5 +338,5 @@ def run():
             )
 
 if __name__ == "__main__":
-    # main()
-    run()
+    main()
+    # run()

@@ -1,0 +1,11 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "logs",
+    "Procedure": {
+        "samtools": null
+    },
+    "genome": {
+        "fasta": null
+    }
+}

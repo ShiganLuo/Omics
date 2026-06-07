@@ -4,3 +4,4 @@ channels:
   - bioconda
 dependencies:
   - arriba=2.5.1
+  - matplotlib-base=3.10.1

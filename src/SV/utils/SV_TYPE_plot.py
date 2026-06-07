@@ -542,14 +542,14 @@ def plot_large_sv_barplot(
     plt.close(fig)
 
 
-def plot_svtype_comparison(
+def plot_group_type_comparison(
     df: pd.DataFrame,
     out_png: str,
     group_col: str = "group",
-    svtype_col: str = "svtype",
+    type_col: str = "svtype",
     count_col: str = "count",
     group_order: tuple = ("Control", "Experiment"),
-    svtype_order: tuple = ("BND", "DEL", "DUP", "INS", "INV"),
+    type_order: tuple = ("BND", "DEL", "DUP", "INS", "INV"),
     legend_map: Optional[Dict[str, str]] = None,
     figsize: tuple = (9, 6),
     ylabel: str = "SV count",
@@ -576,13 +576,13 @@ def plot_svtype_comparison(
         Output file path for the saved image.
     group_col : str, optional
         Column identifying sample groups. Default is ``"group"``.
-    svtype_col : str, optional
+    type_col : str, optional
         Column identifying SV types. Default is ``"svtype"``.
     count_col : str, optional
         Column with counts. Default is ``"count"``.
     group_order : tuple of str, optional
         Ordered group names to display. Any number of groups supported.
-    svtype_order : tuple of str, optional
+    type_order : tuple of str, optional
         Ordered SV types to display.
     legend_map : dict, optional
         Mapping from group name to legend label. Defaults to identity.
@@ -627,8 +627,8 @@ def plot_svtype_comparison(
         legend_map = {g: g for g in group_order}
 
     pivot = (
-        df.pivot(index=svtype_col, columns=group_col, values=count_col)
-        .reindex(svtype_order)
+        df.pivot(index=type_col, columns=group_col, values=count_col)
+        .reindex(type_order)
         .fillna(0)
     )
 

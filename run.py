@@ -193,6 +193,7 @@ def runRNAseq(
         else:
             logger.error(f"Unknown layout type for sample {sample_id}: {sample_info.layout}")
     # outfiles.append(f"{outdir}/TEtranscripts/TEcount/all_TEcount.tsv")
+    outfiles.append(f"{outdir}/fusion/arriba/../arriba_report/arriba_fusion_report.html")
     outfiles.append(f"{outdir}/stringtie/stringtie_merged.gtf")
     outfiles.append(f"{outdir}/stringtie/result/TE_chimeric/TE_chimeric_group_stacked.png")
     outfiles.append(f"{outdir}/stringtie/result/TE_chimeric/TE_chimeric_te_type_top.png")
@@ -282,6 +283,61 @@ def runCLIP(
         json.dump(datajson, wf, indent=2, ensure_ascii=False)
     return instance_json
 
+def runPacVar(
+    datajson: Dict[str, Any],
+    samples_info_dict: Dict[str, Any],
+    indir: str,
+    outdir: str,
+):
+    """Prepare input JSON for PacVar (PacBio variant calling) workflow."""
+    datajson["ROOT_DIR"] = os.path.dirname(__file__)
+    datajson["indir"] = indir
+    datajson["outdir"] = outdir
+    logdir = os.path.join(outdir, "log")
+    os.makedirs(logdir, exist_ok=True)
+    datajson["logdir"] = logdir
+    outfiles = []
+    samples = []
+    skip_snp = datajson.get("Params", {}).get("skip_snp", False)
+    skip_sv = datajson.get("Params", {}).get("skip_sv", False)
+    skip_phase = datajson.get("Params", {}).get("skip_phase", False)
+    skip_repeat = datajson.get("Params", {}).get("skip_repeat", False)
+    snv_caller = datajson.get("Params", {}).get("snv_caller", "deepvariant")
+
+    for sample_id, sample_info in samples_info_dict.items():
+        samples.append(sample_id)
+        # pbmm2 align
+        outfiles.append(f"{outdir}/pbmm2/{sample_id}/{sample_id}.aligned.bam")
+        # samtools sort + index
+        outfiles.append(f"{outdir}/samtools/sort/{sample_id}/{sample_id}.sorted.bam")
+        outfiles.append(f"{outdir}/samtools/{sample_id}/{sample_id}.bam.bai")
+        # SNP calling
+        if not skip_snp:
+            if snv_caller == "deepvariant":
+                outfiles.append(f"{outdir}/snp/deepvariant/{sample_id}/{sample_id}.vcf.gz")
+                outfiles.append(f"{outdir}/snp/deepvariant/{sample_id}/{sample_id}.vcf.gz.tbi")
+            elif snv_caller == "gatk4":
+                outfiles.append(f"{outdir}/snp/gatk4/vcf/{sample_id}/{sample_id}.vcf.gz")
+        # SV calling
+        if not skip_sv:
+            outfiles.append(f"{outdir}/sv/pbsv/bgzip/{sample_id}/{sample_id}.vcf.gz")
+            outfiles.append(f"{outdir}/sv/pbsv/bgzip/{sample_id}/{sample_id}.vcf.gz.tbi")
+        # phasing
+        if not skip_phase and not skip_snp and not skip_sv:
+            outfiles.append(f"{outdir}/phasing/snp/{sample_id}/{sample_id}.phased.vcf.gz")
+            outfiles.append(f"{outdir}/phasing/sv/{sample_id}/{sample_id}.phased.vcf.gz")
+        # repeat characterization
+        if not skip_repeat:
+            outfiles.append(f"{outdir}/repeat/trgt/genotype/{sample_id}/{sample_id}.trgt.vcf.gz")
+            outfiles.append(f"{outdir}/repeat/trgt/plot/{sample_id}/{sample_id}.trgt.repeat.png")
+
+    datajson["samples"] = samples
+    datajson["outfiles"] = outfiles
+    instance_json = os.path.join(outdir, "raw.json")
+    with open(instance_json, 'w', encoding='utf-8') as wf:
+        json.dump(datajson, wf, indent=2, ensure_ascii=False)
+    return instance_json
+
 def runMutation(
     datajson: Dict[str, Any],
     samples_info_dict:Dict[str, Any],
@@ -338,7 +394,7 @@ def runMutation(
 def parse_args():
     parser = argparse.ArgumentParser(description="workflow")
     parser.add_argument('-m','--meta', type=str, required=True, help='meta input file or data dir which condatain fastq file')
-    parser.add_argument('-w','--workflow_name', type=str, choices=["CoCulture", "MERIP", "RNAseq", "CLIP", "Mutation"],default='CoCulture' ,help='workflow name')
+    parser.add_argument('-w','--workflow_name', type=str, choices=["CoCulture", "MERIP", "RNAseq", "CLIP", "Mutation", "PacVar"],default='CoCulture' ,help='workflow name')
     parser.add_argument('-o','--output_dir', type=str, required=True, help='output dir')
     parser.add_argument('-t','--threads', type=int, default=10, help='threads')
     parser.add_argument('--dry-run', action='store_true', help='dry run')
@@ -407,7 +463,7 @@ def build_snakemake_cmd(root_dir, smk, input_json, threads, conda_prefix, rerun_
 
 if __name__ == "__main__":
     args = parse_args()
-    logger = setup_logger("root",args.log)
+    logger = setup_logger("root",level=logging.INFO, log_file=args.log)
     ROOT_DIR = os.path.dirname(__file__)
     outdir = os.path.join(args.output_dir, args.workflow_name)
     abs_outdir = os.path.abspath(outdir)
@@ -451,6 +507,9 @@ if __name__ == "__main__":
     elif args.workflow_name == "Mutation":
         input_json = runMutation(deepcopy(workflow_config), samples_info_dict, designPair, raw_fastq_dir, abs_outdir)
         smk = "Mutation.smk"
+    elif args.workflow_name == "PacVar":
+        input_json = runPacVar(deepcopy(workflow_config), samples_info_dict, raw_fastq_dir, abs_outdir)
+        smk = "PacVar.smk"
     else:
         logger.error(f"Unknown workflow name: {args.workflow_name}")
         exit(1)

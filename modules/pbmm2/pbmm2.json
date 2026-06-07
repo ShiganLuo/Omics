@@ -1,0 +1,12 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "logs",
+    "samples": [],
+    "Procedure": {
+        "pbmm2": null
+    },
+    "genome": {
+        "fasta": null
+    }
+}

@@ -4,6 +4,7 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from common.LogUtil import setup_logger
 from utils.VEP_SV import read_vep_tab
+from utils.SV_TYPE_plot import plot_group_type_comparison
 import pandas as pd
 from typing import List, Dict, Optional, Tuple, Callable, Literal
 PlotFormat = Literal["png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg", "jpeg", "pgf", "raw", "rgba"]
@@ -333,215 +334,6 @@ def compute_significance(
     return stars
 
 
-# =========================
-# plotting core
-# =========================
-def plot_comparison_broken_bar(
-    df: pd.DataFrame,
-    out_png: str,
-    group_col: str = "group",
-    svtype_col: str = "svtype",
-    count_col: str = "count",
-    group_order: tuple = ("Control", "Experiment"),
-    svtype_order: tuple = ("BND", "DEL", "DUP", "INS", "INV"),
-    legend_map: Optional[Dict[str, str]] = None,
-    figsize: Tuple[int, int] = (9, 5),
-    ylabel: str = "SV count",
-    dpi: int = 300,
-    test_method: str = "chi2",
-    do_test: bool = True,
-    use_broken_axis: bool = True,
-    image_formats: Optional[List[PlotFormat]] = None,
-    colors: Optional[Dict[str, str]] = None,
-) -> None:
-    """
-    Plot a grouped bar chart comparing counts across multiple groups.
-
-    Creates a side-by-side bar chart for N groups across SV types, with
-    optional broken-axis handling for large outliers and pairwise
-    significance annotations.
-
-    Parameters
-    ----------
-    df : pd.DataFrame
-        Long-format DataFrame containing count data.
-    out_png : str
-        Output file path prefix (extension is replaced per format).
-    group_col : str, default="group"
-        Column name identifying sample groups.
-    svtype_col : str, default="svtype"
-        Column name identifying SV types.
-    count_col : str, default="count"
-        Column name containing counts.
-    group_order : tuple of str, default=("Control", "Experiment")
-        Ordered group names. Any number of groups supported.
-    svtype_order : tuple of str, default=("BND", "DEL", "DUP", "INS", "INV")
-        Ordered SV types for the x-axis.
-    legend_map : dict of str to str, optional
-        Mapping from group names to legend labels.
-    figsize : tuple of int, default=(9, 5)
-        Figure size in inches ``(width, height)``.
-    ylabel : str, default="SV count"
-        Label for the y-axis.
-    dpi : int, default=300
-        Resolution in dots per inch for saved images.
-    test_method : str, default="chi2"
-        Statistical test for significance (``"chi2"`` or ``"fisher"``).
-    do_test : bool, default=True
-        Whether to perform significance testing and annotate the plot.
-    use_broken_axis : bool, default=True
-        Whether to use a broken (split) y-axis for outlier bars.
-    image_formats : list of str, optional
-        Output image formats. Defaults to ``["png"]``.
-    colors : dict, optional
-        Mapping from group name to color. Auto-generated from ``tab10``
-        if ``None``.
-
-    Returns
-    -------
-    None
-        Saves the plot to ``{out_prefix}.{fmt}`` for each requested format.
-    """
-
-    if image_formats is None:
-        image_formats = ["png"]
-
-    n_groups = len(group_order)
-
-    if legend_map is None:
-        legend_map = {g: g for g in group_order}
-
-    if colors is None:
-        cmap = plt.cm.tab10
-        colors = {g: cmap(i / max(n_groups - 1, 1)) for i, g in enumerate(group_order)}
-
-    pivot = (
-        df.pivot(index=svtype_col, columns=group_col, values=count_col)
-        .reindex(svtype_order)
-        .fillna(0)
-    )
-
-    # ---------- significance ----------
-    stars: Dict[str, str] = {}
-    sig_sv = []
-    if do_test:
-        if test_method not in ("chi2", "fisher"):
-            raise ValueError("Only 'chi2' and 'fisher' are supported for count data")
-
-        stars = compute_significance(pivot, group_order, test_method)
-        sig_sv = [sv for sv, s in stars.items() if s != "ns"]
-
-    # ---------- axis setup ----------
-    x = np.arange(len(pivot.index))
-    total_width = 0.8
-    bar_width = total_width / n_groups
-    offsets = [bar_width * (i - (n_groups - 1) / 2) for i in range(n_groups)]
-
-    global_max = pivot.values.max()
-    sig_max = pivot.loc[sig_sv].values.max() if sig_sv else np.median(pivot.values)
-    need_broken = use_broken_axis and (global_max > sig_max * 2.0)
-
-    if need_broken:
-        low_max = sig_max * 1.15
-        high_min = low_max * 1.1
-        high_max = global_max * 1.15
-
-        fig, (ax_top, ax_bottom) = plt.subplots(
-            2, 1, sharex=True,
-            figsize=figsize,
-            gridspec_kw={"height_ratios": [1, 3]},
-        )
-
-        axes = (ax_top, ax_bottom)
-
-        for ax in axes:
-            for i, g in enumerate(group_order):
-                ax.bar(x + offsets[i], pivot[g], bar_width,
-                       color=colors[g], label=legend_map[g])
-
-        ax_bottom.set_ylim(0, low_max)
-        ax_top.set_ylim(high_min, high_max)
-
-        d = 0.008
-        ax_top.plot((-d, +d), (-d, +d), transform=ax_top.transAxes, color="black", clip_on=False)
-        ax_bottom.plot((-d, +d), (1 - d, 1 + d), transform=ax_bottom.transAxes, color="black", clip_on=False)
-
-    else:
-        fig, ax = plt.subplots(figsize=figsize)
-        for i, g in enumerate(group_order):
-            ax.bar(x + offsets[i], pivot[g], bar_width,
-                   color=colors[g], label=legend_map[g])
-
-        axes = (ax,)
-        ax_top = ax_bottom = ax
-
-    # =========================
-    # significance annotation
-    # =========================
-    if do_test:
-        LEG_PT = 8
-        TEXT_PT = 3
-
-        fig.canvas.draw()
-
-        for i, sv in enumerate(pivot.index):
-            if stars.get(sv, "ns") == "ns":
-                continue
-
-            bar_tops = [pivot.loc[sv, g] for g in group_order]
-            y_base = max(bar_tops)
-
-            if need_broken:
-                ax = ax_bottom if y_base <= low_max else ax_top
-            else:
-                ax = ax_top
-
-            trans = ax.transData
-            inv = ax.transData.inverted()
-
-            _, y_disp = trans.transform((0, y_base))
-            _, y_hat = inv.transform((0, y_disp + LEG_PT))
-            _, y_text = inv.transform((0, y_disp + LEG_PT + TEXT_PT))
-
-            # Bracket spans from leftmost to rightmost bar
-            x_left = x[i] + offsets[0]
-            x_right = x[i] + offsets[-1]
-            tick_x = bar_width * 0.25
-            _, y_tick = inv.transform((0, y_disp + LEG_PT * 0.7))
-
-            ax.plot(
-                [x_left - tick_x, x_left, x_right, x_right + tick_x],
-                [y_tick, y_hat, y_hat, y_tick],
-                lw=0.8, c="black",
-            )
-
-            ax.text(x[i], y_text, stars[sv],
-                    ha="center", va="bottom",
-                    fontsize=12, fontweight="bold")
-
-    # =========================
-    # formatting
-    # =========================
-    ax_bottom.set_xticks(x)
-    ax_bottom.set_xticklabels(pivot.index)
-    ax_bottom.set_ylabel(ylabel)
-
-    if need_broken:
-        ax_top.tick_params(axis="x", bottom=False, labelbottom=False)
-        ax_top.spines["bottom"].set_visible(False)
-
-    for ax in axes:
-        ax.spines["top"].set_visible(False)
-        ax.spines["right"].set_visible(False)
-
-    axes[0].legend(frameon=False)
-
-    plt.xticks(rotation=45, ha="right")
-    plt.tight_layout()
-    out_prefix = os.path.splitext(out_png)[0]
-    for fmt in image_formats:
-        plt.savefig(f"{out_prefix}.{fmt}", dpi=dpi)
-    plt.close()
 
 # =========================
 # OncoPrint visualization
@@ -553,13 +345,13 @@ def plot_oncoprint(
     figsize: Optional[Tuple[float, float]] = None,
     dpi: int = 300,
     image_formats: Optional[List[PlotFormat]] = None,
-    title: str = "OncoPrint",
+    title: str = "",
 ) -> None:
     """Plot an OncoPrint heatmap from a gene-by-sample SV type matrix.
 
-    Draws a grid where rows are genes, columns are samples, and cells are
-    colored by SV type. Margin bar charts show per-gene mutation frequency
-    and per-sample mutation counts.
+    Draws a grid where rows are genes (top → bottom), columns are samples,
+    and cells are colored by SV type.  Margin bar charts show per-gene
+    mutation frequency (right) and per-sample mutation counts (top).
 
     Parameters
     ----------
@@ -572,7 +364,7 @@ def plot_oncoprint(
         ``{out_prefix}.{fmt}``.
     sv_colors : dict, optional
         Mapping from SV type to color. Defaults to a curated palette
-        for common SV types (DEL, DUP, INS, INV, BND, OTHER).
+        for common SV types (DEL, DUP, INS, INV, TRA, OTHER).
     figsize : tuple of float, optional
         Figure size ``(width, height)``. Auto-calculated if ``None``.
     dpi : int, optional
@@ -596,7 +388,7 @@ def plot_oncoprint(
             "DUP": "#3498DB",
             "INS": "#2ECC71",
             "INV": "#9B59B6",
-            "BND": "#F39C12",
+            "TRA": "#F39C12",
             "OTHER": "#95A5A6",
         }
 
@@ -606,7 +398,6 @@ def plot_oncoprint(
         if pd.notna(val):
             all_types.update(str(val).split(","))
 
-    # Build numeric matrix: 1 = altered, 0 = not
     genes = matrix.index.tolist()
     samples = matrix.columns.tolist()
     n_genes = len(genes)
@@ -617,32 +408,33 @@ def plot_oncoprint(
 
     fig = plt.figure(figsize=figsize)
 
-    # Layout: main grid + right margin + top margin
+    # Use fixed ratios: main grid gets most space, margins are small
     gs = fig.add_gridspec(
         2, 2,
-        width_ratios=[n_samples, 1.2],
-        height_ratios=[0.8, n_genes],
-        wspace=0.02, hspace=0.02,
+        width_ratios=[4, 1],
+        height_ratios=[1, 4],
+        wspace=0.04, hspace=0.04,
     )
 
+    ax_top = fig.add_subplot(gs[0, 0])
     ax_main = fig.add_subplot(gs[1, 0])
-    ax_right = fig.add_subplot(gs[1, 1], sharey=ax_main)
-    ax_top = fig.add_subplot(gs[0, 0], sharex=ax_main)
+    ax_right = fig.add_subplot(gs[1, 1])
 
-    # --- Main grid ---
+    # ========== Main grid ==========
+    # Use imshow-friendly coordinate system:
+    #   row 0 = top gene, row n-1 = bottom gene
+    #   col 0 = left sample, col n-1 = right sample
+    # We place rectangles at integer (col, row) centers.
     default_color = "#ECF0F1"
-    bg_color = "#FAFAFA"
-    ax_main.set_facecolor(bg_color)
+    ax_main.set_facecolor("#FAFAFA")
 
-    # Draw background grid
-    for i in range(n_genes):
-        for j in range(n_samples):
+    for i in range(n_genes):          # row index (top=0)
+        for j in range(n_samples):    # col index
             ax_main.add_patch(plt.Rectangle(
                 (j - 0.5, i - 0.5), 1, 1,
                 facecolor=default_color, edgecolor="white", linewidth=0.5,
             ))
 
-    # Draw alterations
     for i, gene in enumerate(genes):
         for j, sample in enumerate(samples):
             val = matrix.loc[gene, sample]
@@ -653,7 +445,7 @@ def plot_oncoprint(
             for k, sv_type in enumerate(types):
                 sv_type = sv_type.strip()
                 color = sv_colors.get(sv_type, sv_colors.get("OTHER", "#95A5A6"))
-                # Stack multiple types in the same cell
+                # Stack: k=0 at bottom, k=n-1 at top of the cell
                 y_lo = i - 0.5 + k / n_types
                 height = 1.0 / n_types
                 ax_main.add_patch(plt.Rectangle(
@@ -662,7 +454,7 @@ def plot_oncoprint(
                 ))
 
     ax_main.set_xlim(-0.5, n_samples - 0.5)
-    ax_main.set_ylim(n_genes - 0.5, -0.5)
+    ax_main.set_ylim(n_genes - 0.5, -0.5)    # row 0 at top
     ax_main.set_xticks(range(n_samples))
     ax_main.set_xticklabels(samples, rotation=45, ha="right", fontsize=8)
     ax_main.set_yticks(range(n_genes))
@@ -671,13 +463,13 @@ def plot_oncoprint(
     ax_main.set_ylabel("")
     ax_main.tick_params(axis="both", length=0)
 
-    # --- Right margin: mutation frequency per gene ---
+    # ========== Right margin: mutation frequency per gene ==========
     mut_counts = matrix.notna().sum(axis=1)
     mut_freq = mut_counts / n_samples * 100
 
-    ax_right.barh(range(n_genes), mut_freq, color="#34495E", height=0.6)
+    ax_right.set_ylim(n_genes - 0.5, -0.5)    # same orientation as main
+    ax_right.barh(range(n_genes), mut_freq, color="#2C76FF", height=0.6)
     ax_right.set_xlim(0, 100)
-    ax_right.set_ylim(n_genes - 0.5, -0.5)
     ax_right.set_xlabel("%", fontsize=8)
     ax_right.set_yticks([])
     ax_right.tick_params(axis="y", length=0)
@@ -686,11 +478,11 @@ def plot_oncoprint(
     ax_right.spines["right"].set_visible(False)
     ax_right.invert_xaxis()
 
-    # --- Top margin: mutation count per sample ---
+    # ========== Top margin: mutation count per sample ==========
     sample_counts = matrix.notna().sum(axis=0)
 
-    ax_top.bar(range(n_samples), sample_counts, color="#34495E", width=0.6)
-    ax_top.set_xlim(-0.5, n_samples - 0.5)
+    ax_top.set_xlim(-0.5, n_samples - 0.5)    # same orientation as main
+    ax_top.bar(range(n_samples), sample_counts, color="#2C76FF", width=0.6)
     ax_top.set_xticks([])
     ax_top.tick_params(axis="x", length=0)
     ax_top.tick_params(axis="y", labelsize=7)
@@ -698,7 +490,7 @@ def plot_oncoprint(
     ax_top.spines["top"].set_visible(False)
     ax_top.spines["right"].set_visible(False)
 
-    # --- Legend ---
+    # ========== Legend ==========
     legend_types = [t for t in sv_colors if t in all_types]
     if not legend_types:
         legend_types = list(all_types)
@@ -740,11 +532,24 @@ def parser_args(
         - ``formats`` : list of str -- image output formats (default ``["png"]``).
     """
     parser = argparse.ArgumentParser(description="Run OncoPrint analysis for SV data")
-    parser.add_argument("-g", "--group_files", nargs="+", required=True, help="List of VEP annotation tab files (format: sample:path)")
+    parser.add_argument(
+        "-g", "--group",
+        action="append",
+        required=True,
+        metavar="NAME:VCF",
+        help="Group in format 'name:vep_annotation_file(tab)'. Can be specified multiple times. "
+             "Example: -g Control:ctrl.vep.txt -g Experiment:exp.vep.txt",
+    )
     parser.add_argument("--cosmic_file", required=True, help="Path to COSMIC cancer gene list file")
     parser.add_argument("-o","--outdir", required=True, help="Path to output directory")
-    parser.add_argument("-d", "--deseq2_files", nargs="+", required=True, help="DESeq2 result files (format: condition:path)")
-    parser.add_argument("-f", "--format", action="append", dest="formats", metavar="FMT", help="Image output format (png, pdf, svg, ...). Can be specified multiple times. Default: png.")
+    parser.add_argument(
+        "-d", "--deseq2_files",
+        action="append",
+        required=True,
+        metavar="CONDITION:PATH",
+        help="DESeq2 result files (format: condition:path)",
+    )
+    parser.add_argument("-f", "--image_format", action="append", dest="image_format", metavar="FMT", help="Image output format (png, pdf, svg, ...). Can be specified multiple times. Default: png.")
     return parser.parse_args()
 
 def main():
@@ -757,14 +562,13 @@ def main():
     args = parser_args()
     outdir = args.outdir
     os.makedirs(outdir, exist_ok=True)
-    # Parse group_files from "sample=path" format
+    # Parse group_files from "sample:path" format
     tab_files = {}
-    for item in args.group_files:
+    for item in args.group:
         if ":" not in item:
-            raise ValueError(f"Invalid group_files format '{item}', expected 'sample:path'")
+            raise ValueError(f"Invalid group files format '{item}', expected 'sample:path'")
         sample, path = item.split(":", 1)
         tab_files[sample] = path
-
     sample_order = list(tab_files.keys())
 
     # Build oncoprint matrix
@@ -783,7 +587,7 @@ def main():
     plot_oncoprint(
         matrix=oncoprint_matrix,
         out_prefix=os.path.join(outdir, "oncoprint"),
-        image_formats=args.formats,
+        image_formats=args.image_format,
     )
 
     # Parse deseq2_files from "condition=path" format
@@ -806,20 +610,21 @@ def main():
 
     # Plot
     result_df = result_df.dropna()
-    out_plot = os.path.join(outdir, "deseq2_oncoprint_fold_change_all")
-    plot_comparison_broken_bar(
-        df=result_df.melt(id_vars="SYMBOL", var_name="group", value_name="fold_change"),
-        out_png=out_plot,
-        group_col="group",
-        svtype_col="SYMBOL",
-        count_col="fold_change",
-        group_order=list(condition_files.keys()),
-        svtype_order=result_df["SYMBOL"].tolist(),
-        figsize=(15, max(5, int(len(result_df) * 0.3))),
-        ylabel="Fold Change (2^log2FC)",
-        do_test=False,
-        use_broken_axis=False,
-        image_formats=args.formats,
-    )
+    for fmt in args.image_format:
+        out_plot = os.path.join(outdir, f"deseq2_oncoprint_fold_change_all.{fmt}")
+        logger.info(f"Plotting fold change comparison to: {out_plot}")
+        plot_group_type_comparison(
+            df=result_df.melt(id_vars="SYMBOL", var_name="group", value_name="fold_change"),
+            out_png=out_plot,
+            group_col="group",
+            type_col="SYMBOL",
+            count_col="fold_change",
+            group_order=list(condition_files.keys()),
+            type_order=result_df["SYMBOL"].tolist(),
+            figsize=(15, max(5, int(len(result_df) * 0.3))),
+            ylabel="Fold Change (2^log2FC)",
+            do_test=False,
+            use_broken_axis=False,
+        )
 if __name__ == "__main__":
     main()

@@ -5,6 +5,7 @@
 - README.md为人类阅读文档
 - 目录名.md为agent加载的skill
 
+snakemake version: >= 9.16.3
 ## 目录结构
 
 - `run.py`：统一入口脚本，读取元信息、合并配置并调用 Snakemake。
@@ -163,6 +164,6 @@ bash workflow/RNA-SNP/run.sh
 
 - [ ] 实际执行包装成shell，兼容HPC。简单代码，是放在shell，还是直接在run中运行
 - [ ] 元信息待增加分组名
-- [ ] 添加项目skill文档
+- [x] 添加项目skill文档
 - [ ] 三代测序分析流程
 

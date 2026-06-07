@@ -1,0 +1,8 @@
+name: tabix
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+dependencies:
+  - tabix>=1.11
+  - htslib>=1.20

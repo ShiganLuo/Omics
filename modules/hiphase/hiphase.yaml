@@ -1,0 +1,7 @@
+name: hiphase
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+dependencies:
+  - hiphase>=1.4.0

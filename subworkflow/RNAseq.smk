@@ -321,6 +321,8 @@ arriba_config = {
         "indir": f"{gatk_prepare_config['outdir']}/bam-sorted-Markdup",
         "outdir":  f"{outdir}/fusion/arriba",
         "logdir": logdir,
+        "ROOT_DIR": ROOT_DIR,
+        "samples": single_samples + paired_samples,
         "genome": {
             "fasta": config.get('genome',{}).get('fasta'),
             "gtf": config.get('genome',{}).get('gtf')

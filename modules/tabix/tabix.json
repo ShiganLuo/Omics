@@ -1,0 +1,9 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "logs",
+    "Procedure": {
+        "bgzip": null,
+        "tabix": null
+    }
+}

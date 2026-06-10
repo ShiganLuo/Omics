@@ -145,7 +145,7 @@ if not skip_sv:
     logger.info(f"tabix_sv_config: {tabix_sv_config}")
     use rule tabix_bgzip from tabix_sv as PacVar_tabix_bgzip
     use rule tabix_index from tabix_sv as PacVar_tabix_index
-
+    
 # ============================================================
 # Step 5: Phasing (optional, requires both SNP + SV done)
 # ============================================================

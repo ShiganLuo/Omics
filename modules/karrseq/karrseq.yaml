@@ -1,0 +1,10 @@
+name: karrseq
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+dependencies:
+  - samtools>=1.0
+  - pairix>=0.0.1
+  - python>=3.8
+  - cigar>=0.1

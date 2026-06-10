@@ -1,0 +1,10 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "log",
+    "samples": [],
+    "Procedure": {
+        "SeqPrep": null,
+        "seqkit": "seqkit"
+    }
+}

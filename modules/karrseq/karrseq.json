@@ -1,0 +1,16 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "log",
+    "samples": [],
+    "ROOT_DIR": ".",
+    "Procedure": {
+        "samtools": "samtools"
+    },
+    "Params": {
+        "karrseq": {
+            "mapq": 1,
+            "span": 0
+        }
+    }
+}

@@ -4,7 +4,8 @@
     "logdir": "logs",
     "samples": [],
     "Procedure": {
-        "pbsv": null
+        "pbsv": null,
+        "bgzip": null
     },
     "genome": {
         "fasta": null

@@ -5,3 +5,5 @@ channels:
   - defaults
 dependencies:
   - pbsv>=2.9.0
+  - bgzip==1.15
+  - bcftools==1.15

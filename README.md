@@ -69,7 +69,7 @@ tabix -g gff [gft.gz]
 2. publicPathMap
 
 为了让nginx能够获取流程生成html内的内容，特意配置了这个map，以生成相对路径让nginx能够读取
-![alt text](assests/image.png)
+![alt text](assests/img/image.png)
 
 ## 快速开始
 

@@ -1,4 +1,6 @@
 from snakemake.logging import logger
+import time
+import os
 indir = config.get("indir") or "input"
 outdir = config.get("outdir") or "output"
 logdir = config.get("logdir") or "log"
@@ -48,14 +50,20 @@ rule HaplotypeCaller:
         javaOptions =  "-Xms20g -Xmx30g -XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10",
         gatk = config.get("Procedure", {}).get("gatk") or "gatk"
     threads: 10
-    shell:
-        """
-        {params.gatk} --java-options "{params.javaOptions}" HaplotypeCaller \
-            -R {input.fasta} \
-            -I {input.bam} \
-            -O {output.vcf} \
-            > {log} 2>&1
-        """
+    run:
+        current_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+        logger.info(f"Start HaplotypeCaller for sample {wildcards.sample_id} at {current_time}")
+        script = os.path.join(outdir,f"HaplotypeCaller_{current_time}.sh")
+        cmd = [
+            params.gatk, "--java-options", params.javaOptions, "HaplotypeCaller",
+            "-R", input.fasta,
+            "-I", input.bam,
+            "-O", output.vcf
+        ]
+        with open(script, "w") as f:
+            f.write("#!/bin/bash\n")
+            f.write(" ".join(cmd) + "\n")
+        shell("bash {script} > {log} 2>&1")
 
 def get_input_filterHaplotypeCallerVcf(wildcards):
     in_dict = {}

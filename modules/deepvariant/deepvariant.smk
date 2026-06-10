@@ -1,4 +1,6 @@
 from snakemake.logging import logger
+import time
+import os
 indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
@@ -25,18 +27,23 @@ rule deepvariant_run:
         deepvariant = config.get("Procedure", {}).get("deepvariant") or "run_deepvariant",
         model_type = config.get("Params", {}).get("deepvariant", {}).get("model_type") or "PACBIO",
         outdir_sample = outdir + "/{sample_id}"
-    shell:
-        """
-        mkdir -p {params.outdir_sample}
-        {params.deepvariant} \\
-            --num_shards {threads} \\
-            --model_type {params.model_type} \\
-            --ref {input.fasta} \\
-            --reads {input.bam} \\
-            --output_vcf {output.vcf} \\
-            --output_gvcf {output.gvcf} \\
-            > {log} 2>&1
-        """
+    run:
+        current_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+        logger.info(f"Start DeepVariant for sample {wildcards.sample_id} at {current_time}")
+        script = os.path.join(outdir,f"deepvariant_{current_time}.sh")
+        cmd = [
+            params.deepvariant,
+            "--num_shards", str(threads),
+            "--model_type", params.model_type,
+            "--ref", input.fasta,
+            "--reads", input.bam,
+            "--output_vcf", output.vcf,
+            "--output_gvcf", output.gvcf
+        ]
+        with open(script, "w") as f:
+            f.write("#!/bin/bash\n")
+            f.write(" ".join(cmd) + "\n")
+        shell("bash {script} > {log} 2>&1")
 
 rule deepvariant_result:
     input:

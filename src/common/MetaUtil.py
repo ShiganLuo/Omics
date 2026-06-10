@@ -6,7 +6,7 @@ import pandas as pd
 from pathlib import Path
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import List, Tuple, Dict, Optional
+from typing import List, Tuple, Dict, Optional, Union
 from enum import Enum, unique
 import argparse
 import math
@@ -37,6 +37,7 @@ class SampleInfo:
     fastq_2: Optional[Path] = None
     workflow: Optional[str] = None
     group: Optional[str] = None
+    design: Optional[str] = None
 
 @dataclass
 class DesignPair:
@@ -99,15 +100,15 @@ class MetadataUtils:
         self.raw_fq_dir = self.outdir / "fastq" / "raw_fastq"
         self.raw_fq_dir.mkdir(parents=True, exist_ok=True)
 
-    def load_meta(self) -> pd.DataFrame:
+    def load_meta(self, meta:Union[Path,str]) -> pd.DataFrame:
         """
         function: load metadata from meta file, sep can be \t or ,
         """
-        with open(self.meta, "r", encoding="utf-8") as f:
+        with open(meta, "r", encoding="utf-8") as f:
             head = f.read(2048)
 
         sep = "\t" if head.count("\t") >= head.count(",") else ","
-        df = pd.read_csv(self.meta, sep=sep)
+        df = pd.read_csv(meta, sep=sep)
 
         return df
 
@@ -135,6 +136,7 @@ class MetadataUtils:
             if isinstance(design_val, float) and math.isnan(design_val):
                 logger.info(f"{sample_id} design value is None, skipping it")
                 continue
+            design_val = str(design_val)
             m  = DESIGN_PATTERN.match(design_val)
             if not m:
                 logger.warning(f"Invalid design format for {sample_id}: {design_val}")
@@ -189,9 +191,10 @@ class MetadataUtils:
 
         raw_fq_dir = self.raw_fq_dir
 
-        newdf = df.groupby(sample_id_col)
+        df_group = df.groupby(sample_id_col)
 
-        for sample_id, df_sample in newdf:
+        for sample_id, df_sample in df_group:
+            sample_id = str(sample_id)
             data_ids = df_sample[data_id_col].values
             if len(data_ids) < 1:
                 raise ValueError(f"something wrong: {sample_id} have no {data_id_col} meta")
@@ -208,7 +211,7 @@ class MetadataUtils:
                 origin_r1 = Path(origin_r1) if origin_r1 else None
                 origin_r2 = Path(origin_r2) if origin_r2 else None
                 
-                if pd.notna(origin_r1) and pd.notna(origin_r2):
+                if origin_r1 and origin_r2:
                     logger.info(f"Detect {data_ids[0]} is Paired END")
                     self.samples_dict[sample_id].layout = Layout.PE
                     rename_r1 = raw_fq_dir / f"{sample_id}_1.fq.gz"
@@ -217,7 +220,7 @@ class MetadataUtils:
                     self._link_file(origin_r2,rename_r2)
                     self.samples_dict[sample_id].fastq_1 = rename_r1
                     self.samples_dict[sample_id].fastq_2 = rename_r2
-                elif pd.notna(origin_r1):
+                elif origin_r1:
                     logger.info(f"Detect {data_ids[0]} is Single End")
                     self.samples_dict[sample_id].layout = Layout.SE
                     rename_r1 = raw_fq_dir / f"{sample_id}.single.fq.gz"
@@ -228,8 +231,8 @@ class MetadataUtils:
                     continue
             else:
                 logger.info(f"Detect the relationship between {sample_id} and {data_ids[0]} is one-to-many")
-                origin_r1_list = sorted([r for r in df_sample[fastq_r1_col].values if pd.notna(r)])
-                origin_r2_list = sorted([r for r in df_sample[fastq_r2_col].values if pd.notna(r)]) if fastq_r2_col in df_sample.columns else []
+                origin_r1_list = sorted([r for r in df_sample[fastq_r1_col].values if r])
+                origin_r2_list = sorted([r for r in df_sample[fastq_r2_col].values if r]) if fastq_r2_col in df_sample.columns else []
                 
                 origin_r1_list_path = [Path(r1) for r1 in origin_r1_list]
                 origin_r2_list_path = [Path(r2) for r2 in origin_r2_list]
@@ -374,9 +377,8 @@ class MetadataUtils:
 
     def run(self):
         if self.meta:
-            df = self.load_meta()
+            df = self.load_meta(self.meta)
             self.prepare_fastq_meta(df = df,
-                                    outdir = self.outdir,
                                     data_id_col = self.data_id_col,
                                 )
             if df[self.design_col].isnull().all():
@@ -404,8 +406,7 @@ def main():
     metadataUtils = MetadataUtils(
         meta=args.meta,
         outdir=args.outdir,
-        fastq_dir=args.fastq_dir,
-        log=args.log
+        fastq_dir=args.fastq_dir
     )
     res = metadataUtils.run()
     return res    

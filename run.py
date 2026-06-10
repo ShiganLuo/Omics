@@ -341,7 +341,7 @@ def runPacVar(
 def runMutation(
     datajson: Dict[str, Any],
     samples_info_dict:Dict[str, Any],
-    designPair: List[DesignPair],
+    designPairs: List[DesignPair],
     indir:str,
     outdir: str,
 ):
@@ -357,7 +357,7 @@ def runMutation(
     mutect2_samples = []
     sample_somatic_vcf_dict = {}
     sample_group_dict = {}
-    for designPair in designPair:
+    for designPair in designPairs:
         somatic_file = f"{outdir}/mutation/gatk/somatic/mutect2-vcf/{designPair.ctr_sample_id}_vs_{designPair.exp_sample_id}/{designPair.ctr_sample_id}_vs_{designPair.exp_sample_id}.vcf.gz"
         sample_somatic_vcf_dict[designPair.exp_sample_id] = somatic_file
         sample_group_dict[designPair.exp_sample_id] = designPair.exp_group

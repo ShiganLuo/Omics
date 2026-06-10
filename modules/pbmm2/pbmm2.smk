@@ -10,7 +10,7 @@ rule pbmm2_align:
         bam = indir + "/{sample_id}.bam",
         fasta = fasta
     output:
-        bam = outdir + "/{sample_id}/{sample_id}.aligned.bam"
+        bam = outdir + "/{sample_id}/{sample_id}.bam"
     log:
         logdir + "/{sample_id}/pbmm2_align.log"
     threads: 16
@@ -32,4 +32,4 @@ rule pbmm2_align:
 
 rule pbmm2_result:
     input:
-        bam = outdir + "/{sample_id}/{sample_id}.aligned.bam"
+        bam = outdir + "/{sample_id}/{sample_id}.bam"

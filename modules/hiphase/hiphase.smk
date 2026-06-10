@@ -1,4 +1,6 @@
 from snakemake.logging import logger
+import time
+import os
 indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
@@ -24,18 +26,23 @@ rule hiphase_phase:
         "hiphase.yaml"
     params:
         hiphase = config.get("Procedure", {}).get("hiphase") or "hiphase"
-    shell:
-        """
-        mkdir -p $(dirname {output.vcf})
-        {params.hiphase} \\
-            --num-threads {threads} \\
-            --reference {input.fasta} \\
-            --input-bam {input.bam} \\
-            --output-bam {output.bam} \\
-            --input-vcf {input.vcf} \\
-            --output-vcf {output.vcf} \\
-            > {log} 2>&1
-        """
+    run:
+        current_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+        logger.info(f"Start hiphase for sample {wildcards.sample_id} at {current_time}")
+        script = os.path.join(outdir,f"hiphase_{current_time}.sh")
+        cmd = [
+            params.hiphase,
+            "--num-threads", str(threads),
+            "--reference", input.fasta,
+            "--input-bam", input.bam,
+            "--output-bam", output.bam,
+            "--input-vcf", input.vcf,
+            "--output-vcf", output.vcf
+        ]
+        with open(script, "w") as f:
+            f.write("#!/bin/bash\n")
+            f.write(" ".join(cmd) + "\n")
+        shell("bash {script} > {log} 2>&1")
 
 rule hiphase_result:
     input:

@@ -5,3 +5,4 @@ channels:
   - defaults
 dependencies:
   - deepvariant>=1.6.0
+  - bcftools==1.15

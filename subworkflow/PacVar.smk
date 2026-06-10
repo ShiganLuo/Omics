@@ -16,9 +16,7 @@ rule all:
     input:
         outfiles
 
-# ============================================================
-# Step 1: PBMM2 alignment
-# ============================================================
+
 pbmm2_config = {
     "indir": indir,
     "outdir": f"{outdir}/bam/1_raw_bam",
@@ -37,9 +35,7 @@ module pbmm2:
 logger.info(f"pbmm2_config: {pbmm2_config}")
 use rule pbmm2_align from pbmm2 as PacVar_pbmm2_align
 
-# ============================================================
-# Step 2: SAMTOOLS sort + index
-# ============================================================
+
 samtools_sort_config = {
     "indir": pbmm2_config["outdir"],
     "outdir": f"{outdir}/bam/2_sorted_bam",
@@ -57,14 +53,12 @@ module samtools_sort:
 logger.info(f"samtools_sort_config: {samtools_sort_config}")
 use rule bam_sort from samtools_sort as PacVar_bam_sort
 
-# ============================================================
-# Step 3: SNP variant calling
-# ============================================================
+
 if not skip_snp:
     if snv_caller == "deepvariant":
         deepvariant_config = {
             "indir": samtools_sort_config["outdir"],
-            "outdir": f"{outdir}/snp/deepvariant",
+            "outdir": f"{outdir}/variation/germline_snv_indel",
             "logdir": logdir,
             "samples": samples,
             "Procedure": {
@@ -86,7 +80,7 @@ if not skip_snp:
     elif snv_caller == "gatk4":
         gatk_germline_config = {
             "indir": samtools_sort_config["outdir"],
-            "outdir": f"{outdir}/snp/gatk4",
+            "outdir": f"{outdir}/variation/germline_snv_indel",
             "logdir": logdir,
             "Procedure": {
                 "gatk": config.get("Procedure", {}).get("gatk"),
@@ -112,7 +106,7 @@ if not skip_snp:
 if not skip_sv:
     pbsv_config = {
         "indir": samtools_sort_config["outdir"],
-        "outdir": f"{outdir}/sv/pbsv",
+        "outdir": f"{outdir}/variation/germline_sv",
         "logdir": logdir,
         "samples": samples,
         "Procedure": {
@@ -128,23 +122,6 @@ if not skip_sv:
     logger.info(f"pbsv_config: {pbsv_config}")
     use rule pbsv_discover from pbsv as PacVar_pbsv_discover
     use rule pbsv_call from pbsv as PacVar_pbsv_call
-
-    # bgzip + index for SV VCF
-    tabix_sv_config = {
-        "indir": f"{outdir}/sv/pbsv/call",
-        "outdir": f"{outdir}/sv/pbsv/bgzip",
-        "logdir": logdir,
-        "Procedure": {
-            "bgzip": config.get("Procedure", {}).get("bgzip"),
-            "tabix": config.get("Procedure", {}).get("tabix")
-        }
-    }
-    module tabix_sv:
-        snakefile: "../modules/tabix/tabix.smk"
-        config: tabix_sv_config
-    logger.info(f"tabix_sv_config: {tabix_sv_config}")
-    use rule tabix_bgzip from tabix_sv as PacVar_tabix_bgzip
-    use rule tabix_index from tabix_sv as PacVar_tabix_index
     
 # ============================================================
 # Step 5: Phasing (optional, requires both SNP + SV done)
@@ -152,11 +129,11 @@ if not skip_sv:
 if not skip_phase and not skip_snp and not skip_sv:
     hiphase_snp_config = {
         "indir": samtools_sort_config["outdir"],
-        "outdir": f"{outdir}/phasing/snp",
+        "outdir": f"{outdir}/variation/germline_snv_indel",
         "logdir": logdir,
         "samples": samples,
         "bam_dir": samtools_sort_config["outdir"],
-        "vcf_dir": f"{outdir}/snp/deepvariant" if snv_caller == "deepvariant" else f"{outdir}/snp/gatk4",
+        "vcf_dir": f"{outdir}/variation/germline_snv_indel",
         "Procedure": {
             "hiphase": config.get("Procedure", {}).get("hiphase")
         },
@@ -172,11 +149,12 @@ if not skip_phase and not skip_snp and not skip_sv:
 
     hiphase_sv_config = {
         "indir": samtools_sort_config["outdir"],
-        "outdir": f"{outdir}/phasing/sv",
+        "outdir": f"{outdir}/variation/germline_sv",
         "logdir": logdir,
         "samples": samples,
         "bam_dir": samtools_sort_config["outdir"],
-        "vcf_dir": f"{outdir}/sv/pbsv/bgzip",
+        "vcf_dir": f"{outdir}/variation/germline_sv",
+        "substring": "sv",
         "Procedure": {
             "hiphase": config.get("Procedure", {}).get("hiphase")
         },

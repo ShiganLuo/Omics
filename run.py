@@ -314,18 +314,18 @@ def runPacVar(
         # SNP calling
         if not skip_snp:
             if snv_caller == "deepvariant":
-                outfiles.append(f"{outdir}/snp/deepvariant/{sample_id}/{sample_id}.vcf.gz")
-                outfiles.append(f"{outdir}/snp/deepvariant/{sample_id}/{sample_id}.vcf.gz.tbi")
+                outfiles.append(f"{outdir}/variation/germline_snv_indel/{sample_id}/{sample_id}.vcf.gz")
+                outfiles.append(f"{outdir}/variation/germline_snv_indel/{sample_id}/{sample_id}.vcf.gz.csi")
             elif snv_caller == "gatk4":
-                outfiles.append(f"{outdir}/snp/gatk4/vcf/{sample_id}/{sample_id}.vcf.gz")
+                outfiles.append(f"{outdir}/variation/germline_snv_indel/{sample_id}/{sample_id}.vcf.gz")
         # SV calling
         if not skip_sv:
-            outfiles.append(f"{outdir}/sv/pbsv/bgzip/{sample_id}/{sample_id}.vcf.gz")
-            outfiles.append(f"{outdir}/sv/pbsv/bgzip/{sample_id}/{sample_id}.vcf.gz.tbi")
+            outfiles.append(f"{outdir}/variation/germline_sv/{sample_id}/{sample_id}.sv.vcf.gz")
+            outfiles.append(f"{outdir}/variation/germline_sv/{sample_id}/{sample_id}.sv.vcf.gz.csi")
         # phasing
         if not skip_phase and not skip_snp and not skip_sv:
-            outfiles.append(f"{outdir}/phasing/snp/{sample_id}/{sample_id}.phased.vcf.gz")
-            outfiles.append(f"{outdir}/phasing/sv/{sample_id}/{sample_id}.phased.vcf.gz")
+            outfiles.append(f"{outdir}/variation/germline_snv_indel/{sample_id}/{sample_id}.phased.vcf.gz")
+            outfiles.append(f"{outdir}/variation/germline_sv/{sample_id}/{sample_id}.sv.phased.vcf.gz")
         # repeat characterization
         if not skip_repeat and datajson["genome"]["repeat_bed"]:
             outfiles.append(f"{outdir}/repeat/trgt/genotype/{sample_id}/{sample_id}.trgt.vcf.gz")

@@ -8,17 +8,18 @@ samples = config.get("samples", [])
 fasta = config.get("genome", {}).get("fasta")
 bam_dir = config.get("bam_dir", indir)
 vcf_dir = config.get("vcf_dir", indir)
+substring = config.get("substring", "")
 
 rule hiphase_phase:
     input:
-        bam = bam_dir + "/{sample_id}/{sample_id}.bam",
+        bam = bam_dir + "/{sample_id}/{sample_id}.bam", 
         bai = bam_dir + "/{sample_id}/{sample_id}.bam.bai",
-        vcf = vcf_dir + "/{sample_id}/{sample_id}.vcf.gz",
-        tbi = vcf_dir + "/{sample_id}/{sample_id}.vcf.gz.tbi",
+        vcf = vcf_dir + "/{sample_id}/{sample_id}.vcf.gz" if substring == "" else vcf_dir + "/{sample_id}/{sample_id}." + substring + ".vcf.gz",
+        tbi = vcf_dir + "/{sample_id}/{sample_id}.vcf.gz.csi" if substring == "" else vcf_dir + "/{sample_id}/{sample_id}." + substring + ".vcf.gz.csi",
         fasta = fasta
     output:
-        vcf = outdir + "/{sample_id}/{sample_id}.phased.vcf.gz",
-        bam = outdir + "/{sample_id}/{sample_id}.phased.bam"
+        vcf = outdir + "/{sample_id}/{sample_id}.phased.vcf.gz" if substring == "" else outdir + "/{sample_id}/{sample_id}." + substring + ".phased.vcf.gz",
+        bam = outdir + "/{sample_id}/{sample_id}.phased.bam" if substring == "" else outdir + "/{sample_id}/{sample_id}." + substring + ".phased.bam"
     log:
         logdir + "/{sample_id}/hiphase.log"
     threads: 8
@@ -46,5 +47,5 @@ rule hiphase_phase:
 
 rule hiphase_result:
     input:
-        vcf = outdir + "/{sample_id}/{sample_id}.phased.vcf.gz",
-        bam = outdir + "/{sample_id}/{sample_id}.phased.bam"
+        vcf = outdir + "/{sample_id}/{sample_id}.phased.vcf.gz" if substring == "" else outdir + "/{sample_id}/{sample_id}." + substring + ".phased.vcf.gz",
+        bam = outdir + "/{sample_id}/{sample_id}.phased.bam" if substring == "" else outdir + "/{sample_id}/{sample_id}." + substring + ".phased.bam"

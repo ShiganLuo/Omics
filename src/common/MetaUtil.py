@@ -38,6 +38,8 @@ class SampleInfo:
     workflow: Optional[str] = None
     group: Optional[str] = None
     design: Optional[str] = None
+    pacbio_bam: Optional[Path] = None
+    pacbio_pbi: Optional[Path] = None
 
 @dataclass
 class DesignPair:
@@ -67,7 +69,8 @@ class MetadataUtils:
         outdir: str,
         meta: Optional[str] = None,
         fastq_dir: Optional[str] = None,
-        required_cols: set = {"sample_id", "fastq_1", "fastq_2"},
+        fastq_required_cols: set = {"sample_id", "fastq_1", "fastq_2"},
+        pacbio_required_cols: set = {"sample_id", "bam", "pbi"},
         data_id_col: str = "data_id",
         design_col: str = "design",
         group_col: str = "group",
@@ -92,7 +95,8 @@ class MetadataUtils:
         self.outdir.mkdir(parents=True, exist_ok=True)
         self.meta = Path(meta) if meta else None
         self.fastq_dir = Path(fastq_dir) if fastq_dir else None
-        self.required_cols = required_cols        
+        self.fastq_required_cols = fastq_required_cols
+        self.pacbio_required_cols = pacbio_required_cols
         self.data_id_col = data_id_col
         self.design_col = design_col
         self.group_col = group_col
@@ -185,8 +189,8 @@ class MetadataUtils:
         if data_id_col not in df.columns:
             df[data_id_col] = df[sample_id_col]
 
-        if not self.required_cols.issubset(df.columns):
-            raise ValueError(f"Metadata must contain columns: {self.required_cols}")
+        if not self.fastq_required_cols.issubset(df.columns):
+            raise ValueError(f"Metadata must contain columns: {self.fastq_required_cols}")
 
 
         raw_fq_dir = self.raw_fq_dir
@@ -256,11 +260,43 @@ class MetadataUtils:
                     logger.warning(f"{sample_id} have no fastqs, skip it")
                     continue
 
-    
+    def prepare_pacbio_meta(self, df: pd.DataFrame, sample_id_col:str = 'sample_id', bam_col:str = 'bam', pbi_col:str = 'pbi') -> None:
+        """
+        Prepare PacBio BAM metadata. For each sample_id, create a symlink to the BAM file and its PBI index in the raw_fq_dir.
+        """
+        if not self.pacbio_required_cols.issubset(df.columns):
+            raise ValueError(f"Metadata must contain columns: {self.pacbio_required_cols}")
+        for sample_id, df_sample in df.groupby(sample_id_col):
+            sample_id = str(sample_id)
+            bam_path = df_sample[bam_col].values[0]
+            pbi_path = df_sample[pbi_col].values[0]
+
+            if not bam_path or not pbi_path:
+                logger.warning(f"{sample_id} is missing BAM or PBI path, skipping.")
+                continue
+
+            bam_path = Path(bam_path)
+            pbi_path = Path(pbi_path)
+
+            if not bam_path.exists() or not pbi_path.exists():
+                logger.warning(f"BAM or PBI file for {sample_id} does not exist, skipping.")
+                continue
+
+            target_bam = self.raw_fq_dir / f"{sample_id}.bam"
+            target_pbi = self.raw_fq_dir / f"{sample_id}.bam.pbi"
+
+            self._link_file(bam_path, target_bam)
+            self._link_file(pbi_path, target_pbi)
+
+            self.samples_dict[sample_id].sample_id = sample_id
+            self.samples_dict[sample_id].pacbio_bam = target_bam
+            self.samples_dict[sample_id].pacbio_pbi = target_pbi
+            self.samples_dict[sample_id].layout = Layout.SE  # Treat BAM as SE for downstream processing
+            logger.info(f"Prepared PacBio metadata for sample {sample_id}")
+
     def prepare_fastq_dir(
         self,
         fq_dir: Path,
-        outdir: Path,
         fq_pattern: str = r"\.f(ast)?q.gz$"
     ) -> None:
         """
@@ -378,17 +414,19 @@ class MetadataUtils:
     def run(self):
         if self.meta:
             df = self.load_meta(self.meta)
-            self.prepare_fastq_meta(df = df,
-                                    data_id_col = self.data_id_col,
-                                )
-            if df[self.design_col].isnull().all():
+            if "bam" in df.columns and "pbi" in df.columns:
+                logger.info("Detected BAM/PBI columns in metadata, preparing PacBio metadata")
+                self.prepare_pacbio_meta(df = df, sample_id_col = "sample_id", bam_col = "bam", pbi_col = "pbi")
+            else:
+                self.prepare_fastq_meta(df = df, data_id_col = self.data_id_col)
+            if self.design_col not in df.columns or df[self.design_col].isnull().all():
                 logger.info(f"meta {self.design_col} is all none, skip build_design_pairs")
                 pairs = []
             else:
                 pairs = self.build_design_pairs()
             return self.samples_dict, pairs, str(self.raw_fq_dir)
         elif self.fastq_dir:
-            self.prepare_fastq_dir(self.fastq_dir,self.outdir)
+            self.prepare_fastq_dir(self.fastq_dir)
             return self.samples_dict, [], str(self.raw_fq_dir)
         else:
             raise ValueError("Either meta or fastq_dir must be provided.")

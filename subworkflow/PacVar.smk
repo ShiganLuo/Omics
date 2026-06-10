@@ -194,7 +194,7 @@ if not skip_phase and not skip_snp and not skip_sv:
 # ============================================================
 # Step 6: Repeat characterization (optional)
 # ============================================================
-if not skip_repeat:
+if not skip_repeat and config.get("reference", {}).get("repeat_bed") is not None:
     trgt_config = {
         "indir": f"{outdir}/samtools/sort",
         "outdir": f"{outdir}/repeat/trgt",

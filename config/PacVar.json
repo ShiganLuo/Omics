@@ -29,12 +29,10 @@
             "repeat_id": "HTT"
         }
     },
-    "reference": {
-        "repeat_bed": null
-    },
     "genome": {
         "fasta": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
         "fai": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa.fai",
-        "dict": null
+        "dict": null,
+        "repeat_bed": null
     }
 }

@@ -1,4 +1,5 @@
 from snakemake.logging import logger
+import time
 indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
@@ -7,36 +8,30 @@ rule tabix_bgzip:
     input:
         vcf = indir + "/{sample_id}/{sample_id}.vcf"
     output:
-        vcf_gz = outdir + "/{sample_id}/{sample_id}.vcf.gz"
+        vcf_gz = outdir + "/{sample_id}/{sample_id}.vcf.gz",
+        tbi = outdir + "/{sample_id}/{sample_id}.vcf.gz.tbi"
     log:
         logdir + "/{sample_id}/bgzip.log"
     conda:
         "tabix.yaml"
     params:
         bgzip = config.get("Procedure", {}).get("bgzip") or "bgzip"
-    shell:
-        """
-        mkdir -p $(dirname {output.vcf_gz})
-        cp {input.vcf} {output.vcf_gz}.tmp.vcf
-        {params.bgzip} -f {output.vcf_gz}.tmp.vcf
-        mv {output.vcf_gz}.tmp.vcf.gz {output.vcf_gz}
-        """
-
-rule tabix_index:
-    input:
-        vcf_gz = indir + "/{sample_id}/{sample_id}.vcf.gz"
-    output:
-        tbi = outdir + "/{sample_id}/{sample_id}.vcf.gz.tbi"
-    log:
-        logdir + "/{sample_id}/tabix.log"
-    conda:
-        "tabix.yaml"
-    params:
-        tabix = config.get("Procedure", {}).get("tabix") or "tabix"
-    shell:
-        """
-        {params.tabix} -p vcf {input.vcf_gz} > {log} 2>&1
-        """
+    run:
+        current_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+        logger.info(f"Start bgzip for sample {wildcards.sample_id} at {current_time}")
+        script = os.path.join(outdir,f"bgzip_{current_time}.sh")
+        cmd1 = [
+            params.bgzip, input.vcf,
+            "-o", output.vcf_gz
+        ]
+        cmd2 = [
+            params.tabix, "-p", "vcf", output.vcf_gz
+        ]
+        with open(script, "w") as f:
+            f.write("#!/bin/bash\n")
+            f.write(" ".join(cmd1) + "\n")
+            f.write(" ".join(cmd2) + "\n")
+        shell("bash {script} > {log} 2>&1")
 
 rule tabix_result:
     input:

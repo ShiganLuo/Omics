@@ -307,10 +307,10 @@ def runPacVar(
     for sample_id, sample_info in samples_info_dict.items():
         samples.append(sample_id)
         # pbmm2 align
-        outfiles.append(f"{outdir}/pbmm2/{sample_id}/{sample_id}.aligned.bam")
+        outfiles.append(f"{outdir}/bam/1_raw_bam/{sample_id}/{sample_id}.bam")
         # samtools sort + index
-        outfiles.append(f"{outdir}/samtools/sort/{sample_id}/{sample_id}.sorted.bam")
-        outfiles.append(f"{outdir}/samtools/{sample_id}/{sample_id}.bam.bai")
+        outfiles.append(f"{outdir}/bam/2_sorted_bam/{sample_id}/{sample_id}.bam")
+        outfiles.append(f"{outdir}/bam/2_sorted_bam/{sample_id}/{sample_id}.bam.bai")
         # SNP calling
         if not skip_snp:
             if snv_caller == "deepvariant":
@@ -327,7 +327,7 @@ def runPacVar(
             outfiles.append(f"{outdir}/phasing/snp/{sample_id}/{sample_id}.phased.vcf.gz")
             outfiles.append(f"{outdir}/phasing/sv/{sample_id}/{sample_id}.phased.vcf.gz")
         # repeat characterization
-        if not skip_repeat:
+        if not skip_repeat and datajson["genome"]["repeat_bed"]:
             outfiles.append(f"{outdir}/repeat/trgt/genotype/{sample_id}/{sample_id}.trgt.vcf.gz")
             outfiles.append(f"{outdir}/repeat/trgt/plot/{sample_id}/{sample_id}.trgt.repeat.png")
 

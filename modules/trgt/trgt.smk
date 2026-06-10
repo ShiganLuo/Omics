@@ -1,4 +1,6 @@
 from snakemake.logging import logger
+import time
+import os
 indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
@@ -6,7 +8,7 @@ samples = config.get("samples", [])
 fasta = config.get("genome", {}).get("fasta")
 fai = config.get("genome", {}).get("fai")
 karyotype = config.get("Params", {}).get("trgt", {}).get("karyotype") or "XX"
-repeat_bed = config.get("reference", {}).get("repeat_bed")
+repeat_bed = config.get("genome", {}).get("repeat_bed")
 
 rule trgt_genotype:
     input:
@@ -56,18 +58,23 @@ rule trgt_plot:
     params:
         trgt = config.get("Procedure", {}).get("trgt") or "trgt",
         repeat_id = config.get("Params", {}).get("trgt", {}).get("repeat_id") or "HTT"
-    shell:
-        """
-        mkdir -p $(dirname {output.png})
-        {params.trgt} plot \\
-            --genome {input.fasta} \\
-            --repeats {input.bed} \\
-            --vcf {input.vcf} \\
-            --spanning-reads {input.bam} \\
-            --repeat-id {params.repeat_id} \\
-            --image {output.png} \\
-            > {log} 2>&1
-        """
+    run:
+        current_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+        logger.info(f"Start trgt plot for sample {wildcards.sample_id} at {current_time}")
+        script = os.path.join(outdir,f"trgt_plot_{current_time}.sh")
+        cmd = [
+            {params.trgt} , "plot",
+            "--genome", input.fasta,
+            "--repeats", input.bed,
+            "--vcf", input.vcf,
+            "--spanning-reads", input.bam,
+            "--repeat-id", params.repeat_id,
+            "--image", output.png
+        ]
+        with open(script, "w") as f:
+            f.write("#!/bin/bash\n")
+            f.write(" ".join(cmd) + "\n")
+        shell(f"bash {script} > {log} 2>&1")
 
 rule trgt_result:
     input:

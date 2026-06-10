@@ -391,10 +391,49 @@ def runMutation(
     with open(instance_json, 'w', encoding='utf-8') as wf:
         json.dump(datajson, wf, indent=2, ensure_ascii=False)
     return instance_json
+
+def runKARRseq(
+    datajson: Dict[str, Any],
+    samples_info_dict: Dict[str, Any],
+    indir: str,
+    outdir: str,
+):
+    """Prepare input JSON for KARRseq (Kethoxal-Assisted RNA-RNA interaction sequencing) workflow."""
+    datajson["ROOT_DIR"] = os.path.dirname(__file__)
+    datajson["indir"] = indir
+    datajson["outdir"] = outdir
+    logdir = os.path.join(outdir, "log")
+    os.makedirs(logdir, exist_ok=True)
+    datajson["logdir"] = logdir
+
+    paired_samples = []
+    single_samples = []
+    outfiles = []
+
+    for sample_id, sample_info in samples_info_dict.items():
+        if sample_info.layout == "PE":
+            paired_samples.append(sample_id)
+            # Final ligation pairs
+            outfiles.append(f"{outdir}/chimeric/{sample_id}/{sample_id}.dedup.ligation.pairs.gz")
+        elif sample_info.layout == "SE":
+            single_samples.append(sample_id)
+            outfiles.append(f"{outdir}/chimeric/{sample_id}/{sample_id}.dedup.ligation.pairs.gz")
+        else:
+            logger.error(f"Unknown layout type for sample {sample_id}: {sample_info.layout}")
+
+    datajson["paired_samples"] = paired_samples
+    datajson["single_samples"] = single_samples
+    datajson["outfiles"] = outfiles
+
+    instance_json = os.path.join(outdir, "raw.json")
+    with open(instance_json, 'w', encoding='utf-8') as wf:
+        json.dump(datajson, wf, indent=2, ensure_ascii=False)
+    return instance_json
+
 def parse_args():
     parser = argparse.ArgumentParser(description="workflow")
     parser.add_argument('-m','--meta', type=str, required=True, help='meta input file or data dir which condatain fastq file')
-    parser.add_argument('-w','--workflow_name', type=str, choices=["CoCulture", "MERIP", "RNAseq", "CLIP", "Mutation", "PacVar"],default='CoCulture' ,help='workflow name')
+    parser.add_argument('-w','--workflow_name', type=str, choices=["CoCulture", "MERIP", "RNAseq", "CLIP", "Mutation", "PacVar", "KARRseq"],default='CoCulture' ,help='workflow name')
     parser.add_argument('-o','--output_dir', type=str, required=True, help='output dir')
     parser.add_argument('-t','--threads', type=int, default=10, help='threads')
     parser.add_argument('--dry-run', action='store_true', help='dry run')
@@ -510,6 +549,9 @@ if __name__ == "__main__":
     elif args.workflow_name == "PacVar":
         input_json = runPacVar(deepcopy(workflow_config), samples_info_dict, raw_fastq_dir, abs_outdir)
         smk = "PacVar.smk"
+    elif args.workflow_name == "KARRseq":
+        input_json = runKARRseq(deepcopy(workflow_config), samples_info_dict, raw_fastq_dir, abs_outdir)
+        smk = "KARRseq.smk"
     else:
         logger.error(f"Unknown workflow name: {args.workflow_name}")
         exit(1)

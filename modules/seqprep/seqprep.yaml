@@ -1,0 +1,8 @@
+name: seqprep
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+dependencies:
+  - seqprep>=1.0
+  - seqkit>=2.0

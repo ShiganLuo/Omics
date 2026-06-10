@@ -1,0 +1,33 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "log",
+    "paired_samples": [],
+    "single_samples": [],
+    "outfiles": [],
+    "Procedure": {
+        "SeqPrep": null,
+        "STAR": null,
+        "samtools": "samtools"
+    },
+    "Params": {
+        "STAR": {
+            "outFilterMultimapNmax": 100,
+            "outSAMattributes": "All",
+            "alignIntronMin": 1,
+            "scoreGapNoncan": -4,
+            "scoreGapATAC": -4,
+            "chimSegmentMin": 15,
+            "chimJunctionOverhangMin": 15,
+            "limitOutSJcollapsed": 10000000,
+            "limitIObufferSize": 1500000000
+        },
+        "karrseq": {
+            "mapq": 1,
+            "span": 0
+        }
+    },
+    "genome": {
+        "star_index_dir": null
+    }
+}

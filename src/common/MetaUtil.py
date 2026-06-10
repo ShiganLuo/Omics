@@ -256,7 +256,7 @@ class MetadataUtils:
                     logger.warning(f"{sample_id} have no fastqs, skip it")
                     continue
 
-
+    
     def prepare_fastq_dir(
         self,
         fq_dir: Path,

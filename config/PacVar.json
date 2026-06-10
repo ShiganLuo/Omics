@@ -33,8 +33,8 @@
         "repeat_bed": null
     },
     "genome": {
-        "fasta": null,
-        "fai": null,
+        "fasta": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
+        "fai": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa.fai",
         "dict": null
     }
 }

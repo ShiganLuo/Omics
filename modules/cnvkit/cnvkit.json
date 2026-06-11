@@ -1,0 +1,21 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "logs",
+    "samples": [],
+    "control_samples": [],
+    "Procedure": {
+        "cnvkit": null,
+        "samtools": null
+    },
+    "Params": {
+        "cnvkit": {
+            "method": "wgs",
+            "processes": 8
+        }
+    },
+    "genome": {
+        "fasta": null,
+        "access": null
+    }
+}

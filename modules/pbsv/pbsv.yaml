@@ -1,9 +1,9 @@
 name: pbsv
 channels:
-  - bioconda
   - conda-forge
+  - bioconda
   - defaults
 dependencies:
-  - pbsv>=2.9.0
-  - bgzip==1.15
-  - bcftools==1.15
+  - pbsv=2.11.0
+  - htslib=1.23.1
+  - bcftools=1.23.1

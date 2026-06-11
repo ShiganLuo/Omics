@@ -59,3 +59,4 @@ description: Omics 工作流入口技能与子技能组织说明
 3) 将工作流名称加入 `--workflow_name` 选项
 4) 在 `workflow/Omics/subworkflow/` 提供对应 snakefile
 5) 更新 `outfiles` 逻辑以匹配预期输出
+6) 更新subworkflow/README.md和README.md

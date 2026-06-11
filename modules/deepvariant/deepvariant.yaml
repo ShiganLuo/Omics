@@ -1,7 +1,7 @@
 name: deepvariant
 channels:
-  - bioconda
   - conda-forge
+  - bioconda
   - defaults
 dependencies:
   - deepvariant>=1.6.0

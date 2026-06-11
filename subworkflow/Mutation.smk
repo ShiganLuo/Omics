@@ -197,3 +197,94 @@ if config.get("Params", {}).get("somatic_spectrum", {}).get("sample_somatic_vcf_
 else:
     logger.info(f"sample_somatic_vcf_dict or sample_group_dict not provided for somatic_spectrum. Skipping somatic_spectrum module.")
 
+# ============================================
+# Fragment Size Analysis (cfDNA)
+# ============================================
+skip_fragment_size = config.get("Params", {}).get("skip_fragment_size", False)
+if not skip_fragment_size:
+    fragment_size_config = {
+        "indir": gatk_prepare_config["outdir"],
+        "outdir": f"{outdir}/mutation/fragment_size",
+        "logdir": logdir,
+        "ROOT_DIR": ROOT_DIR,
+        "samples": paired_samples + single_samples,
+        "Procedure": {
+            "samtools": config.get("Procedure", {}).get("samtools")
+        }
+    }
+    module fragment_size:
+        snakefile: "../modules/fragment_size/fragment_size.smk"
+        config: fragment_size_config
+    logger.info(f"fragment_size_config: {fragment_size_config}")
+    use rule samtools_stats from fragment_size as Mutation_samtools_stats
+    use rule getFragmentSize from fragment_size as Mutation_getFragmentSize
+    use rule plotFragmentSize from fragment_size as Mutation_plotFragmentSize
+else:
+    logger.info("Skipping fragment_size module (skip_fragment_size=True)")
+
+# ============================================
+# SV Detection with Manta (cfDNA)
+# ============================================
+skip_sv = config.get("Params", {}).get("skip_sv", False)
+if not skip_sv:
+    manta_config = {
+        "indir": gatk_prepare_config["outdir"],
+        "outdir": f"{outdir}/mutation/sv/manta",
+        "logdir": logdir,
+        "ROOT_DIR": ROOT_DIR,
+        "samples": paired_samples + single_samples,
+        "Procedure": {
+            "manta": config.get("Procedure", {}).get("manta"),
+            "samtools": config.get("Procedure", {}).get("samtools")
+        },
+        "Params": {
+            "manta": config.get("Params", {}).get("manta", {})
+        },
+        "genome": {
+            "fasta": config.get("genome", {}).get("fasta")
+        }
+    }
+    module manta:
+        snakefile: "../modules/manta/manta.smk"
+        config: manta_config
+    logger.info(f"manta_config: {manta_config}")
+    use rule manta_config from manta as Mutation_manta_config
+    use rule manta_run from manta as Mutation_manta_run
+else:
+    logger.info("Skipping Manta SV detection (skip_sv=True)")
+
+# ============================================
+# CNV Detection with CNVkit (cfDNA)
+# ============================================
+skip_cnv = config.get("Params", {}).get("skip_cnv", False)
+if not skip_cnv:
+    control_samples = config.get("control_samples", [])
+    cnvkit_config = {
+        "indir": gatk_prepare_config["outdir"],
+        "outdir": f"{outdir}/mutation/cnv/cnvkit",
+        "logdir": logdir,
+        "ROOT_DIR": ROOT_DIR,
+        "samples": paired_samples + single_samples,
+        "control_samples": control_samples,
+        "Procedure": {
+            "cnvkit": config.get("Procedure", {}).get("cnvkit"),
+            "samtools": config.get("Procedure", {}).get("samtools")
+        },
+        "Params": {
+            "cnvkit": config.get("Params", {}).get("cnvkit", {})
+        },
+        "genome": {
+            "fasta": config.get("genome", {}).get("fasta"),
+            "access": config.get("genome", {}).get("access")
+        }
+    }
+    module cnvkit:
+        snakefile: "../modules/cnvkit/cnvkit.smk"
+        config: cnvkit_config
+    logger.info(f"cnvkit_config: {cnvkit_config}")
+    if control_samples:
+        use rule cnvkit_reference from cnvkit as Mutation_cnvkit_reference
+    use rule cnvkit_batch from cnvkit as Mutation_cnvkit_batch
+else:
+    logger.info("Skipping CNVkit CNV detection (skip_cnv=True)")
+

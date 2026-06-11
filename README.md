@@ -25,6 +25,12 @@ snakemake version: >= 9.16.3
 | `MERIP` | MeRIP-seq / m6A-seq 分析 | dedup BAM、peak 结果、IGV 可视化 |
 | `RNAseq` | 常规转录组分析 | count 矩阵、TE 表达结果 |
 | `CLIP` | iCLIP / CLIP-seq 分析 | 质控、比对、PureCLIP、bedGraph / bigWig、IGV 页面 |
+| `Mutation` | 体细胞突变分析（tumor vs normal） | Mutect2 VCF、Spectrum 可视化 |
+| `PacVar` | PacBio 长读长变异检测 | 结构变异 VCF、SNP VCF、phasing 结果 |
+| `KARRseq` | Kethoxal-Assisted RNA-RNA interaction sequencing | RNA-RNA 相互作用 pairs 文件 |
+| `ncRNAseq` | 非编码 RNA 分析 | ncRNA 表达量矩阵 |
+| `RNA_SNP` | RNA 变异检测 | SNP/INDEL 结果 |
+| `PeakCalling` | ChIP-seq / DIP-seq peak calling 分析 | trimming、bowtie2 比对、MACS3 peak 结果 |
 
 ### CLIP
 
@@ -97,7 +103,7 @@ python workflow/RNA-SNP/run.py \
 ## `run.py` 参数说明
 
 - `-m, --meta`：元信息文件或 fastq 目录。
-- `-w, --workflow_name`：工作流名称，可选 `CoCulture`、`MERIP`、`RNAseq`、`CLIP`。
+- `-w, --workflow_name`：工作流名称，可选 `CoCulture`、`MERIP`、`RNAseq`、`CLIP`、`Mutation`、`PacVar`、`KARRseq`、`PeakCalling`。
 - `-o, --output_dir`：输出目录。
 - `-t, --threads`：Snakemake 线程数。
 - `--dry-run`：只生成计划，不执行。

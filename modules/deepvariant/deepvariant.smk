@@ -21,8 +21,8 @@ rule deepvariant_run:
     log:
         logdir + "/{sample_id}/deepvariant.log"
     threads: 8
-    conda:
-        "deepvariant.yaml"
+    container:
+        "docker://google/deepvariant:latest"
     params:
         deepvariant = config.get("Procedure", {}).get("deepvariant") or "run_deepvariant",
         bcftools = config.get("Procedure", {}).get("bcftools") or "bcftools",

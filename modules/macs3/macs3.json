@@ -1,0 +1,22 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "logs",
+    "samples": [],
+    "ip_samples": [],
+    "input_samples": [],
+    "sample_ip_input_map": {},
+    "Procedure": {
+        "macs3": null
+    },
+    "Params": {
+        "macs3": {
+            "bw": 200,
+            "pvalue": "1e-5",
+            "genome_size": "mm"
+        }
+    },
+    "genome": {
+        "fasta": null
+    }
+}

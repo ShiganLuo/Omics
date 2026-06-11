@@ -382,6 +382,28 @@ def runMutation(
         else:
             logger.error(f"Unknown layout type for sample {sample_id}: {sample_info.layout}")
     outfiles.append(f"{outdir}/mutation/spectrum/somatic_spectrum_stacked_bar.png")
+    
+    all_samples = paired_samples + single_samples
+    
+    # Fragment size analysis outputs (unless skipped)
+    skip_fragment_size = datajson.get("Params", {}).get("skip_fragment_size", False)
+    if not skip_fragment_size:
+        outfiles.append(f"{outdir}/mutation/fragment_size/fragment/FragmentSize.txt")
+        outfiles.append(f"{outdir}/mutation/fragment_size/fragment/FragmentSize.png")
+    
+    # SV detection with Manta outputs (unless skipped)
+    skip_sv = datajson.get("Params", {}).get("skip_sv", False)
+    if not skip_sv:
+        for sample_id in all_samples:
+            outfiles.append(f"{outdir}/mutation/sv/manta/{sample_id}/results/variants/candidateSV.vcf.gz")
+    
+    # CNV detection with CNVkit outputs (unless skipped)
+    skip_cnv = datajson.get("Params", {}).get("skip_cnv", False)
+    if not skip_cnv:
+        for sample_id in all_samples:
+            outfiles.append(f"{outdir}/mutation/cnv/cnvkit/cnv/{sample_id}.cnr")
+            outfiles.append(f"{outdir}/mutation/cnv/cnvkit/cnv/{sample_id}.cns")
+    
     datajson["Params"]["somatic_spectrum"]["sample_somatic_vcf_dict"] = sample_somatic_vcf_dict
     datajson["Params"]["somatic_spectrum"]["sample_group_dict"] = sample_group_dict
     datajson["outfiles"] = outfiles
@@ -430,10 +452,97 @@ def runKARRseq(
         json.dump(datajson, wf, indent=2, ensure_ascii=False)
     return instance_json
 
+def runPeakCalling(
+    datajson: Dict[str, Any],
+    samples_info_dict: Dict[str, Any],
+    indir: str,
+    outdir: str,
+):
+    """Prepare input JSON for PeakCalling (ChIP-seq/DIP-seq peak calling) workflow.
+    
+    Workflow steps:
+    1. Trimming (trim_galore)
+    2. Bowtie2 index
+    3. Bowtie2 align
+    4. MACS3 peak calling
+    
+    Supports both ChIP-seq and DIP-seq experiments.
+    """
+    datajson["ROOT_DIR"] = os.path.dirname(__file__)
+    datajson["indir"] = indir
+    datajson["outdir"] = outdir
+    logdir = os.path.join(outdir, "log")
+    os.makedirs(logdir, exist_ok=True)
+    datajson["logdir"] = logdir
+
+    paired_samples = []
+    single_samples = []
+    ip_samples = []
+    input_samples = []
+    sample_ip_input_map = {}
+    outfiles = []
+
+    for sample_id, sample_info in samples_info_dict.items():
+        if sample_info.layout == "PE":
+            paired_samples.append(sample_id)
+        elif sample_info.layout == "SE":
+            single_samples.append(sample_id)
+        else:
+            logger.error(f"Unknown layout type for sample {sample_id}: {sample_info.layout}")
+
+        if sample_info.design == "ip":
+            ip_samples.append(sample_id)
+        elif sample_info.design == "input":
+            input_samples.append(sample_id)
+        else:
+            logger.warning(f"Unknown design type for sample {sample_id}: {sample_info.design}, treating as IP")
+            ip_samples.append(sample_id)
+
+    # Build IP -> Input mapping
+    # Match each IP sample with an Input sample (if available)
+    # Strategy: use the first available Input sample as control for all IPs
+    # More sophisticated matching can be implemented based on metadata
+    if input_samples:
+        default_input = input_samples[0]
+        for ip_sample in ip_samples:
+            sample_ip_input_map[ip_sample] = default_input
+            # Add trimming and alignment outputs
+            outfiles.append(f"{outdir}/cutadapt/{ip_sample}/{ip_sample}_1.fq.gz")
+            outfiles.append(f"{outdir}/cutadapt/{ip_sample}/{ip_sample}_2.fq.gz")
+            outfiles.append(f"{outdir}/bowtie2/mm/{ip_sample}/{ip_sample}.bam")
+            # Add peak calling output
+            outfiles.append(f"{outdir}/macs3/mm/{ip_sample}/{ip_sample}_peaks.narrowPeak")
+        # Also add trimming/alignment for input samples
+        for input_sample in input_samples:
+            outfiles.append(f"{outdir}/cutadapt/{input_sample}/{input_sample}_1.fq.gz")
+            outfiles.append(f"{outdir}/cutadapt/{input_sample}/{input_sample}_2.fq.gz")
+            outfiles.append(f"{outdir}/bowtie2/mm/{input_sample}/{input_sample}.bam")
+    else:
+        logger.warning("No Input samples found. MACS3 will run without control.")
+        for ip_sample in ip_samples:
+            sample_ip_input_map[ip_sample] = None
+            outfiles.append(f"{outdir}/cutadapt/{ip_sample}/{ip_sample}_1.fq.gz")
+            outfiles.append(f"{outdir}/cutadapt/{ip_sample}/{ip_sample}_2.fq.gz")
+            outfiles.append(f"{outdir}/bowtie2/mm/{ip_sample}/{ip_sample}.bam")
+            outfiles.append(f"{outdir}/macs3/mm/{ip_sample}/{ip_sample}_peaks.narrowPeak")
+
+    datajson["paired_samples"] = paired_samples
+    datajson["single_samples"] = single_samples
+    datajson["samples"] = paired_samples + single_samples
+    datajson["ip_samples"] = ip_samples
+    datajson["input_samples"] = input_samples
+    datajson["sample_ip_input_map"] = sample_ip_input_map
+    datajson["outfiles"] = outfiles
+
+    instance_json = os.path.join(outdir, "raw.json")
+    with open(instance_json, 'w', encoding='utf-8') as wf:
+        json.dump(datajson, wf, indent=2, ensure_ascii=False)
+    return instance_json
+
 def parse_args():
     parser = argparse.ArgumentParser(description="workflow")
     parser.add_argument('-m','--meta', type=str, required=True, help='meta input file or data dir which condatain fastq file')
-    parser.add_argument('-w','--workflow_name', type=str, choices=["CoCulture", "MERIP", "RNAseq", "CLIP", "Mutation", "PacVar", "KARRseq"],default='CoCulture' ,help='workflow name')
+    parser.add_argument('-w','--workflow_name', type=str, choices=["CoCulture", "MERIP", "RNAseq", "CLIP", "Mutation", "PacVar", "KARRseq", "PeakCalling"],default='CoCulture' ,help='workflow name')
     parser.add_argument('-o','--output_dir', type=str, required=True, help='output dir')
     parser.add_argument('-t','--threads', type=int, default=10, help='threads')
     parser.add_argument('--dry-run', action='store_true', help='dry run')
@@ -552,6 +661,9 @@ if __name__ == "__main__":
     elif args.workflow_name == "KARRseq":
         input_json = runKARRseq(deepcopy(workflow_config), samples_info_dict, raw_fastq_dir, abs_outdir)
         smk = "KARRseq.smk"
+    elif args.workflow_name == "PeakCalling":
+        input_json = runPeakCalling(deepcopy(workflow_config), samples_info_dict, raw_fastq_dir, abs_outdir)
+        smk = "PeakCalling.smk"
     else:
         logger.error(f"Unknown workflow name: {args.workflow_name}")
         exit(1)

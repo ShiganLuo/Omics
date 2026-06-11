@@ -4,12 +4,15 @@
     "logdir": "logs",
     "paired_samples": [],
     "single_samples": [],
+    "control_samples": [],
     "Procedure": {
         "fastqc": null,
         "bwaMem2": null,
         "samtools": null,
         "bgzip": null,
-        "gatk": null
+        "gatk": null,
+        "manta": null,
+        "cnvkit": null
     },
     "Params": {
         "trim_galore": {
@@ -31,6 +34,13 @@
                 "QUAL_threshold": 20.0
             }
         },
+        "manta": {
+            "threads": 8
+        },
+        "cnvkit": {
+            "method": "wgs",
+            "processes": 8
+        },
         "somatic_spectrum": {
             "sample_somatic_vcf_dict": {
 
@@ -38,7 +48,10 @@
             "sample_group_dict": {
 
             }
-        }
+        },
+        "skip_fragment_size": false,
+        "skip_sv": false,
+        "skip_cnv": false
     },
     "genome": {
         "fasta": "/data/pub/zhousha/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa",
@@ -46,6 +59,7 @@
         "fai_index": null,
         "bwaMem2_index_prefix": null,
         "known_sites": null,
-        "interval": null
+        "interval": null,
+        "access": null
     }
 }

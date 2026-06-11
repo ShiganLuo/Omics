@@ -1,0 +1,18 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "logs",
+    "samples": [],
+    "Procedure": {
+        "manta": null,
+        "samtools": null
+    },
+    "Params": {
+        "manta": {
+            "threads": 8
+        }
+    },
+    "genome": {
+        "fasta": null
+    }
+}

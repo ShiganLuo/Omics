@@ -1,0 +1,8 @@
+name: manta
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+dependencies:
+  - manta>=1.6.0
+  - samtools>=1.18

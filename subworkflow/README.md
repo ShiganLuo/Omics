@@ -93,21 +93,8 @@ UMI提取依赖序列不被破坏，建议先提取UMI，再做trim比较安全
 - **输入**：fastq
 - **输出**：表达量矩阵
 
-### 6. TEtranscipts.smk
-- **用途**：转座子表达分析专用流程。
-- **主要模块**：
-  - TEtranscripts
-- **输入**：bam
-- **输出**：TE表达量
 
-### 7. featureCounts.smk
-- **用途**：基因/转座子计数。
-- **主要模块**：
-  - featureCounts
-- **输入**：bam
-- **输出**：count矩阵
-
-### 8. ncRNAseq.smk
+### 6. ncRNAseq.smk
 - **用途**：非编码RNA分析流程。
 - **主要模块**：
   - cutadapt
@@ -115,6 +102,64 @@ UMI提取依赖序列不被破坏，建议先提取UMI，再做trim比较安全
   - featureCounts
 - **输入**：fastq
 - **输出**：ncRNA表达量
+
+### 7. PeakCalling.smk
+- **用途**：ChIP-seq / ChIRP-seq / DIP-seq peak calling 分析。
+- **主要模块**：
+  - cutadapt：去接头/质控
+  - bowtie2：建立索引和比对
+  - macs3：peak calling
+- **输入**：fastq，IP样本和Input对照样本设计信息
+- **输出**：比对BAM、narrowPeak peak文件
+- **特点**：
+  - 支持有对照（IP vs Input）和无对照模式
+  - 支持多个基因组
+  - 适用于转录因子结合位点（ChIP-seq）和DNA修饰（DIP-seq）分析
+
+### 8. Mutation.smk
+- **用途**：体细胞突变分析（tumor vs normal）及cfDNA片段分析。
+- **主要模块**：
+  - fastqc：质控
+  - cutadapt：去接头
+  - bwa-mem2：比对
+  - gatk：BQSR、Mutect2 体细胞突变检测、胚系突变检测
+  - spectrum：突变频谱可视化
+  - fragment_size：cfDNA片段长度分析（可选）
+  - manta：结构变异检测（可选）
+  - cnvkit：拷贝数变异检测（可选）
+- **输入**：fastq，design pairs（tumor/normal配对信息）
+- **输出**：体细胞突变 VCF、突变频谱图、片段长度分布图、SV VCF、CNV结果
+- **特点**：
+  - 支持跳过片段长度分析（`Params.skip_fragment_size=true`）
+  - 支持跳过SV检测（`Params.skip_sv=true`）
+  - 支持跳过CNV检测（`Params.skip_cnv=true`）
+  - CNVkit支持对照样本构建参考（`control_samples`参数）
+  - 片段长度分析适用于cfDNA/ctDNA液体活检样本
+
+### 9. PacVar.smk
+- **用途**：PacBio 长读长变异检测。
+- **主要模块**：
+  - pbmm2：PacBio 专用比对
+  - deepvariant/gatk4：SNP/INDEL 检测
+  - pbsv：结构变异检测
+  - hiphase：单倍型 phasing
+  - trgt：重复序列分析
+- **输入**：PacBio BAM/fastq
+- **输出**：SNP VCF、SV VCF、phasing 结果、重复序列分析结果
+- **特点**：
+  - 支持跳过特定步骤（skip_snp/skip_sv/skip_phase/skip_repeat）
+  - 支持多种 SNV caller（deepvariant/gatk4）
+
+### 10. KARRseq.smk
+- **用途**：Kethoxal-Assisted RNA-RNA interaction sequencing 分析。
+- **主要模块**：
+  - STAR：比对
+  - 自定义脚本：提取 chimeric reads、去除重复、生成 ligation pairs
+- **输入**：fastq
+- **输出**：去重后的 ligation pairs 文件
+- **特点**：
+  - 用于研究 RNA-RNA 相互作用
+  - 需要自定义 STAR 参数输出 chimeric reads
 
 ---
 

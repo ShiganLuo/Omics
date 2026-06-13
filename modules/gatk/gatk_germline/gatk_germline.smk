@@ -79,6 +79,7 @@ def get_input_filterHaplotypeCallerVcf(wildcards):
         in_dict["dict"] = f"{indir}/index/genome.dict"
         in_dict["fasta"] = f"{indir}/index/genome.fa"
     return in_dict
+
 rule filterHaplotypeCallerVcf:
     input:
         unpack(get_input_filterHaplotypeCallerVcf)

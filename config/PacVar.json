@@ -20,7 +20,7 @@
         "skip_sv": false,
         "skip_phase": false,
         "skip_repeat": false,
-        "snv_caller": "deepvariant",
+        "snv_caller": "gatk4",
         "deepvariant": {
             "model_type": "PACBIO"
         },

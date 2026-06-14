@@ -47,7 +47,7 @@ rule hiphase_phase:
     run:
         current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start hiphase for sample {wildcards.sample_id} at {current_time}")
-        script = os.path.join(outdir,f"hiphase_{current_time}.sh")
+        script = os.path.join(outdir,f"{wildcards.sample_id}/hiphase_{current_time}.sh")
         uncompressed_vcf = output.vcf.replace(".gz", "")
         cmd1 = [
             params.hiphase,

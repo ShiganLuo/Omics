@@ -8,8 +8,8 @@ known_sites = config.get("reference", {}).get("known_sites", [])
 
 rule BaseRecalibrator:
     input:
-        bam = indir + "/{sample_id}/{sample_id}.bam",
-        bai = indir + "/{sample_id}/{sample_id}.bai",
+        bam = indir + "/{sample_id}/{sample_id}.sorted_markdup.bam",
+        bai = indir + "/{sample_id}/{sample_id}.sorted_markdup.bai",
         ref = fasta,
         interval = interval
     output:
@@ -35,11 +35,11 @@ rule BaseRecalibrator:
 
 rule ApplyBQSR:
     input:
-        bam = indir + "/bam-sorted-Markdup/{sample_id}.bam",
-        table = outdir + "/bqsr/{sample_id}.recal_data.table"
+        bam = indir + "/{sample_id}/{sample_id}.sorted_markdup.bam",
+        table = outdir + "/{sample_id}/{sample_id}.recal_data.table"
         ref = fasta
     output:
-        bam = outdir + "/{genome}/gatk/bqsr/{sample_id}.sorted.markdup.BQSR.bam"
+        bam = outdir + "/{sample_id}/{sample_id}.sorted_markdup.bqsr.bam"
     log:
         logdir + "/{sample_id}/ApplyBQSR.log"
     conda:
@@ -61,5 +61,5 @@ rule ApplyBQSR:
         """
 rule gatk_bqsr_result:
     input:
-        bam = outdir + "/{genome}/gatk/bqsr/{sample_id}.sorted.markdup.BQSR.bam",
-        bai = outdir + "/{genome}/gatk/bqsr/{sample_id}.sorted.markdup.BQSR.bam.bai"
+        bam = outdir + "/{sample_id}/{sample_id}.sorted_markdup.bqsr.bam",
+        bai = outdir + "/{sample_id}/{sample_id}.sorted_markdup.bqsr.bam.bai"

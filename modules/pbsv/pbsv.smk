@@ -6,11 +6,21 @@ outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 samples = config.get("samples", [])
 fasta = config.get("genome", {}).get("fasta")
+bam_substring = config.get("bam_substring") or ""
+def get_input_for_pbsv_discover(wildcards):
+    logger.info(f"pbsv_discover called with {wildcards}")
+    in_dict = {}
+    if bam_substring != "":
+        in_dict["bam"] = os.path.join(indir, f"{wildcards.sample_id}/{wildcards.sample_id}." + bam_substring + ".bam")
+        in_dict["bai"] = os.path.join(indir, f"{wildcards.sample_id}/{wildcards.sample_id}." + bam_substring + ".bai")
+    else:
+        in_dict["bam"] = os.path.join(indir, f"{wildcards.sample_id}/{wildcards.sample_id}.bam")
+        in_dict["bai"] = os.path.join(indir, f"{wildcards.sample_id}/{wildcards.sample_id}.bai")
+    return in_dict
 
 rule pbsv_discover:
     input:
-        bam = indir + "/{sample_id}/{sample_id}.bam",
-        bai = indir + "/{sample_id}/{sample_id}.bam.bai"
+        unpack(get_input_for_pbsv_discover)
     output:
         svsig = outdir + "/{sample_id}/{sample_id}.svsig.gz"
     log:
@@ -21,7 +31,7 @@ rule pbsv_discover:
     params:
         pbsv = config.get("Procedure", {}).get("pbsv") or "pbsv"
     run:
-        current_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+        current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start pbsv discover for sample {wildcards.sample_id} at {current_time}")
         script = os.path.join(outdir,f"pbsv_discover_{current_time}.sh")
         cmd = [
@@ -54,7 +64,7 @@ rule pbsv_call:
         bcftools = config.get("Procedure", {}).get("bcftools") or "bcftools",
         vcf = outdir + "/{sample_id}/{sample_id}.sv.vcf"
     run:
-        current_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+        current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start pbsv call for sample {wildcards.sample_id} at {current_time}")
         script = os.path.join(outdir,f"pbsv_call_{current_time}.sh")
         cmd1 = [
@@ -71,11 +81,15 @@ rule pbsv_call:
         cmd3 = [
             params.bcftools, "index", output.vcf_gz
         ]
+        cmd4 = [
+            "rm", params.vcf
+        ]
         with open(script, "w") as f:
             f.write("#!/bin/bash\n")
             f.write(" ".join(cmd1) + "\n")
             f.write(" ".join(cmd2) + "\n")
             f.write(" ".join(cmd3) + "\n")
+            f.write(" ".join(cmd4) + "\n")
         shell("bash {script} > {log} 2>&1")
 
 

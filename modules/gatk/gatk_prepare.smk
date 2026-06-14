@@ -58,7 +58,7 @@ rule addReadsGroup:
     run:
         current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start addReadsGroup for sample {wildcards.sample_id} at {current_time}")
-        script = os.path.join(outdir,f"addReadsGroup_{current_time}.sh")
+        script = os.path.join(outdir,f"{wildcards.sample_id}/addReadsGroup_{current_time}.sh")
         cmd1 = [
             params.gatk, "AddOrReplaceReadGroups", params.javaOptions,
             "--INPUT", input.bam,

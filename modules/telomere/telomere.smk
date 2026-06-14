@@ -6,7 +6,6 @@ outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 indir = config.get("indir", "input")
 samples = config.get("samples", [])
-threads = config.get("Params", {}).get("telogator2", {}).get("threads", 16)
 bam_substring = config.get("bam_substring") or ""
 
 def get_input_for_telogator2(wildcards):
@@ -30,17 +29,18 @@ rule telogator2_run:
         logdir + "/{sample_id}/telogator2.log"
     params:
         telogator2 = config.get("Procedure", {}).get("telogator2") or "telogator2"
-    threads: threads
+    threads: 16
     conda:
         "telomere.yaml"
     run:
         current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start telogator2 for sample {wildcards.sample_id} at {current_time}")
-        script = os.path.join(outdir,f"telogator2_{current_time}.sh")
+        script = os.path.join(outdir,f"{wildcards.sample_id}/telogator2_{current_time}.sh")
         cmd = [
-            "telogator2", "--reads", input.bam,
-            "--output", output.dir,
-            "--threads", str(threads)
+            "telogator2", "-i", input.bam,
+            "-o", output.dir,
+            "-r", "hifi",
+            "-p", str(threads)
         ]
         with open(script, "w") as f:
             f.write("#!/bin/bash\n")

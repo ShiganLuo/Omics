@@ -39,18 +39,22 @@ rule trgt_genotype:
         trgt = config.get("Procedure", {}).get("trgt") or "trgt",
         karyotype = karyotype,
         prefix = outdir + "/genotype/{sample_id}/{sample_id}.trgt"
-    shell:
-        """
-        mkdir -p $(dirname {output.vcf})
-        {params.trgt} genotype \\
-            --num-threads {threads} \\
-            --genome {input.fasta} \\
-            --repeats {input.bed} \\
-            --karyotype {params.karyotype} \\
-            --reads {input.bam} \\
-            --output-prefix {params.prefix} \\
-            > {log} 2>&1
-        """
+    run:
+        current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+        logger.info(f"Start trgt genotype for sample {wildcards.sample_id} at {current_time}")
+        script = os.path.join(outdir,f"{wildcards.sample_id}/trgt_genotype_{current_time}.sh")
+        cmd = [params.trgt, "genotype",
+            "--num-threads", str(threads),
+            "--genome", input.fasta,
+            "--repeats", input.bed,
+            "--karyotype", params.karyotype,
+            "--reads", input.bam,
+            "--output-prefix", params.prefix
+        ]
+        with open(script, "w") as f:
+            f.write("#!/bin/bash\n")
+            f.write(" ".join(cmd) + "\n")
+        shell(f"bash {script} > {log} 2>&1")
 
 rule trgt_plot:
     input:
@@ -71,7 +75,7 @@ rule trgt_plot:
     run:
         current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start trgt plot for sample {wildcards.sample_id} at {current_time}")
-        script = os.path.join(outdir,f"trgt_plot_{current_time}.sh")
+        script = os.path.join(outdir,f"{wildcards.sample_id}/trgt_plot_{current_time}.sh")
         cmd = [
             {params.trgt} , "plot",
             "--genome", input.fasta,

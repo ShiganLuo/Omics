@@ -53,7 +53,7 @@ rule HaplotypeCaller:
     run:
         current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start HaplotypeCaller for sample {wildcards.sample_id} at {current_time}")
-        script = os.path.join(outdir,f"HaplotypeCaller_{current_time}.sh")
+        script = os.path.join(outdir,f"{wildcards.sample_id}/HaplotypeCaller_{current_time}.sh")
         cmd = [
             params.gatk, "--java-options", params.javaOptions, "HaplotypeCaller",
             "-R", input.fasta,
@@ -102,7 +102,7 @@ rule filterHaplotypeCallerVcf:
     run:
         current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start filterHaplotypeCallerVcf for sample {wildcards.sample_id} at {current_time}")
-        script = os.path.join(outdir,f"filterHaplotypeCallerVcf_{current_time}.sh")
+        script = os.path.join(outdir,f"{wildcards.sample_id}/filterHaplotypeCallerVcf_{current_time}.sh")
         cmd1 = [
             params.gatk, "--java-options", params.javaOptions, "VariantFiltration",
             "-R", input.fasta,

@@ -1,9 +1,10 @@
 name: centromere
 channels:
-  - bioconda
   - conda-forge
+  - bioconda
   - defaults
 dependencies:
   - hifiasm>=0.19
   - repeatmasker>=4.1
+  - samtools>=1.20
   - python>=3.10

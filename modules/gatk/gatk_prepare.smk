@@ -101,7 +101,7 @@ rule MarkDuplicates:
     run:
         current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start MarkDuplicates for sample {wildcards.sample_id} at {current_time}")
-        script = os.path.join(outdir,f"MarkDuplicates_{current_time}.sh")
+        script = os.path.join(outdir,f"{wildcards.sample_id}/MarkDuplicates_{current_time}.sh")
         cmd = [
             params.gatk, "MarkDuplicates", "--java-options", params.javaOptions,
             "--INPUT", input.bam,

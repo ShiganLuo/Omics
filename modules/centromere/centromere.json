@@ -7,9 +7,14 @@
         "hifiasm": {
             "threads": 48
         },
-        "repeatmasker": {
+        "RepeatMasker": {
             "species": "mouse",
             "threads": 16
         }
+    },
+    "Procedure": {
+        "hifiasm": "hifiasm",
+        "RepeatMasker": "RepeatMasker",
+        "python": "python"
     }
 }

@@ -7,9 +7,7 @@ indir = config.get("indir", "input")
 samples = config.get("samples", [])
 ROOT_DIR = config.get("ROOT_DIR", ".")
 
-asm_threads = config.get("Params", {}).get("hifiasm", {}).get("threads", 48)
-rm_species = config.get("Params", {}).get("repeatmasker", {}).get("species", "mouse")
-rm_threads = config.get("Params", {}).get("repeatmasker", {}).get("threads", 16)
+rm_species = config.get("Params", {}).get("RepeatMasker", {}).get("species", "mouse")
 bam_substring = config.get("bam_substring") or ""
 
 def get_input_for_hifiasm(wildcards):
@@ -30,7 +28,7 @@ rule hifiasm_assemble:
         fasta = outdir + "/{sample_id}/assembly/asm.bp.p_ctg.fa"
     log:
         logdir + "/{sample_id}/hifiasm.log"
-    threads: asm_threads
+    threads: 12
     conda:
         "centromere.yaml"
     params:
@@ -38,7 +36,7 @@ rule hifiasm_assemble:
     run:
         current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start hifiasm assembly for sample {wildcards.sample_id} at {current_time}")
-        script = os.path.join(outdir,f"hifiasm_{current_time}.sh")
+        script = os.path.join(outdir,f"{wildcards.sample_id}/hifiasm_{current_time}.sh")
         fq_gz = os.path.join(outdir, f"{wildcards.sample_id}/assembly/{wildcards.sample_id}.hifi.fq.gz")
         cmd0 = [
             "samtools", "fastq", "-@", str(threads), input.bam, "|", "gzip", "-c", ">", fq_gz
@@ -69,13 +67,25 @@ rule repeatmasker_run:
         tbl = outdir + "/{sample_id}/RepeatMasker/asm.bp.p_ctg.fa.tbl"
     log:
         logdir + "/{sample_id}/repeatmasker.log"
-    threads: rm_threads
+    threads: 12
     conda:
         "centromere.yaml"
     params:
         species = rm_species,
-        rm_dir = outdir + "/{sample_id}/RepeatMasker"
-    shell:
+        rm_dir = outdir + "/{sample_id}/RepeatMasker",
+        RepeatMasker = config.get("Procedure", {}).get("RepeatMasker") or "RepeatMasker"
+    run:
+        current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+        logger.info(f"Start RepeatMasker for sample {wildcards.sample_id} at {current_time}")
+        script = os.path.join(outdir,f"{wildcards.sample_id}/repeatmasker_{current_time}.sh")
+        cmd = [
+            params.RepeatMasker,
+            "-species", params.species,
+            "-pa", str(threads),
+            "-dir", params.rm_dir,
+            "-gff",
+            input.fasta
+        ]
         """
         mkdir -p {params.rm_dir}
         RepeatMasker -species {params.species} -pa {threads} \
@@ -93,13 +103,25 @@ rule centromere_extract:
     log:
         logdir + "/{sample_id}/centromere_extract.log"
     params:
-        script = os.path.join(ROOT_DIR, "modules/centromere/bin/extract_centromere_stats.py")
+        script = os.path.join(ROOT_DIR, "modules/centromere/bin/extract_centromere_stats.py"),
+        python = config.get("Procedure", {}).get("python") or "python"
     conda:
         "centromere.yaml"
-    shell:
-        """
-        python {params.script} --rm_out {input.out} --output {output.stats} > {log} 2>&1
-        """
+    threads: 1
+    run:
+        current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+        logger.info(f"Start centromere stats extraction for sample {wildcards.sample_id} at {current_time}")
+        script = os.path.join(outdir,f"{wildcards.sample_id}/centromere_extract_{current_time}.sh")
+        cmd = [
+            "python", params.script,
+            "--rm_out", input.out,
+            "--output", output.stats
+        ]
+        with open(script, "w") as f:
+            f.write("#!/bin/bash\n")
+            f.write(" ".join(cmd) + "\n")
+        shell(f"bash {script} > {log} 2>&1")
+
 
 
 rule centromere_result:

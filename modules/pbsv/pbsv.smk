@@ -33,7 +33,7 @@ rule pbsv_discover:
     run:
         current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start pbsv discover for sample {wildcards.sample_id} at {current_time}")
-        script = os.path.join(outdir,f"pbsv_discover_{current_time}.sh")
+        script = os.path.join(outdir,f"{wildcards.sample_id}/pbsv_discover_{current_time}.sh")
         cmd = [
             params.pbsv, "discover",
             "--num-threads", str(threads),
@@ -66,7 +66,7 @@ rule pbsv_call:
     run:
         current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start pbsv call for sample {wildcards.sample_id} at {current_time}")
-        script = os.path.join(outdir,f"pbsv_call_{current_time}.sh")
+        script = os.path.join(outdir,f"{wildcards.sample_id}/pbsv_call_{current_time}.sh")
         cmd1 = [
             params.pbsv, "call",
             "--num-threads", str(threads),

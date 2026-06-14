@@ -1,0 +1,15 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "logs",
+    "samples": [],
+    "Params": {
+        "hifiasm": {
+            "threads": 48
+        },
+        "repeatmasker": {
+            "species": "mouse",
+            "threads": 16
+        }
+    }
+}

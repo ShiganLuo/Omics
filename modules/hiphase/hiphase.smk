@@ -8,44 +8,70 @@ samples = config.get("samples", [])
 fasta = config.get("genome", {}).get("fasta")
 bam_dir = config.get("bam_dir", indir)
 vcf_dir = config.get("vcf_dir", indir)
-substring = config.get("substring", "")
+input_vcf_substring = config.get("input_vcf_substring") or ""
+input_bam_substring = config.get("input_bam_substring") or ""
+output_substring = config.get("output_substring") or ""
+def get_input_for_hiphase_phase(wildcards):
+    logger.info(f"hiphase_phase called with {wildcards}")
+    in_dict = {}
+    if input_bam_substring != "":
+        in_dict["bam"] = os.path.join(bam_dir, f"{wildcards.sample_id}/{wildcards.sample_id}.{input_bam_substring}.bam")
+        in_dict["bai"] = os.path.join(bam_dir, f"{wildcards.sample_id}/{wildcards.sample_id}.{input_bam_substring}.bai")
+    else:
+        in_dict["bam"] = os.path.join(bam_dir, f"{wildcards.sample_id}/{wildcards.sample_id}.bam")
+        in_dict["bai"] = os.path.join(bam_dir, f"{wildcards.sample_id}/{wildcards.sample_id}.bam.bai")
+    if input_vcf_substring != "":
+        in_dict["vcf"] = os.path.join(vcf_dir, f"{wildcards.sample_id}/{wildcards.sample_id}.{input_vcf_substring}.vcf.gz")
+        in_dict["csi"] = os.path.join(vcf_dir, f"{wildcards.sample_id}/{wildcards.sample_id}.{input_vcf_substring}.vcf.gz.csi")
+    else:
+        in_dict["vcf"] = os.path.join(vcf_dir, f"{wildcards.sample_id}/{wildcards.sample_id}.vcf.gz")
+        in_dict["csi"] = os.path.join(vcf_dir, f"{wildcards.sample_id}/{wildcards.sample_id}.vcf.gz.csi")
+    in_dict["fasta"] = fasta
+    logger.info(f"hiphase_phase input for sample {wildcards.sample_id}: {in_dict}")
+    return in_dict
 
 rule hiphase_phase:
     input:
-        bam = bam_dir + "/{sample_id}/{sample_id}.bam", 
-        bai = bam_dir + "/{sample_id}/{sample_id}.bam.bai",
-        vcf = vcf_dir + "/{sample_id}/{sample_id}.vcf.gz" if substring == "" else vcf_dir + "/{sample_id}/{sample_id}." + substring + ".vcf.gz",
-        tbi = vcf_dir + "/{sample_id}/{sample_id}.vcf.gz.csi" if substring == "" else vcf_dir + "/{sample_id}/{sample_id}." + substring + ".vcf.gz.csi",
-        fasta = fasta
+        unpack(get_input_for_hiphase_phase)
     output:
-        vcf = outdir + "/{sample_id}/{sample_id}.phased.vcf.gz" if substring == "" else outdir + "/{sample_id}/{sample_id}." + substring + ".phased.vcf.gz",
-        bam = outdir + "/{sample_id}/{sample_id}.phased.bam" if substring == "" else outdir + "/{sample_id}/{sample_id}." + substring + ".phased.bam"
+        vcf = outdir + "/{sample_id}/{sample_id}.phased.vcf.gz" if output_substring == "" else outdir + "/{sample_id}/{sample_id}." + output_substring + ".phased.vcf.gz",
+        bam = outdir + "/{sample_id}/{sample_id}.phased.bam" if output_substring == "" else outdir + "/{sample_id}/{sample_id}." + output_substring + ".phased.bam"
     log:
         logdir + "/{sample_id}/hiphase.log"
     threads: 8
     conda:
         "hiphase.yaml"
     params:
-        hiphase = config.get("Procedure", {}).get("hiphase") or "hiphase"
+        hiphase = config.get("Procedure", {}).get("hiphase") or "hiphase",
+        bgzip = config.get("Procedure", {}).get("bgzip") or "bgzip"
     run:
-        current_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+        current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start hiphase for sample {wildcards.sample_id} at {current_time}")
         script = os.path.join(outdir,f"hiphase_{current_time}.sh")
-        cmd = [
+        uncompressed_vcf = output.vcf.replace(".gz", "")
+        cmd1 = [
             params.hiphase,
             "--num-threads", str(threads),
             "--reference", input.fasta,
             "--input-bam", input.bam,
             "--output-bam", output.bam,
             "--input-vcf", input.vcf,
-            "--output-vcf", output.vcf
+            "--output-vcf", uncompressed_vcf
+        ]
+        cmd2 = [
+            params.bgzip, uncompressed_vcf, "-o", output.vcf
+        ]
+        cmd3 = [
+            "rm", uncompressed_vcf
         ]
         with open(script, "w") as f:
             f.write("#!/bin/bash\n")
-            f.write(" ".join(cmd) + "\n")
+            f.write(" ".join(cmd1) + "\n")
+            f.write(" ".join(cmd2) + "\n")
+            f.write(" ".join(cmd3) + "\n")
         shell("bash {script} > {log} 2>&1")
 
 rule hiphase_result:
     input:
-        vcf = outdir + "/{sample_id}/{sample_id}.phased.vcf.gz" if substring == "" else outdir + "/{sample_id}/{sample_id}." + substring + ".phased.vcf.gz",
-        bam = outdir + "/{sample_id}/{sample_id}.phased.bam" if substring == "" else outdir + "/{sample_id}/{sample_id}." + substring + ".phased.bam"
+        vcf = outdir + "/{sample_id}/{sample_id}.phased.vcf.gz" if output_substring == "" else outdir + "/{sample_id}/{sample_id}." + output_substring + ".phased.vcf.gz",
+        bam = outdir + "/{sample_id}/{sample_id}.phased.bam" if output_substring == "" else outdir + "/{sample_id}/{sample_id}." + output_substring + ".phased.bam"

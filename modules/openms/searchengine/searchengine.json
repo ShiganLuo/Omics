@@ -1,0 +1,38 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "logs",
+    "samples": [],
+    "mzml_files": [],
+    "search_engines": "comet",
+    "Procedure": {
+        "comet": null,
+        "msgf": null,
+        "sage": null
+    },
+    "Params": {
+        "search_engine": {
+            "comet": {
+                "threads": 4,
+                "precursor_mass_tolerance": 20,
+                "fragment_mass_tolerance": 0.02,
+                "fragment_bin_tolerance": 0.02,
+                "fragment_bin_offset": 0
+            },
+            "msgf": {
+                "threads": 4,
+                "precursor_mass_tolerance": 20,
+                "fragment_mass_tolerance": 0.02,
+                "isotope_error_range": "0,1"
+            },
+            "sage": {
+                "threads": 4,
+                "precursor_mass_tolerance": 20,
+                "fragment_mass_tolerance": 0.02
+            }
+        }
+    },
+    "genome": {
+        "decoy_fasta": null
+    }
+}

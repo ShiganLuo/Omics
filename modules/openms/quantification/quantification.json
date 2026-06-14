@@ -1,0 +1,34 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "logs",
+    "samples": [],
+    "quantification_method": "lfq",
+    "expdesign": "",
+    "Procedure": {
+        "proteomicslfq": null,
+        "proteinquantifier": null
+    },
+    "Params": {
+        "protein_quant": {
+            "method": "feature_intensity",
+            "top": 3,
+            "average": "median",
+            "best_charge_and_score": true
+        },
+        "tmt": {
+            "channel_mass_tolerance": 0.003,
+            "channel_annotation": "",
+            "isotope_correction": true
+        },
+        "lfq": {
+            "intensity_threshold": 0,
+            "mass_recalibration": true,
+            "alignment_order": "star"
+        },
+        "dia": {
+            "library": "",
+            "dia_window": ""
+        }
+    }
+}

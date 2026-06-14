@@ -1,0 +1,21 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "logs",
+    "samples": [],
+    "Procedure": {
+        "percolator": null
+    },
+    "Params": {
+        "psm_rescoring": {
+            "psm_feature_extractor": {
+                "extra": ""
+            },
+            "percolator": {
+                "train_FDR": 0.05,
+                "test_FDR": 0.05,
+                "feature": "top_psm"
+            }
+        }
+    }
+}

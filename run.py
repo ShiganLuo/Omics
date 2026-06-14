@@ -4,7 +4,7 @@ import json
 import os
 from src.common.MetaUtil import MetadataUtils, DesignPair
 from src.common.LogUtil import setup_logger
-from src.common.CmdUtil import _run_cmd
+from src.common.CmdUtil import _run_cmd, _run_cmds_parallel
 import logging
 from typing import Dict, Any, Optional, List
 logger = logging.getLogger(__name__)
@@ -306,18 +306,14 @@ def runPacVar(
 
     for sample_id, sample_info in samples_info_dict.items():
         samples.append(sample_id)
-        # pbmm2 align
-        outfiles.append(f"{outdir}/bam/1_raw_bam/{sample_id}/{sample_id}.bam")
-        # samtools sort + index
-        outfiles.append(f"{outdir}/bam/2_sorted_bam/{sample_id}/{sample_id}.bam")
-        outfiles.append(f"{outdir}/bam/2_sorted_bam/{sample_id}/{sample_id}.bam.bai")
         # SNP calling
         if not skip_snp:
             if snv_caller == "deepvariant":
                 outfiles.append(f"{outdir}/variation/germline_snv_indel/{sample_id}/{sample_id}.vcf.gz")
                 outfiles.append(f"{outdir}/variation/germline_snv_indel/{sample_id}/{sample_id}.vcf.gz.csi")
             elif snv_caller == "gatk4":
-                outfiles.append(f"{outdir}/variation/germline_snv_indel/{sample_id}/{sample_id}.vcf.gz")
+                outfiles.append(f"{outdir}/variation/germline_snv_indel/{sample_id}/{sample_id}.filtered.vcf.gz")
+                outfiles.append(f"{outdir}/variation/germline_snv_indel/{sample_id}/{sample_id}.filtered.vcf.gz.csi")
         # SV calling
         if not skip_sv:
             outfiles.append(f"{outdir}/variation/germline_sv/{sample_id}/{sample_id}.sv.vcf.gz")
@@ -330,6 +326,13 @@ def runPacVar(
         if not skip_repeat and datajson["genome"]["repeat_bed"]:
             outfiles.append(f"{outdir}/repeat/trgt/genotype/{sample_id}/{sample_id}.trgt.vcf.gz")
             outfiles.append(f"{outdir}/repeat/trgt/plot/{sample_id}/{sample_id}.trgt.repeat.png")
+
+    # telomere & centromere analysis
+    skip_telomere = datajson.get("Params", {}).get("skip_telomere", False)
+    if not skip_telomere:
+        for sample_id in samples:
+            outfiles.append(f"{outdir}/repeat/telomere/{sample_id}/telomere_lengths.tsv")
+            outfiles.append(f"{outdir}/repeat/centromere/{sample_id}/{sample_id}.centromere_stats.txt")
 
     datajson["samples"] = samples
     datajson["outfiles"] = outfiles
@@ -372,13 +375,13 @@ def runMutation(
             if sample_id in mutect2_samples:
                 logger.info(f"Sample {sample_id} is involved in mutect2 analysis, skipping germline workflow for this sample.")
                 continue
-            # outfiles.append(f"{outdir}/mutation/gatk/germline/vcf-filtered/{sample_id}/{sample_id}.vcf.gz")
+            outfiles.append(f"{outdir}/mutation/gatk/germline/{sample_id}/{sample_id}.filtered.vcf.gz")
         elif sample_info.layout == "SE":
             single_samples.append(sample_id)
             if sample_id in mutect2_samples:
                 logger.info(f"Sample {sample_id} is involved in mutect2 analysis, skipping germline workflow for this sample.")
                 continue
-            # outfiles.append(f"{outdir}/mutation/gatk/germline/vcf-filtered/{sample_id}/{sample_id}.vcf.gz")
+            outfiles.append(f"{outdir}/mutation/gatk/germline/{sample_id}/{sample_id}.filtered.vcf.gz")
         else:
             logger.error(f"Unknown layout type for sample {sample_id}: {sample_info.layout}")
     outfiles.append(f"{outdir}/mutation/spectrum/somatic_spectrum_stacked_bar.png")
@@ -539,10 +542,99 @@ def runPeakCalling(
         json.dump(datajson, wf, indent=2, ensure_ascii=False)
     return instance_json
 
+def runQuantMS(
+    datajson: Dict[str, Any],
+    samples_info_dict: Dict[str, Any],
+    indir: str,
+    outdir: str,
+):
+    """Prepare input JSON for QuantMS (quantitative proteomics) workflow.
+    
+    Workflow steps:
+    1. Decoy database generation
+    2. Database search engines (Comet, MSGF+, Sage)
+    3. PSM rescoring (Percolator)
+    4. PSM FDR control
+    5. Protein inference (EpiFany)
+    6. Protein quantification (ProteomicsLFQ or ProteinQuantifier)
+    7. Statistical analysis (MSstats)
+    
+    Supports TMT, LFQ, and DIA quantification methods.
+    """
+    datajson["ROOT_DIR"] = os.path.dirname(__file__)
+    datajson["indir"] = indir
+    datajson["outdir"] = outdir
+    logdir = os.path.join(outdir, "log")
+    os.makedirs(logdir, exist_ok=True)
+    datajson["logdir"] = logdir
+    
+    samples = []
+    mzml_files = []
+    outfiles = []
+    
+    for sample_id, sample_info in samples_info_dict.items():
+        samples.append(sample_id)
+        # For proteomics, we expect mzML files in the input directory
+        mzml_file = os.path.join(indir, f"{sample_id}.mzML")
+        if not os.path.exists(mzml_file):
+            # Try with .mzML.gz extension
+            mzml_file_gz = os.path.join(indir, f"{sample_id}.mzML.gz")
+            if os.path.exists(mzml_file_gz):
+                mzml_file = mzml_file_gz
+            else:
+                logger.warning(f"mzML file not found for sample {sample_id}: {mzml_file}")
+                continue
+        mzml_files.append(mzml_file)
+    
+    # Build outfiles based on quantification method
+    quantification_method = datajson.get("quantification_method", "lfq")
+    
+    # Decoy database
+    outfiles.append(f"{outdir}/decoy_database/{os.path.basename(datajson['genome']['fasta'])}_decoy.fasta")
+    
+    # Database search results
+    for sample_id in samples:
+        outfiles.append(f"{outdir}/search_engine/{sample_id}/{sample_id}.idXML")
+    
+    # PSM rescoring results
+    for sample_id in samples:
+        outfiles.append(f"{outdir}/psm_rescoring/{sample_id}/{sample_id}_scored.idXML")
+    
+    # PSM FDR control results
+    for sample_id in samples:
+        outfiles.append(f"{outdir}/psm_fdr/{sample_id}/{sample_id}_filtered.idXML")
+    
+    # Protein inference results
+    for sample_id in samples:
+        outfiles.append(f"{outdir}/protein_inference/{sample_id}/{sample_id}_protein.idXML")
+    
+    # Quantification results
+    if quantification_method == "tmt":
+        outfiles.append(f"{outdir}/quantification/tmt_quantification.mzTab")
+    elif quantification_method == "lfq":
+        outfiles.append(f"{outdir}/quantification/lfq_quantification.mzTab")
+    elif quantification_method == "dia":
+        outfiles.append(f"{outdir}/quantification/dia_quantification.mzTab")
+    
+    # MSstats results
+    if not datajson.get("Params", {}).get("skip_post_msstats", False):
+        outfiles.append(f"{outdir}/msstats/msstats_results.csv")
+    
+    datajson["samples"] = samples
+    datajson["mzml_files"] = mzml_files
+    datajson["outfiles"] = outfiles
+    
+    instance_json = os.path.join(outdir, "raw.json")
+    with open(instance_json, 'w', encoding='utf-8') as wf:
+        json.dump(datajson, wf, indent=2, ensure_ascii=False)
+    return instance_json
+
 def parse_args():
     parser = argparse.ArgumentParser(description="workflow")
     parser.add_argument('-m','--meta', type=str, required=True, help='meta input file or data dir which condatain fastq file')
-    parser.add_argument('-w','--workflow_name', type=str, choices=["CoCulture", "MERIP", "RNAseq", "CLIP", "Mutation", "PacVar", "KARRseq", "PeakCalling"],default='CoCulture' ,help='workflow name')
+    parser.add_argument('-w','--workflow_name', type=str, nargs='+',
+        choices=["CoCulture", "MERIP", "RNAseq", "CLIP", "Mutation", "PacVar", "KARRseq", "PeakCalling", "QuantMS"],
+        default=['CoCulture'], help='workflow name(s), multiple for parallel execution')
     parser.add_argument('-o','--output_dir', type=str, required=True, help='output dir')
     parser.add_argument('-t','--threads', type=int, default=10, help='threads')
     parser.add_argument('--dry-run', action='store_true', help='dry run')
@@ -609,76 +701,79 @@ def build_snakemake_cmd(root_dir, smk, input_json, threads, conda_prefix, rerun_
     return cmd
 
 
+WORKFLOW_DISPATCH = {
+    "CoCulture":  lambda cfg, sid, dp, indir, outdir: ("CoCulture.smk", runCoCulture(cfg, sid, indir, outdir)),
+    "MERIP":      lambda cfg, sid, dp, indir, outdir: ("MERIP.smk",     runMERIP(cfg, sid, indir, outdir)),
+    "RNAseq":     lambda cfg, sid, dp, indir, outdir: ("RNAseq.smk",    runRNAseq(cfg, sid, indir, outdir)),
+    "CLIP":       lambda cfg, sid, dp, indir, outdir: ("CLIP.smk",      runCLIP(cfg, sid, indir, outdir)),
+    "Mutation":   lambda cfg, sid, dp, indir, outdir: ("Mutation.smk",  runMutation(cfg, sid, dp, indir, outdir)),
+    "PacVar":     lambda cfg, sid, dp, indir, outdir: ("PacVar.smk",    runPacVar(cfg, sid, indir, outdir)),
+    "KARRseq":    lambda cfg, sid, dp, indir, outdir: ("KARRseq.smk",   runKARRseq(cfg, sid, indir, outdir)),
+    "PeakCalling":lambda cfg, sid, dp, indir, outdir: ("PeakCalling.smk",runPeakCalling(cfg, sid, indir, outdir)),
+    "QuantMS":    lambda cfg, sid, dp, indir, outdir: ("QuantMS.smk",   runQuantMS(cfg, sid, indir, outdir)),
+}
+
+
 if __name__ == "__main__":
     args = parse_args()
     logger = setup_logger("root",level=logging.INFO, log_file=args.log)
     ROOT_DIR = os.path.dirname(__file__)
-    outdir = os.path.join(args.output_dir, args.workflow_name)
-    abs_outdir = os.path.abspath(outdir)
-    if os.path.isfile(args.meta):
-        metadataUtil = MetadataUtils(
-            outdir = abs_outdir,
-            meta = args.meta,
-        )
-    else:
-        metadataUtil = MetadataUtils(
-            outdir = abs_outdir,
-            fastq_dir = args.meta,
-        )
-    samples_info_dict, designPair, raw_fastq_dir = metadataUtil.run()
-    os.makedirs(abs_outdir, exist_ok=True)
-    
-    model_json = os.path.join(ROOT_DIR, f"config/{args.workflow_name}.json")
-    workflow_config = _load_model_json(model_json)
-    # Merge flat arguments
-    flat_args = {k: v for k, v in args.extra_args.items() if '.' not in k}
-    workflow_config.update(flat_args)
-    # combine with dot_args
-    dot_args = parse_dot_args(args.extra_args)
-    for key_tuple, v in dot_args.items():
-        logger.info(f"Setting config parameter {'.'.join(key_tuple)} to {v} from command line")
-        dict_set_by_path(workflow_config, list(key_tuple), v)
-    logger.info(f"Samples info dict: {samples_info_dict}")
 
-    if args.workflow_name == "CoCulture":
-        input_json = runCoCulture(deepcopy(workflow_config), samples_info_dict, raw_fastq_dir, abs_outdir)
-        smk = "CoCulture.smk"
-    elif args.workflow_name == "MERIP":
-        input_json = runMERIP(deepcopy(workflow_config), samples_info_dict, raw_fastq_dir, abs_outdir)
-        smk = "MERIP.smk"
-    elif args.workflow_name == "RNAseq":
-        input_json = runRNAseq(deepcopy(workflow_config), samples_info_dict, raw_fastq_dir, abs_outdir)
-        smk = "RNAseq.smk"
-    elif args.workflow_name == "CLIP":
-        input_json = runCLIP(deepcopy(workflow_config), samples_info_dict, raw_fastq_dir, abs_outdir)
-        smk = "CLIP.smk"
-    elif args.workflow_name == "Mutation":
-        input_json = runMutation(deepcopy(workflow_config), samples_info_dict, designPair, raw_fastq_dir, abs_outdir)
-        smk = "Mutation.smk"
-    elif args.workflow_name == "PacVar":
-        input_json = runPacVar(deepcopy(workflow_config), samples_info_dict, raw_fastq_dir, abs_outdir)
-        smk = "PacVar.smk"
-    elif args.workflow_name == "KARRseq":
-        input_json = runKARRseq(deepcopy(workflow_config), samples_info_dict, raw_fastq_dir, abs_outdir)
-        smk = "KARRseq.smk"
-    elif args.workflow_name == "PeakCalling":
-        input_json = runPeakCalling(deepcopy(workflow_config), samples_info_dict, raw_fastq_dir, abs_outdir)
-        smk = "PeakCalling.smk"
+    workflow_names = args.workflow_name
+    n_workflows = len(workflow_names)
+
+    # Use first workflow's output dir for metadata (or a shared parent if multi)
+    # Metadata is shared across workflows — only parsed once
+    ref_outdir = os.path.join(args.output_dir, workflow_names[0])
+    abs_ref_outdir = os.path.abspath(ref_outdir)
+    if os.path.isfile(args.meta):
+        metadataUtil = MetadataUtils(outdir=abs_ref_outdir, meta=args.meta)
     else:
-        logger.error(f"Unknown workflow name: {args.workflow_name}")
-        exit(1)
-    if args.dry_run:
-        logger.info(f"Dry run mode, generated input json: {input_json}")
-    cmds = build_snakemake_cmd(
-        ROOT_DIR,
-        smk,
-        input_json,
-        args.threads,
-        args.conda_prefix,
-        args.rerun_trigger,
-        args.dry_run,
-        args.conda_frontend,
-        args.snakemake_args,
-    )
-    logger.info(cmds)
-    _run_cmd(cmds)
+        metadataUtil = MetadataUtils(outdir=abs_ref_outdir, fastq_dir=args.meta)
+    samples_info_dict, designPair, raw_fastq_dir = metadataUtil.run()
+
+    # Thread allocation: user-specified total threads split across workflows
+    threads_per_workflow = max(1, args.threads // n_workflows)
+    if n_workflows > 1:
+        logger.info(f"Parallel mode: {n_workflows} workflows, "
+                    f"{args.threads} total threads -> {threads_per_workflow} per workflow")
+
+    # Prepare each workflow
+    smk_cmds: list[tuple[list[str], str]] = []  # (cmd, cwd) pairs
+    for wf_name in workflow_names:
+        abs_outdir = os.path.abspath(os.path.join(args.output_dir, wf_name))
+        os.makedirs(abs_outdir, exist_ok=True)
+
+        model_json = os.path.join(ROOT_DIR, f"config/{wf_name}.json")
+        workflow_config = _load_model_json(model_json)
+        flat_args = {k: v for k, v in args.extra_args.items() if '.' not in k}
+        workflow_config.update(flat_args)
+        dot_args = parse_dot_args(args.extra_args)
+        for key_tuple, v in dot_args.items():
+            logger.info(f"Setting config parameter {'.'.join(key_tuple)} to {v}")
+            dict_set_by_path(workflow_config, list(key_tuple), v)
+
+        if wf_name not in WORKFLOW_DISPATCH:
+            logger.error(f"Unknown workflow name: {wf_name}")
+            exit(1)
+
+        smk, input_json = WORKFLOW_DISPATCH[wf_name](
+            deepcopy(workflow_config), samples_info_dict, designPair,
+            raw_fastq_dir, abs_outdir
+        )
+
+        cmd = build_snakemake_cmd(
+            ROOT_DIR, smk, input_json, threads_per_workflow,
+            args.conda_prefix, args.rerun_trigger, args.dry_run,
+            args.conda_frontend, args.snakemake_args,
+        )
+        logger.info(f"[{wf_name}] {cmd}")
+        # Each workflow runs from its own output dir to isolate .snakemake/
+        smk_cmds.append((cmd, abs_outdir))
+
+    if n_workflows == 1:
+        _run_cmd(smk_cmds[0][0], cwd=smk_cmds[0][1])
+    else:
+        logger.info(f"Launching {n_workflows} snakemake processes in parallel...")
+        _run_cmds_parallel(smk_cmds)
+        logger.info("All workflows completed.")

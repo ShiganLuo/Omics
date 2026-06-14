@@ -1,7 +1,8 @@
 name: hiphase
 channels:
-  - bioconda
   - conda-forge
+  - bioconda
   - defaults
 dependencies:
-  - hiphase>=1.4.0
+  - hiphase>=1.7.0
+  - htslib=1.23.1

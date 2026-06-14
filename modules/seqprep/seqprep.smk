@@ -27,7 +27,7 @@ rule seqprep_merge:
         seqprep = config.get("Procedure", {}).get("SeqPrep") or "SeqPrep",
         seqkit = config.get("Procedure", {}).get("seqkit") or "seqkit"
     run:
-        current_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+        current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start SeqPrep merge for sample {wildcards.sample_id} at {current_time}")
         script = os.path.join(outdir, f"{wildcards.sample_id}/seqprep_merge_{current_time}.sh")
         cmd_merge = [

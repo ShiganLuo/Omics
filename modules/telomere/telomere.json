@@ -1,0 +1,11 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "logs",
+    "samples": [],
+    "Params": {
+        "telogator2": {
+            "threads": 16
+        }
+    }
+}

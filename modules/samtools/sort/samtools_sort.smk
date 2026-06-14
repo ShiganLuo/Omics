@@ -20,7 +20,7 @@ rule bam_sort:
     params:
         samtools = config.get("Procedure", {}).get("samtools") or "samtools"
     run:
-        current_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+        current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start samtools sort for sample {wildcards.sample_id} at {current_time}")
         cmd1 = [
             params.samtools,

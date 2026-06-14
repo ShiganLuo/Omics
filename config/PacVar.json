@@ -20,6 +20,7 @@
         "skip_sv": false,
         "skip_phase": false,
         "skip_repeat": false,
+        "skip_telomere": false,
         "snv_caller": "gatk4",
         "deepvariant": {
             "model_type": "PACBIO"
@@ -27,6 +28,16 @@
         "trgt": {
             "karyotype": "XX",
             "repeat_id": "HTT"
+        },
+        "telogator2": {
+            "threads": 16
+        },
+        "hifiasm": {
+            "threads": 48
+        },
+        "repeatmasker": {
+            "species": "mouse",
+            "threads": 16
         }
     },
     "genome": {

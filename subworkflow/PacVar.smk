@@ -10,6 +10,7 @@ skip_snp = config.get("Params", {}).get("skip_snp", False)
 skip_sv = config.get("Params", {}).get("skip_sv", False)
 skip_phase = config.get("Params", {}).get("skip_phase", False)
 skip_repeat = config.get("Params", {}).get("skip_repeat", False)
+skip_telomere = config.get("Params", {}).get("skip_telomere", False)
 snv_caller = config.get("Params", {}).get("snv_caller", "deepvariant")
 
 rule all:
@@ -19,7 +20,7 @@ rule all:
 
 pbmm2_config = {
     "indir": indir,
-    "outdir": f"{outdir}/bam/1_raw_bam",
+    "outdir": f"{outdir}/bam/1_sorted_bam",
     "logdir": logdir,
     "samples": samples,
     "Procedure": {
@@ -36,31 +37,47 @@ logger.info(f"pbmm2_config: {pbmm2_config}")
 use rule pbmm2_align from pbmm2 as PacVar_pbmm2_align
 
 
-samtools_sort_config = {
+gatk_prepare_config = {
     "indir": pbmm2_config["outdir"],
-    "outdir": f"{outdir}/bam/2_sorted_bam",
+    "outdir": f"{outdir}/bam/2_markdup_bam",
     "logdir": logdir,
+    "input_bam_substring": "sorted",
     "Procedure": {
-        "samtools": config.get("Procedure", {}).get("samtools")
+        "gatk": config.get("Procedure", {}).get("gatk"),
+        "samtools": config.get("Procedure", {}).get("samtools"),
+    },
+    "Params": {
+        "gatk": {
+            "addReadsGroup": {
+                "RGLB": config.get("addReadsGroup", {}).get("RGLB"),
+                "RGPL": config.get("addReadsGroup", {}).get("RGPL"),
+                "RGPU": config.get("addReadsGroup", {}).get("RGPU")
+            }
+        }
     },
     "genome": {
-        "fasta": config.get("genome", {}).get("fasta")
+        "fasta": config.get("genome",{}).get("fasta"),
+        "fai_index": config.get("genome",{}).get("fai_index"),
+        "dict_index": config.get("genome",{}).get("dict_index")
     }
 }
-module samtools_sort:
-    snakefile: "../modules/samtools/sort/samtools_sort.smk"
-    config: samtools_sort_config
-logger.info(f"samtools_sort_config: {samtools_sort_config}")
-use rule bam_sort from samtools_sort as PacVar_bam_sort
 
+module gatk_prepare:
+    snakefile: "../modules/gatk/gatk_prepare.smk"
+    config: gatk_prepare_config
+logger.info(f"gatk_prepare parameters: {gatk_prepare_config}")
+use rule gatk_index from gatk_prepare as PacVar_gatk_index
+use rule addReadsGroup from gatk_prepare as PacVar_addReadsGroup
+use rule MarkDuplicates from gatk_prepare as PacVar_MarkDuplicates
 
 if not skip_snp:
     if snv_caller == "deepvariant":
         deepvariant_config = {
-            "indir": samtools_sort_config["outdir"],
+            "indir": gatk_prepare_config["outdir"],
             "outdir": f"{outdir}/variation/germline_snv_indel",
             "logdir": logdir,
             "samples": samples,
+            "bam_substring": "sorted_markdup",
             "Procedure": {
                 "deepvariant": config.get("Procedure", {}).get("deepvariant")
             },
@@ -79,7 +96,7 @@ if not skip_snp:
         use rule deepvariant_run from deepvariant as PacVar_deepvariant_run
     elif snv_caller == "gatk4":
         gatk_germline_config = {
-            "indir": samtools_sort_config["outdir"],
+            "indir": gatk_prepare_config["outdir"],
             "outdir": f"{outdir}/variation/germline_snv_indel",
             "logdir": logdir,
             "Procedure": {
@@ -97,6 +114,7 @@ if not skip_snp:
             config: gatk_germline_config
         logger.info(f"gatk_germline_config: {gatk_germline_config}")
         use rule HaplotypeCaller from gatk_germline as PacVar_HaplotypeCaller
+        use rule filterHaplotypeCallerVcf from gatk_germline as PacVar_filterHaplotypeCallerVcf
     else:
         raise ValueError(f"Unsupported snv_caller: {snv_caller}")
 
@@ -105,10 +123,11 @@ if not skip_snp:
 # ============================================================
 if not skip_sv:
     pbsv_config = {
-        "indir": samtools_sort_config["outdir"],
+        "indir": gatk_prepare_config["outdir"],
         "outdir": f"{outdir}/variation/germline_sv",
         "logdir": logdir,
         "samples": samples,
+        "bam_substring": "sorted_markdup",
         "Procedure": {
             "pbsv": config.get("Procedure", {}).get("pbsv")
         },
@@ -128,11 +147,14 @@ if not skip_sv:
 # ============================================================
 if not skip_phase and not skip_snp and not skip_sv:
     hiphase_snp_config = {
-        "indir": samtools_sort_config["outdir"],
+        "indir": gatk_prepare_config["outdir"],
         "outdir": f"{outdir}/variation/germline_snv_indel",
         "logdir": logdir,
         "samples": samples,
-        "bam_dir": samtools_sort_config["outdir"],
+        "bam_dir": gatk_prepare_config["outdir"],
+        "input_bam_substring": "sorted_markdup",
+        "input_vcf_substring": "filtered",
+        "output_substring": "",
         "vcf_dir": f"{outdir}/variation/germline_snv_indel",
         "Procedure": {
             "hiphase": config.get("Procedure", {}).get("hiphase")
@@ -148,13 +170,15 @@ if not skip_phase and not skip_snp and not skip_sv:
     use rule hiphase_phase from hiphase_snp as PacVar_hiphase_snp
 
     hiphase_sv_config = {
-        "indir": samtools_sort_config["outdir"],
+        "indir": gatk_prepare_config["outdir"],
         "outdir": f"{outdir}/variation/germline_sv",
         "logdir": logdir,
         "samples": samples,
-        "bam_dir": samtools_sort_config["outdir"],
+        "bam_dir": gatk_prepare_config["outdir"],
         "vcf_dir": f"{outdir}/variation/germline_sv",
-        "substring": "sv",
+        "input_bam_substring": "sorted_markdup",
+        "input_vcf_substring": "sv",
+        "output_substring": "sv",
         "Procedure": {
             "hiphase": config.get("Procedure", {}).get("hiphase")
         },
@@ -173,10 +197,11 @@ if not skip_phase and not skip_snp and not skip_sv:
 # ============================================================
 if not skip_repeat and config.get("genome", {}).get("repeat_bed") is not None:
     trgt_config = {
-        "indir": samtools_sort_config["outdir"],
+        "indir": gatk_prepare_config["outdir"],
         "outdir": f"{outdir}/repeat/trgt",
         "logdir": logdir,
         "samples": samples,
+        "bam_substring": "sorted_markdup",
         "Procedure": {
             "trgt": config.get("Procedure", {}).get("trgt")
         },
@@ -195,3 +220,42 @@ if not skip_repeat and config.get("genome", {}).get("repeat_bed") is not None:
     logger.info(f"trgt_config: {trgt_config}")
     use rule trgt_genotype from trgt as PacVar_trgt_genotype
     use rule trgt_plot from trgt as PacVar_trgt_plot
+
+# ============================================================
+# Step 7: Telomere analysis (optional)
+# ============================================================
+if not skip_telomere:
+    telomere_config = {
+        "indir": gatk_prepare_config["outdir"],
+        "outdir": f"{outdir}/repeat/telomere",
+        "logdir": logdir,
+        "samples": samples,
+        "bam_substring": "sorted_markdup",
+        "Params": {
+            "telogator2": config.get("Params", {}).get("telogator2", {})
+        },
+    }
+    module telomere:
+        snakefile: "../modules/telomere/telomere.smk"
+        config: telomere_config
+    logger.info(f"telomere_config: {telomere_config}")
+    use rule telogator2_run from telomere as PacVar_telogator2_run
+
+    centromere_config = {
+        "indir": indir,
+        "outdir": f"{outdir}/repeat/centromere",
+        "logdir": logdir,
+        "samples": samples,
+        "ROOT_DIR": config.get("ROOT_DIR", "."),
+        "Params": {
+            "hifiasm": config.get("Params", {}).get("hifiasm", {}),
+            "repeatmasker": config.get("Params", {}).get("repeatmasker", {}),
+        },
+    }
+    module centromere:
+        snakefile: "../modules/centromere/centromere.smk"
+        config: centromere_config
+    logger.info(f"centromere_config: {centromere_config}")
+    use rule hifiasm_assemble from centromere as PacVar_hifiasm_assemble
+    use rule repeatmasker_run from centromere as PacVar_repeatmasker_run
+    use rule centromere_extract from centromere as PacVar_centromere_extract

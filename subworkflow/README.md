@@ -149,6 +149,7 @@ UMI提取依赖序列不被破坏，建议先提取UMI，再做trim比较安全
 - **特点**：
   - 支持跳过特定步骤（skip_snp/skip_sv/skip_phase/skip_repeat）
   - 支持多种 SNV caller（deepvariant/gatk4）
+  - 支持端粒/着丝粒分析（skip_telomere）
 
 ### 10. KARRseq.smk
 - **用途**：Kethoxal-Assisted RNA-RNA interaction sequencing 分析。
@@ -160,6 +161,24 @@ UMI提取依赖序列不被破坏，建议先提取UMI，再做trim比较安全
 - **特点**：
   - 用于研究 RNA-RNA 相互作用
   - 需要自定义 STAR 参数输出 chimeric reads
+
+### 11. QuantMS.smk
+- **用途**：定量蛋白质组学分析（TMT/LFQ/DIA）。
+- **主要模块**：
+  - DecoyDatabase：生成诱饵数据库
+  - CometAdapter/MSGFPlusAdapter/SageAdapter：数据库搜索引擎
+  - PercolatorAdapter：PSM 重评分
+  - FalseDiscoveryRate：PSM FDR 控制
+  - Epifany：蛋白质推断
+  - ProteomicsLFQ/ProteinQuantifier：蛋白质定量
+  - MSstatsConverter：统计分析
+- **输入**：mzML 文件、蛋白质数据库（FASTA）
+- **输出**：mzTab 定量结果、MSstats 统计分析结果
+- **特点**：
+  - 支持 TMT、LFQ、DIA 三种定量方法
+  - 支持多种搜索引擎（Comet、MSGF+、Sage）
+  - 支持跳过 MSstats 分析（skip_post_msstats）
+  - 基于 OpenMS 工具集
 
 ---
 

@@ -1,0 +1,15 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "logs",
+    "samples": [],
+    "Procedure": {
+        "epifany": null
+    },
+    "Params": {
+        "protein_inference": {
+            "method": "epifany",
+            "greedy_group_resolution": "none"
+        }
+    }
+}

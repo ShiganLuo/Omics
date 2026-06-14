@@ -9,14 +9,24 @@ fasta = config.get("genome", {}).get("fasta")
 fai = config.get("genome", {}).get("fai")
 karyotype = config.get("Params", {}).get("trgt", {}).get("karyotype") or "XX"
 repeat_bed = config.get("genome", {}).get("repeat_bed")
+bam_substring = config.get("bam_substring") or ""
 
+def get_input_for_trgt_genotype(wildcards):
+    logger.info(f"trgt_genotype called with {wildcards}")
+    in_dict = {}
+    if bam_substring != "":
+        in_dict["bam"] = os.path.join(indir, f"{wildcards.sample_id}/{wildcards.sample_id}." + bam_substring + ".bam")
+        in_dict["bai"] = os.path.join(indir, f"{wildcards.sample_id}/{wildcards.sample_id}." + bam_substring + ".bam.bai")
+    else:
+        in_dict["bam"] = os.path.join(indir, f"{wildcards.sample_id}/{wildcards.sample_id}.bam")
+        in_dict["bai"] = os.path.join(indir, f"{wildcards.sample_id}/{wildcards.sample_id}.bam.bai")
+    in_dict["fasta"] = fasta
+    in_dict["fai"] = fai
+    in_dict["bed"] = repeat_bed
+    return in_dict
 rule trgt_genotype:
     input:
-        bam = indir + "/{sample_id}/{sample_id}.bam",
-        bai = indir + "/{sample_id}/{sample_id}.bam.bai",
-        fasta = fasta,
-        fai = fai,
-        bed = repeat_bed
+        unpack(get_input_for_trgt_genotype)
     output:
         vcf = outdir + "/genotype/{sample_id}/{sample_id}.trgt.vcf.gz",
         bam = outdir + "/genotype/{sample_id}/{sample_id}.trgt.spanning.sorted.bam"
@@ -59,7 +69,7 @@ rule trgt_plot:
         trgt = config.get("Procedure", {}).get("trgt") or "trgt",
         repeat_id = config.get("Params", {}).get("trgt", {}).get("repeat_id") or "HTT"
     run:
-        current_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+        current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start trgt plot for sample {wildcards.sample_id} at {current_time}")
         script = os.path.join(outdir,f"trgt_plot_{current_time}.sh")
         cmd = [

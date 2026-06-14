@@ -36,7 +36,7 @@ rule BaseRecalibrator:
 rule ApplyBQSR:
     input:
         bam = indir + "/{sample_id}/{sample_id}.sorted_markdup.bam",
-        table = outdir + "/{sample_id}/{sample_id}.recal_data.table"
+        table = outdir + "/{sample_id}/{sample_id}.recal_data.table",
         ref = fasta
     output:
         bam = outdir + "/{sample_id}/{sample_id}.sorted_markdup.bqsr.bam"

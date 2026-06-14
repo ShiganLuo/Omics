@@ -13,6 +13,20 @@ description: 撰写Snakemake模块时需要遵循此套规范
 - 模块通过 subworkflow 的 `module` + `use rule` 引用，不直接读取 `run.py`。
 - 模块只消费 subworkflow 传入的 `config`。
 
+# 核心原则：最小可复用单元
+
+每个模块封装**一个工具**或**一个原子分析步骤**，不允许将多个独立分析合并到一个模块中。
+
+判断标准：
+- 该模块是否可以被独立复用（不依赖其他模块的输出）？如果不能，说明它太大了。
+- 该模块是否包含两个不同的可执行工具？如果是，拆成两个模块。
+- 该模块的 conda 环境是否混入了不相关的依赖？如果是，说明职责不单一。
+
+示例：
+- `telomere` 模块只调用 `telogator2`，conda 环境只有 `telogator2`
+- `centromere` 模块包含 `hifiasm` + `repeatmasker` 两步（组装→注释），但它们是同一个分析的上下游步骤，不可独立复用，所以合为一个模块是合理的
+- 将 telomere 和 centromere 合为一个模块是**错误的**：两者工具链完全不同，可独立使用
+
 # 基础结构
 
 ## 三种目录布局
@@ -376,12 +390,14 @@ rule gatk_bqsr_result:
 ```yaml
 name: <tool>
 channels:
-  - bioconda
   - conda-forge
+  - bioconda
   - defaults
 dependencies:
   - <tool>>=<version>
 ```
+
+> **注意**：channel 顺序必须是 `conda-forge` → `bioconda` → `defaults`。bioconda 依赖 conda-forge 的包，顺序颠倒会导致依赖解析失败。
 
 # Pitfalls
 

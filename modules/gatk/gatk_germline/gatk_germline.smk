@@ -19,11 +19,11 @@ def get_input_HaplotypeCaller(wildcards):
     in_dict = {}
     if known_sites and interval:
         logger.info(f"Using known_sites: {known_sites} and interval: {interval}")
-        include: "bqsr.smk"
-        in_dict["bam"] = f"{indir}/bqsr/wildcards.sample_id/{wildcards.sample_id}.sorted.markdup.BQSR.bam"
+        include: "../gatk_bqsr/gatk_bqsr.smk"
+        in_dict["bam"] = f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}.sorted_markdup.bqsr.bam"
     else:
         logger.info("No known_sites or interval specified in config, proceeding without them.")
-        in_dict["bam"] = f"{indir}/bam-sorted-Markdup/{wildcards.sample_id}/{wildcards.sample_id}.bam"
+        in_dict["bam"] = f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}.sorted_markdup.bam"
 
     if fai_index and dict_index and fasta:
         logger.info(f"Using provided fai_index: {fai_index} , dict_index: {dict_index}")
@@ -41,7 +41,7 @@ rule HaplotypeCaller:
     input:
         unpack(get_input_HaplotypeCaller)
     output:
-        vcf = outdir + "/vcf/{sample_id}/{sample_id}.vcf.gz"
+        vcf = outdir + "/{sample_id}/{sample_id}.raw.vcf.gz"
     log:
         logdir + "/{sample_id}/haplotypeCaller.log"
     conda:
@@ -51,7 +51,7 @@ rule HaplotypeCaller:
         gatk = config.get("Procedure", {}).get("gatk") or "gatk"
     threads: 10
     run:
-        current_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+        current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start HaplotypeCaller for sample {wildcards.sample_id} at {current_time}")
         script = os.path.join(outdir,f"HaplotypeCaller_{current_time}.sh")
         cmd = [
@@ -67,7 +67,7 @@ rule HaplotypeCaller:
 
 def get_input_filterHaplotypeCallerVcf(wildcards):
     in_dict = {}
-    in_dict["vcf"] = f"{outdir}/vcf/{wildcards.sample_id}/{wildcards.sample_id}.vcf.gz"
+    in_dict["vcf"] = os.path.join(outdir, f"{wildcards.sample_id}/{wildcards.sample_id}.raw.vcf.gz")
     if fai_index and dict_index and fasta:
         logger.info(f"Using provided fai_index: {fai_index} and dict_index: {dict_index}")
         in_dict["fai"] = fai_index
@@ -84,31 +84,48 @@ rule filterHaplotypeCallerVcf:
     input:
         unpack(get_input_filterHaplotypeCallerVcf)
     output:
-        vcf = outdir + "/vcf-filtered/{sample_id}/{sample_id}.vcf.gz"
+        vcf = outdir + "/{sample_id}/{sample_id}.filtered.vcf.gz",
+        csi = outdir + "/{sample_id}/{sample_id}.filtered.vcf.gz.csi"
     log:
         logdir + "/{sample_id}/haplotypeCaller-filtered.log"
     conda:
         "../gatk.yaml"
     threads: 10
     params:
-        javaOptions = "-Xmx35G", # "--java-options -Xmx15G",
         gatk = config.get("Procedure", {}).get("gatk") or "gatk",
+        bcftools = config.get("Procedure", {}).get("bcftools") or "bcftools",
+        javaOptions = config.get("Params", {}).get("gatk", {}).get("javaOptions") or "-Xms20g -Xmx30g -XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10",
         FS_threshold = config.get("Params", {}).get("gatk", {}).get("FS_threshold") or 20.0,
         QD_threshold = config.get("Params", {}).get("gatk", {}).get("QD_threshold") or 2.0,
         DP_threshold = config.get("Params", {}).get("gatk", {}).get("DP_threshold") or 10.0,
         QUAL_threshold = config.get("Params", {}).get("gatk", {}).get("QUAL_threshold") or 20.0
-    shell:
-        """
-        {params.gatk} --java-options "{params.javaOptions}" VariantFiltration \
-            -R {input.fasta} -V {input.vcf} -O {output.vcf} \
-            -window 35 -cluster 3 \
-            --filter-name FS -filter "FS > {params.FS_threshold}" \
-            --filter-name QD -filter "QD < {params.QD_threshold}" \
-            --filter-name DP -filter "DP < {params.DP_threshold}" \
-            --filter-name QUAL -filter "QUAL < {params.QUAL_threshold}" \
-            > {log} 2>&1
-        """
+    run:
+        current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+        logger.info(f"Start filterHaplotypeCallerVcf for sample {wildcards.sample_id} at {current_time}")
+        script = os.path.join(outdir,f"filterHaplotypeCallerVcf_{current_time}.sh")
+        cmd1 = [
+            params.gatk, "--java-options", params.javaOptions, "VariantFiltration",
+            "-R", input.fasta,
+            "-V", input.vcf,
+            "-O", output.vcf,
+            "-window", "35",
+            "-cluster", "3",
+            "--filter-name", "FS", "--filter", f"FS > {params.FS_threshold}",
+            "--filter-name", "QD", "--filter", f"QD < {params.QD_threshold}",
+            "--filter-name", "DP", "--filter", f"DP < {params.DP_threshold}",
+            "--filter-name", "QUAL", "--filter", f"QUAL < {params.QUAL_threshold}"
+        ]
+        cmd2 = [
+            "bcftools", "index", output.vcf
+        ]
+        with open(script, "w") as f:
+            f.write("#!/bin/bash\n")
+            f.write(" ".join(cmd1) + "\n")
+            f.write(" ".join(cmd2) + "\n")
+        shell("bash {script} > {log} 2>&1")
+
 
 rule gatk_haplotypeCaller_result:
     input:
-        vcf = outdir + "/vcf-filtered/{sample_id}/{sample_id}.vcf.gz"
+        vcf = outdir + "/{sample_id}/{sample_id}.filtered.vcf.gz",
+        csi = outdir + "/{sample_id}/{sample_id}.filtered.vcf.gz.csi"

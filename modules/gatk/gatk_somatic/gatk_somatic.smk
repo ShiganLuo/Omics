@@ -19,12 +19,12 @@ def get_input_somaticMutect2(wildcards):
     if known_sites and interval:
         logger.info(f"Using known_sites: {known_sites} and interval: {interval}")
         include: "../gatk_bqsr/gatk_bqsr.smk"
-        in_dict["normal_bam"] = f"{indir}/bqsr/{wildcards.normal_sample_id}.sorted.markdup.BQSR.bam"
-        in_dict["experimental_bam"] = f"{indir}/bqsr/{wildcards.experimental_sample_id}.sorted.markdup.BQSR.bam"
+        in_dict["normal_bam"] = f"{indir}/{wildcards.normal_sample_id}/{wildcards.normal_sample_id}.sorted_markdup.bqsr.bam"
+        in_dict["experimental_bam"] = f"{indir}/{wildcards.experimental_sample_id}/{wildcards.experimental_sample_id}.sorted_markdup.bqsr.bam"
     else:
         logger.info("No known_sites or interval specified in config, proceeding without them.")
-        in_dict["normal_bam"] = f"{indir}/bam-sorted-Markdup/{wildcards.normal_sample_id}/{wildcards.normal_sample_id}.bam"
-        in_dict["experimental_bam"] = f"{indir}/bam-sorted-Markdup/{wildcards.experimental_sample_id}/{wildcards.experimental_sample_id}.bam"
+        in_dict["normal_bam"] = f"{indir}/{wildcards.normal_sample_id}/{wildcards.normal_sample_id}.sorted_markdup.bam"
+        in_dict["experimental_bam"] = f"{indir}/{wildcards.experimental_sample_id}/{wildcards.experimental_sample_id}.sorted_markdup.bam"
 
     if fai_index and dict_index:
         logger.info(f"Using provided fai_index: {fai_index} and dict_index: {dict_index}")

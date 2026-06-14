@@ -1,0 +1,103 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "logs",
+    "samples": [],
+    "quantification_method": "lfq",
+    "search_engines": "comet",
+    "Procedure": {
+        "openms": null,
+        "thermorawfileparser": null,
+        "comet": null,
+        "msgf": null,
+        "sage": null,
+        "percolator": null,
+        "epifany": null,
+        "proteomicslfq": null,
+        "proteinquantifier": null,
+        "msstats": null
+    },
+    "Params": {
+        "decoy_database": {
+            "decoy_string": "DECOY_",
+            "decoy_string_position": "prefix",
+            "method": "shuffle",
+            "shuffle_max_attempts": 30,
+            "shuffle_sequence_identity_threshold": 0.5
+        },
+        "search_engine": {
+            "comet": {
+                "threads": 4,
+                "precursor_mass_tolerance": 20,
+                "fragment_mass_tolerance": 0.02,
+                "fragment_bin_tolerance": 0.02,
+                "fragment_bin_offset": 0
+            },
+            "msgf": {
+                "threads": 4,
+                "precursor_mass_tolerance": 20,
+                "fragment_mass_tolerance": 0.02,
+                "isotope_error_range": "0,1"
+            },
+            "sage": {
+                "threads": 4,
+                "precursor_mass_tolerance": 20,
+                "fragment_mass_tolerance": 0.02
+            }
+        },
+        "psm_rescoring": {
+            "psm_feature_extractor": {
+                "extra": ""
+            },
+            "percolator": {
+                "train_FDR": 0.05,
+                "test_FDR": 0.05,
+                "feature": "top_psm"
+            }
+        },
+        "psm_fdr_control": {
+            "fdr": 0.01,
+            "method": "BH"
+        },
+        "protein_inference": {
+            "method": "epifany",
+            "greedy_group_resolution": "none"
+        },
+        "protein_quant": {
+            "method": "feature_intensity",
+            "top": 3,
+            "average": "median",
+            "best_charge_and_score": true
+        },
+        "protein_fdr": {
+            "fdr": 0.01,
+            "picked": true
+        },
+        "tmt": {
+            "channel_mass_tolerance": 0.003,
+            "channel_annotation": "",
+            "isotope_correction": true
+        },
+        "lfq": {
+            "intensity_threshold": 0,
+            "mass_recalibration": true,
+            "alignment_order": "star"
+        },
+        "dia": {
+            "library": "",
+            "dia_window": ""
+        },
+        "msstats": {
+            "reference_condition": "",
+            "reference_samples": []
+        },
+        "skip_post_msstats": false,
+        "add_triqler_output": false,
+        "quantify_decoys": false,
+        "enable_mod_localization": false
+    },
+    "genome": {
+        "fasta": null,
+        "decoy_fasta": null
+    }
+}

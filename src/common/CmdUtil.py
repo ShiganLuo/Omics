@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 import subprocess
 import shutil
 import logging
@@ -79,11 +79,12 @@ def _run_cmd_p36(cmd: List[str]) -> str:
         logger.error(f"Execution failed: {str(e)}")
         raise RuntimeError(f"Command execution failed: {cmd_str}") from e
 
-def _run_cmd(cmd:List) -> str:
+def _run_cmd(cmd:List, cwd: Optional[str] = None) -> str:
     """
     execute complex command and return stdout
     - Command not found: give clear message
     - Command execution failed: print stdout/stderr
+    - cwd: working directory for the subprocess (default: inherit from parent)
     """
     cmd_str = " ".join(cmd)
     cmd_bin = cmd[0]
@@ -101,7 +102,8 @@ def _run_cmd(cmd:List) -> str:
             cmd,
             check=True,
             capture_output=True,
-            text=True
+            text=True,
+            cwd=cwd
         )
 
         if result.stdout:
@@ -116,3 +118,59 @@ def _run_cmd(cmd:List) -> str:
         raise RuntimeError(
             f"Command execution failed: {cmd_str}"
         ) from e
+
+
+def _run_cmds_parallel(cmds: List) -> List[str]:
+    """Execute multiple commands in parallel, each with its own cwd.
+
+    Parameters
+    ----------
+    cmds : list of (cmd_list, cwd) tuples
+        Each entry is a (command_tokens, working_directory) pair.
+
+    Returns
+    -------
+    list of str
+        Stdout from each command, in the same order as input.
+
+    Raises
+    ------
+    RuntimeError
+        If any command fails (after all have finished).
+    """
+    processes: List[subprocess.Popen] = []
+    for cmd, cwd in cmds:
+        cmd_bin = cmd[0]
+        if shutil.which(cmd_bin) is None:
+            raise RuntimeError(f"Command not found: {cmd_bin}")
+        logger.info(f"Starting (cwd={cwd}): {' '.join(cmd)}")
+        p = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            cwd=cwd,
+        )
+        processes.append(p)
+
+    results: List[str] = []
+    failed: List[tuple[int, str, str]] = []
+    for i, p in enumerate(processes):
+        stdout, stderr = p.communicate()
+        if p.returncode != 0:
+            failed.append((i, stdout or "", stderr or ""))
+        else:
+            if stdout:
+                logger.info(f"Process {i} output:\n{stdout}")
+            results.append(stdout)
+
+    if failed:
+        for idx, stdout, stderr in failed:
+            logger.error(f"Process {idx} failed (rc={processes[idx].returncode})")
+            logger.error(f"STDOUT:\n{stdout or '[empty]'}")
+            logger.error(f"STDERR:\n{stderr or '[empty]'}")
+        raise RuntimeError(
+            f"{len(failed)}/{len(processes)} parallel commands failed"
+        )
+
+    return results

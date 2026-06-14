@@ -1,9 +1,11 @@
 from snakemake.logging import logger
+import time
+import os
 indir = config.get("indir") or "input"
 outdir = config.get("outdir") or "output"
 logdir = config.get("logdir") or "log"
 fasta = config.get("genome",{}).get("fasta")
-
+input_bam_substring = config.get("input_bam_substring") or ""
 rule gatk_index:
     input:
         fasta = fasta
@@ -25,12 +27,21 @@ rule gatk_index:
         samtools faidx {input.fasta} -o {output.fai_index} >> {log} 2>&1
         """
 
+def get_input_for_addReadsGroup(wildcards):
+    logger.info(f"addReadsGroup called with {wildcards}")
+    in_dict = {}
+    if input_bam_substring != "":
+        in_dict["bam"] = os.path.join(indir, f"{wildcards.sample_id}/{wildcards.sample_id}." + input_bam_substring + ".bam")
+    else:
+        in_dict["bam"] = os.path.join(indir, f"{wildcards.sample_id}/{wildcards.sample_id}.bam")
+    return in_dict
+
 rule addReadsGroup:
     input:
-        bam = indir + "/{sample_id}/{sample_id}.bam",
+        unpack(get_input_for_addReadsGroup)
     output:
-        bam = temp(outdir + "/RG/{sample_id}/{sample_id}.bam"),
-        bai = temp(outdir + "/RG/{sample_id}/{sample_id}.bam.bai")
+        bam = temp(outdir + "/{sample_id}/{sample_id}.addReadsGroup.bam"),
+        bai = temp(outdir + "/{sample_id}/{sample_id}.addReadsGroup.bai")
     log:
         logdir + "/{sample_id}/addReadsGroup.log"
     threads: 8
@@ -44,24 +55,41 @@ rule addReadsGroup:
         RGPU = config.get("addReadsGroup", {}).get("RGPU") or "unit1",
         gatk = config.get("Procedure", {}).get("gatk") or "gatk",
         samtools = config.get("Procedure", {}).get("samtools") or "samtools"
-    shell:
-        """
-        echo "sample_id: {wildcards.sample_id}" > {log}
-        {params.gatk} AddOrReplaceReadGroups {params.javaOptions} \
-            --INPUT {input.bam} --OUTPUT {output.bam} \
-            -SO coordinate --RGLB {params.RGLB} --RGPL {params.RGPL} --RGPU {params.RGPU} --RGSM {params.id} >> {log} 2>&1
-        {params.samtools} index -@ {threads} {output.bam} >> {log} 2>&1
-        """
+    run:
+        current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+        logger.info(f"Start addReadsGroup for sample {wildcards.sample_id} at {current_time}")
+        script = os.path.join(outdir,f"addReadsGroup_{current_time}.sh")
+        cmd1 = [
+            params.gatk, "AddOrReplaceReadGroups", params.javaOptions,
+            "--INPUT", input.bam,
+            "--OUTPUT", output.bam,
+            "-SO", "coordinate",
+            "--RGLB", params.RGLB,
+            "--RGPL", params.RGPL,
+            "--RGPU", params.RGPU,
+            "--RGSM", params.id
+         ]
+        cmd2 = [
+            params.samtools, "index",
+            "-@", str(threads),
+            output.bam,
+            "-o", output.bai
+        ]
+        with open(script, "w") as f:
+            f.write("#!/bin/bash\n")
+            f.write(" ".join(cmd1) + "\n")
+            f.write(" ".join(cmd2) + "\n")
+        shell("bash {script} > {log} 2>&1")
 
 
 rule MarkDuplicates:
     input:
-        bam = outdir + "/RG/{sample_id}/{sample_id}.bam",
-        bai = outdir + "/RG/{sample_id}/{sample_id}.bam.bai"
+        bam = outdir + "/{sample_id}/{sample_id}.addReadsGroup.bam",
+        bai = outdir + "/{sample_id}/{sample_id}.addReadsGroup.bai"
     output:
-        bam = outdir + "/bam-sorted-Markdup/{sample_id}/{sample_id}.bam",
-        bai = outdir + "/bam-sorted-Markdup/{sample_id}/{sample_id}.bai",
-        metrics = outdir + "/bam-sorted-Markdup/{sample_id}/{sample_id}_Markdup-metrics.txt"
+        bam = outdir + "/{sample_id}/{sample_id}.sorted_markdup.bam",
+        bai = outdir + "/{sample_id}/{sample_id}.sorted_markdup.bai",
+        metrics = outdir + "/{sample_id}/{sample_id}.Markdup-metrics.txt"
     log:
         logdir + "/{sample_id}/MarkDuplicates.log"
     threads: 8
@@ -70,21 +98,29 @@ rule MarkDuplicates:
     params:
         javaOptions = "-Xms20g -Xmx30g -XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10",
         gatk = config.get("Procedure", {}).get("gatk") or "gatk"
-    shell:
-        """
-        {params.gatk} --java-options "{params.javaOptions}" MarkDuplicates \
-            --INPUT {input.bam} \
-            --OUTPUT {output.bam}   \
-            --CREATE_INDEX true \
-            --VALIDATION_STRINGENCY SILENT \
-            --METRICS_FILE {output.metrics} > {log} 2>&1
-        """
+    run:
+        current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+        logger.info(f"Start MarkDuplicates for sample {wildcards.sample_id} at {current_time}")
+        script = os.path.join(outdir,f"MarkDuplicates_{current_time}.sh")
+        cmd = [
+            params.gatk, "MarkDuplicates", "--java-options", params.javaOptions,
+            "--INPUT", input.bam,
+            "--OUTPUT", output.bam,
+            "--CREATE_INDEX", "true",
+            "--VALIDATION_STRINGENCY", "SILENT",
+            "--METRICS_FILE", output.metrics
+        ]
+        with open(script, "w") as f:
+            f.write("#!/bin/bash\n")
+            f.write(" ".join(cmd) + "\n")
+        shell("bash {script} > {log} 2>&1")
+
 
 rule gatk_prepare_result:
     input:
-        bam = outdir + "/bam-sorted-Markdup/{sample_id}/{sample_id}.bam",
-        bai = outdir + "/bam-sorted-Markdup/{sample_id}/{sample_id}.bai",
-        metrics = outdir + "/bam-sorted-Markdup/{sample_id}/{sample_id}_Markdup-metrics.txt"
+        bam = outdir + "/{sample_id}/{sample_id}.sorted_markdup.bam",
+        bai = outdir + "/{sample_id}/{sample_id}.sorted_markdup.bai",
+        metrics = outdir + "/{sample_id}/{sample_id}.Markdup-metrics.txt"
 
 
 

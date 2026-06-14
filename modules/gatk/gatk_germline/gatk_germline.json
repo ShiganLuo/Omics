@@ -4,7 +4,8 @@
   "outdir": "output",
   "logdir": "logs",
   "Procedure": {
-    "gatk": "path/to/gatk"
+    "gatk": "path/to/gatk",
+    "bcftools": "path/to/bcftools"
   },
   "Params": {
     "gatk": {
@@ -13,7 +14,8 @@
             "QD_threshold": 2.0,
             "DP_threshold": 10.0,
             "QUAL_threshold": 20.0
-        }
+        },
+        "javaOptions": "-Xms20g -Xmx30g -XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10"
     }
   },
   "genome":{

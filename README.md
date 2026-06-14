@@ -15,6 +15,7 @@ snakemake version: >= 9.16.3
 - `modules/`：可复用模块定义。
 - `example/`：示例配置和示例流程文件。
 
+sample_id不能包含.
 ## 支持的工作流
 
 `run.py` 通过 `-w/--workflow_name` 选择工作流：
@@ -31,6 +32,7 @@ snakemake version: >= 9.16.3
 | `ncRNAseq` | 非编码 RNA 分析 | ncRNA 表达量矩阵 |
 | `RNA_SNP` | RNA 变异检测 | SNP/INDEL 结果 |
 | `PeakCalling` | ChIP-seq / DIP-seq peak calling 分析 | trimming、bowtie2 比对、MACS3 peak 结果 |
+| `QuantMS` | 定量蛋白质组学分析（TMT/LFQ/DIA） | mzTab 定量结果、MSstats 统计分析 |
 
 ### CLIP
 
@@ -109,7 +111,18 @@ python workflow/RNA-SNP/run.py \
 - `--dry-run`：只生成计划，不执行。
 - `--log`：日志文件路径。
 - `--conda-prefix`：conda 包缓存目录。
-- `--rerun-trigger`：Snakemake 的重跑触发条件，默认 `input`。
+- `--rerun-trigger`：Snakemake 的重跑触发条件，默认 `input`。可选值及含义：
+
+  | 参数 | 含义 |
+  | --- | --- |
+  | `code` | rule 定义代码（.smk 文件）发生变化时重跑 |
+  | `input` | 输入文件内容（哈希）发生变化时重跑。**需要 `.snakemake/metadata/` 中的历史哈希记录；metadata 为空时无法对比，所有 rule 都会重跑** |
+  | `mtime` | 输入文件修改时间比输出文件新时重跑 |
+  | `params` | rule 的 params 发生变化时重跑 |
+  | `software-env` | conda 环境发生变化时重跑 |
+
+  不指定 `--rerun-trigger` 时，Snakemake 默认使用全部五个触发器。指定 `--rerun-trigger input` 表示**仅**检查 input 内容变化，不检查 code/mtime/params/software-env，更轻量但依赖 metadata。
+
 - `--conda-frontend`：`conda` 或 `mamba`。
 - `--snakemake-args`：透传给 Snakemake 的额外参数，放在这个标志后面，例如 `--snakemake-args --keep-going --rerun-incomplete`。
 

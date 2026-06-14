@@ -7,16 +7,17 @@ logdir = config.get("logdir", "log")
 samples = config.get("samples", [])
 fasta = config.get("genome", {}).get("fasta")
 fai = config.get("genome", {}).get("fai")
+bam_substring = config.get("bam_substring") or ""
 
 rule deepvariant_run:
     input:
-        bam = indir + "/{sample_id}/{sample_id}.bam",
-        bai = indir + "/{sample_id}/{sample_id}.bam.bai",
+        bam = indir + "/{sample_id}/{sample_id}." + bam_substring + ".bam",
+        bai = indir + "/{sample_id}/{sample_id}." + bam_substring + ".bam.bai",
         fasta = fasta,
         fai = fai
     output:
         vcf = outdir + "/{sample_id}/{sample_id}.vcf.gz",
-        tbi = outdir + "/{sample_id}/{sample_id}.vcf.gz.csi",
+        csi = outdir + "/{sample_id}/{sample_id}.vcf.gz.csi",
         gvcf = outdir + "/{sample_id}/{sample_id}.g.vcf.gz"
     log:
         logdir + "/{sample_id}/deepvariant.log"
@@ -29,7 +30,7 @@ rule deepvariant_run:
         model_type = config.get("Params", {}).get("deepvariant", {}).get("model_type") or "PACBIO",
         outdir_sample = outdir + "/{sample_id}"
     run:
-        current_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+        current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start DeepVariant for sample {wildcards.sample_id} at {current_time}")
         script = os.path.join(outdir,f"deepvariant_{current_time}.sh")
         cmd1 = [

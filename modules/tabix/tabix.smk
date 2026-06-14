@@ -17,7 +17,7 @@ rule tabix_bgzip:
     params:
         bgzip = config.get("Procedure", {}).get("bgzip") or "bgzip"
     run:
-        current_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+        current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start bgzip for sample {wildcards.sample_id} at {current_time}")
         script = os.path.join(outdir,f"bgzip_{current_time}.sh")
         cmd1 = [

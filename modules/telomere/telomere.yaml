@@ -1,0 +1,7 @@
+name: telomere
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - telogator2=2.2.3

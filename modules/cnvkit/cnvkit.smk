@@ -18,7 +18,7 @@ def get_cnvkit_bams(wildcards):
 rule cnvkit_reference:
     """Build CNVkit reference from control samples."""
     input:
-        control_bams = lambda wildcards: [f"{indir}/{sid}/{sid}.bam" for sid in control_samples],
+        control_bams = expand(f"{indir}/{sid}/{sid}.bam", sid=control_samples),
         fasta = config.get("genome", {}).get("fasta"),
         access = config.get("genome", {}).get("access")
     output:
@@ -48,7 +48,7 @@ rule cnvkit_reference:
 rule cnvkit_batch:
     """Run CNVkit batch analysis on all samples."""
     input:
-        treat_bams = lambda wildcards: [f"{indir}/{sid}/{sid}.bam" for sid in samples],
+        treat_bams = expand(f"{indir}/{sid}/{sid}.bam", sid=samples),
         ref = outdir + "/reference/reference.cnn" if control_samples else [],
         fasta = config.get("genome", {}).get("fasta"),
         access = config.get("genome", {}).get("access")

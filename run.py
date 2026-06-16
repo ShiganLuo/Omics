@@ -331,7 +331,9 @@ def runPacVar(
     skip_telomere = datajson.get("Params", {}).get("skip_telomere", False)
     if not skip_telomere:
         for sample_id in samples:
-            outfiles.append(f"{outdir}/repeat/telomere/{sample_id}/telomere_lengths.tsv")
+            outfiles.append(f"{outdir}/repeat/telomere/{sample_id}/tlens_by_allele.tsv")
+            outfiles.append(f"{outdir}/repeat/telomere/{sample_id}/all_final_alleles.png")
+            outfiles.append(f"{outdir}/repeat/telomere/{sample_id}/violin_atl.png")
             outfiles.append(f"{outdir}/repeat/centromere/{sample_id}/{sample_id}.centromere_stats.txt")
 
     datajson["samples"] = samples

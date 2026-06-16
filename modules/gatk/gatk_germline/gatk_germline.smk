@@ -47,7 +47,7 @@ rule HaplotypeCaller:
     conda:
         "../gatk.yaml"
     params:
-        javaOptions =  "-Xms20g -Xmx30g -XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10",
+        javaOptions =  "-Xms20g -XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10",
         gatk = config.get("Procedure", {}).get("gatk") or "gatk"
     threads: 10
     run:
@@ -55,7 +55,7 @@ rule HaplotypeCaller:
         logger.info(f"Start HaplotypeCaller for sample {wildcards.sample_id} at {current_time}")
         script = os.path.join(outdir,f"{wildcards.sample_id}/HaplotypeCaller_{current_time}.sh")
         cmd = [
-            params.gatk, "--java-options", params.javaOptions, "HaplotypeCaller",
+            params.gatk, "--java-options", f'"{params.javaOptions}"', "HaplotypeCaller",
             "-R", input.fasta,
             "-I", input.bam,
             "-O", output.vcf
@@ -94,7 +94,7 @@ rule filterHaplotypeCallerVcf:
     params:
         gatk = config.get("Procedure", {}).get("gatk") or "gatk",
         bcftools = config.get("Procedure", {}).get("bcftools") or "bcftools",
-        javaOptions = config.get("Params", {}).get("gatk", {}).get("javaOptions") or "-Xms20g -Xmx30g -XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10",
+        javaOptions = config.get("Params", {}).get("gatk", {}).get("javaOptions") or "-Xms20g -XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10",
         FS_threshold = config.get("Params", {}).get("gatk", {}).get("FS_threshold") or 20.0,
         QD_threshold = config.get("Params", {}).get("gatk", {}).get("QD_threshold") or 2.0,
         DP_threshold = config.get("Params", {}).get("gatk", {}).get("DP_threshold") or 10.0,
@@ -104,7 +104,7 @@ rule filterHaplotypeCallerVcf:
         logger.info(f"Start filterHaplotypeCallerVcf for sample {wildcards.sample_id} at {current_time}")
         script = os.path.join(outdir,f"{wildcards.sample_id}/filterHaplotypeCallerVcf_{current_time}.sh")
         cmd1 = [
-            params.gatk, "--java-options", params.javaOptions, "VariantFiltration",
+            params.gatk, "--java-options", f'"{params.javaOptions}"', "VariantFiltration",
             "-R", input.fasta,
             "-V", input.vcf,
             "-O", output.vcf,

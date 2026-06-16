@@ -40,13 +40,15 @@ def get_input_for_telogator2(wildcards):
         in_dict["bam"] = os.path.join(indir, f"{wildcards.sample_id}/{wildcards.sample_id}.bam")
         in_dict["bai"] = os.path.join(indir, f"{wildcards.sample_id}/{wildcards.sample_id}.bai")
     return in_dict
+
 rule telogator2_run:
     """Run Telogator2 telomere length analysis on a single sample."""
     input:
         unpack(get_input_for_telogator2)
     output:
-        tsv = outdir + "/{sample_id}/telomere_lengths.tsv",
-        dir = directory(outdir + "/{sample_id}")
+        allele_tsv = os.path.join(outdir, "{sample_id}/tlens_by_allele.tsv"),
+        allele_plot = os.path.join(outdir, "{sample_id}/all_final_alleles.png"),
+        atl_plot = os.path.join(outdir, "{sample_id}/violin_atl.png")
     log:
         logdir + "/{sample_id}/telogator2.log"
     params:

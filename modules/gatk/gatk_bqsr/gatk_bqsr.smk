@@ -20,7 +20,7 @@ rule BaseRecalibrator:
     conda:
         "../gatk.yaml"
     params:
-        javaOptions = "-Xms20g -Xmx30g -XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10",
+        javaOptions = "-Xms20g -XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10",
         gatk = config.get("Procedure", {}).get("gatk") or "gatk",
         known_sites = " ".join([f"--known-sites {ks}" for ks in known_sites])
     shell:

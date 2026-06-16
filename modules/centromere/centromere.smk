@@ -86,12 +86,11 @@ rule repeatmasker_run:
             "-gff",
             input.fasta
         ]
-        """
-        mkdir -p {params.rm_dir}
-        RepeatMasker -species {params.species} -pa {threads} \
-            -dir {params.rm_dir} -gff {input.fasta} \
-            > {log} 2>&1
-        """
+        with open(script, "w") as f:
+            f.write("#!/bin/bash\n")
+            f.write(f"mkdir -p {params.rm_dir}\n")
+            f.write(" ".join(cmd) + "\n")
+        shell(f"bash {script} > {log} 2>&1")
 
 
 rule centromere_extract:

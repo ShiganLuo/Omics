@@ -96,14 +96,14 @@ rule MarkDuplicates:
     conda:
         "gatk.yaml"
     params:
-        javaOptions = "-Xms20g -Xmx30g -XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10",
+        javaOptions = "-Xms20g -XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10",
         gatk = config.get("Procedure", {}).get("gatk") or "gatk"
     run:
         current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start MarkDuplicates for sample {wildcards.sample_id} at {current_time}")
         script = os.path.join(outdir,f"{wildcards.sample_id}/MarkDuplicates_{current_time}.sh")
         cmd = [
-            params.gatk, "MarkDuplicates", "--java-options", params.javaOptions,
+            params.gatk, "MarkDuplicates", "--java-options", f'"{params.javaOptions}"',
             "--INPUT", input.bam,
             "--OUTPUT", output.bam,
             "--CREATE_INDEX", "true",

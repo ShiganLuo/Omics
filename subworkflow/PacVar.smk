@@ -1,6 +1,6 @@
 shell.prefix("set -x; set -e;")
 from snakemake.logging import logger
-
+ROOT_DIR = config.get("ROOT_DIR", ".")
 indir = config.get("indir", "data/fastq")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "logs")
@@ -23,6 +23,7 @@ pbmm2_config = {
     "outdir": f"{outdir}/bam/1_sorted_bam",
     "logdir": logdir,
     "samples": samples,
+    "ROOT_DIR": ROOT_DIR,
     "Procedure": {
         "pbmm2": config.get("Procedure", {}).get("pbmm2")
     },
@@ -38,6 +39,7 @@ use rule pbmm2_align from pbmm2 as PacVar_pbmm2_align
 
 
 gatk_prepare_config = {
+    "ROOT_DIR": ROOT_DIR,
     "indir": pbmm2_config["outdir"],
     "outdir": f"{outdir}/bam/2_markdup_bam",
     "logdir": logdir,
@@ -73,6 +75,7 @@ use rule MarkDuplicates from gatk_prepare as PacVar_MarkDuplicates
 if not skip_snp:
     if snv_caller == "deepvariant":
         deepvariant_config = {
+            "ROOT_DIR": ROOT_DIR,
             "indir": gatk_prepare_config["outdir"],
             "outdir": f"{outdir}/variation/germline_snv_indel",
             "logdir": logdir,
@@ -96,6 +99,7 @@ if not skip_snp:
         use rule deepvariant_run from deepvariant as PacVar_deepvariant_run
     elif snv_caller == "gatk4":
         gatk_germline_config = {
+            "ROOT_DIR": ROOT_DIR,
             "indir": gatk_prepare_config["outdir"],
             "outdir": f"{outdir}/variation/germline_snv_indel",
             "logdir": logdir,
@@ -123,6 +127,7 @@ if not skip_snp:
 # ============================================================
 if not skip_sv:
     pbsv_config = {
+        "ROOT_DIR": ROOT_DIR,
         "indir": gatk_prepare_config["outdir"],
         "outdir": f"{outdir}/variation/germline_sv",
         "logdir": logdir,
@@ -147,6 +152,7 @@ if not skip_sv:
 # ============================================================
 if not skip_phase and not skip_snp and not skip_sv:
     hiphase_snp_config = {
+        "ROOT_DIR": ROOT_DIR,
         "indir": gatk_prepare_config["outdir"],
         "outdir": f"{outdir}/variation/germline_snv_indel",
         "logdir": logdir,
@@ -170,6 +176,7 @@ if not skip_phase and not skip_snp and not skip_sv:
     use rule hiphase_phase from hiphase_snp as PacVar_hiphase_snp
 
     hiphase_sv_config = {
+        "ROOT_DIR": ROOT_DIR,
         "indir": gatk_prepare_config["outdir"],
         "outdir": f"{outdir}/variation/germline_sv",
         "logdir": logdir,
@@ -197,6 +204,7 @@ if not skip_phase and not skip_snp and not skip_sv:
 # ============================================================
 if not skip_repeat and config.get("genome", {}).get("repeat_bed") is not None:
     trgt_config = {
+        "ROOT_DIR": ROOT_DIR,
         "indir": gatk_prepare_config["outdir"],
         "outdir": f"{outdir}/repeat/trgt",
         "logdir": logdir,
@@ -226,6 +234,7 @@ if not skip_repeat and config.get("genome", {}).get("repeat_bed") is not None:
 # ============================================================
 if not skip_telomere:
     telomere_config = {
+        "ROOT_DIR": ROOT_DIR,
         "indir": gatk_prepare_config["outdir"],
         "outdir": f"{outdir}/repeat/telomere",
         "logdir": logdir,
@@ -242,6 +251,7 @@ if not skip_telomere:
     use rule telogator2_run from telomere as PacVar_telogator2_run
 
     centromere_config = {
+        "ROOT_DIR": ROOT_DIR,
         "indir": indir,
         "outdir": f"{outdir}/repeat/centromere",
         "logdir": logdir,

@@ -266,6 +266,4 @@ if not skip_telomere:
         snakefile: "../modules/centromere/centromere.smk"
         config: centromere_config
     logger.info(f"centromere_config: {centromere_config}")
-    use rule hifiasm_assemble from centromere as PacVar_hifiasm_assemble
-    use rule repeatmasker_run from centromere as PacVar_repeatmasker_run
-    use rule centromere_extract from centromere as PacVar_centromere_extract
+    use rule * from centromere as PacVar_centromere_*

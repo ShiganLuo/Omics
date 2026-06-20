@@ -14,6 +14,7 @@ import sys
 import os
 import time
 import shutil
+import tempfile
 
 # Get ROOT_DIR from config (set by run.py)
 ROOT_DIR = config.get("ROOT_DIR", ".")

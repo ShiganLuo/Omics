@@ -259,7 +259,7 @@ if not skip_telomere:
         "ROOT_DIR": config.get("ROOT_DIR", "."),
         "Params": {
             "hifiasm": config.get("Params", {}).get("hifiasm", {}),
-            "repeatmasker": config.get("Params", {}).get("repeatmasker", {}),
+            "RepeatMasker": config.get("Params", {}).get("RepeatMasker", {}),
         },
     }
     module centromere:

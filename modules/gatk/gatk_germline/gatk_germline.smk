@@ -52,9 +52,9 @@ rule HaplotypeCaller:
         gatk = config.get("Procedure", {}).get("gatk") or "gatk"
     threads: 10
     run:
-        open(log, "w").close()
-        logger = setup_logger(logger_name="HaplotypeCaller", log_file=log)
         try:
+            open(log[0], "w").close()
+            logger = setup_logger(logger_name="HaplotypeCaller", log_file=log[0])
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start HaplotypeCaller for sample {wildcards.sample_id} at {current_time}")
             script = os.path.join(outdir,f"{wildcards.sample_id}/HaplotypeCaller_{current_time}.sh")
@@ -67,10 +67,11 @@ rule HaplotypeCaller:
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write(" ".join(cmd) + "\n")
-            shell("bash {script} >> {log} 2>&1")
+            shell(f"bash {script} >> {log[0]} 2>&1")
         except Exception as e:
-            logger.error(f"Error occurred while running HaplotypeCaller for sample {wildcards.sample_id}: {e}")
-            raise f"Error occurred while running HaplotypeCaller for sample {wildcards.sample_id}: {e}, you can check the log file {log} for more details."
+            with open(log[0], "a") as f:
+                f.write(f"Error during HaplotypeCaller execution: {str(e)}\n")
+            raise f"Error occurred while running HaplotypeCaller for sample {wildcards.sample_id}: {e}, you can check the log file {log[0]} for more details."
 
 def get_input_filterHaplotypeCallerVcf(wildcards):
     in_dict = {}
@@ -107,9 +108,9 @@ rule filterHaplotypeCallerVcf:
         DP_threshold = config.get("Params", {}).get("gatk", {}).get("DP_threshold") or 10.0,
         QUAL_threshold = config.get("Params", {}).get("gatk", {}).get("QUAL_threshold") or 20.0
     run:
-        open(log, "w").close()
-        logger = setup_logger(logger_name="filterHaplotypeCallerVcf", log_file=log)
         try:
+            open(log[0], "w").close()
+            logger = setup_logger(logger_name="filterHaplotypeCallerVcf", log_file=log[0])
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start filterHaplotypeCallerVcf for sample {wildcards.sample_id} at {current_time}")
             script = os.path.join(outdir,f"{wildcards.sample_id}/filterHaplotypeCallerVcf_{current_time}.sh")
@@ -132,10 +133,11 @@ rule filterHaplotypeCallerVcf:
                 f.write("#!/bin/bash\n")
                 f.write(" ".join(cmd1) + "\n")
                 f.write(" ".join(cmd2) + "\n")
-            shell("bash {script} >> {log} 2>&1")
+            shell(f"bash {script} >> {log[0]} 2>&1")
         except Exception as e:
-            logger.error(f"Error occurred while filtering HaplotypeCaller VCF for sample {wildcards.sample_id}: {e}")
-            raise f"Error occurred while filtering HaplotypeCaller VCF for sample {wildcards.sample_id}: {e}, you can check the log file {log} for more details."
+            with open(log[0], "a") as f:
+                f.write(f"Error during filtering HaplotypeCaller VCF: {str(e)}\n")
+            raise f"Error occurred while filtering HaplotypeCaller VCF for sample {wildcards.sample_id}: {e}, you can check the log file {log[0]} for more details."
 
 
 rule gatk_haplotypeCaller_result:

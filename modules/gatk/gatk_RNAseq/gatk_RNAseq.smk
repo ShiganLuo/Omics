@@ -11,7 +11,7 @@ rule SplitNCigarReads:
     output:
         bam = outdir + "/Split/{sample_id}/{sample_id}.bam"
     params:
-        javaOptions = "-Xms20g -XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10",
+        javaOptions =  config.get("Params", {}).get("gatk", {}).get("javaOptions") or "-Xmx30g",
         gatk = config["Procedure"]["gatk"],
         genome = lambda wildcards: config['genome']['fasta'],
         indict = lambda wildcards: config['genome']['dict_index'],
@@ -35,7 +35,7 @@ rule VarientCalling:
     log:
         logdir + "/{sample_id}/VarientCalling.log"
     params:
-        javaOptions = "-Xms20g -XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10",
+        javaOptions =  config.get("Params", {}).get("gatk", {}).get("javaOptions") or "-Xmx30g",
         gatk = config["Procedure"]["gatk"],
         genome = lambda wildcards: config['genome']['fasta'],
         fai = lambda wildcards: config['genome']['fai_index']
@@ -60,7 +60,7 @@ rule vcf_filter:
         logdir + "/{sample_id}/vcf_filter.log"
     threads: 8
     params:
-        javaOptions = "-Xms20g -XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10",
+        javaOptions =  config.get("Params", {}).get("gatk", {}).get("javaOptions") or "-Xmx30g",
         vcf = outdir + "/SNP/vcf/filter/{genome}/{sample_id}.vcf",
         gatk = config["Procedure"]["gatk"],
         bgzip = config["Procedure"]["bgzip"],

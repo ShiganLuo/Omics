@@ -20,7 +20,7 @@ rule BaseRecalibrator:
     conda:
         "../gatk.yaml"
     params:
-        javaOptions = "-Xms20g -XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10",
+        javaOptions =  config.get("Params", {}).get("gatk", {}).get("javaOptions") or "-Xmx30g",
         gatk = config.get("Procedure", {}).get("gatk") or "gatk",
         known_sites = " ".join([f"--known-sites {ks}" for ks in known_sites])
     shell:
@@ -47,7 +47,7 @@ rule ApplyBQSR:
     threads:
         8
     params:
-        javaOptions = "-Xmx30G",
+        javaOptions =  config.get("Params", {}).get("gatk", {}).get("javaOptions") or "-Xmx30g",
         gatk = config.get("Procedure", {}).get("gatk") or "gatk",
         interval = interval
     shell:

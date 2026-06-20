@@ -49,7 +49,7 @@ rule somaticMutect2:
     conda:
         "../gatk.yaml"
     params:
-        javaOptions =  "-Xms20g -XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10",
+        javaOptions =  config.get("Params", {}).get("gatk", {}).get("javaOptions") or "-Xmx30g",
         gatk = config.get("Procedure", {}).get("gatk") or "gatk",
         parameters = config.get("mutect2_parameters") or ""
     threads: 10

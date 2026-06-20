@@ -36,9 +36,12 @@
             "threads": 48
         },
         "RepeatMasker": {
-            "species": "mouse",
+            "species": "Mus musculus",
             "threads": 16,
             "dfam_h5": "/data/pub/zhousha/miniforge3/envs/sv/share/RepeatMasker/Libraries/famdb/dfam39_full.7.h5"
+        },
+        "gatk": {
+            "javaOptions": "-Xmx30g"
         }
     },
     "genome": {

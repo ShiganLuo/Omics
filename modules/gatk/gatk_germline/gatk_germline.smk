@@ -48,7 +48,7 @@ rule HaplotypeCaller:
     conda:
         "../gatk.yaml"
     params:
-        javaOptions =  "-Xms20g -XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10",
+        javaOptions =  config.get("Params", {}).get("gatk", {}).get("javaOptions") or "-Xmx30g",
         gatk = config.get("Procedure", {}).get("gatk") or "gatk"
     threads: 10
     run:
@@ -102,7 +102,7 @@ rule filterHaplotypeCallerVcf:
     params:
         gatk = config.get("Procedure", {}).get("gatk") or "gatk",
         bcftools = config.get("Procedure", {}).get("bcftools") or "bcftools",
-        javaOptions = config.get("Params", {}).get("gatk", {}).get("javaOptions") or "-Xms20g -XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10",
+        javaOptions =  config.get("Params", {}).get("gatk", {}).get("javaOptions") or "-Xmx30g",
         FS_threshold = config.get("Params", {}).get("gatk", {}).get("FS_threshold") or 20.0,
         QD_threshold = config.get("Params", {}).get("gatk", {}).get("QD_threshold") or 2.0,
         DP_threshold = config.get("Params", {}).get("gatk", {}).get("DP_threshold") or 10.0,

@@ -74,10 +74,83 @@ rule hifiasm_assemble:
             raise f"hifiasm assembly failed for sample {wildcards.sample_id} with error: {e}"
 
 
+rule repeatmasker_init:
+    """Build RepeatMasker library cache once to avoid concurrent makeblastdb conflicts."""
+    input:
+        dfam_h5 = config.get("Params", {}).get("RepeatMasker", {}).get("dfam_h5") or ""
+    output:
+        outdir + "/.repeatmasker_lib_init.done"
+    log:
+        logdir + "/all/RepeatMasker/repeatmasker_init.log"
+    conda:
+        "centromere.yaml"
+    params:
+        species = config.get("Params", {}).get("RepeatMasker", {}).get("species", "Mus musculus"),
+        RepeatMasker = config.get("Procedure", {}).get("RepeatMasker") or "RepeatMasker"
+    threads: 1
+    run:
+        try:
+            open(log[0], "w").close()
+            logger = setup_logger(logger_name="repeatmasker_init", log_file=log[0])
+            logger.info("Building RepeatMasker library cache (one-time init)")
+            tmpdir = tempfile.mkdtemp()
+            dummy_fa = os.path.join(tmpdir, "dummy.fa")
+            with open(dummy_fa, "w") as f:
+                f.write(">dummy\nATCGATCGATCG\n")
+            cmd1 = [
+                params.RepeatMasker,
+                "-species", f"'{params.species}'",
+                "-pa", str(threads),
+                "-dir", tmpdir,
+                "-gff",
+                dummy_fa
+            ]
+            cmd3 = ["touch", output[0]]
+            cmd2 = ["rm", "-rf", tmpdir]
+            script = os.path.join(tmpdir, "init.sh")
+            if input.dfam_h5 and os.path.exists(input.dfam_h5):
+                logger.warning("RepeatMasker don't support specifying custom Dfam h5 directly, pipeline will try to find the corresponding library dir and link your dfam h5 to the library dir with a name that RepeatMasker can recognize. Please ensure the Dfam h5 you provided is compatible with your RepeatMasker version and includes relevant satellite DNA for target species.")
+                RepeatMasker_dir = shell("which RepeatMasker", read=True)# Get RepeatMasker executable path, enviroment only play in shell
+                if RepeatMasker_dir is None:
+                    logger.error(f"RepeatMasker executable not found: {params.RepeatMasker}")
+                    raise FileNotFoundError(f"RepeatMasker executable not found: {params.RepeatMasker}")
+                RepeatMasker_lib_dir = os.path.join(os.path.dirname(RepeatMasker_dir), "../share/RepeatMasker/Libraries/famdb")
+                if not os.path.exists(RepeatMasker_lib_dir):
+                    logger.error(f"RepeatMasker library directory not found: {RepeatMasker_lib_dir}")
+                    raise FileNotFoundError(f"RepeatMasker library directory not found: {RepeatMasker_lib_dir}")
+                target_h5_path = os.path.join(RepeatMasker_lib_dir, os.path.basename(input.dfam_h5))
+                if os.path.exists(target_h5_path):
+                    logger.info(f"Custom Dfam h5 already exists in RepeatMasker library directory: {target_h5_path}, skipping linking.")
+                else:
+                    os.symlink(input.dfam_h5, target_h5_path)
+                    logger.info(f"Linked custom Dfam h5 to RepeatMasker library directory: {target_h5_path}")
+            else:
+                logger.warning("No valid Dfam h5 provided for RepeatMasker, using default libraries. please ensure the default libraries include relevant satellite DNA for target species.")
+            with open(script, "w") as f:
+                f.write(" ".join(cmd1) + "\n")
+                f.write(" ".join(cmd2) + "\n")
+                f.write(" ".join(cmd3) + "\n")
+            shell(f"bash {script} >> {log[0]} 2>&1")
+            logger.info("RepeatMasker library cache built successfully")
+        except Exception as e:
+            with open(log[0], "a") as f:
+                f.write(f"RepeatMasker init failed with error: {e}\n")
+            raise f"RepeatMasker init failed with error: {e}"
+
+
+def get_input_for_repeatmasker(wildcards):
+    """Get input files for RepeatMasker."""
+    in_dict = {}
+    in_dict["fasta"] = os.path.join(outdir, f"{wildcards.sample_id}/assembly/asm.bp.p_ctg.fa")
+    dfam_h5 = config.get("Params", {}).get("RepeatMasker", {}).get("dfam_h5")
+    if dfam_h5 and os.path.exists(dfam_h5):
+        in_dict["lib_init"] = os.path.join(outdir, ".repeatmasker_lib_init.done")
+    return in_dict
+
 rule repeatmasker_run:
     """Run RepeatMasker on assembled contigs to annotate satellite DNA."""
     input:
-        fasta = outdir + "/{sample_id}/assembly/asm.bp.p_ctg.fa"
+        unpack(get_input_for_repeatmasker)
     output:
         out = outdir + "/{sample_id}/RepeatMasker/asm.bp.p_ctg.fa.out",
         tbl = outdir + "/{sample_id}/RepeatMasker/asm.bp.p_ctg.fa.tbl"
@@ -90,7 +163,7 @@ rule repeatmasker_run:
         species = config.get("Params", {}).get("RepeatMasker", {}).get("species", "Mus musculus"),
         rm_dir = outdir + "/{sample_id}/RepeatMasker",
         RepeatMasker = config.get("Procedure", {}).get("RepeatMasker") or "RepeatMasker",
-        dfam_h5 = config.get("Params", {}).get("RepeatMasker", {}).get("dfam_h5") or ""
+        
     run:
         # setup_logger is now available from common.smk
         try:
@@ -107,25 +180,6 @@ rule repeatmasker_run:
                 "-gff",
                 input.fasta
             ]
-            if params.dfam_h5 and os.path.exists(params.dfam_h5):
-                logger.info(f"Using custom Dfam h5 for RepeatMasker: {params.dfam_h5}")
-                logger.warning("RepeatMasker don't support specifying custom Dfam h5 directly, pipeline will try to find the corresponding library dir and link your dfam h5 to the library dir with a name that RepeatMasker can recognize. Please ensure the Dfam h5 you provided is compatible with your RepeatMasker version and includes relevant satellite DNA for target species.")
-                RepeatMasker_dir = shutil.which(params.RepeatMasker)
-                if RepeatMasker_dir is None:
-                    logger.error(f"RepeatMasker executable not found: {params.RepeatMasker}")
-                    raise FileNotFoundError(f"RepeatMasker executable not found: {params.RepeatMasker}")
-                RepeatMasker_lib_dir = os.path.join(os.path.dirname(RepeatMasker_dir), "../share/RepeatMasker/Libraries/famdb")
-                if not os.path.exists(RepeatMasker_lib_dir):
-                    logger.error(f"RepeatMasker library directory not found: {RepeatMasker_lib_dir}")
-                    raise FileNotFoundError(f"RepeatMasker library directory not found: {RepeatMasker_lib_dir}")
-                target_h5_path = os.path.join(RepeatMasker_lib_dir, os.path.basename(params.dfam_h5))
-                if os.path.exists(target_h5_path):
-                    logger.info(f"Custom Dfam h5 already exists in RepeatMasker library directory: {target_h5_path}, skipping linking.")
-                else:
-                    os.symlink(params.dfam_h5, target_h5_path)
-                    logger.info(f"Linked custom Dfam h5 to RepeatMasker library directory: {target_h5_path}")
-            else:
-                logger.warning("No valid Dfam h5 provided for RepeatMasker, using default libraries. please ensure the default libraries include relevant satellite DNA for target species.")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write(" ".join(cmd) + "\n")

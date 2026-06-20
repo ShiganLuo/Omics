@@ -20,6 +20,7 @@ rule gatk_index:
         "gatk.yaml"
     params:
         gatk = config.get("Procedure", {}).get("gatk") or "gatk",
+        javaOptions =  config.get("Params", {}).get("gatk", {}).get("javaOptions") or "-Xmx30g"
     shell:
         """
         ln -s {input.fasta} {output.fasta_link}
@@ -49,7 +50,7 @@ rule addReadsGroup:
         "gatk.yaml"
     params:
         id = "{sample_id}",
-        javaOptions = "--java-options -Xmx15G",
+        javaOptions =  config.get("Params", {}).get("gatk", {}).get("javaOptions") or "-Xmx30g",
         RGLB = config.get("addReadsGroup", {}).get("RGLB") or "lib1",
         RGPL = config.get("addReadsGroup", {}).get("RGPL") or "illumina",
         RGPU = config.get("addReadsGroup", {}).get("RGPU") or "unit1",
@@ -96,7 +97,7 @@ rule MarkDuplicates:
     conda:
         "gatk.yaml"
     params:
-        javaOptions = "-Xms20g -XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10",
+        javaOptions =  config.get("Params", {}).get("gatk", {}).get("javaOptions") or "-Xmx30g",
         gatk = config.get("Procedure", {}).get("gatk") or "gatk"
     run:
         current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())

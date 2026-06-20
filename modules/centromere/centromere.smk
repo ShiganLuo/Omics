@@ -44,10 +44,9 @@ rule hifiasm_assemble:
     params:
         prefix = outdir + "/{sample_id}/assembly/asm"
     run:
-        # setup_logger is now available from common.smk
-        open(log, "w").close()
-        logger = setup_logger(logger_name="hifiasm_assemble", log_file=log)
         try:
+            open(log[0], "w").close()
+            logger = setup_logger(logger_name="hifiasm_assemble", log_file=log[0])
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start hifiasm assembly for sample {wildcards.sample_id} at {current_time}")
             script = os.path.join(outdir, f"{wildcards.sample_id}/hifiasm_{current_time}.sh")
@@ -68,10 +67,11 @@ rule hifiasm_assemble:
                 f.write(" ".join(cmd1) + "\n")
                 f.write(" ".join(cmd2) + "\n")
                 f.write(" ".join(cmd3) + "\n")
-            shell(f"bash {script} >> {log} 2>&1")
+            shell(f"bash {script} >> {log[0]} 2>&1")
         except Exception as e:
-            logger.error(f"hifiasm assembly failed for sample {wildcards.sample_id} with error: {e}")
-            raise e
+            with open(log[0], "a") as f:
+                f.write(f"hifiasm assembly failed for sample {wildcards.sample_id} with error: {e}\n")
+            raise f"hifiasm assembly failed for sample {wildcards.sample_id} with error: {e}"
 
 
 rule repeatmasker_run:
@@ -93,15 +93,15 @@ rule repeatmasker_run:
         dfam_h5 = config.get("Params", {}).get("RepeatMasker", {}).get("dfam_h5") or ""
     run:
         # setup_logger is now available from common.smk
-        open(log, "w").close()
-        logger = setup_logger(logger_name="repeatmasker_run", log_file=log)
         try:
+            open(log[0], "w").close()
+            logger = setup_logger(logger_name="repeatmasker_run", log_file=log[0])
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start RepeatMasker for sample {wildcards.sample_id} at {current_time}")
             script = os.path.join(outdir, f"{wildcards.sample_id}/repeatmasker_{current_time}.sh")
             cmd = [
                 params.RepeatMasker,
-                "-species", params.species,
+                "-species", f"'{params.species}'",
                 "-pa", str(threads),
                 "-dir", params.rm_dir,
                 "-gff",
@@ -129,10 +129,11 @@ rule repeatmasker_run:
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write(" ".join(cmd) + "\n")
-            shell(f"bash {script} >> {log} 2>&1")
+            shell(f"bash {script} >> {log[0]} 2>&1")
         except Exception as e:
-            logger.error(f"RepeatMasker failed for sample {wildcards.sample_id} with error: {e}")
-            raise e
+            with open(log[0], "a") as f:
+                f.write(f"RepeatMasker failed for sample {wildcards.sample_id} with error: {e}\n")
+            raise f"RepeatMasker failed for sample {wildcards.sample_id} with error: {e}"
 
 
 rule centromere_extract:
@@ -150,10 +151,9 @@ rule centromere_extract:
         "centromere.yaml"
     threads: 1
     run:
-        # setup_logger is now available from common.smk
-        open(log, "w").close()
-        logger = setup_logger(logger_name="centromere_extract", log_file=log)
         try:
+            open(log[0], "w").close()
+            logger = setup_logger(logger_name="centromere_extract", log_file=log[0])
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start centromere stats extraction for sample {wildcards.sample_id} at {current_time}")
             script = os.path.join(outdir, f"{wildcards.sample_id}/centromere_extract_{current_time}.sh")
@@ -165,10 +165,11 @@ rule centromere_extract:
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write(" ".join(cmd) + "\n")
-            shell(f"bash {script} >> {log} 2>&1")
+            shell(f"bash {script} >> {log[0]} 2>&1")
         except Exception as e:
-            logger.error(f"Centromere stats extraction failed for sample {wildcards.sample_id} with error: {e}")
-            raise e
+            with open(log[0], "a") as f:
+                f.write(f"Centromere stats extraction failed for sample {wildcards.sample_id} with error: {e}\n")
+            raise f"Centromere stats extraction failed for sample {wildcards.sample_id} with error: {e}"
 
 
 rule centromere_result:

@@ -107,6 +107,7 @@ rule repeatmasker_init:
             ]
             cmd3 = ["touch", output[0]]
             cmd2 = ["rm", "-rf", tmpdir]
+            cmd4 = ["echo", "RepeatMasker library cache initialized."]
             script = os.path.join(tmpdir, "init.sh")
             if input.dfam_h5 and os.path.exists(input.dfam_h5):
                 logger.warning("RepeatMasker don't support specifying custom Dfam h5 directly, pipeline will try to find the corresponding library dir and link your dfam h5 to the library dir with a name that RepeatMasker can recognize. Please ensure the Dfam h5 you provided is compatible with your RepeatMasker version and includes relevant satellite DNA for target species.")
@@ -130,8 +131,8 @@ rule repeatmasker_init:
                 f.write(" ".join(cmd1) + "\n")
                 f.write(" ".join(cmd2) + "\n")
                 f.write(" ".join(cmd3) + "\n")
+                f.write(" ".join(cmd4) + "\n")
             shell(f"bash {script} >> {log[0]} 2>&1")
-            logger.info("RepeatMasker library cache built successfully")
         except Exception as e:
             with open(log[0], "a") as f:
                 f.write(f"RepeatMasker init failed with error: {e}\n")

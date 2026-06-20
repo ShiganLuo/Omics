@@ -35,9 +35,10 @@
         "hifiasm": {
             "threads": 48
         },
-        "repeatmasker": {
+        "RepeatMasker": {
             "species": "mouse",
-            "threads": 16
+            "threads": 16,
+            "dfam_h5": "/data/pub/zhousha/miniforge3/envs/sv/share/RepeatMasker/Libraries/famdb/dfam39_full.7.h5"
         }
     },
     "genome": {

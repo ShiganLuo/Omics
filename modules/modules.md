@@ -74,6 +74,15 @@ modules/<tool>/
 
 子目录规则的 `conda:` 必须引用父目录的 yaml：`conda: "../<tool>.yaml"`
 
+### D. 公共模块（共享工具函数）
+
+```
+modules/common/
+  common.smk
+```
+
+提供所有模块共享的工具函数（如日志、路径处理等）。详见 [common 模块](#common-模块)。
+
 # 统一配置入口
 
 模块通过 `config.get()` 读取参数，常见字段：
@@ -398,6 +407,106 @@ dependencies:
 ```
 
 > **注意**：channel 顺序必须是 `conda-forge` → `bioconda` → `defaults`。bioconda 依赖 conda-forge 的包，顺序颠倒会导致依赖解析失败。
+
+# Common 模块
+
+## 用途
+
+`modules/common/common.smk` 提供所有模块共享的工具函数，避免代码重复。
+
+## 包含内容
+
+```python
+# 标准库
+import sys
+import os
+import time
+import shutil
+
+# 从 config 获取
+ROOT_DIR = config.get("ROOT_DIR", ".")
+
+# 从 src/common 导入
+from common.LogUtil import setup_logger
+```
+
+## 使用方式
+
+### 在模块中 include
+
+```python
+# modules/<tool>/<tool>.smk
+include: "../common/common.smk"
+
+# 现在可以使用 setup_logger, time, shutil 等
+```
+
+### 在子目录模块中 include
+
+```python
+# modules/<tool>/<subtool>/<subtool>.smk
+include: "../../common/common.smk"
+```
+
+### 在子工作流中 include
+
+```python
+# subworkflow/<Workflow>.smk
+include: "../modules/common/common.smk"
+```
+
+### 在规则中使用
+
+```python
+rule your_rule:
+    input: "input.txt"
+    output: "output.txt"
+    log: "logs/your_rule.log"
+    run:
+        # setup_logger 已从 common.smk 导入
+        open(log, "w").close()
+        logger = setup_logger(logger_name="your_rule", log_file=log)
+        
+        try:
+            logger.info("Processing...")
+            shell("some command > {log} 2>&1")
+        except Exception as e:
+            logger.error(f"Failed: {e}")
+            raise e
+```
+
+## 优势
+
+1. **避免代码重复**: 定义一次，到处使用
+2. **统一日志**: 所有模块使用相同的 logger 配置
+3. **易于维护**: 更新日志逻辑只需改一处
+4. **依赖清晰**: 每个模块明确声明需要的工具
+
+## 故障排除
+
+### Import Error: `No module named 'common'`
+
+如果出现此错误：
+1. 确保 `ROOT_DIR` 在配置中正确设置
+2. 检查 `src/common/LogUtil.py` 是否存在
+3. 验证 include 路径相对于 snakefile 是否正确
+
+### 路径问题
+
+common 模块会自动将 `ROOT_DIR/src` 添加到 `sys.path`。如果有问题：
+1. 检查 `ROOT_DIR` 是否为绝对路径
+2. 验证 `src` 目录结构：
+   ```
+   workflow/Omics/
+   ├── src/
+   │   └── common/
+   │       └── LogUtil.py
+   ├── modules/
+   │   └── common/
+   │       └── common.smk  ← 此文件
+   └── subworkflow/
+       └── <Workflow>.smk
+   ```
 
 # Pitfalls
 

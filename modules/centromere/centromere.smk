@@ -1,17 +1,25 @@
-from snakemake.logging import logger
-import os
-import time
+"""Centromere analysis module.
+
+This module performs:
+1. Assembly with hifiasm
+2. RepeatMasker for satellite DNA annotation
+3. Centromere statistics extraction
+
+Note: This module includes common.smk for shared utilities.
+"""
+
+# Include common utilities
+include: "../common/common.smk"
+
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 indir = config.get("indir", "input")
 samples = config.get("samples", [])
-ROOT_DIR = config.get("ROOT_DIR", ".")
-
-rm_species = config.get("Params", {}).get("RepeatMasker", {}).get("species", "mouse")
 bam_substring = config.get("bam_substring") or ""
 
+
 def get_input_for_hifiasm(wildcards):
-    logger.info(f"hifiasm_assemble called with {wildcards}")
+    """Get input files for hifiasm assembly."""
     in_dict = {}
     if bam_substring != "":
         in_dict["bam"] = os.path.join(indir, f"{wildcards.sample_id}." + bam_substring + ".bam")
@@ -20,6 +28,8 @@ def get_input_for_hifiasm(wildcards):
         in_dict["bam"] = os.path.join(indir, f"{wildcards.sample_id}.bam")
         in_dict["bai"] = os.path.join(indir, f"{wildcards.sample_id}.bam.pbi")
     return in_dict
+
+
 rule hifiasm_assemble:
     """Assemble HiFi reads with hifiasm."""
     input:
@@ -34,28 +44,34 @@ rule hifiasm_assemble:
     params:
         prefix = outdir + "/{sample_id}/assembly/asm"
     run:
-        current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-        logger.info(f"Start hifiasm assembly for sample {wildcards.sample_id} at {current_time}")
-        script = os.path.join(outdir,f"{wildcards.sample_id}/hifiasm_{current_time}.sh")
-        fq_gz = os.path.join(outdir, f"{wildcards.sample_id}/assembly/{wildcards.sample_id}.hifi.fq.gz")
-        cmd0 = [
-            "samtools", "fastq", "-@", str(threads), input.bam, "|", "gzip", "-c", ">", fq_gz
-        ]
-        cmd1 = [
-            "hifiasm", "-o", params.prefix, "-t", str(threads), fq_gz
-        ]
-        cmd2 = [
-            "awk", "'/^S/{print \">\"$2; print $3}'", f"{params.prefix}.bp.p_ctg.gfa", ">", output.fasta
-        ]
-        cmd3 = ["rm", "-f", fq_gz]
-        with open(script, "w") as f:
-            f.write("#!/bin/bash\n")
-            f.write(" ".join(cmd0) + "\n")
-            f.write(" ".join(cmd1) + "\n")
-            f.write(" ".join(cmd2) + "\n")
-            f.write(" ".join(cmd3) + "\n")
-        shell(f"bash {script} > {log} 2>&1")
-
+        # setup_logger is now available from common.smk
+        open(log, "w").close()
+        logger = setup_logger(logger_name="hifiasm_assemble", log_file=log)
+        try:
+            current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+            logger.info(f"Start hifiasm assembly for sample {wildcards.sample_id} at {current_time}")
+            script = os.path.join(outdir, f"{wildcards.sample_id}/hifiasm_{current_time}.sh")
+            fq_gz = os.path.join(outdir, f"{wildcards.sample_id}/assembly/{wildcards.sample_id}.hifi.fq.gz")
+            cmd0 = [
+                "samtools", "fastq", "-@", str(threads), input.bam, "|", "gzip", "-c", ">", fq_gz
+            ]
+            cmd1 = [
+                "hifiasm", "-o", params.prefix, "-t", str(threads), fq_gz
+            ]
+            cmd2 = [
+                "awk", "'/^S/{print \">$2; print $3}'", f"{params.prefix}.bp.p_ctg.gfa", ">", output.fasta
+            ]
+            cmd3 = ["rm", "-f", fq_gz]
+            with open(script, "w") as f:
+                f.write("#!/bin/bash\n")
+                f.write(" ".join(cmd0) + "\n")
+                f.write(" ".join(cmd1) + "\n")
+                f.write(" ".join(cmd2) + "\n")
+                f.write(" ".join(cmd3) + "\n")
+            shell(f"bash {script} >> {log} 2>&1")
+        except Exception as e:
+            logger.error(f"hifiasm assembly failed for sample {wildcards.sample_id} with error: {e}")
+            raise e
 
 
 rule repeatmasker_run:
@@ -71,26 +87,52 @@ rule repeatmasker_run:
     conda:
         "centromere.yaml"
     params:
-        species = rm_species,
+        species = config.get("Params", {}).get("RepeatMasker", {}).get("species", "Mus musculus"),
         rm_dir = outdir + "/{sample_id}/RepeatMasker",
-        RepeatMasker = config.get("Procedure", {}).get("RepeatMasker") or "RepeatMasker"
+        RepeatMasker = config.get("Procedure", {}).get("RepeatMasker") or "RepeatMasker",
+        dfam_h5 = config.get("Params", {}).get("RepeatMasker", {}).get("dfam_h5") or ""
     run:
-        current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-        logger.info(f"Start RepeatMasker for sample {wildcards.sample_id} at {current_time}")
-        script = os.path.join(outdir,f"{wildcards.sample_id}/repeatmasker_{current_time}.sh")
-        cmd = [
-            params.RepeatMasker,
-            "-species", params.species,
-            "-pa", str(threads),
-            "-dir", params.rm_dir,
-            "-gff",
-            input.fasta
-        ]
-        with open(script, "w") as f:
-            f.write("#!/bin/bash\n")
-            f.write(f"mkdir -p {params.rm_dir}\n")
-            f.write(" ".join(cmd) + "\n")
-        shell(f"bash {script} > {log} 2>&1")
+        # setup_logger is now available from common.smk
+        open(log, "w").close()
+        logger = setup_logger(logger_name="repeatmasker_run", log_file=log)
+        try:
+            current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+            logger.info(f"Start RepeatMasker for sample {wildcards.sample_id} at {current_time}")
+            script = os.path.join(outdir, f"{wildcards.sample_id}/repeatmasker_{current_time}.sh")
+            cmd = [
+                params.RepeatMasker,
+                "-species", params.species,
+                "-pa", str(threads),
+                "-dir", params.rm_dir,
+                "-gff",
+                input.fasta
+            ]
+            if params.dfam_h5 and os.path.exists(params.dfam_h5):
+                logger.info(f"Using custom Dfam h5 for RepeatMasker: {params.dfam_h5}")
+                logger.warning("RepeatMasker don't support specifying custom Dfam h5 directly, pipeline will try to find the corresponding library dir and link your dfam h5 to the library dir with a name that RepeatMasker can recognize. Please ensure the Dfam h5 you provided is compatible with your RepeatMasker version and includes relevant satellite DNA for target species.")
+                RepeatMasker_dir = shutil.which(params.RepeatMasker)
+                if RepeatMasker_dir is None:
+                    logger.error(f"RepeatMasker executable not found: {params.RepeatMasker}")
+                    raise FileNotFoundError(f"RepeatMasker executable not found: {params.RepeatMasker}")
+                RepeatMasker_lib_dir = os.path.join(os.path.dirname(RepeatMasker_dir), "../share/RepeatMasker/Libraries/famdb")
+                if not os.path.exists(RepeatMasker_lib_dir):
+                    logger.error(f"RepeatMasker library directory not found: {RepeatMasker_lib_dir}")
+                    raise FileNotFoundError(f"RepeatMasker library directory not found: {RepeatMasker_lib_dir}")
+                target_h5_path = os.path.join(RepeatMasker_lib_dir, os.path.basename(params.dfam_h5))
+                if os.path.exists(target_h5_path):
+                    logger.info(f"Custom Dfam h5 already exists in RepeatMasker library directory: {target_h5_path}, skipping linking.")
+                else:
+                    os.symlink(params.dfam_h5, target_h5_path)
+                    logger.info(f"Linked custom Dfam h5 to RepeatMasker library directory: {target_h5_path}")
+            else:
+                logger.warning("No valid Dfam h5 provided for RepeatMasker, using default libraries. please ensure the default libraries include relevant satellite DNA for target species.")
+            with open(script, "w") as f:
+                f.write("#!/bin/bash\n")
+                f.write(" ".join(cmd) + "\n")
+            shell(f"bash {script} >> {log} 2>&1")
+        except Exception as e:
+            logger.error(f"RepeatMasker failed for sample {wildcards.sample_id} with error: {e}")
+            raise e
 
 
 rule centromere_extract:
@@ -108,19 +150,25 @@ rule centromere_extract:
         "centromere.yaml"
     threads: 1
     run:
-        current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-        logger.info(f"Start centromere stats extraction for sample {wildcards.sample_id} at {current_time}")
-        script = os.path.join(outdir,f"{wildcards.sample_id}/centromere_extract_{current_time}.sh")
-        cmd = [
-            "python", params.script,
-            "--rm_out", input.out,
-            "--output", output.stats
-        ]
-        with open(script, "w") as f:
-            f.write("#!/bin/bash\n")
-            f.write(" ".join(cmd) + "\n")
-        shell(f"bash {script} > {log} 2>&1")
-
+        # setup_logger is now available from common.smk
+        open(log, "w").close()
+        logger = setup_logger(logger_name="centromere_extract", log_file=log)
+        try:
+            current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+            logger.info(f"Start centromere stats extraction for sample {wildcards.sample_id} at {current_time}")
+            script = os.path.join(outdir, f"{wildcards.sample_id}/centromere_extract_{current_time}.sh")
+            cmd = [
+                "python", params.script,
+                "--rm_out", input.out,
+                "--output", output.stats
+            ]
+            with open(script, "w") as f:
+                f.write("#!/bin/bash\n")
+                f.write(" ".join(cmd) + "\n")
+            shell(f"bash {script} >> {log} 2>&1")
+        except Exception as e:
+            logger.error(f"Centromere stats extraction failed for sample {wildcards.sample_id} with error: {e}")
+            raise e
 
 
 rule centromere_result:

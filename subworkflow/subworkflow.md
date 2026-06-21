@@ -14,6 +14,7 @@ description: 撰写subworkflow时需要遵循此套规范
 - `indir` / `outdir` / `logdir`
 - `paired_samples` / `single_samples`
 - `outfiles`
+- `ROOT_DIR` — 项目根路径，必须传入每个模块配置
 
 说明：当前所有配置由项目根目录的 `run.py` 统一生成并下发给子工作流消费。
 
@@ -47,7 +48,7 @@ description: 撰写subworkflow时需要遵循此套规范
 - `Procedure`：可执行程序名或工具路径
 - `Params`：工具参数
 - `genome`：基因组相关路径（`fasta` / `gtf` / `index_dir` 等）
-- `ROOT_DIR`：当模块需要项目根路径时引入
+- `ROOT_DIR`：项目根路径，**所有模块配置必须传入**（common.smk 依赖此变量定位 `src/` 和 `bin/` 脚本）
 
 # 典型模式示例
 
@@ -59,6 +60,7 @@ if trimmer == "cutadapt":
 		"indir": indir,
 		"outdir": f"{outdir}/fastq/cutadapt",
 		"logdir": logdir,
+		"ROOT_DIR": ROOT_DIR,
 		"Procedure": {
 			"trim_galore": config.get("Procedure", {}).get("trim_galore")
 		}
@@ -73,6 +75,7 @@ elif trimmer == "trimmomatic":
 		"indir": indir,
 		"outdir": f"{outdir}/trimmomatic",
 		"logdir": logdir,
+		"ROOT_DIR": ROOT_DIR,
 		"Procedure": {
 			"trimmomatic": config.get("Procedure", {}).get("trimmomatic")
 		},
@@ -102,6 +105,7 @@ if aligner == "hisat2":
 		"logdir": logdir,
 		"paired_samples": paired_samples,
 		"single_samples": single_samples,
+		"ROOT_DIR": ROOT_DIR,
 		"Procedure": {
 			"hisat2": config.get("Procedure", {}).get("hisat2")
 		},
@@ -122,6 +126,7 @@ elif aligner == "star":
 		"logdir": logdir,
 		"paired_samples": paired_samples,
 		"single_samples": single_samples,
+		"ROOT_DIR": ROOT_DIR,
 		"Procedure": {
 			"star": config.get("Procedure", {}).get("star")
 		},
@@ -184,6 +189,7 @@ logdir = config.get("logdir", "logs")
 paired_samples = config.get("paired_samples", [])
 single_samples = config.get("single_samples", [])
 outfiles = config.get("outfiles", [])
+ROOT_DIR = config.get("ROOT_DIR", ".")
 
 rule all:
 	input:
@@ -195,9 +201,20 @@ module example:
 		"indir": indir,
 		"outdir": f"{outdir}/example",
 		"logdir": logdir,
+		"ROOT_DIR": ROOT_DIR,
 		"Procedure": {
 			"example": config.get("Procedure", {}).get("example")
 		}
 	}
 use rule run_example from example as MyWorkflow_example
 ```
+
+# Pitfalls
+
+## 1. 忘记传 ROOT_DIR
+
+每个模块配置必须包含 `"ROOT_DIR": ROOT_DIR`。common.smk 通过 `config.get("ROOT_DIR", ".")` 读取此值，用于定位 `src/common/LogUtil.py` 和模块的 `bin/` 脚本。如果不传，默认值 `"."` 会导致路径错误（找不到脚本或导入失败）。
+
+## 2. 子目录模块的 conda 路径
+
+子目录规则必须使用 `conda: "../<parent>.yaml"`（相对路径到父目录的 yaml），不能写 `conda: "../modules/<tool>/<tool>.yaml"`。

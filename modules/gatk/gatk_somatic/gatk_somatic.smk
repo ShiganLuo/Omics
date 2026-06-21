@@ -1,4 +1,5 @@
 from snakemake.logging import logger
+include: "../../common/common.smk"
 indir = config.get("indir") or "input"
 outdir = config.get("outdir") or "output"
 logdir = config.get("logdir") or "log"
@@ -51,17 +52,35 @@ rule somaticMutect2:
     params:
         javaOptions =  config.get("Params", {}).get("gatk", {}).get("javaOptions") or "-Xmx30g",
         gatk = config.get("Procedure", {}).get("gatk") or "gatk",
+        tmp_dir = config.get("Params", {}).get("gatk", {}).get("tmp-dir") or None,
         parameters = config.get("mutect2_parameters") or ""
     threads: 10
-    shell:
-        """
-        {params.gatk} --java-options "{params.javaOptions}" Mutect2 \
-            -R {input.fasta} \
-            -I {input.normal_bam} \
-            -I {input.experimental_bam} \
-            -normal {wildcards.normal_sample_id} \
-            -O {output.vcf} \
-            {params.parameters} \
-            --native-pair-hmm-threads {threads} > {log} 2>&1
-        """
+    run:
+        try:
+            open(log[0], "w").close()
+            logger = setup_logger(logger_name="somaticMutect2", log_file=log[0])
+            current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+            logger.info(f"Start somaticMutect2 for normal sample {wildcards.normal_sample_id} and experimental sample {wildcards.experimental_sample_id} at {current_time}")
+            script = os.path.join(outdir,f"mutect2-vcf/{wildcards.normal_sample_id}_vs_{wildcards.experimental_sample_id}/mutect2_{current_time}.sh")
+            cmd = [
+                params.gatk, "Mutect2",
+                "--java-options", params.javaOptions,
+                "-R", input.fasta,
+                "-I", input.normal_bam,
+                "-I", input.experimental_bam,
+                "-normal", wildcards.normal_sample_id,
+                "-O", output.vcf,
+                "--native-pair-hmm-threads", str(threads)
+            ] + params.parameters.split()
+            if params.tmp_dir:
+                cmd.extend(["--tmp-dir", params.tmp_dir])
+            with open(script, "w") as f:
+                f.write("#!/bin/bash\n")
+                f.write(" ".join(cmd) + "\n")
+            shell(f"bash {script} >> {log[0]} 2>&1")
+        except Exception as e:
+            with open(log[0], "a") as f:
+                f.write(f"Error during somaticMutect2 execution: {str(e)}\n")
+            raise f"Error occurred while running somaticMutect2 for normal sample {wildcards.normal_sample_id} and experimental sample {wildcards.experimental_sample_id}: {e}, you can check the log file {log[0]} for more details."
+
 

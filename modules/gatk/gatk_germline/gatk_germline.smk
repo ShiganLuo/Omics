@@ -49,7 +49,8 @@ rule HaplotypeCaller:
         "../gatk.yaml"
     params:
         javaOptions =  config.get("Params", {}).get("gatk", {}).get("javaOptions") or "-Xmx30g",
-        gatk = config.get("Procedure", {}).get("gatk") or "gatk"
+        gatk = config.get("Procedure", {}).get("gatk") or "gatk",
+        tmp_dir = config.get("Params", {}).get("gatk", {}).get("tmp-dir") or None
     threads: 10
     run:
         try:
@@ -64,6 +65,8 @@ rule HaplotypeCaller:
                 "-I", input.bam,
                 "-O", output.vcf
             ]
+            if params.tmp_dir:
+                cmd.extend(["--tmp-dir", params.tmp_dir])
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write(" ".join(cmd) + "\n")
@@ -103,6 +106,7 @@ rule filterHaplotypeCallerVcf:
         gatk = config.get("Procedure", {}).get("gatk") or "gatk",
         bcftools = config.get("Procedure", {}).get("bcftools") or "bcftools",
         javaOptions =  config.get("Params", {}).get("gatk", {}).get("javaOptions") or "-Xmx30g",
+        tmp_dir = config.get("Params", {}).get("gatk", {}).get("tmp-dir") or None,
         FS_threshold = config.get("Params", {}).get("gatk", {}).get("FS_threshold") or 20.0,
         QD_threshold = config.get("Params", {}).get("gatk", {}).get("QD_threshold") or 2.0,
         DP_threshold = config.get("Params", {}).get("gatk", {}).get("DP_threshold") or 10.0,
@@ -126,6 +130,8 @@ rule filterHaplotypeCallerVcf:
                 "--filter-name", "DP", "--filter", f"DP < {params.DP_threshold}",
                 "--filter-name", "QUAL", "--filter", f"QUAL < {params.QUAL_threshold}"
             ]
+            if params.tmp_dir:
+                cmd1.extend(["--tmp-dir", params.tmp_dir])
             cmd2 = [
                 "bcftools", "index", output.vcf
             ]

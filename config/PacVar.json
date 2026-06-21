@@ -41,7 +41,13 @@
             "dfam_h5": "/data/pub/zhousha/miniforge3/envs/sv/share/RepeatMasker/Libraries/famdb/dfam39_full.7.h5"
         },
         "gatk": {
-            "javaOptions": "-Xmx30g"
+            "javaOptions": "-Xmx45g",
+            "tmp-dir": null,
+            "addReadsGroup": {
+                "RGLB": "DNA",
+                "RGPL": "PacBio",
+                "RGPU": "HiFi"
+            }
         }
     },
     "genome": {

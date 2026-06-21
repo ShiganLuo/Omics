@@ -164,7 +164,6 @@ rule repeatmasker_run:
         species = config.get("Params", {}).get("RepeatMasker", {}).get("species", "Mus musculus"),
         rm_dir = outdir + "/{sample_id}/RepeatMasker",
         RepeatMasker = config.get("Procedure", {}).get("RepeatMasker") or "RepeatMasker",
-        
     run:
         # setup_logger is now available from common.smk
         try:

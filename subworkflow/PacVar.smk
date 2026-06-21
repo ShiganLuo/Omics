@@ -54,7 +54,9 @@ gatk_prepare_config = {
                 "RGLB": config.get("addReadsGroup", {}).get("RGLB"),
                 "RGPL": config.get("addReadsGroup", {}).get("RGPL"),
                 "RGPU": config.get("addReadsGroup", {}).get("RGPU")
-            }
+            },
+            "javaOptions": config.get("Params", {}).get("gatk", {}).get("javaOptions"),
+            "tmp-dir": config.get("Params", {}).get("gatk", {}).get("tmp-dir")
         }
     },
     "genome": {
@@ -111,6 +113,12 @@ if not skip_snp:
                 "fasta": config.get("genome", {}).get("fasta"),
                 "fai_index": config.get("genome", {}).get("fai"),
                 "dict_index": config.get("genome", {}).get("dict")
+            },
+            "Params": {
+                "gatk": {
+                    "javaOptions": config.get("Params", {}).get("gatk", {}).get("javaOptions"),
+                    "tmp-dir": config.get("Params", {}).get("gatk", {}).get("tmp-dir")
+                }
             }
         }
         module gatk_germline:

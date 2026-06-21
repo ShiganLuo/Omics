@@ -335,7 +335,9 @@ def runPacVar(
             outfiles.append(f"{outdir}/repeat/telomere/{sample_id}/all_final_alleles.png")
             outfiles.append(f"{outdir}/repeat/telomere/{sample_id}/violin_atl.png")
             outfiles.append(f"{outdir}/repeat/centromere/{sample_id}/{sample_id}.centromere_stats.txt")
-
+    gatk_tmp_dir = os.path.join(outdir, "tmp")
+    os.makedirs(gatk_tmp_dir, exist_ok=True)
+    datajson["Params"]["gatk"]["tmp-dir"] = gatk_tmp_dir
     datajson["samples"] = samples
     datajson["outfiles"] = outfiles
     instance_json = os.path.join(outdir, "raw.json")

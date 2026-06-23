@@ -331,9 +331,17 @@ def runPacVar(
     skip_telomere = datajson.get("Params", {}).get("skip_telomere", False)
     if not skip_telomere:
         for sample_id in samples:
-            outfiles.append(f"{outdir}/repeat/telomere/{sample_id}/tlens_by_allele.tsv")
-            outfiles.append(f"{outdir}/repeat/telomere/{sample_id}/all_final_alleles.png")
-            outfiles.append(f"{outdir}/repeat/telomere/{sample_id}/violin_atl.png")
+            # Telogator2 (per-chromosome-arm)
+            outfiles.append(f"{outdir}/repeat/telomere/{sample_id}/telogator2/tlens_by_allele.tsv")
+            outfiles.append(f"{outdir}/repeat/telomere/{sample_id}/telogator2/all_final_alleles.png")
+            outfiles.append(f"{outdir}/repeat/telomere/{sample_id}/telogator2/violin_atl.png")
+            # Approach A: Assembly contig end scanning
+            outfiles.append(f"{outdir}/repeat/telomere/{sample_id}/assembly_scan/{sample_id}_assembly_telomere_stats.txt")
+            # Approach B: Read-level k-mer density
+            outfiles.append(f"{outdir}/repeat/telomere/{sample_id}/read_density/{sample_id}_read_telomere_stats.txt")
+            # Approach C: tidk
+            outfiles.append(f"{outdir}/repeat/telomere/{sample_id}/tidk/{sample_id}_tidk_telomeres.tsv")
+            # Centromere
             outfiles.append(f"{outdir}/repeat/centromere/{sample_id}/{sample_id}.centromere_stats.txt")
     gatk_tmp_dir = os.path.join(outdir, "tmp")
     os.makedirs(gatk_tmp_dir, exist_ok=True)

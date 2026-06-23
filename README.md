@@ -27,7 +27,7 @@ sample_id不能包含.
 | `RNAseq` | 常规转录组分析 | count 矩阵、TE 表达结果 |
 | `CLIP` | iCLIP / CLIP-seq 分析 | 质控、比对、PureCLIP、bedGraph / bigWig、IGV 页面 |
 | `Mutation` | 体细胞突变分析（tumor vs normal） | Mutect2 VCF、Spectrum 可视化 |
-| `PacVar` | PacBio 长读长变异检测 | 结构变异 VCF、SNP VCF、phasing 结果 |
+| `PacVar` | PacBio 长读长变异检测 | 结构变异 VCF、SNP VCF、phasing 结果、端粒长度（4种方法）、着丝粒统计 |
 | `KARRseq` | Kethoxal-Assisted RNA-RNA interaction sequencing | RNA-RNA 相互作用 pairs 文件 |
 | `ncRNAseq` | 非编码 RNA 分析 | ncRNA 表达量矩阵 |
 | `RNA_SNP` | RNA 变异检测 | SNP/INDEL 结果 |

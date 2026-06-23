@@ -241,6 +241,9 @@ if not skip_repeat and config.get("genome", {}).get("repeat_bed") is not None:
 # Step 7: Telomere analysis (optional)
 # ============================================================
 if not skip_telomere:
+    # Assembly directory from centromere module (for Approach A and C)
+    centromere_outdir = f"{outdir}/repeat/centromere"
+
     telomere_config = {
         "ROOT_DIR": ROOT_DIR,
         "indir": gatk_prepare_config["outdir"],
@@ -248,6 +251,11 @@ if not skip_telomere:
         "logdir": logdir,
         "samples": samples,
         "bam_substring": "sorted_markdup",
+        "assembly_dir": centromere_outdir,
+        "Procedure": {
+            "telogator2": config.get("Procedure", {}).get("telogator2"),
+            "tidk": config.get("Procedure", {}).get("tidk")
+        },
         "Params": {
             "telogator2": config.get("Params", {}).get("telogator2", {})
         },
@@ -256,7 +264,14 @@ if not skip_telomere:
         snakefile: "../modules/telomere/telomere.smk"
         config: telomere_config
     logger.info(f"telomere_config: {telomere_config}")
+    # Approach 0: Telogator2 (per-chromosome-arm, TL_p75 only)
     use rule telogator2_run from telomere as PacVar_telogator2_run
+    # Approach A: Assembly contig end scanning (recommended for mouse)
+    use rule assembly_telomere_scan from telomere as PacVar_assembly_telomere_scan
+    # Approach B: Read-level k-mer density (genome-wide average)
+    use rule read_density_telomere from telomere as PacVar_read_density_telomere
+    # Approach C: tidk community tool (assembly-based)
+    use rule tidk_scan from telomere as PacVar_tidk_scan
 
     centromere_config = {
         "ROOT_DIR": ROOT_DIR,

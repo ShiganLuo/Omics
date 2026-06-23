@@ -144,12 +144,18 @@ UMI提取依赖序列不被破坏，建议先提取UMI，再做trim比较安全
   - pbsv：结构变异检测
   - hiphase：单倍型 phasing
   - trgt：重复序列分析
+  - telogator2：端粒长度分析（per-chromosome-arm）
+  - telomere assembly scan：基于 assembly 的端粒扫描（推荐用于小鼠）
+  - telomere read density：基于 read 的端粒 k-mer 密度估算
+  - tidk：社区工具端粒扫描
+  - centromere：着丝粒分析（hifiasm + RepeatMasker）
 - **输入**：PacBio BAM/fastq
-- **输出**：SNP VCF、SV VCF、phasing 结果、重复序列分析结果
+- **输出**：SNP VCF、SV VCF、phasing 结果、重复序列分析结果、端粒长度、着丝粒统计
 - **特点**：
   - 支持跳过特定步骤（skip_snp/skip_sv/skip_phase/skip_repeat）
   - 支持多种 SNV caller（deepvariant/gatk4）
-  - 支持端粒/着丝粒分析（skip_telomere）
+  - 支持端粒分析（4 种方法）和着丝粒分析
+  - 端粒方法：telogator2（TL_p75）、assembly scan（推荐小鼠）、read density（全基因组平均）、tidk
 
 ### 10. KARRseq.smk
 - **用途**：Kethoxal-Assisted RNA-RNA interaction sequencing 分析。

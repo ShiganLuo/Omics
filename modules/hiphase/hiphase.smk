@@ -51,11 +51,11 @@ rule hiphase_phase:
         uncompressed_vcf = output.vcf.replace(".gz", "")
         cmd1 = [
             params.hiphase,
-            "--num-threads", str(threads),
+            "--threads", str(threads),
             "--reference", input.fasta,
-            "--input-bam", input.bam,
+            "--bam", input.bam,
             "--output-bam", output.bam,
-            "--input-vcf", input.vcf,
+            "--vcf", input.vcf,
             "--output-vcf", uncompressed_vcf
         ]
         cmd2 = [

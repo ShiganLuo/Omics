@@ -1,6 +1,4 @@
 from snakemake.logging import logger
-import time
-import os
 include: "../../common/common.smk"
 indir = config.get("indir") or "input"
 outdir = config.get("outdir") or "output"

@@ -21,7 +21,7 @@
         "skip_phase": false,
         "skip_repeat": false,
         "skip_telomere": false,
-        "snv_caller": "gatk4",
+        "snv_caller": "deepvariant",
         "deepvariant": {
             "model_type": "PACBIO"
         },
@@ -49,6 +49,9 @@
                 "RGPU": "HiFi"
             }
         }
+    },
+    "container": {
+        "deepvariant": "/data/pub/zhousha/env/sif/deepvariant_1.10.0.sif"
     },
     "genome": {
         "fasta": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",

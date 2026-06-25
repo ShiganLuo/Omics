@@ -89,6 +89,9 @@ if not skip_snp:
             "Params": {
                 "deepvariant": config.get("Params", {}).get("deepvariant", {})
             },
+            "container": {
+                "deepvariant": config.get("container", {}).get("deepvariant")
+            },
             "genome": {
                 "fasta": config.get("genome", {}).get("fasta"),
                 "fai": config.get("genome", {}).get("fai")
@@ -99,37 +102,7 @@ if not skip_snp:
             config: deepvariant_config
         logger.info(f"deepvariant_config: {deepvariant_config}")
         use rule deepvariant_run from deepvariant as PacVar_deepvariant_run
-    elif snv_caller == "gatk4":
-        gatk_germline_config = {
-            "ROOT_DIR": ROOT_DIR,
-            "indir": gatk_prepare_config["outdir"],
-            "outdir": f"{outdir}/variation/germline_snv_indel",
-            "logdir": logdir,
-            "Procedure": {
-                "gatk": config.get("Procedure", {}).get("gatk"),
-                "samtools": config.get("Procedure", {}).get("samtools")
-            },
-            "genome": {
-                "fasta": config.get("genome", {}).get("fasta"),
-                "fai_index": config.get("genome", {}).get("fai"),
-                "dict_index": config.get("genome", {}).get("dict")
-            },
-            "Params": {
-                "gatk": {
-                    "javaOptions": config.get("Params", {}).get("gatk", {}).get("javaOptions"),
-                    "tmp-dir": config.get("Params", {}).get("gatk", {}).get("tmp-dir")
-                }
-            }
-        }
-        module gatk_germline:
-            snakefile: "../modules/gatk/gatk_germline/gatk_germline.smk"
-            config: gatk_germline_config
-        logger.info(f"gatk_germline_config: {gatk_germline_config}")
-        use rule HaplotypeCaller from gatk_germline as PacVar_HaplotypeCaller
-        use rule filterHaplotypeCallerVcf from gatk_germline as PacVar_filterHaplotypeCallerVcf
-    else:
-        raise ValueError(f"Unsupported snv_caller: {snv_caller}")
-
+   
 # ============================================================
 # Step 4: SV variant calling (pbsv)
 # ============================================================
@@ -167,7 +140,7 @@ if not skip_phase and not skip_snp and not skip_sv:
         "samples": samples,
         "bam_dir": gatk_prepare_config["outdir"],
         "input_bam_substring": "sorted_markdup",
-        "input_vcf_substring": "filtered",
+        "input_vcf_substring": "",
         "output_substring": "",
         "vcf_dir": f"{outdir}/variation/germline_snv_indel",
         "Procedure": {

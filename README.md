@@ -184,7 +184,8 @@ bash workflow/RNA-SNP/run.sh
 - [ ] 实际执行包装成shell，兼容HPC。简单代码，是放在shell，还是直接在run中运行
 - [ ] 元信息待增加分组名
 - [x] 添加项目skill文档
-- [ ] 整合所有曾经分析过的流程(bcftools待添加进流程)
+- [ ] 整合所有曾经分析过的流程(bcftools待添加进流程,群体基因组学、单细胞分析流程……)
+
 
 
 

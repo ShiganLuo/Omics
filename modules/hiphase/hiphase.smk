@@ -43,12 +43,10 @@ rule hiphase_phase:
         "hiphase.yaml"
     params:
         hiphase = config.get("Procedure", {}).get("hiphase") or "hiphase",
-        bgzip = config.get("Procedure", {}).get("bgzip") or "bgzip"
     run:
         current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start hiphase for sample {wildcards.sample_id} at {current_time}")
         script = os.path.join(outdir,f"{wildcards.sample_id}/hiphase_{current_time}.sh")
-        uncompressed_vcf = output.vcf.replace(".gz", "")
         cmd1 = [
             params.hiphase,
             "--threads", str(threads),
@@ -56,19 +54,11 @@ rule hiphase_phase:
             "--bam", input.bam,
             "--output-bam", output.bam,
             "--vcf", input.vcf,
-            "--output-vcf", uncompressed_vcf
-        ]
-        cmd2 = [
-            params.bgzip, uncompressed_vcf, "-o", output.vcf
-        ]
-        cmd3 = [
-            "rm", uncompressed_vcf
+            "--output-vcf", output.vcf
         ]
         with open(script, "w") as f:
             f.write("#!/bin/bash\n")
             f.write(" ".join(cmd1) + "\n")
-            f.write(" ".join(cmd2) + "\n")
-            f.write(" ".join(cmd3) + "\n")
         shell("bash {script} > {log} 2>&1")
 
 rule hiphase_result:

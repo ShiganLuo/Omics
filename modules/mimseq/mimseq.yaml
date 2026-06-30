@@ -1,0 +1,25 @@
+name: mimseq
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - python>=3.7
+  - mimseq
+  - biopython
+  - pandas
+  - numpy
+  - pysam
+  - pybedtools
+  - seaborn
+  - matplotlib
+  - statsmodels
+  - pyfiglet
+  - requests
+  - bedtools
+  - gmap
+  - gsnap
+  - blast
+  - infernal
+  - r-base
+  - bioconductor-deseq2

@@ -33,6 +33,7 @@ sample_id不能包含.
 | `RNA_SNP` | RNA 变异检测 | SNP/INDEL 结果 |
 | `PeakCalling` | ChIP-seq / DIP-seq peak calling 分析 | trimming、bowtie2 比对、MACS3 peak 结果 |
 | `QuantMS` | 定量蛋白质组学分析（TMT/LFQ/DIA） | mzTab 定量结果、MSstats 统计分析 |
+| `tRNAseq` | tRNA 修饰诱导错配测序分析（mim-tRNAseq） | 覆盖度、修饰定量、CCA 分析、DESeq2 差异表达 |
 
 ### CLIP
 
@@ -101,6 +102,119 @@ python workflow/RNA-SNP/run.py \
 ```
 
 如果只是想检查流程而不真正执行，可加上 `--dry-run`。
+
+## 运行特定步骤
+
+Snakemake 提供了多种方式来运行流程中的特定步骤，方便调试和重跑。
+
+### 1. 运行到指定 rule（--until）
+
+```bash
+# 运行流程直到 align rule 完成（包含 align）
+python workflow/Omics/run.py \
+  -m data/meta/fastq \
+  -w CLIP \
+  -o output \
+  --snakemake-args --until align
+```
+
+### 2. 运行指定 rule 的特定样本（--target-jobs）
+
+```bash
+# 直接指定要运行的 job（rule + wildcards）
+snakemake --snakefile workflow/Omics/subworkflow/CLIP.smk \
+  --target-jobs 'rule:align:wildcards.sample=S1' \
+  --cores 8
+
+# 运行多个样本
+snakemake --snakefile workflow/Omics/subworkflow/CLIP.smk \
+  --target-jobs 'rule:align:wildcards.sample=S1' 'rule:align:wildcards.sample=S2' \
+  --cores 8
+```
+
+### 3. 强制重跑指定 rule（--forcerun）
+
+```bash
+# 强制重跑 align rule（即使输出已存在）
+python workflow/Omics/run.py \
+  -m data/meta/fastq \
+  -w CLIP \
+  -o output \
+  --snakemake-args --forcerun align
+```
+
+### 4. 跳过指定 rule（--omit-from）
+
+```bash
+# 跳过 qc 及其下游所有依赖
+python workflow/Omics/run.py \
+  -m data/meta/fastq \
+  -w CLIP \
+  -o output \
+  --snakemake-args --omit-from qc
+```
+
+### 5. 只运行特定 rule（不运行下游）
+
+```bash
+# 只运行 align，不运行依赖 align 的下游 rule
+snakemake --snakefile workflow/Omics/subworkflow/CLIP.smk \
+  --target-jobs 'rule:align:wildcards.sample=S1' \
+  --no-infer-dependencies \
+  --cores 8
+```
+
+### 6. 查看 DAG 和 rule 依赖
+
+```bash
+# 查看将要执行的 job 列表（dry-run）
+snakemake --snakefile workflow/Omics/subworkflow/CLIP.smk \
+  --target-jobs 'rule:align:wildcards.sample=S1' \
+  --dry-run
+
+# 生成 DAG 图（dot 格式）
+snakemake --snakefile workflow/Omics/subworkflow/CLIP.smk \
+  --dag | dot -Tpng > dag.png
+
+# 生成 rule 依赖图
+snakemake --snakefile workflow/Omics/subworkflow/CLIP.smk \
+  --rulegraph | dot -Tpng > rulegraph.png
+```
+
+### 7. HPC 环境下单独运行
+
+在 HPC 环境中，Snakemake 会生成 jobscript 提交到集群调度器（SLURM/PBS）。要单独运行某个步骤：
+
+```bash
+# 方式1：使用 --target-jots 指定 job
+sbatch --wrap="snakemake --snakefile workflow/Omics/subworkflow/CLIP.smk \
+  --target-jobs 'rule:align:wildcards.sample=S1' \
+  --cores 8 --use-conda"
+
+# 方式2：查看 Snakemake 生成的 jobscript 内容
+snakemake --snakefile workflow/Omics/subworkflow/CLIP.smk \
+  --target-jobs 'rule:align:wildcards.sample=S1' \
+  --dry-run --printshellcmds
+```
+
+### 8. 调试技巧
+
+```bash
+# 显示将要执行的 shell 命令
+snakemake --snakefile workflow/Omics/subworkflow/CLIP.smk \
+  --target-jobs 'rule:align:wildcards.sample=S1' \
+  --dry-run --printshellcmds
+
+# 详细日志
+snakemake --snakefile workflow/Omics/subworkflow/CLIP.smk \
+  --target-jobs 'rule:align:wildcards.sample=S1' \
+  --cores 8 --verbose
+
+# 只执行一个 job（不并行）
+snakemake --snakefile workflow/Omics/subworkflow/CLIP.smk \
+  --target-jobs 'rule:align:wildcards.sample=S1' \
+  --cores 1
+```
 
 ## `run.py` 参数说明
 

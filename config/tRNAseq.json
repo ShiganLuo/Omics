@@ -1,0 +1,42 @@
+{
+    "indir": "data/fastq",
+    "outdir": "output",
+    "logdir": "log",
+    "samples": [],
+    "outfiles": [],
+    "sample_data": "",
+    "ROOT_DIR": ".",
+    "Procedure": {},
+    "Params": {
+        "mimseq": {
+            "species": "Hsap",
+            "name": "tRNAseq",
+            "control_cond": "",
+            "cluster_id": 0.97,
+            "threads": 8,
+            "min_cov": 0.0005,
+            "max_mismatches": 0.075,
+            "max_multi": 4,
+            "misinc_thresh": 0.1,
+            "remap_mismatches": 0.05,
+            "p_adj": 0.05,
+            "cov_diff": 0.5,
+            "no_cluster": false,
+            "no_cca": false,
+            "double_cca": false,
+            "remap": true,
+            "snp_tolerance": true,
+            "keep_temp": false,
+            "crosstalks": false,
+            "pretRNAs": false,
+            "posttrans_mod_off": false,
+            "local_modomics": false
+        }
+    },
+    "genome": {
+        "trnas": "",
+        "trnaout": "",
+        "mito_trnas": "",
+        "plastid_trnas": ""
+    }
+}

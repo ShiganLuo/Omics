@@ -1,0 +1,8 @@
+name: fumitools
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - fumi_tools
+  - pigz

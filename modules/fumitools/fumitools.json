@@ -1,0 +1,21 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "log",
+    "samples": [],
+    "paired_samples": [],
+    "single_samples": [],
+    "ROOT_DIR": ".",
+    "Procedure": {
+        "fumitools": null
+    },
+    "Params": {
+        "fumitools": {
+            "umi_length": 12,
+            "tag_umi": false,
+            "start_only": false,
+            "memory": "3G",
+            "threads": 4
+        }
+    }
+}

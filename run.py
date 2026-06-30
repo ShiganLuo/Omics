@@ -641,11 +641,46 @@ def runQuantMS(
         json.dump(datajson, wf, indent=2, ensure_ascii=False)
     return instance_json
 
+def runtRNAseq(
+    datajson: Dict[str, Any],
+    samples_info_dict: Dict[str, Any],
+    indir: str,
+    outdir: str,
+):
+    """Prepare input JSON for tRNAseq (mim-tRNAseq) workflow.
+
+    mim-tRNAseq is an all-in-one pipeline for tRNA sequencing analysis:
+    tRNA clustering, GSNAP alignment, coverage analysis, modification
+    quantification, CCA analysis, and DESeq2 differential expression.
+
+    The pipeline processes all samples together via a sample data sheet.
+    """
+    datajson["ROOT_DIR"] = os.path.dirname(__file__)
+    datajson["indir"] = indir
+    datajson["outdir"] = outdir
+    logdir = os.path.join(outdir, "log")
+    os.makedirs(logdir, exist_ok=True)
+    datajson["logdir"] = logdir
+
+    samples = []
+    for sample_id in samples_info_dict:
+        samples.append(sample_id)
+
+    outfiles = [f"{outdir}/mimseq/mimseq"]
+
+    datajson["samples"] = samples
+    datajson["outfiles"] = outfiles
+
+    instance_json = os.path.join(outdir, "raw.json")
+    with open(instance_json, 'w', encoding='utf-8') as wf:
+        json.dump(datajson, wf, indent=2, ensure_ascii=False)
+    return instance_json
+
 def parse_args():
     parser = argparse.ArgumentParser(description="workflow")
     parser.add_argument('-m','--meta', type=str, required=True, help='meta input file or data dir which condatain fastq file')
     parser.add_argument('-w','--workflow_name', type=str, nargs='+',
-        choices=["CoCulture", "MERIP", "RNAseq", "CLIP", "Mutation", "PacVar", "KARRseq", "PeakCalling", "QuantMS"],
+        choices=["CoCulture", "MERIP", "RNAseq", "CLIP", "Mutation", "PacVar", "KARRseq", "PeakCalling", "QuantMS", "tRNAseq"],
         default=['CoCulture'], help='workflow name(s), multiple for parallel execution')
     parser.add_argument('-o','--output_dir', type=str, required=True, help='output dir')
     parser.add_argument('-t','--threads', type=int, default=10, help='threads')
@@ -723,6 +758,7 @@ WORKFLOW_DISPATCH = {
     "KARRseq":    lambda cfg, sid, dp, indir, outdir: ("KARRseq.smk",   runKARRseq(cfg, sid, indir, outdir)),
     "PeakCalling":lambda cfg, sid, dp, indir, outdir: ("PeakCalling.smk",runPeakCalling(cfg, sid, indir, outdir)),
     "QuantMS":    lambda cfg, sid, dp, indir, outdir: ("QuantMS.smk",   runQuantMS(cfg, sid, indir, outdir)),
+    "tRNAseq":    lambda cfg, sid, dp, indir, outdir: ("tRNAseq.smk",   runtRNAseq(cfg, sid, indir, outdir)),
 }
 
 

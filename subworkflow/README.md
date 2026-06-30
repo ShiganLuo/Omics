@@ -156,6 +156,8 @@ UMI提取依赖序列不被破坏，建议先提取UMI，再做trim比较安全
   - 支持多种 SNV caller（deepvariant/gatk4）
   - 支持端粒分析（4 种方法）和着丝粒分析
   - 端粒方法：telogator2（TL_p75）、assembly scan（推荐小鼠）、read density（全基因组平均）、tidk
+- **问题**：
+  - 如何从PacBio数据识别端粒长度超过hifi读长的物种或品种（比如小鼠，hifi平均reads长度大约在15kb，适合测量人类的端粒长度），流程目前所集成的几大方法都有很大缺陷。确定着丝粒长度也非常有难度。除非组装出T2T基因组
 
 ### 10. KARRseq.smk
 - **用途**：Kethoxal-Assisted RNA-RNA interaction sequencing 分析。
@@ -185,6 +187,24 @@ UMI提取依赖序列不被破坏，建议先提取UMI，再做trim比较安全
   - 支持多种搜索引擎（Comet、MSGF+、Sage）
   - 支持跳过 MSstats 分析（skip_post_msstats）
   - 基于 OpenMS 工具集
+
+### 12. tRNAseq.smk
+- **用途**：tRNA 修饰诱导错配测序分析（mim-tRNAseq）。
+- **主要步骤**：
+  - tRNA 聚类 + SNP 索引构建
+  - GSNAP 比对（SNP-tolerant）
+  - 簇拆分 / 反卷积为唯一 tRNA 转录本
+  - 覆盖度计算 + QC 图
+  - 错配 / 修饰定量
+  - 3'-CCA 分析（tRNA 完整性）
+  - DESeq2 差异表达
+  - （可选）SLAC 修饰-氨基酸酰化串扰分析
+- **输入**：trimmed FASTQ（sample data sheet, TSV 格式）、物种 tRNA 参考
+- **输出**：覆盖度报告、修饰表格、CCA 统计、DESeq2 结果、可视化图
+- **特点**：
+  - 基于 mim-tRNAseq 一体化工具（mimseq 命令）
+  - 支持内置物种（Hsap, Mmus, Scer 等）和自定义 tRNA 参考
+  - 所有样本一起处理，通过 sample data sheet 驱动
 
 ---
 

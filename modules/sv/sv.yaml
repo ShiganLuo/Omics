@@ -1,0 +1,16 @@
+name: sv
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - python>=3.10
+  - pandas
+  - matplotlib
+  - numpy
+  - scipy
+  - gffutils
+  - pyvcf
+  - bedtools
+  - r-base
+  - bioconductor-circlize

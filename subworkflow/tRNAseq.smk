@@ -14,6 +14,43 @@ rule all:
     input:
         outfiles
 
+fumitools_config = {
+    "indir": indir,
+    "outdir": f"{outdir}/fastq/umi_fastq",
+    "logdir": logdir,
+    "paired_samples": config.get("paired_samples", []),
+    "ROOT_DIR": ROOT_DIR,
+    "Procedure": {
+        "fumitools": config.get("Procedure", {}).get("fumitools")
+    },
+    "Params": {
+        "umi_length": config.get("Params", {}).get("fumitools", {}).get("umi_length", 12),
+        "tag_umi": config.get("Params", {}).get("fumitools", {}).get("tag_umi", False),
+    }
+}
+logger.info(f"fumitools_config: {fumitools_config}")
+module fumitools:
+    snakefile: "../modules/fumitools/fumitools.smk"
+    config: fumitools_config
+use rule fumitools_copy_umi from fumitools as tRNAseq_fumitools_copy_umi
+use rule fumitools_copy_umi_single from fumitools as tRNAseq_fumitools_copy_umi_single
+
+cutadapt_config = {
+            "indir": fumitools_config["outdir"],
+            "outdir":  f"{outdir}/fastq/trimmed_fastq",
+            "logdir": logdir,
+            "mode": "UMI",
+            "Procedure": {
+                "trim_galore": config.get('Procedure',{}).get('trim_galore')
+            }
+}
+module cutadapt:
+    snakefile: "../modules/cutadapt/cutadapt.smk"
+    config: cutadapt_config
+logger.info(f"cutadapt_config: {cutadapt_config}")
+use rule trimming_Paired from cutadapt as RNAseq_trimming_Paireds
+use rule trimming_Single from cutadapt as RNAseq_trimming_Single
+
 # Module config dict
 mimseq_config = {
     "indir": indir,

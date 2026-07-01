@@ -7,29 +7,17 @@ ROOT_DIR = config.get("ROOT_DIR", ".")
 indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
-samples = config.get("samples", [])
 paired_samples = config.get("paired_samples", [])
-single_samples = config.get("single_samples", samples)
 
-def get_fumitools_input(wildcards):
-    """Dynamically determine paired-end or single-end input."""
-    sid = wildcards.sample_id
-    if sid in paired_samples:
-        r1 = f"{indir}/{sid}/{sid}_1.fq.gz"
-        r2 = f"{indir}/{sid}/{sid}_2.fq.gz"
-        return {"r1": r1, "r2": r2}
-    return {"r1": f"{indir}/{sid}/{sid}.fq.gz"}
 
-# ========================
-# copy_umi — extract UMI from read into header
-# ========================
-
-rule fumitools_copy_umi:
+rule fumitools_copy_umi_paired:
     """Copy UMI from read sequence into FASTQ header."""
     input:
-        unpack(get_fumitools_input)
+        r1 = indir + "/{sample_id}/{sample_id}_1.fq.gz",
+        r2 = indir + "/{sample_id}/{sample_id}_2.fq.gz",
     output:
         r1 = outdir + "/{sample_id}/{sample_id}_1.umi.fq.gz",
+        r2 = outdir + "/{sample_id}/{sample_id}_2.umi.fq.gz",
     log:
         logdir + "/{sample_id}/fumitools_copy_umi.log"
     conda:
@@ -38,7 +26,49 @@ rule fumitools_copy_umi:
         fumi_tools = config.get("Procedure", {}).get("fumitools") or "fumi_tools",
         umi_length = config.get("Params", {}).get("fumitools", {}).get("umi_length", 12),
         tag_umi = config.get("Params", {}).get("fumitools", {}).get("tag_umi", False),
-    threads: config.get("Params", {}).get("fumitools", {}).get("threads", 4)
+    threads: 4
+    run:
+        try:
+            log_path = str(log)
+            open(log_path, "w").close()
+            current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+            script_path = os.path.join(outdir, f"{wildcards.sample_id}/fumitools_copy_umi_{current_time}.sh")
+
+            cmd = [
+                params.fumi_tools, "copy_umi",
+                "-i", input.r1,
+                "-I", input.r2,
+                "-o", output.r1,
+                "-O", output.r2,
+                "--umi-length", str(params.umi_length),
+                "--threads", str(threads),
+            ]
+            if params.tag_umi:
+                cmd += ["--tag-umi"]
+
+            with open(script_path, "w") as f:
+                f.write("#!/bin/bash\n")
+                f.write(" ".join(cmd) + "\n")
+            shell(f"bash {script_path} >> {log_path} 2>&1")
+        except Exception as e:
+            with open(log_path, "a") as f:
+                f.write(f"fumitools_copy_umi failed for {wildcards.sample_id}: {e}\n")
+            raise
+
+rule fumitools_copy_umi_single:
+    input:
+        r1 = indir + "/{sample_id}/{sample_id}.single.fq.gz",
+    output:
+        r1 = outdir + "/{sample_id}/{sample_id}.umi.single.fq.gz",
+    log:
+        logdir + "/{sample_id}/fumitools_copy_umi.log"
+    conda:
+        "fumitools.yaml"
+    params:
+        fumi_tools = config.get("Procedure", {}).get("fumitools") or "fumi_tools",
+        umi_length = config.get("Params", {}).get("fumitools", {}).get("umi_length", 12),
+        tag_umi = config.get("Params", {}).get("fumitools", {}).get("tag_umi", False),
+    threads: 4
     run:
         try:
             log_path = str(log)
@@ -55,12 +85,6 @@ rule fumitools_copy_umi:
             ]
             if params.tag_umi:
                 cmd += ["--tag-umi"]
-
-            # Paired-end: also process R2
-            if "r2" in input.keys():
-                r2_out = outdir + f"/{wildcards.sample_id}/{wildcards.sample_id}_2.umi.fq.gz"
-                cmd += ["-I", input.r2, "-O", r2_out]
-
             with open(script_path, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write(" ".join(cmd) + "\n")
@@ -69,7 +93,6 @@ rule fumitools_copy_umi:
             with open(log_path, "a") as f:
                 f.write(f"fumitools_copy_umi failed for {wildcards.sample_id}: {e}\n")
             raise
-
 # ========================
 # dedup — UMI-based deduplication on sorted BAM
 # ========================

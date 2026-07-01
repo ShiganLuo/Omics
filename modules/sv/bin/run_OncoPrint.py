@@ -1,7 +1,7 @@
 import argparse
 import os
 import sys
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
 from common.LogUtil import setup_logger
 from utils.VEP_SV import read_vep_tab
 from utils.SV_TYPE_plot import plot_group_type_comparison

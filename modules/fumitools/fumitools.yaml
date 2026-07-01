@@ -2,7 +2,8 @@ name: fumitools
 channels:
   - conda-forge
   - bioconda
+  - ccb-sb
   - defaults
 dependencies:
-  - fumi_tools
+  - fumi_tools=0.19.0
   - pigz

@@ -127,6 +127,8 @@ if not skip_sv:
     logger.info(f"pbsv_config: {pbsv_config}")
     use rule pbsv_discover from pbsv as PacVar_pbsv_discover
     use rule pbsv_call from pbsv as PacVar_pbsv_call
+
+    
     
 # ============================================================
 # Step 5: Phasing (optional, requires both SNP + SV done)
@@ -179,6 +181,7 @@ if not skip_phase and not skip_snp and not skip_sv:
         config: hiphase_sv_config
     logger.info(f"hiphase_sv_config: {hiphase_sv_config}")
     use rule hiphase_phase from hiphase_sv as PacVar_hiphase_sv
+
 
 # ============================================================
 # Step 6: Repeat characterization (optional)

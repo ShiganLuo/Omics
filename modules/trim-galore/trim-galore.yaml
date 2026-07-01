@@ -1,0 +1,7 @@
+name: trim-galore
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - cutadapt=5.2
+  - trim-galore=0.6.11

@@ -1,0 +1,23 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "logs",
+    "paired_samples": [],
+    "single_samples": [],
+    "mode": null,
+    "Procedure": {
+        "cutadapt": null
+    },
+    "Params": {
+        "cutadapt": {
+            "quality": 20,
+            "adapter_r1": null,
+            "adapter_r2": null,
+            "minimum_length": null,
+            "maximum_length": null,
+            "match_read_wildcards": false,
+            "cut": null,
+            "trimmed_only": false
+        }
+    }
+}

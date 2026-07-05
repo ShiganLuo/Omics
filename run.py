@@ -11,7 +11,9 @@ logger = logging.getLogger(__name__)
 
 
 def smart_cast(val):
-    """尝试将字符串转换为 int/float/bool，否则原样返回"""
+    """尝试将字符串转换为 int/float/bool，否则原样返回；list 逐元素转换"""
+    if isinstance(val, list):
+        return [smart_cast(v) for v in val]
     if isinstance(val, str):
         if val.lower() in {"true", "false"}:
             return val.lower() == "true"
@@ -646,6 +648,7 @@ def runtRNAseq(
     samples_info_dict: Dict[str, Any],
     indir: str,
     outdir: str,
+    meta: str,
 ):
     """Prepare input JSON for tRNAseq (mim-tRNAseq) workflow.
 
@@ -661,12 +664,12 @@ def runtRNAseq(
     logdir = os.path.join(outdir, "log")
     os.makedirs(logdir, exist_ok=True)
     datajson["logdir"] = logdir
-
+    datajson["meta"] = meta
     samples = []
     for sample_id in samples_info_dict:
         samples.append(sample_id)
 
-    outfiles = [f"{outdir}/mimseq/mimseq"]
+    outfiles = [f"{outdir}/mimseq"]
 
     datajson["samples"] = samples
     datajson["outfiles"] = outfiles
@@ -703,7 +706,8 @@ def parse_args():
         help='additional arguments forwarded to snakemake; place them after this flag'
     )
     
-    # 支持 --key=value 和 --key value 两种形式的额外参数
+    # 支持 --key=value、--key value、--key v1 v2 v3 三种形式的额外参数
+    # 多值参数在碰到下一个 --key 或到达末尾时停止收集
     args, unknown = parser.parse_known_args()
     extra_args = {}
     i = 0
@@ -714,11 +718,17 @@ def parse_args():
             if '=' in key:
                 k, v = key.split('=', 1)
                 extra_args[k] = v
-            elif i + 1 < len(unknown) and not unknown[i + 1].startswith('--'):
-                extra_args[key] = unknown[i + 1]
-                i += 1
             else:
-                extra_args[key] = True
+                values = []
+                while i + 1 < len(unknown) and not unknown[i + 1].startswith('--'):
+                    values.append(unknown[i + 1])
+                    i += 1
+                if not values:
+                    extra_args[key] = True
+                elif len(values) == 1:
+                    extra_args[key] = values[0]
+                else:
+                    extra_args[key] = values
         i += 1
     args.extra_args = extra_args
     return args
@@ -749,16 +759,16 @@ def build_snakemake_cmd(root_dir, smk, input_json, threads, conda_prefix, rerun_
 
 
 WORKFLOW_DISPATCH = {
-    "CoCulture":  lambda cfg, sid, dp, indir, outdir: ("CoCulture.smk", runCoCulture(cfg, sid, indir, outdir)),
-    "MERIP":      lambda cfg, sid, dp, indir, outdir: ("MERIP.smk",     runMERIP(cfg, sid, indir, outdir)),
-    "RNAseq":     lambda cfg, sid, dp, indir, outdir: ("RNAseq.smk",    runRNAseq(cfg, sid, indir, outdir)),
-    "CLIP":       lambda cfg, sid, dp, indir, outdir: ("CLIP.smk",      runCLIP(cfg, sid, indir, outdir)),
-    "Mutation":   lambda cfg, sid, dp, indir, outdir: ("Mutation.smk",  runMutation(cfg, sid, dp, indir, outdir)),
-    "PacVar":     lambda cfg, sid, dp, indir, outdir: ("PacVar.smk",    runPacVar(cfg, sid, indir, outdir)),
-    "KARRseq":    lambda cfg, sid, dp, indir, outdir: ("KARRseq.smk",   runKARRseq(cfg, sid, indir, outdir)),
-    "PeakCalling":lambda cfg, sid, dp, indir, outdir: ("PeakCalling.smk",runPeakCalling(cfg, sid, indir, outdir)),
-    "QuantMS":    lambda cfg, sid, dp, indir, outdir: ("QuantMS.smk",   runQuantMS(cfg, sid, indir, outdir)),
-    "tRNAseq":    lambda cfg, sid, dp, indir, outdir: ("tRNAseq.smk",   runtRNAseq(cfg, sid, indir, outdir)),
+    "CoCulture":  lambda cfg, sid, dp, indir, outdir, meta: ("CoCulture.smk", runCoCulture(cfg, sid, indir, outdir)),
+    "MERIP":      lambda cfg, sid, dp, indir, outdir, meta: ("MERIP.smk",     runMERIP(cfg, sid, indir, outdir)),
+    "RNAseq":     lambda cfg, sid, dp, indir, outdir, meta: ("RNAseq.smk",    runRNAseq(cfg, sid, indir, outdir)),
+    "CLIP":       lambda cfg, sid, dp, indir, outdir, meta: ("CLIP.smk",      runCLIP(cfg, sid, indir, outdir)),
+    "Mutation":   lambda cfg, sid, dp, indir, outdir, meta: ("Mutation.smk",  runMutation(cfg, sid, dp, indir, outdir)),
+    "PacVar":     lambda cfg, sid, dp, indir, outdir, meta: ("PacVar.smk",    runPacVar(cfg, sid, indir, outdir)),
+    "KARRseq":    lambda cfg, sid, dp, indir, outdir, meta: ("KARRseq.smk",   runKARRseq(cfg, sid, indir, outdir)),
+    "PeakCalling":lambda cfg, sid, dp, indir, outdir, meta: ("PeakCalling.smk",runPeakCalling(cfg, sid, indir, outdir)),
+    "QuantMS":    lambda cfg, sid, dp, indir, outdir, meta: ("QuantMS.smk",   runQuantMS(cfg, sid, indir, outdir)),
+    "tRNAseq":    lambda cfg, sid, dp, indir, outdir, meta: ("tRNAseq.smk",   runtRNAseq(cfg, sid, indir, outdir, meta)),
 }
 
 
@@ -807,7 +817,7 @@ if __name__ == "__main__":
 
         smk, input_json = WORKFLOW_DISPATCH[wf_name](
             deepcopy(workflow_config), samples_info_dict, designPair,
-            raw_fastq_dir, abs_outdir
+            raw_fastq_dir, abs_outdir,args.meta
         )
 
         cmd = build_snakemake_cmd(

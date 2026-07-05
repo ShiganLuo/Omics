@@ -212,9 +212,9 @@ class MetadataUtils:
                 logger.info(f"Detect the relationship between {sample_id} and {data_ids[0]} is one-to-one")
                 origin_r1 = df_sample[fastq_r1_col].values[0]
                 origin_r2 = df_sample[fastq_r2_col].values[0] if fastq_r2_col in df_sample.columns else None
-                origin_r1 = Path(origin_r1) if origin_r1 else None
-                origin_r2 = Path(origin_r2) if origin_r2 else None
-                
+                origin_r1 = Path(origin_r1) if os.path.exists(origin_r1) else None
+                origin_r2 = Path(origin_r2) if os.path.exists(origin_r2) else None
+
                 if origin_r1 and origin_r2:
                     logger.info(f"Detect {data_ids[0]} is Paired END")
                     self.samples_dict[sample_id].layout = Layout.PE

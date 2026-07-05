@@ -1,7 +1,5 @@
 from snakemake.logging import logger
 include: "../common/common.smk"
-import time
-import os
 
 ROOT_DIR = config.get("ROOT_DIR", ".")
 indir = config.get("indir", "input")
@@ -9,29 +7,44 @@ outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 samples = config.get("samples", [])
 
-# ========================
-# mimseq main run
-# ========================
+def get_mimseq_input():
+    fastqs = [os.path.join(indir, sample_id, f"{sample_id}.single.fq.gz") for sample_id in samples]
+    meta = config.get("meta", "")
+    in_dict = {
+        "fastqs": fastqs,
+        "meta": meta,
+    }
+    if not os.path.exists(meta):
+        raise FileNotFoundError(f"Metadata file {meta} not found.")
+    if config.get("Params", {}).get("mimseq", {}).get("species", "") not in ["Hsap", "Hsap38", "Mmus", "Scer", "Spom", "Dmel", "Drer", "Ecol"]:
+        logger.info("Custom tRNA references provided. Checking existence...")
+        trnas = config.get("genome", {}).get("trnas", "")
+        trnaout = config.get("genome", {}).get("trnaout", "")
+        if not os.path.exists(trnas):
+            raise FileNotFoundError(f"tRNA reference file {trnas} not found.")
+        if not os.path.exists(trnaout):
+            raise FileNotFoundError(f"tRNA output file {trnaout} not found.")
+        in_dict["trnas"] = trnas
+        in_dict["trnaout"] = trnaout
+    return in_dict
 
 rule mimseq_run:
     """Run mim-tRNAseq pipeline: alignment, coverage, modification quantification, DESeq2."""
     input:
-        sample_data = config.get("sample_data", ""),
-        trnas = config.get("genome", {}).get("trnas", ""),
-        trnaout = config.get("genome", {}).get("trnaout", ""),
+        **get_mimseq_input()
     output:
-        outdir = directory(outdir + "/mimseq"),
+        outdir = directory(outdir),
     log:
         logdir + "/mimseq/mimseq_run.log"
     conda:
         "mimseq.yaml"
+    threads: 10
     params:
-        script = "mimseq",
+        mimseq = config.get("Procedure", {}).get("mimseq") or "mimseq",
         species = config.get("Params", {}).get("mimseq", {}).get("species", ""),
         name = config.get("Params", {}).get("mimseq", {}).get("name", "tRNAseq"),
         control_cond = config.get("Params", {}).get("mimseq", {}).get("control_cond", ""),
         cluster_id = config.get("Params", {}).get("mimseq", {}).get("cluster_id", 0.97),
-        threads = config.get("Params", {}).get("mimseq", {}).get("threads", 8),
         min_cov = config.get("Params", {}).get("mimseq", {}).get("min_cov", 0.0005),
         max_mismatches = config.get("Params", {}).get("mimseq", {}).get("max_mismatches", 0.075),
         max_multi = config.get("Params", {}).get("mimseq", {}).get("max_multi", 4),
@@ -58,9 +71,17 @@ rule mimseq_run:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             mimseq_outdir = f"{outdir}/mimseq"
             script_path = os.path.join(outdir, f"mimseq_run_{current_time}.sh")
-
+            df = pd.read_csv(input.meta, sep="\t")
+            sample_data_path = os.path.join(outdir, "sample_data.tsv")
+            with open(os.path.join(sample_data_path), "w") as f:
+                for sample_id in samples:
+                    if sample_id not in df["sample_id"].values:
+                        raise ValueError(f"Sample {sample_id} not found in metadata file {input.meta}.")
+                    design = df.loc[df["sample_id"] == sample_id, "design"].values[0]
+                    f.write(f"{os.path.join(indir, sample_id, f'{sample_id}.single.fq.gz')}\t{design}\n")
+                
             # Build command
-            cmd = [params.script]
+            cmd = [params.mimseq]
 
             # Species or custom tRNA references
             if params.species:
@@ -77,7 +98,7 @@ rule mimseq_run:
                 "-n", params.name,
                 "--out-dir", mimseq_outdir,
                 "--control-condition", params.control_cond,
-                "--threads", str(params.threads),
+                "--threads", str(threads),
                 "--cluster-id", str(params.cluster_id),
                 "--min-cov", str(params.min_cov),
                 "--max-mismatches", str(params.max_mismatches),
@@ -111,7 +132,7 @@ rule mimseq_run:
                 cmd += ["--local-modomics"]
 
             # Sample data (positional, must be last)
-            cmd += [input.sample_data]
+            cmd += [sample_data_path]
 
             with open(script_path, "w") as f:
                 f.write("#!/bin/bash\n")

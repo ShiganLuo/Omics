@@ -11,6 +11,7 @@ description: Omics 工作流入口技能与子技能组织说明
 
 - 子工作流规范: [subworkflow/subworkflow.md](subworkflow/subworkflow.md)
 - 模块规范: [modules/modules.md](modules/modules.md)
+- meta.tsv 填充指南: [assests/meta/meta_tsv_filling.md](assests/meta/meta_tsv_filling.md)
 
 # run.py 职责
 

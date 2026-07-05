@@ -2,6 +2,8 @@ name: mimseq
 channels:
   - conda-forge
   - bioconda
+  - r
+  - compbiocore
   - defaults
 dependencies:
   - python>=3.7

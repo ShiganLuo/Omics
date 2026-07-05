@@ -53,9 +53,10 @@ use rule trimming_Single from cutadapt as RNAseq_trimming_Single
 
 # Module config dict
 mimseq_config = {
-    "indir": indir,
+    "indir": cutadapt_config["outdir"],
     "outdir": f"{outdir}/mimseq",
     "logdir": logdir,
+    "meta": config.get("meta", ""),
     "samples": samples,
     "sample_data": sample_data,
     "ROOT_DIR": ROOT_DIR,
@@ -68,7 +69,6 @@ mimseq_config = {
         "trnas": config.get("genome", {}).get("trnas", ""),
         "trnaout": config.get("genome", {}).get("trnaout", ""),
         "mito_trnas": config.get("genome", {}).get("mito_trnas", ""),
-        "plastid_trnas": config.get("genome", {}).get("plastid_trnas", ""),
     }
 }
 logger.info(f"mimseq_config: {mimseq_config}")

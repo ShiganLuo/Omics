@@ -5,7 +5,9 @@
     "samples": [],
     "sample_data": "",
     "ROOT_DIR": ".",
-    "Procedure": {},
+    "Procedure": {
+        "mimseq": null
+    },
     "Params": {
         "mimseq": {
             "species": "",

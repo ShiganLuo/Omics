@@ -49,10 +49,11 @@ rule trimming_Paired:
         maximum_length = config.get("Params", {}).get("cutadapt", {}).get("maximum_length") or None,
         match_read_wildcards = config.get("Params", {}).get("cutadapt", {}).get("match_read_wildcards") or False,
         cut = config.get("Params", {}).get("cutadapt", {}).get("cut") or None,
-        trimmed_only = config.get("Params", {}).get("cutadapt", {}).get("trimmed_only") or False
+        trimmed_only = config.get("Params", {}).get("cutadapt", {}).get("trimmed_only") or False,
+        report = config.get("Params", {}).get("cutadapt", {}).get("report") or "full"
     run:
-        log_path = str(log)
         try:
+            log_path = str(log)
             open(log_path, "w").close()
             logger = setup_logger(logger_name="cutadapt_paired", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -62,15 +63,15 @@ rule trimming_Paired:
                 params.cutadapt,
                 "-j", str(threads),
                 "-q", str(params.quality),
-                "--report=minimal",
+                "--report", str(params.report),
                 "-o", output.fastq1,
                 "-p", output.fastq2,
             ]
             if params.adapter_r1:
-                for adapter in params.adapter_r1.split(" "):
+                for adapter in params.adapter_r1:
                     cmd += ["-a", adapter]
             if params.adapter_r2:
-                for adapter in params.adapter_r2.split(" "):
+                for adapter in params.adapter_r2:
                     cmd += ["-A", adapter]
             if params.minimum_length:
                 cmd += ["-m", str(params.minimum_length)]
@@ -82,7 +83,7 @@ rule trimming_Paired:
                 cmd += ["--cut", str(params.cut)]
             if params.trimmed_only:
                 cmd += ["--trimmed-only"]
-            cmd += [input[0], input[1]]
+            cmd += [str(input[0]), str(input[1])]
             cmd_str = " ".join(cmd)
             with open(script, "w") as f:
                 f.write(cmd_str + "\n")
@@ -115,6 +116,7 @@ rule trimming_Single:
         match_read_wildcards = config.get("Params", {}).get("cutadapt", {}).get("match_read_wildcards") or False,
         cut = config.get("Params", {}).get("cutadapt", {}).get("cut") or None,
         trimmed_only = config.get("Params", {}).get("cutadapt", {}).get("trimmed_only") or False,
+        report = config.get("Params", {}).get("cutadapt", {}).get("report") or "full" 
     run:
         log_path = str(log)
         try:
@@ -127,11 +129,11 @@ rule trimming_Single:
                 params.cutadapt,
                 "-j", str(threads),
                 "-q", str(params.quality),
-                "--report=minimal",
+                "--report", str(params.report),
                 "-o", output.fastq,
             ]
             if params.adapter_r1:
-                for adapter in params.adapter_r1.split(" "):
+                for adapter in params.adapter_r1:
                     cmd += ["-a", adapter]
             if params.minimum_length:
                 cmd += ["-m", str(params.minimum_length)]
@@ -143,7 +145,7 @@ rule trimming_Single:
                 cmd += ["--cut", str(params.cut)]
             if params.trimmed_only:
                 cmd += ["--trimmed-only"]
-            cmd += [input]
+            cmd += [str(input[0])]
             cmd_str = " ".join(cmd)
             with open(script, "w") as f:
                 f.write(cmd_str + "\n")

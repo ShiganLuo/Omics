@@ -12,8 +12,6 @@ rule tabix_bgzip:
         tbi = outdir + "/{sample_id}/{sample_id}.vcf.gz.tbi"
     log:
         logdir + "/{sample_id}/bgzip.log"
-    conda:
-        "tabix.yaml"
     params:
         bgzip = config.get("Procedure", {}).get("bgzip") or "bgzip"
     run:

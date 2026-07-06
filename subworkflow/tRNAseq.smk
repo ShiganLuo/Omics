@@ -77,5 +77,12 @@ module mimseq:
     snakefile: "../modules/mimseq/mimseq.smk"
     config: mimseq_config
 
-use rule mimseq_run from mimseq as tRNAseq_mimseq_run
+use rule mimseq_all from mimseq as tRNAseq_mimseq_run
 use rule mimseq_result from mimseq as tRNAseq_mimseq_result
+use rule mimseq_prepare_sample_data from mimseq as tRNAseq_mimseq_prepare_sample_data
+use rule mimseq_tRNAtools from mimseq as tRNAseq_mimseq_tRNAtools
+use rule mimseq_align from mimseq as tRNAseq_mimseq_align
+use rule mimseq_clusters from mimseq as tRNAseq_mimseq_clusters
+use rule mimseq_mods from mimseq as tRNAseq_mimseq_mods
+use rule mimseq_coverage from mimseq as tRNAseq_mimseq_coverage
+use rule mimseq_deseq from mimseq as tRNAseq_mimseq_deseq

@@ -19,8 +19,6 @@ rule arriba:
     log:
         logdir + "/{sample_id}/arriba.log"
     threads: 4
-    conda:
-        "arriba.yaml"
     params:
         arriba = config.get('Procedure',{}).get('arriba') or 'arriba',
         t = config.get('Params',{}).get('arriba',{}).get('t') or None,
@@ -64,8 +62,6 @@ rule arriba_report:
         report = outdir + "/../arriba_report/arriba_fusion_report.html"
     log:
         logdir + "/all/arriba_report.log"
-    conda:
-        "arriba.yaml"
     params:
         summary_script = os.path.join(ROOT_DIR, "modules/arriba/bin/summarize_arriba_fusions.py")
     run:

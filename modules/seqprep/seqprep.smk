@@ -21,8 +21,6 @@ rule seqprep_merge:
         report = outdir + "/{sample_id}/{sample_id}_merge.report"
     log:
         logdir + "/{sample_id}/seqprep_merge.log"
-    conda:
-        "seqprep.yaml"
     params:
         seqprep = config.get("Procedure", {}).get("SeqPrep") or "SeqPrep",
         seqkit = config.get("Procedure", {}).get("seqkit") or "seqkit"

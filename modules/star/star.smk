@@ -18,8 +18,6 @@ rule star_index:
     log:
         logdir + "/index/star_index.log"
     threads: 12
-    conda:
-        "star.yaml"
     params:
         STAR = config.get('Procedure',{}).get('STAR') or 'STAR',
         index_dir = outdir + "/index",
@@ -92,8 +90,6 @@ rule star_align:
     log:
         logdir + "/{sample_id}/star_align.log"
     threads: 12
-    conda:
-        "star.yaml"
     params:
         outPrefix = outdir + "/{sample_id}/{sample_id}.",
         input_params = lambda wildcards, input: \

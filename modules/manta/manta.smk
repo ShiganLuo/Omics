@@ -18,8 +18,6 @@ rule manta_config:
         script = outdir + "/{sample_id}/runWorkflow.py"
     log:
         logdir + "/{sample_id}/manta_config.log"
-    conda:
-        "manta.yaml"
     params:
         manta_outdir = outdir + "/{sample_id}"
     shell:
@@ -43,8 +41,6 @@ rule manta_run:
         logdir + "/{sample_id}/manta_run.log"
     threads:
         config.get("Params", {}).get("manta", {}).get("threads") or 8
-    conda:
-        "manta.yaml"
     shell:
         """
         python {input.script} -j {threads} > {log} 2>&1

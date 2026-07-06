@@ -669,7 +669,7 @@ def runtRNAseq(
     for sample_id in samples_info_dict:
         samples.append(sample_id)
 
-    outfiles = [f"{outdir}/mimseq"]
+    outfiles = [f"{outdir}/mimseq/mimseq.done"]
 
     datajson["samples"] = samples
     datajson["outfiles"] = outfiles

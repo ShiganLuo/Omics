@@ -19,9 +19,11 @@ dependencies:
   - pyfiglet
   - requests
   - bedtools
+  - samtools
   - gmap
   - gsnap
   - blast
   - infernal
+  - usearch=10.0.259
   - r-base
   - bioconductor-deseq2

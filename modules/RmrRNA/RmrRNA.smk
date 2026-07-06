@@ -14,8 +14,6 @@ rule extract_rRNA:
     log:
         logdir + "/all/extract_rRNA.log"
     threads: 2
-    conda:
-        "RmrRNA.yaml"
     params:
         extract_rRNA_script = os.path.join(ROOT_DIR, "modules/RmrRNA/bin/extract_rRNA.py")
     run:

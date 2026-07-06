@@ -26,8 +26,6 @@ rule pbsv_discover:
     log:
         logdir + "/{sample_id}/pbsv_discover.log"
     threads: 4
-    conda:
-        "pbsv.yaml"
     params:
         pbsv = config.get("Procedure", {}).get("pbsv") or "pbsv"
     run:
@@ -56,8 +54,6 @@ rule pbsv_call:
     log:
         logdir + "/{sample_id}/pbsv_call.log"
     threads: 8
-    conda:
-        "pbsv.yaml"
     params:
         pbsv = config.get("Procedure", {}).get("pbsv") or "pbsv",
         bgzip = config.get("Procedure", {}).get("bgzip") or "bgzip",

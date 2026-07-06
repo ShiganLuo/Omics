@@ -30,8 +30,6 @@ rule trimming_Paired:
         trim_galore = config.get('Procedure',{}).get('trim_galore') or 'trim_galore',
         adapters = config.get('Params',{}).get("trim_galore", {}).get('adapters') or None
     threads: 6
-    conda:
-        "cutadapt.yaml"
     log:
         log = logdir + "/{sample_id}/trimming.txt"
     run:
@@ -98,8 +96,6 @@ rule trimming_Single:
         trim_galore = config.get('Procedure',{}).get('trim_galore') or 'trim_galore',
         adapters = config.get('Params',{}).get("trim_galore", {}).get('adapters') or None
     threads: 6
-    conda:
-        "cutadapt.yaml"
     log:
         log = logdir + "/{sample_id}/trimming.txt"
     run:

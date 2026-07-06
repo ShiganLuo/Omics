@@ -16,8 +16,6 @@ rule hisat2_index:
             idx = [1, 2, 3, 4, 5, 6, 7, 8]
         )
     threads: 8
-    conda:
-        "hisat2.yaml"
     params:
         prefix = outdir + "/index/genome",
         HISAT2_BUILD = config.get('Procedure',{}).get('hisat2-build') or 'hisat2-build'
@@ -81,8 +79,6 @@ rule hisat2_align:
     log:
         logdir + "/{sample_id}/hisat2_align.log"
     threads: 12
-    conda:
-        "hisat2.yaml"
     params:
         hisat2 = config.get('Procedure',{}).get('hisat2') or 'hisat2',
         samtools = config.get('Procedure',{}).get('samtools') or 'samtools',

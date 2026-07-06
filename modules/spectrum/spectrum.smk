@@ -16,8 +16,6 @@ rule somatic_spectrum:
         spectrum_png = outdir + "/somatic_spectrum_stacked_bar.png"
     log:
         logdir + "/all/spectrum/somatic_spectrum.log"
-    conda:
-        "spectrum.yaml"
     params:
         spectrum_script = os.path.join(ROOT_DIR, "modules/spectrum/bin/spectrum.py"),
         outprefix = outdir + "/somatic_spectrum"

@@ -17,8 +17,6 @@ rule pbmm2_align:
     log:
         logdir + "/{sample_id}/pbmm2_align.log"
     threads: 16
-    conda:
-        "pbmm2.yaml"
     params:
         pbmm2 = config.get("Procedure", {}).get("pbmm2") or "pbmm2",
         samtools = config.get("Procedure", {}).get("samtools") or "samtools"

@@ -12,8 +12,6 @@ rule ucsc_track_bedtools:
         track = outdir + "/ucsc_track.txt"
     log:
         logdir + "/ucsc_track.log"
-    conda:
-        "track.yaml"
     params:
         track_script = ROOT_DIR + "/modules/track/bin/track.py"
     shell:
@@ -29,8 +27,6 @@ rule ucsc_track_iclip:
         track = outdir + "/ucsc_track_iclip.txt"
     log:
         logdir + "/ucsc_track_iclip.log"
-    conda:
-        "track.yaml"
     params:
         track_script = ROOT_DIR + "/modules/track/bin/track.py"
     shell:
@@ -45,8 +41,6 @@ rule igv_track_bedtools:
         html = outdir + "/igv_track.html"
     log:
         logdir + "/igv_track.log"
-    conda:
-        "track.yaml"
     params:
         track_script = ROOT_DIR + "/modules/track/bin/track.py",
         igv_config = config.get('igv', {}),
@@ -83,8 +77,6 @@ rule igv_track_iclip:
         html = outdir + "/igv_track_iclip.html"
     log:
         logdir + "/igv_track_iclip.log"
-    conda:
-        "track.yaml"
     params:
         track_script = ROOT_DIR + "/modules/track/bin/track.py",
         igv_config = config.get('igv', {}),

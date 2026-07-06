@@ -17,8 +17,6 @@ rule bowtie2_index:
     log:
         logdir + "/bowtie2_index.log"
     threads: 12
-    conda:
-        "bowtie2.yaml"
     params:
         bowtie2_build = config.get('Procedure',{}).get('bowtie2-build') or 'bowtie2-build',
         index_prefix = outdir + "/index/genome"
@@ -95,8 +93,6 @@ rule bowtie2_align_paired:
     log:
         logdir + "/{sample_id}/bowtie2_align.log"
     threads: 8
-    conda:
-        "bowtie2.yaml"
     params:
         bowtie2 = config.get('Procedure',{}).get('bowtie2') or 'bowtie2',
         index_prefix = lambda wildcards, input: input.index[0].split(".")[0],
@@ -135,8 +131,6 @@ rule bowtie2_align_single:
     log:
         logdir + "/{sample_id}/bowtie2_align.log"
     threads: 8
-    conda:
-        "bowtie2.yaml"
     params:
         bowtie2 = config.get('Procedure',{}).get('bowtie2') or 'bowtie2',
         unmapped_prefix = outdir + "/{sample_id}/{sample_id}_unmapped",

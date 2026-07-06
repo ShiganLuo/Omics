@@ -25,8 +25,6 @@ rule fumitools_copy_umi_paired:
         r2 = outdir + "/{sample_id}/{sample_id}_2.umi.fq.gz",
     log:
         logdir + "/{sample_id}/fumitools_copy_umi.log"
-    conda:
-        "fumitools.yaml"
     params:
         fumi_tools = config.get("Procedure", {}).get("fumitools") or "fumi_tools",
         umi_length = config.get("Params", {}).get("fumitools", {}).get("umi_length") or None,
@@ -82,8 +80,6 @@ rule fumitools_copy_umi_single:
         r1 = outdir + "/{sample_id}/{sample_id}.umi.single.fq.gz",
     log:
         logdir + "/{sample_id}/fumitools_copy_umi.log"
-    conda:
-        "fumitools.yaml"
     params:
         fumi_tools = config.get("Procedure", {}).get("fumitools") or "fumi_tools",
         umi_length = config.get("Params", {}).get("fumitools", {}).get("umi_length") or None,
@@ -139,8 +135,6 @@ rule fumitools_dedup:
         bam = outdir + "/{sample_id}/{sample_id}.dedup.bam",
     log:
         logdir + "/{sample_id}/fumitools_dedup.log"
-    conda:
-        "fumitools.yaml"
     params:
         fumi_tools = config.get("Procedure", {}).get("fumitools") or "fumi_tools",
         memory = config.get("Params", {}).get("fumitools", {}).get("memory", "3G"),

@@ -39,8 +39,6 @@ rule hiphase_phase:
     log:
         logdir + "/{sample_id}/hiphase.log"
     threads: 8
-    conda:
-        "hiphase.yaml"
     params:
         hiphase = config.get("Procedure", {}).get("hiphase") or "hiphase",
     run:

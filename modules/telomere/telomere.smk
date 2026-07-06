@@ -103,8 +103,6 @@ rule telogator2_run:
         telogator2 = config.get("Procedure", {}).get("telogator2") or "telogator2",
         ref = get_telogator2_ref()
     threads: 16
-    conda:
-        "telomere.yaml"
     run:
         log_path = str(log)
         try:
@@ -153,8 +151,6 @@ rule assembly_telomere_scan:
         output_dir = os.path.join(outdir, "{sample_id}/assembly_scan"),
         scan_length = config.get("Params", {}).get("telogator2", {}).get("assembly_scan_length", 50000)
     threads: 1
-    conda:
-        "telomere.yaml"
     run:
         log_path = str(log)
         try:
@@ -201,8 +197,6 @@ rule read_density_telomere:
         output_dir = os.path.join(outdir, "{sample_id}/read_density"),
         n_chrom_arms = config.get("Params", {}).get("telogator2", {}).get("n_chrom_arms", 40)
     threads: 1
-    conda:
-        "telomere.yaml"
     run:
         log_path = str(log)
         try:
@@ -240,8 +234,6 @@ rule tidk_init:
     params:
         tidk = config.get("Procedure", {}).get("tidk") or "tidk"
     threads: 1
-    conda:
-        "telomere.yaml"
     run:
         log_path = str(log)
         try:
@@ -278,8 +270,6 @@ rule tidk_scan:
         tidk = config.get("Procedure", {}).get("tidk") or "tidk",
         motif = "TTAGGG"
     threads: 1
-    conda:
-        "telomere.yaml"
     run:
         log_path = str(log)
         try:

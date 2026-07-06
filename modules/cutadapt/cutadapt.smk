@@ -38,8 +38,6 @@ rule trimming_Paired:
     log:
         logdir + "/{sample_id}/cutadapt_paired.log"
     threads: 4
-    conda:
-        "cutadapt.yaml"
     params:
         cutadapt     = config.get("Procedure", {}).get("cutadapt") or "cutadapt",
         quality      = config.get("Params", {}).get("cutadapt", {}).get("quality") or 20,
@@ -105,8 +103,6 @@ rule trimming_Single:
     log:
         logdir + "/{sample_id}/cutadapt_single.log"
     threads: 4
-    conda:
-        "cutadapt.yaml"
     params:
         cutadapt       = config.get("Procedure", {}).get("cutadapt") or "cutadapt",
         quality        = config.get("Params", {}).get("cutadapt", {}).get("quality") or 20,

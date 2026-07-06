@@ -17,8 +17,6 @@ rule karrseq_chimeric_to_pairs:
         pairs = outdir + "/{sample_id}/{sample_id}.txt.gz"
     log:
         logdir + "/{sample_id}/karrseq_chimeric_to_pairs.log"
-    conda:
-        "karrseq.yaml"
     params:
         mapq = config.get("Params", {}).get("karrseq", {}).get("mapq") or 1,
         span = config.get("Params", {}).get("karrseq", {}).get("span") or 0,
@@ -65,8 +63,6 @@ rule karrseq_remove_duplicates:
         pairs_gz = outdir + "/{sample_id}/{sample_id}.dedup.pairs.gz"
     log:
         logdir + "/{sample_id}/karrseq_remove_duplicates.log"
-    conda:
-        "karrseq.yaml"
     params:
         mapq = config.get("Params", {}).get("karrseq", {}).get("mapq") or 1,
         dedup_script = os.path.join(ROOT_DIR, "modules/karrseq/bin/remove_duplicates.py"),
@@ -109,8 +105,6 @@ rule karrseq_ligation:
         pairs_gz = outdir + "/{sample_id}/{sample_id}.dedup.ligation.pairs.gz"
     log:
         logdir + "/{sample_id}/karrseq_ligation.log"
-    conda:
-        "karrseq.yaml"
     threads: 4
     run:
         current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())

@@ -190,21 +190,20 @@ UMI提取依赖序列不被破坏，建议先提取UMI，再做trim比较安全
 
 ### 12. tRNAseq.smk
 - **用途**：tRNA 修饰诱导错配测序分析（mim-tRNAseq）。
-- **主要步骤**：
-  - tRNA 聚类 + SNP 索引构建
-  - GSNAP 比对（SNP-tolerant）
-  - 簇拆分 / 反卷积为唯一 tRNA 转录本
-  - 覆盖度计算 + QC 图
-  - 错配 / 修饰定量
-  - 3'-CCA 分析（tRNA 完整性）
-  - DESeq2 差异表达
-  - （可选）SLAC 修饰-氨基酸酰化串扰分析
+- **模块架构**：6 个独立子模块，通过 pickle 状态文件传递中间数据
+  - `tRNAtools`：tRNA 注释、聚类、SNP 索引构建 → `state/`
+  - `align`：GSNAP 比对（SNP-tolerant，支持两轮 remap）→ `samples/{sample}/*.bam`
+  - `clusters`：isodecoder 去卷积（簇拆分为唯一定位转录本）
+  - `mods`：错配 / 修饰定量（min_cov + misinc_thresh 过滤）
+  - `coverage`：覆盖度计算 + CCA 分析 → `coverage_byaa.txt`、`coverage_bygene.txt`
+  - `deseq`：DESeq2 差异表达（需指定 control_cond）
 - **输入**：trimmed FASTQ（sample data sheet, TSV 格式）、物种 tRNA 参考
 - **输出**：覆盖度报告、修饰表格、CCA 统计、DESeq2 结果、可视化图
 - **特点**：
-  - 基于 mim-tRNAseq 一体化工具（mimseq 命令）
+  - 基于 mim-tRNAseq 工具（mimseq Python 库）
   - 支持内置物种（Hsap, Mmus, Scer 等）和自定义 tRNA 参考
   - 所有样本一起处理，通过 sample data sheet 驱动
+  - 子模块详细文档见 `modules/mimseq/README.md`
 
 ---
 

@@ -219,7 +219,7 @@ snakemake --snakefile workflow/Omics/subworkflow/CLIP.smk \
 ## `run.py` 参数说明
 
 - `-m, --meta`：元信息文件或 fastq 目录。
-- `-w, --workflow_name`：工作流名称，可选 `CoCulture`、`MERIP`、`RNAseq`、`CLIP`、`Mutation`、`PacVar`、`KARRseq`、`PeakCalling`。
+- `-w, --workflow_name`：工作流名称，可选 `CoCulture`、`MERIP`、`RNAseq`、`CLIP`、`Mutation`、`PacVar`、`KARRseq`、`PeakCalling`、`tRNAseq`。
 - `-o, --output_dir`：输出目录。
 - `-t, --threads`：Snakemake 线程数。
 - `--dry-run`：只生成计划，不执行。

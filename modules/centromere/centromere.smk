@@ -38,6 +38,7 @@ rule hifiasm_assemble:
         fasta = outdir + "/{sample_id}/assembly/asm.bp.p_ctg.fa"
     log:
         logdir + "/{sample_id}/hifiasm.log"
+    conda: "centromere.yaml"
     threads: 12
     params:
         prefix = outdir + "/{sample_id}/assembly/asm"
@@ -80,6 +81,7 @@ rule repeatmasker_init:
         outdir + "/.repeatmasker_lib_init.done"
     log:
         logdir + "/all/RepeatMasker/repeatmasker_init.log"
+    conda: "centromere.yaml"
     params:
         species = config.get("Params", {}).get("RepeatMasker", {}).get("species", "Mus musculus"),
         RepeatMasker = config.get("Procedure", {}).get("RepeatMasker") or "RepeatMasker"
@@ -153,6 +155,7 @@ rule repeatmasker_run:
         tbl = outdir + "/{sample_id}/RepeatMasker/asm.bp.p_ctg.fa.tbl"
     log:
         logdir + "/{sample_id}/repeatmasker.log"
+    conda: "centromere.yaml"
     threads: 12
     params:
         species = config.get("Params", {}).get("RepeatMasker", {}).get("species", "Mus musculus"),
@@ -196,6 +199,7 @@ rule centromere_extract:
         script = os.path.join(ROOT_DIR, "modules/centromere/bin/extract_centromere_stats.py"),
         python = config.get("Procedure", {}).get("python") or "python"
     threads: 1
+    conda: "centromere.yaml"
     run:
         try:
             open(log[0], "w").close()

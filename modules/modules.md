@@ -148,6 +148,9 @@ rule <tool>_<action>:
             with open(log[0], "a") as f:
                 f.write(f"<tool> <action> failed for sample {wildcards.sample_id} with error: {e}\n")
             raise f"<tool> <action> failed for sample {wildcards.sample_id} with error: {e}"
+        finally:
+            current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+            logger.info(f"successfully activated  <rule> for sample {wildcards.sample_id} at {current_time}")
 ```
 
 ## 要点

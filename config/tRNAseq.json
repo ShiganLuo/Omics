@@ -73,6 +73,7 @@
     "mimseq": {
       "species": "Hsap",
       "name": "tRNAseq",
+      "data_dir": "/home/luosg/Reference/tRNA/mimseq",
       "control_cond": "",
       "cluster_id": 0.97,
       "threads": 8,

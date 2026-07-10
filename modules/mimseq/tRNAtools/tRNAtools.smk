@@ -4,6 +4,7 @@ import os
 import sys
 
 ROOT_DIR = config.get("ROOT_DIR", ".")
+data_dir = config.get("Params", {}).get("mimseq", {}).get("data_dir", "") or os.path.join(ROOT_DIR, "modules", "mimseq", "mimseq", "data")
 indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
@@ -48,6 +49,7 @@ rule mimseq_tRNAtools:
         mito_trnas = config.get("genome", {}).get("mito_trnas", ""),
         plastid_trnas = config.get("genome", {}).get("plastid_trnas", ""),
         modifications = os.path.join(ROOT_DIR, "modules", "mimseq", "mimseq", "modifications"),
+        data_dir = data_dir,
     threads: 4
     run:
         try:
@@ -62,6 +64,7 @@ rule mimseq_tRNAtools:
                 "--name", params.name,
                 "--out", outdir + "/",
                 "--species", params.species,
+                "--data-dir", params.data_dir,
                 "--threads", str(threads),
                 "--cluster-id", str(params.cluster_id),
             ]

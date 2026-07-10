@@ -659,6 +659,8 @@ def runtRNAseq(
     The pipeline processes all samples together via a sample data sheet.
     """
     datajson["ROOT_DIR"] = os.path.dirname(__file__)
+    if not datajson.get("Params", {}).get("mimseq", {}).get("data_dir"):
+        datajson.setdefault("Params", {}).setdefault("mimseq", {})["data_dir"] = os.path.join(os.path.dirname(__file__), "modules", "mimseq", "mimseq", "data")
     datajson["indir"] = indir
     datajson["outdir"] = outdir
     logdir = os.path.join(outdir, "log")

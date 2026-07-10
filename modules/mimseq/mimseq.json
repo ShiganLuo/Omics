@@ -12,6 +12,7 @@
         "mimseq": {
             "species": "",
             "name": "tRNAseq",
+            "data_dir": "",
             "control_condition": "",
             "cluster_id": 0.97,
             "threads": 8,

@@ -60,6 +60,7 @@ mimseq_config = {
     "samples": samples,
     "sample_data": sample_data,
     "ROOT_DIR": ROOT_DIR,
+    "data_dir": config.get("Params", {}).get("mimseq", {}).get("data_dir", ""),
     "Procedure": {
     },
     "Params": {

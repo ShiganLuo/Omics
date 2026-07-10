@@ -48,6 +48,7 @@ def run_tRNAtools(
     pretrnas: bool,
     local_mod: bool,
     species: str,
+    data_dir: str = "",
 ) -> None:
     """Run tRNA tools: parse tRNA, generate SNP index and GSNAP indices."""
 
@@ -70,7 +71,9 @@ def run_tRNAtools(
 
     # If species is specified, set reference paths from mimseq data
     if species:
-        mimseq_data_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "mimseq", "data")
+        mimseq_data_dir = data_dir if data_dir else os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "mimseq", "data"
+        )
         species_refs = {
             "Hsap": ("hg38-eColitK/hg38-tRNAs-all.fa", "hg38-eColitK/hg38-tRNAs-detailed.out", "hg38-eColitK/hg38-mitotRNAs.fa"),
             "Hsap19": ("hg19-eColitK/hg19-tRNAs-all.fa", "hg19-eColitK/hg19_eschColi-tRNAs.out", "hg19-eColitK/hg19-mitotRNAs.fa"),
@@ -165,6 +168,7 @@ def main():
     parser.add_argument("--pretrnas", action="store_true", help="Use pre-tRNAs")
     parser.add_argument("--local-mod", action="store_true", help="Use local Modomics data")
     parser.add_argument("--species", required=True, help="Species name")
+    parser.add_argument("--data-dir", default="", help="Path to mimseq data directory (default: auto-detect relative to script)")
 
     args = parser.parse_args()
 
@@ -185,6 +189,7 @@ def main():
         pretrnas=args.pretrnas,
         local_mod=args.local_mod,
         species=args.species,
+        data_dir=args.data_dir,
     )
 
 

@@ -12,7 +12,7 @@
     "genomes": ["mm"],
     "outfiles": [],
     "Procedure": {
-        "trim_galore": null,
+        "trim_galore": "/opt/TrimGalore-0.6.10/trim_galore",
         "bowtie2-build": null,
         "bowtie2": null,
         "samtools": null,
@@ -20,7 +20,7 @@
     },
     "Params": {
         "trim_galore": {
-            "quality": 30
+            "quality": 25
         },
         "bowtie2": {},
         "macs3": {

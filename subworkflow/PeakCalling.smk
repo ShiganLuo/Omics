@@ -34,7 +34,7 @@ module fastqc_raw:
 logger.info(f"fastqc_raw_config: {fastqc_raw_config}")
 use rule fastqc from fastqc_raw as PeakCalling_fastqc_raw
 
-cutadapt_config = {
+trim_galore_config = {
         "ROOT_DIR": ROOT_DIR,
         "indir": indir,
         "outdir": f"{outdir}/common/2_trimmed_fastq",
@@ -49,15 +49,15 @@ cutadapt_config = {
         },
     }
 
-module cutadapt:
-    snakefile: "../modules/cutadapt/cutadapt.smk"
-    config: cutadapt_config
-logger.info(f"Cutadapt parameters: {cutadapt_config}")
-use rule trimming_Paired from cutadapt as PeakCalling_trimming_Paired
-use rule trimming_Single from cutadapt as PeakCalling_trimming_Single
+module trim_galore:
+    snakefile: "../modules/trim-galore/trim-galore.smk"
+    config: trim_galore_config
+logger.info(f"TrimGalore parameters: {trim_galore_config}")
+use rule trimming_Paired from trim_galore as PeakCalling_trimming_Paired
+use rule trimming_Single from trim_galore as PeakCalling_trimming_Single
 
 fastqc_trimmed_config = {
-        "indir": cutadapt_config["outdir"],
+        "indir": trim_galore_config["outdir"],
         "outdir":  f"{outdir}/QC/2_trimmed_fastqc",
         "logdir": logdir,
         "paired_samples": paired_samples,
@@ -75,8 +75,8 @@ use rule fastqc from fastqc_trimmed as PeakCalling_fastqc_trimmed
 
 
 bowtie2_config = {
-    "indir": cutadapt_config["outdir"],
-    "outdir": f"{outdir}/bam/3_raw_bam",
+    "indir": trim_galore_config["outdir"],
+    "outdir": f"{outdir}/common/3_raw_bam",
     "logdir": logdir,
     "Procedure": {
         "bowtie2-build": config.get("Procedure", {}).get("bowtie2-build"),

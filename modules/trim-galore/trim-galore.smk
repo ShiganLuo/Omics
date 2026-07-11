@@ -1,4 +1,4 @@
-from snakemake.logging import logger
+include: "../common/common.smk"
 outdir = config.get("outdir", "output")
 indir = config.get("indir", "output/raw_fastq")
 logdir = config.get("logdir", "log")
@@ -7,13 +7,13 @@ def get_input_for_trimming_Paired(wildcards):
     logger.info(f"Getting input for trimming_Paired with mode: {mode}")
     if mode == "UMI":
         return [
-            f"{indir}/{wildcards.sample_id}_1.umi.fq.gz",
-            f"{indir}/{wildcards.sample_id}_2.umi.fq.gz"
+            f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}_1.umi.fq.gz",
+            f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}_2.umi.fq.gz"
         ]
     else:
         return [
-            f"{indir}/{wildcards.sample_id}_1.fq.gz",
-            f"{indir}/{wildcards.sample_id}_2.fq.gz"
+            f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}_1.fq.gz",
+            f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}_2.fq.gz"
         ]
 
 rule trimming_Paired:
@@ -33,12 +33,11 @@ rule trimming_Paired:
     log:
         log = logdir + "/{sample_id}/trimming.txt"
     run:
+        log_path = str(log)
         try:
-            log_path = str(log)
             open(log_path, "w").close()
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             script_path = os.path.join(outdir, f"{wildcards.sample_id}/trimming_Paired_{current_time}.sh")
-
             cmd1 = [
                 params.trim_galore, "--paired",
                 "--cores", str(threads),
@@ -53,17 +52,18 @@ rule trimming_Paired:
             suffix2 = os.path.basename(input[1])
 
             cmd2 = [
-                mv, f"{params.outdir}/{wildcards.sample_id}_val_1.fq.gz", output.fastq1
+                "mv", f"{params.outdir}/{wildcards.sample_id}_val_1.fq.gz", output.fastq1
             ]
             cmd3 = [
-                mv, f"{params.outdir}/{wildcards.sample_id}_val_2.fq.gz", output.fastq2
+                "mv", f"{params.outdir}/{wildcards.sample_id}_val_2.fq.gz", output.fastq2
             ]
             cmd4 = [
-                mv, f"{params.outdir}/{suffix1}_trimming_report.txt", output.report1
+                "mv", f"{params.outdir}/{suffix1}_trimming_report.txt", output.report1
             ]
             cmd5 = [
-                mv, f"{params.outdir}/{suffix2}_trimming_report.txt", output.report2
+                "mv", f"{params.outdir}/{suffix2}_trimming_report.txt", output.report2
             ]
+            success_echo = f'echo "trimming_Paired for sample {wildcards.sample_id} successfully completed !"'
             with open(script_path, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write(" ".join(cmd1) + "\n")
@@ -71,18 +71,20 @@ rule trimming_Paired:
                 f.write(" ".join(cmd3) + "\n")
                 f.write(" ".join(cmd4) + "\n")
                 f.write(" ".join(cmd5) + "\n")
+                f.write(success_echo + "\n")
             shell(f"bash {script_path} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path, "a") as f:
                 f.write(f"trimming_Paired failed for {wildcards.sample_id}: {e}\n")
-            raise
+            logger.error(f"trimming_Paired failed for {wildcards.sample_id}: {e}")
+            raise e
 
 def get_input_for_trimming_Single(wildcards):
     logger.info(f"Getting input for trimming_Single with mode: {mode}")
     if mode == "UMI":
-        return f"{indir}/{wildcards.sample_id}.umi.single.fq.gz",
+        return f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}.umi.single.fq.gz",
     else:
-        return f"{indir}/{wildcards.sample_id}.single.fq.gz",
+        return f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}.single.fq.gz",
 
 rule trimming_Single:
     input:
@@ -99,8 +101,8 @@ rule trimming_Single:
     log:
         log = logdir + "/{sample_id}/trimming.txt"
     run:
+        log_path = str(log)
         try:
-            log_path = str(log)
             open(log_path, "w").close()
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             script_path = os.path.join(outdir, f"{wildcards.sample_id}/trimming_Single_{current_time}.sh")
@@ -115,22 +117,25 @@ rule trimming_Single:
             if params.adapters:
                 cmd1 += ["--adapter", params.adapters]
             cmd2 = [
-                mv, f"{params.outdir}/{wildcards.sample_id}_trimmed.fq.gz", output.fastq
+                "mv", f"{params.outdir}/{wildcards.sample_id}_trimmed.fq.gz", output.fastq
             ]
             suffix = os.path.basename(input[0])
             cmd3 = [
-                mv, f"{params.outdir}/{suffix}_trimming_report.txt", output.report
+                "mv", f"{params.outdir}/{suffix}_trimming_report.txt", output.report
             ]
+            success_echo = f'echo "trimming_Single for sample {wildcards.sample_id} successfully completed !"'
             with open(script_path, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write(" ".join(cmd1) + "\n")
                 f.write(" ".join(cmd2) + "\n")
                 f.write(" ".join(cmd3) + "\n")
+                f.write(success_echo + "\n")
             shell(f"bash {script_path} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path, "a") as f:
                 f.write(f"trimming_Single failed for {wildcards.sample_id}: {e}\n")
-            raise
+            logger.error(f"trimming_Single failed for {wildcards.sample_id}: {e}")
+            raise e
 
 
 

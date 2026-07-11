@@ -1,5 +1,4 @@
-from snakemake.logging import logger
-import time
+include: "../common/common.smk"
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 indir= config.get("indir", "input")
@@ -21,17 +20,24 @@ rule bowtie2_index:
         bowtie2_build = config.get('Procedure',{}).get('bowtie2-build') or 'bowtie2-build',
         index_prefix = outdir + "/index/genome"
     run:
-        current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
-        script = f"{outdir}/index/bowtie2_index.{current_time}.sh"
-        cmd = [params.bowtie2_build, 
-                "--threads", str(threads), 
-                input.fasta, 
-                params.index_prefix
-                ]
-        with open(script, "w") as f:
-            f.write("#!/bin/bash\n")
-            f.write(" ".join(cmd) + "\n")
-        shell("bash {script} > {log} 2>&1")
+        log_path = str(log)
+        try:
+            current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
+            script = f"{outdir}/index/bowtie2_index.{current_time}.sh"
+            cmd = [params.bowtie2_build, 
+                    "--threads", str(threads), 
+                    input.fasta, 
+                    params.index_prefix
+                    ]
+            with open(script, "w") as f:
+                f.write("#!/bin/bash\n")
+                f.write(" ".join(cmd) + "\n")
+            shell("bash {script} > {log} 2>&1")
+        except Exception as e:
+            with open(log_path,"a") as f:
+                f.write(f"Error occurred during bowtie2 index, error: {e}\n")
+            logger.error(f.write(f"Error occurred during bowtie2 index, error: {e}\n"))
+        raise e
 
 
 def get_alignment_input(wildcards):
@@ -95,30 +101,41 @@ rule bowtie2_align_paired:
     threads: 8
     params:
         bowtie2 = config.get('Procedure',{}).get('bowtie2') or 'bowtie2',
-        index_prefix = lambda wildcards, input: input.index[0].split(".")[0],
+        index_prefix = lambda wildcards, input: input.index[0].split(".1.bt2")[0],
         unmapped_prefix = outdir + "/{sample_id}/{sample_id}_unmapped",
         sam_append_comment = config.get('Params',{}).get('bowtie2', {}).get('sam-append-comment') or False
     run:
-        current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
-        script = f"{outdir}/{wildcards.sample_id}/bowtie2_align.{current_time}.sh"
-        cmd1 = [params.bowtie2, 
-                "-x", params.index_prefix, 
-                "-1", input.fastq1, 
-                "-2", input.fastq2,
-                "--threads", str(threads),
-                "--sam-append-comment" if params.sam_append_comment else "",
-                "--met-file", output.metrics,
-                "--un-conc-gz", params.unmapped_prefix,
-                "|", "samtools", "view", "-@", str(threads), "-bS", "-", ">", output.bam
-                ]
-        cmd2 = ["mv", f"{params.unmapped_prefix}.1", output.unmapped1]
-        cmd3 = ["mv", f"{params.unmapped_prefix}.2", output.unmapped2]
-        with open(script, "w") as f:
-            f.write("#!/bin/bash\n")
-            f.write(" ".join(cmd1) + "\n")
-            f.write(" ".join(cmd2) + "\n")
-            f.write(" ".join(cmd3) + "\n")
-        shell("bash {script} > {log} 2>&1")
+        log_path = str(log)
+        try:
+            current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
+            sample_outdir = os.path.dirname(str(output.bam))
+            script = os.path
+            script = f"{outdir}/{wildcards.sample_id}/bowtie2_align.{current_time}.sh"
+            cmd1 = [params.bowtie2, 
+                    "-x", params.index_prefix, 
+                    "-1", input.fastq1, 
+                    "-2", input.fastq2,
+                    "--threads", str(threads),
+                    "--sam-append-comment" if params.sam_append_comment else "",
+                    "--met-file", output.metrics,
+                    "--un-conc-gz", params.unmapped_prefix,
+                    "|", "samtools", "view", "-@", str(threads), "-bS", "-", ">", output.bam
+                    ]
+            cmd2 = ["mv", f"{params.unmapped_prefix}.1", output.unmapped1]
+            cmd3 = ["mv", f"{params.unmapped_prefix}.2", output.unmapped2]
+            success_echo = f'echo "bowtie2_align_paired for sample {wildcards.sample_id} successfully completed !"'
+            with open(script, "w") as f:
+                f.write("#!/bin/bash\n")
+                f.write(" ".join(cmd1) + "\n")
+                f.write(" ".join(cmd2) + "\n")
+                f.write(" ".join(cmd3) + "\n")
+                f.write(success_echo + "\n")
+            shell("bash {script} > {log} 2>&1")
+        except Exception as e:
+            with open(log_path, "a") as f:
+                f.write(f"error occurred in bowtie2_align_paired for sample {wildcards.sample_id}, error: {e}")
+            logger.error(f"error occurred in bowtie2_align_paired for sample {wildcards.sample_id}, error: {e}")
+            raise e
 
 rule bowtie2_align_single:
     input:
@@ -137,20 +154,29 @@ rule bowtie2_align_single:
         index_prefix = lambda wildcards, input: input.index[0].split(".")[0],
         sam_append_comment = config.get('Params',{}).get('bowtie2', {}).get('sam-append-comment') or False
     run:
-        current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
-        script = f"{outdir}/{wildcards.sample_id}/bowtie2_align.{current_time}.sh"
-        cmd1 = [params.bowtie2, 
-                "-x", params.index_prefix, 
-                "-U", input.fastq, 
-                "--threads", str(threads),
-                "--sam-append-comment" if params.sam_append_comment else "",
-                "--met-file", output.metrics,
-                "--un-gz", params.unmapped_prefix,
-                "|", "samtools", "view", "-@", str(threads), "-bS", "-", ">", output.bam
-                ]
-        cmd2 = ["mv", params.unmapped_prefix, output.unmapped]
-        with open(script, "w") as f:
-            f.write("#!/bin/bash\n")
-            f.write(" ".join(cmd1) + "\n")
-            f.write(" ".join(cmd2) + "\n")
-        shell("bash {script} > {log} 2>&1")
+        log_path = str(log)
+        try:
+            current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
+            script = f"{outdir}/{wildcards.sample_id}/bowtie2_align.{current_time}.sh"
+            cmd1 = [params.bowtie2, 
+                    "-x", params.index_prefix, 
+                    "-U", input.fastq, 
+                    "--threads", str(threads),
+                    "--sam-append-comment" if params.sam_append_comment else "",
+                    "--met-file", output.metrics,
+                    "--un-gz", params.unmapped_prefix,
+                    "|", "samtools", "view", "-@", str(threads), "-bS", "-", ">", output.bam
+                    ]
+            cmd2 = ["mv", params.unmapped_prefix, output.unmapped]
+            success_echo = f'echo "bowtie2_align_single for sample {wildcards.sample_id} successfully completed !"'
+            with open(script, "w") as f:
+                f.write("#!/bin/bash\n")
+                f.write(" ".join(cmd1) + "\n")
+                f.write(" ".join(cmd2) + "\n")
+                f.write(success_echo + "\n")
+            shell("bash {script} > {log} 2>&1")
+        except Exception as e:
+            with open(log_path, "a") as f:
+                f.write(f"error occured in rule bowtie2_align_single for sample {wildcards.sample_id}, error: {e}")
+            logger.error(f"error occured in rule bowtie2_align_single for sample {wildcards.sample_id}, error: {e}")
+            raise e

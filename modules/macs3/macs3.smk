@@ -12,11 +12,10 @@ def get_macs3_input(wildcards):
     Get treatment (IP) and optional control (Input) BAM files for MACS3.
     sample_ip_input_map: dict mapping IP sample_id -> input sample_id (or None)
     """
-    sample = wildcards.sample_id
     bam_treatment = os.path.join(indir,f"{wildcards.sample_id}/{wildcards.sample_id}.bam")
     
     # Check if there's a matched input control
-    input_sample = sample_ip_input_map.get(sample)
+    input_sample = sample_ip_input_map.get(wildcards.sample_id)
     if input_sample:
         bam_control = os.path.join(indir,f"{input_sample}/{input_sample}.bam")
         return {
@@ -52,33 +51,35 @@ rule macs3_callpeak:
         log_path = str(log)
         try:
             open(log_path, 'w').close()
-            logger = setup_logger("macs3_callpeak",log_file=log_path)
+            rule_logger = setup_logger("macs3_callpeak",log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            logger.info(f"Start macs3 call peak for sample {wildcards.sample_id} at {current_time}")
+            rule_logger.info(f"Start macs3 call peak for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.peak))
-            script = os.path.join(sample_outdir,f"/macs3_callpeak_{current_time}.sh")
+            script = os.path.join(sample_outdir,f"macs3_callpeak_{current_time}.sh")
             cmd = [
-                params.macs3, callpeak,
-                "--bw", params.bw,
-                "-p",params.pvalue,
-                "-g", params.genome_size,
+                params.macs3, "callpeak",
+                "--bw", str(params.bw),
+                "-p", str(params.pvalue),
+                "-g", str(params.genome_size),
                 "--outdir", sample_outdir,
                 "--name", params.name,
-                "--seed", params.seed,
+                "--seed", str(params.seed),
                 "-t", input.bam_treatment
             ]
-            if "bam_control" in input:
+            if hasattr(input, "bam_control") and input.bam_control:
+                rule_logger.info(f"Using control BAM: {input.bam_control}")
                 cmd += ["-c", input.bam_control]
-            success_echo = f'echo "macs3 call peak for sample {wildcards.sample_id}"'
+            success_echo = f'echo "macs3 call peak for sample {wildcards.sample_id} successfully completed !"'
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(success_echo + "\n")
             shell(f"bash {script} > {log_path} 2>&1")
-
-        except Exception:
+        except Exception as e:
             with open(log_path,"a") as f:
                 f.write(f"Error occurred during macs3 call peak for sample {wildcards.sample_id}: {e}\n")
+            logger.error(f"Error occurred during macs3 call peak for sample {wildcards.sample_id}: {e}")
+            raise e
 
 rule macs3_result:
     """

@@ -473,7 +473,7 @@ def runKARRseq(
 def runPeakCalling(
     datajson: Dict[str, Any],
     samples_info_dict: Dict[str, Any],
-    design_pairs:DesignPair,
+    design_pairs:List[DesignPair],
     indir: str,
     outdir: str,
 ):
@@ -524,21 +524,21 @@ def runPeakCalling(
             # Add trimming and alignment outputs
             outfiles.append(f"{outdir}/common/2_trimmed_fastq/{ip_sample}/{ip_sample}_1.fq.gz")
             outfiles.append(f"{outdir}/common/2_trimmed_fastq/{ip_sample}/{ip_sample}_2.fq.gz")
-            outfiles.append(f"{outdir}/bam/3_raw_bam/{ip_sample}/{ip_sample}.bam")
+            outfiles.append(f"{outdir}/common/3_raw_bam/{ip_sample}/{ip_sample}.bam")
             # Add peak calling output
             outfiles.append(f"{outdir}/peaks/{ip_sample}/{ip_sample}_peaks.narrowPeak")
         # Also add trimming/alignment for input samples
         for input_sample in input_samples:
             outfiles.append(f"{outdir}/common/2_trimmed_fastq/{input_sample}/{input_sample}_1.fq.gz")
             outfiles.append(f"{outdir}/common/2_trimmed_fastq/{input_sample}/{input_sample}_2.fq.gz")
-            outfiles.append(f"{outdir}/bam/3_raw_bam/{input_sample}/{input_sample}.bam")
+            outfiles.append(f"{outdir}/common/3_raw_bam/{input_sample}/{input_sample}.bam")
     else:
         logger.warning("No Input samples found. MACS3 will run without control.")
         for ip_sample in ip_samples:
             sample_ip_input_map[ip_sample] = None
             outfiles.append(f"{outdir}/common/2_trimmed_fastq/{ip_sample}/{ip_sample}_1.fq.gz")
             outfiles.append(f"{outdir}/common/2_trimmed_fastq/{ip_sample}/{ip_sample}_2.fq.gz")
-            outfiles.append(f"{outdir}/bam/3_raw_bam/{ip_sample}/{ip_sample}.bam")
+            outfiles.append(f"{outdir}/common/3_raw_bam/{ip_sample}/{ip_sample}.bam")
             outfiles.append(f"{outdir}/peaks/{ip_sample}/{ip_sample}_peaks.narrowPeak")
 
     datajson["paired_samples"] = paired_samples

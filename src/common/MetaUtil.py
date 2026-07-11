@@ -69,7 +69,7 @@ class MetadataUtils:
         self.design_col = design_col
         self.group_col = group_col
         self.samples_dict = defaultdict(SampleInfo)
-        self.raw_fq_dir = self.outdir / "fastq" / "1_raw_fastq"
+        self.raw_fq_dir = self.outdir / "common" / "1_raw_fastq"
         self.raw_fq_dir.mkdir(parents=True, exist_ok=True)
 
     def load_meta(self, meta:Union[Path,str]) -> pd.DataFrame:
@@ -217,7 +217,7 @@ class MetadataUtils:
                 origin_r1 = df_sample[fastq_r1_col].values[0]
                 origin_r2 = df_sample[fastq_r2_col].values[0] if fastq_r2_col in df_sample.columns else None
                 origin_r1 = Path(origin_r1) if os.path.exists(origin_r1) else None
-                origin_r2 = Path(origin_r2) if os.path.exists(origin_r2) else None
+                origin_r2 = Path(origin_r2) if origin_r2 and os.path.exists(origin_r2) else None
 
                 if origin_r1 and origin_r2:
                     logger.info(f"Detect {data_ids[0]} is Paired END")

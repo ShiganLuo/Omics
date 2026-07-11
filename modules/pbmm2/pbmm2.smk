@@ -7,7 +7,7 @@ fasta = config.get("genome", {}).get("fasta")
 
 rule pbmm2_align:
     input:
-        bam = indir + "/{sample_id}.bam",
+        bam = indir + "/{sample_id}/{sample_id}.bam",
         fasta = fasta
     output:
         bam = outdir + "/{sample_id}/{sample_id}.sorted.bam",
@@ -63,9 +63,6 @@ rule pbmm2_align:
                 f.write(f"Error occurred during pbmm2 alignment for sample {wildcards.sample_id}: {e}\n")
             logger.error(f"Error occurred during pbmm2 alignment for sample {wildcards.sample_id}: {e}")
             raise e
-        finally:
-            current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            logger.info(f"successfully activated pbmm2 alignment for sample {wildcards.sample_id} at {current_time}")
 
 rule pbmm2_result:
     input:

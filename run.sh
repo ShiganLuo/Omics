@@ -1,14 +1,12 @@
 #!/bin/bash
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-# python ${SCRIPT_DIR}/run.py \
-#     -m /data/pub/zhousha/20260207_Exome/data/Exome/samplesheet.csv \
-#     -w Mutation \
-#     -o /data/pub/zhousha/20260207_Exome/output \
-#     -t 48 \
-#     --log /data/pub/zhousha/20260207_Exome/log/Mutation.log \
-#     --conda-prefix /data/pub/zhousha/env/mutation_0.1/ \
-#     --genome.fasta /data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa \
-#     --dry-run
+python ${SCRIPT_DIR}/run.py \
+    -m /rna_seq_1/luoshg/Chipseq_20260709/data/meta.tsv \
+    -w PeakCalling \
+    -o /rna_seq_1/luoshg/Chipseq_20260709/output \
+    -t 48 \
+    --log /rna_seq_1/luoshg/Chipseq_20260709/logs/PeakCalling.log \
+    --conda-prefix /rna_seq_1/luoshg/env
 
 # python ${SCRIPT_DIR}/run.py \
 #     -m /data/pub/zhousha/20260207_Exome/data/RNAseq/Rawdata \
@@ -38,14 +36,14 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 #     --Params.cutadapt.maximum_length 110 \
 
 
-python ${SCRIPT_DIR}/run.py \
-    -m /data/pub/zhousha/20260207_Exome/data/PacBio/samplesheet.csv\
-    -w PacVar \
-    -o /data/pub/zhousha/20260207_Exome/output \
-    -t 48 \
-    --log /data/pub/zhousha/20260207_Exome/log/PacVar.log \
-    --conda-prefix /data/pub/zhousha/env/mutation_0.1/ \
-    --genome.fasta /data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa \
-    --snakemake-args \
-    --sdm apptainer \
-    --singularity-args '--bind /data/pub/zhousha/Reference'
+# python ${SCRIPT_DIR}/run.py \
+#     -m /data/pub/zhousha/20260207_Exome/data/PacBio/samplesheet.csv\
+#     -w PacVar \
+#     -o /data/pub/zhousha/20260207_Exome/output \
+#     -t 48 \
+#     --log /data/pub/zhousha/20260207_Exome/log/PacVar.log \
+#     --conda-prefix /data/pub/zhousha/env/mutation_0.1/ \
+#     --genome.fasta /data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa \
+#     --snakemake-args \
+#     --sdm apptainer \
+#     --singularity-args '--bind /data/pub/zhousha/Reference'

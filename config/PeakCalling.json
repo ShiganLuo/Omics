@@ -30,12 +30,7 @@
         }
     },
     "genome": {
-        "fasta": null,
-        "mm": {
-            "fasta": null
-        },
-        "hg38": {
-            "fasta": null
-        }
+        "fasta": "/disk5/luosg/Reference/GENCODE/mouse/GRCm39/GRCm39.primary_assembly.genome.fa",
+        "bowtie2_index_prefix": "/disk5/luosg/Reference/GENCODE/mouse/GRCm39/bowtie2/GRCm39.primary_assembly.genome"
     }
 }

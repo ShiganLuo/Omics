@@ -8,7 +8,7 @@
 |---|---|---|
 | `sample_id` | 样本唯一标识，用于流程输出目录命名 | 从 run.tsv "Run title" 列提取，若无则用 Accession |
 | `data_id` | 数据库登录号（CRR/SRR/ERR 等） | 从 run.tsv "Accession" 列提取 |
-| `design` | 实验分组（去除非重复后缀） | 从 sample_id 推断：去掉 `-1`/`-2`/`-3`、`_Rep1`/`_Rep2` 等重复后缀 |
+| `design` | 实验分组或比较设计 | 分组型（MERIP/RNAseq）：从 sample_id 去重复后缀；比较型（PeakCalling）：`ctrl_TAG` / `exp_TAG` 格式，见 Step 3 |
 | `fastq_1` | R1 绝对路径（单端则为唯一定向文件） | 实际 fastq 文件路径 |
 | `fastq_2` | R2 绝对路径（单端留空） | 实际 fastq 文件路径，单端测序留空 |
 | `workflow` | 工作流名称 | 根据数据类型和 parametes.txt 判断 |
@@ -45,9 +45,13 @@ ls /path/to/fastq_dir/*.fastq.gz | wc -l
 - `{accession}_1.fastq.gz` / `{accession}_2.fastq.gz` — paired-end
 - `{accession}.single.fq.gz` — 项目内部单端命名
 
-### Step 3: 推断 design 分组
+### Step 3: 填写 design 列
 
-design 列的值 = sample_id 去除重复编号/生物学重复后缀。规则：
+design 列有两种模式，根据 workflow 类型选择：
+
+#### 模式 A：分组型（MERIP / RNAseq 等）
+
+design 值 = sample_id 去除重复编号/生物学重复后缀。规则：
 
 1. **末尾数字后缀**: `-1` / `-2` / `-3` → 去掉（`GV-1` → `GV`）
 2. **Rep 后缀**: `_Rep1` / `_Rep2` → 去掉（`mA_A_0_4_Rep1` → `mA_A_0_4`）
@@ -68,6 +72,36 @@ MEF-100cell-1 → MEF-100cell
 # 下划线分隔 + Rep: Remove _RepN suffix
 mA_A_0_4_Rep1, mA_A_0_4_Rep2 → mA_A_0_4
 ```
+
+#### 模式 B：比较型（PeakCalling 等需要 ctr/exp 配对的 workflow）
+
+格式：`ctrl_TAG` 或 `exp_TAG`，TAG 是下划线分隔的 token 集合。
+
+**匹配规则**：ctrl 和 exp 的 TAG 按 `_` 分割成 token 集合，有交集即配对。
+
+```
+# 一个对照服务多个实验组
+sample_id       design
+Input_WT        ctrl_WT_KO_IP       ← token={WT,KO,IP}，同时是下面3个的对照
+H3K4me3_WT      exp_WT              ← token={WT}，交集={WT} → 匹配 Input_WT
+H3K4me3_KO      exp_KO              ← token={KO}，交集={KO} → 匹配 Input_WT
+H3K4me3_IP      exp_IP              ← token={IP}，交集={IP} → 匹配 Input_WT
+
+# 多个对照各自匹配
+Input_WT        ctrl_WT             ← token={WT}
+Input_KO        ctrl_KO             ← token={KO}
+H3K4me3_WT      exp_WT              ← 交集={WT} → 匹配 Input_WT
+H3K4me3_KO      exp_KO              ← 交集={KO} → 匹配 Input_KO
+
+# 向后兼容：简单 ctr_x / exp_x
+Input_WT        ctr_WT              ← token={WT}
+H3K4me3_WT      exp_WT              ← 交集={WT} → 匹配
+```
+
+**注意**：
+- `ctrl_KOWT` 不会匹配 `exp_KO`（token 是 `KOWT` 而非 `KO`+`WT`，需要显式写 `ctrl_KO_WT`）
+- 也支持 `ctr_` 前缀（向后兼容），推荐用 `ctrl_` 更清晰
+- 多个 ctrl 样本同 tag 时只取第一个
 
 ### Step 4: 确定 workflow
 
@@ -122,8 +156,26 @@ GSA 的某些记录没有 Run title，此时用 Accession 作为 sample_id。
 
 ## 输出模板
 
+### 分组型（RNAseq / MERIP）
+
 ```tsv
 sample_id	data_id	design	fastq_1	fastq_2	workflow
 Sample1	SRR000001	GroupA	/path/to/SRR000001_1.fq.gz	/path/to/SRR000001_2.fq.gz	RNAseq
 Sample2	SRR000002	GroupA	/path/to/SRR000002_1.fq.gz	/path/to/SRR000002_2.fq.gz	RNAseq
 ```
+
+### 比较型（PeakCalling）
+
+```tsv
+sample_id	data_id	design	fastq_1	fastq_2	workflow
+Input_WT	CRR000001	ctrl_WT_KO	/path/to/CRR000001_1.fq.gz	/path/to/CRR000001_2.fq.gz	PeakCalling
+Input_KO	CRR000002	ctrl_WT_KO	/path/to/CRR000002_1.fq.gz	/path/to/CRR000002_2.fq.gz	PeakCalling
+H3K4me3_WT	CRR000003	exp_WT	/path/to/CRR000003_1.fq.gz	/path/to/CRR000003_2.fq.gz	PeakCalling
+H3K4me3_KO	CRR000004	exp_KO	/path/to/CRR000004_1.fq.gz	/path/to/CRR000004_2.fq.gz	PeakCalling
+```
+
+上面的 design 配对结果：
+- Input_WT（ctrl_WT_KO）→ H3K4me3_WT（exp_WT）共享 token `WT`
+- Input_WT（ctrl_WT_KO）→ H3K4me3_KO（exp_KO）共享 token `KO`
+- Input_KO（ctrl_WT_KO）→ H3K4me3_WT（exp_WT）共享 token `WT`
+- Input_KO（ctrl_WT_KO）→ H3K4me3_KO（exp_KO）共享 token `KO`

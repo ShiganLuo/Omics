@@ -5,49 +5,17 @@ import logging
 import pandas as pd
 from pathlib import Path
 from collections import defaultdict
-from dataclasses import dataclass
 from typing import List, Tuple, Dict, Optional, Union
-from enum import Enum, unique
 import argparse
 import math
+try:
+    from type import FastqMode, Layout,MERIPDesign, SampleInfo, DesignPair
+except Exception:
+    from .type import FastqMode, Layout,MERIPDesign, SampleInfo, DesignPair
+
 logger = logging.getLogger(__name__)
-@unique
-class FastqMode(str, Enum):
-    FASTQ_META = "FASTQ_META"
-    FASTQ_DIR = "FASTQ_DIR"
-@unique
-class Layout(str, Enum):
-    SE = "SE"
-    PE = "PE"
-    UNKNOWN = "UNKNOWN"
 
-@unique
-class MERIPDesign(str, Enum):
-    IP = "ip"
-    INPUT = "input"
-    TREATED_IP = "treated_ip"
-    TREATED_INPUT = "treated_input"
-
-@dataclass
-class SampleInfo:
-    sample_id: str = ""
-    organism: str = ""
-    layout: Layout = Layout.UNKNOWN
-    fastq_1: Optional[Path] = None
-    fastq_2: Optional[Path] = None
-    workflow: Optional[str] = None
-    group: Optional[str] = None
-    design: Optional[str] = None
-    pacbio_bam: Optional[Path] = None
-    pacbio_pbi: Optional[Path] = None
-
-@dataclass
-class DesignPair:
-    organism: str
-    ctr_sample_id: str
-    exp_sample_id: str
-    exp_group: Optional[str] = None
-DESIGN_PATTERN = re.compile(r"^(ctr|exp)_(.+)$")
+DESIGN_PATTERN = re.compile(r"^(ctr|ctrl|exp)_(.+)$")
 class MetadataUtils:
     """
     Utilities for variant-analysis metadata parsing and FASTQ preparation.
@@ -101,7 +69,7 @@ class MetadataUtils:
         self.design_col = design_col
         self.group_col = group_col
         self.samples_dict = defaultdict(SampleInfo)
-        self.raw_fq_dir = self.outdir / "fastq" / "raw_fastq"
+        self.raw_fq_dir = self.outdir / "fastq" / "1_raw_fastq"
         self.raw_fq_dir.mkdir(parents=True, exist_ok=True)
 
     def load_meta(self, meta:Union[Path,str]) -> pd.DataFrame:
@@ -123,8 +91,24 @@ class MetadataUtils:
         ) -> List[DesignPair]:
         """
         Determine ctr/exp pairs based on the design stored in self.samples_dict.
-        ctr_x vs exp_x1, exp_x2 ...
-        only get the first ctr for each exp, if there are multiple ctr with the same tag, will log a warning and only use the first one.
+
+        Design format:  ctr_TAG  or  ctrl_TAG  for control,  exp_TAG  for experiment.
+        Tags are underscore-delimited token sets.  A control matches an experiment
+        when their token sets intersect (i.e. they share at least one token).
+
+        Examples (all produce a pair):
+            ctrl_WT       + exp_WT          -> match (token "WT" shared)
+            ctrl_WT_KO    + exp_WT          -> match (token "WT" shared)
+            ctrl_WT_KO    + exp_KO          -> match (token "KO" shared)
+            ctrl_WT_KO    + exp_WT_KO       -> match ("WT" and "KO" shared)
+
+        No match:
+            ctrl_WT       + exp_ABC         -> no common token
+            ctrl_ABC      + exp_WT          -> no common token
+
+        If multiple control samples share the same tag, only the first is used
+        (a warning is logged).
+
         return a list of DesignPair objects
         """
         groups: Dict[str, Dict[str, List[SampleInfo]]] = defaultdict(lambda: defaultdict(list))
@@ -140,25 +124,45 @@ class MetadataUtils:
             if isinstance(design_val, float) and math.isnan(design_val):
                 logger.info(f"{sample_id} design value is None, skipping it")
                 continue
-            design_val = str(design_val)
+            design_val = str(design_val).strip()
             m  = DESIGN_PATTERN.match(design_val)
             if not m:
                 logger.warning(f"Invalid design format for {sample_id}: {design_val}")
                 continue
             role, tag = m.groups()
+            # normalise role: "ctrl" -> "ctr" for uniform key
+            role = "ctr" if role in ("ctr", "ctrl") else "exp"
             groups[tag][role].append(info)
-        
+
+        # Pre-compute token sets for each tag
+        ctr_tags = {tag: set(tag.split("_")) for tag, g in groups.items() if "ctr" in g}
+        exp_tags = {tag: set(tag.split("_")) for tag, g in groups.items() if "exp" in g}
+
         pairs = []
-        for tag, g in groups.items():
-            if "ctr" not in g or "exp" not in g:
-                logger.warning(f"Incomplete design group for tag '{tag}': missing ctr or exp")
+        seen = set()  # deduplicate (ctr_sample_id, exp_sample_id)
+        for exp_tag, exp_token_set in exp_tags.items():
+            best_ctr_sample = None
+            for ctr_tag, ctr_token_set in ctr_tags.items():
+                if exp_token_set & ctr_token_set:  # non-empty intersection
+                    ctr_samples = groups[ctr_tag]["ctr"]
+                    if len(ctr_samples) > 1:
+                        logger.warning(
+                            f"Multiple ctr samples for tag '{ctr_tag}': "
+                            f"{[s.sample_id for s in ctr_samples]}. Only using the first one."
+                        )
+                    best_ctr_sample = ctr_samples[0]
+                    break  # take the first matching control
+            if best_ctr_sample is None:
+                logger.warning(f"No matching control found for exp tag '{exp_tag}'")
                 continue
-            for exp_sample_info in g["exp"]:
-                if len(g["ctr"]) > 1:
-                    logger.warning(f"Multiple ctr samples for tag '{tag}': {g['ctr']}. Only using the first one: {g['ctr'][0].sample_id}")
+            for exp_sample_info in groups[exp_tag]["exp"]:
+                pair_key = (best_ctr_sample.sample_id, exp_sample_info.sample_id)
+                if pair_key in seen:
+                    continue
+                seen.add(pair_key)
                 designPair = DesignPair(
                     organism=exp_sample_info.organism,
-                    ctr_sample_id=g["ctr"][0].sample_id,
+                    ctr_sample_id=best_ctr_sample.sample_id,
                     exp_sample_id=exp_sample_info.sample_id,
                     exp_group=exp_sample_info.group
                 )
@@ -218,8 +222,8 @@ class MetadataUtils:
                 if origin_r1 and origin_r2:
                     logger.info(f"Detect {data_ids[0]} is Paired END")
                     self.samples_dict[sample_id].layout = Layout.PE
-                    rename_r1 = raw_fq_dir / f"{sample_id}_1.fq.gz"
-                    rename_r2 = raw_fq_dir / f"{sample_id}_2.fq.gz"
+                    rename_r1 = raw_fq_dir / sample_id / f"{sample_id}_1.fq.gz"
+                    rename_r2 = raw_fq_dir / sample_id /  f"{sample_id}_2.fq.gz"
                     self._link_file(origin_r1,rename_r1)
                     self._link_file(origin_r2,rename_r2)
                     self.samples_dict[sample_id].fastq_1 = rename_r1
@@ -227,7 +231,7 @@ class MetadataUtils:
                 elif origin_r1:
                     logger.info(f"Detect {data_ids[0]} is Single End")
                     self.samples_dict[sample_id].layout = Layout.SE
-                    rename_r1 = raw_fq_dir / f"{sample_id}.single.fq.gz"
+                    rename_r1 = raw_fq_dir / sample_id /  f"{sample_id}.single.fq.gz"
                     self._link_file(origin_r1,rename_r1)
                     self.samples_dict[sample_id].fastq_1 = rename_r1
                 else:
@@ -244,8 +248,8 @@ class MetadataUtils:
                 if len(origin_r1_list_path) > 0 and len(origin_r2_list_path) > 0:
                     logger.info(f"Detect the fastq of {sample_id} is Paired END")
                     self.samples_dict[sample_id].layout = Layout.PE
-                    merge_rename_r1 = raw_fq_dir / f"{sample_id}_1.fq.gz"
-                    merge_rename_r2 = raw_fq_dir / f"{sample_id}_2.fq.gz"
+                    merge_rename_r1 = raw_fq_dir / sample_id /  f"{sample_id}_1.fq.gz"
+                    merge_rename_r2 = raw_fq_dir / sample_id /  f"{sample_id}_2.fq.gz"
                     self._merge_files(origin_r1_list_path, merge_rename_r1)
                     self._merge_files(origin_r2_list_path, merge_rename_r2)
                     self.samples_dict[sample_id].fastq_1 = merge_rename_r1
@@ -253,7 +257,7 @@ class MetadataUtils:
                 elif len(origin_r1_list_path) > 0:
                     logger.info(f"Detect the fastq of {sample_id} is Single END")
                     self.samples_dict[sample_id].layout = Layout.SE
-                    merge_rename_r1 = raw_fq_dir / f"{sample_id}.single.fq.gz"
+                    merge_rename_r1 = raw_fq_dir / sample_id /  f"{sample_id}.single.fq.gz"
                     self._merge_files(origin_r1_list_path, merge_rename_r1)
                     self.samples_dict[sample_id].fastq_1 = merge_rename_r1
                 else:
@@ -282,8 +286,8 @@ class MetadataUtils:
                 logger.warning(f"BAM or PBI file for {sample_id} does not exist, skipping.")
                 continue
 
-            target_bam = self.raw_fq_dir / f"{sample_id}.bam"
-            target_pbi = self.raw_fq_dir / f"{sample_id}.bam.pbi"
+            target_bam = self.raw_fq_dir / sample_id /  f"{sample_id}.bam"
+            target_pbi = self.raw_fq_dir / sample_id /  f"{sample_id}.bam.pbi"
 
             self._link_file(bam_path, target_bam)
             self._link_file(pbi_path, target_pbi)
@@ -341,8 +345,8 @@ class MetadataUtils:
 
             if files_r1 and files_r2:
                 # PE
-                target_r1 = raw_fq_dir / f"{sample_id}_1.fq.gz"
-                target_r2 = raw_fq_dir / f"{sample_id}_2.fq.gz"
+                target_r1 = raw_fq_dir / sample_id / f"{sample_id}_1.fq.gz"
+                target_r2 = raw_fq_dir / sample_id / f"{sample_id}_2.fq.gz"
                 if len(files_r1) > 1:
                     logger.info(f"[{sample_id}] Merging {len(files_r1)} R1 files into {target_r1.name}")
                     self._merge_files(files_r1, target_r1)
@@ -360,7 +364,7 @@ class MetadataUtils:
                 sample_info.layout = Layout.PE
             elif files_r1:
                 # SE
-                target_se = raw_fq_dir / f"{sample_id}.single.fq.gz"
+                target_se = raw_fq_dir / sample_id /  f"{sample_id}.single.fq.gz"
                 if len(files_r1) > 1:
                     logger.info(f"[{sample_id}] Merging {len(files_r1)} SE files into {target_se.name}")
                     self._merge_files(files_r1, target_se)
@@ -390,6 +394,10 @@ class MetadataUtils:
                     shutil.copyfileobj(r, w) # stream copy to handle large files efficiently
 
     def _link_file(self, src: Path, dst: Path):
+        """
+        Function: soft link file
+        """
+        dst.parent.mkdir(parents=True,exist_ok=True)
         if dst.is_symlink():
             if dst.resolve() == src.resolve():
                 logger.info(f"[SKIP] Link already correct: {dst}")

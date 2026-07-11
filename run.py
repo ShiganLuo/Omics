@@ -2,9 +2,10 @@ import argparse
 from copy import deepcopy
 import json
 import os
-from src.common.MetaUtil import MetadataUtils, DesignPair
+from src.common.MetaUtil import MetadataUtils
 from src.common.LogUtil import setup_logger
 from src.common.CmdUtil import _run_cmd, _run_cmds_parallel
+from src.common.type import DesignPair
 import logging
 from typing import Dict, Any, Optional, List
 logger = logging.getLogger(__name__)
@@ -472,6 +473,7 @@ def runKARRseq(
 def runPeakCalling(
     datajson: Dict[str, Any],
     samples_info_dict: Dict[str, Any],
+    design_pairs:DesignPair,
     indir: str,
     outdir: str,
 ):
@@ -498,6 +500,10 @@ def runPeakCalling(
     input_samples = []
     sample_ip_input_map = {}
     outfiles = []
+    for design_pair in design_pairs:
+        sample_ip_input_map[design_pair.exp_sample_id] = design_pair.ctr_sample_id
+        ip_samples.append(design_pair.exp_sample_id)
+        input_samples.append(design_pair.ctr_sample_id)
 
     for sample_id, sample_info in samples_info_dict.items():
         if sample_info.layout == "PE":
@@ -506,14 +512,6 @@ def runPeakCalling(
             single_samples.append(sample_id)
         else:
             logger.error(f"Unknown layout type for sample {sample_id}: {sample_info.layout}")
-
-        if sample_info.design == "ip":
-            ip_samples.append(sample_id)
-        elif sample_info.design == "input":
-            input_samples.append(sample_id)
-        else:
-            logger.warning(f"Unknown design type for sample {sample_id}: {sample_info.design}, treating as IP")
-            ip_samples.append(sample_id)
 
     # Build IP -> Input mapping
     # Match each IP sample with an Input sample (if available)
@@ -524,24 +522,24 @@ def runPeakCalling(
         for ip_sample in ip_samples:
             sample_ip_input_map[ip_sample] = default_input
             # Add trimming and alignment outputs
-            outfiles.append(f"{outdir}/cutadapt/{ip_sample}/{ip_sample}_1.fq.gz")
-            outfiles.append(f"{outdir}/cutadapt/{ip_sample}/{ip_sample}_2.fq.gz")
-            outfiles.append(f"{outdir}/bowtie2/mm/{ip_sample}/{ip_sample}.bam")
+            outfiles.append(f"{outdir}/common/2_trimmed_fastq/{ip_sample}/{ip_sample}_1.fq.gz")
+            outfiles.append(f"{outdir}/common/2_trimmed_fastq/{ip_sample}/{ip_sample}_2.fq.gz")
+            outfiles.append(f"{outdir}/bam/3_raw_bam/{ip_sample}/{ip_sample}.bam")
             # Add peak calling output
-            outfiles.append(f"{outdir}/macs3/mm/{ip_sample}/{ip_sample}_peaks.narrowPeak")
+            outfiles.append(f"{outdir}/peaks/{ip_sample}/{ip_sample}_peaks.narrowPeak")
         # Also add trimming/alignment for input samples
         for input_sample in input_samples:
-            outfiles.append(f"{outdir}/cutadapt/{input_sample}/{input_sample}_1.fq.gz")
-            outfiles.append(f"{outdir}/cutadapt/{input_sample}/{input_sample}_2.fq.gz")
-            outfiles.append(f"{outdir}/bowtie2/mm/{input_sample}/{input_sample}.bam")
+            outfiles.append(f"{outdir}/common/2_trimmed_fastq/{input_sample}/{input_sample}_1.fq.gz")
+            outfiles.append(f"{outdir}/common/2_trimmed_fastq/{input_sample}/{input_sample}_2.fq.gz")
+            outfiles.append(f"{outdir}/bam/3_raw_bam/{input_sample}/{input_sample}.bam")
     else:
         logger.warning("No Input samples found. MACS3 will run without control.")
         for ip_sample in ip_samples:
             sample_ip_input_map[ip_sample] = None
-            outfiles.append(f"{outdir}/cutadapt/{ip_sample}/{ip_sample}_1.fq.gz")
-            outfiles.append(f"{outdir}/cutadapt/{ip_sample}/{ip_sample}_2.fq.gz")
-            outfiles.append(f"{outdir}/bowtie2/mm/{ip_sample}/{ip_sample}.bam")
-            outfiles.append(f"{outdir}/macs3/mm/{ip_sample}/{ip_sample}_peaks.narrowPeak")
+            outfiles.append(f"{outdir}/common/2_trimmed_fastq/{ip_sample}/{ip_sample}_1.fq.gz")
+            outfiles.append(f"{outdir}/common/2_trimmed_fastq/{ip_sample}/{ip_sample}_2.fq.gz")
+            outfiles.append(f"{outdir}/bam/3_raw_bam/{ip_sample}/{ip_sample}.bam")
+            outfiles.append(f"{outdir}/peaks/{ip_sample}/{ip_sample}_peaks.narrowPeak")
 
     datajson["paired_samples"] = paired_samples
     datajson["single_samples"] = single_samples
@@ -768,7 +766,7 @@ WORKFLOW_DISPATCH = {
     "Mutation":   lambda cfg, sid, dp, indir, outdir, meta: ("Mutation.smk",  runMutation(cfg, sid, dp, indir, outdir)),
     "PacVar":     lambda cfg, sid, dp, indir, outdir, meta: ("PacVar.smk",    runPacVar(cfg, sid, indir, outdir)),
     "KARRseq":    lambda cfg, sid, dp, indir, outdir, meta: ("KARRseq.smk",   runKARRseq(cfg, sid, indir, outdir)),
-    "PeakCalling":lambda cfg, sid, dp, indir, outdir, meta: ("PeakCalling.smk",runPeakCalling(cfg, sid, indir, outdir)),
+    "PeakCalling":lambda cfg, sid, dp, indir, outdir, meta: ("PeakCalling.smk",runPeakCalling(cfg, sid,dp, indir, outdir)),
     "QuantMS":    lambda cfg, sid, dp, indir, outdir, meta: ("QuantMS.smk",   runQuantMS(cfg, sid, indir, outdir)),
     "tRNAseq":    lambda cfg, sid, dp, indir, outdir, meta: ("tRNAseq.smk",   runtRNAseq(cfg, sid, indir, outdir, meta)),
 }

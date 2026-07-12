@@ -1,0 +1,13 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "logs",
+    "samples": [],
+    "Procedure": {
+        "annotatePeaks": "annotatePeaks.pl"
+    },
+    "genome": {
+        "fasta": null,
+        "gtf": null
+    }
+}

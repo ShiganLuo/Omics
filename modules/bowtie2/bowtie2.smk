@@ -4,6 +4,13 @@ logdir = config.get("logdir", "log")
 indir= config.get("indir", "input")
 paired_samples = config.get("paired_samples", [])
 single_samples = config.get("single_samples", [])
+
+_bowtie2_fasta = config.get('genome',{}).get('fasta')
+if not _bowtie2_fasta:
+    raise ValueError(
+        "bowtie2 module requires 'genome.fasta' in config. "
+        "Please provide a valid reference genome FASTA path."
+    )
 BOWTIE2_IDX_SUFFIX = ["1.bt2", "2.bt2", "3.bt2", "4.bt2", "rev.1.bt2", "rev.2.bt2"]
 rule bowtie2_index:
     input:

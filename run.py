@@ -136,13 +136,13 @@ def runMERIP(
             # outfiles.append(f"{outdir}/cutadapt/{sample_id}/{sample_id}_2.fq.gz")
             # outfiles.append(f"{outdir}/hisat2/{sample_id}.bam")
             # outfiles.append(f"{outdir}/igv/{sample_id}.bigwig")
-            outfiles.append(f"{outdir}/igv/dedup/{sample_id}.dedup.bam")
+            outfiles.append(f"{outdir}/igv/{sample_id}/{sample_id}.dedup.bam")
         elif sample_info.layout == "SE":
             single_samples.append(sample_id)
             # outfiles.append(f"{outdir}/cutadapt/{sample_id}/{sample_id}.single.fq.gz")
             # outfiles.append(f"{outdir}/hisat2/{sample_id}.bam")
             # outfiles.append(f"{outdir}/igv/{sample_id}.bigwig")
-            outfiles.append(f"{outdir}/igv/dedup/{sample_id}.dedup.bam")
+            outfiles.append(f"{outdir}/igv/{sample_id}/{sample_id}.dedup.bam")
         else:
             logger.error(f"Unknown layout type for sample {sample_id}: {sample_info.layout}")
         
@@ -480,10 +480,15 @@ def runPeakCalling(
     """Prepare input JSON for PeakCalling (ChIP-seq/DIP-seq peak calling) workflow.
     
     Workflow steps:
-    1. Trimming (trim_galore)
-    2. Bowtie2 index
-    3. Bowtie2 align
-    4. MACS3 peak calling
+    1. FastQC (raw)
+    2. Trimming (trim_galore)
+    3. FastQC (trimmed)
+    4. Bowtie2 alignment
+    5. AddReadsGroup + MarkDuplicates (GATK4)
+    6. BigWig tracks (bamCoverage)
+    7. MACS3 peak calling
+    8. FRiP score
+    9. HOMER peak annotation
     
     Supports both ChIP-seq and DIP-seq experiments.
     """
@@ -521,25 +526,29 @@ def runPeakCalling(
         default_input = input_samples[0]
         for ip_sample in ip_samples:
             sample_ip_input_map[ip_sample] = default_input
-            # Add trimming and alignment outputs
-            outfiles.append(f"{outdir}/common/2_trimmed_fastq/{ip_sample}/{ip_sample}_1.fq.gz")
-            outfiles.append(f"{outdir}/common/2_trimmed_fastq/{ip_sample}/{ip_sample}_2.fq.gz")
-            outfiles.append(f"{outdir}/common/3_raw_bam/{ip_sample}/{ip_sample}.bam")
-            # Add peak calling output
+            # Step 5: AddReadsGroup + MarkDuplicates (GATK4)
+            outfiles.append(f"{outdir}/common/4_markdup_bam/{ip_sample}/{ip_sample}.sorted_markdup.bam")
+            # Step 6: BigWig tracks
+            outfiles.append(f"{outdir}/tracks/{ip_sample}/{ip_sample}.bigwig")
+            # Step 7: MACS3 peak calling
             outfiles.append(f"{outdir}/peaks/{ip_sample}/{ip_sample}_peaks.narrowPeak")
-        # Also add trimming/alignment for input samples
+            # Step 8: FRiP score
+            outfiles.append(f"{outdir}/QC/3_frip_score/{ip_sample}/{ip_sample}.FRiP.txt")
+            # Step 9: HOMER annotation
+            outfiles.append(f"{outdir}/annotation/{ip_sample}/{ip_sample}_peaks.annotatePeaks.txt")
+        # Also add markdup for input samples
         for input_sample in input_samples:
-            outfiles.append(f"{outdir}/common/2_trimmed_fastq/{input_sample}/{input_sample}_1.fq.gz")
-            outfiles.append(f"{outdir}/common/2_trimmed_fastq/{input_sample}/{input_sample}_2.fq.gz")
-            outfiles.append(f"{outdir}/common/3_raw_bam/{input_sample}/{input_sample}.bam")
+            outfiles.append(f"{outdir}/common/4_markdup_bam/{input_sample}/{input_sample}.sorted_markdup.bam")
+            outfiles.append(f"{outdir}/tracks/{input_sample}/{input_sample}.bigwig")
     else:
         logger.warning("No Input samples found. MACS3 will run without control.")
         for ip_sample in ip_samples:
             sample_ip_input_map[ip_sample] = None
-            outfiles.append(f"{outdir}/common/2_trimmed_fastq/{ip_sample}/{ip_sample}_1.fq.gz")
-            outfiles.append(f"{outdir}/common/2_trimmed_fastq/{ip_sample}/{ip_sample}_2.fq.gz")
-            outfiles.append(f"{outdir}/common/3_raw_bam/{ip_sample}/{ip_sample}.bam")
+            outfiles.append(f"{outdir}/common/4_markdup_bam/{ip_sample}/{ip_sample}.sorted_markdup.bam")
+            outfiles.append(f"{outdir}/tracks/{ip_sample}/{ip_sample}.bigwig")
             outfiles.append(f"{outdir}/peaks/{ip_sample}/{ip_sample}_peaks.narrowPeak")
+            outfiles.append(f"{outdir}/QC/3_frip_score/{ip_sample}/{ip_sample}.FRiP.txt")
+            outfiles.append(f"{outdir}/annotation/{ip_sample}/{ip_sample}_peaks.annotatePeaks.txt")
 
     datajson["paired_samples"] = paired_samples
     datajson["single_samples"] = single_samples

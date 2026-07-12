@@ -16,6 +16,7 @@ rule SplitNCigarReads:
         genome = lambda wildcards: config['genome']['fasta'],
         indict = lambda wildcards: config['genome']['dict_index'],
         fai = lambda wildcards: config['genome']['fai_index']
+    conda: "../gatk.yaml"
     threads: 8 
     log:
         logdir + "/{sample_id}/SplitNCigarReads.log"
@@ -52,6 +53,7 @@ rule VarientCalling:
         vcf = outdir + "/vcf/{sample_id}/{sample_id}.vcf.gz"
     log:
         logdir + "/{sample_id}/VarientCalling.log"
+    conda: "../gatk.yaml"
     params:
         javaOptions =  config.get("Params", {}).get("gatk", {}).get("javaOptions") or "-Xmx30g",
         tmp_dir = config.get("Params", {}).get("gatk", {}).get("tmp-dir") or None,
@@ -93,6 +95,7 @@ rule vcf_filter:
         vcf = outdir + "/vcf-filtered/{sample_id}/{sample_id}.vcf.gz"
     log:
         logdir + "/{sample_id}/vcf_filter.log"
+    conda: "../gatk.yaml"
     threads: 8
     params:
         javaOptions =  config.get("Params", {}).get("gatk", {}).get("javaOptions") or "-Xmx30g",

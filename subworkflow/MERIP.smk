@@ -15,7 +15,7 @@ treated_input_samples = config.get("treated_input_samples", [])
 rule all:
     input:
         outfiles
-cutadapt_config = {
+trim_galore_config = {
         "indir": indir,
         "outdir":  f"{outdir}/cutadapt",
         "logdir": logdir,
@@ -23,14 +23,15 @@ cutadapt_config = {
             "trim_galore": config.get('Procedure',{}).get('trim_galore')
         }
     }
-module cutadapt:
-    snakefile: "../modules/cutadapt/cutadapt.smk"
-    config: cutadapt_config
-logger.info(f"cutadapt_config: {cutadapt_config}")
-use rule trimming_Paired from cutadapt as MERIP_trimming_Paired
+module trim_galore:
+    snakefile: "../modules/trim_galore/trim_galore.smk"
+    config: trim_galore_config
+logger.info(f"trim_galore_config: {trim_galore_config}")
+use rule trimming_Paired from trim_galore as MERIP_trimming_Paired
+use rule trimming_Single from trim_galore as MERIP_trimming_Single
 
 hisat2_config = {
-        "indir": cutadapt_config["outdir"],
+        "indir": trim_galore_config["outdir"],
         "outdir":  f"{outdir}/hisat2",
         "logdir": logdir,
         "paired_samples": paired_samples,
@@ -71,11 +72,11 @@ module igv:
     snakefile: "../modules/igv/igv.smk"
     config: igv_config
 logger.info(f"igv_config: {igv_config}")
-use rule dedup from igv as MERIP_dedup
+use rule samtools_dedup from igv as MERIP_dedup
 use rule wig from igv as MERIP_wig
 
 exomePeak_config = {
-        "indir": igv_config["outdir"] + "/dedup",
+        "indir": igv_config["outdir"],
         "outdir": f"{outdir}/exomePeak",
         "logdir": logdir,
         "gtf": config.get("genome",{}).get("gtf"),

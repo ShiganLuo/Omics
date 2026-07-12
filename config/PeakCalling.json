@@ -16,21 +16,41 @@
         "bowtie2-build": null,
         "bowtie2": null,
         "samtools": null,
-        "macs3": null
+        "gatk": null,
+        "bamCoverage": null,
+        "macs3": null,
+        "bedtools": null,
+        "annotatePeaks": null
     },
     "Params": {
         "trim_galore": {
             "quality": 25
         },
         "bowtie2": {},
+        "gatk": {
+            "javaOptions": "-Xmx30g",
+            "tmp-dir": null
+        },
+        "bamCoverage": {
+            "binSize": 50,
+            "normalizeUsing": "CPM",
+            "offset": null,
+            "extendReads": false
+        },
         "macs3": {
             "bw": 200,
             "pvalue": "1e-5",
             "genome_size": "mm"
         }
     },
+    "addReadsGroup": {
+        "RGLB": "lib1",
+        "RGPL": "ILLUMINA",
+        "RGPU": "unit1"
+    },
     "genome": {
         "fasta": "/disk5/luosg/Reference/GENCODE/mouse/GRCm39/GRCm39.primary_assembly.genome.fa",
+        "gtf": "/disk5/luosg/Reference/GENCODE/mouse/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf",
         "bowtie2_index_prefix": "/disk5/luosg/Reference/GENCODE/mouse/GRCm39/bowtie2/GRCm39.primary_assembly.genome"
     }
 }

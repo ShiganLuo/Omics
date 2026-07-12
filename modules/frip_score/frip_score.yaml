@@ -1,0 +1,8 @@
+name: frip_score
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+dependencies:
+  - bedtools>=2.30.0
+  - samtools>=1.15.1

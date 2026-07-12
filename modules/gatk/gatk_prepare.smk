@@ -4,6 +4,11 @@ indir = config.get("indir") or "input"
 outdir = config.get("outdir") or "output"
 logdir = config.get("logdir") or "log"
 fasta = config.get("genome",{}).get("fasta")
+if not fasta:
+    raise ValueError(
+        "gatk_prepare module requires 'genome.fasta' in config. "
+        "Please provide a valid reference genome FASTA path."
+    )
 input_bam_substring = config.get("input_bam_substring") or ""
 rule gatk_index:
     input:
@@ -15,6 +20,7 @@ rule gatk_index:
     log:
         logdir + "/index/gatk_index.log"
     threads: 4
+    conda: "gatk.yaml"
     params:
         gatk = config.get("Procedure", {}).get("gatk") or "gatk",
         javaOptions =  config.get("Params", {}).get("gatk", {}).get("javaOptions") or "-Xmx30g",
@@ -25,7 +31,9 @@ rule gatk_index:
             logger = setup_logger(logger_name="gatk_index", log_file=log[0])
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start gatk_index at {current_time}")
-            script = os.path.join(outdir,f"index/gatk_index_{current_time}.sh")
+            index_outdir = os.path.join(outdir, "index")
+            os.makedirs(index_outdir, exist_ok=True)
+            script = os.path.join(index_outdir, f"gatk_index_{current_time}.sh")
             cmd1 = ["ln", "-s", input.fasta, output.fasta_link]
             cmd2 = [
                 params.gatk, "CreateSequenceDictionary",
@@ -69,6 +77,7 @@ rule addReadsGroup:
         bai = temp(outdir + "/{sample_id}/{sample_id}.addReadsGroup.bai")
     log:
         logdir + "/{sample_id}/addReadsGroup.log"
+    conda: "gatk.yaml"
     threads: 8
     params:
         id = "{sample_id}",
@@ -85,9 +94,11 @@ rule addReadsGroup:
             logger = setup_logger(logger_name="addReadsGroup", log_file=log[0])
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start addReadsGroup for sample {wildcards.sample_id} at {current_time}")
-            script = os.path.join(outdir,f"{wildcards.sample_id}/addReadsGroup_{current_time}.sh")
+            sample_outdir = os.path.join(outdir, wildcards.sample_id)
+            os.makedirs(sample_outdir, exist_ok=True)
+            script = os.path.join(sample_outdir, f"addReadsGroup_{current_time}.sh")
             cmd1 = [
-                params.gatk, "AddOrReplaceReadGroups", params.javaOptions,
+                params.gatk, "AddOrReplaceReadGroups", "--java-options", f'"{params.javaOptions}"',
                 "--INPUT", input.bam,
                 "--OUTPUT", output.bam,
                 "-SO", "coordinate",
@@ -125,6 +136,7 @@ rule MarkDuplicates:
         metrics = outdir + "/{sample_id}/{sample_id}.Markdup-metrics.txt"
     log:
         logdir + "/{sample_id}/MarkDuplicates.log"
+    conda: "gatk.yaml"
     threads: 8
     params:
         javaOptions =  config.get("Params", {}).get("gatk", {}).get("javaOptions") or "-Xmx30g",
@@ -136,7 +148,9 @@ rule MarkDuplicates:
             logger = setup_logger(logger_name="MarkDuplicates", log_file=log[0])
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start MarkDuplicates for sample {wildcards.sample_id} at {current_time}")
-            script = os.path.join(outdir,f"{wildcards.sample_id}/MarkDuplicates_{current_time}.sh")
+            sample_outdir = os.path.join(outdir, wildcards.sample_id)
+            os.makedirs(sample_outdir, exist_ok=True)
+            script = os.path.join(sample_outdir, f"MarkDuplicates_{current_time}.sh")
             cmd = [
                 params.gatk, "MarkDuplicates", "--java-options", f'"{params.javaOptions}"',
                 "--INPUT", input.bam,

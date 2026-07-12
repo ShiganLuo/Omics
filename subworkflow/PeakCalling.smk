@@ -17,6 +17,9 @@ rule all:
     input:
         outfiles
 
+# ==============================================================================
+# Step 1: Raw FastQC
+# ==============================================================================
 fastqc_raw_config = {
         "indir": indir,
         "outdir":  f"{outdir}/QC/1_raw_fastqc",
@@ -34,6 +37,9 @@ module fastqc_raw:
 logger.info(f"fastqc_raw_config: {fastqc_raw_config}")
 use rule fastqc from fastqc_raw as PeakCalling_fastqc_raw
 
+# ==============================================================================
+# Step 2: Trim Galore
+# ==============================================================================
 trim_galore_config = {
         "ROOT_DIR": ROOT_DIR,
         "indir": indir,
@@ -48,7 +54,6 @@ trim_galore_config = {
             }
         },
     }
-
 module trim_galore:
     snakefile: "../modules/trim-galore/trim-galore.smk"
     config: trim_galore_config
@@ -56,6 +61,9 @@ logger.info(f"TrimGalore parameters: {trim_galore_config}")
 use rule trimming_Paired from trim_galore as PeakCalling_trimming_Paired
 use rule trimming_Single from trim_galore as PeakCalling_trimming_Single
 
+# ==============================================================================
+# Step 3: Trimmed FastQC
+# ==============================================================================
 fastqc_trimmed_config = {
         "indir": trim_galore_config["outdir"],
         "outdir":  f"{outdir}/QC/2_trimmed_fastqc",
@@ -73,7 +81,9 @@ module fastqc_trimmed:
 logger.info(f"fastqc_trimmed_config: {fastqc_trimmed_config}")
 use rule fastqc from fastqc_trimmed as PeakCalling_fastqc_trimmed
 
-
+# ==============================================================================
+# Step 4: Bowtie2 Alignment
+# ==============================================================================
 bowtie2_config = {
     "indir": trim_galore_config["outdir"],
     "outdir": f"{outdir}/common/3_raw_bam",
@@ -95,8 +105,70 @@ use rule bowtie2_index from bowtie2 as PeakCalling_bowtie2_index
 use rule bowtie2_align_paired from bowtie2 as PeakCalling_bowtie2_align_paired
 use rule bowtie2_align_single from bowtie2 as PeakCalling_bowtie2_align_single
 
-macs3_config = {
+# =============================================================================
+# Step 5: Add Read Groups + Mark Duplicates (GATK4)
+# Consistent with nf-core/chipseq: AddOrReplaceReadGroups + MarkDuplicates.
+# Duplicates are flagged but not removed; downstream tools (MACS3, FRiP)
+# handle duplicate filtering via --keep-dup.
+# =============================================================================
+gatk_prepare_config = {
     "indir": bowtie2_config["outdir"],
+    "outdir": f"{outdir}/common/4_markdup_bam",
+    "logdir": logdir,
+    "input_bam_substring": "",
+    "Procedure": {
+        "gatk": config.get("Procedure", {}).get("gatk") or "gatk",
+        "samtools": config.get("Procedure", {}).get("samtools") or "samtools"
+    },
+    "Params": {
+        "gatk": config.get("Params", {}).get("gatk", {})
+    },
+    "addReadsGroup": config.get("addReadsGroup", {}),
+    "genome": {
+        "fasta": config.get("genome", {}).get("fasta")
+    }
+}
+module gatk_prepare:
+    snakefile: "../modules/gatk/gatk_prepare.smk"
+    config: gatk_prepare_config
+logger.info(f"gatk_prepare_config: {gatk_prepare_config}")
+use rule addReadsGroup from gatk_prepare as PeakCalling_addReadsGroup
+use rule MarkDuplicates from gatk_prepare as PeakCalling_MarkDuplicates
+
+# ==============================================================================
+# Step 6: BigWig Track Generation (bamCoverage)
+# Generates normalized coverage tracks for visualization in genome browsers.
+# Uses the existing igv module's dedup + wig rules.
+# ==============================================================================
+igv_config = {
+    "indir": bowtie2_config["outdir"],
+    "outdir": f"{outdir}/tracks",
+    "logdir": logdir,
+    "Procedure": {
+        "samtools": config.get("Procedure", {}).get("samtools") or "samtools",
+        "bamCoverage": config.get("Procedure", {}).get("bamCoverage") or "bamCoverage"
+    },
+    "Params": {
+        "bamCoverage": {
+            "binSize": config.get("Params", {}).get("bamCoverage", {}).get("binSize") or 50,
+            "normalizeUsing": config.get("Params", {}).get("bamCoverage", {}).get("normalizeUsing") or "CPM",
+            "offset": config.get("Params", {}).get("bamCoverage", {}).get("offset"),
+            "extendReads": config.get("Params", {}).get("bamCoverage", {}).get("extendReads") or False
+        }
+    }
+}
+module igv:
+    snakefile: "../modules/igv/igv.smk"
+    config: igv_config
+logger.info(f"igv_config: {igv_config}")
+use rule samtools_dedup from igv as PeakCalling_dedup
+use rule wig from igv as PeakCalling_bigwig
+
+# =============================================================================
+# Step 7: MACS3 Peak Calling
+# =============================================================================
+macs3_config = {
+    "indir": gatk_prepare_config["outdir"],
     "outdir": f"{outdir}/peaks",
     "logdir": logdir,
     "samples": ip_samples,
@@ -118,3 +190,49 @@ module macs3:
     config: macs3_config
 logger.info(f"macs3_config: {macs3_config}")
 use rule macs3_callpeak from macs3 as PeakCalling_macs3_callpeak
+
+# =============================================================================
+# Step 8: FRIP Score (Fraction of Reads in Peaks)
+# Key ChIP-seq QC metric: measures enrichment quality.
+# FRiP = reads_in_peaks / total_mapped_reads (target >= 0.2 for good data)
+# =============================================================================
+frip_score_config = {
+    "indir": gatk_prepare_config["outdir"],
+    "outdir": f"{outdir}/QC/3_frip_score",
+    "logdir": logdir,
+    "peaks_indir": macs3_config["outdir"],
+    "samples": ip_samples,
+    "Procedure": {
+        "samtools": config.get("Procedure", {}).get("samtools") or "samtools",
+        "bedtools": config.get("Procedure", {}).get("bedtools") or "bedtools"
+    }
+}
+module frip_score:
+    snakefile: "../modules/frip_score/frip_score.smk"
+    config: frip_score_config
+logger.info(f"frip_score_config: {frip_score_config}")
+use rule frip_score from frip_score as PeakCalling_frip_score
+
+# =============================================================================
+# Step 9: HOMER Peak Annotation
+# Annotates peaks with genomic features (promoter, intron, intergenic, etc.)
+# and nearest gene information.
+# ==============================================================================
+homer_config = {
+    "indir": macs3_config["outdir"],
+    "outdir": f"{outdir}/annotation",
+    "logdir": logdir,
+    "samples": ip_samples,
+    "Procedure": {
+        "annotatePeaks": config.get("Procedure", {}).get("annotatePeaks") or "annotatePeaks.pl"
+    },
+    "genome": {
+        "fasta": config.get("genome", {}).get("fasta"),
+        "gtf": config.get("genome", {}).get("gtf")
+    }
+}
+module homer:
+    snakefile: "../modules/homer/homer.smk"
+    config: homer_config
+logger.info(f"homer_config: {homer_config}")
+use rule homer_annotatepeaks from homer as PeakCalling_homer_annotatepeaks

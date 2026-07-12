@@ -9,10 +9,10 @@ treated_ip_samples = config.get("treated_ip_samples", [])
 treated_input_samples = config.get("treated_input_samples", [])
 
 def get_input_for_diff_exomePeak():
-    ip_bams = [indir + f"/{sample_id}.dedup.bam" for sample_id in ip_samples]
-    input_bams = [indir + f"/{sample_id}.dedup.bam" for sample_id in input_samples]
-    treated_ip_bams = [indir + f"/{sample_id}.dedup.bam" for sample_id in treated_ip_samples]
-    treated_input_bams = [indir + f"/{sample_id}.dedup.bam" for sample_id in treated_input_samples]
+    ip_bams = [indir + f"/{sample_id}/{sample_id}.dedup.bam" for sample_id in ip_samples]
+    input_bams = [indir + f"/{sample_id}/{sample_id}.dedup.bam" for sample_id in input_samples]
+    treated_ip_bams = [indir + f"/{sample_id}/{sample_id}.dedup.bam" for sample_id in treated_ip_samples]
+    treated_input_bams = [indir + f"/{sample_id}/{sample_id}.dedup.bam" for sample_id in treated_input_samples]
     bam_dict = {
         "ip_bams": ip_bams,
         "input_bams": input_bams,
@@ -83,8 +83,8 @@ rule diff_exomePeak:
         """
 
 def get_input_for_call_exomePeak():
-    ip_bams = [indir + f"/{sample_id}.bam" for sample_id in ip_samples]
-    input_bams = [indir + f"/{sample_id}.bam" for sample_id in input_samples]
+    ip_bams = [indir + f"/{sample_id}/{sample_id}.bam" for sample_id in ip_samples]
+    input_bams = [indir + f"/{sample_id}/{sample_id}.bam" for sample_id in input_samples]
     bam_dict = {
         "ip_bams": ip_bams,
         "input_bams": input_bams

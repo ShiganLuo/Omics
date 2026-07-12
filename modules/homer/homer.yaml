@@ -1,0 +1,7 @@
+name: homer
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+dependencies:
+  - homer>=4.11

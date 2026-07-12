@@ -12,12 +12,12 @@ def get_macs3_input(wildcards):
     Get treatment (IP) and optional control (Input) BAM files for MACS3.
     sample_ip_input_map: dict mapping IP sample_id -> input sample_id (or None)
     """
-    bam_treatment = os.path.join(indir,f"{wildcards.sample_id}/{wildcards.sample_id}.bam")
+    bam_treatment = os.path.join(indir,f"{wildcards.sample_id}/{wildcards.sample_id}.sorted_markdup.bam")
     
     # Check if there's a matched input control
     input_sample = sample_ip_input_map.get(wildcards.sample_id)
     if input_sample:
-        bam_control = os.path.join(indir,f"{input_sample}/{input_sample}.bam")
+        bam_control = os.path.join(indir,f"{input_sample}/{input_sample}.sorted_markdup.bam")
         return {
             "bam_treatment": bam_treatment,
             "bam_control": bam_control

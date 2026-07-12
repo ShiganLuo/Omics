@@ -1,0 +1,11 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "logs",
+    "peaks_indir": "peaks",
+    "samples": [],
+    "Procedure": {
+        "samtools": "samtools",
+        "bedtools": "bedtools"
+    }
+}

@@ -7,7 +7,7 @@ python ${SCRIPT_DIR}/run.py \
     -t 48 \
     --log /rna_seq_1/luoshg/Chipseq_20260709/logs/PeakCalling.log \
     --conda-prefix /rna_seq_1/luoshg/env \
-    --rerun-triggers mtime
+    --Params.macs3.cutoff_analysis
 # python ${SCRIPT_DIR}/run.py \
 #     -m /data/pub/zhousha/20260207_Exome/data/RNAseq/Rawdata \
 #     -w RNAseq \

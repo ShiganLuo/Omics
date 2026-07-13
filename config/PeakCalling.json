@@ -40,7 +40,34 @@
         "macs3": {
             "bw": 200,
             "pvalue": "1e-5",
-            "genome_size": "mm"
+            "genome_size": "mm",
+            "cutoff_analysis": false
+        },
+        "igv": {
+            "js": "/disk5/luosg/Reference/igv.min.js",
+            "id": "mm39",
+            "name": "Mouse (GRCm39/mm39)",
+            "publicPathMap": {
+                "/rna_seq_1/luoshg/": "/data/",
+                "/disk5/luosg/Reference/": "/ref/"
+            },
+            "fastaURL": "/disk5/luosg/Reference/GENCODE/mouse/GRCm39/GRCm39.primary_assembly.genome.fa",
+            "indexURL": "/disk5/luosg/Reference/GENCODE/mouse/GRCm39/GRCm39.primary_assembly.genome.fa.fai",
+            "cytobandURL": "/disk5/luosg/Reference/GENCODE/mouse/GRCm39/mm39.cytoBand.txt",
+            "tracks": [
+                {
+                    "name": "Gencode vM38 genes",
+                    "format": "gtf",
+                    "url": "/disk5/luosg/Reference/GENCODE/mouse/GRCm39/gencode.vM38.basic.gene_exon.sorted.gtf.gz",
+                    "indexURL": "/disk5/luosg/Reference/GENCODE/mouse/GRCm39/gencode.vM38.basic.gene_exon.sorted.gtf.gz.tbi"
+                },
+                {
+                    "name": "Gencode rmsk repeats",
+                    "format": "gtf",
+                    "url": "/disk5/luosg/Reference/GENCODE/mouse/GRCm39/GRCm39_GENCODE_rmsk_TE.sorted.gtf.gz",
+                    "indexURL": "/disk5/luosg/Reference/GENCODE/mouse/GRCm39/GRCm39_GENCODE_rmsk_TE.sorted.gtf.gz.tbi"
+                }
+            ]
         }
     },
     "addReadsGroup": {

@@ -13,7 +13,8 @@
         "macs3": {
             "bw": 200,
             "pvalue": "1e-5",
-            "genome_size": "mm"
+            "genome_size": "mm",
+            "cutoff_analysis": false
         }
     },
     "genome": {

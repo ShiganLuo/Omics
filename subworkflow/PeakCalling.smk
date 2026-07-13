@@ -164,6 +164,19 @@ logger.info(f"igv_config: {igv_config}")
 use rule samtools_dedup from igv as PeakCalling_dedup
 use rule wig from igv as PeakCalling_bigwig
 
+track_config = {
+        "indir": igv_config["outdir"],
+        "outdir":  igv_config["outdir"],
+        "logdir": logdir,
+        "samples": single_samples + paired_samples,
+        "igv": config.get('Params', {}).get('igv', {}),
+    }
+
+module track:
+    snakefile: "../modules/track/track.smk"
+    config: track_config
+logger.info(f"track_config: {track_config}")
+use rule * from track as PeakCalling_*
 # =============================================================================
 # Step 7: MACS3 Peak Calling
 # =============================================================================

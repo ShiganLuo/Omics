@@ -46,7 +46,8 @@ rule macs3_callpeak:
         bw = config.get("Params", {}).get("macs3", {}).get("bw") or 200,
         pvalue = config.get("Params", {}).get("macs3", {}).get("pvalue") or "1e-5",
         genome_size = config.get("Params", {}).get("macs3", {}).get("genome_size") or "mm",
-        seed = 2346
+        seed = 2346,
+        cutoff_analysis = config.get("Params",{}).get("macs3", {}).get("cutoff_analysis") or False
     run:
         log_path = str(log)
         try:
@@ -69,6 +70,8 @@ rule macs3_callpeak:
             if hasattr(input, "bam_control") and input.bam_control:
                 rule_logger.info(f"Using control BAM: {input.bam_control}")
                 cmd += ["-c", input.bam_control]
+            if params.cutoff_analysis:
+                rule_logger.info(f"use --cutoff-analysis to find better pvalue, it May take ~30 folds longer time to finish")
             success_echo = f'echo "macs3 call peak for sample {wildcards.sample_id} successfully completed !"'
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")

@@ -549,7 +549,8 @@ def runPeakCalling(
             outfiles.append(f"{outdir}/peaks/{ip_sample}/{ip_sample}_peaks.narrowPeak")
             outfiles.append(f"{outdir}/QC/3_frip_score/{ip_sample}/{ip_sample}.FRiP.txt")
             outfiles.append(f"{outdir}/annotation/{ip_sample}/{ip_sample}_peaks.annotatePeaks.txt")
-
+    outfiles.append(f"{outdir}/tracks/ucsc_track.txt")
+    outfiles.append(f"{outdir}/tracks/igv_track.html")
     datajson["paired_samples"] = paired_samples
     datajson["single_samples"] = single_samples
     datajson["samples"] = paired_samples + single_samples

@@ -169,6 +169,7 @@ track_config = {
         "outdir":  igv_config["outdir"],
         "logdir": logdir,
         "samples": single_samples + paired_samples,
+        "ROOT_DIR": ROOT_DIR,
         "igv": config.get('Params', {}).get('igv', {}),
     }
 

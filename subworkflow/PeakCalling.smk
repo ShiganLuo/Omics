@@ -123,7 +123,6 @@ gatk_prepare_config = {
     "Params": {
         "gatk": config.get("Params", {}).get("gatk", {})
     },
-    "addReadsGroup": config.get("addReadsGroup", {}),
     "genome": {
         "fasta": config.get("genome", {}).get("fasta")
     }
@@ -250,3 +249,22 @@ module homer:
     config: homer_config
 logger.info(f"homer_config: {homer_config}")
 use rule homer_annotatepeaks from homer as PeakCalling_homer_annotatepeaks
+
+# ==============================================================================
+# Step 10: Generate Report
+# Creates comprehensive PPT report with QC metrics, peak statistics, and annotation.
+# ==============================================================================
+PeakCalling_report_config = {
+    "outdir": outdir,
+    "logdir": logdir,
+    "samples": ip_samples,
+    "input_samples": input_samples,
+    "Params": {
+        "report": config.get("Params", {}).get("report", {})
+    }
+}
+module PeakCalling_report:
+    snakefile: "../modules/PeakCalling_report/PeakCalling_report.smk"
+    config: PeakCalling_report_config
+logger.info(f"report_config: {PeakCalling_report_config}")
+use rule generate_report from PeakCalling_report as PeakCalling_generate_report

@@ -551,6 +551,7 @@ def runPeakCalling(
             outfiles.append(f"{outdir}/annotation/{ip_sample}/{ip_sample}_peaks.annotatePeaks.txt")
     outfiles.append(f"{outdir}/tracks/ucsc_track.txt")
     outfiles.append(f"{outdir}/tracks/igv_track.html")
+    outfiles.append(f"{outdir}/PeakCalling_report.pptx")
     datajson["paired_samples"] = paired_samples
     datajson["single_samples"] = single_samples
     datajson["samples"] = paired_samples + single_samples

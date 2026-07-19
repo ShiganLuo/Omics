@@ -83,9 +83,9 @@ rule addReadsGroup:
         id = "{sample_id}",
         javaOptions =  config.get("Params", {}).get("gatk", {}).get("javaOptions") or "-Xmx30g",
         tmp_dir = config.get("Params", {}).get("gatk", {}).get("tmp-dir") or None,
-        RGLB = config.get("addReadsGroup", {}).get("RGLB") or "lib1",
-        RGPL = config.get("addReadsGroup", {}).get("RGPL") or "illumina",
-        RGPU = config.get("addReadsGroup", {}).get("RGPU") or "unit1",
+        RGLB = config.get("Params", {}).get("gatk", {}).get("addReadsGroup", {}).get("RGLB") or "lib1",
+        RGPL = config.get("Params", {}).get("gatk", {}).get("addReadsGroup", {}).get("RGPL") or "illumina",
+        RGPU = config.get("Params", {}).get("gatk", {}).get("addReadsGroup", {}).get("RGPU") or "unit1",
         gatk = config.get("Procedure", {}).get("gatk") or "gatk",
         samtools = config.get("Procedure", {}).get("samtools") or "samtools"
     run:

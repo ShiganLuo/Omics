@@ -542,16 +542,21 @@ function createGroupNode(groupEntry) {
         const sampleNode = document.createElement('div');
         sampleNode.className = 'sample';
         sampleNode.dataset.sample = sample.sample.toLowerCase();
-        const sampleName = document.createElement('p');
-        sampleName.className = 'sample-name';
-        sampleName.textContent = sample.sample;
-        sampleNode.append(sampleName);
+        // Hide redundant sample header when the sample has exactly one track
+        // whose name already identifies the sample (e.g. ChIP-seq single-bigwig mode).
+        const showSampleHeader = sample.tracks.length > 1 || sample.tracks[0]?.name !== sample.sample;
+        if (showSampleHeader) {
+            const sampleName = document.createElement('p');
+            sampleName.className = 'sample-name';
+            sampleName.textContent = sample.sample;
+            sampleNode.append(sampleName);
+        }
 
         for (const trackMeta of sample.tracks) {
             const row = document.createElement('label');
             row.className = 'track-item';
             row.innerHTML = `
-                <span>${trackMeta.name} <span class="track-meta">[${trackMeta.strand}]</span></span>
+                <span>${trackMeta.name}${trackMeta.strand !== 'unknown' ? ` <span class="track-meta">[${trackMeta.strand}]</span>` : ''}</span>
                 <input type="checkbox" data-track-key="${trackMeta.key}" />
             `;
             const checkbox = row.querySelector('input');

@@ -1,3 +1,4 @@
+include: "../common/common.smk"
 from snakemake.logging import logger
 indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
@@ -40,47 +41,61 @@ rule diff_exomePeak:
     params:
         gtf = config.get("gtf",""),
         exomePeak_script = ROOT_DIR + "/modules/exomePeak/bin/exomePeak.r",
-    shell:
-        """
-        Rscript {params.exomePeak_script} \
-            --gtf {params.gtf} \
-            --ip_bams {input.ip_bams} \
-            --input_bams {input.input_bams} \
-            --treated_ip_bams {input.treated_ip_bams} \
-            --treated_input_bams {input.treated_input_bams} \
-            --outprefix {outdir} \
-            > {log} 2>&1
-        
-        Rscript bin/geneId2name.r \
-            --infile {outdir}/diff_peaks.bed \
-            --gtf {params.gtf} \
-            --outfile {outdir}/diff_peaks_gene_names.bed
-        Rscript bin/geneId2name.r \
-            --infile {outdir}/diff_peaks.xls \
-            --gtf {params.gtf} \
-            --outfile {outdir}/diff_peaks_gene_names.xls
-
-        Rscript bin/geneId2name.r \
-            --infile {outdir}/con_sig_diff_peak.bed \
-            --gtf {params.gtf} \
-            --outfile {outdir}/con_sig_diff_peak_gene_names.bed
-        Rscript bin/geneId2name.r \
-            --infile {outdir}/con_sig_diff_peak.xls \
-            --gtf {params.gtf} \
-            --outfile {outdir}/con_sig_diff_peak_gene_names.xls
-        
-        Rscript bin/geneId2name.r \
-            --infile {outdir}/sig_diff_peak.bed \
-            --gtf {params.gtf} \
-            --outfile {outdir}/sig_diff_peak_gene_names.bed
-        Rscript bin/geneId2name.r \
-            --infile {outdir}/sig_diff_peak.xls \
-            --gtf {params.gtf} \
-            --outfile {outdir}/sig_diff_peak_gene_names.xls
-        
-        rm -f {outdir}/diff_peaks.bed {outdir}/diff_peaks.xls {outdir}/con_sig_diff_peak.bed {outdir}/con_sig_diff_peak.xls {outdir}/sig_diff_peak.bed {outdir}/sig_diff_peak.xls
-
-        """
+    run:
+        log_path = str(log)
+        try:
+            open(log_path, 'w').close()
+            rule_logger = setup_logger("diff_exomePeak", log_file=log_path)
+            current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+            rule_logger.info(f"Start diff_exomePeak at {current_time}")
+            sample_outdir = outdir
+            os.makedirs(sample_outdir, exist_ok=True)
+            script = os.path.join(sample_outdir, f"diff_exomePeak_{current_time}.sh")
+            with open(script, "w") as f:
+                f.write("#!/bin/bash\n")
+                f.write(f"Rscript {params.exomePeak_script} \\\n")
+                f.write(f"    --gtf {params.gtf} \\\n")
+                f.write(f"    --ip_bams {input.ip_bams} \\\n")
+                f.write(f"    --input_bams {input.input_bams} \\\n")
+                f.write(f"    --treated_ip_bams {input.treated_ip_bams} \\\n")
+                f.write(f"    --treated_input_bams {input.treated_input_bams} \\\n")
+                f.write(f"    --outprefix {outdir} \\\n")
+                f.write(f"    > {log} 2>&1\n")
+                f.write(f"\n")
+                f.write(f"Rscript bin/geneId2name.r \\\n")
+                f.write(f"    --infile {outdir}/diff_peaks.bed \\\n")
+                f.write(f"    --gtf {params.gtf} \\\n")
+                f.write(f"    --outfile {outdir}/diff_peaks_gene_names.bed\n")
+                f.write(f"Rscript bin/geneId2name.r \\\n")
+                f.write(f"    --infile {outdir}/diff_peaks.xls \\\n")
+                f.write(f"    --gtf {params.gtf} \\\n")
+                f.write(f"    --outfile {outdir}/diff_peaks_gene_names.xls\n")
+                f.write(f"\n")
+                f.write(f"Rscript bin/geneId2name.r \\\n")
+                f.write(f"    --infile {outdir}/con_sig_diff_peak.bed \\\n")
+                f.write(f"    --gtf {params.gtf} \\\n")
+                f.write(f"    --outfile {outdir}/con_sig_diff_peak_gene_names.bed\n")
+                f.write(f"Rscript bin/geneId2name.r \\\n")
+                f.write(f"    --infile {outdir}/con_sig_diff_peak.xls \\\n")
+                f.write(f"    --gtf {params.gtf} \\\n")
+                f.write(f"    --outfile {outdir}/con_sig_diff_peak_gene_names.xls\n")
+                f.write(f"\n")
+                f.write(f"Rscript bin/geneId2name.r \\\n")
+                f.write(f"    --infile {outdir}/sig_diff_peak.bed \\\n")
+                f.write(f"    --gtf {params.gtf} \\\n")
+                f.write(f"    --outfile {outdir}/sig_diff_peak_gene_names.bed\n")
+                f.write(f"Rscript bin/geneId2name.r \\\n")
+                f.write(f"    --infile {outdir}/sig_diff_peak.xls \\\n")
+                f.write(f"    --gtf {params.gtf} \\\n")
+                f.write(f"    --outfile {outdir}/sig_diff_peak_gene_names.xls\n")
+                f.write(f"\n")
+                f.write(f"rm -f {outdir}/diff_peaks.bed {outdir}/diff_peaks.xls {outdir}/con_sig_diff_peak.bed {outdir}/con_sig_diff_peak.xls {outdir}/sig_diff_peak.bed {outdir}/sig_diff_peak.xls\n")
+            shell(f"bash {script} >> {log_path} 2>&1")
+        except Exception as e:
+            with open(log_path, "a") as f:
+                f.write(f"Error occurred during diff_exomePeak: {e}\n")
+            logger.error(f"Error occurred during diff_exomePeak: {e}")
+            raise e
 
 def get_input_for_call_exomePeak():
     ip_bams = [indir + f"/{sample_id}/{sample_id}.bam" for sample_id in ip_samples]
@@ -107,34 +122,49 @@ rule call_exomePeak:
         exomePeak_script = ROOT_DIR + "/modules/exomePeak/bin/exomePeak.r",
         geneId2name_script = ROOT_DIR + "/modules/exomePeak/bin/geneId2name.r",
         gtf = config.get("gtf","")
-    shell:
-        """
-        Rscript {params.exomePeak_script} \
-        --gtf {params.gtf} \
-        --ip_bams {input.ip_bams} \
-        --input_bams {input.input_bams} \
-        --outprefix {outdir} \
-        > {log} 2>&1
-
-        Rscript {params.geneId2name_script} \
-            --infile {outdir}/all_peaks.bed \
-            --gtf {params.gtf} \
-            --outfile {outdir}/all_peaks_gene_names.bed
-        Rscript {params.geneId2name_script} \
-            --infile {outdir}/all_peaks.xls \
-            --gtf {params.gtf} \
-            --outfile {outdir}/all_peaks_gene_names.xls
-        
-        Rscript {params.geneId2name_script} \
-            --infile {outdir}/con_peaks.bed \
-            --gtf {params.gtf} \
-            --outfile {outdir}/con_peaks_gene_names.bed
-        Rscript {params.geneId2name_script} \
-            --infile {outdir}/con_peaks.xls \
-            --gtf {params.gtf} \
-            --outfile {outdir}/con_peaks_gene_names.xls
-        rm -f {outdir}/all_peaks.bed {outdir}/all_peaks.xls {outdir}/con_peaks.bed {outdir}/con_peaks.xls
-        """
+    run:
+        log_path = str(log)
+        try:
+            open(log_path, 'w').close()
+            rule_logger = setup_logger("call_exomePeak", log_file=log_path)
+            current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+            rule_logger.info(f"Start call_exomePeak at {current_time}")
+            sample_outdir = outdir
+            os.makedirs(sample_outdir, exist_ok=True)
+            script = os.path.join(sample_outdir, f"call_exomePeak_{current_time}.sh")
+            with open(script, "w") as f:
+                f.write("#!/bin/bash\n")
+                f.write(f"Rscript {params.exomePeak_script} \\\n")
+                f.write(f"--gtf {params.gtf} \\\n")
+                f.write(f"--ip_bams {input.ip_bams} \\\n")
+                f.write(f"--input_bams {input.input_bams} \\\n")
+                f.write(f"--outprefix {outdir} \\\n")
+                f.write(f"> {log} 2>&1\n")
+                f.write(f"\n")
+                f.write(f"Rscript {params.geneId2name_script} \\\n")
+                f.write(f"    --infile {outdir}/all_peaks.bed \\\n")
+                f.write(f"    --gtf {params.gtf} \\\n")
+                f.write(f"    --outfile {outdir}/all_peaks_gene_names.bed\n")
+                f.write(f"Rscript {params.geneId2name_script} \\\n")
+                f.write(f"    --infile {outdir}/all_peaks.xls \\\n")
+                f.write(f"    --gtf {params.gtf} \\\n")
+                f.write(f"    --outfile {outdir}/all_peaks_gene_names.xls\n")
+                f.write(f"\n")
+                f.write(f"Rscript {params.geneId2name_script} \\\n")
+                f.write(f"    --infile {outdir}/con_peaks.bed \\\n")
+                f.write(f"    --gtf {params.gtf} \\\n")
+                f.write(f"    --outfile {outdir}/con_peaks_gene_names.bed\n")
+                f.write(f"Rscript {params.geneId2name_script} \\\n")
+                f.write(f"    --infile {outdir}/con_peaks.xls \\\n")
+                f.write(f"    --gtf {params.gtf} \\\n")
+                f.write(f"    --outfile {outdir}/con_peaks_gene_names.xls\n")
+                f.write(f"rm -f {outdir}/all_peaks.bed {outdir}/all_peaks.xls {outdir}/con_peaks.bed {outdir}/con_peaks.xls\n")
+            shell(f"bash {script} >> {log_path} 2>&1")
+        except Exception as e:
+            with open(log_path, "a") as f:
+                f.write(f"Error occurred during call_exomePeak: {e}\n")
+            logger.error(f"Error occurred during call_exomePeak: {e}")
+            raise e
 
 rule exomePeak_result:
     input:

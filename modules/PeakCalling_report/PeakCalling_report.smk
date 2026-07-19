@@ -4,7 +4,7 @@ logdir = config.get("logdir", "log")
 samples = config.get("samples", [])
 input_samples = config.get("input_samples", [])
 
-REPORT_SCRIPT = os.path.join(os.path.dirname(workflow.snakefile), "bin", "generate_report.py")
+REPORT_SCRIPT = os.path.join(ROOT_DIR, "modules", "PeakCalling_report", "bin", "generate_report.py")
 
 rule generate_report:
     """
@@ -39,25 +39,39 @@ rule generate_report:
         date = config.get("Params", {}).get("report", {}).get("date") or "",
         top_n = config.get("Params", {}).get("report", {}).get("top_n") or 5,
         script = REPORT_SCRIPT,
-    shell:
-        """
-        python3 {params.script} \
-            --samples {params.samples} \
-            --input-samples {params.input_samples} \
-            --peaks-dir {params.peaks_dir} \
-            --annotation-dir {params.annotation_dir} \
-            --qc-dir {params.qc_dir} \
-            --log-dir {params.log_dir} \
-            --markdup-dir {params.markdup_dir} \
-            --output {output.report} \
-            --title "{params.title}" \
-            --subtitle "{params.subtitle}" \
-            --pipeline "{params.pipeline}" \
-            --genome "{params.genome}" \
-            --date "{params.date}" \
-            --top-n {params.top_n} \
-            > {log} 2>&1
-        """
+    run:
+        log_path = str(log)
+        try:
+            open(log_path, 'w').close()
+            rule_logger = setup_logger("generate_report", log_file=log_path)
+            current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+            rule_logger.info(f"Start generate_report at {current_time}")
+            report_dir = os.path.dirname(str(output.report))
+            os.makedirs(report_dir, exist_ok=True)
+            script = os.path.join(report_dir, f"generate_report_{current_time}.sh")
+            with open(script, "w") as f:
+                f.write("#!/bin/bash\n")
+                f.write(f"python3 {params.script} \\\n")
+                f.write(f"    --samples {params.samples} \\\n")
+                f.write(f"    --input-samples {params.input_samples} \\\n")
+                f.write(f"    --peaks-dir {params.peaks_dir} \\\n")
+                f.write(f"    --annotation-dir {params.annotation_dir} \\\n")
+                f.write(f"    --qc-dir {params.qc_dir} \\\n")
+                f.write(f"    --log-dir {params.log_dir} \\\n")
+                f.write(f"    --markdup-dir {params.markdup_dir} \\\n")
+                f.write(f"    --output {output.report} \\\n")
+                f.write(f"    --title \"{params.title}\" \\\n")
+                f.write(f"    --subtitle \"{params.subtitle}\" \\\n")
+                f.write(f"    --pipeline \"{params.pipeline}\" \\\n")
+                f.write(f"    --genome \"{params.genome}\" \\\n")
+                f.write(f"    --date \"{params.date}\" \\\n")
+                f.write(f"    --top-n {params.top_n}\n")
+            shell(f"bash {script} > {log_path} 2>&1")
+        except Exception as e:
+            with open(log_path, "a") as f:
+                f.write(f"Error occurred during generate_report: {e}\n")
+            logger.error(f"Error occurred during generate_report: {e}")
+            raise e
 
 
 rule report_result:

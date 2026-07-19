@@ -2,6 +2,7 @@ import logging
 logger = logging.getLogger(__name__)
 aligner = config.get('Procedure',{}).get('aligner')
 cutadapt_config = {
+        "ROOT_DIR": ROOT_DIR,
         "indir": workdir,
         "outdir":  outdir,
         "Procedure": {
@@ -16,6 +17,7 @@ use rule trimming_Single from cutadapt as RNA_SNP_trimming_Single
 
 if aligner == "hisat2":
     hisat2_config = {
+        "ROOT_DIR": ROOT_DIR,
         "indir": cutadapt_config["outdir"],
         "outdir":  outdir,
         "Procedure": {
@@ -29,6 +31,7 @@ if aligner == "hisat2":
     use rule hisat2_align from hisat2 as RNA_SNP_hisat2_align
 elif aligner == "star":
     star_config = {
+        "ROOT_DIR": ROOT_DIR,
         "indir": cutadapt_config["outdir"],
         "outdir":  outdir,
         "Procedure": {

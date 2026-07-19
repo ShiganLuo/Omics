@@ -1,0 +1,256 @@
+{
+  "ROOT_DIR": {
+    "type": "str",
+    "required": false
+  },
+  "indir": {
+    "type": "str",
+    "required": false
+  },
+  "outdir": {
+    "type": "str",
+    "required": false
+  },
+  "logdir": {
+    "type": "str",
+    "required": false
+  },
+  "samples": {
+    "type": "list",
+    "required": true
+  },
+  "paired_samples": {
+    "type": "list",
+    "required": true
+  },
+  "single_samples": {
+    "type": "list",
+    "required": true
+  },
+  "ip_samples": {
+    "type": "list",
+    "required": true
+  },
+  "input_samples": {
+    "type": "list",
+    "required": true
+  },
+  "sample_ip_input_map": {},
+  "genomes": {
+    "type": "list",
+    "required": true
+  },
+  "outfiles": {
+    "type": "list",
+    "required": true
+  },
+  "Procedure": {
+    "trim_galore": {
+      "type": "str",
+      "required": true,
+      "path": "file"
+    },
+    "bowtie2-build": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    },
+    "bowtie2": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    },
+    "samtools": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    },
+    "gatk": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    },
+    "bamCoverage": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    },
+    "macs3": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    },
+    "bedtools": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    },
+    "annotatePeaks": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    }
+  },
+  "Params": {
+    "trim_galore": {
+      "quality": {
+        "type": "int",
+        "required": true
+      }
+    },
+    "bowtie2": {},
+    "gatk": {
+      "javaOptions": {
+        "type": "str",
+        "required": true
+      },
+      "tmp-dir": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      },
+      "addReadsGroup": {
+        "RGLB": {
+          "type": "str",
+          "required": true
+        },
+        "RGPL": {
+          "type": "str",
+          "required": true
+        },
+        "RGPU": {
+          "type": "str",
+          "required": true
+        }
+      }
+    },
+    "bamCoverage": {
+      "binSize": {
+        "type": "int",
+        "required": true
+      },
+      "normalizeUsing": {
+        "type": "str",
+        "required": true
+      },
+      "offset": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      },
+      "extendReads": {
+        "type": "bool",
+        "required": true
+      }
+    },
+    "macs3": {
+      "bw": {
+        "type": "int",
+        "required": true
+      },
+      "pvalue": {
+        "type": "str",
+        "required": true
+      },
+      "genome_size": {
+        "type": "str",
+        "required": true
+      },
+      "cutoff_analysis": {
+        "type": "bool",
+        "required": true
+      }
+    },
+    "report": {
+      "title": {
+        "type": "str",
+        "required": true
+      },
+      "subtitle": {
+        "type": "str",
+        "required": true,
+        "path": "file"
+      },
+      "pipeline": {
+        "type": "str",
+        "required": true
+      },
+      "genome": {
+        "type": "str",
+        "required": true
+      },
+      "date": {
+        "type": "str",
+        "required": true
+      },
+      "top_n": {
+        "type": "int",
+        "required": true
+      }
+    },
+    "igv": {
+      "js": {
+        "type": "str",
+        "required": true,
+        "path": "file"
+      },
+      "id": {
+        "type": "str",
+        "required": true
+      },
+      "name": {
+        "type": "str",
+        "required": true,
+        "path": "file"
+      },
+      "publicPathMap": {
+        "/rna_seq_1/luoshg/": {
+          "type": "str",
+          "required": true,
+          "path": "file"
+        },
+        "/disk5/luosg/Reference/": {
+          "type": "str",
+          "required": true,
+          "path": "file"
+        }
+      },
+      "fastaURL": {
+        "type": "str",
+        "required": true,
+        "path": "file"
+      },
+      "indexURL": {
+        "type": "str",
+        "required": true,
+        "path": "file"
+      },
+      "cytobandURL": {
+        "type": "str",
+        "required": true,
+        "path": "file"
+      },
+      "tracks": {
+        "type": "list",
+        "required": true
+      }
+    }
+  },
+  "genome": {
+    "fasta": {
+      "type": "str",
+      "required": true,
+      "path": "file"
+    },
+    "gtf": {
+      "type": "str",
+      "required": true,
+      "path": "file"
+    },
+    "bowtie2_index_prefix": {
+      "type": "str",
+      "required": true,
+      "path": "prefix"
+    }
+  }
+}

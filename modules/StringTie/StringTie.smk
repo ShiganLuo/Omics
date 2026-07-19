@@ -1,3 +1,4 @@
+include: "../common/common.smk"
 from snakemake.logging import logger
 import time
 indir = config.get("indir") or "input"
@@ -17,10 +18,27 @@ rule stringTie:
         gtf = config.get('genome', {}).get('gtf'), #最好使用完整的gtf文件，更有利于准确判断是否是新转录本
         stringtie = config.get("Procedure", {}).get("stringtie") or "stringtie"
     threads: 5
-    shell:
-        """
-        {params.stringtie} -o {output.gtf} {input.bam} -G {params.gtf} -p {threads} > {log} 2>&1
-        """
+    conda:
+        "StringTie.yaml"
+    run:
+        log_path = str(log)
+        try:
+            open(log_path, 'w').close()
+            logger = setup_logger(logger_name="stringTie_run", log_file=log_path)
+            current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+            logger.info(f"Start stringTie run for sample {wildcards.sample_id} at {current_time}")
+            script = os.path.join(outdir, f"{wildcards.sample_id}/stringTie_{current_time}.sh")
+            cmd = [params.stringtie, "-o", output.gtf, input.bam, "-G", params.gtf, "-p", str(threads)]
+            with open(script, 'w') as f:
+                f.write(' '.join(cmd) + '\n')
+            shell(f"bash {script} >> {log_path} 2>&1")
+        except Exception as e:
+            with open(log_path, 'a') as f:
+                f.write(f"Error: {e}\n")
+            raise f"Error: {e}"
+        finally:
+            current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+            logger.info(f"Completed at {current_time}")
 rule TEChimericTranscripts:
     input:
         gtf = outdir + "/{sample_id}/{sample_id}.gtf"
@@ -32,6 +50,8 @@ rule TEChimericTranscripts:
         te_gtf = config.get('genome', {}).get('TE_gtf'),
         TEChimericTranscripts = ROOT_DIR + "/modules/StringTie/bin/TEChimericTranscripts.py"
     threads: 5
+    conda:
+        "StringTie.yaml"
     run:
         current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
         script = f"{outdir}/{wildcards.sample_id}/TEChimericTranscripts.{current_time}.sh"
@@ -56,6 +76,8 @@ rule TEChimericPlot:
     params:
         TEChimericPlot = ROOT_DIR + "/modules/StringTie/bin/TEChimericPlot.py"
     threads: 1
+    conda:
+        "StringTie.yaml"
     run:
         current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
         script = f"{outdir}/result/TE_chimeric/TEChimericPlot.{current_time}.sh"
@@ -82,7 +104,24 @@ rule stringTieMerge:
     params:
         gtf = config.get('genome', {}).get('gtf'), #最好使用完整的gtf文件，更有利于准确判断是否是新转录本
         stringtie = config.get("Procedure", {}).get("stringtie") or "stringtie"
-    shell:
-        """
-        {params.stringtie} --merge {input.gtfs} -o {output.gtf} -G {params.gtf} > {log} 2>&1
-        """
+    conda:
+        "StringTie.yaml"
+    run:
+        log_path = str(log)
+        try:
+            open(log_path, 'w').close()
+            logger = setup_logger(logger_name="stringTieMerge_run", log_file=log_path)
+            current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+            logger.info(f"Start stringTieMerge run at {current_time}")
+            script = os.path.join(outdir, f"stringTieMerge_{current_time}.sh")
+            cmd = [params.stringtie, "--merge"] + list(input.gtfs) + ["-o", output.gtf, "-G", params.gtf]
+            with open(script, 'w') as f:
+                f.write(' '.join(cmd) + '\n')
+            shell(f"bash {script} >> {log_path} 2>&1")
+        except Exception as e:
+            with open(log_path, 'a') as f:
+                f.write(f"Error: {e}\n")
+            raise f"Error: {e}"
+        finally:
+            current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+            logger.info(f"Completed at {current_time}")

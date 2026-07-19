@@ -1,3 +1,5 @@
+include: "../common/common.smk"
+
 import logging
 import time
 logger = logging.getLogger(__name__)
@@ -12,27 +14,54 @@ fastq_sample_suffix = config.get('fastq_sample_suffix') or None
 rule star_index:
     input:
         fasta = fasta,
-        gtf = gtf
     output:
         index_file = directory(outdir + "/index")
     log:
         logdir + "/index/star_index.log"
     threads: 12
+    conda:
+        "star.yaml"
     params:
         STAR = config.get('Procedure',{}).get('STAR') or 'STAR',
         index_dir = outdir + "/index",
-        sjdbOverhang = config.get('Params',{}).get('STAR', {}).get('sjdbOverhang') or 100
-    shell:
-        """
-        mkdir -p {params.index_dir}
-        {params.STAR} --runMode genomeGenerate \
-            --runThreadN {threads} \
-            --genomeDir {params.index_dir} \
-            --genomeFastaFiles {input.fasta} \
-            --sjdbGTFfile {input.gtf} \
-            --sjdbOverhang {params.sjdbOverhang} \
-            > {log} 2>&1
-        """
+        sjdbOverhang = config.get('Params',{}).get('STAR', {}).get('sjdbOverhang') or 100,
+        gtf = gtf
+    run:
+        log_path = str(log)
+        try:
+            open(log_path, 'w').close()
+            rule_logger = setup_logger("star_index", log_file=log_path)
+            current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+            rule_logger.info(f"Start star_index at {current_time}")
+
+            sample_outdir = os.path.dirname(str(output.index_file))
+            os.makedirs(sample_outdir, exist_ok=True)
+            script = os.path.join(sample_outdir, f"star_index_{current_time}.sh")
+
+            cmd = [
+                params.STAR, "--runMode", "genomeGenerate",
+                "--runThreadN", str(threads),
+                "--genomeDir", params.index_dir,
+                "--genomeFastaFiles", input.fasta,
+                "--sjdbOverhang", str(params.sjdbOverhang),
+            ]
+            if params.gtf:
+                cmd.extend(["--sjdbGTFfile", params.gtf])
+                rule_logger.info(f"Using sjdbGTFfile: {params.gtf}")
+            else:
+                rule_logger.info("No GTF provided, skipping --sjdbGTFfile")
+
+            with open(script, "w") as f:
+                f.write("#!/bin/bash\n")
+                f.write(" ".join(cmd) + "\n")
+            shell(f"bash {script} > {log_path} 2>&1")
+
+            rule_logger.info(f"star_index completed successfully")
+        except Exception as e:
+            with open(log_path, "a") as f:
+                f.write(f"Error occurred during star_index: {e}\n")
+            logger.error(f"Error occurred during star_index: {e}")
+            raise e
 def get_star_index(wildcards):
     logger.info(f"[get_star_index] called with wildcards: {wildcards}")
     star_index_dir = config.get('genome',{}).get('index_dir') or None
@@ -118,6 +147,8 @@ rule star_align:
         chimScoreSeparation = config.get('Params',{}).get('STAR', {}).get('chimScoreSeparation') or 10,
         alignSJstitchMismatchNmax = config.get('Params',{}).get('STAR', {}).get('alignSJstitchMismatchNmax') or "0 -1 0 0",
         chimSegmentReadGapMax = config.get('Params',{}).get('STAR', {}).get('chimSegmentReadGapMax') or 0
+    conda:
+        "star.yaml"
     run:
         current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
         script = f"{outdir}/{wildcards.sample_id}/star_align.{current_time}.sh"

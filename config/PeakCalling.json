@@ -29,7 +29,12 @@
         "bowtie2": {},
         "gatk": {
             "javaOptions": "-Xmx30g",
-            "tmp-dir": null
+            "tmp-dir": null,
+            "addReadsGroup": {
+                "RGLB": "lib1",
+                "RGPL": "ILLUMINA",
+                "RGPU": "unit1"
+            }
         },
         "bamCoverage": {
             "binSize": 50,
@@ -42,6 +47,14 @@
             "pvalue": "1e-5",
             "genome_size": "mm",
             "cutoff_analysis": false
+        },
+        "report": {
+            "title": "ChIP-seq Peak Calling Report",
+            "subtitle": "Pop5 & Rpp14 & Rpp21 IP/Input — Mouse GRCm39 (mm39)",
+            "pipeline": "TrimGalore → Bowtie2 → GATK MarkDuplicates → MACS3 → HOMER → bamCoverage → FRiP",
+            "genome": "GRCm39 (mm39)",
+            "date": "2026-07-14",
+            "top_n": 5
         },
         "igv": {
             "js": "/disk5/luosg/Reference/igv.min.js",
@@ -69,11 +82,6 @@
                 }
             ]
         }
-    },
-    "addReadsGroup": {
-        "RGLB": "lib1",
-        "RGPL": "ILLUMINA",
-        "RGPU": "unit1"
     },
     "genome": {
         "fasta": "/disk5/luosg/Reference/GENCODE/mouse/GRCm39/GRCm39.primary_assembly.genome.fa",

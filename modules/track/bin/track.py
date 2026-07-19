@@ -272,14 +272,26 @@ def _build_igv_tracks(track_files: Sequence[str], output_dir: str) -> List[Dict]
     return [_build_igv_track_record(track_file, output_dir, index) for index, track_file in enumerate(track_files)]
 
 
+def _strip_condition_suffix(name: str) -> str:
+    """Strip common ChIP-seq condition suffixes (IP, Input, etc.) to get the base group name."""
+    # Match suffixes like IP, Input, IP_rep1, Input_rep1, _IP, _Input, etc.
+    m = re.match(r"^(.+?)(?:_?(?:IP|Input|IP[_-]?rep\d+|Input[_-]?rep\d+))$", name, re.IGNORECASE)
+    if m:
+        return m.group(1)
+    return name
+
+
 def _build_grouped_track_manifest(tracks: Sequence[Dict]) -> List[Dict]:
     grouped: Dict[str, Dict] = {}
+    all_unknown = True
     for index, track in enumerate(tracks):
         track_name = str(track.get("name", f"track_{index + 1}"))
         identity = _parse_track_identity(track_name)
         group_name = identity["group"]
         sample_name = identity["sample"]
         strand = identity["strand"]
+        if strand != "unknown":
+            all_unknown = False
 
         group_entry = grouped.setdefault(group_name, {"group": group_name, "samples": {}})
         sample_entry = group_entry["samples"].setdefault(sample_name, {"sample": sample_name, "tracks": []})
@@ -292,6 +304,29 @@ def _build_grouped_track_manifest(tracks: Sequence[Dict]) -> List[Dict]:
                 "config": track,
             }
         )
+
+    # When every track has unknown strand (e.g. ChIP-seq single-bigwig mode),
+    # re-group by stripping condition suffixes (IP/Input) so related samples
+    # share a group instead of each being its own group.
+    if all_unknown and len(grouped) > 1:
+        regrouped: Dict[str, Dict] = {}
+        for track in tracks:
+            track_name = str(track.get("name", ""))
+            base_group = _strip_condition_suffix(track_name)
+            identity = _parse_track_identity(track_name)
+            track_record = None
+            # Find the existing track record
+            for g in grouped.values():
+                for s in g["samples"].values():
+                    for t in s["tracks"]:
+                        if t["name"] == track_name:
+                            track_record = t
+                            break
+            if track_record is None:
+                continue
+            group_entry = regrouped.setdefault(base_group, {"group": base_group, "samples": {}})
+            sample_entry = group_entry["samples"].setdefault(track_name, {"sample": track_name, "tracks": [track_record]})
+        grouped = regrouped
 
     grouped_list: List[Dict] = []
     for group_name in sorted(grouped):

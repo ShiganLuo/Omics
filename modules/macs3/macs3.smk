@@ -72,6 +72,7 @@ rule macs3_callpeak:
                 cmd += ["-c", input.bam_control]
             if params.cutoff_analysis:
                 rule_logger.info(f"use --cutoff-analysis to find better pvalue, it May take ~30 folds longer time to finish")
+                cmd.append("--cutoff-analysis")
             success_echo = f'echo "macs3 call peak for sample {wildcards.sample_id} successfully completed !"'
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")

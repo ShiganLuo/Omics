@@ -8,7 +8,7 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 #     GetGSMHtml ${GSM} ${html_outdir} ${html_log}
 # done
 GSM_parser=${SCRIPT_DIR}/GSM_metadata.py
-ASCP_downloader=${SCRIPT_DIR}/ascp_download.py
+ASCP_downloader=${SCRIPT_DIR}/sra_download.py
 meta_input_generator=${SCRIPT_DIR}/generate_meta_input.py
 ENA_ascp_key=${SCRIPT_DIR}/assests/asperaweb_id_dsa.openssh
 CNGB_ascp_key=${SCRIPT_DIR}/assests/aspera01.openssh
@@ -16,27 +16,30 @@ function download_pipeline(){
     meta=$1
     outdir=$2
     log=$3
-    python  ${GSM_parser}\
+    echo $log
+    python ${GSM_parser} \
         --mode both \
         --gsm-file ${meta} \
         --outdir ${outdir} \
         --log ${log}
     
-    # python ${ASCP_downloader} \
-    #     --meta ${outdir}/sra_metadata.csv \
-    #     --srr-col-name Data_id \
-    #     --outdir ${outdir}/fastq \
-    #     --key ${ascp_key} \
-    #     --log ${log}\
+    python ${ASCP_downloader} \
+        --meta ${outdir}/sra_metadata.csv \
+        --srr-col-name Data_id \
+        --outdir ${outdir}/fastq \
+        -m sra \
+        --log ${log} \
+        -m sra
+    
     python ${meta_input_generator} \
         -i ${outdir}/sra_metadata.csv \
         -d ${outdir}/fastq \
         -o ${outdir}/meta_input.tsv
 }
-meat=/data/pub/zhousha/20260417_RNAseq/data/meta/meta.csv
-outdir=/data/pub/zhousha/20260417_RNAseq/data/meta
-log=/data/pub/zhousha/20260417_RNAseq/log/download/GSM_metadata.log
-# download_pipeline ${meat} ${outdir} ${log}
+meta=/rna_seq_1/luoshg/Chipseq_20260709/data/Srp54/GSM.tsv
+outdir=/rna_seq_1/luoshg/Chipseq_20260709/data/Srp54
+log=/rna_seq_1/luoshg/Chipseq_20260709/logs/GSM_metadata_Srp54.log
+download_pipeline ${meta} ${outdir} ${log}
 function cngb_download(){
     ip=$1
     outdir=$2
@@ -53,4 +56,4 @@ function cngb_download(){
 }
 ip=aspera01@download.cncb.ac.cn:gsa6/CRA024880
 outdir=/data/pub/zhousha/20260207_Exome/data/tRNA/fastq
-cngb_download ${ip} ${outdir}
+# cngb_download ${ip} ${outdir}

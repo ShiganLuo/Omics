@@ -9,16 +9,17 @@ python ${SCRIPT_DIR}/run.py \
     --conda-prefix /rna_seq_1/luoshg/env \
     --Params.macs3.cutoff_analysis \
     --rerun-triggers mtime
-# python ${SCRIPT_DIR}/run.py \
-#     -m /data/pub/zhousha/20260207_Exome/data/RNAseq/Rawdata \
-#     -w RNAseq \
-#     -o /data/pub/zhousha/20260207_Exome/output \
-#     -t 48 \
-#     --log /data/pub/zhousha/20260207_Exome/log/RNAseq.log \
-#     --conda-prefix /data/pub/zhousha/env/mutation_0.1 \
-#     --genome.fasta /data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa \
-#     --rerun-triggers input \
-#     --dry-run
+
+python ${SCRIPT_DIR}/run.py \
+    -m /rna_seq_1/luoshg/Chipseq_20260709/data/Srp54/fastq/SRR32033648_1.fastq.gz \
+    -w RNAseq \
+    -o /data/pub/zhousha/20260207_Exome/output \
+    -t 48 \
+    --log /data/pub/zhousha/20260207_Exome/log/RNAseq.log \
+    --conda-prefix /data/pub/zhousha/env/mutation_0.1 \
+    --genome.fasta /data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa \
+    --rerun-triggers input \
+    --dry-run
 
 # python ${SCRIPT_DIR}/run.py \
 #     -m /data/pub/zhousha/20260207_Exome/data/tRNA/meta.tsv \

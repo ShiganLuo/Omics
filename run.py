@@ -690,11 +690,51 @@ def runtRNAseq(
         json.dump(datajson, wf, indent=2, ensure_ascii=False)
     return instance_json
 
+def runncRNAseq(
+    datajson: Dict[str, Any],
+    samples_info_dict: Dict[str, Any],
+    indir: str,
+    outdir: str,
+):
+    """Prepare input JSON for ncRNAseq (small/non-coding RNA-seq) workflow.
+
+    Pipeline: cutadapt trim -> hisat2 (no-spliced-alignment) or star -> featureCounts.
+    """
+    datajson["ROOT_DIR"] = os.path.dirname(__file__)
+    datajson["indir"] = indir
+    datajson["outdir"] = outdir
+    logdir = os.path.join(outdir, "log")
+    os.makedirs(logdir, exist_ok=True)
+    datajson["logdir"] = logdir
+
+    outfiles = []
+    paired_samples = []
+    single_samples = []
+
+    for sample_id, sample_info in samples_info_dict.items():
+        if sample_info.layout == "PE":
+            paired_samples.append(sample_id)
+        elif sample_info.layout == "SE":
+            single_samples.append(sample_id)
+        else:
+            logger.error(f"Unknown layout type for sample {sample_id}: {sample_info.layout}")
+
+    all_samples = paired_samples + single_samples
+    datajson["samples"] = all_samples
+    datajson["paired_samples"] = paired_samples
+    datajson["single_samples"] = single_samples
+    datajson["outfiles"] = outfiles
+
+    instance_json = os.path.join(outdir, "raw.json")
+    with open(instance_json, 'w', encoding='utf-8') as wf:
+        json.dump(datajson, wf, indent=2, ensure_ascii=False)
+    return instance_json
+
 def parse_args():
     parser = argparse.ArgumentParser(description="workflow")
     parser.add_argument('-m','--meta', type=str, required=True, help='meta input file or data dir which condatain fastq file')
     parser.add_argument('-w','--workflow_name', type=str, nargs='+',
-        choices=["CoCulture", "MERIP", "RNAseq", "CLIP", "Mutation", "PacVar", "KARRseq", "PeakCalling", "QuantMS", "tRNAseq"],
+        choices=["CoCulture", "MERIP", "RNAseq", "ncRNAseq", "CLIP", "Mutation", "PacVar", "KARRseq", "PeakCalling", "QuantMS", "tRNAseq"],
         default=['CoCulture'], help='workflow name(s), multiple for parallel execution')
     parser.add_argument('-o','--output_dir', type=str, required=True, help='output dir')
     parser.add_argument('-t','--threads', type=int, default=10, help='threads')
@@ -773,6 +813,7 @@ WORKFLOW_DISPATCH = {
     "CoCulture":  lambda cfg, sid, dp, indir, outdir, meta: ("CoCulture.smk", runCoCulture(cfg, sid, indir, outdir)),
     "MERIP":      lambda cfg, sid, dp, indir, outdir, meta: ("MERIP.smk",     runMERIP(cfg, sid, indir, outdir)),
     "RNAseq":     lambda cfg, sid, dp, indir, outdir, meta: ("RNAseq.smk",    runRNAseq(cfg, sid, indir, outdir)),
+    "ncRNAseq":   lambda cfg, sid, dp, indir, outdir, meta: ("ncRNAseq.smk",  runncRNAseq(cfg, sid, indir, outdir)),
     "CLIP":       lambda cfg, sid, dp, indir, outdir, meta: ("CLIP.smk",      runCLIP(cfg, sid, indir, outdir)),
     "Mutation":   lambda cfg, sid, dp, indir, outdir, meta: ("Mutation.smk",  runMutation(cfg, sid, dp, indir, outdir)),
     "PacVar":     lambda cfg, sid, dp, indir, outdir, meta: ("PacVar.smk",    runPacVar(cfg, sid, indir, outdir)),

@@ -1,0 +1,290 @@
+{
+  "ROOT_DIR": {
+    "type": "null",
+    "nullable": true,
+    "required": false
+  },
+  "indir": {
+    "type": "null",
+    "nullable": true,
+    "required": false
+  },
+  "outdir": {
+    "type": "null",
+    "nullable": true,
+    "required": false
+  },
+  "logdir": {
+    "type": "null",
+    "nullable": true,
+    "required": false
+  },
+  "paired_samples": {
+    "type": "list",
+    "required": true
+  },
+  "single_samples": {
+    "type": "list",
+    "required": true
+  },
+  "control_group_name": {
+    "type": "null",
+    "nullable": true,
+    "required": false
+  },
+  "treatment_group_name": {
+    "type": "null",
+    "nullable": true,
+    "required": false
+  },
+  "control_samples": {
+    "type": "list",
+    "required": true
+  },
+  "treatment_samples": {
+    "type": "list",
+    "required": true
+  },
+  "sample_groups": {},
+  "Procedure": {
+    "TEcount": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    },
+    "TElocal": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    },
+    "trim_galore": {
+      "type": "str",
+      "required": true,
+      "path": "file"
+    },
+    "hisat2": {
+      "type": "str",
+      "required": true,
+      "path": "file"
+    },
+    "hisat2_build": {
+      "type": "str",
+      "required": true,
+      "path": "file"
+    },
+    "samtools": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    },
+    "STAR": {
+      "type": "str",
+      "required": true,
+      "path": "file"
+    },
+    "trimmomatic": {
+      "type": "str",
+      "required": true,
+      "path": "file"
+    }
+  },
+  "genome": {
+    "fasta": {
+      "type": "str",
+      "required": true,
+      "path": "file"
+    },
+    "gtf": {
+      "type": "str",
+      "required": true,
+      "path": "file"
+    },
+    "geneIDAnno": {
+      "type": "str",
+      "required": true,
+      "path": "file"
+    },
+    "TE_gtf": {
+      "type": "str",
+      "required": true,
+      "path": "file"
+    },
+    "TEind": {
+      "type": "str",
+      "required": true,
+      "path": "file"
+    },
+    "hisat2_index_prefix": {
+      "type": "str",
+      "required": true,
+      "path": "prefix"
+    },
+    "star_index_dir": {
+      "type": "str",
+      "required": true,
+      "path": "dir"
+    },
+    "rRNA_fasta": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    },
+    "bowtie2_index_prefix_for_rRNA": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    }
+  },
+  "Params": {
+    "workflow": {
+      "aligner_TEtranscripts": {
+        "type": "str",
+        "required": true
+      },
+      "trimmer": {
+        "type": "str",
+        "required": true
+      }
+    },
+    "trim_galore": {
+      "quality": {
+        "type": "int",
+        "required": true
+      }
+    },
+    "trimmomatic": {
+      "adapter_pe": {
+        "type": "str",
+        "required": true,
+        "path": "file"
+      },
+      "adapter_se": {
+        "type": "str",
+        "required": true,
+        "path": "file"
+      }
+    },
+    "STAR_TEtranscripts": {
+      "alignEndsType": {
+        "type": "str",
+        "required": true
+      },
+      "outFilterMismatchNoverReadLmax": {
+        "type": "float",
+        "required": true
+      },
+      "outFilterMismatchNmax": {
+        "type": "int",
+        "required": true
+      },
+      "outFilterMultimapNmax": {
+        "type": "int",
+        "required": true
+      },
+      "winAnchorMultimapNmax": {
+        "type": "int",
+        "required": true
+      }
+    },
+    "STAR_fusion": {
+      "outFilterMultimapNmax": {
+        "type": "int",
+        "required": true
+      },
+      "outFilterMismatchNmax": {
+        "type": "int",
+        "required": true
+      },
+      "chimSegmentMin": {
+        "type": "int",
+        "required": true
+      },
+      "chimOutType": {
+        "type": "str",
+        "required": true
+      },
+      "chimJunctionOverhangMin": {
+        "type": "int",
+        "required": true
+      },
+      "outSAMstrandField": {
+        "type": "str",
+        "required": true
+      },
+      "chimScoreMin": {
+        "type": "int",
+        "required": true
+      },
+      "chimScoreDropMax": {
+        "type": "int",
+        "required": true
+      },
+      "chimScoreJunctionNonGTAG": {
+        "type": "int",
+        "required": true
+      },
+      "chimScoreSeparation": {
+        "type": "int",
+        "required": true
+      },
+      "alignSJstitchMismatchNmax": {
+        "type": "str",
+        "required": true
+      },
+      "chimSegmentReadGapMax": {
+        "type": "int",
+        "required": true
+      }
+    },
+    "hisat2_TEtranscripts": {
+      "score_min": {
+        "type": "str",
+        "required": true
+      },
+      "flag_params": {
+        "type": "str",
+        "required": false
+      },
+      "k": {
+        "type": "int",
+        "required": true
+      }
+    },
+    "hisat2_stringtie": {
+      "k": {
+        "type": "int",
+        "required": true
+      },
+      "flag_params": {
+        "type": "str",
+        "required": true
+      }
+    },
+    "arriba": {
+      "blacklist": {
+        "type": "str",
+        "required": true,
+        "path": "file"
+      },
+      "known_fusions": {
+        "type": "str",
+        "required": true,
+        "path": "file"
+      },
+      "t": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      },
+      "d": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      },
+      "E": {
+        "type": "float",
+        "required": true
+      }
+    }
+  }
+}

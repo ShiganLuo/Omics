@@ -1,3 +1,5 @@
+include: "../common/common.smk"
+
 from snakemake.logging import logger
 import time
 import os
@@ -37,6 +39,8 @@ rule trgt_genotype:
         trgt = config.get("Procedure", {}).get("trgt") or "trgt",
         karyotype = karyotype,
         prefix = outdir + "/genotype/{sample_id}/{sample_id}.trgt"
+    conda:
+        "trgt.yaml"
     run:
         current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start trgt genotype for sample {wildcards.sample_id} at {current_time}")
@@ -68,6 +72,8 @@ rule trgt_plot:
     params:
         trgt = config.get("Procedure", {}).get("trgt") or "trgt",
         repeat_id = config.get("Params", {}).get("trgt", {}).get("repeat_id") or "HTT"
+    conda:
+        "trgt.yaml"
     run:
         current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start trgt plot for sample {wildcards.sample_id} at {current_time}")

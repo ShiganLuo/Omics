@@ -1,0 +1,5 @@
+sample_id	data_id	design	fastq_1	fastq_2
+TestIP1	TestIP1	exp_Test	/rna_seq_1/luoshg/Chipseq_20260709/workflow/Omics/assests/test/data/fastq/TestIP1/TestIP1_1.fq.gz	/rna_seq_1/luoshg/Chipseq_20260709/workflow/Omics/assests/test/data/fastq/TestIP1/TestIP1_2.fq.gz
+TestInput1	TestInput1	ctr_Test	/rna_seq_1/luoshg/Chipseq_20260709/workflow/Omics/assests/test/data/fastq/TestInput1/TestInput1_1.fq.gz	/rna_seq_1/luoshg/Chipseq_20260709/workflow/Omics/assests/test/data/fastq/TestInput1/TestInput1_2.fq.gz
+TestIP2	TestIP2	exp_Test2	/rna_seq_1/luoshg/Chipseq_20260709/workflow/Omics/assests/test/data/fastq/TestIP2/TestIP2_1.fq.gz	/rna_seq_1/luoshg/Chipseq_20260709/workflow/Omics/assests/test/data/fastq/TestIP2/TestIP2_2.fq.gz
+TestInput2	TestInput2	ctr_Test2	/rna_seq_1/luoshg/Chipseq_20260709/workflow/Omics/assests/test/data/fastq/TestInput2/TestInput2_1.fq.gz	/rna_seq_1/luoshg/Chipseq_20260709/workflow/Omics/assests/test/data/fastq/TestInput2/TestInput2_2.fq.gz

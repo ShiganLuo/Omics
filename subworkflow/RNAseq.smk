@@ -15,6 +15,7 @@ rule all:
         outfiles
 if trimmer == "cutadapt":
     cutadapt_config = {
+            "ROOT_DIR": ROOT_DIR,
             "indir": indir,
             "outdir":  f"{outdir}/fastq/cutadapt",
             "logdir": logdir,
@@ -30,6 +31,7 @@ if trimmer == "cutadapt":
     use rule trimming_Single from cutadapt as RNAseq_trimming_Single
 elif trimmer == "trimmomatic":
     trimmomatic_config = {
+            "ROOT_DIR": ROOT_DIR,
             "indir": indir,
             "outdir":  f"{outdir}/fastq/trimmomatic",
             "logdir": logdir,
@@ -233,6 +235,7 @@ use rule * from RmrRNA as RNAseq_rRNA_*
 
 logger.info(f"rmrRNA_config: {rmrRNA_config}")
 bowtie2_rRNA_config = {
+    "ROOT_DIR": ROOT_DIR,
     "indir": cutadapt_config["outdir"] if trimmer == "cutadapt" else trimmomatic_config["outdir"],
     "outdir":  f"{outdir}/rRNA",
     "logdir": logdir,
@@ -296,6 +299,7 @@ use rule * from star_for_fusion as RNAseq_fusion_*
 logger.info(f"star_config_for_fusion: {star_config_for_fusion}")
 
 gatk_prepare_config = {
+    "ROOT_DIR": ROOT_DIR,
     "indir": star_config_for_fusion["outdir"],
     "outdir":  f"{outdir}/fusion/bam",
     "logdir": logdir,
@@ -318,10 +322,11 @@ use rule * from gatk_prepare as RNAseq_fusion_*
 logger.info(f"gatk_prepare_config: {gatk_prepare_config}")
 
 arriba_config = {
-        "indir": f"{gatk_prepare_config['outdir']}/bam-sorted-Markdup",
+        "indir": gatk_prepare_config['outdir'],
         "outdir":  f"{outdir}/fusion/arriba",
         "logdir": logdir,
         "ROOT_DIR": ROOT_DIR,
+        "bam_substring": "sorted_markdup",
         "samples": single_samples + paired_samples,
         "genome": {
             "fasta": config.get('genome',{}).get('fasta'),

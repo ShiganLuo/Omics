@@ -1,3 +1,4 @@
+include: "../common/common.smk"
 from snakemake.logging import logger
 import time
 import os
@@ -33,17 +34,32 @@ rule cnvkit_reference:
         cnvkit = config.get("Procedure", {}).get("cnvkit") or "cnvkit.py",
         method = config.get("Params", {}).get("cnvkit", {}).get("method") or "wgs",
         control_bams = lambda wildcards: " ".join([f"{indir}/{sid}/{sid}.bam" for sid in control_samples])
-    shell:
-        """
-        {params.cnvkit} batch \
-            {params.control_bams} \
-            --method {params.method} \
-            --fasta {input.fasta} \
-            --access {input.access} \
-            --processes {threads} \
-            --output-reference {output.ref} \
-            > {log} 2>&1
-        """
+    run:
+        log_path = str(log)
+        try:
+            open(log_path, 'w').close()
+            rule_logger = setup_logger("cnvkit_reference", log_file=log_path)
+            current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+            rule_logger.info(f"Start cnvkit reference build at {current_time}")
+            sample_outdir = os.path.dirname(str(output.ref))
+            os.makedirs(sample_outdir, exist_ok=True)
+            script = os.path.join(sample_outdir, f"cnvkit_reference_{current_time}.sh")
+            with open(script, "w") as f:
+                f.write("#!/bin/bash\n")
+                f.write(f"{params.cnvkit} batch \\\n")
+                f.write(f"    {params.control_bams} \\\n")
+                f.write(f"    --method {params.method} \\\n")
+                f.write(f"    --fasta {input.fasta} \\\n")
+                f.write(f"    --access {input.access} \\\n")
+                f.write(f"    --processes {threads} \\\n")
+                f.write(f"    --output-reference {output.ref} \\\n")
+                f.write(f"    > {log} 2>&1\n")
+            shell(f"bash {script} >> {log_path} 2>&1")
+        except Exception as e:
+            with open(log_path, "a") as f:
+                f.write(f"Error occurred during cnvkit reference build: {e}\n")
+            logger.error(f"Error occurred during cnvkit reference build: {e}")
+            raise e
 
 rule cnvkit_batch:
     """Run CNVkit batch analysis on all samples."""
@@ -66,28 +82,42 @@ rule cnvkit_batch:
         method = config.get("Params", {}).get("cnvkit", {}).get("method") or "wgs",
         treat_bams = lambda wildcards: " ".join([f"{indir}/{sid}/{sid}.bam" for sid in samples]),
         outdir = outdir + "/cnv"
-    shell:
-        """
-        if [ -f {input.ref} ]; then
-            {params.cnvkit} batch \
-                {params.treat_bams} \
-                --reference {input.ref} \
-                --processes {threads} \
-                --output-dir {params.outdir} \
-                --scatter --diagram \
-                > {log} 2>&1
-        else
-            {params.cnvkit} batch \
-                {params.treat_bams} \
-                --method {params.method} \
-                --fasta {input.fasta} \
-                --access {input.access} \
-                --processes {threads} \
-                --output-dir {params.outdir} \
-                --scatter --diagram \
-                > {log} 2>&1
-        fi
-        """
+    run:
+        log_path = str(log)
+        try:
+            open(log_path, 'w').close()
+            rule_logger = setup_logger("cnvkit_batch", log_file=log_path)
+            current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+            rule_logger.info(f"Start cnvkit batch at {current_time}")
+            script = os.path.join(params.outdir, f"cnvkit_batch_{current_time}.sh")
+            os.makedirs(params.outdir, exist_ok=True)
+            with open(script, "w") as f:
+                f.write("#!/bin/bash\n")
+                f.write(f"if [ -f {input.ref} ]; then\n")
+                f.write(f"    {params.cnvkit} batch \\\n")
+                f.write(f"        {params.treat_bams} \\\n")
+                f.write(f"        --reference {input.ref} \\\n")
+                f.write(f"        --processes {threads} \\\n")
+                f.write(f"        --output-dir {params.outdir} \\\n")
+                f.write(f"        --scatter --diagram \\\n")
+                f.write(f"        > {log} 2>&1\n")
+                f.write(f"else\n")
+                f.write(f"    {params.cnvkit} batch \\\n")
+                f.write(f"        {params.treat_bams} \\\n")
+                f.write(f"        --method {params.method} \\\n")
+                f.write(f"        --fasta {input.fasta} \\\n")
+                f.write(f"        --access {input.access} \\\n")
+                f.write(f"        --processes {threads} \\\n")
+                f.write(f"        --output-dir {params.outdir} \\\n")
+                f.write(f"        --scatter --diagram \\\n")
+                f.write(f"        > {log} 2>&1\n")
+                f.write(f"fi\n")
+            shell(f"bash {script} >> {log_path} 2>&1")
+        except Exception as e:
+            with open(log_path, "a") as f:
+                f.write(f"Error occurred during cnvkit batch: {e}\n")
+            logger.error(f"Error occurred during cnvkit batch: {e}")
+            raise e
 
 rule cnvkit_result:
     """Result aggregation rule for subworkflow use rule import."""

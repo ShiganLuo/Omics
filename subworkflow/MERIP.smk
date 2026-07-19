@@ -4,6 +4,7 @@ indir = config.get("indir","data/fastq")
 outdir = config.get("outdir","output")
 logdir = config.get("logdir","logs")
 outfiles = config.get("outfiles", [])
+ROOT_DIR = config.get("ROOT_DIR","")
 paired_samples = config.get("paired_samples", [])
 single_samples = config.get("single_samples", [])
 #exomePeak
@@ -16,6 +17,7 @@ rule all:
     input:
         outfiles
 trim_galore_config = {
+        "ROOT_DIR": ROOT_DIR,
         "indir": indir,
         "outdir":  f"{outdir}/cutadapt",
         "logdir": logdir,
@@ -24,13 +26,14 @@ trim_galore_config = {
         }
     }
 module trim_galore:
-    snakefile: "../modules/trim_galore/trim_galore.smk"
+    snakefile: "../modules/trim-galore/trim-galore.smk"
     config: trim_galore_config
 logger.info(f"trim_galore_config: {trim_galore_config}")
 use rule trimming_Paired from trim_galore as MERIP_trimming_Paired
 use rule trimming_Single from trim_galore as MERIP_trimming_Single
 
 hisat2_config = {
+        "ROOT_DIR": ROOT_DIR,
         "indir": trim_galore_config["outdir"],
         "outdir":  f"{outdir}/hisat2",
         "logdir": logdir,
@@ -53,6 +56,7 @@ use rule hisat2_align from hisat2 as MERIP_hisat2_align
 use rule hisat2_index from hisat2 as MERIP_hisat2_index
 
 igv_config = {
+        "ROOT_DIR": ROOT_DIR,
         "indir": hisat2_config["outdir"],
         "outdir":  f"{outdir}/igv",
         "logdir": logdir,
@@ -76,6 +80,7 @@ use rule samtools_dedup from igv as MERIP_dedup
 use rule wig from igv as MERIP_wig
 
 exomePeak_config = {
+        "ROOT_DIR": ROOT_DIR,
         "indir": igv_config["outdir"],
         "outdir": f"{outdir}/exomePeak",
         "logdir": logdir,

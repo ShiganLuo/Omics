@@ -295,10 +295,11 @@ bash workflow/RNA-SNP/run.sh
 - " ".join(cmd)。cmd不能包含None
 ## 待做
 
-- [ ] 实际执行包装成shell，兼容HPC。简单代码，是放在shell，还是直接在run中运行
-- [ ] 元信息待增加分组名
+- [ ] 实际执行包装成shell，兼容HPC
+- [x] 完善meta设计
 - [x] 添加项目skill文档
-- [ ] 整合所有曾经分析过的流程(bcftools待添加进流程,群体基因组学、单细胞分析流程……)
+- [ ] 整合所有曾经分析过的流程
+- [ ] 添加json值校验模块
 
 
 

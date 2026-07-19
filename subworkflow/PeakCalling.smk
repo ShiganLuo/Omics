@@ -21,6 +21,7 @@ rule all:
 # Step 1: Raw FastQC
 # ==============================================================================
 fastqc_raw_config = {
+        "ROOT_DIR": ROOT_DIR,
         "indir": indir,
         "outdir":  f"{outdir}/QC/1_raw_fastqc",
         "logdir": logdir,
@@ -65,6 +66,7 @@ use rule trimming_Single from trim_galore as PeakCalling_trimming_Single
 # Step 3: Trimmed FastQC
 # ==============================================================================
 fastqc_trimmed_config = {
+        "ROOT_DIR": ROOT_DIR,
         "indir": trim_galore_config["outdir"],
         "outdir":  f"{outdir}/QC/2_trimmed_fastqc",
         "logdir": logdir,
@@ -85,6 +87,7 @@ use rule fastqc from fastqc_trimmed as PeakCalling_fastqc_trimmed
 # Step 4: Bowtie2 Alignment
 # ==============================================================================
 bowtie2_config = {
+    "ROOT_DIR": ROOT_DIR,
     "indir": trim_galore_config["outdir"],
     "outdir": f"{outdir}/common/3_raw_bam",
     "logdir": logdir,
@@ -112,6 +115,7 @@ use rule bowtie2_align_single from bowtie2 as PeakCalling_bowtie2_align_single
 # handle duplicate filtering via --keep-dup.
 # =============================================================================
 gatk_prepare_config = {
+    "ROOT_DIR": ROOT_DIR,
     "indir": bowtie2_config["outdir"],
     "outdir": f"{outdir}/common/4_markdup_bam",
     "logdir": logdir,
@@ -140,6 +144,7 @@ use rule MarkDuplicates from gatk_prepare as PeakCalling_MarkDuplicates
 # Uses the existing igv module's dedup + wig rules.
 # ==============================================================================
 igv_config = {
+    "ROOT_DIR": ROOT_DIR,
     "indir": bowtie2_config["outdir"],
     "outdir": f"{outdir}/tracks",
     "logdir": logdir,
@@ -181,6 +186,7 @@ use rule * from track as PeakCalling_*
 # Step 7: MACS3 Peak Calling
 # =============================================================================
 macs3_config = {
+    "ROOT_DIR": ROOT_DIR,
     "indir": gatk_prepare_config["outdir"],
     "outdir": f"{outdir}/peaks",
     "logdir": logdir,
@@ -210,6 +216,7 @@ use rule macs3_callpeak from macs3 as PeakCalling_macs3_callpeak
 # FRiP = reads_in_peaks / total_mapped_reads (target >= 0.2 for good data)
 # =============================================================================
 frip_score_config = {
+    "ROOT_DIR": ROOT_DIR,
     "indir": gatk_prepare_config["outdir"],
     "outdir": f"{outdir}/QC/3_frip_score",
     "logdir": logdir,
@@ -232,6 +239,7 @@ use rule frip_score from frip_score as PeakCalling_frip_score
 # and nearest gene information.
 # ==============================================================================
 homer_config = {
+    "ROOT_DIR": ROOT_DIR,
     "indir": macs3_config["outdir"],
     "outdir": f"{outdir}/annotation",
     "logdir": logdir,
@@ -255,6 +263,7 @@ use rule homer_annotatepeaks from homer as PeakCalling_homer_annotatepeaks
 # Creates comprehensive PPT report with QC metrics, peak statistics, and annotation.
 # ==============================================================================
 PeakCalling_report_config = {
+    "ROOT_DIR": ROOT_DIR,
     "outdir": outdir,
     "logdir": logdir,
     "samples": ip_samples,

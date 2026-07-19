@@ -1,0 +1,121 @@
+{
+  "ROOT_DIR": {
+    "type": "null",
+    "nullable": true,
+    "required": false
+  },
+  "indir": {
+    "type": "null",
+    "nullable": true,
+    "required": false
+  },
+  "logdir": {
+    "type": "null",
+    "nullable": true,
+    "required": false
+  },
+  "outdir": {
+    "type": "null",
+    "nullable": true,
+    "required": false
+  },
+  "paired_samples": {
+    "type": "list",
+    "required": true
+  },
+  "single_samples": {
+    "type": "list",
+    "required": true
+  },
+  "ip_samples": {
+    "type": "list",
+    "required": true
+  },
+  "input_samples": {
+    "type": "list",
+    "required": true
+  },
+  "treated_ip_samples": {
+    "type": "list",
+    "required": true
+  },
+  "treated_input_samples": {
+    "type": "list",
+    "required": true
+  },
+  "outfiles": {
+    "type": "list",
+    "required": true
+  },
+  "genome": {
+    "fasta": {
+      "type": "str",
+      "required": true,
+      "path": "file"
+    },
+    "gtf": {
+      "type": "str",
+      "required": true,
+      "path": "file"
+    }
+  },
+  "Procedure": {
+    "trim_galore": {
+      "type": "str",
+      "required": true,
+      "path": "file"
+    },
+    "hisat2": {
+      "type": "str",
+      "required": true,
+      "path": "file"
+    },
+    "hisat2_build": {
+      "type": "str",
+      "required": true,
+      "path": "file"
+    },
+    "hisat2_index_prefix": {
+      "type": "str",
+      "required": true,
+      "path": "prefix"
+    },
+    "star_index_dir": {
+      "type": "str",
+      "required": true,
+      "path": "dir"
+    },
+    "samtools": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    },
+    "bamCoverage": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    }
+  },
+  "Params": {
+    "trim_galore": {
+      "quality": {
+        "type": "int",
+        "required": true
+      }
+    },
+    "bamCoverage": {
+      "binSize": {
+        "type": "int",
+        "required": true
+      },
+      "normalizeUsing": {
+        "type": "str",
+        "required": true
+      },
+      "offset": {
+        "type": "str",
+        "required": true
+      }
+    }
+  }
+}

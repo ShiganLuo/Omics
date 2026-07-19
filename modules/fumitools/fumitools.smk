@@ -30,6 +30,8 @@ rule fumitools_copy_umi_paired:
         umi_length = config.get("Params", {}).get("fumitools", {}).get("umi_length") or None,
         tag_umi = config.get("Params", {}).get("fumitools", {}).get("tag_umi") or False,
     threads: 4
+    conda:
+        "fumitools.yaml"
     run:
         try:
             log_path = str(log)
@@ -85,6 +87,8 @@ rule fumitools_copy_umi_single:
         umi_length = config.get("Params", {}).get("fumitools", {}).get("umi_length") or None,
         tag_umi = config.get("Params", {}).get("fumitools", {}).get("tag_umi") or False,
     threads: 4
+    conda:
+        "fumitools.yaml"
     run:
         try:
             log_path = str(log)
@@ -140,6 +144,8 @@ rule fumitools_dedup:
         memory = config.get("Params", {}).get("fumitools", {}).get("memory", "3G"),
         start_only = config.get("Params", {}).get("fumitools", {}).get("start_only", False),
     threads: config.get("Params", {}).get("fumitools", {}).get("threads", 4)
+    conda:
+        "fumitools.yaml"
     run:
         try:
             log_path = str(log)

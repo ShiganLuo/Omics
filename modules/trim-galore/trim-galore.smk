@@ -32,6 +32,8 @@ rule trimming_Paired:
     threads: 6
     log:
         log = logdir + "/{sample_id}/trimming.txt"
+    conda:
+        "trim-galore.yaml"
     run:
         log_path = str(log)
         try:
@@ -100,6 +102,8 @@ rule trimming_Single:
     threads: 6
     log:
         log = logdir + "/{sample_id}/trimming.txt"
+    conda:
+        "trim-galore.yaml"
     run:
         log_path = str(log)
         try:

@@ -51,7 +51,7 @@
         },
         "skip_fragment_size": false,
         "skip_sv": false,
-        "skip_cnv": false
+        "skip_cnv": true
     },
     "genome": {
         "fasta": "/data/pub/zhousha/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa",

@@ -131,9 +131,10 @@ rule <tool>_<action>:
     params:
         <tool> = config.get("Procedure", {}).get("<tool>") or "<tool>"
     run:
+        log_path = str(log)
         try:
-            open(log[0], "w").close()
-            logger = setup_logger(logger_name="<tool>_<action>", log_file=log[0])
+            open(log_path, "w").close()
+            logger = setup_logger(logger_name="<tool>_<action>", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start <tool> <action> for sample {wildcards.sample_id} at {current_time}")
             script = os.path.join(outdir, f"{wildcards.sample_id}/<tool>_<action>_{current_time}.sh")
@@ -143,9 +144,9 @@ rule <tool>_<action>:
             ]
             with open(script, "w") as f:
                 f.write(" ".join(cmd) + "\n")
-            shell(f"bash {script} >> {log[0]} 2>&1")
+            shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log[0], "a") as f:
+            with open(log_path, "a") as f:
                 f.write(f"<tool> <action> failed for sample {wildcards.sample_id} with error: {e}\n")
             raise f"<tool> <action> failed for sample {wildcards.sample_id} with error: {e}"
         finally:
@@ -155,11 +156,11 @@ rule <tool>_<action>:
 
 ## 要点
 
-1. **`open(log[0], "w").close()`** — 清空旧日志，避免追加混淆
+1. **`open(log_path, "w").close()`** — 清空旧日志，避免追加混淆
 2. **`setup_logger`** — 从 common.smk 导入，统一日志格式
 3. **`current_time` 时间戳** — 脚本名加时间戳避免并发写冲突
 4. **cmd 列表构建** — 参数逐项添加，条件参数用 `if` 追加，不拼接字符串
-5. **`shell(f"bash {script} >> {log[0]} 2>&1")`** — stdout 和 stderr 都追加到日志
+5. **`shell(f"bash {script} >> {log_path} 2>&1")`** — stdout 和 stderr 都追加到日志
 6. **try/except** — 捕获异常，在日志末尾写入错误信息后 re-raise
 
 ## 带条件参数
@@ -184,6 +185,7 @@ with open(script, "w") as f:
 
 ```python
 run:
+    log_path = str(log)
     # Python 准备
     with open(map_file, "w") as f:
         for k, v in mapping.items():
@@ -191,7 +193,7 @@ run:
     # shell 执行
     with open(script, "w") as f:
         f.write(" ".join(cmd) + "\n")
-    shell(f"bash {script} >> {log[0]} 2>&1")
+    shell(f"bash {script} >> {log_path} 2>&1")
 ```
 
 ## 为什么不使用纯 `shell:` 块

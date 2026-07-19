@@ -26,6 +26,8 @@ rule frip_score:
     params:
         bedtools = config.get("Procedure", {}).get("bedtools") or "bedtools",
         samtools = config.get("Procedure", {}).get("samtools") or "samtools"
+    conda:
+        "frip_score.yaml"
     run:
         log_path = str(log)
         try:

@@ -1,3 +1,5 @@
+include: "../../common/common.smk"
+
 from snakemake.logging import logger
 import time
 import os

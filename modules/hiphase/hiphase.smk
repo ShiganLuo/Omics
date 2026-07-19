@@ -1,3 +1,5 @@
+include: "../common/common.smk"
+
 from snakemake.logging import logger
 import time
 import os
@@ -41,6 +43,8 @@ rule hiphase_phase:
     threads: 8
     params:
         hiphase = config.get("Procedure", {}).get("hiphase") or "hiphase",
+    conda:
+        "hiphase.yaml"
     run:
         current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start hiphase for sample {wildcards.sample_id} at {current_time}")

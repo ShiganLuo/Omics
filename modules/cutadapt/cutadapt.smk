@@ -49,6 +49,8 @@ rule trimming_Paired:
         cut = config.get("Params", {}).get("cutadapt", {}).get("cut") or None,
         trimmed_only = config.get("Params", {}).get("cutadapt", {}).get("trimmed_only") or False,
         report = config.get("Params", {}).get("cutadapt", {}).get("report") or "full"
+    conda:
+        "cutadapt.yaml"
     run:
         try:
             log_path = str(log)
@@ -113,6 +115,8 @@ rule trimming_Single:
         cut = config.get("Params", {}).get("cutadapt", {}).get("cut") or None,
         trimmed_only = config.get("Params", {}).get("cutadapt", {}).get("trimmed_only") or False,
         report = config.get("Params", {}).get("cutadapt", {}).get("report") or "full" 
+    conda:
+        "cutadapt.yaml"
     run:
         log_path = str(log)
         try:

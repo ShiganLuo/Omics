@@ -1,0 +1,186 @@
+{
+  "indir": {
+    "type": "str",
+    "required": true,
+    "path": "file"
+  },
+  "outdir": {
+    "type": "str",
+    "required": true,
+    "path": "file"
+  },
+  "logdir": {
+    "type": "str",
+    "required": true,
+    "path": "file"
+  },
+  "samples": {
+    "type": "list",
+    "required": true
+  },
+  "outfiles": {
+    "type": "list",
+    "required": true
+  },
+  "sample_data": {
+    "type": "str",
+    "required": false
+  },
+  "ROOT_DIR": {
+    "type": "str",
+    "required": true,
+    "path": "file"
+  },
+  "Procedure": {},
+  "Params": {
+    "mimseq": {
+      "species": {
+        "type": "str",
+        "required": true
+      },
+      "name": {
+        "type": "str",
+        "required": true
+      },
+      "data_dir": {
+        "type": "str",
+        "required": true,
+        "path": "dir"
+      },
+      "control_cond": {
+        "type": "str",
+        "required": false
+      },
+      "cluster_id": {
+        "type": "float",
+        "required": true
+      },
+      "threads": {
+        "type": "int",
+        "required": true
+      },
+      "min_cov": {
+        "type": "float",
+        "required": true
+      },
+      "max_mismatches": {
+        "type": "float",
+        "required": true
+      },
+      "max_multi": {
+        "type": "int",
+        "required": true
+      },
+      "misinc_thresh": {
+        "type": "float",
+        "required": true
+      },
+      "remap_mismatches": {
+        "type": "float",
+        "required": true
+      },
+      "p_adj": {
+        "type": "float",
+        "required": true
+      },
+      "cov_diff": {
+        "type": "float",
+        "required": true
+      },
+      "no_cluster": {
+        "type": "bool",
+        "required": true
+      },
+      "no_cca": {
+        "type": "bool",
+        "required": true
+      },
+      "double_cca": {
+        "type": "bool",
+        "required": true
+      },
+      "remap": {
+        "type": "bool",
+        "required": true
+      },
+      "snp_tolerance": {
+        "type": "bool",
+        "required": true
+      },
+      "keep_temp": {
+        "type": "bool",
+        "required": true
+      },
+      "crosstalks": {
+        "type": "bool",
+        "required": true
+      },
+      "pretRNAs": {
+        "type": "bool",
+        "required": true
+      },
+      "posttrans_mod_off": {
+        "type": "bool",
+        "required": true
+      },
+      "local_modomics": {
+        "type": "bool",
+        "required": true
+      }
+    },
+    "cutadapt": {
+      "quality": {
+        "type": "int",
+        "required": true
+      },
+      "adapter_r1": {
+        "type": "str",
+        "required": true
+      },
+      "adapter_r2": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      },
+      "minimum_length": {
+        "type": "int",
+        "required": true
+      },
+      "maximum_length": {
+        "type": "int",
+        "required": true
+      },
+      "match_read_wildcards": {
+        "type": "bool",
+        "required": true
+      },
+      "cut": {
+        "type": "int",
+        "required": true
+      },
+      "trimmed_only": {
+        "type": "bool",
+        "required": true
+      }
+    }
+  },
+  "genome": {
+    "trnas": {
+      "type": "str",
+      "required": false
+    },
+    "trnaout": {
+      "type": "str",
+      "required": false
+    },
+    "mito_trnas": {
+      "type": "str",
+      "required": false
+    },
+    "fasta": {
+      "type": "str",
+      "required": true,
+      "path": "file"
+    }
+  }
+}

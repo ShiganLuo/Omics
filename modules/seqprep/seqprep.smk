@@ -1,3 +1,5 @@
+include: "../common/common.smk"
+
 from snakemake.logging import logger
 import time
 import os
@@ -24,6 +26,8 @@ rule seqprep_merge:
     params:
         seqprep = config.get("Procedure", {}).get("SeqPrep") or "SeqPrep",
         seqkit = config.get("Procedure", {}).get("seqkit") or "seqkit"
+    conda:
+        "seqprep.yaml"
     run:
         current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start SeqPrep merge for sample {wildcards.sample_id} at {current_time}")

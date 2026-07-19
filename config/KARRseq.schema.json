@@ -1,0 +1,99 @@
+{
+  "indir": {
+    "type": "str",
+    "required": true
+  },
+  "outdir": {
+    "type": "str",
+    "required": true
+  },
+  "logdir": {
+    "type": "str",
+    "required": true
+  },
+  "paired_samples": {
+    "type": "list",
+    "required": true
+  },
+  "single_samples": {
+    "type": "list",
+    "required": true
+  },
+  "outfiles": {
+    "type": "list",
+    "required": true
+  },
+  "Procedure": {
+    "SeqPrep": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    },
+    "STAR": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    },
+    "samtools": {
+      "type": "str",
+      "required": true
+    }
+  },
+  "Params": {
+    "STAR": {
+      "outFilterMultimapNmax": {
+        "type": "int",
+        "required": true
+      },
+      "outSAMattributes": {
+        "type": "str",
+        "required": true
+      },
+      "alignIntronMin": {
+        "type": "int",
+        "required": true
+      },
+      "scoreGapNoncan": {
+        "type": "int",
+        "required": true
+      },
+      "scoreGapATAC": {
+        "type": "int",
+        "required": true
+      },
+      "chimSegmentMin": {
+        "type": "int",
+        "required": true
+      },
+      "chimJunctionOverhangMin": {
+        "type": "int",
+        "required": true
+      },
+      "limitOutSJcollapsed": {
+        "type": "int",
+        "required": true
+      },
+      "limitIObufferSize": {
+        "type": "int",
+        "required": true
+      }
+    },
+    "karrseq": {
+      "mapq": {
+        "type": "int",
+        "required": true
+      },
+      "span": {
+        "type": "int",
+        "required": true
+      }
+    }
+  },
+  "genome": {
+    "star_index_dir": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    }
+  }
+}

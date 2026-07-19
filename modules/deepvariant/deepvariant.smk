@@ -35,6 +35,8 @@ rule deepvariant_run:
         bcftools = config.get("Procedure", {}).get("bcftools") or "bcftools",
         model_type = config.get("Params", {}).get("deepvariant", {}).get("model_type") or "PACBIO",
         outdir_sample = outdir + "/{sample_id}"
+    conda:
+        "deepvariant.yaml"
     run:
         try:
             open(log[0], "w").close()

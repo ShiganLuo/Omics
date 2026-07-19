@@ -3,6 +3,7 @@ from snakemake.logging import logger
 indir = config.get("indir","data/fastq")
 outdir = config.get("outdir","output")
 logdir = config.get("logdir","logs")
+ROOT_DIR = config.get("ROOT_DIR","")
 outfiles = config.get("outfiles", [])
 paired_samples = config.get("paired_samples", [])
 single_samples = config.get("single_samples", [])
@@ -12,6 +13,7 @@ rule all:
     input:
         outfiles
 fastqc_raw_config = {
+        "ROOT_DIR": ROOT_DIR,
         "indir": indir,
         "outdir":  f"{outdir}/fastqc/raw",
         "logdir": logdir,
@@ -28,6 +30,7 @@ module fastqc_raw:
 logger.info(f"fastqc_raw_config: {fastqc_raw_config}")
 use rule fastqc from fastqc_raw as CLIP_fastqc
 UmiTools_extract_config = {
+        "ROOT_DIR": ROOT_DIR,
         "indir": indir,
         "outdir": f"{outdir}/umi_tools_extract",
         "logdir": logdir,
@@ -49,6 +52,7 @@ logger.info(f"UmiTools_extract_config: {UmiTools_extract_config}")
 use rule UmiTools_extract_single from UmiTools_extract as CLIP_UmiTools_extract_single
 use rule UmiTools_extract_paired from UmiTools_extract as CLIP_UmiTools_extract_paired
 cutadapt_config = {
+        "ROOT_DIR": ROOT_DIR,
         "indir": UmiTools_extract_config["outdir"],
         "outdir":  f"{outdir}/cutadapt",
         "logdir": logdir,
@@ -70,6 +74,7 @@ use rule trimming_Paired from cutadapt as CLIP_trimming_Paired
 use rule trimming_Single from cutadapt as CLIP_trimming_Single
 
 fastqc_trimmed_config = {
+        "ROOT_DIR": ROOT_DIR,
         "indir": cutadapt_config["outdir"],
         "outdir":  f"{outdir}/fastqc/trimmed",
         "logdir": logdir,
@@ -89,6 +94,7 @@ use rule fastqc from fastqc_trimmed as CLIP_fastqc_trimmed
 
 if aligner == 'hisat2':
     hisat2_config = {
+            "ROOT_DIR": ROOT_DIR,
             "indir": cutadapt_config["outdir"],
             "outdir":  f"{outdir}/hisat2",
             "logdir": logdir,
@@ -110,6 +116,7 @@ if aligner == 'hisat2':
     use rule hisat2_index from hisat2 as CLIP_hisat2_index
 elif aligner == 'star':
     star_config = {
+            "ROOT_DIR": ROOT_DIR,
             "indir": cutadapt_config["outdir"],
             "outdir":  f"{outdir}/star",
             "logdir": logdir,
@@ -133,6 +140,7 @@ elif aligner == 'star':
 else:
     raise ValueError(f"Unsupported aligner: {aligner}")
 umi_tools_dedup_config = {
+        "ROOT_DIR": ROOT_DIR,
         "indir": star_config["outdir"] if aligner == 'star' else hisat2_config["outdir"],
         "outdir":  f"{outdir}/umi_tools_dedup",
         "logdir": logdir,
@@ -153,8 +161,10 @@ use rule umi_tools_dedup_for_star from UmiTools_dedup as CLIP_umi_tools_dedup_fo
 use rule umi_tools_dedup_for_hisat2 from UmiTools_dedup as CLIP_umi_tools_dedup_for_hisat2
 
 genome_config = {
+        "ROOT_DIR": ROOT_DIR,
         "genome": {
-            "fasta": config.get('genome',{}).get('fasta')
+            "fasta": config.get('genome',{}).get('fasta'),
+            "gtf": config.get('genome',{}).get('gtf')
         },
         "outdir": outdir,
         "logdir": logdir,
@@ -169,6 +179,7 @@ logger.info(f"genome_config: {genome_config}")
 use rule chromosome_sizes from genome as CLIP_chromosome_sizes
 
 bedtools_config = {
+        "ROOT_DIR": ROOT_DIR,
         "indir": umi_tools_dedup_config["outdir"],
         "outdir":  f"{outdir}/bedtools",
         "logdir": logdir,
@@ -186,6 +197,7 @@ logger.info(f"bedtools_config: {bedtools_config}")
 use rule iCLIP_bedtools from bedtools as CLIP_bedtools
 
 PureCLIP_config = {
+        "ROOT_DIR": ROOT_DIR,
         "indir": umi_tools_dedup_config["outdir"],
         "outdir":  f"{outdir}/PureCLIP",
         "logdir": logdir,
@@ -203,6 +215,7 @@ logger.info(f"PureCLIP_config: {PureCLIP_config}")
 use rule pureclip from PureCLIP as CLIP_pureclip
 
 track_config = {
+        "ROOT_DIR": ROOT_DIR,
         "indir": bedtools_config["outdir"],
         "outdir":  f"{outdir}/track",
         "logdir": logdir,

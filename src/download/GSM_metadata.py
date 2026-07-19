@@ -659,7 +659,7 @@ def main():
     os.makedirs(html_dir, exist_ok=True)
     log_dir = os.path.dirname(args.log)
     os.makedirs(log_dir, exist_ok=True)
-    logger = setup_logger("root",args.log)
+    logger = setup_logger("root",log_file=args.log)
     logger.info(f"Starting GSM metadata download and extraction")
     verify_ssl: bool | str = False if args.insecure else (args.ca_bundle or True)
     if args.insecure:

@@ -1,0 +1,732 @@
+{
+  "common": {
+    "indir": {
+      "type": {
+        "type": "str",
+        "required": true
+      },
+      "path": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      },
+      "nullable": {
+        "type": "bool",
+        "required": true
+      },
+      "required": {
+        "type": "bool",
+        "required": true
+      },
+      "description": {
+        "type": "str",
+        "required": true
+      }
+    },
+    "outdir": {
+      "type": {
+        "type": "str",
+        "required": true
+      },
+      "path": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      },
+      "nullable": {
+        "type": "bool",
+        "required": true
+      },
+      "required": {
+        "type": "bool",
+        "required": true
+      },
+      "description": {
+        "type": "str",
+        "required": true
+      }
+    },
+    "logdir": {
+      "type": {
+        "type": "str",
+        "required": true
+      },
+      "path": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      },
+      "nullable": {
+        "type": "bool",
+        "required": true
+      },
+      "required": {
+        "type": "bool",
+        "required": true
+      },
+      "description": {
+        "type": "str",
+        "required": true
+      }
+    }
+  },
+  "genome": {
+    "fasta": {
+      "type": {
+        "type": "str",
+        "required": true
+      },
+      "path": {
+        "type": "str",
+        "required": true
+      },
+      "nullable": {
+        "type": "bool",
+        "required": true
+      },
+      "required": {
+        "type": "bool",
+        "required": true
+      },
+      "description": {
+        "type": "str",
+        "required": true
+      }
+    },
+    "gtf": {
+      "type": {
+        "type": "str",
+        "required": true
+      },
+      "path": {
+        "type": "str",
+        "required": true
+      },
+      "nullable": {
+        "type": "bool",
+        "required": true
+      },
+      "required": {
+        "type": "bool",
+        "required": true
+      },
+      "description": {
+        "type": "str",
+        "required": true
+      }
+    },
+    "fai": {
+      "type": {
+        "type": "str",
+        "required": true
+      },
+      "path": {
+        "type": "str",
+        "required": true
+      },
+      "nullable": {
+        "type": "bool",
+        "required": true
+      },
+      "required": {
+        "type": "bool",
+        "required": true
+      },
+      "description": {
+        "type": "str",
+        "required": true
+      }
+    },
+    "dict": {
+      "type": {
+        "type": "str",
+        "required": true
+      },
+      "path": {
+        "type": "str",
+        "required": true
+      },
+      "nullable": {
+        "type": "bool",
+        "required": true
+      },
+      "required": {
+        "type": "bool",
+        "required": true
+      },
+      "description": {
+        "type": "str",
+        "required": true
+      }
+    },
+    "hisat2_index_prefix": {
+      "type": {
+        "type": "str",
+        "required": true
+      },
+      "path": {
+        "type": "str",
+        "required": true
+      },
+      "nullable": {
+        "type": "bool",
+        "required": true
+      },
+      "required": {
+        "type": "bool",
+        "required": true
+      },
+      "description": {
+        "type": "str",
+        "required": true
+      }
+    },
+    "star_index_dir": {
+      "type": {
+        "type": "str",
+        "required": true
+      },
+      "path": {
+        "type": "str",
+        "required": true
+      },
+      "nullable": {
+        "type": "bool",
+        "required": true
+      },
+      "required": {
+        "type": "bool",
+        "required": true
+      },
+      "description": {
+        "type": "str",
+        "required": true
+      }
+    },
+    "bowtie2_index_prefix": {
+      "type": {
+        "type": "str",
+        "required": true
+      },
+      "path": {
+        "type": "str",
+        "required": true
+      },
+      "nullable": {
+        "type": "bool",
+        "required": true
+      },
+      "required": {
+        "type": "bool",
+        "required": true
+      },
+      "description": {
+        "type": "str",
+        "required": true
+      }
+    },
+    "index_prefix": {
+      "type": {
+        "type": "str",
+        "required": true
+      },
+      "path": {
+        "type": "str",
+        "required": true
+      },
+      "nullable": {
+        "type": "bool",
+        "required": true
+      },
+      "required": {
+        "type": "bool",
+        "required": true
+      },
+      "description": {
+        "type": "str",
+        "required": true
+      }
+    },
+    "index_dir": {
+      "type": {
+        "type": "str",
+        "required": true
+      },
+      "path": {
+        "type": "str",
+        "required": true
+      },
+      "nullable": {
+        "type": "bool",
+        "required": true
+      },
+      "required": {
+        "type": "bool",
+        "required": true
+      },
+      "description": {
+        "type": "str",
+        "required": true
+      }
+    },
+    "bwaMem2_index_prefix": {
+      "type": {
+        "type": "str",
+        "required": true
+      },
+      "path": {
+        "type": "str",
+        "required": true
+      },
+      "nullable": {
+        "type": "bool",
+        "required": true
+      },
+      "required": {
+        "type": "bool",
+        "required": true
+      },
+      "description": {
+        "type": "str",
+        "required": true
+      }
+    },
+    "known_sites": {
+      "type": {
+        "type": "str",
+        "required": true
+      },
+      "path": {
+        "type": "str",
+        "required": true
+      },
+      "nullable": {
+        "type": "bool",
+        "required": true
+      },
+      "required": {
+        "type": "bool",
+        "required": true
+      },
+      "description": {
+        "type": "str",
+        "required": true
+      }
+    },
+    "interval": {
+      "type": {
+        "type": "str",
+        "required": true
+      },
+      "path": {
+        "type": "str",
+        "required": true
+      },
+      "nullable": {
+        "type": "bool",
+        "required": true
+      },
+      "required": {
+        "type": "bool",
+        "required": true
+      },
+      "description": {
+        "type": "str",
+        "required": true
+      }
+    },
+    "access": {
+      "type": {
+        "type": "str",
+        "required": true
+      },
+      "path": {
+        "type": "str",
+        "required": true
+      },
+      "nullable": {
+        "type": "bool",
+        "required": true
+      },
+      "required": {
+        "type": "bool",
+        "required": true
+      },
+      "description": {
+        "type": "str",
+        "required": true
+      }
+    },
+    "repeat_bed": {
+      "type": {
+        "type": "str",
+        "required": true
+      },
+      "path": {
+        "type": "str",
+        "required": true
+      },
+      "nullable": {
+        "type": "bool",
+        "required": true
+      },
+      "required": {
+        "type": "bool",
+        "required": true
+      },
+      "description": {
+        "type": "str",
+        "required": true
+      }
+    },
+    "geneIDAnno": {
+      "type": {
+        "type": "str",
+        "required": true
+      },
+      "path": {
+        "type": "str",
+        "required": true
+      },
+      "nullable": {
+        "type": "bool",
+        "required": true
+      },
+      "required": {
+        "type": "bool",
+        "required": true
+      },
+      "description": {
+        "type": "str",
+        "required": true
+      }
+    },
+    "TE_gtf": {
+      "type": {
+        "type": "str",
+        "required": true
+      },
+      "path": {
+        "type": "str",
+        "required": true
+      },
+      "nullable": {
+        "type": "bool",
+        "required": true
+      },
+      "required": {
+        "type": "bool",
+        "required": true
+      },
+      "description": {
+        "type": "str",
+        "required": true
+      }
+    },
+    "TEind": {
+      "type": {
+        "type": "str",
+        "required": true
+      },
+      "path": {
+        "type": "str",
+        "required": true
+      },
+      "nullable": {
+        "type": "bool",
+        "required": true
+      },
+      "required": {
+        "type": "bool",
+        "required": true
+      },
+      "description": {
+        "type": "str",
+        "required": true
+      }
+    },
+    "rRNA_fasta": {
+      "type": {
+        "type": "str",
+        "required": true
+      },
+      "path": {
+        "type": "str",
+        "required": true
+      },
+      "nullable": {
+        "type": "bool",
+        "required": true
+      },
+      "required": {
+        "type": "bool",
+        "required": true
+      },
+      "description": {
+        "type": "str",
+        "required": true
+      }
+    },
+    "bowtie2_index_prefix_for_rRNA": {
+      "type": {
+        "type": "str",
+        "required": true
+      },
+      "path": {
+        "type": "str",
+        "required": true
+      },
+      "nullable": {
+        "type": "bool",
+        "required": true
+      },
+      "required": {
+        "type": "bool",
+        "required": true
+      },
+      "description": {
+        "type": "str",
+        "required": true
+      }
+    },
+    "chrom_sizes": {
+      "type": {
+        "type": "str",
+        "required": true
+      },
+      "path": {
+        "type": "str",
+        "required": true
+      },
+      "nullable": {
+        "type": "bool",
+        "required": true
+      },
+      "required": {
+        "type": "bool",
+        "required": true
+      },
+      "description": {
+        "type": "str",
+        "required": true
+      }
+    },
+    "dict_index": {
+      "type": {
+        "type": "str",
+        "required": true
+      },
+      "path": {
+        "type": "str",
+        "required": true
+      },
+      "nullable": {
+        "type": "bool",
+        "required": true
+      },
+      "required": {
+        "type": "bool",
+        "required": true
+      },
+      "description": {
+        "type": "str",
+        "required": true
+      }
+    },
+    "fai_index": {
+      "type": {
+        "type": "str",
+        "required": true
+      },
+      "path": {
+        "type": "str",
+        "required": true
+      },
+      "nullable": {
+        "type": "bool",
+        "required": true
+      },
+      "required": {
+        "type": "bool",
+        "required": true
+      },
+      "description": {
+        "type": "str",
+        "required": true
+      }
+    },
+    "smallrna_fasta": {
+      "type": {
+        "type": "str",
+        "required": true
+      },
+      "path": {
+        "type": "str",
+        "required": true
+      },
+      "nullable": {
+        "type": "bool",
+        "required": true
+      },
+      "required": {
+        "type": "bool",
+        "required": true
+      },
+      "description": {
+        "type": "str",
+        "required": true
+      }
+    },
+    "smallrna_bed": {
+      "type": {
+        "type": "str",
+        "required": true
+      },
+      "path": {
+        "type": "str",
+        "required": true
+      },
+      "nullable": {
+        "type": "bool",
+        "required": true
+      },
+      "required": {
+        "type": "bool",
+        "required": true
+      },
+      "description": {
+        "type": "str",
+        "required": true
+      }
+    },
+    "smallrna_star_index": {
+      "type": {
+        "type": "str",
+        "required": true
+      },
+      "path": {
+        "type": "str",
+        "required": true
+      },
+      "nullable": {
+        "type": "bool",
+        "required": true
+      },
+      "required": {
+        "type": "bool",
+        "required": true
+      },
+      "description": {
+        "type": "str",
+        "required": true
+      }
+    }
+  },
+  "workflows": {
+    "PeakCalling": {
+      "genome": {
+        "bowtie2_index_prefix": {
+          "required": {
+            "type": "bool",
+            "required": true
+          }
+        }
+      }
+    },
+    "RNAseq": {
+      "genome": {
+        "gtf": {
+          "required": {
+            "type": "bool",
+            "required": true
+          }
+        },
+        "hisat2_index_prefix": {
+          "required": {
+            "type": "bool",
+            "required": true
+          }
+        },
+        "star_index_dir": {
+          "required": {
+            "type": "bool",
+            "required": true
+          }
+        }
+      }
+    },
+    "ncRNAseq": {
+      "genome": {
+        "gtf": {
+          "required": {
+            "type": "bool",
+            "required": true
+          }
+        },
+        "hisat2_index_prefix": {
+          "required": {
+            "type": "bool",
+            "required": true
+          }
+        },
+        "star_index_dir": {
+          "required": {
+            "type": "bool",
+            "required": true
+          }
+        }
+      }
+    },
+    "CLIP": {
+      "genome": {
+        "hisat2_index_prefix": {
+          "required": {
+            "type": "bool",
+            "required": true
+          }
+        },
+        "star_index_dir": {
+          "required": {
+            "type": "bool",
+            "required": true
+          }
+        }
+      }
+    },
+    "MERIP": {
+      "genome": {
+        "gtf": {
+          "required": {
+            "type": "bool",
+            "required": true
+          }
+        }
+      }
+    },
+    "PacVar": {
+      "genome": {
+        "fai": {
+          "required": {
+            "type": "bool",
+            "required": true
+          }
+        }
+      }
+    },
+    "Mutation": {
+      "genome": {
+        "fasta": {
+          "required": {
+            "type": "bool",
+            "required": true
+          }
+        }
+      }
+    },
+    "tRNAseq": {},
+    "KARRseq": {},
+    "CoCulture": {},
+    "RNA_SNP": {},
+    "QuantMS": {}
+  }
+}

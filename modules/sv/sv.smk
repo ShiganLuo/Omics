@@ -38,6 +38,8 @@ rule sv_exp_specific:
         species = config.get("Params", {}).get("exp_specific", {}).get("species", "mus_musculus"),
         assembly = config.get("Params", {}).get("exp_specific", {}).get("assembly", "GRCm39"),
         dist = config.get("Params", {}).get("exp_specific", {}).get("dist", 500),
+    conda:
+        "sv.yaml"
     run:
         try:
             log_path = str(log)
@@ -80,6 +82,8 @@ rule sv_exp_enrichment:
         logdir + "/{comparison}/sv_exp_enrichment.log"
     params:
         script = os.path.join(ROOT_DIR, "modules/sv/bin/run_enrichment.py"),
+    conda:
+        "sv.yaml"
     run:
         try:
             log_path = str(log)
@@ -120,6 +124,8 @@ rule sv_exp_circos:
         genome = config.get("Params", {}).get("circos", {}).get("genome", "mm39"),
         cytoband = config.get("Params", {}).get("circos", {}).get("cytoband", ""),
         ins_bin_size = config.get("Params", {}).get("circos", {}).get("ins_bin_size", 100000),
+    conda:
+        "sv.yaml"
     run:
         try:
             log_path = str(log)
@@ -162,6 +168,8 @@ rule sv_gene_model:
     params:
         script = os.path.join(ROOT_DIR, "modules/sv/bin/utils/gene_model.py"),
         threads = config.get("Params", {}).get("gene_model", {}).get("threads", 1),
+    conda:
+        "sv.yaml"
     run:
         try:
             log_path = str(log)
@@ -207,6 +215,8 @@ rule sv_diff_analysis:
     params:
         script = os.path.join(ROOT_DIR, "modules/sv/bin/pbsv_sv_diff_analysis.py"),
         large_sv_threshold = config.get("Params", {}).get("diff_analysis", {}).get("large_sv_threshold", 10000),
+    conda:
+        "sv.yaml"
     run:
         try:
             log_path = str(log)
@@ -248,6 +258,8 @@ rule sv_oncoprint:
     params:
         script = os.path.join(ROOT_DIR, "modules/sv/bin/run_OncoPrint.py"),
         deseq2_files = config.get("Params", {}).get("oncoprint", {}).get("deseq2_files", {}),
+    conda:
+        "sv.yaml"
     run:
         try:
             log_path = str(log)

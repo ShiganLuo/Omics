@@ -1,3 +1,5 @@
+include: "../../common/common.smk"
+
 shell.prefix("set -x; set -e;")
 from snakemake.logging import logger
 import os

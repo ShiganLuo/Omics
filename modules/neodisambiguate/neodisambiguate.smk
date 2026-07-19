@@ -1,4 +1,5 @@
-from snakemake.logging import logger
+include: "../common/common.smk"
+
 indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
@@ -24,12 +25,30 @@ rule neodisambiguate:
     threads: 8
     log:
         logdir + "/{sample_id}/neodisambiguate.log"
-    shell:
-        """
-        {params.neodisambiguate} \
-            -s {params.prefix} \
-            -o {outdir} \
-            {input.bam1} \
-            {input.bam2} \
-            > {output.summary} 2> {log}
-        """
+    conda:
+        "neodisambiguate.yaml"
+    run:
+        log_path = str(log)
+        try:
+            open(log_path, 'w').close()
+            logger = setup_logger(logger_name="neodisambiguate", log_file=log_path)
+            current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+            logger.info(f"Start neodisambiguate for sample {wildcards.sample_id} at {current_time}")
+            script = os.path.join(outdir, f"{wildcards.sample_id}/neodisambiguate_{current_time}.sh")
+            cmd = [
+                str(params.neodisambiguate),
+                "-s", str(params.prefix),
+                "-o", str(outdir),
+                str(input.bam1),
+                str(input.bam2)
+            ]
+            with open(script, 'w') as f:
+                f.write(' '.join(cmd) + '\n')
+            shell(f"bash {script} >> {log_path} 2>&1")
+        except Exception as e:
+            with open(log_path, 'a') as f:
+                f.write(f"Error: {e}\n")
+            raise f"Error: {e}"
+        finally:
+            current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+            logger.info(f"Completed at {current_time}")

@@ -1,4 +1,4 @@
-from snakemake.logging import logger
+include: "../common/common.smk"
 import os
 import time
 indir = config.get("indir","data/fastq")
@@ -6,13 +6,22 @@ outdir = config.get("outdir","output")
 logdir = config.get("logdir","logs")
 ROOT_DIR = config.get("ROOT_DIR", ".")
 samples = config.get("samples",[])
+bam_substring = config.get("bam_substring") or ""
+def get_input_for_arriba(wildcards):
+    logger.info("called rule arriba by {wildcards}")
+    in_dict = {}
+    if bam_substring != "" :
+        in_dict["bam"] = indir + f"/{wildcards.sample_id}/{wildcards.sample_id}.{bam_substring}.bam"
+    else:
+        in_dict["bam"] = indir + f"/{wildcards.sample_id}/{wildcards.sample_id}.bam"
+    in_dict["fasta"] = config.get('genome',{}).get('fasta')
+    in_dict["gtf"] = config.get('genome',{}).get('gtf')
+    in_dict["blacklist"] = config.get('Params',{}).get('arriba',{}).get('blacklist')
+    in_dict["known_fusions"] = config.get('Params',{}).get('arriba',{}).get('known_fusions')
+    return in_dict
 rule arriba:
     input:
-        bam = indir + "/{sample_id}/{sample_id}.bam",
-        fasta = config.get('genome',{}).get('fasta'),
-        gtf = config.get('genome',{}).get('gtf'),
-        blacklist = config.get('Params',{}).get('arriba',{}).get('blacklist'),
-        known_fusions = config.get('Params',{}).get('arriba',{}).get('known_fusions')
+        unpack(get_input_for_arriba)
     output:
         passed_fusion_tsv = outdir + "/{sample_id}/{sample_id}_passed_fusions.tsv",
         discarded_fusion_tsv = outdir + "/{sample_id}/{sample_id}_discarded_fusions.tsv",
@@ -25,6 +34,8 @@ rule arriba:
         d = config.get('Params',{}).get('arriba',{}).get('d') or None,
         E = config.get('Params',{}).get('arriba',{}).get('E') or 0.3,
         p = config.get('Params',{}).get('arriba',{}).get('p') or None
+    conda:
+        "arriba.yaml"
     run:
         current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
         script = f"{outdir}/{wildcards.sample_id}/{wildcards.sample_id}_arriba.{current_time}.sh"
@@ -64,6 +75,8 @@ rule arriba_report:
         logdir + "/all/arriba_report.log"
     params:
         summary_script = os.path.join(ROOT_DIR, "modules/arriba/bin/summarize_arriba_fusions.py")
+    conda:
+        "arriba.yaml"
     run:
         current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
         script = f"{outdir}/arriba_report.{current_time}.sh"

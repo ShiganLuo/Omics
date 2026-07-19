@@ -16,7 +16,8 @@ rule all:
 aligner = config.get('Procedure',{}).get('aligner')
 SOAPnuke_cofig = {
         "indir": indir,
-        "outdir":  f"{outdir}/SOAPnuke",
+        "outdir":  f"{outdir}/common/2_trimmed_fastq",
+        "ROOT_DIR": ROOT_DIR,
         "logdir": logdir
 }
 module SOAPnuke:
@@ -29,8 +30,9 @@ use rule soapnuke_filter_single from SOAPnuke as CoCulture_soapnuke_filter_singl
     
 hisat2_config = {
         "indir": SOAPnuke_cofig["outdir"],
-        "outdir":  f"{outdir}/hisat2",
+        "outdir":  f"{outdir}/common/3_raw_bam",
         "logdir": logdir,
+        "ROOT_DIR": ROOT_DIR,
         "paired_samples": paired_samples,
         "single_samples": single_samples,
         "Procedure": {

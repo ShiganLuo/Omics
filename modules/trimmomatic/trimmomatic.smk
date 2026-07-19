@@ -1,3 +1,5 @@
+include: "../common/common.smk"
+
 from snakemake.logging import logger
 outdir = config.get("outdir", "output")
 indir = config.get("indir", "output/raw_fastq")
@@ -25,19 +27,33 @@ rule trimmomatic_Paired:
         "trimmomatic.yaml" if not str(config.get('Procedure',{}).get('trimmomatic')).endswith(".jar") else None
     log:
         log = logdir + "/{sample_id}/trimmomatic.txt"
-    shell:
-        """
-        {params.cmd} PE -threads {threads} \
-            {input.fastq1} {input.fastq2} \
-            -summary {output.report} \
-            {output.fastq1} {params.outdir}/{wildcards.sample_id}/{wildcards.sample_id}_1.unpaired.fq.gz \
-            {output.fastq2} {params.outdir}/{wildcards.sample_id}/{wildcards.sample_id}_2.unpaired.fq.gz \
-            ILLUMINACLIP:{params.adapter}:2:30:10 \
-            LEADING:3 TRAILING:3 \
-            SLIDINGWINDOW:4:15 \
-            MINLEN:80 \
-            2> {log.log}
-        """
+    run:
+        log_path = str(log)
+        try:
+            open(log_path, "w").close()
+            rule_logger = setup_logger("trimmomatic_Paired", log_file=log_path)
+            current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+            rule_logger.info(f"Start trimmomatic_Paired for sample {wildcards.sample_id} at {current_time}")
+            sample_outdir = os.path.join(params.outdir, wildcards.sample_id)
+            os.makedirs(sample_outdir, exist_ok=True)
+            script = os.path.join(sample_outdir, f"trimmomatic_Paired_{current_time}.sh")
+            with open(script, "w") as f:
+                f.write(f"{params.cmd} PE -threads {threads} \\\n")
+                f.write(f"    {input.fastq1} {input.fastq2} \\\n")
+                f.write(f"    -summary {output.report} \\\n")
+                f.write(f"    {output.fastq1} {params.outdir}/{wildcards.sample_id}/{wildcards.sample_id}_1.unpaired.fq.gz \\\n")
+                f.write(f"    {output.fastq2} {params.outdir}/{wildcards.sample_id}/{wildcards.sample_id}_2.unpaired.fq.gz \\\n")
+                f.write(f"    ILLUMINACLIP:{params.adapter}:2:30:10 \\\n")
+                f.write(f"    LEADING:3 TRAILING:3 \\\n")
+                f.write(f"    SLIDINGWINDOW:4:15 \\\n")
+                f.write(f"    MINLEN:80 \\\n")
+                f.write(f"    2> {log_path}\n")
+            shell(f"bash {script} >> {log_path} 2>&1")
+            rule_logger.info(f"trimmomatic_Paired for sample {wildcards.sample_id} completed")
+        except Exception as e:
+            with open(log_path, "a") as f:
+                f.write(f"trimmomatic_Paired failed for sample {wildcards.sample_id}: {e}\n")
+            raise e
 
 rule trimmomatic_Single:
     input:
@@ -59,14 +75,28 @@ rule trimmomatic_Single:
         "trimmomatic.yaml"
     log:
         log = logdir + "/{sample_id}/trimmomatic.txt"
-    shell:
-        """
-        {params.cmd} SE -threads {threads} \
-            {input.fastq} {output.fastq} \
-            -summary {output.report} \
-            ILLUMINACLIP:{params.adapter}:2:30:10 \
-            LEADING:3 TRAILING:3 \
-            SLIDINGWINDOW:4:15 \
-            MINLEN:80 \
-            2> {log.log}
-        """
+    run:
+        log_path = str(log)
+        try:
+            open(log_path, "w").close()
+            rule_logger = setup_logger("trimmomatic_Single", log_file=log_path)
+            current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+            rule_logger.info(f"Start trimmomatic_Single for sample {wildcards.sample_id} at {current_time}")
+            sample_outdir = os.path.join(params.outdir, wildcards.sample_id)
+            os.makedirs(sample_outdir, exist_ok=True)
+            script = os.path.join(sample_outdir, f"trimmomatic_Single_{current_time}.sh")
+            with open(script, "w") as f:
+                f.write(f"{params.cmd} SE -threads {threads} \\\n")
+                f.write(f"    {input.fastq} {output.fastq} \\\n")
+                f.write(f"    -summary {output.report} \\\n")
+                f.write(f"    ILLUMINACLIP:{params.adapter}:2:30:10 \\\n")
+                f.write(f"    LEADING:3 TRAILING:3 \\\n")
+                f.write(f"    SLIDINGWINDOW:4:15 \\\n")
+                f.write(f"    MINLEN:80 \\\n")
+                f.write(f"    2> {log_path}\n")
+            shell(f"bash {script} >> {log_path} 2>&1")
+            rule_logger.info(f"trimmomatic_Single for sample {wildcards.sample_id} completed")
+        except Exception as e:
+            with open(log_path, "a") as f:
+                f.write(f"trimmomatic_Single failed for sample {wildcards.sample_id}: {e}\n")
+            raise e

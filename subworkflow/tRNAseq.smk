@@ -36,6 +36,7 @@ use rule fumitools_copy_umi from fumitools as tRNAseq_fumitools_copy_umi
 use rule fumitools_copy_umi_single from fumitools as tRNAseq_fumitools_copy_umi_single
 
 cutadapt_config = {
+            "ROOT_DIR": ROOT_DIR,
             "indir": fumitools_config["outdir"],
             "outdir":  f"{outdir}/fastq/trimmed_fastq",
             "logdir": logdir,

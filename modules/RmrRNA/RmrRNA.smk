@@ -1,3 +1,5 @@
+include: "../common/common.smk"
+
 from snakemake.logging import logger
 import time
 import os
@@ -16,6 +18,8 @@ rule extract_rRNA:
     threads: 2
     params:
         extract_rRNA_script = os.path.join(ROOT_DIR, "modules/RmrRNA/bin/extract_rRNA.py")
+    conda:
+        "RmrRNA.yaml"
     run:
         current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
         script = f"{outdir}/extract_rRNA.{current_time}.sh"

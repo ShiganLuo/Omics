@@ -1,3 +1,5 @@
+include: "../../common/common.smk"
+
 from snakemake.logging import logger
 import time
 import os
@@ -51,6 +53,8 @@ rule mimseq_tRNAtools:
         modifications = os.path.join(ROOT_DIR, "modules", "mimseq", "mimseq", "modifications"),
         data_dir = data_dir,
     threads: 4
+    conda:
+        "../mimseq.yaml"
     run:
         try:
             log_path = str(log)

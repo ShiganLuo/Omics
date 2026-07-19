@@ -1,0 +1,3 @@
+sample_id	data_id	design	fastq_1	fastq_2
+TestSE1	TestSE1		/rna_seq_1/luoshg/Chipseq_20260709/workflow/Omics/assests/test/data/fastq/TestSE1/TestSE1.fq.gz	/rna_seq_1/luoshg/Chipseq_20260709/workflow/Omics/assests/test/data/fastq/TestSE1/TestSE1_R2.fq.gz
+TestSE2	TestSE2		/rna_seq_1/luoshg/Chipseq_20260709/workflow/Omics/assests/test/data/fastq/TestSE2/TestSE2.fq.gz	/rna_seq_1/luoshg/Chipseq_20260709/workflow/Omics/assests/test/data/fastq/TestSE2/TestSE2_R2.fq.gz

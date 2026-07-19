@@ -15,6 +15,7 @@ rule all:
 
 # Module config dicts
 decoy_database_config = {
+    "ROOT_DIR": ROOT_DIR,
     "indir": indir,
     "outdir": f"{outdir}/decoy_database",
     "logdir": logdir,
@@ -30,6 +31,7 @@ decoy_database_config = {
 }
 
 search_engine_config = {
+    "ROOT_DIR": ROOT_DIR,
     "indir": indir,
     "outdir": f"{outdir}/search_engine",
     "logdir": logdir,
@@ -49,6 +51,7 @@ search_engine_config = {
 }
 
 psm_rescoring_config = {
+    "ROOT_DIR": ROOT_DIR,
     "indir": f"{outdir}/search_engine",
     "outdir": f"{outdir}/psm_rescoring",
     "logdir": logdir,
@@ -62,6 +65,7 @@ psm_rescoring_config = {
 }
 
 psm_fdr_config = {
+    "ROOT_DIR": ROOT_DIR,
     "indir": f"{outdir}/psm_rescoring",
     "outdir": f"{outdir}/psm_fdr",
     "logdir": logdir,
@@ -75,6 +79,7 @@ psm_fdr_config = {
 }
 
 protein_inference_config = {
+    "ROOT_DIR": ROOT_DIR,
     "indir": f"{outdir}/psm_fdr",
     "outdir": f"{outdir}/protein_inference",
     "logdir": logdir,
@@ -88,6 +93,7 @@ protein_inference_config = {
 }
 
 quantification_config = {
+    "ROOT_DIR": ROOT_DIR,
     "indir": f"{outdir}/protein_inference",
     "outdir": f"{outdir}/quantification",
     "logdir": logdir,
@@ -106,6 +112,7 @@ quantification_config = {
 }
 
 msstats_config = {
+    "ROOT_DIR": ROOT_DIR,
     "indir": f"{outdir}/quantification",
     "outdir": f"{outdir}/msstats",
     "logdir": logdir,

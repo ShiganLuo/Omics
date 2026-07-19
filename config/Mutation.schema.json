@@ -1,0 +1,180 @@
+{
+  "indir": {
+    "type": "str",
+    "required": true
+  },
+  "outdir": {
+    "type": "str",
+    "required": true
+  },
+  "logdir": {
+    "type": "str",
+    "required": true
+  },
+  "paired_samples": {
+    "type": "list",
+    "required": true
+  },
+  "single_samples": {
+    "type": "list",
+    "required": true
+  },
+  "control_samples": {
+    "type": "list",
+    "required": true
+  },
+  "Procedure": {
+    "fastqc": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    },
+    "bwaMem2": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    },
+    "samtools": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    },
+    "bgzip": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    },
+    "gatk": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    },
+    "manta": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    },
+    "cnvkit": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    }
+  },
+  "Params": {
+    "trim_galore": {
+      "quality": {
+        "type": "int",
+        "required": true
+      }
+    },
+    "samtools": {
+      "onlykeep_properpair": {
+        "type": "bool",
+        "required": true
+      }
+    },
+    "gatk": {
+      "addReadsGroup": {
+        "RGLB": {
+          "type": "str",
+          "required": true
+        },
+        "RGPL": {
+          "type": "str",
+          "required": true
+        },
+        "RGPU": {
+          "type": "str",
+          "required": true
+        }
+      },
+      "VariantFiltration": {
+        "FS_threshold": {
+          "type": "float",
+          "required": true
+        },
+        "QD_threshold": {
+          "type": "float",
+          "required": true
+        },
+        "DP_threshold": {
+          "type": "float",
+          "required": true
+        },
+        "QUAL_threshold": {
+          "type": "float",
+          "required": true
+        }
+      }
+    },
+    "manta": {
+      "threads": {
+        "type": "int",
+        "required": true
+      }
+    },
+    "cnvkit": {
+      "method": {
+        "type": "str",
+        "required": true
+      },
+      "processes": {
+        "type": "int",
+        "required": true
+      }
+    },
+    "somatic_spectrum": {
+      "sample_somatic_vcf_dict": {},
+      "sample_group_dict": {}
+    },
+    "skip_fragment_size": {
+      "type": "bool",
+      "required": true
+    },
+    "skip_sv": {
+      "type": "bool",
+      "required": true
+    },
+    "skip_cnv": {
+      "type": "bool",
+      "required": true
+    }
+  },
+  "genome": {
+    "fasta": {
+      "type": "str",
+      "required": true,
+      "path": "file"
+    },
+    "dict_index": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    },
+    "fai_index": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    },
+    "bwaMem2_index_prefix": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    },
+    "known_sites": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    },
+    "interval": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    },
+    "access": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    }
+  }
+}

@@ -1,3 +1,5 @@
+include: "../common/common.smk"
+
 from snakemake.logging import logger
 import time
 import os
@@ -24,6 +26,8 @@ rule karrseq_chimeric_to_pairs:
         tmp1 = outdir + "/{sample_id}/{sample_id}.tmp1",
         tmp2 = outdir + "/{sample_id}/{sample_id}.tmp2"
     threads: 4
+    conda:
+        "karrseq.yaml"
     run:
         current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start KARRseq chimeric to pairs for sample {wildcards.sample_id} at {current_time}")
@@ -68,6 +72,8 @@ rule karrseq_remove_duplicates:
         dedup_script = os.path.join(ROOT_DIR, "modules/karrseq/bin/remove_duplicates.py"),
         bed_script = os.path.join(ROOT_DIR, "modules/karrseq/bin/pairs_to_bed.py"),
         todedup = "dedup"
+    conda:
+        "karrseq.yaml"
     run:
         current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start KARRseq dedup for sample {wildcards.sample_id} at {current_time}")
@@ -106,6 +112,8 @@ rule karrseq_ligation:
     log:
         logdir + "/{sample_id}/karrseq_ligation.log"
     threads: 4
+    conda:
+        "karrseq.yaml"
     run:
         current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start KARRseq ligation for sample {wildcards.sample_id} at {current_time}")

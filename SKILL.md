@@ -33,11 +33,19 @@ description: Omics 工作流入口技能与子技能组织说明
 
 `run.py` 支持的工作流:
 
-- `CoCulture` -> CoCulture.smk
-- `MERIP` -> MERIP.smk
-- `RNAseq` -> RNAseq.smk
-- `CLIP` -> CLIP.smk
-- `Mutation` -> Mutation.smk
+| 工作流 | snakefile | 说明 |
+|--------|-----------|------|
+| CoCulture | CoCulture.smk | 共培养分析 |
+| MERIP | MERIP.smk | MeRIP-seq |
+| RNAseq | RNAseq.smk | RNA-seq |
+| ncRNAseq | ncRNAseq.smk | 非编码/小RNA-seq |
+| CLIP | CLIP.smk | CLIP-seq |
+| Mutation | Mutation.smk | 体细胞突变 |
+| PacVar | PacVar.smk | PacBio 变异 |
+| KARRseq | KARRseq.smk | KARR-seq |
+| PeakCalling | PeakCalling.smk | ChIP-seq/DIP-seq |
+| QuantMS | QuantMS.smk | 定量蛋白质组学 |
+| tRNAseq | tRNAseq.smk | tRNA-seq |
 
 每个工作流由对应的 `run<Workflow>()` 函数负责生成 `outfiles` 等专用字段。
 
@@ -52,6 +60,47 @@ description: Omics 工作流入口技能与子技能组织说明
 - 可选 `--dry-run`
 - 通过 `--snakemake-args` 透传额外参数
 
+## 4) 测试模式 (--test)
+
+```bash
+cd /rna_seq_1/luoshg/Chipseq_20260709/workflow/Omics
+
+# 测试所有工作流 (dry-run)
+python run.py --test
+
+# 测试单个工作流
+python run.py --test ncRNAseq
+python run.py --test PeakCalling
+
+# 所有注册工作流均可测试
+# PeakCalling, ncRNAseq, RNAseq, Mutation, CLIP, MERIP, KARRseq, CoCulture, tRNAseq, PacVar, QuantMS
+```
+
+测试资源位于 `assests/test/`:
+
+```
+assests/test/
+  data/
+    ref/           # 参考基因组 (touch 占位)
+      GRCm39.fa
+      GRCm39.gtf
+      chrom.sizes
+    fastq/         # 测试 FASTQ (touch 占位)
+      TestIP1/     # PE IP 样本
+      TestInput1/  # PE Input 样本
+      TestSE1/     # SE 样本
+      TestSample1/ # PE 普通样本
+  meta_<Workflow>.tsv  # 11 个工作流的 meta 文件
+```
+
+`--test` 模式自动:
+- 从 `WORKFLOW_DISPATCH` 获取所有注册工作流（不硬编码）
+- 输出到临时目录 (`tempfile.mkdtemp`)，不在源码树内
+- `atexit` 注册清理函数，测试结束后自动删除输出
+- 按工作流名动态查找 `assests/test/meta_<Workflow>.tsv`
+- 注入 genome.fasta / genome.gtf 路径
+- 使用本地 conda-prefix（避免权限问题）
+
 # 扩展清单
 
 新增工作流时:
@@ -62,3 +111,5 @@ description: Omics 工作流入口技能与子技能组织说明
 4) 在 `workflow/Omics/subworkflow/` 提供对应 snakefile
 5) 更新 `outfiles` 逻辑以匹配预期输出
 6) 更新subworkflow/README.md和README.md
+7) 在 `test/` 添加对应的 meta_<Workflow>.tsv 和测试数据
+8) 在 `TEST_WORKFLOWS` 字典中注册

@@ -1,0 +1,273 @@
+{
+  "common": {
+    "indir": {
+      "type": "string",
+      "path": null,
+      "nullable": true,
+      "required": true,
+      "description": "Input directory for raw data"
+    },
+    "outdir": {
+      "type": "string",
+      "path": null,
+      "nullable": true,
+      "required": true,
+      "description": "Output directory for results"
+    },
+    "logdir": {
+      "type": "string",
+      "path": null,
+      "nullable": true,
+      "required": true,
+      "description": "Log directory"
+    }
+  },
+  "genome": {
+    "fasta": {
+      "type": "string",
+      "path": "file",
+      "nullable": true,
+      "required": true,
+      "description": "Reference genome FASTA file"
+    },
+    "gtf": {
+      "type": "string",
+      "path": "file",
+      "nullable": true,
+      "required": false,
+      "description": "Gene annotation GTF file"
+    },
+    "fai": {
+      "type": "string",
+      "path": "file",
+      "nullable": true,
+      "required": false,
+      "description": "FASTA index file (.fai)"
+    },
+    "dict": {
+      "type": "string",
+      "path": "file",
+      "nullable": true,
+      "required": false,
+      "description": "Sequence dictionary file (.dict)"
+    },
+    "hisat2_index_prefix": {
+      "type": "string",
+      "path": "prefix",
+      "nullable": true,
+      "required": false,
+      "description": "HISAT2 index prefix path"
+    },
+    "star_index_dir": {
+      "type": "string",
+      "path": "dir",
+      "nullable": true,
+      "required": false,
+      "description": "STAR index directory"
+    },
+    "bowtie2_index_prefix": {
+      "type": "string",
+      "path": "prefix",
+      "nullable": true,
+      "required": false,
+      "description": "Bowtie2 index prefix path"
+    },
+    "index_prefix": {
+      "type": "string",
+      "path": "prefix",
+      "nullable": true,
+      "required": false,
+      "description": "Generic index prefix path"
+    },
+    "index_dir": {
+      "type": "string",
+      "path": "dir",
+      "nullable": true,
+      "required": false,
+      "description": "Generic index directory"
+    },
+    "bwaMem2_index_prefix": {
+      "type": "string",
+      "path": "prefix",
+      "nullable": true,
+      "required": false,
+      "description": "BWA-MEM2 index prefix path"
+    },
+    "known_sites": {
+      "type": "string",
+      "path": "file",
+      "nullable": true,
+      "required": false,
+      "description": "Known variant sites VCF file"
+    },
+    "interval": {
+      "type": "string",
+      "path": "file",
+      "nullable": true,
+      "required": false,
+      "description": "Interval list file"
+    },
+    "access": {
+      "type": "string",
+      "path": "file",
+      "nullable": true,
+      "required": false,
+      "description": "Accessibility BED file"
+    },
+    "repeat_bed": {
+      "type": "string",
+      "path": "file",
+      "nullable": true,
+      "required": false,
+      "description": "Repeat annotation BED file"
+    },
+    "geneIDAnno": {
+      "type": "string",
+      "path": "file",
+      "nullable": true,
+      "required": false,
+      "description": "Gene ID annotation file"
+    },
+    "TE_gtf": {
+      "type": "string",
+      "path": "file",
+      "nullable": true,
+      "required": false,
+      "description": "Transposable element GTF file"
+    },
+    "TEind": {
+      "type": "string",
+      "path": "file",
+      "nullable": true,
+      "required": false,
+      "description": "Transposable element index file"
+    },
+    "rRNA_fasta": {
+      "type": "string",
+      "path": "file",
+      "nullable": true,
+      "required": false,
+      "description": "rRNA FASTA file"
+    },
+    "bowtie2_index_prefix_for_rRNA": {
+      "type": "string",
+      "path": "prefix",
+      "nullable": true,
+      "required": false,
+      "description": "Bowtie2 index prefix for rRNA"
+    },
+    "chrom_sizes": {
+      "type": "string",
+      "path": "file",
+      "nullable": true,
+      "required": false,
+      "description": "Chromosome sizes file"
+    },
+    "dict_index": {
+      "type": "string",
+      "path": "file",
+      "nullable": true,
+      "required": false,
+      "description": "Dictionary index file"
+    },
+    "fai_index": {
+      "type": "string",
+      "path": "file",
+      "nullable": true,
+      "required": false,
+      "description": "FAI index file"
+    },
+    "smallrna_fasta": {
+      "type": "string",
+      "path": "file",
+      "nullable": true,
+      "required": false,
+      "description": "Small RNA FASTA file"
+    },
+    "smallrna_bed": {
+      "type": "string",
+      "path": "file",
+      "nullable": true,
+      "required": false,
+      "description": "Small RNA BED file"
+    },
+    "smallrna_star_index": {
+      "type": "string",
+      "path": "dir",
+      "nullable": true,
+      "required": false,
+      "description": "Small RNA STAR index directory"
+    }
+  },
+  "workflows": {
+    "PeakCalling": {
+      "genome": {
+        "bowtie2_index_prefix": {
+          "required": true
+        }
+      }
+    },
+    "RNAseq": {
+      "genome": {
+        "gtf": {
+          "required": true
+        },
+        "hisat2_index_prefix": {
+          "required": true
+        },
+        "star_index_dir": {
+          "required": true
+        }
+      }
+    },
+    "ncRNAseq": {
+      "genome": {
+        "gtf": {
+          "required": true
+        },
+        "hisat2_index_prefix": {
+          "required": true
+        },
+        "star_index_dir": {
+          "required": true
+        }
+      }
+    },
+    "CLIP": {
+      "genome": {
+        "hisat2_index_prefix": {
+          "required": true
+        },
+        "star_index_dir": {
+          "required": true
+        }
+      }
+    },
+    "MERIP": {
+      "genome": {
+        "gtf": {
+          "required": true
+        }
+      }
+    },
+    "PacVar": {
+      "genome": {
+        "fai": {
+          "required": true
+        }
+      }
+    },
+    "Mutation": {
+      "genome": {
+        "fasta": {
+          "required": true
+        }
+      }
+    },
+    "tRNAseq": {},
+    "KARRseq": {},
+    "CoCulture": {},
+    "RNA_SNP": {},
+    "QuantMS": {}
+  }
+}

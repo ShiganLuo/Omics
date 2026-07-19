@@ -1,3 +1,5 @@
+include: "../common/common.smk"
+
 import os
 indir = config.get("indir", "output/raw_fastq")
 outdir = config.get("outdir", "output")
@@ -52,14 +54,28 @@ rule fastqc:
         log = logdir + "/{sample_id}/fastqc." + log_suffix
     conda:
         "fastqc.yaml"
-    shell:
-        """
-        {params.fastqc} \
-            --threads {threads} \
-            -o {output.outdir} \
-            -t {threads} \
-            {input} \
-            > {log.log} 2>&1
-        touch {output.flag}
-        """
-
+    run:
+        log_path = str(log)
+        try:
+            open(log_path, "w").close()
+            rule_logger = setup_logger("fastqc", log_file=log_path)
+            current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+            rule_logger.info(f"Start fastqc for sample {wildcards.sample_id} at {current_time}")
+            sample_outdir = os.path.join(outdir, wildcards.sample_id)
+            os.makedirs(sample_outdir, exist_ok=True)
+            script = os.path.join(sample_outdir, f"fastqc_{current_time}.sh")
+            input_str = " ".join(input) if isinstance(input, (list, tuple)) else str(input)
+            with open(script, "w") as f:
+                f.write(f"{params.fastqc} \\\n")
+                f.write(f"    --threads {threads} \\\n")
+                f.write(f"    -o {output.outdir} \\\n")
+                f.write(f"    -t {threads} \\\n")
+                f.write(f"    {input_str} \\\n")
+                f.write(f"    > {log_path} 2>&1\n")
+                f.write(f"touch {output.flag}\n")
+            shell(f"bash {script} >> {log_path} 2>&1")
+            rule_logger.info(f"fastqc for sample {wildcards.sample_id} completed")
+        except Exception as e:
+            with open(log_path, "a") as f:
+                f.write(f"fastqc failed for sample {wildcards.sample_id}: {e}\n")
+            raise e

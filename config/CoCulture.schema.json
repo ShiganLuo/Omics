@@ -1,0 +1,159 @@
+{
+  "ROOT_DIR": {
+    "type": "null",
+    "nullable": true,
+    "required": false
+  },
+  "indir": {
+    "type": "null",
+    "nullable": true,
+    "required": false
+  },
+  "logdir": {
+    "type": "null",
+    "nullable": true,
+    "required": false
+  },
+  "outdir": {
+    "type": "null",
+    "nullable": true,
+    "required": false
+  },
+  "paired_samples": {
+    "type": "list",
+    "required": true
+  },
+  "single_samples": {
+    "type": "list",
+    "required": true
+  },
+  "outfiles": {
+    "type": "list",
+    "required": true
+  },
+  "genome": {
+    "GRCm39": {
+      "fasta": {
+        "type": "str",
+        "required": true,
+        "path": "file"
+      },
+      "gtf": {
+        "type": "str",
+        "required": true,
+        "path": "file"
+      },
+      "TE_gtf": {
+        "type": "str",
+        "required": true,
+        "path": "file"
+      },
+      "TEind": {
+        "type": "str",
+        "required": true,
+        "path": "file"
+      },
+      "hisat2_index_prefix": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      },
+      "star_index_dir": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      }
+    },
+    "GRCh38": {
+      "fasta": {
+        "type": "str",
+        "required": true,
+        "path": "file"
+      },
+      "gtf": {
+        "type": "str",
+        "required": true,
+        "path": "file"
+      },
+      "TE_gtf": {
+        "type": "str",
+        "required": true,
+        "path": "file"
+      },
+      "TEind": {
+        "type": "str",
+        "required": true,
+        "path": "file"
+      },
+      "hisat2_index_prefix": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      },
+      "star_index_dir": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      }
+    }
+  },
+  "genome_pairs": {
+    "type": "list",
+    "required": true
+  },
+  "Procedure": {
+    "trim_galore": {
+      "type": "str",
+      "required": true,
+      "path": "file"
+    },
+    "hisat2": {
+      "type": "str",
+      "required": true,
+      "path": "file"
+    },
+    "hisat2_build": {
+      "type": "str",
+      "required": true,
+      "path": "file"
+    },
+    "star": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    },
+    "samtools": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    },
+    "TEcount": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    },
+    "TElocal": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    },
+    "ngs_disambiguate": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    },
+    "SOAPnuke": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    }
+  },
+  "Params": {
+    "trim_galore": {
+      "quality": {
+        "type": "int",
+        "required": true
+      }
+    }
+  }
+}

@@ -1,3 +1,5 @@
+include: "../common/common.smk"
+
 from snakemake.logging import logger
 import time
 indir = config.get("indir", "input")
@@ -14,6 +16,8 @@ rule tabix_bgzip:
         logdir + "/{sample_id}/bgzip.log"
     params:
         bgzip = config.get("Procedure", {}).get("bgzip") or "bgzip"
+    conda:
+        "tabix.yaml"
     run:
         current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start bgzip for sample {wildcards.sample_id} at {current_time}")

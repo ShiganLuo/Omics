@@ -1,6 +1,5 @@
-from snakemake.logging import logger
-import os
-import time
+include: "../common/common.smk"
+
 indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
@@ -21,11 +20,37 @@ rule hisat2_index:
         HISAT2_BUILD = config.get('Procedure',{}).get('hisat2-build') or 'hisat2-build'
     log:
         logdir + "/index/hisat2_build.log"
-    shell:
-        """
-        mkdir -p $(dirname {params.prefix})
-        {params.HISAT2_BUILD} -p {threads} {input.fasta} {params.prefix} > {log} 2>&1
-        """
+    conda:
+        "hisat2.yaml"
+    run:
+        log_path = str(log)
+        try:
+            open(log_path, 'w').close()
+            logger = setup_logger(logger_name="hisat2_index", log_file=log_path)
+            current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+            logger.info(f"Start hisat2 index at {current_time}")
+            script = os.path.join(outdir, f"index/hisat2_index_{current_time}.sh")
+            cmd = [
+                "mkdir", "-p", os.path.dirname(str(params.prefix))
+            ]
+            cmd_str = " ".join(cmd) + "\n"
+            cmd2 = [
+                str(params.HISAT2_BUILD),
+                "-p", str(threads),
+                str(input.fasta),
+                str(params.prefix)
+            ]
+            cmd_str += " ".join(cmd2) + "\n"
+            with open(script, 'w') as f:
+                f.write(cmd_str)
+            shell(f"bash {script} >> {log_path} 2>&1")
+        except Exception as e:
+            with open(log_path, 'a') as f:
+                f.write(f"Error: {e}\n")
+            raise f"Error: {e}"
+        finally:
+            current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+            logger.info(f"Completed at {current_time}")
 
 def get_hisat2_index(wildcards):
     logger.info(f"[get_hisat2_index] called with wildcards: {wildcards}")
@@ -89,6 +114,8 @@ rule hisat2_align:
         index_prefix = lambda wildcards, input: input.index[0].rsplit('.', 2)[0],
         input_params = lambda wildcards, input: \
             f"-1 {input.fastq[0]} -2 {input.fastq[1]}" if len(input.fastq) == 2 else f"-U {input.fastq[0]}"
+    conda:
+        "hisat2.yaml"
     run:
         current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
         script = f"{outdir}/{wildcards.sample_id}/hisat2_align.{current_time}.sh"

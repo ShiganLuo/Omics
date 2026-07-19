@@ -1,3 +1,5 @@
+include: "../common/common.smk"
+
 from snakemake.logging import logger
 import time
 import os
@@ -24,6 +26,8 @@ rule mimseq_prepare_sample_data:
         sample_data = outdir + "/sample_data.tsv",
     log:
         logdir + "/mimseq_prepare_sample_data.log"
+    conda:
+        "mimseq.yaml"
     run:
         try:
             log_path = str(log)

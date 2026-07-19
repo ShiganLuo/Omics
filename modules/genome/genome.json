@@ -3,9 +3,16 @@
     "outdir": "output",
     "logdir": "logs",
     "Procedure": {
-        "samtools": "path/to/samtools"
+        "samtools": "samtools",
+        "bedtools": "bedtools",
+        "STAR": "STAR"
+    },
+    "Params": {
+        "smallrna_types": ["miRNA", "snRNA", "snoRNA", "rRNA", "misc_RNA", "scRNA", "scaRNA", "vaultRNA"],
+        "smallrna_flank": 50
     },
     "genome": {
-        "fasta": "path/to/genome.fa"
+        "fasta": "path/to/genome.fa",
+        "gtf": "path/to/gencode.annotation.gtf"
     }
 }

@@ -26,6 +26,8 @@ rule bowtie2_index:
     params:
         bowtie2_build = config.get('Procedure',{}).get('bowtie2-build') or 'bowtie2-build',
         index_prefix = outdir + "/index/genome"
+    conda:
+        "bowtie2.yaml"
     run:
         log_path = str(log)
         try:
@@ -111,6 +113,8 @@ rule bowtie2_align_paired:
         index_prefix = lambda wildcards, input: input.index[0].split(".1.bt2")[0],
         unmapped_prefix = outdir + "/{sample_id}/{sample_id}_unmapped",
         sam_append_comment = config.get('Params',{}).get('bowtie2', {}).get('sam-append-comment') or False
+    conda:
+        "bowtie2.yaml"
     run:
         log_path = str(log)
         try:
@@ -160,6 +164,8 @@ rule bowtie2_align_single:
         unmapped_prefix = outdir + "/{sample_id}/{sample_id}_unmapped",
         index_prefix = lambda wildcards, input: input.index[0].split(".")[0],
         sam_append_comment = config.get('Params',{}).get('bowtie2', {}).get('sam-append-comment') or False
+    conda:
+        "bowtie2.yaml"
     run:
         log_path = str(log)
         try:

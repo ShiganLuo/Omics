@@ -1,0 +1,304 @@
+{
+  "indir": {
+    "type": "str",
+    "required": true
+  },
+  "outdir": {
+    "type": "str",
+    "required": true
+  },
+  "logdir": {
+    "type": "str",
+    "required": true
+  },
+  "samples": {
+    "type": "list",
+    "required": true
+  },
+  "quantification_method": {
+    "type": "str",
+    "required": true
+  },
+  "search_engines": {
+    "type": "str",
+    "required": true
+  },
+  "Procedure": {
+    "openms": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    },
+    "thermorawfileparser": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    },
+    "comet": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    },
+    "msgf": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    },
+    "sage": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    },
+    "percolator": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    },
+    "epifany": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    },
+    "proteomicslfq": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    },
+    "proteinquantifier": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    },
+    "msstats": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    }
+  },
+  "Params": {
+    "decoy_database": {
+      "decoy_string": {
+        "type": "str",
+        "required": true
+      },
+      "decoy_string_position": {
+        "type": "str",
+        "required": true
+      },
+      "method": {
+        "type": "str",
+        "required": true
+      },
+      "shuffle_max_attempts": {
+        "type": "int",
+        "required": true
+      },
+      "shuffle_sequence_identity_threshold": {
+        "type": "float",
+        "required": true
+      }
+    },
+    "search_engine": {
+      "comet": {
+        "threads": {
+          "type": "int",
+          "required": true
+        },
+        "precursor_mass_tolerance": {
+          "type": "int",
+          "required": true
+        },
+        "fragment_mass_tolerance": {
+          "type": "float",
+          "required": true
+        },
+        "fragment_bin_tolerance": {
+          "type": "float",
+          "required": true
+        },
+        "fragment_bin_offset": {
+          "type": "int",
+          "required": true
+        }
+      },
+      "msgf": {
+        "threads": {
+          "type": "int",
+          "required": true
+        },
+        "precursor_mass_tolerance": {
+          "type": "int",
+          "required": true
+        },
+        "fragment_mass_tolerance": {
+          "type": "float",
+          "required": true
+        },
+        "isotope_error_range": {
+          "type": "str",
+          "required": true
+        }
+      },
+      "sage": {
+        "threads": {
+          "type": "int",
+          "required": true
+        },
+        "precursor_mass_tolerance": {
+          "type": "int",
+          "required": true
+        },
+        "fragment_mass_tolerance": {
+          "type": "float",
+          "required": true
+        }
+      }
+    },
+    "psm_rescoring": {
+      "psm_feature_extractor": {
+        "extra": {
+          "type": "str",
+          "required": false
+        }
+      },
+      "percolator": {
+        "train_FDR": {
+          "type": "float",
+          "required": true
+        },
+        "test_FDR": {
+          "type": "float",
+          "required": true
+        },
+        "feature": {
+          "type": "str",
+          "required": true
+        }
+      }
+    },
+    "psm_fdr_control": {
+      "fdr": {
+        "type": "float",
+        "required": true
+      },
+      "method": {
+        "type": "str",
+        "required": true
+      }
+    },
+    "protein_inference": {
+      "method": {
+        "type": "str",
+        "required": true
+      },
+      "greedy_group_resolution": {
+        "type": "str",
+        "required": true
+      }
+    },
+    "protein_quant": {
+      "method": {
+        "type": "str",
+        "required": true
+      },
+      "top": {
+        "type": "int",
+        "required": true
+      },
+      "average": {
+        "type": "str",
+        "required": true
+      },
+      "best_charge_and_score": {
+        "type": "bool",
+        "required": true
+      }
+    },
+    "protein_fdr": {
+      "fdr": {
+        "type": "float",
+        "required": true
+      },
+      "picked": {
+        "type": "bool",
+        "required": true
+      }
+    },
+    "tmt": {
+      "channel_mass_tolerance": {
+        "type": "float",
+        "required": true
+      },
+      "channel_annotation": {
+        "type": "str",
+        "required": false
+      },
+      "isotope_correction": {
+        "type": "bool",
+        "required": true
+      }
+    },
+    "lfq": {
+      "intensity_threshold": {
+        "type": "int",
+        "required": true
+      },
+      "mass_recalibration": {
+        "type": "bool",
+        "required": true
+      },
+      "alignment_order": {
+        "type": "str",
+        "required": true
+      }
+    },
+    "dia": {
+      "library": {
+        "type": "str",
+        "required": false
+      },
+      "dia_window": {
+        "type": "str",
+        "required": false
+      }
+    },
+    "msstats": {
+      "reference_condition": {
+        "type": "str",
+        "required": false
+      },
+      "reference_samples": {
+        "type": "list",
+        "required": true
+      }
+    },
+    "skip_post_msstats": {
+      "type": "bool",
+      "required": true
+    },
+    "add_triqler_output": {
+      "type": "bool",
+      "required": true
+    },
+    "quantify_decoys": {
+      "type": "bool",
+      "required": true
+    },
+    "enable_mod_localization": {
+      "type": "bool",
+      "required": true
+    }
+  },
+  "genome": {
+    "fasta": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    },
+    "decoy_fasta": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    }
+  }
+}

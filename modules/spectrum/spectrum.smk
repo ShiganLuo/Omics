@@ -1,3 +1,5 @@
+include: "../common/common.smk"
+
 from snakemake.logging import logger
 import time
 import os
@@ -19,6 +21,8 @@ rule somatic_spectrum:
     params:
         spectrum_script = os.path.join(ROOT_DIR, "modules/spectrum/bin/spectrum.py"),
         outprefix = outdir + "/somatic_spectrum"
+    conda:
+        "spectrum.yaml"
     run:
         try:
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())

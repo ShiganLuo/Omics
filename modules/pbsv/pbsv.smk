@@ -1,3 +1,5 @@
+include: "../common/common.smk"
+
 from snakemake.logging import logger
 import time
 import os
@@ -28,6 +30,8 @@ rule pbsv_discover:
     threads: 4
     params:
         pbsv = config.get("Procedure", {}).get("pbsv") or "pbsv"
+    conda:
+        "pbsv.yaml"
     run:
         current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start pbsv discover for sample {wildcards.sample_id} at {current_time}")
@@ -59,6 +63,8 @@ rule pbsv_call:
         bgzip = config.get("Procedure", {}).get("bgzip") or "bgzip",
         bcftools = config.get("Procedure", {}).get("bcftools") or "bcftools",
         vcf = outdir + "/{sample_id}/{sample_id}.sv.vcf"
+    conda:
+        "pbsv.yaml"
     run:
         current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start pbsv call for sample {wildcards.sample_id} at {current_time}")

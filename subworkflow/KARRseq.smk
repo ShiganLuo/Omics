@@ -39,6 +39,7 @@ rule all:
 
 if paired_samples:
     seqprep_config = {
+        "ROOT_DIR": ROOT_DIR,
         "indir": indir,
         "outdir": f"{outdir}/merge",
         "logdir": logdir,

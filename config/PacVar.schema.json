@@ -1,0 +1,193 @@
+{
+  "indir": {
+    "type": "str",
+    "required": true
+  },
+  "outdir": {
+    "type": "str",
+    "required": true
+  },
+  "logdir": {
+    "type": "str",
+    "required": true
+  },
+  "samples": {
+    "type": "list",
+    "required": true
+  },
+  "Procedure": {
+    "pbmm2": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    },
+    "samtools": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    },
+    "deepvariant": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    },
+    "gatk": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    },
+    "pbsv": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    },
+    "bgzip": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    },
+    "tabix": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    },
+    "bcftools": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    },
+    "hiphase": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    },
+    "trgt": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    }
+  },
+  "Params": {
+    "skip_snp": {
+      "type": "bool",
+      "required": true
+    },
+    "skip_sv": {
+      "type": "bool",
+      "required": true
+    },
+    "skip_phase": {
+      "type": "bool",
+      "required": true
+    },
+    "skip_repeat": {
+      "type": "bool",
+      "required": true
+    },
+    "skip_telomere": {
+      "type": "bool",
+      "required": true
+    },
+    "snv_caller": {
+      "type": "str",
+      "required": true
+    },
+    "deepvariant": {
+      "model_type": {
+        "type": "str",
+        "required": true
+      }
+    },
+    "trgt": {
+      "karyotype": {
+        "type": "str",
+        "required": true
+      },
+      "repeat_id": {
+        "type": "str",
+        "required": true
+      }
+    },
+    "telogator2": {
+      "threads": {
+        "type": "int",
+        "required": true
+      }
+    },
+    "hifiasm": {
+      "threads": {
+        "type": "int",
+        "required": true
+      }
+    },
+    "RepeatMasker": {
+      "species": {
+        "type": "str",
+        "required": true
+      },
+      "threads": {
+        "type": "int",
+        "required": true
+      },
+      "dfam_h5": {
+        "type": "str",
+        "required": true,
+        "path": "file"
+      }
+    },
+    "gatk": {
+      "javaOptions": {
+        "type": "str",
+        "required": true
+      },
+      "tmp-dir": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      },
+      "addReadsGroup": {
+        "RGLB": {
+          "type": "str",
+          "required": true
+        },
+        "RGPL": {
+          "type": "str",
+          "required": true
+        },
+        "RGPU": {
+          "type": "str",
+          "required": true
+        }
+      }
+    }
+  },
+  "container": {
+    "deepvariant": {
+      "type": "str",
+      "required": true,
+      "path": "file"
+    }
+  },
+  "genome": {
+    "fasta": {
+      "type": "str",
+      "required": true,
+      "path": "file"
+    },
+    "fai": {
+      "type": "str",
+      "required": true,
+      "path": "file"
+    },
+    "dict": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    },
+    "repeat_bed": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    }
+  }
+}

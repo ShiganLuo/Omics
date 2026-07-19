@@ -1,5 +1,6 @@
-import os
+include: "../common/common.smk"
 from snakemake.logging import logger
+import os
 indir = config.get("indir","input")
 outdir = config.get("outdir","output")
 logdir = config.get("logdir","log")
@@ -24,10 +25,25 @@ rule bwaMem2_index:
     params:
         bwa_mem2 = config.get("Procedure",{}).get("bwaMem2") or "bwa-mem2",
         index_prefix = outdir + "/index/genome"
-    shell:
-        """
-        {params.bwa_mem2} index -p {params.index_prefix} {input.fasta} > {log} 2>&1
-        """
+    run:
+        log_path = str(log)
+        try:
+            open(log_path, 'w').close()
+            rule_logger = setup_logger("bwaMem2_index", log_file=log_path)
+            current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+            rule_logger.info(f"Start bwa-mem2 index at {current_time}")
+            sample_outdir = os.path.dirname(str(output.index[0]))
+            os.makedirs(sample_outdir, exist_ok=True)
+            script = os.path.join(sample_outdir, f"bwaMem2_index_{current_time}.sh")
+            with open(script, "w") as f:
+                f.write("#!/bin/bash\n")
+                f.write(f"{params.bwa_mem2} index -p {params.index_prefix} {input.fasta} > {log} 2>&1\n")
+            shell(f"bash {script} >> {log_path} 2>&1")
+        except Exception as e:
+            with open(log_path, "a") as f:
+                f.write(f"Error occurred during bwa-mem2 index: {e}\n")
+            logger.error(f"Error occurred during bwa-mem2 index: {e}")
+            raise e
 def get_bwaMem2_index(wildcards):
     logger.info(f"[get_bwaMem2_index] called with wildcards: {wildcards}")
     config_index_prefix = config.get('genome',{}).get("index_prefix") or None
@@ -93,18 +109,33 @@ rule bwaMem2_alignment:
         index_prefix = lambda wildcards, input: input.index[0].rsplit(".", 1)[0],
         input_params = lambda wildcards, input: \
             f"{input.fastq[0]} {input.fastq[1]}" if len(input.fastq) == 2 else f"{input.fastq[0]}"
-    shell:
-        """
-        {params.bwa_mem2} mem \
-        -T 0 \
-        -t {threads} \
-        {params.index_prefix} \
-        {params.input_params} \
-        2>> {log} \
-        | {params.samtools} view -b - 2>> {log} \
-        | {params.samtools} sort  -@ {threads}  > {output.bam} 2>>{log}
-        {params.samtools} index -@ {threads} {output.bam} 2>>{log}
-        """
+    run:
+        log_path = str(log)
+        try:
+            open(log_path, 'w').close()
+            rule_logger = setup_logger("bwaMem2_alignment", log_file=log_path)
+            current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+            rule_logger.info(f"Start bwa-mem2 alignment for sample {wildcards.sample_id} at {current_time}")
+            sample_outdir = os.path.dirname(str(output.bam))
+            os.makedirs(sample_outdir, exist_ok=True)
+            script = os.path.join(sample_outdir, f"bwaMem2_alignment_{current_time}.sh")
+            with open(script, "w") as f:
+                f.write("#!/bin/bash\n")
+                f.write(f"{params.bwa_mem2} mem \\\n")
+                f.write(f"-T 0 \\\n")
+                f.write(f"-t {threads} \\\n")
+                f.write(f"{params.index_prefix} \\\n")
+                f.write(f"{params.input_params} \\\n")
+                f.write(f"2>> {log} \\\n")
+                f.write(f"| {params.samtools} view -b - 2>> {log} \\\n")
+                f.write(f"| {params.samtools} sort  -@ {threads}  > {output.bam} 2>>{log}\n")
+                f.write(f"{params.samtools} index -@ {threads} {output.bam} 2>>{log}\n")
+            shell(f"bash {script} >> {log_path} 2>&1")
+        except Exception as e:
+            with open(log_path, "a") as f:
+                f.write(f"Error occurred during bwa-mem2 alignment for sample {wildcards.sample_id}: {e}\n")
+            logger.error(f"Error occurred during bwa-mem2 alignment for sample {wildcards.sample_id}: {e}")
+            raise e
 rule bwaMemm2_result:
     input:
         bam = outdir + "/{sample_id}/{sample_id}.bam"

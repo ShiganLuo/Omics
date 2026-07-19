@@ -1,0 +1,210 @@
+{
+  "indir": {
+    "type": "str",
+    "required": true
+  },
+  "outdir": {
+    "type": "str",
+    "required": true
+  },
+  "logdir": {
+    "type": "str",
+    "required": true
+  },
+  "samples": {
+    "type": "list",
+    "required": true
+  },
+  "paired_samples": {
+    "type": "list",
+    "required": true
+  },
+  "single_samples": {
+    "type": "list",
+    "required": true
+  },
+  "outfiles": {
+    "type": "list",
+    "required": true
+  },
+  "ROOT_DIR": {
+    "type": "str",
+    "required": true
+  },
+  "Procedure": {
+    "aligner": {
+      "type": "str",
+      "required": true
+    },
+    "trim_galore": {
+      "type": "str",
+      "required": true
+    },
+    "hisat2": {
+      "type": "str",
+      "required": true
+    },
+    "hisat2-build": {
+      "type": "str",
+      "required": true
+    },
+    "STAR": {
+      "type": "str",
+      "required": true
+    },
+    "samtools": {
+      "type": "str",
+      "required": true
+    },
+    "bedtools": {
+      "type": "str",
+      "required": true
+    },
+    "seqtk": {
+      "type": "str",
+      "required": true
+    },
+    "featureCounts": {
+      "type": "str",
+      "required": true
+    }
+  },
+  "Params": {
+    "STAR": {},
+    "star_3pass": {
+      "pass1": {
+        "outFilterMultimapNmax": {
+          "type": "int",
+          "required": true
+        },
+        "alignIntronMin": {
+          "type": "int",
+          "required": true
+        },
+        "outFilterMultimapScoreRange": {
+          "type": "int",
+          "required": true
+        },
+        "outFilterMismatchNoverLmax": {
+          "type": "float",
+          "required": true
+        }
+      },
+      "pass2": {
+        "outFilterMultimapNmax": {
+          "type": "int",
+          "required": true
+        },
+        "outFilterMultimapScoreRange": {
+          "type": "int",
+          "required": true
+        },
+        "outFilterMismatchNoverLmax": {
+          "type": "float",
+          "required": true
+        },
+        "outFilterMismatchNoverReadLmax": {
+          "type": "float",
+          "required": true
+        },
+        "clip5pNbases": {
+          "type": "str",
+          "required": true
+        },
+        "clip3pNbases": {
+          "type": "str",
+          "required": true
+        },
+        "alignIntronMin": {
+          "type": "int",
+          "required": true
+        },
+        "alignMatesGapMax": {
+          "type": "int",
+          "required": true
+        },
+        "alignEndsType": {
+          "type": "str",
+          "required": true
+        },
+        "outReadsUnmapped": {
+          "type": "str",
+          "required": true
+        }
+      },
+      "pass3": {
+        "outFilterMultimapNmax": {
+          "type": "int",
+          "required": true
+        },
+        "outFilterMultimapScoreRange": {
+          "type": "int",
+          "required": true
+        },
+        "outFilterMismatchNoverLmax": {
+          "type": "float",
+          "required": true
+        },
+        "alignIntronMin": {
+          "type": "int",
+          "required": true
+        },
+        "alignMatesGapMax": {
+          "type": "int",
+          "required": true
+        },
+        "alignEndsType": {
+          "type": "str",
+          "required": true
+        }
+      }
+    },
+    "ncRNAseq": {
+      "abund_small_rnas": {
+        "type": "list",
+        "required": true
+      },
+      "subsample_n": {
+        "type": "int",
+        "required": true
+      }
+    }
+  },
+  "genome": {
+    "fasta": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    },
+    "gtf": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    },
+    "hisat2_index_prefix": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    },
+    "star_index_dir": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    },
+    "smallrna_fasta": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    },
+    "smallrna_bed": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    },
+    "smallrna_star_index": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    }
+  }
+}

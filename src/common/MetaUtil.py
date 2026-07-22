@@ -387,6 +387,7 @@ class MetadataUtils:
             logger.info(f"[SKIP] Merged file already exists: {out}")
             return
         logger.info(f"[MERGE] Creating {out} from {len(files)} files")
+        out.parent.mkdir(exist_ok=True,parents=True)
         with open(out, "wb") as w:
             for f in sorted(files):
                 logger.info(f"  -> Merging file: {f}")

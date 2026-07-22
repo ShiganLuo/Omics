@@ -714,6 +714,8 @@ def runncRNAseq(
     single_samples = []
 
     for sample_id, sample_info in samples_info_dict.items():
+        outfiles.append(f"{outdir}/common/3_raw_bam/{sample_id}/{sample_id}.bam")
+        outfiles.append(f"{outdir}/results/tailer/{sample_id}/{sample_id}_tail.csv")
         if sample_info.layout == "PE":
             paired_samples.append(sample_id)
         elif sample_info.layout == "SE":

@@ -67,9 +67,7 @@ def get_star_index(wildcards):
     star_index_dir = config.get('genome',{}).get('index_dir') or None
     if star_index_dir:
         logger.info(f"[get_star_index] using provided star_index_dir: {star_index_dir}")
-        first_file = os.path.join(star_index_dir, "Genome")
-        if os.path.exists(first_file):
-            return star_index_dir
+        return star_index_dir
     logger.info(f"[get_star_index] using default star_index_dir")
     return outdir + f"/index"
 
@@ -115,7 +113,9 @@ rule star_align:
         genome_index = get_star_index
     output:
         bam = outdir + "/{sample_id}/{sample_id}.bam",
-        bai = outdir + "/{sample_id}/{sample_id}.bam.bai"
+        bai = outdir + "/{sample_id}/{sample_id}.bam.bai",
+        unmapped_r1 = outdir + "/{sample_id}/{sample_id}.Unmapped.out.mate1",
+        unmapped_r2 = outdir + "/{sample_id}/{sample_id}.Unmapped.out.mate2",
     log:
         logdir + "/{sample_id}/star_align.log"
     threads: 12
@@ -192,6 +192,9 @@ rule star_align:
             f.write(" ".join(cmd1) + "\n")
             f.write(" ".join(cmd2) + "\n")
             f.write(" ".join(cmd3) + "\n")
+            # Touch unmapped output files if STAR didn't produce them
+            f.write(f"test -f {output.unmapped_r1} || touch {output.unmapped_r1}\n")
+            f.write(f"test -f {output.unmapped_r2} || touch {output.unmapped_r2}\n")
         shell(f"bash {script} > {log} 2>&1")
 
 rule star_result:

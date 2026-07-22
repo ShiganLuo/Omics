@@ -33,10 +33,28 @@ module fastqc_raw:
 logger.info(f"fastqc_raw_config: {fastqc_raw_config}")
 use rule fastqc from fastqc_raw as PeakCalling_fastqc_raw
 
-trim_galore_config = {
+# ── 0. Demultiplex: 3' adapter removal + PCR duplicate removal ───────────────
+demultiplexer_config = {
         "ROOT_DIR": ROOT_DIR,
         "indir": indir,
-        "outdir": f"{outdir}/common/2_trimmed_fastq",
+        "outdir": f"{outdir}/common/2_trimmed_dedup_fastq/jla-demultiplexer",
+        "logdir": logdir,
+        "paired_samples": paired_samples,
+        "single_samples": single_samples,
+        "Params": {
+            "demultiplexer": config.get("Params", {}).get("demultiplexer", {})
+        },
+    }
+module demultiplexer:
+    snakefile: "../modules/demultiplexer/demultiplexer.smk"
+    config: demultiplexer_config
+logger.info(f"demultiplexer_config: {demultiplexer_config}")
+use rule demultiplex_trim_dedup from demultiplexer as ncRNAseq_demultiplex_trim_dedup
+
+trim_galore_config = {
+        "ROOT_DIR": ROOT_DIR,
+        "indir": demultiplexer_config["outdir"],
+        "outdir": f"{outdir}/common/2_trimmed_dedup_fastq",
         "logdir": logdir,
         "Procedure": {
             "trim_galore": config.get('Procedure',{}).get('trim_galore')
@@ -51,8 +69,8 @@ module trim_galore:
     snakefile: "../modules/trim-galore/trim-galore.smk"
     config: trim_galore_config
 logger.info(f"TrimGalore parameters: {trim_galore_config}")
-use rule trimming_Paired from trim_galore as PeakCalling_trimming_Paired
-use rule trimming_Single from trim_galore as PeakCalling_trimming_Single
+use rule trimming_Paired from trim_galore as ncRNAseq_trimming_Paired
+use rule trimming_Single from trim_galore as ncRNAseq_trimming_Single
 
 fastqc_trimmed_config = {
         "ROOT_DIR": ROOT_DIR,
@@ -154,6 +172,11 @@ elif aligner == "star_3pass":
     # Merge:   combine pass3a canonical + pass3b reads
     # ================================================================
 
+    # ── Resolve smallRNA derived paths BEFORE any config dict uses them ──
+    smallrna_bed = f"{outdir}/genome/smallrna/smallrna_genes.bed"
+    smallrna_fasta = f"{outdir}/genome/smallrna/smallrna_genes_flank.fa"
+    smallrna_star_index = f"{outdir}/genome/smallrna/index"
+
     # ── Read three-pass params from config (with defaults) ──────────────
     p3p = config.get("Params", {}).get("star_3pass", {})
     pass1_params = p3p.get("pass1", {})
@@ -182,7 +205,7 @@ elif aligner == "star_3pass":
     # ── Pass 2 config: canonical small RNA FASTA alignment ──────────────
     star_pass2_config = {
         "ROOT_DIR": ROOT_DIR,
-        "indir": f"{outdir}/ncRNAseq/bam/pass1_extract",
+        "indir": f"{outdir}/common/3_raw_bam/pass1_extract",
         "outdir": f"{outdir}/common/3_raw_bam/pass2",
         "logdir": logdir,
         "paired_samples": paired_samples,
@@ -207,7 +230,7 @@ elif aligner == "star_3pass":
     # ── Pass 3a config: strict genome re-alignment (canonical reads) ────
     star_pass3a_config = {
         "ROOT_DIR": ROOT_DIR,
-        "indir": f"{outdir}/ncRNAseq/bam/pass2",
+        "indir": f"{outdir}/common/3_raw_bam/pass2_mapped_fq",
         "outdir": f"{outdir}/common/3_raw_bam/pass3a",
         "logdir": logdir,
         "paired_samples": paired_samples,
@@ -228,7 +251,7 @@ elif aligner == "star_3pass":
     # ── Pass 3b config: strict genome alignment (unmapped from pass 2) ──
     star_pass3b_config = {
         "ROOT_DIR": ROOT_DIR,
-        "indir": f"{outdir}/ncRNAseq/bam/pass2",
+        "indir": f"{outdir}/common/3_raw_bam/pass2_unmapped_fq",
         "outdir": f"{outdir}/common/3_raw_bam/pass3b",
         "logdir": logdir,
         "paired_samples": paired_samples,
@@ -274,15 +297,11 @@ elif aligner == "star_3pass":
     use rule chromosome_sizes from genome_sm as ncRNAseq_chromosome_sizes
     use rule extract_smallrna from genome_sm as ncRNAseq_extract_smallrna
 
-    # Derived paths (genome module outputs)
-    smallrna_bed = f"{outdir}/genome/smallrna/smallrna_genes.bed"
-    smallrna_fasta = f"{outdir}/genome/smallrna/smallrna_genes_flank.fa"
-
     # ── STAR index for smallRNA FASTA (reuses star module) ─────────────
     star_smallrna_idx_config = {
         "ROOT_DIR": ROOT_DIR,
         "indir": f"{outdir}/genome/smallrna",
-        "outdir": f"{outdir}/genome/smallrna/star_index",
+        "outdir": f"{outdir}/genome/smallrna",
         "logdir": logdir,
         "Procedure": {"STAR": STAR},
         "Params": {"STAR": {}},
@@ -299,7 +318,7 @@ elif aligner == "star_3pass":
 
     use rule star_index from star_smallrna_idx as ncRNAseq_star_index_smallrna
 
-    smallrna_star_index = f"{outdir}/genome/smallrna/star_index"
+    smallrna_star_index = f"{outdir}/genome/smallrna/index"
 
     # ── Import star module 4 times with different configs ────────────────
     module star_pass1:
@@ -324,6 +343,7 @@ elif aligner == "star_3pass":
     star_3pass_config = {
         "ROOT_DIR": ROOT_DIR,
         "outdir": f"{outdir}/common/3_raw_bam",
+        "pass2_outdir": f"{outdir}/common/3_raw_bam/pass2",
         "logdir": logdir,
         "Procedure": {
             "samtools": SAMTOOLS,
@@ -340,6 +360,8 @@ elif aligner == "star_3pass":
         config: star_3pass_config
 
     use rule star_3p_extract_smallrna from star_3pass as ncRNAseq_star3p_extract_smallrna
+    use rule star_3p_pass2_to_fq from star_3pass as ncRNAseq_star3p_pass2_to_fq
+    use rule star_3p_pass2_unmapped from star_3pass as ncRNAseq_star3p_pass2_unmapped
     use rule star_3p_pass3a_extract from star_3pass as ncRNAseq_star3p_pass3a_extract
     use rule star_3p_merge from star_3pass as ncRNAseq_star3p_merge
 
@@ -368,3 +390,27 @@ module featureCounts:
 use rule featureCounts_single_noMultiple from featureCounts as ncRNAseq_featureCounts_single
 use rule featureCounts_paired_noMultiple from featureCounts as ncRNAseq_featureCounts_paired
 use rule featureCounts_result from featureCounts as ncRNAseq_featureCounts_result
+
+# ── 4. Tailer (3' end analysis) ──────────────────────────────────────────────
+tailer_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "indir": f"{outdir}/common/3_raw_bam",
+    "outdir": f"{outdir}/results/tailer",
+    "logdir": logdir,
+    "paired_samples": paired_samples,
+    "single_samples": single_samples,
+    "Procedure": {
+        "tailer": "Tailer"
+    },
+    "Params": {
+        "tailer": config.get("Params", {}).get("tailer", {})
+    },
+    "genome": {
+        "gtf": config.get("genome", {}).get("gtf")
+    }
+}
+logger.info(f"tailer_config: {tailer_config}")
+module tailer:
+    snakefile: "../modules/tailer/tailer.smk"
+    config: tailer_config
+use rule tailer_global from tailer as ncRNAseq_tailer_global

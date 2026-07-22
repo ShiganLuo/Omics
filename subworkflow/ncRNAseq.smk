@@ -72,6 +72,28 @@ logger.info(f"TrimGalore parameters: {trim_galore_config}")
 use rule trimming_Paired from trim_galore as ncRNAseq_trimming_Paired
 use rule trimming_Single from trim_galore as ncRNAseq_trimming_Single
 
+# ── 0.5 Subsample: seqtk subsample for abundant small RNAs ───────────────────
+subsample_config = {
+        "ROOT_DIR": ROOT_DIR,
+        "indir": trim_galore_config["outdir"],
+        "outdir": f"{outdir}/common/trimmed_subsampled_fastq",
+        "logdir": logdir,
+        "paired_samples": paired_samples,
+        "single_samples": single_samples,
+        "Params": {
+            "subsample": {
+                "abundant_rnas": config.get("Params", {}).get("ncRNAseq", {}).get("abund_small_rnas", []),
+                "n": config.get("Params", {}).get("ncRNAseq", {}).get("subsample_n", 100000),
+                "seed": config.get("Params", {}).get("ncRNAseq", {}).get("subsample_seed", 42),
+            }
+        },
+    }
+module subsample:
+    snakefile: "../modules/subsample/subsample.smk"
+    config: subsample_config
+logger.info(f"subsample_config: {subsample_config}")
+use rule subsample_fastq from subsample as ncRNAseq_subsample_fastq
+
 fastqc_trimmed_config = {
         "ROOT_DIR": ROOT_DIR,
         "indir": trim_galore_config["outdir"],
@@ -103,7 +125,7 @@ smallrna_star_index = config.get("genome", {}).get("smallrna_star_index")
 if aligner == "hisat2":
     hisat2_config = {
         "ROOT_DIR": ROOT_DIR,
-        "indir": trim_galore_config["outdir"],
+        "indir": subsample_config["outdir"],
         "outdir": f"{outdir}/common/3_raw_bam",
         "logdir": logdir,
         "paired_samples": paired_samples,
@@ -126,7 +148,7 @@ if aligner == "hisat2":
 elif aligner == "star":
     star_config = {
         "ROOT_DIR": ROOT_DIR,
-        "indir": trim_galore_config["outdir"],
+        "indir": subsample_config["outdir"],
         "outdir": f"{outdir}/common/3_raw_bam",
         "logdir": logdir,
         "paired_samples": paired_samples,
@@ -186,7 +208,7 @@ elif aligner == "star_3pass":
     # ── Pass 1 config: relaxed genome alignment ─────────────────────────
     star_pass1_config = {
         "ROOT_DIR": ROOT_DIR,
-        "indir": trim_galore_config["outdir"],
+        "indir": subsample_config["outdir"],
         "outdir": f"{outdir}/common/3_raw_bam/pass1",
         "logdir": logdir,
         "paired_samples": paired_samples,

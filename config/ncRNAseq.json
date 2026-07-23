@@ -54,10 +54,10 @@
         }
     },
     "genome": {
-        "fasta": "/disk5/luosg/Reference/GENCODE/human/GRCh38/GRCh38.primary_assembly.genome.fa",
-        "gtf": "/disk5/luosg/Reference/GENCODE/human/GRCh38/gencode.v49.primary_assembly.basic.annotation.gtf",
+        "fasta": "/home/luosg/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa",
+        "gtf": "/home/luosg/Reference/human/GENCODE/GRCh38/gencode.v49.primary_assembly.basic.annotation.gtf",
         "hisat2_index_prefix": null,
-        "star_index_dir": "/disk5/luosg/Reference/GENCODE/human/GRCh38/index_star2_7",
+        "star_index_dir": null,
         "smallrna_fasta": null,
         "smallrna_bed": null,
         "smallrna_star_index": null

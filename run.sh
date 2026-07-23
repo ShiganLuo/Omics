@@ -11,15 +11,14 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 #     --rerun-triggers mtime
 
 python ${SCRIPT_DIR}/run.py \
-    -m /rna_seq_1/luoshg/Chipseq_20260709/data/Srp54/meta_input.tsv \
+    -m /home/luosg/Data/genomeStability/data/Srp54/meta_input.tsv \
     -w ncRNAseq \
-    -o /rna_seq_1/luoshg/Chipseq_20260709/output \
+    -o /home/luosg/Data/genomeStability/output \
     -t 48 \
-    --log /rna_seq_1/luoshg/Chipseq_20260709/logs/ncRNAseq.log \
-    --conda-prefix /rna_seq_1/luoshg/env \
+    --log /home/luosg/Data/genomeStability/log/ncRNAseq.log \
+    --conda-prefix  ~/env \
     --rerun-triggers input \
     --Procedure.aligner star_3pass
-
 
 # python ${SCRIPT_DIR}/run.py \
 #     -m /data/pub/zhousha/20260207_Exome/data/tRNA/meta.tsv \

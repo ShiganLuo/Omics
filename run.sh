@@ -18,8 +18,8 @@ python ${SCRIPT_DIR}/run.py \
     --log /rna_seq_1/luoshg/Chipseq_20260709/logs/ncRNAseq.log \
     --conda-prefix /rna_seq_1/luoshg/env \
     --rerun-triggers input \
-    --Procedure.aligner star_3pass \
-    --dry-run
+    --Procedure.aligner star_3pass
+
 
 # python ${SCRIPT_DIR}/run.py \
 #     -m /data/pub/zhousha/20260207_Exome/data/tRNA/meta.tsv \

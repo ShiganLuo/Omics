@@ -146,6 +146,29 @@ if aligner == "hisat2":
     use rule hisat2_align_ncRNAseq_single from hisat2 as ncRNAseq_hisat2_align
 
 elif aligner == "star":
+    # ── STAR index for genome (auto-build when star_index_dir is null) ──
+    if not star_index_dir:
+        star_genome_idx_config = {
+            "ROOT_DIR": ROOT_DIR,
+            "outdir": f"{outdir}/common/3_raw_bam",
+            "logdir": logdir,
+            "Procedure": {"STAR": STAR},
+            "Params": {"STAR": {}},
+            "genome": {
+                "fasta": genome_fasta,
+                "gtf": config.get("genome", {}).get("gtf"),
+            }
+        }
+        logger.info(f"star_genome_idx_config: {star_genome_idx_config}")
+
+        module star_genome_idx:
+            snakefile: "../modules/star/star.smk"
+            config: star_genome_idx_config
+
+        use rule star_index from star_genome_idx as ncRNAseq_star_index_genome
+
+        star_index_dir = f"{outdir}/common/3_raw_bam/index"
+
     star_config = {
         "ROOT_DIR": ROOT_DIR,
         "indir": subsample_config["outdir"],
@@ -198,6 +221,29 @@ elif aligner == "star_3pass":
     smallrna_bed = f"{outdir}/genome/smallrna/smallrna_genes.bed"
     smallrna_fasta = f"{outdir}/genome/smallrna/smallrna_genes_flank.fa"
     smallrna_star_index = f"{outdir}/genome/smallrna/index"
+
+    # ── STAR index for genome (auto-build when star_index_dir is null) ──
+    if not star_index_dir:
+        star_genome_idx_config = {
+            "ROOT_DIR": ROOT_DIR,
+            "outdir": f"{outdir}/genome",
+            "logdir": logdir,
+            "Procedure": {"STAR": STAR},
+            "Params": {"STAR": {}},
+            "genome": {
+                "fasta": genome_fasta,
+                "gtf": config.get("genome", {}).get("gtf"),
+            }
+        }
+        logger.info(f"star_genome_idx_config: {star_genome_idx_config}")
+
+        module star_genome_idx:
+            snakefile: "../modules/star/star.smk"
+            config: star_genome_idx_config
+
+        use rule star_index from star_genome_idx as ncRNAseq_star_index_genome
+
+        star_index_dir = f"{outdir}/genome/index"
 
     # ── Read three-pass params from config (with defaults) ──────────────
     p3p = config.get("Params", {}).get("star_3pass", {})
@@ -342,7 +388,7 @@ elif aligner == "star_3pass":
 
     smallrna_star_index = f"{outdir}/genome/smallrna/index"
 
-    # ── Import star module 4 times with different configs ────────────────
+    # ── Read three-pass params from config (with defaults) ──────────────
     module star_pass1:
         snakefile: "../modules/star/star.smk"
         config: star_pass1_config

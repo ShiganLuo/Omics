@@ -103,6 +103,31 @@ python workflow/RNA-SNP/run.py \
 
 如果只是想检查流程而不真正执行，可加上 `--dry-run`。
 
+### 测试模式（`--test`）
+
+`run.py` 支持内置测试模式，用于快速检查某个工作流是否能正确解析配置、生成 `raw.json` 并完成 Snakemake dry-run。
+
+```bash
+# 测试单个工作流
+python workflow/Omics/run.py \
+  --test ncRNAseq \
+  -o output
+
+# 测试所有工作流
+python workflow/Omics/run.py \
+  --test all \
+  -o output
+```
+
+测试模式会自动：
+- 使用 `workflow/Omics/assests/test/meta_<workflow>.tsv`
+- 从 `workflow/Omics/assests/test/data/` 生成测试路径
+- 输出到 `output/test/`（或你指定的输出目录下的 `test/`）
+- 开启 `--dry-run`
+- 使用本地 `.conda` 前缀，避免污染共享环境
+
+如果某个工作流没有对应的测试 meta 文件，`run.py` 会跳过该工作流并提示警告。
+
 ## 运行特定步骤
 
 Snakemake 提供了多种方式来运行流程中的特定步骤，方便调试和重跑。

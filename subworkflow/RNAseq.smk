@@ -17,7 +17,7 @@ if trimmer == "cutadapt":
     cutadapt_config = {
             "ROOT_DIR": ROOT_DIR,
             "indir": indir,
-            "outdir":  f"{outdir}/fastq/cutadapt",
+            "outdir":  f"{outdir}/common/2_trimmed_fastq",
             "logdir": logdir,
             "Procedure": {
                 "trim_galore": config.get('Procedure',{}).get('trim_galore')
@@ -33,7 +33,7 @@ elif trimmer == "trimmomatic":
     trimmomatic_config = {
             "ROOT_DIR": ROOT_DIR,
             "indir": indir,
-            "outdir":  f"{outdir}/fastq/trimmomatic",
+            "outdir":  f"{outdir}/common/2_trimmed_fastq",
             "logdir": logdir,
             "Procedure": {
                 "trimmomatic": config.get('Procedure',{}).get('trimmomatic')
@@ -57,7 +57,7 @@ else:
 if aligner_TEtranscripts == 'hisat2':
     hisat2_config_for_TEtranscripts = {
             "indir": cutadapt_config["outdir"] if trimmer == "cutadapt" else trimmomatic_config["outdir"],
-            "outdir":  f"{outdir}/TEtranscripts/bam",
+            "outdir":  f"{outdir}/common/3_raw_bam",
             "logdir": logdir,
             "paired_samples": paired_samples,
             "single_samples": single_samples,
@@ -85,7 +85,7 @@ if aligner_TEtranscripts == 'hisat2':
 elif aligner_TEtranscripts == 'star':
     star_config_for_TEtranscripts = {
             "indir": cutadapt_config["outdir"] if trimmer == "cutadapt" else trimmomatic_config["outdir"],
-            "outdir":  f"{outdir}/TEtranscripts/bam",
+            "outdir":  f"{outdir}/common/3_raw_bam",
             "logdir": logdir,
             "paired_samples": paired_samples,
             "single_samples": single_samples,
@@ -117,7 +117,7 @@ else:
 
 TEtranscripts_config = {
         "indir": star_config_for_TEtranscripts["outdir"] if aligner_TEtranscripts == 'star' else hisat2_config_for_TEtranscripts["outdir"],
-        "outdir":  f"{outdir}/TEtranscripts",
+        "outdir":  f"{outdir}/results/counts",
         "logdir": logdir,
         "samples": single_samples + paired_samples,
         "ROOT_DIR": ROOT_DIR,
@@ -140,7 +140,7 @@ use rule * from TEtranscripts as RNAseq_*
 
 DESeq2_config = {
         "indir": TEtranscripts_config["outdir"],
-        "outdir":  f"{outdir}/DESeq2",
+        "outdir":  f"{outdir}/diff_expression",
         "logdir": logdir,
         "ROOT_DIR": ROOT_DIR,
         "control_samples": config.get("control_samples", []),
@@ -163,7 +163,7 @@ use rule DESeq2_TEcount from DESeq2 as RNAseq_DESeq2_TEcount
 
 hisat2_config_for_StringTie = {
     "indir": cutadapt_config["outdir"] if trimmer == "cutadapt" else trimmomatic_config["outdir"],
-    "outdir":  f"{outdir}/stringtie/bam",
+    "outdir":  f"{outdir}/common/4_stringtie_bam",
     "logdir": logdir,
     "paired_samples": paired_samples,
     "single_samples": single_samples,
@@ -190,7 +190,7 @@ use rule hisat2_index from hisat2_for_StringTie as RNAseq_hisat2_index_for_Strin
  
 StringTie_config = {
         "indir": hisat2_config_for_StringTie["outdir"],
-        "outdir":  f"{outdir}/stringtie",
+        "outdir":  f"{outdir}/transcripts",
         "logdir": logdir,
         "samples": single_samples + paired_samples,
         "ROOT_DIR": ROOT_DIR,
@@ -212,7 +212,7 @@ logger.info(f"StringTie_config: {StringTie_config}")
 
 rmrRNA_config = {
     "indir": cutadapt_config["outdir"] if trimmer == "cutadapt" else trimmomatic_config["outdir"],
-    "outdir":  f"{outdir}/rRNA",
+    "outdir":  f"{outdir}/genome",
     "logdir": logdir,
     "paired_samples": paired_samples,
     "single_samples": single_samples,
@@ -237,7 +237,7 @@ logger.info(f"rmrRNA_config: {rmrRNA_config}")
 bowtie2_rRNA_config = {
     "ROOT_DIR": ROOT_DIR,
     "indir": cutadapt_config["outdir"] if trimmer == "cutadapt" else trimmomatic_config["outdir"],
-    "outdir":  f"{outdir}/rRNA",
+    "outdir":  f"{outdir}/5_rRNA_fastq",
     "logdir": logdir,
     "paired_samples": paired_samples,
     "single_samples": single_samples,
@@ -262,7 +262,7 @@ use rule * from bowtie2_for_rRNA as RNAseq_rRNA_*
 
 star_config_for_fusion = {
     "indir": bowtie2_rRNA_config["outdir"],
-    "outdir":  f"{outdir}/fusion/star",
+    "outdir":  f"{outdir}/6_fusion_bam",
     "logdir": logdir,
     "paired_samples": paired_samples,
     "single_samples": single_samples,
@@ -301,7 +301,7 @@ logger.info(f"star_config_for_fusion: {star_config_for_fusion}")
 gatk_prepare_config = {
     "ROOT_DIR": ROOT_DIR,
     "indir": star_config_for_fusion["outdir"],
-    "outdir":  f"{outdir}/fusion/bam",
+    "outdir":  f"{outdir}/7_markdup_bam",
     "logdir": logdir,
     "paired_samples": paired_samples,
     "single_samples": single_samples,
@@ -323,7 +323,7 @@ logger.info(f"gatk_prepare_config: {gatk_prepare_config}")
 
 arriba_config = {
         "indir": gatk_prepare_config['outdir'],
-        "outdir":  f"{outdir}/fusion/arriba",
+        "outdir":  f"{outdir}/fusion",
         "logdir": logdir,
         "ROOT_DIR": ROOT_DIR,
         "bam_substring": "sorted_markdup",

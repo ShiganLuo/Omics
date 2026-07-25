@@ -13,7 +13,7 @@ rule DESeq2_TEcount:
     input:
         count_matrix = indir + "/TEcount/all_TEcount.tsv",
     output:
-        deseq2_results = directory(outdir + "/TEcount")
+        deseq2_results = directory(outdir)
     params:
         DESeq2_script = ROOT_DIR + "/modules/DESeq2/bin/DESeq2.r",
         write_group_script = ROOT_DIR + "/modules/DESeq2/bin/write_group_tsv.py",

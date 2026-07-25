@@ -11,7 +11,7 @@ rule stringTie:
     input:
         bam = indir + "/{sample_id}/{sample_id}.bam"
     output:
-        gtf = outdir + "/{sample_id}/{sample_id}.gtf"
+        gtf = outdir + "/raw/{sample_id}/{sample_id}.gtf"
     log:
         logdir + "/{sample_id}/stringTie.log"
     params:
@@ -27,7 +27,7 @@ rule stringTie:
             logger = setup_logger(logger_name="stringTie_run", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start stringTie run for sample {wildcards.sample_id} at {current_time}")
-            script = os.path.join(outdir, f"{wildcards.sample_id}/stringTie_{current_time}.sh")
+            script = os.path.join(outdir, f"/raw/{wildcards.sample_id}/stringTie_{current_time}.sh")
             cmd = [params.stringtie, "-o", output.gtf, input.bam, "-G", params.gtf, "-p", str(threads)]
             with open(script, 'w') as f:
                 f.write(' '.join(cmd) + '\n')
@@ -41,9 +41,9 @@ rule stringTie:
             logger.info(f"Completed at {current_time}")
 rule TEChimericTranscripts:
     input:
-        gtf = outdir + "/{sample_id}/{sample_id}.gtf"
+        gtf = outdir + "/raw/{sample_id}/{sample_id}.gtf"
     output:
-        txt = outdir + "/{sample_id}/{sample_id}_TE_chimeric_transcripts.txt"
+        txt = outdir + "/raw/{sample_id}/{sample_id}_TE_chimeric_transcripts.txt"
     log:
         logdir + "/{sample_id}/TEChimericTranscripts.log"
     params:
@@ -54,7 +54,7 @@ rule TEChimericTranscripts:
         "StringTie.yaml"
     run:
         current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
-        script = f"{outdir}/{wildcards.sample_id}/TEChimericTranscripts.{current_time}.sh"
+        script = f"{outdir}/raw/{wildcards.sample_id}/TEChimericTranscripts.{current_time}.sh"
         cmd = f"python {params.TEChimericTranscripts} -s {input.gtf} -t {params.te_gtf} -o {output.txt} > {log} 2>&1"
         with open(script, 'w') as f:
             f.write("#!/bin/bash\n")
@@ -63,14 +63,14 @@ rule TEChimericTranscripts:
 
 rule TEChimericPlot:
     input:
-        txts = expand(outdir + "/{sample_id}/{sample_id}_TE_chimeric_transcripts.txt", sample_id=samples)
+        txts = expand(outdir + "/raw/{sample_id}/{sample_id}_TE_chimeric_transcripts.txt", sample_id=samples)
     output:
-        group_stack = outdir + "/result/TE_chimeric/TE_chimeric_group_stacked.png",
-        type_top = outdir + "/result/TE_chimeric/TE_chimeric_te_type_top.png",
-        type_by_group = outdir + "/result/TE_chimeric/TE_chimeric_te_type_by_group.png",
-        sample_summary = outdir + "/result/TE_chimeric/TE_chimeric_sample_summary.tsv",
-        group_summary = outdir + "/result/TE_chimeric/TE_chimeric_group_summary.tsv",
-        te_type_counts = outdir + "/result/TE_chimeric/TE_chimeric_te_type_counts.tsv"
+        group_stack = outdir + "/TE_chimeric/TE_chimeric_group_stacked.png",
+        type_top = outdir + "/TE_chimeric/TE_chimeric_te_type_top.png",
+        type_by_group = outdir + "/TE_chimeric/TE_chimeric_te_type_by_group.png",
+        sample_summary = outdir + "/TE_chimeric/TE_chimeric_sample_summary.tsv",
+        group_summary = outdir + "/TE_chimeric/TE_chimeric_group_summary.tsv",
+        te_type_counts = outdir + "/TE_chimeric/TE_chimeric_te_type_counts.tsv"
     log:
         logdir + "/all/stringtie/TEChimericPlot.log"
     params:
@@ -80,8 +80,8 @@ rule TEChimericPlot:
         "StringTie.yaml"
     run:
         current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
-        script = f"{outdir}/result/TE_chimeric/TEChimericPlot.{current_time}.sh"
-        group_tsv = outdir + "/result/TE_chimeric/sample_groups.tsv"
+        script = f"{outdir}/TE_chimeric/TEChimericPlot.{current_time}.sh"
+        group_tsv = outdir + "/TE_chimeric/sample_groups.tsv"
         with open(group_tsv, 'w') as f:
             f.write("sample\tgroup\n")
             for group, sample_list in sample_groups.items():
@@ -96,7 +96,7 @@ rule TEChimericPlot:
 
 rule stringTieMerge:
     input:
-        gtfs = expand(outdir + "/{sample_id}/{sample_id}.gtf",sample_id=samples)
+        gtfs = expand(outdir + "/raw/{sample_id}/{sample_id}.gtf",sample_id=samples)
     output:
         gtf = outdir + "/stringtie_merged.gtf"
     log:

@@ -17,7 +17,7 @@ rule star_index:
     output:
         index_file = directory(outdir + "/index")
     log:
-        logdir + "/index/star_index.log"
+        logdir + "/star_index.log"
     threads: 12
     conda:
         "star.yaml"
@@ -25,7 +25,8 @@ rule star_index:
         STAR = config.get('Procedure',{}).get('STAR') or 'STAR',
         index_dir = outdir + "/index",
         sjdbOverhang = config.get('Params',{}).get('STAR', {}).get('sjdbOverhang') or 100,
-        gtf = gtf
+        gtf = gtf,
+        outTmpDir = outdir + "/tmp_star"
     run:
         log_path = str(log)
         try:
@@ -42,11 +43,14 @@ rule star_index:
                 params.STAR, "--runMode", "genomeGenerate",
                 "--runThreadN", str(threads),
                 "--genomeDir", params.index_dir,
-                "--genomeFastaFiles", input.fasta,
-                "--sjdbOverhang", str(params.sjdbOverhang),
-            ]
+                "--genomeFastaFiles", input.fasta]
+            if params.outTmpDir:
+                shutil.rmtree(params.outTmpDir, ignore_errors=True)
+                cmd.extend(["--outTmpDir", params.outTmpDir])
             if params.gtf:
-                cmd.extend(["--sjdbGTFfile", params.gtf])
+                # STAR can't use --sjdbOverhang without an annotation file
+                cmd.extend(["--sjdbGTFfile", str(params.gtf)])
+                cmd.extend(["--sjdbOverhang", str(params.sjdbOverhang)])
                 rule_logger.info(f"Using sjdbGTFfile: {params.gtf}")
             else:
                 rule_logger.info("No GTF provided, skipping --sjdbGTFfile")
@@ -107,6 +111,7 @@ def get_alignment_input(wildcards):
     else:
         logger.error(f"样本 {wildcards.sample_id} 未在 paired_samples 或 single_samples 中定义")
         raise ValueError(f"Sample {wildcards.sample_id} not defined in paired_samples or single_samples")
+
 rule star_align:
     input:
         fastq = get_alignment_input,
@@ -146,7 +151,8 @@ rule star_align:
         chimScoreJunctionNonGTAG = config.get('Params',{}).get('STAR', {}).get('chimScoreJunctionNonGTAG') or -1,
         chimScoreSeparation = config.get('Params',{}).get('STAR', {}).get('chimScoreSeparation') or 10,
         alignSJstitchMismatchNmax = config.get('Params',{}).get('STAR', {}).get('alignSJstitchMismatchNmax') or "0 -1 0 0",
-        chimSegmentReadGapMax = config.get('Params',{}).get('STAR', {}).get('chimSegmentReadGapMax') or 0
+        chimSegmentReadGapMax = config.get('Params',{}).get('STAR', {}).get('chimSegmentReadGapMax') or 0,
+        outTmpDir = outdir + "/{sample_id}/tmp_star"
     conda:
         "star.yaml"
     run:
@@ -180,6 +186,9 @@ rule star_align:
             "--outSAMattributes", "NM",
             "--outFileNamePrefix", params.outPrefix
         ]
+        if params.outTmpDir:
+            shutil.rmtree(params.outTmpDir, ignore_errors=True)
+            cmd1.extend(["--outTmpDir", params.outTmpDir])
         if params.outReadsUnmapped:
             cmd1.extend(["--outReadsUnmapped", params.outReadsUnmapped])
         if params.outSAMstrandField:

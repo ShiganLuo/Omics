@@ -98,5 +98,7 @@ rule featureCounts_paired_noMultiple:
 
 rule featureCounts_result:
     input:
-        paired = outdir + "all_paired_featureCounts.tsv",
-        single = outdir + "all_single_featureCounts.tsv"
+        paired = outdir + "/all_paired_featureCounts.tsv",
+        single = outdir + "/all_single_featureCounts.tsv"
+    output:
+        touch(outdir + "/featureCounts.done")

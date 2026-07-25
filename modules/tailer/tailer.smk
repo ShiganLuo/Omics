@@ -1,7 +1,5 @@
 include: "../common/common.smk"
 
-import time
-
 indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
@@ -28,6 +26,7 @@ rule tailer_global:
         read_num = read_num,
         threshold = threshold,
         rev_comp = "--rev_comp" if rev_comp else "",
+        Tailer = config.get("Procedure", {}).get("Tailer") or "Tailer"  
     run:
         log_path = str(log)
         try:
@@ -38,10 +37,19 @@ rule tailer_global:
 
             outdir_tail = os.path.dirname(str(output.tail))
             os.makedirs(outdir_tail, exist_ok=True)
+            generated_tail = os.path.join(os.path.dirname(str(input.bam)), f"{wildcards.sample_id}_tail.csv")
+            if os.path.exists(generated_tail):
+                os.remove(generated_tail)
 
-            cmd = f"Tailer -a {params.gtf} -read {params.read_num} -t {params.threshold} {params.rev_comp} {input.bam} >> {log_path} 2>&1"
+            cmd = f"{params.Tailer} -a {params.gtf} -read {params.read_num} -t {params.threshold} {params.rev_comp} {input.bam} >> {log_path} 2>&1"
             rule_logger.info(f"Running: {cmd}")
             shell(cmd)
+
+            if not os.path.exists(generated_tail):
+                raise FileNotFoundError(
+                    f"Tailer finished but did not create expected file: {generated_tail}"
+                )
+            shutil.copy2(generated_tail, output.tail)
 
             rule_logger.info(f"tailer_global completed for sample {wildcards.sample_id}")
         except Exception as e:

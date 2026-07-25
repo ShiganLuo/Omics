@@ -189,23 +189,24 @@ def runRNAseq(
     for sample_id, sample_info in samples_info_dict.items():
         if sample_info.layout == "PE":
             paired_samples.append(sample_id)
-            outfiles.append(f"{outdir}/stringtie/{sample_id}/{sample_id}_TE_chimeric_transcripts.txt")
-            outfiles.append(f"{outdir}/fusion/arriba/{sample_id}/{sample_id}_passed_fusions.tsv")
+            outfiles.append(f"{outdir}/transcripts/raw/{sample_id}/{sample_id}_TE_chimeric_transcripts.txt")
+            outfiles.append(f"{outdir}/fusion/{sample_id}/{sample_id}_passed_fusions.tsv")
         elif sample_info.layout == "SE":
             single_samples.append(sample_id)
-            outfiles.append(f"{outdir}/stringtie/{sample_id}/{sample_id}_TE_chimeric_transcripts.txt")
-            outfiles.append(f"{outdir}/fusion/arriba/{sample_id}/{sample_id}_passed_fusions.tsv")
+            outfiles.append(f"{outdir}/transcripts/raw/{sample_id}/{sample_id}_TE_chimeric_transcripts.txt")
+            outfiles.append(f"{outdir}/fusion/{sample_id}/{sample_id}_passed_fusions.tsv")
         else:
             logger.error(f"Unknown layout type for sample {sample_id}: {sample_info.layout}")
     # outfiles.append(f"{outdir}/TEtranscripts/TEcount/all_TEcount.tsv")
-    outfiles.append(f"{outdir}/fusion/arriba/../arriba_report/arriba_fusion_report.html")
-    outfiles.append(f"{outdir}/stringtie/stringtie_merged.gtf")
-    outfiles.append(f"{outdir}/stringtie/result/TE_chimeric/TE_chimeric_group_stacked.png")
-    outfiles.append(f"{outdir}/stringtie/result/TE_chimeric/TE_chimeric_te_type_top.png")
-    outfiles.append(f"{outdir}/stringtie/result/TE_chimeric/TE_chimeric_te_type_by_group.png")
-    outfiles.append(f"{outdir}/stringtie/result/TE_chimeric/TE_chimeric_sample_summary.tsv")
-    outfiles.append(f"{outdir}/stringtie/result/TE_chimeric/TE_chimeric_group_summary.tsv")
-    outfiles.append(f"{outdir}/stringtie/result/TE_chimeric/TE_chimeric_te_type_counts.tsv")
+    outfiles.append(f"{outdir}/fusion/arriba_fusion_report.html")
+    outfiles.append(f"{outdir}/transcripts/stringtie_merged.gtf")
+    outfiles.append(f"{outdir}/transcripts/TE_chimeric/TE_chimeric_group_stacked.png")
+    outfiles.append(f"{outdir}/transcripts/TE_chimeric/TE_chimeric_te_type_top.png")
+    outfiles.append(f"{outdir}/transcripts/TE_chimeric/TE_chimeric_te_type_by_group.png")
+    outfiles.append(f"{outdir}/transcripts/TE_chimeric/TE_chimeric_sample_summary.tsv")
+    outfiles.append(f"{outdir}/transcripts/TE_chimeric/TE_chimeric_group_summary.tsv")
+    outfiles.append(f"{outdir}/transcripts/TE_chimeric/TE_chimeric_te_type_counts.tsv")
+    outfiles.append(f"{outdir}/diff_expression")
     sample_groups = {}
     for sample_id in samples_info_dict:
         group_key = sample_id.split('-', 1)[0]

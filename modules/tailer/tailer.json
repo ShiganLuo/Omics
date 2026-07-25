@@ -1,0 +1,21 @@
+{
+  "ROOT_DIR": "/home/luosg/Data/genomeStability/workflow/Omics",
+  "indir": "input",
+  "outdir": "output",
+  "logdir": "log",
+  "paired_samples": [],
+  "single_samples": [],
+  "Procedure": {
+    "Tailer": "Tailer"
+  },
+  "Params": {
+    "tailer": {
+      "read": 2,
+      "threshold": 100,
+      "rev_comp": false
+    }
+  },
+  "genome": {
+    "gtf": null
+  }
+}

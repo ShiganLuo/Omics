@@ -46,8 +46,8 @@ rule extract_smallrna:
         fasta = config.get("genome", {}).get("fasta"),
         chrom_sizes = outdir + "/genome/chrom.sizes"
     output:
-        bed = outdir + "/genome/smallrna/smallrna_genes.bed",
-        fasta = outdir + "/genome/smallrna/smallrna_genes_flank.fa",
+        bed = outdir + "/smallrna_genes.bed",
+        fasta = outdir + "/smallrna_genes_flank.fa",
     log:
         logdir + "/genome/extract_smallrna.log"
     threads: 1

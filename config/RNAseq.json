@@ -34,7 +34,7 @@
     "Params": {
         "workflow": {
             "aligner_TEtranscripts": "star",
-            "trimmer": "cutadapt"
+            "trimmer": "trim_galore"
         },
         "trim_galore": {
             "quality": 25

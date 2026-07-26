@@ -1,7 +1,9 @@
 name: TEtranscripts
 channels:
-  - bioconda
   - conda-forge
+  - bioconda
+  - r
+  - nodefaults
 dependencies:
   - tetranscripts=2.2.3
   - pip

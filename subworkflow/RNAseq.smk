@@ -13,11 +13,13 @@ outfiles = config.get("outfiles", [])
 rule all:
     input:
         outfiles
+trimmed_fastq_dir = f"{outdir}/common/2_trimmed_fastq"
 if trimmer == "cutadapt":
+    trimmed_fastq_dir = f"{outdir}/common/2_trimmed_fastq"
     cutadapt_config = {
             "ROOT_DIR": ROOT_DIR,
             "indir": indir,
-            "outdir":  f"{outdir}/common/2_trimmed_fastq",
+            "outdir":  trimmed_fastq_dir,
             "logdir": logdir,
             "Procedure": {
                 "trim_galore": config.get('Procedure',{}).get('trim_galore')
@@ -27,13 +29,14 @@ if trimmer == "cutadapt":
         snakefile: "../modules/cutadapt/cutadapt.smk"
         config: cutadapt_config
     logger.info(f"cutadapt_config: {cutadapt_config}")
-    use rule trimming_Paired from cutadapt as RNAseq_trimming_Paireds
-    use rule trimming_Single from cutadapt as RNAseq_trimming_Single
+    use rule trimming_Paired from cutadapt as RNAseq_cutadapt_Paired
+    use rule trimming_Single from cutadapt as RNAseq_cutadapt_Single
 elif trimmer == "trimmomatic":
+    trimmed_fastq_dir = f"{outdir}/common/2_trimmed_fastq"
     trimmomatic_config = {
             "ROOT_DIR": ROOT_DIR,
             "indir": indir,
-            "outdir":  f"{outdir}/common/2_trimmed_fastq",
+            "outdir":  trimmed_fastq_dir,
             "logdir": logdir,
             "Procedure": {
                 "trimmomatic": config.get('Procedure',{}).get('trimmomatic')
@@ -49,14 +52,30 @@ elif trimmer == "trimmomatic":
         snakefile: "../modules/trimmomatic/trimmomatic.smk"
         config: trimmomatic_config
     logger.info(f"trimmomatic_config: {trimmomatic_config}")
-    use rule trimmomatic_Paired from trimmomatic as RNAseq_trimmomatic_Paireds
-    use rule trimmomatic_Single from trimmomatic as RNAseq_trimmomatic_Singles
+    use rule trimmomatic_Paired from trimmomatic as RNAseq_trimmomatic_Paired
+    use rule trimmomatic_Single from trimmomatic as RNAseq_trimmomatic_Single
 else:
-    raise ValueError(f"Unsupported trimmer: {trimmer}")
+    trimmed_fastq_dir = f"{outdir}/common/2_trimmed_fastq"
+    logger.info("use default trimmer: trim_galore")
+    trim_galore_config = {
+            "ROOT_DIR": ROOT_DIR,
+            "indir": indir,
+            "outdir":  trimmed_fastq_dir,
+            "logdir": logdir,
+            "Procedure": {
+                "trim_galore": config.get('Procedure',{}).get('trim_galore')
+            }
+        }
+    module trim_galore:
+        snakefile: "../modules/trim-galore/trim-galore.smk"
+        config: trim_galore_config
+    logger.info(f"trim_galore_config: {trim_galore_config}")
+    use rule trimming_Paired from trim_galore as RNAseq_trim_galore_Paired
+    use rule trimming_Single from trim_galore as RNAseq_trim_galore_Single
 
 if aligner_TEtranscripts == 'hisat2':
     hisat2_config_for_TEtranscripts = {
-            "indir": cutadapt_config["outdir"] if trimmer == "cutadapt" else trimmomatic_config["outdir"],
+            "indir": trimmed_fastq_dir,
             "outdir":  f"{outdir}/common/3_raw_bam",
             "logdir": logdir,
             "paired_samples": paired_samples,
@@ -84,7 +103,7 @@ if aligner_TEtranscripts == 'hisat2':
     use rule hisat2_index from hisat2_for_TEtranscripts as RNAseq_hisat2_index_for_TEtranscripts
 elif aligner_TEtranscripts == 'star':
     star_config_for_TEtranscripts = {
-            "indir": cutadapt_config["outdir"] if trimmer == "cutadapt" else trimmomatic_config["outdir"],
+            "indir": trimmed_fastq_dir,
             "outdir":  f"{outdir}/common/3_raw_bam",
             "logdir": logdir,
             "paired_samples": paired_samples,
@@ -162,7 +181,7 @@ use rule DESeq2_TEcount from DESeq2 as RNAseq_DESeq2_TEcount
 
 
 hisat2_config_for_StringTie = {
-    "indir": cutadapt_config["outdir"] if trimmer == "cutadapt" else trimmomatic_config["outdir"],
+    "indir": trimmed_fastq_dir,
     "outdir":  f"{outdir}/common/4_stringtie_bam",
     "logdir": logdir,
     "paired_samples": paired_samples,
@@ -211,7 +230,7 @@ logger.info(f"StringTie_config: {StringTie_config}")
 
 
 rmrRNA_config = {
-    "indir": cutadapt_config["outdir"] if trimmer == "cutadapt" else trimmomatic_config["outdir"],
+    "indir": trimmed_fastq_dir,
     "outdir":  f"{outdir}/genome",
     "logdir": logdir,
     "paired_samples": paired_samples,
@@ -236,7 +255,7 @@ use rule * from RmrRNA as RNAseq_rRNA_*
 logger.info(f"rmrRNA_config: {rmrRNA_config}")
 bowtie2_rRNA_config = {
     "ROOT_DIR": ROOT_DIR,
-    "indir": cutadapt_config["outdir"] if trimmer == "cutadapt" else trimmomatic_config["outdir"],
+    "indir": trimmed_fastq_dir,
     "outdir":  f"{outdir}/5_rRNA_fastq",
     "logdir": logdir,
     "paired_samples": paired_samples,
@@ -262,7 +281,7 @@ use rule * from bowtie2_for_rRNA as RNAseq_rRNA_*
 
 star_config_for_fusion = {
     "indir": bowtie2_rRNA_config["outdir"],
-    "outdir":  f"{outdir}/6_fusion_bam",
+    "outdir":  f"{outdir}/common/6_fusion_bam",
     "logdir": logdir,
     "paired_samples": paired_samples,
     "single_samples": single_samples,

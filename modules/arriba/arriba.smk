@@ -8,7 +8,7 @@ ROOT_DIR = config.get("ROOT_DIR", ".")
 samples = config.get("samples",[])
 bam_substring = config.get("bam_substring") or ""
 def get_input_for_arriba(wildcards):
-    logger.info("called rule arriba by {wildcards}")
+    logger.info(f"called rule arriba by {wildcards}")
     in_dict = {}
     if bam_substring != "" :
         in_dict["bam"] = indir + f"/{wildcards.sample_id}/{wildcards.sample_id}.{bam_substring}.bam"

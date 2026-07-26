@@ -27,7 +27,7 @@ rule stringTie:
             logger = setup_logger(logger_name="stringTie_run", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start stringTie run for sample {wildcards.sample_id} at {current_time}")
-            script = os.path.join(outdir, f"/raw/{wildcards.sample_id}/stringTie_{current_time}.sh")
+            script = f"{outdir}/raw/{wildcards.sample_id}/stringTie_{current_time}.sh"
             cmd = [params.stringtie, "-o", output.gtf, input.bam, "-G", params.gtf, "-p", str(threads)]
             with open(script, 'w') as f:
                 f.write(' '.join(cmd) + '\n')

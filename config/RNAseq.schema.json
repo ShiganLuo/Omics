@@ -285,6 +285,66 @@
         "type": "float",
         "required": true
       }
+    },
+    "DESeq2": {
+      "group_pairs":{
+        "type": "array",
+        "required": true,
+        "items": {
+          "type": "object",
+          "properties": {
+            "control_group_name": {
+              "type": "str",
+              "required": true
+            },
+            "treatment_group_name": {
+              "type": "str",
+              "required": true
+            },
+            "control_samples": {
+              "type": "array",
+              "required": true,
+              "items": {
+                "type": "str"
+              }
+            },
+            "treatment_samples": {
+              "type": "array",
+              "required": true,
+              "items": {
+                "type": "str"
+              }
+            }
+          },
+          "required": ["control_group_name", "treatment_group_name", "control_samples", "treatment_samples"]
+        }
+      }
+    },
+    "report": {
+      "title": {
+        "type": "str",
+        "required": true
+      },
+      "subtitle": {
+        "type": "str",
+        "required": true
+      },
+      "pipeline": {
+        "type": "str",
+        "required": true
+      },
+      "genome": {
+        "type": "str",
+        "required": true
+      },
+      "date": {
+        "type": "str",
+        "required": true
+      },
+      "lang": {
+        "type": "str",
+        "required": true
+      }
     }
   }
 }

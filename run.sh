@@ -6,7 +6,9 @@ python ${SCRIPT_DIR}/run.py \
     -o /home/luosg/Data/genomeStability/output \
     -t 48 \
     --log /home/luosg/Data/genomeStability/log/Rn7sk_RNAseq.log \
-    --conda-prefix /home/luosg/Database/env
+    --conda-prefix /home/luosg/Database/env \
+    --rerun-triggers mtime \
+    --dry-run
 # python ${SCRIPT_DIR}/run.py \
 #     -m /home/luosg/Data/genomeStability/data/Srp54/meta_input.tsv \
 #     -w ncRNAseq \

@@ -6,12 +6,11 @@ import re
 from src.common.MetaUtil import MetadataUtils
 from src.common.LogUtil import setup_logger
 from src.common.CmdUtil import _run_cmd, _run_cmds_parallel
-from src.common.type import DesignPair
+from src.common.type import DesignPair, CompareGroupPair
 from src.common.SchemaValidator import SchemaValidator
 import logging
 from typing import Dict, Any, Optional, List
-logger = logging.getLogger(__name__)
-
+logger = setup_logger(__name__, level=logging.DEBUG)
 
 def smart_cast(val):
     """尝试将字符串转换为 int/float/bool，否则原样返回；list 逐元素转换"""
@@ -174,6 +173,7 @@ def runMERIP(
 def runRNAseq(
     datajson: Dict[str, Any],
     samples_info_dict:Dict[str, Any],
+    group_pairs: List[CompareGroupPair],
     indir:str,
     outdir: str,
 ):
@@ -186,6 +186,15 @@ def runRNAseq(
     outfiles = []
     paired_samples = []
     single_samples = []
+    for group_pair in group_pairs:
+        datajson["Params"]["DESeq2"]["group_pairs"].append({
+            "control_group_name": group_pair.ctr_group_name,
+            "experimental_group_name": group_pair.exp_group_name,
+            "control_samples": group_pair.ctr_sample_ids,
+            "experimental_samples": group_pair.exp_sample_ids
+        })
+        outfiles.append(f"{outdir}/diff_expression/{group_pair.ctr_group_name}_vs_{group_pair.exp_group_name}/DESeq2.done")
+
     for sample_id, sample_info in samples_info_dict.items():
         if sample_info.layout == "PE":
             paired_samples.append(sample_id)
@@ -206,7 +215,7 @@ def runRNAseq(
     outfiles.append(f"{outdir}/transcripts/TE_chimeric/TE_chimeric_sample_summary.tsv")
     outfiles.append(f"{outdir}/transcripts/TE_chimeric/TE_chimeric_group_summary.tsv")
     outfiles.append(f"{outdir}/transcripts/TE_chimeric/TE_chimeric_te_type_counts.tsv")
-    outfiles.append(f"{outdir}/diff_expression")
+    outfiles.append(f"{outdir}/RNAseq_report.pptx")
     sample_groups = {}
     for sample_id in samples_info_dict:
         group_key = sample_id.split('-', 1)[0]
@@ -817,17 +826,17 @@ def build_snakemake_cmd(root_dir, smk, input_json, threads, conda_prefix, rerun_
 
 
 WORKFLOW_DISPATCH = {
-    "CoCulture":  lambda cfg, sid, dp, indir, outdir, meta: ("CoCulture.smk", runCoCulture(cfg, sid, indir, outdir)),
-    "MERIP":      lambda cfg, sid, dp, indir, outdir, meta: ("MERIP.smk",     runMERIP(cfg, sid, indir, outdir)),
-    "RNAseq":     lambda cfg, sid, dp, indir, outdir, meta: ("RNAseq.smk",    runRNAseq(cfg, sid, indir, outdir)),
-    "ncRNAseq":   lambda cfg, sid, dp, indir, outdir, meta: ("ncRNAseq.smk",  runncRNAseq(cfg, sid, indir, outdir)),
-    "CLIP":       lambda cfg, sid, dp, indir, outdir, meta: ("CLIP.smk",      runCLIP(cfg, sid, indir, outdir)),
-    "Mutation":   lambda cfg, sid, dp, indir, outdir, meta: ("Mutation.smk",  runMutation(cfg, sid, dp, indir, outdir)),
-    "PacVar":     lambda cfg, sid, dp, indir, outdir, meta: ("PacVar.smk",    runPacVar(cfg, sid, indir, outdir)),
-    "KARRseq":    lambda cfg, sid, dp, indir, outdir, meta: ("KARRseq.smk",   runKARRseq(cfg, sid, indir, outdir)),
-    "PeakCalling":lambda cfg, sid, dp, indir, outdir, meta: ("PeakCalling.smk",runPeakCalling(cfg, sid,dp, indir, outdir)),
-    "QuantMS":    lambda cfg, sid, dp, indir, outdir, meta: ("QuantMS.smk",   runQuantMS(cfg, sid, indir, outdir)),
-    "tRNAseq":    lambda cfg, sid, dp, indir, outdir, meta: ("tRNAseq.smk",   runtRNAseq(cfg, sid, indir, outdir, meta)),
+    "CoCulture":  lambda cfg, sid, sp, gp, indir, outdir, meta: ("CoCulture.smk", runCoCulture(cfg, sid, indir, outdir)),
+    "MERIP":      lambda cfg, sid, sp, gp, indir, outdir, meta: ("MERIP.smk",     runMERIP(cfg, sid, indir, outdir)),
+    "RNAseq":     lambda cfg, sid, sp, gp, indir, outdir, meta: ("RNAseq.smk",    runRNAseq(cfg, sid, gp, indir, outdir)),
+    "ncRNAseq":   lambda cfg, sid, sp, gp, indir, outdir, meta: ("ncRNAseq.smk",  runncRNAseq(cfg, sid, indir, outdir)),
+    "CLIP":       lambda cfg, sid, sp, gp, indir, outdir, meta: ("CLIP.smk",      runCLIP(cfg, sid, indir, outdir)),
+    "Mutation":   lambda cfg, sid, sp, gp, indir, outdir, meta: ("Mutation.smk",  runMutation(cfg, sid, sp, indir, outdir)),
+    "PacVar":     lambda cfg, sid, sp, gp, indir, outdir, meta: ("PacVar.smk",    runPacVar(cfg, sid, indir, outdir)),
+    "KARRseq":    lambda cfg, sid, sp, gp, indir, outdir, meta: ("KARRseq.smk",   runKARRseq(cfg, sid, indir, outdir)),
+    "PeakCalling":lambda cfg, sid, sp, gp, indir, outdir, meta: ("PeakCalling.smk",runPeakCalling(cfg, sid,sp, indir, outdir)),
+    "QuantMS":    lambda cfg, sid, sp, gp, indir, outdir, meta: ("QuantMS.smk",   runQuantMS(cfg, sid, indir, outdir)),
+    "tRNAseq":    lambda cfg, sid, sp, gp, indir, outdir, meta: ("tRNAseq.smk",   runtRNAseq(cfg, sid, indir, outdir, meta)),
 }
 
 
@@ -946,7 +955,7 @@ def execute_workflows(args, root_dir: str, logger):
         metadataUtil = MetadataUtils(outdir=abs_ref_outdir, meta=first_meta)
     else:
         metadataUtil = MetadataUtils(outdir=abs_ref_outdir, fastq_dir=first_meta)
-    samples_info_dict, designPair, raw_fastq_dir = metadataUtil.run()
+    samples_info_dict, sample_pairs, group_pairs, raw_fastq_dir = metadataUtil.run()
 
     # Thread allocation: user-specified total threads split across workflows
     threads_per_workflow = max(1, args.threads // n_workflows)
@@ -969,7 +978,7 @@ def execute_workflows(args, root_dir: str, logger):
                     metadataUtil = MetadataUtils(outdir=abs_outdir, meta=wf_meta)
                 else:
                     metadataUtil = MetadataUtils(outdir=abs_outdir, fastq_dir=wf_meta)
-                samples_info_dict, designPair, raw_fastq_dir = metadataUtil.run()
+                samples_info_dict, sample_pairs, group_pairs, raw_fastq_dir = metadataUtil.run()
 
             model_json = os.path.join(root_dir, f"config/{wf_name}.json")
             workflow_config = _load_model_json(model_json)
@@ -1028,7 +1037,7 @@ def execute_workflows(args, root_dir: str, logger):
                 raise ValueError(f"Unknown workflow name: {wf_name}")
 
             smk, input_json = WORKFLOW_DISPATCH[wf_name](
-                deepcopy(workflow_config), samples_info_dict, designPair,
+                deepcopy(workflow_config), samples_info_dict, sample_pairs, group_pairs,
                 raw_fastq_dir, abs_outdir, _get_meta(wf_name)
             )
 
@@ -1078,5 +1087,5 @@ if __name__ == "__main__":
     else:
         setup_normal_args(args)
 
-    logger = setup_logger("root", level=logging.INFO, log_file=args.log)
+    logger = setup_logger("root", level=logging.DEBUG, log_file=args.log)
     execute_workflows(args, ROOT_DIR, logger)

@@ -1,0 +1,19 @@
+{
+    "ROOT_DIR": null,
+    "outdir": null,
+    "logdir": null,
+    "samples": [],
+    "paired_samples": [],
+    "single_samples": [],
+    "contrasts": [],
+    "Params": {
+        "report": {
+            "title": "RNA-seq Analysis Report",
+            "subtitle": "",
+            "pipeline": "FASTQ -> TrimGalore/Cutadapt -> STAR/HISAT2 -> TEcount/StringTie/Arriba -> DESeq2 -> RNAseq_report",
+            "genome": "",
+            "date": "",
+            "lang": "zh"
+        }
+    }
+}

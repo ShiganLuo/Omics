@@ -9,11 +9,13 @@ from typing import List, Tuple, Dict, Optional, Union
 import argparse
 import math
 try:
-    from type import FastqMode, Layout,MERIPDesign, SampleInfo, DesignPair
+    from type import FastqMode, Layout,MERIPDesign, SampleInfo, DesignPair, CompareGroupPair
+    from LogUtil import setup_logger
 except Exception:
-    from .type import FastqMode, Layout,MERIPDesign, SampleInfo, DesignPair
+    from .type import FastqMode, Layout,MERIPDesign, SampleInfo, DesignPair, CompareGroupPair
+    from .LogUtil import setup_logger
 
-logger = logging.getLogger(__name__)
+logger = setup_logger(__name__, level=logging.DEBUG)
 
 DESIGN_PATTERN = re.compile(r"^(ctr|ctrl|exp)_(.+)$")
 class MetadataUtils:
@@ -88,7 +90,7 @@ class MetadataUtils:
 
     def build_design_pairs(
             self
-        ) -> List[DesignPair]:
+        ) -> Tuple[List[DesignPair], List[CompareGroupPair]]:
         """
         Determine ctr/exp pairs based on the design stored in self.samples_dict.
 
@@ -109,9 +111,9 @@ class MetadataUtils:
         If multiple control samples share the same tag, only the first is used
         (a warning is logged).
 
-        return a list of DesignPair objects
+        return a list of DesignPair objects and a list of CompareGroupPair objects
         """
-        groups: Dict[str, Dict[str, List[SampleInfo]]] = defaultdict(lambda: defaultdict(list))
+        group_dict: Dict[str, Dict[str, List[SampleInfo]]] = defaultdict(lambda: defaultdict(list))
         design_col = self.design_col
         for sample_id, info in self.samples_dict.items():
             design_val = getattr(info, design_col, "")
@@ -129,33 +131,33 @@ class MetadataUtils:
             if not m:
                 logger.warning(f"Invalid design format for {sample_id}: {design_val}")
                 continue
-            role, tag = m.groups()
+            role, contrast = m.groups()
             # normalise role: "ctrl" -> "ctr" for uniform key
             role = "ctr" if role in ("ctr", "ctrl") else "exp"
-            groups[tag][role].append(info)
+            group_dict[contrast][role].append(info)
 
         # Pre-compute token sets for each tag
-        ctr_tags = {tag: set(tag.split("_")) for tag, g in groups.items() if "ctr" in g}
-        exp_tags = {tag: set(tag.split("_")) for tag, g in groups.items() if "exp" in g}
-
-        pairs = []
+        ctr_contrast_tokens = {contrast: set(contrast.split("_")) for contrast, role in group_dict.items() if "ctr" in role}
+        exp_contrast_tokens = {contrast: set(contrast.split("_")) for contrast, role in group_dict.items() if "exp" in role}
+        logger.debug("group_dict: %s", group_dict)
+        sample_pairs = []
         seen = set()  # deduplicate (ctr_sample_id, exp_sample_id)
-        for exp_tag, exp_token_set in exp_tags.items():
+        for exp_contrast, exp_token_set in exp_contrast_tokens.items():
             best_ctr_sample = None
-            for ctr_tag, ctr_token_set in ctr_tags.items():
+            for ctr_contrast, ctr_token_set in ctr_contrast_tokens.items():
                 if exp_token_set & ctr_token_set:  # non-empty intersection
-                    ctr_samples = groups[ctr_tag]["ctr"]
+                    ctr_samples = group_dict[ctr_contrast]["ctr"]
                     if len(ctr_samples) > 1:
                         logger.warning(
-                            f"Multiple ctr samples for tag '{ctr_tag}': "
+                            f"Multiple ctr samples for tag '{ctr_contrast}': "
                             f"{[s.sample_id for s in ctr_samples]}. Only using the first one."
                         )
                     best_ctr_sample = ctr_samples[0]
                     break  # take the first matching control
             if best_ctr_sample is None:
-                logger.warning(f"No matching control found for exp tag '{exp_tag}'")
+                logger.warning(f"No matching control found for exp group '{exp_contrast}'")
                 continue
-            for exp_sample_info in groups[exp_tag]["exp"]:
+            for exp_sample_info in group_dict[exp_contrast]["exp"]:
                 pair_key = (best_ctr_sample.sample_id, exp_sample_info.sample_id)
                 if pair_key in seen:
                     continue
@@ -166,8 +168,28 @@ class MetadataUtils:
                     exp_sample_id=exp_sample_info.sample_id,
                     exp_group=exp_sample_info.group
                 )
-                pairs.append(designPair)
-        return pairs
+                sample_pairs.append(designPair)
+        group_pairs = []
+        for contrast, group_samples in group_dict.items():
+            logger.debug(f"Processing contrast: {contrast}, samples: {group_samples}")
+            ctr_samples = group_samples.get("ctr", [])
+            exp_samples = group_samples.get("exp", [])
+            if not ctr_samples or not exp_samples:
+                logger.warning(f"contrast '{contrast}' does not have both ctr and exp samples, skipping.")
+                continue
+            ctr_group_name = ctr_samples[0].group if ctr_samples[0].group else f"{contrast}_ctr"
+            exp_group_name = exp_samples[0].group if exp_samples[0].group else f"{contrast}_exp"
+            compare_group_pair = CompareGroupPair(
+                ctr_group_name=ctr_group_name,
+                exp_group_name=exp_group_name,
+                ctr_sample_ids=[s.sample_id for s in ctr_samples],
+                exp_sample_ids=[s.sample_id for s in exp_samples]
+            )
+            group_pairs.append(compare_group_pair)
+
+        logger.debug("group_pairs: %s", group_pairs)
+        logger.debug("sample_pairs: %s", sample_pairs)
+        return sample_pairs, group_pairs
 
 
     def prepare_fastq_meta(
@@ -430,13 +452,13 @@ class MetadataUtils:
                 self.prepare_fastq_meta(df = df, data_id_col = self.data_id_col)
             if self.design_col not in df.columns or df[self.design_col].isnull().all():
                 logger.info(f"meta {self.design_col} is all none, skip build_design_pairs")
-                pairs = []
+                sample_pairs, group_pairs = [], []
             else:
-                pairs = self.build_design_pairs()
-            return self.samples_dict, pairs, str(self.raw_fq_dir)
+                sample_pairs, group_pairs = self.build_design_pairs()
+            return self.samples_dict, sample_pairs, group_pairs, str(self.raw_fq_dir)
         elif self.fastq_dir:
             self.prepare_fastq_dir(self.fastq_dir)
-            return self.samples_dict, [], str(self.raw_fq_dir)
+            return self.samples_dict, [], [], str(self.raw_fq_dir)
         else:
             raise ValueError("Either meta or fastq_dir must be provided.")
 

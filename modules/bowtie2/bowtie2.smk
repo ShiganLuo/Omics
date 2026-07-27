@@ -31,6 +31,7 @@ rule bowtie2_index:
     run:
         log_path = str(log)
         try:
+            log_path = str(log)
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
             script = f"{outdir}/index/bowtie2_index.{current_time}.sh"
             cmd = [params.bowtie2_build, 
@@ -45,8 +46,8 @@ rule bowtie2_index:
         except Exception as e:
             with open(log_path,"a") as f:
                 f.write(f"Error occurred during bowtie2 index, error: {e}\n")
-            logger.error(f.write(f"Error occurred during bowtie2 index, error: {e}\n"))
-        raise e
+            logger.error(f"Error occurred during bowtie2 index, error: {e}\n")
+            raise f"Error occurred during bowtie2 index, error: {e}\n"
 
 
 def get_alignment_input(wildcards):
@@ -118,10 +119,11 @@ rule bowtie2_align_paired:
     run:
         log_path = str(log)
         try:
+            open(log_path, 'w').close()
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
             sample_outdir = os.path.dirname(str(output.bam))
             script = os.path
-            script = f"{outdir}/{wildcards.sample_id}/bowtie2_align.{current_time}.sh"
+            script = f"{sample_outdir}/bowtie2_align.{current_time}.sh"
             cmd1 = [params.bowtie2, 
                     "-x", params.index_prefix, 
                     "-1", input.fastq1, 
@@ -141,12 +143,12 @@ rule bowtie2_align_paired:
                 f.write(" ".join(cmd2) + "\n")
                 f.write(" ".join(cmd3) + "\n")
                 f.write(success_echo + "\n")
-            shell("bash {script} > {log} 2>&1")
+            shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path, "a") as f:
-                f.write(f"error occurred in bowtie2_align_paired for sample {wildcards.sample_id}, error: {e}")
-            logger.error(f"error occurred in bowtie2_align_paired for sample {wildcards.sample_id}, error: {e}")
-            raise e
+                f.write(f"error occurred in bowtie2_align_paired for sample {wildcards.sample_id}, error: {e}\n")
+            logger.error(f"error occurred in bowtie2_align_paired for sample {wildcards.sample_id}, error: {e}\n")
+            raise f"error occurred in bowtie2_align_paired for sample {wildcards.sample_id}, error: {e}\n"
 
 rule bowtie2_align_single:
     input:
@@ -169,6 +171,7 @@ rule bowtie2_align_single:
     run:
         log_path = str(log)
         try:
+            open(log_path, 'w').close()
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
             script = f"{outdir}/{wildcards.sample_id}/bowtie2_align.{current_time}.sh"
             cmd1 = [params.bowtie2, 
@@ -187,9 +190,9 @@ rule bowtie2_align_single:
                 f.write(" ".join(cmd1) + "\n")
                 f.write(" ".join(cmd2) + "\n")
                 f.write(success_echo + "\n")
-            shell("bash {script} > {log} 2>&1")
+            shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path, "a") as f:
-                f.write(f"error occured in rule bowtie2_align_single for sample {wildcards.sample_id}, error: {e}")
-            logger.error(f"error occured in rule bowtie2_align_single for sample {wildcards.sample_id}, error: {e}")
-            raise e
+                f.write(f"error occured in rule bowtie2_align_single for sample {wildcards.sample_id}, error: {e}\n")
+            logger.error(f"error occured in rule bowtie2_align_single for sample {wildcards.sample_id}, error: {e}\n")
+            raise f"error occured in rule bowtie2_align_single for sample {wildcards.sample_id}, error: {e}\n"

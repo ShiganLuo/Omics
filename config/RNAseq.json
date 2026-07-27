@@ -79,6 +79,17 @@
             "t": null,
             "d": null,
             "E": 0.3
+        },
+        "DESeq2": {
+            "group_pairs": []
+        },
+        "report": {
+            "title": "RNA-seq Analysis Report",
+            "subtitle": "",
+            "pipeline": "FASTQ -> TrimGalore/Cutadapt -> STAR/HISAT2 -> TEcount/StringTie/Arriba -> DESeq2 -> RNAseq_report",
+            "genome": "GRCm39",
+            "date": "2026-07-27",
+            "lang": "zh"
         }
     }
 }

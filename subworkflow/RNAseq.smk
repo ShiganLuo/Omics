@@ -157,27 +157,29 @@ module TEtranscripts:
 logger.info(f"TEtranscripts_config: {TEtranscripts_config}")
 use rule * from TEtranscripts as RNAseq_*
 
-DESeq2_config = {
-        "indir": TEtranscripts_config["outdir"],
-        "outdir":  f"{outdir}/diff_expression",
-        "logdir": logdir,
-        "ROOT_DIR": ROOT_DIR,
-        "control_samples": config.get("control_samples", []),
-        "control_group_name": config.get("control_group_name", "control"),
-        "treatment_samples": config.get("treatment_samples", []),
-        "experimental_group_name": config.get("experimental_group_name", "treatment"),
-        "genome": {
-            "geneIDAnno": config.get('genome',{}).get('geneIDAnno')
-        },
-        "Procedure": {
-            "DESeq2": config.get('Procedure',{}).get('DESeq2') or 'DESeq2'
+for group_pair in config.get("Params", {}).get("DESeq2", {}).get("group_pairs") or []:
+    logger.info(f"Processing DESeq2 group pair: {group_pair}")
+    DESeq2_config = {
+            "indir": TEtranscripts_config["outdir"],
+            "outdir":  f"{outdir}/diff_expression/{group_pair['control_group_name']}_vs_{group_pair['experimental_group_name']}",
+            "logdir": logdir,
+            "ROOT_DIR": ROOT_DIR,
+            "control_samples": group_pair["control_samples"],
+            "control_group_name": group_pair["control_group_name"],
+            "experimental_samples": group_pair["experimental_samples"],
+            "experimental_group_name": group_pair["experimental_group_name"],
+            "genome": {
+                "geneIDAnno": config.get('genome',{}).get('geneIDAnno')
+            },
+            "Procedure": {
+                "DESeq2": config.get('Procedure',{}).get('DESeq2') or 'DESeq2'
+            }
         }
-    }
-module DESeq2:
-    snakefile: "../modules/DESeq2/DESeq2.smk"
-    config: DESeq2_config
-logger.info(f"DESeq2_config: {DESeq2_config}")
-use rule DESeq2_TEcount from DESeq2 as RNAseq_DESeq2_TEcount
+    module DESeq2:
+        snakefile: "../modules/DESeq2/DESeq2.smk"
+        config: DESeq2_config
+    logger.info(f"DESeq2_config: {DESeq2_config}")
+    use rule DESeq2_TEcount from DESeq2 as RNAseq_DESeq2_TEcount
 
 
 hisat2_config_for_StringTie = {
@@ -256,7 +258,7 @@ logger.info(f"rmrRNA_config: {rmrRNA_config}")
 bowtie2_rRNA_config = {
     "ROOT_DIR": ROOT_DIR,
     "indir": trimmed_fastq_dir,
-    "outdir":  f"{outdir}/5_rRNA_fastq",
+    "outdir":  f"{outdir}/common/5_rRNA_fastq",
     "logdir": logdir,
     "paired_samples": paired_samples,
     "single_samples": single_samples,
@@ -320,7 +322,7 @@ logger.info(f"star_config_for_fusion: {star_config_for_fusion}")
 gatk_prepare_config = {
     "ROOT_DIR": ROOT_DIR,
     "indir": star_config_for_fusion["outdir"],
-    "outdir":  f"{outdir}/7_markdup_bam",
+    "outdir":  f"{outdir}/common/7_markdup_bam",
     "logdir": logdir,
     "paired_samples": paired_samples,
     "single_samples": single_samples,
@@ -370,3 +372,24 @@ module arriba:
     config: arriba_config
 use rule * from arriba as RNAseq_fusion_*
 logger.info(f"arriba_config: {arriba_config}")
+
+RNAseq_report_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "outdir": outdir,
+    "logdir": logdir,
+    "samples": paired_samples + single_samples,
+    "paired_samples": paired_samples,
+    "single_samples": single_samples,
+    "contrasts": [
+        f"{pair['control_group_name']}_vs_{pair['experimental_group_name']}"
+        for pair in config.get("Params", {}).get("DESeq2", {}).get("group_pairs", [])
+    ],
+    "Params": {
+        "report": config.get("Params", {}).get("report", {})
+    }
+}
+module RNAseq_report:
+    snakefile: "../modules/RNAseq_report/RNAseq_report.smk"
+    config: RNAseq_report_config
+logger.info(f"RNAseq_report_config: {RNAseq_report_config}")
+use rule generate_report from RNAseq_report as RNAseq_generate_report

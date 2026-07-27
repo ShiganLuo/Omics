@@ -84,7 +84,7 @@ rule arriba_report:
             "python", params.summary_script,
             "-p", ",".join(input.passed_fusions),
             "-d", ",".join(input.discarded_fusions),
-            "-o", outdir + "/../arriba_report"
+            "-o", outdir + "/arriba_report"
         ]
         with open(script, "w") as f:
             f.write("#!/bin/bash\n")

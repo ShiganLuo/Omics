@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum, unique
-from typing import Optional
+from typing import Optional, List
 from pathlib import Path
 @unique
 class FastqMode(str, Enum):
@@ -38,3 +38,10 @@ class DesignPair:
     ctr_sample_id: str
     exp_sample_id: str
     exp_group: Optional[str] = None
+
+@dataclass
+class CompareGroupPair:
+    ctr_group_name: str
+    exp_group_name: str
+    ctr_sample_ids: List[str]
+    exp_sample_ids: List[str]

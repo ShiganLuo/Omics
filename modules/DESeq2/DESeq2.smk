@@ -4,29 +4,28 @@ indir = config.get("indir", "data")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "logs")
 ROOT_DIR = config.get("ROOT_DIR", ".")
-control_samples = config.get("control_samples", [])
-control_group_name = config.get("control_group_name", "control")
-experimental_samples = config.get("experimental_samples", [])
-experimental_group_name = config.get("experimental_group_name", "treatment")
+group_pairs = config.get("group_pairs", [])
 geneIDAnno = config.get('genome',{}).get('geneIDAnno')
+gtf = config.get('genome',{}).get('gtf')
+gene_map = config.get('genome',{}).get('gene_map')
 rule DESeq2_TEcount:
     input:
         count_matrix = indir + "/TEcount/all_TEcount.tsv",
     output:
-        deseq2_results = outdir + "/DESeq2.done",
+        deseq2_results = outdir + "/{control_group_name}_vs_{experimental_group_name}/DESeq2.done",
     params:
         DESeq2_script = ROOT_DIR + "/modules/DESeq2/bin/DESeq2.r",
         write_group_script = ROOT_DIR + "/modules/DESeq2/bin/write_group_tsv.py",
-        control_group_name = control_group_name,
-        experimental_group_name = experimental_group_name,
-        control_samples = ','.join(control_samples),
-        experimental_samples = ','.join(experimental_samples),
+        annotation_script = ROOT_DIR + "/modules/DESeq2/bin/gene_id2name.py",
         geneIDAnno = geneIDAnno,
-        outdir = outdir
+        outdir = outdir,
+        gtf = gtf,
+        gene_map = gene_map
+
     conda:
         "DESeq2.yaml"
     log:
-        logdir + "/DESeq2/DESeq2.log"
+        logdir + "/DESeq2/{control_group_name}_vs_{experimental_group_name}.log"
     run:
         log_path = str(log)
         try:
@@ -37,23 +36,50 @@ rule DESeq2_TEcount:
             sample_outdir = os.path.dirname(str(output.deseq2_results))
             os.makedirs(sample_outdir, exist_ok=True)
             script = os.path.join(sample_outdir, f"DESeq2_TEcount_{current_time}.sh")
+            control_group_name = wildcards.control_group_name
+            experimental_group_name = wildcards.experimental_group_name
+            if f"{control_group_name}_vs_{experimental_group_name}" not in group_pairs:
+                raise ValueError(f"Group pair {control_group_name}_vs_{experimental_group_name} not found in group_pairs configuration.")
+            control_samples = group_pairs[f"{control_group_name}_vs_{experimental_group_name}"]["control_samples"]
+            experimental_samples = group_pairs[f"{control_group_name}_vs_{experimental_group_name}"]["experimental_samples"]
+            rule_logger.info(f"Control samples: {control_samples}")
+            rule_logger.info(f"Experimental samples: {experimental_samples}")
+            cmd1 = [
+                "python", params.write_group_script,
+                "-o", f"{sample_outdir}/group.tsv",
+                "-c", ",".join(control_samples),
+                "-t", ",".join(experimental_samples),
+                "-p", control_group_name,
+                "-e", experimental_group_name
+            ]
+            cmd2 = [
+                "Rscript", params.DESeq2_script,
+                "-m", "TEcount",
+                "-i", input.count_matrix,
+                "-g", f"{sample_outdir}/group.tsv",
+                "-p", control_group_name, experimental_group_name,
+                "-f", "heatmap volcano pca",
+                "-o", sample_outdir,
+                "-a", params.geneIDAnno,
+                "-Tcm", "all"
+            ]
+            cmd3 = [
+                "python", params.annotation_script,
+                "-i", 
+                f"{sample_outdir}/TEcount_Gene.tsv",
+                f"{sample_outdir}/TEcount_TE.tsv",
+                f"{sample_outdir}/TEcount_Gene_TE.tsv",
+                "-g", params.gtf,
+                "-m", params.gene_map
+            ]
+
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
-                f.write(f"python {params.write_group_script} \\\n")
-                f.write(f"    -o {params.outdir}/group.tsv \\\n")
-                f.write(f"    -c {params.control_samples} \\\n")
-                f.write(f"    -t {params.experimental_samples} \\\n")
-                f.write(f"    -p {params.control_group_name} \\\n")
-                f.write(f"    -e {params.experimental_group_name} > {log} 2>&1\n")
-                f.write(f"Rscript {params.DESeq2_script} \\\n")
-                f.write(f"    -m TEcount \\\n")
-                f.write(f"    -i {input.count_matrix} \\\n")
-                f.write(f"    -g {params.outdir}/group.tsv \\\n")
-                f.write(f"    -p {params.control_group_name} {params.experimental_group_name} \\\n")
-                f.write(f"    -f heatmap volcano pca \\\n")
-                f.write(f"    -o {params.outdir} \\\n")
-                f.write(f"    -a {params.geneIDAnno} \\\n")
-                f.write(f"    -Tcm all >> {log} 2>&1\n")
+                f.write("set -euo pipefail\n")
+                f.write(" ".join(cmd1) + "\n")
+                f.write(" ".join(cmd2) + "\n")
+                f.write(" ".join(cmd3) + "\n")
+                f.write(f"echo 'DESeq2 TEcount analysis completed successfully'\n")
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path, "a") as f:

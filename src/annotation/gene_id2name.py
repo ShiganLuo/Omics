@@ -1,7 +1,7 @@
 import pandas as pd
 import pickle
 import os
-from typing import Dict
+from typing import Dict, Optional, Union
 import logging
 import sys
 logging.basicConfig(
@@ -109,7 +109,15 @@ def load_gtf_gene_map(gtf_path: str, cache_path="gene_map.pkl") -> dict:
 
 
 def translate_gene_ids(df:pd.DataFrame, gene_map: dict,col:str):
-    """将 Gene.refGene 列从 gene_id 转成 gene_name"""
+    """
+    Function: translate gene IDs in a DataFrame column to gene names using a provided mapping.
+    Parameters:
+    - df: pandas DataFrame containing the gene IDs.
+    - gene_map: dictionary mapping gene IDs to gene names.
+    - col: the name of the column in df that contains the gene IDs.
+    Returns:
+    - A pandas Series with the translated gene names.
+    """
 
     def convert(gene_ids):
         if pd.isna(gene_ids):
@@ -188,10 +196,10 @@ def convert_TEtranscripts_gene_ids(
 
 
 def convert_featurecounts_gene_ids(
-    count: str | pd.DataFrame,
+    count: Union[str,pd.DataFrame],
     gtf_path: str,
     cache_path: str = "gene_map.pkl",
-    save_path: str | None = None
+    save_path: Optional[str] = None
 ) -> pd.DataFrame:
     """
     Convert featureCounts Geneid to gene_name and aggregate expression values
@@ -227,13 +235,13 @@ def convert_featurecounts_gene_ids(
 
     Parameters
     ----------
-    count : str | pd.DataFrame
+    count : Union[str, pd.DataFrame]
         featureCounts output file path or a loaded DataFrame
     gtf_path : str
         Path to the GTF annotation file used for Geneid → gene_name mapping
     cache_path : str, optional
         Cache file path for storing parsed gene ID mapping (default: "gene_map.pkl")
-    save_path : str | None, optional
+    save_path : Optional[str], optional
         If provided, save the converted gene-level table to this path
 
     Returns
@@ -269,91 +277,60 @@ def convert_featurecounts_gene_ids(
 
     return df
 
+def convert_DESeq2_gene_ids(
+    deseq2_path: str,
+    save_path: str,
+    gtf_path: str,
+    cache_path: str = "gene_map.pkl",
+):
+    """
+    Convert DESeq2 results Geneid to gene_name.
 
+    Parameters
+    ----------
+    deseq2_path : str
+        Path to the DESeq2 results CSV file
+    save_path : str
+        Path to save the converted results CSV file
+    gtf_path : str
+        Path to the GTF annotation file used for Geneid → gene_name mapping
+    cache_path : str, optional
+        Cache file path for storing parsed gene ID mapping (default: "gene_map.pkl")
+
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame with gene_name as rows and DESeq2 results columns
+    """
+    df = pd.read_csv(deseq2_path, index_col=0,sep="\t")
+    df.reset_index(inplace=True,names="Geneid")
+    logging.info(f"读取 DESeq2 行数:{len(df)}")
+    gene_map = load_gtf_gene_map(gtf_path, cache_path)
+    df["gene_name"] = translate_gene_ids(df, gene_map, "Geneid")
+
+    cols = df.columns.tolist()
+    cols.remove("gene_name")
+    cols.remove("Geneid")
+    df = df[["gene_name"] + cols]
+
+    if save_path is not None:
+        if save_path.endswith(".tsv"):
+            df.to_csv(save_path, sep="\t", index=False)
+        elif save_path.endswith(".xlsx"):
+            df.to_excel(save_path, index=False)
+        else:        
+            df.to_csv(save_path, index=False)
+
+    return df
 
 if __name__ == "__main__":
-    human_gtf = "/disk5/luosg/Reference/GENCODE/human/GRCh38/gencode.v49.primary_assembly.basic.annotation.gtf"
-    mouse_gtf = "/disk5/luosg/Reference/GENCODE/mouse/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf"
-    ## TEtranscripts and TElocal
-    convert_TEtranscripts_gene_ids("/disk5/luosg/GCN2_20251224/output/TEtranscripts/TEcount/mouse/all_TEcount.cntTable",
-                                   mouse_gtf,
-                                   geneId_col="gene/TE",
-                                   cache_path="GRCm39_gene_map.pkl",
-                                   save_path="/disk5/luosg/GCN2_20251224/output/TEtranscripts/TEcount/mouse/all_TEcount.cntTable_name.tsv")
-    # convert_TEtranscripts_gene_ids("/disk5/luosg/Totipotent20251031/output/counts/TElocal/human/all_TElocal.cntTable",
-    #                             human_gtf,
-    #                             "GRCh38_gene_map.pkl",
-    #                             "/disk5/luosg/Totipotent20251031/output/counts/TElocal/human/all_TElocal_name.cntTable")
-    # convert_TEtranscripts_gene_ids("/disk5/luosg/Totipotent20251031/output/counts/TEcount/mouse/all_TEcount.cntTable",
-    #                         mouse_gtf,
-    #                         "GRCm39_gene_map.pkl",
-    #                         "/disk5/luosg/Totipotent20251031/output/counts/TEcount/mouse/all_TEcount_name.cntTable")
-    # convert_TEtranscripts_gene_ids("/disk5/luosg/Totipotent20251031/output/counts/TElocal/mouse/all_TElocal.cntTable",
-    #                     mouse_gtf,
-    #                     "GRCm39_gene_map.pkl",
-    #                     "/disk5/luosg/Totipotent20251031/output/counts/TElocal/mouse/all_TElocal_name.cntTable")
-    # #### totionly
-    # files = {
-    #     "ci8CLC": "/disk5/luosg/Totipotent20251031/output/SNP/vcf/intersect/annotate/ci8CLC/table/toti_only.vcf.GRCh38_multianno.csv",
-    #     "hTBLC": "/disk5/luosg/Totipotent20251031/output/SNP/vcf/intersect/annotate/hTBLC/table/toti_only.vcf.GRCh38_multianno.csv",
-    #     "TLSC": "/disk5/luosg/Totipotent20251031/output/SNP/vcf/intersect/annotate/TLSC/table/toti_only.vcf.GRCm39_multianno.csv",
-    #     "ciTotiSC": "/disk5/luosg/Totipotent20251031/output/SNP/vcf/intersect/annotate/ciTotiSC/table/toti_only.vcf.GRCm39_multianno.csv"
-    # }
-
-    # human_cell = ["ci8CLC","hTBLC"]
-    # mouse_cell = ["TLSC","ciTotiSC"]
-    # outdir = "/disk5/luosg/Totipotent20251031/output/SNP/vcf/intersect/annotate"
-    # for cell,infile in files.items():
-    #     if cell in human_cell:
-    #         outfile = f"{outdir}/{cell}/toti_only.vcf.GRCh38_multianno_with_names.csv"
-    #         convert_annovar_gene_ids(
-    #             multiano_path=infile,
-    #             gtf_path=human_gtf,
-    #             cache_path="GRCh38_gene_map.pkl",
-    #             save_path=outfile
-    #         )
-    #     elif cell in mouse_cell:
-    #         outfile = f"{outdir}/{cell}/toti_only.vcf.GRCm39_multianno_with_names.csv"
-    #         convert_annovar_gene_ids(
-    #             multiano_path=infile,
-    #             gtf_path=mouse_gtf,
-    #             cache_path="GRCm39_gene_map.pkl",
-    #             save_path=outfile
-    #         )
-    #     else:
-    #         raise ValueError("not support cell")
-    ### 
-    # mouse = ["TLSC","ciTotiSC"]
-    # human = ["ci8CLC","hTBLC"]
-    # indir = "/disk5/luosg/Totipotent20251031/output/SNP/vcf/intersect"
-    # infiles = glob.glob(f"{indir}/**/*_multianno.csv",recursive=True)
-    # target_names = ["pluripotency","totipotency"]
-    # for infile in infiles:
-    #     infile = Path(infile)
-    #     outdir = infile.parent
-    #     if infile.parent.parent.name in target_names:
-    #         basePrefix = infile.with_suffix('')
-    #         outfile = f"{str(basePrefix)}_with_names.csv" 
-    #         logging.info(infile)
-    #         logging.info(outfile)
-    #         if infile.parent.parent.parent.name in human:
-    #             logging.info("human\n")
-    #             convert_annovar_gene_ids(
-    #                 multiano_path=infile,
-    #                 gtf_path=human_gtf,
-    #                 cache_path="GRCh38_gene_map.pkl",
-    #                 save_path=outfile
-    #             )
-    #         elif infile.parent.parent.parent.name in mouse:
-    #             logging.info("mouse\n")
-    #             convert_annovar_gene_ids(
-    #                 multiano_path=infile,
-    #                 gtf_path=mouse_gtf,
-    #                 cache_path="GRCm39_gene_map.pkl",
-    #                 save_path=outfile
-    #             )
-    #         else:
-    #             raise ValueError("something wrong!")
-    #     else:
-    #         logging.info("skip: " + str(infile))
-
+    human_gtf = "/home/luosg/Database/Reference/human/GENCODE/GRCh38/gencode.v49.primary_assembly.basic.annotation.gtf"
+    human_map = "/home/luosg/Database/Reference/human/GENCODE/GRCh38/gene_map.pkl"
+    mouse_gtf = "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf"
+    mouse_map = "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/gene_map.pkl"
+    convert_DESeq2_gene_ids(
+        deseq2_path="/home/luosg/Data/genomeStability/output/RNAseq/diff_expression/Scramble_vs_Rn7sk/TEcount_Gene.tsv",
+        save_path="/home/luosg/Data/genomeStability/output/RNAseq/diff_expression/Scramble_vs_Rn7sk/TEcount_Gene_name.xlsx",
+        gtf_path=mouse_gtf,
+        cache_path=mouse_map
+   )

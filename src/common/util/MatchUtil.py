@@ -1,6 +1,9 @@
 from typing import List,Tuple
 import logging
-from LogUtil import setup_logger
+try:
+    from LogUtil import setup_logger
+except ImportError:
+    from .LogUtil import setup_logger
 logger = setup_logger(__name__, logging.INFO)
 
 def run_accession_match(

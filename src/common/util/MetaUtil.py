@@ -135,15 +135,16 @@ class MetadataUtils:
             # normalise role: "ctrl" -> "ctr" for uniform key
             role = "ctr" if role in ("ctr", "ctrl") else "exp"
             group_dict[contrast][role].append(info)
-
         # Pre-compute token sets for each tag
         ctr_contrast_tokens = {contrast: set(contrast.split("_")) for contrast, role in group_dict.items() if "ctr" in role}
         exp_contrast_tokens = {contrast: set(contrast.split("_")) for contrast, role in group_dict.items() if "exp" in role}
         logger.debug("group_dict: %s", group_dict)
         sample_pairs = []
+        group_pairs = []
         seen = set()  # deduplicate (ctr_sample_id, exp_sample_id)
         for exp_contrast, exp_token_set in exp_contrast_tokens.items():
             best_ctr_sample = None
+            best_ctr_contrast = None
             for ctr_contrast, ctr_token_set in ctr_contrast_tokens.items():
                 if exp_token_set & ctr_token_set:  # non-empty intersection
                     ctr_samples = group_dict[ctr_contrast]["ctr"]
@@ -153,8 +154,9 @@ class MetadataUtils:
                             f"{[s.sample_id for s in ctr_samples]}. Only using the first one."
                         )
                     best_ctr_sample = ctr_samples[0]
+                    best_ctr_contrast = ctr_contrast
                     break  # take the first matching control
-            if best_ctr_sample is None:
+            if best_ctr_sample is None or best_ctr_contrast is None:
                 logger.warning(f"No matching control found for exp group '{exp_contrast}'")
                 continue
             for exp_sample_info in group_dict[exp_contrast]["exp"]:
@@ -169,23 +171,20 @@ class MetadataUtils:
                     exp_group=exp_sample_info.group
                 )
                 sample_pairs.append(designPair)
-        group_pairs = []
-        for contrast, group_samples in group_dict.items():
-            logger.debug(f"Processing contrast: {contrast}, samples: {group_samples}")
-            ctr_samples = group_samples.get("ctr", [])
-            exp_samples = group_samples.get("exp", [])
-            if not ctr_samples or not exp_samples:
-                logger.warning(f"contrast '{contrast}' does not have both ctr and exp samples, skipping.")
-                continue
-            ctr_group_name = ctr_samples[0].group if ctr_samples[0].group else f"{contrast}_ctr"
-            exp_group_name = exp_samples[0].group if exp_samples[0].group else f"{contrast}_exp"
+            
+            ctr_group_name = group_dict.get(best_ctr_contrast, {}).get("ctr", [None])[0].group if best_ctr_contrast and group_dict.get(best_ctr_contrast, {}).get("ctr", [None])[0] else f"{contrast}_ctr"
+            exp_group_name = group_dict.get(exp_contrast, {}).get("exp", [None])[0].group if exp_contrast and group_dict.get(exp_contrast, {}).get("exp", [None])[0] else f"{contrast}_exp"
+
+            ctr_samples = group_dict.get(best_ctr_contrast, {}).get("ctr", [])
+            exp_samples = group_dict.get(exp_contrast, {}).get("exp", [])
             compare_group_pair = CompareGroupPair(
                 ctr_group_name=ctr_group_name,
                 exp_group_name=exp_group_name,
                 ctr_sample_ids=[s.sample_id for s in ctr_samples],
                 exp_sample_ids=[s.sample_id for s in exp_samples]
             )
-            group_pairs.append(compare_group_pair)
+            group_pairs.append(compare_group_pair)       
+    
 
         logger.debug("group_pairs: %s", group_pairs)
         logger.debug("sample_pairs: %s", sample_pairs)

@@ -78,7 +78,7 @@ import sys
 import pandas as pd
 from pathlib import Path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from common.LogUtil import setup_logger
+from common.util.LogUtil import setup_logger
 
 logger = logging.getLogger(__name__)
 

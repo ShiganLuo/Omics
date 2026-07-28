@@ -26,7 +26,7 @@ if _src_dir not in sys.path:
 
 # Import common utilities
 try:
-    from common.LogUtil import setup_logger
+    from common.util.LogUtil import setup_logger
 except ImportError as e:
     raise ImportError(
         f"Failed to import common.LogUtil.setup_logger. "

@@ -157,19 +157,18 @@ module TEtranscripts:
 logger.info(f"TEtranscripts_config: {TEtranscripts_config}")
 use rule * from TEtranscripts as RNAseq_*
 
-for group_pair in config.get("Params", {}).get("DESeq2", {}).get("group_pairs") or []:
-    logger.info(f"Processing DESeq2 group pair: {group_pair}")
+if config.get("Params", {}).get("DESeq2", {}).get("group_pairs"):
+    logger.info(f"use DESeq2 for differential expression analysis")
     DESeq2_config = {
             "indir": TEtranscripts_config["outdir"],
-            "outdir":  f"{outdir}/diff_expression/{group_pair['control_group_name']}_vs_{group_pair['experimental_group_name']}",
+            "outdir":  f"{outdir}/diff_expression",
             "logdir": logdir,
             "ROOT_DIR": ROOT_DIR,
-            "control_samples": group_pair["control_samples"],
-            "control_group_name": group_pair["control_group_name"],
-            "experimental_samples": group_pair["experimental_samples"],
-            "experimental_group_name": group_pair["experimental_group_name"],
+            "group_pairs": config.get("Params", {}).get("DESeq2", {}).get("group_pairs"),
             "genome": {
-                "geneIDAnno": config.get('genome',{}).get('geneIDAnno')
+                "geneIDAnno": config.get('genome',{}).get('geneIDAnno'),
+                "gtf": config.get('genome',{}).get('gtf'),
+                "gene_map": config.get('genome',{}).get('gene_map')
             },
             "Procedure": {
                 "DESeq2": config.get('Procedure',{}).get('DESeq2') or 'DESeq2'
@@ -215,7 +214,7 @@ StringTie_config = {
         "logdir": logdir,
         "samples": single_samples + paired_samples,
         "ROOT_DIR": ROOT_DIR,
-        "sample_groups": config.get('sample_groups'),
+        "sample_groups": config.get("Params",{}).get("StringTie",{}).get('sample_groups'),
         "genome": {
             "gtf": config.get('genome',{}).get('gtf'),
             "TE_gtf": config.get('genome',{}).get('TE_gtf')
@@ -380,10 +379,7 @@ RNAseq_report_config = {
     "samples": paired_samples + single_samples,
     "paired_samples": paired_samples,
     "single_samples": single_samples,
-    "contrasts": [
-        f"{pair['control_group_name']}_vs_{pair['experimental_group_name']}"
-        for pair in config.get("Params", {}).get("DESeq2", {}).get("group_pairs", [])
-    ],
+    "contrasts": config.get("Params", {}).get("DESeq2", {}).get("group_pairs").keys() if config.get("Params", {}).get("DESeq2", {}).get("group_pairs") else [],
     "Params": {
         "report": config.get("Params", {}).get("report", {})
     }

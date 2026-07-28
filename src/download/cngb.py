@@ -4,7 +4,7 @@ import os
 import glob
 from typing import Optional
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from common.SepUtil import detect_delimiter
+from common.util.SepUtil import detect_delimiter
 import logging
 logger = logging.getLogger(__name__)
 def export_md5(

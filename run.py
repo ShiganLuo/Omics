@@ -3,11 +3,11 @@ from copy import deepcopy
 import json
 import os
 import re
-from src.common.MetaUtil import MetadataUtils
-from src.common.LogUtil import setup_logger
-from src.common.CmdUtil import _run_cmd, _run_cmds_parallel
-from src.common.type import DesignPair, CompareGroupPair
-from src.common.SchemaValidator import SchemaValidator
+from src.common.util.MetaUtil import MetadataUtils
+from src.common.util.LogUtil import setup_logger
+from src.common.util.CmdUtil import _run_cmd, _run_cmds_parallel
+from src.common.util.type import DesignPair, CompareGroupPair
+from src.common.util.SchemaValidatorUtil import SchemaValidator
 import logging
 from typing import Dict, Any, Optional, List
 logger = setup_logger(__name__, level=logging.DEBUG)
@@ -186,14 +186,18 @@ def runRNAseq(
     outfiles = []
     paired_samples = []
     single_samples = []
+    sample_groups = {}
     for group_pair in group_pairs:
-        datajson["Params"]["DESeq2"]["group_pairs"].append({
+        datajson["Params"]["DESeq2"]["group_pairs"].setdefault(f"{group_pair.ctr_group_name}_vs_{group_pair.exp_group_name}", {
             "control_group_name": group_pair.ctr_group_name,
             "experimental_group_name": group_pair.exp_group_name,
             "control_samples": group_pair.ctr_sample_ids,
             "experimental_samples": group_pair.exp_sample_ids
         })
         outfiles.append(f"{outdir}/diff_expression/{group_pair.ctr_group_name}_vs_{group_pair.exp_group_name}/DESeq2.done")
+        sample_groups.setdefault(group_pair.ctr_group_name, []).extend(group_pair.ctr_sample_ids)
+        sample_groups.setdefault(group_pair.exp_group_name, []).extend(group_pair.exp_sample_ids)
+    datajson["Params"]["StringTie"]["sample_groups"] = sample_groups
 
     for sample_id, sample_info in samples_info_dict.items():
         if sample_info.layout == "PE":
@@ -207,7 +211,7 @@ def runRNAseq(
         else:
             logger.error(f"Unknown layout type for sample {sample_id}: {sample_info.layout}")
     # outfiles.append(f"{outdir}/TEtranscripts/TEcount/all_TEcount.tsv")
-    outfiles.append(f"{outdir}/fusion/arriba_fusion_report.html")
+    outfiles.append(f"{outdir}/fusion/arriba_report/arriba_fusion_report.html")
     outfiles.append(f"{outdir}/transcripts/stringtie_merged.gtf")
     outfiles.append(f"{outdir}/transcripts/TE_chimeric/TE_chimeric_group_stacked.png")
     outfiles.append(f"{outdir}/transcripts/TE_chimeric/TE_chimeric_te_type_top.png")
@@ -216,11 +220,6 @@ def runRNAseq(
     outfiles.append(f"{outdir}/transcripts/TE_chimeric/TE_chimeric_group_summary.tsv")
     outfiles.append(f"{outdir}/transcripts/TE_chimeric/TE_chimeric_te_type_counts.tsv")
     outfiles.append(f"{outdir}/RNAseq_report.pptx")
-    sample_groups = {}
-    for sample_id in samples_info_dict:
-        group_key = sample_id.split('-', 1)[0]
-        sample_groups.setdefault(group_key, []).append(sample_id)
-    datajson["sample_groups"] = sample_groups
     datajson["outfiles"] = outfiles
     datajson["paired_samples"] = paired_samples
     datajson["single_samples"] = single_samples

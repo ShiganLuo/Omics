@@ -70,7 +70,7 @@ rule arriba_report:
         passed_fusions = expand(outdir + "/{sample_id}/{sample_id}_passed_fusions.tsv", sample_id=samples),
         discarded_fusions = expand(outdir + "/{sample_id}/{sample_id}_discarded_fusions.tsv", sample_id=samples)
     output:
-        report = outdir + "/arriba_fusion_report.html"
+        report = outdir + "/arriba_report/arriba_fusion_report.html"
     log:
         logdir + "/all/arriba_report.log"
     params:

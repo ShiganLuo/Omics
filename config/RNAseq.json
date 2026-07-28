@@ -9,7 +9,6 @@
     "treatment_group_name":null,
     "control_samples": [],
     "treatment_samples": [],
-    "sample_groups": {},
     "Procedure": {
         "TEcount": null,
         "TElocal": null,
@@ -24,6 +23,7 @@
         "fasta": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
         "gtf": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf",
         "geneIDAnno": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/geneIDAnnotation.csv",
+        "gene_map": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/gene_map.pkl",
         "TE_gtf": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.gtf",
         "TEind": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.gtf.locInd",
         "hisat2_index_prefix": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/hisat2/genome",
@@ -81,7 +81,7 @@
             "E": 0.3
         },
         "DESeq2": {
-            "group_pairs": []
+            "group_pairs": {}
         },
         "report": {
             "title": "RNA-seq Analysis Report",
@@ -90,6 +90,9 @@
             "genome": "GRCm39",
             "date": "2026-07-27",
             "lang": "zh"
+        },
+        "StringTie": {
+            "sample_groups": {}
         }
     }
 }

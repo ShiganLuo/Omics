@@ -82,9 +82,11 @@ subsample_config = {
         "single_samples": single_samples,
         "Params": {
             "subsample": {
-                "abundant_rnas": config.get("Params", {}).get("ncRNAseq", {}).get("abund_small_rnas", []),
-                "n": config.get("Params", {}).get("ncRNAseq", {}).get("subsample_n", 100000),
-                "seed": config.get("Params", {}).get("ncRNAseq", {}).get("subsample_seed", 42),
+                "abund_small_rnas": config.get("Params", {}).get("ncRNAseq", {}).get("abund_small_rnas", []),
+                "subsample_n": config.get("Params", {}).get("ncRNAseq", {}).get("subsample_n", 100000),
+                "subsample_seed": config.get("Params", {}).get("ncRNAseq", {}).get("subsample_seed", 42),
+                "hard_clip_direction": config.get("Params", {}).get("ncRNAseq", {}).get("hard_clip_direction", "5prime"),
+                "hard_clip_length": config.get("Params", {}).get("ncRNAseq", {}).get("hard_clip_length", 0)
             }
         },
     }
@@ -93,6 +95,7 @@ module subsample:
     config: subsample_config
 logger.info(f"subsample_config: {subsample_config}")
 use rule subsample_fastq from subsample as ncRNAseq_subsample_fastq
+use rule hard_clip from subsample as ncRNAseq_hard_clip
 
 fastqc_trimmed_config = {
         "ROOT_DIR": ROOT_DIR,

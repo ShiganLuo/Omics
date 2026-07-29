@@ -7,14 +7,14 @@ outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 paired_samples = config.get("paired_samples", [])
 single_samples = config.get("single_samples", [])
-abundant_rnas = config.get("Params", {}).get("subsample", {}).get("abundant_rnas", [])
-subsample_n = config.get("Params", {}).get("subsample", {}).get("n", 100000)
-seed = config.get("Params", {}).get("subsample", {}).get("seed", 42)
+abund_small_rnas = config.get("Params", {}).get("subsample", {}).get("abund_small_rnas", [])
+subsample_n = config.get("Params", {}).get("subsample", {}).get("subsample_n", 100000)
+subsample_seed = config.get("Params", {}).get("subsample", {}).get("subsample_seed", 42)
 
 def is_abundant(sample_id):
     """Check if sample targets an abundant small RNA."""
     sample_upper = sample_id.upper()
-    return any(rna.upper() in sample_upper for rna in abundant_rnas)
+    return any(rna.upper() in sample_upper for rna in abund_small_rnas)
 
 def get_subsample_n(wildcards):
     """Return subsample count: 100k for abundant, 0 (all) for others."""
@@ -27,8 +27,8 @@ rule subsample_fastq:
         r1 = indir + "/{sample_id}/{sample_id}_1.fq.gz",
         r2 = indir + "/{sample_id}/{sample_id}_2.fq.gz",
     output:
-        r1 = outdir + "/{sample_id}/{sample_id}_1.fq.gz",
-        r2 = outdir + "/{sample_id}/{sample_id}_2.fq.gz",
+        r1 = outdir + "/subsample/{sample_id}/{sample_id}_1.fq.gz",
+        r2 = outdir + "/subsample/{sample_id}/{sample_id}_2.fq.gz",
     log:
         logdir + "/{sample_id}/subsample.log"
     threads: 1
@@ -36,7 +36,7 @@ rule subsample_fastq:
         "subsample.yaml"
     params:
         n = get_subsample_n,
-        seed = seed,
+        seed = subsample_seed,
     run:
         log_path = str(log)
         try:
@@ -85,4 +85,69 @@ rule subsample_fastq:
             with open(log_path, "a") as f:
                 f.write(f"Error occurred during subsample for sample {wildcards.sample_id}: {e}\n")
             logger.error(f"Error occurred during subsample for sample {wildcards.sample_id}: {e}")
+            raise e
+
+rule hard_clip:
+    input:
+        r1 = outdir + "/subsample/{sample_id}/{sample_id}_1.fq.gz",
+        r2 = outdir + "/subsample/{sample_id}/{sample_id}_2.fq.gz",
+    output:
+        r1 = outdir + "/{sample_id}/{sample_id}_1.fq.gz",
+        r2 = outdir + "/{sample_id}/{sample_id}_2.fq.gz",
+    log:
+        logdir + "/{sample_id}/hard_shear.log"
+    threads: 1
+    conda:
+        "subsample.yaml"
+    params:
+        cut_length = config.get("Params", {}).get("subsample", {}).get("hard_clip_length") or 0,  # No trimming, just hard shear
+        direction = config.get("Params", {}).get("subsample", {}).get("hard_clip_direction") or "5prime",
+    run:
+        log_path = str(log)
+        try:
+            open(log_path, 'w').close()
+            rule_logger = setup_logger("hard_shear", log_file=log_path)
+            current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+            rule_logger.info(f"Start hard shear for sample {wildcards.sample_id} at {current_time}")
+
+            outdir_sample = os.path.dirname(str(output.r1))
+            script = os.path.join(outdir_sample, f"{wildcards.sample_id}_hard_shear.sh")
+            os.makedirs(outdir_sample, exist_ok=True)
+            if params.direction not in ["5prime", "3prime", "both"]:
+                raise ValueError(f"Invalid direction {params.direction} for hard shear. Must be '5prime' or '3prime'.")
+            if params.direction == "5prime":
+                rule_logger.info(f"Hard shear direction: 5' end")
+                cmd1 = [
+                    "seqtk", "trimfq", "-b", str(params.cut_length), "-e", "0", str(input.r1), "|", "gzip", "-c", ">", str(output.r1)
+                ]
+                cmd2 = [
+                    "seqtk", "trimfq", "-b", str(params.cut_length), "-e", "0", str(input.r2), "|", "gzip", "-c", ">", str(output.r2)
+                ]
+            elif params.direction == "3prime":
+                rule_logger.info(f"Hard shear direction: 3' end")
+                cmd1 = [
+                    "seqtk", "trimfq", "-b", "0", "-e", str(params.cut_length), str(input.r1), "|", "gzip", "-c", ">", str(output.r1)
+                ]
+                cmd2 = [
+                    "seqtk", "trimfq", "-b", "0", "-e", str(params.cut_length), str(input.r2), "|", "gzip", "-c", ">", str(output.r2)
+                ]
+            else:
+                rule_logger.info(f"Hard shear direction: both ends")
+                cmd1 = [
+                    "seqtk", "trimfq", "-b", str(params.cut_length), "-e", str(params.cut_length), str(input.r1), "|", "gzip", "-c", ">", str(output.r1)
+                ]
+                cmd2 = [
+                    "seqtk", "trimfq", "-b", str(params.cut_length), "-e", str(params.cut_length), str(input.r2), "|", "gzip", "-c", ">", str(output.r2)
+                ]
+            with open(script, "w") as f:
+                f.write("#!/bin/bash\n")
+                f.write("set -euo pipefail\n")
+                f.write(f"echo 'Running hard shear for sample {wildcards.sample_id}'\n")
+                f.write(f"{' '.join(cmd1)}\n")
+                f.write(f"{' '.join(cmd2)}\n")
+            shell(f"bash {script} >> {log_path} 2>&1")
+        except Exception as e:
+            with open(log_path, "a") as f:
+                f.write(f"Error occurred during hard shear for sample {wildcards.sample_id}: {e}\n")
+            logger.error(f"Error occurred during hard shear for sample {wildcards.sample_id}: {e}")
             raise e

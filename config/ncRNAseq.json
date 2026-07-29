@@ -51,7 +51,10 @@
         "ncRNAseq": {
             "abund_small_rnas": ["U1", "U2", "U3", "7SL", "7SK"],
             "subsample_n": 100000,
-            "smallrna_flank":50
+            "smallrna_flank":50,
+            "seed": 42,
+            "hard_clip_direction": "5prime",
+            "hard_clip_length": 0
         }
     },
     "genome": {

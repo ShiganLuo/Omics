@@ -197,6 +197,11 @@ def runRNAseq(
         outfiles.append(f"{outdir}/diff_expression/{group_pair.ctr_group_name}_vs_{group_pair.exp_group_name}/DESeq2.done")
         sample_groups.setdefault(group_pair.ctr_group_name, []).extend(group_pair.ctr_sample_ids)
         sample_groups.setdefault(group_pair.exp_group_name, []).extend(group_pair.exp_sample_ids)
+        if datajson.get("Params", {}).get("function", {}).get("enabled", False):
+            pair_dir = f"{outdir}/function/{group_pair.ctr_group_name}_vs_{group_pair.exp_group_name}"
+            outfiles.append(f"{pair_dir}/go_back_to_back.png")
+            outfiles.append(f"{pair_dir}/kegg_back_to_back.png")
+            outfiles.append(f"{pair_dir}/GSEA/TEcount_Gene_GSEA.jpeg")
     datajson["Params"]["StringTie"]["sample_groups"] = sample_groups
 
     for sample_id, sample_info in samples_info_dict.items():
@@ -709,7 +714,7 @@ def runncRNAseq(
 ):
     """Prepare input JSON for ncRNAseq (small/non-coding RNA-seq) workflow.
 
-    Pipeline: cutadapt trim -> hisat2 (no-spliced-alignment) or star -> featureCounts.
+    Pipeline: jla-demultiplexer -> trim_galore -> subsample -> STAR (star / star_3pass / star_3pass_gene) -> featureCounts + Tailer.
     """
     datajson["ROOT_DIR"] = os.path.dirname(__file__)
     datajson["indir"] = indir
@@ -718,12 +723,20 @@ def runncRNAseq(
     os.makedirs(logdir, exist_ok=True)
     datajson["logdir"] = logdir
 
+    aligner = datajson.get("Procedure", {}).get("aligner") or "star_3pass"
+    if aligner == "star_3pass":
+        bam_subdir = "common/3_raw_bam/final_bam"
+    elif aligner == "star_3pass_gene":
+        bam_subdir = "common/3_raw_bam/per_gene"
+    else:
+        bam_subdir = "common/3_raw_bam"
+
     outfiles = []
     paired_samples = []
     single_samples = []
 
     for sample_id, sample_info in samples_info_dict.items():
-        outfiles.append(f"{outdir}/common/3_raw_bam/{sample_id}/{sample_id}.bam")
+        outfiles.append(f"{outdir}/{bam_subdir}/{sample_id}/{sample_id}.bam")
         outfiles.append(f"{outdir}/results/tailer/{sample_id}/{sample_id}_tail.csv")
         if sample_info.layout == "PE":
             paired_samples.append(sample_id)

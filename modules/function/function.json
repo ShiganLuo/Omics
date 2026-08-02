@@ -1,0 +1,19 @@
+{
+    "indir": "output/diff_expression",
+    "outdir": "output/function",
+    "logdir": "logs",
+    "ROOT_DIR": "/path/to/workflow/directory",
+    "group_pairs": {},
+    "genome": {
+        "geneIDAnno": null
+    },
+    "Params": {
+        "function": {
+            "species": "mouse",
+            "gmt": null,
+            "lfc_cut": 1,
+            "p_cut": 0.05,
+            "top": 10
+        }
+    }
+}

@@ -1,0 +1,19 @@
+name: function
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - r-base=4.3
+  - bioconductor-clusterprofiler
+  - bioconductor-org.hs.eg.db
+  - bioconductor-org.mm.eg.db
+  - bioconductor-enrichplot
+  - bioconductor-fgsea
+  - r-ggplot2
+  - r-dplyr
+  - r-argparse
+  - r-tibble
+  - r-stringr
+  - r-data.table
+  - r-patchwork

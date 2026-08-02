@@ -1,0 +1,14 @@
+{
+  "Procedure": {
+    "plink2": null
+  },
+  "Params": {
+    "analysis": {
+      "pca": true,
+      "pca_components": 10,
+      "gwas": false,
+      "phenotype": null,
+      "covariates": []
+    }
+  }
+}

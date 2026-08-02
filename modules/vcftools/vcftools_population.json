@@ -1,0 +1,14 @@
+{
+  "Procedure": {
+    "vcftools": null
+  },
+  "populations": {},
+  "Params": {
+    "analysis": {
+      "diversity": true,
+      "fst": true,
+      "window_size": 100000,
+      "window_step": 50000
+    }
+  }
+}

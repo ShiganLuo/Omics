@@ -80,6 +80,58 @@ tabix -g gff [gft.gz]
 为了让nginx能够获取流程生成html内的内容，特意配置了这个map，以生成相对路径让nginx能够读取
 ![alt text](assests/img/image.png)
 
+## scRNAseq 和空间转录组
+
+### `scRNAseq`
+
+标准 Scanpy 流程从 `.h5ad` 或多个样本 h5ad 开始，规则位于 `modules/scanpy/`，`subworkflow/scRNAseq.smk` 只负责编排。流程包括：
+
+- QC：基因数、线粒体比例、归一化、log1p、高变基因
+- 降维和聚类：PCA、neighbors、UMAP、Leiden
+- marker 和差异表达
+- 可选高级分析：DPT 拟时序、RNA velocity、LIANA 细胞通讯、infercnvpy CNV
+
+最小配置：
+
+```json
+{
+  "input_h5ad": "/path/input.h5ad",
+  "Params": {
+    "scanpy": {
+      "advanced": {
+        "trajectory": true,
+        "velocity": false,
+        "communication": false,
+        "cnv": false
+      }
+    }
+  }
+}
+```
+
+### `spatial_transcriptomics`
+
+空间转录组流程位于 `subworkflow/spatial_transcriptomics.smk` 和 `modules/spatial_scanpy/`，以 10x Visium 为主，同时支持带 `obsm["spatial"]` 坐标的自定义 spot×gene h5ad。
+
+Visium 输入：
+
+```json
+{
+  "visium_h5": "/path/filtered_feature_bc_matrix.h5",
+  "spatial_dir": "/path/spatial"
+}
+```
+
+自定义 h5ad 输入：
+
+```json
+{
+  "input_h5ad": "/path/spatial.h5ad"
+}
+```
+
+流程包括空间 QC、归一化、高变基因、PCA、空间聚类、空间 marker、Squidpy 空间邻域和 Moran's I 空间自相关。cell2location 依赖已在环境模板中预留，但只有在明确参考 scRNA 表达矩阵和细胞类型 signature 输入后才应启用。
+
 ## 快速开始
 
 1. 准备输入数据。

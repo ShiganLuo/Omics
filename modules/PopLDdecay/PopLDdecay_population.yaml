@@ -1,0 +1,6 @@
+name: PopLDdecay_population
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - poplddecay

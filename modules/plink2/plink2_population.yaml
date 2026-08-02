@@ -1,0 +1,6 @@
+name: plink2_population
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - plink2

@@ -1,0 +1,12 @@
+name: spatial_scanpy
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python=3.11
+  - scanpy
+  - anndata
+  - squidpy
+  - leidenalg
+  - python-igraph
+  - cell2location

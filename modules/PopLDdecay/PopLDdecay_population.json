@@ -1,0 +1,11 @@
+{
+  "Procedure": {
+    "PopLDdecay": null
+  },
+  "Params": {
+    "analysis": {
+      "ld_decay": false,
+      "ld_max_distance": 500000
+    }
+  }
+}

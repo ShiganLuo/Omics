@@ -1,0 +1,11 @@
+{
+  "Procedure": {
+    "easySFS": null
+  },
+  "Params": {
+    "analysis": {
+      "history": false,
+      "history_config": ""
+    }
+  }
+}

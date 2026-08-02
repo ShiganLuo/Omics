@@ -1,0 +1,6 @@
+name: admixture_population
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - admixture

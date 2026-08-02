@@ -26,7 +26,7 @@ rule tailer_global:
         read_num = read_num,
         threshold = threshold,
         rev_comp = "--rev_comp" if rev_comp else "",
-        Tailer = config.get("Procedure", {}).get("Tailer") or "Tailer"  
+        Tailer = config.get("Procedure", {}).get("tailer") or config.get("Procedure", {}).get("Tailer") or "Tailer"
     run:
         log_path = str(log)
         try:

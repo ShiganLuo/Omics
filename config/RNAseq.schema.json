@@ -320,6 +320,34 @@
         }
       }
     },
+    "function": {
+      "enabled": {
+        "type": "bool",
+        "required": true
+      },
+      "species": {
+        "type": "str",
+        "required": true
+      },
+      "gmt": {
+        "type": "null",
+        "nullable": true,
+        "required": false,
+        "path": "file"
+      },
+      "lfc_cut": {
+        "type": "float",
+        "required": true
+      },
+      "p_cut": {
+        "type": "float",
+        "required": true
+      },
+      "top": {
+        "type": "int",
+        "required": true
+      }
+    },
     "report": {
       "title": {
         "type": "str",

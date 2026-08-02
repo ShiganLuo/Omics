@@ -180,6 +180,28 @@ if config.get("Params", {}).get("DESeq2", {}).get("group_pairs"):
     logger.info(f"DESeq2_config: {DESeq2_config}")
     use rule DESeq2_TEcount from DESeq2 as RNAseq_DESeq2_TEcount
 
+    if config.get("Params", {}).get("function", {}).get("enabled", False):
+        logger.info("Function analysis enabled (GO/KEGG + GSEA)")
+        function_config = {
+            "ROOT_DIR": ROOT_DIR,
+            "indir": DESeq2_config["outdir"],
+            "outdir": f"{outdir}/function",
+            "logdir": logdir,
+            "group_pairs": config.get("Params", {}).get("DESeq2", {}).get("group_pairs"),
+            "genome": {
+                "geneIDAnno": config.get("genome", {}).get("geneIDAnno"),
+            },
+            "Params": {
+                "function": config.get("Params", {}).get("function", {})
+            }
+        }
+        module function:
+            snakefile: "../modules/function/function.smk"
+            config: function_config
+        logger.info(f"function_config: {function_config}")
+        use rule function_go_kegg from function as RNAseq_function_go_kegg
+        use rule function_gsea from function as RNAseq_function_gsea
+
 
 hisat2_config_for_StringTie = {
     "indir": trimmed_fastq_dir,

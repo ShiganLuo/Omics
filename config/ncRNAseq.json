@@ -8,15 +8,17 @@
     "outfiles": [],
     "ROOT_DIR": ".",
     "Procedure": {
-        "aligner": "star_3pass",
-        "trim_galore": "trim_galore",
+        "aligner": "star_3pass_gene",
+        "trim_galore": "/home/luosg/opt/TrimGalore-0.6.10/trim_galore",
         "hisat2": "hisat2",
         "hisat2-build": "hisat2-build",
-        "STAR": "STAR",
-        "samtools": "samtools",
-        "bedtools": "bedtools",
-        "seqtk": "seqtk",
-        "featureCounts": "featureCounts"
+        "STAR": "/home/luosg/miniconda3/envs/star_env/bin/STAR",
+        "samtools": "/home/luosg/miniconda3/envs/DNA/bin/samtools",
+        "bedtools": "/home/luosg/miniconda3/pkgs/bedtools-2.31.1-h13024bc_3/bin/bedtools",
+        "seqtk": "/home/luosg/miniconda3/envs/DNA/bin/seqtk",
+        "featureCounts": "/home/luosg/miniconda3/pkgs/subread-2.1.1-h577a1d6_0/bin/featureCounts",
+        "tailer": "/home/luosg/Database/env/3b73d0256266ebb04e81b5777cc75d52_/bin/Tailer",
+        "fastqc": "fastqc"
     },
     "Params": {
         "STAR": {},
@@ -48,18 +50,29 @@
                 "alignEndsType": "Local"
             }
         },
+        "star_3pass_gene": {
+            "pass1": {
+                "outFilterMultimapNmax": 1000,
+                "alignIntronMin": 9999999,
+                "outFilterMultimapScoreRange": 0,
+                "outFilterMismatchNoverLmax": 0.2,
+                "alignEndsType": "EndToEnd",
+                "clip5pNbases": "10 0"
+            }
+        },
         "ncRNAseq": {
             "abund_small_rnas": ["U1", "U2", "U3", "7SL", "7SK"],
             "subsample_n": 100000,
-            "smallrna_flank":50,
+            "smallrna_flank": 50,
+            "smallrna_types": ["snRNA", "misc_RNA", "rRNA", "rRNA_pseudogene", "snoRNA", "scaRNA", "ribozyme", "TERC"],
             "seed": 42,
             "hard_clip_direction": "5prime",
             "hard_clip_length": 0
         }
     },
     "genome": {
-        "fasta": "/home/luosg/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa",
-        "gtf": "/home/luosg/Reference/human/GENCODE/GRCh38/gencode.v49.primary_assembly.basic.annotation.gtf",
+        "fasta": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa",
+        "gtf": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/gencode.v49.primary_assembly.basic.annotation.gtf",
         "hisat2_index_prefix": null,
         "star_index_dir": null,
         "smallrna_fasta": null,

@@ -83,6 +83,14 @@
         "DESeq2": {
             "group_pairs": {}
         },
+        "function": {
+            "enabled": true,
+            "species": "mouse",
+            "gmt": null,
+            "lfc_cut": 1,
+            "p_cut": 0.05,
+            "top": 10
+        },
         "report": {
             "title": "RNA-seq Analysis Report",
             "subtitle": "",

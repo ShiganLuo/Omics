@@ -38,6 +38,16 @@ rule generate_report:
         contrast_gene_updown = expand(outdir + "/diff_expression/{contrast}/upDown/TEcount_Gene_updown.tsv", contrast=contrasts),
         contrast_te_updown = expand(outdir + "/diff_expression/{contrast}/upDown/TEcount_TE_updown.tsv", contrast=contrasts),
         contrast_gene_te_updown = expand(outdir + "/diff_expression/{contrast}/upDown/TEcount_Gene_TE_updown.tsv", contrast=contrasts),
+        func_go_plot = expand(outdir + "/function/{contrast}/go_back_to_back.png", contrast=contrasts),
+        func_kegg_plot = expand(outdir + "/function/{contrast}/kegg_back_to_back.png", contrast=contrasts),
+        func_go_up = expand(outdir + "/function/{contrast}/go_up.csv", contrast=contrasts),
+        func_go_down = expand(outdir + "/function/{contrast}/go_down.csv", contrast=contrasts),
+        func_kegg_up = expand(outdir + "/function/{contrast}/kegg_up.csv", contrast=contrasts),
+        func_kegg_down = expand(outdir + "/function/{contrast}/kegg_down.csv", contrast=contrasts),
+        func_up_genes = expand(outdir + "/function/{contrast}/up_genes.txt", contrast=contrasts),
+        func_down_genes = expand(outdir + "/function/{contrast}/down_genes.txt", contrast=contrasts),
+        func_gsea_plot = expand(outdir + "/function/{contrast}/GSEA/TEcount_Gene_GSEA.jpeg", contrast=contrasts),
+        func_gsea_csv = expand(outdir + "/function/{contrast}/GSEA/TEcount_Gene_GSEA.csv", contrast=contrasts),
     output:
         report = outdir + "/RNAseq_report.pptx"
     log:

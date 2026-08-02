@@ -1,0 +1,18 @@
+{
+  "input_h5ad": "",
+  "sample_h5ad": {},
+  "Procedure": {"python": "python"},
+  "Params": {
+    "scanpy": {
+      "min_genes": 200,
+      "max_genes": 6000,
+      "max_pct_mt": 20,
+      "n_top_genes": 3000,
+      "n_pcs": 50,
+      "n_neighbors": 15,
+      "resolution": 0.8,
+      "batch_key": "batch",
+      "advanced": {"trajectory": true, "velocity": false, "communication": false, "cnv": false}
+    }
+  }
+}

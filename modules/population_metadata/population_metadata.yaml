@@ -1,0 +1,4 @@
+name: population_metadata
+channels:
+  - conda-forge
+dependencies: []

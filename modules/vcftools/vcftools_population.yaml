@@ -1,0 +1,6 @@
+name: vcftools_population
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - vcftools

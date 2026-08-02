@@ -1,0 +1,5 @@
+name: easySFS_population
+channels:
+  - conda-forge
+  - bioconda
+dependencies: []

@@ -1,0 +1,17 @@
+{
+  "Procedure": {
+    "admixture": null
+  },
+  "Params": {
+    "analysis": {
+      "admixture_k": [
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "admixture_seed": 2026
+    }
+  }
+}

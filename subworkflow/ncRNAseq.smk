@@ -409,7 +409,7 @@ elif aligner == "star_3pass":
     star_3pass_config = {
         "ROOT_DIR": ROOT_DIR,
         "outdir": f"{outdir}/common/3_raw_bam/final_bam",
-        "pass2_outdir": star_pass2_config["outdir"]
+        "pass2_outdir": star_pass2_config["outdir"],
         "logdir": logdir,
         "Procedure": {
             "samtools": SAMTOOLS,
@@ -431,13 +431,174 @@ elif aligner == "star_3pass":
     use rule star_3p_pass3a_extract from star_3pass as ncRNAseq_star3p_pass3a_extract
     use rule star_3p_merge from star_3pass as ncRNAseq_star3p_merge
 
+elif aligner == "star_3pass_gene":
+    # ================================================================
+    # Three-pass STAR alignment with per-gene re-alignment
+    # (Ma et al, 2024 modification)
+    #
+    # Pass 1:  genome end-to-end alignment with 5' hard clip (10 nt)
+    #          -> facilitates alignment of reads with post-transcriptional
+    #             nucleotide modifications
+    # Extract: group aligned reads by gene, reconvert to per-gene FASTQ
+    #          using bedtools + samtools
+    # Pass 2:  per-gene local alignment to single-gene genomic sequences
+    # Merge:   combine per-gene BAMs into sample BAM
+    # Tailer:  gene-specific 3'-end info in global alignment mode
+    # ================================================================
+
+    # ── Resolve smallRNA derived paths ──────────────────────────────
+    smallrna_bed = f"{outdir}/genome/smallrna/smallrna_genes.bed"
+    smallrna_fasta = f"{outdir}/genome/smallrna/smallrna_genes_flank.fa"
+    smallrna_star_index_dir = f"{outdir}/genome/smallrna/index"
+
+    # ── STAR index for genome (auto-build when star_index_dir is null) ──
+    if not star_index_dir or not os.path.exists(star_index_dir):
+        star_genome_idx_config = {
+            "ROOT_DIR": ROOT_DIR,
+            "outdir": f"{outdir}/genome/whole_genome",
+            "logdir": f"{logdir}/genome/whole_genome",
+            "Procedure": {"STAR": STAR},
+            "Params": {"STAR": {}},
+            "genome": {
+                "fasta": genome_fasta,
+                "gtf": config.get("genome", {}).get("gtf"),
+            }
+        }
+        logger.info(f"star_genome_idx_config: {star_genome_idx_config}")
+
+        module star_genome_idx:
+            snakefile: "../modules/star/star.smk"
+            config: star_genome_idx_config
+
+        use rule star_index from star_genome_idx as ncRNAseq_star_index_genome
+
+        star_index_dir = f"{outdir}/genome/whole_genome/index"
+
+    # ── Import genome module (extract smallRNA BED/FASTA) ──────────────
+    genome_sm_config = {
+        "ROOT_DIR": ROOT_DIR,
+        "outdir": outdir,
+        "logdir": f"{logdir}/genome",
+        "Procedure": {
+            "samtools": SAMTOOLS,
+            "bedtools": BEDTOOLS,
+        },
+        "Params": {
+            "smallrna_types": config.get("Params", {}).get("ncRNAseq", {}).get("smallrna_types") or ["snRNA", "misc_RNA", "rRNA", "rRNA_pseudogene", "snoRNA", "scaRNA", "ribozyme", "TERC"],
+            "smallrna_flank": config.get("Params", {}).get("ncRNAseq", {}).get("smallrna_flank") or 50
+        },
+        "genome": {
+            "fasta": genome_fasta,
+            "gtf": config.get("genome", {}).get("gtf")
+        }
+    }
+    logger.info(f"genome_sm_config: {genome_sm_config}")
+
+    module genome_sm:
+        snakefile: "../modules/genome/genome.smk"
+        config: genome_sm_config
+
+    use rule chromosome_sizes from genome_sm as ncRNAseq_chromosome_sizes
+    use rule extract_smallrna from genome_sm as ncRNAseq_extract_smallrna
+
+    # ── STAR index for smallRNA FASTA (per-gene local alignment target) ──
+    smallrna_star_index_dir = config.get("genome", {}).get("smallrna_star_index_dir")
+    if not smallrna_star_index_dir or not os.path.exists(smallrna_star_index_dir):
+        star_smallrna_idx_config = {
+            "ROOT_DIR": ROOT_DIR,
+            "indir": f"{outdir}/genome/smallrna",
+            "outdir": f"{outdir}/genome/smallrna",
+            "logdir": f"{logdir}/genome/smallrna",
+            "Procedure": {"STAR": STAR},
+            "Params": {"STAR": {}},
+            "genome": {
+                "fasta": smallrna_fasta,
+                "gtf": None,
+            }
+        }
+        logger.info(f"star_smallrna_idx_config: {star_smallrna_idx_config}")
+        module star_smallrna_idx:
+            snakefile: "../modules/star/star.smk"
+            config: star_smallrna_idx_config
+
+        use rule star_index from star_smallrna_idx as ncRNAseq_star_index_smallrna
+
+        smallrna_star_index_dir = f"{outdir}/genome/smallrna/index"
+
+    # ── Read star_3pass_gene params from config (with defaults) ──────────
+    p3g = config.get("Params", {}).get("star_3pass_gene", {})
+    pass1_gene_params = p3g.get("pass1", {})
+
+    # ── Pass 1 config: genome end-to-end alignment with 5' hard clip ─────
+    star_pass1_gene_config = {
+        "ROOT_DIR": ROOT_DIR,
+        "indir": subsample_config["outdir"],
+        "outdir": f"{outdir}/common/3_raw_bam/pass1_gene",
+        "logdir": logdir,
+        "paired_samples": paired_samples,
+        "single_samples": single_samples,
+        "Procedure": {"STAR": STAR},
+        "Params": {"STAR": {
+            "outFilterMultimapNmax": pass1_gene_params.get("outFilterMultimapNmax", 1000),
+            "alignIntronMin": pass1_gene_params.get("alignIntronMin", 9999999),
+            "outFilterMultimapScoreRange": pass1_gene_params.get("outFilterMultimapScoreRange", 0),
+            "outFilterMismatchNoverLmax": pass1_gene_params.get("outFilterMismatchNoverLmax", 0.2),
+            "alignEndsType": pass1_gene_params.get("alignEndsType", "EndToEnd"),
+            "clip5pNbases": pass1_gene_params.get("clip5pNbases", "10 0"),
+        }},
+        "genome": {"fasta": genome_fasta, "index_dir": star_index_dir}
+    }
+    logger.info(f"star_pass1_gene_config: {star_pass1_gene_config}")
+    module star_pass1_gene:
+        snakefile: "../modules/star/star.smk"
+        config: star_pass1_gene_config
+    use rule star_align from star_pass1_gene as ncRNAseq_star3pg_pass1
+
+    # ── Per-gene extract + align + merge ────────────────────────────────
+    star_3pass_gene_config = {
+        "ROOT_DIR": ROOT_DIR,
+        "outdir": f"{outdir}/common/3_raw_bam/per_gene",
+        "pass1_outdir": star_pass1_gene_config["outdir"],
+        "logdir": logdir,
+        "Procedure": {
+            "samtools": SAMTOOLS,
+            "bedtools": BEDTOOLS,
+            "STAR": STAR,
+        },
+        "Params": {
+            "star_3pass_gene": p3g,
+        },
+        "genome": {
+            "smallrna_bed": smallrna_bed,
+            "smallrna_fasta": smallrna_fasta,
+            "smallrna_star_index_dir": smallrna_star_index_dir,
+        }
+    }
+    logger.info(f"star_3pass_gene_config: {star_3pass_gene_config}")
+
+    module star_3pass_gene:
+        snakefile: "../modules/star/star_3pass/star_3pass_gene.smk"
+        config: star_3pass_gene_config
+
+    use rule star_3pg_extract_per_gene from star_3pass_gene as ncRNAseq_star3pg_extract_per_gene
+    use rule star_3pg_align_per_gene from star_3pass_gene as ncRNAseq_star3pg_align_per_gene
+    use rule star_3pg_merge from star_3pass_gene as ncRNAseq_star3pg_merge
+
 else:
-    raise ValueError(f"Unsupported aligner: {aligner}. Please choose 'hisat2', 'star', or 'star_3pass'.")
+    raise ValueError(f"Unsupported aligner: {aligner}. Please choose 'hisat2', 'star', 'star_3pass', or 'star_3pass_gene'.")
 
 # ── 3. Quantify (featureCounts) ──────────────────────────────────────────────
+# Resolve the alignment output directory based on the chosen aligner.
+if aligner == "star_3pass":
+    align_bam_dir = f"{outdir}/common/3_raw_bam/final_bam"
+elif aligner == "star_3pass_gene":
+    align_bam_dir = f"{outdir}/common/3_raw_bam/per_gene"
+else:
+    align_bam_dir = f"{outdir}/common/3_raw_bam"
+
 featureCounts_config = {
     "ROOT_DIR": ROOT_DIR,
-    "indir": f"{outdir}/common/3_raw_bam",
+    "indir": align_bam_dir,
     "outdir": f"{outdir}/counts",
     "logdir": logdir,
     "paired_samples": paired_samples,
@@ -460,13 +621,13 @@ use rule featureCounts_result from featureCounts as ncRNAseq_featureCounts_resul
 # ── 4. Tailer (3' end analysis) ──────────────────────────────────────────────
 tailer_config = {
     "ROOT_DIR": ROOT_DIR,
-    "indir": f"{outdir}/common/3_raw_bam",
+    "indir": align_bam_dir,
     "outdir": f"{outdir}/results/tailer",
     "logdir": logdir,
     "paired_samples": paired_samples,
     "single_samples": single_samples,
     "Procedure": {
-        "tailer": "Tailer"
+        "tailer": config.get("Procedure", {}).get("tailer") or config.get("Procedure", {}).get("Tailer") or "Tailer"
     },
     "Params": {
         "tailer": config.get("Params", {}).get("tailer", {})

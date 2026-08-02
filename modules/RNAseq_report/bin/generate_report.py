@@ -70,6 +70,17 @@ I18N = {
         "shared_recurrent": "高频复现融合",
         "support": "支持度",
         "n_samples": "样本数",
+        "function_summary": "功能富集概览",
+        "function_go_kegg": "GO/KEGG 富集",
+        "function_gsea": "GSEA 富集",
+        "go": "GO",
+        "kegg": "KEGG",
+        "up_genes": "上调基因",
+        "down_genes": "下调基因",
+        "pathway": "通路",
+        "nes": "NES",
+        "padj": "padj",
+        "count": "基因数",
     },
     "en": {
         "title": "RNA-seq Analysis Report",
@@ -103,6 +114,17 @@ I18N = {
         "shared_recurrent": "Recurrent Fusions",
         "support": "Support",
         "n_samples": "Samples",
+        "function_summary": "Functional Enrichment Overview",
+        "function_go_kegg": "GO/KEGG Enrichment",
+        "function_gsea": "GSEA Enrichment",
+        "go": "GO",
+        "kegg": "KEGG",
+        "up_genes": "Up Genes",
+        "down_genes": "Down Genes",
+        "pathway": "Pathway",
+        "nes": "NES",
+        "padj": "padj",
+        "count": "Count",
     },
 }
 
@@ -206,6 +228,57 @@ def load_fusion_summary(analysis_dir: str) -> pd.DataFrame:
 def load_recurrent_fusions(analysis_dir: str) -> pd.DataFrame:
     path = os.path.join(analysis_dir, "fusion", "arriba_report", "recurrent_fusions.tsv")
     return safe_read_tsv(path)
+
+
+def safe_read_csv(path: str) -> pd.DataFrame:
+    if not path or not os.path.isfile(path):
+        return pd.DataFrame()
+    return pd.read_csv(path)
+
+
+def _count_lines(path: str) -> int:
+    if not path or not os.path.isfile(path):
+        return 0
+    with open(path, "r") as fh:
+        return sum(1 for _ in fh)
+
+
+def load_function_summary(contrast_dir: str) -> dict:
+    """Load GO/KEGG/GSEA enrichment results for a single contrast.
+
+    Expects *contrast_dir* to be the function output directory for one contrast,
+    e.g. ``{analysis_dir}/function/{contrast_name}``.
+    """
+    name = os.path.basename(contrast_dir)
+    result: dict = {
+        "contrast": name,
+        "func_dir": contrast_dir,
+        "go_plot": os.path.join(contrast_dir, "go_back_to_back.png"),
+        "kegg_plot": os.path.join(contrast_dir, "kegg_back_to_back.png"),
+        "go_up_path": os.path.join(contrast_dir, "go_up.csv"),
+        "go_down_path": os.path.join(contrast_dir, "go_down.csv"),
+        "kegg_up_path": os.path.join(contrast_dir, "kegg_up.csv"),
+        "kegg_down_path": os.path.join(contrast_dir, "kegg_down.csv"),
+        "up_genes_path": os.path.join(contrast_dir, "up_genes.txt"),
+        "down_genes_path": os.path.join(contrast_dir, "down_genes.txt"),
+        "gsea_plot": os.path.join(contrast_dir, "GSEA", "TEcount_Gene_GSEA.jpeg"),
+        "gsea_csv_path": os.path.join(contrast_dir, "GSEA", "TEcount_Gene_GSEA.csv"),
+    }
+    result["up_count"] = _count_lines(result["up_genes_path"])
+    result["down_count"] = _count_lines(result["down_genes_path"])
+
+    for key in ["go_up", "go_down", "kegg_up", "kegg_down"]:
+        df = safe_read_csv(result[f"{key}_path"])
+        result[f"{key}_df"] = df
+        result[f"{key}_n"] = int(len(df.index))
+
+    gsea_df = safe_read_csv(result["gsea_csv_path"])
+    if not gsea_df.empty and "NES" in gsea_df.columns:
+        gsea_df["NES"] = pd.to_numeric(gsea_df["NES"], errors="coerce")
+        gsea_df["padj"] = pd.to_numeric(gsea_df.get("padj"), errors="coerce")
+    result["gsea_df"] = gsea_df
+    result["gsea_n"] = int(len(gsea_df.index))
+    return result
 
 
 def load_diff_summary(contrast_dir: str) -> dict:
@@ -380,7 +453,7 @@ def build_workflow_slide(prs: Presentation, pipeline_text: str, lang: str):
         "TrimGalore / Cutadapt",
         "STAR / HISAT2",
         "TEcount / StringTie / Arriba",
-        "DESeq2 + Report",
+        "DESeq2 + GO/KEGG/GSEA",
     ]
     box_w = 1.55
     gap = 0.2
@@ -409,8 +482,8 @@ def build_workflow_slide(prs: Presentation, pipeline_text: str, lang: str):
     _textbox(slide, 0.6, 3.0, 8.8, 1.3, pipeline_text, font_size=14, color=C_TEXT)
     bullets = [
         "TEcount 负责基因与转座子联合定量，DESeq2 输出差异表达结果。" if lang == "zh" else "TEcount quantifies genes and transposable elements jointly; DESeq2 performs differential expression.",
-        "StringTie 汇总转录本结构，Arriba 汇总融合转录本证据。" if lang == "zh" else "StringTie summarizes transcript structures, and Arriba aggregates fusion transcript evidence.",
-        "最终报告复用现有 PNG / TSV 结果，不重复计算上游分析。" if lang == "zh" else "The final report reuses existing PNG/TSV outputs without recomputing upstream analyses.",
+        "clusterProfiler 进行 GO/KEGG 富集，fgsea 进行 GSEA 通路分析。" if lang == "zh" else "clusterProfiler performs GO/KEGG enrichment, and fgsea runs GSEA pathway analysis.",
+        "最终报告复用现有 PNG / TSV / CSV 结果，不重复计算上游分析。" if lang == "zh" else "The final report reuses existing PNG/TSV/CSV outputs without recomputing upstream analyses.",
     ]
     _bullets(slide, 0.7, 3.7, 8.6, 1.35, bullets, font_size=12)
 
@@ -558,6 +631,112 @@ def build_fusion_slide(prs: Presentation, analysis_dir: str, fusion_df: pd.DataF
     _table(slide, 5.0, 3.35, 4.55, 1.5, recur_rows, font_size=9)
 
 
+def _enrichment_table_rows(df: pd.DataFrame, p_col: str, top_n: int = 5) -> list[list]:
+    """Build table rows from a GO/KEGG enrichment DataFrame."""
+    rows: list[list] = []
+    if df.empty or "Description" not in df.columns or p_col not in df.columns:
+        return rows
+    df = df.copy()
+    df[p_col] = pd.to_numeric(df[p_col], errors="coerce")
+    df = df.dropna(subset=[p_col]).sort_values(p_col)
+    for _, row in df.head(top_n).iterrows():
+        desc = str(row["Description"])
+        if len(desc) > 40:
+            desc = desc[:37] + "..."
+        count_val = row.get("Count") if "Count" in df.columns else None
+        count = int(count_val) if pd.notna(count_val) else ""
+        pval = float(row[p_col])
+        rows.append([desc, count, f"{pval:.2e}"])
+    return rows
+
+
+def build_function_summary_slide(prs: Presentation, func_summaries: list[dict], lang: str):
+    """Summary slide: one row per contrast with GO/KEGG/GSEA counts."""
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    slide.background.fill.solid()
+    slide.background.fill.fore_color.rgb = C_BG
+    _header(slide, t("function_summary", lang))
+    rows = [[t("contrast", lang), t("up_genes", lang), t("down_genes", lang),
+             f"{t('go', lang)} {t('up', lang)}", f"{t('go', lang)} {t('down', lang)}",
+             f"{t('kegg', lang)} {t('up', lang)}", f"{t('kegg', lang)} {t('down', lang)}",
+             "GSEA"]]
+    for item in func_summaries:
+        rows.append([
+            pretty_contrast(item["contrast"]),
+            item["up_count"],
+            item["down_count"],
+            item["go_up_n"],
+            item["go_down_n"],
+            item["kegg_up_n"],
+            item["kegg_down_n"],
+            item["gsea_n"],
+        ])
+    _table(slide, 0.45, 0.95, 9.1, 0.4 + 0.32 * len(rows), rows, font_size=10)
+    notes = [
+        "GO/KEGG 基于差异基因 (|log2FC|>=1, padj<=0.05) 进行富集；GSEA 使用全部基因排序。" if lang == "zh"
+        else "GO/KEGG enrichment uses DE genes (|log2FC|>=1, padj<=0.05); GSEA uses the full ranked gene list.",
+        "上下调计数反映显著富集条目数，GSEA 列为总通路数。" if lang == "zh"
+        else "Up/down counts are significant enriched terms; GSEA column is total pathways tested.",
+    ]
+    _bullets(slide, 0.55, 0.95 + 0.4 + 0.32 * len(rows) + 0.15, 8.8, 1.0, notes, font_size=11)
+
+
+def build_function_go_kegg_slide(prs: Presentation, item: dict, lang: str):
+    """Per-contrast GO/KEGG slide: back-to-back bar plots + top-term tables."""
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    slide.background.fill.solid()
+    slide.background.fill.fore_color.rgb = C_BG
+    _header(slide, f"{t('function_go_kegg', lang)}: {pretty_contrast(item['contrast'])}")
+    _add_picture(slide, item["go_plot"], 0.45, 0.95, 4.35, 2.5)
+    _add_picture(slide, item["kegg_plot"], 5.0, 0.95, 4.55, 2.5)
+
+    # GO top terms table
+    go_rows = [[f"{t('go', lang)} {t('up', lang)}", t("count", lang), "p.adj"]]
+    go_rows.extend(_enrichment_table_rows(item["go_up_df"], "p.adjust", top_n=2))
+    go_rows.append([f"{t('go', lang)} {t('down', lang)}", "", ""])
+    go_rows.extend(_enrichment_table_rows(item["go_down_df"], "p.adjust", top_n=2))
+    _table(slide, 0.45, 3.55, 4.35, 0.22 * len(go_rows), go_rows, font_size=8)
+
+    # KEGG top terms table
+    kegg_rows = [[f"{t('kegg', lang)} {t('up', lang)}", t("count", lang), "p.adj"]]
+    kegg_rows.extend(_enrichment_table_rows(item["kegg_up_df"], "p.adjust", top_n=2))
+    kegg_rows.append([f"{t('kegg', lang)} {t('down', lang)}", "", ""])
+    kegg_rows.extend(_enrichment_table_rows(item["kegg_down_df"], "p.adjust", top_n=2))
+    _table(slide, 5.0, 3.55, 4.55, 0.22 * len(kegg_rows), kegg_rows, font_size=8)
+
+
+def build_function_gsea_slide(prs: Presentation, item: dict, lang: str):
+    """Per-contrast GSEA slide: waterfall plot + top pathway table."""
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    slide.background.fill.solid()
+    slide.background.fill.fore_color.rgb = C_BG
+    _header(slide, f"{t('function_gsea', lang)}: {pretty_contrast(item['contrast'])}")
+    _add_picture(slide, item["gsea_plot"], 0.45, 0.95, 5.75, 3.6)
+
+    gsea_df = item.get("gsea_df", pd.DataFrame())
+    rows = [[t("pathway", lang), t("nes", lang), t("padj", lang)]]
+    if not gsea_df.empty and "pathway" in gsea_df.columns:
+        sig = gsea_df.dropna(subset=["NES"]).copy()
+        if not sig.empty:
+            sig = sig.sort_values("NES", ascending=False)
+            top_positive = sig.head(4)
+            top_negative = sig.sort_values("NES", ascending=True).head(4)
+            combined = pd.concat([top_positive, top_negative]).drop_duplicates(subset=["pathway"])
+            for _, row in combined.head(8).iterrows():
+                pw = str(row["pathway"])
+                if len(pw) > 30:
+                    pw = pw[:27] + "..."
+                nes = float(row["NES"]) if pd.notna(row["NES"]) else 0.0
+                padj = float(row["padj"]) if pd.notna(row["padj"]) else float("nan")
+                rows.append([pw, f"{nes:.2f}", f"{padj:.2e}" if pd.notna(padj) else "NA"])
+    _table(slide, 6.35, 1.0, 3.15, 0.3 * len(rows), rows, font_size=9)
+    notes = [
+        f"{item['up_count']} {t('up_genes', lang)}, {item['down_count']} {t('down_genes', lang)}" if lang == "zh"
+        else f"{item['up_count']} {t('up_genes', lang)}, {item['down_count']} {t('down_genes', lang)}",
+    ]
+    _bullets(slide, 0.55, 4.7, 5.6, 0.5, notes, font_size=10)
+
+
 def build_conclusion_slide(prs: Presentation, bullets: list[str], stats: dict, lang: str):
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     slide.background.fill.solid()
@@ -601,7 +780,7 @@ def build_conclusion_slide(prs: Presentation, bullets: list[str], stats: dict, l
     band.line.fill.background()
 
 
-def collect_conclusion_bullets(sample_df: pd.DataFrame, fusion_df: pd.DataFrame, diff_summaries: list[dict], lang: str) -> list[str]:
+def collect_conclusion_bullets(sample_df: pd.DataFrame, fusion_df: pd.DataFrame, diff_summaries: list[dict], func_summaries: list[dict], lang: str) -> list[str]:
     bullets = []
     if not sample_df.empty and "group" in sample_df.columns:
         ratio_df = sample_df.dropna(subset=["chimeric_ratio"]).groupby("group", as_index=False)["chimeric_ratio"].mean()
@@ -616,6 +795,14 @@ def collect_conclusion_bullets(sample_df: pd.DataFrame, fusion_df: pd.DataFrame,
         for item in diff_summaries:
             bullets.append(
                 f"{item['contrast']} 检出 {item['gene_total']} 个显著基因、{item['te_total']} 个显著 TE。" if lang == "zh" else f"{item['contrast']} detected {item['gene_total']} significant genes and {item['te_total']} significant TEs."
+            )
+    if func_summaries:
+        for item in func_summaries:
+            go_total = item["go_up_n"] + item["go_down_n"]
+            kegg_total = item["kegg_up_n"] + item["kegg_down_n"]
+            bullets.append(
+                f"{item['contrast']} 功能富集：GO {go_total} 条、KEGG {kegg_total} 条、GSEA {item['gsea_n']} 条通路。" if lang == "zh"
+                else f"{item['contrast']}: GO {go_total} terms, KEGG {kegg_total} terms, GSEA {item['gsea_n']} pathways."
             )
     if not fusion_df.empty:
         max_row = fusion_df.sort_values("total_fusions", ascending=False).iloc[0]
@@ -675,7 +862,13 @@ def main():
     diff_summaries = [load_diff_summary(cdir) for cdir in contrast_dirs]
     sample_df = build_sample_dataframe(args.samples, args.paired_samples, args.single_samples, group_map, te_sample_df)
 
-    pipeline_text = args.pipeline or "FASTQ → TrimGalore/Cutadapt → STAR/HISAT2 → TEcount/StringTie/Arriba → DESeq2 → RNAseq_report"
+    func_base_dir = os.path.join(analysis_dir, "function")
+    func_contrast_dirs = [os.path.join(func_base_dir, c) for c in args.contrasts if os.path.isdir(os.path.join(func_base_dir, c))]
+    if not func_contrast_dirs and os.path.isdir(func_base_dir):
+        func_contrast_dirs = [os.path.join(func_base_dir, d) for d in sorted(os.listdir(func_base_dir)) if os.path.isdir(os.path.join(func_base_dir, d))]
+    func_summaries = [load_function_summary(cdir) for cdir in func_contrast_dirs]
+
+    pipeline_text = args.pipeline or "FASTQ -> TrimGalore/Cutadapt -> STAR/HISAT2 -> TEcount/StringTie/Arriba -> DESeq2 + GO/KEGG/GSEA -> RNAseq_report"
     title = args.title or t("title", args.lang)
     subtitle_parts = []
     if args.subtitle:
@@ -714,7 +907,15 @@ def main():
     if not fusion_df.empty:
         build_fusion_slide(prs, analysis_dir, fusion_df, recurrent_df, args.lang)
 
-    conclusion_bullets = collect_conclusion_bullets(sample_df, fusion_df, diff_summaries, args.lang)
+    if func_summaries:
+        build_function_summary_slide(prs, func_summaries, args.lang)
+        for item in func_summaries:
+            if os.path.isfile(item["go_plot"]) or os.path.isfile(item["kegg_plot"]):
+                build_function_go_kegg_slide(prs, item, args.lang)
+            if os.path.isfile(item["gsea_plot"]):
+                build_function_gsea_slide(prs, item, args.lang)
+
+    conclusion_bullets = collect_conclusion_bullets(sample_df, fusion_df, diff_summaries, func_summaries, args.lang)
     build_conclusion_slide(prs, conclusion_bullets, {
         "samples": len(sample_df),
         "contrasts": len(diff_summaries),

@@ -1,8 +1,7 @@
 name: genome
 channels:
-  - bioconda
   - conda-forge
-  - defaults
+  - bioconda
 dependencies:
   - python=3.11 
   - samtools>=1.17

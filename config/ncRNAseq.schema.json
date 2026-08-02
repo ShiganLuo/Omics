@@ -167,8 +167,57 @@
       "subsample_n": {
         "type": "int",
         "required": true
+      },
+      "smallrna_flank": {
+        "type": "int",
+        "required": false
+      },
+      "smallrna_types": {
+        "type": "list",
+        "required": false
+      },
+      "seed": {
+        "type": "int",
+        "required": false
+      },
+      "hard_clip_direction": {
+        "type": "str",
+        "required": false
+      },
+      "hard_clip_length": {
+        "type": "int",
+        "required": false
       }
-    }
+    },
+    "star_3pass_gene": {
+      "pass1": {
+        "outFilterMultimapNmax": {
+          "type": "int",
+          "required": true
+        },
+        "alignIntronMin": {
+          "type": "int",
+          "required": true
+        },
+        "outFilterMultimapScoreRange": {
+          "type": "int",
+          "required": true
+        },
+        "outFilterMismatchNoverLmax": {
+          "type": "float",
+          "required": true
+        },
+        "alignEndsType": {
+          "type": "str",
+          "required": true
+        },
+        "clip5pNbases": {
+          "type": "str",
+          "required": true
+        }
+      }
+    },
+    "tailer": {}
   },
   "genome": {
     "fasta": {

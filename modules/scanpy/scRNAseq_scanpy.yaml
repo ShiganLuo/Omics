@@ -1,0 +1,14 @@
+name: scRNAseq_scanpy
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python=3.11
+  - scanpy
+  - anndata
+  - leidenalg
+  - python-igraph
+  - scrublet
+  - scvelo
+  - liana
+  - infercnvpy

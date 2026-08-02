@@ -205,9 +205,59 @@ UMI提取依赖序列不被破坏，建议先提取UMI，再做trim比较安全
   - 所有样本一起处理，通过 sample data sheet 驱动
   - 子模块详细文档见 `modules/mimseq/README.md`
 
----
+## 13. scRNAseq.smk
+
+- **用途**：标准化 Scanpy 单细胞 RNA-seq 分析。
+- **输入**：单个 `.h5ad`，或由 `sample_h5ad` 提供的多个样本 h5ad。
+- **基础分析**：QC、线粒体比例过滤、归一化、log1p、高变基因、PCA、neighbors、UMAP、Leiden、marker 和差异表达。
+- **高级分析**：可配置启用 DPT 拟时序、RNA velocity、LIANA 细胞通讯和 infercnvpy CNV。
+- **架构**：规则位于 `modules/scanpy/scRNAseq_scanpy.smk`，本 subworkflow 只负责配置和编排。
+
+示例：
+
+```json
+{
+  "input_h5ad": "/path/input.h5ad",
+  "Params": {
+    "scanpy": {
+      "advanced": {
+        "trajectory": true,
+        "velocity": false,
+        "communication": false,
+        "cnv": false
+      }
+    }
+  }
+}
+```
+
+## 14. spatial_transcriptomics.smk
+
+- **用途**：10x Visium 和自定义 spot×gene h5ad 空间转录组分析。
+- **Visium 输入**：`visium_h5` 和可选 `spatial_dir`。
+- **自定义输入**：`input_h5ad`，必须包含 `adata.obsm["spatial"]` 空间坐标。
+- **基础分析**：空间 QC、归一化、高变基因、PCA、空间聚类和空间 marker。
+- **高级分析**：Squidpy 空间邻域和 Moran's I 空间自相关。
+- **架构**：规则位于 `modules/spatial_scanpy/spatial_scanpy.smk`，本 subworkflow 只负责配置和编排。
+
+示例：
+
+```json
+{
+  "visium_h5": "/path/filtered_feature_bc_matrix.h5",
+  "spatial_dir": "/path/spatial",
+  "Params": {
+    "spatial": {
+      "advanced": {
+        "spatial_autocorrelation": true
+      }
+    }
+  }
+}
+```
 
 ## 使用说明
+
 - 每个 .smk 文件可作为 Snakemake 主入口，需配合对应 config json/yaml。
 - 支持 conda 环境自动管理。
 - 具体参数和模块细节见各模块目录及主 config。

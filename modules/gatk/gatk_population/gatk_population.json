@@ -1,0 +1,19 @@
+{
+  "samples": [],
+  "sample_bams": {},
+  "Procedure": {
+    "gatk": null
+  },
+  "Params": {
+    "gatk": {
+      "javaOptions": "-Xmx30g",
+      "tmp-dir": null
+    }
+  },
+  "genome": {
+    "fasta": null,
+    "fai_index": null,
+    "dict_index": null,
+    "interval": null
+  }
+}

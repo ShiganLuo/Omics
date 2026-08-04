@@ -1,188 +1,150 @@
+"""Canonical three-pass STAR alignment for small non-coding RNA reads."""
+
 include: "../../common/common.smk"
+
+import os
 
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
-
+STAR = config.get("Procedure", {}).get("STAR") or "STAR"
 SAMTOOLS = config.get("Procedure", {}).get("samtools") or "samtools"
 BEDTOOLS = config.get("Procedure", {}).get("bedtools") or "bedtools"
 smallrna_bed = config.get("genome", {}).get("smallrna_bed")
-pass2_outdir = config.get("pass2_outdir", "")
+three_pass_params = config.get("Params", {}).get("star_3pass", {})
+force_end_to_end = bool(config.get("Params", {}).get("force_end_to_end", False))
+hard_clip_5p = int(config.get("Params", {}).get("hard_clip_5p", 0))
+HELPER = os.path.join(config["ROOT_DIR"], "modules/star/star_3pass/bin/three_pass_align.py")
 
-# ── Convert pass2 BAM (canonical mapped reads) to FASTQ for pass3a ──────
-rule star_3p_pass2_to_fq:
+
+def fq_inputs(wildcards):
+    """Resolve paired- or single-end preprocessed FASTQ inputs."""
+    indir = config.get("indir", "input")
+    if wildcards.sample_id in config.get("paired_samples", []):
+        return [
+            f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}_1.fq.gz",
+            f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}_2.fq.gz",
+        ]
+    return [f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}.single.fq.gz"]
+
+
+rule star_3p_align:
     input:
-        bam = pass2_outdir + "/{sample_id}/{sample_id}.bam",
-        bai = pass2_outdir + "/{sample_id}/{sample_id}.bam.bai",
+        fastq=fq_inputs,
+        genome_index=config.get("genome", {}).get("genome_index"),
+        smallrna_index=config.get("genome", {}).get("smallrna_index"),
+        smallrna_bed=smallrna_bed,
     output:
-        r1 = outdir + "/pass2_mapped_fq/{sample_id}/{sample_id}_1.fq.gz",
-        r2 = outdir + "/pass2_mapped_fq/{sample_id}/{sample_id}_2.fq.gz",
+        pass1_bam=outdir + "/pass1/{sample_id}/{sample_id}.bam",
+        pass1_bai=outdir + "/pass1/{sample_id}/{sample_id}.bam.bai",
+        pass1_fq1=outdir + "/pass1_extract/{sample_id}/{sample_id}_1.fq.gz",
+        pass1_fq2=outdir + "/pass1_extract/{sample_id}/{sample_id}_2.fq.gz",
+        pass2_bam=outdir + "/pass2/{sample_id}/{sample_id}.bam",
+        pass2_bai=outdir + "/pass2/{sample_id}/{sample_id}.bam.bai",
+        pass2_unmapped1=outdir + "/pass2_unmapped_fq/{sample_id}/{sample_id}_1.fq.gz",
+        pass2_unmapped2=outdir + "/pass2_unmapped_fq/{sample_id}/{sample_id}_2.fq.gz",
+        pass3a_bam=outdir + "/pass3a/{sample_id}/{sample_id}.bam",
+        pass3a_bai=outdir + "/pass3a/{sample_id}/{sample_id}.bam.bai",
+        pass3b_bam=outdir + "/pass3b/{sample_id}/{sample_id}.bam",
+        pass3b_bai=outdir + "/pass3b/{sample_id}/{sample_id}.bam.bai",
+        bam=outdir + "/{sample_id}/{sample_id}.bam",
+        bai=outdir + "/{sample_id}/{sample_id}.bam.bai",
     log:
-        logdir + "/star3p/{sample_id}/pass2_to_fq.log"
-    threads: 4
+        logdir + "/star3p/{sample_id}/three_pass.log"
+    threads: 12
     conda:
         "star_3pass.yaml"
     run:
         log_path = str(log)
         try:
-            open(log_path, 'w').close()
-            rule_logger = setup_logger("star_3p_pass2_to_fq", log_file=log_path)
+            open(log_path, "w").close()
+            rule_logger = setup_logger("star_3p_align", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            rule_logger.info(f"Start star_3p_pass2_to_fq for sample {wildcards.sample_id} at {current_time}")
-            outdir_fq = os.path.dirname(str(output.r1))
-            os.makedirs(outdir_fq, exist_ok=True)
-            script = os.path.join(outdir_fq, f"pass2_to_fq_{current_time}.sh")
-            with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
-                f.write(f"{SAMTOOLS} sort -n -@ {threads} -T {outdir_fq}/tmp {input.bam} \\\n")
-                f.write(f"    | {SAMTOOLS} fastq -@ {threads} -1 {output.r1} -2 {output.r2} -0 /dev/null -s /dev/null -\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
-        except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"Error occurred during star_3p_pass2_to_fq for sample {wildcards.sample_id}: {e}\n")
-            logger.error(f"Error occurred during star_3p_pass2_to_fq for sample {wildcards.sample_id}: {e}")
-            raise e
+            rule_logger.info(f"Start star_3p_align for sample {wildcards.sample_id} at {current_time}")
 
-# ── Convert pass2 STAR unmapped reads to FASTQ for pass3b ───────────────
-rule star_3p_pass2_unmapped:
-    input:
-        r1 = pass2_outdir + "/{sample_id}/{sample_id}.Unmapped.out.mate1",
-        r2 = pass2_outdir + "/{sample_id}/{sample_id}.Unmapped.out.mate2",
-    output:
-        r1 = outdir + "/pass2_unmapped_fq/{sample_id}/{sample_id}_1.fq.gz",
-        r2 = outdir + "/pass2_unmapped_fq/{sample_id}/{sample_id}_2.fq.gz",
-    log:
-        logdir + "/star3p/{sample_id}/pass2_unmapped.log"
-    threads: 2
-    conda:
-        "star_3pass.yaml"
-    run:
-        log_path = str(log)
-        try:
-            open(log_path, 'w').close()
-            rule_logger = setup_logger("star_3p_pass2_unmapped", log_file=log_path)
-            current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            rule_logger.info(f"Start star_3p_pass2_unmapped for sample {wildcards.sample_id} at {current_time}")
-            outdir_fq = os.path.dirname(str(output.r1))
-            os.makedirs(outdir_fq, exist_ok=True)
-            script = os.path.join(outdir_fq, f"pass2_unmapped_{current_time}.sh")
-            with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
-                f.write(f"gzip -c {input.r1} > {output.r1}\n")
-                f.write(f"gzip -c {input.r2} > {output.r2}\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
-        except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"Error occurred during star_3p_pass2_unmapped for sample {wildcards.sample_id}: {e}\n")
-            logger.error(f"Error occurred during star_3p_pass2_unmapped for sample {wildcards.sample_id}: {e}")
-            raise e
+            sample_outdir = os.path.dirname(str(output.bam))
+            os.makedirs(sample_outdir, exist_ok=True)
+            os.makedirs(os.path.dirname(log_path), exist_ok=True)
+            script = os.path.join(sample_outdir, f"three_pass_{current_time}.sh")
 
-# ── Extract reads overlapping small RNA genes (used after pass 1 & pass 3a) ─
-rule star_3p_extract_smallrna:
-    input:
-        bam = outdir + "/pass1/{sample_id}/{sample_id}.bam",
-        bai = outdir + "/pass1/{sample_id}/{sample_id}.bam.bai",
-        bed = smallrna_bed,
-    output:
-        bam = outdir + "/pass1_extract/{sample_id}/{sample_id}.smallrna.bam",
-        r1  = outdir + "/pass1_extract/{sample_id}/{sample_id}_1.fq.gz",
-        r2  = outdir + "/pass1_extract/{sample_id}/{sample_id}_2.fq.gz",
-    log:
-        logdir + "/star3p/{sample_id}/extract_smallrna.log"
-    threads: 4
-    conda:
-        "star_3pass.yaml"
-    run:
-        log_path = str(log)
-        try:
-            open(log_path, 'w').close()
-            rule_logger = setup_logger("star_3p_extract_smallrna", log_file=log_path)
-            current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            rule_logger.info(f"Start star_3p_extract_smallrna for sample {wildcards.sample_id} at {current_time}")
-            outdir_bam = os.path.dirname(str(output.bam))
-            os.makedirs(outdir_bam, exist_ok=True)
-            script = os.path.join(outdir_bam, f"extract_smallrna_{current_time}.sh")
-            with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
-                f.write(f"mkdir -p $(dirname {output.bam})\n")
-                f.write(f"{BEDTOOLS} intersect -abam {input.bam} -b {input.bed} -u \\\n")
-                f.write(f"    | {SAMTOOLS} sort -n -@ {threads} -T $(dirname {output.bam})/tmp \\\n")
-                f.write(f"    -o {output.bam}\n")
-                f.write(f"{SAMTOOLS} fastq -@ {threads} -1 {output.r1} -2 {output.r2} -0 /dev/null -s /dev/null {output.bam}\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
-        except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"Error occurred during star_3p_extract_smallrna for sample {wildcards.sample_id}: {e}\n")
-            logger.error(f"Error occurred during star_3p_extract_smallrna for sample {wildcards.sample_id}: {e}")
-            raise e
+            p1 = three_pass_params.get("pass1", {})
+            p2 = three_pass_params.get("pass2", {})
+            p3 = three_pass_params.get("pass3", {})
+            cmd = [
+                "python", HELPER,
+                "--fastq", *[str(p) for p in input.fastq],
+                "--genome-index", str(input.genome_index),
+                "--smallrna-index", str(input.smallrna_index),
+                "--smallrna-bed", str(input.smallrna_bed),
+                "--pass1-bam", str(output.pass1_bam),
+                "--pass1-fq1", str(output.pass1_fq1),
+                "--pass1-fq2", str(output.pass1_fq2),
+                "--pass2-bam", str(output.pass2_bam),
+                "--pass2-unmapped1", str(output.pass2_unmapped1),
+                "--pass2-unmapped2", str(output.pass2_unmapped2),
+                "--pass3a-bam", str(output.pass3a_bam),
+                "--pass3b-bam", str(output.pass3b_bam),
+                "--bam", str(output.bam),
+                "--log", log_path,
+                "--threads", str(threads),
+                "--star", STAR,
+                "--samtools", SAMTOOLS,
+                "--bedtools", BEDTOOLS,
+                "--hard-clip-5p", str(hard_clip_5p),
+            ]
+            # Pass 1 parameters
+            if "outFilterMultimapNmax" in p1:
+                cmd += ["--pass1-out-filter-multimap-nmax", str(p1["outFilterMultimapNmax"])]
+            if "outFilterMultimapScoreRange" in p1:
+                cmd += ["--pass1-out-filter-multimap-score-range", str(p1["outFilterMultimapScoreRange"])]
+            if "outFilterMismatchNoverLmax" in p1:
+                cmd += ["--pass1-out-filter-mismatch-nover-lmax", str(p1["outFilterMismatchNoverLmax"])]
+            if "alignIntronMin" in p1:
+                cmd += ["--pass1-align-intron-min", str(p1["alignIntronMin"])]
+            if "alignMatesGapMax" in p1:
+                cmd += ["--pass1-align-mates-gap-max", str(p1["alignMatesGapMax"])]
+            if "alignEndsType" in p1:
+                cmd += ["--pass1-align-ends-type", str(p1["alignEndsType"])]
+            # Pass 2 parameters
+            if "outFilterMultimapNmax" in p2:
+                cmd += ["--pass2-out-filter-multimap-nmax", str(p2["outFilterMultimapNmax"])]
+            if "outFilterMultimapScoreRange" in p2:
+                cmd += ["--pass2-out-filter-multimap-score-range", str(p2["outFilterMultimapScoreRange"])]
+            if "outFilterMismatchNoverLmax" in p2:
+                cmd += ["--pass2-out-filter-mismatch-nover-lmax", str(p2["outFilterMismatchNoverLmax"])]
+            if "alignIntronMin" in p2:
+                cmd += ["--pass2-align-intron-min", str(p2["alignIntronMin"])]
+            if "alignMatesGapMax" in p2:
+                cmd += ["--pass2-align-mates-gap-max", str(p2["alignMatesGapMax"])]
+            if "alignEndsType" in p2:
+                cmd += ["--pass2-align-ends-type", str(p2["alignEndsType"])]
+            if "outFilterMismatchNoverReadLmax" in p2:
+                cmd += ["--pass2-out-filter-mismatch-nover-read-lmax", str(p2["outFilterMismatchNoverReadLmax"])]
+            if "clip5pNbases" in p2:
+                cmd += ["--pass2-clip5p-nbases", str(p2["clip5pNbases"])]
+            if "clip3pNbases" in p2:
+                cmd += ["--pass2-clip3p-nbases", str(p2["clip3pNbases"])]
+            # Pass 3 parameters
+            if "outFilterMultimapNmax" in p3:
+                cmd += ["--pass3-out-filter-multimap-nmax", str(p3["outFilterMultimapNmax"])]
+            if "outFilterMultimapScoreRange" in p3:
+                cmd += ["--pass3-out-filter-multimap-score-range", str(p3["outFilterMultimapScoreRange"])]
+            if "outFilterMismatchNoverLmax" in p3:
+                cmd += ["--pass3-out-filter-mismatch-nover-lmax", str(p3["outFilterMismatchNoverLmax"])]
+            if "alignIntronMin" in p3:
+                cmd += ["--pass3-align-intron-min", str(p3["alignIntronMin"])]
+            if "alignMatesGapMax" in p3:
+                cmd += ["--pass3-align-mates-gap-max", str(p3["alignMatesGapMax"])]
+            if "alignEndsType" in p3:
+                cmd += ["--pass3-align-ends-type", str(p3["alignEndsType"])]
+            if force_end_to_end:
+                cmd.append("--force-end-to-end")
 
-# ── Extract canonical reads from pass 3a (still overlapping small RNA genes) ─
-rule star_3p_pass3a_extract:
-    input:
-        bam = outdir + "/pass3a/{sample_id}/{sample_id}.bam",
-        bed = smallrna_bed,
-    output:
-        bam = outdir + "/pass3a_extract/{sample_id}/{sample_id}.canonical.bam",
-        bai = outdir + "/pass3a_extract/{sample_id}/{sample_id}.canonical.bam.bai",
-    log:
-        logdir + "/star3p/{sample_id}/pass3a_extract.log"
-    threads: 4
-    conda:
-        "star_3pass.yaml"
-    run:
-        log_path = str(log)
-        try:
-            open(log_path, 'w').close()
-            rule_logger = setup_logger("star_3p_pass3a_extract", log_file=log_path)
-            current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            rule_logger.info(f"Start star_3p_pass3a_extract for sample {wildcards.sample_id} at {current_time}")
-            outdir_bam = os.path.dirname(str(output.bam))
-            os.makedirs(outdir_bam, exist_ok=True)
-            script = os.path.join(outdir_bam, f"pass3a_extract_{current_time}.sh")
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
-                f.write(f"mkdir -p $(dirname {output.bam})\n")
-                f.write(f"{BEDTOOLS} intersect -abam {input.bam} -b {input.bed} -u \\\n")
-                f.write(f"    > {output.bam}\n")
-                f.write(f"{SAMTOOLS} index -@ {threads} {output.bam}\n")
+                f.write(" ".join(cmd) + "\n")
             shell(f"bash {script} >> {log_path} 2>&1")
-        except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"Error occurred during star_3p_pass3a_extract for sample {wildcards.sample_id}: {e}\n")
-            logger.error(f"Error occurred during star_3p_pass3a_extract for sample {wildcards.sample_id}: {e}")
-            raise e
 
-# ── Merge canonical + non-canonical reads ────────────────────────────────
-rule star_3p_merge:
-    input:
-        canonical = outdir + "/pass3a_extract/{sample_id}/{sample_id}.canonical.bam",
-        noncanonical = outdir + "/pass3b/{sample_id}/{sample_id}.bam",
-    output:
-        bam = outdir + "/{sample_id}/{sample_id}.bam",
-        bai = outdir + "/{sample_id}/{sample_id}.bam.bai",
-    log:
-        logdir + "/star3p/{sample_id}/merge.log"
-    threads: 4
-    conda:
-        "star_3pass.yaml"
-    run:
-        log_path = str(log)
-        try:
-            open(log_path, 'w').close()
-            rule_logger = setup_logger("star_3p_merge", log_file=log_path)
-            current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            rule_logger.info(f"Start star_3p_merge for sample {wildcards.sample_id} at {current_time}")
-            outdir_bam = os.path.dirname(str(output.bam))
-            os.makedirs(outdir_bam, exist_ok=True)
-            script = os.path.join(outdir_bam, f"merge_{current_time}.sh")
-            with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
-                f.write(f"mkdir -p $(dirname {output.bam})\n")
-                f.write(f"{SAMTOOLS} merge -@ {threads} -f {output.bam} \\\n")
-                f.write(f"    {input.canonical} {input.noncanonical}\n")
-                f.write(f"{SAMTOOLS} index -@ {threads} {output.bam}\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            rule_logger.info(f"star_3p_align for sample {wildcards.sample_id} completed")
         except Exception as e:
             with open(log_path, "a") as f:
-                f.write(f"Error occurred during star_3p_merge for sample {wildcards.sample_id}: {e}\n")
-            logger.error(f"Error occurred during star_3p_merge for sample {wildcards.sample_id}: {e}")
+                f.write(f"star_3p_align failed for sample {wildcards.sample_id}: {e}\n")
             raise e

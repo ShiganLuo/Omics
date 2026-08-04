@@ -618,6 +618,7 @@ parser$add_argument('-p', '--pattern', type = 'character', required = TRUE, narg
 parser$add_argument('-f', '--figure', type = 'character', required = TRUE, nargs = "+",
                     choices = c("heatmap","volcano","pca"))
 parser$add_argument('-o', '--outdir', type = 'character', required = TRUE)
+parser$add_argument('-px', '--prefix', type = 'character', required = FALSE, default = "", help="file prefix for output files")
 parser$add_argument('-a', '--annotation', type = 'character', required = FALSE, default = NULL,
                     help = 'annotation file: gene_id, gene_type, gene_name (tab)')
 parser$add_argument('-Tcm', '--TEcountMode', type = 'character', nargs = "+",
@@ -650,8 +651,9 @@ colData <- data.frame(condition = factor(c(rep('control', length(control)),
 colDataPca <- factor(c(rep(controlStr, length(control)), rep(experimentStr, length(experiment))))
 
 outdir <- args$outdir
+prefix <- args$prefix
 ensure_dir(outdir)
-log_msg("INFO","Mode:", args$mode, "Matrix:", args$matrix, "Outdir:", outdir)
+log_msg("INFO","Mode:", args$mode, "Matrix:", args$matrix, "Outdir:", outdir, "Prefix:", prefix, "Figures:", paste(args$figure, collapse = ","))
 
 # main branch
 if(args$mode == "TEcount"){
@@ -661,7 +663,7 @@ if(args$mode == "TEcount"){
     df_for_pca <- dfList[["Gene"]]
     res_for_pca <- DESeq2Analysis(df_for_pca, colData, normMethods = "cpm")
     # res_for_pca$results contains combined table; pass normalized to PCA plotting
-    pca_out <- file.path(outdir, "PCA", "cpmPCA.png")
+    pca_out <- file.path(outdir, "PCA", paste0(prefix, ".cpmPCA.png"))
     ensure_dir(dirname(pca_out))
     # create a simple PCA plot using normalized counts
     normalized <- res_for_pca$normalized
@@ -687,7 +689,7 @@ if(args$mode == "TEcount"){
       log_msg("INFO","Skipping unknown dataType:", dataType); next
     }
     df <- dfList[[dataType]]
-    outfile <- file.path(outdir, paste0("TEcount_", dataType, ".tsv"))
+    outfile <- file.path(outdir, paste0(prefix, ".TEcount_", dataType, ".tsv"))
     ensure_dir(dirname(outfile))
     resDds <- DESeq2Analysis(df, colData, resfile = outfile, normMethods = "DESeq2")
     res_comb <- resDds$results
@@ -704,19 +706,19 @@ if(args$mode == "TEcount"){
       ensure_dir(heat_dir)
       # create up/down sets and heatmaps
       sf <- ScreenFeature(res_comb_TE,
-                          upfile = file.path(outdir,"upDown",paste0("TEcount_",dataType,"_up.tsv")),
-                          downfile = file.path(outdir,"upDown",paste0("TEcount_",dataType,"_down.tsv")),
-                          updownfile = file.path(outdir,"upDown",paste0("TEcount_",dataType,"_updown.tsv")))
+                          upfile = file.path(outdir,"upDown",paste0(prefix,".TEcount_",dataType,"_up.tsv")),
+                          downfile = file.path(outdir,"upDown",paste0(prefix,".TEcount_",dataType,"_down.tsv")),
+                          updownfile = file.path(outdir,"upDown",paste0(prefix,".TEcount_",dataType,"_updown.tsv")))
       if(nrow(sf$up) >= 2){
-        up_file <- file.path(heat_dir, paste0("TEcount_", dataType, "_up.png"))
+        up_file <- file.path(heat_dir, paste0(prefix,".TEcount_", dataType, "_up.png"))
         updown_heatmap(sf$up, up_file, coldata = sample_anno)
       } else log_msg("INFO","Less than 2 up genes; skip heatmap for up.")
       if(nrow(sf$down) >= 2){
-        down_file <- file.path(heat_dir, paste0("TEcount_", dataType, "_down.png"))
+        down_file <- file.path(heat_dir, paste0(prefix,".TEcount_", dataType, "_down.png"))
         updown_heatmap(sf$down, down_file, coldata = sample_anno)
       } else log_msg("INFO","Less than 2 down genes; skip heatmap for down.")
       if(nrow(rbind(sf$up, sf$down)) >= 2){
-        all_file <- file.path(heat_dir, paste0("TEcount_", dataType, "_updown.png"))
+        all_file <- file.path(heat_dir, paste0(prefix,".TEcount_", dataType, "_updown.png"))
         updown_heatmap(rbind(sf$up, sf$down), all_file, coldata = sample_anno)
       } else log_msg("INFO","Less than 2 dysregulated genes; skip combined heatmap.")
     }
@@ -727,13 +729,13 @@ if(args$mode == "TEcount"){
       # decide gene vs TE based on name pattern or dataType
       is_gene_mode <- grepl("Gene", dataType)
       if(is_gene_mode){
-        vol_out <- file.path(vol_dir, paste0("TEcount_", dataType, "_volcano.png"))
-        ma_out <- file.path(vol_dir, paste0("TEcount_", dataType, "_MA.png"))
+        vol_out <- file.path(vol_dir, paste0(prefix,".TEcount_", dataType, "_volcano.png"))
+        ma_out <- file.path(vol_dir, paste0(prefix,".TEcount_", dataType, "_MA.png"))
         plot_volcano(res_comb_TE, vol_out, mode = "gene", geneAnnotation = args$annotation)
         plot_MA(res_comb_TE, ma_out, mode = "gene", geneAnnotation = args$annotation)
       } else {
-        vol_out <- file.path(vol_dir, paste0("TEcount_", dataType, "_volcano.png"))
-        ma_out <- file.path(vol_dir, paste0("TEcount_", dataType, "_MA.png"))
+        vol_out <- file.path(vol_dir, paste0(prefix,".TEcount_", dataType, "_volcano.png"))
+        ma_out <- file.path(vol_dir, paste0(prefix,".TEcount_", dataType, "_MA.png"))
         plot_volcano(res_comb_TE, vol_out, mode = "TE")
         plot_MA(res_comb_TE, ma_out, mode = "TE")
       }
@@ -742,7 +744,7 @@ if(args$mode == "TEcount"){
 
 } else if(args$mode == "TElocal"){
   df <- TElocal_read(args$matrix, control, experiment)
-  outfile <- file.path(outdir, "TElocal_TE.tsv")
+  outfile <- file.path(outdir, paste0(prefix, ".TElocal_TE.tsv"))
   resDds <- DESeq2Analysis(df, colData, resfile = outfile, normMethods = "DESeq2")
   res_comb <- resDds$results
   # plotting
@@ -750,21 +752,21 @@ if(args$mode == "TEcount"){
     plot_dir <- file.path(outdir, "heatmap")
     ensure_dir(plot_dir)
     sf <- ScreenFeature(res_comb,
-                        upfile = file.path(outdir,"upDown","TElocal_TE_up.tsv"),
-                        downfile = file.path(outdir,"upDown","TElocal_TE_down.tsv"),
-                        updownfile = file.path(outdir,"upDown","TElocal_TE_updown.tsv"))
-    if(nrow(sf$up) >= 2) updown_heatmap(sf$up, file.path(plot_dir, "TElocal_up.png"), coldata = sample_anno)
-    if(nrow(sf$down) >= 2) updown_heatmap(sf$down, file.path(plot_dir, "TElocal_down.png"), coldata = sample_anno)
+                        upfile = file.path(outdir,"upDown",paste0(prefix,".TElocal_TE_up.tsv")),
+                        downfile = file.path(outdir,"upDown",paste0(prefix,".TElocal_TE_down.tsv")),
+                        updownfile = file.path(outdir,"upDown",paste0(prefix,".TElocal_TE_updown.tsv")))
+    if(nrow(sf$up) >= 2) updown_heatmap(sf$up, file.path(plot_dir, paste0(prefix, ".TElocal_up.png")), coldata = sample_anno)
+    if(nrow(sf$down) >= 2) updown_heatmap(sf$down, file.path(plot_dir, paste0(prefix, ".TElocal_down.png")), coldata = sample_anno)
   }
   if("volcano" %in% args$figure){
     vol_dir <- file.path(outdir, "volcano")
     ensure_dir(vol_dir)
-    plot_volcano(res_comb, file.path(vol_dir, "TElocal_volcano.png"), mode = "TE")
-    plot_MA(res_comb, file.path(vol_dir, "TElocal_MA.png"), mode = "TE")
+    plot_volcano(res_comb, file.path(vol_dir, paste0(prefix, ".TElocal_volcano.png")), mode = "TE")
+    plot_MA(res_comb, file.path(vol_dir, paste0(prefix, ".TElocal_MA.png")), mode = "TE")
   }
 } else if(args$mode == "Count"){
   df <- count_read(args$matrix, control, experiment)
-  outfile <- file.path(outdir, "Count.tsv")
+  outfile <- file.path(outdir, paste0(prefix, ".Count.tsv"))
   resDds <- DESeq2Analysis(df, colData, resfile = outfile, normMethods = "DESeq2")
   res_comb <- resDds$results
     # plotting
@@ -772,17 +774,17 @@ if(args$mode == "TEcount"){
     plot_dir <- file.path(outdir, "heatmap")
     ensure_dir(plot_dir)
     sf <- ScreenFeature(res_comb,
-                        upfile = file.path(outdir,"upDown","Count_up.tsv"),
-                        downfile = file.path(outdir,"upDown","Count_down.tsv"),
-                        updownfile = file.path(outdir,"upDown","Count_updown.tsv"))
-    if(nrow(sf$up) >= 2) updown_heatmap(sf$up, file.path(plot_dir, "Count_up.png"), coldata = sample_anno)
-    if(nrow(sf$down) >= 2) updown_heatmap(sf$down, file.path(plot_dir, "Count_down.png"), coldata = sample_anno)
+                        upfile = file.path(outdir,"upDown",paste0(prefix,".Count_up.tsv")),
+                        downfile = file.path(outdir,"upDown",paste0(prefix,".Count_down.tsv")),
+                        updownfile = file.path(outdir,"upDown",paste0(prefix,".Count_updown.tsv")))
+    if(nrow(sf$up) >= 2) updown_heatmap(sf$up, file.path(plot_dir, paste0(prefix, ".Count_up.png")), coldata = sample_anno)
+    if(nrow(sf$down) >= 2) updown_heatmap(sf$down, file.path(plot_dir, paste0(prefix, ".Count_down.png")), coldata = sample_anno)
   }
   if("volcano" %in% args$figure){
     vol_dir <- file.path(outdir, "volcano")
     ensure_dir(vol_dir)
-    plot_volcano(res_comb, file.path(vol_dir, "Count_volcano.png"), mode = "gene")
-    plot_MA(res_comb, file.path(vol_dir, "Count_MA.png"), mode = "gene")
+    plot_volcano(res_comb, file.path(vol_dir, paste0(prefix, ".Count_volcano.png")), mode = "gene")
+    plot_MA(res_comb, file.path(vol_dir, paste0(prefix, ".Count_MA.png")), mode = "gene")
   }
 } else {
   log_msg("ERROR","Unsupported mode:", args$mode, quit = TRUE)

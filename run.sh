@@ -9,6 +9,7 @@ python ${SCRIPT_DIR}/run.py \
     --conda-prefix /home/luosg/Database/env \
     --rerun-triggers mtime \
     --Params.function.gmt /home/luosg/Data/genomeStability/workflow/Omics/assests/geneset/2C_mouse.gmt
+
 # python ${SCRIPT_DIR}/run.py \
 #     -m /home/luosg/Data/genomeStability/data/Srp54/meta_input.tsv \
 #     -w ncRNAseq \

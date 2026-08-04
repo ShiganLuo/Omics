@@ -113,7 +113,7 @@ modules/common/
 
 # 规则编写风格：`run:` 块 + shell 脚本生成
 
-所有规则统一使用 `run:` 块，不允许使用纯 `shell:` 块。命令通过列表构建，写入 `.sh` 脚本后执行。
+- 所有规则统一使用 `run:` 块，不允许使用纯 `shell:` 块。命令通过列表构建，写入 `.sh` 脚本后执行。
 
 ## 标准模板
 
@@ -149,9 +149,6 @@ rule <tool>_<action>:
             with open(log_path, "a") as f:
                 f.write(f"<tool> <action> failed for sample {wildcards.sample_id} with error: {e}\n")
             raise f"<tool> <action> failed for sample {wildcards.sample_id} with error: {e}"
-        finally:
-            current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            logger.info(f"successfully activated  <rule> for sample {wildcards.sample_id} at {current_time}")
 ```
 
 ## 要点

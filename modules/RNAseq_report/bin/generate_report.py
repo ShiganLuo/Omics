@@ -5,10 +5,23 @@ import os
 import shutil
 import tempfile
 from collections import OrderedDict
+from pathlib import Path
 
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
+
+# ── Chinese font support for matplotlib ──────────────────────────────────
+for _font_name in ["WenQuanYi Micro Hei", "WenQuanYi Zen Hei", "Noto Sans CJK SC",
+                   "SimHei", "Microsoft YaHei", "Arial Unicode MS"]:
+    try:
+        matplotlib.font_manager.findfont(_font_name, fallback_to_default=False)
+        plt.rcParams["font.sans-serif"] = [_font_name]
+        plt.rcParams["axes.unicode_minus"] = False
+        break
+    except Exception:
+        continue
 import pandas as pd
 from pptx import Presentation
 from pptx.dml.color import RGBColor
@@ -443,6 +456,165 @@ def plot_de_counts(diff_summaries: list[dict], img_store: TempImageStore) -> str
     return img_store.save_fig(fig, "de_summary")
 
 
+# ── Venn diagram helpers (supports arbitrary N sets) ─────────────────────
+
+def load_updown_sets(updown_path: str) -> dict[str, set[str]]:
+    """Load up/down feature ID sets from a TEcount_*_updown.tsv file.
+
+    Returns ``{"up": set, "down": set}``.
+    """
+    result: dict[str, set[str]] = {"up": set(), "down": set()}
+    df = safe_read_tsv(updown_path)
+    if df.empty or "sig" not in df.columns:
+        return result
+    id_col = df.columns[0]
+    sig = df["sig"].astype(str)
+    result["up"] = set(df.loc[sig == "up", id_col].astype(str))
+    result["down"] = set(df.loc[sig == "down", id_col].astype(str))
+    return result
+
+
+def _plot_venn2(ax, left: set, right: set, labels: list[str]):
+    """Draw a 2-set Venn diagram using matplotlib circles."""
+    cx_a, cx_b = -0.35, 0.35
+    r = 0.55
+    only_a = len(left - right)
+    only_b = len(right - left)
+    inter = len(left & right)
+    for cx, color in [(cx_a, "#4C72B0"), (cx_b, "#DD8452")]:
+        circle = mpatches.Circle((cx, 0), r, facecolor=color,
+                                 edgecolor="white", linewidth=1.5, alpha=0.55)
+        ax.add_patch(circle)
+    ax.text(cx_a - 0.22, 0, str(only_a), ha="center", va="center",
+            fontsize=14, weight="bold", color="#333333")
+    ax.text(cx_b + 0.22, 0, str(only_b), ha="center", va="center",
+            fontsize=14, weight="bold", color="#333333")
+    ax.text(0, 0, str(inter), ha="center", va="center",
+            fontsize=14, weight="bold", color="#333333")
+    ax.text(cx_a - 0.22, -r - 0.25, labels[0], ha="center", va="top",
+            fontsize=10, color="#555555")
+    ax.text(cx_b + 0.22, -r - 0.25, labels[1], ha="center", va="top",
+            fontsize=10, color="#555555")
+    ax.set_xlim(-1.3, 1.3)
+    ax.set_ylim(-1.1, 1.0)
+    ax.set_aspect("equal")
+    ax.axis("off")
+
+
+def _plot_venn3(ax, sets: list[set], labels: list[str]):
+    """Draw a 3-set Venn diagram using matplotlib circles."""
+    offsets = [(-0.32, 0.20), (0.32, 0.20), (0.0, -0.25)]
+    r = 0.50
+    colors = ["#4C72B0", "#DD8452", "#55A868"]
+    for i, (cx, cy) in enumerate(offsets):
+        circle = mpatches.Circle((cx, cy), r, facecolor=colors[i],
+                                 edgecolor="white", linewidth=1.5, alpha=0.45)
+        ax.add_patch(circle)
+    s = sets
+    regions = [
+        (s[0] - s[1] - s[2], (-0.58, 0.18)),
+        (s[1] - s[0] - s[2], (0.58, 0.18)),
+        (s[2] - s[0] - s[1], (0.0, -0.50)),
+        (s[0] & s[1] - s[2], (0.0, 0.32)),
+        (s[0] & s[2] - s[1], (-0.28, -0.15)),
+        (s[1] & s[2] - s[0], (0.28, -0.15)),
+        (s[0] & s[1] & s[2], (0.0, 0.0)),
+    ]
+    for region_set, (x, y) in regions:
+        ax.text(x, y, str(len(region_set)), ha="center", va="center",
+                fontsize=12, weight="bold", color="#333333")
+    for i, (cx, cy) in enumerate(offsets):
+        ax.text(cx + (cx * 0.9), cy + (0.45 if cy >= 0 else -0.55), labels[i],
+                ha="center", va="center", fontsize=10, color="#555555")
+    ax.set_xlim(-1.4, 1.4)
+    ax.set_ylim(-1.2, 1.1)
+    ax.set_aspect("equal")
+    ax.axis("off")
+
+
+def _plot_venn_n(ax, sets: list[set], labels: list[str]):
+    """Fallback for 4+ sets: grouped bar chart of pairwise intersections."""
+    import itertools
+    n = len(sets)
+    pairs = list(itertools.combinations(range(n), 2))
+    pair_labels = [f"{labels[i]} & {labels[j]}" for i, j in pairs]
+    inter_sizes = [len(sets[i] & sets[j]) for i, j in pairs]
+    x = list(range(len(pairs)))
+    ax.bar(x, inter_sizes, color="#4C72B0", edgecolor="white", linewidth=0.5)
+    ax.set_xticks(x)
+    ax.set_xticklabels(pair_labels, rotation=30, ha="right", fontsize=9)
+    ax.set_ylabel("Intersection Size")
+    for i, s in enumerate(inter_sizes):
+        ax.text(i, s + 0.3, str(s), ha="center", va="bottom", fontsize=9)
+    ax.grid(axis="y", alpha=0.2)
+
+
+def plot_venn(sets: list[set], labels: list[str], title: str,
+              img_store: TempImageStore, stem: str) -> str:
+    """Plot a Venn diagram for 2 or 3 sets, bar chart for 4+."""
+    n = len(sets)
+    fig, ax = plt.subplots(figsize=(7, 5))
+    if n == 2:
+        _plot_venn2(ax, sets[0], sets[1], labels)
+    elif n == 3:
+        _plot_venn3(ax, sets, labels)
+    else:
+        _plot_venn_n(ax, sets, labels)
+    ax.set_title(title, fontsize=13, weight="bold", pad=12)
+    fig.tight_layout()
+    return img_store.save_fig(fig, stem)
+
+
+def build_venn_slides(prs: Presentation, diff_summaries: list[dict], lang: str) -> dict:
+    """Build Venn diagram slides for gene/TE up/down across contrasts.
+
+    Returns a dict mapping sheet_name -> list[str] of feature IDs shared
+    across all contrasts (for Excel output).
+    """
+    contrasts = [d["contrast"] for d in diff_summaries]
+    intersection_data: dict[str, list[str]] = {}
+
+    if len(contrasts) < 2:
+        return intersection_data
+
+    feature_types = [
+        ("gene", "gene_updown_path", "up", "Gene Up", "venn_gene_up"),
+        ("gene", "gene_updown_path", "down", "Gene Down", "venn_gene_down"),
+        ("te", "te_updown_path", "up", "TE Up", "venn_te_up"),
+        ("te", "te_updown_path", "down", "TE Down", "venn_te_down"),
+    ]
+
+    for _ft, path_key, direction, slide_title, stem in feature_types:
+        sets = []
+        labels = []
+        for d in diff_summaries:
+            updown = load_updown_sets(d[path_key])
+            sets.append(updown[direction])
+            labels.append(pretty_contrast(d["contrast"]))
+
+        if all(len(s) == 0 for s in sets):
+            continue
+
+        img_store = prs._img_store  # type: ignore[attr-defined]
+        venn_img = plot_venn(sets, labels, slide_title, img_store, stem)
+        slide = prs.slides.add_slide(prs.slide_layouts[6])
+        slide.background.fill.solid()
+        slide.background.fill.fore_color.rgb = C_BG
+        _header(slide, f"{t('de_detail', lang)}: {slide_title}")
+        _add_picture(slide, venn_img, 1.0, 0.95, 8.0, 3.8)
+
+        # Collect intersection (all contrasts) for Excel
+        if len(sets) >= 2:
+            shared = sets[0].copy()
+            for s in sets[1:]:
+                shared &= s
+            if shared:
+                sheet_name = stem.replace("venn_", "Venn_")
+                intersection_data[sheet_name] = sorted(shared)
+
+    return intersection_data
+
+
 def build_workflow_slide(prs: Presentation, pipeline_text: str, lang: str):
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     slide.background.fill.solid()
@@ -828,6 +1000,119 @@ def build_sample_dataframe(samples: list[str], paired_samples: list[str], single
     return pd.DataFrame(records)
 
 
+def write_file_inventory(output_path: str, analysis_dir: str, contrasts: list[str],
+                         samples: list[str], paired_samples: list[str],
+                         single_samples: list[str],
+                         intersection_data=None) -> None:
+    """Write all input file paths used by generate_report to an Excel workbook.
+
+    If *intersection_data* is provided, each key becomes a sheet listing the
+    shared feature IDs from the corresponding UpSet intersection.
+    """
+    import openpyxl
+
+    wb = openpyxl.Workbook()
+
+    # ── Sheet 1: Overview ─────────────────────────────────────
+    ws = wb.active
+    ws.title = "Overview"
+    overview_rows = [
+        ["Category", "Item", "Value"],
+        ["Analysis", "analysis_dir", analysis_dir],
+        ["Analysis", "n_samples", str(len(samples))],
+        ["Analysis", "n_paired", str(len(paired_samples))],
+        ["Analysis", "n_single", str(len(single_samples))],
+        ["Analysis", "n_contrasts", str(len(contrasts))],
+        ["Analysis", "contrasts", ", ".join(contrasts)],
+    ]
+    for row in overview_rows:
+        ws.append(row)
+
+    # ── Sheet 2: All input files ──────────────────────────────
+    ws_files = wb.create_sheet("InputFiles")
+    ws_files.append(["Category", "Subcategory", "Contrast", "FilePath", "Exists"])
+
+    def _add_file(category: str, subcategory: str, contrast: str, path: str):
+        ws_files.append([category, subcategory, contrast, path, str(os.path.isfile(path))])
+
+    # TE chimeric files
+    te_base = os.path.join(analysis_dir, "transcripts", "TE_chimeric")
+    for fname in [
+        "TE_chimeric_sample_summary.tsv", "TE_chimeric_group_summary.tsv",
+        "TE_chimeric_te_type_counts.tsv", "TE_chimeric_group_stacked.png",
+        "TE_chimeric_te_type_top.png", "TE_chimeric_te_type_by_group.png",
+    ]:
+        _add_file("TE_chimeric", fname, "", os.path.join(te_base, fname))
+
+    # TEcount matrix
+    _add_file("Counts", "TEcount_matrix", "", os.path.join(analysis_dir, "results", "counts", "TEcount", "all_TEcount.tsv"))
+
+    # Fusion files
+    fusion_base = os.path.join(analysis_dir, "fusion", "arriba_report")
+    for fname in [
+        "per_sample_summary.tsv", "recurrent_fusions.tsv",
+        "high_medium_confidence_fusions.tsv", "inframe_fusions.tsv",
+    ]:
+        _add_file("Fusion", fname, "", os.path.join(fusion_base, fname))
+    for fig in [
+        "fig1_per_sample_counts.png", "fig2_fusion_type_distribution.png",
+        "fig3_type_by_sample.png", "fig4_reading_frame.png",
+        "fig5_recurrent_heatmap.png", "fig6_inframe_support.png",
+    ]:
+        _add_file("Fusion", "figure", "", os.path.join(fusion_base, "figures", fig))
+
+    # Per-contrast files
+    for contrast in contrasts:
+        de_dir = os.path.join(analysis_dir, "diff_expression", contrast)
+        for sub, fname in [
+            ("group", "group.tsv"),
+            ("PCA", os.path.join("PCA", "cpmPCA.png")),
+            ("volcano", os.path.join("volcano", "TEcount_Gene_volcano.png")),
+            ("heatmap", os.path.join("heatmap", "TEcount_Gene_updown.png")),
+            ("gene_updown", os.path.join("upDown", "TEcount_Gene_updown.tsv")),
+            ("te_updown", os.path.join("upDown", "TEcount_TE_updown.tsv")),
+            ("gene_te_updown", os.path.join("upDown", "TEcount_Gene_TE_updown.tsv")),
+        ]:
+            _add_file("DiffExpression", sub, contrast, os.path.join(de_dir, fname))
+
+        func_dir = os.path.join(analysis_dir, "function", contrast)
+        for sub, fname in [
+            ("go_plot", "go_back_to_back.png"),
+            ("kegg_plot", "kegg_back_to_back.png"),
+            ("go_up", "go_up.csv"),
+            ("go_down", "go_down.csv"),
+            ("kegg_up", "kegg_up.csv"),
+            ("kegg_down", "kegg_down.csv"),
+            ("up_genes", "up_genes.txt"),
+            ("down_genes", "down_genes.txt"),
+            ("gsea_plot", os.path.join("GSEA", "TEcount_Gene_GSEA.jpeg")),
+            ("gsea_csv", os.path.join("GSEA", "TEcount_Gene_GSEA.csv")),
+        ]:
+            _add_file("Function", sub, contrast, os.path.join(func_dir, fname))
+
+    # ── Intersection sheets from UpSet plots ──────────────────
+    if intersection_data:
+        for sheet_name, feature_ids in intersection_data.items():
+            # Excel sheet names: max 31 chars, no special chars
+            safe_name = sheet_name[:31].replace(":", "_").replace("/", "_")
+            ws_inter = wb.create_sheet(safe_name)
+            ws_inter.append(["Feature_ID"])
+            for fid in feature_ids:
+                ws_inter.append([fid])
+            ws_inter.column_dimensions["A"].width = min(
+                max(len(str(f)) for f in feature_ids) + 2, 40)
+
+    # Auto-fit column widths
+    for col in ws_files.columns:
+        max_len = max(len(str(cell.value or "")) for cell in col)
+        ws_files.column_dimensions[col[0].column_letter].width = min(max_len + 2, 80)
+    for col in ws.columns:
+        max_len = max(len(str(cell.value or "")) for cell in col)
+        ws.column_dimensions[col[0].column_letter].width = min(max_len + 2, 60)
+
+    wb.save(output_path)
+
+
 def main():
     ap = argparse.ArgumentParser(description="Generate RNAseq PPT report")
     ap.add_argument("--analysis-dir", required=True)
@@ -843,6 +1128,8 @@ def main():
     ap.add_argument("--date", default="")
     ap.add_argument("--lang", default="zh")
     ap.add_argument("--img-dir", default="")
+    ap.add_argument("--file-inventory", default="",
+                    help="If set, write all input file paths to this Excel file")
     args = ap.parse_args()
 
     analysis_dir = os.path.abspath(args.analysis_dir)
@@ -881,6 +1168,9 @@ def main():
     prs = Presentation()
     prs.slide_width = Inches(SLIDE_W)
     prs.slide_height = Inches(SLIDE_H)
+    prs._img_store = img_store  # type: ignore[attr-defined]
+
+    venn_intersections: dict[str, list[str]] = {}
 
     build_title_slide(prs, title, subtitle, args.date, pipeline_text, args.lang)
     build_workflow_slide(prs, pipeline_text, args.lang)
@@ -903,6 +1193,7 @@ def main():
         build_de_summary_slide(prs, de_plot, diff_summaries, args.lang)
         for item in diff_summaries:
             build_de_detail_slides(prs, item, args.lang)
+        venn_intersections = build_venn_slides(prs, diff_summaries, args.lang)
 
     if not fusion_df.empty:
         build_fusion_slide(prs, analysis_dir, fusion_df, recurrent_df, args.lang)
@@ -924,6 +1215,14 @@ def main():
 
     prs.save(output)
     img_store.cleanup()
+
+    if args.file_inventory:
+        inventory_path = os.path.abspath(args.file_inventory)
+        os.makedirs(os.path.dirname(inventory_path), exist_ok=True)
+        write_file_inventory(inventory_path, analysis_dir, args.contrasts,
+                             args.samples, args.paired_samples, args.single_samples,
+                             venn_intersections)
+
     print(output)
 
 

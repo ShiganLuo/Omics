@@ -51,14 +51,45 @@
             }
         },
         "star_3pass_gene": {
-            "pass1": {
-                "outFilterMultimapNmax": 1000,
-                "alignIntronMin": 9999999,
-                "outFilterMultimapScoreRange": 0,
-                "outFilterMismatchNoverLmax": 0.2,
-                "alignEndsType": "EndToEnd",
-                "clip5pNbases": "10 0"
+            "mode": "strict",
+            "ambiguous": "exclude",
+            "flank": 50,
+            "hard_clip_5p": 10,
+            "passes": {
+                "pass1": {
+                    "genomeSAindexNbases": 3,
+                    "alignEndsType": "Local",
+                    "outFilterMultimapNmax": 1000,
+                    "outFilterMultimapScoreRange": 0,
+                    "outFilterMismatchNoverLmax": 0.2,
+                    "alignIntronMin": 9999999,
+                    "alignMatesGapMax": 500
+                },
+                "pass2": {
+                    "alignEndsType": "Local",
+                    "outFilterMultimapNmax": 1000,
+                    "outFilterMultimapScoreRange": 0,
+                    "outFilterMismatchNoverLmax": 0.2,
+                    "alignIntronMin": 9999999,
+                    "alignMatesGapMax": 500
+                },
+                "pass3": {
+                    "alignEndsType": "Local",
+                    "outFilterMultimapNmax": 1000,
+                    "outFilterMultimapScoreRange": 0,
+                    "outFilterMismatchNoverLmax": 0.025,
+                    "alignIntronMin": 9999999,
+                    "alignMatesGapMax": 500
+                }
+            },
+            "batch": {
+                "enabled": false
             }
+        },
+        "tailer": {
+            "read": 2,
+            "threshold": 50,
+            "rev_comp": false
         },
         "ncRNAseq": {
             "abund_small_rnas": ["U1", "U2", "U3", "7SL", "7SK"],

@@ -61,14 +61,15 @@ rule DESeq2_TEcount:
                 "-f", "heatmap volcano pca",
                 "-o", sample_outdir,
                 "-a", params.geneIDAnno,
-                "-Tcm", "all"
+                "-Tcm", "all",
+                "-px", f"{control_group_name}_vs_{experimental_group_name}"
             ]
             cmd3 = [
                 "python", params.annotation_script,
                 "-i", 
-                f"{sample_outdir}/TEcount_Gene.tsv",
-                f"{sample_outdir}/TEcount_TE.tsv",
-                f"{sample_outdir}/TEcount_Gene_TE.tsv",
+                f"{sample_outdir}/{control_group_name}_vs_{experimental_group_name}.TEcount_Gene.tsv",
+                f"{sample_outdir}/{control_group_name}_vs_{experimental_group_name}.TEcount_TE.tsv",
+                f"{sample_outdir}/{control_group_name}_vs_{experimental_group_name}.TEcount_Gene_TE.tsv",
                 "-g", params.gtf,
                 "-m", params.gene_map
             ]

@@ -184,7 +184,9 @@ def convert_DESeq2_gene_ids(
         if outprefix is not None:
             outfile = f"{outprefix}_{os.path.basename(infile)}.tsv"
         else:
-            outfile = f"{infile.split('.')[0]}.name.tsv"
+            file_name_list = os.path.basename(infile).split('.')
+            outdir = os.path.dirname(infile)
+            outfile = os.path.join(outdir, f"{file_name_list[0]}.{file_name_list[1]}.name.tsv")
         df.to_csv(outfile, sep="\t", index=False)
         logger.info(f"结果已保存：{outfile}")
     return df

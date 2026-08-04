@@ -49,7 +49,8 @@ rule generate_report:
         func_gsea_plot = expand(outdir + "/function/{contrast}/GSEA/TEcount_Gene_GSEA.jpeg", contrast=contrasts),
         func_gsea_csv = expand(outdir + "/function/{contrast}/GSEA/TEcount_Gene_GSEA.csv", contrast=contrasts),
     output:
-        report = outdir + "/RNAseq_report.pptx"
+        report = outdir + "/RNAseq_report.pptx",
+        file_inventory = outdir + "/RNAseq_report_files.xlsx",
     log:
         logdir + "/RNAseq_report.log"
     threads: 1
@@ -83,6 +84,7 @@ rule generate_report:
                 "python3", params.script,
                 "--analysis-dir", outdir,
                 "--output", str(output.report),
+                "--file-inventory", str(output.file_inventory),
                 "--title", params.title,
                 "--subtitle", params.subtitle,
                 "--pipeline", params.pipeline,
@@ -113,4 +115,5 @@ rule generate_report:
 
 rule report_result:
     input:
-        report = outdir + "/RNAseq_report.pptx"
+        report = outdir + "/RNAseq_report.pptx",
+        file_inventory = outdir + "/RNAseq_report_files.xlsx",

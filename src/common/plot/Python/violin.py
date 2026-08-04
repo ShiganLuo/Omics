@@ -7,9 +7,12 @@ import pandas as pd
 from scipy.stats import mannwhitneyu
 import itertools
 import numpy as np
-from typing import Optional, List, Tuple, Dict, Any
+from typing import Optional, List, Tuple, Dict, Any,Literal
 import logging
 logger = logging.getLogger(__name__)
+plt.rcParams["pdf.fonttype"] = 42
+plt.rcParams["ps.fonttype"] = 42
+sns.set_style("whitegrid")
 
 def single_violin_plot(
     df: pd.DataFrame,
@@ -26,6 +29,8 @@ def single_violin_plot(
     point_size: float = 2,
     show_median: bool = False,
     threshold: Optional[float] = None,
+    threshold_type: Literal["value", "quantile"] = "value",
+    is_scatter: bool = False,
 ):
     """Draw a single (or per-category) violin + strip plot.
 
@@ -80,9 +85,6 @@ def single_violin_plot(
     if key is not None and key not in df.columns:
         raise ValueError(f"Category column not found: {key}")
     logger.info(f"Drawing violin plot for column: {value}")
-    plt.rcParams["pdf.fonttype"] = 42
-    plt.rcParams["ps.fonttype"] = 42
-    sns.set_style("whitegrid")
 
     if key is not None:
         if key not in df.columns:
@@ -110,6 +112,7 @@ def single_violin_plot(
         cut=0,
         order=order,
         palette=base_colors,
+        hue=key,
         inner="box",
         linewidth=1.2,
         width=0.7,
@@ -124,22 +127,20 @@ def single_violin_plot(
             poly.set_linewidth(1.0)
         except Exception:
             pass
+    if is_scatter:
+        sns.stripplot(
+            data=plot_df,
+            x=key,
+            y=value,
+            order=order,
+            color="black",
+            size=point_size,
+            alpha=0.9,
+            jitter=0.12,
+            linewidth=0,
+            ax=ax,
+        )
 
-    # ── strip ───────────────────────────────────────────────
-    sns.stripplot(
-        data=plot_df,
-        x=key,
-        y=value,
-        order=order,
-        color="black",
-        size=point_size,
-        alpha=0.9,
-        jitter=0.12,
-        linewidth=0,
-        ax=ax,
-    )
-
-    # ── median line ─────────────────────────────────────────
     if show_median:
         for i, cat in enumerate(order):
             vals = plot_df.loc[plot_df[key] == cat, value]
@@ -154,33 +155,52 @@ def single_violin_plot(
                     zorder=5,
                 )
 
-    # ── threshold line ──────────────────────────────────────
     if threshold is not None:
+        # Determine actual threshold value and legend label
+        if threshold_type == "value":
+            threshold_value = float(threshold)
+
+            if key == "_cat":
+                pct_above = 100.0 * (plot_df[value] > threshold_value).mean()
+                legend_label = f"> {threshold_value:g}: {pct_above:.1f}%"
+            else:
+                parts = []
+                for cat in order:
+                    cat_vals = plot_df.loc[plot_df[key] == cat, value]
+                    if len(cat_vals) == 0:
+                        continue
+                    cat_pct = 100.0 * (cat_vals > threshold_value).mean()
+                    parts.append(f"{cat} {cat_pct:.1f}%")
+                legend_label = f"> {threshold_value:g}: " + ", ".join(parts)
+
+        elif threshold_type == "quantile":
+            if not 0.0 <= threshold <= 1.0:
+                raise ValueError(
+                    "When threshold_type='quantile', threshold must be between 0 and 1."
+                )
+
+            threshold_value = float(plot_df[value].quantile(threshold))
+            legend_label = f"P{threshold * 100:.0f} = {threshold_value:.2f}"
+
+        else:
+            raise ValueError(
+                f"Unsupported threshold_type: {threshold_type}"
+            )
+
+        # Draw threshold line
         ax.axhline(
-            y=threshold,
+            y=threshold_value,
             color="red",
             linestyle="--",
             linewidth=1.5,
             alpha=0.8,
             zorder=4,
         )
-        # Compute proportion below threshold
-        below = plot_df[value] < threshold
-        pct_below = 100.0 * below.sum() / len(plot_df)
-        if key == "_cat":
-            # Single violin: one overall percentage
-            label = f"< {threshold}: {pct_below:.1f}%"
-        else:
-            # Per-category percentages
-            parts = []
-            for cat in order:
-                cat_vals = plot_df.loc[plot_df[key] == cat, value]
-                cat_pct = 100.0 * (cat_vals < threshold).sum() / len(cat_vals) if len(cat_vals) > 0 else 0.0
-                parts.append(f"{cat} {cat_pct:.1f}%")
-            label = f"< {threshold}: " + ", ".join(parts)
+
+        # Add legend
         ax.legend(
             [plt.Line2D([0], [0], color="red", linestyle="--", linewidth=1.5)],
-            [label],
+            [legend_label],
             loc="upper right",
             fontsize=10,
             frameon=True,
@@ -188,13 +208,10 @@ def single_violin_plot(
             edgecolor="none",
             framealpha=0.9,
         )
-
-    # ── axes ────────────────────────────────────────────────
     ax.set_xlabel(xlabel, fontsize=14)
     ax.set_ylabel(ylabel, fontsize=14)
     ax.tick_params(axis="x", labelsize=12)
     ax.tick_params(axis="y", labelsize=11)
-    ax.set_ylim(0, 1)
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
     ax.grid(axis="y", linestyle="--", alpha=0.25)

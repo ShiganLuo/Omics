@@ -1,3 +1,6 @@
 [submodule "src/common/ml"]
 	path = src/common/ml
 	url = git@github.com:ShiganLuo/ML.git
+[submodule "src/common/plot"]
+	path = src/common/plot
+	url = git@github.com:ShiganLuo/plot.git

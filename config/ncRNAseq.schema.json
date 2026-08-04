@@ -190,29 +190,109 @@
       }
     },
     "star_3pass_gene": {
-      "pass1": {
-        "outFilterMultimapNmax": {
-          "type": "int",
-          "required": true
+      "mode": {
+        "type": "str",
+        "required": true
+      },
+      "ambiguous": {
+        "type": "str",
+        "required": true
+      },
+      "flank": {
+        "type": "int",
+        "required": true
+      },
+      "hard_clip_5p": {
+        "type": "int",
+        "required": true
+      },
+      "passes": {
+        "pass1": {
+          "genomeSAindexNbases": {
+            "type": "int",
+            "required": true
+          },
+          "alignEndsType": {
+            "type": "str",
+            "required": true
+          },
+          "outFilterMultimapNmax": {
+            "type": "int",
+            "required": true
+          },
+          "outFilterMultimapScoreRange": {
+            "type": "int",
+            "required": true
+          },
+          "outFilterMismatchNoverLmax": {
+            "type": "float",
+            "required": true
+          },
+          "alignIntronMin": {
+            "type": "int",
+            "required": true
+          },
+          "alignMatesGapMax": {
+            "type": "int",
+            "required": true
+          }
         },
-        "alignIntronMin": {
-          "type": "int",
-          "required": true
+        "pass2": {
+          "alignEndsType": {
+            "type": "str",
+            "required": true
+          },
+          "outFilterMultimapNmax": {
+            "type": "int",
+            "required": true
+          },
+          "outFilterMultimapScoreRange": {
+            "type": "int",
+            "required": true
+          },
+          "outFilterMismatchNoverLmax": {
+            "type": "float",
+            "required": true
+          },
+          "alignIntronMin": {
+            "type": "int",
+            "required": true
+          },
+          "alignMatesGapMax": {
+            "type": "int",
+            "required": true
+          }
         },
-        "outFilterMultimapScoreRange": {
-          "type": "int",
-          "required": true
-        },
-        "outFilterMismatchNoverLmax": {
-          "type": "float",
-          "required": true
-        },
-        "alignEndsType": {
-          "type": "str",
-          "required": true
-        },
-        "clip5pNbases": {
-          "type": "str",
+        "pass3": {
+          "alignEndsType": {
+            "type": "str",
+            "required": true
+          },
+          "outFilterMultimapNmax": {
+            "type": "int",
+            "required": true
+          },
+          "outFilterMultimapScoreRange": {
+            "type": "int",
+            "required": true
+          },
+          "outFilterMismatchNoverLmax": {
+            "type": "float",
+            "required": true
+          },
+          "alignIntronMin": {
+            "type": "int",
+            "required": true
+          },
+          "alignMatesGapMax": {
+            "type": "int",
+            "required": true
+          }
+        }
+      },
+      "batch": {
+        "enabled": {
+          "type": "bool",
           "required": true
         }
       }

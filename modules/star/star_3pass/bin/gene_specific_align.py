@@ -62,9 +62,13 @@ def _run_step(step: Step, log_handle) -> None:
             log_handle.write(stderr.decode("utf-8", errors="replace"))
     else:
         result = subprocess.run(step.cmd, stdout=subprocess.PIPE,
-                                stderr=subprocess.STDOUT, check=True)
+                                stderr=subprocess.STDOUT, check=False)
         if result.stdout:
             log_handle.write(result.stdout.decode("utf-8", errors="replace"))
+        log_handle.flush()
+        if result.returncode != 0:
+            raise subprocess.CalledProcessError(
+                result.returncode, step.cmd, output=result.stdout)
     log_handle.flush()
 
 
@@ -177,12 +181,14 @@ def main() -> None:
                 os.makedirs(index_dir, exist_ok=True)
 
                 # ── STAR genomeGenerate (uses pass1 params) ─────────
+                gen_prefix = os.path.join(gene_dir, "gen.")
                 gen_cmd = [
                     args.star, "--runMode", "genomeGenerate",
                     "--runThreadN", str(args.threads),
                     "--genomeDir", index_dir,
                     "--genomeFastaFiles", fasta,
                     "--genomeSAindexNbases", str(args.pass1_genome_sa_index_nbases),
+                    "--outFileNamePrefix", gen_prefix,
                 ]
                 all_cmds.append(shlex.join(gen_cmd))
                 _run_step(Step(cmd=gen_cmd, desc=f"[{gene_id}] genomeGenerate"), log_handle)

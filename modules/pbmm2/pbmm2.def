@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for pbmm2 conda environment
+# Source YAML: pbmm2.yaml
+# Build: apptainer build pbmm2.sif pbmm2.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    pbmm2.yaml /opt/conda/pbmm2.yaml
+
+%post
+    conda env create -f /opt/conda/pbmm2.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/pbmm2.yaml
+
+    echo 'export PATH="/opt/conda/envs/pbmm2/bin:$PATH"' >> /etc/profile.d/conda_pbmm2.sh
+    echo 'export CONDA_DEFAULT_ENV=pbmm2' >> /etc/profile.d/conda_pbmm2.sh
+
+%environment
+    export PATH="/opt/conda/envs/pbmm2/bin:$PATH"
+    export CONDA_DEFAULT_ENV=pbmm2
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName pbmm2
+
+%help
+    Apptainer image for conda environment 'pbmm2'.
+    Generated from pbmm2.yaml.

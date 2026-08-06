@@ -18,6 +18,8 @@ rule umi_tools_dedup_for_hisat2:
     threads: 2
     conda:
         "UmiTools.yaml"
+    container:
+        sif("UmiTools.yaml")
     log:
         log = logdir + "/{sample_id}/umi_tools_dedup_run.txt"
     run:
@@ -57,6 +59,8 @@ rule umi_tools_dedup_for_star:
     threads: 2
     conda:
         "UmiTools.yaml"
+    container:
+        sif("UmiTools.yaml")
     log:
         log = logdir + "/{sample_id}/umi_tools_dedup_run.txt"
     run:

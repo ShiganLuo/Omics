@@ -34,6 +34,8 @@ rule subsample_fastq:
     threads: 1
     conda:
         "subsample.yaml"
+    container:
+        sif("subsample.yaml")
     params:
         n = get_subsample_n,
         seed = subsample_seed,
@@ -99,6 +101,8 @@ rule hard_clip:
     threads: 1
     conda:
         "subsample.yaml"
+    container:
+        sif("subsample.yaml")
     params:
         cut_length = config.get("Params", {}).get("subsample", {}).get("hard_clip_length") or 0,  # No trimming, just hard shear
         direction = config.get("Params", {}).get("subsample", {}).get("hard_clip_direction") or "5prime",

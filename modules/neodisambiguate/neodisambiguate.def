@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for neodisambiguate conda environment
+# Source YAML: neodisambiguate.yaml
+# Build: apptainer build neodisambiguate.sif neodisambiguate.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    neodisambiguate.yaml /opt/conda/neodisambiguate.yaml
+
+%post
+    conda env create -f /opt/conda/neodisambiguate.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/neodisambiguate.yaml
+
+    echo 'export PATH="/opt/conda/envs/neodisambiguate/bin:$PATH"' >> /etc/profile.d/conda_neodisambiguate.sh
+    echo 'export CONDA_DEFAULT_ENV=neodisambiguate' >> /etc/profile.d/conda_neodisambiguate.sh
+
+%environment
+    export PATH="/opt/conda/envs/neodisambiguate/bin:$PATH"
+    export CONDA_DEFAULT_ENV=neodisambiguate
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName neodisambiguate
+
+%help
+    Apptainer image for conda environment 'neodisambiguate'.
+    Generated from neodisambiguate.yaml.

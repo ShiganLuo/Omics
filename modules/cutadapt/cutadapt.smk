@@ -51,6 +51,8 @@ rule trimming_Paired:
         report = config.get("Params", {}).get("cutadapt", {}).get("report") or "full"
     conda:
         "cutadapt.yaml"
+    container:
+        sif("cutadapt.yaml")
     run:
         try:
             log_path = str(log)
@@ -117,6 +119,8 @@ rule trimming_Single:
         report = config.get("Params", {}).get("cutadapt", {}).get("report") or "full" 
     conda:
         "cutadapt.yaml"
+    container:
+        sif("cutadapt.yaml")
     run:
         log_path = str(log)
         try:

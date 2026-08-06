@@ -1,6 +1,0 @@
-name: bcftools_population
-channels:
-  - conda-forge
-  - bioconda
-dependencies:
-  - bcftools

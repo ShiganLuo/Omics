@@ -23,6 +23,8 @@ rule demultiplex_trim_dedup:
     threads: 1
     conda:
         "demultiplexer.yaml"
+    container:
+        sif("demultiplexer.yaml")
     params:
         ranmer_len = ranmer_len,
         max_ham = max_ham,

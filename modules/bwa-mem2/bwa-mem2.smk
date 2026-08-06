@@ -22,6 +22,8 @@ rule bwaMem2_index:
     threads: 15
     conda:
         "bwa-mem2.yaml"
+    container:
+        sif("bwa-mem2.yaml")
     params:
         bwa_mem2 = config.get("Procedure",{}).get("bwaMem2") or "bwa-mem2",
         index_prefix = outdir + "/index/genome"
@@ -103,6 +105,8 @@ rule bwaMem2_alignment:
     threads: 15
     conda:
         "bwa-mem2.yaml"
+    container:
+        sif("bwa-mem2.yaml")
     params:
         bwa_mem2 = config.get("Procedure",{}).get("bwaMem2") or "bwa-mem2",
         samtools = config.get("Procedure",{}).get("samtools") or "samtools",

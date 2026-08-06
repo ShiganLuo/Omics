@@ -58,6 +58,8 @@ rule generate_report:
     threads: 1
     conda:
         "RNAseq_report.yaml"
+    container:
+        sif("RNAseq_report.yaml")
     params:
         samples = samples,
         paired_samples = paired_samples,

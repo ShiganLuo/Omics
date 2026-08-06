@@ -36,6 +36,8 @@ rule arriba:
         p = config.get('Params',{}).get('arriba',{}).get('p') or None
     conda:
         "arriba.yaml"
+    container:
+        sif("arriba.yaml")
     run:
         current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
         script = f"{outdir}/{wildcards.sample_id}/{wildcards.sample_id}_arriba.{current_time}.sh"
@@ -77,6 +79,8 @@ rule arriba_report:
         summary_script = os.path.join(ROOT_DIR, "modules/arriba/bin/summarize_arriba_fusions.py")
     conda:
         "arriba.yaml"
+    container:
+        sif("arriba.yaml")
     run:
         current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
         script = f"{outdir}/arriba_report.{current_time}.sh"

@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for demultiplexer conda environment
+# Source YAML: demultiplexer.yaml
+# Build: apptainer build demultiplexer.sif demultiplexer.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    demultiplexer.yaml /opt/conda/demultiplexer.yaml
+
+%post
+    conda env create -f /opt/conda/demultiplexer.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/demultiplexer.yaml
+
+    echo 'export PATH="/opt/conda/envs/demultiplexer/bin:$PATH"' >> /etc/profile.d/conda_demultiplexer.sh
+    echo 'export CONDA_DEFAULT_ENV=demultiplexer' >> /etc/profile.d/conda_demultiplexer.sh
+
+%environment
+    export PATH="/opt/conda/envs/demultiplexer/bin:$PATH"
+    export CONDA_DEFAULT_ENV=demultiplexer
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName demultiplexer
+
+%help
+    Apptainer image for conda environment 'demultiplexer'.
+    Generated from demultiplexer.yaml.

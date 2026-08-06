@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for star conda environment
+# Source YAML: spectrum.yaml
+# Build: apptainer build star.sif spectrum.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    spectrum.yaml /opt/conda/spectrum.yaml
+
+%post
+    conda env create -f /opt/conda/spectrum.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/spectrum.yaml
+
+    echo 'export PATH="/opt/conda/envs/star/bin:$PATH"' >> /etc/profile.d/conda_star.sh
+    echo 'export CONDA_DEFAULT_ENV=star' >> /etc/profile.d/conda_star.sh
+
+%environment
+    export PATH="/opt/conda/envs/star/bin:$PATH"
+    export CONDA_DEFAULT_ENV=star
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName star
+
+%help
+    Apptainer image for conda environment 'star'.
+    Generated from spectrum.yaml.

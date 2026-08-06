@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for openms-psmfdr conda environment
+# Source YAML: psmfdr.yaml
+# Build: apptainer build openms-psmfdr.sif psmfdr.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    openms.yaml /opt/conda/psmfdr.yaml
+
+%post
+    conda env create -f /opt/conda/psmfdr.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/psmfdr.yaml
+
+    echo 'export PATH="/opt/conda/envs/psmfdr/bin:$PATH"' >> /etc/profile.d/conda_psmfdr.sh
+    echo 'export CONDA_DEFAULT_ENV=psmfdr' >> /etc/profile.d/conda_psmfdr.sh
+
+%environment
+    export PATH="/opt/conda/envs/psmfdr/bin:$PATH"
+    export CONDA_DEFAULT_ENV=psmfdr
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName psmfdr
+
+%help
+    Apptainer image for conda environment 'psmfdr'.
+    Generated from openms.yaml.

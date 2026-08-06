@@ -18,6 +18,8 @@ rule iCLIP_bedtools:
     threads: 4
     conda:
         "bedtools.yaml"
+    container:
+        sif("bedtools.yaml")
     params:
         bedtools = config.get('Procedure',{}).get('bedtools') or 'bedtools',
         bedGraphToBigWig = config.get('Procedure',{}).get('bedGraphToBigWig') or 'bedGraphToBigWig'

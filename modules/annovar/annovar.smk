@@ -16,6 +16,8 @@ rule TEcoutCPM:
         Rscript = config["Procedure"]["Rscript"]
     conda:
         "annovar.yaml"
+    container:
+        sif("annovar.yaml")
     run:
         log_path = str(log.log)
         try:
@@ -160,6 +162,8 @@ rule annovar_convert:
     threads:4 #防止同时执行太多，爆内存
     conda:
         "annovar.yaml"
+    container:
+        sif("annovar.yaml")
     run:
         log_path = str(log.log)
         try:
@@ -196,6 +200,8 @@ rule annovar_table:
     threads: 4 #防止同时执行太多，爆内存
     conda:
         "annovar.yaml"
+    container:
+        sif("annovar.yaml")
     run:
         log_path = str(log.log)
         try:

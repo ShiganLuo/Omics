@@ -11,6 +11,8 @@ rule hisat2_index_ncRNAseq:
     threads: 8
     conda:
         "../../hisat2.yaml"
+    container:
+        sif("../../hisat2.yaml")
     params:
         prefix = lambda wildcards: outdir + f"/genome/{wildcards.genome}/index/hista2/{wildcards.genome}",
         HISAT2_BUILD = config.get('Procedure', {}).get('hisat2-build') or 'hisat2-build'

@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for vcftools_population conda environment
+# Source YAML: vcftools_population.yaml
+# Build: apptainer build vcftools_population.sif vcftools.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    vcftools_population.yaml /opt/conda/vcftools_population.yaml
+
+%post
+    conda env create -f /opt/conda/vcftools_population.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/vcftools_population.yaml
+
+    echo 'export PATH="/opt/conda/envs/vcftools_population/bin:$PATH"' >> /etc/profile.d/conda_vcftools_population.sh
+    echo 'export CONDA_DEFAULT_ENV=vcftools_population' >> /etc/profile.d/conda_vcftools_population.sh
+
+%environment
+    export PATH="/opt/conda/envs/vcftools_population/bin:$PATH"
+    export CONDA_DEFAULT_ENV=vcftools_population
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName vcftools_population
+
+%help
+    Apptainer image for conda environment 'vcftools_population'.
+    Generated from vcftools_population.yaml.

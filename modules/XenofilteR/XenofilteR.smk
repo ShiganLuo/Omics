@@ -34,6 +34,8 @@ rule XenofilterR:
         Rscript = config.get('Procedure',{}).get('Rscript') or 'Rscript'
     conda:
         "XenofilterR.yaml"
+    container:
+        sif("XenofilterR.yaml")
     run:
         log_path = str(log)
         try:

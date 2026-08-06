@@ -34,6 +34,8 @@ rule trimming_Paired:
         log = logdir + "/{sample_id}/trimming.txt"
     conda:
         "trim-galore.yaml"
+    container:
+        sif("trim-galore.yaml")
     run:
         log_path = str(log)
         try:
@@ -104,6 +106,8 @@ rule trimming_Single:
         log = logdir + "/{sample_id}/trimming.txt"
     conda:
         "trim-galore.yaml"
+    container:
+        sif("trim-galore.yaml")
     run:
         log_path = str(log)
         try:

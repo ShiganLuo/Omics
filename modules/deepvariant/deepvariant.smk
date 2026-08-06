@@ -37,6 +37,8 @@ rule deepvariant_run:
         outdir_sample = outdir + "/{sample_id}"
     conda:
         "deepvariant.yaml"
+    container:
+        sif("deepvariant.yaml")
     run:
         try:
             open(log[0], "w").close()

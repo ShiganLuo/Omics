@@ -13,6 +13,8 @@ rule bcftools_sort:
         logdir + "/{sample_id}/bcftools_sort.log"
     conda:
         "bcftools.yaml"
+    container:
+        sif("bcftools.yaml")
     params:
         bcftools = config.get("Procedure", {}).get("bcftools") or "bcftools"
     run:
@@ -49,6 +51,8 @@ rule bcftools_index_csi:
         logdir + "/{sample_id}/bcftools_index.log"
     conda:
         "bcftools.yaml"
+    container:
+        sif("bcftools.yaml")
     params:
         bcftools = config.get("Procedure", {}).get("bcftools") or "bcftools"
     run:

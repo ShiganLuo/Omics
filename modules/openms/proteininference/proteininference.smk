@@ -26,7 +26,9 @@ rule protein_inference:
     log:
         logdir + "/{sample_id}/protein_inference.log"
     conda:
-        "openms.yaml"
+        "proteininference.yaml"
+    container:
+        sif("proteininference.yaml")
     params:
         epifany = epifany,
         method = method,

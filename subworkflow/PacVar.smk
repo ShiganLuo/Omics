@@ -24,6 +24,7 @@ pbmm2_config = {
     "logdir": logdir,
     "samples": samples,
     "ROOT_DIR": ROOT_DIR,
+    "env": config.get("env", {}),
     "Procedure": {
         "pbmm2": config.get("Procedure", {}).get("pbmm2")
     },
@@ -40,6 +41,7 @@ use rule pbmm2_align from pbmm2 as PacVar_pbmm2_align
 
 gatk_prepare_config = {
     "ROOT_DIR": ROOT_DIR,
+    "env": config.get("env", {}),
     "indir": pbmm2_config["outdir"],
     "outdir": f"{outdir}/bam/2_markdup_bam",
     "logdir": logdir,
@@ -78,6 +80,7 @@ if not skip_snp:
     if snv_caller == "deepvariant":
         deepvariant_config = {
             "ROOT_DIR": ROOT_DIR,
+            "env": config.get("env", {}),
             "indir": gatk_prepare_config["outdir"],
             "outdir": f"{outdir}/variation/germline_snv_indel",
             "logdir": logdir,
@@ -109,6 +112,7 @@ if not skip_snp:
 if not skip_sv:
     pbsv_config = {
         "ROOT_DIR": ROOT_DIR,
+        "env": config.get("env", {}),
         "indir": gatk_prepare_config["outdir"],
         "outdir": f"{outdir}/variation/germline_sv",
         "logdir": logdir,
@@ -136,6 +140,7 @@ if not skip_sv:
 if not skip_phase and not skip_snp and not skip_sv:
     hiphase_snp_config = {
         "ROOT_DIR": ROOT_DIR,
+        "env": config.get("env", {}),
         "indir": gatk_prepare_config["outdir"],
         "outdir": f"{outdir}/variation/germline_snv_indel",
         "logdir": logdir,
@@ -160,6 +165,7 @@ if not skip_phase and not skip_snp and not skip_sv:
 
     hiphase_sv_config = {
         "ROOT_DIR": ROOT_DIR,
+        "env": config.get("env", {}),
         "indir": gatk_prepare_config["outdir"],
         "outdir": f"{outdir}/variation/germline_sv",
         "logdir": logdir,
@@ -189,6 +195,7 @@ if not skip_phase and not skip_snp and not skip_sv:
 if not skip_repeat and config.get("genome", {}).get("repeat_bed") is not None:
     trgt_config = {
         "ROOT_DIR": ROOT_DIR,
+        "env": config.get("env", {}),
         "indir": gatk_prepare_config["outdir"],
         "outdir": f"{outdir}/repeat/trgt",
         "logdir": logdir,
@@ -222,6 +229,7 @@ if not skip_telomere:
 
     telomere_config = {
         "ROOT_DIR": ROOT_DIR,
+        "env": config.get("env", {}),
         "indir": gatk_prepare_config["outdir"],
         "outdir": f"{outdir}/repeat/telomere",
         "logdir": logdir,
@@ -251,6 +259,7 @@ if not skip_telomere:
 
     centromere_config = {
         "ROOT_DIR": ROOT_DIR,
+        "env": config.get("env", {}),
         "indir": indir,
         "outdir": f"{outdir}/repeat/centromere",
         "logdir": logdir,

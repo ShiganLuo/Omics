@@ -19,6 +19,8 @@ rule BaseRecalibrator:
     threads: 8
     conda:
         "../gatk.yaml"
+    container:
+        sif("../gatk.yaml")
     params:
         javaOptions =  config.get("Params", {}).get("gatk", {}).get("javaOptions") or "-Xmx30g",
         tmp_dir = config.get("Params", {}).get("gatk", {}).get("tmp-dir") or None,
@@ -67,6 +69,8 @@ rule ApplyBQSR:
         logdir + "/{sample_id}/ApplyBQSR.log"
     conda:
         "../gatk.yaml"
+    container:
+        sif("../gatk.yaml")
     threads:
         8
     params:

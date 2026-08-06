@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for bcftools conda environment
+# Source YAML: bcftools.yaml
+# Build: apptainer build bcftools.sif bcftools.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    bcftools.yaml /opt/conda/bcftools.yaml
+
+%post
+    conda env create -f /opt/conda/bcftools.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/bcftools.yaml
+
+    echo 'export PATH="/opt/conda/envs/bcftools/bin:$PATH"' >> /etc/profile.d/conda_bcftools.sh
+    echo 'export CONDA_DEFAULT_ENV=bcftools' >> /etc/profile.d/conda_bcftools.sh
+
+%environment
+    export PATH="/opt/conda/envs/bcftools/bin:$PATH"
+    export CONDA_DEFAULT_ENV=bcftools
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName bcftools
+
+%help
+    Apptainer image for conda environment 'bcftools'.
+    Generated from bcftools.yaml.

@@ -28,6 +28,8 @@ rule bowtie2_index:
         index_prefix = outdir + "/index/genome"
     conda:
         "bowtie2.yaml"
+    container:
+        sif("bowtie2.yaml")
     run:
         log_path = str(log)
         try:
@@ -116,6 +118,8 @@ rule bowtie2_align_paired:
         sam_append_comment = config.get('Params',{}).get('bowtie2', {}).get('sam-append-comment') or False
     conda:
         "bowtie2.yaml"
+    container:
+        sif("bowtie2.yaml")
     run:
         log_path = str(log)
         try:
@@ -168,6 +172,8 @@ rule bowtie2_align_single:
         sam_append_comment = config.get('Params',{}).get('bowtie2', {}).get('sam-append-comment') or False
     conda:
         "bowtie2.yaml"
+    container:
+        sif("bowtie2.yaml")
     run:
         log_path = str(log)
         try:

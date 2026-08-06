@@ -35,6 +35,8 @@ rule gatk_population_haplotype_caller:
     threads: 8
     conda:
         "../gatk.yaml"
+    container:
+        sif("../gatk.yaml")
     params:
         gatk=gatk,
         java_options=java_options,
@@ -77,6 +79,8 @@ rule gatk_population_joint_genotyping:
     threads: 8
     conda:
         "../gatk.yaml"
+    container:
+        sif("../gatk.yaml")
     params:
         gatk=gatk,
         java_options=java_options,

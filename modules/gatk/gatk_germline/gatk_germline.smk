@@ -45,6 +45,8 @@ rule HaplotypeCaller:
         logdir + "/{sample_id}/haplotypeCaller.log"
     conda:
         "../gatk.yaml"
+    container:
+        sif("../gatk.yaml")
     params:
         javaOptions =  config.get("Params", {}).get("gatk", {}).get("javaOptions") or "-Xmx30g",
         gatk = config.get("Procedure", {}).get("gatk") or "gatk",
@@ -99,6 +101,8 @@ rule filterHaplotypeCallerVcf:
         logdir + "/{sample_id}/haplotypeCaller-filtered.log"
     conda:
         "../gatk.yaml"
+    container:
+        sif("../gatk.yaml")
     threads: 10
     params:
         gatk = config.get("Procedure", {}).get("gatk") or "gatk",

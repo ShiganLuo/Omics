@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for bowtie2 conda environment
+# Source YAML: bowtie2.yaml
+# Build: apptainer build bowtie2.sif bowtie2.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    bowtie2.yaml /opt/conda/bowtie2.yaml
+
+%post
+    conda env create -f /opt/conda/bowtie2.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/bowtie2.yaml
+
+    echo 'export PATH="/opt/conda/envs/bowtie2/bin:$PATH"' >> /etc/profile.d/conda_bowtie2.sh
+    echo 'export CONDA_DEFAULT_ENV=bowtie2' >> /etc/profile.d/conda_bowtie2.sh
+
+%environment
+    export PATH="/opt/conda/envs/bowtie2/bin:$PATH"
+    export CONDA_DEFAULT_ENV=bowtie2
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName bowtie2
+
+%help
+    Apptainer image for conda environment 'bowtie2'.
+    Generated from bowtie2.yaml.

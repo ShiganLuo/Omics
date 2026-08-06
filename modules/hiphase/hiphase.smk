@@ -45,6 +45,8 @@ rule hiphase_phase:
         hiphase = config.get("Procedure", {}).get("hiphase") or "hiphase",
     conda:
         "hiphase.yaml"
+    container:
+        sif("hiphase.yaml")
     run:
         current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start hiphase for sample {wildcards.sample_id} at {current_time}")

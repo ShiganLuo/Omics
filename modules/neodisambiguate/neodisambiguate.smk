@@ -27,6 +27,8 @@ rule neodisambiguate:
         logdir + "/{sample_id}/neodisambiguate.log"
     conda:
         "neodisambiguate.yaml"
+    container:
+        sif("neodisambiguate.yaml")
     run:
         log_path = str(log)
         try:

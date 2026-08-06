@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for seqprep conda environment
+# Source YAML: seqprep.yaml
+# Build: apptainer build seqprep.sif seqprep.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    seqprep.yaml /opt/conda/seqprep.yaml
+
+%post
+    conda env create -f /opt/conda/seqprep.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/seqprep.yaml
+
+    echo 'export PATH="/opt/conda/envs/seqprep/bin:$PATH"' >> /etc/profile.d/conda_seqprep.sh
+    echo 'export CONDA_DEFAULT_ENV=seqprep' >> /etc/profile.d/conda_seqprep.sh
+
+%environment
+    export PATH="/opt/conda/envs/seqprep/bin:$PATH"
+    export CONDA_DEFAULT_ENV=seqprep
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName seqprep
+
+%help
+    Apptainer image for conda environment 'seqprep'.
+    Generated from seqprep.yaml.

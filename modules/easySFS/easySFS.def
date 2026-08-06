@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for easySFS_population conda environment
+# Source YAML: easySFS_population.yaml
+# Build: apptainer build easySFS_population.sif easySFS.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    easySFS_population.yaml /opt/conda/easySFS_population.yaml
+
+%post
+    conda env create -f /opt/conda/easySFS_population.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/easySFS_population.yaml
+
+    echo 'export PATH="/opt/conda/envs/easySFS_population/bin:$PATH"' >> /etc/profile.d/conda_easySFS_population.sh
+    echo 'export CONDA_DEFAULT_ENV=easySFS_population' >> /etc/profile.d/conda_easySFS_population.sh
+
+%environment
+    export PATH="/opt/conda/envs/easySFS_population/bin:$PATH"
+    export CONDA_DEFAULT_ENV=easySFS_population
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName easySFS_population
+
+%help
+    Apptainer image for conda environment 'easySFS_population'.
+    Generated from easySFS_population.yaml.

@@ -37,6 +37,8 @@ rule scanpy_qc:
     threads: 4
     conda:
         "scRNAseq_scanpy.yaml"
+    container:
+        sif("scRNAseq_scanpy.yaml")
     params:
         python=python,
         script=script,
@@ -75,6 +77,8 @@ rule scanpy_cluster:
     threads: 4
     conda:
         "scRNAseq_scanpy.yaml"
+    container:
+        sif("scRNAseq_scanpy.yaml")
     params:
         python=python,
         script=script,
@@ -109,6 +113,8 @@ if advanced.get("trajectory", True) or advanced.get("velocity", False):
         threads: 4
         conda:
             "scRNAseq_scanpy.yaml"
+        container:
+            sif("scRNAseq_scanpy.yaml")
         params:
             python=python,
             script=script,
@@ -154,6 +160,8 @@ if advanced.get("trajectory", True) or advanced.get("velocity", False):
         threads: 2
         conda:
             "scRNAseq_scanpy.yaml"
+        container:
+            sif("scRNAseq_scanpy.yaml")
         params:
             python=python,
             script=script

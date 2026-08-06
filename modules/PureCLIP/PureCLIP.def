@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for PureCLIP conda environment
+# Source YAML: PureCLIP.yaml
+# Build: apptainer build PureCLIP.sif PureCLIP.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    PureCLIP.yaml /opt/conda/PureCLIP.yaml
+
+%post
+    conda env create -f /opt/conda/PureCLIP.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/PureCLIP.yaml
+
+    echo 'export PATH="/opt/conda/envs/PureCLIP/bin:$PATH"' >> /etc/profile.d/conda_PureCLIP.sh
+    echo 'export CONDA_DEFAULT_ENV=PureCLIP' >> /etc/profile.d/conda_PureCLIP.sh
+
+%environment
+    export PATH="/opt/conda/envs/PureCLIP/bin:$PATH"
+    export CONDA_DEFAULT_ENV=PureCLIP
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName PureCLIP
+
+%help
+    Apptainer image for conda environment 'PureCLIP'.
+    Generated from PureCLIP.yaml.

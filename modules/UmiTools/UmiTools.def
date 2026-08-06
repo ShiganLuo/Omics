@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for UmiTools conda environment
+# Source YAML: UmiTools.yaml
+# Build: apptainer build UmiTools.sif UmiTools.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    UmiTools.yaml /opt/conda/UmiTools.yaml
+
+%post
+    conda env create -f /opt/conda/UmiTools.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/UmiTools.yaml
+
+    echo 'export PATH="/opt/conda/envs/UmiTools/bin:$PATH"' >> /etc/profile.d/conda_UmiTools.sh
+    echo 'export CONDA_DEFAULT_ENV=UmiTools' >> /etc/profile.d/conda_UmiTools.sh
+
+%environment
+    export PATH="/opt/conda/envs/UmiTools/bin:$PATH"
+    export CONDA_DEFAULT_ENV=UmiTools
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName UmiTools
+
+%help
+    Apptainer image for conda environment 'UmiTools'.
+    Generated from UmiTools.yaml.

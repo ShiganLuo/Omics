@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for XenofilteR conda environment
+# Source YAML: XenofilteR.yaml
+# Build: apptainer build XenofilteR.sif XenofilteR.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    XenofilteR.yaml /opt/conda/XenofilteR.yaml
+
+%post
+    conda env create -f /opt/conda/XenofilteR.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/XenofilteR.yaml
+
+    echo 'export PATH="/opt/conda/envs/XenofilteR/bin:$PATH"' >> /etc/profile.d/conda_XenofilteR.sh
+    echo 'export CONDA_DEFAULT_ENV=XenofilteR' >> /etc/profile.d/conda_XenofilteR.sh
+
+%environment
+    export PATH="/opt/conda/envs/XenofilteR/bin:$PATH"
+    export CONDA_DEFAULT_ENV=XenofilteR
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName XenofilteR
+
+%help
+    Apptainer image for conda environment 'XenofilteR'.
+    Generated from XenofilteR.yaml.

@@ -24,6 +24,8 @@ rule soapnuke_filter_paired:
         clean_fastq2 = lambda wildcards: f"{wildcards.sample_id}_2.fq.gz",
     conda:
         "SOAPnuke.yaml"
+    container:
+        sif("SOAPnuke.yaml")
     threads: 8
     run:
         log_path = str(log)
@@ -79,6 +81,8 @@ rule soapnuke_filter_single:
         clean_fastq = lambda wildcards: f"{wildcards.sample_id}.single.fq.gz"
     conda:
         "SOAPnuke.yaml"
+    container:
+        sif("SOAPnuke.yaml")
     threads: 8
     run:
         log_path = str(log)

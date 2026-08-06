@@ -40,6 +40,8 @@ rule sv_exp_specific:
         dist = config.get("Params", {}).get("exp_specific", {}).get("dist", 500),
     conda:
         "sv.yaml"
+    container:
+        sif("sv.yaml")
     run:
         try:
             log_path = str(log)
@@ -84,6 +86,8 @@ rule sv_exp_enrichment:
         script = os.path.join(ROOT_DIR, "modules/sv/bin/run_enrichment.py"),
     conda:
         "sv.yaml"
+    container:
+        sif("sv.yaml")
     run:
         try:
             log_path = str(log)
@@ -126,6 +130,8 @@ rule sv_exp_circos:
         ins_bin_size = config.get("Params", {}).get("circos", {}).get("ins_bin_size", 100000),
     conda:
         "sv.yaml"
+    container:
+        sif("sv.yaml")
     run:
         try:
             log_path = str(log)
@@ -170,6 +176,8 @@ rule sv_gene_model:
         threads = config.get("Params", {}).get("gene_model", {}).get("threads", 1),
     conda:
         "sv.yaml"
+    container:
+        sif("sv.yaml")
     run:
         try:
             log_path = str(log)
@@ -217,6 +225,8 @@ rule sv_diff_analysis:
         large_sv_threshold = config.get("Params", {}).get("diff_analysis", {}).get("large_sv_threshold", 10000),
     conda:
         "sv.yaml"
+    container:
+        sif("sv.yaml")
     run:
         try:
             log_path = str(log)
@@ -260,6 +270,8 @@ rule sv_oncoprint:
         deseq2_files = config.get("Params", {}).get("oncoprint", {}).get("deseq2_files", {}),
     conda:
         "sv.yaml"
+    container:
+        sif("sv.yaml")
     run:
         try:
             log_path = str(log)

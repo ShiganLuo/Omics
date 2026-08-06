@@ -7,18 +7,30 @@
     "single_samples": [],
     "outfiles": [],
     "ROOT_DIR": ".",
+    "env": {
+        "env_dir": "/home/luosg/Database/env",
+        "demultiplexer": "/home/luosg/Database/env/demultiplexer/demultiplexer.sif",
+        "fastqc": "/home/luosg/Database/env/fastqc/fastqc.sif",
+        "featureCounts": "/home/luosg/Database/env/featureCounts/featureCounts.sif",
+        "genome": "/home/luosg/Database/env/genome/genome.sif",
+        "hisat2": "/home/luosg/Database/env/hisat2/hisat2.sif",
+        "star": "/home/luosg/Database/env/star/star.sif",
+        "subsample": "/home/luosg/Database/env/subsample/subsample.sif",
+        "tailer": "/home/luosg/Database/env/tailer/tailer.sif",
+        "trim-galore": "/home/luosg/Database/env/trim-galore/trim-galore.sif"
+    },
     "Procedure": {
-        "aligner": "star_3pass_gene",
-        "trim_galore": "/home/luosg/opt/TrimGalore-0.6.10/trim_galore",
-        "hisat2": "hisat2",
-        "hisat2-build": "hisat2-build",
-        "STAR": "/home/luosg/miniconda3/envs/star_env/bin/STAR",
-        "samtools": "/home/luosg/miniconda3/envs/DNA/bin/samtools",
-        "bedtools": "/home/luosg/miniconda3/pkgs/bedtools-2.31.1-h13024bc_3/bin/bedtools",
-        "seqtk": "/home/luosg/miniconda3/envs/DNA/bin/seqtk",
-        "featureCounts": "/home/luosg/miniconda3/pkgs/subread-2.1.1-h577a1d6_0/bin/featureCounts",
-        "tailer": "/home/luosg/Database/env/3b73d0256266ebb04e81b5777cc75d52_/bin/Tailer",
-        "fastqc": "fastqc"
+        "aligner": null,
+        "trim_galore": null,
+        "hisat2": null,
+        "hisat2-build": null,
+        "STAR": null,
+        "samtools": null,
+        "bedtools": null,
+        "seqtk": null,
+        "featureCounts": null,
+        "tailer": null,
+        "fastqc": null
     },
     "Params": {
         "STAR": {},
@@ -92,10 +104,25 @@
             "rev_comp": false
         },
         "ncRNAseq": {
-            "abund_small_rnas": ["U1", "U2", "U3", "7SL", "7SK"],
+            "abund_small_rnas": [
+                "U1",
+                "U2",
+                "U3",
+                "7SL",
+                "7SK"
+            ],
             "subsample_n": 100000,
             "smallrna_flank": 50,
-            "smallrna_types": ["snRNA", "misc_RNA", "rRNA", "rRNA_pseudogene", "snoRNA", "scaRNA", "ribozyme", "TERC"],
+            "smallrna_types": [
+                "snRNA",
+                "misc_RNA",
+                "rRNA",
+                "rRNA_pseudogene",
+                "snoRNA",
+                "scaRNA",
+                "ribozyme",
+                "TERC"
+            ],
             "seed": 42,
             "hard_clip_direction": "5prime",
             "hard_clip_length": 0

@@ -28,6 +28,8 @@ rule seqprep_merge:
         seqkit = config.get("Procedure", {}).get("seqkit") or "seqkit"
     conda:
         "seqprep.yaml"
+    container:
+        sif("seqprep.yaml")
     run:
         current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start SeqPrep merge for sample {wildcards.sample_id} at {current_time}")

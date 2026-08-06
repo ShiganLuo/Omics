@@ -3,6 +3,7 @@
 include: "../../common/common.smk"
 
 import os
+import shlex
 
 outdir = config.get("outdir", "output")
 tail_outdir = config.get("tail_outdir", outdir)
@@ -47,7 +48,9 @@ rule star_3pg_gene_specific:
         logdir + "/star3pg/{sample_id}/gene_specific.log"
     threads: 2
     conda:
-        "star_3pass.yaml"
+        "../star.yaml"
+    container:
+        sif("../star.yaml")
     run:
         log_path = str(log)
         try:
@@ -128,7 +131,7 @@ rule star_3pg_gene_specific:
                 cmd.append("--tailer-rev-comp")
 
             with open(script, "w") as f:
-                f.write(" ".join(cmd) + "\n")
+                f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
             shell(f"bash {script} >> {log_path} 2>&1")
 
             rule_logger.info(f"star_3pg_gene_specific for sample {wildcards.sample_id} completed")

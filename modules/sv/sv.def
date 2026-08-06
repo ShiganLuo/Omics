@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for sv conda environment
+# Source YAML: sv.yaml
+# Build: apptainer build sv.sif sv.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    sv.yaml /opt/conda/sv.yaml
+
+%post
+    conda env create -f /opt/conda/sv.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/sv.yaml
+
+    echo 'export PATH="/opt/conda/envs/sv/bin:$PATH"' >> /etc/profile.d/conda_sv.sh
+    echo 'export CONDA_DEFAULT_ENV=sv' >> /etc/profile.d/conda_sv.sh
+
+%environment
+    export PATH="/opt/conda/envs/sv/bin:$PATH"
+    export CONDA_DEFAULT_ENV=sv
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName sv
+
+%help
+    Apptainer image for conda environment 'sv'.
+    Generated from sv.yaml.

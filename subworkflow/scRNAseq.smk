@@ -30,6 +30,7 @@ outfiles = config.get("outfiles") or [
 scanpy_config = dict(config)
 scanpy_config.update({
     "ROOT_DIR": ROOT_DIR,
+    "env": config.get("env", {}),
     "indir": indir,
     "outdir": outdir,
     "logdir": logdir,

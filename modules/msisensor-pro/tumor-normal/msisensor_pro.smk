@@ -35,6 +35,8 @@ rule scan:
         outdir + "reference/{genome_version}.msisensor.scan.log"
     conda:
         "../msisensor_pro.schema.yaml"
+    container:
+        sif("../msisensor_pro.schema.yaml")
     run:
         shell("{msisensor_pro} scan -d {input} -o {output} 2>{log} 1>{log}")
 
@@ -50,6 +52,8 @@ rule msisensor_msi:
         outdir + "tumor_normal_output/{case}/{case}.{genome_version}.msisensor.log"
     conda:
         "../msisensor_pro.schema.yaml"
+    container:
+        sif("../msisensor_pro.schema.yaml")
     run:
         shell("{msisensor_pro} msi -d {input.ms} -n {input.n} -t {input.t} -g {input.ref}  -o {output} 2>{log}")
 

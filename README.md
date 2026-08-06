@@ -137,13 +137,15 @@ Visium 输入：
 1. 准备输入数据。
    - 如果传入的是元信息文件，通常应包含样本、物种、测序布局等信息。
    - 如果传入的是 fastq 目录，`run.py` 会直接从目录中解析样本信息。
-2. 确认 `envs/` 下的 conda 环境已准备好。
+2. 准备运行环境：选择 conda 模式或容器（Apptainer/SIF）模式。
+   - **conda 模式**：需指定 `--conda-prefix`，`run.py` 会自动添加 `--use-conda`。
+   - **容器模式**：指定 `--sdm`，`run.py` 会省略 `--use-conda`，改为让 Snakemake 用 `container:` 指令解析的 SIF 镜像运行。SIF 镜像由 `EnvUtil.py` 从 conda yaml 生成（见 `src/common/util/EnvUtil.py`），`common.smk` 的 `sif()` 函数根据 yaml 文件名 stem 查找路径。
 3. 使用 `run.py` 启动对应流程。
 
-推荐示例：
+推荐示例（conda 模式）：
 
 ```bash
-python workflow/RNA-SNP/run.py \
+python workflow/Omics/run.py \
   -m data/meta/fastq \
   -w CLIP \
   -o output \
@@ -152,6 +154,21 @@ python workflow/RNA-SNP/run.py \
   --conda-prefix /data/pub/zhousha/env/mutation_0.1 \
   --Params.trim_galore.quality 10
 ```
+
+容器模式示例：
+
+```bash
+python workflow/Omics/run.py \
+  -m data/meta/fastq \
+  -w CLIP \
+  -o output \
+  -t 48 \
+  --sdm \
+  --rerun-triggers mtime
+```
+
+容器模式下 `run.py` 会自动从配置 JSON 中提取路径并生成 `--singularity-args --bind ...`，
+无需手动指定。如需覆盖，用 `--singularity-args`。
 
 如果只是想检查流程而不真正执行，可加上 `--dry-run`。
 
@@ -301,7 +318,9 @@ snakemake --snakefile workflow/Omics/subworkflow/CLIP.smk \
 - `-t, --threads`：Snakemake 线程数。
 - `--dry-run`：只生成计划，不执行。
 - `--log`：日志文件路径。
-- `--conda-prefix`：conda 包缓存目录。
+- `--conda-prefix`：conda 包缓存目录（conda 模式必需，容器模式下省略）。
+- `--sdm`：使用 Apptainer 容器后端（SIF 镜像）。设置后 `run.py` 不添加 `--use-conda`，改用 `container:` 指令解析的 SIF 运行。自动从配置 JSON 提取路径生成 `--singularity-args --bind ...`。
+- `--singularity-args`：手动指定 singularity/apptainer 参数，如 `--singularity-args '--bind /path1,/path2'`（与 `--sdm` 配合使用，覆盖自动生成的 bind 列表）。
 - `--rerun-trigger`：Snakemake 的重跑触发条件，默认 `input`。可选值及含义：
 
   | 参数 | 含义 |

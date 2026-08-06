@@ -14,6 +14,8 @@ rule bam_flagstat:
         logdir + "/{sample_id}/flagstat.log"
     conda:
         "samtools.yaml"
+    container:
+        sif("samtools.yaml")
     params:
         samtools = config.get("Procedure", {}).get("samtools") or "samtools"
     run:

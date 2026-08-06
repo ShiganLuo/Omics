@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for RmrRNA conda environment
+# Source YAML: RmrRNA.yaml
+# Build: apptainer build RmrRNA.sif RmrRNA.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    RmrRNA.yaml /opt/conda/RmrRNA.yaml
+
+%post
+    conda env create -f /opt/conda/RmrRNA.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/RmrRNA.yaml
+
+    echo 'export PATH="/opt/conda/envs/RmrRNA/bin:$PATH"' >> /etc/profile.d/conda_RmrRNA.sh
+    echo 'export CONDA_DEFAULT_ENV=RmrRNA' >> /etc/profile.d/conda_RmrRNA.sh
+
+%environment
+    export PATH="/opt/conda/envs/RmrRNA/bin:$PATH"
+    export CONDA_DEFAULT_ENV=RmrRNA
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName RmrRNA
+
+%help
+    Apptainer image for conda environment 'RmrRNA'.
+    Generated from RmrRNA.yaml.

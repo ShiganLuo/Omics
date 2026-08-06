@@ -15,6 +15,8 @@ rule samtools_stats:
         logdir + "/{sample_id}/samtools_stats.log"
     conda:
         "fragment_size.yaml"
+    container:
+        sif("fragment_size.yaml")
     params:
         samtools = config.get("Procedure", {}).get("samtools") or "samtools"
     run:
@@ -49,6 +51,8 @@ rule getFragmentSize:
         script = os.path.join(ROOT_DIR, "modules/fragment_size/bin/getFragmentSize.py")
     conda:
         "fragment_size.yaml"
+    container:
+        sif("fragment_size.yaml")
     run:
         log_path = str(log)
         try:
@@ -82,6 +86,8 @@ rule plotFragmentSize:
         script = os.path.join(ROOT_DIR, "modules/fragment_size/bin/plotFragmentSize.py")
     conda:
         "fragment_size.yaml"
+    container:
+        sif("fragment_size.yaml")
     run:
         log_path = str(log)
         try:

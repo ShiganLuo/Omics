@@ -19,6 +19,8 @@ rule bam_sort:
     threads: 8
     conda:
         "../samtools.yaml"
+    container:
+        sif("../samtools.yaml")
     params:
         samtools = config.get("Procedure", {}).get("samtools") or "samtools"
     run:

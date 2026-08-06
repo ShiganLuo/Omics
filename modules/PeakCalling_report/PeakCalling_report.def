@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for report conda environment
+# Source YAML: report.yaml
+# Build: apptainer build report.sif PeakCalling_report.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    report.yaml /opt/conda/report.yaml
+
+%post
+    conda env create -f /opt/conda/report.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/report.yaml
+
+    echo 'export PATH="/opt/conda/envs/report/bin:$PATH"' >> /etc/profile.d/conda_report.sh
+    echo 'export CONDA_DEFAULT_ENV=report' >> /etc/profile.d/conda_report.sh
+
+%environment
+    export PATH="/opt/conda/envs/report/bin:$PATH"
+    export CONDA_DEFAULT_ENV=report
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName report
+
+%help
+    Apptainer image for conda environment 'report'.
+    Generated from report.yaml.

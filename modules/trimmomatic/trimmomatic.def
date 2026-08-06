@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for trimmomatic conda environment
+# Source YAML: trimmomatic.yaml
+# Build: apptainer build trimmomatic.sif trimmomatic.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    trimmomatic.yaml /opt/conda/trimmomatic.yaml
+
+%post
+    conda env create -f /opt/conda/trimmomatic.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/trimmomatic.yaml
+
+    echo 'export PATH="/opt/conda/envs/trimmomatic/bin:$PATH"' >> /etc/profile.d/conda_trimmomatic.sh
+    echo 'export CONDA_DEFAULT_ENV=trimmomatic' >> /etc/profile.d/conda_trimmomatic.sh
+
+%environment
+    export PATH="/opt/conda/envs/trimmomatic/bin:$PATH"
+    export CONDA_DEFAULT_ENV=trimmomatic
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName trimmomatic
+
+%help
+    Apptainer image for conda environment 'trimmomatic'.
+    Generated from trimmomatic.yaml.

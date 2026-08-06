@@ -37,6 +37,8 @@ rule ngs_disambiguate:
     threads: 4
     conda:
         "disambiguate.yaml"
+    container:
+        sif("disambiguate.yaml")
     log:
         logdir + "/{sample_id}/ngs_disambiguate.log"
     run:
@@ -86,6 +88,8 @@ rule disambiguate_sort_rename:
     threads: 4
     conda:
         "disambiguate.yaml"
+    container:
+        sif("disambiguate.yaml")
     log:
         logdir + "/{sample_id}/sort_rename.log"
     run:
@@ -128,6 +132,8 @@ rule disambiguate_report:
         logdir + "/disambiguate_report.log"
     conda:
         "disambiguate.yaml"
+    container:
+        sif("disambiguate.yaml")
     threads: 1
     run:
         log_path = str(log)

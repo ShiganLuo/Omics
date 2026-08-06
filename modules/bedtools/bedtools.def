@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for bedtools conda environment
+# Source YAML: bedtools.yaml
+# Build: apptainer build bedtools.sif bedtools.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    bedtools.yaml /opt/conda/bedtools.yaml
+
+%post
+    conda env create -f /opt/conda/bedtools.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/bedtools.yaml
+
+    echo 'export PATH="/opt/conda/envs/bedtools/bin:$PATH"' >> /etc/profile.d/conda_bedtools.sh
+    echo 'export CONDA_DEFAULT_ENV=bedtools' >> /etc/profile.d/conda_bedtools.sh
+
+%environment
+    export PATH="/opt/conda/envs/bedtools/bin:$PATH"
+    export CONDA_DEFAULT_ENV=bedtools
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName bedtools
+
+%help
+    Apptainer image for conda environment 'bedtools'.
+    Generated from bedtools.yaml.

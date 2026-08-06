@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for featureCounts conda environment
+# Source YAML: featureCounts.yaml
+# Build: apptainer build featureCounts.sif featureCounts.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    featureCounts.yaml /opt/conda/featureCounts.yaml
+
+%post
+    conda env create -f /opt/conda/featureCounts.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/featureCounts.yaml
+
+    echo 'export PATH="/opt/conda/envs/featureCounts/bin:$PATH"' >> /etc/profile.d/conda_featureCounts.sh
+    echo 'export CONDA_DEFAULT_ENV=featureCounts' >> /etc/profile.d/conda_featureCounts.sh
+
+%environment
+    export PATH="/opt/conda/envs/featureCounts/bin:$PATH"
+    export CONDA_DEFAULT_ENV=featureCounts
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName featureCounts
+
+%help
+    Apptainer image for conda environment 'featureCounts'.
+    Generated from featureCounts.yaml.

@@ -21,6 +21,8 @@ rule TEcount:
         logdir + "/{sample_id}/TEcount.log"
     conda:
         "TEtranscripts.yaml"
+    container:
+        sif("TEtranscripts.yaml")
     run:
         log_path = str(log)
         try:
@@ -58,6 +60,8 @@ rule combine_TEcount:
         outfile = outdir + "/TEcount/all_TEcount.tsv"
     conda:
         "TEtranscripts.yaml"
+    container:
+        sif("TEtranscripts.yaml")
     params:
         combineTE = ROOT_DIR + "/modules/TEtranscripts/bin/combineTE.py",
         indir = outdir + "/TEcount"
@@ -96,6 +100,8 @@ rule TElocal:
     threads: 2
     conda:
         "TEtranscripts.yaml"
+    container:
+        sif("TEtranscripts.yaml")
     run:
         log_path = str(log)
         try:
@@ -135,6 +141,8 @@ rule combine_TElocal:
         outfile = outdir + "/TElocal/all_TElocal.tsv"
     conda:
         "TEtranscripts.yaml"
+    container:
+        sif("TEtranscripts.yaml")
     params:
         combineTE = ROOT_DIR + "/modules/TEtranscripts/bin/combineTE.py",
         indir = outdir + "/TElocal"

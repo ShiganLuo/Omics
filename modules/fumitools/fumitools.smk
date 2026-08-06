@@ -32,6 +32,8 @@ rule fumitools_copy_umi_paired:
     threads: 4
     conda:
         "fumitools.yaml"
+    container:
+        sif("fumitools.yaml")
     run:
         try:
             log_path = str(log)
@@ -89,6 +91,8 @@ rule fumitools_copy_umi_single:
     threads: 4
     conda:
         "fumitools.yaml"
+    container:
+        sif("fumitools.yaml")
     run:
         try:
             log_path = str(log)
@@ -146,6 +150,8 @@ rule fumitools_dedup:
     threads: config.get("Params", {}).get("fumitools", {}).get("threads", 4)
     conda:
         "fumitools.yaml"
+    container:
+        sif("fumitools.yaml")
     run:
         try:
             log_path = str(log)

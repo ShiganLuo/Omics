@@ -22,6 +22,8 @@ rule hisat2_index:
         logdir + "/index/hisat2_build.log"
     conda:
         "hisat2.yaml"
+    container:
+        sif("hisat2.yaml")
     run:
         log_path = str(log)
         try:
@@ -116,6 +118,8 @@ rule hisat2_align:
             f"-1 {input.fastq[0]} -2 {input.fastq[1]}" if len(input.fastq) == 2 else f"-U {input.fastq[0]}"
     conda:
         "hisat2.yaml"
+    container:
+        sif("hisat2.yaml")
     run:
         current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
         script = f"{outdir}/{wildcards.sample_id}/hisat2_align.{current_time}.sh"

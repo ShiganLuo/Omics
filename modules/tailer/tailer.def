@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for tailer conda environment
+# Source YAML: tailer.yaml
+# Build: apptainer build tailer.sif tailer.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    tailer.yaml /opt/conda/tailer.yaml
+
+%post
+    conda env create -f /opt/conda/tailer.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/tailer.yaml
+
+    echo 'export PATH="/opt/conda/envs/tailer/bin:$PATH"' >> /etc/profile.d/conda_tailer.sh
+    echo 'export CONDA_DEFAULT_ENV=tailer' >> /etc/profile.d/conda_tailer.sh
+
+%environment
+    export PATH="/opt/conda/envs/tailer/bin:$PATH"
+    export CONDA_DEFAULT_ENV=tailer
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName tailer
+
+%help
+    Apptainer image for conda environment 'tailer'.
+    Generated from tailer.yaml.

@@ -18,6 +18,8 @@ rule pureclip:
     threads: 8
     conda:
         "PureCLIP.yaml"
+    container:
+        sif("PureCLIP.yaml")
     log:
         log = logdir + "/{sample_id}/pureclip_run.txt"
     run:

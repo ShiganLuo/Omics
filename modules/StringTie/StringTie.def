@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for StringTie conda environment
+# Source YAML: StringTie.yaml
+# Build: apptainer build StringTie.sif StringTie.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    StringTie.yaml /opt/conda/StringTie.yaml
+
+%post
+    conda env create -f /opt/conda/StringTie.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/StringTie.yaml
+
+    echo 'export PATH="/opt/conda/envs/StringTie/bin:$PATH"' >> /etc/profile.d/conda_StringTie.sh
+    echo 'export CONDA_DEFAULT_ENV=StringTie' >> /etc/profile.d/conda_StringTie.sh
+
+%environment
+    export PATH="/opt/conda/envs/StringTie/bin:$PATH"
+    export CONDA_DEFAULT_ENV=StringTie
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName StringTie
+
+%help
+    Apptainer image for conda environment 'StringTie'.
+    Generated from StringTie.yaml.

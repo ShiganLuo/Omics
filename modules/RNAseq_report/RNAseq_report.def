@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for RNAseq_report conda environment
+# Source YAML: RNAseq_report.yaml
+# Build: apptainer build RNAseq_report.sif RNAseq_report.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    RNAseq_report.yaml /opt/conda/RNAseq_report.yaml
+
+%post
+    conda env create -f /opt/conda/RNAseq_report.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/RNAseq_report.yaml
+
+    echo 'export PATH="/opt/conda/envs/RNAseq_report/bin:$PATH"' >> /etc/profile.d/conda_RNAseq_report.sh
+    echo 'export CONDA_DEFAULT_ENV=RNAseq_report' >> /etc/profile.d/conda_RNAseq_report.sh
+
+%environment
+    export PATH="/opt/conda/envs/RNAseq_report/bin:$PATH"
+    export CONDA_DEFAULT_ENV=RNAseq_report
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName RNAseq_report
+
+%help
+    Apptainer image for conda environment 'RNAseq_report'.
+    Generated from RNAseq_report.yaml.

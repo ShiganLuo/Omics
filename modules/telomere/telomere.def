@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for telomere conda environment
+# Source YAML: telomere.yaml
+# Build: apptainer build telomere.sif telomere.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    telomere.yaml /opt/conda/telomere.yaml
+
+%post
+    conda env create -f /opt/conda/telomere.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/telomere.yaml
+
+    echo 'export PATH="/opt/conda/envs/telomere/bin:$PATH"' >> /etc/profile.d/conda_telomere.sh
+    echo 'export CONDA_DEFAULT_ENV=telomere' >> /etc/profile.d/conda_telomere.sh
+
+%environment
+    export PATH="/opt/conda/envs/telomere/bin:$PATH"
+    export CONDA_DEFAULT_ENV=telomere
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName telomere
+
+%help
+    Apptainer image for conda environment 'telomere'.
+    Generated from telomere.yaml.

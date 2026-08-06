@@ -1,44 +1,54 @@
 {
-     "ROOT_DIR": null,
-     "indir": null,
-     "logdir": null,
-     "outdir": null,
-     "paired_samples": [],
-     "single_samples": [],
-     "outfiles": [],
-     "genome": {
-               "GRCm39": {
-                    "fasta": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
-                    "gtf": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf",
-                    "TE_gtf": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.gtf",
-                    "TEind": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.gtf.locInd",
-                    "hisat2_index_prefix": null,
-                    "star_index_dir": null
-               },
-               "GRCh38": {
-                    "fasta": "/data/pub/zhousha/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa",
-                    "gtf": "/data/pub/zhousha/Reference/human/GENCODE/GRCh38/gencode.v49.primary_assembly.basic.annotation.gtf",
-                    "TE_gtf": "/data/pub/zhousha/Reference/human/GENCODE/GRCh38/GRCh38_GENCODE_rmsk_TE.gtf",
-                    "TEind": "/data/pub/zhousha/Reference/human/GENCODE/GRCh38/GRCh38_GENCODE_rmsk_TE.gtf.locInd",
-                    "hisat2_index_prefix": null,
-                    "star_index_dir": null
-               }
-     },
-     "genome_pairs": ["GRCm39", "GRCh38"],
-     "Procedure": {
-          "trim_galore": "/home/zhousha/tools/TrimGalore-0.6.10/trim_galore",
-          "hisat2": "/home/zhousha/tools/hisat2-2.2.1/hisat2",
-          "hisat2_build": "/home/zhousha/tools/hisat2-2.2.1/hisat2-build",
-          "star": null,
-          "samtools": null,
-          "TEcount": null,
-          "TElocal": null,
-          "ngs_disambiguate":null,
-          "SOAPnuke": null
-     },
+    "ROOT_DIR": null,
+    "env": {
+        "env_dir": "/home/luosg/Database/env",
+        "SOAPnuke": "/home/luosg/Database/env/SOAPnuke/SOAPnuke.sif",
+        "TEtranscripts": "/home/luosg/Database/env/TEtranscripts/TEtranscripts.sif",
+        "disambiguate": "/home/luosg/Database/env/disambiguate/disambiguate.sif",
+        "hisat2": "/home/luosg/Database/env/hisat2/hisat2.sif"
+    },
+    "indir": null,
+    "logdir": null,
+    "outdir": null,
+    "paired_samples": [],
+    "single_samples": [],
+    "outfiles": [],
+    "genome": {
+        "GRCm39": {
+            "fasta": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
+            "gtf": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf",
+            "TE_gtf": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.gtf",
+            "TEind": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.gtf.locInd",
+            "hisat2_index_prefix": null,
+            "star_index_dir": null
+        },
+        "GRCh38": {
+            "fasta": "/data/pub/zhousha/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa",
+            "gtf": "/data/pub/zhousha/Reference/human/GENCODE/GRCh38/gencode.v49.primary_assembly.basic.annotation.gtf",
+            "TE_gtf": "/data/pub/zhousha/Reference/human/GENCODE/GRCh38/GRCh38_GENCODE_rmsk_TE.gtf",
+            "TEind": "/data/pub/zhousha/Reference/human/GENCODE/GRCh38/GRCh38_GENCODE_rmsk_TE.gtf.locInd",
+            "hisat2_index_prefix": null,
+            "star_index_dir": null
+        }
+    },
+    "genome_pairs": [
+        "GRCm39",
+        "GRCh38"
+    ],
+    "Procedure": {
+        "trim_galore": "/home/zhousha/tools/TrimGalore-0.6.10/trim_galore",
+        "hisat2": "/home/zhousha/tools/hisat2-2.2.1/hisat2",
+        "hisat2_build": "/home/zhousha/tools/hisat2-2.2.1/hisat2-build",
+        "star": null,
+        "samtools": null,
+        "TEcount": null,
+        "TElocal": null,
+        "ngs_disambiguate": null,
+        "SOAPnuke": null
+    },
     "Params": {
         "trim_galore": {
             "quality": 25
         }
     }
-} 
+}

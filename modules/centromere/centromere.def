@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for centromere conda environment
+# Source YAML: centromere.yaml
+# Build: apptainer build centromere.sif centromere.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    centromere.yaml /opt/conda/centromere.yaml
+
+%post
+    conda env create -f /opt/conda/centromere.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/centromere.yaml
+
+    echo 'export PATH="/opt/conda/envs/centromere/bin:$PATH"' >> /etc/profile.d/conda_centromere.sh
+    echo 'export CONDA_DEFAULT_ENV=centromere' >> /etc/profile.d/conda_centromere.sh
+
+%environment
+    export PATH="/opt/conda/envs/centromere/bin:$PATH"
+    export CONDA_DEFAULT_ENV=centromere
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName centromere
+
+%help
+    Apptainer image for conda environment 'centromere'.
+    Generated from centromere.yaml.

@@ -20,6 +20,8 @@ rule manta_config:
         manta_outdir = outdir + "/{sample_id}"
     conda:
         "manta.yaml"
+    container:
+        sif("manta.yaml")
     run:
         log_path = str(log)
         try:
@@ -59,6 +61,8 @@ rule manta_run:
         config.get("Params", {}).get("manta", {}).get("threads") or 8
     conda:
         "manta.yaml"
+    container:
+        sif("manta.yaml")
     run:
         log_path = str(log)
         try:

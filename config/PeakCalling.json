@@ -1,5 +1,18 @@
 {
     "ROOT_DIR": "",
+    "env": {
+        "env_dir": "/home/luosg/Database/env",
+        "PeakCalling_report": "/home/luosg/Database/env/PeakCalling_report/report.sif",
+        "bowtie2": "/home/luosg/Database/env/bowtie2/bowtie2.sif",
+        "fastqc": "/home/luosg/Database/env/fastqc/fastqc.sif",
+        "frip_score": "/home/luosg/Database/env/frip_score/frip_score.sif",
+        "gatk": "/home/luosg/Database/env/gatk/gatk4.sif",
+        "homer": "/home/luosg/Database/env/homer/homer.sif",
+        "igv": "/home/luosg/Database/env/igv/hisat2.sif",
+        "macs3": "/home/luosg/Database/env/macs3/macs3.sif",
+        "track": "/home/luosg/Database/env/track/track.sif",
+        "trim-galore": "/home/luosg/Database/env/trim-galore/trim-galore.sif"
+    },
     "indir": "",
     "outdir": "",
     "logdir": "",
@@ -9,7 +22,9 @@
     "ip_samples": [],
     "input_samples": [],
     "sample_ip_input_map": {},
-    "genomes": ["mm"],
+    "genomes": [
+        "mm"
+    ],
     "outfiles": [],
     "Procedure": {
         "trim_galore": "/opt/TrimGalore-0.6.10/trim_galore",

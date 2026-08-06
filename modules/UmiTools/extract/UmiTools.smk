@@ -17,6 +17,8 @@ rule UmiTools_extract_single:
         logdir + "/{sample_id}/umi_tools_extract_single_run.txt"
     conda:
         "../UmiTools.yaml"
+    container:
+        sif("../UmiTools.yaml")
     threads: 2
     run:
         log_path = str(log)
@@ -59,6 +61,8 @@ rule UmiTools_extract_paired:
     threads: 2
     conda:
         "../UmiTools.yaml"
+    container:
+        sif("../UmiTools.yaml")
     run:
         log_path = str(log)
         try:

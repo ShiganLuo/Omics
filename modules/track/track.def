@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for track conda environment
+# Source YAML: track.yaml
+# Build: apptainer build track.sif track.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    track.yaml /opt/conda/track.yaml
+
+%post
+    conda env create -f /opt/conda/track.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/track.yaml
+
+    echo 'export PATH="/opt/conda/envs/track/bin:$PATH"' >> /etc/profile.d/conda_track.sh
+    echo 'export CONDA_DEFAULT_ENV=track' >> /etc/profile.d/conda_track.sh
+
+%environment
+    export PATH="/opt/conda/envs/track/bin:$PATH"
+    export CONDA_DEFAULT_ENV=track
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName track
+
+%help
+    Apptainer image for conda environment 'track'.
+    Generated from track.yaml.

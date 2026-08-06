@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for samtools conda environment
+# Source YAML: samtools.yaml
+# Build: apptainer build samtools.sif samtools.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    samtools.yaml /opt/conda/samtools.yaml
+
+%post
+    conda env create -f /opt/conda/samtools.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/samtools.yaml
+
+    echo 'export PATH="/opt/conda/envs/samtools/bin:$PATH"' >> /etc/profile.d/conda_samtools.sh
+    echo 'export CONDA_DEFAULT_ENV=samtools' >> /etc/profile.d/conda_samtools.sh
+
+%environment
+    export PATH="/opt/conda/envs/samtools/bin:$PATH"
+    export CONDA_DEFAULT_ENV=samtools
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName samtools
+
+%help
+    Apptainer image for conda environment 'samtools'.
+    Generated from samtools.yaml.

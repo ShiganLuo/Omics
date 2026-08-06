@@ -40,6 +40,8 @@ rule macs3_callpeak:
     threads: 4
     conda:
         "macs3.yaml"
+    container:
+        sif("macs3.yaml")
     params:
         macs3 = config.get("Procedure", {}).get("macs3") or "macs3",
         name = lambda wildcards: wildcards.sample_id,

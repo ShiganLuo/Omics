@@ -5,3 +5,9 @@ channels:
 dependencies:
   - star=2.7.11b
   - samtools=1.23.1
+  - bedtools=2.31
+  - python=3.11
+  - libstdcxx-ng>=12
+  - pip
+  - pip:
+    - jla-tailer

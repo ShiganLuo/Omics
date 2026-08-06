@@ -45,6 +45,8 @@ rule spatial_scanpy_qc:
     threads: 4
     conda:
         "spatial_scanpy.yaml"
+    container:
+        sif("spatial_scanpy.yaml")
     params:
         command=lambda wc: _common_command("qc", qc_h5ad, ["--metrics", outdir + "/spatial/qc/qc_metrics.tsv", "--min-genes", str(params.get("min_genes", 100)), "--max-pct-mt", str(params.get("max_pct_mt", 25)), "--n-top-genes", str(params.get("n_top_genes", 3000))])
     run:
@@ -65,6 +67,8 @@ rule spatial_scanpy_cluster:
     log: logdir + "/spatial/spatial_scanpy_cluster.log"
     threads: 4
     conda: "spatial_scanpy.yaml"
+    container:
+        sif("spatial_scanpy.yaml")
     params:
         command=lambda wc: _common_command("cluster", cluster_h5ad, ["--genes", outdir + "/spatial/cluster/spatial_markers.tsv", "--n-pcs", str(params.get("n_pcs", 50)), "--n-neighbors", str(params.get("n_neighbors", 15)), "--resolution", str(params.get("resolution", 0.8))])
     run:
@@ -84,6 +88,8 @@ if advanced.get("spatial_autocorrelation", True):
         log: logdir + "/spatial/spatial_scanpy_advanced.log"
         threads: 4
         conda: "spatial_scanpy.yaml"
+        container:
+            sif("spatial_scanpy.yaml")
         params: command=lambda wc: _common_command("advanced", advanced_h5ad, [])
         run:
             log_path=str(log)

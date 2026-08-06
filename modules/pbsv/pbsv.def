@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for pbsv conda environment
+# Source YAML: pbsv.yaml
+# Build: apptainer build pbsv.sif pbsv.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    pbsv.yaml /opt/conda/pbsv.yaml
+
+%post
+    conda env create -f /opt/conda/pbsv.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/pbsv.yaml
+
+    echo 'export PATH="/opt/conda/envs/pbsv/bin:$PATH"' >> /etc/profile.d/conda_pbsv.sh
+    echo 'export CONDA_DEFAULT_ENV=pbsv' >> /etc/profile.d/conda_pbsv.sh
+
+%environment
+    export PATH="/opt/conda/envs/pbsv/bin:$PATH"
+    export CONDA_DEFAULT_ENV=pbsv
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName pbsv
+
+%help
+    Apptainer image for conda environment 'pbsv'.
+    Generated from pbsv.yaml.

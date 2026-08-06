@@ -54,7 +54,7 @@ use rule gatk_population_joint_genotyping from gatk_population as Population_gat
 bcftools_population_config = dict(base_config)
 bcftools_population_config["input_vcf"] = f"{outdir}/variants/joint/joint.vcf.gz"
 module bcftools_population:
-    snakefile: "../modules/bcftools/bcftools_population.smk"
+    snakefile: "../modules/bcftools/bcftools_population/bcftools_population.smk"
     config: bcftools_population_config
 use rule bcftools_population_filter from bcftools_population as Population_bcftools_filter
 

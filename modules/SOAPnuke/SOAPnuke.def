@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for SOAPnuke conda environment
+# Source YAML: SOAPnuke.yaml
+# Build: apptainer build SOAPnuke.sif SOAPnuke.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    SOAPnuke.yaml /opt/conda/SOAPnuke.yaml
+
+%post
+    conda env create -f /opt/conda/SOAPnuke.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/SOAPnuke.yaml
+
+    echo 'export PATH="/opt/conda/envs/SOAPnuke/bin:$PATH"' >> /etc/profile.d/conda_SOAPnuke.sh
+    echo 'export CONDA_DEFAULT_ENV=SOAPnuke' >> /etc/profile.d/conda_SOAPnuke.sh
+
+%environment
+    export PATH="/opt/conda/envs/SOAPnuke/bin:$PATH"
+    export CONDA_DEFAULT_ENV=SOAPnuke
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName SOAPnuke
+
+%help
+    Apptainer image for conda environment 'SOAPnuke'.
+    Generated from SOAPnuke.yaml.

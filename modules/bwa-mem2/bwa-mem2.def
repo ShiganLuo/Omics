@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for bwa-mem2 conda environment
+# Source YAML: bwa-mem2.yaml
+# Build: apptainer build bwa-mem2.sif bwa-mem2.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    bwa-mem2.yaml /opt/conda/bwa-mem2.yaml
+
+%post
+    conda env create -f /opt/conda/bwa-mem2.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/bwa-mem2.yaml
+
+    echo 'export PATH="/opt/conda/envs/bwa-mem2/bin:$PATH"' >> /etc/profile.d/conda_bwa-mem2.sh
+    echo 'export CONDA_DEFAULT_ENV=bwa-mem2' >> /etc/profile.d/conda_bwa-mem2.sh
+
+%environment
+    export PATH="/opt/conda/envs/bwa-mem2/bin:$PATH"
+    export CONDA_DEFAULT_ENV=bwa-mem2
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName bwa-mem2
+
+%help
+    Apptainer image for conda environment 'bwa-mem2'.
+    Generated from bwa-mem2.yaml.

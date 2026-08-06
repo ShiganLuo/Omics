@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for trgt conda environment
+# Source YAML: trgt.yaml
+# Build: apptainer build trgt.sif trgt.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    trgt.yaml /opt/conda/trgt.yaml
+
+%post
+    conda env create -f /opt/conda/trgt.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/trgt.yaml
+
+    echo 'export PATH="/opt/conda/envs/trgt/bin:$PATH"' >> /etc/profile.d/conda_trgt.sh
+    echo 'export CONDA_DEFAULT_ENV=trgt' >> /etc/profile.d/conda_trgt.sh
+
+%environment
+    export PATH="/opt/conda/envs/trgt/bin:$PATH"
+    export CONDA_DEFAULT_ENV=trgt
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName trgt
+
+%help
+    Apptainer image for conda environment 'trgt'.
+    Generated from trgt.yaml.

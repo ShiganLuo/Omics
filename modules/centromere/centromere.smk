@@ -39,6 +39,8 @@ rule hifiasm_assemble:
     log:
         logdir + "/{sample_id}/hifiasm.log"
     conda: "centromere.yaml"
+    container:
+        sif("centromere.yaml")
     threads: 12
     params:
         prefix = outdir + "/{sample_id}/assembly/asm"
@@ -82,6 +84,8 @@ rule repeatmasker_init:
     log:
         logdir + "/all/RepeatMasker/repeatmasker_init.log"
     conda: "centromere.yaml"
+    container:
+        sif("centromere.yaml")
     params:
         species = config.get("Params", {}).get("RepeatMasker", {}).get("species", "Mus musculus"),
         RepeatMasker = config.get("Procedure", {}).get("RepeatMasker") or "RepeatMasker"
@@ -156,6 +160,8 @@ rule repeatmasker_run:
     log:
         logdir + "/{sample_id}/repeatmasker.log"
     conda: "centromere.yaml"
+    container:
+        sif("centromere.yaml")
     threads: 12
     params:
         species = config.get("Params", {}).get("RepeatMasker", {}).get("species", "Mus musculus"),
@@ -200,6 +206,8 @@ rule centromere_extract:
         python = config.get("Procedure", {}).get("python") or "python"
     threads: 1
     conda: "centromere.yaml"
+    container:
+        sif("centromere.yaml")
     run:
         try:
             open(log[0], "w").close()

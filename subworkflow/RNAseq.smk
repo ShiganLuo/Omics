@@ -18,6 +18,7 @@ if trimmer == "cutadapt":
     trimmed_fastq_dir = f"{outdir}/common/2_trimmed_fastq"
     cutadapt_config = {
             "ROOT_DIR": ROOT_DIR,
+            "env": config.get("env", {}),
             "indir": indir,
             "outdir":  trimmed_fastq_dir,
             "logdir": logdir,
@@ -35,6 +36,7 @@ elif trimmer == "trimmomatic":
     trimmed_fastq_dir = f"{outdir}/common/2_trimmed_fastq"
     trimmomatic_config = {
             "ROOT_DIR": ROOT_DIR,
+            "env": config.get("env", {}),
             "indir": indir,
             "outdir":  trimmed_fastq_dir,
             "logdir": logdir,
@@ -59,6 +61,7 @@ else:
     logger.info("use default trimmer: trim_galore")
     trim_galore_config = {
             "ROOT_DIR": ROOT_DIR,
+            "env": config.get("env", {}),
             "indir": indir,
             "outdir":  trimmed_fastq_dir,
             "logdir": logdir,
@@ -108,6 +111,7 @@ elif aligner_TEtranscripts == 'star':
             "logdir": logdir,
             "paired_samples": paired_samples,
             "single_samples": single_samples,
+            "env": config.get("env", {}),
             "Procedure": {
                 "star": config.get('Procedure',{}).get('star')
             },
@@ -140,6 +144,7 @@ TEtranscripts_config = {
         "logdir": logdir,
         "samples": single_samples + paired_samples,
         "ROOT_DIR": ROOT_DIR,
+        "env": config.get("env", {}),
         "Procedure": {
             "TEcount": config.get('Procedure',{}).get('TEcount') or 'TEcount',
             "TElocal": config.get('Procedure',{}).get('TElocal') or 'TElocal'
@@ -164,6 +169,7 @@ if config.get("Params", {}).get("DESeq2", {}).get("group_pairs"):
             "outdir":  f"{outdir}/diff_expression",
             "logdir": logdir,
             "ROOT_DIR": ROOT_DIR,
+            "env": config.get("env", {}),
             "group_pairs": config.get("Params", {}).get("DESeq2", {}).get("group_pairs"),
             "genome": {
                 "geneIDAnno": config.get('genome',{}).get('geneIDAnno'),
@@ -184,6 +190,7 @@ if config.get("Params", {}).get("DESeq2", {}).get("group_pairs"):
         logger.info("Function analysis enabled (GO/KEGG + GSEA)")
         function_config = {
             "ROOT_DIR": ROOT_DIR,
+            "env": config.get("env", {}),
             "indir": DESeq2_config["outdir"],
             "outdir": f"{outdir}/function",
             "logdir": logdir,
@@ -236,6 +243,7 @@ StringTie_config = {
         "logdir": logdir,
         "samples": single_samples + paired_samples,
         "ROOT_DIR": ROOT_DIR,
+        "env": config.get("env", {}),
         "sample_groups": config.get("Params",{}).get("StringTie",{}).get('sample_groups'),
         "genome": {
             "gtf": config.get('genome',{}).get('gtf'),
@@ -259,6 +267,7 @@ rmrRNA_config = {
     "paired_samples": paired_samples,
     "single_samples": single_samples,
     "ROOT_DIR": ROOT_DIR,
+    "env": config.get("env", {}),
     "genome": {
         "fasta": config.get('genome',{}).get('fasta'),
         "gtf": config.get('genome',{}).get('gtf')
@@ -278,6 +287,7 @@ use rule * from RmrRNA as RNAseq_rRNA_*
 logger.info(f"rmrRNA_config: {rmrRNA_config}")
 bowtie2_rRNA_config = {
     "ROOT_DIR": ROOT_DIR,
+    "env": config.get("env", {}),
     "indir": trimmed_fastq_dir,
     "outdir":  f"{outdir}/common/5_rRNA_fastq",
     "logdir": logdir,
@@ -342,6 +352,7 @@ logger.info(f"star_config_for_fusion: {star_config_for_fusion}")
 
 gatk_prepare_config = {
     "ROOT_DIR": ROOT_DIR,
+    "env": config.get("env", {}),
     "indir": star_config_for_fusion["outdir"],
     "outdir":  f"{outdir}/common/7_markdup_bam",
     "logdir": logdir,
@@ -368,6 +379,7 @@ arriba_config = {
         "outdir":  f"{outdir}/fusion",
         "logdir": logdir,
         "ROOT_DIR": ROOT_DIR,
+        "env": config.get("env", {}),
         "bam_substring": "sorted_markdup",
         "samples": single_samples + paired_samples,
         "genome": {
@@ -396,6 +408,7 @@ logger.info(f"arriba_config: {arriba_config}")
 
 RNAseq_report_config = {
     "ROOT_DIR": ROOT_DIR,
+    "env": config.get("env", {}),
     "outdir": outdir,
     "logdir": logdir,
     "samples": paired_samples + single_samples,

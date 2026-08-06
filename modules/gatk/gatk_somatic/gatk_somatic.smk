@@ -49,6 +49,8 @@ rule somaticMutect2:
         logdir + "/all/gatk/{normal_sample_id}_{experimental_sample_id}/mutect2.log"
     conda:
         "../gatk.yaml"
+    container:
+        sif("../gatk.yaml")
     params:
         javaOptions =  config.get("Params", {}).get("gatk", {}).get("javaOptions") or "-Xmx30g",
         gatk = config.get("Procedure", {}).get("gatk") or "gatk",

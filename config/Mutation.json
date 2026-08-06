@@ -1,4 +1,16 @@
 {
+    "env": {
+        "env_dir": "/home/luosg/Database/env",
+        "bwa-mem2": "/home/luosg/Database/env/bwa-mem2/bwa-mem2.sif",
+        "cnvkit": "/home/luosg/Database/env/cnvkit/cnvkit.sif",
+        "cutadapt": "/home/luosg/Database/env/cutadapt/cutadapt.sif",
+        "fastqc": "/home/luosg/Database/env/fastqc/fastqc.sif",
+        "fragment_size": "/home/luosg/Database/env/fragment_size/fragment_size.sif",
+        "gatk": "/home/luosg/Database/env/gatk/gatk4.sif",
+        "manta": "/home/luosg/Database/env/manta/manta.sif",
+        "samtools": "/home/luosg/Database/env/samtools/samtools.sif",
+        "spectrum": "/home/luosg/Database/env/spectrum/star.sif"
+    },
     "indir": "input",
     "outdir": "output",
     "logdir": "logs",
@@ -42,12 +54,8 @@
             "processes": 8
         },
         "somatic_spectrum": {
-            "sample_somatic_vcf_dict": {
-
-            },
-            "sample_group_dict": {
-
-            }
+            "sample_somatic_vcf_dict": {},
+            "sample_group_dict": {}
         },
         "skip_fragment_size": false,
         "skip_sv": false,

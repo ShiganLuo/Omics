@@ -28,6 +28,8 @@ rule karrseq_chimeric_to_pairs:
     threads: 4
     conda:
         "karrseq.yaml"
+    container:
+        sif("karrseq.yaml")
     run:
         current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start KARRseq chimeric to pairs for sample {wildcards.sample_id} at {current_time}")
@@ -74,6 +76,8 @@ rule karrseq_remove_duplicates:
         todedup = "dedup"
     conda:
         "karrseq.yaml"
+    container:
+        sif("karrseq.yaml")
     run:
         current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start KARRseq dedup for sample {wildcards.sample_id} at {current_time}")
@@ -114,6 +118,8 @@ rule karrseq_ligation:
     threads: 4
     conda:
         "karrseq.yaml"
+    container:
+        sif("karrseq.yaml")
     run:
         current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start KARRseq ligation for sample {wildcards.sample_id} at {current_time}")

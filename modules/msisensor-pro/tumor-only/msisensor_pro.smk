@@ -39,6 +39,8 @@ rule scan:
         outdir + "reference/{genome_version}.msisensor.scan.log"
     conda:
         "../msisensro_pro.schema.yaml"
+    container:
+        sif("../msisensro_pro.schema.yaml")
     run:
         shell("{msisensor_pro} scan -d {input} -o {output} 2>{log} 1>{log}")
 
@@ -52,6 +54,8 @@ rule pro_pre:
     threads: 2
     conda:
         "../msisensro_pro.schema.yaml"
+    container:
+        sif("../msisensro_pro.schema.yaml")
     run:
         shell("{msisensor_pro} pro -d {input.ms} -t {input.bam} -g {input.ref} -o {output}")
 
@@ -62,6 +66,8 @@ rule merge:
         outdir + "baselines/{genome_version}.baseline.samples.list"
     conda:
         "../msisensro_pro.schema.yaml"
+    container:
+        sif("../msisensro_pro.schema.yaml")
     run:
         with open(f"{output}","w") as f:
             for i in input:
@@ -75,6 +81,8 @@ rule baseline:
         outdir + "baselines/{genome_version}.baseline.tsv"
     conda:
         "../msisensro_pro.schema.yaml"
+    container:
+        sif("../msisensro_pro.schema.yaml")
     run:
         shell(f"{msisensor_pro} baseline  -d {input.ms} -i {input.conf} -o {output} -s 1")
 rule run_pro:
@@ -88,6 +96,8 @@ rule run_pro:
         outdir + "tumor_only_output/{case}/{case}.{genome_version}.msisensor-pro.log"
     conda:
         "../msisensro_pro.schema.yaml"
+    container:
+        sif("../msisensro_pro.schema.yaml")
     run:
         shell("{msisensor_pro} pro -d {input.ms} -t {input.t} -g {input.ref}  -o {output} 2>{log}")
 

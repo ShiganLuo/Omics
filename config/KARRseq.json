@@ -1,4 +1,9 @@
 {
+    "env": {
+        "env_dir": "/home/luosg/Database/env",
+        "karrseq": "/home/luosg/Database/env/karrseq/karrseq.sif",
+        "seqprep": "/home/luosg/Database/env/seqprep/seqprep.sif"
+    },
     "indir": "input",
     "outdir": "output",
     "logdir": "log",

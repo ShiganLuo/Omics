@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for tabix conda environment
+# Source YAML: tabix.yaml
+# Build: apptainer build tabix.sif tabix.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    tabix.yaml /opt/conda/tabix.yaml
+
+%post
+    conda env create -f /opt/conda/tabix.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/tabix.yaml
+
+    echo 'export PATH="/opt/conda/envs/tabix/bin:$PATH"' >> /etc/profile.d/conda_tabix.sh
+    echo 'export CONDA_DEFAULT_ENV=tabix' >> /etc/profile.d/conda_tabix.sh
+
+%environment
+    export PATH="/opt/conda/envs/tabix/bin:$PATH"
+    export CONDA_DEFAULT_ENV=tabix
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName tabix
+
+%help
+    Apptainer image for conda environment 'tabix'.
+    Generated from tabix.yaml.

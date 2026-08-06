@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for DESeq2 conda environment
+# Source YAML: DESeq2.yaml
+# Build: apptainer build DESeq2.sif DESeq2.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    DESeq2.yaml /opt/conda/DESeq2.yaml
+
+%post
+    conda env create -f /opt/conda/DESeq2.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/DESeq2.yaml
+
+    echo 'export PATH="/opt/conda/envs/DESeq2/bin:$PATH"' >> /etc/profile.d/conda_DESeq2.sh
+    echo 'export CONDA_DEFAULT_ENV=DESeq2' >> /etc/profile.d/conda_DESeq2.sh
+
+%environment
+    export PATH="/opt/conda/envs/DESeq2/bin:$PATH"
+    export CONDA_DEFAULT_ENV=DESeq2
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName DESeq2
+
+%help
+    Apptainer image for conda environment 'DESeq2'.
+    Generated from DESeq2.yaml.

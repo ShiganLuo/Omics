@@ -28,6 +28,8 @@ rule mimseq_prepare_sample_data:
         logdir + "/mimseq_prepare_sample_data.log"
     conda:
         "mimseq.yaml"
+    container:
+        sif("mimseq.yaml")
     run:
         try:
             log_path = str(log)

@@ -21,6 +21,8 @@ rule tailer_global:
     threads: 1
     conda:
         "tailer.yaml"
+    container:
+        sif("tailer.yaml")
     params:
         gtf = gtf,
         read_num = read_num,

@@ -17,6 +17,7 @@ rule all:
         outfiles
 fastqc_raw_config = {
         "ROOT_DIR": ROOT_DIR,
+        "env": config.get("env", {}),
         "indir": indir,
         "outdir":  f"{outdir}/QC/1_raw_fastqc",
         "logdir": logdir,
@@ -36,6 +37,7 @@ use rule fastqc from fastqc_raw as PeakCalling_fastqc_raw
 # ── 0. Demultiplex: 3' adapter removal + PCR duplicate removal ───────────────
 demultiplexer_config = {
         "ROOT_DIR": ROOT_DIR,
+        "env": config.get("env", {}),
         "indir": indir,
         "outdir": f"{outdir}/common/2_trimmed_dedup_fastq/jla-demultiplexer",
         "logdir": logdir,
@@ -53,6 +55,7 @@ use rule demultiplex_trim_dedup from demultiplexer as ncRNAseq_demultiplex_trim_
 
 trim_galore_config = {
         "ROOT_DIR": ROOT_DIR,
+        "env": config.get("env", {}),
         "indir": demultiplexer_config["outdir"],
         "outdir": f"{outdir}/common/2_trimmed_dedup_fastq/final_trimmed_fastq",
         "logdir": logdir,
@@ -75,6 +78,7 @@ use rule trimming_Single from trim_galore as ncRNAseq_trimming_Single
 # ── 0.5 Subsample: seqtk subsample for abundant small RNAs ───────────────────
 subsample_config = {
         "ROOT_DIR": ROOT_DIR,
+        "env": config.get("env", {}),
         "indir": trim_galore_config["outdir"],
         "outdir": f"{outdir}/common/2_trimmed_dedup_fastq/trimmed_subsampled_fastq",
         "logdir": logdir,
@@ -99,6 +103,7 @@ use rule hard_clip from subsample as ncRNAseq_hard_clip
 
 fastqc_trimmed_config = {
         "ROOT_DIR": ROOT_DIR,
+        "env": config.get("env", {}),
         "indir": trim_galore_config["outdir"],
         "outdir":  f"{outdir}/QC/2_trimmed_fastqc",
         "logdir": logdir,
@@ -126,6 +131,7 @@ star_index_dir = config.get("genome", {}).get("star_index_dir")
 if aligner == "hisat2":
     hisat2_config = {
         "ROOT_DIR": ROOT_DIR,
+        "env": config.get("env", {}),
         "indir": subsample_config["outdir"],
         "outdir": f"{outdir}/common/3_raw_bam",
         "logdir": logdir,
@@ -151,6 +157,7 @@ elif aligner == "star":
     if not star_index_dir:
         star_genome_idx_config = {
             "ROOT_DIR": ROOT_DIR,
+            "env": config.get("env", {}),
             "outdir": f"{outdir}/genome/whole_genome",
             "logdir": logdir,
             "Procedure": {"STAR": STAR},
@@ -172,6 +179,7 @@ elif aligner == "star":
 
     star_config = {
         "ROOT_DIR": ROOT_DIR,
+        "env": config.get("env", {}),
         "indir": subsample_config["outdir"],
         "outdir": f"{outdir}/common/3_raw_bam",
         "logdir": logdir,
@@ -227,6 +235,7 @@ elif aligner == "star_3pass":
     if not star_index_dir or not os.path.exists(star_index_dir):
         star_genome_idx_config = {
             "ROOT_DIR": ROOT_DIR,
+            "env": config.get("env", {}),
             "outdir": f"{outdir}/genome/whole_genome",
             "logdir": f"{logdir}/genome/whole_genome",
             "Procedure": {"STAR": STAR},
@@ -249,6 +258,7 @@ elif aligner == "star_3pass":
     # ── Import genome module (extract smallRNA BED/FASTA) ──────────────
     genome_sm_config = {
         "ROOT_DIR": ROOT_DIR,
+        "env": config.get("env", {}),
         "outdir": outdir,
         "logdir": f"{logdir}/genome",
         "Procedure": {
@@ -278,6 +288,7 @@ elif aligner == "star_3pass":
     if not smallrna_star_index_dir or not os.path.exists(smallrna_star_index_dir):
         star_smallrna_idx_config = {
             "ROOT_DIR": ROOT_DIR,
+            "env": config.get("env", {}),
             "indir": f"{outdir}/genome/smallrna",
             "outdir": f"{outdir}/genome/smallrna",
             "logdir": f"{logdir}/genome/smallrna",
@@ -300,6 +311,7 @@ elif aligner == "star_3pass":
     # ── Canonical three-pass alignment in one execution rule ─────────────
     star_3pass_config = {
         "ROOT_DIR": ROOT_DIR,
+        "env": config.get("env", {}),
         "indir": subsample_config["outdir"],
         "outdir": f"{outdir}/common/3_raw_bam/final_bam",
         "logdir": logdir,
@@ -346,6 +358,7 @@ elif aligner == "star_3pass_gene":
     if not star_index_dir or not os.path.exists(star_index_dir):
         star_genome_idx_config = {
             "ROOT_DIR": ROOT_DIR,
+            "env": config.get("env", {}),
             "outdir": f"{outdir}/genome/whole_genome",
             "logdir": f"{logdir}/genome/whole_genome",
             "Procedure": {"STAR": STAR},
@@ -368,6 +381,7 @@ elif aligner == "star_3pass_gene":
     # ── Import genome module (extract smallRNA BED/FASTA) ──────────────
     genome_sm_config = {
         "ROOT_DIR": ROOT_DIR,
+        "env": config.get("env", {}),
         "outdir": outdir,
         "logdir": f"{logdir}/genome",
         "Procedure": {
@@ -401,6 +415,7 @@ elif aligner == "star_3pass_gene":
     elif not os.path.exists(smallrna_star_index_dir):
         star_smallrna_idx_config = {
             "ROOT_DIR": ROOT_DIR,
+            "env": config.get("env", {}),
             "outdir": f"{outdir}/genome/smallrna",
             "logdir": f"{logdir}/genome/smallrna",
             "Procedure": {"STAR": STAR},
@@ -421,6 +436,7 @@ elif aligner == "star_3pass_gene":
     p3g = config.get("Params", {}).get("star_3pass_gene", {})
     star_3pass_gene_upstream_config = {
         "ROOT_DIR": ROOT_DIR,
+        "env": config.get("env", {}),
         "indir": subsample_config["outdir"],
         "outdir": f"{outdir}/common/3_raw_bam/final_bam",
         "logdir": logdir,
@@ -454,6 +470,7 @@ elif aligner == "star_3pass_gene":
         raise ValueError("Batch star_3pass_gene mode is reserved and disabled")
     star_3pass_gene_config = {
         "ROOT_DIR": ROOT_DIR,
+        "env": config.get("env", {}),
         "outdir": f"{outdir}/common/3_raw_bam/per_gene",
         "tail_outdir": f"{outdir}/results/tailer",
         "final_bam_dir": f"{outdir}/common/3_raw_bam/final_bam",
@@ -496,6 +513,7 @@ else:
 
 featureCounts_config = {
     "ROOT_DIR": ROOT_DIR,
+    "env": config.get("env", {}),
     "indir": align_bam_dir,
     "outdir": f"{outdir}/counts",
     "logdir": logdir,
@@ -524,6 +542,7 @@ else:
     tailer_gtf = config.get("genome", {}).get("gtf")
 tailer_config = {
     "ROOT_DIR": ROOT_DIR,
+    "env": config.get("env", {}),
     "indir": align_bam_dir,
     "outdir": f"{outdir}/results/tailer",
     "logdir": logdir,

@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for plink2_population conda environment
+# Source YAML: plink2_population.yaml
+# Build: apptainer build plink2_population.sif plink2.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    plink2_population.yaml /opt/conda/plink2_population.yaml
+
+%post
+    conda env create -f /opt/conda/plink2_population.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/plink2_population.yaml
+
+    echo 'export PATH="/opt/conda/envs/plink2_population/bin:$PATH"' >> /etc/profile.d/conda_plink2_population.sh
+    echo 'export CONDA_DEFAULT_ENV=plink2_population' >> /etc/profile.d/conda_plink2_population.sh
+
+%environment
+    export PATH="/opt/conda/envs/plink2_population/bin:$PATH"
+    export CONDA_DEFAULT_ENV=plink2_population
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName plink2_population
+
+%help
+    Apptainer image for conda environment 'plink2_population'.
+    Generated from plink2_population.yaml.

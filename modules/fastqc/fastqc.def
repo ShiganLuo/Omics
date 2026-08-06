@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for fastqc conda environment
+# Source YAML: fastqc.yaml
+# Build: apptainer build fastqc.sif fastqc.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    fastqc.yaml /opt/conda/fastqc.yaml
+
+%post
+    conda env create -f /opt/conda/fastqc.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/fastqc.yaml
+
+    echo 'export PATH="/opt/conda/envs/fastqc/bin:$PATH"' >> /etc/profile.d/conda_fastqc.sh
+    echo 'export CONDA_DEFAULT_ENV=fastqc' >> /etc/profile.d/conda_fastqc.sh
+
+%environment
+    export PATH="/opt/conda/envs/fastqc/bin:$PATH"
+    export CONDA_DEFAULT_ENV=fastqc
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName fastqc
+
+%help
+    Apptainer image for conda environment 'fastqc'.
+    Generated from fastqc.yaml.

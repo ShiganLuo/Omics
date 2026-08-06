@@ -55,8 +55,24 @@ description: Omics 工作流入口技能与子技能组织说明
 
 - `--configfile` 指向生成的 `raw.json`
 - `--cores` 使用 CLI 参数
-- `--use-conda` + `--conda-prefix` + `--conda-frontend`
 - `--rerun-triggers` 使用 CLI 参数
+
+运行模式二选一：
+
+### conda 模式（默认）
+
+- `--use-conda` + `--conda-prefix` + `--conda-frontend`
+- 需要 `--conda-prefix` 参数
+
+### 容器模式（`--sdm`）
+
+- `--sdm apptainer`（由 `--sdm` flag 触发）
+- 省略 `--use-conda`，改用各规则 `container:` 指令解析的 SIF 镜像
+- `--singularity-args --bind ...` 自动从配置 JSON 提取路径生成，可用 `--singularity-args` 覆盖
+- SIF 镜像由 `src/common/util/EnvUtil.py` 从 conda yaml 生成
+- `common.smk` 的 `sif()` 函数用 yaml 文件名 stem 查找 SIF 路径
+
+其他通用参数:
 - 可选 `--dry-run`
 - 通过 `--snakemake-args` 透传额外参数
 

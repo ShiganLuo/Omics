@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for TEtranscripts conda environment
+# Source YAML: TEtranscripts.yaml
+# Build: apptainer build TEtranscripts.sif TEtranscripts.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    TEtranscripts.yaml /opt/conda/TEtranscripts.yaml
+
+%post
+    conda env create -f /opt/conda/TEtranscripts.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/TEtranscripts.yaml
+
+    echo 'export PATH="/opt/conda/envs/TEtranscripts/bin:$PATH"' >> /etc/profile.d/conda_TEtranscripts.sh
+    echo 'export CONDA_DEFAULT_ENV=TEtranscripts' >> /etc/profile.d/conda_TEtranscripts.sh
+
+%environment
+    export PATH="/opt/conda/envs/TEtranscripts/bin:$PATH"
+    export CONDA_DEFAULT_ENV=TEtranscripts
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName TEtranscripts
+
+%help
+    Apptainer image for conda environment 'TEtranscripts'.
+    Generated from TEtranscripts.yaml.

@@ -32,6 +32,8 @@ rule homer_annotatepeaks:
     threads: 1
     conda:
         "homer.yaml"
+    container:
+        sif("homer.yaml")
     params:
         annotatePeaks = config.get("Procedure", {}).get("annotatePeaks") or "annotatePeaks.pl"
     run:

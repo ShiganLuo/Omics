@@ -14,6 +14,8 @@ rule samtools_dedup:
     threads: 12
     conda:
         "igv.yaml"
+    container:
+        sif("igv.yaml")
     params:
         samtools = config.get('Procedure',{}).get('samtools') or 'samtools'
     run:
@@ -67,6 +69,8 @@ rule wig:
         log = logdir + "/{sample_id}/wig.log"
     conda:
         "igv.yaml"
+    container:
+        sif("igv.yaml")
     threads: 12 
     params:
         binSize= config.get('Params',{}).get('bamCoverage',{}).get('binSize') or 50,

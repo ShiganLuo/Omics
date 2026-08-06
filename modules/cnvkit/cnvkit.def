@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for cnvkit conda environment
+# Source YAML: cnvkit.yaml
+# Build: apptainer build cnvkit.sif cnvkit.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    cnvkit.yaml /opt/conda/cnvkit.yaml
+
+%post
+    conda env create -f /opt/conda/cnvkit.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/cnvkit.yaml
+
+    echo 'export PATH="/opt/conda/envs/cnvkit/bin:$PATH"' >> /etc/profile.d/conda_cnvkit.sh
+    echo 'export CONDA_DEFAULT_ENV=cnvkit' >> /etc/profile.d/conda_cnvkit.sh
+
+%environment
+    export PATH="/opt/conda/envs/cnvkit/bin:$PATH"
+    export CONDA_DEFAULT_ENV=cnvkit
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName cnvkit
+
+%help
+    Apptainer image for conda environment 'cnvkit'.
+    Generated from cnvkit.yaml.

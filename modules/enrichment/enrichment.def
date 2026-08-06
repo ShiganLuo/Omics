@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for enrichment conda environment
+# Source YAML: enrichment.yaml
+# Build: apptainer build enrichment.sif enrichment.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    enrichment.yaml /opt/conda/enrichment.yaml
+
+%post
+    conda env create -f /opt/conda/enrichment.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/enrichment.yaml
+
+    echo 'export PATH="/opt/conda/envs/enrichment/bin:$PATH"' >> /etc/profile.d/conda_enrichment.sh
+    echo 'export CONDA_DEFAULT_ENV=enrichment' >> /etc/profile.d/conda_enrichment.sh
+
+%environment
+    export PATH="/opt/conda/envs/enrichment/bin:$PATH"
+    export CONDA_DEFAULT_ENV=enrichment
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName enrichment
+
+%help
+    Apptainer image for conda environment 'enrichment'.
+    Generated from enrichment.yaml.

@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for function conda environment
+# Source YAML: function.yaml
+# Build: apptainer build function.sif function.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    function.yaml /opt/conda/function.yaml
+
+%post
+    conda env create -f /opt/conda/function.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/function.yaml
+
+    echo 'export PATH="/opt/conda/envs/function/bin:$PATH"' >> /etc/profile.d/conda_function.sh
+    echo 'export CONDA_DEFAULT_ENV=function' >> /etc/profile.d/conda_function.sh
+
+%environment
+    export PATH="/opt/conda/envs/function/bin:$PATH"
+    export CONDA_DEFAULT_ENV=function
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName function
+
+%help
+    Apptainer image for conda environment 'function'.
+    Generated from function.yaml.

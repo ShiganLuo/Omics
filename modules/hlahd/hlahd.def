@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for hlahd conda environment
+# Source YAML: hlahd.yaml
+# Build: apptainer build hlahd.sif hlahd.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    hlahd.yaml /opt/conda/hlahd.yaml
+
+%post
+    conda env create -f /opt/conda/hlahd.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/hlahd.yaml
+
+    echo 'export PATH="/opt/conda/envs/hlahd/bin:$PATH"' >> /etc/profile.d/conda_hlahd.sh
+    echo 'export CONDA_DEFAULT_ENV=hlahd' >> /etc/profile.d/conda_hlahd.sh
+
+%environment
+    export PATH="/opt/conda/envs/hlahd/bin:$PATH"
+    export CONDA_DEFAULT_ENV=hlahd
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName hlahd
+
+%help
+    Apptainer image for conda environment 'hlahd'.
+    Generated from hlahd.yaml.

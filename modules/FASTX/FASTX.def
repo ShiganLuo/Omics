@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for FASTX conda environment
+# Source YAML: FASTX.yaml
+# Build: apptainer build FASTX.sif FASTX.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    FASTX.yaml /opt/conda/FASTX.yaml
+
+%post
+    conda env create -f /opt/conda/FASTX.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/FASTX.yaml
+
+    echo 'export PATH="/opt/conda/envs/FASTX/bin:$PATH"' >> /etc/profile.d/conda_FASTX.sh
+    echo 'export CONDA_DEFAULT_ENV=FASTX' >> /etc/profile.d/conda_FASTX.sh
+
+%environment
+    export PATH="/opt/conda/envs/FASTX/bin:$PATH"
+    export CONDA_DEFAULT_ENV=FASTX
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName FASTX
+
+%help
+    Apptainer image for conda environment 'FASTX'.
+    Generated from FASTX.yaml.

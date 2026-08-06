@@ -1,0 +1,7 @@
+name: quantification
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+dependencies:
+  - openms-thirdparty=3.1.0

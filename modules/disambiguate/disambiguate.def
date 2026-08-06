@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for disambiguate conda environment
+# Source YAML: disambiguate.yaml
+# Build: apptainer build disambiguate.sif disambiguate.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    disambiguate.yaml /opt/conda/disambiguate.yaml
+
+%post
+    conda env create -f /opt/conda/disambiguate.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/disambiguate.yaml
+
+    echo 'export PATH="/opt/conda/envs/disambiguate/bin:$PATH"' >> /etc/profile.d/conda_disambiguate.sh
+    echo 'export CONDA_DEFAULT_ENV=disambiguate' >> /etc/profile.d/conda_disambiguate.sh
+
+%environment
+    export PATH="/opt/conda/envs/disambiguate/bin:$PATH"
+    export CONDA_DEFAULT_ENV=disambiguate
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName disambiguate
+
+%help
+    Apptainer image for conda environment 'disambiguate'.
+    Generated from disambiguate.yaml.

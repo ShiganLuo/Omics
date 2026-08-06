@@ -23,6 +23,8 @@ rule hisat2_index:
     threads: 8
     conda:
         "../hisat2.yaml"
+    container:
+        sif("../hisat2.yaml")
     params:
         prefix = lambda wildcards: outdir + f"/index/{wildcards.genome}/{wildcards.genome}",
         HISAT2_BUILD = config.get('Procedure', {}).get('hisat2-build') or 'hisat2-build'
@@ -95,6 +97,8 @@ rule hisat2_align:
     threads: 12
     conda:
         "../hisat2.yaml"
+    container:
+        sif("../hisat2.yaml")
     params:
         HISAT2 = config.get('Procedure', {}).get('hisat2') or 'hisat2',
         SAMTOOLS = config.get('Procedure', {}).get('samtools') or 'samtools',

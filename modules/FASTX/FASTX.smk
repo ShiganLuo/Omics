@@ -20,6 +20,8 @@ rule fastx_quality_filter_single:
     threads: 2
     conda:
         "FASTX.yaml"
+    container:
+        sif("FASTX.yaml")
     log:
         logdir + "/{sample_id}/fastx.txt"
     run:

@@ -24,6 +24,8 @@ rule generate_report:
     threads: 1
     conda:
         "PeakCalling_report.yaml"
+    container:
+        sif("PeakCalling_report.yaml")
     params:
         samples = " ".join(samples),
         input_samples = " ".join(input_samples),

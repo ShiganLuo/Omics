@@ -24,6 +24,8 @@ rule HRT:
         HTR_script = ROOT_DIR + "/modules/CoCulture_report/HRT.py"
     conda:
         "CoCulture_report.yaml"
+    container:
+        sif("CoCulture_report.yaml")
     run:
         log_path = str(log)
         try:

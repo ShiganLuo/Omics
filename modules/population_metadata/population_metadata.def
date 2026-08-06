@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for population_metadata conda environment
+# Source YAML: population_metadata.yaml
+# Build: apptainer build population_metadata.sif population_metadata.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    population_metadata.yaml /opt/conda/population_metadata.yaml
+
+%post
+    conda env create -f /opt/conda/population_metadata.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/population_metadata.yaml
+
+    echo 'export PATH="/opt/conda/envs/population_metadata/bin:$PATH"' >> /etc/profile.d/conda_population_metadata.sh
+    echo 'export CONDA_DEFAULT_ENV=population_metadata' >> /etc/profile.d/conda_population_metadata.sh
+
+%environment
+    export PATH="/opt/conda/envs/population_metadata/bin:$PATH"
+    export CONDA_DEFAULT_ENV=population_metadata
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName population_metadata
+
+%help
+    Apptainer image for conda environment 'population_metadata'.
+    Generated from population_metadata.yaml.

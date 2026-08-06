@@ -438,7 +438,7 @@ elif aligner == "star_3pass_gene":
         "ROOT_DIR": ROOT_DIR,
         "env": config.get("env", {}),
         "indir": subsample_config["outdir"],
-        "outdir": f"{outdir}/common/3_raw_bam/final_bam",
+        "outdir": f"{outdir}/common/3_raw_bam",
         "logdir": logdir,
         "paired_samples": paired_samples,
         "single_samples": single_samples,
@@ -471,9 +471,8 @@ elif aligner == "star_3pass_gene":
     star_3pass_gene_config = {
         "ROOT_DIR": ROOT_DIR,
         "env": config.get("env", {}),
-        "outdir": f"{outdir}/common/3_raw_bam/per_gene",
-        "tail_outdir": f"{outdir}/results/tailer",
-        "final_bam_dir": f"{outdir}/common/3_raw_bam/final_bam",
+        "outdir": f"{outdir}/common/4_per_gene_bam",
+        "final_bam_dir": star_3pass_gene_upstream_config["outdir"],
         "logdir": logdir,
         "Procedure": {
             "samtools": SAMTOOLS,

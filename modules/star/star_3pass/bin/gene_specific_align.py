@@ -71,7 +71,7 @@ def _run_step(step: Step, log_handle) -> None:
 def _read_manifest(manifest_path: str) -> list[dict[str, str]]:
     """Read the per-gene manifest TSV produced by prepare_gene_inputs.py.
 
-    Columns: gene_id, fastq1, fastq2, fasta, gtf, layout, assigned_records
+    Columns: gene_id, ensembl_id, fastq1, fastq2, fasta, gtf, layout, assigned_records
     """
     genes: list[dict[str, str]] = []
     with open(manifest_path, encoding="utf-8") as handle:

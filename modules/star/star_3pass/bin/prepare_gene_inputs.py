@@ -24,9 +24,16 @@ def run(command: list[str], stdout: IO[str] | None = None) -> None:
     subprocess.run(command, check=True, stdout=stdout)
 
 
-def load_bed(path: Path) -> dict[str, list[str]]:
-    """Load unique BED records keyed by gene ID."""
+def load_bed(path: Path) -> tuple[dict[str, list[str]], dict[str, str]]:
+    """Load BED records keyed by Ensembl gene ID and build display-name mapping.
+
+    The display name is the gene_name (BED field 7) with ``.N`` suffixes
+    appended when multiple genes share the same name.  Falls back to the
+    gene_id when the BED has no 7th field.
+    """
     records: dict[str, list[str]] = {}
+    raw_names: dict[str, str] = {}
+    name_counts: dict[str, int] = {}
     with path.open(encoding="utf-8") as handle:
         for line_number, line in enumerate(handle, start=1):
             fields = line.rstrip("\n").split("\t")
@@ -38,9 +45,20 @@ def load_bed(path: Path) -> dict[str, list[str]]:
             if gene_id in records and records[gene_id][:6] != fields[:6]:
                 raise ValueError(f"Gene ID {gene_id!r} occurs at multiple BED loci")
             records[gene_id] = fields
+            gene_name = fields[6] if len(fields) >= 7 else gene_id
+            raw_names[gene_id] = gene_name
+            name_counts[gene_name] = name_counts.get(gene_name, 0) + 1
     if not records:
         raise ValueError(f"No gene records found in {path}")
-    return records
+    display_names: dict[str, str] = {}
+    name_seen: dict[str, int] = {}
+    for gene_id, gene_name in raw_names.items():
+        if name_counts[gene_name] > 1:
+            name_seen[gene_name] = name_seen.get(gene_name, 0) + 1
+            display_names[gene_id] = f"{gene_name}.{name_seen[gene_name]}"
+        else:
+            display_names[gene_id] = gene_name
+    return records, display_names
 
 
 def normalize_read_name(name: str) -> str:
@@ -53,8 +71,9 @@ def normalize_read_name(name: str) -> str:
 def read_overlap_assignments(
     overlap_path: Path,
     ambiguous: str,
+    display_names: dict[str, str],
 ) -> dict[str, list[str]]:
-    """Return gene-to-read-name assignments from bedtools intersect output."""
+    """Return display-name-to-read-name assignments from bedtools intersect output."""
     read_genes: dict[str, set[str]] = defaultdict(set)
     with overlap_path.open(encoding="utf-8") as handle:
         for line_number, line in enumerate(handle, start=1):
@@ -74,7 +93,8 @@ def read_overlap_assignments(
         if ambiguous == "exclude" and len(genes) != 1:
             continue
         for gene_id in sorted(genes):
-            assignments[gene_id].append(read_name)
+            display = display_names.get(gene_id, gene_id)
+            assignments[display].append(read_name)
     return assignments
 
 
@@ -250,7 +270,9 @@ def main() -> None:
         raise FileNotFoundError("BAM, BED, and genome FASTA inputs must exist")
 
     args.outdir.mkdir(parents=True, exist_ok=True)
-    bed_records = load_bed(args.bed)
+    bed_records, display_names = load_bed(args.bed)
+    # Reverse lookup: display_name -> ensembl_id
+    ensembl_lookup: dict[str, str] = {v: k for k, v in display_names.items()}
     overlap_path = args.outdir / "read_gene_overlaps.tsv"
     with overlap_path.open("w", encoding="utf-8") as output_handle:
         run(
@@ -268,16 +290,17 @@ def main() -> None:
             stdout=output_handle,
         )
 
-    assignments = read_overlap_assignments(overlap_path, args.ambiguous)
+    assignments = read_overlap_assignments(overlap_path, args.ambiguous, display_names)
     manifest_tmp = args.outdir / "genes.tsv.tmp"
     manifest = args.outdir / "genes.tsv"
     emitted = 0
     with manifest_tmp.open("w", encoding="utf-8") as manifest_handle:
         manifest_handle.write(
-            "gene_id\tfastq1\tfastq2\tfasta\tgtf\tlayout\tassigned_records\n"
+            "gene_id\tensembl_id\tfastq1\tfastq2\tfasta\tgtf\tlayout\tassigned_records\n"
         )
         for gene_id, read_names in sorted(assignments.items()):
-            fields = bed_records.get(gene_id)
+            ensembl_id = ensembl_lookup.get(gene_id, gene_id)
+            fields = bed_records.get(ensembl_id)
             if fields is None:
                 raise ValueError(f"Assigned gene {gene_id!r} is absent from the BED records")
             gene_dir = args.outdir / gene_id
@@ -299,6 +322,7 @@ def main() -> None:
                 "\t".join(
                     [
                         gene_id,
+                        ensembl_id,
                         str(fastq1),
                         str(fastq2),
                         str(reference_fasta),

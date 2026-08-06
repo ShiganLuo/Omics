@@ -58,7 +58,7 @@ modules/<tool>/
 
 `bin/` 存放该模块需要的 Python/R 辅助脚本，通过 `ROOT_DIR + "/modules/<tool>/bin/<script>.py"` 引用。
 
-### C. 父目录 + 子模块目录（各自独立 conda 环境）
+### C. 父目录 + 子模块目录
 
 ```
 modules/<tool>/
@@ -67,13 +67,13 @@ modules/<tool>/
   <tool>.json
   <subtool>/
     <subtool>.smk           # 子工具规则
-    <subtool>.yaml          # 子工具独立 conda 环境（不共享父目录 yaml）
+    [<subtool>.yaml]        # 子工具独立 conda 环境（可选；省略则共享父目录 yaml）
     <subtool>.json
 ```
 
 代表：gatk（gatk_prepare.smk + gatk_bqsr/ + gatk_germline/ + gatk_somatic/ + gatk_RNAseq/）、samtools（samtools.smk + sort/）、openms（decoydatabase/ + searchengine/ + psmfdr/ + ...）
 
-> **重要**：每个子模块必须有自己的 `<subtool>.yaml`，不能多个子模块共享同一个 yaml 文件名。这是容器命名规范的要求（见下文"环境命名规范"）。
+子模块默认引用父目录的 `<tool>.yaml`（`conda: "../<tool>.yaml"`）。当子模块需要不同环境时，在自己的目录下放 `<subtool>.yaml`，文件名 stem 必须唯一（见下文"环境命名规范"），不能多个子模块共用同名 yaml。
 
 ### D. 公共模块（共享工具函数）
 
@@ -514,7 +514,9 @@ common 模块会自动将 `ROOT_DIR/src` 添加到 `sys.path`。如果有问题�
 
 ## 1. 子目录 conda 路径
 
-子目录规则引用 yaml 时使用相对路径（如 `conda: "gatk.yaml"` 或 `conda: "../gatk.yaml"`），具体取决于 yaml 所在位置。每个子模块必须有自己独立的 yaml（见上文"环境命名规范"），不能多个子模块共享同一 yaml 文件名。
+子目录规则引用 yaml 时使用相对路径。引用父目录的共享 yaml 时用 `conda: "../<parent>.yaml"`（如 gatk_RNAseq 引用 `../gatk.yaml`）；引用子目录自己的 yaml 时用 `conda: "<subtool>.yaml"`。不能写 `conda: "../modules/<tool>/<tool>.yaml"`。
+
+当子模块需要独立环境时，必须有自己的 `<subtool>.yaml`，且文件名 stem 必须唯一（见上文"环境命名规范"），不能多个子模块共用同名 yaml。
 
 ## 2. run 块中的 shell 脚本路径
 

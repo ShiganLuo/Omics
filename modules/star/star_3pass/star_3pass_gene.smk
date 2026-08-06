@@ -6,7 +6,6 @@ import os
 import shlex
 
 outdir = config.get("outdir", "output")
-tail_outdir = config.get("tail_outdir", outdir)
 logdir = config.get("logdir", "log")
 final_bam_dir = config.get("final_bam_dir", "")
 STAR = config.get("Procedure", {}).get("STAR") or "STAR"
@@ -43,7 +42,7 @@ rule star_3pg_gene_specific:
     output:
         bam=outdir + "/{sample_id}/{sample_id}.bam",
         bai=outdir + "/{sample_id}/{sample_id}.bam.bai",
-        tail=tail_outdir + "/{sample_id}/{sample_id}_tail.csv",
+        tail=outdir + "/{sample_id}/{sample_id}_tail.csv",
     log:
         logdir + "/star3pg/{sample_id}/gene_specific.log"
     threads: 2
@@ -62,7 +61,7 @@ rule star_3pg_gene_specific:
             sample_outdir = os.path.dirname(str(output.bam))
             os.makedirs(sample_outdir, exist_ok=True)
             os.makedirs(os.path.dirname(log_path), exist_ok=True)
-            input_dir = os.path.join(outdir, "gene_inputs", wildcards.sample_id)
+            input_dir = os.path.join(outdir, wildcards.sample_id)
             script = os.path.join(sample_outdir, f"gene_specific_{current_time}.sh")
 
             cmd = [

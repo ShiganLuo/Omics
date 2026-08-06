@@ -22,6 +22,7 @@ rule all:
 # ==============================================================================
 fastqc_raw_config = {
         "ROOT_DIR": ROOT_DIR,
+        "env": config.get("env", {}),
         "indir": indir,
         "outdir":  f"{outdir}/QC/1_raw_fastqc",
         "logdir": logdir,
@@ -43,6 +44,7 @@ use rule fastqc from fastqc_raw as PeakCalling_fastqc_raw
 # ==============================================================================
 trim_galore_config = {
         "ROOT_DIR": ROOT_DIR,
+        "env": config.get("env", {}),
         "indir": indir,
         "outdir": f"{outdir}/common/2_trimmed_fastq",
         "logdir": logdir,
@@ -67,6 +69,7 @@ use rule trimming_Single from trim_galore as PeakCalling_trimming_Single
 # ==============================================================================
 fastqc_trimmed_config = {
         "ROOT_DIR": ROOT_DIR,
+        "env": config.get("env", {}),
         "indir": trim_galore_config["outdir"],
         "outdir":  f"{outdir}/QC/2_trimmed_fastqc",
         "logdir": logdir,
@@ -88,6 +91,7 @@ use rule fastqc from fastqc_trimmed as PeakCalling_fastqc_trimmed
 # ==============================================================================
 bowtie2_config = {
     "ROOT_DIR": ROOT_DIR,
+    "env": config.get("env", {}),
     "indir": trim_galore_config["outdir"],
     "outdir": f"{outdir}/common/3_raw_bam",
     "logdir": logdir,
@@ -116,6 +120,7 @@ use rule bowtie2_align_single from bowtie2 as PeakCalling_bowtie2_align_single
 # =============================================================================
 gatk_prepare_config = {
     "ROOT_DIR": ROOT_DIR,
+    "env": config.get("env", {}),
     "indir": bowtie2_config["outdir"],
     "outdir": f"{outdir}/common/4_markdup_bam",
     "logdir": logdir,
@@ -145,6 +150,7 @@ use rule MarkDuplicates from gatk_prepare as PeakCalling_MarkDuplicates
 # ==============================================================================
 igv_config = {
     "ROOT_DIR": ROOT_DIR,
+    "env": config.get("env", {}),
     "indir": bowtie2_config["outdir"],
     "outdir": f"{outdir}/tracks",
     "logdir": logdir,
@@ -174,6 +180,7 @@ track_config = {
         "logdir": logdir,
         "samples": single_samples + paired_samples,
         "ROOT_DIR": ROOT_DIR,
+        "env": config.get("env", {}),
         "igv": config.get('Params', {}).get('igv', {}),
     }
 
@@ -187,6 +194,7 @@ use rule * from track as PeakCalling_*
 # =============================================================================
 macs3_config = {
     "ROOT_DIR": ROOT_DIR,
+    "env": config.get("env", {}),
     "indir": gatk_prepare_config["outdir"],
     "outdir": f"{outdir}/peaks",
     "logdir": logdir,
@@ -217,6 +225,7 @@ use rule macs3_callpeak from macs3 as PeakCalling_macs3_callpeak
 # =============================================================================
 frip_score_config = {
     "ROOT_DIR": ROOT_DIR,
+    "env": config.get("env", {}),
     "indir": gatk_prepare_config["outdir"],
     "outdir": f"{outdir}/QC/3_frip_score",
     "logdir": logdir,
@@ -240,6 +249,7 @@ use rule frip_score from frip_score as PeakCalling_frip_score
 # ==============================================================================
 homer_config = {
     "ROOT_DIR": ROOT_DIR,
+    "env": config.get("env", {}),
     "indir": macs3_config["outdir"],
     "outdir": f"{outdir}/annotation",
     "logdir": logdir,
@@ -264,6 +274,7 @@ use rule homer_annotatepeaks from homer as PeakCalling_homer_annotatepeaks
 # ==============================================================================
 PeakCalling_report_config = {
     "ROOT_DIR": ROOT_DIR,
+    "env": config.get("env", {}),
     "outdir": outdir,
     "logdir": logdir,
     "samples": ip_samples,

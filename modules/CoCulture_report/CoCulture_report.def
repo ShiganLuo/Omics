@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for CoCulture_report conda environment
+# Source YAML: CoCulture_report.yaml
+# Build: apptainer build CoCulture_report.sif CoCulture_report.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    CoCulture_report.yaml /opt/conda/CoCulture_report.yaml
+
+%post
+    conda env create -f /opt/conda/CoCulture_report.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/CoCulture_report.yaml
+
+    echo 'export PATH="/opt/conda/envs/CoCulture_report/bin:$PATH"' >> /etc/profile.d/conda_CoCulture_report.sh
+    echo 'export CONDA_DEFAULT_ENV=CoCulture_report' >> /etc/profile.d/conda_CoCulture_report.sh
+
+%environment
+    export PATH="/opt/conda/envs/CoCulture_report/bin:$PATH"
+    export CONDA_DEFAULT_ENV=CoCulture_report
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName CoCulture_report
+
+%help
+    Apptainer image for conda environment 'CoCulture_report'.
+    Generated from CoCulture_report.yaml.

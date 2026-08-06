@@ -22,6 +22,8 @@ rule ucsc_track_single:
     log:
         logdir + "/ucsc_track.log"
     conda: "track.yaml"
+    container:
+        sif("track.yaml")
     params:
         track_script = ROOT_DIR + "/modules/track/bin/track.py"
     run:
@@ -64,6 +66,8 @@ rule ucsc_track_iclip:
     log:
         logdir + "/all/ucsc_track_iclip.log"
     conda: "track.yaml"
+    container:
+        sif("track.yaml")
     params:
         track_script = ROOT_DIR + "/modules/track/bin/track.py"
     run:
@@ -106,6 +110,8 @@ rule igv_track_single:
     log:
         logdir + "/all/igv_track.log"
     conda: "track.yaml"
+    container:
+        sif("track.yaml")
     params:
         track_script = ROOT_DIR + "/modules/track/bin/track.py",
         igv_config = igv_config,
@@ -162,6 +168,8 @@ rule igv_track_iclip:
     log:
         logdir + "/all/igv_track_iclip.log"
     conda: "track.yaml"
+    container:
+        sif("track.yaml")
     params:
         track_script = ROOT_DIR + "/modules/track/bin/track.py",
         igv_config = igv_config,

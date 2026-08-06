@@ -7,6 +7,8 @@ rule admixture_population:
  output: q=outdir+"/analysis/structure/admixture.K{k}.Q",p=outdir+"/analysis/structure/admixture.K{k}.P"
  log: logdir+"/analysis/admixture.K{k}.log"
  conda: "admixture_population.yaml"
+ container:
+     sif("admixture_population.yaml")
  params: admixture=admixture,bed=prefix+".bed",seed=config.get("Params",{}).get("analysis",{}).get("admixture_seed",2026)
  threads: 4
  run:

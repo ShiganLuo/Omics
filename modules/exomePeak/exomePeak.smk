@@ -37,6 +37,8 @@ rule diff_exomePeak:
         logdir + "/endpoint/exomePeak.log"
     conda:
         "exomePeak.yaml"
+    container:
+        sif("exomePeak.yaml")
     threads: 1
     params:
         gtf = config.get("gtf",""),
@@ -117,6 +119,8 @@ rule call_exomePeak:
         logdir + "/endpoint/call_exomePeak.log"
     conda:
         "exomePeak.yaml"
+    container:
+        sif("exomePeak.yaml")
     threads: 12
     params:
         exomePeak_script = ROOT_DIR + "/modules/exomePeak/bin/exomePeak.r",

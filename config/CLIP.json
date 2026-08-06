@@ -1,32 +1,44 @@
 {
-     "ROOT_DIR": null,
-     "indir": null,
-     "logdir": null,
-     "outdir": null,
-     "paired_samples": [],
-     "single_samples": [],
-     "ip_samples": [],
-     "input_samples": [],
-     "treated_ip_samples": [],
-     "treated_input_samples": [],
-     "outfiles": [],
+    "ROOT_DIR": null,
+    "env": {
+        "env_dir": "/home/luosg/Database/env",
+        "PureCLIP": "/home/luosg/Database/env/PureCLIP/PureCLIP.sif",
+        "UmiTools": "/home/luosg/Database/env/UmiTools/UmiTools.sif",
+        "bedtools": "/home/luosg/Database/env/bedtools/bedtools.sif",
+        "cutadapt": "/home/luosg/Database/env/cutadapt/cutadapt.sif",
+        "fastqc": "/home/luosg/Database/env/fastqc/fastqc.sif",
+        "genome": "/home/luosg/Database/env/genome/genome.sif",
+        "hisat2": "/home/luosg/Database/env/hisat2/hisat2.sif",
+        "star": "/home/luosg/Database/env/star/star.sif",
+        "track": "/home/luosg/Database/env/track/track.sif"
+    },
+    "indir": null,
+    "logdir": null,
+    "outdir": null,
+    "paired_samples": [],
+    "single_samples": [],
+    "ip_samples": [],
+    "input_samples": [],
+    "treated_ip_samples": [],
+    "treated_input_samples": [],
+    "outfiles": [],
     "aligner": "star",
-     "genome": {
-          "fasta": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
-          "gtf": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf",
-          "hisat2_index_prefix": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/hisat2/genome",
-          "star_index_dir": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/star",
-          "chrom_sizes": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/chrom.sizes"
-     },
-     "Procedure": {
-          "trim_galore": "/home/zhousha/tools/TrimGalore-0.6.10/trim_galore",
-          "hisat2": "/home/zhousha/tools/hisat2-2.2.1/hisat2",
-          "hisat2_build": "/home/zhousha/tools/hisat2-2.2.1/hisat2-build",
-          "samtools": null,
-          "bamCoverage": null,
-          "bedtools": null,
-          "STAR": null
-     },
+    "genome": {
+        "fasta": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
+        "gtf": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf",
+        "hisat2_index_prefix": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/hisat2/genome",
+        "star_index_dir": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/star",
+        "chrom_sizes": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/chrom.sizes"
+    },
+    "Procedure": {
+        "trim_galore": "/home/zhousha/tools/TrimGalore-0.6.10/trim_galore",
+        "hisat2": "/home/zhousha/tools/hisat2-2.2.1/hisat2",
+        "hisat2_build": "/home/zhousha/tools/hisat2-2.2.1/hisat2-build",
+        "samtools": null,
+        "bamCoverage": null,
+        "bedtools": null,
+        "STAR": null
+    },
     "Params": {
         "trim_galore": {
             "quality": 25
@@ -71,5 +83,4 @@
             ]
         }
     }
-
 }

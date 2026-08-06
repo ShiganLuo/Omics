@@ -1,4 +1,15 @@
 {
+    "env": {
+        "env_dir": "/home/luosg/Database/env",
+        "centromere": "/home/luosg/Database/env/centromere/centromere.sif",
+        "deepvariant": "/home/luosg/Database/env/deepvariant/deepvariant.sif",
+        "gatk": "/home/luosg/Database/env/gatk/gatk4.sif",
+        "hiphase": "/home/luosg/Database/env/hiphase/hiphase.sif",
+        "pbmm2": "/home/luosg/Database/env/pbmm2/pbmm2.sif",
+        "pbsv": "/home/luosg/Database/env/pbsv/pbsv.sif",
+        "telomere": "/home/luosg/Database/env/telomere/telomere.sif",
+        "trgt": "/home/luosg/Database/env/trgt/trgt.sif"
+    },
     "indir": "input",
     "outdir": "output",
     "logdir": "logs",

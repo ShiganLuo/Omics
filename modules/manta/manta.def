@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for manta conda environment
+# Source YAML: manta.yaml
+# Build: apptainer build manta.sif manta.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    manta.yaml /opt/conda/manta.yaml
+
+%post
+    conda env create -f /opt/conda/manta.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/manta.yaml
+
+    echo 'export PATH="/opt/conda/envs/manta/bin:$PATH"' >> /etc/profile.d/conda_manta.sh
+    echo 'export CONDA_DEFAULT_ENV=manta' >> /etc/profile.d/conda_manta.sh
+
+%environment
+    export PATH="/opt/conda/envs/manta/bin:$PATH"
+    export CONDA_DEFAULT_ENV=manta
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName manta
+
+%help
+    Apptainer image for conda environment 'manta'.
+    Generated from manta.yaml.

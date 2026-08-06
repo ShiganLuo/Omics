@@ -1,4 +1,14 @@
 {
+    "env": {
+        "env_dir": "/home/luosg/Database/env",
+        "decoydatabase": "/home/luosg/Database/env/openms/decoydatabase/decoydatabase.sif",
+        "searchengine": "/home/luosg/Database/env/openms/searchengine/searchengine.sif",
+        "psmrescoring": "/home/luosg/Database/env/openms/psmrescoring/psmrescoring.sif",
+        "psmfdr": "/home/luosg/Database/env/openms/psmfdr/psmfdr.sif",
+        "proteininference": "/home/luosg/Database/env/openms/proteininference/proteininference.sif",
+        "quantification": "/home/luosg/Database/env/openms/quantification/quantification.sif",
+        "msstats": "/home/luosg/Database/env/openms/msstats/msstats.sif"
+    },
     "indir": "input",
     "outdir": "output",
     "logdir": "logs",

@@ -25,7 +25,9 @@ rule psm_rescoring:
     log:
         logdir + "/{sample_id}/psm_rescoring.log"
     conda:
-        "openms.yaml"
+        "psmrescoring.yaml"
+    container:
+        sif("psmrescoring.yaml")
     params:
         percolator = percolator,
         train_FDR = percolator_params.get("train_FDR", 0.05),

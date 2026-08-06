@@ -28,6 +28,8 @@ rule frip_score:
         samtools = config.get("Procedure", {}).get("samtools") or "samtools"
     conda:
         "frip_score.yaml"
+    container:
+        sif("frip_score.yaml")
     run:
         log_path = str(log)
         try:

@@ -29,7 +29,9 @@ rule decoy_database:
     log:
         logdir + "/decoy_database.log"
     conda:
-        "openms.yaml"
+        "decoydatabase.yaml"
+    container:
+        sif("decoydatabase.yaml")
     params:
         openms = openms,
         decoy_string = decoy_string,

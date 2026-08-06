@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for fragment_size conda environment
+# Source YAML: fragment_size.yaml
+# Build: apptainer build fragment_size.sif fragment_size.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    fragment_size.yaml /opt/conda/fragment_size.yaml
+
+%post
+    conda env create -f /opt/conda/fragment_size.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/fragment_size.yaml
+
+    echo 'export PATH="/opt/conda/envs/fragment_size/bin:$PATH"' >> /etc/profile.d/conda_fragment_size.sh
+    echo 'export CONDA_DEFAULT_ENV=fragment_size' >> /etc/profile.d/conda_fragment_size.sh
+
+%environment
+    export PATH="/opt/conda/envs/fragment_size/bin:$PATH"
+    export CONDA_DEFAULT_ENV=fragment_size
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName fragment_size
+
+%help
+    Apptainer image for conda environment 'fragment_size'.
+    Generated from fragment_size.yaml.

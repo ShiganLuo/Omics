@@ -768,7 +768,11 @@ def parse_args():
     parser.add_argument('--test', type=str, nargs='?', const='all', metavar='WORKFLOW',
         help='run dry-run test for a workflow (or "all"). Auto-sets meta/output/dry-run from test/ directory')
     parser.add_argument('--log', type=str, default='workflow.log', help='log file')
-    parser.add_argument('--conda-prefix', type=str, default='/data/pub/zhousha/env/mutation_0.1', help='conda prefix for snakemake')
+    parser.add_argument('--conda-prefix', type=str, default=None, help='conda prefix for snakemake (required when NOT using --sdm apptainer)')
+    parser.add_argument('--sdm', action='store_const', const='apptainer', default=None,
+        help='use apptainer container backend (SIF images). When set, --use-conda is omitted')
+    parser.add_argument('--singularity-args', type=str, default=None,
+        help='arguments for singularity/apptainer, e.g. --singularity-args \'--bind /path1,/path2\' (use with --sdm)')
     parser.add_argument(
         '--rerun-trigger', '--rerun-triggers',
         dest='rerun_trigger',
@@ -813,7 +817,64 @@ def parse_args():
     return args
 
 
-def build_snakemake_cmd(root_dir, smk, input_json, threads, conda_prefix, rerun_trigger, dry_run, conda_frontend, snakemake_args):
+def _detect_singularity(snakemake_args):
+    """Check if --sdm apptainer/singularity is present in raw snakemake_args (backward compat)."""
+    snakemake_args = snakemake_args or []
+    return any(
+        arg in ("apptainer", "singularity")
+        for i, arg in enumerate(snakemake_args)
+        if i > 0 and snakemake_args[i - 1] == "--sdm"
+    )
+
+
+def _collect_bind_paths(config_path):
+    """Scan a config JSON file and collect directory paths to bind-mount.
+
+    Recursively walks all string values; strings containing '/' are treated as
+    paths. Files yield their parent directory; directories are kept as-is.
+    Subdirectories are collapsed into their parents to minimise the bind list.
+    """
+    import json as _json
+    import os as _os
+
+    with open(config_path, "r", encoding="utf-8") as f:
+        cfg = _json.load(f)
+
+    dirs = set()
+
+    def _walk(obj):
+        if isinstance(obj, str) and "/" in obj and obj.strip():
+            # Resolve to absolute path; use as-is if not exists (don't resolve symlinks)
+            p = _os.path.abspath(obj.strip())
+            if _os.path.isfile(p):
+                dirs.add(_os.path.dirname(p))
+            else:
+                dirs.add(p)
+        elif isinstance(obj, dict):
+            for v in obj.values():
+                _walk(v)
+        elif isinstance(obj, list):
+            for v in obj:
+                _walk(v)
+
+    _walk(cfg)
+
+    # Collapse: remove any directory that is a child of another in the set
+    result = set(dirs)
+    for d in list(dirs):
+        for other in dirs:
+            if d != other and d.startswith(other.rstrip("/") + "/"):
+                result.discard(d)
+                break
+    return sorted(result)
+
+
+def build_snakemake_cmd(root_dir, smk, input_json, threads, conda_prefix, rerun_trigger,
+                        dry_run, conda_frontend, snakemake_args, sdm=None, singularity_args=None):
+    snakemake_args = snakemake_args or []
+    # Determine container backend: explicit --sdm flag, or legacy --snakemake-args --sdm
+    use_singularity = sdm is not None or _detect_singularity(snakemake_args)
+
     cmd = [
         "snakemake",
         "-s",
@@ -822,14 +883,31 @@ def build_snakemake_cmd(root_dir, smk, input_json, threads, conda_prefix, rerun_
         input_json,
         "--cores",
         str(threads),
-        "--conda-prefix",
-        conda_prefix,
         "--rerun-triggers",
         *rerun_trigger,
-        "--use-conda",
-        "--conda-frontend",
-        conda_frontend,
     ]
+    if not use_singularity:
+        cmd += [
+            "--conda-prefix",
+            conda_prefix,
+            "--use-conda",
+            "--conda-frontend",
+            conda_frontend,
+        ]
+    else:
+        # Emit top-level --sdm only if not already provided via --snakemake-args
+        if sdm is not None:
+            cmd += ["--sdm", sdm]
+        # Auto-generate --singularity-args bind list from config when not user-specified
+        if not singularity_args and "--singularity-args" not in snakemake_args:
+            bind_paths = _collect_bind_paths(input_json)
+            # Always include /tmp for conda-pack cache etc.
+            if "/tmp" not in bind_paths:
+                bind_paths.append("/tmp")
+            if bind_paths:
+                singularity_args = "--bind " + ",".join(bind_paths)
+        if singularity_args:
+            cmd += ["--singularity-args", singularity_args]
     if dry_run:
         cmd.append("--dry-run")
     if snakemake_args:
@@ -923,6 +1001,11 @@ def setup_normal_args(args):
         exit(1)
     if not args.output_dir:
         logger.info("Error: -o/--output_dir is required (unless --test is used)")
+        exit(1)
+    # Determine container backend: explicit --sdm flag, or legacy --snakemake-args --sdm
+    use_singularity = args.sdm is not None or _detect_singularity(args.snakemake_args)
+    if not use_singularity and not args.conda_prefix:
+        logger.info("Error: --conda-prefix is required when not using --sdm apptainer")
         exit(1)
     args._test_meta_map = None
     return args
@@ -1057,6 +1140,7 @@ def execute_workflows(args, root_dir: str, logger):
                 root_dir, smk, input_json, threads_per_workflow,
                 args.conda_prefix, args.rerun_trigger, args.dry_run,
                 args.conda_frontend, args.snakemake_args,
+                sdm=args.sdm, singularity_args=args.singularity_args,
             )
             logger.info(f"[{wf_name}] {cmd}")
             smk_cmds.append((cmd, abs_outdir))

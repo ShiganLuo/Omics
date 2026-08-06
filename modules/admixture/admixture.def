@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for admixture_population conda environment
+# Source YAML: admixture_population.yaml
+# Build: apptainer build admixture_population.sif admixture.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    admixture_population.yaml /opt/conda/admixture_population.yaml
+
+%post
+    conda env create -f /opt/conda/admixture_population.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/admixture_population.yaml
+
+    echo 'export PATH="/opt/conda/envs/admixture_population/bin:$PATH"' >> /etc/profile.d/conda_admixture_population.sh
+    echo 'export CONDA_DEFAULT_ENV=admixture_population' >> /etc/profile.d/conda_admixture_population.sh
+
+%environment
+    export PATH="/opt/conda/envs/admixture_population/bin:$PATH"
+    export CONDA_DEFAULT_ENV=admixture_population
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName admixture_population
+
+%help
+    Apptainer image for conda environment 'admixture_population'.
+    Generated from admixture_population.yaml.

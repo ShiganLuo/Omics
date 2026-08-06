@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for genome conda environment
+# Source YAML: genome.yaml
+# Build: apptainer build genome.sif genome.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    genome.yaml /opt/conda/genome.yaml
+
+%post
+    conda env create -f /opt/conda/genome.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/genome.yaml
+
+    echo 'export PATH="/opt/conda/envs/genome/bin:$PATH"' >> /etc/profile.d/conda_genome.sh
+    echo 'export CONDA_DEFAULT_ENV=genome' >> /etc/profile.d/conda_genome.sh
+
+%environment
+    export PATH="/opt/conda/envs/genome/bin:$PATH"
+    export CONDA_DEFAULT_ENV=genome
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName genome
+
+%help
+    Apptainer image for conda environment 'genome'.
+    Generated from genome.yaml.

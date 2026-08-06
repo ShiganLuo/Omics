@@ -24,6 +24,8 @@ rule DESeq2_TEcount:
 
     conda:
         "DESeq2.yaml"
+    container:
+        sif("DESeq2.yaml")
     log:
         logdir + "/DESeq2/{control_group_name}_vs_{experimental_group_name}.log"
     run:

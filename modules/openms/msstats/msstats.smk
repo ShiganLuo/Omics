@@ -28,7 +28,9 @@ rule msstats:
     log:
         logdir + "/msstats.log"
     conda:
-        "openms.yaml"
+        "msstats.yaml"
+    container:
+        sif("msstats.yaml")
     params:
         msstats = msstats,
         reference_condition = reference_condition,

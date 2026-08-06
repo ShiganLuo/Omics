@@ -21,6 +21,8 @@ rule gatk_index:
         logdir + "/index/gatk_index.log"
     threads: 4
     conda: "gatk.yaml"
+    container:
+        sif("gatk.yaml")
     params:
         gatk = config.get("Procedure", {}).get("gatk") or "gatk",
         javaOptions =  config.get("Params", {}).get("gatk", {}).get("javaOptions") or "-Xmx30g",
@@ -78,6 +80,8 @@ rule addReadsGroup:
     log:
         logdir + "/{sample_id}/addReadsGroup.log"
     conda: "gatk.yaml"
+    container:
+        sif("gatk.yaml")
     threads: 8
     params:
         id = "{sample_id}",
@@ -137,6 +141,8 @@ rule MarkDuplicates:
     log:
         logdir + "/{sample_id}/MarkDuplicates.log"
     conda: "gatk.yaml"
+    container:
+        sif("gatk.yaml")
     threads: 8
     params:
         javaOptions =  config.get("Params", {}).get("gatk", {}).get("javaOptions") or "-Xmx30g",

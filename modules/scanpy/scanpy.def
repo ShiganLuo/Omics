@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for scRNAseq_scanpy conda environment
+# Source YAML: scRNAseq_scanpy.yaml
+# Build: apptainer build scRNAseq_scanpy.sif scanpy.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    scRNAseq_scanpy.yaml /opt/conda/scRNAseq_scanpy.yaml
+
+%post
+    conda env create -f /opt/conda/scRNAseq_scanpy.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/scRNAseq_scanpy.yaml
+
+    echo 'export PATH="/opt/conda/envs/scRNAseq_scanpy/bin:$PATH"' >> /etc/profile.d/conda_scRNAseq_scanpy.sh
+    echo 'export CONDA_DEFAULT_ENV=scRNAseq_scanpy' >> /etc/profile.d/conda_scRNAseq_scanpy.sh
+
+%environment
+    export PATH="/opt/conda/envs/scRNAseq_scanpy/bin:$PATH"
+    export CONDA_DEFAULT_ENV=scRNAseq_scanpy
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName scRNAseq_scanpy
+
+%help
+    Apptainer image for conda environment 'scRNAseq_scanpy'.
+    Generated from scRNAseq_scanpy.yaml.

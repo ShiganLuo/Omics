@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for gatk4 conda environment
+# Source YAML: gatk.yaml
+# Build: apptainer build gatk4.sif gatk.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    gatk.yaml /opt/conda/gatk.yaml
+
+%post
+    conda env create -f /opt/conda/gatk.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/gatk.yaml
+
+    echo 'export PATH="/opt/conda/envs/gatk4/bin:$PATH"' >> /etc/profile.d/conda_gatk4.sh
+    echo 'export CONDA_DEFAULT_ENV=gatk4' >> /etc/profile.d/conda_gatk4.sh
+
+%environment
+    export PATH="/opt/conda/envs/gatk4/bin:$PATH"
+    export CONDA_DEFAULT_ENV=gatk4
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName gatk4
+
+%help
+    Apptainer image for conda environment 'gatk4'.
+    Generated from gatk.yaml.

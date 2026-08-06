@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for trim-galore conda environment
+# Source YAML: trim-galore.yaml
+# Build: apptainer build trim-galore.sif trim-galore.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    trim-galore.yaml /opt/conda/trim-galore.yaml
+
+%post
+    conda env create -f /opt/conda/trim-galore.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/trim-galore.yaml
+
+    echo 'export PATH="/opt/conda/envs/trim-galore/bin:$PATH"' >> /etc/profile.d/conda_trim-galore.sh
+    echo 'export CONDA_DEFAULT_ENV=trim-galore' >> /etc/profile.d/conda_trim-galore.sh
+
+%environment
+    export PATH="/opt/conda/envs/trim-galore/bin:$PATH"
+    export CONDA_DEFAULT_ENV=trim-galore
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName trim-galore
+
+%help
+    Apptainer image for conda environment 'trim-galore'.
+    Generated from trim-galore.yaml.

@@ -26,7 +26,9 @@ rule psm_fdr:
     log:
         logdir + "/{sample_id}/psm_fdr.log"
     conda:
-        "openms.yaml"
+        "psmfdr.yaml"
+    container:
+        sif("psmfdr.yaml")
     params:
         openms = openms,
         fdr = fdr,

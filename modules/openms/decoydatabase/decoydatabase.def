@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for openms conda environment
+# Source YAML: decoydatabase.yaml
+# Build: apptainer build openms.sif decoydatabase.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    openms.yaml /opt/conda/decoydatabase.yaml
+
+%post
+    conda env create -f /opt/conda/decoydatabase.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/decoydatabase.yaml
+
+    echo 'export PATH="/opt/conda/envs/decoydatabase/bin:$PATH"' >> /etc/profile.d/conda_decoydatabase.sh
+    echo 'export CONDA_DEFAULT_ENV=decoydatabase' >> /etc/profile.d/conda_decoydatabase.sh
+
+%environment
+    export PATH="/opt/conda/envs/decoydatabase/bin:$PATH"
+    export CONDA_DEFAULT_ENV=decoydatabase
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName decoydatabase
+
+%help
+    Apptainer image for conda environment 'decoydatabase'.
+    Generated from openms.yaml.

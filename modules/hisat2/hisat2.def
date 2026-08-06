@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for hisat2 conda environment
+# Source YAML: hisat2.yaml
+# Build: apptainer build hisat2.sif hisat2.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    hisat2.yaml /opt/conda/hisat2.yaml
+
+%post
+    conda env create -f /opt/conda/hisat2.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/hisat2.yaml
+
+    echo 'export PATH="/opt/conda/envs/hisat2/bin:$PATH"' >> /etc/profile.d/conda_hisat2.sh
+    echo 'export CONDA_DEFAULT_ENV=hisat2' >> /etc/profile.d/conda_hisat2.sh
+
+%environment
+    export PATH="/opt/conda/envs/hisat2/bin:$PATH"
+    export CONDA_DEFAULT_ENV=hisat2
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName hisat2
+
+%help
+    Apptainer image for conda environment 'hisat2'.
+    Generated from hisat2.yaml.

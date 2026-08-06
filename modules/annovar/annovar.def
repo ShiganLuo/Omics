@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for annovar conda environment
+# Source YAML: annovar.yaml
+# Build: apptainer build annovar.sif annovar.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    annovar.yaml /opt/conda/annovar.yaml
+
+%post
+    conda env create -f /opt/conda/annovar.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/annovar.yaml
+
+    echo 'export PATH="/opt/conda/envs/annovar/bin:$PATH"' >> /etc/profile.d/conda_annovar.sh
+    echo 'export CONDA_DEFAULT_ENV=annovar' >> /etc/profile.d/conda_annovar.sh
+
+%environment
+    export PATH="/opt/conda/envs/annovar/bin:$PATH"
+    export CONDA_DEFAULT_ENV=annovar
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName annovar
+
+%help
+    Apptainer image for conda environment 'annovar'.
+    Generated from annovar.yaml.

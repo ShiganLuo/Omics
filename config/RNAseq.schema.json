@@ -4,6 +4,27 @@
     "nullable": true,
     "required": false
   },
+  "env": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+      "env_dir": {"type": "str", "nullable": true, "required": false},
+      "star": {"type": "str", "nullable": true, "required": false},
+      "hisat2": {"type": "str", "nullable": true, "required": false},
+      "cutadapt": {"type": "str", "nullable": true, "required": false},
+      "trim-galore": {"type": "str", "nullable": true, "required": false},
+      "trimmomatic": {"type": "str", "nullable": true, "required": false},
+      "TEtranscripts": {"type": "str", "nullable": true, "required": false},
+      "DESeq2": {"type": "str", "nullable": true, "required": false},
+      "StringTie": {"type": "str", "nullable": true, "required": false},
+      "RmrRNA": {"type": "str", "nullable": true, "required": false},
+      "bowtie2": {"type": "str", "nullable": true, "required": false},
+      "gatk4": {"type": "str", "nullable": true, "required": false},
+      "arriba": {"type": "str", "nullable": true, "required": false},
+      "function": {"type": "str", "nullable": true, "required": false},
+      "RNAseq_report": {"type": "str", "nullable": true, "required": false}
+    }
+  },
   "indir": {
     "type": "null",
     "nullable": true,

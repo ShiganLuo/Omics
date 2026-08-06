@@ -18,6 +18,7 @@ rule all:
         outfiles
 trim_galore_config = {
         "ROOT_DIR": ROOT_DIR,
+        "env": config.get("env", {}),
         "indir": indir,
         "outdir":  f"{outdir}/cutadapt",
         "logdir": logdir,
@@ -34,6 +35,7 @@ use rule trimming_Single from trim_galore as MERIP_trimming_Single
 
 hisat2_config = {
         "ROOT_DIR": ROOT_DIR,
+        "env": config.get("env", {}),
         "indir": trim_galore_config["outdir"],
         "outdir":  f"{outdir}/hisat2",
         "logdir": logdir,
@@ -57,6 +59,7 @@ use rule hisat2_index from hisat2 as MERIP_hisat2_index
 
 igv_config = {
         "ROOT_DIR": ROOT_DIR,
+        "env": config.get("env", {}),
         "indir": hisat2_config["outdir"],
         "outdir":  f"{outdir}/igv",
         "logdir": logdir,
@@ -81,6 +84,7 @@ use rule wig from igv as MERIP_wig
 
 exomePeak_config = {
         "ROOT_DIR": ROOT_DIR,
+        "env": config.get("env", {}),
         "indir": igv_config["outdir"],
         "outdir": f"{outdir}/exomePeak",
         "logdir": logdir,

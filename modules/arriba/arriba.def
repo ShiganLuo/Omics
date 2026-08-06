@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for arriba conda environment
+# Source YAML: arriba.yaml
+# Build: apptainer build arriba.sif arriba.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    arriba.yaml /opt/conda/arriba.yaml
+
+%post
+    conda env create -f /opt/conda/arriba.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/arriba.yaml
+
+    echo 'export PATH="/opt/conda/envs/arriba/bin:$PATH"' >> /etc/profile.d/conda_arriba.sh
+    echo 'export CONDA_DEFAULT_ENV=arriba' >> /etc/profile.d/conda_arriba.sh
+
+%environment
+    export PATH="/opt/conda/envs/arriba/bin:$PATH"
+    export CONDA_DEFAULT_ENV=arriba
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName arriba
+
+%help
+    Apptainer image for conda environment 'arriba'.
+    Generated from arriba.yaml.

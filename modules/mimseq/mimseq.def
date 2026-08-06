@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for mimseq conda environment
+# Source YAML: mimseq.yaml
+# Build: apptainer build mimseq.sif mimseq.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    mimseq.yaml /opt/conda/mimseq.yaml
+
+%post
+    conda env create -f /opt/conda/mimseq.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/mimseq.yaml
+
+    echo 'export PATH="/opt/conda/envs/mimseq/bin:$PATH"' >> /etc/profile.d/conda_mimseq.sh
+    echo 'export CONDA_DEFAULT_ENV=mimseq' >> /etc/profile.d/conda_mimseq.sh
+
+%environment
+    export PATH="/opt/conda/envs/mimseq/bin:$PATH"
+    export CONDA_DEFAULT_ENV=mimseq
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName mimseq
+
+%help
+    Apptainer image for conda environment 'mimseq'.
+    Generated from mimseq.yaml.

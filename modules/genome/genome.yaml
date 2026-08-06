@@ -6,3 +6,4 @@ dependencies:
   - python=3.11 
   - samtools>=1.17
   - bedtools>=2.31
+  - libstdcxx-ng>=12

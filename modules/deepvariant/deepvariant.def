@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for deepvariant conda environment
+# Source YAML: deepvariant.yaml
+# Build: apptainer build deepvariant.sif deepvariant.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    deepvariant.yaml /opt/conda/deepvariant.yaml
+
+%post
+    conda env create -f /opt/conda/deepvariant.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/deepvariant.yaml
+
+    echo 'export PATH="/opt/conda/envs/deepvariant/bin:$PATH"' >> /etc/profile.d/conda_deepvariant.sh
+    echo 'export CONDA_DEFAULT_ENV=deepvariant' >> /etc/profile.d/conda_deepvariant.sh
+
+%environment
+    export PATH="/opt/conda/envs/deepvariant/bin:$PATH"
+    export CONDA_DEFAULT_ENV=deepvariant
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName deepvariant
+
+%help
+    Apptainer image for conda environment 'deepvariant'.
+    Generated from deepvariant.yaml.

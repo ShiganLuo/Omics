@@ -21,6 +21,8 @@ rule star_index:
     threads: 12
     conda:
         "star.yaml"
+    container:
+        sif("star.yaml")
     params:
         STAR = config.get('Procedure',{}).get('STAR') or 'STAR',
         index_dir = outdir + "/index",
@@ -155,6 +157,8 @@ rule star_align:
         outTmpDir = outdir + "/{sample_id}/tmp_star"
     conda:
         "star.yaml"
+    container:
+        sif("star.yaml")
     run:
         current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
         script = f"{outdir}/{wildcards.sample_id}/star_align.{current_time}.sh"

@@ -1,24 +1,32 @@
 #!/bin/bash
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-python ${SCRIPT_DIR}/run.py \
-    -m /home/luosg/Data/genomeStability/data/Rn7sk/meta_input.tsv \
-    -w RNAseq \
-    -o /home/luosg/Data/genomeStability/output \
-    -t 48 \
-    --log /home/luosg/Data/genomeStability/log/Rn7sk_RNAseq.log \
-    --conda-prefix /home/luosg/Database/env \
-    --rerun-triggers mtime \
-    --Params.function.gmt /home/luosg/Data/genomeStability/workflow/Omics/assests/geneset/2C_mouse.gmt
+
+# --conda-prefix  /home/luosg/Database/env \
+# --use-conda
+# --snakemake-args \
+# --sdm apptainer \
+# --singularity-args '--bind /home/luosg/Database,/home/luosg/Data/genomeStability,/tmp'
 
 # python ${SCRIPT_DIR}/run.py \
-#     -m /home/luosg/Data/genomeStability/data/Srp54/meta_input.tsv \
-#     -w ncRNAseq \
+#     -m /home/luosg/Data/genomeStability/data/Rn7sk/meta_input.tsv \
+#     -w RNAseq \
 #     -o /home/luosg/Data/genomeStability/output \
 #     -t 48 \
-#     --log /home/luosg/Data/genomeStability/log/ncRNAseq.log \
-#     --conda-prefix  ~/env \
+#     --log /home/luosg/Data/genomeStability/log/Rn7sk_RNAseq.log \
+#     --conda-prefix /home/luosg/Database/env \
 #     --rerun-triggers mtime \
-#     --Procedure.aligner star_3pass_gene
+#     --Params.function.gmt /home/luosg/Data/genomeStability/workflow/Omics/assests/geneset/2C_mouse.gmt
+
+python ${SCRIPT_DIR}/run.py \
+    -m /home/luosg/Data/genomeStability/data/Srp54/meta_input.tsv \
+    -w ncRNAseq \
+    -o /home/luosg/Data/genomeStability/output \
+    -t 48 \
+    --log /home/luosg/Data/genomeStability/log/ncRNAseq.log \
+    --rerun-triggers mtime \
+    --Procedure.aligner star_3pass_gene \
+    --sdm
+    
 # python ${SCRIPT_DIR}/run.py \
 #     -m /data/pub/zhousha/20260207_Exome/data/tRNA/meta.tsv \
 #     -w tRNAseq \

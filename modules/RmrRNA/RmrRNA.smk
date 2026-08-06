@@ -20,6 +20,8 @@ rule extract_rRNA:
         extract_rRNA_script = os.path.join(ROOT_DIR, "modules/RmrRNA/bin/extract_rRNA.py")
     conda:
         "RmrRNA.yaml"
+    container:
+        sif("RmrRNA.yaml")
     run:
         current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
         script = f"{outdir}/extract_rRNA.{current_time}.sh"

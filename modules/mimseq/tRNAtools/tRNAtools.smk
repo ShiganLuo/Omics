@@ -55,6 +55,8 @@ rule mimseq_tRNAtools:
     threads: 4
     conda:
         "../mimseq.yaml"
+    container:
+        sif("../mimseq.yaml")
     run:
         try:
             log_path = str(log)

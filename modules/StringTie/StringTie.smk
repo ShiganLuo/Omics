@@ -20,6 +20,8 @@ rule stringTie:
     threads: 5
     conda:
         "StringTie.yaml"
+    container:
+        sif("StringTie.yaml")
     run:
         log_path = str(log)
         try:
@@ -52,6 +54,8 @@ rule TEChimericTranscripts:
     threads: 5
     conda:
         "StringTie.yaml"
+    container:
+        sif("StringTie.yaml")
     run:
         current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
         script = f"{outdir}/raw/{wildcards.sample_id}/TEChimericTranscripts.{current_time}.sh"
@@ -78,6 +82,8 @@ rule TEChimericPlot:
     threads: 1
     conda:
         "StringTie.yaml"
+    container:
+        sif("StringTie.yaml")
     run:
         current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
         script = f"{outdir}/TE_chimeric/TEChimericPlot.{current_time}.sh"
@@ -106,6 +112,8 @@ rule stringTieMerge:
         stringtie = config.get("Procedure", {}).get("stringtie") or "stringtie"
     conda:
         "StringTie.yaml"
+    container:
+        sif("StringTie.yaml")
     run:
         log_path = str(log)
         try:

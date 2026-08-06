@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for fumitools conda environment
+# Source YAML: fumitools.yaml
+# Build: apptainer build fumitools.sif fumitools.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    fumitools.yaml /opt/conda/fumitools.yaml
+
+%post
+    conda env create -f /opt/conda/fumitools.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/fumitools.yaml
+
+    echo 'export PATH="/opt/conda/envs/fumitools/bin:$PATH"' >> /etc/profile.d/conda_fumitools.sh
+    echo 'export CONDA_DEFAULT_ENV=fumitools' >> /etc/profile.d/conda_fumitools.sh
+
+%environment
+    export PATH="/opt/conda/envs/fumitools/bin:$PATH"
+    export CONDA_DEFAULT_ENV=fumitools
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName fumitools
+
+%help
+    Apptainer image for conda environment 'fumitools'.
+    Generated from fumitools.yaml.

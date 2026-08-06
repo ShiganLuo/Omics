@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for macs3 conda environment
+# Source YAML: macs3.yaml
+# Build: apptainer build macs3.sif macs3.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    macs3.yaml /opt/conda/macs3.yaml
+
+%post
+    conda env create -f /opt/conda/macs3.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/macs3.yaml
+
+    echo 'export PATH="/opt/conda/envs/macs3/bin:$PATH"' >> /etc/profile.d/conda_macs3.sh
+    echo 'export CONDA_DEFAULT_ENV=macs3' >> /etc/profile.d/conda_macs3.sh
+
+%environment
+    export PATH="/opt/conda/envs/macs3/bin:$PATH"
+    export CONDA_DEFAULT_ENV=macs3
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName macs3
+
+%help
+    Apptainer image for conda environment 'macs3'.
+    Generated from macs3.yaml.

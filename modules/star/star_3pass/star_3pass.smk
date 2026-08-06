@@ -3,6 +3,7 @@
 include: "../../common/common.smk"
 
 import os
+import shlex
 
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
@@ -52,7 +53,9 @@ rule star_3p_align:
         logdir + "/star3p/{sample_id}/three_pass.log"
     threads: 12
     conda:
-        "star_3pass.yaml"
+        "../star.yaml"
+    container:
+        sif("../star.yaml")
     run:
         log_path = str(log)
         try:
@@ -140,7 +143,7 @@ rule star_3p_align:
                 cmd.append("--force-end-to-end")
 
             with open(script, "w") as f:
-                f.write(" ".join(cmd) + "\n")
+                f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
             shell(f"bash {script} >> {log_path} 2>&1")
 
             rule_logger.info(f"star_3p_align for sample {wildcards.sample_id} completed")

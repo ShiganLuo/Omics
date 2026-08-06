@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for hiphase conda environment
+# Source YAML: hiphase.yaml
+# Build: apptainer build hiphase.sif hiphase.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    hiphase.yaml /opt/conda/hiphase.yaml
+
+%post
+    conda env create -f /opt/conda/hiphase.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/hiphase.yaml
+
+    echo 'export PATH="/opt/conda/envs/hiphase/bin:$PATH"' >> /etc/profile.d/conda_hiphase.sh
+    echo 'export CONDA_DEFAULT_ENV=hiphase' >> /etc/profile.d/conda_hiphase.sh
+
+%environment
+    export PATH="/opt/conda/envs/hiphase/bin:$PATH"
+    export CONDA_DEFAULT_ENV=hiphase
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName hiphase
+
+%help
+    Apptainer image for conda environment 'hiphase'.
+    Generated from hiphase.yaml.

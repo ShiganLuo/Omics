@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for subsample conda environment
+# Source YAML: subsample.yaml
+# Build: apptainer build subsample.sif subsample.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    subsample.yaml /opt/conda/subsample.yaml
+
+%post
+    conda env create -f /opt/conda/subsample.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/subsample.yaml
+
+    echo 'export PATH="/opt/conda/envs/subsample/bin:$PATH"' >> /etc/profile.d/conda_subsample.sh
+    echo 'export CONDA_DEFAULT_ENV=subsample' >> /etc/profile.d/conda_subsample.sh
+
+%environment
+    export PATH="/opt/conda/envs/subsample/bin:$PATH"
+    export CONDA_DEFAULT_ENV=subsample
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName subsample
+
+%help
+    Apptainer image for conda environment 'subsample'.
+    Generated from subsample.yaml.

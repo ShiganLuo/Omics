@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for cutadapt conda environment
+# Source YAML: cutadapt.yaml
+# Build: apptainer build cutadapt.sif cutadapt.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    cutadapt.yaml /opt/conda/cutadapt.yaml
+
+%post
+    conda env create -f /opt/conda/cutadapt.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/cutadapt.yaml
+
+    echo 'export PATH="/opt/conda/envs/cutadapt/bin:$PATH"' >> /etc/profile.d/conda_cutadapt.sh
+    echo 'export CONDA_DEFAULT_ENV=cutadapt' >> /etc/profile.d/conda_cutadapt.sh
+
+%environment
+    export PATH="/opt/conda/envs/cutadapt/bin:$PATH"
+    export CONDA_DEFAULT_ENV=cutadapt
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName cutadapt
+
+%help
+    Apptainer image for conda environment 'cutadapt'.
+    Generated from cutadapt.yaml.

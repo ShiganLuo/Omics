@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for homer conda environment
+# Source YAML: homer.yaml
+# Build: apptainer build homer.sif homer.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    homer.yaml /opt/conda/homer.yaml
+
+%post
+    conda env create -f /opt/conda/homer.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/homer.yaml
+
+    echo 'export PATH="/opt/conda/envs/homer/bin:$PATH"' >> /etc/profile.d/conda_homer.sh
+    echo 'export CONDA_DEFAULT_ENV=homer' >> /etc/profile.d/conda_homer.sh
+
+%environment
+    export PATH="/opt/conda/envs/homer/bin:$PATH"
+    export CONDA_DEFAULT_ENV=homer
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName homer
+
+%help
+    Apptainer image for conda environment 'homer'.
+    Generated from homer.yaml.

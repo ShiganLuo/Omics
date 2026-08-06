@@ -13,6 +13,7 @@ rule all:
 
 fastqc_raw_config = {
         "ROOT_DIR": ROOT_DIR,
+        "env": config.get("env", {}),
         "indir": indir,
         "outdir":  f"{outdir}/quality/fastqc/raw",
         "logdir": logdir,
@@ -31,6 +32,7 @@ use rule fastqc from fastqc_raw as Mutation_fastqc_raw
 
 cutadapt_config = {
         "ROOT_DIR": ROOT_DIR,
+        "env": config.get("env", {}),
         "indir": indir,
         "outdir": f"{outdir}/fastq/cutadapt",
         "logdir": logdir,
@@ -52,6 +54,7 @@ use rule trimming_Paired from cutadapt as Mutation_trimming_Paired
 
 fastqc_trimmed_config = {
         "ROOT_DIR": ROOT_DIR,
+        "env": config.get("env", {}),
         "indir": cutadapt_config["outdir"],
         "outdir":  f"{outdir}/quality/fastqc/trimmed",
         "logdir": logdir,
@@ -93,6 +96,7 @@ use rule bwaMem2_alignment from bwa_mem2 as Mutation_bwaMem2_alignment
 
 samtools_config = {
     "ROOT_DIR": ROOT_DIR,
+    "env": config.get("env", {}),
     "indir": bwa_mem2_confg["outdir"],
     "outdir": bwa_mem2_confg["outdir"],
     "logdir": logdir,
@@ -115,6 +119,7 @@ use rule bam_flagstat from samtools as Mutation_bam_flagstat
 
 gatk_prepare_config = {
     "ROOT_DIR": ROOT_DIR,
+    "env": config.get("env", {}),
     "indir": bwa_mem2_confg["outdir"],
     "outdir": f"{outdir}/bam/2_markdup_bam",
     "logdir": logdir,
@@ -147,6 +152,7 @@ use rule MarkDuplicates from gatk_prepare as Mutation_MarkDuplicates
 
 gatk_somatic_config = {
     "ROOT_DIR": ROOT_DIR,
+    "env": config.get("env", {}),
     "indir": gatk_prepare_config["outdir"],
     "outdir": f"{outdir}/variation/somatic_snv_indel",
     "logdir": logdir,
@@ -165,6 +171,7 @@ use rule somaticMutect2 from gatk_somatic as Mutation_somaticMutect2
 
 gatk_germline_config = {
     "ROOT_DIR": ROOT_DIR,
+    "env": config.get("env", {}),
     "indir": gatk_prepare_config["outdir"],
     "outdir": f"{outdir}/variation/germline_snv_indel",
     "logdir": logdir,
@@ -214,6 +221,7 @@ if not skip_fragment_size:
         "outdir": f"{outdir}/results/fragment_size",
         "logdir": logdir,
         "ROOT_DIR": ROOT_DIR,
+        "env": config.get("env", {}),
         "samples": paired_samples + single_samples,
         "Procedure": {
             "samtools": config.get("Procedure", {}).get("samtools")
@@ -239,6 +247,7 @@ if not skip_sv:
         "outdir": f"{outdir}/variation/somatic_sv",
         "logdir": logdir,
         "ROOT_DIR": ROOT_DIR,
+        "env": config.get("env", {}),
         "samples": paired_samples + single_samples,
         "Procedure": {
             "manta": config.get("Procedure", {}).get("manta"),
@@ -271,6 +280,7 @@ if not skip_cnv:
         "outdir": f"{outdir}/variation/germline_cnv",
         "logdir": logdir,
         "ROOT_DIR": ROOT_DIR,
+        "env": config.get("env", {}),
         "samples": paired_samples + single_samples,
         "control_samples": control_samples,
         "Procedure": {

@@ -19,6 +19,8 @@ rule chromosome_sizes:
     threads: 1
     conda:
         "genome.yaml"
+    container:
+        sif("genome.yaml")
     params:
         samtools = config.get('Procedure', {}).get('samtools') or 'samtools'
     run:
@@ -53,6 +55,8 @@ rule extract_smallrna:
     threads: 1
     conda:
         "genome.yaml"
+    container:
+        sif("genome.yaml")
     params:
         script = os.path.join(ROOT_DIR, "modules", "genome", "bin", "extract_smallrna.py"),
         outdir = outdir + "/genome/smallrna",

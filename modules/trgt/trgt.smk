@@ -41,6 +41,8 @@ rule trgt_genotype:
         prefix = outdir + "/genotype/{sample_id}/{sample_id}.trgt"
     conda:
         "trgt.yaml"
+    container:
+        sif("trgt.yaml")
     run:
         current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start trgt genotype for sample {wildcards.sample_id} at {current_time}")
@@ -74,6 +76,8 @@ rule trgt_plot:
         repeat_id = config.get("Params", {}).get("trgt", {}).get("repeat_id") or "HTT"
     conda:
         "trgt.yaml"
+    container:
+        sif("trgt.yaml")
     run:
         current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start trgt plot for sample {wildcards.sample_id} at {current_time}")

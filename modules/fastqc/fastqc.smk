@@ -54,6 +54,8 @@ rule fastqc:
         log = logdir + "/{sample_id}/fastqc." + log_suffix
     conda:
         "fastqc.yaml"
+    container:
+        sif("fastqc.yaml")
     run:
         log_path = str(log)
         try:

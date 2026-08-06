@@ -34,6 +34,8 @@ rule function_go_kegg:
         top = top,
     conda:
         "function.yaml"
+    container:
+        sif("function.yaml")
     run:
         log_path = str(log)
         try:
@@ -95,6 +97,8 @@ rule function_gsea:
         gmt = gmt,
     conda:
         "function.yaml"
+    container:
+        sif("function.yaml")
     run:
         log_path = str(log)
         try:

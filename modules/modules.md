@@ -58,21 +58,22 @@ modules/<tool>/
 
 `bin/` 存放该模块需要的 Python/R 辅助脚本，通过 `ROOT_DIR + "/modules/<tool>/bin/<script>.py"` 引用。
 
-### C. 父目录 + 子模块目录（共享 conda 环境）
+### C. 父目录 + 子模块目录（各自独立 conda 环境）
 
 ```
 modules/<tool>/
-  <tool>.yaml               # 共享 conda 环境
   <tool>.smk                # 主规则或 prepare 规则
+  <tool>.yaml               # 主模块 conda 环境
   <tool>.json
   <subtool>/
-    <subtool>.smk           # 子工具规则，conda: "../<tool>.yaml"
+    <subtool>.smk           # 子工具规则
+    <subtool>.yaml          # 子工具独立 conda 环境（不共享父目录 yaml）
     <subtool>.json
 ```
 
-代表：gatk（gatk_prepare.smk + gatk_bqsr/ + gatk_germline/ + gatk_somatic/ + gatk_RNAseq/）、samtools（samtools.smk + sort/）、msisensor-pro（tumor-normal/ + tumor-only/）
+代表：gatk（gatk_prepare.smk + gatk_bqsr/ + gatk_germline/ + gatk_somatic/ + gatk_RNAseq/）、samtools（samtools.smk + sort/）、openms（decoydatabase/ + searchengine/ + psmfdr/ + ...）
 
-子目录规则的 `conda:` 必须引用父目录的 yaml：`conda: "../<tool>.yaml"`
+> **重要**：每个子模块必须有自己的 `<subtool>.yaml`，不能多个子模块共享同一个 yaml 文件名。这是容器命名规范的要求（见下文"环境命名规范"）。
 
 ### D. 公共模块（共享工具函数）
 
@@ -128,6 +129,8 @@ rule <tool>_<action>:
     threads: N
     conda:
         "<tool>.yaml"
+    container:
+        sif("<tool>.yaml")
     params:
         <tool> = config.get("Procedure", {}).get("<tool>") or "<tool>"
     run:
@@ -369,7 +372,34 @@ dependencies:
   - <tool>>=<version>
 ```
 
-> **注意**：channel 顺序必须是 `conda-forge` → `bioconda` → `defaults`。bioconda 依赖 conda-forge 的包，顺序颠倒会导致依赖解析失败。
+> **注意**：channel 顺序必须是 `conda-forge` -> `bioconda` -> `defaults`。bioconda 依赖 conda-forge 的包，顺序颠倒会导致依赖解析失败。
+
+## 环境命名规范（强制）
+
+YAML 文件名、`name:` 字段、SIF 文件名必须三者一致，等于模块目录名：
+
+| 文件 | 命名 |
+|------|------|
+| YAML 文件名 | `<module_dir>.yaml` |
+| YAML `name:` 字段 | `<module_dir>` |
+| SIF 文件名 | `<module_dir>.sif` |
+
+示例：
+```
+modules/star/star.yaml       name: star       -> star.sif
+modules/bedtools/bedtools.yaml  name: bedtools  -> bedtools.sif
+modules/openms/psmfdr/psmfdr.yaml  name: psmfdr  -> psmfdr.sif
+```
+
+**禁止**：
+- 多个子模块共享同一 YAML 文件名（如全部叫 `openms.yaml`）
+- YAML `name:` 字段与文件名 stem 不一致（如 `gatk.yaml` 写 `name: gatk4`）
+
+`common.smk` 中的 `sif()` 函数用 YAML 文件名 stem 作为 key 查找 SIF 路径，
+不读取 YAML 内容。命名不一致会导致容器路径解析失败。
+
+> **例外**：如确实需要名称与目录不同（如上游版本锁定），在 config 的 `env`
+字典中显式映射：`"yaml_stem": "/path/to/actual.sif"`。这是最后手段，不应作为常规做法。
 
 # Common 模块
 
@@ -388,6 +418,15 @@ import shutil
 
 # 从 config 获取
 ROOT_DIR = config.get("ROOT_DIR", ".")
+
+# 容器路径解析
+_ENV_MAP = config.get("env", {})
+
+def sif(yaml_filename: str) -> str:
+    """用 YAML 文件名 stem 查找 SIF 路径。
+    1. config["env"][<stem>] -- 精确映射
+    2. config["env"]["env_dir"] + <module_dir>/<stem>.sif -- 约定回退
+    """
 
 # 从 src/common 导入
 from common.LogUtil import setup_logger
@@ -475,7 +514,7 @@ common 模块会自动将 `ROOT_DIR/src` 添加到 `sys.path`。如果有问题�
 
 ## 1. 子目录 conda 路径
 
-子目录规则必须使用 `conda: "../<parent>.yaml"`（相对路径到父目录的 yaml），不能写 `conda: "../modules/<tool>/<tool>.yaml"`。
+子目录规则引用 yaml 时使用相对路径（如 `conda: "gatk.yaml"` 或 `conda: "../gatk.yaml"`），具体取决于 yaml 所在位置。每个子模块必须有自己独立的 yaml（见上文"环境命名规范"），不能多个子模块共享同一 yaml 文件名。
 
 ## 2. run 块中的 shell 脚本路径
 

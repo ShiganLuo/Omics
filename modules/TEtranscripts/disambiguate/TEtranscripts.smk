@@ -34,6 +34,8 @@ rule TEcount:
     threads: 2
     conda:
         "../TEtranscripts.yaml"
+    container:
+        sif("../TEtranscripts.yaml")
     run:
         log_path = str(log)
         try:
@@ -71,6 +73,8 @@ rule combine_TEcount:
         outfile_name = outdir + "/TEcount/{genome}/all_TEcount_name.tsv"
     conda:
         "../TEtranscripts.yaml"
+    container:
+        sif("../TEtranscripts.yaml")
     params:
         combineTE = ROOT_DIR +"/modules/TEtranscripts/bin/combineTE.py",
         geneId2Name = ROOT_DIR +"/modules/TEtranscripts/bin/geneId2Name.py",
@@ -123,6 +127,8 @@ rule TElocal:
     threads: 2
     conda:
         "../TEtranscripts.yaml"
+    container:
+        sif("../TEtranscripts.yaml")
     run:
         log_path = str(log)
         try:
@@ -163,6 +169,8 @@ rule combine_TElocal:
         outfile_name = outdir + "/TElocal/{genome}/all_TElocal_name.tsv"
     conda:
         "../TEtranscripts.yaml"
+    container:
+        sif("../TEtranscripts.yaml")
     params:
         combineTE = ROOT_DIR +"/modules/TEtranscripts/bin/combineTE.py",
         geneId2Name = ROOT_DIR +"/modules/TEtranscripts/bin/geneId2Name.py",

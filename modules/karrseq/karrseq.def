@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for karrseq conda environment
+# Source YAML: karrseq.yaml
+# Build: apptainer build karrseq.sif karrseq.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    karrseq.yaml /opt/conda/karrseq.yaml
+
+%post
+    conda env create -f /opt/conda/karrseq.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/karrseq.yaml
+
+    echo 'export PATH="/opt/conda/envs/karrseq/bin:$PATH"' >> /etc/profile.d/conda_karrseq.sh
+    echo 'export CONDA_DEFAULT_ENV=karrseq' >> /etc/profile.d/conda_karrseq.sh
+
+%environment
+    export PATH="/opt/conda/envs/karrseq/bin:$PATH"
+    export CONDA_DEFAULT_ENV=karrseq
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName karrseq
+
+%help
+    Apptainer image for conda environment 'karrseq'.
+    Generated from karrseq.yaml.

@@ -40,6 +40,7 @@ rule all:
 if paired_samples:
     seqprep_config = {
         "ROOT_DIR": ROOT_DIR,
+        "env": config.get("env", {}),
         "indir": indir,
         "outdir": f"{outdir}/merge",
         "logdir": logdir,
@@ -144,6 +145,7 @@ karrseq_config = {
     "logdir": logdir,
     "samples": samples,
     "ROOT_DIR": ROOT_DIR,
+    "env": config.get("env", {}),
     "Procedure": {
         "samtools": config.get("Procedure", {}).get("samtools") or "samtools"
     },

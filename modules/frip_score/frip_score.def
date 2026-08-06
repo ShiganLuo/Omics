@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for frip_score conda environment
+# Source YAML: frip_score.yaml
+# Build: apptainer build frip_score.sif frip_score.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    frip_score.yaml /opt/conda/frip_score.yaml
+
+%post
+    conda env create -f /opt/conda/frip_score.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/frip_score.yaml
+
+    echo 'export PATH="/opt/conda/envs/frip_score/bin:$PATH"' >> /etc/profile.d/conda_frip_score.sh
+    echo 'export CONDA_DEFAULT_ENV=frip_score' >> /etc/profile.d/conda_frip_score.sh
+
+%environment
+    export PATH="/opt/conda/envs/frip_score/bin:$PATH"
+    export CONDA_DEFAULT_ENV=frip_score
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName frip_score
+
+%help
+    Apptainer image for conda environment 'frip_score'.
+    Generated from frip_score.yaml.

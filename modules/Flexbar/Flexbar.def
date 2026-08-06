@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for Flexbar conda environment
+# Source YAML: Flexbar.yaml
+# Build: apptainer build Flexbar.sif Flexbar.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    Flexbar.yaml /opt/conda/Flexbar.yaml
+
+%post
+    conda env create -f /opt/conda/Flexbar.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/Flexbar.yaml
+
+    echo 'export PATH="/opt/conda/envs/Flexbar/bin:$PATH"' >> /etc/profile.d/conda_Flexbar.sh
+    echo 'export CONDA_DEFAULT_ENV=Flexbar' >> /etc/profile.d/conda_Flexbar.sh
+
+%environment
+    export PATH="/opt/conda/envs/Flexbar/bin:$PATH"
+    export CONDA_DEFAULT_ENV=Flexbar
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName Flexbar
+
+%help
+    Apptainer image for conda environment 'Flexbar'.
+    Generated from Flexbar.yaml.

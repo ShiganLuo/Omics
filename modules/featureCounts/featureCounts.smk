@@ -27,6 +27,8 @@ rule featureCounts_single_noMultiple:
         logdir + "/all/featureCounts/featureCounts_single_noMultiple.log"
     conda: 
         "featureCounts.yaml"
+    container:
+        sif("featureCounts.yaml")
     threads:
         10
     params:
@@ -70,6 +72,8 @@ rule featureCounts_paired_noMultiple:
         logdir + "/all/featureCounts/featureCounts_paired_noMultiple.log"
     conda:
         "featureCounts.yaml"
+    container:
+        sif("featureCounts.yaml")
     threads:
         10
     params:

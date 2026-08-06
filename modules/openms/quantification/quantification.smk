@@ -33,7 +33,9 @@ rule quantification_lfq:
         logdir + "/quantification_lfq.log"
     threads: 8
     conda:
-        "openms.yaml"
+        "quantification.yaml"
+    container:
+        sif("quantification.yaml")
     params:
         proteomicslfq = proteomicslfq,
         expdesign = expdesign,
@@ -73,7 +75,9 @@ rule quantification_tmt:
         logdir + "/quantification_tmt.log"
     threads: 8
     conda:
-        "openms.yaml"
+        "quantification.yaml"
+    container:
+        sif("quantification.yaml")
     params:
         proteinquantifier = proteinquantifier,
         channel_mass_tolerance = tmt_params.get("channel_mass_tolerance", 0.003),
@@ -108,7 +112,9 @@ rule quantification_dia:
         logdir + "/quantification_dia.log"
     threads: 8
     conda:
-        "openms.yaml"
+        "quantification.yaml"
+    container:
+        sif("quantification.yaml")
     params:
         proteomicslfq = proteomicslfq,
         library = dia_params.get("library", ""),

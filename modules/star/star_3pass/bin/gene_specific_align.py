@@ -225,29 +225,48 @@ def main() -> None:
                 if final_bam is None:
                     continue
 
-                # ── samtools index the final (pass3) BAM ─────────────
-                idx_cmd = [args.samtools, "index", final_bam]
-                all_cmds.append(shlex.join(idx_cmd))
-                _run_step(Step(cmd=idx_cmd, desc=f"[{gene_id}] index pass3 BAM"), log_handle)
+                # ── Use the last non-empty pass BAM for Tailer ──────
+                # STAR always emits a BAM (even with 0 reads, the header is
+                # non-zero), so we must check read count, not file size.
+                # Walk backwards from pass3 to find the last pass with reads.
+                tail_bam = final_bam
+                for pass_num in (3, 2, 1):
+                    candidate = os.path.join(gene_dir, f"pass{pass_num}.Aligned.sortedByCoord.out.bam")
+                    count_cmd = [args.samtools, "view", "-c", candidate]
+                    result = subprocess.run(count_cmd, stdout=subprocess.PIPE,
+                                            stderr=subprocess.PIPE, check=True)
+                    read_count = int(result.stdout.decode().strip())
+                    if read_count > 0:
+                        tail_bam = candidate
+                        log_handle.write(f"[{gene_id}] using pass{pass_num} BAM ({read_count} reads) for Tailer\n")
+                        break
+                else:
+                    log_handle.write(f"[{gene_id}] all passes have 0 reads, skipping Tailer\n")
+                    continue
 
-                # ── Tailer on pass3 BAM ──────────────────────────────
+                # ── samtools index the BAM for Tailer ───────────────
+                idx_cmd = [args.samtools, "index", tail_bam]
+                all_cmds.append(shlex.join(idx_cmd))
+                _run_step(Step(cmd=idx_cmd, desc=f"[{gene_id}] index BAM for Tailer"), log_handle)
+
+                # ── Tailer on the final non-empty BAM ───────────────
                 tail_cmd = [
                     args.tailer, "-a", gtf,
                     "-read", "1", "-t", str(args.tailer_threshold),
                 ]
                 if args.tailer_rev_comp:
                     tail_cmd.append("--rev_comp")
-                tail_cmd.append(final_bam)
+                tail_cmd.append(tail_bam)
                 all_cmds.append(shlex.join(tail_cmd))
                 _run_step(Step(cmd=tail_cmd, desc=f"[{gene_id}] Tailer"), log_handle)
 
-                gene_tail = final_bam.rsplit(".bam", 1)[0] + "_tail.csv"
+                gene_tail = tail_bam.rsplit(".bam", 1)[0] + "_tail.csv"
                 if not os.path.exists(gene_tail) or os.path.getsize(gene_tail) == 0:
                     raise RuntimeError(f"[{gene_id}] Tailer produced no output: {gene_tail}")
-                gene_bams.append(final_bam)
+                gene_bams.append(tail_bam)
                 gene_tails.append(gene_tail)
 
-            # ── Step 3: Merge gene BAMs (pass3 only) ─────────────────
+            # ── Step 3: Merge gene BAMs (last non-empty pass) ────────
             if not gene_bams:
                 raise RuntimeError("No gene BAMs were produced")
 

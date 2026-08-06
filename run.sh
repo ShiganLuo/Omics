@@ -25,8 +25,7 @@ python ${SCRIPT_DIR}/run.py \
     --log /home/luosg/Data/genomeStability/log/ncRNAseq.log \
     --rerun-triggers mtime \
     --Procedure.aligner star_3pass_gene \
-    --sdm
-    
+    --sdm    
 # python ${SCRIPT_DIR}/run.py \
 #     -m /data/pub/zhousha/20260207_Exome/data/tRNA/meta.tsv \
 #     -w tRNAseq \

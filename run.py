@@ -725,9 +725,9 @@ def runncRNAseq(
 
     aligner = datajson.get("Procedure", {}).get("aligner") or "star_3pass"
     if aligner == "star_3pass":
-        bam_subdir = "common/3_raw_bam/final_bam"
+        bam_subdir = "common/3_raw_bam"
     elif aligner == "star_3pass_gene":
-        bam_subdir = "common/3_raw_bam/per_gene"
+        bam_subdir = "common/4_per_gene_bam"
     else:
         bam_subdir = "common/3_raw_bam"
 

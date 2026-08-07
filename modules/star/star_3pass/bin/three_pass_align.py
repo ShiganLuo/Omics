@@ -395,7 +395,7 @@ def parse_args() -> argparse.Namespace:
     g1.set_defaults(
         pass1_out_filter_multimap_nmax=1000,
         pass1_align_intron_min=9999999,
-        pass1_out_filter_multimap_score_range=0,
+        pass1_out_filter_multimap_score_range=1,
         pass1_out_filter_mismatch_nover_lmax=0.2,
     )
 

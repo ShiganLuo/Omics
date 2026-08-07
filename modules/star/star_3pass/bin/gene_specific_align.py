@@ -1,16 +1,19 @@
 #!/usr/bin/env python3
-"""Strict gene-specific three-pass local alignment and Tailer after canonical star_3pass.
+"""Strict gene-specific three-pass alignment and Tailer after canonical star_3pass.
 
 Directly executes the pipeline via subprocess:
 
   1. Creates per-gene FASTQ, reference, and annotation via prepare_gene_inputs.py
   2. For each gene:
-     a. Builds STAR index (pass 1 parameters)
-     b. Pass 1: local alignment of all gene reads
-     c. Pass 2: local alignment of pass-1 unmapped reads
-     d. Pass 3: local alignment of pass-2 unmapped reads
-     e. Runs Tailer on the pass-3 BAM
-  3. Merges pass-3 gene BAMs and concatenates tail CSVs
+     a. Builds STAR index (per-gene reference)
+     b. Pass 1: per-gene local alignment of all gene reads
+     c. Pass 2: per-gene end-to-end alignment with clip5p/clip3p of all gene reads
+        -> split into mapped and unmapped reads
+     d. Pass 3a: per-gene local alignment of pass-2 mapped reads
+     e. Pass 3b: per-gene local alignment of pass-2 unmapped reads
+     f. Merges pass-3a and pass-3b BAMs
+     g. Runs Tailer on the merged gene BAM
+  3. Merges all gene BAMs and concatenates tail CSVs
 
 A command log is written for reproducibility.
 """
@@ -20,10 +23,59 @@ from __future__ import annotations
 import argparse
 import os
 import shlex
+import shutil
 import subprocess
 import time
 from dataclasses import dataclass
+from typing import List, Optional, Tuple
 
+
+# =========================================================================
+# 1. STAR 参数中心化配置字典 (数据驱动)
+# 想要增删改 STAR 参数？只需在这里修改，命令行和运行逻辑会自动同步！
+# 值为 None 代表该参数默认不传给 STAR，但允许在命令行中指定。
+# =========================================================================
+
+PASS1_STAR_DEFAULTS = {
+    "--outFilterMultimapNmax": 1000,
+    "--outFilterMultimapScoreRange": 1,
+    "--outFilterMismatchNoverLmax": 0.2,
+    "--alignIntronMin": 9999999,
+    "--alignEndsType": "Local",
+}
+
+PASS2_STAR_DEFAULTS = {
+    "--outFilterMultimapNmax": 1000,
+    "--outFilterMultimapScoreRange": 0,
+    "--outFilterMismatchNoverLmax": 0.2,
+    "--outFilterMismatchNoverReadLmax": 0.05,
+    "--alignIntronMin": 9999999,
+    "--alignMatesGapMax": 500,
+    "--alignEndsType": "EndToEnd",
+    "--clip5pNbases": None, 
+    "--clip3pNbases": None,
+    "--outReadsUnmapped": "Fastx"
+}
+
+PASS3_STAR_DEFAULTS = {
+    "--outFilterMultimapNmax": 1000,
+    "--outFilterMultimapScoreRange": 0,
+    "--outFilterMismatchNoverLmax": 0.025,
+    "--alignIntronMin": 9999999,
+    "--alignMatesGapMax": 500,
+    "--alignEndsType": "Local",
+}
+
+STAR_PASS_CONFIGS = {
+    "pass1": PASS1_STAR_DEFAULTS,
+    "pass2": PASS2_STAR_DEFAULTS,
+    "pass3": PASS3_STAR_DEFAULTS,
+}
+
+
+# =========================================================================
+# 2. Pipeline 核心执行逻辑
+# =========================================================================
 
 @dataclass
 class Step:
@@ -73,10 +125,7 @@ def _run_step(step: Step, log_handle) -> None:
 
 
 def _read_manifest(manifest_path: str) -> list[dict[str, str]]:
-    """Read the per-gene manifest TSV produced by prepare_gene_inputs.py.
-
-    Columns: gene_id, ensembl_id, fastq1, fastq2, fasta, gtf, layout, assigned_records
-    """
+    """Read the per-gene manifest TSV produced by prepare_gene_inputs.py."""
     genes: list[dict[str, str]] = []
     with open(manifest_path, encoding="utf-8") as handle:
         header = None
@@ -89,26 +138,27 @@ def _read_manifest(manifest_path: str) -> list[dict[str, str]]:
     return genes
 
 
-# ── Per-pass STAR option assembly ────────────────────────────────────────
-
-_PASS_PARAMS = [
-    ("out_filter_multimap_nmax", "--outFilterMultimapNmax", int),
-    ("out_filter_multimap_score_range", "--outFilterMultimapScoreRange", int),
-    ("out_filter_mismatch_nover_lmax", "--outFilterMismatchNoverLmax", float),
-    ("align_intron_min", "--alignIntronMin", int),
-    ("align_mates_gap_max", "--alignMatesGapMax", int),
-    ("align_ends_type", "--alignEndsType", str),
-]
-
-
 def _star_pass_options(pass_name: str, args: argparse.Namespace) -> list[str]:
-    """Assemble STAR flag tokens for one pass from typed CLI arguments."""
+    """从 argparse.Namespace 中提取并组装对应 Pass 的 STAR 运行参数"""
     tokens: list[str] = []
-    for attr, flag, cast in _PASS_PARAMS:
-        val = getattr(args, f"{pass_name}_{attr}")
+    defaults = STAR_PASS_CONFIGS[pass_name]
+    
+    # 1. 提取字典中已定义的参数
+    for star_flag in defaults.keys():
+        stripped_flag = star_flag.lstrip("-")
+        # argparse 会将 "--pass1-alignIntronMin" 解析为 "pass1_alignIntronMin"
+        attr_name = f"{pass_name}_{stripped_flag}"
+        val = getattr(args, attr_name)
+        
         if val is not None:
-            tokens.append(flag)
-            tokens.append(str(cast(val)))
+            tokens.append(star_flag)
+            tokens.append(str(val))
+            
+    # 2. 解析并通过 shlex 注入额外的 raw 字符串参数 (万能通道)
+    extra_args_str = getattr(args, f"{pass_name}_extra_args")
+    if extra_args_str:
+        tokens.extend(shlex.split(extra_args_str))
+        
     return tokens
 
 
@@ -122,12 +172,42 @@ def _build_align_cmd(args: argparse.Namespace, pass_name: str,
         "--readFilesIn", *read_files,
         "--readFilesCommand", "zcat",
         *_star_pass_options(pass_name, args),
-        "--outReadsUnmapped", "Fastx",
         "--outSAMtype", "BAM", "SortedByCoordinate",
         "--outFileNamePrefix", out_prefix,
     ]
     return cmd
 
+
+def _bam_has_reads(samtools: str, bam_path: str) -> Tuple[bool, int]:
+    """Check if a BAM file has any reads. Returns (has_reads, count)."""
+    if not os.path.exists(bam_path) or os.path.getsize(bam_path) == 0:
+        return False, 0
+    result = subprocess.run([samtools, "view", "-c", bam_path],
+                            stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
+    count = int(result.stdout.decode().strip())
+    return count > 0, count
+
+
+def _extract_fastq_from_bam(samtools: str, threads: int, bam_path: str,
+                            fq1: str, fq2: str, paired: bool) -> list[list[str]]:
+    """Return samtools commands to name-sort a BAM and extract FASTQ."""
+    name_sorted = bam_path.rsplit(".bam", 1)[0] + ".name_sorted.bam"
+    cmds = [
+        [samtools, "sort", "-n", "-@", str(threads), "-o", name_sorted, bam_path],
+    ]
+    if paired:
+        cmds.append([samtools, "fastq", "-@", str(threads), "-n",
+                      "-1", fq1, "-2", fq2,
+                      "-0", "/dev/null", "-s", "/dev/null", name_sorted])
+    else:
+        cmds.append([samtools, "fastq", "-@", str(threads), "-n",
+                      "-0", fq1, "-s", "/dev/null", name_sorted])
+    return cmds
+
+
+# =========================================================================
+# 3. Main 函数 
+# =========================================================================
 
 def main() -> None:
     """Execute the gene-specific three-pass alignment pipeline."""
@@ -180,99 +260,144 @@ def main() -> None:
                 index_dir = os.path.join(gene_dir, "index")
                 os.makedirs(index_dir, exist_ok=True)
 
-                # ── STAR genomeGenerate (uses pass1 params) ─────────
+                paired = os.path.exists(fq2) and os.path.getsize(fq2) > 0
+                initial_reads = [fq1]
+                if paired:
+                    initial_reads.append(fq2)
+
+                # ── STAR genomeGenerate ───────────────────────────────
                 gen_prefix = os.path.join(gene_dir, "gen.")
                 gen_cmd = [
                     args.star, "--runMode", "genomeGenerate",
                     "--runThreadN", str(args.threads),
                     "--genomeDir", index_dir,
                     "--genomeFastaFiles", fasta,
-                    "--genomeSAindexNbases", str(args.pass1_genome_sa_index_nbases),
+                    "--genomeSAindexNbases", str(args.index_genome_sa_index_nbases),
                     "--outFileNamePrefix", gen_prefix,
                 ]
                 all_cmds.append(shlex.join(gen_cmd))
                 _run_step(Step(cmd=gen_cmd, desc=f"[{gene_id}] genomeGenerate"), log_handle)
 
-                # ── Determine initial read files ─────────────────────
-                current_reads = [fq1]
-                if os.path.getsize(fq2) > 0:
-                    current_reads.append(fq2)
+                # ── Pass 1: per-gene E2E alignment of all reads ──────
+                pass1_prefix = os.path.join(gene_dir, "pass1.")
+                pass1_cmd = _build_align_cmd(
+                    args, "pass1", index_dir, initial_reads, pass1_prefix
+                )
+                all_cmds.append(shlex.join(pass1_cmd))
+                _run_step(Step(cmd=pass1_cmd, desc=f"[{gene_id}] pass1 E2E alignment"), log_handle)
 
-                # ── Three passes: each uses prev pass's unmapped reads ─
-                final_bam = None
-                for pass_name, pass_num in [("pass1", 1), ("pass2", 2), ("pass3", 3)]:
-                    pass_prefix = os.path.join(gene_dir, f"pass{pass_num}.")
-                    align_cmd = _build_align_cmd(
-                        args, pass_name, index_dir, current_reads, pass_prefix
-                    )
-                    all_cmds.append(shlex.join(align_cmd))
-                    _run_step(Step(
-                        cmd=align_cmd,
-                        desc=f"[{gene_id}] pass{pass_num} local alignment",
-                    ), log_handle)
-
-                    pass_bam = pass_prefix + "Aligned.sortedByCoord.out.bam"
-                    if not os.path.exists(pass_bam) or os.path.getsize(pass_bam) == 0:
-                        log_handle.write(f"[{gene_id}] pass{pass_num} no aligned BAM, skipping gene\n")
-                        final_bam = None
-                        break
-
-                    final_bam = pass_bam
-
-                    # Feed unmapped reads into next pass
-                    if pass_num < 3:
-                        unmapped_mate1 = pass_prefix + "Unmapped.out.mate1"
-                        unmapped_mate2 = pass_prefix + "Unmapped.out.mate2"
-                        if os.path.exists(unmapped_mate2) and os.path.getsize(unmapped_mate2) > 0:
-                            current_reads = [unmapped_mate1, unmapped_mate2]
-                        else:
-                            current_reads = [unmapped_mate1]
-
-                if final_bam is None:
+                pass1_bam = pass1_prefix + "Aligned.sortedByCoord.out.bam"
+                has_reads, n_reads = _bam_has_reads(args.samtools, pass1_bam)
+                if not has_reads:
+                    log_handle.write(f"[{gene_id}] pass1 no aligned reads, skipping gene\n")
                     continue
+                log_handle.write(f"[{gene_id}] pass1: {n_reads} reads\n")
 
-                # ── Use the last non-empty pass BAM for Tailer ──────
-                # STAR always emits a BAM (even with 0 reads, the header is
-                # non-zero), so we must check read count, not file size.
-                # Walk backwards from pass3 to find the last pass with reads.
-                tail_bam = final_bam
-                for pass_num in (3, 2, 1):
-                    candidate = os.path.join(gene_dir, f"pass{pass_num}.Aligned.sortedByCoord.out.bam")
-                    count_cmd = [args.samtools, "view", "-c", candidate]
-                    result = subprocess.run(count_cmd, stdout=subprocess.PIPE,
-                                            stderr=subprocess.PIPE, check=True)
-                    read_count = int(result.stdout.decode().strip())
-                    if read_count > 0:
-                        tail_bam = candidate
-                        log_handle.write(f"[{gene_id}] using pass{pass_num} BAM ({read_count} reads) for Tailer\n")
-                        break
-                else:
-                    log_handle.write(f"[{gene_id}] all passes have 0 reads, skipping Tailer\n")
+                # ── Pass 2: per-gene E2E+clip alignment of all reads ─
+                pass2_prefix = os.path.join(gene_dir, "pass2.")
+                pass2_cmd = _build_align_cmd(
+                    args, "pass2", index_dir, initial_reads, pass2_prefix
+                )
+                all_cmds.append(shlex.join(pass2_cmd))
+                _run_step(Step(cmd=pass2_cmd, desc=f"[{gene_id}] pass2 E2E+clip alignment"), log_handle)
+
+                pass2_bam = pass2_prefix + "Aligned.sortedByCoord.out.bam"
+                pass2_unmapped1 = pass2_prefix + "Unmapped.out.mate1"
+                pass2_unmapped2 = pass2_prefix + "Unmapped.out.mate2"
+
+                pass2_mapped_fq1 = os.path.join(gene_dir, "pass2_mapped_1.fq.gz")
+                pass2_mapped_fq2 = os.path.join(gene_dir, "pass2_mapped_2.fq.gz")
+                for fq_cmd in _extract_fastq_from_bam(
+                    args.samtools, args.threads, pass2_bam,
+                    pass2_mapped_fq1, pass2_mapped_fq2, paired
+                ):
+                    all_cmds.append(shlex.join(fq_cmd))
+                    _run_step(Step(cmd=fq_cmd, desc=f"[{gene_id}] pass2 extract mapped FASTQ"), log_handle)
+
+                pass2_unmapped_gz1 = pass2_unmapped1
+                pass2_unmapped_gz2 = pass2_unmapped2
+                if os.path.exists(pass2_unmapped1) and os.path.getsize(pass2_unmapped1) > 0:
+                    pass2_unmapped_gz1 = pass2_unmapped1 + ".gz"
+                    gzip_cmd = ["gzip", "-f", pass2_unmapped1]
+                    all_cmds.append(shlex.join(gzip_cmd))
+                    _run_step(Step(cmd=gzip_cmd, desc=f"[{gene_id}] pass2 gzip unmapped mate1"), log_handle)
+                if paired and os.path.exists(pass2_unmapped2) and os.path.getsize(pass2_unmapped2) > 0:
+                    pass2_unmapped_gz2 = pass2_unmapped2 + ".gz"
+                    gzip_cmd = ["gzip", "-f", pass2_unmapped2]
+                    all_cmds.append(shlex.join(gzip_cmd))
+                    _run_step(Step(cmd=gzip_cmd, desc=f"[{gene_id}] pass2 gzip unmapped mate2"), log_handle)
+
+                # ── Pass 3a: per-gene Local alignment of mapped reads ─
+                pass3a_prefix = os.path.join(gene_dir, "pass3a.")
+                pass3a_reads = [pass2_mapped_fq1]
+                if paired and os.path.exists(pass2_mapped_fq2) and os.path.getsize(pass2_mapped_fq2) > 0:
+                    pass3a_reads.append(pass2_mapped_fq2)
+                pass3a_cmd = _build_align_cmd(
+                    args, "pass3", index_dir, pass3a_reads, pass3a_prefix
+                )
+                all_cmds.append(shlex.join(pass3a_cmd))
+                _run_step(Step(cmd=pass3a_cmd, desc=f"[{gene_id}] pass3a Local alignment (mapped)"), log_handle)
+
+                pass3a_bam = pass3a_prefix + "Aligned.sortedByCoord.out.bam"
+
+                # ── Pass 3b: per-gene Local alignment of unmapped reads ─
+                pass3b_prefix = os.path.join(gene_dir, "pass3b.")
+                pass3b_reads = [pass2_unmapped_gz1]
+                if paired and os.path.exists(pass2_unmapped_gz2) and os.path.getsize(pass2_unmapped_gz2) > 0:
+                    pass3b_reads.append(pass2_unmapped_gz2)
+                pass3b_cmd = _build_align_cmd(
+                    args, "pass3", index_dir, pass3b_reads, pass3b_prefix
+                )
+                all_cmds.append(shlex.join(pass3b_cmd))
+                _run_step(Step(cmd=pass3b_cmd, desc=f"[{gene_id}] pass3b Local alignment (unmapped)"), log_handle)
+
+                pass3b_bam = pass3b_prefix + "Aligned.sortedByCoord.out.bam"
+
+                # ── Merge pass3a + pass3b for this gene ───────────────
+                gene_merged_bam = os.path.join(gene_dir, "merged.bam")
+                merge_inputs = []
+                if os.path.exists(pass3a_bam) and os.path.getsize(pass3a_bam) > 0:
+                    merge_inputs.append(pass3a_bam)
+                if os.path.exists(pass3b_bam) and os.path.getsize(pass3b_bam) > 0:
+                    merge_inputs.append(pass3b_bam)
+                if not merge_inputs:
+                    log_handle.write(f"[{gene_id}] pass3a and pass3b both empty, skipping gene\n")
                     continue
+                merge_cmd = [
+                    args.samtools, "merge", "-f", "-@", str(args.threads),
+                    gene_merged_bam, *merge_inputs,
+                ]
+                all_cmds.append(shlex.join(merge_cmd))
+                _run_step(Step(cmd=merge_cmd, desc=f"[{gene_id}] merge pass3a+3b"), log_handle)
 
-                # ── samtools index the BAM for Tailer ───────────────
-                idx_cmd = [args.samtools, "index", tail_bam]
+                has_reads, n_reads = _bam_has_reads(args.samtools, gene_merged_bam)
+                if not has_reads:
+                    log_handle.write(f"[{gene_id}] merged BAM has 0 reads, skipping Tailer\n")
+                    continue
+                log_handle.write(f"[{gene_id}] merged BAM: {n_reads} reads\n")
+
+                # ── samtools index & Tailer ───────────────────────────
+                idx_cmd = [args.samtools, "index", gene_merged_bam]
                 all_cmds.append(shlex.join(idx_cmd))
                 _run_step(Step(cmd=idx_cmd, desc=f"[{gene_id}] index BAM for Tailer"), log_handle)
 
-                # ── Tailer on the final non-empty BAM ───────────────
                 tail_cmd = [
                     args.tailer, "-a", gtf,
                     "-read", "1", "-t", str(args.tailer_threshold),
                 ]
                 if args.tailer_rev_comp:
                     tail_cmd.append("--rev_comp")
-                tail_cmd.append(tail_bam)
+                tail_cmd.append(gene_merged_bam)
                 all_cmds.append(shlex.join(tail_cmd))
                 _run_step(Step(cmd=tail_cmd, desc=f"[{gene_id}] Tailer"), log_handle)
 
-                gene_tail = tail_bam.rsplit(".bam", 1)[0] + "_tail.csv"
+                gene_tail = gene_merged_bam.rsplit(".bam", 1)[0] + "_tail.csv"
                 if not os.path.exists(gene_tail) or os.path.getsize(gene_tail) == 0:
                     raise RuntimeError(f"[{gene_id}] Tailer produced no output: {gene_tail}")
-                gene_bams.append(tail_bam)
+                gene_bams.append(gene_merged_bam)
                 gene_tails.append(gene_tail)
 
-            # ── Step 3: Merge gene BAMs (last non-empty pass) ────────
+            # ── Step 3 & 4: Merge & Concat ─────────────────────────────
             if not gene_bams:
                 raise RuntimeError("No gene BAMs were produced")
 
@@ -281,7 +406,7 @@ def main() -> None:
                 args.output_bam, *gene_bams,
             ]
             all_cmds.append(shlex.join(merge_cmd))
-            _run_step(Step(cmd=merge_cmd, desc="merge pass3 gene BAMs"), log_handle)
+            _run_step(Step(cmd=merge_cmd, desc="merge all gene BAMs"), log_handle)
 
             index_cmd = [
                 args.samtools, "index", "-@", str(args.threads), args.output_bam,
@@ -289,7 +414,6 @@ def main() -> None:
             all_cmds.append(shlex.join(index_cmd))
             _run_step(Step(cmd=index_cmd, desc="index merged BAM"), log_handle)
 
-            # ── Step 4: Concatenate tail CSVs ────────────────────────
             with open(args.output_tail, "w", encoding="utf-8") as out:
                 for i, csv_path in enumerate(gene_tails):
                     with open(csv_path, encoding="utf-8") as csv_handle:
@@ -300,7 +424,6 @@ def main() -> None:
                             out.write(csv_handle.read())
             all_cmds.append(f"# concatenated {len(gene_tails)} tail CSVs > {args.output_tail}")
             log_handle.write(f"\n{'=' * 60}\nconcatenated {len(gene_tails)} tail CSVs > {args.output_tail}\n")
-
             log_handle.write(f"\n{'=' * 60}\nAll steps completed successfully.\n")
 
             with open(cmd_log, "w", encoding="utf-8") as cmd_handle:
@@ -315,107 +438,100 @@ def main() -> None:
         raise
 
 
-# ── CLI ──────────────────────────────────────────────────────────────────
+# =========================================================================
+# 4. CLI 参数解析与强校验
+# =========================================================================
 
-def _add_pass_args(group, prefix: str) -> None:
-    """Add STAR alignment parameters for one pass group."""
-    group.add_argument(f"--{prefix}-out-filter-multimap-nmax", type=int,
-                       default=None, metavar="N", help="STAR --outFilterMultimapNmax")
-    group.add_argument(f"--{prefix}-out-filter-multimap-score-range", type=int,
-                       default=None, metavar="N", help="STAR --outFilterMultimapScoreRange")
-    group.add_argument(f"--{prefix}-out-filter-mismatch-nover-lmax", type=float,
-                       default=None, metavar="F", help="STAR --outFilterMismatchNoverLmax")
-    group.add_argument(f"--{prefix}-align-intron-min", type=int,
-                       default=None, metavar="N", help="STAR --alignIntronMin")
-    group.add_argument(f"--{prefix}-align-mates-gap-max", type=int,
-                       default=None, metavar="N", help="STAR --alignMatesGapMax")
-    group.add_argument(f"--{prefix}-align-ends-type",
-                       choices=("Local", "EndToEnd"), default=None,
-                       help="STAR --alignEndsType")
+def valid_existing_file(path_str: str) -> str:
+    """Fail-fast: 校验输入文件是否存在"""
+    if not os.path.isfile(path_str):
+        raise argparse.ArgumentTypeError(f"输入文件不存在: {path_str}")
+    return path_str
+
+def valid_executable(exe_str: str) -> str:
+    """Fail-fast: 校验工具是否在 PATH 中或为有效路径"""
+    if shutil.which(exe_str) is None:
+        raise argparse.ArgumentTypeError(f"未在 PATH 中找到可执行文件，或路径无效: {exe_str}")
+    return exe_str
+
+
+def _add_dynamic_star_args(group: argparse._ArgumentGroup, prefix: str, defaults: dict) -> None:
+    """遍历字典，动态将 STAR 参数注册到 argparse 中"""
+    for star_flag, default_val in defaults.items():
+        stripped_flag = star_flag.lstrip("-")
+        cli_flag = f"--{prefix}-{stripped_flag}"
+        
+        # 根据字典中的默认值类型推断参数类型
+        if isinstance(default_val, int):
+            arg_type = int
+        elif isinstance(default_val, float):
+            arg_type = float
+        else:
+            arg_type = str
+            
+        group.add_argument(cli_flag, type=arg_type, default=default_val, 
+                           metavar="VAL", help=f"STAR {star_flag} for {prefix}")
+
+    # 万能逃逸通道，用于随时挂载字典里没有的冷门参数
+    group.add_argument(f"--{prefix}-extra-args", type=str, default="",
+                       metavar="STR", help=f"Raw extra STAR args for {prefix} (e.g. '--limitBAMsortRAM 10000')")
 
 
 def parse_args() -> argparse.Namespace:
     """Parse command-line arguments."""
     parser = argparse.ArgumentParser(
-        description="Gene-specific three-pass local alignment and Tailer after star_3pass.",
+        description="Gene-specific three-pass alignment and Tailer after star_3pass.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 
-    # I/O
-    parser.add_argument("--input-bam", required=True,
-                        help="Final BAM from canonical star_3pass")
-    parser.add_argument("--input-bed", required=True,
-                        help="BED file of small-RNA gene loci")
-    parser.add_argument("--input-genome-fasta", required=True,
-                        help="Genome FASTA for reference extraction")
-    parser.add_argument("--output-bam", required=True,
-                        help="Merged gene-specific BAM output (pass3 only)")
-    parser.add_argument("--output-tail", required=True,
-                        help="Concatenated Tailer CSV output")
-    parser.add_argument("--input-dir", required=True,
-                        help="Directory for per-gene intermediate inputs")
-    parser.add_argument("--helper", required=True,
-                        help="Path to prepare_gene_inputs.py")
-    parser.add_argument("--log", required=True)
+    g_io = parser.add_argument_group("Input/Output parameters")
+    g_io.add_argument("--input-bam", type=valid_existing_file, required=True,
+                      help="Final BAM from canonical star_3pass")
+    g_io.add_argument("--input-bed", type=valid_existing_file, required=True,
+                      help="BED file of small-RNA gene loci")
+    g_io.add_argument("--input-genome-fasta", type=valid_existing_file, required=True,
+                      help="Genome FASTA for reference extraction")
+    g_io.add_argument("--helper", type=valid_existing_file, required=True,
+                      help="Path to prepare_gene_inputs.py")
+    
+    g_io.add_argument("--output-bam", required=True, help="Merged gene-specific BAM output")
+    g_io.add_argument("--output-tail", required=True, help="Concatenated Tailer CSV output")
+    g_io.add_argument("--input-dir", required=True, help="Directory for per-gene intermediate inputs")
+    g_io.add_argument("--log", required=True)
 
-    # Tool binaries
-    parser.add_argument("--threads", type=int, default=2)
-    parser.add_argument("--star", default="STAR")
-    parser.add_argument("--samtools", default="samtools")
-    parser.add_argument("--bedtools", default="bedtools")
-    parser.add_argument("--tailer", default="Tailer")
+    # ── Tools ─────────────────────────────────────
+    g_tools = parser.add_argument_group("Tool binaries & Compute")
+    g_tools.add_argument("--threads", type=int, default=2)
+    g_tools.add_argument("--star", type=valid_executable, default="STAR")
+    g_tools.add_argument("--samtools", type=valid_executable, default="samtools")
+    g_tools.add_argument("--bedtools", type=valid_executable, default="bedtools")
+    g_tools.add_argument("--tailer", type=valid_executable, default="Tailer")
 
-    # Gene assignment parameters
-    parser.add_argument("--ambiguous", choices=("exclude", "duplicate"),
-                        default="exclude",
+    # ── Gene Assignment ───────────────────────────
+    g_gene = parser.add_argument_group("Gene assignment parameters")
+    g_gene.add_argument("--ambiguous", choices=("exclude", "duplicate"), default="exclude",
                         help="How to handle reads mapping to multiple genes")
-    parser.add_argument("--flank", type=int, default=50, metavar="N",
+    g_gene.add_argument("--flank", type=int, default=50, metavar="N",
                         help="Flanking bases added to each gene reference")
+    g_gene.add_argument("--index-genome-sa-index-nbases", type=int, default=3, metavar="N",
+                        help="STAR --genomeSAindexNbases for per-gene index")
 
-    # ── Pass 1 STAR parameters (also includes genomeGenerate) ──────
-    g1 = parser.add_argument_group("pass 1 STAR parameters")
-    g1.add_argument("--pass1-genome-sa-index-nbases", type=int, default=3, metavar="N",
-                    help="STAR --genomeSAindexNbases for per-gene index")
-    _add_pass_args(g1, "pass1")
-    g1.set_defaults(
-        pass1_out_filter_multimap_nmax=1000,
-        pass1_out_filter_multimap_score_range=0,
-        pass1_out_filter_mismatch_nover_lmax=0.2,
-        pass1_align_intron_min=9999999,
-        pass1_align_mates_gap_max=500,
-        pass1_align_ends_type="Local",
-    )
+    # ── Dynamic STAR Params ───────────────────────
+    for pass_name in ["pass1", "pass2", "pass3"]:
+        group = parser.add_argument_group(f"{pass_name} STAR parameters")
+        _add_dynamic_star_args(group, pass_name, STAR_PASS_CONFIGS[pass_name])
 
-    # ── Pass 2 STAR parameters ─────────────────────────────────────
-    g2 = parser.add_argument_group("pass 2 STAR parameters")
-    _add_pass_args(g2, "pass2")
-    g2.set_defaults(
-        pass2_out_filter_multimap_nmax=1000,
-        pass2_out_filter_multimap_score_range=0,
-        pass2_out_filter_mismatch_nover_lmax=0.2,
-        pass2_align_intron_min=9999999,
-        pass2_align_mates_gap_max=500,
-        pass2_align_ends_type="Local",
-    )
-
-    # ── Pass 3 STAR parameters ─────────────────────────────────────
-    g3 = parser.add_argument_group("pass 3 STAR parameters")
-    _add_pass_args(g3, "pass3")
-    g3.set_defaults(
-        pass3_out_filter_multimap_nmax=1000,
-        pass3_out_filter_multimap_score_range=0,
-        pass3_out_filter_mismatch_nover_lmax=0.025,
-        pass3_align_intron_min=9999999,
-        pass3_align_mates_gap_max=500,
-        pass3_align_ends_type="Local",
-    )
-
-    # Tailer parameters
+    # ── Tailer Params ─────────────────────────────
     g_tail = parser.add_argument_group("Tailer parameters")
     g_tail.add_argument("--tailer-threshold", type=int, default=50, metavar="N",
                         help="Tailer -t threshold")
-    g_tail.add_argument("--tailer-rev-comp", action="store_true", default=False,
-                        help="Pass --rev_comp to Tailer")
+    
+    if hasattr(argparse, 'BooleanOptionalAction'):
+        g_tail.add_argument("--tailer-rev-comp", action=argparse.BooleanOptionalAction, default=False,
+                            help="Pass --rev_comp to Tailer")
+    else:
+        g_tail.add_argument("--tailer-rev-comp", action="store_true", default=False,
+                            help="Pass --rev_comp to Tailer")
 
     return parser.parse_args()
 

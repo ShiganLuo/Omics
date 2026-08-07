@@ -21,7 +21,7 @@ description: Omics 工作流入口技能与子技能组织说明
 - 从 [workflow/Omics/config](Omics/config) 加载模型模板
 - 将 CLI 参数合并进模板
 	- 扁平参数更新顶层字段
-	- 点号参数 (例如 `Params.STAR.alignEndsType=Local`) 更新嵌套字段
+	- 点号参数 (例如 `Params.star.alignEndsType=Local`) 更新嵌套字段
 - 尽可能自动转换 CLI 参数类型 (bool/int/float)
 - 填充运行时字段:
 	- `ROOT_DIR`, `indir`, `outdir`, `logdir`

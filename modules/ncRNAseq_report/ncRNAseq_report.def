@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for ncRNAseq_report conda environment
+# Source YAML: ncRNAseq_report.yaml
+# Build: apptainer build ncRNAseq_report.sif ncRNAseq_report.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    ncRNAseq_report.yaml /opt/conda/ncRNAseq_report.yaml
+
+%post
+    conda env create -f /opt/conda/ncRNAseq_report.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/ncRNAseq_report.yaml
+
+    echo 'export PATH="/opt/conda/envs/ncRNAseq_report/bin:$PATH"' >> /etc/profile.d/conda_ncRNAseq_report.sh
+    echo 'export CONDA_DEFAULT_ENV=ncRNAseq_report' >> /etc/profile.d/conda_ncRNAseq_report.sh
+
+%environment
+    export PATH="/opt/conda/envs/ncRNAseq_report/bin:$PATH"
+    export CONDA_DEFAULT_ENV=ncRNAseq_report
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName ncRNAseq_report
+
+%help
+    Apptainer image for conda environment 'ncRNAseq_report'.
+    Generated from ncRNAseq_report.yaml.

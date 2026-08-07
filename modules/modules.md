@@ -294,6 +294,180 @@ rule gatk_bqsr_result:
         bai = outdir + "/{genome}/gatk/bqsr/{sample_id}.sorted.markdup.BQSR.bam.bai"
 ```
 
+# 报告模块（_report）
+
+报告模块是特殊的跨样本聚合模块，消费上游所有模块的输出（TSV/CSV/PNG/BAM/log），生成 PPTX + XLSX 报告。不重复计算上游分析，只读取已有结果文件。
+
+代表：RNAseq_report、ncRNAseq_report
+
+## 目录结构
+
+采用 B 类布局（3 文件 + bin/）：
+
+```
+modules/<Workflow>_report/
+  <Workflow>_report.smk        # generate_report + report_result 两个 rule
+  <Workflow>_report.json       # 配置 schema
+  <Workflow>_report.yaml       # conda 环境 (python-pptx, matplotlib, pandas, openpyxl)
+  <Workflow>_report.def        # Apptainer SIF 构建文件
+  <Workflow>_report.dockerfile # Docker 构建文件
+  bin/
+    generate_report.py         # 报告生成脚本
+```
+
+## 两个 rule
+
+```python
+REPORT_SCRIPT = os.path.join(ROOT_DIR, "modules", "<Workflow>_report", "bin", "generate_report.py")
+
+rule generate_report:
+    input:
+        # 用 expand() 声明所有上游依赖文件
+        per_sample_bams = expand(outdir + "/common/4_per_gene_bam/{sample}/{sample}.bam", sample=samples),
+        per_sample_tails = expand(outdir + "/common/4_per_gene_bam/{sample}/{sample}_tail.csv", sample=samples),
+        # ... 其他上游输出
+    output:
+        report = outdir + "/<Workflow>_report.pptx",
+        file_inventory = outdir + "/<Workflow>_report_files.xlsx",
+    log:
+        logdir + "/<Workflow>_report.log"
+    threads: 1
+    conda:
+        "<Workflow>_report.yaml"
+    container:
+        sif("<Workflow>_report.yaml")
+    params:
+        samples = samples,
+        # title/subtitle/pipeline/genome/date/lang 从 config["Params"]["report"] 读取
+        title = config.get("Params", {}).get("report", {}).get("title") or "Default Title",
+        lang = config.get("Params", {}).get("report", {}).get("lang") or "zh",
+        img_dir = outdir + "/ppt_results",
+        script = REPORT_SCRIPT,
+    run:
+        # 标准 run 块模板：日志 -> 构建命令 -> 写 .sh -> 执行
+        ...
+
+rule report_result:
+    input:
+        report = outdir + "/<Workflow>_report.pptx",
+        file_inventory = outdir + "/<Workflow>_report_files.xlsx",
+```
+
+关键约定：
+- **两个输出**：`report`（PPTX）+ `file_inventory`（XLSX），XLSX 汇总所有上游 TSV/CSV 的数据
+- **`report_result`** 是纯依赖聚合点，仅声明 `input:`，供 subworkflow `use rule` 引用
+- **`img_dir`**：中间图表 PNG 的持久化目录（`outdir/ppt_results/`），与临时文件分离
+- **`--lang zh`**：报告支持中英双语，通过 `config["Params"]["report"]["lang"]` 控制
+
+## generate_report.py 结构
+
+```python
+#!/usr/bin/env python3
+"""Generate PPT report for <Workflow> pipeline results."""
+
+# 1. 中文字体自动检测（WenQuanYi / Noto Sans CJK / SimHei）
+# 2. I18N 字典（zh / en 两套标题、标签翻译）
+# 3. 数据收集函数：解析上游 TSV/CSV/log 文件
+# 4. 图表生成函数：matplotlib 柱状图/堆叠图/分布图
+# 5. Slide 构建函数：python-pptx 创建标题页、图表页、数据表页、总结页
+# 6. Excel 文件清单：openpyxl 写入所有上游数据 + 交叉表
+# 7. main()：组装所有 slide，保存 PPTX + XLSX
+```
+
+### 图表生成
+
+图表通过 matplotlib 生成临时 PNG，嵌入 PPTX：
+
+```python
+class TempImageStore:
+    """生成临时 PNG，可选持久化到 img_dir，结束时自动清理。"""
+    def save_fig(self, fig, stem: str) -> str:
+        # 保存到 tempfile，同时 copy 到 img_dir
+    def cleanup(self):
+        # 删除临时文件
+```
+
+### Slide 布局常量
+
+```python
+SLIDE_W = 10.0       # 16:9 宽度（英寸）
+SLIDE_H = 5.625      # 16:9 高度
+HEADER_H = 0.65      # 标题栏高度
+MARGIN_L = 0.45      # 左边距
+CONTENT_W = SLIDE_W - MARGIN_L - MARGIN_R  # 内容区宽度
+```
+
+### 助手函数
+
+| 函数 | 用途 |
+|------|------|
+| `_header(slide, text)` | 深色标题栏 + 白色标题文字 |
+| `_textbox(slide, ...)` | 文本框，支持字号/粗体/颜色/对齐 |
+| `_bullets(slide, ...)` | 项目符号列表 |
+| `_table(slide, ...)` | 数据表，表头深色背景、隔行浅色 |
+| `_add_picture(slide, path, ...)` | 等比缩放图片居中放入指定区域 |
+
+### Excel 文件清单
+
+```python
+def write_file_inventory(output_path, analysis_dir, samples, ...):
+    """每个上游 TSV/CSV 成为一个 sheet，包含完整数据（上限 5000 行）。"""
+    # Sheet 1: Overview（分析目录、样本数、对比数等）
+    # Sheet 2: Sample_Stats（每样本一行，所有统计指标）
+    # Sheet 3+: 每样本的 manifest / tail CSV / 上游结果
+```
+
+## subworkflow 集成
+
+```python
+# subworkflow/<Workflow>.smk 末尾
+<Workflow>_report_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "env": config.get("env", {}),
+    "outdir": outdir,
+    "logdir": logdir,
+    "samples": all_samples,
+    "paired_samples": paired_samples,
+    "single_samples": single_samples,
+    "Params": {
+        "report": config.get("Params", {}).get("report", {}),
+    },
+}
+module <Workflow>_report:
+    snakefile: "../modules/<Workflow>_report/<Workflow>_report.smk"
+    config: <Workflow>_report_config
+use rule generate_report from <Workflow>_report as <Workflow>_generate_report
+use rule report_result from <Workflow>_report as <Workflow>_report_result
+```
+
+## config 中的 report 参数
+
+```json
+{
+    "Params": {
+        "report": {
+            "title": "ncRNAseq 分析报告",
+            "subtitle": "",
+            "pipeline": "FASTQ -> ... -> Report",
+            "genome": "GRCh38",
+            "date": "",
+            "lang": "zh"
+        }
+    }
+}
+```
+
+## 与普通聚合规则的区别
+
+| 特征 | 普通聚合规则（如 arriba_report） | 报告模块（_report） |
+|------|------|------|
+| 输出 | 单个 HTML/TSV | PPTX + XLSX |
+| 依赖 | 同模块的上游输出 | **跨模块**的所有上游输出 |
+| 脚本 | 模块自带 `bin/` 脚本 | 独立 `bin/generate_report.py` |
+| 环境 | 共享上游模块的 conda | 独立 conda（python-pptx/matplotlib/openpyxl） |
+| subworkflow | `use rule` 单条 | `use rule generate_report` + `use rule report_result` 两条 |
+| 图表 | 无或简单 | matplotlib 生成多张图表嵌入 PPTX |
+
 # 输出与中间文件
 
 - 结果输出固定落在 `outdir` 目录树

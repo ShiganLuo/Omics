@@ -17,7 +17,8 @@
         "star": "/home/luosg/Database/env/star/star.sif",
         "subsample": "/home/luosg/Database/env/subsample/subsample.sif",
         "tailer": "/home/luosg/Database/env/tailer/tailer.sif",
-        "trim-galore": "/home/luosg/Database/env/trim-galore/trim-galore.sif"
+        "trim-galore": "/home/luosg/Database/env/trim-galore/trim-galore.sif",
+        "ncRNAseq_report": "/home/luosg/Database/env/ncRNAseq_report/ncRNAseq_report.sif"
     },
     "Procedure": {
         "aligner": null,

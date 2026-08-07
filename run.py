@@ -288,10 +288,10 @@ def runCLIP(
     datajson["Params"]["bamCoverage"]["binSize"] = 1
     datajson["Params"]["bamCoverage"]["normalizeUsing"] = "CPM"
     datajson["Params"]["bamCoverage"]["extendReads"] = 1
-    datajson["Params"]["STAR"]["alignEndsType"] = "Extend5pOfRead1"
-    datajson["Params"]["STAR"]["outFilterMismatchNoverReadLmax"] = 0.04
-    datajson["Params"]["STAR"]["outFilterMismatchNmax"] = 999
-    datajson["Params"]["STAR"]["outFilterMultimapNmax"] = 999
+    datajson["Params"]["star"]["alignEndsType"] = "Extend5pOfRead1"
+    datajson["Params"]["star"]["outFilterMismatchNoverReadLmax"] = 0.04
+    datajson["Params"]["star"]["outFilterMismatchNmax"] = 999
+    datajson["Params"]["star"]["outFilterMultimapNmax"] = 999
     datajson["Params"]["igv"]["js"] = "/data/pub/zhousha/Reference/igv.min.js"
     datajson["Params"]["igv"]["publicPathMap"] = {
         "/data/pub/zhousha/": "/data/",

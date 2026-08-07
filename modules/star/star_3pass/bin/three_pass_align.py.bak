@@ -3,7 +3,7 @@
 
 Directly executes the alignment pipeline via subprocess:
 
-  1. Whole-genome local alignment (pass 1)
+  1. Whole-genome end-to-end alignment (pass 1)
   2. Small-RNA reference end-to-end alignment (pass 2)
   3. Genome local alignment of pass-2 mapped and unmapped reads (pass 3a/3b)
   4. Merge final BAM and index
@@ -17,73 +17,58 @@ import argparse
 import gzip
 import os
 import shlex
-import shutil
 import subprocess
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
-# =========================================================================
-# 1. STAR 参数中心化配置字典 (数据驱动)
-# 想要增删改 STAR 参数？只需在这里修改，命令行和运行逻辑会自动同步！
-# 值为 None 代表该参数默认不传给 STAR，但允许在命令行中指定。
-# =========================================================================
+# ── Per-pass STAR option assembly ────────────────────────────────────────
 
-PASS1_STAR_DEFAULTS = {
-    "--outFilterMultimapNmax": 1000,
-    "--outFilterMultimapScoreRange": 1,
-    "--outFilterMismatchNoverLmax": 0.2,
-    "--alignIntronMin": 9999999,
-    "--alignEndsType": "Local",
-}
+_PASS_PARAMS = [
+    ("out_filter_multimap_nmax", "--outFilterMultimapNmax", int),
+    ("out_filter_multimap_score_range", "--outFilterMultimapScoreRange", int),
+    ("out_filter_mismatch_nover_lmax", "--outFilterMismatchNoverLmax", float),
+    ("align_intron_min", "--alignIntronMin", int),
+    ("align_mates_gap_max", "--alignMatesGapMax", int),
+    ("align_ends_type", "--alignEndsType", str),
+]
 
-PASS2_STAR_DEFAULTS = {
-    "--outFilterMultimapNmax": 1000,
-    "--outFilterMultimapScoreRange": 0,
-    "--outFilterMismatchNoverLmax": 0.2,
-    "--outFilterMismatchNoverReadLmax": 0.05,
-    "--alignIntronMin": 9999999,
-    "--alignMatesGapMax": 500,
-    "--alignEndsType": "EndToEnd",
-    "--clip5pNbases": '20 0',  # 动态默认值：PE为 '20 0', SE为 '20'
-    "--clip3pNbases": '0 20',  # 动态默认值：PE为 '0 20', SE为 '0'
-}
-
-PASS3_STAR_DEFAULTS = {
-    "--outFilterMultimapNmax": 1000,
-    "--outFilterMultimapScoreRange": 0,
-    "--outFilterMismatchNoverLmax": 0.025,
-    "--alignIntronMin": 9999999,
-    "--alignMatesGapMax": 500,
-    "--alignEndsType": "Local",
-}
-
-STAR_PASS_CONFIGS = {
-    "pass1": PASS1_STAR_DEFAULTS,
-    "pass2": PASS2_STAR_DEFAULTS,
-    "pass3": PASS3_STAR_DEFAULTS,
-}
+_PASS2_PARAMS = [
+    ("out_filter_mismatch_nover_read_lmax", "--outFilterMismatchNoverReadLmax", float),
+    ("clip5p_nbases", "--clip5pNbases", str),
+    ("clip3p_nbases", "--clip3pNbases", str),
+]
 
 
 def _star_pass_options(pass_name: str, paired: bool, args: argparse.Namespace) -> list[str]:
-    """从 argparse.Namespace 中动态提取并组装对应 Pass 的 STAR 运行参数。"""
-    tokens: list[str] = []
-    defaults = STAR_PASS_CONFIGS[pass_name]
-    
-    for star_flag in defaults.keys():
-        stripped_flag = star_flag.lstrip("-")
-        attr_name = f"{pass_name}_{stripped_flag}"
-        val = getattr(args, attr_name)                
+    """Assemble STAR flag tokens for one pass from typed CLI arguments."""
+    opts: dict[str, str] = {}
+
+    for attr, flag, cast in _PASS_PARAMS:
+        val = getattr(args, f"{pass_name}_{attr}")
         if val is not None:
-            tokens.append(star_flag)
-            # 兼容 "20 0" 这种带空格的值，打散为多个 token 传给 subprocess
-            tokens.extend(str(val).split())
-            
-    # 解析万能逃逸通道 extra-args
-    extra_args_str = getattr(args, f"{pass_name}_extra_args")
-    if extra_args_str:
-        tokens.extend(shlex.split(extra_args_str))
-        
+            opts[flag] = str(cast(val))
+
+    if pass_name == "pass2":
+        for attr, flag, cast in _PASS2_PARAMS:
+            val = getattr(args, f"pass2_{attr}")
+            if val is not None:
+                opts[flag] = str(cast(val))
+
+    opts.pop("--outReadsUnmapped", None)
+
+    # clip5p/clip3p defaults depend on paired/SE; apply when user did not
+    # explicitly override (argparse default is None).
+    if pass_name == "pass2":
+        if opts.get("--clip5pNbases") is None:
+            opts["--clip5pNbases"] = "20 0" if paired else "20"
+        if opts.get("--clip3pNbases") is None:
+            opts["--clip3pNbases"] = "0 20" if paired else "0"
+
+    tokens: list[str] = []
+    for flag, value in opts.items():
+        tokens.append(flag)
+        tokens.extend(value.split())
     return tokens
 
 
@@ -98,13 +83,16 @@ def _samtools_fastq_cmds(samtools: str, threads: int, source_bam: str,
              "-0", read1, "-s", "/dev/null", source_bam]]
 
 
-# =========================================================================
-# 2. Pipeline 执行核心
-# =========================================================================
+# ── Command plan ─────────────────────────────────────────────────────────
 
 @dataclass
 class Step:
-    """One executable step in the pipeline."""
+    """One executable step in the pipeline.
+
+    ``cmd`` is the primary command.  If ``pipe_to`` is set, stdout of ``cmd``
+    is piped into ``pipe_to``.  If ``stdout`` is set, stdout of ``cmd`` (or
+    ``pipe_to``) is written to that path instead of the log.
+    """
     cmd: list[str]
     desc: str = ""
     pipe_to: list[str] | None = None
@@ -288,6 +276,8 @@ def build_steps(args: argparse.Namespace, paired: bool) -> list[Step]:
     return steps
 
 
+# ── Execution ────────────────────────────────────────────────────────────
+
 def _run_step(step: Step, log_handle) -> None:
     """Execute one Step, logging the command and output."""
     cmd_str = shlex.join(step.cmd)
@@ -299,6 +289,7 @@ def _run_step(step: Step, log_handle) -> None:
     log_handle.flush()
 
     if step.pipe_to:
+        # Pipeline: cmd | pipe_to
         p1 = subprocess.Popen(step.cmd, stdout=subprocess.PIPE)
         assert p1.stdout is not None
         p2 = subprocess.Popen(step.pipe_to, stdin=p1.stdout,
@@ -314,6 +305,7 @@ def _run_step(step: Step, log_handle) -> None:
         if stderr:
             log_handle.write(stderr.decode("utf-8", errors="replace"))
     elif step.stdout:
+        # Redirect stdout to file
         with open(step.stdout, "wb") as out:
             subprocess.run(step.cmd, stdout=out, stderr=log_handle, check=True)
     else:
@@ -324,48 +316,28 @@ def _run_step(step: Step, log_handle) -> None:
     log_handle.flush()
 
 
-# =========================================================================
-# 3. CLI 参数解析与强校验
-# =========================================================================
+# ── CLI ──────────────────────────────────────────────────────────────────
 
-def valid_existing_file(path_str: str) -> str:
-    """Fail-fast: 校验输入文件是否存在"""
-    if not os.path.isfile(path_str):
-        raise argparse.ArgumentTypeError(f"文件不存在: {path_str}")
-    return path_str
-
-def valid_existing_dir(path_str: str) -> str:
-    """Fail-fast: 校验输入目录是否存在"""
-    if not os.path.isdir(path_str):
-        raise argparse.ArgumentTypeError(f"目录不存在: {path_str}")
-    return path_str
-
-def valid_executable(exe_str: str) -> str:
-    """Fail-fast: 校验工具是否在 PATH 中"""
-    if shutil.which(exe_str) is None:
-        raise argparse.ArgumentTypeError(f"未找到可执行文件: {exe_str}")
-    return exe_str
-
-
-def _add_dynamic_star_args(group: argparse._ArgumentGroup, prefix: str, defaults: dict) -> None:
-    """遍历字典，动态将 STAR 参数注册到 argparse 中"""
-    for star_flag, default_val in defaults.items():
-        stripped_flag = star_flag.lstrip("-")
-        cli_flag = f"--{prefix}-{stripped_flag}"
-        
-        if isinstance(default_val, int):
-            arg_type = int
-        elif isinstance(default_val, float):
-            arg_type = float
-        else:
-            arg_type = str
-            
-        group.add_argument(cli_flag, type=arg_type, default=default_val, 
-                           metavar="VAL", help=f"STAR {star_flag} for {prefix}")
-
-    # 万能逃逸通道
-    group.add_argument(f"--{prefix}-extra-args", type=str, default="",
-                       metavar="STR", help=f"Raw extra STAR args for {prefix} (e.g. '--limitBAMsortRAM 10000')")
+def _add_pass_args(group, prefix: str) -> None:
+    """Add STAR parameters common to all passes for one pass group."""
+    group.add_argument(f"--{prefix}-out-filter-multimap-nmax", type=int,
+                       default=None, metavar="N",
+                       help="STAR --outFilterMultimapNmax")
+    group.add_argument(f"--{prefix}-out-filter-multimap-score-range", type=int,
+                       default=None, metavar="N",
+                       help="STAR --outFilterMultimapScoreRange")
+    group.add_argument(f"--{prefix}-out-filter-mismatch-nover-lmax", type=float,
+                       default=None, metavar="F",
+                       help="STAR --outFilterMismatchNoverLmax")
+    group.add_argument(f"--{prefix}-align-intron-min", type=int,
+                       default=None, metavar="N",
+                       help="STAR --alignIntronMin")
+    group.add_argument(f"--{prefix}-align-mates-gap-max", type=int,
+                       default=None, metavar="N",
+                       help="STAR --alignMatesGapMax")
+    group.add_argument(f"--{prefix}-align-ends-type",
+                       choices=("Local", "EndToEnd"), default=None,
+                       help="STAR --alignEndsType")
 
 
 def parse_args() -> argparse.Namespace:
@@ -375,46 +347,75 @@ def parse_args() -> argparse.Namespace:
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 
-    # ── I/O 参数 (包含防呆校验) ──
-    g_io = parser.add_argument_group("Input/Output parameters")
-    g_io.add_argument("--fastq", nargs="+", type=valid_existing_file, required=True,
-                      help="Input FASTQ file(s)")
-    g_io.add_argument("--genome-index", type=valid_existing_dir, required=True,
-                      help="Whole-genome STAR index directory")
-    g_io.add_argument("--smallrna-index", type=valid_existing_dir, required=True,
-                      help="Small-RNA STAR index directory")
-    g_io.add_argument("--smallrna-bed", type=valid_existing_file, required=True,
-                      help="BED file of small-RNA gene loci")
-    
-    g_io.add_argument("--pass1-bam", required=True)
-    g_io.add_argument("--pass1-fq1", required=True)
-    g_io.add_argument("--pass1-fq2", required=True)
-    g_io.add_argument("--pass2-bam", required=True)
-    g_io.add_argument("--pass2-unmapped1", required=True)
-    g_io.add_argument("--pass2-unmapped2", required=True)
-    g_io.add_argument("--pass3a-bam", required=True)
-    g_io.add_argument("--pass3b-bam", required=True)
-    g_io.add_argument("--bam", required=True, help="Final merged BAM output")
-    g_io.add_argument("--log", required=True, help="Log file path")
+    # I/O
+    parser.add_argument("--fastq", nargs="+", required=True,
+                        help="Input FASTQ file(s)")
+    parser.add_argument("--genome-index", required=True,
+                        help="Whole-genome STAR index directory")
+    parser.add_argument("--smallrna-index", required=True,
+                        help="Small-RNA STAR index directory")
+    parser.add_argument("--smallrna-bed", required=True,
+                        help="BED file of small-RNA gene loci")
+    parser.add_argument("--pass1-bam", required=True)
+    parser.add_argument("--pass1-fq1", required=True)
+    parser.add_argument("--pass1-fq2", required=True)
+    parser.add_argument("--pass2-bam", required=True)
+    parser.add_argument("--pass2-unmapped1", required=True)
+    parser.add_argument("--pass2-unmapped2", required=True)
+    parser.add_argument("--pass3a-bam", required=True)
+    parser.add_argument("--pass3b-bam", required=True)
+    parser.add_argument("--bam", required=True, help="Final merged BAM output")
+    parser.add_argument("--log", required=True, help="Log file path")
 
-    # ── Tools ──
-    g_tools = parser.add_argument_group("Tool binaries & Compute")
-    g_tools.add_argument("--threads", type=int, default=12)
-    g_tools.add_argument("--star", type=valid_executable, default="STAR")
-    g_tools.add_argument("--samtools", type=valid_executable, default="samtools")
-    g_tools.add_argument("--bedtools", type=valid_executable, default="bedtools")
+    # Tool binaries
+    parser.add_argument("--threads", type=int, default=12)
+    parser.add_argument("--star", default="STAR")
+    parser.add_argument("--samtools", default="samtools")
+    parser.add_argument("--bedtools", default="bedtools")
 
-    # ── 动态 STAR 参数 ──
-    for pass_name in ["pass1", "pass2", "pass3"]:
-        group = parser.add_argument_group(f"{pass_name} STAR parameters")
-        _add_dynamic_star_args(group, pass_name, STAR_PASS_CONFIGS[pass_name])
+    # ── Per-pass STAR parameters (literature defaults applied in code) ──
+    g1 = parser.add_argument_group("pass 1 STAR parameters (whole-genome E2E)")
+    _add_pass_args(g1, "pass1")
+    g1.set_defaults(
+        pass1_out_filter_multimap_nmax=1000,
+        pass1_align_intron_min=9999999,
+        pass1_out_filter_multimap_score_range=1,
+        pass1_out_filter_mismatch_nover_lmax=0.2,
+        pass1_align_ends_type = "Local"
+    )
+
+    g2 = parser.add_argument_group("pass 2 STAR parameters (small-RNA E2E)")
+    _add_pass_args(g2, "pass2")
+    g2.add_argument("--pass2-out-filter-mismatch-nover-read-lmax", type=float,
+                    default=0.05, metavar="F",
+                    help="STAR --outFilterMismatchNoverReadLmax")
+    g2.add_argument("--pass2-clip5p-nbases", default=None, metavar="STR",
+                    help="STAR --clip5pNbases (default: '20 0' PE, '20' SE)")
+    g2.add_argument("--pass2-clip3p-nbases", default=None, metavar="STR",
+                    help="STAR --clip3pNbases (default: '0 20' PE, '0' SE)")
+    g2.set_defaults(
+        pass2_out_filter_multimap_nmax=1000,
+        pass2_out_filter_multimap_score_range=0,
+        pass2_out_filter_mismatch_nover_lmax=0.2,
+        pass2_align_intron_min=9999999,
+        pass2_out_filter_mismatch_nover_read_lmax=0.05,
+        pass2_align_mates_gap_max=500,
+        pass2_align_ends_type="EndToEnd",
+    )
+
+    g3 = parser.add_argument_group("pass 3 STAR parameters (genome local)")
+    _add_pass_args(g3, "pass3")
+    g3.set_defaults(
+        pass3_out_filter_multimap_nmax=1000,
+        pass3_out_filter_multimap_score_range=0,
+        pass3_out_filter_mismatch_nover_lmax=0.025,
+        pass3_align_intron_min=9999999,
+        pass3_align_mates_gap_max=500,
+        pass3_align_ends_type="Local",
+    )
 
     return parser.parse_args()
 
-
-# =========================================================================
-# 4. 主程序入口
-# =========================================================================
 
 def main() -> None:
     """Execute the three-pass alignment pipeline."""
@@ -422,13 +423,12 @@ def main() -> None:
     log_path = args.log
     paired = len(args.fastq) == 2
 
-    # 自动创建所有输出文件所在的目录
     for path in (
         args.pass1_bam, args.pass1_fq1, args.pass2_bam,
         args.pass2_unmapped1, args.pass3a_bam, args.pass3b_bam,
         args.bam, log_path,
     ):
-        os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
 
     steps = build_steps(args, paired)
 

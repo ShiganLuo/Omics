@@ -34,12 +34,25 @@
         "fastqc": null
     },
     "Params": {
-        "STAR": {},
+        "star": {
+            "index": {
+                "sjdbOverhang": 100
+            }
+        },
         "star_3pass": {
+            "index": {
+                "genome": {
+                    "sjdbOverhang": 100
+                },
+                "smallrna": {
+                    "sjdbOverhang": 100
+                }
+            },
             "pass1": {
+                "alignEndsType": "Local",
                 "outFilterMultimapNmax": 1000,
                 "alignIntronMin": 9999999,
-                "outFilterMultimapScoreRange": 0,
+                "outFilterMultimapScoreRange": 1,
                 "outFilterMismatchNoverLmax": 0.2
             },
             "pass2": {
@@ -64,25 +77,27 @@
             }
         },
         "star_3pass_gene": {
-            "mode": "strict",
             "ambiguous": "exclude",
             "flank": 50,
-            "hard_clip_5p": 10,
+            "index": {
+                "genomeSAindexNbases": 3
+            },
             "passes": {
                 "pass1": {
-                    "genomeSAindexNbases": 3,
                     "alignEndsType": "Local",
                     "outFilterMultimapNmax": 1000,
-                    "outFilterMultimapScoreRange": 0,
+                    "outFilterMultimapScoreRange": 1,
                     "outFilterMismatchNoverLmax": 0.2,
-                    "alignIntronMin": 9999999,
-                    "alignMatesGapMax": 500
+                    "alignIntronMin": 9999999
                 },
                 "pass2": {
-                    "alignEndsType": "Local",
+                    "alignEndsType": "EndToEnd",
                     "outFilterMultimapNmax": 1000,
                     "outFilterMultimapScoreRange": 0,
                     "outFilterMismatchNoverLmax": 0.2,
+                    "outFilterMismatchNoverReadLmax": 0.05,
+                    "clip5pNbases": "0 0",
+                    "clip3pNbases": "0 0",
                     "alignIntronMin": 9999999,
                     "alignMatesGapMax": 500
                 },
@@ -94,9 +109,6 @@
                     "alignIntronMin": 9999999,
                     "alignMatesGapMax": 500
                 }
-            },
-            "batch": {
-                "enabled": false
             }
         },
         "tailer": {
@@ -124,9 +136,7 @@
                 "ribozyme",
                 "TERC"
             ],
-            "seed": 42,
-            "hard_clip_direction": "5prime",
-            "hard_clip_length": 0
+            "seed": 42
         }
     },
     "genome": {

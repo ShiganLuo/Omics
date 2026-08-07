@@ -13,8 +13,10 @@
         "index_dir": "path/to/star_index_dir"
     },
     "Params": {
-        "STAR": {
-            "sjdbOverhang": 100,
+        "star": {
+            "index": {
+                "sjdbOverhang": 100
+            },
             "alignEndsType": "Local",
             "outFilterMismatchNoverReadLmax": 1.0,
             "outFilterMismatchNmax": 10,

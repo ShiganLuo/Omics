@@ -21,6 +21,8 @@ p2 = passes.get("pass2", {})
 p3 = passes.get("pass3", {})
 ambiguous = params.get("ambiguous", "exclude")
 flank = int(params.get("flank", 50))
+index_params = params.get("index", {})
+genome_sa_index_nbases = int(index_params.get("genomeSAindexNbases", 3))
 tailer_params = config.get("Params", {}).get("tailer", {})
 HELPER = os.path.join(config["ROOT_DIR"], "modules/star/star_3pass/bin/gene_specific_align.py")
 PREPARE_HELPER = os.path.join(config["ROOT_DIR"], "modules/star/star_3pass/bin/prepare_gene_inputs.py")
@@ -82,47 +84,51 @@ rule star_3pg_gene_specific:
                 "--ambiguous", ambiguous,
                 "--flank", str(flank),
             ]
-            # Pass 1 parameters (includes genomeSAindexNbases for genomeGenerate)
-            if "genomeSAindexNbases" in p1:
-                cmd += ["--pass1-genome-sa-index-nbases", str(p1["genomeSAindexNbases"])]
+            # Index parameters (genomeGenerate)
+            cmd += ["--index-genome-sa-index-nbases", str(genome_sa_index_nbases)]
+            # Pass 1 parameters
             if "outFilterMultimapNmax" in p1:
-                cmd += ["--pass1-out-filter-multimap-nmax", str(p1["outFilterMultimapNmax"])]
+                cmd += ["--pass1-outFilterMultimapNmax", str(p1["outFilterMultimapNmax"])]
             if "outFilterMultimapScoreRange" in p1:
-                cmd += ["--pass1-out-filter-multimap-score-range", str(p1["outFilterMultimapScoreRange"])]
+                cmd += ["--pass1-outFilterMultimapScoreRange", str(p1["outFilterMultimapScoreRange"])]
             if "outFilterMismatchNoverLmax" in p1:
-                cmd += ["--pass1-out-filter-mismatch-nover-lmax", str(p1["outFilterMismatchNoverLmax"])]
+                cmd += ["--pass1-outFilterMismatchNoverLmax", str(p1["outFilterMismatchNoverLmax"])]
             if "alignIntronMin" in p1:
-                cmd += ["--pass1-align-intron-min", str(p1["alignIntronMin"])]
+                cmd += ["--pass1-alignIntronMin", str(p1["alignIntronMin"])]
             if "alignMatesGapMax" in p1:
-                cmd += ["--pass1-align-mates-gap-max", str(p1["alignMatesGapMax"])]
-            if "alignEndsType" in p1:
-                cmd += ["--pass1-align-ends-type", str(p1["alignEndsType"])]
+                cmd += ["--pass1-alignMatesGapMax", str(p1["alignMatesGapMax"])]
             # Pass 2 parameters
             if "outFilterMultimapNmax" in p2:
-                cmd += ["--pass2-out-filter-multimap-nmax", str(p2["outFilterMultimapNmax"])]
+                cmd += ["--pass2-outFilterMultimapNmax", str(p2["outFilterMultimapNmax"])]
             if "outFilterMultimapScoreRange" in p2:
-                cmd += ["--pass2-out-filter-multimap-score-range", str(p2["outFilterMultimapScoreRange"])]
+                cmd += ["--pass2-outFilterMultimapScoreRange", str(p2["outFilterMultimapScoreRange"])]
             if "outFilterMismatchNoverLmax" in p2:
-                cmd += ["--pass2-out-filter-mismatch-nover-lmax", str(p2["outFilterMismatchNoverLmax"])]
+                cmd += ["--pass2-outFilterMismatchNoverLmax", str(p2["outFilterMismatchNoverLmax"])]
+            if "outFilterMismatchNoverReadLmax" in p2:
+                cmd += ["--pass2-outFilterMismatchNoverReadLmax", str(p2["outFilterMismatchNoverReadLmax"])]
             if "alignIntronMin" in p2:
-                cmd += ["--pass2-align-intron-min", str(p2["alignIntronMin"])]
+                cmd += ["--pass2-alignIntronMin", str(p2["alignIntronMin"])]
             if "alignMatesGapMax" in p2:
-                cmd += ["--pass2-align-mates-gap-max", str(p2["alignMatesGapMax"])]
+                cmd += ["--pass2-alignMatesGapMax", str(p2["alignMatesGapMax"])]
             if "alignEndsType" in p2:
-                cmd += ["--pass2-align-ends-type", str(p2["alignEndsType"])]
+                cmd += ["--pass2-alignEndsType", str(p2["alignEndsType"])]
+            if "clip5pNbases" in p2:
+                cmd += ["--pass2-clip5pNbases", str(p2["clip5pNbases"])]
+            if "clip3pNbases" in p2:
+                cmd += ["--pass2-clip3pNbases", str(p2["clip3pNbases"])]
             # Pass 3 parameters
             if "outFilterMultimapNmax" in p3:
-                cmd += ["--pass3-out-filter-multimap-nmax", str(p3["outFilterMultimapNmax"])]
+                cmd += ["--pass3-outFilterMultimapNmax", str(p3["outFilterMultimapNmax"])]
             if "outFilterMultimapScoreRange" in p3:
-                cmd += ["--pass3-out-filter-multimap-score-range", str(p3["outFilterMultimapScoreRange"])]
+                cmd += ["--pass3-outFilterMultimapScoreRange", str(p3["outFilterMultimapScoreRange"])]
             if "outFilterMismatchNoverLmax" in p3:
-                cmd += ["--pass3-out-filter-mismatch-nover-lmax", str(p3["outFilterMismatchNoverLmax"])]
+                cmd += ["--pass3-outFilterMismatchNoverLmax", str(p3["outFilterMismatchNoverLmax"])]
             if "alignIntronMin" in p3:
-                cmd += ["--pass3-align-intron-min", str(p3["alignIntronMin"])]
+                cmd += ["--pass3-alignIntronMin", str(p3["alignIntronMin"])]
             if "alignMatesGapMax" in p3:
-                cmd += ["--pass3-align-mates-gap-max", str(p3["alignMatesGapMax"])]
+                cmd += ["--pass3-alignMatesGapMax", str(p3["alignMatesGapMax"])]
             if "alignEndsType" in p3:
-                cmd += ["--pass3-align-ends-type", str(p3["alignEndsType"])]
+                cmd += ["--pass3-alignEndsType", str(p3["alignEndsType"])]
             # Tailer parameters
             if "threshold" in tailer_params:
                 cmd += ["--tailer-threshold", str(int(tailer_params["threshold"]))]

@@ -16,7 +16,7 @@
         "samtools": "samtools"
     },
     "Params": {
-        "STAR": {
+        "star": {
             "outFilterMultimapNmax": 100,
             "outSAMattributes": "All",
             "alignIntronMin": 1,

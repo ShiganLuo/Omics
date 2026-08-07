@@ -70,8 +70,29 @@
     }
   },
   "Params": {
-    "STAR": {},
+    "star": {
+      "index": {
+        "sjdbOverhang": {
+          "type": "int",
+          "required": false
+        }
+      }
+    },
     "star_3pass": {
+      "index": {
+        "genome": {
+          "sjdbOverhang": {
+            "type": "int",
+            "required": false
+          }
+        },
+        "smallrna": {
+          "sjdbOverhang": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
       "pass1": {
         "outFilterMultimapNmax": {
           "type": "int",
@@ -202,16 +223,14 @@
         "type": "int",
         "required": true
       },
-      "hard_clip_5p": {
-        "type": "int",
-        "required": true
+      "index": {
+        "genomeSAindexNbases": {
+          "type": "int",
+          "required": true
+        }
       },
       "passes": {
         "pass1": {
-          "genomeSAindexNbases": {
-            "type": "int",
-            "required": true
-          },
           "alignEndsType": {
             "type": "str",
             "required": true

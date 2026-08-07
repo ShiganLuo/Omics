@@ -161,7 +161,7 @@ elif aligner == "star":
             "outdir": f"{outdir}/genome/whole_genome",
             "logdir": logdir,
             "Procedure": {"STAR": STAR},
-            "Params": {"STAR": {}},
+            "Params": {"star": {"index": config.get("Params", {}).get("star", {}).get("index", {})}},
             "genome": {
                 "fasta": genome_fasta,
                 "gtf": config.get("genome", {}).get("gtf"),
@@ -189,15 +189,15 @@ elif aligner == "star":
             "STAR": STAR
         },
         "Params": {
-            "STAR": {
-                "genomeLoad": config.get("Params", {}).get("STAR", {}).get("genomeLoad") or "LoadAndRemove",
-                "limitBAMsortRAM": config.get("Params", {}).get("STAR", {}).get("limitBAMsortRAM") or 20000000000,
-                "outReadsUnmapped": config.get("Params", {}).get("STAR", {}).get("outReadsUnmapped") or "Fastx",
-                "outFilterMultimapNmax": config.get("Params", {}).get("STAR", {}).get("outFilterMultimapNmax") or 99999,
-                "outFilterMismatchNoverLmax": config.get("Params", {}).get("STAR", {}).get("outFilterMismatchNoverLmax") or 0.1,
-                "outFilterMatchNminOverLread": config.get("Params", {}).get("STAR", {}).get("outFilterMatchNminOverLread") or 0.66,
-                "alignSJoverhangMin": config.get("Params", {}).get("STAR", {}).get("alignSJoverhangMin") or 999,
-                "alignSJDBoverhangMin": config.get("Params", {}).get("STAR", {}).get("alignSJDBoverhangMin") or 999
+            "star": {
+                "genomeLoad": config.get("Params", {}).get("star", {}).get("genomeLoad") or "LoadAndRemove",
+                "limitBAMsortRAM": config.get("Params", {}).get("star", {}).get("limitBAMsortRAM") or 20000000000,
+                "outReadsUnmapped": config.get("Params", {}).get("star", {}).get("outReadsUnmapped") or "Fastx",
+                "outFilterMultimapNmax": config.get("Params", {}).get("star", {}).get("outFilterMultimapNmax") or 99999,
+                "outFilterMismatchNoverLmax": config.get("Params", {}).get("star", {}).get("outFilterMismatchNoverLmax") or 0.1,
+                "outFilterMatchNminOverLread": config.get("Params", {}).get("star", {}).get("outFilterMatchNminOverLread") or 0.66,
+                "alignSJoverhangMin": config.get("Params", {}).get("star", {}).get("alignSJoverhangMin") or 999,
+                "alignSJDBoverhangMin": config.get("Params", {}).get("star", {}).get("alignSJDBoverhangMin") or 999
             }
         },
         "genome": {
@@ -239,7 +239,7 @@ elif aligner == "star_3pass":
             "outdir": f"{outdir}/genome/whole_genome",
             "logdir": f"{logdir}/genome/whole_genome",
             "Procedure": {"STAR": STAR},
-            "Params": {"STAR": {}},
+            "Params": {"star": {"index": config.get("Params", {}).get("star_3pass", {}).get("index", {}).get("genome", {})}},
             "genome": {
                 "fasta": genome_fasta,
                 "gtf": config.get("genome", {}).get("gtf"),
@@ -293,7 +293,7 @@ elif aligner == "star_3pass":
             "outdir": f"{outdir}/genome/smallrna",
             "logdir": f"{logdir}/genome/smallrna",
             "Procedure": {"STAR": STAR},
-            "Params": {"STAR": {}},
+            "Params": {"star": {"index": config.get("Params", {}).get("star_3pass", {}).get("index", {}).get("smallrna", {})}},
             "genome": {
                 "fasta": smallrna_fasta,
                 "gtf": None,
@@ -362,7 +362,7 @@ elif aligner == "star_3pass_gene":
             "outdir": f"{outdir}/genome/whole_genome",
             "logdir": f"{logdir}/genome/whole_genome",
             "Procedure": {"STAR": STAR},
-            "Params": {"STAR": {}},
+            "Params": {"star": {"index": config.get("Params", {}).get("star_3pass", {}).get("index", {}).get("genome", {})}},
             "genome": {
                 "fasta": genome_fasta,
                 "gtf": config.get("genome", {}).get("gtf"),
@@ -419,7 +419,7 @@ elif aligner == "star_3pass_gene":
             "outdir": f"{outdir}/genome/smallrna",
             "logdir": f"{logdir}/genome/smallrna",
             "Procedure": {"STAR": STAR},
-            "Params": {"STAR": {}},
+            "Params": {"star": {"index": config.get("Params", {}).get("star_3pass", {}).get("index", {}).get("smallrna", {})}},
             "genome": {
                 "fasta": smallrna_fasta,
                 "gtf": None,
@@ -432,7 +432,7 @@ elif aligner == "star_3pass_gene":
         use rule star_index from star_smallrna_idx as ncRNAseq_star_index_smallrna
 
     # The branch reuses the canonical three-pass implementation, with the
-    # paper's end-to-end and 10-nt 5' hard-clip adaptation made explicit.
+    # paper's end-to-end adaptation made explicit.
     p3g = config.get("Params", {}).get("star_3pass_gene", {})
     star_3pass_gene_upstream_config = {
         "ROOT_DIR": ROOT_DIR,
@@ -449,8 +449,6 @@ elif aligner == "star_3pass_gene":
         },
         "Params": {
             "star_3pass": config.get("Params", {}).get("star_3pass", {}),
-            "hard_clip_5p": int(p3g.get("hard_clip_5p", 10)),
-            "force_end_to_end": True,
         },
         "genome": {
             "genome_index": star_index_dir,
@@ -464,10 +462,6 @@ elif aligner == "star_3pass_gene":
     use rule star_3p_align from star_3pass_gene_upstream as ncRNAseq_star3pg_upstream_align
 
     # ── Strict post-final-BAM gene-specific local alignment ──────────────
-    if p3g.get("mode", "strict") != "strict":
-        raise ValueError("Only strict star_3pass_gene mode is enabled; batch mode is reserved and disabled")
-    if p3g.get("batch", {}).get("enabled", False):
-        raise ValueError("Batch star_3pass_gene mode is reserved and disabled")
     star_3pass_gene_config = {
         "ROOT_DIR": ROOT_DIR,
         "env": config.get("env", {}),

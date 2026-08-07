@@ -40,7 +40,7 @@
     }
   },
   "Params": {
-    "STAR": {
+    "star": {
       "outFilterMultimapNmax": {
         "type": "int",
         "required": true

@@ -63,7 +63,7 @@ if paired_samples:
 
 # STAR alignment with KARRseq-specific parameters
 star_index_dir = config.get("genome", {}).get("star_index_dir")
-star_params = config.get("Params", {}).get("STAR", {})
+star_params = config.get("Params", {}).get("star", {})
 
 
 def get_alignment_input(wildcards):

@@ -116,7 +116,7 @@ elif aligner_TEtranscripts == 'star':
                 "star": config.get('Procedure',{}).get('star')
             },
             "Params": {
-                "STAR": {
+                "star": {
                     "alignEndsType": config.get('Params',{}).get('STAR_TEtranscripts', {}).get('alignEndsType') or "Local",
                     "outFilterMultimapNmax": config.get('Params',{}).get('STAR_TEtranscripts', {}).get('outFilterMultimapNmax') or 100,
                     "winAnchorMultimapNmax": config.get('Params',{}).get('STAR_TEtranscripts', {}).get('winAnchorMultimapNmax') or 100
@@ -323,7 +323,7 @@ star_config_for_fusion = {
         "STAR": config.get('Procedure',{}).get('STAR')
     },
     "Params": {
-        "STAR": {
+        "star": {
             "outFilterMultimapNmax": config.get('Params',{}).get('STAR_fusion', {}).get('outFilterMultimapNmax') or 1,
             "outFilterMismatchNmax": config.get('Params',{}).get('STAR_fusion', {}).get('outFilterMismatchNmax') or 3,
             "chimSegmentMin": config.get('Params',{}).get('STAR_fusion', {}).get('chimSegmentMin') or 10,

@@ -136,7 +136,7 @@
         "required": true
       }
     },
-    "STAR": {
+    "star": {
       "alignEndsType": {
         "type": "str",
         "required": true

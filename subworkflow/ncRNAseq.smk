@@ -563,3 +563,23 @@ module tailer:
     config: tailer_config
 if aligner != "star_3pass_gene":
     use rule tailer_global from tailer as ncRNAseq_tailer_global
+
+# ── 5. Report ────────────────────────────────────────────────────────────────
+ncRNAseq_report_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "env": config.get("env", {}),
+    "outdir": outdir,
+    "logdir": logdir,
+    "samples": all_samples,
+    "paired_samples": paired_samples,
+    "single_samples": single_samples,
+    "Params": {
+        "report": config.get("Params", {}).get("report", {}),
+    },
+}
+module ncRNAseq_report:
+    snakefile: "../modules/ncRNAseq_report/ncRNAseq_report.smk"
+    config: ncRNAseq_report_config
+logger.info(f"ncRNAseq_report_config: {ncRNAseq_report_config}")
+use rule generate_report from ncRNAseq_report as ncRNAseq_generate_report
+use rule report_result from ncRNAseq_report as ncRNAseq_report_result

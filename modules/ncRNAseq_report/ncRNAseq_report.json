@@ -1,0 +1,18 @@
+{
+    "ROOT_DIR": null,
+    "outdir": null,
+    "logdir": null,
+    "samples": [],
+    "paired_samples": [],
+    "single_samples": [],
+    "Params": {
+        "report": {
+            "title": "ncRNAseq Analysis Report",
+            "subtitle": "",
+            "pipeline": "FASTQ -> Demux/Dedup -> TrimGalore -> STAR 3-pass -> Gene-specific alignment + Tailer -> ncRNAseq_report",
+            "genome": "",
+            "date": "",
+            "lang": "zh"
+        }
+    }
+}

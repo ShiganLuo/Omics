@@ -23,12 +23,10 @@ python ${SCRIPT_DIR}/run.py \
     -o /home/luosg/Data/genomeStability/output \
     -t 48 \
     --log /home/luosg/Data/genomeStability/log/ncRNAseq.log \
-    --rerun-triggers mtime \
     --Procedure.aligner star_3pass_gene \
     --sdm \
     --Params.star_3pass.pass2.clip5pNbases '10 10' \
     --Params.star_3pass.pass2.clip3pNbases '0 0'
-
 # python ${SCRIPT_DIR}/run.py \
 #     -m /data/pub/zhousha/20260207_Exome/data/tRNA/meta.tsv \
 #     -w tRNAseq \

@@ -778,7 +778,7 @@ def parse_args():
         '--rerun-trigger', '--rerun-triggers',
         dest='rerun_trigger',
         nargs='+',
-        default=["input"],
+        default=["code", "input", "mtime", "params", "software-env"],
         choices=["code", "input", "mtime", "params", "software-env"],
         help='snakemake rerun-triggers, e.g. code input mtime params software-env'
     )

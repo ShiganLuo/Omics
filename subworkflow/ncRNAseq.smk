@@ -76,35 +76,41 @@ use rule trimming_Paired from trim_galore as ncRNAseq_trimming_Paired
 use rule trimming_Single from trim_galore as ncRNAseq_trimming_Single
 
 # ── 0.5 Subsample: seqtk subsample for abundant small RNAs ───────────────────
-subsample_config = {
-        "ROOT_DIR": ROOT_DIR,
-        "env": config.get("env", {}),
-        "indir": trim_galore_config["outdir"],
-        "outdir": f"{outdir}/common/2_trimmed_dedup_fastq/trimmed_subsampled_fastq",
-        "logdir": logdir,
-        "paired_samples": paired_samples,
-        "single_samples": single_samples,
-        "Params": {
-            "subsample": {
-                "abund_small_rnas": config.get("Params", {}).get("ncRNAseq", {}).get("abund_small_rnas", []),
-                "subsample_n": config.get("Params", {}).get("ncRNAseq", {}).get("subsample_n", 100000),
-                "subsample_seed": config.get("Params", {}).get("ncRNAseq", {}).get("subsample_seed", 42),
-                "hard_clip_direction": config.get("Params", {}).get("ncRNAseq", {}).get("hard_clip_direction", "5prime"),
-                "hard_clip_length": config.get("Params", {}).get("ncRNAseq", {}).get("hard_clip_length", 0)
-            }
-        },
-    }
-module subsample:
-    snakefile: "../modules/subsample/subsample.smk"
-    config: subsample_config
-logger.info(f"subsample_config: {subsample_config}")
-use rule subsample_fastq from subsample as ncRNAseq_subsample_fastq
-use rule hard_clip from subsample as ncRNAseq_hard_clip
+if not config.get("Params", {}).get("ncRNAseq", {}).get("subsample", False):
+    logger.info("Subsampling is disabled. Skipping subsample step.")
+    final_fastq_outdir = trim_galore_config["outdir"]
+else:
+    logger.info("Subsampling is enabled. Proceeding with subsample step.")
+    subsample_config = {
+            "ROOT_DIR": ROOT_DIR,
+            "env": config.get("env", {}),
+            "indir": trim_galore_config["outdir"],
+            "outdir": f"{outdir}/common/2_trimmed_dedup_fastq/trimmed_subsampled_fastq",
+            "logdir": logdir,
+            "paired_samples": paired_samples,
+            "single_samples": single_samples,
+            "Params": {
+                "subsample": {
+                    "abund_small_rnas": config.get("Params", {}).get("ncRNAseq", {}).get("abund_small_rnas", []),
+                    "subsample_n": config.get("Params", {}).get("ncRNAseq", {}).get("subsample_n", 100000),
+                    "subsample_seed": config.get("Params", {}).get("ncRNAseq", {}).get("subsample_seed", 42),
+                    "hard_clip_direction": config.get("Params", {}).get("ncRNAseq", {}).get("hard_clip_direction", "5prime"),
+                    "hard_clip_length": config.get("Params", {}).get("ncRNAseq", {}).get("hard_clip_length", 0)
+                }
+            },
+        }
+    module subsample:
+        snakefile: "../modules/subsample/subsample.smk"
+        config: subsample_config
+    logger.info(f"subsample_config: {subsample_config}")
+    use rule subsample_fastq from subsample as ncRNAseq_subsample_fastq
+    final_fastq_outdir = subsample_config["outdir"]
+
 
 fastqc_trimmed_config = {
         "ROOT_DIR": ROOT_DIR,
         "env": config.get("env", {}),
-        "indir": trim_galore_config["outdir"],
+        "indir": final_fastq_outdir,
         "outdir":  f"{outdir}/QC/2_trimmed_fastqc",
         "logdir": logdir,
         "paired_samples": paired_samples,
@@ -132,7 +138,7 @@ if aligner == "hisat2":
     hisat2_config = {
         "ROOT_DIR": ROOT_DIR,
         "env": config.get("env", {}),
-        "indir": subsample_config["outdir"],
+        "indir": final_fastq_outdir,
         "outdir": f"{outdir}/common/3_raw_bam",
         "logdir": logdir,
         "paired_samples": paired_samples,
@@ -180,7 +186,7 @@ elif aligner == "star":
     star_config = {
         "ROOT_DIR": ROOT_DIR,
         "env": config.get("env", {}),
-        "indir": subsample_config["outdir"],
+        "indir": final_fastq_outdir,
         "outdir": f"{outdir}/common/3_raw_bam",
         "logdir": logdir,
         "paired_samples": paired_samples,
@@ -312,7 +318,7 @@ elif aligner == "star_3pass":
     star_3pass_config = {
         "ROOT_DIR": ROOT_DIR,
         "env": config.get("env", {}),
-        "indir": subsample_config["outdir"],
+        "indir": final_fastq_outdir,
         "outdir": f"{outdir}/common/3_raw_bam/final_bam",
         "logdir": logdir,
         "paired_samples": paired_samples,
@@ -437,7 +443,7 @@ elif aligner == "star_3pass_gene":
     star_3pass_gene_upstream_config = {
         "ROOT_DIR": ROOT_DIR,
         "env": config.get("env", {}),
-        "indir": subsample_config["outdir"],
+        "indir": final_fastq_outdir,
         "outdir": f"{outdir}/common/3_raw_bam",
         "logdir": logdir,
         "paired_samples": paired_samples,

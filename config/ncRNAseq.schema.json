@@ -181,6 +181,10 @@
       }
     },
     "ncRNAseq": {
+      "subsample": {
+        "type": "bool",
+        "required": true
+      },
       "abund_small_rnas": {
         "type": "list",
         "required": true
@@ -198,14 +202,6 @@
         "required": false
       },
       "seed": {
-        "type": "int",
-        "required": false
-      },
-      "hard_clip_direction": {
-        "type": "str",
-        "required": false
-      },
-      "hard_clip_length": {
         "type": "int",
         "required": false
       }

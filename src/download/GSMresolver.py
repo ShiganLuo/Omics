@@ -1,7 +1,10 @@
 from typing import Dict, List, Optional, Set
 import os
 import sys
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from pathlib import Path
+_SRC_DIR = Path(__file__).resolve().parent.parent
+if str(_SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(_SRC_DIR))
 import csv
 from common.util.SepUtil import detect_delimiter
 import logging
@@ -83,11 +86,11 @@ class GSMResolver:
         """
         Parse GSM IDs from a file path.
 
-        Parsing behavior depends on file extension:
-        - `.csv` / `.tsv`: use `csv.DictReader`, auto-detect delimiter,
-          and read values from the configured ID column.
-        - other extensions: treat as plain text, one ID per non-empty line,
-          skipping comment lines beginning with `#`.
+        Parsing behavior:
+        - If the file has multiple columns (detected via detect_delimiter),
+          use csv.DictReader and read values from the configured ID column.
+        - Otherwise, treat as plain text: one ID per non-empty line,
+          skipping comment lines beginning with ``#``.
 
         Parameters
         ----------
@@ -105,26 +108,30 @@ class GSMResolver:
             If tabular input does not contain the configured ID column.
         """
         gsms: Set[str] = set()
-        ext = os.path.splitext(path)[1].lower()
 
-        if ext in (".csv", ".tsv"):
+        try:
             delimiter = detect_delimiter(path)
+        except ValueError:
+            delimiter = None
+
+        if delimiter:
             with open(path, encoding="utf-8") as f:
                 reader = csv.DictReader(f, delimiter=delimiter)
-                logger.info(f"Reading {path} with delimiter {delimiter}")
                 col = self._find_id_column(reader.fieldnames)
-                if not col:
-                    raise ValueError(f"No column '{self.id_column}' in {path}")
-                for row in reader:
-                    val = row.get(col)
-                    if val:
-                        gsms.add(val.strip())
-        else:
-            with open(path, encoding="utf-8") as f:
-                for line in f:
-                    line = line.strip()
-                    if line and not line.startswith("#"):
-                        gsms.add(line)
+                if col:
+                    logger.info(f"Reading {path} with delimiter {delimiter}")
+                    for row in reader:
+                        val = row.get(col)
+                        if val:
+                            gsms.add(val.strip())
+                    return gsms
+
+        # Fallback: plain text, one ID per line
+        with open(path, encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#"):
+                    gsms.add(line)
 
         return gsms
 

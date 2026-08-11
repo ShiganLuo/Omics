@@ -12,7 +12,16 @@ rule DESeq2_TEcount:
     input:
         count_matrix = indir + "/TEcount/all_TEcount.tsv",
     output:
-        deseq2_results = outdir + "/{control_group_name}_vs_{experimental_group_name}/DESeq2.done",
+        deseq2_results = outdir + "/{contrast}/DESeq2.done",
+        contrast_group = outdir + "/{contrast}/group.tsv",
+        contrast_pca = outdir + "/{contrast}/PCA/{contrast}.cpmPCA.png",
+        contrast_gene_volcano = outdir + "/{contrast}/volcano/{contrast}.TEcount_Gene_volcano.png",
+        contrast_gene_heatmap = outdir + "/{contrast}/heatmap/{contrast}.TEcount_Gene_updown.png",
+        contrast_gene_updown = outdir + "/{contrast}/upDown/{contrast}.TEcount_Gene_updown.tsv",
+        contrast_te_updown = outdir + "/{contrast}/upDown/{contrast}.TEcount_TE_updown.tsv",
+        contrast_gene_te_updown = outdir + "/{contrast}/upDown/{contrast}.TEcount_Gene_TE_updown.tsv",
+        contrast_gene_name = outdir + "/{contrast}/{contrast}.TEcount_Gene.name.tsv",
+        contrast_te_name = outdir + "/{contrast}/{contrast}.TEcount_TE.name.tsv"
     params:
         DESeq2_script = ROOT_DIR + "/modules/DESeq2/bin/DESeq2.r",
         write_group_script = ROOT_DIR + "/modules/DESeq2/bin/write_group_tsv.py",
@@ -27,7 +36,7 @@ rule DESeq2_TEcount:
     container:
         sif("DESeq2.yaml")
     log:
-        logdir + "/DESeq2/{control_group_name}_vs_{experimental_group_name}.log"
+        logdir + "/DESeq2/{contrast}.log"
     run:
         log_path = str(log)
         try:

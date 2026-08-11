@@ -63,7 +63,8 @@ def sif(yaml_filename: str) -> str:
         Path to the ``.sif`` file.
     """
     stem = os.path.splitext(os.path.basename(yaml_filename))[0]
-
+    logger.debug(f"stem:{stem}, yaml_filename: {yaml_filename}")
+    logger.debug(f"_ENV_MAP: {_ENV_MAP}")
     # 1. Explicit mapping in config["env"]
     if stem in _ENV_MAP:
         return _ENV_MAP[stem]

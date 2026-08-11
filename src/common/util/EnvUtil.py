@@ -23,7 +23,7 @@ import argparse
 import subprocess
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
-
+from urllib.parse import urlparse
 try:
     from LogUtil import setup_logger
 except ImportError:
@@ -1739,6 +1739,44 @@ CMD ["bash"]
         return results
 
 
+def is_path_like(value: object) -> bool:
+    if not isinstance(value, str):
+        return False
+
+    value = value.strip()
+    if not value:
+        return False
+
+    # URL 不是本地文件路径
+    parsed = urlparse(value)
+    if parsed.scheme in {"http", "https", "ftp", "s3", "ssh"}:
+        return False
+
+    # 明显包含 shell / pipeline 描述
+    if any(x in value for x in (" -> ", " | ", " && ", " || ")):
+        return False
+
+    path = Path(value)
+
+    # 绝对路径
+    if path.is_absolute():
+        return True
+
+    # 显式相对路径
+    if value.startswith(("./", "../", "~/")):
+        return True
+
+    # 包含路径分隔符
+    if "/" in value:
+        return True
+
+    # Windows 路径（如果需要跨平台）
+    if "\\" in value or (
+        len(value) >= 2 and value[1] == ":"
+    ):
+        return True
+
+    return False
 # ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------

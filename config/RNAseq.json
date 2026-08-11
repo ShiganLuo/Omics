@@ -37,16 +37,33 @@
         "trimmomatic": null
     },
     "genome": {
-        "fasta": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
-        "gtf": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf",
-        "geneIDAnno": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/geneIDAnnotation.csv",
-        "gene_map": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/gene_map.pkl",
-        "TE_gtf": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.gtf",
-        "TEind": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.gtf.locInd",
-        "hisat2_index_prefix": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/hisat2/genome",
-        "star_index_dir": null,
-        "rRNA_fasta": null,
-        "bowtie2_index_prefix_for_rRNA": null
+        "default": "GRCm39",
+        "references": {
+            "GRCm39": {
+                "fasta": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
+                "gtf": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf",
+                "geneIDAnno": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/geneIDAnnotation.csv",
+                "gene_map": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/gene_map.pkl",
+                "TE_gtf": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.gtf",
+                "TEind": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.gtf.locInd",
+                "hisat2_index_prefix": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/hisat2/genome",
+                "star_index_dir": null,
+                "rRNA_fasta": null,
+                "bowtie2_index_prefix_for_rRNA": null
+            },
+            "GRCh38": {
+                "fasta": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa",
+                "gtf": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/gencode.v49.primary_assembly.basic.annotation.gtf",
+                "geneIDAnno": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/geneIDAnnotation.csv",
+                "gene_map": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/gene_map.pkl",
+                "TE_gtf": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/GRCh38_GENCODE_rmsk_TE.gtf",
+                "TEind": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/GRCh38_GENCODE_rmsk_TE.gtf.locInd",
+                "hisat2_index_prefix": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/hisat2/GRCh38",
+                "star_index_dir": null,
+                "rRNA_fasta": null,
+                "bowtie2_index_prefix_for_rRNA": null
+            }
+        }
     },
     "Params": {
         "workflow": {

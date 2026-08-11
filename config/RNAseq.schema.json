@@ -110,50 +110,73 @@
     }
   },
   "genome": {
-    "fasta": {
-      "type": "str",
-      "required": true,
-      "path": "file"
-    },
-    "gtf": {
-      "type": "str",
-      "required": true,
-      "path": "file"
-    },
-    "geneIDAnno": {
-      "type": "str",
-      "required": true,
-      "path": "file"
-    },
-    "TE_gtf": {
-      "type": "str",
-      "required": true,
-      "path": "file"
-    },
-    "TEind": {
-      "type": "str",
-      "required": true,
-      "path": "file"
-    },
-    "hisat2_index_prefix": {
-      "type": "str",
-      "required": true,
-      "path": "prefix"
-    },
-    "star_index_dir": {
-      "type": "str",
-      "required": true,
-      "path": "dir"
-    },
-    "rRNA_fasta": {
-      "type": "null",
-      "nullable": true,
-      "required": false
-    },
-    "bowtie2_index_prefix_for_rRNA": {
-      "type": "null",
-      "nullable": true,
-      "required": false
+    "type": "object",
+    "required": true,
+    "properties": {
+      "default": {
+        "type": "str",
+        "nullable": false,
+        "required": true
+      },
+      "references": {
+        "type": "object",
+        "required": true,
+        "additionalProperties": {
+          "type": "object",
+          "properties": {
+            "fasta": {
+              "type": "str",
+              "nullable": true,
+              "required": false
+            },
+            "gtf": {
+              "type": "str",
+              "nullable": true,
+              "required": false
+            },
+            "geneIDAnno": {
+              "type": "str",
+              "nullable": true,
+              "required": false
+            },
+            "gene_map": {
+              "type": "str",
+              "nullable": true,
+              "required": false
+            },
+            "TE_gtf": {
+              "type": "str",
+              "nullable": true,
+              "required": false
+            },
+            "TEind": {
+              "type": "str",
+              "nullable": true,
+              "required": false
+            },
+            "hisat2_index_prefix": {
+              "type": "str",
+              "nullable": true,
+              "required": false
+            },
+            "star_index_dir": {
+              "type": "str",
+              "nullable": true,
+              "required": false
+            },
+            "rRNA_fasta": {
+              "type": "str",
+              "nullable": true,
+              "required": false
+            },
+            "bowtie2_index_prefix_for_rRNA": {
+              "type": "str",
+              "nullable": true,
+              "required": false
+            }
+          }
+        }
+      }
     }
   },
   "Params": {

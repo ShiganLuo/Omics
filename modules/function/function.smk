@@ -18,16 +18,22 @@ top = func_params.get("top", 10)
 
 rule function_go_kegg:
     input:
-        deseq2_done = indir + "/{control_group_name}_vs_{experimental_group_name}/DESeq2.done",
+        deseq2_done = indir + "/{contrast}/DESeq2.done",
     output:
-        go_png = outdir + "/{control_group_name}_vs_{experimental_group_name}/go_back_to_back.png",
-        kegg_png = outdir + "/{control_group_name}_vs_{experimental_group_name}/kegg_back_to_back.png",
+        func_go_plot = outdir + "/{contrast}/go_back_to_back.png",
+        func_kegg_plot = outdir + "/{contrast}/kegg_back_to_back.png",
+        func_go_up = outdir + "/{contrast}/go_up.csv",
+        func_go_down = outdir + "/{contrast}/go_down.csv",
+        func_kegg_up = outdir + "/{contrast}/kegg_up.csv",
+        func_kegg_down = outdir + "/{contrast}/kegg_down.csv",
+        func_up_genes = outdir + "/{contrast}/up_genes.txt",
+        func_down_genes = outdir + "/{contrast}/down_genes.txt"
     log:
-        logdir + "/function/{control_group_name}_vs_{experimental_group_name}.go_kegg.log"
+        logdir + "/compare/{contrast}.go_kegg.log"
     threads: 1
     params:
-        go_kegg_script = ROOT_DIR + "/modules/function/bin/go-kegg.r",
-        deseq2_result = indir + "/{control_group_name}_vs_{experimental_group_name}/TEcount_Gene.name.tsv",
+        go_kegg_script = ROOT_DIR + "/modules/bin/go-kegg.r",
+        deseq2_result = indir + "/{contrast}/TEcount_Gene.name.tsv",
         species = species,
         lfc_cut = lfc_cut,
         p_cut = p_cut,
@@ -78,21 +84,23 @@ rule function_go_kegg:
                 f.write(" ".join(cmd) + "\n")
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            rule_logger.error(f"Error in GO/KEGG analysis: {e}")
-            raise e
+            with open(log_path, "a") as fh:
+                fh.write(f"GO/KEGG analysis failed: {e}\n")
+            raise f"GO/KEGG analysis failed: {e}\n"
 
 
 rule function_gsea:
     input:
-        deseq2_done = indir + "/{control_group_name}_vs_{experimental_group_name}/DESeq2.done",
+        deseq2_done = indir + "/{contrast}/DESeq2.done",
     output:
-        gsea_png = outdir + "/{control_group_name}_vs_{experimental_group_name}/GSEA/TEcount_Gene_GSEA.jpeg",
+        func_gsea_plot = outdir + "/{contrast}/GSEA/TEcount_Gene_GSEA.jpeg",
+        func_gsea_csv = outdir + "/{contrast}/GSEA/TEcount_Gene_GSEA.csv"
     log:
-        logdir + "/function/{control_group_name}_vs_{experimental_group_name}.gsea.log"
+        logdir + "/compare/{contrast}.gsea.log"
     threads: 1
     params:
-        gsea_script = ROOT_DIR + "/modules/function/bin/gsea.r",
-        deseq2_result = indir + "/{control_group_name}_vs_{experimental_group_name}/TEcount_Gene.tsv",
+        gsea_script = ROOT_DIR + "/modules/bin/gsea.r",
+        deseq2_result = indir + "/{contrast}/TEcount_Gene.tsv",
         annotation = geneIDAnno,
         gmt = gmt,
     conda:
@@ -149,5 +157,6 @@ rule function_gsea:
                 f.write(" ".join(cmd) + "\n")
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            rule_logger.error(f"Error in GSEA analysis: {e}")
-            raise e
+            with open(log_path, "a") as fh:
+                fh.write(f"GSEA analysis failed: {e}\n")
+            raise f"GSEA analysis failed: {e}\n"

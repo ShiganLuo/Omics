@@ -22,7 +22,7 @@ import sys
 import tempfile
 from collections import OrderedDict, defaultdict
 from pathlib import Path
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Optional, Set, Any, Tuple
 
 import matplotlib
 matplotlib.use("Agg")
@@ -36,6 +36,7 @@ from pptx.dml.color import RGBColor
 from pptx.enum.shapes import MSO_SHAPE
 from pptx.enum.text import MSO_ANCHOR, PP_ALIGN
 from pptx.util import Inches, Pt
+import openpyxl
 
 # ── Chinese font support for matplotlib ──────────────────────────────────
 for _font_name in ["WenQuanYi Micro Hei", "WenQuanYi Zen Hei", "Noto Sans CJK SC",
@@ -174,133 +175,199 @@ I18N = {
 
 
 def t(key: str, lang: str) -> str:
+    """Retrieve internationalized text for a given key and language."""
     return I18N.get(lang, I18N["zh"]).get(key, key)
+
+
+def _clean_list(values: List[Optional[Any]], default: Any = 0) -> List[Any]:
+    """Helper: Replace None in a list with a default value (useful for matplotlib)."""
+    return [v if v is not None else default for v in values]
+
+
+def _safe_add(a: Optional[int], b: Optional[int]) -> Optional[int]:
+    """Helper: Safely add two numbers that might be None."""
+    if a is None and b is None:
+        return None
+    return (a or 0) + (b or 0)
+
+
+def _filter_none(values: List[Optional[Any]]) -> List[Any]:
+    """Helper: Filter out None values from a list (useful for min/max/sum)."""
+    return [v for v in values if v is not None]
 
 
 # ══════════════════════════════════════════════════════════════════════════
 # Data collection
 # ══════════════════════════════════════════════════════════════════════════
 
-def count_fastq_reads(path: str) -> int:
-    if not os.path.isfile(path):
-        return 0
-    opener = gzip.open if path.endswith(".gz") else open
-    with opener(path, "rt") as fh:
-        return sum(1 for _ in fh) // 4
+def count_fastq_reads(path: str) -> Optional[int]:
+    """Count reads in a FASTQ file, supporting symbolic links. Returns None if file is missing."""
+    real_path = os.path.realpath(path)
+
+    if not os.path.isfile(real_path):
+        return None
+
+    opener = gzip.open if real_path.endswith(".gz") else open
+    try:
+        with opener(real_path, "rt") as fh:
+            return sum(1 for _ in fh) // 4
+    except Exception:
+        return None
 
 
 def parse_trimming_stats(path: str) -> dict:
-    """Parse trim_galore trimming_statistics_1.txt for adapter% and pairs removed%."""
-    result = {"r1_adapter_pct": 0.0, "r2_adapter_pct": 0.0, "pairs_removed_pct": 0.0}
+    """Parse trim_galore trimming_statistics_1.txt for adapter% and pairs removed%.
+    Returns dictionary with parsed values or None for missing data.
+    """
+    result = {
+        "r1_adapter_counts": None, 
+        "r1_adapter_pct": None,
+        "r2_adapter_counts": None, 
+        "r2_adapter_pct": None,
+        "cutoff_threshold": None,
+        "pairs_removed_counts": None,
+        "pairs_removed_pct": None
+    }
     if not os.path.isfile(path):
         return result
     text = Path(path).read_text(encoding="utf-8", errors="replace")
-    m = re.search(r"Reads with adapters:\s+([\d.]+)\s*\(", text)
+    m = re.search(
+            r"Reads with adapters:\s+([\d.]+)\s*\(([\d.]+)%\)",
+            text
+        )
     if m:
-        result["r1_adapter_pct"] = float(m.group(1))
+        result["r1_adapter_counts"] = float(m.group(1))
+        result["r1_adapter_pct"] = float(m.group(2))
+        
     stat2_path = path.replace("_1.txt", "_2.txt")
     if os.path.isfile(stat2_path):
         text2 = Path(stat2_path).read_text(encoding="utf-8", errors="replace")
-        m2 = re.search(r"Reads with adapters:\s+([\d.]+)\s*\(", text2)
+        m2 = re.search(r"Reads with adapters:\s+([\d.]+)\s*\(([\d.]+)%\)", text2)
         if m2:
-            result["r2_adapter_pct"] = float(m2.group(1))
-        m3 = re.search(r"Number of sequence pairs removed.*?:\s+([\d.]+)\s*\(", text2)
+            result["r2_adapter_counts"] = float(m2.group(1))
+            result["r2_adapter_pct"] = float(m2.group(2))
+        m3 = re.search(r"Number of sequence pairs removed.*?\(\s*(\d+).*?\):\s+(\d+)\s*\(([\d.]+)%\)", text2)
         if m3:
-            result["pairs_removed_pct"] = float(m3.group(1))
+            result["cutoff_threshold"] = f"{m3.group(1)} bp"
+            result["pairs_removed_counts"] = float(m3.group(2))
+            result["pairs_removed_pct"] = float(m3.group(3))
     return result
 
 
 def parse_star_log(path: str) -> dict:
-    """Parse STAR Log.final.out for mapping statistics."""
-    result = {"input_reads": 0, "unique": 0, "unique_pct": 0.0,
-              "multi": 0, "multi_pct": 0.0, "unmapped": 0}
+    """Parse STAR Log.final.out for mapping statistics.
+    Returns numeric counts and percentages, or None if missing.
+    """
+    result = {
+        "star_input_reads": None, 
+        "unique": None, "unique_pct": None,
+        "multi": None, "multi_pct": None, 
+        "unmapped": None, "unmapped_pct": None
+    }
     if not os.path.isfile(path):
         return result
+    
     text = Path(path).read_text(encoding="utf-8", errors="replace")
-    def _grep(pattern: str) -> str:
+    
+    def _grep(pattern: str) -> Optional[int]:
         m = re.search(pattern, text)
-        return m.group(1).strip() if m else "0"
-    result["input_reads"] = int(_grep(r"Number of input reads\s+\|\s+(\d+)"))
-    result["unique"] = int(_grep(r"Uniquely mapped reads number\s+\|\s+(\d+)"))
-    result["unique_pct"] = float(_grep(r"Uniquely mapped reads %\s+\|\s+([\d.]+)"))
-    result["multi"] = int(_grep(r"Number of reads mapped to multiple loci\s+\|\s+(\d+)"))
-    result["multi_pct"] = float(_grep(r"% of reads mapped to multiple loci\s+\|\s+([\d.]+)"))
-    unmapped_short = int(_grep(r"Number of reads unmapped: too short\s+\|\s+(\d+)"))
-    unmapped_mismatch = int(_grep(r"Number of reads unmapped: too many mismatches\s+\|\s+(\d+)"))
-    unmapped_other = int(_grep(r"Number of reads unmapped: other\s+\|\s+(\d+)"))
-    result["unmapped"] = unmapped_short + unmapped_mismatch + unmapped_other
+        return int(m.group(1).strip()) if m else None
+
+    input_reads = _grep(r"Number of input reads\s+\|\s+(\d+)")
+    unique_reads = _grep(r"Uniquely mapped reads number\s+\|\s+(\d+)")
+    multi_reads = _grep(r"Number of reads mapped to multiple loci\s+\|\s+(\d+)")
+    
+    unmapped_short = _grep(r"Number of reads unmapped: too short\s+\|\s+(\d+)") or 0
+    unmapped_mismatch = _grep(r"Number of reads unmapped: too many mismatches\s+\|\s+(\d+)") or 0
+    unmapped_other = _grep(r"Number of reads unmapped: other\s+\|\s+(\d+)") or 0
+    unmapped_reads = unmapped_short + unmapped_mismatch + unmapped_other if input_reads is not None else None
+
+    result["star_input_reads"] = input_reads
+    result["unique"] = unique_reads
+    result["multi"] = multi_reads
+    result["unmapped"] = unmapped_reads
+    
+    if input_reads and input_reads > 0:
+        if unique_reads is not None:
+            result["unique_pct"] = (unique_reads / input_reads) * 100
+        if multi_reads is not None:
+            result["multi_pct"] = (multi_reads / input_reads) * 100
+        if unmapped_reads is not None:
+            result["unmapped_pct"] = (unmapped_reads / input_reads) * 100
+
     return result
 
 
 def load_gene_manifest(path: str) -> pd.DataFrame:
+    """Load per-gene alignment manifest TSV into a DataFrame."""
     if not os.path.isfile(path):
         return pd.DataFrame()
     return pd.read_csv(path, sep="\t")
 
 
 def load_tail_csv(path: str) -> pd.DataFrame:
+    """Load Tailer tail analysis CSV into a DataFrame."""
     if not os.path.isfile(path):
         return pd.DataFrame()
     return pd.read_csv(path, skipinitialspace=True)
 
 
 def collect_sample_data(analysis_dir: str, samples: List[str]) -> List[dict]:
-    """Collect all per-sample statistics."""
+    """Collect all per-sample statistics across the pipeline steps."""
     results = []
     for s in samples:
         d: dict = {"sample": s}
-        # Raw FASTQ
+        # 1. Raw FASTQ
         raw_r1 = os.path.join(analysis_dir, "common", "1_raw_fastq", s, f"{s}_1.fq.gz")
-        d["raw_reads"] = count_fastq_reads(raw_r1)
-        # Dedup reads (jla-demultiplexer output)
-        dedup_r1 = os.path.join(analysis_dir, "common", "2_trimmed_dedup_fastq", "jla-demultiplexer", s, f"{s}_1.fq.gz")
-        d["dedup_reads"] = count_fastq_reads(dedup_r1)
-        # Trimming stats
-        trim_stat = os.path.join(analysis_dir, "common", "2_trimmed_dedup_fastq", "final_trimmed_fastq", s, "trimming_statistics_1.txt")
-        d.update(parse_trimming_stats(trim_stat))
+        raw_r2 = os.path.join(analysis_dir, "common", "1_raw_fastq", s, f"{s}_2.fq.gz")
+        d["raw_reads"] = _safe_add(count_fastq_reads(raw_r1), count_fastq_reads(raw_r2))
+        
+        # 2. Dedup reads (jla-demultiplexer output)
+        dedup_r1 = os.path.join(analysis_dir, "common", "2_trimmed_dedup_fastq", "final_trimmed_fastq", s, f"{s}_1.fq.gz")
+        dedup_r2 = os.path.join(analysis_dir, "common", "2_trimmed_dedup_fastq", "final_trimmed_fastq", s, f"{s}_2.fq.gz")
+        d["dedup_reads"] = _safe_add(count_fastq_reads(dedup_r1), count_fastq_reads(dedup_r2))
+        
+        # 3. Trimming stats & Trimmed reads
+        trim_stat_r1 = os.path.join(analysis_dir, "common", "2_trimmed_dedup_fastq", "final_trimmed_fastq", s, "trimming_statistics_1.txt")
+        d.update(parse_trimming_stats(trim_stat_r1))
+        
         trimmed_r1 = os.path.join(analysis_dir, "common", "2_trimmed_dedup_fastq", "final_trimmed_fastq", s, f"{s}_1.fq.gz")
-        d["trimmed_reads"] = count_fastq_reads(trimmed_r1)
-        # STAR log
+        trimmed_r2 = os.path.join(analysis_dir, "common", "2_trimmed_dedup_fastq", "final_trimmed_fastq", s, f"{s}_2.fq.gz")
+        d["trimmed_reads"] = _safe_add(count_fastq_reads(trimmed_r1), count_fastq_reads(trimmed_r2))
+        
+        # 4. STAR log
         star_log = os.path.join(analysis_dir, "common", "3_raw_bam", s, "star.Log.final.out")
         d.update(parse_star_log(star_log))
-        # Final BAM (pass3a + pass3b)
-        bam_dir = os.path.join(analysis_dir, "common", "3_raw_bam", s)
-        d["final_bam_reads"] = 0
-        for suffix in ["pass3a", "pass3b"]:
-            bam_path = os.path.join(bam_dir, f"{s}_{suffix}.bam")
-            if os.path.isfile(bam_path):
-                try:
-                    import subprocess
-                    r = subprocess.run(["samtools", "view", "-c", bam_path],
-                                       capture_output=True, text=True, timeout=30)
-                    d["final_bam_reads"] += int(r.stdout.strip()) if r.returncode == 0 else 0
-                except Exception:
-                    pass
-        # Gene-specific
+
+        # 5. Final BAM reads (star_3pass output bam)
         gene_dir = os.path.join(analysis_dir, "common", "4_per_gene_bam", s)
+        final_bam_file = os.path.join(gene_dir, f"{s}.bam")
+        d["final_bam_reads"] = None
+        if os.path.exists(final_bam_file):
+            try:
+                import subprocess
+                r = subprocess.run(["samtools", "view", "-c", final_bam_file],
+                                   capture_output=True, text=True, timeout=30)
+                if r.returncode == 0:
+                    d["final_bam_reads"] = int(r.stdout.strip())
+            except Exception:
+                pass
+                
+        # 6. Gene manifest
         manifest_path = os.path.join(gene_dir, "genes.tsv")
         manifest = load_gene_manifest(manifest_path)
-        d["n_genes"] = len(manifest)
-        d["total_assigned"] = int(manifest["assigned_records"].sum()) if not manifest.empty and "assigned_records" in manifest.columns else 0
+        d["n_genes"] = len(manifest) if not manifest.empty else 0
         if not manifest.empty and "assigned_records" in manifest.columns:
+            d["total_assigned"] = int(manifest["assigned_records"].sum())
             top_row = manifest.sort_values("assigned_records", ascending=False).iloc[0]
             d["top_gene"] = str(top_row["gene_id"])
             d["top_gene_reads"] = int(top_row["assigned_records"])
         else:
-            d["top_gene"] = ""
-            d["top_gene_reads"] = 0
-        # Gene BAM
-        gene_bam = os.path.join(gene_dir, f"{s}.bam")
-        d["gene_bam_reads"] = 0
-        if os.path.isfile(gene_bam):
-            try:
-                import subprocess
-                r = subprocess.run(["samtools", "view", "-c", gene_bam],
-                                   capture_output=True, text=True, timeout=30)
-                d["gene_bam_reads"] = int(r.stdout.strip()) if r.returncode == 0 else 0
-            except Exception:
-                pass
-        # Tail CSV
+            d["total_assigned"] = None
+            d["top_gene"] = None
+            d["top_gene_reads"] = None
+            
+        # 7. Tail CSV
         tail_csv = os.path.join(gene_dir, f"{s}_tail.csv")
         tail_df = load_tail_csv(tail_csv)
         if not tail_df.empty:
@@ -316,20 +383,21 @@ def collect_sample_data(analysis_dir: str, samples: List[str]) -> List[dict]:
             d["tail_lengths"] = tail_with["Tail_Length"].tolist()
             d["tail_counts"] = tail_with["Count"].tolist()
         else:
-            d["total_tail_reads"] = 0
-            d["with_tail"] = 0
-            d["without_tail"] = 0
-            d["upstream"] = 0
-            d["at_end"] = 0
-            d["downstream"] = 0
+            d["total_tail_reads"] = None
+            d["with_tail"] = None
+            d["without_tail"] = None
+            d["upstream"] = None
+            d["at_end"] = None
+            d["downstream"] = None
             d["tail_lengths"] = []
             d["tail_counts"] = []
+            
         results.append(d)
     return results
 
 
 def infer_group(sample: str) -> str:
-    """Infer group label from sample name (7sl / U1 / other)."""
+    """Infer group label from sample name (e.g. 7sl / U1 / other)."""
     lower = sample.lower()
     if "7sl" in lower:
         return "7SL"
@@ -343,6 +411,7 @@ def infer_group(sample: str) -> str:
 # ══════════════════════════════════════════════════════════════════════════
 
 class TempImageStore:
+    """Stores temporary plot images, copying to optional static dir if specified."""
     def __init__(self, img_dir: str = ""):
         self.img_dir = img_dir
         self.paths: list[str] = []
@@ -350,6 +419,7 @@ class TempImageStore:
             os.makedirs(self.img_dir, exist_ok=True)
 
     def save_fig(self, fig, stem: str) -> str:
+        """Saves a matplotlib figure and returns the path."""
         fd, tmp_path = tempfile.mkstemp(prefix=f"{stem}_", suffix=".png")
         os.close(fd)
         fig.savefig(tmp_path, dpi=DPI, bbox_inches="tight")
@@ -362,6 +432,7 @@ class TempImageStore:
         return tmp_path
 
     def cleanup(self):
+        """Cleans up temporal files."""
         for path in self.paths:
             if os.path.exists(path):
                 os.unlink(path)
@@ -435,7 +506,8 @@ def _table(slide, left, top, width, height, data, font_size=10):
     for r, row in enumerate(data):
         for c, value in enumerate(row):
             cell = tbl.cell(r, c)
-            cell.text = str(value)
+            # Make sure None translates to an empty string in table
+            cell.text = str(value) if value is not None else ""
             cell.vertical_anchor = MSO_ANCHOR.MIDDLE
             if r == 0:
                 cell.fill.solid()
@@ -455,7 +527,7 @@ def _table(slide, left, top, width, height, data, font_size=10):
 
 
 def _short_name(sample: str) -> str:
-    """Shorten sample name for display."""
+    """Shorten sample name for display (e.g. removing common IP prefixes)."""
     return sample.replace("IP_srp54_control_", "")
 
 
@@ -464,17 +536,16 @@ def _short_name(sample: str) -> str:
 # ══════════════════════════════════════════════════════════════════════════
 
 def plot_read_flow(samples_data: list[dict], img_store: TempImageStore) -> str:
+    """Generate Read Flow bar chart across raw/dedup/trim/STAR levels."""
     names = [_short_name(d["sample"]) for d in samples_data]
     groups = [infer_group(d["sample"]) for d in samples_data]
-    colors = [P_7SL if g == "7SL" else P_U1 if g == "U1" else P_CORAL for g in groups]
     fig, ax = plt.subplots(figsize=(8.5, 4.0))
     x = np.arange(len(names))
     w = 0.15
-    ax.bar(x - 2*w, [d["raw_reads"] for d in samples_data], w, label="Raw", color="#A8DADC")
-    ax.bar(x - w, [d["dedup_reads"] for d in samples_data], w, label="Post-dedup", color=P_7SL)
-    ax.bar(x, [d["trimmed_reads"] for d in samples_data], w, label="Post-trim", color=P_U1)
-    ax.bar(x + w, [d["final_bam_reads"] for d in samples_data], w, label="STAR 3-pass BAM", color=P_CORAL)
-    ax.bar(x + 2*w, [d["gene_bam_reads"] for d in samples_data], w, label="Gene-specific BAM", color=P_NAVY)
+    ax.bar(x - 2*w, _clean_list([d.get("raw_reads") for d in samples_data]), w, label="Raw", color="#A8DADC")
+    ax.bar(x - w, _clean_list([d.get("dedup_reads") for d in samples_data]), w, label="Post-dedup", color=P_7SL)
+    ax.bar(x, _clean_list([d.get("trimmed_reads") for d in samples_data]), w, label="Post-trim", color=P_U1)
+    ax.bar(x + w, _clean_list([d.get("final_bam_reads") for d in samples_data]), w, label="STAR 3-pass BAM", color=P_CORAL)
     ax.set_ylabel("Read count", fontsize=11)
     ax.set_xticks(x)
     ax.set_xticklabels(names, fontsize=8, rotation=30, ha="right")
@@ -493,14 +564,15 @@ def plot_read_flow(samples_data: list[dict], img_store: TempImageStore) -> str:
 
 
 def plot_trimming(samples_data: list[dict], img_store: TempImageStore) -> str:
+    """Generate Trimming and adapter statistics bar chart."""
     names = [_short_name(d["sample"]) for d in samples_data]
     groups = [infer_group(d["sample"]) for d in samples_data]
     fig, ax = plt.subplots(figsize=(8.5, 4.0))
     x = np.arange(len(names))
     w = 0.25
-    ax.bar(x - w, [d["r1_adapter_pct"] for d in samples_data], w, label="R1 adapter %", color=P_7SL)
-    ax.bar(x, [d["r2_adapter_pct"] for d in samples_data], w, label="R2 adapter %", color=P_U1)
-    ax.bar(x + w, [d["pairs_removed_pct"] for d in samples_data], w, label="Pairs removed %", color=P_CORAL)
+    ax.bar(x - w, _clean_list([d.get("r1_adapter_pct") for d in samples_data]), w, label="R1 adapter %", color=P_7SL)
+    ax.bar(x, _clean_list([d.get("r2_adapter_pct") for d in samples_data]), w, label="R2 adapter %", color=P_U1)
+    ax.bar(x + w, _clean_list([d.get("pairs_removed_pct") for d in samples_data]), w, label="Pairs removed %", color=P_CORAL)
     ax.set_ylabel("Percentage (%)", fontsize=11)
     ax.set_xticks(x)
     ax.set_xticklabels(names, fontsize=8, rotation=30, ha="right")
@@ -517,13 +589,13 @@ def plot_trimming(samples_data: list[dict], img_store: TempImageStore) -> str:
 
 
 def plot_star_mapping(samples_data: list[dict], img_store: TempImageStore) -> str:
+    """Generate STAR final alignment stats and mapping ratio breakdown chart."""
     names = [_short_name(d["sample"]) for d in samples_data]
-    groups = [infer_group(d["sample"]) for d in samples_data]
     fig, axes = plt.subplots(1, 2, figsize=(9, 4.0))
-    # Left: pass3a + pass3b stacked (final_bam_reads is the sum)
+    # Left: final_bam_reads
     ax = axes[0]
     x = np.arange(len(names))
-    ax.bar(x, [d["final_bam_reads"] for d in samples_data], 0.5, color=P_7SL, label="Total mapped")
+    ax.bar(x, _clean_list([d.get("final_bam_reads") for d in samples_data]), 0.5, color=P_7SL, label="Total mapped")
     ax.set_title("STAR 3-pass Final BAM", fontsize=12, fontweight="bold")
     ax.set_xticks(x)
     ax.set_xticklabels(names, fontsize=7, rotation=30, ha="right")
@@ -532,11 +604,11 @@ def plot_star_mapping(samples_data: list[dict], img_store: TempImageStore) -> st
     ax.set_axisbelow(True)
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
-    # Right: pass1 mapping breakdown
+    # Right: mapping breakdown
     ax = axes[1]
-    unique = [d["unique"] for d in samples_data]
-    multi = [d["multi"] for d in samples_data]
-    unmapped = [d["unmapped"] for d in samples_data]
+    unique = _clean_list([d.get("unique") for d in samples_data])
+    multi = _clean_list([d.get("multi") for d in samples_data])
+    unmapped = _clean_list([d.get("unmapped") for d in samples_data])
     ax.bar(x, unique, 0.5, label="Unique", color=P_7SL)
     ax.bar(x, multi, 0.5, bottom=unique, label="Multi", color=P_U1)
     ax.bar(x, unmapped, 0.5, bottom=[u+m for u, m in zip(unique, multi)], label="Unmapped", color=P_CORAL)
@@ -554,7 +626,7 @@ def plot_star_mapping(samples_data: list[dict], img_store: TempImageStore) -> st
 
 
 def plot_gene_assignments(samples_data: list[dict], analysis_dir: str, img_store: TempImageStore) -> str:
-    """Stacked bar chart of per-gene read assignments, split by group."""
+    """Generate Stacked bar chart of per-gene read assignments, split by group."""
     groups_data: dict[str, dict[str, list[int]]] = defaultdict(lambda: defaultdict(list))
     sample_labels: dict[str, list[str]] = defaultdict(list)
     for d in samples_data:
@@ -601,13 +673,14 @@ def plot_gene_assignments(samples_data: list[dict], analysis_dir: str, img_store
 
 
 def plot_tail_summary(samples_data: list[dict], img_store: TempImageStore) -> str:
+    """Generate Stacked bar chart for reads with/without non-template tails."""
     names = [_short_name(d["sample"]) for d in samples_data]
     groups = [infer_group(d["sample"]) for d in samples_data]
     fig, ax = plt.subplots(figsize=(8.5, 4.0))
     x = np.arange(len(names))
     w = 0.5
-    without = [d["without_tail"] for d in samples_data]
-    with_tail = [d["with_tail"] for d in samples_data]
+    without = _clean_list([d.get("without_tail") for d in samples_data])
+    with_tail = _clean_list([d.get("with_tail") for d in samples_data])
     ax.bar(x, without, w, label="No tail (tail=0)", color=P_7SL)
     ax.bar(x, with_tail, w, bottom=without, label="With tail (tail>0)", color=P_CORAL)
     ax.set_ylabel("Read count", fontsize=11)
@@ -623,7 +696,7 @@ def plot_tail_summary(samples_data: list[dict], img_store: TempImageStore) -> st
             ax.axvline(x=i - 0.5, color="#999999", linewidth=1, linestyle="--", alpha=0.5)
     # Percentage labels
     for i, d in enumerate(samples_data):
-        total = d["total_tail_reads"]
+        total = d.get("total_tail_reads") or 0
         if total > 0:
             pct = d["with_tail"] / total * 100
             ax.text(i, without[i] + with_tail[i] + max(without) * 0.02,
@@ -633,11 +706,13 @@ def plot_tail_summary(samples_data: list[dict], img_store: TempImageStore) -> st
 
 
 def plot_tail_length(samples_data: list[dict], img_store: TempImageStore) -> str:
-    """Tail length distribution, split by group."""
+    """Generate Tail length distribution chart, split by sample groups."""
     groups_data: dict[str, dict[int, int]] = defaultdict(lambda: defaultdict(int))
     for d in samples_data:
         g = infer_group(d["sample"])
-        for tl, cnt in zip(d["tail_lengths"], d["tail_counts"]):
+        lengths = d.get("tail_lengths") or []
+        counts = d.get("tail_counts") or []
+        for tl, cnt in zip(lengths, counts):
             groups_data[g][tl] += cnt
 
     n_groups = len(groups_data) if groups_data else 1
@@ -665,14 +740,15 @@ def plot_tail_length(samples_data: list[dict], img_store: TempImageStore) -> str
 
 
 def plot_end_position(samples_data: list[dict], img_store: TempImageStore) -> str:
+    """Generate chart tracking the 3' end positional deviation (upstream, at_end, downstream)."""
     names = [_short_name(d["sample"]) for d in samples_data]
     groups = [infer_group(d["sample"]) for d in samples_data]
     fig, ax = plt.subplots(figsize=(8.5, 4.0))
     x = np.arange(len(names))
     w = 0.5
-    upstream = [d["upstream"] for d in samples_data]
-    at_end = [d["at_end"] for d in samples_data]
-    downstream = [d["downstream"] for d in samples_data]
+    upstream = _clean_list([d.get("upstream") for d in samples_data])
+    at_end = _clean_list([d.get("at_end") for d in samples_data])
+    downstream = _clean_list([d.get("downstream") for d in samples_data])
     ax.bar(x, upstream, w, label="Upstream (<0)", color=P_7SL)
     ax.bar(x, at_end, w, bottom=upstream, label="At end (0)", color="#5EEAD4")
     ax.bar(x, downstream, w, bottom=[u+a for u, a in zip(upstream, at_end)], label="Downstream (>0)", color=P_CORAL)
@@ -775,15 +851,23 @@ def build_read_flow_slide(prs: Presentation, samples_data: list[dict], img_store
     _header(slide, t("read_flow", lang))
     img = plot_read_flow(samples_data, img_store)
     _add_picture(slide, img, 0.3, 0.9, 6.3, 3.6)
-    # Sidebar stats
+    
     _textbox(slide, 6.8, 0.9, 3.0, 0.3, t("notes", lang), font_size=13, bold=True, color=C_NAVY)
     notes = []
-    if samples_data:
-        notes.append(f"Raw: {min(d['raw_reads'] for d in samples_data):,}–{max(d['raw_reads'] for d in samples_data):,}")
-        notes.append(f"Post-dedup: ~{min(d['dedup_reads'] for d in samples_data):,}–{max(d['dedup_reads'] for d in samples_data):,}")
-        notes.append(f"Post-trim: {min(d['trimmed_reads'] for d in samples_data):,}–{max(d['trimmed_reads'] for d in samples_data):,}")
-        notes.append(f"STAR BAM: {min(d['final_bam_reads'] for d in samples_data):,}–{max(d['final_bam_reads'] for d in samples_data):,}")
-        notes.append(f"Gene BAM: {min(d['gene_bam_reads'] for d in samples_data):,}–{max(d['gene_bam_reads'] for d in samples_data):,}")
+    
+    raw = _filter_none([d.get("raw_reads") for d in samples_data])
+    dedup = _filter_none([d.get("dedup_reads") for d in samples_data])
+    trim = _filter_none([d.get("trimmed_reads") for d in samples_data])
+    fbam = _filter_none([d.get("final_bam_reads") for d in samples_data])
+    
+    if raw:
+        notes.append(f"Raw: {min(raw):,}–{max(raw):,}")
+    if dedup:
+        notes.append(f"Post-dedup: {min(dedup):,}–{max(dedup):,}")
+    if trim:
+        notes.append(f"Post-trim: {min(trim):,}–{max(trim):,}")
+    if fbam:
+        notes.append(f"STAR BAM: {min(fbam):,}–{max(fbam):,}")
     _bullets(slide, 6.9, 1.2, 2.9, 3.3, notes, font_size=10)
 
 
@@ -795,12 +879,17 @@ def build_trimming_slide(prs: Presentation, samples_data: list[dict], img_store:
     img = plot_trimming(samples_data, img_store)
     _add_picture(slide, img, 0.3, 0.9, 6.3, 3.6)
     _textbox(slide, 6.8, 0.9, 3.0, 0.3, t("notes", lang), font_size=13, bold=True, color=C_NAVY)
+    
+    r1 = _filter_none([d.get("r1_adapter_pct") for d in samples_data])
+    r2 = _filter_none([d.get("r2_adapter_pct") for d in samples_data])
+    pr = _filter_none([d.get("pairs_removed_pct") for d in samples_data])
+    
     notes = []
-    if samples_data:
-        notes.append(f"R1 adapter: {min(d['r1_adapter_pct'] for d in samples_data):.1f}–{max(d['r1_adapter_pct'] for d in samples_data):.1f}%")
-        notes.append(f"R2 adapter: {min(d['r2_adapter_pct'] for d in samples_data):.1f}–{max(d['r2_adapter_pct'] for d in samples_data):.1f}%")
-        notes.append(f"Pairs removed: {min(d['pairs_removed_pct'] for d in samples_data):.1f}–{max(d['pairs_removed_pct'] for d in samples_data):.1f}%")
-        notes.append("R2 adapter content higher than R1" if lang == "zh" else "R2 adapter content higher than R1")
+    if r1: notes.append(f"R1 adapter: {min(r1):.1f}–{max(r1):.1f}%")
+    if r2: notes.append(f"R2 adapter: {min(r2):.1f}–{max(r2):.1f}%")
+    if pr: notes.append(f"Pairs removed: {min(pr):.1f}–{max(pr):.1f}%")
+    
+    notes.append("R2 adapter content higher than R1" if lang == "zh" else "R2 adapter content higher than R1")
     _bullets(slide, 6.9, 1.2, 2.9, 3.3, notes, font_size=10)
 
 
@@ -823,7 +912,7 @@ def build_gene_slide(prs: Presentation, samples_data: list[dict], analysis_dir: 
     # Data table
     rows = [[t("sample", lang), t("genes", lang), t("total_assigned", lang), t("top_gene", lang), t("top_reads", lang)]]
     for d in samples_data:
-        rows.append([_short_name(d["sample"]), d["n_genes"], d["total_assigned"], d["top_gene"], d["top_gene_reads"]])
+        rows.append([_short_name(d["sample"]), d.get("n_genes"), d.get("total_assigned"), d.get("top_gene"), d.get("top_gene_reads")])
     _table(slide, 1.5, 3.8, 7.0, 0.2 * len(rows), rows, font_size=9)
 
 
@@ -849,8 +938,8 @@ def build_tail_length_slide(prs: Presentation, samples_data: list[dict], img_sto
     groups_data: dict[str, dict] = defaultdict(lambda: {"total": 0, "with_tail": 0})
     for d in samples_data:
         g = infer_group(d["sample"])
-        groups_data[g]["total"] += d["total_tail_reads"]
-        groups_data[g]["with_tail"] += d["with_tail"]
+        groups_data[g]["total"] += (d.get("total_tail_reads") or 0)
+        groups_data[g]["with_tail"] += (d.get("with_tail") or 0)
     notes = []
     for g in sorted(groups_data.keys()):
         s = groups_data[g]
@@ -868,27 +957,26 @@ def build_conclusion_slide(prs: Presentation, samples_data: list[dict], lang: st
     slide.background.fill.fore_color.rgb = C_NAVY
     _textbox(slide, 0.8, 0.75, 4.0, 0.5, t("conclusion", lang), font_size=28, bold=True, color=C_WHITE)
     bullets = []
+    
+    raw_total = sum(_filter_none([d.get("raw_reads") for d in samples_data]))
+    dedup_total = sum(_filter_none([d.get("dedup_reads") for d in samples_data]))
+    total_assigned = sum(_filter_none([d.get("total_assigned") for d in samples_data]))
+    total_with_tail = sum(_filter_none([d.get("with_tail") for d in samples_data]))
+    total_tail = sum(_filter_none([d.get("total_tail_reads") for d in samples_data]))
+
     if samples_data:
         n = len(samples_data)
         bullets.append(
             f"共 {n} 个样本完成全流程分析。" if lang == "zh" else f"{n} samples completed the full pipeline."
         )
-        # Dedup reduction
-        raw_total = sum(d["raw_reads"] for d in samples_data)
-        dedup_total = sum(d["dedup_reads"] for d in samples_data)
         if raw_total > 0:
             reduction = (1 - dedup_total / raw_total) * 100
             bullets.append(
                 f"去重后 reads 减少 {reduction:.1f}%。" if lang == "zh" else f"Dedup reduced reads by {reduction:.1f}%."
             )
-        # Gene assignment
-        total_assigned = sum(d["total_assigned"] for d in samples_data)
         bullets.append(
             f"基因特异性比对共分配 {total_assigned:,} 条 reads。" if lang == "zh" else f"Gene-specific alignment assigned {total_assigned:,} reads total."
         )
-        # Tail
-        total_with_tail = sum(d["with_tail"] for d in samples_data)
-        total_tail = sum(d["total_tail_reads"] for d in samples_data)
         if total_tail > 0:
             pct = total_with_tail / total_tail * 100
             bullets.append(
@@ -901,8 +989,8 @@ def build_conclusion_slide(prs: Presentation, samples_data: list[dict], lang: st
     # Stat cards
     cards = [
         (t("sample", lang), str(len(samples_data))),
-        (t("total_assigned", lang), str(sum(d["total_assigned"] for d in samples_data))),
-        (t("with_tail", lang), str(sum(d["with_tail"] for d in samples_data))),
+        (t("total_assigned", lang), str(total_assigned)),
+        (t("with_tail", lang), str(total_with_tail)),
     ]
     x0 = 0.8
     for i, (label, value) in enumerate(cards):
@@ -937,8 +1025,9 @@ def build_conclusion_slide(prs: Presentation, samples_data: list[dict], lang: st
 def write_file_inventory(output_path: str, analysis_dir: str, samples: List[str],
                          paired_samples: List[str], single_samples: List[str],
                          samples_data: List[dict]) -> None:
-    import openpyxl
-
+    """Generate Excel inventory containing run parameters, sample QC metrics and optional manifest details.
+    Missing/None values are output as empty strings, while percentages are rendered with openpyxl '0.00%' format.
+    """
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "Overview"
@@ -958,15 +1047,37 @@ def write_file_inventory(output_path: str, analysis_dir: str, samples: List[str]
 
     # Sample stats sheet
     ws_stats = wb.create_sheet("Sample_Stats")
-    stat_cols = ["sample", "raw_reads", "dedup_reads", "trimmed_reads",
-                 "r1_adapter_pct", "r2_adapter_pct", "pairs_removed_pct",
-                 "star_input_reads", "unique", "multi", "unmapped",
-                 "final_bam_reads", "n_genes", "total_assigned", "top_gene",
-                 "top_gene_reads", "gene_bam_reads", "total_tail_reads",
-                 "with_tail", "without_tail", "upstream", "at_end", "downstream"]
+    stat_cols = [
+            "sample", "raw_reads", "dedup_reads", "trimmed_reads",
+            "r1_adapter_counts", "r1_adapter_pct",     
+            "r2_adapter_counts", "r2_adapter_pct",     
+            "cutoff_threshold",  
+            "pairs_removed_counts", "pairs_removed_pct", 
+            "star_input_reads", "unique", "multi", "unmapped",
+            "unique_pct", "multi_pct", "unmapped_pct",
+            "final_bam_reads", "n_genes", "total_assigned", "top_gene",
+            "top_gene_reads", "total_tail_reads",
+            "with_tail", "without_tail", "upstream", "at_end", "downstream"
+        ]
+    
+    # Write Header
     ws_stats.append(stat_cols)
-    for d in samples_data:
-        ws_stats.append([d.get(c, "") for c in stat_cols])
+    
+    # Write Data Rows
+    for r_idx, d in enumerate(samples_data, start=2): # Header is row 1
+        for c_idx, c in enumerate(stat_cols, start=1):
+            val = d.get(c)
+            cell = ws_stats.cell(row=r_idx, column=c_idx)
+            
+            if val is None:
+                cell.value = ""
+            elif c.endswith("_pct") and isinstance(val, (int, float)):
+                # Store pure float divided by 100 and apply openpyxl percentage formatting
+                cell.value = val / 100.0
+                cell.number_format = '0.00%'
+            else:
+                cell.value = val
+
     for i, col in enumerate(stat_cols, 1):
         ws_stats.column_dimensions[openpyxl.utils.get_column_letter(i)].width = min(max(len(col) + 2, 12), 30)
 
@@ -1073,15 +1184,13 @@ def main():
 
     prs.save(output)
     img_store.cleanup()
-
+    print(f"Report saved to {output}", file=sys.stderr)
     if args.file_inventory:
         inventory_path = os.path.abspath(args.file_inventory)
         os.makedirs(os.path.dirname(inventory_path), exist_ok=True)
         write_file_inventory(inventory_path, analysis_dir, samples,
                              args.paired_samples, args.single_samples, samples_data)
-
-    print(output)
-
+        print(f"data is saved to {inventory_path}", file=sys.stderr)
 
 if __name__ == "__main__":
     main()

@@ -7,26 +7,27 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # --sdm apptainer \
 # --singularity-args '--bind /home/luosg/Database,/home/luosg/Data/genomeStability,/tmp'
 
+python ${SCRIPT_DIR}/run.py \
+    -m /home/luosg/Data/genomeStability/data/4RNAseq/meta_input.tsv \
+    -w RNAseq \
+    -o /home/luosg/Data/genomeStability/output/4RNAseq \
+    -t 48 \
+    --log /home/luosg/Data/genomeStability/log/4RNAseq.log \
+    --sdm \
+    --singularity-args '--bind /home/luosg/Data/genomeStability/data/4RNAseq/fastq', \
+    --rerun-triggers mtime \
+    --Params.function.gmt /home/luosg/Data/genomeStability/workflow/Omics/assests/geneset/2C_mouse.gmt
+
 # python ${SCRIPT_DIR}/run.py \
-#     -m /home/luosg/Data/genomeStability/data/Rn7sk/meta_input.tsv \
-#     -w RNAseq \
+#     -m /home/luosg/Data/genomeStability/data/Srp54/meta_input.tsv \
+#     -w ncRNAseq \
 #     -o /home/luosg/Data/genomeStability/output \
 #     -t 48 \
-#     --log /home/luosg/Data/genomeStability/log/Rn7sk_RNAseq.log \
-#     --conda-prefix /home/luosg/Database/env \
-#     --rerun-triggers mtime \
-#     --Params.function.gmt /home/luosg/Data/genomeStability/workflow/Omics/assests/geneset/2C_mouse.gmt
-
-python ${SCRIPT_DIR}/run.py \
-    -m /home/luosg/Data/genomeStability/data/Srp54/meta_input.tsv \
-    -w ncRNAseq \
-    -o /home/luosg/Data/genomeStability/output \
-    -t 48 \
-    --log /home/luosg/Data/genomeStability/log/ncRNAseq.log \
-    --Procedure.aligner star_3pass_gene \
-    --sdm \
-    --Params.star_3pass.pass2.clip5pNbases '10 10' \
-    --Params.star_3pass.pass2.clip3pNbases '0 0'
+#     --log /home/luosg/Data/genomeStability/log/ncRNAseq.log \
+#     --Procedure.aligner star_3pass_gene \
+#     --sdm \
+#     --Params.star_3pass.pass2.clip5pNbases '10 10' \
+#     --Params.star_3pass.pass2.clip3pNbases '0 0'
 # python ${SCRIPT_DIR}/run.py \
 #     -m /data/pub/zhousha/20260207_Exome/data/tRNA/meta.tsv \
 #     -w tRNAseq \

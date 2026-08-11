@@ -5,6 +5,8 @@ ROOT_DIR = config.get("ROOT_DIR", ".")
 indir = config.get("indir","data/fastq")
 outdir = config.get("outdir","output")
 logdir = config.get("logdir","logs")
+genome = config.get("genome",{}).get("default")
+logger.info(f"indir: {indir}, outdir: {outdir}, logdir: {logdir}, genome: {genome}")
 paired_samples = config.get("paired_samples", [])
 single_samples = config.get("single_samples", [])
 aligner_TEtranscripts = config.get('Params',{}).get('workflow', {}).get('aligner_TEtranscripts') or "star"
@@ -80,6 +82,7 @@ if aligner_TEtranscripts == 'hisat2':
     hisat2_config_for_TEtranscripts = {
             "indir": trimmed_fastq_dir,
             "outdir":  f"{outdir}/common/3_raw_bam",
+            "env": config.get("env", {}),
             "logdir": logdir,
             "paired_samples": paired_samples,
             "single_samples": single_samples,
@@ -94,8 +97,8 @@ if aligner_TEtranscripts == 'hisat2':
                 }
             },
             "genome": {
-                "fasta": config.get('genome',{}).get('fasta'),
-                "index_prefix": config.get('genome',{}).get('hisat2_index_prefix')
+                "fasta": config.get('genome',{}).get("references", {}).get(genome, {}).get('fasta'),
+                "index_prefix": config.get('genome',{}).get("references", {}).get(genome, {}).get('hisat2_index_prefix')
             }
         }
     module hisat2_for_TEtranscripts:
@@ -123,9 +126,9 @@ elif aligner_TEtranscripts == 'star':
                 }
             },
             "genome": {
-                "fasta": config.get('genome',{}).get('fasta'),
-                "gtf": config.get('genome',{}).get('gtf'),
-                "index_dir": config.get('genome',{}).get('star_index_dir')
+                "fasta": config.get('genome',{}).get("references", {}).get(genome, {}).get('fasta'),
+                "gtf": config.get('genome',{}).get("references", {}).get(genome, {}).get('gtf'),
+                "index_dir": config.get('genome',{}).get("references", {}).get(genome, {}).get('star_index_dir')
             }
         }
     module star_for_TEtranscripts:
@@ -150,9 +153,9 @@ TEtranscripts_config = {
             "TElocal": config.get('Procedure',{}).get('TElocal') or 'TElocal'
         },
         "genome": {
-            "gtf": config.get('genome',{}).get('gtf'),
-            "TEind": config.get('genome',{}).get('TEind'),
-            "TE_gtf": config.get('genome',{}).get('TE_gtf')
+            "gtf": config.get('genome',{}).get("references", {}).get(genome, {}).get('gtf'),
+            "TEind": config.get('genome',{}).get("references", {}).get(genome, {}).get('TEind'),
+            "TE_gtf": config.get('genome',{}).get("references", {}).get(genome, {}).get('TE_gtf')
         }
     }
 
@@ -172,9 +175,9 @@ if config.get("Params", {}).get("DESeq2", {}).get("group_pairs"):
             "env": config.get("env", {}),
             "group_pairs": config.get("Params", {}).get("DESeq2", {}).get("group_pairs"),
             "genome": {
-                "geneIDAnno": config.get('genome',{}).get('geneIDAnno'),
-                "gtf": config.get('genome',{}).get('gtf'),
-                "gene_map": config.get('genome',{}).get('gene_map')
+                "geneIDAnno": config.get('genome',{}).get("references", {}).get(genome, {}).get('geneIDAnno'),
+                "gtf": config.get('genome',{}).get("references", {}).get(genome, {}).get('gtf'),
+                "gene_map": config.get('genome',{}).get("references", {}).get(genome, {}).get('gene_map')
             },
             "Procedure": {
                 "DESeq2": config.get('Procedure',{}).get('DESeq2') or 'DESeq2'
@@ -213,6 +216,7 @@ if config.get("Params", {}).get("DESeq2", {}).get("group_pairs"):
 hisat2_config_for_StringTie = {
     "indir": trimmed_fastq_dir,
     "outdir":  f"{outdir}/common/4_stringtie_bam",
+    "env": config.get("env", {}),
     "logdir": logdir,
     "paired_samples": paired_samples,
     "single_samples": single_samples,
@@ -226,8 +230,8 @@ hisat2_config_for_StringTie = {
         }
     },
     "genome": {
-        "fasta": config.get('genome',{}).get('fasta'),
-        "index_prefix": config.get('genome',{}).get('hisat2_index_prefix')
+        "fasta": config.get('genome',{}).get("references", {}).get(genome, {}).get('fasta'),
+        "index_prefix": config.get('genome',{}).get("references", {}).get(genome, {}).get('hisat2_index_prefix')
     }
 }
 module hisat2_for_StringTie:
@@ -240,14 +244,14 @@ use rule hisat2_index from hisat2_for_StringTie as RNAseq_hisat2_index_for_Strin
 StringTie_config = {
         "indir": hisat2_config_for_StringTie["outdir"],
         "outdir":  f"{outdir}/transcripts",
+        "env": config.get("env", {}),
         "logdir": logdir,
         "samples": single_samples + paired_samples,
         "ROOT_DIR": ROOT_DIR,
-        "env": config.get("env", {}),
         "sample_groups": config.get("Params",{}).get("StringTie",{}).get('sample_groups'),
         "genome": {
-            "gtf": config.get('genome',{}).get('gtf'),
-            "TE_gtf": config.get('genome',{}).get('TE_gtf')
+            "gtf": config.get('genome',{}).get("references", {}).get(genome, {}).get('gtf'),
+            "TE_gtf": config.get('genome',{}).get("references", {}).get(genome, {}).get('TE_gtf')
         },
         "Procedure": {
             "stringtie": config.get("Procedure", {}).get("stringtie") or "stringtie"
@@ -264,13 +268,13 @@ rmrRNA_config = {
     "indir": trimmed_fastq_dir,
     "outdir":  f"{outdir}/genome",
     "logdir": logdir,
+    "env": config.get("env", {}),
     "paired_samples": paired_samples,
     "single_samples": single_samples,
     "ROOT_DIR": ROOT_DIR,
-    "env": config.get("env", {}),
     "genome": {
-        "fasta": config.get('genome',{}).get('fasta'),
-        "gtf": config.get('genome',{}).get('gtf')
+        "fasta": config.get('genome',{}).get("references", {}).get(genome, {}).get('fasta'),
+        "gtf": config.get('genome',{}).get("references", {}).get(genome, {}).get('gtf')
     },
     "Params": {
         "RmrRNA": {
@@ -298,8 +302,8 @@ bowtie2_rRNA_config = {
         "bowtie2-build": config.get('Procedure',{}).get('bowtie2-build')
     },
     "genome": {
-        "fasta": config.get('genome',{}).get('rRNA_fasta') if config.get('genome',{}).get('rRNA_fasta') else f"{rmrRNA_config['outdir']}/rRNA.fasta",
-        "index_prefix": config.get('genome',{}).get('bowtie2_index_prefix_for_rRNA') if config.get('genome',{}).get('rRNA_fasta') else None
+        "fasta": config.get('genome',{}).get("references", {}).get(genome, {}).get('rRNA_fasta') if config.get('genome',{}).get("references", {}).get(genome, {}).get('rRNA_fasta') else f"{rmrRNA_config['outdir']}/rRNA.fasta",
+        "index_prefix": config.get('genome',{}).get("references", {}).get(genome, {}).get('bowtie2_index_prefix_for_rRNA') if config.get('genome',{}).get("references", {}).get(genome, {}).get('rRNA_fasta') else None
     },
     "Params": {
         "bowtie2": {
@@ -316,6 +320,7 @@ star_config_for_fusion = {
     "indir": bowtie2_rRNA_config["outdir"],
     "outdir":  f"{outdir}/common/6_fusion_bam",
     "logdir": logdir,
+    "env": config.get("env", {}),
     "paired_samples": paired_samples,
     "single_samples": single_samples,
     "fastq_sample_suffix": "unmapped",
@@ -339,9 +344,9 @@ star_config_for_fusion = {
         }
     },
     "genome": {
-        "fasta": config.get('genome',{}).get('fasta'),
-        "gtf": config.get('genome',{}).get('gtf'),
-        "index_dir": config.get('genome',{}).get('star_index_dir')
+        "fasta": config.get('genome',{}).get("references", {}).get(genome, {}).get('fasta'),
+        "gtf": config.get('genome',{}).get("references", {}).get(genome, {}).get('gtf'),
+        "index_dir": config.get('genome',{}).get("references", {}).get(genome, {}).get('star_index_dir')
     }
 }
 module star_for_fusion:
@@ -363,8 +368,8 @@ gatk_prepare_config = {
         "samtools": config.get("Procedure", {}).get("samtools")
     },
     "genome": {
-        "fasta": config.get('genome',{}).get('fasta'),
-        "gtf": config.get('genome',{}).get('gtf')
+        "fasta": config.get('genome',{}).get("references", {}).get(genome, {}).get('fasta'),
+        "gtf": config.get('genome',{}).get("references", {}).get(genome, {}).get('gtf')
     }
 }
 
@@ -383,8 +388,8 @@ arriba_config = {
         "bam_substring": "sorted_markdup",
         "samples": single_samples + paired_samples,
         "genome": {
-            "fasta": config.get('genome',{}).get('fasta'),
-            "gtf": config.get('genome',{}).get('gtf')
+            "fasta": config.get('genome',{}).get("references", {}).get(genome, {}).get('fasta'),
+            "gtf": config.get('genome',{}).get("references", {}).get(genome, {}).get('gtf')
         },
         "Params": {
             "arriba": {

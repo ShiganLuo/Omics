@@ -51,7 +51,7 @@ def renameIndex(
 if __name__ == '__main__':
     # gtf =  "/ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/gencode.vM36.primary_assembly.annotation.gtf"
     # outfile = "/ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/geneIDAnnotation.csv"
-    gtf = "/ChIP_seq_2/Data/index/Homo_sapiens/GENCODE/GRCh38/gencode.v47.primary_assembly.annotation.gtf"
-    outfile = "/ChIP_seq_2/Data/index/Homo_sapiens/GENCODE/GRCh38/geneIDAnnotation.csv"
+    gtf = "/home/luosg/Database/Reference/human/GENCODE/GRCh38/gencode.v49.primary_assembly.basic.annotation.gtf"
+    outfile = "/home/luosg/Database/Reference/human/GENCODE/GRCh38/geneIDAnnotation.csv"
     df = geneIDAnnotation(gtf)
     df.to_csv(outfile, sep="\t", index=False, header=True)

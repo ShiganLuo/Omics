@@ -6,8 +6,9 @@ import re
 from src.common.util.MetaUtil import MetadataUtils
 from src.common.util.LogUtil import setup_logger
 from src.common.util.CmdUtil import _run_cmd, _run_cmds_parallel
-from src.common.util.type import DesignPair, CompareGroupPair
+from src.common.util.type import DesignPair, CompareGroupPair, SampleInfo
 from src.common.util.SchemaValidatorUtil import SchemaValidator
+from src.common.util.EnvUtil import is_path_like
 import logging
 from typing import Dict, Any, Optional, List
 logger = setup_logger(__name__, level=logging.DEBUG)
@@ -172,7 +173,7 @@ def runMERIP(
 
 def runRNAseq(
     datajson: Dict[str, Any],
-    samples_info_dict:Dict[str, Any],
+    samples_info_dict:Dict[str, SampleInfo],
     group_pairs: List[CompareGroupPair],
     indir:str,
     outdir: str,
@@ -203,8 +204,9 @@ def runRNAseq(
             outfiles.append(f"{pair_dir}/kegg_back_to_back.png")
             outfiles.append(f"{pair_dir}/GSEA/TEcount_Gene_GSEA.jpeg")
     datajson["Params"]["StringTie"]["sample_groups"] = sample_groups
-
+    Organisms = set()
     for sample_id, sample_info in samples_info_dict.items():
+        Organisms.add(sample_info.organism)
         if sample_info.layout == "PE":
             paired_samples.append(sample_id)
             outfiles.append(f"{outdir}/transcripts/raw/{sample_id}/{sample_id}_TE_chimeric_transcripts.txt")
@@ -215,6 +217,16 @@ def runRNAseq(
             outfiles.append(f"{outdir}/fusion/{sample_id}/{sample_id}_passed_fusions.tsv")
         else:
             logger.error(f"Unknown layout type for sample {sample_id}: {sample_info.layout}")
+    if len(Organisms) != 1:
+        raise ValueError(f"meta don't support multiple organsim temporarily, please check your meta file, found: {Organisms}")
+    if Organisms.pop() in ["Homo sapiens", "human"]:
+        datajson["genome"]["default"] = "GRCh38"
+        datajson["Params"]["report"]["genome"] = "GRCh38"
+    elif Organisms.pop() in ["Mus musculus", "mouse"]:
+        datajson["genome"]["default"] = "GRCm39"
+        datajson["Params"]["report"]["genome"] = "GRCm39"
+    else:
+        raise ValueError(f"pipeline don't support {Organisms.pop()}, only support human or mouse(Homo sapiens or Mus musculus)")
     # outfiles.append(f"{outdir}/TEtranscripts/TEcount/all_TEcount.tsv")
     outfiles.append(f"{outdir}/fusion/arriba_report/arriba_fusion_report.html")
     outfiles.append(f"{outdir}/transcripts/stringtie_merged.gtf")
@@ -844,7 +856,7 @@ def _collect_bind_paths(config_path):
     dirs = set()
 
     def _walk(obj):
-        if isinstance(obj, str) and "/" in obj and obj.strip():
+        if is_path_like(obj):
             # Resolve to absolute path; use as-is if not exists (don't resolve symlinks)
             p = _os.path.abspath(obj.strip())
             if _os.path.isfile(p):
@@ -869,6 +881,71 @@ def _collect_bind_paths(config_path):
                 break
     return sorted(result)
 
+def _merge_singularity_args(
+    json_bind_paths,
+    singularity_args=None,
+):
+    """
+    Merge bind paths collected from the JSON configuration with
+    user-provided Singularity arguments.
+
+    JSON-derived bind paths are always preserved. User-provided
+    bind paths are added to them. Duplicate paths are removed while
+    preserving their original order.
+
+    Other Singularity arguments, such as --cleanenv, are preserved.
+    """
+    bind_paths = []
+
+    def add_bind_paths(paths):
+        for path in paths:
+            path = path.strip()
+            if path and path not in bind_paths:
+                bind_paths.append(path)
+
+    # Paths collected from config.
+    add_bind_paths(json_bind_paths)
+
+    # Always make /tmp available inside the container.
+    add_bind_paths(["/tmp"])
+
+    if not singularity_args:
+        return (
+            "--bind " + ",".join(bind_paths)
+            if bind_paths
+            else None
+        )
+
+    # Find an existing --bind argument.
+    match = re.search(
+        r"(?:^|\s)--bind(?:=|\s+)([^\s]+)",
+        singularity_args,
+    )
+
+    if match:
+        user_bind = match.group(1)
+
+        # Add user-defined paths.
+        add_bind_paths(user_bind.split(","))
+
+        # Replace only the existing --bind argument.
+        merged_bind = "--bind " + ",".join(bind_paths)
+
+        start, end = match.span()
+        singularity_args = (
+            singularity_args[:start]
+            + merged_bind
+            + singularity_args[end:]
+        )
+    else:
+        # User supplied other singularity arguments but no --bind.
+        singularity_args = (
+            singularity_args.rstrip()
+            + " --bind "
+            + ",".join(bind_paths)
+        )
+
+    return singularity_args.strip()
 
 def build_snakemake_cmd(root_dir, smk, input_json, threads, conda_prefix, rerun_trigger,
                         dry_run, conda_frontend, snakemake_args, sdm=None, singularity_args=None):
@@ -896,19 +973,21 @@ def build_snakemake_cmd(root_dir, smk, input_json, threads, conda_prefix, rerun_
             conda_frontend,
         ]
     else:
-        # Emit top-level --sdm only if not already provided via --snakemake-args
         if sdm is not None:
             cmd += ["--sdm", sdm]
-        # Auto-generate --singularity-args bind list from config when not user-specified
-        if not singularity_args and "--singularity-args" not in snakemake_args:
-            bind_paths = _collect_bind_paths(input_json)
-            # Always include /tmp for conda-pack cache etc.
-            if "/tmp" not in bind_paths:
-                bind_paths.append("/tmp")
-            if bind_paths:
-                singularity_args = "--bind " + ",".join(bind_paths)
+
+        json_bind_paths = _collect_bind_paths(input_json)
+
+        singularity_args = _merge_singularity_args(
+            json_bind_paths,
+            singularity_args,
+        )
+
         if singularity_args:
-            cmd += ["--singularity-args", singularity_args]
+            cmd += [
+                "--singularity-args",
+                singularity_args,
+            ]
     if dry_run:
         cmd.append("--dry-run")
     if snakemake_args:

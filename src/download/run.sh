@@ -23,18 +23,19 @@ function download_pipeline(){
     #     --outdir ${outdir} \
     #     --log ${log}
     
-    python ${ASCP_downloader} \
-        --meta ${outdir}/sra_metadata.csv \
-        --srr-col-name Data_id \
-        --outdir ${outdir}/fastq \
-        -m aria2c \
-        --log ${log} \
-        --jobs 3
+    # python ${ASCP_downloader} \
+    #     --meta ${outdir}/sra_metadata.csv \
+    #     --srr-col-name Data_id \
+    #     --outdir ${outdir}/fastq \
+    #     -m aria2c \
+    #     --log ${log} \
+    #     --jobs 3
     
-    # python ${meta_input_generator} \
-    #     -i ${outdir}/sra_metadata.csv \
-    #     -d ${outdir}/fastq \
-    #     -o ${outdir}/meta_input.tsv
+    python ${meta_input_generator} \
+        -i ${outdir}/sra_metadata.csv \
+        -g ${outdir}/gsm_metadata.csv \
+        -d ${outdir}/fastq \
+        -o ${outdir}/meta_input.tsv
 }
 meta=/home/luosg/Data/genomeStability/data/4RNAseq/GSM.txt
 outdir=/home/luosg/Data/genomeStability/data/4RNAseq

@@ -41,6 +41,7 @@ rule stringTie:
         finally:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Completed at {current_time}")
+
 rule TEChimericTranscripts:
     input:
         gtf = outdir + "/raw/{sample_id}/{sample_id}.gtf"

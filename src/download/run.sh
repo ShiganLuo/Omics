@@ -17,28 +17,28 @@ function download_pipeline(){
     outdir=$2
     log=$3
     echo $log
-    python ${GSM_parser} \
-        --mode both \
-        --gsm-file ${meta} \
-        --outdir ${outdir} \
-        --log ${log}
+    # python ${GSM_parser} \
+    #     --mode both \
+    #     --gsm-file ${meta} \
+    #     --outdir ${outdir} \
+    #     --log ${log}
     
     python ${ASCP_downloader} \
         --meta ${outdir}/sra_metadata.csv \
         --srr-col-name Data_id \
         --outdir ${outdir}/fastq \
-        -m sra \
+        -m aria2c \
         --log ${log} \
-        -m sra
+        --jobs 3
     
-    python ${meta_input_generator} \
-        -i ${outdir}/sra_metadata.csv \
-        -d ${outdir}/fastq \
-        -o ${outdir}/meta_input.tsv
+    # python ${meta_input_generator} \
+    #     -i ${outdir}/sra_metadata.csv \
+    #     -d ${outdir}/fastq \
+    #     -o ${outdir}/meta_input.tsv
 }
-meta=/rna_seq_1/luoshg/Chipseq_20260709/data/Srp54/GSM.tsv
-outdir=/rna_seq_1/luoshg/Chipseq_20260709/data/Srp54
-log=/rna_seq_1/luoshg/Chipseq_20260709/logs/GSM_metadata_Srp54.log
+meta=/home/luosg/Data/genomeStability/data/4RNAseq/GSM.txt
+outdir=/home/luosg/Data/genomeStability/data/4RNAseq
+log=/home/luosg/Data/genomeStability/log/GSM_metadata_4RNAseq.log
 download_pipeline ${meta} ${outdir} ${log}
 function cngb_download(){
     ip=$1

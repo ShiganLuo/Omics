@@ -18,6 +18,7 @@ except Exception:
 logger = setup_logger(__name__, level=logging.DEBUG)
 
 DESIGN_PATTERN = re.compile(r"^(ctr|ctrl|exp)_(.+)$")
+REP_PATTERN = re.compile(r"^rep\d+$", re.IGNORECASE)
 class MetadataUtils:
     """
     Utilities for variant-analysis metadata parsing and FASTQ preparation.
@@ -146,7 +147,15 @@ class MetadataUtils:
             best_ctr_sample = None
             best_ctr_contrast = None
             for ctr_contrast, ctr_token_set in ctr_contrast_tokens.items():
-                if exp_token_set & ctr_token_set:  # non-empty intersection
+                shared_tokens = exp_token_set & ctr_token_set
+                if shared_tokens:  # non-empty intersection
+                    non_rep_shared = {t for t in shared_tokens if not REP_PATTERN.match(t)}
+                    if not non_rep_shared:
+                        logger.warning(
+                            f"Suspicious match: exp '{exp_contrast}' and ctr '{ctr_contrast}' "
+                            f"share only rep-like tokens {shared_tokens}. "
+                            "Consider providing a 'group' column or adjusting design format."
+                        )
                     ctr_samples = group_dict[ctr_contrast]["ctr"]
                     if len(ctr_samples) > 1:
                         logger.warning(
@@ -172,19 +181,33 @@ class MetadataUtils:
                 )
                 sample_pairs.append(designPair)
             
-            ctr_group_name = group_dict.get(best_ctr_contrast, {}).get("ctr", [None])[0].group if best_ctr_contrast and group_dict.get(best_ctr_contrast, {}).get("ctr", [None])[0] else f"{contrast}_ctr"
-            exp_group_name = group_dict.get(exp_contrast, {}).get("exp", [None])[0].group if exp_contrast and group_dict.get(exp_contrast, {}).get("exp", [None])[0] else f"{contrast}_exp"
+            ctr_group_name = group_dict.get(best_ctr_contrast, {}).get("ctr", [None])[0].group if best_ctr_contrast and group_dict.get(best_ctr_contrast, {}).get("ctr", [None])[0] else f"{best_ctr_contrast}_ctr"
+            exp_group_name = group_dict.get(exp_contrast, {}).get("exp", [None])[0].group if exp_contrast and group_dict.get(exp_contrast, {}).get("exp", [None])[0] else f"{exp_contrast}_exp"
 
             ctr_samples = group_dict.get(best_ctr_contrast, {}).get("ctr", [])
             exp_samples = group_dict.get(exp_contrast, {}).get("exp", [])
             compare_group_pair = CompareGroupPair(
+                ctr_group_token=best_ctr_contrast,
+                exp_group_token=exp_contrast,
                 ctr_group_name=ctr_group_name,
                 exp_group_name=exp_group_name,
                 ctr_sample_ids=[s.sample_id for s in ctr_samples],
                 exp_sample_ids=[s.sample_id for s in exp_samples]
             )
-            group_pairs.append(compare_group_pair)       
-    
+            group_pairs.append(compare_group_pair)
+
+        # --- Validation: warn if final results look wrong ---
+        if exp_contrast_tokens and not group_pairs:
+            logger.warning(
+                "Design column has experimental samples but no group_pairs were generated. "
+                "Check that control samples (ctr_/ctrl_) exist with matching tokens."
+            )
+        for gp in group_pairs:
+            if gp.ctr_group_name == gp.exp_group_name:
+                logger.warning(
+                    f"Control and experimental group have the same name: '{gp.ctr_group_name}'. "
+                    "group_pairs will collapse into a single key."
+                )
 
         logger.debug("group_pairs: %s", group_pairs)
         logger.debug("sample_pairs: %s", sample_pairs)
@@ -232,7 +255,17 @@ class MetadataUtils:
             self.samples_dict[sample_id].design = df_sample[design_col].values[0] if design_col in df_sample.columns else ""
             self.samples_dict[sample_id].organism = df_sample[organism_col].values[0] if organism_col in df_sample.columns else "UNKNOWN"
             self.samples_dict[sample_id].workflow = df_sample[workflow_col].values[0] if workflow_col in df_sample.columns else None
-            self.samples_dict[sample_id].group = df_sample[group_col].values[0] if group_col in df_sample.columns else None
+            if group_col in df_sample.columns:
+                self.samples_dict[sample_id].group = df_sample[group_col].values[0]
+            elif design_col in df_sample.columns:
+                _design_val = str(df_sample[design_col].values[0]).strip()
+                _m = DESIGN_PATTERN.match(_design_val)
+                if _m:
+                    self.samples_dict[sample_id].group = _m.group(2).replace("_", " ")
+                else:
+                    self.samples_dict[sample_id].group = None
+            else:
+                self.samples_dict[sample_id].group = None
             if len(data_ids) == 1:
                 logger.info(f"Detect the relationship between {sample_id} and {data_ids[0]} is one-to-one")
                 origin_r1 = df_sample[fastq_r1_col].values[0]

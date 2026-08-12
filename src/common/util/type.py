@@ -41,6 +41,8 @@ class DesignPair:
 
 @dataclass
 class CompareGroupPair:
+    ctr_group_token: str
+    exp_group_token: str
     ctr_group_name: str
     exp_group_name: str
     ctr_sample_ids: List[str]

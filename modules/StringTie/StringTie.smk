@@ -86,19 +86,35 @@ rule TEChimericPlot:
     container:
         sif("StringTie.yaml")
     run:
-        current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
-        script = f"{outdir}/TE_chimeric/TEChimericPlot.{current_time}.sh"
-        group_tsv = outdir + "/TE_chimeric/sample_groups.tsv"
-        with open(group_tsv, 'w') as f:
-            f.write("sample\tgroup\n")
-            for group, sample_list in sample_groups.items():
-                for sample_id in sample_list:
-                    f.write(f"{sample_id}\t{group}\n")
-        cmd = f"python {params.TEChimericPlot} -i {outdir} -g {group_tsv} -o {outdir}/result/TE_chimeric/TE_chimeric > {log} 2>&1"
-        with open(script, 'w') as f:
-            f.write("#!/bin/bash\n")
-            f.write(cmd + "\n")
-        shell(f"bash {script}")
+        log_path = str(log)
+        try:
+            open(log_path, 'w').close()
+            rule_logger = setup_logger(logger_name="TEChimericPlot_run", log_file=log_path)
+            current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
+            script = f"{outdir}/TE_chimeric/TEChimericPlot.{current_time}.sh"
+            rule_logger.info(f"Start TEChimericPlot run at {current_time}")
+            group_tsv = outdir + "/TE_chimeric/sample_groups.tsv"
+            with open(group_tsv, 'w') as f:
+                f.write("sample\tgroup\n")
+                for group, sample_list in sample_groups.items():
+                    for sample_id in sample_list:
+                        f.write(f"{sample_id}\t{group}\n")
+            cmd = [
+                "python", params.TEChimericPlot,
+                "-i", os.path.join(outdir,"raw"),
+                "-g", group_tsv,
+                "-o", f"{outdir}/TE_chimeric/TE_chimeric"
+            ]
+            with open(script, 'w') as f:
+                f.write("#!/bin/bash\n")
+                f.write(' '.join(cmd) + "\n")
+            shell(f"bash {script}")
+        except Exception as e:
+            with open(log_path, 'a') as f:
+                f.write(f"Error occurred during TEChimericPlot: {e}\n")
+            logger.error(f"Error occurred during TEChimericPlot: {e}")
+            raise e
+
 
 
 rule stringTieMerge:
@@ -119,9 +135,9 @@ rule stringTieMerge:
         log_path = str(log)
         try:
             open(log_path, 'w').close()
-            logger = setup_logger(logger_name="stringTieMerge_run", log_file=log_path)
+            rule_logger = setup_logger(logger_name="stringTieMerge_run", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            logger.info(f"Start stringTieMerge run at {current_time}")
+            rule_logger.info(f"Start stringTieMerge run at {current_time}")
             script = os.path.join(outdir, f"stringTieMerge_{current_time}.sh")
             cmd = [params.stringtie, "--merge"] + list(input.gtfs) + ["-o", output.gtf, "-G", params.gtf]
             with open(script, 'w') as f:
@@ -130,7 +146,4 @@ rule stringTieMerge:
         except Exception as e:
             with open(log_path, 'a') as f:
                 f.write(f"Error: {e}\n")
-            raise f"Error: {e}"
-        finally:
-            current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            logger.info(f"Completed at {current_time}")
+            raise e

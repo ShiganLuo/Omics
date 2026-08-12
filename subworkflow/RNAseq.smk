@@ -240,28 +240,31 @@ module hisat2_for_StringTie:
 logger.info(f"hisat2_config_for_StringTie: {hisat2_config_for_StringTie}")
 use rule hisat2_align from hisat2_for_StringTie as RNAseq_hisat2_align_for_StringTie
 use rule hisat2_index from hisat2_for_StringTie as RNAseq_hisat2_index_for_StringTie
- 
-StringTie_config = {
-        "indir": hisat2_config_for_StringTie["outdir"],
-        "outdir":  f"{outdir}/transcripts",
-        "env": config.get("env", {}),
-        "logdir": logdir,
-        "samples": single_samples + paired_samples,
-        "ROOT_DIR": ROOT_DIR,
-        "sample_groups": config.get("Params",{}).get("StringTie",{}).get('sample_groups'),
-        "genome": {
-            "gtf": config.get('genome',{}).get("references", {}).get(genome, {}).get('gtf'),
-            "TE_gtf": config.get('genome',{}).get("references", {}).get(genome, {}).get('TE_gtf')
-        },
-        "Procedure": {
-            "stringtie": config.get("Procedure", {}).get("stringtie") or "stringtie"
+
+if config.get("Params",{}).get("StringTie",{}).get('sample_groups'):
+    StringTie_config = {
+            "indir": hisat2_config_for_StringTie["outdir"],
+            "outdir":  f"{outdir}/transcripts",
+            "env": config.get("env", {}),
+            "logdir": logdir,
+            "samples": single_samples + paired_samples,
+            "ROOT_DIR": ROOT_DIR,
+            "sample_groups": config.get("Params",{}).get("StringTie",{}).get('sample_groups'),
+            "genome": {
+                "gtf": config.get('genome',{}).get("references", {}).get(genome, {}).get('gtf'),
+                "TE_gtf": config.get('genome',{}).get("references", {}).get(genome, {}).get('TE_gtf')
+            },
+            "Procedure": {
+                "stringtie": config.get("Procedure", {}).get("stringtie") or "stringtie"
+            }
         }
-    }
-module StringTie:
-    snakefile: "../modules/StringTie/StringTie.smk"
-    config: StringTie_config
-use rule * from StringTie as RNAseq_*
-logger.info(f"StringTie_config: {StringTie_config}")
+    module StringTie:
+        snakefile: "../modules/StringTie/StringTie.smk"
+        config: StringTie_config
+    use rule * from StringTie as RNAseq_*
+    logger.info(f"StringTie_config: {StringTie_config}")
+else:
+    logger.info("No sample_groups provided for StringTie, skipping StringTie analysis.")
 
 
 rmrRNA_config = {

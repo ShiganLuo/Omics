@@ -189,17 +189,18 @@ def runRNAseq(
     single_samples = []
     sample_groups = {}
     for group_pair in group_pairs:
-        datajson["Params"]["DESeq2"]["group_pairs"].setdefault(f"{group_pair.ctr_group_name}_vs_{group_pair.exp_group_name}", {
+        datajson["Params"]["DESeq2"]["group_pairs"].setdefault(f"{group_pair.ctr_group_token}_vs_{group_pair.exp_group_token}", {
             "control_group_name": group_pair.ctr_group_name,
             "experimental_group_name": group_pair.exp_group_name,
             "control_samples": group_pair.ctr_sample_ids,
             "experimental_samples": group_pair.exp_sample_ids
         })
-        outfiles.append(f"{outdir}/diff_expression/{group_pair.ctr_group_name}_vs_{group_pair.exp_group_name}/DESeq2.done")
+        outfiles.append(f"{outdir}/diff_expression/{group_pair.ctr_group_token}_vs_{group_pair.exp_group_token}/DESeq2.done")
         sample_groups.setdefault(group_pair.ctr_group_name, []).extend(group_pair.ctr_sample_ids)
         sample_groups.setdefault(group_pair.exp_group_name, []).extend(group_pair.exp_sample_ids)
+
         if datajson.get("Params", {}).get("function", {}).get("enabled", False):
-            pair_dir = f"{outdir}/function/{group_pair.ctr_group_name}_vs_{group_pair.exp_group_name}"
+            pair_dir = f"{outdir}/function/{group_pair.ctr_group_token}_vs_{group_pair.exp_group_token}"
             outfiles.append(f"{pair_dir}/go_back_to_back.png")
             outfiles.append(f"{pair_dir}/kegg_back_to_back.png")
             outfiles.append(f"{pair_dir}/GSEA/TEcount_Gene_GSEA.jpeg")
@@ -222,9 +223,11 @@ def runRNAseq(
     if Organisms.pop() in ["Homo sapiens", "human"]:
         datajson["genome"]["default"] = "GRCh38"
         datajson["Params"]["report"]["genome"] = "GRCh38"
+        datajson["Params"]["function"]["species"] = "human"
     elif Organisms.pop() in ["Mus musculus", "mouse"]:
         datajson["genome"]["default"] = "GRCm39"
         datajson["Params"]["report"]["genome"] = "GRCm39"
+        datajson["Params"]["function"]["species"] = "mouse"
     else:
         raise ValueError(f"pipeline don't support {Organisms.pop()}, only support human or mouse(Homo sapiens or Mus musculus)")
     # outfiles.append(f"{outdir}/TEtranscripts/TEcount/all_TEcount.tsv")

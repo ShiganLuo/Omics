@@ -95,7 +95,7 @@ rule arriba_report:
         inframe_fusions = outdir + "/arriba_report/inframe_fusions.tsv",
         fusion_figs = expand(outdir + "/arriba_report/figures/{fig}", fig=FUSION_FIGS),
     log:
-        logdir + "/all/arriba_report.log"
+        logdir + "/../group/arriba/arriba_report.log"
     params:
         summary_script = os.path.join(ROOT_DIR, "modules/arriba/bin/summarize_arriba_fusions.py")
     conda:

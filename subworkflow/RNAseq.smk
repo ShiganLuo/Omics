@@ -23,7 +23,7 @@ if trimmer == "cutadapt":
             "env": config.get("env", {}),
             "indir": indir,
             "outdir":  trimmed_fastq_dir,
-            "logdir": logdir,
+            "logdir": os.path.join(logdir,"sample"),
             "Procedure": {
                 "trim_galore": config.get('Procedure',{}).get('trim_galore')
             }
@@ -41,7 +41,7 @@ elif trimmer == "trimmomatic":
             "env": config.get("env", {}),
             "indir": indir,
             "outdir":  trimmed_fastq_dir,
-            "logdir": logdir,
+            "logdir": os.path.join(logdir,"sample"),
             "Procedure": {
                 "trimmomatic": config.get('Procedure',{}).get('trimmomatic')
             },
@@ -66,7 +66,7 @@ else:
             "env": config.get("env", {}),
             "indir": indir,
             "outdir":  trimmed_fastq_dir,
-            "logdir": logdir,
+            "logdir": os.path.join(logdir,"sample"),
             "Procedure": {
                 "trim_galore": config.get('Procedure',{}).get('trim_galore')
             }
@@ -83,7 +83,7 @@ if aligner_TEtranscripts == 'hisat2':
             "indir": trimmed_fastq_dir,
             "outdir":  f"{outdir}/common/3_raw_bam",
             "env": config.get("env", {}),
-            "logdir": logdir,
+            "logdir": os.path.join(logdir,"sample"),
             "paired_samples": paired_samples,
             "single_samples": single_samples,
             "Procedure": {
@@ -111,7 +111,7 @@ elif aligner_TEtranscripts == 'star':
     star_config_for_TEtranscripts = {
             "indir": trimmed_fastq_dir,
             "outdir":  f"{outdir}/common/3_raw_bam",
-            "logdir": logdir,
+            "logdir": os.path.join(logdir,"sample"),
             "paired_samples": paired_samples,
             "single_samples": single_samples,
             "env": config.get("env", {}),
@@ -144,7 +144,7 @@ else:
 TEtranscripts_config = {
         "indir": star_config_for_TEtranscripts["outdir"] if aligner_TEtranscripts == 'star' else hisat2_config_for_TEtranscripts["outdir"],
         "outdir":  f"{outdir}/results/counts",
-        "logdir": logdir,
+        "logdir": os.path.join(logdir,"sample"),
         "samples": single_samples + paired_samples,
         "ROOT_DIR": ROOT_DIR,
         "env": config.get("env", {}),
@@ -170,7 +170,7 @@ if config.get("Params", {}).get("DESeq2", {}).get("group_pairs"):
     DESeq2_config = {
             "indir": TEtranscripts_config["outdir"],
             "outdir":  f"{outdir}/diff_expression",
-            "logdir": logdir,
+            "logdir": os.path.join(logdir,"group"),
             "ROOT_DIR": ROOT_DIR,
             "env": config.get("env", {}),
             "group_pairs": config.get("Params", {}).get("DESeq2", {}).get("group_pairs"),
@@ -196,7 +196,7 @@ if config.get("Params", {}).get("DESeq2", {}).get("group_pairs"):
             "env": config.get("env", {}),
             "indir": DESeq2_config["outdir"],
             "outdir": f"{outdir}/function",
-            "logdir": logdir,
+            "logdir": os.path.join(logdir,"group"),
             "group_pairs": config.get("Params", {}).get("DESeq2", {}).get("group_pairs"),
             "genome": {
                 "geneIDAnno": config.get('genome',{}).get("references", {}).get(genome, {}).get('geneIDAnno'),
@@ -217,7 +217,7 @@ hisat2_config_for_StringTie = {
     "indir": trimmed_fastq_dir,
     "outdir":  f"{outdir}/common/4_stringtie_bam",
     "env": config.get("env", {}),
-    "logdir": logdir,
+    "logdir": os.path.join(logdir,"sample"),
     "paired_samples": paired_samples,
     "single_samples": single_samples,
     "Procedure": {
@@ -246,7 +246,7 @@ if config.get("Params",{}).get("StringTie",{}).get('sample_groups'):
             "indir": hisat2_config_for_StringTie["outdir"],
             "outdir":  f"{outdir}/transcripts",
             "env": config.get("env", {}),
-            "logdir": logdir,
+            "logdir": os.path.join(logdir,"sample"),
             "samples": single_samples + paired_samples,
             "ROOT_DIR": ROOT_DIR,
             "sample_groups": config.get("Params",{}).get("StringTie",{}).get('sample_groups'),
@@ -270,7 +270,7 @@ else:
 rmrRNA_config = {
     "indir": trimmed_fastq_dir,
     "outdir":  f"{outdir}/genome",
-    "logdir": logdir,
+    "logdir": os.path.join(logdir,"group"),
     "env": config.get("env", {}),
     "paired_samples": paired_samples,
     "single_samples": single_samples,
@@ -297,7 +297,7 @@ bowtie2_rRNA_config = {
     "env": config.get("env", {}),
     "indir": trimmed_fastq_dir,
     "outdir":  f"{outdir}/common/5_rRNA_fastq",
-    "logdir": logdir,
+    "logdir": os.path.join(logdir,"sample"),
     "paired_samples": paired_samples,
     "single_samples": single_samples,
     "Procedure": {
@@ -322,7 +322,7 @@ use rule * from bowtie2_for_rRNA as RNAseq_rRNA_*
 star_config_for_fusion = {
     "indir": bowtie2_rRNA_config["outdir"],
     "outdir":  f"{outdir}/common/6_fusion_bam",
-    "logdir": logdir,
+    "logdir": os.path.join(logdir,"sample"),
     "env": config.get("env", {}),
     "paired_samples": paired_samples,
     "single_samples": single_samples,
@@ -363,7 +363,7 @@ gatk_prepare_config = {
     "env": config.get("env", {}),
     "indir": star_config_for_fusion["outdir"],
     "outdir":  f"{outdir}/common/7_markdup_bam",
-    "logdir": logdir,
+    "logdir": os.path.join(logdir,"sample"),
     "paired_samples": paired_samples,
     "single_samples": single_samples,
     "Procedure": {
@@ -385,7 +385,7 @@ logger.info(f"gatk_prepare_config: {gatk_prepare_config}")
 arriba_config = {
         "indir": gatk_prepare_config['outdir'],
         "outdir":  f"{outdir}/fusion",
-        "logdir": logdir,
+        "logdir": os.path.join(logdir,"sample"),
         "ROOT_DIR": ROOT_DIR,
         "env": config.get("env", {}),
         "bam_substring": "sorted_markdup",

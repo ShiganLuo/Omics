@@ -199,7 +199,7 @@ if config.get("Params", {}).get("DESeq2", {}).get("group_pairs"):
             "logdir": logdir,
             "group_pairs": config.get("Params", {}).get("DESeq2", {}).get("group_pairs"),
             "genome": {
-                "geneIDAnno": config.get("genome", {}).get("geneIDAnno"),
+                "geneIDAnno": config.get('genome',{}).get("references", {}).get(genome, {}).get('geneIDAnno'),
             },
             "Params": {
                 "function": config.get("Params", {}).get("function", {})

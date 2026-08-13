@@ -17,6 +17,7 @@ import time
 import shutil
 import tempfile
 from snakemake.logging import logger
+import shlex
 # Get ROOT_DIR from config (set by run.py)
 ROOT_DIR = config.get("ROOT_DIR", ".")
 

@@ -2,11 +2,11 @@ from typing import Dict, List, Optional, Set
 import os
 import sys
 from pathlib import Path
-_SRC_DIR = Path(__file__).resolve().parent.parent
+_SRC_DIR = Path(__file__).resolve().parent.parent.parent
 if str(_SRC_DIR) not in sys.path:
     sys.path.insert(0, str(_SRC_DIR))
 import csv
-from common.util.SepUtil import detect_delimiter
+from src.common.util.SepUtil import detect_delimiter
 import logging
 
 logger = logging.getLogger(__name__)

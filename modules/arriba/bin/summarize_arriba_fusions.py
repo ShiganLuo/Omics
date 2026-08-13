@@ -24,8 +24,8 @@ import logging
 import os
 import sys
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-sys.path.append(os.path.join(ROOT_DIR, "src"))
-from common.LogUtil import setup_logger
+sys.path.append(ROOT_DIR)
+from src.common.util.LogUtil import setup_logger
 from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple

@@ -1,7 +1,7 @@
 import os
 import sys
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from common.LogUtil import setup_logger
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
+from src.common.util.LogUtil import setup_logger
 from utils.VEP_SV import VEP_SV
 from utils.SV_TYPE import parse_pbsv_vcf,run_sv_stratification,extract_te_candidate_ins,generate_plot_input
 from utils.SV_TYPE_plot import plot_stacking_bar,plot_multi_smooth_curves

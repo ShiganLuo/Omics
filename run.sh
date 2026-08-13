@@ -16,7 +16,8 @@ python ${SCRIPT_DIR}/run.py \
     --sdm \
     --singularity-args '--bind /home/luosg/Data/genomeStability/data/4RNAseq/fastq', \
     --rerun-triggers mtime \
-    --Params.function.gmt /home/luosg/Data/genomeStability/workflow/Omics/assests/geneset/2C_mouse.gmt
+    --Params.function.gmt /home/luosg/Data/genomeStability/workflow/Omics/assests/geneset/2C_mouse.gmt \
+    --dry-run
 
 # python ${SCRIPT_DIR}/run.py \
 #     -m /home/luosg/Data/genomeStability/data/Srp54/meta_input.tsv \

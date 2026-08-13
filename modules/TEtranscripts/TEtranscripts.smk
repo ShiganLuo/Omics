@@ -147,7 +147,7 @@ rule combine_TElocal:
         combineTE = ROOT_DIR + "/modules/TEtranscripts/bin/combineTE.py",
         indir = outdir + "/TElocal"
     log:
-        logdir + "/all/TEtranscripts/combine_TElocal.log"
+        logdir + "/../group/TEtranscripts/combine_TElocal.log"
     run:
         log_path = str(log)
         try:

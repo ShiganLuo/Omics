@@ -21,7 +21,7 @@ rule bowtie2_index:
             ext = BOWTIE2_IDX_SUFFIX
         )
     log:
-        logdir + "/bowtie2_index.log"
+        logdir + "/../group/bowtie2/bowtie2_index.log"
     threads: 12
     params:
         bowtie2_build = config.get('Procedure',{}).get('bowtie2-build') or 'bowtie2-build',

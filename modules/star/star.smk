@@ -17,7 +17,7 @@ rule star_index:
     output:
         index_file = directory(outdir + "/index")
     log:
-        logdir + "/star_index.log"
+        logdir + "/../group/star/star_index.log"
     threads: 12
     conda:
         "star.yaml"

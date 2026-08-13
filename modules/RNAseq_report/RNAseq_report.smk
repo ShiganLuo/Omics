@@ -40,6 +40,7 @@ rule generate_report:
         contrast_gene_te_updown = expand(outdir + "/diff_expression/{contrast}/upDown/{contrast}.TEcount_Gene_TE_updown.tsv", contrast=contrasts),
         contrast_gene_name = expand(outdir + "/diff_expression/{contrast}/{contrast}.TEcount_Gene.name.tsv", contrast=contrasts),
         contrast_te_name = expand(outdir + "/diff_expression/{contrast}/{contrast}.TEcount_TE.name.tsv", contrast=contrasts),
+        contrast_gene_te_name =  expand(outdir + "/diff_expression/{contrast}/{contrast}.TEcount_Gene_TE.name.tsv", contrast=contrasts),
         func_go_plot = expand(outdir + "/function/{contrast}/go_back_to_back.png", contrast=contrasts),
         func_kegg_plot = expand(outdir + "/function/{contrast}/kegg_back_to_back.png", contrast=contrasts),
         func_go_up = expand(outdir + "/function/{contrast}/go_up.csv", contrast=contrasts),

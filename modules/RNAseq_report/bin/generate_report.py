@@ -823,7 +823,7 @@ def build_function_summary_slide(prs: Presentation, func_summaries: list[dict], 
         ])
     _table(slide, 0.45, 0.95, 9.1, 0.4 + 0.32 * len(rows), rows, font_size=10)
     notes = [
-        "GO/KEGG 基于差异基因 (|log2FC|>=1, padj<=0.05) 进行富集；GSEA 使用全部基因排序。" if lang == "zh"
+        "GO/KEGG 基于差异基因 (|log2FC|>=0.58, padj<=0.05) 进行富集；GSEA 使用全部基因排序。" if lang == "zh"
         else "GO/KEGG enrichment uses DE genes (|log2FC|>=1, padj<=0.05); GSEA uses the full ranked gene list.",
         "上下调计数反映显著富集条目数，GSEA 列为总通路数。" if lang == "zh"
         else "Up/down counts are significant enriched terms; GSEA column is total pathways tested.",

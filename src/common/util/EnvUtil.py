@@ -1956,6 +1956,40 @@ def main() -> None:
 
     args = parser.parse_args()
 
+    # ------------------------------------------------------------------
+    # Validate -y / -f file arguments
+    # ------------------------------------------------------------------
+    yaml_arg = getattr(args, "yaml", None)
+    if yaml_arg:
+        p = Path(yaml_arg)
+        if p.suffix not in (".yaml", ".yml"):
+            parser.error(
+                f"-y/--yaml expects a conda environment YAML file (.yaml/.yml), "
+                f"got: {p.name} (suffix={p.suffix or 'none'}). "
+                f"Use -f/--file for build files (.def/.dockerfile)."
+            )
+        if not p.is_file():
+            parser.error(f"-y/--yaml file not found: {p}")
+        # Lightweight content check: must have channels: or dependencies:
+        text = p.read_text(encoding="utf-8")
+        if "channels:" not in text and "dependencies:" not in text:
+            parser.error(
+                f"-y/--yaml does not look like a conda environment file: {p}\n"
+                f"  Expected top-level 'channels:' or 'dependencies:' key."
+            )
+
+    file_arg = getattr(args, "file", None)
+    if file_arg:
+        p = Path(file_arg)
+        expected = {".def"} if args.backend == "apptainer" else {".dockerfile"}
+        if p.suffix not in expected:
+            parser.error(
+                f"-f/--file expects a {'/'.join(sorted(expected))} file for "
+                f"{args.backend} backend, got: {p.name} (suffix={p.suffix or 'none'})."
+            )
+        if not p.is_file():
+            parser.error(f"-f/--file file not found: {p}")
+
     # gen: no output-dir needed (build files go next to source YAMLs)
     # build/all: output-dir is required (image_common enforces this)
     output_dir = getattr(args, "output_dir", None) or args.modules_dir

@@ -12,12 +12,12 @@ from typing import List, Tuple, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import pandas as pd
 
-_SRC_DIR = Path(__file__).resolve().parent.parent
+_SRC_DIR = Path(__file__).resolve().parent.parent.parent
 if str(_SRC_DIR) not in sys.path:
     sys.path.insert(0, str(_SRC_DIR))
 
 try:
-    from common.util.SepUtil import detect_delimiter
+    from src.common.util.SepUtil import detect_delimiter
 except ImportError:
     # 为了保证代码独立运行不报错，提供一个 fallback 函数
     def detect_delimiter(file_path):

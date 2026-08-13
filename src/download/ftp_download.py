@@ -2,11 +2,10 @@ import ftplib
 import logging
 import os
 import sys
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from common.util.LogUtil import setup_logger
-from common.util.SepUtil import detect_delimiter
-from common.util.MatchUtil import run_accession_match
-from common.util.LogUtil import setup_logger
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+from src.common.util.LogUtil import setup_logger
+from src.common.util.SepUtil import detect_delimiter
+from src.common.util.MatchUtil import run_accession_match
 import pandas as pd
 from concurrent.futures import ThreadPoolExecutor
 from typing import Optional, List

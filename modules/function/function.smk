@@ -29,7 +29,7 @@ rule function_go_kegg:
         func_up_genes = outdir + "/{contrast}/up_genes.txt",
         func_down_genes = outdir + "/{contrast}/down_genes.txt"
     log:
-        logdir + "/compare/{contrast}.go_kegg.log"
+        logdir + "/../group/function/{contrast}.go_kegg.log"
     threads: 1
     params:
         go_kegg_script = ROOT_DIR + "/modules/function/bin/go-kegg.r",
@@ -93,7 +93,7 @@ rule function_gsea:
         func_gsea_plot = outdir + "/{contrast}/GSEA/TEcount_Gene_GSEA.jpeg",
         func_gsea_csv = outdir + "/{contrast}/GSEA/TEcount_Gene_GSEA.csv"
     log:
-        logdir + "/compare/{contrast}.gsea.log"
+        logdir + "/../group/function/{contrast}.gsea.log"
     threads: 1
     params:
         gsea_script = ROOT_DIR + "/modules/function/bin/gsea.r",

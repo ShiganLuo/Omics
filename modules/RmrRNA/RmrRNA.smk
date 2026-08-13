@@ -14,7 +14,7 @@ rule extract_rRNA:
     output:
         rRNA_fasta = outdir + "/rRNA.fasta"
     log:
-        logdir + "/all/extract_rRNA.log"
+        logdir + "/../group/RmrRNA/extract_rRNA.log"
     threads: 2
     params:
         extract_rRNA_script = os.path.join(ROOT_DIR, "modules/RmrRNA/bin/extract_rRNA.py")

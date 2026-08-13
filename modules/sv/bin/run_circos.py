@@ -1,8 +1,8 @@
 import os
 import sys
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from common.LogUtil import setup_logger
-from common.CmdUtil import _run_cmd
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
+from src.common.util.LogUtil import setup_logger
+from src.common.util.CmdUtil import _run_cmd
 import logging
 import re
 from pathlib import Path

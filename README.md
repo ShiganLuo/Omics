@@ -199,115 +199,75 @@ python workflow/Omics/run.py \
 
 ## 运行特定步骤
 
-Snakemake 提供了多种方式来运行流程中的特定步骤，方便调试和重跑。
+`run.py` 提供 `--forcerun` 参数,用于精确重跑某个规则的特定 job,且不会触发下游规则。
 
-### 1. 运行到指定 rule（--until）
+### 用法
 
 ```bash
-# 运行流程直到 align rule 完成（包含 align）
+# 重跑某个规则(所有 wildcards)
 python workflow/Omics/run.py \
-  -m data/meta/fastq \
-  -w CLIP \
-  -o output \
-  --snakemake-args --until align
-```
+  -m data/meta.tsv -w RNAseq -o output --sdm \
+  --forcerun function_gsea
 
-### 2. 运行指定 rule 的特定样本（--target-jobs）
-
-```bash
-# 直接指定要运行的 job（rule + wildcards）
-snakemake --snakefile workflow/Omics/subworkflow/CLIP.smk \
-  --target-jobs 'rule:align:wildcards.sample=S1' \
-  --cores 8
-
-# 运行多个样本
-snakemake --snakefile workflow/Omics/subworkflow/CLIP.smk \
-  --target-jobs 'rule:align:wildcards.sample=S1' 'rule:align:wildcards.sample=S2' \
-  --cores 8
-```
-
-### 3. 强制重跑指定 rule（--forcerun）
-
-```bash
-# 强制重跑 align rule（即使输出已存在）
+# 重跑某个规则的特定样本
 python workflow/Omics/run.py \
-  -m data/meta/fastq \
-  -w CLIP \
-  -o output \
-  --snakemake-args --forcerun align
-```
+  -m data/meta.tsv -w RNAseq -o output --sdm \
+  --forcerun trimming_Paired:sample_id=S1
 
-### 4. 跳过指定 rule（--omit-from）
-
-```bash
-# 跳过 qc 及其下游所有依赖
+# 同时重跑多个 target
 python workflow/Omics/run.py \
-  -m data/meta/fastq \
-  -w CLIP \
-  -o output \
-  --snakemake-args --omit-from qc
+  -m data/meta.tsv -w RNAseq -o output --sdm \
+  --forcerun trimming_Paired:sample_id=S1 trimming_Paired:sample_id=S2
 ```
 
-### 5. 只运行特定 rule（不运行下游）
+### 原理
+
+`--forcerun` 内部转换为 snakemake 的 `--until` + `--forcerun`:
+
+- `--until` 将 DAG 截断到目标规则(含上游依赖),不包含下游
+- `--forcerun` 强制重跑目标规则,即使输出文件已存在
+
+### 规则名自动补全
+
+subworkflow 中通过 `use rule ... as <WorkflowName>_...` 重命名了规则。`run.py` 会自动补前缀,用户只需写原始规则名:
+
+| 用户输入 | 自动转换为 |
+| --- | --- |
+| `function_gsea` | `RNAseq_function_gsea` |
+| `trimming_Paired:sample_id=S1` | `RNAseq_trimming_Paired:sample_id=S1` |
+| `RNAseq_function_gsea` | `RNAseq_function_gsea`(已带前缀,不变) |
+| `all` | `all`(特殊规则名,不变) |
+
+### 查看 DAG 和调试
 
 ```bash
-# 只运行 align，不运行依赖 align 的下游 rule
-snakemake --snakefile workflow/Omics/subworkflow/CLIP.smk \
-  --target-jobs 'rule:align:wildcards.sample=S1' \
-  --no-infer-dependencies \
-  --cores 8
-```
+# 查看将要执行的 job(配合 --dry-run)
+python workflow/Omics/run.py \
+  -m data/meta.tsv -w RNAseq -o output --sdm \
+  --forcerun function_gsea --dry-run
 
-### 6. 查看 DAG 和 rule 依赖
+# 透传其他 snakemake 参数
+python workflow/Omics/run.py \
+  -m data/meta.tsv -w RNAseq -o output --sdm \
+  --forcerun function_gsea \
+  --snakemake-args --printshellcmds
 
-```bash
-# 查看将要执行的 job 列表（dry-run）
-snakemake --snakefile workflow/Omics/subworkflow/CLIP.smk \
-  --target-jobs 'rule:align:wildcards.sample=S1' \
-  --dry-run
-
-# 生成 DAG 图（dot 格式）
-snakemake --snakefile workflow/Omics/subworkflow/CLIP.smk \
+# 生成 DAG 图
+snakemake -s workflow/Omics/subworkflow/RNAseq.smk \
+  --configfile output/RNAseq/raw.json \
+  --cores 1 --sdm apptainer \
+  --until RNAseq_function_gsea --forcerun RNAseq_function_gsea \
   --dag | dot -Tpng > dag.png
-
-# 生成 rule 依赖图
-snakemake --snakefile workflow/Omics/subworkflow/CLIP.smk \
-  --rulegraph | dot -Tpng > rulegraph.png
 ```
 
-### 7. HPC 环境下单独运行
+### 跳过指定规则
 
-在 HPC 环境中，Snakemake 会生成 jobscript 提交到集群调度器（SLURM/PBS）。要单独运行某个步骤：
-
-```bash
-# 方式1：使用 --target-jots 指定 job
-sbatch --wrap="snakemake --snakefile workflow/Omics/subworkflow/CLIP.smk \
-  --target-jobs 'rule:align:wildcards.sample=S1' \
-  --cores 8 --use-conda"
-
-# 方式2：查看 Snakemake 生成的 jobscript 内容
-snakemake --snakefile workflow/Omics/subworkflow/CLIP.smk \
-  --target-jobs 'rule:align:wildcards.sample=S1' \
-  --dry-run --printshellcmds
-```
-
-### 8. 调试技巧
+如需跳过某个规则及其下游,可通过 `--snakemake-args` 透传 snakemake 的 `--omit-from`:
 
 ```bash
-# 显示将要执行的 shell 命令
-snakemake --snakefile workflow/Omics/subworkflow/CLIP.smk \
-  --target-jobs 'rule:align:wildcards.sample=S1' \
-  --dry-run --printshellcmds
-
-# 详细日志
-snakemake --snakefile workflow/Omics/subworkflow/CLIP.smk \
-  --target-jobs 'rule:align:wildcards.sample=S1' \
-  --cores 8 --verbose
-
-# 只执行一个 job（不并行）
-snakemake --snakefile workflow/Omics/subworkflow/CLIP.smk \
-  --target-jobs 'rule:align:wildcards.sample=S1' \
-  --cores 1
+python workflow/Omics/run.py \
+  -m data/meta.tsv -w RNAseq -o output --sdm \
+  --snakemake-args --omit-from RNAseq_generate_report
 ```
 
 ## `run.py` 参数说明

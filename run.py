@@ -83,7 +83,7 @@ def parse_args():
     )
     parser.add_argument('--conda-frontend', type=str, choices=["conda", "mamba"], default="mamba", help='conda frontend for snakemake')
     parser.add_argument('--forcerun', type=str, nargs='+', default=None,
-        help='force re-run specific jobs without downstream, e.g. --forcerun trimming_Paired:sample_id=S1')
+        help='force re-run specific jobs without downstream, format: RULE or RULE:WILDCARD1=VALUE,WILDCARD2=VALUE,..., e.g. --forcerun trimming_Paired:sample_id=S1')
     parser.add_argument(
         '--snakemake-args',
         nargs=argparse.REMAINDER,

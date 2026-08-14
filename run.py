@@ -82,6 +82,8 @@ def parse_args():
         help='snakemake rerun-triggers, e.g. code input mtime params software-env'
     )
     parser.add_argument('--conda-frontend', type=str, choices=["conda", "mamba"], default="mamba", help='conda frontend for snakemake')
+    parser.add_argument('--forcerun', type=str, nargs='+', default=None,
+        help='force re-run specific jobs without downstream, e.g. --forcerun trimming_Paired:sample_id=S1')
     parser.add_argument(
         '--snakemake-args',
         nargs=argparse.REMAINDER,
@@ -235,7 +237,8 @@ def _merge_singularity_args(
     return singularity_args.strip()
 
 def build_snakemake_cmd(root_dir, smk, input_json, threads, conda_prefix, rerun_trigger,
-                        dry_run, conda_frontend, snakemake_args, sdm=None, singularity_args=None):
+                        dry_run, conda_frontend, snakemake_args, sdm=None, singularity_args=None,
+                        forcerun=None):
     snakemake_args = snakemake_args or []
     # Determine container backend: explicit --sdm flag, or legacy --snakemake-args --sdm
     use_singularity = sdm is not None or _detect_singularity(snakemake_args)
@@ -277,6 +280,11 @@ def build_snakemake_cmd(root_dir, smk, input_json, threads, conda_prefix, rerun_
             ]
     if dry_run:
         cmd.append("--dry-run")
+    if forcerun:
+        cmd.append("--until")
+        cmd.extend(forcerun)
+        cmd.append("--forcerun")
+        cmd.extend(forcerun)
     if snakemake_args:
         cmd.extend(snakemake_args)
     return cmd
@@ -503,11 +511,31 @@ def execute_workflows(args, root_dir: str, logger):
                 raw_fastq_dir, abs_outdir, _get_meta(wf_name)
             )
 
+            # Auto-prefix forcerun targets with workflow name if not already prefixed.
+            # In subworkflows, rules are renamed via "use rule ... as <wf>_...", so
+            # the user can write "function_gsea" instead of "RNAseq_function_gsea".
+            # For wildcards targets like "trimming_Paired:sample_id=S1", only the
+            # rule name (before ":") gets prefixed.
+            forcerun_targets = None
+            if args.forcerun:
+                forcerun_targets = []
+                for t in args.forcerun:
+                    if ":" in t:
+                        rule_part, rest = t.split(":", 1)
+                        rest = ":" + rest
+                    else:
+                        rule_part, rest = t, ""
+                    if rule_part == "all" or rule_part.startswith(f"{wf_name}_"):
+                        forcerun_targets.append(t)
+                    else:
+                        forcerun_targets.append(f"{wf_name}_{rule_part}{rest}")
+
             cmd = build_snakemake_cmd(
                 root_dir, smk, input_json, threads_per_workflow,
                 args.conda_prefix, args.rerun_trigger, args.dry_run,
                 args.conda_frontend, args.snakemake_args,
                 sdm=args.sdm, singularity_args=args.singularity_args,
+                forcerun=forcerun_targets,
             )
             logger.info(f"[{wf_name}] {cmd}")
             smk_cmds.append((cmd, abs_outdir))

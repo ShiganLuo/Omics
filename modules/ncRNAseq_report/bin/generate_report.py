@@ -625,52 +625,158 @@ def plot_star_mapping(samples_data: list[dict], img_store: TempImageStore) -> st
     return img_store.save_fig(fig, "star_mapping")
 
 
-def plot_gene_assignments(samples_data: list[dict], analysis_dir: str, img_store: TempImageStore) -> str:
-    """Generate Stacked bar chart of per-gene read assignments, split by group."""
-    groups_data: dict[str, dict[str, list[int]]] = defaultdict(lambda: defaultdict(list))
+def plot_gene_assignments(
+    samples_data: list[dict],
+    analysis_dir: str,
+    img_store: TempImageStore,
+) -> str:
+    """Generate stacked bar charts of per-gene read assignments, split by group.
+
+    Each gene is aligned to the complete sample list within its group. If a gene
+    is absent from a sample's manifest, its assignment count is set to zero.
+    This guarantees that every stacked-bar series has exactly the same number
+    of values as the corresponding sample labels.
+    """
+    # Store:
+    #   groups_data[group][gene][sample] = assigned_records
+    groups_data: dict[str, dict[str, dict[str, int]]] = defaultdict(
+        lambda: defaultdict(dict)
+    )
     sample_labels: dict[str, list[str]] = defaultdict(list)
+
+    # Keep the original sample IDs in each group so that the order is explicit.
+    group_samples: dict[str, list[str]] = defaultdict(list)
+
     for d in samples_data:
-        g = infer_group(d["sample"])
-        sample_labels[g].append(_short_name(d["sample"]))
-        manifest_path = os.path.join(analysis_dir, "common", "4_per_gene_bam", d["sample"], "genes.tsv")
+        sample = d["sample"]
+        group = infer_group(sample)
+
+        group_samples[group].append(sample)
+        sample_labels[group].append(_short_name(sample))
+
+        manifest_path = os.path.join(
+            analysis_dir,
+            "common",
+            "4_per_gene_bam",
+            sample,
+            "genes.tsv",
+        )
+
         manifest = load_gene_manifest(manifest_path)
-        if not manifest.empty and "assigned_records" in manifest.columns:
-            for _, row in manifest.sort_values("assigned_records", ascending=False).iterrows():
-                groups_data[g][str(row["gene_id"])].append(int(row["assigned_records"]))
-            # Pad with zeros for genes not in this sample
-            max_genes = max(len(v) for v in groups_data[g].values()) if groups_data[g] else 0
-            for gene in groups_data[g]:
-                while len(groups_data[g][gene]) < max_genes:
-                    groups_data[g][gene].append(0)
-        else:
-            groups_data[g]["(none)"].append(0)
+
+        if manifest.empty or "assigned_records" not in manifest.columns:
+            # No valid manifest: keep an explicit empty marker for this sample.
+            groups_data[group]["(none)"][sample] = 0
+            continue
+
+        for _, row in manifest.iterrows():
+            gene = str(row["gene_id"])
+            count = int(row["assigned_records"])
+
+            groups_data[group][gene][sample] = count
 
     n_groups = len(groups_data)
-    fig, axes = plt.subplots(1, max(n_groups, 1), figsize=(5 * max(n_groups, 1), 4.0), squeeze=False)
+
+    fig, axes = plt.subplots(
+        1,
+        max(n_groups, 1),
+        figsize=(5 * max(n_groups, 1), 4.0),
+        squeeze=False,
+    )
     axes = axes[0]
-    palette = [P_7SL, P_U1, "#3A9BBC", "#5EEAD4", "#7BC4D9", "#B8E0E8", "#D0F0F0", P_CORAL, P_GREEN, P_ORANGE]
+
+    palette = [
+        P_7SL,
+        P_U1,
+        "#3A9BBC",
+        "#5EEAD4",
+        "#7BC4D9",
+        "#B8E0E8",
+        "#D0F0F0",
+        P_CORAL,
+        P_GREEN,
+        P_ORANGE,
+    ]
+
     for ax_idx, (group, gene_data) in enumerate(sorted(groups_data.items())):
         ax = axes[ax_idx]
+
+        samples = group_samples[group]
         labels = sample_labels[group]
-        n_samples = len(labels)
-        bottom = np.zeros(n_samples)
-        for i, (gene, counts) in enumerate(sorted(gene_data.items(), key=lambda x: -sum(x[1]))):
-            vals = np.array(counts[:n_samples])
-            ax.bar(range(n_samples), vals, 0.5, bottom=bottom, label=gene, color=palette[i % len(palette)])
+        n_samples = len(samples)
+
+        bottom = np.zeros(n_samples, dtype=float)
+
+        # Sort genes by total assigned reads within this group.
+        sorted_genes = sorted(
+            gene_data.items(),
+            key=lambda x: -sum(x[1].values()),
+        )
+
+        for i, (gene, sample_counts) in enumerate(sorted_genes):
+            # IMPORTANT:
+            # Construct values strictly according to `samples` order.
+            #
+            # Missing gene/sample combinations are explicitly represented as 0.
+            vals = np.array(
+                [sample_counts.get(sample, 0) for sample in samples],
+                dtype=float,
+            )
+
+            # Defensive check: x, vals and bottom must always have
+            # exactly the same length.
+            if len(vals) != n_samples:
+                raise RuntimeError(
+                    f"Internal data alignment error for group={group!r}, "
+                    f"gene={gene!r}: "
+                    f"{len(vals)=}, {n_samples=}"
+                )
+
+            ax.bar(
+                range(n_samples),
+                vals,
+                0.5,
+                bottom=bottom,
+                label=gene,
+                color=palette[i % len(palette)],
+            )
+
             bottom += vals
-        ax.set_title(f"{group} group", fontsize=12, fontweight="bold")
+
+        ax.set_title(
+            f"{group} group",
+            fontsize=12,
+            fontweight="bold",
+        )
         ax.set_xticks(range(n_samples))
         ax.set_xticklabels(labels, fontsize=9)
         ax.set_ylabel("Assigned reads", fontsize=10)
-        ax.legend(fontsize=7, loc="upper right", framealpha=0.9)
-        ax.grid(axis="y", color="#E0E0E0", linewidth=0.5)
+
+        ax.legend(
+            fontsize=7,
+            loc="upper right",
+            framealpha=0.9,
+        )
+
+        ax.grid(
+            axis="y",
+            color="#E0E0E0",
+            linewidth=0.5,
+        )
         ax.set_axisbelow(True)
+
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
-    fig.suptitle("Per-Gene Read Assignments", fontsize=13, fontweight="bold", y=1.01)
-    fig.tight_layout()
-    return img_store.save_fig(fig, "gene_assignments")
 
+    fig.suptitle(
+        "Per-Gene Read Assignments",
+        fontsize=13,
+        fontweight="bold",
+        y=1.01,
+    )
+    fig.tight_layout()
+
+    return img_store.save_fig(fig, "gene_assignments")
 
 def plot_tail_summary(samples_data: list[dict], img_store: TempImageStore) -> str:
     """Generate Stacked bar chart for reads with/without non-template tails."""

@@ -11,7 +11,10 @@ single_samples = config.get("single_samples", [])
 all_samples = config.get("samples", [])
 outfiles = config.get("outfiles", [])
 aligner = config.get("Procedure", {}).get("aligner") or "star"
-
+ip_samples = config.get("ip_samples", [])
+input_samples = config.get("input_samples", [])
+sample_ip_input_map = config.get("sample_ip_input_map", {})
+igv_genome = config.get("Params", {}).get("track", {}).get("igv", {}).get("default")
 rule all:
     input:
         outfiles
@@ -20,7 +23,7 @@ fastqc_raw_config = {
         "env": config.get("env", {}),
         "indir": indir,
         "outdir":  f"{outdir}/QC/1_raw_fastqc",
-        "logdir": logdir,
+        "logdir": os.path.join(logdir,"sample"),
         "log_suffix": "raw.txt",
         "paired_samples": paired_samples,
         "single_samples": single_samples,
@@ -32,7 +35,7 @@ module fastqc_raw:
     snakefile: "../modules/fastqc/fastqc.smk"
     config: fastqc_raw_config
 logger.info(f"fastqc_raw_config: {fastqc_raw_config}")
-use rule fastqc from fastqc_raw as PeakCalling_fastqc_raw
+use rule fastqc from fastqc_raw as ncRNAseq_fastqc_raw
 
 # ── 0. Demultiplex: 3' adapter removal + PCR duplicate removal ───────────────
 demultiplexer_config = {
@@ -40,7 +43,7 @@ demultiplexer_config = {
         "env": config.get("env", {}),
         "indir": indir,
         "outdir": f"{outdir}/common/2_trimmed_dedup_fastq/jla-demultiplexer",
-        "logdir": logdir,
+        "logdir": os.path.join(logdir,"sample"),
         "paired_samples": paired_samples,
         "single_samples": single_samples,
         "Params": {
@@ -58,7 +61,7 @@ trim_galore_config = {
         "env": config.get("env", {}),
         "indir": demultiplexer_config["outdir"],
         "outdir": f"{outdir}/common/2_trimmed_dedup_fastq/final_trimmed_fastq",
-        "logdir": logdir,
+        "logdir": os.path.join(logdir,"sample"),
         "Procedure": {
             "trim_galore": config.get('Procedure',{}).get('trim_galore')
         },
@@ -86,7 +89,7 @@ else:
             "env": config.get("env", {}),
             "indir": trim_galore_config["outdir"],
             "outdir": f"{outdir}/common/2_trimmed_dedup_fastq/trimmed_subsampled_fastq",
-            "logdir": logdir,
+            "logdir": os.path.join(logdir,"sample"),
             "paired_samples": paired_samples,
             "single_samples": single_samples,
             "Params": {
@@ -112,7 +115,7 @@ fastqc_trimmed_config = {
         "env": config.get("env", {}),
         "indir": final_fastq_outdir,
         "outdir":  f"{outdir}/QC/2_trimmed_fastqc",
-        "logdir": logdir,
+        "logdir": os.path.join(logdir,"sample"),
         "paired_samples": paired_samples,
         "single_samples": single_samples,
         "log_suffix": "trimmed.txt",
@@ -124,7 +127,7 @@ module fastqc_trimmed:
     snakefile: "../modules/fastqc/fastqc.smk"
     config: fastqc_trimmed_config
 logger.info(f"fastqc_trimmed_config: {fastqc_trimmed_config}")
-use rule fastqc from fastqc_trimmed as PeakCalling_fastqc_trimmed
+use rule fastqc from fastqc_trimmed as ncRNAseq_fastqc_trimmed
 
 # ── 2. Align ─────────────────────────────────────────────────────────────────
 STAR = config.get("Procedure", {}).get("STAR") or "STAR"
@@ -157,7 +160,30 @@ if aligner == "hisat2":
         snakefile: "../modules/hisat2/ncRNAseq/hisat2.smk"
         config: hisat2_config
     use rule hisat2_align_ncRNAseq_single from hisat2 as ncRNAseq_hisat2_align
-
+    gatk_prepare_config = {
+        "ROOT_DIR": ROOT_DIR,
+        "env": config.get("env", {}),
+        "indir": hisat2_config["outdir"],
+        "outdir": f"{outdir}/common/4_markdup_bam",
+        "logdir": os.path.join(logdir,"sample"),
+        "input_bam_substring": "",
+        "Procedure": {
+            "gatk": config.get("Procedure", {}).get("gatk") or "gatk",
+            "samtools": config.get("Procedure", {}).get("samtools") or "samtools"
+        },
+        "Params": {
+            "gatk": config.get("Params", {}).get("gatk", {})
+        },
+        "genome": {
+            "fasta": config.get("genome", {}).get("fasta")
+        }
+    }
+    module gatk_prepare:
+        snakefile: "../modules/gatk/gatk_prepare.smk"
+        config: gatk_prepare_config
+    logger.info(f"gatk_prepare_config: {gatk_prepare_config}")
+    use rule addReadsGroup from gatk_prepare as ncRNAseq_addReadsGroup
+    use rule MarkDuplicates from gatk_prepare as ncRNAseq_MarkDuplicates
 elif aligner == "star":
     # ── STAR index for genome (auto-build when star_index_dir is null) ──
     if not star_index_dir:
@@ -165,7 +191,9 @@ elif aligner == "star":
             "ROOT_DIR": ROOT_DIR,
             "env": config.get("env", {}),
             "outdir": f"{outdir}/genome/whole_genome",
-            "logdir": logdir,
+            "logdir": os.path.join(logdir,"group"),
+            "logdir_index": os.path.join(logdir,"group"),
+            "log_index_substring": "star_index_genome",
             "Procedure": {"STAR": STAR},
             "Params": {"star": {"index": config.get("Params", {}).get("star", {}).get("index", {})}},
             "genome": {
@@ -188,7 +216,8 @@ elif aligner == "star":
         "env": config.get("env", {}),
         "indir": final_fastq_outdir,
         "outdir": f"{outdir}/common/3_raw_bam",
-        "logdir": logdir,
+        "logdir": os.path.join(logdir,"sample"),
+        "logdir_index": os.path.join(logdir,"group"),
         "paired_samples": paired_samples,
         "single_samples": single_samples,
         "Procedure": {
@@ -217,7 +246,30 @@ elif aligner == "star":
         snakefile: "../modules/star/star.smk"
         config: star_config
     use rule star_align from star as ncRNAseq_star_align
-
+    gatk_prepare_config = {
+        "ROOT_DIR": ROOT_DIR,
+        "env": config.get("env", {}),
+        "indir": star_config["outdir"],
+        "outdir": f"{outdir}/common/4_markdup_bam",
+        "logdir": os.path.join(logdir,"sample"),
+        "input_bam_substring": "",
+        "Procedure": {
+            "gatk": config.get("Procedure", {}).get("gatk") or "gatk",
+            "samtools": config.get("Procedure", {}).get("samtools") or "samtools"
+        },
+        "Params": {
+            "gatk": config.get("Params", {}).get("gatk", {})
+        },
+        "genome": {
+            "fasta": config.get("genome", {}).get("fasta")
+        }
+    }
+    module gatk_prepare:
+        snakefile: "../modules/gatk/gatk_prepare.smk"
+        config: gatk_prepare_config
+    logger.info(f"gatk_prepare_config: {gatk_prepare_config}")
+    use rule addReadsGroup from gatk_prepare as ncRNAseq_addReadsGroup
+    use rule MarkDuplicates from gatk_prepare as ncRNAseq_MarkDuplicates
 elif aligner == "star_3pass":
     # ================================================================
     # Three-pass STAR alignment for canonical small RNA quantification
@@ -243,7 +295,9 @@ elif aligner == "star_3pass":
             "ROOT_DIR": ROOT_DIR,
             "env": config.get("env", {}),
             "outdir": f"{outdir}/genome/whole_genome",
-            "logdir": f"{logdir}/genome/whole_genome",
+            "logdir": os.path.join(logdir,"sample"),
+            "logdir_index": os.path.join(logdir,"group"),
+            "log_index_substring": "star_index_genome",
             "Procedure": {"STAR": STAR},
             "Params": {"star": {"index": config.get("Params", {}).get("star_3pass", {}).get("index", {}).get("genome", {})}},
             "genome": {
@@ -266,7 +320,7 @@ elif aligner == "star_3pass":
         "ROOT_DIR": ROOT_DIR,
         "env": config.get("env", {}),
         "outdir": outdir,
-        "logdir": f"{logdir}/genome",
+        "logdir": os.path.join(logdir,"group"),
         "Procedure": {
             "samtools": SAMTOOLS,
             "bedtools": BEDTOOLS,
@@ -297,7 +351,9 @@ elif aligner == "star_3pass":
             "env": config.get("env", {}),
             "indir": f"{outdir}/genome/smallrna",
             "outdir": f"{outdir}/genome/smallrna",
-            "logdir": f"{logdir}/genome/smallrna",
+            "logdir": os.path.join(logdir,"sample"),
+            "logdir_index": os.path.join(logdir,"group"),
+            "log_index_substring": "star_index_smallrna",
             "Procedure": {"STAR": STAR},
             "Params": {"star": {"index": config.get("Params", {}).get("star_3pass", {}).get("index", {}).get("smallrna", {})}},
             "genome": {
@@ -320,7 +376,7 @@ elif aligner == "star_3pass":
         "env": config.get("env", {}),
         "indir": final_fastq_outdir,
         "outdir": f"{outdir}/common/3_raw_bam/final_bam",
-        "logdir": logdir,
+        "logdir": os.path.join(logdir,"sample"),
         "paired_samples": paired_samples,
         "single_samples": single_samples,
         "Procedure": {
@@ -339,7 +395,29 @@ elif aligner == "star_3pass":
         snakefile: "../modules/star/star_3pass/star_3pass.smk"
         config: star_3pass_config
     use rule star_3p_align from star_3pass as ncRNAseq_star3p_align
-
+    tailer_config = {
+        "ROOT_DIR": ROOT_DIR,
+        "env": config.get("env", {}),
+        "indir": star_3pass_config["outdir"],
+        "outdir": f"{outdir}/results/tailer",
+        "logdir": os.path.join(logdir,"sample"),
+        "paired_samples": paired_samples,
+        "single_samples": single_samples,
+        "Procedure": {
+            "tailer": config.get("Procedure", {}).get("tailer") or config.get("Procedure", {}).get("Tailer") or "Tailer"
+        },
+        "Params": {
+            "tailer": config.get("Params", {}).get("tailer", {})
+        },
+        "genome": {
+            "gtf": config.get("genome", {}).get("gtf")
+        }
+    }
+    logger.info(f"tailer_config: {tailer_config}")
+    module tailer:
+        snakefile: "../modules/tailer/tailer.smk"
+        config: tailer_config
+    use rule tailer_global from tailer as ncRNAseq_tailer_global
 elif aligner == "star_3pass_gene":
     # ================================================================
     # Three-pass STAR alignment with per-gene re-alignment
@@ -366,7 +444,9 @@ elif aligner == "star_3pass_gene":
             "ROOT_DIR": ROOT_DIR,
             "env": config.get("env", {}),
             "outdir": f"{outdir}/genome/whole_genome",
-            "logdir": f"{logdir}/genome/whole_genome",
+            "logdir": os.path.join(logdir,"sample"),
+            "logdir_index": os.path.join(logdir,"group"),
+            "log_index_substring": "star_index_genome",
             "Procedure": {"STAR": STAR},
             "Params": {"star": {"index": config.get("Params", {}).get("star_3pass", {}).get("index", {}).get("genome", {})}},
             "genome": {
@@ -389,7 +469,7 @@ elif aligner == "star_3pass_gene":
         "ROOT_DIR": ROOT_DIR,
         "env": config.get("env", {}),
         "outdir": outdir,
-        "logdir": f"{logdir}/genome",
+        "logdir": os.path.join(logdir,"group"),
         "Procedure": {
             "samtools": SAMTOOLS,
             "bedtools": BEDTOOLS,
@@ -423,7 +503,9 @@ elif aligner == "star_3pass_gene":
             "ROOT_DIR": ROOT_DIR,
             "env": config.get("env", {}),
             "outdir": f"{outdir}/genome/smallrna",
-            "logdir": f"{logdir}/genome/smallrna",
+            "logdir": os.path.join(logdir,"sample"),
+            "logdir_index": os.path.join(logdir,"group"),
+            "log_index_substring": "star_index_smallrna",
             "Procedure": {"STAR": STAR},
             "Params": {"star": {"index": config.get("Params", {}).get("star_3pass", {}).get("index", {}).get("smallrna", {})}},
             "genome": {
@@ -445,7 +527,7 @@ elif aligner == "star_3pass_gene":
         "env": config.get("env", {}),
         "indir": final_fastq_outdir,
         "outdir": f"{outdir}/common/3_raw_bam",
-        "logdir": logdir,
+        "logdir": os.path.join(logdir,"sample"),
         "paired_samples": paired_samples,
         "single_samples": single_samples,
         "Procedure": {
@@ -473,7 +555,7 @@ elif aligner == "star_3pass_gene":
         "env": config.get("env", {}),
         "outdir": f"{outdir}/common/4_per_gene_bam",
         "final_bam_dir": star_3pass_gene_upstream_config["outdir"],
-        "logdir": logdir,
+        "logdir": os.path.join(logdir,"sample"),
         "Procedure": {
             "samtools": SAMTOOLS,
             "bedtools": BEDTOOLS,
@@ -496,7 +578,24 @@ elif aligner == "star_3pass_gene":
         config: star_3pass_gene_config
 
     use rule star_3pg_gene_specific from star_3pass_gene as ncRNAseq_star3pg_gene_specific
-
+    ncRNAseq_report_config = {
+        "ROOT_DIR": ROOT_DIR,
+        "env": config.get("env", {}),
+        "outdir": outdir,
+        "logdir": os.path.join(logdir,"sample"),
+        "samples": all_samples,
+        "paired_samples": paired_samples,
+        "single_samples": single_samples,
+        "Params": {
+            "report": config.get("Params", {}).get("report", {}),
+        },
+    }
+    module ncRNAseq_report:
+        snakefile: "../modules/ncRNAseq_report/ncRNAseq_report.smk"
+        config: ncRNAseq_report_config
+    logger.info(f"ncRNAseq_report_config: {ncRNAseq_report_config}")
+    use rule generate_report from ncRNAseq_report as ncRNAseq_generate_report
+    use rule report_result from ncRNAseq_report as ncRNAseq_report_result
 else:
     raise ValueError(f"Unsupported aligner: {aligner}. Please choose 'hisat2', 'star', 'star_3pass', or 'star_3pass_gene'.")
 
@@ -506,16 +605,60 @@ if aligner in ("star_3pass", "star_3pass_gene"):
     # Gene-local BAM coordinates are incompatible with the whole-genome GTF.
     # Keep featureCounts attached to the canonical final BAM; gene-specific
     # BAMs are consumed only with their matching local annotations by Tailer.
-    align_bam_dir = f"{outdir}/common/3_raw_bam/final_bam"
-else:
     align_bam_dir = f"{outdir}/common/3_raw_bam"
+else:
+    align_bam_dir = f"{outdir}/common/4_markdup_bam"
+
+igv_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "env": config.get("env", {}),
+    "indir": align_bam_dir,
+    "outdir": f"{outdir}/tracks",
+    "logdir": os.path.join(logdir,"sample"),
+    "Procedure": {
+        "samtools": config.get("Procedure", {}).get("samtools") or "samtools",
+        "bamCoverage": config.get("Procedure", {}).get("bamCoverage") or "bamCoverage"
+    },
+    "Params": {
+        "bamCoverage": {
+            "binSize": config.get("Params", {}).get("bamCoverage", {}).get("binSize") or 50,
+            "normalizeUsing": config.get("Params", {}).get("bamCoverage", {}).get("normalizeUsing") or "CPM",
+            "offset": config.get("Params", {}).get("bamCoverage", {}).get("offset"),
+            "extendReads": config.get("Params", {}).get("bamCoverage", {}).get("extendReads") or False
+        }
+    }
+}
+module igv:
+    snakefile: "../modules/igv/igv.smk"
+    config: igv_config
+logger.info(f"igv_config: {igv_config}")
+use rule samtools_dedup from igv as ncRNAseq_dedup
+use rule wig from igv as ncRNAseq_bigwig
+
+track_config = {
+        "indir": igv_config["outdir"],
+        "outdir":  igv_config["outdir"],
+        "logdir": os.path.join(logdir,"group"),
+        "samples": single_samples + paired_samples,
+        "ROOT_DIR": ROOT_DIR,
+        "env": config.get("env", {}),
+        "igv": config.get('Params', {}).get('track', {}).get('igv', {}).get('configs', {}).get(igv_genome, {}),
+    }
+
+module track:
+    snakefile: "../modules/track/track.smk"
+    config: track_config
+logger.info(f"track_config: {track_config}")
+use rule * from track as ncRNAseq_*
+
+
 
 featureCounts_config = {
     "ROOT_DIR": ROOT_DIR,
     "env": config.get("env", {}),
     "indir": align_bam_dir,
     "outdir": f"{outdir}/counts",
-    "logdir": logdir,
+    "logdir": os.path.join(logdir,"sample"),
     "paired_samples": paired_samples,
     "single_samples": single_samples,
     "Procedure": {
@@ -533,53 +676,6 @@ use rule featureCounts_single_noMultiple from featureCounts as ncRNAseq_featureC
 use rule featureCounts_paired_noMultiple from featureCounts as ncRNAseq_featureCounts_paired
 use rule featureCounts_result from featureCounts as ncRNAseq_featureCounts_result
 
-# ── 4. Tailer (3' end analysis) ──────────────────────────────────────────────
-if aligner == "star_3pass_gene":
-    align_bam_dir = f"{outdir}/common/3_raw_bam/per_gene"
-    tailer_gtf = config.get("genome", {}).get("gtf")
-else:
-    tailer_gtf = config.get("genome", {}).get("gtf")
-tailer_config = {
-    "ROOT_DIR": ROOT_DIR,
-    "env": config.get("env", {}),
-    "indir": align_bam_dir,
-    "outdir": f"{outdir}/results/tailer",
-    "logdir": logdir,
-    "paired_samples": paired_samples,
-    "single_samples": single_samples,
-    "Procedure": {
-        "tailer": config.get("Procedure", {}).get("tailer") or config.get("Procedure", {}).get("Tailer") or "Tailer"
-    },
-    "Params": {
-        "tailer": config.get("Params", {}).get("tailer", {})
-    },
-    "genome": {
-        "gtf": tailer_gtf
-    }
-}
-logger.info(f"tailer_config: {tailer_config}")
-module tailer:
-    snakefile: "../modules/tailer/tailer.smk"
-    config: tailer_config
-if aligner != "star_3pass_gene":
-    use rule tailer_global from tailer as ncRNAseq_tailer_global
 
-# ── 5. Report ────────────────────────────────────────────────────────────────
-ncRNAseq_report_config = {
-    "ROOT_DIR": ROOT_DIR,
-    "env": config.get("env", {}),
-    "outdir": outdir,
-    "logdir": logdir,
-    "samples": all_samples,
-    "paired_samples": paired_samples,
-    "single_samples": single_samples,
-    "Params": {
-        "report": config.get("Params", {}).get("report", {}),
-    },
-}
-module ncRNAseq_report:
-    snakefile: "../modules/ncRNAseq_report/ncRNAseq_report.smk"
-    config: ncRNAseq_report_config
-logger.info(f"ncRNAseq_report_config: {ncRNAseq_report_config}")
-use rule generate_report from ncRNAseq_report as ncRNAseq_generate_report
-use rule report_result from ncRNAseq_report as ncRNAseq_report_result
+
+

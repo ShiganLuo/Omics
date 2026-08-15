@@ -145,7 +145,7 @@ def _collect_bind_paths(config_path):
     dirs = set()
 
     def _walk(obj):
-        if is_path_like(obj):
+        if is_path_like(obj) and os.path.exists(obj):
             # Resolve to absolute path; use as-is if not exists (don't resolve symlinks)
             p = _os.path.abspath(obj.strip())
             if _os.path.isfile(p):
@@ -294,12 +294,12 @@ WORKFLOW_DISPATCH = {
     "CoCulture":  lambda cfg, sid, sp, gp, indir, outdir, meta: ("CoCulture.smk", runCoCulture(cfg, sid, indir, outdir)),
     "MERIP":      lambda cfg, sid, sp, gp, indir, outdir, meta: ("MERIP.smk",     runMERIP(cfg, sid, indir, outdir)),
     "RNAseq":     lambda cfg, sid, sp, gp, indir, outdir, meta: ("RNAseq.smk",    runRNAseq(cfg, sid, gp, indir, outdir)),
-    "ncRNAseq":   lambda cfg, sid, sp, gp, indir, outdir, meta: ("ncRNAseq.smk",  runncRNAseq(cfg, sid, indir, outdir)),
+    "ncRNAseq":   lambda cfg, sid, sp, gp, indir, outdir, meta: ("ncRNAseq.smk",  runncRNAseq(cfg, sid, sp, indir, outdir)),
     "CLIP":       lambda cfg, sid, sp, gp, indir, outdir, meta: ("CLIP.smk",      runCLIP(cfg, sid, indir, outdir)),
     "Mutation":   lambda cfg, sid, sp, gp, indir, outdir, meta: ("Mutation.smk",  runMutation(cfg, sid, sp, indir, outdir)),
     "PacVar":     lambda cfg, sid, sp, gp, indir, outdir, meta: ("PacVar.smk",    runPacVar(cfg, sid, indir, outdir)),
     "KARRseq":    lambda cfg, sid, sp, gp, indir, outdir, meta: ("KARRseq.smk",   runKARRseq(cfg, sid, indir, outdir)),
-    "PeakCalling":lambda cfg, sid, sp, gp, indir, outdir, meta: ("PeakCalling.smk",runPeakCalling(cfg, sid,sp, indir, outdir)),
+    "PeakCalling":lambda cfg, sid, sp, gp, indir, outdir, meta: ("PeakCalling.smk",runPeakCalling(cfg, sid, sp, indir, outdir)),
     "QuantMS":    lambda cfg, sid, sp, gp, indir, outdir, meta: ("QuantMS.smk",   runQuantMS(cfg, sid, indir, outdir)),
     "tRNAseq":    lambda cfg, sid, sp, gp, indir, outdir, meta: ("tRNAseq.smk",   runtRNAseq(cfg, sid, indir, outdir, meta)),
 }

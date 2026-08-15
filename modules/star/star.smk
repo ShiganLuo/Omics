@@ -5,6 +5,8 @@ import time
 logger = logging.getLogger(__name__)
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
+logdir_index = config.get("logdir_index", logdir)
+log_index_substring = config.get("log_index_substring", "star_index")
 indir= config.get("indir", "input")
 paired_samples = config.get("paired_samples", [])
 single_samples = config.get("single_samples", [])
@@ -17,7 +19,7 @@ rule star_index:
     output:
         index_file = directory(outdir + "/index")
     log:
-        logdir + "/../group/star/star_index.log"
+        logdir_index + "/star/" + log_index_substring + ".log"
     threads: 12
     conda:
         "star.yaml"

@@ -6,18 +6,19 @@ samples = config.get("samples", [])
 ip_samples = config.get("ip_samples", [])
 input_samples = config.get("input_samples", [])
 sample_ip_input_map = config.get("sample_ip_input_map", {})
+bam_substring = config.get("bam_substring", "sorted_markdup.bam")
 
 def get_macs3_input(wildcards):
     """
     Get treatment (IP) and optional control (Input) BAM files for MACS3.
     sample_ip_input_map: dict mapping IP sample_id -> input sample_id (or None)
     """
-    bam_treatment = os.path.join(indir,f"{wildcards.sample_id}/{wildcards.sample_id}.sorted_markdup.bam")
+    bam_treatment = os.path.join(indir,f"{wildcards.sample_id}/{wildcards.sample_id}.{bam_substring}")
     
     # Check if there's a matched input control
     input_sample = sample_ip_input_map.get(wildcards.sample_id)
     if input_sample:
-        bam_control = os.path.join(indir,f"{input_sample}/{input_sample}.sorted_markdup.bam")
+        bam_control = os.path.join(indir,f"{input_sample}/{input_sample}.{bam_substring}")
         return {
             "bam_treatment": bam_treatment,
             "bam_control": bam_control
@@ -75,12 +76,11 @@ rule macs3_callpeak:
             if params.cutoff_analysis:
                 rule_logger.info(f"use --cutoff-analysis to find better pvalue, it May take ~30 folds longer time to finish")
                 cmd.append("--cutoff-analysis")
-            success_echo = f'echo "macs3 call peak for sample {wildcards.sample_id} successfully completed !"'
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write(" ".join(cmd) + "\n")
-                f.write(success_echo + "\n")
-            shell(f"bash {script} > {log_path} 2>&1")
+                f.write(f'echo "macs3 call peak for sample {wildcards.sample_id} successfully completed !"'+ "\n")
+            shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path,"a") as f:
                 f.write(f"Error occurred during macs3 call peak for sample {wildcards.sample_id}: {e}\n")

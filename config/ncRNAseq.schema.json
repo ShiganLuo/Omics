@@ -312,7 +312,19 @@
         }
       }
     },
-    "tailer": {}
+    "tailer": {},
+    "track": {
+      "igv": {
+        "default": {
+          "type": "str",
+          "required": true
+        },
+        "configs": {
+          "type": "dict",
+          "required": true
+        }
+      }
+    }
   },
   "genome": {
     "fasta": {

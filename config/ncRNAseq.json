@@ -5,6 +5,9 @@
     "samples": [],
     "paired_samples": [],
     "single_samples": [],
+    "ip_samples": [],
+    "input_samples": [],
+    "sample_ip_input_map": {},
     "outfiles": [],
     "ROOT_DIR": ".",
     "env": {
@@ -18,7 +21,10 @@
         "subsample": "/home/luosg/Database/env/subsample/subsample.sif",
         "tailer": "/home/luosg/Database/env/tailer/tailer.sif",
         "trim-galore": "/home/luosg/Database/env/trim-galore/trim-galore.sif",
-        "ncRNAseq_report": "/home/luosg/Database/env/ncRNAseq_report/ncRNAseq_report.sif"
+        "ncRNAseq_report": "/home/luosg/Database/env/ncRNAseq_report/ncRNAseq_report.sif",
+        "igv": "/home/luosg/Database/env/igv/hisat2.sif",
+        "macs3": "/home/luosg/Database/env/macs3/macs3.sif",
+        "track": "/home/luosg/Database/env/track/track.sif"
     },
     "Procedure": {
         "aligner": null,
@@ -138,7 +144,67 @@
                 "TERC"
             ],
             "seed": 42
+        },
+        "track":{
+            "igv": {
+                "default": "GRCm39",
+                "configs": {
+                    "GRCm39": {
+                        "js": "/home/luosg/Database/SoftWare/igv.min.js",
+                        "id": "mm39",
+                        "name": "Mouse (GRCm39/mm39)",
+                        "publicPathMap": {
+                            "/home/luosg/Data/genomeStability/": "/data/",
+                            "/home/luosg/Database/Reference/": "/ref/"
+                        },
+                        "fastaURL": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
+                        "indexURL": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa.fai",
+                        "cytobandURL": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/mm39.cytoBand.txt",
+                        "tracks": [
+                            {
+                                "name": "Gencode vM38 genes",
+                                "format": "gtf",
+                                "url": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gene_exon.sorted.gtf.gz",
+                                "indexURL": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gene_exon.sorted.gtf.gz.tbi"
+                            },
+                            {
+                                "name": "Gencode rmsk repeats",
+                                "format": "gtf",
+                                "url": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.sorted.gtf.gz",
+                                "indexURL": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.sorted.gtf.gz.tbi"
+                            }
+                        ]
+                    },
+                    "GRCh38": {
+                        "js": "/home/luosg/Database/SoftWare/igv.min.js",
+                        "id": "hg38",
+                        "name": "Human (GRCh38/hg38)",
+                        "publicPathMap": {
+                            "/home/luosg/Data/genomeStability/": "/data/",
+                            "/home/luosg/Database/Reference/": "/ref/"
+                        },
+                        "fastaURL": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa",
+                        "indexURL": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa.fai",
+                        "cytobandURL": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/hg38.cytoBand.txt",
+                        "tracks": [
+                            {
+                                "name": "Gencode vM38 genes",
+                                "format": "gtf",
+                                "url": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/gencode.v49.primary_assembly.basic.annotation.gene_exon.sorted.gtf.gz",
+                                "indexURL": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/gencode.v49.primary_assembly.basic.annotation.gene_exon.sorted.gtf.gz.tbi"
+                            },
+                            {
+                                "name": "Gencode rmsk repeats",
+                                "format": "gtf",
+                                "url": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/GRCh38_GENCODE_rmsk_TE.sorted.gtf.gz",
+                                "indexURL": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/GRCh38_GENCODE_rmsk_TE.sorted.gtf.gz.tbi"
+                            }
+                        ]
+                    }
+                }
+            }
         }
+
     },
     "genome": {
         "fasta": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa",

@@ -46,7 +46,7 @@ rule star_3pg_gene_specific:
         bai=outdir + "/{sample_id}/{sample_id}.bam.bai",
         tail=outdir + "/{sample_id}/{sample_id}_tail.csv",
     log:
-        logdir + "/star3pg/{sample_id}/gene_specific.log"
+        logdir + "/{sample_id}/star3p_gene_specific.log"
     threads: 2
     conda:
         "../star.yaml"

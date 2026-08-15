@@ -1740,6 +1740,7 @@ CMD ["bash"]
 
 
 def is_path_like(value: object) -> bool:
+    """Return True if *value* looks like a local filesystem path."""
     if not isinstance(value, str):
         return False
 
@@ -1747,33 +1748,35 @@ def is_path_like(value: object) -> bool:
     if not value:
         return False
 
-    # URL 不是本地文件路径
+    # URL is not a local filesystem path.
     parsed = urlparse(value)
-    if parsed.scheme in {"http", "https", "ftp", "s3", "ssh"}:
+    if parsed.scheme.lower() in {
+        "http",
+        "https",
+        "ftp",
+        "s3",
+        "ssh",
+    }:
         return False
 
-    # 明显包含 shell / pipeline 描述
+    # Obvious shell/pipeline expressions.
     if any(x in value for x in (" -> ", " | ", " && ", " || ")):
         return False
 
-    path = Path(value)
-
-    # 绝对路径
-    if path.is_absolute():
+    # Windows absolute paths.
+    if re.match(r"^[A-Za-z]:[\\/]", value):
         return True
 
-    # 显式相对路径
+    # UNC path.
+    if value.startswith("\\\\"):
+        return True
+
+    # Unix absolute path.
+    if value.startswith("/"):
+        return True
+
+    # Explicit relative path.
     if value.startswith(("./", "../", "~/")):
-        return True
-
-    # 包含路径分隔符
-    if "/" in value:
-        return True
-
-    # Windows 路径（如果需要跨平台）
-    if "\\" in value or (
-        len(value) >= 2 and value[1] == ":"
-    ):
         return True
 
     return False

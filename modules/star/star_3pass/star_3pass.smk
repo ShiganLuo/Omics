@@ -48,7 +48,7 @@ rule star_3p_align:
         bam=outdir + "/{sample_id}/{sample_id}.bam",
         bai=outdir + "/{sample_id}/{sample_id}.bam.bai",
     log:
-        logdir + "/star3p/{sample_id}/three_pass.log"
+        logdir + "/{sample_id}/star3p.log"
     threads: 12
     conda:
         "../star.yaml"

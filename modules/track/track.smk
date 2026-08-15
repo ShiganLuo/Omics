@@ -20,16 +20,17 @@ rule ucsc_track_single:
     output:
         track = outdir + "/ucsc_track.txt"
     log:
-        logdir + "/ucsc_track.log"
+        logdir + "/track/ucsc_track_single.log"
     conda: "track.yaml"
     container:
         sif("track.yaml")
     params:
         track_script = ROOT_DIR + "/modules/track/bin/track.py"
     run:
+        log_path = str(log)
         try:
-            open(log[0], "w").close()
-            rule_logger = setup_logger(logger_name="ucsc_track_bedtools", log_file=log[0])
+            open(log_path, "w").close()
+            rule_logger = setup_logger(logger_name="ucsc_track_bedtools", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start ucsc_track_bedtools at {current_time}")
 
@@ -47,11 +48,10 @@ rule ucsc_track_single:
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write(" ".join(cmd) + "\n")
-            shell(f"bash {script} >> {log[0]} 2>&1")
-
-            rule_logger.info(f"ucsc_track_bedtools completed successfully at {time.strftime('%Y%m%d_%H%M%S', time.localtime())}")
+                f.write(f'echo "ucsc_track_bedtools successfully completed !"'+ "\n")
+            shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log[0], "a") as f:
+            with open(log_path, "a") as f:
                 f.write(f"ucsc_track_bedtools failed with error: {e}\n")
             logger.error(f"ucsc_track_bedtools failed with error: {e}")
             raise e
@@ -64,16 +64,17 @@ rule ucsc_track_iclip:
     output:
         track = outdir + "/ucsc_track_iclip.txt"
     log:
-        logdir + "/all/ucsc_track_iclip.log"
+        logdir + "/track/ucsc_track_iclip.log"
     conda: "track.yaml"
     container:
         sif("track.yaml")
     params:
         track_script = ROOT_DIR + "/modules/track/bin/track.py"
     run:
+        log_path = str(log)
         try:
-            open(log[0], "w").close()
-            rule_logger = setup_logger(logger_name="ucsc_track_iclip", log_file=log[0])
+            open(log_path, "w").close()
+            rule_logger = setup_logger(logger_name="ucsc_track_iclip", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start ucsc_track_iclip at {current_time}")
 
@@ -92,11 +93,10 @@ rule ucsc_track_iclip:
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write(" ".join(cmd) + "\n")
-            shell(f"bash {script} >> {log[0]} 2>&1")
-
-            rule_logger.info(f"ucsc_track_iclip completed successfully at {time.strftime('%Y%m%d_%H%M%S', time.localtime())}")
+                f.write(f'echo "ucsc_track_iclip successfully completed !"'+ "\n")
+            shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log[0], "a") as f:
+            with open(log_path, "a") as f:
                 f.write(f"ucsc_track_iclip failed with error: {e}\n")
             logger.error(f"ucsc_track_iclip failed with error: {e}")
             raise e
@@ -108,7 +108,7 @@ rule igv_track_single:
     output:
         html = outdir + "/igv_track.html"
     log:
-        logdir + "/all/igv_track.log"
+        logdir + "/track/igv_track_single.log"
     conda: "track.yaml"
     container:
         sif("track.yaml")
@@ -117,18 +117,19 @@ rule igv_track_single:
         igv_config = igv_config,
         config_json = outdir + "/igv_track_bedtools_config.json",
     run:
-        import json
-        if not params.igv_config:
-            raise ValueError(
-                "IGV configuration is missing in config under 'igv'. "
-                "Please provide the necessary configuration for IGV track generation."
-            )
+        log_path = str(log)
         try:
-            open(log[0], "w").close()
-            rule_logger = setup_logger(logger_name="igv_track_bedtools", log_file=log[0])
+            import json
+            open(log_path, "w").close()
+            rule_logger = setup_logger(logger_name="igv_track_bedtools", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start igv_track_bedtools at {current_time}")
-
+            if not params.igv_config:
+                rule_logger.error("IGV configuration is missing in config under 'igv'. Please provide the necessary configuration for IGV track generation.")
+                raise ValueError(
+                    "IGV configuration is missing in config under 'igv'. "
+                    "Please provide the necessary configuration for IGV track generation."
+                )
             sample_outdir = os.path.dirname(str(output.html))
             os.makedirs(sample_outdir, exist_ok=True)
             config_json_path = str(params.config_json)
@@ -149,11 +150,10 @@ rule igv_track_single:
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write(" ".join(cmd) + "\n")
-            shell(f"bash {script} >> {log[0]} 2>&1")
-
-            rule_logger.info(f"igv_track_bedtools completed successfully at {time.strftime('%Y%m%d_%H%M%S', time.localtime())}")
+                f.write(f'echo "igv_track_bedtools successfully completed !"'+ "\n")
+            shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log[0], "a") as f:
+            with open(log_path, "a") as f:
                 f.write(f"igv_track_bedtools failed with error: {e}\n")
             logger.error(f"igv_track_bedtools failed with error: {e}")
             raise e
@@ -166,7 +166,7 @@ rule igv_track_iclip:
     output:
         html = outdir + "/igv_track_iclip.html"
     log:
-        logdir + "/all/igv_track_iclip.log"
+        logdir + "/track/igv_track_iclip.log"
     conda: "track.yaml"
     container:
         sif("track.yaml")
@@ -175,18 +175,19 @@ rule igv_track_iclip:
         igv_config = igv_config,
         config_json = outdir + "/igv_track_iclip_config.json",
     run:
-        import json
-        if not params.igv_config:
-            raise ValueError(
-                "IGV configuration is missing in config under 'igv'. "
-                "Please provide the necessary configuration for IGV track generation."
-            )
+        log_path = str(log)
         try:
-            open(log[0], "w").close()
-            rule_logger = setup_logger(logger_name="igv_track_iclip", log_file=log[0])
+            import json
+            open(log_path, "w").close()
+            rule_logger = setup_logger(logger_name="igv_track_iclip", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start igv_track_iclip at {current_time}")
-
+            if not params.igv_config:
+                rule_logger.error("IGV configuration is missing in config under 'igv'. Please provide the necessary configuration for IGV track generation.")
+                raise ValueError(
+                    "IGV configuration is missing in config under 'igv'. "
+                    "Please provide the necessary configuration for IGV track generation."
+                )
             sample_outdir = os.path.dirname(str(output.html))
             os.makedirs(sample_outdir, exist_ok=True)
             config_json_path = str(params.config_json)
@@ -208,11 +209,10 @@ rule igv_track_iclip:
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write(" ".join(cmd) + "\n")
-            shell(f"bash {script} >> {log[0]} 2>&1")
-
-            rule_logger.info(f"igv_track_iclip completed successfully at {time.strftime('%Y%m%d_%H%M%S', time.localtime())}")
+                f.write(f'echo "igv_track_iclip successfully completed !"'+ "\n")
+            shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log[0], "a") as f:
+            with open(log_path, "a") as f:
                 f.write(f"igv_track_iclip failed with error: {e}\n")
             logger.error(f"igv_track_iclip failed with error: {e}")
             raise e

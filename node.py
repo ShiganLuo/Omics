@@ -674,7 +674,8 @@ def runtRNAseq(
 
 def runncRNAseq(
     datajson: Dict[str, Any],
-    samples_info_dict: Dict[str, Any],
+    samples_info_dict: Dict[str, SampleInfo],
+    design_pairs:List[DesignPair],
     indir: str,
     outdir: str,
 ):
@@ -688,36 +689,67 @@ def runncRNAseq(
     logdir = os.path.join(outdir, "log")
     os.makedirs(logdir, exist_ok=True)
     datajson["logdir"] = logdir
+    sample_ip_input_map = {}
+    ip_samples = []
+    input_samples = []
+    outfiles = []
+    paired_samples = []
+    single_samples = []
+    layouts = set()
+    organisms = set()
+    for design_pair in design_pairs:
+        sample_ip_input_map[design_pair.exp_sample_id] = design_pair.ctr_sample_id
+        ip_samples.append(design_pair.exp_sample_id)
+        input_samples.append(design_pair.ctr_sample_id)
+    # for ip_sample in ip_samples:
+    #     outfiles.append(f"{outdir}/peaks/{ip_sample}/{ip_sample}_peaks.narrowPeak")
+    #     outfiles.append(f"{outdir}/peaks/{ip_sample}/{ip_sample}_peaks.xls")
 
     aligner = datajson.get("Procedure", {}).get("aligner") or "star_3pass"
     if aligner == "star_3pass":
         bam_subdir = "common/3_raw_bam"
     elif aligner == "star_3pass_gene":
         bam_subdir = "common/4_per_gene_bam"
+        outfiles.append(f"{outdir}/ncRNAseq_report.pptx")
     else:
         bam_subdir = "common/3_raw_bam"
 
-    outfiles = []
-    paired_samples = []
-    single_samples = []
-
     for sample_id, sample_info in samples_info_dict.items():
+        organisms.add(sample_info.organism)
         outfiles.append(f"{outdir}/{bam_subdir}/{sample_id}/{sample_id}.bam")
         outfiles.append(f"{outdir}/{bam_subdir}/{sample_id}/{sample_id}_tail.csv")
         if sample_info.layout == "PE":
             paired_samples.append(sample_id)
+            layouts.add("PE")
         elif sample_info.layout == "SE":
             single_samples.append(sample_id)
+            layouts.add("SE")
         else:
             logger.error(f"Unknown layout type for sample {sample_id}: {sample_info.layout}")
-
+    if len(organisms) != 1:
+        raise ValueError(f"meta don't support multiple organsim temporarily, please check your meta file, found: {organisms}")
+    for organism in organisms:
+        if organism in ["Homo sapiens", "human"]:
+            datajson["Params"]["track"]["default"] = "GRCh38"
+        elif organism in ["Mus musculus", "mouse"]:
+            datajson["Params"]["track"]["default"] = "GRCm39"
+        else:
+            raise ValueError(f"pipeline don't support {organisms.pop()}, only support human or mouse(Homo sapiens or Mus musculus)")
+    for layout in layouts:
+        if layout == "PE":
+            outfiles.append(f"{outdir}/counts/all_paired_featureCounts.tsv")
+        elif layout == "SE":
+            outfiles.append(f"{outdir}/counts/all_single_featureCounts.tsv")
     all_samples = paired_samples + single_samples
-    outfiles.append(f"{outdir}/ncRNAseq_report.pptx")
+    outfiles.append(f"{outdir}/tracks/igv_track.html")
+    outfiles.append(f"{outdir}/tracks/ucsc_track.txt")
     datajson["samples"] = all_samples
     datajson["paired_samples"] = paired_samples
     datajson["single_samples"] = single_samples
     datajson["outfiles"] = outfiles
-
+    datajson["ip_samples"] = ip_samples
+    datajson["input_samples"] = input_samples
+    datajson["sample_ip_input_map"] = sample_ip_input_map
     instance_json = os.path.join(outdir, "raw.json")
     with open(instance_json, 'w', encoding='utf-8') as wf:
         json.dump(datajson, wf, indent=2, ensure_ascii=False)

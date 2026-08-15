@@ -161,13 +161,6 @@
       }
     }
   },
-  "container": {
-    "deepvariant": {
-      "type": "str",
-      "required": true,
-      "path": "file"
-    }
-  },
   "genome": {
     "fasta": {
       "type": "str",

@@ -72,28 +72,28 @@
             "top_n": 5
         },
         "igv": {
-            "js": "/disk5/luosg/Reference/igv.min.js",
+            "js": "/home/luosg/Database/SoftWare/igv.min.js",
             "id": "mm39",
             "name": "Mouse (GRCm39/mm39)",
             "publicPathMap": {
-                "/rna_seq_1/luoshg/": "/data/",
-                "/disk5/luosg/Reference/": "/ref/"
+                "/home/luosg/Data/genomeStability/": "/data/",
+                "/home/luosg/Database/Reference/": "/ref/"
             },
-            "fastaURL": "/disk5/luosg/Reference/GENCODE/mouse/GRCm39/GRCm39.primary_assembly.genome.fa",
-            "indexURL": "/disk5/luosg/Reference/GENCODE/mouse/GRCm39/GRCm39.primary_assembly.genome.fa.fai",
-            "cytobandURL": "/disk5/luosg/Reference/GENCODE/mouse/GRCm39/mm39.cytoBand.txt",
+            "fastaURL": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
+            "indexURL": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa.fai",
+            "cytobandURL": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/mm39.cytoBand.txt",
             "tracks": [
                 {
                     "name": "Gencode vM38 genes",
                     "format": "gtf",
-                    "url": "/disk5/luosg/Reference/GENCODE/mouse/GRCm39/gencode.vM38.basic.gene_exon.sorted.gtf.gz",
-                    "indexURL": "/disk5/luosg/Reference/GENCODE/mouse/GRCm39/gencode.vM38.basic.gene_exon.sorted.gtf.gz.tbi"
+                    "url": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gene_exon.sorted.gtf.gz",
+                    "indexURL": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gene_exon.sorted.gtf.gz.tbi"
                 },
                 {
                     "name": "Gencode rmsk repeats",
                     "format": "gtf",
-                    "url": "/disk5/luosg/Reference/GENCODE/mouse/GRCm39/GRCm39_GENCODE_rmsk_TE.sorted.gtf.gz",
-                    "indexURL": "/disk5/luosg/Reference/GENCODE/mouse/GRCm39/GRCm39_GENCODE_rmsk_TE.sorted.gtf.gz.tbi"
+                    "url": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.sorted.gtf.gz",
+                    "indexURL": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.sorted.gtf.gz.tbi"
                 }
             ]
         }

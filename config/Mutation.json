@@ -9,7 +9,8 @@
         "gatk": "/home/luosg/Database/env/gatk/gatk4.sif",
         "manta": "/home/luosg/Database/env/manta/manta.sif",
         "samtools": "/home/luosg/Database/env/samtools/samtools.sif",
-        "spectrum": "/home/luosg/Database/env/spectrum/star.sif"
+        "spectrum": "/home/luosg/Database/env/spectrum/star.sif",
+        "deepvariant": "/home/luosg/Database/env/deepvariant/deepvariant.sif"
     },
     "indir": "input",
     "outdir": "output",

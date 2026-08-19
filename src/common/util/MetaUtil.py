@@ -72,7 +72,7 @@ class MetadataUtils:
         self.design_col = design_col
         self.group_col = group_col
         self.samples_dict = defaultdict(SampleInfo)
-        self.raw_fq_dir = self.outdir / "common" / "1_raw_fastq"
+        self.raw_fq_dir = self.outdir / "common" / "1_raw_data"
         self.raw_fq_dir.mkdir(parents=True, exist_ok=True)
 
     def load_meta(self, meta:Union[Path,str]) -> pd.DataFrame:
@@ -86,8 +86,6 @@ class MetadataUtils:
         df = pd.read_csv(meta, sep=sep)
 
         return df
-
-
 
     def build_design_pairs(
             self
@@ -321,6 +319,7 @@ class MetadataUtils:
     def prepare_pacbio_meta(self, df: pd.DataFrame, sample_id_col:str = 'sample_id', bam_col:str = 'bam', pbi_col:str = 'pbi') -> None:
         """
         Prepare PacBio BAM metadata. For each sample_id, create a symlink to the BAM file and its PBI index in the raw_fq_dir.
+        bam file must  be .bam and pbi file must be .bam.pbi. The function checks for the existence of the files and creates symlinks in the output directory.
         """
         if not self.pacbio_required_cols.issubset(df.columns):
             raise ValueError(f"Metadata must contain columns: {self.pacbio_required_cols}")
@@ -351,6 +350,35 @@ class MetadataUtils:
             self.samples_dict[sample_id].pacbio_pbi = target_pbi
             self.samples_dict[sample_id].layout = Layout.SE  # Treat BAM as SE for downstream processing
             logger.info(f"Prepared PacBio metadata for sample {sample_id}")
+
+    def prepare_ms_meta(self, df: pd.DataFrame, sample_id_col:str = 'sample_id', ms_file_col:str = 'ms_file') -> None:
+        """
+        Prepare Mass Spectrometry metadata. For each sample_id, create a symlink to the MS file in the raw_fq_dir.
+        ms file can be .raw, .mzML, .mgf, etc. The function checks for the existence of the file and creates a symlink in the output directory.
+        """
+        if ms_file_col not in df.columns:
+            raise ValueError(f"Metadata must contain column: {ms_file_col}")
+        for sample_id, df_sample in df.groupby(sample_id_col):
+            sample_id = str(sample_id)
+            ms_file_path = df_sample[ms_file_col].values[0]
+
+            if not ms_file_path:
+                logger.warning(f"{sample_id} is missing MS file path, skipping.")
+                continue
+
+            ms_file_path = Path(ms_file_path)
+
+            if not ms_file_path.exists():
+                logger.warning(f"MS file for {sample_id} does not exist, skipping.")
+                continue
+
+            target_ms_file = self.raw_fq_dir / sample_id /  f"{sample_id}{ms_file_path.suffix}"
+
+            self._link_file(ms_file_path, target_ms_file)
+
+            self.samples_dict[sample_id].sample_id = sample_id
+            self.samples_dict[sample_id].ms_file = target_ms_file
+            logger.info(f"Prepared MS metadata for sample {sample_id}")
 
     def prepare_fastq_dir(
         self,
@@ -480,6 +508,9 @@ class MetadataUtils:
             if "bam" in df.columns and "pbi" in df.columns:
                 logger.info("Detected BAM/PBI columns in metadata, preparing PacBio metadata")
                 self.prepare_pacbio_meta(df = df, sample_id_col = "sample_id", bam_col = "bam", pbi_col = "pbi")
+            elif "ms_file" in df.columns:
+                logger.info("Detected ms_file columns in metadata, preparing MS metadata")
+                self.prepare_ms_meta(df = df, sample_id_col = 'sample_id', ms_file_col = 'ms_file')
             else:
                 self.prepare_fastq_meta(df = df, data_id_col = self.data_id_col)
             if self.design_col not in df.columns or df[self.design_col].isnull().all():

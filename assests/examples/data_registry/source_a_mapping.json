@@ -1,0 +1,15 @@
+{
+  "source_name": "lab_a",
+  "match_key_field": "Run",
+  "field_map": {
+    "sample_id": "SampleName",
+    "data_id": "Run",
+    "condition": "Treatment",
+    "replicate": "Replicate"
+  },
+  "constants": {
+    "project_id": "DEMO_PROJECT",
+    "assay_type": "RNAseq",
+    "organism": "human"
+  }
+}

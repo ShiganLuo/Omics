@@ -62,7 +62,7 @@ rule star_index:
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write(" ".join(cmd) + "\n")
-            shell(f"bash {script} > {log_path} 2>&1")
+            shell(f"bash {script} >> {log_path} 2>&1")
 
             rule_logger.info(f"star_index completed successfully")
         except Exception as e:

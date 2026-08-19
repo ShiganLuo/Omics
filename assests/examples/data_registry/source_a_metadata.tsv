@@ -1,0 +1,3 @@
+SampleName	Run	Treatment	Replicate
+CTRL_A	A001	control	1
+KO_A	A002	knockout	1

@@ -147,11 +147,12 @@ rule <tool>_<action>:
             ]
             with open(script, "w") as f:
                 f.write(shlex.join(cmd) + "\n")
+                f.write(f'echo "<tool>_<action> called for {wildcards.sample_id} was successfully completed"')
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path, "a") as f:
                 f.write(f"<tool> <action> failed for sample {wildcards.sample_id} with error: {e}\n")
-            raise f"<tool> <action> failed for sample {wildcards.sample_id} with error: {e}"
+            raise RuntimeError(f"<tool> <action> failed for sample {wildcards.sample_id} with error: {e}")
 ```
 注意：
 1. 对于有些脚本接受nargs+式参数，命令列表不能["-f", "heatmap volcano pca"]的形式；而是要"-f", "heatmap", "volcano", "pca",因为shlex会把它们认为一个字符串进行传递，导致报错

@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for quantification conda environment
+# Source YAML: quantification.yaml
+# Build: apptainer build quantification.sif quantification.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    quantification.yaml /opt/conda/quantification.yaml
+
+%post
+    conda env create -f /opt/conda/quantification.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/quantification.yaml
+
+    echo 'export PATH="/opt/conda/envs/quantification/bin:$PATH"' >> /etc/profile.d/conda_quantification.sh
+    echo 'export CONDA_DEFAULT_ENV=quantification' >> /etc/profile.d/conda_quantification.sh
+
+%environment
+    export PATH="/opt/conda/envs/quantification/bin:$PATH"
+    export CONDA_DEFAULT_ENV=quantification
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName quantification
+
+%help
+    Apptainer image for conda environment 'quantification'.
+    Generated from quantification.yaml.

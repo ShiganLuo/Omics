@@ -134,7 +134,28 @@ msstats_config = {
     }
 }
 
+raw2mzml_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "env": config.get("env", {}),
+    "indir": indir,
+    "outdir": f"{outdir}/raw2mzml",
+    "logdir": logdir,
+    "samples": samples,
+    "raw_files": config.get("raw_files", []),
+    "Procedure": {
+        "raw_to_mzml": config.get("Procedure", {}).get("raw_to_mzml"),
+        "msconvert": config.get("Procedure", {}).get("msconvert")
+    },
+    "Params": {
+        "raw_to_mzml": config.get("Params", {}).get("raw_to_mzml", {})
+    }
+}
+
 # Import modules
+module raw2mzml:
+    snakefile: "../modules/openms/raw2mzml/raw2mzml.smk"
+    config: raw2mzml_config
+
 module decoy_database:
     snakefile: "../modules/openms/decoydatabase/decoydatabase.smk"
     config: decoy_database_config
@@ -164,6 +185,8 @@ module msstats:
     config: msstats_config
 
 # Use rules from modules
+use rule raw2mzml_result from raw2mzml as QuantMS_raw2mzml
+
 use rule decoy_database_result from decoy_database as QuantMS_decoy_database
 
 use rule search_engine_result from search_engine as QuantMS_search_engine

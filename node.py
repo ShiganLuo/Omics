@@ -1,10 +1,48 @@
+import csv
 import os
-from typing import Dict, Any, List
+from pathlib import Path
+from typing import Dict, Any, List, Optional, Tuple
 import logging
 import json
 from src.common.util.type import DesignPair, CompareGroupPair, SampleInfo
 from src.common.util.LogUtil import setup_logger
 logger = setup_logger(__name__, level=logging.DEBUG)
+
+
+def _detect_delimiter(path: str) -> str:
+    with open(path, "r", encoding="utf-8") as handle:
+        head = handle.read(2048)
+    return "\t" if head.count("\t") >= head.count(",") else ","
+
+
+def _load_raw_manifest(raw_manifest: str) -> Dict[str, str]:
+    delimiter = _detect_delimiter(raw_manifest)
+    mapping: Dict[str, str] = {}
+    with open(raw_manifest, "r", encoding="utf-8", newline="") as handle:
+        reader = csv.DictReader(handle, delimiter=delimiter)
+        for row in reader:
+            sample_id = (row.get("sample_id") or row.get("sample") or row.get("sid") or "").strip()
+            raw_path = (row.get("raw_path") or row.get("raw_file") or row.get("source_path") or row.get("path") or "").strip()
+            if sample_id and raw_path:
+                mapping[sample_id] = raw_path
+    return mapping
+
+
+def _infer_raw_path(indir: str, sample_id: str) -> str:
+    candidates = [
+        os.path.join(indir, f"{sample_id}.raw"),
+        os.path.join(indir, f"{sample_id}.RAW"),
+        os.path.join(indir, f"{sample_id}.raw.gz"),
+        os.path.join(indir, f"{sample_id}.RAW.gz"),
+    ]
+    for candidate in candidates:
+        if os.path.exists(candidate):
+            return candidate
+    return candidates[0]
+
+
+def _build_raw2mzml_output(outdir: str, sample_id: str) -> str:
+    return os.path.join(outdir, "raw2mzml", sample_id, f"{sample_id}.mzML")
 def runCoCulture(
     datajson: Dict[str,Any],
     samples_info_dict:Dict[str, Any],
@@ -556,15 +594,16 @@ def runQuantMS(
     """Prepare input JSON for QuantMS (quantitative proteomics) workflow.
     
     Workflow steps:
-    1. Decoy database generation
-    2. Database search engines (Comet, MSGF+, Sage)
-    3. PSM rescoring (Percolator)
-    4. PSM FDR control
-    5. Protein inference (EpiFany)
-    6. Protein quantification (ProteomicsLFQ or ProteinQuantifier)
-    7. Statistical analysis (MSstats)
+    1. Raw conversion (optional, when raw_manifest/raw inputs are provided)
+    2. Decoy database generation
+    3. Database search engines (Comet, MSGF+, Sage)
+    4. PSM rescoring (Percolator)
+    5. PSM FDR control
+    6. Protein inference (EpiFany)
+    7. Protein quantification (ProteomicsLFQ or ProteinQuantifier)
+    8. Statistical analysis (MSstats)
     
-    Supports TMT, LFQ, and DIA quantification methods.
+    Supports TMT, LFQ, DIA, and raw-to-mzML entry points.
     """
     datajson["ROOT_DIR"] = os.path.dirname(__file__)
     datajson["indir"] = indir
@@ -572,63 +611,67 @@ def runQuantMS(
     logdir = os.path.join(outdir, "log")
     os.makedirs(logdir, exist_ok=True)
     datajson["logdir"] = logdir
-    
-    samples = []
-    mzml_files = []
-    outfiles = []
-    
-    for sample_id, sample_info in samples_info_dict.items():
+
+    raw_manifest = datajson.get("raw_manifest") or datajson.get("Params", {}).get("raw_to_mzml", {}).get("manifest") or ""
+    samples: List[str] = []
+    mzml_files: List[str] = []
+    raw_files: List[str] = []
+    outfiles: List[str] = []
+    raw2mzml_dir = os.path.join(outdir, "raw2mzml")
+
+    raw_manifest_map: Dict[str, str] = {}
+    if raw_manifest:
+        raw_manifest_map = _load_raw_manifest(raw_manifest)
+
+    for sample_id in samples_info_dict:
         samples.append(sample_id)
-        # For proteomics, we expect mzML files in the input directory
-        mzml_file = os.path.join(indir, f"{sample_id}.mzML")
-        if not os.path.exists(mzml_file):
-            # Try with .mzML.gz extension
-            mzml_file_gz = os.path.join(indir, f"{sample_id}.mzML.gz")
-            if os.path.exists(mzml_file_gz):
-                mzml_file = mzml_file_gz
-            else:
-                logger.warning(f"mzML file not found for sample {sample_id}: {mzml_file}")
-                continue
-        mzml_files.append(mzml_file)
-    
-    # Build outfiles based on quantification method
+        if raw_manifest or datajson.get("Params", {}).get("raw_to_mzml", {}).get("enabled", False):
+            raw_path = raw_manifest_map.get(sample_id) or _infer_raw_path(indir, sample_id)
+            raw_files.append(raw_path)
+            mzml_file = _build_raw2mzml_output(outdir, sample_id)
+            mzml_files.append(mzml_file)
+            outfiles.append(mzml_file)
+        else:
+            mzml_file = os.path.join(indir, f"{sample_id}.mzML")
+            if not os.path.exists(mzml_file):
+                mzml_file_gz = os.path.join(indir, f"{sample_id}.mzML.gz")
+                if os.path.exists(mzml_file_gz):
+                    mzml_file = mzml_file_gz
+                else:
+                    logger.warning(f"mzML file not found for sample {sample_id}: {mzml_file}")
+                    continue
+            mzml_files.append(mzml_file)
+
     quantification_method = datajson.get("quantification_method", "lfq")
-    
-    # Decoy database
+
     outfiles.append(f"{outdir}/decoy_database/{os.path.basename(datajson['genome']['fasta'])}_decoy.fasta")
-    
-    # Database search results
+
     for sample_id in samples:
         outfiles.append(f"{outdir}/search_engine/{sample_id}/{sample_id}.idXML")
-    
-    # PSM rescoring results
     for sample_id in samples:
         outfiles.append(f"{outdir}/psm_rescoring/{sample_id}/{sample_id}_scored.idXML")
-    
-    # PSM FDR control results
     for sample_id in samples:
         outfiles.append(f"{outdir}/psm_fdr/{sample_id}/{sample_id}_filtered.idXML")
-    
-    # Protein inference results
     for sample_id in samples:
         outfiles.append(f"{outdir}/protein_inference/{sample_id}/{sample_id}_protein.idXML")
-    
-    # Quantification results
+
     if quantification_method == "tmt":
         outfiles.append(f"{outdir}/quantification/tmt_quantification.mzTab")
     elif quantification_method == "lfq":
         outfiles.append(f"{outdir}/quantification/lfq_quantification.mzTab")
     elif quantification_method == "dia":
         outfiles.append(f"{outdir}/quantification/dia_quantification.mzTab")
-    
-    # MSstats results
+
     if not datajson.get("Params", {}).get("skip_post_msstats", False):
         outfiles.append(f"{outdir}/msstats/msstats_results.csv")
-    
+
     datajson["samples"] = samples
     datajson["mzml_files"] = mzml_files
+    if raw_files:
+        datajson["raw_files"] = raw_files
+        datajson["raw2mzml_dir"] = raw2mzml_dir
     datajson["outfiles"] = outfiles
-    
+
     instance_json = os.path.join(outdir, "raw.json")
     with open(instance_json, 'w', encoding='utf-8') as wf:
         json.dump(datajson, wf, indent=2, ensure_ascii=False)

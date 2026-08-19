@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for msstats conda environment
+# Source YAML: msstats.yaml
+# Build: apptainer build msstats.sif msstats.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    msstats.yaml /opt/conda/msstats.yaml
+
+%post
+    conda env create -f /opt/conda/msstats.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/msstats.yaml
+
+    echo 'export PATH="/opt/conda/envs/msstats/bin:$PATH"' >> /etc/profile.d/conda_msstats.sh
+    echo 'export CONDA_DEFAULT_ENV=msstats' >> /etc/profile.d/conda_msstats.sh
+
+%environment
+    export PATH="/opt/conda/envs/msstats/bin:$PATH"
+    export CONDA_DEFAULT_ENV=msstats
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName msstats
+
+%help
+    Apptainer image for conda environment 'msstats'.
+    Generated from msstats.yaml.

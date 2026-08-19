@@ -1,0 +1,21 @@
+{
+    "ROOT_DIR": null,
+    "indir": "input",
+    "outdir": "output/raw2mzml",
+    "logdir": "logs",
+    "samples": [],
+    "raw_files": [],
+    "Procedure": {
+        "msconvert": null
+    },
+    "Params": {
+        "raw_to_mzml": {
+            "enabled": true,
+            "manifest": "",
+            "mode": "msconvert",
+            "converter": "msconvert",
+            "args": "",
+            "peak_picking": true
+        }
+    }
+}

@@ -1,0 +1,15 @@
+{
+  "source_name": "lab_b",
+  "match_key_field": "seq_id",
+  "field_map": {
+    "sample_id": "sample",
+    "data_id": "seq_id",
+    "condition": "condition",
+    "group": "batch"
+  },
+  "constants": {
+    "project_id": "DEMO_PROJECT",
+    "assay_type": "RNAseq",
+    "organism": "human"
+  }
+}

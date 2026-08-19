@@ -15,18 +15,6 @@ def _detect_delimiter(path: str) -> str:
     return "\t" if head.count("\t") >= head.count(",") else ","
 
 
-def _load_raw_manifest(raw_manifest: str) -> Dict[str, str]:
-    delimiter = _detect_delimiter(raw_manifest)
-    mapping: Dict[str, str] = {}
-    with open(raw_manifest, "r", encoding="utf-8", newline="") as handle:
-        reader = csv.DictReader(handle, delimiter=delimiter)
-        for row in reader:
-            sample_id = (row.get("sample_id") or row.get("sample") or row.get("sid") or "").strip()
-            raw_path = (row.get("raw_path") or row.get("raw_file") or row.get("source_path") or row.get("path") or "").strip()
-            if sample_id and raw_path:
-                mapping[sample_id] = raw_path
-    return mapping
-
 
 def _infer_raw_path(indir: str, sample_id: str) -> str:
     candidates = [
@@ -617,44 +605,14 @@ def runQuantMS(
     mzml_files: List[str] = []
     raw_files: List[str] = []
     outfiles: List[str] = []
-    raw2mzml_dir = os.path.join(outdir, "raw2mzml")
-
-    raw_manifest_map: Dict[str, str] = {}
-    if raw_manifest:
-        raw_manifest_map = _load_raw_manifest(raw_manifest)
-
-    for sample_id in samples_info_dict:
-        samples.append(sample_id)
-        if raw_manifest or datajson.get("Params", {}).get("raw_to_mzml", {}).get("enabled", False):
-            raw_path = raw_manifest_map.get(sample_id) or _infer_raw_path(indir, sample_id)
-            raw_files.append(raw_path)
-            mzml_file = _build_raw2mzml_output(outdir, sample_id)
-            mzml_files.append(mzml_file)
-            outfiles.append(mzml_file)
-        else:
-            mzml_file = os.path.join(indir, f"{sample_id}.mzML")
-            if not os.path.exists(mzml_file):
-                mzml_file_gz = os.path.join(indir, f"{sample_id}.mzML.gz")
-                if os.path.exists(mzml_file_gz):
-                    mzml_file = mzml_file_gz
-                else:
-                    logger.warning(f"mzML file not found for sample {sample_id}: {mzml_file}")
-                    continue
-            mzml_files.append(mzml_file)
 
     quantification_method = datajson.get("quantification_method", "lfq")
-
-    outfiles.append(f"{outdir}/decoy_database/{os.path.basename(datajson['genome']['fasta'])}_decoy.fasta")
-
-    for sample_id in samples:
+    for sample_id in samples_info_dict:
+        samples.append(sample_id)
         outfiles.append(f"{outdir}/search_engine/{sample_id}/{sample_id}.idXML")
-    for sample_id in samples:
         outfiles.append(f"{outdir}/psm_rescoring/{sample_id}/{sample_id}_scored.idXML")
-    for sample_id in samples:
         outfiles.append(f"{outdir}/psm_fdr/{sample_id}/{sample_id}_filtered.idXML")
-    for sample_id in samples:
         outfiles.append(f"{outdir}/protein_inference/{sample_id}/{sample_id}_protein.idXML")
-
     if quantification_method == "tmt":
         outfiles.append(f"{outdir}/quantification/tmt_quantification.mzTab")
     elif quantification_method == "lfq":
@@ -666,10 +624,6 @@ def runQuantMS(
         outfiles.append(f"{outdir}/msstats/msstats_results.csv")
 
     datajson["samples"] = samples
-    datajson["mzml_files"] = mzml_files
-    if raw_files:
-        datajson["raw_files"] = raw_files
-        datajson["raw2mzml_dir"] = raw2mzml_dir
     datajson["outfiles"] = outfiles
 
     instance_json = os.path.join(outdir, "raw.json")

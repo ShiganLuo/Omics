@@ -31,6 +31,7 @@ class SampleInfo:
     design: Optional[str] = None
     pacbio_bam: Optional[Path] = None
     pacbio_pbi: Optional[Path] = None
+    ms_file: Optional[Path] = None
 
 @dataclass
 class DesignPair:

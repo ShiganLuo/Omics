@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for raw2mzml conda environment
+# Source YAML: raw2mzml.yaml
+# Build: apptainer build raw2mzml.sif raw2mzml.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    raw2mzml.yaml /opt/conda/raw2mzml.yaml
+
+%post
+    conda env create -f /opt/conda/raw2mzml.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/raw2mzml.yaml
+
+    echo 'export PATH="/opt/conda/envs/raw2mzml/bin:$PATH"' >> /etc/profile.d/conda_raw2mzml.sh
+    echo 'export CONDA_DEFAULT_ENV=raw2mzml' >> /etc/profile.d/conda_raw2mzml.sh
+
+%environment
+    export PATH="/opt/conda/envs/raw2mzml/bin:$PATH"
+    export CONDA_DEFAULT_ENV=raw2mzml
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName raw2mzml
+
+%help
+    Apptainer image for conda environment 'raw2mzml'.
+    Generated from raw2mzml.yaml.

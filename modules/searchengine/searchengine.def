@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for searchengine conda environment
+# Source YAML: searchengine.yaml
+# Build: apptainer build searchengine.sif searchengine.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    searchengine.yaml /opt/conda/searchengine.yaml
+
+%post
+    conda env create -f /opt/conda/searchengine.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/searchengine.yaml
+
+    echo 'export PATH="/opt/conda/envs/searchengine/bin:$PATH"' >> /etc/profile.d/conda_searchengine.sh
+    echo 'export CONDA_DEFAULT_ENV=searchengine' >> /etc/profile.d/conda_searchengine.sh
+
+%environment
+    export PATH="/opt/conda/envs/searchengine/bin:$PATH"
+    export CONDA_DEFAULT_ENV=searchengine
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName searchengine
+
+%help
+    Apptainer image for conda environment 'searchengine'.
+    Generated from searchengine.yaml.

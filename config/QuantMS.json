@@ -36,6 +36,7 @@
             "shuffle_sequence_identity_threshold": 0.5
         },
         "search_engine": {
+            "engine": "comet",
             "comet": {
                 "threads": 4,
                 "precursor_mass_tolerance": 20,
@@ -54,6 +55,7 @@
                 "precursor_mass_tolerance": 20,
                 "fragment_mass_tolerance": 0.02
             }
+
         },
         "psm_rescoring": {
             "psm_feature_extractor": {

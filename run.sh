@@ -19,16 +19,16 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 #     --Params.function.gmt /home/luosg/Data/genomeStability/workflow/Omics/assests/geneset/GSI_huam.gmt \
 #     --dry-run
 
-python ${SCRIPT_DIR}/run.py \
-    -m /home/luosg/Data/genomeStability/data/Srp54/meta_input.tsv \
-    -w ncRNAseq \
-    -o /home/luosg/Data/genomeStability/output/Srp54 \
-    -t 48 \
-    --log /home/luosg/Data/genomeStability/log/ncRNAseq.log \
-    --Procedure.aligner star_3pass_gene \
-    --sdm \
-    --Params.star_3pass.pass2.clip5pNbases '10 10' \
-    --Params.star_3pass.pass2.clip3pNbases '0 0'
+# python ${SCRIPT_DIR}/run.py \
+#     -m /home/luosg/Data/genomeStability/data/Srp54/meta_input.tsv \
+#     -w ncRNAseq \
+#     -o /home/luosg/Data/genomeStability/output/Srp54 \
+#     -t 48 \
+#     --log /home/luosg/Data/genomeStability/log/ncRNAseq.log \
+#     --Procedure.aligner star_3pass_gene \
+#     --sdm \
+#     --Params.star_3pass.pass2.clip5pNbases '10 10' \
+#     --Params.star_3pass.pass2.clip3pNbases '0 0'
 
 # python ${SCRIPT_DIR}/run.py \
 #     -m /data/pub/zhousha/20260207_Exome/data/tRNA/meta.tsv \
@@ -58,3 +58,12 @@ python ${SCRIPT_DIR}/run.py \
 #     --snakemake-args \
 #     --sdm apptainer \
 #     --singularity-args '--bind /data/pub/zhousha/Reference'
+
+python ${SCRIPT_DIR}/run.py \
+    -m /home/luosg/Data/genomeStability/data/MS/sample_input.tsv \
+    -w QuantMS \
+    -o /home/luosg/Data/genomeStability/output/MS \
+    -t 48 \
+    --log /home/luosg/Data/genomeStability/log/MS.log \
+    --sdm \
+    --dry-run

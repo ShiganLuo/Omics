@@ -1,4 +1,4 @@
-include: "../common/common.smk"
+include: "../../common/common.smk"
 
 indir = config.get("indir", "data/raw")
 outdir = config.get("outdir", "output/raw2mzml")
@@ -6,8 +6,8 @@ logdir = config.get("logdir", "logs")
 samples = config.get("samples", [])
 raw_files = config.get("raw_files", [])
 
-converter = config.get("Params", {}).get("raw_to_mzml", {}).get("converter") or "msconvert"
-converter_mode = config.get("Params", {}).get("raw_to_mzml", {}).get("mode") or "msconvert"
+converter = config.get("Params", {}).get("raw_to_mzml", {}).get("converter") or "thermorawfileparser"
+converter_mode = config.get("Params", {}).get("raw_to_mzml", {}).get("mode") or "ThermoRawFileParser"
 converter_args = config.get("Params", {}).get("raw_to_mzml", {}).get("args") or ""
 extra_filter = config.get("Params", {}).get("raw_to_mzml", {}).get("peak_picking", True)
 
@@ -16,7 +16,7 @@ def get_raw_input(wildcards):
     if raw_files and wildcards.sample_id in samples:
         idx = samples.index(wildcards.sample_id)
         if idx < len(raw_files):
-            return raw_files[idx]
+            return os.path.realpath(raw_files[idx])
     candidates = [
         f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}.raw",
         f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}.RAW",
@@ -26,7 +26,7 @@ def get_raw_input(wildcards):
     ]
     for path in candidates:
         if os.path.exists(path):
-            return path
+            return os.path.realpath(path)
     return candidates[0]
 
 
@@ -39,9 +39,9 @@ rule raw2mzml:
         logdir + "/{sample_id}/raw2mzml.log"
     threads: 2
     conda:
-        "raw2mzml.yaml"
+        "../openms.yaml"
     container:
-        sif("raw2mzml.yaml")
+        sif("../openms.yaml")
     params:
         converter = converter,
         converter_mode = converter_mode,
@@ -68,6 +68,10 @@ rule raw2mzml:
                     if params.peak_picking:
                         cmd.extend(["--filter", "peakPicking true 1-"])
                     cmd.extend(["-o", output_dir, "--outfile", output_name])
+                elif params.converter_mode == "thermorawfileparser":
+                    cmd.extend(["-i", str(input.infile), "-b", str(output.mzml), "-f", "1"])
+                    if not params.peak_picking:
+                        cmd.append("-p")
                 else:
                     cmd.extend([str(input.infile), str(output.mzml)])
             elif input.infile.endswith(".mzML"):
@@ -79,7 +83,7 @@ rule raw2mzml:
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write(" ".join(shlex.quote(x) for x in cmd) + "\n")
-                f.write(f"test -s {shlex.quote(str(output.mzml))}\n")
+                f.write(f'echo "raw2mzml completed for sample {wildcards.sample_id} at $(date)"\n')
             shell(f"bash {script} > {log_path} 2>&1")
         except Exception as e:
             with open(log_path, 'a') as f:

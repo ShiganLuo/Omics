@@ -1,4 +1,4 @@
-include: "../common/common.smk"
+include: "../../common/common.smk"
 
 indir = config.get("indir", "data/psm_fdr")
 outdir = config.get("outdir", "output")
@@ -20,9 +20,9 @@ rule protein_inference:
     log:
         logdir + "/{sample_id}/protein_inference.log"
     conda:
-        "proteininference.yaml"
+        "../openms.yaml"
     container:
-        sif("proteininference.yaml")
+        sif("../openms.yaml")
     params:
         epifany = epifany,
         method = method,

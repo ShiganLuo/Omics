@@ -212,6 +212,24 @@ class MetadataUtils:
         return sample_pairs, group_pairs
 
 
+    def _collect_raw_files(self) -> List[str]:
+        """Collect resolved (non-symlink) input file paths from raw_fq_dir.
+
+        Scans raw_fq_dir/{sample_id}/ for input files and returns
+        os.path.realpath() resolved paths for container bind-mounting.
+        """
+        result: List[str] = []
+        if not self.raw_fq_dir.is_dir():
+            return result
+        for sample_dir in sorted(self.raw_fq_dir.iterdir()):
+            if not sample_dir.is_dir():
+                continue
+            for f in sorted(sample_dir.iterdir()):
+                if f.is_file():
+                    result.append(str(f.resolve()))
+        return result
+
+
     def prepare_fastq_meta(
             self, 
             df: pd.DataFrame,
@@ -518,10 +536,10 @@ class MetadataUtils:
                 sample_pairs, group_pairs = [], []
             else:
                 sample_pairs, group_pairs = self.build_design_pairs()
-            return self.samples_dict, sample_pairs, group_pairs, str(self.raw_fq_dir)
+            return self.samples_dict, sample_pairs, group_pairs, str(self.raw_fq_dir), self._collect_raw_files()
         elif self.fastq_dir:
             self.prepare_fastq_dir(self.fastq_dir)
-            return self.samples_dict, [], [], str(self.raw_fq_dir)
+            return self.samples_dict, [], [], str(self.raw_fq_dir), self._collect_raw_files()
         else:
             raise ValueError("Either meta or fastq_dir must be provided.")
 

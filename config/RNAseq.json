@@ -18,6 +18,7 @@
         "trimmomatic": "/home/luosg/Database/env/trimmomatic/trimmomatic.sif"
     },
     "indir": null,
+    "raw_files": [],
     "outdir": null,
     "logdir": null,
     "paired_samples": [],

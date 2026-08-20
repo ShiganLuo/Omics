@@ -533,6 +533,9 @@ From: {cls.APPTAINER_FROM}
     {yaml_filename} /opt/conda/{yaml_filename}
 
 %post
+    export PATH="/opt/conda/bin:$PATH"
+    export CONDA_NO_PLUGINS=true
+    conda config --set solver classic
     conda env create -f /opt/conda/{yaml_filename} && \\
         conda clean -afy && \\
         rm /opt/conda/{yaml_filename}

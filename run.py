@@ -291,17 +291,17 @@ def build_snakemake_cmd(root_dir, smk, input_json, threads, conda_prefix, rerun_
 
 
 WORKFLOW_DISPATCH = {
-    "CoCulture":  lambda cfg, sid, sp, gp, indir, outdir, meta: ("CoCulture.smk", runCoCulture(cfg, sid, indir, outdir)),
-    "MERIP":      lambda cfg, sid, sp, gp, indir, outdir, meta: ("MERIP.smk",     runMERIP(cfg, sid, indir, outdir)),
-    "RNAseq":     lambda cfg, sid, sp, gp, indir, outdir, meta: ("RNAseq.smk",    runRNAseq(cfg, sid, gp, indir, outdir)),
-    "ncRNAseq":   lambda cfg, sid, sp, gp, indir, outdir, meta: ("ncRNAseq.smk",  runncRNAseq(cfg, sid, sp, indir, outdir)),
-    "CLIP":       lambda cfg, sid, sp, gp, indir, outdir, meta: ("CLIP.smk",      runCLIP(cfg, sid, indir, outdir)),
-    "Mutation":   lambda cfg, sid, sp, gp, indir, outdir, meta: ("Mutation.smk",  runMutation(cfg, sid, sp, indir, outdir)),
-    "PacVar":     lambda cfg, sid, sp, gp, indir, outdir, meta: ("PacVar.smk",    runPacVar(cfg, sid, indir, outdir)),
-    "KARRseq":    lambda cfg, sid, sp, gp, indir, outdir, meta: ("KARRseq.smk",   runKARRseq(cfg, sid, indir, outdir)),
-    "PeakCalling":lambda cfg, sid, sp, gp, indir, outdir, meta: ("PeakCalling.smk",runPeakCalling(cfg, sid, sp, indir, outdir)),
-    "QuantMS":    lambda cfg, sid, sp, gp, indir, outdir, meta: ("QuantMS.smk",   runQuantMS(cfg, sid, indir, outdir)),
-    "tRNAseq":    lambda cfg, sid, sp, gp, indir, outdir, meta: ("tRNAseq.smk",   runtRNAseq(cfg, sid, indir, outdir, meta)),
+    "CoCulture":  lambda cfg, sid, sp, gp, indir, outdir, meta, rf: ("CoCulture.smk", runCoCulture(cfg, sid, indir, outdir, rf)),
+    "MERIP":      lambda cfg, sid, sp, gp, indir, outdir, meta, rf: ("MERIP.smk",     runMERIP(cfg, sid, indir, outdir, rf)),
+    "RNAseq":     lambda cfg, sid, sp, gp, indir, outdir, meta, rf: ("RNAseq.smk",    runRNAseq(cfg, sid, gp, indir, outdir, rf)),
+    "ncRNAseq":   lambda cfg, sid, sp, gp, indir, outdir, meta, rf: ("ncRNAseq.smk",  runncRNAseq(cfg, sid, sp, indir, outdir, rf)),
+    "CLIP":       lambda cfg, sid, sp, gp, indir, outdir, meta, rf: ("CLIP.smk",      runCLIP(cfg, sid, indir, outdir, rf)),
+    "Mutation":   lambda cfg, sid, sp, gp, indir, outdir, meta, rf: ("Mutation.smk",  runMutation(cfg, sid, sp, indir, outdir, rf)),
+    "PacVar":     lambda cfg, sid, sp, gp, indir, outdir, meta, rf: ("PacVar.smk",    runPacVar(cfg, sid, indir, outdir, rf)),
+    "KARRseq":    lambda cfg, sid, sp, gp, indir, outdir, meta, rf: ("KARRseq.smk",   runKARRseq(cfg, sid, indir, outdir, rf)),
+    "PeakCalling":lambda cfg, sid, sp, gp, indir, outdir, meta, rf: ("PeakCalling.smk",runPeakCalling(cfg, sid, sp, indir, outdir, rf)),
+    "QuantMS":    lambda cfg, sid, sp, gp, indir, outdir, meta, rf: ("QuantMS.smk",   runQuantMS(cfg, sid, indir, outdir, rf)),
+    "tRNAseq":    lambda cfg, sid, sp, gp, indir, outdir, meta, rf: ("tRNAseq.smk",   runtRNAseq(cfg, sid, indir, outdir, meta, rf)),
 }
 
 
@@ -425,7 +425,7 @@ def execute_workflows(args, root_dir: str, logger):
         metadataUtil = MetadataUtils(outdir=abs_ref_outdir, meta=first_meta)
     else:
         metadataUtil = MetadataUtils(outdir=abs_ref_outdir, fastq_dir=first_meta)
-    samples_info_dict, sample_pairs, group_pairs, raw_fastq_dir = metadataUtil.run()
+    samples_info_dict, sample_pairs, group_pairs, raw_fastq_dir, raw_files = metadataUtil.run()
 
     # Thread allocation: user-specified total threads split across workflows
     threads_per_workflow = max(1, args.threads // n_workflows)
@@ -448,7 +448,7 @@ def execute_workflows(args, root_dir: str, logger):
                     metadataUtil = MetadataUtils(outdir=abs_outdir, meta=wf_meta)
                 else:
                     metadataUtil = MetadataUtils(outdir=abs_outdir, fastq_dir=wf_meta)
-                samples_info_dict, sample_pairs, group_pairs, raw_fastq_dir = metadataUtil.run()
+                samples_info_dict, sample_pairs, group_pairs, raw_fastq_dir, raw_files = metadataUtil.run()
 
             model_json = os.path.join(root_dir, f"config/{wf_name}.json")
             workflow_config = _load_model_json(model_json)
@@ -508,7 +508,7 @@ def execute_workflows(args, root_dir: str, logger):
 
             smk, input_json = WORKFLOW_DISPATCH[wf_name](
                 deepcopy(workflow_config), samples_info_dict, sample_pairs, group_pairs,
-                raw_fastq_dir, abs_outdir, _get_meta(wf_name)
+                raw_fastq_dir, abs_outdir, _get_meta(wf_name), raw_files
             )
 
             # Auto-prefix forcerun targets with workflow name if not already prefixed.

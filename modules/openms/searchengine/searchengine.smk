@@ -41,7 +41,6 @@ rule search_engine_comet:
         comet = comet,
         precursor_mass_tolerance = config.get("Params").get("search_engine",{}).get("comet", {}).get("precursor_mass_tolerance", 20),
         fragment_mass_tolerance = config.get("Params").get("search_engine",{}).get("comet", {}).get("fragment_mass_tolerance", 0.02),
-        fragment_bin_tolerance = config.get("Params").get("search_engine",{}).get("comet", {}).get("fragment_bin_tolerance", 0.02),
         fragment_bin_offset = config.get("Params").get("search_engine",{}).get("comet", {}).get("fragment_bin_offset", 0)
     run:
         log_path = str(log)
@@ -59,7 +58,6 @@ rule search_engine_comet:
                 "-threads", str(threads),
                 "-precursor_mass_tolerance", str(params.precursor_mass_tolerance),
                 "-fragment_mass_tolerance", str(params.fragment_mass_tolerance),
-                "-fragment_bin_tolerance", str(params.fragment_bin_tolerance),
                 "-fragment_bin_offset", str(params.fragment_bin_offset)
             ]
             with open(script, "w") as f:

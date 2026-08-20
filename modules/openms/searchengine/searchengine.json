@@ -18,7 +18,6 @@
                 "threads": 4,
                 "precursor_mass_tolerance": 20,
                 "fragment_mass_tolerance": 0.02,
-                "fragment_bin_tolerance": 0.02,
                 "fragment_bin_offset": 0
             },
             "msgf": {

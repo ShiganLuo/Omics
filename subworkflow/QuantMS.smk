@@ -65,7 +65,7 @@ search_engine_config = {
     "env": config.get("env", {}),
     "mzML_dir": raw2mzml_config["outdir"],
     "decoy_dir": decoy_database_config["outdir"],
-    "outdir": f"{outdir}/search_engine",
+    "outdir": f"{outdir}/common/3_search_engine",
     "logdir": logdir,
     "samples": samples,
     "Procedure": {
@@ -91,7 +91,7 @@ psm_rescoring_config = {
     "ROOT_DIR": ROOT_DIR,
     "env": config.get("env", {}),
     "indir": search_engine_config["outdir"],
-    "outdir": f"{outdir}/psm_rescoring",
+    "outdir": f"{outdir}/common/4_psm_rescoring",
     "logdir": logdir,
     "samples": samples,
     "Procedure": {
@@ -113,7 +113,7 @@ psm_fdr_config = {
     "ROOT_DIR": ROOT_DIR,
     "env": config.get("env", {}),
     "indir": psm_rescoring_config["outdir"],
-    "outdir": f"{outdir}/psm_fdr",
+    "outdir": f"{outdir}/5_psm_fdr",
     "logdir": logdir,
     "samples": samples,
     "Procedure": {
@@ -134,7 +134,7 @@ protein_inference_config = {
     "ROOT_DIR": ROOT_DIR,
     "env": config.get("env", {}),
     "indir": psm_fdr_config["outdir"],
-    "outdir": f"{outdir}/protein_inference",
+    "outdir": f"{outdir}/common/6_protein_inference",
     "logdir": logdir,
     "samples": samples,
     "Procedure": {
@@ -154,8 +154,8 @@ logger.info(f"protein_inference_config: {protein_inference_config}")
 quantification_config = {
     "ROOT_DIR": ROOT_DIR,
     "env": config.get("env", {}),
-    "indir": f"{outdir}/protein_inference",
-    "outdir": f"{outdir}/quantification",
+    "indir": protein_inference_config["outdir"],
+    "outdir": f"{outdir}/common/6_quantification",
     "logdir": logdir,
     "samples": samples,
     "quantification_method": config.get("quantification_method", "lfq"),
@@ -181,7 +181,7 @@ msstats_config = {
     "ROOT_DIR": ROOT_DIR,
     "env": config.get("env", {}),
     "indir": quantification_config["outdir"],
-    "outdir": f"{outdir}/msstats",
+    "outdir": f"{outdir}/common/7_msstats",
     "logdir": logdir,
     "samples": samples,
     "quantification_method": config.get("quantification_method", "lfq"),

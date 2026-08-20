@@ -22,6 +22,7 @@ def get_raw_input(wildcards):
         f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}.RAW",
         f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}.raw.gz",
         f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}.RAW.gz",
+        f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}.mzML",
     ]
     for path in candidates:
         if os.path.exists(path):
@@ -31,7 +32,7 @@ def get_raw_input(wildcards):
 
 rule raw2mzml:
     input:
-        raw = get_raw_input
+        infile = get_raw_input
     output:
         mzml = outdir + "/{sample_id}/{sample_id}.mzML"
     log:
@@ -58,16 +59,23 @@ rule raw2mzml:
             script = os.path.join(sample_outdir, f"raw2mzml_{current_time}.sh")
             output_dir = os.path.dirname(output.mzml)
             output_name = os.path.basename(output.mzml)
-            cmd = [params.converter]
-            if params.converter_args:
-                cmd.extend(shlex.split(str(params.converter_args)))
-            if params.converter_mode == "msconvert":
-                cmd.extend([str(input.raw), "--mzML"])
-                if params.peak_picking:
-                    cmd.extend(["--filter", "peakPicking true 1-"])
-                cmd.extend(["-o", output_dir, "--outfile", output_name])
+            if input.infile.endswith(".raw") or input.infile.endswith(".RAW"):
+                cmd = [params.converter]
+                if params.converter_args:
+                    cmd.extend(shlex.split(str(params.converter_args)))
+                if params.converter_mode == "msconvert":
+                    cmd.extend([str(input.infile), "--mzML"])
+                    if params.peak_picking:
+                        cmd.extend(["--filter", "peakPicking true 1-"])
+                    cmd.extend(["-o", output_dir, "--outfile", output_name])
+                else:
+                    cmd.extend([str(input.infile), str(output.mzml)])
+            elif input.infile.endswith(".mzML"):
+                rule_logger.info(f"Input file {input.infile} is already in mzML format. Copying to output directory.")
+                cmd = ["ln", "-s", str(input.infile), str(output.mzml)]
             else:
-                cmd.extend([str(input.raw), str(output.mzml)])
+                raise ValueError(f"Unsupported input file format: {input.infile}")
+            
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write(" ".join(shlex.quote(x) for x in cmd) + "\n")

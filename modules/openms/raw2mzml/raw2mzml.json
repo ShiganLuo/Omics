@@ -11,8 +11,8 @@
     "Params": {
         "raw_to_mzml": {
             "manifest": "",
-            "mode": "msconvert",
-            "converter": "msconvert",
+            "mode": "thermorawfileparser",
+            "converter": "ThermoRawFileParser",
             "args": "",
             "peak_picking": true
         }

@@ -1,4 +1,4 @@
-include: "../common/common.smk"
+include: "../../common/common.smk"
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "logs")
 samples = config.get("samples", [])
@@ -34,9 +34,9 @@ rule search_engine_comet:
         logdir + "/{sample_id}/search_engine_comet.log"
     threads: 4
     conda:
-        "searchengine.yaml"
+        "../openms.yaml"
     container:
-        sif("searchengine.yaml")
+        sif("../openms.yaml")
     params:
         comet = comet,
         precursor_mass_tolerance = config.get("Params").get("search_engine",{}).get("comet", {}).get("precursor_mass_tolerance", 20),
@@ -82,9 +82,9 @@ rule search_engine_msgf:
         logdir + "/{sample_id}/search_engine_msgf.log"
     threads: 4
     conda:
-        "searchengine.yaml"
+        "../openms.yaml"
     container:
-        sif("searchengine.yaml")
+        sif("../openms.yaml")
     params:
         msgf = msgf,
         precursor_mass_tolerance = config.get("Params").get("search_engine",{}).get("msgf", {}).get("precursor_mass_tolerance", 20),
@@ -126,9 +126,9 @@ rule search_engine_sage:
         logdir + "/{sample_id}/search_engine_sage.log"
     threads: 4
     conda:
-        "searchengine.yaml"
+        "../openms.yaml"
     container:
-        sif("searchengine.yaml")
+        sif("../openms.yaml")
     params:
         sage = sage,
         precursor_mass_tolerance = config.get("Params").get("search_engine",{}).get("sage", {}).get("precursor_mass_tolerance", 20),

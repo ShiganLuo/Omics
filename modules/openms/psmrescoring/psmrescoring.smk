@@ -1,4 +1,4 @@
-include: "../common/common.smk"
+include: "../../common/common.smk"
 
 shell.prefix("set -x; set -e;")
 from snakemake.logging import logger
@@ -35,9 +35,9 @@ rule psm_rescoring:
     log:
         logdir + "/{sample_id}/psm_rescoring.log"
     conda:
-        "psmrescoring.yaml"
+        "../openms.yaml"
     container:
-        sif("psmrescoring.yaml")
+        sif("../openms.yaml")
     params:
         percolator = percolator,
         train_FDR = percolator_params.get("train_FDR", 0.05),

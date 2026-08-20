@@ -1,4 +1,4 @@
-include: "../common/common.smk"
+include: "../../common/common.smk"
 
 indir = config.get("indir", "data/fasta")
 outdir = config.get("outdir", "output")
@@ -25,9 +25,9 @@ rule decoy_database:
     log:
         logdir + "/decoy_database.log"
     conda:
-        "decoydatabase.yaml"
+        "../openms.yaml"
     container:
-        sif("decoydatabase.yaml")
+        sif("../openms.yaml")
     params:
         openms = openms,
         decoy_string = decoy_string,

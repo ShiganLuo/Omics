@@ -13,6 +13,7 @@
         "track": "/home/luosg/Database/env/track/track.sif"
     },
     "indir": null,
+    "raw_files": [],
     "logdir": null,
     "outdir": null,
     "paired_samples": [],

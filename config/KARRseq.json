@@ -5,6 +5,7 @@
         "seqprep": "/home/luosg/Database/env/seqprep/seqprep.sif"
     },
     "indir": "input",
+    "raw_files": [],
     "outdir": "output",
     "logdir": "log",
     "paired_samples": [],

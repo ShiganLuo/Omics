@@ -8,6 +8,7 @@
         "trim-galore": "/home/luosg/Database/env/trim-galore/trim-galore.sif"
     },
     "indir": null,
+    "raw_files": [],
     "logdir": null,
     "outdir": null,
     "paired_samples": [],

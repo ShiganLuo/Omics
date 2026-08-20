@@ -179,16 +179,17 @@ def runRNAseq(
             logger.error(f"Unknown layout type for sample {sample_id}: {sample_info.layout}")
     if len(Organisms) != 1:
         raise ValueError(f"meta don't support multiple organsim temporarily, please check your meta file, found: {Organisms}")
-    if Organisms.pop() in ["Homo sapiens", "human"]:
+    organism = next(iter(Organisms))
+    if organism in ["Homo sapiens", "human"]:
         datajson["genome"]["default"] = "GRCh38"
         datajson["Params"]["report"]["genome"] = "GRCh38"
         datajson["Params"]["function"]["species"] = "human"
-    elif Organisms.pop() in ["Mus musculus", "mouse"]:
+    elif organism in ["Mus musculus", "mouse"]:
         datajson["genome"]["default"] = "GRCm39"
         datajson["Params"]["report"]["genome"] = "GRCm39"
         datajson["Params"]["function"]["species"] = "mouse"
     else:
-        raise ValueError(f"pipeline don't support {Organisms.pop()}, only support human or mouse(Homo sapiens or Mus musculus)")
+        raise ValueError(f"pipeline don't support {organism}, only support human or mouse(Homo sapiens or Mus musculus)")
     # outfiles.append(f"{outdir}/TEtranscripts/TEcount/all_TEcount.tsv")
     outfiles.append(f"{outdir}/fusion/arriba_report/arriba_fusion_report.html")
     outfiles.append(f"{outdir}/transcripts/stringtie_merged.gtf")

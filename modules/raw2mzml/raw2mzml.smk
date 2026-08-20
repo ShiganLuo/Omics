@@ -6,9 +6,9 @@ logdir = config.get("logdir", "logs")
 samples = config.get("samples", [])
 raw_files = config.get("raw_files", [])
 
-converter = config.get("Params", {}).get("raw_to_mzml", {}).get("converter", "msconvert")
-converter_mode = config.get("Params", {}).get("raw_to_mzml", {}).get("mode", "msconvert")
-converter_args = config.get("Params", {}).get("raw_to_mzml", {}).get("args", "")
+converter = config.get("Params", {}).get("raw_to_mzml", {}).get("converter") or "msconvert"
+converter_mode = config.get("Params", {}).get("raw_to_mzml", {}).get("mode") or "msconvert"
+converter_args = config.get("Params", {}).get("raw_to_mzml", {}).get("args") or ""
 extra_filter = config.get("Params", {}).get("raw_to_mzml", {}).get("peak_picking", True)
 
 

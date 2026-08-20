@@ -19,10 +19,6 @@
     "type": "str",
     "required": true
   },
-  "search_engines": {
-    "type": "str",
-    "required": true
-  },
   "Procedure": {
     "openms": {
       "type": "null",
@@ -76,6 +72,28 @@
     }
   },
   "Params": {
+    "raw_to_mzml": {
+      "manifest": {
+        "type": "str",
+        "required": false
+      },
+      "mode": {
+        "type": "str",
+        "required": true
+      },
+      "converter": {
+        "type": "str",
+        "required": true
+      },
+      "args": {
+        "type": "str",
+        "required": false
+      },
+      "peak_picking": {
+        "type": "bool",
+        "required": true
+      }
+    },
     "decoy_database": {
       "decoy_string": {
         "type": "str",
@@ -99,6 +117,10 @@
       }
     },
     "search_engine": {
+      "engine": {
+        "type": "str",
+        "required": true
+      },
       "comet": {
         "threads": {
           "type": "int",

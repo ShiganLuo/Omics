@@ -10,7 +10,6 @@
     },
     "Params": {
         "raw_to_mzml": {
-            "enabled": true,
             "manifest": "",
             "mode": "msconvert",
             "converter": "msconvert",

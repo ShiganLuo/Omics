@@ -32,7 +32,7 @@ raw2mzml_config = {
 
 # Import modules
 module raw2mzml:
-    snakefile: "../modules/raw2mzml/raw2mzml.smk"
+    snakefile: "../modules/openms/raw2mzml/raw2mzml.smk"
     config: raw2mzml_config
 use rule * from raw2mzml as QuantMS_*
 logger.info(f"raw2mzml_config: {raw2mzml_config}")
@@ -55,7 +55,7 @@ decoy_database_config = {
     }
 }
 module decoy_database:
-    snakefile: "../modules/decoydatabase/decoydatabase.smk"
+    snakefile: "../modules/openms/decoydatabase/decoydatabase.smk"
     config: decoy_database_config
 use rule decoy_database from decoy_database as QuantMS_decoy_database
 logger.info(f"decoy_database_config: {decoy_database_config}")
@@ -82,7 +82,7 @@ search_engine_config = {
 }
 
 module search_engine:
-    snakefile: "../modules/searchengine/searchengine.smk"
+    snakefile: "../modules/openms/searchengine/searchengine.smk"
     config: search_engine_config
 use rule * from search_engine as QuantMS_*
 logger.info(f"search_engine_config: {search_engine_config}")
@@ -104,7 +104,7 @@ psm_rescoring_config = {
 }
 
 module psm_rescoring:
-    snakefile: "../modules/psmrescoring/psmrescoring.smk"
+    snakefile: "../modules/openms/psmrescoring/psmrescoring.smk"
     config: psm_rescoring_config
 use rule * from psm_rescoring as QuantMS_*
 logger.info(f"psm_rescoring_config: {psm_rescoring_config}")
@@ -113,7 +113,7 @@ psm_fdr_config = {
     "ROOT_DIR": ROOT_DIR,
     "env": config.get("env", {}),
     "indir": psm_rescoring_config["outdir"],
-    "outdir": f"{outdir}/5_psm_fdr",
+    "outdir": f"{outdir}/common/5_psm_fdr",
     "logdir": logdir,
     "samples": samples,
     "Procedure": {
@@ -125,7 +125,7 @@ psm_fdr_config = {
 }
 
 module psm_fdr:
-    snakefile: "../modules/psmfdr/psmfdr.smk"
+    snakefile: "../modules/openms/psmfdr/psmfdr.smk"
     config: psm_fdr_config
 use rule * from psm_fdr as QuantMS_*
 logger.info(f"psm_fdr_config: {psm_fdr_config}")
@@ -146,7 +146,7 @@ protein_inference_config = {
 }
 
 module protein_inference:
-    snakefile: "../modules/proteininference/proteininference.smk"
+    snakefile: "../modules/openms/proteininference/proteininference.smk"
     config: protein_inference_config
 use rule * from protein_inference as QuantMS_*
 logger.info(f"protein_inference_config: {protein_inference_config}")
@@ -155,7 +155,7 @@ quantification_config = {
     "ROOT_DIR": ROOT_DIR,
     "env": config.get("env", {}),
     "indir": protein_inference_config["outdir"],
-    "outdir": f"{outdir}/common/6_quantification",
+    "outdir": f"{outdir}/common/7_quantification",
     "logdir": logdir,
     "samples": samples,
     "quantification_method": config.get("quantification_method", "lfq"),
@@ -172,7 +172,7 @@ quantification_config = {
 }
 
 module quantification:
-    snakefile: "../modules/quantification/quantification.smk"
+    snakefile: "../modules/openms/quantification/quantification.smk"
     config: quantification_config
 use rule * from quantification as QuantMS_*
 logger.info(f"quantification_config: {quantification_config}")
@@ -181,7 +181,7 @@ msstats_config = {
     "ROOT_DIR": ROOT_DIR,
     "env": config.get("env", {}),
     "indir": quantification_config["outdir"],
-    "outdir": f"{outdir}/common/7_msstats",
+    "outdir": f"{outdir}/common/8_msstats",
     "logdir": logdir,
     "samples": samples,
     "quantification_method": config.get("quantification_method", "lfq"),
@@ -195,7 +195,7 @@ msstats_config = {
 }
 
 module msstats:
-    snakefile: "../modules/msstats/msstats.smk"
+    snakefile: "../modules/openms/msstats/msstats.smk"
     config: msstats_config
 use rule * from msstats as QuantMS_*
 logger.info(f"msstats_config: {msstats_config}")

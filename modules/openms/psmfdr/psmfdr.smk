@@ -1,4 +1,4 @@
-include: "../common/common.smk"
+include: "../../common/common.smk"
 
 indir = config.get("indir", "data/psm_rescoring")
 outdir = config.get("outdir", "output")
@@ -20,9 +20,9 @@ rule psm_fdr:
     log:
         logdir + "/{sample_id}/psm_fdr.log"
     conda:
-        "psmfdr.yaml"
+        "../openms.yaml"
     container:
-        sif("psmfdr.yaml")
+        sif("../openms.yaml")
     params:
         openms = openms,
         fdr = fdr,

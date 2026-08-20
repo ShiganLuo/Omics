@@ -1,4 +1,4 @@
-include: "../common/common.smk"
+include: "../../common/common.smk"
 
 
 indir = config.get("indir", "data/protein_inference")
@@ -28,9 +28,9 @@ rule quantification_lfq:
         logdir + "/quantification/quantification_lfq.log"
     threads: 8
     conda:
-        "quantification.yaml"
+        "../openms.yaml"
     container:
-        sif("quantification.yaml")
+        sif("../openms.yaml")
     params:
         proteomicslfq = proteomicslfq,
         expdesign = expdesign,
@@ -79,9 +79,9 @@ rule quantification_tmt:
         logdir + "/quantification/quantification_tmt.log"
     threads: 8
     conda:
-        "quantification.yaml"
+        "../openms.yaml"
     container:
-        sif("quantification.yaml")
+        sif("../openms.yaml")
     params:
         proteinquantifier = proteinquantifier,
         channel_mass_tolerance = tmt_params.get("channel_mass_tolerance", 0.003),
@@ -125,9 +125,9 @@ rule quantification_dia:
         logdir + "/quantification/quantification_dia.log"
     threads: 8
     conda:
-        "quantification.yaml"
+        "../openms.yaml"
     container:
-        sif("quantification.yaml")
+        sif("../openms.yaml")
     params:
         proteomicslfq = proteomicslfq,
         library = dia_params.get("library", ""),

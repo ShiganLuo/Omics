@@ -1,4 +1,4 @@
-include: "../common/common.smk"
+include: "../../common/common.smk"
 
 
 indir = config.get("indir", "data/quantification")
@@ -22,9 +22,9 @@ rule msstats:
     log:
         logdir + "/msstats/msstats.log"
     conda:
-        "msstats.yaml"
+        "../openms.yaml"
     container:
-        sif("msstats.yaml")
+        sif("../openms.yaml")
     params:
         msstats = msstats,
         reference_condition = reference_condition,

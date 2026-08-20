@@ -17,6 +17,7 @@
     "outdir": "",
     "logdir": "",
     "samples": [],
+    "raw_files": [],
     "paired_samples": [],
     "single_samples": [],
     "ip_samples": [],

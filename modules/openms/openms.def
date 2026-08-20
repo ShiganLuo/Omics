@@ -1,0 +1,36 @@
+# Auto-generated Apptainer definition file for openms conda environment
+# Source YAML: openms.yaml
+# Build: apptainer build openms.sif openms.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    openms.yaml /opt/conda/openms.yaml
+
+%post
+    export PATH="/opt/conda/bin:$PATH"
+    export CONDA_NO_PLUGINS=true
+    conda config --set solver classic
+    conda env create -f /opt/conda/openms.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/openms.yaml
+
+    echo 'export PATH="/opt/conda/envs/openms/bin:$PATH"' >> /etc/profile.d/conda_openms.sh
+    echo 'export CONDA_DEFAULT_ENV=openms' >> /etc/profile.d/conda_openms.sh
+
+%environment
+    export PATH="/opt/conda/envs/openms/bin:$PATH"
+    export CONDA_DEFAULT_ENV=openms
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName openms
+
+%help
+    Apptainer image for conda environment 'openms'.
+    Generated from openms.yaml.

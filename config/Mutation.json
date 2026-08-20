@@ -13,6 +13,7 @@
         "deepvariant": "/home/luosg/Database/env/deepvariant/deepvariant.sif"
     },
     "indir": "input",
+    "raw_files": [],
     "outdir": "output",
     "logdir": "logs",
     "paired_samples": [],

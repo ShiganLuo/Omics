@@ -63,6 +63,7 @@
         "mESC-1ngRNA-1",
         "mESC-1ngRNA-2"
     ],
+    "raw_files": [],
     "outfiles": [
         "/data/pub/zhousha/20260207_Exome/output/tRNAseq/mimseq/mimseq"
     ],

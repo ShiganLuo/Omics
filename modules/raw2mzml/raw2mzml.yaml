@@ -1,7 +1,0 @@
-name: raw2mzml
-channels:
-  - conda-forge
-  - bioconda
-  - defaults
-dependencies:
-  - openms-thirdparty=3.1.0

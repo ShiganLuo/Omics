@@ -3,6 +3,7 @@
     "outdir": "output",
     "logdir": "logs",
     "samples": [],
+    "raw_files": [],
     "paired_samples": [],
     "single_samples": [],
     "ip_samples": [],

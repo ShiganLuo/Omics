@@ -8,6 +8,7 @@
         "hisat2": "/home/luosg/Database/env/hisat2/hisat2.sif"
     },
     "indir": null,
+    "raw_files": [],
     "logdir": null,
     "outdir": null,
     "paired_samples": [],

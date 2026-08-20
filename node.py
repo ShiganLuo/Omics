@@ -8,34 +8,12 @@ from src.common.util.type import DesignPair, CompareGroupPair, SampleInfo
 from src.common.util.LogUtil import setup_logger
 logger = setup_logger(__name__, level=logging.DEBUG)
 
-
-def _detect_delimiter(path: str) -> str:
-    with open(path, "r", encoding="utf-8") as handle:
-        head = handle.read(2048)
-    return "\t" if head.count("\t") >= head.count(",") else ","
-
-
-
-def _infer_raw_path(indir: str, sample_id: str) -> str:
-    candidates = [
-        os.path.join(indir, f"{sample_id}.raw"),
-        os.path.join(indir, f"{sample_id}.RAW"),
-        os.path.join(indir, f"{sample_id}.raw.gz"),
-        os.path.join(indir, f"{sample_id}.RAW.gz"),
-    ]
-    for candidate in candidates:
-        if os.path.exists(candidate):
-            return candidate
-    return candidates[0]
-
-
-def _build_raw2mzml_output(outdir: str, sample_id: str) -> str:
-    return os.path.join(outdir, "raw2mzml", sample_id, f"{sample_id}.mzML")
 def runCoCulture(
     datajson: Dict[str,Any],
     samples_info_dict:Dict[str, Any],
     indir:str,
     outdir: str,
+    raw_files: List[str],
 
 ):
     datajson["ROOT_DIR"] = os.path.dirname(__file__)
@@ -70,6 +48,7 @@ def runCoCulture(
         else:
             logger.error(f"Unknown layout type for sample {sample_id}: {sample_info.layout}")
     outfiles.append(f"{outdir}/disambiguate/disambiguate_qc.tsv")
+    datajson["raw_files"] = raw_files
     datajson["outfiles"] = outfiles
     datajson["paired_samples"] = paired_samples
     datajson["single_samples"] = single_samples
@@ -83,6 +62,7 @@ def runMERIP(
     samples_info_dict:Dict[str, Any],
     indir:str,
     outdir: str,
+    raw_files: List[str],
 ):
     """
     Function: Prepare input JSON for MERIP workflow based on the provided model JSON template and sample information.
@@ -136,6 +116,7 @@ def runMERIP(
         else:
             logger.error(f"Unknown design type for sample {sample_id}: {sample_info.design}")
     outfiles.append(f"{outdir}/exomePeak/sig_diff_peak_gene_names.xls")
+    datajson["raw_files"] = raw_files
     datajson["outfiles"] = outfiles
     datajson["paired_samples"] = paired_samples
     datajson["single_samples"] = single_samples
@@ -150,10 +131,11 @@ def runMERIP(
 
 def runRNAseq(
     datajson: Dict[str, Any],
-    samples_info_dict:Dict[str, SampleInfo],
+    samples_info_dict: Dict[str, Any],
     group_pairs: List[CompareGroupPair],
     indir:str,
     outdir: str,
+    raw_files: List[str],
 ):
     datajson["ROOT_DIR"] = os.path.dirname(__file__)
     datajson["indir"] = indir
@@ -217,6 +199,7 @@ def runRNAseq(
     outfiles.append(f"{outdir}/transcripts/TE_chimeric/TE_chimeric_group_summary.tsv")
     outfiles.append(f"{outdir}/transcripts/TE_chimeric/TE_chimeric_te_type_counts.tsv")
     outfiles.append(f"{outdir}/RNAseq_report.pptx")
+    datajson["raw_files"] = raw_files
     datajson["outfiles"] = outfiles
     datajson["paired_samples"] = paired_samples
     datajson["single_samples"] = single_samples
@@ -230,6 +213,7 @@ def runCLIP(
     samples_info_dict:Dict[str, Any],
     indir:str,
     outdir: str,
+    raw_files: List[str],
 ):
     datajson["ROOT_DIR"] = os.path.dirname(__file__)
     datajson["indir"] = indir
@@ -272,6 +256,7 @@ def runCLIP(
             logger.error(f"Unknown layout type for sample {sample_id}: {sample_info.layout}")
     outfiles.append(f"{outdir}/track/igv_track_iclip.html")
     outfiles.append(f"{outdir}/track/ucsc_track_iclip.txt")
+    datajson["raw_files"] = raw_files
     datajson["outfiles"] = outfiles
     datajson["paired_samples"] = paired_samples
     datajson["single_samples"] = single_samples
@@ -299,6 +284,7 @@ def runPacVar(
     samples_info_dict: Dict[str, Any],
     indir: str,
     outdir: str,
+    raw_files: List[str],
 ):
     """Prepare input JSON for PacVar (PacBio variant calling) workflow."""
     datajson["ROOT_DIR"] = os.path.dirname(__file__)
@@ -358,6 +344,7 @@ def runPacVar(
     os.makedirs(gatk_tmp_dir, exist_ok=True)
     datajson["Params"]["gatk"]["tmp-dir"] = gatk_tmp_dir
     datajson["samples"] = samples
+    datajson["raw_files"] = raw_files
     datajson["outfiles"] = outfiles
     instance_json = os.path.join(outdir, "raw.json")
     with open(instance_json, 'w', encoding='utf-8') as wf:
@@ -366,10 +353,11 @@ def runPacVar(
 
 def runMutation(
     datajson: Dict[str, Any],
-    samples_info_dict:Dict[str, Any],
+    samples_info_dict: Dict[str, Any],
     designPairs: List[DesignPair],
-    indir:str,
+    indir: str,
     outdir: str,
+    raw_files: List[str],
 ):
     datajson["ROOT_DIR"] = os.path.dirname(__file__)
     datajson["indir"] = indir
@@ -432,6 +420,7 @@ def runMutation(
     
     datajson["Params"]["somatic_spectrum"]["sample_somatic_vcf_dict"] = sample_somatic_vcf_dict
     datajson["Params"]["somatic_spectrum"]["sample_group_dict"] = sample_group_dict
+    datajson["raw_files"] = raw_files
     datajson["outfiles"] = outfiles
     datajson["paired_samples"] = paired_samples
     datajson["single_samples"] = single_samples
@@ -445,6 +434,7 @@ def runKARRseq(
     samples_info_dict: Dict[str, Any],
     indir: str,
     outdir: str,
+    raw_files: List[str],
 ):
     """Prepare input JSON for KARRseq (Kethoxal-Assisted RNA-RNA interaction sequencing) workflow."""
     datajson["ROOT_DIR"] = os.path.dirname(__file__)
@@ -471,6 +461,7 @@ def runKARRseq(
 
     datajson["paired_samples"] = paired_samples
     datajson["single_samples"] = single_samples
+    datajson["raw_files"] = raw_files
     datajson["outfiles"] = outfiles
 
     instance_json = os.path.join(outdir, "raw.json")
@@ -484,6 +475,7 @@ def runPeakCalling(
     design_pairs:List[DesignPair],
     indir: str,
     outdir: str,
+    raw_files: List[str],
 ):
     """Prepare input JSON for PeakCalling (ChIP-seq/DIP-seq peak calling) workflow.
     
@@ -566,6 +558,7 @@ def runPeakCalling(
     datajson["ip_samples"] = ip_samples
     datajson["input_samples"] = input_samples
     datajson["sample_ip_input_map"] = sample_ip_input_map
+    datajson["raw_files"] = raw_files
     datajson["outfiles"] = outfiles
 
     instance_json = os.path.join(outdir, "raw.json")
@@ -578,6 +571,7 @@ def runQuantMS(
     samples_info_dict: Dict[str, Any],
     indir: str,
     outdir: str,
+    raw_files: List[str],
 ):
     """Prepare input JSON for QuantMS (quantitative proteomics) workflow.
     
@@ -609,27 +603,29 @@ def runQuantMS(
     for sample_id in samples_info_dict:
         samples.append(sample_id)
         if search_engine== "comet":
-            outfiles.append(f"{outdir}/search_engine/{sample_id}/{sample_id}_comet.idXML")
+            outfiles.append(f"{outdir}/common/3_search_engine/{sample_id}/{sample_id}_comet.idXML")
         elif search_engine == "msgf":
-            outfiles.append(f"{outdir}/search_engine/{sample_id}/{sample_id}_msgf.idXML")
+            outfiles.append(f"{outdir}/common/3_search_engine/{sample_id}/{sample_id}_msgf.idXML")
         elif search_engine == "sage":
-            outfiles.append(f"{outdir}/search_engine/{sample_id}/{sample_id}_sage.idXML")
+            outfiles.append(f"{outdir}/common/3_search_engine/{sample_id}/{sample_id}_sage.idXML")
         else:
             raise ValueError(f"Unknown search engine: {search_engine}")
-        outfiles.append(f"{outdir}/psm_rescoring/{sample_id}/{sample_id}_scored.idXML")
-        outfiles.append(f"{outdir}/psm_fdr/{sample_id}/{sample_id}_filtered.idXML")
-        outfiles.append(f"{outdir}/protein_inference/{sample_id}/{sample_id}_protein.idXML")
+        outfiles.append(f"{outdir}/common/4_psm_rescoring/{sample_id}/{sample_id}_scored.idXML")
+        outfiles.append(f"{outdir}/common/5_psm_fdr/{sample_id}/{sample_id}_filtered.idXML")
+        outfiles.append(f"{outdir}/common/6_protein_inference/{sample_id}/{sample_id}_protein.idXML")
     if quantification_method == "tmt":
-        outfiles.append(f"{outdir}/quantification/tmt_quantification.mzTab")
+        outfiles.append(f"{outdir}/common/7_quantification/tmt_quantification.mzTab")
     elif quantification_method == "lfq":
-        outfiles.append(f"{outdir}/quantification/lfq_quantification.mzTab")
+        outfiles.append(f"{outdir}/common/7_quantification/lfq_quantification.mzTab")
     elif quantification_method == "dia":
-        outfiles.append(f"{outdir}/quantification/dia_quantification.mzTab")
+        outfiles.append(f"{outdir}/common/7_quantification/dia_quantification.mzTab")
 
     if not datajson.get("Params", {}).get("skip_post_msstats", False):
-        outfiles.append(f"{outdir}/msstats/msstats_results.csv")
+        outfiles.append(f"{outdir}/common/8_msstats/msstats_results.csv")
 
     datajson["samples"] = samples
+    datajson["raw_files"] = raw_files
+
     datajson["outfiles"] = outfiles
 
     instance_json = os.path.join(outdir, "raw.json")
@@ -643,6 +639,7 @@ def runtRNAseq(
     indir: str,
     outdir: str,
     meta: str,
+    raw_files: List[str],
 ):
     """Prepare input JSON for tRNAseq (mim-tRNAseq) workflow.
 
@@ -668,6 +665,7 @@ def runtRNAseq(
     outfiles = [f"{outdir}/mimseq/mimseq.done"]
 
     datajson["samples"] = samples
+    datajson["raw_files"] = raw_files
     datajson["outfiles"] = outfiles
 
     instance_json = os.path.join(outdir, "raw.json")
@@ -677,10 +675,11 @@ def runtRNAseq(
 
 def runncRNAseq(
     datajson: Dict[str, Any],
-    samples_info_dict: Dict[str, SampleInfo],
+    samples_info_dict: Dict[str, Any],
     design_pairs:List[DesignPair],
     indir: str,
     outdir: str,
+    raw_files: List[str],
 ):
     """Prepare input JSON for ncRNAseq (small/non-coding RNA-seq) workflow.
 
@@ -747,6 +746,7 @@ def runncRNAseq(
     outfiles.append(f"{outdir}/tracks/igv_track.html")
     outfiles.append(f"{outdir}/tracks/ucsc_track.txt")
     datajson["samples"] = all_samples
+    datajson["raw_files"] = raw_files
     datajson["paired_samples"] = paired_samples
     datajson["single_samples"] = single_samples
     datajson["outfiles"] = outfiles

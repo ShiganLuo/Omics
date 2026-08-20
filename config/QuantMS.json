@@ -14,7 +14,6 @@
     "logdir": "logs",
     "samples": [],
     "quantification_method": "lfq",
-    "search_engines": "comet",
     "Procedure": {
         "openms": null,
         "thermorawfileparser": null,
@@ -28,6 +27,13 @@
         "msstats": null
     },
     "Params": {
+        "raw_to_mzml": {
+            "manifest": "",
+            "mode": "msconvert",
+            "converter": "msconvert",
+            "args": "",
+            "peak_picking": true
+        },
         "decoy_database": {
             "decoy_string": "DECOY_",
             "decoy_string_position": "prefix",
@@ -109,7 +115,7 @@
         "enable_mod_localization": false
     },
     "genome": {
-        "fasta": null,
+        "fasta": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
         "decoy_fasta": null
     }
 }

@@ -1,9 +1,11 @@
-include: "../../common/common.smk"
+include: "../common/common.smk"
 
 indir = config.get("indir", "data/fasta")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "logs")
 fasta = config.get("genome", {}).get("fasta")
+if not fasta or not os.path.exists(fasta):
+    raise ValueError("Fasta file path is not specified in the configuration under 'genome.fasta'  or does not exist.")
 
 # Get parameters
 decoy_string = config.get("Params", {}).get("decoy_database", {}).get("decoy_string", "DECOY_")

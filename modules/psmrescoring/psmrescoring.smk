@@ -19,11 +19,11 @@ percolator = config.get("Procedure", {}).get("percolator") or "PercolatorAdapter
 def get_input_for_psm_rescoring(wildcards):
     """Get input files for PSM rescoring."""
     if search_engine == "comet":
-        return {"idxml": outdir + f"/{wildcards.sample_id}/{wildcards.sample_id}_comet.idXML"}
+        return {"idxml": indir + f"/{wildcards.sample_id}/{wildcards.sample_id}_comet.idXML"}
     elif search_engine == "msgf":
-        return {"idxml": outdir + f"/{wildcards.sample_id}/{wildcards.sample_id}_msgf.idXML"}
+        return {"idxml": indir + f"/{wildcards.sample_id}/{wildcards.sample_id}_msgf.idXML"}
     elif search_engine == "sage":
-        return {"idxml": outdir + f"/{wildcards.sample_id}/{wildcards.sample_id}_sage.idXML"}
+        return {"idxml": indir + f"/{wildcards.sample_id}/{wildcards.sample_id}_sage.idXML"}
     else:
         raise ValueError("No search engine specified in the configuration.")
 

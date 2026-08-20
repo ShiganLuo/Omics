@@ -602,14 +602,20 @@ def runQuantMS(
 
     raw_manifest = datajson.get("raw_manifest") or datajson.get("Params", {}).get("raw_to_mzml", {}).get("manifest") or ""
     samples: List[str] = []
-    mzml_files: List[str] = []
-    raw_files: List[str] = []
     outfiles: List[str] = []
 
     quantification_method = datajson.get("quantification_method", "lfq")
+    search_engine = datajson["Params"]["search_engine"]["engine"]
     for sample_id in samples_info_dict:
         samples.append(sample_id)
-        outfiles.append(f"{outdir}/search_engine/{sample_id}/{sample_id}.idXML")
+        if search_engine== "comet":
+            outfiles.append(f"{outdir}/search_engine/{sample_id}/{sample_id}_comet.idXML")
+        elif search_engine == "msgf":
+            outfiles.append(f"{outdir}/search_engine/{sample_id}/{sample_id}_msgf.idXML")
+        elif search_engine == "sage":
+            outfiles.append(f"{outdir}/search_engine/{sample_id}/{sample_id}_sage.idXML")
+        else:
+            raise ValueError(f"Unknown search engine: {search_engine}")
         outfiles.append(f"{outdir}/psm_rescoring/{sample_id}/{sample_id}_scored.idXML")
         outfiles.append(f"{outdir}/psm_fdr/{sample_id}/{sample_id}_filtered.idXML")
         outfiles.append(f"{outdir}/protein_inference/{sample_id}/{sample_id}_protein.idXML")

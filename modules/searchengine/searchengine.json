@@ -1,5 +1,6 @@
 {
-    "indir": "input",
+    "mzML_dir": "data/mzml",
+    "decoy_dir": "data/decoy_database",
     "outdir": "output",
     "logdir": "logs",
     "samples": [],

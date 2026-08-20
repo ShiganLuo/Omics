@@ -1,9 +1,4 @@
-include: "../../common/common.smk"
-
-shell.prefix("set -x; set -e;")
-from snakemake.logging import logger
-import os
-import time
+include: "../common/common.smk"
 
 indir = config.get("indir", "data/psm_fdr")
 outdir = config.get("outdir", "output")

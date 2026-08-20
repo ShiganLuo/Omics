@@ -14,26 +14,6 @@ rule all:
         outfiles
 
 
-
-
-
-msstats_config = {
-    "ROOT_DIR": ROOT_DIR,
-    "env": config.get("env", {}),
-    "indir": f"{outdir}/quantification",
-    "outdir": f"{outdir}/msstats",
-    "logdir": logdir,
-    "samples": samples,
-    "quantification_method": config.get("quantification_method", "lfq"),
-    "Procedure": {
-        "msstats": config.get("Procedure", {}).get("msstats")
-    },
-    "Params": {
-        "msstats": config.get("Params", {}).get("msstats", {}),
-        "skip_post_msstats": config.get("Params", {}).get("skip_post_msstats", False)
-    }
-}
-
 raw2mzml_config = {
     "ROOT_DIR": ROOT_DIR,
     "env": config.get("env", {}),
@@ -54,7 +34,8 @@ raw2mzml_config = {
 module raw2mzml:
     snakefile: "../modules/raw2mzml/raw2mzml.smk"
     config: raw2mzml_config
-
+use rule * from raw2mzml as QuantMS_*
+logger.info(f"raw2mzml_config: {raw2mzml_config}")
 
 decoy_database_config = {
     "ROOT_DIR": ROOT_DIR,
@@ -76,11 +57,14 @@ decoy_database_config = {
 module decoy_database:
     snakefile: "../modules/decoydatabase/decoydatabase.smk"
     config: decoy_database_config
+use rule decoy_database from decoy_database as QuantMS_decoy_database
+logger.info(f"decoy_database_config: {decoy_database_config}")
 
 search_engine_config = {
     "ROOT_DIR": ROOT_DIR,
     "env": config.get("env", {}),
-    "indir": decoy_database_config["outdir"],
+    "mzML_dir": raw2mzml_config["outdir"],
+    "decoy_dir": decoy_database_config["outdir"],
     "outdir": f"{outdir}/search_engine",
     "logdir": logdir,
     "samples": samples,
@@ -93,13 +77,15 @@ search_engine_config = {
         "search_engine": config.get("Params", {}).get("search_engine", {})
     },
     "genome": {
-        "decoy_fasta": f"{outdir}/decoy_database/{os.path.basename(config.get('genome', {}).get('fasta', 'protein.fasta'))}_decoy.fasta"
+        "decoy_fasta": config.get("genome",{}).get("decoy_fasta")
     }
 }
 
 module search_engine:
     snakefile: "../modules/searchengine/searchengine.smk"
     config: search_engine_config
+use rule * from search_engine as QuantMS_*
+logger.info(f"search_engine_config: {search_engine_config}")
 
 psm_rescoring_config = {
     "ROOT_DIR": ROOT_DIR,
@@ -120,6 +106,8 @@ psm_rescoring_config = {
 module psm_rescoring:
     snakefile: "../modules/psmrescoring/psmrescoring.smk"
     config: psm_rescoring_config
+use rule * from psm_rescoring as QuantMS_*
+logger.info(f"psm_rescoring_config: {psm_rescoring_config}")
 
 psm_fdr_config = {
     "ROOT_DIR": ROOT_DIR,
@@ -139,6 +127,8 @@ psm_fdr_config = {
 module psm_fdr:
     snakefile: "../modules/psmfdr/psmfdr.smk"
     config: psm_fdr_config
+use rule * from psm_fdr as QuantMS_*
+logger.info(f"psm_fdr_config: {psm_fdr_config}")
 
 protein_inference_config = {
     "ROOT_DIR": ROOT_DIR,
@@ -158,6 +148,8 @@ protein_inference_config = {
 module protein_inference:
     snakefile: "../modules/proteininference/proteininference.smk"
     config: protein_inference_config
+use rule * from protein_inference as QuantMS_*
+logger.info(f"protein_inference_config: {protein_inference_config}")
 
 quantification_config = {
     "ROOT_DIR": ROOT_DIR,
@@ -182,24 +174,29 @@ quantification_config = {
 module quantification:
     snakefile: "../modules/quantification/quantification.smk"
     config: quantification_config
+use rule * from quantification as QuantMS_*
+logger.info(f"quantification_config: {quantification_config}")
+
+msstats_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "env": config.get("env", {}),
+    "indir": quantification_config["outdir"],
+    "outdir": f"{outdir}/msstats",
+    "logdir": logdir,
+    "samples": samples,
+    "quantification_method": config.get("quantification_method", "lfq"),
+    "Procedure": {
+        "msstats": config.get("Procedure", {}).get("msstats")
+    },
+    "Params": {
+        "msstats": config.get("Params", {}).get("msstats", {}),
+        "skip_post_msstats": config.get("Params", {}).get("skip_post_msstats", False)
+    }
+}
 
 module msstats:
     snakefile: "../modules/msstats/msstats.smk"
     config: msstats_config
+use rule * from msstats as QuantMS_*
+logger.info(f"msstats_config: {msstats_config}")
 
-# Use rules from modules
-use rule raw2mzml_result from raw2mzml as QuantMS_raw2mzml
-
-use rule decoy_database_result from decoy_database as QuantMS_decoy_database
-
-use rule search_engine_result from search_engine as QuantMS_search_engine
-
-use rule psm_rescoring_result from psm_rescoring as QuantMS_psm_rescoring
-
-use rule psm_fdr_result from psm_fdr as QuantMS_psm_fdr
-
-use rule protein_inference_result from protein_inference as QuantMS_protein_inference
-
-use rule quantification_result from quantification as QuantMS_quantification
-
-use rule msstats_result from msstats as QuantMS_msstats

@@ -65,5 +65,4 @@ python ${SCRIPT_DIR}/run.py \
     -o /home/luosg/Data/genomeStability/output/MS \
     -t 48 \
     --log /home/luosg/Data/genomeStability/log/MS.log \
-    --sdm \
-    --dry-run
+    --sdm

@@ -48,24 +48,6 @@
     "type": "list",
     "required": true
   },
-  "control_group_name": {
-    "type": "null",
-    "nullable": true,
-    "required": false
-  },
-  "treatment_group_name": {
-    "type": "null",
-    "nullable": true,
-    "required": false
-  },
-  "control_samples": {
-    "type": "list",
-    "required": true
-  },
-  "treatment_samples": {
-    "type": "list",
-    "required": true
-  },
   "sample_groups": {},
   "Procedure": {
     "TEcount": {

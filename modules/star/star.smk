@@ -164,7 +164,7 @@ rule star_align:
         outSAMmultNmax = config.get('Params',{}).get('star', {}).get('outSAMmultNmax') or -1,
         soloType = config.get('Params',{}).get('star', {}).get('soloType') or None,
         soloCBwhitelist = config.get('Params',{}).get('star', {}).get('soloCBwhitelist') or None,
-        soloBarcodeReadLength = config.get('Params',{}).get('star', {}).get('soloBarcodeReadLength') or 1,
+        soloBarcodeReadLength = config.get('Params',{}).get('star', {}).get('soloBarcodeReadLength', 1), # may be 0
         limitSjdbInsertNsj = config.get('Params',{}).get('star', {}).get('limitSjdbInsertNsj') or 1000000,
         outTmpDir = outdir + "/{sample_id}/tmp_star"
     conda:

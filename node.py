@@ -784,17 +784,17 @@ def runscRNAseq(
         if sample_info.layout == "PE":
             paired_samples.append(sample_id)
             if counter == "scTE":
-                outfiles.append(f"{outdir}/3_h5ad/{sample_id}/{sample_id}_scTE.h5ad")
+                outfiles.append(f"{outdir}/common/3_h5ad/{sample_id}/{sample_id}_scTE.h5ad")
             elif counter == "cellranger":
-                outfiles.append(f"{outdir}/3_h5ad/{sample_id}/{sample_id}_cellranger.h5ad")
+                outfiles.append(f"{outdir}/common/3_h5ad/{sample_id}/{sample_id}_cellranger.h5ad")
             else:
                 logger.error(f"Unknown counter type for sample {sample_id}: {counter}")
         elif sample_info.layout == "SE":
             single_samples.append(sample_id)
             if counter == "scTE":
-                outfiles.append(f"{outdir}/3_h5ad/{sample_id}/{sample_id}_scTE.h5ad")
+                outfiles.append(f"{outdir}/common/3_h5ad/{sample_id}/{sample_id}_scTE.h5ad")
             elif counter == "cellranger":
-                outfiles.append(f"{outdir}/3_h5ad/{sample_id}/{sample_id}_cellranger.h5ad")
+                outfiles.append(f"{outdir}/common/3_h5ad/{sample_id}/{sample_id}_cellranger.h5ad")
             else:
                 logger.error(f"Unknown counter type for sample {sample_id}: {counter}")
         else:

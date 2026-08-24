@@ -1,5 +1,15 @@
 {
     "ROOT_DIR": null,
+    "indir": null,
+    "raw_files": [],
+    "outdir": null,
+    "logdir": null,
+    "paired_samples": [],
+    "single_samples": [],
+    "control_group_name": null,
+    "treatment_group_name": null,
+    "control_samples": [],
+    "treatment_samples": [],
     "env": {
         "env_dir": "/home/luosg/Database/env",
         "DESeq2": "/home/luosg/Database/env/DESeq2/DESeq2.sif",
@@ -17,16 +27,6 @@
         "trim-galore": "/home/luosg/Database/env/trim-galore/trim-galore.sif",
         "trimmomatic": "/home/luosg/Database/env/trimmomatic/trimmomatic.sif"
     },
-    "indir": null,
-    "raw_files": [],
-    "outdir": null,
-    "logdir": null,
-    "paired_samples": [],
-    "single_samples": [],
-    "control_group_name": null,
-    "treatment_group_name": null,
-    "control_samples": [],
-    "treatment_samples": [],
     "Procedure": {
         "TEcount": null,
         "TElocal": null,

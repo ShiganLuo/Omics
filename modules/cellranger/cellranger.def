@@ -1,0 +1,36 @@
+# Auto-generated Apptainer definition file for cellranger conda environment
+# Source YAML: cellranger.yaml
+# Extra: cellranger-10.1.0 binary from /home/luosg/Database/SoftWare/
+# Build: apptainer build cellranger.sif cellranger.def
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    cellranger.yaml /opt/conda/cellranger.yaml
+    /home/luosg/Database/SoftWare/cellranger-10.1.0 /opt/cellranger-10.1.0
+
+%post
+    conda env create -f /opt/conda/cellranger.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/cellranger.yaml
+
+    echo 'export PATH="/opt/conda/envs/cellranger/bin:$PATH"' >> /etc/profile.d/conda_cellranger.sh
+    echo 'export CONDA_DEFAULT_ENV=cellranger' >> /etc/profile.d/conda_cellranger.sh
+    echo 'export PATH="/opt/cellranger-10.1.0/bin:$PATH"' >> /etc/profile.d/cellranger.sh
+
+%environment
+    export PATH="/opt/conda/envs/cellranger/bin:$PATH"
+    export CONDA_DEFAULT_ENV=cellranger
+    export PATH="/opt/cellranger-10.1.0/bin:$PATH"
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName cellranger
+
+%help
+    Apptainer image for conda environment 'cellranger' + cellranger-10.1.0 binary.
+    Generated from cellranger.yaml.

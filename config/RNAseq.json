@@ -6,10 +6,6 @@
     "logdir": null,
     "paired_samples": [],
     "single_samples": [],
-    "control_group_name": null,
-    "treatment_group_name": null,
-    "control_samples": [],
-    "treatment_samples": [],
     "env": {
         "env_dir": "/home/luosg/Database/env",
         "DESeq2": "/home/luosg/Database/env/DESeq2/DESeq2.sif",

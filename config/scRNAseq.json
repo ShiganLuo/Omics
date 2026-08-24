@@ -53,12 +53,13 @@
             "outSAMattributes": "NH HI AS nM CR CY UR UY",
             "outFilterMultimapNmax": 100,
             "winAnchorMultimapNmax": 100,
-            "outMultimapperOrder": "random",
+            "outMultimapperOrder": "Random",
             "runRNGseed": 777,
             "outSAMmultNmax": 1,
             "soloType": "CB_UMI_Simple",
             "soloCBwhitelist": null,
-            "soloBarcodeReadLength": 98
+            "soloBarcodeReadLength": 98,
+            "limitSjdbInsertNsj": 3000000
         },
         "cellranger": {
             "mkref": {

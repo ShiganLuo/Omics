@@ -45,7 +45,8 @@
             "outSAMmultNmax": 1,
             "soloType": "CB_UMI_Simple",
             "soloCBwhitelist": null,
-            "soloBarcodeReadLength": 98
+            "soloBarcodeReadLength": 98,
+            "limitSjdbInsertNsj": 3000000
         }
     }
 

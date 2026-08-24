@@ -165,6 +165,7 @@ rule star_align:
         soloType = config.get('Params',{}).get('star', {}).get('soloType') or None,
         soloCBwhitelist = config.get('Params',{}).get('star', {}).get('soloCBwhitelist') or None,
         soloBarcodeReadLength = config.get('Params',{}).get('star', {}).get('soloBarcodeReadLength') or 1,
+        limitSjdbInsertNsj = config.get('Params',{}).get('star', {}).get('limitSjdbInsertNsj') or 1000000,
         outTmpDir = outdir + "/{sample_id}/tmp_star"
     conda:
         "star.yaml"
@@ -205,6 +206,7 @@ rule star_align:
             "--soloType", str(params.soloType),
             "--soloCBwhitelist", str(params.soloCBwhitelist),
             "--soloBarcodeReadLength", str(params.soloBarcodeReadLength),
+            "--limitSjdbInsertNsj", str(params.limitSjdbInsertNsj),
             "--outFileNamePrefix", params.outPrefix
         ]
         if params.outTmpDir:

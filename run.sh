@@ -71,4 +71,5 @@ python ${SCRIPT_DIR}/run.py \
     -o /home/luosg/Data/genomeStability/output/luancao \
     -t 48 \
     --log /home/luosg/Data/genomeStability/log/scRNAseq.log \
-    --sdm
+    --sdm \
+    --unlock

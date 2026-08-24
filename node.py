@@ -1,21 +1,19 @@
-import csv
 import os
-from pathlib import Path
-from typing import Dict, Any, List, Optional, Tuple
+import time
+from typing import Dict, Any, List
 import logging
 import json
-from src.common.util.type import DesignPair, CompareGroupPair, SampleInfo
+from src.common.util.type import DesignPair, CompareGroupPair, SampleInfo, CellrangerInput
 from src.common.util.LogUtil import setup_logger
 logger = setup_logger(__name__, level=logging.DEBUG)
 
 def runCoCulture(
-    datajson: Dict[str,Any],
-    samples_info_dict:Dict[str, Any],
-    indir:str,
-    outdir: str,
-    raw_files: List[str],
-
-):
+        datajson: Dict[str,Any],
+        samples_info_dict:Dict[str, SampleInfo],
+        indir:str,
+        outdir: str,
+        raw_files: List[str],
+    ):
     datajson["ROOT_DIR"] = os.path.dirname(__file__)
     datajson["indir"] = indir
     datajson["outdir"] = outdir
@@ -58,12 +56,12 @@ def runCoCulture(
     return instance_json
 
 def runMERIP(
-    datajson: Dict[str, Any],
-    samples_info_dict:Dict[str, Any],
-    indir:str,
-    outdir: str,
-    raw_files: List[str],
-):
+        datajson: Dict[str, Any],
+        samples_info_dict:Dict[str, SampleInfo],
+        indir:str,
+        outdir: str,
+        raw_files: List[str],
+    ):
     """
     Function: Prepare input JSON for MERIP workflow based on the provided model JSON template and sample information.
     Parameters:
@@ -129,93 +127,14 @@ def runMERIP(
         json.dump(datajson, wf, indent=2, ensure_ascii=False)
     return instance_json
 
-def runRNAseq(
-    datajson: Dict[str, Any],
-    samples_info_dict: Dict[str, Any],
-    group_pairs: List[CompareGroupPair],
-    indir:str,
-    outdir: str,
-    raw_files: List[str],
-):
-    datajson["ROOT_DIR"] = os.path.dirname(__file__)
-    datajson["indir"] = indir
-    datajson["outdir"] = outdir
-    logdir = os.path.join(outdir, "log")
-    os.makedirs(logdir, exist_ok=True)
-    datajson["logdir"] = logdir
-    outfiles = []
-    paired_samples = []
-    single_samples = []
-    sample_groups = {}
-    for group_pair in group_pairs:
-        datajson["Params"]["DESeq2"]["group_pairs"].setdefault(f"{group_pair.ctr_group_token}_vs_{group_pair.exp_group_token}", {
-            "control_group_name": group_pair.ctr_group_name,
-            "experimental_group_name": group_pair.exp_group_name,
-            "control_samples": group_pair.ctr_sample_ids,
-            "experimental_samples": group_pair.exp_sample_ids
-        })
-        outfiles.append(f"{outdir}/diff_expression/{group_pair.ctr_group_token}_vs_{group_pair.exp_group_token}/DESeq2.done")
-        sample_groups.setdefault(group_pair.ctr_group_name, []).extend(group_pair.ctr_sample_ids)
-        sample_groups.setdefault(group_pair.exp_group_name, []).extend(group_pair.exp_sample_ids)
-
-        if datajson.get("Params", {}).get("function", {}).get("enabled", False):
-            pair_dir = f"{outdir}/function/{group_pair.ctr_group_token}_vs_{group_pair.exp_group_token}"
-            outfiles.append(f"{pair_dir}/go_back_to_back.png")
-            outfiles.append(f"{pair_dir}/kegg_back_to_back.png")
-            outfiles.append(f"{pair_dir}/GSEA/TEcount_Gene_GSEA.jpeg")
-    datajson["Params"]["StringTie"]["sample_groups"] = sample_groups
-    Organisms = set()
-    for sample_id, sample_info in samples_info_dict.items():
-        Organisms.add(sample_info.organism)
-        if sample_info.layout == "PE":
-            paired_samples.append(sample_id)
-            outfiles.append(f"{outdir}/transcripts/raw/{sample_id}/{sample_id}_TE_chimeric_transcripts.txt")
-            outfiles.append(f"{outdir}/fusion/{sample_id}/{sample_id}_passed_fusions.tsv")
-        elif sample_info.layout == "SE":
-            single_samples.append(sample_id)
-            outfiles.append(f"{outdir}/transcripts/raw/{sample_id}/{sample_id}_TE_chimeric_transcripts.txt")
-            outfiles.append(f"{outdir}/fusion/{sample_id}/{sample_id}_passed_fusions.tsv")
-        else:
-            logger.error(f"Unknown layout type for sample {sample_id}: {sample_info.layout}")
-    if len(Organisms) != 1:
-        raise ValueError(f"meta don't support multiple organsim temporarily, please check your meta file, found: {Organisms}")
-    organism = next(iter(Organisms))
-    if organism in ["Homo sapiens", "human"]:
-        datajson["genome"]["default"] = "GRCh38"
-        datajson["Params"]["report"]["genome"] = "GRCh38"
-        datajson["Params"]["function"]["species"] = "human"
-    elif organism in ["Mus musculus", "mouse"]:
-        datajson["genome"]["default"] = "GRCm39"
-        datajson["Params"]["report"]["genome"] = "GRCm39"
-        datajson["Params"]["function"]["species"] = "mouse"
-    else:
-        raise ValueError(f"pipeline don't support {organism}, only support human or mouse(Homo sapiens or Mus musculus)")
-    # outfiles.append(f"{outdir}/TEtranscripts/TEcount/all_TEcount.tsv")
-    outfiles.append(f"{outdir}/fusion/arriba_report/arriba_fusion_report.html")
-    outfiles.append(f"{outdir}/transcripts/stringtie_merged.gtf")
-    outfiles.append(f"{outdir}/transcripts/TE_chimeric/TE_chimeric_group_stacked.png")
-    outfiles.append(f"{outdir}/transcripts/TE_chimeric/TE_chimeric_te_type_top.png")
-    outfiles.append(f"{outdir}/transcripts/TE_chimeric/TE_chimeric_te_type_by_group.png")
-    outfiles.append(f"{outdir}/transcripts/TE_chimeric/TE_chimeric_sample_summary.tsv")
-    outfiles.append(f"{outdir}/transcripts/TE_chimeric/TE_chimeric_group_summary.tsv")
-    outfiles.append(f"{outdir}/transcripts/TE_chimeric/TE_chimeric_te_type_counts.tsv")
-    outfiles.append(f"{outdir}/RNAseq_report.pptx")
-    datajson["raw_files"] = raw_files
-    datajson["outfiles"] = outfiles
-    datajson["paired_samples"] = paired_samples
-    datajson["single_samples"] = single_samples
-    instance_json = os.path.join(outdir, "raw.json")
-    with open(instance_json, 'w', encoding='utf-8') as wf:
-        json.dump(datajson, wf, indent=2, ensure_ascii=False)
-    return instance_json
 
 def runCLIP(
-    datajson: Dict[str, Any],
-    samples_info_dict:Dict[str, Any],
-    indir:str,
-    outdir: str,
-    raw_files: List[str],
-):
+        datajson: Dict[str, Any],
+        samples_info_dict:Dict[str, SampleInfo],
+        indir:str,
+        outdir: str,
+        raw_files: List[str],
+    ):
     datajson["ROOT_DIR"] = os.path.dirname(__file__)
     datajson["indir"] = indir
     datajson["outdir"] = outdir
@@ -281,12 +200,12 @@ def runCLIP(
     return instance_json
 
 def runPacVar(
-    datajson: Dict[str, Any],
-    samples_info_dict: Dict[str, Any],
-    indir: str,
-    outdir: str,
-    raw_files: List[str],
-):
+        datajson: Dict[str, Any],
+        samples_info_dict: Dict[str, SampleInfo],
+        indir: str,
+        outdir: str,
+        raw_files: List[str],
+    ):
     """Prepare input JSON for PacVar (PacBio variant calling) workflow."""
     datajson["ROOT_DIR"] = os.path.dirname(__file__)
     datajson["indir"] = indir
@@ -353,13 +272,13 @@ def runPacVar(
     return instance_json
 
 def runMutation(
-    datajson: Dict[str, Any],
-    samples_info_dict: Dict[str, Any],
-    designPairs: List[DesignPair],
-    indir: str,
-    outdir: str,
-    raw_files: List[str],
-):
+        datajson: Dict[str, Any],
+        samples_info_dict: Dict[str, SampleInfo],
+        designPairs: List[DesignPair],
+        indir: str,
+        outdir: str,
+        raw_files: List[str],
+    ):
     datajson["ROOT_DIR"] = os.path.dirname(__file__)
     datajson["indir"] = indir
     datajson["outdir"] = outdir
@@ -431,12 +350,12 @@ def runMutation(
     return instance_json
 
 def runKARRseq(
-    datajson: Dict[str, Any],
-    samples_info_dict: Dict[str, Any],
-    indir: str,
-    outdir: str,
-    raw_files: List[str],
-):
+        datajson: Dict[str, Any],
+        samples_info_dict: Dict[str, SampleInfo],
+        indir: str,
+        outdir: str,
+        raw_files: List[str],
+    ):
     """Prepare input JSON for KARRseq (Kethoxal-Assisted RNA-RNA interaction sequencing) workflow."""
     datajson["ROOT_DIR"] = os.path.dirname(__file__)
     datajson["indir"] = indir
@@ -471,13 +390,13 @@ def runKARRseq(
     return instance_json
 
 def runPeakCalling(
-    datajson: Dict[str, Any],
-    samples_info_dict: Dict[str, Any],
-    design_pairs:List[DesignPair],
-    indir: str,
-    outdir: str,
-    raw_files: List[str],
-):
+        datajson: Dict[str, Any],
+        samples_info_dict: Dict[str, SampleInfo],
+        design_pairs:List[DesignPair],
+        indir: str,
+        outdir: str,
+        raw_files: List[str],
+    ):
     """Prepare input JSON for PeakCalling (ChIP-seq/DIP-seq peak calling) workflow.
     
     Workflow steps:
@@ -568,12 +487,12 @@ def runPeakCalling(
     return instance_json
 
 def runQuantMS(
-    datajson: Dict[str, Any],
-    samples_info_dict: Dict[str, Any],
-    indir: str,
-    outdir: str,
-    raw_files: List[str],
-):
+        datajson: Dict[str, Any],
+        samples_info_dict: Dict[str, SampleInfo],
+        indir: str,
+        outdir: str,
+        raw_files: List[str],
+    ):
     """Prepare input JSON for QuantMS (quantitative proteomics) workflow.
     
     Workflow steps:
@@ -595,7 +514,6 @@ def runQuantMS(
     os.makedirs(logdir, exist_ok=True)
     datajson["logdir"] = logdir
 
-    raw_manifest = datajson.get("raw_manifest") or datajson.get("Params", {}).get("raw_to_mzml", {}).get("manifest") or ""
     samples: List[str] = []
     outfiles: List[str] = []
 
@@ -634,14 +552,95 @@ def runQuantMS(
         json.dump(datajson, wf, indent=2, ensure_ascii=False)
     return instance_json
 
+def runRNAseq(
+        datajson: Dict[str, Any],
+        samples_info_dict: Dict[str, SampleInfo],
+        group_pairs: List[CompareGroupPair],
+        indir:str,
+        outdir: str,
+        raw_files: List[str],
+    ):
+    datajson["ROOT_DIR"] = os.path.dirname(__file__)
+    datajson["indir"] = indir
+    datajson["outdir"] = outdir
+    logdir = os.path.join(outdir, "log")
+    os.makedirs(logdir, exist_ok=True)
+    datajson["logdir"] = logdir
+    outfiles = []
+    paired_samples = []
+    single_samples = []
+    sample_groups = {}
+    for group_pair in group_pairs:
+        datajson["Params"]["DESeq2"]["group_pairs"].setdefault(f"{group_pair.ctr_group_token}_vs_{group_pair.exp_group_token}", {
+            "control_group_name": group_pair.ctr_group_name,
+            "experimental_group_name": group_pair.exp_group_name,
+            "control_samples": group_pair.ctr_sample_ids,
+            "experimental_samples": group_pair.exp_sample_ids
+        })
+        outfiles.append(f"{outdir}/diff_expression/{group_pair.ctr_group_token}_vs_{group_pair.exp_group_token}/DESeq2.done")
+        sample_groups.setdefault(group_pair.ctr_group_name, []).extend(group_pair.ctr_sample_ids)
+        sample_groups.setdefault(group_pair.exp_group_name, []).extend(group_pair.exp_sample_ids)
+
+        if datajson.get("Params", {}).get("function", {}).get("enabled", False):
+            pair_dir = f"{outdir}/function/{group_pair.ctr_group_token}_vs_{group_pair.exp_group_token}"
+            outfiles.append(f"{pair_dir}/go_back_to_back.png")
+            outfiles.append(f"{pair_dir}/kegg_back_to_back.png")
+            outfiles.append(f"{pair_dir}/GSEA/TEcount_Gene_GSEA.jpeg")
+    datajson["Params"]["StringTie"]["sample_groups"] = sample_groups
+    Organisms = set()
+    for sample_id, sample_info in samples_info_dict.items():
+        Organisms.add(sample_info.organism)
+        if sample_info.layout == "PE":
+            paired_samples.append(sample_id)
+            outfiles.append(f"{outdir}/transcripts/raw/{sample_id}/{sample_id}_TE_chimeric_transcripts.txt")
+            outfiles.append(f"{outdir}/fusion/{sample_id}/{sample_id}_passed_fusions.tsv")
+        elif sample_info.layout == "SE":
+            single_samples.append(sample_id)
+            outfiles.append(f"{outdir}/transcripts/raw/{sample_id}/{sample_id}_TE_chimeric_transcripts.txt")
+            outfiles.append(f"{outdir}/fusion/{sample_id}/{sample_id}_passed_fusions.tsv")
+        else:
+            logger.error(f"Unknown layout type for sample {sample_id}: {sample_info.layout}")
+    if len(Organisms) != 1:
+        raise ValueError(f"meta don't support multiple organsim temporarily, please check your meta file, found: {Organisms}")
+    organism = next(iter(Organisms))
+    if organism in ["Homo sapiens", "human"]:
+        datajson["genome"]["default"] = "GRCh38"
+        datajson["Params"]["report"]["genome"] = "GRCh38"
+        datajson["Params"]["function"]["species"] = "human"
+    elif organism in ["Mus musculus", "mouse"]:
+        datajson["genome"]["default"] = "GRCm39"
+        datajson["Params"]["report"]["genome"] = "GRCm39"
+        datajson["Params"]["function"]["species"] = "mouse"
+    else:
+        raise ValueError(f"pipeline don't support {organism}, only support human or mouse(Homo sapiens or Mus musculus)")
+    datajson["Params"]["report"]["date"] = time.strftime("%Y-%m-%d", time.localtime())
+    # outfiles.append(f"{outdir}/TEtranscripts/TEcount/all_TEcount.tsv")
+    outfiles.append(f"{outdir}/fusion/arriba_report/arriba_fusion_report.html")
+    outfiles.append(f"{outdir}/transcripts/stringtie_merged.gtf")
+    outfiles.append(f"{outdir}/transcripts/TE_chimeric/TE_chimeric_group_stacked.png")
+    outfiles.append(f"{outdir}/transcripts/TE_chimeric/TE_chimeric_te_type_top.png")
+    outfiles.append(f"{outdir}/transcripts/TE_chimeric/TE_chimeric_te_type_by_group.png")
+    outfiles.append(f"{outdir}/transcripts/TE_chimeric/TE_chimeric_sample_summary.tsv")
+    outfiles.append(f"{outdir}/transcripts/TE_chimeric/TE_chimeric_group_summary.tsv")
+    outfiles.append(f"{outdir}/transcripts/TE_chimeric/TE_chimeric_te_type_counts.tsv")
+    outfiles.append(f"{outdir}/RNAseq_report.pptx")
+    datajson["raw_files"] = raw_files
+    datajson["outfiles"] = outfiles
+    datajson["paired_samples"] = paired_samples
+    datajson["single_samples"] = single_samples
+    instance_json = os.path.join(outdir, "raw.json")
+    with open(instance_json, 'w', encoding='utf-8') as wf:
+        json.dump(datajson, wf, indent=2, ensure_ascii=False)
+    return instance_json
+
 def runtRNAseq(
-    datajson: Dict[str, Any],
-    samples_info_dict: Dict[str, Any],
-    indir: str,
-    outdir: str,
-    meta: str,
-    raw_files: List[str],
-):
+        datajson: Dict[str, Any],
+        samples_info_dict: Dict[str, SampleInfo],
+        indir: str,
+        outdir: str,
+        meta: str,
+        raw_files: List[str],
+    ):
     """Prepare input JSON for tRNAseq (mim-tRNAseq) workflow.
 
     mim-tRNAseq is an all-in-one pipeline for tRNA sequencing analysis:
@@ -675,13 +674,13 @@ def runtRNAseq(
     return instance_json
 
 def runncRNAseq(
-    datajson: Dict[str, Any],
-    samples_info_dict: Dict[str, Any],
-    design_pairs:List[DesignPair],
-    indir: str,
-    outdir: str,
-    raw_files: List[str],
-):
+        datajson: Dict[str, Any],
+        samples_info_dict: Dict[str, SampleInfo],
+        design_pairs:List[DesignPair],
+        indir: str,
+        outdir: str,
+        raw_files: List[str],
+    ):
     """Prepare input JSON for ncRNAseq (small/non-coding RNA-seq) workflow.
 
     Pipeline: jla-demultiplexer -> trim_galore -> subsample -> STAR (star / star_3pass / star_3pass_gene) -> featureCounts + Tailer.
@@ -758,3 +757,74 @@ def runncRNAseq(
     with open(instance_json, 'w', encoding='utf-8') as wf:
         json.dump(datajson, wf, indent=2, ensure_ascii=False)
     return instance_json
+
+def runscRNAseq(
+        datajson: Dict[str, Any],
+        samples_info_dict: Dict[str, SampleInfo],
+        indir: str,
+        outdir: str,
+        raw_files: List[str],
+        cellranger_input_dict: Dict[str, CellrangerInput]
+    ):
+    datajson["ROOT_DIR"] = os.path.dirname(__file__)
+    datajson["indir"] = indir
+    datajson["outdir"] = outdir
+    logdir = os.path.join(outdir, "log")
+    os.makedirs(logdir, exist_ok=True)
+    datajson["logdir"] = logdir
+    datajson["raw_files"] = raw_files
+    datajson["cellranger_input_dict"] = {k: v.__dict__ for k, v in cellranger_input_dict.items()}
+    outfiles = []
+    organisms = set()
+    counter = datajson["counter"]
+    paired_samples = []
+    single_samples = []
+    for sample_id, sample_info in samples_info_dict.items():
+        organisms.add(sample_info.organism)
+        if sample_info.layout == "PE":
+            paired_samples.append(sample_id)
+            if counter == "scTE":
+                outfiles.append(f"{outdir}/3_h5ad/{sample_id}/{sample_id}_scTE.h5ad")
+            elif counter == "cellranger":
+                outfiles.append(f"{outdir}/3_h5ad/{sample_id}/{sample_id}_cellranger.h5ad")
+            else:
+                logger.error(f"Unknown counter type for sample {sample_id}: {counter}")
+        elif sample_info.layout == "SE":
+            single_samples.append(sample_id)
+            if counter == "scTE":
+                outfiles.append(f"{outdir}/3_h5ad/{sample_id}/{sample_id}_scTE.h5ad")
+            elif counter == "cellranger":
+                outfiles.append(f"{outdir}/3_h5ad/{sample_id}/{sample_id}_cellranger.h5ad")
+            else:
+                logger.error(f"Unknown counter type for sample {sample_id}: {counter}")
+        else:
+            logger.error(f"Unknown layout type for sample {sample_id}: {sample_info.layout}")
+    datajson["paired_samples"] = paired_samples
+    datajson["single_samples"] = single_samples
+    if len(organisms) != 1:
+        raise ValueError(f"meta don't support multiple organsim temporarily, please check your meta file, found: {organisms}")
+    organism = next(iter(organisms))
+    if organism in ["Homo sapiens", "human"]:
+        datajson["genome"]["default"] = "GRCh38"
+        datajson["Params"]["scTE"]["genome"] = "GRCh38"
+        datajson["Params"]["cellranger"]["mkref"]["genome_name"] = "GRCh38"
+        datajson["Params"]["cellranger"]["mkref"]["version"] = time.strftime("%Y-%m-%d", time.localtime())
+    elif organism in ["Mus musculus", "mouse"]:
+        datajson["genome"]["default"] = "GRCm39"
+        datajson["Params"]["scTE"]["genome"] = "GRCm39"
+        datajson["Params"]["cellranger"]["mkref"]["genome_name"] = "GRCm39"
+        datajson["Params"]["cellranger"]["mkref"]["version"] = time.strftime("%Y-%m-%d", time.localtime())
+    elif organism in ["Macaca mulatta", "rhesus macaque", "mulatta"]:
+        datajson["genome"]["default"] = "Mmul_10"
+        datajson["Params"]["scTE"]["genome"] = "Mmul_10"
+        datajson["Params"]["cellranger"]["mkref"]["genome_name"] = "Mmul_10"
+        datajson["Params"]["cellranger"]["mkref"]["version"] = time.strftime("%Y-%m-%d", time.localtime())
+    else:
+        raise ValueError(f"pipeline don't support {organism}, only support human, mouse, or macaque(Homo sapiens, Mus musculus, or Macaca mulatta)")
+    # outfiles.append(f"{outdir}/scRNAseq_report.pptx")
+    datajson["outfiles"] = outfiles
+    instance_json = os.path.join(outdir, "raw.json")
+    with open(instance_json, 'w', encoding='utf-8') as wf:
+        json.dump(datajson, wf, indent=2, ensure_ascii=False)
+    return instance_json
+

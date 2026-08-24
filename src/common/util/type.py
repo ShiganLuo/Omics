@@ -22,16 +22,18 @@ class MERIPDesign(str, Enum):
 @dataclass
 class SampleInfo:
     sample_id: str = ""
-    organism: str = ""
+    organism: str = "UNKNOWN"
     layout: Layout = Layout.UNKNOWN
-    fastq_1: Optional[Path] = None
-    fastq_2: Optional[Path] = None
+    fastq_1: Optional[Path] = None # Path to the first FASTQ file (for SE or PE)
+    fastq_2: Optional[Path] = None # Path to the second FASTQ file (for PE)
     workflow: Optional[str] = None
     group: Optional[str] = None
     design: Optional[str] = None
-    pacbio_bam: Optional[Path] = None
-    pacbio_pbi: Optional[Path] = None
-    ms_file: Optional[Path] = None
+    pacbio_bam: Optional[Path] = None # PacBio BAM file
+    pacbio_pbi: Optional[Path] = None # PacBio index file
+    ms_file: Optional[Path] = None # Mass Spectrometry file (.raw, .mzML, .mgf, etc.)
+    fastq_dir: Optional[Path] = None # Directory containing FASTQ files for scRNA-seq
+    sample_prefix: Optional[str] = None # Prefix for FASTQ files in the directory for scRNA-seq
 
 @dataclass
 class DesignPair:
@@ -48,3 +50,8 @@ class CompareGroupPair:
     exp_group_name: str
     ctr_sample_ids: List[str]
     exp_sample_ids: List[str]
+
+@dataclass
+class CellrangerInput:
+    fastq_dir: str
+    sample_prefix: str

@@ -1,0 +1,221 @@
+{
+  "ROOT_DIR": {
+    "type": "null",
+    "nullable": true,
+    "required": false
+  },
+  "env": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+      "env_dir": {"type": "str", "nullable": true, "required": false},
+      "scTE": {"type": "str", "nullable": true, "required": false},
+      "cellranger": {"type": "str", "nullable": true, "required": false}
+    }
+  },
+  "indir": {
+    "type": "null",
+    "nullable": true,
+    "required": false
+  },
+  "raw_files": {
+    "type": "list",
+    "required": true
+  },
+  "outdir": {
+    "type": "null",
+    "nullable": true,
+    "required": false
+  },
+  "logdir": {
+    "type": "null",
+    "nullable": true,
+    "required": false
+  },
+  "paired_samples": {
+    "type": "list",
+    "required": true
+  },
+  "single_samples": {
+    "type": "list",
+    "required": true
+  },
+  "cellranger_input_dict": {
+    "type": "dict",
+    "required": false
+  },
+  "aligner": {
+    "type": "str",
+    "required": true
+  },
+  "counter": {
+    "type": "str",
+    "required": true
+  },
+  "Procedure": {
+    "STAR": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    },
+    "scTE": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    },
+    "scTE_build": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    }
+  },
+  "genome": {
+    "type": "object",
+    "required": true,
+    "properties": {
+      "default": {
+        "type": "str",
+        "nullable": false,
+        "required": true
+      },
+      "references": {
+        "type": "object",
+        "required": true,
+        "additionalProperties": {
+          "type": "object",
+          "properties": {
+            "fasta": {
+              "type": "str",
+              "nullable": true,
+              "required": false,
+              "path": "file"
+            },
+            "gtf": {
+              "type": "str",
+              "nullable": true,
+              "required": false,
+              "path": "file"
+            },
+            "te_bed": {
+              "type": "str",
+              "nullable": true,
+              "required": false,
+              "path": "file"
+            },
+            "scTE_index": {
+              "type": "str",
+              "nullable": true,
+              "required": false,
+              "path": "file"
+            },
+            "cellranger_ref_dir": {
+              "type": "str",
+              "nullable": true,
+              "required": false,
+              "path": "dir"
+            }
+          }
+        }
+      },
+      "scTE_index": {
+        "type": "str",
+        "nullable": true,
+        "required": false,
+        "path": "file"
+      }
+    }
+  },
+  "Params": {
+    "star": {
+      "outSAMattributes": {
+        "type": "str",
+        "required": true
+      },
+      "outFilterMultimapNmax": {
+        "type": "int",
+        "required": true
+      },
+      "winAnchorMultimapNmax": {
+        "type": "int",
+        "required": true
+      },
+      "outMultimapperOrder": {
+        "type": "str",
+        "required": true
+      },
+      "runRNGseed": {
+        "type": "int",
+        "required": true
+      },
+      "outSAMmultNmax": {
+        "type": "int",
+        "required": true
+      },
+      "soloType": {
+        "type": "str",
+        "required": true
+      },
+      "soloCBwhitelist": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      },
+      "soloBarcodeReadLength": {
+        "type": "int",
+        "required": true
+      }
+    },
+    "cellranger": {
+      "mkref": {
+        "genome_name": {
+          "type": "str",
+          "required": true
+        },
+        "version": {
+          "type": "str",
+          "required": true
+        }
+      },
+      "count": {
+        "nosecondary": {
+          "type": "bool",
+          "required": true
+        },
+        "create-bam": {
+          "type": "bool",
+          "required": true
+        }
+      }
+    },
+    "scTE": {
+      "genome": {
+        "type": "str",
+        "required": true
+      },
+      "mode": {
+        "type": "str",
+        "required": true
+      },
+      "cb_tag": {
+        "type": "str",
+        "required": true
+      },
+      "umi_tag": {
+        "type": "str",
+        "required": true
+      },
+      "gene_gtf": {
+        "type": "null",
+        "nullable": true,
+        "required": false,
+        "path": "file"
+      },
+      "te_bed": {
+        "type": "null",
+        "nullable": true,
+        "required": false,
+        "path": "file"
+      }
+    }
+  }
+}

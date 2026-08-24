@@ -7,15 +7,15 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # --sdm apptainer \
 # --singularity-args '--bind /home/luosg/Database,/home/luosg/Data/genomeStability,/tmp'
 
-python ${SCRIPT_DIR}/run.py \
-    -m /home/luosg/Data/genomeStability/data/20260820_RNAseq/meta_input.tsv\
-    -w RNAseq \
-    -o /home/luosg/Data/genomeStability/output/Hsd17b10 \
-    -t 48 \
-    --log /home/luosg/Data/genomeStability/log/Hsd17b10_RNAseq.log \
-    --sdm \
-    --rerun-triggers mtime \
-    --Params.function.gmt /home/luosg/Data/genomeStability/workflow/Omics/assests/geneset/2C_mouse.gmt
+# python ${SCRIPT_DIR}/run.py \
+#     -m /home/luosg/Data/genomeStability/data/20260820_RNAseq/meta_input.tsv\
+#     -w RNAseq \
+#     -o /home/luosg/Data/genomeStability/output/Hsd17b10 \
+#     -t 48 \
+#     --log /home/luosg/Data/genomeStability/log/Hsd17b10_RNAseq.log \
+#     --sdm \
+#     --rerun-triggers mtime \
+#     --Params.function.gmt /home/luosg/Data/genomeStability/workflow/Omics/assests/geneset/2C_mouse.gmt
 
 # python ${SCRIPT_DIR}/run.py \
 #     -m /home/luosg/Data/genomeStability/data/Srp54/meta_input.tsv \
@@ -64,3 +64,11 @@ python ${SCRIPT_DIR}/run.py \
 #     -t 48 \
 #     --log /home/luosg/Data/genomeStability/log/MS.log \
 #     --sdm
+
+python ${SCRIPT_DIR}/run.py \
+    -m /home/luosg/Data/genomeStability/data/20260820_scRNAseq/meta_input.tsv \
+    -w scRNAseq \
+    -o /home/luosg/Data/genomeStability/output/luancao \
+    -t 48 \
+    --log /home/luosg/Data/genomeStability/log/scRNAseq.log \
+    --sdm

@@ -39,7 +39,7 @@ sample_id不能包含.
 | --- | --- | --- |
 | `CoCulture` | 共培养样本分析，支持多个物种 | 物种区分后的 BAM、下游统计结果 |
 | `MERIP` | MeRIP-seq / m6A-seq 分析 | dedup BAM、peak 结果、IGV 可视化 |
-| `RNAseq` | 常规转录组分析 | count 矩阵、TE 表达结果 |
+| `RNAseq` | 常规转录组分析 | count 矩阵、TE 表达结果、融合、差异分析、富集分析、TE嵌合分析 |
 | `CLIP` | iCLIP / CLIP-seq 分析 | 质控、比对、PureCLIP、bedGraph / bigWig、IGV 页面 |
 | `Mutation` | 体细胞突变分析（tumor vs normal） | Mutect2 VCF、Spectrum 可视化 |
 | `PacVar` | PacBio 长读长变异检测 | 结构变异 VCF、SNP VCF、phasing 结果、端粒长度（4种方法）、着丝粒统计 |

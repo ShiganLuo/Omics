@@ -33,7 +33,8 @@ if aligner == "star" and counter == "scTE":
                 "outSAMmultNmax": config.get('Params', {}).get('star', {}).get('outSAMmultNmax'),
                 "soloType": config.get('Params', {}).get('star', {}).get('soloType'),
                 "soloCBwhitelist": config.get('Params', {}).get('star', {}).get('soloCBwhitelist'),
-                "soloBarcodeReadLength": config.get('Params', {}).get('star', {}).get('soloBarcodeReadLength')
+                "soloBarcodeReadLength": config.get('Params', {}).get('star', {}).get('soloBarcodeReadLength'),
+                "limitSjdbInsertNsj": config.get('Params', {}).get('star', {}).get('limitSjdbInsertNsj')
             }
         },
         "genome": {

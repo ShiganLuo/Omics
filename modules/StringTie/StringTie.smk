@@ -1,6 +1,4 @@
 include: "../common/common.smk"
-from snakemake.logging import logger
-import time
 indir = config.get("indir") or "input"
 outdir = config.get("outdir") or "output"
 logdir = config.get("logdir") or "log"
@@ -36,11 +34,9 @@ rule stringTie:
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path, 'a') as f:
-                f.write(f"Error: {e}\n")
-            raise f"Error: {e}"
-        finally:
-            current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            logger.info(f"Completed at {current_time}")
+                f.write(f"Error occurred during stringTie run: {e}\n")
+            raise f"Error occurred during stringTie run: {e}"
+
 
 rule TEChimericTranscripts:
     input:
@@ -58,13 +54,22 @@ rule TEChimericTranscripts:
     container:
         sif("StringTie.yaml")
     run:
-        current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
-        script = f"{outdir}/raw/{wildcards.sample_id}/TEChimericTranscripts.{current_time}.sh"
-        cmd = f"python {params.TEChimericTranscripts} -s {input.gtf} -t {params.te_gtf} -o {output.txt} > {log} 2>&1"
-        with open(script, 'w') as f:
-            f.write("#!/bin/bash\n")
-            f.write(cmd + "\n")
-        shell(f"bash {script}")
+        log_path = str(log)
+        try:
+            open(log_path, 'w').close()
+            rule_logger = setup_logger(logger_name="TEChimericTranscripts_run", log_file=log_path)
+            current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
+            rule_logger.info(f"Start TEChimericTranscripts run for sample {wildcards.sample_id} at {current_time}")
+            script = f"{outdir}/raw/{wildcards.sample_id}/TEChimericTranscripts.{current_time}.sh"
+            cmd = f"python {params.TEChimericTranscripts} -s {input.gtf} -t {params.te_gtf} -o {output.txt} > {log} 2>&1"
+            with open(script, 'w') as f:
+                f.write("#!/bin/bash\n")
+                f.write(cmd + "\n")
+            shell(f"bash {script} >> {log_path} 2>&1")
+        except Exception as e:
+            with open(log_path, 'a') as f:
+                f.write(f"Error occurred during TEChimericTranscripts: {e}\n")
+            raise RuntimeError(f"Error occurred during TEChimericTranscripts: {e}\n")
 
 rule TEChimericPlot:
     input:
@@ -108,12 +113,11 @@ rule TEChimericPlot:
             with open(script, 'w') as f:
                 f.write("#!/bin/bash\n")
                 f.write(' '.join(cmd) + "\n")
-            shell(f"bash {script}")
+            shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path, 'a') as f:
                 f.write(f"Error occurred during TEChimericPlot: {e}\n")
-            logger.error(f"Error occurred during TEChimericPlot: {e}")
-            raise e
+            raise RuntimeError(f"Error occurred during TEChimericPlot: {e}\n")
 
 
 
@@ -145,5 +149,5 @@ rule stringTieMerge:
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path, 'a') as f:
-                f.write(f"Error: {e}\n")
-            raise e
+                f.write(f"Error occurred during stringTieMerge: {e}\n")
+            raise RuntimeError(f"Error occurred during stringTieMerge: {e}\n")

@@ -9,10 +9,10 @@ from typing import List, Tuple, Dict, Optional, Union
 import argparse
 import math
 try:
-    from type import FastqMode, Layout,MERIPDesign, SampleInfo, DesignPair, CompareGroupPair
+    from type import FastqMode, Layout, SampleInfo, DesignPair, CompareGroupPair, CellrangerInput
     from LogUtil import setup_logger
 except Exception:
-    from .type import FastqMode, Layout,MERIPDesign, SampleInfo, DesignPair, CompareGroupPair
+    from .type import FastqMode, Layout, SampleInfo, DesignPair, CompareGroupPair, CellrangerInput
     from .LogUtil import setup_logger
 
 logger = setup_logger(__name__, level=logging.DEBUG)
@@ -72,12 +72,21 @@ class MetadataUtils:
         self.design_col = design_col
         self.group_col = group_col
         self.samples_dict = defaultdict(SampleInfo)
+        self.cellranger_input_dict: Dict[str, CellrangerInput] = {}
         self.raw_fq_dir = self.outdir / "common" / "1_raw_data"
         self.raw_fq_dir.mkdir(parents=True, exist_ok=True)
 
     def load_meta(self, meta:Union[Path,str]) -> pd.DataFrame:
-        """
-        function: load metadata from meta file, sep can be \t or ,
+        """Load metadata from a TSV or CSV file.
+
+        Auto-detects the delimiter by comparing the counts of tabs and commas
+        in the first 2048 bytes of the file.
+
+        Args:
+            meta: Path to the metadata file (TSV or CSV).
+
+        Returns:
+            pd.DataFrame: Parsed metadata table.
         """
         with open(meta, "r", encoding="utf-8") as f:
             head = f.read(2048)
@@ -231,9 +240,9 @@ class MetadataUtils:
 
 
     def prepare_fastq_meta(
-            self, 
+            self,
             df: pd.DataFrame,
-            sample_id_col:str = 'sample_id', 
+            sample_id_col:str = 'sample_id',
             data_id_col:str = 'data_id',
             design_col:str = 'design',
             fastq_r1_col:str = 'fastq_1',
@@ -242,12 +251,25 @@ class MetadataUtils:
             workflow_col:str = "workflow",
             group_col:str = "group"
             ) -> None:
-        """
-            data_id represents a unique FASTQ file.
-            If the relationship between sample_id and fastq is one-to-one, a symbolic link is created with the filename prefixed by sample_id.
-            If the relationship is one-to-many, FASTQ files corresponding to different data_ids are merged and renamed using the sample_id prefix.
+        """Prepare FASTQ metadata from a dataframe with explicit file paths.
 
-            supplement smaple_id,layout,fastq_1 or fastq_2 information
+        Handles the sample_id ↔ data_id relationship:
+          - One-to-one: symlink the FASTQ to raw_fq_dir/{sample_id}/{sample_id}_{1,2}.fq.gz
+          - One-to-many: cat-merge multiple data_id FASTQs into a single file per read
+
+        Populates samples_dict with sample_id, layout (PE/SE), fastq_1, fastq_2,
+        design, organism, workflow, and group.
+
+        Args:
+            df: Metadata dataframe with at least sample_id, fastq_1, fastq_2 columns.
+            sample_id_col: Column name for sample identifier.
+            data_id_col: Column name for per-FASTQ identifier. Defaults to sample_id if absent.
+            design_col: Column name for experimental design (e.g. ctr_age, exp_age).
+            fastq_r1_col: Column name for R1 FASTQ path.
+            fastq_r2_col: Column name for R2 FASTQ path.
+            organism_col: Column name for organism.
+            workflow_col: Column name for workflow identifier.
+            group_col: Column name for sample group.
         """
 
         if data_id_col not in df.columns:
@@ -307,7 +329,7 @@ class MetadataUtils:
                 else:
                     logger.warning(f"{sample_id} have no fastqs, skip it")
                     continue
-            else:
+            elif len(data_ids) > 1:
                 logger.info(f"Detect the relationship between {sample_id} and {data_ids[0]} is one-to-many")
                 origin_r1_list = sorted([r for r in df_sample[fastq_r1_col].values if r])
                 origin_r2_list = sorted([r for r in df_sample[fastq_r2_col].values if r]) if fastq_r2_col in df_sample.columns else []
@@ -333,11 +355,26 @@ class MetadataUtils:
                 else:
                     logger.warning(f"{sample_id} have no fastqs, skip it")
                     continue
+            else:
+                logger.warning(f"{sample_id} have no fastqs, skip it")
+                continue
 
-    def prepare_pacbio_meta(self, df: pd.DataFrame, sample_id_col:str = 'sample_id', bam_col:str = 'bam', pbi_col:str = 'pbi') -> None:
-        """
-        Prepare PacBio BAM metadata. For each sample_id, create a symlink to the BAM file and its PBI index in the raw_fq_dir.
-        bam file must  be .bam and pbi file must be .bam.pbi. The function checks for the existence of the files and creates symlinks in the output directory.
+    def prepare_pacbio_meta(
+        self, df: pd.DataFrame,
+        sample_id_col: str = 'sample_id',
+        bam_col: str = 'bam',
+        pbi_col: str = 'pbi',
+    ) -> None:
+        """Prepare PacBio BAM metadata: symlink BAM + PBI index per sample.
+
+        Args:
+            df: Metadata dataframe with sample_id, bam, pbi columns.
+            sample_id_col: Column name for sample identifier.
+            bam_col: Column name for BAM file path.
+            pbi_col: Column name for PBI index file path.
+
+        Raises:
+            ValueError: If required columns (sample_id, bam, pbi) are missing.
         """
         if not self.pacbio_required_cols.issubset(df.columns):
             raise ValueError(f"Metadata must contain columns: {self.pacbio_required_cols}")
@@ -369,15 +406,30 @@ class MetadataUtils:
             self.samples_dict[sample_id].layout = Layout.SE  # Treat BAM as SE for downstream processing
             logger.info(f"Prepared PacBio metadata for sample {sample_id}")
 
-    def prepare_ms_meta(self, df: pd.DataFrame, sample_id_col:str = 'sample_id', ms_file_col:str = 'ms_file') -> None:
-        """
-        Prepare Mass Spectrometry metadata. For each sample_id, create a symlink to the MS file in the raw_fq_dir.
-        ms file can be .raw, .mzML, .mgf, etc. The function checks for the existence of the file and creates a symlink in the output directory.
+    def prepare_ms_meta(
+            self,
+            df: pd.DataFrame,
+            sample_id_col: str = 'sample_id',
+            ms_file_col: str = 'ms_file',
+        ) -> None:
+        """Prepare Mass Spectrometry metadata: symlink MS files per sample.
+
+        Supports .raw, .mzML, .mgf and other MS file formats.
+
+        Args:
+            df: Metadata dataframe with sample_id and ms_file columns.
+            sample_id_col: Column name for sample identifier.
+            ms_file_col: Column name for MS file path.
+
+        Raises:
+            ValueError: If ms_file_col is missing from df.
         """
         if ms_file_col not in df.columns:
             raise ValueError(f"Metadata must contain column: {ms_file_col}")
         for sample_id, df_sample in df.groupby(sample_id_col):
             sample_id = str(sample_id)
+            organism = df_sample.get('organism', pd.Series(["UNKNOWN"])).values[0]
+            self.samples_dict[sample_id].organism = organism
             ms_file_path = df_sample[ms_file_col].values[0]
 
             if not ms_file_path:
@@ -398,17 +450,130 @@ class MetadataUtils:
             self.samples_dict[sample_id].ms_file = target_ms_file
             logger.info(f"Prepared MS metadata for sample {sample_id}")
 
+    def prepare_scRNAseq_meta(
+        self,
+        df: pd.DataFrame,
+        sample_id_col: str = 'sample_id',
+        fastq_dir_col: str = 'fastq_dir',
+        sample_prefix_col: str = 'sample_prefix',
+        fq_pattern: str = r"_R?([12])_\d+\.f(ast)?q\.gz$",
+    ):
+        """Prepare scRNA-seq metadata: scan fastq_dir, merge multi-lane R1/R2.
+
+        For each sample:
+          1. Find all FASTQ files matching sample_prefix + fq_pattern in fastq_dir
+          2. Single-lane: symlink to raw_fq_dir/{sample_id}/{sample_id}_{1,2}.fq.gz
+          3. Multi-lane: cat-merge all R1 into one file, all R2 into one file
+          4. Populate samples_dict with merged paths, layout=PE, cellranger fastq_dir
+
+        Output structure:
+          raw_fq_dir/{sample_id}/{sample_id}_1.fq.gz  (merged R1)
+          raw_fq_dir/{sample_id}/{sample_id}_2.fq.gz  (merged R2)
+
+        Args:
+            fq_pattern: regex to match FASTQ filenames and capture read number (1 or 2).
+                        Default matches Illumina naming: _R1_001.fastq.gz, _R2_002.fastq.gz
+        """
+        required = {sample_id_col, fastq_dir_col, sample_prefix_col}
+        if not required.issubset(df.columns):
+            raise ValueError(f"Metadata must contain columns: {required}")
+
+        for _, row in df.iterrows():
+            sample_id = str(row[sample_id_col])
+            fastq_dir = Path(row[fastq_dir_col])
+            sample_prefix = str(row[sample_prefix_col])
+            organism = str(row.get("organism", "UNKNOWN"))
+            self.samples_dict[sample_id].organism = organism
+            if not fastq_dir.exists():
+                logger.warning(f"FASTQ directory for {sample_id} does not exist: {fastq_dir}")
+                continue
+
+            # Scan for matching FASTQ files
+            reads = {"1": [], "2": []}
+            for fq_file in sorted(fastq_dir.iterdir()):
+                if not fq_file.is_file():
+                    continue
+                if not fq_file.name.startswith(sample_prefix):
+                    continue
+                m = re.search(fq_pattern, fq_file.name)
+                if m:
+                    read_num = m.group(1)
+                    reads[read_num].append(fq_file)
+
+            r1_files = reads["1"]
+            r2_files = reads["2"]
+
+            if not r1_files:
+                logger.warning(f"No R1 FASTQ found for {sample_id} (prefix={sample_prefix}) in {fastq_dir}")
+                continue
+
+            sample_dir = self.raw_fq_dir / sample_id
+            target_r1 = sample_dir / f"{sample_id}_1.fq.gz"
+            target_r2 = sample_dir / f"{sample_id}_2.fq.gz"
+
+            # R1
+            if len(r1_files) == 1:
+                logger.info(f"[{sample_id}] Linking R1: {r1_files[0].name}")
+                self._link_file(r1_files[0], target_r1)
+            else:
+                logger.info(f"[{sample_id}] Merging {len(r1_files)} R1 files")
+                self._merge_files(r1_files, target_r1)
+
+            # R2
+            if r2_files:
+                if len(r2_files) == 1:
+                    logger.info(f"[{sample_id}] Linking R2: {r2_files[0].name}")
+                    self._link_file(r2_files[0], target_r2)
+                else:
+                    logger.info(f"[{sample_id}] Merging {len(r2_files)} R2 files")
+                    self._merge_files(r2_files, target_r2)
+                self.samples_dict[sample_id].layout = Layout.PE
+            else:
+                logger.info(f"[{sample_id}] Single-end (no R2 found)")
+                self.samples_dict[sample_id].layout = Layout.SE
+
+            self.samples_dict[sample_id].sample_id = sample_id
+            self.samples_dict[sample_id].fastq_1 = target_r1
+            if r2_files:
+                self.samples_dict[sample_id].fastq_2 = target_r2
+            # Keep original dir/prefix for Cell Ranger (--fastqs / --sample)
+            self.samples_dict[sample_id].fastq_dir = fastq_dir
+            self.samples_dict[sample_id].sample_prefix = sample_prefix
+
+            # Also store design/group/organism if present
+            for col in ("design", "group", "organism"):
+                if col in df.columns:
+                    setattr(self.samples_dict[sample_id], col, row[col])
+
+            # Build cellranger_input for this sample
+            self.cellranger_input_dict[sample_id] = CellrangerInput(
+                fastq_dir=str(fastq_dir),
+                sample_prefix=sample_prefix,
+            )
+
+            logger.info(f"[{sample_id}] R1={len(r1_files)} file(s), R2={len(r2_files)} file(s), "
+                        f"layout={self.samples_dict[sample_id].layout}")
+
     def prepare_fastq_dir(
         self,
         fq_dir: Path,
         fq_pattern: str = r"\.f(ast)?q.gz$"
     ) -> None:
-        """
-        自动检测 FASTQ，处理多 Lane 合并或单文件软连，并填充 self.samples_dict。
-        修复：
-        1. 单端测序文件 sample_id 不应带 _1/_2 后缀。
-        2. 单端文件命名为 {sample_id}.fq.gz，双端为 {sample_id}_1.fq.gz/{sample_id}_2.fq.gz。
-        3. 能正确识别单端和双端。
+        """Auto-detect FASTQ files in a directory, merge multi-lane, populate samples_dict.
+
+        Scans fq_dir recursively for FASTQ files matching fq_pattern.
+        Groups files by sample_id (extracted from filename) and read number
+        (R1/R2 detected via _R1/_R2 or _1/_2 suffixes).
+
+        Output naming:
+          - PE: raw_fq_dir/{sample_id}/{sample_id}_1.fq.gz, {sample_id}_2.fq.gz
+          - SE: raw_fq_dir/{sample_id}/{sample_id}.single.fq.gz
+
+        Multi-lane files for the same sample are cat-merged automatically.
+
+        Args:
+            fq_dir: Directory containing FASTQ files (searched recursively).
+            fq_pattern: Regex pattern to identify FASTQ files (default: *.fastq.gz / *.fq.gz).
         """
         temp_files = defaultdict(lambda: {"fastq_1": [], "fastq_2": []})
 
@@ -483,6 +648,15 @@ class MetadataUtils:
 
 
     def _merge_files(self, files: List[Path], out: Path):
+        """Concatenate multiple files into a single output file (binary stream copy).
+
+        Skips if the output file already exists. Files are sorted before merging
+        to ensure deterministic output.
+
+        Args:
+            files: List of input file paths to concatenate.
+            out: Output file path.
+        """
         if out.exists():
             logger.info(f"[SKIP] Merged file already exists: {out}")
             return
@@ -495,8 +669,18 @@ class MetadataUtils:
                     shutil.copyfileobj(r, w) # stream copy to handle large files efficiently
 
     def _link_file(self, src: Path, dst: Path):
-        """
-        Function: soft link file
+        """Create a symbolic link from dst to src.
+
+        If dst is already a symlink pointing to src, this is a no-op.
+        If dst is a symlink pointing elsewhere, it is replaced.
+        If dst exists as a regular file, a RuntimeError is raised.
+
+        Args:
+            src: Source file path (resolved to absolute before linking).
+            dst: Destination symlink path.
+
+        Raises:
+            RuntimeError: If dst exists and is not a symlink.
         """
         dst.parent.mkdir(parents=True,exist_ok=True)
         if dst.is_symlink():
@@ -514,6 +698,15 @@ class MetadataUtils:
     def group_pairs_by_organism(
         self, pairs: List[Tuple[str, str]], samples: Dict[str, SampleInfo]
     ) -> Dict[str, List[Tuple[str, str]]]:
+        """Group (ctr_sample, exp_sample) pairs by organism.
+
+        Args:
+            pairs: List of (control_sample_id, experiment_sample_id) tuples.
+            samples: Dict mapping sample_id to SampleInfo.
+
+        Returns:
+            Dict mapping organism name to list of (ctr, exp) pairs.
+        """
         out = defaultdict(list)
         for ctr, exp in pairs:
             org = samples.get(ctr, SampleInfo()).organism or "UNKNOWN"
@@ -521,6 +714,19 @@ class MetadataUtils:
         return out
 
     def run(self):
+        """Main entry point: auto-detect metadata type and prepare samples.
+
+        Dispatches to the appropriate prepare_* method based on detected columns:
+          - bam + pbi columns → prepare_pacbio_meta
+          - ms_file column → prepare_ms_meta
+          - fastq_dir + sample_prefix → prepare_scRNAseq_meta
+          - otherwise → prepare_fastq_meta
+
+        After FASTQ preparation, builds design pairs if a design column exists.
+
+        Returns:
+            Tuple of (samples_dict, sample_pairs, group_pairs, raw_fq_dir, raw_files).
+        """
         if self.meta:
             df = self.load_meta(self.meta)
             if "bam" in df.columns and "pbi" in df.columns:
@@ -529,6 +735,9 @@ class MetadataUtils:
             elif "ms_file" in df.columns:
                 logger.info("Detected ms_file columns in metadata, preparing MS metadata")
                 self.prepare_ms_meta(df = df, sample_id_col = 'sample_id', ms_file_col = 'ms_file')
+            elif "fastq_dir" in df.columns and "sample_prefix" in df.columns:
+                logger.info("Detected scRNA-seq columns in metadata, preparing scRNA-seq metadata")
+                self.prepare_scRNAseq_meta(df = df, sample_id_col = 'sample_id', fastq_dir_col = 'fastq_dir', sample_prefix_col = 'sample_prefix')
             else:
                 self.prepare_fastq_meta(df = df, data_id_col = self.data_id_col)
             if self.design_col not in df.columns or df[self.design_col].isnull().all():
@@ -536,15 +745,21 @@ class MetadataUtils:
                 sample_pairs, group_pairs = [], []
             else:
                 sample_pairs, group_pairs = self.build_design_pairs()
-            return self.samples_dict, sample_pairs, group_pairs, str(self.raw_fq_dir), self._collect_raw_files()
+            return self.samples_dict, sample_pairs, group_pairs, str(self.raw_fq_dir), self._collect_raw_files(), self.cellranger_input_dict
         elif self.fastq_dir:
             self.prepare_fastq_dir(self.fastq_dir)
-            return self.samples_dict, [], [], str(self.raw_fq_dir), self._collect_raw_files()
+            return self.samples_dict, [], [], str(self.raw_fq_dir), self._collect_raw_files(), {}
         else:
             raise ValueError("Either meta or fastq_dir must be provided.")
 
     
 def main():
+    """CLI entry point for MetadataUtils.
+
+    Usage:
+        python MetaUtil.py --meta meta.tsv --outdir output/
+        python MetaUtil.py --fastq_dir /path/to/fq --outdir output/
+    """
     parser = argparse.ArgumentParser(description="Metadata Variants Utils")
     parser.add_argument("--meta", help="Path to metadata file (CSV/TSV)")
     parser.add_argument("--outdir", required=True, help="Output directory for processed FASTQ and logs")

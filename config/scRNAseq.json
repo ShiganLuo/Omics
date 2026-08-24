@@ -1,0 +1,82 @@
+{
+    "ROOT_DIR": null,
+    "indir": null,
+    "raw_files": [],
+    "outdir": null,
+    "logdir": null,
+    "paired_samples": [],
+    "single_samples": [],
+    "aligner": "star",
+    "counter": "scTE",
+    "env": {
+        "env_dir": "/home/luosg/Database/env",
+        "star": "/home/luosg/Database/env/star/star.sif",
+        "scTE": "/home/luosg/Database/env/scTE/scTE.sif",
+        "cellranger": "/home/luosg/Database/env/cellranger/cellranger.sif"
+    },
+    "cellranger_input_dict": {},
+    "Procedure": {
+        "STAR": null,
+        "scTE": null
+    },
+    "genome": {
+        "default": "GRCm39",
+        "references": {
+            "GRCm39": {
+                "fasta": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
+                "gtf": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf",
+                "te_bed": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.bed",
+                "scTE_index": null,
+                "cellranger_ref_dir": null,
+                "star_index_dir": null
+            },
+            "GRCh38": {
+                "fasta": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa",
+                "gtf": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/gencode.v49.primary_assembly.basic.annotation.gtf",
+                "te_bed": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/GRCh38_GENCODE_rmsk_TE.bed",
+                "scTE_index": null,
+                "cellranger_ref_dir": null,
+                "star_index_dir": null
+            },
+            "Mmul_10": {
+                "fasta": "/home/luosg/Database/Reference/mulatta/ENSEMBL/Mmul_10/Macaca_mulatta.Mmul_10.dna.toplevel.fa",
+                "gtf": "/home/luosg/Database/Reference/mulatta/ENSEMBL/Mmul_10/Macaca_mulatta.Mmul_10.116.gtf",
+                "te_bed": "/home/luosg/Database/Reference/mulatta/ENSEMBL/Mmul_10/rheMac10_rmsk_TE.bed",
+                "scTE_index": null,
+                "cellranger_ref_dir": null,
+                "star_index_dir": null
+            }
+        }
+    },
+    "Params": {
+        "star": {
+            "outSAMattributes": "NH HI AS nM CR CY UR UY",
+            "outFilterMultimapNmax": 100,
+            "winAnchorMultimapNmax": 100,
+            "outMultimapperOrder": "random",
+            "runRNGseed": 777,
+            "outSAMmultNmax": 1,
+            "soloType": "CB_UMI_Simple",
+            "soloCBwhitelist": null,
+            "soloBarcodeReadLength": 98
+        },
+        "cellranger": {
+            "mkref": {
+                "genome_name": "GRCh38",
+                "version": "2024-A"
+            },
+            "count": {
+                "nosecondary": true,
+                "create-bam": true
+            }
+        },
+        "scTE": {
+            "genome": "hg38",
+            "mode": "exclusive",
+            "cb_tag": "CB",
+            "umi_tag": "UB",
+            "gene_gtf": null,
+            "te_bed": null
+        }
+    }
+}

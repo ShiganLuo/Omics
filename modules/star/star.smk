@@ -11,6 +11,8 @@ indir= config.get("indir", "input")
 paired_samples = config.get("paired_samples", [])
 single_samples = config.get("single_samples", [])
 fasta = config.get('genome',{}).get('fasta')
+if not fasta or not os.path.exists(fasta):
+    raise ValueError(f"FASTA file not found: {fasta}. Please provide a valid genome FASTA file in the config.")
 gtf = config.get('genome',{}).get('gtf')
 fastq_sample_suffix = config.get('fastq_sample_suffix') or None
 rule star_index:
@@ -156,6 +158,13 @@ rule star_align:
         chimScoreSeparation = config.get('Params',{}).get('star', {}).get('chimScoreSeparation') or 10,
         alignSJstitchMismatchNmax = config.get('Params',{}).get('star', {}).get('alignSJstitchMismatchNmax') or "0 -1 0 0",
         chimSegmentReadGapMax = config.get('Params',{}).get('star', {}).get('chimSegmentReadGapMax') or 0,
+        outSAMattributes = config.get('Params',{}).get('star', {}).get('outSAMattributes') or "NM",
+        outMultimapperOrder = config.get('Params',{}).get('star', {}).get('outMultimapperOrder') or "Old_2.4",
+        runRNGseed = config.get('Params',{}).get('star', {}).get('runRNGseed') or 777,
+        outSAMmultNmax = config.get('Params',{}).get('star', {}).get('outSAMmultNmax') or -1,
+        soloType = config.get('Params',{}).get('star', {}).get('soloType') or None,
+        soloCBwhitelist = config.get('Params',{}).get('star', {}).get('soloCBwhitelist') or None,
+        soloBarcodeReadLength = config.get('Params',{}).get('star', {}).get('soloBarcodeReadLength') or 1,
         outTmpDir = outdir + "/{sample_id}/tmp_star"
     conda:
         "star.yaml"
@@ -189,7 +198,13 @@ rule star_align:
             "--alignSJstitchMismatchNmax", params.alignSJstitchMismatchNmax,
             "--chimSegmentReadGapMax", str(params.chimSegmentReadGapMax),
             "--outSAMtype", "BAM SortedByCoordinate",
-            "--outSAMattributes", "NM",
+            "--outSAMattributes", str(params.outSAMattributes),
+            "--outMultimapperOrder", str(params.outMultimapperOrder),
+            "--runRNGseed", str(params.runRNGseed),
+            "--outSAMmultNmax", str(params.outSAMmultNmax),
+            "--soloType", str(params.soloType),
+            "--soloCBwhitelist", str(params.soloCBwhitelist),
+            "--soloBarcodeReadLength", str(params.soloBarcodeReadLength),
             "--outFileNamePrefix", params.outPrefix
         ]
         if params.outTmpDir:

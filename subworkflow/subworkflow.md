@@ -49,6 +49,7 @@ description: 撰写subworkflow时需要遵循此套规范
 - `Params`：工具参数
 - `genome`：基因组相关路径（`fasta` / `gtf` / `index_dir` 等）
 - `ROOT_DIR`：项目根路径，**所有模块配置必须传入**（common.smk 依赖此变量定位 `src/` 和 `bin/` 脚本）
+- `env`：SIF 容器路径映射字典，**所有模块配置必须传入**（common.smk 的 `sif()` 函数依赖此字段解析 `.sif` 路径）
 
 # 典型模式示例
 
@@ -190,6 +191,7 @@ paired_samples = config.get("paired_samples", [])
 single_samples = config.get("single_samples", [])
 outfiles = config.get("outfiles", [])
 ROOT_DIR = config.get("ROOT_DIR", ".")
+env = config.get("env", {})
 
 rule all:
 	input:
@@ -202,6 +204,7 @@ module example:
 		"outdir": f"{outdir}/example",
 		"logdir": logdir,
 		"ROOT_DIR": ROOT_DIR,
+		"env": env,
 		"Procedure": {
 			"example": config.get("Procedure", {}).get("example")
 		}
@@ -215,6 +218,14 @@ use rule run_example from example as MyWorkflow_example
 
 每个模块配置必须包含 `"ROOT_DIR": ROOT_DIR`。common.smk 通过 `config.get("ROOT_DIR", ".")` 读取此值，用于定位 `src/common/LogUtil.py` 和模块的 `bin/` 脚本。如果不传，默认值 `"."` 会导致路径错误（找不到脚本或导入失败）。
 
-## 2. 子目录模块的 conda 路径
+## 2. 忘记传 env
+
+每个模块配置必须包含 `"env": config.get("env", {})`。common.smk 的 `sif()` 函数通过 `config["env"]` 查找 SIF 容器路径。如果不传，使用 `container: sif("xxx.yaml")` 的规则会在运行时报 `KeyError` 或找不到 `.sif` 文件。
+
+## 3. 子目录模块的 conda 路径
 
 子目录规则必须使用 `conda: "../<parent>.yaml"`（相对路径到父目录的 yaml），不能写 `conda: "../modules/<tool>/<tool>.yaml"`。
+
+## 4. 默认参数
+
+尽量不要在subworkflow中使用or去兜底json文件中的null值，从而提供默认值。确保json文件即是实际运行配置

@@ -1,54 +1,127 @@
-"""Orchestrate atomic Scanpy modules for standardized scRNA-seq analysis."""
-
+from snakemake.logging import logger
 ROOT_DIR = config.get("ROOT_DIR", ".")
-indir = config.get("indir", "input")
-outdir = config.get("outdir", "output")
-logdir = config.get("logdir", "logs")
-input_h5ad = config.get("input_h5ad", "")
-sample_h5ad = config.get("sample_h5ad", {})
-analysis = config.get("Params", {}).get("scanpy", {})
-advanced = analysis.get("advanced", {})
-
-if not input_h5ad and not sample_h5ad:
-    raise ValueError("scRNAseq requires input_h5ad or sample_h5ad")
-
-qc_h5ad = f"{outdir}/scanpy/qc/filtered.h5ad"
-cluster_h5ad = f"{outdir}/scanpy/cluster/clustered.h5ad"
-advanced_enabled = advanced.get("trajectory", True) or advanced.get("velocity", False) or advanced.get("communication", False) or advanced.get("cnv", False)
-advanced_h5ad = f"{outdir}/scanpy/advanced/advanced.h5ad"
-de_h5ad = f"{outdir}/scanpy/de/differential_expression.h5ad"
-outfiles = config.get("outfiles") or [
-    qc_h5ad,
-    f"{outdir}/scanpy/qc/qc_metrics.tsv",
-    cluster_h5ad,
-    f"{outdir}/scanpy/cluster/markers.tsv",
-    *( [advanced_h5ad] if advanced_enabled else [] ),
-    de_h5ad,
-    f"{outdir}/scanpy/de/markers.tsv",
-]
-
-scanpy_config = dict(config)
-scanpy_config.update({
-    "ROOT_DIR": ROOT_DIR,
-    "env": config.get("env", {}),
-    "indir": indir,
-    "outdir": outdir,
-    "logdir": logdir,
-    "input_h5ad": input_h5ad,
-    "sample_h5ad": sample_h5ad,
-    "outfiles": outfiles,
-})
-
-module scanpy:
-    snakefile: "../modules/scanpy/scRNAseq_scanpy.smk"
-    config: scanpy_config
-
-use rule scanpy_qc from scanpy as scRNAseq_scanpy_qc
-use rule scanpy_cluster from scanpy as scRNAseq_scanpy_cluster
-if advanced_enabled:
-    use rule scanpy_advanced from scanpy as scRNAseq_scanpy_advanced
-use rule scanpy_differential_expression from scanpy as scRNAseq_scanpy_de
-
+indir = config.get("indir") or "input"
+outdir = config.get("outdir") or "output"
+logdir = config.get("logdir") or "log"
+outfiles = config.get("outfiles") or []
+paired_samples = config.get("paired_samples") or []
+single_samples = config.get("single_samples") or []
+aligner = config.get("aligner") or "star"
+counter = config.get("counter") or "scTE"
 rule all:
     input:
         outfiles
+genome = config.get("genome", {}).get("default")
+raw_bam_outdir = f"{outdir}/common/2_raw_bam"
+h5ad_outdir = f"{outdir}/common/3_h5ad"
+if aligner == "star" and counter == "scTE":
+    star_config = {
+        "ROOT_DIR": ROOT_DIR,
+        "env": config.get("env", {}),
+        "indir": indir,
+        "outdir": raw_bam_outdir,
+        "logdir": f"{logdir}/sample",
+        "paired_samples": paired_samples,
+        "single_samples": single_samples,
+        "Params": {
+            "star": {
+                "outSAMattributes": config.get('Params', {}).get('star', {}).get('outSAMattributes'),
+                "outFilterMultimapNmax": config.get('Params', {}).get('star', {}).get('outFilterMultimapNmax'),
+                "winAnchorMultimapNmax": config.get('Params', {}).get('star', {}).get('winAnchorMultimapNmax'),
+                "outMultimapperOrder": config.get('Params', {}).get('star', {}).get('outMultimapperOrder'),
+                "runRNGseed": config.get('Params', {}).get('star', {}).get('runRNGseed'),
+                "outSAMmultNmax": config.get('Params', {}).get('star', {}).get('outSAMmultNmax'),
+                "soloType": config.get('Params', {}).get('star', {}).get('soloType'),
+                "soloCBwhitelist": config.get('Params', {}).get('star', {}).get('soloCBwhitelist'),
+                "soloBarcodeReadLength": config.get('Params', {}).get('star', {}).get('soloBarcodeReadLength')
+            }
+        },
+        "genome": {
+            "index_dir": config.get("genome", {}).get("references",{}).get(genome, {}).get("index_dir"),
+            "gtf": config.get("genome", {}).get("references",{}).get(genome, {}).get("gtf"),
+            "fasta": config.get("genome",{}).get("references",{}).get(genome, {}).get("fasta")
+        }
+    }
+    module star:
+        snakefile: "../modules/star/star.smk"
+        config: star_config
+    logger.info(f"Using STAR aligner with scTE counter for scRNA-seq workflow. STAR config: {star_config}")
+    use rule * from star as star_*
+    scTE_config = {
+        "ROOT_DIR": ROOT_DIR,
+        "env": config.get("env", {}),
+        "indir": star_config["outdir"],
+        "outdir": h5ad_outdir,
+        "logdir": f"{logdir}/sample",
+        "Params": {
+            "scTE": config.get("Params", {}).get("scTE", {}),
+        },
+        "genome": {
+            "scTE_index": config.get("genome", {}).get("references", {}).get(genome, {}).get("scTE_index"),
+            "gtf": config.get("genome", {}).get("references", {}).get(genome, {}).get("gtf"),
+            "te_bed": config.get("genome", {}).get("references", {}).get(genome, {}).get("te_bed")
+        },
+        "Procedure": {
+            "scTE": config.get("Procedure", {}).get("scTE") or "scTE"
+        }
+    }
+    module scTE:
+        snakefile: "../modules/scTE/scTE.smk"
+        config: scTE_config
+    logger.info(f"Using scTE counter for scRNA-seq workflow. scTE config: {scTE_config}")
+    use rule * from scTE as scTE_*
+
+elif aligner == "cellranger":
+    cellranger_config = {
+        "ROOT_DIR": ROOT_DIR,
+        "env": config.get("env", {}),
+        "indir": indir,
+        "outdir": raw_bam_outdir,
+        "logdir": f"{logdir}/sample",
+        "h5ad_outdir": h5ad_outdir,
+        "cellranger_input_dict": config.get("cellranger_input_dict", {}),
+        "Params": {
+            "cellranger": config.get("Params", {}).get("cellranger", {}),
+        },
+        "genome": {
+            "cellranger_ref_dir": config.get("genome", {}).get("cellranger_ref_dir"),
+            "fasta": config.get("Params", {}).get("cellranger_ref", {}).get("fasta"),
+            "gtf": config.get("Params", {}).get("cellranger_ref", {}).get("gtf")
+        },
+        "Procedure": {
+            "cellranger": config.get("Procedure", {}).get("cellranger") or "cellranger"
+        }
+    }
+    module cellranger:
+        snakefile: "../modules/cellranger/cellranger.smk"
+        config: cellranger_config
+    logger.info(f"Using Cell Ranger aligner for scRNA-seq workflow. Cell Ranger config: {cellranger_config}")
+    use rule * from cellranger as cellranger_*
+
+    if counter == "scTE":
+        scTE_config = {
+            "ROOT_DIR": ROOT_DIR,
+            "env": config.get("env", {}),
+            "indir": cellranger_config["outdir"],
+            "outdir": h5ad_outdir,
+            "logdir": f"{logdir}/sample",
+            "Params": {
+                "scTE": config.get("Params", {}).get("scTE", {}),
+            },
+            "genome": {
+                "scTE_index": config.get("genome", {}).get("references", {}).get(genome, {}).get("scTE_index"),
+                "gtf": config.get("genome", {}).get("references", {}).get(genome, {}).get("gtf"),
+                "te_bed": config.get("genome", {}).get("references", {}).get(genome, {}).get("te_bed")
+            },
+            "Procedure": {
+                "scTE": config.get("Procedure", {}).get("scTE") or "scTE"
+            }
+        }
+        module scTE:
+            snakefile: "../modules/scTE/scTE.smk"
+            config: scTE_config
+        logger.info(f"Using scTE counter for scRNA-seq workflow. scTE config: {scTE_config}")
+        use rule * from scTE as scTE_*
+else:
+    raise ValueError(f"Unsupported aligner or counter: {aligner}, {counter}. Please choose either 'star' or 'cellranger' for aligner and 'scTE' or 'cellranger' for counter.")
+

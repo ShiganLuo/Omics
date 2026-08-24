@@ -1,0 +1,24 @@
+{
+    "indir": "output/cellranger",
+    "outdir": "output",
+    "logdir": "logs",
+    "samples": ["sample1", "sample2"],
+    "Procedure": {
+        "cellranger": "path/to/cellranger"
+    },
+    "genome": {
+        "cellranger_transcriptome": "path/to/cellranger_transcriptome"
+    },
+    "Params": {
+        "cellranger": {
+            "mkref": {
+                "genome_name": "GRCh38",
+                "version": "2024-A"
+            },
+            "count": {
+                "nosecondary": true,
+                "create-bam": true
+            }
+        }
+    }
+}

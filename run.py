@@ -8,13 +8,23 @@ from src.common.util.LogUtil import setup_logger
 from src.common.util.CmdUtil import _run_cmd, _run_cmds_parallel
 from src.common.util.SchemaValidatorUtil import SchemaValidator
 from src.common.util.EnvUtil import is_path_like
-from node import runCoCulture, runMERIP, runRNAseq, runncRNAseq, runCLIP, runMutation, runPacVar, runKARRseq, runPeakCalling, runQuantMS, runtRNAseq
+from node import runCoCulture, runMERIP, runRNAseq, runncRNAseq, runCLIP, runMutation, runPacVar, runKARRseq, runPeakCalling, runQuantMS, runtRNAseq, runscRNAseq
 import logging
 from typing import Dict, Any
 logger = setup_logger(__name__, level=logging.DEBUG)
 
 def smart_cast(val):
-    """尝试将字符串转换为 int/float/bool，否则原样返回；list 逐元素转换"""
+    """Convert a string value to int, float, or bool if possible.
+
+    Recursively converts list elements. Avoids octal misinterpretation
+    for strings starting with '0' (except '0.').
+
+    Args:
+        val: Input value (str, list, or other).
+
+    Returns:
+        Converted value: bool for 'true'/'false', int, float, or original string.
+    """
     if isinstance(val, list):
         return [smart_cast(v) for v in val]
     if isinstance(val, str):
@@ -33,7 +43,16 @@ def smart_cast(val):
     return val
 
 def dict_set_by_path(d, keys, value):
-    """递归设置嵌套字典的值，keys为key列表，自动类型转换"""
+    """Set a value in a nested dict by a sequence of keys.
+
+    Creates intermediate dicts as needed. The value is passed through
+    smart_cast for automatic type conversion.
+
+    Args:
+        d: Target dict (modified in-place).
+        keys: Sequence of keys forming the path (e.g. ["genome", "fasta"]).
+        value: Value to set at the nested location.
+    """
     for k in keys[:-1]:
         if k not in d or not isinstance(d[k], dict):
             d[k] = {}
@@ -41,7 +60,17 @@ def dict_set_by_path(d, keys, value):
     d[keys[-1]] = smart_cast(value)
 
 def parse_dot_args(extra_args):
-    """从extra_args中提取点号语法参数，返回{(k1,k2,...):v}"""
+    """Extract dot-notation keys from extra_args into nested key tuples.
+
+    Converts {"genome.fasta": "/path"} → {("genome", "fasta"): "/path"}
+    for use with dict_set_by_path.
+
+    Args:
+        extra_args: Dict of extra CLI arguments.
+
+    Returns:
+        Dict mapping key tuples to values for dot-notation arguments.
+    """
     dot_args = {}
     for k, v in list(extra_args.items()):
         if '.' in k:
@@ -57,10 +86,21 @@ def _load_model_json(model_json_file: str) -> Dict[str, Any]:
 
 
 def parse_args():
+    """Parse CLI arguments and collect extra dot-notation overrides.
+
+    Handles three forms of extra arguments:
+      --key=value, --key value, --key v1 v2 v3
+
+    Dot-notation keys (e.g. --genome.fasta /path) are stored in args.extra_args
+    for later injection into the workflow config via dict_set_by_path.
+
+    Returns:
+        argparse.Namespace with all parsed arguments plus extra_args dict.
+    """
     parser = argparse.ArgumentParser(description="workflow")
     parser.add_argument('-m','--meta', type=str, default=None, help='meta input file or data dir which condatain fastq file')
     parser.add_argument('-w','--workflow_name', type=str, nargs='+',
-        choices=["CoCulture", "MERIP", "RNAseq", "ncRNAseq", "CLIP", "Mutation", "PacVar", "KARRseq", "PeakCalling", "QuantMS", "tRNAseq"],
+        choices=["CoCulture", "MERIP", "RNAseq", "ncRNAseq", "scRNAseq", "tRNAseq", "CLIP", "Mutation", "PacVar", "KARRseq", "PeakCalling", "QuantMS"],
         default=['CoCulture'], help='workflow name(s), multiple for parallel execution')
     parser.add_argument('-o','--output_dir', type=str, default=None, help='output dir')
     parser.add_argument('-t','--threads', type=int, default=10, help='threads')
@@ -239,6 +279,29 @@ def _merge_singularity_args(
 def build_snakemake_cmd(root_dir, smk, input_json, threads, conda_prefix, rerun_trigger,
                         dry_run, conda_frontend, snakemake_args, sdm=None, singularity_args=None,
                         forcerun=None):
+    """Build the snakemake CLI command list for a given subworkflow.
+
+    Configures conda or apptainer container backend, collects bind paths
+    from the config JSON, merges user singularity args, and appends
+    forcerun targets if specified.
+
+    Args:
+        root_dir: Project root directory (contains subworkflow/ and config/).
+        smk: Subworkflow snakefile name (e.g. "RNAseq.smk").
+        input_json: Path to the workflow config JSON file.
+        threads: Number of threads for snakemake.
+        conda_prefix: Conda prefix directory for snakemake --use-conda.
+        rerun_trigger: List of snakemake rerun-trigger reasons.
+        dry_run: If True, append --dry-run.
+        conda_frontend: Conda frontend ("conda" or "mamba").
+        snakemake_args: Additional raw arguments forwarded to snakemake.
+        sdm: Snakemake deployment method (e.g. "apptainer"). None for conda mode.
+        singularity_args: Extra singularity/apptainer arguments (e.g. "--bind /path1,/path2").
+        forcerun: List of rule names to force re-run (with optional wildcards).
+
+    Returns:
+        List[str]: Complete snakemake command as a list of arguments.
+    """
     snakemake_args = snakemake_args or []
     # Determine container backend: explicit --sdm flag, or legacy --snakemake-args --sdm
     use_singularity = sdm is not None or _detect_singularity(snakemake_args)
@@ -291,17 +354,18 @@ def build_snakemake_cmd(root_dir, smk, input_json, threads, conda_prefix, rerun_
 
 
 WORKFLOW_DISPATCH = {
-    "CoCulture":  lambda cfg, sid, sp, gp, indir, outdir, meta, rf: ("CoCulture.smk", runCoCulture(cfg, sid, indir, outdir, rf)),
-    "MERIP":      lambda cfg, sid, sp, gp, indir, outdir, meta, rf: ("MERIP.smk",     runMERIP(cfg, sid, indir, outdir, rf)),
-    "RNAseq":     lambda cfg, sid, sp, gp, indir, outdir, meta, rf: ("RNAseq.smk",    runRNAseq(cfg, sid, gp, indir, outdir, rf)),
-    "ncRNAseq":   lambda cfg, sid, sp, gp, indir, outdir, meta, rf: ("ncRNAseq.smk",  runncRNAseq(cfg, sid, sp, indir, outdir, rf)),
-    "CLIP":       lambda cfg, sid, sp, gp, indir, outdir, meta, rf: ("CLIP.smk",      runCLIP(cfg, sid, indir, outdir, rf)),
-    "Mutation":   lambda cfg, sid, sp, gp, indir, outdir, meta, rf: ("Mutation.smk",  runMutation(cfg, sid, sp, indir, outdir, rf)),
-    "PacVar":     lambda cfg, sid, sp, gp, indir, outdir, meta, rf: ("PacVar.smk",    runPacVar(cfg, sid, indir, outdir, rf)),
-    "KARRseq":    lambda cfg, sid, sp, gp, indir, outdir, meta, rf: ("KARRseq.smk",   runKARRseq(cfg, sid, indir, outdir, rf)),
-    "PeakCalling":lambda cfg, sid, sp, gp, indir, outdir, meta, rf: ("PeakCalling.smk",runPeakCalling(cfg, sid, sp, indir, outdir, rf)),
-    "QuantMS":    lambda cfg, sid, sp, gp, indir, outdir, meta, rf: ("QuantMS.smk",   runQuantMS(cfg, sid, indir, outdir, rf)),
-    "tRNAseq":    lambda cfg, sid, sp, gp, indir, outdir, meta, rf: ("tRNAseq.smk",   runtRNAseq(cfg, sid, indir, outdir, meta, rf)),
+    "CoCulture":  lambda cfg, sid, sp, gp, indir, outdir, meta, rf, ci: ("CoCulture.smk", runCoCulture(cfg, sid, indir, outdir, rf)),
+    "MERIP":      lambda cfg, sid, sp, gp, indir, outdir, meta, rf, ci: ("MERIP.smk",     runMERIP(cfg, sid, indir, outdir, rf)),
+    "RNAseq":     lambda cfg, sid, sp, gp, indir, outdir, meta, rf, ci: ("RNAseq.smk",    runRNAseq(cfg, sid, gp, indir, outdir, rf)),
+    "ncRNAseq":   lambda cfg, sid, sp, gp, indir, outdir, meta, rf, ci: ("ncRNAseq.smk",  runncRNAseq(cfg, sid, sp, indir, outdir, rf)),
+    "CLIP":       lambda cfg, sid, sp, gp, indir, outdir, meta, rf, ci: ("CLIP.smk",      runCLIP(cfg, sid, indir, outdir, rf)),
+    "Mutation":   lambda cfg, sid, sp, gp, indir, outdir, meta, rf, ci: ("Mutation.smk",  runMutation(cfg, sid, sp, indir, outdir, rf)),
+    "PacVar":     lambda cfg, sid, sp, gp, indir, outdir, meta, rf, ci: ("PacVar.smk",    runPacVar(cfg, sid, indir, outdir, rf)),
+    "KARRseq":    lambda cfg, sid, sp, gp, indir, outdir, meta, rf, ci: ("KARRseq.smk",   runKARRseq(cfg, sid, indir, outdir, rf)),
+    "PeakCalling":lambda cfg, sid, sp, gp, indir, outdir, meta, rf, ci: ("PeakCalling.smk",runPeakCalling(cfg, sid, sp, indir, outdir, rf)),
+    "QuantMS":    lambda cfg, sid, sp, gp, indir, outdir, meta, rf, ci: ("QuantMS.smk",   runQuantMS(cfg, sid, indir, outdir, rf)),
+    "tRNAseq":    lambda cfg, sid, sp, gp, indir, outdir, meta, rf, ci: ("tRNAseq.smk",   runtRNAseq(cfg, sid, indir, outdir, meta, rf)),
+    "scRNAseq":   lambda cfg, sid, sp, gp, indir, outdir, meta, rf, ci: ("scRNAseq.smk",  runscRNAseq(cfg, sid, indir, outdir, rf, ci)),
 }
 
 
@@ -425,7 +489,7 @@ def execute_workflows(args, root_dir: str, logger):
         metadataUtil = MetadataUtils(outdir=abs_ref_outdir, meta=first_meta)
     else:
         metadataUtil = MetadataUtils(outdir=abs_ref_outdir, fastq_dir=first_meta)
-    samples_info_dict, sample_pairs, group_pairs, raw_fastq_dir, raw_files = metadataUtil.run()
+    samples_info_dict, sample_pairs, group_pairs, raw_fastq_dir, raw_files, cellranger_input_dict = metadataUtil.run()
 
     # Thread allocation: user-specified total threads split across workflows
     threads_per_workflow = max(1, args.threads // n_workflows)
@@ -448,7 +512,7 @@ def execute_workflows(args, root_dir: str, logger):
                     metadataUtil = MetadataUtils(outdir=abs_outdir, meta=wf_meta)
                 else:
                     metadataUtil = MetadataUtils(outdir=abs_outdir, fastq_dir=wf_meta)
-                samples_info_dict, sample_pairs, group_pairs, raw_fastq_dir, raw_files = metadataUtil.run()
+                samples_info_dict, sample_pairs, group_pairs, raw_fastq_dir, raw_files, cellranger_input_dict = metadataUtil.run()
 
             model_json = os.path.join(root_dir, f"config/{wf_name}.json")
             workflow_config = _load_model_json(model_json)
@@ -508,7 +572,7 @@ def execute_workflows(args, root_dir: str, logger):
 
             smk, input_json = WORKFLOW_DISPATCH[wf_name](
                 deepcopy(workflow_config), samples_info_dict, sample_pairs, group_pairs,
-                raw_fastq_dir, abs_outdir, _get_meta(wf_name), raw_files
+                raw_fastq_dir, abs_outdir, _get_meta(wf_name), raw_files, cellranger_input_dict
             )
 
             # Auto-prefix forcerun targets with workflow name if not already prefixed.

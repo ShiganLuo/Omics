@@ -38,7 +38,14 @@
             "chimScoreJunctionNonGTAG": -1,
             "chimScoreSeparation": 10,
             "alignSJstitchMismatchNmax": "0 -1 0 0",
-            "chimSegmentReadGapMax": 0
+            "chimSegmentReadGapMax": 0,
+            "outSAMattributes": "NH HI AS nM CR CY UR UY",
+            "outMultimapperOrder": "random",
+            "runRNGseed": 777,
+            "outSAMmultNmax": 1,
+            "soloType": "CB_UMI_Simple",
+            "soloCBwhitelist": null,
+            "soloBarcodeReadLength": 98
         }
     }
 

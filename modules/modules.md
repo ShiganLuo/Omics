@@ -15,7 +15,7 @@ description: 撰写Snakemake模块时需要遵循此套规范
 
 # 核心原则：最小可复用单元
 
-每个模块封装**一个工具**或**一个原子分析步骤**，不允许将多个独立分析合并到一个模块中。
+每个模块封装**一个工具**或**一个原子分析步骤**，不允许将多个独立分析合并到一个模块中，另外规则只负责校验和调用。
 
 判断标准：
 - 该模块是否可以被独立复用（不依赖其他模块的输出）？如果不能，说明它太大了。
@@ -703,26 +703,14 @@ current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
 script = f"{outdir}/{wildcards.sample_id}/tool_{current_time}.sh"
 ```
 
-## 3. logger 来源
-
-两种引入方式都存在，保持一致即可：
-```python
-from snakemake.logging import logger          # 推荐
-# 或
-import logging; logger = logging.getLogger()   # star 模块使用
-```
-
-## 4. outfiles 路径一致性
+## 3. outfiles 路径一致性
 
 run.py 中 `outfiles` 的路径必须与规则的 `output` 完全匹配，否则 Snakemake 静默跳过或全量重建。
 
-## 5. expand() 中的通配符转义
+## 4. expand() 中的通配符转义
 
 在 `expand()` 内引用外部通配符时用双花括号 `{{}}`：
 ```python
 expand(outdir + "/{case}/{case}.{{genome_version}}.msisensor", case=samples.index)
 ```
 
-## 6. 旧式模块（annovar 风格）
-
-存在少量旧式模块直接用 `configfile:` 加载 YAML、`config["key"]` 取值。新模块应使用 `config.get()` 方式，不写 `configfile:`。

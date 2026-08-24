@@ -1,0 +1,19 @@
+{
+    "indir": "data/fastq",
+    "outdir": "results/scTE",
+    "logdir": "results/scTE/logs",
+    "samples": [],
+    "Procedure": {
+        "scTE": null
+    },
+    "Params": {
+        "scTE": {
+            "genome": "hg38",
+            "mode": "exclusive",
+            "cb_tag": "CB",
+            "umi_tag": "UB",
+            "gene_gtf": null,
+            "te_bed": null
+        }
+    }
+}

@@ -15,6 +15,7 @@ indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "logs")
 samples = config.get("samples", [])
+logdir_ref = config.get("logdir_ref", "logs/ref")
 h5ad_outdir = config.get("h5ad_outdir", f"{outdir}/3_h5ad")
 cellranger_ref_dir_provided = config.get("genome", {}).get("cellranger_ref_dir")
 fasta = config.get("genome", {}).get("fasta") or ""
@@ -31,7 +32,7 @@ rule cellranger_ref:
     output:
         ref_dir = directory(cellranger_ref_dir)
     log:
-        logdir + "/cellranger_ref/cellranger_ref.log"
+        logdir_ref + "/cellranger_ref/cellranger_ref.log"
     threads: 16
     conda:
         "cellranger.yaml"

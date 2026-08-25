@@ -821,6 +821,21 @@ def runscRNAseq(
         datajson["Params"]["cellranger"]["mkref"]["version"] = time.strftime("%Y-%m-%d", time.localtime())
     else:
         raise ValueError(f"pipeline don't support {organism}, only support human, mouse, or macaque(Homo sapiens, Mus musculus, or Macaca mulatta)")
+    counter = datajson["counter"]
+    aligner = datajson["aligner"]
+    if counter == "scTE":
+        if aligner == "star":
+            datajson["Params"]["scTE"]["cb_tag"] = "CR"
+            datajson["Params"]["scTE"]["umi_tag"] = "UR"
+        elif aligner == "cellranger":
+            datajson["Params"]["scTE"]["cb_tag"] = "CB"
+            datajson["Params"]["scTE"]["umi_tag"] = "UB"
+        else:
+            raise ValueError(f"Unsupported aligner for scTE counter: {aligner}, must be star or cellranger")
+    elif counter == "cellranger":
+        pass
+    else:
+        raise ValueError(f"Unsupported counter type: {counter}, must be scTE or cellranger")
     # outfiles.append(f"{outdir}/scRNAseq_report.pptx")
     datajson["outfiles"] = outfiles
     instance_json = os.path.join(outdir, "raw.json")

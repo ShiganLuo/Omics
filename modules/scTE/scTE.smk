@@ -4,7 +4,7 @@ indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "logs")
 samples = config.get("samples", [])
-
+logdir_index = config.get("logdir_index", "logs/index")
 _scTE_genome = config.get("Params", {}).get("scTE", {}).get("genome", "hg38")
 _scTE_mode = config.get("Params", {}).get("scTE", {}).get("mode", "exclusive")
 _scTE_index = f"{outdir}/index/{_scTE_genome}.{_scTE_mode}.idx"
@@ -20,7 +20,7 @@ rule scTE_build_index:
     output:
         index = _scTE_index
     log:
-        logdir + "/scTE/scTE_build_index.log"
+        logdir_index + "/scTE/scTE_build_index.log"
     threads: 1
     conda:
         "scTE.yaml"

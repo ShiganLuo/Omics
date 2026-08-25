@@ -22,7 +22,7 @@ import pandas as pd
 import scipy.sparse as sp
 
 
-def run_scTE(bam, outdir, index, cb_tag, umi_tag, threads, scte_bin):
+def run_scTE(bam, outdir, index, cb_tag, umi_tag, threads, scte_bin, cwd=None):
     """Run scTE quantify on a BAM file."""
     cmd = [
         scte_bin, "-i", bam, "-o", outdir,
@@ -31,7 +31,7 @@ def run_scTE(bam, outdir, index, cb_tag, umi_tag, threads, scte_bin):
         "-CB", cb_tag, "-UMI", umi_tag,
     ]
     print(f"Running: {' '.join(cmd)}")
-    subprocess.check_call(cmd)
+    subprocess.check_call(cmd, cwd=cwd)
 
 
 def scTE_csv_to_h5ad(csv_path, sample_id=""):
@@ -70,7 +70,7 @@ def main():
     with tempfile.TemporaryDirectory() as tmpdir:
         outdir = os.path.join(tmpdir, "scTE_out")
         os.makedirs(outdir)
-        run_scTE(args.input, outdir, args.index, args.cb_tag, args.umi_tag, args.threads, args.scte_bin)
+        run_scTE(args.input, outdir, args.index, args.cb_tag, args.umi_tag, args.threads, args.scte_bin, cwd=tmpdir)
 
         # Find the CSV output (scTE names it based on input BAM name)
         csv_files = [f for f in os.listdir(outdir) if f.endswith(".csv")]

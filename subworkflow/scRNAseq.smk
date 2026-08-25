@@ -21,6 +21,7 @@ if aligner == "star" and counter == "scTE":
         "indir": indir,
         "outdir": raw_bam_outdir,
         "logdir": f"{logdir}/sample",
+        "logdir_index": f"{logdir}/group",
         "paired_samples": paired_samples,
         "single_samples": single_samples,
         "Params": {
@@ -54,6 +55,7 @@ if aligner == "star" and counter == "scTE":
         "indir": star_config["outdir"],
         "outdir": h5ad_outdir,
         "logdir": f"{logdir}/sample",
+        "logdir_index": f"{logdir}/group",
         "Params": {
             "scTE": config.get("Params", {}).get("scTE", {}),
         },
@@ -79,6 +81,7 @@ elif aligner == "cellranger":
         "indir": indir,
         "outdir": raw_bam_outdir,
         "logdir": f"{logdir}/sample",
+        "logdir_ref": f"{logdir}/group",
         "h5ad_outdir": h5ad_outdir,
         "cellranger_input_dict": config.get("cellranger_input_dict", {}),
         "Params": {
@@ -106,6 +109,7 @@ elif aligner == "cellranger":
             "indir": cellranger_config["outdir"],
             "outdir": h5ad_outdir,
             "logdir": f"{logdir}/sample",
+            "logdir_index": f"{logdir}/group",
             "Params": {
                 "scTE": config.get("Params", {}).get("scTE", {}),
             },

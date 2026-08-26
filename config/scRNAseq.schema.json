@@ -113,6 +113,12 @@
               "nullable": true,
               "required": false,
               "path": "dir"
+            },
+            "star_index_dir": {
+              "type": "str",
+              "nullable": true,
+              "required": false,
+              "path": "dir"
             }
           }
         }
@@ -215,6 +221,50 @@
         "nullable": true,
         "required": false,
         "path": "file"
+      }
+    },
+    "scanpy": {
+      "tissue_samples": {
+        "type": "dict",
+        "required": true
+      },
+      "qc": {
+        "min_genes": {"type": "int", "required": false},
+        "max_genes": {"type": "int", "required": false},
+        "max_pct_mt": {"type": "float", "required": false},
+        "n_top_genes": {"type": "int", "required": false},
+        "scrublet": {"type": "bool", "required": false},
+        "doublet_rate": {"type": "float", "required": false}
+      },
+      "cluster": {
+        "n_pcs": {"type": "int", "required": false},
+        "n_neighbors": {"type": "int", "required": false},
+        "resolution": {"type": "float", "required": false}
+      },
+      "batch": {
+        "n_pcs": {"type": "int", "required": false},
+        "n_neighbors": {"type": "int", "required": false},
+        "resolution": {"type": "float", "required": false},
+        "method": {"type": "str", "required": false},
+        "batch_key": {"type": "str", "required": false}
+      },
+      "annotate": {
+        "marker_file": {"type": "str", "required": false},
+        "celltypist_model": {"type": "str", "required": false},
+        "llm_method": {"type": "str", "required": false},
+        "llm_model": {"type": "str", "required": false},
+        "llm_api_key": {"type": "str", "required": false},
+        "llm_base_url": {"type": "str", "required": false},
+        "llm_top_genes": {"type": "int", "required": false},
+        "annotate_group": {"type": "str", "required": false}
+      },
+      "advanced": {
+        "trajectory": {"type": "bool", "required": false},
+        "velocity": {"type": "bool", "required": false},
+        "communication": {"type": "bool", "required": false},
+        "cnv": {"type": "bool", "required": false},
+        "gtf": {"type": "str", "required": false},
+        "cnv_reference": {"type": "str", "required": false}
       }
     }
   }

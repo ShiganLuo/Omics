@@ -13,6 +13,7 @@ Usage:
 """
 import argparse
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -40,7 +41,9 @@ def scTE_csv_to_h5ad(csv_path, sample_id=""):
     scTE outputs a CSV with cells as rows and TEs as columns.
     """
     data = pd.read_csv(csv_path, index_col=0, header=0)
-    data.index = data.index.astype(str)
+    data.index = data.index.astype(str).str.replace("/", "_", regex=False)
+    if data.index.name and "/" in str(data.index.name):
+        data.index.name = str(data.index.name).replace("/", "_")
     X = sp.csr_matrix(data.values.astype("float32"))
     adata = ad.AnnData(
         X,
@@ -73,10 +76,10 @@ def main():
         run_scTE(args.input, outdir, args.index, args.cb_tag, args.umi_tag, args.threads, args.scte_bin, cwd=tmpdir)
 
         # Find the CSV output (scTE names it based on input BAM name)
-        csv_files = [f for f in os.listdir(outdir) if f.endswith(".csv")]
+        csv_files = [f for f in os.listdir(outdir) if f.endswith((".csv", ".csv.gz"))]
         if not csv_files:
             # scTE may write directly to the output dir with a fixed name
-            csv_files = [f for f in os.listdir(tmpdir) if f.endswith(".csv")]
+            csv_files = [f for f in os.listdir(tmpdir) if f.endswith((".csv", ".csv.gz"))]
             if csv_files:
                 csv_path = os.path.join(tmpdir, csv_files[0])
             else:
@@ -86,6 +89,11 @@ def main():
 
         adata = scTE_csv_to_h5ad(csv_path, args.sample_id)
         os.makedirs(os.path.dirname(args.output), exist_ok=True)
+        # Save raw scTE matrix alongside h5ad
+        csv_base = csv_files[0]
+        raw_csv_out = os.path.join(os.path.dirname(args.output), csv_base)
+        shutil.copy2(csv_path, raw_csv_out)
+        print(f"Saved raw scTE matrix to {raw_csv_out}")
         adata.write_h5ad(args.output)
         print(f"Wrote {adata.n_obs} cells x {adata.n_vars} TEs to {args.output}")
 

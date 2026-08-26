@@ -784,17 +784,17 @@ def runscRNAseq(
         if sample_info.layout == "PE":
             paired_samples.append(sample_id)
             if counter == "scTE":
-                outfiles.append(f"{outdir}/common/3_h5ad/{sample_id}/{sample_id}_scTE.h5ad")
+                outfiles.append(f"{outdir}/common/3_raw_h5ad/{sample_id}/{sample_id}_scTE.h5ad")
             elif counter == "cellranger":
-                outfiles.append(f"{outdir}/common/3_h5ad/{sample_id}/{sample_id}_cellranger.h5ad")
+                outfiles.append(f"{outdir}/common/3_raw_h5ad/{sample_id}/{sample_id}_cellranger.h5ad")
             else:
                 logger.error(f"Unknown counter type for sample {sample_id}: {counter}")
         elif sample_info.layout == "SE":
             single_samples.append(sample_id)
             if counter == "scTE":
-                outfiles.append(f"{outdir}/common/3_h5ad/{sample_id}/{sample_id}_scTE.h5ad")
+                outfiles.append(f"{outdir}/common/3_raw_h5ad/{sample_id}/{sample_id}_scTE.h5ad")
             elif counter == "cellranger":
-                outfiles.append(f"{outdir}/common/3_h5ad/{sample_id}/{sample_id}_cellranger.h5ad")
+                outfiles.append(f"{outdir}/common/3_raw_h5ad/{sample_id}/{sample_id}_cellranger.h5ad")
             else:
                 logger.error(f"Unknown counter type for sample {sample_id}: {counter}")
         else:
@@ -836,6 +836,14 @@ def runscRNAseq(
         pass
     else:
         raise ValueError(f"Unsupported counter type: {counter}, must be scTE or cellranger")
+    # Build tissue_samples for scanpy downstream
+    tissue_samples = {}
+    for sid in paired_samples + single_samples:
+        tissue = getattr(samples_info_dict.get(sid), "tissue", None) or "unknown"
+        tissue_samples.setdefault(tissue, []).append(sid)
+    for tissue in tissue_samples.keys():
+        outfiles.append(f"{outdir}/common/5_combine_h5ad/{tissue}/{tissue}_advanced.h5ad")
+    datajson["Params"]["scanpy"]["tissue_samples"] = tissue_samples
     # outfiles.append(f"{outdir}/scRNAseq_report.pptx")
     datajson["outfiles"] = outfiles
     instance_json = os.path.join(outdir, "raw.json")

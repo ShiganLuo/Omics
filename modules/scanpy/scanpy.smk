@@ -29,7 +29,8 @@ rule scanpy_qc:
         h5ad = indir + "/{sample_id}/{sample_id}_" + h5ad_substring + ".h5ad"
     output:
         h5ad = outdir + "/{sample_id}/{sample_id}_qc.h5ad",
-        metrics = outdir + "/{sample_id}/{sample_id}_qc_metrics.tsv"
+        metrics = outdir + "/{sample_id}/{sample_id}_qc_metrics.tsv",
+        plot_dir = directory(outdir + "/{sample_id}/plots")
     log:
         logdir + "/{sample_id}/scanpy_qc.log"
     threads: 4
@@ -55,6 +56,7 @@ rule scanpy_qc:
             rule_logger.info(f"Start scanpy QC for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.h5ad))
             os.makedirs(sample_outdir, exist_ok=True)
+            os.makedirs(str(output.plot_dir), exist_ok=True)
             script = os.path.join(sample_outdir, f"scanpy_qc_{wildcards.sample_id}_{current_time}.sh")
             cmd = [params.python, params.script, "--mode", "qc",
                    "--input", input.h5ad,
@@ -64,6 +66,7 @@ rule scanpy_qc:
                    "--max-genes", str(params.max_genes),
                    "--max-pct-mt", str(params.max_pct_mt),
                    "--n-top-genes", str(params.n_top_genes)]
+            cmd += ["--plot-dir", str(output.plot_dir)]
             if params.scrublet:
                 cmd += ["--scrublet", "--doublet-rate", str(params.doublet_rate)]
             with open(script, "w") as f:
@@ -76,7 +79,6 @@ rule scanpy_qc:
                 f.write(f"Error occurred during scanpy QC for sample {wildcards.sample_id}: {e}\n")
             logger.error(f"Error occurred during scanpy QC for sample {wildcards.sample_id}: {e}")
             raise e
-
 
 # ---------------------------------------------------------------------------
 # Merge by tissue
@@ -91,7 +93,8 @@ rule scanpy_merge:
     input:
         h5ad = get_tissue_qc_files
     output:
-        h5ad = outdir_combine + "/{tissue}/{tissue}_merged.h5ad"
+        h5ad = outdir_combine + "/{tissue}/{tissue}_merged.h5ad",
+        plot_dir = directory(outdir_combine + "/{tissue}/plots/merge")
     log:
         logdir_combine + "/scanpy/{tissue}/scanpy_merge.log"
     threads: 2
@@ -111,9 +114,11 @@ rule scanpy_merge:
             rule_logger.info(f"Start scanpy merge for tissue {wildcards.tissue} at {current_time}")
             sample_outdir = os.path.dirname(str(output.h5ad))
             os.makedirs(sample_outdir, exist_ok=True)
+            os.makedirs(str(output.plot_dir), exist_ok=True)
             script = os.path.join(sample_outdir, f"scanpy_merge_{wildcards.tissue}_{current_time}.sh")
             cmd = [params.python, params.script, "--mode", "merge",
                    "--input"] + list(input.h5ad) + ["--output", output.h5ad]
+            cmd += ["--plot-dir", str(output.plot_dir)]
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write(" ".join(shlex.quote(str(item)) for item in cmd) + "\n")
@@ -125,7 +130,6 @@ rule scanpy_merge:
             logger.error(f"Error occurred during scanpy merge for tissue {wildcards.tissue}: {e}")
             raise e
 
-
 # ---------------------------------------------------------------------------
 # Cluster (per tissue)
 # ---------------------------------------------------------------------------
@@ -134,7 +138,8 @@ rule scanpy_cluster:
         h5ad = outdir_combine + "/{tissue}/{tissue}_merged.h5ad"
     output:
         h5ad = outdir_combine + "/{tissue}/{tissue}_clustered.h5ad",
-        markers = outdir_combine + "/{tissue}/{tissue}_markers.tsv"
+        markers = outdir_combine + "/{tissue}/{tissue}_markers.tsv",
+        plot_dir = directory(outdir_combine + "/{tissue}/plots/cluster")
     log:
         logdir_combine + "/scanpy/{tissue}/scanpy_cluster.log"
     threads: 4
@@ -157,6 +162,7 @@ rule scanpy_cluster:
             rule_logger.info(f"Start scanpy cluster for tissue {wildcards.tissue} at {current_time}")
             sample_outdir = os.path.dirname(str(output.h5ad))
             os.makedirs(sample_outdir, exist_ok=True)
+            os.makedirs(str(output.plot_dir), exist_ok=True)
             script = os.path.join(sample_outdir, f"scanpy_cluster_{wildcards.tissue}_{current_time}.sh")
             cmd = [params.python, params.script, "--mode", "cluster",
                    "--input", input.h5ad,
@@ -165,6 +171,7 @@ rule scanpy_cluster:
                    "--n-pcs", str(params.n_pcs),
                    "--n-neighbors", str(params.n_neighbors),
                    "--resolution", str(params.resolution)]
+            cmd += ["--plot-dir", str(output.plot_dir)]
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write(" ".join(shlex.quote(str(item)) for item in cmd) + "\n")
@@ -177,12 +184,12 @@ rule scanpy_cluster:
             raise e
 
 
-
 rule scanpy_batch:
     input:
         h5ad = outdir_combine + "/{tissue}/{tissue}_clustered.h5ad",
     output:
-        h5ad = outdir_combine + "/{tissue}/{tissue}_batch.h5ad"
+        h5ad = outdir_combine + "/{tissue}/{tissue}_batch.h5ad",
+        plot_dir = directory(outdir_combine + "/{tissue}/plots/batch")
     log:
         logdir_combine + "/scanpy/{tissue}/scanpy_batch.log"
     threads: 4
@@ -207,6 +214,7 @@ rule scanpy_batch:
             rule_logger.info(f"Start scanpy batch correction for tissue {wildcards.tissue} at {current_time}")
             sample_outdir = os.path.dirname(str(output.h5ad))
             os.makedirs(sample_outdir, exist_ok=True)
+            os.makedirs(str(output.plot_dir), exist_ok=True)
             script = os.path.join(sample_outdir, f"scanpy_batch_{wildcards.tissue}_{current_time}.sh")
             cmd = [params.python, params.script, "--mode", "batch",
                     "--input", input.h5ad,
@@ -216,6 +224,7 @@ rule scanpy_batch:
                     "--resolution", str(params.resolution),
                     "--batch-method", params.batch_method,
                     "--batch-key", params.batch_key]
+            cmd += ["--plot-dir", str(output.plot_dir)]
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write(" ".join(shlex.quote(str(item)) for item in cmd) + "\n")
@@ -226,7 +235,6 @@ rule scanpy_batch:
                 f.write(f"Error occurred during scanpy batch correction for tissue {wildcards.tissue}: {e}\n")
             logger.error(f"Error occurred during scanpy batch correction for tissue {wildcards.tissue}: {e}")
             raise e
-
 
 # ---------------------------------------------------------------------------
 # Cell type annotation (per tissue, optional)
@@ -239,7 +247,8 @@ rule scanpy_annotate:
     input:
         h5ad = get_annotate_input
     output:
-        h5ad = outdir_combine + "/{tissue}/{tissue}_annotated.h5ad"
+        h5ad = outdir_combine + "/{tissue}/{tissue}_annotated.h5ad",
+        plot_dir = directory(outdir_combine + "/{tissue}/plots/annotate")
     log:
         logdir_combine + "/scanpy/{tissue}/scanpy_annotate.log"
     threads: 4
@@ -267,6 +276,7 @@ rule scanpy_annotate:
             rule_logger.info(f"Start scanpy annotation for tissue {wildcards.tissue} at {current_time}")
             sample_outdir = os.path.dirname(str(output.h5ad))
             os.makedirs(sample_outdir, exist_ok=True)
+            os.makedirs(str(output.plot_dir), exist_ok=True)
             script = os.path.join(sample_outdir, f"scanpy_annotate_{wildcards.tissue}_{current_time}.sh")
             cmd = [params.python, params.script, "--mode", "annotate",
                     "--input", input.h5ad,
@@ -287,6 +297,7 @@ rule scanpy_annotate:
                 cmd += ["--llm-top-genes", str(params.llm_top_genes)]
             if params.annotate_group:
                 cmd += ["--annotate-group", params.annotate_group]
+            cmd += ["--plot-dir", str(output.plot_dir)]
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write(" ".join(shlex.quote(str(item)) for item in cmd) + "\n")
@@ -302,7 +313,8 @@ rule scanpy_advanced:
     input:
         h5ad =  outdir_combine + "/{tissue}/{tissue}_annotated.h5ad"
     output:
-        h5ad = outdir_combine + "/{tissue}/{tissue}_advanced.h5ad"
+        h5ad = outdir_combine + "/{tissue}/{tissue}_advanced.h5ad",
+        plot_dir = directory(outdir_combine + "/{tissue}/plots/advanced")
     log:
         logdir_combine + "/scanpy/{tissue}/scanpy_advanced.log"
     threads: 4
@@ -330,6 +342,7 @@ rule scanpy_advanced:
             rule_logger.info(f"Start scanpy advanced analysis for tissue {wildcards.tissue} at {current_time}")
             sample_outdir = os.path.dirname(str(output.h5ad))
             os.makedirs(sample_outdir, exist_ok=True)
+            os.makedirs(str(output.plot_dir), exist_ok=True)
             script = os.path.join(sample_outdir, f"scanpy_advanced_{wildcards.tissue}_{current_time}.sh")
             cmd = [params.python, params.script, "--mode", "advanced",
                     "--input", input.h5ad,
@@ -348,6 +361,7 @@ rule scanpy_advanced:
                 cmd += ["--gtf", params.gtf]
             if params.cnv_reference:
                 cmd += ["--cnv-reference", params.cnv_reference]
+            cmd += ["--plot-dir", str(output.plot_dir)]
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write(" ".join(shlex.quote(str(item)) for item in cmd) + "\n")
@@ -365,7 +379,8 @@ rule scanpy_differential_expression:
         h5ad = outdir_combine + "/{tissue}/{tissue}_advanced.h5ad"
     output:
         h5ad = outdir_combine + "/{tissue}/{tissue}_de.h5ad",
-        table = outdir_combine + "/{tissue}/{tissue}_markers.tsv"
+        table = outdir_combine + "/{tissue}/{tissue}_markers.tsv",
+        plot_dir = directory(outdir_combine + "/{tissue}/plots/de")
     log:
         logdir_combine + "/scanpy/{tissue}/scanpy_de.log"
     threads: 2
@@ -385,11 +400,13 @@ rule scanpy_differential_expression:
             rule_logger.info(f"Start scanpy differential expression for tissue {wildcards.tissue} at {current_time}")
             sample_outdir = os.path.dirname(str(output.h5ad))
             os.makedirs(sample_outdir, exist_ok=True)
+            os.makedirs(str(output.plot_dir), exist_ok=True)
             script = os.path.join(sample_outdir, f"scanpy_de_{wildcards.tissue}_{current_time}.sh")
             cmd = [params.python, params.script, "--mode", "de",
                    "--input", input.h5ad,
                    "--output", output.h5ad,
                    "--deg", output.table]
+            cmd += ["--plot-dir", str(output.plot_dir)]
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write(" ".join(shlex.quote(str(item)) for item in cmd) + "\n")
@@ -401,7 +418,6 @@ rule scanpy_differential_expression:
             logger.error(f"Error occurred during scanpy differential expression for tissue {wildcards.tissue}: {e}")
             raise e
 
-
 # ---------------------------------------------------------------------------
 # Result aggregation (for subworkflow use rule)
 # ---------------------------------------------------------------------------
@@ -409,4 +425,3 @@ rule scanpy_result:
     input:
         h5ad = expand(outdir_combine + "/{t}/{t}_de.h5ad", t=tissues),
         table = expand(outdir_combine + "/{t}/{t}_markers.tsv", t=tissues)
-

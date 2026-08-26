@@ -4,6 +4,7 @@ channels:
   - bioconda
 dependencies:
   - python=3.11
+  - pip
   - scanpy
   - anndata
   - leidenalg
@@ -11,7 +12,8 @@ dependencies:
   - scrublet
   - scvelo
   - liana
-  - infercnvpy
   - celltypist
   - openai
   - requests
+  - pip:
+    - infercnvpy

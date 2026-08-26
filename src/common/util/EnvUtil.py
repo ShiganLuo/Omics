@@ -533,11 +533,12 @@ From: {cls.APPTAINER_FROM}
     {yaml_filename} /opt/conda/{yaml_filename}
 
 %post
+    set -euo pipefail
     export PATH="/opt/conda/bin:$PATH"
     export CONDA_NO_PLUGINS=true
     conda config --set solver classic
-    conda env create -f /opt/conda/{yaml_filename} && \\
-        conda clean -afy && \\
+    conda env create -f /opt/conda/{yaml_filename} && \
+        conda clean -afy && \
         rm /opt/conda/{yaml_filename}
 
     echo 'export PATH="/opt/conda/envs/{env_name}/bin:$PATH"' >> /etc/profile.d/conda_{env_name}.sh

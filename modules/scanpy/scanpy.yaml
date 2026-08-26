@@ -1,4 +1,4 @@
-name: scRNAseq_scanpy
+name: scanpy
 channels:
   - conda-forge
   - bioconda
@@ -12,3 +12,6 @@ dependencies:
   - scvelo
   - liana
   - infercnvpy
+  - celltypist
+  - openai
+  - requests

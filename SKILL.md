@@ -121,11 +121,19 @@ assests/test/
 
 新增工作流时:
 
-1) 在 [workflow/Omics/config](Omics/config) 添加模型模板
-2) 在 `run.py` 添加 `run<Workflow>()` 函数
-3) 将工作流名称加入 `--workflow_name` 选项
-4) 在 `workflow/Omics/subworkflow/` 提供对应 snakefile
-5) 更新 `outfiles` 逻辑以匹配预期输出
-6) 更新subworkflow/README.md和README.md
-7) 在 `test/` 添加对应的 meta_<Workflow>.tsv 和测试数据
-8) 在 `TEST_WORKFLOWS` 字典中注册
+1. 在 [workflow/Omics/config](Omics/config) 添加模型模板
+2. 在 `run.py` 添加 `run<Workflow>()` 函数
+3. 将工作流名称加入 `--workflow_name` 选项
+4. 在 `workflow/Omics/subworkflow/` 提供对应 snakefile
+5. 更新 `outfiles` 逻辑以匹配预期输出
+6. 更新subworkflow/README.md和README.md
+7. 在 `test/` 添加对应的 meta_<Workflow>.tsv 和测试数据
+8. 在 `TEST_WORKFLOWS` 字典中注册
+
+修改流程时：
+
+1. 在 `modules/` 下的相关模块中修改 `config` 或 `params`，并更新 `outfiles` 逻辑
+1. 在 `run.py` 的 `run<Workflow>()` 函数中更新 `outfiles` 逻辑
+2. 在 `workflow/Omics/subworkflow/<Workflow>.smk` 中更新各个module的config或整体流程控制参数
+3. 在 `config/<Workflow>.json` 修改相关参数,
+4. 在 `config/<Workflow>.schema.json` 中修改相关参数的约束

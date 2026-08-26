@@ -124,6 +124,7 @@ def parse_args():
     parser.add_argument('--conda-frontend', type=str, choices=["conda", "mamba"], default="mamba", help='conda frontend for snakemake')
     parser.add_argument('--forcerun', type=str, nargs='+', default=None,
         help='force re-run specific jobs without downstream, format: RULE or RULE:WILDCARD1=VALUE,WILDCARD2=VALUE,..., e.g. --forcerun trimming_Paired:sample_id=S1')
+    parser.add_argument('--unlock', action='store_true', help='unlock snakemake working directory')
     parser.add_argument(
         '--snakemake-args',
         nargs=argparse.REMAINDER,
@@ -278,7 +279,7 @@ def _merge_singularity_args(
 
 def build_snakemake_cmd(root_dir, smk, input_json, threads, conda_prefix, rerun_trigger,
                         dry_run, conda_frontend, snakemake_args, sdm=None, singularity_args=None,
-                        forcerun=None):
+                        forcerun=None, unlock=False):
     """Build the snakemake CLI command list for a given subworkflow.
 
     Configures conda or apptainer container backend, collects bind paths
@@ -343,6 +344,8 @@ def build_snakemake_cmd(root_dir, smk, input_json, threads, conda_prefix, rerun_
             ]
     if dry_run:
         cmd.append("--dry-run")
+    if unlock:
+        cmd.append("--unlock")
     if forcerun:
         cmd.append("--until")
         cmd.extend(forcerun)
@@ -599,7 +602,7 @@ def execute_workflows(args, root_dir: str, logger):
                 args.conda_prefix, args.rerun_trigger, args.dry_run,
                 args.conda_frontend, args.snakemake_args,
                 sdm=args.sdm, singularity_args=args.singularity_args,
-                forcerun=forcerun_targets,
+                forcerun=forcerun_targets, unlock=args.unlock,
             )
             logger.info(f"[{wf_name}] {cmd}")
             smk_cmds.append((cmd, abs_outdir))

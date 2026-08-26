@@ -12,7 +12,8 @@
         "env_dir": "/home/luosg/Database/env",
         "star": "/home/luosg/Database/env/star/star.sif",
         "scTE": "/home/luosg/Database/env/scTE/scTE.sif",
-        "cellranger": "/home/luosg/Database/env/cellranger/cellranger.sif"
+        "cellranger": "/home/luosg/Database/env/cellranger/cellranger.sif",
+        "scanpy": "/home/luosg/Database/env/scanpy/scanpy.sif"
     },
     "cellranger_input_dict": {},
     "Procedure": {
@@ -78,6 +79,48 @@
             "umi_tag": "UB",
             "gene_gtf": null,
             "te_bed": null
+        },
+        "scanpy": {
+            "qc": {
+                "min_genes": 200,
+                "max_genes": 6000,
+                "max_pct_mt": 20,
+                "n_top_genes": 3000,
+                "scrublet": true,
+                "doublet_rate": 0.06
+            },
+            "cluster": {
+                "n_pcs": 50,
+                "n_neighbors": 15,
+                "resolution": 0.8
+            },
+            "batch": {
+                "n_pcs": 50,
+                "n_neighbors": 15,
+                "resolution": 0.8,
+                "method": "harmony",
+                "batch_key": "sample"
+            },
+            "annotate": {
+                "marker_file": "",
+                "celltypist_model": "",
+                "llm_method": "",
+                "llm_model": "gpt-4o",
+                "llm_api_key": "",
+                "llm_base_url": "",
+                "llm_top_genes": 30,
+                "annotate_group": "leiden"
+            },
+            "advanced": {
+                "trajectory": false,
+                "velocity": false,
+                "communication": false,
+                "cnv": false,
+                "gtf": "",
+                "cnv_reference": ""
+            },
+            "tissue_samples": {}
         }
+        
     }
 }

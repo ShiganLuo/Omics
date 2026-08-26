@@ -13,7 +13,7 @@ rule all:
         outfiles
 genome = config.get("genome", {}).get("default")
 raw_bam_outdir = f"{outdir}/common/2_raw_bam"
-h5ad_outdir = f"{outdir}/common/3_h5ad"
+h5ad_outdir = f"{outdir}/common/3_raw_h5ad"
 if aligner == "star" and counter == "scTE":
     star_config = {
         "ROOT_DIR": ROOT_DIR,
@@ -74,6 +74,8 @@ if aligner == "star" and counter == "scTE":
     logger.info(f"Using scTE counter for scRNA-seq workflow. scTE config: {scTE_config}")
     use rule * from scTE as scTE_*
 
+
+
 elif aligner == "cellranger":
     cellranger_config = {
         "ROOT_DIR": ROOT_DIR,
@@ -127,6 +129,29 @@ elif aligner == "cellranger":
             config: scTE_config
         logger.info(f"Using scTE counter for scRNA-seq workflow. scTE config: {scTE_config}")
         use rule * from scTE as scTE_*
+
 else:
     raise ValueError(f"Unsupported aligner or counter: {aligner}, {counter}. Please choose either 'star' or 'cellranger' for aligner and 'scTE' or 'cellranger' for counter.")
 
+
+scanpy_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "env": config.get("env", {}),
+    "indir": h5ad_outdir,
+    "outdir": f"{outdir}/common/4_qc_h5ad",
+    "outdir_combine": f"{outdir}/common/5_combine_h5ad",
+    "logdir": f"{logdir}/sample",
+    "logdir_combine": f"{logdir}/group",
+    "h5ad_substring": "scTE" if counter == "scTE" else "cellranger",
+    "Params": {
+        "scanpy": config.get("Params", {}).get("scanpy", {}),
+    },
+    "Procedure": {
+        "python": config.get("Procedure", {}).get("python") or "python",
+    },
+}
+module scanpy:
+    snakefile: "../modules/scanpy/scanpy.smk"
+    config: scanpy_config
+logger.info(f"Using scanpy for scRNA-seq downstream analysis. scanpy config: {scanpy_config}")
+use rule * from scanpy as scanpy_*

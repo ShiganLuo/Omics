@@ -540,8 +540,8 @@ class MetadataUtils:
             self.samples_dict[sample_id].fastq_dir = fastq_dir
             self.samples_dict[sample_id].sample_prefix = sample_prefix
 
-            # Also store design/group/organism if present
-            for col in ("design", "group", "organism"):
+            # Also store design/group/organism/tissue if present
+            for col in ("design", "group", "organism", "tissue"):
                 if col in df.columns:
                     setattr(self.samples_dict[sample_id], col, row[col])
 

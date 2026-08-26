@@ -208,10 +208,10 @@ UMI提取依赖序列不被破坏，建议先提取UMI，再做trim比较安全
 ## 13. scRNAseq.smk
 
 - **用途**：标准化 Scanpy 单细胞 RNA-seq 分析。
-- **输入**：单个 `.h5ad`，或由 `sample_h5ad` 提供的多个样本 h5ad。
+- **输入**：由 `tissue_samples` 按组织分组，每个样本的 h5ad 路径由 `indir + sample_id` 拼接。
 - **基础分析**：QC、线粒体比例过滤、归一化、log1p、高变基因、PCA、neighbors、UMAP、Leiden、marker 和差异表达。
 - **高级分析**：可配置启用 DPT 拟时序、RNA velocity、LIANA 细胞通讯和 infercnvpy CNV。
-- **架构**：规则位于 `modules/scanpy/scRNAseq_scanpy.smk`，本 subworkflow 只负责配置和编排。
+- **架构**：规则位于 `modules/scanpy/scanpy.smk`，本 subworkflow 只负责配置和编排。
 
 示例：
 

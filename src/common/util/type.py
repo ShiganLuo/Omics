@@ -34,6 +34,7 @@ class SampleInfo:
     ms_file: Optional[Path] = None # Mass Spectrometry file (.raw, .mzML, .mgf, etc.)
     fastq_dir: Optional[Path] = None # Directory containing FASTQ files for scRNA-seq
     sample_prefix: Optional[str] = None # Prefix for FASTQ files in the directory for scRNA-seq
+    tissue: Optional[str] = None # Tissue type for scRNA-seq grouping (e.g. PBMC, brain)
 
 @dataclass
 class DesignPair:

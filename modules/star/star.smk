@@ -11,6 +11,7 @@ indir= config.get("indir", "input")
 paired_samples = config.get("paired_samples", [])
 single_samples = config.get("single_samples", [])
 fasta = config.get('genome',{}).get('fasta')
+omics_type = config.get('omics_type', 'RNA-seq')
 if not fasta or not os.path.exists(fasta):
     raise ValueError(f"FASTA file not found: {fasta}. Please provide a valid genome FASTA file in the config.")
 gtf = config.get('genome',{}).get('gtf')
@@ -109,7 +110,11 @@ def get_alignment_input(wildcards):
     if wildcards.sample_id in paired_samples:
         logger.info(f"双端测序：{[paired_r1, paired_r2]}")
         logger.info(f"双端测序：{[paired_r1, paired_r2]}")
-        return [paired_r1, paired_r2]
+        if omics_type == "scRNAseq":
+            logger.info(f"Detected scRNA-seq data for sample {wildcards.sample_id}.R1 is expected to contain cell barcodes and UMIs, R2 contains the transcript sequence.")
+            return [paired_r2, paired_r1]
+        else:   
+            return [paired_r1, paired_r2]
     elif wildcards.sample_id in single_samples:
         logger.info(f"单端测序：{[single]}")
         logger.info(f"单端测序：{[single]}")

@@ -824,6 +824,10 @@ def runscRNAseq(
     counter = datajson["counter"]
     aligner = datajson["aligner"]
     if counter == "scTE":
+        # TEs are far less numerous than genes — median ~25 TE/cell
+        datajson["Params"]["scanpy"]["qc"]["min_genes"] = 10
+        datajson["Params"]["scanpy"]["qc"]["max_genes"] = 3000
+        datajson["Params"]["scanpy"]["qc"]["scrublet"] = False
         if aligner == "star":
             datajson["Params"]["scTE"]["cb_tag"] = "CR"
             datajson["Params"]["scTE"]["umi_tag"] = "UR"
@@ -833,16 +837,10 @@ def runscRNAseq(
         else:
             raise ValueError(f"Unsupported aligner for scTE counter: {aligner}, must be star or cellranger")
     elif counter == "cellranger":
+        # cellranger: keep defaults (min_genes=200, max_genes=6000, scrublet=True)
         pass
     else:
         raise ValueError(f"Unsupported counter type: {counter}, must be scTE or cellranger")
-    # Adjust scanpy QC params based on counter type
-    if counter == "scTE":
-        # TEs are far less numerous than genes — median ~25 TE/cell
-        datajson["Params"]["scanpy"]["qc"]["min_genes"] = 10
-        datajson["Params"]["scanpy"]["qc"]["max_genes"] = 3000
-        datajson["Params"]["scanpy"]["qc"]["scrublet"] = False
-    # cellranger: keep defaults (min_genes=200, max_genes=6000, scrublet=True)
     # Build tissue_samples for scanpy downstream
     tissue_samples = {}
     for sid in paired_samples + single_samples:

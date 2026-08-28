@@ -1,21 +1,3 @@
-# Auto-generated Apptainer definition file for scTE conda environment
-# Source YAML: scTE.yaml
-# Build: apptainer build scTE.sif scTE.def
-# Or:   apptainer build <output.sif> <def_file>
-
-Bootstrap: docker
-From: docker.m.daocloud.io/continuumio/miniconda3:latest
-
-%files
-    scTE.yaml /opt/conda/scTE.yaml
-
-%post
-    set -euo pipefail
-    export PATH="/opt/conda/bin:$PATH"
-    export CONDA_NO_PLUGINS=true
-    conda config --set solver classic
-    conda env create -f /opt/conda/scTE.yaml &&         conda clean -afy &&         rm /opt/conda/scTE.yaml
-
     # Fix scTE bugs: M<->MT mitochondrial naming mismatch
 
     # 1. Fix splitAllChrs in base.py (BAM processing)
@@ -80,21 +62,3 @@ if changed:
 else:
     print('scTE_build: already patched or no matching text')
 "
-
-    echo 'export PATH="/opt/conda/envs/scTE/bin:$PATH"' >> /etc/profile.d/conda_scTE.sh
-    echo 'export CONDA_DEFAULT_ENV=scTE' >> /etc/profile.d/conda_scTE.sh
-
-%environment
-    export PATH="/opt/conda/envs/scTE/bin:$PATH"
-    export CONDA_DEFAULT_ENV=scTE
-
-%runscript
-    exec "$@"
-
-%labels
-    Author genomestability
-    EnvName scTE
-
-%help
-    Apptainer image for conda environment 'scTE'.
-    Generated from scTE.yaml.

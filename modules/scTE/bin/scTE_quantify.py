@@ -38,12 +38,15 @@ def run_scTE(bam, outdir, index, cb_tag, umi_tag, threads, scte_bin, cwd=None):
 def scTE_csv_to_h5ad(csv_path, sample_id=""):
     """Convert scTE CSV output to h5ad AnnData object.
 
-    scTE outputs a CSV with cells as rows and TEs as columns.
+    scTE outputs a CSV with genes as rows and cells as columns.
+    Transpose to standard AnnData format (obs=cells, var=genes).
     """
     data = pd.read_csv(csv_path, index_col=0, header=0)
     data.index = data.index.astype(str).str.replace("/", "_", regex=False)
     if data.index.name and "/" in str(data.index.name):
         data.index.name = str(data.index.name).replace("/", "_")
+    # scTE: rows=genes, cols=cells → transpose to rows=cells, cols=genes
+    data = data.T
     X = sp.csr_matrix(data.values.astype("float32"))
     adata = ad.AnnData(
         X,

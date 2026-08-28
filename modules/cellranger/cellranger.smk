@@ -21,6 +21,8 @@ cellranger_ref_dir_provided = config.get("genome", {}).get("cellranger_ref_dir")
 fasta = config.get("genome", {}).get("fasta") or ""
 gtf = config.get("genome", {}).get("gtf") or ""
 cellranger_ref_dir = outdir + "/cellranger_ref"
+genome_name = config.get("Params", {}).get("cellranger", {}).get("mkref", {}).get("genome_name", "GRCh38")
+cellranger_transcriptome_dir = cellranger_ref_dir + "/" + genome_name
 cellranger_input_dict = config.get("cellranger_input_dict", {})
 
 
@@ -51,6 +53,7 @@ rule cellranger_ref:
             rule_logger = setup_logger(logger_name="cellranger_ref", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start cellranger_ref at {current_time}")
+            os.makedirs(str(output.ref_dir), exist_ok=True)
             command_script = os.path.join(str(output.ref_dir), f"cellranger_ref_{current_time}.sh")
             cmd = [
                 "python", params.script,
@@ -72,19 +75,17 @@ rule cellranger_ref:
                 f.write(f"cellranger_ref failed: {e}\n")
             raise RuntimeError(f"cellranger_ref failed: {e}\n")
 
-def get_input_for_cellranger_count():
+def get_input_for_cellranger_count(wildcards):
     """Get input files for cellranger_count rule."""
     in_dict = {}
-    fastq_dir = cellranger_input_dict.get(wildcards.sample_id, {}).get("fastq_dir")
-    sample_prefix = cellranger_input_dict.get(wildcards.sample_id, {}).get("sample_prefix")
-    in_dict["sample_prefix"] = sample_prefix
+    fastq_dir = cellranger_input_dict.get(wildcards.sample_id, {}).get("fastq_dir")    
     if not os.path.exists(fastq_dir):
         raise FileNotFoundError(f"FASTQ directory {fastq_dir} does not exist for sample {wildcards.sample_id}")
     if cellranger_ref_dir_provided and os.path.exists(cellranger_ref_dir_provided):
         in_dict["cellranger_ref_dir"] = cellranger_ref_dir_provided
     else:
         if fasta and gtf and os.path.exists(fasta) and os.path.exists(gtf):
-            in_dict["cellranger_ref_dir"] = cellranger_ref_dir
+            in_dict["cellranger_ref_dir"] = cellranger_transcriptome_dir
         else:
             raise ValueError(f"Neither transcriptome reference nor FASTA/GTF provided for sample {wildcards.sample_id}")
     in_dict["fastq_dir"] = fastq_dir
@@ -96,12 +97,8 @@ rule cellranger_count:
         unpack(get_input_for_cellranger_count)
     output:
         bam = outdir + "/{sample_id}/{sample_id}.bam",
-        raw_matrix_barcode = outdir + "/{sample_id}/raw_feature_bc_matrix/barcodes.tsv.gz",
-        raw_matrix_features = outdir + "/{sample_id}/raw_feature_bc_matrix/features.tsv.gz",
-        raw_matrix_matrix = outdir + "/{sample_id}/raw_feature_bc_matrix/matrix.mtx.gz",
-        filtered_matrix_barcode = outdir + "/{sample_id}/filtered_feature_bc_matrix/barcodes.tsv.gz",
-        filtered_matrix_features = outdir + "/{sample_id}/filtered_feature_bc_matrix/features.tsv.gz",
-        filtered_matrix_matrix = outdir + "/{sample_id}/filtered_feature_bc_matrix/matrix.mtx.gz",
+        raw_matrix = directory(outdir + "/{sample_id}/raw_feature_bc_matrix"),
+        filtered_matrix = directory(outdir + "/{sample_id}/filtered_feature_bc_matrix"),
         h5 = outdir + "/{sample_id}/filtered_feature_bc_matrix.h5"
     log:
         logdir + "/{sample_id}/cellranger_count.log"
@@ -114,6 +111,7 @@ rule cellranger_count:
         cellranger = config.get("Procedure", {}).get("cellranger") or "cellranger",
         create_bam = config.get("Params", {}).get("cellranger", {}).get("count", {}).get("create-bam") or False,
         nosecondary = config.get("Params", {}).get("cellranger", {}).get("count", {}).get("nosecondary") or True,
+        sample_prefix = lambda wildcards:cellranger_input_dict.get(wildcards.sample_id, {}).get("sample_prefix")
     run:
         log_path = str(log)
         try:
@@ -123,22 +121,27 @@ rule cellranger_count:
             rule_logger.info(f"Start cellranger_count for sample {wildcards.sample_id} at {current_time}")
             sample_id = wildcards.sample_id
             sample_outdir = os.path.join(outdir, sample_id)
-            os.makedirs(sample_outdir, exist_ok=True)
-            command_script = os.path.join(sample_outdir, f"cellranger_count_{current_time}.sh")
+            # Clean up stale sample directory (cellranger fails if dir exists but isn't a valid pipestance)
+            if os.path.exists(sample_outdir):
+                import shutil
+                rule_logger.warning(f"Removing stale sample directory: {sample_outdir}")
+                shutil.rmtree(sample_outdir)
+            # Don't create sample_outdir - cellranger will create it
+            command_script = os.path.join(outdir, f"cellranger_count_{sample_id}_{current_time}.sh")
             cmd = [
                 params.cellranger, "count",
                 "--id", sample_id,
                 "--transcriptome", input.cellranger_ref_dir,
                 "--fastqs", input.fastq_dir,
-                "--sample", input.sample_prefix,
+                "--sample", params.sample_prefix,
                 "--localcores", str(threads),
                 "--create-bam", str(params.create_bam).lower(),
-                "--output-dir", outdir,
             ]
             if params.nosecondary:
                 cmd.append("--nosecondary")
             with open(command_script, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
+                f.write(f"cd {outdir}\n")
                 f.write(" ".join(cmd) + "\n")
                 # Move outputs from outs/ to sample dir to match declared output paths
                 f.write(f"outs=\"{sample_outdir}/outs\"\n")
@@ -157,7 +160,7 @@ rule cellranger_to_h5ad:
     """Convert Cell Ranger filtered matrix to h5ad."""
     input:
         bam = outdir + "/{sample_id}/{sample_id}.bam",
-        filtered_matrix = outdir + "/{sample_id}/filtered_feature_bc_matrix",
+        filtered_matrix = directory(outdir + "/{sample_id}/filtered_feature_bc_matrix"),
     output:
         h5ad = h5ad_outdir + "/{sample_id}/{sample_id}_cellranger.h5ad"
     log:

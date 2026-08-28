@@ -97,6 +97,14 @@ def main():
         raw_csv_out = os.path.join(os.path.dirname(args.output), csv_base)
         shutil.copy2(csv_path, raw_csv_out)
         print(f"Saved raw scTE matrix to {raw_csv_out}")
+        # Save scTE_out.stat if present
+        stat_src = os.path.join(outdir, "scTE_out.stat")
+        if not os.path.exists(stat_src):
+            stat_src = os.path.join(tmpdir, "scTE_out.stat")
+        if os.path.exists(stat_src):
+            stat_dst = os.path.join(os.path.dirname(args.output), "scTE_out.stat")
+            shutil.copy2(stat_src, stat_dst)
+            print(f"Saved scTE_out.stat to {stat_dst}")
         adata.write_h5ad(args.output)
         print(f"Wrote {adata.n_obs} cells x {adata.n_vars} TEs to {args.output}")
 

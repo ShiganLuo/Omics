@@ -1,19 +1,25 @@
-"""Build Cell Ranger reference genome from Ensembl FASTA + GENCODE GTF.
+"""Build Cell Ranger reference genome from Ensembl FASTA + Ensembl GTF.
 
-Steps (mirrors 10x Genomics GRCh38-2024-A build script):
+Steps:
   1. Download source FASTA/GTF (or use local paths)
-  2. Modify FASTA headers: add chr prefix, handle chrM
-  3. Strip Ensembl ID version suffixes from GTF
-  4. Filter GTF by biotype allowlist (protein_coding, lncRNA, IG/TR genes)
-  5. Remove PAR_Y genes from chrY
-  6. Run cellranger mkref
+  2. Strip Ensembl ID version suffixes from GTF
+  3. Filter GTF by biotype allowlist (protein_coding, lncRNA, IG/TR genes)
+  4. Remove PAR_Y genes from Y
+  5. Run cellranger mkref (FASTA and GTF keep original Ensembl chromosome names)
 """
 import argparse
+import logging
 import os
 import re
 import subprocess
 import sys
 import urllib.request
+
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+sys.path.append(ROOT_DIR)
+from src.common.util.LogUtil import setup_logger
+
+logger = setup_logger(__name__, logging.INFO)
 
 
 # 10x Genomics standard biotype allowlist
@@ -29,34 +35,11 @@ BIOTYPE_PATTERN = (
 def download_or_copy(url_or_path, dest):
     """Download URL or copy local file to dest."""
     if url_or_path.startswith("http"):
-        print(f"Downloading {url_or_path} ...")
+        logger.info(f"Downloading {url_or_path} ...")
         urllib.request.urlretrieve(url_or_path, dest)
     else:
         import shutil
         shutil.copy2(url_or_path, dest)
-
-
-def modify_fasta_headers(fasta_in, fasta_out):
-    """Add chr prefix to autosomes/sex chr, handle chrM.
-
-    Input:  >1 dna:chromosome chromosome:GRCh38:1:1:248956422:1 REF
-    Output: >chr1 1
-    """
-    import gzip
-    opener = gzip.open if fasta_in.endswith(".gz") else open
-    with opener(fasta_in, "rt") as fin, open(fasta_out, "w") as fout:
-        for line in fin:
-            if line.startswith(">"):
-                # Replace metadata after space with contig name
-                parts = line[1:].split(None, 1)
-                name = parts[0]
-                chr_name = name
-                if re.match(r"^[0-9]+$", name) or name in ("X", "Y"):
-                    chr_name = f"chr{name}"
-                elif name == "MT":
-                    chr_name = "chrM"
-                line = f">{chr_name} {name}\n"
-            fout.write(line)
 
 
 def modify_gtf_ids(gtf_in, gtf_out):
@@ -83,8 +66,8 @@ def modify_gtf_ids(gtf_in, gtf_out):
 
 def filter_gtf_by_biotype(gtf_in, gtf_out, biotype_re):
     """Filter GTF: keep only allowed biotypes, exclude readthrough, remove PAR_Y."""
-    gene_pattern = re.compile(rf'gene_type "({BIOTYPE_PATTERN})"')
-    tx_pattern = re.compile(rf'transcript_type "({BIOTYPE_PATTERN})"')
+    gene_pattern = re.compile(rf'(?:gene_type|gene_biotype) "({BIOTYPE_PATTERN})"')
+    tx_pattern = re.compile(rf'(?:transcript_type|transcript_biotype) "({BIOTYPE_PATTERN})"')
     readthrough_pattern = re.compile(r'tag "readthrough_transcript"')
     gene_id_pattern = re.compile(r'(gene_id "[^"]+")')
 
@@ -110,7 +93,7 @@ def filter_gtf_by_biotype(gtf_in, gtf_out, biotype_re):
             if m:
                 gene_ids.add(m.group(1))
 
-    print(f"  {len(gene_ids)} genes pass biotype filter")
+    logger.info(f"{len(gene_ids)} genes pass biotype filter")
 
     # Step 2: write header
     with open(gtf_in, "r") as fin, open(gtf_out, "w") as fout:
@@ -131,8 +114,8 @@ def filter_gtf_by_biotype(gtf_in, gtf_out, biotype_re):
             # Check gene is in allowlist
             if not any(gid in fields[8] for gid in gene_ids):
                 continue
-            # Remove PAR_Y: exclude chrY entries in PAR range (except ENSG00000290840)
-            if fields[0] == "chrY":
+            # Remove PAR_Y: exclude Y entries in PAR range (except ENSG00000290840)
+            if fields[0] == "Y":
                 start = int(fields[3])
                 if start < 2752083 or start >= 56887903:
                     continue
@@ -141,8 +124,8 @@ def filter_gtf_by_biotype(gtf_in, gtf_out, biotype_re):
             fout.write(line)
 
 
-def run_cellranger_mkref(cellranger, genome_name, version, fasta, genes, nthreads):
-    """Run cellranger mkref."""
+def run_cellranger_mkref(cellranger, genome_name, version, fasta, genes, nthreads, cwd):
+    """Run cellranger mkref in the specified working directory."""
     cmd = [
         cellranger, "mkref",
         f"--ref-version={version}",
@@ -151,8 +134,9 @@ def run_cellranger_mkref(cellranger, genome_name, version, fasta, genes, nthread
         f"--genes={genes}",
         f"--nthreads={nthreads}",
     ]
-    print(f"Running: {' '.join(cmd)}")
-    subprocess.check_call(cmd)
+    logger.info(f"Running: {' '.join(cmd)}")
+    logger.info(f"Working directory: {cwd}")
+    subprocess.check_call(cmd, cwd=cwd)
 
 
 def main():
@@ -168,6 +152,11 @@ def main():
     parser.add_argument("--nthreads", type=int, default=16, help="Threads for mkref")
     args = parser.parse_args()
 
+    logger.info("Start cellranger_ref")
+    logger.info(f"FASTA: {args.fasta}")
+    logger.info(f"GTF: {args.gtf}")
+    logger.info(f"Genome: {args.genome}, Version: {args.version}")
+
     os.makedirs(args.output, exist_ok=True)
     build_dir = os.path.join(args.output, "build")
     source_dir = os.path.join(build_dir, "source")
@@ -178,42 +167,48 @@ def main():
     gtf_basename = os.path.basename(args.gtf).replace(".gz", "")
     fasta_src = os.path.join(source_dir, fasta_basename)
     gtf_src = os.path.join(source_dir, gtf_basename)
-    fasta_modified = os.path.join(build_dir, f"{fasta_basename}.modified")
-    gtf_modified = os.path.join(build_dir, f"{gtf_basename}.modified")
+    gtf_id_modified = os.path.join(build_dir, f"{gtf_basename}.id_modified")
     gtf_filtered = os.path.join(build_dir, f"{gtf_basename}.filtered")
 
     # Step 1: Download
     if not os.path.exists(fasta_src):
         download_or_copy(args.fasta, fasta_src)
     else:
-        print(f"  FASTA already exists: {fasta_src}")
+        logger.info(f"FASTA already exists: {fasta_src}")
 
     if not os.path.exists(gtf_src):
         download_or_copy(args.gtf, gtf_src)
     else:
-        print(f"  GTF already exists: {gtf_src}")
+        logger.info(f"GTF already exists: {gtf_src}")
 
-    # Step 2: Modify FASTA headers
-    print("Modifying FASTA headers ...")
-    modify_fasta_headers(fasta_src, fasta_modified)
+    # Step 2: Modify GTF IDs
+    logger.info("Modifying GTF IDs ...")
+    modify_gtf_ids(gtf_src, gtf_id_modified)
 
-    # Step 3: Modify GTF IDs
-    print("Modifying GTF IDs ...")
-    modify_gtf_ids(gtf_src, gtf_modified)
+    # Step 3: Filter GTF
+    logger.info("Filtering GTF by biotype ...")
+    filter_gtf_by_biotype(gtf_id_modified, gtf_filtered, BIOTYPE_PATTERN)
 
-    # Step 4: Filter GTF
-    print("Filtering GTF by biotype ...")
-    filter_gtf_by_biotype(gtf_modified, gtf_filtered, BIOTYPE_PATTERN)
-
-    # Step 5: Build reference
-    print("Building Cell Ranger reference ...")
+    # Step 4: Build reference
+    logger.info("Building Cell Ranger reference ...")
+    # Clean up stale mkref directory if present
+    mkref_dir = os.path.join(args.output, f"mkref_{args.genome}")
+    if os.path.exists(mkref_dir):
+        logger.warning(f"Removing stale mkref directory: {mkref_dir}")
+        import shutil
+        shutil.rmtree(mkref_dir)
     run_cellranger_mkref(
         args.cellranger, args.genome, args.version,
-        fasta_modified, gtf_filtered, args.nthreads,
+        fasta_src, gtf_filtered, args.nthreads,
+        cwd=args.output,
     )
 
-    print(f"Done. Reference built at {args.output}")
+    logger.info(f"Done. Reference built at {args.output}")
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as e:
+        logger.error(f"cellranger_ref failed: {e}")
+        sys.exit(1)

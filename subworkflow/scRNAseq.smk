@@ -14,7 +14,7 @@ rule all:
 genome = config.get("genome", {}).get("default")
 raw_bam_outdir = f"{outdir}/common/2_raw_bam"
 h5ad_outdir = f"{outdir}/common/3_raw_h5ad"
-if aligner == "star" and counter == "scTE":
+if aligner == "star":
     star_config = {
         "ROOT_DIR": ROOT_DIR,
         "env": config.get("env", {}),
@@ -24,6 +24,7 @@ if aligner == "star" and counter == "scTE":
         "logdir_index": f"{logdir}/group",
         "paired_samples": paired_samples,
         "single_samples": single_samples,
+        "omics_type": "scRNAseq",
         "Params": {
             "star": {
                 "outSAMattributes": config.get('Params', {}).get('star', {}).get('outSAMattributes'),
@@ -73,8 +74,6 @@ if aligner == "star" and counter == "scTE":
         config: scTE_config
     logger.info(f"Using scTE counter for scRNA-seq workflow. scTE config: {scTE_config}")
     use rule * from scTE as scRNAseq_*
-
-
 
 elif aligner == "cellranger":
     cellranger_config = {
@@ -154,4 +153,4 @@ module scanpy:
     snakefile: "../modules/scanpy/scanpy.smk"
     config: scanpy_config
 logger.info(f"Using scanpy for scRNA-seq downstream analysis. scanpy config: {scanpy_config}")
-use rule * from scanpy as scanpy_*
+use rule * from scanpy as scRNAseq_*

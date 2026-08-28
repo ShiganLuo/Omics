@@ -123,6 +123,12 @@ tabix -g gff [gft.gz]
   }
 }
 ```
+注意：
+aligner: star, counter: scTE
+aligner: cellranger, counter: scTE
+aligner: cellranger, counter: cellranger
+不存在aligner: star counter: star，因为cellranger比对起本身是对star修改而来，而且只接受FASTQ.
+所以如果你选择了aligner: cellranger, counter: scTE；虽然使用cellranger比对的，scTE定量，但是cellranger本身进行了定量。建议使用aligner: cellranger, counter: scTE
 
 ### `spatial_transcriptomics`
 

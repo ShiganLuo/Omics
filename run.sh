@@ -68,7 +68,9 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 python ${SCRIPT_DIR}/run.py \
     -m /home/luosg/Data/genomeStability/data/20260820_scRNAseq/meta_input.tsv \
     -w scRNAseq \
-    -o /home/luosg/Data/genomeStability/output/luancao \
+    -o /home/luosg/Data/genomeStability/output/luancao_cellranger \
     -t 48 \
     --log /home/luosg/Data/genomeStability/log/scRNAseq.log \
-    --sdm
+    --sdm \
+    --counter cellranger \
+    --aligner cellranger 

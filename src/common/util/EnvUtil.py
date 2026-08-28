@@ -337,7 +337,7 @@ class EnvUtil:
         -------
         Dict[str, object]
             Keys: ``name`` (Optional[str]), ``channels`` (List[str]),
-            ``dependencies`` (List[str]).
+            ``dependencies`` (List[str]), ``pip_dependencies`` (List[str]).
         """
         p = Path(yaml_path)
         text = p.read_text(encoding="utf-8")
@@ -345,8 +345,10 @@ class EnvUtil:
         name: Optional[str] = None
         channels: List[str] = []
         deps: List[str] = []
+        pip_deps: List[str] = []
 
         current_section: Optional[str] = None
+        in_pip_subsection: bool = False
         for raw_line in text.splitlines():
             stripped = raw_line.rstrip()
             if not stripped or stripped.startswith("#"):
@@ -357,14 +359,17 @@ class EnvUtil:
                 m = re.match(r"^(\w+):\s*(.*)", stripped)
                 if not m:
                     current_section = None
+                    in_pip_subsection = False
                     continue
                 key, val = m.group(1), m.group(2)
                 if key == "name" and val:
                     name = val.strip()
                     current_section = None
+                    in_pip_subsection = False
                 elif key in ("channels", "dependencies") and val:
                     # Inline value, e.g. "dependencies: [a, b]"
                     current_section = key
+                    in_pip_subsection = False
                     items = [x.strip() for x in val.strip("[]").split(",") if x.strip()]
                     if key == "channels":
                         channels.extend(items)
@@ -372,8 +377,10 @@ class EnvUtil:
                         deps.extend(items)
                 elif key in ("channels", "dependencies"):
                     current_section = key
+                    in_pip_subsection = False
                 else:
                     current_section = None
+                    in_pip_subsection = False
             else:
                 # Indented list item
                 m = re.match(r"^\s+-\s+(.+)", stripped)
@@ -382,15 +389,27 @@ class EnvUtil:
                     if current_section == "channels":
                         channels.append(item)
                     elif current_section == "dependencies":
-                        # Skip nested dicts (pip: section) -- handled separately
-                        if ":" in item and not item.startswith("'") and not item.startswith('"'):
+                        if in_pip_subsection:
+                            # pip: sub-section items
+                            pip_deps.append(item)
+                        elif ":" in item and not item.startswith("'") and not item.startswith('"'):
+                            # Nested dict marker, e.g. "pip:"
+                            if item.rstrip(":") == "pip":
+                                in_pip_subsection = True
                             continue
-                        deps.append(item)
+                        else:
+                            deps.append(item)
+                # Check for standalone "pip:" line under dependencies
+                elif current_section == "dependencies":
+                    m2 = re.match(r"^\s+pip:\s*$", stripped)
+                    if m2:
+                        in_pip_subsection = True
 
         return {
             "name": name,
             "channels": channels,
             "dependencies": deps,
+            "pip_dependencies": pip_deps,
         }
 
     @staticmethod
@@ -425,6 +444,39 @@ class EnvUtil:
     # ------------------------------------------------------------------
     APPTAINER_BOOTSTRAP = "docker"
     APPTAINER_FROM = "docker.m.daocloud.io/continuumio/miniconda3:latest"
+
+    @staticmethod
+    def is_pypi_only(yaml_path: str) -> bool:
+        """Check if a conda YAML contains only PyPI dependencies.
+
+        Returns True when:
+        - No conda channels are specified (or only defaults)
+        - No conda dependencies beyond ``pip`` itself
+        - All actual packages are under the ``pip:`` sub-section
+
+        Parameters
+        ----------
+        yaml_path : str
+            Path to the conda env YAML.
+
+        Returns
+        -------
+        bool
+            True if all packages are PyPI-only.
+        """
+        parsed = EnvUtil.parse_conda_yaml(yaml_path)
+        deps: List[str] = parsed["dependencies"]  # type: ignore[assignment]
+        # conda deps that are just python/pip meta-packages are fine
+        conda_deps = [d for d in deps if not re.match(r"^(python|pip)\b", d.strip(), re.I)]
+        # If there are conda channels + conda deps, it's not pypi-only
+        if parsed["channels"] and conda_deps:
+            return False
+        # If there are conda deps (non-pip), it's not pypi-only
+        if conda_deps:
+            return False
+        # Must have pip dependencies to be pypi-only
+        pip_deps: List[str] = parsed.get("pip_dependencies", [])  # type: ignore[assignment]
+        return bool(pip_deps)
 
     @classmethod
     def generate_def_file(
@@ -481,12 +533,34 @@ class EnvUtil:
 
         yaml_content = yaml.read_text(encoding="utf-8")
 
-        def_text = cls._render_def(
-            env_name=env_name,
-            yaml_filename=yaml.name,
-            yaml_content=yaml_content,
-            def_filename=Path(def_path).name,
-        )
+        # Read optional post-install hook: <env_name>.post.sh
+        post_hook = ""
+        hook_path = yaml.parent / f"{env_name}.post.sh"
+        if hook_path.is_file():
+            post_hook = hook_path.read_text(encoding="utf-8").rstrip()
+            logger.info(f"Found post-install hook: {hook_path}")
+
+        # Check if all packages are PyPI-only -> use uv template
+        pypi_only = cls.is_pypi_only(str(yaml))
+        parsed = cls.parse_conda_yaml(str(yaml))
+        pip_packages: List[str] = parsed.get("pip_dependencies", [])  # type: ignore[assignment]
+
+        if pypi_only:
+            def_text = cls._render_def_uv(
+                env_name=env_name,
+                pip_packages=pip_packages,
+                yaml_filename=yaml.name,
+                yaml_content=yaml_content,
+                def_filename=Path(def_path).name,
+            )
+        else:
+            def_text = cls._render_def(
+                env_name=env_name,
+                yaml_filename=yaml.name,
+                yaml_content=yaml_content,
+                def_filename=Path(def_path).name,
+                post_hook=post_hook,
+            )
 
         out = Path(def_path)
         out.parent.mkdir(parents=True, exist_ok=True)
@@ -502,6 +576,7 @@ class EnvUtil:
         yaml_filename: str,
         yaml_content: str,
         def_filename: str = "env.def",
+        post_hook: str = "",
     ) -> str:
         """Render the Apptainer def file text from a template.
 
@@ -515,12 +590,15 @@ class EnvUtil:
             Full text of the conda YAML (embedded as comment for reference).
         def_filename : str
             Filename of the .def file (for the ``# Build:`` comment).
+        post_hook : str
+            Extra shell commands appended to the end of ``%post``.
 
         Returns
         -------
         str
             The rendered ``.def`` file content.
         """
+        hook_block = f"\n{post_hook}\n" if post_hook else ""
         return f"""# Auto-generated Apptainer definition file for {env_name} conda environment
 # Source YAML: {yaml_filename}
 # Build: apptainer build {env_name}.sif {def_filename}
@@ -540,7 +618,7 @@ From: {cls.APPTAINER_FROM}
     conda env create -f /opt/conda/{yaml_filename} && \
         conda clean -afy && \
         rm /opt/conda/{yaml_filename}
-
+{hook_block}
     echo 'export PATH="/opt/conda/envs/{env_name}/bin:$PATH"' >> /etc/profile.d/conda_{env_name}.sh
     echo 'export CONDA_DEFAULT_ENV={env_name}' >> /etc/profile.d/conda_{env_name}.sh
 
@@ -558,6 +636,68 @@ From: {cls.APPTAINER_FROM}
 %help
     Apptainer image for conda environment '{env_name}'.
     Generated from {yaml_filename}.
+"""
+
+    UV_FROM = "docker.m.daocloud.io/python:3.11-slim"
+
+    @classmethod
+    def _render_def_uv(
+        cls,
+        env_name: str,
+        pip_packages: List[str],
+        yaml_filename: str,
+        yaml_content: str,
+        def_filename: str = "env.def",
+    ) -> str:
+        """Render an Apptainer def file using uv for PyPI-only packages.
+
+        Parameters
+        ----------
+        env_name : str
+            Environment name.
+        pip_packages : List[str]
+            List of PyPI package names to install.
+        yaml_filename : str
+            Filename of the source YAML (for the comment).
+        yaml_content : str
+            Full text of the YAML (embedded as comment for reference).
+        def_filename : str
+            Filename of the .def file (for the ``# Build:`` comment).
+
+        Returns
+        -------
+        str
+            The rendered ``.def`` file content.
+        """
+        pip_args = " ".join(pip_packages)
+        return f"""# Auto-generated Apptainer definition file for {env_name} (PyPI/uv)
+# Source YAML: {yaml_filename}
+# Build: apptainer build {env_name}.sif {def_filename}
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: {cls.UV_FROM}
+
+%post
+    set -euo pipefail
+    apt-get update && apt-get install -y --no-install-recommends build-essential && \\
+        rm -rf /var/lib/apt/lists/*
+    pip install --no-cache-dir uv && \\
+        uv pip install --system --no-cache-dir {pip_args}
+
+%environment
+    export PATH="/usr/local/bin:$PATH"
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName {env_name}
+
+%help
+    Apptainer image for {env_name} (PyPI: {pip_args}).
+    Built with uv.
 """
 
     # ------------------------------------------------------------------
@@ -686,7 +826,7 @@ CMD ["bash"]
         def_path: str,
         output_sif: str,
         fakeroot: bool = True,
-        force: bool = True,
+        force: bool = False,
         timeout: Optional[int] = None,
     ) -> str:
         """Run ``apptainer build`` to create a SIF image from a def file.
@@ -725,6 +865,33 @@ CMD ["bash"]
 
         logger.info(f"Building SIF: {out}")
         self._run_streaming(cmd, cwd=str(df.parent), timeout=timeout)
+
+        # Verify build: check SIF is not just base image
+        sif_size_mb = out.stat().st_size / (1024 * 1024)
+        if sif_size_mb < 350:
+            raise RuntimeError(
+                f"SIF too small ({sif_size_mb:.0f} MB) — "
+                f"build likely failed. Check build output above."
+            )
+
+        # Verify build: check conda env exists inside SIF
+        env_name_from_def = self.resolve_env_name_from_def(str(df))
+        verify_cmd = [
+            "apptainer", "exec", str(out),
+            "conda", "env", "list",
+        ]
+        try:
+            result = subprocess.run(
+                verify_cmd, capture_output=True, text=True, timeout=30,
+            )
+            if env_name_from_def not in result.stdout:
+                raise RuntimeError(
+                    f"Conda env '{env_name_from_def}' not found in SIF — "
+                    f"build failed silently. Check build output above."
+                )
+        except subprocess.TimeoutExpired:
+            logger.warning("SIF verification timed out, skipping env check")
+
         logger.info(f"SIF built: {out}")
 
         return str(out)
@@ -739,7 +906,7 @@ CMD ["bash"]
         output_subdir: Optional[str] = None,
         skip_existing: bool = True,
         fakeroot: bool = True,
-        force: bool = True,
+        force: bool = False,
         build_timeout: Optional[int] = None,
         generate_only: bool = False,
     ) -> Dict[str, str]:
@@ -952,7 +1119,7 @@ CMD ["bash"]
         module_dir: str,
         skip_existing: bool = True,
         fakeroot: bool = True,
-        force: bool = True,
+        force: bool = False,
         build_timeout: Optional[int] = None,
         generate_only: bool = False,
     ) -> List[Dict[str, str]]:
@@ -999,7 +1166,7 @@ CMD ["bash"]
         self,
         skip_existing: bool = True,
         fakeroot: bool = True,
-        force: bool = True,
+        force: bool = False,
         build_timeout: Optional[int] = None,
         generate_only: bool = False,
     ) -> List[Dict[str, str]]:
@@ -1525,7 +1692,7 @@ CMD ["bash"]
         def_path: str,
         env_name: Optional[str] = None,
         fakeroot: bool = True,
-        force: bool = True,
+        force: bool = False,
         skip_existing: bool = True,
         build_timeout: Optional[int] = None,
     ) -> Dict[str, str]:
@@ -1692,7 +1859,7 @@ CMD ["bash"]
     def process_all_def(
         self,
         fakeroot: bool = True,
-        force: bool = True,
+        force: bool = False,
         skip_existing: bool = True,
         build_timeout: Optional[int] = None,
     ) -> List[Dict[str, str]]:
@@ -1840,6 +2007,13 @@ def main() -> None:
         default=True,
         help="Disable --fakeroot in apptainer build.",
     )
+    appt_common.add_argument(
+        "--force",
+        action="store_true",
+        dest="force",
+        default=False,
+        help="Overwrite existing SIF in apptainer build.",
+    )
 
     # --- args shared by docker subcommands ---
     docker_common = argparse.ArgumentParser(add_help=False)
@@ -1963,6 +2137,10 @@ def main() -> None:
 
     args = parser.parse_args()
 
+    # --force implies --no-skip-existing
+    if getattr(args, "force", False):
+        args.skip_existing = False
+
     # ------------------------------------------------------------------
     # Validate -y / -f file arguments
     # ------------------------------------------------------------------
@@ -2030,6 +2208,7 @@ def main() -> None:
                     def_path=args.file,
                     env_name=args.env_name,
                     fakeroot=args.fakeroot,
+                    force=args.force,
                     skip_existing=args.skip_existing,
                     build_timeout=args.build_timeout,
                 )
@@ -2037,6 +2216,7 @@ def main() -> None:
             else:
                 results = util.process_all_def(
                     fakeroot=args.fakeroot,
+                    force=args.force,
                     skip_existing=args.skip_existing,
                     build_timeout=args.build_timeout,
                 )
@@ -2049,6 +2229,7 @@ def main() -> None:
                     env_name=args.env_name,
                     skip_existing=args.skip_existing,
                     fakeroot=args.fakeroot,
+                    force=args.force,
                     build_timeout=args.build_timeout,
                 )
                 logger.info(f"Result: {result}")
@@ -2056,6 +2237,7 @@ def main() -> None:
                 results = util.process_all_apptainer(
                     skip_existing=args.skip_existing,
                     fakeroot=args.fakeroot,
+                    force=args.force,
                     build_timeout=args.build_timeout,
                 )
                 logger.info(f"Processed {len(results)} YAML(s)")

@@ -48,7 +48,7 @@ if aligner == "star" and counter == "scTE":
         snakefile: "../modules/star/star.smk"
         config: star_config
     logger.info(f"Using STAR aligner with scTE counter for scRNA-seq workflow. STAR config: {star_config}")
-    use rule * from star as star_*
+    use rule * from star as scRNAseq_*
     scTE_config = {
         "ROOT_DIR": ROOT_DIR,
         "env": config.get("env", {}),
@@ -72,7 +72,7 @@ if aligner == "star" and counter == "scTE":
         snakefile: "../modules/scTE/scTE.smk"
         config: scTE_config
     logger.info(f"Using scTE counter for scRNA-seq workflow. scTE config: {scTE_config}")
-    use rule * from scTE as scTE_*
+    use rule * from scTE as scRNAseq_*
 
 
 
@@ -90,9 +90,9 @@ elif aligner == "cellranger":
             "cellranger": config.get("Params", {}).get("cellranger", {}),
         },
         "genome": {
-            "cellranger_ref_dir": config.get("genome", {}).get("cellranger_ref_dir"),
-            "fasta": config.get("Params", {}).get("cellranger_ref", {}).get("fasta"),
-            "gtf": config.get("Params", {}).get("cellranger_ref", {}).get("gtf")
+            "cellranger_ref_dir": config.get("genome", {}).get("references",{}).get(genome,{}).get("cellranger_ref_dir"),
+            "fasta": config.get("genome", {}).get("references",{}).get(genome,{}).get("fasta"),
+            "gtf": config.get("genome", {}).get("references",{}).get(genome,{}).get("gtf")
         },
         "Procedure": {
             "cellranger": config.get("Procedure", {}).get("cellranger") or "cellranger"
@@ -102,7 +102,7 @@ elif aligner == "cellranger":
         snakefile: "../modules/cellranger/cellranger.smk"
         config: cellranger_config
     logger.info(f"Using Cell Ranger aligner for scRNA-seq workflow. Cell Ranger config: {cellranger_config}")
-    use rule * from cellranger as cellranger_*
+    use rule * from cellranger as scRNAseq_*
 
     if counter == "scTE":
         scTE_config = {
@@ -128,7 +128,7 @@ elif aligner == "cellranger":
             snakefile: "../modules/scTE/scTE.smk"
             config: scTE_config
         logger.info(f"Using scTE counter for scRNA-seq workflow. scTE config: {scTE_config}")
-        use rule * from scTE as scTE_*
+        use rule * from scTE as scRNAseq_*
 
 else:
     raise ValueError(f"Unsupported aligner or counter: {aligner}, {counter}. Please choose either 'star' or 'cellranger' for aligner and 'scTE' or 'cellranger' for counter.")

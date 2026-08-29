@@ -67,6 +67,16 @@
     "featureCounts": {
       "type": "str",
       "required": true
+    },
+    "fastqc": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    },
+    "tailer": {
+      "type": "null",
+      "nullable": true,
+      "required": false
     }
   },
   "Params": {
@@ -109,6 +119,10 @@
         "outFilterMismatchNoverLmax": {
           "type": "float",
           "required": true
+        },
+        "alignEndsType": {
+          "type": "str",
+          "required": false
         }
       },
       "pass2": {
@@ -207,10 +221,6 @@
       }
     },
     "star_3pass_gene": {
-      "mode": {
-        "type": "str",
-        "required": true
-      },
       "ambiguous": {
         "type": "str",
         "required": true
@@ -246,10 +256,6 @@
           "alignIntronMin": {
             "type": "int",
             "required": true
-          },
-          "alignMatesGapMax": {
-            "type": "int",
-            "required": true
           }
         },
         "pass2": {
@@ -276,6 +282,18 @@
           "alignMatesGapMax": {
             "type": "int",
             "required": true
+          },
+          "clip3pNbases": {
+            "type": "str",
+            "required": false
+          },
+          "clip5pNbases": {
+            "type": "str",
+            "required": false
+          },
+          "outFilterMismatchNoverReadLmax": {
+            "type": "float",
+            "required": false
           }
         },
         "pass3": {
@@ -312,7 +330,20 @@
         }
       }
     },
-    "tailer": {},
+    "tailer": {
+      "read": {
+        "type": "int",
+        "required": false
+      },
+      "rev_comp": {
+        "type": "bool",
+        "required": false
+      },
+      "threshold": {
+        "type": "int",
+        "required": false
+      }
+    },
     "track": {
       "igv": {
         "default": {
@@ -321,7 +352,95 @@
         },
         "configs": {
           "type": "dict",
-          "required": true
+          "required": true,
+          "GRCh38": {
+            "type": "dict",
+            "required": false,
+            "cytobandURL": {
+              "type": "str",
+              "required": false
+            },
+            "fastaURL": {
+              "type": "str",
+              "required": false
+            },
+            "id": {
+              "type": "str",
+              "required": false
+            },
+            "indexURL": {
+              "type": "str",
+              "required": false
+            },
+            "js": {
+              "type": "str",
+              "required": false
+            },
+            "name": {
+              "type": "str",
+              "required": false
+            },
+            "publicPathMap": {
+              "type": "dict",
+              "required": false,
+              "/home/luosg/Data/genomeStability/": {
+                "type": "str",
+                "required": false
+              },
+              "/home/luosg/Database/Reference/": {
+                "type": "str",
+                "required": false
+              }
+            },
+            "tracks": {
+              "type": "list",
+              "required": false
+            }
+          },
+          "GRCm39": {
+            "type": "dict",
+            "required": false,
+            "cytobandURL": {
+              "type": "str",
+              "required": false
+            },
+            "fastaURL": {
+              "type": "str",
+              "required": false
+            },
+            "id": {
+              "type": "str",
+              "required": false
+            },
+            "indexURL": {
+              "type": "str",
+              "required": false
+            },
+            "js": {
+              "type": "str",
+              "required": false
+            },
+            "name": {
+              "type": "str",
+              "required": false
+            },
+            "publicPathMap": {
+              "type": "dict",
+              "required": false,
+              "/home/luosg/Data/genomeStability/": {
+                "type": "str",
+                "required": false
+              },
+              "/home/luosg/Database/Reference/": {
+                "type": "str",
+                "required": false
+              }
+            },
+            "tracks": {
+              "type": "list",
+              "required": false
+            }
+          }
         }
       }
     }
@@ -361,6 +480,87 @@
       "type": "null",
       "nullable": true,
       "required": false
+    },
+    "smallrna_star_index_dir": {
+      "type": "null",
+      "nullable": true,
+      "required": false
     }
+  },
+  "env": {
+    "type": "dict",
+    "required": false,
+    "demultiplexer": {
+      "type": "str",
+      "required": false
+    },
+    "env_dir": {
+      "type": "str",
+      "required": false
+    },
+    "fastqc": {
+      "type": "str",
+      "required": false
+    },
+    "featureCounts": {
+      "type": "str",
+      "required": false
+    },
+    "genome": {
+      "type": "str",
+      "required": false
+    },
+    "hisat2": {
+      "type": "str",
+      "required": false
+    },
+    "igv": {
+      "type": "str",
+      "required": false
+    },
+    "macs3": {
+      "type": "str",
+      "required": false
+    },
+    "ncRNAseq_report": {
+      "type": "str",
+      "required": false
+    },
+    "star": {
+      "type": "str",
+      "required": false
+    },
+    "subsample": {
+      "type": "str",
+      "required": false
+    },
+    "tailer": {
+      "type": "str",
+      "required": false
+    },
+    "track": {
+      "type": "str",
+      "required": false
+    },
+    "trim-galore": {
+      "type": "str",
+      "required": false
+    }
+  },
+  "input_samples": {
+    "type": "list",
+    "required": false
+  },
+  "ip_samples": {
+    "type": "list",
+    "required": false
+  },
+  "raw_files": {
+    "type": "list",
+    "required": false
+  },
+  "sample_ip_input_map": {
+    "type": "dict",
+    "required": false
   }
 }

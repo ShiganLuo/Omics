@@ -8,9 +8,29 @@
     "type": "dict",
     "required": false,
     "properties": {
-      "env_dir": {"type": "str", "nullable": true, "required": false},
-      "scTE": {"type": "str", "nullable": true, "required": false},
-      "cellranger": {"type": "str", "nullable": true, "required": false}
+      "env_dir": {
+        "type": "str",
+        "nullable": true,
+        "required": false
+      },
+      "scTE": {
+        "type": "str",
+        "nullable": true,
+        "required": false
+      },
+      "cellranger": {
+        "type": "str",
+        "nullable": true,
+        "required": false
+      },
+      "scanpy": {
+        "type": "str",
+        "required": false
+      },
+      "star": {
+        "type": "str",
+        "required": false
+      }
     }
   },
   "indir": {
@@ -124,6 +144,98 @@
               "path": "dir"
             }
           }
+        },
+        "GRCh38": {
+          "type": "dict",
+          "required": false,
+          "cellranger_ref_dir": {
+            "type": "null",
+            "nullable": true,
+            "required": false
+          },
+          "fasta": {
+            "type": "str",
+            "required": false
+          },
+          "gtf": {
+            "type": "str",
+            "required": false
+          },
+          "scTE_index": {
+            "type": "null",
+            "nullable": true,
+            "required": false
+          },
+          "star_index_dir": {
+            "type": "null",
+            "nullable": true,
+            "required": false
+          },
+          "te_bed": {
+            "type": "str",
+            "required": false
+          }
+        },
+        "GRCm39": {
+          "type": "dict",
+          "required": false,
+          "cellranger_ref_dir": {
+            "type": "null",
+            "nullable": true,
+            "required": false
+          },
+          "fasta": {
+            "type": "str",
+            "required": false
+          },
+          "gtf": {
+            "type": "str",
+            "required": false
+          },
+          "scTE_index": {
+            "type": "null",
+            "nullable": true,
+            "required": false
+          },
+          "star_index_dir": {
+            "type": "null",
+            "nullable": true,
+            "required": false
+          },
+          "te_bed": {
+            "type": "str",
+            "required": false
+          }
+        },
+        "Mmul_10": {
+          "type": "dict",
+          "required": false,
+          "cellranger_ref_dir": {
+            "type": "str",
+            "required": false
+          },
+          "fasta": {
+            "type": "str",
+            "required": false
+          },
+          "gtf": {
+            "type": "str",
+            "required": false
+          },
+          "scTE_index": {
+            "type": "null",
+            "nullable": true,
+            "required": false
+          },
+          "star_index_dir": {
+            "type": "null",
+            "nullable": true,
+            "required": false
+          },
+          "te_bed": {
+            "type": "str",
+            "required": false
+          }
         }
       },
       "scTE_index": {
@@ -172,6 +284,10 @@
       "soloBarcodeReadLength": {
         "type": "int",
         "required": true
+      },
+      "limitSjdbInsertNsj": {
+        "type": "int",
+        "required": false
       }
     },
     "cellranger": {
@@ -232,42 +348,398 @@
         "required": true
       },
       "qc": {
-        "min_genes": {"type": "int", "required": false},
-        "max_genes": {"type": "int", "required": false},
-        "max_pct_mt": {"type": "float", "required": false},
-        "n_top_genes": {"type": "int", "required": false},
-        "scrublet": {"type": "bool", "required": false},
-        "doublet_rate": {"type": "float", "required": false}
+        "min_genes": {
+          "type": "int",
+          "required": false
+        },
+        "max_genes": {
+          "type": "int",
+          "required": false
+        },
+        "max_pct_mt": {
+          "type": "float",
+          "required": false
+        },
+        "n_top_genes": {
+          "type": "int",
+          "required": false
+        },
+        "scrublet": {
+          "type": "bool",
+          "required": false
+        },
+        "doublet_rate": {
+          "type": "float",
+          "required": false
+        }
       },
       "cluster": {
-        "n_pcs": {"type": "int", "required": false},
-        "n_neighbors": {"type": "int", "required": false},
-        "resolution": {"type": "float", "required": false}
+        "n_pcs": {
+          "type": "int",
+          "required": false
+        },
+        "n_neighbors": {
+          "type": "int",
+          "required": false
+        },
+        "resolution": {
+          "type": "float",
+          "required": false
+        }
       },
       "batch": {
-        "n_pcs": {"type": "int", "required": false},
-        "n_neighbors": {"type": "int", "required": false},
-        "resolution": {"type": "float", "required": false},
-        "method": {"type": "str", "required": false},
-        "batch_key": {"type": "str", "required": false}
+        "n_pcs": {
+          "type": "int",
+          "required": false
+        },
+        "n_neighbors": {
+          "type": "int",
+          "required": false
+        },
+        "resolution": {
+          "type": "float",
+          "required": false
+        },
+        "method": {
+          "type": "str",
+          "required": false
+        },
+        "batch_key": {
+          "type": "str",
+          "required": false
+        }
       },
       "annotate": {
-        "marker_file": {"type": "str", "required": false},
-        "celltypist_model": {"type": "str", "required": false},
-        "llm_method": {"type": "str", "required": false},
-        "llm_model": {"type": "str", "required": false},
-        "llm_api_key": {"type": "str", "required": false},
-        "llm_base_url": {"type": "str", "required": false},
-        "llm_top_genes": {"type": "int", "required": false},
-        "annotate_group": {"type": "str", "required": false}
+        "marker_file": {
+          "type": "str",
+          "required": false
+        },
+        "celltypist_model": {
+          "type": "str",
+          "required": false
+        },
+        "llm_method": {
+          "type": "str",
+          "required": false
+        },
+        "llm_model": {
+          "type": "str",
+          "required": false
+        },
+        "llm_api_key": {
+          "type": "str",
+          "required": false
+        },
+        "llm_base_url": {
+          "type": "str",
+          "required": false
+        },
+        "llm_top_genes": {
+          "type": "int",
+          "required": false
+        },
+        "annotate_group": {
+          "type": "str",
+          "required": false
+        }
       },
       "advanced": {
-        "trajectory": {"type": "bool", "required": false},
-        "velocity": {"type": "bool", "required": false},
-        "communication": {"type": "bool", "required": false},
-        "cnv": {"type": "bool", "required": false},
-        "gtf": {"type": "str", "required": false},
-        "cnv_reference": {"type": "str", "required": false}
+        "trajectory": {
+          "type": "bool",
+          "required": false
+        },
+        "velocity": {
+          "type": "bool",
+          "required": false
+        },
+        "communication": {
+          "type": "bool",
+          "required": false
+        },
+        "cnv": {
+          "type": "bool",
+          "required": false
+        },
+        "gtf": {
+          "type": "str",
+          "required": false
+        },
+        "cnv_reference": {
+          "type": "str",
+          "required": false
+        }
+      },
+      "cellranger": {
+        "type": "dict",
+        "required": false,
+        "advanced": {
+          "type": "dict",
+          "required": false,
+          "cnv": {
+            "type": "bool",
+            "required": false
+          },
+          "cnv_reference": {
+            "type": "str",
+            "required": false
+          },
+          "communication": {
+            "type": "bool",
+            "required": false
+          },
+          "gtf": {
+            "type": "str",
+            "required": false
+          },
+          "trajectory": {
+            "type": "bool",
+            "required": false
+          },
+          "velocity": {
+            "type": "bool",
+            "required": false
+          }
+        },
+        "annotate": {
+          "type": "dict",
+          "required": false,
+          "annotate_group": {
+            "type": "str",
+            "required": false
+          },
+          "celltypist_model": {
+            "type": "str",
+            "required": false
+          },
+          "llm_api_key": {
+            "type": "str",
+            "required": false
+          },
+          "llm_base_url": {
+            "type": "str",
+            "required": false
+          },
+          "llm_method": {
+            "type": "str",
+            "required": false
+          },
+          "llm_model": {
+            "type": "str",
+            "required": false
+          },
+          "llm_top_genes": {
+            "type": "int",
+            "required": false
+          },
+          "marker_file": {
+            "type": "str",
+            "required": false
+          }
+        },
+        "batch": {
+          "type": "dict",
+          "required": false,
+          "batch_key": {
+            "type": "str",
+            "required": false
+          },
+          "method": {
+            "type": "str",
+            "required": false
+          },
+          "n_neighbors": {
+            "type": "int",
+            "required": false
+          },
+          "n_pcs": {
+            "type": "int",
+            "required": false
+          },
+          "resolution": {
+            "type": "float",
+            "required": false
+          }
+        },
+        "cluster": {
+          "type": "dict",
+          "required": false,
+          "n_neighbors": {
+            "type": "int",
+            "required": false
+          },
+          "n_pcs": {
+            "type": "int",
+            "required": false
+          },
+          "resolution": {
+            "type": "float",
+            "required": false
+          }
+        },
+        "qc": {
+          "type": "dict",
+          "required": false,
+          "doublet_rate": {
+            "type": "float",
+            "required": false
+          },
+          "max_genes": {
+            "type": "int",
+            "required": false
+          },
+          "max_pct_mt": {
+            "type": "int",
+            "required": false
+          },
+          "min_genes": {
+            "type": "int",
+            "required": false
+          },
+          "n_top_genes": {
+            "type": "int",
+            "required": false
+          },
+          "scrublet": {
+            "type": "bool",
+            "required": false
+          }
+        }
+      },
+      "scTE": {
+        "type": "dict",
+        "required": false,
+        "advanced": {
+          "type": "dict",
+          "required": false,
+          "cnv": {
+            "type": "bool",
+            "required": false
+          },
+          "cnv_reference": {
+            "type": "str",
+            "required": false
+          },
+          "communication": {
+            "type": "bool",
+            "required": false
+          },
+          "gtf": {
+            "type": "str",
+            "required": false
+          },
+          "trajectory": {
+            "type": "bool",
+            "required": false
+          },
+          "velocity": {
+            "type": "bool",
+            "required": false
+          }
+        },
+        "annotate": {
+          "type": "dict",
+          "required": false,
+          "annotate_group": {
+            "type": "str",
+            "required": false
+          },
+          "celltypist_model": {
+            "type": "str",
+            "required": false
+          },
+          "llm_api_key": {
+            "type": "str",
+            "required": false
+          },
+          "llm_base_url": {
+            "type": "str",
+            "required": false
+          },
+          "llm_method": {
+            "type": "str",
+            "required": false
+          },
+          "llm_model": {
+            "type": "str",
+            "required": false
+          },
+          "llm_top_genes": {
+            "type": "int",
+            "required": false
+          },
+          "marker_file": {
+            "type": "str",
+            "required": false
+          }
+        },
+        "batch": {
+          "type": "dict",
+          "required": false,
+          "batch_key": {
+            "type": "str",
+            "required": false
+          },
+          "method": {
+            "type": "str",
+            "required": false
+          },
+          "n_neighbors": {
+            "type": "int",
+            "required": false
+          },
+          "n_pcs": {
+            "type": "int",
+            "required": false
+          },
+          "resolution": {
+            "type": "float",
+            "required": false
+          }
+        },
+        "cluster": {
+          "type": "dict",
+          "required": false,
+          "n_neighbors": {
+            "type": "int",
+            "required": false
+          },
+          "n_pcs": {
+            "type": "int",
+            "required": false
+          },
+          "resolution": {
+            "type": "float",
+            "required": false
+          }
+        },
+        "qc": {
+          "type": "dict",
+          "required": false,
+          "doublet_rate": {
+            "type": "float",
+            "required": false
+          },
+          "max_genes": {
+            "type": "int",
+            "required": false
+          },
+          "max_pct_mt": {
+            "type": "int",
+            "required": false
+          },
+          "min_genes": {
+            "type": "int",
+            "required": false
+          },
+          "n_top_genes": {
+            "type": "int",
+            "required": false
+          },
+          "scrublet": {
+            "type": "bool",
+            "required": false
+          }
+        }
       }
     }
   }

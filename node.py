@@ -776,27 +776,27 @@ def runscRNAseq(
     datajson["cellranger_input_dict"] = {k: v.__dict__ for k, v in cellranger_input_dict.items()}
     outfiles = []
     organisms = set()
-    counter = datajson["counter"]
+    counters = datajson["counters"]
     paired_samples = []
     single_samples = []
     for sample_id, sample_info in samples_info_dict.items():
         organisms.add(sample_info.organism)
         if sample_info.layout == "PE":
             paired_samples.append(sample_id)
-            if counter == "scTE":
+            if "scTE" in counters:
                 outfiles.append(f"{outdir}/common/3_raw_h5ad/{sample_id}/{sample_id}_scTE.h5ad")
-            elif counter == "cellranger":
+            elif "cellranger" in counters:
                 outfiles.append(f"{outdir}/common/3_raw_h5ad/{sample_id}/{sample_id}_cellranger.h5ad")
             else:
-                logger.error(f"Unknown counter type for sample {sample_id}: {counter}")
+                logger.error(f"Unknown counter type for sample {sample_id}: {counters}")
         elif sample_info.layout == "SE":
             single_samples.append(sample_id)
-            if counter == "scTE":
+            if "scTE" in counters:
                 outfiles.append(f"{outdir}/common/3_raw_h5ad/{sample_id}/{sample_id}_scTE.h5ad")
-            elif counter == "cellranger":
+            elif "cellranger" in counters:
                 outfiles.append(f"{outdir}/common/3_raw_h5ad/{sample_id}/{sample_id}_cellranger.h5ad")
             else:
-                logger.error(f"Unknown counter type for sample {sample_id}: {counter}")
+                logger.error(f"Unknown counter type for sample {sample_id}: {counters}")
         else:
             logger.error(f"Unknown layout type for sample {sample_id}: {sample_info.layout}")
     datajson["paired_samples"] = paired_samples
@@ -821,13 +821,13 @@ def runscRNAseq(
         datajson["Params"]["cellranger"]["mkref"]["version"] = time.strftime("%Y-%m-%d", time.localtime())
     else:
         raise ValueError(f"pipeline don't support {organism}, only support human, mouse, or macaque(Homo sapiens, Mus musculus, or Macaca mulatta)")
-    counter = datajson["counter"]
+    counters = datajson["counters"]
     aligner = datajson["aligner"]
-    if counter == "scTE":
+    if "scTE" in counters:
         # TEs are far less numerous than genes — median ~25 TE/cell
-        datajson["Params"]["scanpy"]["qc"]["min_genes"] = 10
-        datajson["Params"]["scanpy"]["qc"]["max_genes"] = 3000
-        datajson["Params"]["scanpy"]["qc"]["scrublet"] = False
+        datajson["Params"]["scanpy"]["scTE"]["qc"]["min_genes"] = 10
+        datajson["Params"]["scanpy"]["scTE"]["qc"]["max_genes"] = 3000
+        datajson["Params"]["scanpy"]["scTE"]["qc"]["scrublet"] = False
         if aligner == "star":
             datajson["Params"]["scTE"]["cb_tag"] = "CR"
             datajson["Params"]["scTE"]["umi_tag"] = "UR"
@@ -836,18 +836,21 @@ def runscRNAseq(
             datajson["Params"]["scTE"]["umi_tag"] = "UB"
         else:
             raise ValueError(f"Unsupported aligner for scTE counter: {aligner}, must be star or cellranger")
-    elif counter == "cellranger":
+    elif "cellranger" in counters:
         # cellranger: keep defaults (min_genes=200, max_genes=6000, scrublet=True)
-        pass
+        datajson["Params"]["scanpy"]["cellranger"]["qc"]["min_genes"] = 200
+        datajson["Params"]["scanpy"]["cellranger"]["qc"]["max_genes"] = 6000
+        datajson["Params"]["scanpy"]["cellranger"]["qc"]["scrublet"] = True
     else:
-        raise ValueError(f"Unsupported counter type: {counter}, must be scTE or cellranger")
+        raise ValueError(f"Unsupported counter type: {counters}, must be scTE or cellranger")
     # Build tissue_samples for scanpy downstream
     tissue_samples = {}
     for sid in paired_samples + single_samples:
         tissue = getattr(samples_info_dict.get(sid), "tissue", None) or "unknown"
         tissue_samples.setdefault(tissue, []).append(sid)
     for tissue in tissue_samples.keys():
-        outfiles.append(f"{outdir}/common/5_combine_h5ad/{tissue}/{tissue}_advanced.h5ad")
+        for counter in counters:
+            outfiles.append(f"{outdir}/common/5_combine_h5ad/{tissue}/{tissue}_{counter}_advanced.h5ad")
     datajson["Params"]["scanpy"]["tissue_samples"] = tissue_samples
     # outfiles.append(f"{outdir}/scRNAseq_report.pptx")
     datajson["outfiles"] = outfiles
@@ -856,3 +859,43 @@ def runscRNAseq(
         json.dump(datajson, wf, indent=2, ensure_ascii=False)
     return instance_json
 
+
+
+def runFiberseq(
+        datajson: Dict[str, Any],
+        samples_info_dict: Dict[str, SampleInfo],
+        indir: str,
+        outdir: str,
+        raw_files: List[str],
+    ) -> str:
+    """Prepare input JSON for Fiber-seq workflow.
+
+    Fiber-seq: single-molecule chromatin accessibility sequencing.
+    Reference: Stergachis et al., 2020, Science (DOI: 10.1126/science.aaz1646).
+    Guide: https://fiberseq.github.io/
+    """
+    datajson["ROOT_DIR"] = os.path.dirname(__file__)
+    datajson["indir"] = indir
+    datajson["outdir"] = outdir
+    logdir = os.path.join(outdir, "log")
+    os.makedirs(logdir, exist_ok=True)
+    datajson["logdir"] = logdir
+
+    outfiles = []
+    samples = []
+    for sample_id, sample_info in samples_info_dict.items():
+        samples.append(sample_id)
+        # Final outputs: FIRE BAM + extracted BED files
+        outfiles.append(f"{outdir}/fiberseq/3_fire/{sample_id}/{sample_id}.fiberseq.fire.bam")
+        outfiles.append(f"{outdir}/fiberseq/4_extract/{sample_id}/{sample_id}.m6a.bed.gz")
+        outfiles.append(f"{outdir}/fiberseq/4_extract/{sample_id}/{sample_id}.nuc.bed.gz")
+        outfiles.append(f"{outdir}/fiberseq/4_extract/{sample_id}/{sample_id}.msp.bed.gz")
+        outfiles.append(f"{outdir}/fiberseq/4_extract/{sample_id}/{sample_id}.fire.bed.gz")
+
+    datajson["samples"] = samples
+    datajson["raw_files"] = raw_files
+    datajson["outfiles"] = outfiles
+    instance_json = os.path.join(outdir, "raw.json")
+    with open(instance_json, 'w', encoding='utf-8') as wf:
+        json.dump(datajson, wf, indent=2, ensure_ascii=False)
+    return instance_json

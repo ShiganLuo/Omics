@@ -229,3 +229,31 @@ use rule run_example from example as MyWorkflow_example
 ## 4. 默认参数
 
 尽量不要在subworkflow中使用or去兜底json文件中的null值，从而提供默认值。确保json文件即是实际运行配置
+
+## Fiber-seq 工作流
+
+单分子染色质可及性测序分析流程。
+
+**参考文献:**
+- Stergachis et al., 2020, Science (Fiber-seq原始论文, DOI: 10.1126/science.aaz1646)
+- Jha, Bohaczuk et al., 2024, Genome Research (fibertools-rs工具, DOI: 10.1101/gr.279095.124)
+- https://fiberseq.github.io/
+
+**流程步骤:**
+1. `ft predict-m6a` - 从PacBio HiFi CCS数据预测m6A修饰
+2. `ft add-nucleosomes` - 添加核小体调用
+3. `ft fire` - 调用FIRE调控元件
+4. `ft extract` - 提取数据为BED格式
+
+**输入:**
+- PacBio HiFi CCS BAM (带kinetics标签)
+- 参考基因组FASTA
+
+**输出:**
+- Fiber-seq BAM (含m6A、核小体、MSP、FIRE注释)
+- BED12文件 (m6A.bed.gz, nuc.bed.gz, msp.bed.gz, fire.bed.gz)
+
+**工具:**
+- fibertools-rs (ft): https://github.com/fiberseq/fibertools-rs
+- pbmm2: PacBio比对器
+- hiphase: 单倍型分相 (可选)

@@ -48,8 +48,11 @@
     "type": "str",
     "required": true
   },
-  "counter": {
-    "type": "str",
+  "counters": {
+    "type": "list",
+    "items": {
+      "type": "str"
+    },
     "required": true
   },
   "Procedure": {

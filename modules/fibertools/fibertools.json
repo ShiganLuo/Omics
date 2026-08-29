@@ -1,0 +1,27 @@
+{
+  "name": "fibertools",
+  "version": "1.0.0",
+  "description": "Fiber-seq single-molecule chromatin accessibility analysis",
+  "author": "Omics Pipeline",
+  "url": "https://fiberseq.github.io/",
+  "tools": [
+    {
+      "name": "fibertools-rs",
+      "version": ">=0.7.0",
+      "url": "https://github.com/fiberseq/fibertools-rs"
+    }
+  ],
+  "rules": [
+    "ft_predict_m6a",
+    "ft_add_nucleosomes",
+    "ft_fire",
+    "ft_extract"
+  ],
+  "input": {
+    "bam": "PacBio HiFi CCS BAM with kinetics tags"
+  },
+  "output": {
+    "fiberseq_bam": "Fiber-seq BAM with m6A, nucleosome, MSP, and FIRE calls",
+    "bed_files": "BED12 files for m6A, nucleosomes, MSPs, and FIREs"
+  }
+}

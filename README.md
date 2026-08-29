@@ -40,15 +40,16 @@ sample_id不能包含.
 | `CoCulture` | 共培养样本分析，支持多个物种 | 物种区分后的 BAM、下游统计结果 |
 | `MERIP` | MeRIP-seq / m6A-seq 分析 | dedup BAM、peak 结果、IGV 可视化 |
 | `RNAseq` | 常规转录组分析 | count 矩阵、TE 表达结果、融合、差异分析、富集分析、TE嵌合分析 |
+| `ncRNAseq` | 非编码 RNA 分析 | ncRNA 表达量矩阵 |
 | `CLIP` | iCLIP / CLIP-seq 分析 | 质控、比对、PureCLIP、bedGraph / bigWig、IGV 页面 |
 | `Mutation` | 体细胞突变分析（tumor vs normal） | Mutect2 VCF、Spectrum 可视化 |
 | `PacVar` | PacBio 长读长变异检测 | 结构变异 VCF、SNP VCF、phasing 结果、端粒长度（4种方法）、着丝粒统计 |
 | `KARRseq` | Kethoxal-Assisted RNA-RNA interaction sequencing | RNA-RNA 相互作用 pairs 文件 |
-| `ncRNAseq` | 非编码 RNA 分析 | ncRNA 表达量矩阵 |
-| `RNA_SNP` | RNA 变异检测 | SNP/INDEL 结果 |
 | `PeakCalling` | ChIP-seq / DIP-seq peak calling 分析 | trimming、bowtie2 比对、MACS3 peak 结果 |
 | `QuantMS` | 定量蛋白质组学分析（TMT/LFQ/DIA） | mzTab 定量结果、MSstats 统计分析 |
 | `tRNAseq` | tRNA 修饰诱导错配测序分析（mim-tRNAseq） | 覆盖度、修饰定量、CCA 分析、DESeq2 差异表达 |
+| `scRNAseq` | 单细胞 RNA-seq 分析 | Cell Ranger/STARsolo 比对、scTE TE 定量、Scanpy QC/聚类/注释/高级分析 |
+| `Fiberseq` | Fiber-seq 表观遗传分析 | 甲基化检测、染色质可及性分析 |
 
 ### CLIP
 
@@ -220,44 +221,70 @@ python workflow/Omics/run.py \
 
 ## 运行特定步骤
 
-`run.py` 提供 `--forcerun` 参数,用于精确重跑某个规则的特定 job,且不会触发下游规则。
+`run.py` 提供 `--forcerun` 和 `--target-jobs` 参数，用于精确重跑特定规则。
 
-### 用法
+### `--forcerun`：强制重跑规则
+
+接受规则名或文件路径，内部转换为 snakemake 的 `--until` + `--forcerun`。
 
 ```bash
-# 重跑某个规则(所有 wildcards)
+# 重跑某个规则（所有 wildcards）
 python workflow/Omics/run.py \
   -m data/meta.tsv -w RNAseq -o output --sdm \
   --forcerun function_gsea
 
-# 重跑某个规则的特定样本
+# 重跑文件路径对应的规则
 python workflow/Omics/run.py \
   -m data/meta.tsv -w RNAseq -o output --sdm \
-  --forcerun trimming_Paired:sample_id=S1
+  --forcerun /path/to/output/some_file.txt
 
-# 同时重跑多个 target
+# 同时重跑多个规则
 python workflow/Omics/run.py \
   -m data/meta.tsv -w RNAseq -o output --sdm \
-  --forcerun trimming_Paired:sample_id=S1 trimming_Paired:sample_id=S2
+  --forcerun trimming_Paired function_gsea
 ```
 
-### 原理
-
-`--forcerun` 内部转换为 snakemake 的 `--until` + `--forcerun`:
-
-- `--until` 将 DAG 截断到目标规则(含上游依赖),不包含下游
-- `--forcerun` 强制重跑目标规则,即使输出文件已存在
-
-### 规则名自动补全
-
-subworkflow 中通过 `use rule ... as <WorkflowName>_...` 重命名了规则。`run.py` 会自动补前缀,用户只需写原始规则名:
+规则名自动补全：subworkflow 中通过 `use rule ... as <WorkflowName>_...` 重命名了规则。`run.py` 会自动补前缀，用户只需写原始规则名：
 
 | 用户输入 | 自动转换为 |
 | --- | --- |
 | `function_gsea` | `RNAseq_function_gsea` |
-| `trimming_Paired:sample_id=S1` | `RNAseq_trimming_Paired:sample_id=S1` |
-| `RNAseq_function_gsea` | `RNAseq_function_gsea`(已带前缀,不变) |
-| `all` | `all`(特殊规则名,不变) |
+| `RNAseq_function_gsea` | `RNAseq_function_gsea`（已带前缀，不变） |
+| `all` | `all`（特殊规则名，不变） |
+| `/path/to/file` | `/path/to/file`（文件路径，不加前缀） |
+
+### `--target-jobs`：按 wildcard 约束定位 job
+
+用于重跑特定 wildcard 组合的 job，格式为 `RULE:WILDCARD1=VALUE,...`。规则名自动加前缀。
+
+```bash
+# 重跑 scTE counter 的所有 scanpy QC job
+python workflow/Omics/run.py \
+  -m data/meta.tsv -w scRNAseq -o output --sdm \
+  --counters scTE --aligner cellranger \
+  --forcerun scanpy_qc \
+  --target-jobs scanpy_qc:counter=scTE,sample_id=S1
+
+# 重跑特定 tissue 的所有 scanpy cluster job
+python workflow/Omics/run.py \
+  -m data/meta.tsv -w scRNAseq -o output --sdm \
+  --counters scTE --aligner cellranger \
+  --forcerun scanpy_cluster \
+  --target-jobs scanpy_cluster:counter=scTE,tissue=ovaries
+```
+
+`--target-jobs` 需要指定完整的 wildcard 值。如果规则有多个 wildcard（如 `{sample_id}` 和 `{counter}`），必须全部指定。配合 `--forcerun` 使用，`--target-jobs` 负责筛选，`--forcerun` 负责强制重跑。
+
+### `--touch`：更新输出文件时间戳
+
+```bash
+# 标记所有输出为最新（不实际运行）
+python workflow/Omics/run.py \
+  -m data/meta.tsv -w RNAseq -o output --sdm \
+  --touch
+```
+
+`--touch` 和 `--dry-run` 不能同时使用，同时指定时会输出警告并忽略 `--touch`。
 
 ### 查看 DAG 和调试
 
@@ -294,7 +321,7 @@ python workflow/Omics/run.py \
 ## `run.py` 参数说明
 
 - `-m, --meta`：元信息文件或 fastq 目录。
-- `-w, --workflow_name`：工作流名称，可选 `CoCulture`、`MERIP`、`RNAseq`、`CLIP`、`Mutation`、`PacVar`、`KARRseq`、`PeakCalling`、`tRNAseq`。
+- `-w, --workflow_name`：工作流名称，可选 `CoCulture`、`MERIP`、`RNAseq`、`ncRNAseq`、`CLIP`、`Mutation`、`PacVar`、`KARRseq`、`PeakCalling`、`QuantMS`、`tRNAseq`、`scRNAseq`、`Fiberseq`。
 - `-o, --output_dir`：输出目录。
 - `-t, --threads`：Snakemake 线程数。
 - `--dry-run`：只生成计划，不执行。
@@ -315,6 +342,10 @@ python workflow/Omics/run.py \
   不指定 `--rerun-trigger` 时，Snakemake 默认使用全部五个触发器。指定 `--rerun-trigger input` 表示**仅**检查 input 内容变化，不检查 code/mtime/params/software-env，更轻量但依赖 metadata。
 
 - `--conda-frontend`：`conda` 或 `mamba`。
+- `--forcerun`：强制重跑指定规则或文件路径，格式：`RULE` 或 `/path/to/file`。规则名自动加 workflow 前缀。
+- `--target-jobs`：按 wildcard 约束定位 job，格式：`RULE:WILDCARD1=VALUE,...`。配合 `--forcerun` 使用。
+- `--touch`：更新输出文件时间戳，不实际运行。与 `--dry-run` 冲突。
+- `--no-schema-validate`：禁用 schema 感知的 extra_args 类型矫正（默认启用）。
 - `--snakemake-args`：透传给 Snakemake 的额外参数，放在这个标志后面，例如 `--snakemake-args --keep-going --rerun-incomplete`。
 
 `run.py` 还支持额外参数透传给配置文件：
@@ -364,9 +395,10 @@ bash workflow/RNA-SNP/run.sh
 - `subworkflow/README.md` 说明了各子流程的职责和输入输出。
 - 如果后续新增 workflow，建议同步补充：
   - `config/<workflow>.json`
+  - `config/<workflow>.schema.json`
   - `subworkflow/<workflow>.smk`
   - `subworkflow/<workflow>.json`
-  `subworkflow/<workflow>.yaml`
+  - `subworkflow/<workflow>.yaml`
   - `run.py` 中的分发逻辑
 - 各软件传递参数的默认值均为软件或者适配流程的默认值
 - " ".join(cmd)。cmd不能包含None
@@ -377,6 +409,7 @@ bash workflow/RNA-SNP/run.sh
 - [x] 添加项目skill文档
 - [x] 整合所有曾经分析过的流程
 - [x] 添加json值校验模块
+- [x] schema感知的extra_args类型矫正
 
 
 

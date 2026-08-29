@@ -71,9 +71,9 @@ python ${SCRIPT_DIR}/run.py \
     -t 48 \
     --log /home/luosg/Data/genomeStability/log/scRNAseq.log \
     --sdm \
-    --counters scTE \
+    --counters scTE cellranger \
     --aligner cellranger \
-    --dry-run
+    --rerun-triggers mtime
 
 
 # python ${SCRIPT_DIR}/run.py \

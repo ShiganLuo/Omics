@@ -6,41 +6,12 @@ import re
 from src.common.util.MetaUtil import MetadataUtils
 from src.common.util.LogUtil import setup_logger
 from src.common.util.CmdUtil import _run_cmd, _run_cmds_parallel
-from src.common.util.SchemaValidatorUtil import SchemaValidator
+from src.common.util.SchemaValidatorUtil import SchemaValidator, smart_cast
 from src.common.util.EnvUtil import is_path_like
 from node import runCoCulture, runMERIP, runRNAseq, runncRNAseq, runCLIP, runMutation, runPacVar, runKARRseq, runPeakCalling, runQuantMS, runtRNAseq, runscRNAseq, runFiberseq
 import logging
 from typing import Dict, Any
 logger = setup_logger(__name__, level=logging.DEBUG)
-
-def smart_cast(val):
-    """Convert a string value to int, float, or bool if possible.
-
-    Recursively converts list elements. Avoids octal misinterpretation
-    for strings starting with '0' (except '0.').
-
-    Args:
-        val: Input value (str, list, or other).
-
-    Returns:
-        Converted value: bool for 'true'/'false', int, float, or original string.
-    """
-    if isinstance(val, list):
-        return [smart_cast(v) for v in val]
-    if isinstance(val, str):
-        if val.lower() in {"true", "false"}:
-            return val.lower() == "true"
-        try:
-            if val.startswith("0") and len(val) > 1 and not val.startswith("0."):
-                return val  # 避免八进制等
-            return int(val)
-        except Exception:
-            pass
-        try:
-            return float(val)
-        except Exception:
-            pass
-    return val
 
 def dict_set_by_path(d, keys, value):
     """Set a value in a nested dict by a sequence of keys.
@@ -105,6 +76,7 @@ def parse_args():
     parser.add_argument('-o','--output_dir', type=str, default=None, help='output dir')
     parser.add_argument('-t','--threads', type=int, default=10, help='threads')
     parser.add_argument('--dry-run', action='store_true', help='dry run')
+    parser.add_argument('--touch', action='store_true', help='touch output files to update timestamps without re-running (cannot combine with --dry-run)')
     parser.add_argument('--test', type=str, nargs='?', const='all', metavar='WORKFLOW',
         help='run dry-run test for a workflow (or "all"). Auto-sets meta/output/dry-run from test/ directory')
     parser.add_argument('--log', type=str, default='workflow.log', help='log file')
@@ -123,8 +95,12 @@ def parse_args():
     )
     parser.add_argument('--conda-frontend', type=str, choices=["conda", "mamba"], default="mamba", help='conda frontend for snakemake')
     parser.add_argument('--forcerun', type=str, nargs='+', default=None,
-        help='force re-run specific jobs without downstream, format: RULE or RULE:WILDCARD1=VALUE,WILDCARD2=VALUE,..., e.g. --forcerun trimming_Paired:sample_id=S1')
+        help='force re-run specific rules or files, format: RULE or /path/to/file, e.g. --forcerun scanpy_qc')
+    parser.add_argument('--target-jobs', type=str, nargs='+', default=None,
+        help='target specific jobs by wildcard, format: RULE:WILDCARD1=VALUE,..., e.g. --target-jobs scanpy_qc:counter=scTE')
     parser.add_argument('--unlock', action='store_true', help='unlock snakemake working directory')
+    parser.add_argument('--no-schema-validate', dest='schema_validate', action='store_false',
+        default=True, help='disable schema-based type casting for extra args')
     parser.add_argument(
         '--snakemake-args',
         nargs=argparse.REMAINDER,
@@ -279,7 +255,7 @@ def _merge_singularity_args(
 
 def build_snakemake_cmd(root_dir, smk, input_json, threads, conda_prefix, rerun_trigger,
                         dry_run, conda_frontend, snakemake_args, sdm=None, singularity_args=None,
-                        forcerun=None, unlock=False):
+                        forcerun=None, unlock=False, touch=False, target_jobs=None):
     """Build the snakemake CLI command list for a given subworkflow.
 
     Configures conda or apptainer container backend, collects bind paths
@@ -299,6 +275,9 @@ def build_snakemake_cmd(root_dir, smk, input_json, threads, conda_prefix, rerun_
         sdm: Snakemake deployment method (e.g. "apptainer"). None for conda mode.
         singularity_args: Extra singularity/apptainer arguments (e.g. "--bind /path1,/path2").
         forcerun: List of rule names to force re-run (with optional wildcards).
+        unlock: If True, append --unlock.
+        touch: If True, append --touch.
+        target_jobs: List of target job specs (e.g. "scRNAseq_scanpy_qc:counter=scTE").
 
     Returns:
         List[str]: Complete snakemake command as a list of arguments.
@@ -344,6 +323,8 @@ def build_snakemake_cmd(root_dir, smk, input_json, threads, conda_prefix, rerun_
             ]
     if dry_run:
         cmd.append("--dry-run")
+    if touch:
+        cmd.append("--touch")
     if unlock:
         cmd.append("--unlock")
     if forcerun:
@@ -351,6 +332,9 @@ def build_snakemake_cmd(root_dir, smk, input_json, threads, conda_prefix, rerun_
         cmd.extend(forcerun)
         cmd.append("--forcerun")
         cmd.extend(forcerun)
+    if target_jobs:
+        cmd.append("--target-jobs")
+        cmd.extend(target_jobs)
     if snakemake_args:
         cmd.extend(snakemake_args)
     return cmd
@@ -521,6 +505,23 @@ def execute_workflows(args, root_dir: str, logger):
             model_json = os.path.join(root_dir, f"config/{wf_name}.json")
             workflow_config = _load_model_json(model_json)
 
+            # Schema-aware type casting for extra_args
+            if args.schema_validate and args.extra_args:
+                sv = SchemaValidator()
+                sv._schema_dir = os.path.join(root_dir, "config")
+                try:
+                    sv.load_workflow(wf_name)
+                    casted, errors = sv.cast_extra_args(args.extra_args)
+                    if errors:
+                        for err in errors:
+                            logger.error(f"[{wf_name}] 参数校验失败: {err}")
+                        raise ValueError(
+                            f"extra_args 校验失败，共 {len(errors)} 个错误"
+                        )
+                    args.extra_args = casted
+                except FileNotFoundError:
+                    pass  # 无 schema 时 fallback 到原有行为
+
             # In test mode, inject test paths for ALL path-like fields in config
             if hasattr(args, '_test_base_paths'):
                 test_data = os.path.join(os.path.join(root_dir, "assests", "test"), "data")
@@ -588,6 +589,10 @@ def execute_workflows(args, root_dir: str, logger):
             if args.forcerun:
                 forcerun_targets = []
                 for t in args.forcerun:
+                    # File paths — pass through as-is (snakemake treats them as targets)
+                    if "/" in t:
+                        forcerun_targets.append(t)
+                        continue
                     if ":" in t:
                         rule_part, rest = t.split(":", 1)
                         rest = ":" + rest
@@ -598,12 +603,31 @@ def execute_workflows(args, root_dir: str, logger):
                     else:
                         forcerun_targets.append(f"{wf_name}_{rule_part}{rest}")
 
+            # --target-jobs: auto-prefix rule name, pass wildcards as-is
+            target_jobs = None
+            if args.target_jobs:
+                target_jobs = []
+                for t in args.target_jobs:
+                    if ":" in t:
+                        rule_part, wildcards_str = t.split(":", 1)
+                    else:
+                        rule_part, wildcards_str = t, ""
+
+                    if not rule_part.startswith(f"{wf_name}_"):
+                        rule_part = f"{wf_name}_{rule_part}"
+
+                    if wildcards_str:
+                        target_jobs.append(f"{rule_part}:{wildcards_str}")
+                    else:
+                        target_jobs.append(rule_part)
+
             cmd = build_snakemake_cmd(
                 root_dir, smk, input_json, threads_per_workflow,
                 args.conda_prefix, args.rerun_trigger, args.dry_run,
                 args.conda_frontend, args.snakemake_args,
                 sdm=args.sdm, singularity_args=args.singularity_args,
                 forcerun=forcerun_targets, unlock=args.unlock,
+                touch=args.touch, target_jobs=target_jobs,
             )
             logger.info(f"[{wf_name}] {cmd}")
             smk_cmds.append((cmd, abs_outdir))
@@ -639,6 +663,11 @@ def execute_workflows(args, root_dir: str, logger):
 if __name__ == "__main__":
     args = parse_args()
     ROOT_DIR = os.path.dirname(__file__)
+
+    # Warn if --touch and --dry-run are both specified
+    if args.touch and args.dry_run:
+        logger.warning("--touch 和 --dry-run 同时指定，--dry-run 会阻止 --touch 生效，将忽略 --touch")
+        args.touch = False
 
     # Configure args based on mode
     if args.test is not None:

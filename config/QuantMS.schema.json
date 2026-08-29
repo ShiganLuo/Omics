@@ -134,10 +134,6 @@
           "type": "float",
           "required": true
         },
-        "fragment_bin_tolerance": {
-          "type": "float",
-          "required": true
-        },
         "fragment_bin_offset": {
           "type": "int",
           "required": true
@@ -322,5 +318,13 @@
       "nullable": true,
       "required": false
     }
+  },
+  "env": {
+    "type": "dict",
+    "required": false
+  },
+  "raw_files": {
+    "type": "list",
+    "required": false
   }
 }

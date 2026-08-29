@@ -1,0 +1,32 @@
+Bootstrap: docker
+From: continuumio/miniconda3:latest
+
+%labels
+    Author Omics Pipeline
+    Description Fiber-seq analysis environment
+    Version 1.0.0
+
+%post
+    apt-get update && apt-get install -y --no-install-recommends \
+        build-essential \
+        cmake \
+        git \
+        && rm -rf /var/lib/apt/lists/*
+
+    # Install mamba for faster conda operations
+    conda install -y -n base -c conda-forge mamba
+
+    # Create fibertools environment
+    mamba create -y -n fibertools -c conda-forge -c bioconda \
+        fibertools-rs>=0.7.0 \
+        samtools>=1.18 \
+        pbmm2>=2.0.0
+
+    # Clean up
+    conda clean -afy
+
+%environment
+    export PATH="/opt/conda/envs/fibertools/bin:$PATH"
+
+%runscript
+    exec ft "$@"

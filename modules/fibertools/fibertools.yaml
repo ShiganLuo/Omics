@@ -1,0 +1,9 @@
+name: fibertools
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - fibertools-rs>=0.7.0
+  - samtools>=1.18
+  - pbmm2>=2.0.0

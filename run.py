@@ -8,7 +8,7 @@ from src.common.util.LogUtil import setup_logger
 from src.common.util.CmdUtil import _run_cmd, _run_cmds_parallel
 from src.common.util.SchemaValidatorUtil import SchemaValidator
 from src.common.util.EnvUtil import is_path_like
-from node import runCoCulture, runMERIP, runRNAseq, runncRNAseq, runCLIP, runMutation, runPacVar, runKARRseq, runPeakCalling, runQuantMS, runtRNAseq, runscRNAseq
+from node import runCoCulture, runMERIP, runRNAseq, runncRNAseq, runCLIP, runMutation, runPacVar, runKARRseq, runPeakCalling, runQuantMS, runtRNAseq, runscRNAseq, runFiberseq
 import logging
 from typing import Dict, Any
 logger = setup_logger(__name__, level=logging.DEBUG)
@@ -100,7 +100,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description="workflow")
     parser.add_argument('-m','--meta', type=str, default=None, help='meta input file or data dir which condatain fastq file')
     parser.add_argument('-w','--workflow_name', type=str, nargs='+',
-        choices=["CoCulture", "MERIP", "RNAseq", "ncRNAseq", "scRNAseq", "tRNAseq", "CLIP", "Mutation", "PacVar", "KARRseq", "PeakCalling", "QuantMS"],
+        choices=["CoCulture", "MERIP", "RNAseq", "ncRNAseq", "scRNAseq", "tRNAseq", "CLIP", "Mutation", "PacVar", "KARRseq", "PeakCalling", "QuantMS", "Fiberseq"],
         default=['CoCulture'], help='workflow name(s), multiple for parallel execution')
     parser.add_argument('-o','--output_dir', type=str, default=None, help='output dir')
     parser.add_argument('-t','--threads', type=int, default=10, help='threads')
@@ -369,6 +369,7 @@ WORKFLOW_DISPATCH = {
     "QuantMS":    lambda cfg, sid, sp, gp, indir, outdir, meta, rf, ci: ("QuantMS.smk",   runQuantMS(cfg, sid, indir, outdir, rf)),
     "tRNAseq":    lambda cfg, sid, sp, gp, indir, outdir, meta, rf, ci: ("tRNAseq.smk",   runtRNAseq(cfg, sid, indir, outdir, meta, rf)),
     "scRNAseq":   lambda cfg, sid, sp, gp, indir, outdir, meta, rf, ci: ("scRNAseq.smk",  runscRNAseq(cfg, sid, indir, outdir, rf, ci)),
+    "Fiberseq":   lambda cfg, sid, sp, gp, indir, outdir, meta, rf, ci: ("Fiberseq.smk",  runFiberseq(cfg, sid, indir, outdir, rf)),
 }
 
 

@@ -204,15 +204,13 @@
         "path": "file"
       },
       "publicPathMap": {
-        "/rna_seq_1/luoshg/": {
+        "/home/luosg/Data/genomeStability/": {
           "type": "str",
-          "required": true,
-          "path": "file"
+          "required": false
         },
-        "/disk5/luosg/Reference/": {
+        "/home/luosg/Database/Reference/": {
           "type": "str",
-          "required": true,
-          "path": "file"
+          "required": false
         }
       },
       "fastaURL": {
@@ -252,5 +250,13 @@
       "required": true,
       "path": "prefix"
     }
+  },
+  "env": {
+    "type": "dict",
+    "required": false
+  },
+  "raw_files": {
+    "type": "list",
+    "required": false
   }
 }

@@ -155,5 +155,13 @@
         "required": true
       }
     }
+  },
+  "env": {
+    "type": "dict",
+    "required": false
+  },
+  "raw_files": {
+    "type": "list",
+    "required": false
   }
 }

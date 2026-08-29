@@ -20,19 +20,18 @@ tissue_samples = params.get("tissue_samples", {})
 tissues = sorted(tissue_samples.keys())
 python = procedure.get("python") or "python"
 script = os.path.join(ROOT_DIR, "modules", "scanpy", "bin", "scRNAseq.py")
-h5ad_substring = config.get("h5ad_substring", "scTE")
 # ---------------------------------------------------------------------------
 # Per-sample QC
 # ---------------------------------------------------------------------------
 rule scanpy_qc:
     input:
-        h5ad = indir + "/{sample_id}/{sample_id}_" + h5ad_substring + ".h5ad"
+        h5ad = indir + "/{sample_id}/{sample_id}_{counter}.h5ad"
     output:
-        h5ad = outdir + "/{sample_id}/{sample_id}_qc.h5ad",
-        metrics = outdir + "/{sample_id}/{sample_id}_qc_metrics.tsv",
-        plot_dir = directory(outdir + "/{sample_id}/plots")
+        h5ad = outdir + "/{sample_id}/{sample_id}_{counter}_qc.h5ad",
+        metrics = outdir + "/{sample_id}/{sample_id}_{counter}_qc_metrics.tsv",
+        plot_dir = directory(outdir + "/{sample_id}/plots/{counter}")
     log:
-        logdir + "/{sample_id}/scanpy_qc.log"
+        logdir + "/{sample_id}/scanpy_qc_{counter}.log"
     threads: 4
     conda:
         "scanpy.yaml"
@@ -41,12 +40,12 @@ rule scanpy_qc:
     params:
         python=python,
         script=script,
-        min_genes=params.get("qc",{}).get("min_genes", 200),
-        max_genes=params.get("qc",{}).get("max_genes", 6000),
-        max_pct_mt=params.get("qc",{}).get("max_pct_mt", 20),
-        n_top_genes=params.get("qc",{}).get("n_top_genes", 3000),
-        scrublet=params.get("qc",{}).get("scrublet", True),
-        doublet_rate=params.get("qc",{}).get("doublet_rate", 0.06)
+        min_genes = lambda wildcards: params.get(wildcards.counter, {}).get("qc",{}).get("min_genes", 200),
+        max_genes=lambda wildcards: params.get(wildcards.counter, {}).get("qc",{}).get("max_genes", 6000),
+        max_pct_mt=lambda wildcards: params.get(wildcards.counter, {}).get("qc",{}).get("max_pct_mt", 20),
+        n_top_genes=lambda wildcards: params.get(wildcards.counter, {}).get("qc",{}).get("n_top_genes", 3000),
+        scrublet=lambda wildcards: params.get(wildcards.counter, {}).get("qc",{}).get("scrublet", True),
+        doublet_rate=lambda wildcards: params.get(wildcards.counter, {}).get("qc",{}).get("doublet_rate", 0.06)
     run:
         log_path = str(log)
         try:
@@ -57,7 +56,7 @@ rule scanpy_qc:
             sample_outdir = os.path.dirname(str(output.h5ad))
             os.makedirs(sample_outdir, exist_ok=True)
             os.makedirs(str(output.plot_dir), exist_ok=True)
-            script = os.path.join(sample_outdir, f"scanpy_qc_{wildcards.sample_id}_{current_time}.sh")
+            script = os.path.join(sample_outdir, f"scanpy_qc_{wildcards.counter}_{wildcards.sample_id}_{current_time}.sh")
             cmd = [params.python, params.script, "--mode", "qc",
                    "--input", input.h5ad,
                    "--output", output.h5ad,
@@ -86,17 +85,17 @@ rule scanpy_qc:
 def get_tissue_qc_files(wildcards):
     """Get QC'd h5ad paths for all samples in a tissue group."""
     sample_ids = tissue_samples[wildcards.tissue]
-    return [outdir + f"/{sample_id}/{sample_id}_qc.h5ad" for sample_id in sample_ids]
+    return [outdir + f"/{sample_id}/{sample_id}_{wildcards.counter}_qc.h5ad" for sample_id in sample_ids]
 
 
 rule scanpy_merge:
     input:
         h5ad = get_tissue_qc_files
     output:
-        h5ad = outdir_combine + "/{tissue}/{tissue}_merged.h5ad",
-        plot_dir = directory(outdir_combine + "/{tissue}/plots/merge")
+        h5ad = outdir_combine + "/{tissue}/{tissue}_{counter}_merged.h5ad",
+        plot_dir = directory(outdir_combine + "/{tissue}/plots/{counter}/merge")
     log:
-        logdir_combine + "/scanpy/{tissue}/scanpy_merge.log"
+        logdir_combine + "/scanpy/{tissue}/scanpy_merge_{counter}.log"
     threads: 2
     conda:
         "scanpy.yaml"
@@ -115,7 +114,7 @@ rule scanpy_merge:
             sample_outdir = os.path.dirname(str(output.h5ad))
             os.makedirs(sample_outdir, exist_ok=True)
             os.makedirs(str(output.plot_dir), exist_ok=True)
-            script = os.path.join(sample_outdir, f"scanpy_merge_{wildcards.tissue}_{current_time}.sh")
+            script = os.path.join(sample_outdir, f"scanpy_merge_{wildcards.counter}_{wildcards.tissue}_{current_time}.sh")
             cmd = [params.python, params.script, "--mode", "merge",
                    "--input"] + list(input.h5ad) + ["--output", output.h5ad]
             cmd += ["--plot-dir", str(output.plot_dir)]
@@ -135,13 +134,13 @@ rule scanpy_merge:
 # ---------------------------------------------------------------------------
 rule scanpy_cluster:
     input:
-        h5ad = outdir_combine + "/{tissue}/{tissue}_merged.h5ad"
+        h5ad = outdir_combine + "/{tissue}/{tissue}_{counter}_merged.h5ad"
     output:
-        h5ad = outdir_combine + "/{tissue}/{tissue}_clustered.h5ad",
-        markers = outdir_combine + "/{tissue}/{tissue}_markers.tsv",
-        plot_dir = directory(outdir_combine + "/{tissue}/plots/cluster")
+        h5ad = outdir_combine + "/{tissue}/{tissue}_{counter}_clustered.h5ad",
+        markers = outdir_combine + "/{tissue}/{tissue}_{counter}_markers.tsv",
+        plot_dir = directory(outdir_combine + "/{tissue}/plots/{counter}/cluster")
     log:
-        logdir_combine + "/scanpy/{tissue}/scanpy_cluster.log"
+        logdir_combine + "/scanpy/{tissue}/scanpy_cluster_{counter}.log"
     threads: 4
     conda:
         "scanpy.yaml"
@@ -150,9 +149,9 @@ rule scanpy_cluster:
     params:
         python=python,
         script=script,
-        n_pcs=params.get("cluster",{}).get("n_pcs", 50),
-        n_neighbors=params.get("cluster",{}).get("n_neighbors", 15),
-        resolution=params.get("cluster",{}).get("resolution", 0.8)
+        n_pcs=lambda wildcards: params.get(wildcards.counter,{}).get("cluster",{}).get("n_pcs", 50),
+        n_neighbors=lambda wildcards: params.get(wildcards.counter,{}).get("cluster",{}).get("n_neighbors", 15),
+        resolution=lambda wildcards: params.get(wildcards.counter,{}).get("cluster",{}).get("resolution", 0.8)
     run:
         log_path = str(log)
         try:
@@ -163,7 +162,7 @@ rule scanpy_cluster:
             sample_outdir = os.path.dirname(str(output.h5ad))
             os.makedirs(sample_outdir, exist_ok=True)
             os.makedirs(str(output.plot_dir), exist_ok=True)
-            script = os.path.join(sample_outdir, f"scanpy_cluster_{wildcards.tissue}_{current_time}.sh")
+            script = os.path.join(sample_outdir, f"scanpy_cluster_{wildcards.counter}_{wildcards.tissue}_{current_time}.sh")
             cmd = [params.python, params.script, "--mode", "cluster",
                    "--input", input.h5ad,
                    "--output", output.h5ad,
@@ -186,12 +185,12 @@ rule scanpy_cluster:
 
 rule scanpy_batch:
     input:
-        h5ad = outdir_combine + "/{tissue}/{tissue}_clustered.h5ad",
+        h5ad = outdir_combine + "/{tissue}/{tissue}_{counter}_clustered.h5ad",
     output:
-        h5ad = outdir_combine + "/{tissue}/{tissue}_batch.h5ad",
-        plot_dir = directory(outdir_combine + "/{tissue}/plots/batch")
+        h5ad = outdir_combine + "/{tissue}/{tissue}_{counter}_batch.h5ad",
+        plot_dir = directory(outdir_combine + "/{tissue}/plots/{counter}/batch")
     log:
-        logdir_combine + "/scanpy/{tissue}/scanpy_batch.log"
+        logdir_combine + "/scanpy/{tissue}/scanpy_batch_{counter}.log"
     threads: 4
     conda:
         "scanpy.yaml"
@@ -200,11 +199,11 @@ rule scanpy_batch:
     params:
         python=python,
         script=script,
-        n_pcs=params.get("batch",{}).get("n_pcs", 50),
-        n_neighbors=params.get("batch",{}).get("n_neighbors", 15),
-        resolution=params.get("batch",{}).get("resolution", 0.8),
-        batch_method=params.get("batch", {}).get("method", "bbknn"),
-        batch_key=params.get("batch", {}).get("batch_key", "sample")
+        n_pcs=lambda wildcards: params.get(wildcards.counter,{}).get("batch",{}).get("n_pcs", 50),
+        n_neighbors=lambda wildcards: params.get(wildcards.counter,{}).get("batch",{}).get("n_neighbors", 15),
+        resolution=lambda wildcards: params.get(wildcards.counter,{}).get("batch",{}).get("resolution", 0.8),
+        batch_method=lambda wildcards: params.get(wildcards.counter, {}).get("batch", {}).get("method", "harmony"),
+        batch_key=lambda wildcards: params.get(wildcards.counter, {}).get("batch", {}).get("batch_key", "sample")
     run:
         log_path = str(log)
         try:
@@ -215,7 +214,7 @@ rule scanpy_batch:
             sample_outdir = os.path.dirname(str(output.h5ad))
             os.makedirs(sample_outdir, exist_ok=True)
             os.makedirs(str(output.plot_dir), exist_ok=True)
-            script = os.path.join(sample_outdir, f"scanpy_batch_{wildcards.tissue}_{current_time}.sh")
+            script = os.path.join(sample_outdir, f"scanpy_batch_{wildcards.counter}_{wildcards.tissue}_{current_time}.sh")
             cmd = [params.python, params.script, "--mode", "batch",
                     "--input", input.h5ad,
                     "--output", output.h5ad,
@@ -236,21 +235,16 @@ rule scanpy_batch:
             logger.error(f"Error occurred during scanpy batch correction for tissue {wildcards.tissue}: {e}")
             raise e
 
-# ---------------------------------------------------------------------------
-# Cell type annotation (per tissue, optional)
-# ---------------------------------------------------------------------------
-def get_annotate_input(wildcards):
-    return outdir_combine + f"/{wildcards.tissue}/{wildcards.tissue}_clustered.h5ad"
 
 
 rule scanpy_annotate:
     input:
-        h5ad = get_annotate_input
+        h5ad = outdir_combine + "/{tissue}/{tissue}_{counter}_clustered.h5ad"
     output:
-        h5ad = outdir_combine + "/{tissue}/{tissue}_annotated.h5ad",
-        plot_dir = directory(outdir_combine + "/{tissue}/plots/annotate")
+        h5ad = outdir_combine + "/{tissue}/{tissue}_{counter}_annotated.h5ad",
+        plot_dir = directory(outdir_combine + "/{tissue}/plots/{counter}/annotate")
     log:
-        logdir_combine + "/scanpy/{tissue}/scanpy_annotate.log"
+        logdir_combine + "/scanpy/{tissue}/scanpy_annotate_{counter}.log"
     threads: 4
     conda:
         "scanpy.yaml"
@@ -259,14 +253,14 @@ rule scanpy_annotate:
     params:
         python=python,
         script=script,
-        marker_file=params.get("annotate", {}).get("marker_file", ""),
-        celltypist_model=params.get("annotate", {}).get("celltypist_model", ""),
-        llm_method=params.get("annotate", {}).get("llm_method", ""),
-        llm_model=params.get("annotate", {}).get("llm_model", ""),
-        llm_api_key=params.get("annotate", {}).get("llm_api_key", ""),
-        llm_base_url=params.get("annotate", {}).get("llm_base_url", ""),
-        llm_top_genes=params.get("annotate", {}).get("llm_top_genes", 30),
-        annotate_group=params.get("annotate", {}).get("annotate_group", ""),
+        marker_file=lambda wildcards: params.get(wildcards.counter, {}).get("annotate", {}).get("marker_file", ""),
+        celltypist_model=lambda wildcards: params.get(wildcards.counter, {}).get("annotate", {}).get("celltypist_model", ""),
+        llm_method=lambda wildcards: params.get(wildcards.counter, {}).get("annotate", {}).get("llm_method", ""),
+        llm_model=lambda wildcards: params.get(wildcards.counter, {}).get("annotate", {}).get("llm_model", ""),
+        llm_api_key=lambda wildcards: params.get(wildcards.counter, {}).get("annotate", {}).get("llm_api_key", ""),
+        llm_base_url=lambda wildcards: params.get(wildcards.counter, {}).get("annotate", {}).get("llm_base_url", ""),
+        llm_top_genes=lambda wildcards: params.get(wildcards.counter, {}).get("annotate", {}).get("llm_top_genes", 30),
+        annotate_group=lambda wildcards: params.get(wildcards.counter, {}).get("annotate", {}).get("annotate_group", ""),
     run:
         log_path = str(log)
         try:
@@ -277,7 +271,7 @@ rule scanpy_annotate:
             sample_outdir = os.path.dirname(str(output.h5ad))
             os.makedirs(sample_outdir, exist_ok=True)
             os.makedirs(str(output.plot_dir), exist_ok=True)
-            script = os.path.join(sample_outdir, f"scanpy_annotate_{wildcards.tissue}_{current_time}.sh")
+            script = os.path.join(sample_outdir, f"scanpy_annotate_{wildcards.counter}_{wildcards.tissue}_{current_time}.sh")
             cmd = [params.python, params.script, "--mode", "annotate",
                     "--input", input.h5ad,
                     "--output", output.h5ad,
@@ -311,12 +305,12 @@ rule scanpy_annotate:
 
 rule scanpy_advanced:
     input:
-        h5ad =  outdir_combine + "/{tissue}/{tissue}_annotated.h5ad"
+        h5ad =  outdir_combine + "/{tissue}/{tissue}_{counter}_annotated.h5ad"
     output:
-        h5ad = outdir_combine + "/{tissue}/{tissue}_advanced.h5ad",
-        plot_dir = directory(outdir_combine + "/{tissue}/plots/advanced")
+        h5ad = outdir_combine + "/{tissue}/{tissue}_{counter}_advanced.h5ad",
+        plot_dir = directory(outdir_combine + "/{tissue}/plots/{counter}/advanced")
     log:
-        logdir_combine + "/scanpy/{tissue}/scanpy_advanced.log"
+        logdir_combine + "/scanpy/{tissue}/scanpy_advanced_{counter}.log"
     threads: 4
     conda:
         "scanpy.yaml"
@@ -325,14 +319,14 @@ rule scanpy_advanced:
     params:
         python=python,
         script=script,
-        n_pcs=params.get("cluster", {}).get("n_pcs", 50),
-        n_neighbors=params.get("cluster", {}).get("n_neighbors", 15),
-        trajectory=params.get("advanced", {}).get("trajectory", True),
-        velocity=params.get("advanced", {}).get("velocity", False),
-        communication=params.get("advanced", {}).get("communication", False),
-        cnv=params.get("advanced", {}).get("cnv", False),
-        gtf=params.get("advanced", {}).get("gtf", ""),
-        cnv_reference=params.get("advanced", {}).get("cnv_reference", "")
+        n_pcs=lambda wildcards: params.get(wildcards.counter,{}).get("cluster",{}).get("n_pcs", 50),
+        n_neighbors=lambda wildcards: params.get(wildcards.counter,{}).get("cluster",{}).get("n_neighbors", 15),
+        trajectory=lambda wildcards: params.get(wildcards.counter,{}).get("advanced",{}).get("trajectory", True),
+        velocity=lambda wildcards: params.get(wildcards.counter,{}).get("advanced",{}).get("velocity", False),
+        communication=lambda wildcards: params.get(wildcards.counter,{}).get("advanced",{}).get("communication", False),
+        cnv=lambda wildcards: params.get(wildcards.counter,{}).get("advanced",{}).get("cnv", False),
+        gtf=lambda wildcards: params.get(wildcards.counter,{}).get("advanced",{}).get("gtf", ""),
+        cnv_reference=lambda wildcards: params.get(wildcards.counter,{}).get("advanced",{}).get("cnv_reference", "")
     run:
         log_path = str(log)
         try:
@@ -343,7 +337,7 @@ rule scanpy_advanced:
             sample_outdir = os.path.dirname(str(output.h5ad))
             os.makedirs(sample_outdir, exist_ok=True)
             os.makedirs(str(output.plot_dir), exist_ok=True)
-            script = os.path.join(sample_outdir, f"scanpy_advanced_{wildcards.tissue}_{current_time}.sh")
+            script = os.path.join(sample_outdir, f"scanpy_advanced_{wildcards.counter}_{wildcards.tissue}_{current_time}.sh")
             cmd = [params.python, params.script, "--mode", "advanced",
                     "--input", input.h5ad,
                     "--output", output.h5ad,
@@ -376,13 +370,13 @@ rule scanpy_advanced:
 
 rule scanpy_differential_expression:
     input:
-        h5ad = outdir_combine + "/{tissue}/{tissue}_advanced.h5ad"
+        h5ad = outdir_combine + "/{tissue}/{tissue}_{counter}_advanced.h5ad"
     output:
-        h5ad = outdir_combine + "/{tissue}/{tissue}_de.h5ad",
-        table = outdir_combine + "/{tissue}/{tissue}_markers.tsv",
-        plot_dir = directory(outdir_combine + "/{tissue}/plots/de")
+        h5ad = outdir_combine + "/{tissue}/{tissue}_{counter}_de.h5ad",
+        table = outdir_combine + "/{tissue}/{tissue}_{counter}_markers.tsv",
+        plot_dir = directory(outdir_combine + "/{tissue}/plots/{counter}/de")
     log:
-        logdir_combine + "/scanpy/{tissue}/scanpy_de.log"
+        logdir_combine + "/scanpy/{tissue}/scanpy_de_{counter}.log"
     threads: 2
     conda:
         "scanpy.yaml"
@@ -401,7 +395,7 @@ rule scanpy_differential_expression:
             sample_outdir = os.path.dirname(str(output.h5ad))
             os.makedirs(sample_outdir, exist_ok=True)
             os.makedirs(str(output.plot_dir), exist_ok=True)
-            script = os.path.join(sample_outdir, f"scanpy_de_{wildcards.tissue}_{current_time}.sh")
+            script = os.path.join(sample_outdir, f"scanpy_de_{wildcards.counter}_{wildcards.tissue}_{current_time}.sh")
             cmd = [params.python, params.script, "--mode", "de",
                    "--input", input.h5ad,
                    "--output", output.h5ad,
@@ -423,5 +417,5 @@ rule scanpy_differential_expression:
 # ---------------------------------------------------------------------------
 rule scanpy_result:
     input:
-        h5ad = expand(outdir_combine + "/{t}/{t}_de.h5ad", t=tissues),
-        table = expand(outdir_combine + "/{t}/{t}_markers.tsv", t=tissues)
+        h5ad = outdir_combine + "/{t}/{t}_{counter}_de.h5ad",
+        table = outdir_combine + "/{t}/{t}_{counter}_markers.tsv"

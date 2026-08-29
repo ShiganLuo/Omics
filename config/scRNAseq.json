@@ -6,8 +6,8 @@
     "logdir": null,
     "paired_samples": [],
     "single_samples": [],
-    "aligner": "star",
-    "counter": "scTE",
+    "aligner": "cellranger",
+    "counters": ["scTE","cellranger"],
     "env": {
         "env_dir": "/home/luosg/Database/env",
         "star": "/home/luosg/Database/env/star/star.sif",
@@ -44,7 +44,7 @@
                 "gtf": "/home/luosg/Database/Reference/mulatta/ENSEMBL/Mmul_10/Macaca_mulatta.Mmul_10.116.gtf",
                 "te_bed": "/home/luosg/Database/Reference/mulatta/ENSEMBL/Mmul_10/rheMac10_rmsk_TE.bed",
                 "scTE_index": null,
-                "cellranger_ref_dir": null,
+                "cellranger_ref_dir": "/home/luosg/Database/Reference/mulatta/ENSEMBL/Mmul_10/Mmul_10",
                 "star_index_dir": null
             }
         }
@@ -81,43 +81,85 @@
             "te_bed": null
         },
         "scanpy": {
-            "qc": {
-                "min_genes": 200,
-                "max_genes": 6000,
-                "max_pct_mt": 20,
-                "n_top_genes": 3000,
-                "scrublet": true,
-                "doublet_rate": 0.06
+            "scTE": {
+                "qc": {
+                    "min_genes": 200,
+                    "max_genes": 6000,
+                    "max_pct_mt": 20,
+                    "n_top_genes": 3000,
+                    "scrublet": true,
+                    "doublet_rate": 0.06
+                },
+                "cluster": {
+                    "n_pcs": 50,
+                    "n_neighbors": 15,
+                    "resolution": 0.8
+                },
+                "batch": {
+                    "n_pcs": 50,
+                    "n_neighbors": 15,
+                    "resolution": 0.8,
+                    "method": "harmony",
+                    "batch_key": "sample"
+                },
+                "annotate": {
+                    "marker_file": "",
+                    "celltypist_model": "",
+                    "llm_method": "",
+                    "llm_model": "gpt-4o",
+                    "llm_api_key": "",
+                    "llm_base_url": "",
+                    "llm_top_genes": 30,
+                    "annotate_group": "leiden"
+                },
+                "advanced": {
+                    "trajectory": false,
+                    "velocity": false,
+                    "communication": false,
+                    "cnv": false,
+                    "gtf": "",
+                    "cnv_reference": ""
+                }
             },
-            "cluster": {
-                "n_pcs": 50,
-                "n_neighbors": 15,
-                "resolution": 0.8
-            },
-            "batch": {
-                "n_pcs": 50,
-                "n_neighbors": 15,
-                "resolution": 0.8,
-                "method": "harmony",
-                "batch_key": "sample"
-            },
-            "annotate": {
-                "marker_file": "",
-                "celltypist_model": "",
-                "llm_method": "",
-                "llm_model": "gpt-4o",
-                "llm_api_key": "",
-                "llm_base_url": "",
-                "llm_top_genes": 30,
-                "annotate_group": "leiden"
-            },
-            "advanced": {
-                "trajectory": false,
-                "velocity": false,
-                "communication": false,
-                "cnv": false,
-                "gtf": "",
-                "cnv_reference": ""
+            "cellranger": {
+                "qc": {
+                    "min_genes": 200,
+                    "max_genes": 6000,
+                    "max_pct_mt": 20,
+                    "n_top_genes": 3000,
+                    "scrublet": true,
+                    "doublet_rate": 0.06
+                },
+                "cluster": {
+                    "n_pcs": 50,
+                    "n_neighbors": 15,
+                    "resolution": 0.8
+                },
+                "batch": {
+                    "n_pcs": 50,
+                    "n_neighbors": 15,
+                    "resolution": 0.8,
+                    "method": "harmony",
+                    "batch_key": "sample"
+                },
+                "annotate": {
+                    "marker_file": "",
+                    "celltypist_model": "",
+                    "llm_method": "",
+                    "llm_model": "gpt-4o",
+                    "llm_api_key": "",
+                    "llm_base_url": "",
+                    "llm_top_genes": 30,
+                    "annotate_group": "leiden"
+                },
+                "advanced": {
+                    "trajectory": false,
+                    "velocity": false,
+                    "communication": false,
+                    "cnv": false,
+                    "gtf": "",
+                    "cnv_reference": ""
+                }
             },
             "tissue_samples": {}
         }

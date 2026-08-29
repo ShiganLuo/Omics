@@ -6,8 +6,8 @@ logdir = config.get("logdir") or "log"
 outfiles = config.get("outfiles") or []
 paired_samples = config.get("paired_samples") or []
 single_samples = config.get("single_samples") or []
-aligner = config.get("aligner") or "star"
-counter = config.get("counter") or "scTE"
+aligner = config.get("aligner") or "cellranger"
+counters = config.get("counters") or ["scTE", "cellranger"]
 rule all:
     input:
         outfiles
@@ -15,6 +15,7 @@ genome = config.get("genome", {}).get("default")
 raw_bam_outdir = f"{outdir}/common/2_raw_bam"
 h5ad_outdir = f"{outdir}/common/3_raw_h5ad"
 if aligner == "star":
+    logger.info("Using STAR aligner for scRNA-seq workflow. only scTE counter is supported for STAR aligner.")
     star_config = {
         "ROOT_DIR": ROOT_DIR,
         "env": config.get("env", {}),
@@ -103,7 +104,7 @@ elif aligner == "cellranger":
     logger.info(f"Using Cell Ranger aligner for scRNA-seq workflow. Cell Ranger config: {cellranger_config}")
     use rule * from cellranger as scRNAseq_*
 
-    if counter == "scTE":
+    if "scTE" in counters:
         scTE_config = {
             "ROOT_DIR": ROOT_DIR,
             "env": config.get("env", {}),
@@ -128,9 +129,13 @@ elif aligner == "cellranger":
             config: scTE_config
         logger.info(f"Using scTE counter for scRNA-seq workflow. scTE config: {scTE_config}")
         use rule * from scTE as scRNAseq_*
+    elif "cellranger" in counters:
+        logger.info("Using Cell Ranger counter for scRNA-seq workflow. No additional configuration needed.")
+    else:
+        raise ValueError(f"Unsupported counter: {counters}. Please choose either 'scTE' or 'cellranger' for counter.")
 
 else:
-    raise ValueError(f"Unsupported aligner or counter: {aligner}, {counter}. Please choose either 'star' or 'cellranger' for aligner and 'scTE' or 'cellranger' for counter.")
+    raise ValueError(f"Unsupported aligner or counter: {aligner}, {counters}. Please choose either 'star' or 'cellranger' for aligner and 'scTE' or 'cellranger' for counter.")
 
 
 scanpy_config = {
@@ -141,7 +146,6 @@ scanpy_config = {
     "outdir_combine": f"{outdir}/common/5_combine_h5ad",
     "logdir": f"{logdir}/sample",
     "logdir_combine": f"{logdir}/group",
-    "h5ad_substring": "scTE" if counter == "scTE" else "cellranger",
     "Params": {
         "scanpy": config.get("Params", {}).get("scanpy", {}),
     },

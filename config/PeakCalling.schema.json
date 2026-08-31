@@ -36,10 +36,6 @@
     "required": true
   },
   "sample_ip_input_map": {},
-  "genomes": {
-    "type": "list",
-    "required": true
-  },
   "outfiles": {
     "type": "list",
     "required": true
@@ -86,6 +82,16 @@
       "required": false
     },
     "annotatePeaks": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    },
+    "computeMatrix": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    },
+    "plotHeatmap": {
       "type": "null",
       "nullable": true,
       "required": false
@@ -143,6 +149,74 @@
         "required": true
       }
     },
+    "computeMatrix": {
+      "regions": {
+        "type": "str",
+        "required": true
+      },
+      "mode": {
+        "type": "str",
+        "required": true
+      },
+      "referencePoint": {
+        "type": "str",
+        "required": true
+      },
+      "before": {
+        "type": "int",
+        "required": true
+      },
+      "after": {
+        "type": "int",
+        "required": true
+      },
+      "upstream": {
+        "type": "int",
+        "required": true
+      },
+      "downstream": {
+        "type": "int",
+        "required": true
+      },
+      "bodyLength": {
+        "type": "int",
+        "required": true
+      },
+      "binSize": {
+        "type": "int",
+        "required": true
+      },
+      "sortUsing": {
+        "type": "str",
+        "required": true
+      },
+      "missingDataAsZero": {
+        "type": "bool",
+        "required": true
+      },
+      "tss_flank": {
+        "type": "int",
+        "required": false
+      }
+    },
+    "plotHeatmap": {
+      "colorMap": {
+        "type": "str",
+        "required": true
+      },
+      "heatmapHeight": {
+        "type": "int",
+        "required": true
+      },
+      "heatmapWidth": {
+        "type": "int",
+        "required": true
+      },
+      "whatToShow": {
+        "type": "str",
+        "required": true
+      }
+    },
     "macs3": {
       "bw": {
         "type": "int",
@@ -168,8 +242,7 @@
       },
       "subtitle": {
         "type": "str",
-        "required": true,
-        "path": "file"
+        "required": true
       },
       "pipeline": {
         "type": "str",
@@ -200,8 +273,7 @@
       },
       "name": {
         "type": "str",
-        "required": true,
-        "path": "file"
+        "required": true
       },
       "publicPathMap": {
         "/home/luosg/Data/genomeStability/": {
@@ -235,20 +307,13 @@
     }
   },
   "genome": {
-    "fasta": {
+    "default": {
       "type": "str",
-      "required": true,
-      "path": "file"
+      "required": true
     },
-    "gtf": {
-      "type": "str",
-      "required": true,
-      "path": "file"
-    },
-    "bowtie2_index_prefix": {
-      "type": "str",
-      "required": true,
-      "path": "prefix"
+    "references": {
+      "type": "dict",
+      "required": true
     }
   },
   "env": {

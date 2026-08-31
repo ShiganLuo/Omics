@@ -1,0 +1,9 @@
+name: deeptools_heatmap
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - deeptools=3.5.1
+  - matplotlib=3.7
+  - numpy>=1.24

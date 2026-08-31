@@ -1,0 +1,13 @@
+{
+    "outdir": "output",
+    "logdir": "logs",
+    "peaks_indir": "peaks",
+    "samples": [],
+    "sample_ip_input_map": {},
+    "Procedure": {
+        "bedtools": null
+    },
+    "genome": {
+        "te_gtf": null
+    }
+}

@@ -1,0 +1,36 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "logs",
+    "samples": [],
+    "bigwig_dir": "",
+    "genome": {
+        "gtf": null
+    },
+    "Procedure": {
+        "computeMatrix": null,
+        "plotHeatmap": null
+    },
+    "Params": {
+        "computeMatrix": {
+            "regions": "peaks",
+            "mode": "reference-point",
+            "referencePoint": "center",
+            "before": 3000,
+            "after": 3000,
+            "upstream": 3000,
+            "downstream": 3000,
+            "bodyLength": 5000,
+            "binSize": 10,
+            "sortUsing": "mean",
+            "missingDataAsZero": true,
+            "tss_flank": 1000
+        },
+        "plotHeatmap": {
+            "colorMap": "YlOrRd",
+            "heatmapHeight": 15,
+            "heatmapWidth": 8,
+            "whatToShow": "heatmap, colorbar, metagene"
+        }
+    }
+}

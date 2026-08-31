@@ -1,0 +1,10 @@
+name: peak_te_overlap
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - bedtools>=2.30
+  - matplotlib>=3.7
+  - pandas>=2.0
+  - numpy>=1.24

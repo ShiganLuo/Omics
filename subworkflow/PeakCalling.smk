@@ -13,6 +13,11 @@ ip_samples = config.get("ip_samples", [])
 input_samples = config.get("input_samples", [])
 sample_ip_input_map = config.get("sample_ip_input_map", {})
 
+# Genome reference resolution — RNAseq pattern
+genome = config.get("genome", {}).get("default")
+genome_ref = config.get("genome", {}).get("references", {}).get(genome, {})
+logger.info(f"PeakCalling genome: {genome}, ref keys: {list(genome_ref.keys())}")
+
 rule all:
     input:
         outfiles
@@ -100,8 +105,8 @@ bowtie2_config = {
         "bowtie2": config.get("Procedure", {}).get("bowtie2")
     },
     "genome": {
-        "fasta": config.get("genome", {}).get("fasta"),
-        "index_prefix": config.get("genome", {}).get("bowtie2_index_prefix")
+        "fasta": genome_ref.get("fasta"),
+        "index_prefix": genome_ref.get("bowtie2_index_prefix")
     }
 }
 module bowtie2:
@@ -133,7 +138,7 @@ gatk_prepare_config = {
         "gatk": config.get("Params", {}).get("gatk", {})
     },
     "genome": {
-        "fasta": config.get("genome", {}).get("fasta")
+        "fasta": genome_ref.get("fasta")
     }
 }
 module gatk_prepare:
@@ -209,7 +214,7 @@ macs3_config = {
         "macs3": config.get("Params", {}).get("macs3", {})
     },
     "genome": {
-        "fasta": config.get("genome", {}).get("fasta")
+        "fasta": genome_ref.get("fasta")
     }
 }
 module macs3:
@@ -242,8 +247,40 @@ module frip_score:
 logger.info(f"frip_score_config: {frip_score_config}")
 use rule frip_score from frip_score as PeakCalling_frip_score
 
-# =============================================================================
-# Step 9: HOMER Peak Annotation
+# ==============================================================================
+# Step 9: deeptools Enrichment Heatmap
+# Computes signal matrix around peaks (computeMatrix) and plots heatmap
+# (plotHeatmap) for visualizing ChIP-seq enrichment patterns.
+# ==============================================================================
+deeptools_heatmap_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "env": config.get("env", {}),
+    "indir": macs3_config["outdir"],
+    "outdir": f"{outdir}/heatmap",
+    "logdir": logdir,
+    "bigwig_dir": igv_config["outdir"],
+    "samples": ip_samples,
+    "Procedure": {
+        "computeMatrix": config.get("Procedure", {}).get("computeMatrix") or "computeMatrix",
+        "plotHeatmap": config.get("Procedure", {}).get("plotHeatmap") or "plotHeatmap",
+    },
+    "Params": {
+        "computeMatrix": config.get("Params", {}).get("computeMatrix", {}),
+        "plotHeatmap": config.get("Params", {}).get("plotHeatmap", {}),
+    },
+    "genome": {
+        "gtf": genome_ref.get("gtf"),
+    },
+}
+module deeptools_heatmap:
+    snakefile: "../modules/deeptools_heatmap/deeptools_heatmap.smk"
+    config: deeptools_heatmap_config
+logger.info(f"deeptools_heatmap_config: {deeptools_heatmap_config}")
+use rule computeMatrix from deeptools_heatmap as PeakCalling_computeMatrix
+use rule plotHeatmap from deeptools_heatmap as PeakCalling_plotHeatmap
+
+# ==============================================================================
+# Step 10: HOMER Peak Annotation
 # Annotates peaks with genomic features (promoter, intron, intergenic, etc.)
 # and nearest gene information.
 # ==============================================================================
@@ -258,8 +295,8 @@ homer_config = {
         "annotatePeaks": config.get("Procedure", {}).get("annotatePeaks") or "annotatePeaks.pl"
     },
     "genome": {
-        "fasta": config.get("genome", {}).get("fasta"),
-        "gtf": config.get("genome", {}).get("gtf")
+        "fasta": genome_ref.get("fasta"),
+        "gtf": genome_ref.get("gtf")
     }
 }
 module homer:
@@ -269,7 +306,35 @@ logger.info(f"homer_config: {homer_config}")
 use rule homer_annotatepeaks from homer as PeakCalling_homer_annotatepeaks
 
 # ==============================================================================
-# Step 10: Generate Report
+# Step 11: Peak-TE Overlap Analysis
+# Calculates overlap between peaks and TE (Transposable Element) annotation,
+# producing per-sample overlap counts and a grouped bar chart comparing
+# IP vs Input samples across TE families.
+# ==============================================================================
+peak_te_overlap_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "env": config.get("env", {}),
+    "outdir": f"{outdir}/te_overlap",
+    "logdir": logdir,
+    "peaks_indir": macs3_config["outdir"],
+    "samples": ip_samples + input_samples,
+    "sample_ip_input_map": sample_ip_input_map,
+    "Procedure": {
+        "bedtools": config.get("Procedure", {}).get("bedtools") or "bedtools",
+    },
+    "genome": {
+        "te_gtf": genome_ref.get("te_gtf"),
+    },
+}
+module peak_te_overlap:
+    snakefile: "../modules/peak_te_overlap/peak_te_overlap.smk"
+    config: peak_te_overlap_config
+logger.info(f"peak_te_overlap_config: {peak_te_overlap_config}")
+use rule peak_te_overlap from peak_te_overlap as PeakCalling_peak_te_overlap
+use rule peak_te_overlap_chart from peak_te_overlap as PeakCalling_peak_te_overlap_chart
+
+# ==============================================================================
+# Step 12: Generate Report
 # Creates comprehensive PPT report with QC metrics, peak statistics, and annotation.
 # ==============================================================================
 PeakCalling_report_config = {

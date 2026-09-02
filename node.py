@@ -458,54 +458,78 @@ def runPeakCalling(
         logger.warning(f"Multiple organisms detected: {organisms}, using config default genome")
     datajson["Params"]["report"]["date"] = time.strftime("%Y-%m-%d", time.localtime())
 
-    # Build IP -> Input mapping
-    # Match each IP sample with an Input sample (if available)
-    # Strategy: use the first available Input sample as control for all IPs
-    # More sophisticated matching can be implemented based on metadata
+    # Heatmap samples: from computeMatrix.samples, fallback to all ip_samples
+    cm_params = datajson.get("Params", {}).get("computeMatrix", {})
+    cm_heatmap_samples = cm_params.get("samples", None) or ip_samples
+    # Heatmap output suffix based on regions mode
+    cm_regions = cm_params.get("regions", "tss")
+    if cm_regions == "tss":
+        hm_suffix = "tss"
+    elif cm_regions == "peaks":
+        hm_suffix = "peaks"
+    elif isinstance(cm_regions, dict) and "genes" in cm_regions:
+        hm_suffix = "per_gene" if cm_regions.get("per_gene") else "genes"
+    else:
+        hm_suffix = "heatmap"
+    # Gene names for per_gene mode
+    cm_gene_names = cm_regions.get("genes", []) if isinstance(cm_regions, dict) else []
+
     if input_samples:
-        default_input = input_samples[0]
         for ip_sample in ip_samples:
-            sample_ip_input_map[ip_sample] = default_input
+            outfiles.append(f"{outdir}/QC/1_raw_fastqc/{ip_sample}/{ip_sample}.fastqc.raw.txt")
+            outfiles.append(f"{outdir}/QC/2_trimmed_fastqc/{ip_sample}/{ip_sample}.fastqc.trimmed.txt")
             # Step 5: AddReadsGroup + MarkDuplicates (GATK4)
             outfiles.append(f"{outdir}/common/4_markdup_bam/{ip_sample}/{ip_sample}.sorted_markdup.bam")
             # Step 6: BigWig tracks
-            outfiles.append(f"{outdir}/tracks/{ip_sample}/{ip_sample}.bigwig")
+            outfiles.append(f"{outdir}/results/tracks/{ip_sample}/{ip_sample}.bigwig")
             # Step 7: MACS3 peak calling
-            outfiles.append(f"{outdir}/peaks/{ip_sample}/{ip_sample}_peaks.narrowPeak")
+            outfiles.append(f"{outdir}/results/peaks/{ip_sample}/{ip_sample}_peaks.narrowPeak")
+            outfiles.append(f"{outdir}/results/peaks/{ip_sample}/{ip_sample}_broad_peaks.broadPeak")
             # Step 8: FRiP score
             outfiles.append(f"{outdir}/QC/3_frip_score/{ip_sample}/{ip_sample}.FRiP.txt")
             # Step 9: deeptools enrichment heatmap
-            outfiles.append(f"{outdir}/heatmap/{ip_sample}/{ip_sample}_matrix.gz")
-            outfiles.append(f"{outdir}/heatmap/{ip_sample}/{ip_sample}_heatmap.png")
+            if ip_sample in cm_heatmap_samples:
+                if hm_suffix == "per_gene" and cm_gene_names:
+                    for gene_name in cm_gene_names:
+                        outfiles.append(f"{outdir}/results/heatmap/{ip_sample}/{ip_sample}_{gene_name}_heatmap.png")
+                else:
+                    outfiles.append(f"{outdir}/results/heatmap/{ip_sample}/{ip_sample}_{hm_suffix}_heatmap.png")
             # Step 10: HOMER annotation
-            outfiles.append(f"{outdir}/annotation/{ip_sample}/{ip_sample}_peaks.annotatePeaks.txt")
+            outfiles.append(f"{outdir}/results/annotation/{ip_sample}/{ip_sample}_peaks.annotatePeaks.txt")
             # Step 11: Peak-TE overlap
-            outfiles.append(f"{outdir}/te_overlap/{ip_sample}/{ip_sample}_te_overlap_counts.tsv")
-        outfiles.append(f"{outdir}/te_overlap/te_family_overlap.png")
-        outfiles.append(f"{outdir}/te_overlap/te_family_overlap.tsv")
+            outfiles.append(f"{outdir}/results/te_overlap/{ip_sample}/{ip_sample}_te_subfamily_overlap.tsv")
+            outfiles.append(f"{outdir}/results/te_overlap/{ip_sample}/{ip_sample}_peak_centric_te.tsv")
+        outfiles.append(f"{outdir}/results/peaks/cutoff_analysis.png")
+        outfiles.append(f"{outdir}/results/te_overlap/te_subfamily_overlap_combined.png")
         for input_sample in input_samples:
             outfiles.append(f"{outdir}/common/4_markdup_bam/{input_sample}/{input_sample}.sorted_markdup.bam")
-            outfiles.append(f"{outdir}/tracks/{input_sample}/{input_sample}.bigwig")
+            outfiles.append(f"{outdir}/results/tracks/{input_sample}/{input_sample}.bigwig")
     else:
         logger.warning("No Input samples found. MACS3 will run without control.")
         for ip_sample in ip_samples:
             sample_ip_input_map[ip_sample] = None
             outfiles.append(f"{outdir}/common/4_markdup_bam/{ip_sample}/{ip_sample}.sorted_markdup.bam")
-            outfiles.append(f"{outdir}/tracks/{ip_sample}/{ip_sample}.bigwig")
-            outfiles.append(f"{outdir}/peaks/{ip_sample}/{ip_sample}_peaks.narrowPeak")
+            outfiles.append(f"{outdir}/results/tracks/{ip_sample}/{ip_sample}.bigwig")
+            outfiles.append(f"{outdir}/results/peaks/{ip_sample}/{ip_sample}_peaks.narrowPeak")
+            outfiles.append(f"{outdir}/results/peaks/{ip_sample}/{ip_sample}_broad_peaks.broadPeak")
             outfiles.append(f"{outdir}/QC/3_frip_score/{ip_sample}/{ip_sample}.FRiP.txt")
             # Step 9: deeptools enrichment heatmap
-            outfiles.append(f"{outdir}/heatmap/{ip_sample}/{ip_sample}_matrix.gz")
-            outfiles.append(f"{outdir}/heatmap/{ip_sample}/{ip_sample}_heatmap.png")
+            if ip_sample in cm_heatmap_samples:
+                if hm_suffix == "per_gene" and cm_gene_names:
+                    for gene_name in cm_gene_names:
+                        outfiles.append(f"{outdir}/results/heatmap/{ip_sample}/{ip_sample}_{gene_name}_heatmap.png")
+                else:
+                    outfiles.append(f"{outdir}/results/heatmap/{ip_sample}/{ip_sample}_{hm_suffix}_heatmap.png")
             # Step 10: HOMER annotation
-            outfiles.append(f"{outdir}/annotation/{ip_sample}/{ip_sample}_peaks.annotatePeaks.txt")
+            outfiles.append(f"{outdir}/results/annotation/{ip_sample}/{ip_sample}_peaks.annotatePeaks.txt")
             # Step 11: Peak-TE overlap
-            outfiles.append(f"{outdir}/te_overlap/{ip_sample}/{ip_sample}_te_overlap_counts.tsv")
-    outfiles.append(f"{outdir}/te_overlap/te_family_overlap.png")
-    outfiles.append(f"{outdir}/te_overlap/te_family_overlap.tsv")
-    outfiles.append(f"{outdir}/tracks/ucsc_track.txt")
-    outfiles.append(f"{outdir}/tracks/igv_track.html")
+            outfiles.append(f"{outdir}/results/te_overlap/{ip_sample}/{ip_sample}_te_subfamily_overlap.tsv")
+            outfiles.append(f"{outdir}/results/te_overlap/{ip_sample}/{ip_sample}_peak_centric_te.tsv")
+    outfiles.append(f"{outdir}/results/te_overlap/te_subfamily_overlap_combined.png")
+    outfiles.append(f"{outdir}/results/tracks/ucsc_track.txt")
+    outfiles.append(f"{outdir}/results/tracks/igv_track.html")
     outfiles.append(f"{outdir}/PeakCalling_report.pptx")
+    outfiles.append(f"{outdir}/PeakCalling_report.xlsx")
     datajson["paired_samples"] = paired_samples
     datajson["single_samples"] = single_samples
     datajson["samples"] = paired_samples + single_samples

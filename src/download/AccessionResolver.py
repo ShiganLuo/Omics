@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Optional, Set, Tuple
 import os
 import sys
 from pathlib import Path
@@ -11,35 +11,38 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-class GSMResolver:
+# Accession prefix → type mapping
+_ACCESSION_PREFIXES = {
+    "GSM": "geo", "GSE": "geo", "GPL": "geo",
+    "SRX": "sra", "SRR": "sra", "SRS": "sra",
+    "SAMN": "biosample",
+}
+
+
+class AccessionResolver:
     """
-    Resolve GSM accession IDs from multiple input sources with clear priority.
+    Resolve NCBI accession IDs from multiple input sources and classify by type.
 
-    This helper class unifies GSM collection logic so downstream download/extract
-    workflows can consume a single normalized GSM list regardless of where IDs
-    come from.
+    Supports all NCBI accession types:
+      GEO:       GSM, GSE, GPL
+      SRA:       SRX, SRR, SRS
+      BioSample: SAMN
 
-    Supported sources:
-    1. Explicit GSM list from CLI (`gsm`)
-    2. Structured or plain-text file (`gsm_file`)
-    3. Existing HTML filenames in a directory (`html_dir`)
-    4. Piped stdin input (only when no IDs were found above)
-
-    Notes
-    -----
-    - IDs are de-duplicated via a set.
-    - Final output is always sorted for deterministic behavior.
-    - Column matching in tabular files is case-insensitive.
+    Sources (priority order):
+      1. Explicit list from CLI (`--acc`)
+      2. File with ID column (`--acc-file`)
+      3. Existing HTML filenames (`--from-html-dir`)
+      4. Piped stdin (when no IDs found above)
     """
     def __init__(
         self,
-        gsm: Optional[List[str]] = None,
-        gsm_file: Optional[str] = None,
+        acc: Optional[List[str]] = None,
+        acc_file: Optional[str] = None,
         html_dir: Optional[str] = None,
         id_column: str = "GSM"
     ):
-        self.gsm = gsm
-        self.gsm_file = gsm_file
+        self.acc = acc
+        self.acc_file = acc_file
         self.html_dir = html_dir
         self.id_column = id_column.lower()
 
@@ -63,24 +66,47 @@ class GSMResolver:
         ValueError
             If no GSM can be resolved from any available source.
         """
-        gsms: Set[str] = set()
+        accs: Set[str] = set()
 
-        if self.gsm:
-            gsms.update(self.gsm)
+        if self.acc:
+            accs.update(self.acc)
 
-        if self.gsm_file:
-            gsms.update(self._from_file(self.gsm_file))
+        if self.acc_file:
+            accs.update(self._from_file(self.acc_file))
 
         if self.html_dir:
-            gsms.update(self._from_html_dir(self.html_dir))
+            accs.update(self._from_html_dir(self.html_dir))
 
-        if not gsms and not sys.stdin.isatty():
-            gsms.update(self._from_stdin())
+        if not accs and not sys.stdin.isatty():
+            accs.update(self._from_stdin())
 
-        if not gsms:
-            raise ValueError("No GSM found from any source")
+        if not accs:
+            raise ValueError("No accession IDs found from any source")
 
-        return sorted(gsms)
+        return sorted(accs)
+
+    def classify(self) -> Dict[str, List[str]]:
+        """
+        Resolve and classify accessions by type.
+
+        Returns
+        -------
+        Dict[str, List[str]]
+            Keys are type names: "geo", "sra", "biosample".
+            Values are sorted accession lists of that type.
+        """
+        accs = self.resolve()
+        result: Dict[str, List[str]] = {"geo": [], "sra": [], "biosample": []}
+        for acc in accs:
+            # SAMN is 4-char prefix, others are 3-char
+            prefix = acc[:4] if acc.startswith("SAMN") else acc[:3]
+            acc_type = _ACCESSION_PREFIXES.get(prefix, "other")
+            if acc_type not in result:
+                result[acc_type] = []
+            result[acc_type].append(acc)
+        for k in result:
+            result[k] = sorted(result[k])
+        return result
 
     def _from_file(self, path: str) -> Set[str]:
         """

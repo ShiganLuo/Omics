@@ -15,17 +15,7 @@ import pandas as pd
 _SRC_DIR = Path(__file__).resolve().parent.parent.parent
 if str(_SRC_DIR) not in sys.path:
     sys.path.insert(0, str(_SRC_DIR))
-
-try:
-    from src.common.util.SepUtil import detect_delimiter
-except ImportError:
-    # 为了保证代码独立运行不报错，提供一个 fallback 函数
-    def detect_delimiter(file_path):
-        return "\t" if str(file_path).endswith((".tsv", ".txt")) else ","
-
-# ============================================================
-# logging 初始化
-# ============================================================
+from src.common.util.SepUtil import detect_delimiter
 
 def setup_logger(log_file: Path) -> logging.Logger:
     logger = logging.getLogger("SRA_DOWNLOAD")
@@ -679,7 +669,6 @@ def main():
         globus_src_ep=args.globus_source_ep,
         globus_dest_ep=args.globus_dest_ep
     )
-
     if args.jobs == 1:
         for srr, lib in tasks:
             download_fn(srr, lib)

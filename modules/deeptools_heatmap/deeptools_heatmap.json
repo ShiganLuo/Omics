@@ -4,8 +4,11 @@
     "logdir": "logs",
     "samples": [],
     "bigwig_dir": "",
+    "sample_ip_input_map": {},
     "genome": {
-        "gtf": null
+        "gtf": null,
+        "te_gtf": null,
+        "tss_bed": null
     },
     "Procedure": {
         "computeMatrix": null,
@@ -13,7 +16,7 @@
     },
     "Params": {
         "computeMatrix": {
-            "regions": "peaks",
+            "regions": "tss",
             "mode": "reference-point",
             "referencePoint": "center",
             "before": 3000,
@@ -24,13 +27,14 @@
             "binSize": 10,
             "sortUsing": "mean",
             "missingDataAsZero": true,
-            "tss_flank": 1000
+            "tss_flank": 1000,
+            "top_n": 500
         },
         "plotHeatmap": {
             "colorMap": "YlOrRd",
             "heatmapHeight": 15,
             "heatmapWidth": 8,
-            "whatToShow": "heatmap, colorbar, metagene"
+            "whatToShow": "heatmap and colorbar"
         }
     }
 }

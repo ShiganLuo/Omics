@@ -30,7 +30,7 @@ fastqc_raw_config = {
         "env": config.get("env", {}),
         "indir": indir,
         "outdir":  f"{outdir}/QC/1_raw_fastqc",
-        "logdir": logdir,
+        "logdir": f"{logdir}/sample",
         "log_suffix": "raw.txt",
         "paired_samples": paired_samples,
         "single_samples": single_samples,
@@ -52,7 +52,7 @@ trim_galore_config = {
         "env": config.get("env", {}),
         "indir": indir,
         "outdir": f"{outdir}/common/2_trimmed_fastq",
-        "logdir": logdir,
+        "logdir": f"{logdir}/sample",
         "Procedure": {
             "trim_galore": config.get('Procedure',{}).get('trim_galore')
         },
@@ -77,7 +77,7 @@ fastqc_trimmed_config = {
         "env": config.get("env", {}),
         "indir": trim_galore_config["outdir"],
         "outdir":  f"{outdir}/QC/2_trimmed_fastqc",
-        "logdir": logdir,
+        "logdir": f"{logdir}/sample",
         "paired_samples": paired_samples,
         "single_samples": single_samples,
         "log_suffix": "trimmed.txt",
@@ -99,7 +99,7 @@ bowtie2_config = {
     "env": config.get("env", {}),
     "indir": trim_galore_config["outdir"],
     "outdir": f"{outdir}/common/3_raw_bam",
-    "logdir": logdir,
+    "logdir": f"{logdir}/sample",
     "Procedure": {
         "bowtie2-build": config.get("Procedure", {}).get("bowtie2-build"),
         "bowtie2": config.get("Procedure", {}).get("bowtie2")
@@ -128,7 +128,7 @@ gatk_prepare_config = {
     "env": config.get("env", {}),
     "indir": bowtie2_config["outdir"],
     "outdir": f"{outdir}/common/4_markdup_bam",
-    "logdir": logdir,
+    "logdir": f"{logdir}/sample",
     "input_bam_substring": "",
     "Procedure": {
         "gatk": config.get("Procedure", {}).get("gatk") or "gatk",
@@ -157,8 +157,8 @@ igv_config = {
     "ROOT_DIR": ROOT_DIR,
     "env": config.get("env", {}),
     "indir": bowtie2_config["outdir"],
-    "outdir": f"{outdir}/tracks",
-    "logdir": logdir,
+    "outdir": f"{outdir}/results/tracks",
+    "logdir": f"{logdir}/sample",
     "Procedure": {
         "samtools": config.get("Procedure", {}).get("samtools") or "samtools",
         "bamCoverage": config.get("Procedure", {}).get("bamCoverage") or "bamCoverage"
@@ -182,7 +182,7 @@ use rule wig from igv as PeakCalling_bigwig
 track_config = {
         "indir": igv_config["outdir"],
         "outdir":  igv_config["outdir"],
-        "logdir": logdir,
+        "logdir": f"{logdir}/group",
         "samples": single_samples + paired_samples,
         "ROOT_DIR": ROOT_DIR,
         "env": config.get("env", {}),
@@ -201,9 +201,8 @@ macs3_config = {
     "ROOT_DIR": ROOT_DIR,
     "env": config.get("env", {}),
     "indir": gatk_prepare_config["outdir"],
-    "outdir": f"{outdir}/peaks",
-    "logdir": logdir,
-    "samples": ip_samples,
+    "outdir": f"{outdir}/results/peaks",
+    "logdir": f"{logdir}/sample",
     "ip_samples": ip_samples,
     "input_samples": input_samples,
     "sample_ip_input_map": sample_ip_input_map,
@@ -222,6 +221,7 @@ module macs3:
     config: macs3_config
 logger.info(f"macs3_config: {macs3_config}")
 use rule macs3_callpeak from macs3 as PeakCalling_macs3_callpeak
+use rule macs3_cutoff_plot from macs3 as PeakCalling_macs3_cutoff_plot
 
 # =============================================================================
 # Step 8: FRIP Score (Fraction of Reads in Peaks)
@@ -233,7 +233,7 @@ frip_score_config = {
     "env": config.get("env", {}),
     "indir": gatk_prepare_config["outdir"],
     "outdir": f"{outdir}/QC/3_frip_score",
-    "logdir": logdir,
+    "logdir": f"{logdir}/sample",
     "peaks_indir": macs3_config["outdir"],
     "samples": ip_samples,
     "Procedure": {
@@ -256,10 +256,11 @@ deeptools_heatmap_config = {
     "ROOT_DIR": ROOT_DIR,
     "env": config.get("env", {}),
     "indir": macs3_config["outdir"],
-    "outdir": f"{outdir}/heatmap",
-    "logdir": logdir,
+    "outdir": f"{outdir}/results/heatmap",
+    "logdir": f"{logdir}/sample",
     "bigwig_dir": igv_config["outdir"],
     "samples": ip_samples,
+    "sample_ip_input_map": sample_ip_input_map,
     "Procedure": {
         "computeMatrix": config.get("Procedure", {}).get("computeMatrix") or "computeMatrix",
         "plotHeatmap": config.get("Procedure", {}).get("plotHeatmap") or "plotHeatmap",
@@ -270,14 +271,18 @@ deeptools_heatmap_config = {
     },
     "genome": {
         "gtf": genome_ref.get("gtf"),
+        "te_gtf": genome_ref.get("te_gtf"),
+        "tss_bed": genome_ref.get("tss_bed"),
     },
 }
 module deeptools_heatmap:
     snakefile: "../modules/deeptools_heatmap/deeptools_heatmap.smk"
     config: deeptools_heatmap_config
 logger.info(f"deeptools_heatmap_config: {deeptools_heatmap_config}")
-use rule computeMatrix from deeptools_heatmap as PeakCalling_computeMatrix
-use rule plotHeatmap from deeptools_heatmap as PeakCalling_plotHeatmap
+use rule bigwig_ratio from deeptools_heatmap as PeakCalling_bigwig_ratio
+use rule bigwig_ratio_result from deeptools_heatmap as PeakCalling_bigwig_ratio_result
+use rule heatmap from deeptools_heatmap as PeakCalling_heatmap
+use rule heatmap_gene from deeptools_heatmap as PeakCalling_heatmap_gene
 
 # ==============================================================================
 # Step 10: HOMER Peak Annotation
@@ -288,8 +293,8 @@ homer_config = {
     "ROOT_DIR": ROOT_DIR,
     "env": config.get("env", {}),
     "indir": macs3_config["outdir"],
-    "outdir": f"{outdir}/annotation",
-    "logdir": logdir,
+    "outdir": f"{outdir}/results/annotation",
+    "logdir": f"{logdir}/sample",
     "samples": ip_samples,
     "Procedure": {
         "annotatePeaks": config.get("Procedure", {}).get("annotatePeaks") or "annotatePeaks.pl"
@@ -314,13 +319,17 @@ use rule homer_annotatepeaks from homer as PeakCalling_homer_annotatepeaks
 peak_te_overlap_config = {
     "ROOT_DIR": ROOT_DIR,
     "env": config.get("env", {}),
-    "outdir": f"{outdir}/te_overlap",
-    "logdir": logdir,
+    "outdir": f"{outdir}/results/te_overlap",
+    "logdir": f"{logdir}/sample",
     "peaks_indir": macs3_config["outdir"],
-    "samples": ip_samples + input_samples,
+    "bam_indir": gatk_prepare_config["outdir"],
+    "samples": ip_samples,
     "sample_ip_input_map": sample_ip_input_map,
     "Procedure": {
         "bedtools": config.get("Procedure", {}).get("bedtools") or "bedtools",
+    },
+    "Params": {
+        "peak_te_overlap": config.get("Params", {}).get("peak_te_overlap", {}),
     },
     "genome": {
         "te_gtf": genome_ref.get("te_gtf"),
@@ -331,7 +340,8 @@ module peak_te_overlap:
     config: peak_te_overlap_config
 logger.info(f"peak_te_overlap_config: {peak_te_overlap_config}")
 use rule peak_te_overlap from peak_te_overlap as PeakCalling_peak_te_overlap
-use rule peak_te_overlap_chart from peak_te_overlap as PeakCalling_peak_te_overlap_chart
+use rule peak_centric_overlap from peak_te_overlap as PeakCalling_peak_centric_overlap
+use rule peak_te_overlap_fig from peak_te_overlap as PeakCalling_peak_te_overlap_fig
 
 # ==============================================================================
 # Step 12: Generate Report
@@ -341,9 +351,15 @@ PeakCalling_report_config = {
     "ROOT_DIR": ROOT_DIR,
     "env": config.get("env", {}),
     "outdir": outdir,
-    "logdir": logdir,
+    "logdir": f"{logdir}/sample",
     "samples": ip_samples,
     "input_samples": input_samples,
+    "sample_ip_input_map": sample_ip_input_map,
+    "peaks_dir": f"{outdir}/results/peaks",
+    "annotation_dir": f"{outdir}/results/annotation",
+    "qc_dir": f"{outdir}/QC/3_frip_score",
+    "log_sample_dir": f"{logdir}/sample",
+    "markdup_dir": f"{outdir}/common/4_markdup_bam",
     "Params": {
         "report": config.get("Params", {}).get("report", {})
     }

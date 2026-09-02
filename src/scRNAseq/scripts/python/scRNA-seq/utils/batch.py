@@ -49,7 +49,7 @@ def Run_batchRemove(adata,n_neighbors,n_pcs,resolution,out,fig=0,methods=0):
     if methods == 0:
         sc.external.pp.bbknn(adata, batch_key='sample')
     elif methods == 1:
-        sc.external.pp.harmony_integrate(adata, batch_key='sample')
+        sc.external.pp.harmony_integrate(adata, key='sample')
     sc.tl.umap(adata)
     sc.tl.leiden(adata, resolution=resolution, key_added='leiden',flavor="igraph", 
              n_iterations=2, 

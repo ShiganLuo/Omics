@@ -41,12 +41,15 @@ def get_fastqc_input(wildcards):
         raise ValueError(f"Sample {wildcards.sample_id} not defined in paired_samples or single_samples")
 
 
+wildcard_constraints:
+    sample_id = "[^/]+"
+
 rule fastqc:
     input:
         get_fastqc_input
     output:
         outdir = directory(outdir + "/{sample_id}"),
-        flag = outdir + "/{sample_id}/fastqc." + log_suffix
+        flag = outdir + "/{sample_id}/{sample_id}.fastqc." + log_suffix
     params:
         fastqc = config.get("Procedure", {}).get("fastqc") or "fastqc"
     threads: 2
@@ -65,15 +68,18 @@ rule fastqc:
             rule_logger.info(f"Start fastqc for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
+
+            cmd = [
+                params.fastqc,
+                "--threads", str(threads),
+                "-o", output.outdir,
+                "-t", str(threads),
+            ] + list(input)
+
             script = os.path.join(sample_outdir, f"fastqc_{current_time}.sh")
-            input_str = " ".join(input) if isinstance(input, (list, tuple)) else str(input)
             with open(script, "w") as f:
-                f.write(f"{params.fastqc} \\\n")
-                f.write(f"    --threads {threads} \\\n")
-                f.write(f"    -o {output.outdir} \\\n")
-                f.write(f"    -t {threads} \\\n")
-                f.write(f"    {input_str} \\\n")
-                f.write(f"    > {log_path} 2>&1\n")
+                f.write("#!/bin/bash\n")
+                f.write(" ".join(cmd) + "\n")
                 f.write(f"touch {output.flag}\n")
             shell(f"bash {script} >> {log_path} 2>&1")
             rule_logger.info(f"fastqc for sample {wildcards.sample_id} completed")

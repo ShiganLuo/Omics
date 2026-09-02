@@ -1,6 +1,6 @@
-# Auto-generated Apptainer definition file for macs3 (PyPI/uv)
-# Source YAML: macs3.yaml
-# Build: apptainer build macs3.sif macs3.def
+# Auto-generated Apptainer definition file for deeptools_heatmap (PyPI/uv)
+# Source YAML: deeptools_heatmap.yaml
+# Build: apptainer build deeptools_heatmap.sif deeptools_heatmap.def
 # Or:   apptainer build <output.sif> <def_file>
 
 Bootstrap: docker
@@ -11,7 +11,7 @@ From: docker.m.daocloud.io/python:3.11-slim
     apt-get update && apt-get install -y --no-install-recommends build-essential zlib1g-dev libbz2-dev liblzma-dev && \
         rm -rf /var/lib/apt/lists/*
     pip install --no-cache-dir uv && \
-        uv pip install --system --no-cache-dir "macs3>=3.0.0" "matplotlib>=3.5.0"
+        uv pip install --system --no-cache-dir "deeptools>=3.5.6" "matplotlib>=3.7" "numpy>=2.0"
 
 %environment
     export PATH="/usr/local/bin:$PATH"
@@ -21,8 +21,8 @@ From: docker.m.daocloud.io/python:3.11-slim
 
 %labels
     Author genomestability
-    EnvName macs3
+    EnvName deeptools_heatmap
 
 %help
-    Apptainer image for macs3 (PyPI: "macs3>=3.0.0" "matplotlib>=3.5.0").
+    Apptainer image for deeptools_heatmap (PyPI: "deeptools>=3.5.6" "matplotlib>=3.7" "numpy>=2.0").
     Built with uv.

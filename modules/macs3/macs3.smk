@@ -1,12 +1,14 @@
 include: "../common/common.smk"
+import shlex
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 indir = config.get("indir", "input")
-samples = config.get("samples", [])
 ip_samples = config.get("ip_samples", [])
 input_samples = config.get("input_samples", [])
 sample_ip_input_map = config.get("sample_ip_input_map", {})
 bam_substring = config.get("bam_substring", "sorted_markdup.bam")
+MODULE_DIR = os.path.join(config.get("ROOT_DIR", "."), "modules", "macs3")
+CUTOFF_SCRIPT = os.path.join(MODULE_DIR, "bin", "plot_cutoff_analysis.py")
 
 def get_macs3_input(wildcards):
     """
@@ -34,8 +36,12 @@ rule macs3_callpeak:
     input:
         unpack(get_macs3_input)
     output:
-        peak = outdir + "/{sample_id}/{sample_id}_peaks.narrowPeak",
-        xls = outdir + "/{sample_id}/{sample_id}_peaks.xls"
+        narrow_peak = outdir + "/{sample_id}/{sample_id}_peaks.narrowPeak",
+        narrow_xls = outdir + "/{sample_id}/{sample_id}_peaks.xls",
+        narrow_cutoff = outdir + "/{sample_id}/{sample_id}_cutoff_analysis.txt",
+        broad_peak = outdir + "/{sample_id}/{sample_id}_broad_peaks.broadPeak",
+        broad_xls = outdir + "/{sample_id}/{sample_id}_broad_peaks.xls",
+        broad_cutoff = outdir + "/{sample_id}/{sample_id}_broad_cutoff_analysis.txt"
     log:
         logdir + "/{sample_id}/macs3.log"
     threads: 4
@@ -50,7 +56,7 @@ rule macs3_callpeak:
         pvalue = config.get("Params", {}).get("macs3", {}).get("pvalue") or "1e-5",
         genome_size = config.get("Params", {}).get("macs3", {}).get("genome_size") or "mm",
         seed = 2346,
-        cutoff_analysis = config.get("Params",{}).get("macs3", {}).get("cutoff_analysis") or False
+        broad_cutoff = config.get("Params",{}).get("macs3", {}).get("broad_cutoff") or "0.1"
     run:
         log_path = str(log)
         try:
@@ -58,8 +64,8 @@ rule macs3_callpeak:
             rule_logger = setup_logger("macs3_callpeak",log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start macs3 call peak for sample {wildcards.sample_id} at {current_time}")
-            sample_outdir = os.path.dirname(str(output.peak))
-            script = os.path.join(sample_outdir,f"macs3_callpeak_{current_time}.sh")
+            sample_outdir = os.path.dirname(str(output.narrow_peak))
+            script = os.path.join(sample_outdir, f"macs3_callpeak_{current_time}.sh")
             cmd = [
                 params.macs3, "callpeak",
                 "--bw", str(params.bw),
@@ -73,13 +79,29 @@ rule macs3_callpeak:
             if hasattr(input, "bam_control") and input.bam_control:
                 rule_logger.info(f"Using control BAM: {input.bam_control}")
                 cmd += ["-c", input.bam_control]
-            if params.cutoff_analysis:
-                rule_logger.info(f"use --cutoff-analysis to find better pvalue, it May take ~30 folds longer time to finish")
-                cmd.append("--cutoff-analysis")
+            cmd.append("--cutoff-analysis")
+            # ── Broad peak calling ──
+            broad_name = f"{params.name}_broad"
+            broad_cmd = [
+                params.macs3, "callpeak",
+                "--broad", "--broad-cutoff", str(params.broad_cutoff),
+                "--bw", str(params.bw),
+                "-p", str(params.pvalue),
+                "-g", str(params.genome_size),
+                "--outdir", sample_outdir,
+                "--name", broad_name,
+                "--seed", str(params.seed),
+                "-t", input.bam_treatment
+            ]
+            if hasattr(input, "bam_control") and input.bam_control:
+                broad_cmd += ["-c", input.bam_control]
+            broad_cmd.append("--cutoff-analysis")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
+                f.write("set -e\n")
                 f.write(" ".join(cmd) + "\n")
-                f.write(f'echo "macs3 call peak for sample {wildcards.sample_id} successfully completed !"'+ "\n")
+                f.write(" ".join(broad_cmd) + "\n")
+                f.write(f'echo "macs3 call peak (narrow + broad) for sample {wildcards.sample_id} completed !"'+ "\n")
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path,"a") as f:
@@ -87,10 +109,58 @@ rule macs3_callpeak:
             logger.error(f"Error occurred during macs3 call peak for sample {wildcards.sample_id}: {e}")
             raise e
 
+
+rule macs3_cutoff_plot:
+    """
+    Plot combined MACS3 cutoff analysis curve for all IP samples.
+    """
+    input:
+        cutoffs = expand(outdir + "/{sample_id}/{sample_id}_cutoff_analysis.txt", sample_id=ip_samples),
+    output:
+        plot = outdir + "/cutoff_analysis.png",
+    log:
+        logdir + "/../group/macs3/macs3_cutoff_plot.log"
+    threads: 1
+    conda:
+        "macs3.yaml"
+    container:
+        sif("macs3.yaml")
+    run:
+        log_path = str(log)
+        try:
+            open(log_path, "w").close()
+            rule_logger = setup_logger("macs3_cutoff_plot", log_file=log_path)
+            current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+            rule_logger.info(f"Start cutoff plot for {ip_samples} at {current_time}")
+
+            cmd = ["python", CUTOFF_SCRIPT]
+            for path, name in zip(input.cutoffs, ip_samples):
+                cmd += ["--input-files", path, "--sample-names", name]
+            cmd += ["--output", output.plot]
+
+            plot_dir = os.path.dirname(str(output.plot))
+            os.makedirs(plot_dir, exist_ok=True)
+            script = os.path.join(plot_dir, f"plot_cutoff_{current_time}.sh")
+            with open(script, "w") as f:
+                f.write("#!/bin/bash\n")
+                f.write(" ".join(shlex.quote(str(c)) for c in cmd) + "\n")
+            shell(f"bash {script} >> {log_path} 2>&1")
+        except Exception as e:
+            with open(log_path, "a") as f:
+                f.write(f"Error during cutoff plot: {e}\n")
+            logger.error(f"Error during cutoff plot: {e}")
+            raise e
+
+
 rule macs3_result:
     """
     Result aggregation rule for subworkflow use rule import.
     """
     input:
-        peak = outdir + "/{sample_id}/{sample_id}_peaks.narrowPeak",
-        xls = outdir + "/{sample_id}/{sample_id}_peaks.xls"
+        narrow_peak = outdir + "/{sample_id}/{sample_id}_peaks.narrowPeak",
+        narrow_xls = outdir + "/{sample_id}/{sample_id}_peaks.xls",
+        narrow_cutoff = outdir + "/{sample_id}/{sample_id}_cutoff_analysis.txt",
+        broad_peak = outdir + "/{sample_id}/{sample_id}_broad_peaks.broadPeak",
+        broad_xls = outdir + "/{sample_id}/{sample_id}_broad_peaks.xls",
+        broad_cutoff = outdir + "/{sample_id}/{sample_id}_broad_cutoff_analysis.txt",
+        plot = outdir + "/cutoff_analysis.png"

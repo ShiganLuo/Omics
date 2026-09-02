@@ -469,6 +469,40 @@ def execute_workflows(args, root_dir: str, logger):
             return args._test_meta_map.get(wf_name, args.meta)
         return args.meta
 
+    def _resolve_test_meta(meta_path, test_data_dir):
+        """Resolve relative FASTQ paths in test meta file to absolute paths."""
+        import pandas as pd
+        import tempfile
+        df = pd.read_csv(meta_path, sep="\t")
+        path_cols = [c for c in df.columns if c.startswith("fastq_") or c in ("bam", "pbi")]
+        changed = False
+        for col in path_cols:
+            for i, val in df[col].items():
+                if pd.isna(val) or not isinstance(val, str):
+                    continue
+                val_str = str(val)
+                if os.path.isabs(val_str) and os.path.exists(val_str):
+                    continue
+                # 相对路径：拼上 test_data_dir
+                candidate = os.path.join(test_data_dir, val_str)
+                # 绝对路径但不存在：尝试提取 fastq/ 之后的相对部分
+                if os.path.isabs(val_str) and not os.path.exists(candidate):
+                    for marker in ("fastq/", ".fq.gz", ".bam"):
+                        idx = val_str.find(marker)
+                        if idx > 0:
+                            candidate = os.path.join(test_data_dir, val_str[idx:])
+                            break
+                if os.path.exists(candidate):
+                    df.at[i, col] = candidate
+                    changed = True
+                elif not os.path.isabs(val_str):
+                    logger.warning(f"[test] Path not found: {candidate}")
+        if changed:
+            tmp = meta_path + ".resolved"
+            df.to_csv(tmp, sep="\t", index=False)
+            return tmp
+        return meta_path
+
     # Use first workflow's output dir for metadata (or a shared parent if multi)
     ref_outdir = os.path.join(args.output_dir, workflow_names[0])
     abs_ref_outdir = os.path.abspath(ref_outdir)
@@ -497,6 +531,8 @@ def execute_workflows(args, root_dir: str, logger):
             if args._test_meta_map:
                 wf_meta = _get_meta(wf_name)
                 if wf_meta and os.path.isfile(wf_meta):
+                    test_data = os.path.join(root_dir, "assests", "test", "data")
+                    wf_meta = _resolve_test_meta(wf_meta, test_data)
                     metadataUtil = MetadataUtils(outdir=abs_outdir, meta=wf_meta)
                 else:
                     metadataUtil = MetadataUtils(outdir=abs_outdir, fastq_dir=wf_meta)

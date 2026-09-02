@@ -16,6 +16,7 @@ markdup_dir = config.get("markdup_dir", outdir + "/common/4_markdup_bam")
 trim_dir = outdir + "/common/2_trimmed_fastq"
 metrics_dir = outdir + "/common/3_raw_bam"
 te_dir = outdir + "/results/te_overlap"
+heatmap_dir = outdir + "/results/heatmap"
 
 REPORT_SCRIPT = os.path.join(ROOT_DIR, "modules", "PeakCalling_report", "bin", "generate_report.py")
 
@@ -52,6 +53,10 @@ rule generate_report:
         te_enrichment = expand(te_dir + "/{sample}_vs_{input}_enrichment.png",
                                zip, sample=ip_samples,
                                input=[sample_ip_input_map.get(s, "") for s in ip_samples]),
+        # TE heatmaps
+        heatmaps = expand(heatmap_dir + "/{sample}/{sample}_{te}_heatmap.png",
+                          sample=ip_samples,
+                          te=config.get("Params", {}).get("computeMatrix", {}).get("regions", {}).get("genes", []) if isinstance(config.get("Params", {}).get("computeMatrix", {}).get("regions"), dict) else []),
     output:
         report = outdir + "/PeakCalling_report.pptx",
         excel = outdir + "/PeakCalling_report.xlsx",
@@ -100,6 +105,7 @@ rule generate_report:
                 "--trim-dir", trim_dir,
                 "--metrics-dir", metrics_dir,
                 "--te-dir", te_dir,
+                "--heatmap-dir", heatmap_dir,
                 "--output", output.report,
                 "--excel-output", output.excel,
                 "--title", params.title,

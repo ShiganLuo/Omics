@@ -1,237 +1,279 @@
 include: "../common/common.smk"
+import shlex
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 indir = config.get("indir", "input")
-samples = config.get("samples", [])
+samples = config.get("Params", {}).get("computeMatrix", {}).get("samples", None) or config.get("samples", [])
 bigwig_dir = config.get("bigwig_dir", "")
+sample_ip_input_map = config.get("sample_ip_input_map", {})
 
-# --- Regions resolution ---
-# Three modes:
-#   1. "peaks" (default): per-sample MACS3 narrowPeak → reference-point, center
-#   2. path/to/regions.bed: user-provided BED → auto mode (reference-point or scale-regions)
-#   3. "tss": auto-generate TSS BED from GTF → reference-point, TSS
-regions_cfg = config.get("Params", {}).get("computeMatrix", {}).get("regions", "peaks")
+# --- Config ---
+regions_cfg = config.get("Params", {}).get("computeMatrix", {}).get("regions", "tss")
 gtf = config.get("genome", {}).get("gtf")
+te_gtf = config.get("genome", {}).get("te_gtf")
+tss_bed = config.get("genome", {}).get("tss_bed")
 MODULE_DIR = os.path.join(config.get("ROOT_DIR", "."), "modules", "deeptools_heatmap")
-GENERATE_TSS_SCRIPT = os.path.join(MODULE_DIR, "bin", "generate_tss_bed.py")
+HEATMAP_SCRIPT = os.path.join(MODULE_DIR, "bin", "run_heatmap.py")
+cm_params = config.get("Params", {}).get("computeMatrix", {})
+ph_params = config.get("Params", {}).get("plotHeatmap", {})
 
 
-def get_bigwig_for_sample(wildcards):
-    """Return BigWig file path for a given sample."""
+
+
+def _is_gene_regions():
+    return isinstance(regions_cfg, dict) and "genes" in regions_cfg
+
+def _is_te_regions():
+    """TE regions use te_gtf and should NOT be merged (each locus independent)."""
+    return isinstance(regions_cfg, dict) and regions_cfg.get("gtf") == "te"
+
+def _get_gene_gtf(wildcards=None):
+    if isinstance(regions_cfg, dict) and regions_cfg.get("gtf") == "te":
+        return te_gtf
+    return gtf
+
+def _get_match_by():
+    return regions_cfg.get("match_by", "gene_name") if isinstance(regions_cfg, dict) else "gene_name"
+
+def _get_gene_names():
+    return regions_cfg.get("genes", []) if isinstance(regions_cfg, dict) else []
+
+def get_bigwig(wildcards):
     return os.path.join(bigwig_dir, wildcards.sample_id, wildcards.sample_id + ".bigwig")
 
+def get_input_bigwig(wildcards):
+    inp = sample_ip_input_map.get(wildcards.sample_id)
+    return os.path.join(bigwig_dir, inp, inp + ".bigwig") if inp else []
 
-def get_regions(wildcards):
-    """Resolve BED regions file based on config."""
+# Heatmap output suffix based on regions mode (tss / peaks / genes)
+def _heatmap_suffix():
+    if regions_cfg == "tss":
+        return "tss"
+    elif regions_cfg == "peaks":
+        return "peaks"
+    elif _is_gene_regions():
+        return "genes"
+    return "heatmap"
+
+HEATMAP_SUFFIX = _heatmap_suffix()
+
+# ============================================================
+# bigwigCompare: IP/Input ratio bigwig
+# ============================================================
+
+rule bigwig_ratio:
+    """Generate IP/Input ratio bigwig using deeptools bigwigCompare."""
+    input:
+        ip_bigwig = get_bigwig,
+        input_bigwig = get_input_bigwig,
+    output:
+        ratio_bigwig = outdir + "/{sample_id}/{sample_id}_IP_over_Input.bigwig",
+    log: logdir + "/{sample_id}/bigwig_ratio.log"
+    threads: 4
+    conda: "deeptools_heatmap.yaml"
+    container: sif("deeptools_heatmap.yaml")
+    run:
+        log_path = str(log)
+        try:
+            open(log_path, "w").close()
+            rule_logger = setup_logger("bigwig_ratio", log_file=log_path)
+            current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+            rule_logger.info(f"Start bigwig_ratio for sample {wildcards.sample_id} at {current_time}")
+            sample_outdir = os.path.dirname(str(output.ratio_bigwig))
+            os.makedirs(sample_outdir, exist_ok=True)
+            cmd = [
+                "bigwigCompare",
+                "-b1", input.ip_bigwig,
+                "-b2", input.input_bigwig,
+                "--operation", "ratio",
+                "--pseudocount", "1",
+                "-o", output.ratio_bigwig,
+                "-p", str(threads),
+            ]
+            script = os.path.join(sample_outdir, f"bigwig_ratio_{wildcards.sample_id}_{current_time}.sh")
+            with open(script, "w") as f:
+                f.write("#!/bin/bash\nset -euo pipefail\n")
+                f.write(" ".join(shlex.quote(str(c)) for c in cmd) + "\n")
+                f.write(f'echo "bigwig_ratio for {wildcards.sample_id} at {current_time} completed successfully"\n')
+            shell(f"bash {script} >> {log_path} 2>&1")
+        except Exception as e:
+            with open(log_path, "a") as f:
+                f.write(f"Error occurred during bigwig_ratio for sample {wildcards.sample_id}: {e}\n")
+            logger.error(f"Error occurred during bigwig_ratio for sample {wildcards.sample_id}: {e}")
+            raise e
+
+
+rule bigwig_ratio_result:
+    """Aggregation rule for bigwig_ratio."""
+    input:
+        ratio_bigwig = outdir + "/{sample_id}/{sample_id}_IP_over_Input.bigwig",
+
+
+def get_ratio_bigwig(wildcards):
+    return os.path.join(outdir, wildcards.sample_id, wildcards.sample_id + "_IP_over_Input.bigwig")
+
+
+# ============================================================
+# Heatmap (computeMatrix + plotHeatmap unified)
+# ============================================================
+
+def _build_heatmap_cmd(wildcards, input, output, threads, title):
+    """Build run_heatmap.py command for a given sample."""
+    mode, ref_point = cm_params.get("mode", "reference-point"), cm_params.get("referencePoint", "center")
+    if regions_cfg == "tss":
+        mode, ref_point = "reference-point", "TSS"
+    elif regions_cfg == "peaks":
+        mode, ref_point = "reference-point", "center"
+    elif _is_gene_regions():
+        # genes mode: force scale-regions to show TSS and TES labels
+        mode, ref_point = "scale-regions", "TSS"
+
+    cmd = [
+        "python3", HEATMAP_SCRIPT,
+        "--ip-bigwig", input.ratio_bigwig,
+        "--output", output.heatmap,
+        "--mode", mode, "--reference-point", ref_point,
+        "--before", str(cm_params.get("before", 3000)),
+        "--after", str(cm_params.get("after", 3000)),
+        "--upstream", str(cm_params.get("upstream", 3000)),
+        "--downstream", str(cm_params.get("downstream", 3000)),
+        "--body-length", str(cm_params.get("bodyLength", 5000)),
+        "--bin-size", str(cm_params.get("binSize", 10)),
+        "--sort-using", cm_params.get("sortUsing", "mean"),
+        "--top-n", str(cm_params.get("top_n", 0)),
+        "--threads", str(threads),
+        "--title", title,
+        "--color-map", ph_params.get("colorMap", "YlOrRd"),
+        "--height", str(ph_params.get("heatmapHeight", 15)),
+        "--width", str(ph_params.get("heatmapWidth", 8)),
+        "--what-to-show", ph_params.get("whatToShow", "plot, heatmap and colorbar"),
+    ]
+
+    # Region source + mode selection based on regions_cfg
+    if regions_cfg == "tss" and tss_bed and os.path.isfile(tss_bed):
+        cmd += ["--regions", tss_bed]
+    elif regions_cfg == "tss":
+        cmd += ["--gtf", input.gtf, "--region-mode", "tss",
+                "--tss-flank", str(cm_params.get("tss_flank", 1000))]
+    elif regions_cfg == "peaks":
+        # Peaks have no directionality — use center reference point
+        cmd += ["--regions", input.regions]
+    elif _is_gene_regions():
+        cmd += ["--gtf", input.gtf, "--region-mode", "genes",
+                "--match-by", _get_match_by()]
+        for name in _get_gene_names():
+            cmd += ["--gene-names", name]
+        # TE subfamilies: don't merge loci, each locus gets its own row with correct strand
+        # Gene list: merge exons into gene body
+        if not _is_te_regions():
+            cmd += ["--merge"]
+
+    if input.input_bigwig:
+        cmd += ["--input-bigwig", input.input_bigwig]
+    return cmd
+
+
+def _get_gtf_for_heatmap(wildcards):
+    """Return GTF path when mode needs it, empty list otherwise."""
+    if regions_cfg == "tss":
+        return [] if (tss_bed and os.path.isfile(tss_bed)) else (gtf or [])
+    if _is_gene_regions():
+        return _get_gene_gtf() or []
+    return []
+
+
+def _get_regions_for_heatmap(wildcards):
+    """Return pre-made BED only for peaks mode."""
     if regions_cfg == "peaks":
         return os.path.join(indir, wildcards.sample_id, wildcards.sample_id + "_peaks.narrowPeak")
-    elif regions_cfg == "tss":
-        if not gtf:
-            raise ValueError("computeMatrix regions='tss' requires genome.gtf in config")
-        return os.path.join(outdir, "_tss_regions.bed")
-    else:
-        if not os.path.isfile(regions_cfg):
-            raise ValueError(f"computeMatrix regions BED not found: {regions_cfg}")
-        return regions_cfg
+    # tss/genes modes generate BED from GTF inside run_heatmap.py
+    if regions_cfg == "tss" and tss_bed and os.path.isfile(tss_bed):
+        return tss_bed
+    return []
 
 
-# Pre-generate TSS BED from GTF (runs once, shared across all samples)
-# Only triggered when regions='tss' via get_regions input function dependency.
-rule generate_tss_bed:
+rule heatmap:
+    """TSS / peaks / gene-list mode — computeMatrix + plotHeatmap in one step."""
     input:
-        gtf = gtf or "/dev/null",
+        ratio_bigwig = get_ratio_bigwig,
+        gtf = _get_gtf_for_heatmap,
+        regions = _get_regions_for_heatmap,
     output:
-        bed = outdir + "/_tss_regions.bed",
-    log:
-        logdir + "/generate_tss_bed.log"
-    threads: 1
-    conda:
-        "deeptools_heatmap.yaml"
-    container:
-        sif("deeptools_heatmap.yaml")
-    params:
-        script = GENERATE_TSS_SCRIPT,
-        flank = config.get("Params", {}).get("computeMatrix", {}).get("tss_flank") or 1000,
-    run:
-        log_path = str(log)
-        try:
-            open(log_path, "w").close()
-            rule_logger = setup_logger("generate_tss_bed", log_file=log_path)
-            current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            rule_logger.info(f"Start generating TSS BED from GTF at {current_time}")
-            os.makedirs(os.path.dirname(str(output.bed)), exist_ok=True)
-            script_path = os.path.join(outdir, f"generate_tss_bed_{current_time}.sh")
-            cmd = [
-                "python", params.script,
-                "--gtf", input.gtf,
-                "--output", output.bed,
-                "--flank", str(params.flank),
-            ]
-            with open(script_path, "w") as f:
-                f.write("#!/bin/bash\n")
-                f.write(" ".join(cmd) + "\n")
-                f.write(f'echo "TSS BED generation completed at {current_time}"\n')
-            shell(f"bash {script_path} >> {log_path} 2>&1")
-        except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"Error generating TSS BED: {e}\n")
-            logger.error(f"Error generating TSS BED: {e}")
-            raise e
-
-
-rule computeMatrix:
-    """
-    Compute signal matrix around specified regions for enrichment heatmap.
-
-    Regions can be:
-      - MACS3 peaks (default): reference-point mode, center
-      - User BED file: auto-detected mode (reference-point or scale-regions)
-      - TSS regions: auto-generated from GTF, reference-point mode, TSS
-    """
-    input:
-        bigwig = get_bigwig_for_sample,
-        regions = get_regions,
-    output:
-        matrix = outdir + "/{sample_id}/{sample_id}_matrix.gz",
-    log:
-        logdir + "/{sample_id}/computeMatrix.log"
+        heatmap = outdir + "/{sample_id}/{sample_id}_" + HEATMAP_SUFFIX + "_heatmap.png",
+    log: logdir + "/{sample_id}/heatmap.log"
     threads: 4
-    conda:
-        "deeptools_heatmap.yaml"
-    container:
-        sif("deeptools_heatmap.yaml")
-    params:
-        computeMatrix = config.get("Procedure", {}).get("computeMatrix") or "computeMatrix",
-        mode = config.get("Params", {}).get("computeMatrix", {}).get("mode") or "reference-point",
-        referencePoint = config.get("Params", {}).get("computeMatrix", {}).get("referencePoint") or "center",
-        before = config.get("Params", {}).get("computeMatrix", {}).get("before") or 3000,
-        after = config.get("Params", {}).get("computeMatrix", {}).get("after") or 3000,
-        upstream = config.get("Params", {}).get("computeMatrix", {}).get("upstream") or 3000,
-        downstream = config.get("Params", {}).get("computeMatrix", {}).get("downstream") or 3000,
-        bodyLength = config.get("Params", {}).get("computeMatrix", {}).get("bodyLength") or 5000,
-        binSize = config.get("Params", {}).get("computeMatrix", {}).get("binSize") or 10,
-        sortUsing = config.get("Params", {}).get("computeMatrix", {}).get("sortUsing") or "mean",
-        missingDataAsZero = config.get("Params", {}).get("computeMatrix", {}).get("missingDataAsZero") or True,
+    conda: "deeptools_heatmap.yaml"
+    container: sif("deeptools_heatmap.yaml")
     run:
         log_path = str(log)
         try:
             open(log_path, "w").close()
-            rule_logger = setup_logger("computeMatrix", log_file=log_path)
+            rule_logger = setup_logger("heatmap", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            rule_logger.info(f"Start computeMatrix for sample {wildcards.sample_id} at {current_time}")
-            sample_outdir = os.path.dirname(str(output.matrix))
-            os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(sample_outdir, f"computeMatrix_{current_time}.sh")
-
-            # Auto-select mode based on regions source
-            mode = params.mode
-            if regions_cfg == "peaks":
-                mode = "reference-point"
-                ref_point = "center"
-            elif regions_cfg == "tss":
-                mode = "reference-point"
-                ref_point = "TSS"
-            else:
-                ref_point = params.referencePoint
-
-            cmd = [
-                params.computeMatrix, mode,
-                "--binSize", str(params.binSize),
-                "--sortUsing", params.sortUsing,
-                "--numberOfProcessors", str(threads),
-                "-R", input.regions,
-                "-S", input.bigwig,
-                "-o", output.matrix,
-            ]
-
-            if mode == "reference-point":
-                cmd += [
-                    "--referencePoint", ref_point,
-                    "--beforeRegionStartLength", str(params.before),
-                    "--afterRegionStartLength", str(params.after),
-                ]
-            elif mode == "scale-regions":
-                cmd += [
-                    "--regionBodyLength", str(params.bodyLength),
-                    "--upstream", str(params.upstream),
-                    "--downstream", str(params.downstream),
-                ]
-
-            if params.missingDataAsZero:
-                cmd.append("--missingDataAsZero")
-
-            with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
-                f.write(" ".join(cmd) + "\n")
-                f.write(f'echo "computeMatrix for {wildcards.sample_id} at {current_time} completed successfully"\n')
-            shell(f"bash {script} >> {log_path} 2>&1")
-        except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"Error occurred during computeMatrix for sample {wildcards.sample_id}: {e}\n")
-            logger.error(f"Error occurred during computeMatrix for sample {wildcards.sample_id}: {e}")
-            raise e
-
-
-rule plotHeatmap:
-    """
-    Plot enrichment heatmap from computeMatrix output.
-    Produces heatmap PNG and optional color bar / profile plot.
-    """
-    input:
-        matrix = outdir + "/{sample_id}/{sample_id}_matrix.gz",
-    output:
-        heatmap = outdir + "/{sample_id}/{sample_id}_heatmap.png",
-    log:
-        logdir + "/{sample_id}/plotHeatmap.log"
-    threads: 1
-    conda:
-        "deeptools_heatmap.yaml"
-    container:
-        sif("deeptools_heatmap.yaml")
-    params:
-        plotHeatmap = config.get("Procedure", {}).get("plotHeatmap") or "plotHeatmap",
-        colorMap = config.get("Params", {}).get("plotHeatmap", {}).get("colorMap") or "YlOrRd",
-        heatmapHeight = config.get("Params", {}).get("plotHeatmap", {}).get("heatmapHeight") or 15,
-        heatmapWidth = config.get("Params", {}).get("plotHeatmap", {}).get("heatmapWidth") or 8,
-        whatToShow = config.get("Params", {}).get("plotHeatmap", {}).get("whatToShow") or "heatmap, colorbar, metagene",
-        plotTitle = "",
-    run:
-        log_path = str(log)
-        try:
-            open(log_path, "w").close()
-            rule_logger = setup_logger("plotHeatmap", log_file=log_path)
-            current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            rule_logger.info(f"Start plotHeatmap for sample {wildcards.sample_id} at {current_time}")
+            rule_logger.info(f"Start heatmap for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.heatmap))
             os.makedirs(sample_outdir, exist_ok=True)
-            plot_title = params.plotTitle or f"{wildcards.sample_id} Peak Enrichment Heatmap"
-            script = os.path.join(sample_outdir, f"plotHeatmap_{current_time}.sh")
-            cmd = [
-                params.plotHeatmap,
-                "-m", input.matrix,
-                "-o", output.heatmap,
-                "--colorMap", params.colorMap,
-                "--heatmapHeight", str(params.heatmapHeight),
-                "--heatmapWidth", str(params.heatmapWidth),
-                "--whatToShow", params.whatToShow,
-                "--plotTitle", plot_title,
-            ]
+            inp = sample_ip_input_map.get(wildcards.sample_id, "")
+            title = f"{wildcards.sample_id} vs {inp}" if inp else wildcards.sample_id
+            cmd = _build_heatmap_cmd(wildcards, input, output, threads, title)
+            script = os.path.join(sample_outdir, f"heatmap_{wildcards.sample_id}_{current_time}.sh")
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
-                f.write(" ".join(cmd) + "\n")
-                f.write(f'echo "plotHeatmap for {wildcards.sample_id} at {current_time} completed successfully"\n')
+                f.write("#!/bin/bash\nset -euo pipefail\n")
+                f.write(" ".join(shlex.quote(str(c)) for c in cmd) + "\n")
+                f.write(f'echo "heatmap for {wildcards.sample_id} at {current_time} completed successfully"\n')
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path, "a") as f:
-                f.write(f"Error occurred during plotHeatmap for sample {wildcards.sample_id}: {e}\n")
-            logger.error(f"Error occurred during plotHeatmap for sample {wildcards.sample_id}: {e}")
+                f.write(f"Error occurred during heatmap for sample {wildcards.sample_id}: {e}\n")
+            logger.error(f"Error occurred during heatmap for sample {wildcards.sample_id}: {e}")
             raise e
 
 
-rule deeptools_heatmap_result:
-    """
-    Result aggregation rule for subworkflow use rule import.
-    """
+rule heatmap_gene:
+    """Per gene/TE name — computeMatrix + plotHeatmap in one step."""
     input:
-        matrix = outdir + "/{sample_id}/{sample_id}_matrix.gz",
-        heatmap = outdir + "/{sample_id}/{sample_id}_heatmap.png",
+        ratio_bigwig = get_ratio_bigwig,
+        gtf = _get_gene_gtf,
+    output:
+        heatmap = outdir + "/{sample_id}/{sample_id}_{gene_name}_heatmap.png",
+    log: logdir + "/{sample_id}/heatmap_{gene_name}.log"
+    threads: 4
+    conda: "deeptools_heatmap.yaml"
+    container: sif("deeptools_heatmap.yaml")
+    run:
+        log_path = str(log)
+        try:
+            open(log_path, "w").close()
+            rule_logger = setup_logger("heatmap_gene", log_file=log_path)
+            current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+            rule_logger.info(f"Start heatmap_gene for {wildcards.sample_id} {wildcards.gene_name} at {current_time}")
+            sample_outdir = os.path.dirname(str(output.heatmap))
+            os.makedirs(sample_outdir, exist_ok=True)
+            inp = sample_ip_input_map.get(wildcards.sample_id, "")
+            title = f"{wildcards.sample_id} {wildcards.gene_name}"
+            if inp:
+                title += f" vs {inp}"
+            cmd = _build_heatmap_cmd(wildcards, input, output, threads, title)
+            # Override mode/referencePoint for per-gene mode: force scale-regions to show TSS and TES
+            cmd[cmd.index("--mode") + 1] = "scale-regions"
+            cmd[cmd.index("--reference-point") + 1] = "TSS"
+            script = os.path.join(sample_outdir, f"heatmap_gene_{wildcards.sample_id}_{wildcards.gene_name}_{current_time}.sh")
+            with open(script, "w") as f:
+                f.write("#!/bin/bash\nset -euo pipefail\n")
+                f.write(" ".join(shlex.quote(str(c)) for c in cmd) + "\n")
+                f.write(f'echo "heatmap_gene for {wildcards.sample_id} {wildcards.gene_name} at {current_time} completed successfully"\n')
+            shell(f"bash {script} >> {log_path} 2>&1")
+        except Exception as e:
+            with open(log_path, "a") as f:
+                f.write(f"Error occurred during heatmap_gene for {wildcards.sample_id} {wildcards.gene_name}: {e}\n")
+            logger.error(f"Error occurred during heatmap_gene for {wildcards.sample_id} {wildcards.gene_name}: {e}")
+            raise e
+
+
+# ============================================================
+# Result
+# ============================================================
+
+rule deeptools_heatmap_result:
+    input:
+        heatmap = outdir + "/{sample_id}/{sample_id}_" + HEATMAP_SUFFIX + "_heatmap.png",

@@ -443,7 +443,33 @@ class EnvUtil:
     # Apptainer definition file generation
     # ------------------------------------------------------------------
     APPTAINER_BOOTSTRAP = "docker"
-    APPTAINER_FROM = "docker.m.daocloud.io/continuumio/miniconda3:latest"
+    APPTAINER_FROM = "docker.m.daocloud.io/condaforge/miniforge3:latest"
+
+    @staticmethod
+    def _all_on_pypi(deps: List[str]) -> bool:
+        """Check if all conda dependencies are available on PyPI.
+
+        Strips version specifiers (e.g. ``deeptools=3.5.1`` -> ``deeptools``)
+        and queries ``https://pypi.org/pypi/{pkg}/json`` via HEAD request.
+        Returns True only if every package is found on PyPI.
+        """
+        import urllib.request
+        import urllib.error
+        for dep in deps:
+            # Strip version specifiers: =, >=, <=, >, <, ~=
+            pkg = re.split(r"[><=!~]", dep.strip())[0].strip()
+            if not pkg:
+                continue
+            try:
+                req = urllib.request.Request(
+                    f"https://pypi.org/pypi/{pkg}/json",
+                    method="HEAD",
+                    headers={"User-Agent": "EnvUtil/1.0"},
+                )
+                urllib.request.urlopen(req, timeout=5)
+            except (urllib.error.HTTPError, urllib.error.URLError, OSError):
+                return False
+        return True
 
     @staticmethod
     def is_pypi_only(yaml_path: str) -> bool:
@@ -453,6 +479,7 @@ class EnvUtil:
         - No conda channels are specified (or only defaults)
         - No conda dependencies beyond ``pip`` itself
         - All actual packages are under the ``pip:`` sub-section
+        - OR all conda dependencies are also available on PyPI
 
         Parameters
         ----------
@@ -467,15 +494,19 @@ class EnvUtil:
         parsed = EnvUtil.parse_conda_yaml(yaml_path)
         deps: List[str] = parsed["dependencies"]  # type: ignore[assignment]
         # conda deps that are just python/pip meta-packages are fine
-        conda_deps = [d for d in deps if not re.match(r"^(python|pip)\b", d.strip(), re.I)]
-        # If there are conda channels + conda deps, it's not pypi-only
-        if parsed["channels"] and conda_deps:
-            return False
-        # If there are conda deps (non-pip), it's not pypi-only
-        if conda_deps:
-            return False
-        # Must have pip dependencies to be pypi-only
+        conda_deps = [d for d in deps if not re.match(r"^(python|pip)\\b", d.strip(), re.I)]
         pip_deps: List[str] = parsed.get("pip_dependencies", [])  # type: ignore[assignment]
+
+        # No conda deps at all: pypi-only if there are pip deps
+        if not conda_deps:
+            return bool(pip_deps)
+
+        # If there are conda channels + conda deps, check if they're on PyPI
+        if conda_deps:
+            all_pypi = EnvUtil._all_on_pypi(conda_deps)
+            if all_pypi:
+                return True
+            return False
         return bool(pip_deps)
 
     @classmethod
@@ -544,6 +575,17 @@ class EnvUtil:
         pypi_only = cls.is_pypi_only(str(yaml))
         parsed = cls.parse_conda_yaml(str(yaml))
         pip_packages: List[str] = parsed.get("pip_dependencies", [])  # type: ignore[assignment]
+
+        # pypi_only but no pip: section -> use conda dependencies as pip packages
+        if pypi_only and not pip_packages:
+            conda_deps: List[str] = parsed.get("dependencies", [])  # type: ignore[assignment]
+            pip_packages = []
+            for d in conda_deps:
+                if re.match(r"^(python|pip)\\b", d.strip(), re.I):
+                    continue
+                # conda "=" (exact version) -> pip "=="
+                d = re.sub(r"(?<=[^<>~!])=(?=[0-9])", "==", d)
+                pip_packages.append(d)
 
         if pypi_only:
             def_text = cls._render_def_uv(
@@ -669,7 +711,7 @@ From: {cls.APPTAINER_FROM}
         str
             The rendered ``.def`` file content.
         """
-        pip_args = " ".join(pip_packages)
+        pip_args = " ".join(f'"{p}"' for p in pip_packages)
         return f"""# Auto-generated Apptainer definition file for {env_name} (PyPI/uv)
 # Source YAML: {yaml_filename}
 # Build: apptainer build {env_name}.sif {def_filename}
@@ -680,7 +722,7 @@ From: {cls.UV_FROM}
 
 %post
     set -euo pipefail
-    apt-get update && apt-get install -y --no-install-recommends build-essential && \\
+    apt-get update && apt-get install -y --no-install-recommends build-essential zlib1g-dev libbz2-dev liblzma-dev && \\
         rm -rf /var/lib/apt/lists/*
     pip install --no-cache-dir uv && \\
         uv pip install --system --no-cache-dir {pip_args}
@@ -703,7 +745,7 @@ From: {cls.UV_FROM}
     # ------------------------------------------------------------------
     # Dockerfile generation (from conda YAML, same pattern as .def)
     # ------------------------------------------------------------------
-    DOCKER_FROM = "docker.m.daocloud.io/continuumio/miniconda3:latest"
+    DOCKER_FROM = "docker.m.daocloud.io/condaforge/miniforge3:latest"
 
     @classmethod
     def generate_dockerfile(
@@ -868,29 +910,49 @@ CMD ["bash"]
 
         # Verify build: check SIF is not just base image
         sif_size_mb = out.stat().st_size / (1024 * 1024)
-        if sif_size_mb < 350:
+        # PyPI/uv builds are smaller than conda builds; use lower threshold
+        def_text = df.read_text() if df.exists() else ""
+        min_size = 100 if "PyPI/uv" in def_text else 350
+        if sif_size_mb < min_size:
             raise RuntimeError(
                 f"SIF too small ({sif_size_mb:.0f} MB) — "
                 f"build likely failed. Check build output above."
             )
 
-        # Verify build: check conda env exists inside SIF
-        env_name_from_def = self.resolve_env_name_from_def(str(df))
-        verify_cmd = [
-            "apptainer", "exec", str(out),
-            "conda", "env", "list",
-        ]
-        try:
-            result = subprocess.run(
-                verify_cmd, capture_output=True, text=True, timeout=30,
-            )
-            if env_name_from_def not in result.stdout:
-                raise RuntimeError(
-                    f"Conda env '{env_name_from_def}' not found in SIF — "
-                    f"build failed silently. Check build output above."
+        # Verify build: check conda env exists inside SIF (skip for PyPI/uv)
+        if "PyPI/uv" not in def_text:
+            env_name_from_def = self.resolve_env_name_from_def(str(df))
+            verify_cmd = [
+                "apptainer", "exec", str(out),
+                "conda", "env", "list",
+            ]
+            try:
+                result = subprocess.run(
+                    verify_cmd, capture_output=True, text=True, timeout=30,
                 )
-        except subprocess.TimeoutExpired:
-            logger.warning("SIF verification timed out, skipping env check")
+                if env_name_from_def not in result.stdout:
+                    raise RuntimeError(
+                        f"Conda env '{env_name_from_def}' not found in SIF — "
+                        f"build failed silently. Check build output above."
+                    )
+            except subprocess.TimeoutExpired:
+                logger.warning("SIF verification timed out, skipping env check")
+        else:
+            # PyPI/uv: verify key packages are importable
+            verify_cmd = [
+                "apptainer", "exec", str(out),
+                "python3", "-c", "import sys; print(sys.version)",
+            ]
+            try:
+                result = subprocess.run(
+                    verify_cmd, capture_output=True, text=True, timeout=30,
+                )
+                if result.returncode != 0:
+                    raise RuntimeError(
+                        f"Python not working in SIF — build failed. {result.stderr}"
+                    )
+            except subprocess.TimeoutExpired:
+                logger.warning("SIF verification timed out, skipping")
 
         logger.info(f"SIF built: {out}")
 

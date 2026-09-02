@@ -168,8 +168,6 @@ def _build_heatmap_cmd(wildcards, input, output, threads, title):
         if not _is_te_regions():
             cmd += ["--merge"]
 
-    if input.input_bigwig:
-        cmd += ["--input-bigwig", input.input_bigwig]
     return cmd
 
 

@@ -900,6 +900,25 @@ def build_peak_centric_te_slide(prs, img_path, all_peak_centric_data, ip_samples
     _bullets(slide, MARGIN_L, 4.5, CONTENT_W, 0.8, bullets, font_size=11, color=C_MUTED)
 
 
+def build_heatmap_slide(prs, sample, heatmap_pngs, lang):
+    """One slide per sample showing TE enrichment heatmaps in a grid."""
+    slide = prs.slides.add_slide(prs.slide_layouts[6]); _bg(slide)
+    _header(slide, f"TE Enrichment Heatmaps — {sample}")
+    # Show up to 6 heatmaps in 2x3 grid
+    n = min(len(heatmap_pngs), 6)
+    cols, rows_grid = 3, 2
+    img_w = (CONTENT_W - 0.2 * (cols - 1)) / cols
+    img_h = 2.0
+    for i in range(n):
+        r, c = divmod(i, cols)
+        x = MARGIN_L + c * (img_w + 0.2)
+        y = CONTENT_TOP + r * (img_h + 0.15)
+        _add_img(slide, heatmap_pngs[i], x, y, img_w, img_h)
+    remaining = len(heatmap_pngs) - n
+    bullets = [f"显示 {n}/{len(heatmap_pngs)} 个 TE 热图"] + ([f"还有 {remaining} 个热图未显示"] if remaining > 0 else [])
+    _bullets(slide, MARGIN_L, 4.5, CONTENT_W, 0.8, bullets, font_size=11, color=C_MUTED)
+
+
 def build_summary_slide(prs, ip_samples, aligns, markdups, peaks, frips, lang):
     slide = prs.slides.add_slide(prs.slide_layouts[6]); _bg(slide); _header(slide, t("summary_title", lang))
     data = [[t("sample", lang), "Align%", "Narrow", t("frip_score", lang), "Dup%", "Status"]]
@@ -1210,6 +1229,7 @@ def main():
     ap.add_argument("--trim-dir", default="")
     ap.add_argument("--metrics-dir", default="")
     ap.add_argument("--te-dir", default="")
+    ap.add_argument("--heatmap-dir", default="")
     ap.add_argument("--output", required=True)
     ap.add_argument("--excel-output", default="")
     ap.add_argument("--img-dir", default="")
@@ -1240,6 +1260,7 @@ def main():
     # Derived dirs
     base_dir = os.path.dirname(args.peaks_dir)  # results/
     te_dir = args.te_dir or os.path.join(base_dir, "te_overlap")
+    heatmap_dir = args.heatmap_dir or os.path.join(base_dir, "heatmap")
     trim_dir = args.trim_dir or os.path.join(os.path.dirname(base_dir), "common/2_trimmed_fastq")
     metrics_dir = args.metrics_dir or os.path.join(os.path.dirname(base_dir), "common/3_raw_bam")
 
@@ -1261,6 +1282,14 @@ def main():
         img = get_te_enrichment_png(te_dir, ip, inp)
         if img:
             te_enrichment_imgs.append(img)
+    # Heatmap images per sample
+    heatmap_imgs = {}
+    for s in ip_samples:
+        sample_heatmap_dir = os.path.join(heatmap_dir, s)
+        if os.path.isdir(sample_heatmap_dir):
+            pngs = sorted([os.path.join(sample_heatmap_dir, f) for f in os.listdir(sample_heatmap_dir) if f.endswith("_heatmap.png")])
+            if pngs:
+                heatmap_imgs[s] = pngs
     # Peak-centric TE data
     all_peak_centric_data = []
     for s in ip_samples:
@@ -1300,6 +1329,8 @@ def main():
     if any(genes.values()): build_top_genes_slide(prs, genes, lang)
     if te_enrichment_imgs: build_te_enrichment_slide(prs, te_enrichment_imgs, lang)
     if peak_centric_img and all_peak_centric_data: build_peak_centric_te_slide(prs, peak_centric_img, all_peak_centric_data, ip_samples, lang)
+    for s, pngs in heatmap_imgs.items():
+        build_heatmap_slide(prs, s, pngs, lang)
     build_summary_slide(prs, ip_samples, aligns, markdups, peaks, frips, lang)
     build_conclusion_slide(prs, ip_samples, aligns, frips, peaks, markdups, macs3_info, lang)
 

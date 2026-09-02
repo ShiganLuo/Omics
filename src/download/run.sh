@@ -18,7 +18,7 @@ function download_pipeline(){
     log=$3
     echo $log
     python ${GSM_parser} \
-        --mode both \
+        --phase both \
         --gsm-file ${meta} \
         --outdir ${outdir} \
         --log ${log}
@@ -40,7 +40,7 @@ function download_pipeline(){
 meta=/home/luosg/Data/genomeStability/data/Srp54/GSM.tsv
 outdir=/home/luosg/Data/genomeStability/data/Srp54
 log=/home/luosg/Data/genomeStability/log/GSM_metadata_Srp54.log
-download_pipeline ${meta} ${outdir} ${log}
+# download_pipeline ${meta} ${outdir} ${log}
 function cngb_download(){
     ip=$1
     outdir=$2
@@ -58,3 +58,9 @@ function cngb_download(){
 ip=aspera01@download.cncb.ac.cn:gsa6/CRA024880
 outdir=/data/pub/zhousha/20260207_Exome/data/tRNA/fastq
 # cngb_download ${ip} ${outdir}
+python ${ASCP_downloader} \
+    --srr-list /home/luosg/Data/genomeStability/output/Fiberseq/sra.lst \
+    --outdir /home/luosg/Data/genomeStability/output/Fiberseq/fastq \
+    -m aria2c \
+    --log /home/luosg/Data/genomeStability/log/Fiberseq_download.log \
+    --jobs 3

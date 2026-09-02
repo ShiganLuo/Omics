@@ -1,67 +1,72 @@
 #!/usr/bin/env python3
 """
-GEO GSM Downloader & Extractor
-==============================
+GSM Metadata Downloader & Extractor
+====================================
 
-This script supports:
-- Resolving GSM IDs from flexible sources
-- Concurrent downloading with retry & cache
-- Extracting "Characteristics" from GEO GSM HTML pages
+Download and parse NCBI GEO/SRA/BioSample HTML pages to extract sample
+metadata (Characteristics, library info, run accessions) into structured
+CSV/TSV files.
 
+Supported Accession Types
 -------------------------
-Supported GSM sources
--------------------------
-Priority order:
-1. --gsm GSM1 GSM2 ...
-2. --gsm-file (txt / csv / tsv, as long as it has the ID column)
-3. --from-html-dir (infer from existing HTML files)
-4. stdin (pipe)
+  GEO:        GSM (Sample), GSE (Series), GPL (Platform)
+  SRA:        SRX (Experiment), SRR (Run), SRS (Sample)
+  BioSample:  SAMN
 
--------------------------
-Run modes
--------------------------
---mode download   : only download HTML
---mode extract    : only extract from existing HTML
---mode both       : download then extract
+Input Sources (priority order)
+------------------------------
+  1. --gsm GSM1 GSM2 ...          Explicit accession list
+  2. --gsm-file samples.csv       File with ID column (--id-column)
+  3. --from-html-dir              Infer from existing HTML files
+  4. stdin (pipe)                 Piped accession list
 
--------------------------
+Run Phases
+----------
+  --phase gsm    Download GSM HTML + extract Characteristics/GSE/SRA/BioSample IDs
+  --phase sra    Download SRX HTML + extract library metadata + SRR run table
+  --phase all    Both phases (default): gsm → sra pipeline
+
+Output Files
+------------
+  <outdir>/html/*.html        Downloaded HTML pages
+  <outdir>/gsm_metadata.csv   GSM-level metadata (Characteristics, GSE, SRA, BioSample)
+  <outdir>/sra_metadata.csv   SRA-level metadata (library, runs, organism)
+
+Key Functions
+-------------
+  download_batch()           Concurrent HTML download with retry & cache
+  extract_gsm_batch()        Parse GSM HTML → Characteristics + IDs
+  extract_sra_batch()        Parse SRX HTML → library + runs table
+  extract_feature()          Extract key-value pairs from a specific HTML table section
+  extract_gse_ids()          Extract GSE accessions from GSM page
+  extract_relations_txt()    Extract SRA/BioSample accessions from GSM page
+  extract_sra_library_and_runs()  Parse SRX page → organism, library, SRR runs
+
 Examples
--------------------------
+--------
+  # Full pipeline: GSM + SRA
+  python GSM_metadata.py \\
+    --phase all \\
+    --gsm-file samples.csv --id-column geo_accession \\
+    --outdir results/ --workers 8 --retries 3
 
-1. Download + extract from a sample sheet
------------------------------------------
-python geo_gsm_cli.py \
-  --mode both \
-  --gsm-file samples.csv \
-  --id-column geo_accession \
-  --html-dir html \
-  --out-csv Characteristics.csv \
-  --workers 8 \
-  --retries 3
+  # Only GSM metadata (skip SRA download/extract)
+  python GSM_metadata.py \\
+    --phase gsm \\
+    --gsm-file samples.csv --id-column geo_accession \\
+    --outdir results/
 
-2. Resume extraction from existing HTML
----------------------------------------
-python geo_gsm_cli.py \
-  --mode extract \
-  --from-html-dir \
-  --html-dir html \
-  --out-csv Characteristics.csv
+  # Only SRA (GSM metadata already exists)
+  python GSM_metadata.py \\
+    --phase sra \\
+    --outdir results/
 
-3. Force re-download
---------------------
-python geo_gsm_cli.py \
-  --mode download \
-  --gsm GSM2786643 \
-  --html-dir html \
-  --force
+  # Pipe accession list
+  cut -f2 samples.tsv | python GSM_metadata.py --phase all --outdir results/
 
-4. HPC / pipe usage
--------------------
-awk '{logging.info $2}' samples.tsv | \
-python geo_gsm_cli.py \
-  --mode both \
-  --html-dir html \
-  --out-csv out.csv
+Dependencies
+------------
+  requests, beautifulsoup4, pandas, AccessionResolver
 """
 
 import argparse
@@ -72,7 +77,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Dict, List, Literal, Optional
 import requests
 from bs4 import BeautifulSoup
-from GSMresolver import GSMResolver
+from AccessionResolver import AccessionResolver
 import logging
 import sys
 import pandas as pd
@@ -628,9 +633,10 @@ def main():
         description="Concurrent GEO GSM downloader and extractor"
     )
 
-    parser.add_argument("--mode", choices=["download", "extract", "both"], required=True)
-    parser.add_argument("--gsm", nargs="+")
-    parser.add_argument("--gsm-file")
+    parser.add_argument("--phase", choices=["gsm", "sra", "all"], default="all",
+                        help="Pipeline phase: gsm (download+extract GSM), sra (download+extract SRA), all (both)")
+    parser.add_argument("--acc", nargs="+", help="NCBI accession IDs (GSM, SRX, SAMN, ...)")
+    parser.add_argument("--acc-file", help="File with accession IDs")
     parser.add_argument("--id-column", default="GSM")
     parser.add_argument("--from-html-dir", action="store_true")
 
@@ -667,39 +673,41 @@ def main():
         logger.warning("HTTPS certificate verification is disabled (--insecure)")
     elif args.ca_bundle:
         logger.info(f"Using custom CA bundle: {args.ca_bundle}")
-    resolver = GSMResolver(
-        gsm=args.gsm,
-        gsm_file=args.gsm_file,
+    resolver = AccessionResolver(
+        acc=args.acc,
+        acc_file=args.acc_file,
         html_dir=str(html_dir) if args.from_html_dir else None,
         id_column=args.id_column
     )
 
-    gsm_list = resolver.resolve()
+    classified = resolver.classify()
+    gsm_ids = classified.get("geo", [])
+    srx_ids = classified.get("sra", [])
+    logger.info(f"Resolved: {len(gsm_ids)} GEO, {len(srx_ids)} SRA, {len(classified.get('biosample', []))} BioSample")
 
-    if args.mode in ("download", "both"):
-        download_batch(
-            gsm_list,
-            str(html_dir),
-            args.workers,
-            args.retries,
-            args.force,
-            verify_ssl
-        )
+    # Step 1: Download all HTML pages
+    all_ids = gsm_ids + srx_ids + classified.get("biosample", [])
+    download_batch(all_ids, str(html_dir), args.workers, args.retries, args.force, verify_ssl)
 
-    if args.mode in ("extract", "both"):
-        gsm_outfile = os.path.join(outdir,"gsm_metadata.csv")
+    # Step 2: Extract GSM metadata
+    gsm_outfile = os.path.join(outdir, "gsm_metadata.csv")
+    if args.phase in ("gsm", "all") and gsm_ids:
         gsm_meta = extract_gsm_batch(str(html_dir), str(gsm_outfile))
-        srx_list = gsm_meta["SRA"].dropna().str.split(",").explode().unique().tolist()
-        download_batch(
-            srx_list,
-            str(html_dir),
-            args.workers,
-            args.retries,
-            args.force,
-            verify_ssl
-        )
-        sra_outfile = os.path.join(outdir,"sra_metadata.csv")
-        sra_meta = extract_sra_batch(str(html_dir), str(sra_outfile))
+    elif os.path.exists(gsm_outfile):
+        gsm_meta = pd.read_csv(gsm_outfile)
+    else:
+        gsm_meta = pd.DataFrame()
+
+    # Step 3: Extract SRA metadata
+    sra_outfile = os.path.join(outdir, "sra_metadata.csv")
+    if args.phase in ("sra", "all"):
+        # Collect SRX: from direct input + from GSM metadata
+        all_srx = set(srx_ids)
+        if "SRA" in gsm_meta.columns:
+            all_srx.update(gsm_meta["SRA"].dropna().str.split(",").explode().tolist())
+        if all_srx:
+            download_batch(sorted(all_srx), str(html_dir), args.workers, args.retries, args.force, verify_ssl)
+        extract_sra_batch(str(html_dir), str(sra_outfile))
         
 
 

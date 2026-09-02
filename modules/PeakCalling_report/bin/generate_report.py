@@ -921,19 +921,22 @@ def build_heatmap_slide(prs, sample, heatmap_pngs, lang):
 
 def build_summary_slide(prs, ip_samples, aligns, markdups, peaks, frips, lang):
     slide = prs.slides.add_slide(prs.slide_layouts[6]); _bg(slide); _header(slide, t("summary_title", lang))
-    data = [[t("sample", lang), "Align%", "Narrow", t("frip_score", lang), "Dup%", "Status"]]
+    data = [[t("sample", lang), "Align%", "Narrow", "Broad", t("frip_score", lang), "Dup%", "Status"]]
     for s in ip_samples:
         rate = aligns.get(s, {}).get("overall_rate") or 0
         frip = frips.get(s, 0) or 0
         n_peaks = peaks[s]["narrow"]
+        b_peaks = peaks[s]["broad"]
         dup_rate = markdups.get(s, {}).get("dup_rate", 0)
-        issues = []
-        if rate < ALIGN_THRESH: issues.append("align")
-        if frip < FRIP_THRESH: issues.append("frip")
-        if dup_rate > 50: issues.append("dup")
-        status = "OK" if not issues else "/".join(issues)
-        data.append([s, f"{rate:.1f}%", str(n_peaks), f"{frip*100:.1f}%", f"{dup_rate:.1f}%", status])
+        ok = rate >= ALIGN_THRESH and frip >= FRIP_THRESH and dup_rate <= 50
+        status = "✓ OK" if ok else "⚠"
+        data.append([s, f"{rate:.1f}%", str(n_peaks), str(b_peaks), f"{frip*100:.1f}%", f"{dup_rate:.1f}%", status])
     _table(slide, MARGIN_L, CONTENT_TOP, CONTENT_W, 0.28 * len(data), data)
+    bullets = [
+        f"Align% 阈值 ≥{ALIGN_THRESH}%, FRiP 阈值 ≥{FRIP_THRESH*100}%, Dup% 阈值 ≤50%" if lang == "zh" else f"Thresholds: Align% ≥{ALIGN_THRESH}%, FRiP ≥{FRIP_THRESH*100}%, Dup% ≤50%",
+        "✓ = 所有指标合格，⚠ = 存在 QC 异常" if lang == "zh" else "✓ = all pass, ⚠ = QC issues detected",
+    ]
+    _bullets(slide, MARGIN_L, 4.3, CONTENT_W, 0.8, bullets, font_size=11, color=C_MUTED)
 
 
 def build_conclusion_slide(prs, ip_samples, aligns, frips, peaks, markdups, macs3_info, lang):
@@ -995,13 +998,15 @@ def build_conclusion_slide(prs, ip_samples, aligns, frips, peaks, markdups, macs
     band.fill.solid(); band.fill.fore_color.rgb = C_ACCENT; band.line.fill.background()
 
     # Per-sample mini table
-    mini = [["Sample", "Peaks", "FRiP", "Status"]]
+    mini = [["Sample", "Narrow", "Broad", "FRiP", "Dup%", "Align%", "Status"]]
     for s in ip_samples:
         rate = aligns.get(s, {}).get("overall_rate") or 0
         frip = frips.get(s, 0) or 0
         dup = markdups.get(s, {}).get("dup_rate", 0)
         ok = rate >= ALIGN_THRESH and frip >= FRIP_THRESH and dup <= 50
-        mini.append([s, str(peaks[s]["narrow"]), f"{frip*100:.1f}%", "✓" if ok else "⚠"])
+        mini.append([s, str(peaks[s]["narrow"]), str(peaks[s]["broad"]),
+                     f"{frip*100:.1f}%", f"{dup:.1f}%", f"{rate:.1f}%",
+                     "✓" if ok else "⚠"])
     _table(slide, 0.8, 4.1, 8.4, 0.22 * len(mini), mini, font_size=10)
 
 

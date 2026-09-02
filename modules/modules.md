@@ -15,6 +15,40 @@ description: 撰写Snakemake模块时需要遵循此套规范
 
 # 核心原则：最小可复用单元
 
+## 输出决定流程走向
+
+Snakemake 的核心机制是**反向推理**：从请求的输出文件出发，反向推导需要执行哪些规则。这是唯一正确的流程控制方式。
+
+**三条铁律：**
+
+1. **输出文件决定规则走向** — node.py 注册哪些输出文件 → Snakemake 反向推导需要跑哪些 rule。不被请求的输出对应的 rule 不会执行。
+2. **输入是被动的** — input 函数只为已确定要执行的 rule 准备数据，不能决定 rule 是否执行。
+3. **输入永远不可能决定流程走向** — 不要在 input 函数里写条件分支来"阻止" rule 执行，这是用输入控制流程，违反 Snakemake 设计原则。
+
+**错误示例**（用输入控制流程）：
+```python
+# ❌ 错误：用 input 函数的返回值来阻止 rule 执行
+def _get_gtf_for_heatmap(wildcards):
+    if per_gene_mode:
+        return []  # 想通过返回空来阻止 rule 执行
+    return gtf
+```
+
+**正确示例**（用输出控制流程）：
+```python
+# node.py 中：per_gene 模式不注册 heatmap 输出，只注册 heatmap_gene 输出
+if per_gene:
+    for gene in gene_names:
+        outfiles.append(f"{outdir}/heatmap/{sample}_{gene}_heatmap.png")
+else:
+    outfiles.append(f"{outdir}/heatmap/{sample}_genes_heatmap.png")
+# Snakefile 中：input 函数只管准备数据，不做条件判断
+def _get_gtf_for_heatmap(wildcards):
+    return gtf  # 总是返回 GTF，流程由 node.py 输出控制
+```
+
+**判断标准：** 如果删除某个 input 函数的条件分支后，流程行为发生了变化，说明你正在用输入控制流程——这是错误的。
+
 每个模块封装**一个工具**或**一个原子分析步骤**。规则只负责校验和调用，所有逻辑在 `bin/*.py` 中。
 
 **模块 .smk 中禁止条件分支**（`if`/`else` 包裹 rule 定义）。模块应该定义所有可能的 rule，由 subworkflow 决定 `use rule` 哪些。条件逻辑（如是否启用 batch correction、是否跑 velocity）属于 subworkflow 层，不属于模块层。
@@ -148,7 +182,7 @@ rule <tool>_<action>:
                 ...
             ]
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "<tool> <action> for {wildcards.sample_id} at {current_time} completed successfully"\n')
             shell(f"bash {script} >> {log_path} 2>&1")
@@ -167,7 +201,7 @@ rule <tool>_<action>:
 4. **`current_time` 时间戳** — 脚本名加时间戳避免并发写冲突
 5. **`cmd` 列表构建** — 参数逐项添加，条件参数用 `if` 追加
 6. **`" ".join(cmd)`** — 不用 `shlex.join()`
-7. **`#!/bin/bash`** — 不用 `#!/usr/bin/env bash\nset -euo pipefail`
+7. **`#!/bin/bash` + `set -euo pipefail`** — 脚本内任何命令失败立即退出，不会执行后续的 echo
 8. **`echo` 完成标记** — 脚本末尾写 `echo "...completed successfully"`，执行成功时日志中有明确结尾
 9. **`shell(f"bash {script} >> {log_path} 2>&1")`** — 直接路径，不加 `shlex.quote` 包装
 10. **`logger.error(...)` + `raise e`** — snakemake logger 记录错误后 re-raise
@@ -186,7 +220,7 @@ if params.optional_param:
 
 ```python
 with open(script, "w") as f:
-    f.write("#!/bin/bash\n")
+    f.write("#!/bin/bash\nset -euo pipefail\n")
     f.write(" ".join(cmd1) + "\n")
     f.write(" ".join(cmd2) + "\n")
     f.write(f'echo "<tool> completed at {current_time}"\n')
@@ -205,7 +239,7 @@ run:
             f.write(f"{k}\t{v}\n")
     # shell 执行
     with open(script, "w") as f:
-        f.write("#!/bin/bash\n")
+        f.write("#!/bin/bash\nset -euo pipefail\n")
         f.write(" ".join(cmd) + "\n")
         f.write(f'echo "<tool> completed at {current_time}"\n')
     shell(f"bash {script} >> {log_path} 2>&1")

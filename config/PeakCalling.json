@@ -1,140 +1,197 @@
 {
-    "ROOT_DIR": "",
-    "env": {
-        "env_dir": "/disk5/luosg/Database/env",
-        "PeakCalling_report": "/disk5/luosg/Database/env/PeakCalling_report/report.sif",
-        "bowtie2": "/disk5/luosg/Database/env/bowtie2/bowtie2.sif",
-        "fastqc": "/disk5/luosg/Database/env/fastqc/fastqc.sif",
-        "frip_score": "/disk5/luosg/Database/env/frip_score/frip_score.sif",
-        "gatk": "/disk5/luosg/Database/env/gatk/gatk4.sif",
-        "homer": "/disk5/luosg/Database/env/homer/homer.sif",
-        "igv": "/disk5/luosg/Database/env/igv/hisat2.sif",
-        "macs3": "/disk5/luosg/Database/env/macs3/macs3.sif",
-        "track": "/disk5/luosg/Database/env/track/track.sif",
-        "trim-galore": "/disk5/luosg/Database/env/trim-galore/trim-galore.sif",
-        "deeptools_heatmap": "/disk5/luosg/Database/env/deeptools_heatmap/deeptools_heatmap.sif",
-        "peak_te_overlap": "/disk5/luosg/Database/env/peak_te_overlap/peak_te_overlap.sif"
+  "ROOT_DIR": "",
+  "env": {
+    "env_dir": "/home/luosg/Database/env",
+    "PeakCalling_report": "/home/luosg/Database/env/PeakCalling_report/report.sif",
+    "bowtie2": "/home/luosg/Database/env/bowtie2/bowtie2.sif",
+    "fastqc": "/home/luosg/Database/env/fastqc/fastqc.sif",
+    "frip_score": "/home/luosg/Database/env/frip_score/frip_score.sif",
+    "gatk": "/home/luosg/Database/env/gatk/gatk4.sif",
+    "homer": "/home/luosg/Database/env/homer/homer.sif",
+    "igv": "/home/luosg/Database/env/igv/hisat2.sif",
+    "macs3": "/home/luosg/Database/env/macs3/macs3.sif",
+    "track": "/home/luosg/Database/env/track/track.sif",
+    "trim-galore": "/home/luosg/Database/env/trim-galore/trim-galore.sif",
+    "deeptools_heatmap": "/home/luosg/Database/env/deeptools_heatmap/deeptools_heatmap.sif",
+    "peak_te_overlap": "/home/luosg/Database/env/peak_te_overlap/peak_te_overlap.sif"
+  },
+  "indir": "",
+  "outdir": "",
+  "logdir": "",
+  "samples": [],
+  "raw_files": [],
+  "paired_samples": [],
+  "single_samples": [],
+  "ip_samples": [],
+  "input_samples": [],
+  "sample_ip_input_map": {},
+  "outfiles": [],
+  "Procedure": {
+    "trim_galore": null,
+    "bowtie2-build": null,
+    "bowtie2": null,
+    "samtools": null,
+    "gatk": null,
+    "bamCoverage": null,
+    "macs3": null,
+    "bedtools": null,
+    "annotatePeaks": null,
+    "computeMatrix": null,
+    "plotHeatmap": null
+  },
+  "Params": {
+    "trim_galore": {
+      "quality": 25
     },
-    "indir": "",
-    "outdir": "",
-    "logdir": "",
-    "samples": [],
-    "raw_files": [],
-    "paired_samples": [],
-    "single_samples": [],
-    "ip_samples": [],
-    "input_samples": [],
-    "sample_ip_input_map": {},
-    "outfiles": [],
-    "Procedure": {
-        "trim_galore": "/opt/TrimGalore-0.6.10/trim_galore",
-        "bowtie2-build": null,
-        "bowtie2": null,
-        "samtools": null,
-        "gatk": null,
-        "bamCoverage": null,
-        "macs3": null,
-        "bedtools": null,
-        "annotatePeaks": null,
-        "computeMatrix": null,
-        "plotHeatmap": null
+    "bowtie2": {},
+    "gatk": {
+      "javaOptions": "-Xmx30g",
+      "tmp-dir": null,
+      "addReadsGroup": {
+        "RGLB": "lib1",
+        "RGPL": "ILLUMINA",
+        "RGPU": "unit1"
+      }
     },
-    "Params": {
-        "trim_galore": {
-            "quality": 25
+    "bamCoverage": {
+      "binSize": 50,
+      "normalizeUsing": "CPM",
+      "offset": null,
+      "extendReads": false
+    },
+    "computeMatrix": {
+      "regions": {
+        "genes": [
+          "GSAT_MM",
+          "IMPB_01",
+          "RMER12B",
+          "L1MdTf_I",
+          "L1MdTf_II",
+          "L1MdTf_III",
+          "L1MdGf_I",
+          "L1MdGf_II",
+          "L1MdA_I",
+          "L1MdA_II",
+          "L1MdA_III",
+          "L1MdA_IV",
+          "L1MdA_V",
+          "L1MdA_VI",
+          "L1MdA_VII",
+          "ORR1A0",
+          "ORR1A1",
+          "ORR1A2",
+          "ORR1A3",
+          "ORR1A4",
+          "ORR1B1",
+          "ORR1B2",
+          "ORR1C1",
+          "ORR1C2",
+          "ORR1D1",
+          "ORR1D2",
+          "ORR1E",
+          "ORR1F",
+          "ORR1G",
+          "MERVL-int",
+          "MT2_Mm"
+        ],
+        "per_gene": true,
+        "gtf": "te",
+        "match_by": "gene_id"
+      },
+      "mode": "reference-point",
+      "referencePoint": "center",
+      "before": 3000,
+      "after": 3000,
+      "upstream": 3000,
+      "downstream": 3000,
+      "bodyLength": 5000,
+      "binSize": 10,
+      "sortUsing": "mean",
+      "missingDataAsZero": true,
+      "tss_flank": 1000,
+      "top_n": 500,
+      "samples": [
+        "Rpp21IP",
+        "Rpp14IP"
+      ]
+    },
+    "plotHeatmap": {
+      "colorMap": "YlOrRd",
+      "heatmapHeight": 15,
+      "heatmapWidth": 8,
+      "whatToShow": "plot, heatmap and colorbar"
+    },
+    "macs3": {
+      "bw": 200,
+      "pvalue": "1e-5",
+      "genome_size": "mm",
+      "broad_cutoff": "0.1"
+    },
+    "peak_te_overlap": {
+      "method": "reads",
+      "sort_by": "te_length",
+      "top_n": 30,
+      "combine": false
+    },
+    "report": {
+      "title": "ChIP-seq Peak Calling Report",
+      "subtitle": "Pop5 & Rpp14 & Rpp21 IP/Input — Mouse GRCm39 (mm39)",
+      "pipeline": "TrimGalore → Bowtie2 → GATK MarkDuplicates → MACS3 → HOMER → bamCoverage → FRiP",
+      "genome": "GRCm39 (mm39)",
+      "date": "2026-07-14",
+      "top_n": 5
+    },
+    "igv": {
+      "js": "/home/luosg/Database/SoftWare/igv.min.js",
+      "id": "mm39",
+      "name": "Mouse (GRCm39/mm39)",
+      "publicPathMap": {
+        "/home/luosg/Data/genomeStability/": "/data/",
+        "/home/luosg/Database/Reference/": "/ref/"
+      },
+      "fastaURL": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
+      "indexURL": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa.fai",
+      "cytobandURL": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/mm39.cytoBand.txt",
+      "tracks": [
+        {
+          "name": "Gencode vM38 genes",
+          "format": "gtf",
+          "url": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gene_exon.sorted.gtf.gz",
+          "indexURL": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gene_exon.sorted.gtf.gz.tbi"
         },
-        "bowtie2": {},
-        "gatk": {
-            "javaOptions": "-Xmx30g",
-            "tmp-dir": null,
-            "addReadsGroup": {
-                "RGLB": "lib1",
-                "RGPL": "ILLUMINA",
-                "RGPU": "unit1"
-            }
-        },
-        "bamCoverage": {
-            "binSize": 50,
-            "normalizeUsing": "CPM",
-            "offset": null,
-            "extendReads": false
-        },
-        "computeMatrix": {
-            "regions": "peaks",
-            "mode": "reference-point",
-            "referencePoint": "center",
-            "before": 3000,
-            "after": 3000,
-            "upstream": 3000,
-            "downstream": 3000,
-            "bodyLength": 5000,
-            "binSize": 10,
-            "sortUsing": "mean",
-            "missingDataAsZero": true,
-            "tss_flank": 1000
-        },
-        "plotHeatmap": {
-            "colorMap": "YlOrRd",
-            "heatmapHeight": 15,
-            "heatmapWidth": 8,
-            "whatToShow": "heatmap, colorbar, metagene"
-        },
-        "macs3": {
-            "bw": 200,
-            "pvalue": "1e-5",
-            "genome_size": "mm",
-            "cutoff_analysis": false
-        },
-        "report": {
-            "title": "ChIP-seq Peak Calling Report",
-            "subtitle": "Pop5 & Rpp14 & Rpp21 IP/Input — Mouse GRCm39 (mm39)",
-            "pipeline": "TrimGalore → Bowtie2 → GATK MarkDuplicates → MACS3 → HOMER → bamCoverage → FRiP",
-            "genome": "GRCm39 (mm39)",
-            "date": "2026-07-14",
-            "top_n": 5
-        },
-        "igv": {
-            "js": "/disk5/luosg/Database/SoftWare/igv.min.js",
-            "id": "mm39",
-            "name": "Mouse (GRCm39/mm39)",
-            "publicPathMap": {
-                "/home/luosg/Data/genomeStability/": "/data/",
-                "/disk5/luosg/Database/Reference/": "/ref/"
-            },
-            "fastaURL": "/disk5/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
-            "indexURL": "/disk5/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa.fai",
-            "cytobandURL": "/disk5/luosg/Database/Reference/mouse/GENCODE/GRCm39/mm39.cytoBand.txt",
-            "tracks": [
-                {
-                    "name": "Gencode vM38 genes",
-                    "format": "gtf",
-                    "url": "/disk5/luosg/Database/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gene_exon.sorted.gtf.gz",
-                    "indexURL": "/disk5/luosg/Database/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gene_exon.sorted.gtf.gz.tbi"
-                },
-                {
-                    "name": "Gencode rmsk repeats",
-                    "format": "gtf",
-                    "url": "/disk5/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.sorted.gtf.gz",
-                    "indexURL": "/disk5/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.sorted.gtf.gz.tbi"
-                }
-            ]
+        {
+          "name": "Gencode rmsk repeats",
+          "format": "gtf",
+          "url": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.sorted.gtf.gz",
+          "indexURL": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.sorted.gtf.gz.tbi"
         }
-    },
-    "genome": {
-        "default": "GRCm39",
-        "references": {
-            "GRCm39": {
-                "fasta": "/disk5/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
-                "gtf": "/disk5/luosg/Database/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf",
-                "bowtie2_index_prefix": "/disk5/luosg/Database/Reference/mouse/GENCODE/GRCm39/bowtie2/GRCm39.primary_assembly.genome",
-                "te_gtf": "/disk5/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.gtf"
-            },
-            "GRCh38": {
-                "fasta": "/disk5/luosg/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa",
-                "gtf": "/disk5/luosg/Database/Reference/human/GENCODE/GRCh38/gencode.v49.primary_assembly.basic.annotation.gtf",
-                "bowtie2_index_prefix": "/disk5/luosg/Database/Reference/human/GENCODE/GRCh38/bowtie2/GRCh38.primary_assembly.genome",
-                "te_gtf": "/disk5/luosg/Database/Reference/human/GENCODE/GRCh38/GRCh38_GENCODE_rmsk_TE.gtf"
-            }
-        }
+      ]
     }
+  },
+  "genome": {
+    "default": "GRCm39",
+    "references": {
+      "GRCm39": {
+        "fasta": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
+        "gtf": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf",
+        "bowtie2_index_prefix": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/bowtie2/genome",
+        "te_gtf": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.gtf",
+        "tss_bed": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/tss_regions.bed"
+      },
+      "GRCh38": {
+        "fasta": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa",
+        "gtf": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/gencode.v49.primary_assembly.basic.annotation.gtf",
+        "bowtie2_index_prefix": null,
+        "te_gtf": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/GRCh38_GENCODE_rmsk_TE.gtf",
+        "tss_bed": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/tss_regions.bed"
+      },
+      "Mmul_10": {
+        "fasta": "/home/luosg/Database/Reference/mulatta/ENSEMBL/Mmul_10/Macaca_mulatta.Mmul_10.dna.toplevel.fa",
+        "gtf": "/home/luosg/Database/Reference/mulatta/ENSEMBL/Mmul_10/Macaca_mulatta.Mmul_10.116.gtf",
+        "bowtie2_index_prefix": null,
+        "te_gtf": "/home/luosg/Database/Reference/mulatta/ENSEMBL/Mmul_10/rheMac10_rmsk_TE.gtf",
+        "tss_bed": "/home/luosg/Database/Reference/mulatta/ENSEMBL/Mmul_10/tss_regions.bed"
+      }
+    }
+  }
 }

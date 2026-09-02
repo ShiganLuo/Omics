@@ -1,0 +1,35 @@
+# Auto-generated Apptainer definition file for peak_te_overlap conda environment
+# Source YAML: peak_te_overlap.yaml
+# Build: apptainer build peak_te_overlap.sif peak_te_overlap.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/condaforge/miniforge3:latest
+
+%files
+    peak_te_overlap.yaml /opt/conda/peak_te_overlap.yaml
+
+%post
+    set -eu
+    export PATH="/opt/conda/bin:$PATH"
+    export CONDA_NO_PLUGINS=true
+    conda config --set solver classic
+    conda env create -f /opt/conda/peak_te_overlap.yaml &&         conda clean -afy &&         rm /opt/conda/peak_te_overlap.yaml
+
+    echo 'export PATH="/opt/conda/envs/peak_te_overlap/bin:$PATH"' >> /etc/profile.d/conda_peak_te_overlap.sh
+    echo 'export CONDA_DEFAULT_ENV=peak_te_overlap' >> /etc/profile.d/conda_peak_te_overlap.sh
+
+%environment
+    export PATH="/opt/conda/envs/peak_te_overlap/bin:$PATH"
+    export CONDA_DEFAULT_ENV=peak_te_overlap
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName peak_te_overlap
+
+%help
+    Apptainer image for conda environment 'peak_te_overlap'.
+    Generated from peak_te_overlap.yaml.

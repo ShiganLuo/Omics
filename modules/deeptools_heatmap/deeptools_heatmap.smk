@@ -117,7 +117,7 @@ def get_ratio_bigwig(wildcards):
 # Heatmap (computeMatrix + plotHeatmap unified)
 # ============================================================
 
-def _build_heatmap_cmd(wildcards, input, output, threads, title):
+def _build_heatmap_cmd(wildcards, input, output, threads, title, gene_names=None):
     """Build run_heatmap.py command for a given sample."""
     mode, ref_point = cm_params.get("mode", "reference-point"), cm_params.get("referencePoint", "center")
     if regions_cfg == "tss":
@@ -161,7 +161,8 @@ def _build_heatmap_cmd(wildcards, input, output, threads, title):
     elif _is_gene_regions():
         cmd += ["--gtf", input.gtf, "--region-mode", "genes",
                 "--match-by", _get_match_by()]
-        for name in _get_gene_names():
+        names = gene_names if gene_names is not None else _get_gene_names()
+        for name in names:
             cmd += ["--gene-names", name]
         # TE subfamilies: don't merge loci, each locus gets its own row with correct strand
         # Gene list: merge exons into gene body
@@ -251,10 +252,7 @@ rule heatmap_gene:
             title = f"{wildcards.sample_id} {wildcards.gene_name}"
             if inp:
                 title += f" vs {inp}"
-            cmd = _build_heatmap_cmd(wildcards, input, output, threads, title)
-            # Override mode/referencePoint for per-gene mode: force scale-regions to show TSS and TES
-            cmd[cmd.index("--mode") + 1] = "scale-regions"
-            cmd[cmd.index("--reference-point") + 1] = "TSS"
+            cmd = _build_heatmap_cmd(wildcards, input, output, threads, title, gene_names=[wildcards.gene_name])
             script = os.path.join(sample_outdir, f"heatmap_gene_{wildcards.sample_id}_{wildcards.gene_name}_{current_time}.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")

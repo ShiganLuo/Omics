@@ -2,18 +2,32 @@ name: scanpy
 channels:
   - conda-forge
   - bioconda
+  # 国内镜像（取消注释以加速下载）:
+  # - https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/conda-forge
+  # - https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/bioconda
+  # - https://mirrors.ustc.edu.cn/anaconda/cloud/conda-forge
+  # - https://mirrors.ustc.edu.cn/anaconda/cloud/bioconda
 dependencies:
   - python=3.11
   - pip
   - scanpy
   - anndata
   - leidenalg
+  - louvain
   - python-igraph
   - scrublet
   - scvelo
   - liana
   - celltypist
+  - bbknn
+  - harmonypy
+  - scvi-tools
+  - cellrank
   - openai
   - requests
   - pip:
     - infercnvpy
+    - adjustText
+    - doubletdetection
+    - magic-impute
+    - palantir

@@ -886,9 +886,8 @@ def runscRNAseq(
     counters = datajson["counters"]
     aligner = datajson["aligner"]
     if "scTE" in counters:
-        # TEs are far less numerous than genes — median ~25 TE/cell
-        datajson["Params"]["scanpy"]["scTE"]["qc"]["min_genes"] = 10
-        datajson["Params"]["scanpy"]["scTE"]["qc"]["max_genes"] = 3000
+        datajson["Params"]["scanpy"]["scTE"]["qc"]["min_genes"] = 200
+        datajson["Params"]["scanpy"]["scTE"]["qc"]["max_genes"] = 6000
         datajson["Params"]["scanpy"]["scTE"]["qc"]["scrublet"] = False
         if aligner == "star":
             datajson["Params"]["scTE"]["cb_tag"] = "CR"

@@ -6,19 +6,18 @@ for each pipeline stage: QC, merge, cluster, batch, annotate, advanced, de.
 Usage:
     from plot import ScanpyPlotter
     plotter = ScanpyPlotter(plot_dir="/path/to/plots")
-    plotter.plot_qc(adata, adata_before)
+    plotter.plot_qc(adata, adata_before, ...)
 """
 
 import csv
 import logging
 import os
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
 import scanpy as sc
 import seaborn as sns
 from anndata import AnnData
@@ -54,22 +53,6 @@ class ScanpyPlotter:
         plt.close("all")
 
     @staticmethod
-    def _detect_anno_key(adata: AnnData) -> Optional[str]:
-        """Return the first available cell-type annotation column."""
-        for key in ("cell_type", "celltypist_label", "llm_label", "major_celltype"):
-            if key in adata.obs.columns:
-                return key
-        return None
-
-    @staticmethod
-    def _detect_sample_key(adata: AnnData) -> Optional[str]:
-        """Return the first available sample identifier column."""
-        for key in ("sample_id", "sample", "batch"):
-            if key in adata.obs.columns:
-                return key
-        return None
-
-    @staticmethod
     def _umap(adata: AnnData, color: str, *,
               ax: plt.Axes, title: str = "", legend_loc: str = "right margin",
               legend_fontsize: int = 8, legend_fontoutline: int = 2) -> None:
@@ -85,61 +68,99 @@ class ScanpyPlotter:
     # ------------------------------------------------------------------
     # QC
     # ------------------------------------------------------------------
-    def plot_qc(self, adata: AnnData, adata_before: AnnData) -> None:
-        """QC diagnostics: counts distribution, mt%, scatter before/after, HVG.
+    def plot_qc(
+        self,
+        adata: AnnData,
+        adata_before: AnnData,
+        counts_col: str = "total_counts",
+        genes_col: str = "n_genes_by_counts",
+        mt_col: str = "pct_counts_mt",
+    ) -> None:
+        """QC diagnostics: counts distribution, mt%, scatter before/after.
+
+        Generates:
+            - qc_total_counts_distribution.png: histogram of total counts.
+            - qc_pct_counts_mt_violin.png: violin plot of mitochondrial %.
+            - qc_scatter_filter_comparison.png: counts vs genes before/after QC.
 
         Args:
-            adata: Filtered & normalised AnnData.
-            adata_pre-filter AnnData (with QC metrics computed).
+            adata: Filtered AnnData (after QC filtering).
+            adata_before: Pre-filter AnnData (with QC metrics computed).
+            counts_col: Column in ``adata.obs`` for total UMI counts
+                (default ``"total_counts"``).
+            genes_col: Column in ``adata.obs`` for gene counts per cell
+                (default ``"n_genes_by_counts"``).
+            mt_col: Column in ``adata.obs`` for mitochondrial fraction
+                (default ``"pct_counts_mt"``).
         """
         # 1. Total counts distribution
         fig, ax = plt.subplots(figsize=(8, 4))
-        sns.histplot(adata_before.obs["total_counts"], bins=100, kde=False, ax=ax)
+        sns.histplot(adata_before.obs[counts_col], bins=100, kde=False, ax=ax)
         ax.set_title("Total Counts Distribution")
         self._save("qc_total_counts_distribution.png")
 
-        # 2. Violin: pct_counts_mt
+        # 2. Violin: mt%
         fig, ax = plt.subplots(figsize=(4, 6))
-        sc.pl.violin(adata_before, "pct_counts_mt", show=False, ax=ax)
-        ax.set_title("% Mitochondrial Counts")
+        sc.pl.violin(adata_before, mt_col, show=False, ax=ax)
+        ax.set_title(f"% Mitochondrial Counts ({mt_col})")
         self._save("qc_pct_counts_mt_violin.png")
 
-        # 3. Scatter: before filtering
-        fig, ax = plt.subplots(figsize=(8, 6))
-        sc.pl.scatter(
-            adata_before, "total_counts", "n_genes_by_counts",
-            color="pct_counts_mt", show=False, ax=ax,
-        )
-        ax.set_title("Before Filtering")
-        self._save("qc_scatter_before_filter.png")
+        # Compute unified axis limits for before/after comparison
+        all_counts = np.concatenate([adata_before.obs[counts_col].values,
+                                     adata.obs[counts_col].values])  # type: ignore[arg-type]
+        all_genes = np.concatenate([adata_before.obs[genes_col].values,
+                                    adata.obs[genes_col].values])  # type: ignore[arg-type]
+        all_mt = np.concatenate([adata_before.obs[mt_col].values,
+                                 adata.obs[mt_col].values])  # type: ignore[arg-type]
+        x_min, x_max = float(all_counts.min()), float(all_counts.max())
+        y_min, y_max = float(all_genes.min()), float(all_genes.max())
+        c_min, c_max = float(all_mt.min()), float(all_mt.max())
+        x_margin = (x_max - x_min) * 0.05
+        y_margin = (y_max - y_min) * 0.05
+        x_lim = (x_min - x_margin, x_max + x_margin)
+        y_lim = (y_min - y_margin, y_max + y_margin)
 
-        # 4. Scatter: after filtering
-        fig, ax = plt.subplots(figsize=(8, 6))
-        sc.pl.scatter(
-            adata, "total_counts", "n_genes_by_counts",
-            color="pct_counts_mt", show=False, ax=ax,
-        )
-        ax.set_title("After Filtering")
-        self._save("qc_scatter_after_filter.png")
+        # 3+4. Scatter: before vs after side by side
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
+        plt.subplots_adjust(wspace=0.35)
 
-        # 5. Highly variable genes (does not accept ax parameter)
-        sc.pl.highly_variable_genes(adata, show=False)
-        self._save("qc_highly_variable_genes.png")
+        for ax, src, title in [(ax1, adata_before, "Before Filtering"),
+                                (ax2, adata, "After Filtering")]:
+            sc.pl.scatter(src, counts_col, genes_col,
+                          color=mt_col, show=False, ax=ax)
+            ax.set_title(title)
+            ax.set_xlim(x_lim)
+            ax.set_ylim(y_lim)
+            if ax.collections:
+                ax.collections[0].set_clim(c_min, c_max)
+                old_cbar = ax.collections[0].colorbar
+                if old_cbar is not None:
+                    old_cbar.remove()
+
+        # Single colorbar on the right edge
+        from mpl_toolkits.axes_grid1 import make_axes_locatable
+        divider = make_axes_locatable(ax2)
+        cax = divider.append_axes("right", size="5%", pad=0.1)
+        cbar = fig.colorbar(ax2.collections[0], cax=cax)
+        cbar.set_label(mt_col)
+
+        self._save("qc_scatter_filter_comparison.png")
 
         logger.info("QC plots saved to %s", self.plot_dir)
 
     # ------------------------------------------------------------------
     # Merge
     # ------------------------------------------------------------------
-    def plot_merge(self, merged: AnnData) -> None:
+    def plot_merge(self, merged: AnnData, sample_key: str = "sample_id") -> None:
         """Post-merge overview: per-sample cell counts bar chart.
 
         Args:
-            merged: Concatenated AnnData with ``sample_id`` in .obs.
+            merged: Concatenated AnnData.
+            sample_key: Column in ``merged.obs`` identifying samples
+                (default ``"sample_id"``).
         """
-        sample_key = "sample_id" if "sample_id" in merged.obs.columns else "sample"
         if sample_key not in merged.obs.columns:
-            logger.warning("No sample column found, skipping merge plots")
+            logger.warning("Column '%s' not found in obs, skipping merge plots", sample_key)
             return
 
         counts = merged.obs[sample_key].value_counts().sort_index()
@@ -156,62 +177,103 @@ class ScanpyPlotter:
     # ------------------------------------------------------------------
     # Cluster
     # ------------------------------------------------------------------
-    def plot_cluster(self, adata: AnnData) -> None:
-        """Clustering results: PCA variance, UMAP by leiden & sample.
+    def plot_cluster(
+        self,
+        adata: AnnData,
+        cluster_key: str = "leiden",
+        sample_key: str = "sample",
+    ) -> None:
+        """Clustering results: PCA variance, HVG, UMAP by cluster & sample.
+
+        Generates:
+            - cluster_pca_variance_ratio.png: variance explained per PC.
+            - cluster_highly_variable_genes.png: top HVGs highlighted.
+            - cluster_umap_<cluster_key>.png: UMAP coloured by clusters.
+            - cluster_umap_<sample_key>.png: UMAP coloured by sample.
 
         Args:
-            adata: Clustered AnnData with ``X_pca``, ``X_umap``, ``leiden``.
+            adata: Clustered AnnData with ``X_pca``, ``X_umap``, and
+                cluster labels in ``adata.obs[cluster_key]``.
+            cluster_key: Column in ``adata.obs`` for cluster labels
+                (default ``"leiden"``).
+            sample_key: Column in ``adata.obs`` for sample identifiers
+                (default ``"sample"``).
         """
-        # 1. PCA variance ratio (does not accept ax parameter)
+        # 1. PCA variance ratio
         sc.pl.pca_variance_ratio(adata, show=False)
         self._save("cluster_pca_variance_ratio.png")
 
-        # 2. UMAP — leiden
-        fig, ax = plt.subplots(figsize=(8, 6))
-        self._umap(adata, "leiden", ax=ax, title="Leiden Clusters",
-                   legend_loc="on data", legend_fontsize=10)
-        self._save("cluster_umap_leiden.png")
+        # 2. Highly variable genes plot
+        if "highly_variable" in adata.var.columns:
+            try:
+                sc.pl.highly_variable_genes(adata, show=False)
+                self._save("cluster_highly_variable_genes.png")
+            except KeyError:
+                logger.warning("HVG metadata incomplete, skipping HVG plot")
 
-        # 3. UMAP — sample
-        sample_key = self._detect_sample_key(adata)
-        if sample_key:
+        # 3. UMAP — cluster
+        fig, ax = plt.subplots(figsize=(8, 6))
+        self._umap(adata, cluster_key, ax=ax,
+                   title=f"{cluster_key} Clusters",
+                   legend_loc="on data", legend_fontsize=10)
+        self._save(f"cluster_umap_{cluster_key}.png")
+
+        # 4. UMAP — sample
+        if sample_key in adata.obs.columns:
             fig, ax = plt.subplots(figsize=(8, 6))
             self._umap(adata, sample_key, ax=ax, title="Samples")
-            self._save("cluster_umap_sample.png")
+            self._save(f"cluster_umap_{sample_key}.png")
 
         logger.info("Cluster plots saved to %s", self.plot_dir)
 
     # ------------------------------------------------------------------
     # Batch correction
     # ------------------------------------------------------------------
-    def plot_batch(self, adata: AnnData, method: str) -> None:
-        """Batch correction results: UMAP by sample & leiden, side-by-side.
+    def plot_batch(
+        self,
+        adata: AnnData,
+        method: str,
+        cluster_key: str = "leiden",
+        sample_key: str = "sample",
+    ) -> None:
+        """Batch correction results: UMAP by sample & cluster, side-by-side.
+
+        Generates:
+            - batch_umap_<sample_key>.png: UMAP coloured by sample.
+            - batch_umap_<cluster_key>.png: UMAP coloured by clusters.
+            - batch_umap_side_by_side.png: sample + cluster side by side.
 
         Args:
-            adata: Batch-corrected AnnData.
-            method: Correction method name (``bbknn`` / ``harmony``).
+            adata: Batch-corrected AnnData with ``X_umap``.
+            method: Correction method name (``"bbknn"`` / ``"harmony"``).
+            cluster_key: Column in ``adata.obs`` for cluster labels
+                (default ``"leiden"``).
+            sample_key: Column in ``adata.obs`` for sample identifiers
+                (default ``"sample"``).
         """
-        sample_key = self._detect_sample_key(adata)
         title_suffix = method.upper()
+        has_sample = sample_key in adata.obs.columns
 
         # 1. UMAP — sample (batch effect)
-        if sample_key:
+        if has_sample:
             fig, ax = plt.subplots(figsize=(8, 6))
-            self._umap(adata, sample_key, ax=ax, title=f"After {title_suffix} — Samples")
-            self._save("batch_umap_sample.png")
+            self._umap(adata, sample_key, ax=ax,
+                       title=f"After {title_suffix} — Samples")
+            self._save(f"batch_umap_{sample_key}.png")
 
-        # 2. UMAP — leiden
+        # 2. UMAP — cluster
         fig, ax = plt.subplots(figsize=(8, 6))
-        self._umap(adata, "leiden", ax=ax, title=f"After {title_suffix} — Leiden",
+        self._umap(adata, cluster_key, ax=ax,
+                   title=f"After {title_suffix} — {cluster_key}",
                    legend_loc="on data", legend_fontsize=10)
-        self._save("batch_umap_leiden.png")
+        self._save(f"batch_umap_{cluster_key}.png")
 
         # 3. Side-by-side comparison
-        if sample_key:
+        if has_sample:
             fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
             plt.subplots_adjust(wspace=0.4)
             self._umap(adata, sample_key, ax=ax1, title="Sample")
-            self._umap(adata, "leiden", ax=ax2, title="Leiden",
+            self._umap(adata, cluster_key, ax=ax2, title=cluster_key,
                        legend_loc="on data", legend_fontsize=10)
             self._save("batch_umap_side_by_side.png")
 
@@ -220,30 +282,52 @@ class ScanpyPlotter:
     # ------------------------------------------------------------------
     # Annotation
     # ------------------------------------------------------------------
-    def plot_annotate(self, adata: AnnData,
-                      marker_file: str = "",
-                      annotate_group: str = "") -> None:
+    def plot_annotate(
+        self,
+        adata: AnnData,
+        marker_file: str = "",
+        annotate_group: str = "leiden",
+        annotation_keys: Optional[List[str]] = None,
+        score_col: str = "celltypist_score",
+        has_rank_genes: bool = False,
+    ) -> None:
         """Cell type annotation: marker dotplot, DEG overview, UMAP labels.
 
+        Generates (when data available):
+            - annotate_marker_dotplot.png: dotplot of marker gene expression.
+            - annotate_rank_genes_groups.png: top DEGs per cluster.
+            - annotate_deg_dotplot.png: DEG dotplot per cluster.
+            - annotate_umap_<col>.png: UMAP for each annotation column.
+            - annotate_<score_col>.png: confidence score UMAP.
+
         Args:
-            adata: Annotated AnnData.
-            marker_file: Path to marker TSV (if used).
-            annotate_group: Obs column used for grouping (default ``leiden``).
+            adata: Annotated AnnData with clustering and optional annotation.
+            marker_file: Path to marker TSV (empty string skips marker dotplot).
+            annotate_group: Column in ``adata.obs`` for grouping
+                (default ``"leiden"``).
+            annotation_keys: List of ``adata.obs`` columns to plot as UMAP
+                colourings (e.g. ``["cell_type", "celltypist_label"]``).
+                Empty/None skips annotation UMAPs.
+            score_col: Column in ``adata.obs`` for annotation confidence
+                scores (default ``"celltypist_score"``).
+            has_rank_genes: Whether ``rank_genes_groups`` has been computed
+                and stored in ``adata.uns`` (default False).
         """
-        group = annotate_group or ("leiden" if "leiden" in adata.obs.columns else None)
+        if annotation_keys is None:
+            annotation_keys = []
 
         # 1. Marker dotplot (from marker file)
-        if marker_file and group:
+        if marker_file and annotate_group:
             marker_dict = self._load_marker_dict(marker_file, adata)
             if marker_dict:
                 sc.pl.dotplot(
-                    adata, var_names=marker_dict, groupby=group,
+                    adata, var_names=marker_dict, groupby=annotate_group,
                     standard_scale="var", show=False,
                 )
                 self._save("annotate_marker_dotplot.png")
 
         # 2. Rank genes groups overview
-        if group and "rank_genes_groups" in adata.uns:
+        if has_rank_genes:
             sc.pl.rank_genes_groups(adata, n_genes=5, show=False)
             self._save("annotate_rank_genes_groups.png")
 
@@ -251,70 +335,99 @@ class ScanpyPlotter:
             self._save("annotate_deg_dotplot.png")
 
         # 3. UMAP — each annotation column
-        for col in ("cell_type", "celltypist_label", "llm_label"):
+        for col in annotation_keys:
             if col in adata.obs.columns:
                 fig, ax = plt.subplots(figsize=(8, 6))
                 self._umap(adata, col, ax=ax, legend_loc="on data",
                            legend_fontsize=8)
                 self._save(f"annotate_umap_{col}.png")
 
-        # 4. CellTypist confidence
-        if "celltypist_score" in adata.obs.columns:
+        # 4. Confidence score
+        if score_col in adata.obs.columns:
             fig, ax = plt.subplots(figsize=(8, 6))
-            self._umap(adata, "celltypist_score", ax=ax,
-                       title="CellTypist Confidence Score")
-            self._save("annotate_celltypist_confidence.png")
+            self._umap(adata, score_col, ax=ax,
+                       title=f"Confidence Score ({score_col})")
+            self._save(f"annotate_{score_col}.png")
 
         logger.info("Annotation plots saved to %s", self.plot_dir)
 
     # ------------------------------------------------------------------
     # Advanced (trajectory / CNV)
     # ------------------------------------------------------------------
-    def plot_advanced(self, adata: AnnData, *,
-                      trajectory: bool = False,
-                      cnv: bool = False) -> None:
+    def plot_advanced(
+        self,
+        adata: AnnData,
+        trajectory: bool = False,
+        cnv: bool = False,
+        annotation_key: Optional[str] = None,
+        cluster_key: str = "leiden",
+        pseudotime_col: str = "dpt_pseudotime",
+    ) -> None:
         """Advanced analysis: diffusion map / pseudotime, CNV heatmaps.
 
+        Generates (when enabled):
+            - advanced_diffmap.png: diffusion map coloured by annotation.
+            - advanced_pseudotime.png: diffusion map coloured by pseudotime.
+            - advanced_cnv_heatmap.png: CNV chromosome heatmap by annotation.
+            - advanced_cnv_umap.png: CNV leiden/score/annotation UMAP panels.
+            - advanced_cnv_heatmap_leiden.png: CNV heatmap by CNV-leiden.
+
         Args:
-            adata: AnnData with advanced results.
-            trajectory: Whether trajectory (diffmap/dpt) was run.
-            cnv: Whether CNV (infercnvpy) was run.
+            adata: AnnData with advanced analysis results.
+            trajectory: Whether trajectory (diffmap/dpt) was computed.
+            cnv: Whether CNV (infercnvpy) was computed.
+            annotation_key: Column in ``adata.obs`` for cell type annotation
+                used as colour in trajectory/CNV plots. None falls back to
+                *cluster_key*.
+            cluster_key: Column in ``adata.obs`` for cluster labels
+                (default ``"leiden"``).
+            pseudotime_col: Column in ``adata.obs`` for pseudotime values
+                (default ``"dpt_pseudotime"``).
         """
-        anno_key = self._detect_anno_key(adata)
-        leiden_key = "leiden" if "leiden" in adata.obs.columns else None
+        color = annotation_key or cluster_key
 
         # --- Trajectory ---
         if trajectory and "X_diffmap" in adata.obsm:
-            color = anno_key or leiden_key or "dpt_pseudotime"
             fig, ax = plt.subplots(figsize=(8, 6))
             sc.pl.diffmap(adata, color=color, components=["2, 3"],
                           show=False, ax=ax, title="Diffusion Map")
             self._save("advanced_diffmap.png")
 
-            if "dpt_pseudotime" in adata.obs.columns:
+            if pseudotime_col in adata.obs.columns:
                 fig, ax = plt.subplots(figsize=(8, 6))
-                sc.pl.diffmap(adata, color="dpt_pseudotime",
+                sc.pl.diffmap(adata, color=pseudotime_col,
                               components=["2, 3"], show=False, ax=ax,
                               title="Pseudotime")
                 self._save("advanced_pseudotime.png")
 
         # --- CNV ---
         if cnv:
-            self._plot_cnv(adata, anno_key, leiden_key)
+            self._plot_cnv(adata, annotation_key=annotation_key,
+                           cluster_key=cluster_key)
 
         logger.info("Advanced analysis plots saved to %s", self.plot_dir)
 
-    def _plot_cnv(self, adata: AnnData,
-                  anno_key: Optional[str],
-                  leiden_key: Optional[str]) -> None:
-        """Generate CNV-specific plots (requires infercnvpy)."""
+    def _plot_cnv(
+        self,
+        adata: AnnData,
+        annotation_key: Optional[str] = None,
+        cluster_key: str = "leiden",
+    ) -> None:
+        """Generate CNV-specific plots (requires infercnvpy).
+
+        Args:
+            adata: AnnData with CNV results from infercnvpy.
+            annotation_key: Column in ``adata.obs`` for cell type annotation.
+                None falls back to *cluster_key*.
+            cluster_key: Column in ``adata.obs`` for cluster labels.
+        """
         try:
             import infercnvpy as cnv
         except ImportError:
             logger.warning("infercnvpy not installed, skipping CNV plots")
             return
 
-        groupby = anno_key or leiden_key
+        groupby = annotation_key or cluster_key
 
         # 1. Chromosome heatmap by annotation
         if groupby:
@@ -335,9 +448,9 @@ class ScanpyPlotter:
         axes[0, 0].set_title("CNV Leiden")
         cnv.pl.umap(adata, color="cnv_score", ax=axes[0, 1], show=False)
         axes[0, 1].set_title("CNV Score")
-        if anno_key:
-            cnv.pl.umap(adata, color=anno_key, ax=axes[1, 0], show=False)
-            axes[1, 0].set_title(anno_key)
+        if annotation_key:
+            cnv.pl.umap(adata, color=annotation_key, ax=axes[1, 0], show=False)
+            axes[1, 0].set_title(annotation_key)
         fig.suptitle("CNV Analysis", fontsize=14, y=0.98)
         self._save("advanced_cnv_umap.png")
 
@@ -349,12 +462,25 @@ class ScanpyPlotter:
     # ------------------------------------------------------------------
     # Differential expression
     # ------------------------------------------------------------------
-    def plot_de(self, adata: AnnData, group: str) -> None:
+    def plot_de(
+        self,
+        adata: AnnData,
+        group: str,
+        volcano_group: Optional[str] = None,
+    ) -> None:
         """Differential expression: rank_genes overview, volcano plot.
 
+        Generates:
+            - de_rank_genes_groups.png: top DEGs per group.
+            - de_rank_genes_dotplot.png: DEG dotplot per group.
+            - de_volcano_<group>.png: volcano plot for one group vs rest.
+
         Args:
-            adata: AnnData with ``rank_genes_groups`` in .uns.
-            group: Grouping key (e.g. ``leiden`` or ``condition``).
+            adata: AnnData with ``rank_genes_groups`` in ``adata.uns``.
+            group: Grouping key used for DE (e.g. ``"leiden"`` or
+                ``"condition"``).
+            volcano_group: Specific group category to plot in the volcano.
+                None uses the first category in ``adata.obs[group]``.
         """
         # 1. Rank genes groups overview
         sc.pl.rank_genes_groups(adata, n_genes=10, show=False)
@@ -364,17 +490,30 @@ class ScanpyPlotter:
         sc.pl.rank_genes_groups_dotplot(adata, n_genes=5, show=False)
         self._save("de_rank_genes_dotplot.png")
 
-        # 3. Volcano plot (first group)
-        try:
-            first_group = adata.obs[group].cat.categories[0]
-            self._volcano(adata, group=first_group)
-        except Exception as exc:
-            logger.warning("Volcano plot failed: %s", exc)
+        # 3. Volcano plot
+        vg = volcano_group
+        if vg is None:
+            try:
+                vg = adata.obs[group].cat.categories[0]
+            except (KeyError, IndexError) as exc:
+                logger.warning("Cannot determine volcano group: %s", exc)
+                vg = None
+
+        if vg is not None:
+            try:
+                self._volcano(adata, group=vg)
+            except Exception as exc:
+                logger.warning("Volcano plot failed: %s", exc)
 
         logger.info("DE plots saved to %s", self.plot_dir)
 
     def _volcano(self, adata: AnnData, group: str) -> None:
-        """Draw a volcano plot for one group vs rest."""
+        """Draw a volcano plot for one group vs rest.
+
+        Args:
+            adata: AnnData with ``rank_genes_groups`` computed.
+            group: The specific group category to plot.
+        """
         df = sc.get.rank_genes_groups_df(adata, group=group)
         pval_col = next(
             (c for c in ("pvals_adj", "pval_adj") if c in df.columns), None
@@ -416,7 +555,16 @@ class ScanpyPlotter:
     # ------------------------------------------------------------------
     @staticmethod
     def _load_marker_dict(marker_file: str, adata: AnnData) -> Dict[str, List[str]]:
-        """Parse marker TSV into {cell_type: [gene, ...]} (genes present in adata)."""
+        """Parse marker TSV into {cell_type: [gene, ...]} (genes present in adata).
+
+        Args:
+            marker_file: Path to a tab-separated file with ``cell_type`` and
+                ``markers`` (comma-separated gene names) columns.
+            adata: AnnData whose ``var.index`` is used to filter valid genes.
+
+        Returns:
+            Dict mapping cell type names to lists of valid marker gene names.
+        """
         markers: Dict[str, List[str]] = {}
         with open(marker_file, encoding="utf-8") as fh:
             for row in csv.DictReader(fh, delimiter="\t"):

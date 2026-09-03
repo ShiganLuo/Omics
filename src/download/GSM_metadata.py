@@ -66,7 +66,7 @@ Examples
 
 Dependencies
 ------------
-  requests, beautifulsoup4, pandas, AccessionResolver
+  requests, beautifulsoup4, pandas, biopython (Entrez), AccessionResolver
 """
 
 import argparse
@@ -77,6 +77,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Dict, List, Literal, Optional
 import requests
 from bs4 import BeautifulSoup
+from Bio import Entrez
+import xml.etree.ElementTree as ET
 from AccessionResolver import AccessionResolver
 import logging
 import sys
@@ -89,6 +91,154 @@ logger = logging.getLogger(__name__)
 
 
 # ============================================================
+# Entrez GEO Fetcher
+# ============================================================
+
+def _acc_to_entrez_db(acc: str) -> str:
+    """Map GEO accession prefix to Entrez GDS query format."""
+    if acc.startswith("GSM"):
+        return "GSM"
+    if acc.startswith("GSE"):
+        return "GSE"
+    if acc.startswith("GPL"):
+        return "GPL"
+    return acc[:3]
+
+
+def fetch_entrez_geo_xml(
+    acc: str,
+    outdir: str,
+    retries: int = 3,
+    force: bool = False,
+    email: Optional[str] = None,
+    api_key: Optional[str] = None,
+) -> bool:
+    """
+    Fetch a GEO record via NCBI Entrez efetch and save as XML.
+
+    Uses the GDS database (GEO DataSets) to retrieve structured metadata
+    for GSM/GSE/GPL accessions. This bypasses the web page scraping that
+    is unreliable for GEO pages.
+
+    Additionally uses elink to discover related SRA (SRX) and BioSample (SAMN)
+    accession IDs, and saves them as sibling elements in the XML.
+
+    Parameters
+    ----------
+    acc : str
+        GEO accession (GSM*, GSE*, GPL*).
+    outdir : str
+        Directory to save the XML file.
+    retries : int
+        Number of retry attempts.
+    force : bool
+        Re-download even if cached.
+    email : str, optional
+        NCBI Entrez email (required by NCBI).
+    api_key : str, optional
+        NCBI API key for higher rate limits.
+
+    Returns
+    -------
+    bool
+        True if successful, False otherwise.
+    """
+    out_xml = os.path.join(outdir, f"{acc}.xml")
+    if os.path.exists(out_xml) and not force:
+        logging.info(f"[ENTREZ SKIP] {acc} (cached)")
+        return True
+
+    if email:
+        Entrez.email = email
+    if api_key:
+        Entrez.api_key = api_key
+
+    for attempt in range(1, retries + 1):
+        try:
+            # Search for the UID in GDS database
+            handle = Entrez.esearch(db="gds", term=f"{acc}[Accession]")
+            search_results = Entrez.read(handle)
+            handle.close()
+
+            id_list = search_results.get("IdList", [])
+            if not id_list:
+                logging.warning(f"[ENTREZ] No GDS record found for {acc}")
+                return False
+
+            # Fetch the full record as XML
+            uid = id_list[0]
+            handle = Entrez.efetch(db="gds", id=uid, rettype="xml")
+            xml_text = handle.read()
+            handle.close()
+
+            # Try to decode bytes
+            if isinstance(xml_text, bytes):
+                xml_text = xml_text.decode("utf-8")
+
+            # Enrich with elink: find related SRA and BioSample records
+            related_xml_parts = []
+            for target_db, link_name in [("sra", "gds_sra"), ("biosample", "gds_biosample")]:
+                try:
+                    elink_handle = Entrez.elink(
+                        dbfrom="gds", db=target_db, id=uid
+                    )
+                    elink_results = Entrez.read(elink_handle)
+                    elink_handle.close()
+
+                    for linkset in elink_results:
+                        for linksetdb in linkset.get("LinkSetDb", []):
+                            if linksetdb.get("DbTo") == target_db:
+                                links = linksetdb.get("Link", [])
+                                link_ids = [lnk["Id"] for lnk in links]
+                                if link_ids:
+                                    # Fetch accessions for these UIDs
+                                    sum_handle = Entrez.esummary(
+                                        db=target_db, id=",".join(link_ids)
+                                    )
+                                    summaries = Entrez.read(sum_handle)
+                                    sum_handle.close()
+
+                                    for summary in summaries:
+                                        accession = summary.get(
+                                            "Accession",
+                                            summary.get("ExpAccession",
+                                            summary.get("SRAAccession",
+                                            summary.get("Title", "")))
+                                        )
+                                        if accession:
+                                            related_xml_parts.append(
+                                                f'<RelatedRecord db="{target_db}" uid="{summary.get("Id", "")}">'
+                                                f'{accession}</RelatedRecord>'
+                                            )
+                except Exception as e:
+                    logging.debug(f"[ENTREZ ELINK] {acc} -> {target_db}: {e}")
+
+            # Insert related records into the XML
+            if related_xml_parts:
+                related_block = "\n".join(related_xml_parts)
+                # Insert before closing tag if present, else append
+                if "</GeoMeta>" in xml_text:
+                    xml_text = xml_text.replace("</GeoMeta>", f"{related_block}\n</GeoMeta>")
+                elif "</GDS>" in xml_text:
+                    xml_text = xml_text.replace("</GDS>", f"{related_block}\n</GDS>")
+                else:
+                    xml_text = xml_text.rstrip() + "\n" + related_block + "\n"
+
+            with open(out_xml, "w", encoding="utf-8") as f:
+                f.write(xml_text)
+
+            logging.info(f"[ENTREZ OK] {acc}")
+            return True
+
+        except Exception as e:
+            logging.warning(f"[ENTREZ RETRY {attempt}/{retries}] {acc}: {e}")
+            time.sleep(2 * attempt)
+
+    logging.error(f"[ENTREZ FAIL] {acc}")
+    return False
+
+
+# ============================================================
 # GSM Resolver
 # ============================================================
 
@@ -96,11 +246,8 @@ logger = logging.getLogger(__name__)
 # ============================================================
 # Downloader (concurrent + retry + cache)
 # ============================================================
-proxies = {
-    "http": os.environ.get("all_proxy"),
-    "https": os.environ.get("all_proxy")
-}
-logger.info(f"proxies: {proxies}")
+_proxy = os.environ.get("all_proxy") or os.environ.get("http_proxy")
+proxies = {"http": _proxy, "https": _proxy} if _proxy else None
 def build_ncbi_url(acc: str) -> str:
     """
     Construct the appropriate NCBI webpage URL based on the accession prefix.
@@ -148,35 +295,49 @@ def download_one(
         outdir: str,
         retries: int,
         force: bool,
-        verify_ssl: bool | str
+        verify_ssl: bool | str,
+        email: Optional[str] = None,
+        api_key: Optional[str] = None,
     ) -> bool:
     """
-    Download a single NCBI HTML page corresponding to a given accession.
+    Download a single NCBI page/XML corresponding to a given accession.
 
-    The function automatically determines the correct NCBI URL based on
-    the accession type (GEO, SRA, or BioSample) and saves the retrieved
-    HTML content to the specified output directory.
+    For GEO accessions (GSM/GSE/GPL), uses Entrez efetch + elink to
+    retrieve structured XML metadata (bypasses unreliable GEO web pages).
 
-    If the HTML file already exists, the download will be skipped unless
-    `force` is set to True.
+    For SRA (SRX/SRR/SRS) and BioSample (SAMN) accessions, uses requests
+    to download the HTML page as before.
 
     Parameters
     ----------
     acc : str
         NCBI accession identifier (e.g. GSM, GSE, SRX, SAMN).
     outdir : str
-        Directory where the downloaded HTML file will be stored.
+        Directory where the downloaded file will be stored.
     retries : int
         Number of retry attempts if the download fails.
     force : bool
         Whether to force re-download even if the file already exists.
+    verify_ssl : bool | str
+        SSL verification setting (for requests-based downloads).
+    email : str, optional
+        NCBI Entrez email (used for GEO accessions).
+    api_key : str, optional
+        NCBI API key (used for GEO accessions).
 
     Returns
     -------
     bool
-        True if the HTML page is successfully downloaded or already exists;
-        False if all retry attempts fail or the accession type is unsupported.
+        True if successfully downloaded or already exists; False on failure.
     """
+    # GEO accessions → Entrez (XML)
+    if acc.startswith(("GSM", "GSE", "GPL")):
+        return fetch_entrez_geo_xml(
+            acc, outdir, retries=retries, force=force,
+            email=email, api_key=api_key
+        )
+
+    # SRA / BioSample → requests (HTML)
     out_html = os.path.join(outdir, f"{acc}.html")
 
     if os.path.exists(out_html) and not force:
@@ -195,7 +356,7 @@ def download_one(
                     url, timeout=30, verify=verify_ssl,
                     proxies=proxies
                 )
-            
+
             r.raise_for_status()
 
             with open(out_html, "w", encoding="utf-8") as f:
@@ -218,42 +379,44 @@ def download_batch(
         workers: int,
         retries: int,
         force: bool,
-        verify_ssl: bool | str
+        verify_ssl: bool | str,
+        email: Optional[str] = None,
+        api_key: Optional[str] = None,
     ):
     """
-    Batch-download NCBI HTML pages for a list of accessions using multithreading.
+    Batch-download NCBI pages/XML for a list of accessions using multithreading.
 
-    This function concurrently downloads HTML pages for multiple NCBI
-    accessions (GEO, SRA, BioSample) and stores them in the specified
-    output directory.
-
-    The downloading process is parallelized using a thread pool to
-    improve performance when handling large accession lists.
+    GEO accessions (GSM/GSE/GPL) are fetched via Entrez (XML).
+    SRA/BioSample accessions are fetched via requests (HTML).
 
     Parameters
     ----------
     acc_list : List[str]
         A list of NCBI accession identifiers to download.
     html_dir : str
-        Directory used to store downloaded HTML files.
+        Directory used to store downloaded files.
     workers : int
         Number of worker threads to use for concurrent downloads.
     retries : int
         Number of retry attempts per accession if download fails.
     force : bool
-        Whether to force re-download of existing HTML files.
+        Whether to force re-download of existing files.
+    verify_ssl : bool | str
+        SSL verification setting for requests-based downloads.
+    email : str, optional
+        NCBI Entrez email (used for GEO accessions).
+    api_key : str, optional
+        NCBI API key (used for GEO accessions).
 
     Returns
     -------
     None
-        This function does not return a value. Download status is reported
-        via logging.
     """
     os.makedirs(html_dir, exist_ok=True)
 
     with ThreadPoolExecutor(max_workers=workers) as exe:
         futures = {
-            exe.submit(download_one, acc, html_dir, retries, force, verify_ssl): acc
+            exe.submit(download_one, acc, html_dir, retries, force, verify_ssl, email, api_key): acc
             for acc in acc_list
         }
 
@@ -315,26 +478,64 @@ def extract_feature(html_path: str, item: str = "Characteristics") -> Dict[str, 
     return result
 
 
+def extract_gse_ids_from_xml(xml_path: str) -> List[str]:
+    """
+    Extract GSE (Series) accession IDs from an Entrez GEO XML file.
+
+    Looks for:
+    - <Series_relation> elements containing GSE accessions
+    - <Series_accession> elements
+
+    Parameters
+    ----------
+    xml_path : str
+        Path to the Entrez GEO XML file.
+
+    Returns
+    -------
+    List[str]
+        List of GSE accession IDs.
+    """
+    gse_ids: List[str] = []
+    try:
+        tree = ET.parse(xml_path)
+        root = tree.getroot()
+
+        # Search all elements for GSE accessions
+        for elem in root.iter():
+            if elem.text and elem.text.strip().startswith("GSE"):
+                gse_ids.append(elem.text.strip())
+            # Also check attributes
+            for attr_val in elem.attrib.values():
+                if attr_val.startswith("GSE"):
+                    gse_ids.append(attr_val)
+
+    except ET.ParseError as e:
+        logging.warning(f"[XML PARSE] {xml_path}: {e}")
+
+    return sorted(set(gse_ids))
+
+
 def extract_gse_ids(html_path: str) -> List[str]:
     """
-    Extract GSE (Series) accession IDs from a GEO GSM HTML page.
+    Extract GSE (Series) accession IDs from a GEO file (XML or HTML).
 
-    Parsing logic:
-    1. Locate table rows (<tr>) where the first <td> starts with "Series";
-    2. In the corresponding second <td>, find all <a> tags;
-    3. Collect link texts that start with "GSE".
+    For Entrez XML files (.xml): parses Series_relation elements.
+    For HTML files (.html): parses <tr> rows with Series header.
 
     Parameters
     ----------
     html_path : str
-        Path to the GSM HTML file.
+        Path to the GEO file (XML or HTML).
 
     Returns
     -------
     List[str]
         A list of GSE accession IDs (e.g. ["GSE273331", "GSE273338"]).
-        Returns an empty list if no Series information is found.
     """
+    if html_path.endswith(".xml"):
+        return extract_gse_ids_from_xml(html_path)
+
     with open(html_path, encoding="utf-8") as f:
         soup = BeautifulSoup(f.read(), "html.parser")
 
@@ -356,26 +557,64 @@ def extract_gse_ids(html_path: str) -> List[str]:
 
     return gse_ids
 
+
+def extract_relations_from_xml(
+    xml_path: str,
+    item: Literal["SRA", "BioSample"] = "SRA"
+) -> List[str]:
+    """
+    Extract SRA/BioSample accession IDs from an Entrez GEO XML file.
+
+    Looks for <RelatedRecord db="sra"> or <RelatedRecord db="biosample">
+    elements added by fetch_entrez_geo_xml's elink enrichment.
+
+    Parameters
+    ----------
+    xml_path : str
+        Path to the Entrez GEO XML file.
+    item : {"SRA", "BioSample"}
+        Which relation type to extract.
+
+    Returns
+    -------
+    List[str]
+        List of accession IDs (SRX* for SRA, SAMN* for BioSample).
+    """
+    prefix_map = {"SRA": "SRX", "BioSample": "SAMN"}
+    prefix = prefix_map[item]
+    db_target = "sra" if item == "SRA" else "biosample"
+    ids: List[str] = []
+
+    try:
+        tree = ET.parse(xml_path)
+        root = tree.getroot()
+
+        for elem in root.iter("RelatedRecord"):
+            db = elem.get("db", "")
+            text = (elem.text or "").strip()
+            if db == db_target and text.startswith(prefix):
+                ids.append(text)
+
+    except ET.ParseError as e:
+        logging.warning(f"[XML PARSE] {xml_path}: {e}")
+
+    return ids
+
+
 def extract_relations_txt(
         html_path: str,
         item: Literal["SRA", "BioSample"] = "SRA"
     ) -> List[str]:
     """
-    Extract relation accession IDs (e.g. SRA or BioSample) from a GEO GSM HTML page.
+    Extract relation accession IDs (SRA or BioSample) from a GEO file (XML or HTML).
 
-    Parsing logic:
-    1. Scan all table rows (<tr>) in the HTML document;
-    2. Locate the row whose first <td> exactly matches the given item
-       (e.g. "SRA" or "BioSample");
-    3. Extract all <a> tag texts from the second <td>;
-    4. Filter accession IDs by prefix:
-       - "SRX" for SRA
-       - "SAMN" for BioSample
+    For Entrez XML files (.xml): parses RelatedRecord elements.
+    For HTML files (.html): parses <tr> rows with matching header.
 
     Parameters
     ----------
     html_path : str
-        Path to the GSM HTML file.
+        Path to the GEO file (XML or HTML).
     item : {"SRA", "BioSample"}, optional
         Relation type to extract. Default is "SRA".
 
@@ -383,8 +622,10 @@ def extract_relations_txt(
     -------
     List[str]
         A list of accession IDs.
-        Returns an empty list if the specified relation is not found.
     """
+    if html_path.endswith(".xml"):
+        return extract_relations_from_xml(html_path, item)
+
     with open(html_path, encoding="utf-8") as f:
         soup = BeautifulSoup(f.read(), "html.parser")
 
@@ -415,20 +656,18 @@ def extract_relations_txt(
 
 def extract_gsm_batch(html_dir: str, outfile: str | None = None) -> pd.DataFrame:
     """
-    Batch-extract GSM metadata from GEO HTML files and return as a DataFrame.
+    Batch-extract GSM metadata from GEO files (XML via Entrez or HTML).
 
-    For each GSM HTML file:
-    - Extract 'Characteristics' key–value pairs
+    For each GSM file (XML or HTML):
+    - Extract 'Characteristics' key-value pairs
     - Extract associated GSE IDs
     - Extract SRA and BioSample IDs
     - Merge them into a single row
 
-    If multiple IDs exist, they are joined by commas.
-
     Parameters
     ----------
     html_dir : str
-        Directory containing GSM HTML files.
+        Directory containing GSM files (.xml from Entrez or .html).
     outfile : str | None, optional
         Output CSV file path. If None, no file will be written.
 
@@ -439,28 +678,44 @@ def extract_gsm_batch(html_dir: str, outfile: str | None = None) -> pd.DataFrame
     """
     rows: list[dict] = []
 
-    for html in glob.glob(os.path.join(html_dir, "GSM*.html")):
-        gsm = os.path.basename(html).replace(".html", "")
+    # Find both XML (Entrez) and HTML (legacy) GSM files
+    gsm_files = (
+        glob.glob(os.path.join(html_dir, "GSM*.xml"))
+        + glob.glob(os.path.join(html_dir, "GSM*.html"))
+    )
+
+    # Deduplicate: prefer XML over HTML for the same GSM
+    seen: set[str] = set()
+    unique_files: list[str] = []
+    for f in gsm_files:
+        gsm = os.path.basename(f).split(".")[0]
+        if gsm not in seen:
+            seen.add(gsm)
+            unique_files.append(f)
+
+    for filepath in unique_files:
+        gsm = os.path.basename(filepath).split(".")[0]
 
         row: Dict[str, str] = {"GSM": gsm}
 
-        # Characteristics
-        row.update(extract_feature(html, item="Characteristics"))
+        # Characteristics (only available from HTML or SOFT-format XML)
+        if filepath.endswith(".html"):
+            row.update(extract_feature(filepath, item="Characteristics"))
 
         # GSE
-        gse_ids = extract_gse_ids(html)
+        gse_ids = extract_gse_ids(filepath)
         logging.info(f"{gsm} -> GSE IDs: {gse_ids}")
         if gse_ids:
             row["GSE"] = ",".join(gse_ids)
 
         # SRA
-        sra_ids = extract_relations_txt(html, item="SRA")
+        sra_ids = extract_relations_txt(filepath, item="SRA")
         logging.info(f"{gsm} -> SRA IDs: {sra_ids}")
         if sra_ids:
             row["SRA"] = ",".join(sra_ids)
 
         # BioSample
-        biosample_ids = extract_relations_txt(html, item="BioSample")
+        biosample_ids = extract_relations_txt(filepath, item="BioSample")
         logging.info(f"{gsm} -> BioSample IDs: {biosample_ids}")
         if biosample_ids:
             row["BioSample"] = ",".join(biosample_ids)
@@ -473,7 +728,7 @@ def extract_gsm_batch(html_dir: str, outfile: str | None = None) -> pd.DataFrame
     if outfile:
         sep = "\t" if outfile.endswith(".tsv") else ","
         df.to_csv(outfile, index=False, encoding="utf-8",sep=sep)
-        logging.info(f"[DONE] Extracted → {outfile}")
+        logging.info(f"[DONE] Extracted -> {outfile}")
 
     return df
 
@@ -656,6 +911,16 @@ def main():
         action="store_true",
         help="Disable HTTPS certificate verification (not recommended)"
     )
+    parser.add_argument(
+        "--entrez-email",
+        default=None,
+        help="Email for NCBI Entrez API (recommended by NCBI)"
+    )
+    parser.add_argument(
+        "--entrez-api-key",
+        default=None,
+        help="NCBI API key for higher Entrez rate limits (10 req/s vs 3 req/s)"
+    )
 
     args = parser.parse_args()
 
@@ -673,6 +938,14 @@ def main():
         logger.warning("HTTPS certificate verification is disabled (--insecure)")
     elif args.ca_bundle:
         logger.info(f"Using custom CA bundle: {args.ca_bundle}")
+
+    # Entrez configuration
+    entrez_email = args.entrez_email
+    entrez_api_key = args.entrez_api_key
+    if entrez_email:
+        logger.info(f"Entrez email: {entrez_email}")
+    if entrez_api_key:
+        logger.info("Entrez API key provided (higher rate limits)")
     resolver = AccessionResolver(
         acc=args.acc,
         acc_file=args.acc_file,
@@ -685,9 +958,10 @@ def main():
     srx_ids = classified.get("sra", [])
     logger.info(f"Resolved: {len(gsm_ids)} GEO, {len(srx_ids)} SRA, {len(classified.get('biosample', []))} BioSample")
 
-    # Step 1: Download all HTML pages
+    # Step 1: Download all pages (GEO via Entrez XML, SRA/BioSample via requests HTML)
     all_ids = gsm_ids + srx_ids + classified.get("biosample", [])
-    download_batch(all_ids, str(html_dir), args.workers, args.retries, args.force, verify_ssl)
+    download_batch(all_ids, str(html_dir), args.workers, args.retries, args.force, verify_ssl,
+                   email=entrez_email, api_key=entrez_api_key)
 
     # Step 2: Extract GSM metadata
     gsm_outfile = os.path.join(outdir, "gsm_metadata.csv")
@@ -706,7 +980,8 @@ def main():
         if "SRA" in gsm_meta.columns:
             all_srx.update(gsm_meta["SRA"].dropna().str.split(",").explode().tolist())
         if all_srx:
-            download_batch(sorted(all_srx), str(html_dir), args.workers, args.retries, args.force, verify_ssl)
+            download_batch(sorted(all_srx), str(html_dir), args.workers, args.retries, args.force, verify_ssl,
+                           email=entrez_email, api_key=entrez_api_key)
         extract_sra_batch(str(html_dir), str(sra_outfile))
         
 

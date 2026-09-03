@@ -424,7 +424,7 @@ def sra_download_single_srr(
     # --- 1. prefetch ---
     sra_dir = dest / srr_id
     sra_file = sra_dir / f"{srr_id}.sra"
-    prefetch_cmd = ["prefetch", srr_id, "-O", str(dest)]
+    prefetch_cmd = ["prefetch", srr_id, "-O", str(dest), "--max-size", "0"]
     result = subprocess.run(prefetch_cmd, capture_output=True, text=True)
     if result.returncode != 0:
         _log_subprocess_error(logger, "prefetch", result)

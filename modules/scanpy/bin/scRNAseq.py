@@ -134,10 +134,6 @@ def mode_qc(
         metrics: Path to write a TSV of per-cell QC metrics. Empty string
             skips this step.
     """
-    # Fix anndata 0.13.2 bug: empty layers group reads back as {None: X}
-    if None in adata.layers:
-        del adata.layers[None]
-
     adata.var["mt"] = np.array(
         adata.var_names.str.upper().str.startswith("MT-")
         | adata.var_names.str.startswith("mt")

@@ -65,21 +65,23 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 #     --log /home/luosg/Data/genomeStability/log/MS.log \
 #     --sdm
 
-python ${SCRIPT_DIR}/run.py \
-    -m /home/luosg/Data/genomeStability/data/Rnp/meta_input.tsv \
-    -w PeakCalling \
-    -o /home/luosg/Data/genomeStability/output/Rnp \
-    -t 48 \
-    --log /home/luosg/Data/genomeStability/log/PeakCalling.log \
-    --sdm
-
 # python ${SCRIPT_DIR}/run.py \
-#     -m /home/luosg/Data/genomeStability/data/20260820_scRNAseq/meta_input.tsv \
-#     -w scRNAseq \
-#     -o /home/luosg/Data/genomeStability/output/luancao \
+#     -m /home/luosg/Data/genomeStability/data/Rnp/meta_input.tsv \
+#     -w PeakCalling \
+#     -o /home/luosg/Data/genomeStability/output/Rnp \
 #     -t 48 \
-#     --log /home/luosg/Data/genomeStability/log/scRNAseq.log \
+#     --log /home/luosg/Data/genomeStability/log/PeakCalling.log \
 #     --sdm \
-#     --counters scTE cellranger \
-#     --aligner cellranger \
-#     --rerun-triggers mtime
+#     --dry-run
+
+python ${SCRIPT_DIR}/run.py \
+    -m /home/luosg/Data/genomeStability/data/20260820_scRNAseq/meta_input.tsv \
+    -w scRNAseq \
+    -o /home/luosg/Data/genomeStability/output/luancao \
+    -t 48 \
+    --log /home/luosg/Data/genomeStability/log/scRNAseq.log \
+    --sdm \
+    --counters scTE cellranger \
+    --aligner cellranger \
+    --rerun-triggers mtime \
+    --dry-run

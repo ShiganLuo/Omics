@@ -9,8 +9,7 @@ From: docker.m.daocloud.io/condaforge/miniforge3:latest
 %files
     scanpy.yaml /opt/conda/scanpy.yaml
 
-%post
-    #!/bin/bash
+%post --shell /bin/bash
     set -euo pipefail
     export PATH="/opt/conda/bin:$PATH"
     export CONDA_NO_PLUGINS=true

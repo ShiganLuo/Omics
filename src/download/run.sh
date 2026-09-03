@@ -59,8 +59,8 @@ ip=aspera01@download.cncb.ac.cn:gsa6/CRA024880
 outdir=/data/pub/zhousha/20260207_Exome/data/tRNA/fastq
 # cngb_download ${ip} ${outdir}
 python ${ASCP_downloader} \
-    --srr-list /home/luosg/Data/genomeStability/output/Fiberseq/sra.lst \
-    --outdir /home/luosg/Data/genomeStability/output/Fiberseq/fastq \
-    -m aria2c \
+    --srr-list /home/luosg/Data/genomeStability/data/Fiberseq/sra.lst \
+    --outdir /home/luosg/Data/genomeStability/data/Fiberseq/fastq \
+    -m sra \
     --log /home/luosg/Data/genomeStability/log/Fiberseq_download.log \
     --jobs 3

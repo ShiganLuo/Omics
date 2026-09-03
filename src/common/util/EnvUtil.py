@@ -653,6 +653,7 @@ From: {cls.APPTAINER_FROM}
     {yaml_filename} /opt/conda/{yaml_filename}
 
 %post
+    #!/bin/bash
     set -euo pipefail
     export PATH="/opt/conda/bin:$PATH"
     export CONDA_NO_PLUGINS=true
@@ -721,8 +722,9 @@ Bootstrap: docker
 From: {cls.UV_FROM}
 
 %post
+    #!/bin/bash
     set -euo pipefail
-    apt-get update && apt-get install -y --no-install-recommends build-essential zlib1g-dev libbz2-dev liblzma-dev && \\
+    apt-get update && apt-get install -y --no-install-recommends build-essential zlib1g-dev libbz2-dev liblzma-dev && \
         rm -rf /var/lib/apt/lists/*
     pip install --no-cache-dir uv && \\
         uv pip install --system --no-cache-dir {pip_args}

@@ -151,19 +151,19 @@ class ScanpyPlotter:
     # ------------------------------------------------------------------
     # Merge
     # ------------------------------------------------------------------
-    def plot_merge(self, merged: AnnData, sample_key: str = "sample_id") -> None:
+    def plot_merge(self, adata: AnnData, sample_key: str = "sample_id") -> None:
         """Post-merge overview: per-sample cell counts bar chart.
 
         Args:
-            merged: Concatenated AnnData.
-            sample_key: Column in ``merged.obs`` identifying samples
+            adata: Concatenated AnnData.
+            sample_key: Column in ``adata.obs`` identifying samples
                 (default ``"sample_id"``).
         """
-        if sample_key not in merged.obs.columns:
+        if sample_key not in adata.obs.columns:
             logger.warning("Column '%s' not found in obs, skipping merge plots", sample_key)
             return
 
-        counts = merged.obs[sample_key].value_counts().sort_index()
+        counts = adata.obs[sample_key].value_counts().sort_index()
         fig, ax = plt.subplots(figsize=(max(6, len(counts) * 0.8), 5))
         counts.plot(kind="bar", ax=ax, color="steelblue")
         ax.set_title("Cell Counts per Sample")
@@ -181,7 +181,7 @@ class ScanpyPlotter:
         self,
         adata: AnnData,
         cluster_key: str = "leiden",
-        sample_key: str = "sample",
+        sample_key: str = "sample_id",
     ) -> None:
         """Clustering results: PCA variance, HVG, UMAP by cluster & sample.
 
@@ -199,26 +199,22 @@ class ScanpyPlotter:
             sample_key: Column in ``adata.obs`` for sample identifiers
                 (default ``"sample"``).
         """
-        # 1. PCA variance ratio
         sc.pl.pca_variance_ratio(adata, show=False)
         self._save("cluster_pca_variance_ratio.png")
 
-        # 2. Highly variable genes plot
         if "highly_variable" in adata.var.columns:
             try:
                 sc.pl.highly_variable_genes(adata, show=False)
                 self._save("cluster_highly_variable_genes.png")
             except KeyError:
                 logger.warning("HVG metadata incomplete, skipping HVG plot")
-
-        # 3. UMAP — cluster
+        
         fig, ax = plt.subplots(figsize=(8, 6))
         self._umap(adata, cluster_key, ax=ax,
                    title=f"{cluster_key} Clusters",
                    legend_loc="on data", legend_fontsize=10)
         self._save(f"cluster_umap_{cluster_key}.png")
 
-        # 4. UMAP — sample
         if sample_key in adata.obs.columns:
             fig, ax = plt.subplots(figsize=(8, 6))
             self._umap(adata, sample_key, ax=ax, title="Samples")

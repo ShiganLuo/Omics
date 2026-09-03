@@ -16,20 +16,17 @@
         "max_genes": 6000,
         "max_pct_mt": 20,
         "n_top_genes": 3000,
+        "use_mad": false,
         "scrublet": true,
         "doublet_rate": 0.06
       },
       "cluster": {
         "n_pcs": 50,
         "n_neighbors": 15,
-        "resolution": 0.8
-      },
-      "batch": {
-        "n_pcs": 50,
-        "n_neighbors": 15,
         "resolution": 0.8,
-        "method": "bbknn",
-        "batch_key": "sample"
+        "n_top_genes": 3000,
+        "batch_method": "harmony",
+        "batch_key": "sample_id"
       },
       "annotate": {
         "marker_file": "",

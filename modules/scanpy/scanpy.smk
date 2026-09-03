@@ -44,6 +44,7 @@ rule scanpy_qc:
         max_genes=lambda wildcards: params.get(wildcards.counter, {}).get("qc",{}).get("max_genes", 6000),
         max_pct_mt=lambda wildcards: params.get(wildcards.counter, {}).get("qc",{}).get("max_pct_mt", 20),
         n_top_genes=lambda wildcards: params.get(wildcards.counter, {}).get("qc",{}).get("n_top_genes", 3000),
+        use_mad=lambda wildcards: params.get(wildcards.counter, {}).get("qc",{}).get("use_mad", False),
         scrublet=lambda wildcards: params.get(wildcards.counter, {}).get("qc",{}).get("scrublet", True),
         doublet_rate=lambda wildcards: params.get(wildcards.counter, {}).get("qc",{}).get("doublet_rate", 0.06)
     run:
@@ -66,6 +67,8 @@ rule scanpy_qc:
                    "--max-pct-mt", str(params.max_pct_mt),
                    "--n-top-genes", str(params.n_top_genes)]
             cmd += ["--plot-dir", str(output.plot_dir)]
+            if params.use_mad:
+                cmd += ["--use-mad"]
             if params.scrublet:
                 cmd += ["--scrublet", "--doublet-rate", str(params.doublet_rate)]
             with open(script, "w") as f:
@@ -129,9 +132,8 @@ rule scanpy_merge:
             logger.error(f"Error occurred during scanpy merge for tissue {wildcards.tissue}: {e}")
             raise e
 
-# ---------------------------------------------------------------------------
-# Cluster (per tissue)
-# ---------------------------------------------------------------------------
+
+
 rule scanpy_cluster:
     input:
         h5ad = outdir_combine + "/{tissue}/{tissue}_{counter}_merged.h5ad"
@@ -151,7 +153,10 @@ rule scanpy_cluster:
         script=script,
         n_pcs=lambda wildcards: params.get(wildcards.counter,{}).get("cluster",{}).get("n_pcs", 50),
         n_neighbors=lambda wildcards: params.get(wildcards.counter,{}).get("cluster",{}).get("n_neighbors", 15),
-        resolution=lambda wildcards: params.get(wildcards.counter,{}).get("cluster",{}).get("resolution", 0.8)
+        resolution=lambda wildcards: params.get(wildcards.counter,{}).get("cluster",{}).get("resolution", 0.8),
+        n_top_genes=lambda wildcards: params.get(wildcards.counter,{}).get("cluster",{}).get("n_top_genes", 3000),
+        batch_method=lambda wildcards: params.get(wildcards.counter,{}).get("cluster",{}).get("batch_method", "harmony"),
+        batch_key=lambda wildcards: params.get(wildcards.counter,{}).get("cluster",{}).get("batch_key", "sample_id")
     run:
         log_path = str(log)
         try:
@@ -169,7 +174,10 @@ rule scanpy_cluster:
                    "--markers", output.markers,
                    "--n-pcs", str(params.n_pcs),
                    "--n-neighbors", str(params.n_neighbors),
-                   "--resolution", str(params.resolution)]
+                   "--resolution", str(params.resolution),
+                   "--n-top-genes", str(params.n_top_genes),
+                   "--batch-method", params.batch_method,
+                   "--batch-key", params.batch_key]
             cmd += ["--plot-dir", str(output.plot_dir)]
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
@@ -181,60 +189,6 @@ rule scanpy_cluster:
                 f.write(f"Error occurred during scanpy clustering for tissue {wildcards.tissue}: {e}\n")
             logger.error(f"Error occurred during scanpy clustering for tissue {wildcards.tissue}: {e}")
             raise e
-
-
-rule scanpy_batch:
-    input:
-        h5ad = outdir_combine + "/{tissue}/{tissue}_{counter}_clustered.h5ad",
-    output:
-        h5ad = outdir_combine + "/{tissue}/{tissue}_{counter}_batch.h5ad",
-        plot_dir = directory(outdir_combine + "/{tissue}/plots/{counter}/batch")
-    log:
-        logdir_combine + "/scanpy/{tissue}/scanpy_batch_{counter}.log"
-    threads: 4
-    conda:
-        "scanpy.yaml"
-    container:
-        sif("scanpy.yaml")
-    params:
-        python=python,
-        script=script,
-        n_pcs=lambda wildcards: params.get(wildcards.counter,{}).get("batch",{}).get("n_pcs", 50),
-        n_neighbors=lambda wildcards: params.get(wildcards.counter,{}).get("batch",{}).get("n_neighbors", 15),
-        resolution=lambda wildcards: params.get(wildcards.counter,{}).get("batch",{}).get("resolution", 0.8),
-        batch_method=lambda wildcards: params.get(wildcards.counter, {}).get("batch", {}).get("method", "harmony"),
-        batch_key=lambda wildcards: params.get(wildcards.counter, {}).get("batch", {}).get("batch_key", "sample")
-    run:
-        log_path = str(log)
-        try:
-            open(log_path, "w").close()
-            rule_logger = setup_logger("scanpy_batch", log_file=log_path)
-            current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            rule_logger.info(f"Start scanpy batch correction for tissue {wildcards.tissue} at {current_time}")
-            sample_outdir = os.path.dirname(str(output.h5ad))
-            os.makedirs(sample_outdir, exist_ok=True)
-            os.makedirs(str(output.plot_dir), exist_ok=True)
-            script = os.path.join(sample_outdir, f"scanpy_batch_{wildcards.counter}_{wildcards.tissue}_{current_time}.sh")
-            cmd = [params.python, params.script, "--mode", "batch",
-                    "--input", input.h5ad,
-                    "--output", output.h5ad,
-                    "--n-pcs", str(params.n_pcs),
-                    "--n-neighbors", str(params.n_neighbors),
-                    "--resolution", str(params.resolution),
-                    "--batch-method", params.batch_method,
-                    "--batch-key", params.batch_key]
-            cmd += ["--plot-dir", str(output.plot_dir)]
-            with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
-                f.write(" ".join(shlex.quote(str(item)) for item in cmd) + "\n")
-                f.write(f'echo "scanpy batch correction for {wildcards.tissue} at {current_time} completed successfully"\n')
-            shell(f"bash {script} >> {log_path} 2>&1")
-        except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"Error occurred during scanpy batch correction for tissue {wildcards.tissue}: {e}\n")
-            logger.error(f"Error occurred during scanpy batch correction for tissue {wildcards.tissue}: {e}")
-            raise e
-
 
 
 rule scanpy_annotate:

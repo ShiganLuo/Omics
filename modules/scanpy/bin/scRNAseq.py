@@ -107,6 +107,10 @@ def is_outlier(adata: ad.AnnData, metric: str, nmads: int) -> np.ndarray:
 def mode_qc(
     adata: ad.AnnData,
     output: str,
+    min_genes: int = 200,
+    max_genes: int = 6000,
+    max_pct_mt: float = 20.0,
+    use_mad: bool = False,
     scrublet: bool = False,
     doublet_rate: float = 0.06,
     plot_dir: str = "",
@@ -117,17 +121,22 @@ def mode_qc(
     Steps:
         1. Compute mitochondrial (MT-), ribosomal (RPS/RPL), and
            hemoglobin (HB) gene fraction metrics.
-        2. Flag outlier cells via MAD-based thresholds on total counts,
-           gene counts, and top-20 gene percentage (5 MADs) plus
-           mitochondrial percentage (3 MADs or >8%).
-        3. Optionally run Scrublet doublet detection and remove predicted
+        2. (Optional) Flag outlier cells via MAD-based thresholds on total
+           counts, gene counts, and top-20 gene percentage (5 MADs).
+        3. Apply hard filters: min_genes, max_genes, max_pct_mt.
+        4. Optionally run Scrublet doublet detection and remove predicted
            doublets.
-        4. Store a raw counts layer and QC statistics in ``adata.uns``.
-        5. Optionally generate QC plots and write a metrics TSV.
+        5. Store a raw counts layer and QC statistics in ``adata.uns``.
+        6. Optionally generate QC plots and write a metrics TSV.
 
     Args:
         adata: Input AnnData object (raw counts expected in ``.X``).
         output: Path to write the filtered h5ad file.
+        min_genes: Minimum genes per cell (hard filter, default 200).
+        max_genes: Maximum genes per cell (hard filter, default 6000).
+        max_pct_mt: Maximum mitochondrial percentage (hard filter, default 20).
+        use_mad: If True, apply MAD-based outlier detection before hard
+            filters (more permissive strategy). Default False (hard filters only).
         scrublet: If True, run Scrublet doublet detection.
         doublet_rate: Expected doublet rate passed to Scrublet (default 0.06).
         plot_dir: Directory for QC plots. Empty string disables plotting.
@@ -145,13 +154,31 @@ def mode_qc(
     adata_before = adata.copy()
 
     n_before = adata.n_obs
-    adata.obs["outlier"] = (
-        is_outlier(adata, "log1p_total_counts", 5)
-        | is_outlier(adata, "log1p_n_genes_by_counts", 5)
-        | is_outlier(adata, "pct_counts_in_top_20_genes", 5)
-    )
-    adata.obs["mt_outlier"] = is_outlier(adata, "pct_counts_mt", 3) | ( adata.obs["pct_counts_mt"] > 8)
-    adata = adata[(~adata.obs["outlier"]) & (~adata.obs["mt_outlier"])].copy()
+
+    # MAD-based outlier detection (optional, more permissive strategy)
+    if use_mad:
+        adata.obs["outlier"] = (
+            is_outlier(adata, "log1p_total_counts", 5)
+            | is_outlier(adata, "log1p_n_genes_by_counts", 5)
+            | is_outlier(adata, "pct_counts_in_top_20_genes", 5)
+        )
+        n_before_mad = adata.n_obs
+        adata = adata[~adata.obs["outlier"]].copy()
+        n_after_mad = adata.n_obs
+        if n_before_mad != n_after_mad:
+            logging.info("MAD outlier detection: %d -> %d cells", n_before_mad, n_after_mad)
+
+    # Hard filters (always applied)
+    n_before_hard = adata.n_obs
+    adata = adata[
+        (adata.obs["n_genes_by_counts"] >= min_genes)
+        & (adata.obs["n_genes_by_counts"] <= max_genes)
+        & (adata.obs["pct_counts_mt"] <= max_pct_mt)
+    ].copy()
+    n_after_hard = adata.n_obs
+    if n_before_hard != n_after_hard:
+        logging.info("Hard filter (genes %d-%d, mt %.1f%%): %d -> %d cells",
+                     min_genes, max_genes, max_pct_mt, n_before_hard, n_after_hard)
     # Doublet detection via scrublet
     if scrublet:
         try:
@@ -165,7 +192,6 @@ def mode_qc(
     n_after = adata.n_obs
     logging.info("QC: %d -> %d cells (%d removed)", n_before, n_after, n_before - n_after)
 
-    adata.layers["counts"] = adata.X.copy()
     adata.uns["qc_stats"] = {
         "n_before": n_before,
         "n_after": n_after,
@@ -233,8 +259,7 @@ def mode_merge(
     )
     merged.var_names_make_unique()
     merged.obs_names_make_unique()
-    if all("counts" in o.layers for o in objects):
-        merged.layers["counts"] = merged.X.copy()
+    merged.layers["counts"] = merged.X.copy()
 
     for col in ("sample_id", "batch"):
         if col in merged.obs.columns:
@@ -259,50 +284,92 @@ def mode_cluster(
     n_pcs: int = 50,
     n_neighbors: int = 15,
     resolution: float = 0.8,
+    n_top_genes: int = 3000,
+    batch_method: str = "harmony",
+    batch_key: str = "",
     markers: str = "",
     plot_dir: str = "",
 ) -> None:
-    """Cluster cells: normalise → HVG → scale → PCA → neighbours → UMAP → Leiden.
+    """Cluster cells: preprocess → batch correct → neighbours → UMAP → Leiden.
 
     Steps:
         1. Normalise total counts per cell to 10 000 and log-transform.
-        2. Select the top 3 000 highly variable genes (Seurat flavour,
-           batch-aware when ``sample`` key exists).
-        3. Subset to HVGs, scale (max_value=10).
-        4. Run PCA (up to *n_pcs* components, capped by cell count).
-        5. Build a k-NN graph (*n_neighbors*, *n_pcs* PCs).
-        6. Compute UMAP embedding.
-        7. Leiden clustering at the given *resolution*.
-        8. Rank differentially expressed genes per cluster (Wilcoxon).
+        2. Store a ``raw`` snapshot (all genes, normalised + log1p) for
+           downstream DEG / annotation.
+        3. Select the top *n_top_genes* highly variable genes and subset.
+        4. Scale HVGs (max_value=10).
+        5. Run PCA (up to *n_pcs* components).
+        6. Apply batch correction (default: Harmony).
+           - **BBKNN**: batch-balanced k-NN graph directly on PCA space.
+           - **Harmony**: embed PCA coordinates in a batch-corrected space.
+        7. Build a k-NN graph (*n_neighbors*, *n_pcs* PCs).
+        8. Compute UMAP embedding (min_dist=0.1, spread=0.8).
+        9. Leiden clustering at the given *resolution* (igraph flavour).
+        10. Rank differentially expressed genes per cluster (Wilcoxon, use_raw).
 
     Args:
-        adata: Input AnnData (expects a ``counts`` layer or raw ``.X``).
+        adata: Input AnnData (raw counts expected in ``.X``).
         output: Path to write the clustered h5ad file.
-        n_pcs: Number of principal components to compute and use (default 50).
+        n_pcs: Number of principal components (default 50).
         n_neighbors: Number of neighbours for the k-NN graph (default 15).
         resolution: Leiden clustering resolution (default 0.8).
+        n_top_genes: Number of highly variable genes to select (default 3000).
+        batch_method: Batch correction method — ``"harmony"``, ``"bbknn"``,
+            or ``""`` to skip. Default ``"harmony"``.
+        batch_key: Column in ``adata.obs`` identifying batches. Falls back
+            to ``"sample_id"`` then ``"batch"`` when empty.
         markers: Path to write a TSV of ranked marker genes. Empty string
             skips this step.
         plot_dir: Directory for cluster plots. Empty string disables plotting.
     """
+    # 1. Normalise + log-transform
     sc.pp.normalize_total(adata, target_sum=1e4)
     sc.pp.log1p(adata)
-    sc.pp.highly_variable_genes(adata, 
-                            n_top_genes=3000,
-                            flavor='seurat',
-                            subset=False, 
-                            batch_key="sample_id")
-    if "highly_variable" in adata.var:
-        adata = adata[:, adata.var["highly_variable"]].copy()
-    sc.pp.scale(adata, max_value=10)
-    sc.tl.pca(adata, n_comps=min(n_pcs, max(2, adata.n_obs - 1)))
-    sc.pp.neighbors(
-        adata, n_neighbors=n_neighbors,
-        n_pcs=min(n_pcs, adata.obsm["X_pca"].shape[1]),
+
+    # 2. Save full-gene snapshot for downstream DEG / annotation
+    adata.raw = adata.copy()
+
+    # 3. Detect HVGs and subset
+    resolved_batch_key = batch_key or ("sample_id" if "sample_id" in adata.obs else "batch")
+    sc.pp.highly_variable_genes(
+        adata,
+        n_top_genes=n_top_genes,
+        flavor="seurat",
+        subset=True,
+        batch_key=resolved_batch_key if resolved_batch_key in adata.obs else None,
     )
-    sc.tl.umap(adata)
-    sc.tl.leiden(adata, resolution=resolution, key_added="leiden")
-    sc.tl.rank_genes_groups(adata, "leiden", method="wilcoxon")
+
+    # 4. Scale HVGs
+    sc.pp.scale(adata, max_value=10)
+
+    # 5. PCA
+    sc.tl.pca(adata, n_comps=min(n_pcs, max(2, adata.n_obs - 1)))
+
+    # 6. Batch correction
+    if batch_method == "bbknn":
+        sc.external.pp.bbknn(adata, batch_key=resolved_batch_key)
+    elif batch_method == "harmony":
+        sc.external.pp.harmony_integrate(adata, key=resolved_batch_key)
+        sc.pp.neighbors(adata, n_neighbors=n_neighbors, n_pcs=n_pcs)
+
+    # 7. k-NN graph (skip if already done by BBKNN or Harmony)
+    if batch_method not in ("bbknn", "harmony"):
+        sc.pp.neighbors(
+            adata, n_neighbors=n_neighbors,
+            n_pcs=min(n_pcs, adata.obsm["X_pca"].shape[1]),
+        )
+
+    # 8. UMAP (tight params for clean clusters)
+    sc.tl.umap(adata, min_dist=0.1, spread=0.8)
+
+    # 9. Leiden clustering (igraph flavour)
+    sc.tl.leiden(
+        adata, resolution=resolution, key_added="leiden",
+        flavor="igraph", n_iterations=2, directed=False,
+    )
+
+    # 10. DEG — use raw for full gene coverage
+    sc.tl.rank_genes_groups(adata, "leiden", method="wilcoxon", use_raw=True)
 
     if markers:
         sc.get.rank_genes_groups_df(adata, group=None).to_csv(
@@ -311,67 +378,18 @@ def mode_cluster(
 
     plotter = _make_plotter(plot_dir)
     if plotter:
-        plotter.plot_cluster(adata, cluster_key="leiden", sample_key="sample")
+        plotter.plot_cluster(adata, cluster_key="leiden", sample_key=resolved_batch_key)
 
     adata.write_h5ad(output)
 
-
-# ---------------------------------------------------------------------------
-# Batch correction
-# ---------------------------------------------------------------------------
-def mode_batch(
-    adata: ad.AnnData,
-    output: str,
-    batch_method: str = "bbknn",
-    batch_key: str = "",
-    n_pcs: int = 50,
-    n_neighbors: int = 15,
-    resolution: float = 0.8,
-    plot_dir: str = "",
-) -> None:
-    """Correct batch effects and re-cluster.
-
-    Supports two integration methods:
-        - **BBKNN**: batch-balanced k-NN graph directly on PCA space.
-        - **Harmony**: embed PCA coordinates in a batch-corrected space,
-          then rebuild the neighbour graph.
-
-    After integration the function re-runs UMAP + Leiden clustering.
-
-    Args:
-        adata: Input AnnData (must have been through PCA or will be scaled).
-        output: Path to write the batch-corrected h5ad file.
-        batch_method: Integration algorithm — ``"bbknn"`` or ``"harmony"``.
-        batch_key: Column in ``adata.obs`` identifying batches. Falls back
-            to ``"sample"`` then ``"batch"`` when empty.
-        n_pcs: Number of PCA components (default 50).
-        n_neighbors: Number of neighbours for the k-NN graph (default 15).
-        resolution: Leiden clustering resolution after correction (default 0.8).
-        plot_dir: Directory for batch correction plots. Empty string disables
-            plotting.
-    """
-    batch_key = batch_key or ("sample" if "sample" in adata.obs else "batch")
-
-    if "X_pca" not in adata.obsm:
-        sc.pp.scale(adata, max_value=10)
-        sc.tl.pca(adata, n_comps=n_pcs)
-    sc.pp.neighbors(adata, n_neighbors=n_neighbors, n_pcs=n_pcs)
-
-    if batch_method == "bbknn":
-        sc.external.pp.bbknn(adata, batch_key=batch_key)
-    elif batch_method == "harmony":
-        sc.external.pp.harmony_integrate(adata, key=batch_key)
-        sc.pp.neighbors(adata, n_neighbors=n_neighbors, n_pcs=n_pcs)
-
-    sc.tl.umap(adata)
-    sc.tl.leiden(
-        adata, resolution=resolution, key_added="leiden",
-        flavor="igraph", n_iterations=2, directed=False,
-    )
+    if markers:
+        sc.get.rank_genes_groups_df(adata, group=None).to_csv(
+            markers, sep="\t", index=False
+        )
 
     plotter = _make_plotter(plot_dir)
     if plotter:
-        plotter.plot_batch(adata, batch_method, cluster_key="leiden", sample_key=batch_key)
+        plotter.plot_cluster(adata, cluster_key="leiden", sample_key=resolved_batch_key)
 
     adata.write_h5ad(output)
 
@@ -425,6 +443,10 @@ def mode_annotate(
         plot_dir: Directory for annotation plots. Empty string disables
             plotting.
     """
+    # Store tissue for downstream access
+    if tissue:
+        adata.uns["tissue"] = tissue
+
     if marker_file:
         _annotate_markers(adata, marker_file=marker_file)
     if celltypist_model:
@@ -864,7 +886,7 @@ def main():
     setup_logging()
     parser = argparse.ArgumentParser(description="Scanpy scRNA-seq pipeline")
     parser.add_argument("--mode", required=True,
-                        choices=["qc", "merge", "cluster", "batch", "annotate", "advanced", "de"])
+                        choices=["qc", "merge", "cluster", "annotate", "advanced", "de"])
     parser.add_argument("--input", required=True, nargs="+")
     parser.add_argument("--output", required=True)
     parser.add_argument("--plot-dir", default="", help="Directory to save plots (optional)")
@@ -875,9 +897,9 @@ def main():
     parser.add_argument("--max-genes", type=int, default=6000)
     parser.add_argument("--max-pct-mt", type=float, default=20)
     parser.add_argument("--n-top-genes", type=int, default=3000)
-    parser.add_argument("--batch-key", default="", help="Column in obs identifying batches")
     parser.add_argument("--scrublet", action="store_true", help="Run Scrublet doublet detection")
     parser.add_argument("--doublet-rate", type=float, default=0.06, help="Expected doublet rate for Scrublet")
+    parser.add_argument("--use-mad", action="store_true", help="Use MAD-based outlier detection (more permissive)")
 
     # Cluster params
     parser.add_argument("--n-pcs", type=int, default=50, help="Number of principal components")
@@ -885,9 +907,10 @@ def main():
     parser.add_argument("--resolution", type=float, default=0.8, help="Leiden clustering resolution")
     parser.add_argument("--markers", default="", help="Path to write ranked marker gene TSV")
 
-    # Batch params
-    parser.add_argument("--batch-method", default="bbknn", choices=["bbknn", "harmony"],
-                        help="Batch correction method")
+    # Batch params (integrated into cluster mode)
+    parser.add_argument("--batch-method", default="harmony", choices=["harmony", "bbknn", ""],
+                        help="Batch correction method (default: harmony, empty to skip)")
+    parser.add_argument("--batch-key", default="", help="Column in obs identifying batches")
 
     # Annotate params
     parser.add_argument("--marker-file", default="", help="TSV with cell_type and markers columns")
@@ -919,6 +942,10 @@ def main():
         mode_qc(
             adata,
             output=args.output,
+            min_genes=args.min_genes,
+            max_genes=args.max_genes,
+            max_pct_mt=args.max_pct_mt,
+            use_mad=args.use_mad,
             scrublet=args.scrublet,
             doublet_rate=args.doublet_rate,
             plot_dir=args.plot_dir,
@@ -938,18 +965,10 @@ def main():
             n_pcs=args.n_pcs,
             n_neighbors=args.n_neighbors,
             resolution=args.resolution,
-            markers=args.markers,
-            plot_dir=args.plot_dir,
-        )
-    elif args.mode == "batch":
-        mode_batch(
-            adata,
-            output=args.output,
+            n_top_genes=args.n_top_genes,
             batch_method=args.batch_method,
             batch_key=args.batch_key,
-            n_pcs=args.n_pcs,
-            n_neighbors=args.n_neighbors,
-            resolution=args.resolution,
+            markers=args.markers,
             plot_dir=args.plot_dir,
         )
     elif args.mode == "annotate":

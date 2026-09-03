@@ -371,6 +371,10 @@
         "doublet_rate": {
           "type": "float",
           "required": false
+        },
+        "use_mad": {
+          "type": "bool",
+          "required": false
         }
       },
       "cluster": {
@@ -385,22 +389,12 @@
         "resolution": {
           "type": "float",
           "required": false
-        }
-      },
-      "batch": {
-        "n_pcs": {
+        },
+        "n_top_genes": {
           "type": "int",
           "required": false
         },
-        "n_neighbors": {
-          "type": "int",
-          "required": false
-        },
-        "resolution": {
-          "type": "float",
-          "required": false
-        },
-        "method": {
+        "batch_method": {
           "type": "str",
           "required": false
         },
@@ -536,30 +530,6 @@
             "required": false
           }
         },
-        "batch": {
-          "type": "dict",
-          "required": false,
-          "batch_key": {
-            "type": "str",
-            "required": false
-          },
-          "method": {
-            "type": "str",
-            "required": false
-          },
-          "n_neighbors": {
-            "type": "int",
-            "required": false
-          },
-          "n_pcs": {
-            "type": "int",
-            "required": false
-          },
-          "resolution": {
-            "type": "float",
-            "required": false
-          }
-        },
         "cluster": {
           "type": "dict",
           "required": false,
@@ -573,6 +543,18 @@
           },
           "resolution": {
             "type": "float",
+            "required": false
+          },
+          "n_top_genes": {
+            "type": "int",
+            "required": false
+          },
+          "batch_method": {
+            "type": "str",
+            "required": false
+          },
+          "batch_key": {
+            "type": "str",
             "required": false
           }
         },
@@ -600,6 +582,10 @@
             "required": false
           },
           "scrublet": {
+            "type": "bool",
+            "required": false
+          },
+          "use_mad": {
             "type": "bool",
             "required": false
           }
@@ -672,30 +658,6 @@
             "required": false
           }
         },
-        "batch": {
-          "type": "dict",
-          "required": false,
-          "batch_key": {
-            "type": "str",
-            "required": false
-          },
-          "method": {
-            "type": "str",
-            "required": false
-          },
-          "n_neighbors": {
-            "type": "int",
-            "required": false
-          },
-          "n_pcs": {
-            "type": "int",
-            "required": false
-          },
-          "resolution": {
-            "type": "float",
-            "required": false
-          }
-        },
         "cluster": {
           "type": "dict",
           "required": false,
@@ -709,6 +671,18 @@
           },
           "resolution": {
             "type": "float",
+            "required": false
+          },
+          "n_top_genes": {
+            "type": "int",
+            "required": false
+          },
+          "batch_method": {
+            "type": "str",
+            "required": false
+          },
+          "batch_key": {
+            "type": "str",
             "required": false
           }
         },
@@ -736,6 +710,10 @@
             "required": false
           },
           "scrublet": {
+            "type": "bool",
+            "required": false
+          },
+          "use_mad": {
             "type": "bool",
             "required": false
           }

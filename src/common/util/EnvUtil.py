@@ -440,10 +440,40 @@ class EnvUtil:
         return stem if stem else (fallback or "env")
 
     # ------------------------------------------------------------------
+    # Backend configurations
+    # ------------------------------------------------------------------
+    BACKENDS = {
+        "micromamba": {
+            "apptainer_from": "docker.1ms.run/mambaorg/micromamba:latest",
+            "docker_from": "docker.1ms.run/mambaorg/micromamba:latest",
+            "verify_cmd": ["micromamba", "env", "list"],
+            "description": "Fastest, lightest (default)",
+        },
+        "mamba": {
+            "apptainer_from": "docker.1ms.run/condaforge/miniforge3:latest",
+            "docker_from": "docker.1ms.run/condaforge/miniforge3:latest",
+            "verify_cmd": ["mamba", "env", "list"],
+            "description": "Fast conda replacement",
+        },
+        "conda": {
+            "apptainer_from": "docker.1ms.run/condaforge/miniforge3:latest",
+            "docker_from": "docker.1ms.run/condaforge/miniforge3:latest",
+            "verify_cmd": ["conda", "env", "list"],
+            "description": "Slowest, most compatible",
+        },
+        "uv": {
+            "apptainer_from": "docker.1ms.run/python:3.11-slim",
+            "docker_from": "docker.1ms.run/python:3.11-slim",
+            "verify_cmd": ["python3", "-c", "import sys; print(sys.version)"],
+            "description": "PyPI-only packages",
+        },
+    }
+    DEFAULT_BACKEND = "micromamba"
+
+    # ------------------------------------------------------------------
     # Apptainer definition file generation
     # ------------------------------------------------------------------
     APPTAINER_BOOTSTRAP = "docker"
-    APPTAINER_FROM = "docker.m.daocloud.io/condaforge/miniforge3:latest"
 
     @staticmethod
     def _all_on_pypi(deps: List[str]) -> bool:
@@ -479,7 +509,6 @@ class EnvUtil:
         - No conda channels are specified (or only defaults)
         - No conda dependencies beyond ``pip`` itself
         - All actual packages are under the ``pip:`` sub-section
-        - OR all conda dependencies are also available on PyPI
 
         Parameters
         ----------
@@ -493,21 +522,22 @@ class EnvUtil:
         """
         parsed = EnvUtil.parse_conda_yaml(yaml_path)
         deps: List[str] = parsed["dependencies"]  # type: ignore[assignment]
+        channels: List[str] = parsed.get("channels", [])  # type: ignore[assignment]
+
+        # If conda channels are specified (conda-forge, bioconda, etc.), use conda
+        if channels:
+            return False
+
         # conda deps that are just python/pip meta-packages are fine
-        conda_deps = [d for d in deps if not re.match(r"^(python|pip)\\b", d.strip(), re.I)]
+        conda_deps = [d for d in deps if not re.match(r"^(python|pip)\b", d.strip(), re.I)]
         pip_deps: List[str] = parsed.get("pip_dependencies", [])  # type: ignore[assignment]
 
         # No conda deps at all: pypi-only if there are pip deps
         if not conda_deps:
             return bool(pip_deps)
 
-        # If there are conda channels + conda deps, check if they're on PyPI
-        if conda_deps:
-            all_pypi = EnvUtil._all_on_pypi(conda_deps)
-            if all_pypi:
-                return True
-            return False
-        return bool(pip_deps)
+        # Has conda deps but no channels specified: not pypi-only
+        return False
 
     @classmethod
     def generate_def_file(
@@ -515,6 +545,7 @@ class EnvUtil:
         yaml_path: str,
         def_path: Optional[str] = None,
         env_name: Optional[str] = None,
+        backend: Optional[str] = None,
     ) -> str:
         """Generate an Apptainer definition file from a conda env YAML.
 
@@ -531,6 +562,10 @@ class EnvUtil:
             as ``<parent_dir>.def`` (matching the dockerfile convention).
         env_name : Optional[str]
             Override the conda env name. If ``None``, resolved from the YAML.
+        backend : Optional[str]
+            Build backend: ``"micromamba"``, ``"mamba"``, ``"conda"``, ``"uv"``,
+            or ``"auto"`` (default). ``"auto"`` uses ``"uv"`` for PyPI-only
+            packages and ``"micromamba"`` otherwise.
 
         Returns
         -------
@@ -581,11 +616,26 @@ class EnvUtil:
             conda_deps: List[str] = parsed.get("dependencies", [])  # type: ignore[assignment]
             pip_packages = []
             for d in conda_deps:
-                if re.match(r"^(python|pip)\\b", d.strip(), re.I):
+                if re.match(r"^(python|pip)\b", d.strip(), re.I):
                     continue
                 # conda "=" (exact version) -> pip "=="
                 d = re.sub(r"(?<=[^<>~!])=(?=[0-9])", "==", d)
                 pip_packages.append(d)
+
+        # Resolve backend
+        if backend is None or backend == "auto":
+            if pypi_only:
+                resolved_backend = "uv"
+            else:
+                resolved_backend = cls.DEFAULT_BACKEND
+        else:
+            resolved_backend = backend
+
+        if resolved_backend not in cls.BACKENDS:
+            raise ValueError(f"Unknown backend: {resolved_backend}. Choose from: {list(cls.BACKENDS.keys())}")
+
+        backend_config = cls.BACKENDS[resolved_backend]
+        logger.info(f"Using backend: {resolved_backend} ({backend_config['description']})")
 
         if pypi_only:
             def_text = cls._render_def_uv(
@@ -594,6 +644,7 @@ class EnvUtil:
                 yaml_filename=yaml.name,
                 yaml_content=yaml_content,
                 def_filename=Path(def_path).name,
+                backend_config=backend_config,
             )
         else:
             def_text = cls._render_def(
@@ -602,6 +653,8 @@ class EnvUtil:
                 yaml_content=yaml_content,
                 def_filename=Path(def_path).name,
                 post_hook=post_hook,
+                backend=resolved_backend,
+                backend_config=backend_config,
             )
 
         out = Path(def_path)
@@ -619,6 +672,8 @@ class EnvUtil:
         yaml_content: str,
         def_filename: str = "env.def",
         post_hook: str = "",
+        backend: str = "micromamba",
+        backend_config: Optional[Dict] = None,
     ) -> str:
         """Render the Apptainer def file text from a template.
 
@@ -634,35 +689,63 @@ class EnvUtil:
             Filename of the .def file (for the ``# Build:`` comment).
         post_hook : str
             Extra shell commands appended to the end of ``%post``.
+        backend : str
+            Build backend: ``"micromamba"``, ``"mamba"``, or ``"conda"``.
+        backend_config : Optional[Dict]
+            Backend configuration dictionary.
 
         Returns
         -------
         str
             The rendered ``.def`` file content.
         """
+        if backend_config is None:
+            backend_config = cls.BACKENDS.get(backend, cls.BACKENDS[cls.DEFAULT_BACKEND])
+
+        from_image = backend_config.get("apptainer_from", cls.BACKENDS[cls.DEFAULT_BACKEND]["apptainer_from"])
         hook_block = f"\n{post_hook}\n" if post_hook else ""
+
+        # Generate backend-specific install commands
+        if backend == "micromamba":
+            install_cmd = f"""    export MAMBA_ROOT_PREFIX="/opt/conda"
+    micromamba env create -f /opt/conda/{yaml_filename} && \\
+        micromamba clean -afy && \\
+        rm /opt/conda/{yaml_filename}"""
+        elif backend == "mamba":
+            install_cmd = f"""    export PATH="/opt/conda/bin:$PATH"
+    export CONDA_NO_PLUGINS=true
+    conda install -n base -c conda-forge -y mamba && \\
+        mamba env create -f /opt/conda/{yaml_filename} && \\
+        mamba clean -afy && \\
+        rm /opt/conda/{yaml_filename}"""
+        else:  # conda
+            install_cmd = f"""    export PATH="/opt/conda/bin:$PATH"
+    export CONDA_NO_PLUGINS=true
+    conda config --set solver classic
+    conda env create -f /opt/conda/{yaml_filename} && \\
+        conda clean -afy && \\
+        rm /opt/conda/{yaml_filename}"""
+
         return f"""# Auto-generated Apptainer definition file for {env_name} conda environment
 # Source YAML: {yaml_filename}
 # Build: apptainer build {env_name}.sif {def_filename}
 # Or:   apptainer build <output.sif> <def_file>
+# Backend: {backend}
 
 Bootstrap: {cls.APPTAINER_BOOTSTRAP}
-From: {cls.APPTAINER_FROM}
+From: {from_image}
 
 %files
     {yaml_filename} /opt/conda/{yaml_filename}
 
-%post --shell /bin/bash
+%post
+    /bin/bash << 'ENDOFSCRIPT'
     set -euo pipefail
-    export PATH="/opt/conda/bin:$PATH"
-    export CONDA_NO_PLUGINS=true
-    conda config --set solver classic
-    conda env create -f /opt/conda/{yaml_filename} && \
-        conda clean -afy && \
-        rm /opt/conda/{yaml_filename}
+{install_cmd}
 {hook_block}
     echo 'export PATH="/opt/conda/envs/{env_name}/bin:$PATH"' >> /etc/profile.d/conda_{env_name}.sh
     echo 'export CONDA_DEFAULT_ENV={env_name}' >> /etc/profile.d/conda_{env_name}.sh
+    ENDOFSCRIPT
 
 %environment
     export PATH="/opt/conda/envs/{env_name}/bin:$PATH"
@@ -680,7 +763,7 @@ From: {cls.APPTAINER_FROM}
     Generated from {yaml_filename}.
 """
 
-    UV_FROM = "docker.m.daocloud.io/python:3.11-slim"
+    UV_FROM = "docker.1ms.run/python:3.11-slim"
 
     @classmethod
     def _render_def_uv(
@@ -690,6 +773,7 @@ From: {cls.APPTAINER_FROM}
         yaml_filename: str,
         yaml_content: str,
         def_filename: str = "env.def",
+        backend_config: Optional[Dict] = None,
     ) -> str:
         """Render an Apptainer def file using uv for PyPI-only packages.
 
@@ -705,27 +789,36 @@ From: {cls.APPTAINER_FROM}
             Full text of the YAML (embedded as comment for reference).
         def_filename : str
             Filename of the .def file (for the ``# Build:`` comment).
+        backend_config : Optional[Dict]
+            Backend configuration dictionary.
 
         Returns
         -------
         str
             The rendered ``.def`` file content.
         """
+        if backend_config is None:
+            backend_config = cls.BACKENDS.get("uv", cls.BACKENDS[cls.DEFAULT_BACKEND])
+
+        from_image = backend_config.get("apptainer_from", cls.BACKENDS["uv"]["apptainer_from"])
         pip_args = " ".join(f'"{p}"' for p in pip_packages)
         return f"""# Auto-generated Apptainer definition file for {env_name} (PyPI/uv)
 # Source YAML: {yaml_filename}
 # Build: apptainer build {env_name}.sif {def_filename}
 # Or:   apptainer build <output.sif> <def_file>
+# Backend: uv
 
 Bootstrap: docker
-From: {cls.UV_FROM}
+From: {from_image}
 
-%post --shell /bin/bash
+%post
+    /bin/bash << 'ENDOFSCRIPT'
     set -euo pipefail
     apt-get update && apt-get install -y --no-install-recommends build-essential zlib1g-dev libbz2-dev liblzma-dev && \
         rm -rf /var/lib/apt/lists/*
-    pip install --no-cache-dir uv && \\
+    pip install --no-cache-dir uv && \
         uv pip install --system --no-cache-dir {pip_args}
+    ENDOFSCRIPT
 
 %environment
     export PATH="/usr/local/bin:$PATH"
@@ -745,7 +838,7 @@ From: {cls.UV_FROM}
     # ------------------------------------------------------------------
     # Dockerfile generation (from conda YAML, same pattern as .def)
     # ------------------------------------------------------------------
-    DOCKER_FROM = "docker.m.daocloud.io/condaforge/miniforge3:latest"
+    DOCKER_FROM = "docker.1ms.run/mambaorg/micromamba:latest"
 
     @classmethod
     def generate_dockerfile(
@@ -922,21 +1015,43 @@ CMD ["bash"]
         # Verify build: check conda env exists inside SIF (skip for PyPI/uv)
         if "PyPI/uv" not in def_text:
             env_name_from_def = self.resolve_env_name_from_def(str(df))
-            verify_cmd = [
-                "apptainer", "exec", str(out),
-                "conda", "env", "list",
-            ]
-            try:
-                result = subprocess.run(
-                    verify_cmd, capture_output=True, text=True, timeout=30,
-                )
-                if env_name_from_def not in result.stdout:
-                    raise RuntimeError(
-                        f"Conda env '{env_name_from_def}' not found in SIF — "
-                        f"build failed silently. Check build output above."
+
+            # Determine which verify command to use based on backend in def file
+            verify_cmds = []
+            if "Backend: micromamba" in def_text:
+                verify_cmds = [["micromamba", "env", "list"]]
+            elif "Backend: mamba" in def_text:
+                verify_cmds = [["mamba", "env", "list"], ["conda", "env", "list"]]
+            elif "Backend: conda" in def_text:
+                verify_cmds = [["conda", "env", "list"]]
+            else:
+                # Fallback: try all
+                verify_cmds = [
+                    ["micromamba", "env", "list"],
+                    ["mamba", "env", "list"],
+                    ["conda", "env", "list"],
+                ]
+
+            verified = False
+            for verify_args in verify_cmds:
+                verify_cmd = ["apptainer", "exec", str(out)] + verify_args
+                try:
+                    result = subprocess.run(
+                        verify_cmd, capture_output=True, text=True, timeout=30,
                     )
-            except subprocess.TimeoutExpired:
-                logger.warning("SIF verification timed out, skipping env check")
+                    if env_name_from_def in result.stdout:
+                        logger.info(f"Verified: env '{env_name_from_def}' found via {verify_args[0]}")
+                        verified = True
+                        break
+                except subprocess.TimeoutExpired:
+                    logger.warning("SIF verification timed out, skipping env check")
+                    break
+
+            if not verified:
+                raise RuntimeError(
+                    f"Conda env '{env_name_from_def}' not found in SIF — "
+                    f"build failed silently. Check build output above."
+                )
         else:
             # PyPI/uv: verify key packages are importable
             verify_cmd = [
@@ -971,6 +1086,7 @@ CMD ["bash"]
         force: bool = False,
         build_timeout: Optional[int] = None,
         generate_only: bool = False,
+        solver: str = "auto",
     ) -> Dict[str, str]:
         """Full Apptainer pipeline for a single conda YAML: generate def, build SIF, copy.
 
@@ -998,6 +1114,9 @@ CMD ["bash"]
             Build timeout in seconds.
         generate_only : bool
             If ``True``, only generate the ``.def`` file without building.
+        solver : str
+            Build solver backend: ``"auto"``, ``"micromamba"``, ``"mamba"``,
+            ``"conda"``, or ``"uv"``. Default ``"auto"``.
 
         Returns
         -------
@@ -1016,6 +1135,7 @@ CMD ["bash"]
         def_path = self.generate_def_file(
             yaml_path=str(yaml),
             env_name=env_name,
+            backend=solver,
         )
 
         # Determine output sub-directory
@@ -1184,6 +1304,7 @@ CMD ["bash"]
         force: bool = False,
         build_timeout: Optional[int] = None,
         generate_only: bool = False,
+        solver: str = "auto",
     ) -> List[Dict[str, str]]:
         """Process all conda env YAMLs in a single module directory.
 
@@ -1196,6 +1317,8 @@ CMD ["bash"]
         force : bool
         build_timeout : Optional[int]
         generate_only : bool
+        solver : str
+            Build solver backend.
 
         Returns
         -------
@@ -1218,6 +1341,7 @@ CMD ["bash"]
                     force=force,
                     build_timeout=build_timeout,
                     generate_only=generate_only,
+                    solver=solver,
                 )
                 results.append(result)
             except Exception as e:
@@ -1231,6 +1355,7 @@ CMD ["bash"]
         force: bool = False,
         build_timeout: Optional[int] = None,
         generate_only: bool = False,
+        solver: str = "auto",
     ) -> List[Dict[str, str]]:
         """Process every module under ``modules_dir``: generate defs, build SIFs.
 
@@ -1241,6 +1366,8 @@ CMD ["bash"]
         force : bool
         build_timeout : Optional[int]
         generate_only : bool
+        solver : str
+            Build solver backend.
 
         Returns
         -------
@@ -1264,6 +1391,7 @@ CMD ["bash"]
                     force=force,
                     build_timeout=build_timeout,
                     generate_only=generate_only,
+                    solver=solver,
                 )
                 results.append(result)
             except Exception as e:
@@ -2059,6 +2187,16 @@ def main() -> None:
         default=None,
         help="Build timeout in seconds.",
     )
+    common.add_argument(
+        "--solver",
+        type=str,
+        default="auto",
+        choices=["auto", "micromamba", "mamba", "conda", "uv"],
+        help=(
+            "Build solver backend (default: auto). "
+            "'auto' uses 'uv' for PyPI-only packages and 'micromamba' otherwise."
+        ),
+    )
 
     # --- args shared by apptainer subcommands ---
     appt_common = argparse.ArgumentParser(add_help=False)
@@ -2253,6 +2391,7 @@ def main() -> None:
                 def_path = util.generate_def_file(
                     yaml_path=args.yaml,
                     env_name=args.env_name,
+                    backend=args.solver,
                 )
                 logger.info(f"Generated: {def_path}")
             else:
@@ -2260,7 +2399,7 @@ def main() -> None:
                 logger.info(f"Found {len(yamls)} conda env YAML(s)")
                 for y in yamls:
                     try:
-                        util.generate_def_file(yaml_path=str(y))
+                        util.generate_def_file(yaml_path=str(y), backend=args.solver)
                     except Exception as e:
                         logger.error(f"[FAIL] {y}: {e}")
 
@@ -2293,6 +2432,7 @@ def main() -> None:
                     fakeroot=args.fakeroot,
                     force=args.force,
                     build_timeout=args.build_timeout,
+                    solver=args.solver,
                 )
                 logger.info(f"Result: {result}")
             else:
@@ -2301,6 +2441,7 @@ def main() -> None:
                     fakeroot=args.fakeroot,
                     force=args.force,
                     build_timeout=args.build_timeout,
+                    solver=args.solver,
                 )
                 logger.info(f"Processed {len(results)} YAML(s)")
 

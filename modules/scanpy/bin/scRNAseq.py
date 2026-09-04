@@ -14,6 +14,7 @@ from typing import Dict, List, Literal, Optional
 from scipy.stats import median_abs_deviation
 import anndata as ad
 import numpy as np
+import harmonypy as hm
 import scanpy as sc
 
 ad.settings.allow_write_nullable_strings = True
@@ -349,7 +350,21 @@ def mode_cluster(
     if batch_method == "bbknn":
         sc.external.pp.bbknn(adata, batch_key=resolved_batch_key)
     elif batch_method == "harmony":
-        sc.external.pp.harmony_integrate(adata, key=resolved_batch_key)
+        # Direct harmonypy call to avoid scanpy wrapper .T bug
+        # (harmonypy >= 0.1.0 returns Z_corr as (n_cells, n_components),
+        #  but old scanpy wrapper still transposes it)
+        ho = hm.run_harmony(
+            adata.obsm["X_pca"], adata.obs, resolved_batch_key,
+        )
+        Z = np.asarray(ho.Z_corr)
+        if Z.ndim == 1:
+            raise ValueError(
+                f"harmonypy Z_corr is 1D shape={Z.shape}, expected 2D"
+            )
+        # Ensure (n_cells, n_components) orientation
+        if Z.shape[0] != adata.n_obs:
+            Z = Z.T
+        adata.obsm["X_pca_harmony"] = Z
         sc.pp.neighbors(adata, n_neighbors=n_neighbors, n_pcs=n_pcs)
 
     # 7. k-NN graph (skip if already done by BBKNN or Harmony)

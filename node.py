@@ -844,21 +844,17 @@ def runscRNAseq(
             if "scTE" in counters:
                 outfiles.append(f"{outdir}/common/3_raw_h5ad/{sample_id}/{sample_id}_scTE.h5ad")
                 outfiles.append(f"{outdir}/common/4_qc_h5ad/{sample_id}/{sample_id}_scTE_qc.h5ad")
-            elif "cellranger" in counters:
+            if "cellranger" in counters:
                 outfiles.append(f"{outdir}/common/3_raw_h5ad/{sample_id}/{sample_id}_cellranger.h5ad")
                 outfiles.append(f"{outdir}/common/4_qc_h5ad/{sample_id}/{sample_id}_cellranger_qc.h5ad")
-            else:
-                logger.error(f"Unknown counter type for sample {sample_id}: {counters}")
         elif sample_info.layout == "SE":
             single_samples.append(sample_id)
             if "scTE" in counters:
                 outfiles.append(f"{outdir}/common/3_raw_h5ad/{sample_id}/{sample_id}_scTE.h5ad")
                 outfiles.append(f"{outdir}/common/4_qc_h5ad/{sample_id}/{sample_id}_scTE_qc.h5ad")
-            elif "cellranger" in counters:
+            if "cellranger" in counters:
                 outfiles.append(f"{outdir}/common/3_raw_h5ad/{sample_id}/{sample_id}_cellranger.h5ad")
                 outfiles.append(f"{outdir}/common/4_qc_h5ad/{sample_id}/{sample_id}_cellranger_qc.h5ad")
-            else:
-                logger.error(f"Unknown counter type for sample {sample_id}: {counters}")
         else:
             logger.error(f"Unknown layout type for sample {sample_id}: {sample_info.layout}")
     datajson["paired_samples"] = paired_samples
@@ -888,7 +884,7 @@ def runscRNAseq(
     if "scTE" in counters:
         datajson["Params"]["scanpy"]["scTE"]["qc"]["min_genes"] = 200
         datajson["Params"]["scanpy"]["scTE"]["qc"]["max_genes"] = 6000
-        datajson["Params"]["scanpy"]["scTE"]["qc"]["scrublet"] = False
+        datajson["Params"]["scanpy"]["scTE"]["qc"]["scrublet"] = True
         if aligner == "star":
             datajson["Params"]["scTE"]["cb_tag"] = "CR"
             datajson["Params"]["scTE"]["umi_tag"] = "UR"

@@ -477,7 +477,8 @@ def mode_cluster(
         if Z.shape[0] != adata.n_obs:
             Z = Z.T
         adata.obsm["X_pca_harmony"] = Z
-        sc.pp.neighbors(adata, n_neighbors=n_neighbors, n_pcs=n_pcs)
+        sc.pp.neighbors(adata, n_neighbors=n_neighbors, n_pcs=n_pcs,
+                        use_rep="X_pca_harmony")
 
     # 8. k-NN graph (skip if already done by BBKNN or Harmony)
     if batch_method not in ("bbknn", "harmony"):

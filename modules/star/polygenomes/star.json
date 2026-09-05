@@ -1,0 +1,33 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "log",
+    "Procedure": {
+        "STAR": "STAR",
+        "samtools": "samtools"
+    },
+    "Params": {
+        "star": {
+            "index": {
+                "sjdbOverhang": 100
+            }
+        }
+    },
+    "genome": {
+        "default": "GRCm39",
+        "references": {
+            "GRCh38": {
+                "fasta": "path/to/GRCh38.fa",
+                "gtf": "path/to/GRCh38.gtf",
+                "index_dir": "path/to/prebuilt/GRCh38_star_index"
+            },
+            "GRCm39": {
+                "fasta": "path/to/GRCm39.fa",
+                "gtf": "path/to/GRCm39.gtf",
+                "index_dir": "path/to/prebuilt/GRCm39_star_index"
+            }
+        }
+    },
+    "paired_samples": ["sample1", "sample2"],
+    "single_samples": ["sample3", "sample4"]
+}

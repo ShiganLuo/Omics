@@ -1,0 +1,31 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "log",
+    "Procedure": {
+        "STAR": "STAR",
+        "samtools": "samtools",
+        "bedtools": "bedtools"
+    },
+    "Params": {
+        "star_3pass": {
+            "pass1": {},
+            "pass2": {},
+            "pass3": {}
+        }
+    },
+    "genome": {
+        "GRCh38": {
+            "genome_index": "path/to/GRCh38_star_index",
+            "smallrna_index": "path/to/GRCh38_smallrna_index",
+            "smallrna_bed": "path/to/GRCh38_smallrna.bed"
+        },
+        "GRCm39": {
+            "genome_index": "path/to/GRCm39_star_index",
+            "smallrna_index": "path/to/GRCm39_smallrna_index",
+            "smallrna_bed": "path/to/GRCm39_smallrna.bed"
+        }
+    },
+    "paired_samples": [],
+    "single_samples": []
+}

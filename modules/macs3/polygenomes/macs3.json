@@ -1,0 +1,9 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "logs",
+    "genome": {
+        "GRCm39": {},
+        "GRCh38": {}
+    }
+}

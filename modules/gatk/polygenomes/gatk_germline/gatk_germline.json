@@ -1,0 +1,34 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "log",
+    "reference": {
+        "interval": "",
+        "known_sites": []
+    },
+    "Procedure": {
+        "gatk": "gatk",
+        "bcftools": "bcftools"
+    },
+    "Params": {
+        "gatk": {
+            "javaOptions": "-Xmx30g",
+            "FS_threshold": 20.0,
+            "QD_threshold": 2.0,
+            "DP_threshold": 10.0,
+            "QUAL_threshold": 20.0
+        }
+    },
+    "genome": {
+        "genome1": {
+            "fasta": "path/to/genome1.fa",
+            "fai_index": "path/to/genome1.fa.fai",
+            "dict_index": "path/to/genome1.dict"
+        },
+        "genome2": {
+            "fasta": "path/to/genome2.fa",
+            "fai_index": "path/to/genome2.fa.fai",
+            "dict_index": "path/to/genome2.dict"
+        }
+    }
+}

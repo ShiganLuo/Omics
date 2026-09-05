@@ -1,0 +1,28 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "log",
+    "input_bam_substring": "",
+    "Procedure": {
+        "gatk": "gatk",
+        "samtools": "samtools"
+    },
+    "Params": {
+        "gatk": {
+            "javaOptions": "-Xmx30g",
+            "addReadsGroup": {
+                "RGLB": "lib1",
+                "RGPL": "illumina",
+                "RGPU": "unit1"
+            }
+        }
+    },
+    "genome": {
+        "genome1": {
+            "fasta": "path/to/genome1.fa"
+        },
+        "genome2": {
+            "fasta": "path/to/genome2.fa"
+        }
+    }
+}

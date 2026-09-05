@@ -1,0 +1,24 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "log",
+    "Procedure": {
+        "mimseq": null
+    },
+    "Params": {
+        "mimseq": {
+            "control_cond": "",
+            "misinc_thresh": 0.1,
+            "no_cca": false,
+            "double_cca": false
+        }
+    },
+    "genome": {
+        "GRCh38": {
+            "mito_trnas": ""
+        },
+        "GRCm39": {
+            "mito_trnas": ""
+        }
+    }
+}

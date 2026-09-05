@@ -1,0 +1,20 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "log",
+    "ROOT_DIR": ".",
+    "sample_somatic_vcf_dict": {
+        "sample1": "path/to/sample1.vcf.gz"
+    },
+    "sample_group_dict": {
+        "sample1": "group1"
+    },
+    "genome": {
+        "genome1": {
+            "fasta": "path/to/genome1.fa"
+        },
+        "genome2": {
+            "fasta": "path/to/genome2.fa"
+        }
+    }
+}

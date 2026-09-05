@@ -1,0 +1,20 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "log",
+    "samples": [],
+    "ROOT_DIR": ".",
+    "Params": {
+        "manta": {
+            "threads": 8
+        }
+    },
+    "genome": {
+        "genome1": {
+            "fasta": "path/to/genome1.fa"
+        },
+        "genome2": {
+            "fasta": "path/to/genome2.fa"
+        }
+    }
+}

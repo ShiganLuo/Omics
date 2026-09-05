@@ -41,7 +41,7 @@ rule peak_te_overlap:
         sif("../peak_te_overlap.yaml")
     params:
         bedtools = config.get("Procedure", {}).get("bedtools") or "bedtools",
-        te_gtf = lambda wildcards: config['genomes'][wildcards.genome]['te_gtf'],
+        te_gtf = lambda wildcards: config['genome'][wildcards.genome]['te_gtf'],
     run:
         log_path = str(log)
         try:
@@ -98,7 +98,7 @@ rule peak_centric_overlap:
         sif("../peak_te_overlap.yaml")
     params:
         bedtools = config.get("Procedure", {}).get("bedtools") or "bedtools",
-        te_gtf = lambda wildcards: config['genomes'][wildcards.genome]['te_gtf'],
+        te_gtf = lambda wildcards: config['genome'][wildcards.genome]['te_gtf'],
         script = os.path.join(MODULE_DIR, "bin", "peak_centric_overlap.py"),
     run:
         log_path = str(log)

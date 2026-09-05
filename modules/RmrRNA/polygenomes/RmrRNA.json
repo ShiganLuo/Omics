@@ -1,18 +1,15 @@
 {
-    "indir": "input",
-    "outdir": "output",
-    "logdir": "logs",
-    "genome": {
-        "default": "GRCm39",
-            "references": {
-            "GRCm39": {
-                "fasta": "path/to/genome.fa",
-                "gtf": "path/to/annotation.gtf"
-            },
-            "GRCh38": {
-                "fasta": "path/to/genome.fa",
-                "gtf": "path/to/annotation.gtf"
-            }
-        }
+  "indir": "input",
+  "outdir": "output",
+  "logdir": "logs",
+  "genome": {
+    "GRCm39": {
+      "fasta": "path/to/genome.fa",
+      "gtf": "path/to/annotation.gtf"
+    },
+    "GRCh38": {
+      "fasta": "path/to/genome.fa",
+      "gtf": "path/to/annotation.gtf"
     }
+  }
 }

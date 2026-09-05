@@ -8,7 +8,7 @@ rule iCLIP_bedtools:
     input:
         bam = indir + "/{sample_id}.dedup.bam",
         bai = indir + "/{sample_id}.dedup.bam.bai",
-        chromosome_sizes = lambda wildcards: config['genomes'][wildcards.genome]['chrom_sizes']
+        chromosome_sizes = lambda wildcards: config['genome'][wildcards.genome]['chrom_sizes']
     output:
         bed = outdir + "/{genome}/{sample_id}/{sample_id}.bed",
         plus_bedgraph = outdir + "/{genome}/{sample_id}/{sample_id}.plus.bw",

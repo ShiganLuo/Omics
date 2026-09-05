@@ -1,33 +1,29 @@
 {
-    "indir": "input",
-    "outdir": "output",
-    "logdir": "log",
-    "Procedure": {
-        "STAR": "STAR",
-        "samtools": "samtools"
+  "indir": "input",
+  "outdir": "output",
+  "logdir": "logs",
+  "genome_paired_samples": {
+    "GRCm39": [],
+    "GRCh38": []
+  },
+  "genome_single_samples": {
+    "GRCm39": [],
+    "GRCh38": []
+  },
+  "genome": {
+    "GRCm39": {
+      "fasta": "path/to/genome.fa",
+      "gtf": "path/to/annotation.gtf",
+      "index_dir": null
     },
-    "Params": {
-        "star": {
-            "index": {
-                "sjdbOverhang": 100
-            }
-        }
-    },
-    "genome": {
-        "default": "GRCm39",
-        "references": {
-            "GRCh38": {
-                "fasta": "path/to/GRCh38.fa",
-                "gtf": "path/to/GRCh38.gtf",
-                "index_dir": "path/to/prebuilt/GRCh38_star_index"
-            },
-            "GRCm39": {
-                "fasta": "path/to/GRCm39.fa",
-                "gtf": "path/to/GRCm39.gtf",
-                "index_dir": "path/to/prebuilt/GRCm39_star_index"
-            }
-        }
-    },
-    "paired_samples": ["sample1", "sample2"],
-    "single_samples": ["sample3", "sample4"]
+    "GRCh38": {
+      "fasta": "path/to/genome.fa",
+      "gtf": "path/to/annotation.gtf",
+      "index_dir": null
+    }
+  },
+  "Procedure": {
+    "STAR": "STAR",
+    "samtools": "samtools"
+  }
 }

@@ -1,17 +1,21 @@
 {
-    "indir": "input",
-    "outdir": "output",
-    "logdir": "logs",
-    "genome": {
-        "GRCm39": {
-            "TE_gtf": "path/to/TE.gtf",
-            "gtf": "path/to/annotation.gtf",
-            "TEind": "path/to/TE.gtf.locInd"
-        },
-        "GRCh38": {
-            "TE_gtf": "path/to/TE.gtf",
-            "gtf": "path/to/annotation.gtf",
-            "TEind": "path/to/TE.gtf.locInd"
-        }
+  "indir": "input",
+  "outdir": "output",
+  "logdir": "logs",
+  "genome": {
+    "GRCm39": {
+      "TE_gtf": "path/to/TE.gtf",
+      "gtf": "path/to/annotation.gtf",
+      "TEind": "path/to/TE.gtf.locInd"
+    },
+    "GRCh38": {
+      "TE_gtf": "path/to/TE.gtf",
+      "gtf": "path/to/annotation.gtf",
+      "TEind": "path/to/TE.gtf.locInd"
     }
+  },
+  "Procedure": {
+    "TEcount": "TEcount",
+    "samtools": "samtools"
+  }
 }

@@ -484,7 +484,7 @@ def mode_cluster(
     if batch_method not in ("bbknn", "harmony"):
         sc.pp.neighbors(
             adata, n_neighbors=n_neighbors,
-            n_pcs=min(n_pcs, adata.obsm["X_pca"].shape[1]),
+            n_pcs=n_pcs,
         )
 
     # 9. UMAP (tight params for clean clusters)

@@ -1,0 +1,20 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "log",
+    "samples": [],
+    "bam_substring": "",
+    "Procedure": {
+        "pbsv": "pbsv",
+        "bgzip": "bgzip",
+        "bcftools": "bcftools"
+    },
+    "genome": {
+        "genome1": {
+            "fasta": "path/to/genome1.fa"
+        },
+        "genome2": {
+            "fasta": "path/to/genome2.fa"
+        }
+    }
+}

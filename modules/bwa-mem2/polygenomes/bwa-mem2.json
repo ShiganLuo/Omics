@@ -1,0 +1,21 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "log",
+    "Procedure": {
+        "bwaMem2": "bwa-mem2",
+        "samtools": "samtools"
+    },
+    "genome": {
+        "GRCh38": {
+            "fasta": "path/to/GRCh38.fa",
+            "index_prefix": "path/to/prebuilt/GRCh38_bwa-mem2_index_prefix"
+        },
+        "GRCm39": {
+            "fasta": "path/to/GRCm39.fa",
+            "index_prefix": "path/to/prebuilt/GRCm39_bwa-mem2_index_prefix"
+        }
+    },
+    "paired_samples": ["sample1", "sample2"],
+    "single_samples": ["sample3", "sample4"]
+}

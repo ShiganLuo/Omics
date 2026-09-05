@@ -193,6 +193,12 @@ rule <tool>_<action>:
             raise e
 ```
 
+每个module snakefile必须含有一个面板规则记录module主要输出，便于node.py确定输出文件，格式如下：
+
+```python
+rule <module>_result:
+    input: ...
+```
 ## 要点
 
 1. **`open(log_path, "w").close()`** — 清空旧日志，避免追加混淆

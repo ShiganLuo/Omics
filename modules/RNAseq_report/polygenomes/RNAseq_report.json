@@ -1,0 +1,24 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "logs",
+    "samples": [],
+    "genome_paired_samples": {
+        "GRCm39": [],
+        "GRCh38": []
+    },
+    "genome_single_samples": {
+        "GRCm39": [],
+        "GRCh38": []
+    },
+    "contrasts": [],
+    "Params": {
+        "report": {
+            "title": "RNA-seq Analysis Report",
+            "subtitle": "",
+            "pipeline": "",
+            "date": "",
+            "lang": "zh"
+        }
+    }
+}

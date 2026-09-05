@@ -93,8 +93,8 @@ rule TElocal:
         logdir + "/{genome}/{sample_id}/TElocal.log"
     params:
         project = "{sample_id}.TElocal",
-        TE = lambda wildcards: config['genomes'][wildcards.genome]['TEind'],
-        GTF = lambda wildcards: config['genomes'][wildcards.genome]['gtf'],
+        TE = lambda wildcards: config['genome'][wildcards.genome]['TEind'],
+        GTF = lambda wildcards: config['genome'][wildcards.genome]['gtf'],
         TElocal = config.get('Procedure',{}).get('TElocal') or 'TElocal'
     threads: 2
     conda:

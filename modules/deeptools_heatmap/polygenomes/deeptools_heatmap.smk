@@ -25,8 +25,8 @@ def _is_te_regions():
 
 def _get_gene_gtf(wildcards):
     if isinstance(regions_cfg, dict) and regions_cfg.get("gtf") == "te":
-        return config['genomes'][wildcards.genome]['te_gtf']
-    return config['genomes'][wildcards.genome]['gtf']
+        return config['genome'][wildcards.genome]['te_gtf']
+    return config['genome'][wildcards.genome]['gtf']
 
 def _get_match_by():
     return regions_cfg.get("match_by", "gene_name") if isinstance(regions_cfg, dict) else "gene_name"
@@ -124,7 +124,7 @@ def _build_heatmap_cmd(wildcards, input, output, threads, title, gene_names=None
         # genes mode: force scale-regions to show TSS and TES labels
         mode, ref_point = "scale-regions", "TSS"
 
-    tss_bed = config['genomes'][wildcards.genome].get('tss_bed')
+    tss_bed = config['genome'][wildcards.genome].get('tss_bed')
     cmd = [
         "python3", HEATMAP_SCRIPT,
         "--ip-bigwig", input.ratio_bigwig,
@@ -171,9 +171,9 @@ def _build_heatmap_cmd(wildcards, input, output, threads, title, gene_names=None
 
 def _get_gtf_for_heatmap(wildcards):
     """Return GTF path when mode needs it, empty list otherwise."""
-    tss_bed = config['genomes'][wildcards.genome].get('tss_bed')
+    tss_bed = config['genome'][wildcards.genome].get('tss_bed')
     if regions_cfg == "tss":
-        return [] if (tss_bed and os.path.isfile(tss_bed)) else (config['genomes'][wildcards.genome].get('gtf') or [])
+        return [] if (tss_bed and os.path.isfile(tss_bed)) else (config['genome'][wildcards.genome].get('gtf') or [])
     if _is_gene_regions():
         return _get_gene_gtf(wildcards) or []
     return []
@@ -184,7 +184,7 @@ def _get_regions_for_heatmap(wildcards):
     if regions_cfg == "peaks":
         return os.path.join(indir, wildcards.sample_id, wildcards.sample_id + "_peaks.narrowPeak")
     # tss/genes modes generate BED from GTF inside run_heatmap.py
-    tss_bed = config['genomes'][wildcards.genome].get('tss_bed')
+    tss_bed = config['genome'][wildcards.genome].get('tss_bed')
     if regions_cfg == "tss" and tss_bed and os.path.isfile(tss_bed):
         return tss_bed
     return []

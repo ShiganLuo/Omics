@@ -33,7 +33,7 @@ rule featureCounts_single_noMultiple:
         10
     params:
         featureCounts = config.get('Procedure',{}).get('featureCounts') or 'featureCounts',
-        gtf = lambda wildcards: config['genomes'][wildcards.genome]['gtf']
+        gtf = lambda wildcards: config['genome'][wildcards.genome]['gtf']
     run:
         log_path = str(log)
         try:
@@ -78,7 +78,7 @@ rule featureCounts_paired_noMultiple:
         10
     params:
         featureCounts = config.get('Procedure',{}).get('featureCounts') or 'featureCounts',
-        gtf = lambda wildcards: config['genomes'][wildcards.genome]['gtf']
+        gtf = lambda wildcards: config['genome'][wildcards.genome]['gtf']
     run:
         log_path = str(log)
         try:

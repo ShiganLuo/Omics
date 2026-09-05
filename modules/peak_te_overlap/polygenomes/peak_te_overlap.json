@@ -1,0 +1,13 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "logs",
+    "genome": {
+        "GRCm39": {
+            "te_gtf": "path/to/TE.gtf"
+        },
+        "GRCh38": {
+            "te_gtf": "path/to/TE.gtf"
+        }
+    }
+}

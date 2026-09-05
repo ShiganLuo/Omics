@@ -1,0 +1,36 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "log",
+    "Procedure": {
+        "mimseq": null
+    },
+    "Params": {
+        "mimseq": {
+            "species": "",
+            "name": "tRNAseq",
+            "data_dir": "",
+            "cluster_id": 0.97,
+            "double_cca": false,
+            "posttrans_mod_off": false,
+            "pretRNAs": false,
+            "local_modomics": false,
+            "snp_tolerance": true,
+            "cluster": true
+        }
+    },
+    "genome": {
+        "GRCh38": {
+            "trnas": "",
+            "trnaout": "",
+            "mito_trnas": "",
+            "plastid_trnas": ""
+        },
+        "GRCm39": {
+            "trnas": "",
+            "trnaout": "",
+            "mito_trnas": "",
+            "plastid_trnas": ""
+        }
+    }
+}

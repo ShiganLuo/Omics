@@ -1,0 +1,13 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "logs",
+    "genome": {
+        "GRCm39": {
+            "chrom_sizes": "path/to/chrom.sizes"
+        },
+        "GRCh38": {
+            "chrom_sizes": "path/to/chrom.sizes"
+        }
+    }
+}

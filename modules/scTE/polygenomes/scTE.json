@@ -1,17 +1,18 @@
 {
-    "indir": "input",
-    "outdir": "output",
-    "logdir": "logs",
-    "genome": {
-        "GRCm39": {
-            "gtf": "path/to/annotation.gtf",
-            "te_bed": "path/to/TE.bed",
-            "scTE_index": "path/to/scTE.idx"
-        },
-        "GRCh38": {
-            "gtf": "path/to/annotation.gtf",
-            "te_bed": "path/to/TE.bed",
-            "scTE_index": "path/to/scTE.idx"
-        }
+  "indir": "input",
+  "outdir": "output",
+  "logdir": "logs",
+  "genome": {
+    "GRCm39": {
+      "gtf": "path/to/annotation.gtf",
+      "te_bed": "path/to/TE.bed",
+      "scTE_index": "path/to/scTE.idx"
+    },
+    "GRCh38": {
+      "gtf": "path/to/annotation.gtf",
+      "te_bed": "path/to/TE.bed",
+      "scTE_index": "path/to/scTE.idx"
     }
+  },
+  "logdir_index": "logs/index"
 }

@@ -1,0 +1,25 @@
+{
+  "outdir": "output",
+  "logdir": "logs",
+  "genome": {
+    "GRCm39": {
+      "decoy_fasta": "path/to/genome_decoy.fasta"
+    },
+    "GRCh38": {
+      "decoy_fasta": "path/to/genome_decoy.fasta"
+    }
+  },
+  "samples": [],
+  "mzML_dir": "data/mzml",
+  "decoy_dir": "data/decoy_database",
+  "Params": {
+    "search_engine": {
+      "engine": "comet"
+    }
+  },
+  "Procedure": {
+    "comet": "CometAdapter",
+    "msgf": "MSGFPlusAdapter",
+    "sage": "SageAdapter"
+  }
+}

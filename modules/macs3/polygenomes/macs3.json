@@ -1,9 +1,11 @@
 {
-    "indir": "input",
-    "outdir": "output",
-    "logdir": "logs",
-    "genome": {
-        "GRCm39": {},
-        "GRCh38": {}
-    }
+  "indir": "input",
+  "outdir": "output",
+  "logdir": "logs",
+  "genome": {
+    "GRCm39": {},
+    "GRCh38": {}
+  },
+  "ip_samples": [],
+  "input_samples": []
 }

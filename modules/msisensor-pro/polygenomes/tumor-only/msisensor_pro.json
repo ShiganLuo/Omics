@@ -1,16 +1,16 @@
 {
-    "outdir": "output",
-    "samples4baseline": "path/to/baseline_samples.tsv",
-    "samples4test": "path/to/test_samples.tsv",
-    "msisensor-pro": "msisensor-pro",
-    "genome_version": "genome1",
-    "reference": "path/to/genome1.fa",
-    "genome": {
-        "genome1": {
-            "fasta": "path/to/genome1.fa"
-        },
-        "genome2": {
-            "fasta": "path/to/genome2.fa"
-        }
+  "outdir": "output",
+  "samples4baseline": "path/to/baseline_samples.tsv",
+  "samples4test": "path/to/test_samples.tsv",
+  "genome_version": "genome1",
+  "reference": "path/to/genome1.fa",
+  "genome": {
+    "genome1": {
+      "fasta": "path/to/genome1.fa"
+    },
+    "genome2": {
+      "fasta": "path/to/genome2.fa"
     }
+  },
+  "msisensor-pro": "msisensor-pro"
 }

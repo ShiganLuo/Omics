@@ -25,5 +25,10 @@
   "Procedure": {
     "STAR": "STAR",
     "samtools": "samtools"
-  }
+  },
+  "logdir_index": "logs/index",
+  "log_index_substring": "star_index",
+  "omics_type": "RNA-seq",
+  "fastq_sample_suffix": null,
+  "isGenomeSubdir": true
 }

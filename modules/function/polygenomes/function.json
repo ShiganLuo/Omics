@@ -28,6 +28,12 @@
         "p_cut": 0.05,
         "top": 10
       }
+    },
+    "DESeq2": {
+      "group_pairs": {
+        "GRCm39": {},
+        "GRCh38": {}
+      }
     }
   }
 }

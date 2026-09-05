@@ -401,6 +401,10 @@
         "batch_key": {
           "type": "str",
           "required": false
+        },
+        "auto_n_pcs": {
+          "type": "bool",
+          "required": false
         }
       },
       "annotate": {
@@ -556,6 +560,10 @@
           "batch_key": {
             "type": "str",
             "required": false
+          },
+          "auto_n_pcs": {
+            "type": "bool",
+            "required": false
           }
         },
         "qc": {
@@ -683,6 +691,10 @@
           },
           "batch_key": {
             "type": "str",
+            "required": false
+          },
+          "auto_n_pcs": {
+            "type": "bool",
             "required": false
           }
         },

@@ -93,11 +93,12 @@
                 },
                 "cluster": {
                     "n_pcs": 50,
-                    "n_neighbors": 15,
+                    "n_neighbors": 50,
                     "resolution": 0.8,
                     "n_top_genes": 3000,
                     "batch_method": "harmony",
-                    "batch_key": "sample_id"
+                    "batch_key": "sample_id",
+                    "auto_n_pcs": true
                 },
                 "annotate": {
                     "marker_file": "",
@@ -130,11 +131,12 @@
                 },
                 "cluster": {
                     "n_pcs": 50,
-                    "n_neighbors": 15,
+                    "n_neighbors": 50,
                     "resolution": 0.8,
                     "n_top_genes": 3000,
                     "batch_method": "harmony",
-                    "batch_key": "sample_id"
+                    "batch_key": "sample_id",
+                    "auto_n_pcs": true
                 },
                 "annotate": {
                     "marker_file": "",

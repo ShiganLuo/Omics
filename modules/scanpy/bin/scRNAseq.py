@@ -10,7 +10,7 @@ import logging
 import os
 import sys
 from pathlib import Path
-from typing import Dict, List, Literal, Optional
+from typing import Dict, List, Literal, Optional, Tuple
 from scipy.stats import median_abs_deviation
 import anndata as ad
 import numpy as np
@@ -100,6 +100,96 @@ def is_outlier(adata: ad.AnnData, metric: str, nmads: int) -> np.ndarray:
         np.median(M) + nmads * median_abs_deviation(M) < M
     )
     return outlier
+
+
+def detect_n_pcs(
+    variance_ratio: np.ndarray,
+    min_pcs: int = 10,
+    max_pcs: int = 100,
+    window: int = 5,
+    ratio: float = 0.15,
+) -> Tuple[int, Dict]:
+    """Detect the optimal number of principal components.
+
+    Uses a sliding-window approach to find where the descending
+    variance ratio curve starts to plateau.
+
+    Algorithm:
+        1. Compute per-PC change: ``delta = abs(diff(variance_ratio))``.
+        2. Compute baseline: median of *delta* in the first *min_pcs* PCs.
+        3. Slide a window of size *window* from *min_pcs* onward; at
+           each position compute the mean *delta* inside the window.
+        4. The first position where ``mean_delta < baseline * ratio``
+           marks the start of the plateau → that PC index is *n_pcs*.
+
+    Args:
+        variance_ratio: 1-D array of per-PC variance ratios.
+        min_pcs: Minimum PCs to return (default 10).
+        max_pcs: Maximum PCs to return (default 100).
+        window: Sliding window size (default 5).
+        ratio: Threshold as a fraction of the baseline change rate
+            (default 0.15).  Smaller = stricter (more PCs selected).
+
+    Returns:
+        Tuple of (recommended_n_pcs, diagnostics) where diagnostics is a
+        dict with keys ``delta``, ``window_mean_x``, ``window_mean_y``,
+        ``threshold``, ``elbow_pc`` for plotting.
+    """
+    n = len(variance_ratio)
+    if n <= min_pcs:
+        diag: Dict = {
+            "delta": np.abs(np.diff(variance_ratio)) if n > 1 else np.array([]),
+            "window_mean_x": np.array([]),
+            "window_mean_y": np.array([]),
+            "threshold": 0.0,
+            "elbow_pc": n,
+        }
+        return n, diag
+
+    delta = np.abs(np.diff(variance_ratio))  # length n-1
+
+    # Baseline: median change in the first min_pcs PCs (active decline region)
+    baseline_end = min(min_pcs, len(delta))
+    baseline = np.median(delta[:baseline_end])
+    if baseline == 0:
+        diag = {
+            "delta": delta,
+            "window_mean_x": np.array([]),
+            "window_mean_y": np.array([]),
+            "threshold": 0.0,
+            "elbow_pc": min(max_pcs, n),
+        }
+        return min(max_pcs, n), diag
+
+    threshold = baseline * ratio
+
+    # Compute sliding window mean for all valid positions
+    search_start = max(0, min_pcs - 1)
+    wm_list: List = []
+    result_pc = min(max_pcs, n)  # fallback
+
+    for i in range(search_start, len(delta) - window + 1):
+        wm = float(np.mean(delta[i:i + window]))
+        wm_list.append((i, wm))
+        if wm < threshold and result_pc == min(max_pcs, n):
+            result_pc = max(min_pcs, min(i + 1, max_pcs, n))
+
+    # Build arrays for plotting
+    if wm_list:
+        wm_x = np.array([w[0] + 1 for w in wm_list])  # 1-indexed PC
+        wm_y = np.array([w[1] for w in wm_list])
+    else:
+        wm_x = np.array([])
+        wm_y = np.array([])
+
+    diag = {
+        "delta": delta,
+        "window_mean_x": wm_x,
+        "window_mean_y": wm_y,
+        "threshold": threshold,
+        "elbow_pc": result_pc,
+    }
+    return result_pc, diag
 
 
 # ---------------------------------------------------------------------------
@@ -283,13 +373,14 @@ def mode_cluster(
     adata: ad.AnnData,
     output: str,
     n_pcs: int = 50,
-    n_neighbors: int = 15,
+    n_neighbors: int = 50,
     resolution: float = 0.8,
     n_top_genes: int = 3000,
     batch_method: str = "harmony",
     batch_key: str = "",
     markers: str = "",
     plot_dir: str = "",
+    auto_n_pcs: bool = False,
 ) -> None:
     """Cluster cells: preprocess → batch correct → neighbours → UMAP → Leiden.
 
@@ -299,20 +390,22 @@ def mode_cluster(
            downstream DEG / annotation.
         3. Select the top *n_top_genes* highly variable genes and subset.
         4. Scale HVGs (max_value=10).
-        5. Run PCA (up to *n_pcs* components).
-        6. Apply batch correction (default: Harmony).
+        5. Run PCA (up to *n_pcs* components, or 100 if *auto_n_pcs*).
+        6. (Optional) Auto-detect optimal n_pcs from the variance ratio
+           sliding-window plateau.
+        7. Apply batch correction (default: Harmony).
            - **BBKNN**: batch-balanced k-NN graph directly on PCA space.
            - **Harmony**: embed PCA coordinates in a batch-corrected space.
-        7. Build a k-NN graph (*n_neighbors*, *n_pcs* PCs).
-        8. Compute UMAP embedding (min_dist=0.1, spread=0.8).
-        9. Leiden clustering at the given *resolution* (igraph flavour).
-        10. Rank differentially expressed genes per cluster (Wilcoxon, use_raw).
+        8. Build a k-NN graph (*n_neighbors*, *n_pcs* PCs).
+        9. Compute UMAP embedding (min_dist=0.1, spread=0.8).
+        10. Leiden clustering at the given *resolution* (igraph flavour).
+        11. Rank differentially expressed genes per cluster (Wilcoxon, use_raw).
 
     Args:
         adata: Input AnnData (raw counts expected in ``.X``).
         output: Path to write the clustered h5ad file.
         n_pcs: Number of principal components (default 50).
-        n_neighbors: Number of neighbours for the k-NN graph (default 15).
+        n_neighbors: Number of neighbours for the k-NN graph (default 50).
         resolution: Leiden clustering resolution (default 0.8).
         n_top_genes: Number of highly variable genes to select (default 3000).
         batch_method: Batch correction method — ``"harmony"``, ``"bbknn"``,
@@ -322,6 +415,8 @@ def mode_cluster(
         markers: Path to write a TSV of ranked marker genes. Empty string
             skips this step.
         plot_dir: Directory for cluster plots. Empty string disables plotting.
+        auto_n_pcs: Auto-detect optimal n_pcs from PCA variance ratio
+            sliding-window plateau (default False).
     """
     # 1. Normalise + log-transform
     sc.pp.normalize_total(adata, target_sum=1e4)
@@ -330,23 +425,40 @@ def mode_cluster(
     # 2. Save full-gene snapshot for downstream DEG / annotation
     adata.raw = adata.copy()
 
-    # 3. Detect HVGs and subset
+    # 3. Detect HVGs (keep all genes for plotting, subset later)
     resolved_batch_key = batch_key or ("sample_id" if "sample_id" in adata.obs else "batch")
     sc.pp.highly_variable_genes(
         adata,
         n_top_genes=n_top_genes,
         flavor="seurat",
-        subset=True,
+        subset=False,
         batch_key=resolved_batch_key if resolved_batch_key in adata.obs else None,
     )
 
-    # 4. Scale HVGs
+    # 4. Plot HVG (before subsetting — needs all genes as background)
+    plotter = _make_plotter(plot_dir)
+    if plotter:
+        plotter.plot_hvg(adata, n_top_genes=n_top_genes)
+
+    # 5. Subset to HVGs and scale
+    adata = adata[:, adata.var["highly_variable"]].copy()
     sc.pp.scale(adata, max_value=10)
 
-    # 5. PCA
-    sc.tl.pca(adata, n_comps=min(n_pcs, max(2, adata.n_obs - 1)))
+    # 6. PCA — compute more components when auto-detecting
+    pca_comps = max(n_pcs, 100) if auto_n_pcs else n_pcs
+    pca_comps = min(pca_comps, max(2, adata.n_obs - 1))
+    sc.tl.pca(adata, n_comps=pca_comps)
 
-    # 6. Batch correction
+    # 6. Auto-detect n_pcs if requested
+    recommended_n_pcs = n_pcs
+    detect_diag: Dict = {}
+    if auto_n_pcs:
+        variance_ratio = adata.uns["pca"]["variance_ratio"]
+        recommended_n_pcs, detect_diag = detect_n_pcs(variance_ratio)
+        logging.info("Auto-detected n_pcs: %d", recommended_n_pcs)
+        n_pcs = recommended_n_pcs
+
+    # 7. Batch correction
     if batch_method == "bbknn":
         sc.external.pp.bbknn(adata, batch_key=resolved_batch_key)
     elif batch_method == "harmony":
@@ -367,23 +479,23 @@ def mode_cluster(
         adata.obsm["X_pca_harmony"] = Z
         sc.pp.neighbors(adata, n_neighbors=n_neighbors, n_pcs=n_pcs)
 
-    # 7. k-NN graph (skip if already done by BBKNN or Harmony)
+    # 8. k-NN graph (skip if already done by BBKNN or Harmony)
     if batch_method not in ("bbknn", "harmony"):
         sc.pp.neighbors(
             adata, n_neighbors=n_neighbors,
             n_pcs=min(n_pcs, adata.obsm["X_pca"].shape[1]),
         )
 
-    # 8. UMAP (tight params for clean clusters)
+    # 9. UMAP (tight params for clean clusters)
     sc.tl.umap(adata, min_dist=0.1, spread=0.8)
 
-    # 9. Leiden clustering (igraph flavour)
+    # 10. Leiden clustering (igraph flavour)
     sc.tl.leiden(
         adata, resolution=resolution, key_added="leiden",
         flavor="igraph", n_iterations=2, directed=False,
     )
 
-    # 10. DEG — use raw for full gene coverage
+    # 11. DEG — use raw for full gene coverage
     sc.tl.rank_genes_groups(adata, "leiden", method="wilcoxon", use_raw=True)
 
     if markers:
@@ -391,8 +503,13 @@ def mode_cluster(
             markers, sep="\t", index=False
         )
 
-    plotter = _make_plotter(plot_dir)
     if plotter:
+        plotter.plot_pca_variance(
+            adata,
+            n_pcs=n_pcs,
+            auto_n_pcs=auto_n_pcs,
+            detect_diag=detect_diag if auto_n_pcs else None,
+        )
         plotter.plot_cluster(adata, cluster_key="leiden", sample_key=resolved_batch_key)
 
     adata.write_h5ad(output)
@@ -780,7 +897,7 @@ def mode_advanced(
     adata: ad.AnnData,
     output: str,
     n_pcs: int = 50,
-    n_neighbors: int = 15,
+    n_neighbors: int = 50,
     trajectory: bool = False,
     velocity: bool = False,
     communication: bool = False,
@@ -804,7 +921,7 @@ def mode_advanced(
         adata: Clustered AnnData object.
         output: Path to write the annotated h5ad file.
         n_pcs: Number of PCA components for velocity computation (default 50).
-        n_neighbors: Number of neighbours for velocity moments (default 15).
+        n_neighbors: Number of neighbours for velocity moments (default 50).
         trajectory: If True, compute diffusion map and pseudotime.
         velocity: If True, run scVelo RNA velocity analysis.
         communication: If True, run LIANA cell–cell communication.
@@ -918,9 +1035,10 @@ def main():
 
     # Cluster params
     parser.add_argument("--n-pcs", type=int, default=50, help="Number of principal components")
-    parser.add_argument("--n-neighbors", type=int, default=15, help="Number of k-NN neighbours")
+    parser.add_argument("--n-neighbors", type=int, default=50, help="Number of k-NN neighbours")
     parser.add_argument("--resolution", type=float, default=0.8, help="Leiden clustering resolution")
     parser.add_argument("--markers", default="", help="Path to write ranked marker gene TSV")
+    parser.add_argument("--auto-n-pcs", action="store_true", help="Auto-detect optimal n_pcs from PCA variance ratio")
 
     # Batch params (integrated into cluster mode)
     parser.add_argument("--batch-method", default="harmony", choices=["harmony", "bbknn", ""],
@@ -985,6 +1103,7 @@ def main():
             batch_key=args.batch_key,
             markers=args.markers,
             plot_dir=args.plot_dir,
+            auto_n_pcs=args.auto_n_pcs,
         )
     elif args.mode == "annotate":
         mode_annotate(

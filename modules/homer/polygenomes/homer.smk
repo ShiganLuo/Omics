@@ -11,8 +11,8 @@ rule homer_annotatepeaks:
     """
     input:
         peak = indir + "/{sample_id}/{sample_id}_peaks.narrowPeak",
-        fasta = lambda wildcards: config['genomes'][wildcards.genome]['fasta'],
-        gtf = lambda wildcards: config['genomes'][wildcards.genome]['gtf']
+        fasta = lambda wildcards: config['genome'][wildcards.genome]['fasta'],
+        gtf = lambda wildcards: config['genome'][wildcards.genome]['gtf']
     output:
         annotation = outdir + "/{genome}/{sample_id}/{sample_id}_peaks.annotatePeaks.txt"
     log:

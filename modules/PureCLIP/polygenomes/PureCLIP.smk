@@ -7,7 +7,7 @@ rule pureclip:
     input:
         bam = indir + "/{sample_id}.dedup.bam",
         bai = indir + "/{sample_id}.dedup.bam.bai",
-        fasta = lambda wildcards: config['genomes'][wildcards.genome]['fasta']
+        fasta = lambda wildcards: config['genome'][wildcards.genome]['fasta']
     output:
         sites = outdir + "/{genome}/{sample_id}.pureclip.sites.bed",
         region = outdir + "/{genome}/{sample_id}.pureclip.region.bed"

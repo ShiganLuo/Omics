@@ -1,0 +1,22 @@
+{
+  "indir": "data/fasta",
+  "outdir": "output",
+  "logdir": "logs",
+  "genome": {
+    "GRCm39": {
+      "fasta": "path/to/genome.fa"
+    },
+    "GRCh38": {
+      "fasta": "path/to/genome.fa"
+    }
+  },
+  "Procedure": {
+    "openms": "DecoyDatabase"
+  },
+  "Params": {
+    "decoy_database": {
+      "decoy_string": "DECOY_",
+      "method": "shuffle"
+    }
+  }
+}

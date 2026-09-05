@@ -1,0 +1,16 @@
+{
+  "indir": "input",
+  "outdir": "output",
+  "logdir": "logs",
+  "genome": {
+    "GRCm39": {
+      "fasta": "path/to/genome.fa"
+    },
+    "GRCh38": {
+      "fasta": "path/to/genome.fa"
+    }
+  },
+  "Procedure": {
+    "samtools": "samtools"
+  }
+}

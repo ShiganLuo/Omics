@@ -152,11 +152,12 @@ rule scanpy_cluster:
         python=python,
         script=script,
         n_pcs=lambda wildcards: params.get(wildcards.counter,{}).get("cluster",{}).get("n_pcs", 50),
-        n_neighbors=lambda wildcards: params.get(wildcards.counter,{}).get("cluster",{}).get("n_neighbors", 15),
+        n_neighbors=lambda wildcards: params.get(wildcards.counter,{}).get("cluster",{}).get("n_neighbors", 50),
         resolution=lambda wildcards: params.get(wildcards.counter,{}).get("cluster",{}).get("resolution", 0.8),
         n_top_genes=lambda wildcards: params.get(wildcards.counter,{}).get("cluster",{}).get("n_top_genes", 3000),
         batch_method=lambda wildcards: params.get(wildcards.counter,{}).get("cluster",{}).get("batch_method", "harmony"),
-        batch_key=lambda wildcards: params.get(wildcards.counter,{}).get("cluster",{}).get("batch_key", "sample_id")
+        batch_key=lambda wildcards: params.get(wildcards.counter,{}).get("cluster",{}).get("batch_key", "sample_id"),
+        auto_n_pcs=lambda wildcards: params.get(wildcards.counter,{}).get("cluster",{}).get("auto_n_pcs", False)
     run:
         log_path = str(log)
         try:
@@ -178,6 +179,8 @@ rule scanpy_cluster:
                    "--n-top-genes", str(params.n_top_genes),
                    "--batch-method", params.batch_method,
                    "--batch-key", params.batch_key]
+            if params.auto_n_pcs:
+                cmd.append("--auto-n-pcs")
             cmd += ["--plot-dir", str(output.plot_dir)]
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")

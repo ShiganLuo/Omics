@@ -177,38 +177,121 @@ class ScanpyPlotter:
     # ------------------------------------------------------------------
     # Cluster
     # ------------------------------------------------------------------
+    # ------------------------------------------------------------------
+    # HVG
+    # ------------------------------------------------------------------
+    def plot_hvg(
+        self,
+        adata: AnnData,
+        n_top_genes: int = 3000,
+    ) -> None:
+        """Plot highly variable genes with all genes visible.
+
+        Two subplots:
+            Left:  mean expression vs normalized dispersion scatter
+                   (grey = non-HVG, blue = HVG) with selected count.
+            Right: sorted normalized dispersion elbow curve.
+
+        Must be called BEFORE subsetting to HVGs so all genes are visible.
+
+        Args:
+            adata: AnnData with HVG metadata in ``.var`` (all genes).
+            n_top_genes: Number of HVGs selected for downstream.
+        """
+        if "highly_variable" not in adata.var.columns:
+            logger.warning("No HVG metadata found, skipping HVG plot")
+            return
+
+        hvg_mask = adata.var["highly_variable"].values
+        has_means = "means" in adata.var.columns
+        has_disp = "dispersions_norm" in adata.var.columns
+
+        if not has_means or not has_disp:
+            logger.warning("HVG metadata incomplete (means/dispersions_norm missing)")
+            return
+
+        means = adata.var["means"].values
+        disp_norm = adata.var["dispersions_norm"].values
+
+        fig, axes = plt.subplots(1, 2, figsize=(14, 6))
+
+        # --- Left: mean vs normalized dispersion scatter ---
+        ax = axes[0]
+        ax.scatter(means[~hvg_mask], disp_norm[~hvg_mask],
+                   c="lightgrey", s=2, alpha=0.3, label="Non-HVG",
+                   rasterized=True)
+        ax.scatter(means[hvg_mask], disp_norm[hvg_mask],
+                   c="steelblue", s=4, alpha=0.7, label="HVG",
+                   rasterized=True)
+
+        # Threshold line at the dispersion cutoff
+        hvg_dispersions = np.sort(disp_norm[hvg_mask])[::-1]
+        actual_n = min(n_top_genes, len(hvg_dispersions))
+        if actual_n > 0:
+            threshold = hvg_dispersions[actual_n - 1]
+            ax.axhline(y=threshold, color="red", linestyle="--",
+                       alpha=0.7,
+                       label=f"Cutoff ({actual_n} genes)")
+
+        ax.set_xlabel("Mean expression")
+        ax.set_ylabel("Normalized dispersion")
+        ax.set_title(
+            f"Highly Variable Genes ({int(hvg_mask.sum())} / {len(hvg_mask)})"
+        )
+        ax.legend(fontsize=8, loc="upper right")
+
+        # --- Right: sorted dispersion elbow plot ---
+        ax = axes[1]
+        valid_mask = np.isfinite(disp_norm)
+        sorted_disp = np.sort(disp_norm[valid_mask])[::-1]
+        ax.plot(sorted_disp, linewidth=1, color="steelblue")
+
+        if actual_n > 0 and actual_n < len(sorted_disp):
+            ax.axvline(x=actual_n, color="red",
+                        linestyle="--", alpha=0.7,
+                        label=f"Selected: {actual_n}")
+            ax.plot(actual_n, sorted_disp[actual_n], "ro", markersize=6)
+            ax.legend(fontsize=8)
+
+        ax.set_xlabel("Gene rank (by normalized dispersion)")
+        ax.set_ylabel("Normalized dispersion")
+        ax.set_title("Sorted Dispersion (Elbow)")
+        ax.set_xlim(
+            0,
+            min(len(sorted_disp), max(actual_n * 2, 10000)),
+        )
+
+        fig.tight_layout()
+        self._save("cluster_highly_variable_genes.png")
+        logger.info("HVG plot saved to %s", self.plot_dir)
+
+    # ------------------------------------------------------------------
+    # Cluster
+    # ------------------------------------------------------------------
     def plot_cluster(
         self,
         adata: AnnData,
         cluster_key: str = "leiden",
         sample_key: str = "sample_id",
     ) -> None:
-        """Clustering results: PCA variance, HVG, UMAP by cluster & sample.
+        """Clustering results: UMAP by cluster & sample.
+
+        Note: PCA variance ratio and HVG plots are generated separately
+        by ``plot_pca_variance()`` and ``plot_hvg()`` respectively,
+        which are called earlier in the pipeline.
 
         Generates:
-            - cluster_pca_variance_ratio.png: variance explained per PC.
-            - cluster_highly_variable_genes.png: top HVGs highlighted.
             - cluster_umap_<cluster_key>.png: UMAP coloured by clusters.
             - cluster_umap_<sample_key>.png: UMAP coloured by sample.
 
         Args:
-            adata: Clustered AnnData with ``X_pca``, ``X_umap``, and
-                cluster labels in ``adata.obs[cluster_key]``.
+            adata: Clustered AnnData with ``X_umap`` and cluster labels
+                in ``adata.obs[cluster_key]``.
             cluster_key: Column in ``adata.obs`` for cluster labels
                 (default ``"leiden"``).
             sample_key: Column in ``adata.obs`` for sample identifiers
-                (default ``"sample"``).
+                (default ``"sample_id"``).
         """
-        sc.pl.pca_variance_ratio(adata, show=False)
-        self._save("cluster_pca_variance_ratio.png")
-
-        if "highly_variable" in adata.var.columns:
-            try:
-                sc.pl.highly_variable_genes(adata, show=False)
-                self._save("cluster_highly_variable_genes.png")
-            except KeyError:
-                logger.warning("HVG metadata incomplete, skipping HVG plot")
-        
         fig, ax = plt.subplots(figsize=(8, 6))
         self._umap(adata, cluster_key, ax=ax,
                    title=f"{cluster_key} Clusters",
@@ -221,6 +304,98 @@ class ScanpyPlotter:
             self._save(f"cluster_umap_{sample_key}.png")
 
         logger.info("Cluster plots saved to %s", self.plot_dir)
+
+    # ------------------------------------------------------------------
+    # PCA variance
+    # ------------------------------------------------------------------
+    def plot_pca_variance(
+        self,
+        adata: AnnData,
+        n_pcs: int = 50,
+        auto_n_pcs: bool = False,
+        detect_diag: Optional[Dict] = None,
+    ) -> None:
+        """Plot PCA variance ratio.
+
+        When *auto_n_pcs* is True and *detect_diag* is provided, generates
+        two subplots:
+            Left:  scree plot with each PC labeled.
+            Right: sliding-window mean Δ curve + threshold + elbow marker.
+
+        When *auto_n_pcs* is False, generates one scree plot with the
+        selected *n_pcs* PCs annotated.
+
+        Args:
+            adata: AnnData with PCA results in ``.uns["pca"]``.
+            n_pcs: Number of PCs selected for downstream analysis.
+            auto_n_pcs: Whether auto-detection was used.
+            detect_diag: Diagnostics dict from ``detect_n_pcs()`` with
+                keys ``window_mean_x``, ``window_mean_y``, ``threshold``,
+                ``elbow_pc``.  Only used when *auto_n_pcs* is True.
+        """
+        if "pca" not in adata.uns:
+            logger.warning("No PCA results found, skipping PCA variance plot")
+            return
+
+        variance_ratio = adata.uns["pca"]["variance_ratio"]
+        n_pcs_total = len(variance_ratio)
+
+        has_diag = (
+            auto_n_pcs
+            and detect_diag is not None
+            and len(detect_diag.get("delta", [])) > 0
+        )
+
+        if has_diag:
+            fig, (ax_left, ax_right) = plt.subplots(1, 2, figsize=(14, 5))
+        else:
+            fig, ax_left = plt.subplots(figsize=(8, 5))
+
+        x = np.arange(1, n_pcs_total + 1)
+
+        # --- Scree plot with PC labels ---
+        ax_left.scatter(x, variance_ratio, s=20, c="steelblue", zorder=3)
+        ax_left.plot(x, variance_ratio, linewidth=0.8, alpha=0.4, c="steelblue")
+
+        for xi, yi in zip(x, variance_ratio):
+            ax_left.annotate(f"PC{xi}", (xi, yi), fontsize=6,
+                             ha="center", va="bottom", alpha=0.7)
+
+        if n_pcs <= n_pcs_total:
+            ax_left.axvline(x=n_pcs, color="red", linestyle="--", alpha=0.7,
+                            label=f"Selected: {n_pcs} PCs")
+            ax_left.legend(fontsize=8)
+
+        ax_left.set_xlabel("ranking")
+        ax_left.set_ylabel("variance ratio")
+        ax_left.set_title("variance ratio")
+
+        # --- Right: per-PC delta curve ---
+        if has_diag:
+            delta = detect_diag["delta"]
+            threshold = detect_diag["threshold"]
+            elbow_pc = detect_diag["elbow_pc"]
+
+            delta_x = np.arange(2, len(delta) + 2)  # delta[i] = |vr[i+1]-vr[i]|, label as PC i+2
+
+            ax_right.plot(delta_x, delta, linewidth=1, c="steelblue",
+                          marker="o", markersize=3, label="|Δ variance ratio|")
+            ax_right.axhline(y=threshold, color="red", linestyle="--",
+                             alpha=0.7, label=f"threshold ({threshold:.4f})")
+
+            # Mark elbow point
+            if 2 <= elbow_pc <= len(delta) + 1:
+                ax_right.plot(elbow_pc, delta[elbow_pc - 2], "ro", markersize=8,
+                              zorder=5, label=f"elbow: PC{elbow_pc}")
+
+            ax_right.set_xlabel("PC index")
+            ax_right.set_ylabel("|Δ variance ratio|")
+            ax_right.set_title("Per-PC Δ variance ratio")
+            ax_right.legend(fontsize=8)
+
+        fig.tight_layout()
+        self._save("cluster_pca_variance_ratio.png")
+        logger.info("PCA variance plot saved to %s", self.plot_dir)
 
     # ------------------------------------------------------------------
     # Batch correction

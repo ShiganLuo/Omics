@@ -1,0 +1,31 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "log",
+    "Procedure": {
+        "bowtie2": "bowtie2",
+        "bowtie2-build": "bowtie2-build"
+    },
+    "genome": {
+        "default": "GRCh38",
+        "reference": {
+            "GRCh38": {
+                "fasta": "path/to/GRCh38.fa",
+                "index_prefix": "path/to/prebuilt/GRCh38_bowtie2_index_prefix"
+            },
+            "GRCm39": {
+                "fasta": "path/to/GRCm39.fa",
+                "index_prefix": "path/to/prebuilt/GRCm39_bowtie2_index_prefix"
+            }
+        }
+
+    },
+    "genome_paired_samples": {
+        "GRCh38": ["sample1", "sample2"],
+        "GRCm39": ["sample3", "sample4"]
+    },
+    "genome_single_samples": {
+        "GRCh38": ["sample5", "sample6"],
+        "GRCm39": ["sample7", "sample8"]
+    }
+}

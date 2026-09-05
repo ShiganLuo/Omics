@@ -558,6 +558,10 @@ python workflow/Omics/run.py \
 - 支持单端和双端测序。
 - 配置通过模板 JSON 合并生成，便于复用和覆盖。
 - 日志和输出目录由流程自动创建。
+- **RNAseq 支持多基因组并行分析**：同一次运行中，不同物种的样本自动路由到各自的参考基因组，共享 trim → align → quant → report 的 DAG，无需拆分物种单独执行。
+  - 物物种别名自动解析（`mouse` → `GRCm39`，`human` → `GRCh38`，`rhesus` → `Mmul_10`），见 `src/common/util/type.py` 的 `SPECIES_TO_GENOME`。
+  - 所有涉及参考基因组的 module 均提供 `polygenomes/` 子模块，通过 `{genome}` wildcard 在同一 DAG 中处理多物种。
+  - node.py 按 organism 分组注入 `genome_paired_samples` / `genome_single_samples`，DESeq2 group_pairs 按物种隔离，RNAseq_report 每物种独立生成一份 PPT。
 
 ## 运行示例
 
@@ -590,6 +594,20 @@ bash workflow/RNA-SNP/run.sh
 - [x] 整合所有曾经分析过的流程
 - [x] 添加json值校验模块
 - [x] schema感知的extra_args类型矫正
+- [x] RNAseq 多基因组并行支持（polygenomes 子模块 + 按物种注入 config）
+- [ ] ncRNAseq 多基因组改造（star_3pass polygenomes 已就绪，subworkflow/node.py 待接入）
+- [ ] CLIP 多基因组改造（star/bowtie2/PureCLIP polygenomes 已就绪）
+- [ ] MERIP 多基因组改造
+- [ ] Mutation 多基因组改造（bwa-mem2/gatk/manta/cnvkit/spectrum polygenomes 已就绪）
+- [ ] PacVar 多基因组改造（pbmm2/deepvariant/hiphase/pbsv/trgt polygenomes 已就绪）
+- [ ] PeakCalling 多基因组改造（bowtie2/macs3/homer/deeptools polygenomes 已就绪）
+- [ ] scRNAseq 多基因组改造（cellranger/scTE polygenomes 已就绪）
+- [ ] tRNAseq 多基因组改造（mimseq polygenomes 已就绪）
+- [ ] QuantMS 多基因组改造（openms polygenomes 已就绪）
+- [ ] KARRseq 多基因组改造
+- [ ] Fiberseq 多基因组改造（fibertools polygenomes 已就绪）
+- [ ] CoCulture 流程适配 polygenomes 模式（当前走独立 disambiguate 路径）
+- [ ] ncRNAseq_report / PeakCalling_report 多基因组改造
 
 
 

@@ -1,0 +1,22 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "log",
+    "Procedure": {
+        "mimseq": null
+    },
+    "Params": {
+        "mimseq": {
+            "control_cond": "",
+            "p_adj": 0.05
+        }
+    },
+    "genome": {
+        "GRCh38": {
+            "mito_trnas": ""
+        },
+        "GRCm39": {
+            "mito_trnas": ""
+        }
+    }
+}

@@ -1,0 +1,52 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "log",
+    "ROOT_DIR": ".",
+    "comparisons": [
+        {
+            "name": "comparison1",
+            "control_vcf": "path/to/control.vcf",
+            "experiment_vcf": "path/to/experiment.vcf"
+        }
+    ],
+    "Params": {
+        "image_formats": [
+            "png"
+        ],
+        "genes": [],
+        "exp_specific": {
+            "vep_cache": "~/.vep",
+            "species": "mus_musculus",
+            "assembly": "GRCm39",
+            "dist": 500
+        },
+        "circos": {
+            "genome": "mm39",
+            "cytoband": "",
+            "ins_bin_size": 100000
+        },
+        "gene_model": {
+            "threads": 1
+        },
+        "diff_analysis": {
+            "large_sv_threshold": 10000
+        },
+        "oncoprint": {
+            "cosmic_file": "",
+            "deseq2_files": {}
+        }
+    },
+    "genome": {
+        "genome1": {
+            "fasta": "path/to/genome1.fa",
+            "gtf": "path/to/genome1.gtf",
+            "fai": "path/to/genome1.fa.fai"
+        },
+        "genome2": {
+            "fasta": "path/to/genome2.fa",
+            "gtf": "path/to/genome2.gtf",
+            "fai": "path/to/genome2.fa.fai"
+        }
+    }
+}

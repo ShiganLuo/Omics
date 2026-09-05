@@ -1,0 +1,31 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "logs",
+    "genome": {
+        "GRCm39": {
+            "geneIDAnno": "path/to/geneIDAnnotation.csv"
+        },
+        "GRCh38": {
+            "geneIDAnno": "path/to/geneIDAnnotation.csv"
+        }
+    },
+    "Parameters": {
+        "function": {
+            "GRCm39": {
+                "species": "mouse",
+                "gmt": "path/to/mouse.gmt",
+                "lfc_cut": 1,
+                "p_cut": 0.05,
+                "top": 10
+            },
+            "GRCh38": {
+                "species": "human",
+                "gmt": "path/to/human.gmt",
+                "lfc_cut": 1,
+                "p_cut": 0.05,
+                "top": 10
+            }
+        }
+    }
+}

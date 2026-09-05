@@ -1,0 +1,13 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "logs",
+    "genome": {
+        "GRCm39": {
+            "gtf": "path/to/annotation.gtf"
+        },
+        "GRCh38": {
+            "gtf": "path/to/annotation.gtf"
+        }
+    }
+}

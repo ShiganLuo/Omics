@@ -4,24 +4,30 @@
     "raw_files": [],
     "outdir": null,
     "logdir": null,
-    "paired_samples": [],
-    "single_samples": [],
+    "genome_paired_samples": {
+        "GRCm39": [],
+        "GRCh38": []
+    },
+    "genome_single_samples": {
+        "GRCm39": [],
+        "GRCh38": []
+    },
     "env": {
-        "env_dir": "/home/luosg/Database/env",
-        "DESeq2": "/home/luosg/Database/env/DESeq2/DESeq2.sif",
-        "RNAseq_report": "/home/luosg/Database/env/RNAseq_report/RNAseq_report.sif",
-        "RmrRNA": "/home/luosg/Database/env/RmrRNA/RmrRNA.sif",
-        "StringTie": "/home/luosg/Database/env/StringTie/StringTie.sif",
-        "TEtranscripts": "/home/luosg/Database/env/TEtranscripts/TEtranscripts.sif",
-        "arriba": "/home/luosg/Database/env/arriba/arriba.sif",
-        "bowtie2": "/home/luosg/Database/env/bowtie2/bowtie2.sif",
-        "cutadapt": "/home/luosg/Database/env/cutadapt/cutadapt.sif",
-        "function": "/home/luosg/Database/env/function/function.sif",
-        "gatk": "/home/luosg/Database/env/gatk/gatk4.sif",
-        "hisat2": "/home/luosg/Database/env/hisat2/hisat2.sif",
-        "star": "/home/luosg/Database/env/star/star.sif",
-        "trim-galore": "/home/luosg/Database/env/trim-galore/trim-galore.sif",
-        "trimmomatic": "/home/luosg/Database/env/trimmomatic/trimmomatic.sif"
+        "env_dir": "/data/pub/zhousha/Database/env",
+        "DESeq2": "/data/pub/zhousha/Database/env/DESeq2/DESeq2.sif",
+        "RNAseq_report": "/data/pub/zhousha/Database/env/RNAseq_report/RNAseq_report.sif",
+        "RmrRNA": "/data/pub/zhousha/Database/env/RmrRNA/RmrRNA.sif",
+        "StringTie": "/data/pub/zhousha/Database/env/StringTie/StringTie.sif",
+        "TEtranscripts": "/data/pub/zhousha/Database/env/TEtranscripts/TEtranscripts.sif",
+        "arriba": "/data/pub/zhousha/Database/env/arriba/arriba.sif",
+        "bowtie2": "/data/pub/zhousha/Database/env/bowtie2/bowtie2.sif",
+        "cutadapt": "/data/pub/zhousha/Database/env/cutadapt/cutadapt.sif",
+        "function": "/data/pub/zhousha/Database/env/function/function.sif",
+        "gatk": "/data/pub/zhousha/Database/env/gatk/gatk4.sif",
+        "hisat2": "/data/pub/zhousha/Database/env/hisat2/hisat2.sif",
+        "star": "/data/pub/zhousha/Database/env/star/star.sif",
+        "trim-galore": "/data/pub/zhousha/Database/env/trim-galore/trim-galore.sif",
+        "trimmomatic": "/data/pub/zhousha/Database/env/trimmomatic/trimmomatic.sif"
     },
     "Procedure": {
         "TEcount": null,
@@ -37,25 +43,25 @@
         "default": "GRCm39",
         "references": {
             "GRCm39": {
-                "fasta": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
-                "gtf": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf",
-                "geneIDAnno": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/geneIDAnnotation.csv",
-                "gene_map": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/gene_map.pkl",
-                "TE_gtf": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.gtf",
-                "TEind": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.gtf.locInd",
-                "hisat2_index_prefix": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/hisat2/genome",
+                "fasta": "/data/pub/zhousha/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
+                "gtf": "/data/pub/zhousha/Database/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf",
+                "geneIDAnno": "/data/pub/zhousha/Database/Reference/mouse/GENCODE/GRCm39/geneIDAnnotation.csv",
+                "gene_map": "/data/pub/zhousha/Database/Reference/mouse/GENCODE/GRCm39/gene_map.pkl",
+                "TE_gtf": "/data/pub/zhousha/Database/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.gtf",
+                "TEind": "/data/pub/zhousha/Database/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.gtf.locInd",
+                "hisat2_index_prefix": "/data/pub/zhousha/Database/Reference/mouse/GENCODE/GRCm39/hisat2/genome",
                 "star_index_dir": null,
                 "rRNA_fasta": null,
                 "bowtie2_index_prefix_for_rRNA": null
             },
             "GRCh38": {
-                "fasta": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa",
-                "gtf": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/gencode.v49.primary_assembly.basic.annotation.gtf",
-                "geneIDAnno": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/geneIDAnnotation.csv",
-                "gene_map": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/gene_map.pkl",
-                "TE_gtf": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/GRCh38_GENCODE_rmsk_TE.gtf",
-                "TEind": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/GRCh38_GENCODE_rmsk_TE.gtf.locInd",
-                "hisat2_index_prefix": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/hisat2/GRCh38",
+                "fasta": "/data/pub/zhousha/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa",
+                "gtf": "/data/pub/zhousha/Database/Reference/human/GENCODE/GRCh38/gencode.v49.primary_assembly.basic.annotation.gtf",
+                "geneIDAnno": "/data/pub/zhousha/Database/Reference/human/GENCODE/GRCh38/geneIDAnnotation.csv",
+                "gene_map": "/data/pub/zhousha/Database/Reference/human/GENCODE/GRCh38/gene_map.pkl",
+                "TE_gtf": "/data/pub/zhousha/Database/Reference/human/GENCODE/GRCh38/GRCh38_GENCODE_rmsk_TE.gtf",
+                "TEind": "/data/pub/zhousha/Database/Reference/human/GENCODE/GRCh38/GRCh38_GENCODE_rmsk_TE.gtf.locInd",
+                "hisat2_index_prefix": "/data/pub/zhousha/Database/Reference/human/GENCODE/GRCh38/hisat2/GRCh38",
                 "star_index_dir": null,
                 "rRNA_fasta": null,
                 "bowtie2_index_prefix_for_rRNA": null
@@ -71,8 +77,8 @@
             "quality": 25
         },
         "trimmomatic": {
-            "adapter_pe": "/home/luosg/Database/SoftWare/Trimmomatic-0.41/adapters/TruSeq3-PE-2.fa",
-            "adapter_se": "/home/luosg/Database/SoftWare/Trimmomatic-0.41/adapters/TruSeq3-SE.fa"
+            "adapter_pe": "/data/pub/zhousha/Database/SoftWare/Trimmomatic-0.41/adapters/TruSeq3-PE-2.fa",
+            "adapter_se": "/data/pub/zhousha/Database/SoftWare/Trimmomatic-0.41/adapters/TruSeq3-SE.fa"
         },
         "STAR_TEtranscripts": {
             "alignEndsType": "Local",
@@ -105,22 +111,50 @@
             "flag_params": "-q --no-unal --dta"
         },
         "arriba": {
-            "blacklist": "/home/luosg/Database/SoftWare/arriba_v2.5.1/database/blacklist_mm39_GRCm39_v2.5.1.tsv.gz",
-            "known_fusions": "/home/luosg/Database/SoftWare/arriba_v2.5.1/database/known_fusions_mm39_GRCm39_v2.5.1.tsv.gz",
+            "blacklist": "/data/pub/zhousha/Database/SoftWare/arriba_v2.5.1/database/blacklist_mm39_GRCm39_v2.5.1.tsv.gz",
+            "known_fusions": "/data/pub/zhousha/Database/SoftWare/arriba_v2.5.1/database/known_fusions_mm39_GRCm39_v2.5.1.tsv.gz",
             "t": null,
             "d": null,
             "E": 0.3
         },
         "DESeq2": {
-            "group_pairs": {}
+            "group_pairs": {
+                "GRCm39": {
+                    "control_group_name_vs_experimental_group_name": {
+                        "control_group_name": "control_group_name",
+                        "experimental_group_name": "experimental_group_name",
+                        "control_samples": ["sample1", "sample2"],
+                        "experimental_samples": ["sample3", "sample4"]
+                    }
+                },
+                "GRCh38": {
+                    "control_group_name_vs_experimental_group_name": {
+                        "control_group_name": "control_group_name",
+                        "experimental_group_name": "experimental_group_name",
+                        "control_samples": ["sample1", "sample2"],
+                        "experimental_samples": ["sample3", "sample4"]
+                    }
+                }
+            }
         },
         "function": {
-            "enabled": true,
-            "species": "mouse",
-            "gmt": null,
-            "lfc_cut": 1,
-            "p_cut": 0.05,
-            "top": 10
+            "GRCh38": {
+                "enabled": true,
+                "species": "human",
+                "gmt": "/data/pub/zhousha/Totipotent20251031/workflow/Omics/assests/geneset/8C_human.gmt",
+                "lfc_cut": 1,
+                "p_cut": 0.05,
+                "top": 10
+            },
+            "GRCm39": {
+                "enabled": true,
+                "species": "mouse",
+                "gmt": "/data/pub/zhousha/Totipotent20251031/workflow/Omics/assests/geneset/2C_mouse.gmt",
+                "lfc_cut": 1,
+                "p_cut": 0.05,
+                "top": 10
+            }
+
         },
         "report": {
             "title": "RNA-seq Analysis Report",

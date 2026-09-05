@@ -11,9 +11,11 @@ import math
 try:
     from type import FastqMode, Layout, SampleInfo, DesignPair, CompareGroupPair, CellrangerInput
     from LogUtil import setup_logger
+    from SmkUtil import resolve_genome
 except Exception:
     from .type import FastqMode, Layout, SampleInfo, DesignPair, CompareGroupPair, CellrangerInput
     from .LogUtil import setup_logger
+    from .SmkUtil import resolve_genome
 
 logger = setup_logger(__name__, level=logging.DEBUG)
 
@@ -194,6 +196,7 @@ class MetadataUtils:
             ctr_samples = group_dict.get(best_ctr_contrast, {}).get("ctr", [])
             exp_samples = group_dict.get(exp_contrast, {}).get("exp", [])
             compare_group_pair = CompareGroupPair(
+                organism=exp_samples[0].organism if exp_samples else "UNKNOWN",
                 ctr_group_token=best_ctr_contrast,
                 exp_group_token=exp_contrast,
                 ctr_group_name=ctr_group_name,
@@ -291,7 +294,12 @@ class MetadataUtils:
             
             self.samples_dict[sample_id].sample_id = sample_id
             self.samples_dict[sample_id].design = df_sample[design_col].values[0] if design_col in df_sample.columns else ""
-            self.samples_dict[sample_id].organism = df_sample[organism_col].values[0] if organism_col in df_sample.columns else "UNKNOWN"
+            try:
+                self.samples_dict[sample_id].organism = resolve_genome(df_sample[organism_col].values[0]) if organism_col in df_sample.columns else "UNKNOWN"
+            except ValueError as e:
+                logger.error(f"Failed to resolve genome for organism '{df_sample[organism_col].values[0]}' in sample '{sample_id}': {e}")
+                # some pipeline may not rely on organism, so we can set it to UNKNOWN and continue
+                self.samples_dict[sample_id].organism = "UNKNOWN"
             self.samples_dict[sample_id].workflow = df_sample[workflow_col].values[0] if workflow_col in df_sample.columns else None
             if group_col in df_sample.columns:
                 self.samples_dict[sample_id].group = df_sample[group_col].values[0]
@@ -428,7 +436,12 @@ class MetadataUtils:
             raise ValueError(f"Metadata must contain column: {ms_file_col}")
         for sample_id, df_sample in df.groupby(sample_id_col):
             sample_id = str(sample_id)
-            organism = df_sample.get('organism', pd.Series(["UNKNOWN"])).values[0]
+            try:
+                organism = resolve_genome(df_sample.get('organism', pd.Series(["UNKNOWN"])).values[0])
+            except ValueError as e:
+                logger.error(f"Failed to resolve genome for organism '{df_sample.get('organism', pd.Series(['UNKNOWN'])).values[0]}' in sample '{sample_id}': {e}")
+                # some pipeline may not rely on organism, so we can set it to UNKNOWN and continue
+                organism = "UNKNOWN"
             self.samples_dict[sample_id].organism = organism
             ms_file_path = df_sample[ms_file_col].values[0]
 
@@ -482,7 +495,11 @@ class MetadataUtils:
             sample_id = str(row[sample_id_col])
             fastq_dir = Path(row[fastq_dir_col])
             sample_prefix = str(row[sample_prefix_col])
-            organism = str(row.get("organism", "UNKNOWN"))
+            try:
+                organism = resolve_genome(str(row.get("organism", "UNKNOWN")))
+            except ValueError as e:
+                logger.error(f"Failed to resolve genome for organism '{str(row.get('organism', 'UNKNOWN'))}' in sample '{sample_id}': {e}")
+                organism = "UNKNOWN"
             self.samples_dict[sample_id].organism = organism
             if not fastq_dir.exists():
                 logger.warning(f"FASTQ directory for {sample_id} does not exist: {fastq_dir}")

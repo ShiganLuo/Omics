@@ -5,13 +5,22 @@ ROOT_DIR = config.get("ROOT_DIR", ".")
 indir = config.get("indir","data/fastq")
 outdir = config.get("outdir","output")
 logdir = config.get("logdir","logs")
-genome = config.get("genome",{}).get("default")
-logger.info(f"indir: {indir}, outdir: {outdir}, logdir: {logdir}, genome: {genome}")
-paired_samples = config.get("paired_samples", [])
-single_samples = config.get("single_samples", [])
+genome_paired_samples = config.get("genome_paired_samples", {})
+genome_single_samples = config.get("genome_single_samples", {})
 aligner_TEtranscripts = config.get('Params',{}).get('workflow', {}).get('aligner_TEtranscripts') or "star"
 trimmer = config.get('Params',{}).get('workflow', {}).get('trimmer') or "cutadapt"
 outfiles = config.get("outfiles", [])
+genomes = set(genome_paired_samples.keys()).union(set(genome_single_samples.keys()))
+logger.info(f"indir: {indir}, outdir: {outdir}, logdir: {logdir}, genomes: {genomes}, aligner_TEtranscripts: {aligner_TEtranscripts}, trimmer: {trimmer}")
+genome_samples = {}
+for genome, samples in genome_paired_samples.items():
+    genome_samples[genome] = samples
+for genome, samples in genome_single_samples.items():
+    if genome in genome_samples:
+        genome_samples[genome].extend(samples)
+    else:
+        genome_samples[genome] = samples
+
 rule all:
     input:
         outfiles
@@ -84,8 +93,8 @@ if aligner_TEtranscripts == 'hisat2':
             "outdir":  f"{outdir}/common/3_raw_bam",
             "env": config.get("env", {}),
             "logdir": os.path.join(logdir,"sample"),
-            "paired_samples": paired_samples,
-            "single_samples": single_samples,
+            "genome_paired_samples": genome_paired_samples,
+            "genome_single_samples": genome_single_samples,
             "Procedure": {
                 "hisat2": config.get('Procedure',{}).get('hisat2')
             },
@@ -96,24 +105,23 @@ if aligner_TEtranscripts == 'hisat2':
                     "k": config.get('Params',{}).get('hisat2_TEtranscripts', {}).get('k') or 100
                 }
             },
-            "genome": {
-                "fasta": config.get('genome',{}).get("references", {}).get(genome, {}).get('fasta'),
-                "index_prefix": config.get('genome',{}).get("references", {}).get(genome, {}).get('hisat2_index_prefix')
-            }
+            "genome": config.get('genome',{})
         }
     module hisat2_for_TEtranscripts:
-        snakefile: "../modules/hisat2/hisat2.smk"
+        snakefile: "../modules/hisat2/polygenomes/hisat2.smk"
         config: hisat2_config_for_TEtranscripts
     logger.info(f"hisat2_config: {hisat2_config_for_TEtranscripts}")
     use rule hisat2_align from hisat2_for_TEtranscripts as RNAseq_hisat2_align_for_TEtranscripts
     use rule hisat2_index from hisat2_for_TEtranscripts as RNAseq_hisat2_index_for_TEtranscripts
+
 elif aligner_TEtranscripts == 'star':
     star_config_for_TEtranscripts = {
             "indir": trimmed_fastq_dir,
             "outdir":  f"{outdir}/common/3_raw_bam",
             "logdir": os.path.join(logdir,"sample"),
-            "paired_samples": paired_samples,
-            "single_samples": single_samples,
+            "isGenomeSubdir": False,
+            "genome_paired_samples": genome_paired_samples,
+            "genome_single_samples": genome_single_samples,
             "env": config.get("env", {}),
             "Procedure": {
                 "star": config.get('Procedure',{}).get('star')
@@ -125,14 +133,10 @@ elif aligner_TEtranscripts == 'star':
                     "winAnchorMultimapNmax": config.get('Params',{}).get('STAR_TEtranscripts', {}).get('winAnchorMultimapNmax') or 100
                 }
             },
-            "genome": {
-                "fasta": config.get('genome',{}).get("references", {}).get(genome, {}).get('fasta'),
-                "gtf": config.get('genome',{}).get("references", {}).get(genome, {}).get('gtf'),
-                "index_dir": config.get('genome',{}).get("references", {}).get(genome, {}).get('star_index_dir')
-            }
+            "genome": config.get('genome',{})
         }
     module star_for_TEtranscripts:
-        snakefile: "../modules/star/star.smk"
+        snakefile: "../modules/star/polygenomes/star.smk"
         config: star_config_for_TEtranscripts
     logger.info(f"star_config: {star_config_for_TEtranscripts}")
     use rule star_align from star_for_TEtranscripts as RNAseq_star_align_for_TEtranscripts
@@ -143,74 +147,61 @@ else:
 
 TEtranscripts_config = {
         "indir": star_config_for_TEtranscripts["outdir"] if aligner_TEtranscripts == 'star' else hisat2_config_for_TEtranscripts["outdir"],
-        "outdir":  f"{outdir}/results/counts",
+        "outdir":  f"{outdir}/counts",
         "logdir": os.path.join(logdir,"sample"),
-        "samples": single_samples + paired_samples,
+        "genome_samples": genome_samples,
         "ROOT_DIR": ROOT_DIR,
         "env": config.get("env", {}),
         "Procedure": {
             "TEcount": config.get('Procedure',{}).get('TEcount') or 'TEcount',
             "TElocal": config.get('Procedure',{}).get('TElocal') or 'TElocal'
         },
-        "genome": {
-            "gtf": config.get('genome',{}).get("references", {}).get(genome, {}).get('gtf'),
-            "TEind": config.get('genome',{}).get("references", {}).get(genome, {}).get('TEind'),
-            "TE_gtf": config.get('genome',{}).get("references", {}).get(genome, {}).get('TE_gtf')
-        }
+        "genome": config.get('genome',{})
     }
 
 module TEtranscripts:
-    snakefile: "../modules/TEtranscripts/TEtranscripts.smk"
+    snakefile: "../modules/TEtranscripts/polygenomes/TEtranscripts.smk"
     config: TEtranscripts_config
 logger.info(f"TEtranscripts_config: {TEtranscripts_config}")
 use rule * from TEtranscripts as RNAseq_*
 
-if config.get("Params", {}).get("DESeq2", {}).get("group_pairs"):
-    logger.info(f"use DESeq2 for differential expression analysis")
-    DESeq2_config = {
-            "indir": TEtranscripts_config["outdir"],
-            "outdir":  f"{outdir}/diff_expression",
-            "logdir": os.path.join(logdir,"group"),
-            "ROOT_DIR": ROOT_DIR,
-            "env": config.get("env", {}),
-            "group_pairs": config.get("Params", {}).get("DESeq2", {}).get("group_pairs"),
-            "genome": {
-                "geneIDAnno": config.get('genome',{}).get("references", {}).get(genome, {}).get('geneIDAnno'),
-                "gtf": config.get('genome',{}).get("references", {}).get(genome, {}).get('gtf'),
-                "gene_map": config.get('genome',{}).get("references", {}).get(genome, {}).get('gene_map')
-            },
-            "Procedure": {
-                "DESeq2": config.get('Procedure',{}).get('DESeq2') or 'DESeq2'
-            }
+DESeq2_config = {
+        "indir": TEtranscripts_config["outdir"],
+        "outdir":  f"{outdir}/diff_expression",
+        "logdir": os.path.join(logdir,"group"),
+        "ROOT_DIR": ROOT_DIR,
+        "env": config.get("env", {}),
+        "group_pairs": config.get("Params", {}).get("DESeq2", {}).get("group_pairs"),
+        "genome": config.get('genome',{}),
+        "Procedure": {
+            "DESeq2": config.get('Procedure',{}).get('DESeq2') or 'DESeq2'
         }
-    module DESeq2:
-        snakefile: "../modules/DESeq2/DESeq2.smk"
-        config: DESeq2_config
-    logger.info(f"DESeq2_config: {DESeq2_config}")
-    use rule DESeq2_TEcount from DESeq2 as RNAseq_DESeq2_TEcount
+    }
+module DESeq2:
+    snakefile: "../modules/DESeq2/polygenomes/DESeq2.smk"
+    config: DESeq2_config
+logger.info(f"DESeq2_config: {DESeq2_config}")
+use rule DESeq2_TEcount from DESeq2 as RNAseq_DESeq2_TEcount
 
-    if config.get("Params", {}).get("function", {}).get("enabled", False):
-        logger.info("Function analysis enabled (GO/KEGG + GSEA)")
-        function_config = {
-            "ROOT_DIR": ROOT_DIR,
-            "env": config.get("env", {}),
-            "indir": DESeq2_config["outdir"],
-            "outdir": f"{outdir}/function",
-            "logdir": os.path.join(logdir,"group"),
-            "group_pairs": config.get("Params", {}).get("DESeq2", {}).get("group_pairs"),
-            "genome": {
-                "geneIDAnno": config.get('genome',{}).get("references", {}).get(genome, {}).get('geneIDAnno'),
-            },
-            "Params": {
-                "function": config.get("Params", {}).get("function", {})
-            }
-        }
-        module function:
-            snakefile: "../modules/function/function.smk"
-            config: function_config
-        logger.info(f"function_config: {function_config}")
-        use rule function_go_kegg from function as RNAseq_function_go_kegg
-        use rule function_gsea from function as RNAseq_function_gsea
+logger.info("Function analysis enabled (GO/KEGG + GSEA)")
+function_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "env": config.get("env", {}),
+    "indir": DESeq2_config["outdir"],
+    "outdir": f"{outdir}/function",
+    "logdir": os.path.join(logdir,"group"),
+    "group_pairs": config.get("Params", {}).get("DESeq2", {}).get("group_pairs"),
+    "genome": config.get('genome',{}),
+    "Params": {
+        "function": config.get("Params", {}).get("function", {})
+    }
+}
+module function:
+    snakefile: "../modules/function/polygenomes/function.smk"
+    config: function_config
+logger.info(f"function_config: {function_config}")
+use rule function_go_kegg from function as RNAseq_function_go_kegg
+use rule function_gsea from function as RNAseq_function_gsea
 
 
 hisat2_config_for_StringTie = {
@@ -218,8 +209,8 @@ hisat2_config_for_StringTie = {
     "outdir":  f"{outdir}/common/4_stringtie_bam",
     "env": config.get("env", {}),
     "logdir": os.path.join(logdir,"sample"),
-    "paired_samples": paired_samples,
-    "single_samples": single_samples,
+    "genome_paired_samples": genome_paired_samples,
+    "genome_single_samples": genome_single_samples,
     "Procedure": {
         "hisat2": config.get('Procedure',{}).get('hisat2')
     },
@@ -229,13 +220,10 @@ hisat2_config_for_StringTie = {
             "flag_params": config.get('Params',{}).get('hisat2_stringtie', {}).get('flag_params') or "-q --no-unal --dta",
         }
     },
-    "genome": {
-        "fasta": config.get('genome',{}).get("references", {}).get(genome, {}).get('fasta'),
-        "index_prefix": config.get('genome',{}).get("references", {}).get(genome, {}).get('hisat2_index_prefix')
-    }
+    "genome": config.get('genome',{})
 }
 module hisat2_for_StringTie:
-    snakefile: "../modules/hisat2/hisat2.smk"
+    snakefile: "../modules/hisat2/polygenomes/hisat2.smk"
     config: hisat2_config_for_StringTie
 logger.info(f"hisat2_config_for_StringTie: {hisat2_config_for_StringTie}")
 use rule hisat2_align from hisat2_for_StringTie as RNAseq_hisat2_align_for_StringTie
@@ -247,19 +235,17 @@ if config.get("Params",{}).get("StringTie",{}).get('sample_groups'):
             "outdir":  f"{outdir}/transcripts",
             "env": config.get("env", {}),
             "logdir": os.path.join(logdir,"sample"),
-            "samples": single_samples + paired_samples,
+            "logdir_combine": os.path.join(logdir,"group"),
+            "genome_samples": genome_samples,
             "ROOT_DIR": ROOT_DIR,
             "sample_groups": config.get("Params",{}).get("StringTie",{}).get('sample_groups'),
-            "genome": {
-                "gtf": config.get('genome',{}).get("references", {}).get(genome, {}).get('gtf'),
-                "TE_gtf": config.get('genome',{}).get("references", {}).get(genome, {}).get('TE_gtf')
-            },
+            "genome": config.get('genome',{}),
             "Procedure": {
                 "stringtie": config.get("Procedure", {}).get("stringtie") or "stringtie"
             }
         }
     module StringTie:
-        snakefile: "../modules/StringTie/StringTie.smk"
+        snakefile: "../modules/StringTie/polygenomes/StringTie.smk"
         config: StringTie_config
     use rule * from StringTie as RNAseq_*
     logger.info(f"StringTie_config: {StringTie_config}")
@@ -272,13 +258,8 @@ rmrRNA_config = {
     "outdir":  f"{outdir}/genome",
     "logdir": os.path.join(logdir,"group"),
     "env": config.get("env", {}),
-    "paired_samples": paired_samples,
-    "single_samples": single_samples,
     "ROOT_DIR": ROOT_DIR,
-    "genome": {
-        "fasta": config.get('genome',{}).get("references", {}).get(genome, {}).get('fasta'),
-        "gtf": config.get('genome',{}).get("references", {}).get(genome, {}).get('gtf')
-    },
+    "genome": config.get('genome',{}),
     "Params": {
         "RmrRNA": {
             "sam-append-comment": config.get('Params',{}).get('RmrRNA_rRNA', {}).get('sam-append-comment')
@@ -287,7 +268,7 @@ rmrRNA_config = {
 }
 
 module RmrRNA:
-    snakefile: "../modules/RmrRNA/RmrRNA.smk"
+    snakefile: "../modules/RmrRNA/polygenomes/RmrRNA.smk"
     config: rmrRNA_config
 use rule * from RmrRNA as RNAseq_rRNA_*
 
@@ -298,16 +279,13 @@ bowtie2_rRNA_config = {
     "indir": trimmed_fastq_dir,
     "outdir":  f"{outdir}/common/5_rRNA_fastq",
     "logdir": os.path.join(logdir,"sample"),
-    "paired_samples": paired_samples,
-    "single_samples": single_samples,
+    "genome_paired_samples": genome_paired_samples,
+    "genome_single_samples": genome_single_samples,
     "Procedure": {
         "bowtie2": config.get('Procedure',{}).get('bowtie2'),
         "bowtie2-build": config.get('Procedure',{}).get('bowtie2-build')
     },
-    "genome": {
-        "fasta": config.get('genome',{}).get("references", {}).get(genome, {}).get('rRNA_fasta') if config.get('genome',{}).get("references", {}).get(genome, {}).get('rRNA_fasta') else f"{rmrRNA_config['outdir']}/rRNA.fasta",
-        "index_prefix": config.get('genome',{}).get("references", {}).get(genome, {}).get('bowtie2_index_prefix_for_rRNA') if config.get('genome',{}).get("references", {}).get(genome, {}).get('rRNA_fasta') else None
-    },
+    "genome": config.get('genome',{}),
     "Params": {
         "bowtie2": {
             "sam-append-comment": config.get('Params',{}).get('bowtie2_rRNA', {}).get('sam-append-comment')
@@ -315,7 +293,7 @@ bowtie2_rRNA_config = {
     }
 }
 module bowtie2_for_rRNA:
-    snakefile: "../modules/bowtie2/bowtie2.smk"
+    snakefile: "../modules/bowtie2/polygenomes/bowtie2.smk"
     config: bowtie2_rRNA_config
 use rule * from bowtie2_for_rRNA as RNAseq_rRNA_*
 
@@ -324,8 +302,9 @@ star_config_for_fusion = {
     "outdir":  f"{outdir}/common/6_fusion_bam",
     "logdir": os.path.join(logdir,"sample"),
     "env": config.get("env", {}),
-    "paired_samples": paired_samples,
-    "single_samples": single_samples,
+    "isGenomeSubdir": True,
+    "genome_paired_samples": genome_paired_samples,
+    "genome_single_samples": genome_single_samples,
     "fastq_sample_suffix": "unmapped",
     "Procedure": {
         "STAR": config.get('Procedure',{}).get('STAR')
@@ -346,14 +325,10 @@ star_config_for_fusion = {
             "chimSegmentReadGapMax": config.get('Params',{}).get('STAR_fusion', {}).get('chimSegmentReadGapMax') or 3,
         }
     },
-    "genome": {
-        "fasta": config.get('genome',{}).get("references", {}).get(genome, {}).get('fasta'),
-        "gtf": config.get('genome',{}).get("references", {}).get(genome, {}).get('gtf'),
-        "index_dir": config.get('genome',{}).get("references", {}).get(genome, {}).get('star_index_dir')
-    }
+    "genome": config.get('genome',{})
 }
 module star_for_fusion:
-    snakefile: "../modules/star/star.smk"
+    snakefile: "../modules/star/polygenomes/star.smk"
     config: star_config_for_fusion
 use rule * from star_for_fusion as RNAseq_fusion_*
 logger.info(f"star_config_for_fusion: {star_config_for_fusion}")
@@ -364,20 +339,16 @@ gatk_prepare_config = {
     "indir": star_config_for_fusion["outdir"],
     "outdir":  f"{outdir}/common/7_markdup_bam",
     "logdir": os.path.join(logdir,"sample"),
-    "paired_samples": paired_samples,
-    "single_samples": single_samples,
+    "logdir_combine": os.path.join(logdir,"group"),
     "Procedure": {
         "gatk": config.get("Procedure", {}).get("gatk"),
         "samtools": config.get("Procedure", {}).get("samtools")
     },
-    "genome": {
-        "fasta": config.get('genome',{}).get("references", {}).get(genome, {}).get('fasta'),
-        "gtf": config.get('genome',{}).get("references", {}).get(genome, {}).get('gtf')
-    }
+    "genome": config.get('genome',{})
 }
 
 module gatk_prepare:
-    snakefile: "../modules/gatk/gatk_prepare.smk"
+    snakefile: "../modules/gatk/polygenomes/gatk_prepare.smk"
     config: gatk_prepare_config
 use rule * from gatk_prepare as RNAseq_fusion_*
 logger.info(f"gatk_prepare_config: {gatk_prepare_config}")
@@ -386,14 +357,12 @@ arriba_config = {
         "indir": gatk_prepare_config['outdir'],
         "outdir":  f"{outdir}/fusion",
         "logdir": os.path.join(logdir,"sample"),
+        "logdir_combine": os.path.join(logdir,"group"),
         "ROOT_DIR": ROOT_DIR,
         "env": config.get("env", {}),
         "bam_substring": "sorted_markdup",
-        "samples": single_samples + paired_samples,
-        "genome": {
-            "fasta": config.get('genome',{}).get("references", {}).get(genome, {}).get('fasta'),
-            "gtf": config.get('genome',{}).get("references", {}).get(genome, {}).get('gtf')
-        },
+        "genome_samples": genome_samples,
+        "genome": config.get('genome',{}),
         "Params": {
             "arriba": {
                 "blacklist": config.get('Params',{}).get('arriba',{}).get('blacklist'),
@@ -409,7 +378,7 @@ arriba_config = {
         }
     }
 module arriba:
-    snakefile: "../modules/arriba/arriba.smk"
+    snakefile: "../modules/arriba/polygenomes/arriba.smk"
     config: arriba_config
 use rule * from arriba as RNAseq_fusion_*
 logger.info(f"arriba_config: {arriba_config}")
@@ -417,18 +386,19 @@ logger.info(f"arriba_config: {arriba_config}")
 RNAseq_report_config = {
     "ROOT_DIR": ROOT_DIR,
     "env": config.get("env", {}),
-    "outdir": outdir,
+    "indir": outdir,
+    "outdir": os.path.join(outdir, "results"),
     "logdir": logdir,
-    "samples": paired_samples + single_samples,
-    "paired_samples": paired_samples,
-    "single_samples": single_samples,
-    "contrasts": config.get("Params", {}).get("DESeq2", {}).get("group_pairs").keys() if config.get("Params", {}).get("DESeq2", {}).get("group_pairs") else [],
+    "genome_samples": genome_samples,
+    "genome_paired_samples": genome_paired_samples,
+    "genome_single_samples": genome_single_samples,
     "Params": {
-        "report": config.get("Params", {}).get("report", {})
+        "report": config.get("Params", {}).get("report", {}),
+        "DESeq2": config.get("Params", {}).get("DESeq2", {}),
     }
 }
 module RNAseq_report:
-    snakefile: "../modules/RNAseq_report/RNAseq_report.smk"
+    snakefile: "../modules/RNAseq_report/polygenomes/RNAseq_report.smk"
     config: RNAseq_report_config
 logger.info(f"RNAseq_report_config: {RNAseq_report_config}")
 use rule generate_report from RNAseq_report as RNAseq_generate_report

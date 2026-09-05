@@ -7,9 +7,25 @@
         "samtools": "path/to/samtools",
         "hisat2-build": "path/to/hisat2-build"
     },
+    "Params": {
+        "hisat2": {
+            "score_min": "L,0,-0.2",
+            "flag_params": "",
+            "k": 5
+        }
+    },
     "genome": {
-        "fasta": "path/to/genome.fa",
-        "index_prefix": "path/to/hisat2_index_prefix"
+        "default": "GRCm39",
+        "references": {
+            "GRCm39": {
+                "fasta": "path/to/genome.fa",
+                "index_prefix": "path/to/hisat2_index_prefix"
+            },
+            "GRCh38": {
+                "fasta": "path/to/human_genome.fa",
+                "index_prefix": "path/to/human_hisat2_index_prefix"
+            }
+        }
     },
     "paired_samples": ["sample1", "sample2"],
     "single_samples": ["sample3", "sample4"]

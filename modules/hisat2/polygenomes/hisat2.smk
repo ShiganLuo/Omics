@@ -5,12 +5,19 @@ from snakemake.logging import logger
 indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
-paired_samples = config.get('paired_samples', [])
-single_samples = config.get('single_samples', [])
-
+genome_paired_samples = config.get('genome_paired_samples', {})
+genome_single_samples = config.get('genome_single_samples', {})
+def get_input_for_hisat2_index(wildcards):
+    """Dynamically determines the input fasta file for hisat2 index based on the genome."""
+    logger.info(f"[get_input_for_hisat2_index] called with wildcards: {wildcards}")
+    fasta = config.get('genome', {}).get('references', {}).get(wildcards.genome, {}).get('fasta')
+    if not fasta:
+        logger.error(f"Fasta file for genome {wildcards.genome} not found in config")
+        raise ValueError(f"Fasta file for genome {wildcards.genome} not found in config")
+    return fasta
 rule hisat2_index:
     input:
-        fasta = lambda wildcards: config["genome"][wildcards.genome]["fasta"]
+        fasta = get_input_for_hisat2_index
     output:
         ix1 = outdir + "/index/{genome}/{genome}.1.ht2",
         ix2 = outdir + "/index/{genome}/{genome}.2.ht2",
@@ -48,6 +55,7 @@ rule hisat2_index:
             ]
             with open(script, "w") as f:
                 f.write(" ".join(cmd) + "\n")
+                f.write(f"echo 'hisat2_index for genome {wildcards.genome} completed'\n")
             shell(f"bash {script} >> {log_path} 2>&1")
 
             rule_logger.info(f"hisat2_index for genome {wildcards.genome} completed")
@@ -76,14 +84,14 @@ def get_alignment_input(wildcards):
     paired_r2 = f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}_2.fq.gz"
     single = f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}.single.fq.gz"
 
-    if wildcards.sample_id in paired_samples:
+    if wildcards.sample_id in genome_paired_samples.get(wildcards.genome, []):
         logger.info(f"Paired-end: {[paired_r1, paired_r2]}")
         return [paired_r1, paired_r2]
-    elif wildcards.sample_id in single_samples:
+    elif wildcards.sample_id in genome_single_samples.get(wildcards.genome, []):
         logger.info(f"Single-end: {[single]}")
         return [single]
     else:
-        logger.error(f"Sample {wildcards.sample_id} not in paired_samples or single_samples")
+        logger.error(f"Sample {wildcards.sample_id} not in paired_samples: {genome_paired_samples.get(wildcards.genome, [])} or single_samples: {genome_single_samples.get(wildcards.genome, [])}")
         raise ValueError(f"Sample {wildcards.sample_id} not defined in paired_samples or single_samples")
 
 rule hisat2_align:
@@ -93,7 +101,7 @@ rule hisat2_align:
     output:
         outfile = outdir + "/{genome}/{sample_id}/{sample_id}.bam"
     log:
-        logdir + "/{sample_id}/{genome}/hisat2_align.log"
+        logdir + "/{genome}/{sample_id}/hisat2_align.log"
     threads: 12
     conda:
         "../hisat2.yaml"
@@ -128,16 +136,19 @@ rule hisat2_align:
                 params.SAMTOOLS, "sort", "-@", str(threads), "-o", str(output.outfile),
             ]
             with open(script, "w") as f:
+                f.write("#!/bin/bash\n")
+                f.write("set -euo pipefail\n")
                 f.write(" ".join(cmd_hisat2) + " 2>> " + log_path + " | \\\n")
                 f.write(" ".join(cmd_samtools) + "\n")
+                f.write(f"echo 'hisat2_align for sample {wildcards.sample_id} completed'\n")
             shell(f"bash {script} >> {log_path} 2>&1")
 
-            rule_logger.info(f"hisat2_align for sample {wildcards.sample_id} completed")
         except Exception as e:
             with open(log_path, "a") as f:
                 f.write(f"hisat2_align failed for sample {wildcards.sample_id}: {e}\n")
+            logger.error(f"hisat2_align failed for sample {wildcards.sample_id}: {e}")
             raise e
 
 rule hisat2_result:
     input:
-        bam = outdir + "/{genome}/{sample_id}.bam"
+        bam = outdir + "/{genome}/{sample_id}/{sample_id}.bam"

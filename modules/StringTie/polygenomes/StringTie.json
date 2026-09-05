@@ -14,5 +14,7 @@
   },
   "Procedure": {
     "stringtie": "stringtie"
-  }
+  },
+  "sample_groups": {},
+  "logdir_combine": "logs"
 }

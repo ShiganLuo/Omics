@@ -1,0 +1,27 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "log",
+    "samples": [],
+    "control_samples": [],
+    "ROOT_DIR": ".",
+    "Procedure": {
+        "cnvkit": "cnvkit.py"
+    },
+    "Params": {
+        "cnvkit": {
+            "method": "wgs",
+            "processes": 8
+        }
+    },
+    "genome": {
+        "genome1": {
+            "fasta": "path/to/genome1.fa",
+            "access": "path/to/genome1.access.bed"
+        },
+        "genome2": {
+            "fasta": "path/to/genome2.fa",
+            "access": "path/to/genome2.access.bed"
+        }
+    }
+}

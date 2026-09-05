@@ -1,0 +1,28 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "log",
+    "samples": [],
+    "bam_substring": "",
+    "Procedure": {
+        "trgt": "trgt"
+    },
+    "Params": {
+        "trgt": {
+            "karyotype": "XX",
+            "repeat_id": "HTT"
+        }
+    },
+    "genome": {
+        "genome1": {
+            "fasta": "path/to/genome1.fa",
+            "fai": "path/to/genome1.fa.fai",
+            "repeat_bed": "path/to/genome1_repeats.bed"
+        },
+        "genome2": {
+            "fasta": "path/to/genome2.fa",
+            "fai": "path/to/genome2.fa.fai",
+            "repeat_bed": "path/to/genome2_repeats.bed"
+        }
+    }
+}

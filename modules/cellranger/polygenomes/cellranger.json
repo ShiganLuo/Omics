@@ -1,0 +1,46 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "logs",
+    "logdir_ref": "logs/ref",
+    "h5ad_outdir": "output/3_h5ad",
+    "Procedure": {
+        "cellranger": "cellranger"
+    },
+    "Params": {
+        "cellranger": {
+            "mkref": {
+                "version": "2024-A"
+            },
+            "count": {
+                "create-bam": true,
+                "nosecondary": true
+            }
+        }
+    },
+    "genome": {
+        "GRCh38": {
+            "fasta": "path/to/GRCh38.fa",
+            "gtf": "path/to/GRCh38.gtf",
+            "genome_name": "GRCh38",
+            "cellranger_ref_dir": "path/to/prebuilt/GRCh38_cellranger_ref"
+        },
+        "GRCm39": {
+            "fasta": "path/to/GRCm39.fa",
+            "gtf": "path/to/GRCm39.gtf",
+            "genome_name": "GRCm39",
+            "cellranger_ref_dir": "path/to/prebuilt/GRCm39_cellranger_ref"
+        }
+    },
+    "samples": ["sample1", "sample2"],
+    "cellranger_input_dict": {
+        "sample1": {
+            "fastq_dir": "path/to/sample1_fastqs",
+            "sample_prefix": "sample1"
+        },
+        "sample2": {
+            "fastq_dir": "path/to/sample2_fastqs",
+            "sample_prefix": "sample2"
+        }
+    }
+}

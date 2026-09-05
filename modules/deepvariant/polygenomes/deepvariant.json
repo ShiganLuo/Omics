@@ -1,0 +1,29 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "log",
+    "samples": [],
+    "bam_substring": "",
+    "Procedure": {
+        "deepvariant": "run_deepvariant",
+        "bcftools": "bcftools"
+    },
+    "Params": {
+        "deepvariant": {
+            "model_type": "PACBIO"
+        }
+    },
+    "genome": {
+        "genome1": {
+            "fasta": "path/to/genome1.fa",
+            "fai": "path/to/genome1.fa.fai"
+        },
+        "genome2": {
+            "fasta": "path/to/genome2.fa",
+            "fai": "path/to/genome2.fa.fai"
+        }
+    },
+    "container": {
+        "deepvariant": "docker://google/deepvariant:1.10.0"
+    }
+}

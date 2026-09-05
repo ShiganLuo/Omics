@@ -1,7 +1,8 @@
 from dataclasses import dataclass
 from enum import Enum, unique
-from typing import Optional, List
+from typing import Optional, List, Dict
 from pathlib import Path
+
 @unique
 class FastqMode(str, Enum):
     FASTQ_META = "FASTQ_META"
@@ -45,6 +46,7 @@ class DesignPair:
 
 @dataclass
 class CompareGroupPair:
+    organism: str
     ctr_group_token: str
     exp_group_token: str
     ctr_group_name: str
@@ -56,3 +58,4 @@ class CompareGroupPair:
 class CellrangerInput:
     fastq_dir: str
     sample_prefix: str
+

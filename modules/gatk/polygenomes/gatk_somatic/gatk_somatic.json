@@ -1,0 +1,30 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "log",
+    "mutect2_parameters": "",
+    "Procedure": {
+        "gatk": "gatk"
+    },
+    "Params": {
+        "gatk": {
+            "javaOptions": "-Xmx30g"
+        }
+    },
+    "genome": {
+        "genome1": {
+            "fasta": "path/to/genome1.fa",
+            "fai_index": "path/to/genome1.fa.fai",
+            "dict_index": "path/to/genome1.dict",
+            "known_sites": "",
+            "interval": ""
+        },
+        "genome2": {
+            "fasta": "path/to/genome2.fa",
+            "fai_index": "path/to/genome2.fa.fai",
+            "dict_index": "path/to/genome2.dict",
+            "known_sites": "",
+            "interval": ""
+        }
+    }
+}

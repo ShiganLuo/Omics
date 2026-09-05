@@ -1,0 +1,22 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "log",
+    "samples": [],
+    "bam_dir": "input",
+    "vcf_dir": "input",
+    "input_vcf_substring": "",
+    "input_bam_substring": "",
+    "output_substring": "",
+    "Procedure": {
+        "hiphase": "hiphase"
+    },
+    "genome": {
+        "genome1": {
+            "fasta": "path/to/genome1.fa"
+        },
+        "genome2": {
+            "fasta": "path/to/genome2.fa"
+        }
+    }
+}

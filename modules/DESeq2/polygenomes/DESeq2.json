@@ -1,0 +1,17 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "logs",
+    "genome": {
+        "GRCm39": {
+            "geneIDAnno": "path/to/geneIDAnnotation.csv",
+            "gtf": "path/to/annotation.gtf",
+            "gene_map": "path/to/gene_map.pkl"
+        },
+        "GRCh38": {
+            "geneIDAnno": "path/to/geneIDAnnotation.csv",
+            "gtf": "path/to/annotation.gtf",
+            "gene_map": "path/to/gene_map.pkl"
+        }
+    }
+}

@@ -1,0 +1,18 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "log",
+    "Procedure": {
+        "pbmm2": "pbmm2",
+        "samtools": "samtools"
+    },
+    "genome": {
+        "GRCh38": {
+            "fasta": "path/to/GRCh38.fa"
+        },
+        "GRCm39": {
+            "fasta": "path/to/GRCm39.fa"
+        }
+    },
+    "samples": ["sample1", "sample2"]
+}

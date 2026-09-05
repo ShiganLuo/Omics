@@ -1,32 +1,28 @@
 {
-    "indir": "input",
-    "outdir": "output",
-    "logdir": "logs",
-    "Procedure": {
-        "hisat2": "path/to/hisat2",
-        "samtools": "path/to/samtools",
-        "hisat2-build": "path/to/hisat2-build"
+  "indir": "input",
+  "outdir": "output",
+  "logdir": "logs",
+  "genome_paired_samples": {
+    "GRCm39": [],
+    "GRCh38": []
+  },
+  "genome_single_samples": {
+    "GRCm39": [],
+    "GRCh38": []
+  },
+  "genome": {
+    "GRCm39": {
+      "fasta": "path/to/genome.fa",
+      "index_prefix": null
     },
-    "Params": {
-        "hisat2": {
-            "score_min": "L,0,-0.2",
-            "flag_params": "",
-            "k": 5
-        }
-    },
-    "genome": {
-        "default": "GRCm39",
-        "references": {
-            "GRCm39": {
-                "fasta": "path/to/genome.fa",
-                "index_prefix": "path/to/hisat2_index_prefix"
-            },
-            "GRCh38": {
-                "fasta": "path/to/human_genome.fa",
-                "index_prefix": "path/to/human_hisat2_index_prefix"
-            }
-        }
-    },
-    "paired_samples": ["sample1", "sample2"],
-    "single_samples": ["sample3", "sample4"]
+    "GRCh38": {
+      "fasta": "path/to/genome.fa",
+      "index_prefix": null
+    }
+  },
+  "Procedure": {
+    "hisat2": "hisat2",
+    "hisat2-build": "hisat2-build",
+    "samtools": "samtools"
+  }
 }

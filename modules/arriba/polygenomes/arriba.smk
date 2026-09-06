@@ -45,7 +45,7 @@ rule arriba:
         passed_fusion_tsv = outdir + "/{genome}/{sample_id}/{sample_id}_passed_fusions.tsv",
         discarded_fusion_tsv = outdir + "/{genome}/{sample_id}/{sample_id}_discarded_fusions.tsv",
     log:
-        logdir + "/{genome}/{sample_id}/arriba.log"
+        logdir + "/{sample_id}/{genome}/arriba.log"
     threads: 4
     params:
         arriba = config.get('Procedure',{}).get('arriba') or 'arriba',
@@ -119,7 +119,7 @@ rule arriba_report:
         inframe_fusions = outdir + "/{genome}/arriba_report/inframe_fusions.tsv",
         fusion_figs = expand(outdir + "/{genome}/arriba_report/figures/{fig}", fig=FUSION_FIGS, genome="{genome}"),
     log:
-        logdir_combine + "/{genome}/arriba/arriba_report.log"
+        logdir_combine + "/arriba/{genome}/arriba_report.log"
     params:
         summary_script = os.path.join(ROOT_DIR, "modules/arriba/bin/summarize_arriba_fusions.py")
     conda:

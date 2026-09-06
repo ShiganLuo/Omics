@@ -211,6 +211,7 @@ hisat2_config_for_StringTie = {
     "outdir":  f"{outdir}/common/4_stringtie_bam",
     "env": config.get("env", {}),
     "logdir": os.path.join(logdir,"sample"),
+    "logdir_combine": os.path.join(logdir,"group"),
     "genome_paired_samples": genome_paired_samples,
     "genome_single_samples": genome_single_samples,
     "Procedure": {

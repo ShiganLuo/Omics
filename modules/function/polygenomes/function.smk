@@ -120,7 +120,7 @@ rule function_gsea:
             if wildcards.contrast not in group_pairs.get(wildcards.genome, {}):
                 raise ValueError(f"Group pair {wildcards.contrast} not found in group_pairs configuration.")
             sample_outdir = os.path.dirname(str(output.func_gsea_plot))
-
+            script = os.path.join(sample_outdir, f"gsea_{current_time}.sh")
             graph_title = wildcards.contrast
 
             cmd = [
@@ -129,12 +129,12 @@ rule function_gsea:
                 "-m", "Gene",
                 "-g", input.gmt,
                 "-i", input.deseq2_result,
-                "-o", sample_outdir,
+                "-o", os.path.dirname(sample_outdir),
                 "-a", input.annotation,
                 "-t", graph_title,
             ]
 
-            script = os.path.join(sample_outdir, f"gsea_{current_time}.sh")
+            
             with open(script, 'w') as f:
                 f.write("#!/bin/bash\n")
                 f.write("set -e\n")

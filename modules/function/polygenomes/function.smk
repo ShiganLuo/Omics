@@ -38,12 +38,11 @@ rule function_go_kegg:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start GO/KEGG analysis for {wildcards.contrast} at {current_time}")
 
-            if wildcards.contrast not in group_pairs:
+            if wildcards.contrast not in group_pairs.get(wildcards.genome, {}):
                 raise ValueError(f"Group pair {wildcards.contrast} not found in group_pairs configuration.")
-            ctrl = group_pairs[wildcards.contrast]["control_group_name"]
-            exp = group_pairs[wildcards.contrast]["experimental_group_name"]
-            sample_outdir = os.path.join(outdir, wildcards.genome, wildcards.contrast)
-            os.makedirs(sample_outdir, exist_ok=True)
+            ctrl = group_pairs.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("control_group_name")
+            exp = group_pairs.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("experimental_group_name")
+            sample_outdir = os.path.dirname(str(output.func_go_plot))
 
             if not os.path.exists(input.deseq2_result):
                 raise FileNotFoundError(
@@ -68,11 +67,13 @@ rule function_go_kegg:
                 f.write("set -e\n")
                 f.write("set -o pipefail\n")
                 f.write(" ".join(cmd) + "\n")
+                f.write(f"echo 'GO/KEGG analysis completed successfully at {time.strftime('%Y-%m-%d %H:%M:%S')}'\n")
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path, "a") as fh:
                 fh.write(f"GO/KEGG analysis failed: {e}\n")
-            raise f"GO/KEGG analysis failed: {e}\n"
+            logger.error(f"GO/KEGG analysis failed: {e}\n")
+            raise e
 
 def get_input_for_function_gsea(wildcards):
     logger.info(f"[get_input_for_function_gsea] called with wildcards: {wildcards}")
@@ -110,14 +111,15 @@ rule function_gsea:
             open(log_path, 'w').close()
             rule_logger = setup_logger("function_gsea", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            ctrl = group_pairs[wildcards.contrast]["control_group_name"]
-            exp = group_pairs[wildcards.contrast]["experimental_group_name"]
+            if wildcards.contrast not in group_pairs.get(wildcards.genome, {}):
+                raise ValueError(f"Group pair {wildcards.contrast} not found in group_pairs configuration.")
+            ctrl = group_pairs.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("control_group_name")
+            exp = group_pairs.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("experimental_group_name")
             rule_logger.info(f"Start GSEA analysis for {wildcards.contrast} at {current_time}")
 
-            if wildcards.contrast not in group_pairs:
+            if wildcards.contrast not in group_pairs.get(wildcards.genome, {}):
                 raise ValueError(f"Group pair {wildcards.contrast} not found in group_pairs configuration.")
-            sample_outdir = os.path.join(outdir, wildcards.genome, wildcards.contrast)
-            os.makedirs(sample_outdir, exist_ok=True)
+            sample_outdir = os.path.dirname(str(output.func_gsea_plot))
 
             graph_title = wildcards.contrast
 
@@ -138,11 +140,13 @@ rule function_gsea:
                 f.write("set -e\n")
                 f.write("set -o pipefail\n")
                 f.write(" ".join(cmd) + "\n")
+                f.write(f"echo 'GSEA analysis completed successfully at {time.strftime('%Y-%m-%d %H:%M:%S')}'\n")
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path, "a") as fh:
                 fh.write(f"GSEA analysis failed: {e}\n")
-            raise f"GSEA analysis failed: {e}\n"
+            logger.error(f"GSEA analysis failed: {e}")
+            raise e
 
 rule function_result:
     input:

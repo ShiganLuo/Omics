@@ -6,15 +6,27 @@ logdir_combine = config.get("logdir_combine") or "log"
 genome_samples = config.get("genome_samples") or {}
 sample_groups = config.get("sample_groups") or {}
 ROOT_DIR = config.get("ROOT_DIR", ".")
+
+def get_input_for_stringTie(wildcards):
+    logger.info(f"[get_input_for_stringTie] called with wildcards: {wildcards}")
+    bam_path = indir + f"/{wildcards.genome}/{wildcards.sample_id}/{wildcards.sample_id}.bam"
+    gtf = config.get('genome', {}).get('references', {}).get(wildcards.genome, {}).get('gtf')
+    if not gtf or not os.path.exists(gtf):
+        raise ValueError(f"GTF file for genome {wildcards.genome} is not specified or does not exist in the configuration.")
+    in_dict = {
+        "bam": bam_path,
+        "gtf": gtf
+    }
+    return in_dict
+
 rule stringTie:
     input:
-        bam = indir + "/{genome}/{sample_id}/{sample_id}.bam"
+        unpack(get_input_for_stringTie)
     output:
         gtf = outdir + "/{genome}/raw/{sample_id}/{sample_id}.gtf"
     log:
         logdir + "/{sample_id}/{genome}/stringTie.log"
     params:
-        gtf = lambda wildcards: config.get('genomes', {}).get('reference', {}).get(wildcards.genome, {}).get('gtf'),
         stringtie = config.get("Procedure", {}).get("stringtie") or "stringtie"
     threads: 5
     conda:
@@ -28,26 +40,41 @@ rule stringTie:
             logger = setup_logger(logger_name="stringTie_run", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start stringTie run for sample {wildcards.sample_id} at {current_time}")
-            script = f"{outdir}/{wildcards.genome}/raw/{wildcards.sample_id}/stringTie_{current_time}.sh"
-            cmd = [params.stringtie, "-o", output.gtf, input.bam, "-G", params.gtf, "-p", str(threads)]
+            sample_outdir = os.path.dirname(output.gtf)
+            script = f"{sample_outdir}/stringTie_{current_time}.sh"
+            cmd = [params.stringtie, "-o", output.gtf, input.bam, "-G", input.gtf, "-p", str(threads)]
             with open(script, 'w') as f:
+                f.write("#!/bin/bash\n")
+                f.write("set -euo pipefail\n")
                 f.write(' '.join(cmd) + '\n')
+                f.write(f'echo "StringTie for sample {wildcards.sample_id} on genome {wildcards.genome} successfully completed!"\n')
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path, 'a') as f:
                 f.write(f"Error occurred during stringTie run: {e}\n")
-            raise f"Error occurred during stringTie run: {e}"
+            logger.error(f"Error occurred during stringTie run: {e}")
+            raise e
 
+def get_input_for_TEChimericTranscripts(wildcards):
+    logger.info(f"[get_input_for_TEChimericTranscripts] called with wildcards: {wildcards}")
+    gtf_path = outdir + f"/{wildcards.genome}/raw/{wildcards.sample_id}/{wildcards.sample_id}.gtf"
+    te_gtf = config.get('genome', {}).get('references', {}).get(wildcards.genome, {}).get('TE_gtf')
+    if not te_gtf or not os.path.exists(te_gtf):
+        raise ValueError(f"TE GTF file for genome {wildcards.genome} is not specified or does not exist in the configuration.")
+    in_dict = {
+        "gtf": gtf_path,
+        "te_gtf": te_gtf
+    }
+    return in_dict
 
 rule TEChimericTranscripts:
     input:
-        gtf = outdir + "/{genome}/raw/{sample_id}/{sample_id}.gtf"
+        unpack(get_input_for_TEChimericTranscripts)
     output:
         txt = outdir + "/{genome}/raw/{sample_id}/{sample_id}_TE_chimeric_transcripts.txt"
     log:
         logdir + "/{sample_id}/{genome}/TEChimericTranscripts.log"
     params:
-        te_gtf = lambda wildcards: config.get('genomes', {}).get('reference', {}).get(wildcards.genome, {}).get('TE_gtf'),
         TEChimericTranscripts = ROOT_DIR + "/modules/StringTie/bin/TEChimericTranscripts.py"
     threads: 5
     conda:
@@ -61,18 +88,25 @@ rule TEChimericTranscripts:
             rule_logger = setup_logger(logger_name="TEChimericTranscripts_run", log_file=log_path)
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
             rule_logger.info(f"Start TEChimericTranscripts run for sample {wildcards.sample_id} at {current_time}")
-            script = f"{outdir}/{wildcards.genome}/raw/{wildcards.sample_id}/TEChimericTranscripts.{current_time}.sh"
-            cmd = f"python {params.TEChimericTranscripts} -s {input.gtf} -t {params.te_gtf} -o {output.txt} > {log} 2>&1"
+            sample_outdir = os.path.dirname(output.txt)
+            script = f"{sample_outdir}/TEChimericTranscripts.{current_time}.sh"
+            cmd = [
+                "python", params.TEChimericTranscripts,
+                "-s", input.gtf,
+                "-t", input.te_gtf,
+                "-o", output.txt
+            ]
             with open(script, 'w') as f:
                 f.write("#!/bin/bash\n")
                 f.write("set -euo pipefail\n")
-                f.write(cmd + "\n")
+                f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "TEChimericTranscripts for sample {wildcards.sample_id} on genome {wildcards.genome} successfully completed!"\n')
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path, 'a') as f:
                 f.write(f"Error occurred during TEChimericTranscripts: {e}\n")
-            raise RuntimeError(f"Error occurred during TEChimericTranscripts: {e}\n")
+            logger.error(f"Error occurred during TEChimericTranscripts: {e}")
+            raise e
 
 def get_input_for_TEChimericPlot(wildcards):
     logger.info(f"[get_input_for_TEChimericPlot] called with wildcards: {wildcards}")
@@ -85,6 +119,7 @@ def get_input_for_TEChimericPlot(wildcards):
     if len(txts) == 0:
         raise ValueError(f"No TE chimeric transcript files found for genome {wildcards.genome}.")
     return txts
+
 rule TEChimericPlot:
     input:
         txts = get_input_for_TEChimericPlot
@@ -110,7 +145,8 @@ rule TEChimericPlot:
             open(log_path, 'w').close()
             rule_logger = setup_logger(logger_name="TEChimericPlot_run", log_file=log_path)
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
-            script = f"{outdir}/{wildcards.genome}/TE_chimeric/TEChimericPlot.{current_time}.sh"
+            sample_outdir = os.path.dirname(output.group_stack)
+            script = f"{sample_outdir}/TEChimericPlot.{current_time}.sh"
             rule_logger.info(f"Start TEChimericPlot run at {current_time}")
             group_tsv = outdir + f"/{wildcards.genome}/TE_chimeric/sample_groups.tsv"
             with open(group_tsv, 'w') as f:
@@ -126,12 +162,15 @@ rule TEChimericPlot:
             ]
             with open(script, 'w') as f:
                 f.write("#!/bin/bash\n")
+                f.write("set -euo pipefail\n")
                 f.write(' '.join(cmd) + "\n")
+                f.write(f'echo "TEChimericPlot for genome {wildcards.genome} successfully completed!"\n')
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path, 'a') as f:
                 f.write(f"Error occurred during TEChimericPlot: {e}\n")
-            raise RuntimeError(f"Error occurred during TEChimericPlot: {e}\n")
+            logger.error(f"Error occurred during TEChimericPlot: {e}")
+            raise e
 
 
 def get_input_for_stringTieMerge(wildcards):
@@ -141,17 +180,23 @@ def get_input_for_stringTieMerge(wildcards):
         gtfs.append(outdir + f"/{wildcards.genome}/raw/{sample_id}/{sample_id}.gtf")
     if len(gtfs) == 0:
         raise ValueError(f"No GTF files found for genome {wildcards.genome}.")
-    return gtfs
+    gtf = config.get('genome', {}).get('references', {}).get(wildcards.genome, {}).get('gtf')
+    if not gtf or not os.path.exists(gtf):
+        raise ValueError(f"GTF file for genome {wildcards.genome} is not specified or does not exist in the configuration.")
+    in_dict = {
+        "gtfs": gtfs,
+        "gtf": gtf
+    }
+    return in_dict
 
 rule stringTieMerge:
     input:
-        gtfs = get_input_for_stringTieMerge
+        unpack(get_input_for_stringTieMerge)
     output:
         gtf = outdir + "/{genome}/stringtie_merged.gtf"
     log:
         logdir_combine + "/stringtie/{genome}/stringTieMerge.log"
     params:
-        gtf = lambda wildcards: config.get('genomes', {}).get('reference', {}).get(wildcards.genome, {}).get('gtf'),
         stringtie = config.get("Procedure", {}).get("stringtie") or "stringtie"
     conda:
         "../StringTie.yaml"
@@ -164,12 +209,17 @@ rule stringTieMerge:
             rule_logger = setup_logger(logger_name="stringTieMerge_run", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start stringTieMerge run at {current_time}")
-            script = os.path.join(outdir, wildcards.genome, f"stringTieMerge_{current_time}.sh")
-            cmd = [params.stringtie, "--merge"] + list(input.gtfs) + ["-o", output.gtf, "-G", params.gtf]
+            sample_outdir = os.path.dirname(output.gtf)
+            script = os.path.join(sample_outdir, f"stringTieMerge_{current_time}.sh")
+            cmd = [params.stringtie, "--merge"] + list(input.gtfs) + ["-o", output.gtf, "-G", input.gtf]
             with open(script, 'w') as f:
+                f.write("#!/bin/bash\n")
+                f.write("set -euo pipefail\n")
                 f.write(' '.join(cmd) + '\n')
+                f.write(f'echo "stringTieMerge for genome {wildcards.genome} successfully completed!"\n')
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path, 'a') as f:
                 f.write(f"Error occurred during stringTieMerge: {e}\n")
-            raise RuntimeError(f"Error occurred during stringTieMerge: {e}\n")
+            logger.error(f"Error occurred during stringTieMerge: {e}")
+            raise e

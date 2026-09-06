@@ -3,7 +3,7 @@ indir = config.get("indir", "data")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "logs")
 ROOT_DIR = config.get("ROOT_DIR", ".")
-group_pairs = config.get("group_pairs", [])
+group_pairs = config.get("group_pairs", {})
 
 def get_input_for_DESeq2_TEcount(wildcards):
     """Dynamically determines the input count matrix for DESeq2 TEcount based on the contrast."""
@@ -62,12 +62,16 @@ rule DESeq2_TEcount:
             sample_outdir = os.path.dirname(str(output.deseq2_results))
             os.makedirs(sample_outdir, exist_ok=True)
             script = os.path.join(sample_outdir, f"DESeq2_TEcount_{current_time}.sh")
-            control_group_name = group_pairs[wildcards.contrast]["control_group_name"]
-            experimental_group_name = group_pairs[wildcards.contrast]["experimental_group_name"]
-            if wildcards.contrast not in group_pairs:
+            control_group_name = group_pairs.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("control_group_name")
+            experimental_group_name = group_pairs.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("experimental_group_name")
+            if wildcards.contrast not in group_pairs.get(wildcards.genome, {}):
                 raise ValueError(f"Group pair {wildcards.contrast} not found in group_pairs configuration.")
-            control_samples = group_pairs[wildcards.contrast]["control_samples"]
-            experimental_samples = group_pairs[wildcards.contrast]["experimental_samples"]
+            control_samples = group_pairs.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("control_samples", [])
+            experimental_samples = group_pairs.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("experimental_samples", [])
+            if not control_samples or len(control_samples) == 0:
+                raise ValueError(f"No control samples found for contrast {wildcards.contrast} in genome {wildcards.genome}.")
+            if not experimental_samples or len(experimental_samples) == 0:
+                raise ValueError(f"No experimental samples found for contrast {wildcards.contrast} in genome {wildcards.genome}.")
             rule_logger.info(f"Control samples: {control_samples}")
             rule_logger.info(f"Experimental samples: {experimental_samples}")
             cmd1 = [

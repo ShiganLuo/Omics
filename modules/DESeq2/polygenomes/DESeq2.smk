@@ -1,5 +1,4 @@
 include: "../../common/common.smk"
-from snakemake.logging import logger
 indir = config.get("indir", "data")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "logs")
@@ -52,7 +51,7 @@ rule DESeq2_TEcount:
     container:
         sif("../DESeq2.yaml")
     log:
-        logdir + "/{genome}/DESeq2/{contrast}.log"
+        logdir + "/DESeq2/{genome}/{contrast}.log"
     run:
         log_path = str(log)
         try:

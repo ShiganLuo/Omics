@@ -21,7 +21,7 @@ rule gatk_index:
         dict_index = outdir + "/index/{genome}/{genome}.dict",
         fasta_link = outdir + "/index/{genome}/{genome}.fa"
     log:
-        logdir_combine + "/{genome}/index/gatk_index.log"
+        logdir_combine + "/index/{genome}/gatk_index.log"
     threads: 4
     conda: "../gatk.yaml"
     container:
@@ -83,7 +83,7 @@ rule addReadsGroup:
         bam = temp(outdir + "/{genome}/{sample_id}/{sample_id}.addReadsGroup.bam"),
         bai = temp(outdir + "/{genome}/{sample_id}/{sample_id}.addReadsGroup.bai")
     log:
-        logdir + "/{genome}/{sample_id}/addReadsGroup.log"
+        logdir + "/{sample_id}/{genome}/addReadsGroup.log"
     conda: "../gatk.yaml"
     container:
         sif("../gatk.yaml")
@@ -148,7 +148,7 @@ rule MarkDuplicates:
         bai = outdir + "/{genome}/{sample_id}/{sample_id}.sorted_markdup.bai",
         metrics = outdir + "/{genome}/{sample_id}/{sample_id}.Markdup-metrics.txt"
     log:
-        logdir + "/{genome}/{sample_id}/MarkDuplicates.log"
+        logdir + "/{sample_id}/{genome}/MarkDuplicates.log"
     conda: "../gatk.yaml"
     container:
         sif("../gatk.yaml")

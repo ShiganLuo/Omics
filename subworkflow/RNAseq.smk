@@ -93,6 +93,7 @@ if aligner_TEtranscripts == 'hisat2':
             "outdir":  f"{outdir}/common/3_raw_bam",
             "env": config.get("env", {}),
             "logdir": os.path.join(logdir,"sample"),
+            "logdir_combine": os.path.join(logdir,"group"),
             "genome_paired_samples": genome_paired_samples,
             "genome_single_samples": genome_single_samples,
             "Procedure": {
@@ -149,6 +150,7 @@ TEtranscripts_config = {
         "indir": star_config_for_TEtranscripts["outdir"] if aligner_TEtranscripts == 'star' else hisat2_config_for_TEtranscripts["outdir"],
         "outdir":  f"{outdir}/counts",
         "logdir": os.path.join(logdir,"sample"),
+        "logdir_combine": os.path.join(logdir,"group"),
         "genome_samples": genome_samples,
         "ROOT_DIR": ROOT_DIR,
         "env": config.get("env", {}),
@@ -229,28 +231,26 @@ logger.info(f"hisat2_config_for_StringTie: {hisat2_config_for_StringTie}")
 use rule hisat2_align from hisat2_for_StringTie as RNAseq_hisat2_align_for_StringTie
 use rule hisat2_index from hisat2_for_StringTie as RNAseq_hisat2_index_for_StringTie
 
-if config.get("Params",{}).get("StringTie",{}).get('sample_groups'):
-    StringTie_config = {
-            "indir": hisat2_config_for_StringTie["outdir"],
-            "outdir":  f"{outdir}/transcripts",
-            "env": config.get("env", {}),
-            "logdir": os.path.join(logdir,"sample"),
-            "logdir_combine": os.path.join(logdir,"group"),
-            "genome_samples": genome_samples,
-            "ROOT_DIR": ROOT_DIR,
-            "sample_groups": config.get("Params",{}).get("StringTie",{}).get('sample_groups'),
-            "genome": config.get('genome',{}),
-            "Procedure": {
-                "stringtie": config.get("Procedure", {}).get("stringtie") or "stringtie"
-            }
+StringTie_config = {
+        "indir": hisat2_config_for_StringTie["outdir"],
+        "outdir":  f"{outdir}/transcripts",
+        "env": config.get("env", {}),
+        "logdir": os.path.join(logdir,"sample"),
+        "logdir_combine": os.path.join(logdir,"group"),
+        "genome_samples": genome_samples,
+        "ROOT_DIR": ROOT_DIR,
+        "sample_groups": config.get("Params",{}).get("StringTie",{}).get('sample_groups'),
+        "genome": config.get('genome',{}),
+        "Procedure": {
+            "stringtie": config.get("Procedure", {}).get("stringtie") or "stringtie"
         }
-    module StringTie:
-        snakefile: "../modules/StringTie/polygenomes/StringTie.smk"
-        config: StringTie_config
-    use rule * from StringTie as RNAseq_*
-    logger.info(f"StringTie_config: {StringTie_config}")
-else:
-    logger.info("No sample_groups provided for StringTie, skipping StringTie analysis.")
+    }
+module StringTie:
+    snakefile: "../modules/StringTie/polygenomes/StringTie.smk"
+    config: StringTie_config
+use rule * from StringTie as RNAseq_*
+logger.info(f"StringTie_config: {StringTie_config}")
+
 
 
 rmrRNA_config = {

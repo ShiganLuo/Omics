@@ -1,10 +1,8 @@
 include: "../../common/common.smk"
-
-from snakemake.logging import logger
-
 indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
+logdir_combine = config.get("logdir_combine", "log/combine")
 genome_paired_samples = config.get('genome_paired_samples', {})
 genome_single_samples = config.get('genome_single_samples', {})
 def get_input_for_hisat2_index(wildcards):
@@ -36,7 +34,7 @@ rule hisat2_index:
         prefix = lambda wildcards: outdir + f"/index/{wildcards.genome}/{wildcards.genome}",
         HISAT2_BUILD = config.get('Procedure', {}).get('hisat2-build') or 'hisat2-build'
     log:
-        logdir + "/index/{genome}/hisat2_build.log"
+        logdir_combine + "/index/{genome}/hisat2_build.log"
     run:
         log_path = str(log)
         try:
@@ -101,7 +99,7 @@ rule hisat2_align:
     output:
         outfile = outdir + "/{genome}/{sample_id}/{sample_id}.bam"
     log:
-        logdir + "/{genome}/{sample_id}/hisat2_align.log"
+        logdir + "/{sample_id}/{genome}/hisat2_align.log"
     threads: 12
     conda:
         "../hisat2.yaml"

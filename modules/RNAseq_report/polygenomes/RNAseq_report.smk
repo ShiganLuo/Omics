@@ -62,7 +62,7 @@ rule generate_report:
         report = outdir + "/{genome}/RNAseq_report.pptx",
         file_inventory = outdir + "/{genome}/RNAseq_report_files.xlsx",
     log:
-        logdir + "/{genome}/RNAseq_report.log"
+        logdir + "/RNAseq_report/{genome}/RNAseq_report.log"
     threads: 1
     conda:
         "../RNAseq_report.yaml"

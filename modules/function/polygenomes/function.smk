@@ -1,6 +1,4 @@
 include: "../../common/common.smk"
-from snakemake.logging import logger
-
 indir = config.get("indir", "output/diff_expression")
 outdir = config.get("outdir", "output/function")
 logdir = config.get("logdir", "logs")
@@ -20,7 +18,7 @@ rule function_go_kegg:
         func_up_genes = outdir + "/{genome}/{contrast}/up_genes.txt",
         func_down_genes = outdir + "/{genome}/{contrast}/down_genes.txt"
     log:
-        logdir + "/{genome}/function/{contrast}.go_kegg.log"
+        logdir + "/function/{genome}/{contrast}.go_kegg.log"
     threads: 1
     params:
         go_kegg_script = ROOT_DIR + "/modules/function/bin/go-kegg.r",
@@ -98,7 +96,7 @@ rule function_gsea:
         func_gsea_plot = outdir + "/{genome}/{contrast}/GSEA/TEcount_Gene_GSEA.jpeg",
         func_gsea_csv = outdir + "/{genome}/{contrast}/GSEA/TEcount_Gene_GSEA.csv"
     log:
-        logdir + "/{genome}/function/{contrast}.gsea.log"
+        logdir + "/function/{genome}/{contrast}.gsea.log"
     threads: 1
     params:
         gsea_script = ROOT_DIR + "/modules/function/bin/gsea.r",

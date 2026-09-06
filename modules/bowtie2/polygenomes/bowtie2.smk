@@ -27,7 +27,7 @@ rule bowtie2_index:
         br1 = outdir + "/index/{genome}/{genome}.rev.1.bt2",
         br2 = outdir + "/index/{genome}/{genome}.rev.2.bt2"
     log:
-        logdir + "/{genome}/index/bowtie2_index.log"
+        logdir + "/index/{genome}/bowtie2_index.log"
     threads: 12
     params:
         bowtie2_build = config.get('Procedure',{}).get('bowtie2-build') or 'bowtie2-build',
@@ -118,7 +118,7 @@ rule bowtie2_align_paired:
         unmapped1 = outdir + "/{genome}/{sample_id}/{sample_id}_unmapped_1.fq.gz",
         unmapped2 = outdir + "/{genome}/{sample_id}/{sample_id}_unmapped_2.fq.gz"
     log:
-        logdir + "/{genome}/{sample_id}/bowtie2_align.log"
+        logdir + "/{sample_id}/{genome}/bowtie2_align.log"
     threads: 8
     params:
         bowtie2 = config.get('Procedure',{}).get('bowtie2') or 'bowtie2',
@@ -172,7 +172,7 @@ rule bowtie2_align_single:
         metrics = outdir + "/{genome}/{sample_id}/{sample_id}_bowtie2_metrics.txt",
         unmapped = outdir + "/{genome}/{sample_id}/{sample_id}_unmapped.single.fq.gz"
     log:
-        logdir + "/{sample_id}/{genome}/bowtie2_align.log"
+        logdir + "/{genome}/{sample_id}/bowtie2_align.log"
     threads: 8
     params:
         bowtie2 = config.get('Procedure',{}).get('bowtie2') or 'bowtie2',

@@ -12,7 +12,7 @@ rule stringTie:
     output:
         gtf = outdir + "/{genome}/raw/{sample_id}/{sample_id}.gtf"
     log:
-        logdir + "/{genome}/{sample_id}/stringTie.log"
+        logdir + "/{sample_id}/{genome}/stringTie.log"
     params:
         gtf = lambda wildcards: config.get('genomes', {}).get('reference', {}).get(wildcards.genome, {}).get('gtf'),
         stringtie = config.get("Procedure", {}).get("stringtie") or "stringtie"
@@ -45,7 +45,7 @@ rule TEChimericTranscripts:
     output:
         txt = outdir + "/{genome}/raw/{sample_id}/{sample_id}_TE_chimeric_transcripts.txt"
     log:
-        logdir + "/{genome}/{sample_id}/TEChimericTranscripts.log"
+        logdir + "/{sample_id}/{genome}/TEChimericTranscripts.log"
     params:
         te_gtf = lambda wildcards: config.get('genomes', {}).get('reference', {}).get(wildcards.genome, {}).get('TE_gtf'),
         TEChimericTranscripts = ROOT_DIR + "/modules/StringTie/bin/TEChimericTranscripts.py"
@@ -96,7 +96,7 @@ rule TEChimericPlot:
         group_summary = outdir + "/{genome}/TE_chimeric/TE_chimeric_group_summary.tsv",
         te_type_counts = outdir + "/{genome}/TE_chimeric/TE_chimeric_te_type_counts.tsv"
     log:
-        logdir_combine + "/{genome}/stringtie/TEChimericPlot.log"
+        logdir_combine + "/stringtie/{genome}/TEChimericPlot.log"
     params:
         TEChimericPlot = ROOT_DIR + "/modules/StringTie/bin/TEChimericPlot.py"
     threads: 1
@@ -149,7 +149,7 @@ rule stringTieMerge:
     output:
         gtf = outdir + "/{genome}/stringtie_merged.gtf"
     log:
-        logdir_combine + "/{genome}/stringtie/stringTieMerge.log"
+        logdir_combine + "/stringtie/{genome}/stringTieMerge.log"
     params:
         gtf = lambda wildcards: config.get('genomes', {}).get('reference', {}).get(wildcards.genome, {}).get('gtf'),
         stringtie = config.get("Procedure", {}).get("stringtie") or "stringtie"

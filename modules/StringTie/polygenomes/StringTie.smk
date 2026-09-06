@@ -149,11 +149,14 @@ rule TEChimericPlot:
             script = f"{sample_outdir}/TEChimericPlot.{current_time}.sh"
             rule_logger.info(f"Start TEChimericPlot run at {current_time}")
             group_tsv = outdir + f"/{wildcards.genome}/TE_chimeric/sample_groups.tsv"
+            if genome_samples.get(wildcards.genome) is None or len(genome_samples[wildcards.genome]) == 0:
+                raise ValueError(f"No samples found for genome {wildcards.genome} in genome_samples configuration.")
             with open(group_tsv, 'w') as f:
                 f.write("sample\tgroup\n")
                 for group, sample_list in sample_groups.items():
-                    for sample_id in sample_list:
+                    for sample_id in genome_samples.get(wildcards.genome, []):
                         f.write(f"{sample_id}\t{group}\n")
+            
             cmd = [
                 "python", params.TEChimericPlot,
                 "-i", os.path.join(outdir, wildcards.genome, "raw"),

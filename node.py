@@ -627,6 +627,7 @@ def runRNAseq(
     genome_paired_samples = {}
     genome_single_samples = {}
     sample_groups = {}
+    sample_contamination = {}
     datajson["Params"]["DESeq2"]["group_pairs"] = {}
     for group_pair in group_pairs:
         datajson["Params"]["DESeq2"]["group_pairs"].setdefault(group_pair.organism, {})
@@ -656,6 +657,12 @@ def runRNAseq(
     Organisms = set()
     for sample_id, sample_info in samples_info_dict.items():
         Organisms.add(sample_info.organism)
+        sample_contamination.setdefault(sample_id,{}).setdefault("host", sample_info.organism)
+        if sample_info.contaminated_organism:
+            sample_contamination.setdefault(sample_id,{}).setdefault("contaminant", sample_info.contaminated_organism)
+        else:
+            sample_contamination.setdefault(sample_id,{}).setdefault("contaminant", sample_info.organism)
+        outfiles.append(f"{outdir}/variation/germline_snv_indel_RNAseq/{sample_info.organism}/{sample_id}/{sample_id}.filtered.vcf.gz")
         if sample_info.layout == "PE":
             genome_paired_samples.setdefault(sample_info.organism, []).append(sample_id)
             outfiles.append(f"{outdir}/transcripts/{sample_info.organism}/raw/{sample_id}/{sample_id}_TE_chimeric_transcripts.txt")
@@ -666,6 +673,7 @@ def runRNAseq(
             outfiles.append(f"{outdir}/fusion/{sample_info.organism}/{sample_id}/{sample_id}_passed_fusions.tsv")
         else:
             logger.error(f"Unknown layout type for sample {sample_id}: {sample_info.layout}")
+    datajson["Params"]["XenofilteR"]["sample_contamination"] = sample_contamination
     datajson["genome"]["default"] = ""
     datajson["Params"]["report"]["genome"] = ""
     for organism in Organisms:

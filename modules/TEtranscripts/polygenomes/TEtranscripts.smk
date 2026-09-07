@@ -4,7 +4,7 @@ logdir = config.get("logdir", "log")
 indir= config.get("indir", "output/raw_fastq")
 logdir_combine = config.get("logdir_combine", "log/combine")
 ROOT_DIR = config.get("ROOT_DIR", "./")
-genome_samples = config.get("genome_samples", [])
+genome_samples = config.get("genome_samples", {})
 
 def get_input_for_TEcount(wildcards):
     logger.info(f"[get_input_for_TEcount] called with wildcards: {wildcards}")

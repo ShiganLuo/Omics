@@ -252,7 +252,8 @@ class MetadataUtils:
             fastq_r2_col:str = "fastq_2",
             organism_col:str = "organism",
             workflow_col:str = "workflow",
-            group_col:str = "group"
+            group_col:str = "group",
+            contaminated_organism_col:str = "contaminated_organism"
             ) -> None:
         """Prepare FASTQ metadata from a dataframe with explicit file paths.
 
@@ -296,10 +297,12 @@ class MetadataUtils:
             self.samples_dict[sample_id].design = df_sample[design_col].values[0] if design_col in df_sample.columns else ""
             try:
                 self.samples_dict[sample_id].organism = resolve_genome(df_sample[organism_col].values[0]) if organism_col in df_sample.columns else "UNKNOWN"
+                self.samples_dict[sample_id].contaminated_organism = resolve_genome(df_sample[contaminated_organism_col].values[0]) if contaminated_organism_col in df_sample.columns else None
             except ValueError as e:
                 logger.error(f"Failed to resolve genome for organism '{df_sample[organism_col].values[0]}' in sample '{sample_id}': {e}")
                 # some pipeline may not rely on organism, so we can set it to UNKNOWN and continue
                 self.samples_dict[sample_id].organism = "UNKNOWN"
+                self.samples_dict[sample_id].contaminated_organism = None
             self.samples_dict[sample_id].workflow = df_sample[workflow_col].values[0] if workflow_col in df_sample.columns else None
             if group_col in df_sample.columns:
                 self.samples_dict[sample_id].group = df_sample[group_col].values[0]

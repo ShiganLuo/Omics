@@ -209,6 +209,8 @@ def load_te_sample_summary(analysis_dir: str) -> pd.DataFrame:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
     df["chimeric_ratio"] = df["chimeric_tx"] / df["total_tx"].replace(0, pd.NA)
+    if "sample" in df.columns:
+        df = df.drop_duplicates(subset=["sample"], keep="first").reset_index(drop=True)
     return df
 
 

@@ -60,6 +60,7 @@ rule gatk_index:
                 f.write(" ".join(cmd1) + "\n")
                 f.write(" ".join(cmd2) + "\n")
                 f.write(" ".join(cmd3) + "\n")
+                f.write(f'echo "gatk_index for genome {wildcards.genome} successfully completed!"\n')
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path, "a") as f:

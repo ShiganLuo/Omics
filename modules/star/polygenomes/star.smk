@@ -69,7 +69,9 @@ rule star_index:
 
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
+                f.write("set -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
+                f.write("echo 'STAR index generation completed successfully.'\n")
             shell(f"bash {script} >> {log_path} 2>&1")
 
             rule_logger.info(f"star_index for genome {wildcards.genome} completed successfully")
@@ -197,63 +199,76 @@ rule star_align:
     container:
         sif("../star.yaml")
     run:
-        current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
-        script = f"{outdir}/{wildcards.genome}/{wildcards.sample_id}/star_align.{current_time}.sh"
-        cmd1 = [
-            params.STAR, "--runThreadN", str(threads),
-            "--genomeDir", input.genome_index,
-            "--twopassMode", "Basic",
-            "--readFilesCommand", "zcat",
-            "--genomeLoad", params.genomeLoad,
-            "--limitBAMsortRAM", str(params.limitBAMsortRAM),
-            "--alignEndsType", params.alignEndsType,
-            "--winAnchorMultimapNmax", str(params.winAnchorMultimapNmax),
-            "--outFilterMismatchNmax", str(params.outFilterMismatchNmax),
-            "--outFilterMultimapNmax", str(params.outFilterMultimapNmax),
-            "--outFilterMismatchNoverLmax", str(params.outFilterMismatchNoverLmax),
-            "--outFilterMatchNminOverLread", str(params.outFilterMatchNminOverLread),
-            "--alignSJoverhangMin", str(params.alignSJoverhangMin),
-            "--alignSJDBoverhangMin", str(params.alignSJDBoverhangMin),
-            "--chimSegmentMin", str(params.chimSegmentMin),
-            "--chimOutType", params.chimOutType,
-            "--chimJunctionOverhangMin", str(params.chimJunctionOverhangMin),
-            "--chimScoreMin", str(params.chimScoreMin),
-            "--chimScoreDropMax", str(params.chimScoreDropMax),
-            "--chimScoreJunctionNonGTAG", str(params.chimScoreJunctionNonGTAG),
-            "--chimScoreSeparation", str(params.chimScoreSeparation),
-            "--alignSJstitchMismatchNmax", params.alignSJstitchMismatchNmax,
-            "--chimSegmentReadGapMax", str(params.chimSegmentReadGapMax),
-            "--outSAMtype", "BAM SortedByCoordinate",
-            "--outSAMattributes", str(params.outSAMattributes),
-            "--outMultimapperOrder", str(params.outMultimapperOrder),
-            "--runRNGseed", str(params.runRNGseed),
-            "--outSAMmultNmax", str(params.outSAMmultNmax),
-            "--soloType", str(params.soloType),
-            "--soloCBwhitelist", str(params.soloCBwhitelist),
-            "--soloBarcodeReadLength", str(params.soloBarcodeReadLength),
-            "--limitSjdbInsertNsj", str(params.limitSjdbInsertNsj),
-            "--outFileNamePrefix", params.outPrefix
-        ]
-        if params.outTmpDir:
-            shutil.rmtree(params.outTmpDir, ignore_errors=True)
-            cmd1.extend(["--outTmpDir", params.outTmpDir])
-        if params.outReadsUnmapped:
-            cmd1.extend(["--outReadsUnmapped", params.outReadsUnmapped])
-        if params.outSAMstrandField:
-            cmd1.extend(["--outSAMstrandField", params.outSAMstrandField])
-        read_files = params.input_params.split()
-        cmd1.extend(["--readFilesIn"] + read_files)
-        cmd2 = ["mv", f"{params.outPrefix}Aligned.sortedByCoord.out.bam", output.bam]
-        cmd3 = [params.SAMTOOLS, "index", "-@", str(threads), output.bam]
-        with open(script, 'w') as f:
-            f.write(" ".join(cmd1) + "\n")
-            f.write(" ".join(cmd2) + "\n")
-            f.write(" ".join(cmd3) + "\n")
-            # Touch unmapped output files if STAR didn't produce them
-            f.write(f"test -f {output.unmapped_r1} || touch {output.unmapped_r1}\n")
-            f.write(f"test -f {output.unmapped_r2} || touch {output.unmapped_r2}\n")
-        shell(f"bash {script} > {log} 2>&1")
-
+        log_path = str(log)
+        try:
+            with open(log_path, 'w').close()
+            current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
+            rule_logger = setup_logger(logger_name="star_align", log_file=log_path)
+            sample_outdir = os.path.dirname(str(output.bam))
+            script = f"{sample_outdir}/star_align.{current_time}.sh"
+            rule_logger.info(f"Start STAR alignment for sample {wildcards.sample_id} genome {wildcards.genome} at {current_time}")
+            cmd1 = [
+                params.STAR, "--runThreadN", str(threads),
+                "--genomeDir", input.genome_index,
+                "--twopassMode", "Basic",
+                "--readFilesCommand", "zcat",
+                "--genomeLoad", params.genomeLoad,
+                "--limitBAMsortRAM", str(params.limitBAMsortRAM),
+                "--alignEndsType", params.alignEndsType,
+                "--winAnchorMultimapNmax", str(params.winAnchorMultimapNmax),
+                "--outFilterMismatchNmax", str(params.outFilterMismatchNmax),
+                "--outFilterMultimapNmax", str(params.outFilterMultimapNmax),
+                "--outFilterMismatchNoverLmax", str(params.outFilterMismatchNoverLmax),
+                "--outFilterMatchNminOverLread", str(params.outFilterMatchNminOverLread),
+                "--alignSJoverhangMin", str(params.alignSJoverhangMin),
+                "--alignSJDBoverhangMin", str(params.alignSJDBoverhangMin),
+                "--chimSegmentMin", str(params.chimSegmentMin),
+                "--chimOutType", params.chimOutType,
+                "--chimJunctionOverhangMin", str(params.chimJunctionOverhangMin),
+                "--chimScoreMin", str(params.chimScoreMin),
+                "--chimScoreDropMax", str(params.chimScoreDropMax),
+                "--chimScoreJunctionNonGTAG", str(params.chimScoreJunctionNonGTAG),
+                "--chimScoreSeparation", str(params.chimScoreSeparation),
+                "--alignSJstitchMismatchNmax", params.alignSJstitchMismatchNmax,
+                "--chimSegmentReadGapMax", str(params.chimSegmentReadGapMax),
+                "--outSAMtype", "BAM SortedByCoordinate",
+                "--outSAMattributes", str(params.outSAMattributes),
+                "--outMultimapperOrder", str(params.outMultimapperOrder),
+                "--runRNGseed", str(params.runRNGseed),
+                "--outSAMmultNmax", str(params.outSAMmultNmax),
+                "--soloType", str(params.soloType),
+                "--soloCBwhitelist", str(params.soloCBwhitelist),
+                "--soloBarcodeReadLength", str(params.soloBarcodeReadLength),
+                "--limitSjdbInsertNsj", str(params.limitSjdbInsertNsj),
+                "--outFileNamePrefix", params.outPrefix
+            ]
+            if params.outTmpDir:
+                shutil.rmtree(params.outTmpDir, ignore_errors=True)
+                cmd1.extend(["--outTmpDir", params.outTmpDir])
+            if params.outReadsUnmapped:
+                cmd1.extend(["--outReadsUnmapped", params.outReadsUnmapped])
+            if params.outSAMstrandField:
+                cmd1.extend(["--outSAMstrandField", params.outSAMstrandField])
+            read_files = params.input_params.split()
+            cmd1.extend(["--readFilesIn"] + read_files)
+            cmd2 = ["mv", f"{params.outPrefix}Aligned.sortedByCoord.out.bam", output.bam]
+            cmd3 = [params.SAMTOOLS, "index", "-@", str(threads), output.bam]
+            with open(script, 'w') as f:
+                f.write("#!/bin/bash\n")
+                f.write("set -euo pipefail\n")
+                f.write(" ".join(cmd1) + "\n")
+                f.write(" ".join(cmd2) + "\n")
+                f.write(" ".join(cmd3) + "\n")
+                # Touch unmapped output files if STAR didn't produce them
+                f.write(f"test -f {output.unmapped_r1} || touch {output.unmapped_r1}\n")
+                f.write(f"test -f {output.unmapped_r2} || touch {output.unmapped_r2}\n")
+                f.write(f"echo 'STAR alignment for {wildcards.sample_id} completed successfully.'\n")
+            shell(f"bash {script} > {log} 2>&1")
+        except Exception as e:
+            with open(log_path, "a") as f:
+                f.write(f"Error during STAR alignment for sample {wildcards.sample_id}: {str(e)}\n")
+            logger.error(f"Error during STAR alignment for sample {wildcards.sample_id}: {str(e)}")
+            raise e
 rule star_result:
     input:
         star_align = outdir + "/{genome}/{sample_id}/{sample_id}.bam"

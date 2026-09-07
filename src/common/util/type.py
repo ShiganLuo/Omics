@@ -24,6 +24,7 @@ class MERIPDesign(str, Enum):
 class SampleInfo:
     sample_id: str = ""
     organism: str = "UNKNOWN"
+    contaminated_organism: Optional[str] = None
     layout: Layout = Layout.UNKNOWN
     fastq_1: Optional[Path] = None # Path to the first FASTQ file (for SE or PE)
     fastq_2: Optional[Path] = None # Path to the second FASTQ file (for PE)

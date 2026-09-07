@@ -151,11 +151,13 @@ rule TEChimericPlot:
             group_tsv = outdir + f"/{wildcards.genome}/TE_chimeric/sample_groups.tsv"
             if genome_samples.get(wildcards.genome) is None or len(genome_samples[wildcards.genome]) == 0:
                 raise ValueError(f"No samples found for genome {wildcards.genome} in genome_samples configuration.")
+            genome_sample_set = set(genome_samples.get(wildcards.genome, []))
             with open(group_tsv, 'w') as f:
                 f.write("sample\tgroup\n")
                 for group, sample_list in sample_groups.items():
-                    for sample_id in genome_samples.get(wildcards.genome, []):
-                        f.write(f"{sample_id}\t{group}\n")
+                    for sample_id in sample_list:
+                        if sample_id in genome_sample_set:
+                            f.write(f"{sample_id}\t{group}\n")
             
             cmd = [
                 "python", params.TEChimericPlot,

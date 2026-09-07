@@ -1,5 +1,9 @@
-from typing import Dict
-
+from typing import Dict,Union
+try:
+    from LogUtil import setup_logger
+except ImportError:
+    from .LogUtil import setup_logger
+logger = setup_logger(__name__)
 # ── Species alias → canonical genome version ──────────────────────────────
 # Maps any common species alias (case-insensitive) to the unique genome
 # version identifier used in config["genome"] keys.
@@ -25,11 +29,14 @@ SPECIES_TO_GENOME: Dict[str, str] = {
     "rhemac10": "Mmul_10",
 }
 
-def resolve_genome(organism: str) -> str:
+def resolve_genome(organism: Union[str, float,None]) -> str:
     """Resolve a species alias to its canonical genome version.
 
     Raises ValueError if the alias is not recognised.
     """
+    if isinstance(organism, float) or not organism:
+        logger.info(f"Invalid organism: {organism}, return None")
+        return None
     key = organism.strip().lower()
     if key in SPECIES_TO_GENOME.keys():
         return SPECIES_TO_GENOME[key]

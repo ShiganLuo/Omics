@@ -146,6 +146,7 @@ else:
     raise ValueError(f"Unsupported aligner_TEtranscripts: {aligner_TEtranscripts}")
 
 
+### gene and TE expression quantification using TEtranscripts
 TEtranscripts_config = {
         "indir": star_config_for_TEtranscripts["outdir"] if aligner_TEtranscripts == 'star' else hisat2_config_for_TEtranscripts["outdir"],
         "outdir":  f"{outdir}/counts",
@@ -167,6 +168,7 @@ module TEtranscripts:
 logger.info(f"TEtranscripts_config: {TEtranscripts_config}")
 use rule * from TEtranscripts as RNAseq_*
 
+### differential expression analysis using DESeq2
 DESeq2_config = {
         "indir": TEtranscripts_config["outdir"],
         "outdir":  f"{outdir}/diff_expression",
@@ -185,7 +187,7 @@ module DESeq2:
 logger.info(f"DESeq2_config: {DESeq2_config}")
 use rule DESeq2_TEcount from DESeq2 as RNAseq_DESeq2_TEcount
 
-logger.info("Function analysis enabled (GO/KEGG + GSEA)")
+### functional enrichment analysis using function module
 function_config = {
     "ROOT_DIR": ROOT_DIR,
     "env": config.get("env", {}),
@@ -205,6 +207,7 @@ logger.info(f"function_config: {function_config}")
 use rule function_go_kegg from function as RNAseq_function_go_kegg
 use rule function_gsea from function as RNAseq_function_gsea
 
+### transcript assembly using StringTie
 
 hisat2_config_for_StringTie = {
     "indir": trimmed_fastq_dir,
@@ -253,7 +256,7 @@ use rule * from StringTie as RNAseq_*
 logger.info(f"StringTie_config: {StringTie_config}")
 
 
-
+### fusion analysis using STAR-Fusion and Arriba
 rmrRNA_config = {
     "indir": trimmed_fastq_dir,
     "outdir":  f"{outdir}/genome",
@@ -383,6 +386,71 @@ module arriba:
     config: arriba_config
 use rule * from arriba as RNAseq_fusion_*
 logger.info(f"arriba_config: {arriba_config}")
+
+
+### RNA SNP calling using GATK
+XenofilteR_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "env": config.get("env", {}),
+    "indir": star_config_for_TEtranscripts["outdir"] if aligner_TEtranscripts == 'star' else hisat2_config_for_TEtranscripts["outdir"],
+    "outdir":  f"{outdir}/common/8_xenofilter_bam",
+    "logdir": os.path.join(logdir,"sample"),
+    "Params": {
+        "XenofilteR": {
+            "MM": config.get('Params',{}).get('XenofilteR', {}).get('MM') or 8
+        }
+    },
+    "Procedure": {
+        "XenofilteR": config.get('Procedure',{}).get('XenofilteR') or 'XenofilteR'
+    }
+}
+module XenofilteR:
+    snakefile: "../modules/XenofilteR/XenofilteR.smk"
+    config: XenofilteR_config
+use rule * from XenofilteR as RNAseq_XenofilteR_*
+logger.info(f"XenofilteR_config: {XenofilteR_config}")
+
+
+gatk_prepare_SNP_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "env": config.get("env", {}),
+    "indir": XenofilteR_config["outdir"],
+    "outdir":  f"{outdir}/common/8_markdup_deContaimation_bam",
+    "logdir": os.path.join(logdir,"sample"),
+    "logdir_combine": os.path.join(logdir,"group"),
+    "Procedure": {
+        "gatk": config.get("Procedure", {}).get("gatk"),
+        "samtools": config.get("Procedure", {}).get("samtools")
+    },
+    "genome": config.get('genome',{})
+}
+
+module gatk_prepare_SNP:
+    snakefile: "../modules/gatk/polygenomes/gatk_prepare.smk"
+    config: gatk_prepare_SNP_config
+use rule * from gatk_prepare_SNP as RNAseq_SNP_*
+logger.info(f"gatk_prepare_SNP_config: {gatk_prepare_SNP_config}")
+
+gatk_RNAseq_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "env": config.get("env", {}),
+    "indir": gatk_prepare_SNP_config['outdir'],
+    "outdir":  f"{outdir}/variation/germline_snv_indel_RNAseq",
+    "logdir": os.path.join(logdir,"sample"),
+    "logdir_combine": os.path.join(logdir,"group"),
+    "Procedure": {
+        "gatk": config.get("Procedure", {}).get("gatk"),
+        "samtools": config.get("Procedure", {}).get("samtools")
+    },
+    "genome": config.get('genome',{})
+}
+module gatk_RNAseq:
+    snakefile: "../modules/gatk/polygenomes/gatk_RNAseq/gatk_RNAseq.smk"
+    config: gatk_RNAseq_config
+use rule * from gatk_RNAseq as RNAseq_SNP_*
+logger.info(f"gatk_RNAseq_config: {gatk_RNAseq_config}")
+
+### report generation using RNAseq_report module
 
 RNAseq_report_config = {
     "ROOT_DIR": ROOT_DIR,

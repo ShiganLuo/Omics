@@ -44,6 +44,8 @@
         "references": {
             "GRCm39": {
                 "fasta": "/data/pub/zhousha/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
+                "fai_index": null,
+                "dict_index": null,
                 "gtf": "/data/pub/zhousha/Database/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf",
                 "geneIDAnno": "/data/pub/zhousha/Database/Reference/mouse/GENCODE/GRCm39/geneIDAnnotation.csv",
                 "gene_map": "/data/pub/zhousha/Database/Reference/mouse/GENCODE/GRCm39/gene_map.pkl",
@@ -56,6 +58,8 @@
             },
             "GRCh38": {
                 "fasta": "/data/pub/zhousha/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa",
+                "fai_index": null,
+                "dict_index": null,
                 "gtf": "/data/pub/zhousha/Database/Reference/human/GENCODE/GRCh38/gencode.v49.primary_assembly.basic.annotation.gtf",
                 "geneIDAnno": "/data/pub/zhousha/Database/Reference/human/GENCODE/GRCh38/geneIDAnnotation.csv",
                 "gene_map": "/data/pub/zhousha/Database/Reference/human/GENCODE/GRCh38/gene_map.pkl",
@@ -166,6 +170,14 @@
         },
         "StringTie": {
             "sample_groups": {}
+        },
+        "XenofilteR": {
+            "sample_contamination": {
+                "sample1": {
+                    "host": "GRCm39",
+                    "contaminant": "GRCh38"
+                }
+            }
         }
     }
 }

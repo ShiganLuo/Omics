@@ -18,6 +18,7 @@ def get_input_for_XenofilteR(wildcards):
         "contaminant_bam": contaminant_bam,
         "host_bam": host_bam
     }
+    logger.info(f"[get_input_for_XenofilteR] returning input dictionary: {in_dict}")
     return in_dict
 
 rule XenofilteR:

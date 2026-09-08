@@ -179,7 +179,7 @@ rule star_align:
     run:
         log_path = str(log)
         try:
-            with open(log_path, 'w').close()
+            open(log_path, 'w').close()
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
             rule_logger = setup_logger(logger_name="star_align", log_file=log_path)
             script = f"{outdir}/{wildcards.sample_id}/star_align.{current_time}.sh"
@@ -240,7 +240,7 @@ rule star_align:
                 f.write(f"test -f {output.unmapped_r1} || touch {output.unmapped_r1}\n")
                 f.write(f"test -f {output.unmapped_r2} || touch {output.unmapped_r2}\n")
                 f.write(f"echo 'STAR alignment for {wildcards.sample_id} completed successfully.'\n")
-            shell(f"bash {script} > {log} 2>&1")
+            shell(f"bash {script} > {log_path} 2>&1")
         except Exception as e:
             with open(log_path, "a") as f:
                 f.write(f"Error during STAR alignment for sample {wildcards.sample_id}: {str(e)}\n")

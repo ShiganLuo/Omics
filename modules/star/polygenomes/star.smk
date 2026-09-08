@@ -21,6 +21,7 @@ def get_input_for_star_index(wildcards):
         logger.error(f"Fasta file for genome {wildcards.genome} not found in config")
         raise ValueError(f"Fasta file for genome {wildcards.genome} not found in config")
     return fasta
+
 rule star_index:
     input:
         fasta = get_input_for_star_index,
@@ -38,7 +39,7 @@ rule star_index:
         index_dir = lambda wildcards: outdir + f"/index/{wildcards.genome}",
         sjdbOverhang = config.get('Params',{}).get('star', {}).get('index', {}).get('sjdbOverhang') or 100,
         gtf = lambda wildcards: config.get('genome', {}).get('references', {}).get(wildcards.genome, {}).get('gtf'),
-        outTmpDir = lambda wildcards: outdir + f"/tmp_star_{wildcards.genome}"
+        outTmpDir = lambda wildcards: outdir + f"/index/tmp_star_{wildcards.genome}"
     run:
         log_path = str(log)
         try:
@@ -83,7 +84,7 @@ rule star_index:
 
 def get_star_index(wildcards):
     logger.info(f"[get_star_index] called with wildcards: {wildcards}")
-    config_index_dir = config.get('Params', {}).get('genome', {}).get('references', {}).get(wildcards.genome, {}).get('index_dir') or None
+    config_index_dir = config.get('genome', {}).get('references', {}).get(wildcards.genome, {}).get('star_index_dir') or None
     if config_index_dir:
         logger.info(f"[get_star_index] using provided index_dir for genome {wildcards.genome}: {config_index_dir}")
         return config_index_dir
@@ -201,7 +202,7 @@ rule star_align:
     run:
         log_path = str(log)
         try:
-            with open(log_path, 'w').close()
+            open(log_path, 'w').close()
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
             rule_logger = setup_logger(logger_name="star_align", log_file=log_path)
             sample_outdir = os.path.dirname(str(output.bam))
@@ -263,7 +264,7 @@ rule star_align:
                 f.write(f"test -f {output.unmapped_r1} || touch {output.unmapped_r1}\n")
                 f.write(f"test -f {output.unmapped_r2} || touch {output.unmapped_r2}\n")
                 f.write(f"echo 'STAR alignment for {wildcards.sample_id} completed successfully.'\n")
-            shell(f"bash {script} > {log} 2>&1")
+            shell(f"bash {script} > {log_path} 2>&1")
         except Exception as e:
             with open(log_path, "a") as f:
                 f.write(f"Error during STAR alignment for sample {wildcards.sample_id}: {str(e)}\n")

@@ -44,7 +44,7 @@ rule bowtie2_index:
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write(" ".join(cmd) + "\n")
-            shell("bash {script} > {log} 2>&1")
+            shell(f"bash {script} > {log} 2>&1")
         except Exception as e:
             with open(log_path,"a") as f:
                 f.write(f"Error occurred during bowtie2 index, error: {e}\n")

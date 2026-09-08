@@ -27,7 +27,8 @@
         "hisat2": "/data/pub/zhousha/Database/env/hisat2/hisat2.sif",
         "star": "/data/pub/zhousha/Database/env/star/star.sif",
         "trim-galore": "/data/pub/zhousha/Database/env/trim-galore/trim-galore.sif",
-        "trimmomatic": "/data/pub/zhousha/Database/env/trimmomatic/trimmomatic.sif"
+        "trimmomatic": "/data/pub/zhousha/Database/env/trimmomatic/trimmomatic.sif",
+        "XenofilteR": "/data/pub/zhousha/Database/env/XenofilteR/XenofilteR.sif"
     },
     "Procedure": {
         "TEcount": null,

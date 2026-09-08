@@ -25,7 +25,6 @@ rule XenofilteR:
     input:
         unpack(get_input_for_XenofilteR)
     output:
-        csvIn = outdir + "/{genome}/{sample_id}/{sample_id}.csv",
         outBam = temp(outdir + "/{genome}/{sample_id}/{sample_id}.bam"),
         outBai = temp(outdir + "/{genome}/{sample_id}/{sample_id}.bam.bai"),
     log:
@@ -73,6 +72,9 @@ rule XenofilteR:
             cmd5 = [
                 "ln", "-s", input.host_bam, output.outBam
             ]
+            cmd6 = [
+                "ln", "-s", input.host_bam + ".bai", output.outBai
+            ]
             host_genome = config.get('Params', {}).get('XenofilteR', {}).get('sample_contamination', {}).get(wildcards.sample_id, {}).get('host')
             contaminant_genome = config.get('Params', {}).get('XenofilteR', {}).get('sample_contamination', {}).get(wildcards.sample_id, {}).get('contaminant')
             with open(script, "w") as f:
@@ -81,8 +83,7 @@ rule XenofilteR:
                 if input.contaminant_bam == input.host_bam:
                     rule_logger.info(f"Host genome and pollution source genome are the same for sample {wildcards.sample_id}. Skipping XenofilteR filtering.")
                     f.write(" ".join(cmd5) + "\n")
-                    f.write(f"touch {output.csvIn}\n")
-                    f.write(f"ln -s {input.host_bam}.bai {output.outBai}\n")
+                    f.write(" ".join(cmd6) + "\n")
                 else:
                     rule_logger.info(f"Running XenofilteR for sample {wildcards.sample_id} with host genome {host_genome} and pollution source genome {contaminant_genome}.")
                     f.write(" ".join(cmd1) + "\n")

@@ -54,7 +54,7 @@ rule XenofilteR:
             os.makedirs(sample_outdir, exist_ok=True)
             script = os.path.join(sample_outdir, f"XenofilteR_{current_time}.sh")
             cmd1 = [
-                "echo", f"{input.contaminant_bam},{input.host_bam}", ">", output.csvIn
+                "echo", f"{input.host_bam},{input.contaminant_bam}", ">", output.csvIn
             ]
             cmd2 = [
                 params.Rscript, params.script,

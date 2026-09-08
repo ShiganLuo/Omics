@@ -13,7 +13,7 @@ def get_input_for_SplitNCigarReads(wildcards):
     fai_index = config.get('genome', {}).get('references',{}).get(wildcards.genome,{}).get('fai_index')
     if not dict_index or not os.path.exists(dict_index) or not fai_index or not os.path.exists(fai_index):
         dict_index = indir + f"/index/{wildcards.genome}/{wildcards.genome}.dict"
-        fai_index = indir + f"/index/{wildcards.genome}/{wildcards.genome}.fai"        
+        fai_index = indir + f"/index/{wildcards.genome}/{wildcards.genome}.fa.fai"        
     in_dict = {
         "bam": bam,
         "fasta": fasta,

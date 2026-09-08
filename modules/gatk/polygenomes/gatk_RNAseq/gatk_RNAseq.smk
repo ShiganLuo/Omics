@@ -12,6 +12,10 @@ def get_input_for_SplitNCigarReads(wildcards):
     dict_index = config.get('genome', {}).get('references',{}).get(wildcards.genome,{}).get('dict_index')
     fai_index = config.get('genome', {}).get('references',{}).get(wildcards.genome,{}).get('fai_index')
     if not dict_index or not os.path.exists(dict_index) or not fai_index or not os.path.exists(fai_index):
+        fasta_link = indir + f"/index/{wildcards.genome}/{wildcards.genome}.fa"
+        if not os.path.exists(fasta):
+            os.symblink(fasta, fasta_link)
+        fasta = fasta_link
         dict_index = indir + f"/index/{wildcards.genome}/{wildcards.genome}.dict"
         fai_index = indir + f"/index/{wildcards.genome}/{wildcards.genome}.fa.fai"        
     in_dict = {
@@ -47,10 +51,7 @@ rule SplitNCigarReads:
             sample_outdir = os.path.dirname(str(output.bam))
             script = os.path.join(sample_outdir, f"SplitNCigarReads_{current_time}.sh")
             fasta = input.fasta
-            if not input.dict_index or not os.path.exists(input.dict_index) or not input.fai_index or not os.path.exists(input.fai_index):
-                fasta = indir + f"/index/{wildcards.genome}/{wildcards.genome}.fa"
-                os.makedirs(os.path.dirname(fasta), exist_ok=True)
-                os.symlink(input.fasta, fasta)
+
             cmd = [
                 params.gatk, "SplitNCigarReads",
                 "--java-options", params.javaOptions,
@@ -72,11 +73,29 @@ rule SplitNCigarReads:
             logger.error(f"Error occurred during SplitNCigarReads for sample {wildcards.sample_id} genome {wildcards.genome}: {e}")
             raise e
 
-
+def get_input_for_VarientCalling(wildcards):
+    logger.info(f"[get_input_for_VarientCalling] called with wildcards: {wildcards}")
+    bam = outdir + f"/{wildcards.genome}/{wildcards.sample_id}/{wildcards.sample_id}.split.bam"
+    fasta = config.get('genome', {}).get('references',{}).get(wildcards.genome,{}).get('fasta')
+    if not fasta or not os.path.exists(fasta):
+        raise ValueError(f"Fasta file for genome is not specified or does not exist: {fasta}")
+    fai_index = config.get('genome', {}).get('references',{}).get(wildcards.genome,{}).get('fai_index')
+    if not fai_index or not os.path.exists(fai_index):
+        fai_index = indir + f"/index/{wildcards.genome}/{wildcards.genome}.fa.fai"
+        fasta_link = indir + f"/index/{wildcards.genome}/{wildcards.genome}.fa"
+        if not os.path.exists(fasta):
+            os.symblink(fasta, fasta_link)
+        fasta = fasta_link
+    in_dict = {
+        "bam": bam,
+        "fasta": fasta,
+        "fai_index": fai_index
+    }
+    return in_dict
 
 rule VarientCalling:
     input:
-        bam = outdir + "/{genome}/{sample_id}/{sample_id}.split.bam"
+        unpack(get_input_for_VarientCalling)
     output:
         vcf = outdir + "/{genome}/{sample_id}/{sample_id}.raw.vcf.gz"
     log:
@@ -88,8 +107,6 @@ rule VarientCalling:
         javaOptions = config.get("Params", {}).get("gatk", {}).get("javaOptions") or "-Xmx30g",
         tmp_dir = config.get("Params", {}).get("gatk", {}).get("tmp-dir") or None,
         gatk = config.get("Procedure", {}).get("gatk") or "gatk",
-        fasta = lambda wildcards: config.get('genome', {}).get('references',{}).get(wildcards.genome,{}).get('fasta'),
-        fai_index = lambda wildcards: config.get('genome', {}).get('references',{}).get(wildcards.genome,{}).get('fai_index')
     threads: 8
     run:
         log_path = str(log)
@@ -100,13 +117,10 @@ rule VarientCalling:
             rule_logger.info(f"Start VarientCalling for sample {wildcards.sample_id} genome {wildcards.genome} at {current_time}")
             sample_outdir = os.path.dirname(str(output.vcf))
             script = os.path.join(sample_outdir, f"VarientCalling_{current_time}.sh")
-            fasta = params.fasta
-            if not params.fai_index or not os.path.exists(params.fai_index):
-                fasta = indir + f"/index/{wildcards.genome}/{wildcards.genome}.fa" # 依赖SplitNCigarReads真实执行
             cmd = [
                 params.gatk, "HaplotypeCaller",
                 "--java-options", params.javaOptions,
-                "-R", fasta,
+                "-R", input.fasta,
                 "-I", input.bam,
                 "-O", output.vcf,
                 "--dont-use-soft-clipped-bases",
@@ -125,10 +139,29 @@ rule VarientCalling:
                 f.write(f"Error during VarientCalling execution: {str(e)}\n")
             logger.error(f"Error occurred during VarientCalling for sample {wildcards.sample_id} genome {wildcards.genome}: {e}")
             raise e
+def get_input_for_vcf_filter(wildcards):
+    logger.info(f"[get_input_for_vcf_filter] called with wildcards: {wildcards}")
+    vcf = outdir + f"/{wildcards.genome}/{wildcards.sample_id}/{wildcards.sample_id}.raw.vcf.gz"
+    fasta = config.get('genome', {}).get('references',{}).get(wildcards.genome,{}).get('fasta')
+    if not fasta or not os.path.exists(fasta):
+        raise ValueError(f"Fasta file for genome is not specified or does not exist: {fasta}")
+    fai_index = config.get('genome', {}).get('references',{}).get(wildcards.genome,{}).get('fai_index')
+    if not fai_index or not os.path.exists(fai_index):
+        fai_index = indir + f"/index/{wildcards.genome}/{wildcards.genome}.fa.fai"
+        fasta_link = indir + f"/index/{wildcards.genome}/{wildcards.genome}.fa"
+        if not os.path.exists(fasta):
+            os.symblink(fasta, fasta_link)
+        fasta = fasta_link
+    in_dict = {
+        "vcf": vcf,
+        "fasta": fasta,
+        "fai_index": fai_index
+    }
+    return in_dict
 
 rule vcf_filter:
     input:
-        vcf = outdir + "/{genome}/{sample_id}/{sample_id}.raw.vcf.gz"
+        unpack(get_input_for_vcf_filter)
     output:
         vcf = outdir + "/{genome}/{sample_id}/{sample_id}.filtered.vcf.gz"
     log:
@@ -143,8 +176,6 @@ rule vcf_filter:
         vcf = lambda wildcards: outdir + f"/{wildcards.genome}/SNP/vcf/filter/{wildcards.sample_id}.vcf",
         gatk = config.get("Procedure", {}).get("gatk") or "gatk",
         bgzip = config.get("Procedure", {}).get("bgzip") or "bgzip",
-        fasta = lambda wildcards: config.get('genome', {}).get('references',{}).get(wildcards.genome,{}).get('fasta'),
-        fai_index = lambda wildcards: config.get('genome', {}).get('references',{}).get(wildcards.genome,{}).get('fai_index')
     run:
         log_path = str(log)
         try:
@@ -154,13 +185,10 @@ rule vcf_filter:
             rule_logger.info(f"Start vcf_filter for sample {wildcards.sample_id} genome {wildcards.genome} at {current_time}")
             sample_outdir = os.path.dirname(str(output.vcf))
             script = os.path.join(sample_outdir, f"vcf_filter_{current_time}.sh")
-            fasta = params.fasta
-            if not params.fai_index or not os.path.exists(params.fai_index):
-                fasta = indir + f"/index/{wildcards.genome}/{wildcards.genome}.fa" # 依赖SplitNCigarReads真实执行
             cmd1 = [
                 params.gatk, "VariantFiltration",
                 "--java-options", params.javaOptions,
-                "-R", fasta,
+                "-R", input.fasta,
                 "-V", input.vcf,
                 "--window", "35",
                 "--cluster", "3",

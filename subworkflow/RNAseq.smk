@@ -20,7 +20,16 @@ for genome, samples in genome_single_samples.items():
         genome_samples[genome].extend(samples)
     else:
         genome_samples[genome] = samples
-
+# for mixed samples,XenofilteR
+genome_paired_samples_mixed = {}
+genome_single_samples_mixed = {}
+paired_samples = {sample for samples in genome_paired_samples.values() for sample in samples}
+singles_samples = {sample for samples in genome_single_samples.values() for sample in samples}
+for genome,_ in genome_paired_samples.items():
+    genome_paired_samples_mixed[genome] = paired_samples
+for genome,_ in genome_single_samples.items():
+    genome_single_samples_mixed[genome] = singles_samples
+    
 rule all:
     input:
         outfiles
@@ -388,17 +397,37 @@ use rule * from arriba as RNAseq_fusion_*
 logger.info(f"arriba_config: {arriba_config}")
 
 
+star_config_for_SNP = {
+        "indir": trimmed_fastq_dir,
+        "outdir":  f"{outdir}/common/8_raw_bam",
+        "logdir": os.path.join(logdir,"sample"),
+        "logdir_index": os.path.join(logdir,"group"),
+        "isGenomeSubdir": False,
+        "genome_paired_samples": genome_paired_samples_mixed,
+        "genome_single_samples": genome_single_samples_mixed,
+        "env": config.get("env", {}),
+        "Procedure": {
+            "star": config.get('Procedure',{}).get('star')
+        },
+        "Params": config.get('Params'),
+        "genome": config.get('genome',{})
+    }
+module star_for_SNP:
+    snakefile: "../modules/star/polygenomes/star.smk"
+    config: star_config_for_SNP
+logger.info(f"star_config: {star_config_for_SNP}")
+use rule star_align from star_for_SNP as RNAseq_star_align_for_SNP
+use rule star_index from star_for_SNP as RNAseq_star_index_for_SNP
+
 ### RNA SNP calling using GATK
 XenofilteR_config = {
     "ROOT_DIR": ROOT_DIR,
     "env": config.get("env", {}),
-    "indir": star_config_for_TEtranscripts["outdir"] if aligner_TEtranscripts == 'star' else hisat2_config_for_TEtranscripts["outdir"],
-    "outdir":  f"{outdir}/common/8_xenofilter_bam",
+    "indir": star_config_for_SNP["outdir"],
+    "outdir": f"{outdir}/common/9_xenofilteR_bam",
     "logdir": os.path.join(logdir,"sample"),
     "Params": {
-        "XenofilteR": {
-            "MM": config.get('Params',{}).get('XenofilteR', {}).get('MM') or 8
-        }
+        "XenofilteR": config.get('Params',{}).get('XenofilteR', {})
     },
     "Procedure": {
         "XenofilteR": config.get('Procedure',{}).get('XenofilteR') or 'XenofilteR'
@@ -407,7 +436,7 @@ XenofilteR_config = {
 module XenofilteR:
     snakefile: "../modules/XenofilteR/XenofilteR.smk"
     config: XenofilteR_config
-use rule * from XenofilteR as RNAseq_XenofilteR_*
+use rule * from XenofilteR as RNAseq_*
 logger.info(f"XenofilteR_config: {XenofilteR_config}")
 
 
@@ -415,7 +444,7 @@ gatk_prepare_SNP_config = {
     "ROOT_DIR": ROOT_DIR,
     "env": config.get("env", {}),
     "indir": XenofilteR_config["outdir"],
-    "outdir":  f"{outdir}/common/8_markdup_deContaimation_bam",
+    "outdir":  f"{outdir}/common/10_markdup_deContaimation_bam",
     "logdir": os.path.join(logdir,"sample"),
     "logdir_combine": os.path.join(logdir,"group"),
     "Procedure": {

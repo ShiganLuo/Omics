@@ -292,6 +292,7 @@ bowtie2_rRNA_config = {
     "indir": trimmed_fastq_dir,
     "outdir":  f"{outdir}/common/5_rRNA_fastq",
     "logdir": os.path.join(logdir,"sample"),
+    "logdir_combine": os.path.join(logdir, "group"),
     "genome_paired_samples": genome_paired_samples,
     "genome_single_samples": genome_single_samples,
     "Procedure": {

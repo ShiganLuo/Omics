@@ -2,6 +2,7 @@ include: "../common/common.smk"
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 indir= config.get("indir", "input")
+logdir_combine = config.get("logdir_combine", "log/combine")
 paired_samples = config.get("paired_samples", [])
 single_samples = config.get("single_samples", [])
 
@@ -21,7 +22,7 @@ rule bowtie2_index:
             ext = BOWTIE2_IDX_SUFFIX
         )
     log:
-        logdir + "/../group/bowtie2/bowtie2_index.log"
+        logdir_combine + "/bowtie2/bowtie2_index.log"
     threads: 12
     params:
         bowtie2_build = config.get('Procedure',{}).get('bowtie2-build') or 'bowtie2-build',

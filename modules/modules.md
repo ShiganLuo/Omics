@@ -206,7 +206,9 @@ rule <module>_result:
 3. **`rule_logger.info(...)`** — 开始/结束标记，便于定位问题
 4. **`current_time` 时间戳** — 脚本名加时间戳避免并发写冲突
 5. **`cmd` 列表构建** — 参数逐项添加，条件参数用 `if` 追加
-6. **`" ".join(cmd)`** — 不用 `shlex.join()`
+6. **`" ".join(cmd)` vs `" ".join(shlex.quote(str(x)) for x in cmd)`** — 不用 `shlex.join()`（需 Python 3.8+，scTE/mimseq 等模块 conda env Python < 3.8 不兼容）
+   - **`" ".join(cmd)`** — 参数不含空格/特殊字符时使用（工具路径、flag、数字、标准路径）
+   - **`" ".join(shlex.quote(str(x)) for x in cmd)`** — 参数可能含空格或特殊字符时使用（用户输入、含空格路径、动态文件名），兼容 Python 3.3+
 7. **`#!/bin/bash` + `set -euo pipefail`** — 脚本内任何命令失败立即退出，不会执行后续的 echo
 8. **`echo` 完成标记** — 脚本末尾写 `echo "...completed successfully"`，执行成功时日志中有明确结尾
 9. **`shell(f"bash {script} >> {log_path} 2>&1")`** — 直接路径，不加 `shlex.quote` 包装

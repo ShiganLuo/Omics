@@ -40,7 +40,7 @@ rule SplitNCigarReads:
         sif("../../gatk.yaml")
     threads: 8 
     log:
-        logdir + "/{genome}/{sample_id}/SplitNCigarReads.log"
+        logdir + "/{sample_id}/{genome}/SplitNCigarReads.log"
     run:
         log_path = str(log)
         try:
@@ -99,7 +99,7 @@ rule VarientCalling:
     output:
         vcf = outdir + "/{genome}/{sample_id}/{sample_id}.raw.vcf.gz"
     log:
-        logdir + "/{genome}/{sample_id}/VarientCalling.log"
+        logdir + "/{sample_id}/{genome}/VarientCalling.log"
     conda: "../../gatk.yaml"
     container:
         sif("../../gatk.yaml")
@@ -165,7 +165,7 @@ rule vcf_filter:
     output:
         vcf = outdir + "/{genome}/{sample_id}/{sample_id}.filtered.vcf.gz"
     log:
-        logdir + "/{genome}/{sample_id}/vcf_filter.log"
+        logdir + "/{sample_id}/{genome}/vcf_filter.log"
     conda: "../../gatk.yaml"
     container:
         sif("../../gatk.yaml")
@@ -173,7 +173,6 @@ rule vcf_filter:
     params:
         javaOptions = config.get("Params", {}).get("gatk", {}).get("javaOptions") or "-Xmx30g",
         tmp_dir = config.get("Params", {}).get("gatk", {}).get("tmp-dir") or None,
-        vcf = lambda wildcards: outdir + f"/{wildcards.genome}/SNP/vcf/filter/{wildcards.sample_id}.vcf",
         gatk = config.get("Procedure", {}).get("gatk") or "gatk",
         bgzip = config.get("Procedure", {}).get("bgzip") or "bgzip",
     run:
@@ -206,7 +205,7 @@ rule vcf_filter:
             with open(script, "w") as f:                
                 f.write("#!/bin/bash\n")
                 f.write("set -euo pipefail\n")
-                f.write(" ".join(cmd1) + "\n")
+                f.write(" ".join(shlex.quote(str(x)) for x in cmd1) + "\n")
                 f.write(" ".join(cmd2) + "\n")
                 f.write(f"echo 'vcf_filter completed successfully for sample {wildcards.sample_id} genome {wildcards.genome}'\n")
             shell(f"bash {script} >> {log_path} 2>&1")

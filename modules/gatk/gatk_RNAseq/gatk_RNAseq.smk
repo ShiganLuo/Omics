@@ -168,7 +168,7 @@ rule vcf_filter:
                 "--filter", "FS > 30.0",
                 "--filter-name", "QD",
                 "--filter", "QD < 2.0",
-                "-O", output.vcf
+                "-O", str(output.vcf).replace(".vcf.gz", ".vcf")
             ]
             if params.tmp_dir:
                 cmd1.extend(["--tmp-dir", params.tmp_dir])
@@ -176,6 +176,7 @@ rule vcf_filter:
                 f.write("#!/bin/bash\n")
                 f.write("set -euo pipefail\n")
                 f.write(" ".join(cmd1) + "\n")
+                f.write(f"{params.bgzip} {str(output.vcf).replace('.vcf.gz', '.vcf')}\n")
                 f.write(f"echo 'vcf_filter completed successfully for sample {wildcards.sample_id}'\n")
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:

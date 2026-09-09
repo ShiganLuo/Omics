@@ -199,11 +199,14 @@ rule vcf_filter:
             ]
             if params.tmp_dir:
                 cmd1.extend(["--tmp-dir", params.tmp_dir])
+            cmd2 = [
+                params.bgzip, str(output.vcf).replace(".vcf.gz", ".vcf")
+            ]
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write("set -euo pipefail\n")
                 f.write(" ".join(shlex.quote(str(x)) for x in cmd1) + "\n")
-                f.write(f"{params.bgzip} {shlex.quote(str(output.vcf).replace('.vcf.gz', '.vcf'))}\n")
+                f.write(" ".join(cmd2) + "\n")
                 f.write(f"echo 'vcf_filter completed successfully for sample {wildcards.sample_id} genome {wildcards.genome}'\n")
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:

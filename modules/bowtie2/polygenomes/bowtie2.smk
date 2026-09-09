@@ -1,8 +1,8 @@
 include: "../../common/common.smk"
-
+indir= config.get("indir", "input")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
-indir= config.get("indir", "input")
+logdir_combine = config.get("logdir_combine", "log/group")
 genome_paired_samples = config.get("genome_paired_samples") or {}
 genome_single_samples = config.get("genome_single_samples") or {}
 
@@ -172,7 +172,7 @@ rule bowtie2_align_single:
         metrics = outdir + "/{genome}/{sample_id}/{sample_id}_bowtie2_metrics.txt",
         unmapped = outdir + "/{genome}/{sample_id}/{sample_id}_unmapped.single.fq.gz"
     log:
-        logdir + "/{genome}/{sample_id}/bowtie2_align.log"
+        logdir + "/{sample_id}/{genome}/bowtie2_align.log"
     threads: 8
     params:
         bowtie2 = config.get('Procedure',{}).get('bowtie2') or 'bowtie2',

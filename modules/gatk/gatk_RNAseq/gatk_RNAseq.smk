@@ -170,16 +170,12 @@ rule vcf_filter:
                 "--filter", "QD < 2.0",
                 "-O", output.vcf
             ]
-            cmd2 = [
-                params.bgzip, output.vcf
-            ]
             if params.tmp_dir:
                 cmd1.extend(["--tmp-dir", params.tmp_dir])
             with open(script, "w") as f:                
                 f.write("#!/bin/bash\n")
                 f.write("set -euo pipefail\n")
                 f.write(" ".join(cmd1) + "\n")
-                f.write(" ".join(cmd2) + "\n")
                 f.write(f"echo 'vcf_filter completed successfully for sample {wildcards.sample_id}'\n")
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:

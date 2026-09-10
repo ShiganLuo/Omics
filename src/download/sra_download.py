@@ -491,26 +491,42 @@ def sra_download_single_srr(
 # 自旋重试逻辑
 # ============================================================
 
-def spin_until_success(try_func, desc, logger, sleep_base, sleep_max):
+def spin_until_success(try_func, desc, logger, sleep_base, sleep_max, max_retries=10) -> bool:
     attempt = 1
     sleep_time = sleep_base
 
-    while True:
-        logger.info(f"[Attempt {attempt}] {desc}")
+    while attempt <= max_retries:
+        logger.info(f"[Attempt {attempt}/{max_retries}] {desc}")
 
         if try_func():
             logger.info(f"[SUCCESS] {desc}")
-            return
+            return True
 
         logger.warning(f"[FAIL] {desc}，{sleep_time}s 后重试")
         time.sleep(sleep_time)
         sleep_time = min(sleep_time * 2, sleep_max)
         attempt += 1
 
+    logger.error(f"[GIVE UP] {desc}，已重试 {max_retries} 次")
+    return False
+
 
 # ============================================================
 # 单 SRR 下载（主调度）
 # ============================================================
+
+def _fastq_exists(dest: Path, srr_id: str, library_type: str) -> bool:
+    """检查目标 fastq 文件是否已存在且 gzip 完整"""
+    if library_type == "PAIRED":
+        f1 = dest / f"{srr_id}_1.fastq.gz"
+        f2 = dest / f"{srr_id}_2.fastq.gz"
+        if f1.exists() and f2.exists() and gzip_test(f1) and gzip_test(f2):
+            return True
+    fq = dest / f"{srr_id}.fastq.gz"
+    if fq.exists() and gzip_test(fq):
+        return True
+    return False
+
 
 def download_spin(
     srr_id: str,
@@ -520,11 +536,17 @@ def download_spin(
     logger: logging.Logger,
     sleep_base: int,
     sleep_max: int,
+    max_retries: int = 10,
     key: Optional[Path] = None,
     globus_tc: Optional["globus_sdk.TransferClient"] = None,
     globus_src_ep: Optional[str] = None,
     globus_dest_ep: Optional[str] = None,
-):
+) -> bool:
+    # 缓存：已存在且完整则跳过
+    if _fastq_exists(dest, srr_id, library_type):
+        logger.info(f"[SKIP] {srr_id} {library_type} 已存在，跳过")
+        return True
+
     logger.info(f"{srr_id} {library_type} 开始下载 (method={method})")
 
     if method == "ascp":
@@ -540,14 +562,14 @@ def download_spin(
     else:  # sra
         try_func = lambda: sra_download_single_srr(srr_id, library_type, dest, logger)
 
-    spin_until_success(try_func, f"{srr_id} {library_type}", logger, sleep_base, sleep_max)
+    return spin_until_success(try_func, f"{srr_id} {library_type}", logger, sleep_base, sleep_max, max_retries)
 
 
 # ============================================================
 # SRR 解析
 # ============================================================
 
-def load_tasks(args) -> List[Tuple[str, str]]:
+def load_tasks(args, logger: Optional[logging.Logger] = None) -> List[Tuple[str, str]]:
     tasks: List[Tuple[str, str]] = []
 
     if args.meta:
@@ -561,20 +583,26 @@ def load_tasks(args) -> List[Tuple[str, str]]:
         srr_col = args.srr_col_name
         lib_col = args.lib_col_name
 
-        missing = {c for c in (srr_col, lib_col) if c not in df.columns}
-        if missing:
+        if srr_col not in df.columns:
             raise ValueError(
-                f"Missing required columns in meta file: {missing}. "
+                f"Missing required column '{srr_col}' in meta file. "
                 f"Available columns: {list(df.columns)}"
             )
 
-        df = df[[srr_col, lib_col]].dropna()
-        df[lib_col] = df[lib_col].str.upper()
-        invalid = df[~df[lib_col].isin({"PAIRED", "SINGLE"})]
-        if not invalid.empty:
-            raise ValueError(f"Invalid library layout values found:\n{invalid}")
+        # 只要求 srr 非空，library_layout 缺失时用 default_layout 兜底
+        df = df.dropna(subset=[srr_col])
 
-        tasks = list(df.itertuples(index=False, name=None))
+        if lib_col in df.columns:
+            df[lib_col] = df[lib_col].fillna(args.default_layout).str.upper()
+            invalid = df[~df[lib_col].isin({"PAIRED", "SINGLE"})]
+            if not invalid.empty:
+                raise ValueError(f"Invalid library layout values found:\n{invalid}")
+        else:
+            if logger:
+                logger.warning(f"列 '{lib_col}' 不存在，全部使用 {args.default_layout}")
+            df[lib_col] = args.default_layout
+
+        tasks = list(df[[srr_col, lib_col]].itertuples(index=False, name=None))
     elif args.srr_list:
         for line in args.srr_list.open():
             if line.strip():
@@ -633,6 +661,9 @@ def parse_args():
     p.add_argument("--jobs", type=int, default=1)
     p.add_argument("--sleep-base", type=int, default=10)
     p.add_argument("--sleep-max", type=int, default=300)
+    p.add_argument("--max-retries", type=int, default=10, help="单个 SRR 最大重试次数 (默认: 10)")
+    p.add_argument("--default-layout", default="SINGLE", choices=["PAIRED", "SINGLE"],
+                   help="library_layout 缺失时的默认值 (默认: SINGLE)")
 
     args = p.parse_args()
 
@@ -653,7 +684,7 @@ def main():
     args = parse_args()
     logger = setup_logger(args.log)
 
-    tasks = load_tasks(args)
+    tasks = load_tasks(args, logger)
     logger.info(f"共 {len(tasks)} 个 SRR，method={args.method}，jobs={args.jobs}")
 
     # 若使用 Globus 则提前初始化客户端避免重复登录
@@ -661,25 +692,51 @@ def main():
     if args.method == "globus":
         globus_tc = get_globus_client(args.globus_client_id, args.globus_token)
 
-    download_fn = lambda srr, lib: download_spin(
-        srr, lib, args.outdir, args.method,
-        logger, args.sleep_base, args.sleep_max,
-        key=args.key,
-        globus_tc=globus_tc,
-        globus_src_ep=args.globus_source_ep,
-        globus_dest_ep=args.globus_dest_ep
-    )
+    def download_fn(srr, lib):
+        return download_spin(
+            srr, lib, args.outdir, args.method,
+            logger, args.sleep_base, args.sleep_max,
+            max_retries=args.max_retries,
+            key=args.key,
+            globus_tc=globus_tc,
+            globus_src_ep=args.globus_source_ep,
+            globus_dest_ep=args.globus_dest_ep
+        )
+
+    failed: List[str] = []
     if args.jobs == 1:
         for srr, lib in tasks:
-            download_fn(srr, lib)
+            if not download_fn(srr, lib):
+                failed.append(srr)
     else:
         with ThreadPoolExecutor(max_workers=args.jobs) as ex:
-            futures = [
-                ex.submit(download_fn, srr, lib)
+            future_map = {
+                ex.submit(download_fn, srr, lib): srr
                 for srr, lib in tasks
-            ]
-            for _ in as_completed(futures):
-                pass
+            }
+            for future in as_completed(future_map):
+                srr = future_map[future]
+                try:
+                    if not future.result():
+                        failed.append(srr)
+                except Exception as e:
+                    logger.error(f"[ERROR] {srr}: {e}")
+                    failed.append(srr)
+
+    if failed:
+        logger.error(f"===== {len(failed)}/{len(tasks)} 个 SRR 下载失败 =====")
+        for srr in sorted(failed):
+            logger.error(f"  FAILED: {srr}")
+        # 写入失败列表文件
+        failed_file = args.outdir / "download_failed.txt"
+        args.outdir.mkdir(parents=True, exist_ok=True)
+        with open(failed_file, "w") as f:
+            for srr in sorted(failed):
+                f.write(f"{srr}\n")
+        logger.error(f"失败列表已写入: {failed_file}")
+        sys.exit(1)
+    else:
+        logger.info(f"===== 全部 {len(tasks)} 个 SRR 下载成功 =====")
 
 
 if __name__ == "__main__":

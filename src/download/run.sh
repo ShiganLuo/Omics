@@ -61,13 +61,16 @@ function cngb_download(){
 ip=aspera01@download.cncb.ac.cn:gsa6/CRA024880
 outdir=/data/pub/zhousha/20260207_Exome/data/tRNA/fastq
 # cngb_download ${ip} ${outdir}
-# python ${ASCP_downloader} \
-#     --srr-list /home/luosg/Data/genomeStability/data/Fiberseq/sra.lst \
-#     --outdir /home/luosg/Data/genomeStability/data/Fiberseq/fastq \
-#     -m sra \
-#     --log /home/luosg/Data/genomeStability/log/Fiberseq_download.log \
-#     --jobs 3
-python ${GSE_parser} \
-    -i /data/pub/zhousha/Totipotent20251031/data/EED/GSE.txt \
-    -m gse_pipeline \
-    -o /data/pub/zhousha/Totipotent20251031/data/EED
+
+python ${ASCP_downloader} \
+    --meta /home/luosg/Data/genomeStability/data/EED_public/meta_download.tsv \
+    --srr-col-name srr \
+    --lib-col-name library_layout \
+    --outdir /home/luosg/Data/genomeStability/data/EED_public/fastq \
+    -m aria2c \
+    --log /home/luosg/Data/genomeStability/log/EED_download.log \
+    --jobs 3
+# python ${GSE_parser} \
+#     -i /data/pub/zhousha/Totipotent20251031/data/EED/GSE.txt \
+#     -m gse_pipeline \
+#     -o /data/pub/zhousha/Totipotent20251031/data/EED

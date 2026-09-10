@@ -7,7 +7,10 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # awk -F'\t' '{print $1}' ${meta} | while read -r GSM;do
 #     GetGSMHtml ${GSM} ${html_outdir} ${html_log}
 # done
-GSM_parser=${SCRIPT_DIR}/GSM_metadata.py
+GEO_soft=${SCRIPT_DIR}/GEO_soft.py # 完整解析GPL,GSE,GSM
+GSE_parser=${SCRIPT_DIR}/GSE_metadata.py # 解析GSE，GSM
+GSM_parser=${SCRIPT_DIR}/GSM_metadata.py # 解析GSM, SRA
+
 ASCP_downloader=${SCRIPT_DIR}/sra_download.py
 meta_input_generator=${SCRIPT_DIR}/generate_meta_input.py
 ENA_ascp_key=${SCRIPT_DIR}/assests/asperaweb_id_dsa.openssh
@@ -58,9 +61,13 @@ function cngb_download(){
 ip=aspera01@download.cncb.ac.cn:gsa6/CRA024880
 outdir=/data/pub/zhousha/20260207_Exome/data/tRNA/fastq
 # cngb_download ${ip} ${outdir}
-python ${ASCP_downloader} \
-    --srr-list /home/luosg/Data/genomeStability/data/Fiberseq/sra.lst \
-    --outdir /home/luosg/Data/genomeStability/data/Fiberseq/fastq \
-    -m sra \
-    --log /home/luosg/Data/genomeStability/log/Fiberseq_download.log \
-    --jobs 3
+# python ${ASCP_downloader} \
+#     --srr-list /home/luosg/Data/genomeStability/data/Fiberseq/sra.lst \
+#     --outdir /home/luosg/Data/genomeStability/data/Fiberseq/fastq \
+#     -m sra \
+#     --log /home/luosg/Data/genomeStability/log/Fiberseq_download.log \
+#     --jobs 3
+python ${GSE_parser} \
+    -i /data/pub/zhousha/Totipotent20251031/data/EED/GSE.txt \
+    -m gse_pipeline \
+    -o /data/pub/zhousha/Totipotent20251031/data/EED

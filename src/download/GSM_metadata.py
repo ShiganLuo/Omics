@@ -114,11 +114,11 @@ def fetch_entrez_geo_xml(
     api_key: Optional[str] = None,
 ) -> bool:
     """
-    Fetch a GEO record via NCBI Entrez efetch and save as XML.
+    Fetch a GEO record via NCBI Entrez esummary and save as XML.
 
     Uses the GDS database (GEO DataSets) to retrieve structured metadata
-    for GSM/GSE/GPL accessions. This bypasses the web page scraping that
-    is unreliable for GEO pages.
+    for GSM/GSE/GPL accessions via esummary (efetch returns plain text
+    for GDS, not proper XML).
 
     Additionally uses elink to discover related SRA (SRX) and BioSample (SAMN)
     accession IDs, and saves them as sibling elements in the XML.
@@ -165,22 +165,55 @@ def fetch_entrez_geo_xml(
                 logging.warning(f"[ENTREZ] No GDS record found for {acc}")
                 return False
 
-            # Fetch the full record as XML
-            uid = id_list[0]
-            handle = Entrez.efetch(db="gds", id=uid, rettype="xml")
-            xml_text = handle.read()
-            handle.close()
+            # Find the UID matching this accession (not just the first one)
+            target_uid = None
+            sum_handle = Entrez.esummary(db="gds", id=",".join(id_list))
+            summaries = Entrez.read(sum_handle)
+            sum_handle.close()
 
-            # Try to decode bytes
-            if isinstance(xml_text, bytes):
-                xml_text = xml_text.decode("utf-8")
+            for summary in summaries:
+                if summary.get("Accession", "") == acc:
+                    target_uid = summary.get("Id")
+                    break
+
+            if not target_uid:
+                # Fallback: use first UID
+                target_uid = id_list[0]
+
+            # Fetch full summary for the target UID
+            sum_handle = Entrez.esummary(db="gds", id=target_uid)
+            summaries = Entrez.read(sum_handle)
+            sum_handle.close()
+
+            if not summaries:
+                logging.warning(f"[ENTREZ] No summary for {acc} UID={target_uid}")
+                return False
+
+            summary = summaries[0]
+
+            # Build XML from esummary data
+            gse_value = summary.get("GSE", "")
+            if gse_value and not str(gse_value).startswith("GSE"):
+                gse_value = f"GSE{gse_value}"
+
+            xml_parts = [
+                '<?xml version="1.0" encoding="UTF-8"?>',
+                "<GeoMeta>",
+                f'  <Accession>{_xml_escape(summary.get("Accession", ""))}</Accession>',
+                f'  <Title>{_xml_escape(summary.get("title", ""))}</Title>',
+                f'  <Organism>{_xml_escape(summary.get("taxon", ""))}</Organism>',
+                f'  <GPL>{_xml_escape(summary.get("GPL", ""))}</GPL>',
+                f'  <GSE>{_xml_escape(str(gse_value))}</GSE>',
+                f'  <EntryType>{_xml_escape(summary.get("entryType", ""))}</EntryType>',
+                f'  <PDAT>{_xml_escape(summary.get("PDAT", ""))}</PDAT>',
+                f'  <n_samples>{_xml_escape(_extract_int(summary.get("n_samples", 0)))}</n_samples>',
+            ]
 
             # Enrich with elink: find related SRA and BioSample records
-            related_xml_parts = []
-            for target_db, link_name in [("sra", "gds_sra"), ("biosample", "gds_biosample")]:
+            for target_db in ["sra", "biosample"]:
                 try:
                     elink_handle = Entrez.elink(
-                        dbfrom="gds", db=target_db, id=uid
+                        dbfrom="gds", db=target_db, id=target_uid
                     )
                     elink_results = Entrez.read(elink_handle)
                     elink_handle.close()
@@ -192,37 +225,30 @@ def fetch_entrez_geo_xml(
                                 link_ids = [lnk["Id"] for lnk in links]
                                 if link_ids:
                                     # Fetch accessions for these UIDs
-                                    sum_handle = Entrez.esummary(
+                                    esum_handle = Entrez.esummary(
                                         db=target_db, id=",".join(link_ids)
                                     )
-                                    summaries = Entrez.read(sum_handle)
-                                    sum_handle.close()
+                                    esum_results = Entrez.read(esum_handle)
+                                    esum_handle.close()
 
-                                    for summary in summaries:
-                                        accession = summary.get(
+                                    for esum in esum_results:
+                                        accession = esum.get(
                                             "Accession",
-                                            summary.get("ExpAccession",
-                                            summary.get("SRAAccession",
-                                            summary.get("Title", "")))
+                                            esum.get("ExpAccession",
+                                            esum.get("SRAAccession",
+                                            esum.get("Title", "")))
                                         )
                                         if accession:
-                                            related_xml_parts.append(
-                                                f'<RelatedRecord db="{target_db}" uid="{summary.get("Id", "")}">'
-                                                f'{accession}</RelatedRecord>'
+                                            xml_parts.append(
+                                                f'  <RelatedRecord db="{target_db}" '
+                                                f'uid="{esum.get("Id", "")}">'
+                                                f"{_xml_escape(accession)}</RelatedRecord>"
                                             )
                 except Exception as e:
                     logging.debug(f"[ENTREZ ELINK] {acc} -> {target_db}: {e}")
 
-            # Insert related records into the XML
-            if related_xml_parts:
-                related_block = "\n".join(related_xml_parts)
-                # Insert before closing tag if present, else append
-                if "</GeoMeta>" in xml_text:
-                    xml_text = xml_text.replace("</GeoMeta>", f"{related_block}\n</GeoMeta>")
-                elif "</GDS>" in xml_text:
-                    xml_text = xml_text.replace("</GDS>", f"{related_block}\n</GDS>")
-                else:
-                    xml_text = xml_text.rstrip() + "\n" + related_block + "\n"
+            xml_parts.append("</GeoMeta>")
+            xml_text = "\n".join(xml_parts) + "\n"
 
             with open(out_xml, "w", encoding="utf-8") as f:
                 f.write(xml_text)
@@ -236,6 +262,25 @@ def fetch_entrez_geo_xml(
 
     logging.error(f"[ENTREZ FAIL] {acc}")
     return False
+
+
+def _xml_escape(text: str) -> str:
+    """Escape special XML characters."""
+    return (
+        text.replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace('"', "&quot;")
+        .replace("'", "&apos;")
+    )
+
+
+def _extract_int(value) -> str:
+    """Extract integer value from BioPython IntegerElement or plain int."""
+    if hasattr(value, "attributes"):
+        # BioPython IntegerElement
+        return str(int(value))
+    return str(value)
 
 
 # ============================================================
@@ -654,12 +699,13 @@ def extract_relations_txt(
 
     return relation_ids
 
-def extract_gsm_batch(html_dir: str, outfile: str | None = None) -> pd.DataFrame:
+def extract_gsm_batch(html_dir: str, outfile: str | None = None, gsm_order: List[str] | None = None) -> pd.DataFrame:
     """
     Batch-extract GSM metadata from GEO files (XML via Entrez or HTML).
 
     For each GSM file (XML or HTML):
-    - Extract 'Characteristics' key-value pairs
+    - Extract 'Characteristics' key-value pairs (HTML only)
+    - Extract Title, Organism from Entrez XML
     - Extract associated GSE IDs
     - Extract SRA and BioSample IDs
     - Merge them into a single row
@@ -670,6 +716,8 @@ def extract_gsm_batch(html_dir: str, outfile: str | None = None) -> pd.DataFrame
         Directory containing GSM files (.xml from Entrez or .html).
     outfile : str | None, optional
         Output CSV file path. If None, no file will be written.
+    gsm_order : List[str] | None, optional
+        If provided, output rows will be ordered according to this list.
 
     Returns
     -------
@@ -701,6 +749,9 @@ def extract_gsm_batch(html_dir: str, outfile: str | None = None) -> pd.DataFrame
         # Characteristics (only available from HTML or SOFT-format XML)
         if filepath.endswith(".html"):
             row.update(extract_feature(filepath, item="Characteristics"))
+        elif filepath.endswith(".xml"):
+            # Extract metadata from Entrez GeoMeta XML
+            row.update(_extract_geometa_fields(filepath))
 
         # GSE
         gse_ids = extract_gse_ids(filepath)
@@ -724,6 +775,15 @@ def extract_gsm_batch(html_dir: str, outfile: str | None = None) -> pd.DataFrame
 
     df = pd.DataFrame(rows)
 
+    # Reorder according to gsm_order if provided
+    if gsm_order and "GSM" in df.columns:
+        # Create a mapping of GSM to its position in gsm_order
+        order_map = {gsm: i for i, gsm in enumerate(gsm_order)}
+        # Add order column, use max order for GSM not in gsm_order
+        max_order = len(gsm_order)
+        df["_order"] = df["GSM"].map(order_map).fillna(max_order)
+        df = df.sort_values("_order").drop(columns=["_order"]).reset_index(drop=True)
+
     # Optional CSV export
     if outfile:
         sep = "\t" if outfile.endswith(".tsv") else ","
@@ -731,6 +791,46 @@ def extract_gsm_batch(html_dir: str, outfile: str | None = None) -> pd.DataFrame
         logging.info(f"[DONE] Extracted -> {outfile}")
 
     return df
+
+
+def _extract_geometa_fields(xml_path: str) -> Dict[str, str]:
+    """
+    Extract metadata fields from a GeoMeta XML file.
+
+    Parameters
+    ----------
+    xml_path : str
+        Path to the GeoMeta XML file.
+
+    Returns
+    -------
+    Dict[str, str]
+        Dictionary with extracted fields (Title, Organism, etc.).
+    """
+    fields: Dict[str, str] = {}
+    try:
+        tree = ET.parse(xml_path)
+        root = tree.getroot()
+
+        # Check if this is a GSM record
+        entry_type_elem = root.find("EntryType")
+        is_gsm = entry_type_elem is not None and entry_type_elem.text and entry_type_elem.text.strip() == "GSM"
+
+        for tag in ["Title", "Organism", "GPL", "EntryType", "PDAT"]:
+            elem = root.find(tag)
+            if elem is not None and elem.text:
+                fields[tag] = elem.text.strip()
+
+        # Only include n_samples for non-GSM records (GSE, GPL, etc.)
+        if not is_gsm:
+            elem = root.find("n_samples")
+            if elem is not None and elem.text:
+                fields["n_samples"] = elem.text.strip()
+
+    except ET.ParseError as e:
+        logging.warning(f"[XML PARSE] {xml_path}: {e}")
+
+    return fields
 
 
 

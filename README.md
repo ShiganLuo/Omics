@@ -7,7 +7,7 @@
 
 snakemake version: >= 9.16.3
 
-## 起因
+## pipeline 选型
 
 做这个项目的核心原因，是希望在便于理解的基础上包容更多真实分析场景里的复杂度，并且更好地掌控那些过去已经分析过的流程。
 
@@ -15,9 +15,9 @@ snakemake version: >= 9.16.3
 
 在选型过程中，也比较过主流的流程工具：
 
-- `Snakemake`：规则组织直观，Python 生态结合紧密，适合逐步抽象、持续演化，也更方便对已有分析流程进行细粒度改造和接管。
-- `Nextflow`：云原生和大规模调度能力强，社区生态成熟，但在当前场景下，对已有流程做细致接入和日常维护时，心智负担相对更高。
-- `Cromwell`：在 WDL 生态下标准化程度高，适合强调任务描述规范和平台化执行的场景，但对我这里这种需要频繁调整、快速迭代和兼容历史分析实现的工作方式来说，不够灵活。
+- `Snakemake`：规则组织直观，Python 生态结合紧密，适合逐步抽象、持续演化，也更方便对已有分析流程进行细粒度改造和接管。输出倒推输入，可以方便以定流程任意输出文件为终点
+- `Nextflow`：云原生和大规模调度能力强，社区生态成熟，但在当前场景下，对已有流程做细致接入和日常维护时，心智负担相对更高。输入决定输出，从原理是来看要实现以任意流程输出文件为重点代价很大。
+- `Cromwell`：在 WDL 生态下标准化程度高，适合强调任务描述规范和平台化执行的场景，但对我这里这种需要频繁调整、快速迭代和兼容历史分析实现的工作方式来说，不够灵活。同样输入决定输出，从原理是来看要实现以任意流程输出文件为重点代价很大，而且根据我在某司实习经验来看，确实是这样。
 
 综合比较之后，最终选择了 `Snakemake`。原因不是它在所有场景里都最好，而是它最适合这个项目当前的目标：在保持结构化和可维护性的同时，尽可能包容复杂度，并把过去分析过的流程逐步纳入一个自己能够真正掌控的体系里。
 
@@ -30,7 +30,6 @@ snakemake version: >= 9.16.3
 - `modules/`：可复用模块定义。
 - `example/`：示例配置和示例流程文件。
 
-sample_id不能包含.
 ## 支持的工作流
 
 `run.py` 通过 `-w/--workflow_name` 选择工作流：
@@ -301,11 +300,23 @@ python workflow/Omics/run.py \
 
 如果某个工作流没有对应的测试 meta 文件，`run.py` 会跳过该工作流并提示警告。
 
-## 运行特定步骤
+## 运行指南
+
+### 运行示例
+
+当前仓库中已有的示例脚本可以直接参考 `run.sh`。它对应的典型执行方式是：
+
+```bash
+bash workflow/RNA-SNP/run.sh
+```
+
+如果需要手动调用 Snakemake，也可以参考 `run.py` 最终拼接出来的命令形式。
+
+### 运行特定步骤
 
 `run.py` 提供 `--forcerun` 和 `--target-jobs` 参数，用于精确重跑特定规则。
 
-### `--forcerun`：强制重跑规则
+#### `--forcerun`：强制重跑规则
 
 接受规则名或文件路径，内部转换为 snakemake 的 `--until` + `--forcerun`。
 
@@ -335,7 +346,7 @@ python workflow/Omics/run.py \
 | `all` | `all`（特殊规则名，不变） |
 | `/path/to/file` | `/path/to/file`（文件路径，不加前缀） |
 
-### `--target-jobs`：按 wildcard 约束定位 job
+#### `--target-jobs`：按 wildcard 约束定位 job
 
 用于重跑特定 wildcard 组合的 job，格式为 `RULE:WILDCARD1=VALUE,...`。规则名自动加前缀。
 
@@ -357,7 +368,7 @@ python workflow/Omics/run.py \
 
 `--target-jobs` 需要指定完整的 wildcard 值。如果规则有多个 wildcard（如 `{sample_id}` 和 `{counter}`），必须全部指定。配合 `--forcerun` 使用，`--target-jobs` 负责筛选，`--forcerun` 负责强制重跑。
 
-### `--touch`：更新输出文件时间戳
+#### `--touch`：更新输出文件时间戳
 
 ```bash
 # 标记所有输出为最新（不实际运行）
@@ -368,7 +379,7 @@ python workflow/Omics/run.py \
 
 `--touch` 和 `--dry-run` 不能同时使用，同时指定时会输出警告并忽略 `--touch`。
 
-### 查看 DAG 和调试
+#### 查看 DAG 和调试
 
 ```bash
 # 查看将要执行的 job(配合 --dry-run)
@@ -390,7 +401,7 @@ snakemake -s workflow/Omics/subworkflow/RNAseq.smk \
   --dag | dot -Tpng > dag.png
 ```
 
-### 跳过指定规则
+#### 跳过指定规则
 
 如需跳过某个规则及其下游,可通过 `--snakemake-args` 透传 snakemake 的 `--omit-from`:
 
@@ -400,7 +411,7 @@ python workflow/Omics/run.py \
   --snakemake-args --omit-from RNAseq_generate_report
 ```
 
-## `run.py` 参数说明
+### `run.py` 参数说明
 
 - `-m, --meta`：元信息文件或 fastq 目录。
 - `-w, --workflow_name`：工作流名称，可选 `CoCulture`、`MERIP`、`RNAseq`、`ncRNAseq`、`CLIP`、`Mutation`、`PacVar`、`KARRseq`、`PeakCalling`、`QuantMS`、`tRNAseq`、`scRNAseq`、`Fiberseq`。
@@ -436,23 +447,32 @@ python workflow/Omics/run.py \
 - `--key=value`
 - 嵌套字段：`--Params.trim_galore.quality 10`
 
-## 输入约定
+## 修改指南
 
+### 约定
+
+#### 输入约定
+
+- 为了确保Wildcards正常生成，sample_id尽量不能包含`.`，避免被错误识别
 - 单端文件：通常识别为单个 `fq.gz` / `fastq.gz` 文件。
 - 双端文件：通常识别为成对的 `*_1.fq.gz`、`*_2.fq.gz`，或 `*_R1.fq.gz`、`*_R2.fq.gz`。
 - `trim_galore` 只是包装命令，实际运行时仍需要 `cutadapt`。
 - 如果样本物种名包含空格，配置文件内部会统一规范化，例如 `Mus musculus` -> `Mus_musculus`。
 
-## 输出约定
+#### 输出约定
 
 每次运行都会在 `output/<workflow_name>/` 下生成对应结果，同时写出 `raw.json` 和 `log/` 目录。
 
-对于 `CLIP` 流程，当前还会额外生成：
+### 一般修改流程
 
-- `bedtools/`：用于覆盖度和可视化的中间结果。
-- `track/igv_track_iclip.html`：可直接打开的 IGV 浏览页面。
-
-其中 `track` 模块会把 bigWig 和参考基因组资源整理成可在浏览器中访问的路径，因此如果在本机或服务器查看 IGV 页面，需要保证这些资源由 nginx 或其他静态服务正确暴露。
+- 如果后续新增 workflow，建议同步补充：
+  - `config/<workflow>.json`
+  - `config/<workflow>.schema.json`
+  - `subworkflow/<workflow>.smk`
+  - `modules`中的json,yaml,smk
+  - `node.py` 中的分发逻辑
+- 各软件传递参数的默认值均为软件或者适配流程的默认值
+- " ".join(cmd)。cmd不能包含None
 
 ## 当前流程特点
 
@@ -464,31 +484,13 @@ python workflow/Omics/run.py \
   - 物物种别名自动解析（`mouse` → `GRCm39`，`human` → `GRCh38`，`rhesus` → `Mmul_10`），见 `src/common/util/type.py` 的 `SPECIES_TO_GENOME`。
   - 所有涉及参考基因组的 module 均提供 `polygenomes/` 子模块，通过 `{genome}` wildcard 在同一 DAG 中处理多物种。
   - node.py 按 organism 分组注入 `genome_paired_samples` / `genome_single_samples`，DESeq2 group_pairs 按物种隔离，RNAseq_report 每物种独立生成一份 PPT。
+- AI自动化降维聚类注释单细胞数据
 
-## 运行示例
 
-当前仓库中已有的示例脚本可以直接参考 `run.sh`。它对应的典型执行方式是：
 
-```bash
-bash workflow/RNA-SNP/run.sh
-```
 
-如果需要手动调用 Snakemake，也可以参考 `run.py` 最终拼接出来的命令形式。
 
-## 备注
-
-- `modules/track/README.md` 说明了 IGV / UCSC track 的生成方式。
-- `subworkflow/README.md` 说明了各子流程的职责和输入输出。
-- 如果后续新增 workflow，建议同步补充：
-  - `config/<workflow>.json`
-  - `config/<workflow>.schema.json`
-  - `subworkflow/<workflow>.smk`
-  - `subworkflow/<workflow>.json`
-  - `subworkflow/<workflow>.yaml`
-  - `run.py` 中的分发逻辑
-- 各软件传递参数的默认值均为软件或者适配流程的默认值
-- " ".join(cmd)。cmd不能包含None
-## 待做
+## 计划
 
 - [x] 实际执行包装成shell，兼容HPC
 - [x] 完善meta设计

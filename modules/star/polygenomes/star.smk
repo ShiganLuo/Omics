@@ -48,9 +48,9 @@ rule star_index:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start star_index for genome {wildcards.genome} at {current_time}")
 
-            sample_outdir = os.path.dirname(str(output.index_file))
+            sample_outdir = str(output.index_file)
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(sample_outdir, f"star_index_{current_time}.sh")
+            script = os.path.join(sample_outdir, f"star_index_{wildcards.genome}_{current_time}.sh")
 
             cmd = [
                 params.STAR, "--runMode", "genomeGenerate",

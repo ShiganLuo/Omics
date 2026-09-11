@@ -129,6 +129,7 @@ elif aligner_TEtranscripts == 'star':
             "indir": trimmed_fastq_dir,
             "outdir":  f"{outdir}/common/3_raw_bam",
             "logdir": os.path.join(logdir,"sample"),
+            "logdir_index": os.path.join(logdir,"group"),
             "isGenomeSubdir": False,
             "genome_paired_samples": genome_paired_samples,
             "genome_single_samples": genome_single_samples,

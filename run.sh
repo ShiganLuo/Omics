@@ -21,8 +21,7 @@ python ${SCRIPT_DIR}/run.py \
     --Params.DESeq2.enabled false \
     --Params.function.GRCh38.enabled false \
     --Params.function.GRCm39.enabled false \
-    --Params.report.enabled false \
-    --dry-run
+    --Params.report.enabled false
 
 # python ${SCRIPT_DIR}/run.py \
 #     -m /home/luosg/Data/genomeStability/data/Srp54/meta_input.tsv \

@@ -18,6 +18,49 @@
 - **输入**：原始fastq，配置json
 - **输出**：标准bam、质控报告等
 
+igv模块准备:
+
+```json
+  "igv": {
+        "js": "/data/pub/zhousha/Reference/igv.min.js",
+        "id": "mm39",
+        "name": "Mouse (GRCm39/mm39)",
+        "publicPathMap": {
+            "/data/pub/zhousha/": "/data/",
+            "/data/pub/zhousha/Reference/": "/ref/"
+        },
+        "fastaURL": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
+        "indexURL": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa.fai",
+        "cytobandURL": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/mm39.cytoBand.txt",
+        "tracks": [
+            {
+                "name": "Gencode vM38 genes",
+                "format": "gtf",
+                "url": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/gencode.vM38.basic.gene_exon.sorted.gtf.gz",
+                "indexUrl": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/gencode.vM38.basic.gene_exon.sorted.gtf.gz.tbi"
+            },
+            {
+                "name": "Gencode rmsk repeats",
+                "format": "gtf",
+                "url": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.sorted.gtf.gz",
+                "indexUrl": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.sorted.gtf.gz.tbi"
+            }
+        ]
+    }
+```
+
+1. 注释轨道
+
+- 注释轨道需要自己建立索引，以防止浏览器全量加载注释卡死（F12观察返回码是否为200,200则是没有配置索引）
+```sh
+tabix -g gff [gft.gz]
+```
+- nginx需要确保sendfile是开启状态(on)
+
+2. publicPathMap
+
+为了让nginx能够获取流程生成html内的内容，特意配置了这个map，以生成相对路径让nginx能够读取
+
 待做：
 - [] 增加UMI提取方式字段
 
@@ -247,8 +290,158 @@ UMI提取依赖序列不被破坏，建议先提取UMI，再做trim比较安全
 - **用途**：标准化 Scanpy 单细胞 RNA-seq 分析。
 - **输入**：由 `tissue_samples` 按组织分组，每个样本的 h5ad 路径由 `indir + sample_id` 拼接。
 - **基础分析**：QC、线粒体比例过滤、归一化、log1p、高变基因、PCA、neighbors、UMAP、Leiden、marker 和差异表达。
+- **AI 自动注释**：LLM-assisted 细胞类型自动注释（详见下方）。
 - **高级分析**：可配置启用 DPT 拟时序、RNA velocity、LIANA 细胞通讯和 infercnvpy CNV。
 - **架构**：规则位于 `modules/scanpy/scanpy.smk`，本 subworkflow 只负责配置和编排。
+
+### aligner / counter 组合
+
+| aligner | counter | 说明 |
+| --- | --- | --- |
+| star | scTE | STARsolo 比对 + scTE TE 定量 |
+| cellranger | scTE | Cell Ranger 比对 + scTE TE 定量（推荐） |
+| cellranger | cellranger | Cell Ranger 比对 + Cell Ranger 基因定量 |
+
+不存在 `aligner: star, counter: star`，因为 Cell Ranger 本身就是对 STAR 的修改，且只接受 FASTQ 输入。
+选择了 `cellranger` + `scTE` 时，虽然 Cell Ranger 自身也会做基因定量，但 scTE 的 TE 定量是独立的。
+
+### AI 自动聚类注释
+
+聚类后的细胞类型注释是最依赖经验的环节。CellTypist 等工具只覆盖人和小鼠，非模式物种（恒河猴、猪等）只能靠人工逐个查 marker 文献。AI 注释的目标是在聚类完成后秒级给出有据可查的初始注释，把"从聚类到初步结果"的时间从几小时压缩到几分钟。
+
+#### 整体架构
+
+```
+聚类完成 (leiden)
+      │
+      ▼
+┌─────────────────────────────┐
+│  逐 cluster 注释循环         │
+│  ┌───────────────────────┐  │
+│  │ 1. 提取 cluster 统计   │  │
+│  │    - top 50 DEG       │  │
+│  │    - 细胞数/基因数/UMI │  │
+│  │    - MT%              │  │
+│  └──────────┬────────────┘  │
+│             ▼               │
+│  ┌───────────────────────┐  │
+│  │ 2. 构建结构化 prompt   │  │
+│  │    - 组织类型上下文    │  │
+│  │    - 质量标记规则      │  │
+│  │    - JSON 输出约束     │  │
+│  └──────────┬────────────┘  │
+│             ▼               │
+│  ┌───────────────────────┐  │
+│  │ 3. LLM 推断            │  │
+│  │    - OpenAI API 兼容   │  │
+│  │    - 或本地 Ollama     │  │
+│  │    - temperature=0.1   │  │
+│  │    - json_object 格式  │  │
+│  └──────────┬────────────┘  │
+│             ▼               │
+│  ┌───────────────────────┐  │
+│  │ 4. PubMed 文献验证     │  │
+│  │    - 为 key_markers    │  │
+│  │      检索 PMIDs        │  │
+│  │    - 限速 0.35s/req    │  │
+│  └──────────┬────────────┘  │
+│             ▼               │
+│  ┌───────────────────────┐  │
+│  │ 5. 程序化质量校验      │  │
+│  │    - 与 AI flag 交叉   │  │
+│  │    - 标记待过滤 cluster │  │
+│  └───────────────────────┘  │
+└─────────────────────────────┘
+      │
+      ▼
+  写入 adata.obs["cell_type"]
+  写入 adata.uns["annotation"]
+```
+
+#### Prompt 注入设计
+
+每个 cluster 的 prompt 包含两层信息：
+
+**第一层：统计上下文**——把 cluster 的数值特征直接注入 prompt，让 LLM 判断质量：
+
+```
+## Cluster 3
+- Cells: 1523
+- Mean genes/cell: 2100
+- Mean UMI/cell: 8500
+- MT%: 3.2%
+- Top 50 DEGs (ranked by Wilcoxon): COL1A1, COL3A1, DCN, LUM, ...
+```
+
+这些数字来自 `adata.obs` 的实时计算（`n_genes_by_counts`、`total_counts`、`pct_counts_mt`），不是配置里的静态值。
+
+**第二层：质量标记规则**——硬编码在 prompt 末尾，作为 LLM 的判断依据：
+
+| 规则 | 触发条件 | 输出 |
+| --- | --- | --- |
+| 未注释基因 | top DEG 以 ENSMMUG 开头 | `cell_type="Unannotated"`, `quality_flag="unannotated"` |
+| MT 污染 | top DEG 以 MT-/mt- 开头 | `quality_flag="low_quality"` |
+| 核糖体污染 | top DEG 为 RPS/RPL | `quality_flag="ribosomal"` |
+| TE 富集 | top DEG 为 Alu/ERVK/LINE/SINE/LTR | `cell_type="ERVK_high"`, `quality_flag="te_dominated"` |
+| 无法判断 | 以上都不匹配且无明确 marker | `cell_type="Unknown"`, `quality_flag="unknown"` |
+
+这些规则写进 prompt 而不是后处理，是因为 LLM 能结合基因名称和生物学意义做更灵活的判断（比如同时有少量 MT 基因和明确的上皮 marker 时，不会误判为低质量）。
+
+**输出格式约束**：`response_format={"type": "json_object"}` + prompt 末尾 "Output ONLY valid JSON"，强制 LLM 返回结构化结果，避免解析失败。
+
+#### 错误兜底机制
+
+**API 调用层**：`_call_openai()` 和 `_call_ollama()` 都包裹在 try/except 中。调用失败时返回空 dict `{}`，不会中断整个流程。后续代码通过 `annotation.get("cell_type", "Unknown")` 兜底，失败的 cluster 标记为 Unknown。
+
+**JSON 解析层**：依赖 `response_format={"type": "json_object"}`（OpenAI）和 `"format": "json"`（Ollama）确保返回合法 JSON。如果解析仍然失败，except 捕获后返回空 dict。
+
+**集群级兜底**：`_analyze_cluster_quality()` 在 AI 注释之后做程序化二次校验——独立计算 mean_genes、mean_counts、pct_mt，与 AI 返回的 `quality_flag` 交叉验证。即使 AI 漏标，程序化检查也能兜住。
+
+**PubMed 检索兜底**：`_search_pubmed()` 失败时返回空列表，不影响注释结果，只丢失文献引用。
+
+**逐 cluster 隔离**：每个 cluster 独立调用 LLM，单个 cluster 的 API 失败不会影响其他 cluster。cluster 之间有 `time.sleep(0.5)` 限速，避免触发 API 频率限制。
+
+#### 上下文维护
+
+注释结果写入两个位置：
+
+- `adata.obs["cell_type"]`：每个 cell 的细胞类型标签，用于下游可视化和差异分析
+- `adata.uns["annotation"]`：完整的注释详情，结构为：
+
+```python
+{
+    "3": {
+        "cell_type": "Stromal",
+        "key_markers": ["COL1A1", "COL3A1", "DCN", "LUM"],
+        "reasoning": "High expression of extracellular matrix genes...",
+        "confidence": "high",
+        "quality_flag": null,
+        "references": {
+            "COL1A1": [{"pmid": "12345678", "title": "...", "year": "2020"}],
+            "DCN": [{"pmid": "87654321", "title": "...", "year": "2019"}]
+        }
+    }
+}
+```
+
+`references` 字段将 PubMed 检索结果嵌入注释，后续人工审核时可以直接点开 PMID 查阅原文，不需要再单独查文献。
+
+#### LLM 后端配置
+
+```json
+{
+    "llm_method": "openai",
+    "llm_model": "gpt-4o",
+    "llm_api_key": "",
+    "llm_base_url": "",
+    "llm_top_genes": 30,
+    "annotate_group": "leiden"
+}
+```
+
+- `llm_method`：`"openai"`（OpenAI API 兼容）、`"ollama"`（本地部署）、`"file"`（仅输出 prompt 文件，手动提交到任意 LLM）
+- `llm_api_key` 和 `llm_base_url` 支持通过环境变量 `LLM_API_KEY` 和 `LLM_BASE_URL` 注入，config 中留空时自动读取环境变量
+- `llm_top_genes`：每个 cluster 提取的 top DEG 数量，默认 30，设为 50 可提供更丰富的上下文
 
 示例：
 
@@ -277,7 +470,26 @@ UMI提取依赖序列不被破坏，建议先提取UMI，再做trim比较安全
 - **高级分析**：Squidpy 空间邻域和 Moran's I 空间自相关。
 - **架构**：规则位于 `modules/spatial_scanpy/spatial_scanpy.smk`，本 subworkflow 只负责配置和编排。
 
-示例：
+cell2location 依赖已在环境模板中预留，但只有在明确参考 scRNA 表达矩阵和细胞类型 signature 输入后才应启用。
+
+Visium 输入示例：
+
+```json
+{
+  "visium_h5": "/path/filtered_feature_bc_matrix.h5",
+  "spatial_dir": "/path/spatial"
+}
+```
+
+自定义 h5ad 输入示例：
+
+```json
+{
+  "input_h5ad": "/path/spatial.h5ad"
+}
+```
+
+高级分析示例：
 
 ```json
 {

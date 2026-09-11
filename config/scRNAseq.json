@@ -26,6 +26,7 @@
             "GRCm39": {
                 "fasta": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
                 "gtf": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf",
+                "geneIDAnno": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/geneIDAnnotation.csv",
                 "te_bed": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.bed",
                 "scTE_index": null,
                 "cellranger_ref_dir": null,
@@ -34,6 +35,7 @@
             "GRCh38": {
                 "fasta": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa",
                 "gtf": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/gencode.v49.primary_assembly.basic.annotation.gtf",
+                "geneIDAnno": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/geneIDAnnotation.csv",
                 "te_bed": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/GRCh38_GENCODE_rmsk_TE.bed",
                 "scTE_index": null,
                 "cellranger_ref_dir": null,
@@ -42,6 +44,7 @@
             "Mmul_10": {
                 "fasta": "/home/luosg/Database/Reference/mulatta/ENSEMBL/Mmul_10/Macaca_mulatta.Mmul_10.dna.toplevel.fa",
                 "gtf": "/home/luosg/Database/Reference/mulatta/ENSEMBL/Mmul_10/Macaca_mulatta.Mmul_10.116.gtf",
+                "geneIDAnno": "/home/luosg/Database/Reference/mulatta/ENSEMBL/Mmul_10/geneIDAnnotation.csv",
                 "te_bed": "/home/luosg/Database/Reference/mulatta/ENSEMBL/Mmul_10/rheMac10_rmsk_TE.bed",
                 "scTE_index": null,
                 "cellranger_ref_dir": "/home/luosg/Database/Reference/mulatta/ENSEMBL/Mmul_10/Mmul_10",
@@ -104,9 +107,9 @@
                     "marker_file": "",
                     "celltypist_model": "",
                     "llm_method": "",
-                    "llm_model": "gpt-4o",
-                    "llm_api_key": "",
-                    "llm_base_url": "",
+                    "llm_model": null,
+                    "llm_api_key": null,
+                    "llm_base_url": null,
                     "llm_top_genes": 30,
                     "annotate_group": "leiden"
                 },

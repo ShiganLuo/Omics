@@ -1874,10 +1874,16 @@ def mode_auto(
         if skip_te:
             adata = _filter_te(adata)
 
-        sc.pp.highly_variable_genes(
-            adata, n_top_genes=n_top_genes, flavor="seurat", subset=False,
-            batch_key=resolved_batch_key if resolved_batch_key in adata.obs else None,
-        )
+        try:
+            sc.pp.highly_variable_genes(
+                adata, n_top_genes=n_top_genes, flavor="seurat", subset=False,
+                batch_key=resolved_batch_key if resolved_batch_key in adata.obs else None,
+            )
+        except ValueError:
+            logging.warning("HVG with batch_key failed (likely too few cells per batch after filtering). Retrying without batch_key.")
+            sc.pp.highly_variable_genes(
+                adata, n_top_genes=n_top_genes, flavor="seurat", subset=False,
+            )
         adata = adata[:, adata.var["highly_variable"]].copy()
         sc.pp.scale(adata, max_value=10)
 

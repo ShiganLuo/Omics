@@ -120,21 +120,62 @@ UMI提取依赖序列不被破坏，建议先提取UMI，再做trim比较安全
 - **输出**：dedup bam、peak表等
 
 ### 4. RNAseq.smk
+
 - **用途**：常规转录组综合分析（表达定量、差异分析、融合基因、变异检测）。
-- **主要模块**：
-  - cutadapt/trimmomatic/trim_galore：去接头（可配置）
-  - star/hisat2：比对（用于 TEtranscripts 定量）
-  - TEtranscripts（TEcount + TElocal）：基因和转座子表达定量
-  - DESeq2：差异表达分析
-  - function：GO/KEGG 富集分析 + GSEA
-  - hisat2 + StringTie：转录本组装
-  - RmrRNA + bowtie2：rRNA 去除
-  - STAR（chimeric 模式）+ gatk_prepare + arriba：融合基因检测
-  - STAR（SNP 模式）+ XenofilteR：去污染比对
-  - gatk_prepare_SNP + gatk_RNAseq：胚系 SNV/INDEL 检测
-  - RNAseq_report：汇总报告生成
-- **输入**：fastq
-- **输出**：表达量矩阵、差异分析结果、融合基因 VCF、SNP/INDEL VCF、功能富集结果、HTML 报告
+
+#### 管道流程
+
+```
+FASTQ
+  ├─ cutadapt / trimmomatic / trim_galore ── trimmed FASTQ
+  │    ├─ star / hisat2 ── BAM ── TEtranscripts (TEcount + TElocal) ── TE 矩阵
+  │    │    └─ DESeq2 ── 差异表达
+  │    │         └─ function ── GO/KEGG/GSEA
+  │    ├─ hisat2 (dta) ── StringTie ── 转录本组装 + TE chimeric
+  │    ├─ RmrRNA + bowtie2 ── rRNA去除 ── STAR (chimeric) ── gatk_prepare ── arriba
+  │    ├─ STAR (SNP) ── XenofilteR ── gatk_prepare_SNP ── gatk_RNAseq ── RNA SNP VCF
+  │    └─ RNAseq_report ── 汇总报告
+  └─
+```
+
+#### 模块控制 (enabled)
+
+每个模块通过 `Params.<module>.enabled` 控制是否产出最终文件。默认 `true`，向后兼容。
+
+下游模块拥有最高权限——Snakemake DAG 自动解析依赖，下游 enabled 会自动拉起上游产出。
+
+| Params key | 产出文件 | 说明 |
+| --- | --- | --- |
+| `Params.TEtranscripts.enabled` | `counts/{genome}/TEcount/all_TEcount.tsv`<br>`counts/{genome}/TElocal/all_TElocal.tsv` | TE 表达定量矩阵 |
+| `Params.DESeq2.enabled` | `diff_expression/{genome}/{ctr}_vs_{exp}/DESeq2.done` | 差异表达分析；需要 TEcount 作为输入 |
+| `Params.function.<organism>.enabled` | `function/{genome}/{pair}/go_*.png`<br>`function/{genome}/{pair}/kegg_*.png`<br>`function/{genome}/{pair}/GSEA/*.jpeg`<br>`function/{genome}/{pair}/*.csv` | GO/KEGG/GSEA，per-organism 控制 |
+| `Params.StringTie.enabled` | `transcripts/{genome}/stringtie_merged.gtf`<br>`transcripts/{genome}/TE_chimeric/*.png`<br>`transcripts/{genome}/TE_chimeric/*.tsv` | 转录本组装 + TE chimeric 分析 |
+| `Params.arriba.enabled` | `fusion/{genome}/arriba_report/arriba_fusion_report.html`<br>`fusion/{genome}/{sample}/{sample}_passed_fusions.tsv` | 融合基因检测 |
+| `Params.gatk_RNAseq.enabled` | `variation/germline_snv_indel_RNAseq/{genome}/{sample}/{sample}.filtered.vcf.gz` | RNA 编辑 / 胚系 SNV/INDEL |
+| `Params.report.enabled` | `results/{genome}/RNAseq_report.pptx` | 汇总报告 |
+
+#### 配置示例
+
+```json
+{
+    "Params": {
+        "TEtranscripts": {"enabled": true},
+        "DESeq2": {"enabled": true},
+        "StringTie": {"enabled": true},
+        "arriba": {"enabled": true},
+        "gatk_RNAseq": {"enabled": true},
+        "report": {"enabled": true},
+        "function": {
+            "GRCm39": {"enabled": true, "species": "mouse"},
+            "GRCh38": {"enabled": true, "species": "human"}
+        }
+    }
+}
+```
+
+**输入**：fastq，meta_input.tsv（sample_id / organism / group / data_id / layout / fastq_1 / fastq_2 / contaminated_organism）
+
+**输出**：TE 表达矩阵、差异分析、融合基因、RNA SNP、功能富集、汇总报告
 
 
 ### 5. ncRNAseq.smk

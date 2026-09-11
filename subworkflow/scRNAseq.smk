@@ -146,6 +146,8 @@ scanpy_config = {
     "outdir_combine": f"{outdir}/common/5_combine_h5ad",
     "logdir": f"{logdir}/sample",
     "logdir_combine": f"{logdir}/group",
+    "te_bed": config.get("genome", {}).get("references", {}).get(genome, {}).get("te_bed", ""),
+    "gene_tsv": config.get("genome", {}).get("references", {}).get(genome, {}).get("geneIDAnno", ""),
     "Params": {
         "scanpy": config.get("Params", {}).get("scanpy", {}),
     },

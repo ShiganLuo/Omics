@@ -23,12 +23,15 @@ def geneIDAnnotation(gtf_path: Union[str, Path]) -> pd.DataFrame:
     gtf['gene_id'] = gtf['attribute'].str.extract(r'gene_id\s*"(.*?)"')
     gtf['gene_name'] = gtf['attribute'].str.extract(r'gene_name\s*"(.*?)"')
     gtf['gene_type'] = gtf['attribute'].str.extract(r'gene_type\s*"(.*?)"')
+    if gtf['gene_type'].isnull().all():
+        gtf['gene_type'] = gtf['attribute'].str.extract(r'gene_biotype\s*"(.*?)"')
     gtf_filtered = gtf.dropna(subset=["gene_id"])
     gtf_filtered = gtf_filtered.drop_duplicates(
         subset=["gene_id", "gene_name", "gene_type"], 
         keep="first"
     )
-
+    na_mask = gtf_filtered['gene_name'].isnull() | gtf_filtered['gene_name'].str.strip().eq('')
+    gtf_filtered.loc[na_mask, 'gene_name'] = gtf_filtered.loc[na_mask, 'gene_id']
     return gtf_filtered[["gene_id", "gene_name", "gene_type"]]
 
 def renameIndex(
@@ -51,7 +54,7 @@ def renameIndex(
 if __name__ == '__main__':
     # gtf =  "/ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/gencode.vM36.primary_assembly.annotation.gtf"
     # outfile = "/ChIP_seq_2/Data/index/Mus_musculus/GENCODE/GRCm39/geneIDAnnotation.csv"
-    gtf = "/home/luosg/Database/Reference/human/GENCODE/GRCh38/gencode.v49.primary_assembly.basic.annotation.gtf"
-    outfile = "/home/luosg/Database/Reference/human/GENCODE/GRCh38/geneIDAnnotation.csv"
+    gtf = "/home/luosg/Database/Reference/mulatta/ENSEMBL/Mmul_10/Macaca_mulatta.Mmul_10.116.gtf"
+    outfile = "/home/luosg/Database/Reference/mulatta/ENSEMBL/Mmul_10/geneIDAnnotation.csv"
     df = geneIDAnnotation(gtf)
     df.to_csv(outfile, sep="\t", index=False, header=True)

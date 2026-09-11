@@ -67,7 +67,7 @@ python ${ASCP_downloader} \
     --srr-col-name srr \
     --lib-col-name library_layout \
     --outdir /home/luosg/Data/genomeStability/data/EED_public/fastq \
-    -m aria2c \
+    -m sra \
     --log /home/luosg/Data/genomeStability/log/EED_download.log \
     --jobs 3
 # python ${GSE_parser} \

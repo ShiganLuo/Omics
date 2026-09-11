@@ -5,6 +5,8 @@
   "logdir": null,
   "outdir_combine": null,
   "logdir_combine": null,
+  "te_bed": "",
+  "gene_tsv": "",
   "Procedure": {
     "python": "python"
   },

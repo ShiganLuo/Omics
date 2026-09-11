@@ -1,4 +1,4 @@
-from typing import Dict,Union
+from typing import Dict,Union, Optional
 try:
     from LogUtil import setup_logger
 except ImportError:
@@ -29,14 +29,14 @@ SPECIES_TO_GENOME: Dict[str, str] = {
     "rhemac10": "Mmul_10",
 }
 
-def resolve_genome(organism: Union[str, float,None]) -> str:
+def resolve_genome(organism: Union[str, int, float, None]) -> str:
     """Resolve a species alias to its canonical genome version.
 
     Raises ValueError if the alias is not recognised.
     """
-    if isinstance(organism, float) or not organism:
+    if isinstance(organism, (int, float)) or not organism:
         logger.info(f"Invalid organism: {organism}, return None")
-        return None
+        return "UNKNOWN"
     key = organism.strip().lower()
     if key in SPECIES_TO_GENOME.keys():
         return SPECIES_TO_GENOME[key]

@@ -369,6 +369,129 @@ def mode_merge(
     merged.write_h5ad(output)
 
 
+def _parse_te_bed(bed_path: str) -> set:
+    """Parse a TE BED file and return a set of TE names.
+
+    Expected format (no header, tab-separated):
+        chrom\\tstart\\tend\\tTE_name
+
+    Args:
+        bed_path: Path to the TE BED file.
+
+    Returns:
+        Set of unique TE names from column 4.
+    """
+    te_names: set = set()
+    with open(bed_path, "r", encoding="utf-8") as fh:
+        for line in fh:
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            parts = line.split("\t")
+            if len(parts) >= 4:
+                te_names.add(parts[3])
+    return te_names
+
+
+def _parse_gene_tsv(tsv_path: str) -> Dict[str, str]:
+    """Parse a gene annotation TSV and return gene_name -> gene_type mapping.
+
+    Expected format (with header):
+        gene_id\\tgene_name\\tgene_type
+
+    When multiple rows share the same gene_name, the last non-empty
+    ``gene_type`` wins.
+
+    Args:
+        tsv_path: Path to the gene annotation TSV/CSV.
+
+    Returns:
+        Dict mapping gene_name -> gene_type.
+    """
+    result: Dict[str, str] = {}
+    with open(tsv_path, "r", encoding="utf-8") as fh:
+        header = fh.readline()  # skip header
+        for line in fh:
+            line = line.strip()
+            if not line:
+                continue
+            parts = line.split("\t")
+            if len(parts) < 3:
+                continue
+            gene_name = parts[1].strip()
+            gene_type = parts[2].strip()
+            if gene_name:
+                result[gene_name] = gene_type
+    return result
+
+
+def annotate_gene_type(
+    adata: ad.AnnData,
+    te_bed: str,
+    gene_tsv: str,
+) -> None:
+    """Annotate ``adata.var['gene_type']`` using BED/TSV references.
+
+    Genes whose name appears in *te_bed* are labelled ``"TE"``.
+    Remaining genes matching *gene_tsv* are labelled with their
+    ``gene_type`` value (e.g. ``"protein_coding"``, ``"lncRNA"``).
+    Unmatched genes are labelled ``"unknown"``.
+
+    Args:
+        adata: AnnData object whose ``var_names`` are gene symbols / TE names.
+        te_bed: Path to the TE BED file (chrom, start, end, TE_name).
+        gene_tsv: Path to the gene annotation TSV (gene_id, gene_name,
+            gene_type).
+    """
+    logging.info("Parsing TE BED: %s", te_bed)
+    te_set = _parse_te_bed(te_bed)
+    logging.info("  TE BED: %d unique TE names", len(te_set))
+
+    logging.info("Parsing gene TSV: %s", gene_tsv)
+    gene_map = _parse_gene_tsv(gene_tsv)
+    logging.info("  Gene TSV: %d entries", len(gene_map))
+
+    gene_names = adata.var_names.tolist()
+    types: List[str] = []
+    n_te = 0
+    n_gene = 0
+    n_unknown = 0
+
+    for g in gene_names:
+        if g in te_set:
+            types.append("TE")
+            n_te += 1
+        elif g in gene_map:
+            types.append(gene_map[g] or "unknown")
+            n_gene += 1
+        else:
+            types.append("unknown")
+            n_unknown += 1
+
+    adata.var["gene_type"] = types
+    logging.info(
+        "Gene type annotation: TE=%d, gene=%d, unknown=%d (total=%d)",
+        n_te, n_gene, n_unknown, len(gene_names),
+    )
+
+
+def _filter_te(adata: ad.AnnData) -> ad.AnnData:
+    """Remove TE genes from adata if ``gene_type`` column exists.
+
+    Returns a subset with only non-TE genes.  If ``gene_type`` is absent
+    the input is returned unchanged.
+    """
+    if "gene_type" not in adata.var.columns:
+        logging.warning("gene_type not in var, skipping TE filter")
+        return adata
+    n_before = adata.n_vars
+    mask = adata.var["gene_type"] != "TE"
+    n_after = int(mask.sum())
+    logging.info("TE filter: %d -> %d genes (%d TE removed)",
+                 n_before, n_after, n_before - n_after)
+    return adata[:, mask].copy()
+
+
 # ---------------------------------------------------------------------------
 # Cluster
 # ---------------------------------------------------------------------------
@@ -384,6 +507,7 @@ def mode_cluster(
     markers: str = "",
     plot_dir: str = "",
     auto_n_pcs: bool = False,
+    skip_te: bool = False,
 ) -> None:
     """Cluster cells: preprocess → batch correct → neighbours → UMAP → Leiden.
 
@@ -427,6 +551,10 @@ def mode_cluster(
 
     # 2. Save full-gene snapshot for downstream DEG / annotation
     adata.raw = adata.copy()
+
+    # 2.5 Filter TE genes before HVG selection
+    if skip_te:
+        adata = _filter_te(adata)
 
     # 3. Detect HVGs (keep all genes for plotting, subset later)
     resolved_batch_key = batch_key or ("sample_id" if "sample_id" in adata.obs else "batch")
@@ -1285,6 +1413,7 @@ def mode_auto(
     batch_key: str = "",
     auto_n_pcs: bool = False,
     plot_dir: str = "",
+    skip_te: bool = False,
 ) -> None:
     """Fully autonomous: cluster → AI annotate → QC → filter → re-cluster.
 
@@ -1342,6 +1471,9 @@ def mode_auto(
         sc.pp.normalize_total(adata, target_sum=1e4)
         sc.pp.log1p(adata)
         adata.raw = adata.copy()
+
+        if skip_te:
+            adata = _filter_te(adata)
 
         sc.pp.highly_variable_genes(
             adata, n_top_genes=n_top_genes, flavor="seurat", subset=False,
@@ -1632,6 +1764,7 @@ def main():
     parser.add_argument("--resolution", type=float, default=0.8, help="Leiden clustering resolution")
     parser.add_argument("--markers", default="", help="Path to write ranked marker gene TSV")
     parser.add_argument("--auto-n-pcs", action="store_true", help="Auto-detect optimal n_pcs from PCA variance ratio")
+    parser.add_argument("--skip-te", action="store_true", help="Exclude TE genes before HVG selection and clustering")
 
     # Batch params (integrated into cluster mode)
     parser.add_argument("--batch-method", default="harmony", choices=["harmony", "bbknn", ""],
@@ -1701,6 +1834,7 @@ def main():
             markers=args.markers,
             plot_dir=args.plot_dir,
             auto_n_pcs=args.auto_n_pcs,
+            skip_te=args.skip_te,
         )
     elif args.mode == "annotate":
         mode_annotate(
@@ -1738,6 +1872,7 @@ def main():
             batch_key=args.batch_key,
             auto_n_pcs=args.auto_n_pcs,
             plot_dir=args.plot_dir,
+            skip_te=args.skip_te,
         )
     elif args.mode == "advanced":
         mode_advanced(

@@ -288,7 +288,9 @@ class MetadataUtils:
         df_group = df.groupby(sample_id_col)
 
         for sample_id, df_sample in df_group:
-            sample_id = str(sample_id)
+            sample_id = str(sample_id).strip()
+            if ' ' in sample_id or '\t' in sample_id:
+                raise ValueError(f"sample_id '{sample_id}' contains whitespace, please remove it from meta file")
             data_ids = df_sample[data_id_col].values
             if len(data_ids) < 1:
                 raise ValueError(f"something wrong: {sample_id} have no {data_id_col} meta")
@@ -398,7 +400,9 @@ class MetadataUtils:
         if not self.pacbio_required_cols.issubset(df.columns):
             raise ValueError(f"Metadata must contain columns: {self.pacbio_required_cols}")
         for sample_id, df_sample in df.groupby(sample_id_col):
-            sample_id = str(sample_id)
+            sample_id = str(sample_id).strip()
+            if ' ' in sample_id or '\t' in sample_id:
+                raise ValueError(f"sample_id '{sample_id}' contains whitespace, please remove it from meta file")
             bam_path = str(df_sample[bam_col].values[0]) if bam_col in df_sample.columns else None
             pbi_path = str(df_sample[pbi_col].values[0]) if pbi_col in df_sample.columns else None
 
@@ -446,7 +450,9 @@ class MetadataUtils:
         if ms_file_col not in df.columns:
             raise ValueError(f"Metadata must contain column: {ms_file_col}")
         for sample_id, df_sample in df.groupby(sample_id_col):
-            sample_id = str(sample_id)
+            sample_id = str(sample_id).strip()
+            if ' ' in sample_id or '\t' in sample_id:
+                raise ValueError(f"sample_id '{sample_id}' contains whitespace, please remove it from meta file")
             host_organism_value = str(df_sample.get('organism', pd.Series(["UNKNOWN"])).values[0])
             try:
                 organism = resolve_genome(host_organism_value)
@@ -504,7 +510,9 @@ class MetadataUtils:
             raise ValueError(f"Metadata must contain columns: {required}")
 
         for _, row in df.iterrows():
-            sample_id = str(row[sample_id_col])
+            sample_id = str(row[sample_id_col]).strip()
+            if ' ' in sample_id or '\t' in sample_id:
+                raise ValueError(f"sample_id '{sample_id}' contains whitespace, please remove it from meta file")
             fastq_dir = Path(row[fastq_dir_col])
             sample_prefix = str(row[sample_prefix_col])
             try:

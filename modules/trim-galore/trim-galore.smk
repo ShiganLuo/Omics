@@ -86,9 +86,9 @@ rule trimming_Paired:
 def get_input_for_trimming_Single(wildcards):
     logger.info(f"Getting input for trimming_Single with mode: {mode}")
     if mode == "UMI":
-        return f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}.umi.single.fq.gz",
+        return f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}.umi.single.fq.gz"
     else:
-        return f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}.single.fq.gz",
+        return f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}.single.fq.gz"
 
 rule trimming_Single:
     input:
@@ -120,7 +120,7 @@ rule trimming_Single:
                 "--quality", str(params.quality),
                 "-o", params.outdir,
                 "--basename", wildcards.sample_id,
-                input.fastq
+                str(input.fastq)
             ]
             if params.adapters:
                 cmd1 += ["--adapter", params.adapters]

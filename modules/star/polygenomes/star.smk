@@ -85,7 +85,7 @@ rule star_index:
 def get_star_index(wildcards):
     logger.info(f"[get_star_index] called with wildcards: {wildcards}")
     config_index_dir = config.get('genome', {}).get('references', {}).get(wildcards.genome, {}).get('star_index_dir') or None
-    if config_index_dir:
+    if config_index_dir and os.path.exists(config_index_dir):
         logger.info(f"[get_star_index] using provided index_dir for genome {wildcards.genome}: {config_index_dir}")
         return config_index_dir
     logger.info(f"[get_star_index] using default index_dir for genome {wildcards.genome}")

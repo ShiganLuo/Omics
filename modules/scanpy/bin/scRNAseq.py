@@ -317,6 +317,8 @@ def mode_merge(
     output: str,
     axis: Literal["obs", 0, "var", 1] = "obs",
     plot_dir: str = "",
+    te_bed: str = "",
+    gene_tsv: str = "",
 ) -> None:
     """Merge multiple QC'd h5ad files into a single AnnData object.
 
@@ -334,6 +336,10 @@ def mode_merge(
             ``"var"`` / ``1`` merges genes.
         plot_dir: Directory for merge summary plots. Empty string disables
             plotting.
+        te_bed: Path to TE BED file for gene_type annotation. Empty string
+            skips annotation.
+        gene_tsv: Path to gene annotation TSV for gene_type annotation.
+            Empty string skips annotation.
     """
     objects = []
     for p in input_paths:
@@ -361,6 +367,9 @@ def mode_merge(
 
     logging.info("Merged %d samples: %d cells x %d genes",
                  len(objects), merged.n_obs, merged.n_vars)
+
+    if te_bed and gene_tsv:
+        annotate_gene_type(merged, te_bed, gene_tsv)
 
     plotter = _make_plotter(plot_dir)
     if plotter:
@@ -1112,6 +1121,8 @@ def _build_auto_annotation_prompt(
     mean_genes: float,
     mean_counts: float,
     pct_mt: float,
+    other_annotations: Optional[Dict[str, Dict]] = None,
+    umap_distances: Optional[Dict[str, float]] = None,
 ) -> str:
     """Build prompt for autonomous cell type annotation of a single cluster.
 
@@ -1121,8 +1132,38 @@ def _build_auto_annotation_prompt(
         3. Provide reasoning.
         4. Rate confidence (high/medium/low).
         5. Flag if the cluster looks like low quality / contamination.
+        6. Consider if this cluster might be a subcluster of another cell type.
+
+    Args:
+        cluster_id: ID of the cluster being annotated.
+        top_genes: List of top differentially expressed genes.
+        tissue: Tissue name for context.
+        n_cells: Number of cells in the cluster.
+        mean_genes: Mean genes per cell.
+        mean_counts: Mean UMI per cell.
+        pct_mt: Mean mitochondrial percentage.
+        other_annotations: Dict of other cluster_id -> annotation results.
+            Used to help LLM identify if current cluster is a subcluster.
+        umap_distances: Dict of other_cluster_id -> UMAP distance to current cluster.
+            Used to help LLM judge spatial relationships.
     """
     gene_list = ", ".join(top_genes[:50])
+
+    # Build context about other clusters
+    other_context = ""
+    if other_annotations:
+        other_lines = []
+        for cid, ann in other_annotations.items():
+            ct = ann.get("cell_type", "Unknown")
+            markers = ", ".join(ann.get("key_markers", [])[:5])
+            conf = ann.get("confidence", "unknown")
+            dist_info = ""
+            if umap_distances and cid in umap_distances:
+                dist = umap_distances[cid]
+                dist_info = f" (UMAP distance: {dist:.1f})"
+            other_lines.append(f"  - Cluster {cid}: {ct} (confidence: {conf}, key markers: {markers}){dist_info}")
+        other_context = "\n".join(other_lines)
+
     prompt = f"""You are an expert single-cell RNA-seq analyst. Annotate the following cluster from a {tissue} dataset.
 
 ## Cluster {cluster_id}
@@ -1131,12 +1172,30 @@ def _build_auto_annotation_prompt(
 - Mean UMI/cell: {mean_counts:.0f}
 - MT%: {pct_mt:.1f}%
 - Top 50 DEGs (ranked by Wilcoxon): {gene_list}
+"""
 
+    if other_context:
+        prompt += f"""
+## Other clusters already annotated
+{other_context}
+"""
+
+    prompt += """
 ## Task
-Identify the cell type for this cluster. Output a JSON object with:
+Identify the cell type for this cluster. Consider:
+1. **Cell type identification**: What cell type do the marker genes suggest?
+2. **Subcluster check**: Is this cluster a subcluster (subtype) of another cluster? Look at marker gene similarity and UMAP distance.
+3. **Quality check**: Are there quality issues (low genes, low UMI, high MT%)?
+4. **Resolution check**: If markers are very similar to another cluster, this might be over-clustering.
+
+Output a JSON object with:
 - "cell_type": predicted cell type name (use standard nomenclature, e.g. "Stromal", "Smooth_muscle", "Endothelial", "Macrophage", "T_cell", "Unknown", etc.)
 - "key_markers": list of 5-10 genes from the DEGs that best support this identification
-- "reasoning": brief explanation of your reasoning
+- "reasoning": brief explanation of your reasoning, including:
+  * Why this cell type?
+  * Is this a subcluster of another cluster? If so, which one?
+  * Are there quality concerns?
+  * Should this cluster be merged with another cluster?
 - "confidence": "high", "medium", or "low"
 - "quality_flag": null if cluster is normal, or a string describing the problem
     - "low_quality": mean_genes < 800 or mean_counts < 3000 or MT% > 20
@@ -1144,13 +1203,20 @@ Identify the cell type for this cluster. Output a JSON object with:
     - "ribosomal": top markers are RPS/RPL (ribosomal contamination)
     - "te_dominated": top markers are TE elements (ERVK, Alu, etc.)
     - "unknown": cannot determine cell type from markers
+- "is_subcluster": boolean - true if this is likely a subcluster of another cell type
+- "parent_cluster": cluster_id of the parent cluster if is_subcluster is true, else null
+- "should_merge": boolean - true if this cluster should be merged with parent_cluster
 
 ## Rules
+- ALL cell type annotations MUST have PubMed evidence. Include PMIDs in your reasoning. If no published evidence exists for your predicted cell type, set cell_type to "Unverified" and explain why.
 - If most top genes start with "ENSMMUG", set cell_type to "Unannotated" and quality_flag to "unannotated"
 - If most top genes are MT- or mt-prefixed, set quality_flag to "low_quality"
 - If most top genes are RPS/RPL, set quality_flag to "ribosomal"
-- If top genes are TE elements (Alu, ERVK, LINE, SINE, LTR), set cell_type to "ERVK_high" or "Alu_high" as appropriate, quality_flag to "te_dominated"
+- If top genes are TE elements (Alu, ERVK, LINE, SINE, LTR), you MUST search for PubMed evidence. If you find published literature supporting this TE-high population as a real biological group (with PMID), annotate accordingly (e.g. "Alu_high"). If no public evidence exists, set cell_type to "Unverified_TE" and quality_flag to "te_dominated".
 - If you truly cannot identify the cell type, set cell_type to "Unknown" and quality_flag to "unknown"
+- If marker genes are very similar to another cluster AND UMAP distance is close (< 5.0), consider setting is_subcluster=true and should_merge=true
+- If marker genes are similar but UMAP distance is far (> 10.0), this might be over-clustering - still set is_subcluster=true and should_merge=true
+- If marker genes are different even though UMAP is close, these are likely distinct cell types
 - Output ONLY valid JSON, no markdown
 """
     return prompt
@@ -1168,14 +1234,35 @@ def _ai_annotate_cluster(
     llm_model: str,
     llm_api_key: str,
     llm_base_url: str,
+    other_annotations: Optional[Dict[str, Dict]] = None,
+    umap_distances: Optional[Dict[str, float]] = None,
 ) -> Dict[str, Any]:
     """AI-annotate a single cluster: LLM decision + PubMed references.
 
+    Args:
+        cluster_id: ID of the cluster being annotated.
+        top_genes: List of top differentially expressed genes.
+        tissue: Tissue name for context.
+        n_cells: Number of cells in the cluster.
+        mean_genes: Mean genes per cell.
+        mean_counts: Mean UMI per cell.
+        pct_mt: Mean mitochondrial percentage.
+        llm_method: LLM backend ("openai" or "ollama").
+        llm_model: Model identifier.
+        llm_api_key: API key for OpenAI backend.
+        llm_base_url: Base URL for LLM API.
+        other_annotations: Dict of other cluster_id -> annotation results.
+            Used to help LLM identify if current cluster is a subcluster.
+        umap_distances: Dict of other_cluster_id -> UMAP distance to current cluster.
+            Used to help LLM judge spatial relationships.
+
     Returns dict with keys: cell_type, key_markers, reasoning, confidence,
-    quality_flag, references (dict of gene -> [{pmid, title, year}]).
+    quality_flag, is_subcluster, parent_cluster, should_merge, references.
     """
     prompt = _build_auto_annotation_prompt(
         cluster_id, top_genes, tissue, n_cells, mean_genes, mean_counts, pct_mt,
+        other_annotations=other_annotations,
+        umap_distances=umap_distances,
     )
 
     # Call LLM
@@ -1195,6 +1282,9 @@ def _ai_annotate_cluster(
         "reasoning": raw.get("reasoning", ""),
         "confidence": raw.get("confidence", "low"),
         "quality_flag": raw.get("quality_flag"),
+        "is_subcluster": raw.get("is_subcluster", False),
+        "parent_cluster": raw.get("parent_cluster"),
+        "should_merge": raw.get("should_merge", False),
         "references": {},
     }
 
@@ -1208,6 +1298,198 @@ def _ai_annotate_cluster(
             time.sleep(0.35)
 
     return annotation
+
+
+# ---------------------------------------------------------------------------
+# Cell type separation check
+# ---------------------------------------------------------------------------
+def _check_cell_type_separation(
+    adata: ad.AnnData,
+    cell_type_key: str = "cell_type",
+    cluster_key: str = "leiden",
+    distance_threshold: float = 5.0,
+    min_cells_per_cluster: int = 50,
+    annotations: Optional[Dict[str, Dict]] = None,
+) -> Tuple[bool, Dict[str, Any]]:
+    """Check if same cell_type clusters are separated too far in UMAP space.
+
+    When the same cell type appears in multiple clusters that are far apart
+    in UMAP space, it may indicate:
+    - Over-clustering (resolution too high) → need to merge
+    - Annotation error → low-quality cluster mislabeled → need to flag/filter
+
+    Algorithm:
+        1. Compute UMAP centroid for each cluster.
+        2. For cell types with multiple clusters, compute pairwise distances.
+        3. If max distance > threshold, mark as "separated".
+        4. Compare key_markers between separated clusters:
+           - High overlap (Jaccard > 0.3) → over-clustering → suggest resolution
+           - Low overlap (Jaccard ≤ 0.3) → annotation error → flag low-quality cluster
+        5. Suggest resolution adjustment based on separation severity.
+
+    Args:
+        adata: AnnData with UMAP coordinates, leiden clusters, and cell_type.
+        cell_type_key: Column name for cell type annotations.
+        cluster_key: Column name for cluster labels.
+        distance_threshold: Max allowed UMAP distance between same-type clusters.
+        min_cells_per_cluster: Min cells to consider a cluster valid.
+        annotations: Dict of cluster_id -> annotation results with key_markers.
+
+    Returns:
+        Tuple of (needs_reclustering, diagnostics) where diagnostics is a dict
+        with keys: separated_types, cluster_distances, suggested_resolution.
+    """
+    if "X_umap" not in adata.obsm:
+        logging.warning("No UMAP coordinates found, skipping separation check")
+        return False, {}
+
+    if cell_type_key not in adata.obs.columns or cluster_key not in adata.obs.columns:
+        return False, {}
+
+    umap_coords = adata.obsm["X_umap"]
+    obs = adata.obs
+
+    # Step 1: Compute UMAP centroid for each cluster
+    cluster_centroids = {}
+    cluster_sizes = {}
+    for cluster in obs[cluster_key].unique():
+        mask = obs[cluster_key] == cluster
+        n_cells = int(mask.sum())
+        if n_cells >= min_cells_per_cluster:
+            centroid = umap_coords[mask.values].mean(axis=0)
+            cluster_centroids[cluster] = centroid
+            cluster_sizes[cluster] = n_cells
+
+    # Step 2: Group clusters by cell type
+    type_to_clusters = {}
+    for cluster, centroid in cluster_centroids.items():
+        ct = obs.loc[obs[cluster_key] == cluster, cell_type_key].iloc[0]
+        if ct not in type_to_clusters:
+            type_to_clusters[ct] = []
+        type_to_clusters[ct].append({
+            "cluster": cluster,
+            "centroid": centroid,
+            "n_cells": cluster_sizes[cluster],
+        })
+
+    # Step 3: Check separation for each cell type with multiple clusters
+    separated_types = []  # over-clustering (high marker overlap)
+    misannotated = []     # annotation error (low marker overlap)
+    cluster_distances = {}
+
+    for ct, clusters_info in type_to_clusters.items():
+        if len(clusters_info) < 2:
+            continue  # Only one cluster, no separation issue
+
+        # Compute pairwise distances between clusters of same cell type
+        max_dist = 0.0
+        pair_info = []
+        for i in range(len(clusters_info)):
+            for j in range(i + 1, len(clusters_info)):
+                ci = clusters_info[i]
+                cj = clusters_info[j]
+                dist = float(np.linalg.norm(ci["centroid"] - cj["centroid"]))
+                pair_info.append({
+                    "cluster_i": ci["cluster"],
+                    "cluster_j": cj["cluster"],
+                    "distance": round(dist, 2),
+                    "cells_i": ci["n_cells"],
+                    "cells_j": cj["n_cells"],
+                })
+                max_dist = max(max_dist, dist)
+
+        cluster_distances[ct] = {
+            "n_clusters": len(clusters_info),
+            "max_distance": round(max_dist, 2),
+            "pairs": pair_info,
+        }
+
+        if max_dist > distance_threshold:
+            # Compare marker overlap between the most distant clusters
+            # to distinguish over-clustering from annotation error
+            if annotations:
+                all_markers = []
+                for ci in clusters_info:
+                    markers = set(annotations.get(ci["cluster"], {}).get("key_markers", []))
+                    all_markers.append(markers)
+
+                # Compute average pairwise Jaccard of top markers
+                jaccards = []
+                for i in range(len(all_markers)):
+                    for j in range(i + 1, len(all_markers)):
+                        union = all_markers[i] | all_markers[j]
+                        inter = all_markers[i] & all_markers[j]
+                        j = len(inter) / len(union) if union else 0.0
+                        jaccards.append(j)
+                avg_jaccard = sum(jaccards) / len(jaccards) if jaccards else 0.0
+
+                if avg_jaccard > 0.3:
+                    # High marker overlap → genuine over-clustering
+                    separated_types.append({
+                        "cell_type": ct,
+                        "n_clusters": len(clusters_info),
+                        "max_distance": round(max_dist, 2),
+                        "marker_jaccard": round(avg_jaccard, 3),
+                        "reason": "over_clustering",
+                    })
+                else:
+                    # Low marker overlap → annotation error, flag smallest cluster
+                    smallest = min(clusters_info, key=lambda x: x["n_cells"])
+                    misannotated.append({
+                        "cell_type": ct,
+                        "n_clusters": len(clusters_info),
+                        "max_distance": round(max_dist, 2),
+                        "marker_jaccard": round(avg_jaccard, 3),
+                        "flagged_cluster": smallest["cluster"],
+                        "flagged_cells": smallest["n_cells"],
+                        "reason": "low_marker_overlap",
+                    })
+            else:
+                # No annotations available, treat as over-clustering
+                separated_types.append({
+                    "cell_type": ct,
+                    "n_clusters": len(clusters_info),
+                    "max_distance": round(max_dist, 2),
+                })
+
+    # Step 4: Determine if re-clustering is needed
+    needs_reclustering = len(separated_types) > 0
+
+    # Suggest resolution adjustment
+    suggested_resolution = None
+    if needs_reclustering:
+        # If many cell types are separated, suggest lower resolution
+        separation_ratio = len(separated_types) / len(type_to_clusters)
+        if separation_ratio > 0.3:  # >30% of cell types are separated
+            suggested_resolution = 0.2  # More aggressive merging
+        elif separation_ratio > 0.1:  # >10% separated
+            suggested_resolution = 0.25
+        else:
+            suggested_resolution = 0.3  # Keep current or slight adjustment
+
+    diagnostics = {
+        "separated_types": separated_types,
+        "misannotated": misannotated,
+        "cluster_distances": cluster_distances,
+        "n_cell_types": len(type_to_clusters),
+        "n_separated": len(separated_types),
+        "n_misannotated": len(misannotated),
+        "suggested_resolution": suggested_resolution,
+    }
+
+    if needs_reclustering:
+        logging.info("Cell type separation check: %d over-clustering, %d misannotated",
+                     len(separated_types), len(misannotated))
+        for st in separated_types:
+            logging.info("  %s: %d clusters, max dist=%.2f, marker Jaccard=%.3f (over-clustering)",
+                         st["cell_type"], st["n_clusters"], st["max_distance"], st.get("marker_jaccard", 0))
+    if misannotated:
+        for ma in misannotated:
+            logging.info("  %s: %d clusters, max dist=%.2f, marker Jaccard=%.3f -> FLAG cluster %s (%d cells, low quality)",
+                         ma["cell_type"], ma["n_clusters"], ma["max_distance"],
+                         ma["marker_jaccard"], ma["flagged_cluster"], ma["flagged_cells"])
+
+    return needs_reclustering, diagnostics
 
 
 # ---------------------------------------------------------------------------
@@ -1249,7 +1531,15 @@ def _analyze_cluster_quality(
     # AI-reported quality flag
     ai_flag = annotation.get("quality_flag")
     if ai_flag:
-        flags.append(str(ai_flag))
+        # te_dominated alone should NOT trigger filtering
+        # (scTE data has real ERVK_high/Alu_high populations)
+        if ai_flag != "te_dominated":
+            flags.append(str(ai_flag))
+        else:
+            # Only flag te_dominated if combined with other quality issues
+            has_quality_issues = any(f in flags for f in ["low_genes", "low_counts", "high_mt"])
+            if has_quality_issues:
+                flags.append(str(ai_flag))
 
     # Confidence check
     confidence = annotation.get("confidence", "low")
@@ -1339,13 +1629,20 @@ def _write_annotation_report(
     """Write per-cluster annotation report as TSV.
 
     Columns: cluster, cell_type, confidence, key_markers, n_refs,
-    flags, should_filter, reasoning.
+    flags, should_filter, is_subcluster, parent_cluster, should_merge,
+    reasoning.
     """
     rows = []
     for cluster in sorted(annotations.keys(), key=lambda x: int(x) if x.isdigit() else x):
         ann = annotations[cluster]
         qr = next((r for r in quality_reports if r["cluster"] == cluster), {})
         n_refs = sum(len(v) for v in ann.get("references", {}).values())
+
+        # Get merge info if available
+        merge_info = ann.get("merge_info", {})
+        parent_cluster = merge_info.get("parent_cluster", ann.get("parent_cluster"))
+        parent_cell_type = merge_info.get("parent_cell_type")
+
         rows.append({
             "cluster": cluster,
             "cell_type": ann.get("cell_type", "Unknown"),
@@ -1354,6 +1651,10 @@ def _write_annotation_report(
             "n_refs": n_refs,
             "flags": ",".join(qr.get("flags", [])),
             "should_filter": qr.get("should_filter", False),
+            "is_subcluster": ann.get("is_subcluster", False),
+            "parent_cluster": parent_cluster,
+            "parent_cell_type": parent_cell_type,
+            "should_merge": ann.get("should_merge", False),
             "reasoning": ann.get("reasoning", "")[:200],
         })
 
@@ -1393,16 +1694,94 @@ def _write_references_report(
 # ---------------------------------------------------------------------------
 # Auto mode: iterative cluster → AI annotate → QC → filter → re-cluster
 # ---------------------------------------------------------------------------
+def _generate_audit_report(
+    ctx: Dict[str, Any],
+    report_dir: str,
+    llm_method: str,
+    llm_model: str,
+    llm_api_key: str,
+    llm_base_url: str,
+) -> None:
+    """Call LLM to generate audit report and reproducible script.
+
+    Args:
+        ctx: Full iteration context collected during mode_auto.
+        report_dir: Directory to write report files.
+        llm_method/llm_model/llm_api_key/llm_base_url: LLM config.
+    """
+    prompt = (
+        "你是一位生物信息学审计员。根据以下scRNA-seq auto-mode的执行上下文，"
+        "生成两个文件：\n\n"
+        "1. audit_report.md — 中文审计报告，包含：\n"
+        "   - 流程参数（resolution, batch method, QC阈值等）\n"
+        "   - 每轮迭代摘要：聚类结果、细胞类型注释（含置信度和推理依据）、QC标记、过滤决策\n"
+        "   - 最终结果：细胞/基因数、迭代次数、停止原因\n"
+        "   - 关键决策及其理由\n"
+        "   - 注意：所有细胞类型注释必须有PubMed文献PMID支撑。"
+        "无法找到文献支撑的注释应标记为'未验证'。\n\n"
+        "2. decision_log.sh — LLM决策日志（不是CLI重跑脚本），记录：\n"
+        "   - 每轮迭代中LLM做了哪些关键决策\n"
+        "   - 标记了哪些cluster、理由是什么\n"
+        "   - 过滤了哪些细胞、为什么\n"
+        "   - 分辨率是否调整、为什么\n"
+        "   - 格式：每条决策一行注释 # [iter N] 决策内容\n\n"
+        "返回JSON对象，两个key：\n"
+        '  "audit_report": <markdown字符串>,\n'
+        '  "decision_log": <shell脚本字符串，用注释记录决策>\n\n'
+        f"执行上下文：\n{json.dumps(ctx, indent=2, ensure_ascii=False)}"
+    )
+
+    result: Dict[str, str] = {}
+    try:
+        if llm_method == "openai":
+            import openai
+            client = openai.OpenAI(api_key=llm_api_key, base_url=llm_base_url)
+            response = client.chat.completions.create(
+                model=llm_model or "gpt-4o",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.1,
+                response_format={"type": "json_object"},
+            )
+            result = json.loads(response.choices[0].message.content)
+        elif llm_method == "ollama":
+            import requests
+            url = llm_base_url or "http://localhost:11434"
+            resp = requests.post(
+                f"{url}/api/chat",
+                json={"model": llm_model, "messages": [{"role": "user", "content": prompt}],
+                       "stream": False, "format": "json"},
+                timeout=120,
+            )
+            resp.raise_for_status()
+            result = json.loads(resp.json().get("message", {}).get("content", "{}"))
+    except Exception as exc:
+        logging.warning("LLM audit report generation failed: %s", exc)
+
+    # Write audit report
+    audit_path = os.path.join(report_dir, "audit_report.md")
+    with open(audit_path, "w", encoding="utf-8") as f:
+        f.write(result.get("audit_report", f"# Audit Report\n\nLLM generation failed. Raw context:\n\n```json\n{json.dumps(ctx, indent=2)}\n```\n"))
+    logging.info("Audit report: %s", audit_path)
+
+    # Write reproducible script
+    script_path = os.path.join(report_dir, "decision_log.sh")
+    with open(script_path, "w", encoding="utf-8") as f:
+        f.write(result.get("decision_log", f"#!/bin/bash\n# LLM生成失败。需要手动重建决策日志。\n"))
+    os.chmod(script_path, 0o755)
+    logging.info("Decision log: %s", script_path)
+
+
 def mode_auto(
     adata: ad.AnnData,
     output: str,
+    input_path: str = "",
     tissue: str = "",
     llm_method: str = "openai",
     llm_model: str = "",
     llm_api_key: str = "",
     llm_base_url: str = "",
     resolution: float = 0.8,
-    max_iterations: int = 3,
+    max_iterations: int = 5,
     min_genes: int = 800,
     min_counts: int = 3000,
     max_pct_mt: float = 20.0,
@@ -1450,6 +1829,26 @@ def mode_auto(
     output_stem = Path(output).stem
     report_dir = os.path.join(output_dir, f"{output_stem}_reports")
     os.makedirs(report_dir, exist_ok=True)
+
+    # ── Iteration context for LLM-generated audit report ──
+    ctx: Dict[str, Any] = {
+        "input_path": input_path or "(adata_loaded)",
+        "output": output,
+        "tissue": tissue,
+        "params": {
+            "llm_method": llm_method, "llm_model": llm_model,
+            "resolution": resolution, "max_iterations": max_iterations,
+            "min_genes": min_genes, "min_counts": min_counts,
+            "max_pct_mt": max_pct_mt, "n_pcs": n_pcs,
+            "n_neighbors": n_neighbors, "n_top_genes": n_top_genes,
+            "batch_method": batch_method, "batch_key": batch_key,
+            "auto_n_pcs": auto_n_pcs, "skip_te": skip_te,
+        },
+        "initial_cells": adata.n_obs,
+        "initial_genes": adata.n_vars,
+        "iterations": [],
+    }
+    iter_ctx: Dict[str, Any] = {}  # current iteration context
 
     # Save raw counts for re-clustering
     if "counts" not in adata.layers:
@@ -1514,10 +1913,31 @@ def mode_auto(
 
         n_clusters = len(adata.obs["leiden"].unique())
         logging.info("Clustering done: %d clusters", n_clusters)
+        iter_ctx = {
+            "iteration": iteration,
+            "n_cells": adata.n_obs,
+            "n_genes": adata.n_vars,
+            "resolution": resolution,
+            "n_clusters": n_clusters,
+            "batch_method": batch_method,
+            "n_hvg": int(adata.var["highly_variable"].sum()),
+            "n_pcs_used": n_pcs,
+            "cluster_sizes": {str(k): int(v) for k, v in
+                              adata.obs["leiden"].value_counts().items()},
+        }
 
         # ── Step 2: AI annotate each cluster ──
         logging.info("[Step 2] AI annotation...")
         annotations: Dict[str, Dict] = {}
+
+        # Compute UMAP centroids for distance calculation
+        umap_centroids = {}
+        if "X_umap" in adata.obsm:
+            for cluster in sorted(adata.obs["leiden"].unique(), key=lambda x: int(x)):
+                mask = adata.obs["leiden"] == cluster
+                if int(mask.sum()) >= 50:  # Min cells for valid centroid
+                    umap_centroids[cluster] = adata.obsm["X_umap"][mask.values].mean(axis=0)
+
         for cluster in sorted(adata.obs["leiden"].unique(), key=lambda x: int(x)):
             mask = adata.obs["leiden"] == cluster
             n_cells = int(mask.sum())
@@ -1529,22 +1949,40 @@ def mode_auto(
             marker_df = sc.get.rank_genes_groups_df(adata, group=cluster)
             top_genes = marker_df.head(50)["names"].tolist()
 
+            # Compute UMAP distances to other clusters
+            umap_distances = {}
+            if cluster in umap_centroids:
+                for other_cluster, other_centroid in umap_centroids.items():
+                    if other_cluster != cluster:
+                        dist = float(np.linalg.norm(umap_centroids[cluster] - other_centroid))
+                        umap_distances[other_cluster] = dist
+
             logging.info("  Cluster %s (%d cells): annotating...", cluster, n_cells)
             ann = _ai_annotate_cluster(
                 cluster, top_genes, tissue, n_cells, mean_g, mean_c, pmt,
                 llm_method=llm_method, llm_model=llm_model,
                 llm_api_key=llm_api_key, llm_base_url=llm_base_url,
+                other_annotations=annotations,
+                umap_distances=umap_distances,
             )
             annotations[cluster] = ann
-            logging.info("    -> %s (confidence: %s, %d refs)",
+            logging.info("    -> %s (confidence: %s, %d refs, is_subcluster: %s, should_merge: %s)",
                          ann["cell_type"], ann["confidence"],
-                         sum(len(v) for v in ann.get("references", {}).values()))
+                         sum(len(v) for v in ann.get("references", {}).values()),
+                         ann.get("is_subcluster", False),
+                         ann.get("should_merge", False))
 
             time.sleep(0.5)  # rate limit between clusters
 
         # Apply annotations to adata
         cluster_to_ct = {cl: ann["cell_type"] for cl, ann in annotations.items()}
         adata.obs["cell_type"] = adata.obs["leiden"].map(cluster_to_ct).astype("category")
+        iter_ctx["annotations"] = {cl: {"cell_type": ann["cell_type"],
+                                         "confidence": ann["confidence"],
+                                         "key_markers": ann.get("key_markers", []),
+                                         "reasoning": ann.get("reasoning", "")}
+                                    for cl, ann in annotations.items()}
+        iter_ctx["cell_types"] = sorted(set(cluster_to_ct.values()))
 
         # ── Step 3: Quality analysis ──
         logging.info("[Step 3] Quality analysis...")
@@ -1562,17 +2000,93 @@ def mode_auto(
 
         flagged = [r for r in quality_reports if r["should_filter"]]
         logging.info("Flagged clusters: %d / %d", len(flagged), n_clusters)
+        iter_ctx["n_flagged"] = len(flagged)
+        iter_ctx["flagged_clusters"] = [{"cluster": r["cluster"],
+                                          "cell_type": r["ai_cell_type"],
+                                          "flags": r["flags"]}
+                                         for r in flagged]
+        iter_ctx["quality_reports"] = [{"cluster": r["cluster"],
+                                         "cell_type": r["ai_cell_type"],
+                                         "should_filter": r["should_filter"],
+                                         "flags": r["flags"]}
+                                        for r in quality_reports]
+
+                                        # ── Step 3.25: Check should_merge flags from LLM ──
+        merge_candidates = []
+        for cluster, ann in annotations.items():
+            if ann.get("should_merge") and ann.get("parent_cluster"):
+                parent = ann["parent_cluster"]
+                if parent in annotations:
+                    merge_candidates.append({
+                        "cluster": cluster,
+                        "parent": parent,
+                        "cell_type": ann["cell_type"],
+                        "parent_cell_type": annotations[parent]["cell_type"],
+                        "is_subcluster": ann.get("is_subcluster", False),
+                    })
+                    logging.info("  Cluster %s (%s) -> should merge with Cluster %s (%s)",
+                                 cluster, ann["cell_type"], parent, annotations[parent]["cell_type"])
+
+        if merge_candidates:
+            logging.info("LLM identified %d clusters that should be merged", len(merge_candidates))
+            # Store merge info in annotations for report
+            for mc in merge_candidates:
+                annotations[mc["cluster"]]["merge_info"] = {
+                    "parent_cluster": mc["parent"],
+                    "parent_cell_type": mc["parent_cell_type"],
+                }
+        else:
+            logging.info("No clusters identified for merging by LLM")
+
+        # ── Step 3.5: Check cell type separation ──
+        logging.info("[Step 3.5] Checking cell type separation...")
+        misannotated: List[Dict] = []
+        needs_reclustering, separation_diag = _check_cell_type_separation(
+            adata,
+            cell_type_key="cell_type",
+            cluster_key="leiden",
+            distance_threshold=5.0,
+            annotations=annotations,
+        )
+
+        if needs_reclustering and separation_diag.get("suggested_resolution"):
+            suggested_res = separation_diag["suggested_resolution"]
+            if suggested_res < resolution:
+                logging.info("Cell type separation detected. Adjusting resolution: %.2f -> %.2f",
+                             resolution, suggested_res)
+                resolution = suggested_res
+                # If separation is severe and no quality issues, re-cluster immediately
+                if not flagged:
+                    logging.info("No quality issues. Re-clustering with lower resolution...")
+                    continue  # Re-cluster with adjusted resolution
+                else:
+                    logging.info("Quality issues present. Will filter first, then re-cluster.")
+
+        # Handle misannotated clusters (low marker overlap → annotation error)
+        misannotated = separation_diag.get("misannotated", [])
+        for ma in misannotated:
+            flag_cluster = ma["flagged_cluster"]
+            logging.info("Misannotation detected: cluster %s labeled '%s' but markers diverge (Jaccard=%.3f). Flagging for filter.",
+                         flag_cluster, ma["cell_type"], ma["marker_jaccard"])
+            # Add to quality_reports if not already flagged
+            if not any(r["cluster"] == flag_cluster for r in quality_reports if r["should_filter"]):
+                quality_reports.append({
+                    "cluster": flag_cluster,
+                    "ai_cell_type": ma["cell_type"],
+                    "should_filter": True,
+                    "flags": ["misannotated_low_marker_overlap"],
+                })
+                flagged = [r for r in quality_reports if r["should_filter"]]
+        iter_ctx["misannotated"] = misannotated
 
         # ── Step 4: Filter or finish ──
         if not flagged:
             logging.info("All clusters clean. Saving final results.")
+            iter_ctx["outcome"] = "clean"
+            ctx["iterations"].append(iter_ctx)
             break
 
-        if iteration >= max_iterations:
-            logging.warning("Max iterations (%d) reached. Saving current state.", max_iterations)
-            break
-
-        # Filter cells within flagged clusters
+        # Filter cells within flagged clusters (even on last iteration)
         logging.info("[Step 4] Filtering cells in flagged clusters...")
         adata_filtered, n_removed = _filter_flagged_cells(
             adata, quality_reports,
@@ -1581,6 +2095,17 @@ def mode_auto(
 
         if n_removed == 0:
             logging.info("No cells removed after QC. Stopping iterations.")
+            iter_ctx["outcome"] = "no_cells_removed"
+            ctx["iterations"].append(iter_ctx)
+            break
+
+        # Stop after filtering on last iteration (don't re-cluster)
+        if iteration >= max_iterations:
+            logging.warning("Max iterations (%d) reached after filtering. Saving current state.", max_iterations)
+            iter_ctx["outcome"] = "max_iterations"
+            iter_ctx["filter_n_removed"] = n_removed
+            adata = adata_filtered  # Use filtered data for final output
+            ctx["iterations"].append(iter_ctx)
             break
 
         # Prepare raw counts for re-clustering
@@ -1596,6 +2121,9 @@ def mode_auto(
 
         adata = raw_filtered
         logging.info("Iteration %d complete. %d cells remaining.", iteration, adata.n_obs)
+        iter_ctx["filter_n_removed"] = n_removed
+        iter_ctx["filter_cells_remaining"] = adata.n_obs
+        ctx["iterations"].append(iter_ctx)
 
     # ── Final: save reports and h5ad ──
     logging.info("Writing final reports...")
@@ -1608,9 +2136,32 @@ def mode_auto(
     plotter = _make_plotter(plot_dir)
     if plotter:
         plotter.plot_cluster(adata, cluster_key="leiden", sample_key=resolved_batch_key)
+        
+        # Generate annotation plots (UMAP cell_type, dotplot, etc.)
+        annotation_keys = []
+        if "cell_type" in adata.obs.columns:
+            annotation_keys.append("cell_type")
+        if "llm_label" in adata.obs.columns:
+            annotation_keys.append("llm_label")
+        
+        has_rank_genes = "rank_genes_groups" in adata.uns
+        plotter.plot_annotate(
+            adata,
+            marker_file="",  # No marker file in auto mode
+            annotate_group="leiden",
+            annotation_keys=annotation_keys,
+            has_rank_genes=has_rank_genes,
+        )
 
     adata.write_h5ad(output)
+    ctx["final_cells"] = adata.n_obs
+    ctx["final_genes"] = adata.n_vars
     logging.info("Final annotated h5ad: %s", output)
+
+    # ── LLM-generated audit report & reproducible script ──
+    _generate_audit_report(ctx, report_dir, llm_method, llm_model,
+                           llm_api_key, llm_base_url)
+
     logging.info("Reports: %s", report_dir)
     logging.info("AUTO MODE COMPLETE")
 
@@ -1798,6 +2349,10 @@ def main():
     # DE params
     parser.add_argument("--deg", default="", help="Path to write DEG results TSV")
 
+    # Gene type annotation params (for merge mode)
+    parser.add_argument("--te-bed", default="", help="Path to TE BED file for gene_type annotation")
+    parser.add_argument("--gene-tsv", default="", help="Path to gene annotation TSV for gene_type annotation")
+
     args = parser.parse_args()
     adata = read_input(args.input[0], args.input[1:] if len(args.input) > 1 else None)
 
@@ -1820,6 +2375,8 @@ def main():
             input_paths=args.input,
             output=args.output,
             plot_dir=args.plot_dir,
+            te_bed=args.te_bed,
+            gene_tsv=args.gene_tsv,
         )
     elif args.mode == "cluster":
         mode_cluster(
@@ -1855,6 +2412,7 @@ def main():
         mode_auto(
             adata,
             output=args.output,
+            input_path=args.input[0],
             tissue=args.tissue,
             llm_method=args.llm_method,
             llm_model=args.llm_model,

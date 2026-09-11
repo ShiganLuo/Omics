@@ -294,18 +294,26 @@ class MetadataUtils:
                 raise ValueError(f"something wrong: {sample_id} have no {data_id_col} meta")
             
             self.samples_dict[sample_id].sample_id = sample_id
-            self.samples_dict[sample_id].design = df_sample[design_col].values[0] if design_col in df_sample.columns else ""
+            design_value = str(df_sample[design_col].values[0]) if design_col in df_sample.columns else ""
+            self.samples_dict[sample_id].design = design_value
             try:
-                self.samples_dict[sample_id].organism = resolve_genome(df_sample[organism_col].values[0]) if organism_col in df_sample.columns else "UNKNOWN"
-                self.samples_dict[sample_id].contaminated_organism = resolve_genome(df_sample[contaminated_organism_col].values[0]) if contaminated_organism_col in df_sample.columns else None
+                host_organism_value = str(df_sample[organism_col].values[0]) if organism_col in df_sample.columns else "UNKNOWN"
+                contaminated_organism_raw = df_sample[contaminated_organism_col].values[0] if contaminated_organism_col in df_sample.columns else None
+                self.samples_dict[sample_id].organism = resolve_genome(host_organism_value)
+                if contaminated_organism_raw is not None and not pd.isna(contaminated_organism_raw) and str(contaminated_organism_raw).strip():
+                    self.samples_dict[sample_id].contaminated_organism = resolve_genome(str(contaminated_organism_raw))
+                else:
+                    self.samples_dict[sample_id].contaminated_organism = None 
             except ValueError as e:
                 logger.error(f"Failed to resolve genome for organism '{df_sample[organism_col].values[0]}' in sample '{sample_id}': {e}")
                 # some pipeline may not rely on organism, so we can set it to UNKNOWN and continue
                 self.samples_dict[sample_id].organism = "UNKNOWN"
                 self.samples_dict[sample_id].contaminated_organism = None
-            self.samples_dict[sample_id].workflow = df_sample[workflow_col].values[0] if workflow_col in df_sample.columns else None
+            workflow_value = str(df_sample[workflow_col].values[0]) if workflow_col in df_sample.columns else None
+            self.samples_dict[sample_id].workflow = workflow_value
             if group_col in df_sample.columns:
-                self.samples_dict[sample_id].group = df_sample[group_col].values[0]
+                group_value = str(df_sample[group_col].values[0]).strip()
+                self.samples_dict[sample_id].group = group_value
             elif design_col in df_sample.columns:
                 _design_val = str(df_sample[design_col].values[0]).strip()
                 _m = DESIGN_PATTERN.match(_design_val)
@@ -317,9 +325,9 @@ class MetadataUtils:
                 self.samples_dict[sample_id].group = None
             if len(data_ids) == 1:
                 logger.info(f"Detect the relationship between {sample_id} and {data_ids[0]} is one-to-one")
-                origin_r1 = df_sample[fastq_r1_col].values[0]
-                origin_r2 = df_sample[fastq_r2_col].values[0] if fastq_r2_col in df_sample.columns else None
-                origin_r1 = Path(origin_r1) if os.path.exists(origin_r1) else None
+                origin_r1 = str(df_sample[fastq_r1_col].values[0]) if fastq_r1_col in df_sample.columns else None
+                origin_r2 = str(df_sample[fastq_r2_col].values[0]) if fastq_r2_col in df_sample.columns else None
+                origin_r1 = Path(origin_r1) if origin_r1 and os.path.exists(origin_r1) else None
                 origin_r2 = Path(origin_r2) if origin_r2 and os.path.exists(origin_r2) else None
 
                 if origin_r1 and origin_r2:
@@ -342,8 +350,8 @@ class MetadataUtils:
                     continue
             elif len(data_ids) > 1:
                 logger.info(f"Detect the relationship between {sample_id} and {data_ids[0]} is one-to-many")
-                origin_r1_list = sorted([r for r in df_sample[fastq_r1_col].values if r])
-                origin_r2_list = sorted([r for r in df_sample[fastq_r2_col].values if r]) if fastq_r2_col in df_sample.columns else []
+                origin_r1_list = sorted([r for r in df_sample[fastq_r1_col].values if pd.notna(r)])
+                origin_r2_list = sorted([r for r in df_sample[fastq_r2_col].values if pd.notna(r)]) if fastq_r2_col in df_sample.columns else []
                 
                 origin_r1_list_path = [Path(r1) for r1 in origin_r1_list]
                 origin_r2_list_path = [Path(r2) for r2 in origin_r2_list]
@@ -391,8 +399,8 @@ class MetadataUtils:
             raise ValueError(f"Metadata must contain columns: {self.pacbio_required_cols}")
         for sample_id, df_sample in df.groupby(sample_id_col):
             sample_id = str(sample_id)
-            bam_path = df_sample[bam_col].values[0]
-            pbi_path = df_sample[pbi_col].values[0]
+            bam_path = str(df_sample[bam_col].values[0]) if bam_col in df_sample.columns else None
+            pbi_path = str(df_sample[pbi_col].values[0]) if pbi_col in df_sample.columns else None
 
             if not bam_path or not pbi_path:
                 logger.warning(f"{sample_id} is missing BAM or PBI path, skipping.")
@@ -439,14 +447,15 @@ class MetadataUtils:
             raise ValueError(f"Metadata must contain column: {ms_file_col}")
         for sample_id, df_sample in df.groupby(sample_id_col):
             sample_id = str(sample_id)
+            host_organism_value = str(df_sample.get('organism', pd.Series(["UNKNOWN"])).values[0])
             try:
-                organism = resolve_genome(df_sample.get('organism', pd.Series(["UNKNOWN"])).values[0])
+                organism = resolve_genome(host_organism_value)
             except ValueError as e:
-                logger.error(f"Failed to resolve genome for organism '{df_sample.get('organism', pd.Series(['UNKNOWN'])).values[0]}' in sample '{sample_id}': {e}")
+                logger.error(f"Failed to resolve genome for organism '{host_organism_value}' in sample '{sample_id}': {e}")
                 # some pipeline may not rely on organism, so we can set it to UNKNOWN and continue
                 organism = "UNKNOWN"
             self.samples_dict[sample_id].organism = organism
-            ms_file_path = df_sample[ms_file_col].values[0]
+            ms_file_path = str(df_sample[ms_file_col].values[0]) if ms_file_col in df_sample.columns else None
 
             if not ms_file_path:
                 logger.warning(f"{sample_id} is missing MS file path, skipping.")

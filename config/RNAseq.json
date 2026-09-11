@@ -129,7 +129,27 @@
             "k": 1,
             "flag_params": "-q --no-unal --dta"
         },
+        "XenofilteR": {
+            "sample_contamination": {
+                "sample1": {
+                    "host": "GRCm39",
+                    "contaminant": "GRCh38"
+                }
+            },
+            "MM": 8
+        },
+        "TEtranscripts": {
+            "enabled": true
+        },
+        "StringTie": {
+            "enabled": true,
+            "sample_groups": {}
+        },
+        "gatk_RNAseq": {
+            "enabled": true
+        },
         "arriba": {
+            "enabled": true,
             "blacklist": "/home/luosg/Database/SoftWare/arriba_v2.5.1/database/blacklist_mm39_GRCm39_v2.5.1.tsv.gz",
             "known_fusions": "/home/luosg/Database/SoftWare/arriba_v2.5.1/database/known_fusions_mm39_GRCm39_v2.5.1.tsv.gz",
             "t": null,
@@ -137,6 +157,7 @@
             "E": 0.3
         },
         "DESeq2": {
+            "enabled": true,
             "group_pairs": {
                 "GRCm39": {
                     "control_group_name_vs_experimental_group_name": {
@@ -176,24 +197,13 @@
 
         },
         "report": {
+            "enabled": true,
             "title": "RNA-seq Analysis Report",
             "subtitle": "",
             "pipeline": "FASTQ -> TrimGalore/Cutadapt -> STAR/HISAT2 -> TEcount/StringTie/Arriba -> DESeq2 -> RNAseq_report",
             "genome": "GRCm39",
             "date": "2026-07-27",
             "lang": "zh"
-        },
-        "StringTie": {
-            "sample_groups": {}
-        },
-        "XenofilteR": {
-            "sample_contamination": {
-                "sample1": {
-                    "host": "GRCm39",
-                    "contaminant": "GRCh38"
-                }
-            },
-            "MM": 8
         }
     }
 }

@@ -910,6 +910,18 @@ def runscRNAseq(
         datajson["Params"]["scanpy"]["cellranger"]["qc"]["scrublet"] = True
     else:
         raise ValueError(f"Unsupported counter type: {counters}, must be scTE or cellranger")
+    # Inject LLM config from environment variables (config takes priority over env)
+    env_llm_model = os.environ.get("LLM_MODEL", "")
+    env_llm_api_key = os.environ.get("LLM_API_KEY", "")
+    env_llm_base_url = os.environ.get("LLM_BASE_URL", "")
+    for counter in counters:
+        annotate = datajson["Params"].setdefault(counter, {}).setdefault("annotate", {})
+        if env_llm_model and not annotate.get("llm_model"):
+            annotate["llm_model"] = env_llm_model
+        if env_llm_api_key and not annotate.get("llm_api_key"):
+            annotate["llm_api_key"] = env_llm_api_key
+        if env_llm_base_url and not annotate.get("llm_base_url"):
+            annotate["llm_base_url"] = env_llm_base_url
     # Build tissue_samples for scanpy downstream
     tissue_samples = {}
     for sid in paired_samples + single_samples:

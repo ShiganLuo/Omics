@@ -53,7 +53,7 @@
                 "TE_gtf": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.gtf",
                 "TEind": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.gtf.locInd",
                 "hisat2_index_prefix": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/hisat2/genome",
-                "star_index_dir": "/data/pub/zhousha/Totipotent20251031/output/pluripotency2totipotency/RNAseq/common/3_raw_bam/index/GRCm39",
+                "star_index_dir": null,
                 "rRNA_fasta": null,
                 "bowtie2_index_prefix_for_rRNA": null
             },
@@ -67,7 +67,7 @@
                 "TE_gtf": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/GRCh38_GENCODE_rmsk_TE.gtf",
                 "TEind": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/GRCh38_GENCODE_rmsk_TE.gtf.locInd",
                 "hisat2_index_prefix": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/hisat2/GRCh38",
-                "star_index_dir": "/data/pub/zhousha/Totipotent20251031/output/pluripotency2totipotency/RNAseq/common/3_raw_bam/index/GRCh38",
+                "star_index_dir": null,
                 "rRNA_fasta": null,
                 "bowtie2_index_prefix_for_rRNA": null
             },

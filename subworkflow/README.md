@@ -64,7 +64,7 @@ tabix -g gff [gft.gz]
 待做：
 - [] 增加UMI提取方式字段
 
-### UMI-tools工作原理
+#### UMI-tools工作原理
 
 Read: TAGCCGGCTTTGCCCAATTGCCAAATTTTGGGGCCCCTATGAGCTAG Barcode: NNNXXXXNN
 
@@ -75,11 +75,11 @@ Processed data: CCGGTTGCCCAATTGCCAAATTTTGGGGCCCCTATGAGCTAG
 
 
 
-### UMI提取和trim顺序
+#### UMI提取和trim顺序
 
 UMI提取依赖序列不被破坏，建议先提取UMI，再做trim比较安全
 
-### 常见UMI模式
+#### 常见UMI模式
 
 1. NNNXXXXNN
 

@@ -629,6 +629,13 @@ def runRNAseq(
     sample_groups = {}
     sample_contamination = {}
     datajson["Params"]["DESeq2"]["group_pairs"] = {}
+    # read enabled flags from each module's own Params (default True)
+    _te_enabled = datajson.get("Params", {}).get("TEtranscripts", {}).get("enabled", True)
+    _transcripts_enabled = datajson.get("Params", {}).get("StringTie", {}).get("enabled", True)
+    _fusion_enabled = datajson.get("Params", {}).get("arriba", {}).get("enabled", True)
+    _variation_enabled = datajson.get("Params", {}).get("gatk_RNAseq", {}).get("enabled", True)
+    _deseq2_enabled = datajson.get("Params", {}).get("DESeq2", {}).get("enabled", True)
+    _report_enabled = datajson.get("Params", {}).get("report", {}).get("enabled", True)
     for group_pair in group_pairs:
         datajson["Params"]["DESeq2"]["group_pairs"].setdefault(group_pair.organism, {})
         datajson["Params"]["DESeq2"]["group_pairs"][group_pair.organism].setdefault(f"{group_pair.ctr_group_name}_vs_{group_pair.exp_group_name}", {
@@ -637,7 +644,8 @@ def runRNAseq(
             "control_samples": group_pair.ctr_sample_ids,
             "experimental_samples": group_pair.exp_sample_ids
         })
-        outfiles.append(f"{outdir}/diff_expression/{group_pair.organism}/{group_pair.ctr_group_name}_vs_{group_pair.exp_group_name}/DESeq2.done")
+        if _deseq2_enabled:
+            outfiles.append(f"{outdir}/diff_expression/{group_pair.organism}/{group_pair.ctr_group_name}_vs_{group_pair.exp_group_name}/DESeq2.done")
         sample_groups.setdefault(group_pair.ctr_group_name, []).extend(group_pair.ctr_sample_ids)
         sample_groups.setdefault(group_pair.exp_group_name, []).extend(group_pair.exp_sample_ids)
 
@@ -662,15 +670,20 @@ def runRNAseq(
             sample_contamination.setdefault(sample_id,{}).setdefault("contaminant", sample_info.contaminated_organism)
         else:
             sample_contamination.setdefault(sample_id,{}).setdefault("contaminant", sample_info.organism)
-        outfiles.append(f"{outdir}/variation/germline_snv_indel_RNAseq/{sample_info.organism}/{sample_id}/{sample_id}.filtered.vcf.gz")
+        if _variation_enabled:
+            outfiles.append(f"{outdir}/variation/germline_snv_indel_RNAseq/{sample_info.organism}/{sample_id}/{sample_id}.filtered.vcf.gz")
         if sample_info.layout == "PE":
             genome_paired_samples.setdefault(sample_info.organism, []).append(sample_id)
-            outfiles.append(f"{outdir}/transcripts/{sample_info.organism}/raw/{sample_id}/{sample_id}_TE_chimeric_transcripts.txt")
-            outfiles.append(f"{outdir}/fusion/{sample_info.organism}/{sample_id}/{sample_id}_passed_fusions.tsv")
+            if _transcripts_enabled:
+                outfiles.append(f"{outdir}/transcripts/{sample_info.organism}/raw/{sample_id}/{sample_id}_TE_chimeric_transcripts.txt")
+            if _fusion_enabled:
+                outfiles.append(f"{outdir}/fusion/{sample_info.organism}/{sample_id}/{sample_id}_passed_fusions.tsv")
         elif sample_info.layout == "SE":
             genome_single_samples.setdefault(sample_info.organism, []).append(sample_id)
-            outfiles.append(f"{outdir}/transcripts/{sample_info.organism}/raw/{sample_id}/{sample_id}_TE_chimeric_transcripts.txt")
-            outfiles.append(f"{outdir}/fusion/{sample_info.organism}/{sample_id}/{sample_id}_passed_fusions.tsv")
+            if _transcripts_enabled:
+                outfiles.append(f"{outdir}/transcripts/{sample_info.organism}/raw/{sample_id}/{sample_id}_TE_chimeric_transcripts.txt")
+            if _fusion_enabled:
+                outfiles.append(f"{outdir}/fusion/{sample_info.organism}/{sample_id}/{sample_id}_passed_fusions.tsv")
         else:
             logger.error(f"Unknown layout type for sample {sample_id}: {sample_info.layout}")
     datajson["Params"]["XenofilteR"]["sample_contamination"] = sample_contamination
@@ -692,15 +705,21 @@ def runRNAseq(
             raise ValueError(f"function module don't support {organism}, only support human or mouse(Homo sapiens or Mus musculus)")
     datajson["Params"]["report"]["date"] = time.strftime("%Y-%m-%d", time.localtime())
     for organism in Organisms:
-        outfiles.append(f"{outdir}/fusion/{organism}/arriba_report/arriba_fusion_report.html")
-        outfiles.append(f"{outdir}/transcripts/{organism}/stringtie_merged.gtf")
-        outfiles.append(f"{outdir}/transcripts/{organism}/TE_chimeric/TE_chimeric_group_stacked.png")
-        outfiles.append(f"{outdir}/transcripts/{organism}/TE_chimeric/TE_chimeric_te_type_top.png")
-        outfiles.append(f"{outdir}/transcripts/{organism}/TE_chimeric/TE_chimeric_te_type_by_group.png")
-        outfiles.append(f"{outdir}/transcripts/{organism}/TE_chimeric/TE_chimeric_sample_summary.tsv")
-        outfiles.append(f"{outdir}/transcripts/{organism}/TE_chimeric/TE_chimeric_group_summary.tsv")
-        outfiles.append(f"{outdir}/transcripts/{organism}/TE_chimeric/TE_chimeric_te_type_counts.tsv")
-        outfiles.append(f"{outdir}/results/{organism}/RNAseq_report.pptx")
+        if _fusion_enabled:
+            outfiles.append(f"{outdir}/fusion/{organism}/arriba_report/arriba_fusion_report.html")
+        if _transcripts_enabled:
+            outfiles.append(f"{outdir}/transcripts/{organism}/stringtie_merged.gtf")
+            outfiles.append(f"{outdir}/transcripts/{organism}/TE_chimeric/TE_chimeric_group_stacked.png")
+            outfiles.append(f"{outdir}/transcripts/{organism}/TE_chimeric/TE_chimeric_te_type_top.png")
+            outfiles.append(f"{outdir}/transcripts/{organism}/TE_chimeric/TE_chimeric_te_type_by_group.png")
+            outfiles.append(f"{outdir}/transcripts/{organism}/TE_chimeric/TE_chimeric_sample_summary.tsv")
+            outfiles.append(f"{outdir}/transcripts/{organism}/TE_chimeric/TE_chimeric_group_summary.tsv")
+            outfiles.append(f"{outdir}/transcripts/{organism}/TE_chimeric/TE_chimeric_te_type_counts.tsv")
+        if _te_enabled or _deseq2_enabled:
+            outfiles.append(f"{outdir}/counts/{organism}/TEcount/all_TEcount.tsv")
+            outfiles.append(f"{outdir}/counts/{organism}/TElocal/all_TElocal.tsv")
+        if _report_enabled:
+            outfiles.append(f"{outdir}/results/{organism}/RNAseq_report.pptx")
     datajson["raw_files"] = raw_files
     datajson["outfiles"] = outfiles
     datajson["genome_paired_samples"] = genome_paired_samples
@@ -929,7 +948,11 @@ def runscRNAseq(
         tissue_samples.setdefault(tissue, []).append(sid)
     for tissue in tissue_samples.keys():
         for counter in counters:
-            outfiles.append(f"{outdir}/common/5_combine_h5ad/{tissue}/{tissue}_{counter}_advanced.h5ad")
+            ann = datajson["Params"].get(counter, {}).get("annotate", {})
+            if ann.get("llm_method"):
+                outfiles.append(f"{outdir}/common/5_combine_h5ad/{tissue}/{tissue}_{counter}_advanced.h5ad")
+            else:
+                outfiles.append(f"{outdir}/common/5_combine_h5ad/{tissue}/{tissue}_{counter}_merged.h5ad")
     datajson["Params"]["scanpy"]["tissue_samples"] = tissue_samples
     # outfiles.append(f"{outdir}/scRNAseq_report.pptx")
     datajson["outfiles"] = outfiles

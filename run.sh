@@ -8,13 +8,21 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # --singularity-args '--bind /home/luosg/Database,/home/luosg/Data/genomeStability,/tmp'
 
 python ${SCRIPT_DIR}/run.py \
-    -m /data/pub/zhousha/Totipotent20251031/data/Totipotency/meat_input.tsv \
+    -m /home/luosg/Data/genomeStability/data/EED_public/meta_input.tsv \
     -w RNAseq \
-    -o /data/pub/zhousha/Totipotent20251031/output/pluripotency2totipotency \
+    -o /home/luosg/Data/genomeStability/output/EED \
     -t 48 \
-    --log /data/pub/zhousha/Totipotent20251031/log/RNAseq_pluripotency2totipotency.log \
+    --log /home/luosg/Data/genomeStability/log/EED_RNAseq.log \
     --sdm \
-    --rerun-triggers mtime
+    --rerun-triggers mtime \
+    --Params.StringTie.enabled false \
+    --Params.gatk_RNAseq.enabled false \
+    --Params.arriba.enabled false \
+    --Params.DESeq2.enabled false \
+    --Params.function.GRCh38.enabled false \
+    --Params.function.GRCm39.enabled false \
+    --Params.report.enabled false \
+    --dry-run
 
 # python ${SCRIPT_DIR}/run.py \
 #     -m /home/luosg/Data/genomeStability/data/Srp54/meta_input.tsv \

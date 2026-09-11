@@ -508,9 +508,9 @@ class ScanpyPlotter:
         # 3. UMAP — each annotation column
         for col in annotation_keys:
             if col in adata.obs.columns:
-                fig, ax = plt.subplots(figsize=(8, 6))
-                self._umap(adata, col, ax=ax, legend_loc="on data",
-                           legend_fontsize=8)
+                fig, ax = plt.subplots(figsize=(10, 6))
+                self._umap(adata, col, ax=ax, legend_loc="right margin",
+                           legend_fontsize=9, legend_fontoutline=1)
                 self._save(f"annotate_umap_{col}.png")
 
         # 4. Confidence score

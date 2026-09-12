@@ -63,12 +63,12 @@ outdir=/data/pub/zhousha/20260207_Exome/data/tRNA/fastq
 # cngb_download ${ip} ${outdir}
 
 python ${ASCP_downloader} \
-    --meta /home/luosg/Data/genomeStability/data/EED_public/meta_download.tsv \
+    --meta /data/pub/zhousha/Totipotent20251031/data/EED/meta_download.tsv \
     --srr-col-name srr \
     --lib-col-name library_layout \
-    --outdir /home/luosg/Data/genomeStability/data/EED_public/fastq \
-    -m sra \
-    --log /home/luosg/Data/genomeStability/log/EED_download.log \
+    --outdir /data/pub/zhousha/Totipotent20251031/data/EED/fastq \
+    -m aria2c \
+    --log /data/pub/zhousha/Totipotent20251031/log/EED_download.log \
     --jobs 3
 # python ${GSE_parser} \
 #     -i /data/pub/zhousha/Totipotent20251031/data/EED/GSE.txt \

@@ -71,24 +71,33 @@ rule TEcount:
 
 def get_input_for_combine_TEcount(wildcards):
     logger.info(f"[get_input_for_combine_TEcount] called with wildcards: {wildcards}")
-    cntTable = []
+    cntTables = []
     for sample_id in genome_samples.get(wildcards.genome, []):
-        cntTable.append(f"{outdir}/{wildcards.genome}/TEcount/{sample_id}.TEcount.cntTable")
-    if len(cntTable) == 0:
+        cntTables.append(f"{outdir}/{wildcards.genome}/TEcount/{sample_id}.TEcount.cntTable")
+    if len(cntTables) == 0:
         raise ValueError(f"rule combine_TEcount didn't get any input files,samples:{genome_samples.get(wildcards.genome, [])}")
-    return cntTable
+    gtf = config.get('genome', {}).get('references', {}).get(wildcards.genome, {}).get('gtf')
+    if not gtf or not os.path.exists(gtf):
+        raise ValueError(f"gtf file not found for genome {wildcards.genome}: {gtf}")
+    in_dict = {
+        "cntTable": cntTables,
+        "gtf": gtf
+    }
+    return in_dict
 
 rule combine_TEcount:
     input:
-        fileList = get_input_for_combine_TEcount
+        unpack(get_input_for_combine_TEcount)
     output:
-        outfile = outdir + "/{genome}/TEcount/all_TEcount.tsv"
+        outfile_raw = outdir + "/{genome}/TEcount/all_TEcount.tsv",
+        outfile_annotate = outdir + "/{genome}/TEcount/all_TEcount_name.tsv",
     conda:
         "../TEtranscripts.yaml"
     container:
         sif("../TEtranscripts.yaml")
     params:
         combineTE = ROOT_DIR + "/modules/TEtranscripts/bin/combineTE.py",
+        geneId2Name = ROOT_DIR +"/modules/TEtranscripts/bin/geneId2Name.py",
         indir = outdir + "/{genome}/TEcount"
     log:
         logdir_combine + "/TEtranscripts/{genome}/combine_TEcount.log"
@@ -99,19 +108,26 @@ rule combine_TEcount:
             rule_logger = setup_logger("combine_TEcount", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start combine_TEcount at {current_time}")
-            sample_outdir = os.path.dirname(str(output.outfile))
+            sample_outdir = os.path.dirname(str(output.outfile_raw))
             script = os.path.join(sample_outdir, f"combine_TEcount_{current_time}.sh")
-            cmd = [
+            cmd1 = [
                 "python", params.combineTE,
                 "-p", "TEcount",
                 "-i", params.indir,
-                "-o", output.outfile
+                "-o", output.outfile_raw
+            ]
+            cmd2 = [
+                "python", params.geneId2Name,
+                "-c", output.outfile_raw,
+                "-g", input.gtf,
+                "-o", output.outfile_annotate
             ]
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write("set -euo pipefail\n")
-                f.write(" ".join(cmd) + "\n")
-                f.write(f"echo 'combine_TEcount completed at {current_time}'\n")
+                f.write(" ".join(cmd1) + "\n")
+                f.write(" ".join(cmd2) + "\n")
+                f.write(f"echo 'combine_TEcount for {wildcards.genome} completed at {current_time}'\n")
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path, "a") as f:

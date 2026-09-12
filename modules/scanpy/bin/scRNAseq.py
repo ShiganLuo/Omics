@@ -1113,6 +1113,55 @@ def _search_pubmed(
     return results
 
 
+def _query_tissue_cell_types(
+    tissue: str,
+    llm_method: str,
+    llm_model: str,
+    llm_api_key: str,
+    llm_base_url: str,
+) -> Dict[str, List[str]]:
+    """Query LLM for known cell types and their canonical markers in a tissue.
+
+    Returns a dict mapping cell_type_name -> list of canonical marker genes.
+    """
+    prompt = f"""You are a single-cell RNA-seq expert. List ALL known cell types found in {tissue} tissue from published scRNA-seq studies.
+
+For each cell type, provide 5-8 canonical marker genes that are USED IN THE LITERATURE to identify that cell type.
+
+Output a JSON object with:
+- "cell_types": a dict where keys are cell type names and values are lists of canonical marker genes
+
+Example format:
+{{
+  "cell_types": {{
+    "Macrophage": ["CD68", "CD163", "CSF1R", "MRC1", "MARCO", "LYZ"],
+    "T_cell": ["CD3E", "CD3D", "CD3G", "CD4", "CD8A", "IL7R"]
+  }}
+}}
+
+Rules:
+- Include ALL known cell types, including rare subtypes
+- Use standard nomenclature from published studies
+- Include tissue-specific subtypes (e.g., for ovary: Luteal, Cumulus, Theca, Granulosa)
+- Include both common and rare cell types
+- Markers should be protein-coding genes commonly used in literature
+- Output ONLY valid JSON, no markdown
+"""
+
+    if llm_method == "openai":
+        raw = _call_openai(prompt, llm_model=llm_model, llm_api_key=llm_api_key, llm_base_url=llm_base_url)
+    elif llm_method == "ollama":
+        raw = _call_ollama(prompt, llm_model=llm_model, llm_base_url=llm_base_url)
+    else:
+        return {}
+
+    cell_types = raw.get("cell_types", {})
+    logging.info("Queried %d cell types for tissue '%s'", len(cell_types), tissue)
+    for ct, markers in cell_types.items():
+        logging.info("  %s: %s", ct, ", ".join(markers[:5]))
+    return cell_types
+
+
 def _build_auto_annotation_prompt(
     cluster_id: str,
     top_genes: List[str],
@@ -1123,6 +1172,7 @@ def _build_auto_annotation_prompt(
     pct_mt: float,
     other_annotations: Optional[Dict[str, Dict]] = None,
     umap_distances: Optional[Dict[str, float]] = None,
+    tissue_cell_types: Optional[Dict[str, List[str]]] = None,
 ) -> str:
     """Build prompt for autonomous cell type annotation of a single cluster.
 
@@ -1164,6 +1214,14 @@ def _build_auto_annotation_prompt(
             other_lines.append(f"  - Cluster {cid}: {ct} (confidence: {conf}, key markers: {markers}){dist_info}")
         other_context = "\n".join(other_lines)
 
+    # Build tissue-specific cell type context
+    tissue_context = ""
+    if tissue_cell_types:
+        tissue_lines = []
+        for ct, markers in tissue_cell_types.items():
+            tissue_lines.append(f"  - {ct}: {', '.join(markers)}")
+        tissue_context = "\n".join(tissue_lines)
+
     prompt = f"""You are an expert single-cell RNA-seq analyst. Annotate the following cluster from a {tissue} dataset.
 
 ## Cluster {cluster_id}
@@ -1180,6 +1238,16 @@ def _build_auto_annotation_prompt(
 {other_context}
 """
 
+    if tissue_context:
+        prompt += f"""
+## Known cell types in {tissue} (from published scRNA-seq studies)
+{tissue_context}
+
+IMPORTANT: You MUST annotate this cluster as one of the above cell types if the markers match. 
+Do NOT use generic names (e.g., "Fibroblast") when a tissue-specific subtype exists (e.g., "Luteal", "Cumulus", "Theca").
+If none of the above cell types match, you may use a new name.
+"""
+
     prompt += """
 ## Task
 Identify the cell type for this cluster. Consider:
@@ -1191,6 +1259,7 @@ Identify the cell type for this cluster. Consider:
 Output a JSON object with:
 - "cell_type": predicted cell type name (use standard nomenclature, e.g. "Stromal", "Smooth_muscle", "Endothelial", "Macrophage", "T_cell", "Unknown", etc.)
 - "key_markers": list of 5-10 genes from the DEGs that best support this identification
+- "canonical_markers": list of 6-10 canonical marker genes for this cell type from published literature. These should be the STANDARD markers used to identify this cell type, NOT limited to the DEGs provided. For example, for Granulosa cells: ["FOXL2", "CYP19A1", "FSHR", "AMH", "HSD17B1", "INHA"]. For Endothelial: ["PECAM1", "VWF", "CDH5", "KDR", "FLT1"]. This is critical for specificity-weighted scoring.
 - "reasoning": brief explanation of your reasoning, including:
   * Why this cell type?
   * Is this a subcluster of another cluster? If so, which one?
@@ -1236,6 +1305,7 @@ def _ai_annotate_cluster(
     llm_base_url: str,
     other_annotations: Optional[Dict[str, Dict]] = None,
     umap_distances: Optional[Dict[str, float]] = None,
+    tissue_cell_types: Optional[Dict[str, List[str]]] = None,
 ) -> Dict[str, Any]:
     """AI-annotate a single cluster: LLM decision + PubMed references.
 
@@ -1263,6 +1333,7 @@ def _ai_annotate_cluster(
         cluster_id, top_genes, tissue, n_cells, mean_genes, mean_counts, pct_mt,
         other_annotations=other_annotations,
         umap_distances=umap_distances,
+        tissue_cell_types=tissue_cell_types,
     )
 
     # Call LLM
@@ -1279,6 +1350,7 @@ def _ai_annotate_cluster(
     annotation: Dict[str, Any] = {
         "cell_type": raw.get("cell_type", "Unknown"),
         "key_markers": raw.get("key_markers", []),
+        "canonical_markers": raw.get("canonical_markers", []),  # Standard markers from literature
         "reasoning": raw.get("reasoning", ""),
         "confidence": raw.get("confidence", "low"),
         "quality_flag": raw.get("quality_flag"),
@@ -1855,6 +1927,13 @@ def mode_auto(
         adata.layers["counts"] = adata.X.copy()
     raw_adata = adata.copy()
 
+    # ── Step 0: Query tissue-specific cell types from LLM ──
+    logging.info("[Step 0] Querying known cell types for tissue '%s'...", tissue)
+    tissue_cell_types = _query_tissue_cell_types(
+        tissue, llm_method, llm_model, llm_api_key, llm_base_url,
+    )
+    ctx["tissue_cell_types"] = tissue_cell_types
+
     iteration = 0
     while iteration < max_iterations:
         iteration += 1
@@ -1970,6 +2049,7 @@ def mode_auto(
                 llm_api_key=llm_api_key, llm_base_url=llm_base_url,
                 other_annotations=annotations,
                 umap_distances=umap_distances,
+                tissue_cell_types=tissue_cell_types,
             )
             annotations[cluster] = ann
             logging.info("    -> %s (confidence: %s, %d refs, is_subcluster: %s, should_merge: %s)",
@@ -1989,6 +2069,84 @@ def mode_auto(
                                          "reasoning": ann.get("reasoning", "")}
                                     for cl, ann in annotations.items()}
         iter_ctx["cell_types"] = sorted(set(cluster_to_ct.values()))
+
+        # ── Step 2.5: Specificity-weighted scoring refinement ──
+        logging.info("[Step 2.5] Specificity-weighted marker scoring...")
+        # Collect canonical_markers from all clusters to build temporary marker dict
+        temp_marker_dict: Dict[str, List[str]] = {}
+        for cl, ann in annotations.items():
+            ct = ann["cell_type"]
+            canonical = ann.get("canonical_markers", [])
+            if canonical and ct not in ("Unknown", "Unverified_TE", "Unannotated"):
+                if ct not in temp_marker_dict:
+                    temp_marker_dict[ct] = []
+                # Merge canonical markers (avoid duplicates)
+                for g in canonical:
+                    if g not in temp_marker_dict[ct]:
+                        temp_marker_dict[ct].append(g)
+
+        if temp_marker_dict:
+            # Compute gene specificity: 1 / (number of cell types expressing it)
+            gene_specificity: Dict[str, float] = {}
+            for ct, markers in temp_marker_dict.items():
+                for g in markers:
+                    gene_specificity[g] = gene_specificity.get(g, 0) + 1
+            for g in gene_specificity:
+                gene_specificity[g] = 1.0 / gene_specificity[g]
+
+            # Get top DEGs for each cluster
+            result = adata.uns["rank_genes_groups"]
+            cluster_markers: Dict[str, List[str]] = {}
+            for g in result["names"].dtype.names:
+                cluster_markers[g] = list(result["names"][g][:50])
+
+            all_genes = set(adata.raw.var.index) if adata.raw is not None else set(adata.var.index)
+            valid_markers = {}
+            for ct, genes in temp_marker_dict.items():
+                found = [g for g in genes if g in all_genes]
+                if found:
+                    valid_markers[ct] = set(found)
+
+            # Re-score each cluster using specificity-weighted algorithm
+            cluster_to_ct_refined = {}
+            for clust, top_genes in cluster_markers.items():
+                top_set = set(top_genes)
+                best_ct = annotations.get(clust, {}).get("cell_type", "Unknown")
+                best_score = 0.0
+                for ct, markers in valid_markers.items():
+                    matched = top_set & markers
+                    score = 0.0
+                    for g in matched:
+                        rank = top_genes.index(g)
+                        rank_weight = 1.0 / (1.0 + rank * 0.1)
+                        score += gene_specificity.get(g, 0) * rank_weight
+                    if score > best_score:
+                        best_score = score
+                        best_ct = ct
+                cluster_to_ct_refined[clust] = best_ct
+                llm_ct = annotations.get(clust, {}).get("cell_type", "Unknown")
+                if best_ct != llm_ct:
+                    logging.info("  Cluster %s: LLM='%s' -> Refined='%s' (score=%.2f)",
+                                 clust, llm_ct, best_ct, best_score)
+
+            # Apply refined annotations
+            for clust in annotations:
+                llm_ct = annotations[clust]["cell_type"]
+                refined_ct = cluster_to_ct_refined.get(clust, llm_ct)
+                annotations[clust]["cell_type_refined"] = refined_ct
+                annotations[clust]["cell_type"] = refined_ct  # Overwrite with refined
+
+            # Update adata with refined annotations
+            cluster_to_ct = {cl: ann["cell_type"] for cl, ann in annotations.items()}
+            adata.obs["cell_type"] = adata.obs["leiden"].map(cluster_to_ct).astype("category")
+            adata.obs["llm_label"] = adata.obs["leiden"].map(
+                {cl: annotations[cl].get("cell_type_refined", annotations[cl]["cell_type"])
+                 for cl in annotations}).astype("category")
+            logging.info("Refined annotations applied. Cell types: %s",
+                         sorted(set(cluster_to_ct.values())))
+        else:
+            logging.info("No canonical_markers found, skipping specificity scoring")
+            adata.obs["llm_label"] = adata.obs["cell_type"].copy()
 
         # ── Step 3: Quality analysis ──
         logging.info("[Step 3] Quality analysis...")

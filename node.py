@@ -717,6 +717,7 @@ def runRNAseq(
             outfiles.append(f"{outdir}/transcripts/{organism}/TE_chimeric/TE_chimeric_te_type_counts.tsv")
         if _te_enabled or _deseq2_enabled:
             outfiles.append(f"{outdir}/counts/{organism}/TEcount/all_TEcount.tsv")
+            outfiles.append(f"{outdir}/counts/{organism}/TEcount/all_TEcount_name.tsv")
             outfiles.append(f"{outdir}/counts/{organism}/TElocal/all_TElocal.tsv")
         if _report_enabled:
             outfiles.append(f"{outdir}/results/{organism}/RNAseq_report.pptx")

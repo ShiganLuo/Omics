@@ -1707,12 +1707,32 @@ def _basic_qc_check(
     min_counts: int = 3000,
     max_pct_mt: float = 20.0,
 ) -> List[Dict[str, Any]]:
-    """Per-cluster basic QC report based purely on numeric thresholds.
+    """Per-cluster QC statistics — sensor only, no policy.
 
-    Independent of AI annotations — used at CP1 (clustering checkpoint) BEFORE
-    annotation runs. Returns the same shape as _analyze_cluster_quality so
-    _apply_orchestrator_decision can consume it uniformly.
+    Reports per-cluster n_cells, mean_genes, mean_counts, pct_mt, and
+    RELATIVE outlier flags (vs dataset-level distribution). The LLM at CP1
+    decides whether to filter based on these signals in context.
+
+    Flag rules (all relative to dataset-level distribution; absolute
+    thresholds from CLI params used as a fallback floor):
+      - low_genes_extreme:    mean_genes < 30% of dataset median
+      - low_counts_extreme:   mean_counts < 30% of dataset median
+      - high_mt_extreme:      pct_mt > 95th percentile OR pct_mt > max_pct_mt
+      - tiny_cluster_extreme: n_cells < 1% of total cells AND n_cells < 50
+
+    NEVER auto-sets should_filter=True; CP1 LLM makes the policy decision.
     """
+    # Dataset-level statistics (computed once for relative comparisons)
+    if "total_counts" in adata.obs.columns and "n_genes_by_counts" in adata.obs.columns and "pct_counts_mt" in adata.obs.columns:
+        dataset_median_genes = float(adata.obs["n_genes_by_counts"].median())
+        dataset_median_counts = float(adata.obs["total_counts"].median())
+        dataset_p95_mt = float(adata.obs["pct_counts_mt"].quantile(0.95))
+    else:
+        dataset_median_genes = None
+        dataset_median_counts = None
+        dataset_p95_mt = None
+    total_cells = int(adata.n_obs)
+
     reports: List[Dict[str, Any]] = []
     for cluster in sorted(adata.obs["leiden"].unique(), key=lambda x: int(x)):
         mask = adata.obs["leiden"] == cluster
@@ -1725,35 +1745,42 @@ def _basic_qc_check(
         pct_mt = float(obs["pct_counts_mt"].mean()) if "pct_counts_mt" in obs.columns else 0.0
 
         flags: List[str] = []
-        if mean_genes < min_genes:
-            flags.append("low_genes")
-        if mean_counts < min_counts:
-            flags.append("low_counts")
-        if pct_mt > max_pct_mt:
-            flags.append("high_mt")
+        # Relative QC: outlier flags only for clusters dramatically worse than
+        # dataset median. Keep absolute thresholds as a sanity floor.
+        if dataset_median_genes is not None and dataset_median_genes > 0:
+            if mean_genes < dataset_median_genes * 0.30:
+                flags.append("low_genes_extreme")
+            elif mean_genes < min_genes * 0.5:  # sanity floor
+                flags.append("low_genes_low")
+        if dataset_median_counts is not None and dataset_median_counts > 0:
+            if mean_counts < dataset_median_counts * 0.30:
+                flags.append("low_counts_extreme")
+            elif mean_counts < min_counts * 0.5:  # sanity floor
+                flags.append("low_counts_low")
+        if dataset_p95_mt is not None:
+            if pct_mt > dataset_p95_mt and pct_mt > 15.0:
+                flags.append("high_mt_extreme")
+        elif pct_mt > max_pct_mt:
+            flags.append("high_mt_above_threshold")
+        # Tiny cluster: < 1% of total AND < 50 cells. NOT auto-set should_filter;
+        # CP1 LLM decides based on context.
+        if n_cells < max(50, total_cells * 0.01):
+            flags.append("tiny_cluster_extreme")
 
-        # Per-cluster cell survival under cell-level QC thresholds
-        if "n_genes_by_counts" in obs.columns:
-            cells_pass_genes = int((obs["n_genes_by_counts"] >= min_genes).sum())
-        else:
-            cells_pass_genes = n_cells
-        if "total_counts" in obs.columns:
-            cells_pass_counts = int((obs["total_counts"] >= min_counts).sum())
-        else:
-            cells_pass_counts = n_cells
-        if "pct_counts_mt" in obs.columns:
-            cells_pass_mt = int((obs["pct_counts_mt"] <= max_pct_mt).sum())
-        else:
-            cells_pass_mt = n_cells
+        # Cell-level QC survival stats — useful for orchestrator's filter_plan.
+        cells_pass_genes = (
+            int((obs["n_genes_by_counts"] >= min_genes).sum())
+            if "n_genes_by_counts" in obs.columns else n_cells
+        )
+        cells_pass_counts = (
+            int((obs["total_counts"] >= min_counts).sum())
+            if "total_counts" in obs.columns else n_cells
+        )
+        cells_pass_mt = (
+            int((obs["pct_counts_mt"] <= max_pct_mt).sum())
+            if "pct_counts_mt" in obs.columns else n_cells
+        )
         cells_passing_all = int(min(cells_pass_genes, cells_pass_counts, cells_pass_mt))
-
-        should_filter = bool(flags)
-        # Tiny clusters (< 50 cells) are automatically suspect at CP1 even
-        # without threshold violations — they often represent doublets/empty
-        # droplets / debris. Flag but don't force filter.
-        if n_cells < 50 and not should_filter:
-            flags.append("tiny_cluster")
-            should_filter = True
 
         reports.append({
             "cluster": cluster,
@@ -1762,9 +1789,9 @@ def _basic_qc_check(
             "mean_counts": round(mean_counts, 1),
             "pct_mt": round(pct_mt, 2),
             "flags": flags,
-            "should_filter": should_filter,
+            # NO auto should_filter — let CP1 LLM decide based on flags + context.
+            "should_filter": False,
             "filter_mode": "cell",
-            # Extra field for orchestrator: cells that would survive cell-level QC
             "n_cells_passing_qc": cells_passing_all,
             "n_cells_to_drop_qc": n_cells - cells_passing_all,
         })

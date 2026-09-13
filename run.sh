@@ -89,5 +89,4 @@ python ${SCRIPT_DIR}/run.py \
     --sdm \
     --counters scTE cellranger \
     --aligner cellranger \
-    --rerun-triggers mtime \
-    --dry-run
+    --rerun-triggers mtime

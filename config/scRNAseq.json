@@ -129,9 +129,9 @@
           "n_top_genes": 3000,
           "batch_method": "harmony",
           "batch_key": "sample_id",
-          "auto_n_pcs": false,
-          "skip_te": false,
-          "llm_method": "",
+          "auto_n_pcs": true,
+          "skip_te": true,
+          "llm_method": null,
           "llm_model": null,
           "llm_api_key": null,
           "llm_base_url": null
@@ -179,12 +179,12 @@
           "n_top_genes": 3000,
           "batch_method": "harmony",
           "batch_key": "sample_id",
-          "auto_n_pcs": false,
-          "skip_te": false,
-          "llm_method": "",
-          "llm_model": "gpt-4o",
-          "llm_api_key": "",
-          "llm_base_url": ""
+          "auto_n_pcs": true,
+          "skip_te": true,
+          "llm_method": null,
+          "llm_model": null,
+          "llm_api_key": null,
+          "llm_base_url": null
         }
       },
       "tissue_samples": {}

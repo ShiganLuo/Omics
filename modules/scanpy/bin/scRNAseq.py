@@ -2963,11 +2963,17 @@ def main():
     # Annotate params
     parser.add_argument("--marker-file", default="", help="TSV with cell_type and markers columns")
     parser.add_argument("--celltypist-model", default="", help="CellTypist model name")
-    parser.add_argument("--llm-method", default="", choices=["", "openai", "anthropic", "ollama", "file"],
-                        help="LLM backend for annotation")
-    parser.add_argument("--llm-model", default="", help="LLM model identifier")
-    parser.add_argument("--llm-api-key", default="", help="API key for OpenAI backend")
-    parser.add_argument("--llm-base-url", default="", help="Base URL for LLM API")
+    # LLM config: fall back to environment variables when CLI value is empty/None.
+    # os.environ.get(..., "") ensures unset env vars also default to "".
+    parser.add_argument("--llm-method", default=os.environ.get("LLM_METHOD", ""),
+                        choices=["", "openai", "anthropic", "ollama", "file"],
+                        help="LLM backend for annotation (env: LLM_METHOD)")
+    parser.add_argument("--llm-model", default=os.environ.get("LLM_MODEL", ""),
+                        help="LLM model identifier (env: LLM_MODEL)")
+    parser.add_argument("--llm-api-key", default=os.environ.get("LLM_API_KEY", ""),
+                        help="API key for LLM backend (env: LLM_API_KEY)")
+    parser.add_argument("--llm-base-url", default=os.environ.get("LLM_BASE_URL", ""),
+                        help="Base URL for LLM API (env: LLM_BASE_URL)")
     parser.add_argument("--annotate-group", default="", help="Obs column for cluster grouping")
     parser.add_argument("--tissue", default="", help="Tissue name for LLM prompt context")
     parser.add_argument("--species", default="", help="Species/genome for tissue-specific annotation (e.g., Mmul_10, GRCh38, GRCm39)")
@@ -2992,6 +2998,18 @@ def main():
     parser.add_argument("--gene-tsv", default="", help="Path to gene annotation TSV for gene_type annotation")
 
     args = parser.parse_args()
+
+    # A2: defensive fallback. argparse default is consumed only when the user
+    # does NOT pass the flag at all; if the user passes an explicit empty
+    # string (e.g. `--llm-api-key ""`), the default is overridden and the env
+    # var is lost. Re-fill from env when the resolved value is empty.
+    for arg_name in ("llm_method", "llm_model", "llm_api_key", "llm_base_url"):
+        if not getattr(args, arg_name):
+            env_val = os.environ.get(arg_name.upper(), "")
+            if env_val:
+                logging.info("LLM config %s filled from env %s", arg_name, arg_name.upper())
+                setattr(args, arg_name, env_val)
+
     adata = read_input(args.input[0], args.input[1:] if len(args.input) > 1 else None)
 
     if args.mode == "qc":

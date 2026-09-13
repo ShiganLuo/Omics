@@ -1768,16 +1768,22 @@ def _basic_qc_check(
             flags.append("tiny_cluster_extreme")
 
         # Cell-level QC survival stats — useful for orchestrator's filter_plan.
+        # Use RELATIVE thresholds (30% of dataset median) instead of absolute
+        # CLI thresholds — the latter are too strict for typical scRNA-seq
+        # data where most clusters naturally fall below e.g. min_counts=3000.
+        rel_min_genes = dataset_median_genes * 0.30 if dataset_median_genes else min_genes
+        rel_min_counts = dataset_median_counts * 0.30 if dataset_median_counts else min_counts
+        rel_max_mt = max(15.0, dataset_p95_mt * 1.5) if dataset_p95_mt else max_pct_mt
         cells_pass_genes = (
-            int((obs["n_genes_by_counts"] >= min_genes).sum())
+            int((obs["n_genes_by_counts"] >= rel_min_genes).sum())
             if "n_genes_by_counts" in obs.columns else n_cells
         )
         cells_pass_counts = (
-            int((obs["total_counts"] >= min_counts).sum())
+            int((obs["total_counts"] >= rel_min_counts).sum())
             if "total_counts" in obs.columns else n_cells
         )
         cells_pass_mt = (
-            int((obs["pct_counts_mt"] <= max_pct_mt).sum())
+            int((obs["pct_counts_mt"] <= rel_max_mt).sum())
             if "pct_counts_mt" in obs.columns else n_cells
         )
         cells_passing_all = int(min(cells_pass_genes, cells_pass_counts, cells_pass_mt))

@@ -2397,15 +2397,18 @@ def _collect_iteration_state(
             "CP3 (iteration decision checkpoint): all structural analyses done. "
             "Decisions available: accept / filter_and_recluster / "
             "adjust_resolution_and_recluster / correct_annotations. "
-            "IMPORTANT: check spatial_mismatches — clusters where the nearest "
-            "OTHER cell_type cluster is closer than the nearest SAME cell_type "
-            "cluster. These are Leiden mis-fragmentation artifacts: a cluster "
-            "was labeled cell_type X but physically sits in cell_type Y's "
-            "territory. RECOMMENDED action: correct_annotations to relabel "
-            "such clusters to match their spatial neighborhood's cell_type "
-            "(use merge_to_cluster to point at the correct spatial sibling). "
-            "Example: cluster C17 labeled Cumulus_Granulosa but nearest Mural_"
-            "Granulosa cluster is 0.4 UMAP away → relabel C17 to Mural_Granulosa."
+            "REQUIRED: process spatial_mismatches. Each entry is a cluster "
+            "whose median cell-to-cell distance to the nearest OTHER cell_type "
+            "cluster is closer than to the nearest SAME cell_type cluster. "
+            "You MUST issue a correct_annotations entry for each mismatch — "
+            "either relabel the cluster to its spatial neighbor's cell_type "
+            "(use merge_to_cluster pointing at the correct spatial sibling), "
+            "OR explicitly justify in reasoning why the current label is "
+            "correct despite the spatial evidence. An empty annotation_"
+            "corrections when spatial_mismatches is non-empty is rejected as "
+            "an inadequate decision. Example: cluster C17 labeled "
+            "Cumulus_Granulosa but nearest Mural_Granulosa cluster is 0.4 "
+            "UMAP away → relabel C17 to Mural_Granulosa."
         ),
     }
 
@@ -3635,7 +3638,7 @@ def mode_auto(
             llm_api_key=llm_api_key, llm_base_url=llm_base_url,
         )
         logging.info("  CP1 decision: %s", decision_cp1["action"])
-        logging.info("  CP1 reasoning: %s", decision_cp1["reasoning"][:500])
+        logging.info("  CP1 reasoning: %s", decision_cp1["reasoning"][:1500])
         _, apply_cp1 = _apply_orchestrator_decision(adata, decision_cp1, annotations, schema="clustering")
         for c in apply_cp1.get("applied_changes", []):
             logging.info("  CP1 applied: %s", c)
@@ -3700,7 +3703,7 @@ def mode_auto(
             previous_outcome=f"CP1: {decision_cp1['action']}",
         )
         logging.info("  CP2 decision: %s", decision_cp2["action"])
-        logging.info("  CP2 reasoning: %s", decision_cp2["reasoning"][:500])
+        logging.info("  CP2 reasoning: %s", decision_cp2["reasoning"][:1500])
         _, apply_cp2 = _apply_orchestrator_decision(adata, decision_cp2, annotations, schema="annotation")
         for c in apply_cp2.get("applied_changes", []):
             logging.info("  CP2 applied: %s", c)
@@ -3826,7 +3829,7 @@ def mode_auto(
             previous_outcome=f"CP2: {decision_cp2['action']}",
         )
         logging.info("  CP3 decision: %s", decision_cp3["action"])
-        logging.info("  CP3 reasoning: %s", decision_cp3["reasoning"][:500])
+        logging.info("  CP3 reasoning: %s", decision_cp3["reasoning"][:1500])
         _, apply_cp3 = _apply_orchestrator_decision(adata, decision_cp3, annotations, schema="iteration")
         for c in apply_cp3.get("applied_changes", []):
             logging.info("  CP3 applied: %s", c)

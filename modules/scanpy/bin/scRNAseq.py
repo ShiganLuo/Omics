@@ -1777,6 +1777,7 @@ def _compute_boundary_sharpness(
     k_nearest: int = 15,
     fuzzy_pair_threshold: float = 0.20,
     cell_proximity_threshold: float = 1.0,
+    isolation_threshold: float = 2.0,
 ) -> Dict[str, Any]:
     """Detect clusters whose UMAP boundaries are not sharp.
 
@@ -1796,12 +1797,16 @@ def _compute_boundary_sharpness(
        internally sharp.
 
     Returns:
-        - per_cluster: dict with own_knn_frac, invading_cluster, boundary_quality
+        - per_cluster: dict with own_knn_frac, invading_cluster,
+          boundary_quality, isolation_median, isolation_p25
         - top_fuzzy_pairs: pairs that are either k-NN-interleaved (high
           invading fraction) OR cell-proximity-close (p25 < threshold)
+        - isolated_clusters: cluster IDs whose isolation_median >
+          isolation_threshold (they sit alone in their UMAP region, no
+          clear neighbors — likely Leiden noise / doublets)
     """
     if "X_umap" not in adata.obsm:
-        return {"per_cluster": {}, "top_fuzzy_pairs": []}
+        return {"per_cluster": {}, "top_fuzzy_pairs": [], "isolated_clusters": []}
 
     coords = adata.obsm["X_umap"]
     leiden = adata.obs["leiden"].astype(str).values
@@ -1813,6 +1818,15 @@ def _compute_boundary_sharpness(
     tree = cKDTree(coords)
     dists, idx = tree.query(coords, k=k)
     neighbor_clusters = leiden[idx[:, 1:]]
+
+    # Build per-cluster point clouds + per-cluster kd-trees (for isolation calc)
+    cluster_pts: Dict[str, np.ndarray] = {}
+    cluster_trees: Dict[str, cKDTree] = {}
+    for cl in cluster_ids:
+        pts_cl = coords[leiden == cl]
+        if len(pts_cl) > 0:
+            cluster_pts[cl] = pts_cl
+            cluster_trees[cl] = cKDTree(pts_cl)
 
     per_cluster: Dict[str, Dict[str, Any]] = {}
     for cl in cluster_ids:
@@ -1834,6 +1848,30 @@ def _compute_boundary_sharpness(
             top_inv_frac = top_inv_count / own.size
         else:
             top_inv_cl, top_inv_frac = None, 0.0
+
+        # Isolation distance: for each cell in this cluster, distance to nearest
+        # cell in the NEAREST OTHER cluster. Take median.
+        # High value = cluster sits in its own region of UMAP, far from neighbors
+        # (typical of Leiden noise / doublets / spurious small clusters).
+        if len(cluster_pts.get(cl, [])) > 0 and len(cluster_trees) > 1:
+            cross_dists = []
+            for other_cl, other_tree in cluster_trees.items():
+                if other_cl == cl:
+                    continue
+                d_cross, _ = other_tree.query(cluster_pts[cl], k=1)
+                cross_dists.append(d_cross)
+            if cross_dists:
+                # nearest-neighbor distance per cell to ANY other cluster
+                per_cell_nearest_other = np.min(np.vstack(cross_dists), axis=0)
+                isolation_median = float(np.median(per_cell_nearest_other))
+                isolation_p25 = float(np.percentile(per_cell_nearest_other, 25))
+            else:
+                isolation_median = 0.0
+                isolation_p25 = 0.0
+        else:
+            isolation_median = 0.0
+            isolation_p25 = 0.0
+
         is_fuzzy = (own_frac < 0.80) or (top_inv_frac > fuzzy_pair_threshold)
         per_cluster[cl] = {
             "n_cells": n_cells,
@@ -1842,6 +1880,9 @@ def _compute_boundary_sharpness(
             "invading_cluster_frac": round(top_inv_frac, 3),
             "mean_knn_distance": round(float(dists[cl_mask, 1:].mean()), 3),
             "boundary_quality": "fuzzy" if is_fuzzy else "sharp",
+            # Isolation: distance from this cluster's cells to nearest other cluster
+            "isolation_median": round(isolation_median, 3),
+            "isolation_p25": round(isolation_p25, 3),
         }
 
     # Inter-cluster cell-to-cell proximity: for each pair (A, B), compute
@@ -1895,12 +1936,25 @@ def _compute_boundary_sharpness(
 
     pair_list.sort(key=lambda x: x["min_p25_distance"])
 
+    # Identify isolated clusters: those whose cells sit far from any other
+    # cluster. These are likely Leiden noise / doublets / spurious small
+    # populations and should usually be whole_cluster_removal.
+    isolated_clusters = [
+        cl for cl, info in per_cluster.items()
+        if info["isolation_median"] > isolation_threshold
+    ]
+    isolated_clusters.sort(
+        key=lambda c: per_cluster[c]["isolation_median"], reverse=True,
+    )
+
     return {
         "per_cluster": per_cluster,
         "top_fuzzy_pairs": pair_list[:top_n_pairs],
+        "isolated_clusters": isolated_clusters,
         "k_used": k - 1,
         "fuzzy_threshold": fuzzy_pair_threshold,
         "cell_proximity_threshold": cell_proximity_threshold,
+        "isolation_threshold": isolation_threshold,
     }
 
 
@@ -1964,6 +2018,8 @@ def _collect_clustering_state(
             "same_cluster_knn_frac": bs.get("same_cluster_knn_frac"),
             "mean_knn_distance": bs.get("mean_knn_distance"),
             "boundary_quality": bs.get("boundary_quality"),  # "sharp" | "fuzzy"
+            "isolation_median": bs.get("isolation_median"),  # dist to nearest other cluster (median)
+            "isolation_p25": bs.get("isolation_p25"),
         }
 
     # Batch-mixing summary: per cluster, what fraction comes from each batch
@@ -1999,6 +2055,8 @@ def _collect_clustering_state(
             "k_nearest": (boundary_sharpness or {}).get("k_used"),
             "fuzzy_clusters": fuzzy_clusters,
             "top_fuzzy_pairs": (boundary_sharpness or {}).get("top_fuzzy_pairs", []),
+            "isolated_clusters": (boundary_sharpness or {}).get("isolated_clusters", []),
+            "isolation_threshold": (boundary_sharpness or {}).get("isolation_threshold"),
         },
         "tissue_cell_types": tissue_cell_types or {},
         "note": (
@@ -2010,7 +2068,13 @@ def _collect_clustering_state(
             "over-fragmented a continuous region. Typical causes: (1) resolution "
             "too high → lower it via adjust_resolution_and_recluster; (2) low-"
             "quality cluster cells are pulling nearby cells into a spurious "
-            "sibling cluster → drop them via filter_cells_before_annotation."
+            "sibling cluster → drop them via filter_cells_before_annotation. "
+            "ALSO check boundary_sharpness.isolated_clusters — clusters whose "
+            "cells sit far from any other cluster (isolation_median > 2.0 in UMAP). "
+            "These are likely Leiden noise / doublets / spurious small populations "
+            "with no clear neighbors. RECOMMENDED action: whole_cluster_removal "
+            "for these (drop the entire cluster, do not try to merge them with "
+            "another cluster since they share no neighborhood)."
         ),
     }
 

@@ -1760,17 +1760,152 @@ def _basic_qc_check(
     return reports
 
 
+def _compute_boundary_sharpness(
+    adata: ad.AnnData,
+    top_n_pairs: int = 5,
+    k_nearest: int = 15,
+    fuzzy_pair_threshold: float = 0.20,
+    cell_proximity_threshold: float = 1.0,
+) -> Dict[str, Any]:
+    """Detect clusters whose UMAP boundaries are not sharp.
+
+    Two complementary signals:
+
+    1. Per-cluster k-NN composition (own vs invading fractions): catches
+       clusters whose cells are heavily dispersed into another cluster's
+       region. Each cluster's flag = "fuzzy" if own_knn_frac < 0.80 OR
+       top_invading_cluster_frac > fuzzy_pair_threshold.
+
+    2. Inter-cluster cell-to-cell proximity: for each cluster pair, compute
+       the p25 (25th percentile) of nearest-neighbor distances between cells
+       in cluster A and cells in cluster B. If p25 < cell_proximity_threshold,
+       the two clusters have NO clear boundary in UMAP — at least 25% of
+       one cluster's cells are within 1.0 UMAP unit of cells in the other.
+       This catches over-fragmentation even when both clusters are otherwise
+       internally sharp.
+
+    Returns:
+        - per_cluster: dict with own_knn_frac, invading_cluster, boundary_quality
+        - top_fuzzy_pairs: pairs that are either k-NN-interleaved (high
+          invading fraction) OR cell-proximity-close (p25 < threshold)
+    """
+    if "X_umap" not in adata.obsm:
+        return {"per_cluster": {}, "top_fuzzy_pairs": []}
+
+    coords = adata.obsm["X_umap"]
+    leiden = adata.obs["leiden"].astype(str).values
+    cluster_ids = sorted(set(leiden), key=lambda x: int(x))
+
+    n_obs = len(leiden)
+    k = min(k_nearest + 1, n_obs)
+    from scipy.spatial import cKDTree
+    tree = cKDTree(coords)
+    dists, idx = tree.query(coords, k=k)
+    neighbor_clusters = leiden[idx[:, 1:]]
+
+    per_cluster: Dict[str, Dict[str, Any]] = {}
+    for cl in cluster_ids:
+        cl_mask = leiden == cl
+        n_cells = int(cl_mask.sum())
+        if n_cells == 0:
+            continue
+        own = neighbor_clusters[cl_mask]
+        own_frac = float((own == cl).sum()) / own.size
+        inv_counts: Dict[str, int] = {}
+        for c in cluster_ids:
+            if c == cl:
+                continue
+            n_inv = int((own == c).sum())
+            if n_inv > 0:
+                inv_counts[c] = n_inv
+        if inv_counts:
+            top_inv_cl, top_inv_count = max(inv_counts.items(), key=lambda x: x[1])
+            top_inv_frac = top_inv_count / own.size
+        else:
+            top_inv_cl, top_inv_frac = None, 0.0
+        is_fuzzy = (own_frac < 0.80) or (top_inv_frac > fuzzy_pair_threshold)
+        per_cluster[cl] = {
+            "n_cells": n_cells,
+            "same_cluster_knn_frac": round(own_frac, 3),
+            "invading_cluster": top_inv_cl,
+            "invading_cluster_frac": round(top_inv_frac, 3),
+            "mean_knn_distance": round(float(dists[cl_mask, 1:].mean()), 3),
+            "boundary_quality": "fuzzy" if is_fuzzy else "sharp",
+        }
+
+    # Inter-cluster cell-to-cell proximity: for each pair (A, B), compute
+    # distance from each A-cell to nearest B-cell. Take p25 (25th percentile).
+    # If p25 < threshold, A and B have no clear UMAP boundary.
+    pair_list: List[Dict[str, Any]] = []
+    cluster_ids_set = set(cluster_ids)
+    for i, cl_a in enumerate(cluster_ids):
+        if cl_a not in cluster_ids_set:
+            continue
+        pts_a = coords[leiden == cl_a]
+        if len(pts_a) == 0:
+            continue
+        for cl_b in cluster_ids[i + 1:]:
+            if cl_b not in cluster_ids_set:
+                continue
+            pts_b = coords[leiden == cl_b]
+            if len(pts_b) == 0:
+                continue
+            # Asymmetric: each direction
+            tree_b = cKDTree(pts_b)
+            d_a_to_b, _ = tree_b.query(pts_a, k=1)
+            tree_a = cKDTree(pts_a)
+            d_b_to_a, _ = tree_a.query(pts_b, k=1)
+            p25_a_to_b = float(np.percentile(d_a_to_b, 25))
+            p25_b_to_a = float(np.percentile(d_b_to_a, 25))
+            min_p25 = min(p25_a_to_b, p25_b_to_a)
+
+            # Add to list if either:
+            # - p25 cell distance is below threshold (no clear boundary)
+            # - high invading k-NN fraction (one cluster invading the other)
+            inv_a = per_cluster.get(cl_a, {})
+            inv_b = per_cluster.get(cl_b, {})
+            a_invades_b = inv_a.get("invading_cluster") == cl_b
+            b_invades_a = inv_b.get("invading_cluster") == cl_a
+
+            no_clear_boundary = min_p25 < cell_proximity_threshold
+            is_fuzzy_pair = no_clear_boundary or a_invades_b or b_invades_a
+
+            if is_fuzzy_pair:
+                pair_list.append({
+                    "cluster_a": cl_a,
+                    "cluster_b": cl_b,
+                    "p25_distance_a_to_b": round(p25_a_to_b, 3),
+                    "p25_distance_b_to_a": round(p25_b_to_a, 3),
+                    "min_p25_distance": round(min_p25, 3),
+                    "fraction_from_a_to_b": round(inv_a.get("invading_cluster_frac", 0.0) if a_invades_b else 0.0, 3),
+                    "fraction_from_b_to_a": round(inv_b.get("invading_cluster_frac", 0.0) if b_invades_a else 0.0, 3),
+                    "no_clear_boundary": no_clear_boundary,
+                })
+
+    pair_list.sort(key=lambda x: x["min_p25_distance"])
+
+    return {
+        "per_cluster": per_cluster,
+        "top_fuzzy_pairs": pair_list[:top_n_pairs],
+        "k_used": k - 1,
+        "fuzzy_threshold": fuzzy_pair_threshold,
+        "cell_proximity_threshold": cell_proximity_threshold,
+    }
+
+
 def _collect_clustering_state(
     adata: ad.AnnData,
     quality_reports: List[Dict[str, Any]],
     tissue_cell_types: Optional[Dict[str, List[str]]] = None,
     continuity_diag: Optional[Dict[str, Any]] = None,
+    boundary_sharpness: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Perception snapshot for CP1 (clustering checkpoint).
 
     CP1 LLM sees: cluster shapes (sizes), basic QC (no AI annotation yet),
-    UMAP positions, spatial discontinuity, batch-mixing hints. No cell_type
-    labels, no DEG markers (DEG runs in Step 2 / CP2).
+    UMAP positions, spatial discontinuity, batch-mixing hints, boundary
+    sharpness (k-NN-based fuzzy pair detection). No cell_type labels, no
+    DEG markers (DEG runs in Step 2 / CP2).
     """
     umap_coords = adata.obsm.get("X_umap")
     cluster_centroids: Dict[str, List[float]] = {}
@@ -1795,9 +1930,13 @@ def _collect_clustering_state(
 
     qr_by_cluster: Dict[str, Dict[str, Any]] = {r["cluster"]: r for r in quality_reports}
 
+    # Attach boundary_sharpness to each cluster record (if available)
+    bs_per_cluster = (boundary_sharpness or {}).get("per_cluster", {})
+
     clusters_payload: Dict[str, Dict[str, Any]] = {}
     for cluster in sorted(adata.obs["leiden"].unique(), key=lambda x: int(x)):
         qr = qr_by_cluster.get(cluster, {})
+        bs = bs_per_cluster.get(cluster, {})
         clusters_payload[cluster] = {
             "n_cells": qr.get("n_cells", 0),
             "mean_genes": qr.get("mean_genes", 0.0),
@@ -1810,6 +1949,10 @@ def _collect_clustering_state(
             "n_cells_to_drop_qc": qr.get("n_cells_to_drop_qc", 0),
             "umap_centroid": cluster_centroids.get(cluster),
             "umap_distances": pairwise_dist.get(cluster, {}),
+            # Boundary sharpness (k-NN-based)
+            "same_cluster_knn_frac": bs.get("same_cluster_knn_frac"),
+            "mean_knn_distance": bs.get("mean_knn_distance"),
+            "boundary_quality": bs.get("boundary_quality"),  # "sharp" | "fuzzy"
         }
 
     # Batch-mixing summary: per cluster, what fraction comes from each batch
@@ -1827,6 +1970,12 @@ def _collect_clustering_state(
             batch_counts = adata.obs.loc[mask, batch_col].value_counts().to_dict()
             batch_mixing[cluster] = {str(k): int(v) for k, v in batch_counts.items()}
 
+    # Aggregate boundary stats for quick LLM scan
+    fuzzy_clusters = [
+        cl for cl, info in bs_per_cluster.items()
+        if info.get("boundary_quality") == "fuzzy"
+    ]
+
     return {
         "n_cells": int(adata.n_obs),
         "n_clusters": int(adata.obs["leiden"].nunique()),
@@ -1834,11 +1983,23 @@ def _collect_clustering_state(
         "discontinuous_clusters": (continuity_diag or {}).get("discontinuous_clusters", []),
         "batch_mixing": batch_mixing,
         "batch_key": batch_col,
+        # Boundary sharpness section (new)
+        "boundary_sharpness": {
+            "k_nearest": (boundary_sharpness or {}).get("k_used"),
+            "fuzzy_clusters": fuzzy_clusters,
+            "top_fuzzy_pairs": (boundary_sharpness or {}).get("top_fuzzy_pairs", []),
+        },
         "tissue_cell_types": tissue_cell_types or {},
         "note": (
             "CP1 (clustering checkpoint): cell_type labels not yet assigned. "
             "DEG markers are not yet computed. Decisions available: accept / "
-            "adjust_resolution_and_recluster / filter_cells_before_annotation."
+            "adjust_resolution_and_recluster / filter_cells_before_annotation. "
+            "Pay attention to boundary_sharpness.top_fuzzy_pairs — these pairs "
+            "have cells that heavily invade each other in UMAP, meaning Leiden "
+            "over-fragmented a continuous region. Typical causes: (1) resolution "
+            "too high → lower it via adjust_resolution_and_recluster; (2) low-"
+            "quality cluster cells are pulling nearby cells into a spurious "
+            "sibling cluster → drop them via filter_cells_before_annotation."
         ),
     }
 
@@ -3219,11 +3380,29 @@ def mode_auto(
         basic_qc_reports = _basic_qc_check(
             adata, min_genes=min_genes, min_counts=min_counts, max_pct_mt=max_pct_mt,
         )
+        # Boundary sharpness: detect UMAP regions where Leiden over-fragmented
+        # a continuous area into multiple clusters (e.g. cluster 17 splitting
+        # off from cluster 6 in the ovaries dataset).
+        boundary_sharpness = _compute_boundary_sharpness(adata, top_n_pairs=5)
+        n_fuzzy = len(boundary_sharpness.get("per_cluster", {}))
+        n_fuzzy_clusters = sum(
+            1 for info in boundary_sharpness.get("per_cluster", {}).values()
+            if info.get("boundary_quality") == "fuzzy"
+        )
+        logging.info("[CP1] boundary sharpness: %d / %d clusters fuzzy",
+                     n_fuzzy_clusters, n_fuzzy)
+        if boundary_sharpness.get("top_fuzzy_pairs"):
+            logging.info("[CP1] top fuzzy pairs:")
+            for pair in boundary_sharpness["top_fuzzy_pairs"]:
+                logging.info("  %s vs %s: interleaving_fraction=%.3f",
+                             pair["cluster_a"], pair["cluster_b"],
+                             pair["interleaving_fraction"])
         state_cp1 = _collect_clustering_state(
             adata=adata,
             quality_reports=basic_qc_reports,
             tissue_cell_types=tissue_cell_types,
             continuity_diag=continuity_diag,
+            boundary_sharpness=boundary_sharpness,
         )
         decision_cp1 = _call_orchestrator(
             state=state_cp1,

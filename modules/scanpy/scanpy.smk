@@ -1,9 +1,6 @@
 
 include: "../common/common.smk"
-import os
-import time
-import shlex
-from snakemake.logging import logger
+
 
 ROOT_DIR = config.get("ROOT_DIR", ".")
 indir = config.get("indir", "input")
@@ -24,6 +21,8 @@ script = os.path.join(ROOT_DIR, "modules", "scanpy", "bin", "scRNAseq.py")
 # Gene type annotation references
 te_bed = config.get("te_bed", "")
 gene_tsv = config.get("gene_tsv", "")
+# Species for tissue-specific annotation
+species = config.get("species", "")
 # ---------------------------------------------------------------------------
 # Per-sample QC
 # ---------------------------------------------------------------------------
@@ -158,22 +157,23 @@ rule scanpy_auto:
         python=python,
         script=script,
         tissue=lambda wildcards: wildcards.tissue,
-        llm_method=lambda wildcards: params.get(wildcards.counter, {}).get("annotate", {}).get("llm_method", ""),
-        llm_model=lambda wildcards: params.get(wildcards.counter, {}).get("annotate", {}).get("llm_model", ""),
-        llm_api_key=lambda wildcards: params.get(wildcards.counter, {}).get("annotate", {}).get("llm_api_key", ""),
-        llm_base_url=lambda wildcards: params.get(wildcards.counter, {}).get("annotate", {}).get("llm_base_url", ""),
+        llm_method=lambda wildcards: params.get(wildcards.counter, {}).get("auto", {}).get("llm_method", ""),
+        llm_model=lambda wildcards: params.get(wildcards.counter, {}).get("auto", {}).get("llm_model", ""),
+        llm_api_key=lambda wildcards: params.get(wildcards.counter, {}).get("auto", {}).get("llm_api_key", ""),
+        llm_base_url=lambda wildcards: params.get(wildcards.counter, {}).get("auto", {}).get("llm_base_url", ""),
         resolution=lambda wildcards: params.get(wildcards.counter, {}).get("cluster", {}).get("resolution", 0.8),
-        max_iterations=lambda wildcards: params.get(wildcards.counter, {}).get("auto", {}).get("max_iterations", 5),
+        max_iterations=lambda wildcards: params.get(wildcards.counter, {}).get("auto", {}).get("max_iterations", 3),
         min_genes=lambda wildcards: params.get(wildcards.counter, {}).get("auto", {}).get("min_genes", 800),
         min_counts=lambda wildcards: params.get(wildcards.counter, {}).get("auto", {}).get("min_counts", 3000),
         max_pct_mt=lambda wildcards: params.get(wildcards.counter, {}).get("auto", {}).get("max_pct_mt", 20),
-        n_pcs=lambda wildcards: params.get(wildcards.counter, {}).get("cluster", {}).get("n_pcs", 50),
-        n_neighbors=lambda wildcards: params.get(wildcards.counter, {}).get("cluster", {}).get("n_neighbors", 50),
-        n_top_genes=lambda wildcards: params.get(wildcards.counter, {}).get("cluster", {}).get("n_top_genes", 3000),
-        batch_method=lambda wildcards: params.get(wildcards.counter, {}).get("cluster", {}).get("batch_method", "harmony"),
-        batch_key=lambda wildcards: params.get(wildcards.counter, {}).get("cluster", {}).get("batch_key", "sample_id"),
-        auto_n_pcs=lambda wildcards: params.get(wildcards.counter, {}).get("cluster", {}).get("auto_n_pcs", False),
-        skip_te=lambda wildcards: params.get(wildcards.counter, {}).get("auto", {}).get("skip_te", False)
+        n_pcs=lambda wildcards: params.get(wildcards.counter, {}).get("auto", {}).get("n_pcs", 50),
+        n_neighbors=lambda wildcards: params.get(wildcards.counter, {}).get("auto", {}).get("n_neighbors", 50),
+        n_top_genes=lambda wildcards: params.get(wildcards.counter, {}).get("auto", {}).get("n_top_genes", 3000),
+        batch_method=lambda wildcards: params.get(wildcards.counter, {}).get("auto", {}).get("batch_method", "harmony"),
+        batch_key=lambda wildcards: params.get(wildcards.counter, {}).get("auto", {}).get("batch_key", "sample_id"),
+        auto_n_pcs=lambda wildcards: params.get(wildcards.counter, {}).get("auto", {}).get("auto_n_pcs", False),
+        skip_te=lambda wildcards: params.get(wildcards.counter, {}).get("auto", {}).get("skip_te", False),
+        species=species
     run:
         log_path = str(log)
         try:
@@ -199,6 +199,8 @@ rule scanpy_auto:
                    "--n-top-genes", str(params.n_top_genes),
                    "--batch-method", params.batch_method,
                    "--batch-key", params.batch_key]
+            if params.species:
+                cmd += ["--species", params.species]
             if params.llm_method:
                 cmd += ["--llm-method", params.llm_method]
             if params.llm_model:

@@ -142,99 +142,13 @@
               "nullable": true,
               "required": false,
               "path": "dir"
+            },
+            "geneIDAnno": {
+              "type": "str",
+              "nullable": true,
+              "required": false,
+              "path": "file"
             }
-          }
-        },
-        "GRCh38": {
-          "type": "dict",
-          "required": false,
-          "cellranger_ref_dir": {
-            "type": "null",
-            "nullable": true,
-            "required": false
-          },
-          "fasta": {
-            "type": "str",
-            "required": false
-          },
-          "gtf": {
-            "type": "str",
-            "required": false
-          },
-          "scTE_index": {
-            "type": "null",
-            "nullable": true,
-            "required": false
-          },
-          "star_index_dir": {
-            "type": "null",
-            "nullable": true,
-            "required": false
-          },
-          "te_bed": {
-            "type": "str",
-            "required": false
-          }
-        },
-        "GRCm39": {
-          "type": "dict",
-          "required": false,
-          "cellranger_ref_dir": {
-            "type": "null",
-            "nullable": true,
-            "required": false
-          },
-          "fasta": {
-            "type": "str",
-            "required": false
-          },
-          "gtf": {
-            "type": "str",
-            "required": false
-          },
-          "scTE_index": {
-            "type": "null",
-            "nullable": true,
-            "required": false
-          },
-          "star_index_dir": {
-            "type": "null",
-            "nullable": true,
-            "required": false
-          },
-          "te_bed": {
-            "type": "str",
-            "required": false
-          }
-        },
-        "Mmul_10": {
-          "type": "dict",
-          "required": false,
-          "cellranger_ref_dir": {
-            "type": "str",
-            "required": false
-          },
-          "fasta": {
-            "type": "str",
-            "required": false
-          },
-          "gtf": {
-            "type": "str",
-            "required": false
-          },
-          "scTE_index": {
-            "type": "null",
-            "nullable": true,
-            "required": false
-          },
-          "star_index_dir": {
-            "type": "null",
-            "nullable": true,
-            "required": false
-          },
-          "te_bed": {
-            "type": "str",
-            "required": false
           }
         }
       },
@@ -416,26 +330,6 @@
           "type": "str",
           "required": false
         },
-        "llm_method": {
-          "type": "str",
-          "required": false
-        },
-        "llm_model": {
-          "type": "str",
-          "required": false
-        },
-        "llm_api_key": {
-          "type": "str",
-          "required": false
-        },
-        "llm_base_url": {
-          "type": "str",
-          "required": false
-        },
-        "llm_top_genes": {
-          "type": "int",
-          "required": false
-        },
         "annotate_group": {
           "type": "str",
           "required": false
@@ -470,34 +364,6 @@
       "cellranger": {
         "type": "dict",
         "required": false,
-        "advanced": {
-          "type": "dict",
-          "required": false,
-          "cnv": {
-            "type": "bool",
-            "required": false
-          },
-          "cnv_reference": {
-            "type": "str",
-            "required": false
-          },
-          "communication": {
-            "type": "bool",
-            "required": false
-          },
-          "gtf": {
-            "type": "str",
-            "required": false
-          },
-          "trajectory": {
-            "type": "bool",
-            "required": false
-          },
-          "velocity": {
-            "type": "bool",
-            "required": false
-          }
-        },
         "annotate": {
           "type": "dict",
           "required": false,
@@ -507,26 +373,6 @@
           },
           "celltypist_model": {
             "type": "str",
-            "required": false
-          },
-          "llm_api_key": {
-            "type": "str",
-            "required": false
-          },
-          "llm_base_url": {
-            "type": "str",
-            "required": false
-          },
-          "llm_method": {
-            "type": "str",
-            "required": false
-          },
-          "llm_model": {
-            "type": "str",
-            "required": false
-          },
-          "llm_top_genes": {
-            "type": "int",
             "required": false
           },
           "marker_file": {
@@ -595,6 +441,110 @@
           },
           "use_mad": {
             "type": "bool",
+            "required": false
+          }
+        },
+        "advanced": {
+          "type": "dict",
+          "required": false,
+          "cnv": {
+            "type": "bool",
+            "required": false
+          },
+          "cnv_reference": {
+            "type": "str",
+            "required": false
+          },
+          "communication": {
+            "type": "bool",
+            "required": false
+          },
+          "gtf": {
+            "type": "str",
+            "required": false
+          },
+          "trajectory": {
+            "type": "bool",
+            "required": false
+          },
+          "velocity": {
+            "type": "bool",
+            "required": false
+          }
+        },
+        "auto": {
+          "type": "dict",
+          "required": false,
+          "max_iterations": {
+            "type": "int",
+            "required": false
+          },
+          "min_genes": {
+            "type": "int",
+            "required": false
+          },
+          "min_counts": {
+            "type": "int",
+            "required": false
+          },
+          "max_pct_mt": {
+            "type": "float",
+            "required": false
+          },
+          "n_pcs": {
+            "type": "int",
+            "required": false
+          },
+          "n_neighbors": {
+            "type": "int",
+            "required": false
+          },
+          "n_top_genes": {
+            "type": "int",
+            "required": false
+          },
+          "batch_method": {
+            "type": "str",
+            "required": false,
+            "enum": [
+              "",
+              "harmony",
+              "bbknn"
+            ]
+          },
+          "batch_key": {
+            "type": "str",
+            "required": false
+          },
+          "auto_n_pcs": {
+            "type": "bool",
+            "required": false
+          },
+          "skip_te": {
+            "type": "bool",
+            "required": false
+          },
+          "llm_method": {
+            "type": "str",
+            "required": false,
+            "enum": [
+              "",
+              "openai",
+              "anthropic",
+              "ollama",
+              "file"
+            ]
+          },
+          "llm_model": {
+            "type": "str",
+            "required": false
+          },
+          "llm_api_key": {
+            "type": "str",
+            "required": false
+          },
+          "llm_base_url": {
+            "type": "str",
             "required": false
           }
         }
@@ -602,34 +552,6 @@
       "scTE": {
         "type": "dict",
         "required": false,
-        "advanced": {
-          "type": "dict",
-          "required": false,
-          "cnv": {
-            "type": "bool",
-            "required": false
-          },
-          "cnv_reference": {
-            "type": "str",
-            "required": false
-          },
-          "communication": {
-            "type": "bool",
-            "required": false
-          },
-          "gtf": {
-            "type": "str",
-            "required": false
-          },
-          "trajectory": {
-            "type": "bool",
-            "required": false
-          },
-          "velocity": {
-            "type": "bool",
-            "required": false
-          }
-        },
         "annotate": {
           "type": "dict",
           "required": false,
@@ -639,26 +561,6 @@
           },
           "celltypist_model": {
             "type": "str",
-            "required": false
-          },
-          "llm_api_key": {
-            "type": "str",
-            "required": false
-          },
-          "llm_base_url": {
-            "type": "str",
-            "required": false
-          },
-          "llm_method": {
-            "type": "str",
-            "required": false
-          },
-          "llm_model": {
-            "type": "str",
-            "required": false
-          },
-          "llm_top_genes": {
-            "type": "int",
             "required": false
           },
           "marker_file": {
@@ -727,6 +629,110 @@
           },
           "use_mad": {
             "type": "bool",
+            "required": false
+          }
+        },
+        "advanced": {
+          "type": "dict",
+          "required": false,
+          "cnv": {
+            "type": "bool",
+            "required": false
+          },
+          "cnv_reference": {
+            "type": "str",
+            "required": false
+          },
+          "communication": {
+            "type": "bool",
+            "required": false
+          },
+          "gtf": {
+            "type": "str",
+            "required": false
+          },
+          "trajectory": {
+            "type": "bool",
+            "required": false
+          },
+          "velocity": {
+            "type": "bool",
+            "required": false
+          }
+        },
+        "auto": {
+          "type": "dict",
+          "required": false,
+          "max_iterations": {
+            "type": "int",
+            "required": false
+          },
+          "min_genes": {
+            "type": "int",
+            "required": false
+          },
+          "min_counts": {
+            "type": "int",
+            "required": false
+          },
+          "max_pct_mt": {
+            "type": "float",
+            "required": false
+          },
+          "n_pcs": {
+            "type": "int",
+            "required": false
+          },
+          "n_neighbors": {
+            "type": "int",
+            "required": false
+          },
+          "n_top_genes": {
+            "type": "int",
+            "required": false
+          },
+          "batch_method": {
+            "type": "str",
+            "required": false,
+            "enum": [
+              "",
+              "harmony",
+              "bbknn"
+            ]
+          },
+          "batch_key": {
+            "type": "str",
+            "required": false
+          },
+          "auto_n_pcs": {
+            "type": "bool",
+            "required": false
+          },
+          "skip_te": {
+            "type": "bool",
+            "required": false
+          },
+          "llm_method": {
+            "type": "str",
+            "required": false,
+            "enum": [
+              "",
+              "openai",
+              "anthropic",
+              "ollama",
+              "file"
+            ]
+          },
+          "llm_model": {
+            "type": "str",
+            "required": false
+          },
+          "llm_api_key": {
+            "type": "str",
+            "required": false
+          },
+          "llm_base_url": {
+            "type": "str",
             "required": false
           }
         }

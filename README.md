@@ -7,19 +7,49 @@
 
 snakemake version: >= 9.16.3
 
-## pipeline 选型
+## 解决什么问题
 
-做这个项目的核心原因，是希望在便于理解的基础上包容更多真实分析场景里的复杂度，并且更好地掌控那些过去已经分析过的流程。
+下面这些是 Omics 直接对应的问题。每一行后面都跟着具体怎么用——CLI 命令、参数、或工作流入口，跳到「快速开始」或「运行指南」可以看完整示例。
 
-在实际科研工作中，很多流程并不是一次性跑完就结束，而是会不断迭代：样本类型会变化，参数会调整，分析分支会增加，历史流程也常常需要回溯、复现、比较和复用。如果只是追求“先跑通一次”，这些复杂度往往会被分散在脚本、手工记录和临时改动里，后续维护成本会越来越高。`Omics` 想做的是把这些复杂度尽可能收拢到一个统一、可追踪、可扩展的工作流框架里，让过往分析过的流程真正沉淀下来，而不是随着项目结束而散失。
+**流程跑完就死了，参数和路径到处找。**
+所有运行参数版本化在 `output/<workflow>/raw.json` 里，输入 → 输出的依赖由 Snakemake 描述，中间结果自动可恢复。运行时改任何参数都通过 `python run.py --Params.<key>.<subkey> <value>` 覆盖，不必动源码：
 
-在选型过程中，也比较过主流的流程工具：
+```bash
+python workflow/Omics/run.py -m data/meta/fastq -w CLIP -o output \
+  --Params.trim_galore.quality 10
+```
 
-- `Snakemake`：规则组织直观，Python 生态结合紧密，适合逐步抽象、持续演化，也更方便对已有分析流程进行细粒度改造和接管。输出倒推输入，可以方便地定义流程任意输出文件为终点
-- `Nextflow`：云原生和大规模调度能力强，社区生态成熟，但在当前场景下，对已有流程做细致接入和日常维护时，心智负担相对更高。输入决定输出，从原理是来看要实现以任意流程输出文件为终点代价很大。
-- `Cromwell`：在 WDL 生态下标准化程度高，适合强调任务描述规范和平台化执行的场景，但对我这里这种需要频繁调整、快速迭代和兼容历史分析实现的工作方式来说，不够灵活。同样输入决定输出，从原理是来看要实现以任意流程输出文件为终点代价很大，而且根据我在某司实习经验来看，确实是这样。
+**参数空间失控——一份流程几十个参数散落在五处。**
+流程参数走统一 schema，参数按 workflow 组织在 `config/<workflow>.json`，运行时通过嵌套 CLI 字段覆盖（`--Params.trim_galore.quality 10`），不必改源码、不必记参数在哪。
 
-综合比较之后，最终选择了 `Snakemake`。原因不是它在所有场景里都最好，而是它最适合这个项目当前的目标：在保持结构化和可维护性的同时，尽可能包容复杂度，并把过去分析过的流程逐步纳入一个自己能够真正掌控的体系里。
+**历史流程散落各处，下一个项目拼凑不出。**
+14 类分析（RNA-seq、scRNA-seq、ChIP-seq、WGS、群体基因组等）收敛到同一套入口 `python run.py -w <workflow>`，共享 `modules/` 与 `config/`。新流程建立在已有模块之上，不重复造轮子。
+
+**加分支拷一份主流程，半年后有 7 份互相略有差异的"主线"。**
+加分支只声明新 output，不改已有 input——DAG 描述依赖而非命令式执行，主线天然不漂移。流程变更可被 git 追溯，重跑决策可被 Snakemake 缓存。
+
+**探索性分析（单细胞、空间组、ATAC）门槛太高，自己调不动。**
+`scRNAseq` 工作流提供 `auto` 模式——内置 LLM 决策，自动挑 PC 数、调整 clustering resolution、过滤低质量 cluster、调用 LLM 做细胞类型注释并产出审计报告。只需要提供数据和组织名：
+
+```bash
+python workflow/Omics/run.py -m data/meta/fastq -w scRNAseq -o output \
+  --auto --tissue ovaries
+```
+
+**只想要某一个中间产物，不想跑完全流程。**
+输出驱动的 DAG——通过 `--until <rule>` 跑到指定 stage 暂停，或 `--target-jobs "rule:wc=val"` 把任意中间产物作为终点：
+
+```bash
+# 只要 dedup 后的 BAM 就停
+python workflow/Omics/run.py -m data/meta.tsv -w Mutation -o output \
+  --until mutation_markduplicates
+
+# 只重跑某个规则+某个样本
+python workflow/Omics/run.py -m data/meta.tsv -w RNAseq -o output \
+  --forcerun function_gsea --target-jobs function_gsea:sample=S1
+```
+
+具体怎么开始见「快速开始」，14 类工作流的能力清单见「支持的工作流」。
 
 ## 目录结构
 
@@ -474,40 +504,18 @@ python workflow/Omics/run.py \
 - 各软件传递参数的默认值均为软件或者适配流程的默认值
 - " ".join(cmd)。cmd不能包含None
 
-## 当前流程特点
-
-- 支持多个工作流统一入口。
-- 支持单端和双端测序。
-- 配置通过模板 JSON 合并生成，便于复用和覆盖。
-- 日志和输出目录由流程自动创建。
-- **RNAseq 支持多基因组并行分析**：同一次运行中，不同物种的样本自动路由到各自的参考基因组，共享 trim → align → quant → report 的 DAG，无需拆分物种单独执行。
-  - 物物种别名自动解析（`mouse` → `GRCm39`，`human` → `GRCh38`，`rhesus` → `Mmul_10`），见 `src/common/util/type.py` 的 `SPECIES_TO_GENOME`。
-  - 所有涉及参考基因组的 module 均提供 `polygenomes/` 子模块，通过 `{genome}` wildcard 在同一 DAG 中处理多物种。
-  - node.py 按 organism 分组注入 `genome_paired_samples` / `genome_single_samples`，DESeq2 group_pairs 按物种隔离，RNAseq_report 每物种独立生成一份 PPT。
-- AI自动化降维聚类注释单细胞数据
 
 ## 计划
 
-- [x] 实际执行包装成shell，兼容HPC
-- [x] 完善meta设计
-- [x] 添加项目skill文档
 - [x] 整合所有曾经分析过的流程
+- [x] 实际执行包装成shell，兼容HPC
+- [x] 添加项目skill文档
+- [x] 完善meta设计
 - [x] 添加json值校验模块
 - [x] schema感知的extra_args类型矫正
-- [x] RNAseq 多基因组并行支持（polygenomes 子模块 + 按物种注入 config）
-- [ ] ncRNAseq 多基因组改造（star_3pass polygenomes 已就绪，subworkflow/node.py 待接入）
-- [ ] CLIP 多基因组改造（star/bowtie2/PureCLIP polygenomes 已就绪）
-- [ ] MERIP 多基因组改造
-- [ ] Mutation 多基因组改造（bwa-mem2/gatk/manta/cnvkit/spectrum polygenomes 已就绪）
-- [ ] PacVar 多基因组改造（pbmm2/deepvariant/hiphase/pbsv/trgt polygenomes 已就绪）
-- [ ] PeakCalling 多基因组改造（bowtie2/macs3/homer/deeptools polygenomes 已就绪）
-- [ ] scRNAseq 多基因组改造（cellranger/scTE polygenomes 已就绪）
-- [ ] tRNAseq 多基因组改造（mimseq polygenomes 已就绪）
-- [ ] QuantMS 多基因组改造（openms polygenomes 已就绪）
-- [ ] KARRseq 多基因组改造
-- [ ] Fiberseq 多基因组改造（fibertools polygenomes 已就绪）
-- [ ] CoCulture 流程适配 polygenomes 模式（当前走独立 disambiguate 路径）
-- [ ] ncRNAseq_report / PeakCalling_report 多基因组改造
+- [ ] 支持多基因组并行运行；已支持：RNAseq
+
+
 
 
 

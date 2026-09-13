@@ -931,20 +931,10 @@ def runscRNAseq(
     else:
         raise ValueError(f"Unsupported counter type: {counters}, must be scTE or cellranger")
     # Inject LLM config from environment variables (config takes priority over env)
-    env_llm_method = os.environ.get("LLM_METHOD", "")
-    env_llm_model = os.environ.get("LLM_MODEL", "")
-    env_llm_api_key = os.environ.get("LLM_API_KEY", "")
-    env_llm_base_url = os.environ.get("LLM_BASE_URL", "")
-    for counter in counters:
-        auto = datajson["Params"].setdefault(counter, {}).setdefault("auto", {})
-        if env_llm_method and not auto.get("llm_method"):
-            auto["llm_method"] = env_llm_method
-        if env_llm_model and not auto.get("llm_model"):
-            auto["llm_model"] = env_llm_model
-        if env_llm_api_key and not auto.get("llm_api_key"):
-            auto["llm_api_key"] = env_llm_api_key
-        if env_llm_base_url and not auto.get("llm_base_url"):
-            auto["llm_base_url"] = env_llm_base_url
+    env_llm_method = os.environ.get("LLM_METHOD", None)
+    env_llm_model = os.environ.get("LLM_MODEL", None)
+    env_llm_api_key = os.environ.get("LLM_API_KEY", None)
+    env_llm_base_url = os.environ.get("LLM_BASE_URL", None)
     # Build tissue_samples for scanpy downstream
     tissue_samples = {}
     for sid in paired_samples + single_samples:
@@ -952,8 +942,7 @@ def runscRNAseq(
         tissue_samples.setdefault(tissue, []).append(sid)
     for tissue in tissue_samples.keys():
         for counter in counters:
-            auto = datajson["Params"].get(counter, {}).get("auto", {})
-            if auto.get("llm_method"):
+            if env_llm_method and env_llm_model and env_llm_api_key and env_llm_base_url:
                 outfiles.append(f"{outdir}/common/5_combine_h5ad/{tissue}/{tissue}_{counter}_advanced.h5ad")
             else:
                 outfiles.append(f"{outdir}/common/5_combine_h5ad/{tissue}/{tissue}_{counter}_merged.h5ad")

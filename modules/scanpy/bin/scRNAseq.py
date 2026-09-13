@@ -637,7 +637,17 @@ def mode_cluster(
     )
 
     # 11. DEG — use raw for full gene coverage
+    # If skip_te, temporarily remove TE genes from raw so DEG excludes them
+    _orig_raw = None
+    if skip_te and "gene_type" in adata.raw.var.columns:
+        _orig_raw = adata.raw
+        te_mask = adata.raw.var["gene_type"] != "TE"
+        adata._raw = adata.raw[:, te_mask].copy()
+        logging.info("DEG: filtered TE from raw (%d -> %d genes)",
+                     _orig_raw.shape[1], adata.raw.shape[1])
     sc.tl.rank_genes_groups(adata, "leiden", method="wilcoxon", use_raw=True)
+    if _orig_raw is not None:
+        adata._raw = _orig_raw
 
     if markers:
         sc.get.rank_genes_groups_df(adata, group=None).to_csv(
@@ -675,25 +685,20 @@ def mode_annotate(
     output: str,
     marker_file: str = "",
     celltypist_model: str = "",
-    llm_method: str = "",
-    llm_model: str = "",
-    llm_api_key: str = "",
-    llm_base_url: str = "",
-    llm_top_genes: int = 30,
     annotate_group: str = "",
-    tissue: str = "",
     plot_dir: str = "",
 ) -> None:
-    """Cell type annotation dispatcher.
+    """Cell type annotation dispatcher (marker-based + CellTypist).
 
     Runs one or more annotation strategies in sequence:
         1. **Marker-based** — score cells against a TSV of known markers
            (requires *marker_file*).
         2. **CellTypist** — automated annotation with a pre-trained
            CellTypist model (requires *celltypist_model*).
-        3. **LLM-assisted** — send top DEGs per cluster to an LLM
-           (OpenAI, Ollama, or file) for cell type prediction
-           (requires *llm_method*).
+
+    For LLM-assisted annotation, use ``mode auto`` instead — it includes
+    tissue-aware prompt construction, normalisation, and mixed-identity
+    detection.
 
     Args:
         adata: Input AnnData with clustering results (e.g. ``leiden``).
@@ -702,51 +707,23 @@ def mode_annotate(
             Empty string skips marker-based annotation.
         celltypist_model: CellTypist model name (e.g. ``"Immune_All_Low"``).
             Empty string skips CellTypist annotation.
-        llm_method: LLM backend — ``"openai"``, ``"ollama"``, or ``"file"``.
-            Empty string skips LLM annotation.
-        llm_model: Model identifier for the LLM backend
-            (e.g. ``"gpt-4o"`` or ``"llama3.1"``).
-        llm_api_key: API key for the OpenAI backend (ignored for others).
-        llm_base_url: Base URL for the LLM API endpoint.
-        llm_top_genes: Number of top DEGs per cluster to include in the
-            LLM prompt (default 30).
         annotate_group: Column in ``adata.obs`` to group clusters by.
             Falls back to ``"leiden"`` when empty.
-        tissue: Tissue name included in the LLM prompt for context.
         plot_dir: Directory for annotation plots. Empty string disables
             plotting.
     """
-    # Store tissue for downstream access
-    if tissue:
-        adata.uns["tissue"] = tissue
-
     if marker_file:
         _annotate_markers(adata, marker_file=marker_file)
     if celltypist_model:
         _annotate_celltypist(adata, celltypist_model=celltypist_model)
-    if llm_method:
-        _annotate_llm(
-            adata,
-            llm_method=llm_method,
-            llm_model=llm_model,
-            llm_api_key=llm_api_key,
-            llm_base_url=llm_base_url,
-            llm_top_genes=llm_top_genes,
-            annotate_group=annotate_group,
-            tissue=tissue,
-            output=output,
-        )
 
     plotter = _make_plotter(plot_dir)
     if plotter:
-        # Build explicit list of annotation columns that were created
         anno_keys: List[str] = []
         if marker_file:
             anno_keys.append("cell_type")
         if celltypist_model:
             anno_keys.append("celltypist_label")
-        if llm_method:
-            anno_keys.append("llm_label")
 
         plotter.plot_annotate(
             adata,
@@ -820,150 +797,6 @@ def _annotate_celltypist(adata: ad.AnnData, celltypist_model: str) -> None:
     adata.obs["celltypist_score"] = pred_adata.obs.loc[adata.obs.index, "conf_score"]
 
 
-def _annotate_llm(
-    adata: ad.AnnData,
-    llm_method: str,
-    llm_model: str,
-    llm_api_key: str,
-    llm_base_url: str,
-    llm_top_genes: int,
-    annotate_group: str,
-    tissue: str,
-    output: str,
-) -> None:
-    """Annotate cell clusters by sending top DEGs to a large language model.
-
-    For each cluster (defined by *annotate_group*), the top
-    *llm_top_genes* differentially expressed genes are extracted and
-    formatted into a structured prompt.  The prompt is then sent to the
-    chosen LLM backend (OpenAI, Ollama, or written to a file for manual
-    use).  The returned JSON mapping is stored in ``adata.uns["llm_annotation"]``
-    and mapped to ``adata.obs["llm_label"]``.
-
-    Args:
-        adata: AnnData object with ``rank_genes_groups`` computed.
-        llm_method: LLM backend — ``"openai"``, ``"ollama"``, or ``"file"``.
-        llm_model: Model identifier (e.g. ``"gpt-4o"``, ``"llama3.1"``).
-        llm_api_key: API key for the OpenAI backend.
-        llm_base_url: Base URL for the LLM API endpoint.
-        llm_top_genes: Number of top DEGs per cluster to include in the prompt.
-        annotate_group: Column in ``adata.obs`` defining cluster membership.
-            Falls back to ``"leiden"`` when empty.
-        tissue: Tissue name for context in the prompt.
-        output: h5ad output path — used to derive the file name for
-            ``"file"`` method prompt output.
-    """
-    group_key = annotate_group or "leiden"
-    if group_key not in adata.obs.columns:
-        logging.warning("Group key '%s' not found in obs, skipping LLM annotation", group_key)
-        return
-
-    if "rank_genes_groups" not in adata.uns:
-        sc.tl.rank_genes_groups(adata, group_key, method="wilcoxon")
-
-    n_genes = llm_top_genes
-    cluster_markers: Dict[str, List[str]] = {}
-    for cluster in adata.obs[group_key].cat.categories:
-        df = sc.get.rank_genes_groups_df(adata, group=cluster)
-        cluster_markers[str(cluster)] = df.head(n_genes)["names"].tolist()
-
-    resolved_tissue = adata.uns.get("tissue", tissue or "unknown tissue")
-    annotation = _llm_annotate_clusters(
-        cluster_markers, resolved_tissue,
-        llm_method=llm_method,
-        llm_model=llm_model,
-        llm_api_key=llm_api_key,
-        llm_base_url=llm_base_url,
-        output=output,
-    )
-
-    label_map = {k: v.get("cell_type", "unknown") for k, v in annotation.items()}
-    adata.obs["llm_label"] = adata.obs[group_key].map(label_map).astype("category")
-    adata.uns["llm_annotation"] = annotation
-
-    logging.info("LLM annotation complete: %d clusters annotated", len(annotation))
-    for cluster, info in annotation.items():
-        logging.info("  Cluster %s: %s (confidence: %s)",
-                     cluster, info.get("cell_type", "?"), info.get("confidence", "?"))
-
-
-def _llm_annotate_clusters(
-    cluster_markers: Dict[str, List[str]],
-    tissue: str,
-    llm_method: str,
-    llm_model: str,
-    llm_api_key: str,
-    llm_base_url: str,
-    output: str,
-) -> dict:
-    """Dispatch the annotation prompt to the chosen LLM backend.
-
-    Args:
-        cluster_markers: Mapping of cluster ID → list of top marker gene names.
-        tissue: Tissue name for context in the prompt.
-        llm_method: ``"openai"``, ``"ollama"``, or ``"file"``.
-        llm_model: Model identifier for the API call.
-        llm_api_key: API key for the OpenAI backend.
-        llm_base_url: Base URL for the LLM API.
-        output: h5ad output path — used to derive the prompt file name
-            when *llm_method* is ``"file"``.
-
-    Returns:
-        Parsed JSON dict mapping cluster IDs to annotation info, or an
-        empty dict on failure / file-only mode.
-    """
-    prompt = _build_annotation_prompt(cluster_markers, tissue)
-
-    if llm_method == "openai":
-        return _call_openai(prompt, llm_model=llm_model, llm_api_key=llm_api_key, llm_base_url=llm_base_url)
-    elif llm_method == "ollama":
-        return _call_ollama(prompt, llm_model=llm_model, llm_base_url=llm_base_url)
-    elif llm_method == "file":
-        output_file = output.replace(".h5ad", "_llm_prompt.txt")
-        with open(output_file, "w", encoding="utf-8") as fh:
-            fh.write(prompt)
-        logging.info("LLM prompt written to %s", output_file)
-        return {}
-    else:
-        logging.warning("Unknown LLM method: %s", llm_method)
-        return {}
-
-
-def _build_annotation_prompt(cluster_markers: Dict[str, List[str]], tissue: str) -> str:
-    """Build a structured prompt for LLM-based cell type annotation.
-
-    The prompt instructs the LLM to return a JSON object keyed by cluster
-    ID, with ``cell_type``, ``confidence``, ``reasoning``, and
-    ``canonical_markers`` for each cluster.
-
-    Args:
-        cluster_markers: Mapping of cluster ID → list of top marker genes.
-        tissue: Tissue name for biological context.
-
-    Returns:
-        The fully formatted prompt string.
-    """
-    prompt = f"""You are an expert single-cell RNA-seq analyst. I need you to annotate cell types for clusters from a {tissue} dataset.
-
-For each cluster below, I provide the top differentially expressed genes (DEG).
-Please output a JSON object where each key is the cluster ID, and each value has:
-- "cell_type": the predicted cell type
-- "confidence": "high", "medium", or "low"
-- "reasoning": brief explanation of your reasoning
-- "canonical_markers": known canonical markers you used for this identification
-
-Important notes:
-- Consider species-specific marker conventions
-- If a cluster could be multiple cell types, assign the most likely one and note alternatives in reasoning
-- For ambiguous clusters, set confidence to "low"
-- Output ONLY valid JSON, no markdown formatting
-
-Cluster markers:
-"""
-    for cluster, genes in cluster_markers.items():
-        prompt += f"\nCluster {cluster}: {', '.join(genes)}"
-    prompt += "\n\nRespond with a single JSON object:"
-    return prompt
 
 
 def _call_openai(
@@ -986,15 +819,105 @@ def _call_openai(
     try:
         import openai
         client = openai.OpenAI(api_key=llm_api_key, base_url=llm_base_url)
-        response = client.chat.completions.create(
-            model=llm_model or "gpt-4o",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.1,
-            response_format={"type": "json_object"},
-        )
-        return json.loads(response.choices[0].message.content)
+        # Some providers (e.g. MiniMax Text-01) reject response_format=json_object.
+        # Try with json_object first; on 400 fallback to plain call and strip
+        # possible markdown code fences from the response.
+        try:
+            response = client.chat.completions.create(
+                model=llm_model or "gpt-4o",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.1,
+                response_format={"type": "json_object"},
+            )
+            content = response.choices[0].message.content
+        except Exception as exc:
+            err_msg = str(exc).lower()
+            if "response_format" in err_msg or "json_object" in err_msg or "400" in err_msg:
+                logging.warning("Provider rejected response_format=json_object (%s). Retrying without it.", exc)
+                response = client.chat.completions.create(
+                    model=llm_model or "gpt-4o",
+                    messages=[{"role": "user", "content": prompt}],
+                    temperature=0.1,
+                )
+                content = response.choices[0].message.content
+                # Strip markdown code fences if present
+                content = content.strip()
+                if content.startswith("```"):
+                    # Remove first line (```json or ```) and last ``` line
+                    lines = content.split("\n")
+                    if lines[0].startswith("```"):
+                        lines = lines[1:]
+                    if lines and lines[-1].strip() == "```":
+                        lines = lines[:-1]
+                    content = "\n".join(lines).strip()
+            else:
+                raise
+        if not content:
+            return {}
+        return json.loads(content)
     except Exception as exc:
         logging.error("OpenAI API call failed: %s", exc)
+        return {}
+
+
+def _call_anthropic(
+    prompt: str,
+    llm_model: str,
+    llm_api_key: str,
+    llm_base_url: str,
+) -> dict:
+    """Call an Anthropic-Messages-compatible API (used for MiniMax-M3 etc.).
+
+    Args:
+        prompt: The fully formatted annotation prompt.
+        llm_model: Model identifier (e.g. ``"MiniMax-M3"``).
+        llm_api_key: API key (sent as ``x-api-key``).
+        llm_base_url: Base URL for the API. Recommended:
+            ``"https://api.minimax.cn/anthropic"``. The endpoint path
+            ``/v1/messages`` is appended automatically.
+
+    Returns:
+        Parsed JSON dict of cluster annotations, or an empty dict on failure.
+    """
+    import urllib.request
+    try:
+        url = (llm_base_url or "").rstrip("/") + "/v1/messages"
+        body = json.dumps({
+            "model": llm_model or "MiniMax-M3",
+            "max_tokens": 4096,
+            "temperature": 0.1,
+            "messages": [{"role": "user", "content": prompt}],
+        }).encode("utf-8")
+        req = urllib.request.Request(
+            url,
+            data=body,
+            headers={
+                "Content-Type": "application/json",
+                "x-api-key": llm_api_key,
+                "anthropic-version": "2023-06-01",
+            },
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=120) as resp:
+            payload = json.loads(resp.read().decode("utf-8"))
+        # Anthropic messages API returns content blocks; concatenate text blocks.
+        blocks = payload.get("content", [])
+        text_parts = [b.get("text", "") for b in blocks if b.get("type") == "text"]
+        content = "".join(text_parts).strip()
+        if not content:
+            logging.warning("Anthropic API returned empty content: %s", payload)
+            return {}
+        # Strip markdown code fences if present
+        if content.startswith("```"):
+            lines = content.split("\n")
+            if lines[0].startswith("```"):
+                lines = lines[1:]
+            if lines and lines[-1].strip() == "```":
+                lines = lines[:-1]
+            content = "\n".join(lines).strip()
+        return json.loads(content)
+    except Exception as exc:
+        logging.error("Anthropic API call failed: %s", exc)
         return {}
 
 
@@ -1142,14 +1065,17 @@ Example format:
 Rules:
 - Include ALL known cell types, including rare subtypes
 - Use standard nomenclature from published studies
-- Include tissue-specific subtypes (e.g., for ovary: Luteal, Cumulus, Theca, Granulosa)
+- Include tissue-specific subtypes when they have distinct canonical markers
 - Include both common and rare cell types
 - Markers should be protein-coding genes commonly used in literature
+- For any cell type that has biologically distinct subtypes identifiable by DIFFERENT canonical markers, list each subtype separately. Two populations should be split into separate entries ONLY if there is a well-established marker combination in the literature that distinguishes them; otherwise keep them as a single entry.
 - Output ONLY valid JSON, no markdown
 """
 
     if llm_method == "openai":
         raw = _call_openai(prompt, llm_model=llm_model, llm_api_key=llm_api_key, llm_base_url=llm_base_url)
+    elif llm_method == "anthropic":
+        raw = _call_anthropic(prompt, llm_model=llm_model, llm_api_key=llm_api_key, llm_base_url=llm_base_url)
     elif llm_method == "ollama":
         raw = _call_ollama(prompt, llm_model=llm_model, llm_base_url=llm_base_url)
     else:
@@ -1160,6 +1086,96 @@ Rules:
     for ct, markers in cell_types.items():
         logging.info("  %s: %s", ct, ", ".join(markers[:5]))
     return cell_types
+
+
+def _normalize_cell_type_name(
+    raw_name: str,
+    tissue_cell_types: Optional[Dict[str, List[str]]],
+) -> Tuple[str, bool]:
+    """Normalize an LLM-returned cell type name to a canonical name.
+
+    The canonical set is whatever ``tissue_cell_types`` contains — that dict
+    is built dynamically by ``_query_tissue_cell_types`` from the same LLM at
+    the start of ``mode_auto``, so no hard-coding is needed per tissue.
+
+    Strategy (in order):
+        1. Exact match (case-sensitive).
+        2. Case-insensitive match.
+        3. Strip common suffixes (``-like``, ``_like``, ``_cells``, ``-cells``)
+           and case-insensitive match — this catches ``Granulosa-like`` →
+           ``Granulosa cells`` and ``Smooth_muscle` → ``Smooth muscle cells``.
+        4. Substring match (LLM name appears inside a canonical name, or vice
+           versa) — catches ``Tcell`` → ``T cells``, ``NK`` → ``NK cells``.
+
+    Args:
+        raw_name: Cell type name returned by the LLM (or refined annotation).
+        tissue_cell_types: Dict from ``_query_tissue_cell_types``.
+
+    Returns:
+        Tuple ``(normalized_name, was_changed)``. ``normalized_name`` equals
+        ``raw_name`` if no match was found; ``was_changed`` is True when the
+        name was rewritten to a canonical form.
+    """
+    if not raw_name or not tissue_cell_types:
+        return raw_name, False
+
+    canonical_names = list(tissue_cell_types.keys())
+
+    # 1. Exact match (case-sensitive)
+    if raw_name in canonical_names:
+        return raw_name, False
+
+    # 2. Case-insensitive match
+    lower = raw_name.lower().strip()
+    for canon in canonical_names:
+        if canon.lower() == lower:
+            return canon, True
+
+    # 3. Strip common suffix/separator variants and re-match case-insensitively.
+    def _strip_variants(s: str) -> List[str]:
+        out = {s}
+        for suf in ("-like", "_like", "-cells", "_cells", " cells", "-cell", "_cell"):
+            if s.lower().endswith(suf):
+                out.add(s[: -len(suf)])
+        # Normalize underscore/space
+        out.add(s.replace("_", " "))
+        out.add(s.replace(" ", "_"))
+        return [v for v in out if v]
+
+    for variant in _strip_variants(raw_name):
+        v_lower = variant.lower().strip()
+        for canon in canonical_names:
+            if canon.lower() == v_lower:
+                return canon, True
+
+    # 3b. After stripping suffix, try substring match (catches "Granulosa"
+    #     after stripping "-like" against "Granulosa cells").
+    canon_norms: List[Tuple[str, str]] = [(c, c.lower()) for c in canonical_names]
+    for variant in _strip_variants(raw_name):
+        v_lower = variant.lower().strip()
+        for canon, canon_lc in canon_norms:
+            if v_lower in canon_lc:
+                return canon, True
+
+    # 4. Substring match (either direction), ignoring case and separators.
+    def _norm(s: str) -> str:
+        return s.lower().replace("_", "").replace("-", "").replace(" ", "").strip()
+
+    raw_norm = _norm(raw_name)
+    best: Optional[str] = None
+    best_score = 0.0
+    for canon in canonical_names:
+        canon_norm = _norm(canon)
+        if raw_norm in canon_norm or canon_norm in raw_norm:
+            # Score by overlap ratio (longer canonical name wins ties).
+            score = min(len(raw_norm), len(canon_norm)) / max(len(raw_norm), len(canon_norm))
+            if score > best_score:
+                best_score = score
+                best = canon
+    if best is not None:
+        return best, True
+
+    return raw_name, False
 
 
 def _build_auto_annotation_prompt(
@@ -1243,9 +1259,15 @@ def _build_auto_annotation_prompt(
 ## Known cell types in {tissue} (from published scRNA-seq studies)
 {tissue_context}
 
-IMPORTANT: You MUST annotate this cluster as one of the above cell types if the markers match. 
-Do NOT use generic names (e.g., "Fibroblast") when a tissue-specific subtype exists (e.g., "Luteal", "Cumulus", "Theca").
-If none of the above cell types match, you may use a new name.
+IMPORTANT — Naming rules:
+- You MUST use the EXACT cell type names from the list above. Do NOT add suffixes like "-like", "-type", "-cells" yourself.
+- Do NOT invent new cell type names (e.g. "Smooth_muscle", "Theca-like", "Granulosa-like" are FORBIDDEN) when a canonical name already exists in the list. If the list contains "Smooth muscle cells", use exactly that.
+- If none of the above cell types match the marker's biological identity, you may use a new name — but only after you have explicitly justified why the marker pattern is genuinely novel.
+- Use the canonical_markers from the list above as the authoritative marker set for each cell type.
+- Granularity check: the list above is the MINIMUM granularity. If the cluster's marker genes unambiguously match a well-established subtype that the list does NOT explicitly enumerate (i.e. the subtype is identified by a unique marker combination in the literature), you MAY use that subtype's standard published name. Only subdivide when the markers are diagnostic — if the markers are ambiguous or shared with the parent type, keep the parent type.
+- Holistic marker evaluation: do NOT decide based on the top 1-2 markers alone. Look at the entire marker profile together:
+  * If the dominant markers point to one cell type but there is a SECONDARY, consistently co-expressed marker set characteristic of a DIFFERENT cell type from the list, this often indicates a transitional or intermediate population (e.g. a cell that performs both stromal ECM remodelling and steroidogenesis). Annotate based on the DOMINANT signature, set confidence="medium" (not "high"), and mention the secondary signature explicitly in reasoning.
+  * If the top markers are split roughly evenly between two cell types with no clear dominance, set confidence="medium" and explain the ambiguity in reasoning. Do not force a single label when the data is genuinely mixed.
 """
 
     prompt += """
@@ -1268,6 +1290,7 @@ Output a JSON object with:
 - "confidence": "high", "medium", or "low"
 - "quality_flag": null if cluster is normal, or a string describing the problem
     - "low_quality": mean_genes < 800 or mean_counts < 3000 or MT% > 20
+      **CRITICAL**: If the cluster has low quality metrics AND its marker genes are similar to another cluster of the same cell type but located far away in UMAP space, this is almost certainly ambient RNA contamination or a low-quality artifact — NOT a genuine biological subpopulation. In this case set quality_flag="low_quality" and confidence="low", and flag the cluster for whole-cluster removal. Do NOT confidently annotate it as the same cell type as the high-quality cluster.
     - "unannotated": top markers are ENSMMUG (unannotated macaque genes)
     - "ribosomal": top markers are RPS/RPL (ribosomal contamination)
     - "te_dominated": top markers are TE elements (ERVK, Alu, etc.)
@@ -1339,6 +1362,8 @@ def _ai_annotate_cluster(
     # Call LLM
     if llm_method == "openai":
         raw = _call_openai(prompt, llm_model=llm_model, llm_api_key=llm_api_key, llm_base_url=llm_base_url)
+    elif llm_method == "anthropic":
+        raw = _call_anthropic(prompt, llm_model=llm_model, llm_api_key=llm_api_key, llm_base_url=llm_base_url)
     elif llm_method == "ollama":
         raw = _call_ollama(prompt, llm_model=llm_model, llm_base_url=llm_base_url)
     else:
@@ -1369,7 +1394,105 @@ def _ai_annotate_cluster(
                 annotation["references"][gene] = refs
             time.sleep(0.35)
 
+    # Post-hoc check: does this cluster's marker profile span multiple cell
+    # types from the tissue reference? If so, lower confidence and flag it so
+    # the downstream report highlights a possible mixed/transitional population.
+    if tissue_cell_types:
+        cross_info = _check_marker_cross_type_signal(
+            top_genes=top_genes,
+            predicted_cell_type=cell_type,
+            tissue_cell_types=tissue_cell_types,
+            n_top=20,
+        )
+        if cross_info["is_mixed"]:
+            annotation["mixed_identity"] = cross_info
+            if annotation.get("confidence") == "high":
+                annotation["confidence"] = "medium"
+                logging.info(
+                    "Cluster %s: downgrading confidence high -> medium "
+                    "(top markers span %d cell types: %s)",
+                    cluster_id, cross_info["n_cell_types_matched"],
+                    ", ".join(cross_info["matched_types"]),
+                )
+            elif annotation.get("confidence") == "medium":
+                logging.info(
+                    "Cluster %s: confidence stays medium "
+                    "(top markers span %d cell types: %s)",
+                    cluster_id, cross_info["n_cell_types_matched"],
+                    ", ".join(cross_info["matched_types"]),
+                )
+
     return annotation
+
+
+def _check_marker_cross_type_signal(
+    top_genes: List[str],
+    predicted_cell_type: str,
+    tissue_cell_types: Dict[str, List[str]],
+    n_top: int = 20,
+) -> Dict[str, Any]:
+    """Check whether top DEGs span multiple tissue cell types.
+
+    Returns a dict with:
+        - per_type_counts: {cell_type: number of top genes that match its canonical markers}
+        - matched_types: list of cell types that share >=2 of the top DEGs
+        - n_cell_types_matched: int
+        - is_mixed: True if >=2 cell types each contribute >=2 markers to top DEGs
+                     AND the predicted type is NOT the dominant one (or shares
+                     only marginally)
+
+    Heuristic:
+        - "Mixed identity" → at least two cell types each have >= 2 markers in
+          the top N DEGs, suggesting the cluster has a hybrid transcriptomic
+          signature rather than a single, clean identity.
+    Rules are intentionally generic — no hard-coded tissue / marker
+    knowledge. ``tissue_cell_types`` is built dynamically from the LLM.
+    """
+    top_set = set(g for g in top_genes[:n_top] if g)
+    if not top_set or not tissue_cell_types:
+        return {
+            "per_type_counts": {},
+            "matched_types": [],
+            "n_cell_types_matched": 0,
+            "is_mixed": False,
+        }
+
+    per_type_counts: Dict[str, int] = {}
+    matched_types: List[str] = []
+    for ct, markers in tissue_cell_types.items():
+        if not markers:
+            continue
+        overlap = top_set.intersection(set(markers))
+        per_type_counts[ct] = len(overlap)
+        if len(overlap) >= 2:
+            matched_types.append(ct)
+
+    n_matched = len(matched_types)
+
+    # Determine dominance
+    primary_count = per_type_counts.get(predicted_cell_type, 0)
+    secondary_counts = [
+        (ct, c) for ct, c in per_type_counts.items()
+        if ct != predicted_cell_type and c >= 2
+    ]
+
+    # Mixed: predicted type is NOT dominant (i.e. some other type has as many
+    # or more markers in the top DEGs).
+    is_mixed = False
+    if n_matched >= 2:
+        # Find best non-predicted match
+        best_other = max(secondary_counts, key=lambda x: x[1], default=(None, 0))
+        # If a non-predicted type has >= 2 markers AND primary is not at least
+        # 2x better, treat as mixed.
+        if best_other[1] >= 2 and primary_count - best_other[1] < max(2, best_other[1]):
+            is_mixed = True
+
+    return {
+        "per_type_counts": per_type_counts,
+        "matched_types": matched_types,
+        "n_cell_types_matched": n_matched,
+        "is_mixed": is_mixed,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -1565,6 +1688,101 @@ def _check_cell_type_separation(
 
 
 # ---------------------------------------------------------------------------
+# Cluster spatial continuity check
+# ---------------------------------------------------------------------------
+def _check_cluster_continuity(
+    adata: ad.AnnData,
+    cluster_key: str = "leiden",
+    max_gap: float = 2.0,
+    min_cells: int = 50,
+) -> Tuple[bool, Dict[str, Any]]:
+    """Check if each cluster is spatially continuous in UMAP space.
+
+    A cluster with a large gap in UMAP coordinates may indicate that
+    two biologically distinct populations were incorrectly merged by
+    Leiden clustering.
+
+    Algorithm:
+        1. For each cluster, get UMAP coordinates.
+        2. Sort coordinates along each UMAP dimension.
+        3. Compute gaps between consecutive sorted coordinates.
+        4. If max gap > threshold, flag the cluster as discontinuous.
+
+    Args:
+        adata: AnnData with UMAP coordinates and cluster labels.
+        cluster_key: Column name for cluster labels.
+        max_gap: Maximum allowed gap in UMAP coordinates before flagging.
+        min_cells: Minimum cells to consider a cluster valid for checking.
+
+    Returns:
+        Tuple of (has_discontinuity, diagnostics) where diagnostics is a dict
+        with keys: discontinuous_clusters, details.
+    """
+    if "X_umap" not in adata.obsm:
+        logging.warning("No UMAP coordinates found, skipping continuity check")
+        return False, {}
+
+    umap_coords = adata.obsm["X_umap"]
+    obs = adata.obs
+    discontinuous_clusters = []
+    details = {}
+
+    for cluster in obs[cluster_key].unique():
+        mask = obs[cluster_key] == cluster
+        n_cells = int(mask.sum())
+        if n_cells < min_cells:
+            continue
+
+        cluster_umap = umap_coords[mask.values]
+        cluster_details = {"n_cells": n_cells, "max_gap": 0.0, "gap_dim": -1, "gap_location": None}
+
+        for dim in range(2):
+            sorted_coord = np.sort(cluster_umap[:, dim])
+            gaps = np.diff(sorted_coord)
+            max_gap_idx = int(np.argmax(gaps))
+            max_gap_found = float(gaps[max_gap_idx])
+
+            if max_gap_found > max_gap:
+                if max_gap_found > cluster_details["max_gap"]:
+                    cluster_details["max_gap"] = round(max_gap_found, 3)
+                    cluster_details["gap_dim"] = dim
+                    cluster_details["gap_location"] = (
+                        round(float(sorted_coord[max_gap_idx]), 2),
+                        round(float(sorted_coord[max_gap_idx + 1]), 2),
+                    )
+                    # Estimate number of cells in each side
+                    gap_threshold = (sorted_coord[max_gap_idx] + sorted_coord[max_gap_idx + 1]) / 2
+                    left_count = int((cluster_umap[:, dim] < gap_threshold).sum())
+                    right_count = n_cells - left_count
+                    cluster_details["left_cells"] = left_count
+                    cluster_details["right_cells"] = right_count
+
+        if cluster_details["max_gap"] > max_gap:
+            discontinuous_clusters.append(cluster)
+            details[cluster] = cluster_details
+            logging.warning(
+                "Cluster %s: spatially discontinuous (max_gap=%.2f in UMAP%d, %d+%d cells, gap at %.2f-%.2f)",
+                cluster, cluster_details["max_gap"], cluster_details["gap_dim"],
+                cluster_details["left_cells"], cluster_details["right_cells"],
+                cluster_details["gap_location"][0], cluster_details["gap_location"][1],
+            )
+
+    has_discontinuity = len(discontinuous_clusters) > 0
+    diagnostics = {
+        "discontinuous_clusters": discontinuous_clusters,
+        "details": details,
+        "n_discontinuous": len(discontinuous_clusters),
+    }
+
+    if has_discontinuity:
+        logging.info("Continuity check: %d clusters are spatially discontinuous", len(discontinuous_clusters))
+    else:
+        logging.info("Continuity check: all clusters are spatially continuous")
+
+    return has_discontinuity, diagnostics
+
+
+# ---------------------------------------------------------------------------
 # Cluster quality analysis
 # ---------------------------------------------------------------------------
 def _analyze_cluster_quality(
@@ -1631,6 +1849,11 @@ def _analyze_cluster_quality(
         "ai_quality_flag": ai_flag,
         "flags": flags,
         "should_filter": should_filter,
+        # "cell" (default) -> cell-level QC; "whole_cluster" -> drop entire
+        # cluster. Callers (e.g. mode_auto) may upgrade this after separation
+        # analysis if the low-quality cluster is also spatially separated from
+        # same-type high-quality clusters (likely ambient-RNA artifact).
+        "filter_mode": "cell",
     }
     return report
 
@@ -1642,35 +1865,57 @@ def _filter_flagged_cells(
     min_counts: int = 3000,
     max_pct_mt: float = 20.0,
 ) -> Tuple[ad.AnnData, int]:
-    """Filter individual cells within flagged clusters (NOT remove clusters).
+    """Filter cells / clusters based on quality reports.
 
-    For each flagged cluster, removes cells that fail QC thresholds.
-    Cells in non-flagged clusters are kept as-is.
+    Two modes per flagged cluster:
+      - "whole_cluster": drop the entire cluster (used when the cluster is
+        low-quality and likely an ambient-RNA / artifact population; even
+        cells that pass QC would contaminate downstream analysis).
+      - "cell": default cell-level QC — keep cells that pass thresholds.
+
+    The mode is selected from each report's ``filter_mode`` key
+    (set by ``_analyze_cluster_quality`` or by callers like mode_auto).
+    Reports without ``filter_mode`` default to "cell".
 
     Args:
         adata: Clustered AnnData.
-        quality_reports: List of dicts from _analyze_cluster_quality.
-        min_genes: Min genes per cell threshold.
-        min_counts: Min UMI per cell threshold.
-        max_pct_mt: Max MT% threshold.
+        quality_reports: List of dicts.
+        min_genes: Min genes per cell threshold (cell-level mode).
+        min_counts: Min UMI per cell threshold (cell-level mode).
+        max_pct_mt: Max MT% threshold (cell-level mode).
 
     Returns:
         Tuple of (filtered_adata, n_removed).
     """
-    flagged_clusters = {r["cluster"] for r in quality_reports if r["should_filter"]}
-    if not flagged_clusters:
+    flagged = [r for r in quality_reports if r["should_filter"]]
+    if not flagged:
         return adata, 0
 
-    logging.info("Filtering cells in %d flagged clusters: %s",
-                 len(flagged_clusters), sorted(flagged_clusters))
+    logging.info("Filtering %d flagged cluster(s): %s",
+                 len(flagged), sorted({r["cluster"] for r in flagged}))
 
     keep_mask = pd.Series(True, index=adata.obs.index)
     total_removed = 0
 
-    for cluster in flagged_clusters:
+    for r in flagged:
+        cluster = r["cluster"]
         cluster_mask = adata.obs["leiden"] == cluster
         cluster_cells = adata.obs[cluster_mask]
+        mode = r.get("filter_mode", "cell")
 
+        if mode == "whole_cluster":
+            # Remove every cell in this cluster — the cluster itself is
+            # considered unreliable (low quality / artifact / persistent
+            # separation after one QC round). Keeping any cell would risk
+            # contaminating downstream DEG / composition analyses.
+            keep_mask[cluster_cells.index] = False
+            n_removed = len(cluster_cells)
+            total_removed += n_removed
+            logging.info("  Cluster %s: WHOLE-CLUSTER removal (%d cells). Reason: %s",
+                         cluster, n_removed, ",".join(r.get("flags", [])) or "n/a")
+            continue
+
+        # cell-level mode
         cell_qc = pd.Series(True, index=cluster_cells.index)
         if "n_genes_by_counts" in adata.obs.columns:
             cell_qc &= cluster_cells["n_genes_by_counts"] >= min_genes
@@ -1683,7 +1928,7 @@ def _filter_flagged_cells(
         keep_mask[bad_cells] = False
         n_removed = len(bad_cells)
         total_removed += n_removed
-        logging.info("  Cluster %s: removed %d / %d cells",
+        logging.info("  Cluster %s: removed %d / %d cells (cell-level QC)",
                      cluster, n_removed, len(cluster_cells))
 
     adata_filtered = adata[keep_mask.values].copy()
@@ -1815,6 +2060,8 @@ def _generate_audit_report(
                 response_format={"type": "json_object"},
             )
             result = json.loads(response.choices[0].message.content)
+        elif llm_method == "anthropic":
+            result = _call_anthropic(prompt, llm_model=llm_model, llm_api_key=llm_api_key, llm_base_url=llm_base_url)
         elif llm_method == "ollama":
             import requests
             url = llm_base_url or "http://localhost:11434"
@@ -1848,6 +2095,7 @@ def mode_auto(
     output: str,
     input_path: str = "",
     tissue: str = "",
+    species: str = "",
     llm_method: str = "openai",
     llm_model: str = "",
     llm_api_key: str = "",
@@ -1862,7 +2110,7 @@ def mode_auto(
     n_top_genes: int = 3000,
     batch_method: str = "harmony",
     batch_key: str = "",
-    auto_n_pcs: bool = False,
+    auto_n_pcs: bool = True,
     plot_dir: str = "",
     skip_te: bool = False,
 ) -> None:
@@ -1907,6 +2155,7 @@ def mode_auto(
         "input_path": input_path or "(adata_loaded)",
         "output": output,
         "tissue": tissue,
+        "species": species,
         "params": {
             "llm_method": llm_method, "llm_model": llm_model,
             "resolution": resolution, "max_iterations": max_iterations,
@@ -1928,9 +2177,17 @@ def mode_auto(
     raw_adata = adata.copy()
 
     # ── Step 0: Query tissue-specific cell types from LLM ──
-    logging.info("[Step 0] Querying known cell types for tissue '%s'...", tissue)
+    # Map genome to species name for LLM prompt
+    species_map = {
+        "Mmul_10": "macaque (Macaca mulatta)",
+        "GRCh38": "human",
+        "GRCm39": "mouse",
+    }
+    species_name = species_map.get(species, species) if species else ""
+    tissue_query = f"{species_name} {tissue}" if species_name else tissue
+    logging.info("[Step 0] Querying known cell types for '%s'...", tissue_query)
     tissue_cell_types = _query_tissue_cell_types(
-        tissue, llm_method, llm_model, llm_api_key, llm_base_url,
+        tissue_query, llm_method, llm_model, llm_api_key, llm_base_url,
     )
     ctx["tissue_cell_types"] = tissue_cell_types
 
@@ -1958,16 +2215,72 @@ def mode_auto(
                 adata, n_top_genes=n_top_genes, flavor="seurat", subset=False,
                 batch_key=resolved_batch_key if resolved_batch_key in adata.obs else None,
             )
-        except ValueError:
-            logging.warning("HVG with batch_key failed (likely too few cells per batch after filtering). Retrying without batch_key.")
-            sc.pp.highly_variable_genes(
-                adata, n_top_genes=n_top_genes, flavor="seurat", subset=False,
-            )
+        except (ValueError, Exception) as e:
+            logging.warning("HVG with batch_key failed (%s). Retrying without batch_key.", e)
+            try:
+                sc.pp.highly_variable_genes(
+                    adata, n_top_genes=n_top_genes, flavor="seurat", subset=False,
+                )
+            except (ValueError, Exception) as e2:
+                logging.warning("HVG without batch_key also failed (%s). Trying with fewer genes.", e2)
+                # If still fails, try with fewer genes
+                n_hvg = min(n_top_genes, adata.n_vars // 2)
+                if n_hvg < 100:
+                    logging.error("Too few genes (%d) for HVG analysis. Skipping HVG filtering.", adata.n_vars)
+                    # Don't filter, use all genes
+                    adata.var["highly_variable"] = True
+                else:
+                    try:
+                        sc.pp.highly_variable_genes(
+                            adata, n_top_genes=n_hvg, flavor="seurat", subset=False,
+                        )
+                    except (ValueError, Exception) as e3:
+                        logging.warning("HVG with fewer genes also failed (%s). Skipping HVG filtering.", e3)
+                        adata.var["highly_variable"] = True
         adata = adata[:, adata.var["highly_variable"]].copy()
         sc.pp.scale(adata, max_value=10)
 
+        # Check for NaN values before PCA
+        if hasattr(adata.X, 'toarray'):
+            X_dense = adata.X.toarray()
+        else:
+            X_dense = adata.X
+        nan_count = np.isnan(X_dense).sum()
+        if nan_count > 0:
+            logging.warning("Found %d NaN values in data. Replacing with 0.", nan_count)
+            if hasattr(adata.X, 'toarray'):
+                # Sparse matrix
+                adata.X = np.nan_to_num(adata.X.toarray(), nan=0.0)
+            else:
+                adata.X = np.nan_to_num(adata.X, nan=0.0)
+
+        # Remove genes with zero variance (all zeros or constant)
+        if hasattr(adata.X, 'toarray'):
+            X_dense = adata.X.toarray()
+        else:
+            X_dense = adata.X
+        gene_vars = np.var(X_dense, axis=0)
+        zero_var_genes = np.where(gene_vars == 0)[0]
+        if len(zero_var_genes) > 0:
+            logging.warning("Removing %d genes with zero variance before PCA", len(zero_var_genes))
+            adata = adata[:, gene_vars > 0].copy()
+        
+        # Check if we have enough genes for PCA
+        if adata.n_vars < 10:
+            logging.error("Too few genes (%d) after filtering. Skipping PCA and using raw data.", adata.n_vars)
+            # Use raw data instead
+            adata = raw_adata.copy()
+            sc.pp.normalize_total(adata, target_sum=1e4)
+            sc.pp.log1p(adata)
+            adata.raw = adata.copy()
+            if skip_te:
+                adata = _filter_te(adata)
+            sc.pp.highly_variable_genes(adata, n_top_genes=min(n_top_genes, adata.n_vars // 2), flavor="seurat", subset=False)
+            adata = adata[:, adata.var["highly_variable"]].copy()
+            sc.pp.scale(adata, max_value=10)
+
         pca_comps = max(n_pcs, 100) if auto_n_pcs else n_pcs
-        pca_comps = min(pca_comps, max(2, adata.n_obs - 1))
+        pca_comps = min(pca_comps, max(2, adata.n_obs - 1), adata.n_vars - 1)
         sc.tl.pca(adata, n_comps=pca_comps)
 
         if auto_n_pcs:
@@ -1994,7 +2307,17 @@ def mode_auto(
         sc.tl.umap(adata, min_dist=0.1, spread=0.8)
         sc.tl.leiden(adata, resolution=resolution, key_added="leiden",
                      flavor="igraph", n_iterations=2, directed=False)
+        # If skip_te, temporarily remove TE genes from raw so DEG excludes them
+        _orig_raw = None
+        if skip_te and "gene_type" in adata.raw.var.columns:
+            _orig_raw = adata.raw
+            te_mask = adata.raw.var["gene_type"] != "TE"
+            adata._raw = adata.raw[:, te_mask].copy()
+            logging.info("DEG: filtered TE from raw (%d -> %d genes)",
+                         _orig_raw.shape[1], adata.raw.shape[1])
         sc.tl.rank_genes_groups(adata, "leiden", method="wilcoxon", use_raw=True)
+        if _orig_raw is not None:
+            adata._raw = _orig_raw
 
         n_clusters = len(adata.obs["leiden"].unique())
         logging.info("Clustering done: %d clusters", n_clusters)
@@ -2059,6 +2382,26 @@ def mode_auto(
                          ann.get("should_merge", False))
 
             time.sleep(0.5)  # rate limit between clusters
+
+        # ── Step 2.1: Normalize LLM cell type names against tissue_cell_types ──
+        # Ensures naming consistency with the canonical names returned by the
+        # Step 0 tissue query (e.g. "Smooth_muscle" → "Smooth muscle cells",
+        # "Granulosa-like" → "Granulosa cells"). Without this, downstream
+        # analysis pipelines that key off exact names break.
+        if tissue_cell_types:
+            logging.info("[Step 2.1] Normalizing cell type names against tissue reference...")
+            normalized_count = 0
+            for cl, ann in annotations.items():
+                raw_ct = ann.get("cell_type", "Unknown")
+                if raw_ct in ("Unknown", "Unverified_TE", "Unannotated", "ERVK_high", "Alu_high"):
+                    continue
+                canon_ct, was_changed = _normalize_cell_type_name(raw_ct, tissue_cell_types)
+                if was_changed:
+                    logging.info("  Cluster %s: '%s' -> '%s' (normalized)", cl, raw_ct, canon_ct)
+                    ann["cell_type_raw"] = raw_ct
+                    ann["cell_type"] = canon_ct
+                    normalized_count += 1
+            logging.info("  Normalized %d / %d cluster annotations", normalized_count, len(annotations))
 
         # Apply annotations to adata
         cluster_to_ct = {cl: ann["cell_type"] for cl, ann in annotations.items()}
@@ -2202,6 +2545,15 @@ def mode_auto(
         else:
             logging.info("No clusters identified for merging by LLM")
 
+        # Early exit: if no clusters need filtering, break BEFORE Step 3.5 / 3.6
+        # otherwise their `continue` statements would skip this break and force
+        # another iteration of clustering on already-clean data.
+        if not flagged:
+            logging.info("All clusters clean. Saving final results.")
+            iter_ctx["outcome"] = "clean"
+            ctx["iterations"].append(iter_ctx)
+            break
+
         # ── Step 3.5: Check cell type separation ──
         logging.info("[Step 3.5] Checking cell type separation...")
         misannotated: List[Dict] = []
@@ -2239,9 +2591,131 @@ def mode_auto(
                     "ai_cell_type": ma["cell_type"],
                     "should_filter": True,
                     "flags": ["misannotated_low_marker_overlap"],
+                    "filter_mode": "whole_cluster",
                 })
                 flagged = [r for r in quality_reports if r["should_filter"]]
+            else:
+                # Already flagged (e.g. for low_quality) — upgrade to whole-cluster
+                # removal because marker mismatch + separation = ambient RNA artifact.
+                for r in quality_reports:
+                    if r["cluster"] == flag_cluster and r["should_filter"]:
+                        r["filter_mode"] = "whole_cluster"
+                        logging.info("  Cluster %s: upgraded to WHOLE-CLUSTER removal (low quality + separated).",
+                                     flag_cluster)
         iter_ctx["misannotated"] = misannotated
+
+        # Upgrade low-quality clusters that are ALSO separated from same-type
+        # high-quality clusters → whole-cluster removal. Rationale: cells in
+        # these clusters share marker genes with another cluster of the same
+        # annotated type but lie far away in UMAP, indicating ambient-RNA
+        # contamination rather than a genuine biological subpopulation.
+        # Cell-level QC is not enough because the surviving cells are
+        # untrustworthy and would re-trigger the same separation on the next
+        # iteration.
+        separated_ct_to_clusters: Dict[str, set] = {}
+        for ct_info in separation_diag.get("separated_types", []):
+            ct = ct_info["cell_type"]
+            for d in separation_diag.get("cluster_distances", {}).get(ct, {}).get("pairs", []):
+                separated_ct_to_clusters.setdefault(ct, set()).add(d["cluster_i"])
+                separated_ct_to_clusters.setdefault(ct, set()).add(d["cluster_j"])
+        for ma in separation_diag.get("misannotated", []):
+            separated_ct_to_clusters.setdefault(ma["cell_type"], set()).add(ma["flagged_cluster"])
+
+        if separated_ct_to_clusters:
+            for r in quality_reports:
+                if not r["should_filter"]:
+                    continue
+                if r.get("filter_mode") == "whole_cluster":
+                    continue
+                ct = r.get("ai_cell_type", "Unknown")
+                low_quality_flag = any(f in r.get("flags", []) for f in ("low_genes", "low_counts", "high_mt", "low_quality"))
+                if not (low_quality_flag and ct in separated_ct_to_clusters and r["cluster"] in separated_ct_to_clusters[ct]):
+                    continue
+
+                # Precision filter: only upgrade to whole_cluster if this cluster
+                # looks like an ambient-RNA artifact rather than a genuine
+                # low-quality biological population. Heuristic:
+                #   1. LLM confidence must be low/medium (high confidence means
+                #      the LLM genuinely identified the cell type despite low
+                #      quality → trust it, keep cell-level filter).
+                #   2. AI explicitly flagged low_quality in quality_flag.
+                #   3. AI reasoning must reference separation / ambient / artifact.
+                ai_conf = r.get("ai_confidence", "low")
+                ai_qf = r.get("ai_quality_flag", "")
+                # Look up the AI reasoning from annotations via cluster id
+                ann_for_cluster = None
+                # Annotations aren't passed here, but the quality report carries
+                # ai_cell_type and ai_quality_flag — enough for this check.
+
+                should_upgrade = False
+                reason = ""
+
+                if ai_conf in ("low", "medium") and ai_qf == "low_quality":
+                    # LLM already said: low quality. With separation, very likely
+                    # ambient RNA contamination from neighbouring high-quality
+                    # cluster of the same type.
+                    should_upgrade = True
+                    reason = "LLM low confidence + low_quality flag"
+                elif ai_qf in ("unknown", "unannotated") and ai_conf == "low":
+                    # LLM couldn't identify, low quality, separated → likely garbage
+                    should_upgrade = True
+                    reason = "LLM unknown + low_quality"
+                else:
+                    # High confidence + low quality but separated → could be a
+                    # real biological population that just happens to have low
+                    # counts. Keep cell-level filter so the high-quality cells
+                    # are preserved and can re-cluster.
+                    reason = (f"AI confidence={ai_conf}, quality_flag={ai_qf} → "
+                              f"keep cell-level filter (likely real low-quality population)")
+
+                if should_upgrade:
+                    peer_clusters = [c for c in separated_ct_to_clusters[ct] if c != r["cluster"]]
+                    peer_info = ", ".join(f"cluster {c}" for c in peer_clusters) if peer_clusters else "n/a"
+                    logging.info(
+                        "  Cluster %s (%s): %s. Upgrading to WHOLE-CLUSTER removal "
+                        "(likely ambient-RNA artifact); peer cluster(s): %s.",
+                        r["cluster"], ct, reason, peer_info,
+                    )
+                    r["filter_mode"] = "whole_cluster"
+                    if "ambient_artifact" not in r["flags"]:
+                        r["flags"] = list(r["flags"]) + ["ambient_artifact"]
+                else:
+                    logging.info(
+                        "  Cluster %s (%s): %s. Keeping cell-level QC.",
+                        r["cluster"], ct, reason,
+                    )
+
+        # ── Step 3.6: Check cluster spatial continuity ──
+        logging.info("[Step 3.6] Checking cluster spatial continuity...")
+        has_discontinuity, continuity_diag = _check_cluster_continuity(
+            adata,
+            cluster_key="leiden",
+            max_gap=2.0,
+            min_cells=50,
+        )
+        iter_ctx["continuity_check"] = continuity_diag
+
+        if has_discontinuity:
+            discontinuous = continuity_diag.get("discontinuous_clusters", [])
+            logging.info("Found %d spatially discontinuous clusters: %s",
+                         len(discontinuous), discontinuous)
+            # If we have flagged clusters, prioritize filtering over re-clustering.
+            # Discontinuity is a secondary concern; QC-filtering first prevents
+            # the same low-quality clusters from re-appearing on every iteration.
+            if flagged:
+                logging.info(
+                    "Discontinuity detected but %d flagged cluster(s) exist; "
+                    "deferring resolution increase — will filter first.",
+                    len(flagged),
+                )
+            else:
+                # Always try to increase resolution to split discontinuous clusters
+                new_resolution = min(resolution * 1.5, 1.5)
+                if new_resolution > resolution:
+                    logging.info("Increasing resolution: %.2f -> %.2f to split discontinuous clusters",
+                                 resolution, new_resolution)
+                    resolution = new_resolution
+                    continue  # Re-cluster with higher resolution
 
         # ── Step 4: Filter or finish ──
         if not flagged:
@@ -2489,14 +2963,14 @@ def main():
     # Annotate params
     parser.add_argument("--marker-file", default="", help="TSV with cell_type and markers columns")
     parser.add_argument("--celltypist-model", default="", help="CellTypist model name")
-    parser.add_argument("--llm-method", default="", choices=["", "openai", "ollama", "file"],
+    parser.add_argument("--llm-method", default="", choices=["", "openai", "anthropic", "ollama", "file"],
                         help="LLM backend for annotation")
     parser.add_argument("--llm-model", default="", help="LLM model identifier")
     parser.add_argument("--llm-api-key", default="", help="API key for OpenAI backend")
     parser.add_argument("--llm-base-url", default="", help="Base URL for LLM API")
-    parser.add_argument("--llm-top-genes", type=int, default=30, help="Top DEGs per cluster for LLM prompt")
     parser.add_argument("--annotate-group", default="", help="Obs column for cluster grouping")
     parser.add_argument("--tissue", default="", help="Tissue name for LLM prompt context")
+    parser.add_argument("--species", default="", help="Species/genome for tissue-specific annotation (e.g., Mmul_10, GRCh38, GRCm39)")
 
     # Auto mode params
     parser.add_argument("--max-iterations", type=int, default=3, help="Max QC refinement iterations for auto mode")
@@ -2563,13 +3037,7 @@ def main():
             output=args.output,
             marker_file=args.marker_file,
             celltypist_model=args.celltypist_model,
-            llm_method=args.llm_method,
-            llm_model=args.llm_model,
-            llm_api_key=args.llm_api_key,
-            llm_base_url=args.llm_base_url,
-            llm_top_genes=args.llm_top_genes,
             annotate_group=args.annotate_group,
-            tissue=args.tissue,
             plot_dir=args.plot_dir,
         )
     elif args.mode == "auto":
@@ -2578,6 +3046,7 @@ def main():
             output=args.output,
             input_path=args.input[0],
             tissue=args.tissue,
+            species=args.species,
             llm_method=args.llm_method,
             llm_model=args.llm_model,
             llm_api_key=args.llm_api_key,

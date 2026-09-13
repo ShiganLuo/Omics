@@ -27,6 +27,7 @@ SPECIES_TO_GENOME: Dict[str, str] = {
     "macaque": "Mmul_10",
     "mmul_10": "Mmul_10",
     "rhemac10": "Mmul_10",
+    "mulatta": "Mmul_10"
 }
 
 def resolve_genome(organism: Union[str, int, float, None]) -> str:

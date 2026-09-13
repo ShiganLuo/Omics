@@ -2740,7 +2740,11 @@ def _generate_audit_report(
     llm_api_key: str,
     llm_base_url: str,
 ) -> None:
-    """Call LLM to generate audit report and reproducible script.
+    """Call LLM to generate audit_report.md (Chinese markdown summary).
+
+    Writes only audit_report.md. The decision_log.sh generation has been
+    removed — cp_history in mode_auto already contains every decision the LLM
+    made, and a self-described "decision log" file was misleading anyway.
 
     Args:
         ctx: Full iteration context collected during mode_auto.
@@ -2749,23 +2753,14 @@ def _generate_audit_report(
     """
     prompt = (
         "你是一位生物信息学审计员。根据以下scRNA-seq auto-mode的执行上下文，"
-        "生成两个文件：\n\n"
-        "1. audit_report.md — 中文审计报告，包含：\n"
+        "生成中文 markdown 审计报告，包含：\n\n"
         "   - 流程参数（resolution, batch method, QC阈值等）\n"
         "   - 每轮迭代摘要：聚类结果、细胞类型注释（含置信度和推理依据）、QC标记、过滤决策\n"
         "   - 最终结果：细胞/基因数、迭代次数、停止原因\n"
         "   - 关键决策及其理由\n"
         "   - 注意：所有细胞类型注释必须有PubMed文献PMID支撑。"
         "无法找到文献支撑的注释应标记为'未验证'。\n\n"
-        "2. decision_log.sh — LLM决策日志（不是CLI重跑脚本），记录：\n"
-        "   - 每轮迭代中LLM做了哪些关键决策\n"
-        "   - 标记了哪些cluster、理由是什么\n"
-        "   - 过滤了哪些细胞、为什么\n"
-        "   - 分辨率是否调整、为什么\n"
-        "   - 格式：每条决策一行注释 # [iter N] 决策内容\n\n"
-        "返回JSON对象，两个key：\n"
-        '  "audit_report": <markdown字符串>,\n'
-        '  "decision_log": <shell脚本字符串，用注释记录决策>\n\n'
+        "返回JSON对象，key为 \"audit_report\"，value为完整 markdown 字符串。\n\n"
         f"执行上下文：\n{json.dumps(ctx, indent=2, ensure_ascii=False)}"
     )
 
@@ -2797,18 +2792,11 @@ def _generate_audit_report(
     except Exception as exc:
         logging.warning("LLM audit report generation failed: %s", exc)
 
-    # Write audit report
+    # Write audit_report.md only (decision_log.sh removed)
     audit_path = os.path.join(report_dir, "audit_report.md")
     with open(audit_path, "w", encoding="utf-8") as f:
         f.write(result.get("audit_report", f"# Audit Report\n\nLLM generation failed. Raw context:\n\n```json\n{json.dumps(ctx, indent=2)}\n```\n"))
     logging.info("Audit report: %s", audit_path)
-
-    # Write reproducible script
-    script_path = os.path.join(report_dir, "decision_log.sh")
-    with open(script_path, "w", encoding="utf-8") as f:
-        f.write(result.get("decision_log", f"#!/bin/bash\n# LLM生成失败。需要手动重建决策日志。\n"))
-    os.chmod(script_path, 0o755)
-    logging.info("Decision log: %s", script_path)
 
 
 def _run_one_clustering_iteration(

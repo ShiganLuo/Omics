@@ -148,6 +148,7 @@ scanpy_config = {
     "logdir_combine": f"{logdir}/group",
     "te_bed": config.get("genome", {}).get("references", {}).get(genome, {}).get("te_bed", ""),
     "gene_tsv": config.get("genome", {}).get("references", {}).get(genome, {}).get("geneIDAnno", ""),
+    "species": genome,  # Pass species/genome for tissue-specific annotation
     "Params": {
         "scanpy": config.get("Params", {}).get("scanpy", {}),
     },

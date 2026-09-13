@@ -2499,12 +2499,8 @@ Choose EXACTLY ONE:
     rules_block = """## Rules
 
 - Base every decision on evidence in the STATE. Do NOT invent facts.
-- If iteration == max_iterations AND there are NO spatial_mismatches (or
-  other high-confidence fixes available), prefer "accept" over further
-  refinement. But if spatial_mismatches reveal clearly mis-fragmented
-  clusters (e.g. cluster living closer to a different cell_type's
-  territory), CORRECT them even on the final iteration — these are cheap
-  fixes that don't require re-clustering and improve annotation quality.
+- If iteration == max_iterations, prefer "accept" over further refinement
+  (max_iteration cap means we've exhausted the iteration budget).
 - If previous_outcome shows the same problem persists, choose a more
   aggressive action rather than repeating the same mild one.
 - For "merge_to_cluster": parent cluster must exist in the state."""

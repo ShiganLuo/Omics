@@ -467,22 +467,22 @@ FASTQ
 
 `references` 字段将 PubMed 检索结果嵌入注释，后续人工审核时可以直接点开 PMID 查阅原文，不需要再单独查文献。
 
-#### LLM 后端配置
+#### LLM 后端配置 (mode auto)
 
 ```json
 {
-    "llm_method": "openai",
-    "llm_model": "gpt-4o",
+    "llm_method": "anthropic",
+    "llm_model": "MiniMax-M3",
     "llm_api_key": "",
-    "llm_base_url": "",
-    "llm_top_genes": 30,
-    "annotate_group": "leiden"
+    "llm_base_url": "https://api.minimax.cn/anthropic"
 }
 ```
 
-- `llm_method`：`"openai"`（OpenAI API 兼容）、`"ollama"`（本地部署）、`"file"`（仅输出 prompt 文件，手动提交到任意 LLM）
+- `llm_method`：`"anthropic"`（anthropic 协议）/ `"openai"`（OpenAI API 兼容）/ `"ollama"`（本地部署）
 - `llm_api_key` 和 `llm_base_url` 支持通过环境变量 `LLM_API_KEY` 和 `LLM_BASE_URL` 注入，config 中留空时自动读取环境变量
-- `llm_top_genes`：每个 cluster 提取的 top DEG 数量，默认 30，设为 50 可提供更丰富的上下文
+- 上述字段属于 `mode auto`，配置在 `Params.scanpy.{counter}.auto.*` 下；`mode annotate` 不再支持 LLM 字段（已合并到 `mode auto`）
+- 官方推荐 base_url: `https://api.minimax.cn/anthropic`
+
 
 示例：
 

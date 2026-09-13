@@ -2269,6 +2269,89 @@ def _collect_iteration_state(
             "n_cells_to_drop_qc": qr.get("n_cells_to_drop_qc", 0),
         }
 
+    # CP3 spatial-context pass: compute per-cluster "nearest OTHER
+    # cell_type" distance so LLM can spot Leiden mis-fragmentation where
+    # a cluster was assigned cell_type X but lives closer to a cluster
+    # with cell_type Y. (e.g. C17 labeled Cumulus_Granulosa but sits
+    # 0.4 UMAP from Mural_Granulosa cluster — likely Leiden over-split.)
+    #
+    # Distance metric: MEDIAN cell-to-cell distance (not centroid distance,
+    # which is misleading for sparse/dispersed clusters).
+    spatial_mismatches: List[Dict[str, Any]] = []
+    if umap_coords is not None and "cell_type" in adata.obs.columns:
+        from scipy.spatial import cKDTree
+
+        # Build cluster -> representative cell_type (use majority label)
+        cluster_majority_ct: Dict[str, str] = {}
+        cluster_pts: Dict[str, np.ndarray] = {}
+        for cl in clusters_payload:
+            cl_mask = adata.obs["leiden"] == cl
+            ct_series = adata.obs.loc[cl_mask, "cell_type"].astype(str)
+            if len(ct_series) == 0:
+                continue
+            cluster_majority_ct[cl] = ct_series.value_counts().idxmax()
+            cluster_pts[cl] = umap_coords[cl_mask.values]
+
+        cluster_trees = {cl: cKDTree(pts) for cl, pts in cluster_pts.items()}
+
+        for cl, payload in clusters_payload.items():
+            if cl not in cluster_trees:
+                continue
+            self_ct = cluster_majority_ct.get(cl, "Unknown")
+            pts_self = cluster_pts[cl]
+            tree_self = cluster_trees[cl]
+
+            # Median distance from this cluster's cells to each OTHER cluster.
+            other_medians: Dict[str, float] = {}
+            for other_cl, tree_other in cluster_trees.items():
+                if other_cl == cl:
+                    continue
+                d_other, _ = tree_other.query(pts_self, k=1)
+                other_medians[other_cl] = float(np.median(d_other))
+
+            # Sort by median distance ascending
+            sorted_others = sorted(other_medians.items(), key=lambda kv: kv[1])
+
+            # Find nearest other cluster with a DIFFERENT cell_type
+            nearest_other = None
+            for other_cl, med_d in sorted_others:
+                other_ct = cluster_majority_ct.get(other_cl, "Unknown")
+                if other_ct != self_ct:
+                    nearest_other = (other_cl, med_d, other_ct)
+                    break
+
+            # Same cell type nearest (for context)
+            same_ct_nearest = None
+            for other_cl, med_d in sorted_others:
+                other_ct = cluster_majority_ct.get(other_cl, "Unknown")
+                if other_ct == self_ct:
+                    same_ct_nearest = (other_cl, med_d)
+                    break
+
+            payload["majority_cell_type"] = self_ct
+            payload["nearest_other_cell_type"] = (
+                {"cluster": nearest_other[0], "distance": round(nearest_other[1], 2),
+                 "cell_type": nearest_other[2]}
+                if nearest_other else None
+            )
+            payload["nearest_same_cell_type"] = (
+                {"cluster": same_ct_nearest[0], "distance": round(same_ct_nearest[1], 2)}
+                if same_ct_nearest else None
+            )
+
+            # Mismatch: nearest OTHER-CT cluster is closer than nearest
+            # SAME-CT cluster — strong signal Leiden mis-split.
+            if (nearest_other is not None and
+                (same_ct_nearest is None or nearest_other[1] < same_ct_nearest[1])):
+                spatial_mismatches.append({
+                    "cluster": cl,
+                    "self_cell_type": self_ct,
+                    "nearest_other_cell_type": nearest_other[2],
+                    "nearest_other_cluster": nearest_other[0],
+                    "distance_to_other": round(nearest_other[1], 2),
+                    "distance_to_same": round(same_ct_nearest[1], 2) if same_ct_nearest else None,
+                })
+
     return {
         "n_cells": int(adata.n_obs),
         "n_clusters": int(adata.obs["leiden"].nunique()),
@@ -2281,11 +2364,21 @@ def _collect_iteration_state(
         "separation_groups": separation_groups,
         "misannotated_candidates": misannotated_candidates,
         "discontinuous_clusters": continuity_diag.get("discontinuous_clusters", []),
+        "spatial_mismatches": spatial_mismatches,
         "tissue_cell_types": tissue_cell_types or {},
         "note": (
             "CP3 (iteration decision checkpoint): all structural analyses done. "
             "Decisions available: accept / filter_and_recluster / "
-            "adjust_resolution_and_recluster / correct_annotations."
+            "adjust_resolution_and_recluster / correct_annotations. "
+            "IMPORTANT: check spatial_mismatches — clusters where the nearest "
+            "OTHER cell_type cluster is closer than the nearest SAME cell_type "
+            "cluster. These are Leiden mis-fragmentation artifacts: a cluster "
+            "was labeled cell_type X but physically sits in cell_type Y's "
+            "territory. RECOMMENDED action: correct_annotations to relabel "
+            "such clusters to match their spatial neighborhood's cell_type "
+            "(use merge_to_cluster to point at the correct spatial sibling). "
+            "Example: cluster C17 labeled Cumulus_Granulosa but nearest Mural_"
+            "Granulosa cluster is 0.4 UMAP away → relabel C17 to Mural_Granulosa."
         ),
     }
 

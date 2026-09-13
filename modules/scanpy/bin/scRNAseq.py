@@ -1688,6 +1688,429 @@ def _check_cell_type_separation(
 
 
 # ---------------------------------------------------------------------------
+# Orchestrator state collection (program → LLM perception)
+# ---------------------------------------------------------------------------
+def _collect_cluster_state(
+    adata: ad.AnnData,
+    annotations: Dict[str, Dict[str, Any]],
+    quality_reports: List[Dict[str, Any]],
+    separation_diag: Dict[str, Any],
+    continuity_diag: Dict[str, Any],
+    tissue_cell_types: Optional[Dict[str, List[str]]] = None,
+    top_n_markers: int = 15,
+) -> Dict[str, Any]:
+    """Build a complete perception snapshot for the LLM orchestrator.
+
+    Returns a JSON-serializable dict describing:
+      - iteration metadata (cell count, resolution, n_clusters)
+      - per-cluster: size, QC stats, top markers, AI annotation,
+        UMAP centroid, distances to other clusters
+      - cross-cluster signals (separation, misannotation candidates,
+        discontinuity, same-cell-type groupings)
+      - previous iteration summary (if any)
+
+    This is the ONLY data the orchestrator LLM sees to decide the next
+    iteration. It must contain every fact the LLM needs to judge whether to
+    filter cells, re-cluster, correct annotations, or accept the result.
+    Program never makes strategy decisions on top of this snapshot.
+    """
+    # UMAP centroids and pairwise distances
+    umap_coords = adata.obsm.get("X_umap")
+    cluster_centroids: Dict[str, List[float]] = {}
+    pairwise_dist: Dict[str, Dict[str, float]] = {}
+    if umap_coords is not None:
+        for cluster in sorted(adata.obs["leiden"].unique(), key=lambda x: int(x)):
+            mask = adata.obs["leiden"] == cluster
+            n = int(mask.sum())
+            if n == 0:
+                continue
+            centroid = umap_coords[mask.values].mean(axis=0)
+            cluster_centroids[cluster] = [round(float(c), 3) for c in centroid]
+        cluster_ids = list(cluster_centroids.keys())
+        for i, ci in enumerate(cluster_ids):
+            pairwise_dist[ci] = {}
+            for cj in cluster_ids[i + 1:]:
+                d = float(np.linalg.norm(
+                    np.array(cluster_centroids[ci]) - np.array(cluster_centroids[cj])
+                ))
+                pairwise_dist[ci][cj] = round(d, 2)
+                pairwise_dist.setdefault(cj, {})[ci] = round(d, 2)
+
+    # Top markers per cluster
+    cluster_markers: Dict[str, List[str]] = {}
+    if "rank_genes_groups" in adata.uns:
+        rgg = adata.uns["rank_genes_groups"]
+        for g in rgg["names"].dtype.names:
+            cluster_markers[g] = list(rgg["names"][g][:top_n_markers])
+
+    # Quality reports indexed by cluster
+    qr_by_cluster: Dict[str, Dict[str, Any]] = {r["cluster"]: r for r in quality_reports}
+
+    # Same-cell-type groups (from annotations)
+    same_ct_groups: Dict[str, List[str]] = {}
+    for cl, ann in annotations.items():
+        ct = ann.get("cell_type", "Unknown")
+        same_ct_groups.setdefault(ct, []).append(cl)
+
+    # Cross-cluster signals from separation check
+    separation_groups: List[Dict[str, Any]] = []
+    for st in separation_diag.get("separated_types", []):
+        ct = st["cell_type"]
+        clusters = sorted(same_ct_groups.get(ct, []), key=lambda x: int(x))
+        if len(clusters) < 2:
+            continue
+        separation_groups.append({
+            "cell_type": ct,
+            "clusters": clusters,
+            "n_clusters": len(clusters),
+            "max_umap_distance": st.get("max_distance"),
+            "marker_jaccard": st.get("marker_jaccard"),
+            "reason": st.get("reason"),
+        })
+
+    misannotated_candidates: List[Dict[str, Any]] = []
+    for ma in separation_diag.get("misannotated", []):
+        misannotated_candidates.append({
+            "cell_type": ma["cell_type"],
+            "flagged_cluster": ma["flagged_cluster"],
+            "flagged_cells": ma.get("flagged_cells"),
+            "marker_jaccard": ma.get("marker_jaccard"),
+            "max_umap_distance": ma.get("max_distance"),
+        })
+
+    # Per-cluster records
+    clusters_payload: Dict[str, Dict[str, Any]] = {}
+    for cluster in sorted(adata.obs["leiden"].unique(), key=lambda x: int(x)):
+        mask = adata.obs["leiden"] == cluster
+        n_cells = int(mask.sum())
+        obs = adata.obs[mask]
+        mean_genes = float(obs["n_genes_by_counts"].mean()) if "n_genes_by_counts" in obs.columns else 0.0
+        mean_counts = float(obs["total_counts"].mean()) if "total_counts" in obs.columns else 0.0
+        pct_mt = float(obs["pct_counts_mt"].mean()) if "pct_counts_mt" in obs.columns else 0.0
+
+        ann = annotations.get(cluster, {})
+        qr = qr_by_cluster.get(cluster, {})
+
+        clusters_payload[cluster] = {
+            "n_cells": n_cells,
+            "mean_genes": round(mean_genes, 1),
+            "mean_counts": round(mean_counts, 1),
+            "pct_mt": round(pct_mt, 2),
+            "top_markers": cluster_markers.get(cluster, []),
+            "cell_type": ann.get("cell_type", "Unknown"),
+            "cell_type_raw": ann.get("cell_type_raw"),
+            "canonical_markers": ann.get("canonical_markers", []),
+            "key_markers": ann.get("key_markers", []),
+            "llm_confidence": ann.get("confidence", "unknown"),
+            "llm_reasoning": ann.get("reasoning", ""),
+            "llm_quality_flag": ann.get("quality_flag"),
+            "llm_is_subcluster": ann.get("is_subcluster", False),
+            "llm_parent_cluster": ann.get("parent_cluster"),
+            "llm_should_merge": ann.get("should_merge", False),
+            "pmid_count": sum(len(v) for v in ann.get("references", {}).values()),
+            "umap_centroid": cluster_centroids.get(cluster),
+            "umap_distances": pairwise_dist.get(cluster, {}),
+            "qc_flags": qr.get("flags", []),
+            "should_filter": qr.get("should_filter", False),
+            "filter_mode": qr.get("filter_mode", "cell"),
+        }
+
+    state: Dict[str, Any] = {
+        "n_cells": int(adata.n_obs),
+        "n_clusters": len(adata.obs["leiden"].unique()),
+        "clusters": clusters_payload,
+        "same_cell_type_groups": [
+            {"cell_type": ct, "clusters": sorted(cls, key=lambda x: int(x))}
+            for ct, cls in same_ct_groups.items()
+            if len(cls) >= 2
+        ],
+        "separation_groups": separation_groups,
+        "misannotated_candidates": misannotated_candidates,
+        "discontinuous_clusters": continuity_diag.get("discontinuous_clusters", []),
+        "tissue_cell_types": tissue_cell_types or {},
+    }
+    return state
+
+
+def _build_orchestrator_prompt(
+    state: Dict[str, Any],
+    iteration: int,
+    max_iterations: int,
+    previous_decision: Optional[Dict[str, Any]] = None,
+    previous_outcome: Optional[str] = None,
+) -> str:
+    """Build the orchestrator prompt that asks the LLM for the next action.
+
+    The LLM sees the full state snapshot plus context about what it tried
+    in previous iterations. It must return a structured JSON decision.
+    """
+    payload = {
+        "iteration": iteration,
+        "max_iterations": max_iterations,
+        "previous_decision": previous_decision,
+        "previous_outcome": previous_outcome,
+        "state": state,
+    }
+    state_json = json.dumps(payload, indent=2, ensure_ascii=False)
+
+    return f"""You are the orchestrator of an autonomous single-cell RNA-seq annotation pipeline.
+You decide what the next iteration should do based on the full state of clustering, annotation, and QC.
+
+The pipeline always runs one iteration at a time. Each iteration does:
+  1. Cluster (Leiden, possibly with batch correction)
+  2. AI-annotate each cluster with an LLM (cell_type + key_markers + reasoning + confidence + quality_flag)
+  3. Programmatic QC check (low_genes / low_counts / high_mt + AI quality_flag)
+After each iteration, you are called to decide the next step.
+
+The STATE below is a complete perception snapshot. You see EVERY cluster's:
+  - size, mean_genes, mean_counts, pct_mt
+  - top markers (DEGs ranked by Wilcoxon)
+  - AI annotation: cell_type, confidence, reasoning, quality_flag, canonical_markers
+  - UMAP centroid + distance to every other cluster
+  - QC flags and whether the cluster is currently marked for filtering
+You also see cross-cluster signals: which clusters share the same cell_type (potential
+over-clustering / merge candidates), separation distances, misannotation candidates,
+and discontinuous clusters.
+
+The program below you is a sensor + executor. It will faithfully execute whatever you
+decide. Your job is to make the strategy decision the program cannot.
+
+## Available actions
+
+Choose EXACTLY ONE action per iteration:
+
+1. "accept" — the current annotation is good enough. Pipeline will save and exit.
+   Use when: no flagged clusters, no same-cell-type groups needing merge,
+   no obvious misannotation, no discontinuity.
+
+2. "filter_and_recluster" — drop cells from flagged clusters (whole cluster
+   removal OR cell-level QC as you specify per cluster) and re-cluster from raw.
+   Use when: low-quality clusters exist whose cells would contaminate downstream
+   analysis, OR over-clustering needs a fresh start with adjusted resolution.
+
+3. "adjust_resolution_and_recluster" — keep all cells, change Leiden resolution
+   (you specify the new value), re-cluster.
+   Use when: clusters are over-split (same cell_type in many small clusters) or
+   under-split (spatially discontinuous clusters), but quality is fine.
+
+4. "correct_annotations" — keep current clustering but rewrite annotations
+   (relabel cluster → cell_type, optionally merge subclusters into parent).
+   Use when: clustering is acceptable but some labels are wrong (e.g. LLM
+   misidentified cluster X, or two clusters marked same cell_type should be
+   merged, or one cluster should split labels by an external criterion).
+   Pipeline will save after applying corrections — no re-clustering.
+
+## Decision schema (output ONLY this JSON, no markdown)
+
+{{
+  "action": "accept" | "filter_and_recluster" | "adjust_resolution_and_recluster" | "correct_annotations",
+  "reasoning": "short paragraph explaining your decision with cluster IDs and evidence",
+  "filter_plan": {{
+    "whole_cluster_removals": ["cluster_id", ...],
+    "cell_level_clusters": ["cluster_id", ...]
+  }},
+  "new_resolution": 0.5,
+  "annotation_corrections": {{
+    "cluster_id": {{
+      "new_cell_type": "string",
+      "merge_to_cluster": "parent_cluster_id or null",
+      "reasoning": "short string"
+    }}
+  }}
+}}
+
+Only fill the fields relevant to your chosen action. Other fields can be null or empty.
+
+## Rules
+
+- You must base every decision on evidence in the STATE (cluster sizes, QC flags,
+  UMAP distances, marker overlap, LLM confidence, separation groups, etc.).
+  Do NOT invent facts not present in the state.
+- "merge_to_cluster" means: relabel this cluster as the same cell_type as the
+  named parent, and merge it into the parent's identity. The parent cluster must
+  exist in the state.
+- When you choose "filter_and_recluster", whole_cluster_removals are dropped
+  entirely; cell_level_clusters keep only cells that pass QC thresholds.
+- When you choose "adjust_resolution_and_recluster", all cells are kept.
+- When you choose "correct_annotations" with merge_to_cluster, the child cluster's
+  cell_type becomes the parent's cell_type. The child is NOT removed from the
+  clustering — only its label changes.
+- If iteration == max_iterations and the result is still imperfect, prefer
+  "accept" over further refinement (the pipeline will warn but save what it has).
+- If previous_outcome shows the same problem persists across iterations, choose
+  a more aggressive action (e.g. lower resolution, or whole_cluster_removal)
+  rather than repeating the same mild action.
+
+## STATE
+{state_json}
+"""
+
+
+def _parse_orchestrator_decision(raw: Dict[str, Any]) -> Dict[str, Any]:
+    """Normalize and validate the orchestrator's JSON decision.
+
+    Returns a dict with guaranteed keys: action, reasoning, filter_plan,
+    new_resolution, annotation_corrections. Unknown actions default to
+    "accept" (fail-safe — never silently destroy work).
+    """
+    valid_actions = {
+        "accept", "filter_and_recluster",
+        "adjust_resolution_and_recluster", "correct_annotations",
+    }
+    action = str(raw.get("action", "")).strip()
+    if action not in valid_actions:
+        logging.warning("Orchestrator returned invalid action '%s' — defaulting to 'accept'.",
+                        action)
+        action = "accept"
+
+    filter_plan = raw.get("filter_plan") or {}
+    whole = filter_plan.get("whole_cluster_removals") or []
+    cell_level = filter_plan.get("cell_level_clusters") or []
+    whole = [str(c) for c in whole if c is not None]
+    cell_level = [str(c) for c in cell_level if c is not None]
+
+    new_res = raw.get("new_resolution")
+    try:
+        new_res_f = float(new_res) if new_res is not None else None
+    except (TypeError, ValueError):
+        new_res_f = None
+
+    corrections: Dict[str, Dict[str, Any]] = {}
+    raw_corr = raw.get("annotation_corrections") or {}
+    if isinstance(raw_corr, dict):
+        for cl, payload in raw_corr.items():
+            if not isinstance(payload, dict):
+                continue
+            new_ct = payload.get("new_cell_type")
+            if not new_ct:
+                continue
+            corrections[str(cl)] = {
+                "new_cell_type": str(new_ct).strip(),
+                "merge_to_cluster": payload.get("merge_to_cluster"),
+                "reasoning": str(payload.get("reasoning", "")),
+            }
+
+    return {
+        "action": action,
+        "reasoning": str(raw.get("reasoning", "")),
+        "filter_plan": {
+            "whole_cluster_removals": whole,
+            "cell_level_clusters": cell_level,
+        },
+        "new_resolution": new_res_f,
+        "annotation_corrections": corrections,
+    }
+
+
+def _apply_orchestrator_decision(
+    adata: ad.AnnData,
+    decision: Dict[str, Any],
+    annotations: Dict[str, Dict[str, Any]],
+    quality_reports: List[Dict[str, Any]],
+    min_genes: int = 800,
+    min_counts: int = 3000,
+    max_pct_mt: float = 20.0,
+) -> Tuple[ad.AnnData, Dict[str, Any]]:
+    """Execute an orchestrator decision against adata + annotations.
+
+    Returns (updated_adata, summary_dict). The summary records what was done
+    so the next orchestrator call has the full audit trail. Program only
+    executes — it does NOT second-guess the LLM.
+    """
+    summary: Dict[str, Any] = {
+        "action": decision["action"],
+        "applied_changes": [],
+        "n_removed": 0,
+    }
+    action = decision["action"]
+
+    # Annotations corrections (apply before filtering so parent_cell_type
+    # lookups see updated labels)
+    for cl, corr in decision["annotation_corrections"].items():
+        if cl not in annotations:
+            logging.warning("Orchestrator asked to correct unknown cluster %s — skipping.", cl)
+            continue
+        parent = corr.get("merge_to_cluster")
+        new_ct = corr["new_cell_type"]
+        old_ct = annotations[cl].get("cell_type")
+        if parent and str(parent) in annotations:
+            # Merge into parent: inherit parent's cell_type for consistency
+            parent_ct = annotations[str(parent)].get("cell_type", new_ct)
+            annotations[cl]["cell_type_raw"] = old_ct
+            annotations[cl]["cell_type"] = parent_ct
+            annotations[cl]["merged_to"] = str(parent)
+            annotations[cl]["merge_info"] = {
+                "parent_cluster": str(parent),
+                "parent_cell_type": parent_ct,
+                "orchestrator_correction": True,
+                "reasoning": corr.get("reasoning", ""),
+            }
+            new_ct = parent_ct
+        else:
+            annotations[cl]["cell_type_raw"] = old_ct
+            annotations[cl]["cell_type"] = new_ct
+            annotations[cl]["orchestrator_correction"] = {
+                "reasoning": corr.get("reasoning", ""),
+            }
+        # Rewrite obs for this cluster. If cell_type is Categorical and the
+        # new label is not in its categories yet, add it first so pandas
+        # accepts the write.
+        mask = adata.obs["leiden"] == cl
+        if int(mask.sum()):
+            if hasattr(adata.obs["cell_type"], "cat") and new_ct not in set(adata.obs["cell_type"].cat.categories):
+                adata.obs["cell_type"] = adata.obs["cell_type"].cat.add_categories([new_ct])
+            adata.obs.loc[mask, "cell_type"] = new_ct
+        summary["applied_changes"].append(
+            f"Cluster {cl}: cell_type '{old_ct}' -> '{new_ct}'"
+            + (f" (merged into {parent})" if parent and str(parent) in annotations else "")
+        )
+
+    if hasattr(adata.obs["cell_type"], "cat"):
+        # Remove any categories that no longer have cells (cleanup so we don't
+        # accumulate empty categories across iterations).
+        used = set(adata.obs["cell_type"].unique())
+        current = set(adata.obs["cell_type"].cat.categories)
+        to_drop = current - used
+        if to_drop:
+            adata.obs["cell_type"] = adata.obs["cell_type"].cat.remove_categories(list(to_drop))
+
+    # Whole-cluster removals override QC reports
+    fp = decision["filter_plan"]
+    for cl in fp["whole_cluster_removals"]:
+        for r in quality_reports:
+            if r["cluster"] == cl:
+                r["filter_mode"] = "whole_cluster"
+                r["should_filter"] = True
+                if "orchestrator_removal" not in r.get("flags", []):
+                    r["flags"] = list(r.get("flags", [])) + ["orchestrator_removal"]
+        summary["applied_changes"].append(f"Cluster {cl}: marked for WHOLE-CLUSTER removal")
+
+    for cl in fp["cell_level_clusters"]:
+        for r in quality_reports:
+            if r["cluster"] == cl:
+                r["filter_mode"] = "cell"
+                r["should_filter"] = True
+        summary["applied_changes"].append(f"Cluster {cl}: marked for CELL-LEVEL QC")
+
+    # Execute filtering if any flagged clusters exist
+    flagged = [r for r in quality_reports if r["should_filter"]]
+    if action == "filter_and_recluster" and flagged:
+        adata_filtered, n_removed = _filter_flagged_cells(
+            adata, quality_reports,
+            min_genes=min_genes, min_counts=min_counts, max_pct_mt=max_pct_mt,
+        )
+        summary["n_removed"] = n_removed
+        summary["n_cells_before"] = int(adata.n_obs)
+        summary["n_cells_after"] = int(adata_filtered.n_obs)
+        adata = adata_filtered
+    else:
+        summary["n_cells_before"] = int(adata.n_obs)
+        summary["n_cells_after"] = int(adata.n_obs)
+
+    return adata, summary
+
+
+# ---------------------------------------------------------------------------
 # Cluster spatial continuity check
 # ---------------------------------------------------------------------------
 def _check_cluster_continuity(
@@ -2090,6 +2513,257 @@ def _generate_audit_report(
     logging.info("Decision log: %s", script_path)
 
 
+def _run_one_clustering_iteration(
+    raw_adata: ad.AnnData,
+    resolution: float,
+    n_pcs: int,
+    n_neighbors: int,
+    n_top_genes: int,
+    batch_method: str,
+    resolved_batch_key: str,
+    auto_n_pcs: bool,
+    skip_te: bool,
+    min_genes: int,
+    min_counts: int,
+    max_pct_mt: float,
+) -> ad.AnnData:
+    """Run normalize → HVG → scale → PCA → batch-correct → UMAP → leiden → DEG.
+
+    This is a pure executor function. Strategy decisions (which resolution,
+    whether to filter, what to merge) are made by the LLM orchestrator and
+    passed in as parameters. The program never decides these.
+    """
+    adata = raw_adata.copy()
+    sc.pp.normalize_total(adata, target_sum=1e4)
+    sc.pp.log1p(adata)
+    adata.raw = adata.copy()
+
+    if skip_te:
+        adata = _filter_te(adata)
+
+    try:
+        sc.pp.highly_variable_genes(
+            adata, n_top_genes=n_top_genes, flavor="seurat", subset=False,
+            batch_key=resolved_batch_key if resolved_batch_key in adata.obs else None,
+        )
+    except (ValueError, Exception) as e:
+        logging.warning("HVG with batch_key failed (%s). Retrying without batch_key.", e)
+        try:
+            sc.pp.highly_variable_genes(
+                adata, n_top_genes=n_top_genes, flavor="seurat", subset=False,
+            )
+        except (ValueError, Exception) as e2:
+            logging.warning("HVG without batch_key also failed (%s). Trying with fewer genes.", e2)
+            n_hvg = min(n_top_genes, adata.n_vars // 2)
+            if n_hvg < 100:
+                logging.error("Too few genes (%d) for HVG analysis. Skipping HVG filtering.", adata.n_vars)
+                adata.var["highly_variable"] = True
+            else:
+                try:
+                    sc.pp.highly_variable_genes(
+                        adata, n_top_genes=n_hvg, flavor="seurat", subset=False,
+                    )
+                except (ValueError, Exception) as e3:
+                    logging.warning("HVG with fewer genes also failed (%s). Skipping HVG filtering.", e3)
+                    adata.var["highly_variable"] = True
+    adata = adata[:, adata.var["highly_variable"]].copy()
+    sc.pp.scale(adata, max_value=10)
+
+    # NaN safety
+    if hasattr(adata.X, "toarray"):
+        X_dense = adata.X.toarray()
+    else:
+        X_dense = adata.X
+    if np.isnan(X_dense).sum() > 0:
+        logging.warning("Found NaN values in data. Replacing with 0.")
+        if hasattr(adata.X, "toarray"):
+            adata.X = np.nan_to_num(adata.X.toarray(), nan=0.0)
+        else:
+            adata.X = np.nan_to_num(adata.X, nan=0.0)
+
+    # Zero-variance gene removal
+    if hasattr(adata.X, "toarray"):
+        X_dense = adata.X.toarray()
+    else:
+        X_dense = adata.X
+    gene_vars = np.var(X_dense, axis=0)
+    if (gene_vars == 0).any():
+        n_zero = int((gene_vars == 0).sum())
+        logging.warning("Removing %d genes with zero variance before PCA", n_zero)
+        adata = adata[:, gene_vars > 0].copy()
+
+    if adata.n_vars < 10:
+        logging.error("Too few genes (%d) after filtering — using all genes.", adata.n_vars)
+        adata = raw_adata.copy()
+        sc.pp.normalize_total(adata, target_sum=1e4)
+        sc.pp.log1p(adata)
+        adata.raw = adata.copy()
+        if skip_te:
+            adata = _filter_te(adata)
+        sc.pp.highly_variable_genes(adata, n_top_genes=min(n_top_genes, adata.n_vars // 2), flavor="seurat", subset=False)
+        adata = adata[:, adata.var["highly_variable"]].copy()
+        sc.pp.scale(adata, max_value=10)
+
+    pca_comps = max(n_pcs, 100) if auto_n_pcs else n_pcs
+    pca_comps = min(pca_comps, max(2, adata.n_obs - 1), adata.n_vars - 1)
+    sc.tl.pca(adata, n_comps=pca_comps)
+
+    if auto_n_pcs:
+        n_pcs_detected, _ = detect_n_pcs(adata.uns["pca"]["variance_ratio"])
+        n_pcs = n_pcs_detected
+        logging.info("Auto-detected n_pcs: %d", n_pcs)
+
+    if batch_method == "harmony":
+        ho = hm.run_harmony(adata.obsm["X_pca"], adata.obs, resolved_batch_key)
+        Z = np.asarray(ho.Z_corr)
+        if Z.ndim == 1:
+            raise ValueError(f"harmonypy Z_corr is 1D shape={Z.shape}")
+        if Z.shape[0] != adata.n_obs:
+            Z = Z.T
+        adata.obsm["X_pca_harmony"] = Z
+        sc.pp.neighbors(adata, n_neighbors=n_neighbors, n_pcs=n_pcs, use_rep="X_pca_harmony")
+    elif batch_method == "bbknn":
+        sc.external.pp.bbknn(adata, batch_key=resolved_batch_key)
+    else:
+        sc.pp.neighbors(adata, n_neighbors=n_neighbors, n_pcs=n_pcs)
+
+    sc.tl.umap(adata, min_dist=0.1, spread=0.8)
+    sc.tl.leiden(adata, resolution=resolution, key_added="leiden",
+                 flavor="igraph", n_iterations=2, directed=False)
+
+    # If skip_te, temporarily remove TE genes from raw so DEG excludes them
+    _orig_raw = None
+    if skip_te and "gene_type" in adata.raw.var.columns:
+        _orig_raw = adata.raw
+        te_mask = adata.raw.var["gene_type"] != "TE"
+        adata._raw = adata.raw[:, te_mask].copy()
+        logging.info("DEG: filtered TE from raw (%d -> %d genes)",
+                     _orig_raw.shape[1], adata.raw.shape[1])
+    sc.tl.rank_genes_groups(adata, "leiden", method="wilcoxon", use_raw=True)
+    if _orig_raw is not None:
+        adata._raw = _orig_raw
+
+    return adata
+
+
+def _run_one_annotation_pass(
+    adata: ad.AnnData,
+    tissue: str,
+    llm_method: str,
+    llm_model: str,
+    llm_api_key: str,
+    llm_base_url: str,
+    tissue_cell_types: Optional[Dict[str, List[str]]] = None,
+) -> Dict[str, Dict[str, Any]]:
+    """Run per-cluster AI annotation. Pure executor — LLM does the labeling.
+
+    Returns a dict mapping cluster_id -> annotation dict.
+    """
+    annotations: Dict[str, Dict[str, Any]] = {}
+
+    # UMAP centroids for distance calculation
+    umap_centroids: Dict[str, np.ndarray] = {}
+    if "X_umap" in adata.obsm:
+        for cluster in sorted(adata.obs["leiden"].unique(), key=lambda x: int(x)):
+            mask = adata.obs["leiden"] == cluster
+            if int(mask.sum()) >= 50:
+                umap_centroids[cluster] = adata.obsm["X_umap"][mask.values].mean(axis=0)
+
+    for cluster in sorted(adata.obs["leiden"].unique(), key=lambda x: int(x)):
+        mask = adata.obs["leiden"] == cluster
+        n_cells = int(mask.sum())
+        obs = adata.obs[mask]
+        mean_g = float(obs["n_genes_by_counts"].mean()) if "n_genes_by_counts" in obs.columns else 0.0
+        mean_c = float(obs["total_counts"].mean()) if "total_counts" in obs.columns else 0.0
+        pmt = float(obs["pct_counts_mt"].mean()) if "pct_counts_mt" in obs.columns else 0.0
+
+        marker_df = sc.get.rank_genes_groups_df(adata, group=cluster)
+        top_genes = marker_df.head(50)["names"].tolist()
+
+        umap_distances: Dict[str, float] = {}
+        if cluster in umap_centroids:
+            for other_cluster, other_centroid in umap_centroids.items():
+                if other_cluster != cluster:
+                    dist = float(np.linalg.norm(umap_centroids[cluster] - other_centroid))
+                    umap_distances[other_cluster] = dist
+
+        logging.info("  Cluster %s (%d cells): annotating...", cluster, n_cells)
+        ann = _ai_annotate_cluster(
+            cluster, top_genes, tissue, n_cells, mean_g, mean_c, pmt,
+            llm_method=llm_method, llm_model=llm_model,
+            llm_api_key=llm_api_key, llm_base_url=llm_base_url,
+            other_annotations=annotations,
+            umap_distances=umap_distances,
+            tissue_cell_types=tissue_cell_types,
+        )
+        annotations[cluster] = ann
+        logging.info("    -> %s (confidence: %s, %d refs, is_subcluster: %s, should_merge: %s)",
+                     ann["cell_type"], ann["confidence"],
+                     sum(len(v) for v in ann.get("references", {}).values()),
+                     ann.get("is_subcluster", False),
+                     ann.get("should_merge", False))
+        time.sleep(0.5)
+
+    # Name normalization against tissue reference
+    if tissue_cell_types:
+        logging.info("[Step 2.1] Normalizing cell type names against tissue reference...")
+        normalized_count = 0
+        for cl, ann in annotations.items():
+            raw_ct = ann.get("cell_type", "Unknown")
+            if raw_ct in ("Unknown", "Unverified_TE", "Unannotated", "ERVK_high", "Alu_high"):
+                continue
+            canon_ct, was_changed = _normalize_cell_type_name(raw_ct, tissue_cell_types)
+            if was_changed:
+                logging.info("  Cluster %s: '%s' -> '%s' (normalized)", cl, raw_ct, canon_ct)
+                ann["cell_type_raw"] = raw_ct
+                ann["cell_type"] = canon_ct
+                normalized_count += 1
+        logging.info("  Normalized %d / %d cluster annotations", normalized_count, len(annotations))
+
+    return annotations
+
+
+def _apply_annotations_to_obs(
+    adata: ad.AnnData,
+    annotations: Dict[str, Dict[str, Any]],
+) -> None:
+    """Write cell_type column into adata.obs based on current annotations."""
+    cluster_to_ct = {cl: ann["cell_type"] for cl, ann in annotations.items()}
+    adata.obs["cell_type"] = adata.obs["leiden"].map(cluster_to_ct).astype("category")
+
+
+def _call_orchestrator(
+    state: Dict[str, Any],
+    iteration: int,
+    max_iterations: int,
+    llm_method: str,
+    llm_model: str,
+    llm_api_key: str,
+    llm_base_url: str,
+    previous_decision: Optional[Dict[str, Any]] = None,
+    previous_outcome: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Call LLM orchestrator to decide next action. Returns parsed decision dict."""
+    prompt = _build_orchestrator_prompt(
+        state, iteration, max_iterations,
+        previous_decision=previous_decision,
+        previous_outcome=previous_outcome,
+    )
+    if llm_method == "openai":
+        raw = _call_openai(prompt, llm_model=llm_model,
+                           llm_api_key=llm_api_key, llm_base_url=llm_base_url)
+    elif llm_method == "anthropic":
+        raw = _call_anthropic(prompt, llm_model=llm_model,
+                              llm_api_key=llm_api_key, llm_base_url=llm_base_url)
+    elif llm_method == "ollama":
+        raw = _call_ollama(prompt, llm_model=llm_model, llm_base_url=llm_base_url)
+    else:
+        logging.warning("Unknown orchestrator llm_method '%s' — defaulting to 'accept'.", llm_method)
+        return _parse_orchestrator_decision({"action": "accept", "reasoning": "unknown llm_method"})
+
+    return _parse_orchestrator_decision(raw)
+
+
 def mode_auto(
     adata: ad.AnnData,
     output: str,
@@ -2114,26 +2788,31 @@ def mode_auto(
     plot_dir: str = "",
     skip_te: bool = False,
 ) -> None:
-    """Fully autonomous: cluster → AI annotate → QC → filter → re-cluster.
+    """Fully autonomous: cluster → AI annotate → QC → LLM-driven next-step.
 
-    Iterates until no problematic clusters remain or *max_iterations* is
-    reached.  Each iteration:
-        1. Cluster (same logic as mode_cluster).
-        2. AI-annotate each cluster (LLM + PubMed).
-        3. Analyze cluster quality.
-        4. If flagged clusters exist: filter cells (not clusters), repeat.
-        5. If clean: save final h5ad + reports.
+    The LLM is the orchestrator. After every iteration, the program collects
+    the complete state (clusters, annotations, QC, separation, continuity)
+    and asks the LLM what to do next:
+
+      - "accept" — finish and save
+      - "filter_and_recluster" — drop cells per LLM plan, re-cluster
+      - "adjust_resolution_and_recluster" — keep all cells, change resolution
+      - "correct_annotations" — keep clustering, rewrite some annotations
+
+    The program NEVER decides strategy. It only executes what the LLM says
+    and produces the next state snapshot.
 
     Args:
         adata: Merged AnnData (from mode_merge).
         output: Path to write the final annotated h5ad.
         tissue: Tissue context for annotation prompts.
-        llm_method: LLM backend (``"openai"`` or ``"ollama"``).
+        llm_method: LLM backend (``"openai"`` / ``"anthropic"`` / ``"ollama"``).
         llm_model: Model identifier.
-        llm_api_key: API key for OpenAI.
+        llm_api_key: API key for OpenAI / Anthropic backend.
         llm_base_url: Base URL for LLM API.
-        resolution: Leiden clustering resolution (default 0.8).
-        max_iterations: Max QC refinement iterations (default 3).
+        resolution: Initial Leiden clustering resolution (default 0.8). The
+            LLM may override this via ``adjust_resolution_and_recluster``.
+        max_iterations: Max QC refinement iterations (default 5).
         min_genes: Min genes per cell for QC filtering.
         min_counts: Min UMI per cell for QC filtering.
         max_pct_mt: Max MT% for QC filtering.
@@ -2144,13 +2823,16 @@ def mode_auto(
         batch_key: Batch key column.
         auto_n_pcs: Auto-detect n_pcs.
         plot_dir: Directory for plots.
+        skip_te: Exclude TE genes from DEG (preserves TE annotation).
     """
     output_dir = os.path.dirname(output) or "."
     output_stem = Path(output).stem
     report_dir = os.path.join(output_dir, f"{output_stem}_reports")
     os.makedirs(report_dir, exist_ok=True)
 
-    # ── Iteration context for LLM-generated audit report ──
+    resolved_batch_key = batch_key or ("sample_id" if "sample_id" in adata.obs else "batch")
+
+    # ── Audit context for LLM-generated report ──
     ctx: Dict[str, Any] = {
         "input_path": input_path or "(adata_loaded)",
         "output": output,
@@ -2169,7 +2851,6 @@ def mode_auto(
         "initial_genes": adata.n_vars,
         "iterations": [],
     }
-    iter_ctx: Dict[str, Any] = {}  # current iteration context
 
     # Save raw counts for re-clustering
     if "counts" not in adata.layers:
@@ -2177,7 +2858,6 @@ def mode_auto(
     raw_adata = adata.copy()
 
     # ── Step 0: Query tissue-specific cell types from LLM ──
-    # Map genome to species name for LLM prompt
     species_map = {
         "Mmul_10": "macaque (Macaca mulatta)",
         "GRCh38": "human",
@@ -2191,307 +2871,43 @@ def mode_auto(
     )
     ctx["tissue_cell_types"] = tissue_cell_types
 
-    iteration = 0
-    while iteration < max_iterations:
-        iteration += 1
+    # ── Main loop: every iteration, LLM decides what comes next ──
+    annotations: Dict[str, Dict[str, Any]] = {}
+    quality_reports: List[Dict[str, Any]] = []
+    separation_diag: Dict[str, Any] = {}
+    continuity_diag: Dict[str, Any] = {}
+    previous_decision: Optional[Dict[str, Any]] = None
+    previous_outcome: Optional[str] = None
+    final_outcome: str = "unknown"
+
+    for iteration in range(1, max_iterations + 1):
         logging.info("=" * 60)
         logging.info("AUTO ITERATION %d / %d (%d cells)",
                      iteration, max_iterations, adata.n_obs)
         logging.info("=" * 60)
 
-        # ── Step 1: Cluster ──
+        # ── Step 1: Cluster (executor only) ──
         logging.info("[Step 1] Clustering (resolution=%.2f)...", resolution)
-        resolved_batch_key = batch_key or ("sample_id" if "sample_id" in adata.obs else "batch")
-
-        sc.pp.normalize_total(adata, target_sum=1e4)
-        sc.pp.log1p(adata)
-        adata.raw = adata.copy()
-
-        if skip_te:
-            adata = _filter_te(adata)
-
-        try:
-            sc.pp.highly_variable_genes(
-                adata, n_top_genes=n_top_genes, flavor="seurat", subset=False,
-                batch_key=resolved_batch_key if resolved_batch_key in adata.obs else None,
-            )
-        except (ValueError, Exception) as e:
-            logging.warning("HVG with batch_key failed (%s). Retrying without batch_key.", e)
-            try:
-                sc.pp.highly_variable_genes(
-                    adata, n_top_genes=n_top_genes, flavor="seurat", subset=False,
-                )
-            except (ValueError, Exception) as e2:
-                logging.warning("HVG without batch_key also failed (%s). Trying with fewer genes.", e2)
-                # If still fails, try with fewer genes
-                n_hvg = min(n_top_genes, adata.n_vars // 2)
-                if n_hvg < 100:
-                    logging.error("Too few genes (%d) for HVG analysis. Skipping HVG filtering.", adata.n_vars)
-                    # Don't filter, use all genes
-                    adata.var["highly_variable"] = True
-                else:
-                    try:
-                        sc.pp.highly_variable_genes(
-                            adata, n_top_genes=n_hvg, flavor="seurat", subset=False,
-                        )
-                    except (ValueError, Exception) as e3:
-                        logging.warning("HVG with fewer genes also failed (%s). Skipping HVG filtering.", e3)
-                        adata.var["highly_variable"] = True
-        adata = adata[:, adata.var["highly_variable"]].copy()
-        sc.pp.scale(adata, max_value=10)
-
-        # Check for NaN values before PCA
-        if hasattr(adata.X, 'toarray'):
-            X_dense = adata.X.toarray()
-        else:
-            X_dense = adata.X
-        nan_count = np.isnan(X_dense).sum()
-        if nan_count > 0:
-            logging.warning("Found %d NaN values in data. Replacing with 0.", nan_count)
-            if hasattr(adata.X, 'toarray'):
-                # Sparse matrix
-                adata.X = np.nan_to_num(adata.X.toarray(), nan=0.0)
-            else:
-                adata.X = np.nan_to_num(adata.X, nan=0.0)
-
-        # Remove genes with zero variance (all zeros or constant)
-        if hasattr(adata.X, 'toarray'):
-            X_dense = adata.X.toarray()
-        else:
-            X_dense = adata.X
-        gene_vars = np.var(X_dense, axis=0)
-        zero_var_genes = np.where(gene_vars == 0)[0]
-        if len(zero_var_genes) > 0:
-            logging.warning("Removing %d genes with zero variance before PCA", len(zero_var_genes))
-            adata = adata[:, gene_vars > 0].copy()
-        
-        # Check if we have enough genes for PCA
-        if adata.n_vars < 10:
-            logging.error("Too few genes (%d) after filtering. Skipping PCA and using raw data.", adata.n_vars)
-            # Use raw data instead
-            adata = raw_adata.copy()
-            sc.pp.normalize_total(adata, target_sum=1e4)
-            sc.pp.log1p(adata)
-            adata.raw = adata.copy()
-            if skip_te:
-                adata = _filter_te(adata)
-            sc.pp.highly_variable_genes(adata, n_top_genes=min(n_top_genes, adata.n_vars // 2), flavor="seurat", subset=False)
-            adata = adata[:, adata.var["highly_variable"]].copy()
-            sc.pp.scale(adata, max_value=10)
-
-        pca_comps = max(n_pcs, 100) if auto_n_pcs else n_pcs
-        pca_comps = min(pca_comps, max(2, adata.n_obs - 1), adata.n_vars - 1)
-        sc.tl.pca(adata, n_comps=pca_comps)
-
-        if auto_n_pcs:
-            variance_ratio = adata.uns["pca"]["variance_ratio"]
-            n_pcs_detected, _ = detect_n_pcs(variance_ratio)
-            n_pcs = n_pcs_detected
-            logging.info("Auto-detected n_pcs: %d", n_pcs)
-
-        if batch_method == "harmony":
-            ho = hm.run_harmony(adata.obsm["X_pca"], adata.obs, resolved_batch_key)
-            Z = np.asarray(ho.Z_corr)
-            if Z.ndim == 1:
-                raise ValueError(f"harmonypy Z_corr is 1D shape={Z.shape}")
-            if Z.shape[0] != adata.n_obs:
-                Z = Z.T
-            adata.obsm["X_pca_harmony"] = Z
-            sc.pp.neighbors(adata, n_neighbors=n_neighbors, n_pcs=n_pcs,
-                            use_rep="X_pca_harmony")
-        elif batch_method == "bbknn":
-            sc.external.pp.bbknn(adata, batch_key=resolved_batch_key)
-        else:
-            sc.pp.neighbors(adata, n_neighbors=n_neighbors, n_pcs=n_pcs)
-
-        sc.tl.umap(adata, min_dist=0.1, spread=0.8)
-        sc.tl.leiden(adata, resolution=resolution, key_added="leiden",
-                     flavor="igraph", n_iterations=2, directed=False)
-        # If skip_te, temporarily remove TE genes from raw so DEG excludes them
-        _orig_raw = None
-        if skip_te and "gene_type" in adata.raw.var.columns:
-            _orig_raw = adata.raw
-            te_mask = adata.raw.var["gene_type"] != "TE"
-            adata._raw = adata.raw[:, te_mask].copy()
-            logging.info("DEG: filtered TE from raw (%d -> %d genes)",
-                         _orig_raw.shape[1], adata.raw.shape[1])
-        sc.tl.rank_genes_groups(adata, "leiden", method="wilcoxon", use_raw=True)
-        if _orig_raw is not None:
-            adata._raw = _orig_raw
-
-        n_clusters = len(adata.obs["leiden"].unique())
+        adata = _run_one_clustering_iteration(
+            raw_adata=raw_adata,
+            resolution=resolution,
+            n_pcs=n_pcs, n_neighbors=n_neighbors, n_top_genes=n_top_genes,
+            batch_method=batch_method, resolved_batch_key=resolved_batch_key,
+            auto_n_pcs=auto_n_pcs, skip_te=skip_te,
+            min_genes=min_genes, min_counts=min_counts, max_pct_mt=max_pct_mt,
+        )
+        n_clusters = int(adata.obs["leiden"].nunique())
         logging.info("Clustering done: %d clusters", n_clusters)
-        iter_ctx = {
-            "iteration": iteration,
-            "n_cells": adata.n_obs,
-            "n_genes": adata.n_vars,
-            "resolution": resolution,
-            "n_clusters": n_clusters,
-            "batch_method": batch_method,
-            "n_hvg": int(adata.var["highly_variable"].sum()),
-            "n_pcs_used": n_pcs,
-            "cluster_sizes": {str(k): int(v) for k, v in
-                              adata.obs["leiden"].value_counts().items()},
-        }
 
-        # ── Step 2: AI annotate each cluster ──
+        # ── Step 2: AI annotation (LLM does the labeling) ──
         logging.info("[Step 2] AI annotation...")
-        annotations: Dict[str, Dict] = {}
+        annotations = _run_one_annotation_pass(
+            adata, tissue, llm_method, llm_model, llm_api_key, llm_base_url,
+            tissue_cell_types=tissue_cell_types,
+        )
+        _apply_annotations_to_obs(adata, annotations)
 
-        # Compute UMAP centroids for distance calculation
-        umap_centroids = {}
-        if "X_umap" in adata.obsm:
-            for cluster in sorted(adata.obs["leiden"].unique(), key=lambda x: int(x)):
-                mask = adata.obs["leiden"] == cluster
-                if int(mask.sum()) >= 50:  # Min cells for valid centroid
-                    umap_centroids[cluster] = adata.obsm["X_umap"][mask.values].mean(axis=0)
-
-        for cluster in sorted(adata.obs["leiden"].unique(), key=lambda x: int(x)):
-            mask = adata.obs["leiden"] == cluster
-            n_cells = int(mask.sum())
-            obs = adata.obs[mask]
-            mean_g = float(obs["n_genes_by_counts"].mean()) if "n_genes_by_counts" in obs.columns else 0.0
-            mean_c = float(obs["total_counts"].mean()) if "total_counts" in obs.columns else 0.0
-            pmt = float(obs["pct_counts_mt"].mean()) if "pct_counts_mt" in obs.columns else 0.0
-
-            marker_df = sc.get.rank_genes_groups_df(adata, group=cluster)
-            top_genes = marker_df.head(50)["names"].tolist()
-
-            # Compute UMAP distances to other clusters
-            umap_distances = {}
-            if cluster in umap_centroids:
-                for other_cluster, other_centroid in umap_centroids.items():
-                    if other_cluster != cluster:
-                        dist = float(np.linalg.norm(umap_centroids[cluster] - other_centroid))
-                        umap_distances[other_cluster] = dist
-
-            logging.info("  Cluster %s (%d cells): annotating...", cluster, n_cells)
-            ann = _ai_annotate_cluster(
-                cluster, top_genes, tissue, n_cells, mean_g, mean_c, pmt,
-                llm_method=llm_method, llm_model=llm_model,
-                llm_api_key=llm_api_key, llm_base_url=llm_base_url,
-                other_annotations=annotations,
-                umap_distances=umap_distances,
-                tissue_cell_types=tissue_cell_types,
-            )
-            annotations[cluster] = ann
-            logging.info("    -> %s (confidence: %s, %d refs, is_subcluster: %s, should_merge: %s)",
-                         ann["cell_type"], ann["confidence"],
-                         sum(len(v) for v in ann.get("references", {}).values()),
-                         ann.get("is_subcluster", False),
-                         ann.get("should_merge", False))
-
-            time.sleep(0.5)  # rate limit between clusters
-
-        # ── Step 2.1: Normalize LLM cell type names against tissue_cell_types ──
-        # Ensures naming consistency with the canonical names returned by the
-        # Step 0 tissue query (e.g. "Smooth_muscle" → "Smooth muscle cells",
-        # "Granulosa-like" → "Granulosa cells"). Without this, downstream
-        # analysis pipelines that key off exact names break.
-        if tissue_cell_types:
-            logging.info("[Step 2.1] Normalizing cell type names against tissue reference...")
-            normalized_count = 0
-            for cl, ann in annotations.items():
-                raw_ct = ann.get("cell_type", "Unknown")
-                if raw_ct in ("Unknown", "Unverified_TE", "Unannotated", "ERVK_high", "Alu_high"):
-                    continue
-                canon_ct, was_changed = _normalize_cell_type_name(raw_ct, tissue_cell_types)
-                if was_changed:
-                    logging.info("  Cluster %s: '%s' -> '%s' (normalized)", cl, raw_ct, canon_ct)
-                    ann["cell_type_raw"] = raw_ct
-                    ann["cell_type"] = canon_ct
-                    normalized_count += 1
-            logging.info("  Normalized %d / %d cluster annotations", normalized_count, len(annotations))
-
-        # Apply annotations to adata
-        cluster_to_ct = {cl: ann["cell_type"] for cl, ann in annotations.items()}
-        adata.obs["cell_type"] = adata.obs["leiden"].map(cluster_to_ct).astype("category")
-        iter_ctx["annotations"] = {cl: {"cell_type": ann["cell_type"],
-                                         "confidence": ann["confidence"],
-                                         "key_markers": ann.get("key_markers", []),
-                                         "reasoning": ann.get("reasoning", "")}
-                                    for cl, ann in annotations.items()}
-        iter_ctx["cell_types"] = sorted(set(cluster_to_ct.values()))
-
-        # ── Step 2.5: Specificity-weighted scoring refinement ──
-        logging.info("[Step 2.5] Specificity-weighted marker scoring...")
-        # Collect canonical_markers from all clusters to build temporary marker dict
-        temp_marker_dict: Dict[str, List[str]] = {}
-        for cl, ann in annotations.items():
-            ct = ann["cell_type"]
-            canonical = ann.get("canonical_markers", [])
-            if canonical and ct not in ("Unknown", "Unverified_TE", "Unannotated"):
-                if ct not in temp_marker_dict:
-                    temp_marker_dict[ct] = []
-                # Merge canonical markers (avoid duplicates)
-                for g in canonical:
-                    if g not in temp_marker_dict[ct]:
-                        temp_marker_dict[ct].append(g)
-
-        if temp_marker_dict:
-            # Compute gene specificity: 1 / (number of cell types expressing it)
-            gene_specificity: Dict[str, float] = {}
-            for ct, markers in temp_marker_dict.items():
-                for g in markers:
-                    gene_specificity[g] = gene_specificity.get(g, 0) + 1
-            for g in gene_specificity:
-                gene_specificity[g] = 1.0 / gene_specificity[g]
-
-            # Get top DEGs for each cluster
-            result = adata.uns["rank_genes_groups"]
-            cluster_markers: Dict[str, List[str]] = {}
-            for g in result["names"].dtype.names:
-                cluster_markers[g] = list(result["names"][g][:50])
-
-            all_genes = set(adata.raw.var.index) if adata.raw is not None else set(adata.var.index)
-            valid_markers = {}
-            for ct, genes in temp_marker_dict.items():
-                found = [g for g in genes if g in all_genes]
-                if found:
-                    valid_markers[ct] = set(found)
-
-            # Re-score each cluster using specificity-weighted algorithm
-            cluster_to_ct_refined = {}
-            for clust, top_genes in cluster_markers.items():
-                top_set = set(top_genes)
-                best_ct = annotations.get(clust, {}).get("cell_type", "Unknown")
-                best_score = 0.0
-                for ct, markers in valid_markers.items():
-                    matched = top_set & markers
-                    score = 0.0
-                    for g in matched:
-                        rank = top_genes.index(g)
-                        rank_weight = 1.0 / (1.0 + rank * 0.1)
-                        score += gene_specificity.get(g, 0) * rank_weight
-                    if score > best_score:
-                        best_score = score
-                        best_ct = ct
-                cluster_to_ct_refined[clust] = best_ct
-                llm_ct = annotations.get(clust, {}).get("cell_type", "Unknown")
-                if best_ct != llm_ct:
-                    logging.info("  Cluster %s: LLM='%s' -> Refined='%s' (score=%.2f)",
-                                 clust, llm_ct, best_ct, best_score)
-
-            # Apply refined annotations
-            for clust in annotations:
-                llm_ct = annotations[clust]["cell_type"]
-                refined_ct = cluster_to_ct_refined.get(clust, llm_ct)
-                annotations[clust]["cell_type_refined"] = refined_ct
-                annotations[clust]["cell_type"] = refined_ct  # Overwrite with refined
-
-            # Update adata with refined annotations
-            cluster_to_ct = {cl: ann["cell_type"] for cl, ann in annotations.items()}
-            adata.obs["cell_type"] = adata.obs["leiden"].map(cluster_to_ct).astype("category")
-            adata.obs["llm_label"] = adata.obs["leiden"].map(
-                {cl: annotations[cl].get("cell_type_refined", annotations[cl]["cell_type"])
-                 for cl in annotations}).astype("category")
-            logging.info("Refined annotations applied. Cell types: %s",
-                         sorted(set(cluster_to_ct.values())))
-        else:
-            logging.info("No canonical_markers found, skipping specificity scoring")
-            adata.obs["llm_label"] = adata.obs["cell_type"].copy()
-
-        # ── Step 3: Quality analysis ──
+        # ── Step 3: Quality analysis (programmatic, no strategy) ──
         logging.info("[Step 3] Quality analysis...")
         quality_reports = []
         for cluster in sorted(adata.obs["leiden"].unique(), key=lambda x: int(x)):
@@ -2504,299 +2920,156 @@ def mode_auto(
             if qr["should_filter"]:
                 logging.info("  Cluster %s FLAGGED: %s (%s)",
                              cluster, qr["ai_cell_type"], ",".join(qr["flags"]))
-
         flagged = [r for r in quality_reports if r["should_filter"]]
         logging.info("Flagged clusters: %d / %d", len(flagged), n_clusters)
-        iter_ctx["n_flagged"] = len(flagged)
-        iter_ctx["flagged_clusters"] = [{"cluster": r["cluster"],
-                                          "cell_type": r["ai_cell_type"],
-                                          "flags": r["flags"]}
-                                         for r in flagged]
-        iter_ctx["quality_reports"] = [{"cluster": r["cluster"],
-                                         "cell_type": r["ai_cell_type"],
-                                         "should_filter": r["should_filter"],
-                                         "flags": r["flags"]}
-                                        for r in quality_reports]
 
-                                        # ── Step 3.25: Check should_merge flags from LLM ──
-        merge_candidates = []
-        for cluster, ann in annotations.items():
-            if ann.get("should_merge") and ann.get("parent_cluster"):
-                parent = ann["parent_cluster"]
-                if parent in annotations:
-                    merge_candidates.append({
-                        "cluster": cluster,
-                        "parent": parent,
-                        "cell_type": ann["cell_type"],
-                        "parent_cell_type": annotations[parent]["cell_type"],
-                        "is_subcluster": ann.get("is_subcluster", False),
-                    })
-                    logging.info("  Cluster %s (%s) -> should merge with Cluster %s (%s)",
-                                 cluster, ann["cell_type"], parent, annotations[parent]["cell_type"])
-
-        if merge_candidates:
-            logging.info("LLM identified %d clusters that should be merged", len(merge_candidates))
-            # Store merge info in annotations for report
-            for mc in merge_candidates:
-                annotations[mc["cluster"]]["merge_info"] = {
-                    "parent_cluster": mc["parent"],
-                    "parent_cell_type": mc["parent_cell_type"],
-                }
-        else:
-            logging.info("No clusters identified for merging by LLM")
-
-        # Early exit: if no clusters need filtering, break BEFORE Step 3.5 / 3.6
-        # otherwise their `continue` statements would skip this break and force
-        # another iteration of clustering on already-clean data.
-        if not flagged:
-            logging.info("All clusters clean. Saving final results.")
-            iter_ctx["outcome"] = "clean"
-            ctx["iterations"].append(iter_ctx)
-            break
-
-        # ── Step 3.5: Check cell type separation ──
+        # ── Step 3.5: Separation check (sensor — no policy) ──
         logging.info("[Step 3.5] Checking cell type separation...")
-        misannotated: List[Dict] = []
-        needs_reclustering, separation_diag = _check_cell_type_separation(
-            adata,
-            cell_type_key="cell_type",
-            cluster_key="leiden",
-            distance_threshold=5.0,
-            annotations=annotations,
+        _, separation_diag = _check_cell_type_separation(
+            adata, cell_type_key="cell_type", cluster_key="leiden",
+            distance_threshold=5.0, annotations=annotations,
         )
 
-        if needs_reclustering and separation_diag.get("suggested_resolution"):
-            suggested_res = separation_diag["suggested_resolution"]
-            if suggested_res < resolution:
-                logging.info("Cell type separation detected. Adjusting resolution: %.2f -> %.2f",
-                             resolution, suggested_res)
-                resolution = suggested_res
-                # If separation is severe and no quality issues, re-cluster immediately
-                if not flagged:
-                    logging.info("No quality issues. Re-clustering with lower resolution...")
-                    continue  # Re-cluster with adjusted resolution
-                else:
-                    logging.info("Quality issues present. Will filter first, then re-cluster.")
-
-        # Handle misannotated clusters (low marker overlap → annotation error)
-        misannotated = separation_diag.get("misannotated", [])
-        for ma in misannotated:
-            flag_cluster = ma["flagged_cluster"]
-            logging.info("Misannotation detected: cluster %s labeled '%s' but markers diverge (Jaccard=%.3f). Flagging for filter.",
-                         flag_cluster, ma["cell_type"], ma["marker_jaccard"])
-            # Add to quality_reports if not already flagged
-            if not any(r["cluster"] == flag_cluster for r in quality_reports if r["should_filter"]):
-                quality_reports.append({
-                    "cluster": flag_cluster,
-                    "ai_cell_type": ma["cell_type"],
-                    "should_filter": True,
-                    "flags": ["misannotated_low_marker_overlap"],
-                    "filter_mode": "whole_cluster",
-                })
-                flagged = [r for r in quality_reports if r["should_filter"]]
-            else:
-                # Already flagged (e.g. for low_quality) — upgrade to whole-cluster
-                # removal because marker mismatch + separation = ambient RNA artifact.
-                for r in quality_reports:
-                    if r["cluster"] == flag_cluster and r["should_filter"]:
-                        r["filter_mode"] = "whole_cluster"
-                        logging.info("  Cluster %s: upgraded to WHOLE-CLUSTER removal (low quality + separated).",
-                                     flag_cluster)
-        iter_ctx["misannotated"] = misannotated
-
-        # Upgrade low-quality clusters that are ALSO separated from same-type
-        # high-quality clusters → whole-cluster removal. Rationale: cells in
-        # these clusters share marker genes with another cluster of the same
-        # annotated type but lie far away in UMAP, indicating ambient-RNA
-        # contamination rather than a genuine biological subpopulation.
-        # Cell-level QC is not enough because the surviving cells are
-        # untrustworthy and would re-trigger the same separation on the next
-        # iteration.
-        separated_ct_to_clusters: Dict[str, set] = {}
-        for ct_info in separation_diag.get("separated_types", []):
-            ct = ct_info["cell_type"]
-            for d in separation_diag.get("cluster_distances", {}).get(ct, {}).get("pairs", []):
-                separated_ct_to_clusters.setdefault(ct, set()).add(d["cluster_i"])
-                separated_ct_to_clusters.setdefault(ct, set()).add(d["cluster_j"])
-        for ma in separation_diag.get("misannotated", []):
-            separated_ct_to_clusters.setdefault(ma["cell_type"], set()).add(ma["flagged_cluster"])
-
-        if separated_ct_to_clusters:
-            for r in quality_reports:
-                if not r["should_filter"]:
-                    continue
-                if r.get("filter_mode") == "whole_cluster":
-                    continue
-                ct = r.get("ai_cell_type", "Unknown")
-                low_quality_flag = any(f in r.get("flags", []) for f in ("low_genes", "low_counts", "high_mt", "low_quality"))
-                if not (low_quality_flag and ct in separated_ct_to_clusters and r["cluster"] in separated_ct_to_clusters[ct]):
-                    continue
-
-                # Precision filter: only upgrade to whole_cluster if this cluster
-                # looks like an ambient-RNA artifact rather than a genuine
-                # low-quality biological population. Heuristic:
-                #   1. LLM confidence must be low/medium (high confidence means
-                #      the LLM genuinely identified the cell type despite low
-                #      quality → trust it, keep cell-level filter).
-                #   2. AI explicitly flagged low_quality in quality_flag.
-                #   3. AI reasoning must reference separation / ambient / artifact.
-                ai_conf = r.get("ai_confidence", "low")
-                ai_qf = r.get("ai_quality_flag", "")
-                # Look up the AI reasoning from annotations via cluster id
-                ann_for_cluster = None
-                # Annotations aren't passed here, but the quality report carries
-                # ai_cell_type and ai_quality_flag — enough for this check.
-
-                should_upgrade = False
-                reason = ""
-
-                if ai_conf in ("low", "medium") and ai_qf == "low_quality":
-                    # LLM already said: low quality. With separation, very likely
-                    # ambient RNA contamination from neighbouring high-quality
-                    # cluster of the same type.
-                    should_upgrade = True
-                    reason = "LLM low confidence + low_quality flag"
-                elif ai_qf in ("unknown", "unannotated") and ai_conf == "low":
-                    # LLM couldn't identify, low quality, separated → likely garbage
-                    should_upgrade = True
-                    reason = "LLM unknown + low_quality"
-                else:
-                    # High confidence + low quality but separated → could be a
-                    # real biological population that just happens to have low
-                    # counts. Keep cell-level filter so the high-quality cells
-                    # are preserved and can re-cluster.
-                    reason = (f"AI confidence={ai_conf}, quality_flag={ai_qf} → "
-                              f"keep cell-level filter (likely real low-quality population)")
-
-                if should_upgrade:
-                    peer_clusters = [c for c in separated_ct_to_clusters[ct] if c != r["cluster"]]
-                    peer_info = ", ".join(f"cluster {c}" for c in peer_clusters) if peer_clusters else "n/a"
-                    logging.info(
-                        "  Cluster %s (%s): %s. Upgrading to WHOLE-CLUSTER removal "
-                        "(likely ambient-RNA artifact); peer cluster(s): %s.",
-                        r["cluster"], ct, reason, peer_info,
-                    )
-                    r["filter_mode"] = "whole_cluster"
-                    if "ambient_artifact" not in r["flags"]:
-                        r["flags"] = list(r["flags"]) + ["ambient_artifact"]
-                else:
-                    logging.info(
-                        "  Cluster %s (%s): %s. Keeping cell-level QC.",
-                        r["cluster"], ct, reason,
-                    )
-
-        # ── Step 3.6: Check cluster spatial continuity ──
+        # ── Step 3.6: Continuity check (sensor — no policy) ──
         logging.info("[Step 3.6] Checking cluster spatial continuity...")
-        has_discontinuity, continuity_diag = _check_cluster_continuity(
-            adata,
-            cluster_key="leiden",
-            max_gap=2.0,
-            min_cells=50,
+        _, continuity_diag = _check_cluster_continuity(
+            adata, cluster_key="leiden", max_gap=2.0, min_cells=50,
         )
-        iter_ctx["continuity_check"] = continuity_diag
 
-        if has_discontinuity:
-            discontinuous = continuity_diag.get("discontinuous_clusters", [])
-            logging.info("Found %d spatially discontinuous clusters: %s",
-                         len(discontinuous), discontinuous)
-            # If we have flagged clusters, prioritize filtering over re-clustering.
-            # Discontinuity is a secondary concern; QC-filtering first prevents
-            # the same low-quality clusters from re-appearing on every iteration.
-            if flagged:
-                logging.info(
-                    "Discontinuity detected but %d flagged cluster(s) exist; "
-                    "deferring resolution increase — will filter first.",
-                    len(flagged),
-                )
-            else:
-                # Always try to increase resolution to split discontinuous clusters
-                new_resolution = min(resolution * 1.5, 1.5)
-                if new_resolution > resolution:
-                    logging.info("Increasing resolution: %.2f -> %.2f to split discontinuous clusters",
-                                 resolution, new_resolution)
-                    resolution = new_resolution
-                    continue  # Re-cluster with higher resolution
+        # ── Step 3.7: LLM orchestrator decides next action ──
+        logging.info("[Step 3.7] Orchestrator: collecting state and asking LLM...")
+        state = _collect_cluster_state(
+            adata=adata,
+            annotations=annotations,
+            quality_reports=quality_reports,
+            separation_diag=separation_diag,
+            continuity_diag=continuity_diag,
+            tissue_cell_types=tissue_cell_types,
+        )
 
-        # ── Step 4: Filter or finish ──
-        if not flagged:
-            logging.info("All clusters clean. Saving final results.")
-            iter_ctx["outcome"] = "clean"
-            ctx["iterations"].append(iter_ctx)
-            break
+        decision = _call_orchestrator(
+            state=state,
+            iteration=iteration,
+            max_iterations=max_iterations,
+            llm_method=llm_method, llm_model=llm_model,
+            llm_api_key=llm_api_key, llm_base_url=llm_base_url,
+            previous_decision=previous_decision,
+            previous_outcome=previous_outcome,
+        )
+        logging.info("  Orchestrator decision: %s", decision["action"])
+        logging.info("  Reasoning: %s", decision["reasoning"][:500])
 
-        # Filter cells within flagged clusters (even on last iteration)
-        logging.info("[Step 4] Filtering cells in flagged clusters...")
-        adata_filtered, n_removed = _filter_flagged_cells(
-            adata, quality_reports,
+        # ── Apply orchestrator decision (program is executor only) ──
+        adata, apply_summary = _apply_orchestrator_decision(
+            adata=adata,
+            decision=decision,
+            annotations=annotations,
+            quality_reports=quality_reports,
             min_genes=min_genes, min_counts=min_counts, max_pct_mt=max_pct_mt,
         )
+        for change in apply_summary.get("applied_changes", []):
+            logging.info("  Applied: %s", change)
 
-        if n_removed == 0:
-            logging.info("No cells removed after QC. Stopping iterations.")
-            iter_ctx["outcome"] = "no_cells_removed"
-            ctx["iterations"].append(iter_ctx)
-            break
-
-        # Stop after filtering on last iteration (don't re-cluster)
-        if iteration >= max_iterations:
-            logging.warning("Max iterations (%d) reached after filtering. Saving current state.", max_iterations)
-            iter_ctx["outcome"] = "max_iterations"
-            iter_ctx["filter_n_removed"] = n_removed
-            adata = adata_filtered  # Use filtered data for final output
-            ctx["iterations"].append(iter_ctx)
-            break
-
-        # Prepare raw counts for re-clustering
-        # Use the raw_adata (pre-processing) and subset to filtered cells
-        filtered_indices = adata_filtered.obs.index
-        raw_filtered = raw_adata[raw_adata.obs.index.isin(filtered_indices)].copy()
-
-        # Preserve sample_id
-        if "sample_id" in adata_filtered.obs.columns:
-            raw_filtered.obs["sample_id"] = adata_filtered.obs.loc[
-                raw_filtered.obs.index, "sample_id"
-            ]
-
-        adata = raw_filtered
-        logging.info("Iteration %d complete. %d cells remaining.", iteration, adata.n_obs)
-        iter_ctx["filter_n_removed"] = n_removed
-        iter_ctx["filter_cells_remaining"] = adata.n_obs
+        # Record this iteration in audit context
+        iter_ctx = {
+            "iteration": iteration,
+            "n_cells_in": state["n_cells"],
+            "n_clusters": state["n_clusters"],
+            "resolution": resolution,
+            "decision": decision,
+            "applied": apply_summary,
+            "n_flagged": len(flagged),
+            "cell_types": sorted({a["cell_type"] for a in annotations.values()}),
+        }
         ctx["iterations"].append(iter_ctx)
 
-    # ── Final: save reports and h5ad ──
+        # Route by orchestrator action
+        action = decision["action"]
+        if action == "accept":
+            final_outcome = "orchestrator_accept"
+            previous_outcome = "accept"
+            break
+
+        elif action == "correct_annotations":
+            # Clustering unchanged. Apply decisions already done above.
+            # Save and exit — no further re-clustering.
+            final_outcome = "orchestrator_correct"
+            previous_outcome = "correct_annotations"
+            previous_decision = decision
+            break
+
+        elif action == "adjust_resolution_and_recluster":
+            new_res = decision.get("new_resolution")
+            if new_res is not None and 0.05 <= new_res <= 3.0:
+                resolution = float(new_res)
+                logging.info("  Orchestrator set resolution -> %.2f", resolution)
+            previous_decision = decision
+            previous_outcome = "adjusted_resolution_kept_all_cells"
+            # adata is unchanged (no filtering), continue loop with new resolution
+            # (the loop will call _run_one_clustering_iteration on raw_adata)
+            continue
+
+        elif action == "filter_and_recluster":
+            if apply_summary.get("n_removed", 0) == 0:
+                logging.warning("Orchestrator asked to filter but no cells removed — "
+                                "falling back to next iteration with same data.")
+                previous_decision = decision
+                previous_outcome = "filter_requested_no_cells_removed"
+                continue
+
+            # Use raw counts (pre-processing) for the filtered subset
+            filtered_obs = adata.obs.index
+            raw_filtered = raw_adata[raw_adata.obs.index.isin(filtered_obs)].copy()
+            if "sample_id" in adata.obs.columns:
+                raw_filtered.obs["sample_id"] = adata.obs.loc[
+                    raw_filtered.obs.index, "sample_id"
+                ]
+            adata = raw_filtered
+            logging.info("  %d cells remaining after orchestrator filter.", adata.n_obs)
+
+            new_res = decision.get("new_resolution")
+            if new_res is not None and 0.05 <= new_res <= 3.0:
+                resolution = float(new_res)
+                logging.info("  Orchestrator set resolution -> %.2f", resolution)
+
+            previous_decision = decision
+            previous_outcome = f"filtered_{apply_summary['n_removed']}_cells"
+            continue
+
+        else:
+            # Should not happen (parser already fell back to "accept")
+            logging.warning("Unhandled action '%s' — accepting and exiting.", action)
+            final_outcome = "unknown_action_fallback_accept"
+            break
+
+    else:
+        # for-else: completed all iterations without break
+        logging.warning("Max iterations (%d) reached. Saving current state.", max_iterations)
+        final_outcome = "max_iterations"
+
+    # ── Final: write reports and h5ad ──
     logging.info("Writing final reports...")
     _write_annotation_report(annotations, quality_reports,
-                            os.path.join(report_dir, "annotation_report.tsv"))
+                             os.path.join(report_dir, "annotation_report.tsv"))
     _write_references_report(annotations,
-                            os.path.join(report_dir, "references.tsv"))
+                             os.path.join(report_dir, "references.tsv"))
 
-    # Plot if requested
     plotter = _make_plotter(plot_dir)
     if plotter:
         plotter.plot_cluster(adata, cluster_key="leiden", sample_key=resolved_batch_key)
-        
-        # Generate annotation plots (UMAP cell_type, dotplot, etc.)
-        annotation_keys = []
-        if "cell_type" in adata.obs.columns:
-            annotation_keys.append("cell_type")
-        if "llm_label" in adata.obs.columns:
-            annotation_keys.append("llm_label")
-        
+        annotation_keys = ["cell_type"] if "cell_type" in adata.obs.columns else []
         has_rank_genes = "rank_genes_groups" in adata.uns
         plotter.plot_annotate(
-            adata,
-            marker_file="",  # No marker file in auto mode
-            annotate_group="leiden",
-            annotation_keys=annotation_keys,
-            has_rank_genes=has_rank_genes,
+            adata, marker_file="", annotate_group="leiden",
+            annotation_keys=annotation_keys, has_rank_genes=has_rank_genes,
         )
 
     adata.write_h5ad(output)
     ctx["final_cells"] = adata.n_obs
     ctx["final_genes"] = adata.n_vars
+    ctx["final_outcome"] = final_outcome
     logging.info("Final annotated h5ad: %s", output)
 
-    # ── LLM-generated audit report & reproducible script ──
     _generate_audit_report(ctx, report_dir, llm_method, llm_model,
                            llm_api_key, llm_base_url)
 

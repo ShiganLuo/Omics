@@ -2499,8 +2499,6 @@ Choose EXACTLY ONE:
     rules_block = """## Rules
 
 - Base every decision on evidence in the STATE. Do NOT invent facts.
-- If iteration == max_iterations, prefer "accept" over further refinement
-  (max_iteration cap means we've exhausted the iteration budget).
 - If previous_outcome shows the same problem persists, choose a more
   aggressive action rather than repeating the same mild one.
 - For "merge_to_cluster": parent cluster must exist in the state."""

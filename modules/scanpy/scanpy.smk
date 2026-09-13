@@ -171,8 +171,8 @@ rule scanpy_auto:
         n_top_genes=lambda wildcards: params.get(wildcards.counter, {}).get("auto", {}).get("n_top_genes", 3000),
         batch_method=lambda wildcards: params.get(wildcards.counter, {}).get("auto", {}).get("batch_method", "harmony"),
         batch_key=lambda wildcards: params.get(wildcards.counter, {}).get("auto", {}).get("batch_key", "sample_id"),
-        auto_n_pcs=lambda wildcards: params.get(wildcards.counter, {}).get("auto", {}).get("auto_n_pcs", False),
-        skip_te=lambda wildcards: params.get(wildcards.counter, {}).get("auto", {}).get("skip_te", False),
+        auto_n_pcs=lambda wildcards: params.get(wildcards.counter, {}).get("auto", {}).get("auto_n_pcs", True),
+        skip_te=lambda wildcards: params.get(wildcards.counter, {}).get("auto", {}).get("skip_te", True),
         species=species
     run:
         log_path = str(log)

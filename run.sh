@@ -7,21 +7,21 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # --sdm apptainer \
 # --singularity-args '--bind /home/luosg/Database,/home/luosg/Data/genomeStability,/tmp'
 
-python ${SCRIPT_DIR}/run.py \
-    -m /home/luosg/Data/genomeStability/data/EED_public/meta_input.tsv \
-    -w RNAseq \
-    -o /home/luosg/Data/genomeStability/output/EED \
-    -t 48 \
-    --log /home/luosg/Data/genomeStability/log/EED_RNAseq.log \
-    --sdm \
-    --rerun-triggers mtime \
-    --Params.StringTie.enabled false \
-    --Params.gatk_RNAseq.enabled false \
-    --Params.arriba.enabled false \
-    --Params.DESeq2.enabled false \
-    --Params.function.GRCh38.enabled false \
-    --Params.function.GRCm39.enabled false \
-    --Params.report.enabled false
+# python ${SCRIPT_DIR}/run.py \
+#     -m /home/luosg/Data/genomeStability/data/EED_public/meta_input.tsv \
+#     -w RNAseq \
+#     -o /home/luosg/Data/genomeStability/output/EED \
+#     -t 48 \
+#     --log /home/luosg/Data/genomeStability/log/EED_RNAseq.log \
+#     --sdm \
+#     --rerun-triggers mtime \
+#     --Params.StringTie.enabled false \
+#     --Params.gatk_RNAseq.enabled false \
+#     --Params.arriba.enabled false \
+#     --Params.DESeq2.enabled false \
+#     --Params.function.GRCh38.enabled false \
+#     --Params.function.GRCm39.enabled false \
+#     --Params.report.enabled false
 
 # python ${SCRIPT_DIR}/run.py \
 #     -m /home/luosg/Data/genomeStability/data/Srp54/meta_input.tsv \
@@ -80,13 +80,14 @@ python ${SCRIPT_DIR}/run.py \
 #     --sdm \
 #     --dry-run
 
-# python ${SCRIPT_DIR}/run.py \
-#     -m /home/luosg/Data/genomeStability/data/20260820_scRNAseq/meta_input.tsv \
-#     -w scRNAseq \
-#     -o /home/luosg/Data/genomeStability/output/luancao \
-#     -t 48 \
-#     --log /home/luosg/Data/genomeStability/log/scRNAseq.log \
-#     --sdm \
-#     --counters scTE cellranger \
-#     --aligner cellranger \
-#     --rerun-triggers mtime
+python ${SCRIPT_DIR}/run.py \
+    -m /home/luosg/Data/genomeStability/data/20260820_scRNAseq/meta_input.tsv \
+    -w scRNAseq \
+    -o /home/luosg/Data/genomeStability/output/luancao \
+    -t 48 \
+    --log /home/luosg/Data/genomeStability/log/scRNAseq.log \
+    --sdm \
+    --counters scTE cellranger \
+    --aligner cellranger \
+    --rerun-triggers mtime \
+    --dry-run

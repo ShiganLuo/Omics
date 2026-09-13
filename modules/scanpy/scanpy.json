@@ -34,12 +34,24 @@
       "annotate": {
         "marker_file": "",
         "celltypist_model": "",
+        "annotate_group": ""
+      },
+      "auto": {
+        "max_iterations": 3,
+        "min_genes": 800,
+        "min_counts": 3000,
+        "max_pct_mt": 20,
+        "n_pcs": 50,
+        "n_neighbors": 50,
+        "n_top_genes": 3000,
+        "batch_method": "harmony",
+        "batch_key": "sample_id",
+        "auto_n_pcs": false,
+        "skip_te": false,
         "llm_method": "",
         "llm_model": "",
         "llm_api_key": "",
-        "llm_base_url": "",
-        "llm_top_genes": 30,
-        "annotate_group": ""
+        "llm_base_url": ""
       },
       "advanced": {
         "trajectory": false,

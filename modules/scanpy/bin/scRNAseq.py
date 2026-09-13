@@ -2058,6 +2058,7 @@ def _collect_clustering_state(
             "isolated_clusters": (boundary_sharpness or {}).get("isolated_clusters", []),
             "isolation_threshold": (boundary_sharpness or {}).get("isolation_threshold"),
         },
+        "discontinuity_details": (continuity_diag or {}).get("details", {}),
         "tissue_cell_types": tissue_cell_types or {},
         "note": (
             "CP1 (clustering checkpoint): cell_type labels not yet assigned. "
@@ -2074,7 +2075,19 @@ def _collect_clustering_state(
             "These are likely Leiden noise / doublets / spurious small populations "
             "with no clear neighbors. RECOMMENDED action: whole_cluster_removal "
             "for these (drop the entire cluster, do not try to merge them with "
-            "another cluster since they share no neighborhood)."
+            "another cluster since they share no neighborhood). "
+            "FINALLY, check discontinuity_details for clusters with LARGE max_gap "
+            "(e.g. > 2.0). Each entry has left_cells and right_cells counts showing "
+            "how the cluster is split internally by the gap. TWO PATTERNS: "
+            "(a) IMBALANCED split (one side < 5% of cluster, often just 1-10 cells) "
+            "→ the minority piece is likely NOISE / outlier cells detached from "
+            "the main UMAP region. RECOMMENDED: whole_cluster_removal — the "
+            "noise cells will be dropped and the main cluster kept (which "
+            "re-clusters as part of neighboring clusters). "
+            "(b) BALANCED split (e.g. 30/70 or 50/50) → two genuinely disjoint "
+            "sub-regions within the same Leiden cluster. RECOMMENDED: accept "
+            "(both sub-regions share the same cell_type; splitting them is a "
+            "cosmetic concern, not a data quality issue)."
         ),
     }
 

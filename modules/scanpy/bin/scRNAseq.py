@@ -36,16 +36,27 @@ def _get_plotter():
     return _plotter_cls
 
 
-def setup_logging(level: int = logging.INFO) -> None:
+def setup_logging(
+    level: int = logging.INFO,
+    log_file: Optional[str] = None,
+) -> None:
     """Configure the root logger with a timestamped format.
 
     Args:
         level: Logging level (default: INFO).
+        log_file: If given, also tee all logs to this file (UTF-8, append-safe).
+            Created if missing, parent dir is mkdir-ed.
     """
+    handlers: List[logging.Handler] = [logging.StreamHandler()]
+    if log_file:
+        os.makedirs(os.path.dirname(os.path.abspath(log_file)), exist_ok=True)
+        handlers.append(logging.FileHandler(log_file, mode="w", encoding="utf-8"))
     logging.basicConfig(
         level=level,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
+        handlers=handlers,
+        force=True,  # re-init if basicConfig was already called
     )
 
 
@@ -2240,8 +2251,23 @@ Choose EXACTLY ONE:
    REQUIRES: new_resolution in (0.05, 3.0).
 
 3. "filter_cells_before_annotation" — some clusters are so low-quality (high MT%,
-   very low counts, tiny size) that annotating them would waste LLM calls and
-   pollute downstream analysis. Drop them now, before annotation.
+   very low counts, tiny size, OR no clear UMAP boundary with neighbors) that
+   annotating them would waste LLM calls and pollute downstream analysis.
+   Drop them now, before annotation.
+
+   Strategy guidance:
+   - If boundary_sharpness.top_fuzzy_pairs flags a cluster with
+     no_clear_boundary=True AND its only neighbors are another single cluster
+     (e.g. C17 vs C3, C17 vs C11) → it is most likely Leiden OVER-FRAGMENTATION.
+     PREFER whole_cluster_removal (drop the cluster entirely). Cell-level QC
+     here would keep noisy cells and the cluster would re-emerge in the next
+     iteration.
+   - If a cluster has catastrophic mean_counts / mean_genes / pct_mt but the
+     surviving cells look biologically meaningful (e.g. cycling cells) →
+     cell_level_clusters (keep good cells).
+   - Tiny clusters (< 50 cells) surrounded by another cluster of different
+     cell_type → whole_cluster_removal (Leiden noise).
+
    REQUIRES: filter_plan with whole_cluster_removals and/or cell_level_clusters.
    These clusters (or their low-quality cells) are removed from raw_adata before
    Step 2 runs. Step 2 then annotates the remaining clusters, and the next
@@ -3394,9 +3420,10 @@ def mode_auto(
         if boundary_sharpness.get("top_fuzzy_pairs"):
             logging.info("[CP1] top fuzzy pairs:")
             for pair in boundary_sharpness["top_fuzzy_pairs"]:
-                logging.info("  %s vs %s: interleaving_fraction=%.3f",
+                logging.info("  C%s vs C%s: min_p25=%.3f, no_clear_boundary=%s",
                              pair["cluster_a"], pair["cluster_b"],
-                             pair["interleaving_fraction"])
+                             pair["min_p25_distance"],
+                             pair.get("no_clear_boundary"))
         state_cp1 = _collect_clustering_state(
             adata=adata,
             quality_reports=basic_qc_reports,
@@ -3490,7 +3517,51 @@ def mode_auto(
             pass  # proceed to Step 3
         elif cp2_action == "correct_annotations":
             # Annotations already updated by _apply_orchestrator_decision above.
-            # No re-clustering; proceed to Step 3 with corrected labels.
+            # If LLM also marked whole_cluster_removals / cell_level_clusters,
+            # apply them to BOTH raw_adata AND adata — otherwise the dropped
+            # cells stay in adata and end up in the final h5ad. CP3 only filters
+            # when its action is filter_and_recluster, not correct_annotations.
+            cp2_filter_plan = decision_cp2["filter_plan"]
+            if cp2_filter_plan["whole_cluster_removals"] or cp2_filter_plan["cell_level_clusters"]:
+                logging.info("  CP2 marked %d whole-cluster + %d cell-level removals; applying now",
+                             len(cp2_filter_plan["whole_cluster_removals"]),
+                             len(cp2_filter_plan["cell_level_clusters"]))
+                raw_adata, n_removed = _apply_filter_plan_to_raw(
+                    raw_adata=raw_adata,
+                    adata=adata,
+                    whole_cluster_removals=cp2_filter_plan["whole_cluster_removals"],
+                    cell_level_clusters=cp2_filter_plan["cell_level_clusters"],
+                    min_genes=min_genes, min_counts=min_counts, max_pct_mt=max_pct_mt,
+                )
+                logging.info("  CP2 dropped %d cells from raw_adata (%d remaining)",
+                             n_removed, raw_adata.n_obs)
+                # Also filter adata itself (drop the same cells) so the current
+                # in-memory clustering result reflects the filter.
+                keep_mask = pd.Series(True, index=adata.obs.index)
+                for cl in cp2_filter_plan["whole_cluster_removals"]:
+                    keep_mask.loc[adata.obs["leiden"] == cl] = False
+                for cl in cp2_filter_plan["cell_level_clusters"]:
+                    cl_mask = adata.obs["leiden"] == cl
+                    obs_cl = adata.obs[cl_mask]
+                    bad: set = set()
+                    if "n_genes_by_counts" in obs_cl.columns:
+                        bad |= set(obs_cl.loc[obs_cl["n_genes_by_counts"] < min_genes].index)
+                    if "total_counts" in obs_cl.columns:
+                        bad |= set(obs_cl.loc[obs_cl["total_counts"] < min_counts].index)
+                    if "pct_counts_mt" in obs_cl.columns:
+                        bad |= set(obs_cl.loc[obs_cl["pct_counts_mt"] > max_pct_mt].index)
+                    keep_mask.loc[adata.obs.index.isin(bad)] = False
+                adata = adata[keep_mask.values].copy()
+                # Drop annotations for clusters that no longer exist
+                present_clusters = set(adata.obs["leiden"].astype(str).unique())
+                annotations = {cl: ann for cl, ann in annotations.items() if cl in present_clusters}
+                _apply_annotations_to_obs(adata, annotations)
+                logging.info("  CP2 dropped cells from adata too (%d remaining)",
+                             adata.n_obs)
+                # Update apply_summary so audit reflects the filter
+                apply_cp2["n_removed"] = n_removed
+                apply_cp2["n_cells_before"] = int(adata.n_obs) + n_removed  # pre-filter size
+                apply_cp2["n_cells_after"] = int(adata.n_obs)
             logging.info("  CP2 applied %d annotation corrections; continuing to Step 3",
                          len(decision_cp2["annotation_corrections"]))
         elif cp2_action == "re_annotate_specific_clusters":
@@ -3777,15 +3848,14 @@ def mode_de(
 # ---------------------------------------------------------------------------
 def main():
     """Parse CLI arguments and dispatch to the requested mode function."""
-    setup_logging()
     parser = argparse.ArgumentParser(description="Scanpy scRNA-seq pipeline")
     parser.add_argument("--mode", required=True,
                         choices=["qc", "merge", "cluster", "annotate", "auto", "advanced", "de"])
     parser.add_argument("--input", required=True, nargs="+")
     parser.add_argument("--output", required=True)
     parser.add_argument("--plot-dir", default="", help="Directory to save plots (optional)")
-
-    # QC params
+    parser.add_argument("--log-file", default="",
+                        help="Path to write full run log (auto-default: <output>_run.log if --mode auto)")
     parser.add_argument("--metrics", default="", help="Path to write per-cell QC metrics TSV")
     parser.add_argument("--min-genes", type=int, default=200)
     parser.add_argument("--max-genes", type=int, default=6000)
@@ -3860,6 +3930,16 @@ def main():
 
     adata = read_input(args.input[0], args.input[1:] if len(args.input) > 1 else None)
 
+    # Setup logging after argparse. Default log file = <output_dir>/<output_stem>_run.log
+    # for auto mode (so each run produces a persistent trace next to the h5ad).
+    log_file = args.log_file
+    if not log_file and args.mode == "auto":
+        out_dir = os.path.dirname(args.output) or "."
+        out_stem = Path(args.output).stem
+        log_file = os.path.join(out_dir, f"{out_stem}_run.log")
+    setup_logging(log_file=log_file or None)
+
+    # Dispatch
     if args.mode == "qc":
         mode_qc(
             adata,

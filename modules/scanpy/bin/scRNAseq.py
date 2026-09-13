@@ -1767,26 +1767,7 @@ def _basic_qc_check(
         if n_cells < max(50, total_cells * 0.01):
             flags.append("tiny_cluster_extreme")
 
-        # Cell-level QC survival stats — useful for orchestrator's filter_plan.
-        # Use RELATIVE thresholds (30% of dataset median) instead of absolute
-        # CLI thresholds — the latter are too strict for typical scRNA-seq
-        # data where most clusters naturally fall below e.g. min_counts=3000.
-        rel_min_genes = dataset_median_genes * 0.30 if dataset_median_genes else min_genes
-        rel_min_counts = dataset_median_counts * 0.30 if dataset_median_counts else min_counts
-        rel_max_mt = max(15.0, dataset_p95_mt * 1.5) if dataset_p95_mt else max_pct_mt
-        cells_pass_genes = (
-            int((obs["n_genes_by_counts"] >= rel_min_genes).sum())
-            if "n_genes_by_counts" in obs.columns else n_cells
-        )
-        cells_pass_counts = (
-            int((obs["total_counts"] >= rel_min_counts).sum())
-            if "total_counts" in obs.columns else n_cells
-        )
-        cells_pass_mt = (
-            int((obs["pct_counts_mt"] <= rel_max_mt).sum())
-            if "pct_counts_mt" in obs.columns else n_cells
-        )
-        cells_passing_all = int(min(cells_pass_genes, cells_pass_counts, cells_pass_mt))
+        # NO n_cells_passing_qc computation — see comment in the report dict.
 
         reports.append({
             "cluster": cluster,
@@ -1798,8 +1779,11 @@ def _basic_qc_check(
             # NO auto should_filter — let CP1 LLM decide based on flags + context.
             "should_filter": False,
             "filter_mode": "cell",
-            "n_cells_passing_qc": cells_passing_all,
-            "n_cells_to_drop_qc": n_cells - cells_passing_all,
+            # NO n_cells_passing_qc / n_cells_to_drop_qc — these numbers mislead
+            # LLM into dropping real cell populations. CP1 should only react to
+            # structural flags (isolation, discontinuity, boundary) and
+            # extreme QC (very high pct_mt). Cells with normal-quality
+            # markers still annotate correctly even if mean_counts < 3000.
         })
     return reports
 
@@ -2043,8 +2027,7 @@ def _collect_clustering_state(
             "qc_flags": qr.get("flags", []),
             "should_filter": qr.get("should_filter", False),
             "filter_mode": qr.get("filter_mode", "cell"),
-            "n_cells_passing_qc": qr.get("n_cells_passing_qc", qr.get("n_cells", 0)),
-            "n_cells_to_drop_qc": qr.get("n_cells_to_drop_qc", 0),
+            # n_cells_passing_qc / n_cells_to_drop_qc removed — see _basic_qc_check.
             "umap_centroid": cluster_centroids.get(cluster),
             "umap_distances": pairwise_dist.get(cluster, {}),
             # Boundary sharpness (k-NN-based)
@@ -2298,8 +2281,7 @@ def _collect_iteration_state(
             "qc_flags": qr.get("flags", []),
             "should_filter": qr.get("should_filter", False),
             "filter_mode": qr.get("filter_mode", "cell"),
-            "n_cells_passing_qc": qr.get("n_cells_passing_qc", n_cells),
-            "n_cells_to_drop_qc": qr.get("n_cells_to_drop_qc", 0),
+            # n_cells_passing_qc / n_cells_to_drop_qc removed — see _basic_qc_check.
         }
 
     # CP3 spatial-context pass: compute per-cluster "nearest OTHER

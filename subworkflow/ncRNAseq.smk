@@ -3,18 +3,19 @@ from snakemake.logging import logger
 import os
 
 ROOT_DIR = config.get("ROOT_DIR", ".")
-indir = config.get("indir", "data/fastq")
-outdir = config.get("outdir", "output")
-logdir = config.get("logdir", "logs")
-paired_samples = config.get("paired_samples", [])
-single_samples = config.get("single_samples", [])
-all_samples = config.get("samples", [])
 outfiles = config.get("outfiles", [])
-aligner = config.get("Procedure", {}).get("aligner") or "star"
-ip_samples = config.get("ip_samples", [])
-input_samples = config.get("input_samples", [])
-sample_ip_input_map = config.get("sample_ip_input_map", {})
+indir = config.get("Params", {}).get("workflow").get("indir", "data/fastq")
+outdir = config.get("Params", {}).get("workflow").get("outdir", "output")
+logdir = config.get("Params", {}).get("workflow").get("logdir", "logs")
+paired_samples = config.get("Params", {}).get("workflow").get("paired_samples", [])
+single_samples = config.get("Params", {}).get("workflow").get("single_samples", [])
+all_samples = config.get("Params", {}).get("workflow").get("samples", [])
+aligner = config.get("Params", {}).get("workflow").get("aligner") or "star"
+ip_samples = config.get("Params", {}).get("workflow").get("ip_samples", [])
+input_samples = config.get("Params", {}).get("workflow").get("input_samples", [])
+sample_ip_input_map = config.get("Params", {}).get("workflow").get("sample_ip_input_map", {})
 igv_genome = config.get("Params", {}).get("track", {}).get("igv", {}).get("default")
+
 rule all:
     input:
         outfiles
@@ -37,29 +38,31 @@ module fastqc_raw:
 logger.info(f"fastqc_raw_config: {fastqc_raw_config}")
 use rule fastqc from fastqc_raw as ncRNAseq_fastqc_raw
 
+
 # ── 0. Demultiplex: 3' adapter removal + PCR duplicate removal ───────────────
-demultiplexer_config = {
-        "ROOT_DIR": ROOT_DIR,
-        "env": config.get("env", {}),
-        "indir": indir,
-        "outdir": f"{outdir}/common/2_trimmed_dedup_fastq/jla-demultiplexer",
-        "logdir": os.path.join(logdir,"sample"),
-        "paired_samples": paired_samples,
-        "single_samples": single_samples,
-        "Params": {
-            "demultiplexer": config.get("Params", {}).get("demultiplexer", {})
-        },
-    }
-module demultiplexer:
-    snakefile: "../modules/demultiplexer/demultiplexer.smk"
-    config: demultiplexer_config
-logger.info(f"demultiplexer_config: {demultiplexer_config}")
-use rule demultiplex_trim_dedup from demultiplexer as ncRNAseq_demultiplex_trim_dedup
+if aligner in ["stat_3pass", "star_3pass_gene"]:
+    demultiplexer_config = {
+            "ROOT_DIR": ROOT_DIR,
+            "env": config.get("env", {}),
+            "indir": indir,
+            "outdir": f"{outdir}/common/2_trimmed_dedup_fastq/jla-demultiplexer",
+            "logdir": os.path.join(logdir,"sample"),
+            "paired_samples": paired_samples,
+            "single_samples": single_samples,
+            "Params": {
+                "demultiplexer": config.get("Params", {}).get("demultiplexer", {})
+            },
+        }
+    module demultiplexer:
+        snakefile: "../modules/demultiplexer/demultiplexer.smk"
+        config: demultiplexer_config
+    logger.info(f"demultiplexer_config: {demultiplexer_config}")
+    use rule demultiplex_trim_dedup from demultiplexer as ncRNAseq_demultiplex_trim_dedup
 
 trim_galore_config = {
         "ROOT_DIR": ROOT_DIR,
         "env": config.get("env", {}),
-        "indir": demultiplexer_config["outdir"],
+        "indir": demultiplexer_config["outdir"] if aligner in ["stat_3pass", "star_3pass_gene"] else indir,
         "outdir": f"{outdir}/common/2_trimmed_dedup_fastq/final_trimmed_fastq",
         "logdir": os.path.join(logdir,"sample"),
         "Procedure": {
@@ -225,6 +228,7 @@ elif aligner == "star":
         },
         "Params": {
             "star": {
+                "twopassMode": config.get("Params", {}).get("star", {}).get("twopassMode") or None,
                 "genomeLoad": config.get("Params", {}).get("star", {}).get("genomeLoad") or "LoadAndRemove",
                 "limitBAMsortRAM": config.get("Params", {}).get("star", {}).get("limitBAMsortRAM") or 20000000000,
                 "outReadsUnmapped": config.get("Params", {}).get("star", {}).get("outReadsUnmapped") or "Fastx",
@@ -359,6 +363,7 @@ elif aligner == "star_3pass":
             "genome": {
                 "fasta": smallrna_fasta,
                 "gtf": None,
+                "is_fasta_intermediate": True
             }
         }
         logger.info(f"star_smallrna_idx_config: {star_smallrna_idx_config}")
@@ -511,6 +516,7 @@ elif aligner == "star_3pass_gene":
             "genome": {
                 "fasta": smallrna_fasta,
                 "gtf": None,
+                "is_fasta_intermediate": True
             }
         }
         logger.info(f"star_smallrna_idx_config: {star_smallrna_idx_config}")
@@ -615,6 +621,7 @@ igv_config = {
     "indir": align_bam_dir,
     "outdir": f"{outdir}/tracks",
     "logdir": os.path.join(logdir,"sample"),
+    "bam_substring": "sorted_markdup",
     "Procedure": {
         "samtools": config.get("Procedure", {}).get("samtools") or "samtools",
         "bamCoverage": config.get("Procedure", {}).get("bamCoverage") or "bamCoverage"
@@ -661,6 +668,7 @@ featureCounts_config = {
     "logdir": os.path.join(logdir,"sample"),
     "paired_samples": paired_samples,
     "single_samples": single_samples,
+    "bam_substring": "sorted_markdup",
     "Procedure": {
         "featureCounts": config.get("Procedure", {}).get("featureCounts")
     },

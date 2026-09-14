@@ -12,8 +12,10 @@ paired_samples = config.get("paired_samples", [])
 def get_bams_for_featureCounts_single(wildcards):
     logger.info(f"[get_bams_for_featureCounts_single] called with wildcards: {wildcards}")
     bams = []
+    suffix = config.get("bam_substring", "")
+    suffix_str = f".{suffix}" if suffix else ""
     for sample_id in single_samples:
-        bams.append(f"{indir}/{sample_id}/{sample_id}.bam")
+        bams.append(f"{indir}/{sample_id}/{sample_id}{suffix_str}.bam")
     if len(bams) == 0:
         raise ValueError(f"rule featureCounts_single_noMultiple didn't get any input bams")
     return bams
@@ -56,9 +58,10 @@ rule featureCounts_single_noMultiple:
 def get_bams_for_featureCounts_paired(wildcards):
     logger.info(f"[get_bams_for_featureCounts_paired] called with wildcards: {wildcards}")
     bams = []
+    suffix = config.get("bam_substring", "")
+    suffix_str = f".{suffix}" if suffix else ""
     for sample_id in paired_samples:
-        bams.append(f"{indir}/{sample_id}/{sample_id}.bam")
-
+        bams.append(f"{indir}/{sample_id}/{sample_id}{suffix_str}.bam")
     if len(bams) == 0:
         raise ValueError(f"rule featureCounts_paired_noMultiple didn't get any input bams")
     return bams

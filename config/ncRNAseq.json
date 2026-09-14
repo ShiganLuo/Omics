@@ -1,14 +1,4 @@
 {
-    "indir": "input",
-    "outdir": "output",
-    "logdir": "logs",
-    "samples": [],
-    "raw_files": [],
-    "paired_samples": [],
-    "single_samples": [],
-    "ip_samples": [],
-    "input_samples": [],
-    "sample_ip_input_map": {},
     "outfiles": [],
     "ROOT_DIR": ".",
     "env": {
@@ -25,10 +15,10 @@
         "ncRNAseq_report": "/home/luosg/Database/env/ncRNAseq_report/ncRNAseq_report.sif",
         "igv": "/home/luosg/Database/env/igv/hisat2.sif",
         "macs3": "/home/luosg/Database/env/macs3/macs3.sif",
-        "track": "/home/luosg/Database/env/track/track.sif"
+        "track": "/home/luosg/Database/env/track/track.sif",
+        "gatk": "/home/luosg/Database/env/gatk/gatk4.sif"
     },
     "Procedure": {
-        "aligner": null,
         "trim_galore": null,
         "hisat2": null,
         "hisat2-build": null,
@@ -41,7 +31,34 @@
         "fastqc": null
     },
     "Params": {
+        "workflow": {
+            "indir": "input",
+            "outdir": "output",
+            "logdir": "logs",
+            "samples": [],
+            "raw_files": [],
+            "paired_samples": [],
+            "single_samples": [],
+            "ip_samples": [],
+            "input_samples": [],
+            "sample_ip_input_map": {},
+            "aligner": "star"
+        },
+        "hisat2": {
+            "no-spliced-alignment": true,
+            "k": "99999",
+            "score-min": "L,0,-0.6"
+        },
         "star": {
+            "twopassMode": null,
+            "genomeLoad": "LoadAndRemove",
+            "limitBAMsortRAM": 20000000000,
+            "outReadsUnmapped": "Fastx",
+            "outFilterMultimapNmax": 99999,
+            "outFilterMismatchNoverLmax": 0.1,
+            "outFilterMatchNminOverLread": 0.66,
+            "alignSJoverhangMin": 999,
+            "alignSJDBoverhangMin": 999,
             "index": {
                 "sjdbOverhang": 100
             }

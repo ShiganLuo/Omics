@@ -164,10 +164,12 @@ rule star_align:
             f"{input.fastq[0]} {input.fastq[1]}" if len(input.fastq) == 2 else f"{input.fastq[0]}",
         STAR = config.get('Procedure',{}).get('STAR') or 'STAR',
         SAMTOOLS = config.get('Procedure',{}).get('samtools') or 'samtools',
+        twopassMode = config.get('Params',{}).get('star', {}).get('twopassMode') or None,
         alignEndsType = config.get('Params',{}).get('star', {}).get('alignEndsType') or "Local",
         outFilterMismatchNoverReadLmax = config.get('Params',{}).get('star', {}).get('outFilterMismatchNoverReadLmax') or 1.0,
         outFilterMismatchNmax = config.get('Params',{}).get('star', {}).get('outFilterMismatchNmax') or 10,
         outFilterMultimapNmax = config.get('Params',{}).get('star',{}).get('outFilterMultimapNmax') or 10,
+        outSAMtype = config.get('Params',{}).get('star', {}).get('outSAMtype') or "BAM SortedByCoordinate",
         winAnchorMultimapNmax = config.get('Params',{}).get('star', {}).get('winAnchorMultimapNmax') or 50,
         genomeLoad = config.get('Params',{}).get('star', {}).get('genomeLoad') or 'NoSharedMemory',
         limitBAMsortRAM = config.get('Params',{}).get('star', {}).get('limitBAMsortRAM') or 0,
@@ -211,7 +213,6 @@ rule star_align:
             cmd1 = [
                 params.STAR, "--runThreadN", str(threads),
                 "--genomeDir", input.genome_index,
-                "--twopassMode", "Basic",
                 "--readFilesCommand", "zcat",
                 "--genomeLoad", params.genomeLoad,
                 "--limitBAMsortRAM", str(params.limitBAMsortRAM),
@@ -232,7 +233,7 @@ rule star_align:
                 "--chimScoreSeparation", str(params.chimScoreSeparation),
                 "--alignSJstitchMismatchNmax", params.alignSJstitchMismatchNmax,
                 "--chimSegmentReadGapMax", str(params.chimSegmentReadGapMax),
-                "--outSAMtype", "BAM SortedByCoordinate",
+                "--outSAMtype", str(params.outSAMtype),
                 "--outSAMattributes", str(params.outSAMattributes),
                 "--outMultimapperOrder", str(params.outMultimapperOrder),
                 "--runRNGseed", str(params.runRNGseed),
@@ -243,6 +244,8 @@ rule star_align:
                 "--limitSjdbInsertNsj", str(params.limitSjdbInsertNsj),
                 "--outFileNamePrefix", params.outPrefix
             ]
+            if params.twopassMode:
+                cmd1.extend(["--twopassMode", params.twopassMode])
             if params.outTmpDir:
                 shutil.rmtree(params.outTmpDir, ignore_errors=True)
                 cmd1.extend(["--outTmpDir", params.outTmpDir])

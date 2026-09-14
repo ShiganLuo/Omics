@@ -156,11 +156,19 @@ if aligner == "hisat2":
         "genome": {
             "fasta": genome_fasta,
             "hisat2_index_prefix": config.get("genome", {}).get("hisat2_index_prefix")
+        },
+        "Params": {
+            "hisat2": {
+                "score_min": config.get("Params", {}).get("hisat2", {}).get("score_min") or "L,0,-0.6",
+                "no-spliced-alignment": config.get("Params", {}).get("hisat2", {}).get("no-spliced-alignment") or True,
+                "k": config.get("Params", {}).get("hisat2", {}).get("k") or 99999,
+                
+            }
         }
     }
     logger.info(f"hisat2_config: {hisat2_config}")
     module hisat2:
-        snakefile: "../modules/hisat2/ncRNAseq/hisat2.smk"
+        snakefile: "../modules/hisat2/hisat2.smk"
         config: hisat2_config
     use rule hisat2_align_ncRNAseq_single from hisat2 as ncRNAseq_hisat2_align
     gatk_prepare_config = {

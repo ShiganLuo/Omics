@@ -110,6 +110,7 @@ rule hisat2_align:
         hisat2 = config.get('Procedure',{}).get('hisat2') or 'hisat2',
         samtools = config.get('Procedure',{}).get('samtools') or 'samtools',
         score_min = config.get('Params',{}).get('hisat2', {}).get('score_min') or "L,0,-0.2",
+        no_spliced_alignment = config.get('Params',{}).get('hisat2', {}).get('no-spliced-alignment') or False,
         flag_params = config.get('Params',{}).get('hisat2', {}).get('flag_params') or "",
         k = config.get('Params',{}).get('hisat2', {}).get('k') or 5,
         unmapped_prefix = lambda wildcards: f"{outdir}/{wildcards.sample_id}/unmapped",
@@ -123,7 +124,7 @@ rule hisat2_align:
     run:
         current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
         script = f"{outdir}/{wildcards.sample_id}/hisat2_align.{current_time}.sh"
-        cmd = [
+        cmd1 = [
             f"{params.hisat2}",
             "-x", params.index_prefix,
             "--score-min", params.score_min,
@@ -133,8 +134,14 @@ rule hisat2_align:
             params.flag_params,
             params.input_params,
             "-p", str(threads),
+        ]
+        if params.no_spliced_alignment:
+            cmd1.append("--no-spliced-alignment")
+        cmd2 = [
+
             "|", f"{params.samtools}", "sort", "-@", str(threads), "-o", output.outfile
         ]
+        cmd = cmd1 + cmd2
         with open(script, 'w') as f:
             f.write("#!/bin/bash\n")
             f.write(" ".join(cmd) +"\n")

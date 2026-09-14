@@ -37,7 +37,7 @@
         "annotate_group": ""
       },
       "auto": {
-        "max_iterations": 3,
+        "max_recluster_rounds": 3,
         "min_genes": 800,
         "min_counts": 3000,
         "max_pct_mt": 20,

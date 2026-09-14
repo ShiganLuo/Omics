@@ -2,10 +2,15 @@ include: "../common/common.smk"
 indir = config.get('indir', "input")
 outdir = config.get('outdir', "output")
 logdir = config.get('logdir', "log")
-
+def get_input_for_samtools_dedup(wildcards):
+    sample_id = wildcards.sample_id
+    suffix = config.get("bam_substring", "")
+    suffix_str = f".{suffix}" if suffix else ""
+    input_bam = f"{indir}/{sample_id}/{sample_id}{suffix_str}.bam"
+    return input_bam
 rule samtools_dedup:
     input:
-        bam = indir + "/{sample_id}/{sample_id}.bam"
+        bam = get_input_for_samtools_dedup
     output:
         bam = outdir + "/{sample_id}/{sample_id}.dedup.bam",
         bai = outdir + "/{sample_id}/{sample_id}.dedup.bam.bai",

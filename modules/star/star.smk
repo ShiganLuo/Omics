@@ -11,8 +11,9 @@ indir= config.get("indir", "input")
 paired_samples = config.get("paired_samples", [])
 single_samples = config.get("single_samples", [])
 fasta = config.get('genome',{}).get('fasta')
+is_fasta_intermediate = config.get('genome',{}).get('is_fasta_intermediate', False)
 omics_type = config.get('omics_type', 'RNA-seq')
-if not fasta or not os.path.exists(fasta):
+if not is_fasta_intermediate and (not fasta or not os.path.exists(fasta)):
     raise ValueError(f"FASTA file not found: {fasta}. Please provide a valid genome FASTA file in the config.")
 gtf = config.get('genome',{}).get('gtf')
 fastq_sample_suffix = config.get('fastq_sample_suffix') or None
@@ -141,6 +142,7 @@ rule star_align:
             f"{input.fastq[0]} {input.fastq[1]}" if len(input.fastq) == 2 else f"{input.fastq[0]}",
         STAR = config.get('Procedure',{}).get('STAR') or 'STAR',
         SAMTOOLS = config.get('Procedure',{}).get('samtools') or 'samtools',
+        twopassMode = config.get('Params',{}).get('star', {}).get('twopassMode') or None,
         alignEndsType = config.get('Params',{}).get('star', {}).get('alignEndsType') or "Local",
         outFilterMismatchNoverReadLmax = config.get('Params',{}).get('star', {}).get('outFilterMismatchNoverReadLmax') or 1.0,
         outFilterMismatchNmax = config.get('Params',{}).get('star', {}).get('outFilterMismatchNmax') or 10,
@@ -187,7 +189,6 @@ rule star_align:
             cmd1 = [
                 params.STAR, "--runThreadN", str(threads),
                 "--genomeDir", input.genome_index,
-                "--twopassMode", "Basic",
                 "--readFilesCommand", "zcat",
                 "--genomeLoad", params.genomeLoad,
                 "--limitBAMsortRAM", str(params.limitBAMsortRAM),
@@ -219,6 +220,8 @@ rule star_align:
                 "--limitSjdbInsertNsj", str(params.limitSjdbInsertNsj),
                 "--outFileNamePrefix", params.outPrefix
             ]
+            if params.twopassMode:
+                cmd1.extend(["--twopassMode", params.twopassMode])
             if params.outTmpDir:
                 shutil.rmtree(params.outTmpDir, ignore_errors=True)
                 cmd1.extend(["--outTmpDir", params.outTmpDir])

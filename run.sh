@@ -23,16 +23,23 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 #     --Params.function.GRCm39.enabled false \
 #     --Params.report.enabled false
 
-# python ${SCRIPT_DIR}/run.py \
-#     -m /home/luosg/Data/genomeStability/data/Srp54/meta_input.tsv \
-#     -w ncRNAseq \
-#     -o /home/luosg/Data/genomeStability/output/Srp54 \
-#     -t 48 \
-#     --log /home/luosg/Data/genomeStability/log/ncRNAseq.log \
-#     --Procedure.aligner star_3pass_gene \
-#     --sdm \
-#     --Params.star_3pass.pass2.clip5pNbases '10 10' \
-#     --Params.star_3pass.pass2.clip3pNbases '0 0'
+python ${SCRIPT_DIR}/run.py \
+    -m /home/luosg/Data/genomeStability/data/Rn7sk/meta_input.tsv \
+    -w ncRNAseq \
+    -o /home/luosg/Data/genomeStability/output/Rn7sk \
+    -t 48 \
+    --log /home/luosg/Data/genomeStability/log/ncRNAseq_Rn7sk.log \
+    --Params.workflow.aligner star \
+    --sdm \
+
+python ${SCRIPT_DIR}/run.py \
+    -m /home/luosg/Data/genomeStability/data/20260820_RNAseq/meta_input.tsv \
+    -w ncRNAseq \
+    -o /home/luosg/Data/genomeStability/output/Hsd17b10 \
+    -t 48 \
+    --log /home/luosg/Data/genomeStability/log/ncRNAseq_Hsd17b10.log \
+    --Params.workflow.aligner star \
+    --sdm \
 
 # python ${SCRIPT_DIR}/run.py \
 #     -m /data/pub/zhousha/20260207_Exome/data/tRNA/meta.tsv \
@@ -80,13 +87,13 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 #     --sdm \
 #     --dry-run
 
-python ${SCRIPT_DIR}/run.py \
-    -m /home/luosg/Data/genomeStability/data/20260820_scRNAseq/meta_input.tsv \
-    -w scRNAseq \
-    -o /home/luosg/Data/genomeStability/output/luancao \
-    -t 48 \
-    --log /home/luosg/Data/genomeStability/log/scRNAseq.log \
-    --sdm \
-    --counters scTE cellranger \
-    --aligner cellranger \
-    --rerun-triggers mtime
+# python ${SCRIPT_DIR}/run.py \
+#     -m /home/luosg/Data/genomeStability/data/20260820_scRNAseq/meta_input.tsv \
+#     -w scRNAseq \
+#     -o /home/luosg/Data/genomeStability/output/luancao \
+#     -t 48 \
+#     --log /home/luosg/Data/genomeStability/log/scRNAseq.log \
+#     --sdm \
+#     --counters scTE cellranger \
+#     --aligner cellranger \
+#     --rerun-triggers mtime 

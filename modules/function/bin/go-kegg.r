@@ -226,7 +226,8 @@ run_pipeline <- function(
   p_col = "padj",
   lfc_cut = 1,
   p_cut = 0.05,
-  top = 10
+  top = 10,
+  format = "png"
 ) {
   dir.create(outdir, recursive = TRUE, showWarnings = FALSE)
 
@@ -260,7 +261,7 @@ run_pipeline <- function(
       down_res,
       top = top,
       title = paste(toupper(type), "enrichment"),
-      outfile = file.path(outdir, paste0(type, "_back_to_back.png"))
+      outfile = file.path(outdir, paste0(type, "_back_to_back.", format))
     )
   }
 }
@@ -289,6 +290,8 @@ parser$add_argument("--p-cut", type = "double", default = 0.05,
                     help = "Adjusted p-value cutoff (default: 0.05)")
 parser$add_argument("--top", type = "integer", default = 10,
                     help = "Top N pathways to plot (default: 10)")
+parser$add_argument("--format", type = "character", default = "png",
+                    choices = c("png", "pdf"), help = "Output image format (default: png)")
 args <- parser$parse_args()
 
 ## =========================
@@ -307,7 +310,8 @@ run_pipeline(
   p_col = args$p_col,
   lfc_cut = args$lfc_cut,
   p_cut = args$p_cut,
-  top = args$top
+  top = args$top,
+  format = args$format
 )
 
 log_msg("INFO", "GO/KEGG analysis completed.")

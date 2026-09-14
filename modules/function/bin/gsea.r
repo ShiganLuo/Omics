@@ -185,7 +185,8 @@ plot_enrichment_gseapy_style <- function(pathway,
                                          fgsea_row,
                                          outjpeg,
                                          width = 7,
-                                         height = 5) {
+                                         height = 5,
+                                         format = "jpeg") {
 
   library(ggplot2)
   library(patchwork)
@@ -351,7 +352,8 @@ waterfall_plot <- function(rnk,
                            geneset,
                            outjpeg,
                            graph_title,
-                           outfile) {
+                           outfile,
+                           format = "jpeg") {
 
   log_msg("INFO", "Running fgsea")
 
@@ -424,7 +426,7 @@ waterfall_plot <- function(rnk,
 
     outp <- file.path(
       enrich_dir,
-      paste0(pw, "_enrichment.jpeg")
+      paste0(pw, "_enrichment.", format)
     )
 
     plot_enrichment_gseapy_style(
@@ -432,7 +434,8 @@ waterfall_plot <- function(rnk,
       geneset = geneset_list,
       ranked_list = rnk,
       fgsea_row = top_pathways[i, ],
-      outjpeg = outp
+      outjpeg = outp,
+      format = format
     )
   }
   invisible(fgsea_res)
@@ -444,7 +447,8 @@ waterfall_plot <- function(rnk,
 plot_enrichment <- function(geneset,
                             pathway,
                             ranked_list,
-                            outdir) {
+                            outdir,
+                            format = "jpeg") {
 
   p <- plotEnrichment(geneset[[pathway]], ranked_list) +
     labs(title = pathway) +
@@ -458,7 +462,7 @@ plot_enrichment <- function(geneset,
       )
     )
 
-  outjpeg <- file.path(outdir, paste0(pathway, ".jpeg"))
+  outjpeg <- file.path(outdir, paste0(pathway, ".", format))
 
   ggsave(
     outjpeg,
@@ -482,6 +486,8 @@ parser$add_argument("-a", "--annotation", required = TRUE, type="character",
                     help = "Gene annotation file for Gene mode  (including gene_id, gene_type, gene_name columns)")
 parser$add_argument("-t", "--graphTitle",type = "character", default = "", help = "Title for the GSEA graph")
 parser$add_argument("-r", "--rewrite",action = "store_true", default = FALSE, help = "Whether to rewrite existing files")
+parser$add_argument("--format", type = "character", default = "jpeg",
+                    choices = c("jpeg", "png", "pdf"), help = "Output image format (default: jpeg)")
 args <- parser$parse_args()
 
 ## =========================
@@ -503,7 +509,7 @@ if (args$mode == "Gene") {
 
   out_rnk <- file.path(gsea_dir, "TEcount_Gene_GSEA.rnk")
   out_fgsea <- file.path(gsea_dir, "TEcount_Gene_GSEA.csv")
-  out_jpeg <- file.path(gsea_dir, "TEcount_Gene_GSEA.jpeg")
+  out_jpeg <- file.path(gsea_dir, paste0("TEcount_Gene_GSEA.", args$format))
 
   if (!file.exists(out_rnk) || args$rewrite) {
     rnk <- GSEA_prepare(
@@ -522,7 +528,8 @@ if (args$mode == "Gene") {
     geneset = args$gmt,
     outjpeg = out_jpeg,
     graph_title = args$graphTitle,
-    outfile = out_fgsea
+    outfile = out_fgsea,
+    format = args$format
   )
 
 } else {

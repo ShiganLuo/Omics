@@ -783,11 +783,13 @@ def runncRNAseq(
     Pipeline: jla-demultiplexer -> trim_galore -> subsample -> STAR (star / star_3pass / star_3pass_gene) -> featureCounts + Tailer.
     """
     datajson["ROOT_DIR"] = os.path.dirname(__file__)
-    datajson["indir"] = indir
-    datajson["outdir"] = outdir
+    datajson["Params"] = datajson.get("Params", {})
+    datajson["Params"]["workflow"] = datajson["Params"].get("workflow", {})
+    datajson["Params"]["workflow"]["indir"] = indir
+    datajson["Params"]["workflow"]["outdir"] = outdir
     logdir = os.path.join(outdir, "log")
     os.makedirs(logdir, exist_ok=True)
-    datajson["logdir"] = logdir
+    datajson["Params"]["workflow"]["logdir"] = logdir
     sample_ip_input_map = {}
     ip_samples = []
     input_samples = []
@@ -800,11 +802,7 @@ def runncRNAseq(
         sample_ip_input_map[design_pair.exp_sample_id] = design_pair.ctr_sample_id
         ip_samples.append(design_pair.exp_sample_id)
         input_samples.append(design_pair.ctr_sample_id)
-    # for ip_sample in ip_samples:
-    #     outfiles.append(f"{outdir}/peaks/{ip_sample}/{ip_sample}_peaks.narrowPeak")
-    #     outfiles.append(f"{outdir}/peaks/{ip_sample}/{ip_sample}_peaks.xls")
-
-    aligner = datajson.get("Procedure", {}).get("aligner") or "star_3pass"
+    aligner = datajson.get("Params", {}).get("workflow",{}).get("aligner") or "star"
     if aligner == "star_3pass":
         bam_subdir = "common/3_raw_bam"
     elif aligner == "star_3pass_gene":
@@ -812,11 +810,11 @@ def runncRNAseq(
         outfiles.append(f"{outdir}/ncRNAseq_report.pptx")
     else:
         bam_subdir = "common/3_raw_bam"
-
     for sample_id, sample_info in samples_info_dict.items():
         organisms.add(sample_info.organism)
         outfiles.append(f"{outdir}/{bam_subdir}/{sample_id}/{sample_id}.bam")
-        outfiles.append(f"{outdir}/{bam_subdir}/{sample_id}/{sample_id}_tail.csv")
+        if aligner in ["star_3pass", "star_3pass_gene"]:
+            outfiles.append(f"{outdir}/{bam_subdir}/{sample_id}/{sample_id}_tail.csv")
         if sample_info.layout == "PE":
             paired_samples.append(sample_id)
             layouts.add("PE")
@@ -841,14 +839,14 @@ def runncRNAseq(
     all_samples = paired_samples + single_samples
     outfiles.append(f"{outdir}/tracks/igv_track.html")
     outfiles.append(f"{outdir}/tracks/ucsc_track.txt")
-    datajson["samples"] = all_samples
-    datajson["raw_files"] = raw_files
-    datajson["paired_samples"] = paired_samples
-    datajson["single_samples"] = single_samples
     datajson["outfiles"] = outfiles
-    datajson["ip_samples"] = ip_samples
-    datajson["input_samples"] = input_samples
-    datajson["sample_ip_input_map"] = sample_ip_input_map
+    datajson["Params"]["workflow"]["samples"] = all_samples
+    datajson["Params"]["workflow"]["raw_files"] = raw_files
+    datajson["Params"]["workflow"]["paired_samples"] = paired_samples
+    datajson["Params"]["workflow"]["single_samples"] = single_samples
+    datajson["Params"]["workflow"]["ip_samples"] = ip_samples
+    datajson["Params"]["workflow"]["input_samples"] = input_samples
+    datajson["Params"]["workflow"]["sample_ip_input_map"] = sample_ip_input_map
     instance_json = os.path.join(outdir, "raw.json")
     with open(instance_json, 'w', encoding='utf-8') as wf:
         json.dump(datajson, wf, indent=2, ensure_ascii=False)

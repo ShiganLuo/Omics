@@ -120,6 +120,11 @@
             "alignSJstitchMismatchNmax": "5 -1 5 5",
             "chimSegmentReadGapMax": 3
         },
+        "STAR_SNP": {
+            "twopassMode": "Basic",
+            "outSAMattributes": "NM",
+            "outSAMtype":"BAM SortedByCoordinate"
+        },
         "hisat2_TEtranscripts": {
             "score_min": "L,0,-0.2",
             "flag_params": "",

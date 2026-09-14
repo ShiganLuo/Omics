@@ -409,7 +409,7 @@ star_config_for_SNP = {
         "genome_single_samples": genome_single_samples_mixed,
         "env": config.get("env", {}),
         "Procedure": {
-            "star": config.get('Procedure',{}).get('star')
+            "star": config.get('Procedure',{}).get('STAR_SNP')
         },
         "Params": config.get('Params'),
         "genome": config.get('genome',{})

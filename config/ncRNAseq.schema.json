@@ -1,28 +1,4 @@
 {
-  "indir": {
-    "type": "str",
-    "required": true
-  },
-  "outdir": {
-    "type": "str",
-    "required": true
-  },
-  "logdir": {
-    "type": "str",
-    "required": true
-  },
-  "samples": {
-    "type": "list",
-    "required": true
-  },
-  "paired_samples": {
-    "type": "list",
-    "required": true
-  },
-  "single_samples": {
-    "type": "list",
-    "required": true
-  },
   "outfiles": {
     "type": "list",
     "required": true
@@ -32,43 +8,42 @@
     "required": true
   },
   "Procedure": {
-    "aligner": {
-      "type": "str",
-      "required": true
-    },
     "trim_galore": {
-      "type": "str",
-      "required": true
+      "type": "null",
+      "nullable": true,
+      "required": false
     },
     "hisat2": {
-      "type": "str",
-      "required": true
+      "type": "null",
+      "nullable": true,
+      "required": false
     },
     "hisat2-build": {
-      "type": "str",
-      "required": true
+      "type": "null",
+      "nullable": true,
+      "required": false
     },
     "STAR": {
-      "type": "str",
-      "required": true
+      "type": "null",
+      "nullable": true,
+      "required": false
     },
     "samtools": {
-      "type": "str",
-      "required": true
+      "type": "null",
+      "nullable": true,
+      "required": false
     },
     "bedtools": {
-      "type": "str",
-      "required": true
+      "type": "null",
+      "nullable": true,
+      "required": false
     },
     "seqtk": {
-      "type": "str",
-      "required": true
+      "type": "null",
+      "nullable": true,
+      "required": false
     },
     "featureCounts": {
-      "type": "str",
-      "required": true
-    },
-    "fastqc": {
       "type": "null",
       "nullable": true,
       "required": false
@@ -77,15 +52,103 @@
       "type": "null",
       "nullable": true,
       "required": false
+    },
+    "fastqc": {
+      "type": "null",
+      "nullable": true,
+      "required": false
     }
   },
   "Params": {
+    "workflow": {
+      "indir": {
+        "type": "str",
+        "required": true
+      },
+      "outdir": {
+        "type": "str",
+        "required": true
+      },
+      "logdir": {
+        "type": "str",
+        "required": true
+      },
+      "samples": {
+        "type": "list",
+        "required": true
+      },
+      "raw_files": {
+        "type": "list",
+        "required": false
+      },
+      "paired_samples": {
+        "type": "list",
+        "required": true
+      },
+      "single_samples": {
+        "type": "list",
+        "required": true
+      },
+      "ip_samples": {
+        "type": "list",
+        "required": false
+      },
+      "input_samples": {
+        "type": "list",
+        "required": false
+      },
+      "sample_ip_input_map": {
+        "type": "dict",
+        "required": false
+      },
+      "aligner": {
+        "type": "enum",
+        "values": ["hisat2", "star", "star_3pass", "star_3pass_gene"],
+        "required": false
+      }
+    },
     "star": {
       "index": {
         "sjdbOverhang": {
           "type": "int",
           "required": false
         }
+      },
+      "genomeLoad": {
+        "type": "str",
+        "required": false
+      },
+      "limitBAMsortRAM": {
+        "type": "int",
+        "required": false
+      },
+      "outReadsUnmapped": {
+        "type": "str",
+        "required": false
+      },
+      "outFilterMultimapNmax": {
+        "type": "int",
+        "required": false
+      },
+      "outFilterMismatchNoverLmax": {
+        "type": "float",
+        "required": false
+      },
+      "outFilterMatchNminOverLread": {
+        "type": "float",
+        "required": false
+      },
+      "alignSJoverhangMin": {
+        "type": "int",
+        "required": false
+      },
+      "alignSJDBoverhangMin": {
+        "type": "int",
+        "required": false
+      },
+      "twopassMode": {
+        "type": "str",
+        "required": false
       }
     },
     "star_3pass": {
@@ -104,6 +167,11 @@
         }
       },
       "pass1": {
+        "alignEndsType": {
+          "type": "enum",
+          "values": ["Local", "EndToEnd", "Extend5pOfRead1_Or_Unmapped"],
+          "required": false
+        },
         "outFilterMultimapNmax": {
           "type": "int",
           "required": true
@@ -119,10 +187,6 @@
         "outFilterMismatchNoverLmax": {
           "type": "float",
           "required": true
-        },
-        "alignEndsType": {
-          "type": "str",
-          "required": false
         }
       },
       "pass2": {
@@ -159,7 +223,8 @@
           "required": true
         },
         "alignEndsType": {
-          "type": "str",
+          "type": "enum",
+          "values": ["Local", "EndToEnd", "Extend5pOfRead1_Or_Unmapped"],
           "required": true
         },
         "outReadsUnmapped": {
@@ -189,7 +254,8 @@
           "required": true
         },
         "alignEndsType": {
-          "type": "str",
+          "type": "enum",
+          "values": ["Local", "EndToEnd", "Extend5pOfRead1_Or_Unmapped"],
           "required": true
         }
       }
@@ -238,7 +304,8 @@
       "passes": {
         "pass1": {
           "alignEndsType": {
-            "type": "str",
+            "type": "enum",
+            "values": ["Local", "EndToEnd", "Extend5pOfRead1_Or_Unmapped"],
             "required": true
           },
           "outFilterMultimapNmax": {
@@ -260,7 +327,8 @@
         },
         "pass2": {
           "alignEndsType": {
-            "type": "str",
+            "type": "enum",
+            "values": ["Local", "EndToEnd", "Extend5pOfRead1_Or_Unmapped"],
             "required": true
           },
           "outFilterMultimapNmax": {
@@ -298,7 +366,8 @@
         },
         "pass3": {
           "alignEndsType": {
-            "type": "str",
+            "type": "enum",
+            "values": ["Local", "EndToEnd", "Extend5pOfRead1_Or_Unmapped"],
             "required": true
           },
           "outFilterMultimapNmax": {
@@ -321,12 +390,6 @@
             "type": "int",
             "required": true
           }
-        }
-      },
-      "batch": {
-        "enabled": {
-          "type": "bool",
-          "required": true
         }
       }
     },
@@ -382,15 +445,7 @@
             },
             "publicPathMap": {
               "type": "dict",
-              "required": false,
-              "/home/luosg/Data/genomeStability/": {
-                "type": "str",
-                "required": false
-              },
-              "/home/luosg/Database/Reference/": {
-                "type": "str",
-                "required": false
-              }
+              "required": false
             },
             "tracks": {
               "type": "list",
@@ -426,15 +481,7 @@
             },
             "publicPathMap": {
               "type": "dict",
-              "required": false,
-              "/home/luosg/Data/genomeStability/": {
-                "type": "str",
-                "required": false
-              },
-              "/home/luosg/Database/Reference/": {
-                "type": "str",
-                "required": false
-              }
+              "required": false
             },
             "tracks": {
               "type": "list",
@@ -476,11 +523,6 @@
       "nullable": true,
       "required": false
     },
-    "smallrna_star_index": {
-      "type": "null",
-      "nullable": true,
-      "required": false
-    },
     "smallrna_star_index_dir": {
       "type": "null",
       "nullable": true,
@@ -488,13 +530,11 @@
     }
   },
   "env": {
-    "type": "dict",
-    "required": false,
-    "demultiplexer": {
+    "env_dir": {
       "type": "str",
       "required": false
     },
-    "env_dir": {
+    "demultiplexer": {
       "type": "str",
       "required": false
     },
@@ -514,18 +554,6 @@
       "type": "str",
       "required": false
     },
-    "igv": {
-      "type": "str",
-      "required": false
-    },
-    "macs3": {
-      "type": "str",
-      "required": false
-    },
-    "ncRNAseq_report": {
-      "type": "str",
-      "required": false
-    },
     "star": {
       "type": "str",
       "required": false
@@ -538,29 +566,25 @@
       "type": "str",
       "required": false
     },
-    "track": {
-      "type": "str",
-      "required": false
-    },
     "trim-galore": {
       "type": "str",
       "required": false
+    },
+    "ncRNAseq_report": {
+      "type": "str",
+      "required": false
+    },
+    "igv": {
+      "type": "str",
+      "required": false
+    },
+    "macs3": {
+      "type": "str",
+      "required": false
+    },
+    "track": {
+      "type": "str",
+      "required": false
     }
-  },
-  "input_samples": {
-    "type": "list",
-    "required": false
-  },
-  "ip_samples": {
-    "type": "list",
-    "required": false
-  },
-  "raw_files": {
-    "type": "list",
-    "required": false
-  },
-  "sample_ip_input_map": {
-    "type": "dict",
-    "required": false
   }
 }

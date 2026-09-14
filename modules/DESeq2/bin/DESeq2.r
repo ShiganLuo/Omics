@@ -227,7 +227,7 @@ ScreenFeature <- function(res_df, upfile = NULL, downfile = NULL, updownfile = N
 #'
 #' @return None. Saves a PNG image to the specified \code{outfile}.
 #' @export
-updown_heatmap <- function(res_df, outfile, coldata = NULL, brewer_palette = "RdBu"){
+updown_heatmap <- function(res_df, outfile, coldata = NULL, brewer_palette = "RdBu", format = "png"){
   
   if (!is.data.frame(res_df)) {
     log_msg("ERROR","The res_df must be dataframe", quit = TRUE)
@@ -245,7 +245,12 @@ updown_heatmap <- function(res_df, outfile, coldata = NULL, brewer_palette = "Rd
   row_font <- ifelse(n_genes <= 50, 8, max(3, 200 / n_genes))
   show_rows <- n_genes <=50
   # use pheatmap; write to file via png device to avoid device issues
-  png(filename = outfile, width = 2000, height = 1500, res = 200)
+  fmt <- match.arg(format, choices = c("png", "pdf"))
+  if (fmt == "png") {
+    png(filename = outfile, width = 2000, height = 1500, res = 200)
+  } else {
+    pdf(file = outfile, width = 10, height = 7.5)
+  }
   pheatmap::pheatmap(heatmat, color = ramp, scale = "row",
                      annotation_col = if(!is.null(coldata)) coldata else NA,
                      fontsize_col = 10,
@@ -623,6 +628,8 @@ parser$add_argument('-a', '--annotation', type = 'character', required = FALSE, 
                     help = 'annotation file: gene_id, gene_type, gene_name (tab)')
 parser$add_argument('-Tcm', '--TEcountMode', type = 'character', nargs = "+",
                     choices = c("all","Gene_TE","TE","Gene"), default = "all")
+parser$add_argument('--format', type = 'character', default = "png",
+                    choices = c("png", "pdf"), help = 'output image format (default: png)')
 args <- parser$parse_args()
 
 # read group and extract sample lists
@@ -652,6 +659,7 @@ colDataPca <- factor(c(rep(controlStr, length(control)), rep(experimentStr, leng
 
 outdir <- args$outdir
 prefix <- args$prefix
+fmt <- args$format
 ensure_dir(outdir)
 log_msg("INFO","Mode:", args$mode, "Matrix:", args$matrix, "Outdir:", outdir, "Prefix:", prefix, "Figures:", paste(args$figure, collapse = ","))
 
@@ -663,7 +671,7 @@ if(args$mode == "TEcount"){
     df_for_pca <- dfList[["Gene"]]
     res_for_pca <- DESeq2Analysis(df_for_pca, colData, normMethods = "cpm")
     # res_for_pca$results contains combined table; pass normalized to PCA plotting
-    pca_out <- file.path(outdir, "PCA", paste0(prefix, ".cpmPCA.png"))
+    pca_out <- file.path(outdir, "PCA", paste0(prefix, ".cpmPCA.", fmt))
     ensure_dir(dirname(pca_out))
     # create a simple PCA plot using normalized counts
     normalized <- res_for_pca$normalized
@@ -710,16 +718,16 @@ if(args$mode == "TEcount"){
                           downfile = file.path(outdir,"upDown",paste0(prefix,".TEcount_",dataType,"_down.tsv")),
                           updownfile = file.path(outdir,"upDown",paste0(prefix,".TEcount_",dataType,"_updown.tsv")))
       if(nrow(sf$up) >= 2){
-        up_file <- file.path(heat_dir, paste0(prefix,".TEcount_", dataType, "_up.png"))
-        updown_heatmap(sf$up, up_file, coldata = sample_anno)
+        up_file <- file.path(heat_dir, paste0(prefix,".TEcount_", dataType, "_up.", fmt))
+        updown_heatmap(sf$up, up_file, coldata = sample_anno, format = fmt)
       } else log_msg("INFO","Less than 2 up genes; skip heatmap for up.")
       if(nrow(sf$down) >= 2){
-        down_file <- file.path(heat_dir, paste0(prefix,".TEcount_", dataType, "_down.png"))
-        updown_heatmap(sf$down, down_file, coldata = sample_anno)
+        down_file <- file.path(heat_dir, paste0(prefix,".TEcount_", dataType, "_down.", fmt))
+        updown_heatmap(sf$down, down_file, coldata = sample_anno, format = fmt)
       } else log_msg("INFO","Less than 2 down genes; skip heatmap for down.")
       if(nrow(rbind(sf$up, sf$down)) >= 2){
-        all_file <- file.path(heat_dir, paste0(prefix,".TEcount_", dataType, "_updown.png"))
-        updown_heatmap(rbind(sf$up, sf$down), all_file, coldata = sample_anno)
+        all_file <- file.path(heat_dir, paste0(prefix,".TEcount_", dataType, "_updown.", fmt))
+        updown_heatmap(rbind(sf$up, sf$down), all_file, coldata = sample_anno, format = fmt)
       } else log_msg("INFO","Less than 2 dysregulated genes; skip combined heatmap.")
     }
 
@@ -729,13 +737,13 @@ if(args$mode == "TEcount"){
       # decide gene vs TE based on name pattern or dataType
       is_gene_mode <- grepl("Gene", dataType)
       if(is_gene_mode){
-        vol_out <- file.path(vol_dir, paste0(prefix,".TEcount_", dataType, "_volcano.png"))
-        ma_out <- file.path(vol_dir, paste0(prefix,".TEcount_", dataType, "_MA.png"))
+        vol_out <- file.path(vol_dir, paste0(prefix,".TEcount_", dataType, "_volcano.", fmt))
+        ma_out <- file.path(vol_dir, paste0(prefix,".TEcount_", dataType, "_MA.", fmt))
         plot_volcano(res_comb_TE, vol_out, mode = "gene", geneAnnotation = args$annotation)
         plot_MA(res_comb_TE, ma_out, mode = "gene", geneAnnotation = args$annotation)
       } else {
-        vol_out <- file.path(vol_dir, paste0(prefix,".TEcount_", dataType, "_volcano.png"))
-        ma_out <- file.path(vol_dir, paste0(prefix,".TEcount_", dataType, "_MA.png"))
+        vol_out <- file.path(vol_dir, paste0(prefix,".TEcount_", dataType, "_volcano.", fmt))
+        ma_out <- file.path(vol_dir, paste0(prefix,".TEcount_", dataType, "_MA.", fmt))
         plot_volcano(res_comb_TE, vol_out, mode = "TE")
         plot_MA(res_comb_TE, ma_out, mode = "TE")
       }
@@ -755,14 +763,14 @@ if(args$mode == "TEcount"){
                         upfile = file.path(outdir,"upDown",paste0(prefix,".TElocal_TE_up.tsv")),
                         downfile = file.path(outdir,"upDown",paste0(prefix,".TElocal_TE_down.tsv")),
                         updownfile = file.path(outdir,"upDown",paste0(prefix,".TElocal_TE_updown.tsv")))
-    if(nrow(sf$up) >= 2) updown_heatmap(sf$up, file.path(plot_dir, paste0(prefix, ".TElocal_up.png")), coldata = sample_anno)
-    if(nrow(sf$down) >= 2) updown_heatmap(sf$down, file.path(plot_dir, paste0(prefix, ".TElocal_down.png")), coldata = sample_anno)
+    if(nrow(sf$up) >= 2) updown_heatmap(sf$up, file.path(plot_dir, paste0(prefix, ".TElocal_up.", fmt)), coldata = sample_anno, format = fmt)
+    if(nrow(sf$down) >= 2) updown_heatmap(sf$down, file.path(plot_dir, paste0(prefix, ".TElocal_down.", fmt)), coldata = sample_anno, format = fmt)
   }
   if("volcano" %in% args$figure){
     vol_dir <- file.path(outdir, "volcano")
     ensure_dir(vol_dir)
-    plot_volcano(res_comb, file.path(vol_dir, paste0(prefix, ".TElocal_volcano.png")), mode = "TE")
-    plot_MA(res_comb, file.path(vol_dir, paste0(prefix, ".TElocal_MA.png")), mode = "TE")
+    plot_volcano(res_comb, file.path(vol_dir, paste0(prefix, ".TElocal_volcano.", fmt)), mode = "TE")
+    plot_MA(res_comb, file.path(vol_dir, paste0(prefix, ".TElocal_MA.", fmt)), mode = "TE")
   }
 } else if(args$mode == "Count"){
   df <- count_read(args$matrix, control, experiment)
@@ -777,14 +785,14 @@ if(args$mode == "TEcount"){
                         upfile = file.path(outdir,"upDown",paste0(prefix,".Count_up.tsv")),
                         downfile = file.path(outdir,"upDown",paste0(prefix,".Count_down.tsv")),
                         updownfile = file.path(outdir,"upDown",paste0(prefix,".Count_updown.tsv")))
-    if(nrow(sf$up) >= 2) updown_heatmap(sf$up, file.path(plot_dir, paste0(prefix, ".Count_up.png")), coldata = sample_anno)
-    if(nrow(sf$down) >= 2) updown_heatmap(sf$down, file.path(plot_dir, paste0(prefix, ".Count_down.png")), coldata = sample_anno)
+    if(nrow(sf$up) >= 2) updown_heatmap(sf$up, file.path(plot_dir, paste0(prefix, ".Count_up.", fmt)), coldata = sample_anno, format = fmt)
+    if(nrow(sf$down) >= 2) updown_heatmap(sf$down, file.path(plot_dir, paste0(prefix, ".Count_down.", fmt)), coldata = sample_anno, format = fmt)
   }
   if("volcano" %in% args$figure){
     vol_dir <- file.path(outdir, "volcano")
     ensure_dir(vol_dir)
-    plot_volcano(res_comb, file.path(vol_dir, paste0(prefix, ".Count_volcano.png")), mode = "gene")
-    plot_MA(res_comb, file.path(vol_dir, paste0(prefix, ".Count_MA.png")), mode = "gene")
+    plot_volcano(res_comb, file.path(vol_dir, paste0(prefix, ".Count_volcano.", fmt)), mode = "gene")
+    plot_MA(res_comb, file.path(vol_dir, paste0(prefix, ".Count_MA.", fmt)), mode = "gene")
   }
 } else {
   log_msg("ERROR","Unsupported mode:", args$mode, quit = TRUE)

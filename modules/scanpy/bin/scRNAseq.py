@@ -12,7 +12,7 @@ import os
 import sys
 import time
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Literal, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Literal, Optional, Set, Tuple
 from scipy.stats import median_abs_deviation
 import anndata as ad
 import numpy as np
@@ -121,28 +121,45 @@ def detect_n_pcs(
     min_pcs: int = 10,
     max_pcs: int = 100,
     window: int = 5,
-    ratio: float = 0.15,
+    rel_threshold: float = 0.05,
+    std_threshold: float = 0.03,
+    require_n: int = 2,
 ) -> Tuple[int, Dict]:
     """Detect the optimal number of principal components.
 
-    Uses a sliding-window approach to find where the descending
-    variance ratio curve starts to plateau.
+    Uses relative change rate + stability to find where the variance
+    ratio curve reaches the noise floor (方案C: low AND stable).
 
     Algorithm:
-        1. Compute per-PC change: ``delta = abs(diff(variance_ratio))``.
-        2. Compute baseline: median of *delta* in the first *min_pcs* PCs.
-        3. Slide a window of size *window* from *min_pcs* onward; at
-           each position compute the mean *delta* inside the window.
-        4. The first position where ``mean_delta < baseline * ratio``
-           marks the start of the plateau → that PC index is *n_pcs*.
+        1. Compute per-PC relative change:
+           ``rel_change = abs(diff(vr) / vr[:-1])``
+           (percentage drop from each PC to the next).
+        2. Slide a window of size *window* from *min_pcs* onward; at
+           each position compute the **median** and **std** of relative
+           change inside the window.
+        3. A window is "plateau" when BOTH conditions hold:
+           - median(rel_change) < rel_threshold  (low: already flat)
+           - std(rel_change) < std_threshold     (stable: no longer fluctuating)
+        4. The first position where *require_n* consecutive windows
+           are all "plateau" marks the elbow → that PC index is *n_pcs*.
+
+    Why relative change instead of absolute delta:
+        Absolute delta decays with the curve itself, so a fixed threshold
+        triggers too early on high-variance PCs.  Relative change
+        measures "how much did this PC drop vs its predecessor?",
+        which is scale-independent and detects the true noise floor.
 
     Args:
         variance_ratio: 1-D array of per-PC variance ratios.
         min_pcs: Minimum PCs to return (default 10).
         max_pcs: Maximum PCs to return (default 100).
         window: Sliding window size (default 5).
-        ratio: Threshold as a fraction of the baseline change rate
-            (default 0.15).  Smaller = stricter (more PCs selected).
+        rel_threshold: Max median relative change to qualify as
+            "plateau" (default 0.05 = 5% per PC).
+        std_threshold: Max std of relative change to qualify as
+            "stable" (default 0.03 = 3 pp).
+        require_n: How many consecutive plateau windows needed
+            to confirm the elbow (default 2).
 
     Returns:
         Tuple of (recommended_n_pcs, diagnostics) where diagnostics is a
@@ -155,40 +172,37 @@ def detect_n_pcs(
             "delta": np.abs(np.diff(variance_ratio)) if n > 1 else np.array([]),
             "window_mean_x": np.array([]),
             "window_mean_y": np.array([]),
-            "threshold": 0.0,
+            "threshold": rel_threshold,
             "elbow_pc": n,
         }
         return n, diag
 
-    delta = np.abs(np.diff(variance_ratio))  # length n-1
+    # Relative change: scale-independent measure of per-PC drop
+    rel_change = np.abs(
+        np.diff(variance_ratio) / np.maximum(variance_ratio[:-1], 1e-12)
+    )
 
-    # Baseline: median change in the first min_pcs PCs (active decline region)
-    baseline_end = min(min_pcs, len(delta))
-    baseline = np.median(delta[:baseline_end])
-    if baseline == 0:
-        diag = {
-            "delta": delta,
-            "window_mean_x": np.array([]),
-            "window_mean_y": np.array([]),
-            "threshold": 0.0,
-            "elbow_pc": min(max_pcs, n),
-        }
-        return min(max_pcs, n), diag
-
-    threshold = baseline * ratio
-
-    # Compute sliding window mean for all valid positions
     search_start = max(0, min_pcs - 1)
     wm_list: List = []
+    ws_list: List = []
     result_pc = min(max_pcs, n)  # fallback
+    consecutive = 0
 
-    for i in range(search_start, len(delta) - window + 1):
-        wm = float(np.mean(delta[i:i + window]))
+    for i in range(search_start, len(rel_change) - window + 1):
+        w = rel_change[i:i + window]
+        wm = float(np.median(w))
+        ws = float(np.std(w))
         wm_list.append((i, wm))
-        if wm < threshold and result_pc == min(max_pcs, n):
-            result_pc = max(min_pcs, min(i + 1, max_pcs, n))
+        ws_list.append((i, ws))
+        plateau = wm < rel_threshold and ws < std_threshold
+        if plateau:
+            consecutive += 1
+            if consecutive >= require_n and result_pc == min(max_pcs, n):
+                result_pc = max(min_pcs, min(i + 1, max_pcs, n))
+        else:
+            consecutive = 0
 
-    # Build arrays for plotting
+    # Build arrays for plotting (keep old keys for plot.py compatibility)
     if wm_list:
         wm_x = np.array([w[0] + 1 for w in wm_list])  # 1-indexed PC
         wm_y = np.array([w[1] for w in wm_list])
@@ -197,10 +211,12 @@ def detect_n_pcs(
         wm_y = np.array([])
 
     diag = {
-        "delta": delta,
+        "delta": rel_change,       # now relative change, not absolute
         "window_mean_x": wm_x,
-        "window_mean_y": wm_y,
-        "threshold": threshold,
+        "window_mean_y": wm_y,     # median of relative change
+        "window_std_y": np.array([s[1] for s in ws_list]) if ws_list else np.array([]),
+        "threshold": rel_threshold,
+        "std_threshold": std_threshold,
         "elbow_pc": result_pc,
     }
     return result_pc, diag
@@ -1016,19 +1032,24 @@ def _search_pubmed(
 
         root = ET.fromstring(xml_text)
         for article in root.findall(".//PubmedArticle"):
-            pmid_el = article.find(".//PMID")
-            title_el = article.find(".//ArticleTitle")
-            year_el = article.find(".//PubDate/Year")
-            if pmid_el is not None:
-                pmid = pmid_el.text or ""
-                title = title_el.text if title_el is not None else ""
-                year = year_el.text if year_el is not None else ""
+            try:
+                pmid_el = article.find(".//PMID")
+                title_el = article.find(".//ArticleTitle")
+                year_el = article.find(".//PubDate/Year")
+                if pmid_el is None or not pmid_el.text:
+                    continue
+                pmid = str(pmid_el.text).strip()
+                title = str(title_el.text).strip() if title_el is not None and title_el.text else ""
+                year = str(year_el.text).strip() if year_el is not None and year_el.text else ""
                 # Handle PubDate without Year (use MedlineDate)
                 if not year:
                     medline_date = article.find(".//PubDate/MedlineDate")
                     if medline_date is not None and medline_date.text:
-                        year = medline_date.text[:4]
-                results.append({"pmid": pmid, "title": title[:120], "year": year})
+                        year = str(medline_date.text)[:4]
+                if pmid:
+                    results.append({"pmid": pmid, "title": title[:120], "year": year})
+            except (AttributeError, TypeError, ValueError):
+                continue
 
     except Exception as exc:
         logging.warning("PubMed search failed for %s: %s", gene, exc)
@@ -1095,16 +1116,39 @@ Rules:
 - If you genuinely cannot find a PMID for a marker, write "unverified" (the program will still use the marker but flag it).
 - Output ONLY valid JSON, no markdown"""
 
-    if llm_method == "openai":
-        raw = _call_openai(prompt, llm_model=llm_model, llm_api_key=llm_api_key, llm_base_url=llm_base_url)
-    elif llm_method == "anthropic":
-        raw = _call_anthropic(prompt, llm_model=llm_model, llm_api_key=llm_api_key, llm_base_url=llm_base_url)
-    elif llm_method == "ollama":
-        raw = _call_ollama(prompt, llm_model=llm_model, llm_base_url=llm_base_url)
-    else:
-        return {}
+    MAX_RETRIES = 3
+    raw: Dict[str, Any] = {}
+    for attempt in range(1, MAX_RETRIES + 1):
+        logging.info("  Step 0 tissue query attempt %d / %d ...", attempt, MAX_RETRIES)
+        if llm_method == "openai":
+            raw = _call_openai(prompt, llm_model=llm_model, llm_api_key=llm_api_key, llm_base_url=llm_base_url)
+        elif llm_method == "anthropic":
+            raw = _call_anthropic(prompt, llm_model=llm_model, llm_api_key=llm_api_key, llm_base_url=llm_base_url)
+        elif llm_method == "ollama":
+            raw = _call_ollama(prompt, llm_model=llm_model, llm_base_url=llm_base_url)
+        else:
+            return {}
 
-    raw_types = raw.get("cell_types", {})
+        raw_types = raw.get("cell_types", {})
+        if raw_types:
+            break
+        # Log what LLM actually returned so we can diagnose key-mismatch
+        logging.warning(
+            "  Step 0 attempt %d: LLM returned no 'cell_types' key. "
+            "Top-level keys: %s. Raw preview (first 500 chars): %s",
+            attempt, list(raw.keys()) if isinstance(raw, dict) else type(raw).__name__,
+            str(raw)[:500],
+        )
+        if attempt < MAX_RETRIES:
+            time.sleep(2)
+    else:
+        # All retries exhausted — hard fail instead of silently continuing
+        raise RuntimeError(
+            f"Step 0 failed after {MAX_RETRIES} attempts: LLM returned no 'cell_types' key. "
+            f"Last raw response keys: {list(raw.keys()) if isinstance(raw, dict) else type(raw).__name__}. "
+            f"Cannot proceed without tissue reference markers."
+        )
+
     cell_types: Dict[str, List[str]] = {}
     ct_pmids: Dict[str, Dict[str, str]] = {}  # cell_type -> {gene: pmid}
     total_markers = 0
@@ -2440,6 +2484,7 @@ def _build_orchestrator_prompt(
     max_recluster_rounds: int,
     previous_decision: Optional[Dict[str, Any]] = None,
     separation_diag: Optional[Dict[str, Any]] = None,
+    resolution: float = 0.8,
 ) -> str:
     """Build orchestrator prompt for the SINGLE post-annotation checkpoint.
 
@@ -2454,11 +2499,16 @@ def _build_orchestrator_prompt(
 
 1. "accept" — good enough. Use when most clusters trust=high/medium AND no over_clustering AND no misannotated.
 
-2. "correct_annotations" — relabel clusters with trust=low + alternative!=null. Also merge synonyms (Fibroblasts/Stromal etc). REQUIRES: annotation_corrections.
+2. "correct_annotations" — PREFERRED for over-clustering (Jaccard>0.3). Same cell_type in multiple distant clusters means ANNOTATION ERROR, not over-fragmentation — the clusters are well-separated, they are different cell types mislabeled as the same. For each over-clustered type:
+   a) Compare the unique DEG markers between clusters (from the state's key_markers).
+   b) Propose a distinct cell_type for each cluster based on its unique markers.
+   c) Include all corrections in annotation_corrections.
+   Also use this for trust=low + alternative!=null, and synonym merging.
+   REQUIRES: annotation_corrections with new_cell_type for EACH over-clustered cluster.
 
 3. "filter_and_recluster" — drop bad cells. whole_cluster_removals for should_drop=true; cell_level_clusters for lq_pct>30. REQUIRES: filter_plan.
 
-4. "adjust_resolution_and_recluster" — merge over-fragmented clusters. Use when over_clustering Jaccard>0.3 OR many trust=low without alternatives. Lower resolution by ~0.15-0.2. REQUIRES: new_resolution."""
+4. "adjust_resolution_and_recluster" — ONLY for true resolution problems (discontinuous clusters, too many tiny clusters). NOT for over-clustering — over-clustering with Jaccard>0.3 is an annotation error, use correct_annotations instead. Lower resolution by ~0.15-0.2. REQUIRES: new_resolution."""
 
     payload = {
         "recluster_round": recluster_round,
@@ -2507,12 +2557,13 @@ def _build_orchestrator_prompt(
 Decide: accept, correct, filter, or recluster.
 
 Round {recluster_round}/{max_recluster_rounds}.
+Current resolution: {resolution}.
 {ct_summary}{sep_summary}
 
 {action_block}
 
-Output ONLY valid JSON:
-{{"action": "accept|correct_annotations|filter_and_recluster|adjust_resolution_and_recluster", "reasoning": "why", "filter_plan": {{"whole_cluster_removals": [], "cell_level_clusters": []}}, "new_resolution": null, "annotation_corrections": {{}}}}
+Output ONLY valid JSON. When action=correct_annotations, annotation_corrections MUST be non-empty — one entry per cluster that needs relabeling:
+{{"action": "accept|correct_annotations|filter_and_recluster|adjust_resolution_and_recluster", "reasoning": "why", "filter_plan": {{"whole_cluster_removals": [], "cell_level_clusters": []}}, "new_resolution": null, "annotation_corrections": {{"cluster_id": {{"new_cell_type": "...", "reasoning": "..."}}}}}}
 
 ## STATE
 {state_json}
@@ -3687,6 +3738,7 @@ def _call_orchestrator(
     llm_base_url: str,
     previous_decision: Optional[Dict[str, Any]] = None,
     separation_diag: Optional[Dict[str, Any]] = None,
+    resolution: float = 0.8,
 ) -> Dict[str, Any]:
     """Call the SINGLE post-annotation checkpoint. Returns parsed decision."""
     prompt = _build_orchestrator_prompt(
@@ -3696,6 +3748,7 @@ def _call_orchestrator(
         max_recluster_rounds=max_recluster_rounds,
         previous_decision=previous_decision,
         separation_diag=separation_diag,
+        resolution=resolution,
     )
     if llm_method == "openai":
         raw = _call_openai(prompt, llm_model=llm_model,
@@ -3712,6 +3765,170 @@ def _call_orchestrator(
         )
 
     return _parse_orchestrator_decision(raw)
+
+
+def _auto_correct_overclustered(
+    adata: ad.AnnData,
+    annotations: Dict[str, Dict[str, Any]],
+    separation_diag: Dict[str, Any],
+    tissue_cell_types: Optional[Dict[str, List[str]]],
+    llm_method: str,
+    llm_model: str,
+    llm_api_key: str,
+    llm_base_url: str,
+    skip_clusters: Optional[Set[str]] = None,
+) -> None:
+    """Programmatically correct over-clustered cell types.
+
+    When the same cell_type is assigned to multiple distant clusters with
+    high marker overlap (Jaccard > 0.3), it's likely an annotation error —
+    the clusters are biologically different but were mislabeled as the same.
+
+    For each over-clustered type:
+    1. Find which clusters currently share the cell_type.
+    2. Score EACH cluster's FULL top markers against tissue_cell_types.
+    3. Check UMAP distance: if cluster is spatially close to other same-type
+       clusters, it's the same type — don't reassign.
+    4. Only reassign if: new_type score > current_type score + 0.5 AND
+       new_type score > 1.0 AND new_type has >= 3 matched markers.
+    5. If no confident match, ask LLM with full marker context.
+
+    Modifies annotations dict and adata.obs["cell_type"] in place.
+    """
+    separated = separation_diag.get("separated_types", [])
+    if not separated:
+        return
+
+    # Re-check which over-clustered types STILL have multiple clusters
+    # (CP may have already corrected some)
+    ct_to_clusters: Dict[str, List[str]] = {}
+    for cl, ann in annotations.items():
+        ct = ann.get("cell_type", "Unknown")
+        ct_to_clusters.setdefault(ct, []).append(cl)
+
+    needs_correction = []
+    for info in separated:
+        ct = info["cell_type"]
+        current_clusters = ct_to_clusters.get(ct, [])
+        if len(current_clusters) >= 2:
+            needs_correction.append((ct, current_clusters, info))
+
+    if not needs_correction:
+        logging.info("  [auto-correct] All over-clustered types already resolved.")
+        return
+
+    # Pre-compute UMAP centroids for distance checks
+    umap_coords = adata.obsm.get("X_umap")
+    cluster_centroids: Dict[str, np.ndarray] = {}
+    if umap_coords is not None:
+        for cl in adata.obs["leiden"].unique():
+            mask = adata.obs["leiden"] == cl
+            if int(mask.sum()) >= 20:
+                cluster_centroids[str(cl)] = umap_coords[mask.values].mean(axis=0)
+
+    for ct, cluster_ids, info in needs_correction:
+        logging.info(
+            "  [auto-correct] %s: %d clusters (Jaccard=%.3f, max_dist=%.2f) — "
+            "scoring full markers against tissue reference...",
+            ct, len(cluster_ids), info.get("marker_jaccard", 0),
+            info.get("max_distance", 0),
+        )
+
+        # Score each cluster's FULL markers against tissue reference
+        for cl in cluster_ids:
+            if skip_clusters and cl in skip_clusters:
+                logging.info("    Cluster %s: skipped (CP already addressed)", cl)
+                continue
+
+            full_markers = annotations.get(cl, {}).get("key_markers", [])
+            if not full_markers or not tissue_cell_types:
+                continue
+
+            # Score full markers (not just unique)
+            score_result = _score_cluster_against_tissue_types(
+                full_markers, tissue_cell_types, n_top=len(full_markers),
+            )
+            ranked = score_result.get("ranked", [])
+
+            # Find current type's score
+            current_score = 0.0
+            for r in ranked:
+                if r["cell_type"] == ct:
+                    current_score = r["score"]
+                    break
+
+            # Find best alternative type
+            new_ct = None
+            new_score = 0.0
+            new_matched = 0
+            for r in ranked:
+                if r["cell_type"] != ct:
+                    new_ct = r["cell_type"]
+                    new_score = r["score"]
+                    new_matched = r["n_matched"]
+                    break
+
+            logging.info(
+                "    Cluster %s: current='%s'(%.2f) best_alt='%s'(%.2f, %d matched)",
+                cl, ct, current_score, new_ct or "None", new_score, new_matched,
+            )
+
+            # Strict conditions for reassignment:
+            # 1. New type scores significantly higher than current (+0.5)
+            # 2. New type has decent absolute score (> 1.0)
+            # 3. New type has >= 3 matched markers (not noise)
+            if not (new_ct and new_score > current_score + 0.5
+                    and new_score > 1.0 and new_matched >= 3):
+                logging.info(
+                    "    Cluster %s: keeping '%s' (alt score not high enough)",
+                    cl, ct,
+                )
+                continue
+
+            # UMAP distance check: if cluster is CLOSE to other clusters of
+            # the current type, it's the same biological population — don't
+            # reassign even if markers suggest otherwise
+            if umap_coords is not None and cl in cluster_centroids:
+                my_centroid = cluster_centroids[cl]
+                sibling_close = False
+                for sibling_cl in cluster_ids:
+                    if sibling_cl == cl or sibling_cl not in cluster_centroids:
+                        continue
+                    dist = float(np.linalg.norm(
+                        my_centroid - cluster_centroids[sibling_cl]
+                    ))
+                    if dist < 3.0:  # close in UMAP = same population
+                        sibling_close = True
+                        logging.info(
+                            "    Cluster %s: close to sibling %s (dist=%.2f) — "
+                            "same population, keeping '%s'",
+                            cl, sibling_cl, dist, ct,
+                        )
+                        break
+                if sibling_close:
+                    continue
+
+            # Confident reassignment
+            old_ct = annotations[cl]["cell_type"]
+            annotations[cl]["cell_type"] = new_ct
+            annotations[cl]["orchestrator_correction"] = {
+                "reasoning": (
+                    f"Auto-corrected: over-clustered '{old_ct}' "
+                    f"(Jaccard={info.get('marker_jaccard', 0):.3f}). "
+                    f"Full markers score '{new_ct}'={new_score:.2f} "
+                    f"(+{new_score - current_score:.2f} vs current, "
+                    f"{new_matched} matched)."
+                ),
+            }
+            mask = adata.obs["leiden"] == cl
+            if hasattr(adata.obs["cell_type"], "cat") and new_ct not in set(adata.obs["cell_type"].cat.categories):
+                adata.obs["cell_type"] = adata.obs["cell_type"].cat.add_categories([new_ct])
+            adata.obs.loc[mask, "cell_type"] = new_ct
+            logging.info(
+                "    [auto-correct] Cluster %s: '%s' -> '%s' "
+                "(score %.2f vs %.2f, %d matched)",
+                cl, old_ct, new_ct, new_score, current_score, new_matched,
+            )
 
 
 def mode_auto(
@@ -3820,10 +4037,39 @@ def mode_auto(
     }
     species_name = species_map.get(species, species) if species else ""
     tissue_query = f"{species_name} {tissue}" if species_name else tissue
-    logging.info("[Step 0] Querying known cell types for '%s'...", tissue_query)
-    tissue_cell_types = _query_tissue_cell_types(
-        tissue_query, llm_method, llm_model, llm_api_key, llm_base_url,
-    )
+
+    # Step 0 caching: shared across runs in the output directory
+    cache_file = os.path.join(output_dir, f"tissue_markers_{tissue_query.replace(' ', '_').replace('(', '').replace(')', '')}.json")
+    tissue_cell_types: Dict[str, List[str]] = {}
+    if os.path.exists(cache_file):
+        try:
+            with open(cache_file, "r", encoding="utf-8") as f:
+                cached = json.load(f)
+            tissue_cell_types = cached.get("cell_types", cached)
+            if isinstance(tissue_cell_types, dict) and tissue_cell_types:
+                logging.info(
+                    "[Step 0] Loaded %d cell types from cache: %s",
+                    len(tissue_cell_types), cache_file,
+                )
+            else:
+                tissue_cell_types = {}
+        except Exception as exc:
+            logging.warning("[Step 0] Cache load failed (%s), re-querying.", exc)
+            tissue_cell_types = {}
+
+    if not tissue_cell_types:
+        logging.info("[Step 0] Querying known cell types for '%s'...", tissue_query)
+        tissue_cell_types = _query_tissue_cell_types(
+            tissue_query, llm_method, llm_model, llm_api_key, llm_base_url,
+        )
+        # Cache the result for future runs
+        if tissue_cell_types:
+            try:
+                with open(cache_file, "w", encoding="utf-8") as f:
+                    json.dump({"cell_types": tissue_cell_types}, f, ensure_ascii=False, indent=2)
+                logging.info("[Step 0] Cached tissue markers to %s", cache_file)
+            except Exception as exc:
+                logging.warning("[Step 0] Failed to cache: %s", exc)
     logging.info("[Step 0.5] Verifying tissue markers against PubMed (sample 3 per type)...")
     marker_verification = _verify_tissue_markers(tissue_cell_types, tissue_query, n_sample=3)
     ctx["tissue_cell_types"] = tissue_cell_types
@@ -3863,6 +4109,40 @@ def mode_auto(
             tissue_cell_types=tissue_cell_types,
         )
         _apply_annotations_to_obs(adata, annotations)
+
+        # ── Step 2.5: Resolve Unknown clusters against tissue reference ──
+        unknown_cls = [cl for cl, ann in annotations.items()
+                       if ann.get("cell_type") == "Unknown"]
+        if unknown_cls and tissue_cell_types:
+            logging.info("[Step 2.5] Resolving %d Unknown clusters...", len(unknown_cls))
+            for cl in unknown_cls:
+                markers = annotations[cl].get("key_markers", [])
+                if not markers:
+                    continue
+                score_result = _score_cluster_against_tissue_types(
+                    markers, tissue_cell_types, n_top=len(markers),
+                )
+                ranked = score_result.get("ranked", [])
+                best = ranked[0] if ranked else None
+                if best and best["score"] > 1.5 and best["n_matched"] >= 3:
+                    old_ct = annotations[cl]["cell_type"]
+                    annotations[cl]["cell_type"] = best["cell_type"]
+                    annotations[cl]["reasoning"] += (
+                        f" [Step 2.5: resolved from Unknown to "
+                        f"'{best['cell_type']}' via tissue scoring "
+                        f"(score={best['score']:.2f}, {best['n_matched']} matched)]"
+                    )
+                    logging.info(
+                        "  Cluster %s: Unknown -> '%s' (score=%.2f, %d matched)",
+                        cl, best["cell_type"], best["score"], best["n_matched"],
+                    )
+                elif best:
+                    logging.info(
+                        "  Cluster %s: stays Unknown (best='%s' score=%.2f, "
+                        "%d matched — below threshold)",
+                        cl, best["cell_type"], best["score"], best["n_matched"],
+                    )
+            _apply_annotations_to_obs(adata, annotations)
 
         # ============================================================
         # Sensors: QC + separation + boundary sharpness + continuity
@@ -3934,6 +4214,7 @@ def mode_auto(
             llm_api_key=llm_api_key, llm_base_url=llm_base_url,
             previous_decision=previous_decision,
             separation_diag=separation_diag,
+            resolution=resolution,
         )
         logging.info("  CP decision: %s", decision["action"])
         logging.info("  CP reasoning: %s", decision["reasoning"][:1500])
@@ -3941,18 +4222,62 @@ def mode_auto(
         cp_action = decision["action"]
         apply_summary: Dict[str, Any] = {"applied_changes": []}
         if cp_action == "accept":
-            # Keep current state as final. No-op.
-            final_outcome = "orchestrator_accept"
+            # Keep current state as final. But if over-clustered types exist,
+            # force programmatic correction — accept is invalid with unresolved
+            # over-clustering.
+            if separation_diag and separation_diag.get("separated_types"):
+                logging.warning(
+                    "  CP accepted but %d over-clustered types remain — "
+                    "forcing programmatic correction.",
+                    len(separation_diag["separated_types"]),
+                )
+                _auto_correct_overclustered(
+                    adata, annotations, separation_diag,
+                    tissue_cell_types, llm_method, llm_model,
+                    llm_api_key, llm_base_url,
+                )
+                final_outcome = "orchestrator_accept_with_corrections"
+            else:
+                final_outcome = "orchestrator_accept"
         elif cp_action == "correct_annotations":
             _, apply_summary = _apply_orchestrator_decision(adata, decision, annotations)
             for c in apply_summary.get("applied_changes", []):
                 logging.info("  CP applied: %s", c)
+            # Programmatic fallback: if over-clustered types remain AND
+            # CP provided NO corrections, auto-correct by comparing DEG
+            # markers between same-type clusters against tissue reference.
+            # If CP DID provide corrections, trust the CP.
+            cp_corrections = decision.get("annotation_corrections", {})
+            if separation_diag and separation_diag.get("separated_types") and not cp_corrections:
+                logging.warning(
+                    "  CP chose correct_annotations but provided 0 corrections — "
+                    "running programmatic auto-correct for over-clustered types.",
+                )
+                _auto_correct_overclustered(
+                    adata, annotations, separation_diag,
+                    tissue_cell_types, llm_method, llm_model,
+                    llm_api_key, llm_base_url,
+                )
+            elif separation_diag and separation_diag.get("separated_types") and cp_corrections:
+                # CP provided some corrections — check if over-clustered
+                # types are still unresolved after CP's corrections
+                _auto_correct_overclustered(
+                    adata, annotations, separation_diag,
+                    tissue_cell_types, llm_method, llm_model,
+                    llm_api_key, llm_base_url,
+                    skip_clusters=set(cp_corrections.keys()),
+                )
             final_outcome = "orchestrator_correct"
         elif cp_action == "adjust_resolution_and_recluster":
             new_res = decision.get("new_resolution")
-            if new_res is not None and 0.05 <= new_res <= 3.0:
+            if new_res is not None and 0.05 <= new_res <= 3.0 and float(new_res) != resolution:
                 resolution = float(new_res)
                 logging.info("  CP set resolution -> %.2f for next round", resolution)
+            elif new_res is not None and float(new_res) == resolution:
+                # LLM set same resolution — force a decrease
+                resolution = max(0.05, resolution - 0.2)
+                logging.warning("  CP set same resolution %.2f — forcing decrease to %.2f",
+                                new_res, resolution)
             else:
                 logging.warning("  CP gave invalid new_resolution=%s; keeping %.2f",
                                 new_res, resolution)

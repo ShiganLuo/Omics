@@ -18,6 +18,7 @@ import gzip
 import os
 import re
 import shutil
+import subprocess
 import sys
 import tempfile
 from collections import OrderedDict, defaultdict
@@ -312,64 +313,95 @@ def load_tail_csv(path: str) -> pd.DataFrame:
     return pd.read_csv(path, skipinitialspace=True)
 
 
-def collect_sample_data(analysis_dir: str, samples: List[str]) -> List[dict]:
-    """Collect all per-sample statistics across the pipeline steps."""
+def collect_sample_data(analysis_dir: str, samples: List[str], aligner: str = "star_3pass_gene") -> List[dict]:
+    """Collect all per-sample statistics across the pipeline steps.
+
+    *aligner* controls which output directories are checked:
+      - ``star_3pass_gene``: per-gene BAM (4_per_gene_bam), gene manifest, tail CSV
+      - ``star_3pass``      : merged BAM (3_raw_bam), tail CSV from results/tailer
+      - ``hisat2`` / ``star``: markdup BAM (4_markdup_bam), no tail data
+    """
     results = []
+    has_per_gene = aligner == "star_3pass_gene"
+    has_3pass = aligner in ("star_3pass", "star_3pass_gene")
+    has_tailer = aligner in ("star_3pass", "star_3pass_gene")
+
     for s in samples:
         d: dict = {"sample": s}
         # 1. Raw FASTQ
         raw_r1 = os.path.join(analysis_dir, "common", "1_raw_fastq", s, f"{s}_1.fq.gz")
         raw_r2 = os.path.join(analysis_dir, "common", "1_raw_fastq", s, f"{s}_2.fq.gz")
         d["raw_reads"] = _safe_add(count_fastq_reads(raw_r1), count_fastq_reads(raw_r2))
-        
+
         # 2. Dedup reads (jla-demultiplexer output)
         dedup_r1 = os.path.join(analysis_dir, "common", "2_trimmed_dedup_fastq", "final_trimmed_fastq", s, f"{s}_1.fq.gz")
         dedup_r2 = os.path.join(analysis_dir, "common", "2_trimmed_dedup_fastq", "final_trimmed_fastq", s, f"{s}_2.fq.gz")
         d["dedup_reads"] = _safe_add(count_fastq_reads(dedup_r1), count_fastq_reads(dedup_r2))
-        
+
         # 3. Trimming stats & Trimmed reads
         trim_stat_r1 = os.path.join(analysis_dir, "common", "2_trimmed_dedup_fastq", "final_trimmed_fastq", s, "trimming_statistics_1.txt")
         d.update(parse_trimming_stats(trim_stat_r1))
-        
+
         trimmed_r1 = os.path.join(analysis_dir, "common", "2_trimmed_dedup_fastq", "final_trimmed_fastq", s, f"{s}_1.fq.gz")
         trimmed_r2 = os.path.join(analysis_dir, "common", "2_trimmed_dedup_fastq", "final_trimmed_fastq", s, f"{s}_2.fq.gz")
         d["trimmed_reads"] = _safe_add(count_fastq_reads(trimmed_r1), count_fastq_reads(trimmed_r2))
-        
-        # 4. STAR log
-        star_log = os.path.join(analysis_dir, "common", "3_raw_bam", s, "star.Log.final.out")
+
+        # 4. Alignment log
+        if has_3pass:
+            star_log = os.path.join(analysis_dir, "common", "3_raw_bam", s, "star.Log.final.out")
+        elif aligner == "star":
+            star_log = os.path.join(analysis_dir, "common", "3_raw_bam", s, "star.Log.final.out")
+        else:
+            # hisat2: look for hisat2 summary log
+            star_log = os.path.join(analysis_dir, "common", "3_raw_bam", s, f"{s}.hisat2_summary.txt")
         d.update(parse_star_log(star_log))
 
-        # 5. Final BAM reads (star_3pass output bam)
-        gene_dir = os.path.join(analysis_dir, "common", "4_per_gene_bam", s)
-        final_bam_file = os.path.join(gene_dir, f"{s}.bam")
+        # 5. Final BAM reads
         d["final_bam_reads"] = None
+        if has_per_gene:
+            final_bam_file = os.path.join(analysis_dir, "common", "4_per_gene_bam", s, f"{s}.bam")
+        elif aligner == "hisat2":
+            final_bam_file = os.path.join(analysis_dir, "common", "4_markdup_bam", s, f"{s}.sorted_markdup.bam")
+        else:
+            final_bam_file = os.path.join(analysis_dir, "common", "3_raw_bam", s, f"{s}.bam")
         if os.path.exists(final_bam_file):
             try:
-                import subprocess
                 r = subprocess.run(["samtools", "view", "-c", final_bam_file],
                                    capture_output=True, text=True, timeout=30)
                 if r.returncode == 0:
                     d["final_bam_reads"] = int(r.stdout.strip())
             except Exception:
                 pass
-                
-        # 6. Gene manifest
-        manifest_path = os.path.join(gene_dir, "genes.tsv")
-        manifest = load_gene_manifest(manifest_path)
-        d["n_genes"] = len(manifest) if not manifest.empty else 0
-        if not manifest.empty and "assigned_records" in manifest.columns:
-            d["total_assigned"] = int(manifest["assigned_records"].sum())
-            top_row = manifest.sort_values("assigned_records", ascending=False).iloc[0]
-            d["top_gene"] = str(top_row["gene_id"])
-            d["top_gene_reads"] = int(top_row["assigned_records"])
+
+        # 6. Gene manifest (only star_3pass_gene)
+        if has_per_gene:
+            manifest_path = os.path.join(analysis_dir, "common", "4_per_gene_bam", s, "genes.tsv")
+            manifest = load_gene_manifest(manifest_path)
+            d["n_genes"] = len(manifest) if not manifest.empty else 0
+            if not manifest.empty and "assigned_records" in manifest.columns:
+                d["total_assigned"] = int(manifest["assigned_records"].sum())
+                top_row = manifest.sort_values("assigned_records", ascending=False).iloc[0]
+                d["top_gene"] = str(top_row["gene_id"])
+                d["top_gene_reads"] = int(top_row["assigned_records"])
+            else:
+                d["total_assigned"] = None
+                d["top_gene"] = None
+                d["top_gene_reads"] = None
         else:
+            d["n_genes"] = None
             d["total_assigned"] = None
             d["top_gene"] = None
             d["top_gene_reads"] = None
-            
+
         # 7. Tail CSV
-        tail_csv = os.path.join(gene_dir, f"{s}_tail.csv")
-        tail_df = load_tail_csv(tail_csv)
+        if has_tailer:
+            if has_per_gene:
+                tail_csv = os.path.join(analysis_dir, "common", "4_per_gene_bam", s, f"{s}_tail.csv")
+            else:
+                tail_csv = os.path.join(analysis_dir, "results", "tailer", s, f"{s}_tail.csv")
+            tail_df = load_tail_csv(tail_csv)
+        else:
+            tail_df = pd.DataFrame()
         if not tail_df.empty:
             d["total_tail_reads"] = int(tail_df["Count"].sum())
             d["with_tail"] = int(tail_df.loc[tail_df["Tail_Length"] > 0, "Count"].sum())
@@ -391,13 +423,24 @@ def collect_sample_data(analysis_dir: str, samples: List[str]) -> List[dict]:
             d["downstream"] = None
             d["tail_lengths"] = []
             d["tail_counts"] = []
-            
+
         results.append(d)
     return results
 
 
+# Module-level group/short-name maps, populated in main() from CLI args.
+_SAMPLE_GROUPS: Dict[str, str] = {}
+_SHORT_NAMES: Dict[str, str] = {}
+
+
 def infer_group(sample: str) -> str:
-    """Infer group label from sample name (e.g. 7sl / U1 / other)."""
+    """Return group label for a sample.
+
+    If ``sample_groups`` mapping was provided via CLI, use it directly.
+    Otherwise fall back to keyword-based auto-detection.
+    """
+    if _SAMPLE_GROUPS:
+        return _SAMPLE_GROUPS.get(sample, "Other")
     lower = sample.lower()
     if "7sl" in lower:
         return "7SL"
@@ -527,7 +570,13 @@ def _table(slide, left, top, width, height, data, font_size=10):
 
 
 def _short_name(sample: str) -> str:
-    """Shorten sample name for display (e.g. removing common IP prefixes)."""
+    """Return display name for a sample.
+
+    If ``short_names`` mapping was provided via CLI, use it directly.
+    Otherwise fall back to removing common IP prefixes.
+    """
+    if _SHORT_NAMES:
+        return _SHORT_NAMES.get(sample, sample)
     return sample.replace("IP_srp54_control_", "")
 
 
@@ -824,7 +873,9 @@ def plot_tail_length(samples_data: list[dict], img_store: TempImageStore) -> str
     n_groups = len(groups_data) if groups_data else 1
     fig, axes = plt.subplots(1, max(n_groups, 1), figsize=(5 * max(n_groups, 1), 4.0), squeeze=False)
     axes = axes[0]
-    colors_map = {"7SL": P_7SL, "U1": P_U1}
+    fallback_colors = [P_7SL, P_U1, P_CORAL, P_GREEN, P_ORANGE, P_NAVY, "#3A9BBC", "#5EEAD4"]
+    all_groups = sorted(groups_data.keys())
+    colors_map = {g: fallback_colors[i % len(fallback_colors)] for i, g in enumerate(all_groups)}
     for ax_idx, (group, length_counts) in enumerate(sorted(groups_data.items())):
         ax = axes[ax_idx]
         if not length_counts:
@@ -1237,7 +1288,18 @@ def main():
     ap.add_argument("--lang", default="zh")
     ap.add_argument("--img-dir", default="")
     ap.add_argument("--file-inventory", default="")
+    ap.add_argument("--sample-groups", default="", help="JSON string mapping sample->group")
+    ap.add_argument("--short-names", default="", help="JSON string mapping sample->display_name")
+    ap.add_argument("--aligner", default="star_3pass_gene", help="Aligner type: hisat2, star, star_3pass, star_3pass_gene")
     args = ap.parse_args()
+
+    global _SAMPLE_GROUPS, _SHORT_NAMES
+    if args.sample_groups:
+        import json as _json
+        _SAMPLE_GROUPS = _json.loads(args.sample_groups)
+    if args.short_names:
+        import json as _json
+        _SHORT_NAMES = _json.loads(args.short_names)
 
     analysis_dir = os.path.abspath(args.analysis_dir)
     output = os.path.abspath(args.output)
@@ -1258,9 +1320,13 @@ def main():
                               if os.path.isdir(os.path.join(bam_dir, d))])
     print(f"Detected samples: {samples}", file=sys.stderr)
 
-    samples_data = collect_sample_data(analysis_dir, samples)
+    samples_data = collect_sample_data(analysis_dir, samples, aligner=args.aligner)
     if not samples_data:
         print("WARNING: No sample data collected", file=sys.stderr)
+
+    # Determine which sections have data
+    has_gene_data = any(d.get("n_genes") is not None for d in samples_data)
+    has_tail_data = any(d.get("total_tail_reads") is not None for d in samples_data)
 
     pipeline_text = args.pipeline or "FASTQ -> Demux/Dedup -> TrimGalore -> STAR 3-pass -> Gene-specific alignment + Tailer"
     title = args.title or t("title", args.lang)
@@ -1283,9 +1349,11 @@ def main():
         build_read_flow_slide(prs, samples_data, img_store, args.lang)
         build_trimming_slide(prs, samples_data, img_store, args.lang)
         build_star_slide(prs, samples_data, img_store, args.lang)
-        build_gene_slide(prs, samples_data, analysis_dir, img_store, args.lang)
-        build_tail_slide(prs, samples_data, img_store, args.lang)
-        build_tail_length_slide(prs, samples_data, img_store, args.lang)
+        if has_gene_data:
+            build_gene_slide(prs, samples_data, analysis_dir, img_store, args.lang)
+        if has_tail_data:
+            build_tail_slide(prs, samples_data, img_store, args.lang)
+            build_tail_length_slide(prs, samples_data, img_store, args.lang)
         build_conclusion_slide(prs, samples_data, args.lang)
 
     prs.save(output)

@@ -1,22 +1,39 @@
 include: "../common/common.smk"
 import shlex
+import json as _json
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 samples = config.get("samples", [])
 paired_samples = config.get("paired_samples", [])
 single_samples = config.get("single_samples", [])
+sample_groups = config.get("sample_groups", {})
+short_names = config.get("short_names", {})
+aligner = config.get("aligner", "star_3pass_gene")
 
 REPORT_SCRIPT = os.path.join(ROOT_DIR, "modules", "ncRNAseq_report", "bin", "generate_report.py")
 
+# ── Conditional inputs based on aligner ──────────────────────────────────
+has_per_gene = (aligner == "star_3pass_gene")
+has_3pass = aligner in ("star_3pass", "star_3pass_gene")
+has_tailer = aligner in ("star_3pass", "star_3pass_gene")
+
+def _report_inputs(wildcards):
+    """Return only the inputs that exist for the current aligner branch."""
+    inp = {
+        "trimming_stats": expand(outdir + "/common/2_trimmed_dedup_fastq/final_trimmed_fastq/{sample}/trimming_statistics_1.txt", sample=samples),
+    }
+    if has_per_gene:
+        inp["per_gene_bams"] = expand(outdir + "/common/4_per_gene_bam/{sample}/{sample}.bam", sample=samples)
+        inp["per_gene_tails"] = expand(outdir + "/common/4_per_gene_bam/{sample}/{sample}_tail.csv", sample=samples)
+    if has_tailer and not has_per_gene:
+        inp["tailer_csvs"] = expand(outdir + "/results/tailer/{sample}/{sample}_tail.csv", sample=samples)
+    if has_per_gene or has_3pass:
+        inp["smallrna_bed"] = outdir + "/genome/smallrna/smallrna_genes.bed"
+    return inp
+
 rule generate_report:
     input:
-        per_gene_bams = expand(outdir + "/common/4_per_gene_bam/{sample}/{sample}.bam", sample=samples),
-        per_gene_tails = expand(outdir + "/common/4_per_gene_bam/{sample}/{sample}_tail.csv", sample=samples),
-        per_gene_manifests = expand(outdir + "/common/4_per_gene_bam/{sample}/genes.tsv", sample=samples),
-        per_gene_overlaps = expand(outdir + "/common/4_per_gene_bam/{sample}/read_gene_overlaps.tsv", sample=samples),
-        star_logs = expand(outdir + "/common/3_raw_bam/{sample}/star.Log.final.out", sample=samples),
-        trimming_stats = expand(outdir + "/common/2_trimmed_dedup_fastq/final_trimmed_fastq/{sample}/trimming_statistics_1.txt", sample=samples),
-        smallrna_bed = outdir + "/genome/smallrna/smallrna_genes.bed",
+        unpack(_report_inputs)
     output:
         report = outdir + "/ncRNAseq_report.pptx",
         file_inventory = outdir + "/ncRNAseq_report_files.xlsx",
@@ -31,6 +48,9 @@ rule generate_report:
         samples = samples,
         paired_samples = paired_samples,
         single_samples = single_samples,
+        sample_groups = sample_groups,
+        short_names = short_names,
+        aligner = aligner,
         title = config.get("Params", {}).get("report", {}).get("title") or "ncRNAseq Analysis Report",
         subtitle = config.get("Params", {}).get("report", {}).get("subtitle") or "",
         pipeline = config.get("Params", {}).get("report", {}).get("pipeline") or "",
@@ -62,6 +82,7 @@ rule generate_report:
                 "--date", params.date,
                 "--lang", params.lang,
                 "--img-dir", params.img_dir,
+                "--aligner", params.aligner,
             ]
             if params.samples:
                 cmd.extend(["--samples", *params.samples])
@@ -69,6 +90,10 @@ rule generate_report:
                 cmd.extend(["--paired-samples", *params.paired_samples])
             if params.single_samples:
                 cmd.extend(["--single-samples", *params.single_samples])
+            if params.sample_groups:
+                cmd.extend(["--sample-groups", _json.dumps(params.sample_groups)])
+            if params.short_names:
+                cmd.extend(["--short-names", _json.dumps(params.short_names)])
             with open(script_path, "w") as fh:
                 fh.write("#!/bin/bash\n")
                 fh.write("set -euo pipefail\n")

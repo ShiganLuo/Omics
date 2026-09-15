@@ -14,7 +14,7 @@ aligner = config.get("Params", {}).get("workflow").get("aligner") or "star"
 ip_samples = config.get("Params", {}).get("workflow").get("ip_samples", [])
 input_samples = config.get("Params", {}).get("workflow").get("input_samples", [])
 sample_ip_input_map = config.get("Params", {}).get("workflow").get("sample_ip_input_map", {})
-igv_genome = config.get("Params", {}).get("track", {}).get("igv", {}).get("default")
+genome = config.get("genome", {}).get("default")
 
 rule all:
     input:
@@ -136,8 +136,7 @@ use rule fastqc from fastqc_trimmed as ncRNAseq_fastqc_trimmed
 STAR = config.get("Procedure", {}).get("STAR") or "STAR"
 SAMTOOLS = config.get("Procedure", {}).get("samtools") or "samtools"
 BEDTOOLS = config.get("Procedure", {}).get("bedtools") or "bedtools"
-genome_fasta = config.get("genome", {}).get("fasta")
-star_index_dir = config.get("genome", {}).get("star_index_dir")
+star_index_dir = config.get("genome", {}).get("references", {}).get(genome, {}).get("star_index_dir")
 
 
 if aligner == "hisat2":
@@ -154,8 +153,8 @@ if aligner == "hisat2":
             "hisat2-build": config.get("Procedure", {}).get("hisat2-build")
         },
         "genome": {
-            "fasta": genome_fasta,
-            "hisat2_index_prefix": config.get("genome", {}).get("hisat2_index_prefix")
+            "fasta": config.get("genome", {}).get("references", {}).get(genome, {}).get("fasta"),
+            "hisat2_index_prefix": config.get("genome", {}).get("references", {}).get(genome, {}).get("hisat2_index_prefix")
         },
         "Params": {
             "hisat2": {
@@ -186,7 +185,7 @@ if aligner == "hisat2":
             "gatk": config.get("Params", {}).get("gatk", {})
         },
         "genome": {
-            "fasta": config.get("genome", {}).get("fasta")
+            "fasta": config.get("genome", {}).get("references", {}).get(genome, {}).get("fasta")
         }
     }
     module gatk_prepare:
@@ -208,8 +207,8 @@ elif aligner == "star":
             "Procedure": {"STAR": STAR},
             "Params": {"star": {"index": config.get("Params", {}).get("star", {}).get("index", {})}},
             "genome": {
-                "fasta": genome_fasta,
-                "gtf": config.get("genome", {}).get("gtf"),
+                "fasta": config.get("genome", {}).get("references", {}).get(genome, {}).get("fasta"),
+                "gtf": config.get("genome", {}).get("references", {}).get(genome, {}).get("gtf"),
             }
         }
         logger.info(f"star_genome_idx_config: {star_genome_idx_config}")
@@ -248,8 +247,8 @@ elif aligner == "star":
             }
         },
         "genome": {
-            "fasta": genome_fasta,
-            "gtf": config.get("genome", {}).get("gtf"),
+            "fasta": config.get("genome",{}).get("references", {}).get(genome, {}).get("fasta"),
+            "gtf": config.get("genome", {}).get("references", {}).get(genome, {}).get("gtf"),
             "index_dir": star_index_dir
         }
     }
@@ -273,7 +272,7 @@ elif aligner == "star":
             "gatk": config.get("Params", {}).get("gatk", {})
         },
         "genome": {
-            "fasta": config.get("genome", {}).get("fasta")
+            "fasta": config.get("genome", {}).get("references", {}).get(genome, {}).get("fasta")
         }
     }
     module gatk_prepare:
@@ -313,8 +312,8 @@ elif aligner == "star_3pass":
             "Procedure": {"STAR": STAR},
             "Params": {"star": {"index": config.get("Params", {}).get("star_3pass", {}).get("index", {}).get("genome", {})}},
             "genome": {
-                "fasta": genome_fasta,
-                "gtf": config.get("genome", {}).get("gtf"),
+                "fasta": config.get("genome",{}).get("references", {}).get(genome, {}).get("fasta"),
+                "gtf": config.get("genome", {}).get("references", {}).get(genome, {}).get("gtf"),
             }
         }
         logger.info(f"star_genome_idx_config: {star_genome_idx_config}")
@@ -342,8 +341,8 @@ elif aligner == "star_3pass":
             "smallrna_flank": config.get("Params", {}).get("ncRNAseq", {}).get("smallrna_flank") or 50
         },
         "genome": {
-            "fasta": genome_fasta,
-            "gtf": config.get("genome", {}).get("gtf")
+            "fasta": config.get("genome", {}).get("references", {}).get(genome, {}).get("fasta"),
+            "gtf": config.get("genome", {}).get("references", {}).get(genome, {}).get("gtf")
         }
     }
     logger.info(f"genome_sm_config: {genome_sm_config}")
@@ -356,7 +355,7 @@ elif aligner == "star_3pass":
     use rule extract_smallrna from genome_sm as ncRNAseq_extract_smallrna
 
     # ── STAR index for smallRNA FASTA (reuses star module) ─────────────
-    smallrna_star_index_dir = config.get("genome", {}).get("smallrna_star_index_dir")
+    smallrna_star_index_dir = config.get("genome", {}).get("references", {}).get(genome, {}).get("smallrna_star_index_dir")
     if not smallrna_star_index_dir or not os.path.exists(smallrna_star_index_dir):
         star_smallrna_idx_config = {
             "ROOT_DIR": ROOT_DIR,
@@ -423,7 +422,7 @@ elif aligner == "star_3pass":
             "tailer": config.get("Params", {}).get("tailer", {})
         },
         "genome": {
-            "gtf": config.get("genome", {}).get("gtf")
+            "gtf": config.get("genome", {}).get("references", {}).get(genome, {}).get("gtf")
         }
     }
     logger.info(f"tailer_config: {tailer_config}")
@@ -463,8 +462,8 @@ elif aligner == "star_3pass_gene":
             "Procedure": {"STAR": STAR},
             "Params": {"star": {"index": config.get("Params", {}).get("star_3pass", {}).get("index", {}).get("genome", {})}},
             "genome": {
-                "fasta": genome_fasta,
-                "gtf": config.get("genome", {}).get("gtf"),
+                "fasta": config.get("genome",{}).get("references", {}).get(genome, {}).get("fasta"),
+                "gtf": config.get("genome", {}).get("references", {}).get(genome, {}).get("gtf"),
             }
         }
         logger.info(f"star_genome_idx_config: {star_genome_idx_config}")
@@ -492,8 +491,8 @@ elif aligner == "star_3pass_gene":
             "smallrna_flank": config.get("Params", {}).get("ncRNAseq", {}).get("smallrna_flank") or 50
         },
         "genome": {
-            "fasta": genome_fasta,
-            "gtf": config.get("genome", {}).get("gtf")
+            "fasta": config.get("genome", {}).get("references", {}).get(genome, {}).get("fasta"),
+            "gtf": config.get("genome", {}).get("references", {}).get(genome, {}).get("gtf")
         }
     }
     logger.info(f"genome_sm_config: {genome_sm_config}")
@@ -508,7 +507,7 @@ elif aligner == "star_3pass_gene":
     # The upstream three-pass method still requires the canonical small-RNA
     # reference index. Build it from the extracted branch-specific FASTA when
     # an existing index was not supplied.
-    configured_smallrna_index = config.get("genome", {}).get("smallrna_star_index_dir")
+    configured_smallrna_index = config.get("genome", {}).get("references", {}).get(genome, {}).get("smallrna_star_index_dir")
     if configured_smallrna_index and os.path.exists(configured_smallrna_index):
         smallrna_star_index_dir = configured_smallrna_index
     elif not os.path.exists(smallrna_star_index_dir):
@@ -522,7 +521,7 @@ elif aligner == "star_3pass_gene":
             "Procedure": {"STAR": STAR},
             "Params": {"star": {"index": config.get("Params", {}).get("star_3pass", {}).get("index", {}).get("smallrna", {})}},
             "genome": {
-                "fasta": smallrna_fasta,
+                "fasta": config.get("genome", {}).get("references", {}).get(genome, {}).get("smallrna_fasta"),
                 "gtf": None,
                 "is_fasta_intermediate": True
             }
@@ -582,7 +581,7 @@ elif aligner == "star_3pass_gene":
         },
         "genome": {
             "smallrna_bed": smallrna_bed,
-            "genome_fasta": genome_fasta,
+            "genome_fasta": config.get("genome", {}).get("references", {}).get(genome, {}).get("fasta"),
         }
     }
     logger.info(f"star_3pass_gene_config: {star_3pass_gene_config}")
@@ -592,26 +591,9 @@ elif aligner == "star_3pass_gene":
         config: star_3pass_gene_config
 
     use rule star_3pg_gene_specific from star_3pass_gene as ncRNAseq_star3pg_gene_specific
-    ncRNAseq_report_config = {
-        "ROOT_DIR": ROOT_DIR,
-        "env": config.get("env", {}),
-        "outdir": outdir,
-        "logdir": os.path.join(logdir,"sample"),
-        "samples": all_samples,
-        "paired_samples": paired_samples,
-        "single_samples": single_samples,
-        "Params": {
-            "report": config.get("Params", {}).get("report", {}),
-        },
-    }
-    module ncRNAseq_report:
-        snakefile: "../modules/ncRNAseq_report/ncRNAseq_report.smk"
-        config: ncRNAseq_report_config
-    logger.info(f"ncRNAseq_report_config: {ncRNAseq_report_config}")
-    use rule generate_report from ncRNAseq_report as ncRNAseq_generate_report
-    use rule report_result from ncRNAseq_report as ncRNAseq_report_result
 else:
     raise ValueError(f"Unsupported aligner: {aligner}. Please choose 'hisat2', 'star', 'star_3pass', or 'star_3pass_gene'.")
+
 
 # ── 3. Quantify (featureCounts) ──────────────────────────────────────────────
 # Resolve the alignment output directory based on the chosen aligner.
@@ -657,7 +639,7 @@ track_config = {
         "samples": single_samples + paired_samples,
         "ROOT_DIR": ROOT_DIR,
         "env": config.get("env", {}),
-        "igv": config.get('Params', {}).get('track', {}).get('igv', {}).get('configs', {}).get(igv_genome, {}),
+        "igv": config.get('Params', {}).get('track', {}).get('igv', {}).get('configs', {}).get(genome, {}),
     }
 
 module track:
@@ -681,7 +663,7 @@ featureCounts_config = {
         "featureCounts": config.get("Procedure", {}).get("featureCounts")
     },
     "genome": {
-        "gtf": config.get("genome", {}).get("gtf")
+        "gtf": config.get("genome", {}).get("references", {}).get(genome, {}).get("gtf")
     }
 }
 logger.info(f"featureCounts_config: {featureCounts_config}")
@@ -694,4 +676,26 @@ use rule featureCounts_result from featureCounts as ncRNAseq_featureCounts_resul
 
 
 
+# ── ncRNAseq report (all branches) ───────────────────────────────────────
+ncRNAseq_report_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "env": config.get("env", {}),
+    "outdir": outdir,
+    "logdir": os.path.join(logdir, "sample"),
+    "samples": all_samples,
+    "paired_samples": paired_samples,
+    "single_samples": single_samples,
+    "aligner": aligner,
+    "sample_groups": config.get("sample_groups", {}),
+    "short_names": config.get("short_names", {}),
+    "Params": {
+        "report": config.get("Params", {}).get("report", {}),
+    },
+}
+module ncRNAseq_report:
+    snakefile: "../modules/ncRNAseq_report/ncRNAseq_report.smk"
+    config: ncRNAseq_report_config
+logger.info(f"ncRNAseq_report_config: {ncRNAseq_report_config}")
+use rule generate_report from ncRNAseq_report as ncRNAseq_generate_report
+use rule report_result from ncRNAseq_report as ncRNAseq_report_result
 

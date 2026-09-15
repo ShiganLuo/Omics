@@ -370,28 +370,38 @@ class ScanpyPlotter:
         ax_left.set_ylabel("variance ratio")
         ax_left.set_title("variance ratio")
 
-        # --- Right: per-PC delta curve ---
+        # --- Right: relative change rate + stability ---
         if has_diag:
-            delta = detect_diag["delta"]
+            delta = detect_diag["delta"]       # now relative change
             threshold = detect_diag["threshold"]
+            std_threshold = detect_diag.get("std_threshold", 0.03)
             elbow_pc = detect_diag["elbow_pc"]
+            wm_x = detect_diag.get("window_mean_x", np.array([]))
+            wm_y = detect_diag.get("window_mean_y", np.array([]))
+            ws_y = detect_diag.get("window_std_y", np.array([]))
 
-            delta_x = np.arange(2, len(delta) + 2)  # delta[i] = |vr[i+1]-vr[i]|, label as PC i+2
+            delta_x = np.arange(2, len(delta) + 2)
 
-            ax_right.plot(delta_x, delta, linewidth=1, c="steelblue",
-                          marker="o", markersize=3, label="|Δ variance ratio|")
-            ax_right.axhline(y=threshold, color="red", linestyle="--",
-                             alpha=0.7, label=f"threshold ({threshold:.4f})")
+            ax_right.plot(delta_x, delta * 100, linewidth=0.8, c="steelblue",
+                          alpha=0.5, label="relative change (%)")
+            if len(wm_x) > 0:
+                ax_right.plot(wm_x, wm_y * 100, linewidth=1.5, c="steelblue",
+                              marker="o", markersize=3,
+                              label=f"window median")
+            ax_right.axhline(y=threshold * 100, color="red", linestyle="--",
+                             alpha=0.7,
+                             label=f"rel threshold ({threshold*100:.0f}%)")
 
             # Mark elbow point
             if 2 <= elbow_pc <= len(delta) + 1:
-                ax_right.plot(elbow_pc, delta[elbow_pc - 2], "ro", markersize=8,
-                              zorder=5, label=f"elbow: PC{elbow_pc}")
+                ax_right.plot(elbow_pc, delta[elbow_pc - 2] * 100, "ro",
+                              markersize=8, zorder=5,
+                              label=f"elbow: PC{elbow_pc}")
 
             ax_right.set_xlabel("PC index")
-            ax_right.set_ylabel("|Δ variance ratio|")
-            ax_right.set_title("Per-PC Δ variance ratio")
-            ax_right.legend(fontsize=8)
+            ax_right.set_ylabel("relative change (%)")
+            ax_right.set_title("Per-PC relative change (plateau = low + stable)")
+            ax_right.legend(fontsize=7)
 
         fig.tight_layout()
         self._save("cluster_pca_variance_ratio.png")

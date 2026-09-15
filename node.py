@@ -807,7 +807,6 @@ def runncRNAseq(
         bam_subdir = "common/3_raw_bam"
     elif aligner == "star_3pass_gene":
         bam_subdir = "common/4_per_gene_bam"
-        outfiles.append(f"{outdir}/ncRNAseq_report.pptx")
     else:
         bam_subdir = "common/3_raw_bam"
     for sample_id, sample_info in samples_info_dict.items():
@@ -827,7 +826,8 @@ def runncRNAseq(
         raise ValueError(f"meta don't support multiple organsim temporarily, please check your meta file, found: {organisms}")
     for organism in organisms:
         try:
-            datajson["Params"]["track"]["default"] = resolve_genome(organism)
+            datajson["Params"]["track"]["igv"]["default"] = resolve_genome(organism)
+            datajson["genome"]["default"] = resolve_genome(organism)
         except Exception as e:
             logger.error(f"Failed to resolve genome for organism {organism}: {e}")
             raise ValueError(f"Failed to resolve genome for organism {organism}: {e}")
@@ -839,6 +839,8 @@ def runncRNAseq(
     all_samples = paired_samples + single_samples
     outfiles.append(f"{outdir}/tracks/igv_track.html")
     outfiles.append(f"{outdir}/tracks/ucsc_track.txt")
+    outfiles.append(f"{outdir}/ncRNAseq_report.pptx")
+    outfiles.append(f"{outdir}/ncRNAseq_report_files.xlsx")
     datajson["outfiles"] = outfiles
     datajson["Params"]["workflow"]["samples"] = all_samples
     datajson["Params"]["workflow"]["raw_files"] = raw_files

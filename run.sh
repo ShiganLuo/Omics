@@ -30,7 +30,7 @@ python ${SCRIPT_DIR}/run.py \
     -t 48 \
     --log /home/luosg/Data/genomeStability/log/ncRNAseq_Rn7sk.log \
     --Params.workflow.aligner star \
-    --sdm \
+    --sdm
 
 python ${SCRIPT_DIR}/run.py \
     -m /home/luosg/Data/genomeStability/data/20260820_RNAseq/meta_input.tsv \
@@ -39,7 +39,7 @@ python ${SCRIPT_DIR}/run.py \
     -t 48 \
     --log /home/luosg/Data/genomeStability/log/ncRNAseq_Hsd17b10.log \
     --Params.workflow.aligner star \
-    --sdm \
+    --sdm
 
 # python ${SCRIPT_DIR}/run.py \
 #     -m /data/pub/zhousha/20260207_Exome/data/tRNA/meta.tsv \

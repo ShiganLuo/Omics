@@ -5,6 +5,9 @@
     "samples": [],
     "paired_samples": [],
     "single_samples": [],
+    "aligner": "star_3pass_gene",
+    "sample_groups": {},
+    "short_names": {},
     "Params": {
         "report": {
             "title": "ncRNAseq Analysis Report",

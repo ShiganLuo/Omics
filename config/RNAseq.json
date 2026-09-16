@@ -28,7 +28,8 @@
         "star": "/data/pub/zhousha/Database/env/star/star.sif",
         "trim-galore": "/data/pub/zhousha/Database/env/trim-galore/trim-galore.sif",
         "trimmomatic": "/data/pub/zhousha/Database/env/trimmomatic/trimmomatic.sif",
-        "XenofilteR": "/data/pub/zhousha/Database/env/XenofilteR/XenofilteR.sif"
+        "XenofilteR": "/data/pub/zhousha/Database/env/XenofilteR/XenofilteR.sif",
+        "featureCounts": "/data/pub/zhousha/Database/env/featureCounts/featureCounts.sif"
     },
     "Procedure": {
         "TEcount": null,
@@ -38,7 +39,8 @@
         "hisat2_build": null,
         "samtools": null,
         "STAR": null,
-        "trimmomatic": null
+        "trimmomatic": null,
+        "featureCounts": null
     },
     "genome": {
         "default": "GRCm39",
@@ -123,7 +125,10 @@
         "STAR_SNP": {
             "twopassMode": "Basic",
             "outSAMattributes": "NM",
-            "outSAMtype":"BAM SortedByCoordinate"
+            "outSAMtype": "BAM SortedByCoordinate"
+        },
+        "STAR_featureCounts":{
+
         },
         "hisat2_TEtranscripts": {
             "score_min": "L,0,-0.2",
@@ -168,16 +173,28 @@
                     "control_group_name_vs_experimental_group_name": {
                         "control_group_name": "control_group_name",
                         "experimental_group_name": "experimental_group_name",
-                        "control_samples": ["sample1", "sample2"],
-                        "experimental_samples": ["sample3", "sample4"]
+                        "control_samples": [
+                            "sample1",
+                            "sample2"
+                        ],
+                        "experimental_samples": [
+                            "sample3",
+                            "sample4"
+                        ]
                     }
                 },
                 "GRCh38": {
                     "control_group_name_vs_experimental_group_name": {
                         "control_group_name": "control_group_name",
                         "experimental_group_name": "experimental_group_name",
-                        "control_samples": ["sample1", "sample2"],
-                        "experimental_samples": ["sample3", "sample4"]
+                        "control_samples": [
+                            "sample1",
+                            "sample2"
+                        ],
+                        "experimental_samples": [
+                            "sample3",
+                            "sample4"
+                        ]
                     }
                 }
             }
@@ -185,21 +202,34 @@
         "function": {
             "GRCh38": {
                 "enabled": true,
-                "species": "human",
-                "gmt": "/data/pub/zhousha/Totipotent20251031/workflow/Omics/assests/geneset/8C_human.gmt",
-                "lfc_cut": 1,
-                "p_cut": 0.05,
-                "top": 10
+                "go_kegg": {
+                    "lfc_cut": 1,
+                    "p_cut": 0.05,
+                    "top": 10,
+                    "species": "human"
+                },
+                "gsea": {
+                    "gmt": "/data/pub/zhousha/Totipotent20251031/workflow/Omics/assests/geneset/8C_human.gmt"
+                },
+                "gsva": {
+                    "gmt": "/data/pub/zhousha/Totipotent20251031/workflow/Omics/assests/geneset/GSI_huam.gmt"
+                }
             },
             "GRCm39": {
                 "enabled": true,
-                "species": "mouse",
-                "gmt": "/data/pub/zhousha/Totipotent20251031/workflow/Omics/assests/geneset/2C_mouse.gmt",
-                "lfc_cut": 1,
-                "p_cut": 0.05,
-                "top": 10
+                "go_kegg": {
+                    "lfc_cut": 1,
+                    "p_cut": 0.05,
+                    "top": 10,
+                    "species": "mouse"
+                },
+                "gsea": {
+                    "gmt": "/data/pub/zhousha/Totipotent20251031/workflow/Omics/assests/geneset/2C_mouse.gmt"
+                },
+                "gsva": {
+                    "gmt": "/data/pub/zhousha/Totipotent20251031/workflow/Omics/assests/geneset/GSI_mouse.gmt"
+                }
             }
-
         },
         "report": {
             "enabled": true,

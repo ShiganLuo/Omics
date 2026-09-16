@@ -716,9 +716,15 @@ def runRNAseq(
             outfiles.append(f"{outdir}/transcripts/{organism}/TE_chimeric/TE_chimeric_group_summary.tsv")
             outfiles.append(f"{outdir}/transcripts/{organism}/TE_chimeric/TE_chimeric_te_type_counts.tsv")
         if _te_enabled or _deseq2_enabled:
-            outfiles.append(f"{outdir}/counts/{organism}/TEcount/all_TEcount.tsv")
-            outfiles.append(f"{outdir}/counts/{organism}/TEcount/all_TEcount_name.tsv")
-            outfiles.append(f"{outdir}/counts/{organism}/TElocal/all_TElocal.tsv")
+            outfiles.append(f"{outdir}/counts/TEtranscripts/{organism}/{organism}_TEcount.tsv")
+            outfiles.append(f"{outdir}/counts/TEtranscripts/{organism}/{organism}_TEcount_name.tsv")
+            # outfiles.append(f"{outdir}/counts/TEtranscripts/{organism}/{organism}_TElocal.tsv")
+        # featureCounts quantification
+        outfiles.append(f"{outdir}/counts/featureCounts/{organism}/{organism}_featureCounts.tsv")
+        # GSVA enrichment analysis
+        if datajson.get("Params", {}).get("function", {}).get(organism, {}).get("enabled", False):
+            outfiles.append(f"{outdir}/function/{organism}/gsva/gsva_scores.tsv")
+            outfiles.append(f"{outdir}/function/{organism}/gsva/gsva_heatmap.png")
         if _report_enabled:
             outfiles.append(f"{outdir}/results/{organism}/RNAseq_report.pptx")
     datajson["raw_files"] = raw_files

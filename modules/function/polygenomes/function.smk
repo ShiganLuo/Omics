@@ -1,9 +1,15 @@
 include: "../../common/common.smk"
+
+from snakemake.logging import logger
 indir = config.get("indir", "output/diff_expression")
+counts_dir = config.get("counts_dir", "output/counts")
 outdir = config.get("outdir", "output/function")
 logdir = config.get("logdir", "logs")
 ROOT_DIR = config.get("ROOT_DIR", ".")
 group_pairs = config.get("group_pairs", {})
+genome = config.get("genome", {})
+
+func_params = config.get("Params", {}).get("function", {})
 
 rule function_go_kegg:
     input:
@@ -22,10 +28,10 @@ rule function_go_kegg:
     threads: 1
     params:
         go_kegg_script = ROOT_DIR + "/modules/function/bin/go-kegg.r",
-        species = lambda wildcards: config.get("Params", {}).get("function", {}).get(wildcards.genome, {}).get("species") or "mouse",
-        lfc_cut = lambda wildcards: config.get("Params", {}).get("function", {}).get(wildcards.genome, {}).get("lfc_cut") or 1,
-        p_cut = lambda wildcards: config.get("Params", {}).get("function", {}).get(wildcards.genome, {}).get("p_cut") or 0.05,
-        top = lambda wildcards: config.get("Params", {}).get("function", {}).get(wildcards.genome, {}).get("top") or 10,
+        species = lambda wildcards: config.get("Params", {}).get("function", {}).get(wildcards.genome, {}).get("go_kegg", {}).get("species") or "mouse",
+        lfc_cut = lambda wildcards: config.get("Params", {}).get("function", {}).get(wildcards.genome, {}).get("go_kegg", {}).get("lfc_cut") or 1,
+        p_cut = lambda wildcards: config.get("Params", {}).get("function", {}).get(wildcards.genome, {}).get("go_kegg", {}).get("p_cut") or 0.05,
+        top = lambda wildcards: config.get("Params", {}).get("function", {}).get(wildcards.genome, {}).get("go_kegg", {}).get("top") or 10,
     conda:
         "../function.yaml"
     container:
@@ -82,7 +88,7 @@ def get_input_for_function_gsea(wildcards):
     annotation = config.get('genome',{}).get('references', {}).get(wildcards.genome, {}).get('geneIDAnno')
     if not annotation or not os.path.exists(annotation):
         raise FileNotFoundError(f"Gene ID annotation not found for genome {wildcards.genome}.")
-    gmt = config.get("Params", {}).get("function", {}).get(wildcards.genome, {}).get("gmt")
+    gmt = config.get("Params", {}).get("function", {}).get(wildcards.genome, {}).get("gsea", {}).get("gmt")
     if not gmt or not os.path.exists(gmt):
         raise ValueError("GSEA requires a GMT file. Please set Params.function.gmt in config.")
     in_dict['deseq2_result'] = deseq2_result
@@ -147,6 +153,112 @@ rule function_gsea:
                 fh.write(f"GSEA analysis failed: {e}\n")
             logger.error(f"GSEA analysis failed: {e}")
             raise e
+
+
+def get_input_for_function_gsva(wildcards):
+    """Resolve inputs for function_gsva: featureCounts counts matrix + GMT file."""
+    logger.info(f"[get_input_for_function_gsva] called with wildcards: {wildcards}")
+    in_dict = {}
+    # featureCounts merged counts (PE + SE combined)
+    counts_file = counts_dir + f"/{wildcards.genome}/{wildcards.genome}_featureCounts.tsv"
+    in_dict['counts'] = counts_file
+    # GMT gene set file
+    gmt = config.get("Params", {}).get("function", {}).get(wildcards.genome, {}).get("gsva", {}).get("gmt")
+    if not gmt or not os.path.exists(gmt):
+        raise ValueError(
+            f"GSVA requires a GMT file. Set Params.function.{wildcards.genome}.gsva.gmt in config."
+        )
+    in_dict['gmt'] = gmt
+    # GTF for gene ID → gene name conversion
+    gtf = genome.get("references", {}).get(wildcards.genome, {}).get("gtf")
+    if not gtf:
+        raise ValueError(f"GTF not found for genome {wildcards.genome} in config.genome.references.")
+    in_dict['gtf'] = gtf
+    return in_dict
+
+
+rule function_gsva:
+    """GSVA enrichment analysis on featureCounts normalized expression.
+
+    Pipeline:
+    1. featureCounts raw counts → normalization.py (TPM) → normalized matrix
+    2. Normalized matrix + GMT → gsva.py → GSVA scores + heatmap
+
+    Inputs:
+        - counts: merged featureCounts output (PE + SE)
+        - GMT gene set file
+        - GTF annotation for gene ID conversion
+
+    Outputs:
+        - gsva_scores.tsv: enrichment score matrix (geneset × samples)
+        - gsva_heatmap.png: clustered heatmap of enrichment scores
+    """
+    input:
+        unpack(get_input_for_function_gsva)
+    output:
+        gsva_scores = outdir + "/{genome}/gsva/gsva_scores.tsv",
+        gsva_heatmap = outdir + "/{genome}/gsva/gsva_heatmap.png",
+    log:
+        logdir + "/function/{genome}/gsva.log"
+    threads: 1
+    params:
+        norm_script = ROOT_DIR + "/modules/function/bin/normalization.py",
+        gsva_script = ROOT_DIR + "/modules/function/bin/gsva.py",
+        species = lambda wildcards: config.get("Params", {}).get("function", {}).get(wildcards.genome, {}).get("go_kegg", {}).get("species") or "mouse",
+    conda:
+        "../function.yaml"
+    container:
+        sif("../function.yaml")
+    run:
+        log_path = str(log)
+        try:
+            open(log_path, 'w').close()
+            rule_logger = setup_logger("function_gsva", log_file=log_path)
+            current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+            rule_logger.info(f"Start GSVA analysis at {current_time}")
+
+            gsva_outdir = os.path.dirname(str(output.gsva_scores))
+            os.makedirs(gsva_outdir, exist_ok=True)
+
+            # Step 1: Normalize featureCounts → TPM matrix
+            tpm_matrix = os.path.join(gsva_outdir, "expression_tpm.tsv")
+            norm_cmd = [
+                "python", params.norm_script,
+                "-i", input.counts,
+                "-o", tpm_matrix,
+                "--method", "tpm",
+                "--gtf", input.gtf,
+                "--convert-gene-name",
+            ]
+            script1 = os.path.join(gsva_outdir, f"normalize_{current_time}.sh")
+            with open(script1, 'w') as f:
+                f.write("#!/bin/bash\nset -e\nset -o pipefail\n")
+                f.write(" ".join(norm_cmd) + "\n")
+            shell(f"bash {script1} >> {log_path} 2>&1")
+            rule_logger.info(f"Normalization completed → {tpm_matrix}")
+
+            # Step 2: Run GSVA on normalized matrix
+            species_name = params.species
+            gsva_cmd = [
+                "python", params.gsva_script,
+                "-i", tpm_matrix,
+                "-g", input.gmt,
+                "-o", gsva_outdir,
+                "--title", f"GSVA ({species_name}) - {wildcards.genome}",
+            ]
+            script2 = os.path.join(gsva_outdir, f"gsva_{current_time}.sh")
+            with open(script2, 'w') as f:
+                f.write("#!/bin/bash\nset -e\nset -o pipefail\n")
+                f.write(" ".join(gsva_cmd) + "\n")
+            shell(f"bash {script2} >> {log_path} 2>&1")
+            rule_logger.info(f"GSVA analysis completed at {time.strftime('%Y%m%d_%H%M%S', time.localtime())}")
+
+        except Exception as e:
+            with open(log_path, "a") as fh:
+                fh.write(f"GSVA analysis failed: {e}\n")
+            logger.error(f"GSVA analysis failed: {e}")
+            raise e
+
 
 rule function_result:
     input:

@@ -2,6 +2,18 @@
     "indir": "input",
     "outdir": "output",
     "logdir": "logs",
+    "ROOT_DIR": "/path/to/workflow/Omics",
+    "genome_paired_samples": {
+        "GRCm39": [],
+        "GRCh38": []
+    },
+    "genome_single_samples": {
+        "GRCm39": [],
+        "GRCh38": []
+    },
+    "Procedure": {
+        "featureCounts": "featureCounts"
+    },
     "genome": {
         "GRCm39": {
             "gtf": "path/to/annotation.gtf"

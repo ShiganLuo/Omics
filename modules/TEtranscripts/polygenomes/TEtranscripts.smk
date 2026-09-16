@@ -26,10 +26,10 @@ rule TEcount:
     input:
         unpack(get_input_for_TEcount)
     output:
-        project = outdir + "/{genome}/TEcount/{sample_id}.TEcount.cntTable"
+        project = outdir + "/{genome}/{sample_id}/{sample_id}.TEcount.cntTable"
     params:
         project = "{sample_id}.TEcount",
-        outdir = outdir + "/{genome}/TEcount",
+        outdir = outdir + "/{genome}/{sample_id}",
         TEcount = config.get('Procedure',{}).get('TEcount') or 'TEcount'
     log:
         logdir + "/{sample_id}/{genome}/TEcount.log"
@@ -73,7 +73,7 @@ def get_input_for_combine_TEcount(wildcards):
     logger.info(f"[get_input_for_combine_TEcount] called with wildcards: {wildcards}")
     cntTables = []
     for sample_id in genome_samples.get(wildcards.genome, []):
-        cntTables.append(f"{outdir}/{wildcards.genome}/TEcount/{sample_id}.TEcount.cntTable")
+        cntTables.append(f"{outdir}/{wildcards.genome}/{sample_id}/{sample_id}.TEcount.cntTable")
     if len(cntTables) == 0:
         raise ValueError(f"rule combine_TEcount didn't get any input files,samples:{genome_samples.get(wildcards.genome, [])}")
     gtf = config.get('genome', {}).get('references', {}).get(wildcards.genome, {}).get('gtf')
@@ -89,8 +89,8 @@ rule combine_TEcount:
     input:
         unpack(get_input_for_combine_TEcount)
     output:
-        outfile_raw = outdir + "/{genome}/TEcount/all_TEcount.tsv",
-        outfile_annotate = outdir + "/{genome}/TEcount/all_TEcount_name.tsv",
+        outfile_raw = outdir + "/{genome}/{genome}_TEcount.tsv",
+        outfile_annotate = outdir + "/{genome}/{genome}_TEcount_name.tsv",
     conda:
         "../TEtranscripts.yaml"
     container:
@@ -98,7 +98,7 @@ rule combine_TEcount:
     params:
         combineTE = ROOT_DIR + "/modules/TEtranscripts/bin/combineTE.py",
         geneId2Name = ROOT_DIR +"/modules/TEtranscripts/bin/geneId2Name.py",
-        indir = outdir + "/{genome}/TEcount"
+        indir = outdir + "/{genome}"
     log:
         logdir_combine + "/TEtranscripts/{genome}/combine_TEcount.log"
     run:
@@ -154,7 +154,7 @@ rule TElocal:
     input:
         unpack(get_input_for_TElocal)
     output:
-        project = outdir + "/{genome}/TElocal/{sample_id}.TElocal.cntTable"
+        project = outdir + "/{genome}/{sample_id}/{sample_id}.TElocal.cntTable"
     log:
         logdir + "/{sample_id}/{genome}/TElocal.log"
     params:
@@ -186,12 +186,11 @@ rule TElocal:
                 "mv", f"{params.project}.cntTable", output.project
             ]
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
-                f.write("set -euo pipefail\n")
+                f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd1) + "\n")
                 f.write(" ".join(cmd2) + "\n")
                 f.write(f"echo 'TElocal completed for sample {wildcards.sample_id} at {current_time}'\n")
-            shell(f"bash {script} > {log_path} 2>&1")
+            shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path, "a") as f:
                 f.write(f"Error occurred during TElocal for sample {wildcards.sample_id}: {e}\n")
@@ -200,18 +199,18 @@ rule TElocal:
 
 def get_input_for_combine_TElocal(wildcards):
     logger.info(f"[get_input_for_combine_TElocal] called with wildcards: {wildcards}")
-    cntTable = []
+    cntTables = []
     for sample_id in genome_samples.get(wildcards.genome, []):
-        cntTable.append(f"{outdir}/{wildcards.genome}/TElocal/{sample_id}.TElocal.cntTable")
-    if len(cntTable) == 0:
+        cntTables.append(f"{outdir}/{wildcards.genome}/{sample_id}/{sample_id}.TElocal.cntTable")
+    if len(cntTables) == 0:
         raise ValueError(f"rule combine_TElocal didn't get any input files,samples:{genome_samples.get(wildcards.genome, [])}")
-    return cntTable
+    return cntTables
 
 rule combine_TElocal:
     input:
         fileList = get_input_for_combine_TElocal
     output:
-        outfile = outdir + "/{genome}/TElocal/all_TElocal.tsv"
+        outfile = outdir + "/{genome}/{genome}_TElocal.tsv"
     conda:
         "../TEtranscripts.yaml"
     container:
@@ -229,9 +228,16 @@ rule combine_TElocal:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start combine_TElocal at {current_time}")
             script = os.path.join(params.indir, f"combine_TElocal_{current_time}.sh")
+            cmd = [
+                "python", str(params.combineTE),
+                "-p", "TElocal",
+                "-i", str(params.indir),
+                "-o", str(output.outfile)
+            ]
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
-                f.write(f"python {params.combineTE} -p TElocal -i {params.indir} -o {output.outfile}\n")
+                f.write("#!/bin/bash\nset -euo pipefail\n")
+                f.write(" ".join(cmd) + "\n")
+                f.write(f"echo 'combine_TElocal for {wildcards.genome} completed at {current_time}'\n")
             shell(f"bash {script} > {log_path} 2>&1")
         except Exception as e:
             with open(log_path, "a") as f:
@@ -241,5 +247,5 @@ rule combine_TElocal:
 
 rule TEtranscripts_result:
     input:
-        TEcount = outdir + "/{genome}/TEcount/all_TEcount.tsv",
-        TElocal = outdir + "/{genome}/TElocal/all_TElocal.tsv"
+        TEcount = outdir + "/{genome}/{genome}_TEcount.tsv",
+        TElocal = outdir + "/{genome}/{genome}_TElocal.tsv"

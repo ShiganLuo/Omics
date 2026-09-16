@@ -3,6 +3,7 @@ include: "../../common/common.smk"
 import logging
 import time
 outdir = config.get("outdir", "output")
+index_dir = config.get("index_dir",outdir)
 logdir = config.get("logdir", "log")
 logdir_index = config.get("logdir_index", logdir)
 log_index_substring = config.get("log_index_substring", "star_index")
@@ -89,7 +90,7 @@ def get_star_index(wildcards):
         logger.info(f"[get_star_index] using provided index_dir for genome {wildcards.genome}: {config_index_dir}")
         return config_index_dir
     logger.info(f"[get_star_index] using default index_dir for genome {wildcards.genome}")
-    return outdir + f"/index/{wildcards.genome}"
+    return index_dir + f"/index/{wildcards.genome}"
 
 def get_alignment_input(wildcards):
     """

@@ -34,6 +34,23 @@ rule all:
     input:
         outfiles
 trimmed_fastq_dir = f"{outdir}/common/2_trimmed_fastq"
+
+star_config_for_index = {
+        "ROOT_DIR": ROOT_DIR,
+        "outdir":  f"{outdir}/genome",
+        "logdir_index": os.path.join(logdir,"group"),
+        "env": config.get("env", {}),
+        "Procedure": {
+            "star": config.get('Procedure',{}).get('star')
+        },
+        "genome": config.get('genome',{})
+    }
+module star_for_index:
+    snakefile: "../modules/star/polygenomes/star.smk"
+    config: star_config_for_index
+logger.info(f"star_config: {star_config_for_index}")
+use rule star_index from star_for_index as RNAseq_star_index
+
 if trimmer == "cutadapt":
     trimmed_fastq_dir = f"{outdir}/common/2_trimmed_fastq"
     cutadapt_config = {
@@ -98,8 +115,9 @@ else:
 
 if aligner_TEtranscripts == 'hisat2':
     hisat2_config_for_TEtranscripts = {
+            "ROOT_DIR": ROOT_DIR,
             "indir": trimmed_fastq_dir,
-            "outdir":  f"{outdir}/common/3_raw_bam",
+            "outdir":  f"{outdir}/common/3_TEtranscripts_bam",
             "env": config.get("env", {}),
             "logdir": os.path.join(logdir,"sample"),
             "logdir_combine": os.path.join(logdir,"group"),
@@ -126,11 +144,13 @@ if aligner_TEtranscripts == 'hisat2':
 
 elif aligner_TEtranscripts == 'star':
     star_config_for_TEtranscripts = {
+            "ROOT_DIR": ROOT_DIR,
             "indir": trimmed_fastq_dir,
-            "outdir":  f"{outdir}/common/3_raw_bam",
+            "outdir":  f"{outdir}/common/3_TEtranscripts_bam",
             "logdir": os.path.join(logdir,"sample"),
             "logdir_index": os.path.join(logdir,"group"),
             "isGenomeSubdir": False,
+            "index_dir": star_config_for_index["outdir"],
             "genome_paired_samples": genome_paired_samples,
             "genome_single_samples": genome_single_samples,
             "env": config.get("env", {}),
@@ -151,7 +171,6 @@ elif aligner_TEtranscripts == 'star':
         config: star_config_for_TEtranscripts
     logger.info(f"star_config: {star_config_for_TEtranscripts}")
     use rule star_align from star_for_TEtranscripts as RNAseq_star_align_for_TEtranscripts
-    use rule star_index from star_for_TEtranscripts as RNAseq_star_index_for_TEtranscripts
 else:
     raise ValueError(f"Unsupported aligner_TEtranscripts: {aligner_TEtranscripts}")
 
@@ -159,7 +178,7 @@ else:
 ### gene and TE expression quantification using TEtranscripts
 TEtranscripts_config = {
         "indir": star_config_for_TEtranscripts["outdir"] if aligner_TEtranscripts == 'star' else hisat2_config_for_TEtranscripts["outdir"],
-        "outdir":  f"{outdir}/counts",
+        "outdir":  f"{outdir}/counts/TEtranscripts",
         "logdir": os.path.join(logdir,"sample"),
         "logdir_combine": os.path.join(logdir,"group"),
         "genome_samples": genome_samples,
@@ -177,6 +196,54 @@ module TEtranscripts:
     config: TEtranscripts_config
 logger.info(f"TEtranscripts_config: {TEtranscripts_config}")
 use rule * from TEtranscripts as RNAseq_*
+
+star_config_for_featureCounts = {
+        "ROOT_DIR": ROOT_DIR,
+        "indir": trimmed_fastq_dir,
+        "outdir":  f"{outdir}/common/11_featureCounts_bam",
+        "logdir": os.path.join(logdir,"sample"),
+        "logdir_index": os.path.join(logdir,"group"),
+        "isGenomeSubdir": False,
+        "index_dir": star_config_for_index["outdir"],
+        "genome_paired_samples": genome_paired_samples,
+        "genome_single_samples": genome_single_samples,
+        "env": config.get("env", {}),
+        "Procedure": {
+            "star": config.get('Procedure',{}).get('star')
+        },
+        "Params": {
+            "star": config.get("Params",{}).get("STAR_featureCounts", {})
+        },
+        "genome": config.get('genome',{})
+    }
+module star_for_featureCounts:
+    snakefile: "../modules/star/polygenomes/star.smk"
+    config: star_config_for_featureCounts
+logger.info(f"star_config: {star_config_for_featureCounts}")
+use rule star_align from star_for_featureCounts as RNAseq_star_align_for_featureCounts
+
+### gene expression quantification using featureCounts (for GSVA downstream)
+featureCounts_config = {
+    "indir": star_config_for_featureCounts["outdir"],
+    "outdir": f"{outdir}/counts/featureCounts",
+    "logdir": os.path.join(logdir, "group"),
+    "genome_paired_samples": genome_paired_samples,
+    "genome_single_samples": genome_single_samples,
+    "ROOT_DIR": ROOT_DIR,
+    "env": config.get("env", {}),
+    "Procedure": {
+        "featureCounts": config.get('Procedure', {}).get('featureCounts') or 'featureCounts'
+    },
+    "genome": config.get('genome', {})
+}
+module featureCounts:
+    snakefile: "../modules/featureCounts/polygenomes/featureCounts.smk"
+    config: featureCounts_config
+logger.info(f"featureCounts_config: {featureCounts_config}")
+use rule featureCounts_paired_noMultiple from featureCounts as RNAseq_featureCounts_paired
+use rule featureCounts_single_noMultiple from featureCounts as RNAseq_featureCounts_single
+use rule featureCounts_merge from featureCounts as RNAseq_featureCounts_merge
+use rule featureCounts_result from featureCounts as RNAseq_featureCounts_result
 
 ### differential expression analysis using DESeq2
 DESeq2_config = {
@@ -202,6 +269,7 @@ function_config = {
     "ROOT_DIR": ROOT_DIR,
     "env": config.get("env", {}),
     "indir": DESeq2_config["outdir"],
+    "counts_dir": featureCounts_config["outdir"],
     "outdir": f"{outdir}/function",
     "logdir": os.path.join(logdir,"group"),
     "group_pairs": config.get("Params", {}).get("DESeq2", {}).get("group_pairs"),
@@ -216,10 +284,12 @@ module function:
 logger.info(f"function_config: {function_config}")
 use rule function_go_kegg from function as RNAseq_function_go_kegg
 use rule function_gsea from function as RNAseq_function_gsea
+use rule function_gsva from function as RNAseq_function_gsva
 
 ### transcript assembly using StringTie
 
 hisat2_config_for_StringTie = {
+    "ROOT_DIR": ROOT_DIR,
     "indir": trimmed_fastq_dir,
     "outdir":  f"{outdir}/common/4_stringtie_bam",
     "env": config.get("env", {}),
@@ -313,11 +383,13 @@ module bowtie2_for_rRNA:
 use rule * from bowtie2_for_rRNA as RNAseq_rRNA_*
 
 star_config_for_fusion = {
+    "ROOT_DIR": ROOT_DIR,
     "indir": bowtie2_rRNA_config["outdir"],
     "outdir":  f"{outdir}/common/6_fusion_bam",
     "logdir": os.path.join(logdir,"sample"),
     "env": config.get("env", {}),
     "isGenomeSubdir": True,
+    "index_dir": star_config_for_index["outdir"],
     "genome_paired_samples": genome_paired_samples,
     "genome_single_samples": genome_single_samples,
     "fastq_sample_suffix": "unmapped",
@@ -400,11 +472,13 @@ logger.info(f"arriba_config: {arriba_config}")
 
 
 star_config_for_SNP = {
+        "ROOT_DIR": ROOT_DIR,
         "indir": trimmed_fastq_dir,
-        "outdir":  f"{outdir}/common/8_raw_bam",
+        "outdir":  f"{outdir}/common/8_SNP_bam",
         "logdir": os.path.join(logdir,"sample"),
         "logdir_index": os.path.join(logdir,"group"),
         "isGenomeSubdir": False,
+        "index_dir": star_config_for_index["outdir"],
         "genome_paired_samples": genome_paired_samples_mixed,
         "genome_single_samples": genome_single_samples_mixed,
         "env": config.get("env", {}),
@@ -419,7 +493,6 @@ module star_for_SNP:
     config: star_config_for_SNP
 logger.info(f"star_config: {star_config_for_SNP}")
 use rule star_align from star_for_SNP as RNAseq_star_align_for_SNP
-use rule star_index from star_for_SNP as RNAseq_star_index_for_SNP
 
 ### RNA SNP calling using GATK
 XenofilteR_config = {

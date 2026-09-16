@@ -17,3 +17,5 @@ dependencies:
   - r-stringr
   - r-data.table
   - r-patchwork
+  - scipy>=1.10
+  - matplotlib>=3.5

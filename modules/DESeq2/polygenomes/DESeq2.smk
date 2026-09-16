@@ -9,7 +9,7 @@ def get_input_for_DESeq2_TEcount(wildcards):
     """Dynamically determines the input count matrix for DESeq2 TEcount based on the contrast."""
     logger.info(f"[get_input_for_DESeq2_TEcount] called with wildcards: {wildcards}")
     in_dict = {}
-    count_matrix = indir + "/{genome}/TEcount/all_TEcount.tsv"
+    count_matrix = indir + "/{genome}/{genome}_TEcount.tsv"
     geneIDAnno = config.get('genome',{}).get('references', {}).get(wildcards.genome, {}).get('geneIDAnno')
     gtf = config.get('genome',{}).get('references', {}).get(wildcards.genome, {}).get('gtf')
     if not gtf or not os.path.exists(gtf):

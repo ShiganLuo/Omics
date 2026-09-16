@@ -7,39 +7,33 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # --sdm apptainer \
 # --singularity-args '--bind /home/luosg/Database,/home/luosg/Data/genomeStability,/tmp'
 
+python ${SCRIPT_DIR}/run.py \
+    -m /data/pub/zhousha/Totipotent20251031/data/Totipotency/meat_input.tsv \
+    -w RNAseq \
+    -o /data/pub/zhousha/Totipotent20251031/output/pluripotency2totipotency \
+    -t 48 \
+    --log /data/pub/zhousha/Totipotent20251031/log/Totipotency_RNAseq.log \
+    --sdm \
+    --rerun-triggers mtime \
+    --forcerun function_gsva
+
 # python ${SCRIPT_DIR}/run.py \
-#     -m /home/luosg/Data/genomeStability/data/EED_public/meta_input.tsv \
-#     -w RNAseq \
-#     -o /home/luosg/Data/genomeStability/output/EED \
+#     -m /home/luosg/Data/genomeStability/data/Rn7sk/meta_input.tsv \
+#     -w ncRNAseq \
+#     -o /home/luosg/Data/genomeStability/output/Rn7sk \
 #     -t 48 \
-#     --log /home/luosg/Data/genomeStability/log/EED_RNAseq.log \
-#     --sdm \
-#     --rerun-triggers mtime \
-#     --Params.StringTie.enabled false \
-#     --Params.gatk_RNAseq.enabled false \
-#     --Params.arriba.enabled false \
-#     --Params.DESeq2.enabled false \
-#     --Params.function.GRCh38.enabled false \
-#     --Params.function.GRCm39.enabled false \
-#     --Params.report.enabled false
+#     --log /home/luosg/Data/genomeStability/log/ncRNAseq_Rn7sk.log \
+#     --Params.workflow.aligner star \
+#     --sdm
 
-python ${SCRIPT_DIR}/run.py \
-    -m /home/luosg/Data/genomeStability/data/Rn7sk/meta_input.tsv \
-    -w ncRNAseq \
-    -o /home/luosg/Data/genomeStability/output/Rn7sk \
-    -t 48 \
-    --log /home/luosg/Data/genomeStability/log/ncRNAseq_Rn7sk.log \
-    --Params.workflow.aligner star \
-    --sdm
-
-python ${SCRIPT_DIR}/run.py \
-    -m /home/luosg/Data/genomeStability/data/20260820_RNAseq/meta_input.tsv \
-    -w ncRNAseq \
-    -o /home/luosg/Data/genomeStability/output/Hsd17b10 \
-    -t 48 \
-    --log /home/luosg/Data/genomeStability/log/ncRNAseq_Hsd17b10.log \
-    --Params.workflow.aligner star \
-    --sdm
+# python ${SCRIPT_DIR}/run.py \
+#     -m /home/luosg/Data/genomeStability/data/20260820_RNAseq/meta_input.tsv \
+#     -w ncRNAseq \
+#     -o /home/luosg/Data/genomeStability/output/Hsd17b10 \
+#     -t 48 \
+#     --log /home/luosg/Data/genomeStability/log/ncRNAseq_Hsd17b10.log \
+#     --Params.workflow.aligner star \
+#     --sdm
 
 # python ${SCRIPT_DIR}/run.py \
 #     -m /data/pub/zhousha/20260207_Exome/data/tRNA/meta.tsv \

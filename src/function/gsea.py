@@ -127,55 +127,12 @@ def plot_gsea_from_csv(
     return color_map
 
 if __name__ == "__main__":
-    # run_gsva(
-    #     count_matrix= "/home/luosg/Data/genomeStability/output/result/matrix/log2tpm229.tsv",
-    #     gmt_pathway= "/home/luosg/Data/genomeStability/data/final.gmt",
-    #     outdir= "/home/luosg/Data/genomeStability/output/result/gsva230"
-    # )
+    run_gsva(
+        count_matrix= "/home/luosg/Data/genomeStability/output/result/matrix/log2tpm229.tsv",
+        gmt_pathway= "/home/luosg/Data/genomeStability/data/final.gmt",
+        outdir= "/home/luosg/Data/genomeStability/output/result/gsva230"
+    )
     ################ gsea preprank
-    infiles = {
-        "ci8CLC": "/disk5/luosg/Totipotent20251031/Totipotent/result/ci8CLC/DESeq2/TEcount_Gene_name.tsv",
-        "hTBLC": "/disk5/luosg/Totipotent20251031/Totipotent/result/hTBLC/DESeq2/TEcount_Gene_name.tsv",
-        "TLSC": "/disk5/luosg/Totipotent20251031/Totipotent/result/TLSC/DESeq2/TEcount_Gene_name.tsv",
-        "ciTotiSC": "/disk5/luosg/Totipotent20251031/Totipotent/result/ciTotiSC/DESeq2/TEcount_Gene_name.tsv"
-    }
-    human_cell = ["ci8CLC","hTBLC"]
-    mouse_cell = ["TLSC","ciTotiSC"]
-    for cell,infile in infiles.items():
-        df = pd.read_csv(infile,sep="\t",index_col=0)
-        geneRank = df["log2FoldChange"]
-        outdir = Path(infile).parent.parent / "gsea"
-        # if cell in human_cell:
-        #     gsea_results = run_gsea(geneRank,
-        #                             "/disk5/luosg/Totipotent20251031/data/geneset/GSI_human.gmt",
-        #                             str(outdir))
-        # elif cell in mouse_cell:
-        #     gsea_results = run_gsea(geneRank,
-        #                 "/disk5/luosg/Totipotent20251031/data/geneset/GSI_mouse.gmt",
-        #                 str(outdir))
-        # else:
-        #     raise ValueError("not support cell")
-        report = outdir / "gseapy.gene_set.prerank.report.csv"
-        rnk = outdir / "prerank_data.rnk"
-        df_gsea = pd.read_csv(str(report))
-        df_rnk = pd.read_csv(str(rnk),header=None,sep="\t")
-        geneRnk = df_rnk[0].to_list()
-        outfile = outdir / f"{Path(infile).parent.parent.name}.png"
 
-        if cell == "ci8CLC":
-            color_map = plot_gsea_from_csv(report,
-                            geneRnk,outfile,
-                            fig_size=(12,8),
-                            title_font=15,
-                            label_font=12,
-                            legend_bottom= -0.22)
-        
-   
-    ########## multiple curve plot
-    # df_gsea = pd.read_csv("/home/luosg/Data/genomeStability/output/result/gsea/gseapy.gene_set.prerank.report.csv")
-    # df_rnk = pd.read_csv("/home/luosg/Data/genomeStability/output/result/gsea/prerank_data.rnk",header=None,sep="\t")
-    # geneRnk = df_rnk[0].to_list()
-    # plot_gsea_from_csv("/home/luosg/Data/genomeStability/output/result/gsea/gseapy.gene_set.prerank.report.csv",
-    #                    geneRnk,"/home/luosg/Data/genomeStability/output/result/gsea/all.png",5)
 
     

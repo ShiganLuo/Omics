@@ -1,13 +1,18 @@
 {
   "indir": "output/diff_expression",
+  "counts_dir": "output/counts",
   "outdir": "output/function",
   "logdir": "logs",
+  "ROOT_DIR": "/path/to/workflow/Omics",
+  "group_pairs": {},
   "genome": {
     "GRCm39": {
-      "geneIDAnno": "path/to/geneIDAnnotation.csv"
+      "geneIDAnno": "path/to/geneIDAnnotation.csv",
+      "gtf": "path/to/annotation.gtf"
     },
     "GRCh38": {
-      "geneIDAnno": "path/to/geneIDAnnotation.csv"
+      "geneIDAnno": "path/to/geneIDAnnotation.csv",
+      "gtf": "path/to/annotation.gtf"
     }
   },
   "Params": {
@@ -15,18 +20,34 @@
       "GRCm39": {
         "enabled": true,
         "species": "mouse",
-        "gmt": null,
-        "lfc_cut": 1,
-        "p_cut": 0.05,
-        "top": 10
+        "go_kegg": {
+          "lfc_cut": 1,
+          "p_cut": 0.05,
+          "top": 10,
+          "species": "mouse"
+        },
+        "gsea": {
+          "gmt": null
+        },
+        "gsva": {
+          "gmt": null
+        }
       },
       "GRCh38": {
         "enabled": true,
         "species": "human",
-        "gmt": null,
-        "lfc_cut": 1,
-        "p_cut": 0.05,
-        "top": 10
+        "go_kegg": {
+          "lfc_cut": 1,
+          "p_cut": 0.05,
+          "top": 10,
+          "species": "human"
+        },
+        "gsea": {
+          "gmt": null
+        },
+        "gsva": {
+          "gmt": null
+        }
       }
     },
     "DESeq2": {

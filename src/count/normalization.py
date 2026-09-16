@@ -18,7 +18,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 class RNASeqNormalizer:
-    def __init__(self, gtf_path=None):
+    def __init__(self, gtf_path=None, gene_id_col:str="Geneid"):
         """
         Initialize the RNASeqNormalizer.
 
@@ -28,6 +28,7 @@ class RNASeqNormalizer:
             Path to the GTF annotation file. rename gene_id to gene_name if provided. If not provided, gene_id will be used as is.
         """
         self.gtf_path = gtf_path
+        self.gene_id_col = gene_id_col
 
     @staticmethod
     def compute_cpm(counts_df: pd.DataFrame, length: str = "Length"):
@@ -123,11 +124,12 @@ class RNASeqNormalizer:
         pd.DataFrame
             Normalized matrix or count matrix
         """
+        gene_id_col = self.gene_id_col
         logger.info(f"Starting normalization using method: {method},convert_to_gene_name: {convert_to_gene_name}, remove_version: {remove_version}")
         target_gtf = gtf or self.gtf_path
         df_counts = pd.read_csv(infile, sep="\t", comment='#')
         df_counts.drop(columns=['Chr', 'Start', 'End', 'Strand'], inplace=True, errors='ignore')
-        df_counts = df_counts.set_index('Geneid')
+        df_counts = df_counts.set_index(gene_id_col)
         df_counts.columns = [self.extract_sample_name(c) for c in df_counts.columns]
         
         if method == "cpm":
@@ -147,27 +149,28 @@ class RNASeqNormalizer:
             df = convert_featurecounts_gene_ids(df, target_gtf)
         else:
             if remove_version:
-                df['Geneid'] = df['Geneid'].apply(lambda x: x.split('.')[0])
+                df[gene_id_col] = df[gene_id_col].apply(lambda x: x.split('.')[0])
         
         return df
 
     def combine_PE_SE(self, PE: str, SE: str):
+        gene_id_col = self.gene_id_col
         df_PE = pd.read_csv(PE, sep="\t", comment='#')
         df_PE.columns = [self.extract_sample_name(c) for c in df_PE.columns]
         df_SE = pd.read_csv(SE, sep="\t", comment='#')
         df_SE.drop(columns=['Chr', 'Start', 'End', 'Strand', 'Length'], inplace=True)
         df_SE.columns = [self.extract_sample_name(c) for c in df_SE.columns]
-        return pd.merge(df_PE, df_SE, on="Geneid")
+        return pd.merge(df_PE, df_SE, on=gene_id_col)
 
 if __name__ == "__main__":
-    gtf = "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf"
-    normalizer = RNASeqNormalizer(gtf_path=gtf)
+    gtf = "/data/pub/zhousha/Database/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf"
+    normalizer = RNASeqNormalizer(gtf_path=gtf,gene_id_col = "gene_name")
     
     tpm = normalizer.run_norm(
-        "/data/pub/zhousha/20260207_Exome/output/RNAseq/counts/featureCounts/mouse/mouse_paired_count.tsv",
+        "/data/pub/zhousha/Totipotent20251031/output/pluripotency2totipotency/RNAseq/diff_expression/GRCh38/hESC_vs_hTBLC/hESC_vs_hTBLC.TEcount_Gene.name.tsv",
         method="tpm",
         convert_to_gene_name=False,
-        remove_version=True
+        remove_version=False
     )
-    tpm.to_csv("/data/pub/zhousha/20260207_Exome/output/RNAseq/counts/featureCounts/mouse/mouse_all_tpm.tsv", sep="\t", index=False)
+    tpm.to_csv("/data/pub/zhousha/Totipotent20251031/output/pluripotency2totipotency/RNAseq/diff_expression/GRCh38/hESC_vs_hTBLC/hESC_vs_hTBLC.TEcount_Gene.name.tpm.tsv", sep="\t", index=False)
     # df = pd.read_csv("/data/pub/zhousha/Totipotent20251031/RNAseqML/matrix/mouse_all_tpm.tsv", sep="\t", index_col=0)

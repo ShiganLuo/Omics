@@ -1575,9 +1575,39 @@ def _check_cell_type_separation(
             "n_cells": cluster_sizes[cluster],
         })
 
+    # Compute global QC medians for subpopulation-vs-artifact discrimination.
+    # A small separated cluster with HIGH QC (high counts/genes) is more likely
+    # a real biological subpopulation (e.g. oocyte, mural granulosa, proliferating
+    # subset) than an over-clustering artifact. The previous logic treated any
+    # high-Jaccard separation as over-clustering and forced a resolution drop,
+    # which flattened genuine heterogeneity (see ovaries_scTE_auto_bed1b16_v2
+    # where Granulosa_cell was merged into 1 cluster despite 3 QC-distinct sub-clusters).
+    global_total_counts_med = None
+    global_n_genes_med = None
+    if "total_counts" in obs.columns and obs["total_counts"].notna().any():
+        global_total_counts_med = float(obs["total_counts"].median())
+    if "n_genes_by_counts" in obs.columns and obs["n_genes_by_counts"].notna().any():
+        global_n_genes_med = float(obs["n_genes_by_counts"].median())
+
+    def _qc_high(mask: pd.Series) -> bool:
+        """True if cluster has both counts and genes ≥ global median.
+
+        Used as evidence that a small separated cluster is a real subpopulation
+        (e.g. large oocyte, mural granulosa with high RNA content) rather than
+        a low-quality artifact that should be merged by lowering resolution.
+        """
+        if global_total_counts_med is None or global_n_genes_med is None:
+            return False
+        sub = obs.loc[mask]
+        if sub["total_counts"].median() >= global_total_counts_med and \
+           sub["n_genes_by_counts"].median() >= global_n_genes_med:
+            return True
+        return False
+
     # Step 3: Check separation for each cell type with multiple clusters
     separated_types = []  # over-clustering (high marker overlap)
     misannotated = []     # annotation error (low marker overlap)
+    real_subpopulations: List[Dict] = []  # QC-supported sub-clusters kept despite separation
     cluster_distances = {}
 
     for ct, clusters_info in type_to_clusters.items():
@@ -1607,6 +1637,21 @@ def _check_cell_type_separation(
             "pairs": pair_info,
         }
 
+        # Even when max_dist ≤ threshold, check QC to record high-quality sub-clusters
+        # as real_subpopulations — they don't trigger re-clustering but are kept
+        # in the diagnostic log so downstream merging decisions are informed.
+        for ci in clusters_info:
+            mask = obs[cluster_key] == ci["cluster"]
+            if _qc_high(mask):
+                real_subpopulations.append({
+                    "cell_type": ct,
+                    "cluster": ci["cluster"],
+                    "n_cells": ci["n_cells"],
+                    "median_counts": float(obs.loc[mask, "total_counts"].median()),
+                    "median_genes": float(obs.loc[mask, "n_genes_by_counts"].median()),
+                    "reason": "high_qc_subpopulation",
+                })
+
         if max_dist > distance_threshold:
             # Compare marker overlap between the most distant clusters
             # to distinguish over-clustering from annotation error
@@ -1627,14 +1672,35 @@ def _check_cell_type_separation(
                 avg_jaccard = sum(jaccards) / len(jaccards) if jaccards else 0.0
 
                 if avg_jaccard > 0.3:
-                    # High marker overlap → genuine over-clustering
-                    separated_types.append({
-                        "cell_type": ct,
-                        "n_clusters": len(clusters_info),
-                        "max_distance": round(max_dist, 2),
-                        "marker_jaccard": round(avg_jaccard, 3),
-                        "reason": "over_clustering",
-                    })
+                    # High marker overlap → candidate over-clustering.
+                    # But if EVERY cluster has QC evidence (high counts AND high
+                    # genes), they're more likely genuine subpopulations sharing
+                    # lineage markers (oocyte/mural/cumulus all express AMH,
+                    # FOXL2, etc.). In that case do NOT mark as over-clustering,
+                    # keep them as real_subpopulations and skip resolution drop.
+                    all_high_qc = all(
+                        _qc_high(obs[cluster_key] == ci["cluster"])
+                        for ci in clusters_info
+                    )
+                    if all_high_qc:
+                        # Already added to real_subpopulations above. Skip
+                        # over-clustering classification — high Jaccard reflects
+                        # shared lineage markers, not resolution-too-high.
+                        logging.info(
+                            "  %s: %d clusters at dist=%.2f, Jaccard=%.3f → "
+                            "all clusters QC-high, treating as REAL subpopulations "
+                            "(shared lineage markers), NOT over-clustering.",
+                            ct, len(clusters_info), max_dist, avg_jaccard,
+                        )
+                    else:
+                        # Genuine over-clustering (at least one cluster is QC-low)
+                        separated_types.append({
+                            "cell_type": ct,
+                            "n_clusters": len(clusters_info),
+                            "max_distance": round(max_dist, 2),
+                            "marker_jaccard": round(avg_jaccard, 3),
+                            "reason": "over_clustering",
+                        })
                 else:
                     # Low marker overlap → annotation error, flag smallest cluster
                     smallest = min(clusters_info, key=lambda x: x["n_cells"])
@@ -1648,35 +1714,69 @@ def _check_cell_type_separation(
                         "reason": "low_marker_overlap",
                     })
             else:
-                # No annotations available, treat as over-clustering
-                separated_types.append({
-                    "cell_type": ct,
-                    "n_clusters": len(clusters_info),
-                    "max_distance": round(max_dist, 2),
-                })
+                # No annotations available — apply same QC guard.
+                all_high_qc = all(
+                    _qc_high(obs[cluster_key] == ci["cluster"])
+                    for ci in clusters_info
+                )
+                if not all_high_qc:
+                    separated_types.append({
+                        "cell_type": ct,
+                        "n_clusters": len(clusters_info),
+                        "max_distance": round(max_dist, 2),
+                    })
 
     # Step 4: Determine if re-clustering is needed
     needs_reclustering = len(separated_types) > 0
 
     # Suggest resolution adjustment
+    # Be CONSERVATIVE: only suggest lowering when separation is severe AND we
+    # lack QC evidence for real subpopulations. If the separated clusters all
+    # have high QC (recorded in real_subpopulations), they are most likely
+    # genuine biological heterogeneity sharing lineage markers, NOT a
+    # resolution-too-high artifact. In that case return None and let the caller
+    # decide whether to drop resolution at all (orchestrator should respect
+    # the user's initial resolution when QC evidence is strong).
     suggested_resolution = None
     if needs_reclustering:
-        # If many cell types are separated, suggest lower resolution
-        separation_ratio = len(separated_types) / len(type_to_clusters)
-        if separation_ratio > 0.3:  # >30% of cell types are separated
-            suggested_resolution = 0.2  # More aggressive merging
-        elif separation_ratio > 0.1:  # >10% separated
-            suggested_resolution = 0.25
+        # Count real_subpopulations that already absorbed a "separated" case
+        # (i.e. all QC-high → recorded but not in separated_types). If most of
+        # the separated candidates had QC evidence, be MORE conservative.
+        separation_ratio = len(separated_types) / max(len(type_to_clusters), 1)
+
+        # Only suggest lowering resolution when separation is widespread AND
+        # there are still QC-low separated types left (not absorbed as
+        # real_subpopulations).
+        if separation_ratio > 0.5:
+            # Very widespread separation (e.g. >50% of cell types separated).
+            # Likely genuine over-clustering. Suggest a moderate drop.
+            suggested_resolution = 0.4
+        elif separation_ratio > 0.3:
+            # Moderate separation. Be conservative — only suggest lowering when
+            # at least 2 cell types are affected, otherwise the signal is weak.
+            if len(separated_types) >= 2:
+                suggested_resolution = 0.5
+            else:
+                # Single separated cell type — leave resolution alone, return None
+                # so orchestrator respects user's initial resolution.
+                suggested_resolution = None
+        elif separation_ratio > 0.1:
+            # Minor separation. Don't suggest lowering — likely real
+            # subpopulations. Return None.
+            suggested_resolution = None
         else:
-            suggested_resolution = 0.3  # Keep current or slight adjustment
+            # <10% separated. Keep current or slight adjustment.
+            suggested_resolution = 0.6
 
     diagnostics = {
         "separated_types": separated_types,
         "misannotated": misannotated,
+        "real_subpopulations": real_subpopulations,
         "cluster_distances": cluster_distances,
         "n_cell_types": len(type_to_clusters),
         "n_separated": len(separated_types),
         "n_misannotated": len(misannotated),
+        "n_real_subpopulations": len(real_subpopulations),
         "suggested_resolution": suggested_resolution,
     }
 
@@ -2576,7 +2676,24 @@ def mode_auto(
 
         if needs_reclustering and separation_diag.get("suggested_resolution"):
             suggested_res = separation_diag["suggested_resolution"]
-            if suggested_res < resolution:
+            # Respect user's initial resolution on the FIRST iteration only.
+            # Rationale: the user explicitly picked this resolution; the
+            # orchestrator may still fine-tune on later iterations after QC
+            # filtering has cleaned up problematic clusters. This avoids the
+            # previous behavior of immediately dropping resolution=0.8 → 0.3
+            # based on a single separation signal that may reflect genuine
+            # biological heterogeneity (oocyte/mural granulosa, etc.).
+            if iteration == 1:
+                logging.info(
+                    "Cell type separation detected on first iteration. "
+                    "Respecting user-requested resolution=%.2f (suggested=%.2f). "
+                    "Reason: initial resolution is user-specified; QC filter "
+                    "should run before the orchestrator adjusts resolution.",
+                    resolution, suggested_res,
+                )
+                # Don't adjust resolution on iteration 1 — proceed to Step 4
+                # so QC-flagged clusters get filtered first.
+            elif suggested_res < resolution:
                 logging.info("Cell type separation detected. Adjusting resolution: %.2f -> %.2f",
                              resolution, suggested_res)
                 resolution = suggested_res
@@ -2716,6 +2833,16 @@ def mode_auto(
                     "Discontinuity detected but %d flagged cluster(s) exist; "
                     "deferring resolution increase — will filter first.",
                     len(flagged),
+                )
+            elif iteration == 1:
+                # On first iteration, respect user's initial resolution even
+                # for discontinuity. The orchestrator may still adjust on
+                # later iterations after QC filtering cleans up problematic
+                # clusters (same rationale as the separation check above).
+                logging.info(
+                    "Discontinuity detected on first iteration. Respecting "
+                    "user-requested resolution=%.2f; QC filter will run first.",
+                    resolution,
                 )
             else:
                 # Always try to increase resolution to split discontinuous clusters
@@ -2979,11 +3106,20 @@ def main():
     # Annotate params
     parser.add_argument("--marker-file", default="", help="TSV with cell_type and markers columns")
     parser.add_argument("--celltypist-model", default="", help="CellTypist model name")
-    parser.add_argument("--llm-method", default="", choices=["", "openai", "anthropic", "ollama", "file"],
-                        help="LLM backend for annotation")
-    parser.add_argument("--llm-model", default="", help="LLM model identifier")
-    parser.add_argument("--llm-api-key", default="", help="API key for OpenAI backend")
-    parser.add_argument("--llm-base-url", default="", help="Base URL for LLM API")
+    # LLM config: fall back to environment variables when CLI value is empty/None.
+    # os.environ.get(..., "") ensures unset env vars also default to "".
+    # Memory: 'LLM env: xiaomi mimo-v2.5-pro ... Env vars pre-configured, never set manually.'
+    # This fallback was unintentionally removed in commit a01b702; restored so
+    # scripts do not need to hard-code --llm-* args.
+    parser.add_argument("--llm-method", default=os.environ.get("LLM_METHOD", ""),
+                        choices=["", "openai", "anthropic", "ollama", "file"],
+                        help="LLM backend for annotation (env: LLM_METHOD)")
+    parser.add_argument("--llm-model", default=os.environ.get("LLM_MODEL", ""),
+                        help="LLM model identifier (env: LLM_MODEL)")
+    parser.add_argument("--llm-api-key", default=os.environ.get("LLM_API_KEY", ""),
+                        help="API key for LLM backend (env: LLM_API_KEY)")
+    parser.add_argument("--llm-base-url", default=os.environ.get("LLM_BASE_URL", ""),
+                        help="Base URL for LLM API (env: LLM_BASE_URL)")
     parser.add_argument("--annotate-group", default="", help="Obs column for cluster grouping")
     parser.add_argument("--tissue", default="", help="Tissue name for LLM prompt context")
     parser.add_argument("--species", default="", help="Species/genome for tissue-specific annotation (e.g., Mmul_10, GRCh38, GRCm39)")
@@ -3008,6 +3144,19 @@ def main():
     parser.add_argument("--gene-tsv", default="", help="Path to gene annotation TSV for gene_type annotation")
 
     args = parser.parse_args()
+
+    # LLM config second-pass: even when CLI default pulls from env (above),
+    # Snakemake may pass `--llm-method ""` explicitly and shadow the env value.
+    # Re-fill from env when the resolved value is empty so callers never have to
+    # hard-code credentials in scripts (memory: 'Env vars pre-configured, never
+    # set manually'). This is a safety net for the post-parse case where the
+    # argparse default was bypassed.
+    for arg_name in ("llm_method", "llm_model", "llm_api_key", "llm_base_url"):
+        if not getattr(args, arg_name):
+            env_val = os.environ.get(arg_name.upper(), "")
+            if env_val:
+                logging.info("LLM config %s filled from env %s", arg_name, arg_name.upper())
+                setattr(args, arg_name, env_val)
     adata = read_input(args.input[0], args.input[1:] if len(args.input) > 1 else None)
 
     if args.mode == "qc":

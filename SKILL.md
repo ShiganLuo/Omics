@@ -117,6 +117,8 @@ assests/test/
 - 注入 genome.fasta / genome.gtf 路径
 - 使用本地 conda-prefix（避免权限问题）
 
+
+
 # 扩展清单
 
 新增工作流时:
@@ -137,3 +139,7 @@ assests/test/
 2. 在 `workflow/Omics/subworkflow/<Workflow>.smk` 中更新各个module的config或整体流程控制参数
 3. 在 `config/<Workflow>.json` 修改相关参数,
 4. 在 `config/<Workflow>.schema.json` 中修改相关参数的约束
+
+# 原则
+
+- 关于脚本复用，只有启动层（run.py,node.py）适合复用模块函数，modules下面的规则调用脚本尽量不要依赖公共模块，否则不好迁移

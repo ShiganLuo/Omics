@@ -1,7 +1,6 @@
 import sys
 import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
-from src.common.util.LogUtil import setup_logger
+
 import pandas as pd
 import logging
 from enricher.function import enrich_go, enrich_kegg
@@ -12,7 +11,11 @@ import subprocess
 import argparse
 from typing import List, Literal, Optional
 PlotFormat = Literal["png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg", "jpeg", "pgf", "raw", "rgba"]
-logger = setup_logger("SVEnrichment", level=logging.INFO)
+try:
+    from .utils.common import setup_logger
+except ImportError:
+    from utils.common import setup_logger
+logger = setup_logger("run_enrichment")
 
 def sv_go(
         anno_file: str,

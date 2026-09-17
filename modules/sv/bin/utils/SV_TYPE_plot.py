@@ -9,8 +9,11 @@ from typing import List, Union, Dict, Optional
 import logging
 from scipy.interpolate import make_interp_spline
 from scipy.ndimage import gaussian_filter1d
-logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] [%(name)s] %(message)s')
-logger = logging.getLogger(__name__)
+try:
+    from .common import setup_logger
+except ImportError:
+    from common import setup_logger
+logger = setup_logger("SV_TYPE_plot", level=logging.INFO)
 
 
 def plot_sv_type_barplot(

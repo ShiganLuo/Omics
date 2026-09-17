@@ -20,24 +20,16 @@ import pandas as pd
 import re
 import sys
 import os
-import logging
 import argparse
 from pathlib import Path
 from typing import Literal, Optional
-
-current_path = Path(__file__).resolve()
-# Add workflow/Omics to sys.path for src.annotation.gene_id2name import
-omics_dir = current_path.parents[2]  # modules/function/bin -> modules/function -> modules -> Omics
-if str(omics_dir) not in sys.path:
-    sys.path.insert(0, str(omics_dir))
-
 try:
-    from src.annotation.gene_id2name import convert_featurecounts_gene_ids
+    from .LogUtil import setup_logger
+    from .gene_id2name import convert_featurecounts_gene_ids
 except ImportError:
-    convert_featurecounts_gene_ids = None
-
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
+    from LogUtil import setup_logger
+    from gene_id2name import convert_featurecounts_gene_ids
+logger = setup_logger(__name__)
 
 class RNASeqNormalizer:
     """Normalize featureCounts output to CPM, RPKM, FPKM, or TPM.
@@ -152,11 +144,6 @@ class RNASeqNormalizer:
         if convert_to_gene_name:
             if not target_gtf or not os.path.exists(target_gtf):
                 raise ValueError(f"GTF file missing or not found: {target_gtf}")
-            if convert_featurecounts_gene_ids is None:
-                raise ImportError(
-                    "convert_featurecounts_gene_ids not available. "
-                    "Ensure src/annotation/gene_id2name.py is accessible."
-                )
             df = convert_featurecounts_gene_ids(df, target_gtf)
         else:
             if remove_version:

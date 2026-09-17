@@ -1,19 +1,60 @@
-import pandas as pd
-import pickle
-import os
-from typing import Dict, Optional, Union
+"""Gene ID to gene name translation utilities.
+
+Provides functions for mapping Ensembl gene IDs (e.g. ``ENSMUSG00000051951``)
+to human-readable gene symbols (e.g. ``Xkr4``) using GENCODE/Ensembl GTF
+annotations.  A pickle-based cache avoids redundant GTF parsing.
+
+Typical usage::
+
+    from src.annotation.gene_id2name import convert_featurecounts_gene_ids
+
+    df = convert_featurecounts_gene_ids(
+        count="featureCounts_output.txt",
+        gtf_path="/path/to/gencode.gtf",
+        save_path="counts_by_gene_name.tsv",
+    )
+
+Supported input formats:
+- featureCounts output (Ensembl gene IDs in ``Geneid`` column)
+- DESeq2 result tables (Ensembl gene IDs as row index)
+- TEtranscripts/TElocal quantification (mixed gene and TE identifiers)
+- ANNOVAR multianno CSV
+"""
+
 import logging
+import os
+import pickle
 import sys
+from typing import Dict, Optional, Union
+
+import pandas as pd
+
 logging.basicConfig(
 	level=logging.INFO,
 	format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-	stream=sys.stdout,  # 指定输出到 stdout 而不是 stderr
+	stream=sys.stdout,  # Output to stdout instead of stderr
 	datefmt='%Y-%m-%d %H:%M:%S'
 )
 
 
 def get_file_signature(file_path: str) -> Dict:
-    """返回 GTF 文件签名，用于判断缓存是否失效"""
+    """Compute a file signature for cache invalidation.
+
+    The signature captures the absolute path, file size, and last modification
+    time. Two signatures can be compared with ``==`` to detect whether the
+    underlying file has changed since the cache was created.
+
+    Parameters
+    ----------
+    file_path : str
+        Path to the file whose signature is to be computed.
+
+    Returns
+    -------
+    dict
+        File signature with keys ``"path"`` (str), ``"size"`` (int), and
+        ``"mtime"`` (float).
+    """
     stat = os.stat(file_path)
     return {
         "path": os.path.abspath(file_path),
@@ -23,13 +64,41 @@ def get_file_signature(file_path: str) -> Dict:
 
 
 def save_cache(cache_path: str, gene_map: dict, signature: dict):
-    """保存缓存：包括基因映射和 GTF 签名"""
+    """Persist a gene-id-to-name mapping alongside its GTF signature.
+
+    The output pickle contains a single dict with ``"signature"`` and
+    ``"gene_map"`` keys, allowing :func:`load_cache_if_valid` to verify
+    freshness on the next load.
+
+    Parameters
+    ----------
+    cache_path : str
+        Destination path for the pickle file.
+    gene_map : dict
+        Mapping of gene_id strings to gene_name strings.
+    signature : dict
+        File signature dict produced by :func:`get_file_signature`.
+    """
     with open(cache_path, "wb") as f:
         pickle.dump({"signature": signature, "gene_map": gene_map}, f)
 
 
 def load_cache_if_valid(cache_path: str, gtf_signature: dict):
-    """如果缓存存在且与当前 GTF 一致，则加载，否则返回 None"""
+    """Load a cached gene mapping if the pickle exists and its GTF signature matches.
+
+    Parameters
+    ----------
+    cache_path : str
+        Path to the pickle cache file.
+    gtf_signature : dict
+        Current GTF file signature produced by :func:`get_file_signature`.
+
+    Returns
+    -------
+    dict or None
+        The cached gene_id -> gene_name mapping, or ``None`` when the cache
+        is missing, corrupted, or stale (GTF changed).
+    """
     if not os.path.exists(cache_path):
         return None
 
@@ -37,19 +106,41 @@ def load_cache_if_valid(cache_path: str, gtf_signature: dict):
         with open(cache_path, "rb") as f:
             cache = pickle.load(f)
     except:
-        return None  # 缓存损坏
+        return None  # Corrupted cache
 
     cached_sig = cache.get("signature", {})
     if cached_sig == gtf_signature:
-        logging.info(f"缓存匹配，直接加载：{cache_path}")
+        logging.info(f"Cache matched, loading directly: {cache_path}")
         return cache["gene_map"]
 
-    logging.info("检测到缓存与当前 GTF 不一致 → 忽略缓存并重建")
+    logging.info("Cache does not match current GTF, ignoring cache and rebuilding")
     return None
 
 
 def parse_gtf_gene_map(gtf_path: str) -> dict:
-    """从 GTF 文件解析 gene_id → gene_name"""
+    """Build a gene_id -> gene_name mapping by parsing a GENCODE/Ensembl GTF.
+
+    Only lines with feature type ``gene`` are examined.  For each such line the
+    ``gene_id`` and ``gene_name`` attributes are extracted from the ninth column
+    (GFF3-style ``key "value"`` pairs separated by semicolons).
+
+    Parameters
+    ----------
+    gtf_path : str
+        Path to a GTF annotation file (gzipped files are **not** supported;
+        decompress first).
+
+    Returns
+    -------
+    dict
+        Mapping from Ensembl gene_id (e.g. ``"ENSMUSG00000051951"``) to
+        gene_name/symbol (e.g. ``"Xkr4"``).
+
+    Notes
+    -----
+    This is a pure-Python line-by-line parser and does not depend on pandas or
+    gffutils.  Parsing a full GENCODE GTF typically takes 5-15 s.
+    """
     gene_map = {}
 
     with open(gtf_path, 'r') as f:
@@ -80,43 +171,70 @@ def parse_gtf_gene_map(gtf_path: str) -> dict:
             if gid and gname:
                 gene_map[gid] = gname
 
-    logging.info(f"GTF 解析完成，共 {len(gene_map)} 个基因")
+    logging.info(f"GTF parsing complete, {len(gene_map)} genes found")
     return gene_map
 
 
 def load_gtf_gene_map(gtf_path: str, cache_path="gene_map.pkl") -> dict:
-    """
-    智能加载 gene_map：如果缓存对应同一个 GTF，则直接使用；
-    如果缓存无效，则重新解析并保存。
+    """Load a gene_id -> gene_name mapping, using a pickle cache when valid.
+
+    On first call (or when the GTF has changed), the full GTF is parsed via
+    :func:`parse_gtf_gene_map` and the result is persisted to *cache_path*.
+    Subsequent calls with the same GTF return the cached mapping immediately.
+
+    Parameters
+    ----------
+    gtf_path : str
+        Path to the GTF annotation file.
+    cache_path : str, optional
+        Path for the pickle cache file.  Defaults to ``"gene_map.pkl"`` in the
+        current working directory.
+
+    Returns
+    -------
+    dict
+        gene_id -> gene_name mapping.
     """
     gtf_signature = get_file_signature(gtf_path)
 
-    # 尝试加载缓存
+    # Try loading from cache
     gene_map = load_cache_if_valid(cache_path, gtf_signature)
 
     if gene_map is not None:
         return gene_map
 
-    # 解析 GTF
-    logging.info("开始解析 GTF（可能耗时较长）...")
+    # Parse GTF
+    logging.info("Parsing GTF (this may take a while)...")
     gene_map = parse_gtf_gene_map(gtf_path)
 
-    # 保存缓存
+    # Save cache
     save_cache(cache_path, gene_map, gtf_signature)
-    logging.info(f"缓存已写入：{cache_path}")
+    logging.info(f"Cache written: {cache_path}")
 
     return gene_map
 
 
 def translate_gene_ids(df:pd.DataFrame, gene_map: dict,col:str):
-    """
-    Function: translate gene IDs in a DataFrame column to gene names using a provided mapping.
-    Parameters:
-    - df: pandas DataFrame containing the gene IDs.
-    - gene_map: dictionary mapping gene IDs to gene names.
-    - col: the name of the column in df that contains the gene IDs.
-    Returns:
-    - A pandas Series with the translated gene names.
+    """Translate gene IDs in a DataFrame column to gene names.
+
+    Comma-separated ID lists are supported: each token is mapped independently
+    and the results are joined back with commas.  IDs not present in
+    *gene_map* are left unchanged.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame containing a column of gene IDs.
+    gene_map : dict
+        Mapping of gene_id -> gene_name, typically from
+        :func:`load_gtf_gene_map`.
+    col : str
+        Name of the column in *df* that holds the gene IDs.
+
+    Returns
+    -------
+    pd.Series
+        Series of translated gene names, aligned with *df*'s index.
     """
 
     def convert(gene_ids):
@@ -132,8 +250,30 @@ def translate_gene_ids(df:pd.DataFrame, gene_map: dict,col:str):
 def convert_annovar_gene_ids(multiano_path, gtf_path,
                              cache_path="gene_map.pkl",
                              save_path=None):
+    """Convert ANNOVAR multianno gene IDs to gene names.
+
+    Reads a ``multianno.csv`` produced by ANNOVAR's ``table_annovar.pl``,
+    maps the ``Gene.refGene`` column from Ensembl gene IDs to gene symbols,
+    and appends a ``GeneName.symbol`` column.
+
+    Parameters
+    ----------
+    multiano_path : str
+        Path to the ANNOVAR multianno CSV file.
+    gtf_path : str
+        Path to the GTF annotation file for gene_id -> gene_name mapping.
+    cache_path : str, optional
+        Pickle cache path (default ``"gene_map.pkl"``).
+    save_path : str or None, optional
+        If provided, write the augmented DataFrame to this CSV path.
+
+    Returns
+    -------
+    pd.DataFrame
+        Input DataFrame with an additional ``GeneName.symbol`` column.
+    """
     df = pd.read_csv(multiano_path)
-    logging.info(f"读取 multiano.csv 行数:{len(df)}")
+    logging.info(f"Read multiano.csv rows: {len(df)}")
 
     gene_map = load_gtf_gene_map(gtf_path, cache_path)
 
@@ -141,19 +281,33 @@ def convert_annovar_gene_ids(multiano_path, gtf_path,
 
     if save_path:
         df.to_csv(save_path, index=False)
-        logging.info("结果已保存：", save_path)
+        logging.info(f"Results saved: {save_path}")
 
     return df
 
 def extract_gene_name_or_keep(df: pd.DataFrame,pattern:str) -> pd.DataFrame:
-    """
-    根据特定模式检查 'gene_name' 列。
-    如果匹配，提取第一个冒号之前的内容；如果不匹配，保留原样。
-    新列替换 'gene_name' 列。
+    """Apply a regex substitution to the ``gene_name`` column in-place.
+
+    When *pattern* contains a capture group, the replacement ``r'\\1'`` extracts
+    only the captured portion.  Rows that do not match are left unchanged.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame that must contain a ``gene_name`` column.  Modified in-place.
+    pattern : str
+        Regex pattern with at least one capture group, e.g.
+        ``r'^([^:]+):[^:]+:[^:]+$'`` to extract the subfamily name from a
+        TEcount identifier.
+
+    Returns
+    -------
+    pd.DataFrame
+        The same *df* with ``gene_name`` updated.
     """
     df['gene_name'] = df['gene_name'].str.replace(
         pat=pattern,
-        repl=r'\1',   # 替换模式：r'\1' 代表正则表达式中第一个捕获组的内容
+        repl=r'\1',   # Replacement pattern: r'\1' refers to the first capture group
         regex=True
     )
     
@@ -166,6 +320,40 @@ def convert_TEtranscripts_gene_ids(
         cache_path:str="gene_map.pkl",
         save_path:str=None
     ) -> pd.DataFrame:
+    """Convert TEtranscripts/TElocal gene IDs to gene names.
+
+    Reads a TEcount or TElocal quantification TSV, translates the gene/TE
+    column via a GTF-derived mapping, and handles TE identifier formats:
+
+    - **TEcount**: ``Class:Family:Subfamily`` → extract ``Subfamily``
+    - **TElocal**: ``Class:Family:Subfamily:Locus`` → extract ``Locus``
+
+    Gene rows (without colons) pass through unchanged.
+
+    Parameters
+    ----------
+    TEtranscripts_path : str
+        Path to the TEcount or TElocal output TSV file.
+    gtf_path : str
+        Path to the GTF annotation for gene_id -> gene_name mapping.
+    geneId_col : str, optional
+        Column name containing gene/TE identifiers (default ``"gene/TE"``).
+    cache_path : str, optional
+        Pickle cache path (default ``"gene_map.pkl"``).
+    save_path : str or None, optional
+        If provided, write the reordered result to this TSV path.
+
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame with ``gene_name`` as the first column, original ``gene/TE``
+        column removed, and all other columns preserved.
+
+    Raises
+    ------
+    ValueError
+        If the filename does not contain ``"TEcount"`` or ``"TElocal"``.
+    """
     df = pd.read_csv(TEtranscripts_path,sep="\t")
     df[geneId_col] = df[geneId_col].astype(str).str.strip()
     df[geneId_col] = df[geneId_col].str.replace(
@@ -173,7 +361,7 @@ def convert_TEtranscripts_gene_ids(
         repl=r'\1',
         regex=True
     )
-    logging.info(f"读取 TEtranscripts file 行数:{len(df)}")
+    logging.info(f"Read TEtranscripts file rows: {len(df)}")
     gene_map = load_gtf_gene_map(gtf_path, cache_path)
     df['gene_name'] = translate_gene_ids(df,gene_map,geneId_col)
     if "TEcount" in TEtranscripts_path:
@@ -183,7 +371,7 @@ def convert_TEtranscripts_gene_ids(
         pattern = r'^([^:]+):[^:]+:[^:]+:[^:]+$'
         df = extract_gene_name_or_keep(df,pattern)
     else:
-        raise ValueError("目前只支持TEtranscripts和TElocal的定量输出文件")
+        raise ValueError("Only TEtranscripts and TElocal quantification output files are supported")
     cols = df.columns.tolist()
     cols.remove(geneId_col)
     name_index = cols.index('gene_name')
@@ -235,19 +423,32 @@ def convert_featurecounts_gene_ids(
 
     Parameters
     ----------
-    count : Union[str, pd.DataFrame]
-        featureCounts output file path or a loaded DataFrame
+    count : str or pd.DataFrame
+        Path to a featureCounts output TSV file, or an already-loaded
+        DataFrame.  Must contain a ``"Geneid"`` column.
     gtf_path : str
-        Path to the GTF annotation file used for Geneid → gene_name mapping
+        Path to the GTF annotation file used for Geneid -> gene_name mapping.
     cache_path : str, optional
-        Cache file path for storing parsed gene ID mapping (default: "gene_map.pkl")
-    save_path : Optional[str], optional
-        If provided, save the converted gene-level table to this path
+        Pickle cache path for the parsed gene ID mapping
+        (default ``"gene_map.pkl"``).
+    save_path : str or None, optional
+        If provided, save the converted gene-level table to this path as TSV.
 
     Returns
     -------
     pd.DataFrame
-        Gene-level expression DataFrame with unique gene_name as rows
+        DataFrame with ``gene_name`` as the first column, ``Geneid`` removed,
+        and all count/sample columns preserved.
+
+    Raises
+    ------
+    ValueError
+        If the input DataFrame does not contain a ``"Geneid"`` column.
+
+    See Also
+    --------
+    convert_DESeq2_gene_ids : Similar conversion for DESeq2 result tables.
+    convert_TEtranscripts_gene_ids : Similar conversion for TEtranscripts output.
     """
     if isinstance(count, pd.DataFrame):
         df = count.copy()
@@ -258,7 +459,7 @@ def convert_featurecounts_gene_ids(
         raise ValueError("Input count data must contain 'Geneid' column")
 
     df["Geneid"] = df["Geneid"].astype(str).str.strip()
-    logging.info(f"读取 count 行数:{len(df)}")
+    logging.info(f"Read count rows: {len(df)}")
 
     gene_map = load_gtf_gene_map(gtf_path, cache_path)
     df["gene_name"] = translate_gene_ids(df, gene_map, "Geneid")
@@ -284,27 +485,40 @@ def convert_DESeq2_gene_ids(
     cache_path: str = "gene_map.pkl",
 ):
     """
-    Convert DESeq2 results Geneid to gene_name.
+    Convert DESeq2 result table gene IDs to gene names.
+
+    Reads a DESeq2 output TSV (with row names as Geneid), translates Ensembl
+    gene IDs to gene symbols, and reorders columns so ``gene_name`` comes first.
 
     Parameters
     ----------
     deseq2_path : str
-        Path to the DESeq2 results CSV file
+        Path to the DESeq2 results TSV file.  The first column (index) is
+        treated as the Geneid.
     save_path : str
-        Path to save the converted results CSV file
+        Output path.  Format is inferred from the extension: ``.tsv`` writes
+        tab-separated, ``.xlsx`` writes Excel, anything else writes
+        comma-separated CSV.
     gtf_path : str
-        Path to the GTF annotation file used for Geneid → gene_name mapping
+        Path to the GTF annotation file used for Geneid -> gene_name mapping.
     cache_path : str, optional
-        Cache file path for storing parsed gene ID mapping (default: "gene_map.pkl")
+        Pickle cache path for the parsed gene ID mapping
+        (default ``"gene_map.pkl"``).
 
     Returns
     -------
     pd.DataFrame
-        DataFrame with gene_name as rows and DESeq2 results columns
+        DataFrame with ``gene_name`` as the first column, ``Geneid`` removed,
+        and all DESeq2 result columns (baseMean, log2FC, pvalue, padj, etc.)
+        preserved.
+
+    See Also
+    --------
+    convert_featurecounts_gene_ids : Similar conversion for featureCounts output.
     """
     df = pd.read_csv(deseq2_path, index_col=0,sep="\t")
     df.reset_index(inplace=True,names="Geneid")
-    logging.info(f"读取 DESeq2 行数:{len(df)}")
+    logging.info(f"Read DESeq2 rows: {len(df)}")
     gene_map = load_gtf_gene_map(gtf_path, cache_path)
     df["gene_name"] = translate_gene_ids(df, gene_map, "Geneid")
 

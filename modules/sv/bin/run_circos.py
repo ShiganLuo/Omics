@@ -1,13 +1,15 @@
 import os
 import sys
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
-from src.common.util.LogUtil import setup_logger
-from src.common.util.CmdUtil import _run_cmd
 import logging
 import re
 from pathlib import Path
 from typing import List, Literal, Optional
-logger = setup_logger("SVCircosPipeline", level=logging.INFO)
+try:
+    from .utils.common import setup_logger, _run_cmd
+except ImportError:
+    from utils.common import setup_logger, _run_cmd
+logger = setup_logger("run_circos", level=logging.INFO)
+
 PlotFormat = Literal["png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg", "jpeg", "pgf", "raw", "rgba"]
 def run_cricos_pipeline(
         vcf: str,
@@ -79,7 +81,7 @@ def run_cricos_pipeline(
         "--fasta", fasta,
         "--outdir", outdir
     ]
-    _run_cmd(prepare_cmd)
+    _run_cmd(prepare_cmd,logger=logger)
     logger.info("Starting Circos Plotting")
     for fmt in image_formats:
         outImage = os.path.join(outdir, f"{name}_sv_circos.{fmt}")
@@ -93,7 +95,7 @@ def run_cricos_pipeline(
             "--cytoband", cytoband_file
         ]
         try:
-            _run_cmd(circos_cmd)
+            _run_cmd(circos_cmd,logger=logger)
             logger.info(f"Circos plot saved to: {outImage}")
         except Exception as e:
             logger.error(f"Error occurred while running Circos for {name}: {e}")

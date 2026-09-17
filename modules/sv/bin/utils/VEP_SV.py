@@ -1,16 +1,16 @@
 import os
 import sys
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))))
-from src.common.util.LogUtil import setup_logger
 import subprocess
 import shutil
 import gzip
 import logging
 from pathlib import Path
 import pandas as pd
-
+try:
+    from .common import setup_logger
+except ImportError:
+    from common import setup_logger
 logger = setup_logger("VEP_SV", level=logging.INFO)
-
 
 class VEP_SV:
     def __init__(self, vep_cache_dir, species="mus_musculus", assembly="GRCm39"):

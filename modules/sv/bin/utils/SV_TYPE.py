@@ -1,7 +1,5 @@
 import sys
 import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))))
-from src.common.util.LogUtil import setup_logger
 import pandas as pd
 import gzip
 import logging
@@ -10,7 +8,12 @@ from pathlib import Path
 from typing import Optional
 import json
 import re
-logger = setup_logger("SVType", level=logging.INFO) 
+try:
+    from .common import setup_logger
+except ImportError:
+    from common import setup_logger
+logger = setup_logger("SV_TYPE", level=logging.INFO)
+
 
 
 def open_vcf(path: str):

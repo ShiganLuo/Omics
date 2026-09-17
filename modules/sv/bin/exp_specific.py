@@ -1,18 +1,25 @@
 import os
 import sys
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
-from src.common.util.LogUtil import setup_logger
-from utils.VEP_SV import VEP_SV
-from utils.SV_TYPE import parse_pbsv_vcf,run_sv_stratification,extract_te_candidate_ins,generate_plot_input
-from utils.SV_TYPE_plot import plot_stacking_bar,plot_multi_smooth_curves
-from utils.repeatmasker_analysis import run_te_annotation_pipeline,RepeatMaskerOutCompare
-from utils.repeatmasker_plot import plot_enrichment
 from typing import Literal, List, Optional
-PlotFormat = Literal["png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg", "jpeg", "pgf", "raw", "rgba"]
 from pathlib import Path
 import logging
 import argparse
-logger = setup_logger("ExpSpecificSVPipeline", level=logging.INFO)
+try:
+    from .utils.common import setup_logger
+    from .utils.VEP_SV import VEP_SV
+    from .utils.SV_TYPE import parse_pbsv_vcf,run_sv_stratification,extract_te_candidate_ins,generate_plot_input
+    from .utils.SV_TYPE_plot import plot_stacking_bar,plot_multi_smooth_curves
+    from .utils.repeatmasker_analysis import run_te_annotation_pipeline,RepeatMaskerOutCompare
+    from .utils.repeatmasker_plot import plot_enrichment
+except ImportError:
+    from utils.common import setup_logger
+    from utils.VEP_SV import VEP_SV
+    from utils.SV_TYPE import parse_pbsv_vcf,run_sv_stratification,extract_te_candidate_ins,generate_plot_input
+    from utils.SV_TYPE_plot import plot_stacking_bar,plot_multi_smooth_curves
+    from utils.repeatmasker_analysis import run_te_annotation_pipeline,RepeatMaskerOutCompare
+    from utils.repeatmasker_plot import plot_enrichment
+logger = setup_logger("exp_specific", level=logging.INFO)
+PlotFormat = Literal["png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg", "jpeg", "pgf", "raw", "rgba"]
 
 
 def run_exp_specific_annotation(

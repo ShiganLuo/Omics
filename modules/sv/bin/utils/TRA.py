@@ -1,13 +1,16 @@
 
 import os
 import sys
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))))
-from src.common.util.LogUtil import setup_logger
 from typing import List, Tuple, Dict, Optional, Iterable
 import pysam
 import logging
 from dataclasses import dataclass
-logger = setup_logger("TRAAnnotation", level=logging.INFO)
+try:
+    from .common import setup_logger
+except ImportError:
+    from common import setup_logger
+logger = setup_logger("TRA", level=logging.INFO)
+
 
 
 # =========================

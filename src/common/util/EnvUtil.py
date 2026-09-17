@@ -18,12 +18,15 @@ import re
 import os
 import shutil
 import shlex
+import socket
 import logging
 import argparse
 import subprocess
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 from urllib.parse import urlparse
+from urllib.request import Request, urlopen
+from urllib.error import HTTPError, URLError
 try:
     from LogUtil import setup_logger
 except ImportError:
@@ -268,6 +271,11 @@ class EnvUtil:
         cmd_str = " ".join(shlex.quote(c) for c in cmd)
         logger.info(f"Running: {cmd_str}")
 
+        # Surface apptainer build failures with verbose context. The default
+        # `apptainer build` output sometimes collapses the real error to one
+        # line (e.g. "conveyor failed to get: ..."). Capturing the full stream
+        # and re-emitting it on failure lets the user see WHY the build broke
+        # instead of just the exit code.
         process = subprocess.Popen(
             cmd,
             stdout=subprocess.PIPE,
@@ -276,15 +284,94 @@ class EnvUtil:
             cwd=cwd,
         )
         assert process.stdout is not None
-        for line in process.stdout:
-            logger.info(line.rstrip())
-        process.wait(timeout=timeout)
+        captured_lines: List[str] = []
+        try:
+            for line in process.stdout:
+                captured_lines.append(line)
+                logger.info(line.rstrip())
+            process.wait(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            logger.error(f"Command timed out after {timeout}s: {cmd_str}")
+            raise RuntimeError(f"Command timed out after {timeout}s: {cmd_str}")
 
         if process.returncode != 0:
-            logger.error(f"Command failed (rc={process.returncode}): {cmd_str}")
-            raise RuntimeError(f"Command failed with code {process.returncode}: {cmd_str}")
+            logger.error(
+                f"Command failed (rc={process.returncode}): {cmd_str}"
+            )
+            # Re-emit last 60 lines at ERROR level so they stand out and survive
+            # log rotation, then dump full captured output to a sibling file
+            # so post-mortem is possible even if terminal output is lost.
+            tail = "".join(captured_lines[-60:])
+            logger.error("--- last 60 lines of failed command output ---")
+            for line in tail.splitlines():
+                logger.error(line)
+            logger.error("--- end of failed command output ---")
+            try:
+                dump_path = Path(cwd or ".") / "apptainer_build_failure.log"
+                dump_path.write_text("".join(captured_lines))
+                logger.error(f"Full output saved to: {dump_path}")
+            except Exception as dump_err:
+                logger.error(f"Could not write failure log: {dump_err}")
+            raise RuntimeError(
+                f"Command failed with code {process.returncode}: {cmd_str}"
+            )
 
         return process.returncode
+
+    # ------------------------------------------------------------------
+    # Mirror / registry diagnostics
+    # ------------------------------------------------------------------
+    @staticmethod
+    def probe_registry_mirror(
+        mirror: str,
+        repo: str = "mambaorg/micromamba",
+        tag: str = "latest",
+        timeout: int = 8,
+    ) -> Tuple[bool, str]:
+        """Probe whether a Docker v2 registry mirror can resolve ``repo:tag``.
+
+        This is a lightweight HEAD-equivalent check used to diagnose
+        ``conveyor failed to get`` / ``stream ID ... INTERNAL_ERROR`` build
+        failures without paying the cost of a full pull.
+
+        Parameters
+        ----------
+        mirror : str
+            Registry hostname (no scheme), e.g. ``docker.1ms.run``.
+        repo : str
+            Repository path relative to the registry (no leading ``/``).
+        tag : str
+            Image tag (default ``latest``).
+
+        Returns
+        -------
+        Tuple[bool, str]
+            ``(ok, detail)`` where ``detail`` is a short status string
+            suitable for logging.
+        """
+        url = f"https://{mirror}/v2/{repo}/manifests/{tag}"
+        req = Request(
+            url,
+            method="HEAD",
+            headers={
+                "Accept": "application/vnd.docker.distribution.manifest.v2+json",
+                "User-Agent": "EnvUtil-probe/1.0",
+            },
+        )
+        try:
+            with urlopen(req, timeout=timeout) as resp:
+                return True, f"HTTP {resp.status}"
+        except HTTPError as exc:
+            # 401 = registry alive but needs token auth (normal for v2);
+            # 404 = repo not in this mirror; 403 = repo exists but no access.
+            if exc.code in (401,):
+                return True, f"HTTP {exc.code} (auth required)"
+            return False, f"HTTP {exc.code}: {exc.reason}"
+        except (URLError, socket.timeout, TimeoutError) as exc:
+            return False, f"{type(exc).__name__}: {exc}"
+        except Exception as exc:
+            return False, f"{type(exc).__name__}: {exc}"
 
     # ------------------------------------------------------------------
     # YAML parsing helpers
@@ -444,26 +531,26 @@ class EnvUtil:
     # ------------------------------------------------------------------
     BACKENDS = {
         "micromamba": {
-            "apptainer_from": "docker.1ms.run/mambaorg/micromamba:latest",
-            "docker_from": "docker.1ms.run/mambaorg/micromamba:latest",
+            "apptainer_from": "dockerproxy.net/mambaorg/micromamba:latest",
+            "docker_from": "dockerproxy.net/mambaorg/micromamba:latest",
             "verify_cmd": ["micromamba", "env", "list"],
             "description": "Fastest, lightest (default)",
         },
         "mamba": {
-            "apptainer_from": "docker.1ms.run/condaforge/miniforge3:latest",
-            "docker_from": "docker.1ms.run/condaforge/miniforge3:latest",
+            "apptainer_from": "dockerproxy.net/condaforge/miniforge3:latest",
+            "docker_from": "dockerproxy.net/condaforge/miniforge3:latest",
             "verify_cmd": ["mamba", "env", "list"],
             "description": "Fast conda replacement",
         },
         "conda": {
-            "apptainer_from": "docker.1ms.run/condaforge/miniforge3:latest",
-            "docker_from": "docker.1ms.run/condaforge/miniforge3:latest",
+            "apptainer_from": "dockerproxy.net/condaforge/miniforge3:latest",
+            "docker_from": "dockerproxy.net/condaforge/miniforge3:latest",
             "verify_cmd": ["conda", "env", "list"],
             "description": "Slowest, most compatible",
         },
         "uv": {
-            "apptainer_from": "docker.1ms.run/python:3.11-slim",
-            "docker_from": "docker.1ms.run/python:3.11-slim",
+            "apptainer_from": "dockerproxy.net/python:3.11-slim",
+            "docker_from": "dockerproxy.net/python:3.11-slim",
             "verify_cmd": ["python3", "-c", "import sys; print(sys.version)"],
             "description": "PyPI-only packages",
         },
@@ -763,7 +850,7 @@ From: {from_image}
     Generated from {yaml_filename}.
 """
 
-    UV_FROM = "docker.1ms.run/python:3.11-slim"
+    UV_FROM = "dockerproxy.net/python:3.11-slim"
 
     @classmethod
     def _render_def_uv(
@@ -838,7 +925,7 @@ From: {from_image}
     # ------------------------------------------------------------------
     # Dockerfile generation (from conda YAML, same pattern as .def)
     # ------------------------------------------------------------------
-    DOCKER_FROM = "docker.1ms.run/mambaorg/micromamba:latest"
+    DOCKER_FROM = "dockerproxy.net/mambaorg/micromamba:latest"
 
     @classmethod
     def generate_dockerfile(
@@ -956,6 +1043,138 @@ CMD ["bash"]
     # ------------------------------------------------------------------
     # Apptainer build
     # ------------------------------------------------------------------
+    # Known good Docker registry mirrors in approximate preference order.
+    # First entry is the EnvUtil default; the rest are fallbacks probed at
+    # build time so failures point at a concrete replacement instead of a
+    # cryptic "conveyor failed to get" error.
+    _KNOWN_DOCKER_MIRRORS = [
+        "docker.1ms.run",
+        "docker.m.daocloud.io",
+        "dockerproxy.net",
+        "docker.ketches.cn",
+        "docker.mirrors.ustc.edu.cn",
+        "hub-mirror.c.163.com",
+        "mirror.baidubce.com",
+        "docker.m.daocloud.io",  # alias for daocloud used by some clients
+    ]
+
+    def _diagnose_build_mirror(self, def_path: Path) -> None:
+        """Probe the configured (and alternative) Docker mirrors for the
+        base image referenced in ``def_path``.
+
+        Reads the ``From:`` line of the def file, parses out
+        ``<registry>/<repo>:<tag>``, then probes the registry (plus a list of
+        well-known alternatives) and logs the result. This never raises — it
+        only logs. The goal is to give the operator concrete evidence
+        ("mirror X is reachable, mirror Y returns 403, mirror Z times out")
+        BEFORE apptainer runs, so when the build fails the user already
+        knows which mirror to swap.
+        """
+        try:
+            text = def_path.read_text()
+        except OSError as exc:
+            logger.warning(f"Could not read def file for mirror probe: {exc}")
+            return
+
+        # Find "From: <value>" line, ignoring commented ones.
+        from_value: Optional[str] = None
+        for line in text.splitlines():
+            stripped = line.strip()
+            if stripped.startswith("From:") and not stripped.startswith("#"):
+                from_value = stripped.split(":", 1)[1].strip()
+                break
+        if not from_value:
+            logger.debug("No From: line found in def; skipping mirror probe")
+            return
+
+        # Parse <host>(/<repo>)?(:<tag>)?.
+        parts = from_value.split("/")
+        if len(parts) < 2 or "." not in parts[0]:
+            # Likely Docker Hub canonical form ("python:3.11-slim") — no
+            # mirror to probe.
+            logger.debug(
+                f"From: {from_value} has no registry host; skipping probe"
+            )
+            return
+
+        host = parts[0]
+        repo = "/".join(parts[1:])
+        tag = "latest"
+        if ":" in repo:
+            repo, tag = repo.rsplit(":", 1)
+
+        logger.info(f"Probing Docker mirrors for {repo}:{tag}")
+        # Build an ordered de-duplicated candidate list, primary first.
+        candidates: List[str] = []
+        for m in [host] + self._KNOWN_DOCKER_MIRRORS:
+            if m not in candidates:
+                candidates.append(m)
+
+        ok_candidates: List[str] = []
+        for mirror in candidates:
+            ok, detail = self.probe_registry_mirror(
+                mirror, repo=repo, tag=tag, timeout=6
+            )
+            marker = "✓" if ok else "✗"
+            label = " (CONFIGURED)" if mirror == host else ""
+            logger.info(f"  {marker} {mirror:<35} {detail}{label}")
+            if ok:
+                ok_candidates.append(mirror)
+
+        if host in ok_candidates:
+            return
+
+        logger.warning(
+            f"Configured mirror '{host}' cannot resolve {repo}:{tag}. "
+            "Likely cause of any subsequent 'conveyor failed to get' build "
+            "failure."
+        )
+        if ok_candidates:
+            logger.warning(
+                f"Working mirrors detected — re-generate the def file with "
+                f"one of these (or pass the host directly to apptainer): "
+                f"{', '.join(ok_candidates)}"
+            )
+            # Best-effort patch the def file so the user can simply re-run.
+            # Skip silently if the file is read-only or the user passes
+            # --no-patch.
+            try:
+                patched = text.replace(
+                    f"From: {from_value}",
+                    f"From: {ok_candidates[0]}/{repo}:{tag}",
+                )
+                if patched != text:
+                    def_path.write_text(patched)
+                    logger.warning(
+                        f"Auto-patched {def_path} → From: "
+                        f"{ok_candidates[0]}/{repo}:{tag}"
+                    )
+                    # The previous mirror may have left a partial blob in
+                    # ~/.apptainer/cache/blob (often hundreds of MB). Clear it
+                    # so the new mirror doesn't try to resume against a corrupt
+                    # local cache.
+                    cache_dir = Path.home() / ".apptainer" / "cache"
+                    if cache_dir.exists():
+                        try:
+                            shutil.rmtree(cache_dir / "blob")
+                            shutil.rmtree(cache_dir / "oci-tmp")
+                            logger.warning(
+                                "Cleared stale ~/.apptainer/cache/blob and "
+                                "oci-tmp from previous failed pull"
+                            )
+                        except OSError as exc:
+                            logger.debug(
+                                f"Could not clear apptainer cache: {exc}"
+                            )
+            except OSError as exc:
+                logger.debug(f"Could not auto-patch def: {exc}")
+        else:
+            logger.error(
+                f"NO configured mirror can resolve {repo}:{tag}. "
+                f"Check network/proxy, or update "
+                f"_KNOWN_DOCKER_MIRRORS."
+            )
+
     def build_sif(
         self,
         def_path: str,
@@ -987,6 +1206,13 @@ CMD ["bash"]
         df = Path(def_path).resolve()
         if not df.is_file():
             raise FileNotFoundError(f"Def file not found: {df}")
+
+        # Diagnose the configured Docker mirror BEFORE invoking apptainer.
+        # If the mirror can't resolve the base image, the user will see one
+        # confusing "conveyor failed to get" line with no actionable info.
+        # Probing the mirror first turns this into a clear mirror-selection
+        # problem with concrete HTTP statuses for every candidate.
+        self._diagnose_build_mirror(df)
 
         out = Path(output_sif).resolve()
         out.parent.mkdir(parents=True, exist_ok=True)

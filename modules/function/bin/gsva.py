@@ -17,22 +17,18 @@ Usage:
 """
 
 import argparse
-import logging
 import os
 import sys
 from pathlib import Path
 from typing import Dict, List
-
 import numpy as np
 import pandas as pd
 from scipy.stats import rankdata
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-)
-logger = logging.getLogger(__name__)
-
+try:
+    from .LogUtil import setup_logger
+except ImportError:
+    from LogUtil import setup_logger
+logger = setup_logger(__name__)
 
 def parse_gmt(gmt_path: str) -> Dict[str, List[str]]:
     """Parse a GMT (Gene Matrix Transposed) file.

@@ -1,8 +1,5 @@
 import sys
 import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))))
-from src.common.util.LogUtil import setup_logger
-from src.common.util.CmdUtil import _run_cmd
 from pathlib import Path
 import logging
 import pandas as pd
@@ -12,7 +9,10 @@ import logging
 from pathlib import Path
 import tempfile
 import shutil
-
+try:
+    from .common import setup_logger, _run_cmd
+except ImportError:
+    from common import setup_logger, _run_cmd
 logger = setup_logger("RepeatMaskerAnalysis", level=logging.INFO)
 
 
@@ -65,7 +65,7 @@ def run_te_annotation_pipeline(
         ]
 
         try:
-            stdout = _run_cmd(rm_cmd)
+            stdout = _run_cmd(rm_cmd, logger=logger)
             logger.info(f"RepeatMasker completed successfully:\n{stdout}")
             
             for item in tmp_path.iterdir():

@@ -5,7 +5,7 @@
 # Backend: micromamba
 
 Bootstrap: docker
-From: docker.1ms.run/mambaorg/micromamba:latest
+From: dockerproxy.net/mambaorg/micromamba:latest
 
 %files
     function.yaml /opt/conda/function.yaml

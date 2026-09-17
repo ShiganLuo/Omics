@@ -230,13 +230,6 @@ rule function_gsva:
                 "--gtf", input.gtf,
                 "--convert-gene-name",
             ]
-            script1 = os.path.join(gsva_outdir, f"normalize_{current_time}.sh")
-            with open(script1, 'w') as f:
-                f.write("#!/bin/bash\nset -e\nset -o pipefail\n")
-                f.write(" ".join(norm_cmd) + "\n")
-            shell(f"bash {script1} >> {log_path} 2>&1")
-            rule_logger.info(f"Normalization completed → {tpm_matrix}")
-
             # Step 2: Run GSVA on normalized matrix
             species_name = params.species
             gsva_cmd = [
@@ -246,13 +239,12 @@ rule function_gsva:
                 "-o", gsva_outdir,
                 "--title", f"GSVA ({species_name}) - {wildcards.genome}",
             ]
-            script2 = os.path.join(gsva_outdir, f"gsva_{current_time}.sh")
-            with open(script2, 'w') as f:
+            script = os.path.join(gsva_outdir, f"gsva_{current_time}.sh")
+            with open(script, 'w') as f:
                 f.write("#!/bin/bash\nset -e\nset -o pipefail\n")
-                f.write(" ".join(gsva_cmd) + "\n")
-            shell(f"bash {script2} >> {log_path} 2>&1")
-            rule_logger.info(f"GSVA analysis completed at {time.strftime('%Y%m%d_%H%M%S', time.localtime())}")
-
+                f.write(" ".join(norm_cmd) + "\n")
+                f.write(" ".join(shlex.quote(str(x)) for x in gsva_cmd) + "\n")
+            shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path, "a") as fh:
                 fh.write(f"GSVA analysis failed: {e}\n")

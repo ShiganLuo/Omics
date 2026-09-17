@@ -1,10 +1,6 @@
 import argparse
 import os
 import sys
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
-from src.common.util.LogUtil import setup_logger
-from utils.VEP_SV import read_vep_tab
-from utils.SV_TYPE_plot import plot_group_type_comparison
 import pandas as pd
 from typing import List, Dict, Optional, Tuple, Callable, Literal
 PlotFormat = Literal["png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg", "jpeg", "pgf", "raw", "rgba"]
@@ -13,8 +9,15 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import numpy as np
 from scipy.stats import chi2_contingency, fisher_exact, ttest_ind, mannwhitneyu
-
-logger = setup_logger("OncoPrint", level=logging.INFO)
+try:
+    from .utils.common import setup_logger
+    from .utils.VEP_SV import read_vep_tab
+    from .utils.SV_TYPE_plot import plot_group_type_comparison
+except ImportError:
+    from utils.common import setup_logger
+    from utils.VEP_SV import read_vep_tab
+    from utils.SV_TYPE_plot import plot_group_type_comparison
+logger = setup_logger("run_OncoPrint")
 
 def tab_parser(
         table_file: str,

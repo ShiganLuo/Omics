@@ -1,15 +1,21 @@
 import sys
 import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
-from src.common.util.LogUtil import setup_logger
 import pandas as pd
 import argparse
 import os
 import logging
 from typing import Dict, List, Literal, Optional
-from utils.SV_TYPE_plot import plot_sv_type_barplot,plot_sv_length_boxplot,plot_large_sv_barplot,plot_group_type_comparison
-from utils.SV_TYPE import parse_pbsv_vcf
-logger = setup_logger("pbsvDiffAnalysis", level=logging.INFO)
+
+try:
+    from .utils.common import setup_logger
+    from .utils.SV_TYPE_plot import plot_sv_type_barplot,plot_sv_length_boxplot,plot_large_sv_barplot,plot_group_type_comparison
+    from .utils.SV_TYPE import parse_pbsv_vcf
+except ImportError:
+    from utils.common import setup_logger
+    from utils.SV_TYPE_plot import plot_sv_type_barplot,plot_sv_length_boxplot,plot_large_sv_barplot,plot_group_type_comparison
+    from utils.SV_TYPE import parse_pbsv_vcf
+logger = setup_logger("pbsv_sv_diff_analysis", level=logging.INFO)
+
 
 PlotFormat = Literal["png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg", "jpeg", "pgf", "raw", "rgba"]
 

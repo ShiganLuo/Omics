@@ -1271,13 +1271,40 @@ def _build_auto_annotation_prompt(
     # in this cluster vs all others (specificity = this_mean / other_max).
     # This catches signals that DEG ranking hides (e.g. Oocyte markers
     # in a proliferation-dominated cluster).
+    n_specificity = 5  # default: show top 5
+    degs_are_generic = False
     if marker_specificity:
-        # Sort all (ct, gene) by specificity descending, take top 5
+        # Check if top DEGs are dominated by generic (non-specific) genes.
+        # Build a lookup: gene -> max specificity across all cell types.
+        gene_max_spec: Dict[str, float] = {}
+        for (ct, gene), m in marker_specificity.items():
+            s = m.get("specificity", 0.0)
+            if s > gene_max_spec.get(gene, 0.0):
+                gene_max_spec[gene] = s
+
+        # Compute average specificity of top 20 DEGs.
+        # Genes not in the specificity dict count as 1.0 (no enrichment).
+        top_n_check = min(20, len(top_genes))
+        spec_scores = [gene_max_spec.get(g, 1.0) for g in top_genes[:top_n_check]]
+        avg_spec = sum(spec_scores) / len(spec_scores) if spec_scores else 1.0
+
+        if avg_spec < 1.5:
+            # Top DEGs are generic — expand specificity markers to top 10
+            # and flag so the prompt can warn the LLM.
+            n_specificity = 10
+            degs_are_generic = True
+            logging.info(
+                "Cluster %s: avg DEG specificity=%.2f (<1.5), "
+                "expanding specificity markers to top %d",
+                cluster_id, avg_spec, n_specificity,
+            )
+
+        # Sort all (ct, gene) by specificity descending
         ranked = sorted(
             marker_specificity.items(),
             key=lambda kv: kv[1].get("specificity", 0.0),
             reverse=True,
-        )[:5]
+        )[:n_specificity]
         spec_lines = []
         for (ct, gene), m in ranked:
             spec = m.get("specificity", 0.0)
@@ -1301,13 +1328,22 @@ def _build_auto_annotation_prompt(
 
     # PRIMARY: Specificity table — put FIRST so LLM sees it before DEGs
     if specificity_context:
+        deg_warning = ""
+        if degs_are_generic:
+            deg_warning = (
+                "\n**WARNING: The top DEGs for this cluster are dominated by "
+                "generic genes (cell cycle, stress, ECM) with low cell-type "
+                "specificity (avg specificity < 1.5x). These DEGs do NOT "
+                "define the cell type. You MUST base your annotation on the "
+                "specificity markers below.**\n"
+            )
         prompt += f"""
 ## PRIMARY EVIDENCE: Top specific markers for THIS cluster
 These markers are UNIQUELY enriched in this cluster vs all others.
 Use these as your MAIN basis for cell type identification.
 specificity = this cluster's mean / max mean in other clusters.
 Higher specificity = more diagnostic. >=2.0x = strong evidence.
-
+{deg_warning}
 {specificity_context}
 """
 

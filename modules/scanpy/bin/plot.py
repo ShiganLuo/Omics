@@ -533,6 +533,265 @@ class ScanpyPlotter:
         logger.info("Annotation plots saved to %s", self.plot_dir)
 
     # ------------------------------------------------------------------
+    # Marker expression on UMAP (post-annotation)
+    # ------------------------------------------------------------------
+    def plot_markers(
+        self,
+        adata: AnnData,
+        annotations: Dict[str, Dict],
+        cluster_key: str = "leiden",
+    ) -> int:
+        """Plot marker gene expression on UMAP, grouped by cell type.
+
+        For each unique cell type, plots ALL key_markers from all its
+        clusters on the UMAP with cluster centroid labels.  Multiple
+        clusters sharing the same cell type are highlighted together.
+
+        Also generates:
+        - A combined panel (one top marker per cell type).
+        - A dotplot grouped by cell type.
+
+        Output directory: ``<plot_dir>/marker/``.
+
+        Args:
+            adata: Annotated AnnData (must have ``X_umap`` in ``obsm``).
+            annotations: Dict mapping cluster_id -> annotation dict
+                (must contain ``cell_type`` and ``key_markers``).
+            cluster_key: Column in ``adata.obs`` for cluster labels.
+
+        Returns:
+            Total number of unique markers actually plotted.
+        """
+        marker_dir = os.path.join(self.plot_dir, "marker")
+        os.makedirs(marker_dir, exist_ok=True)
+
+        # Use raw for expression values
+        if adata.raw is not None:
+            adata_raw = adata.raw.to_adata()
+            adata_raw.obsm = adata.obsm
+            adata_raw.uns = adata.uns
+        else:
+            adata_raw = adata
+
+        all_genes = set(adata_raw.var_names)
+        umap = adata.obsm["X_umap"]
+
+        # Compute cluster centroids
+        centroids: Dict[str, np.ndarray] = {}
+        for cid in sorted(annotations.keys(), key=lambda x: int(x)):
+            mask = adata.obs[cluster_key] == cid
+            if mask.sum() > 0:
+                centroids[cid] = umap[mask.values].mean(axis=0)
+
+        # Group clusters by cell type
+        ct_to_clusters: Dict[str, List[str]] = {}
+        for cid in sorted(annotations.keys(), key=lambda x: int(x)):
+            ct = annotations[cid]["cell_type"]
+            ct_to_clusters.setdefault(ct, []).append(cid)
+
+        def _get_expr(gene: str) -> np.ndarray:
+            x = adata_raw[:, gene].X
+            if hasattr(x, "toarray"):
+                return x.toarray().flatten()
+            return np.asarray(x).flatten()
+
+        def _annotate_centroids(ax: plt.Axes, highlight_cids: List[str]) -> None:
+            for _cid, (cx, cy) in centroids.items():
+                is_target = _cid in highlight_cids
+                ax.annotate(
+                    _cid, (cx, cy),
+                    fontsize=9 if is_target else 7,
+                    fontweight="bold" if is_target else "normal",
+                    color="red" if is_target else "black",
+                    ha="center", va="center",
+                    bbox=dict(boxstyle="round,pad=0.15",
+                              facecolor="white", alpha=0.7, edgecolor="none"),
+                )
+
+        # ── Per-cell-type marker panels ──
+        total_unique_markers = 0
+        seen_genes: set = set()
+        all_top_markers: List[str] = []   # one top marker per cell type
+        all_top_cts: List[str] = []
+
+        for ct, cluster_ids in ct_to_clusters.items():
+            # Collect ALL unique markers from all clusters of this cell type
+            markers: List[str] = []
+            seen_ct_genes: set = set()
+            for cid in cluster_ids:
+                for g in annotations[cid].get("key_markers", []):
+                    if g in all_genes and g not in seen_ct_genes:
+                        markers.append(g)
+                        seen_ct_genes.add(g)
+
+            if not markers:
+                continue
+
+            # Subplot grid: markers + 1 UMAP reference, up to 5 cols
+            n = len(markers)
+            total_panels = n + 1  # +1 for UMAP cluster reference
+            ncols = min(5, total_panels)
+            nrows = (total_panels + ncols - 1) // ncols
+            fig, axes = plt.subplots(nrows, ncols,
+                                     figsize=(4 * ncols, 4 * nrows))
+            axes_flat = np.asarray(axes).flatten() if total_panels > 1 else [axes]
+
+            for ax, gene in zip(axes_flat, markers):
+                expr = _get_expr(gene)
+                ax.scatter(umap[:, 0], umap[:, 1], c="#e0e0e0",
+                           s=2, alpha=0.3, edgecolors="none")
+                sort_idx = np.argsort(expr)
+                sm = ax.scatter(
+                    umap[sort_idx, 0], umap[sort_idx, 1],
+                    c=expr[sort_idx], cmap="Reds", s=3,
+                    alpha=0.7, edgecolors="none",
+                )
+                _annotate_centroids(ax, cluster_ids)
+                ax.set_title(gene, fontsize=11, fontweight="bold")
+                ax.set_xticks([])
+                ax.set_yticks([])
+                plt.colorbar(sm, ax=ax, fraction=0.046, pad=0.04,
+                             label="expression")
+
+            # Last subplot: UMAP cluster reference
+            ax_ref = axes_flat[n]
+            ax_ref.scatter(umap[:, 0], umap[:, 1], c="#e0e0e0",
+                           s=3, alpha=0.4, edgecolors="none")
+            for _cid in cluster_ids:
+                mask = adata.obs[cluster_key] == _cid
+                ax_ref.scatter(umap[mask.values, 0], umap[mask.values, 1],
+                               s=5, alpha=0.7, edgecolors="none",
+                               label=f"C{_cid}")
+            for _cid, (cx, cy) in centroids.items():
+                is_target = _cid in cluster_ids
+                ax_ref.annotate(
+                    _cid, (cx, cy),
+                    fontsize=9 if is_target else 7,
+                    fontweight="bold" if is_target else "normal",
+                    color="red" if is_target else "black",
+                    ha="center", va="center",
+                    bbox=dict(boxstyle="round,pad=0.15",
+                              facecolor="white", alpha=0.7, edgecolor="none"),
+                )
+            ax_ref.set_title("Cluster ref", fontsize=11, fontweight="bold")
+            ax_ref.set_xticks([])
+            ax_ref.set_yticks([])
+            ax_ref.legend(loc="best", fontsize=7, framealpha=0.8)
+
+            # Hide unused axes
+            for j in range(total_panels, len(axes_flat)):
+                axes_flat[j].set_visible(False)
+
+            # Title: cell type + cluster ids
+            cid_str = ", ".join(f"C{c}" for c in cluster_ids)
+            fig.suptitle(f"{ct}  [{cid_str}]",
+                         fontsize=14, fontweight="bold", y=1.02)
+            plt.tight_layout()
+            safe_ct = ct.replace("/", "_").replace(" ", "_")
+            fig.savefig(os.path.join(marker_dir, f"{safe_ct}.png"),
+                        dpi=self.dpi, bbox_inches="tight")
+            plt.close(fig)
+
+            for g in markers:
+                if g not in seen_genes:
+                    seen_genes.add(g)
+                    total_unique_markers += 1
+
+            # Collect top marker for combined panel
+            for cid in cluster_ids:
+                for g in annotations[cid].get("key_markers", []):
+                    if g in all_genes and g not in all_top_markers:
+                        all_top_markers.append(g)
+                        all_top_cts.append(ct)
+                        break
+                if len(all_top_cts) > 0 and all_top_cts[-1] == ct:
+                    break
+
+        # ── Combined panel: one top marker per cell type ──
+        if all_top_markers:
+            n = len(all_top_markers)
+            ncols = min(5, n)
+            nrows = (n + ncols - 1) // ncols
+            fig, axes = plt.subplots(nrows, ncols,
+                                     figsize=(4 * ncols, 4 * nrows))
+            axes_flat = np.asarray(axes).flatten() if n > 1 else [axes]
+
+            for i, (gene, ct, ax) in enumerate(
+                    zip(all_top_markers, all_top_cts, axes_flat)):
+                expr = _get_expr(gene)
+                ax.scatter(umap[:, 0], umap[:, 1], c="#e0e0e0",
+                           s=1, alpha=0.2, edgecolors="none")
+                sort_idx = np.argsort(expr)
+                ax.scatter(
+                    umap[sort_idx, 0], umap[sort_idx, 1],
+                    c=expr[sort_idx], cmap="Reds", s=2,
+                    alpha=0.7, edgecolors="none",
+                )
+                # Highlight all clusters for this cell type
+                cids = ct_to_clusters[ct]
+                _annotate_centroids(ax, cids)
+                cid_str = ",".join(cids)
+                ax.set_title(f"C{cid_str} {gene}", fontsize=8)
+                ax.set_xticks([])
+                ax.set_yticks([])
+
+            for j in range(i + 1, len(axes_flat)):
+                axes_flat[j].set_visible(False)
+
+            fig.suptitle("Top marker expression on UMAP (per cell type)",
+                         fontsize=14, fontweight="bold")
+            plt.tight_layout()
+            fig.savefig(os.path.join(marker_dir, "all_cell_types_top_marker.png"),
+                        dpi=self.dpi, bbox_inches="tight")
+            plt.close(fig)
+
+        # ── Dotplot grouped by cell_type ──
+        # Use ALL markers, grouped by cell type label
+        dotplot_markers: List[str] = []
+        seen_dotplot: set = set()
+        # Build ordered cell type labels for groupby
+        type_count: Dict[str, int] = {}
+        for ann in annotations.values():
+            type_count[ann["cell_type"]] = type_count.get(ann["cell_type"], 0) + 1
+
+        label_map: Dict[str, str] = {}
+        for cid in sorted(annotations.keys(), key=lambda x: int(x)):
+            ct = annotations[cid]["cell_type"]
+            if type_count[ct] > 1:
+                label_map[cid] = f"{ct} (C{cid})"
+            else:
+                label_map[cid] = ct
+
+        adata.obs["_marker_ct_label"] = adata.obs[cluster_key].map(label_map).astype("category")
+        adata_raw.obs["_marker_ct_label"] = adata.obs["_marker_ct_label"]
+
+        for ct, cluster_ids in ct_to_clusters.items():
+            for cid in cluster_ids:
+                for g in annotations[cid].get("key_markers", []):
+                    if g in all_genes and g not in seen_dotplot:
+                        dotplot_markers.append(g)
+                        seen_dotplot.add(g)
+
+        if dotplot_markers:
+            sc.pl.dotplot(
+                adata_raw, var_names=dotplot_markers,
+                groupby="_marker_ct_label", standard_scale="var",
+                show=False,
+            )
+            plt.savefig(os.path.join(marker_dir, "marker_dotplot.png"),
+                        dpi=self.dpi, bbox_inches="tight")
+            plt.close("all")
+
+        # Clean up temporary columns from adata.obs
+        for col in ("_marker_ct_label", "_marker_cell_type_label"):
+            if col in adata.obs.columns:
+                adata.obs.drop(columns=[col], inplace=True)
+
+        logger.info("Marker plots saved to %s (%d unique markers, %d cell types)",
+                     marker_dir, total_unique_markers, len(ct_to_clusters))
+        return total_unique_markers
+
+    # ------------------------------------------------------------------
     # Advanced (trajectory / CNV)
     # ------------------------------------------------------------------
     def plot_advanced(

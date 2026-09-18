@@ -24,7 +24,11 @@ def get_input_for_generate_report(wildcards):
     in_dict["te_group_plot"] = indir + f"/transcripts/{wildcards.genome}/TE_chimeric/TE_chimeric_group_stacked.png"
     in_dict["te_type_top_plot"] = indir + f"/transcripts/{wildcards.genome}/TE_chimeric/TE_chimeric_te_type_top.png"
     in_dict["te_type_group_plot"] = indir + f"/transcripts/{wildcards.genome}/TE_chimeric/TE_chimeric_te_type_by_group.png"
-    in_dict["tecount_matrix"] = indir + f"/counts/{wildcards.genome}/TEcount/all_TEcount.tsv"
+    in_dict["tecount_matrix"] = indir + f"/counts/TEtranscripts/{wildcards.genome}/{wildcards.genome}_TEcount.tsv"
+    in_dict["tecount_name_matrix"] = indir + f"/counts/TEtranscripts/{wildcards.genome}/{wildcards.genome}_TEcount_name.tsv"
+    in_dict["featurecounts_matrix"] = indir + f"/counts/featureCounts/{wildcards.genome}/{wildcards.genome}_featureCounts.tsv"
+    in_dict["gsva_heatmap"] = indir + f"/function/{wildcards.genome}/gsva/gsva_heatmap.png"
+    in_dict["gsva_scores"] = indir + f"/function/{wildcards.genome}/gsva/gsva_scores.tsv"
     in_dict["fusion_summary"] = indir + f"/fusion/{wildcards.genome}/arriba_report/per_sample_summary.tsv"
     in_dict["recurrent_fusions"] = indir + f"/fusion/{wildcards.genome}/arriba_report/recurrent_fusions.tsv"
     in_dict["high_medium_fusions"] = indir + f"/fusion/{wildcards.genome}/arriba_report/high_medium_confidence_fusions.tsv"
@@ -96,9 +100,14 @@ rule generate_report:
             # Script expects: analysis_dir/transcripts/..., analysis_dir/fusion/...
             # Actual paths: {outdir}/transcripts/{genome}/..., {outdir}/fusion/{genome}/...
             genome_dir = f"{outdir}/{wildcards.genome}"
-            for subdir in ["transcripts", "fusion", "diff_expression", "counts", "function"]:
+            for subdir in ["transcripts", "fusion", "diff_expression", "function"]:
                 src = f"{indir}/{subdir}/{wildcards.genome}"
                 dst = f"{genome_dir}/{subdir}"
+                shell(f"mkdir -p $(dirname {dst}) && ln -sfn {src} {dst}")
+            # counts: TEtranscripts and featureCounts have separate subdirs
+            for count_tool in ["TEtranscripts", "featureCounts"]:
+                src = f"{indir}/counts/{count_tool}/{wildcards.genome}"
+                dst = f"{genome_dir}/counts/{count_tool}"
                 shell(f"mkdir -p $(dirname {dst}) && ln -sfn {src} {dst}")
             cmd = [
                 "python3", params.script,

@@ -2320,214 +2320,6 @@ def _check_cluster_continuity(
     return has_discontinuity, diagnostics
 
 
-def _check_cluster_overlap(
-    adata: ad.AnnData,
-    cluster_key: str = "leiden",
-    min_cells: int = 50,
-    overlap_threshold: float = 0.5,
-) -> Tuple[bool, Dict[str, Any]]:
-    """Check if different clusters occupy the same UMAP region.
-
-    Two clusters overlap when their UMAP bounding boxes intersect
-    significantly AND they have similar DEG profiles, suggesting
-    Leiden split one biological population into multiple clusters
-    that UMAP cannot visually separate.
-
-    Algorithm:
-        1. For each cluster, compute UMAP bounding box.
-        2. For each pair, compute bounding box intersection.
-        3. If intersection / min(cluster area) > overlap_threshold,
-           check DEG similarity (Jaccard of top-30 DEGs).
-        4. Pairs with high overlap + high DEG similarity are flagged.
-
-    Args:
-        adata: AnnData with UMAP coordinates and cluster labels.
-        cluster_key: Column name for cluster labels.
-        min_cells: Minimum cells to consider a cluster.
-        overlap_threshold: Min bounding box overlap fraction (default 0.5).
-
-    Returns:
-        Tuple of (has_overlap, diagnostics).
-    """
-    if "X_umap" not in adata.obsm:
-        return False, {}
-
-    umap = adata.obsm["X_umap"]
-    obs = adata.obs
-    overlapping_pairs = []
-
-    # Compute bounding boxes per cluster
-    bboxes: Dict[str, Dict[str, float]] = {}
-    for cluster in obs[cluster_key].unique():
-        mask = obs[cluster_key] == cluster
-        if int(mask.sum()) < min_cells:
-            continue
-        coords = umap[mask.values]
-        bboxes[cluster] = {
-            "x_min": float(coords[:, 0].min()),
-            "x_max": float(coords[:, 0].max()),
-            "y_min": float(coords[:, 1].min()),
-            "y_max": float(coords[:, 1].max()),
-            "n_cells": int(mask.sum()),
-        }
-
-    # Get DEGs for Jaccard comparison
-    has_rank_genes = "rank_genes_groups" in adata.uns
-    deg_cache: Dict[str, set] = {}
-    if has_rank_genes:
-        result = adata.uns["rank_genes_groups"]
-        for cluster in bboxes:
-            try:
-                deg_cache[cluster] = set(result["names"][cluster][:30])
-            except (KeyError, IndexError):
-                pass
-
-    # Pairwise overlap check
-    cluster_ids = sorted(bboxes.keys(), key=lambda x: int(x))
-    for i, c1 in enumerate(cluster_ids):
-        b1 = bboxes[c1]
-        area1 = (b1["x_max"] - b1["x_min"]) * (b1["y_max"] - b1["y_min"])
-        if area1 <= 0:
-            continue
-        for c2 in cluster_ids[i + 1:]:
-            b2 = bboxes[c2]
-            area2 = (b2["x_max"] - b2["x_min"]) * (b2["y_max"] - b2["y_min"])
-            if area2 <= 0:
-                continue
-
-            # Bounding box intersection
-            x_overlap = max(0, min(b1["x_max"], b2["x_max"]) - max(b1["x_min"], b2["x_min"]))
-            y_overlap = max(0, min(b1["y_max"], b2["y_max"]) - max(b1["y_min"], b2["y_min"]))
-            intersection = x_overlap * y_overlap
-            smaller_area = min(area1, area2)
-            overlap_frac = intersection / smaller_area if smaller_area > 0 else 0
-
-            if overlap_frac < overlap_threshold:
-                continue
-
-            # Check DEG similarity
-            jaccard = 0.0
-            if c1 in deg_cache and c2 in deg_cache:
-                shared = len(deg_cache[c1] & deg_cache[c2])
-                total = len(deg_cache[c1] | deg_cache[c2])
-                jaccard = shared / total if total > 0 else 0
-
-            # Only flag if DEGs are also similar (same cell type)
-            if jaccard >= 0.15:
-                overlapping_pairs.append({
-                    "cluster_i": c1,
-                    "cluster_j": c2,
-                    "overlap_frac": round(overlap_frac, 3),
-                    "deg_jaccard": round(jaccard, 3),
-                    "cells_i": b1["n_cells"],
-                    "cells_j": b2["n_cells"],
-                })
-                logging.warning(
-                    "Cluster %s & %s: UMAP overlap=%.1f%%, DEG Jaccard=%.3f",
-                    c1, c2, overlap_frac * 100, jaccard,
-                )
-
-    has_overlap = len(overlapping_pairs) > 0
-    if has_overlap:
-        logging.info("Overlap check: %d overlapping cluster pairs", len(overlapping_pairs))
-    else:
-        logging.info("Overlap check: no significant cluster overlaps")
-
-    return has_overlap, {
-        "overlapping_pairs": overlapping_pairs,
-        "n_overlapping": len(overlapping_pairs),
-    }
-
-
-def _llm_adjust_umap_params(
-    overlap_diag: Dict[str, Any],
-    current_min_dist: float,
-    current_spread: float,
-    llm_method: str,
-    llm_model: str,
-    llm_api_key: str,
-    llm_base_url: str,
-) -> Tuple[float, float]:
-    """Ask LLM to recommend UMAP parameters based on cluster overlap diagnostics.
-
-    Args:
-        overlap_diag: Diagnostics from _check_cluster_overlap.
-        current_min_dist: Current UMAP min_dist parameter.
-        current_spread: Current UMAP spread parameter.
-        llm_method, llm_model, llm_api_key, llm_base_url: LLM config.
-
-    Returns:
-        Tuple of (new_min_dist, new_spread). Returns current values if LLM fails.
-    """
-    pairs = overlap_diag.get("overlapping_pairs", [])
-    if not pairs:
-        return current_min_dist, current_spread
-
-    # Build description of overlapping clusters
-    pair_desc = []
-    for p in pairs:
-        pair_desc.append(
-            f"  - Cluster {p['cluster_i']} ({p['cells_i']} cells) & "
-            f"Cluster {p['cluster_j']} ({p['cells_j']} cells): "
-            f"UMAP overlap={p['overlap_frac']*100:.0f}%, "
-            f"DEG Jaccard={p['deg_jaccard']:.3f}"
-        )
-    pairs_text = "\n".join(pair_desc)
-
-    prompt = f"""You are a single-cell RNA-seq expert. The UMAP visualization shows clusters that overlap spatially but are split by Leiden clustering.
-
-## Current UMAP parameters
-- min_dist: {current_min_dist}
-- spread: {current_spread}
-
-## Overlapping cluster pairs
-{pairs_text}
-
-## Analysis
-These clusters overlap in UMAP space (their bounding boxes intersect significantly) AND have similar DEG profiles (Jaccard >= 0.15). This means the current UMAP embedding cannot visually distinguish the Leiden-detected communities.
-
-## Task
-Recommend UMAP parameters to better separate these clusters in visualization:
-- **min_dist**: Controls minimum distance between points. Lower = tighter clusters. Current = {current_min_dist}.
-- **spread**: Controls overall embedding spread. Lower = more compact. Current = {current_spread}.
-
-To increase separation between overlapping clusters, consider:
-- Increasing min_dist (0.3-0.8) to push clusters apart
-- Decreasing spread (0.3-0.6) to make clusters more compact
-
-Output ONLY a JSON object:
-- "min_dist": recommended value (float, 0.1-1.0)
-- "spread": recommended value (float, 0.3-2.0)
-- "reasoning": brief explanation
-"""
-
-    try:
-        if llm_method == "anthropic":
-            raw = _call_anthropic(prompt, llm_model=llm_model, llm_api_key=llm_api_key, llm_base_url=llm_base_url)
-        elif llm_method == "openai":
-            raw = _call_openai(prompt, llm_model=llm_model, llm_api_key=llm_api_key, llm_base_url=llm_base_url)
-        else:
-            return current_min_dist, current_spread
-
-        new_min_dist = float(raw.get("min_dist", current_min_dist))
-        new_spread = float(raw.get("spread", current_spread))
-        reasoning = raw.get("reasoning", "")
-
-        # Sanity check
-        new_min_dist = max(0.01, min(1.0, new_min_dist))
-        new_spread = max(0.3, min(2.0, new_spread))
-
-        logging.info(
-            "LLM UMAP adjustment: min_dist=%.2f->%.2f, spread=%.2f->%.2f (%s)",
-            current_min_dist, new_min_dist, current_spread, new_spread, reasoning,
-        )
-        return new_min_dist, new_spread
-
-    except Exception as exc:
-        logging.warning("LLM UMAP adjustment failed: %s", exc)
-        return current_min_dist, current_spread
-
-
 # ---------------------------------------------------------------------------
 # Cluster quality analysis
 # ---------------------------------------------------------------------------
@@ -2990,8 +2782,6 @@ def mode_auto(
 
     iteration = 0
     detect_diag: Dict = {}
-    umap_min_dist = 0.1
-    umap_spread = 0.8
     while iteration < max_iterations:
         iteration += 1
         logging.info("=" * 60)
@@ -3104,7 +2894,7 @@ def mode_auto(
         else:
             sc.pp.neighbors(adata, n_neighbors=n_neighbors, n_pcs=n_pcs)
 
-        sc.tl.umap(adata, min_dist=umap_min_dist, spread=umap_spread)
+        sc.tl.umap(adata, min_dist=0.1, spread=0.8)
         sc.tl.leiden(adata, resolution=resolution, key_added="leiden",
                      flavor="igraph", n_iterations=2, directed=False)
         # If skip_te, temporarily remove TE genes from raw so DEG excludes them
@@ -3472,51 +3262,6 @@ def mode_auto(
                     )
                     resolution = new_resolution
                     continue  # Re-cluster with higher resolution
-
-        # ── Step 3.6: Check cluster overlap & adjust UMAP ──
-        logging.info("[Step 3.6] Checking cluster overlap...")
-        has_overlap, overlap_diag = _check_cluster_overlap(
-            adata,
-            cluster_key="leiden",
-            min_cells=50,
-            overlap_threshold=0.5,
-        )
-        iter_ctx["overlap_check"] = overlap_diag
-
-        if has_overlap and iteration == 1:
-            # Only adjust UMAP on first iteration — re-embed with better params
-            new_min_dist, new_spread = _llm_adjust_umap_params(
-                overlap_diag,
-                current_min_dist=umap_min_dist,
-                current_spread=umap_spread,
-                llm_method=llm_method,
-                llm_model=llm_model,
-                llm_api_key=llm_api_key,
-                llm_base_url=llm_base_url,
-            )
-            if new_min_dist != umap_min_dist or new_spread != umap_spread:
-                logging.info(
-                    "Re-embedding UMAP: min_dist=%.2f->%.2f, spread=%.2f->%.2f",
-                    umap_min_dist, new_min_dist, umap_spread, new_spread,
-                )
-                umap_min_dist = new_min_dist
-                umap_spread = new_spread
-                sc.tl.umap(adata, min_dist=umap_min_dist, spread=umap_spread)
-                # Re-run Leiden on the new embedding
-                sc.tl.leiden(adata, resolution=resolution, key_added="leiden",
-                             flavor="igraph", n_iterations=2, directed=False)
-                # Re-compute DEGs
-                _orig_raw2 = None
-                if skip_te and "gene_type" in adata.raw.var.columns:
-                    _orig_raw2 = adata.raw
-                    te_mask = adata.raw.var["gene_type"] != "TE"
-                    adata._raw = adata.raw[:, te_mask].copy()
-                sc.tl.rank_genes_groups(adata, "leiden", method="wilcoxon", use_raw=True)
-                if _orig_raw2 is not None:
-                    adata._raw = _orig_raw2
-                n_clusters = len(adata.obs["leiden"].unique())
-                logging.info("After UMAP adjustment: %d clusters", n_clusters)
-                continue  # Re-annotate with new clustering
 
         # Early exit: if no clusters need filtering, break BEFORE Step 3.75 / 4
         # otherwise their `continue` statements would skip this break and force

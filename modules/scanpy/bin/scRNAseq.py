@@ -1090,7 +1090,6 @@ Rules:
 - Use standard nomenclature from published studies
 - Include tissue-specific subtypes when they have distinct canonical markers
 - Include both common and rare cell types
-- Markers should be protein-coding genes commonly used in literature
 - For any cell type that has biologically distinct subtypes identifiable by DIFFERENT canonical markers, list each subtype separately. Two populations should be split into separate entries ONLY if there is a well-established marker combination in the literature that distinguishes them; otherwise keep them as a single entry.
 - IMPORTANT: Include transitional, activated, and mixed-phenotype cell types (e.g. Myofibroblast, Activated_Stromal_Cell, Cancer-Associated_Fibroblast, Tip_Endothelial_Cell, Proliferating_cell). These are commonly found in scRNA-seq data but often missed in standard cell type lists. They express markers from TWO or more canonical lineages simultaneously.
 - Output ONLY valid JSON, no markdown

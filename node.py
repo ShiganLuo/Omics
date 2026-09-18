@@ -617,7 +617,8 @@ def runRNAseq(
         outdir: str,
         raw_files: List[str],
     ):
-    datajson["ROOT_DIR"] = os.path.dirname(__file__)
+    ROOT_DIR = os.path.dirname(__file__)
+    datajson["ROOT_DIR"] = ROOT_DIR
     datajson["indir"] = indir
     datajson["outdir"] = outdir
     logdir = os.path.join(outdir, "log")
@@ -705,6 +706,12 @@ def runRNAseq(
             raise ValueError(f"function module don't support {organism}, only support human or mouse(Homo sapiens or Mus musculus)")
     datajson["Params"]["report"]["date"] = time.strftime("%Y-%m-%d", time.localtime())
     for organism in Organisms:
+        if organism == "GRCm39":
+            datajson["Params"]["function"][organism]["gsea"]["gmt"] = os.path.join(ROOT_DIR,"assests/geneset/2C_mouse.gmt")
+            datajson["Params"]["function"][organism]["gsva"]["gmt"] = os.path.join(ROOT_DIR,"assests/geneset/GSI_mouse.gmt")
+        if organism == "GRCh38":
+            datajson["Params"]["function"][organism]["gsea"]["gmt"] = os.path.join(ROOT_DIR,"assests/geneset/8C_human.gmt")
+            datajson["Params"]["function"][organism]["gsva"]["gmt"] = os.path.join(ROOT_DIR,"assests/geneset/GSI_human.gmt")
         if _fusion_enabled:
             outfiles.append(f"{outdir}/fusion/{organism}/arriba_report/arriba_fusion_report.html")
         if _transcripts_enabled:

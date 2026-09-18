@@ -90,7 +90,7 @@ def get_input_for_function_gsea(wildcards):
         raise FileNotFoundError(f"Gene ID annotation not found for genome {wildcards.genome}.")
     gmt = config.get("Params", {}).get("function", {}).get(wildcards.genome, {}).get("gsea", {}).get("gmt")
     if not gmt or not os.path.exists(gmt):
-        raise ValueError("GSEA requires a GMT file. Please set Params.function.gmt in config.")
+        raise ValueError(f"GSEA requires a GMT file. Please set Params.function.{wildcards.genome}.gsea.gmt in config.")
     in_dict['deseq2_result'] = deseq2_result
     in_dict['annotation'] = annotation
     in_dict['gmt'] = gmt
@@ -166,7 +166,7 @@ def get_input_for_function_gsva(wildcards):
     gmt = config.get("Params", {}).get("function", {}).get(wildcards.genome, {}).get("gsva", {}).get("gmt")
     if not gmt or not os.path.exists(gmt):
         raise ValueError(
-            f"GSVA requires a GMT file. Set Params.function.{wildcards.genome}.gsva.gmt in config."
+            f"GSVA requires a GMT file. {gmt} is not exists, please set Params.function.{wildcards.genome}.gsva.gmt in config."
         )
     in_dict['gmt'] = gmt
     # GTF for gene ID → gene name conversion

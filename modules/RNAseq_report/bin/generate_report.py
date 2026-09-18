@@ -105,6 +105,7 @@ I18N = {
         "nes": "NES",
         "padj": "padj",
         "count": "基因数",
+        "gsva": "GSVA 通路活性评分",
     },
     "en": {
         "title": "RNA-seq Analysis Report",
@@ -149,6 +150,7 @@ I18N = {
         "nes": "NES",
         "padj": "padj",
         "count": "Count",
+        "gsva": "GSVA Pathway Activity",
     },
 }
 
@@ -604,8 +606,8 @@ def build_workflow_slide(prs: Presentation, pipeline_text: str, lang: str):
         "FASTQ / Meta",
         "TrimGalore / Cutadapt",
         "STAR / HISAT2",
-        "TEcount / StringTie / Arriba",
-        "DESeq2 + GO/KEGG/GSEA",
+        "TEcount / featureCounts / Arriba",
+        "DESeq2 + GO/KEGG/GSEA/GSVA",
     ]
     box_w = 1.55
     gap = 0.2
@@ -889,6 +891,35 @@ def build_function_gsea_slide(prs: Presentation, item: dict, lang: str):
     _bullets(slide, 0.55, 4.7, 5.6, 0.5, notes, font_size=10)
 
 
+def build_gsva_slide(prs: Presentation, gsva_heatmap: str, gsva_scores_path: str, lang: str):
+    """GSVA enrichment heatmap + top gene-set table."""
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    slide.background.fill.solid()
+    slide.background.fill.fore_color.rgb = C_BG
+    _header(slide, t("gsva", lang))
+    _add_picture(slide, gsva_heatmap, 0.45, 0.95, 6.0, 3.8)
+    # Top gene sets by mean absolute score
+    df = safe_read_tsv(gsva_scores_path)
+    rows = [["Gene Set", "Mean |Score|"]]
+    if not df.empty:
+        gene_set_col = df.columns[0]
+        score_cols = df.columns[1:]
+        df_scores = df[score_cols].apply(pd.to_numeric, errors="coerce")
+        df["mean_abs"] = df_scores.abs().mean(axis=1)
+        top = df.nlargest(8, "mean_abs")
+        for _, row in top.iterrows():
+            name = str(row[gene_set_col])
+            if len(name) > 35:
+                name = name[:32] + "..."
+            rows.append([name, f"{row['mean_abs']:.3f}"])
+    _table(slide, 6.65, 1.0, 2.9, 0.3 * len(rows), rows, font_size=9)
+    bullets = [
+        "GSVA 基于预定义基因集对每个样本评分，反映通路活性差异。" if lang == "zh"
+        else "GSVA scores pathway activity per sample using predefined gene sets.",
+    ]
+    _bullets(slide, 0.55, 4.9, 8.7, 0.5, bullets, font_size=11)
+
+
 def build_conclusion_slide(prs: Presentation, bullets: list[str], stats: dict, lang: str):
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     slide.background.fill.solid()
@@ -1099,9 +1130,23 @@ def write_file_inventory(output_path: str, analysis_dir: str, contrasts: List[st
     _write_tsv_sheet("te_type_counts", os.path.join(te_base, "TE_chimeric_te_type_counts.tsv"))
 
     # ── TEcount matrix ────────────────────────────────────────
-    tecount_path = os.path.join(analysis_dir, "results", "counts", "TEcount", "all_TEcount.tsv")
+    genome = os.path.basename(analysis_dir) if analysis_dir else ""
+    tecount_path = os.path.join(analysis_dir, "counts", "TEtranscripts", f"{genome}_TEcount.tsv")
+    tecount_name_path = os.path.join(analysis_dir, "counts", "TEtranscripts", f"{genome}_TEcount_name.tsv")
     if os.path.isfile(tecount_path) and os.path.getsize(tecount_path) < 10 * 1024 * 1024:
         _write_tsv_sheet("tecount_matrix", tecount_path)
+    if os.path.isfile(tecount_name_path) and os.path.getsize(tecount_name_path) < 10 * 1024 * 1024:
+        _write_tsv_sheet("tecount_name_matrix", tecount_name_path)
+
+    # ── featureCounts matrix ─────────────────────────────────
+    fc_path = os.path.join(analysis_dir, "counts", "featureCounts", f"{genome}_featureCounts.tsv")
+    if os.path.isfile(fc_path) and os.path.getsize(fc_path) < 10 * 1024 * 1024:
+        _write_tsv_sheet("featurecounts_matrix", fc_path)
+
+    # ── GSVA scores ──────────────────────────────────────────
+    gsva_scores_path = os.path.join(analysis_dir, "function", "gsva", "gsva_scores.tsv")
+    if os.path.isfile(gsva_scores_path):
+        _write_tsv_sheet("gsva_scores", gsva_scores_path)
 
     # ── Fusion results (no contrast) ──────────────────────────
     fusion_base = os.path.join(analysis_dir, "fusion", "arriba_report")
@@ -1238,6 +1283,12 @@ def main():
                 build_function_go_kegg_slide(prs, item, args.lang)
             if os.path.isfile(item["gsea_plot"]):
                 build_function_gsea_slide(prs, item, args.lang)
+
+    # ── GSVA slide ────────────────────────────────────────────
+    gsva_heatmap = os.path.join(analysis_dir, "function", "gsva", "gsva_heatmap.png")
+    gsva_scores = os.path.join(analysis_dir, "function", "gsva", "gsva_scores.tsv")
+    if os.path.isfile(gsva_heatmap):
+        build_gsva_slide(prs, gsva_heatmap, gsva_scores, args.lang)
 
     conclusion_bullets = collect_conclusion_bullets(sample_df, fusion_df, diff_summaries, func_summaries, args.lang)
     build_conclusion_slide(prs, conclusion_bullets, {

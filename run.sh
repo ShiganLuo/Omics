@@ -8,11 +8,11 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # --singularity-args '--bind /home/luosg/Database,/home/luosg/Data/genomeStability,/tmp'
 
 python ${SCRIPT_DIR}/run.py \
-    -m /data/pub/zhousha/Totipotent20251031/data/Totipotency/meat_input.tsv \
+    -m /home/luosg/Data/genomeStability/data/EED_public/meta_input.tsv \
     -w RNAseq \
-    -o /data/pub/zhousha/Totipotent20251031/output/pluripotency2totipotency \
+    -o /home/luosg/Data/genomeStability/output/EED \
     -t 48 \
-    --log /data/pub/zhousha/Totipotent20251031/log/Totipotency_RNAseq.log \
+    --log /home/luosg/Data/genomeStability/log/EED_RNAseq.log \
     --sdm \
     --rerun-triggers mtime \
     --forcerun RNAseq_generate_report \

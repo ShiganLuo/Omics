@@ -605,7 +605,7 @@ class ScanpyPlotter:
                     color="red" if is_target else "black",
                     ha="center", va="center",
                     bbox=dict(boxstyle="round,pad=0.15",
-                              facecolor="white", alpha=0.7, edgecolor="none"),
+                              facecolor="white", alpha=0.0, edgecolor="none"),
                 )
 
         # ── Per-cell-type marker panels ──
@@ -671,7 +671,7 @@ class ScanpyPlotter:
                     color="red" if is_target else "black",
                     ha="center", va="center",
                     bbox=dict(boxstyle="round,pad=0.15",
-                              facecolor="white", alpha=0.7, edgecolor="none"),
+                              facecolor="white", alpha=0.0, edgecolor="none"),
                 )
             ax_ref.set_title("Cluster ref", fontsize=11, fontweight="bold")
             ax_ref.set_xticks([])

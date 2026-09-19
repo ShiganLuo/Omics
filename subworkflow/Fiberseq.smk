@@ -15,6 +15,7 @@ Reference:
   - Jha, Bohaczuk et al., 2024, Genome Research (fibertools-rs, DOI: 10.1101/gr.279095.124)
   - https://fiberseq.github.io/
 """
+shell.prefix("set -x; set -e;")
 from snakemake.logging import logger
 
 ROOT_DIR = config.get("ROOT_DIR", ".")
@@ -63,6 +64,7 @@ fibertools_nuc_config = {
     "env": config.get("env", {}),
     "indir": fibertools_config["outdir"],
     "outdir": f"{outdir}/fiberseq/2_nucleosomes",
+    "upstream_outdir": fibertools_config["outdir"],
     "logdir": f"{logdir}/sample",
     "samples": samples,
     "Procedure": {
@@ -87,6 +89,7 @@ fibertools_fire_config = {
     "env": config.get("env", {}),
     "indir": fibertools_nuc_config["outdir"],
     "outdir": f"{outdir}/fiberseq/3_fire",
+    "upstream_outdir": fibertools_nuc_config["outdir"],
     "logdir": f"{logdir}/sample",
     "samples": samples,
     "Procedure": {
@@ -114,6 +117,7 @@ fibertools_extract_config = {
     "env": config.get("env", {}),
     "indir": fibertools_fire_config["outdir"],
     "outdir": f"{outdir}/fiberseq/4_extract",
+    "upstream_outdir": fibertools_fire_config["outdir"],
     "logdir": f"{logdir}/sample",
     "samples": samples,
     "Procedure": {

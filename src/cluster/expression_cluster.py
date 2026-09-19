@@ -88,9 +88,10 @@ class ExpressionPreprocessor:
         Minimum number of samples exceeding min_mean.
     log_transform : bool
         Apply log2(x + 1) before scaling.
-    quantile_normalize : bool
-        Quantile-normalize samples after log transform (removes
-        distributional batch effects between datasets).
+    quantile_normalize : bool or None
+        Quantile-normalize samples after log transform. Default None
+        means auto: enabled for non-count data (TPM/FPKM), disabled
+        for raw counts (which use VST instead).
     combat : bool
         Apply ComBat batch correction (empirical Bayes). Requires
         batch labels set via from_dataframe(df, batch=...) or
@@ -111,13 +112,15 @@ class ExpressionPreprocessor:
         min_mean: float = 1.0,
         min_samples: int = 1,
         log_transform: bool = True,
-        quantile_normalize: bool = False,
+        vst: bool = False,
+        quantile_normalize: bool | None = None,
         combat: bool = False,
         zscore: bool = True,
     ):
         self.min_mean = min_mean
         self.min_samples = min_samples
         self.log_transform = log_transform
+        self.vst = vst
         self.quantile_normalize = quantile_normalize
         self.combat = combat
         self.zscore = zscore
@@ -125,6 +128,7 @@ class ExpressionPreprocessor:
         self._scaled: pd.DataFrame | None = None
         self._raw: pd.DataFrame | None = None
         self._batch: pd.Series | None = None
+        self._transpose: bool = False
 
     # ---- loading ----
 
@@ -153,9 +157,12 @@ class ExpressionPreprocessor:
         self
         """
         self._df = pd.read_csv(path, sep=sep, index_col=index_col)
+        self._transpose = transpose
         if transpose:
             self._df = self._df.T
-        logger.info(f"Loaded matrix: {self._df.shape[0]} genes x {self._df.shape[1]} samples")
+        row_label = "samples" if transpose else "genes"
+        col_label = "genes" if transpose else "samples"
+        logger.info(f"Loaded matrix: {self._df.shape[0]} {row_label} x {self._df.shape[1]} {col_label}")
         self._process()
         return self
 
@@ -201,21 +208,43 @@ class ExpressionPreprocessor:
     # ---- internal pipeline ----
 
     def _process(self) -> None:
-        """Run filter → log → quantile_normalize → z-score pipeline."""
+        """Run filter → VST/log → quantile_normalize → z-score pipeline."""
+        n_rows, n_cols = self._df.shape
+        row_label = "samples" if self._transpose else "genes"
+        col_label = "genes" if self._transpose else "samples"
+        logger.info(f"Processing: {n_rows} {row_label} x {n_cols} {col_label}")
         df = self._filter_low_expression(self._df, self.min_mean, self.min_samples)
 
-        if self.log_transform:
+        # Auto-detect raw counts: majority of values are non-negative integers
+        use_vst = self.vst
+        if not use_vst and not self.combat:
+            vals = df.values.ravel()
+            nonneg = vals[vals >= 0]
+            if len(nonneg) > 0:
+                is_integer = np.all(np.equal(np.mod(nonneg, 1), 0))
+                if is_integer:
+                    use_vst = True
+                    logger.info("Detected raw count data (all non-negative integers); applying VST")
+
+        if use_vst:
+            df = self._vst_transform(df)
+            logger.info("Applied DESeq2-style variance stabilizing transformation")
+        elif self.log_transform:
             df = np.log2(df + 1)
             logger.info("Applied log2(x + 1) transform")
 
-        if self.combat:
-            if self._batch is None:
-                raise ValueError("ComBat requires batch labels. Use from_dataframe(df, batch=...) or set_batch()")
-            df = self._combat_correct(df, self._batch)
-            logger.info(f"Applied ComBat batch correction ({self._batch.nunique()} batches)")
-        elif self.quantile_normalize:
-            df = self._quantile_normalize(df)
-            logger.info("Applied quantile normalization")
+        if not use_vst:
+            if self.combat:
+                if self._batch is None:
+                    raise ValueError("ComBat requires batch labels. Use from_dataframe(df, batch=...) or set_batch()")
+                df = self._combat_correct(df, self._batch)
+                logger.info(f"Applied ComBat batch correction ({self._batch.nunique()} batches)")
+            else:
+                # Default: quantile normalize non-count data
+                qn = self.quantile_normalize if self.quantile_normalize is not None else (not use_vst)
+                if qn:
+                    df = self._quantile_normalize(df)
+                    logger.info("Applied quantile normalization")
 
         self._raw = df.copy()
 
@@ -358,6 +387,163 @@ class ExpressionPreprocessor:
         # replace any NaN/inf from edge cases
         df_out = np.nan_to_num(df_out, nan=0.0, posinf=0.0, neginf=0.0)
         return pd.DataFrame(df_out, index=df.index, columns=df.columns)
+
+    @staticmethod
+    def _estimate_size_factors(df: pd.DataFrame) -> pd.Series:
+        """Estimate DESeq2-style size factors (median of ratios).
+
+        Each sample's size factor is the median of per-gene ratios
+        relative to the geometric mean across all samples.
+
+        Parameters
+        ----------
+        df : pd.DataFrame
+            Raw count matrix (genes x samples).
+
+        Returns
+        -------
+        pd.Series
+            Size factor per sample (index matches df.columns).
+        """
+        # geometric mean per gene (across samples)
+        log_counts = np.log(df.replace(0, np.nan))
+        geo_means = log_counts.mean(axis=1)
+        valid = geo_means.notna()
+        # ratio of each sample to geometric mean
+        ratios = df.loc[valid].div(np.exp(geo_means[valid]), axis=0)
+        size_factors = ratios.median(axis=0)
+        # clip to avoid division by near-zero
+        size_factors = size_factors.clip(lower=1e-8)
+        logger.info(f"Size factors: min={size_factors.min():.3f}, max={size_factors.max():.3f}")
+        return size_factors
+
+    @staticmethod
+    def _estimate_dispersions(
+        df: pd.DataFrame,
+        size_factors: pd.Series,
+    ) -> pd.Series:
+        """Estimate gene-wise dispersions via method of moments.
+
+        For NB distribution: Var = μ + α*μ²
+        So: α = (Var - μ) / μ²
+
+        Parameters
+        ----------
+        df : pd.DataFrame
+            Raw count matrix (genes x samples).
+        size_factors : pd.Series
+            Size factors from _estimate_size_factors.
+
+        Returns
+        -------
+        pd.Series
+            Fitted dispersion per gene (clipped to [1e-8, 10]).
+        """
+        # normalize by size factors
+        normed = df.div(size_factors, axis=1)
+        mu = normed.mean(axis=1)
+        var = normed.var(axis=1, ddof=1)
+        # method of moments dispersion
+        alpha_raw = (var - mu) / (mu ** 2)
+        # clip negative dispersions (underdispersed -> Poisson-like)
+        alpha_raw = alpha_raw.clip(lower=1e-8)
+        return alpha_raw
+
+    @staticmethod
+    def _fit_dispersion_trend(
+        mu: pd.Series,
+        alpha: pd.Series,
+    ) -> pd.Series:
+        """Fit parametric dispersion trend: α_fitted = a/μ + b.
+
+        Uses log-linear regression on genes with sufficient expression.
+
+        Parameters
+        ----------
+        mu : pd.Series
+            Mean normalized expression per gene.
+        alpha : pd.Series
+            Gene-wise raw dispersions.
+
+        Returns
+        -------
+        pd.Series
+            Fitted (trended) dispersions per gene.
+        """
+        # use genes with mu > 1 and alpha > 0 for fitting
+        mask = (mu > 1) & (alpha > 0) & alpha.notna() & mu.notna()
+        if mask.sum() < 10:
+            logger.warning("Too few genes for trend fitting; using median dispersion")
+            median_alpha = alpha[mask].median() if mask.sum() > 0 else 0.1
+            return pd.Series(median_alpha, index=mu.index)
+
+        log_mu = np.log(mu[mask])
+        log_alpha = np.log(alpha[mask])
+
+        # linear regression: log(α) = -log(μ) + c  =>  α = exp(c) / μ
+        # more generally: log(α) = a * log(μ) + b
+        A = np.column_stack([log_mu.values, np.ones(mask.sum())])
+        coeffs = np.linalg.lstsq(A, log_alpha.values, rcond=None)[0]
+        a, b = coeffs
+
+        # fitted trend for all genes
+        log_mu_all = np.log(mu.clip(lower=1e-8))
+        alpha_fitted = np.exp(a * log_mu_all + b)
+        alpha_fitted = alpha_fitted.clip(lower=1e-8, upper=10.0)
+
+        logger.info(f"Dispersion trend: log(α) = {a:.3f} * log(μ) + {b:.3f}")
+        return alpha_fitted
+
+    @staticmethod
+    def _vst_transform(df: pd.DataFrame) -> pd.DataFrame:
+        """DESeq2-style Variance Stabilizing Transformation.
+
+        Pipeline: size factor normalization → dispersion estimation →
+        trend fitting → VST formula.
+
+        The VST formula (from DESeq2):
+            f(x) = 2/√α * asinh(√(α * x))
+        where α is the fitted dispersion and x is the normalized count.
+
+        This stabilizes variance across the expression range: low-count
+        genes are shrunk toward zero (suppressing Poisson noise), while
+        high-count genes are approximately log-transformed.
+
+        Parameters
+        ----------
+        df : pd.DataFrame
+            Raw count matrix (genes x samples). Must be non-negative.
+
+        Returns
+        -------
+        pd.DataFrame
+            VST-transformed matrix with same shape and index/columns.
+        """
+        # ensure non-negative
+        df = df.clip(lower=0)
+
+        # 1. Size factor normalization
+        sf = ExpressionPreprocessor._estimate_size_factors(df)
+        normed = df.div(sf, axis=1)
+
+        # 2. Gene-wise dispersions
+        mu = normed.mean(axis=1)
+        alpha_raw = ExpressionPreprocessor._estimate_dispersions(df, sf)
+
+        # 3. Fit dispersion trend
+        alpha_fitted = ExpressionPreprocessor._fit_dispersion_trend(mu, alpha_raw)
+
+        # 4. Apply VST: f(x) = 2/√α * asinh(√(α * x))
+        #    Broadcast alpha (per gene) across samples
+        alpha_mat = alpha_fitted.values[:, np.newaxis]  # (n_genes, 1)
+        x = df.values  # (n_genes, n_samples)
+        sqrt_alpha = np.sqrt(alpha_mat)
+        vst_vals = 2.0 / sqrt_alpha * np.arcsinh(sqrt_alpha * np.sqrt(x))
+
+        result = pd.DataFrame(vst_vals, index=df.index, columns=df.columns)
+        # handle genes with zero dispersion (degenerate)
+        result = result.replace([np.inf, -np.inf], 0).fillna(0)
+        return result
 
     @staticmethod
     def _filter_low_expression(
@@ -822,6 +1008,7 @@ class ClusterPlotter:
         vmin: float | None = None,
         vmax: float | None = None,
         max_genes: int = 2000,
+        max_cols: int = 100,
     ) -> None:
         """Clustered heatmap with cluster color bar.
 
@@ -838,7 +1025,9 @@ class ClusterPlotter:
         vmin, vmax : float, optional
             Color scale limits (auto from 2nd/98th percentile if None).
         max_genes : int
-            Subsample for readability if more genes.
+            Subsample rows if more genes.
+        max_cols : int
+            Subsample columns (by variance) if more columns.
         """
         import seaborn as sns
         import matplotlib.pyplot as plt
@@ -852,7 +1041,14 @@ class ClusterPlotter:
             step = df.shape[0] // max_genes
             df = df.iloc[::step]
             cluster_labels = cluster_labels[::step]
-            logger.info(f"Heatmap subsampled to {df.shape[0]} genes")
+            logger.info(f"Heatmap subsampled to {df.shape[0]} rows")
+
+        # Subsample columns by variance (keep top variable features)
+        if df.shape[1] > max_cols:
+            variances = df.var(axis=0)
+            top_cols = variances.nlargest(max_cols).index
+            df = df[top_cols]
+            logger.info(f"Heatmap subsampled to {df.shape[1]} columns (top variance)")
 
         # z-score for display
         df_z = df.subtract(df.mean(axis=1), axis=0).div(df.std(axis=1), axis=0).fillna(0)
@@ -949,12 +1145,82 @@ class ClusterPlotter:
         plt.close()
         logger.info(f"Saved UMAP to {output}")
 
+    def pca(
+        self,
+        df_scaled: pd.DataFrame,
+        labels: np.ndarray,
+        output: str | Path,
+        cell_types: dict[str, str] | None = None,
+        show_labels: bool = False,
+        n_components: int = 2,
+    ) -> None:
+        """PCA scatter plot colored by cluster or cell type.
+
+        Parameters
+        ----------
+        df_scaled : pd.DataFrame
+            Scaled expression matrix (samples x features).
+        labels : np.ndarray
+            Cluster labels per sample.
+        output : str or Path
+            Output file path.
+        cell_types : dict, optional
+            Mapping sample name → cell type for coloring.
+        show_labels : bool
+            Annotate each point with sample name.
+        n_components : int
+            Number of PCA components.
+        """
+        from sklearn.decomposition import PCA
+        import matplotlib.pyplot as plt
+
+        pca = PCA(n_components=n_components, random_state=42)
+        coords = pca.fit_transform(df_scaled.values)
+        var_explained = pca.explained_variance_ratio_ * 100
+
+        fig, ax = plt.subplots(figsize=(10, 8))
+
+        if cell_types:
+            unique_types = sorted(set(cell_types.values()))
+            cmap = plt.cm.tab20
+            type_colors = {ct: cmap(i / max(len(unique_types), 1)) for i, ct in enumerate(unique_types)}
+            for i, name in enumerate(df_scaled.index):
+                ct = cell_types.get(name, "Unknown")
+                color = type_colors.get(ct, (0.5, 0.5, 0.5, 1.0))
+                ax.scatter(coords[i, 0], coords[i, 1], c=[color], s=120, alpha=0.85, edgecolors="white", linewidth=0.5)
+                if show_labels:
+                    ax.annotate(name, (coords[i, 0], coords[i, 1]), fontsize=7, alpha=0.8)
+            from matplotlib.patches import Patch
+            legend_patches = [Patch(facecolor=type_colors[ct], label=ct) for ct in unique_types]
+            ax.legend(
+                handles=legend_patches, title="Cell Type",
+                fontsize=9, title_fontsize=10,
+                loc="center left", bbox_to_anchor=(1.02, 0.5),
+                borderaxespad=0, framealpha=0.9,
+            )
+        else:
+            ax.scatter(coords[:, 0], coords[:, 1], c=labels, cmap="tab20", s=120, alpha=0.85, edgecolors="white", linewidth=0.5)
+            if show_labels:
+                for i, name in enumerate(df_scaled.index):
+                    ax.annotate(name, (coords[i, 0], coords[i, 1]), fontsize=7, alpha=0.8)
+
+        ax.set_xlabel(f"PC1 ({var_explained[0]:.1f}%)", fontsize=12)
+        ax.set_ylabel(f"PC2 ({var_explained[1]:.1f}%)", fontsize=12)
+        ax.set_title("PCA", fontsize=14, fontweight="bold")
+
+        plt.tight_layout()
+        plt.savefig(output, dpi=300, bbox_inches="tight")
+        plt.close()
+        logger.info(f"Saved PCA to {output}")
+
     def dendrogram(
         self,
         Z: np.ndarray,
         output: str | Path,
         p: int = 30,
-        figsize: tuple[int, int] = (12, 6),
+        figsize: tuple[int, int] = (14, 7),
+        labels: np.ndarray | None = None,
+        cell_types: dict[str, str] | None = None,
     ) -> None:
         """Hierarchical clustering dendrogram.
 
@@ -965,20 +1231,54 @@ class ClusterPlotter:
         output : str or Path
             Output file path.
         p : int
-            Number of leaf nodes to show (truncation).
+            Number of leaf nodes to show (truncation). Ignored when labels provided.
         figsize : tuple
             Figure size.
+        labels : np.ndarray, optional
+            Leaf labels (e.g. sample names). When provided, shows all leaves with names.
+        cell_types : dict, optional
+            Mapping of sample name → cell type for coloring x-axis labels.
         """
         import matplotlib.pyplot as plt
 
         fig, ax = plt.subplots(figsize=figsize)
-        dendrogram(
-            Z, truncate_mode="lastp", p=p,
-            leaf_rotation=90, leaf_font_size=8, ax=ax,
-        )
+        if labels is not None:
+            dendrogram(
+                Z,
+                labels=list(labels),
+                leaf_rotation=90, leaf_font_size=8, ax=ax,
+            )
+        else:
+            dendrogram(
+                Z, truncate_mode="lastp", p=p,
+                leaf_rotation=90, leaf_font_size=8, ax=ax,
+            )
         ax.set_title("Hierarchical clustering dendrogram")
-        ax.set_xlabel("Gene index (or cluster size)")
+        ax.set_xlabel("Sample" if labels is not None else "Gene index (or cluster size)")
         ax.set_ylabel("Distance")
+
+        # Color x-axis tick labels by cell type
+        if cell_types is not None and labels is not None:
+            unique_types = sorted(set(cell_types.values()))
+            cmap = plt.cm.tab20
+            type_colors = {ct: cmap(i / max(len(unique_types), 1)) for i, ct in enumerate(unique_types)}
+
+            xticklabels = ax.get_xticklabels()
+            for tick in xticklabels:
+                sample = tick.get_text()
+                ct = cell_types.get(sample)
+                if ct and ct in type_colors:
+                    tick.set_color(type_colors[ct])
+
+            # Legend
+            from matplotlib.patches import Patch
+            legend_patches = [Patch(facecolor=type_colors[ct], label=ct) for ct in unique_types]
+            ax.legend(
+                handles=legend_patches, title="Cell Type",
+                loc="upper right", fontsize=7, title_fontsize=8,
+                framealpha=0.9, ncol=1,
+            )
+
         plt.savefig(output, dpi=300, bbox_inches="tight")
         plt.close()
         logger.info(f"Saved dendrogram to {output}")
@@ -1026,11 +1326,12 @@ class ClusterPlotter:
 
 def run_clustering(
     matrix: str | Path,
-    output_dir: str | Path,
+    output_prefix: str | Path,
     method: Literal["hierarchical", "kmeans", "leiden", "dbscan", "spectral", "gmm"] = "hierarchical",
     n_clusters: int = 5,
     min_mean: float = 1.0,
     log_transform: bool = True,
+    vst: bool = False,
     quantile_normalize: bool = False,
     zscore: bool = True,
     transpose: bool = False,
@@ -1043,6 +1344,7 @@ def run_clustering(
     umap: bool = False,
     heatmap: bool = True,
     dendrogram: bool = False,
+    pca: bool = False,
     # DBSCAN parameters
     dbscan_eps: float = 0.5,
     dbscan_min_samples: int = 5,
@@ -1050,20 +1352,30 @@ def run_clustering(
     spectral_n_neighbors: int = 10,
     # GMM parameters
     gmm_covariance: str = "full",
+    cell_types: dict[str, str] | None = None,
 ) -> pd.DataFrame:
     """Run full clustering pipeline using the three classes.
+
+    Parameters
+    ----------
+    output_prefix : str or Path
+        Output path prefix (without extension). E.g. "out/combined"
+        produces "out/combined_heatmap.png", "out/combined_dendrogram.png", etc.
 
     Returns
     -------
     pd.DataFrame
         Cluster assignments with columns: Gene, Cluster.
     """
-    output_dir = Path(output_dir)
+    prefix = Path(output_prefix)
+    output_dir = prefix.parent
     output_dir.mkdir(parents=True, exist_ok=True)
+    stem = prefix.name
 
     # 1. Preprocess
     prep = ExpressionPreprocessor(
         min_mean=min_mean, log_transform=log_transform,
+        vst=vst,
         quantile_normalize=quantile_normalize, zscore=zscore,
     ).load(matrix, transpose=transpose)
 
@@ -1072,8 +1384,8 @@ def run_clustering(
 
     if elbow:
         elbow_df = calc.elbow(prep.scaled, random_state=random_state)
-        elbow_df.to_csv(output_dir / "elbow.tsv", sep="\t", index=False)
-        ClusterPlotter().elbow(elbow_df, output_dir / "elbow.png")
+        elbow_df.to_csv(output_dir / f"{stem}_elbow.tsv", sep="\t", index=False)
+        ClusterPlotter().elbow(elbow_df, output_dir / f"{stem}_elbow.png")
 
     if method == "hierarchical":
         result = calc.hierarchical(prep.scaled, n_clusters=n_clusters, method=linkage_method)
@@ -1092,19 +1404,21 @@ def run_clustering(
 
     # save assignments
     assignments = result.to_dataframe(prep.gene_names)
-    assignments.to_csv(output_dir / "cluster_assignments.tsv", sep="\t", index=False)
+    assignments.to_csv(output_dir / f"{stem}_cluster_assignments.tsv", sep="\t", index=False)
     summary = result.summary()
-    summary.to_csv(output_dir / "cluster_summary.tsv", sep="\t", index=False)
+    summary.to_csv(output_dir / f"{stem}_cluster_summary.tsv", sep="\t", index=False)
     logger.info(f"Cluster sizes:\n{summary.to_string(index=False)}")
 
     # 3. Visualization
     plotter = ClusterPlotter()
     if heatmap:
-        plotter.heatmap(prep.raw, result.labels, output_dir / "heatmap.png")
+        plotter.heatmap(prep.raw, result.labels, output_dir / f"{stem}_heatmap.png")
     if umap:
-        plotter.umap(prep.scaled, result.labels, output_dir / "umap.png")
+        plotter.umap(prep.scaled, result.labels, output_dir / f"{stem}_umap.png")
+    if pca:
+        plotter.pca(prep.scaled, result.labels, output_dir / f"{stem}_pca.png", cell_types=cell_types)
     if dendrogram and result.Z is not None:
-        plotter.dendrogram(result.Z, output_dir / "dendrogram.png")
+        plotter.dendrogram(result.Z, output_dir / f"{stem}_dendrogram.png", labels=prep.gene_names.values, cell_types=cell_types)
 
     return assignments
 
@@ -1120,17 +1434,17 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         epilog="""\
 Examples:
   # Hierarchical, cosine distance, complete linkage
-  python expression_cluster.py matrix.tsv -o out/ -m hierarchical --metric cosine --linkage complete
+  python expression_cluster.py matrix.tsv -o out/combined -m hierarchical --metric cosine --linkage complete
 
   # K-means with elbow plot
-  python expression_cluster.py matrix.tsv -o out/ -m kmeans --elbow
+  python expression_cluster.py matrix.tsv -o out/combined -m kmeans --elbow
 
   # Manhattan distance + average linkage
-  python expression_cluster.py matrix.tsv -o out/ --metric manhattan --linkage average
+  python expression_cluster.py matrix.tsv -o out/combined --metric manhattan --linkage average
 """,
     )
     parser.add_argument("matrix", help="Expression matrix (TSV, genes x samples)")
-    parser.add_argument("-o", "--output-dir", required=True, help="Output directory")
+    parser.add_argument("-o", "--output-prefix", required=True, help="Output path prefix (without extension)")
     parser.add_argument(
         "-m", "--method",
         choices=["hierarchical", "kmeans", "leiden", "dbscan", "spectral", "gmm"],
@@ -1140,6 +1454,7 @@ Examples:
     parser.add_argument("-k", "--n-clusters", type=int, default=5, help="Number of clusters")
     parser.add_argument("--min-mean", type=float, default=1.0, help="Min mean expression filter")
     parser.add_argument("--no-log", action="store_true", help="Skip log2(x+1) transform")
+    parser.add_argument("--vst", action="store_true", help="DESeq2-style variance stabilizing transformation (raw counts)")
     parser.add_argument("--no-zscore", action="store_true", help="Skip z-score scaling")
     parser.add_argument("--qn", action="store_true", help="Quantile normalization (remove batch effects)")
     parser.add_argument("--transpose", action="store_true", help="Transpose (rows=samples)")
@@ -1160,6 +1475,7 @@ Examples:
     parser.add_argument("--umap", action="store_true", help="Generate UMAP plot")
     parser.add_argument("--no-heatmap", action="store_true", help="Skip heatmap")
     parser.add_argument("--dendrogram", action="store_true", help="Dendrogram (hierarchical only)")
+    parser.add_argument("--pca", action="store_true", help="PCA plot (samples in PC space)")
     # DBSCAN parameters
     parser.add_argument("--dbscan-eps", type=float, default=0.5, help="DBSCAN eps (neighborhood size)")
     parser.add_argument("--dbscan-min-samples", type=int, default=5, help="DBSCAN min_samples")
@@ -1179,11 +1495,12 @@ def main(argv: list[str] | None = None) -> None:
     args = parse_args(argv)
     run_clustering(
         matrix=args.matrix,
-        output_dir=args.output_dir,
+        output_prefix=args.output_prefix,
         method=args.method,
         n_clusters=args.n_clusters,
         min_mean=args.min_mean,
         log_transform=not args.no_log,
+        vst=args.vst,
         quantile_normalize=args.qn,
         zscore=not args.no_zscore,
         transpose=args.transpose,
@@ -1196,6 +1513,7 @@ def main(argv: list[str] | None = None) -> None:
         umap=args.umap,
         heatmap=not args.no_heatmap,
         dendrogram=args.dendrogram,
+        pca=args.pca,
         dbscan_eps=args.dbscan_eps,
         dbscan_min_samples=args.dbscan_min_samples,
         spectral_n_neighbors=args.spectral_n_neighbors,

@@ -1,0 +1,3 @@
+sample_id	data_id	design	bam	pbi
+TestSample1	TestSample1		/home/luosg/Data/genomeStability/workflow/Omics/assests/test/data/fastq/TestSample1/TestSample1.bam	/home/luosg/Data/genomeStability/workflow/Omics/assests/test/data/fastq/TestSample1/TestSample1.bam.pbi
+TestSample2	TestSample2		/home/luosg/Data/genomeStability/workflow/Omics/assests/test/data/fastq/TestSample2/TestSample2.bam	/home/luosg/Data/genomeStability/workflow/Omics/assests/test/data/fastq/TestSample2/TestSample2.bam.pbi

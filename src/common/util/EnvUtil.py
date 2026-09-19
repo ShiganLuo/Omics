@@ -795,21 +795,21 @@ class EnvUtil:
         # Generate backend-specific install commands
         if backend == "micromamba":
             install_cmd = f"""    export MAMBA_ROOT_PREFIX="/opt/conda"
-    micromamba env create -f /opt/conda/{yaml_filename} && \\
+    micromamba env create -f /opt/conda/{yaml_filename} < /dev/null && \\
         micromamba clean -afy && \\
         rm /opt/conda/{yaml_filename}"""
         elif backend == "mamba":
             install_cmd = f"""    export PATH="/opt/conda/bin:$PATH"
     export CONDA_NO_PLUGINS=true
     conda install -n base -c conda-forge -y mamba && \\
-        mamba env create -f /opt/conda/{yaml_filename} && \\
+        mamba env create -f /opt/conda/{yaml_filename} < /dev/null && \\
         mamba clean -afy && \\
         rm /opt/conda/{yaml_filename}"""
         else:  # conda
             install_cmd = f"""    export PATH="/opt/conda/bin:$PATH"
     export CONDA_NO_PLUGINS=true
     conda config --set solver classic
-    conda env create -f /opt/conda/{yaml_filename} && \\
+    conda env create -f /opt/conda/{yaml_filename} < /dev/null && \\
         conda clean -afy && \\
         rm /opt/conda/{yaml_filename}"""
 
@@ -832,7 +832,7 @@ From: {from_image}
 {hook_block}
     echo 'export PATH="/opt/conda/envs/{env_name}/bin:$PATH"' >> /etc/profile.d/conda_{env_name}.sh
     echo 'export CONDA_DEFAULT_ENV={env_name}' >> /etc/profile.d/conda_{env_name}.sh
-    ENDOFSCRIPT
+ENDOFSCRIPT
 
 %environment
     export PATH="/opt/conda/envs/{env_name}/bin:$PATH"
@@ -905,7 +905,7 @@ From: {from_image}
         rm -rf /var/lib/apt/lists/*
     pip install --no-cache-dir uv && \
         uv pip install --system --no-cache-dir {pip_args}
-    ENDOFSCRIPT
+ENDOFSCRIPT
 
 %environment
     export PATH="/usr/local/bin:$PATH"

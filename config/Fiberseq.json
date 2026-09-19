@@ -1,0 +1,22 @@
+{
+    "env": {
+        "env_dir": "/home/luosg/Database/env",
+        "fibertools": "/home/luosg/Database/env/fibertools/fibertools.sif"
+    },
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "logs",
+    "samples": [],
+    "raw_files": [],
+    "Procedure": {
+        "fibertools": null
+    },
+    "Params": {
+        "fibertools": {
+            "ont": false
+        }
+    },
+    "genome": {
+        "fasta": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa"
+    }
+}

@@ -14,6 +14,7 @@ include: "../common/common.smk"
 ROOT_DIR = config.get("ROOT_DIR", ".")
 indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
+upstream_outdir = config.get("upstream_outdir", indir)
 logdir = config.get("logdir", "log")
 samples = config.get("samples", [])
 fasta = config.get("genome", {}).get("fasta") or ""
@@ -72,7 +73,7 @@ rule ft_add_nucleosomes:
     Output: Fiber-seq BAM with nucleosome and MSP calls added.
     """
     input:
-        bam = outdir + "/{sample_id}/{sample_id}.fiberseq.bam"
+        bam = upstream_outdir + "/{sample_id}/{sample_id}.fiberseq.bam"
     output:
         bam = outdir + "/{sample_id}/{sample_id}.fiberseq.nuc.bam"
     log:
@@ -118,7 +119,7 @@ rule ft_fire:
     Output: Fiber-seq BAM with FIRE calls in aq tags.
     """
     input:
-        bam = outdir + "/{sample_id}/{sample_id}.fiberseq.nuc.bam"
+        bam = upstream_outdir + "/{sample_id}/{sample_id}.fiberseq.nuc.bam"
     output:
         bam = outdir + "/{sample_id}/{sample_id}.fiberseq.fire.bam"
     log:
@@ -166,7 +167,7 @@ rule ft_extract:
     Output: Compressed BED12 files for m6A, nucleosomes, MSPs, and FIREs.
     """
     input:
-        bam = outdir + "/{sample_id}/{sample_id}.fiberseq.fire.bam"
+        bam = upstream_outdir + "/{sample_id}/{sample_id}.fiberseq.fire.bam"
     output:
         m6a = outdir + "/{sample_id}/{sample_id}.m6a.bed.gz",
         nuc = outdir + "/{sample_id}/{sample_id}.nuc.bed.gz",

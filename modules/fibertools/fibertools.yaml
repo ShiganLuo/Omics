@@ -4,6 +4,9 @@ channels:
   - bioconda
   - defaults
 dependencies:
-  - fibertools-rs>=0.7.0
+  - rust>=1.75
+  - libtorch>=2.0
+  - gcc_linux-64>=12
+  - gxx_linux-64>=12
   - samtools>=1.18
   - pbmm2>=2.0.0

@@ -12,7 +12,7 @@ import os
 import sys
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Literal, Optional, Tuple
+from typing import Any, Dict, List, Literal, Set, Optional, Tuple
 from scipy.stats import median_abs_deviation
 import anndata as ad
 import numpy as np
@@ -695,6 +695,7 @@ def mode_annotate(
     celltypist_model: str = "",
     annotate_group: str = "",
     plot_dir: str = "",
+    cluster_annotations: str = "",
 ) -> None:
     """Cell type annotation dispatcher (marker-based + CellTypist).
 
@@ -703,6 +704,9 @@ def mode_annotate(
            (requires *marker_file*).
         2. **CellTypist** — automated annotation with a pre-trained
            CellTypist model (requires *celltypist_model*).
+        3. **Cluster overrides** — apply human-supplied cluster-level
+           corrections from a JSON file (requires *cluster_annotations*).
+           This runs LAST so it wins over marker / CellTypist output.
 
     For LLM-assisted annotation, use ``mode auto`` instead — it includes
     tissue-aware prompt construction, normalisation, and mixed-identity
@@ -719,11 +723,23 @@ def mode_annotate(
             Falls back to ``"leiden"`` when empty.
         plot_dir: Directory for annotation plots. Empty string disables
             plotting.
+        cluster_annotations: Path to a JSON file with cluster-level
+            annotation overrides. Schema: ``{cluster_id: {original_cell_type,
+            corrected_cell_type, reasoning}}``. Each cluster id must exist
+            in ``adata.obs[annotate_group]``; missing or duplicate ids fail
+            loudly (no fallback — see project memory: 'No fallback logic —
+            if a value is wrong, fail loudly'). Empty string skips.
     """
     if marker_file:
         _annotate_markers(adata, marker_file=marker_file)
     if celltypist_model:
         _annotate_celltypist(adata, celltypist_model=celltypist_model)
+    if cluster_annotations:
+        _apply_cluster_overrides(
+            adata,
+            json_path=cluster_annotations,
+            group_key=annotate_group or "leiden",
+        )
 
     plotter = _make_plotter(plot_dir)
     if plotter:
@@ -803,6 +819,163 @@ def _annotate_celltypist(adata: ad.AnnData, celltypist_model: str) -> None:
     pred_adata = predictions.to_adata()
     adata.obs["celltypist_label"] = pred_adata.obs.loc[adata.obs.index, "majority_voting"]
     adata.obs["celltypist_score"] = pred_adata.obs.loc[adata.obs.index, "conf_score"]
+
+
+def _apply_cluster_overrides(
+    adata: ad.AnnData,
+    json_path: str,
+    group_key: str,
+) -> None:
+    """Apply human-supplied cluster-level cell type corrections.
+
+    Reads a JSON file produced by manual review (e.g. when LLM annotation
+    mis-assigns a cluster identity) and rewrites ``adata.obs["cell_type"]``
+    for the cells in the listed clusters. Runs AFTER marker-based and
+    CellTypist annotation so overrides always win.
+
+    Schema:
+        {
+          "<cluster_id>": {
+            "original_cell_type": "M1_Macrophage",
+            "corrected_cell_type": "Tissue_Resident_Macrophage",
+            "reasoning": "..."
+          },
+          ...
+        }
+
+    Cluster ids must be strings and must exist in
+    ``adata.obs[group_key]``. The function fails loudly on:
+      - missing JSON file or parse error
+      - schema violation (missing required key, empty corrected type)
+      - unknown cluster id (not in ``adata.obs[group_key]``)
+      - duplicate cluster ids in the JSON
+      - ``adata.obs["cell_type"]`` absent (no annotation to override)
+
+    The applied corrections are also stored in
+    ``adata.uns["cluster_annotation_overrides"]`` as a list of dicts so the
+    audit trail is preserved in the saved h5ad.
+
+    Args:
+        adata: AnnData object to modify (in place).
+        json_path: Path to the override JSON file.
+        group_key: Column in ``adata.obs`` that defines clusters
+            (e.g. ``"leiden"``).
+    """
+    if group_key not in adata.obs.columns:
+        raise ValueError(
+            f"group_key {group_key!r} not found in adata.obs. "
+            f"Available: {list(adata.obs.columns)[:10]}..."
+        )
+    if "cell_type" not in adata.obs.columns:
+        raise ValueError(
+            "adata.obs['cell_type'] not present — nothing to override. "
+            "Run marker_file or celltypist_model first."
+        )
+
+    if not os.path.isfile(json_path):
+        raise FileNotFoundError(f"cluster_annotations JSON not found: {json_path}")
+
+    with open(json_path, encoding="utf-8") as fh:
+        try:
+            overrides = json.load(fh)
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"Invalid JSON in {json_path}: {exc}") from exc
+
+    if not isinstance(overrides, dict):
+        raise ValueError(
+            f"cluster_annotations JSON must be an object at top level, "
+            f"got {type(overrides).__name__}"
+        )
+
+    required_keys = ("corrected_cell_type",)
+    available_clusters = set(adata.obs[group_key].astype(str).unique())
+
+    seen: Set[str] = set()
+    applied: List[Dict[str, str]] = []
+    for cluster_id, payload in overrides.items():
+        if cluster_id in seen:
+            raise ValueError(
+                f"duplicate cluster id {cluster_id!r} in {json_path}"
+            )
+        seen.add(cluster_id)
+
+        if not isinstance(payload, dict):
+            raise ValueError(
+                f"override for cluster {cluster_id!r} must be an object, "
+                f"got {type(payload).__name__}"
+            )
+        for k in required_keys:
+            if k not in payload:
+                raise ValueError(
+                    f"override for cluster {cluster_id!r} missing key {k!r}"
+                )
+        corrected = payload["corrected_cell_type"]
+        if not isinstance(corrected, str) or not corrected.strip():
+            raise ValueError(
+                f"corrected_cell_type for cluster {cluster_id!r} must be a "
+                f"non-empty string"
+            )
+
+        cluster_str = str(cluster_id)
+        if cluster_str not in available_clusters:
+            raise ValueError(
+                f"cluster id {cluster_id!r} not found in adata.obs[{group_key!r}]"
+            )
+
+        # If 'leiden' is integer-typed, the JSON key is a string but the
+        # column may hold ints — convert mask accordingly.
+        mask = adata.obs[group_key].astype(str) == cluster_str
+        n_cells = int(mask.sum())
+        if n_cells == 0:
+            # Should be caught above, but keep as defensive guard.
+            raise ValueError(
+                f"cluster {cluster_id!r} matched 0 cells in adata.obs[{group_key!r}]"
+            )
+
+        original = payload.get("original_cell_type", "")
+        reasoning = payload.get("reasoning", "")
+
+        # Capture the pre-override label for audit before mutating.
+        pre_label = adata.obs.loc[mask, "cell_type"].iloc[0]
+        original_effective = str(pre_label) if not original else original
+
+        # `cell_type` is a Categorical (set by _annotate_markers /
+        # mode_auto). Pandas refuses to setitem with a value that is not
+        # already a known category — extend categories first so we can
+        # safely assign the corrected label. Falling back to object dtype
+        # if the column is not categorical (e.g. fresh AnnData passed in).
+        col = adata.obs["cell_type"]
+        if isinstance(col.dtype, pd.CategoricalDtype):
+            if corrected not in col.cat.categories:
+                new_cats = col.cat.categories.tolist() + [corrected]
+                adata.obs["cell_type"] = col.cat.set_categories(new_cats)
+        adata.obs.loc[mask, "cell_type"] = corrected
+        applied.append({
+            "cluster_id": cluster_str,
+            "n_cells": n_cells,
+            "original_cell_type": original_effective,
+            "corrected_cell_type": corrected,
+            "reasoning": reasoning,
+        })
+        logging.info(
+            "Override cluster %s (%d cells): %s -> %s",
+            cluster_str, n_cells, original_effective, corrected,
+        )
+
+    # Store audit trail in uns so it survives write_h5ad.
+    # h5ad round-tripping requires homogeneous string arrays — pack the
+    # mixed-type list as a DataFrame and let anndata serialise natively.
+    if applied:
+        adata.uns["cluster_annotation_overrides"] = pd.DataFrame(applied)
+    else:
+        adata.uns["cluster_annotation_overrides"] = pd.DataFrame(
+            columns=["cluster_id", "n_cells", "original_cell_type",
+                     "corrected_cell_type", "reasoning"]
+        )
+    logging.info(
+        "Applied %d cluster annotation override(s) from %s",
+        len(applied), json_path,
+    )
 
 
 
@@ -3676,6 +3849,11 @@ def main():
     # Annotate params
     parser.add_argument("--marker-file", default="", help="TSV with cell_type and markers columns")
     parser.add_argument("--celltypist-model", default="", help="CellTypist model name")
+    parser.add_argument("--cluster-annotations", default="",
+                        help="JSON file with cluster-level annotation overrides "
+                             "{cluster_id: {original_cell_type, corrected_cell_type, "
+                             "reasoning}}. Applied AFTER marker/celltypist annotation. "
+                             "Cluster ids must exist in --annotate-group (default: leiden).")
     # LLM config: fall back to environment variables when CLI value is empty/None.
     # os.environ.get(..., "") ensures unset env vars also default to "".
     # Memory: 'LLM env: xiaomi mimo-v2.5-pro ... Env vars pre-configured, never set manually.'
@@ -3774,6 +3952,7 @@ def main():
             celltypist_model=args.celltypist_model,
             annotate_group=args.annotate_group,
             plot_dir=args.plot_dir,
+            cluster_annotations=args.cluster_annotations,
         )
     elif args.mode == "auto":
         mode_auto(

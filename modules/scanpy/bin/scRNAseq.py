@@ -2719,6 +2719,359 @@ def _write_references_report(
 
 
 # ---------------------------------------------------------------------------
+# Annotation audit: independent verification of cell_type assignments
+# ---------------------------------------------------------------------------
+# Canonical marker sets used to sanity-check LLM-assigned cell_type labels.
+# Lookup is substring-based: a cluster labelled "M1_Macrophage" is checked
+# against every panel whose key appears in that string (e.g. "Macrophage",
+# "M1_Macrophage"). Earlier keys win. Add new panels here to extend tissue
+# coverage.
+_LINEAGE_MARKER_PANELS: Dict[str, List[str]] = {
+    # ── Endothelium ──
+    "Lymphatic_Endothelial": ["PROX1", "LYVE1", "CCL21", "FLT4", "NRP2", "PDPN"],
+    "Tip_Endothelial": ["ACKR1", "DLL4", "PLVAP", "NRP1"],
+    "Stalk_Endothelial": ["STAB1", "STAB2", "NRP1", "ESM1", "LAMA4"],
+    "Arterial_Endothelial": ["CXCL12", "EFNB2", "HEY1", "DLL4", "GJA5"],
+    "Endothelial_Cell_Vascular": ["PECAM1", "VWF", "CDH5", "ERG", "FLT1", "EMCN"],
+    "Endothelial_Cell": ["PECAM1", "VWF", "CDH5", "ERG", "FLT1", "EMCN"],
+    # ── Perivascular / smooth muscle ──
+    "Smooth_Muscle": ["MYH11", "ACTA2", "TAGLN", "CALD1", "DES", "MYLK"],
+    "Pericyte": ["RGS5", "PDGFRB", "ABCC9", "KCNJ8"],
+    "Perivascular_Cell": ["RGS5", "PDGFRB", "ABCC9", "KCNJ8"],
+    "Myofibroblast": ["ACTA2", "TAGLN", "MYH11", "RGS5", "PDGFRB", "TIMP3"],
+    # ── Stromal / fibroblast ──
+    "Endometrial_Stromal": ["DCN", "LUM", "COL1A1", "COL3A1", "PDGFRB", "IGFBP5"],
+    "Fibroblast": ["DCN", "LUM", "FBLN1", "COL1A1", "COL3A1", "PDGFRB"],
+    "Stromal_Cell": ["DCN", "LUM", "COL1A1", "FBLN1", "DPT"],
+    "Activated_Stromal": ["POSTN", "VCAN", "SFRP4", "LAMA2", "PDPN", "APOD"],
+    "Mesenchymal_Stem_Cell": ["LEPR", "PDGFRA", "CXCL12", "APOD", "SFRP1", "ALDH1A1"],
+    "Stromal_Stem_Cell": ["LEPR", "TCF21", "ALDH1A1", "DCN", "COL1A1"],
+    # ── Epithelium ──
+    "Luminal_Epithelial": ["PAX8", "KRT18", "KRT19", "EPCAM", "WFDC2", "CLDN3", "ESR1"],
+    "Basal_Epithelial": ["TP63", "KRT5", "KRT16", "S100A2", "PERP"],
+    "Epithelial_Cell_Basal": ["TP63", "KRT5", "KRT16", "S100A2", "PERP"],
+    "Epithelial_Cell_Glandular": ["EPCAM", "KRT18", "CLDN3", "CLDN4", "AGR2", "WFDC2"],
+    "Epithelial_Cell_Luminal": ["KRT7", "KRT19", "KRT18", "WFDC2", "PIGR", "SLPI"],
+    # ── Immune ──
+    "Macrophage": ["CD68", "CD74", "LYZ", "AIF1", "CTSS", "CD14"],
+    "Tissue_Resident_Macrophage": ["C1QA", "C1QB", "CD163", "CSF1R", "CD68", "LYZ"],
+    "Decidual_Macrophage": ["CD163", "CD68", "C1QA", "LYZ"],
+    "M1_Macrophage": ["IL1B", "TNF", "CD86"],
+    "M2_Macrophage": ["CD163", "MRC1", "ARG1"],
+    "NK_Cell": ["NKG7", "GNLY", "GZMB", "KLRD1", "KLRB1", "NCR1"],
+    "NK_T_Cell": ["NKG7", "GZMB", "GNLY", "CD3D", "CD3E", "TRAC"],
+    "Cytotoxic_T_Cell": ["CD3D", "CD3E", "TRAC", "CD8A", "CD8B", "GZMB", "GNLY"],
+    "T_Cell": ["CD3D", "CD3E", "TRAC"],
+    # ── Granulosa / theca (ovary-specific) ──
+    "Granulosa_Cell": ["AMH", "CYP19A1", "FSHR", "HSD17B1", "FDX1", "NR5A2"],
+    "Mural_Granulosa_Cell": ["CYP19A1", "INHBA", "FDX1", "ITGA6", "AMHR2"],
+    "Luteinizing_Granulosa_Cell": ["STAR", "HSD17B1", "HSD3B2", "CYP11A1"],
+    "Preovulatory_Granulosa_Cell": ["CYP19A1", "FSHR", "INHBA", "HSD17B1"],
+    "Theca_Cell": ["LHCGR", "CYP17A1", "CYP11A1", "STAR", "INSL3"],
+    "Theca_Externa_Cell": ["LHCGR", "CYP17A1", "CYP11A1", "STAR"],
+    "Hilus_Cell": ["CYP17A1", "INSL3", "STAR", "CYP11A1", "LHCGR", "FDX1"],
+    # ── Ovary surface / mesothelial ──
+    "Tubal_Epithelium": ["PAX8", "FOXJ1", "EPCAM", "KRT18", "OVGP1"],
+    "Mesothelial_Cell": ["MSLN", "KRT19", "ALDH1A1", "PTGDS"],
+    "Ovarian_Surface_Epithelium": ["PTGDS", "MSLN", "CLDN3", "C3", "ITLN1", "ALDH1A1"],
+    "Epithelial_Cell_Surface_Epithelium": ["PTGDS", "MSLN", "CLDN3", "C3", "ITLN1"],
+    # ── Misc ──
+    "Oocyte": ["FIGLA", "ZP3", "NLRP5", "DDX4"],
+    "Schwann_Cell": ["S100B", "MPZ", "SOX10", "PLP1", "GPM6B", "PMP22"],
+    "Proliferating_Cell": ["MKI67", "TOP2A", "CCNB1", "CCNB2", "CENPF"],
+    "LowQuality_Contaminant": [],
+}
+
+
+def _lookup_panel(cell_type: str) -> List[str]:
+    """Find the canonical marker panel(s) matching a cell_type label.
+
+    Substring match — earlier keys win. Used by ``_audit_annotations`` to
+    pick the expected markers for a given cluster.
+    """
+    matches: List[str] = []
+    for key, markers in _LINEAGE_MARKER_PANELS.items():
+        if key in cell_type:
+            matches.extend(markers)
+    # Deduplicate preserving order
+    seen = set()
+    out: List[str] = []
+    for m in matches:
+        if m not in seen:
+            out.append(m)
+            seen.add(m)
+    return out
+
+
+def _load_misannotated_flags(reports_dir: str) -> Dict[str, str]:
+    """Read ``audit_report.json`` for clusters that mode_auto flagged for
+    whole-cluster removal at some iteration.
+
+    Returns ``{cluster_id: original_ai_label_at_flag_time}``. Used by
+    ``_audit_annotations`` to detect stale flags (mode_auto sometimes
+    re-annotates the cluster on a later iteration, leaving the flag
+    stale).
+    """
+    audit_path = os.path.join(reports_dir, "audit_report.json")
+    if not os.path.isfile(audit_path):
+        return {}
+    try:
+        audit = json.load(open(audit_path, encoding="utf-8"))
+    except Exception as exc:
+        logging.warning("Could not read %s: %s", audit_path, exc)
+        return {}
+    flagged: Dict[str, str] = {}
+    for it in audit.get("iterations", []):
+        for ma in it.get("misannotated", []):
+            flagged[str(ma.get("flagged_cluster"))] = ma.get("cell_type", "")
+        for fc in it.get("flagged_clusters", []):
+            if "ambient_artifact" in fc.get("flags", []):
+                flagged.setdefault(
+                    str(fc.get("cluster")), fc.get("cell_type", "")
+                )
+    return flagged
+
+
+def _audit_annotations(
+    adata: ad.AnnData,
+    report_dir: str,
+    tissue: str = "",
+) -> Dict[str, Any]:
+    """Independent audit of ``adata.obs["cell_type"]`` against actual
+    gene expression in the final h5ad.
+
+    Reads ONLY the post-mode_auto h5ad (no LLM trust, no annotation_report
+    bias) plus ``audit_report.json`` for stale-flag detection. Writes
+    ``annotation_audit.json`` into *report_dir* and returns the parsed
+    findings dict so callers can log/inline it.
+
+    For each cluster, computes:
+      - ``n_cells`` from adata.obs["leiden"]
+      - ``current_cell_type`` from adata.obs["cell_type"] (mode across cells)
+      - ``marker_pct``: per-cluster % of cells with each panel marker > 0
+      - ``marker_mean_expr``: mean log1p-normalised expression per panel marker
+      - ``top_degs``: top 10 wilcoxon DEGs (if ``rank_genes_groups`` present)
+      - ``neighbour_jaccard``: 3 nearest clusters by k-NN Jaccard (>0.05)
+      - ``verdict``: KEEP / RENAME / REVIEW / DROP_ARTIFACT
+      - ``reason``: human-readable explanation
+
+    Verdict logic:
+      - DROP_ARTIFACT only if audit_report flagged the cluster AND the
+        current expression does NOT match the assigned cell_type (stale
+        flags from a later re-annotation are ignored).
+      - REVIEW if no canonical panel exists for the assigned label.
+      - RENAME if <40% of panel markers are expressed by >10% of cells,
+        OR none of the panel markers are expressed by >5% of cells.
+      - KEEP otherwise.
+
+    Args:
+        adata: Annotated AnnData (must have ``leiden`` and ``cell_type``
+            in ``obs``, ``X_umap`` in ``obsm`` for neighbour Jaccard).
+        report_dir: Directory to write ``annotation_audit.json``. Usually
+            the ``*_auto_reports`` directory.
+        tissue: Tissue name (only logged, not used for panel selection —
+            panels are marker-based and tissue-agnostic).
+
+    Returns:
+        Dict with keys ``tissue``, ``findings`` (list of cluster dicts),
+        ``verdict_counts`` (summary tally).
+    """
+    if "leiden" not in adata.obs.columns:
+        raise ValueError("adata.obs['leiden'] missing — cannot audit")
+    if "cell_type" not in adata.obs.columns:
+        raise ValueError("adata.obs['cell_type'] missing — cannot audit")
+    misann = _load_misannotated_flags(report_dir)
+
+    var_list = list(adata.var_names)
+    X_dense = adata.X.toarray() if hasattr(adata.X, "toarray") else np.asarray(adata.X)
+    leiden_arr = adata.obs["leiden"].astype(str).values
+
+    # Top DEGs from rank_genes_groups if present
+    top_degs_map: Dict[str, List[str]] = {}
+    if "rank_genes_groups" in adata.uns:
+        res = adata.uns["rank_genes_groups"]
+        for g in res["names"].dtype.names:
+            top_degs_map[str(g)] = [res["names"][g][i] for i in range(min(10, len(res["names"][g])))]
+
+    # Neighbour Jaccard (uses X_pca if present, else X)
+    nbr_jaccard: Dict[str, Dict[str, float]] = {}
+    if "X_pca" in adata.obsm:
+        try:
+            from sklearn.neighbors import NearestNeighbors
+            X_for_nn = adata.obsm["X_pca"][:, :30]
+            nn = NearestNeighbors(n_neighbors=21).fit(X_for_nn)
+            _, idx = nn.kneighbors(X_for_nn)
+            edges: Dict[Tuple[str, str], int] = {}
+            for i, nbrs in enumerate(idx):
+                for j in nbrs[1:]:
+                    a_, b_ = sorted([leiden_arr[i], leiden_arr[j]])
+                    edges[(a_, b_)] = edges.get((a_, b_), 0) + 1
+            clusters = sorted(set(leiden_arr))
+            diag_count: Dict[str, int] = {}
+            for (a_, b_), v in edges.items():
+                if a_ == b_:
+                    diag_count[a_] = diag_count.get(a_, 0) + v
+            for cl in clusters:
+                row: Dict[str, float] = {}
+                d_i = diag_count.get(cl, 0)
+                if d_i == 0:
+                    nbr_jaccard[cl] = {}
+                    continue
+                for other in clusters:
+                    if other == cl:
+                        continue
+                    inter = edges.get((min(cl, other), max(cl, other)), 0)
+                    uni = d_i + diag_count.get(other, 0) - inter
+                    if uni > 0 and inter / uni > 0.05:
+                        row[other] = round(inter / uni, 3)
+                nbr_jaccard[cl] = dict(
+                    sorted(row.items(), key=lambda kv: -kv[1])[:3]
+                )
+        except Exception as exc:
+            logging.warning("Neighbour Jaccard skipped: %s", exc)
+
+    findings: List[Dict[str, Any]] = []
+    verdict_counts: Dict[str, int] = {}
+    for cl in sorted(set(leiden_arr), key=lambda x: int(x) if str(x).isdigit() else str(x)):
+        mask = leiden_arr == cl
+        n_cells = int(mask.sum())
+        if n_cells == 0:
+            continue
+
+        ct_vals = adata.obs.loc[mask, "cell_type"]
+        cell_type = str(ct_vals.mode().iloc[0]) if len(ct_vals) else "Unknown"
+        panel = _lookup_panel(cell_type)
+
+        marker_pct: Dict[str, float] = {}
+        marker_mean: Dict[str, float] = {}
+        for g in panel:
+            if g not in var_list:
+                continue
+            gi = var_list.index(g)
+            expr = X_dense[mask, gi]
+            marker_pct[g] = round(float((expr > 0).mean() * 100), 1)
+            marker_mean[g] = round(float(expr.mean()), 2)
+
+        # Verdict
+        verdict = "KEEP"
+        reason_parts: List[str] = []
+        if cl in misann:
+            expressed = sum(1 for v in marker_pct.values() if v > 10)
+            panel_n = len(marker_pct)
+            if panel_n > 0 and expressed / panel_n >= 0.4:
+                verdict = "KEEP"
+                reason_parts.append(
+                    f"audit_report.json flagged as '{misann[cl]}' but "
+                    f"expression matches '{cell_type}' "
+                    f"({expressed}/{panel_n} panel markers >10%); "
+                    f"upstream flag is stale"
+                )
+            else:
+                verdict = "DROP_ARTIFACT"
+                reason_parts.append(
+                    f"audit_report.json flagged as '{misann[cl]}' AND "
+                    f"expression contradicts '{cell_type}' "
+                    f"({expressed}/{panel_n} panel markers >10%)"
+                )
+        elif not panel:
+            verdict = "REVIEW"
+            reason_parts.append(
+                f"no canonical marker panel for cell_type '{cell_type}' "
+                f"— cannot verify"
+            )
+        else:
+            # Only count panel markers that are actually present in var_names;
+            # the rest were filtered out (e.g. scTE mode excludes TE-adjacent
+            # genes like PDGFRB/ABCC9), so the panel is incomplete and we
+            # should not RENAME on partial evidence.
+            expressed = sum(1 for v in marker_pct.values() if v > 10)
+            available = len(marker_pct)
+            if available < 3:
+                verdict = "REVIEW"
+                reason_parts.append(
+                    f"only {available}/{len(panel)} panel markers present in h5ad "
+                    f"(others filtered out, e.g. by --skip-te); insufficient "
+                    f"evidence for rename"
+                )
+            elif expressed / available < 0.4:
+                verdict = "RENAME"
+                reason_parts.append(
+                    f"only {expressed}/{available} panel markers "
+                    f"expressed >10% of cells (panel size {len(panel)})"
+                )
+            elif all(v < 5 for v in marker_pct.values()):
+                verdict = "RENAME"
+                reason_parts.append(
+                    f"none of the {available} available markers "
+                    f"expressed >5% of cells"
+                )
+
+        verdict_counts[verdict] = verdict_counts.get(verdict, 0) + 1
+        findings.append({
+            "cluster": cl,
+            "n_cells": n_cells,
+            "current_cell_type": cell_type,
+            "verdict": verdict,
+            "reason": "; ".join(reason_parts),
+            "top_degs": top_degs_map.get(cl, []),
+            "marker_pct": marker_pct,
+            "marker_mean_expr": marker_mean,
+            "neighbour_jaccard": nbr_jaccard.get(cl, {}),
+            "in_misannotated_set": cl in misann,
+        })
+
+    audit = {
+        "tissue": tissue,
+        "n_clusters": len(findings),
+        "verdict_counts": verdict_counts,
+        "findings": findings,
+    }
+    # Record which h5ad was audited so other AI can locate the source.
+    audit["h5ad_path"] = getattr(adata, "_h5ad_source", "")
+    out_path = os.path.join(report_dir, "annotation_audit.json")
+    os.makedirs(report_dir, exist_ok=True)
+    with open(out_path, "w", encoding="utf-8") as fh:
+        json.dump(audit, fh, indent=2, ensure_ascii=False)
+    logging.info(
+        "Annotation audit: %s — %d clusters, verdicts=%s",
+        out_path, len(findings), verdict_counts,
+    )
+
+    # Auto-generate a draft cluster_annotations.json for non-KEEP
+    # clusters so other AI can edit + feed to mode_annotate directly.
+    draft_overrides = {}
+    for f in findings:
+        if f["verdict"] in ("RENAME", "DROP_ARTIFACT"):
+            draft_overrides[f["cluster"]] = {
+                "original_cell_type": f["current_cell_type"],
+                "corrected_cell_type": f["current_cell_type"],  # placeholder — AI fills in
+                "verdict": f["verdict"],
+                "reason": f["reason"],
+                "top_degs": f["top_degs"][:8],
+                "marker_pct": f["marker_pct"],
+            }
+    if draft_overrides:
+        draft_path = os.path.join(report_dir, "cluster_annotations_draft.json")
+        with open(draft_path, "w", encoding="utf-8") as fh:
+            json.dump(draft_overrides, fh, indent=2, ensure_ascii=False)
+        logging.info(
+            "Cluster annotations draft: %s (%d clusters need correction)",
+            draft_path, len(draft_overrides),
+        )
+
+    # Print compact summary
+    print("\n## Annotation audit (final h5ad vs expression):", flush=True)
+    for f in findings:
+        flag = "⚠" if f["verdict"] != "KEEP" else "✓"
+        print(
+            f"  {flag} [{f['cluster']:>3}] {f['current_cell_type']:<35} "
+            f"n={f['n_cells']:>5}  {f['verdict']:<14}  {f['reason']}",
+            flush=True,
+        )
+    return audit
+
+
+# ---------------------------------------------------------------------------
 # Auto mode: iterative cluster → AI annotate → QC → filter → re-cluster
 # ---------------------------------------------------------------------------
 def _generate_audit_report(
@@ -3684,6 +4037,10 @@ def mode_auto(
     # ── LLM-generated audit report & reproducible script ──
     _generate_audit_report(ctx, report_dir, llm_method, llm_model,
                            llm_api_key, llm_base_url)
+
+    # ── Independent annotation audit (uses post-mode_auto h5ad only) ──
+    adata._h5ad_source = output  # stamped into annotation_audit.json
+    _audit_annotations(adata, report_dir=report_dir, tissue=tissue or "")
 
     logging.info("Reports: %s", report_dir)
     logging.info("AUTO MODE COMPLETE")

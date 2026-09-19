@@ -595,6 +595,47 @@ class ScanpyPlotter:
                 return x.toarray().flatten()
             return np.asarray(x).flatten()
 
+        # ── Cluster palette helpers ──────────────────────────────────────
+        # `adata.uns[f"{cluster_key}_colors"]` is the canonical palette written
+        # by scanpy when ``sc.pl.umap(..., color=cluster_key)`` is first
+        # invoked.  We reuse it for the "Cluster ref" subplot so the colours
+        # match the main UMAP.  Falls back to matplotlib's tab20 cycle when
+        # the palette is missing or shorter than the number of clusters.
+        _tab_palette = tuple(
+            plt.get_cmap("tab20")(i) for i in range(20)
+        )
+
+        def _to_hex(col) -> str:
+            """Coerce a matplotlib colour (str or RGBA tuple) to a hex string."""
+            if isinstance(col, str):
+                return col
+            try:
+                return "#" + "".join(
+                    f"{int(round(c * 255)):02x}" for c in col[:3]
+                )
+            except (TypeError, ValueError):
+                return "#1f77b4"
+
+        def _resolve_cluster_colors(
+            _adata, _key: str,
+        ) -> Dict[str, str]:
+            obs_col = _adata.obs[_key]
+            cats = list(obs_col.cat.categories) \
+                if hasattr(obs_col, "cat") \
+                else sorted(obs_col.astype(str).unique())
+            stored = _adata.uns.get(f"{_key}_colors")
+            if stored is None or len(stored) < len(cats):
+                stored = [_tab_palette[i % len(_tab_palette)] for i in range(len(cats))]
+            return {cat: _to_hex(stored[i]) for i, cat in enumerate(cats)}
+
+        def _default_cluster_color(_cid: str) -> str:
+            """Tab-palette fallback when `_cid` is not in the resolved map."""
+            try:
+                idx = int(_cid)
+            except (TypeError, ValueError):
+                idx = 0
+            return _to_hex(_tab_palette[idx % len(_tab_palette)])
+
         def _annotate_centroids(ax: plt.Axes, highlight_cids: List[str]) -> None:
             for _cid, (cx, cy) in centroids.items():
                 is_target = _cid in highlight_cids
@@ -653,14 +694,23 @@ class ScanpyPlotter:
                 plt.colorbar(sm, ax=ax, fraction=0.046, pad=0.04,
                              label="expression")
 
-            # Last subplot: UMAP cluster reference
+            # Last subplot: UMAP cluster reference — colour each cluster with
+            # the same palette as the main UMAP (adata.uns[leiden_colors]).
+            # Falling back to tab10 cycle keeps things readable if the colours
+            # weren't stored.
             ax_ref = axes_flat[n]
             ax_ref.scatter(umap[:, 0], umap[:, 1], c="#e0e0e0",
-                           s=3, alpha=0.4, edgecolors="none")
+                           s=2, alpha=0.3, edgecolors="none")
+            cluster_color_map = _resolve_cluster_colors(adata, cluster_key)
             for _cid in cluster_ids:
                 mask = adata.obs[cluster_key] == _cid
+                if mask.sum() == 0:
+                    continue
                 ax_ref.scatter(umap[mask.values, 0], umap[mask.values, 1],
-                               s=5, alpha=0.7, edgecolors="none",
+                               c=cluster_color_map.get(
+                                   _cid, _default_cluster_color(_cid)),
+                               s=12, alpha=0.85, edgecolors="none",
+                               linewidths=0,
                                label=f"C{_cid}")
             for _cid, (cx, cy) in centroids.items():
                 is_target = _cid in cluster_ids
@@ -676,7 +726,8 @@ class ScanpyPlotter:
             ax_ref.set_title("Cluster ref", fontsize=11, fontweight="bold")
             ax_ref.set_xticks([])
             ax_ref.set_yticks([])
-            ax_ref.legend(loc="best", fontsize=7, framealpha=0.8)
+            ax_ref.legend(loc="best", fontsize=7, framealpha=0.8,
+                          labelcolor="black")
 
             # Hide unused axes
             for j in range(total_panels, len(axes_flat)):

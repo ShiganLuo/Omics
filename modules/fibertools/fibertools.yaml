@@ -5,8 +5,11 @@ channels:
   - defaults
 dependencies:
   - rust>=1.75
-  - libtorch>=2.0
   - gcc_linux-64>=12
   - gxx_linux-64>=12
+  - python>=3.10
+  - pip
   - samtools>=1.18
   - pbmm2>=2.0.0
+  - pip:
+    - torch --index-url https://download.pytorch.org/whl/cpu

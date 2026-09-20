@@ -94,5 +94,4 @@ python ${SCRIPT_DIR}/run.py \
     --rerun-triggers mtime \
     --forcerun \
         scanpy_auto:tissue=Uterus,counter=scTE \
-        scanpy_auto:tissue=Uterus,counter=cellranger \
-    --dry-run
+        scanpy_auto:tissue=Uterus,counter=cellranger

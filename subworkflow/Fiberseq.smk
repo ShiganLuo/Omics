@@ -1,14 +1,12 @@
 """Fiber-seq subworkflow for single-molecule chromatin accessibility analysis.
 
-Workflow:
-  1. Predict m6A modifications (ft predict-m6a)
-  2. Add nucleosome calls (ft add-nucleosomes)
-  3. Call FIREs (ft fire)
-  4. Extract data to BED format (ft extract)
+Workflow (Revio SPRQ — m6A calls already in CCS BAM from jasmine):
+  1. Add nucleosome calls (ft add-nucleosomes)
+  2. Call FIREs (ft fire)
+  3. Extract data to BED format (ft extract)
 
-Optional:
-  - Align with pbmm2 (if input is unaligned CCS BAM)
-  - Phase with HiPhase (for allele-specific analysis)
+For older instruments (Sequel II/IIe) without jasmine m6A calls,
+a separate ft predict-m6a step is needed before step 1.
 
 Reference:
   - Stergachis et al., 2020, Science (Fiber-seq original paper, DOI: 10.1126/science.aaz1646)
@@ -24,8 +22,6 @@ outdir = config.get("outdir") or "output"
 logdir = config.get("logdir") or "log"
 outfiles = config.get("outfiles") or []
 samples = config.get("samples") or []
-skip_align = config.get("Params", {}).get("skip_align", False)
-skip_phase = config.get("Params", {}).get("skip_phase", False)
 
 rule all:
     input:
@@ -33,38 +29,14 @@ rule all:
 
 
 # ============================================================
-# Step 1: m6A prediction (if input is PacBio CCS BAM with kinetics)
-# ============================================================
-fibertools_config = {
-    "ROOT_DIR": ROOT_DIR,
-    "env": config.get("env", {}),
-    "indir": indir,
-    "outdir": f"{outdir}/fiberseq/1_m6a",
-    "logdir": f"{logdir}/sample",
-    "samples": samples,
-    "Procedure": {
-        "fibertools": config.get("Procedure", {}).get("fibertools") or "ft"
-    },
-    "genome": {
-        "fasta": config.get("genome", {}).get("fasta")
-    }
-}
-module fibertools_m6a:
-    snakefile: "../modules/fibertools/fibertools.smk"
-    config: fibertools_config
-logger.info(f"Fiber-seq m6a config: {fibertools_config}")
-use rule ft_predict_m6a from fibertools_m6a as Fiberseq_ft_predict_m6a
-
-
-# ============================================================
-# Step 2: Add nucleosome calls
+# Step 1: Add nucleosome calls (input: raw CCS BAM with m6A from jasmine)
 # ============================================================
 fibertools_nuc_config = {
     "ROOT_DIR": ROOT_DIR,
     "env": config.get("env", {}),
-    "indir": fibertools_config["outdir"],
-    "outdir": f"{outdir}/fiberseq/2_nucleosomes",
-    "upstream_outdir": fibertools_config["outdir"],
+    "indir": indir,
+    "outdir": f"{outdir}/fiberseq/1_nucleosomes",
+    "upstream_outdir": indir,
     "logdir": f"{logdir}/sample",
     "samples": samples,
     "Procedure": {
@@ -82,13 +54,13 @@ use rule ft_add_nucleosomes from fibertools_nuc as Fiberseq_ft_add_nucleosomes
 
 
 # ============================================================
-# Step 3: FIRE calling
+# Step 2: FIRE calling
 # ============================================================
 fibertools_fire_config = {
     "ROOT_DIR": ROOT_DIR,
     "env": config.get("env", {}),
     "indir": fibertools_nuc_config["outdir"],
-    "outdir": f"{outdir}/fiberseq/3_fire",
+    "outdir": f"{outdir}/fiberseq/2_fire",
     "upstream_outdir": fibertools_nuc_config["outdir"],
     "logdir": f"{logdir}/sample",
     "samples": samples,
@@ -110,13 +82,13 @@ use rule ft_fire from fibertools_fire as Fiberseq_ft_fire
 
 
 # ============================================================
-# Step 4: Extract data to BED format
+# Step 3: Extract data to BED format
 # ============================================================
 fibertools_extract_config = {
     "ROOT_DIR": ROOT_DIR,
     "env": config.get("env", {}),
     "indir": fibertools_fire_config["outdir"],
-    "outdir": f"{outdir}/fiberseq/4_extract",
+    "outdir": f"{outdir}/fiberseq/3_extract",
     "upstream_outdir": fibertools_fire_config["outdir"],
     "logdir": f"{logdir}/sample",
     "samples": samples,

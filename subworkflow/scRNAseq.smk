@@ -49,7 +49,7 @@ if aligner == "star":
     module star:
         snakefile: "../modules/star/star.smk"
         config: star_config
-    logger.info(f"Using STAR aligner with scTE counter for scRNA-seq workflow. STAR config: {star_config}")
+    logger.debug(f"Using STAR aligner with scTE counter for scRNA-seq workflow. STAR config: {star_config}")
     use rule * from star as scRNAseq_*
     scTE_config = {
         "ROOT_DIR": ROOT_DIR,
@@ -73,7 +73,7 @@ if aligner == "star":
     module scTE:
         snakefile: "../modules/scTE/scTE.smk"
         config: scTE_config
-    logger.info(f"Using scTE counter for scRNA-seq workflow. scTE config: {scTE_config}")
+    logger.debug(f"Using scTE counter for scRNA-seq workflow. scTE config: {scTE_config}")
     use rule * from scTE as scRNAseq_*
 
 elif aligner == "cellranger":
@@ -101,7 +101,7 @@ elif aligner == "cellranger":
     module cellranger:
         snakefile: "../modules/cellranger/cellranger.smk"
         config: cellranger_config
-    logger.info(f"Using Cell Ranger aligner for scRNA-seq workflow. Cell Ranger config: {cellranger_config}")
+    logger.debug(f"Using Cell Ranger aligner for scRNA-seq workflow. Cell Ranger config: {cellranger_config}")
     use rule * from cellranger as scRNAseq_*
 
     if "scTE" in counters:
@@ -127,7 +127,7 @@ elif aligner == "cellranger":
         module scTE:
             snakefile: "../modules/scTE/scTE.smk"
             config: scTE_config
-        logger.info(f"Using scTE counter for scRNA-seq workflow. scTE config: {scTE_config}")
+        logger.debug(f"Using scTE counter for scRNA-seq workflow. scTE config: {scTE_config}")
         use rule * from scTE as scRNAseq_*
     elif "cellranger" in counters:
         logger.info("Using Cell Ranger counter for scRNA-seq workflow. No additional configuration needed.")
@@ -159,5 +159,6 @@ scanpy_config = {
 module scanpy:
     snakefile: "../modules/scanpy/scanpy.smk"
     config: scanpy_config
-logger.info(f"Using scanpy for scRNA-seq downstream analysis. scanpy config: {scanpy_config}")
+logger.debug(f"Using scanpy for scRNA-seq downstream analysis. scanpy config: {scanpy_config}")
+
 use rule * from scanpy as scRNAseq_*

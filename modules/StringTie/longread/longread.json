@@ -1,0 +1,14 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "logs",
+    "samples": [],
+    "upstream_indir": null,
+    "merged_gtf": null,
+    "Procedure": {
+        "stringtie": null
+    },
+    "genome": {
+        "gtf": null
+    }
+}

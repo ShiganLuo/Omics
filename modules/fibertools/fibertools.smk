@@ -163,15 +163,15 @@ rule ft_fire:
 rule ft_extract:
     """Extract Fiber-seq data to BED format.
 
-    Input: Fiber-seq BAM with m6A, nucleosome, and optionally FIRE calls.
-    Output: Compressed BED12 files for m6A, nucleosomes, MSPs, and FIREs.
+    Input: Fiber-seq BAM with m6A, nucleosome, and FIRE calls.
+    Output: Compressed BED file with all Fiber-seq annotations.
+    Note: ft extract v0.13.1 --m6a/--nuc/--msp individual outputs are buggy;
+          use --all to get all data in one file.
     """
     input:
         bam = upstream_outdir + "/{sample_id}/{sample_id}.fiberseq.fire.bam"
     output:
-        m6a = outdir + "/{sample_id}/{sample_id}.m6a.bed.gz",
-        nuc = outdir + "/{sample_id}/{sample_id}.nuc.bed.gz",
-        msp = outdir + "/{sample_id}/{sample_id}.msp.bed.gz",
+        all_bed = outdir + "/{sample_id}/{sample_id}.fiberseq.all.bed.gz",
     log:
         logdir + "/{sample_id}/ft_extract.log"
     threads: 8
@@ -194,9 +194,7 @@ rule ft_extract:
             cmd = [
                 params.ft, "extract",
                 "-t", str(threads),
-                "--m6a", output.m6a,
-                "--nuc", output.nuc,
-                "--msp", output.msp,
+                "--all", output.all_bed,
                 input.bam,
             ]
             with open(command_script, "w") as f:
@@ -208,3 +206,103 @@ rule ft_extract:
             with open(log_path, "a") as f:
                 f.write(f"ft_extract failed: {e}\n")
             raise RuntimeError(f"ft_extract failed: {e}\n")
+
+
+rule ft_call_peaks:
+    """Call FIRE peaks using FDR-based peak calling.
+
+    Input: Fiber-seq BAM with FIRE calls.
+    Output: BED file with called FIRE peaks.
+    """
+    input:
+        bam = upstream_outdir + "/{sample_id}/{sample_id}.fiberseq.fire.bam"
+    output:
+        peaks = outdir + "/{sample_id}/{sample_id}.fire_peaks.bed",
+    log:
+        logdir + "/{sample_id}/ft_call_peaks.log"
+    threads: 1
+    conda:
+        "fibertools.yaml"
+    container:
+        sif("fibertools.yaml")
+    params:
+        ft = config.get("Procedure", {}).get("fibertools") or "ft",
+        max_fdr = config.get("Params", {}).get("fibertools", {}).get("max_fdr", 0.05),
+        min_fire_frac = config.get("Params", {}).get("fibertools", {}).get("min_fire_frac", None),
+        sd_cov = config.get("Params", {}).get("fibertools", {}).get("sd_cov", 5.0),
+    run:
+        log_path = str(log)
+        try:
+            open(log_path, 'w').close()
+            rule_logger = setup_logger("ft_call_peaks", log_file=log_path)
+            rule_logger.info(f"Calling FIRE peaks for sample {wildcards.sample_id}")
+            current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+            sample_outdir = os.path.join(outdir, wildcards.sample_id)
+            os.makedirs(sample_outdir, exist_ok=True)
+            command_script = os.path.join(sample_outdir, f"ft_call_peaks_{current_time}.sh")
+            cmd = [
+                params.ft, "call-peaks",
+                "-o", output.peaks,
+                "--sd-cov", str(params.sd_cov),
+                "--max-fdr", str(params.max_fdr),
+            ]
+            if params.min_fire_frac is not None:
+                cmd.extend(["--min-fire-frac", str(params.min_fire_frac)])
+            cmd.append(input.bam)
+            with open(command_script, "w") as f:
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
+                f.write(" ".join(cmd) + "\n")
+                f.write(f'echo "FIRE peak calling completed for sample {wildcards.sample_id}"\n')
+            shell(f"bash {command_script} >> {log_path} 2>&1")
+        except Exception as e:
+            with open(log_path, "a") as f:
+                f.write(f"ft_call_peaks failed: {e}\n")
+            raise RuntimeError(f"ft_call_peaks failed: {e}\n")
+
+
+rule ft_qc:
+    """Collect QC metrics from a Fiber-seq BAM.
+
+    Input: Fiber-seq BAM with m6A, nucleosome, MSP, and FIRE calls.
+    Output: TSV file with QC metrics.
+    """
+    input:
+        bam = upstream_outdir + "/{sample_id}/{sample_id}.fiberseq.fire.bam"
+    output:
+        qc = outdir + "/{sample_id}/{sample_id}.qc.tsv",
+    log:
+        logdir + "/{sample_id}/ft_qc.log"
+    threads: 1
+    conda:
+        "fibertools.yaml"
+    container:
+        sif("fibertools.yaml")
+    params:
+        ft = config.get("Procedure", {}).get("fibertools") or "ft",
+        use_acf = config.get("Params", {}).get("fibertools", {}).get("acf", False),
+    run:
+        log_path = str(log)
+        try:
+            open(log_path, 'w').close()
+            rule_logger = setup_logger("ft_qc", log_file=log_path)
+            rule_logger.info(f"Collecting QC metrics for sample {wildcards.sample_id}")
+            current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+            sample_outdir = os.path.join(outdir, wildcards.sample_id)
+            os.makedirs(sample_outdir, exist_ok=True)
+            command_script = os.path.join(sample_outdir, f"ft_qc_{current_time}.sh")
+            cmd = [
+                params.ft, "qc",
+                input.bam,
+                output.qc,
+            ]
+            if params.use_acf:
+                cmd.append("--acf")
+            with open(command_script, "w") as f:
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
+                f.write(" ".join(cmd) + "\n")
+                f.write(f'echo "QC metrics collected for sample {wildcards.sample_id}"\n')
+            shell(f"bash {command_script} >> {log_path} 2>&1")
+        except Exception as e:
+            with open(log_path, "a") as f:
+                f.write(f"ft_qc failed: {e}\n")
+            raise RuntimeError(f"ft_qc failed: {e}\n")

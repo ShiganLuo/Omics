@@ -13,7 +13,11 @@
     },
     "Params": {
         "fibertools": {
-            "ont": false
+            "ont": false,
+            "max_fdr": 0.05,
+            "min_fire_frac": null,
+            "sd_cov": 5.0,
+            "acf": false
         }
     },
     "genome": {

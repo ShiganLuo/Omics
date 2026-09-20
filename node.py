@@ -993,11 +993,11 @@ def runFiberseq(
     samples = []
     for sample_id, sample_info in samples_info_dict.items():
         samples.append(sample_id)
-        # Final outputs: nucleosome BAM + FIRE BAM + extracted BED files
+        # Final outputs: FIRE BAM + extracted BED + peaks + QC
         outfiles.append(f"{outdir}/fiberseq/2_fire/{sample_id}/{sample_id}.fiberseq.fire.bam")
-        outfiles.append(f"{outdir}/fiberseq/3_extract/{sample_id}/{sample_id}.m6a.bed.gz")
-        outfiles.append(f"{outdir}/fiberseq/3_extract/{sample_id}/{sample_id}.nuc.bed.gz")
-        outfiles.append(f"{outdir}/fiberseq/3_extract/{sample_id}/{sample_id}.msp.bed.gz")
+        outfiles.append(f"{outdir}/fiberseq/3_extract/{sample_id}/{sample_id}.fiberseq.all.bed.gz")
+        outfiles.append(f"{outdir}/fiberseq/4_peaks/{sample_id}/{sample_id}.fire_peaks.bed")
+        outfiles.append(f"{outdir}/fiberseq/5_qc/{sample_id}/{sample_id}.qc.tsv")
 
     datajson["samples"] = samples
     datajson["raw_files"] = raw_files

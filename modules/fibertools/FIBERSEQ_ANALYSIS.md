@@ -35,7 +35,13 @@ ft add-nucleosomes  ← 核小体定位 + MSP 识别
 ft fire              ← FIRE 调控元件识别
     │
     ▼
-ft extract           ← 提取 BED 格式数据 (m6a/nuc/msp/fire)
+ft extract --all     ← 提取 BED 格式数据 (m6a/nuc/msp/fire, 合并单文件)
+    │
+    ▼
+ft call-peaks        ← FDR-based FIRE peak calling
+    │
+    ▼
+ft qc                ← QC 指标收集
 ```
 
 ## 工具版本要求

@@ -251,6 +251,7 @@ rule ft_call_peaks:
             cmd.append(input.bam)
             with open(command_script, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
+                f.write(f"samtools index {input.bam}\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "FIRE peak calling completed for sample {wildcards.sample_id}"\n')
             shell(f"bash {command_script} >> {log_path} 2>&1")

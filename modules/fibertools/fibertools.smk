@@ -73,7 +73,7 @@ rule ft_add_nucleosomes:
     Output: Fiber-seq BAM with nucleosome and MSP calls added.
     """
     input:
-        bam = upstream_outdir + "/{sample_id}/{sample_id}.fiberseq.bam"
+        bam = upstream_outdir + "/{sample_id}/{sample_id}.bam"
     output:
         bam = outdir + "/{sample_id}/{sample_id}.fiberseq.nuc.bam"
     log:
@@ -172,7 +172,6 @@ rule ft_extract:
         m6a = outdir + "/{sample_id}/{sample_id}.m6a.bed.gz",
         nuc = outdir + "/{sample_id}/{sample_id}.nuc.bed.gz",
         msp = outdir + "/{sample_id}/{sample_id}.msp.bed.gz",
-        fire = outdir + "/{sample_id}/{sample_id}.fire.bed.gz",
     log:
         logdir + "/{sample_id}/ft_extract.log"
     threads: 8
@@ -198,7 +197,6 @@ rule ft_extract:
                 "--m6a", output.m6a,
                 "--nuc", output.nuc,
                 "--msp", output.msp,
-                "--fire", output.fire,
                 input.bam,
             ]
             with open(command_script, "w") as f:

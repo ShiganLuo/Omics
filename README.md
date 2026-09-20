@@ -44,9 +44,14 @@ python workflow/Omics/run.py -m data/meta/fastq -w scRNAseq -o output \
 python workflow/Omics/run.py -m data/meta.tsv -w Mutation -o output \
   --until mutation_markduplicates
 
-# 只重跑某个规则+某个样本
+# 重跑某个规则（无通配符）
 python workflow/Omics/run.py -m data/meta.tsv -w RNAseq -o output \
-  --forcerun function_gsea --target-jobs function_gsea:sample=S1
+  --forcerun function_gsea
+
+# 精准重跑带通配符的规则
+python workflow/Omics/run.py -m data/meta.tsv -w scRNAseq -o output \
+  --counters scTE cellranger --aligner cellranger \
+  --forcerun scanpy_auto:tissue=Uterus,counter=scTE
 ```
 
 具体怎么开始见「快速开始」，14 类工作流的能力清单见「支持的工作流」。
@@ -348,7 +353,7 @@ bash workflow/RNA-SNP/run.sh
 
 #### `--forcerun`：强制重跑规则
 
-接受规则名或文件路径，内部转换为 snakemake 的 `--until` + `--forcerun`。
+接受规则名、文件路径或 `规则:wildcard=value` 格式。规则名自动补前缀。
 
 ```bash
 # 重跑某个规则（所有 wildcards）
@@ -376,29 +381,29 @@ python workflow/Omics/run.py \
 | `all` | `all`（特殊规则名，不变） |
 | `/path/to/file` | `/path/to/file`（文件路径，不加前缀） |
 
-#### `--target-jobs`：按 wildcard 约束定位 job
+#### `--forcerun` 精准重跑（带通配符）
 
-用于重跑特定 wildcard 组合的 job，格式为 `RULE:WILDCARD1=VALUE,...`。规则名自动加前缀。
+对于带通配符的规则（如 `scanpy_auto` 有 `{tissue}` 和 `{counter}`），snakemake 的 `--forcerun` 不支持裸规则名。需要用 `规则:wildcard=value` 格式，`run.py` 会自动转为 `--target-jobs RULE:wildcard=value --force`：
 
 ```bash
-# 重跑 scTE counter 的所有 scanpy QC job
+# 重跑 Uterus 组织的 scTE scanpy_auto
 python workflow/Omics/run.py \
   -m data/meta.tsv -w scRNAseq -o output --sdm \
-  --counters scTE --aligner cellranger \
-  --forcerun scanpy_qc \
-  --target-jobs scanpy_qc:counter=scTE,sample_id=S1
+  --counters scTE cellranger --aligner cellranger \
+  --forcerun scanpy_auto:tissue=Uterus,counter=scTE
 
-# 重跑特定 tissue 的所有 scanpy cluster job
+# 同时重跑多个通配符组合
 python workflow/Omics/run.py \
   -m data/meta.tsv -w scRNAseq -o output --sdm \
-  --counters scTE --aligner cellranger \
-  --forcerun scanpy_cluster \
-  --target-jobs scanpy_cluster:counter=scTE,tissue=ovaries
+  --counters scTE cellranger --aligner cellranger \
+  --forcerun \
+    scanpy_auto:tissue=Uterus,counter=scTE \
+    scanpy_auto:tissue=Uterus,counter=cellranger
 ```
 
-`--target-jobs` 需要指定完整的 wildcard 值。如果规则有多个 wildcard（如 `{sample_id}` 和 `{counter}`），必须全部指定。配合 `--forcerun` 使用，`--target-jobs` 负责筛选，`--forcerun` 负责强制重跑。
-
 #### `--touch`：更新输出文件时间戳
+
+防止重跑某个规则后，再次执行会执行后面的规则
 
 ```bash
 # 标记所有输出为最新（不实际运行）
@@ -408,6 +413,47 @@ python workflow/Omics/run.py \
 ```
 
 `--touch` 和 `--dry-run` 不能同时使用，同时指定时会输出警告并忽略 `--touch`。
+
+#### `--list-target-rules`：查看可执行的顶层规则
+
+列出工作流中可作为目标的规则（不含通配符的顶层规则）。用于快速了解工作流有哪些入口。
+
+```bash
+python workflow/Omics/run.py \
+  -m data/meta.tsv -w scRNAseq -o output --sdm \
+  --list-target-rules
+```
+
+输出示例：
+```
+all
+scRNAseq_cellranger_ref
+scRNAseq_scTE_build_index
+```
+
+#### `--list-rules`：查看所有规则
+
+列出工作流中所有规则（包括带通配符的中间规则），完整展示 DAG 可用的规则。
+
+```bash
+python workflow/Omics/run.py \
+  -m data/meta.tsv -w scRNAseq -o output --sdm \
+  --list-rules
+```
+
+输出示例（比 `--list-target-rules` 更全，包含带通配符的规则）：
+```
+all
+scRNAseq_cellranger_ref
+scRNAseq_scTE_build_index
+scRNAseq_scanpy_auto
+scRNAseq_scanpy_cluster
+...
+```
+
+**`--list-target-rules` vs `--list-rules`**：
+- `--list-target-rules`：只显示可直接作为 `snakemake` 命令目标的规则（无通配符），适合日常查看。
+- `--list-rules`：显示所有规则（含带通配符的），适合调试和了解完整 DAG 结构。
 
 #### 查看 DAG 和调试
 
@@ -465,9 +511,11 @@ python workflow/Omics/run.py \
   不指定 `--rerun-trigger` 时，Snakemake 默认使用全部五个触发器。指定 `--rerun-trigger input` 表示**仅**检查 input 内容变化，不检查 code/mtime/params/software-env，更轻量但依赖 metadata。
 
 - `--conda-frontend`：`conda` 或 `mamba`。
-- `--forcerun`：强制重跑指定规则或文件路径，格式：`RULE` 或 `/path/to/file`。规则名自动加 workflow 前缀。
+- `--forcerun`：强制重跑指定规则或文件路径，格式：`RULE` 或 `/path/to/file` 或 `RULE:wildcard=value`。规则名自动加 workflow 前缀。
 - `--target-jobs`：按 wildcard 约束定位 job，格式：`RULE:WILDCARD1=VALUE,...`。配合 `--forcerun` 使用。
 - `--touch`：更新输出文件时间戳，不实际运行。与 `--dry-run` 冲突。
+- `--list-target-rules`：列出工作流中可作为目标的规则（不含通配符），不执行。
+- `--list-rules`：列出工作流中所有规则（含带通配符的），不执行。
 - `--no-schema-validate`：禁用 schema 感知的 extra_args 类型矫正（默认启用）。
 - `--snakemake-args`：透传给 Snakemake 的额外参数，放在这个标志后面，例如 `--snakemake-args --keep-going --rerun-incomplete`。
 

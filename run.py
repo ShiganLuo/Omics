@@ -8,12 +8,12 @@ from src.common.util.LogUtil import setup_logger
 from src.common.util.CmdUtil import _run_cmd, _run_cmds_parallel
 from src.common.util.SchemaValidatorUtil import SchemaValidator, smart_cast
 from src.common.util.EnvUtil import is_path_like
-from node import runCoCulture, runMERIP, runRNAseq, runncRNAseq, runCLIP, runMutation, runPacVar, runKARRseq, runPeakCalling, runQuantMS, runtRNAseq, runscRNAseq, runFiberseq
+from node import runCoCulture, runMERIP, runRNAseq, runncRNAseq, runCLIP, runMutation, runPacVar, runKARRseq, runPeakCalling, runQuantMS, runtRNAseq, runscRNAseq, runFiberseq, runLRtranscriptome
 import logging
-from typing import Dict, Any
+from typing import Dict, Any, List, Optional, Tuple, Set, Union
 logger = setup_logger(__name__, level=logging.DEBUG)
 
-def dict_set_by_path(d, keys, value):
+def dict_set_by_path(d: Dict[str, Any], keys: List[str], value: Any) -> None:
     """Set a value in a nested dict by a sequence of keys.
 
     Creates intermediate dicts as needed. The value is passed through
@@ -30,7 +30,7 @@ def dict_set_by_path(d, keys, value):
         d = d[k]
     d[keys[-1]] = smart_cast(value)
 
-def parse_dot_args(extra_args):
+def parse_dot_args(extra_args: Dict[str, Any]) -> Dict[Tuple[str, ...], Any]:
     """Extract dot-notation keys from extra_args into nested key tuples.
 
     Converts {"genome.fasta": "/path"} → {("genome", "fasta"): "/path"}
@@ -56,7 +56,7 @@ def _load_model_json(model_json_file: str) -> Dict[str, Any]:
     
 
 
-def parse_args():
+def parse_args() -> argparse.Namespace:
     """Parse CLI arguments and collect extra dot-notation overrides.
 
     Handles three forms of extra arguments:
@@ -71,7 +71,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description="workflow")
     parser.add_argument('-m','--meta', type=str, default=None, help='meta input file or data dir which condatain fastq file')
     parser.add_argument('-w','--workflow_name', type=str, nargs='+',
-        choices=["CoCulture", "MERIP", "RNAseq", "ncRNAseq", "scRNAseq", "tRNAseq", "CLIP", "Mutation", "PacVar", "KARRseq", "PeakCalling", "QuantMS", "Fiberseq"],
+        choices=["CoCulture", "MERIP", "RNAseq", "ncRNAseq", "scRNAseq", "tRNAseq", "CLIP", "Mutation", "PacVar", "KARRseq", "PeakCalling", "QuantMS", "Fiberseq", "LRtranscriptome"],
         default=['CoCulture'], help='workflow name(s), multiple for parallel execution')
     parser.add_argument('-o','--output_dir', type=str, default=None, help='output dir')
     parser.add_argument('-t','--threads', type=int, default=10, help='threads')
@@ -96,11 +96,11 @@ def parse_args():
     parser.add_argument('--conda-frontend', type=str, choices=["conda", "mamba"], default="mamba", help='conda frontend for snakemake')
     parser.add_argument('--forcerun', type=str, nargs='+', default=None,
         help='force re-run specific rules or files, format: RULE or /path/to/file, e.g. --forcerun scanpy_qc')
-    parser.add_argument('--target-jobs', type=str, nargs='+', default=None,
-        help='target specific jobs by wildcard, format: RULE:WILDCARD1=VALUE,..., e.g. --target-jobs scanpy_qc:counter=scTE')
     parser.add_argument('--unlock', action='store_true', help='unlock snakemake working directory')
     parser.add_argument('--no-schema-validate', dest='schema_validate', action='store_false',
         default=True, help='disable schema-based type casting for extra args')
+    parser.add_argument('--list-target-rules', dest='list_target_rules', action='store_true', help='list all target rules in the workflow and exit, no wildcard expansion')
+    parser.add_argument('--list-rules', dest='list_rules', action='store_true', help='list all rules in the workflow and exit')
     parser.add_argument(
         '--snakemake-args',
         nargs=argparse.REMAINDER,
@@ -111,7 +111,7 @@ def parse_args():
     # 支持 --key=value、--key value、--key v1 v2 v3 三种形式的额外参数
     # 多值参数在碰到下一个 --key 或到达末尾时停止收集
     args, unknown = parser.parse_known_args()
-    extra_args = {}
+    extra_args: Dict[str, Any] = {}
     i = 0
     while i < len(unknown):
         arg = unknown[i]
@@ -136,7 +136,7 @@ def parse_args():
     return args
 
 
-def _detect_singularity(snakemake_args):
+def _detect_singularity(snakemake_args: Optional[List[str]]) -> bool:
     """Check if --sdm apptainer/singularity is present in raw snakemake_args (backward compat)."""
     snakemake_args = snakemake_args or []
     return any(
@@ -146,7 +146,7 @@ def _detect_singularity(snakemake_args):
     )
 
 
-def _collect_bind_paths(config_path):
+def _collect_bind_paths(config_path: str) -> List[str]:
     """Scan a config JSON file and collect directory paths to bind-mount.
 
     Recursively walks all string values; strings containing '/' are treated as
@@ -159,9 +159,9 @@ def _collect_bind_paths(config_path):
     with open(config_path, "r", encoding="utf-8") as f:
         cfg = _json.load(f)
 
-    dirs = set()
+    dirs: Set[str] = set()
 
-    def _walk(obj):
+    def _walk(obj: Any) -> None:
         if is_path_like(obj) and os.path.exists(obj):
             # Resolve to absolute path; use as-is if not exists (don't resolve symlinks)
             p = _os.path.abspath(obj.strip())
@@ -188,9 +188,9 @@ def _collect_bind_paths(config_path):
     return sorted(result)
 
 def _merge_singularity_args(
-    json_bind_paths,
-    singularity_args=None,
-):
+    json_bind_paths: List[str],
+    singularity_args: Optional[str] = None,
+) -> Optional[str]:
     """
     Merge bind paths collected from the JSON configuration with
     user-provided Singularity arguments.
@@ -201,9 +201,9 @@ def _merge_singularity_args(
 
     Other Singularity arguments, such as --cleanenv, are preserved.
     """
-    bind_paths = []
+    bind_paths: List[str] = []
 
-    def add_bind_paths(paths):
+    def add_bind_paths(paths: List[str]) -> None:
         for path in paths:
             path = path.strip()
             if path and path not in bind_paths:
@@ -253,9 +253,13 @@ def _merge_singularity_args(
 
     return singularity_args.strip()
 
-def build_snakemake_cmd(root_dir, smk, input_json, threads, conda_prefix, rerun_trigger,
-                        dry_run, conda_frontend, snakemake_args, sdm=None, singularity_args=None,
-                        forcerun=None, unlock=False, touch=False, target_jobs=None):
+def build_snakemake_cmd(root_dir: str, smk: str, input_json: str, threads: int,
+                        conda_prefix: Optional[str], rerun_trigger: List[str],
+                        dry_run: bool, conda_frontend: str, snakemake_args: Optional[List[str]],
+                        sdm: Optional[str] = None, singularity_args: Optional[str] = None,
+                        forcerun: Optional[List[str]] = None, unlock: bool = False,
+                        touch: bool = False, list_target_rules: bool = False,
+                        list_rules: bool = False) -> List[str]:
     """Build the snakemake CLI command list for a given subworkflow.
 
     Configures conda or apptainer container backend, collects bind paths
@@ -277,8 +281,8 @@ def build_snakemake_cmd(root_dir, smk, input_json, threads, conda_prefix, rerun_
         forcerun: List of rule names to force re-run (with optional wildcards).
         unlock: If True, append --unlock.
         touch: If True, append --touch.
-        target_jobs: List of target job specs (e.g. "scRNAseq_scanpy_qc:counter=scTE").
-
+        list_target_rules: If True, append --list-target-rules.
+        list_rules: If True, append --list-rules.
     Returns:
         List[str]: Complete snakemake command as a list of arguments.
     """
@@ -328,17 +332,26 @@ def build_snakemake_cmd(root_dir, smk, input_json, threads, conda_prefix, rerun_
     if unlock:
         cmd.append("--unlock")
     if forcerun:
-        cmd.append("--until")
-        cmd.extend(forcerun)
-        cmd.append("--forcerun")
-        cmd.extend(forcerun)
-    if target_jobs:
-        cmd.append("--target-jobs")
-        cmd.extend(target_jobs)
+        # File paths and plain rule names → --until + --forcerun (original)
+        plain_targets = [t for t in forcerun if not (":" in t and "=" in t)]
+        # Wildcard specs (rule:wildcard=value) → --target-jobs + --force
+        wildcard_targets = [t for t in forcerun if ":" in t and "=" in t]
+        if plain_targets:
+            cmd.append("--until")
+            cmd.extend(plain_targets)
+            cmd.append("--forcerun")
+            cmd.extend(plain_targets)
+        if wildcard_targets:
+            cmd.append("--target-jobs")
+            cmd.extend(wildcard_targets)
+            cmd.append("--force")
+    if list_target_rules:
+        cmd.append("--list-target-rules")
+    if list_rules:
+        cmd.append("--list-rules")
     if snakemake_args:
-        cmd.extend(snakemake_args)
+        cmd.extend(snakemake_args)    
     return cmd
-
 
 WORKFLOW_DISPATCH = {
     "CoCulture":  lambda cfg, sid, sp, gp, indir, outdir, meta, rf, ci: ("CoCulture.smk", runCoCulture(cfg, sid, indir, outdir, rf)),
@@ -354,6 +367,7 @@ WORKFLOW_DISPATCH = {
     "tRNAseq":    lambda cfg, sid, sp, gp, indir, outdir, meta, rf, ci: ("tRNAseq.smk",   runtRNAseq(cfg, sid, indir, outdir, meta, rf)),
     "scRNAseq":   lambda cfg, sid, sp, gp, indir, outdir, meta, rf, ci: ("scRNAseq.smk",  runscRNAseq(cfg, sid, indir, outdir, rf, ci)),
     "Fiberseq":   lambda cfg, sid, sp, gp, indir, outdir, meta, rf, ci: ("Fiberseq.smk",  runFiberseq(cfg, sid, indir, outdir, rf)),
+    "LRtranscriptome": lambda cfg, sid, sp, gp, indir, outdir, meta, rf, ci: ("LRtranscriptome.smk", runLRtranscriptome(cfg, sid, indir, outdir, rf)),
 }
 
 
@@ -362,7 +376,7 @@ WORKFLOW_DISPATCH = {
 # ============================================================
 
 
-def setup_test_args(args, root_dir: str):
+def setup_test_args(args: argparse.Namespace, root_dir: str) -> argparse.Namespace:
     """Configure args for --test mode.
 
     Resolves workflow names, output directory, meta files, and test paths.
@@ -421,7 +435,7 @@ def setup_test_args(args, root_dir: str):
     return args
 
 
-def setup_normal_args(args):
+def setup_normal_args(args: argparse.Namespace) -> argparse.Namespace:
     """Validate args for normal (non-test) mode."""
     if not args.meta:
         logger.info("Error: -m/--meta is required (unless --test is used)")
@@ -438,7 +452,7 @@ def setup_normal_args(args):
     return args
 
 
-def print_test_summary(test_results: Dict[str, tuple]):
+def print_test_summary(test_results: Dict[str, Tuple[bool, str]]) -> None:
     """Print summary of test workflow results."""
     logger.info(f"[Results ({len(test_results)} workflows)")
     passed = [k for k, (ok, _) in test_results.items() if ok]
@@ -455,21 +469,21 @@ def print_test_summary(test_results: Dict[str, tuple]):
         exit(1)
 
 
-def execute_workflows(args, root_dir: str, logger):
+def execute_workflows(args: argparse.Namespace, root_dir: str, logger: logging.Logger) -> None:
     """Execute all configured workflows.
 
     In test mode (args._test_meta_map is set), runs each workflow and collects results.
     In normal mode, runs workflows directly.
     """
-    workflow_names = args.workflow_name
+    workflow_names: List[str] = args.workflow_name
     n_workflows = len(workflow_names)
 
-    def _get_meta(wf_name):
+    def _get_meta(wf_name: str) -> Optional[str]:
         if args._test_meta_map:
             return args._test_meta_map.get(wf_name, args.meta)
         return args.meta
 
-    def _resolve_test_meta(meta_path, test_data_dir):
+    def _resolve_test_meta(meta_path: str, test_data_dir: str) -> str:
         """Resolve relative FASTQ paths in test meta file to absolute paths."""
         import pandas as pd
         import tempfile
@@ -520,7 +534,7 @@ def execute_workflows(args, root_dir: str, logger):
                     f"{args.threads} total threads -> {threads_per_workflow} per workflow")
 
     # Prepare each workflow
-    test_results = {}  # wf_name -> (passed: bool, error: str)
+    test_results: Dict[str, Tuple[bool, str]] = {}  # wf_name -> (passed: bool, error: str)
     smk_cmds: list[tuple[list[str], str]] = []  # (cmd, cwd) pairs
     for wf_name in workflow_names:
         abs_outdir = os.path.abspath(os.path.join(args.output_dir, wf_name))
@@ -563,13 +577,13 @@ def execute_workflows(args, root_dir: str, logger):
                 test_data = os.path.join(os.path.join(root_dir, "assests", "test"), "data")
                 base_paths = args._test_base_paths
 
-                def _is_path(val):
+                def _is_path(val: Any) -> bool:
                     if val is None: return True
                     if not isinstance(val, str): return False
                     if "/" in val: return True
                     return False
 
-                def _make_test_path(key, test_data, genome):
+                def _make_test_path(key: str, test_data: str, genome: str) -> str:
                     from pathlib import Path
                     ref = Path(test_data) / "ref"
                     ref.mkdir(parents=True, exist_ok=True)
@@ -585,7 +599,7 @@ def execute_workflows(args, root_dir: str, logger):
                         return str(d / genome)
                     return str(ref / genome)
 
-                def _inject(cfg, prefix, wf_extra):
+                def _inject(cfg: Dict[str, Any], prefix: str, wf_extra: Dict[str, Any]) -> None:
                     for field, val in cfg.items():
                         dotted = f"{prefix}.{field}" if prefix else field
                         if isinstance(val, dict):
@@ -593,7 +607,7 @@ def execute_workflows(args, root_dir: str, logger):
                         elif _is_path(val):
                             wf_extra[dotted] = base_paths.get(dotted, _make_test_path(field, test_data, args._test_genome))
 
-                wf_extra = dict(args.extra_args) if hasattr(args, 'extra_args') else {}
+                wf_extra: Dict[str, Any] = dict(args.extra_args) if hasattr(args, 'extra_args') else {}
                 _inject(workflow_config, "", wf_extra)
 
                 flat_args = {k: v for k, v in wf_extra.items() if '.' not in k}
@@ -617,18 +631,26 @@ def execute_workflows(args, root_dir: str, logger):
             )
 
             # Auto-prefix forcerun targets with workflow name if not already prefixed.
-            # In subworkflows, rules are renamed via "use rule ... as <wf>_...", so
-            # the user can write "function_gsea" instead of "RNAseq_function_gsea".
-            # For wildcards targets like "trimming_Paired:sample_id=S1", only the
-            # rule name (before ":") gets prefixed.
-            forcerun_targets = None
+            # Supports three formats:
+            #   - File paths (/path/to/file) — passed through as-is
+            #   - Rule:wildcard syntax (rule:wildcard=value) — prefix rule name only
+            #   - Plain rule names — prefix with workflow name
+            forcerun_targets: Optional[List[str]] = None
             if args.forcerun:
                 forcerun_targets = []
                 for t in args.forcerun:
-                    # File paths — pass through as-is (snakemake treats them as targets)
+                    # File paths — pass through as-is
                     if "/" in t:
                         forcerun_targets.append(t)
                         continue
+                    # Wildcard syntax (rule:wildcard=value) — prefix rule part only
+                    if ":" in t and "=" in t:
+                        rule_part, wildcards = t.split(":", 1)
+                        if not rule_part.startswith(f"{wf_name}_"):
+                            rule_part = f"{wf_name}_{rule_part}"
+                        forcerun_targets.append(f"{rule_part}:{wildcards}")
+                        continue
+                    # Plain rule name — standard prefix logic
                     if ":" in t:
                         rule_part, rest = t.split(":", 1)
                         rest = ":" + rest
@@ -638,32 +660,14 @@ def execute_workflows(args, root_dir: str, logger):
                         forcerun_targets.append(t)
                     else:
                         forcerun_targets.append(f"{wf_name}_{rule_part}{rest}")
-
-            # --target-jobs: auto-prefix rule name, pass wildcards as-is
-            target_jobs = None
-            if args.target_jobs:
-                target_jobs = []
-                for t in args.target_jobs:
-                    if ":" in t:
-                        rule_part, wildcards_str = t.split(":", 1)
-                    else:
-                        rule_part, wildcards_str = t, ""
-
-                    if not rule_part.startswith(f"{wf_name}_"):
-                        rule_part = f"{wf_name}_{rule_part}"
-
-                    if wildcards_str:
-                        target_jobs.append(f"{rule_part}:{wildcards_str}")
-                    else:
-                        target_jobs.append(rule_part)
-
             cmd = build_snakemake_cmd(
                 root_dir, smk, input_json, threads_per_workflow,
                 args.conda_prefix, args.rerun_trigger, args.dry_run,
                 args.conda_frontend, args.snakemake_args,
                 sdm=args.sdm, singularity_args=args.singularity_args,
                 forcerun=forcerun_targets, unlock=args.unlock,
-                touch=args.touch, target_jobs=target_jobs,
+                touch=args.touch, list_target_rules=args.list_target_rules,
+                list_rules=args.list_rules
             )
             logger.info(f"[{wf_name}] {cmd}")
             smk_cmds.append((cmd, abs_outdir))

@@ -11,12 +11,6 @@ _scTE_index = f"{outdir}/index/{_scTE_genome}.{_scTE_mode}.idx"
 
 
 rule scTE_build_index:
-    """Build scTE genome index.
-
-    Two modes:
-      1. Resource-based: provide gene_gtf + te_bed → scTE_build -gene -te -g other
-      2. Download-based: only genome name → scTE_build -g <genome>
-    """
     output:
         index = _scTE_index
     log:

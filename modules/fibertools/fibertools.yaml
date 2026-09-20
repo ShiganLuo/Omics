@@ -11,5 +11,3 @@ dependencies:
   - pip
   - samtools>=1.18
   - pbmm2>=2.0.0
-  - pip:
-    - torch --index-url https://download.pytorch.org/whl/cpu

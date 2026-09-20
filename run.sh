@@ -91,4 +91,8 @@ python ${SCRIPT_DIR}/run.py \
     --sdm \
     --counters scTE cellranger \
     --aligner cellranger \
-    --rerun-triggers mtime 
+    --rerun-triggers mtime \
+    --forcerun \
+        scanpy_auto:tissue=Uterus,counter=scTE \
+        scanpy_auto:tissue=Uterus,counter=cellranger \
+    --dry-run

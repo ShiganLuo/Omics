@@ -1,0 +1,13 @@
+{
+    "ROOT_DIR": {"type": "str", "path": "dir", "required": true, "nullable": false},
+    "indir": {"type": "str", "path": "dir", "required": true, "nullable": false},
+    "outdir": {"type": "str", "path": "dir", "required": true, "nullable": false},
+    "logdir": {"type": "str", "path": "dir", "required": true, "nullable": false},
+    "genome": {
+        "default": {"type": "str", "required": true},
+        "references": {
+            "type": "dict",
+            "required": true
+        }
+    }
+}

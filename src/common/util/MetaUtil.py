@@ -17,7 +17,7 @@ except Exception:
     from .LogUtil import setup_logger
     from .SmkUtil import resolve_genome
 
-logger = setup_logger(__name__, level=logging.DEBUG)
+logger = setup_logger(__name__, level=logging.INFO)
 
 DESIGN_PATTERN = re.compile(r"^(ctr|ctrl|exp)_(.+)$")
 REP_PATTERN = re.compile(r"^rep\d+$", re.IGNORECASE)
@@ -550,23 +550,23 @@ class MetadataUtils:
 
             # R1
             if len(r1_files) == 1:
-                logger.info(f"[{sample_id}] Linking R1: {r1_files[0].name}")
+                logger.debug(f"[{sample_id}] Linking R1: {r1_files[0].name}")
                 self._link_file(r1_files[0], target_r1)
             else:
-                logger.info(f"[{sample_id}] Merging {len(r1_files)} R1 files")
+                logger.debug(f"[{sample_id}] Merging {len(r1_files)} R1 files")
                 self._merge_files(r1_files, target_r1)
 
             # R2
             if r2_files:
                 if len(r2_files) == 1:
-                    logger.info(f"[{sample_id}] Linking R2: {r2_files[0].name}")
+                    logger.debug(f"[{sample_id}] Linking R2: {r2_files[0].name}")
                     self._link_file(r2_files[0], target_r2)
                 else:
                     logger.info(f"[{sample_id}] Merging {len(r2_files)} R2 files")
                     self._merge_files(r2_files, target_r2)
                 self.samples_dict[sample_id].layout = Layout.PE
             else:
-                logger.info(f"[{sample_id}] Single-end (no R2 found)")
+                logger.debug(f"[{sample_id}] Single-end (no R2 found)")
                 self.samples_dict[sample_id].layout = Layout.SE
 
             self.samples_dict[sample_id].sample_id = sample_id
@@ -695,7 +695,7 @@ class MetadataUtils:
             out: Output file path.
         """
         if out.exists():
-            logger.info(f"[SKIP] Merged file already exists: {out}")
+            logger.debug(f"[SKIP] Merged file already exists: {out}")
             return
         logger.info(f"[MERGE] Creating {out} from {len(files)} files")
         out.parent.mkdir(exist_ok=True,parents=True)
@@ -722,7 +722,7 @@ class MetadataUtils:
         dst.parent.mkdir(parents=True,exist_ok=True)
         if dst.is_symlink():
             if dst.resolve() == src.resolve():
-                logger.info(f"[SKIP] Link already correct: {dst}")
+                logger.debug(f"[SKIP] Link already correct: {dst}")
                 return
             dst.unlink()
 

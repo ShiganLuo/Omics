@@ -993,12 +993,64 @@ def runFiberseq(
     samples = []
     for sample_id, sample_info in samples_info_dict.items():
         samples.append(sample_id)
-        # Final outputs: FIRE BAM + extracted BED files
-        outfiles.append(f"{outdir}/fiberseq/3_fire/{sample_id}/{sample_id}.fiberseq.fire.bam")
-        outfiles.append(f"{outdir}/fiberseq/4_extract/{sample_id}/{sample_id}.m6a.bed.gz")
-        outfiles.append(f"{outdir}/fiberseq/4_extract/{sample_id}/{sample_id}.nuc.bed.gz")
-        outfiles.append(f"{outdir}/fiberseq/4_extract/{sample_id}/{sample_id}.msp.bed.gz")
-        outfiles.append(f"{outdir}/fiberseq/4_extract/{sample_id}/{sample_id}.fire.bed.gz")
+        # Final outputs: nucleosome BAM + FIRE BAM + extracted BED files
+        outfiles.append(f"{outdir}/fiberseq/2_fire/{sample_id}/{sample_id}.fiberseq.fire.bam")
+        outfiles.append(f"{outdir}/fiberseq/3_extract/{sample_id}/{sample_id}.m6a.bed.gz")
+        outfiles.append(f"{outdir}/fiberseq/3_extract/{sample_id}/{sample_id}.nuc.bed.gz")
+        outfiles.append(f"{outdir}/fiberseq/3_extract/{sample_id}/{sample_id}.msp.bed.gz")
+
+    datajson["samples"] = samples
+    datajson["raw_files"] = raw_files
+    datajson["outfiles"] = outfiles
+    instance_json = os.path.join(outdir, "raw.json")
+    with open(instance_json, 'w', encoding='utf-8') as wf:
+        json.dump(datajson, wf, indent=2, ensure_ascii=False)
+    return instance_json
+
+def runLRtranscriptome(
+        datajson: Dict[str, Any],
+        samples_info_dict: Dict[str, SampleInfo],
+        indir: str,
+        outdir: str,
+        raw_files: List[str],
+    ) -> str:
+    """Prepare input JSON for LRtranscriptome (Long-Read Transcriptome) workflow.
+
+    Long-read full-length transcriptome analysis pipeline:
+    1. minimap2 alignment (PacBio HiFi / ONT)
+    2. StringTie assembly (long-read mode, -L)
+    3. StringTie merge (merge transcripts across samples)
+    4. StringTie quantification (-e -B -L, re-estimate with merged GTF)
+
+    Supports both PacBio (map-hifi) and ONT (map-ont) sequencing data.
+    """
+    datajson["ROOT_DIR"] = os.path.dirname(__file__)
+    datajson["indir"] = indir
+    datajson["outdir"] = outdir
+    logdir = os.path.join(outdir, "log")
+    os.makedirs(logdir, exist_ok=True)
+    datajson["logdir"] = logdir
+
+    outfiles = []
+    samples = []
+    skip_quant = datajson.get("Params", {}).get("skip_quant", False)
+
+    for sample_id, sample_info in samples_info_dict.items():
+        samples.append(sample_id)
+        # Alignment output
+        outfiles.append(f"{outdir}/alignment/{sample_id}/{sample_id}.sorted.bam")
+        outfiles.append(f"{outdir}/alignment/{sample_id}/{sample_id}.sorted.bam.bai")
+        # Assembly output
+        outfiles.append(f"{outdir}/stringtie/raw/{sample_id}/{sample_id}.gtf")
+
+    # Merged transcriptome (across all samples)
+    outfiles.append(f"{outdir}/stringtie/stringtie_merged.gtf")
+
+    # Quantification output
+    if not skip_quant:
+        for sample_id in samples:
+            outfiles.append(f"{outdir}/quantification/{sample_id}/{sample_id}.gene_abund.tab")
+            outfiles.append(f"{outdir}/quantification/{sample_id}/{sample_id}.quant.gtf")
 
     datajson["samples"] = samples
     datajson["raw_files"] = raw_files

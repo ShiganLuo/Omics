@@ -27,6 +27,7 @@ species = config.get("species", "")
 # Per-sample QC
 # ---------------------------------------------------------------------------
 rule scanpy_qc:
+    """Perform QC on single-cell data using Scanpy."""
     input:
         h5ad = indir + "/{sample_id}/{sample_id}_{counter}.h5ad"
     output:
@@ -95,6 +96,7 @@ def get_tissue_qc_files(wildcards):
 
 
 rule scanpy_merge:
+    """Merge QC'd single-cell data for a tissue group using Scanpy."""
     input:
         h5ad = get_tissue_qc_files
     output:
@@ -141,6 +143,8 @@ rule scanpy_merge:
 
 
 rule scanpy_auto:
+    """Automated Scanpy analysis for merged tissue data, including clustering and annotation.
+    """
     input:
         h5ad = outdir_combine + "/{tissue}/{tissue}_{counter}_merged.h5ad"
     output:
@@ -227,6 +231,8 @@ rule scanpy_auto:
 
 
 rule scanpy_advanced:
+    """Advanced Scanpy analysis for merged tissue data, including trajectory inference, RNA velocity, cell-cell communication, and CNV analysis.
+    """
     input:
         h5ad = outdir_combine + "/{tissue}/{tissue}_{counter}_auto.h5ad"
     output:
@@ -292,6 +298,8 @@ rule scanpy_advanced:
 
 
 rule scanpy_differential_expression:
+    """Perform differential expression analysis on merged tissue data using Scanpy.
+    """
     input:
         h5ad = outdir_combine + "/{tissue}/{tissue}_{counter}_advanced.h5ad"
     output:
@@ -335,10 +343,3 @@ rule scanpy_differential_expression:
             logger.error(f"Error occurred during scanpy differential expression for tissue {wildcards.tissue}: {e}")
             raise e
 
-# ---------------------------------------------------------------------------
-# Result aggregation (for subworkflow use rule)
-# ---------------------------------------------------------------------------
-rule scanpy_result:
-    input:
-        h5ad = outdir_combine + "/{t}/{t}_{counter}_advanced.h5ad",
-        table = outdir_combine + "/{t}/{t}_{counter}_markers.tsv"

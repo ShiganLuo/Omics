@@ -1,0 +1,37 @@
+{
+    "env": {
+        "env_dir": "/home/luosg/Database/env",
+        "minimap2": "/home/luosg/Database/env/minimap2/minimap2.sif",
+        "StringTie": "/home/luosg/Database/env/StringTie/StringTie.sif"
+    },
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "logs",
+    "samples": [],
+    "raw_files": [],
+    "Procedure": {
+        "minimap2": null,
+        "samtools": null,
+        "stringtie": null
+    },
+    "Params": {
+        "skip_quant": false,
+        "minimap2": {
+            "preset": "map-ont",
+            "extra": ""
+        }
+    },
+    "genome": {
+        "default": "GRCm39",
+        "references": {
+            "GRCm39": {
+                "fasta": "/path/to/genome.fa",
+                "gtf": "/path/to/genes.gtf"
+            },
+            "GRCh38": {
+                "fasta": "/path/to/genome.fa",
+                "gtf": "/path/to/genes.gtf"
+            }
+        }
+    }
+}

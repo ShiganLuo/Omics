@@ -27,7 +27,7 @@ cellranger_input_dict = config.get("cellranger_input_dict", {})
 
 
 rule cellranger_ref:
-    """Build Cell Ranger reference from Ensembl FASTA + GENCODE GTF."""
+    """Build Cell Ranger reference genome from FASTA and GTF."""
     input:
         fasta = fasta,
         gtf = gtf

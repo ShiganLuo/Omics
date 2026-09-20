@@ -3,7 +3,9 @@
 Workflow (Revio SPRQ — m6A calls already in CCS BAM from jasmine):
   1. Add nucleosome calls (ft add-nucleosomes)
   2. Call FIREs (ft fire)
-  3. Extract data to BED format (ft extract)
+  3. Extract data to BED format (ft extract --all)
+  4. Call FIRE peaks (ft call-peaks, FDR-based)
+  5. Collect QC metrics (ft qc)
 
 For older instruments (Sequel II/IIe) without jasmine m6A calls,
 a separate ft predict-m6a step is needed before step 1.
@@ -104,3 +106,59 @@ module fibertools_extract:
     config: fibertools_extract_config
 logger.info(f"Fiber-seq extract config: {fibertools_extract_config}")
 use rule ft_extract from fibertools_extract as Fiberseq_ft_extract
+
+
+# ============================================================
+# Step 4: FIRE peak calling
+# ============================================================
+fibertools_peaks_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "env": config.get("env", {}),
+    "indir": fibertools_fire_config["outdir"],
+    "outdir": f"{outdir}/fiberseq/4_peaks",
+    "upstream_outdir": fibertools_fire_config["outdir"],
+    "logdir": f"{logdir}/sample",
+    "samples": samples,
+    "Procedure": {
+        "fibertools": config.get("Procedure", {}).get("fibertools") or "ft"
+    },
+    "Params": {
+        "fibertools": config.get("Params", {}).get("fibertools", {})
+    },
+    "genome": {
+        "fasta": config.get("genome", {}).get("fasta")
+    }
+}
+module fibertools_peaks:
+    snakefile: "../modules/fibertools/fibertools.smk"
+    config: fibertools_peaks_config
+logger.info(f"Fiber-seq peaks config: {fibertools_peaks_config}")
+use rule ft_call_peaks from fibertools_peaks as Fiberseq_ft_call_peaks
+
+
+# ============================================================
+# Step 5: QC metrics
+# ============================================================
+fibertools_qc_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "env": config.get("env", {}),
+    "indir": fibertools_fire_config["outdir"],
+    "outdir": f"{outdir}/fiberseq/5_qc",
+    "upstream_outdir": fibertools_fire_config["outdir"],
+    "logdir": f"{logdir}/sample",
+    "samples": samples,
+    "Procedure": {
+        "fibertools": config.get("Procedure", {}).get("fibertools") or "ft"
+    },
+    "Params": {
+        "fibertools": config.get("Params", {}).get("fibertools", {})
+    },
+    "genome": {
+        "fasta": config.get("genome", {}).get("fasta")
+    }
+}
+module fibertools_qc:
+    snakefile: "../modules/fibertools/fibertools.smk"
+    config: fibertools_qc_config
+logger.info(f"Fiber-seq QC config: {fibertools_qc_config}")
+use rule ft_qc from fibertools_qc as Fiberseq_ft_qc

@@ -300,19 +300,13 @@ class EnvUtil:
                 f"Command failed (rc={process.returncode}): {cmd_str}"
             )
             # Re-emit last 60 lines at ERROR level so they stand out and survive
-            # log rotation, then dump full captured output to a sibling file
-            # so post-mortem is possible even if terminal output is lost.
+            # log rotation. Do not write to cwd by default -- keep build output
+            # only in stderr.
             tail = "".join(captured_lines[-60:])
             logger.error("--- last 60 lines of failed command output ---")
             for line in tail.splitlines():
                 logger.error(line)
             logger.error("--- end of failed command output ---")
-            try:
-                dump_path = Path(cwd or ".") / "apptainer_build_failure.log"
-                dump_path.write_text("".join(captured_lines))
-                logger.error(f"Full output saved to: {dump_path}")
-            except Exception as dump_err:
-                logger.error(f"Could not write failure log: {dump_err}")
             raise RuntimeError(
                 f"Command failed with code {process.returncode}: {cmd_str}"
             )

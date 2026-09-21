@@ -18,6 +18,8 @@ upstream_outdir = config.get("upstream_outdir", indir)
 logdir = config.get("logdir", "log")
 samples = config.get("samples", [])
 fasta = config.get("genome", {}).get("fasta") or ""
+# Input BAM filename suffix: default ".bam", or ".sorted.bam" when chained after pbmm2
+_bam_suffix = config.get("bam_suffix", ".bam")
 
 
 rule ft_predict_m6a:
@@ -73,7 +75,7 @@ rule ft_add_nucleosomes:
     Output: Fiber-seq BAM with nucleosome and MSP calls added.
     """
     input:
-        bam = upstream_outdir + "/{sample_id}/{sample_id}.bam"
+        bam = upstream_outdir + "/{sample_id}/{sample_id}" + _bam_suffix
     output:
         bam = outdir + "/{sample_id}/{sample_id}.fiberseq.nuc.bam"
     log:

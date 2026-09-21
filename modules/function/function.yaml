@@ -5,6 +5,8 @@ channels:
   - defaults
 dependencies:
   - r-base=4.3
+  - libxml2=2.13
+  - libxslt>=1.1
   - bioconductor-clusterprofiler
   - bioconductor-org.hs.eg.db
   - bioconductor-org.mm.eg.db

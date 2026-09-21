@@ -9,6 +9,7 @@ suppressPackageStartupMessages({
   library(clusterProfiler)
   library(org.Hs.eg.db)
   library(org.Mm.eg.db)
+  library(org.Mmu.eg.db)
   library(enrichplot)
   library(ggplot2)
   library(dplyr)
@@ -71,7 +72,7 @@ define_up_down_genes <- function(
 ## =========================
 run_go_kegg <- function(
   genes,
-  species = c("human", "mouse"),
+  species = c("human", "mouse", "macaque"),
   type = c("go", "kegg")
 ) {
   species <- match.arg(species)
@@ -81,6 +82,9 @@ run_go_kegg <- function(
   if (species == "human") {
     OrgDb <- org.Hs.eg.db
     kegg_org <- "hsa"
+  } else if (species == "macaque") {
+    OrgDb <- org.Mmu.eg.db
+    kegg_org <- "mcc"
   } else {
     OrgDb <- org.Mm.eg.db
     kegg_org <- "mmu"
@@ -125,7 +129,7 @@ clean_pathway_description <- function(description) {
   description <- as.character(description)
   description[is.na(description) | !nzchar(trimws(description))] <- "Unnamed pathway"
   sub(
-    " - (Mus musculus \\(house mouse\\)|Homo sapiens \\(human\\))$",
+    " - (Mus musculus \\(house mouse\\)|Homo sapiens \\(human\\)|Macaca mulatta \\(Rhesus macaque\\))$",
     "",
     trimws(description),
     perl = TRUE
@@ -276,8 +280,8 @@ parser$add_argument("-i", "--input", required = TRUE, type = "character",
 parser$add_argument("-o", "--outdir", required = TRUE, type = "character",
                     help = "Output directory")
 parser$add_argument("-s", "--species", default = "mouse",
-                    choices = c("human", "mouse"), type = "character",
-                    help = "Species: human or mouse (default: mouse)")
+                    choices = c("human", "mouse", "macaque"), type = "character",
+                    help = "Species: human, mouse or macaque (default: mouse)")
 parser$add_argument("--gene-col", default = "gene_name", type = "character",
                     help = "Column name for gene names (default: gene_name)")
 parser$add_argument("--value-col", default = "log2FoldChange", type = "character",

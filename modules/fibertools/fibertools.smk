@@ -236,9 +236,24 @@ rule ft_call_peaks:
             open(log_path, 'w').close()
             rule_logger = setup_logger("ft_call_peaks", log_file=log_path)
             rule_logger.info(f"Calling FIRE peaks for sample {wildcards.sample_id}")
+            # Check if BAM is aligned (not all reads unmapped)
+            import subprocess
+            check = subprocess.run(
+                ["samtools", "view", "-c", "-F", "4", input.bam],
+                capture_output=True, text=True
+            )
+            aligned_count = int(check.stdout.strip()) if check.returncode == 0 else 0
+            if aligned_count == 0:
+                rule_logger.warning(f"BAM has no aligned reads — skipping ft call-peaks for {wildcards.sample_id}")
+                # Write empty BED with header
+                with open(output.peaks, "w") as f:
+                    f.write("#chrom\tstart\tend\tname\tscore\tstrand\n")
+                return
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
+            # Sort and index BAM (required for ft call-peaks)
+            sorted_bam = os.path.join(sample_outdir, f"{wildcards.sample_id}.fire.sorted.bam")
             command_script = os.path.join(sample_outdir, f"ft_call_peaks_{current_time}.sh")
             cmd = [
                 params.ft, "call-peaks",
@@ -248,10 +263,11 @@ rule ft_call_peaks:
             ]
             if params.min_fire_frac is not None:
                 cmd.extend(["--min-fire-frac", str(params.min_fire_frac)])
-            cmd.append(input.bam)
+            cmd.append(sorted_bam)
             with open(command_script, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
-                f.write(f"samtools index {input.bam}\n")
+                f.write(f"samtools sort -@ {threads} -o {sorted_bam} {input.bam}\n")
+                f.write(f"samtools index {sorted_bam}\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "FIRE peak calling completed for sample {wildcards.sample_id}"\n')
             shell(f"bash {command_script} >> {log_path} 2>&1")

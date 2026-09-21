@@ -8,6 +8,9 @@ dependencies:
   - bioconductor-clusterprofiler
   - bioconductor-org.hs.eg.db
   - bioconductor-org.mm.eg.db
+  - bioconductor-org.mmu.eg.db
+  - bioconductor-edger
+  - bioconductor-deseq2
   - bioconductor-enrichplot
   - bioconductor-fgsea
   - r-ggplot2

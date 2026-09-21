@@ -48,7 +48,7 @@ star_config_for_index = {
 module star_for_index:
     snakefile: "../modules/star/polygenomes/star.smk"
     config: star_config_for_index
-logger.info(f"star_config: {star_config_for_index}")
+logger.debug(f"star_config: {star_config_for_index}")
 use rule star_index from star_for_index as RNAseq_star_index
 
 if trimmer == "cutadapt":
@@ -66,7 +66,7 @@ if trimmer == "cutadapt":
     module cutadapt:
         snakefile: "../modules/cutadapt/cutadapt.smk"
         config: cutadapt_config
-    logger.info(f"cutadapt_config: {cutadapt_config}")
+    logger.debug(f"cutadapt_config: {cutadapt_config}")
     use rule trimming_Paired from cutadapt as RNAseq_cutadapt_Paired
     use rule trimming_Single from cutadapt as RNAseq_cutadapt_Single
 elif trimmer == "trimmomatic":
@@ -90,7 +90,7 @@ elif trimmer == "trimmomatic":
     module trimmomatic:
         snakefile: "../modules/trimmomatic/trimmomatic.smk"
         config: trimmomatic_config
-    logger.info(f"trimmomatic_config: {trimmomatic_config}")
+    logger.debug(f"trimmomatic_config: {trimmomatic_config}")
     use rule trimmomatic_Paired from trimmomatic as RNAseq_trimmomatic_Paired
     use rule trimmomatic_Single from trimmomatic as RNAseq_trimmomatic_Single
 else:
@@ -109,7 +109,7 @@ else:
     module trim_galore:
         snakefile: "../modules/trim-galore/trim-galore.smk"
         config: trim_galore_config
-    logger.info(f"trim_galore_config: {trim_galore_config}")
+    logger.debug(f"trim_galore_config: {trim_galore_config}")
     use rule trimming_Paired from trim_galore as RNAseq_trim_galore_Paired
     use rule trimming_Single from trim_galore as RNAseq_trim_galore_Single
 
@@ -138,7 +138,7 @@ if aligner_TEtranscripts == 'hisat2':
     module hisat2_for_TEtranscripts:
         snakefile: "../modules/hisat2/polygenomes/hisat2.smk"
         config: hisat2_config_for_TEtranscripts
-    logger.info(f"hisat2_config: {hisat2_config_for_TEtranscripts}")
+    logger.debug(f"hisat2_config: {hisat2_config_for_TEtranscripts}")
     use rule hisat2_align from hisat2_for_TEtranscripts as RNAseq_hisat2_align_for_TEtranscripts
     use rule hisat2_index from hisat2_for_TEtranscripts as RNAseq_hisat2_index_for_TEtranscripts
 
@@ -169,7 +169,7 @@ elif aligner_TEtranscripts == 'star':
     module star_for_TEtranscripts:
         snakefile: "../modules/star/polygenomes/star.smk"
         config: star_config_for_TEtranscripts
-    logger.info(f"star_config: {star_config_for_TEtranscripts}")
+    logger.debug(f"star_config: {star_config_for_TEtranscripts}")
     use rule star_align from star_for_TEtranscripts as RNAseq_star_align_for_TEtranscripts
 else:
     raise ValueError(f"Unsupported aligner_TEtranscripts: {aligner_TEtranscripts}")
@@ -194,7 +194,7 @@ TEtranscripts_config = {
 module TEtranscripts:
     snakefile: "../modules/TEtranscripts/polygenomes/TEtranscripts.smk"
     config: TEtranscripts_config
-logger.info(f"TEtranscripts_config: {TEtranscripts_config}")
+logger.debug(f"TEtranscripts_config: {TEtranscripts_config}")
 use rule * from TEtranscripts as RNAseq_*
 
 star_config_for_featureCounts = {
@@ -219,7 +219,7 @@ star_config_for_featureCounts = {
 module star_for_featureCounts:
     snakefile: "../modules/star/polygenomes/star.smk"
     config: star_config_for_featureCounts
-logger.info(f"star_config: {star_config_for_featureCounts}")
+logger.debug(f"star_config: {star_config_for_featureCounts}")
 use rule star_align from star_for_featureCounts as RNAseq_star_align_for_featureCounts
 
 ### gene expression quantification using featureCounts (for GSVA downstream)
@@ -239,7 +239,7 @@ featureCounts_config = {
 module featureCounts:
     snakefile: "../modules/featureCounts/polygenomes/featureCounts.smk"
     config: featureCounts_config
-logger.info(f"featureCounts_config: {featureCounts_config}")
+logger.debug(f"featureCounts_config: {featureCounts_config}")
 use rule featureCounts_paired_noMultiple from featureCounts as RNAseq_featureCounts_paired
 use rule featureCounts_single_noMultiple from featureCounts as RNAseq_featureCounts_single
 use rule featureCounts_merge from featureCounts as RNAseq_featureCounts_merge
@@ -261,7 +261,7 @@ DESeq2_config = {
 module DESeq2:
     snakefile: "../modules/DESeq2/polygenomes/DESeq2.smk"
     config: DESeq2_config
-logger.info(f"DESeq2_config: {DESeq2_config}")
+logger.debug(f"DESeq2_config: {DESeq2_config}")
 use rule DESeq2_TEcount from DESeq2 as RNAseq_DESeq2_TEcount
 
 ### functional enrichment analysis using function module
@@ -281,7 +281,7 @@ function_config = {
 module function:
     snakefile: "../modules/function/polygenomes/function.smk"
     config: function_config
-logger.info(f"function_config: {function_config}")
+logger.debug(f"function_config: {function_config}")
 use rule function_go_kegg from function as RNAseq_function_go_kegg
 use rule function_gsea from function as RNAseq_function_gsea
 use rule function_gsva from function as RNAseq_function_gsva
@@ -311,7 +311,7 @@ hisat2_config_for_StringTie = {
 module hisat2_for_StringTie:
     snakefile: "../modules/hisat2/polygenomes/hisat2.smk"
     config: hisat2_config_for_StringTie
-logger.info(f"hisat2_config_for_StringTie: {hisat2_config_for_StringTie}")
+logger.debug(f"hisat2_config_for_StringTie: {hisat2_config_for_StringTie}")
 use rule hisat2_align from hisat2_for_StringTie as RNAseq_hisat2_align_for_StringTie
 use rule hisat2_index from hisat2_for_StringTie as RNAseq_hisat2_index_for_StringTie
 
@@ -333,7 +333,7 @@ module StringTie:
     snakefile: "../modules/StringTie/polygenomes/StringTie.smk"
     config: StringTie_config
 use rule * from StringTie as RNAseq_*
-logger.info(f"StringTie_config: {StringTie_config}")
+logger.debug(f"StringTie_config: {StringTie_config}")
 
 
 ### fusion analysis using STAR-Fusion and Arriba
@@ -356,7 +356,7 @@ module RmrRNA:
     config: rmrRNA_config
 use rule * from RmrRNA as RNAseq_rRNA_*
 
-logger.info(f"rmrRNA_config: {rmrRNA_config}")
+logger.debug(f"rmrRNA_config: {rmrRNA_config}")
 bowtie2_rRNA_config = {
     "ROOT_DIR": ROOT_DIR,
     "env": config.get("env", {}),
@@ -418,7 +418,7 @@ module star_for_fusion:
     snakefile: "../modules/star/polygenomes/star.smk"
     config: star_config_for_fusion
 use rule * from star_for_fusion as RNAseq_fusion_*
-logger.info(f"star_config_for_fusion: {star_config_for_fusion}")
+logger.debug(f"star_config_for_fusion: {star_config_for_fusion}")
 
 gatk_prepare_config = {
     "ROOT_DIR": ROOT_DIR,
@@ -438,7 +438,7 @@ module gatk_prepare:
     snakefile: "../modules/gatk/polygenomes/gatk_prepare.smk"
     config: gatk_prepare_config
 use rule * from gatk_prepare as RNAseq_fusion_*
-logger.info(f"gatk_prepare_config: {gatk_prepare_config}")
+logger.debug(f"gatk_prepare_config: {gatk_prepare_config}")
 
 arriba_config = {
         "indir": gatk_prepare_config['outdir'],
@@ -468,7 +468,7 @@ module arriba:
     snakefile: "../modules/arriba/polygenomes/arriba.smk"
     config: arriba_config
 use rule * from arriba as RNAseq_fusion_*
-logger.info(f"arriba_config: {arriba_config}")
+logger.debug(f"arriba_config: {arriba_config}")
 
 
 star_config_for_SNP = {
@@ -491,7 +491,7 @@ star_config_for_SNP = {
 module star_for_SNP:
     snakefile: "../modules/star/polygenomes/star.smk"
     config: star_config_for_SNP
-logger.info(f"star_config: {star_config_for_SNP}")
+logger.debug(f"star_config: {star_config_for_SNP}")
 use rule star_align from star_for_SNP as RNAseq_star_align_for_SNP
 
 ### RNA SNP calling using GATK
@@ -512,7 +512,7 @@ module XenofilteR:
     snakefile: "../modules/XenofilteR/XenofilteR.smk"
     config: XenofilteR_config
 use rule * from XenofilteR as RNAseq_*
-logger.info(f"XenofilteR_config: {XenofilteR_config}")
+logger.debug(f"XenofilteR_config: {XenofilteR_config}")
 
 
 gatk_prepare_SNP_config = {
@@ -533,7 +533,7 @@ module gatk_prepare_SNP:
     snakefile: "../modules/gatk/polygenomes/gatk_prepare.smk"
     config: gatk_prepare_SNP_config
 use rule * from gatk_prepare_SNP as RNAseq_SNP_*
-logger.info(f"gatk_prepare_SNP_config: {gatk_prepare_SNP_config}")
+logger.debug(f"gatk_prepare_SNP_config: {gatk_prepare_SNP_config}")
 
 gatk_RNAseq_config = {
     "ROOT_DIR": ROOT_DIR,
@@ -552,7 +552,7 @@ module gatk_RNAseq:
     snakefile: "../modules/gatk/polygenomes/gatk_RNAseq/gatk_RNAseq.smk"
     config: gatk_RNAseq_config
 use rule * from gatk_RNAseq as RNAseq_SNP_*
-logger.info(f"gatk_RNAseq_config: {gatk_RNAseq_config}")
+logger.debug(f"gatk_RNAseq_config: {gatk_RNAseq_config}")
 
 ### report generation using RNAseq_report module
 
@@ -573,5 +573,5 @@ RNAseq_report_config = {
 module RNAseq_report:
     snakefile: "../modules/RNAseq_report/polygenomes/RNAseq_report.smk"
     config: RNAseq_report_config
-logger.info(f"RNAseq_report_config: {RNAseq_report_config}")
+logger.debug(f"RNAseq_report_config: {RNAseq_report_config}")
 use rule generate_report from RNAseq_report as RNAseq_generate_report

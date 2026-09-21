@@ -82,17 +82,24 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 #     --sdm \
 #     --dry-run
 
+# python ${SCRIPT_DIR}/run.py \
+#     -m /home/luosg/Data/genomeStability/data/20260820_scRNAseq/meta_input.tsv \
+#     -w scRNAseq \
+#     -o /home/luosg/Data/genomeStability/output/luancao \
+#     -t 48 \
+#     --log /home/luosg/Data/genomeStability/log/scRNAseq.log \
+#     --sdm \
+#     --counters scTE cellranger \
+#     --aligner cellranger \
+#     --rerun-triggers mtime \
+#     --snakemake-args
+#     # --forcerun \
+#     #     scanpy_auto:tissue=Uterus,counter=scTE \
+#     #     scanpy_auto:tissue=Uterus,counter=cellranger
+
 python ${SCRIPT_DIR}/run.py \
-    -m /home/luosg/Data/genomeStability/data/20260820_scRNAseq/meta_input.tsv \
-    -w scRNAseq \
-    -o /home/luosg/Data/genomeStability/output/luancao \
-    -t 48 \
-    --log /home/luosg/Data/genomeStability/log/scRNAseq.log \
-    --sdm \
-    --counters scTE cellranger \
-    --aligner cellranger \
-    --rerun-triggers mtime \
-    --snakemake-args
-    # --forcerun \
-    #     scanpy_auto:tissue=Uterus,counter=scTE \
-    #     scanpy_auto:tissue=Uterus,counter=cellranger
+  -m /home/luosg/Data/genomeStability/data/20260908_PacBio/meta_input.tsv \
+  -w Fiberseq \
+  -o /home/luosg/Data/genomeStability/output/luancao \
+  --sdm apptainer \
+  -t 48

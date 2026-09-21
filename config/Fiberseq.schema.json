@@ -20,6 +20,16 @@
       "type": "null",
       "nullable": true,
       "required": false
+    },
+    "pbmm2": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    },
+    "samtools": {
+      "type": "null",
+      "nullable": true,
+      "required": false
     }
   },
   "Params": {
@@ -27,14 +37,51 @@
       "ont": {
         "type": "bool",
         "required": false
+      },
+      "max_fdr": {
+        "type": "float",
+        "required": false
+      },
+      "min_fire_frac": {
+        "type": "float",
+        "required": false
+      },
+      "sd_cov": {
+        "type": "float",
+        "required": false
+      },
+      "acf": {
+        "type": "bool",
+        "required": false
+      }
+    },
+    "pbmm2": {
+      "preset": {
+        "type": "str",
+        "required": false
+      },
+      "threads": {
+        "type": "int",
+        "required": false
+      },
+      "sort_threads": {
+        "type": "int",
+        "required": false
+      },
+      "sort_memory": {
+        "type": "str",
+        "required": false
       }
     }
   },
   "genome": {
-    "fasta": {
+    "default": {
       "type": "str",
-      "required": true,
-      "path": "file"
+      "required": true
+    },
+    "references": {
+      "type": "dict",
+      "required": true
     }
   },
   "env": {

@@ -73,6 +73,12 @@ def _init_raw_json(
     datajson["logdir"] = logdir
     datajson["raw_files"] = raw_files
 
+    # --- tmp_dir: container temp directory, default outdir/tmp ---
+    if not datajson.get("tmp_dir"):
+        tmp_dir = os.path.join(outdir, "tmp")
+        os.makedirs(tmp_dir, exist_ok=True)
+        datajson["tmp_dir"] = tmp_dir
+
     # --- server database path migration ---
     current_db = _detect_current_server_db()
     if current_db is not None:

@@ -386,28 +386,38 @@ def mode_merge(
     merged.write_h5ad(output)
 
 
-def _parse_te_bed(bed_path: str) -> set:
-    """Parse a TE BED file and return a set of TE names.
+def _parse_te_bed(bed_path: str) -> Dict[str, Tuple[str, str]]:
+    """Parse a TE BED file and return a mapping of TE subfamily -> (family_id, class_id).
 
-    Expected format (no header, tab-separated):
-        chrom\\tstart\\tend\\tTE_name
+    Expected format (with header, tab-separated):
+        chrom\\tstart\\tend\\tstrand\\tgene_id\\tfamily_id\\tclass_id
+
+    The same ``gene_id`` may appear on multiple rows (one per exon segment).
+    When ``family_id`` or ``class_id`` disagrees across rows, the **first**
+    occurrence wins — consistent with the previous set-based behaviour, where
+    a gene was either in the TE set or not.
 
     Args:
         bed_path: Path to the TE BED file.
 
     Returns:
-        Set of unique TE names from column 4.
+        Dict mapping gene_id -> (family_id, class_id).
     """
-    te_names: set = set()
+    result: Dict[str, Tuple[str, str]] = {}
     with open(bed_path, "r", encoding="utf-8") as fh:
+        fh.readline()  # skip header
         for line in fh:
             line = line.strip()
             if not line or line.startswith("#"):
                 continue
             parts = line.split("\t")
-            if len(parts) >= 4:
-                te_names.add(parts[3])
-    return te_names
+            if len(parts) < 7:
+                continue
+            gene_id = parts[4]
+            if gene_id in result:
+                continue  # first wins
+            result[gene_id] = (parts[5], parts[6])
+    return result
 
 
 def _parse_gene_tsv(tsv_path: str) -> Dict[str, str]:
@@ -447,22 +457,28 @@ def annotate_gene_type(
     te_bed: str,
     gene_tsv: str,
 ) -> None:
-    """Annotate ``adata.var['gene_type']`` using BED/TSV references.
+    """Annotate ``adata.var['gene_type']``, ``['family_id']``, ``['class_id']``.
 
-    Genes whose name appears in *te_bed* are labelled ``"TE"``.
-    Remaining genes matching *gene_tsv* are labelled with their
-    ``gene_type`` value (e.g. ``"protein_coding"``, ``"lncRNA"``).
-    Unmatched genes are labelled ``"unknown"``.
+    Genes whose name appears in *te_bed* are labelled:
+        - ``gene_type='TE'``
+        - ``family_id`` = TE family (e.g. ``'Alu'``, ``'L1'``, ``'ERV1'``)
+        - ``class_id`` = TE class (e.g. ``'SINE'``, ``'LINE'``, ``'LTR'``, ``'DNA'``)
+
+    Remaining genes matching *gene_tsv* get their ``gene_type`` value
+    (e.g. ``"protein_coding"``, ``"lncRNA"``) and ``''`` for family/class.
+
+    Unmatched genes get ``"unknown"`` / ``''`` / ``''``.
 
     Args:
         adata: AnnData object whose ``var_names`` are gene symbols / TE names.
-        te_bed: Path to the TE BED file (chrom, start, end, TE_name).
+        te_bed: Path to the TE BED file (chrom, start, end, strand, gene_id,
+            family_id, class_id).
         gene_tsv: Path to the gene annotation TSV (gene_id, gene_name,
             gene_type).
     """
     logging.info("Parsing TE BED: %s", te_bed)
-    te_set = _parse_te_bed(te_bed)
-    logging.info("  TE BED: %d unique TE names", len(te_set))
+    te_map = _parse_te_bed(te_bed)
+    logging.info("  TE BED: %d unique TE subfamilies", len(te_map))
 
     logging.info("Parsing gene TSV: %s", gene_tsv)
     gene_map = _parse_gene_tsv(gene_tsv)
@@ -470,24 +486,35 @@ def annotate_gene_type(
 
     gene_names = adata.var_names.tolist()
     types: List[str] = []
+    families: List[str] = []
+    classes: List[str] = []
     n_te = 0
     n_gene = 0
     n_unknown = 0
 
     for g in gene_names:
-        if g in te_set:
+        if g in te_map:
             types.append("TE")
+            fam, cls = te_map[g]
+            families.append(fam)
+            classes.append(cls)
             n_te += 1
         elif g in gene_map:
             types.append(gene_map[g] or "unknown")
+            families.append("")
+            classes.append("")
             n_gene += 1
         else:
             types.append("unknown")
+            families.append("")
+            classes.append("")
             n_unknown += 1
 
-    adata.var["gene_type"] = types
+    adata.var["gene_type"] = pd.Categorical(types)
+    adata.var["family_id"] = pd.Categorical(families)
+    adata.var["class_id"] = pd.Categorical(classes)
     logging.info(
-        "Gene type annotation: TE=%d, gene=%d, unknown=%d (total=%d)",
+        "Gene annotation: TE=%d, gene=%d, unknown=%d (total=%d)",
         n_te, n_gene, n_unknown, len(gene_names),
     )
 

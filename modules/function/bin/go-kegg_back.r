@@ -4,6 +4,7 @@ suppressPackageStartupMessages({
   library(clusterProfiler)
   library(org.Hs.eg.db)
   library(org.Mm.eg.db)
+  library(org.Mmu.eg.db)
   library(enrichplot)
   library(ggplot2)
   library(dplyr)
@@ -38,7 +39,7 @@ define_up_down_genes <- function(
 
 run_go_kegg <- function(
   genes,
-  species = c("human", "mouse"),
+  species = c("human", "mouse", "macaque"),
   type = c("go", "kegg")
 ) {
   species <- match.arg(species)
@@ -49,6 +50,9 @@ run_go_kegg <- function(
   if (species == "human") {
     OrgDb <- org.Hs.eg.db
     kegg_org <- "hsa"
+  } else if (species == "macaque") {
+    OrgDb <- org.Mmu.eg.db
+    kegg_org <- "mcc"
   } else {
     OrgDb <- org.Mm.eg.db
     kegg_org <- "mmu"

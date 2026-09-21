@@ -228,7 +228,7 @@ rule ft_call_peaks:
     params:
         ft = config.get("Procedure", {}).get("fibertools") or "ft",
         max_fdr = config.get("Params", {}).get("fibertools", {}).get("max_fdr", 0.05),
-        min_fire_frac = config.get("Params", {}).get("fibertools", {}).get("min_fire_frac", None),
+        min_fire_frac = config.get("Params", {}).get("fibertools", {}).get("min_fire_frac", 0.1),
         sd_cov = config.get("Params", {}).get("fibertools", {}).get("sd_cov", 5.0),
     run:
         log_path = str(log)

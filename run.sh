@@ -92,6 +92,7 @@ python ${SCRIPT_DIR}/run.py \
     --counters scTE cellranger \
     --aligner cellranger \
     --rerun-triggers mtime \
-    --forcerun \
-        scanpy_auto:tissue=Uterus,counter=scTE \
-        scanpy_auto:tissue=Uterus,counter=cellranger
+    --snakemake-args
+    # --forcerun \
+    #     scanpy_auto:tissue=Uterus,counter=scTE \
+    #     scanpy_auto:tissue=Uterus,counter=cellranger

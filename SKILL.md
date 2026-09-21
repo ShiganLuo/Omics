@@ -71,6 +71,7 @@ description: Omics 工作流入口技能与子技能组织说明
 - `--singularity-args --bind ...` 自动从配置 JSON 提取路径生成，可用 `--singularity-args` 覆盖
 - SIF 镜像由 `src/common/util/EnvUtil.py` 从 conda yaml 生成
 - `common.smk` 的 `sif()` 函数用 yaml 文件名 stem 查找 SIF 路径
+- 执行时要屏蔽宿主机器环境干扰
 
 其他通用参数:
 - 可选 `--dry-run`

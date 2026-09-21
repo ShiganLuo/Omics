@@ -82,7 +82,6 @@
                 "gene_map": null,
                 "TE_gtf": "/home/luosg/Database/Reference/mulatta/ENSEMBL/Mmul_10/rheMac10_rmsk_TE.gtf",
                 "TEind": "/home/luosg/Database/Reference/mulatta/ENSEMBL/Mmul_10/rheMac10_rmsk_TE.gtf.locInd.locations",
-                "te_bed": "/home/luosg/Database/Reference/mulatta/ENSEMBL/Mmul_10/rheMac10_rmsk_TE.bed",
                 "hisat2_index_prefix": null,
                 "rRNA_fasta": null,
                 "star_index_dir": null

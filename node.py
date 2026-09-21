@@ -963,7 +963,7 @@ def runFiberseq(
     ) -> str:
     """Prepare input JSON for Fiber-seq workflow.
 
-    Fiber-seq: single-molecule chromatin accessibility sequencing.
+    Pipeline: pbmm2 align -> ft add-nucleosomes -> ft fire -> ft extract -> ft call-peaks -> ft qc
     Reference: Stergachis et al., 2020, Science (DOI: 10.1126/science.aaz1646).
     Guide: https://fiberseq.github.io/
     """
@@ -973,7 +973,10 @@ def runFiberseq(
     samples = []
     for sample_id, sample_info in samples_info_dict.items():
         samples.append(sample_id)
-        # Final outputs: FIRE BAM + extracted BED + peaks + QC
+        # Step 1: aligned BAM + index (pbmm2 module → common/2_aligned)
+        outfiles.append(f"{outdir}/common/2_aligned/{sample_id}/{sample_id}.sorted.bam")
+        outfiles.append(f"{outdir}/common/2_aligned/{sample_id}/{sample_id}.sorted.bai")
+        # Step 2-6: fiberseq downstream outputs
         outfiles.append(f"{outdir}/fiberseq/2_fire/{sample_id}/{sample_id}.fiberseq.fire.bam")
         outfiles.append(f"{outdir}/fiberseq/3_extract/{sample_id}/{sample_id}.fiberseq.all.bed.gz")
         outfiles.append(f"{outdir}/fiberseq/4_peaks/{sample_id}/{sample_id}.fire_peaks.bed")

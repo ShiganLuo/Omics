@@ -6,7 +6,105 @@ import json
 from src.common.util.type import DesignPair, CompareGroupPair, SampleInfo, CellrangerInput
 from src.common.util.LogUtil import setup_logger
 from src.common.util.SmkUtil import resolve_genome
+from src.common.util.EnvUtil import is_path_like
 logger = setup_logger(__name__, level=logging.DEBUG)
+SERVER_DATABASE_DIR = {
+    "zhang_c2": "/home/luosg/Database",
+    "math_zhou": "/data/pub/zhousha/Database",
+    "lv": "/disk5/luosg/Database"
+}
+def _detect_current_server_db() -> str | None:
+    """Detect current server's database dir by checking which paths in SERVER_DATABASE_DIR exist."""
+    for db_dir in SERVER_DATABASE_DIR.values():
+        if os.path.isdir(db_dir):
+            return db_dir
+    return None
+
+def _replace_server_paths(obj: Any, foreign_dirs: List[str], current_db: str) -> None:
+    """Recursively replace foreign server database paths with current server's.
+
+    For every string value that is path-like and starts with a foreign server's
+    database directory, replace the prefix with the current server's database
+    directory.  Operates in-place on dicts and lists.
+
+    Args:
+        obj: The dict/list/str to walk.
+        foreign_dirs: Sorted (longest-first) foreign database directory prefixes.
+        current_db: Current server's database directory.
+    """
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            if isinstance(v, str) and is_path_like(v):
+                for foreign in foreign_dirs:
+                    if v.startswith(foreign):
+                        obj[k] = current_db + v[len(foreign):]
+                        logger.info(f"[server_path] {v} -> {obj[k]}")
+                        break
+            else:
+                _replace_server_paths(v, foreign_dirs, current_db)
+    elif isinstance(obj, list):
+        for i, v in enumerate(obj):
+            if isinstance(v, str) and is_path_like(v):
+                for foreign in foreign_dirs:
+                    if v.startswith(foreign):
+                        obj[i] = current_db + v[len(foreign):]
+                        logger.info(f"[server_path] {v} -> {obj[i]}")
+                        break
+            else:
+                _replace_server_paths(v, foreign_dirs, current_db)
+
+def _init_raw_json(
+    datajson: Dict[str, Any],
+    indir: str,
+    outdir: str,
+    raw_files: List[str],
+) -> str:
+    """Set common fields for raw.json: ROOT_DIR, indir, outdir, logdir, raw_files.
+
+    Also detects the current server and rewrites any paths that reference a
+    foreign server's database directory to use the current server's directory.
+    """
+    root_dir = os.path.dirname(__file__)
+    datajson["ROOT_DIR"] = root_dir
+    datajson["indir"] = indir
+    datajson["outdir"] = outdir
+    logdir = os.path.join(outdir, "log")
+    os.makedirs(logdir, exist_ok=True)
+    datajson["logdir"] = logdir
+    datajson["raw_files"] = raw_files
+
+    # --- server database path migration ---
+    current_db = _detect_current_server_db()
+    if current_db is not None:
+        # Build foreign dirs list, longest prefix first to avoid partial matches
+        foreign_dirs = sorted(
+            (d for d in SERVER_DATABASE_DIR.values() if d != current_db),
+            key=len, reverse=True,
+        )
+        if foreign_dirs:
+            _replace_server_paths(datajson, foreign_dirs, current_db)
+
+    return root_dir
+
+def _classify_layouts(samples_info_dict: Dict[str, SampleInfo]) -> tuple[List[str], List[str]]:
+    """Classify samples into paired/single by layout."""
+    paired: List[str] = []
+    single: List[str] = []
+    for sid, info in samples_info_dict.items():
+        if info.layout == "PE":
+            paired.append(sid)
+        elif info.layout == "SE":
+            single.append(sid)
+        else:
+            logger.error(f"Unknown layout type for sample {sid}: {info.layout}")
+    return paired, single
+
+def _write_raw_json(datajson: Dict[str, Any], outdir: str) -> str:
+    """Write raw.json and return its path."""
+    path = os.path.join(outdir, "raw.json")
+    with open(path, 'w', encoding='utf-8') as f:
+        json.dump(datajson, f, indent=2, ensure_ascii=False)
+    return path
 
 def runCoCulture(
         datajson: Dict[str,Any],
@@ -15,12 +113,7 @@ def runCoCulture(
         outdir: str,
         raw_files: List[str],
     ):
-    datajson["ROOT_DIR"] = os.path.dirname(__file__)
-    datajson["indir"] = indir
-    datajson["outdir"] = outdir
-    logdir = os.path.join(outdir, "log")
-    os.makedirs(logdir, exist_ok=True)
-    datajson["logdir"] = logdir
+    root_dir = _init_raw_json(datajson, indir, outdir, raw_files)
     outfiles = []
     paired_samples = []
     single_samples = []
@@ -47,14 +140,10 @@ def runCoCulture(
         else:
             logger.error(f"Unknown layout type for sample {sample_id}: {sample_info.layout}")
     outfiles.append(f"{outdir}/disambiguate/disambiguate_qc.tsv")
-    datajson["raw_files"] = raw_files
     datajson["outfiles"] = outfiles
     datajson["paired_samples"] = paired_samples
     datajson["single_samples"] = single_samples
-    instance_json = os.path.join(outdir, "raw.json")
-    with open(instance_json, 'w', encoding='utf-8') as wf:
-        json.dump(datajson, wf, indent=2, ensure_ascii=False)
-    return instance_json
+    return _write_raw_json(datajson, outdir)
 
 def runMERIP(
         datajson: Dict[str, Any],
@@ -73,12 +162,7 @@ def runMERIP(
     Returns:
     - instance_json: Path to the generated input JSON file that will be used for the MERIP workflow.
     """
-    datajson["ROOT_DIR"] = os.path.dirname(__file__)
-    datajson["indir"] = indir
-    datajson["outdir"] = outdir
-    logdir = os.path.join(outdir, "log")
-    os.makedirs(logdir, exist_ok=True)
-    datajson["logdir"] = logdir
+    root_dir = _init_raw_json(datajson, indir, outdir, raw_files)
 
     paired_samples = []
     single_samples = []
@@ -115,7 +199,6 @@ def runMERIP(
         else:
             logger.error(f"Unknown design type for sample {sample_id}: {sample_info.design}")
     outfiles.append(f"{outdir}/exomePeak/sig_diff_peak_gene_names.xls")
-    datajson["raw_files"] = raw_files
     datajson["outfiles"] = outfiles
     datajson["paired_samples"] = paired_samples
     datajson["single_samples"] = single_samples
@@ -123,10 +206,7 @@ def runMERIP(
     datajson["input_samples"] = input_samples
     datajson["treated_ip_samples"] = treated_ip_samples
     datajson["treated_input_samples"] = treated_input_samples
-    instance_json = os.path.join(outdir, "raw.json")
-    with open(instance_json, 'w', encoding='utf-8') as wf:
-        json.dump(datajson, wf, indent=2, ensure_ascii=False)
-    return instance_json
+    return _write_raw_json(datajson, outdir)
 
 
 def runCLIP(
@@ -136,12 +216,7 @@ def runCLIP(
         outdir: str,
         raw_files: List[str],
     ):
-    datajson["ROOT_DIR"] = os.path.dirname(__file__)
-    datajson["indir"] = indir
-    datajson["outdir"] = outdir
-    logdir = os.path.join(outdir, "log")
-    os.makedirs(logdir, exist_ok=True)
-    datajson["logdir"] = logdir
+    root_dir = _init_raw_json(datajson, indir, outdir, raw_files)
     outfiles = []
     paired_samples = []
     single_samples = []
@@ -177,7 +252,6 @@ def runCLIP(
             logger.error(f"Unknown layout type for sample {sample_id}: {sample_info.layout}")
     outfiles.append(f"{outdir}/track/igv_track_iclip.html")
     outfiles.append(f"{outdir}/track/ucsc_track_iclip.txt")
-    datajson["raw_files"] = raw_files
     datajson["outfiles"] = outfiles
     datajson["paired_samples"] = paired_samples
     datajson["single_samples"] = single_samples
@@ -195,10 +269,7 @@ def runCLIP(
         "/data/pub/zhousha/": "/data/",
         "/data/pub/zhousha/Reference/": "/ref/"
     }
-    instance_json = os.path.join(outdir, "raw.json")
-    with open(instance_json, 'w', encoding='utf-8') as wf:
-        json.dump(datajson, wf, indent=2, ensure_ascii=False)
-    return instance_json
+    return _write_raw_json(datajson, outdir)
 
 def runPacVar(
         datajson: Dict[str, Any],
@@ -208,12 +279,7 @@ def runPacVar(
         raw_files: List[str],
     ):
     """Prepare input JSON for PacVar (PacBio variant calling) workflow."""
-    datajson["ROOT_DIR"] = os.path.dirname(__file__)
-    datajson["indir"] = indir
-    datajson["outdir"] = outdir
-    logdir = os.path.join(outdir, "log")
-    os.makedirs(logdir, exist_ok=True)
-    datajson["logdir"] = logdir
+    root_dir = _init_raw_json(datajson, indir, outdir, raw_files)
     outfiles = []
     samples = []
     skip_snp = datajson.get("Params", {}).get("skip_snp", False)
@@ -265,12 +331,8 @@ def runPacVar(
     os.makedirs(gatk_tmp_dir, exist_ok=True)
     datajson["Params"]["gatk"]["tmp-dir"] = gatk_tmp_dir
     datajson["samples"] = samples
-    datajson["raw_files"] = raw_files
     datajson["outfiles"] = outfiles
-    instance_json = os.path.join(outdir, "raw.json")
-    with open(instance_json, 'w', encoding='utf-8') as wf:
-        json.dump(datajson, wf, indent=2, ensure_ascii=False)
-    return instance_json
+    return _write_raw_json(datajson, outdir)
 
 def runMutation(
         datajson: Dict[str, Any],
@@ -280,12 +342,7 @@ def runMutation(
         outdir: str,
         raw_files: List[str],
     ):
-    datajson["ROOT_DIR"] = os.path.dirname(__file__)
-    datajson["indir"] = indir
-    datajson["outdir"] = outdir
-    logdir = os.path.join(outdir, "log")
-    os.makedirs(logdir, exist_ok=True)
-    datajson["logdir"] = logdir
+    root_dir = _init_raw_json(datajson, indir, outdir, raw_files)
     outfiles = []
     paired_samples = []
     single_samples = []
@@ -341,14 +398,10 @@ def runMutation(
     
     datajson["Params"]["somatic_spectrum"]["sample_somatic_vcf_dict"] = sample_somatic_vcf_dict
     datajson["Params"]["somatic_spectrum"]["sample_group_dict"] = sample_group_dict
-    datajson["raw_files"] = raw_files
     datajson["outfiles"] = outfiles
     datajson["paired_samples"] = paired_samples
     datajson["single_samples"] = single_samples
-    instance_json = os.path.join(outdir, "raw.json")
-    with open(instance_json, 'w', encoding='utf-8') as wf:
-        json.dump(datajson, wf, indent=2, ensure_ascii=False)
-    return instance_json
+    return _write_raw_json(datajson, outdir)
 
 def runKARRseq(
         datajson: Dict[str, Any],
@@ -358,12 +411,7 @@ def runKARRseq(
         raw_files: List[str],
     ):
     """Prepare input JSON for KARRseq (Kethoxal-Assisted RNA-RNA interaction sequencing) workflow."""
-    datajson["ROOT_DIR"] = os.path.dirname(__file__)
-    datajson["indir"] = indir
-    datajson["outdir"] = outdir
-    logdir = os.path.join(outdir, "log")
-    os.makedirs(logdir, exist_ok=True)
-    datajson["logdir"] = logdir
+    root_dir = _init_raw_json(datajson, indir, outdir, raw_files)
 
     paired_samples = []
     single_samples = []
@@ -382,13 +430,9 @@ def runKARRseq(
 
     datajson["paired_samples"] = paired_samples
     datajson["single_samples"] = single_samples
-    datajson["raw_files"] = raw_files
     datajson["outfiles"] = outfiles
 
-    instance_json = os.path.join(outdir, "raw.json")
-    with open(instance_json, 'w', encoding='utf-8') as wf:
-        json.dump(datajson, wf, indent=2, ensure_ascii=False)
-    return instance_json
+    return _write_raw_json(datajson, outdir)
 
 def runPeakCalling(
         datajson: Dict[str, Any],
@@ -414,15 +458,8 @@ def runPeakCalling(
     
     Supports both ChIP-seq and DIP-seq experiments.
     """
-    datajson["ROOT_DIR"] = os.path.dirname(__file__)
-    datajson["indir"] = indir
-    datajson["outdir"] = outdir
-    logdir = os.path.join(outdir, "log")
-    os.makedirs(logdir, exist_ok=True)
-    datajson["logdir"] = logdir
+    root_dir = _init_raw_json(datajson, indir, outdir, raw_files)
 
-    paired_samples = []
-    single_samples = []
     ip_samples = []
     input_samples = []
     sample_ip_input_map = {}
@@ -432,13 +469,7 @@ def runPeakCalling(
         ip_samples.append(design_pair.exp_sample_id)
         input_samples.append(design_pair.ctr_sample_id)
 
-    for sample_id, sample_info in samples_info_dict.items():
-        if sample_info.layout == "PE":
-            paired_samples.append(sample_id)
-        elif sample_info.layout == "SE":
-            single_samples.append(sample_id)
-        else:
-            logger.error(f"Unknown layout type for sample {sample_id}: {sample_info.layout}")
+    paired_samples, single_samples = _classify_layouts(samples_info_dict)
 
     # Auto-detect organism and set genome default (RNAseq pattern)
     organisms = set()
@@ -535,13 +566,9 @@ def runPeakCalling(
     datajson["ip_samples"] = ip_samples
     datajson["input_samples"] = input_samples
     datajson["sample_ip_input_map"] = sample_ip_input_map
-    datajson["raw_files"] = raw_files
     datajson["outfiles"] = outfiles
 
-    instance_json = os.path.join(outdir, "raw.json")
-    with open(instance_json, 'w', encoding='utf-8') as wf:
-        json.dump(datajson, wf, indent=2, ensure_ascii=False)
-    return instance_json
+    return _write_raw_json(datajson, outdir)
 
 def runQuantMS(
         datajson: Dict[str, Any],
@@ -564,12 +591,7 @@ def runQuantMS(
     
     Supports TMT, LFQ, DIA, and raw-to-mzML entry points.
     """
-    datajson["ROOT_DIR"] = os.path.dirname(__file__)
-    datajson["indir"] = indir
-    datajson["outdir"] = outdir
-    logdir = os.path.join(outdir, "log")
-    os.makedirs(logdir, exist_ok=True)
-    datajson["logdir"] = logdir
+    root_dir = _init_raw_json(datajson, indir, outdir, raw_files)
 
     samples: List[str] = []
     outfiles: List[str] = []
@@ -600,14 +622,10 @@ def runQuantMS(
         outfiles.append(f"{outdir}/common/8_msstats/msstats_results.csv")
 
     datajson["samples"] = samples
-    datajson["raw_files"] = raw_files
 
     datajson["outfiles"] = outfiles
 
-    instance_json = os.path.join(outdir, "raw.json")
-    with open(instance_json, 'w', encoding='utf-8') as wf:
-        json.dump(datajson, wf, indent=2, ensure_ascii=False)
-    return instance_json
+    return _write_raw_json(datajson, outdir)
 
 def runRNAseq(
         datajson: Dict[str, Any],
@@ -617,13 +635,7 @@ def runRNAseq(
         outdir: str,
         raw_files: List[str],
     ):
-    ROOT_DIR = os.path.dirname(__file__)
-    datajson["ROOT_DIR"] = ROOT_DIR
-    datajson["indir"] = indir
-    datajson["outdir"] = outdir
-    logdir = os.path.join(outdir, "log")
-    os.makedirs(logdir, exist_ok=True)
-    datajson["logdir"] = logdir
+    root_dir = _init_raw_json(datajson, indir, outdir, raw_files)
     outfiles = []
     genome_paired_samples = {}
     genome_single_samples = {}
@@ -707,11 +719,11 @@ def runRNAseq(
     datajson["Params"]["report"]["date"] = time.strftime("%Y-%m-%d", time.localtime())
     for organism in Organisms:
         if organism == "GRCm39":
-            datajson["Params"]["function"][organism]["gsea"]["gmt"] = os.path.join(ROOT_DIR,"assests/geneset/2C_mouse.gmt")
-            datajson["Params"]["function"][organism]["gsva"]["gmt"] = os.path.join(ROOT_DIR,"assests/geneset/GSI_mouse.gmt")
+            datajson["Params"]["function"][organism]["gsea"]["gmt"] = os.path.join(root_dir,"assests/geneset/GSI_mouse.gmt")
+            datajson["Params"]["function"][organism]["gsva"]["gmt"] = os.path.join(root_dir,"assests/geneset/GSI_mouse.gmt")
         if organism == "GRCh38":
-            datajson["Params"]["function"][organism]["gsea"]["gmt"] = os.path.join(ROOT_DIR,"assests/geneset/8C_human.gmt")
-            datajson["Params"]["function"][organism]["gsva"]["gmt"] = os.path.join(ROOT_DIR,"assests/geneset/GSI_human.gmt")
+            datajson["Params"]["function"][organism]["gsea"]["gmt"] = os.path.join(root_dir,"assests/geneset/GSI_human.gmt")
+            datajson["Params"]["function"][organism]["gsva"]["gmt"] = os.path.join(root_dir,"assests/geneset/GSI_human.gmt")
         if _fusion_enabled:
             outfiles.append(f"{outdir}/fusion/{organism}/arriba_report/arriba_fusion_report.html")
         if _transcripts_enabled:
@@ -734,14 +746,10 @@ def runRNAseq(
             outfiles.append(f"{outdir}/function/{organism}/gsva/gsva_heatmap.png")
         if _report_enabled:
             outfiles.append(f"{outdir}/results/{organism}/RNAseq_report.pptx")
-    datajson["raw_files"] = raw_files
     datajson["outfiles"] = outfiles
     datajson["genome_paired_samples"] = genome_paired_samples
     datajson["genome_single_samples"] = genome_single_samples
-    instance_json = os.path.join(outdir, "raw.json")
-    with open(instance_json, 'w', encoding='utf-8') as wf:
-        json.dump(datajson, wf, indent=2, ensure_ascii=False)
-    return instance_json
+    return _write_raw_json(datajson, outdir)
 
 def runtRNAseq(
         datajson: Dict[str, Any],
@@ -759,14 +767,9 @@ def runtRNAseq(
 
     The pipeline processes all samples together via a sample data sheet.
     """
-    datajson["ROOT_DIR"] = os.path.dirname(__file__)
+    root_dir = _init_raw_json(datajson, indir, outdir, raw_files)
     if not datajson.get("Params", {}).get("mimseq", {}).get("data_dir"):
-        datajson.setdefault("Params", {}).setdefault("mimseq", {})["data_dir"] = os.path.join(os.path.dirname(__file__), "modules", "mimseq", "mimseq", "data")
-    datajson["indir"] = indir
-    datajson["outdir"] = outdir
-    logdir = os.path.join(outdir, "log")
-    os.makedirs(logdir, exist_ok=True)
-    datajson["logdir"] = logdir
+        datajson.setdefault("Params", {}).setdefault("mimseq", {})["data_dir"] = os.path.join(root_dir, "modules", "mimseq", "mimseq", "data")
     datajson["meta"] = meta
     samples = []
     for sample_id in samples_info_dict:
@@ -775,13 +778,9 @@ def runtRNAseq(
     outfiles = [f"{outdir}/mimseq/mimseq.done"]
 
     datajson["samples"] = samples
-    datajson["raw_files"] = raw_files
     datajson["outfiles"] = outfiles
 
-    instance_json = os.path.join(outdir, "raw.json")
-    with open(instance_json, 'w', encoding='utf-8') as wf:
-        json.dump(datajson, wf, indent=2, ensure_ascii=False)
-    return instance_json
+    return _write_raw_json(datajson, outdir)
 
 def runncRNAseq(
         datajson: Dict[str, Any],
@@ -795,13 +794,11 @@ def runncRNAseq(
 
     Pipeline: jla-demultiplexer -> trim_galore -> subsample -> STAR (star / star_3pass / star_3pass_gene) -> featureCounts + Tailer.
     """
-    datajson["ROOT_DIR"] = os.path.dirname(__file__)
+    root_dir = _init_raw_json(datajson, indir, outdir, raw_files)
     datajson["Params"] = datajson.get("Params", {})
     datajson["Params"]["workflow"] = datajson["Params"].get("workflow", {})
     datajson["Params"]["workflow"]["indir"] = indir
     datajson["Params"]["workflow"]["outdir"] = outdir
-    logdir = os.path.join(outdir, "log")
-    os.makedirs(logdir, exist_ok=True)
     datajson["Params"]["workflow"]["logdir"] = logdir
     sample_ip_input_map = {}
     ip_samples = []
@@ -862,10 +859,7 @@ def runncRNAseq(
     datajson["Params"]["workflow"]["ip_samples"] = ip_samples
     datajson["Params"]["workflow"]["input_samples"] = input_samples
     datajson["Params"]["workflow"]["sample_ip_input_map"] = sample_ip_input_map
-    instance_json = os.path.join(outdir, "raw.json")
-    with open(instance_json, 'w', encoding='utf-8') as wf:
-        json.dump(datajson, wf, indent=2, ensure_ascii=False)
-    return instance_json
+    return _write_raw_json(datajson, outdir)
 
 def runscRNAseq(
         datajson: Dict[str, Any],
@@ -875,13 +869,7 @@ def runscRNAseq(
         raw_files: List[str],
         cellranger_input_dict: Dict[str, CellrangerInput]
     ):
-    datajson["ROOT_DIR"] = os.path.dirname(__file__)
-    datajson["indir"] = indir
-    datajson["outdir"] = outdir
-    logdir = os.path.join(outdir, "log")
-    os.makedirs(logdir, exist_ok=True)
-    datajson["logdir"] = logdir
-    datajson["raw_files"] = raw_files
+    root_dir = _init_raw_json(datajson, indir, outdir, raw_files)
     datajson["cellranger_input_dict"] = {k: v.__dict__ for k, v in cellranger_input_dict.items()}
     outfiles = []
     organisms = set()
@@ -962,10 +950,7 @@ def runscRNAseq(
     datajson["Params"]["scanpy"]["tissue_samples"] = tissue_samples
     # outfiles.append(f"{outdir}/scRNAseq_report.pptx")
     datajson["outfiles"] = outfiles
-    instance_json = os.path.join(outdir, "raw.json")
-    with open(instance_json, 'w', encoding='utf-8') as wf:
-        json.dump(datajson, wf, indent=2, ensure_ascii=False)
-    return instance_json
+    return _write_raw_json(datajson, outdir)
 
 
 
@@ -982,12 +967,7 @@ def runFiberseq(
     Reference: Stergachis et al., 2020, Science (DOI: 10.1126/science.aaz1646).
     Guide: https://fiberseq.github.io/
     """
-    datajson["ROOT_DIR"] = os.path.dirname(__file__)
-    datajson["indir"] = indir
-    datajson["outdir"] = outdir
-    logdir = os.path.join(outdir, "log")
-    os.makedirs(logdir, exist_ok=True)
-    datajson["logdir"] = logdir
+    root_dir = _init_raw_json(datajson, indir, outdir, raw_files)
 
     outfiles = []
     samples = []
@@ -1053,9 +1033,5 @@ def runLRtranscriptome(
             outfiles.append(f"{outdir}/quantification/{sample_id}/{sample_id}.quant.gtf")
 
     datajson["samples"] = samples
-    datajson["raw_files"] = raw_files
     datajson["outfiles"] = outfiles
-    instance_json = os.path.join(outdir, "raw.json")
-    with open(instance_json, 'w', encoding='utf-8') as wf:
-        json.dump(datajson, wf, indent=2, ensure_ascii=False)
-    return instance_json
+    return _write_raw_json(datajson, outdir)

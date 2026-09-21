@@ -190,6 +190,7 @@ def _collect_bind_paths(config_path: str) -> List[str]:
 def _merge_singularity_args(
     json_bind_paths: List[str],
     singularity_args: Optional[str] = None,
+    tmp_dir: Optional[str] = None,
 ) -> Optional[str]:
     """
     Merge bind paths collected from the JSON configuration with
@@ -212,8 +213,11 @@ def _merge_singularity_args(
     # Paths collected from config.
     add_bind_paths(json_bind_paths)
 
-    # Always make /tmp available inside the container.
-    add_bind_paths(["/tmp"])
+    # Bind tmp_dir to /tmp inside container, or fall back to host /tmp.
+    if tmp_dir:
+        add_bind_paths([f"{tmp_dir}:/tmp"])
+    else:
+        add_bind_paths(["/tmp"])
 
     if not singularity_args:
         return (
@@ -315,9 +319,19 @@ def build_snakemake_cmd(root_dir: str, smk: str, input_json: str, threads: int,
 
         json_bind_paths = _collect_bind_paths(input_json)
 
+        # Read tmp_dir from config; default to {outdir}/tmp
+        with open(input_json, "r", encoding="utf-8") as _f:
+            _cfg = json.load(_f)
+        tmp_dir = _cfg.get("tmp_dir")
+        if tmp_dir and not os.path.isabs(tmp_dir):
+            tmp_dir = os.path.join(os.path.dirname(input_json), tmp_dir)
+        if tmp_dir:
+            os.makedirs(tmp_dir, exist_ok=True)
+
         singularity_args = _merge_singularity_args(
             json_bind_paths,
             singularity_args,
+            tmp_dir=tmp_dir,
         )
 
         if singularity_args:

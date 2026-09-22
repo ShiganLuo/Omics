@@ -34,7 +34,7 @@ def load_config(path):
     """Load a YAML config file into the internal config dict.
 
     Reads a YAML file with tissue-level comparison definitions and
-    enriches each comparison entry with a ``key`` (``treat_vs_ref``)
+    enriches each comparison entry with a ``key`` (``ref_vs_treat``)
     and a fallback ``label`` (defaults to the key if not specified).
 
     Args:
@@ -55,7 +55,7 @@ def load_config(path):
         raw = yaml.safe_load(f)
     for tissue, cfg in raw.items():
         for i, comp in enumerate(cfg["comparisons"]):
-            comp["key"] = f"{comp['treat']}_vs_{comp['ref']}"
+            comp["key"] = f"{comp['ref']}_vs_{comp['treat']}"
             if "label" not in comp:
                 comp["label"] = comp["key"]
     return raw
@@ -68,7 +68,7 @@ def comp_map(comparisons):
         comparisons: List of comparison dicts with ``key`` and ``label``.
 
     Returns:
-        dict: ``{treat_vs_ref: short_label, ...}``
+        dict: ``{ref_vs_treat: short_label, ...}``
     """
     return {c["key"]: c["label"] for c in comparisons}
 
@@ -321,7 +321,7 @@ def run_pydeseq2(counts_df, ref_id, treat_id):
     treat_samples = [s for s in counts_df.index if s == treat_id or s.startswith(f"{treat_id}_rep")]
     selected = ref_samples + treat_samples
     if len(selected) < 2 or len(ref_samples) < 1 or len(treat_samples) < 1:
-        print(f"  [skip] not enough samples for {treat_id} vs {ref_id}")
+        print(f"  [skip] not enough samples for {ref_id} vs {treat_id}")
         return pd.DataFrame()
 
     sub = counts_df.loc[selected]
@@ -361,7 +361,7 @@ def run_pydeseq2(counts_df, ref_id, treat_id):
         "padj": "pval_adj",
     })
     results_df["cell_type"] = cell_type
-    results_df["comparison"] = f"{treat_id}_vs_{ref_id}"
+    results_df["comparison"] = f"{ref_id}_vs_{treat_id}"
     results_df["significant"] = (
         (results_df["pval_adj"] < 0.05) & (results_df["log2FC"].abs() > 1)
     )
@@ -373,7 +373,7 @@ def run_pydeseq2(counts_df, ref_id, treat_id):
     results_df = results_df[[c for c in cols if c in results_df.columns]]
 
     n_sig = int(results_df["significant"].sum())
-    print(f"    {cell_type}: {treat_id} vs {ref_id} — "
+    print(f"    {cell_type}: {ref_id} vs {treat_id} — "
           f"{len(results_df)} genes, {n_sig} significant")
 
     return results_df
@@ -432,7 +432,7 @@ def pydeseq2_diagnostic_plots(results_df, output_prefix, treat_id, ref_id):
 
     ax.set_xlabel("P-value", fontsize=11)
     ax.set_ylabel("Frequency", fontsize=11)
-    ax.set_title(f"P-value distribution\n{treat_id} vs {ref_id}",
+    ax.set_title(f"P-value distribution\n{ref_id} vs {treat_id}",
                  fontsize=12, fontweight="bold")
     ax.legend(fontsize=9, loc="upper right")
     ax.spines["top"].set_visible(False)
@@ -469,7 +469,7 @@ def pydeseq2_diagnostic_plots(results_df, output_prefix, treat_id, ref_id):
     ax.axhline(-1, color="black", linestyle="--", linewidth=0.7, alpha=0.6)
     ax.set_xlabel("log10(baseMean)", fontsize=11)
     ax.set_ylabel("log2FC", fontsize=11)
-    ax.set_title(f"MA plot: {treat_id} vs {ref_id}",
+    ax.set_title(f"MA plot: {ref_id} vs {treat_id}",
                  fontsize=12, fontweight="bold")
     ax.legend(fontsize=10, loc="upper right", framealpha=0.9)
     ax.spines["top"].set_visible(False)
@@ -760,72 +760,96 @@ def deg_count_heatmap(deg_df, cmap, title, output_path):
 
 
 def volcano_plot(deg_df, cell_type, comparison, output_path, title=None,
-                 log2fc_clip=5, nlogp_clip=18):
+                 nlogp_clip=18, highlight_genes=None):
     """Volcano plot for one cell type × comparison.
 
     Plots log2FC vs -log10(pvalue) with up/down-regulated genes colored.
-    Extreme log2FC values are clipped to [-clip, +clip] for display.
-    Top 5 genes per direction are labeled.
+    All NS genes are shown as background (no filtering). Top 5 genes
+    per direction by p-value are labeled with auto-repulsion (adjustText).
+    Additional genes can be highlighted via *highlight_genes*. No log2FC
+    clipping. Skips if no significant DEGs.
 
     Args:
         deg_df: DataFrame with ``gene``, ``cell_type``, ``comparison``,
             ``log2FC``, ``pval``, ``significant`` columns.
         cell_type: Cell type to plot.
-        comparison: Comparison key (e.g. ``"treat_vs_ref"``).
+        comparison: Comparison key (e.g. ``"ref_vs_treat"``).
         output_path: Path to save the PNG figure.
         title: Optional plot title (auto-generated if None).
-        log2fc_clip: Clip log2FC display range to ±this value.
         nlogp_clip: Clip -log10(p) display range to this value.
+        highlight_genes: List of gene names to label on the plot regardless
+            of significance. Labeled in red if up, blue if down, gray if NS.
 
     Returns:
-        bool: True if the plot was generated, False if too few genes.
+        bool: True if the plot was generated, False if skipped.
     """
+    from adjustText import adjust_text
+
     sub = deg_df[(deg_df["cell_type"] == cell_type) &
                  (deg_df["comparison"] == comparison)].copy()
     if len(sub) < 3:
         return False
 
-    sub["log2FC_plot"] = sub["log2FC"].clip(-log2fc_clip, log2fc_clip)
     sub["nlogp"] = -np.log10(sub["pval"].clip(1e-300)).clip(upper=nlogp_clip)
     sub["sig"] = sub["significant"]
 
-    fig, ax = plt.subplots(figsize=(8, 6))
-    not_sig = sub[~sub["sig"]]
     sig_df = sub[sub["sig"]]
     up = sig_df[sig_df["log2FC"] > 0]
     dn = sig_df[sig_df["log2FC"] < 0]
 
-    not_sig_outside = not_sig[(not_sig["log2FC_plot"].abs() > 1) |
-                              (not_sig["nlogp"] > -np.log10(0.05))]
-    if len(not_sig_outside) > 0:
-        ax.scatter(not_sig_outside["log2FC_plot"], not_sig_outside["nlogp"],
+    # Skip if no significant DEGs
+    if len(sig_df) == 0:
+        return False
+
+    fig, ax = plt.subplots(figsize=(8, 6))
+    not_sig = sub[~sub["sig"]]
+
+    # Plot ALL NS genes as background
+    if len(not_sig) > 0:
+        ax.scatter(not_sig["log2FC"], not_sig["nlogp"],
                    s=2, c="#cccccc", alpha=0.3, edgecolor="none",
                    label=f"NS ({len(not_sig)})", zorder=1)
     if len(up) > 0:
-        ax.scatter(up["log2FC_plot"], up["nlogp"],
+        ax.scatter(up["log2FC"], up["nlogp"],
                    s=25, c="#d62728", alpha=0.9, edgecolor="darkred",
                    linewidth=0.3, label=f"Up ({len(up)})", zorder=4)
     if len(dn) > 0:
-        ax.scatter(dn["log2FC_plot"], dn["nlogp"],
+        ax.scatter(dn["log2FC"], dn["nlogp"],
                    s=25, c="#1f77b4", alpha=0.9, edgecolor="darkblue",
                    linewidth=0.3, label=f"Down ({len(dn)})", zorder=4)
 
-    # Label top 5 genes per direction by -log10(p)
-    for _, r in pd.concat([up.nlargest(5, "nlogp"), dn.nlargest(5, "nlogp")]).iterrows():
-        ax.annotate(r["gene"], (r["log2FC_plot"], r["nlogp"]),
-                    fontsize=8, ha="left", va="bottom", color="black", zorder=4)
+    # Label top 5 genes per direction with auto-repulsion
+    texts = []
+    for _, r in pd.concat([up.nlargest(5, "nlogp"),
+                           dn.nlargest(5, "nlogp")]).iterrows():
+        texts.append(ax.text(r["log2FC"], r["nlogp"], r["gene"],
+                             fontsize=7, color="black", zorder=5))
+
+    # Highlight custom genes (e.g. aging markers, SASP factors)
+    if highlight_genes:
+        for gene_name in highlight_genes:
+            gene_row = sub[sub["gene"] == gene_name]
+            if len(gene_row) == 0:
+                continue
+            g = gene_row.iloc[0]
+            color = "#d62728" if g["log2FC"] > 0 else "#1f77b4"
+            ax.scatter(g["log2FC"], g["nlogp"], s=60, facecolors="none",
+                       edgecolors=color, linewidths=1.5, zorder=6)
+            texts.append(ax.text(g["log2FC"], g["nlogp"], gene_name,
+                                 fontsize=8, fontweight="bold",
+                                 color=color, zorder=7))
+
+    if texts:
+        adjust_text(texts, ax=ax, arrowprops=dict(arrowstyle="-",
+                    color="gray", lw=0.5, alpha=0.6))
 
     # Threshold lines: p=0.05 and |log2FC|=1
-    ax.axhline(-np.log10(0.05), color="black", linestyle="--", linewidth=0.7, alpha=0.6)
+    ax.axhline(-np.log10(0.05), color="black", linestyle="--",
+               linewidth=0.7, alpha=0.6)
     ax.axvline(1, color="black", linestyle="--", linewidth=0.7, alpha=0.6)
     ax.axvline(-1, color="black", linestyle="--", linewidth=0.7, alpha=0.6)
-    ax.text(-log2fc_clip * 1.05, nlogp_clip * 0.98,
-            f"log2FC clipped at ±{log2fc_clip}", ha="left", va="top",
-            fontsize=8, color="gray", style="italic")
 
-    ax.set_xlim(-log2fc_clip * 1.1, log2fc_clip * 1.1)
-    ax.set_ylim(0, nlogp_clip)
-    ax.set_xlabel(f"log2FC (clipped at ±{log2fc_clip})", fontsize=11)
+    ax.set_xlabel("log2FC", fontsize=11)
     ax.set_ylabel("-log10(pvalue)", fontsize=11)
     if title is None:
         title = f'{cell_type}: {comparison.replace("_vs_", " vs ")}'
@@ -851,7 +875,7 @@ def top_deg_heatmap(adata, deg_df, cell_type, comparison, output_path, top_n=20)
         deg_df: DataFrame with ``gene``, ``cell_type``, ``comparison``,
             ``pval``, ``significant`` columns.
         cell_type: Cell type to subset.
-        comparison: Comparison key (e.g. ``"treat_vs_ref"``).
+        comparison: Comparison key (e.g. ``"ref_vs_treat"``).
         output_path: Path to save the PNG figure.
         top_n: Number of top DEGs to display.
 
@@ -1048,7 +1072,8 @@ def deg_overlap_bar(deg_df, sets_to_compare, output_path, title):
 # 7. Plot orchestration
 # ────────────────────────────────────────────────────────────
 
-def plot_all(config, out_dir, deg_dir, go_dir, fig_dir, top_cell_types=None):
+def plot_all(config, out_dir, deg_dir, go_dir, fig_dir, top_cell_types=None,
+             highlight_genes=None):
     """Generate all figures for all tissues defined in the config.
 
     For each tissue, produces:
@@ -1119,15 +1144,17 @@ def plot_all(config, out_dir, deg_dir, go_dir, fig_dir, top_cell_types=None):
                 os.makedirs(ct_dir, exist_ok=True)
                 comp_short = label.replace("_", " ")
                 title = f"{ct} ({comp_short})"
+                prefix = f"{tissue}_{key}_{ct_safe}"
 
                 ok = volcano_plot(t_deg, ct, key,
-                                  os.path.join(ct_dir, "volcano.png"),
-                                  title=title)
+                                  os.path.join(ct_dir, f"{prefix}_volcano.png"),
+                                  title=title,
+                                  highlight_genes=highlight_genes)
                 if ok:
                     print(f"    volcano: {tissue}/{ct}/{label}")
 
                 ok = top_deg_heatmap(adata, t_deg, ct, key,
-                                     os.path.join(ct_dir, "heatmap_top.png"))
+                                     os.path.join(ct_dir, f"{prefix}_heatmap.png"))
                 if ok:
                     print(f"    heatmap: {tissue}/{ct}/{label}")
 
@@ -1185,7 +1212,7 @@ def parse_cli_args(argv=None):
       1. CLI-only: ``--h5ad tissue=path`` + ``--compare tissue:ref:treat[=label]``
       2. YAML file: ``--comp-config comparisons.yaml``
 
-    In CLI mode, the label is optional and defaults to ``treat_vs_ref``.
+    In CLI mode, the label is optional and defaults to ``ref_vs_treat``.
 
     Args:
         argv: Argument list (defaults to ``sys.argv[1:]``).
@@ -1197,16 +1224,25 @@ def parse_cli_args(argv=None):
               :func:`load_config` output format.
     """
     parser = argparse.ArgumentParser(
-        description=__doc__,
+        description=__doc__ + "\n\n"
+        "PARAMETER CONVENTION (READ FIRST):\n"
+        "  --compare tissue:ref:treat[=label]   ← ref FIRST, treat SECOND\n"
+        "  - File names: ref_vs_treat  (e.g. uterus_luanchao-21310_vs_luanchao-11238)\n"
+        "  - Plot titles: 'ref vs treat'  (ref on left = baseline,\n"
+        "    treat on right = perturbation)\n"
+        "  - CSV 'comparison' column: ref_vs_treat  (e.g. 'luanchao-21310_vs_luanchao-11238')\n"
+        "  - log2FC = log2(treat / ref); positive = higher in treat.\n"
+        "  Convention follows 'reference (control) first, treatment second',\n"
+        "  matching how biological contrasts are typically declared.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""\
 Examples:
-  # Minimal (labels default to treat_vs_ref):
+  # Ovaries — youth (ref) vs aged (treat), default label 'ref_vs_treat':
   python pseudobulk.py --out-dir ./results \\
     --h5ad ovaries=/path/to/ov.h5ad \\
-    --compare ovaries:ctrl-10X:treat-10X
+    --compare ovaries:luanchao-21310:luanchao-11238
 
-  # With labels:
+  # Uterus — sham (ref) vs OV-POI (treat), custom labels:
   python pseudobulk.py --out-dir ./results \\
     --h5ad ovaries=/path/to/ov.h5ad \\
     --h5ad uterus=/path/to/ut.h5ad \\
@@ -1238,6 +1274,8 @@ Examples:
                         help="Skip pseudobulk preparation step")
     parser.add_argument("--skip-qc", action="store_true",
                         help="Skip QC/exploration plots (PCA, filter, summary)")
+    parser.add_argument("--highlight-genes", nargs="+", default=None,
+                        help="Genes to highlight on volcano plots (e.g. CDKN2A TP53 CCL2)")
     args = parser.parse_args(argv)
 
     # Load config from YAML or CLI args
@@ -1264,7 +1302,7 @@ Examples:
             tissue, ref, treat = parts
             if tissue not in config:
                 parser.error(f"Unknown tissue '{tissue}', define it with --h5ad first")
-            key = f"{treat}_vs_{ref}"
+            key = f"{ref}_vs_{treat}"
             config[tissue]["comparisons"].append({
                 "ref": ref, "treat": treat,
                 "label": label or key, "key": key,
@@ -1366,7 +1404,7 @@ def main():
                     key = comp["key"]
                     label = comp["label"]
 
-                    # Output directory: deg_{tissue}/{tissue}_{treat}_vs_{ref}/{cell_type}/
+                    # Output directory: deg_{tissue}/{tissue}_{ref}_vs_{treat}/{cell_type}/
                     comp_dir = os.path.join(t_deg_dir, f"{tissue}_{key}")
                     ct_dir = os.path.join(comp_dir, ct_safe)
                     os.makedirs(ct_dir, exist_ok=True)
@@ -1379,7 +1417,7 @@ def main():
                         deg_results = run_pydeseq2(counts_df, ref_id, treat_id)
                     except Exception as e:
                         print(f"  ERROR: PyDESeq2 failed for {ct_safe} "
-                              f"{treat_id} vs {ref_id}: {e}", file=sys.stderr)
+                              f"{ref_id} vs {treat_id}: {e}", file=sys.stderr)
                         continue
                     if len(deg_results) == 0:
                         continue
@@ -1399,7 +1437,7 @@ def main():
         print("STEP 3: Generate figures")
         print("=" * 60)
         plot_all(config, args.out_dir, deg_dir, go_dir, fig_dir,
-                 args.top_cell_types)
+                 args.top_cell_types, args.highlight_genes)
 
     print("\n" + "=" * 60)
     print("DONE")

@@ -39,49 +39,67 @@ logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s - %(levelname)s - %(message)s")
 log = logging.getLogger(__name__)
 
+def plot_effects_from_csv(csv_path: Path, out_path: Path, title: str) -> bool:
+    """Recreate pertpy-style effects barplot from a saved DA CSV.
 
-def _split_to_pseudo_reps(adata, n_pseudo_reps=3, seed=42):
-    """Split each sample's cells into pseudo-replicates for scCODA.
-
-    Same approach as pseudo-bulk DEG: randomly partition cells of each
-    sample_id into N groups. Each group becomes a new 'sample_id'
-    (e.g. 'zigong-21310_rep0', 'zigong-21310_rep1', ...).
+    Each cell type gets its own unique color (N colors for N cell types).
+    Credible effects have black edges. Labels are horizontal for readability.
 
     Args:
-        adata: AnnData with obs['sample_id'].
-        n_pseudo_reps: Number of pseudo-replicates per sample.
-        seed: Random seed for reproducibility.
+        csv_path: Path to ``*_da.csv`` with columns
+            ``cell_type, log2FC, is_credible, final_prob``.
+        out_path: Path to save the PNG.
+        title: Plot title.
 
     Returns:
-        New AnnData with updated sample_id column.
+        True if plot was generated, False if CSV is empty.
     """
-    rng = np.random.RandomState(seed)
-    new_obs = adata.obs.copy()
-    new_sample_ids = []
+    df = pd.read_csv(csv_path)
+    if len(df) == 0:
+        return False
+    df = df.sort_values("log2FC").reset_index(drop=True)
 
-    for sid in new_obs["sample_id"].unique():
-        mask = new_obs["sample_id"] == sid
-        n_cells = mask.sum()
-        if n_cells < n_pseudo_reps * 10:
-            # Too few cells: keep as single sample
-            new_sample_ids.extend([sid] * n_cells)
-            continue
-        # Assign each cell to a pseudo-replicate
-        assignments = np.arange(n_cells) % n_pseudo_reps
-        rng.shuffle(assignments)
-        for i, rep_idx in enumerate(assignments):
-            new_sample_ids.append(f"{sid}_rep{rep_idx}")
+    n = len(df)
+    # Color only credible effects; non-credible = gray
+    n_credible = int(df["is_credible"].sum())
+    cmap = plt.cm.get_cmap("tab20" if n_credible <= 20 else "tab20b")
+    cred_colors = [cmap(i / max(n_credible - 1, 1)) for i in range(n_credible)]
+    ci = 0
+    colors = []
+    for _, row in df.iterrows():
+        if row["is_credible"]:
+            colors.append(cred_colors[ci])
+            ci += 1
+        else:
+            colors.append("#cccccc")
 
-    new_obs["sample_id"] = new_sample_ids
-    result = adata.copy()
-    result.obs = new_obs
-    return result
+    fig, ax = plt.subplots(figsize=(10, max(4, n * 0.45 + 1.5)))
+
+    for i, (_, row) in enumerate(df.iterrows()):
+        edgecolor = "black" if row["is_credible"] else "none"
+        lw = 0.8 if row["is_credible"] else 0
+        ax.barh(i, row["log2FC"], color=colors[i], edgecolor=edgecolor,
+                linewidth=lw, height=0.7, zorder=2)
+
+    ax.set_yticks(range(n))
+    ax.set_yticklabels(df["cell_type"], fontsize=10)
+    ax.set_xlabel("log2-fold change", fontsize=12)
+    ax.set_title(title, fontsize=14, y=0.97)
+    ax.axvline(0, color="black", linewidth=0.5, alpha=0.5, zorder=1)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.tick_params(axis="x", labelsize=10)
+
+    fig.subplots_adjust(left=0.25, right=0.98, top=0.88, bottom=0.10)
+    fig.savefig(out_path, dpi=300, facecolor="white")
+    plt.close(fig)
+    log.info("Saved: %s", out_path)
+    return True
 
 
 def run_sccoda(adata: sc.AnnData, ref: str, treat: str, tissue: str,
                formula: str = "condition",
                ref_celltype: str = "automatic",
-               n_pseudo_reps: int = 3,
                out_dir: Optional[Path] = None) -> pd.DataFrame:
     """Run scCODA for one ref vs treat comparison.
 
@@ -91,9 +109,6 @@ def run_sccoda(adata: sc.AnnData, ref: str, treat: str, tissue: str,
         treat: treatment sample id.
         formula: design formula (default: 'condition').
         ref_celltype: 'automatic' or explicit cell type name.
-        n_pseudo_reps: Split each sample into N pseudo-replicates (default: 3).
-            Set to 1 to disable (use original sample_id as-is).
-        out_dir: directory to save plots and CSV.
         out_dir: directory to save plots and CSV.
 
     Returns:
@@ -112,14 +127,6 @@ def run_sccoda(adata: sc.AnnData, ref: str, treat: str, tissue: str,
     )
     log.info("Subsetting %d cells (ref=%s, treat=%s)",
              len(sub), ref, treat)
-
-    # Split each sample's cells into pseudo-replicates when n=1 per condition.
-    # This gives scCODA multiple "samples" per condition to estimate variability.
-    # Same approach as pseudo-bulk DEG: randomly partition cells into N groups.
-    if n_pseudo_reps > 1:
-        sub = _split_to_pseudo_reps(sub, n_pseudo_reps=n_pseudo_reps, seed=42)
-        log.info("After pseudo-rep split: %d pseudo-samples (%d per original sample)",
-                 len(sub.obs["sample_id"].unique()), n_pseudo_reps)
 
     sccoda = pt.tl.Sccoda()
 
@@ -196,21 +203,20 @@ def run_sccoda(adata: sc.AnnData, ref: str, treat: str, tissue: str,
                     plot_facets=True,
                     plot_zero_covariate=False,
                     plot_zero_cell_type=False,
-                    figsize=(14, 5),
+                    figsize=(10, 4),
                     return_fig=True,
                 )
                 if hasattr(fg, "fig"):
                     # Force the actual canvas size — pertpy leaves a tall FacetGrid
                     # even when there's only one facet, so resize manually.
-                    fg.fig.set_size_inches(14, 6)
-                    fg.fig.suptitle(full_title, fontsize=12, y=0.97)
+                    fg.fig.set_size_inches(10, 5.5)
+                    fg.fig.suptitle(full_title, fontsize=14, y=0.97)
                     for ax in fg.axes.flat:
-                        plt.setp(ax.get_xticklabels(), rotation=30, ha="right")
+                        plt.setp(ax.get_xticklabels(), rotation=45, ha="right", fontsize=10)
                         ax.set_title("")
-                    # 14×6 in canvas: symmetric ~12% top + ~12% bottom.
-                    # With 30° labels and the axis title, 12% bottom is just enough.
+                        ax.set_ylabel(ax.get_ylabel(), fontsize=12)
                     fg.fig.subplots_adjust(
-                        left=0.06, right=0.99, top=0.88, bottom=0.24,
+                        left=0.08, right=0.98, top=0.85, bottom=0.38,
                     )
                     fg.fig.savefig(
                         out_dir / f"{prefix}_effects_barplot.png",
@@ -227,14 +233,14 @@ def run_sccoda(adata: sc.AnnData, ref: str, treat: str, tissue: str,
         # Stacked barplot of cell-type proportions per sample
         try:
             fig = sccoda.plot_stacked_barplot(
-                mdata, feature_name="samples", figsize=(14, 6), return_fig=True,
+                mdata, feature_name="samples", figsize=(10, 4.5), return_fig=True,
             )
             if fig is None:
                 # pertpy sometimes still leaves the figure open — grab current
                 fig = plt.gcf()
-            fig.set_size_inches(14, 6)
-            fig.suptitle(full_title, fontsize=12, y=0.97)
-            fig.subplots_adjust(left=0.07, right=0.78, top=0.88, bottom=0.12)
+            fig.set_size_inches(10, 4.5)
+            fig.suptitle(full_title, fontsize=14, y=0.97)
+            fig.subplots_adjust(left=0.08, right=0.78, top=0.86, bottom=0.14)
             fig.savefig(
                 out_dir / f"{prefix}_stacked_barplot.png",
                 dpi=300, facecolor="white",
@@ -291,8 +297,6 @@ Examples:
                    help="Design formula (default: condition)")
     p.add_argument("--credible-threshold", type=float, default=0.90,
                    help="Posterior probability threshold for credible effect")
-    p.add_argument("--n-pseudo-reps", type=int, default=3,
-                   help="Split each sample into N pseudo-replicates (default: 3, 1=disabled)")
     return p.parse_args()
 
 
@@ -331,7 +335,6 @@ def main():
         run_sccoda(adata, ref, treat, tissue=tissue,
                    formula=args.formula,
                    ref_celltype=args.ref_celltype,
-                   n_pseudo_reps=args.n_pseudo_reps,
                    out_dir=tissue_out)
 
     log.info("DONE")

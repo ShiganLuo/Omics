@@ -3,6 +3,7 @@
         "env_dir": "/home/luosg/Database/env",
         "centromere": "/home/luosg/Database/env/centromere/centromere.sif",
         "deepvariant": "/home/luosg/Database/env/deepvariant/deepvariant.sif",
+        "decoil": "/home/luosg/Database/env/decoil/decoil.sif",
         "gatk": "/home/luosg/Database/env/gatk/gatk4.sif",
         "hiphase": "/home/luosg/Database/env/hiphase/hiphase.sif",
         "pbmm2": "/home/luosg/Database/env/pbmm2/pbmm2.sif",
@@ -25,7 +26,8 @@
         "tabix": null,
         "bcftools": null,
         "hiphase": null,
-        "trgt": null
+        "trgt": null,
+        "decoil": null
     },
     "Params": {
         "skip_snp": false,
@@ -33,6 +35,7 @@
         "skip_phase": false,
         "skip_repeat": false,
         "skip_telomere": false,
+        "skip_eccdna": false,
         "snv_caller": "deepvariant",
         "deepvariant": {
             "model_type": "PACBIO"
@@ -60,14 +63,31 @@
                 "RGPL": "PacBio",
                 "RGPU": "HiFi"
             }
+        },
+        "decoil": {
+            "min_sv_len": 500,
+            "fragment_min_cov": 5,
+            "fragment_max_cov": 100000,
+            "fragment_min_size": 500,
+            "min_vaf": 0.01,
+            "min_cov_alt": 6,
+            "min_cov": 8,
+            "max_explog_threshold": 0.1,
+            "filter_score": 5,
+            "sv_caller": "sniffles1",
+            "threads": 16,
+            "extend_allowed_chromosomes": "",
+            "skip": false
         }
     },
     "container": {
-        "deepvariant": "/data/pub/zhousha/env/sif/deepvariant_1.10.0.sif"
+        "deepvariant": "/data/pub/zhousha/env/sif/deepvariant_1.10.0.sif",
+        "decoil": "/data/pub/zhousha/env/sif/decoil.sif"
     },
     "genome": {
         "fasta": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
         "fai": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa.fai",
+        "gtf": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/gencode.vM36.primary_assembly.basic.annotation.gtf",
         "dict": null,
         "repeat_bed": null
     }

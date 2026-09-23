@@ -238,9 +238,9 @@ def run_sccoda(adata: sc.AnnData, ref: str, treat: str, tissue: str,
             if fig is None:
                 # pertpy sometimes still leaves the figure open — grab current
                 fig = plt.gcf()
-            fig.set_size_inches(10, 4.5)
+            fig.set_size_inches(10, 5.0)
             fig.suptitle(full_title, fontsize=14, y=0.97)
-            fig.subplots_adjust(left=0.08, right=0.78, top=0.86, bottom=0.14)
+            fig.subplots_adjust(left=0.08, right=0.78, top=0.86, bottom=0.22)
             fig.savefig(
                 out_dir / f"{prefix}_stacked_barplot.png",
                 dpi=300, facecolor="white",

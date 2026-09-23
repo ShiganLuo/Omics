@@ -11,6 +11,7 @@ skip_sv = config.get("Params", {}).get("skip_sv", False)
 skip_phase = config.get("Params", {}).get("skip_phase", False)
 skip_repeat = config.get("Params", {}).get("skip_repeat", False)
 skip_telomere = config.get("Params", {}).get("skip_telomere", False)
+skip_eccdna = config.get("Params", {}).get("skip_eccdna", False)
 snv_caller = config.get("Params", {}).get("snv_caller", "deepvariant")
 
 rule all:
@@ -275,3 +276,48 @@ if not skip_telomere:
         config: centromere_config
     logger.info(f"centromere_config: {centromere_config}")
     use rule * from centromere as PacVar_centromere_*
+
+
+# ============================================================
+# Step 8: eccDNA / ecDNA reconstruction (optional, Decoil)
+# ============================================================
+# Reference:
+#   Giurgiu et al., "Reconstructing extrachromosomal DNA structural heterogeneity
+#   from long-read sequencing data using Decoil", Genome Research, 2024.
+#   DOI: 10.1101/gr.279123.124.  https://github.com/madagiurgiu25/decoil-pre
+#
+# Decoil accepts any long-read BAM (PacBio HiFi or ONT). It internally runs
+# Sniffles for SV calling, builds a coverage bigwig via deeptools, and
+# reconstructs ecDNA cycles from discordant read-pair / soft-clip signals.
+# Skipped when --skip_eccdna is true or when genome.gtf is not configured.
+if not skip_eccdna and config.get("genome", {}).get("gtf"):
+    decoil_config = {
+        "ROOT_DIR": ROOT_DIR,
+        "env": config.get("env", {}),
+        "indir": gatk_prepare_config["outdir"],
+        "outdir": f"{outdir}/eccdna",
+        "logdir": logdir,
+        "samples": samples,
+        "bam_substring": "sorted_markdup",
+        "Procedure": {
+            "decoil": config.get("Procedure", {}).get("decoil")
+        },
+        "Params": {
+            "decoil": config.get("Params", {}).get("decoil", {})
+        },
+        "genome": {
+            "fasta": config.get("genome", {}).get("fasta"),
+            "gtf": config.get("genome", {}).get("gtf")
+        }
+    }
+    module decoil:
+        snakefile: "../modules/decoil/decoil.smk"
+        config: decoil_config
+    logger.info(f"decoil_config: {decoil_config}")
+    use rule decoil_reconstruct from decoil as PacVar_decoil_reconstruct
+    use rule decoil_result from decoil as PacVar_decoil_result
+elif not skip_eccdna:
+    logger.warning(
+        "PacVar: skip_eccdna=false but genome.gtf is missing; "
+        "Decoil requires a gene annotation GTF. Skipping eccDNA step."
+    )

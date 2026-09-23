@@ -65,6 +65,11 @@
       "type": "null",
       "nullable": true,
       "required": false
+    },
+    "decoil": {
+      "type": "null",
+      "nullable": true,
+      "required": false
     }
   },
   "Params": {
@@ -85,6 +90,10 @@
       "required": true
     },
     "skip_telomere": {
+      "type": "bool",
+      "required": true
+    },
+    "skip_eccdna": {
       "type": "bool",
       "required": true
     },
@@ -135,6 +144,21 @@
         "path": "file"
       }
     },
+    "decoil": {
+      "min_sv_len": {"type": "int", "required": true},
+      "fragment_min_cov": {"type": "int", "required": true},
+      "fragment_max_cov": {"type": "int", "required": true},
+      "fragment_min_size": {"type": "int", "required": true},
+      "min_vaf": {"type": "float", "required": true},
+      "min_cov_alt": {"type": "int", "required": true},
+      "min_cov": {"type": "int", "required": true},
+      "max_explog_threshold": {"type": "float", "required": true},
+      "filter_score": {"type": "int", "required": true},
+      "sv_caller": {"type": "str", "required": true},
+      "threads": {"type": "int", "required": true},
+      "extend_allowed_chromosomes": {"type": "str", "required": false},
+      "skip": {"type": "bool", "required": false}
+    },
     "gatk": {
       "javaOptions": {
         "type": "str",
@@ -168,6 +192,11 @@
       "path": "file"
     },
     "fai": {
+      "type": "str",
+      "required": true,
+      "path": "file"
+    },
+    "gtf": {
       "type": "str",
       "required": true,
       "path": "file"

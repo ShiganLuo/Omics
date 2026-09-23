@@ -317,6 +317,23 @@ def runPacVar(
             outfiles.append(f"{outdir}/repeat/trgt/genotype/{sample_id}/{sample_id}.trgt.vcf.gz")
             outfiles.append(f"{outdir}/repeat/trgt/plot/{sample_id}/{sample_id}.trgt.repeat.png")
 
+    # eccDNA / ecDNA reconstruction via Decoil
+    skip_eccdna = datajson.get("Params", {}).get("skip_eccdna", False)
+    genome_gtf = datajson.get("genome", {}).get("gtf")
+    if not skip_eccdna and genome_gtf:
+        for sample_id in samples:
+            outfiles.append(f"{outdir}/eccdna/{sample_id}/decoil/reconstruct.bed")
+            outfiles.append(f"{outdir}/eccdna/{sample_id}/decoil/reconstruct.ecDNA.bed")
+            outfiles.append(f"{outdir}/eccdna/{sample_id}/decoil/reconstruct.ecDNA.filtered.bed")
+            outfiles.append(f"{outdir}/eccdna/{sample_id}/decoil/summary.txt")
+            outfiles.append(f"{outdir}/eccdna/{sample_id}/decoil/{sample_id}.sv.vcf.gz")
+            outfiles.append(f"{outdir}/eccdna/{sample_id}/decoil/{sample_id}.coverage.bw")
+    elif not skip_eccdna:
+        logger.warning(
+            "PacVar: skip_eccdna=false but genome.gtf is missing; "
+            "Decoil requires a gene annotation GTF. Skipping eccDNA outfiles."
+        )
+
     # telomere & centromere analysis
     skip_telomere = datajson.get("Params", {}).get("skip_telomere", False)
     if not skip_telomere:

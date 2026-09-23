@@ -246,13 +246,22 @@ FASTQ
   - telomere read density：基于 read 的端粒 k-mer 密度估算
   - tidk：社区工具端粒扫描
   - centromere：着丝粒分析（hifiasm + RepeatMasker）
-- **输入**：PacBio BAM/fastq
-- **输出**：SNP VCF、SV VCF、phasing 结果、重复序列分析结果、端粒长度、着丝粒统计
+  - decoil：eccDNA / ecDNA 环状结构重建（可选；需 `genome.gtf`）
+- **输入**：PacBio BAM/fastq；如启用 eccDNA 步骤需要基因注释 GTF
+- **输出**：SNP VCF、SV VCF、phasing 结果、重复序列分析结果、端粒长度、着丝粒统计、ecDNA 重建（reconstruct.bed / summary.txt）
 - **特点**：
-  - 支持跳过特定步骤（skip_snp/skip_sv/skip_phase/skip_repeat）
+  - 支持跳过特定步骤（skip_snp/skip_sv/skip_phase/skip_repeat/skip_eccdna）
   - 支持多种 SNV caller（deepvariant/gatk4）
   - 支持端粒分析（4 种方法）和着丝粒分析
   - 端粒方法：telogator2（TL_p75）、assembly scan（推荐小鼠）、read density（全基因组平均）、tidk
+  - eccDNA：基于 DECOIL（Giurgiu et al. 2024, Genome Research, DOI: 10.1101/gr.279123.124），兼容 PacBio HiFi / ONT 长读长；通过 `Params.skip_eccdna` 跳过
+- **eccDNA 步骤说明**：
+  - 工具：decoil-pipeline sv-reconstruct（pip: decoil>=2.0）
+  - 内部依赖：Sniffles（SV calling）+ deeptools（coverage bigwig）+ SURVIVOR（VCF→BEDPE）
+  - 输入：`{outdir}/bam/2_markdup_bam/{sample_id}/{sample_id}.sorted_markdup.bam`
+  - 输出：`{outdir}/eccdna/{sample_id}/decoil/{reconstruct.bed, reconstruct.ecDNA.bed, reconstruct.ecDNA.filtered.bed, summary.txt, *.sv.vcf.gz, *.coverage.bw}`
+  - 关键参数：`Params.decoil.{min_vaf, fragment_min_cov, min_cov, sv_caller, filter_score}` 等
+  - 关闭：`Params.skip_eccdna=true`，或未配置 `genome.gtf`（自动跳过并写 warning 日志）
 - **问题**：
   - 如何从PacBio数据识别端粒长度超过hifi读长的物种或品种（比如小鼠，hifi平均reads长度大约在15kb，适合测量人类的端粒长度），流程目前所集成的几大方法都有很大缺陷。确定着丝粒长度也非常有难度。除非组装出T2T基因组
 

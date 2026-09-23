@@ -760,14 +760,15 @@ def deg_count_heatmap(deg_df, cmap, title, output_path):
 
 
 def volcano_plot(deg_df, cell_type, comparison, output_path, title=None,
-                 nlogp_clip=18, highlight_genes=None):
+                 nlogp_clip=18, highlight_genes=None, top_n=5):
     """Volcano plot for one cell type × comparison.
 
     Plots log2FC vs -log10(pvalue) with up/down-regulated genes colored.
-    All NS genes are shown as background (no filtering). Top 5 genes
-    per direction by p-value are labeled with auto-repulsion (adjustText).
-    Additional genes can be highlighted via *highlight_genes*. No log2FC
-    clipping. Skips if no significant DEGs.
+    All NS genes are shown as background (no filtering). When
+    *highlight_genes* is provided, only those genes are labeled;
+    otherwise top *top_n* genes per direction by p-value are labeled.
+    Auto-repulsion via adjustText. No log2FC clipping. Skips if no
+    significant DEGs.
 
     Args:
         deg_df: DataFrame with ``gene``, ``cell_type``, ``comparison``,
@@ -778,7 +779,11 @@ def volcano_plot(deg_df, cell_type, comparison, output_path, title=None,
         title: Optional plot title (auto-generated if None).
         nlogp_clip: Clip -log10(p) display range to this value.
         highlight_genes: List of gene names to label on the plot regardless
-            of significance. Labeled in red if up, blue if down, gray if NS.
+            of significance. When provided, only these genes are labeled
+            (top_n is ignored). Same style as top genes (plain black text
+            with adjustText auto-repulsion).
+        top_n: Number of top genes per direction to label (default 5).
+            Ignored when *highlight_genes* is provided.
 
     Returns:
         bool: True if the plot was generated, False if skipped.
@@ -818,26 +823,34 @@ def volcano_plot(deg_df, cell_type, comparison, output_path, title=None,
                    s=25, c="#1f77b4", alpha=0.9, edgecolor="darkblue",
                    linewidth=0.3, label=f"Down ({len(dn)})", zorder=4)
 
-    # Label top 5 genes per direction with auto-repulsion
+    # Label genes with auto-repulsion
+    # When highlight_genes is provided, only label those; otherwise top_n per direction
     texts = []
-    for _, r in pd.concat([up.nlargest(5, "nlogp"),
-                           dn.nlargest(5, "nlogp")]).iterrows():
-        texts.append(ax.text(r["log2FC"], r["nlogp"], r["gene"],
-                             fontsize=7, color="black", zorder=5))
+    if not highlight_genes:
+        for _, r in pd.concat([up.nlargest(top_n, "nlogp"),
+                               dn.nlargest(top_n, "nlogp")]).iterrows():
+            texts.append(ax.text(r["log2FC"], r["nlogp"], r["gene"],
+                                 fontsize=7, color="black", zorder=5))
 
     # Highlight custom genes (e.g. aging markers, SASP factors)
+    # annotate with arrow connector pointing to data point
     if highlight_genes:
         for gene_name in highlight_genes:
             gene_row = sub[sub["gene"] == gene_name]
             if len(gene_row) == 0:
                 continue
             g = gene_row.iloc[0]
-            color = "#d62728" if g["log2FC"] > 0 else "#1f77b4"
-            ax.scatter(g["log2FC"], g["nlogp"], s=60, facecolors="none",
-                       edgecolors=color, linewidths=1.5, zorder=6)
-            texts.append(ax.text(g["log2FC"], g["nlogp"], gene_name,
-                                 fontsize=8, fontweight="bold",
-                                 color=color, zorder=7))
+            x, y = g["log2FC"], g["nlogp"]
+            # offset label to the right/left based on sign of log2FC
+            dx = 0.5 if x >= 0 else -0.5
+            ax.annotate(
+                gene_name, xy=(x, y), xytext=(x + dx, y + 1.5),
+                fontsize=7, color="black", fontweight="normal",
+                ha="left" if dx > 0 else "right", va="bottom",
+                arrowprops=dict(arrowstyle="-", color="gray",
+                                lw=0.7, alpha=0.7),
+                zorder=7,
+            )
 
     if texts:
         adjust_text(texts, ax=ax, arrowprops=dict(arrowstyle="-",

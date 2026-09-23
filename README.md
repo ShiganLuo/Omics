@@ -77,7 +77,7 @@ python workflow/Omics/run.py -m data/meta.tsv -w scRNAseq -o output \
 | `ncRNAseq` | 非编码 RNA 分析（含 tailer 和小 RNA） | demultiplexer、trim_galore、hisat2/star 比对、gatk dedup、small RNA 提取、star 3pass、tailer 分析、ncRNA 表达量 |
 | `CLIP` | iCLIP / CLIP-seq 分析 | 质控、比对、PureCLIP、bedGraph / bigWig、IGV 页面 |
 | `Mutation` | 体细胞/胚系突变分析（tumor vs normal）及 cfDNA 分析 | fastqc、cutadapt、bwa-mem2、GATK（Mutect2 体细胞 + 胚系）、突变频谱、cfDNA 片段长度、manta SV、cnvkit CNV |
-| `PacVar` | PacBio 长读长变异检测 | 结构变异 VCF、SNP VCF、phasing 结果、端粒长度（4种方法）、着丝粒统计 |
+| `PacVar` | PacBio 长读长变异检测 | 结构变异 VCF、SNP VCF、phasing 结果、端粒长度（4种方法）、着丝粒统计、可选 eccDNA 重建（DECOIL） |
 | `KARRseq` | Kethoxal-Assisted RNA-RNA interaction sequencing | RNA-RNA 相互作用 pairs 文件 |
 | `PeakCalling` | ChIP-seq / ChIRP-seq / DIP-seq peak calling 分析 | fastqc、trim_galore、bowtie2 比对、gatk dedup、IGV/wig 可视化、MACS3 peak calling、FRiP score、deeptools 热图、Homer 注释、peak-TE overlap、汇总报告 |
 | `QuantMS` | 定量蛋白质组学分析（TMT/LFQ/DIA） | mzTab 定量结果、MSstats 统计分析 |

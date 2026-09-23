@@ -1,0 +1,13 @@
+name: decoil
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - python>=3.9
+  - pip
+  - samtools>=1.15
+  - deeptools>=3.5.5
+  - pip:
+      - decoil>=2.0
+      - survivor  # pulled in by decoil via bioconda; re-pin for safety

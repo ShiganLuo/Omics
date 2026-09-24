@@ -102,4 +102,5 @@ python ${SCRIPT_DIR}/run.py \
   -w Fiberseq \
   -o /home/luosg/Data/genomeStability/output/luancao \
   --sdm apptainer \
-  -t 48
+  -t 48 \
+  --dry-run

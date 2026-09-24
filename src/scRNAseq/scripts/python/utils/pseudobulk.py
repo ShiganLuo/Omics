@@ -795,7 +795,7 @@ def volcano_plot(deg_df, cell_type, comparison, output_path, title=None,
     if len(sub) < 3:
         return False
 
-    sub["nlogp"] = -np.log10(sub["pval"].clip(1e-300)).clip(upper=nlogp_clip)
+    sub["nlogp"] = -np.log10(sub["pval_adj"].clip(1e-300)).clip(upper=nlogp_clip)
     sub["sig"] = sub["significant"]
 
     sig_df = sub[sub["sig"]]
@@ -863,7 +863,7 @@ def volcano_plot(deg_df, cell_type, comparison, output_path, title=None,
     ax.axvline(-1, color="black", linestyle="--", linewidth=0.7, alpha=0.6)
 
     ax.set_xlabel("log2FC", fontsize=11)
-    ax.set_ylabel("-log10(pvalue)", fontsize=11)
+    ax.set_ylabel("-log10(padj)", fontsize=11)
     if title is None:
         title = f'{cell_type}: {comparison.replace("_vs_", " vs ")}'
     ax.set_title(title, fontsize=12, fontweight="bold")

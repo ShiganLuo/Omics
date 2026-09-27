@@ -20,12 +20,12 @@ def _detect_m6a(bam_path: str) -> bool:
     import subprocess
     try:
         r = subprocess.run(
-            ["samtools", "view", bam_path],
-            capture_output=True, text=True, timeout=30
+            f"samtools view {bam_path} | head -100",
+            shell=True, capture_output=True, text=True, timeout=30
         )
-        lines = r.stdout.split("\n")[:100]
+        lines = r.stdout.strip().split("\n")
         m6a_count = sum(1 for line in lines if "MM:Z:" in line)
-        return m6a_count > 50
+        return m6a_count > len(lines) // 2
     except Exception:
         return False
 

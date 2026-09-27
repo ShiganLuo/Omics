@@ -146,6 +146,7 @@ rule ft_fire:
             command_script = os.path.join(sample_outdir, f"ft_fire_{current_time}.sh")
             cmd = [
                 params.ft, "fire",
+                "-t", str(threads),
                 input.bam,
                 output.bam,
             ]
@@ -222,7 +223,7 @@ rule ft_call_peaks:
         peaks = outdir + "/{sample_id}/{sample_id}.fire_peaks.bed",
     log:
         logdir + "/{sample_id}/ft_call_peaks.log"
-    threads: 1
+    threads: 8
     conda:
         "fibertools.yaml"
     container:
@@ -233,50 +234,44 @@ rule ft_call_peaks:
         min_fire_frac = config.get("Params", {}).get("fibertools", {}).get("min_fire_frac", 0.1),
         sd_cov = config.get("Params", {}).get("fibertools", {}).get("sd_cov", 5.0),
     run:
-        log_path = str(log)
-        try:
-            open(log_path, 'w').close()
-            rule_logger = setup_logger("ft_call_peaks", log_file=log_path)
-            rule_logger.info(f"Calling FIRE peaks for sample {wildcards.sample_id}")
-            # Check if BAM is aligned (not all reads unmapped)
-            import subprocess
-            check = subprocess.run(
-                ["samtools", "view", "-c", "-F", "4", input.bam],
-                capture_output=True, text=True
-            )
-            aligned_count = int(check.stdout.strip()) if check.returncode == 0 else 0
-            if aligned_count == 0:
-                rule_logger.warning(f"BAM has no aligned reads — skipping ft call-peaks for {wildcards.sample_id}")
-                # Write empty BED with header
-                with open(output.peaks, "w") as f:
-                    f.write("#chrom\tstart\tend\tname\tscore\tstrand\n")
-                return
-            current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            sample_outdir = os.path.join(outdir, wildcards.sample_id)
-            os.makedirs(sample_outdir, exist_ok=True)
-            # Sort and index BAM (required for ft call-peaks)
-            sorted_bam = os.path.join(sample_outdir, f"{wildcards.sample_id}.fire.sorted.bam")
-            command_script = os.path.join(sample_outdir, f"ft_call_peaks_{current_time}.sh")
-            cmd = [
-                params.ft, "call-peaks",
-                "-o", output.peaks,
-                "--sd-cov", str(params.sd_cov),
-                "--max-fdr", str(params.max_fdr),
-            ]
-            if params.min_fire_frac is not None:
-                cmd.extend(["--min-fire-frac", str(params.min_fire_frac)])
-            cmd.append(sorted_bam)
-            with open(command_script, "w") as f:
-                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
-                f.write(f"samtools sort -@ {threads} -o {sorted_bam} {input.bam}\n")
-                f.write(f"samtools index {sorted_bam}\n")
-                f.write(" ".join(cmd) + "\n")
-                f.write(f'echo "FIRE peak calling completed for sample {wildcards.sample_id}"\n')
-            shell(f"bash {command_script} >> {log_path} 2>&1")
-        except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"ft_call_peaks failed: {e}\n")
-            raise RuntimeError(f"ft_call_peaks failed: {e}\n")
+        sample_outdir = os.path.join(outdir, wildcards.sample_id)
+        os.makedirs(sample_outdir, exist_ok=True)
+        sorted_bam = os.path.join(sample_outdir, f"{wildcards.sample_id}.fire.sorted.bam")
+        current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+        command_script = os.path.join(sample_outdir, f"ft_call_peaks_{current_time}.sh")
+
+        # Build ft call-peaks command
+        ft_cmd = [
+            params.ft, "call-peaks",
+            "-t", str(threads),
+            "-o", str(output.peaks),
+            "--sd-cov", str(params.sd_cov),
+            "--max-fdr", str(params.max_fdr),
+        ]
+        if params.min_fire_frac is not None:
+            ft_cmd.extend(["--min-fire-frac", str(params.min_fire_frac)])
+        ft_cmd.append(sorted_bam)
+        ft_cmd_str = " ".join(ft_cmd)
+
+        # Write shell script — all commands run inside conda/container env via shell()
+        with open(command_script, "w") as f:
+            f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
+            f.write(f'echo "Checking alignment for {wildcards.sample_id}"\n')
+            f.write(f'aligned=$(samtools view -c -F 4 {input.bam})\n')
+            f.write(f'echo "Aligned reads: $aligned"\n')
+            f.write(f'if [ "$aligned" -eq 0 ]; then\n')
+            f.write(f'    echo "BAM has no aligned reads — skipping ft call-peaks"\n')
+            f.write(f'    printf "#chrom\\tstart\\tend\\tname\\tscore\\tstrand\\n" > {output.peaks}\n')
+            f.write(f'    exit 0\n')
+            f.write(f'fi\n')
+            f.write(f'echo "Sorting BAM"\n')
+            f.write(f'samtools sort -@ {threads} -o {sorted_bam} {input.bam}\n')
+            f.write(f'samtools index {sorted_bam}\n')
+            f.write(f'echo "Calling FIRE peaks"\n')
+            f.write(ft_cmd_str + "\n")
+            f.write(f'echo "FIRE peak calling completed for sample {wildcards.sample_id}"\n')
+
+        shell("bash {command_script} >> {log} 2>&1")
 
 
 rule ft_qc:
@@ -291,7 +286,7 @@ rule ft_qc:
         qc = outdir + "/{sample_id}/{sample_id}.qc.tsv",
     log:
         logdir + "/{sample_id}/ft_qc.log"
-    threads: 1
+    threads: 8
     conda:
         "fibertools.yaml"
     container:
@@ -311,6 +306,7 @@ rule ft_qc:
             command_script = os.path.join(sample_outdir, f"ft_qc_{current_time}.sh")
             cmd = [
                 params.ft, "qc",
+                "-t", str(threads),
                 input.bam,
                 output.qc,
             ]

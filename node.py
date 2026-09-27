@@ -986,7 +986,7 @@ def runFiberseq(
     ) -> str:
     """Prepare input JSON for Fiber-seq workflow.
 
-    Pipeline: pbmm2 align -> ft add-nucleosomes -> ft fire -> ft extract -> ft call-peaks -> ft qc
+    Pipeline: ft predict-m6a → ft fire → pbmm2 align → ft extract/call-peaks/qc
     Reference: Stergachis et al., 2020, Science (DOI: 10.1126/science.aaz1646).
     Guide: https://fiberseq.github.io/
     """
@@ -996,14 +996,18 @@ def runFiberseq(
     samples = []
     for sample_id, sample_info in samples_info_dict.items():
         samples.append(sample_id)
-        # Step 1: aligned BAM + index (pbmm2 module → common/2_aligned)
-        outfiles.append(f"{outdir}/common/2_aligned/{sample_id}/{sample_id}.sorted.bam")
-        outfiles.append(f"{outdir}/common/2_aligned/{sample_id}/{sample_id}.sorted.bai")
-        # Step 2-6: fiberseq downstream outputs
-        outfiles.append(f"{outdir}/fiberseq/2_fire/{sample_id}/{sample_id}.fiberseq.fire.bam")
-        outfiles.append(f"{outdir}/fiberseq/3_extract/{sample_id}/{sample_id}.fiberseq.all.bed.gz")
-        outfiles.append(f"{outdir}/fiberseq/4_peaks/{sample_id}/{sample_id}.fire_peaks.bed")
-        outfiles.append(f"{outdir}/fiberseq/5_qc/{sample_id}/{sample_id}.qc.tsv")
+        # Step 1: prepare fiberseq BAM (predict-m6a + fire)
+        outfiles.append(f"{outdir}/fiberseq/1_prepare/{sample_id}/{sample_id}.fiberseq.fire.bam")
+        # Step 2: aligned BAM (pbmm2)
+        outfiles.append(f"{outdir}/common/2_aligned/{sample_id}/{sample_id}.fiberseq.fire.sorted.bam")
+        outfiles.append(f"{outdir}/common/2_aligned/{sample_id}/{sample_id}.fiberseq.fire.sorted.bai")
+        # Step 3: analysis outputs
+        outfiles.append(f"{outdir}/fiberseq/3_analysis/{sample_id}/{sample_id}.m6a.bed.gz")
+        outfiles.append(f"{outdir}/fiberseq/3_analysis/{sample_id}/{sample_id}.nuc.bed.gz")
+        outfiles.append(f"{outdir}/fiberseq/3_analysis/{sample_id}/{sample_id}.msp.bed.gz")
+        outfiles.append(f"{outdir}/fiberseq/3_analysis/{sample_id}/{sample_id}.cpg.bed.gz")
+        outfiles.append(f"{outdir}/fiberseq/3_analysis/{sample_id}/{sample_id}.fire_peaks.bed")
+        outfiles.append(f"{outdir}/fiberseq/3_analysis/{sample_id}/{sample_id}.qc.tsv")
 
     datajson["samples"] = samples
     datajson["raw_files"] = raw_files

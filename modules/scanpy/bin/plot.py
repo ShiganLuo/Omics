@@ -21,8 +21,11 @@ import numpy as np
 import scanpy as sc
 import seaborn as sns
 from anndata import AnnData
-
-logger = logging.getLogger(__name__)
+try:
+    from .LogUtil import setup_logger
+except ImportError:
+    from LogUtil import setup_logger
+logger = setup_logger(__name__)
 
 # ---------------------------------------------------------------------------
 # Default style

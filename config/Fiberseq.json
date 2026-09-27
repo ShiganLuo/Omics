@@ -36,7 +36,8 @@
             },
             "Mmul_T2T": {
                 "fasta": "/home/luosg/Database/Reference/mulatta/NCBI/Mmul_T2T/GCF_049350105.2_T2T-MMU8v2.0_genomic.fna",
-                "gtf": "/home/luosg/Database/Reference/mulatta/NCBI/Mmul_T2T/GCF_049350105.2_T2T-MMU8v2.0_genomic.gtf"
+                "gtf": "/home/luosg/Database/Reference/mulatta/NCBI/Mmul_T2T/GCF_049350105.2_T2T-MMU8v2.0_genomic.gtf",
+                "pbmm2_index": null
             },
             "GRCm39": {
                 "fasta": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",

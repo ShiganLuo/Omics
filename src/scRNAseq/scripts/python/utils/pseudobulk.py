@@ -147,7 +147,8 @@ def _split_pseudo_reps(adata_sub, sample_id, raw_sub, var_names,
 
 def aggregate_pseudobulk(adata, cell_type, sample_col="sample_id",
                          type_col="cell_type", min_cells=30,
-                         min_counts=1000, n_pseudo_reps=0):
+                         min_counts=1000, n_pseudo_reps=0,
+                         feature_mode="all"):
     """Sum raw UMI counts per sample for one cell type.
 
     Filters out samples with fewer than *min_cells* cells or
@@ -167,6 +168,9 @@ def aggregate_pseudobulk(adata, cell_type, sample_col="sample_id",
         min_counts: Minimum total UMI counts per sample to retain it.
         n_pseudo_reps: If > 0, split single-sample conditions into this
             many pseudo-replicates. 0 = disabled (default).
+        feature_mode: ``"all"`` (default), ``"gene"`` (exclude TE),
+            or ``"te"`` (only TE). Requires ``gene_type`` column in
+            ``adata.raw.var``.
 
     Returns:
         tuple:
@@ -180,6 +184,14 @@ def aggregate_pseudobulk(adata, cell_type, sample_col="sample_id",
     samples_by_cells = set(size_by_sample[size_by_sample >= min_cells].index.tolist())
 
     raw_sub = sub.raw.to_adata()
+
+    # Filter features by mode (gene/te/all)
+    if feature_mode != "all" and "gene_type" in raw_sub.var.columns:
+        te_mask = raw_sub.var["gene_type"] == "TE"
+        if feature_mode == "gene":
+            raw_sub = raw_sub[:, ~te_mask].copy()
+        elif feature_mode == "te":
+            raw_sub = raw_sub[:, te_mask].copy()
 
     # Compute total counts per sample
     counts_by_sample = {}
@@ -230,7 +242,7 @@ def aggregate_pseudobulk(adata, cell_type, sample_col="sample_id",
 
 
 def prepare_counts(h5ad_path, out_dir, label, min_cells=30, min_counts=1000,
-                   n_pseudo_reps=0):
+                   n_pseudo_reps=0, feature_mode="all"):
     """Prepare pseudo-bulk count CSVs for all cell types in an h5ad.
 
     Iterates over every unique cell type in the h5ad, aggregates counts
@@ -244,6 +256,7 @@ def prepare_counts(h5ad_path, out_dir, label, min_cells=30, min_counts=1000,
         min_counts: Minimum total UMIs per sample to retain.
         n_pseudo_reps: If > 0, split single-sample conditions into
             pseudo-replicates (see :func:`aggregate_pseudobulk`).
+        feature_mode: ``"all"``, ``"gene"``, or ``"te"``.
 
     Returns:
         tuple:
@@ -261,7 +274,8 @@ def prepare_counts(h5ad_path, out_dir, label, min_cells=30, min_counts=1000,
     for ct in targets:
         df, kept = aggregate_pseudobulk(adata, ct, min_cells=min_cells,
                                         min_counts=min_counts,
-                                        n_pseudo_reps=n_pseudo_reps)
+                                        n_pseudo_reps=n_pseudo_reps,
+                                        feature_mode=feature_mode)
         if df is None:
             continue
         ct_safe = ct.replace(" ", "_").replace("/", "-")
@@ -1289,6 +1303,10 @@ Examples:
                         help="Skip QC/exploration plots (PCA, filter, summary)")
     parser.add_argument("--highlight-genes", nargs="+", default=None,
                         help="Genes to highlight on volcano plots (e.g. CDKN2A TP53 CCL2)")
+    parser.add_argument("--deg-mode", nargs="+", default=["all"],
+                        choices=["gene", "te", "all"],
+                        help="Feature modes for DEG: gene (exclude TE), te (only TE), "
+                             "all (default, genes+TE). Multiple modes run sequentially.")
     args = parser.parse_args(argv)
 
     # Load config from YAML or CLI args
@@ -1332,137 +1350,130 @@ def main():
     """Entry point: prepare counts → PyDESeq2 DEG → generate figures."""
     args, config = parse_cli_args()
 
-    counts_dir = os.path.join(args.out_dir, "pseudobulk_counts")
-    deg_dir = os.path.join(args.out_dir, "deg_pseudobulk")
-    go_dir = os.path.join(args.out_dir, "go_macaque")
-    fig_dir = os.path.join(args.out_dir, "figures_pseudobulk")
+    modes = args.deg_mode  # e.g. ["gene", "te", "all"]
 
-    # ── Step 1: Prepare counts ──
-    if not args.skip_prepare:
-        print("=" * 60)
-        print("STEP 1: Prepare pseudo-bulk counts")
-        print("=" * 60)
-        all_written = []
-        tissue_adata = {}
-        for tissue, cfg in config.items():
-            written, adata = prepare_counts(
-                cfg["h5ad"], counts_dir, tissue,
-                min_cells=args.min_cells, min_counts=args.min_counts,
-                n_pseudo_reps=args.n_pseudo_reps,
-            )
-            all_written.extend(written)
-            tissue_adata[tissue] = adata
-        if all_written:
-            pd.DataFrame(all_written).to_csv(
-                os.path.join(counts_dir, "pseudobulk_summary.csv"), index=False)
-            print(f"\nTotal count files: {len(all_written)}")
+    for mode in modes:
+        mode_suffix = "" if mode == "all" else f"_{mode}"
+        counts_dir = os.path.join(args.out_dir, f"pseudobulk_counts{mode_suffix}")
+        deg_dir = os.path.join(args.out_dir, f"deg_pseudobulk{mode_suffix}")
+        go_dir = os.path.join(args.out_dir, "go_macaque")
+        fig_dir = os.path.join(args.out_dir, f"figures_pseudobulk{mode_suffix}")
 
-            # QC plots (PCA, sample filtering, summary)
-            if not args.skip_qc:
-                print("\n--- QC / Exploration plots ---")
-                os.makedirs(fig_dir, exist_ok=True)
-                pseudobulk_summary_plot(all_written,
-                                        os.path.join(fig_dir, "pseudobulk_summary.png"))
-                for tissue, cfg in config.items():
-                    if tissue not in tissue_adata:
-                        continue
-                    adata = tissue_adata[tissue]
-                    # Build condition map from comparisons
-                    cond_map = {}
+        print("\n" + "=" * 60)
+        print(f"DEG MODE: {mode}")
+        print("=" * 60)
+
+        # ── Step 1: Prepare counts ──
+        if not args.skip_prepare:
+            print("=" * 60)
+            print("STEP 1: Prepare pseudo-bulk counts")
+            print("=" * 60)
+            all_written = []
+            tissue_adata = {}
+            for tissue, cfg in config.items():
+                written, adata = prepare_counts(
+                    cfg["h5ad"], counts_dir, tissue,
+                    min_cells=args.min_cells, min_counts=args.min_counts,
+                    n_pseudo_reps=args.n_pseudo_reps,
+                    feature_mode=mode,
+                )
+                all_written.extend(written)
+                tissue_adata[tissue] = adata
+            if all_written:
+                pd.DataFrame(all_written).to_csv(
+                    os.path.join(counts_dir, "pseudobulk_summary.csv"), index=False)
+                print(f"\nTotal count files: {len(all_written)}")
+
+                # QC plots (PCA, sample filtering, summary)
+                if not args.skip_qc:
+                    print("\n--- QC / Exploration plots ---")
+                    os.makedirs(fig_dir, exist_ok=True)
+                    pseudobulk_summary_plot(all_written,
+                                            os.path.join(fig_dir, "pseudobulk_summary.png"))
+                    for tissue, cfg in config.items():
+                        if tissue not in tissue_adata:
+                            continue
+                        adata = tissue_adata[tissue]
+                        cond_map = {}
+                        for comp in cfg["comparisons"]:
+                            cond_map[comp["ref"]] = "reference"
+                            cond_map[comp["treat"]] = "treatment"
+                        pca_exploration_plot(
+                            adata,
+                            os.path.join(fig_dir, f"{tissue}_pca_exploration.png"),
+                            condition_map=cond_map,
+                        )
+                        sample_filter_plot(
+                            adata,
+                            os.path.join(fig_dir, f"{tissue}_sample_filter.png"),
+                            min_cells=args.min_cells, min_counts=args.min_counts,
+                        )
+        else:
+            tissue_adata = {}
+
+        # ── Step 2: PyDESeq2 DEG ──
+        if not args.skip_deseq2:
+            print("\n" + "=" * 60)
+            print("STEP 2: PyDESeq2 DEG analysis")
+            print("=" * 60)
+            for tissue, cfg in config.items():
+                t_deg_dir = os.path.join(deg_dir, f"deg_{tissue}")
+
+                import glob
+                pattern = os.path.join(counts_dir, f"{tissue}_*_counts.csv")
+                counts_files = sorted(glob.glob(pattern))
+
+                if not counts_files:
+                    print(f"  [{tissue}] No counts files found, skipping")
+                    continue
+
+                print(f"\n[{tissue}] Found {len(counts_files)} counts files")
+
+                for counts_file in counts_files:
+                    basename = os.path.basename(counts_file)
+                    ct_safe = basename.replace(f"{tissue}_", "").replace("_counts.csv", "")
+
+                    counts_df = pd.read_csv(counts_file, index_col=0)
+                    cell_type = counts_df["cell_type"].iloc[0] if "cell_type" in counts_df.columns else ct_safe
+
                     for comp in cfg["comparisons"]:
-                        cond_map[comp["ref"]] = "reference"
-                        cond_map[comp["treat"]] = "treatment"
-                    pca_exploration_plot(
-                        adata,
-                        os.path.join(fig_dir, f"{tissue}_pca_exploration.png"),
-                        condition_map=cond_map,
-                    )
-                    sample_filter_plot(
-                        adata,
-                        os.path.join(fig_dir, f"{tissue}_sample_filter.png"),
-                        min_cells=args.min_cells, min_counts=args.min_counts,
-                    )
-    else:
-        tissue_adata = {}
+                        ref_id, treat_id = comp["ref"], comp["treat"]
+                        key = comp["key"]
 
-    # ── Step 2: PyDESeq2 DEG ──
-    if not args.skip_deseq2:
-        print("\n" + "=" * 60)
-        print("STEP 2: PyDESeq2 DEG analysis")
-        print("=" * 60)
-        for tissue, cfg in config.items():
-            t_deg_dir = os.path.join(deg_dir, f"deg_{tissue}")
-            counts_dir_tissue = counts_dir
+                        comp_dir = os.path.join(t_deg_dir, f"{tissue}_{key}")
+                        ct_dir = os.path.join(comp_dir, ct_safe)
+                        os.makedirs(ct_dir, exist_ok=True)
 
-            # Load all counts CSVs for this tissue
-            import glob
-            pattern = os.path.join(counts_dir_tissue, f"{tissue}_*_counts.csv")
-            counts_files = sorted(glob.glob(pattern))
+                        output_prefix = os.path.join(
+                            ct_dir, f"{tissue}_{key}_{ct_safe}")
 
-            if not counts_files:
-                print(f"  [{tissue}] No counts files found, skipping")
-                continue
+                        try:
+                            deg_results = run_pydeseq2(counts_df, ref_id, treat_id)
+                        except Exception as e:
+                            print(f"  ERROR: PyDESeq2 failed for {ct_safe} "
+                                  f"{ref_id} vs {treat_id}: {e}", file=sys.stderr)
+                            continue
+                        if len(deg_results) == 0:
+                            continue
 
-            print(f"\n[{tissue}] Found {len(counts_files)} counts files")
+                        deg_results.to_csv(f"{output_prefix}_DEG.csv", index=False)
 
-            for counts_file in counts_files:
-                basename = os.path.basename(counts_file)
-                ct_safe = basename.replace(f"{tissue}_", "").replace("_counts.csv", "")
+                        pydeseq2_diagnostic_plots(
+                            deg_results, f"{output_prefix}_diag",
+                            treat_id, ref_id,
+                        )
 
-                counts_df = pd.read_csv(counts_file, index_col=0)
-                cell_type = counts_df["cell_type"].iloc[0] if "cell_type" in counts_df.columns else ct_safe
-
-                for comp in cfg["comparisons"]:
-                    ref_id, treat_id = comp["ref"], comp["treat"]
-                    key = comp["key"]
-                    label = comp["label"]
-
-                    # Output directory: deg_{tissue}/{tissue}_{ref}_vs_{treat}/{cell_type}/
-                    comp_dir = os.path.join(t_deg_dir, f"{tissue}_{key}")
-                    ct_dir = os.path.join(comp_dir, ct_safe)
-                    os.makedirs(ct_dir, exist_ok=True)
-
-                    output_prefix = os.path.join(
-                        ct_dir, f"{tissue}_{key}_{ct_safe}")
-
-                    # Run PyDESeq2
-                    try:
-                        deg_results = run_pydeseq2(counts_df, ref_id, treat_id)
-                    except Exception as e:
-                        print(f"  ERROR: PyDESeq2 failed for {ct_safe} "
-                              f"{ref_id} vs {treat_id}: {e}", file=sys.stderr)
-                        continue
-                    if len(deg_results) == 0:
-                        continue
-
-                    # Save DEG CSV
-                    deg_results.to_csv(f"{output_prefix}_DEG.csv", index=False)
-
-                    # Diagnostic plots
-                    pydeseq2_diagnostic_plots(
-                        deg_results, f"{output_prefix}_diag",
-                        treat_id, ref_id,
-                    )
-
-    # ── Step 3: Plot ──
-    if not args.skip_plot:
-        print("\n" + "=" * 60)
-        print("STEP 3: Generate figures")
-        print("=" * 60)
-        plot_all(config, args.out_dir, deg_dir, go_dir, fig_dir,
-                 args.top_cell_types, args.highlight_genes)
+        # ── Step 3: Plot ──
+        if not args.skip_plot:
+            print("\n" + "=" * 60)
+            print("STEP 3: Generate figures")
+            print("=" * 60)
+            plot_all(config, args.out_dir, deg_dir, go_dir, fig_dir,
+                     args.top_cell_types, args.highlight_genes)
 
     print("\n" + "=" * 60)
     print("DONE")
     print("=" * 60)
-    if os.path.isdir(fig_dir):
-        for root, dirs, files in os.walk(fig_dir):
-            for f in sorted(files):
-                if f.endswith(".png"):
-                    fpath = os.path.join(root, f)
-                    size = os.path.getsize(fpath)
-                    rel = os.path.relpath(fpath, fig_dir)
-                    print(f"  {rel}: {size/1024:.0f}KB")
 
 
 if __name__ == "__main__":

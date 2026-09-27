@@ -103,4 +103,4 @@ python ${SCRIPT_DIR}/run.py \
   -o /home/luosg/Data/genomeStability/output/luancao \
   --sdm apptainer \
   -t 48 \
-  --dry-run
+  --rerun-triggers mtime

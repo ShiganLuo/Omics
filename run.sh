@@ -101,7 +101,8 @@ python ${SCRIPT_DIR}/run.py \
   -m /home/luosg/Data/genomeStability/data/20260908_PacBio/meta_input.tsv \
   -w Fiberseq \
   -o /data2/luosg/luncao \
-  -log /home/luosg/Data/genomeStability/log/luancao_Fiberseq.log \
+  --log /home/luosg/Data/genomeStability/log/luancao_Fiberseq.log \
   --sdm apptainer \
   -t 48 \
-  --rerun-triggers mtime
+  --rerun-triggers mtime \
+  --genome.default Mmul_T2T

@@ -19,6 +19,11 @@ import numpy as np
 import pandas as pd
 import harmonypy as hm
 import scanpy as sc
+try:
+    from .LogUtil import setup_logger
+except ImportError:
+    from LogUtil import setup_logger
+logger = setup_logger(__name__)
 
 ad.settings.allow_write_nullable_strings = True
 

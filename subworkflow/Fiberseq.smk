@@ -1,7 +1,7 @@
 """Fiber-seq subworkflow for single-molecule chromatin accessibility analysis.
 
 Workflow:
-  Step 1: fiberseq/1_prepare — predict-m6a + fire → fiberseq BAM
+  Step 1: fiberseq/1_prepare — predict-m6a (auto-skip if SPRQ) + add-nuc + fire
   Step 2: common/2_aligned  — pbmm2 align → aligned fiberseq BAM
   Step 3: fiberseq/3_extract — extract BED12 + call-peaks + qc
 
@@ -31,6 +31,11 @@ rule all:
     input:
         outfiles
 
+
+# ============================================================
+# Step 1: Prepare fiberseq BAM → common/2_fiberseq_bam
+#   predict-m6a (auto-skip if SPRQ) → add-nucleosomes → fire
+# ============================================================
 prepare_outdir = f"{outdir}/common/2_fiberseq_bam"
 
 fibertools_prepare_config = {
@@ -55,9 +60,13 @@ module fibertools_prepare:
     config: fibertools_prepare_config
 logger.debug(f"Fiber-seq prepare config: {fibertools_prepare_config}")
 use rule ft_predict_m6a from fibertools_prepare as Fiberseq_ft_predict_m6a
+use rule ft_add_nucleosomes from fibertools_prepare as Fiberseq_ft_add_nucleosomes
 use rule ft_fire from fibertools_prepare as Fiberseq_ft_fire
 
 
+# ============================================================
+# Step 2: Align to genome → common/3_align_bam
+# ============================================================
 aligned_dir = f"{outdir}/common/3_align_bam"
 
 pbmm2_config = {
@@ -83,6 +92,10 @@ module pbmm2:
 logger.debug(f"Fiber-seq pbmm2 config: {pbmm2_config}")
 use rule pbmm2_align from pbmm2 as Fiberseq_pbmm2_align
 
+
+# ============================================================
+# Step 3: Extract BED + peaks + QC → results
+# ============================================================
 analysis_outdir = f"{outdir}/results"
 
 fibertools_analysis_config = {

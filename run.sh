@@ -103,5 +103,4 @@ python ${SCRIPT_DIR}/run.py \
   -o /data2/luosg/luncao \
   --sdm apptainer \
   -t 48 \
-  --rerun-triggers mtime \
-  --dry-run
+  --rerun-triggers mtime

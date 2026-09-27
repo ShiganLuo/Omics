@@ -30,6 +30,12 @@ def _detect_m6a(bam_path: str) -> bool:
         return False
 
 
+# Pre-detect m6A for each sample at DAG time to control fire input
+def _has_m6a(sample_id):
+    bam = os.path.join(indir, sample_id, f"{sample_id}.bam")
+    return os.path.exists(bam) and _detect_m6a(bam)
+
+
 rule ft_predict_m6a:
     """Predict m6A positions from PacBio HiFi CCS BAM with kinetics.
 
@@ -82,6 +88,20 @@ rule ft_predict_m6a:
             with open(log_path, "a") as f:
                 f.write(f"ft_predict_m6a failed: {e}\n")
             raise RuntimeError(f"ft_predict_m6a failed: {e}\n")
+
+
+def get_input_for_ft_fire(wildcards):
+    """Determine fire input based on whether predict-m6a added nucleosomes.
+
+    - SPRQ (has m6A): predict-m6a skipped → fire reads from nuc.bam
+    - Non-SPRQ (no m6A): predict-m6a ran (includes nuc) → fire reads from fiberseq.bam
+    """
+    if _has_m6a(wildcards.sample_id):
+        # SPRQ: predict-m6a skipped, need add-nucleosomes
+        return outdir + "/{sample_id}/{sample_id}.fiberseq.nuc.bam"
+    else:
+        # Non-SPRQ: predict-m6a already added nuc, skip add-nucleosomes
+        return outdir + "/{sample_id}/{sample_id}.fiberseq.bam"
 
 
 rule ft_add_nucleosomes:
@@ -137,7 +157,7 @@ rule ft_fire:
     Output: Fiber-seq BAM with FIRE calls in aq tags.
     """
     input:
-        bam = outdir + "/{sample_id}/{sample_id}.fiberseq.nuc.bam"
+        bam = get_input_for_ft_fire
     output:
         bam = outdir + "/{sample_id}/{sample_id}.fiberseq.fire.bam"
     log:

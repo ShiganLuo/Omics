@@ -4,14 +4,16 @@ outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 samples = config.get("samples", [])
 fasta = config.get("genome", {}).get("fasta")
+_bam_suffix = config.get("bam_suffix", ".bam")
+_out_suffix = config.get("output_bam_suffix", ".sorted")
 
 rule pbmm2_align:
     input:
-        bam = indir + "/{sample_id}/{sample_id}.bam",
+        bam = indir + "/{sample_id}/{sample_id}" + _bam_suffix,
         fasta = fasta
     output:
-        bam = outdir + "/{sample_id}/{sample_id}.sorted.bam",
-        bai = outdir + "/{sample_id}/{sample_id}.sorted.bai"
+        bam = outdir + "/{sample_id}/{sample_id}" + _out_suffix + ".bam",
+        bai = outdir + "/{sample_id}/{sample_id}" + _out_suffix + ".bai"
     log:
         logdir + "/{sample_id}/pbmm2_align.log"
     threads: 16
@@ -69,5 +71,5 @@ rule pbmm2_align:
 
 rule pbmm2_result:
     input:
-        bam = outdir + "/{sample_id}/{sample_id}.sorted.bam",
-        bai = outdir + "/{sample_id}/{sample_id}.sorted.bai"
+        bam = outdir + "/{sample_id}/{sample_id}" + _out_suffix + ".bam",
+        bai = outdir + "/{sample_id}/{sample_id}" + _out_suffix + ".bai"

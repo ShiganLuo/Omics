@@ -4,10 +4,11 @@ indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 samples = config.get("samples", [])
+_bam_suffix = config.get("bam_suffix", ".bam")
 
 rule pbmm2_align:
     input:
-        bam = indir + "/{sample_id}/{sample_id}.bam",
+        bam = indir + "/{sample_id}/{sample_id}" + _bam_suffix,
         fasta = lambda wildcards: config["genome"][wildcards.genome]["fasta"]
     output:
         bam = outdir + "/{genome}/{sample_id}/{sample_id}.sorted.bam",

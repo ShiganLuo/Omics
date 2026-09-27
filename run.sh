@@ -100,7 +100,8 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 python ${SCRIPT_DIR}/run.py \
   -m /home/luosg/Data/genomeStability/data/20260908_PacBio/meta_input.tsv \
   -w Fiberseq \
-  -o /home/luosg/Data/genomeStability/output/luancao \
+  -o /data2/luosg/luncao \
   --sdm apptainer \
   -t 48 \
-  --rerun-triggers mtime
+  --rerun-triggers mtime \
+  --dry-run

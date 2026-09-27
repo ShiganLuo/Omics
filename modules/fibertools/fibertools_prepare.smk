@@ -93,20 +93,17 @@ rule ft_predict_m6a:
 def get_input_for_ft_fire(wildcards):
     """Determine fire input based on m6A detection and manual config.
 
-    Priority: manual config > auto-detect
+    Priority: auto-detect > manual config
     - add_nucleosomes_manual=true: force add-nucleosomes (fire reads nuc.bam)
-    - add_nucleosomes_manual=false/absent: auto-detect m6A
+    auto-detect m6A
       - SPRQ (has m6A): fire reads nuc.bam
       - Non-SPRQ (no m6A): fire reads fiberseq.bam (predict-m6a already has nuc)
     """
     add_nucleosomes_manual = config.get("Params", {}).get("fibertools", {}).get("add_nucleosomes_manual", None)
-    if add_nucleosomes_manual is True:
+    if _has_m6a(wildcards.sample_id):
         return outdir + "/{sample_id}/{sample_id}.fiberseq.nuc.bam"
-    elif add_nucleosomes_manual is False:
-        return outdir + "/{sample_id}/{sample_id}.fiberseq.bam"
     else:
-        # Auto-detect
-        if _has_m6a(wildcards.sample_id):
+        if add_nucleosomes_manual:
             return outdir + "/{sample_id}/{sample_id}.fiberseq.nuc.bam"
         else:
             return outdir + "/{sample_id}/{sample_id}.fiberseq.bam"

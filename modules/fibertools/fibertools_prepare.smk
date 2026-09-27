@@ -16,9 +16,21 @@ samples = config.get("samples", [])
 
 
 def _detect_m6a(bam_path: str) -> bool:
-    """Check if BAM already has m6A MM tags in first 100 reads."""
+    """Check if BAM already has m6A calls by inspecting @RG header.
+
+    SPRQ chemistry (BINDINGKIT=103-496-900) produces m6A calls on-instrument.
+    Fall back to checking first 100 reads for MM:Z: tags.
+    """
     import subprocess
     try:
+        # Check header for SPRQ binding kit
+        r = subprocess.run(
+            ["samtools", "view", "-H", bam_path],
+            capture_output=True, text=True, timeout=10
+        )
+        if "103-496-900" in r.stdout:
+            return True
+        # Fallback: check first 100 reads for MM tags
         r = subprocess.run(
             f"samtools view {bam_path} | head -100",
             shell=True, capture_output=True, text=True, timeout=30

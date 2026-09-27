@@ -91,17 +91,25 @@ rule ft_predict_m6a:
 
 
 def get_input_for_ft_fire(wildcards):
-    """Determine fire input based on whether predict-m6a added nucleosomes.
+    """Determine fire input based on m6A detection and manual config.
 
-    - SPRQ (has m6A): predict-m6a skipped → fire reads from nuc.bam
-    - Non-SPRQ (no m6A): predict-m6a ran (includes nuc) → fire reads from fiberseq.bam
+    Priority: manual config > auto-detect
+    - add_nucleosomes_manual=true: force add-nucleosomes (fire reads nuc.bam)
+    - add_nucleosomes_manual=false/absent: auto-detect m6A
+      - SPRQ (has m6A): fire reads nuc.bam
+      - Non-SPRQ (no m6A): fire reads fiberseq.bam (predict-m6a already has nuc)
     """
-    if _has_m6a(wildcards.sample_id):
-        # SPRQ: predict-m6a skipped, need add-nucleosomes
+    add_nucleosomes_manual = config.get("Params", {}).get("fibertools", {}).get("add_nucleosomes_manual", None)
+    if add_nucleosomes_manual is True:
         return outdir + "/{sample_id}/{sample_id}.fiberseq.nuc.bam"
-    else:
-        # Non-SPRQ: predict-m6a already added nuc, skip add-nucleosomes
+    elif add_nucleosomes_manual is False:
         return outdir + "/{sample_id}/{sample_id}.fiberseq.bam"
+    else:
+        # Auto-detect
+        if _has_m6a(wildcards.sample_id):
+            return outdir + "/{sample_id}/{sample_id}.fiberseq.nuc.bam"
+        else:
+            return outdir + "/{sample_id}/{sample_id}.fiberseq.bam"
 
 
 rule ft_add_nucleosomes:

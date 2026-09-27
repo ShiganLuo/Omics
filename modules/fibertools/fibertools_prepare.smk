@@ -34,7 +34,7 @@ fi
 
 
 # Pre-detect m6A at DAG time (runs on host) for fire input routing
-_sif = config.get("env", {}).get("fibertools", "")
+_fibertools_sif = sif("fibertools.yaml")
 
 def _has_m6a(sample_id):
     """Check header for SPRQ binding kit via container's samtools."""
@@ -42,9 +42,7 @@ def _has_m6a(sample_id):
     if not os.path.exists(bam):
         return False
     try:
-        cmd = ["samtools", "view", "-H", bam]
-        if _sif:
-            cmd = ["apptainer", "exec", _sif] + cmd
+        cmd = ["apptainer", "exec", _fibertools_sif, "samtools", "view", "-H", bam]
         r = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
         return "103-496-900" in r.stdout
     except Exception:

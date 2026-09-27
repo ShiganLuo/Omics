@@ -17,18 +17,14 @@
     },
     "Params": {
         "fibertools": {
+            "add_nucleosomes_manual": null,
             "ont": false,
             "max_fdr": 0.05,
             "min_fire_frac": 0.1,
             "sd_cov": 5.0,
             "acf": false
         },
-        "pbmm2": {
-            "preset": "CCS",
-            "threads": 16,
-            "sort_threads": 4,
-            "sort_memory": "4G"
-        }
+        "pbmm2": {}
     },
     "genome": {
         "default": "Mmul_10",

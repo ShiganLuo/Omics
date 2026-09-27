@@ -42,8 +42,9 @@ def _has_m6a(sample_id):
     if not os.path.exists(bam):
         return False
     try:
-        bam_dir = os.path.dirname(bam)
-        cmd = ["apptainer", "exec", "--bind", f"{bam_dir}:{bam_dir}", _fibertools_sif, "samtools", "view", "-H", bam]
+        real_bam = os.path.realpath(bam)
+        bam_dir = os.path.dirname(real_bam)
+        cmd = ["apptainer", "exec", "--bind", f"{bam_dir}:{bam_dir}", _fibertools_sif, "samtools", "view", "-H", real_bam]
         r = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
         return "103-496-900" in r.stdout
     except Exception:

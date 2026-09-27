@@ -60,10 +60,9 @@ rule ft_predict_m6a:
             has_m6a = _detect_m6a(input.bam)
             if has_m6a:
                 rule_logger.info(f"BAM already has m6A calls (SPRQ?), skipping predict-m6a")
-                # Copy BAM to output
-                import shutil
-                shutil.copy2(input.bam, output.bam)
-                rule_logger.info(f"Copied {input.bam} → {output.bam}")
+                # Symlink BAM to output
+                os.symlink(os.path.abspath(input.bam), output.bam)
+                rule_logger.info(f"Symlinked {input.bam} → {output.bam}")
             else:
                 rule_logger.info(f"Predicting m6A for sample {wildcards.sample_id}")
                 current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())

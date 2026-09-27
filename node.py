@@ -997,17 +997,17 @@ def runFiberseq(
     for sample_id, sample_info in samples_info_dict.items():
         samples.append(sample_id)
         # Step 1: prepare fiberseq BAM (predict-m6a + fire)
-        outfiles.append(f"{outdir}/fiberseq/1_prepare/{sample_id}/{sample_id}.fiberseq.fire.bam")
+        outfiles.append(f"{outdir}/common/2_fiberseq_bam/{sample_id}/{sample_id}.fiberseq.fire.bam")
         # Step 2: aligned BAM (pbmm2)
-        outfiles.append(f"{outdir}/common/2_aligned/{sample_id}/{sample_id}.fiberseq.fire.sorted.bam")
-        outfiles.append(f"{outdir}/common/2_aligned/{sample_id}/{sample_id}.fiberseq.fire.sorted.bai")
+        outfiles.append(f"{outdir}/common/3_align_bam/{sample_id}/{sample_id}.fiberseq.fire.sorted.bam")
+        outfiles.append(f"{outdir}/common/3_align_bam/{sample_id}/{sample_id}.fiberseq.fire.sorted.bai")
         # Step 3: analysis outputs
-        outfiles.append(f"{outdir}/fiberseq/3_analysis/{sample_id}/{sample_id}.m6a.bed.gz")
-        outfiles.append(f"{outdir}/fiberseq/3_analysis/{sample_id}/{sample_id}.nuc.bed.gz")
-        outfiles.append(f"{outdir}/fiberseq/3_analysis/{sample_id}/{sample_id}.msp.bed.gz")
-        outfiles.append(f"{outdir}/fiberseq/3_analysis/{sample_id}/{sample_id}.cpg.bed.gz")
-        outfiles.append(f"{outdir}/fiberseq/3_analysis/{sample_id}/{sample_id}.fire_peaks.bed")
-        outfiles.append(f"{outdir}/fiberseq/3_analysis/{sample_id}/{sample_id}.qc.tsv")
+        outfiles.append(f"{outdir}/results/{sample_id}/{sample_id}.m6a.bed.gz")
+        outfiles.append(f"{outdir}/results/{sample_id}/{sample_id}.nuc.bed.gz")
+        outfiles.append(f"{outdir}/results/{sample_id}/{sample_id}.msp.bed.gz")
+        outfiles.append(f"{outdir}/results/{sample_id}/{sample_id}.cpg.bed.gz")
+        outfiles.append(f"{outdir}/results/{sample_id}/{sample_id}.fire_peaks.bed")
+        outfiles.append(f"{outdir}/results/{sample_id}/{sample_id}.qc.tsv")
 
     datajson["samples"] = samples
     datajson["raw_files"] = raw_files

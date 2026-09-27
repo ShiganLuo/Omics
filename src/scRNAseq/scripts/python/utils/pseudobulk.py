@@ -18,17 +18,54 @@ Usage (CLI-only, no config file needed):
 --h5ad   tissue=/path/to.h5ad         (repeatable)
 --compare tissue:ref:treat[=label]    (repeatable, label optional)
 """
+from typing import Optional
+import logging
 import argparse, os, sys, warnings
+import numpy as np
+import pandas as pd
 warnings.filterwarnings("ignore")
 os.environ.setdefault("PYTHONNOUSERSITE", "1")
 os.environ.setdefault("MPLBACKEND", "Agg")
 
-import numpy as np
-import pandas as pd
+def setup_logger(logger_name: str, level: int = logging.INFO, log_file: Optional[str] = None) -> logging.Logger:
+    """Create and configure a logger with stream/file handlers.
 
-# ────────────────────────────────────────────────────────────
-# 1. Config
-# ────────────────────────────────────────────────────────────
+    Parameters
+    ----------
+    logger_name : str
+        Logger name.
+    level : int, default=logging.INFO
+        Logging level.
+    log_file : Optional[str], default=None
+        Optional log file path. If provided, file logging is enabled.
+
+    Returns
+    -------
+    logging.Logger
+        Configured logger instance.
+    """
+    logger = logging.getLogger(logger_name)
+    logger.propagate = True
+    logger.setLevel(level)
+    logger.handlers.clear()
+
+    fmt = logging.Formatter(
+        "%(asctime)s | %(levelname)s | %(name)s | %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
+    )
+    if log_file:
+        file_handler = logging.FileHandler(log_file, encoding="utf-8")
+        file_handler.setLevel(level)
+        file_handler.setFormatter(fmt)
+        logger.addHandler(file_handler)
+
+    stream_handler = logging.StreamHandler()
+    stream_handler.setLevel(level)
+    stream_handler.setFormatter(fmt)
+    logger.addHandler(stream_handler)
+
+    return logger
+
+logger = setup_logger(__name__)
 
 def load_config(path):
     """Load a YAML config file into the internal config dict.
@@ -265,9 +302,9 @@ def prepare_counts(h5ad_path, out_dir, label, min_cells=30, min_counts=1000,
     """
     import scanpy as sc
     os.makedirs(out_dir, exist_ok=True)
-    print(f"[{label}] Loading {h5ad_path} ...")
+    logger.info(f"[{label}] Loading {h5ad_path} ...")
     adata = sc.read_h5ad(h5ad_path)
-    print(f"  shape: {adata.shape}, samples: {adata.obs['sample_id'].nunique()}")
+    logger.info(f"  shape: {adata.shape}, samples: {adata.obs['sample_id'].nunique()}")
 
     targets = sorted(adata.obs["cell_type"].unique().tolist())
     written = []
@@ -291,7 +328,7 @@ def prepare_counts(h5ad_path, out_dir, label, min_cells=30, min_counts=1000,
             "n_genes": df.shape[1] - 3,
             "path": out_path,
         })
-        print(f"  [{ct}] n_samples={len(kept)}, n_rows={n_rows}{pseudo_note} -> {out_path}")
+        logger.info(f"  [{ct}] n_samples={len(kept)}, n_rows={n_rows}{pseudo_note} -> {out_path}")
     return written, adata
 
 
@@ -320,7 +357,7 @@ def run_pydeseq2(counts_df, ref_id, treat_id):
         from pydeseq2.dds import DeseqDataSet
         from pydeseq2.ds import DeseqStats
     except ImportError:
-        print("  ERROR: pydeseq2 not installed. pip install pydeseq2", file=sys.stderr)
+        logger.error("pydeseq2 not installed. pip install pydeseq2")
         return pd.DataFrame()
 
     # Separate metadata from gene columns
@@ -335,7 +372,7 @@ def run_pydeseq2(counts_df, ref_id, treat_id):
     treat_samples = [s for s in counts_df.index if s == treat_id or s.startswith(f"{treat_id}_rep")]
     selected = ref_samples + treat_samples
     if len(selected) < 2 or len(ref_samples) < 1 or len(treat_samples) < 1:
-        print(f"  [skip] not enough samples for {ref_id} vs {treat_id}")
+        logger.warning(f"skip: not enough samples for {ref_id} vs {treat_id}")
         return pd.DataFrame()
 
     sub = counts_df.loc[selected]
@@ -387,7 +424,7 @@ def run_pydeseq2(counts_df, ref_id, treat_id):
     results_df = results_df[[c for c in cols if c in results_df.columns]]
 
     n_sig = int(results_df["significant"].sum())
-    print(f"    {cell_type}: {ref_id} vs {treat_id} — "
+    logger.info(f"    {cell_type}: {ref_id} vs {treat_id} — "
           f"{len(results_df)} genes, {n_sig} significant")
 
     return results_df
@@ -520,7 +557,7 @@ def pca_exploration_plot(adata, output_path, sample_col="sample_id",
 
     samples = adata.obs[sample_col].unique().tolist()
     if len(samples) < 3:
-        print(f"  PCA skipped: only {len(samples)} samples (need >= 3)")
+        logger.warning(f"PCA skipped: only {len(samples)} samples (need >= 3)")
         return False
 
     # Aggregate per sample
@@ -604,7 +641,7 @@ def pca_exploration_plot(adata, output_path, sample_col="sample_id",
     plt.tight_layout()
     plt.savefig(output_path, dpi=300, bbox_inches="tight", facecolor="white")
     plt.close()
-    print(f"  PCA plot: {output_path}")
+    logger.info(f"  PCA plot: {output_path}")
     return True
 
 
@@ -679,7 +716,7 @@ def sample_filter_plot(adata, output_path, sample_col="sample_id",
     plt.tight_layout()
     plt.savefig(output_path, dpi=300, bbox_inches="tight", facecolor="white")
     plt.close()
-    print(f"  Filter plot: {output_path}")
+    logger.info(f"  Filter plot: {output_path}")
     return df
 
 
@@ -708,7 +745,7 @@ def pseudobulk_summary_plot(written_records, output_path):
     plt.tight_layout()
     plt.savefig(output_path, dpi=300, bbox_inches="tight", facecolor="white")
     plt.close()
-    print(f"  Summary plot: {output_path}")
+    logger.info(f"  Summary plot: {output_path}")
 
 
 # ────────────────────────────────────────────────────────────
@@ -1133,10 +1170,10 @@ def plot_all(config, out_dir, deg_dir, go_dir, fig_dir, top_cell_types=None,
         # Load DEG results for this tissue
         t_deg = load_all_deg(tissue_deg_dir, prefix)
         if len(t_deg) == 0:
-            print(f"  [{tissue}] No DEG results found, skipping plots")
+            logger.warning(f"[{tissue}] No DEG results found, skipping plots")
             continue
         all_deg_frames.append(t_deg)
-        print(f"  [{tissue}] DEG rows: {len(t_deg)}")
+        logger.info(f"  [{tissue}] DEG rows: {len(t_deg)}")
 
         # 1. Count heatmap (cross-comparison → fig_dir)
         os.makedirs(fig_dir, exist_ok=True)
@@ -1178,12 +1215,12 @@ def plot_all(config, out_dir, deg_dir, go_dir, fig_dir, top_cell_types=None,
                                   title=title,
                                   highlight_genes=highlight_genes)
                 if ok:
-                    print(f"    volcano: {tissue}/{ct}/{label}")
+                    logger.info(f"    volcano: {tissue}/{ct}/{label}")
 
                 ok = top_deg_heatmap(adata, t_deg, ct, key,
                                      os.path.join(ct_dir, f"{prefix}_heatmap.png"))
                 if ok:
-                    print(f"    heatmap: {tissue}/{ct}/{label}")
+                    logger.info(f"    heatmap: {tissue}/{ct}/{label}")
 
             # GO dotplots → ct_dir
             if os.path.isdir(go_dir):
@@ -1210,7 +1247,7 @@ def plot_all(config, out_dir, deg_dir, go_dir, fig_dir, top_cell_types=None,
                     out = os.path.join(ct_go_dir, f"go_dotplot_{direction.lower()}.png")
                     ok = go_dotplot(os.path.join(go_dir, go_file), out, title, top_n=12)
                     if ok:
-                        print(f"    GO: {base}")
+                        logger.info(f"    GO: {base}")
 
         # 3. Overlap bar plot (cross-comparison → fig_dir)
         if len(cfg["comparisons"]) >= 2:
@@ -1225,7 +1262,7 @@ def plot_all(config, out_dir, deg_dir, go_dir, fig_dir, top_cell_types=None,
     if all_deg_frames:
         all_deg = pd.concat(all_deg_frames, ignore_index=True)
         all_deg.to_csv(os.path.join(deg_dir, "all_pseudobulk_DEG.csv"), index=False)
-        print(f"\nCombined DEG: {len(all_deg)} rows -> {deg_dir}/all_pseudobulk_DEG.csv")
+        logger.info(f"\nCombined DEG: {len(all_deg)} rows -> {deg_dir}/all_pseudobulk_DEG.csv")
 
 
 # ────────────────────────────────────────────────────────────
@@ -1359,15 +1396,15 @@ def main():
         go_dir = os.path.join(args.out_dir, "go_macaque")
         fig_dir = os.path.join(args.out_dir, f"figures_pseudobulk{mode_suffix}")
 
-        print("\n" + "=" * 60)
-        print(f"DEG MODE: {mode}")
-        print("=" * 60)
+        logger.info("\n" + "=" * 60)
+        logger.info(f"DEG MODE: {mode}")
+        logger.info("=" * 60)
 
         # ── Step 1: Prepare counts ──
         if not args.skip_prepare:
-            print("=" * 60)
-            print("STEP 1: Prepare pseudo-bulk counts")
-            print("=" * 60)
+            logger.info("=" * 60)
+            logger.info("STEP 1: Prepare pseudo-bulk counts")
+            logger.info("=" * 60)
             all_written = []
             tissue_adata = {}
             for tissue, cfg in config.items():
@@ -1382,11 +1419,11 @@ def main():
             if all_written:
                 pd.DataFrame(all_written).to_csv(
                     os.path.join(counts_dir, "pseudobulk_summary.csv"), index=False)
-                print(f"\nTotal count files: {len(all_written)}")
+                logger.info(f"\nTotal count files: {len(all_written)}")
 
                 # QC plots (PCA, sample filtering, summary)
                 if not args.skip_qc:
-                    print("\n--- QC / Exploration plots ---")
+                    logger.info("\n--- QC / Exploration plots ---")
                     os.makedirs(fig_dir, exist_ok=True)
                     pseudobulk_summary_plot(all_written,
                                             os.path.join(fig_dir, "pseudobulk_summary.png"))
@@ -1413,9 +1450,9 @@ def main():
 
         # ── Step 2: PyDESeq2 DEG ──
         if not args.skip_deseq2:
-            print("\n" + "=" * 60)
-            print("STEP 2: PyDESeq2 DEG analysis")
-            print("=" * 60)
+            logger.info("\n" + "=" * 60)
+            logger.info("STEP 2: PyDESeq2 DEG analysis")
+            logger.info("=" * 60)
             for tissue, cfg in config.items():
                 t_deg_dir = os.path.join(deg_dir, f"deg_{tissue}")
 
@@ -1424,10 +1461,10 @@ def main():
                 counts_files = sorted(glob.glob(pattern))
 
                 if not counts_files:
-                    print(f"  [{tissue}] No counts files found, skipping")
+                    logger.warning(f"[{tissue}] No counts files found, skipping")
                     continue
 
-                print(f"\n[{tissue}] Found {len(counts_files)} counts files")
+                logger.info(f"\n[{tissue}] Found {len(counts_files)} counts files")
 
                 for counts_file in counts_files:
                     basename = os.path.basename(counts_file)
@@ -1450,8 +1487,8 @@ def main():
                         try:
                             deg_results = run_pydeseq2(counts_df, ref_id, treat_id)
                         except Exception as e:
-                            print(f"  ERROR: PyDESeq2 failed for {ct_safe} "
-                                  f"{ref_id} vs {treat_id}: {e}", file=sys.stderr)
+                            logger.error(f"PyDESeq2 failed for {ct_safe} "
+                                  f"{ref_id} vs {treat_id}: {e}")
                             continue
                         if len(deg_results) == 0:
                             continue
@@ -1465,15 +1502,15 @@ def main():
 
         # ── Step 3: Plot ──
         if not args.skip_plot:
-            print("\n" + "=" * 60)
-            print("STEP 3: Generate figures")
-            print("=" * 60)
+            logger.info("\n" + "=" * 60)
+            logger.info("STEP 3: Generate figures")
+            logger.info("=" * 60)
             plot_all(config, args.out_dir, deg_dir, go_dir, fig_dir,
                      args.top_cell_types, args.highlight_genes)
 
-    print("\n" + "=" * 60)
-    print("DONE")
-    print("=" * 60)
+    logger.info("\n" + "=" * 60)
+    logger.info("DONE")
+    logger.info("=" * 60)
 
 
 if __name__ == "__main__":

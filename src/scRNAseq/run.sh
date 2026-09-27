@@ -18,7 +18,7 @@ export CONDA_NO_PLUGINS=true
 # --skip-plot: 火山图由 generate_report.py 单独生成
 
 python workflow/Omics/src/scRNAseq/scripts/python/utils/pseudobulk.py \
-  --out-dir output/luancao/scRNAseq/analysis/results \
+  --out-dir /home/luosg/Data/genomeStability/output/luancao/scRNAseq/analysis/results/DEG \
   --h5ad ovaries=output/luancao/scRNAseq/common/5_combine_h5ad/ovaries/ovaries_scTE_auto.h5ad \
   --h5ad uterus=output/luancao/scRNAseq/common/5_combine_h5ad/Uterus/Uterus_scTE_auto.h5ad \
   --compare ovaries:luanchao-21310-10XSC3:luanchao-11238-10XSC3=Youth_vs_Aged \

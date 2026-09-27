@@ -34,17 +34,18 @@ fi
 
 
 # Pre-detect m6A at DAG time (runs on host) for fire input routing
+_sif = config.get("env", {}).get("fibertools", "")
+
 def _has_m6a(sample_id):
-    """Check header for SPRQ binding kit. Runs on host during DAG construction."""
-    import subprocess
+    """Check header for SPRQ binding kit via container's samtools."""
     bam = os.path.join(indir, sample_id, f"{sample_id}.bam")
     if not os.path.exists(bam):
         return False
     try:
-        r = subprocess.run(
-            ["samtools", "view", "-H", bam],
-            capture_output=True, text=True, timeout=10
-        )
+        cmd = ["samtools", "view", "-H", bam]
+        if _sif:
+            cmd = ["apptainer", "exec", _sif] + cmd
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
         return "103-496-900" in r.stdout
     except Exception:
         return False
@@ -105,9 +106,7 @@ def get_input_for_ft_fire(wildcards):
     - add_nucleosomes_manual=true: force fire reads nuc.bam
     """
     add_nucleosomes_manual = config.get("Params", {}).get("fibertools", {}).get("add_nucleosomes_manual", None)
-    if _has_m6a(wildcards.sample_id):
-        return outdir + "/{sample_id}/{sample_id}.fiberseq.nuc.bam"
-    elif add_nucleosomes_manual:
+    if _has_m6a(wildcards.sample_id) or add_nucleosomes_manual:
         return outdir + "/{sample_id}/{sample_id}.fiberseq.nuc.bam"
     else:
         return outdir + "/{sample_id}/{sample_id}.fiberseq.bam"

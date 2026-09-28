@@ -1,0 +1,19 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "log",
+    "samples": [],
+    "ROOT_DIR": ".",
+    "env": {},
+    "bam_substring": "sorted_markdup",
+    "bw_suffix": ".coverage.bw",
+    "Procedure": {
+        "bamCoverage": null
+    },
+    "Params": {
+        "coverage": {
+            "bin_size": 1000,
+            "normalize": "RPGC"
+        }
+    }
+}

@@ -276,6 +276,38 @@ use rule * from centromere as PacVar_centromere_*
 #   Giurgiu et al., "Reconstructing extrachromosomal DNA structural heterogeneity
 #   from long-read sequencing data using Decoil", Genome Research, 2024.
 #   DOI: 10.1101/gr.279123.124.  https://github.com/madagiurgiu25/decoil-pre
+#
+# Pipeline shape:
+#   - SV VCF   <- pbsv upstream (outdir/variation/germline_sv/<sample_id>/...)
+#   - Coverage <- decoil/coverage submodule (deeptools bamCoverage on markdup BAM)
+#   - Decoil   <- decoil module (reconstruction-only: BAM + VCF + BW in, BED out)
+
+DECOIL_COV_DIR = f"{outdir}/eccdna/coverage"
+
+decoil_coverage_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "env": config.get("env", {}),
+    "indir": gatk_prepare_config["outdir"],
+    "outdir": DECOIL_COV_DIR,
+    "logdir": logdir,
+    "samples": samples,
+    "bam_substring": "sorted_markdup",
+    "bw_suffix": ".coverage.bw",
+    "Procedure": {
+        "bamCoverage": config.get("Procedure", {}).get("bamCoverage")
+    },
+    "Params": {
+        "coverage": config.get("Params", {}).get("decoil", {}).get("coverage", {})
+    }
+}
+module decoil_coverage:
+    snakefile: "../modules/decoil/coverage/coverage.smk"
+    config: decoil_coverage_config
+logger.debug(f"decoil_coverage_config: {decoil_coverage_config}")
+use rule decoil_coverage from decoil_coverage as PacVar_decoil_coverage
+use rule decoil_coverage_result from decoil_coverage as PacVar_decoil_coverage_result
+
+
 decoil_config = {
     "ROOT_DIR": ROOT_DIR,
     "env": config.get("env", {}),
@@ -284,6 +316,10 @@ decoil_config = {
     "logdir": logdir,
     "samples": samples,
     "bam_substring": "sorted_markdup",
+    "vcf_dir": f"{outdir}/variation/germline_sv",
+    "vcf_suffix": ".sv.vcf.gz",
+    "bw_dir": DECOIL_COV_DIR,
+    "bw_suffix": ".coverage.bw",
     "Procedure": {
         "decoil": config.get("Procedure", {}).get("decoil")
     },

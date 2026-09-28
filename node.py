@@ -354,6 +354,10 @@ def runPacVar(
             outfiles.append(f"{outdir}/repeat/trgt/plot/{sample_id}/{sample_id}.trgt.repeat.png")
 
     # eccDNA / ecDNA reconstruction via Decoil
+    # Decoil is reconstruction-only: SV VCF comes from pbsv upstream and the
+    # coverage bigwig from the subworkflow's `decoil_coverage` rule (see
+    # subworkflow/PacVar.smk). Only declare decoil's own reconstruction
+    # outputs here.
     genome_gtf = _genome_ref.get("gtf")
     if enable_eccdna and genome_gtf:
         for sample_id in samples:
@@ -361,8 +365,6 @@ def runPacVar(
             outfiles.append(f"{outdir}/eccdna/{sample_id}/decoil/reconstruct.ecDNA.bed")
             outfiles.append(f"{outdir}/eccdna/{sample_id}/decoil/reconstruct.ecDNA.filtered.bed")
             outfiles.append(f"{outdir}/eccdna/{sample_id}/decoil/summary.txt")
-            outfiles.append(f"{outdir}/eccdna/{sample_id}/decoil/{sample_id}.sv.vcf.gz")
-            outfiles.append(f"{outdir}/eccdna/{sample_id}/decoil/{sample_id}.coverage.bw")
     elif enable_eccdna:
         logger.warning(
             "PacVar: Params.eccdna.enabled=true but genome.gtf is missing; "

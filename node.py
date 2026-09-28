@@ -1,6 +1,6 @@
 import os
 import time
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 import logging
 import json
 from src.common.util.type import DesignPair, CompareGroupPair, SampleInfo, CellrangerInput
@@ -58,6 +58,7 @@ def _init_raw_json(
     indir: str,
     outdir: str,
     raw_files: List[str],
+    workflow: Optional[str] = None
 ) -> str:
     """Set common fields for raw.json: ROOT_DIR, indir, outdir, logdir, raw_files.
 
@@ -65,18 +66,24 @@ def _init_raw_json(
     foreign server's database directory to use the current server's directory.
     """
     root_dir = os.path.dirname(__file__)
-    datajson["ROOT_DIR"] = root_dir
-    datajson["indir"] = indir
-    datajson["outdir"] = outdir
     logdir = os.path.join(outdir, "log")
     os.makedirs(logdir, exist_ok=True)
-    datajson["logdir"] = logdir
-    datajson["raw_files"] = raw_files
-
-    # --- tmp_dir: container temp directory, default outdir/tmp ---
     if not datajson.get("tmp_dir"):
         tmp_dir = os.path.join(outdir, "tmp")
         os.makedirs(tmp_dir, exist_ok=True)
+    if workflow in ["PacVar", "ncRNAseq"]:
+        datajson["ROOT_DIR"] = root_dir
+        datajson["Params"]["workflow"]["indir"] = indir
+        datajson["Params"]["workflow"]["outdir"] = outdir
+        datajson["Params"]["workflow"]["logdir"] = logdir
+        datajson["Params"]["workflow"]["raw_files"] = raw_files
+        datajson["tmp_dir"] = tmp_dir
+    else:
+        datajson["ROOT_DIR"] = root_dir
+        datajson["indir"] = indir
+        datajson["outdir"] = outdir
+        datajson["logdir"] = logdir
+        datajson["raw_files"] = raw_files
         datajson["tmp_dir"] = tmp_dir
 
     # --- server database path migration ---
@@ -284,20 +291,49 @@ def runPacVar(
         outdir: str,
         raw_files: List[str],
     ):
-    """Prepare input JSON for PacVar (PacBio variant calling) workflow."""
-    root_dir = _init_raw_json(datajson, indir, outdir, raw_files)
-    outfiles = []
-    samples = []
-    skip_snp = datajson.get("Params", {}).get("skip_snp", False)
-    skip_sv = datajson.get("Params", {}).get("skip_sv", False)
-    skip_phase = datajson.get("Params", {}).get("skip_phase", False)
-    skip_repeat = datajson.get("Params", {}).get("skip_repeat", False)
-    snv_caller = datajson.get("Params", {}).get("snv_caller", "deepvariant")
+    """Prepare input JSON for PacVar (PacBio variant calling) workflow.
+
+    Step gating is driven entirely by `Params.<step>.enabled` flags
+    (snv, sv, phase, repeat, telomere, eccdna) and `Params.snv_caller`.
+    The subworkflow declares every module unconditionally; this function
+    decides which outfiles (and therefore which DAG leaves) are requested.
+    """
+    root_dir = _init_raw_json(datajson, indir, outdir, raw_files, "PacVar")
+    outfiles: List[str] = []
+    samples: List[str] = []
+    params = datajson.get("Params", {})
+
+    def _enabled(step: str) -> bool:
+        """Read Params.<step>.enabled (default True).
+
+        Each downstream step has its own gate under `Params.<step>` so users
+        can switch off individual analyses (e.g. eccDNA) without affecting
+        the rest of the pipeline.
+        """
+        block = params.get(step)
+        if isinstance(block, dict) and "enabled" in block:
+            return bool(block["enabled"])
+        return True
+
+    snv_caller = params.get("snv_caller", "deepvariant")
+    enable_snp = _enabled("snv")
+    enable_sv = _enabled("sv")
+    enable_phase = _enabled("phase")
+    enable_repeat = _enabled("repeat")
+    enable_telomere = _enabled("telomere")
+    enable_eccdna = _enabled("eccdna")
+
+    # Resolve nested genome reference (genome.default + genome.references.<org>)
+    _default_genome = datajson.get("genome", {}).get("default")
+    _genome_ref = (
+        datajson.get("genome", {}).get("references", {}).get(_default_genome, {})
+        if _default_genome else {}
+    )
 
     for sample_id, sample_info in samples_info_dict.items():
         samples.append(sample_id)
         # SNP calling
-        if not skip_snp:
+        if enable_snp:
             if snv_caller == "deepvariant":
                 outfiles.append(f"{outdir}/variation/germline_snv_indel/{sample_id}/{sample_id}.vcf.gz")
                 outfiles.append(f"{outdir}/variation/germline_snv_indel/{sample_id}/{sample_id}.vcf.gz.csi")
@@ -305,22 +341,21 @@ def runPacVar(
                 outfiles.append(f"{outdir}/variation/germline_snv_indel/{sample_id}/{sample_id}.filtered.vcf.gz")
                 outfiles.append(f"{outdir}/variation/germline_snv_indel/{sample_id}/{sample_id}.filtered.vcf.gz.csi")
         # SV calling
-        if not skip_sv:
+        if enable_sv:
             outfiles.append(f"{outdir}/variation/germline_sv/{sample_id}/{sample_id}.sv.vcf.gz")
             outfiles.append(f"{outdir}/variation/germline_sv/{sample_id}/{sample_id}.sv.vcf.gz.csi")
         # phasing
-        if not skip_phase and not skip_snp and not skip_sv:
+        if enable_phase and enable_snp and enable_sv:
             outfiles.append(f"{outdir}/variation/germline_snv_indel/{sample_id}/{sample_id}.phased.vcf.gz")
             outfiles.append(f"{outdir}/variation/germline_sv/{sample_id}/{sample_id}.sv.phased.vcf.gz")
         # repeat characterization
-        if not skip_repeat and datajson["genome"]["repeat_bed"]:
+        if enable_repeat and _genome_ref.get("repeat_bed"):
             outfiles.append(f"{outdir}/repeat/trgt/genotype/{sample_id}/{sample_id}.trgt.vcf.gz")
             outfiles.append(f"{outdir}/repeat/trgt/plot/{sample_id}/{sample_id}.trgt.repeat.png")
 
     # eccDNA / ecDNA reconstruction via Decoil
-    skip_eccdna = datajson.get("Params", {}).get("skip_eccdna", False)
-    genome_gtf = datajson.get("genome", {}).get("gtf")
-    if not skip_eccdna and genome_gtf:
+    genome_gtf = _genome_ref.get("gtf")
+    if enable_eccdna and genome_gtf:
         for sample_id in samples:
             outfiles.append(f"{outdir}/eccdna/{sample_id}/decoil/reconstruct.bed")
             outfiles.append(f"{outdir}/eccdna/{sample_id}/decoil/reconstruct.ecDNA.bed")
@@ -328,15 +363,14 @@ def runPacVar(
             outfiles.append(f"{outdir}/eccdna/{sample_id}/decoil/summary.txt")
             outfiles.append(f"{outdir}/eccdna/{sample_id}/decoil/{sample_id}.sv.vcf.gz")
             outfiles.append(f"{outdir}/eccdna/{sample_id}/decoil/{sample_id}.coverage.bw")
-    elif not skip_eccdna:
+    elif enable_eccdna:
         logger.warning(
-            "PacVar: skip_eccdna=false but genome.gtf is missing; "
+            "PacVar: Params.eccdna.enabled=true but genome.gtf is missing; "
             "Decoil requires a gene annotation GTF. Skipping eccDNA outfiles."
         )
 
     # telomere & centromere analysis
-    skip_telomere = datajson.get("Params", {}).get("skip_telomere", False)
-    if not skip_telomere:
+    if enable_telomere:
         for sample_id in samples:
             # Telogator2 (per-chromosome-arm)
             outfiles.append(f"{outdir}/repeat/telomere/{sample_id}/telogator2/tlens_by_allele.tsv")
@@ -353,7 +387,7 @@ def runPacVar(
     gatk_tmp_dir = os.path.join(outdir, "tmp")
     os.makedirs(gatk_tmp_dir, exist_ok=True)
     datajson["Params"]["gatk"]["tmp-dir"] = gatk_tmp_dir
-    datajson["samples"] = samples
+    datajson["Params"]["workflow"]["samples"] = samples
     datajson["outfiles"] = outfiles
     return _write_raw_json(datajson, outdir)
 

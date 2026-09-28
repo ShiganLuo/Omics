@@ -73,29 +73,41 @@
     }
   },
   "Params": {
-    "skip_snp": {
-      "type": "bool",
-      "required": true
+    "snv": {
+      "enabled": {
+        "type": "bool",
+        "required": false
+      }
     },
-    "skip_sv": {
-      "type": "bool",
-      "required": true
+    "sv": {
+      "enabled": {
+        "type": "bool",
+        "required": false
+      }
     },
-    "skip_phase": {
-      "type": "bool",
-      "required": true
+    "phase": {
+      "enabled": {
+        "type": "bool",
+        "required": false
+      }
     },
-    "skip_repeat": {
-      "type": "bool",
-      "required": true
+    "repeat": {
+      "enabled": {
+        "type": "bool",
+        "required": false
+      }
     },
-    "skip_telomere": {
-      "type": "bool",
-      "required": true
+    "telomere": {
+      "enabled": {
+        "type": "bool",
+        "required": false
+      }
     },
-    "skip_eccdna": {
-      "type": "bool",
-      "required": true
+    "eccdna": {
+      "enabled": {
+        "type": "bool",
+        "required": false
+      }
     },
     "snv_caller": {
       "type": "str",
@@ -115,6 +127,10 @@
       "repeat_id": {
         "type": "str",
         "required": true
+      },
+      "enabled": {
+        "type": "bool",
+        "required": false
       }
     },
     "telogator2": {
@@ -145,6 +161,10 @@
       }
     },
     "decoil": {
+      "enabled": {
+        "type": "bool",
+        "required": false
+      },
       "min_sv_len": {"type": "int", "required": true},
       "fragment_min_cov": {"type": "int", "required": true},
       "fragment_max_cov": {"type": "int", "required": true},
@@ -186,30 +206,13 @@
     }
   },
   "genome": {
-    "fasta": {
+    "default": {
       "type": "str",
-      "required": true,
-      "path": "file"
+      "required": true
     },
-    "fai": {
-      "type": "str",
-      "required": true,
-      "path": "file"
-    },
-    "gtf": {
-      "type": "str",
-      "required": true,
-      "path": "file"
-    },
-    "dict": {
-      "type": "null",
-      "nullable": true,
-      "required": false
-    },
-    "repeat_bed": {
-      "type": "null",
-      "nullable": true,
-      "required": false
+    "references": {
+      "type": "dict",
+      "required": true
     }
   },
   "container": {

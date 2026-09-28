@@ -703,16 +703,7 @@
         }
       }
     },
-    "PacVar": {
-      "genome": {
-        "fai": {
-          "required": {
-            "type": "bool",
-            "required": true
-          }
-        }
-      }
-    },
+    "PacVar": {},
     "Mutation": {
       "genome": {
         "fasta": {

@@ -60,8 +60,7 @@ python ${SCRIPT_DIR}/run.py \
     -t 48 \
     --log /data/pub/zhousha/20260207_Exome/log/PacVar.log \
     --rerun-trigger mtime \
-    --sdm apptainer \
-    --dry-run
+    --sdm apptainer
 
 # python ${SCRIPT_DIR}/run.py \
 #     -m /home/luosg/Data/genomeStability/data/MS/sample_input.tsv \

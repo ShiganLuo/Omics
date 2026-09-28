@@ -112,7 +112,7 @@
             "GRCm39": {
                 "fasta": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
                 "fai": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa.fai",
-                "gtf": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/gencode.vM36.primary_assembly.basic.annotation.gtf",
+                "gtf": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf",
                 "dict": null,
                 "repeat_bed": null
             }

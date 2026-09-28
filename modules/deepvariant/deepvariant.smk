@@ -28,8 +28,9 @@ rule deepvariant_run:
     log:
         logdir + "/{sample_id}/deepvariant.log"
     threads: 8
+    conda: "deepvariant.yaml"
     container:
-        config.get("container", {}).get("deepvariant") or "docker://google/deepvariant:1.10.0"
+        sif("deepvariant.yaml")
     params:
         deepvariant = config.get("Procedure", {}).get("deepvariant") or "run_deepvariant",
         bcftools = config.get("Procedure", {}).get("bcftools") or "bcftools",
@@ -40,11 +41,12 @@ rule deepvariant_run:
     container:
         sif("deepvariant.yaml")
     run:
+        log_path = str(log)
         try:
-            open(log[0], "w").close()
-            logger = setup_logger(logger_name="deepvariant_run", log_file=log[0])
+            open(log_path, "w").close()
+            rule_logger = setup_logger(logger_name="deepvariant_run", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            logger.info(f"Start DeepVariant for sample {wildcards.sample_id} at {current_time}")
+            rule_logger.info(f"Start DeepVariant for sample {wildcards.sample_id} at {current_time}")
             script = os.path.join(outdir,f"{wildcards.sample_id}/deepvariant_{current_time}.sh")
             cmd1 = [
                 params.deepvariant,
@@ -62,11 +64,11 @@ rule deepvariant_run:
                 f.write("#!/bin/bash\n")
                 f.write(" ".join(cmd1) + "\n")
                 f.write(" ".join(cmd2) + "\n")
-            shell("bash {script} > {log} 2>&1")
+            shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log[0], "a") as f:
+            with open(log_path, "a") as f:
                 f.write(f"Error during DeepVariant execution: {str(e)}\n")
-            raise f"Error occurred while running DeepVariant for sample {wildcards.sample_id}: {e}, you can check the log file {log[0]} for more details."
+            raise f"Error occurred while running DeepVariant for sample {wildcards.sample_id}: {e}, you can check the log file {log_path} for more details."
 
 rule deepvariant_result:
     input:

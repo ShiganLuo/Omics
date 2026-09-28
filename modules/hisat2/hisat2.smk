@@ -122,33 +122,38 @@ rule hisat2_align:
     container:
         sif("hisat2.yaml")
     run:
-        current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
-        script = f"{outdir}/{wildcards.sample_id}/hisat2_align.{current_time}.sh"
-        cmd1 = [
-            f"{params.hisat2}",
-            "-x", params.index_prefix,
-            "--score-min", params.score_min,
-            "-k", str(params.k),
-            "--novel-splicesite-outfile", output.splice,
-            "--un-conc-gz", params.unmapped_prefix,
-            params.flag_params,
-            params.input_params,
-            "-p", str(threads),
-        ]
-        if params.no_spliced_alignment:
-            cmd1.append("--no-spliced-alignment")
-        cmd2 = [
-
-            "|", f"{params.samtools}", "sort", "-@", str(threads), "-o", output.outfile
-        ]
-        cmd = cmd1 + cmd2
-        with open(script, 'w') as f:
-            f.write("#!/bin/bash\n")
-            f.write(" ".join(cmd) +"\n")
-        shell(f"bash {script} > {log} 2>&1")
-
-
-
+        log_path = str(log)
+        try:
+            open(log_path, "w").close
+            rule_logger = seup_logger("hisat2_align", log_file=log_path)
+            current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
+            script = f"{outdir}/{wildcards.sample_id}/hisat2_align.{current_time}.sh"
+            cmd1 = [
+                f"{params.hisat2}",
+                "-x", params.index_prefix,
+                "--score-min", params.score_min,
+                "-k", str(params.k),
+                "--novel-splicesite-outfile", output.splice,
+                "--un-conc-gz", params.unmapped_prefix,
+                params.flag_params,
+                params.input_params,
+                "-p", str(threads),
+            ]
+            if params.no_spliced_alignment:
+                cmd1.append("--no-spliced-alignment")
+            cmd2 = [
+                "|", f"{params.samtools}", "sort", "-@", str(threads), "-o", output.outfile
+            ]
+            cmd = cmd1 + cmd2
+            with open(script, 'w') as f:
+                f.write("#!/bin/bash\nset -euo pipefail\n")
+                f.write(" ".join(cmd) +"\n")
+                f.write(f"echo 'hisat_align for {wildcards.sample_id} was completed successfully at {current_time}'")
+            shell(f"bash {script} > {log_path} 2>&1")
+        except Exception as e:
+            with open(log_path, "a") as f:
+                f.write(f"histat_align failed: {e}")
+            raise RuntimeError(f"histat_align failed: {e}")
 
 rule hisat2_result:
     input:

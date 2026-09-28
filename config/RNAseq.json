@@ -104,8 +104,8 @@
             "alignEndsType": "Local",
             "outFilterMismatchNoverReadLmax": 1.0,
             "outFilterMismatchNmax": 10,
-            "outFilterMultimapNmax": 10,
-            "winAnchorMultimapNmax": 50
+            "outFilterMultimapNmax": 100,
+            "winAnchorMultimapNmax": 100
         },
         "STAR_fusion": {
             "outFilterMultimapNmax": 1,
@@ -131,8 +131,8 @@
         },
         "hisat2_TEtranscripts": {
             "score_min": "L,0,-0.2",
-            "flag_params": "",
-            "k": 5
+            "flag_params": "--no-mixed --no-discordant",
+            "k": 100
         },
         "hisat2_stringtie": {
             "k": 1,

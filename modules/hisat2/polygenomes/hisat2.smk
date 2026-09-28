@@ -63,21 +63,21 @@ rule hisat2_index:
             raise e
 
 def get_hisat2_index(wildcards):
-    logger.info(f"[get_hisat2_index] called with wildcards: {wildcards}")
+    logger.debug(f"[get_hisat2_index] called with wildcards: {wildcards}")
     config_index_prefix = config.get('genome', {}).get(wildcards.genome, {}).get('hisat2_index_prefix') or None
     if config_index_prefix:
         first_file = f"{config_index_prefix}.1.ht2"
         if os.path.exists(first_file):
-            logger.info(f"genome {wildcards.genome}'s hisat index exists, use it")
+            logger.debug(f"genome {wildcards.genome}'s hisat index exists, use it")
             return [f"{config_index_prefix}.{idx}.ht2" for idx in [1, 2, 3, 4, 5, 6, 7, 8]]
         else:
-            logger.info(f"genome {wildcards.genome}'s hisat index doesn't exist, generate it")
+            logger.debug(f"genome {wildcards.genome}'s hisat index doesn't exist, generate it")
     return [outdir + f"/index/{wildcards.genome}/{wildcards.genome}.{idx}.ht2" for idx in [1, 2, 3, 4, 5, 6, 7, 8]]
 
 
 def get_alignment_input(wildcards):
     """Dynamically determines the input file type: paired-end or single-end sequencing."""
-    logger.info(f"[get_alignment_input] called with wildcards: {wildcards}")
+    logger.debug(f"[get_alignment_input] called with wildcards: {wildcards}")
     paired_r1 = f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}_1.fq.gz"
     paired_r2 = f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}_2.fq.gz"
     single = f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}.single.fq.gz"
@@ -103,49 +103,56 @@ rule hisat2_align:
     threads: 12
     conda:
         "../hisat2.yaml"
-    container:
-        sif("../hisat2.yaml")
     params:
-        HISAT2 = config.get('Procedure', {}).get('hisat2') or 'hisat2',
-        SAMTOOLS = config.get('Procedure', {}).get('samtools') or 'samtools',
+        hisat2 = config.get('Procedure',{}).get('hisat2') or 'hisat2',
+        samtools = config.get('Procedure',{}).get('samtools') or 'samtools',
+        score_min = config.get('Params',{}).get('hisat2', {}).get('score_min') or "L,0,-0.2",
+        no_spliced_alignment = config.get('Params',{}).get('hisat2', {}).get('no-spliced-alignment') or False,
+        flag_params = config.get('Params',{}).get('hisat2', {}).get('flag_params') or "",
+        k = config.get('Params',{}).get('hisat2', {}).get('k') or 5,
+        unmapped_prefix = lambda wildcards: f"{outdir}/{wildcards.genome}/{wildcards.sample_id}/unmapped",
         index_prefix = lambda wildcards, input: input.index[0].rsplit('.', 2)[0],
-        input_params = lambda wildcards, input:
+        input_params = lambda wildcards, input: \
             f"-1 {input.fastq[0]} -2 {input.fastq[1]}" if len(input.fastq) == 2 else f"-U {input.fastq[0]}"
+    conda:
+        "hisat2.yaml"
+    container:
+        sif("hisat2.yaml")
     run:
         log_path = str(log)
         try:
-            open(log_path, "w").close()
-            rule_logger = setup_logger("hisat2_align", log_file=log_path)
-            current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            rule_logger.info(f"Start hisat2_align for sample {wildcards.sample_id} at {current_time}")
-
-            sample_outdir = os.path.dirname(str(output.outfile))
-            os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(sample_outdir, f"hisat2_align_{current_time}.sh")
-
-            # Build hisat2 command
-            cmd_hisat2 = [
-                params.HISAT2, "-x", params.index_prefix,
+            open(log_path, "w").close
+            rule_logger = seup_logger("hisat2_align", log_file=log_path)
+            current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
+            sample_outdir = os.path.dirname(outfile)
+            script = f"{sample_outdir}/hisat2_align.{current_time}.sh"
+            cmd1 = [
+                f"{params.hisat2}",
+                "-x", params.index_prefix,
+                "--score-min", params.score_min,
+                "-k", str(params.k),
+                "--novel-splicesite-outfile", output.splice,
+                "--un-conc-gz", params.unmapped_prefix,
+                params.flag_params,
                 params.input_params,
                 "-p", str(threads),
             ]
-            # Build samtools sort command
-            cmd_samtools = [
-                params.SAMTOOLS, "sort", "-@", str(threads), "-o", str(output.outfile),
+            if params.no_spliced_alignment:
+                cmd1.append("--no-spliced-alignment")
+            cmd2 = [
+                "|", f"{params.samtools}", "sort", "-@", str(threads), "-o", output.outfile
             ]
-            with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
-                f.write("set -euo pipefail\n")
-                f.write(" ".join(cmd_hisat2) + " 2>> " + log_path + " | \\\n")
-                f.write(" ".join(cmd_samtools) + "\n")
-                f.write(f"echo 'hisat2_align for sample {wildcards.sample_id} completed'\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
-
+            cmd = cmd1 + cmd2
+            with open(script, 'w') as f:
+                f.write("#!/bin/bash\nset -euo pipefail\n")
+                f.write(" ".join(cmd) +"\n")
+                f.write(f"echo 'hisat_align for {wildcards.sample_id} was completed successfully at {current_time}'")
+            shell(f"bash {script} > {log_path} 2>&1")
         except Exception as e:
             with open(log_path, "a") as f:
-                f.write(f"hisat2_align failed for sample {wildcards.sample_id}: {e}\n")
-            logger.error(f"hisat2_align failed for sample {wildcards.sample_id}: {e}")
-            raise e
+                f.write(f"histat_align failed for sample {wildcards.sample_id}: {e}")
+            raise RuntimeError(f"histat_align failed for sample {wildcards.sample_id}: {e}")
+
 
 rule hisat2_result:
     input:

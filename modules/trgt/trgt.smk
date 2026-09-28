@@ -60,13 +60,25 @@ rule trgt_genotype:
             f.write(" ".join(cmd) + "\n")
         shell(f"bash {script} > {log} 2>&1")
 
+def get_input_for_trgt_plot(wildcards):
+    logger.debug(f"trgt_plot called with {wildcards}")
+    in_dict = {}
+    in_dict["vcf"] = os.path.join(outdir, f"genotype/{wildcards.sample_id}/{wildcards.sample_id}.trgt.vcf.gz")
+    in_dict["bam"] = os.path.join(outdir, f"genotype/{wildcards.sample_id}/{wildcards.sample_id}.trgt.spanning.sorted.bam")
+    if not fasta or not os.path.exists(fasta):
+        raise ValueError(f"Fasta file {fasta} does not exist. Please check the configuration.")
+    in_dict["fasta"] = fasta
+    if not fai or not os.path.exists(fai):
+        raise ValueError(f"FAI file {fai} does not exist. Please check the configuration.")
+    in_dict["fai"] = fai
+    if not repeat_bed or not os.path.exists(repeat_bed):
+        raise ValueError(f"Repeat BED file {repeat_bed} does not exist. Please check the configuration.")
+    in_dict["bed"] = repeat_bed
+    return in_dict
+
 rule trgt_plot:
     input:
-        vcf = outdir + "/genotype/{sample_id}/{sample_id}.trgt.vcf.gz",
-        bam = outdir + "/genotype/{sample_id}/{sample_id}.trgt.spanning.sorted.bam",
-        fasta = fasta,
-        fai = fai,
-        bed = repeat_bed
+        unpack(get_input_for_trgt_plot)
     output:
         png = outdir + "/plot/{sample_id}/{sample_id}.trgt.repeat.png"
     log:

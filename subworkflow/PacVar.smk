@@ -30,7 +30,7 @@ use rule genome_index from genome as PacVar_genome_index
 
 pbmm2_config = {
     "indir": indir,
-    "outdir": f"{outdir}/bam/1_sorted_bam",
+    "outdir": f"{outdir}/common/2_sorted_bam",
     "logdir": logdir,
     "samples": samples,
     "ROOT_DIR": ROOT_DIR,
@@ -53,7 +53,7 @@ gatk_prepare_config = {
     "ROOT_DIR": ROOT_DIR,
     "env": config.get("env", {}),
     "indir": pbmm2_config["outdir"],
-    "outdir": f"{outdir}/bam/2_markdup_bam",
+    "outdir": f"{outdir}/common/3_markdup_bam",
     "logdir": logdir,
     "input_bam_substring": "sorted",
     "Procedure": {

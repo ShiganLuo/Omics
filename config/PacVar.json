@@ -38,19 +38,19 @@
             "snv_caller": "deepvariant"
         },
         "snv": {
-            "enabled": true
+            "enabled": false
         },
         "sv": {
-            "enabled": true
+            "enabled": false
         },
         "phase": {
-            "enabled": true
+            "enabled": false
         },
         "repeat": {
-            "enabled": true
+            "enabled": false
         },
         "telomere": {
-            "enabled": true
+            "enabled": false
         },
         "eccdna": {
             "enabled": true
@@ -59,9 +59,9 @@
             "model_type": "PACBIO"
         },
         "trgt": {
+            "enabled": false,
             "karyotype": "XX",
-            "repeat_id": "HTT",
-            "enabled": true
+            "repeat_id": "HTT"
         },
         "telogator2": {
             "threads": 16
@@ -84,7 +84,7 @@
             }
         },
         "decoil": {
-            "enabled": true,
+            "enabled": false,
             "min_sv_len": 500,
             "fragment_min_cov": 5,
             "fragment_max_cov": 100000,

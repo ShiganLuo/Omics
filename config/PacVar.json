@@ -6,6 +6,7 @@
         "env_dir": "/data/pub/zhousha/Database/env",
         "genome": "/data/pub/zhousha/Database/env/genome/genome.sif",
         "centromere": "/data/pub/zhousha/Database/env/centromere/centromere.sif",
+        "deeptools": "/data/pub/zhousha/Database/env/deeptools/deeptools.sif",
         "deepvariant": "/data/pub/zhousha/Database/env/deepvariant/deepvariant.sif",
         "decoil": "/data/pub/zhousha/Database/env/decoil/decoil.sif",
         "gatk": "/data/pub/zhousha/Database/env/gatk/gatk4.sif",
@@ -82,6 +83,10 @@
                 "RGPL": "PacBio",
                 "RGPU": "HiFi"
             }
+        },
+        "bamCoverage": {
+            "bin_size": 50,
+            "normalizeUsing": "CPM"
         },
         "decoil": {
             "enabled": false,

@@ -1,15 +1,4 @@
-"""Coverage bigwig generation for Decoil ecDNA reconstruction.
-
-Generates a per-sample genome-wide coverage bigwig (``bamCoverage`` from
-deeptools) directly from the markdup BAM. The bigwig is consumed by the
-``decoil`` module as the ``-c / --coverage`` argument to ``decoil reconstruct``.
-
-Decoil needs a single bigwig per sample; we do not perform samtools dedup
-before bamCoverage because PacBio HiFi markdup BAMs are already duplicate-free
-in practice and a second dedup pass would drop signal.
-"""
-
-include: "../../common/common.smk"
+include: "../common/common.smk"
 
 indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
@@ -33,7 +22,7 @@ def get_bam_input(wildcards):
     }
 
 
-rule decoil_coverage:
+rule bamCoverage:
     """Generate per-sample genome-wide coverage bigwig for Decoil."""
     input:
         unpack(get_bam_input),
@@ -43,20 +32,18 @@ rule decoil_coverage:
         logdir + "/{sample_id}/decoil_coverage.log"
     threads: 8
     conda:
-        "coverage.yaml"
+        "deeptools.yaml"
     container:
-        sif("coverage.yaml")
+        sif("deeptools.yaml")
     params:
         bamCoverage = config.get("Procedure", {}).get("bamCoverage") or "bamCoverage",
-        bin_size    = config.get("Params", {}).get("coverage", {}).get("bin_size", 1000),
-        normalize   = config.get("Params", {}).get("coverage", {}).get("normalize", "RPGC"),
-        outdir_sample = outdir + "/{sample_id}",
+        bin_size    = config.get("Params", {}).get("bamCoverage", {}).get("bin_size") or 50,
+        normalizeUsing  = config.get("Params", {}).get("bamCoverage", {}).get("normalizeUsing") or "CPM",
+        outdir_sample = outdir + "/{sample_id}"
     run:
         log_path = str(log)
-        rule_logger = setup_logger(
-            logger_name="decoil_coverage", log_file=log_path
-        )
         open(log_path, "w").close()
+        rule_logger = setup_logger(logger_name="decoil_coverage", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(
@@ -72,7 +59,7 @@ rule decoil_coverage:
                 params.bamCoverage,
                 "--numberOfProcessors", str(threads),
                 "--binSize", str(params.bin_size),
-                "--normalizeUsing", params.normalize,
+                "--normalizeUsing", params.normalizeUsing,
                 "-b", input.bam,
                 "-o", output.bw,
             ]
@@ -87,19 +74,11 @@ rule decoil_coverage:
             rule_logger.info("Executing: " + " ".join(cmd))
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(
-                    f"decoil_coverage failed for sample {wildcards.sample_id}: {e}\n"
-                )
-            rule_logger.error(
-                f"decoil_coverage failed for sample {wildcards.sample_id}: {e}"
-            )
-            raise RuntimeError(
-                f"decoil_coverage failed for sample {wildcards.sample_id}: {e}"
-            )
+            rule_logger.error(f"decoil_coverage failed for sample {wildcards.sample_id}: {e}")
+            raise RuntimeError(f"decoil_coverage failed for sample {wildcards.sample_id}: {e}")
 
 
-rule decoil_coverage_result:
+rule bamCoverage_result:
     """Result aggregation rule."""
     input:
-        bw = outdir + "/{sample_id}/{sample_id}" + bw_suffix,
+        bw = outdir + "/{sample_id}/{sample_id}" + bw_suffix

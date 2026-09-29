@@ -16,7 +16,7 @@ sample_ip_input_map = config.get("sample_ip_input_map", {})
 # Genome reference resolution — RNAseq pattern
 genome = config.get("genome", {}).get("default")
 genome_ref = config.get("genome", {}).get("references", {}).get(genome, {})
-logger.info(f"PeakCalling genome: {genome}, ref keys: {list(genome_ref.keys())}")
+logger.debug(f"PeakCalling genome: {genome}, ref keys: {list(genome_ref.keys())}")
 
 rule all:
     input:
@@ -41,7 +41,7 @@ fastqc_raw_config = {
 module fastqc_raw:
     snakefile: "../modules/fastqc/fastqc.smk"
     config: fastqc_raw_config
-logger.info(f"fastqc_raw_config: {fastqc_raw_config}")
+logger.debug(f"fastqc_raw_config: {fastqc_raw_config}")
 use rule fastqc from fastqc_raw as PeakCalling_fastqc_raw
 
 # ==============================================================================
@@ -65,7 +65,7 @@ trim_galore_config = {
 module trim_galore:
     snakefile: "../modules/trim-galore/trim-galore.smk"
     config: trim_galore_config
-logger.info(f"TrimGalore parameters: {trim_galore_config}")
+logger.debug(f"TrimGalore parameters: {trim_galore_config}")
 use rule trimming_Paired from trim_galore as PeakCalling_trimming_Paired
 use rule trimming_Single from trim_galore as PeakCalling_trimming_Single
 
@@ -88,7 +88,7 @@ fastqc_trimmed_config = {
 module fastqc_trimmed:
     snakefile: "../modules/fastqc/fastqc.smk"
     config: fastqc_trimmed_config
-logger.info(f"fastqc_trimmed_config: {fastqc_trimmed_config}")
+logger.debug(f"fastqc_trimmed_config: {fastqc_trimmed_config}")
 use rule fastqc from fastqc_trimmed as PeakCalling_fastqc_trimmed
 
 # ==============================================================================
@@ -112,7 +112,7 @@ bowtie2_config = {
 module bowtie2:
     snakefile: "../modules/bowtie2/bowtie2.smk"
     config: bowtie2_config
-logger.info(f"bowtie2_config: {bowtie2_config}")
+logger.debug(f"bowtie2_config: {bowtie2_config}")
 use rule bowtie2_index from bowtie2 as PeakCalling_bowtie2_index
 use rule bowtie2_align_paired from bowtie2 as PeakCalling_bowtie2_align_paired
 use rule bowtie2_align_single from bowtie2 as PeakCalling_bowtie2_align_single
@@ -144,7 +144,7 @@ gatk_prepare_config = {
 module gatk_prepare:
     snakefile: "../modules/gatk/gatk_prepare.smk"
     config: gatk_prepare_config
-logger.info(f"gatk_prepare_config: {gatk_prepare_config}")
+logger.debug(f"gatk_prepare_config: {gatk_prepare_config}")
 use rule addReadsGroup from gatk_prepare as PeakCalling_addReadsGroup
 use rule MarkDuplicates from gatk_prepare as PeakCalling_MarkDuplicates
 
@@ -175,7 +175,7 @@ igv_config = {
 module igv:
     snakefile: "../modules/igv/igv.smk"
     config: igv_config
-logger.info(f"igv_config: {igv_config}")
+logger.debug(f"igv_config: {igv_config}")
 use rule samtools_dedup from igv as PeakCalling_dedup
 use rule wig from igv as PeakCalling_bigwig
 
@@ -192,7 +192,7 @@ track_config = {
 module track:
     snakefile: "../modules/track/track.smk"
     config: track_config
-logger.info(f"track_config: {track_config}")
+logger.debug(f"track_config: {track_config}")
 use rule * from track as PeakCalling_*
 # =============================================================================
 # Step 7: MACS3 Peak Calling
@@ -219,7 +219,7 @@ macs3_config = {
 module macs3:
     snakefile: "../modules/macs3/macs3.smk"
     config: macs3_config
-logger.info(f"macs3_config: {macs3_config}")
+logger.debug(f"macs3_config: {macs3_config}")
 use rule macs3_callpeak from macs3 as PeakCalling_macs3_callpeak
 use rule macs3_cutoff_plot from macs3 as PeakCalling_macs3_cutoff_plot
 
@@ -244,7 +244,7 @@ frip_score_config = {
 module frip_score:
     snakefile: "../modules/frip_score/frip_score.smk"
     config: frip_score_config
-logger.info(f"frip_score_config: {frip_score_config}")
+logger.debug(f"frip_score_config: {frip_score_config}")
 use rule frip_score from frip_score as PeakCalling_frip_score
 
 # ==============================================================================
@@ -252,7 +252,7 @@ use rule frip_score from frip_score as PeakCalling_frip_score
 # Computes signal matrix around peaks (computeMatrix) and plots heatmap
 # (plotHeatmap) for visualizing ChIP-seq enrichment patterns.
 # ==============================================================================
-deeptools_heatmap_config = {
+deeptools_config = {
     "ROOT_DIR": ROOT_DIR,
     "env": config.get("env", {}),
     "indir": macs3_config["outdir"],
@@ -275,14 +275,14 @@ deeptools_heatmap_config = {
         "tss_bed": genome_ref.get("tss_bed"),
     },
 }
-module deeptools_heatmap:
-    snakefile: "../modules/deeptools_heatmap/deeptools_heatmap.smk"
-    config: deeptools_heatmap_config
-logger.info(f"deeptools_heatmap_config: {deeptools_heatmap_config}")
-use rule bigwig_ratio from deeptools_heatmap as PeakCalling_bigwig_ratio
-use rule bigwig_ratio_result from deeptools_heatmap as PeakCalling_bigwig_ratio_result
-use rule heatmap from deeptools_heatmap as PeakCalling_heatmap
-use rule heatmap_gene from deeptools_heatmap as PeakCalling_heatmap_gene
+module deeptools:
+    snakefile: "../modules/deeptools/heatmap.smk"
+    config: deeptools_config
+logger.debug(f"deeptools_config: {deeptools_config}")
+use rule bigwig_ratio from deeptools as PeakCalling_bigwig_ratio
+use rule bigwig_ratio_result from deeptools as PeakCalling_bigwig_ratio_result
+use rule heatmap from deeptools as PeakCalling_heatmap
+use rule heatmap_gene from deeptools as PeakCalling_heatmap_gene
 
 # ==============================================================================
 # Step 10: HOMER Peak Annotation
@@ -307,7 +307,7 @@ homer_config = {
 module homer:
     snakefile: "../modules/homer/homer.smk"
     config: homer_config
-logger.info(f"homer_config: {homer_config}")
+logger.debug(f"homer_config: {homer_config}")
 use rule homer_annotatepeaks from homer as PeakCalling_homer_annotatepeaks
 
 # ==============================================================================
@@ -338,7 +338,7 @@ peak_te_overlap_config = {
 module peak_te_overlap:
     snakefile: "../modules/peak_te_overlap/peak_te_overlap.smk"
     config: peak_te_overlap_config
-logger.info(f"peak_te_overlap_config: {peak_te_overlap_config}")
+logger.debug(f"peak_te_overlap_config: {peak_te_overlap_config}")
 use rule peak_te_overlap from peak_te_overlap as PeakCalling_peak_te_overlap
 use rule peak_centric_overlap from peak_te_overlap as PeakCalling_peak_centric_overlap
 use rule peak_te_overlap_fig from peak_te_overlap as PeakCalling_peak_te_overlap_fig
@@ -367,5 +367,5 @@ PeakCalling_report_config = {
 module PeakCalling_report:
     snakefile: "../modules/PeakCalling_report/PeakCalling_report.smk"
     config: PeakCalling_report_config
-logger.info(f"report_config: {PeakCalling_report_config}")
+logger.debug(f"report_config: {PeakCalling_report_config}")
 use rule generate_report from PeakCalling_report as PeakCalling_generate_report

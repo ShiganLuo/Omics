@@ -169,9 +169,9 @@ rule <tool>_<action>:
         ...
     run:
         log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger("<tool>_<action>", log_file=log_path)
         try:
-            open(log_path, "w").close()
-            rule_logger = setup_logger("<tool>_<action>", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start <tool> <action> for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.xxx))
@@ -187,10 +187,8 @@ rule <tool>_<action>:
                 f.write(f'echo "<tool> <action> for {wildcards.sample_id} at {current_time} completed successfully"\n')
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"Error occurred during <tool> <action> for sample {wildcards.sample_id}: {e}\n")
-            logger.error(f"Error occurred during <tool> <action> for sample {wildcards.sample_id}: {e}")
-            raise e
+            rule_logger.error(f"Error occurred during <tool> <action> for sample {wildcards.sample_id}: {e}\n")
+            raise RuntimeError(f"Error occurred during <tool> <action> for sample {wildcards.sample_id}: {e}\n")
 ```
 
 每个module snakefile必须含有一个面板规则记录module主要输出，便于node.py确定输出文件，格式如下：

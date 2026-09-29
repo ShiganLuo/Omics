@@ -11,9 +11,9 @@
         "bamCoverage": null
     },
     "Params": {
-        "coverage": {
+        "bamCoverage": {
             "bin_size": 1000,
-            "normalize": "RPGC"
+            "normalize": "CPM"
         }
     }
 }

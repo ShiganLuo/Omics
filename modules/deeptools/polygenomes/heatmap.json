@@ -1,0 +1,17 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "logs",
+    "genome": {
+        "GRCm39": {
+            "gtf": "path/to/annotation.gtf",
+            "te_gtf": "path/to/TE.gtf",
+            "tss_bed": "path/to/tss.bed"
+        },
+        "GRCh38": {
+            "gtf": "path/to/annotation.gtf",
+            "te_gtf": "path/to/TE.gtf",
+            "tss_bed": "path/to/tss.bed"
+        }
+    }
+}

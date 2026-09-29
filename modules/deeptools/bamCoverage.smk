@@ -23,13 +23,12 @@ def get_bam_input(wildcards):
 
 
 rule bamCoverage:
-    """Generate per-sample genome-wide coverage bigwig for Decoil."""
     input:
         unpack(get_bam_input),
     output:
         bw = outdir + "/{sample_id}/{sample_id}" + bw_suffix,
     log:
-        logdir + "/{sample_id}/decoil_coverage.log"
+        logdir + "/{sample_id}/bamCoverage.log"
     threads: 8
     conda:
         "deeptools.yaml"
@@ -43,17 +42,17 @@ rule bamCoverage:
     run:
         log_path = str(log)
         open(log_path, "w").close()
-        rule_logger = setup_logger(logger_name="decoil_coverage", log_file=log_path)
+        rule_logger = setup_logger(logger_name="bamCoverage", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(
-                f"Start decoil_coverage for sample {wildcards.sample_id} "
+                f"Start bamCoverage for sample {wildcards.sample_id} "
                 f"at {current_time}"
             )
             os.makedirs(str(params.outdir_sample), exist_ok=True)
             script = os.path.join(
                 str(params.outdir_sample),
-                f"decoil_coverage_{wildcards.sample_id}_{current_time}.sh",
+                f"bamCoverage_{wildcards.sample_id}_{current_time}.sh",
             )
             cmd = [
                 params.bamCoverage,
@@ -68,14 +67,14 @@ rule bamCoverage:
                 f.write("set -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(
-                    f'echo "decoil_coverage for {wildcards.sample_id} at '
+                    f'echo "bamCoverage for {wildcards.sample_id} at '
                     f'{current_time} completed successfully"\n'
                 )
             rule_logger.info("Executing: " + " ".join(cmd))
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            rule_logger.error(f"decoil_coverage failed for sample {wildcards.sample_id}: {e}")
-            raise RuntimeError(f"decoil_coverage failed for sample {wildcards.sample_id}: {e}")
+            rule_logger.error(f"bamCoverage failed for sample {wildcards.sample_id}: {e}")
+            raise RuntimeError(f"bamCoverage failed for sample {wildcards.sample_id}: {e}")
 
 
 rule bamCoverage_result:

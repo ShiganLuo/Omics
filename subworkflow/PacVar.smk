@@ -284,7 +284,7 @@ use rule * from centromere as PacVar_centromere_*
 
 DECOIL_COV_DIR = f"{outdir}/eccdna/coverage"
 
-decoil_coverage_config = {
+bamCoverage_config = {
     "ROOT_DIR": ROOT_DIR,
     "env": config.get("env", {}),
     "indir": gatk_prepare_config["outdir"],
@@ -297,16 +297,14 @@ decoil_coverage_config = {
         "bamCoverage": config.get("Procedure", {}).get("bamCoverage")
     },
     "Params": {
-        "coverage": config.get("Params", {}).get("decoil", {}).get("coverage", {})
+        "bamCoverage": config.get("Params", {}).get("bamCoverage", {})
     }
 }
-module decoil_coverage:
-    snakefile: "../modules/decoil/coverage/coverage.smk"
-    config: decoil_coverage_config
-logger.debug(f"decoil_coverage_config: {decoil_coverage_config}")
-use rule decoil_coverage from decoil_coverage as PacVar_decoil_coverage
-use rule decoil_coverage_result from decoil_coverage as PacVar_decoil_coverage_result
-
+module bamCoverage:
+    snakefile: "../modules/deeptools/bamCoverage.smk"
+    config: bamCoverage_config
+logger.debug(f"bamCoverage_config: {bamCoverage_config}")
+use rule bamCoverage from bamCoverage as PacVar_bamCoverage
 
 decoil_config = {
     "ROOT_DIR": ROOT_DIR,

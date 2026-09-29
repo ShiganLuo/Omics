@@ -40,7 +40,6 @@ rule pbsv_discover:
             script = os.path.join(outdir,f"{wildcards.sample_id}/pbsv_discover_{current_time}.sh")
             cmd = [
                 params.pbsv, "discover",
-                "--num-threads", str(threads),
                 input.bam,
                 output.svsig
             ]

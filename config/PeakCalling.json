@@ -12,7 +12,7 @@
     "macs3": "/home/luosg/Database/env/macs3/macs3.sif",
     "track": "/home/luosg/Database/env/track/track.sif",
     "trim-galore": "/home/luosg/Database/env/trim-galore/trim-galore.sif",
-    "deeptools_heatmap": "/home/luosg/Database/env/deeptools_heatmap/deeptools_heatmap.sif",
+    "deeptool": "/data/pub/zhousha/Database/env/deeptools/deeptools.sif",
     "peak_te_overlap": "/home/luosg/Database/env/peak_te_overlap/peak_te_overlap.sif"
   },
   "indir": "",

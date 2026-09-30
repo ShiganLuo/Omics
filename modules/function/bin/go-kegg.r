@@ -41,7 +41,7 @@ define_up_down_genes <- function(
   lfc_cut = 1,
   p_cut = 0.05
 ) {
-  df <- read.csv(infile, sep = "\t", header = TRUE, check.names = FALSE)
+  df <- data.table::fread(infile, header = TRUE, data.table = FALSE)
 
   if (!all(c(gene_col, value_col, p_col) %in% colnames(df))) {
     log_msg("ERROR",
@@ -90,12 +90,9 @@ run_go_kegg <- function(
     kegg_org <- "mmu"
   }
 
-  gene_df <- bitr(
-    genes,
-    fromType = "SYMBOL",
-    toType = "ENTREZID",
-    OrgDb = OrgDb,
-    drop = TRUE
+  gene_df <- tryCatch(
+    bitr(genes, fromType = "SYMBOL", toType = "ENTREZID", OrgDb = OrgDb, drop = TRUE),
+    error = function(e) data.frame(SYMBOL = character(0), ENTREZID = character(0))
   )
 
   entrez <- unique(gene_df$ENTREZID)
@@ -156,23 +153,33 @@ plot_back_to_back <- function(
   title = "",
   outfile
 ) {
-  up <- up_df %>%
-    arrange(pvalue) %>%
-    slice_head(n = top) %>%
-    mutate(
-      Group = "Up",
-      value = -log10(pvalue)
-    )
+  # Early return if no results
+  if (nrow(up_df) == 0 && nrow(down_df) == 0) {
+    p <- ggplot() +
+      annotate("text", x = 0, y = 0, label = "No enriched terms", size = 6) +
+      labs(title = title, x = NULL, y = NULL) +
+      theme_void() +
+      theme(plot.title = element_text(hjust = 0.5))
+    ggsave(outfile, p, width = 10, height = 4, dpi = 300, bg = "white")
+    return(invisible(NULL))
+  }
 
-  down <- down_df %>%
-    arrange(pvalue) %>%
-    slice_head(n = top) %>%
-    mutate(
-      Group = "Down",
-      value = -(-log10(pvalue))
-    )
+  # Process each direction independently (one may be empty)
+  parts <- list()
+  if (nrow(up_df) > 0 && "pvalue" %in% colnames(up_df)) {
+    parts$up <- up_df %>%
+      arrange(pvalue) %>%
+      slice_head(n = top) %>%
+      mutate(Group = "Up", value = -log10(pvalue))
+  }
+  if (nrow(down_df) > 0 && "pvalue" %in% colnames(down_df)) {
+    parts$down <- down_df %>%
+      arrange(pvalue) %>%
+      slice_head(n = top) %>%
+      mutate(Group = "Down", value = -(-log10(pvalue)))
+  }
 
-  df <- bind_rows(up, down)
+  df <- bind_rows(parts)
 
   if (nrow(df) == 0) {
     p <- ggplot() +
@@ -247,6 +254,11 @@ run_pipeline <- function(
 
   log_msg("INFO", "Up genes:", length(genes$up),
           "  Down genes:", length(genes$down))
+
+  if (length(genes$up) == 0 && length(genes$down) == 0) {
+    log_msg("WARN", "No significant genes, skipping GO/KEGG enrichment.")
+    return(invisible(NULL))
+  }
 
   writeLines(genes$up, file.path(outdir, "up_genes.txt"))
   writeLines(genes$down, file.path(outdir, "down_genes.txt"))

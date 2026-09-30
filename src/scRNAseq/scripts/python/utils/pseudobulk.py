@@ -1198,7 +1198,7 @@ def plot_all(config, out_dir, deg_dir, go_dir, fig_dir, top_cell_types=None,
             else:
                 sig_count = t_deg[(t_deg["significant"]) &
                                   (t_deg["comparison"] == key)].groupby("cell_type").size()
-                cts = sig_count.sort_values(ascending=False).head(3).index.tolist()
+                cts = sig_count.sort_values(ascending=False).index.tolist()
                 if not cts:
                     cts = sorted(t_deg.loc[t_deg["comparison"] == key, "cell_type"].unique().tolist())
 

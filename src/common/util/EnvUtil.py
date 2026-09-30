@@ -357,10 +357,9 @@ class EnvUtil:
             with urlopen(req, timeout=timeout) as resp:
                 return True, f"HTTP {resp.status}"
         except HTTPError as exc:
-            # 401 = registry alive but needs token auth (normal for v2);
+            # 401 = mirror's generic auth gate (NOT proof image exists);
             # 404 = repo not in this mirror; 403 = repo exists but no access.
-            if exc.code in (401,):
-                return True, f"HTTP {exc.code} (auth required)"
+            # Only 200 (in the try block above) confirms image availability.
             return False, f"HTTP {exc.code}: {exc.reason}"
         except (URLError, socket.timeout, TimeoutError) as exc:
             return False, f"{type(exc).__name__}: {exc}"
@@ -427,6 +426,7 @@ class EnvUtil:
         channels: List[str] = []
         deps: List[str] = []
         pip_deps: List[str] = []
+        build_deps: List[str] = []
 
         current_section: Optional[str] = None
         in_pip_subsection: bool = False
@@ -447,16 +447,18 @@ class EnvUtil:
                     name = val.strip()
                     current_section = None
                     in_pip_subsection = False
-                elif key in ("channels", "dependencies") and val:
+                elif key in ("channels", "dependencies", "build_dependencies") and val:
                     # Inline value, e.g. "dependencies: [a, b]"
                     current_section = key
                     in_pip_subsection = False
                     items = [x.strip() for x in val.strip("[]").split(",") if x.strip()]
                     if key == "channels":
                         channels.extend(items)
+                    elif key == "build_dependencies":
+                        build_deps.extend(items)
                     else:
                         deps.extend(items)
-                elif key in ("channels", "dependencies"):
+                elif key in ("channels", "dependencies", "build_dependencies"):
                     current_section = key
                     in_pip_subsection = False
                 else:
@@ -469,6 +471,8 @@ class EnvUtil:
                     item = m.group(1).strip()
                     if current_section == "channels":
                         channels.append(item)
+                    elif current_section == "build_dependencies":
+                        build_deps.append(item)
                     elif current_section == "dependencies":
                         if in_pip_subsection:
                             # pip: sub-section items
@@ -491,6 +495,7 @@ class EnvUtil:
             "channels": channels,
             "dependencies": deps,
             "pip_dependencies": pip_deps,
+            "build_dependencies": build_deps,
         }
 
     @staticmethod
@@ -525,26 +530,26 @@ class EnvUtil:
     # ------------------------------------------------------------------
     BACKENDS = {
         "micromamba": {
-            "apptainer_from": "dockerproxy.net/mambaorg/micromamba:latest",
-            "docker_from": "dockerproxy.net/mambaorg/micromamba:latest",
+            "apptainer_from": "docker.1ms.run/mambaorg/micromamba:latest",
+            "docker_from": "docker.1ms.run/mambaorg/micromamba:latest",
             "verify_cmd": ["micromamba", "env", "list"],
             "description": "Fastest, lightest (default)",
         },
         "mamba": {
-            "apptainer_from": "dockerproxy.net/condaforge/miniforge3:latest",
-            "docker_from": "dockerproxy.net/condaforge/miniforge3:latest",
+            "apptainer_from": "docker.1ms.run/condaforge/miniforge3:latest",
+            "docker_from": "docker.1ms.run/condaforge/miniforge3:latest",
             "verify_cmd": ["mamba", "env", "list"],
             "description": "Fast conda replacement",
         },
         "conda": {
-            "apptainer_from": "dockerproxy.net/condaforge/miniforge3:latest",
-            "docker_from": "dockerproxy.net/condaforge/miniforge3:latest",
+            "apptainer_from": "docker.1ms.run/condaforge/miniforge3:latest",
+            "docker_from": "docker.1ms.run/condaforge/miniforge3:latest",
             "verify_cmd": ["conda", "env", "list"],
             "description": "Slowest, most compatible",
         },
         "uv": {
-            "apptainer_from": "dockerproxy.net/python:3.11-slim",
-            "docker_from": "dockerproxy.net/python:3.11-slim",
+            "apptainer_from": "docker.1ms.run/python:3.11-slim",
+            "docker_from": "docker.1ms.run/python:3.11-slim",
             "verify_cmd": ["python3", "-c", "import sys; print(sys.version)"],
             "description": "PyPI-only packages",
         },
@@ -605,19 +610,16 @@ class EnvUtil:
         deps: List[str] = parsed["dependencies"]  # type: ignore[assignment]
         channels: List[str] = parsed.get("channels", [])  # type: ignore[assignment]
 
-        # If conda channels are specified (conda-forge, bioconda, etc.), use conda
-        if channels:
-            return False
-
         # conda deps that are just python/pip meta-packages are fine
         conda_deps = [d for d in deps if not re.match(r"^(python|pip)\b", d.strip(), re.I)]
         pip_deps: List[str] = parsed.get("pip_dependencies", [])  # type: ignore[assignment]
 
-        # No conda deps at all: pypi-only if there are pip deps
+        # No real conda deps (only python/pip): pypi-only if there are pip deps
+        # Channels like conda-forge/bioconda are harmless when unused
         if not conda_deps:
             return bool(pip_deps)
 
-        # Has conda deps but no channels specified: not pypi-only
+        # Has real conda deps: not pypi-only
         return False
 
     @classmethod
@@ -718,6 +720,15 @@ class EnvUtil:
         backend_config = cls.BACKENDS[resolved_backend]
         logger.info(f"Using backend: {resolved_backend} ({backend_config['description']})")
 
+        # Extract python version from dependencies for uv base image
+        python_version = "3.11"  # default
+        all_deps: List[str] = parsed.get("dependencies", [])  # type: ignore[assignment]
+        for d in all_deps:
+            m = re.match(r"^python\s*[=~><!]+\s*(\d+\.\d+)", d.strip(), re.I)
+            if m:
+                python_version = m.group(1)
+                break
+
         if pypi_only:
             def_text = cls._render_def_uv(
                 env_name=env_name,
@@ -726,6 +737,7 @@ class EnvUtil:
                 yaml_content=yaml_content,
                 def_filename=Path(def_path).name,
                 backend_config=backend_config,
+                python_version=python_version,
             )
         else:
             def_text = cls._render_def(
@@ -844,8 +856,6 @@ ENDOFSCRIPT
     Generated from {yaml_filename}.
 """
 
-    UV_FROM = "dockerproxy.net/python:3.11-slim"
-
     @classmethod
     def _render_def_uv(
         cls,
@@ -855,6 +865,7 @@ ENDOFSCRIPT
         yaml_content: str,
         def_filename: str = "env.def",
         backend_config: Optional[Dict] = None,
+        python_version: str = "3.11",
     ) -> str:
         """Render an Apptainer def file using uv for PyPI-only packages.
 
@@ -872,6 +883,12 @@ ENDOFSCRIPT
             Filename of the .def file (for the ``# Build:`` comment).
         backend_config : Optional[Dict]
             Backend configuration dictionary.
+        python_version : str
+            Python version from YAML (e.g. "3.9", "3.11"). Used to
+            select the base Docker image tag.
+        build_sys_deps : Optional[List[str]]
+            System build dependencies from YAML's ``build_dependencies``
+            section (e.g. ``["build-essential", "zlib1g-dev"]``).
 
         Returns
         -------
@@ -881,7 +898,7 @@ ENDOFSCRIPT
         if backend_config is None:
             backend_config = cls.BACKENDS.get("uv", cls.BACKENDS[cls.DEFAULT_BACKEND])
 
-        from_image = backend_config.get("apptainer_from", cls.BACKENDS["uv"]["apptainer_from"])
+        from_image = f"ghcr.io/astral-sh/uv:python{python_version}-trixie-slim"
         pip_args = " ".join(f'"{p}"' for p in pip_packages)
         return f"""# Auto-generated Apptainer definition file for {env_name} (PyPI/uv)
 # Source YAML: {yaml_filename}
@@ -895,10 +912,10 @@ From: {from_image}
 %post
     /bin/bash << 'ENDOFSCRIPT'
     set -euo pipefail
-    apt-get update && apt-get install -y --no-install-recommends build-essential zlib1g-dev libbz2-dev liblzma-dev && \
-        rm -rf /var/lib/apt/lists/*
-    pip install --no-cache-dir uv && \
-        uv pip install --system --no-cache-dir {pip_args}
+    apt-get update
+    apt-get install -y --no-install-recommends build-essential zlib1g-dev libbz2-dev liblzma-dev
+    rm -rf /var/lib/apt/lists/*
+    pip install {pip_args}
 ENDOFSCRIPT
 
 %environment
@@ -913,13 +930,13 @@ ENDOFSCRIPT
 
 %help
     Apptainer image for {env_name} (PyPI: {pip_args}).
-    Built with uv.
+    Built with uv venv (python {python_version}).
 """
 
     # ------------------------------------------------------------------
     # Dockerfile generation (from conda YAML, same pattern as .def)
     # ------------------------------------------------------------------
-    DOCKER_FROM = "dockerproxy.net/mambaorg/micromamba:latest"
+    DOCKER_FROM = "docker.1ms.run/mambaorg/micromamba:latest"
 
     @classmethod
     def generate_dockerfile(
@@ -1043,13 +1060,12 @@ CMD ["bash"]
     # cryptic "conveyor failed to get" error.
     _KNOWN_DOCKER_MIRRORS = [
         "docker.1ms.run",
+        "docker.xuanyuan.me",
+        "docker.hlmirror.com",
+        "docker-0.unsee.tech",
         "docker.m.daocloud.io",
         "dockerproxy.net",
         "docker.ketches.cn",
-        "docker.mirrors.ustc.edu.cn",
-        "hub-mirror.c.163.com",
-        "mirror.baidubce.com",
-        "docker.m.daocloud.io",  # alias for daocloud used by some clients
     ]
 
     def _diagnose_build_mirror(self, def_path: Path) -> None:
@@ -1092,6 +1108,10 @@ CMD ["bash"]
             return
 
         host = parts[0]
+        # Only probe Docker Hub mirrors — other registries (ghcr.io, quay.io) are direct
+        if host not in ("docker.io", "registry-1.docker.io"):
+            logger.info(f"From: {from_value} — skipping Docker Hub mirror probe")
+            return
         repo = "/".join(parts[1:])
         tag = "latest"
         if ":" in repo:
@@ -1169,6 +1189,104 @@ CMD ["bash"]
                 f"_KNOWN_DOCKER_MIRRORS."
             )
 
+    # ------------------------------------------------------------------
+    # Package verification
+    # ------------------------------------------------------------------
+    # pip package name → import name (only cases where they differ)
+    _PIP_IMPORT_MAP: Dict[str, str] = {
+        "pillow": "PIL",
+        "scikit-learn": "sklearn",
+        "scikit-image": "skimage",
+        "opencv-python": "cv2",
+        "opencv-python-headless": "cv2",
+        "pyyaml": "yaml",
+        "python-dateutil": "dateutil",
+        "beautifulsoup4": "bs4",
+        "attrs": "attr",
+        "msgpack-python": "msgpack",
+        "protobuf": "google.protobuf",
+        "mosek": "mosek",
+    }
+
+    @classmethod
+    def _pip_to_import_name(cls, pkg_spec: str) -> str:
+        """Extract the import name from a pip package specifier.
+
+        ``"scikit-learn>=1.0"`` → ``"sklearn"``
+        ``"Pillow==9.0"`` → ``"PIL"``
+        """
+        # Strip version specifiers: >=, <=, ==, ~=, !=, >, <, =
+        name = re.split(r"[><=!~]", pkg_spec)[0].strip().lower()
+        return cls._PIP_IMPORT_MAP.get(name, name.replace("-", "_"))
+
+    def _verify_pip_packages(
+        self, sif_path: Path, yaml_path: Optional[str]
+    ) -> None:
+        """Verify that key pip packages are importable inside the SIF.
+
+        Reads the YAML to extract pip dependencies, then tries
+        ``import <pkg>`` for each inside the container.  Raises
+        ``RuntimeError`` if any critical package is missing — this catches
+        silent ``pip install`` failures where ``apptainer build`` still
+        returns 0.
+        """
+        if not yaml_path:
+            return
+        parsed = self.parse_conda_yaml(yaml_path)
+        pip_deps: List[str] = parsed.get("pip_dependencies", [])  # type: ignore[assignment]
+        if not pip_deps:
+            return
+
+        # Skip meta-packages and comments
+        skip_re = re.compile(r"^(python|pip)\b", re.I)
+        import_names = []
+        for dep in pip_deps:
+            dep = dep.split("#")[0].strip()  # strip inline comments
+            if not dep or skip_re.match(dep):
+                continue
+            import_names.append(self._pip_to_import_name(dep))
+
+        if not import_names:
+            return
+
+        # Build a single import check script
+        imports = "; ".join(f"import {n}" for n in import_names)
+        check_script = (
+            f"exec /bin/bash << 'EOF'\n"
+            f"set -euo pipefail\n"
+            f"cd /tmp\n"
+            f"{imports}\n"
+            f"EOF"
+        )
+        cmd = ["apptainer", "exec", str(sif_path), "bash", "-c", check_script]
+        logger.info(f"Verifying pip packages: {', '.join(import_names)}")
+        try:
+            result = subprocess.run(
+                cmd, capture_output=True, text=True, timeout=60,
+            )
+        except subprocess.TimeoutExpired:
+            logger.warning("Package verification timed out, skipping")
+            return
+
+        if result.returncode != 0:
+            # Find which package failed
+            failed = []
+            for name in import_names:
+                test = [
+                    "apptainer", "exec", str(sif_path),
+                    "bash", "-c", f"cd /tmp && python3 -c 'import {name}'",
+                ]
+                r = subprocess.run(test, capture_output=True, text=True, timeout=30)
+                if r.returncode != 0:
+                    failed.append(name)
+
+            if failed:
+                raise RuntimeError(
+                    f"pip install failed silently in SIF — "
+                    f"cannot import: {', '.join(failed)}. "
+                    f"Rebuild the container or fix dependency versions."
+                )
+
     def build_sif(
         self,
         def_path: str,
@@ -1176,6 +1294,7 @@ CMD ["bash"]
         fakeroot: bool = True,
         force: bool = False,
         timeout: Optional[int] = None,
+        yaml_path: Optional[str] = None,
     ) -> str:
         """Run ``apptainer build`` to create a SIF image from a def file.
 
@@ -1272,23 +1391,9 @@ CMD ["bash"]
                     f"Conda env '{env_name_from_def}' not found in SIF — "
                     f"build failed silently. Check build output above."
                 )
-        else:
-            # PyPI/uv: verify key packages are importable
-            verify_cmd = [
-                "apptainer", "exec", str(out),
-                "python3", "-c", "import sys; print(sys.version)",
-            ]
-            try:
-                result = subprocess.run(
-                    verify_cmd, capture_output=True, text=True, timeout=30,
-                )
-                if result.returncode != 0:
-                    raise RuntimeError(
-                        f"Python not working in SIF — build failed. {result.stderr}"
-                    )
-            except subprocess.TimeoutExpired:
-                logger.warning("SIF verification timed out, skipping")
 
+        # Verify key pip packages are importable (catches silent pip failures)
+        self._verify_pip_packages(out, yaml_path)
         logger.info(f"SIF built: {out}")
 
         return str(out)
@@ -1396,6 +1501,7 @@ CMD ["bash"]
             fakeroot=fakeroot,
             force=force,
             timeout=build_timeout,
+            yaml_path=str(yaml),
         )
 
         logger.info(
@@ -2150,6 +2256,7 @@ CMD ["bash"]
         def_dest = output_subdir / df.name
         shutil.copy2(df, def_dest)
         yaml_name = parsed.get("yaml_filename")
+        yaml_src: Optional[Path] = None
         if yaml_name:
             yaml_src = df.parent / yaml_name
             if yaml_src.is_file():
@@ -2171,12 +2278,14 @@ CMD ["bash"]
             }
 
         # Build SIF
+        yaml_for_verify = str(yaml_src) if yaml_src and yaml_src.is_file() else None
         self.build_sif(
             def_path=str(df),
             output_sif=str(sif_path),
             fakeroot=fakeroot,
             force=force,
             timeout=build_timeout,
+            yaml_path=yaml_for_verify,
         )
 
         logger.info(

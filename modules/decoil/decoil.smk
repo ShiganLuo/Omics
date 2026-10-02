@@ -43,30 +43,13 @@ logdir = config.get("logdir", "log")
 indir = config.get("indir", "input")
 samples = config.get("samples", [])
 bam_substring = config.get("bam_substring") or ""
-
-# Reference files — fail fast on missing config paths (snakemake's own
-# MissingInputException would otherwise report a "None" path which is
-# confusing for users). These are external resources, not derived inputs.
-fasta = config.get("genome", {}).get("fasta")
-gtf = config.get("genome", {}).get("gtf")
-if not fasta:
-    raise ValueError(
-        "decoil module requires 'genome.fasta' in config. "
-        "Please provide a valid reference genome FASTA path."
-    )
-if not gtf:
-    raise ValueError(
-        "decoil module requires 'genome.gtf' (gene annotation) in config. "
-        "Decoil reconstruct uses annotated gene boundaries."
-    )
-
-# Upstream file locations (sample-derived paths — no validation here;
-# snakemake's MissingInputException is the correct error if the upstream
-# module did not produce them)
 vcf_dir = config.get("vcf_dir")
 bw_dir = config.get("bw_dir") or outdir
 vcf_suffix = config.get("vcf_suffix") or ".sv.vcf.gz"
 bw_suffix = config.get("bw_suffix") or ".bigwig"
+
+# pbsv→decoil VCF converter — bin/ script located via ROOT_DIR (project convention)
+PBSV2DECOIL_SCRIPT = os.path.join(ROOT_DIR, "modules", "decoil", "bin", "pbsv2decoil.py")
 
 
 def get_input_for_decoil_reconstruct(wildcards):
@@ -94,20 +77,19 @@ def get_input_for_decoil_reconstruct(wildcards):
 
     # External coverage bigwig (decoil/coverage submodule upstream)
     in_dict["bw"] = os.path.join(bw_dir, sid, f"{sid}{bw_suffix}")
-
+    fasta = config.get("genome", {}).get("fasta")
+    gtf = config.get("genome", {}).get("gtf")
     # Reference files (config-validated at module load)
     in_dict["ref"] = fasta
     in_dict["gtf"] = gtf
-
+    if not fasta or not os.path.exists(fasta):
+        raise ValueError("decoil module requires 'genome.fasta' in config. Please provide a valid reference genome FASTA path.")
+    if not gtf or not os.path.exists(gtf):
+        raise ValueError("decoil module requires 'genome.gtf' in config. Please provide a valid gene annotation GTF path.")
     return in_dict
 
-
-# ============================================================
-# Rule: Run Decoil reconstruct (ecDNA reconstruction only)
-# ============================================================
 rule decoil_reconstruct:
     """Run ``decoil reconstruct`` on one sample.
-
     Consumes BAM + external SV VCF + external coverage bigwig and produces
     reconstruct.bed / reconstruct.ecDNA.bed / reconstruct.ecDNA.filtered.bed
     / summary.txt. Does NOT perform SV calling internally.
@@ -143,19 +125,9 @@ rule decoil_reconstruct:
         skip_fasta       = bool(config.get("Params", {}).get("decoil", {}).get("skip", False)),
         threads          = config.get("Params", {}).get("decoil", {}).get("threads", 16),
     threads: 16
-    resources:
-        mem_mb = 30000
     run:
         log_path = str(log)
-        # `logger` is bound at module scope by common.smk
-        # (`from snakemake.logging import logger`). DO NOT rebind it here:
-        # snakemake's own logger handlers must remain intact. Use a distinct
-        # local name for our per-sample file-handler logger so the run body
-        # and the except branch share the same reference without clashing
-        # with snakemake's logger.
-        rule_logger = setup_logger(
-            logger_name="decoil_reconstruct", log_file=log_path
-        )
+        rule_logger = setup_logger(logger_name="decoil_reconstruct", log_file=log_path)
         open(log_path, "w").close()
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -170,13 +142,19 @@ rule decoil_reconstruct:
                 f"decoil_reconstruct_{wildcards.sample_id}_{current_time}.sh",
             )
 
+            # `decoil reconstruct` has no --threads flag (Decoil 2.x argparse
+            # rejects it), reads VCFs as plain text (no bgzip), and requires
+            # sniffles1-style fields (STRANDS/CHR2/END + FORMAT DR/DV) that
+            # pbsv does not emit. Convert the input VCF first — verified
+            # against decoil.sif 2.0.2 with a full reconstruction run.
+            converted_vcf = os.path.join(sample_outdir, "decoil_input.vcf")
+
             # `decoil reconstruct` is reconstruction-only — consumes pre-computed
             # SV VCF and coverage bigwig. No internal sniffles call.
             cmd = [
                 params.decoil, "reconstruct",
-                "--threads", str(params.threads),
                 "-b", input.bam,
-                "-i", input.vcf,
+                "-i", converted_vcf,
                 "-c", input.bw,
                 "-r", input.ref,
                 "-g", input.gtf,
@@ -201,6 +179,10 @@ rule decoil_reconstruct:
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write("set -euo pipefail\n")
+                f.write(
+                    f"python3 {PBSV2DECOIL_SCRIPT} "
+                    f"{input.vcf} {converted_vcf}\n"
+                )
                 f.write(" ".join(cmd) + "\n")
                 f.write(
                     f'echo "decoil_reconstruct for {wildcards.sample_id} at '
@@ -209,16 +191,8 @@ rule decoil_reconstruct:
             rule_logger.info("Executing: " + " ".join(cmd))
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(
-                    f"decoil_reconstruct failed for sample {wildcards.sample_id}: {e}\n"
-                )
-            rule_logger.error(
-                f"decoil_reconstruct failed for sample {wildcards.sample_id}: {e}"
-            )
-            raise RuntimeError(
-                f"decoil_reconstruct failed for sample {wildcards.sample_id}: {e}"
-            )
+            rule_logger.error(f"decoil_reconstruct failed for sample {wildcards.sample_id}: {e}")
+            raise RuntimeError(f"decoil_reconstruct failed for sample {wildcards.sample_id}: {e}")
 
 
 # ============================================================

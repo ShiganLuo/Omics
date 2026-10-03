@@ -2,7 +2,7 @@ import os
 import pandas as pd
 from typing import List, Optional
 
-# gsm_metadata 中的标识列，不参与 design 构建
+# Identifier columns in gsm_metadata; excluded from design construction
 _ID_COLS = {"GSM", "GSE", "SRA", "BioSample"}
 
 
@@ -21,14 +21,16 @@ def generate_meta_input(
     ) -> None:
     """
     Function:
-        合并 gsm_metadata.csv 和 sra_metadata.csv，生成 meta_input.tsv。
-        design 列由 gsm_metadata 中所有非标识列（排除 GSM/GSE/SRA/BioSample）的非空值
-        用 "_" 拼接作为组名，同组内按 GSM 出序分配 .repN。
+        Merge gsm_metadata.csv and sra_metadata.csv to generate meta_input.tsv.
+        The design column is built by joining the non-empty values of all
+        non-identifier columns in gsm_metadata (excluding GSM/GSE/SRA/BioSample)
+        with "_" as the group name; within each group, .repN is assigned in
+        order of first appearance of each GSM.
     Parameters:
-        gsm_meta_path: gsm_metadata.csv 路径
-        sra_meta_path: sra_metadata.csv 路径
-        fastq_dir: fastq 文件目录
-        output_path: 输出 TSV 路径
+        gsm_meta_path: Path to gsm_metadata.csv
+        sra_meta_path: Path to sra_metadata.csv
+        fastq_dir: Directory containing FASTQ files
+        output_path: Output TSV path
     """
     gsm = pd.read_csv(gsm_meta_path)
     sra = pd.read_csv(sra_meta_path)

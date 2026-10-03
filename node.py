@@ -11,7 +11,8 @@ logger = setup_logger(__name__, level=logging.DEBUG)
 SERVER_DATABASE_DIR = {
     "zhang_c2": "/home/luosg/Database",
     "math_zhou": "/data/pub/zhousha/Database",
-    "lv": "/disk5/luosg/Database"
+    "lv": "/disk5/luosg/Database",
+    "lv_zheda": "/data/16T/Database"
 }
 def _detect_current_server_db() -> str | None:
     """Detect current server's database dir by checking which paths in SERVER_DATABASE_DIR exist."""

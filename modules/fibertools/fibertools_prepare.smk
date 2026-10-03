@@ -72,29 +72,34 @@ rule ft_predict_m6a:
         ft = config.get("Procedure", {}).get("fibertools") or "ft"
     run:
         log_path = str(log)
-        sample_outdir = os.path.join(outdir, wildcards.sample_id)
-        os.makedirs(sample_outdir, exist_ok=True)
-        current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-        command_script = os.path.join(sample_outdir, f"ft_predict_m6a_{current_time}.sh")
+        open(log_path, 'w').close()
+        rule_logger = setup_logger("ft_predict_m6a", log_file=log_path)
+        try:
+            sample_outdir = os.path.join(outdir, wildcards.sample_id)
+            os.makedirs(sample_outdir, exist_ok=True)
+            current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+            command_script = os.path.join(sample_outdir, f"ft_predict_m6a_{current_time}.sh")
 
-        detect_sh = _detect_m6a_sh(input.bam)
-        cmd_predict = " ".join([params.ft, "predict-m6a", "-t", str(threads), input.bam, output.bam])
+            detect_sh = _detect_m6a_sh(input.bam)
+            cmd_predict = " ".join([params.ft, "predict-m6a", "-t", str(threads), input.bam, output.bam])
 
-        with open(command_script, "w") as f:
-            f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
-            f.write(f'echo "Detecting m6A in {wildcards.sample_id}..."\n')
-            f.write(detect_sh)
-            f.write('if [ "$HAS_M6A" -eq 1 ]; then\n')
-            f.write(f'    echo "BAM already has m6A calls (SPRQ?), skipping predict-m6a"\n')
-            f.write(f'    ln -sf "$(realpath {input.bam})" {output.bam}\n')
-            f.write(f'    echo "Symlinked {input.bam} -> {output.bam}"\n')
-            f.write('else\n')
-            f.write(f'    echo "Predicting m6A for sample {wildcards.sample_id}"\n')
-            f.write(f'    {cmd_predict}\n')
-            f.write(f'    echo "m6A prediction completed for sample {wildcards.sample_id}"\n')
-            f.write('fi\n')
-
-        shell(f"bash {command_script} >> {log_path} 2>&1")
+            with open(command_script, "w") as f:
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
+                f.write(f'echo "Detecting m6A in {wildcards.sample_id}..."\n')
+                f.write(detect_sh)
+                f.write('if [ "$HAS_M6A" -eq 1 ]; then\n')
+                f.write(f'    echo "BAM already has m6A calls (SPRQ?), skipping predict-m6a"\n')
+                f.write(f'    ln -sf "$(realpath {input.bam})" {output.bam}\n')
+                f.write(f'    echo "Symlinked {input.bam} -> {output.bam}"\n')
+                f.write('else\n')
+                f.write(f'    echo "Predicting m6A for sample {wildcards.sample_id}"\n')
+                f.write(f'    {cmd_predict}\n')
+                f.write(f'    echo "m6A prediction completed for sample {wildcards.sample_id}"\n')
+                f.write('fi\n')
+            shell(f"bash {command_script} >> {log_path} 2>&1")
+        except Exception as e:
+            rule_logger.error(f"ft_predict_m6a failed: {e}")
+            raise RuntimeError(f"ft_predict_m6a failed: {e}\n")
 
 
 def get_input_for_ft_fire(wildcards):
@@ -133,9 +138,9 @@ rule ft_add_nucleosomes:
         ft = config.get("Procedure", {}).get("fibertools") or "ft"
     run:
         log_path = str(log)
+        open(log_path, 'w').close()
+        rule_logger = setup_logger("ft_add_nucleosomes", log_file=log_path)
         try:
-            open(log_path, 'w').close()
-            rule_logger = setup_logger("ft_add_nucleosomes", log_file=log_path)
             rule_logger.info(f"Adding nucleosomes for sample {wildcards.sample_id}")
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
@@ -153,8 +158,7 @@ rule ft_add_nucleosomes:
                 f.write(f'echo "Nucleosome calling completed for sample {wildcards.sample_id}"\n')
             shell(f"bash {command_script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"ft_add_nucleosomes failed: {e}\n")
+            rule_logger.error(f"ft_add_nucleosomes failed: {e}")
             raise RuntimeError(f"ft_add_nucleosomes failed: {e}\n")
 
 
@@ -180,9 +184,9 @@ rule ft_fire:
         is_ont = config.get("Params", {}).get("fibertools", {}).get("ont", False)
     run:
         log_path = str(log)
+        open(log_path, 'w').close()
+        rule_logger = setup_logger("ft_fire", log_file=log_path)
         try:
-            open(log_path, 'w').close()
-            rule_logger = setup_logger("ft_fire", log_file=log_path)
             rule_logger.info(f"Calling FIREs for sample {wildcards.sample_id}")
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
@@ -202,6 +206,5 @@ rule ft_fire:
                 f.write(f'echo "FIRE calling completed for sample {wildcards.sample_id}"\n')
             shell(f"bash {command_script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"ft_fire failed: {e}\n")
+            rule_logger.error(f"ft_fire failed: {e}")
             raise RuntimeError(f"ft_fire failed: {e}\n")

@@ -5,8 +5,6 @@
 - README.md为人类阅读文档
 - 目录名.md为agent加载的skill
 
-snakemake version: >= 9.16.3
-
 ## 解决什么问题
 
 下面这些是 Omics 直接对应的问题。每一行后面都跟着具体怎么用——CLI 命令、参数、或工作流入口，跳到「快速开始」或「运行指南」可以看完整示例。
@@ -89,6 +87,46 @@ python workflow/Omics/run.py -m data/meta.tsv -w scRNAseq -o output \
 
 各个流程详细介绍见[subworkflow](./subworkflow/README.md)
 
+
+## 环境依赖
+
+基础环境需要 **snakemake**（>= 9.16.3）和 **apptainer**。各分析流程用到的具体软件
+不需要手动安装——conda 模式下由 Snakemake 按 `modules/*/*.yaml` 自动创建环境，
+容器模式下使用预构建的 SIF 镜像。
+
+### snakemake（conda 安装）
+
+```bash
+conda create -n smk -c conda-forge -c bioconda "snakemake>=9.16.3" -y
+conda activate smk
+
+snakemake --version   # 期望 >= 9.16.3
+```
+
+### apptainer
+
+仅使用 conda 模式（`--conda-prefix`）时可以不装 apptainer；使用 `--sdm` 容器模式
+则必须有 `apptainer`（或 `singularity`）命令。其他安装方式见官方文档：
+<https://github.com/apptainer/apptainer/blob/main/INSTALL.md>。
+
+推荐安装官方 **deb 包**（setuid 版），依赖 `fakeroot` 和 `uidmap`：
+
+```bash
+# 依赖包
+sudo apt install fakeroot uidmap
+
+# 从 https://github.com/apptainer/apptainer/releases 下载 deb（不要选 trixie+ 后缀）
+# apptainer 和 apptainer-suid 必须都装：suid 包提供 setuid root 的 starter-suid，
+# 是 setuid 模式的关键文件；缺了它退回非特权模式，Ubuntu 24.04 上无法启动容器
+sudo apt dpkg -i ./apptainer_1.5.4_amd64.deb ./apptainer-suid_1.5.4_amd64.deb
+```
+
+- Ubuntu 24.04 必须用 setuid 版，非特权版（含 conda 安装）会因 AppArmor 限制
+  无法启动容器（见「常见问题」）。
+- 安装后注意 PATH 优先级：若 conda 环境里也装过 apptainer，建议移除，确保使用
+  系统安装的版本。
+
+当前验证可用的组合：Python 3.12 + Snakemake 9.22.0 + Apptainer 1.5.4（setuid 版）。
 
 ## 快速开始
 
@@ -231,6 +269,12 @@ snakemake -s workflow/Omics/subworkflow/PeakCalling.smk \
 - **`command not found`**：SIF 内的工具不在 PATH 中，检查 `.def` 文件的 `%environment` 或 `%post` 段是否正确设置了 PATH。
 - **权限错误**：确保 `--bind` 的目标目录对当前用户可读写。
 - **SIF 过期**：conda YAML 更新后需重新构建 SIF（`EnvUtil.py all`）。
+- **启动容器报 `Could not write info to setgroups: Permission denied` / `Error while waiting event for user namespace mappings: no event received`**：
+  conda 装的非特权版 apptainer 依赖 user namespace，Ubuntu 24.04 默认 AppArmor
+  禁止非特权用户命名空间（`kernel.apparmor_restrict_unprivileged_userns=1`）导致
+  启动失败。解决：改用 setuid 版 `apptainer-suid`（见「环境依赖」）。
+  修复后若 conda 环境里的非特权版 apptainer 在 PATH 中优先，会复现同样报错。
+  同时出现的 `fuse2fs not found` 只是无关提示，可忽略。
 
 #### Apptainer 直接执行命令
 

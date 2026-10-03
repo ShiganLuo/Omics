@@ -53,14 +53,14 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 #     --Params.cutadapt.maximum_length 110 \
 
 
-python ${SCRIPT_DIR}/run.py \
-    -m /data/pub/zhousha/20260207_Exome/data/PacBio/samplesheet.csv \
-    -w PacVar \
-    -o /data/pub/zhousha/20260207_Exome/output \
-    -t 48 \
-    --log /data/pub/zhousha/20260207_Exome/log/PacVar.log \
-    --rerun-trigger mtime \
-    --sdm apptainer
+# python ${SCRIPT_DIR}/run.py \
+#     -m /data/pub/zhousha/20260207_Exome/data/PacBio/samplesheet.csv \
+#     -w PacVar \
+#     -o /data/pub/zhousha/20260207_Exome/output \
+#     -t 48 \
+#     --log /data/pub/zhousha/20260207_Exome/log/PacVar.log \
+#     --rerun-trigger mtime \
+#     --sdm apptainer
 
 # python ${SCRIPT_DIR}/run.py \
 #     -m /home/luosg/Data/genomeStability/data/MS/sample_input.tsv \
@@ -94,12 +94,12 @@ python ${SCRIPT_DIR}/run.py \
 #     #     scanpy_auto:tissue=Uterus,counter=scTE \
 #     #     scanpy_auto:tissue=Uterus,counter=cellranger
 
-# python ${SCRIPT_DIR}/run.py \
-#   -m /home/luosg/Data/genomeStability/data/20260908_PacBio/meta_input.tsv \
-#   -w Fiberseq \
-#   -o /data2/luosg/luncao \
-#   --log /home/luosg/Data/genomeStability/log/luancao_Fiberseq.log \
-#   --sdm apptainer \
-#   -t 48 \
-#   --rerun-triggers mtime \
-#   --genome.default Mmul_T2T
+python ${SCRIPT_DIR}/run.py \
+  -m /data/16T/luosg/data/meta_Fiberseq_Totipotency.tsv \
+  -w Fiberseq \
+  -o /data/16T/luosg/output/Totipotency \
+  --log /data/16T/luosg/log/Totipotency_Fiberseq.log \
+  --sdm apptainer \
+  -t 48 \
+  --rerun-triggers mtime \
+  --genome.default T2T_mhaESC_v1.5

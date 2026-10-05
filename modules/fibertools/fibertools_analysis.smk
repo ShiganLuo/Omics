@@ -43,9 +43,9 @@ rule ft_extract:
         ft = config.get("Procedure", {}).get("fibertools") or "ft"
     run:
         log_path = str(log)
+        open(log_path, 'w').close()
+        rule_logger = setup_logger("ft_extract", log_file=log_path)
         try:
-            open(log_path, 'w').close()
-            rule_logger = setup_logger("ft_extract", log_file=log_path)
             rule_logger.info(f"Extracting Fiber-seq data for sample {wildcards.sample_id}")
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
@@ -67,8 +67,7 @@ rule ft_extract:
                 f.write(f'echo "Fiber-seq extraction completed for sample {wildcards.sample_id}"\n')
             shell(f"bash {command_script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"ft_extract failed: {e}\n")
+            rule_logger.error(f"ft_extract failed: {e}\n")
             raise RuntimeError(f"ft_extract failed: {e}\n")
 
 
@@ -95,44 +94,50 @@ rule ft_call_peaks:
         min_fire_frac = config.get("Params", {}).get("fibertools", {}).get("min_fire_frac", 0.1),
         sd_cov = config.get("Params", {}).get("fibertools", {}).get("sd_cov", 5.0),
     run:
-        sample_outdir = os.path.join(outdir, wildcards.sample_id)
-        os.makedirs(sample_outdir, exist_ok=True)
-        sorted_bam = os.path.join(sample_outdir, f"{wildcards.sample_id}.fire.sorted.bam")
-        current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-        command_script = os.path.join(sample_outdir, f"ft_call_peaks_{current_time}.sh")
+        log_path = str(log)
+        rule_logger = setup_logger("ft_call_peaks", log_file=log_path)
+        try:
+            sample_outdir = os.path.join(outdir, wildcards.sample_id)
+            os.makedirs(sample_outdir, exist_ok=True)
+            sorted_bam = os.path.join(sample_outdir, f"{wildcards.sample_id}.fire.sorted.bam")
+            current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+            command_script = os.path.join(sample_outdir, f"ft_call_peaks_{current_time}.sh")
+            rule_logger.info(f"Calling FIRE peaks for sample {wildcards.sample_id}")
+            # Build ft call-peaks command
+            ft_cmd = [
+                params.ft, "call-peaks",
+                "-t", str(threads),
+                "-o", str(output.peaks),
+                "--sd-cov", str(params.sd_cov),
+                "--max-fdr", str(params.max_fdr),
+            ]
+            if params.min_fire_frac is not None:
+                ft_cmd.extend(["--min-fire-frac", str(params.min_fire_frac)])
+            ft_cmd.append(sorted_bam)
+            ft_cmd_str = " ".join(ft_cmd)
 
-        # Build ft call-peaks command
-        ft_cmd = [
-            params.ft, "call-peaks",
-            "-t", str(threads),
-            "-o", str(output.peaks),
-            "--sd-cov", str(params.sd_cov),
-            "--max-fdr", str(params.max_fdr),
-        ]
-        if params.min_fire_frac is not None:
-            ft_cmd.extend(["--min-fire-frac", str(params.min_fire_frac)])
-        ft_cmd.append(sorted_bam)
-        ft_cmd_str = " ".join(ft_cmd)
+            # Write shell script — all commands run inside conda/container env via shell()
+            with open(command_script, "w") as f:
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
+                f.write(f'echo "Checking alignment for {wildcards.sample_id}"\n')
+                f.write(f'aligned=$(samtools view -c -F 4 {input.bam})\n')
+                f.write(f'echo "Aligned reads: $aligned"\n')
+                f.write(f'if [ "$aligned" -eq 0 ]; then\n')
+                f.write(f'    echo "BAM has no aligned reads — skipping ft call-peaks"\n')
+                f.write(f'    printf "#chrom\\tstart\\tend\\tname\\tscore\\tstrand\\n" > {output.peaks}\n')
+                f.write(f'    exit 0\n')
+                f.write(f'fi\n')
+                f.write(f'echo "Sorting BAM"\n')
+                f.write(f'samtools sort -@ {threads} -o {sorted_bam} {input.bam}\n')
+                f.write(f'samtools index {sorted_bam}\n')
+                f.write(f'echo "Calling FIRE peaks"\n')
+                f.write(ft_cmd_str + "\n")
+                f.write(f'echo "FIRE peak calling completed for sample {wildcards.sample_id}"\n')
 
-        # Write shell script — all commands run inside conda/container env via shell()
-        with open(command_script, "w") as f:
-            f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
-            f.write(f'echo "Checking alignment for {wildcards.sample_id}"\n')
-            f.write(f'aligned=$(samtools view -c -F 4 {input.bam})\n')
-            f.write(f'echo "Aligned reads: $aligned"\n')
-            f.write(f'if [ "$aligned" -eq 0 ]; then\n')
-            f.write(f'    echo "BAM has no aligned reads — skipping ft call-peaks"\n')
-            f.write(f'    printf "#chrom\\tstart\\tend\\tname\\tscore\\tstrand\\n" > {output.peaks}\n')
-            f.write(f'    exit 0\n')
-            f.write(f'fi\n')
-            f.write(f'echo "Sorting BAM"\n')
-            f.write(f'samtools sort -@ {threads} -o {sorted_bam} {input.bam}\n')
-            f.write(f'samtools index {sorted_bam}\n')
-            f.write(f'echo "Calling FIRE peaks"\n')
-            f.write(ft_cmd_str + "\n")
-            f.write(f'echo "FIRE peak calling completed for sample {wildcards.sample_id}"\n')
-
-        shell("bash {command_script} >> {log} 2>&1")
+            shell(f"bash {command_script} >> {log_path} 2>&1")
+        except Exception as e:
+            rule_logger.error(f"ft_call_peaks failed: {e}\n")
+            raise RuntimeError(f"ft_call_peaks failed: {e}\n")
 
 
 rule ft_qc:
@@ -157,9 +162,9 @@ rule ft_qc:
         use_acf = config.get("Params", {}).get("fibertools", {}).get("acf", False),
     run:
         log_path = str(log)
+        open(log_path, 'w').close()
+        rule_logger = setup_logger("ft_qc", log_file=log_path)
         try:
-            open(log_path, 'w').close()
-            rule_logger = setup_logger("ft_qc", log_file=log_path)
             rule_logger.info(f"Collecting QC metrics for sample {wildcards.sample_id}")
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
@@ -179,6 +184,5 @@ rule ft_qc:
                 f.write(f'echo "QC metrics collected for sample {wildcards.sample_id}"\n')
             shell(f"bash {command_script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"ft_qc failed: {e}\n")
+            rule_logger.error(f"ft_qc failed: {e}\n")
             raise RuntimeError(f"ft_qc failed: {e}\n")

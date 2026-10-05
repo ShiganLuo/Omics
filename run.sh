@@ -7,16 +7,14 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # --sdm apptainer \
 # --singularity-args '--bind /home/luosg/Database,/home/luosg/Data/genomeStability,/tmp'
 
-# python ${SCRIPT_DIR}/run.py \
-#     -m /home/luosg/Data/genomeStability/data/EED_public/meta_input.tsv \
-#     -w RNAseq \
-#     -o /home/luosg/Data/genomeStability/output/EED \
-#     -t 48 \
-#     --log /home/luosg/Data/genomeStability/log/EED_RNAseq.log \
-#     --sdm \
-#     --rerun-triggers mtime \
-#     --forcerun RNAseq_generate_report \
-#     --dry-run
+python ${SCRIPT_DIR}/run.py \
+    -m /data/pub/zhousha/Totipotent20251031/data/Totipotency/meat_input.tsv \
+    -w RNAseq \
+    -o /data/pub/zhousha/Totipotent20251031/output/pluripotent2totipotent \
+    -t 48 \
+    --log /data/pub/zhousha/Totipotent20251031/log/pluripotent2totipotent_RNAseq.log \
+    --sdm \
+    --rerun-triggers mtime
 
 # python ${SCRIPT_DIR}/run.py \
 #     -m /home/luosg/Data/genomeStability/data/Rn7sk/meta_input.tsv \
@@ -94,12 +92,12 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 #     #     scanpy_auto:tissue=Uterus,counter=scTE \
 #     #     scanpy_auto:tissue=Uterus,counter=cellranger
 
-python ${SCRIPT_DIR}/run.py \
-  -m /data/16T/luosg/data/meta_Fiberseq_Totipotency.tsv \
-  -w Fiberseq \
-  -o /data/16T/luosg/output/Totipotency \
-  --log /data/16T/luosg/log/Totipotency_Fiberseq.log \
-  --sdm apptainer \
-  -t 48 \
-  --rerun-triggers mtime \
-  --genome.default T2T_mhaESC_v1.5
+# python ${SCRIPT_DIR}/run.py \
+#   -m /data/16T/luosg/data/meta_Fiberseq_Totipotency.tsv \
+#   -w Fiberseq \
+#   -o /data/16T/luosg/output/Totipotency \
+#   --log /data/16T/luosg/log/Totipotency_Fiberseq.log \
+#   --sdm apptainer \
+#   -t 48 \
+#   --rerun-triggers mtime \
+#   --genome.default T2T_mhaESC_v1.5

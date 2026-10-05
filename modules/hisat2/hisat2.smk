@@ -26,11 +26,11 @@ rule hisat2_index:
         sif("hisat2.yaml")
     run:
         log_path = str(log)
+        open(log_path, 'w').close()
+        rule_logger = setup_logger(logger_name="hisat2_index", log_file=log_path)
         try:
-            open(log_path, 'w').close()
-            logger = setup_logger(logger_name="hisat2_index", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            logger.info(f"Start hisat2 index at {current_time}")
+            rule_logger.info(f"Start hisat2 index at {current_time}")
             script = os.path.join(outdir, f"index/hisat2_index_{current_time}.sh")
             cmd = [
                 "mkdir", "-p", os.path.dirname(str(params.prefix))
@@ -44,15 +44,13 @@ rule hisat2_index:
             ]
             cmd_str += " ".join(cmd2) + "\n"
             with open(script, 'w') as f:
+                f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(cmd_str)
+                f.write(f"echo 'hisat2 index was successfully completed'\n")
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, 'a') as f:
-                f.write(f"Error: {e}\n")
-            raise f"Error: {e}"
-        finally:
-            current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            logger.info(f"Completed at {current_time}")
+    rule_logger.error(f"hisat2_index failed: {e}")
+            raise RuntimeError(f"Error: {e}")
 
 def get_hisat2_index(wildcards):
     logger.info(f"[get_hisat2_index] called with wildcards: {wildcards}")
@@ -102,7 +100,7 @@ rule hisat2_align:
         index = get_hisat2_index
     output:
         outfile = outdir + "/{sample_id}/{sample_id}.bam",
-        splice = outdir + "/{sample_id}/novel_splice.txt"
+        splice = outdir + "/{sample_id}/{sample_id}.splice.txt"
     log:
         logdir + "/{sample_id}/hisat2_align.log"
     threads: 12
@@ -123,11 +121,12 @@ rule hisat2_align:
         sif("hisat2.yaml")
     run:
         log_path = str(log)
+        open(log_path, "w").close
+        rule_logger = setup_logger("hisat2_align", log_file=log_path)
         try:
-            open(log_path, "w").close
-            rule_logger = seup_logger("hisat2_align", log_file=log_path)
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
-            script = f"{outdir}/{wildcards.sample_id}/hisat2_align.{current_time}.sh"
+            sample_outdir = os.path.dirname(output.outfile)
+            script = f"{sample_outdir}/hisat2_align.{current_time}.sh"
             cmd1 = [
                 f"{params.hisat2}",
                 "-x", params.index_prefix,
@@ -149,10 +148,9 @@ rule hisat2_align:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) +"\n")
                 f.write(f"echo 'hisat_align for {wildcards.sample_id} was completed successfully at {current_time}'")
-            shell(f"bash {script} > {log_path} 2>&1")
+            shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"histat_align failed: {e}")
+            rule_logger.error(f"hisat_align failed for sample {wildcards.sample_id}: {e}")
             raise RuntimeError(f"histat_align failed: {e}")
 
 rule hisat2_result:

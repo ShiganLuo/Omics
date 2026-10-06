@@ -62,19 +62,18 @@ rule scanpy_qc:
             os.makedirs(sample_outdir, exist_ok=True)
             os.makedirs(str(output.plot_dir), exist_ok=True)
             script = os.path.join(sample_outdir, f"scanpy_qc_{wildcards.counter}_{wildcards.sample_id}_{current_time}.sh")
-            cmd = [params.python, params.script, "--mode", "qc",
-                   "--input", input.h5ad,
-                   "--output", output.h5ad,
-                   "--metrics", output.metrics,
-                   "--min-genes", str(params.min_genes),
-                   "--max-genes", str(params.max_genes),
-                   "--max-pct-mt", str(params.max_pct_mt),
-                   "--n-top-genes", str(params.n_top_genes)]
-            cmd += ["--plot-dir", str(output.plot_dir)]
+            cmd = [params.python, params.script, "qc",
+                   "-i", input.h5ad,
+                   "-o", output.h5ad,
+                   "-m", output.metrics,
+                   "-n", str(params.min_genes),
+                   "-N", str(params.max_genes),
+                   "-t", str(params.max_pct_mt)]
+            cmd += ["-p", str(output.plot_dir)]
             if params.use_mad:
-                cmd += ["--use-mad"]
+                cmd += ["-M"]
             if params.scrublet:
-                cmd += ["--scrublet", "--doublet-rate", str(params.doublet_rate)]
+                cmd += ["-s", "-d", str(params.doublet_rate)]
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write(" ".join(shlex.quote(str(item)) for item in cmd) + "\n")
@@ -125,11 +124,11 @@ rule scanpy_merge:
             os.makedirs(sample_outdir, exist_ok=True)
             os.makedirs(str(output.plot_dir), exist_ok=True)
             script = os.path.join(sample_outdir, f"scanpy_merge_{wildcards.counter}_{wildcards.tissue}_{current_time}.sh")
-            cmd = [params.python, params.script, "--mode", "merge",
-                   "--input"] + list(input.h5ad) + ["--output", output.h5ad]
-            cmd += ["--plot-dir", str(output.plot_dir)]
+            cmd = [params.python, params.script, "merge",
+                   "-i"] + list(input.h5ad) + ["-o", output.h5ad]
+            cmd += ["-p", str(output.plot_dir)]
             if params.te_bed and params.gene_tsv:
-                cmd += ["--te-bed", params.te_bed, "--gene-tsv", params.gene_tsv]
+                cmd += ["-b", params.te_bed, "-G", params.gene_tsv]
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write(" ".join(shlex.quote(str(item)) for item in cmd) + "\n")
@@ -189,35 +188,35 @@ rule scanpy_auto:
             os.makedirs(sample_outdir, exist_ok=True)
             os.makedirs(str(output.plot_dir), exist_ok=True)
             script_path = os.path.join(sample_outdir, f"scanpy_auto_{wildcards.counter}_{wildcards.tissue}_{current_time}.sh")
-            cmd = [params.python, params.script, "--mode", "auto",
-                   "--input", input.h5ad,
-                   "--output", output.h5ad,
-                   "--tissue", params.tissue,
-                   "--resolution", str(params.resolution),
-                   "--max-iterations", str(params.max_iterations),
-                   "--min-genes", str(params.min_genes),
-                   "--min-counts", str(params.min_counts),
-                   "--max-pct-mt", str(params.max_pct_mt),
-                   "--n-pcs", str(params.n_pcs),
-                   "--n-neighbors", str(params.n_neighbors),
-                   "--n-top-genes", str(params.n_top_genes),
-                   "--batch-method", params.batch_method,
-                   "--batch-key", params.batch_key]
+            cmd = [params.python, params.script, "auto",
+                   "-i", input.h5ad,
+                   "-o", output.h5ad,
+                   "-T", params.tissue,
+                   "-r", str(params.resolution),
+                   "-I", str(params.max_iterations),
+                   "-n", str(params.min_genes),
+                   "-U", str(params.min_counts),
+                   "-t", str(params.max_pct_mt),
+                   "-c", str(params.n_pcs),
+                   "-k", str(params.n_neighbors),
+                   "-g", str(params.n_top_genes),
+                   "-B", params.batch_method,
+                   "-K", params.batch_key]
             if params.species:
-                cmd += ["--species", params.species]
+                cmd += ["-S", params.species]
             if params.llm_method:
-                cmd += ["--llm-method", params.llm_method]
+                cmd += ["-L", params.llm_method]
             if params.llm_model:
-                cmd += ["--llm-model", params.llm_model]
+                cmd += ["-l", params.llm_model]
             if params.llm_api_key:
-                cmd += ["--llm-api-key", params.llm_api_key]
+                cmd += ["-Q", params.llm_api_key]
             if params.llm_base_url:
-                cmd += ["--llm-base-url", params.llm_base_url]
+                cmd += ["-u", params.llm_base_url]
             if params.auto_n_pcs:
-                cmd.append("--auto-n-pcs")
+                cmd.append("-A")
             if params.skip_te:
-                cmd.append("--skip-te")
-            cmd += ["--plot-dir", str(output.plot_dir)]
+                cmd.append("-x")
+            cmd += ["-p", str(output.plot_dir)]
             with open(script_path, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write(" ".join(shlex.quote(str(item)) for item in cmd) + "\n")
@@ -267,24 +266,24 @@ rule scanpy_advanced:
             os.makedirs(sample_outdir, exist_ok=True)
             os.makedirs(str(output.plot_dir), exist_ok=True)
             script = os.path.join(sample_outdir, f"scanpy_advanced_{wildcards.counter}_{wildcards.tissue}_{current_time}.sh")
-            cmd = [params.python, params.script, "--mode", "advanced",
-                    "--input", input.h5ad,
-                    "--output", output.h5ad,
-                    "--n-pcs", str(params.n_pcs),
-                    "--n-neighbors", str(params.n_neighbors)]
+            cmd = [params.python, params.script, "advanced",
+                    "-i", input.h5ad,
+                    "-o", output.h5ad,
+                    "-c", str(params.n_pcs),
+                    "-k", str(params.n_neighbors)]
             if params.trajectory:
-                cmd.append("--trajectory")
+                cmd.append("-T")
             if params.velocity:
-                cmd.append("--velocity")
+                cmd.append("-V")
             if params.communication:
-                cmd.append("--communication")
+                cmd.append("-L")
             if params.cnv:
-                cmd.append("--cnv")
+                cmd.append("-C")
             if params.gtf:
-                cmd += ["--gtf", params.gtf]
+                cmd += ["-G", params.gtf]
             if params.cnv_reference:
-                cmd += ["--cnv-reference", params.cnv_reference]
-            cmd += ["--plot-dir", str(output.plot_dir)]
+                cmd += ["-R", params.cnv_reference]
+            cmd += ["-p", str(output.plot_dir)]
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write(" ".join(shlex.quote(str(item)) for item in cmd) + "\n")
@@ -327,11 +326,11 @@ rule scanpy_differential_expression:
             os.makedirs(sample_outdir, exist_ok=True)
             os.makedirs(str(output.plot_dir), exist_ok=True)
             script = os.path.join(sample_outdir, f"scanpy_de_{wildcards.counter}_{wildcards.tissue}_{current_time}.sh")
-            cmd = [params.python, params.script, "--mode", "de",
-                   "--input", input.h5ad,
-                   "--output", output.h5ad,
-                   "--deg", output.table]
-            cmd += ["--plot-dir", str(output.plot_dir)]
+            cmd = [params.python, params.script, "de",
+                   "-i", input.h5ad,
+                   "-o", output.h5ad,
+                   "-D", output.table]
+            cmd += ["-p", str(output.plot_dir)]
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write(" ".join(shlex.quote(str(item)) for item in cmd) + "\n")

@@ -1,6 +1,7 @@
 """Scanpy implementation for the standardized scRNA-seq workflow.
 
-Modes: qc, merge, cluster, annotate, auto, advanced, de.
+Subcommands: qc, merge, cluster, annotate, auto, advanced, de.
+Usage: scRNAseq.py MODE -i INPUT -o OUTPUT [options] (every option has a short form)
 Pipeline order: qc(each sample) -> merge(by tissue) -> cluster -> annotate -> advanced -> de
 Auto mode: cluster -> AI annotate -> QC -> filter -> re-cluster (iterative)
 """
@@ -4042,94 +4043,168 @@ def mode_de(
 # ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
-def main():
-    """Parse CLI arguments and dispatch to the requested mode function."""
-    parser = argparse.ArgumentParser(description="Scanpy scRNA-seq pipeline")
-    parser.add_argument("--mode", required=True,
-                        choices=["qc", "merge", "cluster", "annotate", "auto", "advanced", "de"])
-    parser.add_argument("--input", required=True, nargs="+")
-    parser.add_argument("--output", required=True)
-    parser.add_argument("--plot-dir", default="", help="Directory to save plots (optional)")
+def _add_common_args(p: argparse.ArgumentParser) -> None:
+    """Arguments shared by every subcommand."""
+    p.add_argument("-i", "--input", required=True, nargs="+",
+                   help="Input h5ad file(s); multiple files are concatenated")
+    p.add_argument("-o", "--output", required=True, help="Output h5ad path")
+    p.add_argument("-p", "--plot-dir", default="",
+                   help="Directory to save plots (optional)")
 
-    # QC params
-    parser.add_argument("--metrics", default="", help="Path to write per-cell QC metrics TSV")
-    parser.add_argument("--min-genes", type=int, default=200)
-    parser.add_argument("--max-genes", type=int, default=6000)
-    parser.add_argument("--max-pct-mt", type=float, default=20)
-    parser.add_argument("--n-top-genes", type=int, default=3000)
-    parser.add_argument("--scrublet", action="store_true", help="Run Scrublet doublet detection")
-    parser.add_argument("--doublet-rate", type=float, default=0.06, help="Expected doublet rate for Scrublet")
-    parser.add_argument("--use-mad", action="store_true", help="Use MAD-based outlier detection (more permissive)")
 
-    # Cluster params
-    parser.add_argument("--n-pcs", type=int, default=50, help="Number of principal components")
-    parser.add_argument("--n-neighbors", type=int, default=50, help="Number of k-NN neighbours")
-    parser.add_argument("--resolution", type=float, default=1.0, help="Leiden clustering resolution")
-    parser.add_argument("--markers", default="", help="Path to write ranked marker gene TSV")
-    parser.add_argument("--auto-n-pcs", action="store_true", default=True, help="Auto-detect optimal n_pcs from PCA variance ratio (default: True)")
-    parser.add_argument("--no-auto-n-pcs", action="store_false", dest="auto_n_pcs", help="Disable auto-detection of n_pcs")
-    parser.add_argument("--skip-te", action="store_true", help="Exclude TE genes before HVG selection and clustering")
+def _add_cluster_args(p: argparse.ArgumentParser, with_markers: bool = True) -> None:
+    """Clustering / batch-correction arguments (shared by cluster and auto)."""
+    p.add_argument("-c", "--n-pcs", type=int, default=50,
+                   help="Number of principal components")
+    p.add_argument("-k", "--n-neighbors", type=int, default=50,
+                   help="Number of k-NN neighbours")
+    p.add_argument("-r", "--resolution", type=float, default=1.0,
+                   help="Leiden clustering resolution")
+    p.add_argument("-g", "--n-top-genes", type=int, default=3000)
+    if with_markers:
+        p.add_argument("-a", "--markers", default="",
+                       help="Path to write ranked marker gene TSV")
+    p.add_argument("-A", "--auto-n-pcs", action=argparse.BooleanOptionalAction,
+                   default=True,
+                   help="Auto-detect optimal n_pcs from PCA variance ratio "
+                        "(default: True; use --no-auto-n-pcs to disable)")
+    p.add_argument("-x", "--skip-te", action="store_true",
+                   help="Exclude TE genes before HVG selection and clustering")
+    p.add_argument("-B", "--batch-method", default="harmony",
+                   choices=["harmony", "bbknn", ""],
+                   help="Batch correction method (default: harmony, empty to skip)")
+    p.add_argument("-K", "--batch-key", default="",
+                   help="Column in obs identifying batches")
 
-    # Batch params (integrated into cluster mode)
-    parser.add_argument("--batch-method", default="harmony", choices=["harmony", "bbknn", ""],
-                        help="Batch correction method (default: harmony, empty to skip)")
-    parser.add_argument("--batch-key", default="", help="Column in obs identifying batches")
 
-    # Annotate params
-    parser.add_argument("--marker-file", default="", help="TSV with cell_type and markers columns")
-    parser.add_argument("--celltypist-model", default="", help="CellTypist model name")
-    parser.add_argument("--cluster-annotations", default="",
-                        help="JSON file with cluster-level annotation overrides "
-                             "{cluster_id: {original_cell_type, corrected_cell_type, "
-                             "reasoning}}. Applied AFTER marker/celltypist annotation. "
-                             "Cluster ids must exist in --annotate-group (default: leiden).")
+def build_parser() -> argparse.ArgumentParser:
+    """Build the subcommand-based CLI parser.
+
+    Each pipeline mode is a subcommand (``qc``, ``merge``, ``cluster``,
+    ``annotate``, ``auto``, ``advanced``, ``de``); every option accepts a
+    short form. Shared options keep the same short form across modes
+    (``-i``/``-o``/``-p``, ``-c``/``-k``/``-r``/``-g``, ``-n``/``-t``).
+    """
+    parser = argparse.ArgumentParser(
+        description="Scanpy scRNA-seq pipeline (one subcommand per mode)")
+    sub = parser.add_subparsers(dest="mode", required=True, metavar="MODE")
+
+    # -- qc: per-sample quality control ---------------------------------
+    p = sub.add_parser("qc", help="Per-sample quality control")
+    _add_common_args(p)
+    p.add_argument("-m", "--metrics", default="",
+                   help="Path to write per-cell QC metrics TSV")
+    p.add_argument("-n", "--min-genes", type=int, default=200)
+    p.add_argument("-N", "--max-genes", type=int, default=6000)
+    p.add_argument("-t", "--max-pct-mt", type=float, default=20)
+    p.add_argument("-s", "--scrublet", action="store_true",
+                   help="Run Scrublet doublet detection")
+    p.add_argument("-d", "--doublet-rate", type=float, default=0.06,
+                   help="Expected doublet rate for Scrublet")
+    p.add_argument("-M", "--use-mad", action="store_true",
+                   help="Use MAD-based outlier detection (more permissive)")
+
+    # -- merge: merge QC'd h5ad files by tissue -------------------------
+    p = sub.add_parser("merge", help="Merge QC'd h5ad files (by tissue)")
+    _add_common_args(p)
+    p.add_argument("-b", "--te-bed", default="",
+                   help="Path to TE BED file for gene_type annotation")
+    p.add_argument("-G", "--gene-tsv", default="",
+                   help="Path to gene annotation TSV for gene_type annotation")
+
+    # -- cluster: normalize + HVG + PCA + k-NN + Leiden -----------------
+    p = sub.add_parser("cluster", help="Normalize + HVG + PCA + k-NN + Leiden")
+    _add_common_args(p)
+    _add_cluster_args(p)
+
+    # -- annotate: marker / CellTypist / override annotation ------------
+    p = sub.add_parser("annotate", help="Marker / CellTypist / override annotation")
+    _add_common_args(p)
+    p.add_argument("-f", "--marker-file", default="",
+                   help="TSV with cell_type and markers columns")
+    p.add_argument("-y", "--celltypist-model", default="",
+                   help="CellTypist model name")
+    p.add_argument("-G", "--annotate-group", default="",
+                   help="Obs column for cluster grouping")
+    p.add_argument("-C", "--cluster-annotations", default="",
+                   help="JSON file with cluster-level annotation overrides "
+                        "{cluster_id: {original_cell_type, corrected_cell_type, "
+                        "reasoning}}. Applied AFTER marker/celltypist annotation. "
+                        "Cluster ids must exist in --annotate-group (default: leiden).")
+
+    # -- auto: cluster -> AI annotate -> QC -> re-cluster ----------------
     # LLM config: fall back to environment variables when CLI value is empty/None.
     # os.environ.get(..., "") ensures unset env vars also default to "".
     # Memory: 'LLM env: xiaomi mimo-v2.5-pro ... Env vars pre-configured, never set manually.'
     # This fallback was unintentionally removed in commit a01b702; restored so
     # scripts do not need to hard-code --llm-* args.
-    parser.add_argument("--llm-method", default=os.environ.get("LLM_METHOD", ""),
-                        choices=["", "openai", "anthropic", "ollama", "file"],
-                        help="LLM backend for annotation (env: LLM_METHOD)")
-    parser.add_argument("--llm-model", default=os.environ.get("LLM_MODEL", ""),
-                        help="LLM model identifier (env: LLM_MODEL)")
-    parser.add_argument("--llm-api-key", default=os.environ.get("LLM_API_KEY", ""),
-                        help="API key for LLM backend (env: LLM_API_KEY)")
-    parser.add_argument("--llm-base-url", default=os.environ.get("LLM_BASE_URL", ""),
-                        help="Base URL for LLM API (env: LLM_BASE_URL)")
-    parser.add_argument("--annotate-group", default="", help="Obs column for cluster grouping")
-    parser.add_argument("--tissue", default="", help="Tissue name for LLM prompt context")
-    parser.add_argument("--species", default="", help="Species/genome for tissue-specific annotation (e.g., Mmul_10, GRCh38, GRCm39)")
+    p = sub.add_parser("auto",
+                       help="Cluster -> AI annotate -> QC -> re-cluster (iterative)")
+    _add_common_args(p)
+    _add_cluster_args(p, with_markers=False)
+    p.add_argument("-n", "--min-genes", type=int, default=200)
+    p.add_argument("-U", "--min-counts", type=int, default=3000,
+                   help="Min UMI per cell for auto mode QC")
+    p.add_argument("-t", "--max-pct-mt", type=float, default=20)
+    p.add_argument("-I", "--max-iterations", type=int, default=3,
+                   help="Max QC refinement iterations for auto mode")
+    p.add_argument("-T", "--tissue", default="",
+                   help="Tissue name for LLM prompt context")
+    p.add_argument("-S", "--species", default="",
+                   help="Species/genome for tissue-specific annotation "
+                        "(e.g., Mmul_10, GRCh38, GRCm39)")
+    p.add_argument("-L", "--llm-method", default=os.environ.get("LLM_METHOD", ""),
+                   choices=["", "openai", "anthropic", "ollama", "file"],
+                   help="LLM backend for annotation (env: LLM_METHOD)")
+    p.add_argument("-l", "--llm-model", default=os.environ.get("LLM_MODEL", ""),
+                   help="LLM model identifier (env: LLM_MODEL)")
+    p.add_argument("-Q", "--llm-api-key", default=os.environ.get("LLM_API_KEY", ""),
+                   help="API key for LLM backend (env: LLM_API_KEY)")
+    p.add_argument("-u", "--llm-base-url", default=os.environ.get("LLM_BASE_URL", ""),
+                   help="Base URL for LLM API (env: LLM_BASE_URL)")
 
-    # Auto mode params
-    parser.add_argument("--max-iterations", type=int, default=3, help="Max QC refinement iterations for auto mode")
-    parser.add_argument("--min-counts", type=int, default=3000, help="Min UMI per cell for auto mode QC")
+    # -- advanced: trajectory / velocity / communication / CNV ----------
+    p = sub.add_parser("advanced",
+                       help="Trajectory / velocity / communication / CNV")
+    _add_common_args(p)
+    p.add_argument("-c", "--n-pcs", type=int, default=50,
+                   help="Number of principal components")
+    p.add_argument("-k", "--n-neighbors", type=int, default=50,
+                   help="Number of k-NN neighbours")
+    p.add_argument("-T", "--trajectory", action="store_true",
+                   help="Compute diffusion map + DPT")
+    p.add_argument("-V", "--velocity", action="store_true",
+                   help="Run scVelo RNA velocity")
+    p.add_argument("-L", "--communication", action="store_true",
+                   help="Run LIANA cell-cell communication")
+    p.add_argument("-C", "--cnv", action="store_true",
+                   help="Run inferCNVpy CNV inference")
+    p.add_argument("-G", "--gtf", default="",
+                   help="GTF file for CNV genomic annotation")
+    p.add_argument("-R", "--cnv-reference", default="",
+                   help="Comma-separated reference cell types for CNV")
 
-    # Advanced params
-    parser.add_argument("--trajectory", action="store_true", help="Compute diffusion map + DPT")
-    parser.add_argument("--velocity", action="store_true", help="Run scVelo RNA velocity")
-    parser.add_argument("--communication", action="store_true", help="Run LIANA cell-cell communication")
-    parser.add_argument("--cnv", action="store_true", help="Run inferCNVpy CNV inference")
-    parser.add_argument("--gtf", default="", help="GTF file for CNV genomic annotation")
-    parser.add_argument("--cnv-reference", default="", help="Comma-separated reference cell types for CNV")
+    # -- de: differential expression ------------------------------------
+    p = sub.add_parser("de", help="Differential expression")
+    _add_common_args(p)
+    p.add_argument("-D", "--deg", default="",
+                   help="Path to write DEG results TSV")
 
-    # DE params
-    parser.add_argument("--deg", default="", help="Path to write DEG results TSV")
+    return parser
 
-    # Gene type annotation params (for merge mode)
-    parser.add_argument("--te-bed", default="", help="Path to TE BED file for gene_type annotation")
-    parser.add_argument("--gene-tsv", default="", help="Path to gene annotation TSV for gene_type annotation")
 
-    args = parser.parse_args()
+def main():
+    """Parse CLI arguments and dispatch to the requested mode function."""
+    args = build_parser().parse_args()
 
     # LLM config second-pass: even when CLI default pulls from env (above),
     # Snakemake may pass `--llm-method ""` explicitly and shadow the env value.
     # Re-fill from env when the resolved value is empty so callers never have to
     # hard-code credentials in scripts (memory: 'Env vars pre-configured, never
     # set manually'). This is a safety net for the post-parse case where the
-    # argparse default was bypassed.
+    # argparse default was bypassed. Only the auto subcommand carries llm_* args.
     for arg_name in ("llm_method", "llm_model", "llm_api_key", "llm_base_url"):
-        if not getattr(args, arg_name):
+        if hasattr(args, arg_name) and not getattr(args, arg_name):
             env_val = os.environ.get(arg_name.upper(), "")
             if env_val:
                 logger.info("LLM config %s filled from env %s", arg_name, arg_name.upper())

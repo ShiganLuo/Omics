@@ -1,8 +1,5 @@
 **/.snakemake
-rnafusion
-rnasplice
 **/__pycache__
 **/.vscode
-**bamworkflow.log
 test
 workflow.log

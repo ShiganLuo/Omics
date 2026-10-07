@@ -53,9 +53,9 @@ rule scanpy_qc:
         doublet_rate=lambda wildcards: params.get(wildcards.counter, {}).get("qc",{}).get("doublet_rate", 0.06)
     run:
         log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger("scanpy_qc", log_file=log_path)
         try:
-            open(log_path, "w").close()
-            rule_logger = setup_logger("scanpy_qc", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start scanpy QC for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.h5ad))
@@ -75,15 +75,13 @@ rule scanpy_qc:
             if params.scrublet:
                 cmd += ["-s", "-d", str(params.doublet_rate)]
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(shlex.quote(str(item)) for item in cmd) + "\n")
                 f.write(f'echo "scanpy QC for {wildcards.sample_id} at {current_time} completed successfully"\n')
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"Error occurred during scanpy QC for sample {wildcards.sample_id}: {e}\n")
-            logger.error(f"Error occurred during scanpy QC for sample {wildcards.sample_id}: {e}")
-            raise e
+            rule_logger.error(f"Error occurred during scanpy QC for sample {wildcards.sample_id}: {e}")
+            raise RuntimeError(f"Error occurred during scanpy QC for sample {wildcards.sample_id}: {e}")
 
 # ---------------------------------------------------------------------------
 # Merge by tissue
@@ -115,9 +113,9 @@ rule scanpy_merge:
         gene_tsv=gene_tsv
     run:
         log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger("scanpy_merge", log_file=log_path)
         try:
-            open(log_path, "w").close()
-            rule_logger = setup_logger("scanpy_merge", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start scanpy merge for tissue {wildcards.tissue} at {current_time}")
             sample_outdir = os.path.dirname(str(output.h5ad))
@@ -130,15 +128,13 @@ rule scanpy_merge:
             if params.te_bed and params.gene_tsv:
                 cmd += ["-b", params.te_bed, "-G", params.gene_tsv]
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(shlex.quote(str(item)) for item in cmd) + "\n")
                 f.write(f'echo "scanpy merge for {wildcards.tissue} at {current_time} completed successfully"\n')
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"Error occurred during scanpy merge for tissue {wildcards.tissue}: {e}\n")
-            logger.error(f"Error occurred during scanpy merge for tissue {wildcards.tissue}: {e}")
-            raise e
+            rule_logger.error(f"Error occurred during scanpy merge for tissue {wildcards.tissue}: {e}")
+            raise RuntimeError(f"Error occurred during scanpy merge for tissue {wildcards.tissue}: {e}")
 
 
 rule scanpy_auto:
@@ -179,9 +175,9 @@ rule scanpy_auto:
         species=species
     run:
         log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger("scanpy_auto", log_file=log_path)
         try:
-            open(log_path, "w").close()
-            rule_logger = setup_logger("scanpy_auto", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start scanpy auto for tissue {wildcards.tissue} at {current_time}")
             sample_outdir = os.path.dirname(str(output.h5ad))
@@ -218,15 +214,14 @@ rule scanpy_auto:
                 cmd.append("-x")
             cmd += ["-p", str(output.plot_dir)]
             with open(script_path, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(shlex.quote(str(item)) for item in cmd) + "\n")
                 f.write(f'echo "scanpy auto for {wildcards.tissue} at {current_time} completed successfully"\n')
             shell(f"bash {script_path} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"Error occurred during scanpy auto for tissue {wildcards.tissue}: {e}\n")
-            logger.error(f"Error occurred during scanpy auto for tissue {wildcards.tissue}: {e}")
-            raise e
+            rule_logger.error(f"Error occurred during scanpy auto for tissue {wildcards.tissue}: {e}")
+            raise RuntimeError(f"Error occurred during scanpy auto for tissue {wildcards.tissue}: {e}")
+
 
 
 rule scanpy_advanced:
@@ -257,9 +252,9 @@ rule scanpy_advanced:
         cnv_reference=lambda wildcards: params.get(wildcards.counter,{}).get("advanced",{}).get("cnv_reference", "")
     run:
         log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger("scanpy_advanced", log_file=log_path)
         try:
-            open(log_path, "w").close()
-            rule_logger = setup_logger("scanpy_advanced", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start scanpy advanced analysis for tissue {wildcards.tissue} at {current_time}")
             sample_outdir = os.path.dirname(str(output.h5ad))
@@ -285,15 +280,14 @@ rule scanpy_advanced:
                 cmd += ["-R", params.cnv_reference]
             cmd += ["-p", str(output.plot_dir)]
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(shlex.quote(str(item)) for item in cmd) + "\n")
                 f.write(f'echo "scanpy advanced analysis for {wildcards.tissue} at {current_time} completed successfully"\n')
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"Error occurred during scanpy advanced analysis for tissue {wildcards.tissue}: {e}\n")
-            logger.error(f"Error occurred during scanpy advanced analysis for tissue {wildcards.tissue}: {e}")
-            raise e
+            rule_logger.error(f"Error occurred during scanpy advanced analysis for tissue {wildcards.tissue}: {e}")
+            raise RuntimeError(f"Error occurred during scanpy advanced analysis for tissue {wildcards.tissue}: {e}")
+
 
 
 rule scanpy_differential_expression:
@@ -317,9 +311,9 @@ rule scanpy_differential_expression:
         script=script
     run:
         log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger("scanpy_differential_expression", log_file=log_path)
         try:
-            open(log_path, "w").close()
-            rule_logger = setup_logger("scanpy_differential_expression", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start scanpy differential expression for tissue {wildcards.tissue} at {current_time}")
             sample_outdir = os.path.dirname(str(output.h5ad))
@@ -332,13 +326,12 @@ rule scanpy_differential_expression:
                    "-D", output.table]
             cmd += ["-p", str(output.plot_dir)]
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(shlex.quote(str(item)) for item in cmd) + "\n")
                 f.write(f'echo "scanpy differential expression for {wildcards.tissue} at {current_time} completed successfully"\n')
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"Error occurred during scanpy differential expression for tissue {wildcards.tissue}: {e}\n")
-            logger.error(f"Error occurred during scanpy differential expression for tissue {wildcards.tissue}: {e}")
-            raise e
+            rule_logger.error(f"Error occurred during scanpy differential expression for tissue {wildcards.tissue}: {e}")
+            raise RuntimeError(f"Error occurred during scanpy differential expression for tissue {wildcards.tissue}: {e}")
+
 

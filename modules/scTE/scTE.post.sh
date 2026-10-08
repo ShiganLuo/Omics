@@ -2,7 +2,7 @@
 
     # 1. Fix splitAllChrs in base.py (BAM processing)
     SCTE_BASE=$(find /opt/conda/envs/scTE -path "*/site-packages/scTE/base.py" | head -1) && \
-        python3 -c "
+        /opt/conda/envs/scTE/bin/python -c "
 p='$SCTE_BASE'
 with open(p) as f: src=f.read()
 old='''            # Force chrMT -> chrM
@@ -27,7 +27,7 @@ else:
 
     # 2. Fix scTE_build: chr_list and M<->MT normalization
     SCTE_BUILD=$(find /opt/conda/envs/scTE -path "*/bin/scTE_build" | head -1) && \
-        python3 -c "
+        /opt/conda/envs/scTE/bin/python -c "
 p='$SCTE_BUILD'
 with open(p) as f: src=f.read()
 changed = False
@@ -61,4 +61,110 @@ if changed:
     print('saved', p)
 else:
     print('scTE_build: already patched or no matching text')
+"
+
+    # 3. Fix scTE_build: handle custom TE BED with header + 7-column format
+    #    (chrom/start/end/strand/gene_id/family_id/class_id, e.g. rheMac10_rmsk_TE.bed)
+    SCTE_BUILD=$(find /opt/conda/envs/scTE -path "*/bin/scTE_build" | head -1) && \
+        /opt/conda/envs/scTE/bin/python -c "
+p='$SCTE_BUILD'
+with open(p) as f: src=f.read()
+changed = False
+
+# A. Chromosome scanning: parse header for column indices
+old1 = r'''        for line in o:
+            if '.gz' in tefilename:
+                line = line.decode('ascii')
+            chr = line.strip().split('\t')[0]
+            if chr not in active_chr_set:
+                active_chr_set.add(chr)'''
+new1 = r'''        _hdr = {}
+        for line in o:
+            if '.gz' in tefilename:
+                line = line.decode('ascii')
+            fields = line.strip().split('\t')
+            if not _hdr:
+                for _i, _h in enumerate(fields):
+                    _hdr[_h.strip()] = _i
+                continue
+            chr = fields[_hdr.get('chrom', _hdr.get('chr', 0))]
+            if chr not in active_chr_set:
+                active_chr_set.add(chr)'''
+if old1 in src:
+    src = src.replace(old1, new1)
+    print('TE BED patch A: chr scan header-aware')
+    changed = True
+
+# B. _process_tes_legacy: init _te_hdr + header-aware column lookup
+old2a = r'''    noverlap = []
+    total_te = 0'''
+new2a = r'''    noverlap = []
+    total_te = 0
+    _te_hdr = {}'''
+if old2a in src:
+    src = src.replace(old2a, new2a)
+    print('TE BED patch B0: init _te_hdr')
+    changed = True
+
+old2 = r'''        else:
+            chr = t[0].replace('chr', '')
+            left = int(t[1])
+            rite = int(t[2])
+            name = t[3]'''
+new2 = r'''        else:
+            if not _te_hdr:
+                for _i, _h in enumerate(t):
+                    _te_hdr[_h.strip()] = _i
+                continue
+            chr = t[_te_hdr.get('chrom', _te_hdr.get('chr', 0))].replace('chr', '')
+            left = int(t[_te_hdr.get('start', 1)])
+            rite = int(t[_te_hdr.get('end', 2)])
+            name = t[_te_hdr.get('gene_id', _te_hdr.get('name', 3))]'''
+if old2 in src:
+    src = src.replace(old2, new2)
+    print('TE BED patch B: _process_tes_legacy header-aware')
+    changed = True
+
+# C. _build_inclusive_index: header-aware column lookup
+old3 = r'''        TEs = genelist(tefilename, format={
+            'force_tsv': True,
+            'loc': 'location(chr=column[0], left=column[1], right=column[2])',
+            'annot': 3
+        })
+        gls = TEs.deepcopy()'''
+new3 = r'''        _te_hdr = {}
+        keep = []
+        _ofn = gzip.open if '.gz' in tefilename else open
+        _omd = 'rb' if '.gz' in tefilename else 'r'
+        with _ofn(tefilename, _omd) as _tf:
+            for _tl in _tf:
+                if '.gz' in tefilename:
+                    _tl = _tl.decode('ascii')
+                _tc = _tl.strip().split('\t')
+                if not _te_hdr:
+                    for _i, _h in enumerate(_tc):
+                        _te_hdr[_h.strip()] = _i
+                    continue
+                try:
+                    _left = int(_tc[_te_hdr.get('start', 1)])
+                except ValueError:
+                    continue
+                _chr = _tc[_te_hdr.get('chrom', _te_hdr.get('chr', 0))].replace('chr', '')
+                if _chr not in active_chr_set:
+                    continue
+                keep.append({
+                    'loc': location(chr=_chr, left=_left, right=int(_tc[_te_hdr.get('end', 2)])),
+                    'annot': _tc[_te_hdr.get('gene_id', _te_hdr.get('name', 3))]
+                })
+        gls = genelist()
+        gls.load_list(keep, copy=False)'''
+if old3 in src:
+    src = src.replace(old3, new3)
+    print('TE BED patch C: _build_inclusive_index header-aware')
+    changed = True
+if changed:
+    with open(p,'w') as f: f.write(src)
+    print('saved', p)
+else:
+    print('TE BED patch: already applied or no matching text')
 "

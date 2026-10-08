@@ -119,7 +119,7 @@ rule hisat2_align:
         sif("hisat2.yaml")
     run:
         log_path = str(log)
-        open(log_path, "w").close
+        open(log_path, "w").close()
         rule_logger = setup_logger("hisat2_align", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())

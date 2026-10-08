@@ -33,7 +33,7 @@ rule pbsv_discover:
     run:
         log_path = str(log)
         try:
-            open(log_path,"w").close
+            open(log_path,"w").close()
             rule_logger = setup_logger("pbsv_discover",log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start pbsv discover for sample {wildcards.sample_id} at {current_time}")
@@ -75,7 +75,7 @@ rule pbsv_call:
     run:
         log_path = str(log)
         try:
-            open(log_path,"w").close
+            open(log_path,"w").close()
             rule_logger = setup_logger("pbsv_call", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start pbsv call for sample {wildcards.sample_id} at {current_time}")

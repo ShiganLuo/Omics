@@ -144,7 +144,6 @@ rule scanpy_auto:
         h5ad = outdir_combine + "/{tissue}/{tissue}_{counter}_merged.h5ad"
     output:
         h5ad = outdir_combine + "/{tissue}/{tissue}_{counter}_auto.h5ad",
-        plot_dir = directory(outdir_combine + "/{tissue}/plots/{counter}/auto")
     log:
         logdir_combine + "/scanpy/{tissue}/scanpy_auto_{counter}.log"
     threads: 4
@@ -212,7 +211,6 @@ rule scanpy_auto:
                 cmd.append("-A")
             if params.skip_te:
                 cmd.append("-x")
-            cmd += ["-p", str(output.plot_dir)]
             with open(script_path, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(shlex.quote(str(item)) for item in cmd) + "\n")

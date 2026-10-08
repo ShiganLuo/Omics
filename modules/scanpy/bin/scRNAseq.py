@@ -318,7 +318,7 @@ def mode_merge(
     input_paths: List[str],
     output: str,
     axis: Literal["obs", 0, "var", 1] = "obs",
-    plot_dir: str = "",
+    plot_dir: Optional[str] = None,
     te_bed: str = "",
     gene_tsv: str = "",
 ) -> None:
@@ -343,6 +343,10 @@ def mode_merge(
         gene_tsv: Path to gene annotation TSV for gene_type annotation.
             Empty string skips annotation.
     """
+    output_stem = Path(output).stem
+    if not plot_dir:
+        plot_dir = os.path.join(os.path.dirname(output), f"{output_stem}_merge_plots")
+    os.makedirs(plot_dir, exist_ok=True)
     objects = []
     for p in input_paths:
         obj = ad.read_h5ad(p)
@@ -3097,9 +3101,9 @@ def mode_auto(
     n_neighbors: int = 50,
     n_top_genes: int = 3000,
     batch_method: str = "harmony",
-    batch_key: str = "",
+    batch_key: str = "sample_id",
     auto_n_pcs: bool = True,
-    plot_dir: str = "",
+    plot_dir: Optional[str] = None,
     skip_te: bool = False,
 ) -> None:
     """Fully autonomous: cluster → AI annotate → QC → filter → re-cluster.
@@ -3135,8 +3139,11 @@ def mode_auto(
     """
     output_dir = os.path.dirname(output) or "."
     output_stem = Path(output).stem
-    report_dir = os.path.join(output_dir, f"{output_stem}_reports")
+    report_dir = os.path.join(output_dir, f"{output_stem}_reports/table")
+    if not plot_dir:
+        plot_dir = os.path.join(output_dir, f"{output_stem}_reports/plot")
     os.makedirs(report_dir, exist_ok=True)
+    os.makedirs(plot_dir, exist_ok=True)
 
     # ── Iteration context for LLM-generated audit report ──
     ctx: Dict[str, Any] = {
@@ -4073,7 +4080,7 @@ def _add_cluster_args(p: argparse.ArgumentParser, with_markers: bool = True) -> 
     p.add_argument("-B", "--batch-method", default="harmony",
                    choices=["harmony", "bbknn", ""],
                    help="Batch correction method (default: harmony, empty to skip)")
-    p.add_argument("-K", "--batch-key", default="",
+    p.add_argument("-K", "--batch-key", default="sample_id",
                    help="Column in obs identifying batches")
 
 

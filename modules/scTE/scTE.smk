@@ -29,7 +29,7 @@ rule scTE_build_index:
         index_dir = outdir + "/index",
     run:
         log_path = str(log)
-        open(log_path, "w").close
+        open(log_path, 'w').close()
         rule_logger = setup_logger("scTE_build_index",log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -101,7 +101,7 @@ rule scTE_quantify:
         scte_bin = config.get("Procedure", {}).get("scTE") or "scTE",
     run:
         log_path = str(log)
-        open(log_path, "w").close
+        open(log_path, 'w').close()
         rule_logger = setup_logger("scTE_quantify", log_file=log_path)
         try:
             rule_logger.info(f"Quantifying TE expression for sample {wildcards.sample_id}")

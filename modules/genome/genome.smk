@@ -122,7 +122,7 @@ rule genome_index:
     run:
         log_path = str(log)
         try:
-            open(log_path,"w").close
+            open(log_path,"w").close()
             rule_logger = setup_logger("genome_index", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start genome_index at {current_time}")

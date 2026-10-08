@@ -172,7 +172,7 @@ rule cellranger_to_h5ad:
         filtered_matrix = outdir + "/{sample_id}/filtered_feature_bc_matrix",
     run:
         log_path = str(log)
-        open(log_path, "w").close
+        open(log_path, 'w').close()
         rule_logger = setup_logger("cellranger_to_h5ad", log_file = log_path)
         try:
             os.makedirs(os.path.dirname(output.h5ad), exist_ok=True)

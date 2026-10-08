@@ -1,5 +1,5 @@
 **/.snakemake
 **/__pycache__
 **/.vscode
-test
+**/test/data
 workflow.log

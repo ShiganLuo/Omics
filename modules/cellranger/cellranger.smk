@@ -32,7 +32,7 @@ rule cellranger_ref:
         fasta = fasta,
         gtf = gtf
     output:
-        ref_dir = directory(cellranger_ref_dir)
+        ref_dir = directory(cellranger_transcriptome_dir)
     log:
         logdir_ref + "/cellranger_ref/cellranger_ref.log"
     threads: 16
@@ -48,9 +48,9 @@ rule cellranger_ref:
         nthreads = 16,
     run:
         log_path = str(log)
+        open(log_path, 'w').close()
+        rule_logger = setup_logger(logger_name="cellranger_ref", log_file=log_path)
         try:
-            open(log_path, 'w').close()
-            rule_logger = setup_logger(logger_name="cellranger_ref", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start cellranger_ref at {current_time}")
             os.makedirs(str(output.ref_dir), exist_ok=True)
@@ -71,8 +71,7 @@ rule cellranger_ref:
                 f.write(f'echo "Cell Ranger reference built at {str(output.ref_dir)} successfully"\n')
             shell(f"bash {command_script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"cellranger_ref failed: {e}\n")
+            rule_logger.error(f"cellranger_ref failed: {e}\n")
             raise RuntimeError(f"cellranger_ref failed: {e}\n")
 
 def get_input_for_cellranger_count(wildcards):
@@ -114,9 +113,9 @@ rule cellranger_count:
         sample_prefix = lambda wildcards:cellranger_input_dict.get(wildcards.sample_id, {}).get("sample_prefix")
     run:
         log_path = str(log)
+        open(log_path, 'w').close()
+        rule_logger = setup_logger(logger_name="cellranger_count", log_file=log_path)
         try:
-            open(log_path, 'w').close()
-            rule_logger = setup_logger(logger_name="cellranger_count", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start cellranger_count for sample {wildcards.sample_id} at {current_time}")
             sample_id = wildcards.sample_id
@@ -152,15 +151,13 @@ rule cellranger_count:
                 f.write(f'echo "Cell Ranger count completed for sample {sample_id}"\n')
             shell(f"bash {command_script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"cellranger_count failed: {e}\n")
+            rule_logger.error(f"cellranger_count failed: {e}\n")
             raise RuntimeError(f"cellranger_count failed: {e}\n")
 
 rule cellranger_to_h5ad:
     """Convert Cell Ranger filtered matrix to h5ad."""
     input:
         bam = outdir + "/{sample_id}/{sample_id}.bam",
-        filtered_matrix = directory(outdir + "/{sample_id}/filtered_feature_bc_matrix"),
     output:
         h5ad = h5ad_outdir + "/{sample_id}/{sample_id}_cellranger.h5ad"
     log:
@@ -172,25 +169,28 @@ rule cellranger_to_h5ad:
         sif("cellranger.yaml")
     params:
         script = os.path.join(ROOT_DIR, "modules", "cellranger", "bin", "cellranger_to_h5ad.py")
+        filtered_matrix = outdir + "/{sample_id}/filtered_feature_bc_matrix",
     run:
         log_path = str(log)
+        open(log_path, "w").close
+        rule_logger = setup_logger("cellranger_to_h5ad", log_file = log_path)
         try:
-            os.makedirs(os.path.dirname(log_path), exist_ok=True)
             os.makedirs(os.path.dirname(output.h5ad), exist_ok=True)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             sample_outdir = os.path.dirname(output.h5ad)
             command_script = os.path.join(sample_outdir, f"cellranger_to_h5ad_{current_time}.sh")
+            rule_logger.info(f"Begin cellranger_to_h5ad analysis for {wildcards.sample_id} at {current_time}")
             cmd = [
                 "python", params.script,
-                "--input", input.filtered_matrix,
+                "--input", params.filtered_matrix,
                 "--output", output.h5ad,
                 "--sample-id", wildcards.sample_id
             ]
             with open(command_script, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(str(item) for item in cmd) + "\n")
+                f.write(f'echo "cellranger_to_h5ad completed for sample {wildcards.sample_id}"\n')
             shell(f"bash {command_script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"cellranger_to_h5ad failed: {e}\n")
+            rule_logger.error(f"cellranger_to_h5ad failed: {e}\n")
             raise RuntimeError(f"cellranger_to_h5ad failed: {e}\n")

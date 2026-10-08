@@ -29,9 +29,10 @@ rule scTE_build_index:
         index_dir = outdir + "/index",
     run:
         log_path = str(log)
+        open(log_path, "w").close
+        rule_logger = setup_logger("scTE_build_index",log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            rule_logger = setup_logger("scTE_build_index",log_file=log_path)
             out_prefix = os.path.join(params.index_dir, params.genome)
             command_script = os.path.join(
                 params.index_dir, f"scTE_build_index_{current_time}.sh"
@@ -62,8 +63,7 @@ rule scTE_build_index:
                 f.write(f'echo "scTE index built at {output.index} successfully"\n')
             shell(f"bash {command_script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"scTE_build_index failed: {e}\n")
+            rule_logger.error(f"scTE_build_index failed: {e}\n")
             raise RuntimeError(f"scTE_build_index failed: {e}\n")
 
 def get_input_for_scTE_quantify(wildcards):
@@ -101,8 +101,9 @@ rule scTE_quantify:
         scte_bin = config.get("Procedure", {}).get("scTE") or "scTE",
     run:
         log_path = str(log)
+        open(log_path, "w").close
+        rule_logger = setup_logger("scTE_quantify", log_file=log_path)
         try:
-            rule_logger = setup_logger("scTE_quantify", log_file=log_path)
             rule_logger.info(f"Quantifying TE expression for sample {wildcards.sample_id}")
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             sample_outdir = os.path.dirname(output.h5ad)
@@ -124,7 +125,6 @@ rule scTE_quantify:
                 f.write(f'echo "scTE quantification for sample {wildcards.sample_id} completed successfully"\n')
             shell(f"bash {command_script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"scTE_quantify failed: {e}\n")
+            rule_logger.error(f"scTE_quantify failed: {e}\n")
             raise RuntimeError(f"scTE_quantify failed: {e}\n")
 

@@ -49,7 +49,7 @@
         "gtf": "/home/luosg/Database/Reference/mulatta/ENSEMBL/Mmul_10/Macaca_mulatta.Mmul_10.116.gtf",
         "geneIDAnno": "/home/luosg/Database/Reference/mulatta/ENSEMBL/Mmul_10/geneIDAnnotation.csv",
         "te_bed": "/home/luosg/Database/Reference/mulatta/ENSEMBL/Mmul_10/rheMac10_rmsk_TE.bed",
-        "scTE_index": null,
+        "scTE_index": "/home/luosg/Database/Reference/mulatta/ENSEMBL/Mmul_10/scTE_index/Mmul_10.exclusive.idx",
         "cellranger_ref_dir": "/home/luosg/Database/Reference/mulatta/ENSEMBL/Mmul_10/Mmul_10",
         "star_index_dir": null
       }

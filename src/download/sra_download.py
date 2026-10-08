@@ -5,7 +5,9 @@ import shutil
 import subprocess
 import logging
 import argparse
+import shlex
 import sys
+import threading
 import urllib.parse
 from pathlib import Path
 from typing import List, Tuple, Optional
@@ -16,27 +18,26 @@ _SRC_DIR = Path(__file__).resolve().parent.parent.parent
 if str(_SRC_DIR) not in sys.path:
     sys.path.insert(0, str(_SRC_DIR))
 from src.common.util.SepUtil import detect_delimiter
+from src.common.util.LogUtil import setup_logger
 
-def setup_logger(log_file: Path) -> logging.Logger:
-    logger = logging.getLogger("SRA_DOWNLOAD")
-    logger.setLevel(logging.INFO)
+# ============================================================
+# 全局 logger：由 main() 调用 LogUtil.setup_logger 初始化，
+# 各函数直接使用模块级 logger，不通过参数传递
+# ============================================================
+logger: logging.Logger = logging.getLogger("SRA_DOWNLOAD")
 
-    formatter = logging.Formatter(
-        "%(asctime)s [%(levelname)s] %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S"
-    )
+# 网络劫持中止标志：检测到下载内容被认证门户劫持时置位，剩余下载立即跳过
+_ABORT_EVENT = threading.Event()
 
-    fh = logging.FileHandler(log_file)
-    fh.setFormatter(formatter)
 
-    sh = logging.StreamHandler()
-    sh.setFormatter(formatter)
+class NetworkHijackedError(RuntimeError):
+    """Downloaded payload is a captive-portal login page, not real data.
 
-    if not logger.handlers:
-        logger.addHandler(fh)
-        logger.addHandler(sh)
-
-    return logger
+    Raised when a "successful" download returns an HTML page or an empty
+    body, which indicates the network gateway (e.g. Dr.COM campus portal)
+    intercepted the request. Retrying cannot help until the network is
+    authenticated, so the run is aborted instead of retrying.
+    """
 
 
 # ============================================================
@@ -92,14 +93,14 @@ def build_ena_http_base(srr_id: str) -> str:
     if n == 11:
         x6 = srr_id[:6]
         x2 = f"0{srr_id[-2:]}"
-        return f"http://ftp.sra.ebi.ac.uk/vol1/fastq/{x6}/{x2}/{srr_id}"
+        return f"https://ftp.sra.ebi.ac.uk/vol1/fastq/{x6}/{x2}/{srr_id}"
     elif n == 10:
         x6 = srr_id[:6]
         x2 = f"00{srr_id[-1]}"
-        return f"http://ftp.sra.ebi.ac.uk/vol1/fastq/{x6}/{x2}/{srr_id}"
+        return f"https://ftp.sra.ebi.ac.uk/vol1/fastq/{x6}/{x2}/{srr_id}"
     elif n == 9:
         x6 = srr_id[:6]
-        return f"http://ftp.sra.ebi.ac.uk/vol1/fastq/{x6}/{srr_id}"
+        return f"https://ftp.sra.ebi.ac.uk/vol1/fastq/{x6}/{srr_id}"
     else:
         raise ValueError(f"非法 SRR ID: {srr_id}")
 
@@ -119,6 +120,21 @@ def build_ena_http_urls(srr_id: str) -> List[str]:
 # ============================================================
 
 def gzip_test(path: Path) -> bool:
+    """Return True when the file exists and passes `gzip -t`.
+
+    Pure validation, never raises. Use :func:`verify_fastq_gzip` at download
+    verification sites where hijack detection is required.
+
+    Parameters
+    ----------
+    path : Path
+        gzip file to test.
+
+    Returns
+    -------
+    bool
+        True if the file exists and is a valid gzip stream.
+    """
     if not path.exists():
         return False
     return subprocess.run(
@@ -128,10 +144,66 @@ def gzip_test(path: Path) -> bool:
     ).returncode == 0
 
 
-def _log_subprocess_error(logger: Optional[logging.Logger], label: str, result: subprocess.CompletedProcess):
+def is_html_payload(path: Path) -> bool:
+    """Return True when the file content is an HTML/XML page, not binary data.
+
+    Parameters
+    ----------
+    path : Path
+        Downloaded file to sniff.
+
+    Returns
+    -------
+    bool
+        True if the first non-whitespace bytes look like an HTML document
+        (e.g. a captive-portal login page injected by the network gateway).
+    """
+    if not path.exists() or path.stat().st_size == 0:
+        return False
+    with path.open("rb") as fh:
+        head = fh.read(1024).lstrip().lower()
+    return head.startswith((b"<!doctype", b"<html", b"<?xml", b"<head", b"<script"))
+
+
+def verify_fastq_gzip(path: Path) -> bool:
+    """Validate a downloaded fastq.gz file, detecting captive-portal hijacks.
+
+    Parameters
+    ----------
+    path : Path
+        Downloaded fastq.gz file.
+
+    Returns
+    -------
+    bool
+        True when the file passes ``gzip -t``.
+
+    Raises
+    ------
+    NetworkHijackedError
+        If the downloaded content is an HTML page or a zero-byte file, i.e.
+        the request was intercepted by a network authentication portal and
+        retrying cannot help.
+    """
+    if is_html_payload(path):
+        raise NetworkHijackedError(
+            f"{path.name} 下载内容是 HTML 页面而非 fastq 数据，"
+            f"疑似被网络认证门户(如 Dr.COM 校园网登录页)劫持: {path}"
+        )
+    if path.exists() and path.stat().st_size == 0:
+        raise NetworkHijackedError(
+            f"{path.name} 下载结果为空文件(0 字节)，疑似被网络网关拦截/重置: {path}"
+        )
+    if not gzip_test(path):
+        size = path.stat().st_size if path.exists() else 0
+        logger.warning(f"{path.name} gzip 校验失败 (size={size}B)")
+        return False
+    return True
+
+
+def _log_subprocess_error(label: str, result: subprocess.CompletedProcess):
     msg = result.stderr.strip() or f"exit code {result.returncode}"
-    if logger:
-        logger.warning(f"[{label}] {msg}")
+    logger.warning(f"[{label}] {msg}")
 
 
 # ============================================================
@@ -176,7 +248,6 @@ def globus_download_single_srr(
     srr_id: str,
     library_type: str,
     dest: Path,
-    logger: logging.Logger,
 ) -> bool:
     import globus_sdk
     
@@ -259,7 +330,7 @@ def globus_download_single_srr(
 # ascp 下载
 # ============================================================
 
-def ascp_download(remote: str, dest: Path, key: Path, logger: Optional[logging.Logger] = None) -> bool:
+def ascp_download(remote: str, dest: Path, key: Path) -> bool:
     cmd = [
         "ascp", "-k", "1", "-T", "-l", "200m",
         "-P", "33001",
@@ -268,9 +339,10 @@ def ascp_download(remote: str, dest: Path, key: Path, logger: Optional[logging.L
         "-i", str(key),
         remote, str(dest)
     ]
+    logger.info(f"[ascp] 开始下载 {remote} -> {dest}")
     result = subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode != 0:
-        _log_subprocess_error(logger, "ascp", result)
+        _log_subprocess_error("ascp", result)
         return False
     return True
 
@@ -280,23 +352,23 @@ def ena_download_single_srr(
     library_type: str,
     dest: Path,
     key: Path,
-    logger: logging.Logger,
 ):
     paths = build_ena_paths(srr_id)
     local = [dest / Path(p).name for p in paths]
     dest.mkdir(parents=True, exist_ok=True)
+    logger.info(f"[ascp] {srr_id} 候选远端路径:\n    " + "\n    ".join(paths))
 
     if library_type == "PAIRED":
-        if (ascp_download(paths[0], dest, key, logger) and
-                ascp_download(paths[1], dest, key, logger)):
-            return gzip_test(local[0]) and gzip_test(local[1])
-        if ascp_download(paths[2], dest, key, logger):
-            return gzip_test(local[2])
+        if (ascp_download(paths[0], dest, key) and
+                ascp_download(paths[1], dest, key)):
+            return verify_fastq_gzip(local[0]) and verify_fastq_gzip(local[1])
+        if ascp_download(paths[2], dest, key):
+            return verify_fastq_gzip(local[2])
         return False
     else:  # SINGLE
         for i in (2, 0, 1):
-            if ascp_download(paths[i], dest, key, logger):
-                if gzip_test(local[i]):
+            if ascp_download(paths[i], dest, key):
+                if verify_fastq_gzip(local[i]):
                     return True
         return False
 
@@ -308,14 +380,35 @@ def ena_download_single_srr(
 def aria2c_download_single(
     url: str,
     dest_dir: Path,
-    logger: Optional[logging.Logger] = None,
     connections: int = 8,
     split: int = 8,
     min_split_size: str = "1M",
     timeout: int = 600,
 ) -> bool:
-    """使用 aria2c 多线程下载单个文件，实时解析并输出下载速率"""
+    """使用 aria2c 多线程下载单个文件，实时解析并输出下载速率
+
+    Parameters
+    ----------
+    url : str
+        Complete download URL, logged verbatim before downloading.
+    dest_dir : Path
+        Destination directory.
+    connections : int, default=8
+        aria2c -x: max connections per server.
+    split : int, default=8
+        aria2c -s: split into N chunks.
+    min_split_size : str, default="1M"
+        aria2c -k: min split size.
+    timeout : int, default=600
+        aria2c --timeout in seconds.
+
+    Returns
+    -------
+    bool
+        True when aria2c exits with code 0.
+    """
     filename = url.rsplit("/", 1)[-1]
+    logger.info(f"[aria2c] 开始下载 {url} -> {dest_dir / filename}")
     cmd = [
         "aria2c",
         "-x", str(connections),
@@ -336,6 +429,7 @@ def aria2c_download_single(
     assert proc.stdout is not None
     last_log_time = 0.0
     last_progress = ""
+    detail_lines: List[str] = []
     for line in proc.stdout:
         line = line.strip()
         if not line:
@@ -345,40 +439,54 @@ def aria2c_download_single(
             last_progress = line
             now = time.time()
             if now - last_log_time >= 5.0:
-                if logger:
-                    logger.info(f"[aria2c] {filename}  {line}")
+                logger.info(f"[aria2c] {filename}  {line}")
                 last_log_time = now
         elif "Download Results" in line or "Status Legend" in line:
             # 输出最后一条进度（距上次日志 >= 2s 才输出，避免重复）
-            if last_progress and logger and time.time() - last_log_time >= 2.0:
+            if last_progress and time.time() - last_log_time >= 2.0:
                 logger.info(f"[aria2c] {filename}  {last_progress}")
             break
+        else:
+            # 错误/通知行（如 404、重定向），失败时输出
+            detail_lines.append(line)
     proc.wait()
     rc = proc.returncode
     if rc != 0:
-        if logger:
-            logger.warning(f"[aria2c] {filename} 退出码 {rc}")
+        for dl in detail_lines[-5:]:
+            logger.warning(f"[aria2c] {dl}")
+        logger.warning(f"[aria2c] {url} 退出码 {rc}")
         return False
     return True
 
 
-def aria2c_download_single_srr(
-    srr_id: str,
-    library_type: str,
-    dest: Path,
-    logger: logging.Logger,
-) -> bool:
-    """从 ENA HTTP 使用 aria2c 多线程下载单个 SRR 的 fastq.gz"""
+def aria2c_download_single_srr(srr_id: str, library_type: str, dest: Path) -> bool:
+    """从 ENA HTTP 使用 aria2c 多线程下载单个 SRR 的 fastq.gz
+
+    Parameters
+    ----------
+    srr_id : str
+        SRA run accession.
+    library_type : str
+        "PAIRED" or "SINGLE".
+    dest : Path
+        Destination directory.
+
+    Returns
+    -------
+    bool
+        True when a valid fastq.gz file is downloaded and verified.
+    """
     urls = build_ena_http_urls(srr_id)
     local = [dest / Path(urllib.parse.urlparse(u).path).name for u in urls]
     dest.mkdir(parents=True, exist_ok=True)
+    logger.info(f"[aria2c] {srr_id} 候选 URL:\n    " + "\n    ".join(urls))
 
     if library_type == "PAIRED":
         # 优先尝试 paired (_1 + _2)
-        ok1 = aria2c_download_single(urls[0], dest, logger)
-        if ok1 and gzip_test(local[0]):
-            ok2 = aria2c_download_single(urls[1], dest, logger)
-            if ok2 and gzip_test(local[1]):
+        ok1 = aria2c_download_single(urls[0], dest)
+        if ok1 and verify_fastq_gzip(local[0]):
+            ok2 = aria2c_download_single(urls[1], dest)
+            if ok2 and verify_fastq_gzip(local[1]):
                 return True
             logger.warning(f"[aria2c] {srr_id}_2 下载失败，尝试 single-end fallback")
             local[1].unlink(missing_ok=True)
@@ -387,8 +495,8 @@ def aria2c_download_single_srr(
             local[0].unlink(missing_ok=True)
 
         # fallback: single-end (.fastq.gz)
-        if aria2c_download_single(urls[2], dest, logger):
-            if gzip_test(local[2]):
+        if aria2c_download_single(urls[2], dest):
+            if verify_fastq_gzip(local[2]):
                 # 清理可能残留的 _1/_2
                 local[0].unlink(missing_ok=True)
                 local[1].unlink(missing_ok=True)
@@ -396,15 +504,297 @@ def aria2c_download_single_srr(
         return False
     else:  # SINGLE
         for i in (2, 0, 1):
-            if aria2c_download_single(urls[i], dest, logger):
-                if gzip_test(local[i]):
+            if aria2c_download_single(urls[i], dest):
+                if verify_fastq_gzip(local[i]):
                     # 清理不需要的文件
                     for j in range(3):
                         if j != i:
                             local[j].unlink(missing_ok=True)
                     return True
                 else:
-                    logger.warning(f"[aria2c] {local[i].name} gzip 校验失败")
+                    logger.warning(f"[aria2c] {local[i].name} gzip 校验失败，删除后尝试下一个候选")
+                    local[i].unlink(missing_ok=True)
+        return False
+
+
+# ============================================================
+# curl 下载 (ENA HTTPS，支持 socks 等环境代理)
+# ============================================================
+
+def _socks_proxy_in_env() -> Optional[str]:
+    """Return the first socks proxy URL found in proxy environment variables.
+
+    Returns
+    -------
+    Optional[str]
+        The proxy URL (e.g. "socks5://127.0.0.1:1080") or None when no
+        socks proxy is configured.
+    """
+    for var in ("all_proxy", "ALL_PROXY", "https_proxy", "HTTPS_PROXY", "http_proxy", "HTTP_PROXY"):
+        val = os.environ.get(var, "").strip()
+        if val.lower().startswith(("socks4", "socks5")):
+            return val
+    return None
+
+
+def _probe_remote(url: str, connect_timeout: int = 60) -> Tuple[Optional[int], bool]:
+    """Probe the remote file with an HTTP HEAD request.
+
+    Parameters
+    ----------
+    url : str
+        File URL to probe.
+    connect_timeout : int, default=60
+        curl --connect-timeout in seconds.
+
+    Returns
+    -------
+    Tuple[Optional[int], bool]
+        (content_length, accept_ranges): content length in bytes (None if
+        unknown) and whether the server supports HTTP range requests.
+    """
+    result = subprocess.run(
+        ["curl", "-sIL", "--connect-timeout", str(connect_timeout), url],
+        capture_output=True, text=True
+    )
+    if result.returncode != 0:
+        return None, False
+    length: Optional[int] = None
+    accept_ranges = False
+    for line in result.stdout.splitlines():
+        low = line.lower()
+        if low.startswith("content-length:"):
+            try:
+                length = int(low.split(":", 1)[1].strip())
+            except ValueError:
+                pass
+        elif low.startswith("accept-ranges:") and "bytes" in low:
+            accept_ranges = True
+    return length, accept_ranges
+
+
+def _curl_download_range(
+    url: str,
+    dest_file: Path,
+    byte_range: Optional[Tuple[int, int]],
+    connect_timeout: int = 30,
+    retries: int = 5,
+) -> bool:
+    """Download one file (or one byte range) with curl into dest_file.
+
+    Parameters
+    ----------
+    url : str
+        Complete download URL.
+    dest_file : Path
+        Output file path.
+    byte_range : Optional[Tuple[int, int]]
+        Inclusive (start, end) byte range, or None for the whole file.
+    connect_timeout : int, default=30
+        curl --connect-timeout in seconds.
+    retries : int, default=5
+        curl --retry: number of retries on transient errors.
+
+    Returns
+    -------
+    bool
+        True when curl exits with code 0.
+    """
+    cmd = [
+        "curl",
+        "-L", "--fail", "-sS",
+        "--connect-timeout", str(connect_timeout),
+        "--retry", str(retries),
+        "--retry-delay", "5",
+    ]
+    if byte_range is not None:
+        cmd += ["-r", f"{byte_range[0]}-{byte_range[1]}"]
+    else:
+        cmd += ["-C", "-"]
+    cmd += ["-o", str(dest_file), url]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        for line in (result.stderr or "").strip().splitlines()[-5:]:
+            logger.warning(f"[curl] {line}")
+        logger.warning(f"[curl] {url} 退出码 {result.returncode}")
+        return False
+    return True
+
+
+def curl_download_single(
+    url: str,
+    dest_dir: Path,
+    connections: int = 8,
+    connect_timeout: int = 30,
+    retries: int = 5,
+    min_segment_size: int = 64 * 1048576,
+) -> bool:
+    """使用 curl 分段并发下载单个文件，走环境代理(含 socks5)
+
+    大文件按 HTTP Range 拆成多段并行下载（网络按连接限速时显著提速），
+    小文件或服务器不支持 Range 时退化为单连接下载。
+
+    Parameters
+    ----------
+    url : str
+        Complete download URL, logged verbatim before downloading.
+    dest_dir : Path
+        Destination directory.
+    connections : int, default=8
+        Max parallel segments (also the max parallel connections).
+    connect_timeout : int, default=30
+        curl --connect-timeout in seconds.
+    retries : int, default=5
+        curl --retry: number of retries on transient errors.
+    min_segment_size : int, default=64MiB
+        Minimum bytes per segment; smaller segments are merged.
+
+    Returns
+    -------
+    bool
+        True when the file is fully downloaded.
+
+    Notes
+    -----
+    Unlike aria2c, curl natively honors socks proxy environment variables,
+    which is required on networks where direct connections are intercepted
+    by a TLS MITM gateway.
+    """
+    filename = url.rsplit("/", 1)[-1]
+    dest_file = dest_dir / filename
+    total, ranges_ok = _probe_remote(url, connect_timeout)
+
+    n_segments = 1
+    if ranges_ok and total:
+        n_segments = min(connections, max(1, total // min_segment_size))
+    if n_segments <= 1:
+        logger.info(f"[curl] 开始下载 {url} -> {dest_file} (单连接)")
+        return _curl_download_range(url, dest_file, None, connect_timeout, retries)
+    assert total is not None
+
+    seg_size = (total + n_segments - 1) // n_segments
+    segments: List[Tuple[Path, int, int]] = []
+    for i in range(n_segments):
+        start = i * seg_size
+        end = min(total - 1, (i + 1) * seg_size - 1)
+        segments.append((dest_dir / f"{filename}.part{i}", start, end))
+
+    logger.info(
+        f"[curl] 开始下载 {url} -> {dest_file} "
+        f"(分 {n_segments} 段并发, 共 {total / 1048576:.1f} MiB)"
+    )
+
+    # 断点续传：已完成的分段（大小正确）直接跳过
+    pending = []
+    for part, start, end in segments:
+        expected = end - start + 1
+        if part.exists() and part.stat().st_size == expected:
+            logger.info(f"[curl] {part.name} 已完成 ({expected / 1048576:.1f} MiB)，跳过")
+            continue
+        part.unlink(missing_ok=True)
+        pending.append((part, start, end))
+
+    procs = []
+    for part, start, end in pending:
+        cmd = [
+            "curl",
+            "-L", "--fail", "-sS",
+            "--connect-timeout", str(connect_timeout),
+            "--retry", str(retries),
+            "--retry-delay", "5",
+            "-r", f"{start}-{end}",
+            "-o", str(part),
+            url,
+        ]
+        procs.append((part, subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)))
+
+    # 轮询分段进度
+    last_log_time = 0.0
+    while any(p.poll() is None for _, p in procs):
+        time.sleep(5)
+        now = time.time()
+        if now - last_log_time >= 5.0:
+            done = sum(part.stat().st_size for part, _, _ in segments if part.exists())
+            logger.info(f"[curl] {filename}  分段进度 {done / 1048576:.1f}/{total / 1048576:.1f} MiB")
+            last_log_time = now
+
+    failed_parts = []
+    for part, p in procs:
+        if p.returncode != 0:
+            err = (p.stderr.read() or "").strip() if p.stderr is not None else ""
+            for line in err.splitlines()[-3:]:
+                logger.warning(f"[curl] {line}")
+            logger.warning(f"[curl] {part.name} 下载失败 (退出码 {p.returncode})")
+            failed_parts.append(part)
+    if failed_parts:
+        return False
+
+    # 分段合并
+    tmp_file = dest_dir / f"{filename}.merging"
+    with tmp_file.open("wb") as out:
+        for part, _, _ in segments:
+            with part.open("rb") as src:
+                shutil.copyfileobj(src, out)
+    tmp_file.replace(dest_file)
+    for part, _, _ in segments:
+        part.unlink(missing_ok=True)
+    return True
+
+
+def curl_download_single_srr(srr_id: str, library_type: str, dest: Path) -> bool:
+    """从 ENA HTTPS 使用 curl 下载单个 SRR 的 fastq.gz
+
+    Parameters
+    ----------
+    srr_id : str
+        SRA run accession.
+    library_type : str
+        "PAIRED" or "SINGLE".
+    dest : Path
+        Destination directory.
+
+    Returns
+    -------
+    bool
+        True when a valid fastq.gz file is downloaded and verified.
+    """
+    urls = build_ena_http_urls(srr_id)
+    local = [dest / Path(urllib.parse.urlparse(u).path).name for u in urls]
+    dest.mkdir(parents=True, exist_ok=True)
+    logger.info(f"[curl] {srr_id} 候选 URL:\n    " + "\n    ".join(urls))
+
+    if library_type == "PAIRED":
+        # 优先尝试 paired (_1 + _2)
+        ok1 = curl_download_single(urls[0], dest)
+        if ok1 and verify_fastq_gzip(local[0]):
+            ok2 = curl_download_single(urls[1], dest)
+            if ok2 and verify_fastq_gzip(local[1]):
+                return True
+            logger.warning(f"[curl] {srr_id}_2 下载失败，尝试 single-end fallback")
+            local[1].unlink(missing_ok=True)
+        else:
+            logger.warning(f"[curl] {srr_id}_1 下载失败，尝试 single-end fallback")
+            local[0].unlink(missing_ok=True)
+
+        # fallback: single-end (.fastq.gz)
+        if curl_download_single(urls[2], dest):
+            if verify_fastq_gzip(local[2]):
+                # 清理可能残留的 _1/_2
+                local[0].unlink(missing_ok=True)
+                local[1].unlink(missing_ok=True)
+                return True
+        return False
+    else:  # SINGLE
+        for i in (2, 0, 1):
+            if curl_download_single(urls[i], dest):
+                if verify_fastq_gzip(local[i]):
+                    # 清理不需要的文件
+                    for j in range(3):
+                        if j != i:
+                            local[j].unlink(missing_ok=True)
+                    return True
+                else:
+                    logger.warning(f"[curl] {local[i].name} gzip 校验失败，删除后尝试下一个候选")
                     local[i].unlink(missing_ok=True)
         return False
 
@@ -413,21 +803,33 @@ def aria2c_download_single_srr(
 # SRA Toolkit 下载 (prefetch + fasterq-dump)
 # ============================================================
 
-def sra_download_single_srr(
-    srr_id: str,
-    library_type: str,
-    dest: Path,
-    logger: logging.Logger,
-) -> bool:
+def sra_download_single_srr(srr_id: str, library_type: str, dest: Path) -> bool:
+    """通过 NCBI SRA Toolkit (prefetch + fasterq-dump) 下载并转换单个 SRR
+
+    Parameters
+    ----------
+    srr_id : str
+        SRA run accession.
+    library_type : str
+        "PAIRED" or "SINGLE".
+    dest : Path
+        Destination directory.
+
+    Returns
+    -------
+    bool
+        True when fastq.gz files are generated and pass gzip validation.
+    """
     dest.mkdir(parents=True, exist_ok=True)
 
     # --- 1. prefetch ---
     sra_dir = dest / srr_id
     sra_file = sra_dir / f"{srr_id}.sra"
     prefetch_cmd = ["prefetch", srr_id, "-O", str(dest), "--max-size", "0"]
+    logger.info(f"[prefetch] 执行: {shlex.join(prefetch_cmd)}")
     result = subprocess.run(prefetch_cmd, capture_output=True, text=True)
     if result.returncode != 0:
-        _log_subprocess_error(logger, "prefetch", result)
+        _log_subprocess_error("prefetch", result)
         shutil.rmtree(sra_dir, ignore_errors=True)
         return False
 
@@ -436,8 +838,7 @@ def sra_download_single_srr(
         if alt.exists():
             sra_file = alt
         else:
-            if logger:
-                logger.warning(f"[prefetch] {srr_id} 完成但 .sra 文件不存在: {sra_file}")
+            logger.warning(f"[prefetch] {srr_id} 完成但 .sra 文件不存在: {sra_file}")
             return False
 
     # --- 2. fasterq-dump ---
@@ -447,9 +848,10 @@ def sra_download_single_srr(
         "--split-files",
         "--threads", "4",
     ]
+    logger.info(f"[fasterq-dump] 执行: {shlex.join(fq_cmd)}")
     result = subprocess.run(fq_cmd, capture_output=True, text=True)
     if result.returncode != 0:
-        _log_subprocess_error(logger, "fasterq-dump", result)
+        _log_subprocess_error("fasterq-dump", result)
         sra_file.unlink(missing_ok=True)
         shutil.rmtree(sra_dir, ignore_errors=True)
         return False
@@ -457,17 +859,17 @@ def sra_download_single_srr(
     # --- 3. gzip ---
     generated = list(dest.glob(f"{srr_id}*.fastq"))
     if not generated:
-        if logger:
-            logger.warning(f"[fasterq-dump] {srr_id} 未生成 .fastq 文件")
+        logger.warning(f"[fasterq-dump] {srr_id} 未生成 .fastq 文件")
         sra_file.unlink(missing_ok=True)
         shutil.rmtree(sra_dir, ignore_errors=True)
         return False
 
     for fq in generated:
         gz_cmd = ["gzip", "-f", str(fq)]
+        logger.info(f"[gzip] 执行: {shlex.join(gz_cmd)}")
         result = subprocess.run(gz_cmd, capture_output=True, text=True)
         if result.returncode != 0:
-            _log_subprocess_error(logger, "gzip", result)
+            _log_subprocess_error("gzip", result)
             sra_file.unlink(missing_ok=True)
             shutil.rmtree(sra_dir, ignore_errors=True)
             return False
@@ -481,8 +883,7 @@ def sra_download_single_srr(
     ok = True
     for fq_gz in dest.glob(f"{srr_id}*.fastq.gz"):
         if not gzip_test(fq_gz):
-            if logger:
-                logger.warning(f"[gzip] {fq_gz.name} 校验失败")
+            logger.warning(f"[gzip] {fq_gz.name} 校验失败")
             ok = False
     return ok
 
@@ -491,14 +892,48 @@ def sra_download_single_srr(
 # 自旋重试逻辑
 # ============================================================
 
-def spin_until_success(try_func, desc, logger, sleep_base, sleep_max, max_retries=10) -> bool:
+def spin_until_success(try_func, desc: str, sleep_base: int, sleep_max: int, max_retries: int = 10) -> bool:
+    """Spin with exponential backoff until try_func succeeds or retries run out.
+
+    Parameters
+    ----------
+    try_func : Callable[[], bool]
+        Zero-arg callable performing one download attempt.
+    desc : str
+        Description used in log messages.
+    sleep_base : int
+        Initial retry interval in seconds.
+    sleep_max : int
+        Upper bound of the retry interval in seconds.
+    max_retries : int, default=10
+        Maximum number of attempts.
+
+    Returns
+    -------
+    bool
+        True on success.
+
+    Notes
+    -----
+    A :class:`NetworkHijackedError` from try_func aborts immediately (no
+    retry) and sets the module-level abort event, because retrying cannot
+    help until the network is authenticated.
+    """
     attempt = 1
     sleep_time = sleep_base
 
     while attempt <= max_retries:
         logger.info(f"[Attempt {attempt}/{max_retries}] {desc}")
 
-        if try_func():
+        try:
+            ok = try_func()
+        except NetworkHijackedError as e:
+            logger.error(f"[ABORT] {desc}: {e}")
+            logger.error("[ABORT] 网络被认证门户劫持，重试无效，中止剩余下载；请先完成网络认证(如校园网/Dr.COM 登录)后重新运行")
+            _ABORT_EVENT.set()
+            return False
+
+        if ok:
             logger.info(f"[SUCCESS] {desc}")
             return True
 
@@ -533,7 +968,6 @@ def download_spin(
     library_type: str,
     dest: Path,
     method: str,
-    logger: logging.Logger,
     sleep_base: int,
     sleep_max: int,
     max_retries: int = 10,
@@ -542,6 +976,10 @@ def download_spin(
     globus_src_ep: Optional[str] = None,
     globus_dest_ep: Optional[str] = None,
 ) -> bool:
+    if _ABORT_EVENT.is_set():
+        logger.warning(f"[SKIP] {srr_id} {library_type}：已检测到网络劫持，跳过剩余下载")
+        return False
+
     # 缓存：已存在且完整则跳过
     if _fastq_exists(dest, srr_id, library_type):
         logger.info(f"[SKIP] {srr_id} {library_type} 已存在，跳过")
@@ -549,27 +987,56 @@ def download_spin(
 
     logger.info(f"{srr_id} {library_type} 开始下载 (method={method})")
 
+    # aria2c 不支持 socks 代理(unrecognized proxy format)，直连又会被网关 TLS 劫持，
+    # 检测到 socks 代理时自动切换 curl 引擎（curl 原生支持 socks 环境变量）
+    use_curl = method == "curl"
+    if method == "aria2c":
+        socks = _socks_proxy_in_env()
+        if socks:
+            logger.warning(f"[aria2c] 检测到 socks 代理 {socks}，aria2c 无法使用，自动切换 curl 引擎")
+            use_curl = True
+
     if method == "ascp":
         if not key:
             raise ValueError("ascp 方法需要 --key 参数")
-        try_func = lambda: ena_download_single_srr(srr_id, library_type, dest, key, logger)
+        try_func = lambda: ena_download_single_srr(srr_id, library_type, dest, key)
+    elif use_curl:
+        try_func = lambda: curl_download_single_srr(srr_id, library_type, dest)
     elif method == "aria2c":
-        try_func = lambda: aria2c_download_single_srr(srr_id, library_type, dest, logger)
+        try_func = lambda: aria2c_download_single_srr(srr_id, library_type, dest)
     elif method == "globus":
         if not globus_tc or not globus_dest_ep:
             raise ValueError("globus 方法缺失 transfer_client 或 destination endpoint")
-        try_func = lambda: globus_download_single_srr(globus_tc, globus_src_ep, globus_dest_ep, srr_id, library_type, dest, logger)
+        try_func = lambda: globus_download_single_srr(globus_tc, globus_src_ep, globus_dest_ep, srr_id, library_type, dest)
     else:  # sra
-        try_func = lambda: sra_download_single_srr(srr_id, library_type, dest, logger)
+        try_func = lambda: sra_download_single_srr(srr_id, library_type, dest)
 
-    return spin_until_success(try_func, f"{srr_id} {library_type}", logger, sleep_base, sleep_max, max_retries)
+    return spin_until_success(try_func, f"{srr_id} {library_type}", sleep_base, sleep_max, max_retries)
 
 
 # ============================================================
 # SRR 解析
 # ============================================================
 
-def load_tasks(args, logger: Optional[logging.Logger] = None) -> List[Tuple[str, str]]:
+def load_tasks(args) -> List[Tuple[str, str]]:
+    """Parse input mode (meta table / srr list / single srr) into (srr, layout) tasks.
+
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Parsed CLI arguments.
+
+    Returns
+    -------
+    List[Tuple[str, str]]
+        (srr_id, library_layout) pairs.
+
+    Raises
+    ------
+    ValueError
+        If the meta file cannot be read, the SRR column is missing, or
+        library layout values are invalid.
+    """
     tasks: List[Tuple[str, str]] = []
 
     if args.meta:
@@ -598,8 +1065,7 @@ def load_tasks(args, logger: Optional[logging.Logger] = None) -> List[Tuple[str,
             if not invalid.empty:
                 raise ValueError(f"Invalid library layout values found:\n{invalid}")
         else:
-            if logger:
-                logger.warning(f"列 '{lib_col}' 不存在，全部使用 {args.default_layout}")
+            logger.warning(f"列 '{lib_col}' 不存在，全部使用 {args.default_layout}")
             df[lib_col] = args.default_layout
 
         tasks = list(df[[srr_col, lib_col]].itertuples(index=False, name=None))
@@ -636,8 +1102,8 @@ def parse_args():
     p.add_argument("-t", "--library-type", choices=["PAIRED", "SINGLE"], help="Library type")
 
     # ---------- Download method ----------
-    p.add_argument("-m", "--method", choices=["ascp", "aria2c", "sra", "globus"], default="sra", 
-                   help="Download method: ascp (ENA fasp), aria2c (ENA HTTP multi-thread), sra (NCBI prefetch, default), globus")
+    p.add_argument("-m", "--method", choices=["ascp", "aria2c", "curl", "sra", "globus"], default="sra",
+                   help="Download method: ascp (ENA fasp), aria2c (ENA HTTP multi-thread), curl (ENA HTTPS, supports socks proxy), sra (NCBI prefetch, default), globus")
 
     # ---------- Output / logging ----------
     p.add_argument("-o", "--outdir", type=Path, required=True)
@@ -682,9 +1148,10 @@ def parse_args():
 
 def main():
     args = parse_args()
-    logger = setup_logger(args.log)
+    # 初始化全局 logger（LogUtil.setup_logger 按名字配置，与模块级 logger 是同一对象）
+    setup_logger("SRA_DOWNLOAD", log_file=str(args.log))
 
-    tasks = load_tasks(args, logger)
+    tasks = load_tasks(args)
     logger.info(f"共 {len(tasks)} 个 SRR，method={args.method}，jobs={args.jobs}")
 
     # 若使用 Globus 则提前初始化客户端避免重复登录
@@ -695,7 +1162,7 @@ def main():
     def download_fn(srr, lib):
         return download_spin(
             srr, lib, args.outdir, args.method,
-            logger, args.sleep_base, args.sleep_max,
+            args.sleep_base, args.sleep_max,
             max_retries=args.max_retries,
             key=args.key,
             globus_tc=globus_tc,
@@ -724,6 +1191,8 @@ def main():
                     failed.append(srr)
 
     if failed:
+        if _ABORT_EVENT.is_set():
+            logger.error("===== 运行中止：下载内容被网络认证门户(如 Dr.COM)劫持，先完成网络认证再重跑 =====")
         logger.error(f"===== {len(failed)}/{len(tasks)} 个 SRR 下载失败 =====")
         for srr in sorted(failed):
             logger.error(f"  FAILED: {srr}")

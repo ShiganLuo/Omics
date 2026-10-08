@@ -60,13 +60,15 @@ python ${SCRIPT_DIR}/run.py \
 #     --rerun-trigger mtime \
 #     --sdm apptainer
 
-# python ${SCRIPT_DIR}/run.py \
-#     -m /home/luosg/Data/genomeStability/data/MS/sample_input.tsv \
-#     -w QuantMS \
-#     -o /home/luosg/Data/genomeStability/output/MS \
-#     -t 48 \
-#     --log /home/luosg/Data/genomeStability/log/MS.log \
-#     --sdm
+python ${SCRIPT_DIR}/run.py \
+    -m /data/16T/luosg/data/meta_PXDO53575.tsv \
+    -w QuantMS \
+    -o /data/16T/luosg/output/PXDO53575 \
+    -t 48 \
+    --log /data/16T/luosg/log/PXDO53575.log \
+    --sdm \
+    --quantification_method tmt \
+    --dry-run
 
 # python ${SCRIPT_DIR}/run.py \
 #     -m /home/luosg/Data/genomeStability/data/Rnp/meta_input.tsv \

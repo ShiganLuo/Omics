@@ -1,6 +1,11 @@
-from typing import Optional
+from typing import Optional, TextIO
 import logging
-def setup_logger(logger_name: str, level: int = logging.INFO, log_file: Optional[str] = None) -> logging.Logger:
+def setup_logger(
+    logger_name: str,
+    level: int = logging.INFO,
+    log_file: Optional[str] = None,
+    stream: Optional[TextIO] = None,
+) -> logging.Logger:
     """Create and configure a logger with stream/file handlers.
 
     Parameters
@@ -11,6 +16,9 @@ def setup_logger(logger_name: str, level: int = logging.INFO, log_file: Optional
         Logging level.
     log_file : Optional[str], default=None
         Optional log file path. If provided, file logging is enabled.
+    stream : Optional[TextIO], default=None
+        Console output stream for the stream handler. None keeps the
+        logging default (sys.stderr); pass sys.stdout to log to stdout.
 
     Returns
     -------
@@ -31,7 +39,7 @@ def setup_logger(logger_name: str, level: int = logging.INFO, log_file: Optional
         file_handler.setFormatter(fmt)
         logger.addHandler(file_handler)
 
-    stream_handler = logging.StreamHandler()
+    stream_handler = logging.StreamHandler(stream)
     stream_handler.setLevel(level)
     stream_handler.setFormatter(fmt)
     logger.addHandler(stream_handler)

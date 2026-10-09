@@ -72,7 +72,7 @@ def _init_raw_json(
     if not datajson.get("tmp_dir"):
         tmp_dir = os.path.join(outdir, "tmp")
         os.makedirs(tmp_dir, exist_ok=True)
-    if workflow in ["PacVar", "ncRNAseq"]:
+    if workflow in ["PacVar", "ncRNAseq", "RNAseq"]:
         datajson["ROOT_DIR"] = root_dir
         datajson["Params"]["workflow"]["indir"] = indir
         datajson["Params"]["workflow"]["outdir"] = outdir
@@ -695,7 +695,7 @@ def runRNAseq(
         outdir: str,
         raw_files: List[str],
     ):
-    root_dir = _init_raw_json(datajson, indir, outdir, raw_files)
+    root_dir = _init_raw_json(datajson, indir, outdir, raw_files, "RNAseq")
     outfiles = []
     genome_paired_samples = {}
     genome_single_samples = {}
@@ -807,8 +807,8 @@ def runRNAseq(
         if _report_enabled:
             outfiles.append(f"{outdir}/results/{organism}/RNAseq_report.pptx")
     datajson["outfiles"] = outfiles
-    datajson["genome_paired_samples"] = genome_paired_samples
-    datajson["genome_single_samples"] = genome_single_samples
+    datajson["Params"]["workflow"]["genome_paired_samples"] = genome_paired_samples
+    datajson["Params"]["workflow"]["genome_single_samples"] = genome_single_samples
     return _write_raw_json(datajson, outdir)
 
 def runtRNAseq(

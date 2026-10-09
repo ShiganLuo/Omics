@@ -14,8 +14,7 @@ python ${SCRIPT_DIR}/run.py \
     -t 48 \
     --log /data/pub/zhousha/Totipotent20251031/log/pluripotent2totipotent_RNAseq.log \
     --sdm \
-    --rerun-triggers mtime \
-    --dry-run
+    --rerun-triggers mtime
 
 # python ${SCRIPT_DIR}/run.py \
 #     -m /home/luosg/Data/genomeStability/data/Rn7sk/meta_input.tsv \

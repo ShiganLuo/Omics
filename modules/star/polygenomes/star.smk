@@ -16,7 +16,7 @@ isGenomeSubdir = config.get('isGenomeSubdir', False)
 
 def get_input_for_star_index(wildcards):
     """Dynamically determines the input fasta file for STAR index based on the genome."""
-    logger.info(f"[get_input_for_star_index] called with wildcards: {wildcards}")
+    logger.debug(f"[get_input_for_star_index] called with wildcards: {wildcards}")
     fasta = config.get('genome', {}).get('references', {}).get(wildcards.genome, {}).get('fasta')
     if not fasta:
         logger.error(f"Fasta file for genome {wildcards.genome} not found in config")
@@ -43,9 +43,9 @@ rule star_index:
         outTmpDir = lambda wildcards: outdir + f"/index/tmp_star_{wildcards.genome}"
     run:
         log_path = str(log)
+        open(log_path, 'w').close()
+        rule_logger = setup_logger("star_index", log_file=log_path)
         try:
-            open(log_path, 'w').close()
-            rule_logger = setup_logger("star_index", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start star_index for genome {wildcards.genome} at {current_time}")
 
@@ -75,21 +75,17 @@ rule star_index:
                 f.write(" ".join(cmd) + "\n")
                 f.write("echo 'STAR index generation completed successfully.'\n")
             shell(f"bash {script} >> {log_path} 2>&1")
-
-            rule_logger.info(f"star_index for genome {wildcards.genome} completed successfully")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"Error occurred during star_index for genome {wildcards.genome}: {e}\n")
-            logger.error(f"Error occurred during star_index for genome {wildcards.genome}: {e}")
-            raise e
+            rule_logger.error(f"Error occurred during star_index for genome {wildcards.genome}: {e}")
+            raise RuntimeError(f"star_index failed for genome {wildcards.genome}: {e}")
 
 def get_star_index(wildcards):
-    logger.info(f"[get_star_index] called with wildcards: {wildcards}")
+    logger.debug(f"[get_star_index] called with wildcards: {wildcards}")
     config_index_dir = config.get('genome', {}).get('references', {}).get(wildcards.genome, {}).get('star_index_dir') or None
     if config_index_dir and os.path.exists(config_index_dir):
-        logger.info(f"[get_star_index] using provided index_dir for genome {wildcards.genome}: {config_index_dir}")
+        logger.debug(f"[get_star_index] using provided index_dir for genome {wildcards.genome}: {config_index_dir}")
         return config_index_dir
-    logger.info(f"[get_star_index] using default index_dir for genome {wildcards.genome}")
+    logger.debug(f"[get_star_index] using default index_dir for genome {wildcards.genome}")
     return index_dir + f"/index/{wildcards.genome}"
 
 def get_alignment_input(wildcards):
@@ -105,43 +101,43 @@ def get_alignment_input(wildcards):
 
     return: A list of input file paths for the STAR alignment step. 
     """
-    logger.info(f"[get_alignment_input] called with wildcards: {wildcards}")
+    logger.debug(f"[get_alignment_input] called with wildcards: {wildcards}")
     # 构造可能的输入路径
     if fastq_sample_suffix:
-        logger.info(f"[get_alignment_input] fastq_sample_suffix is set to {fastq_sample_suffix}")
+        logger.debug(f"[get_alignment_input] fastq_sample_suffix is set to {fastq_sample_suffix}")
         if not isGenomeSubdir:
-            logger.info(f"[get_alignment_input] isGenomeSubdir is False. Assuming fastq files are in the sample directory.")
+            logger.debug(f"[get_alignment_input] isGenomeSubdir is False. Assuming fastq files are in the sample directory.")
             paired_r1 = f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}_{fastq_sample_suffix}_1.fq.gz"
             paired_r2 = f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}_{fastq_sample_suffix}_2.fq.gz"
             single = f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}_{fastq_sample_suffix}.single.fq.gz"
         else:
-            logger.info(f"[get_alignment_input] isGenomeSubdir is True. Assuming fastq files are in the genome subdirectory.")
+            logger.debug(f"[get_alignment_input] isGenomeSubdir is True. Assuming fastq files are in the genome subdirectory.")
             paired_r1 = f"{indir}/{wildcards.genome}/{wildcards.sample_id}/{wildcards.sample_id}_{fastq_sample_suffix}_1.fq.gz"
             paired_r2 = f"{indir}/{wildcards.genome}/{wildcards.sample_id}/{wildcards.sample_id}_{fastq_sample_suffix}_2.fq.gz"
             single = f"{indir}/{wildcards.genome}/{wildcards.sample_id}/{wildcards.sample_id}_{fastq_sample_suffix}.single.fq.gz"
     else:
-        logger.info("[get_alignment_input] fastq_sample_suffix is not set. Using default naming convention.")
+        logger.debug("[get_alignment_input] fastq_sample_suffix is not set. Using default naming convention.")
         if not isGenomeSubdir:
-            logger.info(f"[get_alignment_input] isGenomeSubdir is False. Assuming fastq files are in the sample directory.")
+            logger.debug(f"[get_alignment_input] isGenomeSubdir is False. Assuming fastq files are in the sample directory.")
             paired_r1 = f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}_1.fq.gz"
             paired_r2 = f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}_2.fq.gz"
             single = f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}.single.fq.gz"
         else:
-            logger.info(f"[get_alignment_input] isGenomeSubdir is True. Assuming fastq files are in the genome subdirectory.")
+            logger.debug(f"[get_alignment_input] isGenomeSubdir is True. Assuming fastq files are in the genome subdirectory.")
             paired_r1 = f"{indir}/{wildcards.genome}/{wildcards.sample_id}/{wildcards.sample_id}_1.fq.gz"
             paired_r2 = f"{indir}/{wildcards.genome}/{wildcards.sample_id}/{wildcards.sample_id}_2.fq.gz"
             single = f"{indir}/{wildcards.genome}/{wildcards.sample_id}/{wildcards.sample_id}.single.fq.gz"
 
     # 检查文件实际存在情况
     if wildcards.sample_id in genome_paired_samples.get(wildcards.genome, []):
-        logger.info(f"双端测序：{[paired_r1, paired_r2]}")
+        logger.debug(f"双端测序：{[paired_r1, paired_r2]}")
         if omics_type == "scRNAseq":
-            logger.info(f"Detected scRNA-seq data for sample {wildcards.sample_id}.R1 is expected to contain cell barcodes and UMIs, R2 contains the transcript sequence.")
+            logger.debug(f"Detected scRNA-seq data for sample {wildcards.sample_id}.R1 is expected to contain cell barcodes and UMIs, R2 contains the transcript sequence.")
             return [paired_r2, paired_r1]
         else:   
             return [paired_r1, paired_r2]
     elif wildcards.sample_id in genome_single_samples.get(wildcards.genome, []):
-        logger.info(f"单端测序：{[single]}")
+        logger.debug(f"单端测序：{[single]}")
         return [single]
     else:
         logger.error(f"样本 {wildcards.sample_id} 未在 {wildcards.genome} 的 paired_samples: {genome_paired_samples.get(wildcards.genome, [])} 或 single_samples: {genome_single_samples.get(wildcards.genome, [])} 中定义")
@@ -204,10 +200,10 @@ rule star_align:
         sif("../star.yaml")
     run:
         log_path = str(log)
+        open(log_path, 'w').close()
+        rule_logger = setup_logger(logger_name="star_align", log_file=log_path)
         try:
-            open(log_path, 'w').close()
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
-            rule_logger = setup_logger(logger_name="star_align", log_file=log_path)
             sample_outdir = os.path.dirname(str(output.bam))
             script = f"{sample_outdir}/star_align.{current_time}.sh"
             rule_logger.info(f"Start STAR alignment for sample {wildcards.sample_id} genome {wildcards.genome} at {current_time}")
@@ -268,12 +264,10 @@ rule star_align:
                 f.write(f"test -f {output.unmapped_r1} || touch {output.unmapped_r1}\n")
                 f.write(f"test -f {output.unmapped_r2} || touch {output.unmapped_r2}\n")
                 f.write(f"echo 'STAR alignment for {wildcards.sample_id} completed successfully.'\n")
-            shell(f"bash {script} > {log_path} 2>&1")
+            shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"Error during STAR alignment for sample {wildcards.sample_id}: {str(e)}\n")
-            logger.error(f"Error during STAR alignment for sample {wildcards.sample_id}: {str(e)}")
-            raise e
+            rule_logger.error(f"Error during STAR alignment for sample {wildcards.sample_id}: {str(e)}")
+            raise RuntimeError(f"STAR alignment failed for sample {wildcards.sample_id}: {str(e)}")
 rule star_result:
     input:
         star_align = outdir + "/{genome}/{sample_id}/{sample_id}.bam"

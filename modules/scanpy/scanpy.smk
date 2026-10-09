@@ -171,6 +171,7 @@ rule scanpy_auto:
         batch_key=lambda wildcards: params.get(wildcards.counter, {}).get("auto", {}).get("batch_key", "sample_id"),
         auto_n_pcs=lambda wildcards: params.get(wildcards.counter, {}).get("auto", {}).get("auto_n_pcs", True),
         skip_te=lambda wildcards: params.get(wildcards.counter, {}).get("auto", {}).get("skip_te", True),
+        save_iteration_h5ad=lambda wildcards: params.get(wildcards.counter, {}).get("auto", {}).get("save_iteration_h5ad", False),
         species=species
     run:
         log_path = str(log)
@@ -211,6 +212,8 @@ rule scanpy_auto:
                 cmd.append("-A")
             if params.skip_te:
                 cmd.append("-x")
+            if params.save_iteration_h5ad:
+                cmd.append("-H")
             with open(script_path, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(shlex.quote(str(item)) for item in cmd) + "\n")

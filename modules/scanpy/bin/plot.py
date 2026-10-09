@@ -309,6 +309,135 @@ class ScanpyPlotter:
         logger.info("Cluster plots saved to %s", self.plot_dir)
 
     # ------------------------------------------------------------------
+    # Per-iteration snapshot (auto mode)
+    # ------------------------------------------------------------------
+    def plot_iteration_snapshot(
+        self,
+        adata: AnnData,
+        iteration: int,
+        flagged_clusters: Optional[List[str]] = None,
+        flagged_labels: Optional[Dict[str, str]] = None,
+        cluster_key: str = "leiden",
+        annotation_col: str = "cell_type",
+        min_genes: Optional[float] = None,
+        min_counts: Optional[float] = None,
+        max_pct_mt: Optional[float] = None,
+    ) -> str:
+        """Save per-iteration UMAP snapshot so each auto-mode round can be
+        visually judged.
+
+        Generates up to 4 figures in ``<plot_dir>/iteration_<NN>/``:
+
+            - umap_leiden.png: coloured by cluster.
+            - umap_cell_type.png: coloured by AI annotation (if present).
+            - umap_flagged.png: flagged clusters highlighted in colour on a
+              grey background. Drawn even when nothing is flagged, confirming
+              a clean round.
+            - qc_violins.png: per-cluster violins of total_counts,
+              n_genes_by_counts and pct_counts_mt with QC threshold lines
+              (flagged clusters in red) — shows HOW low the QC metrics are.
+
+        Args:
+            adata: AnnData with ``X_umap`` and cluster labels.
+            iteration: 1-based iteration number.
+            flagged_clusters: Cluster ids flagged for filtering this round.
+            flagged_labels: Optional mapping cluster id -> legend label
+                (e.g. ``"cluster 8 (Alu_high: te_dominated)"``).
+            cluster_key: Cluster label column in ``adata.obs``.
+            annotation_col: Annotation column for the cell-type UMAP.
+            min_genes: QC threshold drawn on the n_genes panel.
+            min_counts: QC threshold drawn on the total_counts panel.
+            max_pct_mt: QC threshold drawn on the pct_mt panel.
+
+        Returns:
+            The iteration snapshot directory path.
+        """
+        iter_dir = os.path.join(self.plot_dir, f"iteration_{iteration:02d}")
+        os.makedirs(iter_dir, exist_ok=True)
+        flagged_clusters = [str(c) for c in (flagged_clusters or [])]
+        flagged_labels = flagged_labels or {}
+
+        # 1. Cluster UMAP
+        fig, ax = plt.subplots(figsize=(8, 6))
+        self._umap(adata, cluster_key, ax=ax,
+                   title=f"Iteration {iteration} — {cluster_key} clusters",
+                   legend_loc="on data", legend_fontsize=10)
+        self._save_to(iter_dir, "umap_leiden.png")
+
+        # 2. Cell type annotation UMAP
+        if annotation_col in adata.obs.columns:
+            fig, ax = plt.subplots(figsize=(10, 6))
+            self._umap(adata, annotation_col, ax=ax,
+                       title=f"Iteration {iteration} — {annotation_col}",
+                       legend_loc="right margin", legend_fontsize=9,
+                       legend_fontoutline=1)
+            self._save_to(iter_dir, "umap_cell_type.png")
+
+        # 3. Flagged clusters highlighted (always drawn — clean rounds too)
+        coords = adata.obsm["X_umap"]
+        fig, ax = plt.subplots(figsize=(8, 6))
+        ax.scatter(coords[:, 0], coords[:, 1], s=2, c="lightgray",
+                   linewidths=0, rasterized=True)
+        clusters = adata.obs[cluster_key].astype(str)
+        palette = sns.color_palette("colorblind", max(len(flagged_clusters), 1))
+        for i, cid in enumerate(sorted(set(flagged_clusters), key=int)):
+            mask = (clusters == cid).to_numpy()
+            label = flagged_labels.get(cid, f"cluster {cid}")
+            ax.scatter(coords[mask, 0], coords[mask, 1], s=3, color=palette[i],
+                       label=label, linewidths=0, rasterized=True)
+        if flagged_clusters:
+            ax.set_title(f"Iteration {iteration} — "
+                         f"{len(flagged_clusters)} flagged cluster(s)")
+            ax.legend(markerscale=3, fontsize=8, loc="best", frameon=False)
+        else:
+            ax.set_title(f"Iteration {iteration} — no flagged clusters")
+        ax.set_xticks([])
+        ax.set_yticks([])
+        self._save_to(iter_dir, "umap_flagged.png")
+
+        # 4. QC violins per cluster with threshold lines (flagged in red)
+        qc_metrics = [
+            ("total_counts", min_counts, "min_counts"),
+            ("n_genes_by_counts", min_genes, "min_genes"),
+            ("pct_counts_mt", max_pct_mt, "max_pct_mt"),
+        ]
+        available = [(c, t, n) for c, t, n in qc_metrics if c in adata.obs.columns]
+        if available:
+            fig, axes = plt.subplots(1, len(available),
+                                     figsize=(5 * len(available), 6))
+            if len(available) == 1:
+                axes = [axes]
+            order = sorted(adata.obs[cluster_key].astype(str).unique(), key=int)
+            flagged_set = set(flagged_clusters)
+            palette = {cid: ("#d62728" if cid in flagged_set else "#c7c7c7")
+                       for cid in order}
+            for ax, (col, threshold, tname) in zip(axes, available):
+                sns.violinplot(
+                    data=adata.obs, x=cluster_key, y=col, order=order,
+                    hue=cluster_key, palette=palette, legend=False,
+                    ax=ax, inner="quart", cut=0, linewidth=0.6,
+                )
+                if threshold is not None:
+                    ax.axhline(threshold, color="red", ls="--", lw=1,
+                               label=f"{tname}={threshold:g}")
+                    ax.legend(fontsize=8, frameon=False, loc="upper right")
+                ax.set_title(col)
+                ax.set_xlabel("")
+                ax.tick_params(axis="x", rotation=90, labelsize=7)
+            fig.suptitle(f"Iteration {iteration} — QC per cluster "
+                         f"(red = flagged)")
+            self._save_to(iter_dir, "qc_violins.png")
+
+        logger.info("Iteration %d snapshot saved to %s", iteration, iter_dir)
+        return iter_dir
+
+    def _save_to(self, directory: str, filename: str) -> None:
+        """Save the current figure into *directory* (not ``self.plot_dir``)."""
+        path = os.path.join(directory, filename)
+        plt.savefig(path, dpi=self.dpi, bbox_inches="tight")
+        plt.close("all")
+
+    # ------------------------------------------------------------------
     # PCA variance
     # ------------------------------------------------------------------
     def plot_pca_variance(

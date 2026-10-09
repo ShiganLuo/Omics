@@ -14,12 +14,12 @@ genomes = set(genome_paired_samples.keys()).union(set(genome_single_samples.keys
 logger.info(f"indir: {indir}, outdir: {outdir}, logdir: {logdir}, genomes: {genomes}, aligner_TEtranscripts: {aligner_TEtranscripts}, trimmer: {trimmer}")
 genome_samples = {}
 for genome, samples in genome_paired_samples.items():
-    genome_samples[genome] = samples
+    genome_samples[genome] = list(samples)  # copy: never mutate config's own lists
 for genome, samples in genome_single_samples.items():
     if genome in genome_samples:
         genome_samples[genome].extend(samples)
     else:
-        genome_samples[genome] = samples
+        genome_samples[genome] = list(samples)
 # for mixed samples,XenofilteR
 genome_paired_samples_mixed = {}
 genome_single_samples_mixed = {}

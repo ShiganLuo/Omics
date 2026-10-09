@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import os
 import time
+import hashlib
 import shutil
 import subprocess
 import logging
@@ -10,7 +11,7 @@ import sys
 import threading
 import urllib.parse
 from pathlib import Path
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Dict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import pandas as pd
 
@@ -204,6 +205,107 @@ def verify_fastq_gzip(path: Path) -> bool:
 def _log_subprocess_error(label: str, result: subprocess.CompletedProcess):
     msg = result.stderr.strip() or f"exit code {result.returncode}"
     logger.warning(f"[{label}] {msg}")
+
+
+def md5_of_file(path: Path, chunk_size: int = 1048576) -> str:
+    """Return the md5 hex digest of a file, computed in chunks.
+
+    Parameters
+    ----------
+    path : Path
+        File to hash.
+    chunk_size : int, default=1MiB
+        Read buffer size in bytes.
+
+    Returns
+    -------
+    str
+        Lowercase hex md5 digest.
+    """
+    h = hashlib.md5()
+    with path.open("rb") as fh:
+        for chunk in iter(lambda: fh.read(chunk_size), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def fetch_ena_fastq_md5(srr_id: str, connect_timeout: int = 60) -> Dict[str, str]:
+    """Fetch expected md5 checksums for a run's fastq files from the ENA API.
+
+    Parameters
+    ----------
+    srr_id : str
+        SRA run accession.
+    connect_timeout : int, default=60
+        curl --connect-timeout in seconds.
+
+    Returns
+    -------
+    Dict[str, str]
+        Mapping from fastq file name (e.g. "SRR14664595.fastq.gz") to the
+        expected md5 hex digest. Empty dict when the lookup fails.
+    """
+    api = (
+        "https://www.ebi.ac.uk/ena/portal/api/filereport"
+        f"?accession={srr_id}&result=read_run&fields=fastq_ftp,fastq_md5&format=tsv"
+    )
+    result = subprocess.run(
+        ["curl", "-sL", "--connect-timeout", str(connect_timeout), api],
+        capture_output=True, text=True
+    )
+    if result.returncode != 0:
+        logger.warning(f"[md5] ENA md5 查询失败: {srr_id}")
+        return {}
+    lines = [ln for ln in result.stdout.splitlines() if ln.strip()]
+    if len(lines) < 2:
+        logger.warning(f"[md5] ENA 未返回 {srr_id} 的 fastq_md5")
+        return {}
+    header = lines[0].split("\t")
+    row = lines[1].split("\t")
+    try:
+        ftp_idx = header.index("fastq_ftp")
+        md5_idx = header.index("fastq_md5")
+    except ValueError:
+        logger.warning(f"[md5] ENA 返回缺少 fastq_ftp/fastq_md5 列: {header}")
+        return {}
+    if ftp_idx >= len(row) or md5_idx >= len(row):
+        logger.warning(f"[md5] ENA 返回行与表头不一致: {srr_id}")
+        return {}
+    files = row[ftp_idx].split(";")
+    md5s = row[md5_idx].split(";")
+    if len(files) != len(md5s):
+        logger.warning(f"[md5] ENA 返回的 fastq_ftp/fastq_md5 数量不一致: {srr_id}")
+        return {}
+    return {
+        Path(name.strip()).name: md5.strip()
+        for name, md5 in zip(files, md5s)
+    }
+
+
+def verify_fastq_md5(path: Path, expected_md5: Optional[str]) -> bool:
+    """Verify a downloaded file against the expected md5 digest.
+
+    Parameters
+    ----------
+    path : Path
+        Downloaded file.
+    expected_md5 : Optional[str]
+        Expected md5 hex digest; None skips the check with a warning.
+
+    Returns
+    -------
+    bool
+        True when the digest matches (or no expectation is available).
+    """
+    if not expected_md5:
+        logger.warning(f"[md5] {path.name} 无预期 md5（ENA 查询失败或字段为空），跳过 md5 校验")
+        return True
+    actual = md5_of_file(path)
+    if actual != expected_md5:
+        logger.warning(f"[md5] {path.name} md5 不匹配: 实际 {actual} != 预期 {expected_md5}")
+        return False
+    logger.info(f"[md5] {path.name} md5 校验通过 ({actual})")
+    return True
 
 
 # ============================================================
@@ -537,6 +639,30 @@ def _socks_proxy_in_env() -> Optional[str]:
     return None
 
 
+def _check_size(dest_file: Path, expected_total: Optional[int]) -> bool:
+    """Check the downloaded file size against the expected total bytes.
+
+    Parameters
+    ----------
+    dest_file : Path
+        Downloaded file.
+    expected_total : Optional[int]
+        Expected size in bytes from the HTTP HEAD probe; None skips the check.
+
+    Returns
+    -------
+    bool
+        True when the size matches (or no expectation is available).
+    """
+    if expected_total is None:
+        return True
+    actual = dest_file.stat().st_size if dest_file.exists() else 0
+    if actual != expected_total:
+        logger.warning(f"[curl] {dest_file.name} 大小不符: 实际 {actual} != 预期 {expected_total} 字节")
+        return False
+    return True
+
+
 def _probe_remote(url: str, connect_timeout: int = 60) -> Tuple[Optional[int], bool]:
     """Probe the remote file with an HTTP HEAD request.
 
@@ -669,7 +795,15 @@ def curl_download_single(
         n_segments = min(connections, max(1, total // min_segment_size))
     if n_segments <= 1:
         logger.info(f"[curl] 开始下载 {url} -> {dest_file} (单连接)")
-        return _curl_download_range(url, dest_file, None, connect_timeout, retries)
+        # 先写 .part 临时文件，完整后才改名为最终文件，保证最终名=完整文件
+        tmp_part = dest_dir / f"{filename}.singlepart"
+        if not _curl_download_range(url, tmp_part, None, connect_timeout, retries):
+            return False
+        if not _check_size(tmp_part, total):
+            tmp_part.unlink(missing_ok=True)
+            return False
+        tmp_part.replace(dest_file)
+        return True
     assert total is not None
 
     seg_size = (total + n_segments - 1) // n_segments
@@ -738,7 +872,7 @@ def curl_download_single(
     tmp_file.replace(dest_file)
     for part, _, _ in segments:
         part.unlink(missing_ok=True)
-    return True
+    return _check_size(dest_file, total)
 
 
 def curl_download_single_srr(srr_id: str, library_type: str, dest: Path) -> bool:
@@ -762,13 +896,18 @@ def curl_download_single_srr(srr_id: str, library_type: str, dest: Path) -> bool
     local = [dest / Path(urllib.parse.urlparse(u).path).name for u in urls]
     dest.mkdir(parents=True, exist_ok=True)
     logger.info(f"[curl] {srr_id} 候选 URL:\n    " + "\n    ".join(urls))
+    md5_map = fetch_ena_fastq_md5(srr_id)
+
+    def _verify(path: Path) -> bool:
+        """gzip 完整性 + 字节级 md5 双重校验"""
+        return verify_fastq_gzip(path) and verify_fastq_md5(path, md5_map.get(path.name))
 
     if library_type == "PAIRED":
         # 优先尝试 paired (_1 + _2)
         ok1 = curl_download_single(urls[0], dest)
-        if ok1 and verify_fastq_gzip(local[0]):
+        if ok1 and _verify(local[0]):
             ok2 = curl_download_single(urls[1], dest)
-            if ok2 and verify_fastq_gzip(local[1]):
+            if ok2 and _verify(local[1]):
                 return True
             logger.warning(f"[curl] {srr_id}_2 下载失败，尝试 single-end fallback")
             local[1].unlink(missing_ok=True)
@@ -778,7 +917,7 @@ def curl_download_single_srr(srr_id: str, library_type: str, dest: Path) -> bool
 
         # fallback: single-end (.fastq.gz)
         if curl_download_single(urls[2], dest):
-            if verify_fastq_gzip(local[2]):
+            if _verify(local[2]):
                 # 清理可能残留的 _1/_2
                 local[0].unlink(missing_ok=True)
                 local[1].unlink(missing_ok=True)
@@ -787,14 +926,14 @@ def curl_download_single_srr(srr_id: str, library_type: str, dest: Path) -> bool
     else:  # SINGLE
         for i in (2, 0, 1):
             if curl_download_single(urls[i], dest):
-                if verify_fastq_gzip(local[i]):
+                if _verify(local[i]):
                     # 清理不需要的文件
                     for j in range(3):
                         if j != i:
                             local[j].unlink(missing_ok=True)
                     return True
                 else:
-                    logger.warning(f"[curl] {local[i].name} gzip 校验失败，删除后尝试下一个候选")
+                    logger.warning(f"[curl] {local[i].name} 校验失败，删除后尝试下一个候选")
                     local[i].unlink(missing_ok=True)
         return False
 
@@ -825,7 +964,9 @@ def sra_download_single_srr(srr_id: str, library_type: str, dest: Path) -> bool:
     # --- 1. prefetch ---
     sra_dir = dest / srr_id
     sra_file = sra_dir / f"{srr_id}.sra"
-    prefetch_cmd = ["prefetch", srr_id, "-O", str(dest), "--max-size", "0"]
+    # prefetch 2.9.6 拒绝 --max-size 0（"Maximum requested file size is zero"），
+    # 其默认上限是 20G，这里用 1T 作为事实上的"不限制"
+    prefetch_cmd = ["prefetch", srr_id, "-O", str(dest), "--max-size", "1T"]
     logger.info(f"[prefetch] 执行: {shlex.join(prefetch_cmd)}")
     result = subprocess.run(prefetch_cmd, capture_output=True, text=True)
     if result.returncode != 0:
@@ -1107,7 +1248,8 @@ def parse_args():
 
     # ---------- Output / logging ----------
     p.add_argument("-o", "--outdir", type=Path, required=True)
-    p.add_argument("-l", "--log", type=Path, required=True)
+    p.add_argument("-l", "--log", type=Path, default=None,
+                   help="日志文件路径 (可选；缺省时日志输出到标准输出)")
 
     # ---------- ascp param ----------
     p.add_argument("-k", "--key", type=Path, help="Aspera key file (required for --method ascp)")
@@ -1149,7 +1291,10 @@ def parse_args():
 def main():
     args = parse_args()
     # 初始化全局 logger（LogUtil.setup_logger 按名字配置，与模块级 logger 是同一对象）
-    setup_logger("SRA_DOWNLOAD", log_file=str(args.log))
+    # 未提供 --log 时日志仅输出到标准输出
+    log_file = str(args.log) if args.log else None
+    setup_logger("SRA_DOWNLOAD", log_file=log_file,
+                 stream=None if log_file else sys.stdout)
 
     tasks = load_tasks(args)
     logger.info(f"共 {len(tasks)} 个 SRR，method={args.method}，jobs={args.jobs}")

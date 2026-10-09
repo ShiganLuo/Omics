@@ -14,7 +14,8 @@ python ${SCRIPT_DIR}/run.py \
     -t 48 \
     --log /data/pub/zhousha/Totipotent20251031/log/pluripotent2totipotent_RNAseq.log \
     --sdm \
-    --rerun-triggers mtime
+    --rerun-triggers mtime \
+    --dry-run
 
 # python ${SCRIPT_DIR}/run.py \
 #     -m /home/luosg/Data/genomeStability/data/Rn7sk/meta_input.tsv \
@@ -60,15 +61,15 @@ python ${SCRIPT_DIR}/run.py \
 #     --rerun-trigger mtime \
 #     --sdm apptainer
 
-python ${SCRIPT_DIR}/run.py \
-    -m /data/16T/luosg/data/meta_PXDO53575.tsv \
-    -w QuantMS \
-    -o /data/16T/luosg/output/PXDO53575 \
-    -t 48 \
-    --log /data/16T/luosg/log/PXDO53575.log \
-    --sdm \
-    --quantification_method tmt \
-    --dry-run
+# python ${SCRIPT_DIR}/run.py \
+#     -m /data/16T/luosg/data/meta_PXDO53575.tsv \
+#     -w QuantMS \
+#     -o /data/16T/luosg/output/PXDO53575 \
+#     -t 48 \
+#     --log /data/16T/luosg/log/PXDO53575.log \
+#     --sdm \
+#     --quantification_method tmt \
+#     --dry-run
 
 # python ${SCRIPT_DIR}/run.py \
 #     -m /home/luosg/Data/genomeStability/data/Rnp/meta_input.tsv \

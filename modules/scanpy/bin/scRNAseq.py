@@ -3096,6 +3096,7 @@ def _save_iteration_snapshot(
     min_genes: Optional[float] = None,
     min_counts: Optional[float] = None,
     max_pct_mt: Optional[float] = None,
+    save_h5ad: bool = False,
 ) -> None:
     """Save per-iteration UMAP snapshot + summary.txt for QC review.
 
@@ -3117,6 +3118,8 @@ def _save_iteration_snapshot(
         min_genes: QC threshold (recorded in summary, drawn on QC violins).
         min_counts: QC threshold (recorded in summary, drawn on QC violins).
         max_pct_mt: QC threshold (recorded in summary, drawn on QC violins).
+        save_h5ad: Save the iteration's annotated AnnData as h5ad in
+            ``iter_dir`` (``iteration_<NN>.h5ad``). Default False.
     """
     if plotter is None:
         return
@@ -3181,6 +3184,12 @@ def _save_iteration_snapshot(
         fh.write("\n".join(lines) + "\n")
     logger.info("Iteration %d summary written to %s", iteration, iter_dir)
 
+    if save_h5ad:
+        h5ad_path = os.path.join(iter_dir, f"iteration_{iteration:02d}.h5ad")
+        adata.write_h5ad(h5ad_path)
+        logger.info("Iteration %d annotated h5ad written to %s",
+                    iteration, h5ad_path)
+
 
 def mode_auto(
     adata: ad.AnnData,
@@ -3205,6 +3214,7 @@ def mode_auto(
     auto_n_pcs: bool = True,
     plot_dir: Optional[str] = None,
     skip_te: bool = False,
+    save_iteration_h5ad: bool = False,
 ) -> None:
     """Fully autonomous: cluster → AI annotate → QC → filter → re-cluster.
 
@@ -3218,7 +3228,10 @@ def mode_auto(
 
     Every iteration saves a visual snapshot to ``<plot_dir>/iteration_<NN>/``
     (leiden UMAP, cell_type UMAP, flagged-cluster UMAP, summary.txt) so each
-    round can be visually judged before filtering or re-clustering.
+    round can be visually judged before filtering or re-clustering. With
+    *save_iteration_h5ad*, each round's annotated AnnData is also written to
+    ``<plot_dir>/iteration_<NN>/iteration_<NN>.h5ad`` (off by default — these
+    files can be large).
 
     Args:
         adata: Merged AnnData (from mode_merge).
@@ -3240,6 +3253,8 @@ def mode_auto(
         batch_key: Batch key column.
         auto_n_pcs: Auto-detect n_pcs.
         plot_dir: Directory for plots.
+        save_iteration_h5ad: Also save each iteration's annotated h5ad
+            (default False).
     """
     output_dir = os.path.dirname(output) or "."
     output_stem = Path(output).stem
@@ -3776,6 +3791,7 @@ def mode_auto(
                         quality_reports, outcome="recluster_continuity",
                         min_genes=min_genes, min_counts=min_counts,
                         max_pct_mt=max_pct_mt,
+                        save_h5ad=save_iteration_h5ad,
                     )
                     resolution = new_resolution
                     continue  # Re-cluster with higher resolution
@@ -3792,6 +3808,7 @@ def mode_auto(
                 quality_reports, outcome="clean",
                 min_genes=min_genes, min_counts=min_counts,
                 max_pct_mt=max_pct_mt,
+                save_h5ad=save_iteration_h5ad,
             )
             break
 
@@ -3969,6 +3986,7 @@ def mode_auto(
             n_removed=n_removed, cells_remaining=adata_filtered.n_obs,
             outcome=outcome,
             min_genes=min_genes, min_counts=min_counts, max_pct_mt=max_pct_mt,
+            save_h5ad=save_iteration_h5ad,
         )
 
         if n_removed == 0:
@@ -4285,6 +4303,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("-t", "--max-pct-mt", type=float, default=20)
     p.add_argument("-I", "--max-iterations", type=int, default=5,
                    help="Max QC refinement iterations for auto mode (default: 5)")
+    p.add_argument("-H", "--save-iteration-h5ad", action="store_true",
+                   help="Save each iteration's annotated h5ad to the iteration "
+                        "snapshot dir (default: off)")
     p.add_argument("-T", "--tissue", default="",
                    help="Tissue name for LLM prompt context")
     p.add_argument("-S", "--species", default="",
@@ -4419,6 +4440,7 @@ def main():
             auto_n_pcs=args.auto_n_pcs,
             plot_dir=args.plot_dir,
             skip_te=args.skip_te,
+            save_iteration_h5ad=args.save_iteration_h5ad,
         )
     elif args.mode == "advanced":
         mode_advanced(

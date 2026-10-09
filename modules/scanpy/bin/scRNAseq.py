@@ -241,7 +241,7 @@ def mode_qc(
     """
     adata.var["mt"] = np.array(
         adata.var_names.str.upper().str.startswith("MT-")
-        | adata.var_names.str.startswith("mt")
+        | adata.var_names.str.startswith("mt-")
     )
     adata.var["ribo"] = np.array(adata.var_names.str.startswith(("RPS", "RPL")))
     adata.var["hb"] = np.array(adata.var_names.str.contains(r"^HB[^(P)]"))
@@ -1242,8 +1242,10 @@ def _search_pubmed(
             year_el = article.find(".//PubDate/Year")
             if pmid_el is not None:
                 pmid = pmid_el.text or ""
-                title = title_el.text if title_el is not None else ""
-                year = year_el.text if year_el is not None else ""
+                # itertext(): titles may contain nested tags (<i>, <sup>...)
+                # whose parent .text is None — join all text nodes instead.
+                title = "".join(title_el.itertext()) if title_el is not None else ""
+                year = (year_el.text or "") if year_el is not None else ""
                 # Handle PubDate without Year (use MedlineDate)
                 if not year:
                     medline_date = article.find(".//PubDate/MedlineDate")
@@ -2571,7 +2573,7 @@ def _analyze_cluster_quality(
     cell_type = annotation.get("cell_type", "Unknown")
 
     # Should filter: any flag present, or Unknown with low confidence
-    should_filter = bool(flags) or (cell_type == "Unknown" and confidence == "low")
+    should_filter = bool(flags)
 
     report = {
         "cluster": cluster,
@@ -3082,6 +3084,104 @@ def _call_llm_for_decision_log(
     return ""
 
 
+def _save_iteration_snapshot(
+    plotter,
+    adata: ad.AnnData,
+    iteration: int,
+    resolution: float,
+    quality_reports: Optional[List[Dict]] = None,
+    n_removed: Optional[int] = None,
+    cells_remaining: Optional[int] = None,
+    outcome: str = "",
+    min_genes: Optional[float] = None,
+    min_counts: Optional[float] = None,
+    max_pct_mt: Optional[float] = None,
+) -> None:
+    """Save per-iteration UMAP snapshot + summary.txt for QC review.
+
+    Called at the end of every mode_auto iteration (before filtering or
+    re-clustering) so each round can be visually judged: cluster layout,
+    AI annotations, which clusters were flagged, and HOW low their QC
+    metrics are (actual values + threshold lines).
+
+    Args:
+        plotter: ScanpyPlotter instance (no-op when None).
+        adata: AnnData state at the end of this iteration (pre-filter).
+        iteration: 1-based iteration number.
+        resolution: Leiden resolution used this iteration.
+        quality_reports: Per-cluster QC reports from Step 3.
+        n_removed: Cells removed by filtering (when already known).
+        cells_remaining: Cells that will proceed to the next iteration.
+        outcome: What happens next (``clean``, ``filter_then_repeat``,
+            ``no_cells_removed``, ``max_iterations``, ``recluster_continuity``).
+        min_genes: QC threshold (recorded in summary, drawn on QC violins).
+        min_counts: QC threshold (recorded in summary, drawn on QC violins).
+        max_pct_mt: QC threshold (recorded in summary, drawn on QC violins).
+    """
+    if plotter is None:
+        return
+    quality_reports = quality_reports or []
+    flagged = [r for r in quality_reports if r.get("should_filter")]
+    flagged_labels = {
+        str(r["cluster"]): (
+            f"cluster {r['cluster']} "
+            f"({r.get('ai_cell_type', '?')}: {','.join(r.get('flags', []))})"
+        )
+        for r in flagged
+    }
+    iter_dir = plotter.plot_iteration_snapshot(
+        adata, iteration=iteration,
+        flagged_clusters=[str(r["cluster"]) for r in flagged],
+        flagged_labels=flagged_labels,
+        min_genes=min_genes, min_counts=min_counts, max_pct_mt=max_pct_mt,
+    )
+
+    def _qc_str(r: Dict) -> str:
+        return (f"n_cells={r.get('n_cells', '?')} "
+                f"mean_genes={r.get('mean_genes', '?')} "
+                f"mean_counts={r.get('mean_counts', '?')} "
+                f"pct_mt={r.get('pct_mt', '?')}")
+
+    lines = [
+        f"iteration: {iteration}",
+        f"resolution: {resolution:.2f}",
+        f"cells: {adata.n_obs}",
+        f"clusters: {adata.obs['leiden'].nunique()}",
+        f"thresholds: min_genes={min_genes}, min_counts={min_counts}, "
+        f"max_pct_mt={max_pct_mt}",
+        f"flagged: {len(flagged)}",
+    ]
+    for r in flagged:
+        lines.append(
+            f"  cluster {r['cluster']} ({r.get('ai_cell_type', '?')}): "
+            f"flags={','.join(r.get('flags', []))}, "
+            f"filter_mode={r.get('filter_mode', 'cell')}"
+        )
+        lines.append(f"    {_qc_str(r)}")
+
+    # Compact QC table for ALL clusters — flagged marked with *
+    lines.append("qc_table (* = flagged):")
+    lines.append("  cluster  n_cells  mean_genes  mean_counts  pct_mt  cell_type")
+    for r in sorted(quality_reports, key=lambda x: int(x["cluster"])):
+        mark = "*" if r.get("should_filter") else " "
+        lines.append(
+            f"  {mark} {r['cluster']:>6}  {r.get('n_cells', '?'):>7}  "
+            f"{r.get('mean_genes', '?'):>10}  {r.get('mean_counts', '?'):>11}  "
+            f"{r.get('pct_mt', '?'):>6}  {r.get('ai_cell_type', '?')}"
+        )
+
+    if n_removed is not None:
+        lines.append(f"cells_removed: {n_removed}")
+    if cells_remaining is not None:
+        lines.append(f"cells_remaining: {cells_remaining}")
+    if outcome:
+        lines.append(f"outcome: {outcome}")
+    with open(os.path.join(iter_dir, "iteration_summary.txt"), "w",
+              encoding="utf-8") as fh:
+        fh.write("\n".join(lines) + "\n")
+    logger.info("Iteration %d summary written to %s", iteration, iter_dir)
+
+
 def mode_auto(
     adata: ad.AnnData,
     output: str,
@@ -3116,6 +3216,10 @@ def mode_auto(
         4. If flagged clusters exist: filter cells (not clusters), repeat.
         5. If clean: save final h5ad + reports.
 
+    Every iteration saves a visual snapshot to ``<plot_dir>/iteration_<NN>/``
+    (leiden UMAP, cell_type UMAP, flagged-cluster UMAP, summary.txt) so each
+    round can be visually judged before filtering or re-clustering.
+
     Args:
         adata: Merged AnnData (from mode_merge).
         output: Path to write the final annotated h5ad.
@@ -3125,7 +3229,7 @@ def mode_auto(
         llm_api_key: API key for OpenAI.
         llm_base_url: Base URL for LLM API.
         resolution: Leiden clustering resolution (default 1.0).
-        max_iterations: Max QC refinement iterations (default 3).
+        max_iterations: Max QC refinement iterations (default 5).
         min_genes: Min genes per cell for QC filtering.
         min_counts: Min UMI per cell for QC filtering.
         max_pct_mt: Max MT% for QC filtering.
@@ -3144,6 +3248,7 @@ def mode_auto(
         plot_dir = os.path.join(output_dir, f"{output_stem}_reports/plot")
     os.makedirs(report_dir, exist_ok=True)
     os.makedirs(plot_dir, exist_ok=True)
+    plotter = _make_plotter(plot_dir)
 
     # ── Iteration context for LLM-generated audit report ──
     ctx: Dict[str, Any] = {
@@ -3666,6 +3771,12 @@ def mode_auto(
                         "discontinuous clusters (iteration %d)",
                         resolution, new_resolution, iteration,
                     )
+                    _save_iteration_snapshot(
+                        plotter, adata, iteration, resolution,
+                        quality_reports, outcome="recluster_continuity",
+                        min_genes=min_genes, min_counts=min_counts,
+                        max_pct_mt=max_pct_mt,
+                    )
                     resolution = new_resolution
                     continue  # Re-cluster with higher resolution
 
@@ -3676,6 +3787,12 @@ def mode_auto(
             logger.info("All clusters clean. Saving final results.")
             iter_ctx["outcome"] = "clean"
             ctx["iterations"].append(iter_ctx)
+            _save_iteration_snapshot(
+                plotter, adata, iteration, resolution,
+                quality_reports, outcome="clean",
+                min_genes=min_genes, min_counts=min_counts,
+                max_pct_mt=max_pct_mt,
+            )
             break
 
         # ── Step 3.75: Check cell type separation ──
@@ -3840,6 +3957,20 @@ def mode_auto(
             min_genes=min_genes, min_counts=min_counts, max_pct_mt=max_pct_mt,
         )
 
+        # Snapshot BEFORE filtering so the round can be judged pre-removal.
+        if n_removed == 0:
+            outcome = "no_cells_removed"
+        elif iteration >= max_iterations:
+            outcome = "max_iterations"
+        else:
+            outcome = "filter_then_repeat"
+        _save_iteration_snapshot(
+            plotter, adata, iteration, resolution, quality_reports,
+            n_removed=n_removed, cells_remaining=adata_filtered.n_obs,
+            outcome=outcome,
+            min_genes=min_genes, min_counts=min_counts, max_pct_mt=max_pct_mt,
+        )
+
         if n_removed == 0:
             logger.info("No cells removed after QC. Stopping iterations.")
             iter_ctx["outcome"] = "no_cells_removed"
@@ -3880,7 +4011,6 @@ def mode_auto(
                             os.path.join(report_dir, "references.tsv"))
 
     # Plot if requested
-    plotter = _make_plotter(plot_dir)
     if plotter:
         plotter.plot_pca_variance(
             adata,
@@ -4153,8 +4283,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("-U", "--min-counts", type=int, default=3000,
                    help="Min UMI per cell for auto mode QC")
     p.add_argument("-t", "--max-pct-mt", type=float, default=20)
-    p.add_argument("-I", "--max-iterations", type=int, default=3,
-                   help="Max QC refinement iterations for auto mode")
+    p.add_argument("-I", "--max-iterations", type=int, default=5,
+                   help="Max QC refinement iterations for auto mode (default: 5)")
     p.add_argument("-T", "--tissue", default="",
                    help="Tissue name for LLM prompt context")
     p.add_argument("-S", "--species", default="",

@@ -1,0 +1,22 @@
+{
+    "outdir": "results/ldsc",
+    "logdir": "log",
+    "samples": [],
+    "Procedure": {
+        "ldsc": null,
+        "make_annot": null,
+        "munge_sumstats": null
+    },
+    "Params": {
+        "ldsc": {
+            "enabled": false,
+            "annot_organism": "human",
+            "ld_score_dir": null,
+            "baseline_dir": null,
+            "gwas": {},
+            "pop": "eur",
+            "h2_cts": true
+        }
+    },
+    "env": {}
+}

@@ -243,7 +243,11 @@ use rule run_example from example as MyWorkflow_example
 1. `ft predict-m6a` - 从PacBio HiFi CCS数据预测m6A修饰
 2. `ft add-nucleosomes` - 添加核小体调用
 3. `ft fire` - 调用FIRE调控元件
-4. `ft extract` - 提取数据为BED格式
+4. `pbmm2` - 比对到参考基因组
+5. `ft extract` - 提取数据为BED格式
+6. `ft call-peaks` - FDR peak calling（shuffled null）；`ft fire --extract` - per-fiber FIRE BED
+7. 下游分析（fiberseq_analysis 模块）- 注释/motif/footprint/核小体定位/定量矩阵/组间差异/共活化/单倍型/着丝粒专题/轨道
+8. enrichment（GO/KEGG）、ldsc（遗传力分区，接口）
 
 **输入:**
 - PacBio HiFi CCS BAM (带kinetics标签)

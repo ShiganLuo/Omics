@@ -1,0 +1,16 @@
+{
+    "indir": "results",
+    "outdir": "results/fiberseq_track",
+    "logdir": "log",
+    "samples": [],
+    "Procedure": {},
+    "Params": {
+        "fiberseq_track": {
+            "bin": 10
+        }
+    },
+    "genome": {
+        "fai": null
+    },
+    "env": {}
+}

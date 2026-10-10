@@ -184,7 +184,7 @@ rule <tool>_<action>:
             with open(script, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
-                f.write(f'echo "<tool> <action> for {wildcards.sample_id} at {current_time} completed successfully"\n')
+                f.write(f'echo "<tool> <action> for {wildcards.sample_id} was completed successfully"\n')
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during <tool> <action> for sample {wildcards.sample_id}: {e}\n")

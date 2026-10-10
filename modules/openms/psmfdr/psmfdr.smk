@@ -29,9 +29,9 @@ rule psm_fdr:
         method = method
     run:
         log_path = str(log)
+        open(log_path, 'w').close()
+        rule_logger = setup_logger("psm_fdr", log_file=log_path)
         try:
-            open(log_path, 'w').close()
-            rule_logger = setup_logger("psm_fdr", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start PSM FDR control for sample {wildcards.sample_id} at {current_time}")
             script = os.path.join(outdir, f"{wildcards.sample_id}/psm_fdr_{current_time}.sh")
@@ -45,10 +45,10 @@ rule psm_fdr:
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write(" ".join(cmd) + "\n")
-            shell(f"bash {script} > {log_path} 2>&1")
+                f.write(f"echo 'PSM FDR control for {wildcards.sample_id} was completed successfully'\n")
+            shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"rule psm_fdr was call failed,error: {e}")
+            rule_logger.error(f"rule psm_fdr was call failed,error: {e}")
             raise RuntimeError(f"rule psm_fdr was call failed,error: {e}")
         
 

@@ -29,9 +29,9 @@ rule protein_inference:
         greedy_group_resolution = greedy_group_resolution
     run:
         log_path = str(log)
+        open(log_path, 'w').close()
+        rule_logger = setup_logger("protein_inference", log_file=log_path)
         try:
-            open(log_path, 'w').close()
-            rule_logger = setup_logger("protein_inference", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start protein inference for sample {wildcards.sample_id} at {current_time}")
             script = os.path.join(outdir, f"{wildcards.sample_id}/protein_inference_{current_time}.sh")
@@ -43,12 +43,12 @@ rule protein_inference:
                 "-algorithm:greedy_group_resolution", params.greedy_group_resolution
             ]
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
+                f.write(f"echo 'Protein inference for {wildcards.sample_id} was completed successfully'\n")
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"rule protein_inference was call failed,error: {e}")
+            rule_logger.error(f"rule protein_inference was call failed,error: {e}")
             raise RuntimeError(f"rule protein_inference was call failed,error: {e}")
 
 rule protein_inference_result:

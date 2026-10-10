@@ -44,10 +44,10 @@ rule search_engine_comet:
         fragment_bin_offset = config.get("Params").get("search_engine",{}).get("comet", {}).get("fragment_bin_offset", 0)
     run:
         log_path = str(log)
+        open(log_path, 'w').close()
+        rule_logger = setup_logger("search_engine_comet",log_file=log_path)
         try:
-            open(log_path, 'w').close()
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            rule_logger = setup_logger("search_engine_comet",log_file=log_path)
             rule_logger.info(f"Start Comet search for sample {wildcards.sample_id} at {current_time}")
             script = os.path.join(outdir, f"{wildcards.sample_id}/comet_{current_time}.sh")
             cmd = [
@@ -61,13 +61,12 @@ rule search_engine_comet:
                 "-fragment_bin_offset", str(params.fragment_bin_offset)
             ]
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "rule search_engine_comet called for {wildcards.sample_id} was successfully completed"\n')
-            shell(f"bash {script} >> {log} 2>&1")
+            shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, 'a') as f:
-                f.write(f"rule search_engine_comet was call failed,error: {e}")
+            rule_logger.error(f"rule search_engine_comet was call failed,error: {e}")
             raise RuntimeError(f"rule search_engine_comet was call failed,error: {e}")
         
 
@@ -90,9 +89,10 @@ rule search_engine_msgf:
         isotope_error_range = config.get("Params").get("search_engine",{}).get("msgf", {}).get("isotope_error_range", "0,1")
     run:
         log_path = str(log)
+        open(log_path, 'w').close()
+        rule_logger = setup_logger("search_engine_msgf",log_file = log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            rule_logger = setup_logger("search_engine_msgf",log_file = log_path)
             rule_logger.info(f"Start MSGF+ search for sample {wildcards.sample_id} at {current_time}")
             script = os.path.join(outdir, f"{wildcards.sample_id}/msgf_{current_time}.sh")
             cmd = [
@@ -106,13 +106,12 @@ rule search_engine_msgf:
                 "-isotope_error_range", params.isotope_error_range
             ]
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "rule search_engine_msgf called for {wildcards.sample_id} was successfully completed"\n')
-            shell(f"bash {script} >> {log} 2>&1")
+            shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, 'a') as f:
-                f.write(f"rule search_engine_msgf was call failed,error: {e}")
+            rule_logger.error(f"rule search_engine_msgf was call failed,error: {e}")
             raise RuntimeError(f"rule search_engine_msgf was call failed,error: {e}")
 
 rule search_engine_sage:
@@ -133,10 +132,10 @@ rule search_engine_sage:
         fragment_mass_tolerance = config.get("Params").get("search_engine",{}).get("sage", {}).get("fragment_mass_tolerance", 0.02)
     run:
         log_path = str(log)
+        open(log_path, 'w').close()
+        rule_logger = setup_logger("search_engine_sage",log_file=log_path)
         try:
-            open(log_path, 'w').close()
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            rule_logger = setup_logger("search_engine_sage",log_file=log_path)
             rule_logger.info(f"Start Sage search for sample {wildcards.sample_id} at {current_time}")
             script = os.path.join(outdir, f"{wildcards.sample_id}/sage_{current_time}.sh")
             cmd = [
@@ -149,11 +148,10 @@ rule search_engine_sage:
                 "-fragment_mass_tolerance", str(params.fragment_mass_tolerance)
             ]
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "rule search_engine_sage called for {wildcards.sample_id} was successfully completed"\n')
-            shell(f"bash {script} >> {log} 2>&1")
+            shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, 'a') as f:
-                f.write(f"rule search_engine_sage was call failed,error: {e}")
+            rule_logger.error(f"rule search_engine_sage was call failed,error: {e}")
             raise RuntimeError(f"rule search_engine_sage was call failed,error: {e}")

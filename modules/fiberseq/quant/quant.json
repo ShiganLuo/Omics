@@ -1,0 +1,14 @@
+{
+    "indir": "results",
+    "outdir": "results/fiberseq_quant",
+    "logdir": "log",
+    "samples": [],
+    "Procedure": {},
+    "Params": {
+        "fiberseq_quant": {
+            "min_fibers": 10
+        }
+    },
+    "genome": {},
+    "env": {}
+}

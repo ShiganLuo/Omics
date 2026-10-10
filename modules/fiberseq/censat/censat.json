@@ -1,0 +1,19 @@
+{
+    "indir": "results",
+    "outdir": "results/fiberseq_censat",
+    "logdir": "log",
+    "samples": [],
+    "Procedure": {},
+    "Params": {
+        "fiberseq_censat": {
+            "msp_min_len": 50,
+            "flank": 10000,
+            "bin": 500
+        }
+    },
+    "genome": {
+        "censat_bed": null,
+        "mcpg_pileup": null
+    },
+    "env": {}
+}

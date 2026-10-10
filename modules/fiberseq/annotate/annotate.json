@@ -1,0 +1,18 @@
+{
+    "indir": "results",
+    "outdir": "results/fiberseq_annotate",
+    "logdir": "log",
+    "samples": [],
+    "Procedure": {},
+    "Params": {
+        "fiberseq_annotate": {
+            "tss_flank": 1000,
+            "repeat_frac": 0.25
+        }
+    },
+    "genome": {
+        "gtf": null,
+        "repeat_bed": null
+    },
+    "env": {}
+}

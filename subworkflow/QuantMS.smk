@@ -1,6 +1,7 @@
 shell.prefix("set -x; set -e;")
 from snakemake.logging import logger
 
+
 ROOT_DIR = config.get("ROOT_DIR")
 outfiles = config.get("outfiles", [])
 indir = config.get("Params", {}).get("workflow", {}).get("indir")
@@ -19,7 +20,7 @@ raw2mzml_config = {
     "env": config.get("env", {}),
     "indir": indir,
     "outdir": f"{outdir}/common/2_raw2mzml",
-    "logdir": logdir,
+    "logdir": os.path.join(logdir,"sample"),
     "samples": samples,
     "raw_files": config.get("raw_files", []),
     "Procedure": {
@@ -42,7 +43,7 @@ decoy_database_config = {
     "env": config.get("env", {}),
     "indir": indir,
     "outdir": f"{outdir}/decoy_database",
-    "logdir": logdir,
+    "logdir": os.path.join(logdir,"group"),
     "Procedure": {
         "openms": config.get("Procedure", {}).get("openms")
     },
@@ -66,7 +67,7 @@ search_engine_config = {
     "mzML_dir": raw2mzml_config["outdir"],
     "decoy_dir": decoy_database_config["outdir"],
     "outdir": f"{outdir}/common/3_search_engine",
-    "logdir": logdir,
+    "logdir": os.path.join(logdir,"sample"),
     "samples": samples,
     "Procedure": {
         "comet": config.get("Procedure", {}).get("comet"),
@@ -92,7 +93,7 @@ psm_rescoring_config = {
     "env": config.get("env", {}),
     "indir": search_engine_config["outdir"],
     "outdir": f"{outdir}/common/4_psm_rescoring",
-    "logdir": logdir,
+    "logdir": os.path.join(logdir,"sample"),
     "samples": samples,
     "Procedure": {
         "percolator": config.get("Procedure", {}).get("percolator")
@@ -114,7 +115,7 @@ psm_fdr_config = {
     "env": config.get("env", {}),
     "indir": psm_rescoring_config["outdir"],
     "outdir": f"{outdir}/common/5_psm_fdr",
-    "logdir": logdir,
+    "logdir": os.path.join(logdir,"sample"),
     "samples": samples,
     "Procedure": {
         "openms": config.get("Procedure", {}).get("openms")
@@ -135,7 +136,7 @@ protein_inference_config = {
     "env": config.get("env", {}),
     "indir": psm_fdr_config["outdir"],
     "outdir": f"{outdir}/common/6_protein_inference",
-    "logdir": logdir,
+    "logdir": os.path.join(logdir,"sample"),
     "samples": samples,
     "Procedure": {
         "epifany": config.get("Procedure", {}).get("epifany")
@@ -156,9 +157,9 @@ quantification_config = {
     "env": config.get("env", {}),
     "indir": protein_inference_config["outdir"],
     "outdir": f"{outdir}/common/7_quantification",
-    "logdir": logdir,
+    "logdir": os.path.join(logdir,"group"),
     "samples": samples,
-    "quantification_method": config.get("quantification_method", "lfq"),
+    "quantification_method": config.get("Params", {}).get("workflow", {}).get("quantification_method"),
     "Procedure": {
         "proteomicslfq": config.get("Procedure", {}).get("proteomicslfq"),
         "proteinquantifier": config.get("Procedure", {}).get("proteinquantifier")
@@ -182,9 +183,9 @@ msstats_config = {
     "env": config.get("env", {}),
     "indir": quantification_config["outdir"],
     "outdir": f"{outdir}/common/8_msstats",
-    "logdir": logdir,
+    "logdir": os.path.join(logdir,"group"),
     "samples": samples,
-    "quantification_method": config.get("quantification_method", "lfq"),
+    "quantification_method": config.get("Params", {}).get("workflow", {}).get("quantification_method"),
     "Procedure": {
         "msstats": config.get("Procedure", {}).get("msstats")
     },

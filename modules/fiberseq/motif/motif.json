@@ -1,0 +1,19 @@
+{
+    "indir": "results",
+    "outdir": "results/fiberseq_motif",
+    "logdir": "log",
+    "samples": [],
+    "Procedure": {},
+    "Params": {
+        "fiberseq_motif": {
+            "flank": 250,
+            "min_fibers": 10,
+            "pwm_threshold": 0.8
+        }
+    },
+    "genome": {
+        "fasta": null,
+        "motif_file": null
+    },
+    "env": {}
+}

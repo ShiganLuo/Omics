@@ -1,0 +1,17 @@
+{
+    "indir": "results",
+    "outdir": "results/fiberseq_coactuation",
+    "logdir": "log",
+    "samples": [],
+    "Procedure": {},
+    "Params": {
+        "fiberseq_coactuation": {
+            "max_distance": 50000,
+            "min_fibers": 10,
+            "max_pairs": 200000,
+            "alpha": 0.05
+        }
+    },
+    "genome": {},
+    "env": {}
+}

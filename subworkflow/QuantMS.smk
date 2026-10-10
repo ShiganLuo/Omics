@@ -1,14 +1,14 @@
 shell.prefix("set -x; set -e;")
 from snakemake.logging import logger
-import os
 
-indir = config.get("indir")
 ROOT_DIR = config.get("ROOT_DIR")
-outdir = config.get("outdir", "output")
-logdir = config.get("logdir", "logs")
 outfiles = config.get("outfiles", [])
-samples = config.get("samples", [])
-
+indir = config.get("Params", {}).get("workflow", {}).get("indir")
+outdir = config.get("Params", {}).get("workflow", {}).get("outdir", "output")
+logdir = config.get("Params", {}).get("workflow", {}).get("logdir", "logs")
+samples = config.get("Params", {}).get("workflow", {}).get("samples", [])
+genome = config.get("genome", {}).get("default", None)
+logger.info(f"indir: {indir}, outdir: {outdir}, logdir: {logdir}, samples: {samples}, genome: {genome}")
 rule all:
     input:
         outfiles
@@ -50,8 +50,8 @@ decoy_database_config = {
         "decoy_database": config.get("Params", {}).get("decoy_database", {})
     },
     "genome": {
-        "fasta": config.get("genome", {}).get("fasta"),
-        "decoy_fasta": config.get("genome", {}).get("decoy_fasta")
+        "protein_fasta": config.get("genome", {}).get("references", {}).get(genome, {}).get("protein_fasta"),
+        "decoy_fasta": config.get("genome", {}).get("references", {}).get(genome, {}).get("decoy_fasta")
     }
 }
 module decoy_database:

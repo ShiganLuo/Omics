@@ -1,0 +1,16 @@
+{
+    "indir": "results",
+    "outdir": "results/fiberseq_diff",
+    "logdir": "log",
+    "samples": [],
+    "Procedure": {},
+    "Params": {
+        "fiberseq_diff": {
+            "alpha": 0.05,
+            "design_tsv": null,
+            "annot_sample": null
+        }
+    },
+    "genome": {},
+    "env": {}
+}

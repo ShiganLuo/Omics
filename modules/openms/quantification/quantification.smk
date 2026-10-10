@@ -40,10 +40,10 @@ rule quantification_lfq:
         best_charge_and_score = config.get("Params", {}).get("protein_quant", {}).get("best_charge_and_score", True)
     run:
         log_path = str(log)
+        open(log_path,"w").close()
+        rule_logger = setup_logger("quantification_lfq",log_file=log_path)
         try:
-            open(log_path,"w").close()
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            rule_logger = setup_logger("quantification_lfq",log_file=log_path)
             rule_logger.info(f"Start LFQ quantification at {current_time}")
             script = os.path.join(outdir, f"quantification_lfq_{current_time}.sh")
             cmd = [
@@ -61,13 +61,12 @@ rule quantification_lfq:
             if params.expdesign:
                 cmd.extend(["-design", params.expdesign])
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
-                f.write(f"echo 'LFQ quantification completed at {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())}'\n")
-            shell(f"bash {script} > {log_path} 2>&1")
+                f.write(f"echo 'LFQ quantification for {wildcards.sample_id} was completed successfully'\n")
+            shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"Error during LFQ quantification: {str(e)}\n")
+            rule_logger.error(f"Error during LFQ quantification: {str(e)}\n")
             raise RuntimeError(f"Error during LFQ quantification: {str(e)}\n")
 
 rule quantification_tmt:
@@ -89,10 +88,10 @@ rule quantification_tmt:
         isotope_correction = tmt_params.get("isotope_correction", True)
     run:
         log_path = str(log)
+        open(log_path,"w").close()
+        rule_logger = setup_logger("quantification_tmt",log_file=log_path)
         try:
-            open(log_path,"w").close()
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            rule_logger = setup_logger("quantification_tmt",log_file=log_path)
             rule_logger.info(f"Start TMT quantification at {current_time}")
             script = os.path.join(outdir, f"quantification_tmt_{current_time}.sh")
             cmd = [
@@ -107,13 +106,12 @@ rule quantification_tmt:
             if params.isotope_correction:
                 cmd.append("-isotope_correction")
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
-                f.write(f"echo 'TMT quantification completed at {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())}'\n")
-            shell(f"bash {script} > {log_path} 2>&1")
+                f.write(f"echo 'TMT quantification for {wildcards.sample_id} was completed successfully'\n")
+            shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"Error during TMT quantification: {str(e)}\n")
+            rule_logger.error(f"Error during TMT quantification: {str(e)}\n")
             raise RuntimeError(f"Error during TMT quantification: {str(e)}\n")
 
 rule quantification_dia:
@@ -134,10 +132,10 @@ rule quantification_dia:
         dia_window = dia_params.get("dia_window", "")
     run:
         log_path = str(log)
+        rule_logger = setup_logger("quantification_dia",log_file=log_path)
         try:
             open(log_path,"w").close()
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            rule_logger = setup_logger("quantification_dia",log_file=log_path)
             rule_logger.info(f"Start DIA quantification at {current_time}")
             script = os.path.join(outdir, f"quantification_dia_{current_time}.sh")
             cmd = [
@@ -152,13 +150,12 @@ rule quantification_dia:
             if params.dia_window:
                 cmd.extend(["-dia_window", params.dia_window])
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
-                f.write(f"echo 'DIA quantification completed at {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())}'\n")
-            shell(f"bash {script} > {log_path} 2>&1")
+                f.write(f"echo 'DIA quantification for {wildcards.sample_id} was completed successfully'\n")
+            shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"Error during DIA quantification: {str(e)}\n")
+            rule_logger.error(f"Error during DIA quantification: {str(e)}\n")
             raise RuntimeError(f"Error during DIA quantification: {str(e)}\n")
 
 # Select quantification method

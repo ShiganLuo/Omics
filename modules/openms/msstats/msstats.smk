@@ -31,10 +31,10 @@ rule msstats:
         reference_samples = reference_samples
     run:
         log_path = str(log)
+        open(log_path,"w").close()
+        rule_logger = setup_logger("msstats",log_file=log_path)
         try:
-            open(log_path,"w").close()
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            rule_logger = setup_logger("msstats",log_file=log_path)
             rule_logger.info(f"Start MSstats analysis at {current_time}")
             script = os.path.join(outdir, f"msstats_{current_time}.sh")
             cmd = [
@@ -47,13 +47,12 @@ rule msstats:
             if params.reference_samples:
                 cmd.extend(["-reference_samples", ",".join(params.reference_samples)])
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
-                f.write(f"echo 'MSstats analysis completed at {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())}'\n")
-            shell(f"bash {script} > {log_path} 2>&1")
+                f.write(f"echo 'MSstats analysis for {wildcards.sample_id} was completed successfully'\n")
+            shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"Error during MSstats analysis: {str(e)}\n")
+            rule_logger.error(f"Error during MSstats analysis: {str(e)}\n")
             raise RuntimeError(f"Error during MSstats analysis: {str(e)}\n")
 
 rule msstats_result:

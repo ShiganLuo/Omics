@@ -1,0 +1,14 @@
+{
+    "indir": "results",
+    "outdir": "results/fiberseq_footprint",
+    "logdir": "log",
+    "samples": [],
+    "Procedure": {},
+    "Params": {
+        "fiberseq_footprint": {
+            "flank": 1000
+        }
+    },
+    "genome": {},
+    "env": {}
+}

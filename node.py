@@ -1031,6 +1031,20 @@ def runFiberseq(
 
     outfiles = []
     samples = []
+    params = datajson.get("Params", {}) or {}
+    ds = params.get("downstream", {}) or {}
+    func_cfg = params.get("function", {}) or {}
+    ldsc_cfg = params.get("ldsc", {}) or {}
+    res = f"{outdir}/results"
+    var = f"{outdir}/variation"
+
+    def _on(block) -> bool:
+        return bool((block or {}).get("enabled"))
+
+    want_motif = _on(ds.get("motif")) or _on(ds.get("footprint"))
+    want_quant = _on(ds.get("quant")) or _on(ds.get("diff")) or _on(ds.get("haplotype"))
+    want_hap = _on(ds.get("haplotype"))
+
     for sample_id, sample_info in samples_info_dict.items():
         samples.append(sample_id)
         # Step 1: prepare fiberseq BAM (predict-m6a + fire)
@@ -1039,12 +1053,141 @@ def runFiberseq(
         outfiles.append(f"{outdir}/common/3_align_bam/{sample_id}/{sample_id}.fiberseq.fire.sorted.bam")
         outfiles.append(f"{outdir}/common/3_align_bam/{sample_id}/{sample_id}.fiberseq.fire.sorted.bai")
         # Step 3: analysis outputs
-        outfiles.append(f"{outdir}/results/{sample_id}/{sample_id}.m6a.bed.gz")
-        outfiles.append(f"{outdir}/results/{sample_id}/{sample_id}.nuc.bed.gz")
-        outfiles.append(f"{outdir}/results/{sample_id}/{sample_id}.msp.bed.gz")
-        outfiles.append(f"{outdir}/results/{sample_id}/{sample_id}.cpg.bed.gz")
-        outfiles.append(f"{outdir}/results/{sample_id}/{sample_id}.fire_peaks.bed")
-        outfiles.append(f"{outdir}/results/{sample_id}/{sample_id}.qc.tsv")
+        outfiles.append(f"{res}/{sample_id}/{sample_id}.m6a.bed.gz")
+        outfiles.append(f"{res}/{sample_id}/{sample_id}.nuc.bed.gz")
+        outfiles.append(f"{res}/{sample_id}/{sample_id}.msp.bed.gz")
+        outfiles.append(f"{res}/{sample_id}/{sample_id}.cpg.bed.gz")
+        outfiles.append(f"{res}/{sample_id}/{sample_id}.fire_peaks.bed")
+        outfiles.append(f"{res}/{sample_id}/{sample_id}.fire_fdr_table.tsv")
+        outfiles.append(f"{res}/{sample_id}/{sample_id}.fire.bed")
+        outfiles.append(f"{res}/{sample_id}/{sample_id}.qc.tsv")
+
+        # Step 4: downstream (gated by Params.downstream.*.enabled)
+        if _on(ds.get("annotate")):
+            outfiles.append(f"{res}/fiberseq_annotate/{sample_id}/{sample_id}.peaks_annotated.tsv")
+            outfiles.append(f"{res}/fiberseq_annotate/{sample_id}/{sample_id}.peaks_summary.tsv")
+        if want_motif:
+            outfiles.append(f"{res}/fiberseq_motif/{sample_id}/{sample_id}.motif_sites.bed")
+        if _on(ds.get("motif")):
+            outfiles.append(f"{res}/fiberseq_motif/{sample_id}/{sample_id}.motif_profile.tsv")
+            outfiles.append(f"{res}/fiberseq_motif/{sample_id}/{sample_id}.motif_footprint_scores.tsv")
+            outfiles.append(f"{res}/fiberseq_motif/{sample_id}/{sample_id}.motif_profile.pdf")
+        if _on(ds.get("footprint")):
+            outfiles.append(f"{res}/fiberseq_footprint/{sample_id}/{sample_id}.footprint_categories.tsv")
+            outfiles.append(f"{res}/fiberseq_footprint/{sample_id}/{sample_id}.footprint_profiles.tsv")
+            outfiles.append(f"{res}/fiberseq_footprint/{sample_id}/{sample_id}.footprint_scores.tsv")
+            outfiles.append(f"{res}/fiberseq_footprint/{sample_id}/{sample_id}.footprint_profile.pdf")
+        if _on(ds.get("nucpos")):
+            outfiles.append(f"{res}/fiberseq_nucpos/{sample_id}/{sample_id}.nuc_offset_per_anchor.tsv")
+            outfiles.append(f"{res}/fiberseq_nucpos/{sample_id}/{sample_id}.nuc_offset_summary.tsv")
+            outfiles.append(f"{res}/fiberseq_nucpos/{sample_id}/{sample_id}.nucpos.pdf")
+        if _on(ds.get("track")):
+            outfiles.append(f"{res}/fiberseq_track/{sample_id}/{sample_id}.accessibility.bw")
+            outfiles.append(f"{res}/fiberseq_track/{sample_id}/{sample_id}.m6a_density.bw")
+            outfiles.append(f"{res}/fiberseq_track/{sample_id}/trackDb.txt")
+        if want_quant:
+            outfiles.append(f"{res}/fiberseq_quant/{sample_id}/{sample_id}.region_quant.tsv")
+        if _on(ds.get("coactuation")):
+            outfiles.append(f"{res}/fiberseq_coactuation/{sample_id}/{sample_id}.coactuation.tsv")
+            outfiles.append(f"{res}/fiberseq_coactuation/{sample_id}/{sample_id}.coactuation_summary.tsv")
+        if _on(ds.get("censat")):
+            outfiles.append(f"{res}/fiberseq_censat/{sample_id}/{sample_id}.censat_regions.tsv")
+            outfiles.append(f"{res}/fiberseq_censat/{sample_id}/{sample_id}.censat_class_summary.tsv")
+            outfiles.append(f"{res}/fiberseq_censat/{sample_id}/{sample_id}.censat_profile.tsv")
+            outfiles.append(f"{res}/fiberseq_censat/{sample_id}/{sample_id}.censat_profile.pdf")
+
+        # Step 5: haplotype chain
+        if want_hap:
+            outfiles.append(f"{var}/germline_snv_indel/{sample_id}/{sample_id}.vcf.gz")
+            outfiles.append(f"{var}/germline_snv_indel/{sample_id}/{sample_id}.vcf.gz.csi")
+            outfiles.append(f"{var}/germline_sv/{sample_id}/{sample_id}.svsig.gz")
+            outfiles.append(f"{var}/germline_sv/{sample_id}/{sample_id}.sv.vcf.gz")
+            outfiles.append(f"{var}/germline_sv/{sample_id}/{sample_id}.sv.vcf.gz.csi")
+            outfiles.append(f"{var}/phased/{sample_id}/{sample_id}.phased.bam")
+            for hap in ("hap1", "hap2"):
+                outfiles.append(f"{res}/{sample_id}/{sample_id}.{hap}.bam")
+                outfiles.append(f"{res}/{sample_id}/{sample_id}.{hap}.bam.bai")
+                outfiles.append(f"{res}/{sample_id}/{sample_id}.{hap}.m6a.bed.gz")
+                outfiles.append(f"{res}/{sample_id}/{sample_id}.{hap}.nuc.bed.gz")
+                outfiles.append(f"{res}/{sample_id}/{sample_id}.{hap}.msp.bed.gz")
+                outfiles.append(f"{res}/{sample_id}/{sample_id}.{hap}.cpg.bed.gz")
+                outfiles.append(f"{res}/fiberseq_quant/{sample_id}/{sample_id}.{hap}.region_quant.tsv")
+            outfiles.append(f"{res}/fiberseq_haplotype/{sample_id}/{sample_id}.haplotype_diff.tsv")
+            outfiles.append(f"{res}/fiberseq_haplotype/{sample_id}/{sample_id}.haplotype_summary.tsv")
+
+    # Cross-sample outputs
+    if _on(ds.get("quant")) or _on(ds.get("diff")):
+        for metric in ("percent_accessible", "nuc_occupancy", "m6a_per_fiber", "fire_frac"):
+            outfiles.append(f"{res}/fiberseq_quant/matrix/{metric}_matrix.tsv")
+
+    if _on(ds.get("diff")):
+        design_tsv = (ds.get("diff") or {}).get("design_tsv")
+        if not design_tsv:
+            raise ValueError(
+                "Params.downstream.diff.enabled=true requires "
+                "Params.downstream.diff.design_tsv in the config JSON."
+            )
+        contrast_groups = {}
+        with open(design_tsv) as fh:
+            header = fh.readline().rstrip("\n").split("\t")
+            for col_name in ("contrast", "group", "sample"):
+                if col_name not in header:
+                    raise ValueError(f"design TSV {design_tsv} lacks a '{col_name}' column")
+            cidx, gidx, sidx = (header.index(c) for c in ("contrast", "group", "sample"))
+            for line in fh:
+                f = line.rstrip("\n").split("\t")
+                if len(f) > cidx and f[cidx]:
+                    contrast_groups.setdefault(f[cidx], {}).setdefault(
+                        f[gidx], []).append(f[sidx])
+        for contrast, groups in sorted(contrast_groups.items()):
+            base = f"{res}/fiberseq_diff/{contrast}"
+            outfiles.append(f"{base}/diff_{contrast}.tsv")
+            outfiles.append(f"{base}/volcano_{contrast}.pdf")
+            outfiles.append(f"{base}/class_summary_{contrast}.tsv")
+            outfiles.append(f"{base}/{contrast}.TEcount_Gene.name.tsv")
+
+        # function module needs group_pairs keyed by contrast; derive when absent
+        # (group order matches diff_accessibility: sorted group names -> control,
+        # experimental)
+        if not datajson.get("group_pairs"):
+            gp = {}
+            for contrast, groups in contrast_groups.items():
+                (g_ctrl, s_ctrl), (g_exp, s_exp) = sorted(groups.items())
+                gp[contrast] = {
+                    "control_group_name": g_ctrl,
+                    "experimental_group_name": g_exp,
+                    "control_samples": s_ctrl,
+                    "experimental_samples": s_exp,
+                }
+            datajson["group_pairs"] = gp
+
+        # GO/KEGG + GSEA outputs from the shared function module
+        if _on(func_cfg):
+            for contrast in sorted(contrast_groups):
+                base = f"{outdir}/function/{contrast}"
+                outfiles.append(f"{base}/go_back_to_back.png")
+                outfiles.append(f"{base}/kegg_back_to_back.png")
+                outfiles.append(f"{base}/go_up.csv")
+                outfiles.append(f"{base}/go_down.csv")
+                outfiles.append(f"{base}/kegg_up.csv")
+                outfiles.append(f"{base}/kegg_down.csv")
+                outfiles.append(f"{base}/up_genes.txt")
+                outfiles.append(f"{base}/down_genes.txt")
+            genome_cfg = datajson.get("genome", {}) or {}
+            default_ref = (genome_cfg.get("references") or {}).get(
+                genome_cfg.get("default", ""), {}) or {}
+            if func_cfg.get("gmt") and default_ref.get("geneIDAnno"):
+                for contrast in sorted(contrast_groups):
+                    base = f"{outdir}/function/{contrast}/GSEA"
+                    outfiles.append(f"{base}/TEcount_Gene_GSEA.jpeg")
+                    outfiles.append(f"{base}/TEcount_Gene_GSEA.csv")
+
+    if _on(ldsc_cfg):
+        prefix = ldsc_cfg.get("annot_prefix") or "peaks"
+        outfiles.append(f"{outdir}/ldsc/annot/{prefix}.annot_manifest.tsv")
+        for trait in sorted((ldsc_cfg.get("gwas") or {}).keys()):
+            outfiles.append(f"{outdir}/ldsc/{trait}/{trait}.sumstats.gz")
+            outfiles.append(f"{outdir}/ldsc/{trait}/{trait}.cts.results")
 
     datajson["samples"] = samples
     datajson["raw_files"] = raw_files

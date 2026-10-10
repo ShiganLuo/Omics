@@ -1,14 +1,10 @@
 {
+    "ROOT_DIR": null,
+    "outfiles": [],
     "env": {
         "env_dir": "/home/luosg/Database/env",
         "openms": "/home/luosg/Database/env/openms/openms.sif"
     },
-    "indir": "input",
-    "outdir": "output",
-    "logdir": "logs",
-    "samples": [],
-    "raw_files": [],
-    "quantification_method": "lfq",
     "Procedure": {
         "openms": null,
         "thermorawfileparser": null,
@@ -22,6 +18,14 @@
         "msstats": null
     },
     "Params": {
+        "workflow": {
+            "indir": "input",
+            "outdir": "output",
+            "logdir": "logs",
+            "samples": [],
+            "raw_files": [],
+            "quantification_method": "lfq"
+        },
         "raw_to_mzml": {
             "manifest": "",
             "mode": "thermorawfileparser",
@@ -63,8 +67,7 @@
             },
             "percolator": {
                 "train_FDR": 0.05,
-                "test_FDR": 0.05,
-                "feature": "top_psm"
+                "test_FDR": 0.05
             }
         },
         "psm_fdr_control": {
@@ -109,7 +112,29 @@
         "enable_mod_localization": false
     },
     "genome": {
-        "fasta": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
-        "decoy_fasta": null
+        "default": "GRCm39",
+        "references": {
+            "GRCm39": {
+                "protein_fasta": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/gencode.vM38.pc_translations.fa",
+                "decoy_fasta": null
+            },
+            "T2T_mhaESC_v1.5": {
+                "protein_fasta": null,
+                "decoy_fasta": null
+            },
+            "GRCh38": {
+                "protein_fasta": "/data/16T/Database/Reference/human/GENCODE/GRCh38/gencode.v49.pc_translations.fa",
+                "decoy_fasta": null
+            },
+            "Mmul_10": {
+                "protein_fasta": null,
+                "decoy_fasta": null
+            },
+            "Mmul_T2T": {
+                "protein_fasta": null,
+                "decoy_fasta": null
+            }
+        }
+
     }
 }

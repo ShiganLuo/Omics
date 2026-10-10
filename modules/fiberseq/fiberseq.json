@@ -1,0 +1,62 @@
+{
+    "indir": "results",
+    "outdir": "results",
+    "logdir": "log",
+    "samples": [],
+    "Procedure": {},
+    "Params": {
+        "fiberseq_annotate": {
+            "tss_flank": 1000,
+            "repeat_frac": 0.25
+        },
+        "fiberseq_motif": {
+            "flank": 250,
+            "min_fibers": 10,
+            "pwm_threshold": 0.8
+        },
+        "fiberseq_footprint": {
+            "flank": 1000
+        },
+        "fiberseq_nucpos": {
+            "upstream_nucs": 5,
+            "downstream_nucs": 5,
+            "min_fibers": 10
+        },
+        "fiberseq_quant": {
+            "min_fibers": 10
+        },
+        "fiberseq_diff": {
+            "alpha": 0.05,
+            "design_tsv": null,
+            "annot_sample": null
+        },
+        "fiberseq_coactuation": {
+            "max_distance": 50000,
+            "min_fibers": 10,
+            "max_pairs": 200000,
+            "alpha": 0.05
+        },
+        "fiberseq_haplotype": {
+            "min_fibers": 10,
+            "alpha": 0.05
+        },
+        "fiberseq_censat": {
+            "msp_min_len": 50,
+            "flank": 10000,
+            "bin": 500
+        },
+        "fiberseq_track": {
+            "bin": 10
+        }
+    },
+    "genome": {
+        "fasta": null,
+        "fai": null,
+        "gtf": null,
+        "repeat_bed": null,
+        "censat_bed": null,
+        "motif_file": null,
+        "mcpg_pileup": null
+    },
+    "env": {}
+}

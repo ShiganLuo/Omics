@@ -81,6 +81,7 @@ rule ft_call_peaks:
         bam = indir + "/{sample_id}/{sample_id}" + _bam_suffix
     output:
         peaks = outdir + "/{sample_id}/{sample_id}.fire_peaks.bed",
+        fdr_table = outdir + "/{sample_id}/{sample_id}.fire_fdr_table.tsv",
     log:
         logdir + "/{sample_id}/ft_call_peaks.log"
     threads: 8
@@ -90,9 +91,9 @@ rule ft_call_peaks:
         sif("fibertools.yaml")
     params:
         ft = config.get("Procedure", {}).get("fibertools") or "ft",
-        max_fdr = config.get("Params", {}).get("fibertools", {}).get("max_fdr", 0.05),
-        min_fire_frac = config.get("Params", {}).get("fibertools", {}).get("min_fire_frac", 0.1),
-        sd_cov = config.get("Params", {}).get("fibertools", {}).get("sd_cov", 5.0),
+        fdr_cfg = config.get("Params", {}).get("fibertools", {}),
+        fai = config.get("genome", {}).get("fai", ""),
+        shuffle_script = ROOT_DIR + "/modules/fibertools/bin/shuffle_bed.py",
     run:
         log_path = str(log)
         rule_logger = setup_logger("ft_call_peaks", log_file=log_path)
@@ -103,16 +104,31 @@ rule ft_call_peaks:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             command_script = os.path.join(sample_outdir, f"ft_call_peaks_{current_time}.sh")
             rule_logger.info(f"Calling FIRE peaks for sample {wildcards.sample_id}")
-            # Build ft call-peaks command
+            # Build ft call-peaks command (fdr mode needs a shuffled null BED)
+            mode = params.fdr_cfg.get("call_peaks_mode", "fdr")
+            if mode == "fdr" and not params.fai:
+                raise RuntimeError(
+                    "call_peaks_mode=fdr requires 'genome.fai' in the config JSON "
+                    "(chrom sizes for the shuffled null)."
+                )
+            fibers_bed = os.path.join(sample_outdir, f"{wildcards.sample_id}.fibers.bed")
+            shuffled_bed = os.path.join(sample_outdir, f"{wildcards.sample_id}.fibers.shuffled.bed")
             ft_cmd = [
                 params.ft, "call-peaks",
                 "-t", str(threads),
                 "-o", str(output.peaks),
-                "--sd-cov", str(params.sd_cov),
-                "--max-fdr", str(params.max_fdr),
+                "--sd-cov", str(params.fdr_cfg.get("sd_cov", 5.0)),
             ]
-            if params.min_fire_frac is not None:
-                ft_cmd.extend(["--min-fire-frac", str(params.min_fire_frac)])
+            if mode == "fdr":
+                ft_cmd.extend([
+                    "--max-fdr", str(params.fdr_cfg.get("max_fdr", 0.05)),
+                    "--shuffled", shuffled_bed,
+                    "--fdr-table-out", str(output.fdr_table),
+                ])
+            else:
+                ft_cmd.extend(["--min-fire-frac", str(params.fdr_cfg.get("min_fire_frac", 0.1))])
+            if params.fdr_cfg.get("haps", False):
+                ft_cmd.append("--haps")
             ft_cmd.append(sorted_bam)
             ft_cmd_str = " ".join(ft_cmd)
 
@@ -130,8 +146,16 @@ rule ft_call_peaks:
                 f.write(f'echo "Sorting BAM"\n')
                 f.write(f'samtools sort -@ {threads} -o {sorted_bam} {input.bam}\n')
                 f.write(f'samtools index {sorted_bam}\n')
-                f.write(f'echo "Calling FIRE peaks"\n')
+                if mode == "fdr":
+                    f.write(f'echo "Building shuffled null"\n')
+                    f.write(f'samtools view -F 0x904 {sorted_bam} | '
+                            f'awk \'BEGIN{{OFS="\\t"}}{{print $3, $4-1, $4-1+length($10), $1}}\' > {fibers_bed}\n')
+                    f.write(f'python {params.shuffle_script} -i {fibers_bed} '
+                            f'-g {params.fai} -o {shuffled_bed} --seed 42\n')
+                f.write(f'echo "Calling FIRE peaks ({mode} mode)"\n')
                 f.write(ft_cmd_str + "\n")
+                if mode != "fdr":
+                    f.write(f'printf "#FDR table not computed (fire_frac mode)\\n" > {output.fdr_table}\n')
                 f.write(f'echo "FIRE peak calling completed for sample {wildcards.sample_id}"\n')
 
             shell(f"bash {command_script} >> {log_path} 2>&1")
@@ -186,3 +210,143 @@ rule ft_qc:
         except Exception as e:
             rule_logger.error(f"ft_qc failed: {e}\n")
             raise RuntimeError(f"ft_qc failed: {e}\n")
+
+
+wildcard_constraints:
+    hap = "hap[12]",
+
+
+rule ft_extract_fire:
+    """Extract per-fiber FIRE elements to BED9 via `ft fire --extract`.
+
+    Input: Fiber-seq BAM with FIRE calls (aligned).
+    Output: BED of FIRE elements per fiber (consumed by downstream analysis).
+    """
+    input:
+        bam = indir + "/{sample_id}/{sample_id}" + _bam_suffix
+    output:
+        fire = outdir + "/{sample_id}/{sample_id}.fire.bed",
+    log:
+        logdir + "/{sample_id}/ft_extract_fire.log"
+    threads: 8
+    conda:
+        "fibertools.yaml"
+    container:
+        sif("fibertools.yaml")
+    params:
+        ft = config.get("Procedure", {}).get("fibertools") or "ft",
+        is_ont = config.get("Params", {}).get("fibertools", {}).get("ont", False),
+    run:
+        log_path = str(log)
+        open(log_path, 'w').close()
+        rule_logger = setup_logger("ft_extract_fire", log_file=log_path)
+        try:
+            rule_logger.info(f"Extracting FIRE elements for sample {wildcards.sample_id}")
+            current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+            sample_outdir = os.path.join(outdir, wildcards.sample_id)
+            os.makedirs(sample_outdir, exist_ok=True)
+            command_script = os.path.join(sample_outdir, f"ft_extract_fire_{current_time}.sh")
+            cmd = [
+                params.ft, "fire",
+                "-t", str(threads),
+                "--extract",
+                input.bam,
+                output.fire,
+            ]
+            if params.is_ont:
+                cmd.extend(["--ont"])
+            with open(command_script, "w") as f:
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
+                f.write(" ".join(cmd) + "\n")
+                f.write(f'echo "FIRE extraction completed for sample {wildcards.sample_id}"\n')
+            shell(f"bash {command_script} >> {log_path} 2>&1")
+        except Exception as e:
+            rule_logger.error(f"ft_extract_fire failed: {e}\n")
+            raise RuntimeError(f"ft_extract_fire failed: {e}\n")
+
+
+rule ft_split_hap:
+    """Split an HP-tagged aligned BAM into haplotype BAMs with samtools."""
+    input:
+        bam = indir + "/{sample_id}/{sample_id}" + _bam_suffix
+    output:
+        bam = outdir + "/{sample_id}/{sample_id}.{hap}.bam",
+        bai = outdir + "/{sample_id}/{sample_id}.{hap}.bam.bai",
+    log:
+        logdir + "/{sample_id}/ft_split_hap_{hap}.log"
+    threads: 4
+    conda:
+        "fibertools.yaml"
+    container:
+        sif("fibertools.yaml")
+    params:
+        hp_value = lambda wildcards: wildcards.hap[-1],
+    run:
+        log_path = str(log)
+        open(log_path, 'w').close()
+        rule_logger = setup_logger(f"ft_split_hap_{wildcards.hap}", log_file=log_path)
+        try:
+            rule_logger.info(f"Splitting {wildcards.hap} reads for sample {wildcards.sample_id}")
+            current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+            sample_outdir = os.path.join(outdir, wildcards.sample_id)
+            os.makedirs(sample_outdir, exist_ok=True)
+            command_script = os.path.join(sample_outdir, f"ft_split_hap_{wildcards.hap}_{current_time}.sh")
+            with open(command_script, "w") as f:
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
+                f.write(f'samtools view -b -@ {threads} -d HP:{params.hp_value} '
+                        f'{input.bam} > {output.bam}\n')
+                f.write(f'samtools index {output.bam}\n')
+                f.write(f'echo "Haplotype split completed for sample {wildcards.sample_id}"\n')
+            shell(f"bash {command_script} >> {log_path} 2>&1")
+        except Exception as e:
+            rule_logger.error(f"ft_split_hap failed: {e}\n")
+            raise RuntimeError(f"ft_split_hap failed: {e}\n")
+
+
+rule ft_extract_hap:
+    """Extract m6A/nuc/MSP/CpG BEDs from a haplotype-split BAM."""
+    input:
+        bam = outdir + "/{sample_id}/{sample_id}.{hap}.bam",
+        bai = outdir + "/{sample_id}/{sample_id}.{hap}.bam.bai",
+    output:
+        m6a = outdir + "/{sample_id}/{sample_id}.{hap}.m6a.bed.gz",
+        nuc = outdir + "/{sample_id}/{sample_id}.{hap}.nuc.bed.gz",
+        msp = outdir + "/{sample_id}/{sample_id}.{hap}.msp.bed.gz",
+        cpg = outdir + "/{sample_id}/{sample_id}.{hap}.cpg.bed.gz",
+    log:
+        logdir + "/{sample_id}/ft_extract_{hap}.log"
+    threads: 8
+    conda:
+        "fibertools.yaml"
+    container:
+        sif("fibertools.yaml")
+    params:
+        ft = config.get("Procedure", {}).get("fibertools") or "ft",
+    run:
+        log_path = str(log)
+        open(log_path, 'w').close()
+        rule_logger = setup_logger(f"ft_extract_{wildcards.hap}", log_file=log_path)
+        try:
+            rule_logger.info(f"Extracting {wildcards.hap} elements for sample {wildcards.sample_id}")
+            current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+            sample_outdir = os.path.join(outdir, wildcards.sample_id)
+            os.makedirs(sample_outdir, exist_ok=True)
+            command_script = os.path.join(sample_outdir, f"ft_extract_{wildcards.hap}_{current_time}.sh")
+            cmd = [
+                params.ft, "extract",
+                "-r",
+                "-t", str(threads),
+                "--m6a", output.m6a,
+                "--nuc", output.nuc,
+                "--msp", output.msp,
+                "-c", output.cpg,
+                input.bam,
+            ]
+            with open(command_script, "w") as f:
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
+                f.write(" ".join(cmd) + "\n")
+                f.write(f'echo "Haplotype extraction completed for sample {wildcards.sample_id}"\n')
+            shell(f"bash {command_script} >> {log_path} 2>&1")
+        except Exception as e:
+            rule_logger.error(f"ft_extract_hap failed: {e}\n")
+            raise RuntimeError(f"ft_extract_hap failed: {e}\n")

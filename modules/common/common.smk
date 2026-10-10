@@ -6,6 +6,7 @@ Usage:
 
 Then you can use:
     - setup_logger: Create and configure a logger
+    - _require: Validate a required config input, naming the JSON key to fill
     - time, shutil, os, sys: Standard library modules
     - ROOT_DIR: Project root directory from config
     - sif: Resolve SIF container path for a conda env YAML
@@ -39,6 +40,25 @@ except ImportError as e:
         f"3. File exists: {os.path.join(_src_dir, 'common', 'LogUtil.py')}\n"
         f"Original error: {e}"
     )
+
+# ---------------------------------------------------------------------------
+# Required-input helper
+# ---------------------------------------------------------------------------
+
+def _require(value, key, tool=""):
+    """Return a configured input path or fail naming the JSON key to fill.
+
+    ``key`` is the dotted config JSON key to set (e.g. ``genome.gtf``);
+    ``tool`` optionally tags the error message with the module name.
+    """
+    if not value:
+        who = f" for {tool}" if tool else ""
+        raise ValueError(
+            f"Missing reference file{who}: set '{key}' in the "
+            f"workflow config JSON, then rerun."
+        )
+    return value
+
 
 # ---------------------------------------------------------------------------
 # Container (SIF) path resolution

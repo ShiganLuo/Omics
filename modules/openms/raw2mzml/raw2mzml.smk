@@ -49,10 +49,10 @@ rule raw2mzml:
         peak_picking = extra_filter
     run:
         log_path = str(log)
+        open(log_path, 'w').close()
+        rule_logger = setup_logger("raw2mzml",log_file=log_path)
         try:
-            open(log_path, 'w').close()
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            rule_logger = setup_logger("raw2mzml",log_file=log_path)
             rule_logger.info(f"Start raw2mzml for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
@@ -81,13 +81,12 @@ rule raw2mzml:
                 raise ValueError(f"Unsupported input file format: {input.infile}")
             
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(shlex.quote(x) for x in cmd) + "\n")
                 f.write(f'echo "raw2mzml completed for sample {wildcards.sample_id} at $(date)"\n')
-            shell(f"bash {script} > {log_path} 2>&1")
+            shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, 'a') as f:
-                f.write(f"rule raw2mzml was call failed,error: {e}")
+            rule_logger.error(f"rule raw2mzml was call failed,error: {e}")
             raise RuntimeError(f"rule raw2mzml was call failed,error: {e}")
 
 rule raw2mzml_result:

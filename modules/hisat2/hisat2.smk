@@ -49,8 +49,8 @@ rule hisat2_index:
                 f.write(f"echo 'hisat2 index was successfully completed'\n")
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-    rule_logger.error(f"hisat2_index failed: {e}")
-            raise RuntimeError(f"Error: {e}")
+            rule_logger.error(f"hisat2_index failed: {e}")
+            raise RuntimeError(f"hisat2_index failed: {e}")
 
 def get_hisat2_index(wildcards):
     logger.info(f"[get_hisat2_index] called with wildcards: {wildcards}")

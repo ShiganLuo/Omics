@@ -23,7 +23,7 @@ rule decoy_database:
     output:
         decoy_fasta = outdir + "/genome_decoy.fasta"
     log:
-        logdir + "/decoy_database.log"
+        logdir + "/decoy_database/decoy_database.log"
     conda:
         "../openms.yaml"
     container:

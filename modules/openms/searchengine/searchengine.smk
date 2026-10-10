@@ -41,7 +41,8 @@ rule search_engine_comet:
         comet = comet,
         precursor_mass_tolerance = config.get("Params").get("search_engine",{}).get("comet", {}).get("precursor_mass_tolerance", 20),
         fragment_mass_tolerance = config.get("Params").get("search_engine",{}).get("comet", {}).get("fragment_mass_tolerance", 0.02),
-        fragment_bin_offset = config.get("Params").get("search_engine",{}).get("comet", {}).get("fragment_bin_offset", 0)
+        fragment_bin_offset = config.get("Params").get("search_engine",{}).get("comet", {}).get("fragment_bin_offset", 0),
+        unmatched_action = config.get("Params").get("search_engine",{}).get("comet", {}).get("unmatched_action", "remove")
     run:
         log_path = str(log)
         open(log_path, 'w').close()
@@ -60,6 +61,10 @@ rule search_engine_comet:
                 "-fragment_mass_tolerance", str(params.fragment_mass_tolerance),
                 "-fragment_bin_offset", str(params.fragment_bin_offset)
             ]
+            # PeptideIndexer aborts (exit 13) on unmatched peptides by default;
+            # they cannot be used for FDR/quant anyway, so drop them.
+            if params.unmatched_action:
+                cmd += ["-PeptideIndexing:unmatched_action", str(params.unmatched_action)]
             with open(script, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")

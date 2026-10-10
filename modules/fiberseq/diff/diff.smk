@@ -24,7 +24,7 @@ rule fiberseq_diff_run:
     input:
         matrix = QUANT_DIR + "/matrix/percent_accessible_matrix.tsv",
         design = lambda wildcards: _require(p.get("design_tsv"),
-                                            "Params.downstream.diff.design_tsv",
+                                            "Params.diff.design_tsv",
                                             "fiberseq_diff"),
         annot = ANNOT_DIR + "/" + ANNOT_SAMPLE + "/" + ANNOT_SAMPLE + ".peaks_annotated.tsv",
     output:

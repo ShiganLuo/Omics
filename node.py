@@ -72,7 +72,7 @@ def _init_raw_json(
     if not datajson.get("tmp_dir"):
         tmp_dir = os.path.join(outdir, "tmp")
         os.makedirs(tmp_dir, exist_ok=True)
-    if workflow in ["PacVar", "ncRNAseq", "RNAseq", "QuantMS"]:
+    if workflow in ["PacVar", "ncRNAseq", "RNAseq", "QuantMS", "Fiberseq"]:
         datajson["ROOT_DIR"] = root_dir
         datajson["Params"]["workflow"]["indir"] = indir
         datajson["Params"]["workflow"]["outdir"] = outdir
@@ -656,7 +656,7 @@ def runQuantMS(
     samples: List[str] = []
     outfiles: List[str] = []
 
-    quantification_method = datajson.get("quantification_method", "lfq")
+    quantification_method = datajson["Params"]["workflow"]["quantification_method"]
     search_engine = datajson["Params"]["search_engine"]["engine"]
     for sample_id in samples_info_dict:
         samples.append(sample_id)
@@ -1027,12 +1027,11 @@ def runFiberseq(
     Reference: Stergachis et al., 2020, Science (DOI: 10.1126/science.aaz1646).
     Guide: https://fiberseq.github.io/
     """
-    root_dir = _init_raw_json(datajson, indir, outdir, raw_files)
+    root_dir = _init_raw_json(datajson, indir, outdir, raw_files, "Fiberseq")
 
     outfiles = []
     samples = []
     params = datajson.get("Params", {}) or {}
-    ds = params.get("downstream", {}) or {}
     func_cfg = params.get("function", {}) or {}
     ldsc_cfg = params.get("ldsc", {}) or {}
     res = f"{outdir}/results"
@@ -1041,9 +1040,9 @@ def runFiberseq(
     def _on(block) -> bool:
         return bool((block or {}).get("enabled"))
 
-    want_motif = _on(ds.get("motif")) or _on(ds.get("footprint"))
-    want_quant = _on(ds.get("quant")) or _on(ds.get("diff")) or _on(ds.get("haplotype"))
-    want_hap = _on(ds.get("haplotype"))
+    want_motif = _on(params.get("motif")) or _on(params.get("footprint"))
+    want_quant = _on(params.get("quant")) or _on(params.get("diff")) or _on(params.get("haplotype"))
+    want_hap = _on(params.get("haplotype"))
 
     for sample_id, sample_info in samples_info_dict.items():
         samples.append(sample_id)
@@ -1062,35 +1061,35 @@ def runFiberseq(
         outfiles.append(f"{res}/{sample_id}/{sample_id}.fire.bed")
         outfiles.append(f"{res}/{sample_id}/{sample_id}.qc.tsv")
 
-        # Step 4: downstream (gated by Params.downstream.*.enabled)
-        if _on(ds.get("annotate")):
+        # Step 4: downstream (gated by Params.*.enabled)
+        if _on(params.get("annotate")):
             outfiles.append(f"{res}/fiberseq_annotate/{sample_id}/{sample_id}.peaks_annotated.tsv")
             outfiles.append(f"{res}/fiberseq_annotate/{sample_id}/{sample_id}.peaks_summary.tsv")
         if want_motif:
             outfiles.append(f"{res}/fiberseq_motif/{sample_id}/{sample_id}.motif_sites.bed")
-        if _on(ds.get("motif")):
+        if _on(params.get("motif")):
             outfiles.append(f"{res}/fiberseq_motif/{sample_id}/{sample_id}.motif_profile.tsv")
             outfiles.append(f"{res}/fiberseq_motif/{sample_id}/{sample_id}.motif_footprint_scores.tsv")
             outfiles.append(f"{res}/fiberseq_motif/{sample_id}/{sample_id}.motif_profile.pdf")
-        if _on(ds.get("footprint")):
+        if _on(params.get("footprint")):
             outfiles.append(f"{res}/fiberseq_footprint/{sample_id}/{sample_id}.footprint_categories.tsv")
             outfiles.append(f"{res}/fiberseq_footprint/{sample_id}/{sample_id}.footprint_profiles.tsv")
             outfiles.append(f"{res}/fiberseq_footprint/{sample_id}/{sample_id}.footprint_scores.tsv")
             outfiles.append(f"{res}/fiberseq_footprint/{sample_id}/{sample_id}.footprint_profile.pdf")
-        if _on(ds.get("nucpos")):
+        if _on(params.get("nucpos")):
             outfiles.append(f"{res}/fiberseq_nucpos/{sample_id}/{sample_id}.nuc_offset_per_anchor.tsv")
             outfiles.append(f"{res}/fiberseq_nucpos/{sample_id}/{sample_id}.nuc_offset_summary.tsv")
             outfiles.append(f"{res}/fiberseq_nucpos/{sample_id}/{sample_id}.nucpos.pdf")
-        if _on(ds.get("track")):
+        if _on(params.get("track")):
             outfiles.append(f"{res}/fiberseq_track/{sample_id}/{sample_id}.accessibility.bw")
             outfiles.append(f"{res}/fiberseq_track/{sample_id}/{sample_id}.m6a_density.bw")
             outfiles.append(f"{res}/fiberseq_track/{sample_id}/trackDb.txt")
         if want_quant:
             outfiles.append(f"{res}/fiberseq_quant/{sample_id}/{sample_id}.region_quant.tsv")
-        if _on(ds.get("coactuation")):
+        if _on(params.get("coactuation")):
             outfiles.append(f"{res}/fiberseq_coactuation/{sample_id}/{sample_id}.coactuation.tsv")
             outfiles.append(f"{res}/fiberseq_coactuation/{sample_id}/{sample_id}.coactuation_summary.tsv")
-        if _on(ds.get("censat")):
+        if _on(params.get("censat")):
             outfiles.append(f"{res}/fiberseq_censat/{sample_id}/{sample_id}.censat_regions.tsv")
             outfiles.append(f"{res}/fiberseq_censat/{sample_id}/{sample_id}.censat_class_summary.tsv")
             outfiles.append(f"{res}/fiberseq_censat/{sample_id}/{sample_id}.censat_profile.tsv")
@@ -1116,16 +1115,16 @@ def runFiberseq(
             outfiles.append(f"{res}/fiberseq_haplotype/{sample_id}/{sample_id}.haplotype_summary.tsv")
 
     # Cross-sample outputs
-    if _on(ds.get("quant")) or _on(ds.get("diff")):
+    if _on(params.get("quant")) or _on(params.get("diff")):
         for metric in ("percent_accessible", "nuc_occupancy", "m6a_per_fiber", "fire_frac"):
             outfiles.append(f"{res}/fiberseq_quant/matrix/{metric}_matrix.tsv")
 
-    if _on(ds.get("diff")):
-        design_tsv = (ds.get("diff") or {}).get("design_tsv")
+    if _on(params.get("diff")):
+        design_tsv = (params.get("diff") or {}).get("design_tsv")
         if not design_tsv:
             raise ValueError(
-                "Params.downstream.diff.enabled=true requires "
-                "Params.downstream.diff.design_tsv in the config JSON."
+                "Params.diff.enabled=true requires "
+                "Params.diff.design_tsv in the config JSON."
             )
         contrast_groups = {}
         with open(design_tsv) as fh:
@@ -1149,7 +1148,7 @@ def runFiberseq(
         # function module needs group_pairs keyed by contrast; derive when absent
         # (group order matches diff_accessibility: sorted group names -> control,
         # experimental)
-        if not datajson.get("group_pairs"):
+        if not (datajson.get("Params", {}).get("function", {}) or {}).get("group_pairs"):
             gp = {}
             for contrast, groups in contrast_groups.items():
                 (g_ctrl, s_ctrl), (g_exp, s_exp) = sorted(groups.items())
@@ -1159,7 +1158,7 @@ def runFiberseq(
                     "control_samples": s_ctrl,
                     "experimental_samples": s_exp,
                 }
-            datajson["group_pairs"] = gp
+            datajson["Params"].setdefault("function", {})["group_pairs"] = gp
 
         # GO/KEGG + GSEA outputs from the shared function module
         if _on(func_cfg):
@@ -1189,8 +1188,8 @@ def runFiberseq(
             outfiles.append(f"{outdir}/ldsc/{trait}/{trait}.sumstats.gz")
             outfiles.append(f"{outdir}/ldsc/{trait}/{trait}.cts.results")
 
-    datajson["samples"] = samples
-    datajson["raw_files"] = raw_files
+    datajson["Params"]["workflow"]["samples"] = samples
+    datajson["Params"]["workflow"]["raw_files"] = raw_files
     datajson["outfiles"] = outfiles
     instance_json = os.path.join(outdir, "raw.json")
     with open(instance_json, 'w', encoding='utf-8') as wf:

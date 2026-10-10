@@ -5,9 +5,9 @@ Workflow:
   Step 2: common/2_aligned  — pbmm2 align → aligned fiberseq BAM
   Step 3: fiberseq/3_extract — extract BED12 + call-peaks (FDR) + qc + fire BED
   Step 4: fiberseq/4_downstream — annotate, motif, footprint, nucpos, quant,
-          tracks, coactuation, censat (Params.downstream.* gates in node.py)
+          tracks, coactuation, censat (Params.*.enabled gates in node.py)
   Step 5: fiberseq/5_haplotype — deepvariant + pbsv + hiphase → hap split
-          extracts → haplotype diff (Params.downstream.haplotype.enabled)
+          extracts → haplotype diff (Params.haplotype.enabled)
   Step 6: enrichment — GO/KEGG of non-promoter peak genes
   Step 7: ldsc — partitioned heritability interface (Params.ldsc)
 
@@ -23,11 +23,11 @@ shell.prefix("set -x; set -e;")
 from snakemake.logging import logger
 
 ROOT_DIR = config.get("ROOT_DIR", ".")
-indir = config.get("indir") or "input"
-outdir = config.get("outdir") or "output"
-logdir = config.get("logdir") or "log"
 outfiles = config.get("outfiles") or []
-samples = config.get("samples") or []
+indir = config.get("Params",{}).get("workflow",{}).get("indir") or "input"
+outdir = config.get("Params",{}).get("workflow",{}).get("outdir") or "output"
+logdir = config.get("Params",{}).get("workflow",{}).get("logdir") or "log"
+samples = config.get("Params",{}).get("workflow",{}).get("samples") or []
 
 # ---- Resolve genome reference ----
 genome_cfg = config.get("genome", {})
@@ -138,9 +138,9 @@ use rule ft_extract_fire from fibertools_analysis as Fiberseq_ft_extract_fire
 
 # ============================================================
 # Step 4: Downstream interpretation (one module per analysis;
-#   node.py gates outputs per Params.downstream.*.enabled)
+#   node.py gates outputs per Params.*.enabled)
 # ============================================================
-downstream = config.get("Params", {}).get("downstream", {})
+params = config.get("Params", {})
 
 
 def _fs_cfg(name, ds_key, genome_keys=()):
@@ -152,7 +152,7 @@ def _fs_cfg(name, ds_key, genome_keys=()):
         "outdir": f"{analysis_outdir}/{name}",
         "logdir": f"{logdir}/sample",
         "samples": samples,
-        "Params": {name: downstream.get(ds_key, {})},
+        "Params": {name: params.get(ds_key, {})},
         "genome": {k: genome_ref.get(k) for k in genome_keys},
     }
 
@@ -350,7 +350,7 @@ function_config = {
     "outdir": f"{outdir}/function",
     "logdir": f"{logdir}/sample",
     "samples": samples,
-    "group_pairs": config.get("group_pairs", {}),
+    "group_pairs": config.get("Params", {}).get("function", {}).get("group_pairs", {}),
     "genome": {
         "geneIDAnno": genome_ref.get("geneIDAnno"),
     },

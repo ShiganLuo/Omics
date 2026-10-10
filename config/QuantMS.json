@@ -46,7 +46,8 @@
                 "threads": 4,
                 "precursor_mass_tolerance": 20,
                 "fragment_mass_tolerance": 0.02,
-                "fragment_bin_offset": 0
+                "fragment_bin_offset": 0,
+                "unmatched_action": "remove"
             },
             "msgf": {
                 "threads": 4,

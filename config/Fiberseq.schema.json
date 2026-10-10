@@ -111,160 +111,158 @@
         "required": false
       }
     },
-    "downstream": {
-      "annotate": {
-        "enabled": {
-          "type": "bool",
-          "required": false
-        },
-        "tss_flank": {
-          "type": "int",
-          "required": false
-        },
-        "repeat_frac": {
-          "type": "float",
-          "required": false
-        }
+    "annotate": {
+      "enabled": {
+        "type": "bool",
+        "required": false
       },
-      "motif": {
-        "enabled": {
-          "type": "bool",
-          "required": false
-        },
-        "flank": {
-          "type": "int",
-          "required": false
-        },
-        "min_fibers": {
-          "type": "int",
-          "required": false
-        },
-        "pwm_threshold": {
-          "type": "float",
-          "required": false
-        }
+      "tss_flank": {
+        "type": "int",
+        "required": false
       },
-      "footprint": {
-        "enabled": {
-          "type": "bool",
-          "required": false
-        },
-        "flank": {
-          "type": "int",
-          "required": false
-        }
+      "repeat_frac": {
+        "type": "float",
+        "required": false
+      }
+    },
+    "motif": {
+      "enabled": {
+        "type": "bool",
+        "required": false
       },
-      "nucpos": {
-        "enabled": {
-          "type": "bool",
-          "required": false
-        },
-        "upstream_nucs": {
-          "type": "int",
-          "required": false
-        },
-        "downstream_nucs": {
-          "type": "int",
-          "required": false
-        },
-        "min_fibers": {
-          "type": "int",
-          "required": false
-        }
+      "flank": {
+        "type": "int",
+        "required": false
       },
-      "track": {
-        "enabled": {
-          "type": "bool",
-          "required": false
-        },
-        "bin": {
-          "type": "int",
-          "required": false
-        }
+      "min_fibers": {
+        "type": "int",
+        "required": false
       },
-      "quant": {
-        "enabled": {
-          "type": "bool",
-          "required": false
-        },
-        "min_fibers": {
-          "type": "int",
-          "required": false
-        }
+      "pwm_threshold": {
+        "type": "float",
+        "required": false
+      }
+    },
+    "footprint": {
+      "enabled": {
+        "type": "bool",
+        "required": false
       },
-      "diff": {
-        "enabled": {
-          "type": "bool",
-          "required": false
-        },
-        "alpha": {
-          "type": "float",
-          "required": false
-        },
-        "design_tsv": {
-          "type": "str",
-          "nullable": true,
-          "required": false
-        },
-        "annot_sample": {
-          "type": "str",
-          "nullable": true,
-          "required": false
-        }
+      "flank": {
+        "type": "int",
+        "required": false
+      }
+    },
+    "nucpos": {
+      "enabled": {
+        "type": "bool",
+        "required": false
       },
-      "coactuation": {
-        "enabled": {
-          "type": "bool",
-          "required": false
-        },
-        "max_distance": {
-          "type": "int",
-          "required": false
-        },
-        "min_fibers": {
-          "type": "int",
-          "required": false
-        },
-        "max_pairs": {
-          "type": "int",
-          "required": false
-        },
-        "alpha": {
-          "type": "float",
-          "required": false
-        }
+      "upstream_nucs": {
+        "type": "int",
+        "required": false
       },
-      "haplotype": {
-        "enabled": {
-          "type": "bool",
-          "required": false
-        },
-        "min_fibers": {
-          "type": "int",
-          "required": false
-        },
-        "alpha": {
-          "type": "float",
-          "required": false
-        }
+      "downstream_nucs": {
+        "type": "int",
+        "required": false
       },
-      "censat": {
-        "enabled": {
-          "type": "bool",
-          "required": false
-        },
-        "msp_min_len": {
-          "type": "int",
-          "required": false
-        },
-        "flank": {
-          "type": "int",
-          "required": false
-        },
-        "bin": {
-          "type": "int",
-          "required": false
-        }
+      "min_fibers": {
+        "type": "int",
+        "required": false
+      }
+    },
+    "track": {
+      "enabled": {
+        "type": "bool",
+        "required": false
+      },
+      "bin": {
+        "type": "int",
+        "required": false
+      }
+    },
+    "quant": {
+      "enabled": {
+        "type": "bool",
+        "required": false
+      },
+      "min_fibers": {
+        "type": "int",
+        "required": false
+      }
+    },
+    "diff": {
+      "enabled": {
+        "type": "bool",
+        "required": false
+      },
+      "alpha": {
+        "type": "float",
+        "required": false
+      },
+      "design_tsv": {
+        "type": "str",
+        "nullable": true,
+        "required": false
+      },
+      "annot_sample": {
+        "type": "str",
+        "nullable": true,
+        "required": false
+      }
+    },
+    "coactuation": {
+      "enabled": {
+        "type": "bool",
+        "required": false
+      },
+      "max_distance": {
+        "type": "int",
+        "required": false
+      },
+      "min_fibers": {
+        "type": "int",
+        "required": false
+      },
+      "max_pairs": {
+        "type": "int",
+        "required": false
+      },
+      "alpha": {
+        "type": "float",
+        "required": false
+      }
+    },
+    "haplotype": {
+      "enabled": {
+        "type": "bool",
+        "required": false
+      },
+      "min_fibers": {
+        "type": "int",
+        "required": false
+      },
+      "alpha": {
+        "type": "float",
+        "required": false
+      }
+    },
+    "censat": {
+      "enabled": {
+        "type": "bool",
+        "required": false
+      },
+      "msp_min_len": {
+        "type": "int",
+        "required": false
+      },
+      "flank": {
+        "type": "int",
+        "required": false
+      },
+      "bin": {
+        "type": "int",
+        "required": false
       }
     },
     "function": {

@@ -17,7 +17,7 @@
 - **新模块**（初版为 fiberseq_analysis 聚合模块，后按规范拆分，见下）：annot/motif/
   footprint/nucpos/quant/diff/coactuation/haplotype/censat/track。
 - **新模块** `ldsc`（接口：annot/munge/h2-cts）；富集分析复用 `modules/function`。
-- **接线**：Fiberseq.smk Step 4–7、node.py 按 `Params.downstream.*.enabled` 注册输出、
+- **接线**：Fiberseq.smk Step 4–7、node.py 按 `Params.*.enabled` 注册输出、
   config/schema 扩展；待补文件清单见 `docs/fiberseq-downstream-files.md`。
 - **验证**：13 个 CLI 合成数据冒烟测试通过（含 Enrichr 真实 API 路径）；
   snakemake dry-run 全链 DAG 构建通过。
@@ -203,9 +203,9 @@
 | J 着丝粒 | `samtools` `bedtools` | `fiberseq_censat`（modkit 容器） |
 
 其他改动：
-- `node.py runFiberseq`：按 `Params.downstream.*` 开关注册对应 outfiles
+- `node.py runFiberseq`：按 `Params.*` 开关注册对应 outfiles
   （输出决定流程走向，开关逻辑只在 node.py 层）。
-- `config/Fiberseq.schema.json`：增加 `Params.downstream` 块
+- `config/Fiberseq.schema.json`：增加 `Params` 下的下游分析块
   （annotate/motif/nucpos/track/quant/footprint/haplotype/coactuation/
   enrichment/censat 各 bool + 参数）；`genome.references` 增加
   `gtf`、`censat_bed`、`motif_db` 等可选字段。

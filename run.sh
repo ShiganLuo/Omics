@@ -96,13 +96,13 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 #     #     scanpy_auto:tissue=Uterus,counter=scTE \
 #     #     scanpy_auto:tissue=Uterus,counter=cellranger
 
-# python ${SCRIPT_DIR}/run.py \
-#   -m /data/16T/luosg/data/meta_Fiberseq_Totipotency.tsv \
-#   -w Fiberseq \
-#   -o /data/16T/luosg/output/Totipotency \
-#   --log /data/16T/luosg/log/Totipotency_Fiberseq.log \
-#   --sdm apptainer \
-#   -t 48 \
-#   --rerun-triggers mtime \
-#   --genome.default T2T_mhaESC_v1.5 \
-#   --dry-run
+python ${SCRIPT_DIR}/run.py \
+  -m /data/16T/luosg/data/meta_Fiberseq_Totipotency.tsv \
+  -w Fiberseq \
+  -o /data/16T/luosg/output/Totipotency \
+  --log /data/16T/luosg/log/Totipotency_Fiberseq.log \
+  --sdm apptainer \
+  -t 48 \
+  --rerun-triggers mtime \
+  --genome.default T2T_mhaESC_v1.5 \
+  --dry-run

@@ -2,10 +2,12 @@
     "ROOT_DIR": null,
     "outfiles": [],
     "env": {
+        "diann": "/data/16T/Database/env/diann/diann.sif",
         "env_dir": "/home/luosg/Database/env",
         "openms": "/home/luosg/Database/env/openms/openms.sif"
     },
     "Procedure": {
+        "diann": null,
         "openms": null,
         "thermorawfileparser": null,
         "comet": null,
@@ -18,6 +20,25 @@
         "msstats": null
     },
     "Params": {
+        "diann": {
+            "enabled": true,
+            "threads": 16,
+            "qvalue": 0.01,
+            "matrix_qvalue": 0.01,
+            "mass_acc_ms1": 20,
+            "mass_acc": 20,
+            "min_fr_mz": 200,
+            "max_fr_mz": 1800,
+            "min_pept_len": 7,
+            "max_pept_len": 30,
+            "fixed_mod": "Carbamidomethyl (C),57.0215",
+            "var_mods": "Oxidation (M),15.9949",
+            "library": null,
+            "gen_spec_lib": true,
+            "predictor": true,
+            "verbose": true,
+            "extra": ""
+        },
         "workflow": {
             "indir": "input",
             "outdir": "output",
@@ -47,7 +68,9 @@
                 "precursor_mass_tolerance": 20,
                 "fragment_mass_tolerance": 0.02,
                 "fragment_bin_offset": 0,
-                "unmatched_action": "remove"
+                "unmatched_action": "remove",
+                "fixed_modifications": ["Carbamidomethyl (C)", "TMTpro (K)", "TMTpro (N-term)"],
+                "variable_modifications": ["Oxidation (M)"]
             },
             "msgf": {
                 "threads": 4,

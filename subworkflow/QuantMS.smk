@@ -77,6 +77,7 @@ search_engine_config = {
     "Params": {
         "search_engine": config.get("Params", {}).get("search_engine", {})
     },
+    "quantification_method": config.get("Params", {}).get("workflow", {}).get("quantification_method"),
     "genome": {
         "decoy_fasta": config.get("genome",{}).get("decoy_fasta")
     }
@@ -200,4 +201,32 @@ module msstats:
     config: msstats_config
 use rule * from msstats as QuantMS_*
 logger.info(f"msstats_config: {msstats_config}")
+
+# ============================================================
+# DIA-NN (quantification_method == "dia" with Params.diann.enabled):
+# replaces the DDA identification chain; node.py registers its outputs
+# ============================================================
+diann_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "env": config.get("env", {}),
+    "indir": raw2mzml_config["outdir"],
+    "outdir": f"{outdir}/common/3_diann",
+    "logdir": os.path.join(logdir, "sample"),
+    "samples": samples,
+    "Procedure": {
+        "diann": config.get("Procedure", {}).get("diann")
+    },
+    "Params": {
+        "diann": config.get("Params", {}).get("diann", {})
+    },
+    "genome": {
+        "protein_fasta": config.get("genome", {}).get("references", {}).get(genome, {}).get("protein_fasta"),
+    },
+}
+module diann:
+    snakefile: "../modules/diann/diann.smk"
+    config: diann_config
+use rule diann_run from diann as QuantMS_diann_run
+use rule diann_summary from diann as QuantMS_diann_summary
+logger.info(f"diann_config: {diann_config}")
 

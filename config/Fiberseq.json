@@ -1,4 +1,7 @@
 {
+    "ROOT_DIR": null,
+    "tmp_dir": null,
+    "outfiles": [],
     "env": {
         "env_dir": "/home/luosg/Database/env",
         "fibertools": "/home/luosg/Database/env/fibertools/fibertools.sif",
@@ -10,13 +13,6 @@
         "pbsv": "/home/luosg/Database/env/pbsv/pbsv.sif",
         "hiphase": "/home/luosg/Database/env/hiphase/hiphase.sif"
     },
-    "indir": "input",
-    "outdir": "output",
-    "logdir": "logs",
-    "tmp_dir": null,
-    "samples": [],
-    "raw_files": [],
-    "group_pairs": {},
     "Procedure": {
         "fibertools": null,
         "pbmm2": null,
@@ -29,6 +25,13 @@
         "make_annot": null
     },
     "Params": {
+        "workflow": {
+            "indir": "input",
+            "outdir": "output",
+            "logdir": "logs",
+            "samples": [],
+            "raw_files": []
+        },
         "fibertools": {
             "add_nucleosomes_manual": null,
             "ont": false,
@@ -40,60 +43,58 @@
             "acf": false
         },
         "pbmm2": {},
-        "downstream": {
-            "annotate": {
-                "enabled": true,
-                "tss_flank": 1000,
-                "repeat_frac": 0.25
-            },
-            "motif": {
-                "enabled": true,
-                "flank": 250,
-                "min_fibers": 10,
-                "pwm_threshold": 0.8
-            },
-            "footprint": {
-                "enabled": true,
-                "flank": 1000
-            },
-            "nucpos": {
-                "enabled": true,
-                "upstream_nucs": 5,
-                "downstream_nucs": 5,
-                "min_fibers": 10
-            },
-            "track": {
-                "enabled": true,
-                "bin": 10
-            },
-            "quant": {
-                "enabled": true,
-                "min_fibers": 10
-            },
-            "diff": {
-                "enabled": false,
-                "alpha": 0.05,
-                "design_tsv": null,
-                "annot_sample": null
-            },
-            "coactuation": {
-                "enabled": true,
-                "max_distance": 50000,
-                "min_fibers": 10,
-                "max_pairs": 200000,
-                "alpha": 0.05
-            },
-            "haplotype": {
-                "enabled": false,
-                "min_fibers": 10,
-                "alpha": 0.05
-            },
-            "censat": {
-                "enabled": false,
-                "msp_min_len": 50,
-                "flank": 10000,
-                "bin": 500
-            }
+        "annotate": {
+            "enabled": true,
+            "tss_flank": 1000,
+            "repeat_frac": 0.25
+        },
+        "motif": {
+            "enabled": true,
+            "flank": 250,
+            "min_fibers": 10,
+            "pwm_threshold": 0.8
+        },
+        "footprint": {
+            "enabled": true,
+            "flank": 1000
+        },
+        "nucpos": {
+            "enabled": true,
+            "upstream_nucs": 5,
+            "downstream_nucs": 5,
+            "min_fibers": 10
+        },
+        "track": {
+            "enabled": true,
+            "bin": 10
+        },
+        "quant": {
+            "enabled": true,
+            "min_fibers": 10
+        },
+        "diff": {
+            "enabled": false,
+            "alpha": 0.05,
+            "design_tsv": null,
+            "annot_sample": null
+        },
+        "coactuation": {
+            "enabled": true,
+            "max_distance": 50000,
+            "min_fibers": 10,
+            "max_pairs": 200000,
+            "alpha": 0.05
+        },
+        "haplotype": {
+            "enabled": false,
+            "min_fibers": 10,
+            "alpha": 0.05
+        },
+        "censat": {
+            "enabled": false,
+            "msp_min_len": 50,
+            "flank": 10000,
+            "bin": 500
         },
         "function": {
             "enabled": false,
@@ -101,7 +102,8 @@
             "gmt": null,
             "lfc_cut": 1.0,
             "p_cut": 0.05,
-            "top": 10
+            "top": 10,
+            "group_pairs": {}
         },
         "ldsc": {
             "enabled": false,

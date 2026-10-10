@@ -1,7 +1,7 @@
 # Fiber-seq 下游分析：需要补齐的文件清单
 
 对应 `config/Fiberseq.json`。所有路径留空（null）的键按下表补齐后，把对应分析的
-`Params.downstream.<x>.enabled` 设为 `true` 即可（已在默认配置中开启的项也需要文件）。
+`Params.<x>.enabled` 设为 `true` 即可（已在默认配置中开启的项也需要文件）。
 缺文件时 DAG 会报错并提示具体 JSON 键名。
 
 ## 1. genome.references.<组装>（按你选用的组装逐个填）
@@ -16,7 +16,7 @@
 | `censat_bed` | 区域类别 BED（name 列=类别） | 着丝粒专题（可选） | T2T 组装用 chm13v2.0_censat_v2.1.bed；其他组装自定义区域集（如 CDR_core / alphaSat_HOR / flank_1kb） |
 | `mcpg_pileup` | modkit pileup bedGraph | 着丝粒甲基化定量（可选，ONT 数据推荐） | `modkit pileup --cpg` 输出 |
 
-## 2. Params.downstream
+## 2. Params
 
 | JSON 键 | 文件 | 格式 |
 |---|---|---|
@@ -47,7 +47,7 @@ clusterProfiler，离线，支持 Hs/Mm/Mmu）。diff_accessibility 自动生成
 | `ref_ld_chr` | LD score 参考目录前缀 | 如 `eur_w_ld_chr/`（LDSC 官方提供） |
 | `w_ld_chr` | 回归权重目录前缀 | 同上 |
 
-## 5. 单倍型分析（Params.downstream.haplotype）
+## 5. 单倍型分析（Params.haplotype）
 
 无需外部文件——变异检测（DeepVariant）、SV（pbsv）、分相（hiphase）、按 HP 拆分
 提取均在流程内完成。需要的 SIF：`deepvariant`、`pbsv`、`hiphase`（env 映射已列）。

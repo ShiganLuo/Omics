@@ -1,0 +1,34 @@
+{
+    "indir": "common/2_raw2mzml",
+    "outdir": "common/3_diann",
+    "logdir": "log",
+    "samples": [],
+    "Procedure": {
+        "diann": null
+    },
+    "Params": {
+        "diann": {
+            "enabled": true,
+            "threads": 16,
+            "qvalue": 0.01,
+            "matrix_qvalue": 0.01,
+            "mass_acc_ms1": 20,
+            "mass_acc": 20,
+            "min_fr_mz": 200,
+            "max_fr_mz": 1800,
+            "min_pept_len": 7,
+            "max_pept_len": 30,
+            "fixed_mod": "Carbamidomethyl (C),57.0215",
+            "var_mods": "Oxidation (M),15.9949",
+            "library": null,
+            "gen_spec_lib": true,
+            "predictor": true,
+            "verbose": true,
+            "extra": ""
+        }
+    },
+    "genome": {
+        "protein_fasta": null
+    },
+    "env": {}
+}

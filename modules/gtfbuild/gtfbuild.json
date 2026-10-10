@@ -1,0 +1,24 @@
+{
+    "ROOT_DIR": ".",
+    "indir": "",
+    "outdir": "results/gtfbuild",
+    "logdir": "log",
+    "samples": [],
+    "genome_name": "my_genome",
+    "Procedure": {},
+    "Params": {
+        "gtfbuild": {
+            "threads": 32,
+            "copies": false,
+            "coverage": 0.5,
+            "extra_args": ""
+        }
+    },
+    "genome": {
+        "fasta": null,
+        "source_fasta": null,
+        "source_gtf": null,
+        "source_bed": null
+    },
+    "env": {}
+}

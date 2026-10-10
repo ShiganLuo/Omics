@@ -657,9 +657,34 @@ def runQuantMS(
     outfiles: List[str] = []
 
     quantification_method = datajson["Params"]["workflow"]["quantification_method"]
-    search_engine = datajson["Params"]["search_engine"]["engine"]
+    # Search engine follows the data type implied by the quantification method:
+    # DIA spectra need a DIA-capable engine (sage), DDA (tmt/lfq) defaults to
+    # comet. An explicit config engine wins, except comet-on-DIA which is
+    # corrected (a DDA engine on wide-window spectra yields garbage).
+    search_engine = datajson["Params"]["search_engine"].get("engine")
+    _method_default = "sage" if quantification_method == "dia" else "comet"
+    if not search_engine:
+        search_engine = _method_default
+    elif quantification_method == "dia" and search_engine == "comet":
+        print("[runQuantMS] quantification_method=dia cannot use engine=comet "
+              "(DDA engine on DIA spectra); switching to sage")
+        search_engine = "sage"
+    datajson["Params"]["search_engine"]["engine"] = search_engine
+
+    # DIA with DIA-NN replaces the whole DDA identification chain
+    # (search engine -> rescoring -> FDR -> protein inference -> quant).
+    use_diann = (
+        quantification_method == "dia"
+        and (datajson.get("Params", {}).get("diann", {}) or {}).get("enabled", False)
+    )
+    if use_diann:
+        print("[runQuantMS] quantification_method=dia with Params.diann.enabled: "
+              "using DIA-NN, skipping the DDA identification chain")
+
     for sample_id in samples_info_dict:
         samples.append(sample_id)
+        if use_diann:
+            continue
         if search_engine== "comet":
             outfiles.append(f"{outdir}/common/3_search_engine/{sample_id}/{sample_id}_comet.idXML")
         elif search_engine == "msgf":
@@ -671,14 +696,19 @@ def runQuantMS(
         outfiles.append(f"{outdir}/common/4_psm_rescoring/{sample_id}/{sample_id}_scored.idXML")
         outfiles.append(f"{outdir}/common/5_psm_fdr/{sample_id}/{sample_id}_filtered.idXML")
         outfiles.append(f"{outdir}/common/6_protein_inference/{sample_id}/{sample_id}_protein.idXML")
-    if quantification_method == "tmt":
+    if use_diann:
+        outfiles.append(f"{outdir}/common/3_diann/diann.report.tsv")
+        outfiles.append(f"{outdir}/common/3_diann/diann.report.stats.tsv")
+        outfiles.append(f"{outdir}/common/3_diann/diann_qc.tsv")
+        outfiles.append(f"{outdir}/common/3_diann/diann_protein_matrix.tsv")
+    elif quantification_method == "tmt":
         outfiles.append(f"{outdir}/common/7_quantification/tmt_quantification.mzTab")
     elif quantification_method == "lfq":
         outfiles.append(f"{outdir}/common/7_quantification/lfq_quantification.mzTab")
     elif quantification_method == "dia":
         outfiles.append(f"{outdir}/common/7_quantification/dia_quantification.mzTab")
 
-    if not datajson.get("Params", {}).get("skip_post_msstats", False):
+    if not datajson.get("Params", {}).get("skip_post_msstats", False) and not use_diann:
         outfiles.append(f"{outdir}/common/8_msstats/msstats_results.csv")
 
     datajson["Params"]["workflow"]["samples"] = samples

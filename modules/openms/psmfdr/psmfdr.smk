@@ -40,7 +40,7 @@ rule psm_fdr:
                 "-in", input.idxml,
                 "-out", output.filtered_idxml,
                 "-FDR:PSM", str(params.fdr),
-                "-method", params.method
+                "-protein", "false",
             ]
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")

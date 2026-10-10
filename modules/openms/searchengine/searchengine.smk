@@ -25,6 +25,22 @@ def get_input_for_search_engine(wildcards):
     return in_dict
         
 
+# Modification defaults follow the sample chemistry implied by the
+# quantification method: TMT-labelled samples need the label as fixed mod,
+# label-free (lfq/dia) samples only need the standard tryptic set. Explicit
+# config values always win.
+_MOD_DEFAULTS = {
+    "tmt": ["Carbamidomethyl (C)", "TMTpro (K)", "TMTpro (N-term)"],
+    "lfq": ["Carbamidomethyl (C)"],
+    "dia": ["Carbamidomethyl (C)"],
+}
+_quant_method = (config.get("quantification_method") or "").lower()
+_comet_params = config.get("Params", {}).get("search_engine", {}).get("comet", {})
+_fixed_mods = _comet_params.get("fixed_modifications") or _MOD_DEFAULTS.get(
+    _quant_method, ["Carbamidomethyl (C)"])
+_variable_mods = _comet_params.get("variable_modifications") or ["Oxidation (M)"]
+
+
 rule search_engine_comet:
     input:
         unpack(get_input_for_search_engine)
@@ -42,7 +58,9 @@ rule search_engine_comet:
         precursor_mass_tolerance = config.get("Params").get("search_engine",{}).get("comet", {}).get("precursor_mass_tolerance", 20),
         fragment_mass_tolerance = config.get("Params").get("search_engine",{}).get("comet", {}).get("fragment_mass_tolerance", 0.02),
         fragment_bin_offset = config.get("Params").get("search_engine",{}).get("comet", {}).get("fragment_bin_offset", 0),
-        unmatched_action = config.get("Params").get("search_engine",{}).get("comet", {}).get("unmatched_action", "remove")
+        unmatched_action = config.get("Params").get("search_engine",{}).get("comet", {}).get("unmatched_action", "remove"),
+        fixed_modifications = _fixed_mods,
+        variable_modifications = _variable_mods
     run:
         log_path = str(log)
         open(log_path, 'w').close()
@@ -65,6 +83,12 @@ rule search_engine_comet:
             # they cannot be used for FDR/quant anyway, so drop them.
             if params.unmatched_action:
                 cmd += ["-PeptideIndexing:unmatched_action", str(params.unmatched_action)]
+            # Labelled samples (e.g. TMT) need their label modification set as
+            # fixed, otherwise real peptides never match (mass shift lost).
+            for mod in params.fixed_modifications:
+                cmd += ["-fixed_modifications", str(mod)]
+            for mod in params.variable_modifications:
+                cmd += ["-variable_modifications", str(mod)]
             with open(script, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")

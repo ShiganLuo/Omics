@@ -1,0 +1,10 @@
+name: gtfbuild
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python=3.11
+  - liftoff>=1.6.3
+  - minimap2
+  - gffread
+  - samtools

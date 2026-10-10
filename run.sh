@@ -60,16 +60,17 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 #     --rerun-trigger mtime \
 #     --sdm apptainer
 
-python ${SCRIPT_DIR}/run.py \
-    -m /data/16T/luosg/data/meta_PXDO53575.tsv \
-    -w QuantMS \
-    -o /data/16T/luosg/output/PXDO53575 \
-    -t 48 \
-    --log /data/16T/luosg/log/PXDO53575.log \
-    --sdm \
-    --quantification_method tmt \
-    --genome.default GRCh38 \
-    --dry-run
+# python ${SCRIPT_DIR}/run.py \
+#     -m /data/16T/luosg/data/meta_PXDO53575.tsv \
+#     -w QuantMS \
+#     -o /data/16T/luosg/output/PXDO53575 \
+#     -t 48 \
+#     --log /data/16T/luosg/log/PXDO53575.log \
+#     --sdm \
+#     --rerun-triggers mtime \
+#     --Params.workflow.quantification_method tmt \
+#     --genome.default GRCh38 \
+#     --dry-run
 
 # python ${SCRIPT_DIR}/run.py \
 #     -m /home/luosg/Data/genomeStability/data/Rnp/meta_input.tsv \

@@ -72,7 +72,7 @@ def _init_raw_json(
     if not datajson.get("tmp_dir"):
         tmp_dir = os.path.join(outdir, "tmp")
         os.makedirs(tmp_dir, exist_ok=True)
-    if workflow in ["PacVar", "ncRNAseq", "RNAseq"]:
+    if workflow in ["PacVar", "ncRNAseq", "RNAseq", "QuantMS"]:
         datajson["ROOT_DIR"] = root_dir
         datajson["Params"]["workflow"]["indir"] = indir
         datajson["Params"]["workflow"]["outdir"] = outdir
@@ -651,7 +651,7 @@ def runQuantMS(
     
     Supports TMT, LFQ, DIA, and raw-to-mzML entry points.
     """
-    root_dir = _init_raw_json(datajson, indir, outdir, raw_files)
+    root_dir = _init_raw_json(datajson, indir, outdir, raw_files, "QuantMS")
 
     samples: List[str] = []
     outfiles: List[str] = []
@@ -681,7 +681,7 @@ def runQuantMS(
     if not datajson.get("Params", {}).get("skip_post_msstats", False):
         outfiles.append(f"{outdir}/common/8_msstats/msstats_results.csv")
 
-    datajson["samples"] = samples
+    datajson["Params"]["workflow"]["samples"] = samples
 
     datajson["outfiles"] = outfiles
 

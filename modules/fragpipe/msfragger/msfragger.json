@@ -15,7 +15,9 @@
         "msfragger": {
             "threads": 16,
             "label": "tmt16",
-            "license_key": null
+            "license_key": null,
+            "jar": null,
+            "java_xmx": "16G"
         }
     },
     "genome": {

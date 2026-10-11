@@ -89,6 +89,43 @@ module search_engine:
 use rule * from search_engine as QuantMS_*
 logger.info(f"search_engine_config: {search_engine_config}")
 
+# MSFragger (FragPipe) alternative search engine — paper method (PXD053575).
+# Uses the TARGET protein FASTA: Philosopher/its params derive decoys as
+# needed; the module's msfragger_idxml bridges pepXML -> idXML so the rest
+# of the chain (rescoring/FDR/inference/quant) is unchanged. Selected with
+# Params.search_engine.engine = "msfragger"; rules are imported
+# unconditionally and only run when node.py registers their outputs.
+msfragger_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "env": config.get("env", {}),
+    "indir": raw2mzml_config["outdir"],
+    "outdir": f"{outdir}/common/3_search_engine",
+    "logdir": os.path.join(logdir, "sample"),
+    "samples": samples,
+    "Procedure": {
+        "msfragger": config.get("Procedure", {}).get("msfragger"),
+        "id_converter": config.get("Procedure", {}).get("id_converter"),
+    },
+    "Params": {
+        "msfragger": config.get("Params", {}).get("msfragger", {}),
+    },
+    "genome": {
+        "search_fasta": (
+            # concatenated target+decoy search DB, same one the Comet path
+            # uses ('DECOY_' prefix keeps downstream target/decoy handling
+            # identical). For the paper-faithful DB (contam + rev_ decoys)
+            # run the philosopher module standalone.
+            f"{decoy_database_config['outdir']}/genome_decoy.fasta"
+        )
+    },
+}
+module msfragger:
+    snakefile: "../modules/fragpipe/msfragger/msfragger.smk"
+    config: msfragger_config
+use rule msfragger_run from msfragger as QuantMS_msfragger_run
+use rule msfragger_idxml from msfragger as QuantMS_msfragger_idxml
+logger.info(f"msfragger_config: {msfragger_config}")
+
 psm_rescoring_config = {
     "ROOT_DIR": ROOT_DIR,
     "env": config.get("env", {}),

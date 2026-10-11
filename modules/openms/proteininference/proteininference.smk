@@ -34,6 +34,20 @@ rule protein_inference:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start protein inference for sample {wildcards.sample_id} at {current_time}")
+            # Epifany segfaults on idXML without peptide hits (e.g. when no PSM
+            # survived FDR); fail early with an actionable message instead.
+            n_hits = 0
+            with open(input.idxml) as fh:
+                for line in fh:
+                    if "<PeptideHit" in line:
+                        n_hits += 1
+                        break
+            if n_hits == 0:
+                raise RuntimeError(
+                    f"no peptide hits in {input.idxml}: zero PSMs survived FDR "
+                    f"for sample {wildcards.sample_id}; check the psm_fdr step "
+                    "(search/identification quality) before protein inference"
+                )
             script = os.path.join(outdir, f"{wildcards.sample_id}/protein_inference_{current_time}.sh")
             # Epifany (OpenMS 3.1) has no -algorithm:method: it only runs the
             # Bayesian inference; greedy_group_resolution is a TOPP-level

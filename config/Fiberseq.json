@@ -161,7 +161,7 @@
                 "gtf": "/data/16T/Database/Reference/mouse/NCBI/T2T_mhaESC_v1.5/GCA_056825265.1_T2T_mhaESC_v1.5_vM38_liftoff.gtf",
                 "repeat_bed": "/data/16T/Database/Reference/mouse/NCBI/T2T_mhaESC_v1.5/GRCm39_GENCODE_rmsk_TE.lifted.bed",
                 "censat_bed": null,
-                "motif_file": null,
+                "motif_file": "/data/16T/Database/Reference/motif/JASPAR2026_CORE_vertebrates_non-redundant.meme",
                 "mcpg_pileup": null,
                 "geneIDAnno": null
             },

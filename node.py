@@ -703,13 +703,21 @@ def runQuantMS(
         outfiles.append(f"{outdir}/common/3_diann/diann_protein_matrix.tsv")
     elif quantification_method == "tmt":
         outfiles.append(f"{outdir}/common/7_quantification/tmt_quantification.mzTab")
+        outfiles.append(f"{outdir}/common/7_quantification/tmt_quantification.consensusXML")
+        outfiles.append(f"{outdir}/common/7_quantification/tmt_quantification.proteins.csv")
     elif quantification_method == "lfq":
         outfiles.append(f"{outdir}/common/7_quantification/lfq_quantification.mzTab")
+        outfiles.append(f"{outdir}/common/7_quantification/lfq_msstats.csv")
+        if datajson.get("Params", {}).get("add_triqler_output", False):
+            outfiles.append(f"{outdir}/common/7_quantification/lfq_quantification.triqler.tsv")
     elif quantification_method == "dia":
         outfiles.append(f"{outdir}/common/7_quantification/dia_quantification.mzTab")
+        outfiles.append(f"{outdir}/common/7_quantification/dia_msstats.csv")
+        if datajson.get("Params", {}).get("add_triqler_output", False):
+            outfiles.append(f"{outdir}/common/7_quantification/dia_quantification.triqler.tsv")
 
     if not datajson.get("Params", {}).get("skip_post_msstats", False) and not use_diann:
-        outfiles.append(f"{outdir}/common/8_msstats/msstats_results.csv")
+        outfiles.append(f"{outdir}/common/8_msstats/msstats_input.csv")
 
     datajson["Params"]["workflow"]["samples"] = samples
 

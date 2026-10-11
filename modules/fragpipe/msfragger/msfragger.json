@@ -1,0 +1,24 @@
+{
+    "ROOT_DIR": "/data/16T/luosg/workflow/Omics",
+    "env": {
+        "env_dir": "/data/16T/Database/env",
+        "fragpipe": "/data/16T/Database/env/fragpipe/fragpipe.sif"
+    },
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "logs",
+    "samples": [],
+    "Procedure": {
+        "msfragger": null
+    },
+    "Params": {
+        "msfragger": {
+            "threads": 16,
+            "label": "tmt16",
+            "license_key": null
+        }
+    },
+    "genome": {
+        "search_fasta": null
+    }
+}

@@ -3861,13 +3861,21 @@ def mode_auto(
                          flag_cluster, ma["cell_type"], ma["marker_jaccard"])
             # Add to quality_reports if not already flagged
             if not any(r["cluster"] == flag_cluster for r in quality_reports if r["should_filter"]):
-                quality_reports.append({
+                new_report = {
                     "cluster": flag_cluster,
                     "ai_cell_type": ma["cell_type"],
                     "should_filter": True,
                     "flags": ["misannotated_low_marker_overlap"],
                     "filter_mode": "whole_cluster",
-                })
+                }
+                # Copy QC stats from the existing (non-flagged) report for this
+                # cluster so the summary doesn't print "?" placeholders.
+                existing = next((r for r in quality_reports if r["cluster"] == flag_cluster), None)
+                if existing:
+                    for k in ("n_cells", "mean_genes", "mean_counts", "pct_mt"):
+                        if k in existing:
+                            new_report[k] = existing[k]
+                quality_reports.append(new_report)
                 flagged = [r for r in quality_reports if r["should_filter"]]
             else:
                 # Already flagged (e.g. for low_quality) — upgrade to whole-cluster

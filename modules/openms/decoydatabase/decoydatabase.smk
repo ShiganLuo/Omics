@@ -4,8 +4,9 @@ indir = config.get("indir", "data/fasta")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "logs")
 protein_fasta = config.get("genome", {}).get("protein_fasta")
-if not protein_fasta or not os.path.exists(protein_fasta):
-    raise ValueError("Protein FASTA file path is not specified in the configuration under 'genome.protein_fasta' or does not exist.")
+# NOTE: the existence check lives in the rule's input function, not at parse
+# time — a workflow that supplies its own genome.decoy_fasta never schedules
+# this rule and must not crash at parse.
 
 # Get parameters
 decoy_string = config.get("Params", {}).get("decoy_database", {}).get("decoy_string", "DECOY_")
@@ -19,7 +20,7 @@ openms = config.get("Procedure", {}).get("openms") or "DecoyDatabase"
 
 rule decoy_database:
     input:
-        protein_fasta = protein_fasta
+        protein_fasta = lambda wildcards: _require(protein_fasta, "genome.protein_fasta", "decoy_database")
     output:
         decoy_fasta = outdir + "/genome_decoy.fasta"
     log:

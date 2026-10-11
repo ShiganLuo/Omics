@@ -7,7 +7,7 @@ samples = config.get("samples", [])
 raw_files = config.get("raw_files", [])
 
 converter = config.get("Params", {}).get("raw_to_mzml", {}).get("converter") or "thermorawfileparser"
-converter_mode = config.get("Params", {}).get("raw_to_mzml", {}).get("mode") or "ThermoRawFileParser"
+converter_mode = (config.get("Params", {}).get("raw_to_mzml", {}).get("mode") or "thermorawfileparser").lower()
 converter_args = config.get("Params", {}).get("raw_to_mzml", {}).get("args") or ""
 extra_filter = config.get("Params", {}).get("raw_to_mzml", {}).get("peak_picking", True)
 
@@ -69,7 +69,10 @@ rule raw2mzml:
                         cmd.extend(["--filter", "peakPicking true 1-"])
                     cmd.extend(["-o", output_dir, "--outfile", output_name])
                 elif params.converter_mode == "thermorawfileparser":
-                    cmd.extend(["-i", str(input.infile), "-b", str(output.mzml), "-f", "1"])
+                    # -f 2 = indexed mzML: pwiz-based readers (e.g. the Comet
+                    # wrapper inside CometAdapter) warn and dump file tails on
+                    # the non-indexed variant (-f 1).
+                    cmd.extend(["-i", str(input.infile), "-b", str(output.mzml), "-f", "2"])
                     if not params.peak_picking:
                         cmd.append("-p")
                 else:

@@ -39,6 +39,29 @@ _comet_params = config.get("Params", {}).get("search_engine", {}).get("comet", {
 _fixed_mods = _comet_params.get("fixed_modifications") or _MOD_DEFAULTS.get(
     _quant_method, ["Carbamidomethyl (C)"])
 _variable_mods = _comet_params.get("variable_modifications") or ["Oxidation (M)"]
+# Label mods imply isobaric reporter ions must be present in the spectra;
+# verify at runtime so a label/data mismatch fails loudly at the search step
+# instead of silently producing noise PSMs (see check_reporter_ions).
+_expect_reporters = any(
+    "tmt" in str(m).lower() or "itraq" in str(m).lower()
+    for m in list(_fixed_mods) + list(_variable_mods)
+)
+
+
+def _assert_label_matches_data(mzml_path):
+    """Fail when isobaric label mods are configured but spectra carry no reporters."""
+    if not _expect_reporters:
+        return
+    has_reporters, detail = check_reporter_ions(str(mzml_path))
+    if not has_reporters:
+        raise ValueError(
+            f"isobaric label modifications ({_fixed_mods + _variable_mods}) are "
+            f"configured but {mzml_path} shows no TMT/iTRAQ reporter ions "
+            f"({detail}). The spectra are NOT isobarically labelled: set "
+            f"Params.workflow.quantification_method to 'lfq' (or provide "
+            f"fixed_modifications without label mods) — searching labelled "
+            f"peptide masses against unlabelled spectra yields only noise."
+        )
 
 
 rule search_engine_comet:
@@ -68,6 +91,7 @@ rule search_engine_comet:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start Comet search for sample {wildcards.sample_id} at {current_time}")
+            _assert_label_matches_data(input.mzml)
             script = os.path.join(outdir, f"{wildcards.sample_id}/comet_{current_time}.sh")
             cmd = [
                 params.comet,
@@ -123,6 +147,7 @@ rule search_engine_msgf:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start MSGF+ search for sample {wildcards.sample_id} at {current_time}")
+            _assert_label_matches_data(input.mzml)
             script = os.path.join(outdir, f"{wildcards.sample_id}/msgf_{current_time}.sh")
             cmd = [
                 params.msgf,
@@ -166,6 +191,7 @@ rule search_engine_sage:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start Sage search for sample {wildcards.sample_id} at {current_time}")
+            _assert_label_matches_data(input.mzml)
             script = os.path.join(outdir, f"{wildcards.sample_id}/sage_{current_time}.sh")
             cmd = [
                 params.sage,

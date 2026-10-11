@@ -11,6 +11,11 @@ ms_params = config.get("Params", {}).get("msfragger", {})
 threads = ms_params.get("threads", 16)
 label = ms_params.get("label", "tmt16")
 license_key = ms_params.get("license_key") or ""
+# Direct jar mode: run MSFragger-3.x.jar via java (paper version, no license
+# key needed). Takes precedence over the Procedure.msfragger wrapper.
+msfragger_jar = ms_params.get("jar") or ""
+java = ms_params.get("java") or "java"
+java_xmx = ms_params.get("java_xmx", "16G")
 if label not in ("tmt16", "label-free"):
     raise ValueError(
         f"Params.msfragger.label={label!r} is not supported: use 'tmt16' or 'label-free'"
@@ -40,6 +45,9 @@ rule msfragger_run:
         make_params = make_params,
         label = label,
         license_key = license_key,
+        jar = msfragger_jar,
+        java = java,
+        java_xmx = java_xmx,
         workdir = outdir + "/{sample_id}",
     run:
         log_path = str(log)
@@ -70,16 +78,20 @@ rule msfragger_run:
                 check=True,
             )
             script = os.path.join(sample_outdir, f"msfragger_{current_time}.sh")
-            cmd = [params.msfragger]
-            if params.license_key:
-                cmd += ["--key", str(params.license_key)]
+            if params.jar:
+                cmd = [params.java, f"-Xmx{params.java_xmx}", "-jar", str(params.jar)]
             else:
-                raise ValueError(
-                    "MSFragger >= 4.x requires a free academic license key: "
-                    "set 'Params.msfragger.license_key' in the workflow config "
-                    "JSON (obtain at msfragger-upgrader.nesvilab.org/upgrader/), "
-                    "then rerun."
-                )
+                cmd = [params.msfragger]
+                if params.license_key:
+                    cmd += ["--key", str(params.license_key)]
+                else:
+                    raise ValueError(
+                        "MSFragger >= 4.x requires a free academic license key: "
+                        "set 'Params.msfragger.license_key' in the workflow config "
+                        "JSON (obtain at msfragger-upgrader.nesvilab.org/upgrader/), "
+                        "or point 'Params.msfragger.jar' at an MSFragger-3.x jar "
+                        "(no key required), then rerun."
+                    )
             cmd += [params_file, local_mzml]
             with open(script, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")

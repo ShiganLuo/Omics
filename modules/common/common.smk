@@ -72,20 +72,23 @@ _REPORTER_MZ = [
 ]
 
 
-def check_reporter_ions(mzml_path, max_spectra=200):
-    """Scan the first MS2 spectra of an mzML for isobaric reporter ions.
+def check_reporter_ions(mzml_path, max_spectra=400):
+    """Scan an mzML for isobaric reporter ions (sampled across the whole file).
 
     Returns ``(has_reporters, detail)``. A file counts as labelled when at
-    least one sampled MS2 carries >= 3 peaks within 20 ppm of known
-    TMT/iTRAQ reporter m/z values. Arrays that cannot be decoded with the
-    standard library (e.g. numpress) are skipped rather than failing.
+    least 3 sampled MS2 spectra carry >= 3 peaks within 20 ppm of known
+    TMT/iTRAQ reporter m/z values. Spectra are reservoir-sampled over the
+    ENTIRE file: early-gradient MS2 are often contaminant spectra without
+    reporters even in labelled runs, so sampling only the head of the file
+    yields false 'unlabelled' verdicts. Arrays that cannot be decoded with
+    the standard library (e.g. numpress) are skipped rather than failing.
 
     Parameters
     ----------
     mzml_path : str
         mzML file to scan (indexed or plain).
     max_spectra : int
-        Number of MS2 spectra to sample before giving up.
+        Size of the reservoir sample of MS2 spectra.
 
     Returns
     -------
@@ -93,17 +96,19 @@ def check_reporter_ions(mzml_path, max_spectra=200):
         (bool, str) — whether reporter ions were found, plus a detail line.
     """
     import base64
+    import random
     import struct
     import zlib
     import xml.etree.ElementTree as ET
 
-    checked = 0
-    hit_spectra = 0
-    total_hits = 0
+    rng = random.Random(1)
+    reservoir = []          # sampled (mz_raw, is_64bit) arrays
+    total_ms2 = 0
     for _, el in ET.iterparse(mzml_path, events=("end",)):
         if el.tag.endswith("spectrum"):
             mslevel = None
             mz_raw = b""
+            mz_is_64bit = True
             for node in el.iter():
                 if node.tag.endswith("cvParam"):
                     acc = node.get("accession")
@@ -141,33 +146,45 @@ def check_reporter_ions(mzml_path, max_spectra=200):
                 is_ms2 = False
             if not is_ms2 or not mz_raw:
                 continue
-            checked += 1
-            try:
-                fmt = "<%dd" if mz_is_64bit else "<%df"
-                size = 8 if mz_is_64bit else 4
-                n = len(mz_raw) // size
-                mzs = struct.unpack(fmt % n, mz_raw[:n * size])
-            except Exception:
-                continue
-            hits = 0
-            for rm in _REPORTER_MZ:
-                tol = rm * 20e-6
-                for mz in mzs:
-                    if abs(mz - rm) <= tol:
-                        hits += 1
-                        break
-            total_hits += hits
-            if hits >= 3:
-                hit_spectra += 1
-            if checked >= max_spectra:
-                break
+            total_ms2 += 1
+            item = (mz_raw, mz_is_64bit)
+            if len(reservoir) < max_spectra:
+                reservoir.append(item)
+            else:
+                j = rng.randrange(total_ms2)
+                if j < max_spectra:
+                    reservoir[j] = item
+
+    checked = 0
+    hit_spectra = 0
+    total_hits = 0
+    for mz_raw, is_64bit in reservoir:
+        checked += 1
+        try:
+            fmt = "<%dd" if is_64bit else "<%df"
+            size = 8 if is_64bit else 4
+            n = len(mz_raw) // size
+            mzs = struct.unpack(fmt % n, mz_raw[:n * size])
+        except Exception:
+            continue
+        hits = 0
+        for rm in _REPORTER_MZ:
+            tol = rm * 20e-6
+            for mz in mzs:
+                if abs(mz - rm) <= tol:
+                    hits += 1
+                    break
+        total_hits += hits
+        if hits >= 3:
+            hit_spectra += 1
     detail = (
         f"{hit_spectra}/{checked} sampled MS2 spectra carry reporter-mass "
-        f"peaks ({total_hits} reporter-mass peaks in total)"
+        f"peaks ({total_hits} reporter-mass peaks in total, {total_ms2} MS2 in file)"
     )
-    # Labelled data shows reporter peaks in nearly every MS2; random m/z
-    # coincidences give ~0.1 hits/spectrum and at most one >=3-hit spectrum
-    # per 200. Require at least 3 such spectra to call the file labelled.
+    # Labelled data shows reporter peaks in most peptide spectra; unlabelled
+    # data produces only random m/z coincidences (~0.1 hits/spectrum, rarely
+    # more than one >=3-hit spectrum per 400). Require at least 3 such
+    # spectra to call the file labelled.
     return hit_spectra >= 3, detail
 
 

@@ -113,20 +113,26 @@ rule repeatmasker_init:
             script = os.path.join(tmpdir, "init.sh")
             if input.dfam_h5 and os.path.exists(input.dfam_h5):
                 logger.warning("RepeatMasker don't support specifying custom Dfam h5 directly, pipeline will try to find the corresponding library dir and link your dfam h5 to the library dir with a name that RepeatMasker can recognize. Please ensure the Dfam h5 you provided is compatible with your RepeatMasker version and includes relevant satellite DNA for target species.")
-                RepeatMasker_dir = shell("which RepeatMasker", read=True)# Get RepeatMasker executable path, enviroment only play in shell
-                if RepeatMasker_dir is None:
-                    logger.error(f"RepeatMasker executable not found: {params.RepeatMasker}")
-                    raise FileNotFoundError(f"RepeatMasker executable not found: {params.RepeatMasker}")
-                RepeatMasker_lib_dir = os.path.join(os.path.dirname(RepeatMasker_dir), "../share/RepeatMasker/Libraries/famdb")
-                if not os.path.exists(RepeatMasker_lib_dir):
-                    logger.error(f"RepeatMasker library directory not found: {RepeatMasker_lib_dir}")
-                    raise FileNotFoundError(f"RepeatMasker library directory not found: {RepeatMasker_lib_dir}")
-                target_h5_path = os.path.join(RepeatMasker_lib_dir, os.path.basename(input.dfam_h5))
-                if os.path.exists(target_h5_path):
-                    logger.info(f"Custom Dfam h5 already exists in RepeatMasker library directory: {target_h5_path}, skipping linking.")
-                else:
-                    os.symlink(input.dfam_h5, target_h5_path)
-                    logger.info(f"Linked custom Dfam h5 to RepeatMasker library directory: {target_h5_path}")
+                RepeatMasker_lib_dir = ""
+                try:
+                    RepeatMasker_dir = shell("which RepeatMasker", read=True)# Get RepeatMasker executable path, enviroment only play in shell
+                    if RepeatMasker_dir is None:
+                        logger.error(f"RepeatMasker executable not found: {params.RepeatMasker}")
+                        raise FileNotFoundError(f"RepeatMasker executable not found: {params.RepeatMasker}")
+                    RepeatMasker_lib_dir = os.path.join(os.path.dirname(RepeatMasker_dir), "../share/RepeatMasker/Libraries/famdb")
+                    target_h5_path = os.path.join(RepeatMasker_lib_dir, os.path.basename(input.dfam_h5))
+                    if os.path.exists(target_h5_path):
+                        logger.info(f"Custom Dfam h5 already exists in RepeatMasker library directory: {target_h5_path}, skipping linking.")
+                    elif not os.path.exists(RepeatMasker_lib_dir):
+                        # container env (sif): the lib dir is not host-visible/writable.
+                        # Expect the FamDB to be provided inside the env (baked links)
+                        # or via bind mount; linking from host is impossible.
+                        logger.warning(f"RepeatMasker library directory not visible from host (container env): {RepeatMasker_lib_dir}. Skipping linking; expecting FamDB inside the env or via bind mount.")
+                    else:
+                        os.symlink(input.dfam_h5, target_h5_path)
+                        logger.info(f"Linked custom Dfam h5 to RepeatMasker library directory: {target_h5_path}")
+                except OSError as e:
+                    logger.warning(f"Could not link custom Dfam h5 into {RepeatMasker_lib_dir}: {e}. Continuing; expecting FamDB inside the env or via bind mount.")
             else:
                 logger.warning("No valid Dfam h5 provided for RepeatMasker, using default libraries. please ensure the default libraries include relevant satellite DNA for target species.")
             with open(script, "w") as f:

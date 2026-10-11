@@ -71,7 +71,7 @@
                 "fragment_bin_offset": 0,
                 "unmatched_action": "remove",
                 "fixed_modifications": [],
-                "variable_modifications": ["Oxidation (M)"]
+                "variable_modifications": []
             },
             "msgf": {
                 "threads": 4,

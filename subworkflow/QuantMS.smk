@@ -79,7 +79,7 @@ search_engine_config = {
     },
     "quantification_method": config.get("Params", {}).get("workflow", {}).get("quantification_method"),
     "genome": {
-        "decoy_fasta": config.get("genome",{}).get("decoy_fasta")
+        "decoy_fasta": config.get("genome", {}).get("references", {}).get(genome, {}).get("decoy_fasta")
     }
 }
 
@@ -160,16 +160,24 @@ quantification_config = {
     "outdir": f"{outdir}/common/7_quantification",
     "logdir": os.path.join(logdir,"group"),
     "samples": samples,
+    "mzml_dir": raw2mzml_config["outdir"],
+    "expdesign": config.get("Params", {}).get("workflow", {}).get("expdesign", ""),
     "quantification_method": config.get("Params", {}).get("workflow", {}).get("quantification_method"),
     "Procedure": {
         "proteomicslfq": config.get("Procedure", {}).get("proteomicslfq"),
-        "proteinquantifier": config.get("Procedure", {}).get("proteinquantifier")
+        "proteinquantifier": config.get("Procedure", {}).get("proteinquantifier"),
+        "isobaric_analyzer": config.get("Procedure", {}).get("isobaric_analyzer"),
+        "id_mapper": config.get("Procedure", {}).get("id_mapper"),
+        "file_merger": config.get("Procedure", {}).get("file_merger"),
     },
     "Params": {
         "protein_quant": config.get("Params", {}).get("protein_quant", {}),
         "tmt": config.get("Params", {}).get("tmt", {}),
         "lfq": config.get("Params", {}).get("lfq", {}),
-        "dia": config.get("Params", {}).get("dia", {})
+        "dia": config.get("Params", {}).get("dia", {}),
+        "add_triqler_output": config.get("Params", {}).get("add_triqler_output", False),
+        "quantify_decoys": config.get("Params", {}).get("quantify_decoys", False),
+        "protein_fdr": config.get("Params", {}).get("protein_fdr", {}),
     }
 }
 
@@ -186,6 +194,7 @@ msstats_config = {
     "outdir": f"{outdir}/common/8_msstats",
     "logdir": os.path.join(logdir,"group"),
     "samples": samples,
+    "expdesign": config.get("Params", {}).get("workflow", {}).get("expdesign", ""),
     "quantification_method": config.get("Params", {}).get("workflow", {}).get("quantification_method"),
     "Procedure": {
         "msstats": config.get("Procedure", {}).get("msstats")

@@ -215,9 +215,13 @@
       }
     },
     "protein_quant": {
-      "method": {
+      "quantification_method": {
         "type": "str",
-        "required": true
+        "required": false
+      },
+      "protein_inference": {
+        "type": "str",
+        "required": false
       },
       "top": {
         "type": "int",
@@ -227,7 +231,7 @@
         "type": "str",
         "required": true
       },
-      "best_charge_and_score": {
+      "best_charge_and_fraction": {
         "type": "bool",
         "required": true
       }
@@ -243,31 +247,33 @@
       }
     },
     "tmt": {
-      "channel_mass_tolerance": {
-        "type": "float",
+      "type": {
+        "type": "str",
         "required": true
       },
-      "channel_annotation": {
-        "type": "str",
-        "required": false
+      "reporter_mass_shift": {
+        "type": "float",
+        "required": true
       },
       "isotope_correction": {
         "type": "bool",
         "required": true
-      }
-    },
-    "lfq": {
-      "intensity_threshold": {
-        "type": "int",
-        "required": true
       },
-      "mass_recalibration": {
+      "normalization": {
         "type": "bool",
-        "required": true
+        "required": false
       },
-      "alignment_order": {
+      "reference_channel": {
         "type": "str",
-        "required": true
+        "required": false
+      },
+      "correction_matrix": {
+        "type": "list",
+        "required": false
+      },
+      "channel_descriptions": {
+        "type": "dict",
+        "required": false
       }
     },
     "dia": {
@@ -281,14 +287,8 @@
       }
     },
     "msstats": {
-      "reference_condition": {
-        "type": "str",
-        "required": false
-      },
-      "reference_samples": {
-        "type": "list",
-        "required": true
-      }
+      "type": "dict",
+      "required": false
     },
     "skip_post_msstats": {
       "type": "bool",
@@ -299,10 +299,6 @@
       "required": true
     },
     "quantify_decoys": {
-      "type": "bool",
-      "required": true
-    },
-    "enable_mod_localization": {
       "type": "bool",
       "required": true
     }

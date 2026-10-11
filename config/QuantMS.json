@@ -45,6 +45,7 @@
             "logdir": "logs",
             "samples": [],
             "raw_files": [],
+            "expdesign": "",
             "quantification_method": "lfq"
         },
         "raw_to_mzml": {
@@ -69,7 +70,7 @@
                 "fragment_mass_tolerance": 0.02,
                 "fragment_bin_offset": 0,
                 "unmatched_action": "remove",
-                "fixed_modifications": ["Carbamidomethyl (C)", "TMTpro (K)", "TMTpro (N-term)"],
+                "fixed_modifications": [],
                 "variable_modifications": ["Oxidation (M)"]
             },
             "msgf": {
@@ -103,37 +104,30 @@
             "greedy_group_resolution": "none"
         },
         "protein_quant": {
-            "method": "feature_intensity",
+            "quantification_method": "feature_intensity",
+            "protein_inference": "aggregation",
             "top": 3,
             "average": "median",
-            "best_charge_and_score": true
+            "best_charge_and_fraction": true
         },
         "protein_fdr": {
             "fdr": 0.01,
             "picked": true
         },
         "tmt": {
-            "channel_mass_tolerance": 0.003,
-            "channel_annotation": "",
-            "isotope_correction": true
+            "type": "tmt16plex",
+            "reporter_mass_shift": 0.003,
+            "isotope_correction": true,
+            "normalization": false,
+            "reference_channel": "",
+            "correction_matrix": [],
+            "channel_descriptions": {}
         },
-        "lfq": {
-            "intensity_threshold": 0,
-            "mass_recalibration": true,
-            "alignment_order": "star"
-        },
-        "dia": {
-            "library": "",
-            "dia_window": ""
-        },
-        "msstats": {
-            "reference_condition": "",
-            "reference_samples": []
-        },
+        "dia": {},
+        "msstats": {},
         "skip_post_msstats": false,
         "add_triqler_output": false,
-        "quantify_decoys": false,
-        "enable_mod_localization": false
+        "quantify_decoys": false
     },
     "genome": {
         "default": "GRCm39",

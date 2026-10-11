@@ -21,8 +21,8 @@ if label not in ("tmt16", "label-free"):
         f"Params.msfragger.label={label!r} is not supported: use 'tmt16' or 'label-free'"
     )
 
-# Get executables
-msfragger = config.get("Procedure", {}).get("msfragger") or "MSFragger"
+# Get executables (bioconda installs the launcher in lower case: 'msfragger')
+msfragger = config.get("Procedure", {}).get("msfragger") or "msfragger"
 make_params = ROOT_DIR + "/modules/fragpipe/bin/make_fragger_params.py"
 
 

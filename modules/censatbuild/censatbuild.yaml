@@ -1,0 +1,11 @@
+name: censatbuild
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - python=3.11
+  - repeatmasker>=4.1
+  - bedtools
+  - samtools
+  - ont-modkit

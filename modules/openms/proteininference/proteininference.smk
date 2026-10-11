@@ -35,16 +35,23 @@ rule protein_inference:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start protein inference for sample {wildcards.sample_id} at {current_time}")
             script = os.path.join(outdir, f"{wildcards.sample_id}/protein_inference_{current_time}.sh")
+            # Epifany (OpenMS 3.1) has no -algorithm:method: it only runs the
+            # Bayesian inference; greedy_group_resolution is a TOPP-level
+            # option (-greedy_group_resolution), not an algorithm subsection one.
+            if params.method not in ("", "epifany"):
+                raise ValueError(
+                    f"Params.protein_inference.method={params.method!r} is not supported: "
+                    "this Epifany build only provides Bayesian 'epifany' inference"
+                )
             cmd = [
                 params.epifany,
                 "-in", input.idxml,
                 "-out", output.protein_idxml,
-                "-algorithm:method", params.method,
-                "-algorithm:greedy_group_resolution", params.greedy_group_resolution
+                "-greedy_group_resolution", params.greedy_group_resolution,
             ]
             with open(script, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
-                f.write(" ".join(cmd) + "\n")
+                f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
                 f.write(f"echo 'Protein inference for {wildcards.sample_id} was completed successfully'\n")
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:

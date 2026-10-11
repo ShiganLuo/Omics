@@ -2,15 +2,20 @@ include: "../common/common.smk"
 from snakemake.logging import logger
 
 indir = config.get("indir", "output/diff_expression")
+counts_dir = config.get("counts_dir", "output/counts")
 outdir = config.get("outdir", "output/function")
 logdir = config.get("logdir", "logs")
 ROOT_DIR = config.get("ROOT_DIR", ".")
 group_pairs = config.get("group_pairs", {})
+paired_samples = config.get("paired_samples", [])
+single_samples = config.get("single_samples", [])
 geneIDAnno = config.get("genome", {}).get("geneIDAnno")
+gtf = config.get("genome", {}).get("gtf")
 
 func_params = config.get("Params", {}).get("function", {})
 species = func_params.get("species", "mouse")
 gmt = func_params.get("gmt")
+gsva_gmt = func_params.get("gsva", {}).get("gmt")
 lfc_cut = func_params.get("lfc_cut", 1)
 p_cut = func_params.get("p_cut", 0.05)
 top = func_params.get("top", 10)
@@ -155,3 +160,123 @@ rule function_gsea:
             with open(log_path, "a") as fh:
                 fh.write(f"GSEA analysis failed: {e}\n")
             raise f"GSEA analysis failed: {e}\n"
+
+
+def get_input_for_function_gsva(wildcards):
+    """Resolve inputs for function_gsva: featureCounts counts matrix + GMT + GTF."""
+    logger.info(f"[get_input_for_function_gsva] called with wildcards: {wildcards}")
+    in_dict = {}
+    # featureCounts cross-sample counts, one matrix per existing layout
+    counts = []
+    if paired_samples:
+        counts.append(counts_dir + "/all_paired_featureCounts.tsv")
+    if single_samples:
+        counts.append(counts_dir + "/all_single_featureCounts.tsv")
+    if not counts:
+        raise ValueError(
+            "GSVA requires featureCounts counts. "
+            "Please set paired_samples/single_samples in config."
+        )
+    in_dict['counts'] = counts
+    # GMT gene set file
+    if not gsva_gmt or not os.path.exists(gsva_gmt):
+        raise ValueError(
+            f"GSVA requires a GMT file. {gsva_gmt} is not exists, please set Params.function.gsva.gmt in config."
+        )
+    in_dict['gmt'] = gsva_gmt
+    # GTF for gene ID → gene name conversion
+    if not gtf:
+        raise ValueError("GSVA requires a GTF. Please set genome.gtf in config.")
+    in_dict['gtf'] = gtf
+    return in_dict
+
+
+rule function_gsva:
+    """GSVA enrichment analysis on featureCounts normalized expression.
+
+    Pipeline:
+    1. featureCounts raw counts (PE + SE merged) → normalization.py (TPM) → normalized matrix
+    2. Normalized matrix + GMT → gsva.py → GSVA scores + heatmap
+
+    Inputs:
+        - counts: featureCounts cross-sample matrices (PE and/or SE)
+        - GMT gene set file
+        - GTF annotation for gene ID conversion
+
+    Outputs:
+        - gsva_scores.tsv: enrichment score matrix (geneset × samples)
+        - gsva_heatmap.png: clustered heatmap of enrichment scores
+    """
+    input:
+        unpack(get_input_for_function_gsva)
+    output:
+        gsva_scores = outdir + "/gsva/gsva_scores.tsv",
+        gsva_heatmap = outdir + "/gsva/gsva_heatmap.png",
+    log:
+        logdir + "/function/gsva.log"
+    threads: 1
+    params:
+        norm_script = ROOT_DIR + "/modules/function/bin/normalization.py",
+        gsva_script = ROOT_DIR + "/modules/function/bin/gsva.py",
+        species = species,
+    conda:
+        "function.yaml"
+    container:
+        sif("function.yaml")
+    run:
+        log_path = str(log)
+        try:
+            open(log_path, 'w').close()
+            rule_logger = setup_logger("function_gsva", log_file=log_path)
+            current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+            rule_logger.info(f"Start GSVA analysis at {current_time}")
+
+            gsva_outdir = os.path.dirname(str(output.gsva_scores))
+            os.makedirs(gsva_outdir, exist_ok=True)
+
+            # Step 0: merge PE/SE featureCounts matrices when both layouts exist
+            counts_list = list(input.counts)
+            if len(counts_list) > 1:
+                import re
+                import pandas as pd
+                counts_file = os.path.join(gsva_outdir, "all_featureCounts.tsv")
+                df_pe = pd.read_csv(counts_list[0], sep="\t", comment='#')
+                df_pe.columns = [re.sub(r'.*\/([^\/]+)\.[^.]+$', r'\1', c) if '/' in c else c for c in df_pe.columns]
+                df_se = pd.read_csv(counts_list[1], sep="\t", comment='#')
+                df_se.drop(columns=['Chr', 'Start', 'End', 'Strand', 'Length'], inplace=True, errors='ignore')
+                df_se.columns = [re.sub(r'.*\/([^\/]+)\.[^.]+$', r'\1', c) if '/' in c else c for c in df_se.columns]
+                df_merged = pd.merge(df_pe, df_se, on='Geneid')
+                df_merged.to_csv(counts_file, sep="\t", index=False)
+                rule_logger.info(f"PE+SE merged: {df_merged.shape[0]} genes × {df_merged.shape[1] - 6} samples")
+            else:
+                counts_file = counts_list[0]
+
+            # Step 1: Normalize featureCounts → TPM matrix
+            tpm_matrix = os.path.join(gsva_outdir, "expression_tpm.tsv")
+            norm_cmd = [
+                "python", params.norm_script,
+                "-i", counts_file,
+                "-o", tpm_matrix,
+                "--method", "tpm",
+                "--gtf", input.gtf,
+                "--convert-gene-name",
+            ]
+            # Step 2: Run GSVA on normalized matrix
+            gsva_cmd = [
+                "python", params.gsva_script,
+                "-i", tpm_matrix,
+                "-g", input.gmt,
+                "-o", gsva_outdir,
+                "--title", f"GSVA ({params.species})",
+            ]
+            script = os.path.join(gsva_outdir, f"gsva_{current_time}.sh")
+            with open(script, 'w') as f:
+                f.write("#!/bin/bash\nset -e\nset -o pipefail\n")
+                f.write(" ".join(shlex.quote(str(x)) for x in norm_cmd) + "\n")
+                f.write(" ".join(shlex.quote(str(x)) for x in gsva_cmd) + "\n")
+            shell(f"bash {script} >> {log_path} 2>&1")
+        except Exception as e:
+            with open(log_path, "a") as fh:
+                fh.write(f"GSVA analysis failed: {e}\n")
+            logger.error(f"GSVA analysis failed: {e}")
+            raise e

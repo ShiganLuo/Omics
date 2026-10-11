@@ -1,11 +1,15 @@
 {
     "indir": "output/diff_expression",
+    "counts_dir": "output/counts",
     "outdir": "output/function",
     "logdir": "logs",
     "ROOT_DIR": "/path/to/workflow/directory",
     "group_pairs": {},
+    "paired_samples": [],
+    "single_samples": [],
     "genome": {
-        "geneIDAnno": null
+        "geneIDAnno": null,
+        "gtf": null
     },
     "Params": {
         "function": {
@@ -13,7 +17,10 @@
             "gmt": null,
             "lfc_cut": 1,
             "p_cut": 0.05,
-            "top": 10
+            "top": 10,
+            "gsva": {
+                "gmt": null
+            }
         }
     }
 }

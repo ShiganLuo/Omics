@@ -73,7 +73,7 @@
         "RepeatMasker": {
             "species": "Mus musculus",
             "threads": 16,
-            "dfam_h5": "/data/pub/zhousha/miniforge3/envs/sv/share/RepeatMasker/Libraries/famdb/dfam39_full.7.h5"
+            "dfam_h5": "/data/16T/Database/env/famdb/dfam39_full.7.h5"
         },
         "gatk": {
             "javaOptions": "-Xmx45g",

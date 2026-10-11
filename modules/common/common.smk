@@ -20,6 +20,7 @@ import tempfile
 from snakemake.logging import logger
 import subprocess
 import shlex
+import re
 # Get ROOT_DIR from config (set by run.py)
 ROOT_DIR = config.get("ROOT_DIR", ".")
 

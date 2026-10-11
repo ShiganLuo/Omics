@@ -91,7 +91,7 @@ rule search_engine_comet:
                 cmd += ["-variable_modifications", str(mod)]
             with open(script, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
-                f.write(" ".join(cmd) + "\n")
+                f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
                 f.write(f'echo "rule search_engine_comet called for {wildcards.sample_id} was successfully completed"\n')
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
@@ -136,7 +136,7 @@ rule search_engine_msgf:
             ]
             with open(script, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
-                f.write(" ".join(cmd) + "\n")
+                f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
                 f.write(f'echo "rule search_engine_msgf called for {wildcards.sample_id} was successfully completed"\n')
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
@@ -178,7 +178,7 @@ rule search_engine_sage:
             ]
             with open(script, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
-                f.write(" ".join(cmd) + "\n")
+                f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
                 f.write(f'echo "rule search_engine_sage called for {wildcards.sample_id} was successfully completed"\n')
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:

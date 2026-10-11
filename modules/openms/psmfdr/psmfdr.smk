@@ -42,10 +42,25 @@ rule psm_fdr:
                 "-FDR:PSM", str(params.fdr),
                 "-protein", "false",
             ]
+            # FalseDiscoveryRate is the single FDR authority of the chain: it
+            # recomputes target-decoy q-values from the Percolator scores and
+            # overwrites the percolator q-value annotations, so filtering and
+            # the reported q-values always come from one estimator.
+            # method: "BH" (or "qvalue") = Benjamini-Hochberg q-values
+            # (default); "strict" = plain FDR without q-value smoothing.
+            if str(params.method).lower() in ("bh", "qvalue"):
+                pass
+            elif str(params.method).lower() == "strict":
+                cmd.append("-algorithm:no_qvalues")
+            else:
+                raise ValueError(
+                    f"Params.psm_fdr_control.method={params.method!r} is not "
+                    "supported: use 'BH' (q-values) or 'strict'"
+                )
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
-                f.write(" ".join(cmd) + "\n")
-                f.write(f"echo 'PSM FDR control for {wildcards.sample_id} was completed successfully'\n")
+                f.write("#!/bin/bash\nset -euo pipefail\n")
+                f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
+                f.write(f'echo "PSM FDR control for {wildcards.sample_id} was completed successfully"\n')
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"rule psm_fdr was call failed,error: {e}")

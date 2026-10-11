@@ -1,8 +1,10 @@
 # quantification（蛋白定量：LFQ / TMT / DIA）
 
-从蛋白推断结果（`6_protein_inference/{sample}/{sample}_protein.idXML`）做蛋白定量，
-按 `quantification_method` 分三条路线。方法选择由 subworkflow（node.py 注册输出）决定，
-模块内定义全部规则。
+LFQ/DIA 从谱图 mzML + PSM 级过滤结果（`5_psm_fdr`）做蛋白定量（ProteomicsLFQ
+自带蛋白推断）；TMT 从谱图提取报告离子后用蛋白推断结果
+（`6_protein_inference/{sample}/{sample}_protein.idXML`）做 ID 映射。按
+`quantification_method` 分三条路线。方法选择由 subworkflow（node.py 注册输出）
+决定，模块内定义全部规则。
 
 ## 规则
 
@@ -16,10 +18,13 @@
 
 ## 方法原理
 
-- **lfq/dia**：ProteomicsLFQ 一次产出 mzTab 和 MSstats 输入 CSV（`-out_msstats`）。
-  蛋白汇总参数映射到 `-ProteinQuantification:*`（top:N / top:aggregate /
-  best_charge_and_fraction）；`Params.protein_fdr` 映射到 `-proteinFDR` /
-  `-picked_proteinFDR true`；`Params.quantify_decoys` 映射到
+- **lfq/dia**：ProteomicsLFQ `-in` 喂谱图 mzML、`-ids` 喂 **PSM 级**过滤结果
+  （`5_psm_fdr/{sample}/{sample}_filtered.idXML`，ProteomicsLFQ 自己做蛋白推断，
+  喂 Epifany 推断结果会触发 inference 失效警告）、`-fasta` 喂搜库 target+decoy
+  库（蛋白序列算 coverage 必需），一次产出 mzTab 和 MSstats 输入 CSV
+  （`-out_msstats`）。蛋白汇总参数映射到 `-ProteinQuantification:*`（top:N /
+  top:aggregate / best_charge_and_fraction）；`Params.protein_fdr` 映射到
+  `-proteinFDR` / `-picked_proteinFDR true`；`Params.quantify_decoys` 映射到
   `-PeptideQuantification:quantify_decoys`。
 - **tmt**：报告离子定量链 IsobaricAnalyzer（`-type <tmt*>`，每样本提取 16/18 通道
   报告离子）→ IDMapper（把肽段鉴定映射到报告离子 consensus 特征）→ FileMerger

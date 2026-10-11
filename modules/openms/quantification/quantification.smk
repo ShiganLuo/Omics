@@ -8,6 +8,16 @@ samples = config.get("samples", [])
 quantification_method = (config.get("quantification_method") or "lfq").lower()
 mzml_dir = config.get("mzml_dir", "")
 
+# PSM-level filtered idXML (5_psm_fdr). ProteomicsLFQ documents its -ids as
+# PSM-level identifications and performs protein inference itself; feeding it
+# pre-inferred proteins (indir, 6_protein_inference) makes it warn that the
+# inference will be invalidated.
+psm_fdr_indir = config.get("psm_fdr_indir", "") or indir
+
+# Search database (target+decoy fasta): ProteomicsLFQ needs protein sequences
+# for coverage. Wired from the decoy_database output / user decoy_fasta.
+search_fasta = config.get("genome", {}).get("search_fasta", "")
+
 # Experimental design TSV (OpenMS design format) shared by ProteomicsLFQ and
 # ProteinQuantifier; wired from Params.workflow.expdesign at subworkflow level.
 expdesign = config.get("expdesign", "")
@@ -82,7 +92,9 @@ def _plfq_summarization_cmd():
 
 rule quantification_lfq:
     input:
-        idxml = expand(indir + "/{sample_id}/{sample_id}_protein.idXML", sample_id=samples)
+        mzml = expand(mzml_dir + "/{sample_id}/{sample_id}.mzML", sample_id=samples),
+        idxml = expand(psm_fdr_indir + "/{sample_id}/{sample_id}_filtered.idXML", sample_id=samples),
+        fasta = search_fasta
     output:
         mztab = outdir + "/lfq_quantification.mzTab",
         msstats_csv = outdir + "/lfq_msstats.csv",
@@ -108,9 +120,11 @@ rule quantification_lfq:
             script = os.path.join(outdir, f"quantification_lfq_{current_time}.sh")
             cmd = [
                 params.proteomicslfq,
-                "-in", *[str(x) for x in input.idxml],
+                "-in", *[str(x) for x in input.mzml],
+                "-ids", *[str(x) for x in input.idxml],
                 "-out", output.mztab,
                 "-out_msstats", output.msstats_csv,
+                "-fasta", str(input.fasta),
             ]
             if add_triqler_output:
                 cmd += ["-out_triqler", output.triqler]
@@ -249,7 +263,9 @@ rule quantification_tmt:
 
 rule quantification_dia:
     input:
-        idxml = expand(indir + "/{sample_id}/{sample_id}_protein.idXML", sample_id=samples)
+        mzml = expand(mzml_dir + "/{sample_id}/{sample_id}.mzML", sample_id=samples),
+        idxml = expand(psm_fdr_indir + "/{sample_id}/{sample_id}_filtered.idXML", sample_id=samples),
+        fasta = search_fasta
     output:
         mztab = outdir + "/dia_quantification.mzTab",
         msstats_csv = outdir + "/dia_msstats.csv",
@@ -275,9 +291,11 @@ rule quantification_dia:
             script = os.path.join(outdir, f"quantification_dia_{current_time}.sh")
             cmd = [
                 params.proteomicslfq,
-                "-in", *[str(x) for x in input.idxml],
+                "-in", *[str(x) for x in input.mzml],
+                "-ids", *[str(x) for x in input.idxml],
                 "-out", output.mztab,
                 "-out_msstats", output.msstats_csv,
+                "-fasta", str(input.fasta),
             ]
             if add_triqler_output:
                 cmd += ["-out_triqler", output.triqler]

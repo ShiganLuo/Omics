@@ -161,8 +161,15 @@ quantification_config = {
     "logdir": os.path.join(logdir,"group"),
     "samples": samples,
     "mzml_dir": raw2mzml_config["outdir"],
+    "psm_fdr_indir": psm_fdr_config["outdir"],
     "expdesign": config.get("Params", {}).get("workflow", {}).get("expdesign", ""),
     "quantification_method": config.get("Params", {}).get("workflow", {}).get("quantification_method"),
+    "genome": {
+        "search_fasta": (
+            config.get("genome", {}).get("references", {}).get(genome, {}).get("decoy_fasta")
+            or f"{decoy_database_config['outdir']}/genome_decoy.fasta"
+        )
+    },
     "Procedure": {
         "proteomicslfq": config.get("Procedure", {}).get("proteomicslfq"),
         "proteinquantifier": config.get("Procedure", {}).get("proteinquantifier"),

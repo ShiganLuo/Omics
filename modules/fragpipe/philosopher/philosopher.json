@@ -1,0 +1,25 @@
+{
+    "ROOT_DIR": "/data/16T/luosg/workflow/Omics",
+    "env": {
+        "env_dir": "/data/16T/Database/env",
+        "fragpipe": "/data/16T/Database/env/fragpipe/fragpipe.sif"
+    },
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "logs",
+    "samples": [],
+    "Procedure": {
+        "philosopher": null
+    },
+    "Params": {
+        "philosopher": {
+            "pep_fdr": 0.01,
+            "prot_fdr": 0.01,
+            "ion_fdr": 0.01,
+            "picked": true
+        }
+    },
+    "genome": {
+        "search_fasta": null
+    }
+}

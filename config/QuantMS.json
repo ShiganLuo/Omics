@@ -102,9 +102,9 @@
         "msfragger": {
             "threads": 16,
             "label": "tmt16",
-            "license_key": null,
+            "license_key": "7f52bb4a-06becf30-24751170-62287b3e",
             "jar": null,
-            "java_xmx": "16G"
+            "java_xmx": "32G"
         },
         "philosopher": {
             "pep_fdr": 0.01,

@@ -15,7 +15,7 @@ license_key = ms_params.get("license_key") or ""
 # key needed). Takes precedence over the Procedure.msfragger wrapper.
 msfragger_jar = ms_params.get("jar") or ""
 java = ms_params.get("java") or "java"
-java_xmx = ms_params.get("java_xmx", "16G")
+java_xmx = ms_params.get("java_xmx", "32G")
 if label not in ("tmt16", "label-free"):
     raise ValueError(
         f"Params.msfragger.label={label!r} is not supported: use 'tmt16' or 'label-free'"
@@ -81,7 +81,10 @@ rule msfragger_run:
             if params.jar:
                 cmd = [params.java, f"-Xmx{params.java_xmx}", "-jar", str(params.jar)]
             else:
-                cmd = [params.msfragger]
+                # The conda launcher defaults to -Xmx1g — far too small for a
+                # ~500k-protein search DB; pass -Xmx through (it forwards
+                # -Xm* args to the JVM).
+                cmd = [params.msfragger, f"-Xmx{params.java_xmx}"]
                 if params.license_key:
                     cmd += ["--key", str(params.license_key)]
                 else:

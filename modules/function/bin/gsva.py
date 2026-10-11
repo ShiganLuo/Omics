@@ -9,8 +9,11 @@ Input:
     - GMT gene set file (tab-separated: name, description, gene1, gene2, ...)
 
 Output:
-    - GSVA enrichment score matrix (TSV, geneset × samples)
-    - Clustered heatmap (PNG)
+    - gsva_scores.tsv: KS enrichment score matrix (geneset × samples;
+      positive = gene set concentrated at the high-expression end)
+    - gsva_mean_z.tsv: mean per-gene z-score matrix (geneset × samples;
+      per-gene z on log2(TPM+1) across samples, averaged within the set)
+    - gsva_heatmap.png: heatmap of the mean z-score matrix
 
 Usage:
     python gsva.py -i expression_tpm.tsv -g geneset.gmt -o outdir [--title GSVA]
@@ -63,10 +66,14 @@ def parse_gmt(gmt_path: str) -> Dict[str, List[str]]:
 def compute_gsva(
     expr: pd.DataFrame,
     gene_sets: Dict[str, List[str]],
-    kcdf: str = "Gaussian",
     abs_rank: bool = True,
 ) -> pd.DataFrame:
-    """Compute GSVA enrichment scores for each sample and gene set.
+    """Compute KS-based enrichment scores for each sample and gene set.
+
+    Walks the within-sample expression ranking from LOW to HIGH expression.
+    The score is the max deviation of (miss_frac - hit_frac); a positive
+    score means the gene set is concentrated at the HIGH-expression end,
+    matching the GSVA/GSEA sign convention.
 
     Parameters
     ----------
@@ -74,9 +81,6 @@ def compute_gsva(
         Expression matrix (genes × samples). Index must be gene symbols.
     gene_sets : dict
         Gene set name → list of gene symbols.
-    kcdf : str
-        Kernel CDF type: "Gaussian" for continuous (TPM/FPKM),
-        "Poisson" for count data.
     abs_rank : bool
         If True, use absolute ranking (two-tailed KS).
 
@@ -118,15 +122,64 @@ def compute_gsva(
             hit_frac = hit_cum / len(hit_indices)
             miss_frac = miss_cum / (n_genes - len(hit_indices))
 
+            # Positive = gene set concentrated at the HIGH-expression end
+            diff = miss_frac - hit_frac
+
             if abs_rank:
-                diff = hit_frac - miss_frac
                 scores[s] = diff[np.argmax(np.abs(diff))]
             else:
-                # Positive-only enrichment
-                diff = hit_frac - miss_frac
+                # Positive-only enrichment at the high-expression end
                 scores[s] = np.max(diff)
 
         results[gs_name] = scores
+
+    score_df = pd.DataFrame(
+        results, index=expr.columns.tolist()
+    ).T
+    score_df.index.name = "gene_set"
+    return score_df
+
+def compute_mean_z(
+    expr: pd.DataFrame,
+    gene_sets: Dict[str, List[str]],
+    log2_transform: bool = True,
+) -> pd.DataFrame:
+    """Compute mean per-gene z-score for each sample and gene set.
+
+    Each gene is standardized across samples (optionally after log2(x + 1)
+    transformation), then averaged over the genes of the set. Unlike the
+    KS-based score, this reflects absolute expression changes between
+    samples instead of within-sample rank positions.
+
+    Parameters
+    ----------
+    expr : pd.DataFrame
+        Expression matrix (genes × samples). Index must be gene symbols.
+    gene_sets : dict
+        Gene set name → list of gene symbols.
+    log2_transform : bool
+        Apply log2(x + 1) before standardization (for TPM/FPKM input).
+        Set False if the input is already log-scale.
+
+    Returns
+    -------
+    pd.DataFrame
+        Mean z-score matrix (gene_sets × samples). Per-gene z-scores sum
+        to zero across samples, so each row has mean ~0.
+    """
+    x = np.log2(expr + 1.0) if log2_transform else expr.astype(float)
+    gene_mean = x.mean(axis=1)
+    gene_std = x.std(axis=1).replace(0.0, 1.0)
+    z = x.sub(gene_mean, axis=0).div(gene_std, axis=0)
+
+    results = {}
+    for gs_name, gs_genes in gene_sets.items():
+        hit = [g for g in gs_genes if g in z.index]
+        if not hit:
+            logger.warning(f"Gene set '{gs_name}': no genes found in expression data")
+            results[gs_name] = np.zeros(expr.shape[1])
+            continue
+        results[gs_name] = z.loc[hit].mean(axis=0).values
 
     score_df = pd.DataFrame(
         results, index=expr.columns.tolist()
@@ -139,17 +192,24 @@ def plot_heatmap(
     scores: pd.DataFrame,
     output_path: str,
     title: str = "GSVA Enrichment Scores",
+    value_label: str = "Score",
+    row_scale: bool = False,
 ) -> None:
-    """Plot clustered heatmap of GSVA scores.
+    """Plot heatmap of enrichment scores with a symmetric color scale.
 
     Parameters
     ----------
     scores : pd.DataFrame
-        GSVA score matrix (genesets × samples).
+        Score matrix (genesets × samples).
     output_path : str
         Path to save the heatmap PNG.
     title : str
         Plot title.
+    value_label : str
+        Colorbar label describing the plotted values.
+    row_scale : bool
+        If True, standardize each row (gene set) across samples to zero
+        mean and unit variance before plotting.
     """
     import matplotlib
     matplotlib.use("Agg")
@@ -159,10 +219,16 @@ def plot_heatmap(
     fig_h = max(4, n_gs * 0.35 + 1.5)
     fig_w = max(6, n_samples * 0.6 + 2)
 
+    values = scores
+    if row_scale:
+        row_mean = scores.mean(axis=1)
+        row_std = scores.std(axis=1).replace(0.0, 1.0)
+        values = scores.sub(row_mean, axis=0).div(row_std, axis=0)
+
     fig, ax = plt.subplots(figsize=(fig_w, fig_h))
-    vmax = max(abs(scores.values.min()), abs(scores.values.max()))
+    vmax = max(abs(values.values.min()), abs(values.values.max()))
     im = ax.imshow(
-        scores.values,
+        values.values,
         cmap="RdBu_r",
         aspect="auto",
         vmin=-vmax,
@@ -175,7 +241,7 @@ def plot_heatmap(
     ax.set_yticklabels(scores.index, fontsize=8)
     ax.set_title(title, fontsize=11)
 
-    plt.colorbar(im, ax=ax, shrink=0.8, label="Enrichment Score")
+    plt.colorbar(im, ax=ax, shrink=0.8, label=value_label)
     plt.tight_layout()
     fig.savefig(output_path, dpi=300, bbox_inches="tight")
     plt.close(fig)
@@ -196,8 +262,8 @@ def main() -> None:
                    help="Output directory")
     p.add_argument("--title", default="GSVA Enrichment Scores",
                    help="Plot title (default: 'GSVA Enrichment Scores')")
-    p.add_argument("--kcdf", choices=["Gaussian", "Poisson"], default="Gaussian",
-                   help="Kernel CDF: Gaussian for TPM/FPKM, Poisson for counts")
+    p.add_argument("--no-log2", action="store_true",
+                   help="Disable log2(x + 1) for mean z-score (input already log-scale)")
     p.add_argument("--no-abs-rank", action="store_true",
                    help="Disable absolute ranking (positive-only enrichment)")
     args = p.parse_args()
@@ -211,22 +277,32 @@ def main() -> None:
     # Parse GMT
     gene_sets = parse_gmt(args.gmt)
 
-    # Compute GSVA
+    # Compute KS-based scores (sign convention: positive = high-expression end)
     scores = compute_gsva(
         expr,
         gene_sets,
-        kcdf=args.kcdf,
         abs_rank=not args.no_abs_rank,
     )
 
-    # Save scores
+    # Save KS scores
     scores_path = os.path.join(args.outdir, "gsva_scores.tsv")
     scores.to_csv(scores_path, sep="\t")
-    logger.info(f"GSVA scores saved to {scores_path}")
+    logger.info(f"GSVA KS scores saved to {scores_path}")
 
-    # Plot heatmap
+    # Compute mean per-gene z-score matrix (used for the heatmap)
+    mean_z = compute_mean_z(
+        expr,
+        gene_sets,
+        log2_transform=not args.no_log2,
+    )
+    mean_z_path = os.path.join(args.outdir, "gsva_mean_z.tsv")
+    mean_z.to_csv(mean_z_path, sep="\t")
+    logger.info(f"Mean z-score matrix saved to {mean_z_path}")
+
+    # Plot heatmap of mean z-scores
     heatmap_path = os.path.join(args.outdir, "gsva_heatmap.png")
-    plot_heatmap(scores, heatmap_path, title=args.title)
+    value_label = "Mean z-score" + ("" if args.no_log2 else " (log2 TPM)")
+    plot_heatmap(mean_z, heatmap_path, title=args.title, value_label=value_label)
 
     logger.info("GSVA analysis completed successfully")
 

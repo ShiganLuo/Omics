@@ -45,6 +45,21 @@
       "nullable": true,
       "required": false
     },
+    "msfragger": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    },
+    "id_converter": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    },
+    "philosopher": {
+      "type": "null",
+      "nullable": true,
+      "required": false
+    },
     "percolator": {
       "type": "null",
       "nullable": true,
@@ -192,6 +207,46 @@
           "type": "str",
           "required": true
         }
+      }
+    },
+    "msfragger": {
+      "threads": {
+        "type": "int",
+        "required": false
+      },
+      "label": {
+        "type": "str",
+        "required": false
+      },
+      "license_key": {
+        "type": "str",
+        "required": false
+      },
+      "jar": {
+        "type": "str",
+        "required": false
+      },
+      "java_xmx": {
+        "type": "str",
+        "required": false
+      }
+    },
+    "philosopher": {
+      "pep_fdr": {
+        "type": "float",
+        "required": false
+      },
+      "prot_fdr": {
+        "type": "float",
+        "required": false
+      },
+      "ion_fdr": {
+        "type": "float",
+        "required": false
+      },
+      "picked": {
+        "type": "bool",
+        "required": false
       }
     },
     "psm_fdr_control": {

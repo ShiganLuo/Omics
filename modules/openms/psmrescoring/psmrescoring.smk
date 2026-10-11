@@ -24,6 +24,8 @@ def get_input_for_psm_rescoring(wildcards):
         return {"idxml": indir + f"/{wildcards.sample_id}/{wildcards.sample_id}_msgf.idXML"}
     elif search_engine == "sage":
         return {"idxml": indir + f"/{wildcards.sample_id}/{wildcards.sample_id}_sage.idXML"}
+    elif search_engine == "msfragger":
+        return {"idxml": indir + f"/{wildcards.sample_id}/{wildcards.sample_id}_msfragger.idXML"}
     else:
         raise ValueError("No search engine specified in the configuration.")
 

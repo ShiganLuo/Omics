@@ -54,6 +54,14 @@ Params.philosopher.*       pep_fdr / prot_fdr / ion_fdr（0.01）/ picked（true
 | `genome.search_fasta` | 蛋白库 | 原文为 GENCODE hsV42 basic + contam + entrezgene decoys；本地可用 `/data/16T/Database/Reference/human/GENCODE/GRCh38/gencode.v49.pc_translations.fa`（philosopher 自动补 contam+decoy）。若能拿到核心的原始 .fas 更佳 |
 | `Params.msfragger.jar` 或 `license_key` | jar / 字符串 | **推荐**：从蛋白组核心拷贝 `MSFragger-3.5.jar`（他们就是用它搜的这批数据；jar 仅需 Java，3.x 无 key 要求）。否则在 msfragger-upgrader.nesvilab.org/upgrader/ 免费注册拿 key 用 4.4.1 |
 
+## 接入 QuantMS 流程（可选）
+
+`Params.search_engine.engine = "msfragger"` 即把 MSFragger 用作 QuantMS 的第 4 种
+搜库引擎：QuantMS.smk 导入 msfragger_run + msfragger_idxml（IDFileConverter →
+PeptideIndexer 补 target/decoy 注释），下游 psm_rescoring→…→msstats 不变。
+搜库库自动用 decoy_database 的 genome_decoy.fasta（DECOY_ 前缀，与 comet 路径
+一致）；原文库（contam + rev_）请用 philosopher 模块独立跑。
+
 ## 运行示例（独立跑）
 
 ```bash

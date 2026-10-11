@@ -4,6 +4,7 @@
     "env": {
         "diann": "/data/16T/Database/env/diann/diann.sif",
         "env_dir": "/home/luosg/Database/env",
+        "fragpipe": "/home/luosg/Database/env/fragpipe/fragpipe.sif",
         "openms": "/home/luosg/Database/env/openms/openms.sif"
     },
     "Procedure": {
@@ -13,6 +14,9 @@
         "comet": null,
         "msgf": null,
         "sage": null,
+        "msfragger": null,
+        "id_converter": null,
+        "philosopher": null,
         "percolator": null,
         "epifany": null,
         "proteomicslfq": null,
@@ -20,6 +24,15 @@
         "msstats": null
     },
     "Params": {
+        "workflow": {
+            "indir": "input",
+            "outdir": "output",
+            "logdir": "logs",
+            "samples": [],
+            "raw_files": [],
+            "expdesign": "",
+            "quantification_method": "lfq"
+        },
         "diann": {
             "enabled": true,
             "threads": 16,
@@ -38,15 +51,6 @@
             "predictor": true,
             "verbose": true,
             "extra": ""
-        },
-        "workflow": {
-            "indir": "input",
-            "outdir": "output",
-            "logdir": "logs",
-            "samples": [],
-            "raw_files": [],
-            "expdesign": "",
-            "quantification_method": "lfq"
         },
         "raw_to_mzml": {
             "manifest": "",
@@ -94,6 +98,19 @@
                 "train_FDR": 0.05,
                 "test_FDR": 0.05
             }
+        },
+        "msfragger": {
+            "threads": 16,
+            "label": "tmt16",
+            "license_key": null,
+            "jar": null,
+            "java_xmx": "16G"
+        },
+        "philosopher": {
+            "pep_fdr": 0.01,
+            "prot_fdr": 0.01,
+            "ion_fdr": 0.01,
+            "picked": true
         },
         "psm_fdr_control": {
             "fdr": 0.01,

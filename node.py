@@ -691,6 +691,9 @@ def runQuantMS(
             outfiles.append(f"{outdir}/common/3_search_engine/{sample_id}/{sample_id}_msgf.idXML")
         elif search_engine == "sage":
             outfiles.append(f"{outdir}/common/3_search_engine/{sample_id}/{sample_id}_sage.idXML")
+        elif search_engine == "msfragger":
+            outfiles.append(f"{outdir}/common/3_search_engine/{sample_id}/{sample_id}.pepXML")
+            outfiles.append(f"{outdir}/common/3_search_engine/{sample_id}/{sample_id}_msfragger.idXML")
         else:
             raise ValueError(f"Unknown search engine: {search_engine}")
         outfiles.append(f"{outdir}/common/4_psm_rescoring/{sample_id}/{sample_id}_scored.idXML")

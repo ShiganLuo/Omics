@@ -1,0 +1,8 @@
+name: fragpipe
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - msfragger=4.4.1
+  - philosopher=5.1.2

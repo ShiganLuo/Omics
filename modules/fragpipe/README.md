@@ -39,8 +39,11 @@ PeptideProphet + picked protein FDR 过滤 → psm/peptide/protein 报表。
 genome.search_fasta        target 蛋白 FASTA（不含 decoy；philosopher 生成 rev_ decoy + contam）
 Params.msfragger.threads   默认 16
 Params.msfragger.label     tmt16（默认，原文方法）/ label-free（去 TMT 修饰）
-Params.msfragger.license_key  MSFragger >=4.x 必填（免费学术授权：
+Params.msfragger.jar       MSFragger-3.x jar 路径（推荐：与原文版本一致且无需
+                           license key，经 java -jar 直接运行）
+Params.msfragger.license_key  仅 4.x wrapper 模式必填（免费学术授权：
                            msfragger-upgrader.nesvilab.org/upgrader/）
+Params.msfragger.java_xmx  jar 模式 JVM 内存（默认 16G）
 Params.philosopher.*       pep_fdr / prot_fdr / ion_fdr（0.01）/ picked（true）
 ```
 
@@ -49,7 +52,7 @@ Params.philosopher.*       pep_fdr / prot_fdr / ion_fdr（0.01）/ picked（true
 | 键 | 文件 | 来源 |
 |---|---|---|
 | `genome.search_fasta` | 蛋白库 | 原文为 GENCODE hsV42 basic + contam + entrezgene decoys；本地可用 `/data/16T/Database/Reference/human/GENCODE/GRCh38/gencode.v49.pc_translations.fa`（philosopher 自动补 contam+decoy）。若能拿到核心的原始 .fas 更佳 |
-| `Params.msfragger.license_key` | 字符串 | msfragger-upgrader.nesvilab.org/upgrader/ 免费注册获取 |
+| `Params.msfragger.jar` 或 `license_key` | jar / 字符串 | **推荐**：从蛋白组核心拷贝 `MSFragger-3.5.jar`（他们就是用它搜的这批数据；jar 仅需 Java，3.x 无 key 要求）。否则在 msfragger-upgrader.nesvilab.org/upgrader/ 免费注册拿 key 用 4.4.1 |
 
 ## 运行示例（独立跑）
 

@@ -3,14 +3,17 @@
 
 gffread -T converts GFF3 to GTF but drops gene features; downstream tools
 (fire_annotate, nucpos) classify peaks against ``gene`` + ``exon`` lines.
-This script derives one gene line per gene_id from the transcript spans.
+This script derives one gene line per gene_id from the transcript spans and
+writes a provenance header (comment lines, skipped by GTF parsers).
 
 Usage:
-    python gtfbuild_add_gene_features.py --gtf in.gtf --out out.gtf
+    python gtfbuild_add_gene_features.py --gtf in.gtf --out out.gtf \
+        [--genome NAME] [--source-gtf SRC.gtf]
 """
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 
 
@@ -18,6 +21,8 @@ def main() -> None:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--gtf", required=True, help="input GTF (no gene features)")
     p.add_argument("--out", required=True, help="output GTF with gene features")
+    p.add_argument("--genome", default="", help="target genome name (header)")
+    p.add_argument("--source-gtf", default="", help="source GTF path (header)")
     args = p.parse_args()
 
     # Pass 1: gene spans + names
@@ -53,6 +58,15 @@ def main() -> None:
     seen = set()
     n_gene = 0
     with open(args.gtf) as fh, open(args.out, "w") as out:
+        # provenance header (comment lines; GTF parsers skip '#' lines)
+        if args.genome:
+            out.write(f"#!genome-build {args.genome}\n")
+        if args.source_gtf:
+            out.write(f"#!annotation-source {os.path.basename(args.source_gtf)} "
+                      f"(projected with LiftOff)\n")
+        out.write("#!annotation-method gtfbuild module: liftoff + gffread + "
+                  "gene features derived from transcript spans\n")
+        out.write("#!note projected annotation, not an official annotation\n")
         for line in fh:
             if not line.startswith("#"):
                 f = line.split("\t")

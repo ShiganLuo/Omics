@@ -62,6 +62,116 @@ def _require(value, key, tool=""):
 
 
 # ---------------------------------------------------------------------------
+# Isobaric label sanity check
+# ---------------------------------------------------------------------------
+# TMT6/10/11/16/18 and iTRAQ 4/8 reporter m/z values (monoisotopic).
+_REPORTER_MZ = [
+    114.1276, 115.1247, 116.1217, 117.1189, 118.1345, 119.1316, 121.1344,
+    126.1277, 127.1248, 127.1311, 128.1281, 128.1344, 129.1312, 129.1375,
+    130.1345, 131.1379, 132.1412, 133.1382, 134.1416, 134.1446, 135.1416,
+]
+
+
+def check_reporter_ions(mzml_path, max_spectra=200):
+    """Scan the first MS2 spectra of an mzML for isobaric reporter ions.
+
+    Returns ``(has_reporters, detail)``. A file counts as labelled when at
+    least one sampled MS2 carries >= 3 peaks within 20 ppm of known
+    TMT/iTRAQ reporter m/z values. Arrays that cannot be decoded with the
+    standard library (e.g. numpress) are skipped rather than failing.
+
+    Parameters
+    ----------
+    mzml_path : str
+        mzML file to scan (indexed or plain).
+    max_spectra : int
+        Number of MS2 spectra to sample before giving up.
+
+    Returns
+    -------
+    tuple
+        (bool, str) — whether reporter ions were found, plus a detail line.
+    """
+    import base64
+    import struct
+    import zlib
+    import xml.etree.ElementTree as ET
+
+    checked = 0
+    hit_spectra = 0
+    total_hits = 0
+    for _, el in ET.iterparse(mzml_path, events=("end",)):
+        if el.tag.endswith("spectrum"):
+            mslevel = None
+            mz_raw = b""
+            for node in el.iter():
+                if node.tag.endswith("cvParam"):
+                    acc = node.get("accession")
+                    if acc == "MS:1000511":
+                        mslevel = node.get("value")
+            for bda in el.iter():
+                if not bda.tag.endswith("binaryDataArray"):
+                    continue
+                is_mz = False
+                is_64bit = True
+                raw = b""
+                for sub in bda:
+                    if sub.tag.endswith("cvParam"):
+                        acc = sub.get("accession")
+                        if acc == "MS:1000514":
+                            is_mz = True
+                        elif acc == "MS:1000521":
+                            is_64bit = False
+                    elif sub.tag.endswith("binary"):
+                        txt = sub.text or ""
+                        try:
+                            raw = zlib.decompress(base64.b64decode(txt))
+                        except Exception:
+                            try:
+                                raw = base64.b64decode(txt)
+                            except Exception:
+                                raw = b""
+                if is_mz:
+                    mz_raw = raw
+                    mz_is_64bit = is_64bit
+            el.clear()
+            try:
+                is_ms2 = mslevel is not None and int(float(mslevel)) == 2
+            except (TypeError, ValueError):
+                is_ms2 = False
+            if not is_ms2 or not mz_raw:
+                continue
+            checked += 1
+            try:
+                fmt = "<%dd" if mz_is_64bit else "<%df"
+                size = 8 if mz_is_64bit else 4
+                n = len(mz_raw) // size
+                mzs = struct.unpack(fmt % n, mz_raw[:n * size])
+            except Exception:
+                continue
+            hits = 0
+            for rm in _REPORTER_MZ:
+                tol = rm * 20e-6
+                for mz in mzs:
+                    if abs(mz - rm) <= tol:
+                        hits += 1
+                        break
+            total_hits += hits
+            if hits >= 3:
+                hit_spectra += 1
+            if checked >= max_spectra:
+                break
+    detail = (
+        f"{hit_spectra}/{checked} sampled MS2 spectra carry reporter-mass "
+        f"peaks ({total_hits} reporter-mass peaks in total)"
+    )
+    # Labelled data shows reporter peaks in nearly every MS2; random m/z
+    # coincidences give ~0.1 hits/spectrum and at most one >=3-hit spectrum
+    # per 200. Require at least 3 such spectra to call the file labelled.
+    return hit_spectra >= 3, detail
+
+
+# ---------------------------------------------------------------------------
 # Container (SIF) path resolution
 # ---------------------------------------------------------------------------
 _ENV_MAP = config.get("env", {})

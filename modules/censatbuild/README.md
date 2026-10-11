@@ -24,29 +24,31 @@ RepeatMasker 步骤直接 `use rule repeatmasker_run from centromere`（Dfam
 物种库 + 既有 env），不重复造轮子；`censatbuild_link_genome` 把目标基因组
 放到该规则约定的 hifiasm 布局路径上。
 
-## FamDB（Dfam 数据库，必须先准备好）
+## FamDB（Dfam 数据库 + 环境版本配套，必须先准备好）
 
-RepeatMasker 4.2 的 `-species` 查询依赖 FamDB（Dfam 的 h5 分片库）。按物种
-分类分片，至少需要 root 片 + 目标物种所在片（小鼠/人 = 哺乳类片）：
+RepeatMasker 的 `-species` 查询依赖 FamDB（Dfam 的 h5 库）。两个配套问题：
+
+1. **版本配套**：FamDB 文件有格式版本（Dfam 3.9 = format 2.0；Dfam 4.0 =
+   format 3.0）。RepeatMasker 4.2.4 配 famdb.py 3.0.0（读 format 3.0）；
+   RepeatMasker 4.2.3 自带旧 famdb.py（读 format 2.0）。**换环境比换库快**——
+   本模块约定 `centromere` env 钉 `repeatmasker=4.2.3`，配 Dfam 3.9。
+2. **库文件**：按物种分类分片（format 2.0），至少 root 片 + 目标物种所在片：
 
 ```
-# 下载（Dfam 3.9；下载源 https://www.dfam.org/releases/Dfam_3.9/families/FamDB/）
+# 下载源 https://www.dfam.org/releases/Dfam_3.9/families/FamDB/
 dfam39_full.0.h5     # Partition 0: root（必需）
-dfam39_full.7.h5     # Partition 7: Mammalia（小鼠/人/猴）
+dfam39_full.7.h5     # Partition 7: Mammalia（小鼠/人/猴），解压后约 56GB
 ```
 
-放置于 `/data/16T/Database/env/famdb/`，并在同目录维护 `famdb.conf`：
+放置于 `/data/16T/Database/env/famdb/`。RepeatMasker 从
+`share/RepeatMasker/Libraries/famdb` 找库（容器内 sif 只读），运行时绑定：
 
 ```
-FAMDB_DATA_DIR=/data/16T/Database/env/famdb
+--singularity-args "--bind /data/16T,/data/16T/Database/env/famdb:\
+/opt/conda/envs/centromere/share/RepeatMasker/Libraries/famdb"
 ```
 
-运行时把 famdb.conf 绑定进容器的 famdb 配置路径（sif 只读，不能写入）：
-
-```
---singularity-args "--bind /data/16T,/data/16T/Database/env/famdb/famdb.conf:\
-/opt/conda/envs/centromere/share/famdb-3.0.0/famdb.conf"
-```
+（apptainer 会自动创建容器内挂载点；PacVar 跑 RepeatMasker 时同样加这个 bind。）
 
 ## 方法与命令（模板）
 

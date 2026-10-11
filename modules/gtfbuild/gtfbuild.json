@@ -1,24 +1,27 @@
 {
-    "ROOT_DIR": ".",
+    "ROOT_DIR": "/data/16T/luosg/workflow/Omics",
     "indir": "",
-    "outdir": "results/gtfbuild",
-    "logdir": "log",
+    "outdir": "/data/16T/luosg/output/gtfbuild/T2T_mhaESC_v1.5_repro",
+    "logdir": "/data/16T/luosg/output/gtfbuild/T2T_mhaESC_v1.5_repro/log",
     "samples": [],
-    "genome_name": "my_genome",
+    "genome_name": "GCA_056825265.1_T2T_mhaESC_v1.5_vM38_liftoff",
     "Procedure": {},
     "Params": {
         "gtfbuild": {
-            "threads": 32,
+            "threads": 48,
             "copies": false,
             "coverage": 0.5,
             "extra_args": ""
         }
     },
     "genome": {
-        "fasta": null,
-        "source_fasta": null,
-        "source_gtf": null,
-        "source_bed": null
+        "fasta": "/data/16T/Database/Reference/mouse/NCBI/T2T_mhaESC_v1.5/GCA_056825265.1_T2T_mhaESC_v1.5_genomic.fna",
+        "source_fasta": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
+        "source_gtf": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf",
+        "source_bed": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.bed"
     },
-    "env": {}
+    "env": {
+        "env_dir": "/data/16T/Database/env",
+        "gtfbuild": "/data/16T/Database/env/gtfbuild/gtfbuild.sif"
+    }
 }

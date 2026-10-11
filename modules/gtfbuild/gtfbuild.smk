@@ -76,7 +76,8 @@ rule gtfbuild_liftoff:
                 f.write("set -euo pipefail\n")
                 f.write(" ".join(c for c in lift_cmd if c) + "\n")
                 f.write(" ".join(gffread_cmd) + "\n")
-                f.write(f'python {params.add_genes} --gtf {output.gtf} --out {output.gtf}.tmp\n')
+                f.write(f'python {params.add_genes} --gtf {output.gtf} --out {output.gtf}.tmp '
+                        f'--genome {genome_name} --source-gtf {input.source_gtf}\n')
                 f.write(f"mv {output.gtf}.tmp {output.gtf}\n")
                 f.write(f'echo "gtfbuild_liftoff for {genome_name} at {current_time} completed successfully"\n')
             shell(f"bash {script} >> {log_path} 2>&1")
@@ -203,6 +204,7 @@ rule gtfbuild_liftover_bed:
         source_bed = lambda wildcards: _require(genome_cfg.get("source_bed"), "genome.source_bed", "gtfbuild"),
     output:
         bed = outdir + f"/{BED_STEM}.lifted.bed",
+        raw = outdir + f"/{BED_STEM}.lifted.paftools.bed",
         stats = outdir + f"/{BED_STEM}.lifted.stats.tsv",
     log:
         logdir + "/gtfbuild_liftover_bed.log"
@@ -214,6 +216,7 @@ rule gtfbuild_liftover_bed:
     params:
         min_mapq = p.get("liftover_min_mapq", 5),
         min_aln = p.get("liftover_min_aln", 50000),
+        restore = ROOT_DIR + "/modules/gtfbuild/bin/gtfbuild_restore_bed.py",
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -229,12 +232,15 @@ rule gtfbuild_liftover_bed:
                 "-q", str(params.min_mapq),
                 "-l", str(params.min_aln),
                 str(input.paf), str(input.source_bed),
-                ">", str(output.bed),
+                ">", str(output.raw),
             ]
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write("set -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
+                f.write(f'python {params.restore} --lifted {output.raw} '
+                        f'--source {input.source_bed} --out {output.bed} '
+                        f'--genome {genome_name}\n')
                 f.write(
                     f'in_n=$(grep -vc "^#" {input.source_bed} || true)\n'
                     f'out_n=$(grep -vc "^#" {output.bed} || true)\n'

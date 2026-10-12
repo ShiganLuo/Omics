@@ -116,6 +116,29 @@ def build_ena_http_urls(srr_id: str) -> List[str]:
     ]
 
 
+def _ena_remote_file_exists(url: str) -> bool:
+    """Probe an ENA fastq URL with an HTTP HEAD request.
+
+    Uses curl so that socks/HTTP proxy environment variables are honoured
+    (urllib does not support socks proxies on this network).
+
+    Parameters
+    ----------
+    url : str
+        Full ENA fastq URL.
+
+    Returns
+    -------
+    bool
+        True when the remote answers HTTP 200.
+    """
+    result = subprocess.run(
+        ["curl", "-sI", "-m", "30", "-o", "/dev/null", "-w", "%{http_code}", url],
+        capture_output=True, text=True,
+    )
+    return result.returncode == 0 and result.stdout.strip() == "200"
+
+
 # ============================================================
 # 公共工具
 # ============================================================
@@ -584,10 +607,10 @@ def aria2c_download_single_srr(srr_id: str, library_type: str, dest: Path) -> bo
     logger.info(f"[aria2c] {srr_id} 候选 URL:\n    " + "\n    ".join(urls))
 
     if library_type == "PAIRED":
-        # 优先尝试 paired (_1 + _2)
-        ok1 = aria2c_download_single(urls[0], dest)
+        # 优先尝试 paired (_1 + _2)；已存在且完整的 mate 不重复下载
+        ok1 = (local[0].exists() and verify_fastq_gzip(local[0])) or aria2c_download_single(urls[0], dest)
         if ok1 and verify_fastq_gzip(local[0]):
-            ok2 = aria2c_download_single(urls[1], dest)
+            ok2 = (local[1].exists() and verify_fastq_gzip(local[1])) or aria2c_download_single(urls[1], dest)
             if ok2 and verify_fastq_gzip(local[1]):
                 return True
             logger.warning(f"[aria2c] {srr_id}_2 下载失败，尝试 single-end fallback")
@@ -903,10 +926,10 @@ def curl_download_single_srr(srr_id: str, library_type: str, dest: Path) -> bool
         return verify_fastq_gzip(path) and verify_fastq_md5(path, md5_map.get(path.name))
 
     if library_type == "PAIRED":
-        # 优先尝试 paired (_1 + _2)
-        ok1 = curl_download_single(urls[0], dest)
+        # 优先尝试 paired (_1 + _2)；已存在且完整的 mate 不重复下载
+        ok1 = (local[0].exists() and _verify(local[0])) or curl_download_single(urls[0], dest)
         if ok1 and _verify(local[0]):
-            ok2 = curl_download_single(urls[1], dest)
+            ok2 = (local[1].exists() and _verify(local[1])) or curl_download_single(urls[1], dest)
             if ok2 and _verify(local[1]):
                 return True
             logger.warning(f"[curl] {srr_id}_2 下载失败，尝试 single-end fallback")
@@ -1121,6 +1144,17 @@ def download_spin(
         logger.warning(f"[SKIP] {srr_id} {library_type}：已检测到网络劫持，跳过剩余下载")
         return False
 
+    # 防呆：标注 SINGLE 但 ENA 存在 mate-2 → 实为 PE run，自动升级，
+    # 避免 SINGLE 分支只下到 _1（mate-1 被伪装成单端库，数据减半）
+    if library_type == "SINGLE":
+        mate2_url = build_ena_http_urls(srr_id)[1]
+        if _ena_remote_file_exists(mate2_url):
+            logger.warning(
+                f"[LAYOUT] {srr_id} 标注 SINGLE 但远端存在 {srr_id}_2.fastq.gz，"
+                f"实为 PAIRED run，自动升级为 PAIRED 下载"
+            )
+            library_type = "PAIRED"
+
     # 缓存：已存在且完整则跳过
     if _fastq_exists(dest, srr_id, library_type):
         logger.info(f"[SKIP] {srr_id} {library_type} 已存在，跳过")
@@ -1197,17 +1231,26 @@ def load_tasks(args) -> List[Tuple[str, str]]:
                 f"Available columns: {list(df.columns)}"
             )
 
-        # 只要求 srr 非空，library_layout 缺失时用 default_layout 兜底
+        # 只要求 srr 非空，library_layout 缺失值时用 default_layout 兜底
         df = df.dropna(subset=[srr_col])
 
+        fallback_layout = args.default_layout or args.library_type or "SINGLE"
         if lib_col in df.columns:
-            df[lib_col] = df[lib_col].fillna(args.default_layout).str.upper()
+            df[lib_col] = df[lib_col].fillna(fallback_layout).str.upper()
             invalid = df[~df[lib_col].isin({"PAIRED", "SINGLE"})]
             if not invalid.empty:
                 raise ValueError(f"Invalid library layout values found:\n{invalid}")
         else:
-            logger.warning(f"列 '{lib_col}' 不存在，全部使用 {args.default_layout}")
-            df[lib_col] = args.default_layout
+            # 缺列 = 配置错误（layout 列名不匹配），不是缺值；
+            # 必须显式 --default-layout 或 -t 才允许跳过 layout 列
+            if args.default_layout is None and args.library_type is None:
+                raise ValueError(
+                    f"Meta 文件缺少 layout 列 '{lib_col}'。请用 --lib-col-name 指定正确的列名，"
+                    f"或显式指定 --default-layout/-t 跳过 layout 列。"
+                    f"Available columns: {list(df.columns)}"
+                )
+            logger.warning(f"列 '{lib_col}' 不存在，全部使用 {fallback_layout}")
+            df[lib_col] = fallback_layout
 
         tasks = list(df[[srr_col, lib_col]].itertuples(index=False, name=None))
     elif args.srr_list:
@@ -1270,8 +1313,8 @@ def parse_args():
     p.add_argument("--sleep-base", type=int, default=10)
     p.add_argument("--sleep-max", type=int, default=300)
     p.add_argument("--max-retries", type=int, default=10, help="单个 SRR 最大重试次数 (默认: 10)")
-    p.add_argument("--default-layout", default="SINGLE", choices=["PAIRED", "SINGLE"],
-                   help="library_layout 缺失时的默认值 (默认: SINGLE)")
+    p.add_argument("--default-layout", default=None, choices=["PAIRED", "SINGLE"],
+                   help="layout 列缺失值时的默认值 (缺省 SINGLE；layout 列整个不存在时须显式指定本参数或 -t)")
 
     args = p.parse_args()
 

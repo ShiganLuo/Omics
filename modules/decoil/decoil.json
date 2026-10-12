@@ -27,11 +27,14 @@
             "filter_score": 5,
             "extend_allowed_chromosomes": "",
             "skip": false,
-            "threads": 16
-        },
-        "visualization": {
+            "threads": 16,
             "formats": ["png"],
-            "igv_locus": ""
+            "reconstruct": {},
+            "plot": {},
+            "compare": {},
+            "igv": {
+                "locus": ""
+            }
         }
     },
     "igv": {},

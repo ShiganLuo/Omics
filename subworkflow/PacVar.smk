@@ -322,8 +322,7 @@ decoil_config = {
         "decoil": config.get("Procedure", {}).get("decoil")
     },
     "Params": {
-        "decoil": config.get("Params", {}).get("decoil", {}),
-        "visualization": config.get("Params", {}).get("visualization", {})
+        "decoil": config.get("Params", {}).get("decoil", {})
     },
     "igv": config.get("igv", {}),
     "genome": {

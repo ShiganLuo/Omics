@@ -149,7 +149,7 @@ def _split_pseudo_reps(adata_sub, sample_id, raw_sub, var_names,
 
     if actual_reps < 2 or n_cells_total < 4:
         # Can't split: return single aggregate
-        counts = np.array(raw_sub.X.sum(axis=0)).flatten()
+        counts = np.asarray(np.array(raw_sub.X.sum(axis=0)).flatten()).ravel()
         return [{
             "sample": sample_id,
             "cell_type": adata_sub.obs["cell_type"].iloc[0] if "cell_type" in adata_sub.obs.columns else "unknown",
@@ -172,6 +172,7 @@ def _split_pseudo_reps(adata_sub, sample_id, raw_sub, var_names,
         if n_cells_rep == 0:
             continue
         counts = np.array(raw_sub[rep_mask].X.sum(axis=0)).flatten()
+        counts = np.asarray(counts).ravel()
         rows.append({
             "sample": f"{sample_id}_rep{rep_idx}",
             "cell_type": cell_type,
@@ -180,6 +181,59 @@ def _split_pseudo_reps(adata_sub, sample_id, raw_sub, var_names,
             **{gene: float(c) for gene, c in zip(var_names, counts)},
         })
     return rows
+
+
+class _CountsView:
+    """Minimal wrapper exposing a count matrix through an ``.X`` attribute,
+    so :func:`_split_pseudo_reps` can consume layers["counts"] without
+    requiring a full AnnData."""
+
+    def __init__(self, X):
+        self.X = X
+
+
+def _is_integer_matrix(X) -> bool:
+    """Check (sparingly) whether a matrix holds only integer values."""
+    from scipy import sparse as _sparse
+    if _sparse.issparse(X):
+        data = X.data
+    else:
+        data = np.asarray(X).ravel()
+    data = data[data != 0]
+    if data.size == 0:
+        return True
+    sample = data if data.size <= 100_000 else data[:: data.size // 100_000]
+    return bool(np.all(sample == np.round(sample)))
+
+
+def _resolve_count_matrix(sub, raw_sub):
+    """Return the full-gene raw count matrix for a cell subset.
+
+    Priority:
+      1. ``sub.layers["counts"]`` — integer counts (full genes when the
+         AnnData was never HVG-subset, e.g. a *merged* h5ad).
+      2. ``sub.raw.X`` — legacy path; MUST be integer, else abort.
+
+    A normalised (e.g. log1p) raw slot silently corrupted pseudobulk
+    counts via ``round().astype(int)`` (low-count genes like CXCL8 got
+    wrong DESeq2 input), so any non-integer source now raises instead.
+    """
+    if "counts" in sub.layers:
+        counts = sub.layers["counts"]
+        if not _is_integer_matrix(counts):
+            raise ValueError(
+                "layers['counts'] is not integer — refusing to pseudobulk "
+                "non-count data")
+        logger.info("    using layers['counts'] (%d features)", counts.shape[1])
+        return counts
+    if not _is_integer_matrix(raw_sub.X):
+        raise ValueError(
+            "No integer counts available: adata has no layers['counts'] and "
+            "adata.raw.X is NOT integer (looks normalised/log-transformed). "
+            "Pass a merged h5ad (layers['counts']) instead of a clustered "
+            "auto h5ad, whose raw slot stores log1p(CP10K).")
+    logger.info("    using adata.raw.X as counts (%d features)", raw_sub.n_vars)
+    return None  # caller falls back to raw_sub.X
 
 
 def aggregate_pseudobulk(adata, cell_type, sample_col="sample_id",
@@ -197,7 +251,9 @@ def aggregate_pseudobulk(adata, cell_type, sample_col="sample_id",
     pseudo-replicates so PyDESeq2 can estimate dispersion.
 
     Args:
-        adata: AnnData object with ``.raw`` holding the full count matrix.
+        adata: AnnData object whose raw counts are read via
+            :func:`_resolve_count_matrix` (layers["counts"] if present,
+            else ``.raw`` — which MUST hold integer counts).
         cell_type: Cell type to subset (must exist in ``adata.obs[type_col]``).
         sample_col: Column in ``adata.obs`` identifying biological samples.
         type_col: Column in ``adata.obs`` identifying cell type annotations.
@@ -220,7 +276,20 @@ def aggregate_pseudobulk(adata, cell_type, sample_col="sample_id",
     size_by_sample = sub.obs.groupby(sample_col).size()
     samples_by_cells = set(size_by_sample[size_by_sample >= min_cells].index.tolist())
 
-    raw_sub = sub.raw.to_adata()
+    if sub.raw is not None:
+        raw_sub = sub.raw.to_adata()
+    else:
+        # No raw slot (e.g. the counts_h5ad-rewritten AnnData): synthesise
+        # raw from X so downstream var annotation / per-sample totals work.
+        raw_sub = sub.copy()
+    counts_matrix = _resolve_count_matrix(sub, raw_sub)
+    # When layers["counts"] exists it is the authoritative count source;
+    # var annotation (gene_type etc.) still comes from raw_sub (full genes).
+    if counts_matrix is not None and counts_matrix.shape[1] == raw_sub.n_vars:
+        raw_sub = raw_sub[:, :0].copy()  # placeholder; counts_matrix used below
+        use_counts_layer = True
+    else:
+        use_counts_layer = False
 
     # Filter features by mode (gene/te/all)
     if feature_mode != "all" and "gene_type" in raw_sub.var.columns:
@@ -234,7 +303,10 @@ def aggregate_pseudobulk(adata, cell_type, sample_col="sample_id",
     counts_by_sample = {}
     for sample in samples_by_cells:
         mask = sub.obs[sample_col] == sample
-        total = float(np.array(raw_sub[mask].X.sum()).flatten()[0])
+        if use_counts_layer:
+            total = float(np.asarray(counts_matrix[np.asarray(mask)].sum()).ravel()[0])
+        else:
+            total = float(np.array(raw_sub[mask].X.sum()).flatten()[0])
         counts_by_sample[sample] = total
 
     # Apply min_counts filter
@@ -255,13 +327,24 @@ def aggregate_pseudobulk(adata, cell_type, sample_col="sample_id",
         raw_cells = raw_sub[mask]
 
         if use_pseudo_reps:
-            rep_rows = _split_pseudo_reps(
-                sub_cells, sample, raw_cells, raw_sub.var_names,
-                n_pseudo_reps=n_pseudo_reps, seed=42 + i,
-            )
+            if use_counts_layer:
+                rep_rows = _split_pseudo_reps(
+                    sub_cells, sample,
+                    _CountsView(counts_matrix[np.asarray(mask)]),
+                    raw_sub.var_names,
+                    n_pseudo_reps=n_pseudo_reps, seed=42 + i,
+                )
+            else:
+                rep_rows = _split_pseudo_reps(
+                    sub_cells, sample, raw_cells, raw_sub.var_names,
+                    n_pseudo_reps=n_pseudo_reps, seed=42 + i,
+                )
             rows.extend(rep_rows)
         else:
-            counts = np.array(raw_cells.X.sum(axis=0)).flatten()
+            if use_counts_layer:
+                counts = np.asarray(counts_matrix[np.asarray(mask)].sum(axis=0)).ravel()
+            else:
+                counts = np.array(raw_cells.X.sum(axis=0)).flatten()
             rows.append({
                 "sample": sample,
                 "cell_type": cell_type,
@@ -279,14 +362,15 @@ def aggregate_pseudobulk(adata, cell_type, sample_col="sample_id",
 
 
 def prepare_counts(h5ad_path, out_dir, label, min_cells=30, min_counts=1000,
-                   n_pseudo_reps=0, feature_mode="all"):
+                   n_pseudo_reps=0, feature_mode="all", counts_h5ad=None):
     """Prepare pseudo-bulk count CSVs for all cell types in an h5ad.
 
     Iterates over every unique cell type in the h5ad, aggregates counts
     per sample, and writes one CSV per cell type to *out_dir*.
 
     Args:
-        h5ad_path: Path to an annotated h5ad file.
+        h5ad_path: Path to an annotated h5ad file (provides obs annotation:
+            cell_type, sample_id, leiden, ...).
         out_dir: Directory for output count CSVs.
         label: Tissue label used as filename prefix (e.g. ``"uterus"``).
         min_cells: Minimum cells per sample to retain.
@@ -294,6 +378,11 @@ def prepare_counts(h5ad_path, out_dir, label, min_cells=30, min_counts=1000,
         n_pseudo_reps: If > 0, split single-sample conditions into
             pseudo-replicates (see :func:`aggregate_pseudobulk`).
         feature_mode: ``"all"``, ``"gene"``, or ``"te"``.
+        counts_h5ad: Optional path to a *merged* h5ad whose integer
+            ``layers["counts"]`` (full genes, same obs order as
+            *h5ad_path* when it is the upstream merge) supplies the
+            counts. Use when *h5ad_path* is a clustered auto file whose
+            raw slot is log-normalised.
 
     Returns:
         tuple:
@@ -305,6 +394,38 @@ def prepare_counts(h5ad_path, out_dir, label, min_cells=30, min_counts=1000,
     logger.info(f"[{label}] Loading {h5ad_path} ...")
     adata = sc.read_h5ad(h5ad_path)
     logger.info(f"  shape: {adata.shape}, samples: {adata.obs['sample_id'].nunique()}")
+
+    if counts_h5ad:
+        logger.info(f"[{label}] Loading integer counts from {counts_h5ad} ...")
+        counts_adata = sc.read_h5ad(counts_h5ad)
+        # The merged file supersedes the clustered file (auto QC drops cells),
+        # so subset counts to the annotated cells (order of adata.obs).
+        missing = adata.obs_names.difference(counts_adata.obs_names)
+        if len(missing):
+            raise ValueError(
+                f"{len(missing)} annotated cells are absent from counts_h5ad "
+                f"(e.g. {missing[0]}) — pass the upstream merged h5ad")
+        counts_adata = counts_adata[adata.obs_names].copy()
+        if "counts" not in counts_adata.layers:
+            raise ValueError(f"{counts_h5ad} has no layers['counts']")
+        if not _is_integer_matrix(counts_adata.layers["counts"]):
+            raise ValueError(f"{counts_h5ad} layers['counts'] is not integer")
+        # Attach full-gene integer counts + var annotation to adata via raw.
+        # This routes the legacy raw path through verified integer counts.
+        from anndata import AnnData as _AnnData
+        counts_adata.obs_names = adata.obs_names.copy()
+        full = _AnnData(
+            X=counts_adata.layers["counts"],
+            obs=adata.obs.copy(),
+            var=counts_adata.var.copy(),
+        )
+        full.obs_names = list(adata.obs_names)
+        full.var_names = list(counts_adata.var_names)
+        adata = full
+        logger.info(f"  counts source: {counts_h5ad} layers['counts'] "
+                    f"({adata.n_vars} features, verified integer)")
+    else:
+        counts_adata = None
 
     targets = sorted(adata.obs["cell_type"].unique().tolist())
     written = []
@@ -884,24 +1005,27 @@ def volcano_plot(deg_df, cell_type, comparison, output_path, title=None,
                                  fontsize=7, color="black", zorder=5))
 
     # Highlight custom genes (e.g. aging markers, SASP factors)
-    # annotate with arrow connector pointing to data point
+    # Added to the same `texts` pool as top-N labels so adjustText
+    # repels ALL labels from each other (fixed-offset annotate caused
+    # overlapping labels when many highlights share similar coordinates).
     if highlight_genes:
         for gene_name in highlight_genes:
             gene_row = sub[sub["gene"] == gene_name]
             if len(gene_row) == 0:
                 continue
             g = gene_row.iloc[0]
-            x, y = g["log2FC"], g["nlogp"]
-            # offset label to the right/left based on sign of log2FC
-            dx = 0.5 if x >= 0 else -0.5
-            ax.annotate(
-                gene_name, xy=(x, y), xytext=(x + dx, y + 1.5),
-                fontsize=7, color="black", fontweight="normal",
-                ha="left" if dx > 0 else "right", va="bottom",
-                arrowprops=dict(arrowstyle="-", color="gray",
-                                lw=0.7, alpha=0.7),
-                zorder=7,
-            )
+            # NaN coordinates (pval_adj NaN → nlogp NaN) poison adjust_text:
+            # one NaN makes it move EVERY label to NaN. Use finite rows only;
+            # pval NaN → display as NS at pval (not padj).
+            if not (np.isfinite(g["log2FC"]) and np.isfinite(g["nlogp"])):
+                p = g["pval"] if np.isfinite(g.get("pval", np.nan)) else 1.0
+                if not np.isfinite(p):
+                    p = 1.0
+                y_pos = -np.log10(min(p, 1e-300))
+            else:
+                y_pos = g["nlogp"]
+            texts.append(ax.text(g["log2FC"], y_pos, gene_name,
+                                 fontsize=7, color="black", zorder=7))
 
     if texts:
         adjust_text(texts, ax=ax, arrowprops=dict(arrowstyle="-",
@@ -1320,6 +1444,10 @@ Examples:
                         help="YAML config (alternative to --h5ad/--compare)")
     parser.add_argument("--h5ad", action="append", metavar="tissue=path",
                         help="Tissue name = h5ad path (repeatable)")
+    parser.add_argument("--counts-h5ad", action="append", metavar="tissue=path",
+                        help="Tissue name = merged h5ad path providing integer "
+                             "layers['counts'] (repeatable). Cells must match "
+                             "the --h5ad annotation file 1:1.")
     parser.add_argument("--compare", action="append", metavar="tissue:ref:treat[=label]",
                         help="Comparison (repeatable, label optional)")
     parser.add_argument("--out-dir", required=True)
@@ -1357,6 +1485,14 @@ Examples:
                 parser.error(f"--h5ad format: tissue=path, got: {item}")
             tissue, path = item.split("=", 1)
             config[tissue] = {"h5ad": path, "comparisons": []}
+        # Parse --counts-h5ad tissue=path (optional merged count source)
+        for item in (args.counts_h5ad or []):
+            if "=" not in item:
+                parser.error(f"--counts-h5ad format: tissue=path, got: {item}")
+            tissue, path = item.split("=", 1)
+            if tissue not in config:
+                parser.error(f"Unknown tissue '{tissue}', define it with --h5ad first")
+            config[tissue]["counts_h5ad"] = path
         # Parse --compare tissue:ref:treat[=label]
         for item in args.compare:
             # Split on = for label (only the last =)
@@ -1413,6 +1549,7 @@ def main():
                     min_cells=args.min_cells, min_counts=args.min_counts,
                     n_pseudo_reps=args.n_pseudo_reps,
                     feature_mode=mode,
+                    counts_h5ad=cfg.get("counts_h5ad"),
                 )
                 all_written.extend(written)
                 tissue_adata[tissue] = adata

@@ -48,6 +48,36 @@ bw_dir = config.get("bw_dir") or outdir
 vcf_suffix = config.get("vcf_suffix") or ".sv.vcf.gz"
 bw_suffix = config.get("bw_suffix") or ".bigwig"
 
+# Decoil rule params — per-rule subfields under Params.decoil
+# (reconstruct / plot / compare / igv), shared params at the parent level
+# (e.g. formats). Rule-level keys fall back to the parent field.
+decoil_params = config.get("Params", {}).get("decoil", {})
+
+
+def reconstruct_param(key: str, default=None):
+    """Resolve Params.decoil.reconstruct.<key> → Params.decoil.<key> → default.
+
+    Parameters
+    ----------
+    key : str
+        Reconstruction parameter name.
+    default : object, optional
+        Value when neither the rule subfield nor the parent field defines it.
+
+    Returns
+    -------
+    object
+        The resolved config value.
+    """
+    return decoil_params.get("reconstruct", {}).get(key, decoil_params.get(key, default))
+
+
+PLOT_FORMATS = (decoil_params.get("plot", {}).get("formats")
+                or decoil_params.get("formats") or ["png"])
+COMPARE_FORMATS = (decoil_params.get("compare", {}).get("formats")
+                   or decoil_params.get("formats") or ["png"])
+IGV_LOCUS = decoil_params.get("igv", {}).get("locus", "")
+
 # pbsv→decoil VCF converter — bin/ script located via ROOT_DIR (project convention)
 PBSV2DECOIL_SCRIPT = os.path.join(ROOT_DIR, "modules", "decoil", "bin", "pbsv2decoil.py")
 
@@ -111,19 +141,19 @@ rule decoil_reconstruct:
         # Tool executable
         decoil           = config.get("Procedure", {}).get("decoil") or "decoil",
         # Decoil `reconstruct` flags (each parameter flat in params, not dict-packed)
-        sv_caller        = config.get("Params", {}).get("decoil", {}).get("sv_caller") or "sniffles1",
-        min_sv_len       = config.get("Params", {}).get("decoil", {}).get("min_sv_len", 500),
-        fragment_min_cov = config.get("Params", {}).get("decoil", {}).get("fragment_min_cov", 5),
-        fragment_max_cov = config.get("Params", {}).get("decoil", {}).get("fragment_max_cov", 100000),
-        fragment_min_size= config.get("Params", {}).get("decoil", {}).get("fragment_min_size", 500),
-        min_vaf          = config.get("Params", {}).get("decoil", {}).get("min_vaf", 0.01),
-        min_cov_alt      = config.get("Params", {}).get("decoil", {}).get("min_cov_alt", 6),
-        min_cov          = config.get("Params", {}).get("decoil", {}).get("min_cov", 8),
-        max_explog       = config.get("Params", {}).get("decoil", {}).get("max_explog_threshold", 0.1),
-        filter_score     = config.get("Params", {}).get("decoil", {}).get("filter_score", 5),
-        extend_chr       = config.get("Params", {}).get("decoil", {}).get("extend_allowed_chromosomes") or "",
-        skip_fasta       = bool(config.get("Params", {}).get("decoil", {}).get("skip", False)),
-        threads          = config.get("Params", {}).get("decoil", {}).get("threads", 16),
+        sv_caller        = reconstruct_param("sv_caller") or "sniffles1",
+        min_sv_len       = reconstruct_param("min_sv_len"),
+        fragment_min_cov = reconstruct_param("fragment_min_cov"),
+        fragment_max_cov = reconstruct_param("fragment_max_cov"),
+        fragment_min_size= reconstruct_param("fragment_min_size"),
+        min_vaf          = reconstruct_param("min_vaf"),
+        min_cov_alt      = reconstruct_param("min_cov_alt"),
+        min_cov          = reconstruct_param("min_cov"),
+        max_explog       = reconstruct_param("max_explog_threshold"),
+        filter_score     = reconstruct_param("filter_score"),
+        extend_chr       = reconstruct_param("extend_allowed_chromosomes") or "",
+        skip_fasta       = bool(reconstruct_param("skip")),
+        threads          = reconstruct_param("threads"),
     threads: 16
     run:
         log_path = str(log)
@@ -240,7 +270,7 @@ rule decoil_plot:
         sif("decoil.yaml")
     params:
         plot_script = DECOIL_PLOT_SCRIPT,
-        formats     = config.get("Params", {}).get("visualization", {}).get("formats") or ["png"],
+        formats     = PLOT_FORMATS,
     run:
         log_path = str(log)
         rule_logger = setup_logger(logger_name="decoil_plot", log_file=log_path)
@@ -291,7 +321,7 @@ rule decoil_compare:
         sif("decoil.yaml")
     params:
         plot_script = DECOIL_PLOT_SCRIPT,
-        formats     = config.get("Params", {}).get("visualization", {}).get("formats") or ["png"],
+        formats     = COMPARE_FORMATS,
     run:
         log_path = str(log)
         rule_logger = setup_logger(logger_name="decoil_compare", log_file=log_path)
@@ -346,7 +376,7 @@ rule decoil_igv:
         track_script      = TRACK_SCRIPT,
         base_igv_config   = igv_cfg,
         config_json       = outdir + "/{sample_id}/visualization/igv_ecdna_config.json",
-        locus             = config.get("Params", {}).get("visualization", {}).get("igv_locus", ""),
+        locus             = IGV_LOCUS,
     run:
         log_path = str(log)
         rule_logger = setup_logger(logger_name="decoil_igv", log_file=log_path)

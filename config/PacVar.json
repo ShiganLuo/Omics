@@ -102,11 +102,14 @@
             "sv_caller": "sniffles1",
             "threads": 16,
             "extend_allowed_chromosomes": "",
-            "skip": false
-        },
-        "visualization": {
+            "skip": false,
             "formats": ["png"],
-            "igv_locus": ""
+            "reconstruct": {},
+            "plot": {},
+            "compare": {},
+            "igv": {
+                "locus": ""
+            }
         }
     },
     "genome": {

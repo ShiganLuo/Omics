@@ -109,6 +109,7 @@ rule msfragger_run:
 rule msfragger_idxml:
     input:
         pepxml = outdir + "/{sample_id}/{sample_id}.pepXML",
+        mzml = indir + "/{sample_id}/{sample_id}.mzML",
         fasta = lambda wildcards: _require(search_fasta, "genome.search_fasta", "msfragger"),
     output:
         idxml = outdir + "/{sample_id}/{sample_id}_msfragger.idXML",
@@ -133,8 +134,51 @@ rule msfragger_idxml:
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
             script = os.path.join(sample_outdir, f"msfragger_idxml_{current_time}.sh")
+            # Staged copy must keep a .pepXML suffix: IDFileConverter has no
+            # -in_type in OpenMS 3.x and infers the INPUT type from the
+            # extension (it only offers -out_type).
+            tmp_pepxml = os.path.join(sample_outdir, f"{wildcards.sample_id}.sanitized.pepXML")
             tmp_idxml = str(output.idxml) + ".tmp"
-            convert_cmd = [params.converter, "-in", str(input.pepxml), "-out", tmp_idxml]
+            # MSFragger writes <sample_enzyme name="stricttrypsin">, which the
+            # OpenMS EnzymeDB cannot resolve ("the element 'stricttrypsin' could
+            # not be found"); rewrite it to the equivalent standard enzyme name
+            # on a staged copy -- the <specificity> element keeps the actual
+            # cleavage semantics. The upstream pepXML stays untouched.
+            sanitize_cmd = (
+                "sed 's/name=\"stricttrypsin\"/name=\"Trypsin\"/' {} > {}".format(
+                    shlex.quote(str(input.pepxml)), shlex.quote(tmp_pepxml)
+                )
+            )
+            # -out_type is required: OpenMS would otherwise infer the output
+            # type from the .tmp staging extension and abort with
+            # "Could not determine output file type!".
+            convert_cmd = [
+                params.converter,
+                "-in", tmp_pepxml,
+                "-out", tmp_idxml,
+                "-out_type", "idXML",
+            ]
+            # IDMapper at quantification requires an annotated primary MS run
+            # path (idXML meta 'spectra_data'); pepXML -> idXML conversion
+            # leaves it empty (even with -mz_file) and later OpenMS tools
+            # serialize it as "[]", which IDMapper rejects with
+            # "No MS run path annotated in ProteinIdentification.". Inject the
+            # mzML run path once here; downstream tools round-trip the value
+            # unchanged (verified PSMFeatureExtractor -> PercolatorAdapter ->
+            # FalseDiscoveryRate -> Epifany -> IDMapper). Delete-before-insert
+            # keeps it single: duplicate 'spectra_data' keys silently overwrite
+            # (last one wins), which re-introduces the empty value.
+            annotate_expr = (
+                "s|^\\([[:space:]]*<ProteinIdentification [^>]*>\\)$|\\1\\n"
+                "\\t\\t\\t<UserParam type=\"stringList\" name=\"spectra_data\" "
+                "value=\"[" + str(input.mzml) + "]\"/>|"
+            )
+            annotate_cmd = (
+                "sed -i '/name=\"spectra_data\"/d' {f}\nsed -i {expr} {f}".format(
+                    f=shlex.quote(str(output.idxml)),
+                    expr=shlex.quote(annotate_expr),
+                )
+            )
             # PeptideIndexer re-annotates target/decoy + protein mapping so the
             # downstream OpenMS chain (PercolatorAdapter/FalseDiscoveryRate)
             # sees the same annotations the CometAdapter path produces.
@@ -148,9 +192,11 @@ rule msfragger_idxml:
                 index_cmd += ["-unmatched_action", str(params.unmatched_action)]
             with open(script, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
+                f.write(sanitize_cmd + "\n")
                 f.write(" ".join(shlex.quote(str(x)) for x in convert_cmd) + "\n")
                 f.write(" ".join(shlex.quote(str(x)) for x in index_cmd) + "\n")
-                f.write(f"rm -f {shlex.quote(tmp_idxml)}\n")
+                f.write(annotate_cmd + "\n")
+                f.write(f"rm -f {shlex.quote(tmp_idxml)} {shlex.quote(tmp_pepxml)}\n")
                 f.write(f"echo 'pepXML -> idXML conversion for {wildcards.sample_id} completed at {current_time}'\n")
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:

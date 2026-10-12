@@ -207,11 +207,22 @@ rule quantification_tmt_reporter:
 rule quantification_tmt:
     input:
         mapped = expand(outdir + "/{sample_id}/{sample_id}.mapped.consensusXML",
-                        sample_id=samples)
+                        sample_id=samples),
+        protein_groups = expand(indir + "/{sample_id}/{sample_id}_protein.idXML",
+                                sample_id=samples)
     output:
-        mztab = outdir + "/tmt_quantification.mzTab",
-        cxml = outdir + "/tmt_quantification.consensusXML",
-        proteins = outdir + "/tmt_quantification.proteins.csv",
+        # Per-plex protein tables stay SEPARATE: FileMerger folds the 16
+        # channel maps of every plex into 16 shared maps named
+        # "mergedConsensusXMLFile", which destroys sample identity (pooled
+        # abundances, mzTab PSM->file mapping and MSstatsConverter design
+        # matching all break on it). Each plex is quantified on its own
+        # mapped consensusXML + its own protein inference; the per-plex CSVs
+        # are then stacked into one long table (sample x channel x protein).
+        proteins_long = outdir + "/tmt_protein_abundances.csv",
+        consensus_tables = expand(outdir + "/{sample_id}/{sample_id}_proteins.csv",
+                                  sample_id=samples),
+        **({"mztab": outdir + "/tmt_quantification.mzTab"}
+           if config.get("expdesign", "") else {}),
     log:
         logdir + "/quantification/quantification_tmt.log"
     threads: 8
@@ -220,9 +231,8 @@ rule quantification_tmt:
     container:
         sif("../openms.yaml")
     params:
-        file_merger = file_merger,
         proteinquantifier = proteinquantifier,
-        expdesign = expdesign,
+        expdesign = config.get("expdesign", ""),
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -232,28 +242,91 @@ rule quantification_tmt:
             rule_logger.info(f"Start TMT quantification at {current_time}")
             os.makedirs(outdir, exist_ok=True)
             script = os.path.join(outdir, f"quantification_tmt_{current_time}.sh")
-            merge_cmd = [
-                params.file_merger,
-                "-in", *[str(x) for x in input.mapped],
-                "-in_type", "consensusXML",
-                "-out", output.cxml,
-            ]
-            quant_cmd = [
-                params.proteinquantifier,
-                "-in", output.cxml,
-                "-mztab", output.mztab,
-                "-out", output.proteins,
-                "-top:N", str(top_n),
-                "-top:aggregate", str(top_aggregate),
-            ]
-            if best_charge_and_fraction:
-                quant_cmd.append("-best_charge_and_fraction")
-            if params.expdesign:
-                quant_cmd += ["-design", str(params.expdesign)]
+            quant_cmds = []
+            csvs = []
+            for sample_id, mapped_cxml, protein_idxml in zip(
+                    samples, input.mapped, input.protein_groups):
+                per_csv = str(outdir) + f"/{sample_id}/{sample_id}_proteins.csv"
+                cmd = [
+                    params.proteinquantifier,
+                    "-in", str(mapped_cxml),
+                    "-protein_groups", str(protein_idxml),
+                    "-out", per_csv,
+                    "-top:N", str(top_n),
+                    "-top:aggregate", str(top_aggregate),
+                ]
+                if best_charge_and_fraction:
+                    cmd.append("-best_charge_and_fraction")
+                if params.expdesign:
+                    per_mztab = str(outdir) + f"/{sample_id}/{sample_id}_quant.mzTab"
+                    cmd += ["-mztab", per_mztab]
+                quant_cmds.append(" ".join(shlex.quote(str(x)) for x in cmd))
+                csvs.append(per_csv)
+            # Stack the per-plex tables into one long table:
+            # plex,sample,channel,protein,n_proteins,protein_score,n_peptides,abundance
+            # abundance_<k> maps to TMT channel k in IsobaricAnalyzer's fixed
+            # order (126, 127N, 127C, ..., 134N for tmt16plex).
+            channels = {
+                "tmt16plex": ["126", "127N", "127C", "128N", "128C", "129N",
+                              "129C", "130N", "130C", "131N", "131C", "132N",
+                              "132C", "133N", "133C", "134N"],
+                "tmt10plex": ["126", "127N", "127C", "128N", "128C", "129N",
+                              "129C", "130N", "131N"],
+                "tmt6plex": ["126", "127N", "127C", "128N", "128C", "131N"],
+            }.get(str(tmt_type), [str(i + 1) for i in range(16)])
+            stack_py = (
+                "import csv, sys, glob, os\n"
+                "out_path, channels_arg = sys.argv[1], sys.argv[2]\n"
+                "plex_dirs = sys.argv[3:]\n"
+                "channels = channels_arg.split(',')\n"
+                "out = open(out_path, 'w', newline='')\n"
+                "w = csv.writer(out, delimiter='\\t')\n"
+                "w.writerow(['plex','sample','channel','protein','n_proteins',"
+                "'protein_score','n_peptides','abundance'])\n"
+                "for plex_dir in sorted(plex_dirs):\n"
+                "    plex = os.path.basename(plex_dir)\n"
+                "    sample = plex  # one plex == one multiplexed run == one sample file\n"
+                "    f = glob.glob(os.path.join(plex_dir, '*_proteins.csv'))\n"
+                "    if not f:\n"
+                "        sys.exit(f'no quant table in {plex_dir}')\n"
+                "    rows = list(csv.reader(open(f[0]), delimiter='\\t'))\n"
+                "    hdr = None\n"
+                "    for i, r in enumerate(rows):\n"
+                "        if r and r[0] == 'protein':\n"
+                "            hdr = (i, r)\n"
+                "    if hdr is None:\n"
+                "        sys.exit(f'no header in {f[0]}')\n"
+                "    cols = {n: k for k, n in enumerate(hdr[1])}\n"
+                "    for r in rows[hdr[0] + 1:]:\n"
+                "        if not r or not r[cols['protein']]:\n"
+                "            continue\n"
+                "        for ch_i, ch in enumerate(channels):\n"
+                "            key = f'abundance_{ch_i + 1}'\n"
+                "            if key not in cols or cols[key] >= len(r):\n"
+                "                continue\n"
+                "            val = r[cols[key]]\n"
+                "            if val == '' or float(val) == 0.0:\n"
+                "                continue\n"
+                "            w.writerow([plex, sample, ch, r[cols['protein']],\n"
+                "                        r[cols['n_proteins']], r[cols['protein_score']],\n"
+                "                        r[cols['n_peptides']], val])\n"
+                "out.close()\n"
+            )
+            stack_cmd = (
+                # arg order MUST match stack_py's parsing:
+                #   argv[1]=out, argv[2]=channels(csv), argv[3:]=plex dirs
+                "python3 -c {} {} {} {}".format(
+                    shlex.quote(stack_py),
+                    shlex.quote(str(output.proteins_long)),
+                    shlex.quote(",".join(channels)),
+                    " ".join(shlex.quote(str(outdir) + "/" + s) for s in samples),
+                )
+            )
             with open(script, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
-                f.write(" ".join(shlex.quote(str(x)) for x in merge_cmd) + "\n")
-                f.write(" ".join(shlex.quote(str(x)) for x in quant_cmd) + "\n")
+                for cmd_line in quant_cmds:
+                    f.write(cmd_line + "\n")
+                f.write(stack_cmd + "\n")
                 f.write(f"echo 'TMT quantification completed at {current_time}'\n")
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
@@ -316,8 +389,11 @@ rule quantification_dia:
 # Panel rule: which quantification products the workflow registers is decided
 # by node.py through the output paths it writes into outfiles; this rule only
 # aggregates the products of the configured quantification method.
+# tmt: the merged-design mzTab needs an experimental design (plex -> channel
+# -> condition mapping); without one the per-plex protein tables and the long
+# abundance table are the deliverables.
 _RESULT_MZTAB = {
-    "tmt": outdir + "/tmt_quantification.mzTab",
+    "tmt": outdir + "/tmt_quantification.mzTab" if config.get("expdesign", "") else outdir + "/tmt_protein_abundances.csv",
     "lfq": outdir + "/lfq_quantification.mzTab",
     "dia": outdir + "/dia_quantification.mzTab",
 }

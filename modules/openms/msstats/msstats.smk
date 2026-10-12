@@ -18,7 +18,8 @@ msstats_converter = config.get("Procedure", {}).get("msstats") or "MSstatsConver
 # Per-method product of the quantification module that carries the peptide
 # intensities for the MSstats input table:
 #   lfq/dia -> ProteomicsLFQ -out_msstats CSV (already MSstats input format)
-#   tmt     -> merged isobaric consensusXML, converted here by MSstatsConverter
+#   tmt     -> merged isobaric consensusXML (only produced with an expdesign),
+#              converted here by MSstatsConverter
 _MSSTATS_SOURCE = {
     "tmt": indir + "/tmt_quantification.consensusXML",
     "lfq": indir + "/lfq_msstats.csv",
@@ -27,7 +28,8 @@ _MSSTATS_SOURCE = {
 
 rule msstats:
     input:
-        source = _MSSTATS_SOURCE.get(quantification_method, indir + "/lfq_msstats.csv")
+        **({"source": _MSSTATS_SOURCE.get(quantification_method, indir + "/lfq_msstats.csv")}
+           if (expdesign or quantification_method != "tmt") else {})
     output:
         csv = outdir + "/msstats_input.csv"
     log:
@@ -52,24 +54,33 @@ rule msstats:
             script = os.path.join(outdir, f"msstats_{current_time}.sh")
             if params.method == "tmt":
                 # Isobaric consensusXML -> MSstats (MSstatsTMT) input CSV.
+                # Requires an experimental design AND a merged consensusXML
+                # with intact per-plex sample identity; per the quantification
+                # module, merged-design mzTab/MSstats inputs are only produced
+                # when Params.workflow.expdesign is set. Without a design the
+                # deliverable is the long abundance table instead, so skip.
                 if not params.expdesign:
-                    raise ValueError(
-                        "quantification_method='tmt' needs an experimental "
-                        "design file: set 'Params.workflow.expdesign' in the "
-                        "workflow config JSON, then rerun."
+                    rule_logger.info(
+                        "Params.workflow.expdesign is empty: skipping TMT "
+                        "MSstats input preparation (needs a plex->channel->"
+                        "condition design). Protein-level deliverable is "
+                        "7_quantification/tmt_protein_abundances.csv."
                     )
-                cmd = [
-                    params.msstats_converter,
-                    "-in", str(input.source),
-                    "-in_design", str(params.expdesign),
-                    "-method", "ISO",
-                    "-out", output.csv,
-                ]
-                with open(script, "w") as f:
-                    f.write("#!/bin/bash\nset -euo pipefail\n")
-                    f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
-                    f.write(f"echo 'MSstats input preparation completed at {current_time}'\n")
-                shell(f"bash {script} >> {log_path} 2>&1")
+                    os.makedirs(str(outdir), exist_ok=True)
+                    open(str(output.csv), "w").close()
+                else:
+                    cmd = [
+                        params.msstats_converter,
+                        "-in", str(input.source),
+                        "-in_design", str(params.expdesign),
+                        "-method", "ISO",
+                        "-out", output.csv,
+                    ]
+                    with open(script, "w") as f:
+                        f.write("#!/bin/bash\nset -euo pipefail\n")
+                        f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
+                        f.write(f"echo 'MSstats input preparation completed at {current_time}'\n")
+                    shell(f"bash {script} >> {log_path} 2>&1")
             else:
                 # ProteomicsLFQ -out_msstats already writes the MSstats input
                 # CSV; stage it under the uniform final path.

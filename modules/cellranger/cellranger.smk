@@ -46,6 +46,7 @@ rule cellranger_ref:
         genome_name = config.get("Params", {}).get("cellranger", {}).get("mkref", {}).get("genome_name", "GRCh38"),
         version = config.get("Params", {}).get("cellranger", {}).get("mkref", {}).get("version", "2024-A"),
         nthreads = 16,
+        cellranger_ref_dir = cellranger_ref_dir
     run:
         log_path = str(log)
         open(log_path, 'w').close()
@@ -59,7 +60,7 @@ rule cellranger_ref:
                 "python", params.script,
                 "--fasta", input.fasta,
                 "--gtf", input.gtf,
-                "--output", str(output.ref_dir),
+                "--output", str(params.cellranger_ref_dir),
                 "--genome", params.genome_name,
                 "--version", params.version,
                 "--cellranger", params.cellranger,

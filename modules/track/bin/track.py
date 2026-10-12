@@ -98,6 +98,8 @@ def _track_type(file_path: str) -> str:
         return "bigWig"
     if suffix in {".bedgraph", ".bdg"}:
         return "bedGraph"
+    if suffix == ".bed" or file_path.lower().endswith(".bed.gz"):
+        return "bed"
     return "bigWig"
 
 

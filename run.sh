@@ -58,7 +58,8 @@ python ${SCRIPT_DIR}/run.py \
 #     -t 48 \
 #     --log /data/pub/zhousha/20260207_Exome/log/PacVar.log \
 #     --rerun-trigger mtime \
-#     --sdm apptainer
+#     --sdm apptainer \
+#     --dry-run
 
 # python ${SCRIPT_DIR}/run.py \
 #     -m /data/16T/luosg/data/meta_PXDO53575.tsv \

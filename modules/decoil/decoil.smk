@@ -205,3 +205,243 @@ rule decoil_result:
         reconstruct_ecdna    = outdir + "/{sample_id}/decoil/reconstruct.ecDNA.bed",
         reconstruct_filtered = outdir + "/{sample_id}/decoil/reconstruct.ecDNA.filtered.bed",
         summary              = outdir + "/{sample_id}/decoil/summary.txt",
+
+
+# ============================================================
+# Visualization: per-sample statistics plots + cross-sample compare
+# Scripts located via ROOT_DIR (project convention, see pitfall #55).
+# ============================================================
+DECOIL_PLOT_SCRIPT = os.path.join(ROOT_DIR, "modules", "decoil", "bin", "decoil_plot.py")
+DECOIL_IGV_CONFIG_SCRIPT = os.path.join(ROOT_DIR, "modules", "decoil", "bin", "decoil_igv_config.py")
+TRACK_SCRIPT = os.path.join(ROOT_DIR, "modules", "track", "bin", "track.py")
+
+# IGV base config (reference fasta/index/cytoband/GTF + publicPathMap) —
+# same structure as modules/track/track.json 'igv' section.
+igv_cfg = config.get("igv", {})
+
+
+rule decoil_plot:
+    """Per-sample ecDNA statistics: size distribution, topology, region table.
+
+    Consumes the sample's own summary.txt + filtered ecDNA BED and produces
+    plots + TSV tables under {outdir}/{sample_id}/visualization/.
+    """
+    input:
+        summary              = outdir + "/{sample_id}/decoil/summary.txt",
+        reconstruct_filtered = outdir + "/{sample_id}/decoil/reconstruct.ecDNA.filtered.bed",
+    output:
+        png                  = outdir + "/{sample_id}/visualization/decoil_stats.png",
+        regions_tsv          = outdir + "/{sample_id}/visualization/decoil_stats_ecdna_regions.tsv",
+    log:
+        logdir + "/{sample_id}/decoil_plot.log"
+    conda:
+        "decoil.yaml"
+    container:
+        sif("decoil.yaml")
+    params:
+        plot_script = DECOIL_PLOT_SCRIPT,
+        formats     = config.get("Params", {}).get("visualization", {}).get("formats") or ["png"],
+    run:
+        log_path = str(log)
+        rule_logger = setup_logger(logger_name="decoil_plot", log_file=log_path)
+        open(log_path, "w").close()
+        try:
+            current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+            rule_logger.info(f"Start decoil_plot for sample {wildcards.sample_id} at {current_time}")
+            sample_vis_dir = os.path.dirname(str(output.png))
+            os.makedirs(sample_vis_dir, exist_ok=True)
+            script = os.path.join(sample_vis_dir, f"decoil_plot_{wildcards.sample_id}_{current_time}.sh")
+            cmd = [
+                "python", params.plot_script,
+                "--mode", "single",
+                "--sample", f"{wildcards.sample_id}:{input.summary}",
+                "--ecdna-bed", f"{wildcards.sample_id}:{input.reconstruct_filtered}",
+                "-o", os.path.join(sample_vis_dir, "decoil_stats"),
+            ]
+            for fmt in params.formats:
+                cmd += ["-f", str(fmt)]
+            with open(script, "w") as f:
+                f.write("#!/bin/bash\n")
+                f.write(" ".join(cmd) + "\n")
+            rule_logger.info("Executing: " + " ".join(cmd))
+            shell(f"bash {script} >> {log_path} 2>&1")
+        except Exception as e:
+            rule_logger.error(f"decoil_plot failed for sample {wildcards.sample_id}: {e}")
+            raise RuntimeError(f"decoil_plot failed for sample {wildcards.sample_id}: {e}")
+
+
+rule decoil_compare:
+    """Cross-sample ecDNA comparison panel + shared/unique region table.
+
+    Aggregates every sample's summary.txt + filtered ecDNA BED into one
+    comparison figure and a shared/unique TSV under {outdir}/visualization/.
+    """
+    input:
+        summaries = expand(outdir + "/{sample_id}/decoil/summary.txt", sample_id=samples),
+        beds      = expand(outdir + "/{sample_id}/decoil/reconstruct.ecDNA.filtered.bed", sample_id=samples),
+    output:
+        png            = outdir + "/visualization/decoil_compare.png",
+        shared_tsv     = outdir + "/visualization/decoil_compare_shared_unique.tsv",
+        regions_tsv    = outdir + "/visualization/decoil_compare_ecdna_regions.tsv",
+    log:
+        logdir + "/decoil_compare.log"
+    conda:
+        "decoil.yaml"
+    container:
+        sif("decoil.yaml")
+    params:
+        plot_script = DECOIL_PLOT_SCRIPT,
+        formats     = config.get("Params", {}).get("visualization", {}).get("formats") or ["png"],
+    run:
+        log_path = str(log)
+        rule_logger = setup_logger(logger_name="decoil_compare", log_file=log_path)
+        open(log_path, "w").close()
+        try:
+            current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+            rule_logger.info(f"Start decoil_compare for samples {samples} at {current_time}")
+            compare_dir = os.path.dirname(str(output.png))
+            os.makedirs(compare_dir, exist_ok=True)
+            script = os.path.join(compare_dir, f"decoil_compare_{current_time}.sh")
+            cmd = [
+                "python", params.plot_script,
+                "--mode", "compare",
+            ]
+            for sid, summary_path in zip(samples, list(input.summaries)):
+                cmd += ["--sample", f"{sid}:{summary_path}"]
+            for sid, bed_path in zip(samples, list(input.beds)):
+                cmd += ["--ecdna-bed", f"{sid}:{bed_path}"]
+            cmd += ["-o", os.path.join(compare_dir, "decoil_compare")]
+            for fmt in params.formats:
+                cmd += ["-f", str(fmt)]
+            with open(script, "w") as f:
+                f.write("#!/bin/bash\n")
+                f.write(" ".join(cmd) + "\n")
+            rule_logger.info("Executing: " + " ".join(cmd))
+            shell(f"bash {script} >> {log_path} 2>&1")
+        except Exception as e:
+            rule_logger.error(f"decoil_compare failed: {e}")
+            raise RuntimeError(f"decoil_compare failed: {e}")
+
+
+rule decoil_igv:
+    """Interactive IGV.js HTML per sample: coverage bigwig + ecDNA BED + GTF.
+
+    Reuses modules/track/bin/track.py (``--mode igv``) with a Decoil-specific
+    browser config generated by bin/decoil_igv_config.py. The HTML opens on
+    the sample's largest ecDNA region by default.
+    """
+    input:
+        reconstruct_filtered = outdir + "/{sample_id}/decoil/reconstruct.ecDNA.filtered.bed",
+        bw                   = os.path.join(bw_dir, "{sample_id}", "{sample_id}" + bw_suffix),
+    output:
+        html                 = outdir + "/{sample_id}/visualization/igv_ecdna.html",
+    log:
+        logdir + "/{sample_id}/decoil_igv.log"
+    conda:
+        "decoil.yaml"
+    container:
+        sif("decoil.yaml")
+    params:
+        igv_config_script = DECOIL_IGV_CONFIG_SCRIPT,
+        track_script      = TRACK_SCRIPT,
+        base_igv_config   = igv_cfg,
+        config_json       = outdir + "/{sample_id}/visualization/igv_ecdna_config.json",
+        locus             = config.get("Params", {}).get("visualization", {}).get("igv_locus", ""),
+    run:
+        log_path = str(log)
+        rule_logger = setup_logger(logger_name="decoil_igv", log_file=log_path)
+        open(log_path, "w").close()
+        try:
+            import json
+            current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+            rule_logger.info(f"Start decoil_igv for sample {wildcards.sample_id} at {current_time}")
+            if not params.base_igv_config:
+                raise ValueError(
+                    "decoil_igv requires 'igv' config (reference fastaURL/"
+                    "indexURL/GTF tracks + publicPathMap). Add an 'igv' "
+                    "section to the workflow config, see modules/track/track.json."
+                )
+            sample_vis_dir = os.path.dirname(str(output.html))
+            os.makedirs(sample_vis_dir, exist_ok=True)
+
+            # Render the config template with this sample's concrete paths,
+            # then let decoil_igv_config.py add bigwig/bed tracks + locus.
+            base_cfg = dict(params.base_igv_config)
+            config_json_path = str(params.config_json)
+            tmp_base_json = os.path.join(sample_vis_dir, f"igv_base_{wildcards.sample_id}.json")
+            with open(tmp_base_json, "w") as f:
+                json.dump(base_cfg, f, indent=2)
+
+            script = os.path.join(sample_vis_dir, f"decoil_igv_{wildcards.sample_id}_{current_time}.sh")
+            cmd1 = [
+                "python", params.igv_config_script,
+                "--sample", f"{wildcards.sample_id}:{input.reconstruct_filtered}",
+                "--bw", f"{wildcards.sample_id}:{input.bw}",
+                "--igv-config", tmp_base_json,
+                "-o", config_json_path,
+            ]
+            if params.locus:
+                cmd1 += ["--locus", str(params.locus)]
+            cmd2 = [
+                "python", params.track_script,
+                "--mode", "igv",
+                "--config", config_json_path,
+                "-i", input.bw,
+                "-o", str(output.html),
+            ]
+            with open(script, "w") as f:
+                f.write("#!/bin/bash\n")
+                f.write(" ".join(cmd1) + "\n")
+                f.write(" ".join(cmd2) + "\n")
+            rule_logger.info("Executing: " + " ".join(cmd1) + " && " + " ".join(cmd2))
+            shell(f"bash {script} >> {log_path} 2>&1")
+        except Exception as e:
+            rule_logger.error(f"decoil_igv failed for sample {wildcards.sample_id}: {e}")
+            raise RuntimeError(f"decoil_igv failed for sample {wildcards.sample_id}: {e}")
+
+
+rule decoil_ucsc:
+    """UCSC Genome Browser track line file per sample.
+
+    Same input set as decoil_igv (coverage bigwig + ecDNA BED) but emits a
+    UCSC-style track hub text (``track type=... bigDataUrl=...`` lines) via
+    track.py ``--mode ucsc``, for loading the sample tracks into a UCSC
+    Genome Browser session or any hub-compatible viewer.
+    """
+    input:
+        reconstruct_filtered = outdir + "/{sample_id}/decoil/reconstruct.ecDNA.filtered.bed",
+        bw                   = os.path.join(bw_dir, "{sample_id}", "{sample_id}" + bw_suffix),
+    output:
+        track                = outdir + "/{sample_id}/visualization/ucsc_track.txt",
+    log:
+        logdir + "/{sample_id}/decoil_ucsc.log"
+    conda:
+        "decoil.yaml"
+    container:
+        sif("decoil.yaml")
+    params:
+        track_script = TRACK_SCRIPT,
+    run:
+        log_path = str(log)
+        rule_logger = setup_logger(logger_name="decoil_ucsc", log_file=log_path)
+        open(log_path, "w").close()
+        try:
+            current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+            rule_logger.info(f"Start decoil_ucsc for sample {wildcards.sample_id} at {current_time}")
+            sample_vis_dir = os.path.dirname(str(output.track))
+            os.makedirs(sample_vis_dir, exist_ok=True)
+            script = os.path.join(sample_vis_dir, f"decoil_ucsc_{wildcards.sample_id}_{current_time}.sh")
+            cmd = [
+                "python", params.track_script,
+                "--mode", "ucsc",
+                "-i", input.bw, input.reconstruct_filtered,
+                "-o", str(output.track),
+            ]
+            with open(script, "w") as f:
+                f.write("#!/bin/bash\n")
+                f.write(" ".join(cmd) + "\n")
+            rule_logger.info("Executing: " + " ".join(cmd))
+            shell(f"bash {script} >> {log_path} 2>&1")
+        except Exception as e:
+            rule_logger.error(f"decoil_ucsc failed for sample {wildcards.sample_id}: {e}")
+            raise RuntimeError(f"decoil_ucsc failed for sample {wildcards.sample_id}: {e}")

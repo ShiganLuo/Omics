@@ -15,29 +15,29 @@
     },
     "Params": {
         "decoil": {
-            "sv_caller": "sniffles1",
-            "min_sv_len": 500,
-            "fragment_min_cov": 5,
-            "fragment_max_cov": 100000,
-            "fragment_min_size": 500,
-            "min_vaf": 0.01,
-            "min_cov_alt": 6,
-            "min_cov": 8,
-            "max_explog_threshold": 0.1,
-            "filter_score": 5,
-            "extend_allowed_chromosomes": "",
-            "skip": false,
-            "threads": 16,
+            "reconstruct": {
+                "sv_caller": "sniffles1",
+                "min_sv_len": 500,
+                "fragment_min_cov": 5,
+                "fragment_max_cov": 100000,
+                "fragment_min_size": 500,
+                "min_vaf": 0.01,
+                "min_cov_alt": 6,
+                "min_cov": 8,
+                "max_explog_threshold": 0.1,
+                "filter_score": 5,
+                "extend_allowed_chromosomes": "",
+                "skip": false
+            },
             "formats": ["png"],
-            "reconstruct": {},
             "plot": {},
             "compare": {},
             "igv": {
                 "locus": ""
             }
-        }
+        },
+        "igv": {}
     },
-    "igv": {},
     "genome": {
         "fasta": null,
         "gtf": null

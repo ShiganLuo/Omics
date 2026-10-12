@@ -103,6 +103,10 @@
             "threads": 16,
             "extend_allowed_chromosomes": "",
             "skip": false
+        },
+        "visualization": {
+            "formats": ["png"],
+            "igv_locus": ""
         }
     },
     "genome": {

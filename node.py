@@ -366,6 +366,13 @@ def runPacVar(
             outfiles.append(f"{outdir}/eccdna/{sample_id}/decoil/reconstruct.ecDNA.bed")
             outfiles.append(f"{outdir}/eccdna/{sample_id}/decoil/reconstruct.ecDNA.filtered.bed")
             outfiles.append(f"{outdir}/eccdna/{sample_id}/decoil/summary.txt")
+            # Visualization: per-sample stats + interactive IGV HTML
+            outfiles.append(f"{outdir}/eccdna/{sample_id}/visualization/decoil_stats.png")
+            outfiles.append(f"{outdir}/eccdna/{sample_id}/visualization/igv_ecdna.html")
+            outfiles.append(f"{outdir}/eccdna/{sample_id}/visualization/ucsc_track.txt")
+        # Cross-sample comparison (aggregated)
+        outfiles.append(f"{outdir}/eccdna/visualization/decoil_compare.png")
+        outfiles.append(f"{outdir}/eccdna/visualization/decoil_compare_shared_unique.tsv")
     elif enable_eccdna:
         logger.warning(
             "PacVar: Params.eccdna.enabled=true but genome.gtf is missing; "

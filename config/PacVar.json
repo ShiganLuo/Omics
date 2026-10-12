@@ -106,21 +106,40 @@
         }
     },
     "genome": {
-        "default": "GRCm39",
-        "references": {
-            "GRCh38":{
-                "fasta": "/data/pub/zhousha/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa",
-                "fai": null,
-                "gtf": "/data/pub/zhousha/Reference/human/GENCODE/GRCh38/gencode.v49.primary_assembly.basic.annotation.gtf",
-                "repeat_bed": null
-            },
-            "GRCm39": {
-                "fasta": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
-                "fai": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa.fai",
-                "gtf": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf",
-                "dict": null,
-                "repeat_bed": null
-            }
-        }
+     "default": "GRCm39",
+     "references": {
+       "GRCh38": {
+         "fasta": "/data/pub/zhousha/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa",
+         "fai": null,
+         "gtf": "/data/pub/zhousha/Reference/human/GENCODE/GRCh38/gencode.v49.primary_assembly.basic.annotation.gtf",
+         "repeat_bed": null
+       },
+       "GRCm39": {
+         "fasta": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
+         "fai": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa.fai",
+         "gtf": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf",
+         "dict": null,
+         "repeat_bed": null
+       }
+     }
+    },
+    "igv": {
+     "js": "/data/pub/zhousha/Reference/igv.min.js",
+     "id": "mm39",
+     "name": "Mouse (GRCm39/mm39)",
+     "publicPathMap": {
+       "/data/pub/zhousha/": "/data/"
+     },
+     "fastaURL": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
+     "indexURL": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa.fai",
+     "cytobandURL": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/mm39.cytoBand.txt",
+     "tracks": [
+       {
+         "name": "Gencode vM38 genes",
+         "format": "gtf",
+         "url": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/gencode.vM38.basic.gene_exon.sorted.gtf.gz",
+         "indexUrl": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/gencode.vM38.basic.gene_exon.sorted.gtf.gz.tbi"
+       }
+     ]
     }
 }

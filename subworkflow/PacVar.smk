@@ -322,8 +322,10 @@ decoil_config = {
         "decoil": config.get("Procedure", {}).get("decoil")
     },
     "Params": {
-        "decoil": config.get("Params", {}).get("decoil", {})
+        "decoil": config.get("Params", {}).get("decoil", {}),
+        "visualization": config.get("Params", {}).get("visualization", {})
     },
+    "igv": config.get("igv", {}),
     "genome": {
         "fasta": genome_ref.get("fasta"),
         "gtf": genome_ref.get("gtf")
@@ -335,3 +337,7 @@ module decoil:
 logger.debug(f"decoil_config: {decoil_config}")
 use rule decoil_reconstruct from decoil as PacVar_decoil_reconstruct
 use rule decoil_result from decoil as PacVar_decoil_result
+use rule decoil_plot from decoil as PacVar_decoil_plot
+use rule decoil_compare from decoil as PacVar_decoil_compare
+use rule decoil_igv from decoil as PacVar_decoil_igv
+use rule decoil_ucsc from decoil as PacVar_decoil_ucsc

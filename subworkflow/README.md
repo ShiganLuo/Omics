@@ -262,6 +262,12 @@ FASTQ
   - 输出：`{outdir}/eccdna/{sample_id}/decoil/{reconstruct.bed, reconstruct.ecDNA.bed, reconstruct.ecDNA.filtered.bed, summary.txt, *.sv.vcf.gz, *.coverage.bw}`
   - 关键参数：`Params.decoil.{min_vaf, fragment_min_cov, min_cov, sv_caller, filter_score}` 等
   - 关闭：`Params.skip_eccdna=true`，或未配置 `genome.gtf`（自动跳过并写 warning 日志）
+- **eccDNA 可视化（集成于 decoil 模块）**：
+  - `decoil_plot`（每样本）：尺寸分布直方图（log 轴）+ topology 组成 + ecDNA 区域表 → `{outdir}/eccdna/{sample_id}/visualization/decoil_stats.png` + `*_ecdna_regions.tsv`
+  - `decoil_compare`（跨样本聚合）：cycle/ecDNA 计数对比、尺寸分布叠加、topology 堆叠图 + 共有/特有 ecDNA 区域表 → `{outdir}/eccdna/visualization/decoil_compare.{png,_ecdna_regions.tsv,_shared_unique.tsv}`
+  - `decoil_igv`（每样本）：复用 track 模块 igv.js 渲染交互式浏览器 HTML（coverage bigwig + ecDNA BED + GTF 基因注释），默认定位到最大 ecDNA 区域 → `{outdir}/eccdna/{sample_id}/visualization/igv_ecdna.html`
+  - `decoil_ucsc`（每样本）：复用 track 模块 ucsc 模式生成 UCSC track 线文件（coverage bigwig + ecDNA BED），可加载进 UCSC Genome Browser / hub 兼容查看器 → `{outdir}/eccdna/{sample_id}/visualization/ucsc_track.txt`
+  - 关键参数：`Params.visualization.{formats, igv_locus}`；IGV 参考配置（fasta/index/cytoband/GTF/publicPathMap）放在工作流 config 的 `igv` 段（见 `config/PacVar.json`）
 - **问题**：
   - 如何从PacBio数据识别端粒长度超过hifi读长的物种或品种（比如小鼠，hifi平均reads长度大约在15kb，适合测量人类的端粒长度），流程目前所集成的几大方法都有很大缺陷。确定着丝粒长度也非常有难度。除非组装出T2T基因组
 

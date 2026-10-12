@@ -28,8 +28,13 @@
             "extend_allowed_chromosomes": "",
             "skip": false,
             "threads": 16
+        },
+        "visualization": {
+            "formats": ["png"],
+            "igv_locus": ""
         }
     },
+    "igv": {},
     "genome": {
         "fasta": null,
         "gtf": null

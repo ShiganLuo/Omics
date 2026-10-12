@@ -712,9 +712,16 @@ def runQuantMS(
         outfiles.append(f"{outdir}/common/3_diann/diann_qc.tsv")
         outfiles.append(f"{outdir}/common/3_diann/diann_protein_matrix.tsv")
     elif quantification_method == "tmt":
-        outfiles.append(f"{outdir}/common/7_quantification/tmt_quantification.mzTab")
-        outfiles.append(f"{outdir}/common/7_quantification/tmt_quantification.consensusXML")
-        outfiles.append(f"{outdir}/common/7_quantification/tmt_quantification.proteins.csv")
+        # Per-plex protein tables + long abundance table. The merged
+        # consensusXML/mzTab triplet is only produced when an experimental
+        # design is configured (FileMerger would collapse per-plex sample
+        # identity otherwise).
+        if datajson.get("Params", {}).get("workflow", {}).get("expdesign", ""):
+            outfiles.append(f"{outdir}/common/7_quantification/tmt_quantification.mzTab")
+            outfiles.append(f"{outdir}/common/7_quantification/tmt_quantification.consensusXML")
+            outfiles.append(f"{outdir}/common/7_quantification/tmt_quantification.proteins.csv")
+        else:
+            outfiles.append(f"{outdir}/common/7_quantification/tmt_protein_abundances.csv")
     elif quantification_method == "lfq":
         outfiles.append(f"{outdir}/common/7_quantification/lfq_quantification.mzTab")
         outfiles.append(f"{outdir}/common/7_quantification/lfq_msstats.csv")
@@ -727,7 +734,12 @@ def runQuantMS(
             outfiles.append(f"{outdir}/common/7_quantification/dia_quantification.triqler.tsv")
 
     if not datajson.get("Params", {}).get("skip_post_msstats", False) and not use_diann:
-        outfiles.append(f"{outdir}/common/8_msstats/msstats_input.csv")
+        # TMT MSstats needs a plex->channel design; without one there is
+        # nothing to convert (the long abundance table is the deliverable).
+        if quantification_method == "tmt" and not datajson.get("Params", {}).get("workflow", {}).get("expdesign", ""):
+            pass
+        else:
+            outfiles.append(f"{outdir}/common/8_msstats/msstats_input.csv")
 
     datajson["Params"]["workflow"]["samples"] = samples
 

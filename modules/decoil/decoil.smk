@@ -153,7 +153,6 @@ rule decoil_reconstruct:
         filter_score     = reconstruct_param("filter_score"),
         extend_chr       = reconstruct_param("extend_allowed_chromosomes") or "",
         skip_fasta       = bool(reconstruct_param("skip")),
-        threads          = reconstruct_param("threads"),
     threads: 16
     run:
         log_path = str(log)
@@ -163,7 +162,7 @@ rule decoil_reconstruct:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(
                 f"Start decoil reconstruct for sample {wildcards.sample_id} "
-                f"at {current_time} (threads={params.threads})"
+                f"at {current_time})"
             )
             sample_outdir = os.path.dirname(str(output.reconstruct_all))
             os.makedirs(sample_outdir, exist_ok=True)
@@ -247,7 +246,7 @@ TRACK_SCRIPT = os.path.join(ROOT_DIR, "modules", "track", "bin", "track.py")
 
 # IGV base config (reference fasta/index/cytoband/GTF + publicPathMap) —
 # same structure as modules/track/track.json 'igv' section.
-igv_cfg = config.get("igv", {})
+igv_cfg = config.get("Params", {}).get("igv", {})
 
 
 rule decoil_plot:

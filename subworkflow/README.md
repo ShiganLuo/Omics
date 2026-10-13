@@ -300,6 +300,48 @@ FASTQ
   - 支持跳过 MSstats 分析（skip_post_msstats）
   - 基于 OpenMS 工具集
 
+一、研究对象与"bottom-up"策略
+
+蛋白质组(proteome)指一个细胞/组织中全部蛋白质，要回答两个问题：有哪些蛋白(鉴定)、各有多少(定量)。质谱无法直接测整条蛋白，主流做法是 bottom-up:蛋白 → 胰酶(Trypsin,在 K/R 后切)酶切成肽段 → LC 液相分离 → 进入质谱。所以整个流程处理的都是“肽段”，蛋白是最后推断出来的——这就是第 6 步 protein inference 存在的原因。
+
+二、质谱数据长什么样
+
+- MS1(一级谱)：扫描某时刻所有肽段离子的质荷比(m/z)和强度，一个肽段表现为一个同位素峰簇(feature),其峰面积/峰高就是定量信号。
+- MS2(二级谱)：选中某个母离子(precursor)打碎，碎片离子(b/y 离子系列)的差值反映氨基酸序列。搜索引擎做的事就是把每张 MS2 谱与数据库里理论酶切肽段的理论碎片匹配 → 产生 PSM。
+- 修饰：固定修饰(如 C 上的 Carbamidomethyl,烷基化)参与理论质量计算；可变修饰(如 M 氧化、TMT 标签)作为搜索空间的一部分，搜索空间越大灵敏度越低。
+
+三、两种采集模式(决定流程走哪条分支)
+
+- DDA(数据依赖采集，你的默认分支)：每个扫描循环只选信号最强的 top N 个母离子逐一碎裂。优点是谱图“干净”、库搜索容易；缺点是选哪些离子碎裂是随机的，导致不同样品间 missing value 多。
+- DIA(数据独立采集)：把整个 m/z 范围分成窗口，所有离子一起打碎。谱图复杂，需要专门软件(DIA-NN/Spectronaut)配合谱图库(library-based)或库自由(library-free)分析——对应你流程里的 3_diann 分支。
+
+四、鉴定可信度：target-decoy 与 FDR
+
+几十万次谱图-肽段比较必然产生大量假阳性，检验标准是：把反向(decoy)序列混进库里一起搜，decoy 命中数可以估算 target 命中里的假阳性数。FDR = 2×decoy / target。流程第 3 步构建 decoy 库、第 5 步做 PSM 级 FDR(通常 1%)就是这件事。注意 FDR 是分层的:PSM → peptide → protein 每层都要重新控制，蛋白级最困难(shared peptide 归属多个蛋白时无法区分)，所以 EpiFany 用概率模型做蛋白推断，而不是简单数 PSM。
+
+五、三种主要定量策略(对应第 7 步的分支)
+
+- Label-free(LFQ):直接比较各样品 MS1 feature 强度，需要保留时间对齐来匹配跨样品的同一肽段(OpenMS 的 ProteomicsLFQ 就是这么做的)。样品数不限，但缺失值多。
+- TMT/iTRAQ(同量异序标记)：不同样品分别标记后混合，在同一张谱里测；报告离子(reporter ion)的强度对应各样品的量。一次最多 16/18 个样品，missing value 少，适合临床大队列——流程里 IsobaricAnalyzer 就是在提取报告离子。
+- SILAC(体内代谢标记)：细胞培养时掺入重氨基酸，定量最准但只适合细胞系，你的流程没有这条。
+
+六、下游统计(第 8 步 MSstats)
+
+定量矩阵(蛋白 × 样品)不能直接做 t 检验：MSstats 处理肽段到蛋白的汇总方式、缺失值、批次效应，用线性混合模型估计组间差异倍数(log2FC)并做多重检验校正。输入需要实验设计表(expdesign)指明每个样品属于哪个组。
+
+七、数据质量常用指标(看 log 和 QC 时关注)
+
+- 鉴定数：PSM / peptide / protein 数量，及 1% FDR 下的比例；
+- 酶切漏切率(missed cleavages,过高说明酶切不全)、质量误差分布(ppm,应集中在 0 附近)、母离子电荷分布；
+- 定量重现性：技术重复 CV、组内 Pearson 相关；
+- TMT 还要看 reporter ion 纯度/isotopic correction。
+
+八、生态位对照
+
+你这套 OpenMS 流程等价的同类工具：DDA 全流程有 MaxQuant、FragPipe(你流程里的 MSFragger 就是其搜索引擎);DIA 有 DIA-NN、Spectronaut、EncyclopeDIA。OpenMS 的特点是每一步都是独立工具(TOPP),可以像你这样自由组装成模块化 pipeline。
+
+一句话把流程串起来：样品酶切 → LC-MS/MS 采集(DDA/DIA)→ 转格式(2)→ 搜库鉴定(3-5,含 FDR)→ 归属蛋白(6)→ 提取定量信号(7)→ 统计找差异蛋白(8)。
+
 ### 11. tRNAseq.smk
 - **用途**：tRNA 修饰诱导错配测序分析（mim-tRNAseq）。
 - **模块架构**：6 个独立子模块，通过 pickle 状态文件传递中间数据

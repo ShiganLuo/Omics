@@ -6,6 +6,10 @@ m6A density = m6A marks per fiber per kb) and converts them to bigWig with
 bedGraphToBigWig (skipped with a warning when the binary is unavailable).
 Also writes a UCSC trackDb snippet listing the generated tracks.
 
+Input BEDs must be grouped by chromosome (sort -k1,1). Records are streamed
+one chromosome at a time, so peak memory is bounded by the largest
+chromosome instead of the whole file.
+
 Usage:
     python fiberseq_track.py --msp sample.msp.bed.gz --m6a sample.m6a.bed.gz \
         --nuc sample.nuc.bed.gz --chrom-sizes genome.chrom.sizes \
@@ -19,7 +23,7 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence
+from typing import Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 
@@ -31,7 +35,11 @@ if str(_ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(_ROOT_DIR))
 from src.common.util.LogUtil import setup_logger  # noqa: E402
 
-from src.common.util.FiberlibUtil import atomic_write, block_signal, read_bed  # noqa: E402
+from src.common.util.FiberlibUtil import (  # noqa: E402
+    atomic_write,
+    block_signal,
+    iter_bed_chrom,
+)
 
 
 def _get_logger(log_file: Optional[Path] = None) -> logging.Logger:
@@ -60,21 +68,20 @@ def read_chrom_sizes(path: str) -> Dict[str, int]:
     return sizes
 
 
-def binned_bedgraph(records, sizes: Dict[str, int], bin_size: int,
-                    uniq_fibers: bool) -> List[tuple]:
-    """Compute binned mean signal per chromosome as bedGraph rows."""
-    rows = []
-    for chrom, size in sorted(sizes.items()):
-        n_bins = size // bin_size + 1
-        signal = block_signal(records, chrom, 0, n_bins * bin_size,
-                              uniq_fibers=uniq_fibers)
-        for b in range(n_bins):
-            s0, e0 = b * bin_size, min((b + 1) * bin_size, size)
-            if e0 <= s0:
-                continue
-            val = float(np.mean(signal[s0:e0]))
-            if val > 0:
-                rows.append((chrom, s0, e0, round(val, 5)))
+def binned_rows_for_chrom(records, chrom: str, size: int, bin_size: int,
+                          uniq_fibers: bool) -> List[Tuple[str, int, int, float]]:
+    """Binned mean signal rows for one chromosome's records."""
+    rows: List[Tuple[str, int, int, float]] = []
+    n_bins = size // bin_size + 1
+    signal = block_signal(records, chrom, 0, n_bins * bin_size,
+                          uniq_fibers=uniq_fibers)
+    for b in range(n_bins):
+        s0, e0 = b * bin_size, min((b + 1) * bin_size, size)
+        if e0 <= s0:
+            continue
+        val = float(np.mean(signal[s0:e0]))
+        if val > 0:
+            rows.append((chrom, s0, e0, round(val, 5)))
     return rows
 
 
@@ -99,34 +106,84 @@ def to_bigwig(bedgraph: Path, chrom_sizes: Path, bigwig: Path) -> bool:
     return True
 
 
+class _Stream:
+    """One pass over chromosome-grouped BEDs, yielding per-chrom record lists.
+
+    All sources are advanced in lockstep, so at any moment only one
+    chromosome's records (per source) are resident. Files must share the
+    same chromosome order (sort -k1,1 on each).
+    """
+
+    def __init__(self, paths: Sequence[str]) -> None:
+        self._iters = [iter_bed_chrom(p) for p in paths]
+        self._states: List[Optional[Tuple[str, list]]] = [
+            next(it, None) for it in self._iters
+        ]
+
+    def advance(self, chrom: str) -> List[list]:
+        """Return per-source records for *chrom*; exhausted sources give []."""
+        out: List[list] = []
+        for i, s in enumerate(self._states):
+            if s is not None and s[0] == chrom:
+                out.append(s[1])
+                self._states[i] = next(self._iters[i], None)
+            else:
+                out.append([])
+        return out
+
+    def remaining_chroms(self) -> List[str]:
+        return [s[0] for s in self._states if s is not None]
+
+
 def run(args: argparse.Namespace) -> int:
-    msp = read_bed(str(args.msp))
-    m6a = read_bed(str(args.m6a))
-    nuc = read_bed(str(args.nuc)) if args.nuc else []
     sizes = read_chrom_sizes(str(args.chrom_sizes))
-    logger.info(f"msp={len(msp)} m6a={len(m6a)} nuc={len(nuc)} chroms={len(sizes)}")
+    paths = [str(args.msp), str(args.m6a)]
+    if args.nuc:
+        paths.append(str(args.nuc))
+    n_total = 0
 
     args.outdir.mkdir(parents=True, exist_ok=True)
-    tracks = []
-
-    acc_rows = binned_bedgraph(msp, sizes, args.bin, uniq_fibers=True)
     acc_bg = args.outdir / f"{args.sample}.accessibility.bedGraph"
-    write_bedgraph(acc_bg, acc_rows)
+    dens_bg = args.outdir / f"{args.sample}.m6a_density.bedGraph"
+    acc_fh = open(acc_bg, "w")
+    dens_fh = open(dens_bg, "w")
+    try:
+        cov_map: Dict[Tuple[str, int], float] = {}
+        stream = _Stream(paths)
+        for chrom in sizes:
+            msp_c, m6a_c, nuc_c = stream.advance(chrom)[:3]
+            n_total += len(msp_c) + len(m6a_c) + len(nuc_c)
+            acc_rows = binned_rows_for_chrom(msp_c, chrom, sizes[chrom],
+                                             args.bin, uniq_fibers=True)
+            cov_rows = binned_rows_for_chrom(
+                msp_c + nuc_c, chrom, sizes[chrom], args.bin, uniq_fibers=True)
+            m6a_rows = binned_rows_for_chrom(m6a_c, chrom, sizes[chrom],
+                                             args.bin, uniq_fibers=False)
+            cov_map.update({(c, s): v for c, s, e, v in cov_rows})
+            for c, s, e, v in acc_rows:
+                acc_fh.write(f"{c}\t{s}\t{e}\t{v}\n")
+            for c, s, e, v in m6a_rows:
+                dens = round(v / max(cov_map.get((c, s), 1), 1), 5)
+                dens_fh.write(f"{c}\t{s}\t{e}\t{dens}\n")
+            del msp_c, m6a_c, nuc_c, acc_rows, cov_rows, m6a_rows
+        leftover = stream.remaining_chroms()
+        if leftover:
+            raise ValueError(
+                f"input BEDs are not grouped/sorted by chromosome "
+                f"(sort -k1,1 each); chromosome(s) {sorted(set(leftover))} "
+                f"appear outside the .fai order")
+    finally:
+        acc_fh.close()
+        dens_fh.close()
+    logger.info(f"records processed={n_total} chroms={len(sizes)}")
+
+    tracks = []
     acc_bw = args.outdir / f"{args.sample}.accessibility.bw"
     if to_bigwig(acc_bg, args.chrom_sizes, acc_bw):
         tracks.append((f"{args.sample}_accessibility", "FIRE-seq MSP accessibility", acc_bw))
     else:
         tracks.append((f"{args.sample}_accessibility", "FIRE-seq MSP accessibility", acc_bg))
 
-    cov_rows = binned_bedgraph(list(msp) + list(nuc), sizes, args.bin, uniq_fibers=True)
-    m6a_rows = binned_bedgraph(m6a, sizes, args.bin, uniq_fibers=False)
-    cov_map = {(c, s): v for c, s, e, v in cov_rows}
-    dens_rows = [
-        (c, s, e, round(v / max(cov_map.get((c, s), 1), 1), 5))
-        for c, s, e, v in m6a_rows
-    ]
-    dens_bg = args.outdir / f"{args.sample}.m6a_density.bedGraph"
-    write_bedgraph(dens_bg, dens_rows)
     dens_bw = args.outdir / f"{args.sample}.m6a_density.bw"
     if to_bigwig(dens_bg, args.chrom_sizes, dens_bw):
         tracks.append((f"{args.sample}_m6a", "FIRE-seq m6A density", dens_bw))

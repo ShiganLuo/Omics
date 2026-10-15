@@ -12,8 +12,6 @@ ROOT_DIR = config.get("ROOT_DIR", ".")
 env = config.get("env", {})
 genome_cfg = config.get("genome", {})
 p = config.get("Params", {}).get("fiberseq_motif", {})
-
-
 rule fiberseq_motif_scan:
     """Scan a MEME motif file in FIRE peak sequences (any species)."""
     input:
@@ -24,7 +22,9 @@ rule fiberseq_motif_scan:
         sites = outdir + "/{sample_id}/{sample_id}.motif_sites.bed",
     log:
         logdir + "/{sample_id}/fiberseq_motif_scan.log"
-    threads: 1
+    threads: rule_res("fiberseq_motif").get("threads", 4)
+    resources:
+        mem_mb = rule_res("fiberseq_motif").get("mem_mb", 4000),
     conda:
         "../fiberseq.yaml"
     container:
@@ -76,7 +76,9 @@ rule fiberseq_motif_profile:
         pdf = outdir + "/{sample_id}/{sample_id}.motif_profile.pdf",
     log:
         logdir + "/{sample_id}/fiberseq_motif_profile.log"
-    threads: 1
+    threads: rule_res("fiberseq_motif").get("threads", 1)
+    resources:
+        mem_mb = rule_res("fiberseq_motif").get("mem_mb", 8000),
     conda:
         "../fiberseq.yaml"
     container:

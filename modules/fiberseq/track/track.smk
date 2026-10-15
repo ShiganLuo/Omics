@@ -12,8 +12,6 @@ ROOT_DIR = config.get("ROOT_DIR", ".")
 env = config.get("env", {})
 genome_cfg = config.get("genome", {})
 p = config.get("Params", {}).get("fiberseq_track", {})
-
-
 rule fiberseq_track_run:
     """bedGraph/bigWig accessibility and m6A density tracks + trackDb."""
     input:
@@ -27,7 +25,9 @@ rule fiberseq_track_run:
         trackdb = outdir + "/{sample_id}/trackDb.txt",
     log:
         logdir + "/{sample_id}/fiberseq_track_run.log"
-    threads: 1
+    threads: rule_res("fiberseq_track").get("threads", 4)
+    resources:
+        mem_mb = rule_res("fiberseq_track").get("mem_mb", 65000),
     conda:
         "../fiberseq.yaml"
     container:

@@ -11,6 +11,10 @@ alphaSat_HOR, flank_10kb), computes:
   - rolling binned profiles across region +/- flank for accessibility and
     methylation (e.g. CDR core vs flanking boundaries).
 
+The element BEDs (msp/nuc/cpg) are streamed against the region anchors
+(ChromSweep), so peak memory is bounded by the largest region neighborhood
+instead of the whole file.
+
 Usage:
     python censat_profile.py --regions censat.bed --msp sample.msp.bed.gz \
         --nuc sample.nuc.bed.gz --pileup sample.modkit.bedGraph \
@@ -36,8 +40,7 @@ if str(_ROOT_DIR) not in sys.path:
 from src.common.util.LogUtil import setup_logger  # noqa: E402
 
 from src.common.util.FiberlibUtil import (  # noqa: E402
-    BedRecord,
-    RegionIndex,
+    ChromSweep,
     block_signal,
     read_bed,
     safe_div,
@@ -60,9 +63,9 @@ def _get_logger(log_file: Optional[Path] = None) -> logging.Logger:
 logger = _get_logger()
 
 
-def read_bedgraph(path: str) -> Dict[str, List[Tuple[int, int, float]]]:
-    """Read a bedGraph into chrom -> [(start, end, value)]."""
-    out: Dict[str, List[Tuple[int, int, float]]] = defaultdict(list)
+def iter_bedgraph(path: str) -> "defaultdict[str, List[Tuple[int, int, float]]]":
+    """Read a bedGraph grouped per chromosome (expects sorted input)."""
+    out: "defaultdict[str, List[Tuple[int, int, float]]]" = defaultdict(list)
     with open(path) as fh:
         for line in fh:
             if line.startswith(("#", "track", "browser")) or not line.strip():
@@ -79,62 +82,82 @@ def bedgraph_mean(track, chrom: str, start: int, end: int) -> float:
     return float(np.mean(vals)) if vals else float("nan")
 
 
-def msp_coverage_fraction(msp, index: RegionIndex, chrom, start, end,
+def msp_coverage_fraction(msp_ov, chrom: str, core_s: int, core_e: int,
                           msp_min_len: int) -> Tuple[float, float]:
-    """(pooled coverage fraction by long MSPs, per-fiber mean coverage fraction)."""
-    length = max(1, end - start)
-    cover = np.zeros(length, dtype=np.int64)
-    per_fiber = defaultdict(lambda: np.zeros(length, dtype=np.int64))
-    for i in index.query(chrom, start, end):
-        r = msp[i]
+    """(pooled coverage fraction by long MSPs, per-fiber mean coverage fraction).
+
+    Clipping is done against the REGION core itself (not the sweep window):
+    a fiber counts through any long MSP block overlapping the core, exactly
+    like the whole-file implementation.
+    """
+    length = max(1, core_e - core_s)
+    cover = np.zeros(length, dtype=bool)
+    fiber_masks: Dict[str, np.ndarray] = {}
+    for r in msp_ov:
+        if r.chrom != chrom:
+            continue
+        mask = None
         for bs, be in r.blocks:
             if be - bs < msp_min_len:
                 continue
-            s = max(bs, start) - start
-            e = min(be, end) - start
+            s = bs if bs > core_s else core_s
+            e = be if be < core_e else core_e
             if s < e:
-                cover[s:e] = 1
-                per_fiber[r.name][s:e] = 1
+                cover[s - core_s:e - core_s] = True
+                if mask is None:
+                    mask = fiber_masks.setdefault(
+                        r.name, np.zeros(length, dtype=bool))
+                mask[s - core_s:e - core_s] = True
     pooled = float(np.mean(cover))
-    fiber_means = [float(np.mean(v)) for v in per_fiber.values()] or [0.0]
+    fiber_means = ([float(np.mean(m)) for m in fiber_masks.values()]
+                   if fiber_masks else [0.0])
     return pooled, float(np.mean(fiber_means))
 
 
 def run(args: argparse.Namespace) -> int:
     regions = read_bed(str(args.regions))
-    msp = read_bed(str(args.msp))
-    nuc = read_bed(str(args.nuc))
-    msp_i, nuc_i = RegionIndex(msp), RegionIndex(nuc)
-    pileup = read_bedgraph(str(args.pileup)) if args.pileup else None
-    cpg = read_bed(str(args.cpg)) if args.cpg else None
-    cpg_i = RegionIndex(cpg) if cpg else None
-    logger.info(f"regions={len(regions)} msp={len(msp)} nuc={len(nuc)} "
-                f"pileup={'yes' if pileup else 'no'} cpg={len(cpg) if cpg else 0}")
+    paths = [str(args.msp), str(args.nuc)]
+    use_cpg = args.pileup is None and args.cpg is not None
+    if use_cpg:
+        paths.append(str(args.cpg))
+    sweep = ChromSweep(
+        paths,
+        [(r.chrom, max(0, r.start - args.flank), r.end + args.flank)
+         for r in regions],
+    )
+    pileup = iter_bedgraph(str(args.pileup)) if args.pileup else None
+    logger.info(f"regions={len(regions)} (streaming msp/nuc/cpg per region) "
+                f"pileup={'yes' if pileup else 'no'} cpg={'yes' if use_cpg else 'no'}")
 
     class_rows = []
     prof_rows = []
     class_acc: Dict[str, List[float]] = defaultdict(list)
     class_mcpg: Dict[str, List[float]] = defaultdict(list)
 
-    for r in regions:
+    for k, (chrom, ws, we), ov in sweep.advance():
+        r = regions[k]
         cls = r.name
         pooled, fiber_mean = msp_coverage_fraction(
-            msp, msp_i, r.chrom, r.start, r.end, args.msp_min_len)
-        nuc_cov = len({nuc[i].name for i in nuc_i.query(r.chrom, r.start, r.end)})
-        msp_cov = len({msp[i].name for i in msp_i.query(r.chrom, r.start, r.end)})
+            ov[0], r.chrom, r.start, r.end, args.msp_min_len)
+        # counts use the region core only
+        core_s, core_e = r.start, r.end
+        msp_cov = len({x.name for x in ov[0]
+                       if x.start < core_e and x.end > core_s})
+        nuc_cov = len({x.name for x in ov[1]
+                       if x.start < core_e and x.end > core_s})
         if pileup is not None:
-            mcpg = bedgraph_mean(pileup, r.chrom, r.start, r.end)
-        elif cpg_i is not None:
-            marks = sum(
-                1 for i in cpg_i.query(r.chrom, r.start, r.end)
-                for bs, be in cpg[i].blocks
-                if bs < r.end and be > r.start
-            )
-            mcpg = safe_div(marks, max(1, r.end - r.start)) * 1000.0
+            mcpg = bedgraph_mean(pileup, r.chrom, core_s, core_e)
+        elif use_cpg:
+            marks = 0
+            for x in ov[2]:
+                for bs, be in x.blocks:
+                    if bs < core_e and be > core_s:
+                        marks += 1
+            mcpg = safe_div(marks, max(1, core_e - core_s)) * 1000.0
         else:
             mcpg = float("nan")
         class_rows.append([
-            r.chrom, r.start, r.end, cls,
+            r.chrom, core_s, core_e, cls,
             round(pooled, 6), round(fiber_mean, 6), msp_cov, nuc_cov,
             round(mcpg, 6) if mcpg == mcpg else "NA",
         ])
@@ -142,17 +165,19 @@ def run(args: argparse.Namespace) -> int:
         if mcpg == mcpg:
             class_mcpg[cls].append(mcpg)
 
-        # rolling profile across region +/- flank
+        # rolling profile across region +/- flank (TRUE window, not the
+        # clipped sweep anchor: bins/positions must match whole-file runs;
+        # records outside the clipped anchor simply contribute nothing)
         ws, we = r.start - args.flank, r.end + args.flank
-        acc_sig = block_signal(msp, r.chrom, ws, we, uniq_fibers=True)
+        acc_sig = block_signal(ov[0], r.chrom, ws, we, uniq_fibers=True)
         nbins = max(1, (we - ws) // args.bin)
         for b in range(nbins):
             s0, e0 = b * args.bin, min((b + 1) * args.bin, we - ws)
             acc_bin = float(np.mean(acc_sig[s0:e0])) if e0 > s0 else float("nan")
-            pos = ws + (s0 + e0) // 2 - (r.start + r.end) // 2
+            pos = ws + (s0 + e0) // 2 - (core_s + core_e) // 2
             meth_bin = (bedgraph_mean(pileup, r.chrom, ws + s0, ws + e0)
                         if pileup is not None else float("nan"))
-            prof_rows.append([cls, r.start, r.end, pos, round(acc_bin, 6),
+            prof_rows.append([cls, core_s, core_e, pos, round(acc_bin, 6),
                               round(meth_bin, 6) if meth_bin == meth_bin else "NA"])
 
     if not class_rows:

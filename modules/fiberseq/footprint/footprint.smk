@@ -30,7 +30,9 @@ rule fiberseq_footprint_run:
         pdf = outdir + "/{sample_id}/{sample_id}.footprint_profile.pdf",
     log:
         logdir + "/{sample_id}/fiberseq_footprint_run.log"
-    threads: 1
+    threads: rule_res("fiberseq_footprint").get("threads", 4)
+    resources:
+        mem_mb = rule_res("fiberseq_footprint").get("mem_mb", 8000),
     conda:
         "../fiberseq.yaml"
     container:

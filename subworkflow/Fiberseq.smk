@@ -62,7 +62,8 @@ fibertools_prepare_config = {
     },
     "genome": {
         "fasta": fasta
-    }
+    },
+    "resources": config.get("resources", {}),
 }
 module fibertools_prepare:
     snakefile: "../modules/fibertools/fibertools_prepare.smk"
@@ -154,6 +155,7 @@ def _fs_cfg(name, ds_key, genome_keys=()):
         "samples": samples,
         "Params": {name: params.get(ds_key, {})},
         "genome": {k: genome_ref.get(k) for k in genome_keys},
+        "resources": config.get("resources", {}),
     }
 
 

@@ -62,6 +62,33 @@ def _require(value, key, tool=""):
 
 
 # ---------------------------------------------------------------------------
+# Per-rule resource helper (config["resources"])
+# ---------------------------------------------------------------------------
+
+def rule_res(name):
+    """Resolve resources for rule *name* from config["resources"].
+
+    Merge order: resources.default < resources[name]. Missing keys fall
+    back through default; rules with no entry inherit default entirely.
+    Expected shape in the workflow config JSON:
+
+        "resources": {
+            "default": {"threads": 2, "mem_mb": 8000},
+            "fiberseq_track": {"threads": 4, "mem_mb": 65000}
+        }
+
+    Usage in a rule:
+        threads: rule_res("fiberseq_track").get("threads", 4)
+        resources:
+            mem_mb = rule_res("fiberseq_track").get("mem_mb", 65000)
+    """
+    res_cfg = config.get("resources") or {}
+    merged = dict(res_cfg.get("default") or {})
+    merged.update(res_cfg.get(name) or {})
+    return merged
+
+
+# ---------------------------------------------------------------------------
 # Isobaric label sanity check
 # ---------------------------------------------------------------------------
 # TMT6/10/11/16/18 and iTRAQ 4/8 reporter m/z values (monoisotopic).

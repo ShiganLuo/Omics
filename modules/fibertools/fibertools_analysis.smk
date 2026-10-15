@@ -246,18 +246,25 @@ rule ft_extract_fire:
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
             command_script = os.path.join(sample_outdir, f"ft_extract_fire_{current_time}.sh")
+            # `ft fire --extract` emits records in BAM (fiber) order, which is
+            # NOT chromosome-grouped/start-sorted. Every ChromSweep consumer
+            # (quant/coactuation/motif/footprint/censat) requires a
+            # chromosome-grouped, start-sorted BED: sort before publishing.
+            tmp_fire = str(output.fire) + ".unsorted.tmp.bed"
             cmd = [
                 params.ft, "fire",
                 "-t", str(threads),
                 "--extract",
                 input.bam,
-                output.fire,
+                tmp_fire,
             ]
             if params.is_ont:
                 cmd.extend(["--ont"])
             with open(command_script, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
+                f.write(f"LC_ALL=C sort -k1,1 -k2,2n {tmp_fire} > {output.fire}\n")
+                f.write(f"rm -f {tmp_fire}\n")
                 f.write(f'echo "FIRE extraction completed for sample {wildcards.sample_id}"\n')
             shell(f"bash {command_script} >> {log_path} 2>&1")
         except Exception as e:

@@ -28,7 +28,9 @@ rule fiberseq_quant_run:
         quant = outdir + "/{sample_id}/{sample_id}.region_quant.tsv",
     log:
         logdir + "/{sample_id}/fiberseq_quant_run.log"
-    threads: 1
+    threads: rule_res("fiberseq_quant").get("threads", 4)
+    resources:
+        mem_mb = rule_res("fiberseq_quant").get("mem_mb", 12000),
     conda:
         "../fiberseq.yaml"
     container:

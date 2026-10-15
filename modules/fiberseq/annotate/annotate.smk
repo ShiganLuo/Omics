@@ -24,7 +24,7 @@ rule fiberseq_annotate_run:
         summary = outdir + "/{sample_id}/{sample_id}.peaks_summary.tsv",
     log:
         logdir + "/{sample_id}/fiberseq_annotate_run.log"
-    threads: 1
+    threads: 4
     conda:
         "../fiberseq.yaml"
     container:

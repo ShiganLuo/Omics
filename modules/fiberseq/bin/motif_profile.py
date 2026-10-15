@@ -30,6 +30,7 @@ if str(_ROOT_DIR) not in sys.path:
 from src.common.util.LogUtil import setup_logger  # noqa: E402
 
 from src.common.util.FiberlibUtil import (  # noqa: E402
+    ChromSweep,
     block_signal,
     coverage_signal,
     read_bed,
@@ -81,15 +82,16 @@ def footprint_score(m6a_frac: np.ndarray, flank: int, motif_half: int) -> float:
 
 
 def run(args: argparse.Namespace) -> int:
-    m6a = read_bed(str(args.m6a))
-    msp = read_bed(str(args.msp))
-    nuc = read_bed(str(args.nuc))
     sites = read_bed(str(args.motif_sites))
-    logger.info(f"Loaded {len(sites)} motif sites, m6a={len(m6a)}, "
-                f"msp={len(msp)}, nuc={len(nuc)}")
+    logger.info(f"Loaded {len(sites)} motif sites (streaming m6a/msp/nuc per site)")
 
     flank = args.flank
     width = 2 * flank
+    sweep = ChromSweep(
+        [str(args.m6a), str(args.msp), str(args.nuc)],
+        [(s.chrom, min(s.start, (s.start + s.end) // 2 - flank),
+          max(s.end, (s.start + s.end) // 2 + flank)) for s in sites],
+    )
     sum_cov = np.zeros(width, dtype=np.float64)
     sum_m6a = np.zeros(width, dtype=np.float64)
     sum_acc = np.zeros(width, dtype=np.float64)
@@ -97,8 +99,10 @@ def run(args: argparse.Namespace) -> int:
     used = 0
     score_rows = []
 
-    for site in sites:
-        cov, m6a_sig, acc, occ = site_signals(site, m6a, msp, nuc, flank)
+    for k, (chrom, ws0, we0), ov in sweep.advance():
+        site = sites[k]
+        m6a_ov, msp_ov, nuc_ov = ov[0], ov[1], ov[2]
+        cov, m6a_sig, acc, occ = site_signals(site, m6a_ov, msp_ov, nuc_ov, flank)
         if np.max(cov) < args.min_fibers:
             continue
         used += 1

@@ -337,6 +337,7 @@ logger.debug(f"decoil_config: {decoil_config}")
 use rule decoil_reconstruct from decoil as PacVar_decoil_reconstruct
 use rule decoil_result from decoil as PacVar_decoil_result
 use rule decoil_plot from decoil as PacVar_decoil_plot
+use rule decoil_structure from decoil as PacVar_decoil_structure
 use rule decoil_compare from decoil as PacVar_decoil_compare
 use rule decoil_igv from decoil as PacVar_decoil_igv
 use rule decoil_ucsc from decoil as PacVar_decoil_ucsc

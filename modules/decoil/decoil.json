@@ -32,6 +32,11 @@
             "formats": ["png"],
             "plot": {},
             "compare": {},
+            "structure": {
+                "formats": ["png"],
+                "max_per_fig": 12,
+                "one_file_per_cycle": true
+            },
             "igv": {
                 "locus": ""
             }

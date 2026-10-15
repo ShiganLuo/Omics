@@ -76,6 +76,8 @@ PLOT_FORMATS = (decoil_params.get("plot", {}).get("formats")
                 or decoil_params.get("formats") or ["png"])
 COMPARE_FORMATS = (decoil_params.get("compare", {}).get("formats")
                    or decoil_params.get("formats") or ["png"])
+STRUCTURE_FORMATS = (decoil_params.get("structure", {}).get("formats")
+                     or decoil_params.get("formats") or ["png"])
 IGV_LOCUS = decoil_params.get("igv", {}).get("locus", "")
 
 # pbsv→decoil VCF converter — bin/ script located via ROOT_DIR (project convention)
@@ -224,9 +226,7 @@ rule decoil_reconstruct:
             raise RuntimeError(f"decoil_reconstruct failed for sample {wildcards.sample_id}: {e}")
 
 
-# ============================================================
-# Result aggregation rule
-# ============================================================
+
 rule decoil_result:
     """Result aggregation — touch sentinel for Snakemake DAG tracking."""
     input:
@@ -241,6 +241,7 @@ rule decoil_result:
 # Scripts located via ROOT_DIR (project convention, see pitfall #55).
 # ============================================================
 DECOIL_PLOT_SCRIPT = os.path.join(ROOT_DIR, "modules", "decoil", "bin", "decoil_plot.py")
+DECOIL_STRUCTURE_SCRIPT = os.path.join(ROOT_DIR, "modules", "decoil", "bin", "decoil_structure.py")
 DECOIL_IGV_CONFIG_SCRIPT = os.path.join(ROOT_DIR, "modules", "decoil", "bin", "decoil_igv_config.py")
 TRACK_SCRIPT = os.path.join(ROOT_DIR, "modules", "track", "bin", "track.py")
 
@@ -350,6 +351,67 @@ rule decoil_compare:
         except Exception as e:
             rule_logger.error(f"decoil_compare failed: {e}")
             raise RuntimeError(f"decoil_compare failed: {e}")
+
+
+rule decoil_structure:
+    """Per-cycle ecDNA structure plots with detection guard.
+
+    Draws the circular structure of each ecDNA cycle from the sample's
+    filtered BED + summary. When the filtered BED has no cycles (no ecDNA
+    detected), a "No ecDNA detected" placeholder figure is emitted instead
+    and no structure drawing is attempted.
+    """
+    input:
+        summary              = outdir + "/{sample_id}/decoil/summary.txt",
+        reconstruct_filtered = outdir + "/{sample_id}/decoil/reconstruct.ecDNA.filtered.bed",
+        gtf                  = config.get("genome", {}).get("gtf"),
+        bw                   = os.path.join(bw_dir, "{sample_id}", "{sample_id}" + bw_suffix),
+    output:
+        png                  = outdir + "/{sample_id}/visualization/decoil_structure.png",
+        genes_tsv            = outdir + "/{sample_id}/visualization/decoil_structure_genes.tsv",
+    log:
+        logdir + "/{sample_id}/decoil_structure.log"
+    conda:
+        "decoil.yaml"
+    container:
+        sif("decoil.yaml")
+    params:
+        structure_script = DECOIL_STRUCTURE_SCRIPT,
+        formats          = STRUCTURE_FORMATS,
+        max_per_fig      = decoil_params.get("structure", {}).get("max_per_fig", 12),
+        one_per_cycle    = decoil_params.get("structure", {}).get("one_file_per_cycle", True),
+    run:
+        log_path = str(log)
+        rule_logger = setup_logger(logger_name="decoil_structure", log_file=log_path)
+        open(log_path, "w").close()
+        try:
+            current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+            rule_logger.info(f"Start decoil_structure for sample {wildcards.sample_id} at {current_time}")
+            sample_vis_dir = os.path.dirname(str(output.png))
+            os.makedirs(sample_vis_dir, exist_ok=True)
+            script = os.path.join(sample_vis_dir, f"decoil_structure_{wildcards.sample_id}_{current_time}.sh")
+            cmd = [
+                "python", params.structure_script,
+                "--sample", str(wildcards.sample_id),
+                "--ecdna-bed", input.reconstruct_filtered,
+                "--summary", input.summary,
+                "--gtf", input.gtf,
+                "--bw", input.bw,
+                "-o", os.path.join(sample_vis_dir, "decoil_structure"),
+                "--max-per-fig", str(params.max_per_fig),
+            ]
+            if params.one_per_cycle:
+                cmd.append("--one-file-per-cycle")
+            for fmt in params.formats:
+                cmd += ["-f", str(fmt)]
+            with open(script, "w") as f:
+                f.write("#!/bin/bash\n")
+                f.write(" ".join(cmd) + "\n")
+            rule_logger.info("Executing: " + " ".join(cmd))
+            shell(f"bash {script} >> {log_path} 2>&1")
+        except Exception as e:
+            rule_logger.error(f"decoil_structure failed for sample {wildcards.sample_id}: {e}")
+            raise RuntimeError(f"decoil_structure failed for sample {wildcards.sample_id}: {e}")
 
 
 rule decoil_igv:

@@ -368,6 +368,8 @@ def runPacVar(
             outfiles.append(f"{outdir}/eccdna/{sample_id}/decoil/summary.txt")
             # Visualization: per-sample stats + interactive IGV HTML
             outfiles.append(f"{outdir}/eccdna/{sample_id}/visualization/decoil_stats.png")
+            outfiles.append(f"{outdir}/eccdna/{sample_id}/visualization/decoil_structure.png")
+            outfiles.append(f"{outdir}/eccdna/{sample_id}/visualization/decoil_structure_genes.tsv")
             outfiles.append(f"{outdir}/eccdna/{sample_id}/visualization/igv_ecdna.html")
             outfiles.append(f"{outdir}/eccdna/{sample_id}/visualization/ucsc_track.txt")
         # Cross-sample comparison (aggregated)

@@ -11,8 +11,6 @@ samples = config.get("samples", [])
 ROOT_DIR = config.get("ROOT_DIR", ".")
 env = config.get("env", {})
 p = config.get("Params", {}).get("fiberseq_coactuation", {})
-
-
 rule fiberseq_coactuation_run:
     """Same-fiber co-actuation of region pairs (Fisher + actual vs expected)."""
     input:
@@ -25,7 +23,9 @@ rule fiberseq_coactuation_run:
         summary = outdir + "/{sample_id}/{sample_id}.coactuation_summary.tsv",
     log:
         logdir + "/{sample_id}/fiberseq_coactuation_run.log"
-    threads: 1
+    threads: rule_res("fiberseq_coactuation").get("threads", 4)
+    resources:
+        mem_mb = rule_res("fiberseq_coactuation").get("mem_mb", 8000),
     conda:
         "../fiberseq.yaml"
     container:

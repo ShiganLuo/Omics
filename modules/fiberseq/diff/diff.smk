@@ -34,7 +34,7 @@ rule fiberseq_diff_run:
         gene_table = outdir + "/{contrast}/{contrast}.TEcount_Gene.name.tsv",
     log:
         logdir + "/group/fiberseq_diff_run_{contrast}.log"
-    threads: 1
+    threads: 4
     conda:
         "../fiberseq.yaml"
     container:

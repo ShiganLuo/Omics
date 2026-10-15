@@ -30,7 +30,7 @@ if str(_ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(_ROOT_DIR))
 from src.common.util.LogUtil import setup_logger  # noqa: E402
 
-from src.common.util.FiberlibUtil import RegionIndex, read_bed, write_tsv  # noqa: E402
+from src.common.util.FiberlibUtil import ChromSweep, read_bed, write_tsv  # noqa: E402
 
 
 def _get_logger(log_file: Optional[Path] = None) -> logging.Logger:
@@ -72,23 +72,17 @@ def tss_anchors_from_gtf(gtf: str) -> List[Tuple[str, int, str, str]]:
     return out
 
 
-def slot_offsets(
-    nuc_index: RegionIndex,
-    nuc_records,
-    chrom: str,
-    center: int,
-    max_slots: int,
-    max_reach: int,
-) -> Tuple[Dict[int, List[int]], int]:
+def slot_offsets(nuc_ov, chrom: str, center: int, max_slots: int,
+                 max_reach: int) -> Tuple[Dict[int, List[int]], int]:
     """Per-slot nucleosome-center offsets for one anchor.
 
-    Nucleosomes are taken per fiber and assigned to the i-th nearest slot
-    upstream (negative) or downstream (positive) of the anchor. Returns
-    slot -> list of (center - anchor) offsets and the fiber count.
+    nuc_ov: nucleosome records overlapping [center-max_reach, center+max_reach]
+    (streamed by the sweep, not indexed from a whole-file list).
     """
     per_fiber: Dict[str, List[int]] = defaultdict(list)
-    for ri in nuc_index.query(chrom, center - max_reach, center + max_reach):
-        r = nuc_records[ri]
+    for r in nuc_ov:
+        if r.chrom != chrom:
+            continue
         for bs, be in r.blocks:
             mid = (bs + be) // 2
             if center - max_reach <= mid <= center + max_reach:
@@ -124,17 +118,21 @@ def run(args: argparse.Namespace) -> int:
             })
     logger.info(f"Loaded {len(anchor_rows)} anchors")
 
-    nuc = read_bed(str(args.nuc))
-    nuc_index = RegionIndex(nuc)
-    logger.info(f"Loaded {len(nuc)} fiber nucleosome rows")
-
     max_slots = max(args.upstream_nucs, args.downstream_nucs)
     max_reach = (max_slots + 1) * 300
+    # Stream the nucleosome BED against anchor windows (whole-file read_bed
+    # OOMs on real samples).
+    sweep = ChromSweep(
+        [str(args.nuc)],
+        [(a["chrom"], max(0, a["center"] - max_reach), a["center"] + max_reach)
+         for a in anchor_rows],
+    )
     all_slots: Dict[int, List[int]] = defaultdict(list)
     anchor_counts = []
     rows = []
-    for a in anchor_rows:
-        slots, nfibers = slot_offsets(nuc_index, nuc, a["chrom"], a["center"],
+    for k, (chrom, ws, we), ov in sweep.advance():
+        a = anchor_rows[k]
+        slots, nfibers = slot_offsets(ov[0], a["chrom"], a["center"],
                                       max_slots, max_reach)
         if nfibers < args.min_fibers:
             continue

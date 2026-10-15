@@ -31,7 +31,13 @@ if str(_ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(_ROOT_DIR))
 from src.common.util.LogUtil import setup_logger  # noqa: E402
 
-from src.common.util.FiberlibUtil import RegionIndex, read_bed, safe_div, write_tsv  # noqa: E402
+from src.common.util.FiberlibUtil import (  # noqa: E402
+    ChromSweep,
+    RegionIndex,
+    read_bed,
+    safe_div,
+    write_tsv,
+)
 
 
 def _get_logger(log_file: Optional[Path] = None) -> logging.Logger:
@@ -62,43 +68,45 @@ def fibers_overlapping(index: RegionIndex, records, chrom, start, end) -> set:
 
 def run_sample(args: argparse.Namespace) -> int:
     peaks = read_bed(str(args.peaks))
-    msp = read_bed(str(args.msp))
-    nuc = read_bed(str(args.nuc))
-    m6a = read_bed(str(args.m6a))
-    fire = read_bed(str(args.fire)) if args.fire else []
-    msp_i, nuc_i, m6a_i = RegionIndex(msp), RegionIndex(nuc), RegionIndex(m6a)
-    fire_i = RegionIndex(fire) if fire else None
-    logger.info(f"peaks={len(peaks)} msp={len(msp)} nuc={len(nuc)} m6a={len(m6a)} fire={len(fire)}")
+    # Element BEDs (msp/nuc/m6a/fire) are multi-GB: stream them against the
+    # peak anchors instead of whole-file read_bed (which OOMs).
+    paths = [str(args.msp), str(args.nuc), str(args.m6a)]
+    if args.fire:
+        paths.append(str(args.fire))
+    sweep = ChromSweep(paths, [(p.chrom, p.start, p.end) for p in peaks])
+    logger.info(f"peaks={len(peaks)} (streaming msp/nuc/m6a/fire per region)")
 
-    rows = []
-    for p in peaks:
-        span = max(1, p.end - p.start)
-        covering = fibers_overlapping(nuc_i, nuc, p.chrom, p.start, p.end) | \
-            fibers_overlapping(msp_i, msp, p.chrom, p.start, p.end)
+    rows: List[Optional[list]] = [None] * len(peaks)
+    for k, (chrom, s, e), ov in sweep.advance():
+        p = peaks[k]
+        msp_ov, nuc_ov, m6a_ov = ov[0], ov[1], ov[2]
+        fire_ov = ov[3] if args.fire else []
+        covering = {r.name for r in nuc_ov} | {r.name for r in msp_ov}
         n_cover = len(covering)
-        acc = len(fibers_overlapping(msp_i, msp, p.chrom, p.start, p.end))
-        occ = len(fibers_overlapping(nuc_i, nuc, p.chrom, p.start, p.end))
+        acc = len({r.name for r in msp_ov})
+        occ = len({r.name for r in nuc_ov})
         m6a_n = sum(
-            1 for i in m6a_i.query(p.chrom, p.start, p.end)
-            for blk in m6a[i].blocks
+            1 for r in m6a_ov
+            for blk in r.blocks
             if blk[0] < p.end and blk[1] > p.start
         )
-        fire_n = len(fibers_overlapping(fire_i, fire, p.chrom, p.start, p.end)) if fire_i else 0
-        rows.append([
+        fire_n = len({r.name for r in fire_ov}) if args.fire else 0
+        rows[k] = [
             p.chrom, p.start, p.end, p.name,
             n_cover, acc, occ, fire_n,
             round(safe_div(acc, n_cover), 6),
             round(safe_div(occ, n_cover), 6),
             round(safe_div(m6a_n, n_cover), 6),
-            round(safe_div(fire_n, n_cover), 6) if fire_i else "NA",
-        ])
+            round(safe_div(fire_n, n_cover), 6) if args.fire else "NA",
+        ]
 
     args.outdir.mkdir(parents=True, exist_ok=True)
     out = args.outdir / f"{args.sample}.region_quant.tsv"
     write_tsv(str(out),
               ["chrom", "start", "end", "name", "n_fibers", "n_accessible",
                "n_nucleosome", "n_fire", "percent_accessible", "nuc_occupancy",
-               "m6a_per_fiber", "fire_frac"], rows)
+               "m6a_per_fiber", "fire_frac"],
+              [r for r in rows if r is not None])
     logger.info(f"Wrote {out} ({len(rows)} regions)")
     return 0
 

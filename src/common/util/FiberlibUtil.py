@@ -91,6 +91,207 @@ def read_bed(path: str) -> List[BedRecord]:
     return records
 
 
+def iter_bed_chrom(path: str) -> Iterator[Tuple[str, List[BedRecord]]]:
+    """Stream a BED file grouped per chromosome, in file order.
+
+    Each yielded chunk holds only the records of ONE chromosome, so peak
+    memory is bounded by the largest chromosome instead of the whole file
+    (the whole-file `read_bed` list OOMs on multi-GB Fiber-seq BEDs).
+    Requires chromosome-grouped input (sort -k1,1); a chromosome that
+    reappears later yields a second chunk for it.
+    """
+    chunk_chrom: Optional[str] = None
+    chunk: List[BedRecord] = []
+    with open_maybe_gzip(path) as fh:
+        for line in fh:
+            if not line.strip() or line.startswith(("#", "track", "browser")):
+                continue
+            f = line.rstrip("\n").split("\t")
+            if len(f) < 3:
+                continue
+            try:
+                start, end = int(f[1]), int(f[2])
+            except ValueError:
+                continue
+            chrom = f[0]
+            if chrom != chunk_chrom:
+                if chunk:
+                    assert chunk_chrom is not None
+                    yield chunk_chrom, chunk
+                chunk_chrom = chrom
+                chunk = []
+            name = f[3] if len(f) > 3 else "."
+            score = float(f[4]) if len(f) > 4 and f[4] not in (".", "") else 0.0
+            strand = f[5] if len(f) > 5 and f[5] else "."
+            blocks: List[Tuple[int, int]] = []
+            if len(f) >= 12:
+                n = int(f[9])
+                sizes = [int(x) for x in f[10].rstrip(",").split(",") if x != ""]
+                starts = [int(x) for x in f[11].rstrip(",").split(",") if x != ""]
+                for i in range(min(n, len(sizes), len(starts))):
+                    bs = start + starts[i]
+                    blocks.append((bs, bs + sizes[i]))
+            if not blocks:
+                blocks = [(start, end)]
+            chunk.append(BedRecord(chrom, start, end, name, score, strand, blocks))
+    if chunk:
+        assert chunk_chrom is not None
+        yield chunk_chrom, chunk
+
+
+def stream_bed_records(path: str) -> Iterator[BedRecord]:
+    """Stream a BED file record by record (O(1) memory, file order).
+
+    Same parsing rules as `read_bed`; callers that only need records near
+    a few anchors should retain selectively instead of materializing lists.
+    """
+    with open_maybe_gzip(path) as fh:
+        for line in fh:
+            if not line.strip() or line.startswith(("#", "track", "browser")):
+                continue
+            f = line.rstrip("\n").split("\t")
+            if len(f) < 3:
+                continue
+            try:
+                start, end = int(f[1]), int(f[2])
+            except ValueError:
+                continue
+            chrom = f[0]
+            name = f[3] if len(f) > 3 else "."
+            score = float(f[4]) if len(f) > 4 and f[4] not in (".", "") else 0.0
+            strand = f[5] if len(f) > 5 and f[5] else "."
+            blocks: List[Tuple[int, int]] = []
+            if len(f) >= 12:
+                n = int(f[9])
+                sizes = [int(x) for x in f[10].rstrip(",").split(",") if x != ""]
+                starts = [int(x) for x in f[11].rstrip(",").split(",") if x != ""]
+                for i in range(min(n, len(sizes), len(starts))):
+                    bs = start + starts[i]
+                    blocks.append((bs, bs + sizes[i]))
+            if not blocks:
+                blocks = [(start, end)]
+            yield BedRecord(chrom, start, end, name, score, strand, blocks)
+
+
+class ChromSweep:
+    """Position-sweep join between big BEDs and a small set of anchors.
+
+    Chromosome processing order follows the files themselves (all paths
+    must be chromosome-grouped in the same order); within a chromosome,
+    anchors are evaluated in start order. Only records overlapping the
+    current anchor window are retained, so memory stays proportional to
+    the anchor neighborhood, not the file. Anchors on chromosomes absent
+    from the files yield empty per-path lists (same as zero coverage).
+    """
+
+    def __init__(self, paths: Sequence[str],
+                 anchors: Sequence[Tuple[str, int, int]]) -> None:
+        self._paths = list(paths)
+        self._streams = [stream_bed_records(p) for p in self._paths]
+        self._pending: List[Optional[BedRecord]] = [
+            next(s, None) for s in self._streams
+        ]
+        self._active: List[List[BedRecord]] = [[] for _ in self._paths]
+        self._last: List[Optional[str]] = [None] * len(self._paths)
+        self._left: List[set] = [set() for _ in self._paths]
+        self._anchors = list(anchors)
+
+    def _advance_path(self, i: int, chrom: str) -> None:
+        """Position stream *i* on chromosome *chrom* (or exhaust it)."""
+        p = self._pending[i]
+        prev = self._last[i]
+        exited: set = set()
+        while p is not None and p.chrom != chrom:
+            x = p.chrom
+            if x != prev:
+                if prev is not None:
+                    exited.add(prev)
+                prev = x
+            p = next(self._streams[i], None)
+            self._pending[i] = p
+        if p is not None:
+            if prev is not None and prev != chrom:
+                exited.add(prev)
+                if chrom in exited or chrom in self._left[i]:
+                    raise ValueError(
+                        f"{self._paths[i]}: chromosome {chrom} re-appears after "
+                        f"later chromosomes; BED not chromosome-grouped "
+                        f"(run `sort -k1,1` on the input)")
+            self._last[i] = chrom
+        else:
+            if prev is not None:
+                exited.add(prev)
+                if chrom in exited:
+                    raise ValueError(
+                        f"{self._paths[i]}: records for chromosome {chrom} were "
+                        f"already passed; BED chromosome order diverges between "
+                        f"files (run `sort -k1,1` on every input)")
+            self._last[i] = None
+        self._left[i] |= exited
+
+    def _exit_block(self, i: int, chrom: str) -> None:
+        """Move stream *i* past the remainder of its current *chrom* block."""
+        p = self._pending[i]
+        while p is not None and p.chrom == chrom:
+            p = next(self._streams[i], None)
+            self._pending[i] = p
+        self._left[i].add(chrom)
+        if p is not None:
+            nxt = p.chrom
+            if nxt in self._left[i]:
+                raise ValueError(
+                    f"{self._paths[i]}: chromosome {nxt} re-appears after "
+                    f"later chromosomes; BED not chromosome-grouped "
+                    f"(run `sort -k1,1` on the input)")
+            self._last[i] = nxt
+        else:
+            self._last[i] = None
+
+    def _anchors_by_chrom(self) -> Dict[str, List[Tuple[int, int, int]]]:
+        buckets: Dict[str, List[Tuple[int, int, int]]] = {}
+        for k, (c, s, e) in enumerate(self._anchors):
+            buckets.setdefault(c, []).append((s, e, k))
+        for c in buckets:
+            buckets[c].sort()
+        return buckets
+
+    def advance(self) -> Iterator[Tuple[int, Tuple[str, int, int], List[List[BedRecord]]]]:
+        """Yield (original_anchor_index, anchor, per-path overlapping records)."""
+        buckets = self._anchors_by_chrom()
+        seen: set = set()
+        n = len(self._paths)
+        while True:
+            head = self._pending[0]
+            if head is None:
+                break
+            chrom = head.chrom
+            for i in range(n):
+                self._advance_path(i, chrom)
+                self._active[i] = []
+            for (s, e, k) in buckets.get(chrom, []):
+                seen.add(k)
+                per_path: List[List[BedRecord]] = []
+                for i in range(n):
+                    p = self._pending[i]
+                    while p is not None and p.chrom == chrom and p.start < e:
+                        if self._active[i] and p.start < self._active[i][-1].start:
+                            raise ValueError(
+                                f"{self._paths[i]}: BED not sorted by start within "
+                                f"chromosome {chrom} at position {p.start}; "
+                                f"run `sort -k1,1 -k2,2n` on the input")
+                        self._active[i].append(p)
+                        p = next(self._streams[i], None)
+                        self._pending[i] = p
+                    self._active[i] = [r for r in self._active[i] if r.end > s]
+                    per_path.append(
+                        [r for r in self._active[i] if r.start < e and r.end > s])
+                yield k, (chrom, s, e), per_path
+            self._exit_block(0, chrom)
+        for k, (c, s, e) in enumerate(self._anchors):
+            if k not in seen:
+                yield k, (c, s, e), [[] for _ in range(n)]
+
+
 class RegionIndex:
     """Per-chromosome interval index for overlap queries.
 
@@ -124,33 +325,6 @@ class RegionIndex:
         return out
 
 
-def _merged_intervals(
-    records: Sequence[BedRecord], chrom: str, win_start: int, win_end: int
-) -> List[Tuple[int, int]]:
-    """Merge all blocks per fiber clipped to the window; return union intervals."""
-    per_fiber: Dict[str, List[Tuple[int, int]]] = {}
-    for r in records:
-        if r.chrom != chrom:
-            continue
-        for bs, be in r.blocks:
-            s = max(bs, win_start)
-            e = min(be, win_end)
-            if s < e:
-                per_fiber.setdefault(r.name, []).append((s, e))
-    merged: List[Tuple[int, int]] = []
-    for spans in per_fiber.values():
-        spans.sort()
-        cs, ce = spans[0]
-        for s, e in spans[1:]:
-            if s <= ce:
-                ce = max(ce, e)
-            else:
-                merged.append((cs, ce))
-                cs, ce = s, e
-        merged.append((cs, ce))
-    return merged
-
-
 def block_signal(
     records: Sequence[BedRecord],
     chrom: str,
@@ -162,24 +336,60 @@ def block_signal(
 
     With ``uniq_fibers=True`` each fiber contributes at most 1 per base
     (fiber coverage); with False every block adds one (mark density).
+    Accumulates the difference array directly from records -- no
+    intermediate span list, so memory is O(window) regardless of input.
     """
     length = win_end - win_start
+    if length <= 0:
+        return np.zeros(0, dtype=np.int64)
     diff = np.zeros(length + 1, dtype=np.int64)
     if uniq_fibers:
-        spans = _merged_intervals(records, chrom, win_start, win_end)
-    else:
-        spans = []
+        # Union per fiber NAME across ALL passed records (e.g. the msp+nuc
+        # concatenation of track: one fiber's MSP and nucleosome blocks must
+        # merge into a single coverage contribution). Merging happens per
+        # fiber and emits straight into the difference array -- the only
+        # state is the window-local span list of the current fiber.
+        per_fiber: Dict[str, List[Tuple[int, int]]] = {}
         for r in records:
             if r.chrom != chrom:
                 continue
             for bs, be in r.blocks:
-                s = max(bs, win_start)
-                e = min(be, win_end)
+                s = bs if bs > win_start else win_start
+                e = be if be < win_end else win_end
                 if s < e:
-                    spans.append((s, e))
-    for s, e in spans:
-        diff[s - win_start] += 1
-        diff[e - win_start] -= 1
+                    spans = per_fiber.get(r.name)
+                    if spans is None:
+                        per_fiber[r.name] = [(s, e)]
+                    else:
+                        spans.append((s, e))
+        for spans in per_fiber.values():
+            if len(spans) == 1:
+                s, e = spans[0]
+                diff[s - win_start] += 1
+                diff[e - win_start] -= 1
+                continue
+            spans.sort()
+            cs, ce = spans[0]
+            for s, e in spans[1:]:
+                if s <= ce:
+                    if e > ce:
+                        ce = e
+                else:
+                    diff[cs - win_start] += 1
+                    diff[ce - win_start] -= 1
+                    cs, ce = s, e
+            diff[cs - win_start] += 1
+            diff[ce - win_start] -= 1
+    else:
+        for r in records:
+            if r.chrom != chrom:
+                continue
+            for bs, be in r.blocks:
+                s = bs if bs > win_start else win_start
+                e = be if be < win_end else win_end
+                if s < e:
+                    diff[s - win_start] += 1
+                    diff[e - win_start] -= 1
     return np.cumsum(diff[:length])
 
 

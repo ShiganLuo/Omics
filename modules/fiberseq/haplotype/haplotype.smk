@@ -26,7 +26,7 @@ rule fiberseq_haplotype_diff:
         summary = outdir + "/{sample_id}/{sample_id}.haplotype_summary.tsv",
     log:
         logdir + "/{sample_id}/fiberseq_haplotype_diff.log"
-    threads: 1
+    threads: 4
     conda:
         "../fiberseq.yaml"
     container:

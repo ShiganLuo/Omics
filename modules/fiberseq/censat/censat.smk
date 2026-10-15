@@ -12,8 +12,6 @@ ROOT_DIR = config.get("ROOT_DIR", ".")
 env = config.get("env", {})
 genome_cfg = config.get("genome", {})
 p = config.get("Params", {}).get("fiberseq_censat", {})
-
-
 rule fiberseq_censat_run:
     """Region-class accessibility and methylation profiles (CDR/HOR/flank)."""
     input:
@@ -28,7 +26,9 @@ rule fiberseq_censat_run:
         pdf = outdir + "/{sample_id}/{sample_id}.censat_profile.pdf",
     log:
         logdir + "/{sample_id}/fiberseq_censat_run.log"
-    threads: 1
+    threads: rule_res("fiberseq_censat").get("threads", 4)
+    resources:
+        mem_mb = rule_res("fiberseq_censat").get("mem_mb", 8000),
     conda:
         "../fiberseq.yaml"
     container:

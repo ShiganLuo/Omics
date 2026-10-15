@@ -32,6 +32,7 @@ from src.common.util.LogUtil import setup_logger  # noqa: E402
 
 from src.common.util.FiberlibUtil import (  # noqa: E402
     BedRecord,
+    ChromSweep,
     block_signal,
     coverage_signal,
     read_bed,
@@ -57,7 +58,11 @@ logger = _get_logger()
 
 
 def classify_fibers(site, m6a, msp, nuc) -> Dict[str, set]:
-    """Classify fibers covering the motif core into the three categories."""
+    """Classify fibers covering the motif core into the three categories.
+
+    m6a/msp/nuc here are the records overlapping the site's sweep window
+    (core included), streamed per site -- not whole-genome lists.
+    """
     core_s, core_e = site.start, site.end
     m6a_by_fiber: Dict[str, List[tuple]] = {}
     for r in m6a:
@@ -107,19 +112,23 @@ def run(args: argparse.Namespace) -> int:
     from scipy.stats import ks_2samp
 
     sites = read_bed(str(args.motif_sites))
-    m6a = read_bed(str(args.m6a))
-    msp = read_bed(str(args.msp))
-    nuc = read_bed(str(args.nuc))
-    logger.info(f"sites={len(sites)} m6a={len(m6a)} msp={len(msp)} nuc={len(nuc)}")
+    logger.info(f"sites={len(sites)} (streaming m6a/msp/nuc per site window)")
 
     flank = args.flank
     width = 2 * flank
+    sweep = ChromSweep(
+        [str(args.m6a), str(args.msp), str(args.nuc)],
+        [(s.chrom, min(s.start, (s.start + s.end) // 2 - flank),
+          max(s.end, (s.start + s.end) // 2 + flank)) for s in sites],
+    )
     agg = {c: {"cov": np.zeros(width), "m6a": np.zeros(width)} for c in CATEGORIES}
     score_sets: Dict[str, List[float]] = {c: [] for c in CATEGORIES}
     cat_rows = []
 
-    for site in sites:
-        cats = classify_fibers(site, m6a, msp, nuc)
+    for k, (chrom, ws0, we0), ov in sweep.advance():
+        site = sites[k]
+        m6a_ov, msp_ov, nuc_ov = ov[0], ov[1], ov[2]
+        cats = classify_fibers(site, m6a_ov, msp_ov, nuc_ov)
         counts = {c: len(cats[c]) for c in CATEGORIES}
         cat_rows.append([site.chrom, site.start, site.end, site.name,
                          counts["msp_footprint"], counts["msp_no_footprint"],
@@ -129,9 +138,9 @@ def run(args: argparse.Namespace) -> int:
         for cat, fibers in cats.items():
             if not fibers:
                 continue
-            m6a_sub = [r for r in m6a if r.name in fibers]
-            msp_sub = [r for r in msp if r.name in fibers]
-            nuc_sub = [r for r in nuc if r.name in fibers]
+            m6a_sub = [r for r in m6a_ov if r.name in fibers]
+            msp_sub = [r for r in msp_ov if r.name in fibers]
+            nuc_sub = [r for r in nuc_ov if r.name in fibers]
             cov = coverage_signal(nuc_sub, msp_sub, site.chrom, ws, we)
             m6a_sig = block_signal(m6a_sub, site.chrom, ws, we, uniq_fibers=True)
             agg[cat]["cov"] += cov

@@ -56,6 +56,32 @@ def _load_model_json(model_json_file: str) -> Dict[str, Any]:
     
 
 
+def _detect_total_mem_mb(default_mb: int = 470000) -> int:
+    """Total RAM in MB for the snakemake --resources budget.
+
+    Reads CGroup V2 limit first (containers/slurm set it), then /proc/meminfo.
+    Reserves ~6% for the OS. Falls back to default_mb when neither is readable.
+    """
+    try:
+        with open("/sys/fs/cgroup/memory.max") as fh:
+            v = fh.read().strip()
+        if v != "max":
+            total_mb = int(v) // (1024 * 1024)  # bytes -> MB
+            if total_mb > 0:
+                return int(total_mb * 0.94)
+    except (OSError, ValueError):
+        pass
+    try:
+        with open("/proc/meminfo") as fh:
+            for line in fh:
+                if line.startswith("MemTotal:"):
+                    total_mb = int(line.split()[1]) // 1024  # kB -> MB
+                    return int(total_mb * 0.94)
+    except (OSError, ValueError, IndexError):
+        pass
+    return default_mb
+
+
 def parse_args() -> argparse.Namespace:
     """Parse CLI arguments and collect extra dot-notation overrides.
 
@@ -83,6 +109,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('--conda-prefix', type=str, default=None, help='conda prefix for snakemake (required when NOT using --sdm apptainer)')
     parser.add_argument('--sdm', action='store_const', const='apptainer', default=None,
         help='use apptainer container backend (SIF images). When set, --use-conda is omitted')
+    parser.add_argument('--mem-mb', type=int, default=None, dest='mem_mb',
+        help='global mem_mb budget passed to snakemake --resources; jobs declaring '
+             'resources.mem_mb are scheduled against it. Default: auto-detect '
+             '(~94%% of total RAM)')
     parser.add_argument('--singularity-args', type=str, default=None,
         help='arguments for singularity/apptainer, e.g. --singularity-args \'--bind /path1,/path2\' (use with --sdm)')
     parser.add_argument(
@@ -263,7 +293,8 @@ def build_snakemake_cmd(root_dir: str, smk: str, input_json: str, threads: int,
                         sdm: Optional[str] = None, singularity_args: Optional[str] = None,
                         forcerun: Optional[List[str]] = None, unlock: bool = False,
                         touch: bool = False, list_target_rules: bool = False,
-                        list_rules: bool = False) -> List[str]:
+                        list_rules: bool = False,
+                        mem_mb: Optional[int] = None) -> List[str]:
     """Build the snakemake CLI command list for a given subworkflow.
 
     Configures conda or apptainer container backend, collects bind paths
@@ -305,6 +336,8 @@ def build_snakemake_cmd(root_dir: str, smk: str, input_json: str, threads: int,
         "--rerun-triggers",
         *rerun_trigger,
     ]
+    if mem_mb:
+        cmd += ["--resources", f"mem_mb={mem_mb}"]
     if not use_singularity:
         cmd += [
             "--conda-prefix",
@@ -681,7 +714,7 @@ def execute_workflows(args: argparse.Namespace, root_dir: str, logger: logging.L
                 sdm=args.sdm, singularity_args=args.singularity_args,
                 forcerun=forcerun_targets, unlock=args.unlock,
                 touch=args.touch, list_target_rules=args.list_target_rules,
-                list_rules=args.list_rules
+                list_rules=args.list_rules, mem_mb=args.mem_mb
             )
             logger.info(f"[{wf_name}] {cmd}")
             smk_cmds.append((cmd, abs_outdir))
@@ -716,6 +749,8 @@ def execute_workflows(args: argparse.Namespace, root_dir: str, logger: logging.L
 
 if __name__ == "__main__":
     args = parse_args()
+    if args.mem_mb is None:
+        args.mem_mb = _detect_total_mem_mb()
     ROOT_DIR = os.path.dirname(__file__)
 
     # Warn if --touch and --dry-run are both specified

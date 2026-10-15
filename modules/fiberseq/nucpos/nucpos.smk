@@ -12,8 +12,6 @@ ROOT_DIR = config.get("ROOT_DIR", ".")
 env = config.get("env", {})
 genome_cfg = config.get("genome", {})
 p = config.get("Params", {}).get("fiberseq_nucpos", {})
-
-
 rule fiberseq_nucpos_run:
     """Nucleosome positioning/phasing around TSS anchors."""
     input:
@@ -25,7 +23,9 @@ rule fiberseq_nucpos_run:
         pdf = outdir + "/{sample_id}/{sample_id}.nucpos.pdf",
     log:
         logdir + "/{sample_id}/fiberseq_nucpos_run.log"
-    threads: 1
+    threads: rule_res("fiberseq_nucpos").get("threads", 4)
+    resources:
+        mem_mb = rule_res("fiberseq_nucpos").get("mem_mb", 6000),
     conda:
         "../fiberseq.yaml"
     container:

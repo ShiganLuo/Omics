@@ -26,7 +26,13 @@ if str(_ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(_ROOT_DIR))
 from src.common.util.LogUtil import setup_logger  # noqa: E402
 
-from src.common.util.FiberlibUtil import RegionIndex, bh_fdr, read_bed, safe_div, write_tsv  # noqa: E402
+from src.common.util.FiberlibUtil import (  # noqa: E402
+    ChromSweep,
+    bh_fdr,
+    read_bed,
+    safe_div,
+    write_tsv,
+)
 
 
 def _get_logger(log_file: Optional[Path] = None) -> logging.Logger:
@@ -44,48 +50,52 @@ def _get_logger(log_file: Optional[Path] = None) -> logging.Logger:
 logger = _get_logger()
 
 
-def fiber_sets(index: RegionIndex, records, chrom: str, start: int, end: int) -> Set[str]:
-    return {records[i].name for i in index.query(chrom, start, end)}
-
-
 def run(args: argparse.Namespace) -> int:
     from scipy.stats import fisher_exact
 
     peaks = read_bed(str(args.peaks))
-    fire = read_bed(str(args.fire))
-    msp = read_bed(str(args.msp))
-    nuc = read_bed(str(args.nuc))
-    fire_i, msp_i, nuc_i = RegionIndex(fire), RegionIndex(msp), RegionIndex(nuc)
-    logger.info(f"peaks={len(peaks)} fire={len(fire)} msp={len(msp)} nuc={len(nuc)}")
+    logger.info(f"peaks={len(peaks)} (streaming fire/msp/nuc per region)")
 
     pairs = []
     for i, p1 in enumerate(peaks):
-        for p2 in peaks[i + 1:]:
+        for j in range(i + 1, len(peaks)):
+            p2 = peaks[j]
             if p2.chrom != p1.chrom:
                 continue
             gap = max(p2.start - p1.end, p1.start - p2.end, 0)
             if gap > args.max_distance:
                 continue
-            pairs.append((p1, p2))
+            pairs.append((i, j))
             if len(pairs) >= args.max_pairs:
                 break
         if len(pairs) >= args.max_pairs:
             break
     logger.info(f"Testing {len(pairs)} region pairs (max_distance={args.max_distance})")
 
+    # Stream the big element BEDs once, keeping only records overlapping a
+    # peak region (whole-file read_bed of msp+nuc+fire OOMs on real data).
+    sweep = ChromSweep(
+        [str(args.fire), str(args.msp), str(args.nuc)],
+        [(p.chrom, p.start, p.end) for p in peaks],
+    )
+    region_ov: List = [None] * len(peaks)
+    for k, (chrom, s, e), ov in sweep.advance():
+        region_ov[k] = (ov[0], ov[1], ov[2])
+
     rows = []
     pvals = []
     obs_diffs = []
-    for p1, p2 in pairs:
-        cov1 = fiber_sets(nuc_i, nuc, p1.chrom, p1.start, p1.end) | \
-            fiber_sets(msp_i, msp, p1.chrom, p1.start, p1.end)
-        cov2 = fiber_sets(nuc_i, nuc, p2.chrom, p2.start, p2.end) | \
-            fiber_sets(msp_i, msp, p2.chrom, p2.start, p2.end)
+    for i1, i2 in pairs:
+        p1, p2 = peaks[i1], peaks[i2]
+        f_ov1, m_ov1, n_ov1 = region_ov[i1]
+        f_ov2, m_ov2, n_ov2 = region_ov[i2]
+        cov1 = {r.name for r in n_ov1} | {r.name for r in m_ov1}
+        cov2 = {r.name for r in n_ov2} | {r.name for r in m_ov2}
         both_cov = cov1 & cov2
         if len(both_cov) < args.min_fibers:
             continue
-        f1 = fiber_sets(fire_i, fire, p1.chrom, p1.start, p1.end) & both_cov
-        f2 = fiber_sets(fire_i, fire, p2.chrom, p2.start, p2.end) & both_cov
+        f1 = {r.name for r in f_ov1} & both_cov
+        f2 = {r.name for r in f_ov2} & both_cov
         b = len(f1 & f2)
         a1_only = len(f1) - b
         a2_only = len(f2) - b

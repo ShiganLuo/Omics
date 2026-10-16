@@ -54,8 +54,7 @@ rule cellranger_ref:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start cellranger_ref at {current_time}")
-            os.makedirs(str(output.ref_dir), exist_ok=True)
-            command_script = os.path.join(str(output.ref_dir), f"cellranger_ref_{current_time}.sh")
+            command_script = os.path.join(str(params.cellranger_ref_dir), f"cellranger_ref_{current_time}.sh")
             cmd = [
                 "python", params.script,
                 "--fasta", input.fasta,

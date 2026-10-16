@@ -182,7 +182,6 @@ rule scanpy_auto:
             rule_logger.info(f"Start scanpy auto for tissue {wildcards.tissue} at {current_time}")
             sample_outdir = os.path.dirname(str(output.h5ad))
             os.makedirs(sample_outdir, exist_ok=True)
-            os.makedirs(str(output.plot_dir), exist_ok=True)
             script_path = os.path.join(sample_outdir, f"scanpy_auto_{wildcards.counter}_{wildcards.tissue}_{current_time}.sh")
             cmd = [params.python, params.script, "auto",
                    "-i", input.h5ad,

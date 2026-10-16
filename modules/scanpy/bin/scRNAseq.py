@@ -3319,6 +3319,21 @@ def mode_auto(
         logger.info("[Step 1] Clustering (resolution=%.2f)...", resolution)
         resolved_batch_key = batch_key or ("sample_id" if "sample_id" in adata.obs else "batch")
 
+        # Re-cluster paths (Step 3.5 / 3.75 `continue`) loop back here with
+        # adata in a SCALED, HVG-subset state from the previous iteration.
+        # Re-running normalize_total/log1p/HVG on that state is invalid:
+        # scaled values are negative -> normalize_total yields NaNs ->
+        # HVG seurat bin edges all NaN -> all-gene fallback -> zero-variance
+        # filter removes everything -> PCA degrades. Restore raw counts +
+        # full genes (keeping obs annotations) before (re-)clustering.
+        if iteration > 1 and "counts" in raw_adata.layers:
+            logger.info("Restoring raw counts + full gene set for re-clustering")
+            obs_keep = adata.obs.copy()
+            adata = raw_adata[raw_adata.obs.index.isin(obs_keep.index)].copy()
+            shared = obs_keep.index.intersection(adata.obs.index)
+            for col in obs_keep.columns:
+                adata.obs.loc[shared, col] = obs_keep.loc[shared, col]
+
         sc.pp.normalize_total(adata, target_sum=1e4)
         sc.pp.log1p(adata)
         adata.raw = adata.copy()

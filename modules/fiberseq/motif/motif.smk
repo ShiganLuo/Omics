@@ -50,6 +50,7 @@ rule fiberseq_motif_scan:
                 "-o", sample_outdir,
                 "--sample", wildcards.sample_id,
                 "-t", str(params.pwm_threshold),
+                "--threads", str(threads),
                 "-l", log_path,
             ]
             with open(script, "w") as f:

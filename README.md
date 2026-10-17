@@ -1,32 +1,34 @@
 # Omics Workflow
 
+[English](README_EN.md) | 中文
+
 这里是 `Omics` 相关的统一工作流入口。当前目录下的 `run.py` 会根据样本元信息和 `workflow_name` 选择对应的 Snakemake 子流程，并自动生成各流程所需的 `raw.json` 配置文件。
 
 - README.md为人类阅读文档
 - 目录名.md为agent加载的skill
 
-## 解决什么问题
+## 流程优点
 
-下面这些是 Omics 直接对应的问题。每一行后面都跟着具体怎么用——CLI 命令、参数、或工作流入口，跳到「快速开始」或「运行指南」可以看完整示例。
+每一项优点后面都跟着具体用法——CLI 命令、参数或工作流入口；跳到「快速开始」或「运行指南」可以看完整示例。
 
-**流程跑完就死了，参数和路径到处找。**
-所有运行参数版本化在 `output/<workflow>/raw.json` 里，输入 → 输出的依赖由 Snakemake 描述，中间结果自动可恢复。运行时改任何参数都通过 `python run.py --Params.<key>.<subkey> <value>` 覆盖，不必动源码：
+**参数全留痕，结果可复现**
+所有运行参数版本化在 `output/<workflow>/raw.json` 里，输入 → 输出的依赖由 Snakemake 描述，中间结果自动可恢复，事后可完整追溯每次运行用了什么参数、什么版本。
+
+**配置高度可定制**
+所有工具参数渐进式披露在 `config/<workflow>.json`，人类可读、可直接改；也可以不改文件，运行时通过嵌套 CLI 字段覆盖（如 `--Params.trim_galore.quality 10`）：
 
 ```bash
 python workflow/Omics/run.py -m data/meta/fastq -w CLIP -o output \
   --Params.trim_galore.quality 10
 ```
 
-**参数空间失控——一份流程几十个参数散落在五处。**
-流程参数走统一 schema，参数按 workflow 组织在 `config/<workflow>.json`，运行时通过嵌套 CLI 字段覆盖（`--Params.trim_galore.quality 10`），不必改源码、不必记参数在哪。
+**一套入口，高度复用**
+RNA-seq、scRNA-seq、ChIP-seq、WGS、群体基因组等十余类分析收敛到同一入口 `python run.py -w <workflow>`，共享 `modules/` 与 `config/`。新流程建立在已有模块之上，不重复造轮子。
 
-**历史流程散落各处，下一个项目拼凑不出。**
-14 类分析（RNA-seq、scRNA-seq、ChIP-seq、WGS、群体基因组等）收敛到同一套入口 `python run.py -w <workflow>`，共享 `modules/` 与 `config/`。新流程建立在已有模块之上，不重复造轮子。
+**加分支不改主线**
+加分支只声明新 output，不改已有 input——DAG 描述依赖而非命令式执行，主线天然不漂移。流程变更可被 git 追溯，重跑决策由 Snakemake 缓存。
 
-**加分支拷一份主流程，半年后有 7 份互相略有差异的"主线"。**
-加分支只声明新 output，不改已有 input——DAG 描述依赖而非命令式执行，主线天然不漂移。流程变更可被 git 追溯，重跑决策可被 Snakemake 缓存。
-
-**探索性分析（单细胞、空间组、ATAC）门槛太高，自己调不动。**
+**支持探索性分析（LLM auto 模式）**
 `scRNAseq` 工作流提供 `auto` 模式——内置 LLM 决策，自动挑 PC 数、调整 clustering resolution、过滤低质量 cluster、调用 LLM 做细胞类型注释并产出审计报告。只需要提供数据和组织名：
 
 ```bash
@@ -34,8 +36,8 @@ python workflow/Omics/run.py -m data/meta/fastq -w scRNAseq -o output \
   --auto --tissue ovaries
 ```
 
-**只想要某一个中间产物，不想跑完全流程。**
-输出驱动的 DAG——通过 `--until <rule>` 跑到指定 stage 暂停，或 `--target-jobs "rule:wc=val"` 把任意中间产物作为终点：
+**支持精确重跑**
+输出驱动的 DAG——`--until <rule>` 跑到指定 stage 停止，`--forcerun` 强制重跑任意规则（支持 `规则:wildcard=value` 精确到通配符组合），`--target-jobs` 可把任意中间产物作为终点：
 
 ```bash
 # 只要 dedup 后的 BAM 就停
@@ -52,7 +54,19 @@ python workflow/Omics/run.py -m data/meta.tsv -w scRNAseq -o output \
   --forcerun scanpy_auto:tissue=Uterus,counter=scTE
 ```
 
-具体怎么开始见「快速开始」，14 类工作流的能力清单见「支持的工作流」。
+**资源分配可控**
+通过 `resources` 字段按规则控制线程数和内存（`resources.default` 兜底、按规则名覆盖），避免耗尽主机内存或打满 CPU。
+
+**环境免手动安装**
+各流程用到的软件不需要手动装：conda 模式由 Snakemake 按 `modules/*/*.yaml` 自动创建环境，容器模式直接用预构建 SIF 镜像，bind 路径由 `run.py` 自动推导。
+
+**内置测试模式**
+`--test <workflow>`（或 `--test all`）用自带测试数据完成配置解析、`raw.json` 生成和 dry-run，不真正执行，快速验证流程是否可用。
+
+**AI 友好**
+得益于统一入口和结构化设计，所有信息都沉淀在 JSON（配置、`raw.json`、schema）和日志文件中，无需人肉翻代码即可掌握每次运行的完整上下文；配合专有 skill（目录名.md），AI 可直接针对流程做分析——排查失败原因、提升流程性能、增加分析模块等。
+
+具体怎么开始见「快速开始」，各工作流的能力清单见「支持的工作流」。
 
 ## 目录结构
 

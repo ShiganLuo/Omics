@@ -32,9 +32,9 @@ rule pbsv_discover:
         sif("pbsv.yaml")
     run:
         log_path = str(log)
+        open(log_path,"w").close()
+        rule_logger = setup_logger("pbsv_discover",log_file=log_path)
         try:
-            open(log_path,"w").close()
-            rule_logger = setup_logger("pbsv_discover",log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start pbsv discover for sample {wildcards.sample_id} at {current_time}")
             script = os.path.join(outdir,f"{wildcards.sample_id}/pbsv_discover_{current_time}.sh")
@@ -46,10 +46,10 @@ rule pbsv_discover:
             with open(script, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
-            shell(f"bash {script} > {log_path} 2>&1")
+                f.write(f"echo 'pbsv discover was successfully completed for sample {wildcards.sample_id}'\n")
+            shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"pbsv discover failed: {e}\n")
+            rule_logger.error(f"pbsv discover failed for sample {wildcards.sample_id}: {e}")
             raise RuntimeError(f"pbsv discover failed: {e}\n")
 
 
@@ -74,9 +74,9 @@ rule pbsv_call:
         sif("pbsv.yaml")
     run:
         log_path = str(log)
+        open(log_path,"w").close()
+        rule_logger = setup_logger("pbsv_call", log_file=log_path)
         try:
-            open(log_path,"w").close()
-            rule_logger = setup_logger("pbsv_call", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start pbsv call for sample {wildcards.sample_id} at {current_time}")
             script = os.path.join(outdir,f"{wildcards.sample_id}/pbsv_call_{current_time}.sh")
@@ -103,10 +103,10 @@ rule pbsv_call:
                 f.write(" ".join(cmd2) + "\n")
                 f.write(" ".join(cmd3) + "\n")
                 f.write(" ".join(cmd4) + "\n")
-            shell(f"bash {script} > {log_path} 2>&1")
+                f.write(f"echo 'pbsv call was successfully completed for sample {wildcards.sample_id}'\n")
+            shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a"):
-                f.write(f"pbsv_call error: {e}")
+            rule_logger.error(f"pbsv call failed for sample {wildcards.sample_id}: {e}")
             raise RuntimeError(f"pbsv_call error: {e}, please check the log file {log_path} for more details.")
 
 rule pbsv_result:

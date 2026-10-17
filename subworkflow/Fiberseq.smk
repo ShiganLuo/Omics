@@ -276,6 +276,9 @@ pbsv_config = {
     "Procedure": {
         "pbsv": config.get("Procedure", {}).get("pbsv")
     },
+    "Params": {
+        "pbsv": config.get("Params", {}).get("pbsv", {})
+    },
     "genome": {
         "fasta": fasta
     }

@@ -95,8 +95,14 @@
             "max_pairs": 200000,
             "alpha": 0.05
         },
+        "pbsv": {
+            "enabled": true,
+            "min_sv_len": 50,
+            "max_sv_len": 1000000,
+            "min_fibers": 10
+        },
         "haplotype": {
-            "enabled": false,
+            "enabled": true,
             "min_fibers": 10,
             "alpha": 0.05
         },

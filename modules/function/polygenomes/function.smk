@@ -38,9 +38,9 @@ rule function_go_kegg:
         sif("../function.yaml")
     run:
         log_path = str(log)
+        open(log_path, 'w').close()
+        rule_logger = setup_logger("function_go_kegg", log_file=log_path)
         try:
-            open(log_path, 'w').close()
-            rule_logger = setup_logger("function_go_kegg", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start GO/KEGG analysis for {wildcards.contrast} at {current_time}")
 
@@ -69,17 +69,13 @@ rule function_go_kegg:
 
             script = os.path.join(sample_outdir, f"go_kegg_{current_time}.sh")
             with open(script, 'w') as f:
-                f.write("#!/bin/bash\n")
-                f.write("set -e\n")
-                f.write("set -o pipefail\n")
+                f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
-                f.write(f"echo 'GO/KEGG analysis completed successfully at {time.strftime('%Y-%m-%d %H:%M:%S')}'\n")
+                f.write(f"echo 'GO/KEGG analysis completed successfully for {wildcards.genome} and {wildcards.contrast}'\n")
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as fh:
-                fh.write(f"GO/KEGG analysis failed: {e}\n")
-            logger.error(f"GO/KEGG analysis failed: {e}\n")
-            raise e
+            rule_logger.error(f"GO/KEGG analysis failed: {e}\n")
+            raise RuntimeError(f"GO/KEGG analysis failed: {e}\n")
 
 def get_input_for_function_gsea(wildcards):
     logger.info(f"[get_input_for_function_gsea] called with wildcards: {wildcards}")
@@ -113,9 +109,9 @@ rule function_gsea:
         sif("../function.yaml")
     run:
         log_path = str(log)
+        open(log_path, 'w').close()
+        rule_logger = setup_logger("function_gsea", log_file=log_path)
         try:
-            open(log_path, 'w').close()
-            rule_logger = setup_logger("function_gsea", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             if wildcards.contrast not in group_pairs.get(wildcards.genome, {}):
                 raise ValueError(f"Group pair {wildcards.contrast} not found in group_pairs configuration.")
@@ -140,19 +136,14 @@ rule function_gsea:
                 "-t", graph_title,
             ]
 
-            
             with open(script, 'w') as f:
-                f.write("#!/bin/bash\n")
-                f.write("set -e\n")
-                f.write("set -o pipefail\n")
+                f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
-                f.write(f"echo 'GSEA analysis completed successfully at {time.strftime('%Y-%m-%d %H:%M:%S')}'\n")
+                f.write(f"echo 'GSEA analysis was completed successfully for {wildcards.genome} and {wildcards.contrast}'\n")
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as fh:
-                fh.write(f"GSEA analysis failed: {e}\n")
-            logger.error(f"GSEA analysis failed: {e}")
-            raise e
+            rule_logger.error(f"GSEA analysis failed: {e}")
+            raise RuntimeError(f"GSEA analysis failed: {e}")
 
 
 def get_input_for_function_gsva(wildcards):
@@ -211,9 +202,9 @@ rule function_gsva:
         sif("../function.yaml")
     run:
         log_path = str(log)
+        open(log_path, 'w').close()
+        rule_logger = setup_logger("function_gsva", log_file=log_path)
         try:
-            open(log_path, 'w').close()
-            rule_logger = setup_logger("function_gsva", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start GSVA analysis at {current_time}")
 
@@ -244,12 +235,11 @@ rule function_gsva:
                 f.write("#!/bin/bash\nset -e\nset -o pipefail\n")
                 f.write(" ".join(norm_cmd) + "\n")
                 f.write(" ".join(shlex.quote(str(x)) for x in gsva_cmd) + "\n")
+                f.write(f"echo 'GSVA analysis was completed successfully for {wildcards.genome} and {wildcards.contrast}!")
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as fh:
-                fh.write(f"GSVA analysis failed: {e}\n")
-            logger.error(f"GSVA analysis failed: {e}")
-            raise e
+            rule_logger.error(f"GSVA analysis failed: {e}")
+            raise RuntimeError(f"GSVA analysis failed: {e}")
 
 
 rule function_result:

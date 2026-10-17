@@ -9,16 +9,8 @@ ROOT_DIR = config.get("ROOT_DIR", ".")
 group_pairs = config.get("group_pairs", {})
 paired_samples = config.get("paired_samples", [])
 single_samples = config.get("single_samples", [])
-geneIDAnno = config.get("genome", {}).get("geneIDAnno")
-gtf = config.get("genome", {}).get("gtf")
+species = config.get("Params", {}).get("function", {}).get("species", "mouse")
 
-func_params = config.get("Params", {}).get("function", {})
-species = func_params.get("species", "mouse")
-gmt = func_params.get("gmt")
-gsva_gmt = func_params.get("gsva", {}).get("gmt")
-lfc_cut = func_params.get("lfc_cut", 1)
-p_cut = func_params.get("p_cut", 0.05)
-top = func_params.get("top", 10)
 
 
 rule function_go_kegg:
@@ -39,18 +31,18 @@ rule function_go_kegg:
     params:
         go_kegg_script = ROOT_DIR + "/modules/function/bin/go-kegg.r",
         species = species,
-        lfc_cut = lfc_cut,
-        p_cut = p_cut,
-        top = top,
+        lfc_cut = config.get("Params", {}).get("function", {}).get("go_kegg", {}).get("lfc_cut", 1),
+        p_cut = config.get("Params", {}).get("function", {}).get("go_kegg", {}).get("p_cut", 0.05),
+        top = config.get("Params", {}).get("function", {}).get("go_kegg", {}).get("top", 10),
     conda:
         "function.yaml"
     container:
         sif("function.yaml")
     run:
         log_path = str(log)
+        open(log_path, 'w').close()
+        rule_logger = setup_logger("function_go_kegg", log_file=log_path)
         try:
-            open(log_path, 'w').close()
-            rule_logger = setup_logger("function_go_kegg", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start GO/KEGG analysis for {wildcards.contrast} at {current_time}")
 
@@ -84,16 +76,41 @@ rule function_go_kegg:
                 f.write("set -e\n")
                 f.write("set -o pipefail\n")
                 f.write(" ".join(cmd) + "\n")
+                f.write(f"echo 'GO/KEGG analysis completed for {wildcards.contrast}'\n")
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as fh:
-                fh.write(f"GO/KEGG analysis failed: {e}\n")
+            rule_logger.error(f"GO/KEGG analysis failed: {e}")
             raise f"GO/KEGG analysis failed: {e}\n"
 
 
+def get_input_for_function_gsea(wildcards):
+    """Resolve inputs for function_gsea: DESeq2 result + GMT + geneIDAnno."""
+    logger.info(f"[get_input_for_function_gsea] called with wildcards: {wildcards}")
+    if wildcards.contrast not in group_pairs:
+        raise ValueError(f"Group pair {wildcards.contrast} not found in group_pairs configuration.")
+    in_dict = {}
+    deseq2_result = os.path.join(indir, wildcards.contrast, f"{wildcards.contrast}.TEcount_Gene.tsv")
+    if not os.path.exists(deseq2_result):
+        raise FileNotFoundError(
+            f"DESeq2 result not found: {deseq2_result}. "
+            f"Ensure DESeq2_TEcount has completed for {wildcards.contrast}."
+        )
+    in_dict['deseq2_result'] = deseq2_result
+    gmt = config.get("Params", {}).get("function", {}).get("gsea", {}).get("gmt")
+    if not gmt or not os.path.exists(gmt):
+        raise ValueError(
+            f"GSEA requires a GMT file. {gmt} is not exists, please set Params.function.gsea.gmt in config."
+        )
+    in_dict['gmt'] = gmt
+    geneIDAnno = config.get("genome",{}).get("references",{}).get("geneIDAnno")
+    if not geneIDAnno:
+        raise ValueError("GSEA requires geneIDAnno. Please set genome.geneIDAnno in config.")
+    in_dict['annotation'] = geneIDAnno
+    return in_dict
+
 rule function_gsea:
     input:
-        deseq2_result = indir + "/{contrast}/{contrast}.TEcount_Gene.tsv",
+        unpack(get_input_for_function_gsea)
     output:
         func_gsea_plot = outdir + "/{contrast}/GSEA/TEcount_Gene_GSEA.jpeg",
         func_gsea_csv = outdir + "/{contrast}/GSEA/TEcount_Gene_GSEA.csv"
@@ -102,30 +119,19 @@ rule function_gsea:
     threads: 1
     params:
         gsea_script = ROOT_DIR + "/modules/function/bin/gsea.r",
-        annotation = geneIDAnno,
-        gmt = gmt,
     conda:
         "function.yaml"
     container:
         sif("function.yaml")
     run:
         log_path = str(log)
+        open(log_path, 'w').close()
+        rule_logger = setup_logger("function_gsea", log_file=log_path)
         try:
-            open(log_path, 'w').close()
-            rule_logger = setup_logger("function_gsea", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             ctrl = group_pairs[wildcards.contrast]["control_group_name"]
             exp = group_pairs[wildcards.contrast]["experimental_group_name"]
             rule_logger.info(f"Start GSEA analysis for {wildcards.contrast} at {current_time}")
-
-            if wildcards.contrast not in group_pairs:
-                raise ValueError(f"Group pair {wildcards.contrast} not found in group_pairs configuration.")
-
-            if not params.gmt:
-                raise ValueError("GSEA requires a GMT file. Please set Params.function.gmt in config.")
-
-            if not params.annotation:
-                raise ValueError("GSEA requires geneIDAnno. Please set genome.geneIDAnno in config.")
 
             if not os.path.exists(input.deseq2_result):
                 raise FileNotFoundError(
@@ -142,10 +148,10 @@ rule function_gsea:
                 "Rscript",
                 params.gsea_script,
                 "-m", "Gene",
-                "-g", params.gmt,
+                "-g", input.gmt,
                 "-i", input.deseq2_result,
                 "-o", sample_outdir,
-                "-a", params.annotation,
+                "-a", input.annotation,
                 "-t", graph_title,
             ]
 
@@ -155,16 +161,18 @@ rule function_gsea:
                 f.write("set -e\n")
                 f.write("set -o pipefail\n")
                 f.write(" ".join(cmd) + "\n")
+                f.write(f"echo 'GSEA analysis completed for {wildcards.contrast}'\n")
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as fh:
-                fh.write(f"GSEA analysis failed: {e}\n")
-            raise f"GSEA analysis failed: {e}\n"
+            rule_logger.error(f"GSEA analysis failed: {e}")
+            raise RuntimeError(f"GSEA analysis failed: {e}")
 
 
 def get_input_for_function_gsva(wildcards):
     """Resolve inputs for function_gsva: featureCounts counts matrix + GMT + GTF."""
     logger.info(f"[get_input_for_function_gsva] called with wildcards: {wildcards}")
+    if wildcards.contrast not in group_pairs:
+        raise ValueError(f"Group pair {wildcards.contrast} not found in group_pairs configuration.")
     in_dict = {}
     # featureCounts cross-sample counts, one matrix per existing layout
     counts = []
@@ -179,12 +187,14 @@ def get_input_for_function_gsva(wildcards):
         )
     in_dict['counts'] = counts
     # GMT gene set file
+    gsva_gmt = config.get("Params", {}).get("function", {}).get("gsva", {}).get("gmt")
     if not gsva_gmt or not os.path.exists(gsva_gmt):
         raise ValueError(
             f"GSVA requires a GMT file. {gsva_gmt} is not exists, please set Params.function.gsva.gmt in config."
         )
     in_dict['gmt'] = gsva_gmt
     # GTF for gene ID → gene name conversion
+    gtf = config.get("genome",{}).get("gtf")
     if not gtf:
         raise ValueError("GSVA requires a GTF. Please set genome.gtf in config.")
     in_dict['gtf'] = gtf
@@ -225,9 +235,9 @@ rule function_gsva:
         sif("function.yaml")
     run:
         log_path = str(log)
+        open(log_path, 'w').close()
+        rule_logger = setup_logger("function_gsva", log_file=log_path)
         try:
-            open(log_path, 'w').close()
-            rule_logger = setup_logger("function_gsva", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start GSVA analysis at {current_time}")
 
@@ -274,9 +284,8 @@ rule function_gsva:
                 f.write("#!/bin/bash\nset -e\nset -o pipefail\n")
                 f.write(" ".join(shlex.quote(str(x)) for x in norm_cmd) + "\n")
                 f.write(" ".join(shlex.quote(str(x)) for x in gsva_cmd) + "\n")
+                f.write(f"echo 'GSVA analysis completed for {wildcards.contrast}'\n")
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as fh:
-                fh.write(f"GSVA analysis failed: {e}\n")
-            logger.error(f"GSVA analysis failed: {e}")
-            raise e
+            rule_logger.error(f"GSVA analysis failed: {e}")
+            raise RuntimeError(f"GSVA analysis failed: {e}")

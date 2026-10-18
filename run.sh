@@ -83,27 +83,27 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 #     --sdm \
 #     --dry-run
 
-# python ${SCRIPT_DIR}/run.py \
-#     -m /home/luosg/Data/genomeStability/data/20260820_scRNAseq/meta_input.tsv \
-#     -w scRNAseq \
-#     -o /home/luosg/Data/genomeStability/output/luancao \
-#     -t 48 \
-#     --log /home/luosg/Data/genomeStability/log/scRNAseq.log \
-#     --sdm \
-#     --counters scTE cellranger \
-#     --aligner cellranger \
-#     --rerun-triggers mtime \
-#     --snakemake-args
+python ${SCRIPT_DIR}/run.py \
+    -m /data/16T/luosg/data/meta_scRNAseq_luancao.tsv \
+    -w scRNAseq \
+    -o /data/16T/luosg/output/luanchao_mulatta \
+    -t 48 \
+    --log /data/16T/luosg/log/mulatta_scRNAseq.log \
+    --sdm \
+    --counters scTE cellranger \
+    --aligner cellranger \
+    --rerun-triggers mtime
+    # --snakemake-args
 #     # --forcerun \
 #     #     scanpy_auto:tissue=Uterus,counter=scTE \
 #     #     scanpy_auto:tissue=Uterus,counter=cellranger
 
-python ${SCRIPT_DIR}/run.py \
-  -m /data/16T/luosg/data/meta_Fiberseq_Totipotency.tsv \
-  -w Fiberseq \
-  -o /data/16T/luosg/output/Totipotency \
-  --log /data/16T/luosg/log/Totipotency_Fiberseq.log \
-  --sdm apptainer \
-  -t 24 \
-  --rerun-triggers mtime \
-  --genome.default T2T_mhaESC_v1.5
+# python ${SCRIPT_DIR}/run.py \
+#   -m /data/16T/luosg/data/meta_Fiberseq_Totipotency.tsv \
+#   -w Fiberseq \
+#   -o /data/16T/luosg/output/Totipotency \
+#   --log /data/16T/luosg/log/Totipotency_Fiberseq.log \
+#   --sdm apptainer \
+#   -t 24 \
+#   --rerun-triggers mtime \
+#   --genome.default T2T_mhaESC_v1.5

@@ -168,8 +168,8 @@ rule cellranger_to_h5ad:
     container:
         sif("cellranger.yaml")
     params:
-        script = os.path.join(ROOT_DIR, "modules", "cellranger", "bin", "cellranger_to_h5ad.py")
-        filtered_matrix = outdir + "/{sample_id}/filtered_feature_bc_matrix",
+        script = os.path.join(ROOT_DIR, "modules", "cellranger", "bin", "cellranger_to_h5ad.py"),
+        filtered_matrix = outdir + "/{sample_id}/filtered_feature_bc_matrix"
     run:
         log_path = str(log)
         open(log_path, 'w').close()

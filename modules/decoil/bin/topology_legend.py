@@ -146,7 +146,7 @@ def main():
 
     fig, axes = plt.subplots(4, 2, figsize=(11.0, 14.2), dpi=300)
     fig.patch.set_facecolor("#F5F6F8")
-    fig.suptitle("DECOIL 7 种 ecDNA 拓扑 —— 全部为闭合环",
+    fig.suptitle("DECOIL 7 种 ecDNA 拓扑示意图", ha="center", va="center",
                  fontsize=15, color=INK, fontweight="bold", y=0.985)
     for ax in axes.flat:
         ax.set_facecolor("white")
@@ -259,7 +259,12 @@ def main():
         a.text(0.5, 0.80 - i * 0.105, txt, ha="center", va="center",
                fontsize=9.2, color=col)
 
-    fig.savefig(out, facecolor=fig.get_facecolor())
+    fig.savefig(
+        out,
+        facecolor="white",
+        edgecolor="white",
+        transparent=False,
+    )
     print(f"Saved {out}")
 
 

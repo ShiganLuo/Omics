@@ -52,15 +52,16 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 #     --Params.cutadapt.maximum_length 110 \
 
 
-# python ${SCRIPT_DIR}/run.py \
-#     -m /data/pub/zhousha/20260207_Exome/data/PacBio/samplesheet.csv \
-#     -w PacVar \
-#     -o /data/pub/zhousha/20260207_Exome/output \
-#     -t 48 \
-#     --log /data/pub/zhousha/20260207_Exome/log/PacVar.log \
-#     --rerun-trigger mtime \
-#     --sdm apptainer \
-#     --forcerun decoil_structure
+python ${SCRIPT_DIR}/run.py \
+    -m /data/pub/zhousha/20260207_Exome/data/PacBio/samplesheet.csv \
+    -w PacVar \
+    -o /data/pub/zhousha/20260207_Exome/output \
+    -t 48 \
+    --log /data/pub/zhousha/20260207_Exome/log/PacVar.log \
+    --rerun-trigger mtime \
+    --sdm apptainer \
+    --forcerun decoil_structure \
+    --Params.decoil.structure.formats pdf
 
 # python ${SCRIPT_DIR}/run.py \
 #     -m /data/16T/luosg/data/meta_PXDO53575.tsv \

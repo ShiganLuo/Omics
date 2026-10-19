@@ -72,18 +72,6 @@ def reconstruct_param(key: str, default=None):
     return decoil_params.get("reconstruct", {}).get(key, decoil_params.get(key, default))
 
 
-PLOT_FORMATS = (decoil_params.get("plot", {}).get("formats")
-                or decoil_params.get("formats") or ["png"])
-COMPARE_FORMATS = (decoil_params.get("compare", {}).get("formats")
-                   or decoil_params.get("formats") or ["png"])
-STRUCTURE_FORMATS = (decoil_params.get("structure", {}).get("formats")
-                     or decoil_params.get("formats") or ["png"])
-IGV_LOCUS = decoil_params.get("igv", {}).get("locus", "")
-
-# pbsv→decoil VCF converter — bin/ script located via ROOT_DIR (project convention)
-PBSV2DECOIL_SCRIPT = os.path.join(ROOT_DIR, "modules", "decoil", "bin", "pbsv2decoil.py")
-
-
 def get_input_for_decoil_reconstruct(wildcards):
     """Resolve BAM + SV VCF + coverage bigwig + reference inputs.
 
@@ -155,6 +143,7 @@ rule decoil_reconstruct:
         filter_score     = reconstruct_param("filter_score"),
         extend_chr       = reconstruct_param("extend_allowed_chromosomes") or "",
         skip_fasta       = bool(reconstruct_param("skip")),
+        resconstruction_script = os.path.join(ROOT_DIR, "modules", "decoil", "bin", "pbsv2decoil.py")
     threads: 16
     run:
         log_path = str(log)
@@ -211,7 +200,7 @@ rule decoil_reconstruct:
                 f.write("#!/bin/bash\n")
                 f.write("set -euo pipefail\n")
                 f.write(
-                    f"python3 {PBSV2DECOIL_SCRIPT} "
+                    f"python3 {params.resconstruction_script} "
                     f"{input.vcf} {converted_vcf}\n"
                 )
                 f.write(" ".join(cmd) + "\n")
@@ -235,21 +224,6 @@ rule decoil_result:
         reconstruct_filtered = outdir + "/{sample_id}/decoil/reconstruct.ecDNA.filtered.bed",
         summary              = outdir + "/{sample_id}/decoil/summary.txt",
 
-
-# ============================================================
-# Visualization: per-sample statistics plots + cross-sample compare
-# Scripts located via ROOT_DIR (project convention, see pitfall #55).
-# ============================================================
-DECOIL_PLOT_SCRIPT = os.path.join(ROOT_DIR, "modules", "decoil", "bin", "decoil_plot.py")
-DECOIL_STRUCTURE_SCRIPT = os.path.join(ROOT_DIR, "modules", "decoil", "bin", "decoil_structure.py")
-DECOIL_IGV_CONFIG_SCRIPT = os.path.join(ROOT_DIR, "modules", "decoil", "bin", "decoil_igv_config.py")
-TRACK_SCRIPT = os.path.join(ROOT_DIR, "modules", "track", "bin", "track.py")
-
-# IGV base config (reference fasta/index/cytoband/GTF + publicPathMap) —
-# same structure as modules/track/track.json 'igv' section.
-igv_cfg = config.get("Params", {}).get("igv", {})
-
-
 rule decoil_plot:
     """Per-sample ecDNA statistics: size distribution, topology, region table.
 
@@ -260,7 +234,6 @@ rule decoil_plot:
         summary              = outdir + "/{sample_id}/decoil/summary.txt",
         reconstruct_filtered = outdir + "/{sample_id}/decoil/reconstruct.ecDNA.filtered.bed",
     output:
-        png                  = outdir + "/{sample_id}/visualization/decoil_stats.png",
         regions_tsv          = outdir + "/{sample_id}/visualization/decoil_stats_ecdna_regions.tsv",
     log:
         logdir + "/{sample_id}/decoil_plot.log"
@@ -269,8 +242,8 @@ rule decoil_plot:
     container:
         sif("decoil.yaml")
     params:
-        plot_script = DECOIL_PLOT_SCRIPT,
-        formats     = PLOT_FORMATS,
+        plot_script = os.path.join(ROOT_DIR, "modules", "decoil", "bin", "decoil_plot.py"),
+        formats     = decoil_params.get("plot", {}).get("formats") or ["png"],
     run:
         log_path = str(log)
         rule_logger = setup_logger(logger_name="decoil_plot", log_file=log_path)
@@ -278,7 +251,7 @@ rule decoil_plot:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start decoil_plot for sample {wildcards.sample_id} at {current_time}")
-            sample_vis_dir = os.path.dirname(str(output.png))
+            sample_vis_dir = os.path.dirname(str(output.genes_tsv))
             os.makedirs(sample_vis_dir, exist_ok=True)
             script = os.path.join(sample_vis_dir, f"decoil_plot_{wildcards.sample_id}_{current_time}.sh")
             cmd = [
@@ -320,8 +293,8 @@ rule decoil_compare:
     container:
         sif("decoil.yaml")
     params:
-        plot_script = DECOIL_PLOT_SCRIPT,
-        formats     = COMPARE_FORMATS,
+        plot_script = os.path.join(ROOT_DIR, "modules", "decoil", "bin", "decoil_plot.py"),
+        formats     = decoil_params.get("compare", {}).get("formats") or ["png"],
     run:
         log_path = str(log)
         rule_logger = setup_logger(logger_name="decoil_compare", log_file=log_path)
@@ -367,7 +340,6 @@ rule decoil_structure:
         gtf                  = config.get("genome", {}).get("gtf"),
         bw                   = os.path.join(bw_dir, "{sample_id}", "{sample_id}" + bw_suffix),
     output:
-        png                  = outdir + "/{sample_id}/visualization/decoil_structure.png",
         genes_tsv            = outdir + "/{sample_id}/visualization/decoil_structure_genes.tsv",
     log:
         logdir + "/{sample_id}/decoil_structure.log"
@@ -376,8 +348,8 @@ rule decoil_structure:
     container:
         sif("decoil.yaml")
     params:
-        structure_script = DECOIL_STRUCTURE_SCRIPT,
-        formats          = STRUCTURE_FORMATS,
+        structure_script = os.path.join(ROOT_DIR, "modules", "decoil", "bin", "decoil_structure.py"),
+        formats          = decoil_params.get("structure", {}).get("formats") or ["png"],
         max_per_fig      = decoil_params.get("structure", {}).get("max_per_fig", 12),
         one_per_cycle    = decoil_params.get("structure", {}).get("one_file_per_cycle", True),
     run:
@@ -387,7 +359,7 @@ rule decoil_structure:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start decoil_structure for sample {wildcards.sample_id} at {current_time}")
-            sample_vis_dir = os.path.dirname(str(output.png))
+            sample_vis_dir = os.path.dirname(str(output.genes_tsv))
             os.makedirs(sample_vis_dir, exist_ok=True)
             script = os.path.join(sample_vis_dir, f"decoil_structure_{wildcards.sample_id}_{current_time}.sh")
             cmd = [
@@ -433,11 +405,11 @@ rule decoil_igv:
     container:
         sif("decoil.yaml")
     params:
-        igv_config_script = DECOIL_IGV_CONFIG_SCRIPT,
-        track_script      = TRACK_SCRIPT,
-        base_igv_config   = igv_cfg,
+        igv_config_script = os.path.join(ROOT_DIR, "modules", "decoil", "bin", "decoil_igv_config.py"),
+        track_script      = os.path.join(ROOT_DIR, "modules", "decoil", "bin", "track.py"),
+        base_igv_config   = decoil_params.get("igv", {}),
         config_json       = outdir + "/{sample_id}/visualization/igv_ecdna_config.json",
-        locus             = IGV_LOCUS,
+        locus             = decoil_params.get("igv", {}).get("locus", ""),
     run:
         log_path = str(log)
         rule_logger = setup_logger(logger_name="decoil_igv", log_file=log_path)
@@ -511,7 +483,7 @@ rule decoil_ucsc:
     container:
         sif("decoil.yaml")
     params:
-        track_script = TRACK_SCRIPT,
+        track_script = os.path.join(ROOT_DIR, "modules", "track", "bin", "track.py"),
     run:
         log_path = str(log)
         rule_logger = setup_logger(logger_name="decoil_ucsc", log_file=log_path)
@@ -531,6 +503,10 @@ rule decoil_ucsc:
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write(" ".join(cmd) + "\n")
+                f.write(
+                    f'echo "decoil_ucsc for {wildcards.sample_id} for '
+                    f'{wildcards.sample_id} was completed successfully"\n'
+                )
             rule_logger.info("Executing: " + " ".join(cmd))
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:

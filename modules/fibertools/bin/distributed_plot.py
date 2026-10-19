@@ -69,17 +69,22 @@ def parse_args() -> argparse.Namespace:
         "--sample", action="append", required=True, metavar="LABEL=BED12",
         help="Sample label and 5mC BED12 path; provide twice, e.g. --sample Pluri=a.bed --sample Toti=b.bed",
     )
-    parser.add_argument("--outdir", required=True, help="Output directory")
-    parser.add_argument("--min-overlap-reads", type=int, default=5,
+    parser.add_argument("-o","--outdir", required=True, help="Output directory")
+    parser.add_argument("-m","--min-overlap-reads", type=int, default=5,
                         help="Minimum read-TE overlaps to retain an insertion (default: 5)")
     parser.add_argument("--top-subfamilies", type=int, default=50,
                         help="Number of subfamilies in heatmap (default: 50)")
-    parser.add_argument("--top-loci", type=int, default=1,
+    parser.add_argument("-t","--top-loci", type=int, default=1,
                         help="Number of representative loci for panel C (default: 1; currently plots top locus)")
-    parser.add_argument("--max-reads-per-locus", type=int, default=250,
+    parser.add_argument("-r","--max-reads-per-locus", type=int, default=250,
                         help="Maximum read rows per sample in panel C (default: 250)")
     parser.add_argument("--dpi", type=int, default=300)
-    parser.add_argument("--log-level", default="INFO",
+    parser.add_argument("-f","--imageFormat", nargs="+",default=["png"], choices=["png", "pdf", "svg", "eps"], help="Output image format (default: png)")
+    parser.add_argument("--level", default="family", choices=["class", "family", "subfamily"],
+                        help="TE annotation level for panels A/B (default: family)")
+    parser.add_argument("--TEs", nargs="+", default=None,
+                        help="Specific TE names to filter for plotting")
+    parser.add_argument("-l","--log-level", default="INFO",
                         choices=["DEBUG", "INFO", "WARNING", "ERROR"])
     return parser.parse_args()
 
@@ -871,8 +876,28 @@ def plot_comparison(
 
     return ax
 
-def plot_a(all_df: pd.DataFrame, labels: List[str], outdir: str, dpi: int, level: Literal["class", "family", "subfamily"] = "family") -> None:
-    """A: class/family distribution of called 5mC density."""
+def plot_a(
+        all_df: pd.DataFrame, 
+        labels: List[str], 
+        outdir: str, 
+        dpi: int, 
+        level: Literal["class", "family", "subfamily"] = "family",
+        imageFormat: List[str] = ["png"],
+        TEs: Optional[List[str]] = None
+    ) -> None:
+    """
+    Function:A: class/family distribution of called 5mC density.
+    Params:
+    - all_df: DataFrame containing TE insertion data with read overlaps and call densities.
+    - labels: List of sample labels to compare.
+    - outdir: Output directory to save plots.
+    - dpi: Dots per inch for saved figures.
+    - level: Aggregation level for plotting ("class", "family", or "subfamily").
+    - imageFormat: List of image formats to save (e.g., ["png", "pdf"]).
+    - TEs: Optional list of specific TE names to filter for plotting.
+    Returns:
+    - None. Saves plots to the specified output directory.
+    """
     # Calculate density per insertion first, then show distribution across insertions.
     valid = all_df[
         (all_df["n_read_overlaps"] > 0) &
@@ -889,6 +914,9 @@ def plot_a(all_df: pd.DataFrame, labels: List[str], outdir: str, dpi: int, level
     ]
 
     for cls in classes:
+        if TEs is not None:
+            if cls not in TEs:
+                continue
         fig, axes = plt.subplots(1, 2, figsize=(12, 5))
 
         cls_data = valid.loc[valid[level] == cls]
@@ -939,11 +967,12 @@ def plot_a(all_df: pd.DataFrame, labels: List[str], outdir: str, dpi: int, level
         fig.tight_layout()
 
         safe_cls = str(cls).replace("/", "_").replace(" ", "_")
-        fig.savefig(
-            os.path.join(outdir, f"A_te_class_5mc_density_{safe_cls}.png"),
-            dpi=dpi,
-            bbox_inches="tight",
-        )
+        for fmt in imageFormat:
+            fig.savefig(
+                os.path.join(outdir, f"A_te_class_5mc_density_{safe_cls}.{fmt}"),
+                dpi=dpi,
+                bbox_inches="tight",
+            )
         plt.close(fig)
 
     fam = aggregate_level(all_df, ["sample", "family"])
@@ -1103,9 +1132,9 @@ def main() -> None:
                     args.min_overlap_reads)
         plot_df = all_df.copy()
 
-    plot_a(plot_df, labels, outdir, args.dpi, level = "subfamily")
-    plot_b(plot_df, labels, outdir, args.top_subfamilies, args.dpi)
-    plot_c(all_df, samples, tes, outdir, args.max_reads_per_locus, args.dpi)
+    plot_a(plot_df, labels, outdir, args.dpi, level = "subfamily", TEs = args.TEs, imageFormat = args.imageFormat)
+    # plot_b(plot_df, labels, outdir, args.top_subfamilies, args.dpi)
+    # plot_c(all_df, samples, tes, outdir, args.max_reads_per_locus, args.dpi)
 
     logger.info("Finished. Output directory: %s", outdir)
 

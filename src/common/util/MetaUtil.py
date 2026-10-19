@@ -44,7 +44,7 @@ class MetadataUtils:
         fastq_dir: Optional[str] = None,
         fastq_required_cols: set = {"sample_id", "fastq_1", "fastq_2"},
         pacbio_required_cols: set = {"sample_id", "bam", "pbi"},
-        bam_required_cols: set = {"sample_id", "bam"},
+        bam_required_cols: set = {"sample_id", "bam", "bai"},
         data_id_col: str = "data_id",
         design_col: str = "design",
         group_col: str = "group",
@@ -249,7 +249,7 @@ class MetadataUtils:
                 filepath = os.path.join(sample_dir, filename)
                 if os.path.isfile(filepath):
                     result.append(os.path.realpath(filepath))
-
+        return result
 
 
     def prepare_fastq_meta(
@@ -395,6 +395,7 @@ class MetadataUtils:
         sample_id_col: str = 'sample_id',
         bam_col: str = 'bam',
         pbi_col: str = 'pbi',
+        bai_col: str = 'bai'
     ) -> None:
         """Prepare BAM metadata: symlink BAM files per sample. may be used for PacBio CCS data or other BAM-based workflows.
         Args:
@@ -402,6 +403,8 @@ class MetadataUtils:
             sample_id_col: Column name for sample identifier.
             bam_col: Column name for BAM file path.
             pbi_col: Column name for PBI index file path.
+
+            bai_col: Column name for BAI index file path.
 
         Raises:
             ValueError: If required columns (sample_id, bam, pbi) are missing.
@@ -413,12 +416,20 @@ class MetadataUtils:
                     raise ValueError(f"sample_id '{sample_id}' contains whitespace, please remove it from meta file")
                 bam_path = str(df_sample[bam_col].values[0]) if bam_col in df_sample.columns else None
                 pbi_path = str(df_sample[pbi_col].values[0]) if pbi_col in df_sample.columns else None
-
+                organism = str(df_sample.get('organism', pd.Series(["UNKNOWN"])).values[0])
+                tissue = str(df_sample.get('tissue', pd.Series(["UNKNOWN"])).values[0])
+                self.samples_dict[sample_id].tissue = tissue
+                try:
+                    self.samples_dict[sample_id].organism = resolve_genome(organism)
+                except ValueError as e:
+                    logger.error(f"Failed to resolve genome for organism '{organism}' in sample '{sample_id}': {e}")
+                    # some pipeline may not rely on organism, so we can set it to UNKNOWN and continue
+                    self.samples_dict[sample_id].organism = "UNKNOWN"
                 if not bam_path or not os.path.exists(bam_path) or not pbi_path or not os.path.exists(pbi_path):
                     logger.warning(f"{sample_id} is missing BAM path or PBI path, skipping.")
                     continue
                 else:
-                    logger.info(f"Preparing PacBio metadata for sample {sample_id}: BAM={bam_path}, PBI={pbi_path}")
+                    logger.debug(f"Preparing PacBio metadata for sample {sample_id}: BAM={bam_path}, PBI={pbi_path}")
   
                     target_bam = os.path.join(self.raw_fq_dir, sample_id, f"{sample_id}.bam")
                     target_pbi = os.path.join(self.raw_fq_dir, sample_id, f"{sample_id}.bam.pbi")
@@ -430,26 +441,44 @@ class MetadataUtils:
                     self.samples_dict[sample_id].pacbio_bam = target_bam
                     self.samples_dict[sample_id].pacbio_pbi = target_pbi
                     self.samples_dict[sample_id].layout = Layout.SE  # Treat BAM as SE for downstream processing
-                    logger.info(f"Prepared PacBio metadata for sample {sample_id}")
         elif self.bam_required_cols.issubset(df.columns):
             for sample_id, df_sample in df.groupby(sample_id_col):
                 sample_id = str(sample_id).strip()
                 if ' ' in sample_id or '\t' in sample_id:
                     raise ValueError(f"sample_id '{sample_id}' contains whitespace, please remove it from meta file")
                 bam_path = str(df_sample[bam_col].values[0]) if bam_col in df_sample.columns else None
-
-                if not bam_path or not os.path.exists(bam_path):
-                    logger.warning(f"{sample_id} is missing BAM path, skipping.")
+                bai_path = str(df_sample[bai_col].values[0]) if bai_col in df_sample.columns else None
+                organism = str(df_sample.get('organism', pd.Series(["UNKNOWN"])).values[0])
+                tissue = str(df_sample.get('tissue', pd.Series(["UNKNOWN"])).values[0])
+                cellranger_dir = str(df_sample.get('cellranger_dir', pd.Series([None])).values[0])
+                self.samples_dict[sample_id].tissue = tissue
+                self.samples_dict[sample_id].cellranger_dir = cellranger_dir
+                try:
+                    self.samples_dict[sample_id].organism = resolve_genome(organism)
+                except ValueError as e:
+                    logger.error(f"Failed to resolve genome for organism '{organism}' in sample '{sample_id}': {e}")
+                    # some pipeline may not rely on organism, so we can set it to UNKNOWN and continue
+                    self.samples_dict[sample_id].organism = "UNKNOWN"
+                if not bam_path or not os.path.exists(bam_path) or not bai_path or not os.path.exists(bai_path):
+                    logger.warning(f"{sample_id} is missing BAM path or BAI path, skipping.")
                     continue
                 else:
-                    logger.info(f"Preparing BAM metadata for sample {sample_id}: BAM={bam_path}")
-
-                    target_bam = os.path.join(self.raw_bam_dir, sample_id, f"{sample_id}.bam")
-                    self._link_file(bam_path, target_bam)
+                    logger.debug(f"Preparing BAM metadata for sample {sample_id}: BAM={bam_path}")
                     self.samples_dict[sample_id].sample_id = sample_id
-                    self.samples_dict[sample_id].bam = target_bam
                     self.samples_dict[sample_id].layout = Layout.SE  # Treat BAM as SE for downstream processing
-                    logger.info(f"Prepared BAM metadata for sample {sample_id}")
+
+                    if cellranger_dir and os.path.exists(cellranger_dir):
+                        logger.debug(f"Sample {sample_id} has a cellranger_dir specified: {cellranger_dir}. skipping symlinking of BAM/BAI files for this sample.")
+                        target_dir = os.path.join(self.raw_bam_dir, sample_id)
+                        self._link_file(cellranger_dir, target_dir)
+                    else:
+                        logger.debug(f"Sample {sample_id} does not have a valid cellranger_dir. Proceeding to symlink BAM/BAI files.")
+                        target_bam = os.path.join(self.raw_bam_dir, sample_id, f"{sample_id}.bam")
+                        target_bai = os.path.join(self.raw_bam_dir, sample_id, f"{sample_id}.bam.bai")
+                        self._link_file(bam_path, target_bam)
+                        self._link_file(bai_path, target_bai)
+                        self.samples_dict[sample_id].bam = target_bam
+                        self.samples_dict[sample_id].bai = target_bai
         else:
             raise ValueError(f"Metadata must contain either columns: {self.pacbio_required_cols} or {self.bam_required_cols}")
 
@@ -487,15 +516,11 @@ class MetadataUtils:
             self.samples_dict[sample_id].organism = organism
             ms_file_path = str(df_sample[ms_file_col].values[0]) if ms_file_col in df_sample.columns else None
 
-            if not ms_file_path:
-                logger.warning(f"{sample_id} is missing MS file path, skipping.")
+            if not ms_file_path or not os.path.exists(ms_file_path):
+                logger.warning(f"{sample_id} is missing MS file path or file does not exist, skipping.")
                 continue
-
-            if not ms_file_path.exists():
-                logger.warning(f"MS file for {sample_id} does not exist, skipping.")
-                continue
-
-            target_ms_file = os.path.join(self.raw_fq_dir, sample_id, f"{sample_id}{ms_file_path.suffix}")
+            suffix = os.path.splitext(ms_file_path)[1]
+            target_ms_file = os.path.join(self.raw_fq_dir, sample_id, f"{sample_id}{suffix}")
 
             self._link_file(ms_file_path, target_ms_file)
 
@@ -596,7 +621,7 @@ class MetadataUtils:
             if r2_files:
                 self.samples_dict[sample_id].fastq_2 = target_r2
             # Keep original dir/prefix for Cell Ranger (--fastqs / --sample)
-            self.samples_dict[sample_id].fastq_dir = fastq_dir
+            self.samples_dict[sample_id].fastq_dir = str(fastq_dir)
             self.samples_dict[sample_id].sample_prefix = sample_prefix
 
             # Also store design/group/organism/tissue if present
@@ -672,16 +697,16 @@ class MetadataUtils:
                 target_r1 = os.path.join(raw_fq_dir, sample_id, f"{sample_id}_1.fq.gz")
                 target_r2 = os.path.join(raw_fq_dir, sample_id, f"{sample_id}_2.fq.gz")
                 if len(files_r1) > 1:
-                    logger.info(f"[{sample_id}] Merging {len(files_r1)} R1 files into {target_r1.name}")
+                    logger.info(f"[{sample_id}] Merging {len(files_r1)} R1 files into {os.path.basename(target_r1)}")
                     self._merge_files(files_r1, target_r1)
                 else:
-                    logger.info(f"[{sample_id}] Creating symlink for {target_r1.name}")
+                    logger.info(f"[{sample_id}] Creating symlink for {os.path.basename(target_r1)}")
                     self._link_file(files_r1[0], target_r1)
                 if len(files_r2) > 1:
-                    logger.info(f"[{sample_id}] Merging {len(files_r2)} R2 files into {target_r2.name}")
+                    logger.info(f"[{sample_id}] Merging {len(files_r2)} R2 files into {os.path.basename(target_r2)}")
                     self._merge_files(files_r2, target_r2)
                 else:
-                    logger.info(f"[{sample_id}] Creating symlink for {target_r2.name}")
+                    logger.info(f"[{sample_id}] Creating symlink for {os.path.basename(target_r2)}")
                     self._link_file(files_r2[0], target_r2)
                 sample_info.fastq_1 = target_r1
                 sample_info.fastq_2 = target_r2
@@ -690,10 +715,10 @@ class MetadataUtils:
                 # SE
                 target_se = os.path.join(self.raw_fq_dir, sample_id, f"{sample_id}.single.fq.gz")
                 if len(files_r1) > 1:
-                    logger.info(f"[{sample_id}] Merging {len(files_r1)} SE files into {target_se.name}")
+                    logger.info(f"[{sample_id}] Merging {len(files_r1)} SE files into {os.path.basename(target_se)}")
                     self._merge_files(files_r1, target_se)
                 else:
-                    logger.info(f"[{sample_id}] Creating symlink for {target_se.name}")
+                    logger.info(f"[{sample_id}] Creating symlink for {os.path.basename(target_se)}")
                     self._link_file(files_r1[0], target_se)
                 sample_info.fastq_1 = target_se
                 sample_info.layout = Layout.SE
@@ -706,8 +731,8 @@ class MetadataUtils:
         logger.info(f"Successfully processed {len(self.samples_dict)} samples.")
 
 
-    def _merge_files(self, files: List[Path], out: Path):
-        """Concatenate multiple files into a single output file (binary stream copy).
+    def _merge_files(self, files: List[str], out: str) -> None:
+        """Concatenate multiple files into a single output file.
 
         Skips if the output file already exists. Files are sorted before merging
         to ensure deterministic output.
@@ -716,23 +741,25 @@ class MetadataUtils:
             files: List of input file paths to concatenate.
             out: Output file path.
         """
-        if out.exists():
+        if os.path.exists(out):
             logger.debug(f"[SKIP] Merged file already exists: {out}")
             return
+
         logger.info(f"[MERGE] Creating {out} from {len(files)} files")
-        out.parent.mkdir(exist_ok=True,parents=True)
+        os.makedirs(os.path.dirname(out), exist_ok=True)
+
         with open(out, "wb") as w:
             for f in sorted(files):
                 logger.info(f"  -> Merging file: {f}")
                 with open(f, "rb") as r:
-                    shutil.copyfileobj(r, w) # stream copy to handle large files efficiently
+                    shutil.copyfileobj(r, w)
 
     def _link_file(self, src: str, dst: str) -> None:
-        """Create a symbolic link from dst to src.
+        """Create a symbolic link to a file or directory.
 
         If dst is already a symlink pointing to src, this is a no-op.
         If dst is a symlink pointing elsewhere, it is replaced.
-        If dst exists as a regular file, a RuntimeError is raised.
+        If dst exists and is not a symlink, a RuntimeError is raised.
         """
         src = os.path.realpath(src)
         dst = os.fspath(dst)
@@ -747,7 +774,8 @@ class MetadataUtils:
         elif os.path.exists(dst):
             raise RuntimeError(f"Destination exists and is not symlink: {dst}")
 
-    os.symlink(src, dst)
+        os.symlink(src, dst, target_is_directory=os.path.isdir(src))
+        logger.info(f"LINK: {dst} -> {src}")
 
     def group_pairs_by_organism(
         self, pairs: List[Tuple[str, str]], samples: Dict[str, SampleInfo]
@@ -771,8 +799,8 @@ class MetadataUtils:
         """Main entry point: auto-detect metadata type and prepare samples.
 
         Dispatches to the appropriate prepare_* method based on detected columns:
-          - bam + pbi columns → prepare_bam_meta
-          - only bam column → prepare_bam_meta
+          - bam + pbi column → prepare_bam_meta
+          - bam + bai column → prepare_bam_meta
           - ms_file column → prepare_ms_meta
           - fastq_dir + sample_prefix → prepare_scRNAseq_meta
           - otherwise → prepare_fastq_meta
@@ -790,8 +818,8 @@ class MetadataUtils:
             elif "fastq_dir" in df.columns and "sample_prefix" in df.columns:
                 logger.info("Detected fastq_dir/sample_prefix columns in metadata, preparing scRNA-seq metadata")
                 self.prepare_scRNAseq_meta(df = df, sample_id_col = "sample_id", fastq_dir_col = "fastq_dir", sample_prefix_col = "sample_prefix")
-            elif "bam" in df.columns or "pbi" in df.columns:
-                logger.info("Detected BAM or pbi columns in metadata, preparing BAM metadata")
+            elif "bam" in df.columns:
+                logger.info("Detected BAM column in metadata, preparing BAM metadata")
                 self.prepare_bam_meta(df = df, sample_id_col = "sample_id", bam_col = "bam", pbi_col = "pbi")
             elif "ms_file" in df.columns:
                 logger.info("Detected ms_file columns in metadata, preparing MS metadata")

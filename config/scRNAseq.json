@@ -1,16 +1,7 @@
 {
   "ROOT_DIR": null,
-  "indir": null,
-  "raw_files": [],
-  "outdir": null,
-  "logdir": null,
-  "paired_samples": [],
-  "single_samples": [],
-  "aligner": "cellranger",
-  "counters": [
-    "scTE",
-    "cellranger"
-  ],
+  "tmp_dir": null,
+  "outfiles": [],
   "env": {
     "env_dir": "/home/luosg/Database/env",
     "star": "/home/luosg/Database/env/star/star.sif",
@@ -18,7 +9,6 @@
     "cellranger": "/home/luosg/Database/env/cellranger/cellranger.sif",
     "scanpy": "/home/luosg/Database/env/scanpy/scanpy.sif"
   },
-  "cellranger_input_dict": {},
   "Procedure": {
     "STAR": null,
     "scTE": null
@@ -56,6 +46,22 @@
     }
   },
   "Params": {
+    "workflow": {
+      "input_mode": "fastq",
+      "cellranger_input_dict": {},
+      "indir": null,
+      "raw_files": [],
+      "cellranger_dirs": [],
+      "outdir": null,
+      "logdir": null,
+      "paired_samples": [],
+      "single_samples": [],
+      "aligner": "cellranger",
+      "counters": [
+        "scTE",
+        "cellranger"
+      ]
+    },
     "star": {
       "outSAMattributes": "NH HI AS nM CR CY UR UY",
       "outFilterMultimapNmax": 100,

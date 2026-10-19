@@ -104,7 +104,7 @@
       "aligner": {
         "type": "enum",
         "values": ["hisat2", "star", "star_3pass", "star_3pass_gene"],
-        "required": false
+        "required": true
       }
     },
     "star": {

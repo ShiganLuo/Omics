@@ -4,6 +4,7 @@ indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "logs")
 samples = config.get("samples", [])
+input_mode = config.get("input_mode", "bam")
 logdir_index = config.get("logdir_index", "logs/index")
 _scTE_genome = config.get("Params", {}).get("scTE", {}).get("genome", "hg38")
 _scTE_mode = config.get("Params", {}).get("scTE", {}).get("mode", "exclusive")
@@ -70,7 +71,11 @@ def get_input_for_scTE_quantify(wildcards):
     """Get input files for scTE_quantify rule."""
     in_dict = {}
     sample_id = wildcards.sample_id
-    bam_path = f"{indir}/{sample_id}/{sample_id}.bam"
+    if input_mode == "cellranger_dir":
+        logger.debug(f"Input mode is 'cellranger_dir'. bam_path will be derived from cellranger output directory for sample {sample_id}.")
+        bam_path = f"{indir}/{sample_id}/outs/possorted_genome_bam.bam"
+    else:
+        bam_path = f"{indir}/{sample_id}/{sample_id}.bam"
     in_dict["bam"] = bam_path
     scTE_index = config.get("genome", {}).get("scTE_index")
     if scTE_index and os.path.exists(scTE_index):

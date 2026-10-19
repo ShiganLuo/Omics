@@ -52,17 +52,17 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 #     --Params.cutadapt.maximum_length 110 \
 
 
-python ${SCRIPT_DIR}/run.py \
-    -m /data/pub/zhousha/20260207_Exome/data/PacBio/samplesheet.csv \
-    -w PacVar \
-    -o /data/pub/zhousha/20260207_Exome/output \
-    -t 48 \
-    --log /data/pub/zhousha/20260207_Exome/log/PacVar.log \
-    --rerun-trigger mtime \
-    --sdm apptainer \
-    --forcerun decoil_structure \
-    --Params.decoil.structure.formats pdf \
-    --dry-run
+# python ${SCRIPT_DIR}/run.py \
+#     -m /data/pub/zhousha/20260207_Exome/data/PacBio/samplesheet.csv \
+#     -w PacVar \
+#     -o /data/pub/zhousha/20260207_Exome/output \
+#     -t 48 \
+#     --log /data/pub/zhousha/20260207_Exome/log/PacVar.log \
+#     --rerun-trigger mtime \
+#     --sdm apptainer \
+#     --forcerun decoil_structure \
+#     --Params.decoil.structure.formats pdf \
+#     --dry-run
 
 # python ${SCRIPT_DIR}/run.py \
 #     -m /data/16T/luosg/data/meta_PXDO53575.tsv \
@@ -85,20 +85,31 @@ python ${SCRIPT_DIR}/run.py \
 #     --sdm \
 #     --dry-run
 
-python ${SCRIPT_DIR}/run.py \
-    -m /data/16T/luosg/data/meta_scRNAseq_luancao.tsv \
-    -w scRNAseq \
-    -o /data/16T/luosg/output/luanchao_mulatta \
-    -t 48 \
-    --log /data/16T/luosg/log/mulatta_scRNAseq.log \
-    --sdm \
-    --counters scTE cellranger \
-    --aligner cellranger \
-    --rerun-triggers mtime
+# python ${SCRIPT_DIR}/run.py \
+#     -m /data/16T/luosg/data/meta_scRNAseq_luancao.tsv \
+#     -w scRNAseq \
+#     -o /data/16T/luosg/output/luanchao_mulatta \
+#     -t 48 \
+#     --log /data/16T/luosg/log/mulatta_scRNAseq.log \
+#     --sdm \
+#     --counters scTE cellranger \
+#     --aligner cellranger \
+#     --rerun-triggers mtime
     # --snakemake-args
 #     # --forcerun \
 #     #     scanpy_auto:tissue=Uterus,counter=scTE \
 #     #     scanpy_auto:tissue=Uterus,counter=cellranger
+
+python ${SCRIPT_DIR}/run.py \
+    -m /data/16T/luosg/data/meta_scRNAseq_mouse.tsv \
+    -w scRNAseq \
+    -o /data/16T/luosg/output/luancao_mouse \
+    -t 48 \
+    --log /data/16T/luosg/log/mouse_scRNAseq.log \
+    --sdm \
+    --counters scTE cellranger \
+    --aligner cellranger \
+    --rerun-triggers mtime
 
 # python ${SCRIPT_DIR}/run.py \
 #   -m /data/16T/luosg/data/meta_Fiberseq_Totipotency.tsv \

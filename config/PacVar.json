@@ -127,9 +127,12 @@
                 "max_per_fig": 12,
                 "one_file_per_cycle": true
             },
-            "formats": ["png"],
-            "plot": {},
-            "compare": {},
+            "plot": {
+                "formats": ["png"]
+            },
+            "compare": {
+                "formats": ["png"]
+            },
             "igv": {
                 "locus": ""
             }

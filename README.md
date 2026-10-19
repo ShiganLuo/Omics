@@ -14,13 +14,15 @@
 **参数全留痕，结果可复现**
 所有运行参数版本化在 `output/<workflow>/raw.json` 里，输入 → 输出的依赖由 Snakemake 描述，中间结果自动可恢复，事后可完整追溯每次运行用了什么参数、什么版本。
 
-**配置高度可定制**
-所有工具参数渐进式披露在 `config/<workflow>.json`，人类可读、可直接改；也可以不改文件，运行时通过嵌套 CLI 字段覆盖（如 `--Params.trim_galore.quality 10`）：
+**配置高度可定制，支持非法输入值检测**
+所有工具参数渐进式披露在 `config/<workflow>.json`，人类可读、可直接改，而且通过schema.json约束合法值（这点在非法输出提醒和列表型参数识别尤其有用）；也可以不改文件，运行时通过嵌套 CLI 字段覆盖（如 `--Params.trim_galore.quality 10`）：
 
 ```bash
 python workflow/Omics/run.py -m data/meta/fastq -w CLIP -o output \
   --Params.trim_galore.quality 10
 ```
+
+另外图片输出格式可选，默认png，科研场景常用pdf,也可以同时输出多种图片格式，可以通过json中暴露的接口定义
 
 **一套入口，高度复用**
 RNA-seq、scRNA-seq、ChIP-seq、WGS、群体基因组等十余类分析收敛到同一入口 `python run.py -w <workflow>`，共享 `modules/` 与 `config/`。新流程建立在已有模块之上，不重复造轮子。
@@ -621,6 +623,7 @@ python workflow/Omics/run.py \
 - [x] schema感知的extra_args类型矫正
 - [ ] 支持多基因组并行运行；已支持：RNAseq
 - [ ] 确保资源消耗平衡，不会出现耗尽主机内存，或者爆满CPU的情况，已支持：Fiberseq
+- [ ] 所以图片输出支持多种格式可选
 
 
 

@@ -1103,7 +1103,7 @@ def main() -> None:
                     args.min_overlap_reads)
         plot_df = all_df.copy()
 
-    plot_a(plot_df, labels, outdir, args.dpi, level = "locus")
+    plot_a(plot_df, labels, outdir, args.dpi, level = "subfamily")
     plot_b(plot_df, labels, outdir, args.top_subfamilies, args.dpi)
     plot_c(all_df, samples, tes, outdir, args.max_reads_per_locus, args.dpi)
 

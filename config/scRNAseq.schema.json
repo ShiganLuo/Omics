@@ -33,48 +33,6 @@
       }
     }
   },
-  "indir": {
-    "type": "null",
-    "nullable": true,
-    "required": false
-  },
-  "raw_files": {
-    "type": "list",
-    "required": true
-  },
-  "outdir": {
-    "type": "null",
-    "nullable": true,
-    "required": false
-  },
-  "logdir": {
-    "type": "null",
-    "nullable": true,
-    "required": false
-  },
-  "paired_samples": {
-    "type": "list",
-    "required": true
-  },
-  "single_samples": {
-    "type": "list",
-    "required": true
-  },
-  "cellranger_input_dict": {
-    "type": "dict",
-    "required": false
-  },
-  "aligner": {
-    "type": "str",
-    "required": true
-  },
-  "counters": {
-    "type": "list",
-    "items": {
-      "type": "str"
-    },
-    "required": true
-  },
   "Procedure": {
     "STAR": {
       "type": "null",
@@ -161,6 +119,75 @@
     }
   },
   "Params": {
+    "workflow": {
+      "type": "dict",
+      "required": false,
+      "properties": {
+        "input_mode": {
+          "type": "enum",
+          "values": ["fastq", "bam", "cellranger_dir"],
+          "required": false,
+          "default": "fastq"
+        },
+        "cellranger_dirs": {
+          "type": "array",
+          "items": {
+            "type": "str"
+          },
+          "required": false
+        },
+        "cellranger_input_dict": {
+          "type": "dict",
+          "required": false
+        },
+        "indir": {
+          "type": "null",
+          "nullable": true,
+          "required": false
+        },
+        "raw_files": {
+          "type": "array",
+          "items": {
+            "type": "str"
+          },
+          "required": false
+        },
+        "outdir": {
+          "type": "null",
+          "nullable": true,
+          "required": false
+        },
+        "logdir": {
+          "type": "null",
+          "nullable": true,
+          "required": false
+        },
+        "paired_samples": {
+          "type": "array",
+          "items": {
+            "type": "str"
+          },
+          "required": false
+        },
+        "single_samples": {
+          "type": "array",
+          "items": {
+            "type": "str"
+          },
+          "required": false
+        },
+        "aligner": {
+          "type": "enum",
+          "values": ["star", "cellranger"],
+          "required": true
+        },
+        "counters": {
+          "type": "enum",
+          "values": ["scTE", "cellranger"],
+          "required": true
+        }
+      }
+    },
     "star": {
       "outSAMattributes": {
         "type": "str",

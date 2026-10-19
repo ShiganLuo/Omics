@@ -72,7 +72,7 @@ def _init_raw_json(
     if not datajson.get("tmp_dir"):
         tmp_dir = os.path.join(outdir, "tmp")
         os.makedirs(tmp_dir, exist_ok=True)
-    if workflow in ["PacVar", "ncRNAseq", "RNAseq", "QuantMS", "Fiberseq"]:
+    if workflow in ["PacVar", "ncRNAseq", "RNAseq", "QuantMS", "Fiberseq", "scRNAseq"]:
         datajson["ROOT_DIR"] = root_dir
         datajson["Params"]["workflow"]["indir"] = indir
         datajson["Params"]["workflow"]["outdir"] = outdir
@@ -916,12 +916,7 @@ def runncRNAseq(
 
     Pipeline: jla-demultiplexer -> trim_galore -> subsample -> STAR (star / star_3pass / star_3pass_gene) -> featureCounts + Tailer.
     """
-    root_dir = _init_raw_json(datajson, indir, outdir, raw_files)
-    datajson["Params"] = datajson.get("Params", {})
-    datajson["Params"]["workflow"] = datajson["Params"].get("workflow", {})
-    datajson["Params"]["workflow"]["indir"] = indir
-    datajson["Params"]["workflow"]["outdir"] = outdir
-    datajson["Params"]["workflow"]["logdir"] = logdir
+    root_dir = _init_raw_json(datajson, indir, outdir, raw_files, "ncRNAseq")
     sample_ip_input_map = {}
     ip_samples = []
     input_samples = []
@@ -991,15 +986,26 @@ def runscRNAseq(
         raw_files: List[str],
         cellranger_input_dict: Dict[str, CellrangerInput]
     ):
-    root_dir = _init_raw_json(datajson, indir, outdir, raw_files)
+    root_dir = _init_raw_json(datajson, indir, outdir, raw_files, "scRNAseq")
     datajson["cellranger_input_dict"] = {k: v.__dict__ for k, v in cellranger_input_dict.items()}
     outfiles = []
     organisms = set()
     counters = datajson["counters"]
     paired_samples = []
     single_samples = []
+    cellranger_dirs = []
+    first_sample_id = next(iter(samples_info_dict))
+    first_sample_info = samples_info_dict[first_sample_id]
+    if first_sample_info.cellranger_dir and os.path.exists(first_sample_info.cellranger_dir):
+        datajson["Params"]["workflow"]["input_mode"] = "cellranger_dir"
+    elif first_sample_info.bam and os.path.exists(first_sample_info.bam):
+        datajson["Params"]["workflow"]["input_mode"] = "bam"
+    else:
+        datajson["Params"]["workflow"]["input_mode"] = "fastq"
     for sample_id, sample_info in samples_info_dict.items():
         organisms.add(sample_info.organism)
+        if sample_info.cellranger_dir and os.path.exists(sample_info.cellranger_dir):
+            cellranger_dirs.append(sample_info.cellranger_dir)
         if sample_info.layout == "PE":
             paired_samples.append(sample_id)
             if "scTE" in counters:
@@ -1018,8 +1024,10 @@ def runscRNAseq(
                 outfiles.append(f"{outdir}/common/4_qc_h5ad/{sample_id}/{sample_id}_cellranger_qc.h5ad")
         else:
             logger.error(f"Unknown layout type for sample {sample_id}: {sample_info.layout}")
-    datajson["paired_samples"] = paired_samples
-    datajson["single_samples"] = single_samples
+    datajson["Params"]["workflow"]["paired_samples"] = paired_samples
+    datajson["Params"]["workflow"]["single_samples"] = single_samples
+    datajson["Params"]["workflow"]["cellranger_dirs"] = cellranger_dirs
+
     if len(organisms) != 1:
         raise ValueError(f"meta don't support multiple organsim temporarily, please check your meta file, found: {organisms}")
     try:

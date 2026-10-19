@@ -44,6 +44,7 @@ class MetadataUtils:
         fastq_dir: Optional[str] = None,
         fastq_required_cols: set = {"sample_id", "fastq_1", "fastq_2"},
         pacbio_required_cols: set = {"sample_id", "bam", "pbi"},
+        bam_required_cols: set = {"sample_id", "bam"},
         data_id_col: str = "data_id",
         design_col: str = "design",
         group_col: str = "group",
@@ -55,6 +56,8 @@ class MetadataUtils:
             - meta: Path to metadata file (CSV/TSV) containing sample information and optionally FASTQ paths.
             - fastq_dir: Directory containing FASTQ files (if not specified in meta).
             - required_cols: Set of required columns in the metadata file. Default includes 'sample_id', 'fastq_1', 'fastq_2'.
+            - pacbio_required_cols: Set of required columns for PacBio files. Default includes 'sample_id', 'bam', 'pbi'.
+            - bam_required_cols: Set of required columns for BAM files. Default includes 'sample_id', 'bam'.
             - data_id_col: Column name in metadata that represents unique FASTQ identifiers (default: 'data_id').
             - design_col: sample compare mode
             - group_col: Column name in metadata that represents sample groups (default: 'group').
@@ -64,19 +67,20 @@ class MetadataUtils:
         """
         if not meta and not fastq_dir:
             raise ValueError("Either meta or fastq_dir must be provided.")
-        self.outdir = Path(outdir)
-        self.outdir.mkdir(parents=True, exist_ok=True)
+        self.outdir = outdir
         self.meta = Path(meta) if meta else None
         self.fastq_dir = Path(fastq_dir) if fastq_dir else None
         self.fastq_required_cols = fastq_required_cols
         self.pacbio_required_cols = pacbio_required_cols
+        self.bam_required_cols = bam_required_cols
         self.data_id_col = data_id_col
         self.design_col = design_col
         self.group_col = group_col
         self.samples_dict = defaultdict(SampleInfo)
         self.cellranger_input_dict: Dict[str, CellrangerInput] = {}
-        self.raw_fq_dir = self.outdir / "common" / "1_raw_data"
-        self.raw_fq_dir.mkdir(parents=True, exist_ok=True)
+        self.raw_fq_dir = os.path.join(self.outdir, "common", "1_raw_data")
+        self.raw_bam_dir = os.path.join(self.outdir, "common", "2_raw_bam")
+
 
     def load_meta(self, meta:Union[Path,str]) -> pd.DataFrame:
         """Load metadata from a TSV or CSV file.
@@ -225,21 +229,27 @@ class MetadataUtils:
 
 
     def _collect_raw_files(self) -> List[str]:
-        """Collect resolved (non-symlink) input file paths from raw_fq_dir.
+        """Collect resolved input file paths from raw_fq_dir.
 
         Scans raw_fq_dir/{sample_id}/ for input files and returns
-        os.path.realpath() resolved paths for container bind-mounting.
+        resolved paths for container bind-mounting.
         """
         result: List[str] = []
-        if not self.raw_fq_dir.is_dir():
+        raw_fq_dir = os.fspath(self.raw_fq_dir)
+
+        if not os.path.isdir(raw_fq_dir):
             return result
-        for sample_dir in sorted(self.raw_fq_dir.iterdir()):
-            if not sample_dir.is_dir():
+
+        for sample_id in sorted(os.listdir(raw_fq_dir)):
+            sample_dir = os.path.join(raw_fq_dir, sample_id)
+            if not os.path.isdir(sample_dir):
                 continue
-            for f in sorted(sample_dir.iterdir()):
-                if f.is_file():
-                    result.append(str(f.resolve()))
-        return result
+
+            for filename in sorted(os.listdir(sample_dir)):
+                filepath = os.path.join(sample_dir, filename)
+                if os.path.isfile(filepath):
+                    result.append(os.path.realpath(filepath))
+
 
 
     def prepare_fastq_meta(
@@ -329,14 +339,14 @@ class MetadataUtils:
                 logger.info(f"Detect the relationship between {sample_id} and {data_ids[0]} is one-to-one")
                 origin_r1 = str(df_sample[fastq_r1_col].values[0]) if fastq_r1_col in df_sample.columns else None
                 origin_r2 = str(df_sample[fastq_r2_col].values[0]) if fastq_r2_col in df_sample.columns else None
-                origin_r1 = Path(origin_r1) if origin_r1 and os.path.exists(origin_r1) else None
-                origin_r2 = Path(origin_r2) if origin_r2 and os.path.exists(origin_r2) else None
+                origin_r1 = origin_r1 if origin_r1 and os.path.exists(origin_r1) else None
+                origin_r2 = origin_r2 if origin_r2 and os.path.exists(origin_r2) else None
 
                 if origin_r1 and origin_r2:
                     logger.info(f"Detect {data_ids[0]} is Paired END")
                     self.samples_dict[sample_id].layout = Layout.PE
-                    rename_r1 = raw_fq_dir / sample_id / f"{sample_id}_1.fq.gz"
-                    rename_r2 = raw_fq_dir / sample_id /  f"{sample_id}_2.fq.gz"
+                    rename_r1 = os.path.join(self.raw_fq_dir, sample_id, f"{sample_id}_1.fq.gz")
+                    rename_r2 = os.path.join(self.raw_fq_dir, sample_id, f"{sample_id}_2.fq.gz")
                     self._link_file(origin_r1,rename_r1)
                     self._link_file(origin_r2,rename_r2)
                     self.samples_dict[sample_id].fastq_1 = rename_r1
@@ -344,7 +354,7 @@ class MetadataUtils:
                 elif origin_r1:
                     logger.info(f"Detect {data_ids[0]} is Single End")
                     self.samples_dict[sample_id].layout = Layout.SE
-                    rename_r1 = raw_fq_dir / sample_id /  f"{sample_id}.single.fq.gz"
+                    rename_r1 = os.path.join(self.raw_fq_dir, sample_id, f"{sample_id}.single.fq.gz")
                     self._link_file(origin_r1,rename_r1)
                     self.samples_dict[sample_id].fastq_1 = rename_r1
                 else:
@@ -355,14 +365,14 @@ class MetadataUtils:
                 origin_r1_list = sorted([r for r in df_sample[fastq_r1_col].values if pd.notna(r)])
                 origin_r2_list = sorted([r for r in df_sample[fastq_r2_col].values if pd.notna(r)]) if fastq_r2_col in df_sample.columns else []
                 
-                origin_r1_list_path = [Path(r1) for r1 in origin_r1_list]
-                origin_r2_list_path = [Path(r2) for r2 in origin_r2_list]
+                origin_r1_list_path = [r1 for r1 in origin_r1_list]
+                origin_r2_list_path = [r2 for r2 in origin_r2_list]
 
                 if len(origin_r1_list_path) > 0 and len(origin_r2_list_path) > 0:
                     logger.info(f"Detect the fastq of {sample_id} is Paired END")
                     self.samples_dict[sample_id].layout = Layout.PE
-                    merge_rename_r1 = raw_fq_dir / sample_id /  f"{sample_id}_1.fq.gz"
-                    merge_rename_r2 = raw_fq_dir / sample_id /  f"{sample_id}_2.fq.gz"
+                    merge_rename_r1 = os.path.join(self.raw_fq_dir, sample_id, f"{sample_id}_1.fq.gz")
+                    merge_rename_r2 = os.path.join(self.raw_fq_dir, sample_id, f"{sample_id}_2.fq.gz")
                     self._merge_files(origin_r1_list_path, merge_rename_r1)
                     self._merge_files(origin_r2_list_path, merge_rename_r2)
                     self.samples_dict[sample_id].fastq_1 = merge_rename_r1
@@ -370,7 +380,7 @@ class MetadataUtils:
                 elif len(origin_r1_list_path) > 0:
                     logger.info(f"Detect the fastq of {sample_id} is Single END")
                     self.samples_dict[sample_id].layout = Layout.SE
-                    merge_rename_r1 = raw_fq_dir / sample_id /  f"{sample_id}.single.fq.gz"
+                    merge_rename_r1 = os.path.join(self.raw_fq_dir, sample_id, f"{sample_id}.single.fq.gz")
                     self._merge_files(origin_r1_list_path, merge_rename_r1)
                     self.samples_dict[sample_id].fastq_1 = merge_rename_r1
                 else:
@@ -380,14 +390,13 @@ class MetadataUtils:
                 logger.warning(f"{sample_id} have no fastqs, skip it")
                 continue
 
-    def prepare_pacbio_meta(
+    def prepare_bam_meta(
         self, df: pd.DataFrame,
         sample_id_col: str = 'sample_id',
         bam_col: str = 'bam',
         pbi_col: str = 'pbi',
     ) -> None:
-        """Prepare PacBio BAM metadata: symlink BAM + PBI index per sample.
-
+        """Prepare BAM metadata: symlink BAM files per sample. may be used for PacBio CCS data or other BAM-based workflows.
         Args:
             df: Metadata dataframe with sample_id, bam, pbi columns.
             sample_id_col: Column name for sample identifier.
@@ -397,37 +406,52 @@ class MetadataUtils:
         Raises:
             ValueError: If required columns (sample_id, bam, pbi) are missing.
         """
-        if not self.pacbio_required_cols.issubset(df.columns):
-            raise ValueError(f"Metadata must contain columns: {self.pacbio_required_cols}")
-        for sample_id, df_sample in df.groupby(sample_id_col):
-            sample_id = str(sample_id).strip()
-            if ' ' in sample_id or '\t' in sample_id:
-                raise ValueError(f"sample_id '{sample_id}' contains whitespace, please remove it from meta file")
-            bam_path = str(df_sample[bam_col].values[0]) if bam_col in df_sample.columns else None
-            pbi_path = str(df_sample[pbi_col].values[0]) if pbi_col in df_sample.columns else None
+        if self.pacbio_required_cols.issubset(df.columns):
+            for sample_id, df_sample in df.groupby(sample_id_col):
+                sample_id = str(sample_id).strip()
+                if ' ' in sample_id or '\t' in sample_id:
+                    raise ValueError(f"sample_id '{sample_id}' contains whitespace, please remove it from meta file")
+                bam_path = str(df_sample[bam_col].values[0]) if bam_col in df_sample.columns else None
+                pbi_path = str(df_sample[pbi_col].values[0]) if pbi_col in df_sample.columns else None
 
-            if not bam_path or not pbi_path:
-                logger.warning(f"{sample_id} is missing BAM or PBI path, skipping.")
-                continue
+                if not bam_path or not os.path.exists(bam_path) or not pbi_path or not os.path.exists(pbi_path):
+                    logger.warning(f"{sample_id} is missing BAM path or PBI path, skipping.")
+                    continue
+                else:
+                    logger.info(f"Preparing PacBio metadata for sample {sample_id}: BAM={bam_path}, PBI={pbi_path}")
+  
+                    target_bam = os.path.join(self.raw_fq_dir, sample_id, f"{sample_id}.bam")
+                    target_pbi = os.path.join(self.raw_fq_dir, sample_id, f"{sample_id}.bam.pbi")
 
-            bam_path = Path(bam_path)
-            pbi_path = Path(pbi_path)
+                    self._link_file(bam_path, target_bam)
+                    self._link_file(pbi_path, target_pbi)
 
-            if not bam_path.exists() or not pbi_path.exists():
-                logger.warning(f"BAM or PBI file for {sample_id} does not exist, skipping.")
-                continue
+                    self.samples_dict[sample_id].sample_id = sample_id
+                    self.samples_dict[sample_id].pacbio_bam = target_bam
+                    self.samples_dict[sample_id].pacbio_pbi = target_pbi
+                    self.samples_dict[sample_id].layout = Layout.SE  # Treat BAM as SE for downstream processing
+                    logger.info(f"Prepared PacBio metadata for sample {sample_id}")
+        elif self.bam_required_cols.issubset(df.columns):
+            for sample_id, df_sample in df.groupby(sample_id_col):
+                sample_id = str(sample_id).strip()
+                if ' ' in sample_id or '\t' in sample_id:
+                    raise ValueError(f"sample_id '{sample_id}' contains whitespace, please remove it from meta file")
+                bam_path = str(df_sample[bam_col].values[0]) if bam_col in df_sample.columns else None
 
-            target_bam = self.raw_fq_dir / sample_id /  f"{sample_id}.bam"
-            target_pbi = self.raw_fq_dir / sample_id /  f"{sample_id}.bam.pbi"
+                if not bam_path or not os.path.exists(bam_path):
+                    logger.warning(f"{sample_id} is missing BAM path, skipping.")
+                    continue
+                else:
+                    logger.info(f"Preparing BAM metadata for sample {sample_id}: BAM={bam_path}")
 
-            self._link_file(bam_path, target_bam)
-            self._link_file(pbi_path, target_pbi)
-
-            self.samples_dict[sample_id].sample_id = sample_id
-            self.samples_dict[sample_id].pacbio_bam = target_bam
-            self.samples_dict[sample_id].pacbio_pbi = target_pbi
-            self.samples_dict[sample_id].layout = Layout.SE  # Treat BAM as SE for downstream processing
-            logger.info(f"Prepared PacBio metadata for sample {sample_id}")
+                    target_bam = os.path.join(self.raw_bam_dir, sample_id, f"{sample_id}.bam")
+                    self._link_file(bam_path, target_bam)
+                    self.samples_dict[sample_id].sample_id = sample_id
+                    self.samples_dict[sample_id].bam = target_bam
+                    self.samples_dict[sample_id].layout = Layout.SE  # Treat BAM as SE for downstream processing
+                    logger.info(f"Prepared BAM metadata for sample {sample_id}")
+        else:
+            raise ValueError(f"Metadata must contain either columns: {self.pacbio_required_cols} or {self.bam_required_cols}")
 
     def prepare_ms_meta(
             self,
@@ -467,13 +491,11 @@ class MetadataUtils:
                 logger.warning(f"{sample_id} is missing MS file path, skipping.")
                 continue
 
-            ms_file_path = Path(ms_file_path)
-
             if not ms_file_path.exists():
                 logger.warning(f"MS file for {sample_id} does not exist, skipping.")
                 continue
 
-            target_ms_file = self.raw_fq_dir / sample_id /  f"{sample_id}{ms_file_path.suffix}"
+            target_ms_file = os.path.join(self.raw_fq_dir, sample_id, f"{sample_id}{ms_file_path.suffix}")
 
             self._link_file(ms_file_path, target_ms_file)
 
@@ -544,9 +566,9 @@ class MetadataUtils:
                 logger.warning(f"No R1 FASTQ found for {sample_id} (prefix={sample_prefix}) in {fastq_dir}")
                 continue
 
-            sample_dir = self.raw_fq_dir / sample_id
-            target_r1 = sample_dir / f"{sample_id}_1.fq.gz"
-            target_r2 = sample_dir / f"{sample_id}_2.fq.gz"
+            sample_dir = os.path.join(self.raw_fq_dir, sample_id)
+            target_r1 = os.path.join(sample_dir, f"{sample_id}_1.fq.gz")
+            target_r2 = os.path.join(sample_dir, f"{sample_id}_2.fq.gz")
 
             # R1
             if len(r1_files) == 1:
@@ -647,8 +669,8 @@ class MetadataUtils:
 
             if files_r1 and files_r2:
                 # PE
-                target_r1 = raw_fq_dir / sample_id / f"{sample_id}_1.fq.gz"
-                target_r2 = raw_fq_dir / sample_id / f"{sample_id}_2.fq.gz"
+                target_r1 = os.path.join(raw_fq_dir, sample_id, f"{sample_id}_1.fq.gz")
+                target_r2 = os.path.join(raw_fq_dir, sample_id, f"{sample_id}_2.fq.gz")
                 if len(files_r1) > 1:
                     logger.info(f"[{sample_id}] Merging {len(files_r1)} R1 files into {target_r1.name}")
                     self._merge_files(files_r1, target_r1)
@@ -666,7 +688,7 @@ class MetadataUtils:
                 sample_info.layout = Layout.PE
             elif files_r1:
                 # SE
-                target_se = raw_fq_dir / sample_id /  f"{sample_id}.single.fq.gz"
+                target_se = os.path.join(self.raw_fq_dir, sample_id, f"{sample_id}.single.fq.gz")
                 if len(files_r1) > 1:
                     logger.info(f"[{sample_id}] Merging {len(files_r1)} SE files into {target_se.name}")
                     self._merge_files(files_r1, target_se)
@@ -705,32 +727,27 @@ class MetadataUtils:
                 with open(f, "rb") as r:
                     shutil.copyfileobj(r, w) # stream copy to handle large files efficiently
 
-    def _link_file(self, src: Path, dst: Path):
+    def _link_file(self, src: str, dst: str) -> None:
         """Create a symbolic link from dst to src.
 
         If dst is already a symlink pointing to src, this is a no-op.
         If dst is a symlink pointing elsewhere, it is replaced.
         If dst exists as a regular file, a RuntimeError is raised.
-
-        Args:
-            src: Source file path (resolved to absolute before linking).
-            dst: Destination symlink path.
-
-        Raises:
-            RuntimeError: If dst exists and is not a symlink.
         """
-        dst.parent.mkdir(parents=True,exist_ok=True)
-        if dst.is_symlink():
-            if dst.resolve() == src.resolve():
+        src = os.path.realpath(src)
+        dst = os.fspath(dst)
+
+        os.makedirs(os.path.dirname(os.path.abspath(dst)), exist_ok=True)
+
+        if os.path.islink(dst):
+            if os.path.realpath(dst) == src:
                 logger.debug(f"[SKIP] Link already correct: {dst}")
                 return
-            dst.unlink()
-
-        elif dst.exists():
+            os.unlink(dst)
+        elif os.path.exists(dst):
             raise RuntimeError(f"Destination exists and is not symlink: {dst}")
 
-        os.symlink(src.resolve(), dst)
-        logger.info(f"[LINK] {dst} -> {src}")
+    os.symlink(src, dst)
 
     def group_pairs_by_organism(
         self, pairs: List[Tuple[str, str]], samples: Dict[str, SampleInfo]
@@ -754,7 +771,8 @@ class MetadataUtils:
         """Main entry point: auto-detect metadata type and prepare samples.
 
         Dispatches to the appropriate prepare_* method based on detected columns:
-          - bam + pbi columns → prepare_pacbio_meta
+          - bam + pbi columns → prepare_bam_meta
+          - only bam column → prepare_bam_meta
           - ms_file column → prepare_ms_meta
           - fastq_dir + sample_prefix → prepare_scRNAseq_meta
           - otherwise → prepare_fastq_meta
@@ -766,26 +784,31 @@ class MetadataUtils:
         """
         if self.meta:
             df = self.load_meta(self.meta)
-            if "bam" in df.columns and "pbi" in df.columns:
-                logger.info("Detected BAM/PBI columns in metadata, preparing PacBio metadata")
-                self.prepare_pacbio_meta(df = df, sample_id_col = "sample_id", bam_col = "bam", pbi_col = "pbi")
+            if "fastq_1" in df.columns or "fastq_2" in df.columns:
+                logger.info("Detected fastq_1/fastq_2 columns in metadata, preparing FASTQ metadata")
+                self.prepare_fastq_meta(df = df, sample_id_col = "sample_id", data_id_col = self.data_id_col)
+            elif "fastq_dir" in df.columns and "sample_prefix" in df.columns:
+                logger.info("Detected fastq_dir/sample_prefix columns in metadata, preparing scRNA-seq metadata")
+                self.prepare_scRNAseq_meta(df = df, sample_id_col = "sample_id", fastq_dir_col = "fastq_dir", sample_prefix_col = "sample_prefix")
+            elif "bam" in df.columns or "pbi" in df.columns:
+                logger.info("Detected BAM or pbi columns in metadata, preparing BAM metadata")
+                self.prepare_bam_meta(df = df, sample_id_col = "sample_id", bam_col = "bam", pbi_col = "pbi")
             elif "ms_file" in df.columns:
                 logger.info("Detected ms_file columns in metadata, preparing MS metadata")
                 self.prepare_ms_meta(df = df, sample_id_col = 'sample_id', ms_file_col = 'ms_file')
-            elif "fastq_dir" in df.columns and "sample_prefix" in df.columns:
-                logger.info("Detected scRNA-seq columns in metadata, preparing scRNA-seq metadata")
-                self.prepare_scRNAseq_meta(df = df, sample_id_col = 'sample_id', fastq_dir_col = 'fastq_dir', sample_prefix_col = 'sample_prefix')
             else:
-                self.prepare_fastq_meta(df = df, data_id_col = self.data_id_col)
+                logger.info("No recognized FASTQ, BAM/PBI, or MS columns found in metadata, preparing FASTQ metadata by default")
+                raise ValueError("Metadata must contain either fastq_1/fastq_2, fastq_dir/sample_prefix, bam/pbi, or ms_file columns.")
+
             if self.design_col not in df.columns or df[self.design_col].isnull().all():
                 logger.info(f"meta {self.design_col} is all none, skip build_design_pairs")
                 sample_pairs, group_pairs = [], []
             else:
                 sample_pairs, group_pairs = self.build_design_pairs()
-            return self.samples_dict, sample_pairs, group_pairs, str(self.raw_fq_dir), self._collect_raw_files(), self.cellranger_input_dict
+            return self.samples_dict, sample_pairs, group_pairs, self.raw_fq_dir, self._collect_raw_files(), self.cellranger_input_dict
         elif self.fastq_dir:
             self.prepare_fastq_dir(self.fastq_dir)
-            return self.samples_dict, [], [], str(self.raw_fq_dir), self._collect_raw_files(), {}
+            return self.samples_dict, [], [], self.raw_fq_dir, self._collect_raw_files(), {}
         else:
             raise ValueError("Either meta or fastq_dir must be provided.")
 

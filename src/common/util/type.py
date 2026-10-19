@@ -26,15 +26,18 @@ class SampleInfo:
     organism: str = "UNKNOWN"
     contaminated_organism: Optional[str] = None
     layout: Layout = Layout.UNKNOWN
-    fastq_1: Optional[Path] = None # Path to the first FASTQ file (for SE or PE)
-    fastq_2: Optional[Path] = None # Path to the second FASTQ file (for PE)
+    fastq_1: Optional[str] = None # Path to the first FASTQ file (for SE or PE)
+    fastq_2: Optional[str] = None # Path to the second FASTQ file (for PE)
     workflow: Optional[str] = None
     group: Optional[str] = None
     design: Optional[str] = None
-    pacbio_bam: Optional[Path] = None # PacBio BAM file
-    pacbio_pbi: Optional[Path] = None # PacBio index file
-    ms_file: Optional[Path] = None # Mass Spectrometry file (.raw, .mzML, .mgf, etc.)
-    fastq_dir: Optional[Path] = None # Directory containing FASTQ files for scRNA-seq
+    pacbio_bam: Optional[str] = None # PacBio BAM file
+    pacbio_pbi: Optional[str] = None # PacBio index file
+    bam: Optional[str] = None # BAM file
+    bai: Optional[str] = None # BAM index file
+    ms_file: Optional[str] = None # Mass Spectrometry file (.raw, .mzML, .mgf, etc.)
+    fastq_dir: Optional[str] = None # Directory containing FASTQ files for scRNA-seq
+    cellranger_dir: Optional[str] = None # Directory containing Cell Ranger output for scRNA-seq
     sample_prefix: Optional[str] = None # Prefix for FASTQ files in the directory for scRNA-seq
     tissue: Optional[str] = None # Tissue type for scRNA-seq grouping (e.g. PBMC, brain)
 

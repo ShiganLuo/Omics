@@ -24,6 +24,7 @@ cellranger_ref_dir = outdir + "/cellranger_ref"
 genome_name = config.get("Params", {}).get("cellranger", {}).get("mkref", {}).get("genome_name", "GRCh38")
 cellranger_transcriptome_dir = cellranger_ref_dir + "/" + genome_name
 cellranger_input_dict = config.get("cellranger_input_dict", {})
+ctd_input_mode = config.get("ctd_input_mode", "bam")  # only used for cellranger_to_h5ad rule to determine where to find filtered matrix
 
 
 rule cellranger_ref:
@@ -154,10 +155,22 @@ rule cellranger_count:
             rule_logger.error(f"cellranger_count failed: {e}\n")
             raise RuntimeError(f"cellranger_count failed: {e}\n")
 
+def get_input_for_cellranger_to_h5ad(wildcards):
+    """Get input files for cellranger_to_h5ad rule."""
+    in_dict = {}
+    sample_id = wildcards.sample_id
+    if ctd_input_mode == "cellranger_dir":
+        logger.debug(f"Input mode is 'cellranger_dir'. filtered_matrix will be derived from cellranger output directory for sample {sample_id}.")
+        filtered_matrix_dir = f"{outdir}/{sample_id}/outs/filtered_feature_bc_matrix"
+    else:
+        filtered_matrix_dir = f"{outdir}/{sample_id}/filtered_feature_bc_matrix"
+    in_dict["filtered_matrix"] = filtered_matrix_dir
+    return in_dict
+
 rule cellranger_to_h5ad:
     """Convert Cell Ranger filtered matrix to h5ad."""
     input:
-        bam = outdir + "/{sample_id}/{sample_id}.bam",
+        unpack(get_input_for_cellranger_to_h5ad),
     output:
         h5ad = h5ad_outdir + "/{sample_id}/{sample_id}_cellranger.h5ad"
     log:
@@ -168,8 +181,7 @@ rule cellranger_to_h5ad:
     container:
         sif("cellranger.yaml")
     params:
-        script = os.path.join(ROOT_DIR, "modules", "cellranger", "bin", "cellranger_to_h5ad.py"),
-        filtered_matrix = outdir + "/{sample_id}/filtered_feature_bc_matrix"
+        script = os.path.join(ROOT_DIR, "modules", "cellranger", "bin", "cellranger_to_h5ad.py")
     run:
         log_path = str(log)
         open(log_path, 'w').close()
@@ -182,7 +194,7 @@ rule cellranger_to_h5ad:
             rule_logger.info(f"Begin cellranger_to_h5ad analysis for {wildcards.sample_id} at {current_time}")
             cmd = [
                 "python", params.script,
-                "--input", params.filtered_matrix,
+                "--input", input.filtered_matrix,
                 "--output", output.h5ad,
                 "--sample-id", wildcards.sample_id
             ]

@@ -185,6 +185,7 @@ rule <tool>_<action>:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "<tool> <action> for {wildcards.sample_id} was completed successfully"\n')
+            rule_logger.info("Executing: " + " ".join(cmd))
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during <tool> <action> for sample {wildcards.sample_id}: {e}\n")
@@ -446,6 +447,14 @@ include: "../../common/common.smk"
 
 # subworkflow
 include: "../modules/common/common.smk"
+```
+
+# Params传递规范
+
+对应模块参数传递最好先在头部定义模块参数config,这样以后修改参数位置整体移动时可以方便修改，比如
+
+```python
+decoil_params = config.get("Params", {}).get("decoil", {})
 ```
 
 # Pitfalls

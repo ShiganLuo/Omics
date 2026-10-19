@@ -165,19 +165,76 @@
         "type": "bool",
         "required": false
       },
-      "min_sv_len": {"type": "int", "required": true},
-      "fragment_min_cov": {"type": "int", "required": true},
-      "fragment_max_cov": {"type": "int", "required": true},
-      "fragment_min_size": {"type": "int", "required": true},
-      "min_vaf": {"type": "float", "required": true},
-      "min_cov_alt": {"type": "int", "required": true},
-      "min_cov": {"type": "int", "required": true},
-      "max_explog_threshold": {"type": "float", "required": true},
-      "filter_score": {"type": "int", "required": true},
-      "sv_caller": {"type": "str", "required": true},
-      "threads": {"type": "int", "required": true},
-      "extend_allowed_chromosomes": {"type": "str", "required": false},
-      "skip": {"type": "bool", "required": false}
+      "reconstruct": {
+        "type": "dict",
+        "required": true,
+        "additionalProperties":{
+          "type": "dict",
+          "properties": {
+          "min_sv_len": {"type": "int", "required": true},
+          "fragment_min_cov": {"type": "int", "required": true},
+          "fragment_max_cov": {"type": "int", "required": true},
+          "fragment_min_size": {"type": "int", "required": true},
+          "min_vaf": {"type": "float", "required": true},
+          "min_cov_alt": {"type": "int", "required": true},
+          "min_cov": {"type": "int", "required": true},
+          "max_explog_threshold": {"type": "float", "required": true},
+          "filter_score": {"type": "int", "required": true},
+          "sv_caller": {"type": "str", "required": true},
+          "threads": {"type": "int", "required": true},
+          "extend_allowed_chromosomes": {"type": "str", "required": false},
+          "skip": {"type": "bool", "required": false}
+          }
+        }
+      },
+      "plot": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "formats": {
+            "type": "list",
+            "required": false
+          }
+        }
+      },
+      "compare": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "formats": {
+            "type": "list",
+            "required": false
+          }
+        }
+      },
+      "igv": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "locus": {
+            "type": "str",
+            "required": false
+          }
+        }
+      },
+      "structure": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "formats": {
+            "type": "list",
+            "required": false
+          },
+          "max_per_fig": {
+            "type": "int",
+            "required": false
+          },
+          "one_file_per_cycle": {
+            "type": "bool",
+            "required": false
+          }
+        }
+      }
     },
     "gatk": {
       "javaOptions": {

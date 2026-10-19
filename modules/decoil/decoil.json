@@ -30,8 +30,12 @@
                 "skip": false
             },
             "formats": ["png"],
-            "plot": {},
-            "compare": {},
+            "plot": {
+                "formats": ["png"]
+            },
+            "compare": {
+                "formats": ["png"]
+            },
             "structure": {
                 "formats": ["png"],
                 "max_per_fig": 12,

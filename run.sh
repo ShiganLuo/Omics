@@ -61,7 +61,8 @@ python ${SCRIPT_DIR}/run.py \
     --rerun-trigger mtime \
     --sdm apptainer \
     --forcerun decoil_structure \
-    --Params.decoil.structure.formats pdf
+    --Params.decoil.structure.formats pdf \
+    --dry-run
 
 # python ${SCRIPT_DIR}/run.py \
 #     -m /data/16T/luosg/data/meta_PXDO53575.tsv \

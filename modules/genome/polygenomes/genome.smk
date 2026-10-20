@@ -25,21 +25,22 @@ rule chromosome_sizes:
         samtools = config.get('Procedure', {}).get('samtools') or 'samtools'
     run:
         log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger("chromosome_sizes", log_file=log_path)
         try:
-            open(log_path, "w").close()
-            rule_logger = setup_logger("chromosome_sizes", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start chromosome_sizes at {current_time}")
             script = os.path.join(os.path.dirname(output.chrom_sizes), f"chromosome_sizes_{current_time}.sh")
             with open(script, "w") as f:
+                f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(f"{params.samtools} faidx {input.fasta} 2>> {log_path}\n")
                 f.write(f"cut -f1,2 {input.fasta}.fai > {output.chrom_sizes}\n")
+                f.write(f"echo 'chromosome_sizes completed for genome {wildcards.genome} at {current_time}'\n")
             shell(f"bash {script} >> {log_path} 2>&1")
             rule_logger.info(f"chromosome_sizes completed")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"chromosome_sizes failed: {e}\n")
-            raise e
+            rule_logger.error(f"Error occurred during chromosome_sizes: {e}")
+            raise RuntimeError(f"Error occurred during chromosome_sizes: {e}, you can check the log file {log_path} for more details.")
 
 # ── Extract smallRNA BED + FASTA from GENCODE GTF ───────────────────────
 rule extract_smallrna:
@@ -65,9 +66,9 @@ rule extract_smallrna:
         bedtools = config.get("Procedure", {}).get("bedtools") or "bedtools",
     run:
         log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger("extract_smallrna", log_file=log_path)
         try:
-            open(log_path, "w").close()
-            rule_logger = setup_logger("extract_smallrna", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start extract_smallrna at {current_time}")
             script = os.path.join(params.outdir, f"extract_smallrna_{current_time}.sh")
@@ -82,9 +83,8 @@ rule extract_smallrna:
                 f.write(f"    --types {params.types} \\\n")
                 f.write(f"    --bedtools {params.bedtools} \\\n")
                 f.write(f"    > {log_path} 2>&1\n")
+                f.write(f"echo 'extract_smallrna completed successfully at {current_time}'\n")
             shell(f"bash {script} >> {log_path} 2>&1")
-            rule_logger.info(f"extract_smallrna completed")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"extract_smallrna failed: {e}\n")
-            raise e
+            rule_logger.error(f"Error occurred during extract_smallrna: {e}")
+            raise RuntimeError(f"Error occurred during extract_smallrna: {e}, you can check the log file {log_path} for more details.")

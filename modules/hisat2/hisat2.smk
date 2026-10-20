@@ -53,7 +53,7 @@ rule hisat2_index:
             raise RuntimeError(f"hisat2_index failed: {e}")
 
 def get_hisat2_index(wildcards):
-    logger.info(f"[get_hisat2_index] called with wildcards: {wildcards}")
+    logger.debug(f"[get_hisat2_index] called with wildcards: {wildcards}")
     config_index_prefix = config.get('genome',{}).get('index_prefix') or None
     if config_index_prefix:
         first_file = f"{config_index_prefix}.1.ht2"
@@ -75,7 +75,7 @@ def get_alignment_input(wildcards):
 
     return: A list of input file paths for the STAR alignment step. 
     """
-    logger.info(f"[get_alignment_input] called with wildcards: {wildcards}")
+    logger.debug(f"[get_alignment_input] called with wildcards: {wildcards}")
     # 构造可能的输入路径
     paired_r1 = f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}_1.fq.gz"
     paired_r2 = f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}_2.fq.gz"

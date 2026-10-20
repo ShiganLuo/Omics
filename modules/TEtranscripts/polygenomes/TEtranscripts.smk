@@ -7,7 +7,7 @@ ROOT_DIR = config.get("ROOT_DIR", "./")
 genome_samples = config.get("genome_samples", {})
 
 def get_input_for_TEcount(wildcards):
-    logger.info(f"[get_input_for_TEcount] called with wildcards: {wildcards}")
+    logger.debug(f"[get_input_for_TEcount] called with wildcards: {wildcards}")
     bam = indir + f"/{wildcards.genome}/{wildcards.sample_id}/{wildcards.sample_id}.bam"
     TE_gtf = config.get('genome', {}).get('references', {}).get(wildcards.genome, {}).get('TE_gtf')
     if not TE_gtf or not os.path.exists(TE_gtf):
@@ -39,9 +39,9 @@ rule TEcount:
         sif("../TEtranscripts.yaml")
     run:
         log_path = str(log)
+        open(log_path, 'w').close()
+        rule_logger = setup_logger("TEcount", log_file=log_path)
         try:
-            open(log_path, 'w').close()
-            rule_logger = setup_logger("TEcount", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start TEcount for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.project))
@@ -61,16 +61,14 @@ rule TEcount:
                 f.write("#!/bin/bash\n")
                 f.write("set -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
-                f.write(f"echo 'TEcount completed for sample {wildcards.sample_id} at {current_time}'\n")
+                f.write(f"echo 'TEcount for sample {wildcards.sample_id} was completed successfully'\n")
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"Error occurred during TEcount for sample {wildcards.sample_id}: {e}\n")
-            logger.error(f"Error occurred during TEcount for sample {wildcards.sample_id}: {e}")
-            raise e
+            rule_logger.error(f"Error occurred during TEcount for sample {wildcards.sample_id}: {e}")
+            raise RuntimeError(f"TEcount failed for sample {wildcards.sample_id}: {e}")
 
 def get_input_for_combine_TEcount(wildcards):
-    logger.info(f"[get_input_for_combine_TEcount] called with wildcards: {wildcards}")
+    logger.debug(f"[get_input_for_combine_TEcount] called with wildcards: {wildcards}")
     cntTables = []
     for sample_id in genome_samples.get(wildcards.genome, []):
         cntTables.append(f"{outdir}/{wildcards.genome}/{sample_id}/{sample_id}.TEcount.cntTable")
@@ -103,9 +101,9 @@ rule combine_TEcount:
         logdir_combine + "/TEtranscripts/{genome}/combine_TEcount.log"
     run:
         log_path = str(log)
+        open(log_path, 'w').close()
+        rule_logger = setup_logger("combine_TEcount", log_file=log_path)
         try:
-            open(log_path, 'w').close()
-            rule_logger = setup_logger("combine_TEcount", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start combine_TEcount at {current_time}")
             sample_outdir = os.path.dirname(str(output.outfile_raw))
@@ -130,13 +128,11 @@ rule combine_TEcount:
                 f.write(f"echo 'combine_TEcount for {wildcards.genome} completed at {current_time}'\n")
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"Error occurred during combine_TEcount: {e}\n")
-            logger.error(f"Error occurred during combine_TEcount: {e}")
-            raise e
+            rule_logger.error(f"Error occurred during combine_TEcount: {e}")
+            raise RuntimeError(f"Error occurred during combine_TEcount: {e}")
 
 def get_input_for_TElocal(wildcards):
-    logger.info(f"[get_input_for_TElocal] called with wildcards: {wildcards}")
+    logger.debug(f"[get_input_for_TElocal] called with wildcards: {wildcards}")
     bam = indir + f"/{wildcards.genome}/{wildcards.sample_id}/{wildcards.sample_id}.bam"
     TEind = config.get('genome', {}).get('references', {}).get(wildcards.genome, {}).get('TEind')
     if not TEind or not os.path.exists(TEind):
@@ -150,6 +146,7 @@ def get_input_for_TElocal(wildcards):
         "gtf": gtf
     }
     return in_dict
+
 rule TElocal:
     input:
         unpack(get_input_for_TElocal)
@@ -167,9 +164,9 @@ rule TElocal:
         sif("../TEtranscripts.yaml")
     run:
         log_path = str(log)
+        open(log_path, 'w').close()
+        rule_logger = setup_logger("TElocal", log_file=log_path)
         try:
-            open(log_path, 'w').close()
-            rule_logger = setup_logger("TElocal", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start TElocal for sample {wildcards.sample_id} at {current_time}")
             outdir_local = os.path.dirname(str(output.project))
@@ -189,16 +186,14 @@ rule TElocal:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd1) + "\n")
                 f.write(" ".join(cmd2) + "\n")
-                f.write(f"echo 'TElocal completed for sample {wildcards.sample_id} at {current_time}'\n")
+                f.write(f"echo 'TElocal for sample {wildcards.sample_id} was completed successfully'\n")
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"Error occurred during TElocal for sample {wildcards.sample_id}: {e}\n")
-            logger.error(f"Error occurred during TElocal for sample {wildcards.sample_id}: {e}")
-            raise e
+            rule_logger.error(f"Error occurred during TElocal for sample {wildcards.sample_id}: {e}")
+            raise RuntimeError(f"Error occurred during TElocal for sample {wildcards.sample_id}: {e}")
 
 def get_input_for_combine_TElocal(wildcards):
-    logger.info(f"[get_input_for_combine_TElocal] called with wildcards: {wildcards}")
+    logger.debug(f"[get_input_for_combine_TElocal] called with wildcards: {wildcards}")
     cntTables = []
     for sample_id in genome_samples.get(wildcards.genome, []):
         cntTables.append(f"{outdir}/{wildcards.genome}/{sample_id}/{sample_id}.TElocal.cntTable")
@@ -222,9 +217,9 @@ rule combine_TElocal:
         logdir_combine + "/TEtranscripts/{genome}/combine_TElocal.log"
     run:
         log_path = str(log)
+        open(log_path, 'w').close()
+        rule_logger = setup_logger("combine_TElocal", log_file=log_path)
         try:
-            open(log_path, 'w').close()
-            rule_logger = setup_logger("combine_TElocal", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start combine_TElocal at {current_time}")
             script = os.path.join(params.indir, f"combine_TElocal_{current_time}.sh")
@@ -237,13 +232,11 @@ rule combine_TElocal:
             with open(script, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
-                f.write(f"echo 'combine_TElocal for {wildcards.genome} completed at {current_time}'\n")
+                f.write(f"echo 'combine_TElocal for {wildcards.genome} was completed successfully'\n")
             shell(f"bash {script} > {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"Error occurred during combine_TElocal: {e}\n")
-            logger.error(f"Error occurred during combine_TElocal: {e}")
-            raise e
+            rule_logger.error(f"Error occurred during combine_TElocal: {e}")
+            raise RuntimeError(f"Error occurred during combine_TElocal: {e}")
 
 rule TEtranscripts_result:
     input:

@@ -14,7 +14,7 @@ def get_input_HaplotypeCaller(wildcards):
     """
     in_dict = {}
     if known_sites and interval:
-        logger.info(f"Using known_sites: {known_sites} and interval: {interval}")
+        logger.debug(f"Using known_sites: {known_sites} and interval: {interval}")
         include: "../gatk_bqsr/gatk_bqsr.smk"
         in_dict["bam"] = f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}.sorted_markdup.bqsr.bam"
     else:
@@ -25,12 +25,12 @@ def get_input_HaplotypeCaller(wildcards):
     dict_index = config.get("genome", {}).get(wildcards.genome, {}).get("dict_index")
     fasta = config.get("genome", {}).get(wildcards.genome, {}).get("fasta")
     if fai_index and dict_index and fasta:
-        logger.info(f"Using provided fai_index: {fai_index} , dict_index: {dict_index}")
+        logger.debug(f"Using provided fai_index: {fai_index} , dict_index: {dict_index}")
         in_dict["fai"] = fai_index
         in_dict["dict"] = dict_index
         in_dict["fasta"] = fasta
     else:
-        logger.info("No fai_index or dict_index specified in config, using rule to generate them.")
+        logger.debug("No fai_index or dict_index specified in config, using rule to generate them.")
         in_dict["fai"] = f"{indir}/index/{wildcards.genome}/genome.fa.fai"
         in_dict["dict"] = f"{indir}/index/{wildcards.genome}/genome.dict"
         in_dict["fasta"] = f"{indir}/index/{wildcards.genome}/genome.fa"
@@ -53,11 +53,12 @@ rule HaplotypeCaller:
         tmp_dir = config.get("Params", {}).get("gatk", {}).get("tmp-dir") or None
     threads: 10
     run:
+        log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger(logger_name="HaplotypeCaller", log_file=log_path)
         try:
-            open(log[0], "w").close()
-            logger = setup_logger(logger_name="HaplotypeCaller", log_file=log[0])
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            logger.info(f"Start HaplotypeCaller for sample {wildcards.sample_id} genome {wildcards.genome} at {current_time}")
+            rule_logger.info(f"Start HaplotypeCaller for sample {wildcards.sample_id} genome {wildcards.genome} at {current_time}")
             script = os.path.join(outdir, f"{wildcards.genome}/{wildcards.sample_id}/HaplotypeCaller_{current_time}.sh")
             cmd = [
                 params.gatk, "--java-options", f'"{params.javaOptions}"', "HaplotypeCaller",
@@ -68,13 +69,13 @@ rule HaplotypeCaller:
             if params.tmp_dir:
                 cmd.extend(["--tmp-dir", params.tmp_dir])
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
-            shell(f"bash {script} >> {log[0]} 2>&1")
+                f.write(f"echo 'HaplotypeCaller completed successfully for sample {wildcards.sample_id} genome {wildcards.genome}'\n")
+            shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log[0], "a") as f:
-                f.write(f"Error during HaplotypeCaller execution: {str(e)}\n")
-            raise f"Error occurred while running HaplotypeCaller for sample {wildcards.sample_id} genome {wildcards.genome}: {e}, you can check the log file {log[0]} for more details."
+            rule_logger.error(f"Error occurred while running HaplotypeCaller for sample {wildcards.sample_id} genome {wildcards.genome}: {e}")
+            raise RuntimeError(f"Error occurred while running HaplotypeCaller for sample {wildcards.sample_id} genome {wildcards.genome}: {e}, you can check the log file {log_path} for more details.")
 
 def get_input_filterHaplotypeCallerVcf(wildcards):
     in_dict = {}
@@ -117,11 +118,12 @@ rule filterHaplotypeCallerVcf:
         DP_threshold = config.get("Params", {}).get("gatk", {}).get("DP_threshold") or 10.0,
         QUAL_threshold = config.get("Params", {}).get("gatk", {}).get("QUAL_threshold") or 20.0
     run:
+        log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger(logger_name="filterHaplotypeCallerVcf", log_file=log_path)
         try:
-            open(log[0], "w").close()
-            logger = setup_logger(logger_name="filterHaplotypeCallerVcf", log_file=log[0])
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            logger.info(f"Start filterHaplotypeCallerVcf for sample {wildcards.sample_id} genome {wildcards.genome} at {current_time}")
+            rule_logger.info(f"Start filterHaplotypeCallerVcf for sample {wildcards.sample_id} genome {wildcards.genome} at {current_time}")
             script = os.path.join(outdir, f"{wildcards.genome}/{wildcards.sample_id}/filterHaplotypeCallerVcf_{current_time}.sh")
             cmd1 = [
                 params.gatk, "--java-options", f'"{params.javaOptions}"', "VariantFiltration",
@@ -141,14 +143,14 @@ rule filterHaplotypeCallerVcf:
                 "bcftools", "index", output.vcf
             ]
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd1) + "\n")
                 f.write(" ".join(cmd2) + "\n")
-            shell(f"bash {script} >> {log[0]} 2>&1")
+                f.write(f"echo 'filterHaplotypeCallerVcf completed successfully for sample {wildcards.sample_id} genome {wildcards.genome}'\n")
+            shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log[0], "a") as f:
-                f.write(f"Error during filtering HaplotypeCaller VCF: {str(e)}\n")
-            raise f"Error occurred while filtering HaplotypeCaller VCF for sample {wildcards.sample_id} genome {wildcards.genome}: {e}, you can check the log file {log[0]} for more details."
+            rule_logger.error(f"Error occurred while filtering HaplotypeCaller VCF for sample {wildcards.sample_id} genome {wildcards.genome}: {e}")
+            raise RuntimeError(f"Error occurred while filtering HaplotypeCaller VCF for sample {wildcards.sample_id} genome {wildcards.genome}: {e}, you can check the log file {log_path} for more details.")
 
 
 rule gatk_haplotypeCaller_result:

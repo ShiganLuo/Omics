@@ -4,7 +4,7 @@ outdir = config.get("outdir") or "output"
 logdir = config.get("logdir") or "log"
 
 def get_input_for_SplitNCigarReads(wildcards):
-    logger.info(f"[get_input_for_SplitNCigarReads] called with wildcards: {wildcards}")
+    logger.debug(f"[get_input_for_SplitNCigarReads] called with wildcards: {wildcards}")
     bam = indir + f"/{wildcards.genome}/{wildcards.sample_id}/{wildcards.sample_id}.sorted_markdup.bam"
     fasta = config.get('genome', {}).get('references',{}).get(wildcards.genome,{}).get('fasta')
     if not fasta or not os.path.exists(fasta):
@@ -43,9 +43,9 @@ rule SplitNCigarReads:
         logdir + "/{sample_id}/{genome}/SplitNCigarReads.log"
     run:
         log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger(logger_name="SplitNCigarReads", log_file=log_path)
         try:
-            open(log_path, "w").close()
-            rule_logger = setup_logger(logger_name="SplitNCigarReads", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start SplitNCigarReads for sample {wildcards.sample_id} genome {wildcards.genome} at {current_time}")
             sample_outdir = os.path.dirname(str(output.bam))
@@ -68,13 +68,11 @@ rule SplitNCigarReads:
                 f.write(f"echo 'SplitNCigarReads completed successfully for sample {wildcards.sample_id} genome {wildcards.genome}'\n")
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"Error during SplitNCigarReads execution: {str(e)}\n")
-            logger.error(f"Error occurred during SplitNCigarReads for sample {wildcards.sample_id} genome {wildcards.genome}: {e}")
-            raise e
+            rule_logger.error(f"Error occurred during SplitNCigarReads for sample {wildcards.sample_id} genome {wildcards.genome}: {e}")
+            raise RuntimeError(f"Error occurred during SplitNCigarReads for sample {wildcards.sample_id} genome {wildcards.genome}: {e}, you can check the log file {log_path} for more details.")
 
 def get_input_for_VarientCalling(wildcards):
-    logger.info(f"[get_input_for_VarientCalling] called with wildcards: {wildcards}")
+    logger.debug(f"[get_input_for_VarientCalling] called with wildcards: {wildcards}")
     bam = outdir + f"/{wildcards.genome}/{wildcards.sample_id}/{wildcards.sample_id}.split.bam"
     fasta = config.get('genome', {}).get('references',{}).get(wildcards.genome,{}).get('fasta')
     if not fasta or not os.path.exists(fasta):
@@ -110,9 +108,9 @@ rule VarientCalling:
     threads: 8
     run:
         log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger(logger_name="VarientCalling", log_file=log_path)
         try:
-            open(log_path, "w").close()
-            rule_logger = setup_logger(logger_name="VarientCalling", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start VarientCalling for sample {wildcards.sample_id} genome {wildcards.genome} at {current_time}")
             sample_outdir = os.path.dirname(str(output.vcf))
@@ -135,12 +133,12 @@ rule VarientCalling:
                 f.write(f"echo 'VarientCalling completed successfully for sample {wildcards.sample_id} genome {wildcards.genome}'\n")
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"Error during VarientCalling execution: {str(e)}\n")
-            logger.error(f"Error occurred during VarientCalling for sample {wildcards.sample_id} genome {wildcards.genome}: {e}")
-            raise e
+            rule_logger.error(f"Error occurred during VarientCalling for sample {wildcards.sample_id} genome {wildcards.genome}: {e}")
+            raise RuntimeError(f"Error occurred during VarientCalling for sample {wildcards.sample_id} genome {wildcards.genome}: {e}, you can check the log file {log_path} for more details.")
+
+
 def get_input_for_vcf_filter(wildcards):
-    logger.info(f"[get_input_for_vcf_filter] called with wildcards: {wildcards}")
+    logger.debug(f"[get_input_for_vcf_filter] called with wildcards: {wildcards}")
     vcf = outdir + f"/{wildcards.genome}/{wildcards.sample_id}/{wildcards.sample_id}.raw.vcf.gz"
     fasta = config.get('genome', {}).get('references',{}).get(wildcards.genome,{}).get('fasta')
     if not fasta or not os.path.exists(fasta):
@@ -177,9 +175,9 @@ rule vcf_filter:
         bgzip = config.get("Procedure", {}).get("bgzip") or "bgzip",
     run:
         log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger(logger_name="vcf_filter", log_file=log_path)
         try:
-            open(log_path, "w").close()
-            rule_logger = setup_logger(logger_name="vcf_filter", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start vcf_filter for sample {wildcards.sample_id} genome {wildcards.genome} at {current_time}")
             sample_outdir = os.path.dirname(str(output.vcf))
@@ -210,7 +208,5 @@ rule vcf_filter:
                 f.write(f"echo 'vcf_filter completed successfully for sample {wildcards.sample_id} genome {wildcards.genome}'\n")
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"Error during vcf_filter execution: {str(e)}\n")
-            logger.error(f"Error occurred during vcf_filter for sample {wildcards.sample_id} genome {wildcards.genome}: {e}")
-            raise e
+            rule_logger.error(f"Error occurred during vcf_filter for sample {wildcards.sample_id} genome {wildcards.genome}: {e}")
+            raise RuntimeError(f"Error occurred during vcf_filter for sample {wildcards.sample_id} genome {wildcards.genome}: {e}, you can check the log file {log_path} for more details.")

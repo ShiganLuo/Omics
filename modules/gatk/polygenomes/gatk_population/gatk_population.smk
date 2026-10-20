@@ -52,10 +52,12 @@ rule gatk_population_haplotype_caller:
         interval=get_genome_interval
     run:
         log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger(logger_name="gatk_population_haplotype_caller", log_file=log_path)
         try:
-            os.makedirs(os.path.dirname(log_path), exist_ok=True)
             os.makedirs(os.path.dirname(output.vcf), exist_ok=True)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+            rule_logger.info(f"Start gatk_population_haplotype_caller for sample {wildcards.sample} genome {wildcards.genome} at {current_time}")
             script = os.path.join(os.path.dirname(output.vcf), f"gatk_population_haplotype_caller_{wildcards.sample}_{current_time}.sh")
             cmd = [params.gatk, "--java-options", params.java_options, "HaplotypeCaller", "-R", input.fasta, "-I", input.bam, "-O", output.vcf, "-ERC", "GVCF", "--native-pair-hmm-threads", str(threads)]
             if params.interval:
@@ -68,9 +70,8 @@ rule gatk_population_haplotype_caller:
                 handle.write(f"{params.gatk} IndexFeatureFile -I {output.vcf}\n")
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as exc:
-            with open(log_path, "a") as handle:
-                handle.write(f"HaplotypeCaller failed for {wildcards.sample} genome {wildcards.genome}: {exc}\n")
-            raise
+            rule_logger.error(f"HaplotypeCaller failed for {wildcards.sample} genome {wildcards.genome}: {exc}")
+            raise RuntimeError(f"HaplotypeCaller failed for {wildcards.sample} genome {wildcards.genome}: {exc}, you can check the log file {log_path} for more details.")
 
 rule gatk_population_joint_genotyping:
     input:
@@ -97,10 +98,12 @@ rule gatk_population_joint_genotyping:
         workspace=lambda wildcards: outdir + f"/{wildcards.genome}/variants/joint/genomicsdb"
     run:
         log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger(logger_name="gatk_population_joint_genotyping", log_file=log_path)
         try:
-            os.makedirs(os.path.dirname(log_path), exist_ok=True)
             os.makedirs(os.path.dirname(output.vcf), exist_ok=True)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+            rule_logger.info(f"Start gatk_population_joint_genotyping for genome {wildcards.genome} at {current_time}")
             sample_map = os.path.join(os.path.dirname(output.vcf), "sample_map.tsv")
             with open(sample_map, "w") as handle:
                 for sample, gvcf in zip(samples, input.gvcfs):
@@ -123,6 +126,5 @@ rule gatk_population_joint_genotyping:
                 handle.write(f"{params.gatk} IndexFeatureFile -I {output.vcf}\n")
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as exc:
-            with open(log_path, "a") as handle:
-                handle.write(f"Joint genotyping failed for genome {wildcards.genome}: {exc}\n")
-            raise
+            rule_logger.error(f"Joint genotyping failed for genome {wildcards.genome}: {exc}")
+            raise RuntimeError(f"Joint genotyping failed for genome {wildcards.genome}: {exc}, you can check the log file {log_path} for more details.")

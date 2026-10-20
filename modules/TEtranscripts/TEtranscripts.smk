@@ -25,9 +25,9 @@ rule TEcount:
         sif("TEtranscripts.yaml")
     run:
         log_path = str(log)
+        open(log_path, 'w').close()
+        rule_logger = setup_logger("TEcount", log_file=log_path)
         try:
-            open(log_path, 'w').close()
-            rule_logger = setup_logger("TEcount", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start TEcount for sample {wildcards.sample_id} at {current_time}")
             script = os.path.join(params.outdir, f"TEcount_{wildcards.sample_id}_{current_time}.sh")
@@ -36,15 +36,13 @@ rule TEcount:
                 f.write(f"{params.TEcount} --sortByPos --format BAM --mode multi \\\n")
                 f.write(f"    -b {input.bam} --GTF {params.gtf} --TE {params.TE_gtf} \\\n")
                 f.write(f"    --project {params.project} --outdir {params.outdir}\n")
-            shell(f"bash {script} > {log_path} 2>&1")
+            shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"Error occurred during TEcount for sample {wildcards.sample_id}: {e}\n")
-            logger.error(f"Error occurred during TEcount for sample {wildcards.sample_id}: {e}")
-            raise e
+            rule_logger.error(f"Error occurred during TEcount for sample {wildcards.sample_id}: {e}")
+            raise RuntimeError(f"Error occurred during TEcount for sample {wildcards.sample_id}: {e}")
 
 def get_cntTable_for_TEcount(wildcards):
-    logger.info(f"[get_cntTable_for_TEcount] called with wildcards: {wildcards}")
+    logger.debug(f"[get_cntTable_for_TEcount] called with wildcards: {wildcards}")
     cntTable = []
     for sample_id in samples:
         cntTable.append(f"{outdir}/TEcount/{sample_id}.TEcount.cntTable")
@@ -66,24 +64,23 @@ rule combine_TEcount:
         combineTE = ROOT_DIR + "/modules/TEtranscripts/bin/combineTE.py",
         indir = outdir + "/TEcount"
     log:
-        logdir + "/all/TEtranscripts/combine_TEcount.log"
+        logdir + "/TEtranscripts/combine_TEcount.log"
     run:
         log_path = str(log)
+        open(log_path, 'w').close()
+        rule_logger = setup_logger("combine_TEcount", log_file=log_path)
         try:
-            open(log_path, 'w').close()
-            rule_logger = setup_logger("combine_TEcount", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start combine_TEcount at {current_time}")
             script = os.path.join(params.indir, f"combine_TEcount_{current_time}.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write(f"python {params.combineTE} -p TEcount -i {params.indir} -o {output.outfile}\n")
-            shell(f"bash {script} > {log_path} 2>&1")
+                f.write(f"echo 'combine_TEcount was completed successfully'\n")
+            shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"Error occurred during combine_TEcount: {e}\n")
-            logger.error(f"Error occurred during combine_TEcount: {e}")
-            raise e
+            rule_logger.error(f"Error occurred during combine_TEcount: {e}")
+            raise RuntimeError(f"Error occurred during combine_TEcount: {e}")
 
 rule TElocal:
     input:
@@ -104,9 +101,9 @@ rule TElocal:
         sif("TEtranscripts.yaml")
     run:
         log_path = str(log)
+        open(log_path, 'w').close()
+        rule_logger = setup_logger("TElocal", log_file=log_path)
         try:
-            open(log_path, 'w').close()
-            rule_logger = setup_logger("TElocal", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start TElocal for sample {wildcards.sample_id} at {current_time}")
             outdir_local = os.path.dirname(str(output.project))
@@ -117,15 +114,14 @@ rule TElocal:
                 f.write(f"    --GTF {params.GTF} --TE {params.TE} \\\n")
                 f.write(f"    --project {params.project}\n")
                 f.write(f"mv {params.project}.cntTable {output.project}\n")
-            shell(f"bash {script} > {log_path} 2>&1")
+                f.write(f"echo 'TElocal for sample {wildcards.sample_id} was completed successfully'\n")
+            shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"Error occurred during TElocal for sample {wildcards.sample_id}: {e}\n")
-            logger.error(f"Error occurred during TElocal for sample {wildcards.sample_id}: {e}")
-            raise e
+            rule_logger.error(f"Error occurred during TElocal for sample {wildcards.sample_id}: {e}")
+            raise RuntimeError(f"Error occurred during TElocal for sample {wildcards.sample_id}: {e}")
 
 def get_cntTable_for_TElocal(wildcards):
-    logger.info(f"[get_cntTable_for_TElocal] called with wildcards: {wildcards}")
+    logger.debug(f"[get_cntTable_for_TElocal] called with wildcards: {wildcards}")
     cntTable = []
     for sample_id in samples:
         cntTable.append(f"{outdir}/TElocal/{sample_id}.TElocal.cntTable")
@@ -147,24 +143,23 @@ rule combine_TElocal:
         combineTE = ROOT_DIR + "/modules/TEtranscripts/bin/combineTE.py",
         indir = outdir + "/TElocal"
     log:
-        logdir + "/../group/TEtranscripts/combine_TElocal.log"
+        logdir + "/TEtranscripts/combine_TElocal.log"
     run:
         log_path = str(log)
+        open(log_path, 'w').close()
+        rule_logger = setup_logger("combine_TElocal", log_file=log_path)
         try:
-            open(log_path, 'w').close()
-            rule_logger = setup_logger("combine_TElocal", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start combine_TElocal at {current_time}")
             script = os.path.join(params.indir, f"combine_TElocal_{current_time}.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write(f"python {params.combineTE} -p TElocal -i {params.indir} -o {output.outfile}\n")
-            shell(f"bash {script} > {log_path} 2>&1")
+                f.write(f"echo 'combine_TElocal was completed successfully'\n")
+            shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"Error occurred during combine_TElocal: {e}\n")
-            logger.error(f"Error occurred during combine_TElocal: {e}")
-            raise e
+            rule_logger.error(f"Error occurred during combine_TElocal: {e}")
+            raise RuntimeError(f"Error occurred during combine_TElocal: {e}")
 
 rule TEtranscripts_result:
     input:

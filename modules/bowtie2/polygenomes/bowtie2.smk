@@ -10,7 +10,7 @@ BOWTIE2_IDX_SUFFIX = ["1.bt2", "2.bt2", "3.bt2", "4.bt2", "rev.1.bt2", "rev.2.bt
 
 def get_input_for_bowtie2_index(wildcards):
     """Dynamically determines the input fasta file for bowtie2 index based on the genome."""
-    logger.info(f"[get_input_for_bowtie2_index] called with wildcards: {wildcards}")
+    logger.debug(f"[get_input_for_bowtie2_index] called with wildcards: {wildcards}")
     fasta = config.get('genome', {}).get('references', {}).get(wildcards.genome, {}).get('fasta')
     if not fasta:
         logger.error(f"Fasta file for genome {wildcards.genome} not found in config")
@@ -38,10 +38,11 @@ rule bowtie2_index:
         sif("../bowtie2.yaml")
     run:
         log_path = str(log)
+        open(log_path, 'w').close()
+        rule_logger = setup_logger("bowtie2_index", log_file=log_path)
         try:
-            log_path = str(log)
-            open(log_path, 'w').close()
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
+            rule_logger.info(f"Start bowtie2 index for genome {wildcards.genome} at {current_time}")
             script = f"{outdir}/index/{wildcards.genome}/bowtie2_index.{current_time}.sh"
             cmd = [params.bowtie2_build, 
                     "--threads", str(threads), 
@@ -49,15 +50,13 @@ rule bowtie2_index:
                     params.index_prefix
                     ]
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
-                f.write("set -euo pipefail\n")
+                f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
-            shell(f"bash {script} > {log_path} 2>&1")
+                f.write(f'echo "bowtie2 index was successfully completed !"\n')
+            shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path,"a") as f:
-                f.write(f"Error occurred during bowtie2 index for genome {wildcards.genome}, error: {e}\n")
-            logger.error(f"Error occurred during bowtie2 index for genome {wildcards.genome}, error: {e}\n")
-            raise e
+            rule_logger.error(f"Error occurred during bowtie2 index for genome {wildcards.genome}, error: {e}\n")
+            raise RuntimeError(f"Error occurred during bowtie2 index for genome {wildcards.genome}, error: {e}, please check the {log_path} file for more details.\n")
 
 
 def get_alignment_input(wildcards):
@@ -73,7 +72,7 @@ def get_alignment_input(wildcards):
 
     return: A list of input file paths for the STAR alignment step. 
     """
-    logger.info(f"[get_alignment_input] called with wildcards: {wildcards}")
+    logger.debug(f"[get_alignment_input] called with wildcards: {wildcards}")
     # 构造可能的输入路径
     paired_r1 = f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}_1.fq.gz"
     paired_r2 = f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}_2.fq.gz"
@@ -81,12 +80,12 @@ def get_alignment_input(wildcards):
     
     # 检查文件实际存在情况
     if wildcards.sample_id in genome_paired_samples.get(wildcards.genome, []):
-        logger.info(f"双端测序：{[paired_r1, paired_r2]}")
-        logger.info(f"双端测序：{[paired_r1, paired_r2]}")
+        logger.debug(f"双端测序：{[paired_r1, paired_r2]}")
+        logger.debug(f"双端测序：{[paired_r1, paired_r2]}")
         return [paired_r1, paired_r2]
     elif wildcards.sample_id in genome_single_samples.get(wildcards.genome, []):
-        logger.info(f"单端测序：{[single]}")
-        logger.info(f"单端测序：{[single]}")
+        logger.debug(f"单端测序：{[single]}")
+        logger.debug(f"单端测序：{[single]}")
         return [single]
     else:
         raise FileNotFoundError(
@@ -95,16 +94,16 @@ def get_alignment_input(wildcards):
         )
 
 def get_bowtie2_index(wildcards):
-    logger.info(f"[get_bowtie2_index] called with wildcards: {wildcards}")
+    logger.debug(f"[get_bowtie2_index] called with wildcards: {wildcards}")
     config_index_prefix = config.get('genome',{}).get("references", {}).get(wildcards.genome,{}).get("index_prefix") or None
     if config_index_prefix:
         first_file = f"{config_index_prefix}.1.bt2"
         if os.path.exists(first_file):
             return [f"{config_index_prefix}.{ext}" for ext in BOWTIE2_IDX_SUFFIX]
         else:
-            logger.info(f"Config index prefix {config_index_prefix} provided, but does not exist. Falling back to default index path.")
+            logger.debug(f"Config index prefix {config_index_prefix} provided, but does not exist. Falling back to default index path.")
     else:
-        logger.info(f"No config index prefix provided. Using default index path.")
+        logger.debug(f"No config index prefix provided. Using default index path.")
     return [f"{outdir}/index/{wildcards.genome}/{wildcards.genome}.{ext}" for ext in BOWTIE2_IDX_SUFFIX]
 
 rule bowtie2_align_paired:
@@ -131,9 +130,11 @@ rule bowtie2_align_paired:
         sif("../bowtie2.yaml")
     run:
         log_path = str(log)
+        open(log_path, 'w').close()
+        rule_logger = setup_logger("bowtie2_align_paired", log_file=log_path)
         try:
-            open(log_path, 'w').close()
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
+            rule_logger.info(f"Start bowtie2_align_paired for sample {wildcards.sample_id} on genome {wildcards.genome} at {current_time}")
             sample_outdir = os.path.dirname(str(output.bam))
             script = f"{sample_outdir}/bowtie2_align.{current_time}.sh"
             cmd1 = [params.bowtie2, 
@@ -148,20 +149,16 @@ rule bowtie2_align_paired:
                     ]
             cmd2 = ["mv", f"{params.unmapped_prefix}.1", output.unmapped1]
             cmd3 = ["mv", f"{params.unmapped_prefix}.2", output.unmapped2]
-            success_echo = f'echo "bowtie2_align_paired for sample {wildcards.sample_id} on genome {wildcards.genome} successfully completed !"'
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
-                f.write("set -euo pipefail\n")
+                f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd1) + "\n")
                 f.write(" ".join(cmd2) + "\n")
                 f.write(" ".join(cmd3) + "\n")
-                f.write(success_echo + "\n")
+                f.write(f'echo "bowtie2_align_paired for sample {wildcards.sample_id} on genome {wildcards.genome} successfully completed !"\n')
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"error occurred in bowtie2_align_paired for sample {wildcards.sample_id} on genome {wildcards.genome}, error: {e}\n")
-            logger.error(f"error occurred in bowtie2_align_paired for sample {wildcards.sample_id} on genome {wildcards.genome}, error: {e}\n")
-            raise e
+            rule_logger.error(f"error occurred in bowtie2_align_paired for sample {wildcards.sample_id} on genome {wildcards.genome}, error: {e}\n")
+            raise RuntimeError(f"error occurred in bowtie2_align_paired for sample {wildcards.sample_id} on genome {wildcards.genome}, error: {e}, please check the log file: {log_path} for details.\n")
 
 rule bowtie2_align_single:
     input:
@@ -185,9 +182,11 @@ rule bowtie2_align_single:
         sif("../bowtie2.yaml")
     run:
         log_path = str(log)
+        open(log_path, 'w').close()
+        rule_logger = setup_logger("bowtie2_align_single", log_file=log_path)
         try:
-            open(log_path, 'w').close()
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
+            rule_logger.info(f"Start bowtie2_align_single for sample {wildcards.sample_id} on genome {wildcards.genome} at {current_time}")
             script = f"{outdir}/{wildcards.genome}/{wildcards.sample_id}/bowtie2_align.{current_time}.sh"
             cmd1 = [params.bowtie2, 
                     "-x", params.index_prefix, 
@@ -199,16 +198,12 @@ rule bowtie2_align_single:
                     "|", "samtools", "view", "-@", str(threads), "-bS", "-", ">", output.bam
                     ]
             cmd2 = ["mv", params.unmapped_prefix, output.unmapped]
-            success_echo = f'echo "bowtie2_align_single for sample {wildcards.sample_id} on genome {wildcards.genome} successfully completed !"'
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
-                f.write("set -euo pipefail\n")
+                f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd1) + "\n")
                 f.write(" ".join(cmd2) + "\n")
-                f.write(success_echo + "\n")
+                f.write(f'echo "bowtie2_align_single for sample {wildcards.sample_id} on genome {wildcards.genome} successfully completed !"\n')
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"error occured in rule bowtie2_align_single for sample {wildcards.sample_id} on genome {wildcards.genome}, error: {e}\n")
-            logger.error(f"error occured in rule bowtie2_align_single for sample {wildcards.sample_id} on genome {wildcards.genome}, error: {e}\n")
-            raise e
+            rule_logger.error(f"error occured in rule bowtie2_align_single for sample {wildcards.sample_id} on genome {wildcards.genome}, error: {e}\n")
+            raise RuntimeError(f"error occured in rule bowtie2_align_single for sample {wildcards.sample_id} on genome {wildcards.genome}, error: {e}, please check the log file: {log_path} for details.\n")

@@ -80,9 +80,9 @@ rule generate_report:
         script = REPORT_SCRIPT,
     run:
         log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger("RNAseq_generate_report", log_file=log_path)
         try:
-            open(log_path, "w").close()
-            rule_logger = setup_logger("RNAseq_generate_report", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start RNAseq report generation at {current_time}")
             report_dir = os.path.dirname(str(output.report))
@@ -110,16 +110,14 @@ rule generate_report:
                 cmd.extend(["--single-samples", *params.single_samples])
             if params.contrasts:
                 cmd.extend(["--contrasts", *params.contrasts])
-            with open(script_path, "w") as fh:
-                fh.write("#!/bin/bash\n")
-                fh.write("set -euo pipefail\n")
-                fh.write(" ".join([shlex.quote(str(x)) for x in cmd]) + "\n")
-            shell(f"bash {script_path} > {log_path} 2>&1")
+            with open(script_path, "w") as f:
+                f.write("#!/bin/bash\nset -euo pipefail\n")
+                f.write(" ".join([shlex.quote(str(x)) for x in cmd]) + "\n")
+                f.write("echo 'RNAseq report generation completed successfully.'\n")
+            shell(f"bash {script_path} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as fh:
-                fh.write(f"RNAseq report generation failed: {e}\n")
-            logger.error(f"RNAseq report generation failed: {e}")
-            raise
+            rule_logger.error(f"RNAseq report generation failed: {e}")
+            raise RuntimeError(f"RNAseq report generation failed: {e}, please check the log file: {log_path} for details.")
 
 
 rule report_result:

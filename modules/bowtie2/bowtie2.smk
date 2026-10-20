@@ -33,9 +33,11 @@ rule bowtie2_index:
         sif("bowtie2.yaml")
     run:
         log_path = str(log)
+        open(log_path, 'w').close()
+        rule_logger = setup_logger("bowtie2_index", log_file=log_path)
         try:
-            log_path = str(log)
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
+            rule_logger.info(f"Start bowtie2 index at {current_time}")
             script = f"{outdir}/index/bowtie2_index.{current_time}.sh"
             cmd = [params.bowtie2_build, 
                     "--threads", str(threads), 
@@ -43,14 +45,13 @@ rule bowtie2_index:
                     params.index_prefix
                     ]
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
-            shell(f"bash {script} > {log} 2>&1")
+                f.write(f'echo "bowtie2 index was successfully completed !"\n')
+            shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path,"a") as f:
-                f.write(f"Error occurred during bowtie2 index, error: {e}\n")
-            logger.error(f"Error occurred during bowtie2 index, error: {e}\n")
-            raise f"Error occurred during bowtie2 index, error: {e}\n"
+            rule_logger.error(f"Error occurred during bowtie2 index, error: {e}\n")
+            raise RuntimeError(f"Error occurred during bowtie2 index, error: {e}, please check the {log_path} file for more details.\n")
 
 
 def get_alignment_input(wildcards):

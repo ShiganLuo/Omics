@@ -39,7 +39,7 @@ python workflow/Omics/run.py -m data/meta/fastq -w scRNAseq -o output \
 ```
 
 **支持精确重跑**
-输出驱动的 DAG——`--until <rule>` 跑到指定 stage 停止，`--forcerun` 强制重跑任意规则（支持 `规则:wildcard=value` 精确到通配符组合），`--target-jobs` 可把任意中间产物作为终点：
+输出驱动的 DAG——`--until <rule>` 跑到指定 stage 停止，`--forcerun` 强制重跑任意规则，同时支持跑到指定规则（支持 `规则:wildcard=value` 精确到通配符组合），`--target-jobs` 可把任意中间产物作为终点：
 
 ```bash
 # 只要 dedup 后的 BAM 就停

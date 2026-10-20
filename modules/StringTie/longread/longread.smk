@@ -22,9 +22,9 @@ rule stringtie_lr_assemble:
         stringtie = config.get("Procedure", {}).get("stringtie") or "stringtie"
     run:
         log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger("stringtie_lr_assemble", log_file=log_path)
         try:
-            open(log_path, "w").close()
-            rule_logger = setup_logger("stringtie_lr_assemble", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start StringTie long-read assembly for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.gtf))
@@ -43,13 +43,9 @@ rule stringtie_lr_assemble:
                 f.write(f'echo "StringTie LR assembly for {wildcards.sample_id} at {current_time} completed successfully"\n')
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"Error during StringTie LR assembly for sample {wildcards.sample_id}: {e}\n")
-            logger.error(f"Error during StringTie LR assembly for sample {wildcards.sample_id}: {e}")
-            raise e
-        finally:
-            current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            rule_logger.info(f"StringTie LR assembly finished for sample {wildcards.sample_id} at {current_time}")
+            rule_logger.error(f"Error during StringTie LR assembly for sample {wildcards.sample_id}: {e}")
+            raise RuntimeError(f"Error during StringTie LR assembly for sample {wildcards.sample_id}: {e}\n")
+
 
 rule stringtie_lr_merge:
     input:
@@ -67,9 +63,9 @@ rule stringtie_lr_merge:
         stringtie = config.get("Procedure", {}).get("stringtie") or "stringtie"
     run:
         log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger("stringtie_lr_merge", log_file=log_path)
         try:
-            open(log_path, "w").close()
-            rule_logger = setup_logger("stringtie_lr_merge", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start StringTie merge at {current_time}")
             script = os.path.join(outdir, f"stringtie_lr_merge_{current_time}.sh")
@@ -80,13 +76,8 @@ rule stringtie_lr_merge:
                 f.write(f'echo "StringTie merge at {current_time} completed successfully"\n')
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"Error during StringTie merge: {e}\n")
-            logger.error(f"Error during StringTie merge: {e}")
-            raise e
-        finally:
-            current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            rule_logger.info(f"StringTie merge finished at {current_time}")
+            rule_logger.error(f"Error during StringTie merge: {e}")
+            raise RuntimeError(f"Error during StringTie merge: {e}\n")
 
 rule stringtie_lr_quant:
     input:
@@ -107,9 +98,9 @@ rule stringtie_lr_quant:
         stringtie = config.get("Procedure", {}).get("stringtie") or "stringtie"
     run:
         log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger("stringtie_lr_quant", log_file=log_path)
         try:
-            open(log_path, "w").close()
-            rule_logger = setup_logger("stringtie_lr_quant", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start StringTie quantification for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.gtf))
@@ -129,13 +120,8 @@ rule stringtie_lr_quant:
                 f.write(f'echo "StringTie quantification for {wildcards.sample_id} at {current_time} completed successfully"\n')
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"Error during StringTie quantification for sample {wildcards.sample_id}: {e}\n")
-            logger.error(f"Error during StringTie quantification for sample {wildcards.sample_id}: {e}")
-            raise e
-        finally:
-            current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            rule_logger.info(f"StringTie quantification finished for sample {wildcards.sample_id} at {current_time}")
+            rule_logger.error(f"Error during StringTie quantification for sample {wildcards.sample_id}: {e}")
+            raise RuntimeError(f"Error during StringTie quantification for sample {wildcards.sample_id}: {e}\n")
 
 rule stringtie_lr_result:
     input:

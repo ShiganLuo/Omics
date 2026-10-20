@@ -4,7 +4,7 @@ indir = config.get("indir", "output/raw_fastq")
 logdir = config.get("logdir", "log")
 mode = config.get("mode") or None
 def get_input_for_trimming_Paired(wildcards):
-    logger.info(f"Getting input for trimming_Paired with mode: {mode}")
+    logger.debug(f"Getting input for trimming_Paired with mode: {mode}")
     if mode == "UMI":
         return [
             f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}_1.umi.fq.gz",
@@ -38,9 +38,11 @@ rule trimming_Paired:
         sif("trim-galore.yaml")
     run:
         log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger("trimming_Paired", log_file=log_path)
         try:
-            open(log_path, "w").close()
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+            rule_logger.info(f"Start trimming_Paired for sample {wildcards.sample_id} at {current_time}")
             script_path = os.path.join(outdir, f"{wildcards.sample_id}/trimming_Paired_{current_time}.sh")
             cmd1 = [
                 params.trim_galore, "--paired",
@@ -67,24 +69,21 @@ rule trimming_Paired:
             cmd5 = [
                 "mv", f"{params.outdir}/{suffix2}_trimming_report.txt", output.report2
             ]
-            success_echo = f'echo "trimming_Paired for sample {wildcards.sample_id} successfully completed !"'
             with open(script_path, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd1) + "\n")
                 f.write(" ".join(cmd2) + "\n")
                 f.write(" ".join(cmd3) + "\n")
                 f.write(" ".join(cmd4) + "\n")
                 f.write(" ".join(cmd5) + "\n")
-                f.write(success_echo + "\n")
+                f.write(f'echo "trimming_Paired for sample {wildcards.sample_id} successfully completed !"\n')
             shell(f"bash {script_path} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"trimming_Paired failed for {wildcards.sample_id}: {e}\n")
-            logger.error(f"trimming_Paired failed for {wildcards.sample_id}: {e}")
-            raise e
+            rule_logger.error(f"trimming_Paired failed for {wildcards.sample_id}: {e}")
+            raise RuntimeError(f"trimming_Paired failed for {wildcards.sample_id}: {e}\n")
 
 def get_input_for_trimming_Single(wildcards):
-    logger.info(f"Getting input for trimming_Single with mode: {mode}")
+    logger.debug(f"Getting input for trimming_Single with mode: {mode}")
     if mode == "UMI":
         return f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}.umi.single.fq.gz"
     else:
@@ -110,8 +109,9 @@ rule trimming_Single:
         sif("trim-galore.yaml")
     run:
         log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger("trimming_Single", log_file=log_path)
         try:
-            open(log_path, "w").close()
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             script_path = os.path.join(outdir, f"{wildcards.sample_id}/trimming_Single_{current_time}.sh")
             cmd1 = [
@@ -131,19 +131,16 @@ rule trimming_Single:
             cmd3 = [
                 "mv", f"{params.outdir}/{suffix}_trimming_report.txt", output.report
             ]
-            success_echo = f'echo "trimming_Single for sample {wildcards.sample_id} successfully completed !"'
             with open(script_path, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd1) + "\n")
                 f.write(" ".join(cmd2) + "\n")
                 f.write(" ".join(cmd3) + "\n")
-                f.write(success_echo + "\n")
+                f.write(f'echo "trimming_Single for sample {wildcards.sample_id} successfully completed !"\n')
             shell(f"bash {script_path} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"trimming_Single failed for {wildcards.sample_id}: {e}\n")
-            logger.error(f"trimming_Single failed for {wildcards.sample_id}: {e}")
-            raise e
+            rule_logger.error(f"trimming_Single failed for {wildcards.sample_id}: {e}")
+            raise RuntimeError(f"trimming_Single failed for {wildcards.sample_id}: {e}\n")
 
 
 

@@ -22,20 +22,21 @@ rule stringTie:
         sif("StringTie.yaml")
     run:
         log_path = str(log)
+        open(log_path, 'w').close()
+        rule_logger = setup_logger(logger_name="stringTie_run", log_file=log_path)
         try:
-            open(log_path, 'w').close()
-            logger = setup_logger(logger_name="stringTie_run", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            logger.info(f"Start stringTie run for sample {wildcards.sample_id} at {current_time}")
+            rule_logger.info(f"Start stringTie run for sample {wildcards.sample_id} at {current_time}")
             script = f"{outdir}/raw/{wildcards.sample_id}/stringTie_{current_time}.sh"
             cmd = [params.stringtie, "-o", output.gtf, input.bam, "-G", params.gtf, "-p", str(threads)]
             with open(script, 'w') as f:
+                f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(' '.join(cmd) + '\n')
+                f.write(f"echo 'stringTie run completed for sample {wildcards.sample_id} was successful completed'\n")
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, 'a') as f:
-                f.write(f"Error occurred during stringTie run: {e}\n")
-            raise f"Error occurred during stringTie run: {e}"
+            rule_logger.error(f"Error occurred during stringTie run for sample {wildcards.sample_id}: {e}")
+            raise RuntimeError(f"Error occurred during stringTie run for sample {wildcards.sample_id}: {e}\n")
 
 
 rule TEChimericTranscripts:
@@ -55,21 +56,21 @@ rule TEChimericTranscripts:
         sif("StringTie.yaml")
     run:
         log_path = str(log)
+        open(log_path, 'w').close()
+        rule_logger = setup_logger(logger_name="TEChimericTranscripts_run", log_file=log_path)
         try:
-            open(log_path, 'w').close()
-            rule_logger = setup_logger(logger_name="TEChimericTranscripts_run", log_file=log_path)
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
             rule_logger.info(f"Start TEChimericTranscripts run for sample {wildcards.sample_id} at {current_time}")
             script = f"{outdir}/raw/{wildcards.sample_id}/TEChimericTranscripts.{current_time}.sh"
             cmd = f"python {params.TEChimericTranscripts} -s {input.gtf} -t {params.te_gtf} -o {output.txt} > {log} 2>&1"
             with open(script, 'w') as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(cmd + "\n")
+                f.write(f"echo 'TEChimericTranscripts run completed for sample {wildcards.sample_id} was successful completed'\n")
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, 'a') as f:
-                f.write(f"Error occurred during TEChimericTranscripts: {e}\n")
-            raise RuntimeError(f"Error occurred during TEChimericTranscripts: {e}\n")
+            rule_logger.error(f"Error occurred during TEChimericTranscripts for sample {wildcards.sample_id}: {e}")
+            raise RuntimeError(f"Error occurred during TEChimericTranscripts for sample {wildcards.sample_id}: {e}\n")
 
 rule TEChimericPlot:
     input:
@@ -92,9 +93,9 @@ rule TEChimericPlot:
         sif("StringTie.yaml")
     run:
         log_path = str(log)
+        open(log_path, 'w').close()
+        rule_logger = setup_logger(logger_name="TEChimericPlot_run", log_file=log_path)
         try:
-            open(log_path, 'w').close()
-            rule_logger = setup_logger(logger_name="TEChimericPlot_run", log_file=log_path)
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
             script = f"{outdir}/TE_chimeric/TEChimericPlot.{current_time}.sh"
             rule_logger.info(f"Start TEChimericPlot run at {current_time}")
@@ -111,12 +112,12 @@ rule TEChimericPlot:
                 "-o", f"{outdir}/TE_chimeric/TE_chimeric"
             ]
             with open(script, 'w') as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(' '.join(cmd) + "\n")
+                f.write(f"echo 'TEChimericPlot run completed successfully'\n")
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, 'a') as f:
-                f.write(f"Error occurred during TEChimericPlot: {e}\n")
+            rule_logger.error(f"Error occurred during TEChimericPlot: {e}")
             raise RuntimeError(f"Error occurred during TEChimericPlot: {e}\n")
 
 
@@ -137,17 +138,18 @@ rule stringTieMerge:
         sif("StringTie.yaml")
     run:
         log_path = str(log)
+        open(log_path, 'w').close()
+        rule_logger = setup_logger(logger_name="stringTieMerge_run", log_file=log_path)
         try:
-            open(log_path, 'w').close()
-            rule_logger = setup_logger(logger_name="stringTieMerge_run", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start stringTieMerge run at {current_time}")
             script = os.path.join(outdir, f"stringTieMerge_{current_time}.sh")
             cmd = [params.stringtie, "--merge"] + list(input.gtfs) + ["-o", output.gtf, "-G", params.gtf]
             with open(script, 'w') as f:
+                f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(' '.join(cmd) + '\n')
+                f.write(f"echo 'stringTieMerge run completed successfully'\n")
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, 'a') as f:
-                f.write(f"Error occurred during stringTieMerge: {e}\n")
+            rule_logger.error(f"Error occurred during stringTieMerge: {e}")
             raise RuntimeError(f"Error occurred during stringTieMerge: {e}\n")

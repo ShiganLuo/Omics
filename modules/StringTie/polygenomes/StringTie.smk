@@ -8,7 +8,7 @@ sample_groups = config.get("sample_groups") or {}
 ROOT_DIR = config.get("ROOT_DIR", ".")
 
 def get_input_for_stringTie(wildcards):
-    logger.info(f"[get_input_for_stringTie] called with wildcards: {wildcards}")
+    logger.debug(f"[get_input_for_stringTie] called with wildcards: {wildcards}")
     bam_path = indir + f"/{wildcards.genome}/{wildcards.sample_id}/{wildcards.sample_id}.bam"
     gtf = config.get('genome', {}).get('references', {}).get(wildcards.genome, {}).get('gtf')
     if not gtf or not os.path.exists(gtf):
@@ -35,28 +35,25 @@ rule stringTie:
         sif("../StringTie.yaml")
     run:
         log_path = str(log)
+        open(log_path, 'w').close()
+        rule_logger = setup_logger(logger_name="stringTie_run", log_file=log_path)
         try:
-            open(log_path, 'w').close()
-            logger = setup_logger(logger_name="stringTie_run", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            logger.info(f"Start stringTie run for sample {wildcards.sample_id} at {current_time}")
+            rule_logger.info(f"Start stringTie run for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(output.gtf)
             script = f"{sample_outdir}/stringTie_{current_time}.sh"
             cmd = [params.stringtie, "-o", output.gtf, input.bam, "-G", input.gtf, "-p", str(threads)]
             with open(script, 'w') as f:
-                f.write("#!/bin/bash\n")
-                f.write("set -euo pipefail\n")
+                f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(' '.join(cmd) + '\n')
                 f.write(f'echo "StringTie for sample {wildcards.sample_id} on genome {wildcards.genome} successfully completed!"\n')
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, 'a') as f:
-                f.write(f"Error occurred during stringTie run: {e}\n")
-            logger.error(f"Error occurred during stringTie run: {e}")
-            raise e
+            rule_logger.error(f"Error occurred during stringTie run: {e}")
+            raise RuntimeError(f"Error occurred during stringTie run for sample {wildcards.sample_id}: {e}, you can check the log file for more details: {log_path}\n")
 
 def get_input_for_TEChimericTranscripts(wildcards):
-    logger.info(f"[get_input_for_TEChimericTranscripts] called with wildcards: {wildcards}")
+    logger.debug(f"[get_input_for_TEChimericTranscripts] called with wildcards: {wildcards}")
     gtf_path = outdir + f"/{wildcards.genome}/raw/{wildcards.sample_id}/{wildcards.sample_id}.gtf"
     te_gtf = config.get('genome', {}).get('references', {}).get(wildcards.genome, {}).get('TE_gtf')
     if not te_gtf or not os.path.exists(te_gtf):
@@ -83,9 +80,9 @@ rule TEChimericTranscripts:
         sif("../StringTie.yaml")
     run:
         log_path = str(log)
+        open(log_path, 'w').close()
+        rule_logger = setup_logger(logger_name="TEChimericTranscripts_run", log_file=log_path)
         try:
-            open(log_path, 'w').close()
-            rule_logger = setup_logger(logger_name="TEChimericTranscripts_run", log_file=log_path)
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
             rule_logger.info(f"Start TEChimericTranscripts run for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(output.txt)
@@ -97,19 +94,16 @@ rule TEChimericTranscripts:
                 "-o", output.txt
             ]
             with open(script, 'w') as f:
-                f.write("#!/bin/bash\n")
-                f.write("set -euo pipefail\n")
+                f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "TEChimericTranscripts for sample {wildcards.sample_id} on genome {wildcards.genome} successfully completed!"\n')
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, 'a') as f:
-                f.write(f"Error occurred during TEChimericTranscripts: {e}\n")
-            logger.error(f"Error occurred during TEChimericTranscripts: {e}")
-            raise e
+            rule_logger.error(f"Error occurred during TEChimericTranscripts: {e}")
+            raise RuntimeError(f"Error occurred during TEChimericTranscripts for sample {wildcards.sample_id}: {e}, you can check the log file for more details: {log_path}\n")
 
 def get_input_for_TEChimericPlot(wildcards):
-    logger.info(f"[get_input_for_TEChimericPlot] called with wildcards: {wildcards}")
+    logger.debug(f"[get_input_for_TEChimericPlot] called with wildcards: {wildcards}")
     if wildcards.genome not in genome_samples:
         raise ValueError(f"Genome {wildcards.genome} not found in genome_samples configuration.")
     txts = []
@@ -141,9 +135,9 @@ rule TEChimericPlot:
         sif("../StringTie.yaml")
     run:
         log_path = str(log)
+        open(log_path, 'w').close()
+        rule_logger = setup_logger(logger_name="TEChimericPlot_run", log_file=log_path)
         try:
-            open(log_path, 'w').close()
-            rule_logger = setup_logger(logger_name="TEChimericPlot_run", log_file=log_path)
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
             sample_outdir = os.path.dirname(output.group_stack)
             script = f"{sample_outdir}/TEChimericPlot.{current_time}.sh"
@@ -166,20 +160,17 @@ rule TEChimericPlot:
                 "-o", f"{outdir}/{wildcards.genome}/TE_chimeric/TE_chimeric"
             ]
             with open(script, 'w') as f:
-                f.write("#!/bin/bash\n")
-                f.write("set -euo pipefail\n")
+                f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(' '.join(cmd) + "\n")
-                f.write(f'echo "TEChimericPlot for genome {wildcards.genome} successfully completed!"\n')
+                f.write(f'echo "TEChimericPlot for genome {wildcards.genome} was successfully completed!"\n')
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, 'a') as f:
-                f.write(f"Error occurred during TEChimericPlot: {e}\n")
-            logger.error(f"Error occurred during TEChimericPlot: {e}")
-            raise e
+            rule_logger.error(f"Error occurred during TEChimericPlot: {e}")
+            raise RuntimeError(f"Error occurred during TEChimericPlot for genome {wildcards.genome}: {e}, you can check the log file for more details: {log_path}\n")
 
 
 def get_input_for_stringTieMerge(wildcards):
-    logger.info(f"[get_input_for_stringTieMerge] called with wildcards: {wildcards}")
+    logger.debug(f"[get_input_for_stringTieMerge] called with wildcards: {wildcards}")
     gtfs = []
     for sample_id in genome_samples.get(wildcards.genome, []):
         gtfs.append(outdir + f"/{wildcards.genome}/raw/{sample_id}/{sample_id}.gtf")
@@ -209,22 +200,19 @@ rule stringTieMerge:
         sif("../StringTie.yaml")
     run:
         log_path = str(log)
+        open(log_path, 'w').close()
+        rule_logger = setup_logger(logger_name="stringTieMerge_run", log_file=log_path)
         try:
-            open(log_path, 'w').close()
-            rule_logger = setup_logger(logger_name="stringTieMerge_run", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start stringTieMerge run at {current_time}")
             sample_outdir = os.path.dirname(output.gtf)
             script = os.path.join(sample_outdir, f"stringTieMerge_{current_time}.sh")
             cmd = [params.stringtie, "--merge"] + list(input.gtfs) + ["-o", output.gtf, "-G", input.gtf]
             with open(script, 'w') as f:
-                f.write("#!/bin/bash\n")
-                f.write("set -euo pipefail\n")
+                f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(' '.join(cmd) + '\n')
-                f.write(f'echo "stringTieMerge for genome {wildcards.genome} successfully completed!"\n')
+                f.write(f'echo "stringTieMerge for genome {wildcards.genome} was successfully completed!"\n')
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, 'a') as f:
-                f.write(f"Error occurred during stringTieMerge: {e}\n")
-            logger.error(f"Error occurred during stringTieMerge: {e}")
-            raise e
+            rule_logger.error(f"Error occurred during stringTieMerge: {e}")
+            raise RuntimeError(f"Error occurred during stringTieMerge for genome {wildcards.genome}: {e}, you can check the log file for more details: {log_path}\n")

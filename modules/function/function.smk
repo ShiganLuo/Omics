@@ -80,12 +80,12 @@ rule function_go_kegg:
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"GO/KEGG analysis failed: {e}")
-            raise f"GO/KEGG analysis failed: {e}\n"
+            raise RuntimeError(f"GO/KEGG analysis failed: {e}\n")
 
 
 def get_input_for_function_gsea(wildcards):
     """Resolve inputs for function_gsea: DESeq2 result + GMT + geneIDAnno."""
-    logger.info(f"[get_input_for_function_gsea] called with wildcards: {wildcards}")
+    logger.debug(f"[get_input_for_function_gsea] called with wildcards: {wildcards}")
     if wildcards.contrast not in group_pairs:
         raise ValueError(f"Group pair {wildcards.contrast} not found in group_pairs configuration.")
     in_dict = {}
@@ -170,9 +170,7 @@ rule function_gsea:
 
 def get_input_for_function_gsva(wildcards):
     """Resolve inputs for function_gsva: featureCounts counts matrix + GMT + GTF."""
-    logger.info(f"[get_input_for_function_gsva] called with wildcards: {wildcards}")
-    if wildcards.contrast not in group_pairs:
-        raise ValueError(f"Group pair {wildcards.contrast} not found in group_pairs configuration.")
+    logger.debug(f"[get_input_for_function_gsva] called with wildcards: {wildcards}")
     in_dict = {}
     # featureCounts cross-sample counts, one matrix per existing layout
     counts = []
@@ -284,7 +282,7 @@ rule function_gsva:
                 f.write("#!/bin/bash\nset -e\nset -o pipefail\n")
                 f.write(" ".join(shlex.quote(str(x)) for x in norm_cmd) + "\n")
                 f.write(" ".join(shlex.quote(str(x)) for x in gsva_cmd) + "\n")
-                f.write(f"echo 'GSVA analysis completed for {wildcards.contrast}'\n")
+                f.write(f"echo 'GSVA analysis completed for {params.species}'\n")
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"GSVA analysis failed: {e}")

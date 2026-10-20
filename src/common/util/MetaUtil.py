@@ -157,8 +157,9 @@ class MetadataUtils:
         group_pairs = []
         seen = set()  # deduplicate (ctr_sample_id, exp_sample_id)
         for exp_contrast, exp_token_set in exp_contrast_tokens.items():
-            best_ctr_sample = None
-            best_ctr_contrast = None
+            # Every control whose tokens intersect the experiment's tokens
+            # yields a comparison (exp_E14_KSR matches both ctr_E14 and ctr_KSR).
+            matched_ctr_contrasts: List[str] = []
             for ctr_contrast, ctr_token_set in ctr_contrast_tokens.items():
                 shared_tokens = exp_token_set & ctr_token_set
                 if shared_tokens:  # non-empty intersection
@@ -169,46 +170,40 @@ class MetadataUtils:
                             f"share only rep-like tokens {shared_tokens}. "
                             "Consider providing a 'group' column or adjusting design format."
                         )
-                    ctr_samples = group_dict[ctr_contrast]["ctr"]
-                    if len(ctr_samples) > 1:
-                        logger.warning(
-                            f"Multiple ctr samples for tag '{ctr_contrast}': "
-                            f"{[s.sample_id for s in ctr_samples]}. Only using the first one."
-                        )
-                    best_ctr_sample = ctr_samples[0]
-                    best_ctr_contrast = ctr_contrast
-                    break  # take the first matching control
-            if best_ctr_sample is None or best_ctr_contrast is None:
+                    matched_ctr_contrasts.append(ctr_contrast)
+            if not matched_ctr_contrasts:
                 logger.warning(f"No matching control found for exp group '{exp_contrast}'")
                 continue
-            for exp_sample_info in group_dict[exp_contrast]["exp"]:
-                pair_key = (best_ctr_sample.sample_id, exp_sample_info.sample_id)
-                if pair_key in seen:
-                    continue
-                seen.add(pair_key)
-                designPair = DesignPair(
-                    organism=exp_sample_info.organism,
-                    ctr_sample_id=best_ctr_sample.sample_id,
-                    exp_sample_id=exp_sample_info.sample_id,
-                    exp_group=exp_sample_info.group
-                )
-                sample_pairs.append(designPair)
-            
-            ctr_group_name = group_dict.get(best_ctr_contrast, {}).get("ctr", [None])[0].group if best_ctr_contrast and group_dict.get(best_ctr_contrast, {}).get("ctr", [None])[0] else f"{best_ctr_contrast}_ctr"
-            exp_group_name = group_dict.get(exp_contrast, {}).get("exp", [None])[0].group if exp_contrast and group_dict.get(exp_contrast, {}).get("exp", [None])[0] else f"{exp_contrast}_exp"
+            for ctr_contrast in matched_ctr_contrasts:
+                ctr_samples = group_dict[ctr_contrast]["ctr"]
+                for exp_sample_info in group_dict[exp_contrast]["exp"]:
+                    pair_key = (ctr_samples[0].sample_id, exp_sample_info.sample_id)
+                    if pair_key in seen:
+                        continue
+                    seen.add(pair_key)
+                    designPair = DesignPair(
+                        organism=exp_sample_info.organism,
+                        ctr_sample_id=ctr_samples[0].sample_id,
+                        exp_sample_id=exp_sample_info.sample_id,
+                        exp_group=exp_sample_info.group
+                    )
+                    sample_pairs.append(designPair)
 
-            ctr_samples = group_dict.get(best_ctr_contrast, {}).get("ctr", [])
-            exp_samples = group_dict.get(exp_contrast, {}).get("exp", [])
-            compare_group_pair = CompareGroupPair(
-                organism=exp_samples[0].organism if exp_samples else "UNKNOWN",
-                ctr_group_token=best_ctr_contrast,
-                exp_group_token=exp_contrast,
-                ctr_group_name=ctr_group_name,
-                exp_group_name=exp_group_name,
-                ctr_sample_ids=[s.sample_id for s in ctr_samples],
-                exp_sample_ids=[s.sample_id for s in exp_samples]
-            )
-            group_pairs.append(compare_group_pair)
+                ctr_samples = group_dict[ctr_contrast]["ctr"]
+                exp_samples = group_dict[exp_contrast]["exp"]
+                ctr_group_name = ctr_samples[0].group if ctr_samples else f"{ctr_contrast}_ctr"
+                exp_group_name = exp_samples[0].group if exp_samples else f"{exp_contrast}_exp"
+
+                compare_group_pair = CompareGroupPair(
+                    organism=exp_samples[0].organism if exp_samples else "UNKNOWN",
+                    ctr_group_token=ctr_contrast,
+                    exp_group_token=exp_contrast,
+                    ctr_group_name=ctr_group_name,
+                    exp_group_name=exp_group_name,
+                    ctr_sample_ids=[s.sample_id for s in ctr_samples],
+                    exp_sample_ids=[s.sample_id for s in exp_samples]
+                )
+                group_pairs.append(compare_group_pair)
 
         # --- Validation: warn if final results look wrong ---
         if exp_contrast_tokens and not group_pairs:

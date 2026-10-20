@@ -54,9 +54,9 @@ rule star_3pg_gene_specific:
         sif("../star.yaml")
     run:
         log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger("star_3pg_gene_specific", log_file=log_path)
         try:
-            open(log_path, "w").close()
-            rule_logger = setup_logger("star_3pg_gene_specific", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start star_3pg_gene_specific for sample {wildcards.sample_id} at {current_time}")
 
@@ -136,11 +136,11 @@ rule star_3pg_gene_specific:
                 cmd.append("--tailer-rev-comp")
 
             with open(script, "w") as f:
+                f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
+                f.write(f"echo 'star_3pg_gene_specific for sample {wildcards.sample_id} completed successfully'\n")
             shell(f"bash {script} >> {log_path} 2>&1")
 
-            rule_logger.info(f"star_3pg_gene_specific for sample {wildcards.sample_id} completed")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"star_3pg_gene_specific failed for sample {wildcards.sample_id}: {e}\n")
-            raise e
+            rule_logger.error(f"star_3pg_gene_specific failed for sample {wildcards.sample_id}: {e}")
+            raise RuntimeError(f"star_3pg_gene_specific failed for sample {wildcards.sample_id}: {e}, you can check the log file {log_path} for more details.")

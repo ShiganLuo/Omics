@@ -37,9 +37,9 @@ rule star_index:
         outTmpDir = outdir + "/tmp_star"
     run:
         log_path = str(log)
+        open(log_path, 'w').close()
+        rule_logger = setup_logger("star_index", log_file=log_path)
         try:
-            open(log_path, 'w').close()
-            rule_logger = setup_logger("star_index", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start star_index at {current_time}")
 
@@ -64,23 +64,21 @@ rule star_index:
                 rule_logger.info("No GTF provided, skipping --sjdbGTFfile")
 
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
-                f.write("set -euo pipefail\n")
+                f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write("echo 'STAR index generation completed successfully.'\n")
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"Error occurred during star_index: {e}\n")
-            logger.error(f"Error occurred during star_index: {e}")
-            raise e
+            rule_logger.error(f"Error occurred during star_index: {e}")
+            raise RUntimeError(f"Error occurred during star_index: {e}, you can check the log file {log_path} for more details.")
+
 def get_star_index(wildcards):
-    logger.info(f"[get_star_index] called with wildcards: {wildcards}")
+    logger.debug(f"[get_star_index] called with wildcards: {wildcards}")
     star_index_dir = config.get('genome',{}).get('index_dir') or None
     if star_index_dir:
-        logger.info(f"[get_star_index] using provided star_index_dir: {star_index_dir}")
+        logger.debug(f"[get_star_index] using provided star_index_dir: {star_index_dir}")
         return star_index_dir
-    logger.info(f"[get_star_index] using default star_index_dir")
+    logger.debug(f"[get_star_index] using default star_index_dir")
     return outdir + f"/index"
 
 def get_alignment_input(wildcards):
@@ -96,7 +94,7 @@ def get_alignment_input(wildcards):
 
     return: A list of input file paths for the STAR alignment step. 
     """
-    logger.info(f"[get_alignment_input] called with wildcards: {wildcards}")
+    logger.debug(f"[get_alignment_input] called with wildcards: {wildcards}")
     # 构造可能的输入路径
     if fastq_sample_suffix:
         paired_r1 = f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}_{fastq_sample_suffix}_1.fq.gz"
@@ -109,16 +107,16 @@ def get_alignment_input(wildcards):
 
     # 检查文件实际存在情况
     if wildcards.sample_id in paired_samples:
-        logger.info(f"双端测序：{[paired_r1, paired_r2]}")
-        logger.info(f"双端测序：{[paired_r1, paired_r2]}")
+        logger.debug(f"双端测序：{[paired_r1, paired_r2]}")
+        logger.debug(f"双端测序：{[paired_r1, paired_r2]}")
         if omics_type == "scRNAseq":
-            logger.info(f"Detected scRNA-seq data for sample {wildcards.sample_id}.R1 is expected to contain cell barcodes and UMIs, R2 contains the transcript sequence.")
+            logger.debug(f"Detected scRNA-seq data for sample {wildcards.sample_id}.R1 is expected to contain cell barcodes and UMIs, R2 contains the transcript sequence.")
             return [paired_r2, paired_r1]
         else:   
             return [paired_r1, paired_r2]
     elif wildcards.sample_id in single_samples:
-        logger.info(f"单端测序：{[single]}")
-        logger.info(f"单端测序：{[single]}")
+        logger.debug(f"单端测序：{[single]}")
+        logger.debug(f"单端测序：{[single]}")
         return [single]
     else:
         logger.error(f"样本 {wildcards.sample_id} 未在 paired_samples 或 single_samples 中定义")
@@ -180,10 +178,10 @@ rule star_align:
         sif("star.yaml")
     run:
         log_path = str(log)
+        open(log_path, 'w').close()
+        rule_logger = setup_logger(logger_name="star_align", log_file=log_path)
         try:
-            open(log_path, 'w').close()
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
-            rule_logger = setup_logger(logger_name="star_align", log_file=log_path)
             script = f"{outdir}/{wildcards.sample_id}/star_align.{current_time}.sh"
             rule_logger.info(f"Start STAR alignment for sample {wildcards.sample_id} at {current_time}")
             cmd1 = [
@@ -234,8 +232,7 @@ rule star_align:
             cmd2 = ["mv", f"{params.outPrefix}Aligned.sortedByCoord.out.bam", output.bam]
             cmd3 = [params.SAMTOOLS, "index", "-@", str(threads), output.bam]
             with open(script, 'w') as f:
-                f.write("#!/bin/bash\n")
-                f.write("set -euo pipefail\n")
+                f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd1) + "\n")
                 f.write(" ".join(cmd2) + "\n")
                 f.write(" ".join(cmd3) + "\n")
@@ -243,12 +240,11 @@ rule star_align:
                 f.write(f"test -f {output.unmapped_r1} || touch {output.unmapped_r1}\n")
                 f.write(f"test -f {output.unmapped_r2} || touch {output.unmapped_r2}\n")
                 f.write(f"echo 'STAR alignment for {wildcards.sample_id} completed successfully.'\n")
-            shell(f"bash {script} > {log_path} 2>&1")
+            shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"Error during STAR alignment for sample {wildcards.sample_id}: {str(e)}\n")
-            logger.error(f"Error during STAR alignment for sample {wildcards.sample_id}: {str(e)}")
-            raise e
+            rule_logger.error(f"Error during STAR alignment for sample {wildcards.sample_id}: {str(e)}")
+            raise RuntimeError(f"Error occurred during STAR alignment for sample {wildcards.sample_id}: {e}, you can check the log file {log_path} for more details.")
+
 rule star_result:
     input:
         star_align = outdir + "/{sample_id}/{sample_id}.bam"

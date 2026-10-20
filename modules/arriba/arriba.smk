@@ -46,9 +46,9 @@ rule arriba:
         sif("arriba.yaml")
     run:
         log_path = str(log)
+        open(log_path, 'w').close()
+        rule_logger = setup_logger("arriba", log_file=log_path)
         try:
-            open(log_path, 'w').close()
-            rule_logger = setup_logger("arriba", log_file=log_path)
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
             script = f"{outdir}/{wildcards.sample_id}/{wildcards.sample_id}_arriba.{current_time}.sh"
             if not os.path.exists(input.blacklist):
@@ -77,11 +77,11 @@ rule arriba:
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write(" ".join(cmd) + "\n")
-            shell(f"bash {script} > {log_path} 2>&1")
+                f.write(f'echo "Arriba fusion detection for sample {wildcards.sample_id} successfully completed!"\n')
+            shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as fh:
-                fh.write(f"Arriba fusion detection failed: {e}\n")
-            raise f"Arriba fusion detection failed: {e}\n"
+            rule_logger.error(f"Arriba fusion detection failed for sample {wildcards.sample_id}: {e}, you can check the log file {log_path} for more details.")
+            raise RuntimeError(f"Arriba fusion detection failed for sample {wildcards.sample_id}: {e}, you can check the log file {log_path} for more details.")
 
 rule arriba_report:
     input:
@@ -95,7 +95,7 @@ rule arriba_report:
         inframe_fusions = outdir + "/arriba_report/inframe_fusions.tsv",
         fusion_figs = expand(outdir + "/arriba_report/figures/{fig}", fig=FUSION_FIGS),
     log:
-        logdir + "/../group/arriba/arriba_report.log"
+        logdir + "/arriba/arriba_report.log"
     params:
         summary_script = os.path.join(ROOT_DIR, "modules/arriba/bin/summarize_arriba_fusions.py")
     conda:
@@ -104,9 +104,9 @@ rule arriba_report:
         sif("arriba.yaml")
     run:
         log_path = str(log)
+        open(log_path, 'w').close()
+        rule_logger = setup_logger("arriba_report", log_file=log_path)
         try:
-            open(log_path, 'w').close()
-            rule_logger = setup_logger("arriba_report", log_file=log_path)
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
             script = f"{outdir}/arriba_report.{current_time}.sh"
             cmd = [
@@ -118,11 +118,11 @@ rule arriba_report:
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write(" ".join(cmd) + "\n")
-            shell(f"bash {script} > {log_path} 2>&1")
+                f.write(f'echo "Arriba report generation successfully completed!"\n')
+            shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as fh:
-                fh.write(f"Arriba report generation failed: {e}\n")
-            raise f"Arriba report generation failed: {e}\n"
+            rule_logger.error(f"Arriba report generation failed: {e}\n")
+            raise RuntimeError(f"Arriba report generation failed: {e}\n")
 rule arriba_result:
     input:
         passed_fusion_tsv = outdir + "/{sample_id}/{sample_id}_passed_fusions.tsv",

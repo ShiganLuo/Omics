@@ -27,11 +27,12 @@ rule BaseRecalibrator:
         gatk = config.get("Procedure", {}).get("gatk") or "gatk",
         known_sites = " ".join([f"--known-sites {ks}" for ks in known_sites])
     run:
+        log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger(logger_name="BaseRecalibrator", log_file=log_path)
         try:
-            open(log[0], "w").close()
-            logger = setup_logger(logger_name="BaseRecalibrator", log_file=log[0])
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            logger.info(f"Start BaseRecalibrator for sample {wildcards.sample_id} at {current_time}")
+            rule_logger.info(f"Start BaseRecalibrator for sample {wildcards.sample_id} at {current_time}")
             script = os.path.join(outdir,f"{wildcards.sample_id}/BaseRecalibrator_{current_time}.sh")
             cmd = [
                 params.gatk, "BaseRecalibrator",
@@ -48,13 +49,14 @@ rule BaseRecalibrator:
             if params.tmp_dir:
                 cmd.extend(["--tmp-dir", params.tmp_dir])
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
-            shell(f"bash {script} >> {log[0]} 2>&1")
+                f.write(f"echo 'BaseRecalibrator completed successfully for sample {wildcards.sample_id}'\n")
+            shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log[0], "a") as f:
-                f.write(f"Error during BaseRecalibrator execution: {str(e)}\n")
-            raise f"Error occurred while running BaseRecalibrator for sample {wildcards.sample_id}: {e}, you can check the log file {log[0]} for more details."
+            rule_logger.error(f"Error during BaseRecalibrator execution: {str(e)}")
+            raise RuntimeError(f"Error occurred while running BaseRecalibrator for sample {wildcards.sample_id}: {e}, you can check the log file {log_path} for more details.")
+
 
 
 
@@ -79,11 +81,12 @@ rule ApplyBQSR:
         tmp_dir = config.get("Params", {}).get("gatk", {}).get("tmp-dir") or None,
         interval = interval
     run:
+        log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger(logger_name="ApplyBQSR", log_file=log_path)
         try:
-            open(log[0], "w").close()
-            logger = setup_logger(logger_name="ApplyBQSR", log_file=log[0])
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            logger.info(f"Start ApplyBQSR for sample {wildcards.sample_id} at {current_time}")
+            rule_logger.info(f"Start ApplyBQSR for sample {wildcards.sample_id} at {current_time}")
             script = os.path.join(outdir,f"{wildcards.sample_id}/ApplyBQSR_{current_time}.sh")
             cmd = [
                 params.gatk, "ApplyBQSR",
@@ -98,13 +101,13 @@ rule ApplyBQSR:
             if params.interval:
                 cmd.extend(["-L", params.interval])
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
-            shell(f"bash {script} >> {log[0]} 2>&1")
+                f.write(f"echo 'ApplyBQSR completed successfully for sample {wildcards.sample_id}'\n")
+            shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log[0], "a") as f:
-                f.write(f"Error during ApplyBQSR execution: {str(e)}\n")
-            raise f"Error occurred while running ApplyBQSR for sample {wildcards.sample_id}: {e}, you can check the log file {log[0]} for more details."
+            rule_logger.error(f"Error during ApplyBQSR execution: {str(e)}")
+            raise RuntimeError(f"Error occurred while running ApplyBQSR for sample {wildcards.sample_id}: {e}, you can check the log file {log_path} for more details.")
 
 rule gatk_bqsr_result:
     input:

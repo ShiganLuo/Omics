@@ -15,7 +15,7 @@ def get_input_somaticMutect2(wildcards):
     interval = config.get("genome", {}).get(wildcards.genome, {}).get("interval")
 
     if known_sites and interval:
-        logger.info(f"Using known_sites: {known_sites} and interval: {interval}")
+        logger.debug(f"Using known_sites: {known_sites} and interval: {interval}")
         include: "../gatk_bqsr/gatk_bqsr.smk"
         in_dict["normal_bam"] = f"{indir}/{wildcards.normal_sample_id}/{wildcards.normal_sample_id}.sorted_markdup.bqsr.bam"
         in_dict["experimental_bam"] = f"{indir}/{wildcards.experimental_sample_id}/{wildcards.experimental_sample_id}.sorted_markdup.bqsr.bam"
@@ -58,11 +58,12 @@ rule somaticMutect2:
         parameters = config.get("mutect2_parameters") or ""
     threads: 10
     run:
+        log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger(logger_name="somaticMutect2", log_file=log_path)
         try:
-            open(log[0], "w").close()
-            logger = setup_logger(logger_name="somaticMutect2", log_file=log[0])
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            logger.info(f"Start somaticMutect2 for normal sample {wildcards.normal_sample_id} and experimental sample {wildcards.experimental_sample_id} genome {wildcards.genome} at {current_time}")
+            rule_logger.info(f"Start somaticMutect2 for normal sample {wildcards.normal_sample_id} and experimental sample {wildcards.experimental_sample_id} genome {wildcards.genome} at {current_time}")
             script = os.path.join(outdir, f"{wildcards.genome}/mutect2-vcf/{wildcards.normal_sample_id}_vs_{wildcards.experimental_sample_id}/mutect2_{current_time}.sh")
             cmd = [
                 params.gatk, "Mutect2",
@@ -77,10 +78,10 @@ rule somaticMutect2:
             if params.tmp_dir:
                 cmd.extend(["--tmp-dir", params.tmp_dir])
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
-            shell(f"bash {script} >> {log[0]} 2>&1")
+                f.write(f'echo "somaticMutect2 for normal sample {wildcards.normal_sample_id} and experimental sample {wildcards.experimental_sample_id} on genome {wildcards.genome} successfully completed!"\n')
+            shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log[0], "a") as f:
-                f.write(f"Error during somaticMutect2 execution: {str(e)}\n")
-            raise f"Error occurred while running somaticMutect2 for normal sample {wildcards.normal_sample_id} and experimental sample {wildcards.experimental_sample_id} genome {wildcards.genome}: {e}, you can check the log file {log[0]} for more details."
+            rule_logger.error(f"Error during somaticMutect2 execution: {str(e)}")
+            raise RuntimeError(f"Error occurred while running somaticMutect2 for normal sample {wildcards.normal_sample_id} and experimental sample {wildcards.experimental_sample_id} genome {wildcards.genome}: {e}, you can check the log file {log_path} for more details.")

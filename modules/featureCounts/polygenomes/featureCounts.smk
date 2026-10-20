@@ -8,7 +8,7 @@ genome_paired_samples = config.get("genome_paired_samples", {})
 genome_single_samples = config.get("genome_single_samples", {})
 
 def get_bams_for_featureCounts_single(wildcards):
-    logger.info(f"[get_bams_for_featureCounts_single] called with wildcards: {wildcards}")
+    logger.debug(f"[get_bams_for_featureCounts_single] called with wildcards: {wildcards}")
     bams = []
     for sample_id in genome_single_samples.get(wildcards.genome, []):
         bams.append(f"{indir}/{wildcards.genome}/{sample_id}/{sample_id}.bam")
@@ -40,9 +40,9 @@ rule featureCounts_single_noMultiple:
         featureCounts = config.get('Procedure',{}).get('featureCounts') or 'featureCounts',
     run:
         log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger("featureCounts_single_noMultiple", log_file=log_path)
         try:
-            open(log_path, "w").close()
-            rule_logger = setup_logger("featureCounts_single_noMultiple", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start featureCounts_single_noMultiple at {current_time}")
             script = os.path.join(os.path.dirname(output.outfile), f"featureCounts_single_noMultiple_{current_time}.sh")
@@ -63,13 +63,11 @@ rule featureCounts_single_noMultiple:
                 f.write(f"echo 'featureCounts_single_noMultiple for {wildcards.genome} completed at {current_time}'\n")
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"featureCounts_single_noMultiple failed: {e}\n")
-            logger.error(f"featureCounts_single_noMultiple failed: {e}\n")
-            raise e
+            rule_logger.error(f"featureCounts_single_noMultiple failed: {e}\n")
+            raise RuntimeError(f"featureCounts_single_noMultiple failed: {e}\n")
 
 def get_bams_for_featureCounts_paired(wildcards):
-    logger.info(f"[get_bams_for_featureCounts_paired] called with wildcards: {wildcards}")
+    logger.debug(f"[get_bams_for_featureCounts_paired] called with wildcards: {wildcards}")
     bams = []
     for sample_id in genome_paired_samples.get(wildcards.genome, []):
         bams.append(f"{indir}/{wildcards.genome}/{sample_id}/{sample_id}.bam")
@@ -103,9 +101,9 @@ rule featureCounts_paired_noMultiple:
         O = config.get("Params",{}).get("featureCounts",{}).get("O") or False,
     run:
         log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger("featureCounts_paired_noMultiple", log_file=log_path)
         try:
-            open(log_path, "w").close()
-            rule_logger = setup_logger("featureCounts_paired_noMultiple", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start featureCounts_paired_noMultiple at {current_time}")
             script = os.path.join(os.path.dirname(output.outfile), f"featureCounts_paired_noMultiple_{current_time}.sh")
@@ -134,14 +132,12 @@ rule featureCounts_paired_noMultiple:
                 f.write(f"echo 'featureCounts_paired_noMultiple for {wildcards.genome} completed at {current_time}'\n")
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"featureCounts_paired_noMultiple failed: {e}\n")
-            logger.error(f"featureCounts_paired_noMultiple failed: {e}\n")
-            raise e
+            rule_logger.error(f"featureCounts_paired_noMultiple failed: {e}\n")
+            raise RuntimeError(f"featureCounts_paired_noMultiple failed: {e}\n")
 
 def get_input_for_featureCounts_merge(wildcards):
     """Resolve merge inputs based on which sample layouts exist for this genome."""
-    logger.info(f"[get_input_for_featureCounts_merge] called with wildcards: {wildcards}")
+    logger.debug(f"[get_input_for_featureCounts_merge] called with wildcards: {wildcards}")
     inputs = {}
     if genome_paired_samples.get(wildcards.genome):
         inputs["paired"] = outdir + f"/{wildcards.genome}/{wildcards.genome}_paired_featureCounts.tsv"
@@ -167,9 +163,9 @@ rule featureCounts_merge:
         logdir + "/{genome}/featureCounts_merge.log"
     run:
         log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger("featureCounts_merge", log_file=log_path)
         try:
-            open(log_path, "w").close()
-            rule_logger = setup_logger("featureCounts_merge", log_file=log_path)
             rule_logger.info(f"Start featureCounts merge for {wildcards.genome}")
             os.makedirs(os.path.dirname(output.merged), exist_ok=True)
             import pandas as pd
@@ -196,9 +192,8 @@ rule featureCounts_merge:
                 shutil.copy2(input.single, output.merged)
                 rule_logger.info(f"SE-only: copied {input.single} → {output.merged}")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"featureCounts merge failed: {e}\n")
-            raise e
+            rule_logger.error(f"featureCounts merge failed: {e}\n")
+            raise RuntimeError(f"featureCounts merge failed: {e}\n")
 
 
 rule featureCounts_results:

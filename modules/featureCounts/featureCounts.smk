@@ -10,7 +10,7 @@ paired_samples = config.get("paired_samples", [])
 
 # need test
 def get_bams_for_featureCounts_single(wildcards):
-    logger.info(f"[get_bams_for_featureCounts_single] called with wildcards: {wildcards}")
+    logger.debug(f"[get_bams_for_featureCounts_single] called with wildcards: {wildcards}")
     bams = []
     suffix = config.get("bam_substring", "")
     suffix_str = f".{suffix}" if suffix else ""
@@ -38,9 +38,9 @@ rule featureCounts_single_noMultiple:
         gtf = config["genome"]["gtf"]
     run:
         log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger("featureCounts_single_noMultiple", log_file=log_path)
         try:
-            open(log_path, "w").close()
-            rule_logger = setup_logger("featureCounts_single_noMultiple", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start featureCounts_single_noMultiple at {current_time}")
             script = os.path.join(os.path.dirname(output.outfile), f"featureCounts_single_noMultiple_{current_time}.sh")
@@ -51,12 +51,11 @@ rule featureCounts_single_noMultiple:
             shell(f"bash {script} >> {log_path} 2>&1")
             rule_logger.info(f"featureCounts_single_noMultiple completed")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"featureCounts_single_noMultiple failed: {e}\n")
-            raise e
+            rule_logger.error(f"featureCounts_single_noMultiple failed: {e}\n")
+            raise RuntimeError(f"featureCounts_single_noMultiple failed: {e}\n")
 
 def get_bams_for_featureCounts_paired(wildcards):
-    logger.info(f"[get_bams_for_featureCounts_paired] called with wildcards: {wildcards}")
+    logger.debug(f"[get_bams_for_featureCounts_paired] called with wildcards: {wildcards}")
     bams = []
     suffix = config.get("bam_substring", "")
     suffix_str = f".{suffix}" if suffix else ""
@@ -84,9 +83,9 @@ rule featureCounts_paired_noMultiple:
         gtf = config["genome"]["gtf"]
     run:
         log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger("featureCounts_paired_noMultiple", log_file=log_path)
         try:
-            open(log_path, "w").close()
-            rule_logger = setup_logger("featureCounts_paired_noMultiple", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start featureCounts_paired_noMultiple at {current_time}")
             script = os.path.join(os.path.dirname(output.outfile), f"featureCounts_paired_noMultiple_{current_time}.sh")
@@ -94,13 +93,13 @@ rule featureCounts_paired_noMultiple:
             bams_str = " ".join(input.bams)
             with open(script, "w") as f:
                 # for multiple -M -O
-                f.write(f"{params.featureCounts} -T {threads} -B -p --countReadPairs -t exon -g gene_id -a {params.gtf} -o {output.outfile} {bams_str} > {log_path} 2>&1\n")
+                f.write("/bin/bash\nset -euo pipefail\n")
+                f.write(f"{params.featureCounts} -T {threads} -B -p --countReadPairs -t exon -g gene_id -a {params.gtf} -o {output.outfile} {bams_str}\n")
             shell(f"bash {script} >> {log_path} 2>&1")
             rule_logger.info(f"featureCounts_paired_noMultiple completed")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"featureCounts_paired_noMultiple failed: {e}\n")
-            raise e
+            rule_logger.error(f"featureCounts_paired_noMultiple failed: {e}\n")
+            raise RuntimeError(f"featureCounts_paired_noMultiple failed: {e}\n")
 
 
 rule featureCounts_result:

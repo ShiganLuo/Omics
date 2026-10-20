@@ -4,7 +4,7 @@ outdir = config.get("outdir") or "output"
 logdir = config.get("logdir") or "log"
 
 def get_input_for_SplitNCigarReads(wildcards):
-    logger.info(f"[get_input_for_SplitNCigarReads] called with wildcards: {wildcards}")
+    logger.debug(f"[get_input_for_SplitNCigarReads] called with wildcards: {wildcards}")
     bam = indir + f"/{wildcards.sample_id}/{wildcards.sample_id}.sorted_markdup.bam"
     fasta = config.get("genome", {}).get("fasta")
     if not fasta or not os.path.exists(fasta):
@@ -38,9 +38,9 @@ rule SplitNCigarReads:
         logdir + "/{sample_id}/SplitNCigarReads.log"
     run:
         log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger(logger_name="SplitNCigarReads", log_file=log_path)
         try:
-            open(log_path, "w").close()
-            rule_logger = setup_logger(logger_name="SplitNCigarReads", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start SplitNCigarReads for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.bam))
@@ -61,16 +61,13 @@ rule SplitNCigarReads:
             if params.tmp_dir:
                 cmd.extend(["--tmp-dir", params.tmp_dir])
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
-                f.write("set -euo pipefail\n")
+                f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f"echo 'SplitNCigarReads completed successfully for sample {wildcards.sample_id}'\n")
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"Error during SplitNCigarReads execution: {str(e)}\n")
-            logger.error(f"Error occurred during SplitNCigarReads for sample {wildcards.sample_id}: {e}")
-            raise e
+            rule_logger.error(f"Error during SplitNCigarReads execution: {str(e)}")
+            raise RuntimeError(f"Error occurred while running SplitNCigarReads for sample {wildcards.sample_id}: {e}, you can check the log file {log_path} for more details.")
 
 
 rule VarientCalling:
@@ -92,9 +89,9 @@ rule VarientCalling:
     threads: 8
     run:
         log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger(logger_name="VarientCalling", log_file=log_path)
         try:
-            open(log_path, "w").close()
-            rule_logger = setup_logger(logger_name="VarientCalling", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start VarientCalling for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.vcf))
@@ -115,16 +112,13 @@ rule VarientCalling:
             if params.tmp_dir:
                 cmd.extend(["--tmp-dir", params.tmp_dir])
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
-                f.write("set -euo pipefail\n")
+                f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f"echo 'VarientCalling completed successfully for sample {wildcards.sample_id}'\n")
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"Error during VarientCalling execution: {e}\n")
-            logger.error(f"Error occurred during VarientCalling for sample {wildcards.sample_id}: {e}")
-            raise e
+            rule_logger.error(f"Error occurred during VarientCalling for sample {wildcards.sample_id}: {e}")
+            raise RuntimeError(f"Error occurred while running VarientCalling for sample {wildcards.sample_id}: {e}, you can check the log file {log_path} for more details.")
 
 rule vcf_filter:
     input:
@@ -146,9 +140,9 @@ rule vcf_filter:
         fai_index = config.get("genome", {}).get("fai_index")
     run:
         log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger(logger_name="vcf_filter", log_file=log_path)
         try:
-            open(log_path, "w").close()
-            rule_logger = setup_logger(logger_name="vcf_filter", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start vcf_filter for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.vcf))
@@ -173,14 +167,11 @@ rule vcf_filter:
             if params.tmp_dir:
                 cmd1.extend(["--tmp-dir", params.tmp_dir])
             with open(script, "w") as f:                
-                f.write("#!/bin/bash\n")
-                f.write("set -euo pipefail\n")
+                f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd1) + "\n")
                 f.write(f"{params.bgzip} {str(output.vcf).replace('.vcf.gz', '.vcf')}\n")
                 f.write(f"echo 'vcf_filter completed successfully for sample {wildcards.sample_id}'\n")
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"Error during vcf_filter execution: {str(e)}\n")
-            logger.error(f"Error occurred during vcf_filter for sample {wildcards.sample_id}: {e}")
-            raise e
+            rule_logger.error(f"Error occurred during vcf_filter for sample {wildcards.sample_id}: {e}")
+            raise RuntimeError(f"Error occurred while running vcf_filter for sample {wildcards.sample_id}: {e}, you can check the log file {log_path} for more details.")

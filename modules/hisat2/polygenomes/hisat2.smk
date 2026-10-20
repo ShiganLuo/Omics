@@ -7,7 +7,7 @@ genome_paired_samples = config.get('genome_paired_samples', {})
 genome_single_samples = config.get('genome_single_samples', {})
 def get_input_for_hisat2_index(wildcards):
     """Dynamically determines the input fasta file for hisat2 index based on the genome."""
-    logger.info(f"[get_input_for_hisat2_index] called with wildcards: {wildcards}")
+    logger.debug(f"[get_input_for_hisat2_index] called with wildcards: {wildcards}")
     fasta = config.get('genome', {}).get('references', {}).get(wildcards.genome, {}).get('fasta')
     if not fasta:
         logger.error(f"Fasta file for genome {wildcards.genome} not found in config")

@@ -189,7 +189,7 @@ rule <tool>_<action>:
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during <tool> <action> for sample {wildcards.sample_id}: {e}\n")
-            raise RuntimeError(f"Error occurred during <tool> <action> for sample {wildcards.sample_id}: {e}\n")
+            raise RuntimeError(f"Error occurred during <tool> <action> for sample {wildcards.sample_id}: {e}, you can check the log file {log_path} for more details.\n")
 ```
 
 每个module snakefile必须含有一个面板规则记录module主要输出，便于node.py确定输出文件，格式如下：

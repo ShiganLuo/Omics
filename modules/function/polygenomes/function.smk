@@ -78,7 +78,7 @@ rule function_go_kegg:
             raise RuntimeError(f"GO/KEGG analysis failed: {e}\n")
 
 def get_input_for_function_gsea(wildcards):
-    logger.info(f"[get_input_for_function_gsea] called with wildcards: {wildcards}")
+    logger.debug(f"[get_input_for_function_gsea] called with wildcards: {wildcards}")
     in_dict = {}
     deseq2_result = indir + f"/{wildcards.genome}/{wildcards.contrast}/{wildcards.contrast}.TEcount_Gene.tsv"
     annotation = config.get('genome',{}).get('references', {}).get(wildcards.genome, {}).get('geneIDAnno')
@@ -148,7 +148,7 @@ rule function_gsea:
 
 def get_input_for_function_gsva(wildcards):
     """Resolve inputs for function_gsva: featureCounts counts matrix + GMT file."""
-    logger.info(f"[get_input_for_function_gsva] called with wildcards: {wildcards}")
+    logger.debug(f"[get_input_for_function_gsva] called with wildcards: {wildcards}")
     in_dict = {}
     # featureCounts merged counts (PE + SE combined)
     counts_file = counts_dir + f"/{wildcards.genome}/{wildcards.genome}_featureCounts.tsv"
@@ -235,7 +235,7 @@ rule function_gsva:
                 f.write("#!/bin/bash\nset -e\nset -o pipefail\n")
                 f.write(" ".join(norm_cmd) + "\n")
                 f.write(" ".join(shlex.quote(str(x)) for x in gsva_cmd) + "\n")
-                f.write(f"echo 'GSVA analysis was completed successfully for {wildcards.genome} and {wildcards.contrast}!")
+                f.write(f"echo 'GSVA analysis was completed successfully for {wildcards.genome} !'\n")
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"GSVA analysis failed: {e}")

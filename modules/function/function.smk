@@ -157,9 +157,7 @@ rule function_gsea:
 
             script = os.path.join(sample_outdir, f"gsea_{current_time}.sh")
             with open(script, 'w') as f:
-                f.write("#!/bin/bash\n")
-                f.write("set -e\n")
-                f.write("set -o pipefail\n")
+                f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f"echo 'GSEA analysis completed for {wildcards.contrast}'\n")
             shell(f"bash {script} >> {log_path} 2>&1")

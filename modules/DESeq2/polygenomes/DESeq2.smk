@@ -7,7 +7,7 @@ group_pairs = config.get("group_pairs", {})
 
 def get_input_for_DESeq2_TEcount(wildcards):
     """Dynamically determines the input count matrix for DESeq2 TEcount based on the contrast."""
-    logger.info(f"[get_input_for_DESeq2_TEcount] called with wildcards: {wildcards}")
+    logger.debug(f"[get_input_for_DESeq2_TEcount] called with wildcards: {wildcards}")
     in_dict = {}
     count_matrix = indir + "/{genome}/{genome}_TEcount.tsv"
     geneIDAnno = config.get('genome',{}).get('references', {}).get(wildcards.genome, {}).get('geneIDAnno')
@@ -54,9 +54,9 @@ rule DESeq2_TEcount:
         logdir + "/DESeq2/{genome}/{contrast}.log"
     run:
         log_path = str(log)
+        open(log_path, 'w').close()
+        rule_logger = setup_logger("DESeq2_TEcount", log_file=log_path)
         try:
-            open(log_path, 'w').close()
-            rule_logger = setup_logger("DESeq2_TEcount", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start DESeq2 TEcount at {current_time}")
             sample_outdir = os.path.dirname(str(output.deseq2_results))
@@ -115,7 +115,5 @@ rule DESeq2_TEcount:
 
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"Error occurred during DESeq2 TEcount: {e}\n")
-            logger.error(f"Error occurred during DESeq2 TEcount: {e}\n")
-            raise f"Error occurred during DESeq2 TEcount: {e}\n"
+            rule_logger.error(f"Error occurred during DESeq2 TEcount: {e}\n")
+            raise RuntimeError(f"Error occurred during DESeq2 TEcount: {e}\n")

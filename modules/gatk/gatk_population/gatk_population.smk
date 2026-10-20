@@ -44,25 +44,27 @@ rule gatk_population_haplotype_caller:
         interval=interval
     run:
         log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger(logger_name="gatk_population_haplotype_caller", log_file=log_path)
         try:
-            os.makedirs(os.path.dirname(log_path), exist_ok=True)
             os.makedirs(os.path.dirname(output.vcf), exist_ok=True)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+            rule_logger.info(f"Start gatk_population_haplotype_caller for sample {wildcards.sample} at {current_time}")
             script = os.path.join(os.path.dirname(output.vcf), f"gatk_population_haplotype_caller_{wildcards.sample}_{current_time}.sh")
             cmd = [params.gatk, "--java-options", params.java_options, "HaplotypeCaller", "-R", input.fasta, "-I", input.bam, "-O", output.vcf, "-ERC", "GVCF", "--native-pair-hmm-threads", str(threads)]
             if params.interval:
                 cmd += ["-L", params.interval]
             if params.tmp_dir:
                 cmd += ["--tmp-dir", params.tmp_dir]
-            with open(script, "w") as handle:
-                handle.write("#!/usr/bin/env bash\nset -euo pipefail\n")
-                handle.write(" ".join(str(item) for item in cmd) + "\n")
-                handle.write(f"{params.gatk} IndexFeatureFile -I {output.vcf}\n")
+            with open(script, "w") as f:
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
+                f.write(" ".join(str(item) for item in cmd) + "\n")
+                f.write(f"{params.gatk} IndexFeatureFile -I {output.vcf}\n")
+                f.write(f"echo 'gatk_population_haplotype_caller completed successfully for sample {wildcards.sample}'\n")
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as exc:
-            with open(log_path, "a") as handle:
-                handle.write(f"HaplotypeCaller failed for {wildcards.sample}: {exc}\n")
-            raise
+            rule_logger.error(f"HaplotypeCaller failed for {wildcards.sample}: {exc}")
+            raise RuntimeError(f"Error occurred while running HaplotypeCaller for sample {wildcards.sample}: {exc}, you can check the log file {log_path} for more details.")
 
 rule gatk_population_joint_genotyping:
     input:
@@ -89,8 +91,9 @@ rule gatk_population_joint_genotyping:
         workspace=outdir + "/variants/joint/genomicsdb"
     run:
         log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger(logger_name="gatk_population_joint_genotyping", log_file=log_path)
         try:
-            os.makedirs(os.path.dirname(log_path), exist_ok=True)
             os.makedirs(os.path.dirname(output.vcf), exist_ok=True)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             sample_map = os.path.join(os.path.dirname(output.vcf), "sample_map.tsv")
@@ -106,14 +109,14 @@ rule gatk_population_joint_genotyping:
             if params.tmp_dir:
                 import_cmd += ["--tmp-dir", params.tmp_dir]
                 genotype_cmd += ["--tmp-dir", params.tmp_dir]
-            with open(script, "w") as handle:
-                handle.write("#!/usr/bin/env bash\nset -euo pipefail\n")
-                handle.write("rm -rf " + params.workspace + "\n")
-                handle.write(" ".join(str(item) for item in import_cmd) + "\n")
-                handle.write(" ".join(str(item) for item in genotype_cmd) + "\n")
-                handle.write(f"{params.gatk} IndexFeatureFile -I {output.vcf}\n")
+            with open(script, "w") as f:
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
+                f.write("rm -rf " + params.workspace + "\n")
+                f.write(" ".join(str(item) for item in import_cmd) + "\n")
+                f.write(" ".join(str(item) for item in genotype_cmd) + "\n")
+                f.write(f"{params.gatk} IndexFeatureFile -I {output.vcf}\n")
+                f.write(f"echo 'gatk_population_joint_genotyping completed successfully for genome {wildcards.genome}'\n")
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as exc:
-            with open(log_path, "a") as handle:
-                handle.write(f"Joint genotyping failed: {exc}\n")
-            raise
+            rule_logger.error(f"Joint genotyping failed for {wildcards.sample}: {exc}")
+            raise RuntimeError(f"Error occurred while running joint genotyping for sample {wildcards.sample}: {exc}, you can check the log file {log_path} for more details.")

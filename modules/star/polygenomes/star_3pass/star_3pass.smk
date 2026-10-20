@@ -55,9 +55,9 @@ rule star_3p_align:
         sif("../../star.yaml")
     run:
         log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger("star_3p_align", log_file=log_path)
         try:
-            open(log_path, "w").close()
-            rule_logger = setup_logger("star_3p_align", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start star_3p_align for sample {wildcards.sample_id} genome {wildcards.genome} at {current_time}")
 
@@ -135,11 +135,11 @@ rule star_3p_align:
                 cmd += ["--pass3-alignEndsType", str(p3["alignEndsType"])]
 
             with open(script, "w") as f:
+                f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
+                f.write(f"echo 'star_3p_align for sample {wildcards.sample_id} genome {wildcards.genome} completed successfully at {current_time}'\n")
             shell(f"bash {script} >> {log_path} 2>&1")
 
-            rule_logger.info(f"star_3p_align for sample {wildcards.sample_id} genome {wildcards.genome} completed")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"star_3p_align failed for sample {wildcards.sample_id} genome {wildcards.genome}: {e}\n")
-            raise e
+            rule_logger.error(f"star_3p_align failed for sample {wildcards.sample_id} genome {wildcards.genome}: {e}")
+            raise RuntimeError(f"star_3p_align failed for sample {wildcards.sample_id} genome {wildcards.genome}: {e}, you can check the log file {log_path} for more details.")

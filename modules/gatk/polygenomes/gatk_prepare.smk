@@ -7,7 +7,7 @@ logdir_combine = config.get("logdir_combine") or "log"
 input_bam_substring = config.get("input_bam_substring") or ""
 
 def get_input_for_gatk_index(wildcards):
-    logger.info(f"gatk_index called with {wildcards}")
+    logger.debug(f"gatk_index called with {wildcards}")
     in_dict = {}
     fasta = config.get("genome", {}).get('references', {}).get(wildcards.genome, {}).get("fasta")
     if not fasta or not os.path.exists(fasta):
@@ -32,9 +32,9 @@ rule gatk_index:
         tmp_dir = config.get("Params", {}).get("gatk", {}).get("tmp-dir") or None
     run:
         log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger(logger_name="gatk_index", log_file=log_path)
         try:
-            open(log_path, "w").close()
-            rule_logger = setup_logger(logger_name="gatk_index", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start gatk_index for genome {wildcards.genome} at {current_time}")
             index_outdir = os.path.join(outdir, "index", wildcards.genome)
@@ -63,14 +63,12 @@ rule gatk_index:
                 f.write(f'echo "gatk_index for genome {wildcards.genome} successfully completed!"\n')
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"Error during gatk_index execution: {str(e)}\n")
-            logger.error(f"Error occurred while running gatk_index for genome {wildcards.genome}: {e}, you can check the log file {log_path} for more details.")
-            raise e
+            rule_logger.error(f"Error occurred while running gatk_index for genome {wildcards.genome}: {e}")
+            raise RuntimeError(f"Error occurred while running gatk_index for genome {wildcards.genome}: {e}, you can check the log file {log_path} for more details.")
 
 
 def get_input_for_addReadsGroup(wildcards):
-    logger.info(f"addReadsGroup called with {wildcards}")
+    logger.debug(f"addReadsGroup called with {wildcards}")
     if input_bam_substring != "":
         bam = indir + f"/{wildcards.genome}/{wildcards.sample_id}/{wildcards.sample_id}." + input_bam_substring + ".bam"
     else:
@@ -100,9 +98,9 @@ rule addReadsGroup:
         samtools = config.get("Procedure", {}).get("samtools") or "samtools"
     run:
         log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger(logger_name="addReadsGroup", log_file=log_path)
         try:
-            open(log_path, "w").close()
-            rule_logger = setup_logger(logger_name="addReadsGroup", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start addReadsGroup for sample {wildcards.sample_id} genome {wildcards.genome} at {current_time}")
             sample_outdir = os.path.join(outdir, wildcards.genome, wildcards.sample_id)
@@ -132,12 +130,10 @@ rule addReadsGroup:
                 f.write(" ".join(cmd1) + "\n")
                 f.write(" ".join(cmd2) + "\n")
                 f.write(f'echo "addReadsGroup for sample {wildcards.sample_id} on genome {wildcards.genome} successfully completed!"\n')
-            shell(f"bash {script} > {log_path} 2>&1")
+            shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"Error during addReadsGroup execution: {str(e)}\n")
-            logger.error(f"Error occurred while running addReadsGroup for sample {wildcards.sample_id} genome {wildcards.genome}: {e}, you can check the log file {log_path} for more details.")
-            raise e
+            rule_logger.error(f"Error occurred while running addReadsGroup for sample {wildcards.sample_id} genome {wildcards.genome}: {e}.")
+            raise RuntimeError(f"Error occurred while running addReadsGroup for sample {wildcards.sample_id} genome {wildcards.genome}: {e}, you can check the log file {log_path} for more details.")
 
 
 rule MarkDuplicates:
@@ -160,9 +156,9 @@ rule MarkDuplicates:
         tmp_dir = config.get("Params", {}).get("gatk", {}).get("tmp-dir") or None
     run:
         log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger(logger_name="MarkDuplicates", log_file=log_path)
         try:
-            open(log_path, "w").close()
-            rule_logger = setup_logger(logger_name="MarkDuplicates", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start MarkDuplicates for sample {wildcards.sample_id} genome {wildcards.genome} at {current_time}")
             sample_outdir = os.path.join(outdir, wildcards.genome, wildcards.sample_id)
@@ -183,12 +179,10 @@ rule MarkDuplicates:
                 f.write("set -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "MarkDuplicates for sample {wildcards.sample_id} on genome {wildcards.genome} successfully completed!"\n')
-            shell(f"bash {script} > {log_path} 2>&1")
+            shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"Error during MarkDuplicates execution: {str(e)}\n")
-            rule_logger.error(f"Error occurred while running MarkDuplicates for sample {wildcards.sample_id} genome {wildcards.genome}: {e}, you can check the log file {log_path} for more details.")
-            raise e
+            rule_logger.error(f"Error occurred while running MarkDuplicates for sample {wildcards.sample_id} genome {wildcards.genome}: {e}.\n")
+            raise RuntimeError(f"Error occurred while running MarkDuplicates for sample {wildcards.sample_id} genome {wildcards.genome}: {e}, you can check the log file {log_path} for more details.")
 
 
 rule gatk_prepare_result:

@@ -29,11 +29,11 @@ rule gatk_index:
         tmp_dir = config.get("Params", {}).get("gatk", {}).get("tmp-dir") or None
     run:
         log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger(logger_name="gatk_index", log_file=log_path)
         try:
-            open(log_path, "w").close()
-            logger = setup_logger(logger_name="gatk_index", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            logger.info(f"Start gatk_index at {current_time}")
+            rule_logger.info(f"Start gatk_index at {current_time}")
             index_outdir = os.path.join(outdir, "index")
             os.makedirs(index_outdir, exist_ok=True)
             script = os.path.join(index_outdir, f"gatk_index_{current_time}.sh")
@@ -59,13 +59,12 @@ rule gatk_index:
                 f.write(f"echo '{gatk_index} was completed successfully for {input.fasta} !'\n")
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"Error during gatk_index execution: {str(e)}\n")
-            raise f"Error occurred while running gatk_index: {e}, you can check the log file {log_path} for more details."
+            rule_logger.error(f"Error during gatk_index execution: {str(e)}\n")
+            raise RuntimeError(f"Error occurred while running gatk_index: {e}, you can check the log file {log_path} for more details.")
 
 
 def get_input_for_addReadsGroup(wildcards):
-    logger.info(f"addReadsGroup called with {wildcards}")
+    logger.debug(f"addReadsGroup called with {wildcards}")
     in_dict = {}
     if input_bam_substring != "":
         in_dict["bam"] = os.path.join(indir, f"{wildcards.sample_id}/{wildcards.sample_id}." + input_bam_substring + ".bam")
@@ -96,11 +95,11 @@ rule addReadsGroup:
         samtools = config.get("Procedure", {}).get("samtools") or "samtools"
     run:
         log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger(logger_name="addReadsGroup", log_file=log_path)
         try:
-            open(log_path, "w").close()
-            logger = setup_logger(logger_name="addReadsGroup", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            logger.info(f"Start addReadsGroup for sample {wildcards.sample_id} at {current_time}")
+            rule_logger.info(f"Start addReadsGroup for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
             script = os.path.join(sample_outdir, f"addReadsGroup_{current_time}.sh")
@@ -126,12 +125,11 @@ rule addReadsGroup:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd1) + "\n")
                 f.write(" ".join(cmd2) + "\n")
-                f.write(f"echo 'addReadsGroup was completed successfully for {wildcards.sample_id} !'")
+                f.write(f"echo 'addReadsGroup was completed successfully for {wildcards.sample_id} !'\n")
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"Error during addReadsGroup execution: {str(e)}\n")
-            raise f"Error occurred while running addReadsGroup for sample {wildcards.sample_id}: {e}, you can check the log file {log_path} for more details."
+            rule_logger.error(f"Error during addReadsGroup execution for sample {wildcards.sample_id}: {str(e)}\n")
+            raise RuntimeError(f"Error occurred while running addReadsGroup for sample {wildcards.sample_id}: {e}, you can check the log file {log_path} for more details.")
 
 
 rule MarkDuplicates:
@@ -154,11 +152,11 @@ rule MarkDuplicates:
         tmp_dir = config.get("Params", {}).get("gatk", {}).get("tmp-dir") or None
     run:
         log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger(logger_name="MarkDuplicates", log_file=log_path)
         try:
-            open(log_path, "w").close()
-            logger = setup_logger(logger_name="MarkDuplicates", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            logger.info(f"Start MarkDuplicates for sample {wildcards.sample_id} at {current_time}")
+            rule_logger.info(f"Start MarkDuplicates for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
             script = os.path.join(sample_outdir, f"MarkDuplicates_{current_time}.sh")
@@ -175,12 +173,11 @@ rule MarkDuplicates:
             with open(script, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
-                f.write(f"echo 'MarkDuplicates was completed successfully for {wildcards.sample_id} !'")
+                f.write(f"echo 'MarkDuplicates was completed successfully for {wildcards.sample_id} !'\n")
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"Error during MarkDuplicates execution: {str(e)}\n")
-            raise f"Error occurred while running MarkDuplicates for sample {wildcards.sample_id}: {e}, you can check the log file {log_path} for more details."
+            rule_logger.error(f"Error during MarkDuplicates execution for sample {wildcards.sample_id}: {str(e)}\n")
+            raise RuntimeError(f"Error occurred while running MarkDuplicates for sample {wildcards.sample_id}: {e}, you can check the log file {log_path} for more details.")
 
 
 rule gatk_prepare_result:

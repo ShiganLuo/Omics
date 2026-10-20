@@ -70,8 +70,7 @@ rule star_index:
                 rule_logger.info("No GTF provided, skipping --sjdbGTFfile")
 
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
-                f.write("set -euo pipefail\n")
+                f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write("echo 'STAR index generation completed successfully.'\n")
             shell(f"bash {script} >> {log_path} 2>&1")
@@ -255,8 +254,7 @@ rule star_align:
             cmd2 = ["mv", f"{params.outPrefix}Aligned.sortedByCoord.out.bam", output.bam]
             cmd3 = [params.SAMTOOLS, "index", "-@", str(threads), output.bam]
             with open(script, 'w') as f:
-                f.write("#!/bin/bash\n")
-                f.write("set -euo pipefail\n")
+                f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd1) + "\n")
                 f.write(" ".join(cmd2) + "\n")
                 f.write(" ".join(cmd3) + "\n")

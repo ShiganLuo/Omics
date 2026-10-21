@@ -400,6 +400,145 @@ def build_snakemake_cmd(root_dir: str, smk: str, input_json: str, threads: int,
         cmd.extend(snakemake_args)    
     return cmd
 
+def _expand_wildcard_rule_targets(
+    targets: List[str],
+    wf_name: str,
+    workflow_config: Dict[str, Any],
+    input_json: str,
+    logger,
+) -> List[str]:
+    """Expand bare wildcarded rule names into rule:wildcard=value targets.
+
+    snakemake's ``--forcerun <rule>`` cannot force jobs of a WILDCARDED rule
+    whose outputs already exist — the DAG ends up empty and snakemake
+    reports "Nothing to be done". Explicit ``rule:wildcard=value`` targets
+    (translated by ``build_snakemake_cmd`` into ``--target-jobs ... --force``)
+    do work, but they require enumerating the wildcard combinations, which
+    the user should not have to do for a bare ``--forcerun scanpy_auto``.
+
+    Expansion source: the workflow's own config JSON. For scRNAseq-style
+    configs the wildcard axes are:
+      - tissues: ``Params.scanpy.tissue_samples`` keys (dict tissue → samples)
+      - counters: ``Params.workflow.counters`` (list)
+
+    Only bare names (no ``:``, no ``/``) that do NOT resolve to a real file
+    are considered; wildcard-free plain names (e.g. ``all``) and explicit
+    targets pass through untouched. When the config lacks the axes the rule
+    needs, the target is left as-is with a warning (previous behaviour).
+
+    Args:
+        targets: Prefixed forcerun targets (bare names already carry the
+            ``{wf_name}_`` prefix).
+        wf_name: Workflow name (used for logging only).
+        workflow_config: The in-memory workflow config (same content as the
+            config JSON written by run<Workflow>()).
+        input_json: Path to the raw.json (fallback read; ignored if absent).
+        logger: Logger for diagnostics.
+
+    Returns:
+        Target list with bare wildcarded rules replaced by their
+        ``rule:wildcard=value`` expansions (order preserved, duplicates
+        removed).
+    """
+    if not targets:
+        return targets
+
+    # Collect config axes once. Prefer the generated raw.json (input_json):
+    # the in-memory workflow_config is the config/scRNAseq.json TEMPLATE,
+    # whose tissue_samples is empty — run<Workflow>() fills the real
+    # tissue -> samples mapping into raw.json.
+    tissues: List[str] = []
+    counters: List[str] = []
+    cfg: Dict[str, Any] = dict(workflow_config or {})
+    if input_json and os.path.isfile(input_json):
+        try:
+            with open(input_json, "r", encoding="utf-8") as fh:
+                generated = json.load(fh)
+            if isinstance(generated, dict):
+                cfg = generated
+        except (OSError, json.JSONDecodeError) as exc:
+            logger.warning("Could not read %s for --forcerun expansion (%s); "
+                           "falling back to the config template.", input_json, exc)
+    scanpy_params = (cfg.get("Params") or {}).get("scanpy") or {}
+    tissue_samples = scanpy_params.get("tissue_samples")
+    if isinstance(tissue_samples, dict) and tissue_samples:
+        tissues = sorted(tissue_samples.keys())
+    wf_counters = (cfg.get("Params") or {}).get("workflow", {}).get("counters")
+    if isinstance(wf_counters, list) and wf_counters:
+        counters = [str(c) for c in wf_counters]
+    if not counters:
+        counters = [str(c) for c in (cfg.get("counters") or [])]
+
+    expanded: List[str] = []
+    for t in targets:
+        # Only bare rule names are expansion candidates.
+        if ":" in t or "=" in t or "/" in t:
+            expanded.append(t)
+            continue
+        rule = t
+        # A target that exists on disk is a file target — leave it alone.
+        if os.path.exists(t):
+            expanded.append(t)
+            continue
+
+        needs = []
+        if "scanpy_auto" in rule or "scanpy_advanced" in rule or "scanpy_merge" in rule:
+            needs = ["tissue", "counter"]
+        elif rule.endswith("_qc") and "scanpy" in rule:
+            needs = ["sample_id", "counter"]
+        else:
+            # Unknown rule: leave as-is (snakemake handles wildcard-free
+            # rules fine; wildcarded ones keep the old behaviour + warning).
+            expanded.append(t)
+            continue
+
+        if set(needs) == {"tissue", "counter"} and tissues and counters:
+            for tissue in tissues:
+                for counter in counters:
+                    expanded.append(f"{rule}:tissue={tissue},counter={counter}")
+            logger.info(
+                "[%s] Expanded bare --forcerun rule '%s' into %d wildcard targets "
+                "(tissues=%s, counters=%s)",
+                wf_name, rule, len(tissues) * len(counters), tissues, counters,
+            )
+        elif set(needs) == {"sample_id", "counter"} and counters:
+            sample_ids = list(((workflow_config.get("Params") or {}).get("workflow") or {}).get(
+                "paired_samples", [])) + list(((workflow_config.get("Params") or {}).get(
+                "workflow") or {}).get("single_samples", []))
+            if sample_ids:
+                for sid in sample_ids:
+                    for counter in counters:
+                        expanded.append(f"{rule}:sample_id={sid},counter={counter}")
+                logger.info(
+                    "[%s] Expanded bare --forcerun rule '%s' into %d wildcard targets",
+                    wf_name, rule, len(sample_ids) * len(counters),
+                )
+            else:
+                expanded.append(t)
+                logger.warning(
+                    "[%s] --forcerun '%s' needs sample lists but the config has none; "
+                    "passing through unchanged (snakemake may report 'Nothing to be done').",
+                    wf_name, rule,
+                )
+        else:
+            expanded.append(t)
+            logger.warning(
+                "[%s] --forcerun '%s' is a wildcarded rule but the config lacks the "
+                "axes to expand it (tissues=%s, counters=%s); passing through unchanged "
+                "(snakemake may report 'Nothing to be done' — use rule:wildcard=value syntax).",
+                wf_name, rule, tissues or "[]", counters or "[]",
+            )
+
+    # Dedupe, preserving order.
+    seen = set()
+    deduped = []
+    for t in expanded:
+        if t not in seen:
+            seen.add(t)
+            deduped.append(t)
+    return deduped
+
+
 WORKFLOW_DISPATCH = {
     "CoCulture":  lambda cfg, sid, sp, gp, indir, outdir, meta, rf, ci: ("CoCulture.smk", runCoCulture(cfg, sid, indir, outdir, rf)),
     "MERIP":      lambda cfg, sid, sp, gp, indir, outdir, meta, rf, ci: ("MERIP.smk",     runMERIP(cfg, sid, indir, outdir, rf)),
@@ -681,7 +820,11 @@ def execute_workflows(args: argparse.Namespace, root_dir: str, logger: logging.L
             # Supports three formats:
             #   - File paths (/path/to/file) — passed through as-is
             #   - Rule:wildcard syntax (rule:wildcard=value) — prefix rule name only
-            #   - Plain rule names — prefix with workflow name
+            #   - Plain rule names — prefix with workflow name; rules with
+            #     wildcards are additionally EXPANDED into rule:wildcard=value
+            #     targets (see _expand_wildcard_rule_targets below), because
+            #     snakemake's bare-rule --forcerun/--until cannot pull jobs
+            #     whose outputs already exist ("Nothing to be done").
             forcerun_targets: Optional[List[str]] = None
             if args.forcerun:
                 forcerun_targets = []
@@ -707,6 +850,14 @@ def execute_workflows(args: argparse.Namespace, root_dir: str, logger: logging.L
                         forcerun_targets.append(t)
                     else:
                         forcerun_targets.append(f"{wf_name}_{rule_part}{rest}")
+
+                # Bare wildcarded rules cannot be forced via snakemake's
+                # --forcerun (their existing outputs make the DAG empty).
+                # Expand them into explicit rule:wildcard=value targets from
+                # the workflow config so "Nothing to be done" can't happen.
+                forcerun_targets = _expand_wildcard_rule_targets(
+                    forcerun_targets, wf_name, workflow_config, input_json, logger,
+                )
             cmd = build_snakemake_cmd(
                 root_dir, smk, input_json, threads_per_workflow,
                 args.conda_prefix, args.rerun_trigger, args.dry_run,

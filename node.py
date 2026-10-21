@@ -69,8 +69,8 @@ def _init_raw_json(
     root_dir = os.path.dirname(__file__)
     logdir = os.path.join(outdir, "log")
     os.makedirs(logdir, exist_ok=True)
+    tmp_dir = datajson.get("tmp_dir") or os.path.join(outdir, "tmp")
     if not datajson.get("tmp_dir"):
-        tmp_dir = os.path.join(outdir, "tmp")
         os.makedirs(tmp_dir, exist_ok=True)
     if workflow in ["PacVar", "ncRNAseq", "RNAseq", "QuantMS", "Fiberseq", "scRNAseq"]:
         datajson["ROOT_DIR"] = root_dir

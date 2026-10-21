@@ -25,7 +25,9 @@ rule hisat2_index:
         ix6 = outdir + "/index/{genome}/{genome}.6.ht2",
         ix7 = outdir + "/index/{genome}/{genome}.7.ht2",
         ix8 = outdir + "/index/{genome}/{genome}.8.ht2"
-    threads: 8
+    threads: rule_res("hisat2_index").get("threads", 8)
+    resources:
+        mem_mb=rule_res("hisat2_index").get("mem_mb", 16000),
     conda:
         "../hisat2.yaml"
     container:
@@ -99,7 +101,9 @@ rule hisat2_align:
         splice = outdir + "/{genome}/{sample_id}/{sample_id}.splice.txt"
     log:
         logdir + "/{sample_id}/{genome}/hisat2_align.log"
-    threads: 12
+    threads: rule_res("hisat2_align").get("threads", 12)
+    resources:
+        mem_mb=rule_res("hisat2_align").get("mem_mb", 16000),
     conda:
         "../hisat2.yaml"
     params:

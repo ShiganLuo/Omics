@@ -28,7 +28,9 @@ rule stringTie:
         logdir + "/{sample_id}/{genome}/stringTie.log"
     params:
         stringtie = config.get("Procedure", {}).get("stringtie") or "stringtie"
-    threads: 5
+    threads: rule_res("stringTie").get("threads", 5)
+    resources:
+        mem_mb=rule_res("stringTie").get("mem_mb", 16000),
     conda:
         "../StringTie.yaml"
     container:
@@ -73,7 +75,9 @@ rule TEChimericTranscripts:
         logdir + "/{sample_id}/{genome}/TEChimericTranscripts.log"
     params:
         TEChimericTranscripts = ROOT_DIR + "/modules/StringTie/bin/TEChimericTranscripts.py"
-    threads: 5
+    threads: rule_res("TEChimericTranscripts").get("threads", 5)
+    resources:
+        mem_mb=rule_res("TEChimericTranscripts").get("mem_mb", 16000),
     conda:
         "../StringTie.yaml"
     container:
@@ -128,7 +132,9 @@ rule TEChimericPlot:
         logdir_combine + "/stringtie/{genome}/TEChimericPlot.log"
     params:
         TEChimericPlot = ROOT_DIR + "/modules/StringTie/bin/TEChimericPlot.py"
-    threads: 1
+    threads: rule_res("TEChimericPlot").get("threads", 1)
+    resources:
+        mem_mb=rule_res("TEChimericPlot").get("mem_mb", 8000),
     conda:
         "../StringTie.yaml"
     container:
@@ -190,6 +196,9 @@ rule stringTieMerge:
         unpack(get_input_for_stringTieMerge)
     output:
         gtf = outdir + "/{genome}/stringtie_merged.gtf"
+    threads: rule_res("stringTieMerge").get("threads", 1)
+    resources:
+        mem_mb=rule_res("stringTieMerge").get("mem_mb", 8000),
     log:
         logdir_combine + "/stringtie/{genome}/stringTieMerge.log"
     params:

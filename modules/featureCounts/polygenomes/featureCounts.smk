@@ -34,8 +34,9 @@ rule featureCounts_single_noMultiple:
         "../featureCounts.yaml"
     container:
         sif("../featureCounts.yaml")
-    threads:
-        10
+    threads: rule_res("featureCounts_single_noMultiple").get("threads", 10)
+    resources:
+        mem_mb=rule_res("featureCounts_single_noMultiple").get("mem_mb", 16000),
     params:
         featureCounts = config.get('Procedure',{}).get('featureCounts') or 'featureCounts',
     run:
@@ -93,8 +94,9 @@ rule featureCounts_paired_noMultiple:
         "../featureCounts.yaml"
     container:
         sif("../featureCounts.yaml")
-    threads:
-        10
+    threads: rule_res("featureCounts_paired_noMultiple").get("threads", 10)
+    resources:
+        mem_mb=rule_res("featureCounts_paired_noMultiple").get("mem_mb", 32000),
     params:
         featureCounts = config.get('Procedure',{}).get('featureCounts') or 'featureCounts',
         M = config.get("Params",{}).get("featureCounts",{}).get("M") or False,

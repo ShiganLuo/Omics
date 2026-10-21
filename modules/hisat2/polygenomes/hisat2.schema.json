@@ -1,0 +1,116 @@
+{
+  "indir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "outdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "logdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "genome_paired_samples": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "GRCm39": {
+        "type": "list",
+        "nullable": true,
+        "required": false
+      },
+      "GRCh38": {
+        "type": "list",
+        "nullable": true,
+        "required": false
+      }
+    }
+  },
+  "genome_single_samples": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "GRCm39": {
+        "type": "list",
+        "nullable": true,
+        "required": false
+      },
+      "GRCh38": {
+        "type": "list",
+        "nullable": true,
+        "required": false
+      }
+    }
+  },
+  "genome": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "GRCm39": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "fasta": {
+            "type": "str",
+            "path": "file",
+            "nullable": true,
+            "required": false
+          },
+          "index_prefix": {
+            "type": "null",
+            "nullable": true,
+            "required": false
+          }
+        }
+      },
+      "GRCh38": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "fasta": {
+            "type": "str",
+            "path": "file",
+            "nullable": true,
+            "required": false
+          },
+          "index_prefix": {
+            "type": "null",
+            "nullable": true,
+            "required": false
+          }
+        }
+      }
+    }
+  },
+  "Procedure": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "hisat2": {
+        "type": "str",
+        "nullable": true,
+        "required": false
+      },
+      "hisat2-build": {
+        "type": "str",
+        "nullable": true,
+        "required": false
+      },
+      "samtools": {
+        "type": "str",
+        "nullable": true,
+        "required": false
+      }
+    }
+  }
+}

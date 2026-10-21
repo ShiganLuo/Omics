@@ -1,0 +1,63 @@
+{
+  "indir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "outdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "logdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "samples": {
+    "type": "list",
+    "nullable": true,
+    "required": false
+  },
+  "quantification_method": {
+    "type": "str",
+    "nullable": true,
+    "required": false
+  },
+  "Procedure": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "msstats": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      }
+    }
+  },
+  "Params": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "msstats": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "reference_condition": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "reference_samples": {
+            "type": "list",
+            "nullable": true,
+            "required": false
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,91 @@
+{
+  "input_h5ad": {
+    "type": "str",
+    "nullable": true,
+    "required": false
+  },
+  "visium_h5": {
+    "type": "str",
+    "nullable": true,
+    "required": false
+  },
+  "spatial_dir": {
+    "type": "str",
+    "path": "dir",
+    "nullable": true,
+    "required": false
+  },
+  "Procedure": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "python": {
+        "type": "str",
+        "nullable": true,
+        "required": false
+      }
+    }
+  },
+  "Params": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "spatial": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "min_genes": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          },
+          "max_pct_mt": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          },
+          "n_top_genes": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          },
+          "n_pcs": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          },
+          "n_neighbors": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          },
+          "resolution": {
+            "type": "float",
+            "nullable": true,
+            "required": false
+          },
+          "advanced": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "spatial_autocorrelation": {
+                "type": "bool",
+                "nullable": true,
+                "required": false
+              },
+              "deconvolution": {
+                "type": "bool",
+                "nullable": true,
+                "required": false
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

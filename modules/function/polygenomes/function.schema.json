@@ -1,0 +1,254 @@
+{
+  "indir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "counts_dir": {
+    "type": "str",
+    "path": "dir",
+    "nullable": true,
+    "required": false
+  },
+  "outdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "logdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "ROOT_DIR": {
+    "type": "str",
+    "path": "dir",
+    "nullable": true,
+    "required": false
+  },
+  "group_pairs": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {}
+  },
+  "genome": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "GRCm39": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "geneIDAnno": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "gtf": {
+            "type": "str",
+            "path": "file",
+            "nullable": true,
+            "required": false
+          }
+        }
+      },
+      "GRCh38": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "geneIDAnno": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "gtf": {
+            "type": "str",
+            "path": "file",
+            "nullable": true,
+            "required": false
+          }
+        }
+      }
+    }
+  },
+  "Params": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "function": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "GRCm39": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "enabled": {
+                "type": "bool",
+                "nullable": true,
+                "required": false
+              },
+              "species": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "go_kegg": {
+                "type": "dict",
+                "nullable": true,
+                "required": false,
+                "properties": {
+                  "lfc_cut": {
+                    "type": "int",
+                    "nullable": true,
+                    "required": false
+                  },
+                  "p_cut": {
+                    "type": "float",
+                    "nullable": true,
+                    "required": false
+                  },
+                  "top": {
+                    "type": "int",
+                    "nullable": true,
+                    "required": false
+                  },
+                  "species": {
+                    "type": "str",
+                    "nullable": true,
+                    "required": false
+                  }
+                }
+              },
+              "gsea": {
+                "type": "dict",
+                "nullable": true,
+                "required": false,
+                "properties": {
+                  "gmt": {
+                    "type": "null",
+                    "nullable": true,
+                    "required": false
+                  }
+                }
+              },
+              "gsva": {
+                "type": "dict",
+                "nullable": true,
+                "required": false,
+                "properties": {
+                  "gmt": {
+                    "type": "null",
+                    "nullable": true,
+                    "required": false
+                  }
+                }
+              }
+            }
+          },
+          "GRCh38": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "enabled": {
+                "type": "bool",
+                "nullable": true,
+                "required": false
+              },
+              "species": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "go_kegg": {
+                "type": "dict",
+                "nullable": true,
+                "required": false,
+                "properties": {
+                  "lfc_cut": {
+                    "type": "int",
+                    "nullable": true,
+                    "required": false
+                  },
+                  "p_cut": {
+                    "type": "float",
+                    "nullable": true,
+                    "required": false
+                  },
+                  "top": {
+                    "type": "int",
+                    "nullable": true,
+                    "required": false
+                  },
+                  "species": {
+                    "type": "str",
+                    "nullable": true,
+                    "required": false
+                  }
+                }
+              },
+              "gsea": {
+                "type": "dict",
+                "nullable": true,
+                "required": false,
+                "properties": {
+                  "gmt": {
+                    "type": "null",
+                    "nullable": true,
+                    "required": false
+                  }
+                }
+              },
+              "gsva": {
+                "type": "dict",
+                "nullable": true,
+                "required": false,
+                "properties": {
+                  "gmt": {
+                    "type": "null",
+                    "nullable": true,
+                    "required": false
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "DESeq2": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "group_pairs": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "GRCm39": {
+                "type": "dict",
+                "nullable": true,
+                "required": false,
+                "properties": {}
+              },
+              "GRCh38": {
+                "type": "dict",
+                "nullable": true,
+                "required": false,
+                "properties": {}
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

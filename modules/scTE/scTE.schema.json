@@ -1,0 +1,78 @@
+{
+  "indir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "outdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "logdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "samples": {
+    "type": "list",
+    "nullable": true,
+    "required": false
+  },
+  "Procedure": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "scTE": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      }
+    }
+  },
+  "Params": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "scTE": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "genome": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "mode": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "cb_tag": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "umi_tag": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "gene_gtf": {
+            "type": "null",
+            "nullable": true,
+            "required": false
+          },
+          "te_bed": {
+            "type": "null",
+            "nullable": true,
+            "required": false
+          }
+        }
+      }
+    }
+  }
+}

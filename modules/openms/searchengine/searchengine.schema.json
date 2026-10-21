@@ -1,0 +1,168 @@
+{
+  "mzML_dir": {
+    "type": "str",
+    "path": "dir",
+    "nullable": true,
+    "required": false
+  },
+  "decoy_dir": {
+    "type": "str",
+    "path": "dir",
+    "nullable": true,
+    "required": false
+  },
+  "outdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "logdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "samples": {
+    "type": "list",
+    "nullable": true,
+    "required": false
+  },
+  "mzml_files": {
+    "type": "list",
+    "nullable": true,
+    "required": false
+  },
+  "search_engines": {
+    "type": "str",
+    "nullable": true,
+    "required": false
+  },
+  "Procedure": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "comet": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      },
+      "msgf": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      },
+      "sage": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      }
+    }
+  },
+  "Params": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "search_engine": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "engine": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "comet": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "threads": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "precursor_mass_tolerance": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "fragment_mass_tolerance": {
+                "type": "float",
+                "nullable": true,
+                "required": false
+              },
+              "fragment_bin_offset": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              }
+            }
+          },
+          "msgf": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "threads": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "precursor_mass_tolerance": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "fragment_mass_tolerance": {
+                "type": "float",
+                "nullable": true,
+                "required": false
+              },
+              "isotope_error_range": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              }
+            }
+          },
+          "sage": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "threads": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "precursor_mass_tolerance": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "fragment_mass_tolerance": {
+                "type": "float",
+                "nullable": true,
+                "required": false
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "genome": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "decoy_fasta": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      }
+    }
+  }
+}

@@ -1,0 +1,58 @@
+{
+  "Procedure": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "umi_tools": {
+        "type": "str",
+        "nullable": true,
+        "required": false
+      }
+    }
+  },
+  "Params": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "umi_tools": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "extract_method": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "bc_pattern": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "bc_pattern2": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          }
+        }
+      }
+    }
+  },
+  "indir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "outdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "logdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  }
+}

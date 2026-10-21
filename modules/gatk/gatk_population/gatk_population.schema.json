@@ -1,0 +1,76 @@
+{
+  "samples": {
+    "type": "list",
+    "nullable": true,
+    "required": false
+  },
+  "sample_bams": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {}
+  },
+  "Procedure": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "gatk": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      }
+    }
+  },
+  "Params": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "gatk": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "javaOptions": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "tmp-dir": {
+            "type": "null",
+            "nullable": true,
+            "required": false
+          }
+        }
+      }
+    }
+  },
+  "genome": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "fasta": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      },
+      "fai_index": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      },
+      "dict_index": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      },
+      "interval": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      }
+    }
+  }
+}

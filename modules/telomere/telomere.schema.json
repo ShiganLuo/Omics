@@ -1,0 +1,85 @@
+{
+  "indir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "outdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "logdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "samples": {
+    "type": "list",
+    "nullable": true,
+    "required": false
+  },
+  "assembly_dir": {
+    "type": "str",
+    "path": "dir",
+    "nullable": true,
+    "required": false
+  },
+  "ROOT_DIR": {
+    "type": "str",
+    "path": "dir",
+    "nullable": true,
+    "required": false
+  },
+  "Procedure": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "telogator2": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      },
+      "tidk": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      }
+    }
+  },
+  "Params": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "telogator2": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "species": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "threads": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          },
+          "assembly_scan_length": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          },
+          "n_chrom_arms": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          }
+        }
+      }
+    }
+  }
+}

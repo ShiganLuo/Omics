@@ -1,0 +1,98 @@
+{
+  "indir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "outdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "logdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "paired_samples": {
+    "type": "list",
+    "nullable": true,
+    "required": false
+  },
+  "single_samples": {
+    "type": "list",
+    "nullable": true,
+    "required": false
+  },
+  "mode": {
+    "type": "null",
+    "nullable": true,
+    "required": false
+  },
+  "Procedure": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "cutadapt": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      }
+    }
+  },
+  "Params": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "cutadapt": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "quality": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          },
+          "adapter_r1": {
+            "type": "null",
+            "nullable": true,
+            "required": false
+          },
+          "adapter_r2": {
+            "type": "null",
+            "nullable": true,
+            "required": false
+          },
+          "minimum_length": {
+            "type": "null",
+            "nullable": true,
+            "required": false
+          },
+          "maximum_length": {
+            "type": "null",
+            "nullable": true,
+            "required": false
+          },
+          "match_read_wildcards": {
+            "type": "bool",
+            "nullable": true,
+            "required": false
+          },
+          "cut": {
+            "type": "null",
+            "nullable": true,
+            "required": false
+          },
+          "trimmed_only": {
+            "type": "bool",
+            "nullable": true,
+            "required": false
+          }
+        }
+      }
+    }
+  }
+}

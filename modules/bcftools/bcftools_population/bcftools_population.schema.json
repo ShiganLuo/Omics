@@ -1,0 +1,53 @@
+{
+  "Procedure": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "bcftools": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      }
+    }
+  },
+  "Params": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "filtering": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "maf": {
+            "type": "float",
+            "nullable": true,
+            "required": false
+          },
+          "max_missing": {
+            "type": "float",
+            "nullable": true,
+            "required": false
+          },
+          "min_qual": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          },
+          "min_dp": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          },
+          "max_dp": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          }
+        }
+      }
+    }
+  }
+}

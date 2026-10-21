@@ -1,0 +1,163 @@
+{
+  "indir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "outdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "logdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "final_bam_dir": {
+    "type": "str",
+    "path": "dir",
+    "nullable": true,
+    "required": false
+  },
+  "Procedure": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "STAR": {
+        "type": "str",
+        "nullable": true,
+        "required": false
+      },
+      "samtools": {
+        "type": "str",
+        "nullable": true,
+        "required": false
+      },
+      "bedtools": {
+        "type": "str",
+        "path": "file",
+        "nullable": true,
+        "required": false
+      },
+      "tailer": {
+        "type": "str",
+        "nullable": true,
+        "required": false
+      }
+    }
+  },
+  "Params": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "star_3pass_gene": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "ambiguous": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "flank": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          },
+          "index": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "genomeSAindexNbases": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              }
+            }
+          },
+          "passes": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "pass1": {
+                "type": "dict",
+                "nullable": true,
+                "required": false,
+                "properties": {}
+              },
+              "pass2": {
+                "type": "dict",
+                "nullable": true,
+                "required": false,
+                "properties": {}
+              },
+              "pass3": {
+                "type": "dict",
+                "nullable": true,
+                "required": false,
+                "properties": {}
+              }
+            }
+          }
+        }
+      },
+      "tailer": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {}
+      }
+    }
+  },
+  "genome": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "GRCh38": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "smallrna_bed": {
+            "type": "str",
+            "path": "file",
+            "nullable": true,
+            "required": false
+          },
+          "genome_fasta": {
+            "type": "str",
+            "path": "file",
+            "nullable": true,
+            "required": false
+          }
+        }
+      },
+      "GRCm39": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "smallrna_bed": {
+            "type": "str",
+            "path": "file",
+            "nullable": true,
+            "required": false
+          },
+          "genome_fasta": {
+            "type": "str",
+            "path": "file",
+            "nullable": true,
+            "required": false
+          }
+        }
+      }
+    }
+  }
+}

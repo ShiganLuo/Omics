@@ -1,0 +1,113 @@
+{
+  "indir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "counts_dir": {
+    "type": "str",
+    "path": "dir",
+    "nullable": true,
+    "required": false
+  },
+  "outdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "logdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "ROOT_DIR": {
+    "type": "str",
+    "path": "dir",
+    "nullable": true,
+    "required": false
+  },
+  "group_pairs": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {}
+  },
+  "paired_samples": {
+    "type": "list",
+    "nullable": true,
+    "required": false
+  },
+  "single_samples": {
+    "type": "list",
+    "nullable": true,
+    "required": false
+  },
+  "genome": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "geneIDAnno": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      },
+      "gtf": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      }
+    }
+  },
+  "Params": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "function": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "species": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "gmt": {
+            "type": "null",
+            "nullable": true,
+            "required": false
+          },
+          "lfc_cut": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          },
+          "p_cut": {
+            "type": "float",
+            "nullable": true,
+            "required": false
+          },
+          "top": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          },
+          "gsva": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "gmt": {
+                "type": "null",
+                "nullable": true,
+                "required": false
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

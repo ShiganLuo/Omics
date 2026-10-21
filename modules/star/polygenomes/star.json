@@ -30,5 +30,13 @@
   "log_index_substring": "star_index",
   "omics_type": "RNA-seq",
   "fastq_sample_suffix": null,
-  "isGenomeSubdir": true
+  "isGenomeSubdir": true,
+  "Params": {
+    "star": {
+      "index": {
+        "sjdbOverhang": 100,
+        "genomeSAindexNbases": null
+      }
+    }
+  }
 }

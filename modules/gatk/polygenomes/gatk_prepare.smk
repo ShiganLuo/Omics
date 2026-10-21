@@ -22,7 +22,9 @@ rule gatk_index:
         fasta_link = outdir + "/index/{genome}/{genome}.fa"
     log:
         logdir_combine + "/index/{genome}/gatk_index.log"
-    threads: 4
+    threads: rule_res("gatk_index").get("threads", 4)
+    resources:
+        mem_mb=rule_res("gatk_index").get("mem_mb", 8000),
     conda: "../gatk.yaml"
     container:
         sif("../gatk.yaml")
@@ -86,7 +88,9 @@ rule addReadsGroup:
     conda: "../gatk.yaml"
     container:
         sif("../gatk.yaml")
-    threads: 8
+    threads: rule_res("addReadsGroup").get("threads", 8)
+    resources:
+        mem_mb=rule_res("addReadsGroup").get("mem_mb", 32000),
     params:
         id = "{sample_id}",
         javaOptions = config.get("Params", {}).get("gatk", {}).get("javaOptions") or "-Xmx30g",
@@ -149,7 +153,9 @@ rule MarkDuplicates:
     conda: "../gatk.yaml"
     container:
         sif("../gatk.yaml")
-    threads: 8
+    threads: rule_res("MarkDuplicates").get("threads", 8)
+    resources:
+        mem_mb=rule_res("MarkDuplicates").get("mem_mb", 32000),
     params:
         javaOptions = config.get("Params", {}).get("gatk", {}).get("javaOptions") or "-Xmx30g",
         gatk = config.get("Procedure", {}).get("gatk") or "gatk",

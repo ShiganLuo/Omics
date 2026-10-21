@@ -29,7 +29,9 @@ rule trimming_Paired:
         quality = config.get('Params',{}).get("trim_galore", {}).get('quality') or 25,
         trim_galore = config.get('Procedure',{}).get('trim_galore') or 'trim_galore',
         adapters = config.get('Params',{}).get("trim_galore", {}).get('adapters') or None
-    threads: 6
+    threads: rule_res("trimming_Paired").get("threads", 6)
+    resources:
+        mem_mb=rule_res("trimming_Paired").get("mem_mb", 8000),
     log:
         log = logdir + "/{sample_id}/trimming.txt"
     conda:
@@ -100,7 +102,9 @@ rule trimming_Single:
         quality = config.get('Params',{}).get("trim_galore", {}).get('quality') or 25,
         trim_galore = config.get('Procedure',{}).get('trim_galore') or 'trim_galore',
         adapters = config.get('Params',{}).get("trim_galore", {}).get('adapters') or None
-    threads: 6
+    threads: rule_res("trimming_Single").get("threads", 6)
+    resources:
+        mem_mb=rule_res("trimming_Single").get("mem_mb", 4000),
     log:
         log = logdir + "/{sample_id}/trimming.txt"
     conda:

@@ -22,7 +22,9 @@ rule trimmomatic_Paired:
             if str(config.get('Procedure',{}).get('trimmomatic')).endswith(".jar")
             else config.get('Procedure',{}).get('trimmomatic') or "trimmomatic"
         )
-    threads: 6
+    threads: rule_res("trimmomatic_Paired").get("threads", 6)
+    resources:
+        mem_mb=rule_res("trimmomatic_Paired").get("mem_mb", 8000),
     conda:
         "trimmomatic.yaml"
     container:
@@ -72,7 +74,9 @@ rule trimmomatic_Single:
             if str(config.get('Procedure',{}).get('trimmomatic')).endswith(".jar")
             else config.get('Procedure',{}).get('trimmomatic') or "trimmomatic"
         )
-    threads: 6
+    threads: rule_res("trimmomatic_Single").get("threads", 6)
+    resources:
+        mem_mb=rule_res("trimmomatic_Single").get("mem_mb", 4000),
     conda:
         "trimmomatic.yaml"
     container:

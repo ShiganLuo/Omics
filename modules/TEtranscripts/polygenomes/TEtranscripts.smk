@@ -27,6 +27,9 @@ rule TEcount:
         unpack(get_input_for_TEcount)
     output:
         project = outdir + "/{genome}/{sample_id}/{sample_id}.TEcount.cntTable"
+    threads: rule_res("TEcount").get("threads", 8)
+    resources:
+        mem_mb=rule_res("TEcount").get("mem_mb", 16000),
     params:
         project = "{sample_id}.TEcount",
         outdir = outdir + "/{genome}/{sample_id}",
@@ -89,6 +92,9 @@ rule combine_TEcount:
     output:
         outfile_raw = outdir + "/{genome}/{genome}_TEcount.tsv",
         outfile_annotate = outdir + "/{genome}/{genome}_TEcount_name.tsv",
+    threads: rule_res("combine_TEcount").get("threads", 2)
+    resources:
+        mem_mb=rule_res("combine_TEcount").get("mem_mb", 8000),
     conda:
         "../TEtranscripts.yaml"
     container:
@@ -157,7 +163,9 @@ rule TElocal:
     params:
         project = "{sample_id}.TElocal",
         TElocal = config.get('Procedure',{}).get('TElocal') or 'TElocal'
-    threads: 2
+    threads: rule_res("TElocal").get("threads", 8)
+    resources:
+        mem_mb=rule_res("TElocal").get("mem_mb", 16000),
     conda:
         "../TEtranscripts.yaml"
     container:
@@ -206,6 +214,9 @@ rule combine_TElocal:
         fileList = get_input_for_combine_TElocal
     output:
         outfile = outdir + "/{genome}/{genome}_TElocal.tsv"
+    threads: rule_res("combine_TElocal").get("threads", 2)
+    resources:
+        mem_mb=rule_res("combine_TElocal").get("mem_mb", 8000),
     conda:
         "../TEtranscripts.yaml"
     container:

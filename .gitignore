@@ -5,3 +5,7 @@
 workflow.log
 **/.cache
 **/.config
+
+test/
+test.log
+**/*.resolved

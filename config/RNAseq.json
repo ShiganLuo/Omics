@@ -2,6 +2,156 @@
     "outfiles": [],
     "ROOT_DIR": null,
     "tmp_dir": null,
+    "resources": {
+        "default": {
+            "threads": 2,
+            "mem_mb": 8000
+        },
+        "trimming_Paired": {
+            "threads": 6,
+            "mem_mb": 8000
+        },
+        "trimming_Single": {
+            "threads": 6,
+            "mem_mb": 4000
+        },
+        "trimmomatic_Paired": {
+            "threads": 6,
+            "mem_mb": 8000
+        },
+        "trimmomatic_Single": {
+            "threads": 6,
+            "mem_mb": 4000
+        },
+        "star_index": {
+            "threads": 16,
+            "mem_mb": 64000
+        },
+        "hisat2_index": {
+            "threads": 8,
+            "mem_mb": 16000
+        },
+        "hisat2_align": {
+            "threads": 12,
+            "mem_mb": 16000
+        },
+        "TEcount": {
+            "threads": 8,
+            "mem_mb": 16000
+        },
+        "TElocal": {
+            "threads": 8,
+            "mem_mb": 16000
+        },
+        "combine_TEcount": {
+            "threads": 2,
+            "mem_mb": 8000
+        },
+        "combine_TElocal": {
+            "threads": 2,
+            "mem_mb": 8000
+        },
+        "featureCounts_paired_noMultiple": {
+            "threads": 10,
+            "mem_mb": 32000
+        },
+        "featureCounts_single_noMultiple": {
+            "threads": 10,
+            "mem_mb": 16000
+        },
+        "featureCounts_merge": {
+            "threads": 2,
+            "mem_mb": 8000
+        },
+        "stringTie": {
+            "threads": 5,
+            "mem_mb": 16000
+        },
+        "TEChimericTranscripts": {
+            "threads": 5,
+            "mem_mb": 16000
+        },
+        "TEChimericPlot": {
+            "threads": 1,
+            "mem_mb": 8000
+        },
+        "stringTieMerge": {
+            "threads": 1,
+            "mem_mb": 8000
+        },
+        "extract_rRNA": {
+            "threads": 8,
+            "mem_mb": 16000
+        },
+        "bowtie2_index": {
+            "threads": 12,
+            "mem_mb": 16000
+        },
+        "bowtie2_align_paired": {
+            "threads": 12,
+            "mem_mb": 16000
+        },
+        "bowtie2_align_single": {
+            "threads": 12,
+            "mem_mb": 8000
+        },
+        "gatk_index": {
+            "threads": 4,
+            "mem_mb": 8000
+        },
+        "addReadsGroup": {
+            "threads": 8,
+            "mem_mb": 32000
+        },
+        "MarkDuplicates": {
+            "threads": 8,
+            "mem_mb": 32000
+        },
+        "arriba": {
+            "threads": 4,
+            "mem_mb": 16000
+        },
+        "SplitNCigarReads": {
+            "threads": 8,
+            "mem_mb": 32000
+        },
+        "VarientCalling": {
+            "threads": 12,
+            "mem_mb": 32000
+        },
+        "vcf_filter": {
+            "threads": 4,
+            "mem_mb": 8000
+        },
+        "XenofilteR": {
+            "threads": 8,
+            "mem_mb": 16000
+        },
+        "DESeq2_TEcount": {
+            "threads": 4,
+            "mem_mb": 16000
+        },
+        "function_go_kegg": {
+            "threads": 4,
+            "mem_mb": 16000
+        },
+        "function_gsea": {
+            "threads": 4,
+            "mem_mb": 16000
+        },
+        "function_gsva": {
+            "threads": 4,
+            "mem_mb": 16000
+        },
+        "generate_report": {
+            "threads": 1,
+            "mem_mb": 8000
+        },
+        "star_align": {
+            "threads": 12,
+            "mem_mb": 32000
+        }
+    },
     "env": {
         "env_dir": "/home/luosg/Database/env",
         "DESeq2": "/home/luosg/Database/env/DESeq2/DESeq2.sif",
@@ -128,9 +278,7 @@
             "outSAMattributes": "NM",
             "outSAMtype": "BAM SortedByCoordinate"
         },
-        "STAR_featureCounts":{
-
-        },
+        "STAR_featureCounts": {},
         "hisat2_TEtranscripts": {
             "score_min": "L,0,-0.2",
             "flag_params": "--no-mixed --no-discordant",

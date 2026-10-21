@@ -25,7 +25,9 @@ rule function_go_kegg:
         func_down_genes = outdir + "/{genome}/{contrast}/down_genes.txt"
     log:
         logdir + "/function/{genome}/{contrast}.go_kegg.log"
-    threads: 1
+    threads: rule_res("function_go_kegg").get("threads", 4)
+    resources:
+        mem_mb=rule_res("function_go_kegg").get("mem_mb", 16000),
     params:
         go_kegg_script = ROOT_DIR + "/modules/function/bin/go-kegg.r",
         species = lambda wildcards: config.get("Params", {}).get("function", {}).get(wildcards.genome, {}).get("go_kegg", {}).get("species") or "mouse",
@@ -100,7 +102,9 @@ rule function_gsea:
         func_gsea_csv = outdir + "/{genome}/{contrast}/GSEA/TEcount_Gene_GSEA.csv"
     log:
         logdir + "/function/{genome}/{contrast}.gsea.log"
-    threads: 1
+    threads: rule_res("function_gsea").get("threads", 4)
+    resources:
+        mem_mb=rule_res("function_gsea").get("mem_mb", 16000),
     params:
         gsea_script = ROOT_DIR + "/modules/function/bin/gsea.r",
     conda:
@@ -191,7 +195,9 @@ rule function_gsva:
         gsva_heatmap = outdir + "/{genome}/gsva/gsva_heatmap.png",
     log:
         logdir + "/function/{genome}/gsva.log"
-    threads: 1
+    threads: rule_res("function_gsva").get("threads", 4)
+    resources:
+        mem_mb=rule_res("function_gsva").get("mem_mb", 16000),
     params:
         norm_script = ROOT_DIR + "/modules/function/bin/normalization.py",
         gsva_script = ROOT_DIR + "/modules/function/bin/gsva.py",

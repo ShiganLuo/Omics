@@ -1,0 +1,59 @@
+{
+  "Procedure": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "fastx_toolkit": {
+        "type": "str",
+        "path": "file",
+        "nullable": true,
+        "required": false
+      }
+    }
+  },
+  "Params": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "fastx_toolkit": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "q": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          },
+          "p": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          },
+          "Q": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          }
+        }
+      }
+    }
+  },
+  "indir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "outdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "logdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  }
+}

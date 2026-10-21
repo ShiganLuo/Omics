@@ -1,0 +1,14 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "logs",
+    "paired_samples": {},
+    "single_samples": {},
+    "Procedure": {
+        "demultiplexer": null
+    },
+    "Params": {
+        "demultiplexer": {}
+    },
+    "ROOT_DIR": null
+}

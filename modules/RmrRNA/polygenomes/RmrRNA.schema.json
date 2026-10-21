@@ -1,0 +1,62 @@
+{
+  "indir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "outdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "logdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "genome": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "GRCm39": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "fasta": {
+            "type": "str",
+            "path": "file",
+            "nullable": true,
+            "required": false
+          },
+          "gtf": {
+            "type": "str",
+            "path": "file",
+            "nullable": true,
+            "required": false
+          }
+        }
+      },
+      "GRCh38": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "fasta": {
+            "type": "str",
+            "path": "file",
+            "nullable": true,
+            "required": false
+          },
+          "gtf": {
+            "type": "str",
+            "path": "file",
+            "nullable": true,
+            "required": false
+          }
+        }
+      }
+    }
+  }
+}

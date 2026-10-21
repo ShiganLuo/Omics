@@ -1,0 +1,38 @@
+{
+  "Procedure": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "PopLDdecay": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      }
+    }
+  },
+  "Params": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "analysis": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "ld_decay": {
+            "type": "bool",
+            "nullable": true,
+            "required": false
+          },
+          "ld_max_distance": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          }
+        }
+      }
+    }
+  }
+}

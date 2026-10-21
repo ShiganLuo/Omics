@@ -1,0 +1,63 @@
+{
+  "indir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "outdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "logdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "Procedure": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "gatk": {
+        "type": "str",
+        "nullable": true,
+        "required": false
+      }
+    }
+  },
+  "genome": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "fai_index": {
+        "type": "str",
+        "path": "file",
+        "nullable": true,
+        "required": false
+      },
+      "dict_index": {
+        "type": "str",
+        "nullable": true,
+        "required": false
+      },
+      "fasta": {
+        "type": "str",
+        "path": "file",
+        "nullable": true,
+        "required": false
+      },
+      "known_sites": {
+        "type": "str",
+        "nullable": true,
+        "required": false
+      },
+      "interval": {
+        "type": "str",
+        "nullable": true,
+        "required": false
+      }
+    }
+  }
+}

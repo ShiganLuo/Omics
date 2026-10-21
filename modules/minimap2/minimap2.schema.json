@@ -1,0 +1,75 @@
+{
+  "indir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "outdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "logdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "samples": {
+    "type": "list",
+    "nullable": true,
+    "required": false
+  },
+  "Procedure": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "minimap2": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      },
+      "samtools": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      }
+    }
+  },
+  "Params": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "minimap2": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "preset": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "extra": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          }
+        }
+      }
+    }
+  },
+  "genome": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "fasta": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      }
+    }
+  }
+}

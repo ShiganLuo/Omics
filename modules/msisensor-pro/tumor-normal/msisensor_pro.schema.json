@@ -1,0 +1,39 @@
+{
+  "outdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "msisensor-pro": {
+    "type": "str",
+    "nullable": true,
+    "required": false
+  },
+  "genome_version": {
+    "type": "str",
+    "nullable": true,
+    "required": false
+  },
+  "reference": {
+    "type": "null",
+    "nullable": true,
+    "required": false
+  },
+  "sample_path": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "tumor": {
+        "type": "str",
+        "nullable": true,
+        "required": false
+      },
+      "normal": {
+        "type": "str",
+        "nullable": true,
+        "required": false
+      }
+    }
+  }
+}

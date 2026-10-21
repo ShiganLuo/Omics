@@ -1,0 +1,135 @@
+{
+  "indir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "outdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "logdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "Procedure": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "STAR": {
+        "type": "str",
+        "nullable": true,
+        "required": false
+      },
+      "samtools": {
+        "type": "str",
+        "nullable": true,
+        "required": false
+      },
+      "bedtools": {
+        "type": "str",
+        "path": "file",
+        "nullable": true,
+        "required": false
+      }
+    }
+  },
+  "Params": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "star_3pass": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "pass1": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {}
+          },
+          "pass2": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {}
+          },
+          "pass3": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {}
+          }
+        }
+      }
+    }
+  },
+  "genome": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "GRCh38": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "genome_index": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "smallrna_index": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "smallrna_bed": {
+            "type": "str",
+            "path": "file",
+            "nullable": true,
+            "required": false
+          }
+        }
+      },
+      "GRCm39": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "genome_index": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "smallrna_index": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "smallrna_bed": {
+            "type": "str",
+            "path": "file",
+            "nullable": true,
+            "required": false
+          }
+        }
+      }
+    }
+  },
+  "paired_samples": {
+    "type": "list",
+    "nullable": true,
+    "required": false
+  },
+  "single_samples": {
+    "type": "list",
+    "nullable": true,
+    "required": false
+  }
+}

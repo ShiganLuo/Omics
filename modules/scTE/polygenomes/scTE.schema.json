@@ -1,0 +1,77 @@
+{
+  "indir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "outdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "logdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "genome": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "GRCm39": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "gtf": {
+            "type": "str",
+            "path": "file",
+            "nullable": true,
+            "required": false
+          },
+          "te_bed": {
+            "type": "str",
+            "path": "file",
+            "nullable": true,
+            "required": false
+          },
+          "scTE_index": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          }
+        }
+      },
+      "GRCh38": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "gtf": {
+            "type": "str",
+            "path": "file",
+            "nullable": true,
+            "required": false
+          },
+          "te_bed": {
+            "type": "str",
+            "path": "file",
+            "nullable": true,
+            "required": false
+          },
+          "scTE_index": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          }
+        }
+      }
+    }
+  },
+  "logdir_index": {
+    "type": "str",
+    "nullable": true,
+    "required": false
+  }
+}

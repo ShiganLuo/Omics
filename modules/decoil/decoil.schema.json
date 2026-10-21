@@ -1,0 +1,234 @@
+{
+  "indir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "outdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "logdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "samples": {
+    "type": "list",
+    "nullable": true,
+    "required": false
+  },
+  "ROOT_DIR": {
+    "type": "str",
+    "path": "dir",
+    "nullable": true,
+    "required": false
+  },
+  "env": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {}
+  },
+  "bam_substring": {
+    "type": "str",
+    "path": "file",
+    "nullable": true,
+    "required": false
+  },
+  "vcf_dir": {
+    "type": "null",
+    "nullable": true,
+    "required": false
+  },
+  "bw_dir": {
+    "type": "null",
+    "nullable": true,
+    "required": false
+  },
+  "vcf_suffix": {
+    "type": "str",
+    "path": "file",
+    "nullable": true,
+    "required": false
+  },
+  "bw_suffix": {
+    "type": "str",
+    "nullable": true,
+    "required": false
+  },
+  "Procedure": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "decoil": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      }
+    }
+  },
+  "Params": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "decoil": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "reconstruct": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "sv_caller": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "min_sv_len": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "fragment_min_cov": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "fragment_max_cov": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "fragment_min_size": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "min_vaf": {
+                "type": "float",
+                "nullable": true,
+                "required": false
+              },
+              "min_cov_alt": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "min_cov": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "max_explog_threshold": {
+                "type": "float",
+                "nullable": true,
+                "required": false
+              },
+              "filter_score": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "extend_allowed_chromosomes": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "skip": {
+                "type": "bool",
+                "nullable": true,
+                "required": false
+              }
+            }
+          },
+          "formats": {
+            "type": "list",
+            "nullable": true,
+            "required": false
+          },
+          "plot": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "formats": {
+                "type": "list",
+                "nullable": true,
+                "required": false
+              }
+            }
+          },
+          "compare": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "formats": {
+                "type": "list",
+                "nullable": true,
+                "required": false
+              }
+            }
+          },
+          "structure": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "formats": {
+                "type": "list",
+                "nullable": true,
+                "required": false
+              },
+              "max_per_fig": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "one_file_per_cycle": {
+                "type": "bool",
+                "nullable": true,
+                "required": false
+              }
+            }
+          },
+          "igv": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "locus": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "genome": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "fasta": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      },
+      "gtf": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      }
+    }
+  }
+}

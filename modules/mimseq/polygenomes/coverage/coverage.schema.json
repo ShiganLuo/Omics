@@ -1,0 +1,94 @@
+{
+  "indir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "outdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "logdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "Procedure": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "mimseq": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      }
+    }
+  },
+  "Params": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "mimseq": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "control_cond": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "misinc_thresh": {
+            "type": "float",
+            "nullable": true,
+            "required": false
+          },
+          "no_cca": {
+            "type": "bool",
+            "nullable": true,
+            "required": false
+          },
+          "double_cca": {
+            "type": "bool",
+            "nullable": true,
+            "required": false
+          }
+        }
+      }
+    }
+  },
+  "genome": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "GRCh38": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "mito_trnas": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          }
+        }
+      },
+      "GRCm39": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "mito_trnas": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          }
+        }
+      }
+    }
+  }
+}

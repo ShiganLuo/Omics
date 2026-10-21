@@ -1,0 +1,179 @@
+{
+  "indir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "outdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "logdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "samples": {
+    "type": "list",
+    "nullable": true,
+    "required": false
+  },
+  "bigwig_dir": {
+    "type": "str",
+    "path": "dir",
+    "nullable": true,
+    "required": false
+  },
+  "sample_ip_input_map": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {}
+  },
+  "genome": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "gtf": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      },
+      "te_gtf": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      },
+      "tss_bed": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      }
+    }
+  },
+  "Procedure": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "computeMatrix": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      },
+      "plotHeatmap": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      }
+    }
+  },
+  "Params": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "computeMatrix": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "regions": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "mode": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "referencePoint": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "before": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          },
+          "after": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          },
+          "upstream": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          },
+          "downstream": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          },
+          "bodyLength": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          },
+          "binSize": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          },
+          "sortUsing": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "missingDataAsZero": {
+            "type": "bool",
+            "nullable": true,
+            "required": false
+          },
+          "tss_flank": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          },
+          "top_n": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          }
+        }
+      },
+      "plotHeatmap": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "colorMap": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "heatmapHeight": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          },
+          "heatmapWidth": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          },
+          "whatToShow": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          }
+        }
+      }
+    }
+  }
+}

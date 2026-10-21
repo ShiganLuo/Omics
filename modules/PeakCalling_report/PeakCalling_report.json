@@ -1,0 +1,23 @@
+{
+    "outdir": "output",
+    "logdir": "logs",
+    "samples": [],
+    "input_samples": [],
+    "sample_ip_input_map": {},
+    "peaks_dir": "peaks",
+    "markdup_dir": "markdup",
+    "qc_dir": "qc",
+    "annotation_dir": "annotation",
+    "ROOT_DIR": null,
+    "Params": {
+        "report": {
+            "title": "Peak Calling Report",
+            "subtitle": "",
+            "pipeline": "MACS3 -> deeptools -> report",
+            "genome": null,
+            "date": null,
+            "top_n": 20
+        }
+    },
+    "ip_samples": []
+}

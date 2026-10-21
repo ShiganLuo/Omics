@@ -1,0 +1,167 @@
+{
+  "indir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "outdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "logdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "comparisons": {
+    "type": "list",
+    "nullable": true,
+    "required": false
+  },
+  "ROOT_DIR": {
+    "type": "str",
+    "path": "dir",
+    "nullable": true,
+    "required": false
+  },
+  "Procedure": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {}
+  },
+  "Params": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "image_formats": {
+        "type": "list",
+        "nullable": true,
+        "required": false
+      },
+      "genes": {
+        "type": "list",
+        "nullable": true,
+        "required": false
+      },
+      "exp_specific": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "vep_cache": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "species": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "assembly": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "dist": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          }
+        }
+      },
+      "circos": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "genome": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "cytoband": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "ins_bin_size": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          }
+        }
+      },
+      "oncoprint": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "cosmic_file": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "deseq2_files": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {}
+          }
+        }
+      },
+      "diff_analysis": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "large_sv_threshold": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          }
+        }
+      },
+      "gene_model": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          }
+        }
+      }
+    }
+  },
+  "genome": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "fasta": {
+        "type": "str",
+        "path": "file",
+        "nullable": true,
+        "required": false
+      },
+      "gtf": {
+        "type": "str",
+        "path": "file",
+        "nullable": true,
+        "required": false
+      },
+      "fai": {
+        "type": "str",
+        "path": "file",
+        "nullable": true,
+        "required": false
+      }
+    }
+  }
+}

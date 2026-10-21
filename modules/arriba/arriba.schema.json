@@ -1,0 +1,92 @@
+{
+  "indir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "outdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "logdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "genome": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "fasta": {
+        "type": "str",
+        "path": "file",
+        "nullable": true,
+        "required": false
+      },
+      "gtf": {
+        "type": "str",
+        "path": "file",
+        "nullable": true,
+        "required": false
+      }
+    }
+  },
+  "Procedure": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "arriba": {
+        "type": "str",
+        "nullable": true,
+        "required": false
+      }
+    }
+  },
+  "Params": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "arriba": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "blacklist": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "known_fusions": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "t": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "d": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "E": {
+            "type": "float",
+            "nullable": true,
+            "required": false
+          },
+          "p": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          }
+        }
+      }
+    }
+  }
+}

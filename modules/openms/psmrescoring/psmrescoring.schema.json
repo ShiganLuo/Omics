@@ -1,0 +1,82 @@
+{
+  "indir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "outdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "logdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "samples": {
+    "type": "list",
+    "nullable": true,
+    "required": false
+  },
+  "Procedure": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "percolator": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      }
+    }
+  },
+  "Params": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "psm_rescoring": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "psm_feature_extractor": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "extra": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              }
+            }
+          },
+          "percolator": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "train_FDR": {
+                "type": "float",
+                "nullable": true,
+                "required": false
+              },
+              "test_FDR": {
+                "type": "float",
+                "nullable": true,
+                "required": false
+              },
+              "feature": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

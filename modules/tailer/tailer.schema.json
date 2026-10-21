@@ -1,0 +1,86 @@
+{
+  "ROOT_DIR": {
+    "type": "str",
+    "path": "dir",
+    "nullable": true,
+    "required": false
+  },
+  "indir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "outdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "logdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "paired_samples": {
+    "type": "list",
+    "nullable": true,
+    "required": false
+  },
+  "single_samples": {
+    "type": "list",
+    "nullable": true,
+    "required": false
+  },
+  "Procedure": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "Tailer": {
+        "type": "str",
+        "nullable": true,
+        "required": false
+      }
+    }
+  },
+  "Params": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "tailer": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "read": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          },
+          "threshold": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          },
+          "rev_comp": {
+            "type": "bool",
+            "nullable": true,
+            "required": false
+          }
+        }
+      }
+    }
+  },
+  "genome": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "gtf": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      }
+    }
+  }
+}

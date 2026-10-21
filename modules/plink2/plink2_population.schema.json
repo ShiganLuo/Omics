@@ -1,0 +1,53 @@
+{
+  "Procedure": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "plink2": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      }
+    }
+  },
+  "Params": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "analysis": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "pca": {
+            "type": "bool",
+            "nullable": true,
+            "required": false
+          },
+          "pca_components": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          },
+          "gwas": {
+            "type": "bool",
+            "nullable": true,
+            "required": false
+          },
+          "phenotype": {
+            "type": "null",
+            "nullable": true,
+            "required": false
+          },
+          "covariates": {
+            "type": "list",
+            "nullable": true,
+            "required": false
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,268 @@
+{
+  "indir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "outdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "logdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "samples": {
+    "type": "list",
+    "nullable": true,
+    "required": false
+  },
+  "Procedure": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {}
+  },
+  "Params": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "fiberseq_annotate": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "tss_flank": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          },
+          "repeat_frac": {
+            "type": "float",
+            "nullable": true,
+            "required": false
+          }
+        }
+      },
+      "fiberseq_motif": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "flank": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          },
+          "min_fibers": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          },
+          "pwm_threshold": {
+            "type": "float",
+            "nullable": true,
+            "required": false
+          }
+        }
+      },
+      "fiberseq_footprint": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "flank": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          }
+        }
+      },
+      "fiberseq_nucpos": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "upstream_nucs": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          },
+          "downstream_nucs": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          },
+          "min_fibers": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          }
+        }
+      },
+      "fiberseq_quant": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "min_fibers": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          }
+        }
+      },
+      "fiberseq_diff": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "alpha": {
+            "type": "float",
+            "nullable": true,
+            "required": false
+          },
+          "design_tsv": {
+            "type": "null",
+            "nullable": true,
+            "required": false
+          },
+          "annot_sample": {
+            "type": "null",
+            "nullable": true,
+            "required": false
+          }
+        }
+      },
+      "fiberseq_coactuation": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "max_distance": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          },
+          "min_fibers": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          },
+          "max_pairs": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          },
+          "alpha": {
+            "type": "float",
+            "nullable": true,
+            "required": false
+          }
+        }
+      },
+      "fiberseq_haplotype": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "min_fibers": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          },
+          "alpha": {
+            "type": "float",
+            "nullable": true,
+            "required": false
+          }
+        }
+      },
+      "fiberseq_censat": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "msp_min_len": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          },
+          "flank": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          },
+          "bin": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          }
+        }
+      },
+      "fiberseq_track": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "bin": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          }
+        }
+      }
+    }
+  },
+  "genome": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "fasta": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      },
+      "fai": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      },
+      "gtf": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      },
+      "repeat_bed": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      },
+      "censat_bed": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      },
+      "motif_file": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      },
+      "mcpg_pileup": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      }
+    }
+  },
+  "env": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {}
+  }
+}

@@ -1,0 +1,54 @@
+{
+  "Procedure": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "vcftools": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      }
+    }
+  },
+  "populations": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {}
+  },
+  "Params": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "analysis": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "diversity": {
+            "type": "bool",
+            "nullable": true,
+            "required": false
+          },
+          "fst": {
+            "type": "bool",
+            "nullable": true,
+            "required": false
+          },
+          "window_size": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          },
+          "window_step": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          }
+        }
+      }
+    }
+  }
+}

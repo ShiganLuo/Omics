@@ -1,0 +1,58 @@
+{
+  "Procedure": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "trim_galore": {
+        "type": "str",
+        "nullable": true,
+        "required": false
+      }
+    }
+  },
+  "Params": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "trim_galore": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "quality": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          },
+          "adapters": {
+            "type": "null",
+            "nullable": true,
+            "required": false
+          }
+        }
+      }
+    }
+  },
+  "mode": {
+    "type": "null",
+    "nullable": true,
+    "required": false
+  },
+  "indir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "outdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "logdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  }
+}

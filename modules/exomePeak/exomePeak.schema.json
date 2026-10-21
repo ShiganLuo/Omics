@@ -1,0 +1,49 @@
+{
+  "indir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "outdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "logdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "ROOT_DIR": {
+    "type": "str",
+    "path": "dir",
+    "nullable": true,
+    "required": false
+  },
+  "gtf": {
+    "type": "str",
+    "path": "file",
+    "nullable": true,
+    "required": false
+  },
+  "ip_samples": {
+    "type": "list",
+    "nullable": true,
+    "required": false
+  },
+  "input_samples": {
+    "type": "list",
+    "nullable": true,
+    "required": false
+  },
+  "treated_ip_samples": {
+    "type": "list",
+    "nullable": true,
+    "required": false
+  },
+  "treated_input_samples": {
+    "type": "list",
+    "nullable": true,
+    "required": false
+  }
+}

@@ -1413,6 +1413,7 @@ def _build_auto_annotation_prompt(
     umap_distances: Optional[Dict[str, float]] = None,
     tissue_cell_types: Optional[Dict[str, List[str]]] = None,
     marker_specificity: Optional[Dict[Tuple[str, str], Dict[str, float]]] = None,
+    prior_misannotation: Optional[List[Dict[str, Any]]] = None,
 ) -> str:
     """Build prompt for autonomous cell type annotation of a single cluster.
 
@@ -1562,6 +1563,38 @@ multiple cell types. Use DEGs only to complement the specificity markers above.
 {other_context}
 """
 
+    # Prior-misannotation feedback: records of clusters that the LLM (or a
+    # previous iteration) labelled as *ct* but whose markers diverged from
+    # other clusters of the same type. Injected so the LLM re-examines the
+    # evidence instead of repeating the label. Matched by marker-set overlap,
+    # NOT cluster id — cluster ids are renumbered after every filter/re-cluster
+    # round, so they do not identify a cluster across iterations.
+    prior_context = ""
+    if prior_misannotation:
+        prior_lines = []
+        for pm in prior_misannotation[:3]:
+            top_genes_str = ", ".join(pm.get("top_markers", [])[:8])
+            peer_markers_str = ", ".join(pm.get("peer_markers", [])[:8])
+            prior_lines.append(
+                f"  - Iteration {pm.get('iteration', '?')}: a cluster with top markers "
+                f"[{top_genes_str}] was labelled '{pm.get('cell_type', '?')}' (confidence: "
+                f"{pm.get('confidence', '?')}), but its markers diverged from other "
+                f"'{pm.get('cell_type', '?')}' clusters (Jaccard={pm.get('marker_jaccard', '?')}; "
+                f"peer cluster markers: [{peer_markers_str}])."
+            )
+        prior_context = "\n".join(prior_lines)
+        prompt += f"""
+## WARNING: Prior annotation disagreements (from earlier iterations)
+{prior_context}
+
+If this cluster's markers match one of these prior cases, do NOT repeat the
+prior label without justification. The prior label was rejected because the
+cluster's marker profile diverged from other clusters carrying the same label.
+Re-examine the specificity evidence above; consider whether this cluster is a
+distinct cell type, a subtype, or a low-quality/ambient-RNA population (in
+which case set quality_flag accordingly).
+"""
+
     if tissue_context:
         prompt += f"""
 ## Known cell types in {tissue} (from published scRNA-seq studies)
@@ -1640,6 +1673,7 @@ def _ai_annotate_cluster(
     umap_distances: Optional[Dict[str, float]] = None,
     tissue_cell_types: Optional[Dict[str, List[str]]] = None,
     marker_specificity: Optional[Dict[Tuple[str, str], Dict[str, float]]] = None,
+    prior_misannotation: Optional[List[Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     """AI-annotate a single cluster: LLM decision + PubMed references.
 
@@ -1659,6 +1693,9 @@ def _ai_annotate_cluster(
             Used to help LLM identify if current cluster is a subcluster.
         umap_distances: Dict of other_cluster_id -> UMAP distance to current cluster.
             Used to help LLM judge spatial relationships.
+        prior_misannotation: Prior misannotation records matched to this
+            cluster (see ``_match_prior_misannotation``); injected into the
+            prompt so the LLM does not repeat a rejected label.
 
     Returns dict with keys: cell_type, key_markers, reasoning, confidence,
     quality_flag, is_subcluster, parent_cluster, should_merge, references.
@@ -1669,6 +1706,7 @@ def _ai_annotate_cluster(
         umap_distances=umap_distances,
         tissue_cell_types=tissue_cell_types,
         marker_specificity=marker_specificity,
+        prior_misannotation=prior_misannotation,
     )
 
     # Call LLM
@@ -3191,6 +3229,1129 @@ def _save_iteration_snapshot(
                     iteration, h5ad_path)
 
 
+# ---------------------------------------------------------------------------
+# mode_auto step helpers
+# ---------------------------------------------------------------------------
+# mode_auto is the orchestrator only: iteration control flow (resolution
+# adjustments, early exits, snapshot/bookkeeping) lives there, while each
+# numbered step is a self-contained helper below taking explicit parameters.
+# Behaviour is identical to the previous single-function implementation.
+
+
+def _auto_cluster_iteration(
+    adata: ad.AnnData,
+    raw_adata: ad.AnnData,
+    iteration: int,
+    resolution: float,
+    n_pcs: int,
+    auto_n_pcs: bool,
+    n_neighbors: int,
+    n_top_genes: int,
+    batch_method: str,
+    batch_key: str,
+    skip_te: bool,
+) -> Tuple[ad.AnnData, int, Dict, str, Dict[str, Any]]:
+    """mode_auto Step 1: expression prep, PCA, batch correction, clustering.
+
+    On iterations > 1 the incoming *adata* is in a SCALED, HVG-subset state
+    from the previous round; raw counts + full genes are restored from
+    *raw_adata* first (re-running normalize_total on scaled values yields
+    NaNs). Then: normalize_total/log1p/HVG (3-tier fallback)/scale,
+    NaN + zero-variance cleanup, PCA, harmony|bbknn, neighbors, UMAP,
+    leiden and DEG.
+
+    Args:
+        adata: AnnData at loop entry.
+        raw_adata: Pristine copy (counts layer, full genes) used for the
+            restore and the too-few-genes fallback.
+        iteration: 1-based iteration number (iteration 1 skips the restore).
+        resolution: Leiden resolution.
+        n_pcs: Requested PCA components.
+        auto_n_pcs: Auto-detect n_pcs from the variance ratio.
+        n_neighbors: Neighbours for the kNN graph.
+        n_top_genes: Number of HVGs.
+        batch_method: ``harmony``, ``bbknn`` or anything else (no correction).
+        batch_key: Batch column; falls back to sample_id/batch.
+        skip_te: Exclude TE genes from HVG and DEG.
+
+    Returns:
+        (adata, n_pcs_used, detect_diag, resolved_batch_key, iter_ctx)
+    """
+    detect_diag: Dict = {}
+    logger.info("[Step 1] Clustering (resolution=%.2f)...", resolution)
+    resolved_batch_key = batch_key or ("sample_id" if "sample_id" in adata.obs else "batch")
+
+    # Re-cluster paths (Step 3.5 / 3.75 `continue`) loop back here with
+    # adata in a SCALED, HVG-subset state from the previous iteration.
+    # Re-running normalize_total/log1p/HVG on that state is invalid:
+    # scaled values are negative -> normalize_total yields NaNs ->
+    # HVG seurat bin edges all NaN -> all-gene fallback -> zero-variance
+    # filter removes everything -> PCA degrades. Restore raw counts +
+    # full genes (keeping obs annotations) before (re-)clustering.
+    if iteration > 1 and "counts" in raw_adata.layers:
+        logger.info("Restoring raw counts + full gene set for re-clustering")
+        obs_keep = adata.obs.copy()
+        adata = raw_adata[raw_adata.obs.index.isin(obs_keep.index)].copy()
+        shared = obs_keep.index.intersection(adata.obs.index)
+        for col in obs_keep.columns:
+            adata.obs.loc[shared, col] = obs_keep.loc[shared, col]
+
+    sc.pp.normalize_total(adata, target_sum=1e4)
+    sc.pp.log1p(adata)
+    adata.raw = adata.copy()
+
+    if skip_te:
+        adata = _filter_te(adata)
+
+    try:
+        sc.pp.highly_variable_genes(
+            adata, n_top_genes=n_top_genes, flavor="seurat", subset=False,
+            batch_key=resolved_batch_key if resolved_batch_key in adata.obs else None,
+        )
+    except (ValueError, Exception) as e:
+        logger.warning("HVG with batch_key failed (%s). Retrying without batch_key.", e)
+        try:
+            sc.pp.highly_variable_genes(
+                adata, n_top_genes=n_top_genes, flavor="seurat", subset=False,
+            )
+        except (ValueError, Exception) as e2:
+            logger.warning("HVG without batch_key also failed (%s). Trying with fewer genes.", e2)
+            # If still fails, try with fewer genes
+            n_hvg = min(n_top_genes, adata.n_vars // 2)
+            if n_hvg < 100:
+                logger.error("Too few genes (%d) for HVG analysis. Skipping HVG filtering.", adata.n_vars)
+                # Don't filter, use all genes
+                adata.var["highly_variable"] = True
+            else:
+                try:
+                    sc.pp.highly_variable_genes(
+                        adata, n_top_genes=n_hvg, flavor="seurat", subset=False,
+                    )
+                except (ValueError, Exception) as e3:
+                    logger.warning("HVG with fewer genes also failed (%s). Skipping HVG filtering.", e3)
+                    adata.var["highly_variable"] = True
+    adata = adata[:, adata.var["highly_variable"]].copy()
+    sc.pp.scale(adata, max_value=10)
+
+    # Check for NaN values before PCA
+    if hasattr(adata.X, 'toarray'):
+        X_dense = adata.X.toarray()
+    else:
+        X_dense = adata.X
+    nan_count = np.isnan(X_dense).sum()
+    if nan_count > 0:
+        logger.warning("Found %d NaN values in data. Replacing with 0.", nan_count)
+        if hasattr(adata.X, 'toarray'):
+            # Sparse matrix
+            adata.X = np.nan_to_num(adata.X.toarray(), nan=0.0)
+        else:
+            adata.X = np.nan_to_num(adata.X, nan=0.0)
+
+    # Remove genes with zero variance (all zeros or constant)
+    if hasattr(adata.X, 'toarray'):
+        X_dense = adata.X.toarray()
+    else:
+        X_dense = adata.X
+    gene_vars = np.var(X_dense, axis=0)
+    zero_var_genes = np.where(gene_vars == 0)[0]
+    if len(zero_var_genes) > 0:
+        logger.warning("Removing %d genes with zero variance before PCA", len(zero_var_genes))
+        adata = adata[:, gene_vars > 0].copy()
+
+    # Check if we have enough genes for PCA
+    if adata.n_vars < 10:
+        logger.error("Too few genes (%d) after filtering. Skipping PCA and using raw data.", adata.n_vars)
+        # Use raw data instead
+        adata = raw_adata.copy()
+        sc.pp.normalize_total(adata, target_sum=1e4)
+        sc.pp.log1p(adata)
+        adata.raw = adata.copy()
+        if skip_te:
+            adata = _filter_te(adata)
+        sc.pp.highly_variable_genes(adata, n_top_genes=min(n_top_genes, adata.n_vars // 2), flavor="seurat", subset=False)
+        adata = adata[:, adata.var["highly_variable"]].copy()
+        sc.pp.scale(adata, max_value=10)
+
+    pca_comps = max(n_pcs, 100) if auto_n_pcs else n_pcs
+    pca_comps = min(pca_comps, max(2, adata.n_obs - 1), adata.n_vars - 1)
+    sc.tl.pca(adata, n_comps=pca_comps)
+
+    if auto_n_pcs:
+        variance_ratio = adata.uns["pca"]["variance_ratio"]
+        n_pcs_detected, detect_diag = detect_n_pcs(variance_ratio)
+        n_pcs = n_pcs_detected
+        logger.info("Auto-detected n_pcs: %d", n_pcs)
+
+    if batch_method == "harmony":
+        ho = hm.run_harmony(adata.obsm["X_pca"], adata.obs, resolved_batch_key)
+        Z = np.asarray(ho.Z_corr)
+        if Z.ndim == 1:
+            raise ValueError(f"harmonypy Z_corr is 1D shape={Z.shape}")
+        if Z.shape[0] != adata.n_obs:
+            Z = Z.T
+        adata.obsm["X_pca_harmony"] = Z
+        sc.pp.neighbors(adata, n_neighbors=n_neighbors, n_pcs=n_pcs,
+                        use_rep="X_pca_harmony")
+    elif batch_method == "bbknn":
+        sc.external.pp.bbknn(adata, batch_key=resolved_batch_key)
+    else:
+        sc.pp.neighbors(adata, n_neighbors=n_neighbors, n_pcs=n_pcs)
+
+    sc.tl.umap(adata, min_dist=0.1, spread=0.8)
+    sc.tl.leiden(adata, resolution=resolution, key_added="leiden",
+                 flavor="igraph", n_iterations=2, directed=False)
+    # If skip_te, temporarily remove TE genes from raw so DEG excludes them
+    _orig_raw = None
+    if skip_te and "gene_type" in adata.raw.var.columns:
+        _orig_raw = adata.raw
+        te_mask = adata.raw.var["gene_type"] != "TE"
+        adata._raw = adata.raw[:, te_mask].copy()
+        logger.info("DEG: filtered TE from raw (%d -> %d genes)",
+                     _orig_raw.shape[1], adata.raw.shape[1])
+    sc.tl.rank_genes_groups(adata, "leiden", method="wilcoxon", use_raw=True)
+    if _orig_raw is not None:
+        adata._raw = _orig_raw
+
+    n_clusters = len(adata.obs["leiden"].unique())
+    logger.info("Clustering done: %d clusters", n_clusters)
+    iter_ctx = {
+        "iteration": iteration,
+        "n_cells": adata.n_obs,
+        "n_genes": adata.n_vars,
+        "resolution": resolution,
+        "n_clusters": n_clusters,
+        "batch_method": batch_method,
+        "n_hvg": int(adata.var["highly_variable"].sum()),
+        "n_pcs_used": n_pcs,
+        "cluster_sizes": {str(k): int(v) for k, v in
+                          adata.obs["leiden"].value_counts().items()},
+    }
+    return adata, n_pcs, detect_diag, resolved_batch_key, iter_ctx
+
+
+def _auto_annotate_all_clusters(
+    adata: ad.AnnData,
+    tissue: str,
+    llm_method: str,
+    llm_model: str,
+    llm_api_key: str,
+    llm_base_url: str,
+    tissue_cell_types: Dict[str, List[str]],
+    misannotation_history: Optional[List[Dict[str, Any]]] = None,
+) -> Tuple[Dict[str, Dict], Dict[str, Dict[Tuple[str, str], Dict[str, float]]]]:
+    """mode_auto Steps 1.5 + 2: AI-annotate every leiden cluster.
+
+    Pre-computes UMAP centroids (clusters with >= 50 cells) and the
+    cross-cluster marker specificity table for the tissue panel (Step 1.5),
+    then calls the LLM for each cluster with a 0.5 s rate-limit sleep in
+    between.
+
+    Args:
+        adata: Clustered AnnData.
+        tissue: Tissue name for prompts.
+        llm_method: LLM backend.
+        llm_model: Model identifier.
+        llm_api_key: API key.
+        llm_base_url: Base URL.
+        tissue_cell_types: Tissue reference panel from Step 0.
+        misannotation_history: Records accumulated across iterations
+            (``_record_misannotation_events``); each cluster is matched
+            against them by marker overlap and matched cases are injected
+            into the prompt as a warning.
+
+    Returns:
+        (annotations, cluster_specificity) — per-cluster annotation dicts
+        and the pre-computed specificity tables (empty without a panel).
+    """
+    logger.info("[Step 2] AI annotation...")
+    annotations: Dict[str, Dict] = {}
+
+    # Compute UMAP centroids for distance calculation
+    umap_centroids = {}
+    if "X_umap" in adata.obsm:
+        for cluster in sorted(adata.obs["leiden"].unique(), key=lambda x: int(x)):
+            mask = adata.obs["leiden"] == cluster
+            if int(mask.sum()) >= 50:  # Min cells for valid centroid
+                umap_centroids[cluster] = adata.obsm["X_umap"][mask.values].mean(axis=0)
+
+    # ── Pre-compute cross-cluster marker specificity ──
+    # This is the key fix for the "Oocyte hidden behind proliferation DEGs"
+    # problem: instead of relying on rank_genes_groups ranking (which can
+    # bury tissue-specific markers under high-variance proliferation genes),
+    # directly query tissue markers' cross-cluster specificity.
+    # The result is indexed by cluster_id for O(1) lookup per cluster.
+    cluster_specificity: Dict[str, Dict[Tuple[str, str], Dict[str, float]]] = {}
+    if tissue_cell_types:
+        logger.info(
+            "[Step 1.5] Pre-computing cross-cluster marker specificity for %d "
+            "cell types × %d clusters...",
+            len(tissue_cell_types),
+            len(adata.obs["leiden"].unique()),
+        )
+        for cluster in sorted(adata.obs["leiden"].unique(), key=lambda x: int(x)):
+            cluster_specificity[str(cluster)] = _compute_marker_specificity(
+                adata, tissue_cell_types, cluster_id=str(cluster),
+            )
+
+    for cluster in sorted(adata.obs["leiden"].unique(), key=lambda x: int(x)):
+        mask = adata.obs["leiden"] == cluster
+        n_cells = int(mask.sum())
+        obs = adata.obs[mask]
+        mean_g = float(obs["n_genes_by_counts"].mean()) if "n_genes_by_counts" in obs.columns else 0.0
+        mean_c = float(obs["total_counts"].mean()) if "total_counts" in obs.columns else 0.0
+        pmt = float(obs["pct_counts_mt"].mean()) if "pct_counts_mt" in obs.columns else 0.0
+
+        marker_df = sc.get.rank_genes_groups_df(adata, group=cluster)
+        top_genes = marker_df.head(50)["names"].tolist()
+
+        # Compute UMAP distances to other clusters
+        umap_distances = {}
+        if cluster in umap_centroids:
+            for other_cluster, other_centroid in umap_centroids.items():
+                if other_cluster != cluster:
+                    dist = float(np.linalg.norm(umap_centroids[cluster] - other_centroid))
+                    umap_distances[other_cluster] = dist
+
+        logger.info("  Cluster %s (%d cells): annotating...", cluster, n_cells)
+        prior_hits = _match_prior_misannotation(
+            misannotation_history or [], top_genes,
+        ) if misannotation_history else []
+        if prior_hits:
+            logger.info(
+                "  Cluster %s: %d prior misannotation record(s) matched by "
+                "marker overlap — injecting warning into prompt",
+                cluster, len(prior_hits),
+            )
+        ann = _ai_annotate_cluster(
+            cluster, top_genes, tissue, n_cells, mean_g, mean_c, pmt,
+            llm_method=llm_method, llm_model=llm_model,
+            llm_api_key=llm_api_key, llm_base_url=llm_base_url,
+            other_annotations=annotations,
+            umap_distances=umap_distances,
+            tissue_cell_types=tissue_cell_types,
+            marker_specificity=cluster_specificity.get(str(cluster)),
+            prior_misannotation=prior_hits,
+        )
+        annotations[cluster] = ann
+        logger.info("    -> %s (confidence: %s, %d refs, is_subcluster: %s, should_merge: %s)",
+                     ann["cell_type"], ann["confidence"],
+                     sum(len(v) for v in ann.get("references", {}).values()),
+                     ann.get("is_subcluster", False),
+                     ann.get("should_merge", False))
+
+        time.sleep(0.5)  # rate limit between clusters
+
+    return annotations, cluster_specificity
+
+
+def _auto_normalize_annotation_names(
+    annotations: Dict[str, Dict],
+    tissue_cell_types: Dict[str, List[str]],
+) -> None:
+    """mode_auto Step 2.1: normalize LLM cell type names, in place.
+
+    Maps raw LLM names onto the canonical names returned by the Step 0
+    tissue query (e.g. "Smooth_muscle" → "Smooth muscle cells",
+    "Granulosa-like" → "Granulosa cells") so downstream analysis steps that
+    key off exact names don't break; keeps the original in ``cell_type_raw``
+    when changed.
+    """
+    if tissue_cell_types:
+        logger.info("[Step 2.1] Normalizing cell type names against tissue reference...")
+        normalized_count = 0
+        for cl, ann in annotations.items():
+            raw_ct = ann.get("cell_type", "Unknown")
+            if raw_ct in ("Unknown", "Unverified_TE", "Unannotated", "ERVK_high", "Alu_high"):
+                continue
+            canon_ct, was_changed = _normalize_cell_type_name(raw_ct, tissue_cell_types)
+            if was_changed:
+                logger.info("  Cluster %s: '%s' -> '%s' (normalized)", cl, raw_ct, canon_ct)
+                ann["cell_type_raw"] = raw_ct
+                ann["cell_type"] = canon_ct
+                normalized_count += 1
+        logger.info("  Normalized %d / %d cluster annotations", normalized_count, len(annotations))
+
+
+def _auto_refine_annotations(
+    adata: ad.AnnData,
+    annotations: Dict[str, Dict],
+    cluster_specificity: Dict[str, Dict[Tuple[str, str], Dict[str, float]]],
+) -> Dict[str, str]:
+    """mode_auto Step 2.5: specificity-weighted marker re-scoring, in place.
+
+    Builds a temporary marker dict from the LLM's canonical_markers, then
+    re-scores every cluster with a COMBINED scoring approach (legacy DEG
+    overlap + cross-cluster specificity marker counts) and overrides the
+    LLM call only when the winning candidate carries at least
+    ``MIN_SPEC_MARKERS_TO_REFINE`` strongly-specific markers.
+
+    Args:
+        adata: Clustered + DEG-annotated AnnData (rank_genes_groups in uns).
+        annotations: Per-cluster LLM annotations (mutated: cell_type
+            overwritten with the refined call, cell_type_refined recorded).
+        cluster_specificity: Per-cluster specificity tables from Step 1.5.
+
+    Returns:
+        cluster_id -> final cell type (refined or LLM original).
+    """
+    logger.info("[Step 2.5] Specificity-weighted marker scoring...")
+    # Collect canonical_markers from all clusters to build temporary marker dict
+    temp_marker_dict: Dict[str, List[str]] = {}
+    for cl, ann in annotations.items():
+        ct = ann["cell_type"]
+        canonical = ann.get("canonical_markers", [])
+        if canonical and ct not in ("Unknown", "Unverified_TE", "Unannotated"):
+            if ct not in temp_marker_dict:
+                temp_marker_dict[ct] = []
+            # Merge canonical markers (avoid duplicates)
+            for g in canonical:
+                if g not in temp_marker_dict[ct]:
+                    temp_marker_dict[ct].append(g)
+
+    if temp_marker_dict:
+        # Compute gene specificity: 1 / (number of cell types expressing it)
+        gene_specificity: Dict[str, float] = {}
+        for ct, markers in temp_marker_dict.items():
+            for g in markers:
+                gene_specificity[g] = gene_specificity.get(g, 0) + 1
+        for g in gene_specificity:
+            gene_specificity[g] = 1.0 / gene_specificity[g]
+
+        # Get top DEGs for each cluster (kept for legacy fallback)
+        result = adata.uns["rank_genes_groups"]
+        cluster_markers: Dict[str, List[str]] = {}
+        for g in result["names"].dtype.names:
+            cluster_markers[g] = list(result["names"][g][:50])
+
+        all_genes = set(adata.raw.var.index) if adata.raw is not None else set(adata.var.index)
+        valid_markers = {}
+        for ct, genes in temp_marker_dict.items():
+            found = [g for g in genes if g in all_genes]
+            if found:
+                valid_markers[ct] = set(found)
+
+        # Re-score each cluster using a COMBINED scoring approach:
+        #   legacy_score = top-50 DEG overlap (with rank-weighted specificity)
+        #   specificity_score = number of unique markers that THIS cluster
+        #                        specifically enriches (cross-cluster
+        #                        specificity >= 2.0, >1% cells expressing).
+        #                        COUNT not SUM — protects against one
+        #                        mega-marker (e.g. CD14 specificity ~4M)
+        #                        dominating the score and producing
+        #                        false reassignments (Monocyte eating
+        #                        Macrophage, T_Cell eating NK_Cell).
+        # Final score = legacy_score + 1.5 * specificity_marker_count
+        #
+        # MIN-SPECIFICITY-MARKERS GATE: the refined_ct is only allowed to
+        # change from the LLM's call when the candidate has at least
+        # ``min_spec_markers_to_refine`` markers satisfying the
+        # cross-cluster specificity filter. Without this gate, ties
+        # and zero-score cases can produce random reassignments.
+        #
+        # cluster_specificity is per-cluster (cluster_id=str(clust)).
+        # Global mode would never satisfy the filter because other_max
+        # (= max cluster mean) is always >= global mean.
+        MIN_SPEC_MARKERS_TO_REFINE = 2
+        cluster_to_ct_refined = {}
+        for clust, top_genes in cluster_markers.items():
+            top_set = set(top_genes)
+            llm_ct = annotations.get(clust, {}).get("cell_type", "Unknown")
+            best_ct = llm_ct  # Default: keep LLM call
+            best_score = -1.0
+            best_spec_hits: List[str] = []
+            best_legacy_score: float = 0.0
+
+            # Per-cluster specificity for this cluster
+            cl_spec = cluster_specificity.get(str(clust), {})
+
+            # Track whether ANY candidate has spec_hits, so we know
+            # whether the LLM call is "unchanged due to no signal" or
+            # "unchanged due to being defended by an alternative".
+            any_candidate_has_spec = False
+
+            for ct, markers in valid_markers.items():
+                # Legacy DEG-overlap score
+                matched = top_set & markers
+                legacy_score = 0.0
+                for g in matched:
+                    rank = top_genes.index(g)
+                    rank_weight = 1.0 / (1.0 + rank * 0.1)
+                    legacy_score += gene_specificity.get(g, 0) * rank_weight
+
+                # NEW: count unique markers that THIS cluster uniquely
+                # enriches (top among all clusters, with strong specificity).
+                spec_count = 0
+                spec_hits: List[str] = []
+                for g in markers:
+                    key = (ct, g)
+                    if key not in cl_spec:
+                        continue
+                    m = cl_spec[key]
+                    if (m["specificity"] >= 2.0
+                            and m["pct_pos"] > 1.0):
+                        spec_count += 1
+                        spec_hits.append(g)
+
+                if spec_count >= MIN_SPEC_MARKERS_TO_REFINE:
+                    any_candidate_has_spec = True
+
+                # Combined: legacy + 1.5x spec count
+                combined = legacy_score + 1.5 * spec_count
+                if combined > best_score:
+                    best_score = combined
+                    best_ct = ct
+                    best_spec_hits = spec_hits
+                    best_legacy_score = legacy_score
+
+            # Apply the gate: only allow refinement when the new
+            # candidate has >= MIN_SPEC_MARKERS_TO_REFINE markers
+            # with strong cross-cluster specificity. Otherwise keep
+            # the LLM's original call (no signal, don't override).
+            if best_ct != llm_ct:
+                # Verify the refined candidate really has enough spec markers
+                if len(best_spec_hits) < MIN_SPEC_MARKERS_TO_REFINE:
+                    # Not enough signal — keep LLM call
+                    cluster_to_ct_refined[clust] = llm_ct
+                else:
+                    cluster_to_ct_refined[clust] = best_ct
+                    logger.info(
+                        "  Cluster %s: LLM='%s' -> Refined='%s' "
+                        "(legacy=%.2f, spec_count=%d, hits=%s)",
+                        clust, llm_ct, best_ct,
+                        best_legacy_score, len(best_spec_hits), best_spec_hits,
+                    )
+            else:
+                cluster_to_ct_refined[clust] = llm_ct
+
+        # Apply refined annotations
+        for clust in annotations:
+            llm_ct = annotations[clust]["cell_type"]
+            refined_ct = cluster_to_ct_refined.get(clust, llm_ct)
+            annotations[clust]["cell_type_refined"] = refined_ct
+            annotations[clust]["cell_type"] = refined_ct  # Overwrite with refined
+
+        # Update adata with refined annotations
+        cluster_to_ct = {cl: ann["cell_type"] for cl, ann in annotations.items()}
+        adata.obs["cell_type"] = adata.obs["leiden"].map(cluster_to_ct).astype("category")
+        adata.obs["llm_label"] = adata.obs["leiden"].map(
+            {cl: annotations[cl].get("cell_type_refined", annotations[cl]["cell_type"])
+             for cl in annotations}).astype("category")
+        logger.info("Refined annotations applied. Cell types: %s",
+                     sorted(set(cluster_to_ct.values())))
+    else:
+        logger.info("No canonical_markers found, skipping specificity scoring")
+        adata.obs["llm_label"] = adata.obs["cell_type"].copy()
+
+    return {cl: ann["cell_type"] for cl, ann in annotations.items()}
+
+
+def _auto_quality_reports(
+    adata: ad.AnnData,
+    annotations: Dict[str, Dict],
+    min_genes: int,
+    min_counts: int,
+    max_pct_mt: float,
+) -> List[Dict[str, Any]]:
+    """mode_auto Step 3: per-cluster quality analysis.
+
+    Args:
+        adata: Clustered AnnData with leiden + cell_type.
+        annotations: Per-cluster LLM annotations.
+        min_genes: Min genes per cell threshold.
+        min_counts: Min UMI per cell threshold.
+        max_pct_mt: Max MT% threshold.
+
+    Returns:
+        One report dict per leiden cluster (see ``_analyze_cluster_quality``).
+    """
+    logger.info("[Step 3] Quality analysis...")
+    quality_reports = []
+    for cluster in sorted(adata.obs["leiden"].unique(), key=lambda x: int(x)):
+        ann = annotations.get(cluster, {})
+        qr = _analyze_cluster_quality(
+            adata, cluster, ann,
+            min_genes=min_genes, min_counts=min_counts, max_pct_mt=max_pct_mt,
+        )
+        quality_reports.append(qr)
+        if qr["should_filter"]:
+            logger.info("  Cluster %s FLAGGED: %s (%s)",
+                         cluster, qr["ai_cell_type"], ",".join(qr["flags"]))
+    return quality_reports
+
+
+def _auto_collect_merge_candidates(
+    annotations: Dict[str, Dict],
+) -> List[Dict[str, Any]]:
+    """mode_auto Step 3.25: collect LLM ``should_merge`` flags.
+
+    Returns:
+        Merge candidate dicts ({cluster, parent, cell_type,
+        parent_cell_type, is_subcluster}); also records ``merge_info`` back
+        into the source annotations for the report.
+    """
+    merge_candidates = []
+    for cluster, ann in annotations.items():
+        if ann.get("should_merge") and ann.get("parent_cluster"):
+            parent = ann["parent_cluster"]
+            if parent in annotations:
+                merge_candidates.append({
+                    "cluster": cluster,
+                    "parent": parent,
+                    "cell_type": ann["cell_type"],
+                    "parent_cell_type": annotations[parent]["cell_type"],
+                    "is_subcluster": ann.get("is_subcluster", False),
+                })
+                logger.info("  Cluster %s (%s) -> should merge with Cluster %s (%s)",
+                             cluster, ann["cell_type"], parent, annotations[parent]["cell_type"])
+
+    if merge_candidates:
+        logger.info("LLM identified %d clusters that should be merged", len(merge_candidates))
+        # Store merge info in annotations for report
+        for mc in merge_candidates:
+            annotations[mc["cluster"]]["merge_info"] = {
+                "parent_cluster": mc["parent"],
+                "parent_cell_type": mc["parent_cell_type"],
+            }
+    else:
+        logger.info("No clusters identified for merging by LLM")
+    return merge_candidates
+
+
+def _record_misannotation_events(
+    misannotated: List[Dict[str, Any]],
+    annotations: Dict[str, Dict],
+    iteration: int,
+    history: List[Dict[str, Any]],
+) -> None:
+    """Append this iteration's misannotation events to the cross-iteration
+    history used for LLM feedback (in place).
+
+    Each record stores the cluster's top DEG markers and its same-type
+    peers' key markers rather than the cluster id — cluster ids are
+    renumbered after every filter/re-cluster round, so marker sets are the
+    only identity that survives re-clustering.
+
+    Args:
+        misannotated: ``misannotated`` entries from separation_diag.
+        annotations: This iteration's per-cluster annotations (key_markers).
+        iteration: Current 1-based iteration number.
+        history: List to append to (mutated).
+    """
+    for ma in misannotated:
+        flag_cluster = str(ma.get("flagged_cluster"))
+        ann = annotations.get(flag_cluster, {})
+        peer_markers: List[str] = []
+        # Peer clusters = other clusters annotated as the same cell type
+        ct = ma.get("cell_type", "")
+        for cl, a in annotations.items():
+            if cl != flag_cluster and a.get("cell_type") == ct:
+                peer_markers.extend(a.get("key_markers", [])[:8])
+        history.append({
+            "iteration": iteration,
+            "cell_type": ct,
+            "marker_jaccard": ma.get("marker_jaccard"),
+            "confidence": ann.get("confidence", ""),
+            "top_markers": list(ann.get("key_markers", [])[:10]),
+            "peer_markers": peer_markers[:10],
+            "flagged_cells": ma.get("flagged_cells"),
+        })
+
+
+def _match_prior_misannotation(
+    history: List[Dict[str, Any]],
+    top_genes: List[str],
+    min_jaccard: float = 0.25,
+    max_records: int = 3,
+) -> List[Dict[str, Any]]:
+    """Match a cluster's top DEGs against prior misannotation records.
+
+    Identity across re-clustering rounds is established by marker-set
+    overlap: a record matches when the Jaccard of its ``top_markers`` with
+    the current cluster's top DEGs clears *min_jaccard* (low bar on purpose
+    — after re-clustering the DEG list shifts, so a near-exact match is not
+    expected).
+
+    Returns:
+        Up to *max_records* matching records (most recent first), ready to
+        inject into the annotation prompt.
+    """
+    if not history:
+        return []
+    current = set(top_genes[:20])
+    if not current:
+        return []
+    hits: List[Tuple[float, Dict[str, Any]]] = []
+    for rec in history:
+        rec_genes = set(rec.get("top_markers", []))
+        if not rec_genes:
+            continue
+        jac = len(current & rec_genes) / len(current | rec_genes)
+        if jac >= min_jaccard:
+            hits.append((jac, rec))
+    hits.sort(key=lambda x: (x[1].get("iteration", 0), x[0]), reverse=True)
+    return [rec for _, rec in hits[:max_records]]
+
+
+def _reannotate_cluster_in_place(
+    adata: ad.AnnData,
+    cluster: str,
+    annotations: Dict[str, Dict],
+    cluster_specificity: Dict[str, Dict[Tuple[str, str], Dict[str, float]]],
+    peer_evidence: Dict[str, Any],
+    tissue: str,
+    llm_method: str,
+    llm_model: str,
+    llm_api_key: str,
+    llm_base_url: str,
+    tissue_cell_types: Optional[Dict[str, List[str]]] = None,
+) -> Tuple[bool, Dict[str, Any]]:
+    """Re-run the LLM annotation for one cluster with the peer evidence
+    injected as a prior-misannotation record (Step 3.75 remediation).
+
+    The current annotation for *cluster* is temporarily removed from
+    *annotations* so the LLM cannot simply see and echo its own earlier
+    call via ``other_annotations``.
+
+    Args:
+        adata: Clustered AnnData (leiden + UMAP + DEG present).
+        cluster: Cluster id being re-annotated.
+        annotations: Per-cluster annotations (mutated on success).
+        cluster_specificity: Per-cluster specificity tables (Step 1.5).
+        peer_evidence: Same-type peer cluster info for the prompt
+            (``cell_type``, ``peer_markers``, ``marker_jaccard``).
+        tissue / llm_*: Passed through to the annotation call.
+
+    Returns:
+        (changed, new_annotation) — *changed* is True when the LLM produced
+        a DIFFERENT cell_type call than the one being questioned; on
+        success the entry in *annotations* is replaced (the old label kept
+        under ``cell_type_prior``).
+    """
+    mask = adata.obs["leiden"] == cluster
+    n_cells = int(mask.sum())
+    obs = adata.obs[mask]
+    mean_g = float(obs["n_genes_by_counts"].mean()) if "n_genes_by_counts" in obs.columns else 0.0
+    mean_c = float(obs["total_counts"].mean()) if "total_counts" in obs.columns else 0.0
+    pmt = float(obs["pct_counts_mt"].mean()) if "pct_counts_mt" in obs.columns else 0.0
+    marker_df = sc.get.rank_genes_groups_df(adata, group=cluster)
+    top_genes = marker_df.head(50)["names"].tolist()
+
+    old_ann = annotations.get(cluster, {})
+    old_ct = old_ann.get("cell_type", "Unknown")
+
+    prior_record = [{
+        "iteration": "current",
+        "cell_type": old_ct,
+        "confidence": old_ann.get("confidence", ""),
+        "marker_jaccard": peer_evidence.get("marker_jaccard"),
+        "top_markers": list(old_ann.get("key_markers", [])[:10]),
+        "peer_markers": peer_evidence.get("peer_markers", [])[:10],
+    }]
+    logger.info(
+        "  Cluster %s: re-annotating with peer evidence (old label '%s', "
+        "Jaccard=%.3f)...", cluster, old_ct,
+        peer_evidence.get("marker_jaccard") or 0.0,
+    )
+
+    # Hide the cluster's own prior call from other_annotations so the LLM
+    # reasons from markers, not from its previous answer.
+    trial_annotations = {k: v for k, v in annotations.items() if k != cluster}
+    new_ann = _ai_annotate_cluster(
+        cluster, top_genes, tissue, n_cells, mean_g, mean_c, pmt,
+        llm_method=llm_method, llm_model=llm_model,
+        llm_api_key=llm_api_key, llm_base_url=llm_base_url,
+        other_annotations=trial_annotations,
+        umap_distances=None,
+        tissue_cell_types=tissue_cell_types,
+        marker_specificity=cluster_specificity.get(str(cluster)),
+        prior_misannotation=prior_record,
+    )
+    new_ct = new_ann.get("cell_type", "Unknown")
+    changed = new_ct != old_ct
+    if changed:
+        new_ann["cell_type_prior"] = old_ct
+        new_ann["reannotated_iteration_info"] = {
+            "reason": "misannotated_low_marker_overlap",
+            "marker_jaccard": peer_evidence.get("marker_jaccard"),
+        }
+        annotations[cluster] = new_ann
+        logger.info(
+            "  Cluster %s: LLM revised annotation '%s' -> '%s' "
+            "(confidence %s)", cluster, old_ct, new_ct,
+            new_ann.get("confidence", "?"),
+        )
+    else:
+        logger.info(
+            "  Cluster %s: LLM re-affirmed '%s' (confidence %s)",
+            cluster, old_ct, new_ann.get("confidence", "?"),
+        )
+    return changed, new_ann
+
+
+def _auto_handle_misannotated(
+    separation_diag: Dict[str, Any],
+    quality_reports: List[Dict[str, Any]],
+    flagged: List[Dict[str, Any]],
+    adata: ad.AnnData,
+    annotations: Dict[str, Dict],
+    cluster_specificity: Dict[str, Dict[Tuple[str, str], Dict[str, float]]],
+    tissue: str,
+    llm_method: str,
+    llm_model: str,
+    llm_api_key: str,
+    llm_base_url: str,
+    tissue_cell_types: Optional[Dict[str, List[str]]] = None,
+) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]], List[Dict[str, Any]]]:
+    """mode_auto Step 3.75 (misannotation branch): try to FIX the annotation
+    before falling back to filtering.
+
+    A "misannotated" verdict (same cell_type on far-apart clusters with
+    Jaccard <= 0.3) has two possible causes: the LLM mislabelled the cluster,
+    or the cluster is an ambient-RNA artifact. The old implementation assumed
+    the latter and deleted the cluster unconditionally — deleting genuine
+    populations on LLM annotation errors. The flow is now:
+
+      1. Re-annotate the flagged cluster IN PLACE with the same-type peer
+         evidence injected (``_reannotate_cluster_in_place``). Fixed label
+         → not flagged; adata.obs["cell_type"] is updated.
+      2. LLM re-affirms the original label (or confidence was high):
+         gate the whole-cluster removal on the LLM's own assessment,
+         mirroring the ambient-artifact path — low/medium confidence or
+         unknown-style quality_flag → ``whole_cluster``; high confidence
+         → ``filter_mode="cell"`` with the flag kept visible (cell-level
+         QC only, cluster survives if its cells pass).
+
+    Args:
+        separation_diag: Output of ``_check_cell_type_separation``.
+        quality_reports: This iteration's QC reports (mutated in place).
+        flagged: Current list of should_filter reports.
+        adata: Clustered AnnData (for re-annotation inputs).
+        annotations: Per-cluster annotations (mutated on successful fix).
+        cluster_specificity: Per-cluster specificity tables from Step 1.5.
+        tissue / llm_*: Passed through to the re-annotation call.
+        tissue_cell_types: Tissue reference panel (re-annotation prompts).
+
+    Returns:
+        (flagged, misannotated, reannotation_log) — *flagged* re-derived
+        from *quality_reports*; *reannotation_log* records every fix
+        attempt for audit_report.json.
+    """
+    misannotated = separation_diag.get("misannotated", [])
+    reannotation_log: List[Dict[str, Any]] = []
+
+    for ma in misannotated:
+        flag_cluster = ma["flagged_cluster"]
+        logger.info("Misannotation detected: cluster %s labeled '%s' but markers diverge (Jaccard=%.3f).",
+                     flag_cluster, ma["cell_type"], ma["marker_jaccard"])
+
+        # ── 1. Remediation first: re-ask the LLM with peer evidence ──
+        peer_markers: List[str] = []
+        for cl, a in annotations.items():
+            if cl != flag_cluster and a.get("cell_type") == ma["cell_type"]:
+                peer_markers.extend(a.get("key_markers", [])[:8])
+        peer_evidence = {
+            "cell_type": ma["cell_type"],
+            "peer_markers": peer_markers[:10],
+            "marker_jaccard": ma.get("marker_jaccard"),
+        }
+        changed, new_ann = _reannotate_cluster_in_place(
+            adata, flag_cluster, annotations, cluster_specificity,
+            peer_evidence, tissue, llm_method, llm_model,
+            llm_api_key, llm_base_url, tissue_cell_types=tissue_cell_types,
+        )
+        log_entry = {
+            "cluster": flag_cluster,
+            "cell_type_prior": ma["cell_type"],
+            "marker_jaccard": ma.get("marker_jaccard"),
+            "changed": changed,
+        }
+        if changed:
+            # Annotation fixed: refresh adata.obs and do NOT flag the cluster.
+            # Guard the remap: every leiden value must be covered, otherwise
+            # pandas maps missing keys to NaN and silently erases labels.
+            new_ct = new_ann["cell_type"]
+            remap = {cl: a["cell_type"] for cl, a in annotations.items()}
+            missing = sorted(
+                set(adata.obs["leiden"].astype(str)) - set(remap), key=lambda x: int(x) if x.isdigit() else 0,
+            )
+            if missing:
+                logger.warning(
+                    "  Clusters %s lack annotation entries during cell_type "
+                    "refresh; keeping their existing labels.", missing,
+                )
+            mapped = adata.obs["leiden"].map(remap)
+            if "cell_type" in adata.obs.columns:
+                # Keep pre-existing labels for clusters absent from *remap*
+                # instead of letting pandas turn them into NaN.
+                mapped = mapped.fillna(adata.obs["cell_type"])
+            adata.obs["cell_type"] = mapped.astype("category")
+            log_entry["outcome"] = "reannotated"
+            log_entry["cell_type_new"] = new_ct
+            log_entry["confidence_new"] = new_ann.get("confidence", "")
+            reannotation_log.append(log_entry)
+            logger.info(
+                "  Cluster %s: annotation fixed ('%s' -> '%s'); not flagged.",
+                flag_cluster, ma["cell_type"], new_ct,
+            )
+            continue
+
+        # ── 2. LLM re-affirmed the label → decide the filter mode ──
+        log_entry["outcome"] = "reaffirmed"
+        reannotation_log.append(log_entry)
+
+        # new_ann is the fresh re-annotation dict (it is only stored back
+        # into *annotations* when the label changed), so its confidence is
+        # the LLM's most current self-assessment; fall back to the stored
+        # annotation's when missing.
+        eff_conf = new_ann.get("confidence") or annotations.get(
+            flag_cluster, {}).get("confidence", "low")
+        ai_qf = annotations.get(flag_cluster, {}).get("quality_flag") or ""
+        low_or_medium = eff_conf in ("low", "medium")
+        unknownish = ai_qf in ("unknown", "unannotated")
+
+        if not any(r["cluster"] == flag_cluster for r in quality_reports if r["should_filter"]):
+            if low_or_medium or unknownish:
+                new_report = {
+                    "cluster": flag_cluster,
+                    "ai_cell_type": ma["cell_type"],
+                    "should_filter": True,
+                    "flags": ["misannotated_low_marker_overlap"],
+                    "filter_mode": "whole_cluster",
+                }
+                # Copy QC stats from the existing (non-flagged) report for this
+                # cluster so the summary doesn't print "?" placeholders.
+                existing = next((r for r in quality_reports if r["cluster"] == flag_cluster), None)
+                if existing:
+                    for k in ("n_cells", "mean_genes", "mean_counts", "pct_mt"):
+                        if k in existing:
+                            new_report[k] = existing[k]
+                quality_reports.append(new_report)
+                flagged = [r for r in quality_reports if r["should_filter"]]
+                logger.info(
+                    "  Cluster %s: re-affirmed with confidence=%s (quality_flag=%s) "
+                    "→ WHOLE-CLUSTER removal.", flag_cluster, eff_conf, ai_qf or "n/a",
+                )
+            else:
+                # High confidence + re-affirmed: likely a genuine subpopulation
+                # the marker-Jaccard heuristic misread. Keep the cluster, keep
+                # the flag visible, filter only the cells that fail cell-level QC.
+                new_report = {
+                    "cluster": flag_cluster,
+                    "ai_cell_type": ma["cell_type"],
+                    "should_filter": True,
+                    "flags": ["misannotated_low_marker_overlap"],
+                    "filter_mode": "cell",
+                }
+                existing = next((r for r in quality_reports if r["cluster"] == flag_cluster), None)
+                if existing:
+                    for k in ("n_cells", "mean_genes", "mean_counts", "pct_mt"):
+                        if k in existing:
+                            new_report[k] = existing[k]
+                quality_reports.append(new_report)
+                flagged = [r for r in quality_reports if r["should_filter"]]
+                logger.info(
+                    "  Cluster %s: re-affirmed with HIGH confidence → keeping cluster "
+                    "(cell-level QC only, flag retained for audit).",
+                    flag_cluster,
+                )
+        else:
+            # Already flagged (e.g. low_quality) — marker mismatch on top of a
+            # quality problem reads as an ambient RNA artifact. Upgrade, but
+            # only when the LLM is not confidently defending the label.
+            for r in quality_reports:
+                if r["cluster"] == flag_cluster and r["should_filter"]:
+                    if low_or_medium or unknownish:
+                        r["filter_mode"] = "whole_cluster"
+                        logger.info("  Cluster %s: upgraded to WHOLE-CLUSTER removal (low quality + separated + re-affirmed, confidence=%s).",
+                                     flag_cluster, eff_conf)
+                    else:
+                        r["filter_mode"] = "cell"
+                        logger.info("  Cluster %s: kept at CELL-level QC (high confidence despite separation).",
+                                     flag_cluster)
+    return flagged, misannotated, reannotation_log
+
+
+def _auto_upgrade_ambient_artifacts(
+    separation_diag: Dict[str, Any],
+    quality_reports: List[Dict[str, Any]],
+) -> None:
+    """mode_auto Step 3.75 (ambient-artifact upgrade): low-quality clusters
+    spatially separated from same-type high-quality clusters are upgraded to
+    whole-cluster removal (``ambient_artifact`` flag).
+
+    Gated by the LLM's self-assessment: only low/medium confidence with a
+    low_quality flag (or unknown/unannotated with low confidence) is
+    upgraded; high-confidence low-quality clusters keep cell-level QC —
+    they may be a genuine low-count biological population.
+    """
+    separated_ct_to_clusters: Dict[str, set] = {}
+    for ct_info in separation_diag.get("separated_types", []):
+        ct = ct_info["cell_type"]
+        for d in separation_diag.get("cluster_distances", {}).get(ct, {}).get("pairs", []):
+            separated_ct_to_clusters.setdefault(ct, set()).add(d["cluster_i"])
+            separated_ct_to_clusters.setdefault(ct, set()).add(d["cluster_j"])
+    for ma in separation_diag.get("misannotated", []):
+        separated_ct_to_clusters.setdefault(ma["cell_type"], set()).add(ma["flagged_cluster"])
+
+    if separated_ct_to_clusters:
+        for r in quality_reports:
+            if not r["should_filter"]:
+                continue
+            if r.get("filter_mode") == "whole_cluster":
+                continue
+            ct = r.get("ai_cell_type", "Unknown")
+            low_quality_flag = any(f in r.get("flags", []) for f in ("low_genes", "low_counts", "high_mt", "low_quality"))
+            if not (low_quality_flag and ct in separated_ct_to_clusters and r["cluster"] in separated_ct_to_clusters[ct]):
+                continue
+
+            # Precision filter: only upgrade to whole_cluster if this cluster
+            # looks like an ambient-RNA artifact rather than a genuine
+            # low-quality biological population. Heuristic:
+            #   1. LLM confidence must be low/medium (high confidence means
+            #      the LLM genuinely identified the cell type despite low
+            #      quality → trust it, keep cell-level filter).
+            #   2. AI explicitly flagged low_quality in quality_flag.
+            #   3. AI reasoning must reference separation / ambient / artifact.
+            ai_conf = r.get("ai_confidence", "low")
+            ai_qf = r.get("ai_quality_flag", "")
+            # Look up the AI reasoning from annotations via cluster id
+            ann_for_cluster = None
+            # Annotations aren't passed here, but the quality report carries
+            # ai_cell_type and ai_quality_flag — enough for this check.
+
+            should_upgrade = False
+            reason = ""
+
+            if ai_conf in ("low", "medium") and ai_qf == "low_quality":
+                # LLM already said: low quality. With separation, very likely
+                # ambient RNA contamination from neighbouring high-quality
+                # cluster of the same type.
+                should_upgrade = True
+                reason = "LLM low confidence + low_quality flag"
+            elif ai_qf in ("unknown", "unannotated") and ai_conf == "low":
+                # LLM couldn't identify, low quality, separated → likely garbage
+                should_upgrade = True
+                reason = "LLM unknown + low_quality"
+            else:
+                # High confidence + low quality but separated → could be a
+                # real biological population that just happens to have low
+                # counts. Keep cell-level filter so the high-quality cells
+                # are preserved and can re-cluster.
+                reason = (f"AI confidence={ai_conf}, quality_flag={ai_qf} → "
+                          f"keep cell-level filter (likely real low-quality population)")
+
+            if should_upgrade:
+                peer_clusters = [c for c in separated_ct_to_clusters[ct] if c != r["cluster"]]
+                peer_info = ", ".join(f"cluster {c}" for c in peer_clusters) if peer_clusters else "n/a"
+                logger.info(
+                    "  Cluster %s (%s): %s. Upgrading to WHOLE-CLUSTER removal "
+                    "(likely ambient-RNA artifact); peer cluster(s): %s.",
+                    r["cluster"], ct, reason, peer_info,
+                )
+                r["filter_mode"] = "whole_cluster"
+                if "ambient_artifact" not in r["flags"]:
+                    r["flags"] = list(r["flags"]) + ["ambient_artifact"]
+            else:
+                logger.info(
+                    "  Cluster %s (%s): %s. Keeping cell-level QC.",
+                    r["cluster"], ct, reason,
+                )
+
+
+def _auto_prepare_recluster_adata(
+    raw_adata: ad.AnnData,
+    adata_filtered: ad.AnnData,
+) -> ad.AnnData:
+    """mode_auto Step 4 tail: subset the pristine raw AnnData to the cells
+    that survived filtering, so the next round starts from a fresh
+    normalize/HVG state, preserving sample_id.
+
+    Returns:
+        Raw-count AnnData restricted to the filtered cell barcodes.
+    """
+    # Prepare raw counts for re-clustering
+    # Use the raw_adata (pre-processing) and subset to filtered cells
+    filtered_indices = adata_filtered.obs.index
+    raw_filtered = raw_adata[raw_adata.obs.index.isin(filtered_indices)].copy()
+
+    # Preserve sample_id
+    if "sample_id" in adata_filtered.obs.columns:
+        raw_filtered.obs["sample_id"] = adata_filtered.obs.loc[
+            raw_filtered.obs.index, "sample_id"
+        ]
+
+    return raw_filtered
+
+
+def _auto_finalize_outputs(
+    plotter,
+    adata: ad.AnnData,
+    output: str,
+    report_dir: str,
+    annotations: Dict[str, Dict],
+    quality_reports: List[Dict[str, Any]],
+    n_pcs: int,
+    auto_n_pcs: bool,
+    detect_diag: Dict,
+    resolved_batch_key: str,
+    ctx: Dict[str, Any],
+    tissue: str,
+    llm_method: str,
+    llm_model: str,
+    llm_api_key: str,
+    llm_base_url: str,
+) -> None:
+    """mode_auto final block: reports, plots, h5ad and audits."""
+    logger.info("Writing final reports...")
+    _write_annotation_report(annotations, quality_reports,
+                            os.path.join(report_dir, "annotation_report.tsv"))
+    _write_references_report(annotations,
+                            os.path.join(report_dir, "references.tsv"))
+
+    # Plot if requested
+    if plotter:
+        plotter.plot_pca_variance(
+            adata,
+            n_pcs=n_pcs,
+            auto_n_pcs=auto_n_pcs,
+            detect_diag=detect_diag if auto_n_pcs else None,
+        )
+        plotter.plot_cluster(adata, cluster_key="leiden", sample_key=resolved_batch_key)
+
+        # Generate annotation plots (UMAP cell_type, dotplot, etc.)
+        annotation_keys = []
+        if "cell_type" in adata.obs.columns:
+            annotation_keys.append("cell_type")
+        if "llm_label" in adata.obs.columns:
+            annotation_keys.append("llm_label")
+
+        has_rank_genes = "rank_genes_groups" in adata.uns
+        plotter.plot_annotate(
+            adata,
+            marker_file="",  # No marker file in auto mode
+            annotate_group="leiden",
+            annotation_keys=annotation_keys,
+            has_rank_genes=has_rank_genes,
+        )
+
+        # Marker expression on UMAP (per-cluster panels with centroid labels)
+        n_markers_used = plotter.plot_markers(adata, annotations)
+        logger.info("Marker expression plots: %d unique markers plotted", n_markers_used)
+
+    adata.write_h5ad(output)
+    ctx["final_cells"] = adata.n_obs
+    ctx["final_genes"] = adata.n_vars
+    logger.info("Final annotated h5ad: %s", output)
+
+    # ── LLM-generated audit report & reproducible script ──
+    _generate_audit_report(ctx, report_dir, llm_method, llm_model,
+                           llm_api_key, llm_base_url)
+
+    # ── Independent annotation audit (uses post-mode_auto h5ad only) ──
+    adata._h5ad_source = output  # stamped into annotation_audit.json
+    _audit_annotations(adata, report_dir=report_dir, tissue=tissue or "")
+
+
 def mode_auto(
     adata: ad.AnnData,
     output: str,
@@ -3308,6 +4469,10 @@ def mode_auto(
 
     iteration = 0
     detect_diag: Dict = {}
+    # Cross-iteration misannotation memory for LLM feedback (plan item 1).
+    # Records marker sets, NOT cluster ids — ids are renumbered after every
+    # filter/re-cluster round.
+    misannotation_history: List[Dict[str, Any]] = []
     while iteration < max_iterations:
         iteration += 1
         logger.info("=" * 60)
@@ -3315,244 +4480,27 @@ def mode_auto(
                      iteration, max_iterations, adata.n_obs)
         logger.info("=" * 60)
 
-        # ── Step 1: Cluster ──
-        logger.info("[Step 1] Clustering (resolution=%.2f)...", resolution)
-        resolved_batch_key = batch_key or ("sample_id" if "sample_id" in adata.obs else "batch")
-
-        # Re-cluster paths (Step 3.5 / 3.75 `continue`) loop back here with
-        # adata in a SCALED, HVG-subset state from the previous iteration.
-        # Re-running normalize_total/log1p/HVG on that state is invalid:
-        # scaled values are negative -> normalize_total yields NaNs ->
-        # HVG seurat bin edges all NaN -> all-gene fallback -> zero-variance
-        # filter removes everything -> PCA degrades. Restore raw counts +
-        # full genes (keeping obs annotations) before (re-)clustering.
-        if iteration > 1 and "counts" in raw_adata.layers:
-            logger.info("Restoring raw counts + full gene set for re-clustering")
-            obs_keep = adata.obs.copy()
-            adata = raw_adata[raw_adata.obs.index.isin(obs_keep.index)].copy()
-            shared = obs_keep.index.intersection(adata.obs.index)
-            for col in obs_keep.columns:
-                adata.obs.loc[shared, col] = obs_keep.loc[shared, col]
-
-        sc.pp.normalize_total(adata, target_sum=1e4)
-        sc.pp.log1p(adata)
-        adata.raw = adata.copy()
-
-        if skip_te:
-            adata = _filter_te(adata)
-
-        try:
-            sc.pp.highly_variable_genes(
-                adata, n_top_genes=n_top_genes, flavor="seurat", subset=False,
-                batch_key=resolved_batch_key if resolved_batch_key in adata.obs else None,
+        # ── Step 1: Cluster (HVG/PCA/batch correction/UMAP/leiden/DEG) ──
+        adata, n_pcs, detect_diag, resolved_batch_key, iter_ctx = \
+            _auto_cluster_iteration(
+                adata, raw_adata, iteration, resolution,
+                n_pcs=n_pcs, auto_n_pcs=auto_n_pcs,
+                n_neighbors=n_neighbors, n_top_genes=n_top_genes,
+                batch_method=batch_method, batch_key=batch_key,
+                skip_te=skip_te,
             )
-        except (ValueError, Exception) as e:
-            logger.warning("HVG with batch_key failed (%s). Retrying without batch_key.", e)
-            try:
-                sc.pp.highly_variable_genes(
-                    adata, n_top_genes=n_top_genes, flavor="seurat", subset=False,
-                )
-            except (ValueError, Exception) as e2:
-                logger.warning("HVG without batch_key also failed (%s). Trying with fewer genes.", e2)
-                # If still fails, try with fewer genes
-                n_hvg = min(n_top_genes, adata.n_vars // 2)
-                if n_hvg < 100:
-                    logger.error("Too few genes (%d) for HVG analysis. Skipping HVG filtering.", adata.n_vars)
-                    # Don't filter, use all genes
-                    adata.var["highly_variable"] = True
-                else:
-                    try:
-                        sc.pp.highly_variable_genes(
-                            adata, n_top_genes=n_hvg, flavor="seurat", subset=False,
-                        )
-                    except (ValueError, Exception) as e3:
-                        logger.warning("HVG with fewer genes also failed (%s). Skipping HVG filtering.", e3)
-                        adata.var["highly_variable"] = True
-        adata = adata[:, adata.var["highly_variable"]].copy()
-        sc.pp.scale(adata, max_value=10)
 
-        # Check for NaN values before PCA
-        if hasattr(adata.X, 'toarray'):
-            X_dense = adata.X.toarray()
-        else:
-            X_dense = adata.X
-        nan_count = np.isnan(X_dense).sum()
-        if nan_count > 0:
-            logger.warning("Found %d NaN values in data. Replacing with 0.", nan_count)
-            if hasattr(adata.X, 'toarray'):
-                # Sparse matrix
-                adata.X = np.nan_to_num(adata.X.toarray(), nan=0.0)
-            else:
-                adata.X = np.nan_to_num(adata.X, nan=0.0)
-
-        # Remove genes with zero variance (all zeros or constant)
-        if hasattr(adata.X, 'toarray'):
-            X_dense = adata.X.toarray()
-        else:
-            X_dense = adata.X
-        gene_vars = np.var(X_dense, axis=0)
-        zero_var_genes = np.where(gene_vars == 0)[0]
-        if len(zero_var_genes) > 0:
-            logger.warning("Removing %d genes with zero variance before PCA", len(zero_var_genes))
-            adata = adata[:, gene_vars > 0].copy()
-        
-        # Check if we have enough genes for PCA
-        if adata.n_vars < 10:
-            logger.error("Too few genes (%d) after filtering. Skipping PCA and using raw data.", adata.n_vars)
-            # Use raw data instead
-            adata = raw_adata.copy()
-            sc.pp.normalize_total(adata, target_sum=1e4)
-            sc.pp.log1p(adata)
-            adata.raw = adata.copy()
-            if skip_te:
-                adata = _filter_te(adata)
-            sc.pp.highly_variable_genes(adata, n_top_genes=min(n_top_genes, adata.n_vars // 2), flavor="seurat", subset=False)
-            adata = adata[:, adata.var["highly_variable"]].copy()
-            sc.pp.scale(adata, max_value=10)
-
-        pca_comps = max(n_pcs, 100) if auto_n_pcs else n_pcs
-        pca_comps = min(pca_comps, max(2, adata.n_obs - 1), adata.n_vars - 1)
-        sc.tl.pca(adata, n_comps=pca_comps)
-
-        if auto_n_pcs:
-            variance_ratio = adata.uns["pca"]["variance_ratio"]
-            n_pcs_detected, detect_diag = detect_n_pcs(variance_ratio)
-            n_pcs = n_pcs_detected
-            logger.info("Auto-detected n_pcs: %d", n_pcs)
-
-        if batch_method == "harmony":
-            ho = hm.run_harmony(adata.obsm["X_pca"], adata.obs, resolved_batch_key)
-            Z = np.asarray(ho.Z_corr)
-            if Z.ndim == 1:
-                raise ValueError(f"harmonypy Z_corr is 1D shape={Z.shape}")
-            if Z.shape[0] != adata.n_obs:
-                Z = Z.T
-            adata.obsm["X_pca_harmony"] = Z
-            sc.pp.neighbors(adata, n_neighbors=n_neighbors, n_pcs=n_pcs,
-                            use_rep="X_pca_harmony")
-        elif batch_method == "bbknn":
-            sc.external.pp.bbknn(adata, batch_key=resolved_batch_key)
-        else:
-            sc.pp.neighbors(adata, n_neighbors=n_neighbors, n_pcs=n_pcs)
-
-        sc.tl.umap(adata, min_dist=0.1, spread=0.8)
-        sc.tl.leiden(adata, resolution=resolution, key_added="leiden",
-                     flavor="igraph", n_iterations=2, directed=False)
-        # If skip_te, temporarily remove TE genes from raw so DEG excludes them
-        _orig_raw = None
-        if skip_te and "gene_type" in adata.raw.var.columns:
-            _orig_raw = adata.raw
-            te_mask = adata.raw.var["gene_type"] != "TE"
-            adata._raw = adata.raw[:, te_mask].copy()
-            logger.info("DEG: filtered TE from raw (%d -> %d genes)",
-                         _orig_raw.shape[1], adata.raw.shape[1])
-        sc.tl.rank_genes_groups(adata, "leiden", method="wilcoxon", use_raw=True)
-        if _orig_raw is not None:
-            adata._raw = _orig_raw
-
-        n_clusters = len(adata.obs["leiden"].unique())
-        logger.info("Clustering done: %d clusters", n_clusters)
-        iter_ctx = {
-            "iteration": iteration,
-            "n_cells": adata.n_obs,
-            "n_genes": adata.n_vars,
-            "resolution": resolution,
-            "n_clusters": n_clusters,
-            "batch_method": batch_method,
-            "n_hvg": int(adata.var["highly_variable"].sum()),
-            "n_pcs_used": n_pcs,
-            "cluster_sizes": {str(k): int(v) for k, v in
-                              adata.obs["leiden"].value_counts().items()},
-        }
-
-        # ── Step 2: AI annotate each cluster ──
-        logger.info("[Step 2] AI annotation...")
-        annotations: Dict[str, Dict] = {}
-
-        # Compute UMAP centroids for distance calculation
-        umap_centroids = {}
-        if "X_umap" in adata.obsm:
-            for cluster in sorted(adata.obs["leiden"].unique(), key=lambda x: int(x)):
-                mask = adata.obs["leiden"] == cluster
-                if int(mask.sum()) >= 50:  # Min cells for valid centroid
-                    umap_centroids[cluster] = adata.obsm["X_umap"][mask.values].mean(axis=0)
-
-        # ── Pre-compute cross-cluster marker specificity ──
-        # This is the key fix for the "Oocyte hidden behind proliferation DEGs"
-        # problem: instead of relying on rank_genes_groups ranking (which can
-        # bury tissue-specific markers under high-variance proliferation genes),
-        # directly query tissue markers' cross-cluster specificity.
-        # The result is indexed by cluster_id for O(1) lookup per cluster.
-        cluster_specificity: Dict[str, Dict[Tuple[str, str], Dict[str, float]]] = {}
-        if tissue_cell_types:
-            logger.info(
-                "[Step 1.5] Pre-computing cross-cluster marker specificity for %d "
-                "cell types × %d clusters...",
-                len(tissue_cell_types),
-                len(adata.obs["leiden"].unique()),
-            )
-            for cluster in sorted(adata.obs["leiden"].unique(), key=lambda x: int(x)):
-                cluster_specificity[str(cluster)] = _compute_marker_specificity(
-                    adata, tissue_cell_types, cluster_id=str(cluster),
-                )
-
-        for cluster in sorted(adata.obs["leiden"].unique(), key=lambda x: int(x)):
-            mask = adata.obs["leiden"] == cluster
-            n_cells = int(mask.sum())
-            obs = adata.obs[mask]
-            mean_g = float(obs["n_genes_by_counts"].mean()) if "n_genes_by_counts" in obs.columns else 0.0
-            mean_c = float(obs["total_counts"].mean()) if "total_counts" in obs.columns else 0.0
-            pmt = float(obs["pct_counts_mt"].mean()) if "pct_counts_mt" in obs.columns else 0.0
-
-            marker_df = sc.get.rank_genes_groups_df(adata, group=cluster)
-            top_genes = marker_df.head(50)["names"].tolist()
-
-            # Compute UMAP distances to other clusters
-            umap_distances = {}
-            if cluster in umap_centroids:
-                for other_cluster, other_centroid in umap_centroids.items():
-                    if other_cluster != cluster:
-                        dist = float(np.linalg.norm(umap_centroids[cluster] - other_centroid))
-                        umap_distances[other_cluster] = dist
-
-            logger.info("  Cluster %s (%d cells): annotating...", cluster, n_cells)
-            ann = _ai_annotate_cluster(
-                cluster, top_genes, tissue, n_cells, mean_g, mean_c, pmt,
-                llm_method=llm_method, llm_model=llm_model,
-                llm_api_key=llm_api_key, llm_base_url=llm_base_url,
-                other_annotations=annotations,
-                umap_distances=umap_distances,
-                tissue_cell_types=tissue_cell_types,
-                marker_specificity=cluster_specificity.get(str(cluster)),
-            )
-            annotations[cluster] = ann
-            logger.info("    -> %s (confidence: %s, %d refs, is_subcluster: %s, should_merge: %s)",
-                         ann["cell_type"], ann["confidence"],
-                         sum(len(v) for v in ann.get("references", {}).values()),
-                         ann.get("is_subcluster", False),
-                         ann.get("should_merge", False))
-
-            time.sleep(0.5)  # rate limit between clusters
+        # ── Steps 1.5 + 2: AI annotate each cluster ──
+        annotations, cluster_specificity = _auto_annotate_all_clusters(
+            adata, tissue,
+            llm_method=llm_method, llm_model=llm_model,
+            llm_api_key=llm_api_key, llm_base_url=llm_base_url,
+            tissue_cell_types=tissue_cell_types,
+            misannotation_history=misannotation_history,
+        )
 
         # ── Step 2.1: Normalize LLM cell type names against tissue_cell_types ──
-        # Ensures naming consistency with the canonical names returned by the
-        # Step 0 tissue query (e.g. "Smooth_muscle" → "Smooth muscle cells",
-        # "Granulosa-like" → "Granulosa cells"). Without this, downstream
-        # analysis pipelines that key off exact names break.
-        if tissue_cell_types:
-            logger.info("[Step 2.1] Normalizing cell type names against tissue reference...")
-            normalized_count = 0
-            for cl, ann in annotations.items():
-                raw_ct = ann.get("cell_type", "Unknown")
-                if raw_ct in ("Unknown", "Unverified_TE", "Unannotated", "ERVK_high", "Alu_high"):
-                    continue
-                canon_ct, was_changed = _normalize_cell_type_name(raw_ct, tissue_cell_types)
-                if was_changed:
-                    logger.info("  Cluster %s: '%s' -> '%s' (normalized)", cl, raw_ct, canon_ct)
-                    ann["cell_type_raw"] = raw_ct
-                    ann["cell_type"] = canon_ct
-                    normalized_count += 1
-            logger.info("  Normalized %d / %d cluster annotations", normalized_count, len(annotations))
+        _auto_normalize_annotation_names(annotations, tissue_cell_types)
 
         # Apply annotations to adata
         cluster_to_ct = {cl: ann["cell_type"] for cl, ann in annotations.items()}
@@ -3565,169 +4513,18 @@ def mode_auto(
         iter_ctx["cell_types"] = sorted(set(cluster_to_ct.values()))
 
         # ── Step 2.5: Specificity-weighted scoring refinement ──
-        logger.info("[Step 2.5] Specificity-weighted marker scoring...")
-        # Collect canonical_markers from all clusters to build temporary marker dict
-        temp_marker_dict: Dict[str, List[str]] = {}
-        for cl, ann in annotations.items():
-            ct = ann["cell_type"]
-            canonical = ann.get("canonical_markers", [])
-            if canonical and ct not in ("Unknown", "Unverified_TE", "Unannotated"):
-                if ct not in temp_marker_dict:
-                    temp_marker_dict[ct] = []
-                # Merge canonical markers (avoid duplicates)
-                for g in canonical:
-                    if g not in temp_marker_dict[ct]:
-                        temp_marker_dict[ct].append(g)
-
-        if temp_marker_dict:
-            # Compute gene specificity: 1 / (number of cell types expressing it)
-            gene_specificity: Dict[str, float] = {}
-            for ct, markers in temp_marker_dict.items():
-                for g in markers:
-                    gene_specificity[g] = gene_specificity.get(g, 0) + 1
-            for g in gene_specificity:
-                gene_specificity[g] = 1.0 / gene_specificity[g]
-
-            # Get top DEGs for each cluster (kept for legacy fallback)
-            result = adata.uns["rank_genes_groups"]
-            cluster_markers: Dict[str, List[str]] = {}
-            for g in result["names"].dtype.names:
-                cluster_markers[g] = list(result["names"][g][:50])
-
-            all_genes = set(adata.raw.var.index) if adata.raw is not None else set(adata.var.index)
-            valid_markers = {}
-            for ct, genes in temp_marker_dict.items():
-                found = [g for g in genes if g in all_genes]
-                if found:
-                    valid_markers[ct] = set(found)
-
-            # Re-score each cluster using a COMBINED scoring approach:
-            #   legacy_score = top-50 DEG overlap (with rank-weighted specificity)
-            #   specificity_score = number of unique markers that THIS cluster
-            #                        specifically enriches (cross-cluster
-            #                        specificity >= 2.0, >1% cells expressing).
-            #                        COUNT not SUM — protects against one
-            #                        mega-marker (e.g. CD14 specificity ~4M)
-            #                        dominating the score and producing
-            #                        false reassignments (Monocyte eating
-            #                        Macrophage, T_Cell eating NK_Cell).
-            # Final score = legacy_score + 1.5 * specificity_marker_count
-            #
-            # MIN-SPECIFICITY-MARKERS GATE: the refined_ct is only allowed to
-            # change from the LLM's call when the candidate has at least
-            # ``min_spec_markers_to_refine`` markers satisfying the
-            # cross-cluster specificity filter. Without this gate, ties
-            # and zero-score cases can produce random reassignments.
-            #
-            # cluster_specificity is per-cluster (cluster_id=str(clust)).
-            # Global mode would never satisfy the filter because other_max
-            # (= max cluster mean) is always >= global mean.
-            MIN_SPEC_MARKERS_TO_REFINE = 2
-            cluster_to_ct_refined = {}
-            for clust, top_genes in cluster_markers.items():
-                top_set = set(top_genes)
-                llm_ct = annotations.get(clust, {}).get("cell_type", "Unknown")
-                best_ct = llm_ct  # Default: keep LLM call
-                best_score = -1.0
-                best_spec_hits: List[str] = []
-                best_legacy_score: float = 0.0
-
-                # Per-cluster specificity for this cluster
-                cl_spec = cluster_specificity.get(str(clust), {})
-
-                # Track whether ANY candidate has spec_hits, so we know
-                # whether the LLM call is "unchanged due to no signal" or
-                # "unchanged due to being defended by an alternative".
-                any_candidate_has_spec = False
-
-                for ct, markers in valid_markers.items():
-                    # Legacy DEG-overlap score
-                    matched = top_set & markers
-                    legacy_score = 0.0
-                    for g in matched:
-                        rank = top_genes.index(g)
-                        rank_weight = 1.0 / (1.0 + rank * 0.1)
-                        legacy_score += gene_specificity.get(g, 0) * rank_weight
-
-                    # NEW: count unique markers that THIS cluster uniquely
-                    # enriches (top among all clusters, with strong specificity).
-                    spec_count = 0
-                    spec_hits: List[str] = []
-                    for g in markers:
-                        key = (ct, g)
-                        if key not in cl_spec:
-                            continue
-                        m = cl_spec[key]
-                        if (m["specificity"] >= 2.0
-                                and m["pct_pos"] > 1.0):
-                            spec_count += 1
-                            spec_hits.append(g)
-
-                    if spec_count >= MIN_SPEC_MARKERS_TO_REFINE:
-                        any_candidate_has_spec = True
-
-                    # Combined: legacy + 1.5x spec count
-                    combined = legacy_score + 1.5 * spec_count
-                    if combined > best_score:
-                        best_score = combined
-                        best_ct = ct
-                        best_spec_hits = spec_hits
-                        best_legacy_score = legacy_score
-
-                # Apply the gate: only allow refinement when the new
-                # candidate has >= MIN_SPEC_MARKERS_TO_REFINE markers
-                # with strong cross-cluster specificity. Otherwise keep
-                # the LLM's original call (no signal, don't override).
-                if best_ct != llm_ct:
-                    # Verify the refined candidate really has enough spec markers
-                    if len(best_spec_hits) < MIN_SPEC_MARKERS_TO_REFINE:
-                        # Not enough signal — keep LLM call
-                        cluster_to_ct_refined[clust] = llm_ct
-                    else:
-                        cluster_to_ct_refined[clust] = best_ct
-                        logger.info(
-                            "  Cluster %s: LLM='%s' -> Refined='%s' "
-                            "(legacy=%.2f, spec_count=%d, hits=%s)",
-                            clust, llm_ct, best_ct,
-                            best_legacy_score, len(best_spec_hits), best_spec_hits,
-                        )
-                else:
-                    cluster_to_ct_refined[clust] = llm_ct
-
-            # Apply refined annotations
-            for clust in annotations:
-                llm_ct = annotations[clust]["cell_type"]
-                refined_ct = cluster_to_ct_refined.get(clust, llm_ct)
-                annotations[clust]["cell_type_refined"] = refined_ct
-                annotations[clust]["cell_type"] = refined_ct  # Overwrite with refined
-
-            # Update adata with refined annotations
-            cluster_to_ct = {cl: ann["cell_type"] for cl, ann in annotations.items()}
-            adata.obs["cell_type"] = adata.obs["leiden"].map(cluster_to_ct).astype("category")
-            adata.obs["llm_label"] = adata.obs["leiden"].map(
-                {cl: annotations[cl].get("cell_type_refined", annotations[cl]["cell_type"])
-                 for cl in annotations}).astype("category")
-            logger.info("Refined annotations applied. Cell types: %s",
-                         sorted(set(cluster_to_ct.values())))
-        else:
-            logger.info("No canonical_markers found, skipping specificity scoring")
-            adata.obs["llm_label"] = adata.obs["cell_type"].copy()
+        # (mutates annotations in place; iter_ctx["cell_types"] above
+        # intentionally records the PRE-refinement calls, as before)
+        _auto_refine_annotations(adata, annotations, cluster_specificity)
 
         # ── Step 3: Quality analysis ──
-        logger.info("[Step 3] Quality analysis...")
-        quality_reports = []
-        for cluster in sorted(adata.obs["leiden"].unique(), key=lambda x: int(x)):
-            ann = annotations.get(cluster, {})
-            qr = _analyze_cluster_quality(
-                adata, cluster, ann,
-                min_genes=min_genes, min_counts=min_counts, max_pct_mt=max_pct_mt,
-            )
-            quality_reports.append(qr)
-            if qr["should_filter"]:
-                logger.info("  Cluster %s FLAGGED: %s (%s)",
-                             cluster, qr["ai_cell_type"], ",".join(qr["flags"]))
+        quality_reports = _auto_quality_reports(
+            adata, annotations,
+            min_genes=min_genes, min_counts=min_counts, max_pct_mt=max_pct_mt,
+        )
 
         flagged = [r for r in quality_reports if r["should_filter"]]
+        n_clusters = iter_ctx["n_clusters"]
         logger.info("Flagged clusters: %d / %d", len(flagged), n_clusters)
         iter_ctx["n_flagged"] = len(flagged)
         iter_ctx["flagged_clusters"] = [{"cluster": r["cluster"],
@@ -3740,32 +4537,8 @@ def mode_auto(
                                          "flags": r["flags"]}
                                         for r in quality_reports]
 
-                                        # ── Step 3.25: Check should_merge flags from LLM ──
-        merge_candidates = []
-        for cluster, ann in annotations.items():
-            if ann.get("should_merge") and ann.get("parent_cluster"):
-                parent = ann["parent_cluster"]
-                if parent in annotations:
-                    merge_candidates.append({
-                        "cluster": cluster,
-                        "parent": parent,
-                        "cell_type": ann["cell_type"],
-                        "parent_cell_type": annotations[parent]["cell_type"],
-                        "is_subcluster": ann.get("is_subcluster", False),
-                    })
-                    logger.info("  Cluster %s (%s) -> should merge with Cluster %s (%s)",
-                                 cluster, ann["cell_type"], parent, annotations[parent]["cell_type"])
-
-        if merge_candidates:
-            logger.info("LLM identified %d clusters that should be merged", len(merge_candidates))
-            # Store merge info in annotations for report
-            for mc in merge_candidates:
-                annotations[mc["cluster"]]["merge_info"] = {
-                    "parent_cluster": mc["parent"],
-                    "parent_cell_type": mc["parent_cell_type"],
-                }
-        else:
-            logger.info("No clusters identified for merging by LLM")
+        # ── Step 3.25: Check should_merge flags from LLM ──
+        _auto_collect_merge_candidates(annotations)
 
         # ── Step 3.5: Check cluster spatial continuity ──
         # Moved BEFORE early exit so discontinuous clusters are always
@@ -3829,7 +4602,6 @@ def mode_auto(
 
         # ── Step 3.75: Check cell type separation ──
         logger.info("[Step 3.75] Checking cell type separation...")
-        misannotated: List[Dict] = []
         needs_reclustering, separation_diag = _check_cell_type_separation(
             adata,
             cell_type_key="cell_type",
@@ -3868,120 +4640,24 @@ def mode_auto(
                 else:
                     logger.info("Quality issues present. Will filter first, then re-cluster.")
 
-        # Handle misannotated clusters (low marker overlap → annotation error)
-        misannotated = separation_diag.get("misannotated", [])
-        for ma in misannotated:
-            flag_cluster = ma["flagged_cluster"]
-            logger.info("Misannotation detected: cluster %s labeled '%s' but markers diverge (Jaccard=%.3f). Flagging for filter.",
-                         flag_cluster, ma["cell_type"], ma["marker_jaccard"])
-            # Add to quality_reports if not already flagged
-            if not any(r["cluster"] == flag_cluster for r in quality_reports if r["should_filter"]):
-                new_report = {
-                    "cluster": flag_cluster,
-                    "ai_cell_type": ma["cell_type"],
-                    "should_filter": True,
-                    "flags": ["misannotated_low_marker_overlap"],
-                    "filter_mode": "whole_cluster",
-                }
-                # Copy QC stats from the existing (non-flagged) report for this
-                # cluster so the summary doesn't print "?" placeholders.
-                existing = next((r for r in quality_reports if r["cluster"] == flag_cluster), None)
-                if existing:
-                    for k in ("n_cells", "mean_genes", "mean_counts", "pct_mt"):
-                        if k in existing:
-                            new_report[k] = existing[k]
-                quality_reports.append(new_report)
-                flagged = [r for r in quality_reports if r["should_filter"]]
-            else:
-                # Already flagged (e.g. for low_quality) — upgrade to whole-cluster
-                # removal because marker mismatch + separation = ambient RNA artifact.
-                for r in quality_reports:
-                    if r["cluster"] == flag_cluster and r["should_filter"]:
-                        r["filter_mode"] = "whole_cluster"
-                        logger.info("  Cluster %s: upgraded to WHOLE-CLUSTER removal (low quality + separated).",
-                                     flag_cluster)
+        flagged, misannotated, reannotation_log = _auto_handle_misannotated(
+            separation_diag, quality_reports, flagged,
+            adata, annotations, cluster_specificity,
+            tissue, llm_method, llm_model, llm_api_key, llm_base_url,
+            tissue_cell_types=tissue_cell_types,
+        )
+        _auto_upgrade_ambient_artifacts(separation_diag, quality_reports)
+        # Record this round's misannotation events for the next iteration's
+        # prompt feedback (marker-based identity, see _record_misannotation_events).
+        _record_misannotation_events(
+            misannotated, annotations, iteration, misannotation_history,
+        )
         iter_ctx["misannotated"] = misannotated
-
-        # Upgrade low-quality clusters that are ALSO separated from same-type
-        # high-quality clusters → whole-cluster removal. Rationale: cells in
-        # these clusters share marker genes with another cluster of the same
-        # annotated type but lie far away in UMAP, indicating ambient-RNA
-        # contamination rather than a genuine biological subpopulation.
-        # Cell-level QC is not enough because the surviving cells are
-        # untrustworthy and would re-trigger the same separation on the next
-        # iteration.
-        separated_ct_to_clusters: Dict[str, set] = {}
-        for ct_info in separation_diag.get("separated_types", []):
-            ct = ct_info["cell_type"]
-            for d in separation_diag.get("cluster_distances", {}).get(ct, {}).get("pairs", []):
-                separated_ct_to_clusters.setdefault(ct, set()).add(d["cluster_i"])
-                separated_ct_to_clusters.setdefault(ct, set()).add(d["cluster_j"])
-        for ma in separation_diag.get("misannotated", []):
-            separated_ct_to_clusters.setdefault(ma["cell_type"], set()).add(ma["flagged_cluster"])
-
-        if separated_ct_to_clusters:
-            for r in quality_reports:
-                if not r["should_filter"]:
-                    continue
-                if r.get("filter_mode") == "whole_cluster":
-                    continue
-                ct = r.get("ai_cell_type", "Unknown")
-                low_quality_flag = any(f in r.get("flags", []) for f in ("low_genes", "low_counts", "high_mt", "low_quality"))
-                if not (low_quality_flag and ct in separated_ct_to_clusters and r["cluster"] in separated_ct_to_clusters[ct]):
-                    continue
-
-                # Precision filter: only upgrade to whole_cluster if this cluster
-                # looks like an ambient-RNA artifact rather than a genuine
-                # low-quality biological population. Heuristic:
-                #   1. LLM confidence must be low/medium (high confidence means
-                #      the LLM genuinely identified the cell type despite low
-                #      quality → trust it, keep cell-level filter).
-                #   2. AI explicitly flagged low_quality in quality_flag.
-                #   3. AI reasoning must reference separation / ambient / artifact.
-                ai_conf = r.get("ai_confidence", "low")
-                ai_qf = r.get("ai_quality_flag", "")
-                # Look up the AI reasoning from annotations via cluster id
-                ann_for_cluster = None
-                # Annotations aren't passed here, but the quality report carries
-                # ai_cell_type and ai_quality_flag — enough for this check.
-
-                should_upgrade = False
-                reason = ""
-
-                if ai_conf in ("low", "medium") and ai_qf == "low_quality":
-                    # LLM already said: low quality. With separation, very likely
-                    # ambient RNA contamination from neighbouring high-quality
-                    # cluster of the same type.
-                    should_upgrade = True
-                    reason = "LLM low confidence + low_quality flag"
-                elif ai_qf in ("unknown", "unannotated") and ai_conf == "low":
-                    # LLM couldn't identify, low quality, separated → likely garbage
-                    should_upgrade = True
-                    reason = "LLM unknown + low_quality"
-                else:
-                    # High confidence + low quality but separated → could be a
-                    # real biological population that just happens to have low
-                    # counts. Keep cell-level filter so the high-quality cells
-                    # are preserved and can re-cluster.
-                    reason = (f"AI confidence={ai_conf}, quality_flag={ai_qf} → "
-                              f"keep cell-level filter (likely real low-quality population)")
-
-                if should_upgrade:
-                    peer_clusters = [c for c in separated_ct_to_clusters[ct] if c != r["cluster"]]
-                    peer_info = ", ".join(f"cluster {c}" for c in peer_clusters) if peer_clusters else "n/a"
-                    logger.info(
-                        "  Cluster %s (%s): %s. Upgrading to WHOLE-CLUSTER removal "
-                        "(likely ambient-RNA artifact); peer cluster(s): %s.",
-                        r["cluster"], ct, reason, peer_info,
-                    )
-                    r["filter_mode"] = "whole_cluster"
-                    if "ambient_artifact" not in r["flags"]:
-                        r["flags"] = list(r["flags"]) + ["ambient_artifact"]
-                else:
-                    logger.info(
-                        "  Cluster %s (%s): %s. Keeping cell-level QC.",
-                        r["cluster"], ct, reason,
-                    )
+        iter_ctx["reannotation"] = reannotation_log
+        ctx.setdefault("misannotation_history", []).append({
+            "iteration": iteration,
+            "events": list(misannotation_history),
+        })
 
         # ── Step 4: Filter or finish ──
         if not flagged:
@@ -4027,72 +4703,20 @@ def mode_auto(
             ctx["iterations"].append(iter_ctx)
             break
 
-        # Prepare raw counts for re-clustering
-        # Use the raw_adata (pre-processing) and subset to filtered cells
-        filtered_indices = adata_filtered.obs.index
-        raw_filtered = raw_adata[raw_adata.obs.index.isin(filtered_indices)].copy()
-
-        # Preserve sample_id
-        if "sample_id" in adata_filtered.obs.columns:
-            raw_filtered.obs["sample_id"] = adata_filtered.obs.loc[
-                raw_filtered.obs.index, "sample_id"
-            ]
-
-        adata = raw_filtered
+        adata = _auto_prepare_recluster_adata(raw_adata, adata_filtered)
         logger.info("Iteration %d complete. %d cells remaining.", iteration, adata.n_obs)
         iter_ctx["filter_n_removed"] = n_removed
         iter_ctx["filter_cells_remaining"] = adata.n_obs
         ctx["iterations"].append(iter_ctx)
 
     # ── Final: save reports and h5ad ──
-    logger.info("Writing final reports...")
-    _write_annotation_report(annotations, quality_reports,
-                            os.path.join(report_dir, "annotation_report.tsv"))
-    _write_references_report(annotations,
-                            os.path.join(report_dir, "references.tsv"))
-
-    # Plot if requested
-    if plotter:
-        plotter.plot_pca_variance(
-            adata,
-            n_pcs=n_pcs,
-            auto_n_pcs=auto_n_pcs,
-            detect_diag=detect_diag if auto_n_pcs else None,
-        )
-        plotter.plot_cluster(adata, cluster_key="leiden", sample_key=resolved_batch_key)
-        
-        # Generate annotation plots (UMAP cell_type, dotplot, etc.)
-        annotation_keys = []
-        if "cell_type" in adata.obs.columns:
-            annotation_keys.append("cell_type")
-        if "llm_label" in adata.obs.columns:
-            annotation_keys.append("llm_label")
-        
-        has_rank_genes = "rank_genes_groups" in adata.uns
-        plotter.plot_annotate(
-            adata,
-            marker_file="",  # No marker file in auto mode
-            annotate_group="leiden",
-            annotation_keys=annotation_keys,
-            has_rank_genes=has_rank_genes,
-        )
-
-        # Marker expression on UMAP (per-cluster panels with centroid labels)
-        n_markers_used = plotter.plot_markers(adata, annotations)
-        logger.info("Marker expression plots: %d unique markers plotted", n_markers_used)
-
-    adata.write_h5ad(output)
-    ctx["final_cells"] = adata.n_obs
-    ctx["final_genes"] = adata.n_vars
-    logger.info("Final annotated h5ad: %s", output)
-
-    # ── LLM-generated audit report & reproducible script ──
-    _generate_audit_report(ctx, report_dir, llm_method, llm_model,
-                           llm_api_key, llm_base_url)
-
-    # ── Independent annotation audit (uses post-mode_auto h5ad only) ──
-    adata._h5ad_source = output  # stamped into annotation_audit.json
-    _audit_annotations(adata, report_dir=report_dir, tissue=tissue or "")
+    _auto_finalize_outputs(
+        plotter, adata, output, report_dir, annotations, quality_reports,
+        n_pcs=n_pcs, auto_n_pcs=auto_n_pcs, detect_diag=detect_diag,
+        resolved_batch_key=resolved_batch_key, ctx=ctx, tissue=tissue,
+        llm_method=llm_method, llm_model=llm_model,
+        llm_api_key=llm_api_key, llm_base_url=llm_base_url,
+    )
 
     logger.info("Reports: %s", report_dir)
     logger.info("AUTO MODE COMPLETE")

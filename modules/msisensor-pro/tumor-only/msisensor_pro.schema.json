@@ -1,0 +1,32 @@
+{
+  "outdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "msisensor-pro": {
+    "type": "str",
+    "nullable": true,
+    "required": false
+  },
+  "genome_version": {
+    "type": "str",
+    "nullable": true,
+    "required": false
+  },
+  "reference": {
+    "type": "null",
+    "nullable": true,
+    "required": false
+  },
+  "samples4test": {
+    "type": "str",
+    "nullable": true,
+    "required": false
+  },
+  "samples4baseline": {
+    "type": "str",
+    "nullable": true,
+    "required": false
+  }
+}

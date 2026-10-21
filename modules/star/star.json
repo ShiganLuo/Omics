@@ -1,21 +1,22 @@
 {
-    "indir": "output/hisat2",
-    "outdir": "output",
-    "logdir": "logs",
-    "paired_samples": ["sample1", "sample2"],
-    "single_samples": ["sample3", "sample4"],
+    "indir": null,
+    "outdir": null,
+    "logdir": null,
+    "paired_samples": [],
+    "single_samples": [],
     "Procedure": {
-        "STAR": "path/to/STAR"
+        "STAR": null
     },
     "genome": {
-        "fasta": "path/to/genome.fa",
-        "gtf": "path/to/annotation.gtf",
-        "index_dir": "path/to/star_index_dir"
+        "fasta": null,
+        "gtf": null,
+        "index_dir": null
     },
     "Params": {
         "star": {
             "index": {
-                "sjdbOverhang": 100
+                "sjdbOverhang": 100,
+                "genomeSAindexNbases": null
             },
             "alignEndsType": "Local",
             "outFilterMismatchNoverReadLmax": 1.0,

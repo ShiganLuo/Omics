@@ -1,0 +1,80 @@
+{
+  "indir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "outdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "logdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "samples": {
+    "type": "list",
+    "nullable": true,
+    "required": false
+  },
+  "Params": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "hifiasm": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          }
+        }
+      },
+      "RepeatMasker": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "species": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "threads": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          }
+        }
+      }
+    }
+  },
+  "Procedure": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "hifiasm": {
+        "type": "str",
+        "nullable": true,
+        "required": false
+      },
+      "RepeatMasker": {
+        "type": "str",
+        "nullable": true,
+        "required": false
+      },
+      "python": {
+        "type": "str",
+        "nullable": true,
+        "required": false
+      }
+    }
+  }
+}

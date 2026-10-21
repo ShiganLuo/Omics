@@ -1,0 +1,82 @@
+{
+  "ROOT_DIR": {
+    "type": "str",
+    "path": "dir",
+    "nullable": true,
+    "required": false
+  },
+  "outdir": {
+    "type": "null",
+    "nullable": true,
+    "required": true
+  },
+  "logdir": {
+    "type": "null",
+    "nullable": true,
+    "required": true
+  },
+  "samples": {
+    "type": "list",
+    "nullable": true,
+    "required": false
+  },
+  "paired_samples": {
+    "type": "list",
+    "nullable": true,
+    "required": false
+  },
+  "single_samples": {
+    "type": "list",
+    "nullable": true,
+    "required": false
+  },
+  "contrasts": {
+    "type": "list",
+    "nullable": true,
+    "required": false
+  },
+  "Params": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "report": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "title": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "subtitle": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "pipeline": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "genome": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "date": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "lang": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          }
+        }
+      }
+    }
+  }
+}

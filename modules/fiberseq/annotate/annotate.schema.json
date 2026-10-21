@@ -1,0 +1,75 @@
+{
+  "indir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "outdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "logdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "samples": {
+    "type": "list",
+    "nullable": true,
+    "required": false
+  },
+  "Procedure": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {}
+  },
+  "Params": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "fiberseq_annotate": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "tss_flank": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          },
+          "repeat_frac": {
+            "type": "float",
+            "nullable": true,
+            "required": false
+          }
+        }
+      }
+    }
+  },
+  "genome": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "gtf": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      },
+      "repeat_bed": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      }
+    }
+  },
+  "env": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {}
+  }
+}

@@ -1,0 +1,87 @@
+{
+  "indir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "outdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "logdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "samples": {
+    "type": "list",
+    "nullable": true,
+    "required": false
+  },
+  "Procedure": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "trgt": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      }
+    }
+  },
+  "Params": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "trgt": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "karyotype": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "repeat_id": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          }
+        }
+      }
+    }
+  },
+  "reference": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "repeat_bed": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      }
+    }
+  },
+  "genome": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "fasta": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      },
+      "fai": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      }
+    }
+  }
+}

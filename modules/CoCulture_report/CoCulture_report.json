@@ -1,0 +1,12 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "logs",
+    "genome1_samples": {},
+    "genome2_samples": {},
+    "genome_pairs": [
+        "genome1",
+        "genome2"
+    ],
+    "ROOT_DIR": null
+}

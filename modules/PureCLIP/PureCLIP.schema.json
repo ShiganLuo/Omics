@@ -1,0 +1,66 @@
+{
+  "Procedure": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "pureclip": {
+        "type": "str",
+        "nullable": true,
+        "required": false
+      }
+    }
+  },
+  "Params": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "pureclip": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "ld": {
+            "type": "bool",
+            "nullable": true,
+            "required": false
+          },
+          "nt": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          }
+        }
+      }
+    }
+  },
+  "genome": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "fasta": {
+        "type": "str",
+        "path": "file",
+        "nullable": true,
+        "required": false
+      }
+    }
+  },
+  "indir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "outdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "logdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  }
+}

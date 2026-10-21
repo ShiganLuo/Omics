@@ -1,0 +1,105 @@
+{
+  "indir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "outdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "logdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "ROOT_DIR": {
+    "type": "str",
+    "path": "dir",
+    "nullable": true,
+    "required": false
+  },
+  "Procedure": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "TElocal": {
+        "type": "str",
+        "nullable": true,
+        "required": false
+      },
+      "TEcount": {
+        "type": "str",
+        "nullable": true,
+        "required": false
+      }
+    }
+  },
+  "genome": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "genome1": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "gtf": {
+            "type": "str",
+            "path": "file",
+            "nullable": true,
+            "required": false
+          },
+          "TE_gtf": {
+            "type": "str",
+            "path": "file",
+            "nullable": true,
+            "required": false
+          },
+          "TEind": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          }
+        }
+      },
+      "genome2": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "gtf": {
+            "type": "str",
+            "path": "file",
+            "nullable": true,
+            "required": false
+          },
+          "TE_gtf": {
+            "type": "str",
+            "path": "file",
+            "nullable": true,
+            "required": false
+          },
+          "TEind": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          }
+        }
+      }
+    }
+  },
+  "samples": {
+    "type": "list",
+    "nullable": true,
+    "required": false
+  },
+  "genome_pairs": {
+    "type": "list",
+    "nullable": true,
+    "required": false
+  }
+}

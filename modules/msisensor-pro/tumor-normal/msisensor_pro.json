@@ -1,0 +1,10 @@
+{
+    "outdir": "output",
+    "msisensor-pro": "msisensor-pro",
+    "genome_version": "GRCh38",
+    "reference": null,
+    "sample_path": {
+        "tumor": "tumor.tsv",
+        "normal": "normal.tsv"
+    }
+}

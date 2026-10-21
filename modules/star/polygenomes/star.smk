@@ -41,6 +41,7 @@ rule star_index:
         STAR = config.get('Procedure',{}).get('STAR') or 'STAR',
         index_dir = lambda wildcards: outdir + f"/index/{wildcards.genome}",
         sjdbOverhang = config.get('Params',{}).get('star', {}).get('index', {}).get('sjdbOverhang') or 100,
+        genomeSAindexNbases = config.get('Params',{}).get('star', {}).get('index', {}).get('genomeSAindexNbases'),
         gtf = lambda wildcards: config.get('genome', {}).get('references', {}).get(wildcards.genome, {}).get('gtf'),
         outTmpDir = lambda wildcards: outdir + f"/index/tmp_star_{wildcards.genome}"
     run:
@@ -60,6 +61,25 @@ rule star_index:
                 "--runThreadN", str(threads),
                 "--genomeDir", params.index_dir,
                 "--genomeFastaFiles", input.fasta]
+            # --genomeSAindexNbases: explicit config wins; otherwise auto-compute
+            # STAR's recommendation min(14, log2(genomeSize)/2 - 1), rounding
+            # down. Required for small genomes (ecDNA/plasmid/mito) — the
+            # default 14 seg-faults or loses reads at the mapping step.
+            if params.genomeSAindexNbases:
+                sa_index_bases = int(params.genomeSAindexNbases)
+                rule_logger.info(f"Using genomeSAindexNbases from config: {sa_index_bases}")
+            else:
+                # chunked byte scan: count non-header bytes (fast, ~500MB/s+)
+                genome_size = 0
+                with open(input.fasta, "rb") as _fh:
+                    for _chunk in iter(lambda: _fh.read(1 << 24), b""):
+                        for _line in _chunk.split(b"\n"):
+                            if not _line.startswith(b">"):
+                                genome_size += len(_line.strip())
+                import math
+                sa_index_bases = max(2, min(14, int(math.log2(genome_size) / 2) - 1)) if genome_size > 0 else 14
+                rule_logger.info(f"Genome size {genome_size} bp -> auto genomeSAindexNbases {sa_index_bases}")
+            cmd.extend(["--genomeSAindexNbases", str(sa_index_bases)])
             if params.outTmpDir:
                 shutil.rmtree(params.outTmpDir, ignore_errors=True)
                 cmd.extend(["--outTmpDir", params.outTmpDir])
@@ -73,6 +93,11 @@ rule star_index:
 
             with open(script, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
+                # Run STAR from inside the genome dir: Log.out and other
+                # run-time files land there and STAR's end-of-run move stays
+                # on one filesystem (cross-mount rename fails under
+                # singularity, emitting the "Could not move Log.out" warning).
+                f.write(f'cd "{sample_outdir}"\n')
                 f.write(" ".join(cmd) + "\n")
                 f.write("echo 'STAR index generation completed successfully.'\n")
             shell(f"bash {script} >> {log_path} 2>&1")

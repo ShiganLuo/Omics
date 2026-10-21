@@ -1,0 +1,94 @@
+{
+  "indir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "outdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "logdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "samples": {
+    "type": "list",
+    "nullable": true,
+    "required": false
+  },
+  "Procedure": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "cellranger": {
+        "type": "str",
+        "nullable": true,
+        "required": false
+      }
+    }
+  },
+  "genome": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "cellranger_transcriptome": {
+        "type": "str",
+        "nullable": true,
+        "required": false
+      }
+    }
+  },
+  "Params": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "cellranger": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "mkref": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "genome_name": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "version": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              }
+            }
+          },
+          "count": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "nosecondary": {
+                "type": "bool",
+                "nullable": true,
+                "required": false
+              },
+              "create-bam": {
+                "type": "bool",
+                "nullable": true,
+                "required": false
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

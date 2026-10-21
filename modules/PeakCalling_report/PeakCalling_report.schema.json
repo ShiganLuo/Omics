@@ -1,0 +1,107 @@
+{
+  "outdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "logdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "samples": {
+    "type": "list",
+    "nullable": true,
+    "required": false
+  },
+  "input_samples": {
+    "type": "list",
+    "nullable": true,
+    "required": false
+  },
+  "sample_ip_input_map": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {}
+  },
+  "peaks_dir": {
+    "type": "str",
+    "path": "dir",
+    "nullable": true,
+    "required": false
+  },
+  "markdup_dir": {
+    "type": "str",
+    "path": "dir",
+    "nullable": true,
+    "required": false
+  },
+  "qc_dir": {
+    "type": "str",
+    "path": "dir",
+    "nullable": true,
+    "required": false
+  },
+  "annotation_dir": {
+    "type": "str",
+    "path": "dir",
+    "nullable": true,
+    "required": false
+  },
+  "ROOT_DIR": {
+    "type": "str",
+    "path": "dir",
+    "nullable": true,
+    "required": false
+  },
+  "Params": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "report": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "title": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "subtitle": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "pipeline": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "genome": {
+            "type": "null",
+            "nullable": true,
+            "required": false
+          },
+          "date": {
+            "type": "null",
+            "nullable": true,
+            "required": false
+          },
+          "top_n": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          }
+        }
+      }
+    }
+  },
+  "ip_samples": {
+    "type": "list",
+    "nullable": true,
+    "required": false
+  }
+}

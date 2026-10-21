@@ -1,0 +1,53 @@
+{
+  "indir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "outdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "logdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "Params": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "trimmomatic": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "adapter_pe": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "adapter_se": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          }
+        }
+      }
+    }
+  },
+  "Procedure": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "trimmomatic": {
+        "type": "str",
+        "nullable": true,
+        "required": false
+      }
+    }
+  }
+}

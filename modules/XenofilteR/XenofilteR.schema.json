@@ -1,0 +1,48 @@
+{
+  "indir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "outdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "logdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "Procedure": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "Rscript": {
+        "type": "str",
+        "nullable": true,
+        "required": false
+      }
+    }
+  },
+  "Parameters": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "XenofilteR": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "MM": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          }
+        }
+      }
+    }
+  }
+}

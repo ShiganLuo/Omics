@@ -1,0 +1,116 @@
+{
+  "indir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "outdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "logdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "genome_paired_samples": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "GRCm39": {
+        "type": "list",
+        "nullable": true,
+        "required": false
+      },
+      "GRCh38": {
+        "type": "list",
+        "nullable": true,
+        "required": false
+      }
+    }
+  },
+  "genome_single_samples": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "GRCm39": {
+        "type": "list",
+        "nullable": true,
+        "required": false
+      },
+      "GRCh38": {
+        "type": "list",
+        "nullable": true,
+        "required": false
+      }
+    }
+  },
+  "Params": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "report": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "title": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "subtitle": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "pipeline": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "date": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "lang": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          }
+        }
+      },
+      "DESeq2": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "group_pairs": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "GRCm39": {
+                "type": "dict",
+                "nullable": true,
+                "required": false,
+                "properties": {}
+              },
+              "GRCh38": {
+                "type": "dict",
+                "nullable": true,
+                "required": false,
+                "properties": {}
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

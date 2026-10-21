@@ -1,0 +1,53 @@
+{
+  "indir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "outdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "logdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "ROOT_DIR": {
+    "type": "str",
+    "path": "dir",
+    "nullable": true,
+    "required": false
+  },
+  "control_samples": {
+    "type": "list",
+    "nullable": true,
+    "required": false
+  },
+  "control_group_name": {
+    "type": "str",
+    "nullable": true,
+    "required": false
+  },
+  "treatment_samples": {
+    "type": "list",
+    "nullable": true,
+    "required": false
+  },
+  "treatment_group_name": {
+    "type": "str",
+    "nullable": true,
+    "required": false
+  },
+  "geneIDAnno": {
+    "type": "str",
+    "nullable": true,
+    "required": false
+  },
+  "geneIDAnno_comment": {
+    "type": "str",
+    "nullable": true,
+    "required": false
+  }
+}

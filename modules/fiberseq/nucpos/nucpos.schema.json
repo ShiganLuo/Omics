@@ -1,0 +1,75 @@
+{
+  "indir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "outdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "logdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "samples": {
+    "type": "list",
+    "nullable": true,
+    "required": false
+  },
+  "Procedure": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {}
+  },
+  "Params": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "fiberseq_nucpos": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "upstream_nucs": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          },
+          "downstream_nucs": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          },
+          "min_fibers": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          }
+        }
+      }
+    }
+  },
+  "genome": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "gtf": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      }
+    }
+  },
+  "env": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {}
+  }
+}

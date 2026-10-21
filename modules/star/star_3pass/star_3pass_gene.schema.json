@@ -1,0 +1,238 @@
+{
+  "indir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "outdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "logdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "final_bam_dir": {
+    "type": "null",
+    "nullable": true,
+    "required": false
+  },
+  "genome": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "fasta": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      },
+      "gtf": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      }
+    }
+  },
+  "ROOT_DIR": {
+    "type": "str",
+    "path": "dir",
+    "nullable": true,
+    "required": false
+  },
+  "Procedure": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "STAR": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      },
+      "samtools": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      }
+    }
+  },
+  "Params": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "star_3pass_gene": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "index": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "genomeSAindexNbases": {
+                "type": "null",
+                "nullable": true,
+                "required": false
+              }
+            }
+          },
+          "passes": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "pass1": {
+                "type": "dict",
+                "nullable": true,
+                "required": false,
+                "properties": {
+                  "--outFilterMultimapNmax": {
+                    "type": "int",
+                    "nullable": true,
+                    "required": false
+                  },
+                  "--outFilterMultimapScoreRange": {
+                    "type": "int",
+                    "nullable": true,
+                    "required": false
+                  },
+                  "--outFilterMismatchNoverLmax": {
+                    "type": "float",
+                    "nullable": true,
+                    "required": false
+                  },
+                  "--alignIntronMin": {
+                    "type": "int",
+                    "nullable": true,
+                    "required": false
+                  },
+                  "--alignEndsType": {
+                    "type": "str",
+                    "nullable": true,
+                    "required": false
+                  }
+                }
+              },
+              "pass2": {
+                "type": "dict",
+                "nullable": true,
+                "required": false,
+                "properties": {
+                  "--outFilterMultimapNmax": {
+                    "type": "int",
+                    "nullable": true,
+                    "required": false
+                  },
+                  "--outFilterMultimapScoreRange": {
+                    "type": "int",
+                    "nullable": true,
+                    "required": false
+                  },
+                  "--outFilterMismatchNoverLmax": {
+                    "type": "float",
+                    "nullable": true,
+                    "required": false
+                  },
+                  "--outFilterMismatchNoverReadLmax": {
+                    "type": "float",
+                    "nullable": true,
+                    "required": false
+                  },
+                  "--alignIntronMin": {
+                    "type": "int",
+                    "nullable": true,
+                    "required": false
+                  },
+                  "--alignMatesGapMax": {
+                    "type": "int",
+                    "nullable": true,
+                    "required": false
+                  },
+                  "--alignEndsType": {
+                    "type": "str",
+                    "nullable": true,
+                    "required": false
+                  },
+                  "--clip5pNbases": {
+                    "type": "str",
+                    "nullable": true,
+                    "required": false
+                  },
+                  "--clip3pNbases": {
+                    "type": "str",
+                    "nullable": true,
+                    "required": false
+                  }
+                }
+              },
+              "pass3": {
+                "type": "dict",
+                "nullable": true,
+                "required": false,
+                "properties": {
+                  "--outFilterMultimapNmax": {
+                    "type": "int",
+                    "nullable": true,
+                    "required": false
+                  },
+                  "--outFilterMultimapScoreRange": {
+                    "type": "int",
+                    "nullable": true,
+                    "required": false
+                  },
+                  "--outFilterMismatchNoverLmax": {
+                    "type": "float",
+                    "nullable": true,
+                    "required": false
+                  },
+                  "--alignIntronMin": {
+                    "type": "int",
+                    "nullable": true,
+                    "required": false
+                  },
+                  "--alignMatesGapMax": {
+                    "type": "int",
+                    "nullable": true,
+                    "required": false
+                  },
+                  "--alignEndsType": {
+                    "type": "str",
+                    "nullable": true,
+                    "required": false
+                  }
+                }
+              }
+            }
+          },
+          "tailer": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "flank": {
+                "type": "null",
+                "nullable": true,
+                "required": false
+              },
+              "rev_comp": {
+                "type": "null",
+                "nullable": true,
+                "required": false
+              },
+              "ambiguous": {
+                "type": "null",
+                "nullable": true,
+                "required": false
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,95 @@
+{
+  "outdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "logdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "samples": {
+    "type": "list",
+    "nullable": true,
+    "required": false
+  },
+  "Procedure": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "ldsc": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      },
+      "make_annot": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      },
+      "munge_sumstats": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      }
+    }
+  },
+  "Params": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "ldsc": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "enabled": {
+            "type": "bool",
+            "nullable": true,
+            "required": false
+          },
+          "annot_organism": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "ld_score_dir": {
+            "type": "null",
+            "nullable": true,
+            "required": false
+          },
+          "baseline_dir": {
+            "type": "null",
+            "nullable": true,
+            "required": false
+          },
+          "gwas": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {}
+          },
+          "pop": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "h2_cts": {
+            "type": "bool",
+            "nullable": true,
+            "required": false
+          }
+        }
+      }
+    }
+  },
+  "env": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {}
+  }
+}

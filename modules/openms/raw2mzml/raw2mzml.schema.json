@@ -1,0 +1,84 @@
+{
+  "ROOT_DIR": {
+    "type": "str",
+    "path": "dir",
+    "nullable": true,
+    "required": false
+  },
+  "indir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "outdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "logdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "samples": {
+    "type": "list",
+    "nullable": true,
+    "required": false
+  },
+  "raw_files": {
+    "type": "list",
+    "nullable": true,
+    "required": false
+  },
+  "Procedure": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "msconvert": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      }
+    }
+  },
+  "Params": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "raw_to_mzml": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "manifest": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "mode": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "converter": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "args": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "peak_picking": {
+            "type": "bool",
+            "nullable": true,
+            "required": false
+          }
+        }
+      }
+    }
+  }
+}

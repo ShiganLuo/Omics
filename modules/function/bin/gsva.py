@@ -192,8 +192,10 @@ def plot_heatmap(
     scores: pd.DataFrame,
     output_path: str,
     title: str = "GSVA Enrichment Scores",
-    value_label: str = "Score",
-    row_scale: bool = False,
+    value_label: str = "Row z-score",
+    row_scale: bool = True,
+    label_wrap: int = 40,
+    sample_wrap: int = 12,
 ) -> None:
     """Plot heatmap of enrichment scores with a symmetric color scale.
 
@@ -209,15 +211,25 @@ def plot_heatmap(
         Colorbar label describing the plotted values.
     row_scale : bool
         If True, standardize each row (gene set) across samples to zero
-        mean and unit variance before plotting.
+        mean and unit variance before plotting. Restores contrast when
+        the raw scores span a narrow range (e.g. averaged gene z-scores).
+    label_wrap : int
+        Max characters per line for wrapped gene-set (y) labels.
+    sample_wrap : int
+        Max characters per line for wrapped sample (x) labels.
+
+    Notes
+    -----
+    Uses constrained_layout so the colorbar stays attached to the axes,
+    and sizes the figure width from the longest wrapped label so long
+    gene-set names do not squeeze the heatmap into a sliver.
     """
+    import textwrap
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
     n_gs, n_samples = scores.shape
-    fig_h = max(4, n_gs * 0.35 + 1.5)
-    fig_w = max(6, n_samples * 0.6 + 2)
 
     values = scores
     if row_scale:
@@ -225,25 +237,46 @@ def plot_heatmap(
         row_std = scores.std(axis=1).replace(0.0, 1.0)
         values = scores.sub(row_mean, axis=0).div(row_std, axis=0)
 
-    fig, ax = plt.subplots(figsize=(fig_w, fig_h))
-    vmax = max(abs(values.values.min()), abs(values.values.max()))
+    y_labels = [
+        "\n".join(textwrap.wrap(str(name), label_wrap)) or str(name)
+        for name in scores.index
+    ]
+    x_labels = [
+        "\n".join(textwrap.wrap(str(name), sample_wrap)) or str(name)
+        for name in scores.columns
+    ]
+    max_label_chars = max(
+        max(len(line) for line in lbl.split("\n")) for lbl in y_labels
+    )
+
+    fig_h = max(4, n_gs * 0.35 + 1.5)
+    fig_w = max(6, n_samples * 0.6 + 2 + max_label_chars * 0.09)
+
+    fig, ax = plt.subplots(figsize=(fig_w, fig_h), constrained_layout=True)
+    vmax = float(np.nanmax(np.abs(values.values))) or 1.0
     im = ax.imshow(
         values.values,
         cmap="RdBu_r",
         aspect="auto",
         vmin=-vmax,
         vmax=vmax,
+        interpolation="nearest",
     )
 
     ax.set_xticks(range(n_samples))
-    ax.set_xticklabels(scores.columns, rotation=45, ha="right", fontsize=8)
+    ax.set_xticklabels(x_labels, rotation=45, ha="right", fontsize=8)
     ax.set_yticks(range(n_gs))
-    ax.set_yticklabels(scores.index, fontsize=8)
+    ax.set_yticklabels(y_labels, fontsize=8)
     ax.set_title(title, fontsize=11)
 
-    plt.colorbar(im, ax=ax, shrink=0.8, label=value_label)
-    plt.tight_layout()
-    fig.savefig(output_path, dpi=300, bbox_inches="tight")
+    # Thin white cell separators
+    ax.set_xticks(np.arange(-0.5, n_samples), minor=True)
+    ax.set_yticks(np.arange(-0.5, n_gs), minor=True)
+    ax.grid(which="minor", color="white", linewidth=0.6)
+    ax.tick_params(which="minor", bottom=False, left=False)
+
+    fig.colorbar(im, ax=ax, shrink=0.8, label=value_label)
+    fig.savefig(output_path, dpi=300)
     plt.close(fig)
     logger.info(f"Heatmap saved to {output_path}")
 
@@ -299,9 +332,10 @@ def main() -> None:
     mean_z.to_csv(mean_z_path, sep="\t")
     logger.info(f"Mean z-score matrix saved to {mean_z_path}")
 
-    # Plot heatmap of mean z-scores
+    # Plot heatmap of row-scaled mean z-scores
     heatmap_path = os.path.join(args.outdir, "gsva_heatmap.png")
-    value_label = "Mean z-score" + ("" if args.no_log2 else " (log2 TPM)")
+    transform_note = "" if args.no_log2 else " (log2(x+1) of TPM before z)"
+    value_label = f"Row z-score of mean gene z{transform_note}"
     plot_heatmap(mean_z, heatmap_path, title=args.title, value_label=value_label)
 
     logger.info("GSVA analysis completed successfully")

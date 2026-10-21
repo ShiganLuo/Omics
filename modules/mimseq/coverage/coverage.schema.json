@@ -1,0 +1,175 @@
+{
+  "Params": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "mimseq": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "species": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "name": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "data_dir": {
+            "type": "str",
+            "path": "dir",
+            "nullable": true,
+            "required": false
+          },
+          "control_condition": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "cluster_id": {
+            "type": "float",
+            "nullable": true,
+            "required": false
+          },
+          "threads": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          },
+          "min_cov": {
+            "type": "float",
+            "nullable": true,
+            "required": false
+          },
+          "max_mismatches": {
+            "type": "float",
+            "nullable": true,
+            "required": false
+          },
+          "max_multi": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          },
+          "misinc_thresh": {
+            "type": "float",
+            "nullable": true,
+            "required": false
+          },
+          "remap_mismatches": {
+            "type": "float",
+            "nullable": true,
+            "required": false
+          },
+          "p_adj": {
+            "type": "float",
+            "nullable": true,
+            "required": false
+          },
+          "cov_diff": {
+            "type": "float",
+            "nullable": true,
+            "required": false
+          },
+          "no_cluster": {
+            "type": "bool",
+            "nullable": true,
+            "required": false
+          },
+          "no_cca": {
+            "type": "bool",
+            "nullable": true,
+            "required": false
+          },
+          "double_cca": {
+            "type": "bool",
+            "nullable": true,
+            "required": false
+          },
+          "remap": {
+            "type": "bool",
+            "nullable": true,
+            "required": false
+          },
+          "snp_tolerance": {
+            "type": "bool",
+            "nullable": true,
+            "required": false
+          },
+          "keep_temp": {
+            "type": "bool",
+            "nullable": true,
+            "required": false
+          },
+          "crosstalks": {
+            "type": "bool",
+            "nullable": true,
+            "required": false
+          },
+          "pretRNAs": {
+            "type": "bool",
+            "nullable": true,
+            "required": false
+          },
+          "posttrans_mod_off": {
+            "type": "bool",
+            "nullable": true,
+            "required": false
+          },
+          "local_modomics": {
+            "type": "bool",
+            "nullable": true,
+            "required": false
+          }
+        }
+      }
+    }
+  },
+  "ROOT_DIR": {
+    "type": "str",
+    "path": "dir",
+    "nullable": true,
+    "required": false
+  },
+  "genome": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "trnas": {
+        "type": "str",
+        "nullable": true,
+        "required": false
+      },
+      "trnaout": {
+        "type": "str",
+        "nullable": true,
+        "required": false
+      },
+      "mito_trnas": {
+        "type": "str",
+        "nullable": true,
+        "required": false
+      },
+      "plastid_trnas": {
+        "type": "str",
+        "nullable": true,
+        "required": false
+      }
+    }
+  },
+  "logdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "outdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  }
+}

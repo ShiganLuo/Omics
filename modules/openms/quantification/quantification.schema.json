@@ -1,0 +1,144 @@
+{
+  "indir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "outdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "logdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "samples": {
+    "type": "list",
+    "nullable": true,
+    "required": false
+  },
+  "quantification_method": {
+    "type": "str",
+    "nullable": true,
+    "required": false
+  },
+  "expdesign": {
+    "type": "str",
+    "nullable": true,
+    "required": false
+  },
+  "Procedure": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "proteomicslfq": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      },
+      "proteinquantifier": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      }
+    }
+  },
+  "Params": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "protein_quant": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "method": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "top": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          },
+          "average": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "best_charge_and_score": {
+            "type": "bool",
+            "nullable": true,
+            "required": false
+          }
+        }
+      },
+      "tmt": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "channel_mass_tolerance": {
+            "type": "float",
+            "nullable": true,
+            "required": false
+          },
+          "channel_annotation": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "isotope_correction": {
+            "type": "bool",
+            "nullable": true,
+            "required": false
+          }
+        }
+      },
+      "lfq": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "intensity_threshold": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          },
+          "mass_recalibration": {
+            "type": "bool",
+            "nullable": true,
+            "required": false
+          },
+          "alignment_order": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          }
+        }
+      },
+      "dia": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "library": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "dia_window": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          }
+        }
+      }
+    }
+  }
+}

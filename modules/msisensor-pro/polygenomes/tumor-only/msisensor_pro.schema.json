@@ -1,0 +1,65 @@
+{
+  "outdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "samples4baseline": {
+    "type": "str",
+    "nullable": true,
+    "required": false
+  },
+  "samples4test": {
+    "type": "str",
+    "nullable": true,
+    "required": false
+  },
+  "genome_version": {
+    "type": "str",
+    "nullable": true,
+    "required": false
+  },
+  "reference": {
+    "type": "str",
+    "nullable": true,
+    "required": false
+  },
+  "genome": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "genome1": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "fasta": {
+            "type": "str",
+            "path": "file",
+            "nullable": true,
+            "required": false
+          }
+        }
+      },
+      "genome2": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "fasta": {
+            "type": "str",
+            "path": "file",
+            "nullable": true,
+            "required": false
+          }
+        }
+      }
+    }
+  },
+  "msisensor-pro": {
+    "type": "str",
+    "nullable": true,
+    "required": false
+  }
+}

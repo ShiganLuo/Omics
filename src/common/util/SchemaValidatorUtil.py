@@ -539,38 +539,80 @@ class SchemaValidator:
         return result
 
     def validate(self, config: Dict[str, Any]) -> List[str]:
-        """Validate config against the loaded schema.
+        """Validate config against the loaded schema (deep, recursive).
+
+        Walks nested ``properties`` at any depth; each leaf is checked for
+        declared-type conformance, nullability, and required-ness. Extra
+        config keys not covered by the schema are allowed (forward
+        compatibility). The top-level schema node is treated as the
+        properties map itself when it has no own ``type`` declaration.
 
         Returns:
-            List of error messages. Empty = valid.
+            List of error messages with dotted key paths. Empty = valid.
         """
-        errors = []
+        return self._validate_node(config, self.schema, prefix="")
 
-        # Check top-level fields
-        for key, defn in self.schema.items():
-            if key == "genome":
-                continue
-            if not isinstance(defn, dict):
-                continue
-            value = config.get(key)
-            if defn.get("required") and (value is None or value == ""):
-                errors.append(f"Missing or empty required field: '{key}'")
-            if not defn.get("nullable", True) and value is None:
-                errors.append(f"Non-nullable field is null: '{key}'")
+    # type-check lookup shared by validate() and cast helpers
+    _TYPE_CHECK = {
+        "str": lambda v: isinstance(v, str),
+        "int": lambda v: isinstance(v, int) and not isinstance(v, bool),
+        "float": lambda v: isinstance(v, (int, float)) and not isinstance(v, bool),
+        "bool": lambda v: isinstance(v, bool),
+        "list": lambda v: isinstance(v, list),
+        "dict": lambda v: isinstance(v, dict),
+        "null": lambda v: v is None,
+    }
 
-        # Check genome fields
-        genome_schema = self.schema.get("genome", {})
-        genome_cfg = config.get("genome", {})
-        for field_name, defn in genome_schema.items():
-            if not isinstance(defn, dict):
-                continue
-            value = genome_cfg.get(field_name)
-            dotted = f"genome.{field_name}"
-            if defn.get("required") and (value is None or value == ""):
-                errors.append(f"Missing or empty required field: '{dotted}'")
-            if not defn.get("nullable", True) and value is None:
-                errors.append(f"Non-nullable field is null: '{dotted}'")
+    @staticmethod
+    def _type_ok(value: Any, declared) -> bool:
+        if isinstance(declared, list):
+            return any(SchemaValidator._type_ok(value, t) for t in declared)
+        check = SchemaValidator._TYPE_CHECK.get(declared)
+        return check(value) if check else True  # unknown type names pass
 
+    def _validate_node(self, cfg: Any, node: Dict[str, Any],
+                       prefix: str = "") -> List[str]:
+        """Recursively validate one schema node against the config value."""
+        errors: List[str] = []
+        if not isinstance(node, dict):
+            return errors
+
+        props = node.get("properties")
+        has_type = "type" in node and not isinstance(node.get("type"), dict)
+
+        # -- leaf / typed-node checks (a node can be typed AND have children)
+        if has_type and prefix:
+            declared = node["type"]
+            declared = [declared] if isinstance(declared, str) else declared
+            nullable = node.get("nullable", True)
+            dotted = prefix
+            if cfg is None:
+                if not nullable and "null" not in declared:
+                    errors.append(f"Non-nullable field is null: '{dotted}'")
+            elif not any(self._type_ok(cfg, t) for t in declared):
+                errors.append(
+                    f"Field '{dotted}' expects type {declared}, "
+                    f"got {type(cfg).__name__} ({cfg!r})")
+            if node.get("required") and (cfg is None or cfg == "" or cfg == [] or cfg == {}):
+                if not (nullable and cfg is None):
+                    errors.append(f"Required field is empty: '{dotted}'")
+            # typed non-dict leaf: nothing deeper to check
+            if "dict" not in declared or not isinstance(cfg, dict):
+                return errors
+
+        # -- container: recurse into properties
+        if not isinstance(cfg, dict):
+            return errors
+        child_props = props if isinstance(props, dict) else (
+            node if not has_type and node else None)
+        if not isinstance(child_props, dict):
+            return errors
+        for key, sub in child_props.items():
+            if not isinstance(sub, dict):
+                continue
+            errors.extend(self._validate_node(
+                cfg.get(key), sub,
+                f"{prefix}.{key}" if prefix else key))
         return errors
 
     def generate_test_paths(self, test_data: str, genome: str) -> Dict[str, str]:

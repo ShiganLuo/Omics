@@ -1,0 +1,55 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "logs",
+    "final_bam_dir": null,
+    "genome": {
+        "fasta": null,
+        "gtf": null
+    },
+    "ROOT_DIR": null,
+    "Procedure": {
+        "STAR": null,
+        "samtools": null
+    },
+    "Params": {
+        "star_3pass_gene": {
+            "index": {
+                "genomeSAindexNbases": null
+            },
+            "passes": {
+                "pass1": {
+                    "--outFilterMultimapNmax": 1000,
+                    "--outFilterMultimapScoreRange": 1,
+                    "--outFilterMismatchNoverLmax": 0.2,
+                    "--alignIntronMin": 9999999,
+                    "--alignEndsType": "Local"
+                },
+                "pass2": {
+                    "--outFilterMultimapNmax": 1000,
+                    "--outFilterMultimapScoreRange": 0,
+                    "--outFilterMismatchNoverLmax": 0.2,
+                    "--outFilterMismatchNoverReadLmax": 0.05,
+                    "--alignIntronMin": 9999999,
+                    "--alignMatesGapMax": 500,
+                    "--alignEndsType": "EndToEnd",
+                    "--clip5pNbases": "20 0",
+                    "--clip3pNbases": "0 20"
+                },
+                "pass3": {
+                    "--outFilterMultimapNmax": 1000,
+                    "--outFilterMultimapScoreRange": 0,
+                    "--outFilterMismatchNoverLmax": 0.025,
+                    "--alignIntronMin": 9999999,
+                    "--alignMatesGapMax": 500,
+                    "--alignEndsType": "Local"
+                }
+            },
+            "tailer": {
+                "flank": null,
+                "rev_comp": null,
+                "ambiguous": null
+            }
+        }
+    }
+}

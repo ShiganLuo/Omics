@@ -1,0 +1,88 @@
+{
+  "indir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "outdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "logdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "ROOT_DIR": {
+    "type": "str",
+    "path": "dir",
+    "nullable": true,
+    "required": false
+  },
+  "samples": {
+    "type": "list",
+    "nullable": true,
+    "required": false
+  },
+  "igv": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "js": {
+        "type": "str",
+        "nullable": true,
+        "required": false
+      },
+      "id": {
+        "type": "str",
+        "nullable": true,
+        "required": false
+      },
+      "name": {
+        "type": "str",
+        "nullable": true,
+        "required": false
+      },
+      "publicPathMap": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "/data/pub/zhousha/": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "/data/pub/zhousha/Reference/": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          }
+        }
+      },
+      "fastaURL": {
+        "type": "str",
+        "path": "file",
+        "nullable": true,
+        "required": false
+      },
+      "indexURL": {
+        "type": "str",
+        "nullable": true,
+        "required": false
+      },
+      "cytobandURL": {
+        "type": "str",
+        "nullable": true,
+        "required": false
+      },
+      "tracks": {
+        "type": "list",
+        "nullable": true,
+        "required": false
+      }
+    }
+  }
+}

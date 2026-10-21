@@ -1,0 +1,151 @@
+{
+  "indir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "outdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "logdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "samples": {
+    "type": "list",
+    "nullable": true,
+    "required": false
+  },
+  "Procedure": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "diann": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      }
+    }
+  },
+  "Params": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "diann": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "enabled": {
+            "type": "bool",
+            "nullable": true,
+            "required": false
+          },
+          "threads": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          },
+          "qvalue": {
+            "type": "float",
+            "nullable": true,
+            "required": false
+          },
+          "matrix_qvalue": {
+            "type": "float",
+            "nullable": true,
+            "required": false
+          },
+          "mass_acc_ms1": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          },
+          "mass_acc": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          },
+          "min_fr_mz": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          },
+          "max_fr_mz": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          },
+          "min_pept_len": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          },
+          "max_pept_len": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          },
+          "fixed_mod": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "var_mods": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "library": {
+            "type": "null",
+            "nullable": true,
+            "required": false
+          },
+          "gen_spec_lib": {
+            "type": "bool",
+            "nullable": true,
+            "required": false
+          },
+          "predictor": {
+            "type": "bool",
+            "nullable": true,
+            "required": false
+          },
+          "verbose": {
+            "type": "bool",
+            "nullable": true,
+            "required": false
+          },
+          "extra": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          }
+        }
+      }
+    }
+  },
+  "genome": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "protein_fasta": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      }
+    }
+  },
+  "env": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {}
+  }
+}

@@ -1,0 +1,80 @@
+{
+  "indir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "outdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "logdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "Procedure": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "openms": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      }
+    }
+  },
+  "Params": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "decoy_database": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "decoy_string": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "decoy_string_position": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "method": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "shuffle_max_attempts": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          },
+          "shuffle_sequence_identity_threshold": {
+            "type": "float",
+            "nullable": true,
+            "required": false
+          }
+        }
+      }
+    }
+  },
+  "genome": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "fasta": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      }
+    }
+  }
+}

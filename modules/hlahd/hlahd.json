@@ -1,0 +1,8 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "logs",
+    "ROOT_DIR": null,
+    "Params": {},
+    "Procedure": {}
+}

@@ -1,0 +1,34 @@
+{
+  "indir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "outdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "logdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "Procedure": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "bgzip": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      },
+      "tabix": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      }
+    }
+  }
+}

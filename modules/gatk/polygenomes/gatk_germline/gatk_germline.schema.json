@@ -1,0 +1,145 @@
+{
+  "indir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "outdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "logdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "reference": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "interval": {
+        "type": "str",
+        "nullable": true,
+        "required": false
+      },
+      "known_sites": {
+        "type": "list",
+        "nullable": true,
+        "required": false
+      }
+    }
+  },
+  "Procedure": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "gatk": {
+        "type": "str",
+        "nullable": true,
+        "required": false
+      },
+      "bcftools": {
+        "type": "str",
+        "nullable": true,
+        "required": false
+      }
+    }
+  },
+  "Params": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "gatk": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "javaOptions": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "FS_threshold": {
+            "type": "float",
+            "nullable": true,
+            "required": false
+          },
+          "QD_threshold": {
+            "type": "float",
+            "nullable": true,
+            "required": false
+          },
+          "DP_threshold": {
+            "type": "float",
+            "nullable": true,
+            "required": false
+          },
+          "QUAL_threshold": {
+            "type": "float",
+            "nullable": true,
+            "required": false
+          }
+        }
+      }
+    }
+  },
+  "genome": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "genome1": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "fasta": {
+            "type": "str",
+            "path": "file",
+            "nullable": true,
+            "required": false
+          },
+          "fai_index": {
+            "type": "str",
+            "path": "file",
+            "nullable": true,
+            "required": false
+          },
+          "dict_index": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          }
+        }
+      },
+      "genome2": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "fasta": {
+            "type": "str",
+            "path": "file",
+            "nullable": true,
+            "required": false
+          },
+          "fai_index": {
+            "type": "str",
+            "path": "file",
+            "nullable": true,
+            "required": false
+          },
+          "dict_index": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          }
+        }
+      }
+    }
+  }
+}

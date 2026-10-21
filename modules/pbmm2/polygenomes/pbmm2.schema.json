@@ -1,0 +1,72 @@
+{
+  "indir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "outdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "logdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "Procedure": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "pbmm2": {
+        "type": "str",
+        "nullable": true,
+        "required": false
+      },
+      "samtools": {
+        "type": "str",
+        "nullable": true,
+        "required": false
+      }
+    }
+  },
+  "genome": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "GRCh38": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "fasta": {
+            "type": "str",
+            "path": "file",
+            "nullable": true,
+            "required": false
+          }
+        }
+      },
+      "GRCm39": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "fasta": {
+            "type": "str",
+            "path": "file",
+            "nullable": true,
+            "required": false
+          }
+        }
+      }
+    }
+  },
+  "samples": {
+    "type": "list",
+    "nullable": true,
+    "required": false
+  }
+}

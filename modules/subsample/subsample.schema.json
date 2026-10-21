@@ -1,0 +1,66 @@
+{
+  "indir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "outdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "logdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "paired_samples": {
+    "type": "list",
+    "nullable": true,
+    "required": false
+  },
+  "single_samples": {
+    "type": "list",
+    "nullable": true,
+    "required": false
+  },
+  "Params": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "subsample": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "abundant_rnas": {
+            "type": "list",
+            "nullable": true,
+            "required": false
+          },
+          "n": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          },
+          "seed": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          },
+          "direction": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "cut_length": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,96 @@
+{
+  "indir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "outdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "logdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "samples": {
+    "type": "list",
+    "nullable": true,
+    "required": false
+  },
+  "ip_samples": {
+    "type": "list",
+    "nullable": true,
+    "required": false
+  },
+  "input_samples": {
+    "type": "list",
+    "nullable": true,
+    "required": false
+  },
+  "sample_ip_input_map": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {}
+  },
+  "Procedure": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "macs3": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      }
+    }
+  },
+  "Params": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "macs3": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "bw": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          },
+          "pvalue": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "genome_size": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "broad_cutoff": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          }
+        }
+      }
+    }
+  },
+  "genome": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "fasta": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      }
+    }
+  }
+}

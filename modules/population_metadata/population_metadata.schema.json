@@ -1,0 +1,8 @@
+{
+  "populations": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {}
+  }
+}

@@ -1,0 +1,111 @@
+{
+  "ROOT_DIR": {
+    "type": "str",
+    "path": "dir",
+    "nullable": true,
+    "required": false
+  },
+  "indir": {
+    "type": "str",
+    "nullable": true,
+    "required": false
+  },
+  "outdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "logdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "samples": {
+    "type": "list",
+    "nullable": true,
+    "required": false
+  },
+  "genome_name": {
+    "type": "str",
+    "nullable": true,
+    "required": false
+  },
+  "Procedure": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {}
+  },
+  "Params": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "censatbuild": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          },
+          "gap": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          },
+          "flank": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          },
+          "major_pattern": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "minor_pattern": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "bam": {
+            "type": "null",
+            "nullable": true,
+            "required": false
+          }
+        }
+      }
+    }
+  },
+  "genome": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "fasta": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      },
+      "fai": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      },
+      "sat_fasta": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      }
+    }
+  },
+  "env": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {}
+  }
+}

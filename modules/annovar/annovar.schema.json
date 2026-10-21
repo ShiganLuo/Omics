@@ -1,0 +1,67 @@
+{
+  "Procedure": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "Rscript": {
+        "type": "str",
+        "nullable": true,
+        "required": false
+      },
+      "perl": {
+        "type": "str",
+        "nullable": true,
+        "required": false
+      },
+      "table_annovar": {
+        "type": "str",
+        "nullable": true,
+        "required": false
+      }
+    }
+  },
+  "genome": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "gtf": {
+        "type": "str",
+        "path": "file",
+        "nullable": true,
+        "required": false
+      },
+      "TE_gtf": {
+        "type": "str",
+        "path": "file",
+        "nullable": true,
+        "required": false
+      }
+    }
+  },
+  "Params": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "annovar": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "db": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "buildver": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          }
+        }
+      }
+    }
+  }
+}

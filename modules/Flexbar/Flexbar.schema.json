@@ -1,0 +1,58 @@
+{
+  "Procedure": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "flexbar": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      }
+    }
+  },
+  "Params": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "flexbar": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "barcode_file": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "barcode_min_overlap": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          },
+          "barcode_allow_mismatch": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          }
+        }
+      }
+    }
+  },
+  "indir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "outdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "logdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  }
+}

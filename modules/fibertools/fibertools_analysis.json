@@ -1,0 +1,18 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "logs",
+    "samples": [],
+    "Procedure": {
+        "fibertools": null
+    },
+    "Params": {
+        "fibertools": {
+            "ont": false
+        }
+    },
+    "genome": {
+        "fasta": null
+    },
+    "bam_suffix": ".sorted.bam"
+}

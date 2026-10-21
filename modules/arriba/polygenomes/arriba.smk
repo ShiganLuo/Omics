@@ -46,7 +46,9 @@ rule arriba:
         discarded_fusion_tsv = outdir + "/{genome}/{sample_id}/{sample_id}_discarded_fusions.tsv",
     log:
         logdir + "/{sample_id}/{genome}/arriba.log"
-    threads: 4
+    threads: rule_res("arriba").get("threads", 4)
+    resources:
+        mem_mb=rule_res("arriba").get("mem_mb", 16000),
     params:
         arriba = config.get('Procedure',{}).get('arriba') or 'arriba',
         t = config.get('Params',{}).get('arriba',{}).get('t') or None,

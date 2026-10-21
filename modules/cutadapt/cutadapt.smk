@@ -37,7 +37,9 @@ rule trimming_Paired:
         report  = outdir + "/{sample_id}/{sample_id}.cutadapt_report.txt",
     log:
         logdir + "/{sample_id}/cutadapt_paired.log"
-    threads: 4
+    threads: rule_res("trimming_Paired").get("threads", 6)
+    resources:
+        mem_mb=rule_res("trimming_Paired").get("mem_mb", 8000),
     params:
         cutadapt     = config.get("Procedure", {}).get("cutadapt") or "cutadapt",
         quality      = config.get("Params", {}).get("cutadapt", {}).get("quality") or 20,
@@ -106,7 +108,9 @@ rule trimming_Single:
         report = outdir + "/{sample_id}/{sample_id}.single.cutadapt_report.txt",
     log:
         logdir + "/{sample_id}/cutadapt_single.log"
-    threads: 4
+    threads: rule_res("trimming_Single").get("threads", 6)
+    resources:
+        mem_mb=rule_res("trimming_Single").get("mem_mb", 4000),
     params:
         cutadapt       = config.get("Procedure", {}).get("cutadapt") or "cutadapt",
         quality        = config.get("Params", {}).get("cutadapt", {}).get("quality") or 20,

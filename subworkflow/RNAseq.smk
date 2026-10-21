@@ -43,7 +43,8 @@ star_config_for_index = {
         "Procedure": {
             "star": config.get('Procedure',{}).get('star')
         },
-        "genome": config.get('genome',{})
+        "genome": config.get('genome',{}),
+    "resources": config.get("resources", {}),
     }
 module star_for_index:
     snakefile: "../modules/star/polygenomes/star.smk"
@@ -61,7 +62,8 @@ if trimmer == "cutadapt":
             "logdir": os.path.join(logdir,"sample"),
             "Procedure": {
                 "trim_galore": config.get('Procedure',{}).get('trim_galore')
-            }
+            },
+        "resources": config.get("resources", {}),
         }
     module cutadapt:
         snakefile: "../modules/cutadapt/cutadapt.smk"
@@ -85,7 +87,8 @@ elif trimmer == "trimmomatic":
                     "adapter_pe": config.get('Params',{}).get("trimmomatic", {}).get('adapter_pe'),
                     "adapter_se": config.get('Params',{}).get("trimmomatic", {}).get('adapter_se')
                 }
-            }
+            },
+        "resources": config.get("resources", {}),
         }
     module trimmomatic:
         snakefile: "../modules/trimmomatic/trimmomatic.smk"
@@ -104,7 +107,8 @@ else:
             "logdir": os.path.join(logdir,"sample"),
             "Procedure": {
                 "trim_galore": config.get('Procedure',{}).get('trim_galore')
-            }
+            },
+        "resources": config.get("resources", {}),
         }
     module trim_galore:
         snakefile: "../modules/trim-galore/trim-galore.smk"
@@ -133,7 +137,8 @@ if aligner_TEtranscripts == 'hisat2':
                     "k": config.get('Params',{}).get('hisat2_TEtranscripts', {}).get('k') or 100
                 }
             },
-            "genome": config.get('genome',{})
+            "genome": config.get('genome',{}),
+        "resources": config.get("resources", {}),
         }
     module hisat2_for_TEtranscripts:
         snakefile: "../modules/hisat2/polygenomes/hisat2.smk"
@@ -164,7 +169,8 @@ elif aligner_TEtranscripts == 'star':
                     "winAnchorMultimapNmax": config.get('Params',{}).get('STAR_TEtranscripts', {}).get('winAnchorMultimapNmax') or 100
                 }
             },
-            "genome": config.get('genome',{})
+            "genome": config.get('genome',{}),
+        "resources": config.get("resources", {}),
         }
     module star_for_TEtranscripts:
         snakefile: "../modules/star/polygenomes/star.smk"
@@ -188,7 +194,8 @@ TEtranscripts_config = {
             "TEcount": config.get('Procedure',{}).get('TEcount') or 'TEcount',
             "TElocal": config.get('Procedure',{}).get('TElocal') or 'TElocal'
         },
-        "genome": config.get('genome',{})
+        "genome": config.get('genome',{}),
+    "resources": config.get("resources", {}),
     }
 
 module TEtranscripts:
@@ -214,7 +221,8 @@ star_config_for_featureCounts = {
         "Params": {
             "star": config.get("Params",{}).get("STAR_featureCounts", {})
         },
-        "genome": config.get('genome',{})
+        "genome": config.get('genome',{}),
+    "resources": config.get("resources", {}),
     }
 module star_for_featureCounts:
     snakefile: "../modules/star/polygenomes/star.smk"
@@ -234,7 +242,8 @@ featureCounts_config = {
     "Procedure": {
         "featureCounts": config.get('Procedure', {}).get('featureCounts') or 'featureCounts'
     },
-    "genome": config.get('genome', {})
+    "genome": config.get('genome', {}),
+    "resources": config.get("resources", {}),
 }
 module featureCounts:
     snakefile: "../modules/featureCounts/polygenomes/featureCounts.smk"
@@ -256,7 +265,8 @@ DESeq2_config = {
         "genome": config.get('genome',{}),
         "Procedure": {
             "DESeq2": config.get('Procedure',{}).get('DESeq2') or 'DESeq2'
-        }
+        },
+    "resources": config.get("resources", {}),
     }
 module DESeq2:
     snakefile: "../modules/DESeq2/polygenomes/DESeq2.smk"
@@ -276,7 +286,8 @@ function_config = {
     "genome": config.get('genome',{}),
     "Params": {
         "function": config.get("Params", {}).get("function", {})
-    }
+    },
+    "resources": config.get("resources", {}),
 }
 module function:
     snakefile: "../modules/function/polygenomes/function.smk"
@@ -306,7 +317,8 @@ hisat2_config_for_StringTie = {
             "flag_params": config.get('Params',{}).get('hisat2_stringtie', {}).get('flag_params') or "-q --no-unal --dta",
         }
     },
-    "genome": config.get('genome',{})
+    "genome": config.get('genome',{}),
+    "resources": config.get("resources", {}),
 }
 module hisat2_for_StringTie:
     snakefile: "../modules/hisat2/polygenomes/hisat2.smk"
@@ -327,7 +339,8 @@ StringTie_config = {
         "genome": config.get('genome',{}),
         "Procedure": {
             "stringtie": config.get("Procedure", {}).get("stringtie") or "stringtie"
-        }
+        },
+    "resources": config.get("resources", {}),
     }
 module StringTie:
     snakefile: "../modules/StringTie/polygenomes/StringTie.smk"
@@ -348,7 +361,8 @@ rmrRNA_config = {
         "RmrRNA": {
             "sam-append-comment": config.get('Params',{}).get('RmrRNA_rRNA', {}).get('sam-append-comment')
         }
-    }
+    },
+    "resources": config.get("resources", {}),
 }
 
 module RmrRNA:
@@ -375,7 +389,8 @@ bowtie2_rRNA_config = {
         "bowtie2": {
             "sam-append-comment": config.get('Params',{}).get('bowtie2_rRNA', {}).get('sam-append-comment')
         }
-    }
+    },
+    "resources": config.get("resources", {}),
 }
 module bowtie2_for_rRNA:
     snakefile: "../modules/bowtie2/polygenomes/bowtie2.smk"
@@ -412,7 +427,8 @@ star_config_for_fusion = {
             "chimSegmentReadGapMax": config.get('Params',{}).get('STAR_fusion', {}).get('chimSegmentReadGapMax') or 3,
         }
     },
-    "genome": config.get('genome',{})
+    "genome": config.get('genome',{}),
+    "resources": config.get("resources", {}),
 }
 module star_for_fusion:
     snakefile: "../modules/star/polygenomes/star.smk"
@@ -431,7 +447,8 @@ gatk_prepare_config = {
         "gatk": config.get("Procedure", {}).get("gatk"),
         "samtools": config.get("Procedure", {}).get("samtools")
     },
-    "genome": config.get('genome',{})
+    "genome": config.get('genome',{}),
+    "resources": config.get("resources", {}),
 }
 
 module gatk_prepare:
@@ -462,7 +479,8 @@ arriba_config = {
         },
         "Procedure": {
             "arriba": config.get('Procedure',{}).get('arriba') or 'arriba'
-        }
+        },
+    "resources": config.get("resources", {}),
     }
 module arriba:
     snakefile: "../modules/arriba/polygenomes/arriba.smk"
@@ -486,7 +504,8 @@ star_config_for_SNP = {
             "star": config.get('Procedure',{}).get('STAR_SNP')
         },
         "Params": config.get('Params'),
-        "genome": config.get('genome',{})
+        "genome": config.get('genome',{}),
+    "resources": config.get("resources", {}),
     }
 module star_for_SNP:
     snakefile: "../modules/star/polygenomes/star.smk"
@@ -506,7 +525,8 @@ XenofilteR_config = {
     },
     "Procedure": {
         "XenofilteR": config.get('Procedure',{}).get('XenofilteR') or 'XenofilteR'
-    }
+    },
+    "resources": config.get("resources", {}),
 }
 module XenofilteR:
     snakefile: "../modules/XenofilteR/XenofilteR.smk"
@@ -526,7 +546,8 @@ gatk_prepare_SNP_config = {
         "gatk": config.get("Procedure", {}).get("gatk"),
         "samtools": config.get("Procedure", {}).get("samtools")
     },
-    "genome": config.get('genome',{})
+    "genome": config.get('genome',{}),
+    "resources": config.get("resources", {}),
 }
 
 module gatk_prepare_SNP:
@@ -546,7 +567,8 @@ gatk_RNAseq_config = {
         "gatk": config.get("Procedure", {}).get("gatk"),
         "samtools": config.get("Procedure", {}).get("samtools")
     },
-    "genome": config.get('genome',{})
+    "genome": config.get('genome',{}),
+    "resources": config.get("resources", {}),
 }
 module gatk_RNAseq:
     snakefile: "../modules/gatk/polygenomes/gatk_RNAseq/gatk_RNAseq.smk"
@@ -568,7 +590,8 @@ RNAseq_report_config = {
     "Params": {
         "report": config.get("Params", {}).get("report", {}),
         "DESeq2": config.get("Params", {}).get("DESeq2", {}),
-    }
+    },
+    "resources": config.get("resources", {}),
 }
 module RNAseq_report:
     snakefile: "../modules/RNAseq_report/polygenomes/RNAseq_report.smk"

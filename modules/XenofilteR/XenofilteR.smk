@@ -30,7 +30,9 @@ rule XenofilteR:
         outBai = temp(outdir + "/{genome}/{sample_id}/{sample_id}.bam.bai"),
     log:
         logdir + "/{sample_id}/{genome}/XenofilteR.log"
-    threads: 8
+    threads: rule_res("XenofilteR").get("threads", 8)
+    resources:
+        mem_mb=rule_res("XenofilteR").get("mem_mb", 16000),
     params:
         outdir = lambda wildcards: f"{outdir}/{wildcards.sample_id}",
         outSampleName = lambda wildcards: wildcards.sample_id,

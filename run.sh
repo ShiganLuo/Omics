@@ -7,14 +7,14 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # --sdm apptainer \
 # --singularity-args '--bind /home/luosg/Database,/home/luosg/Data/genomeStability,/tmp'
 
-python ${SCRIPT_DIR}/run.py \
-    -m /data/pub/zhousha/20260207_Exome/data/RNAseq/meta_input.csv \
-    -w RNAseq \
-    -o /data/pub/zhousha/20260207_Exome/output \
-    -t 48 \
-    --log /data/pub/zhousha/20260207_Exome/log/exome_paried_RNAseq.log \
-    --sdm \
-    --rerun-triggers mtime
+# python ${SCRIPT_DIR}/run.py \
+#     -m /data/pub/zhousha/20260207_Exome/data/RNAseq/meta_input.csv \
+#     -w RNAseq \
+#     -o /data/pub/zhousha/20260207_Exome/output \
+#     -t 48 \
+#     --log /data/pub/zhousha/20260207_Exome/log/exome_paried_RNAseq.log \
+#     --sdm \
+#     --rerun-triggers mtime
 
 # python ${SCRIPT_DIR}/run.py \
 #     -m /home/luosg/Data/genomeStability/data/Rn7sk/meta_input.tsv \

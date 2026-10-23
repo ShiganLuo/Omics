@@ -12,6 +12,7 @@ Usage:
 import csv
 import logging
 import os
+import shutil
 from typing import Dict, List, Optional
 
 import matplotlib
@@ -695,6 +696,11 @@ class ScanpyPlotter:
             Total number of unique markers actually plotted.
         """
         marker_dir = os.path.join(self.plot_dir, "marker")
+        # Remove stale marker plots from previous runs: files are keyed by
+        # cell_type labels, which can change between runs (LLM-driven naming),
+        # so old PNGs would otherwise linger alongside the new ones.
+        if os.path.isdir(marker_dir):
+            shutil.rmtree(marker_dir)
         os.makedirs(marker_dir, exist_ok=True)
 
         # Use raw for expression values

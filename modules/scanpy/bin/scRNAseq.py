@@ -517,19 +517,34 @@ def annotate_gene_type(
     )
 
 
-def _filter_te(adata: ad.AnnData) -> ad.AnnData:
-    """Remove TE genes from adata if ``gene_type`` column exists.
+_NON_TE_TYPES = ["TE", "rRNA", "misc_RNA", "snRNA", "snoRNA"]
 
-    Returns a subset with only non-TE genes.  If ``gene_type`` is absent
-    the input is returned unchanged.
+
+def _non_te_mask(var_df: "pd.DataFrame") -> "pd.Series":
+    """Boolean mask of features kept by the ``--skip-te`` filter.
+
+    Excludes transposable elements plus rRNA/misc_RNA/snRNA/snoRNA
+    (structural RNAs that dominate the DEG list of low-RNA-content
+    clusters).  Returns False-mask behaviour when ``gene_type`` is absent
+    is handled by the callers.
+    """
+    return ~var_df["gene_type"].isin(_NON_TE_TYPES)
+
+
+def _filter_te(adata: ad.AnnData) -> ad.AnnData:
+    """Remove TE and structural-RNA genes from adata.
+
+    Drops features whose ``gene_type`` is one of ``_NON_TE_TYPES`` (TE,
+    rRNA, misc_RNA, snRNA, snoRNA).  Returns a subset with the remaining
+    genes; if ``gene_type`` is absent the input is returned unchanged.
     """
     if "gene_type" not in adata.var.columns:
         logger.warning("gene_type not in var, skipping TE filter")
         return adata
     n_before = adata.n_vars
-    mask = adata.var["gene_type"] != "TE"
+    mask = _non_te_mask(adata.var)
     n_after = int(mask.sum())
-    logger.info("TE filter: %d -> %d genes (%d TE removed)",
+    logger.info("TE filter: %d -> %d genes (%d TE/structural-RNA removed)",
                  n_before, n_after, n_before - n_after)
     return adata[:, mask].copy()
 
@@ -670,13 +685,14 @@ def mode_cluster(
     )
 
     # 11. DEG — use raw for full gene coverage
-    # If skip_te, temporarily remove TE genes from raw so DEG excludes them
+    # If skip_te, temporarily swap raw to the TE/structural-RNA-filtered copy
+    # so DEG excludes them (reverted right after rank_genes_groups)
     _orig_raw = None
     if skip_te and "gene_type" in adata.raw.var.columns:
         _orig_raw = adata.raw
-        te_mask = adata.raw.var["gene_type"] != "TE"
+        te_mask = _non_te_mask(adata.raw.var)
         adata._raw = adata.raw[:, te_mask].copy()
-        logger.info("DEG: filtered TE from raw (%d -> %d genes)",
+        logger.info("DEG: filtered TE/structural-RNA from raw (%d -> %d genes)",
                      _orig_raw.shape[1], adata.raw.shape[1])
     sc.tl.rank_genes_groups(adata, "leiden", method="wilcoxon", use_raw=True)
     if _orig_raw is not None:
@@ -3272,7 +3288,8 @@ def _auto_cluster_iteration(
         n_top_genes: Number of HVGs.
         batch_method: ``harmony``, ``bbknn`` or anything else (no correction).
         batch_key: Batch column; falls back to sample_id/batch.
-        skip_te: Exclude TE genes from HVG and DEG.
+        skip_te: Exclude TE and structural-RNA genes (rRNA, misc_RNA, snRNA,
+            snoRNA) from HVG and DEG.
 
     Returns:
         (adata, n_pcs_used, detect_diag, resolved_batch_key, iter_ctx)
@@ -3400,13 +3417,14 @@ def _auto_cluster_iteration(
     sc.tl.umap(adata, min_dist=0.1, spread=0.8)
     sc.tl.leiden(adata, resolution=resolution, key_added="leiden",
                  flavor="igraph", n_iterations=2, directed=False)
-    # If skip_te, temporarily remove TE genes from raw so DEG excludes them
+    # If skip_te, temporarily swap raw to the TE/structural-RNA-filtered copy
+    # so DEG excludes them (reverted right after rank_genes_groups)
     _orig_raw = None
     if skip_te and "gene_type" in adata.raw.var.columns:
         _orig_raw = adata.raw
-        te_mask = adata.raw.var["gene_type"] != "TE"
+        te_mask = _non_te_mask(adata.raw.var)
         adata._raw = adata.raw[:, te_mask].copy()
-        logger.info("DEG: filtered TE from raw (%d -> %d genes)",
+        logger.info("DEG: filtered TE/structural-RNA from raw (%d -> %d genes)",
                      _orig_raw.shape[1], adata.raw.shape[1])
     sc.tl.rank_genes_groups(adata, "leiden", method="wilcoxon", use_raw=True)
     if _orig_raw is not None:
@@ -4871,7 +4889,9 @@ def _add_cluster_args(p: argparse.ArgumentParser, with_markers: bool = True) -> 
                    help="Auto-detect optimal n_pcs from PCA variance ratio "
                         "(default: True; use --no-auto-n-pcs to disable)")
     p.add_argument("-x", "--skip-te", action="store_true",
-                   help="Exclude TE genes before HVG selection and clustering")
+                   help="Exclude TE and structural-RNA genes (TE, rRNA, "
+                        "misc_RNA, snRNA, snoRNA) before HVG selection, "
+                        "clustering and DEG")
     p.add_argument("-B", "--batch-method", default="harmony",
                    choices=["harmony", "bbknn", ""],
                    help="Batch correction method (default: harmony, empty to skip)")

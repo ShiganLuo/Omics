@@ -4032,12 +4032,13 @@ def _auto_handle_misannotated(
       1. Re-annotate the flagged cluster IN PLACE with the same-type peer
          evidence injected (``_reannotate_cluster_in_place``). Fixed label
          → not flagged; adata.obs["cell_type"] is updated.
-      2. LLM re-affirms the original label (or confidence was high):
-         gate the whole-cluster removal on the LLM's own assessment,
-         mirroring the ambient-artifact path — low/medium confidence or
-         unknown-style quality_flag → ``whole_cluster``; high confidence
-         → ``filter_mode="cell"`` with the flag kept visible (cell-level
-         QC only, cluster survives if its cells pass).
+      2. LLM re-affirms the original label: the cluster is kept at CELL-level
+         QC (flag ``misannotated_low_marker_overlap`` retained for audit) —
+         the marker-overlap heuristic alone never triggers whole-cluster
+         removal. Only a cluster ALREADY flagged by cell-level QC is upgraded
+         to ``whole_cluster`` (quality problem + separation + re-affirmed with
+         low/medium confidence), mirroring ``_auto_upgrade_ambient_artifacts``:
+         whole-cluster removal always requires a QC problem.
 
     Args:
         separation_diag: Output of ``_check_cell_type_separation``.
@@ -4128,50 +4129,32 @@ def _auto_handle_misannotated(
         unknownish = ai_qf in ("unknown", "unannotated")
 
         if not any(r["cluster"] == flag_cluster for r in quality_reports if r["should_filter"]):
-            if low_or_medium or unknownish:
-                new_report = {
-                    "cluster": flag_cluster,
-                    "ai_cell_type": ma["cell_type"],
-                    "should_filter": True,
-                    "flags": ["misannotated_low_marker_overlap"],
-                    "filter_mode": "whole_cluster",
-                }
-                # Copy QC stats from the existing (non-flagged) report for this
-                # cluster so the summary doesn't print "?" placeholders.
-                existing = next((r for r in quality_reports if r["cluster"] == flag_cluster), None)
-                if existing:
-                    for k in ("n_cells", "mean_genes", "mean_counts", "pct_mt"):
-                        if k in existing:
-                            new_report[k] = existing[k]
-                quality_reports.append(new_report)
-                flagged = [r for r in quality_reports if r["should_filter"]]
-                logger.info(
-                    "  Cluster %s: re-affirmed with confidence=%s (quality_flag=%s) "
-                    "→ WHOLE-CLUSTER removal.", flag_cluster, eff_conf, ai_qf or "n/a",
-                )
-            else:
-                # High confidence + re-affirmed: likely a genuine subpopulation
-                # the marker-Jaccard heuristic misread. Keep the cluster, keep
-                # the flag visible, filter only the cells that fail cell-level QC.
-                new_report = {
-                    "cluster": flag_cluster,
-                    "ai_cell_type": ma["cell_type"],
-                    "should_filter": True,
-                    "flags": ["misannotated_low_marker_overlap"],
-                    "filter_mode": "cell",
-                }
-                existing = next((r for r in quality_reports if r["cluster"] == flag_cluster), None)
-                if existing:
-                    for k in ("n_cells", "mean_genes", "mean_counts", "pct_mt"):
-                        if k in existing:
-                            new_report[k] = existing[k]
-                quality_reports.append(new_report)
-                flagged = [r for r in quality_reports if r["should_filter"]]
-                logger.info(
-                    "  Cluster %s: re-affirmed with HIGH confidence → keeping cluster "
-                    "(cell-level QC only, flag retained for audit).",
-                    flag_cluster,
-                )
+            # NOT flagged by cell-level QC: the marker-overlap heuristic alone
+            # never removes a cluster (policy: whole_cluster removal requires a
+            # QC problem). Register a cell-mode report so the flag stays
+            # visible for audit; the cluster survives if its cells pass QC.
+            new_report = {
+                "cluster": flag_cluster,
+                "ai_cell_type": ma["cell_type"],
+                "should_filter": True,
+                "flags": ["misannotated_low_marker_overlap"],
+                "filter_mode": "cell",
+            }
+            # Copy QC stats from the existing (non-flagged) report for this
+            # cluster so the summary doesn't print "?" placeholders.
+            existing = next((r for r in quality_reports if r["cluster"] == flag_cluster), None)
+            if existing:
+                for k in ("n_cells", "mean_genes", "mean_counts", "pct_mt"):
+                    if k in existing:
+                        new_report[k] = existing[k]
+            quality_reports.append(new_report)
+            flagged = [r for r in quality_reports if r["should_filter"]]
+            logger.info(
+                "  Cluster %s: re-affirmed (confidence=%s, quality_flag=%s) with no "
+                "QC flags → kept at CELL-level QC (whole_cluster requires a QC "
+                "problem; flag retained for audit).",
+                flag_cluster, eff_conf, ai_qf or "n/a",
+            )
         else:
             # Already flagged (e.g. low_quality) — marker mismatch on top of a
             # quality problem reads as an ambient RNA artifact. Upgrade, but

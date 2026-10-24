@@ -84,30 +84,31 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 #     --sdm \
 #     --dry-run
 
+# python ${SCRIPT_DIR}/run.py \
+#     -m /data/16T/luosg/data/meta_scRNAseq_luancao.tsv \
+#     -w scRNAseq \
+#     -o /data/16T/luosg/output/luanchao_mulatta \
+#     -t 48 \
+#     --log /data/16T/luosg/log/mulatta_scRNAseq.log \
+#     --sdm \
+#     --counters scTE cellranger \
+#     --aligner cellranger \
+#     --rerun-triggers mtime \
+#     --forcerun scanpy_auto
+        # scanpy_auto:tissue=Uterus,counter=scTE \
+        # scanpy_auto:tissue=Uterus,counter=cellranger
+
 python ${SCRIPT_DIR}/run.py \
-    -m /data/16T/luosg/data/meta_scRNAseq_luancao.tsv \
+    -m /data/16T/luosg/data/meta_scRNAseq_mouse.tsv \
     -w scRNAseq \
-    -o /data/16T/luosg/output/luanchao_mulatta \
-    -t 48 \
-    --log /data/16T/luosg/log/mulatta_scRNAseq.log \
+    -o /data/16T/luosg/output/luancao_mouse \
+    -t 12 \
+    --log /data/16T/luosg/log/mouse_scRNAseq.log \
     --sdm \
     --counters scTE cellranger \
     --aligner cellranger \
     --rerun-triggers mtime \
     --forcerun scanpy_auto
-        # scanpy_auto:tissue=Uterus,counter=scTE \
-        # scanpy_auto:tissue=Uterus,counter=cellranger
-
-# python ${SCRIPT_DIR}/run.py \
-#     -m /data/16T/luosg/data/meta_scRNAseq_mouse.tsv \
-#     -w scRNAseq \
-#     -o /data/16T/luosg/output/luancao_mouse \
-#     -t 48 \
-#     --log /data/16T/luosg/log/mouse_scRNAseq.log \
-#     --sdm \
-#     --counters scTE cellranger \
-#     --aligner cellranger \
-#     --rerun-triggers mtime
 
 # python ${SCRIPT_DIR}/run.py \
 #   -m /data/16T/luosg/data/meta_Fiberseq_Totipotency.tsv \

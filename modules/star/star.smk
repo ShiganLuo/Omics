@@ -24,7 +24,9 @@ rule star_index:
         index_file = directory(outdir + "/index")
     log:
         logdir_index + "/star/" + log_index_substring + ".log"
-    threads: 12
+    threads: rule_res("star_index").get("threads", 12)
+    resources:
+        mem_mb=rule_res("star_index").get("mem_mb", 64000),
     conda:
         "star.yaml"
     container:
@@ -157,7 +159,9 @@ rule star_align:
         unmapped_r2 = outdir + "/{sample_id}/{sample_id}.Unmapped.out.mate2",
     log:
         logdir + "/{sample_id}/star_align.log"
-    threads: 12
+    threads: rule_res("star_align").get("threads", 12)
+    resources:
+        mem_mb=rule_res("star_align").get("mem_mb", 32000),
     params:
         outPrefix = outdir + "/{sample_id}/{sample_id}.",
         input_params = lambda wildcards, input: \

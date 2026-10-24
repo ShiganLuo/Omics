@@ -27,6 +27,9 @@ python workflow/Omics/run.py -m data/meta/fastq -w CLIP -o output \
 **一套入口，高度复用**
 RNA-seq、scRNA-seq、ChIP-seq、WGS、群体基因组等十余类分析收敛到同一入口 `python run.py -w <workflow>`，共享 `modules/` 与 `config/`。新流程建立在已有模块之上，不重复造轮子。
 
+**可单独调用模块进行分析**
+各个模块都有自己的json输入文件，使用run_module可单独运行模块，给分析增加更多灵活度
+
 **加分支不改主线**
 加分支只声明新 output，不改已有 input——DAG 描述依赖而非命令式执行，主线天然不漂移。流程变更可被 git 追溯，重跑决策由 Snakemake 缓存。
 

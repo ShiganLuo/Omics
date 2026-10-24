@@ -1,5 +1,6 @@
 import argparse
 from copy import deepcopy
+import glob
 import json
 import os
 import re
@@ -601,8 +602,26 @@ def setup_test_args(args: argparse.Namespace, root_dir: str) -> argparse.Namespa
         meta_path = os.path.join(TEST_DIR, f"meta_{wf}.tsv")
         if os.path.isfile(meta_path):
             args._test_meta_map[wf] = meta_path
-        else:
+            continue
+        # No plain meta_{wf}.tsv: fall back to numbered variants
+        # (meta_{wf}_1.tsv, meta_{wf}_2.tsv, ...). Single variant used as-is;
+        # multiple variants collected under "wf:variant" pseudo-keys.
+        variants = sorted(
+            glob.glob(os.path.join(TEST_DIR, f"meta_{wf}_*.tsv")))
+        if not variants:
             logger.info(f"Warning: no meta for {wf} at {meta_path}")
+            continue
+        if len(variants) == 1:
+            args._test_meta_map[wf] = variants[0]
+            continue
+        args._test_meta_map[wf] = variants[0]
+        for i, variant in enumerate(variants, start=1):
+            args._test_meta_map[f"{wf}:{variant}"] = variant
+        logger.info(
+            f"{len(variants)} meta variants for {wf}: "
+            + ", ".join(os.path.basename(v) for v in variants)
+            + f" (default: {os.path.basename(variants[0])}; "
+            + f"select with --test {wf}:{os.path.basename(variants[1])} ... )")
 
     args.meta = None  # will be resolved per-workflow via _get_meta()
 
@@ -807,6 +826,14 @@ def execute_workflows(args: argparse.Namespace, root_dir: str, logger: logging.L
                 dot_args = parse_dot_args(args.extra_args)
                 for key_tuple, v in dot_args.items():
                     dict_set_by_path(workflow_config, list(key_tuple), v)
+
+            # --test mode defaults for scRNAseq required CLI axes (counters /
+            # aligner live at config top level, not in the template): normal
+            # runs get them from explicit CLI flags, test runs must not fail
+            # on their absence.
+            if getattr(args, '_test_meta_map', None) and wf_name == "scRNAseq":
+                workflow_config.setdefault("counters", ["scTE", "cellranger"])
+                workflow_config.setdefault("aligner", "cellranger")
 
             if wf_name not in WORKFLOW_DISPATCH:
                 raise ValueError(f"Unknown workflow name: {wf_name}")

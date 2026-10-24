@@ -36,7 +36,9 @@ rule scanpy_qc:
         plot_dir = directory(outdir + "/{sample_id}/plots/{counter}")
     log:
         logdir + "/{sample_id}/scanpy_qc_{counter}.log"
-    threads: 4
+    threads: rule_res("scanpy_qc").get("threads", 4)
+    resources:
+        mem_mb=rule_res("scanpy_qc").get("mem_mb", 16000),
     conda:
         "scanpy.yaml"
     container:
@@ -101,7 +103,9 @@ rule scanpy_merge:
         plot_dir = directory(outdir_combine + "/{tissue}/plots/{counter}/merge")
     log:
         logdir_combine + "/scanpy/{tissue}/scanpy_merge_{counter}.log"
-    threads: 2
+    threads: rule_res("scanpy_merge").get("threads", 2)
+    resources:
+        mem_mb=rule_res("scanpy_merge").get("mem_mb", 32000),
     conda:
         "scanpy.yaml"
     container:
@@ -146,7 +150,9 @@ rule scanpy_auto:
         h5ad = outdir_combine + "/{tissue}/{tissue}_{counter}_auto.h5ad",
     log:
         logdir_combine + "/scanpy/{tissue}/scanpy_auto_{counter}.log"
-    threads: 4
+    threads: rule_res("scanpy_auto").get("threads", 4)
+    resources:
+        mem_mb=rule_res("scanpy_auto").get("mem_mb", 64000),
     conda:
         "scanpy.yaml"
     container:
@@ -234,7 +240,9 @@ rule scanpy_advanced:
         plot_dir = directory(outdir_combine + "/{tissue}/plots/{counter}/advanced")
     log:
         logdir_combine + "/scanpy/{tissue}/scanpy_advanced_{counter}.log"
-    threads: 4
+    threads: rule_res("scanpy_advanced").get("threads", 4)
+    resources:
+        mem_mb=rule_res("scanpy_advanced").get("mem_mb", 64000),
     conda:
         "scanpy.yaml"
     container:
@@ -301,7 +309,9 @@ rule scanpy_differential_expression:
         plot_dir = directory(outdir_combine + "/{tissue}/plots/{counter}/de")
     log:
         logdir_combine + "/scanpy/{tissue}/scanpy_de_{counter}.log"
-    threads: 2
+    threads: rule_res("scanpy_differential_expression").get("threads", 2)
+    resources:
+        mem_mb=rule_res("scanpy_differential_expression").get("mem_mb", 16000),
     conda:
         "scanpy.yaml"
     container:

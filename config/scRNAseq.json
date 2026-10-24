@@ -13,6 +13,21 @@
     "STAR": null,
     "scTE": null
   },
+  "resources": {
+    "default": {"threads": 2, "mem_mb": 8000},
+    "cellranger_ref": {"threads": 16, "mem_mb": 64000},
+    "cellranger_count": {"threads": 8, "mem_mb": 32000},
+    "cellranger_to_h5ad": {"threads": 1, "mem_mb": 8000},
+    "scTE_build_index": {"threads": 1, "mem_mb": 8000},
+    "scTE_quantify": {"threads": 8, "mem_mb": 16000},
+    "scanpy_qc": {"threads": 4, "mem_mb": 16000},
+    "scanpy_merge": {"threads": 2, "mem_mb": 32000},
+    "scanpy_auto": {"threads": 4, "mem_mb": 64000},
+    "scanpy_advanced": {"threads": 4, "mem_mb": 64000},
+    "scanpy_differential_expression": {"threads": 2, "mem_mb": 16000},
+    "star_index": {"threads": 16, "mem_mb": 64000},
+    "star_align": {"threads": 12, "mem_mb": 32000}
+  },
   "genome": {
     "default": "GRCm39",
     "references": {

@@ -21,7 +21,9 @@ rule scTE_build_index:
         index = _scTE_index
     log:
         logdir_index + "/scTE/scTE_build_index.log"
-    threads: 1
+    threads: rule_res("scTE_build_index").get("threads", 1)
+    resources:
+        mem_mb=rule_res("scTE_build_index").get("mem_mb", 8000),
     conda:
         "../scTE.yaml"
     container:
@@ -95,7 +97,9 @@ rule scTE_quantify:
         h5ad = outdir + "/{genome}/{sample_id}/{sample_id}_scTE.h5ad"
     log:
         logdir + "/{genome}/{sample_id}/scTE_quantify.log"
-    threads: 8
+    threads: rule_res("scTE_quantify").get("threads", 8)
+    resources:
+        mem_mb=rule_res("scTE_quantify").get("mem_mb", 16000),
     conda:
         "../scTE.yaml"
     container:

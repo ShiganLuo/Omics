@@ -20,6 +20,7 @@ if aligner == "star":
     star_config = {
         "ROOT_DIR": ROOT_DIR,
         "env": config.get("env", {}),
+        "resources": config.get("resources", {}),
         "indir": indir,
         "outdir": raw_bam_outdir,
         "logdir": f"{logdir}/sample",
@@ -60,6 +61,7 @@ if aligner == "star":
         scTE_config = {
             "ROOT_DIR": ROOT_DIR,
             "env": config.get("env", {}),
+            "resources": config.get("resources", {}),
             "indir": star_config["outdir"],
             "outdir": h5ad_outdir,
             "logdir": f"{logdir}/sample",
@@ -90,6 +92,7 @@ elif aligner == "cellranger":
         cellranger_config = {
             "ROOT_DIR": ROOT_DIR,
             "env": config.get("env", {}),
+            "resources": config.get("resources", {}),
             "indir": indir,
             "outdir": raw_bam_outdir,
             "logdir": f"{logdir}/sample",
@@ -118,6 +121,7 @@ elif aligner == "cellranger":
         cellranger_config = {
             "ROOT_DIR": ROOT_DIR,
             "env": config.get("env", {}),
+            "resources": config.get("resources", {}),
             "indir": indir,
             "outdir": raw_bam_outdir,
             "logdir": f"{logdir}/sample",
@@ -147,6 +151,7 @@ elif aligner == "cellranger":
             scTE_config = {
                 "ROOT_DIR": ROOT_DIR,
                 "env": config.get("env", {}),
+                "resources": config.get("resources", {}),
                 "input_mode": "cellranger_dir",
                 "indir": raw_bam_outdir,
                 "outdir": h5ad_outdir,
@@ -182,6 +187,7 @@ else:
 scanpy_config = {
     "ROOT_DIR": ROOT_DIR,
     "env": config.get("env", {}),
+    "resources": config.get("resources", {}),
     "indir": h5ad_outdir,
     "outdir": f"{outdir}/common/4_qc_h5ad",
     "outdir_combine": f"{outdir}/common/5_combine_h5ad",

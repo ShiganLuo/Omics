@@ -3340,6 +3340,81 @@ def _save_iteration_snapshot(
 # Behaviour is identical to the previous single-function implementation.
 
 
+def _cc_gene_sets(adata: ad.AnnData) -> Tuple[List[str], List[str]]:
+    """Cell-cycle gene sets (S phase / G2M) restricted to genes present in
+    *adata*. Uses the Tirosh et al. 2016 lists shipped with scanpy via
+    ``sc.queries.biomart_annotations`` when network access allows, falling
+    back to a compact curated core set otherwise.
+    """
+    s_full = [
+        "MCM2", "MCM3", "MCM4", "MCM5", "MCM6", "PCNA", "TYMS", "STMN1",
+        "UBE2C", "CDC6", "RRM1", "RRM2", "FEN1", "MAD2L1", "NASP", "CLSPN",
+        "CDC45", "BLM", "DSN1", "CENPF",
+    ]
+    g2m_full = [
+        "MKI67", "TOP2A", "CCNB1", "CCNB2", "CDC20", "CDC25C", "CDK1",
+        "AURKA", "AURKB", "BUB1", "BUB1B", "CENPE", "CENPF", "HMGB2",
+        "KIF11", "KIF20B", "NUSAP1", "PRC1", "TACC3", "TPX2",
+    ]
+    var_set = set(adata.var_names)
+    s = [g for g in s_full if g in var_set]
+    g2m = [g for g in g2m_full if g in var_set]
+    return s, g2m
+
+
+def _regress_cell_cycle(adata: ad.AnnData, enabled: bool) -> ad.AnnData:
+    """Score and regress out cell-cycle state (Tirosh-style), in place-ish.
+
+    Computes S_score / G2M_score on the log-normalized full-gene matrix,
+    stores them in ``adata.obs`` for auditing, then — when *enabled* —
+    regresses both scores out of the expression matrix (``sc.pp.regress_out``
+    + re-scale) so the PCA/UMAP/leiden graph reflects identity rather than
+    proliferation state. This tightens cycling subpopulations (e.g. a
+    MKI67+ glandular cluster that UMAP smears across the luminal
+    compartment) and keeps cycling cells next to their lineage of origin.
+
+    Call it BEFORE HVG/PCA on the log-normalized data. On any failure the
+    original matrix is restored and a warning is logged — clustering must
+    not die because of this cosmetic step.
+
+    Args:
+        adata: Log-normalized AnnData (normalize_total + log1p applied,
+            full gene set — call before ``_filter_te``/HVG subsetting).
+        enabled: When False, returns *adata* untouched (no scores).
+
+    Returns:
+        The processed AnnData (same object when disabled).
+    """
+    if not enabled:
+        return adata
+    try:
+        s_genes, g2m_genes = _cc_gene_sets(adata)
+        if len(s_genes) < 3 or len(g2m_genes) < 3:
+            logger.warning(
+                "Cell-cycle regression: too few marker genes present "
+                "(S=%d, G2M=%d). Skipping.", len(s_genes), len(g2m_genes))
+            return adata
+        sc.tl.score_genes_cell_cycle(adata, s_genes=s_genes, g2m_genes=g2m_genes)
+        logger.info(
+            "Cell-cycle scores: S phase %d / G2M %d / non-cycling %d cells",
+            int((adata.obs["phase"] == "S").sum()),
+            int((adata.obs["phase"] == "G2M").sum()),
+            int((adata.obs["phase"] == "G1").sum()),
+        )
+        backup = adata.X.copy()
+        sc.pp.regress_out(adata, ["S_score", "G2M_score"])
+        sc.pp.scale(adata, max_value=10)
+        logger.info("Cell-cycle scores regressed out of the expression matrix.")
+        return adata
+    except Exception as exc:
+        logger.warning(
+            "Cell-cycle regression failed (%s). Continuing with the "
+            "unregressed matrix.", exc)
+        if "backup" in dir():
+            adata.X = backup
+        return adata
+
+
 def _auto_cluster_iteration(
     adata: ad.AnnData,
     raw_adata: ad.AnnData,
@@ -3352,6 +3427,7 @@ def _auto_cluster_iteration(
     batch_method: str,
     batch_key: str,
     skip_te: bool,
+    regress_cell_cycle: bool = True,
 ) -> Tuple[ad.AnnData, int, Dict, str, Dict[str, Any]]:
     """mode_auto Step 1: expression prep, PCA, batch correction, clustering.
 
@@ -3402,6 +3478,11 @@ def _auto_cluster_iteration(
     sc.pp.normalize_total(adata, target_sum=1e4)
     sc.pp.log1p(adata)
     adata.raw = adata.copy()
+
+    # Cell-cycle scoring + regression (optional): must run on the
+    # log-normalized FULL-gene matrix, before TE filtering / HVG subsetting.
+    if regress_cell_cycle:
+        adata = _regress_cell_cycle(adata, enabled=True)
 
     if skip_te:
         adata = _filter_te(adata)
@@ -4463,6 +4544,7 @@ def mode_auto(
     plot_dir: Optional[str] = None,
     skip_te: bool = False,
     save_iteration_h5ad: bool = False,
+    regress_cell_cycle: bool = True,
 ) -> None:
     """Fully autonomous: cluster → AI annotate → QC → filter → re-cluster.
 
@@ -4527,6 +4609,7 @@ def mode_auto(
             "n_neighbors": n_neighbors, "n_top_genes": n_top_genes,
             "batch_method": batch_method, "batch_key": batch_key,
             "auto_n_pcs": auto_n_pcs, "skip_te": skip_te,
+            "regress_cell_cycle": regress_cell_cycle,
         },
         "initial_cells": adata.n_obs,
         "initial_genes": adata.n_vars,
@@ -4581,7 +4664,7 @@ def mode_auto(
                 n_pcs=n_pcs, auto_n_pcs=auto_n_pcs,
                 n_neighbors=n_neighbors, n_top_genes=n_top_genes,
                 batch_method=batch_method, batch_key=batch_key,
-                skip_te=skip_te,
+                skip_te=skip_te, regress_cell_cycle=regress_cell_cycle,
             )
 
         # ── Steps 1.5 + 2: AI annotate each cluster ──
@@ -5049,6 +5132,12 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("-H", "--save-iteration-h5ad", action="store_true",
                    help="Save each iteration's annotated h5ad to the iteration "
                         "snapshot dir (default: off)")
+    p.add_argument("-C", "--no-regress-cell-cycle", dest="regress_cell_cycle",
+                   action="store_false",
+                   help="Disable cell-cycle regression (S/G2M Tirosh-style "
+                        "scores are regressed out of the expression matrix "
+                        "before HVG/PCA by default, so cycling cells cluster "
+                        "by identity instead of proliferation phase)")
     p.add_argument("-T", "--tissue", default="",
                    help="Tissue name for LLM prompt context")
     p.add_argument("-S", "--species", default="",
@@ -5184,6 +5273,7 @@ def main():
             plot_dir=args.plot_dir,
             skip_te=args.skip_te,
             save_iteration_h5ad=args.save_iteration_h5ad,
+            regress_cell_cycle=args.regress_cell_cycle,
         )
     elif args.mode == "advanced":
         mode_advanced(

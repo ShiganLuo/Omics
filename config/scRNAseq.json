@@ -152,6 +152,7 @@
           "batch_key": "sample_id",
           "auto_n_pcs": true,
           "skip_te": true,
+          "regress_cell_cycle": true,
           "llm_method": null,
           "llm_model": null,
           "llm_api_key": null,

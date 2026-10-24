@@ -749,6 +749,10 @@
             "type": "bool",
             "required": false
           },
+          "regress_cell_cycle": {
+            "type": "bool",
+            "required": false
+          },
           "llm_method": {
             "type": "str",
             "required": false,
@@ -934,6 +938,10 @@
             "required": false
           },
           "skip_te": {
+            "type": "bool",
+            "required": false
+          },
+          "regress_cell_cycle": {
             "type": "bool",
             "required": false
           },

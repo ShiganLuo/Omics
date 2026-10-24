@@ -9,7 +9,10 @@
 | `METHOD.md` | 方案文档:三种证据层级、混杂控制、判读标准、参考文献 |
 | `match_arriba_decoil.py` | 证据 1:Arriba 融合断点 与 decoil ecDNA 断点交叉 |
 | `align_ecdna_junction.py` | 证据 2:ecDNA 重建序列 STAR 比对 + junction-spanning reads 统计(含剪接 motif 区分 circRNA) |
-| `rna_dna_ratio.py` | 证据 3:RNA/DNA 覆盖度比值(RNA-seq vs decoil fragment coverage) |
+| `rna_dna_ratio.py` | 证据 3:外显子归一 RNA/线性背景比值(`--gtf` 外显子交集归一,屏蔽侧翼,`flank_empty`/`no_exonic`/`low_conf` 标记) |
+| `breakpoint_families.py` | 跨样本断点共享家族聚类(TSV:家族 × 断点明细) |
+| `plot_breakpoint_families.py` | 断点共享家族图(每家族一行,共享断点虚线标注) |
+| `annotate_family_genes.py` | 家族基因座基因注释(GRCm39 GENCODE,full/partial) |
 
 ## 快速开始
 

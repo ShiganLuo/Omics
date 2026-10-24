@@ -1,143 +1,202 @@
 # ecDNA/eccDNA 表达判定方案
 
-目标:回答"某个 ecDNA 是否被转录"。核心原则 — **覆盖度富集不是证据,junction-spanning
-转录本才是**。ecDNA 拷贝数高、比对偏向、DNA 污染都会造成覆盖假象;只有跨越环形连接点
-的 RNA reads(或由其拼接出的融合转录本)才能区分"存在"与"表达"。
+目标:回答"某个 ecDNA 是否被转录"。核心原则 — **覆盖度富集不是证据,
+junction-spanning 转录本才是**。拷贝数、比对偏向、DNA 污染都会造成覆盖假象;
+只有跨环形连接点的 RNA reads 才能区分"存在"与"表达"。
 
-三份证据按证明力从弱到强排列,建议全部执行、交叉印证:
-
-| 证据 | 数据来源 | 证明力 | 脚本 |
+| 证据 | 回答的问题 | 证明力 | 脚本 |
 |---|---|---|---|
-| 1. Arriba 断点 × decoil 断点交叉 | 已有 RNAseq + PacVar 输出 | 中(间接:同源断点的融合转录本) | `match_arriba_decoil.py` |
-| 2. ecDNA 参考序列 junction reads | ecDNA fasta + RNA-seq fastq 重比对 | 强(直接:junction-spanning RNA) | `align_ecdna_junction.py` |
-| 3. RNA/DNA 覆盖度比值 | RNA BAM + decoil bed coverage | 弱(辅助,排除拷贝数混杂) | `rna_dna_ratio.py` |
+| 1. Arriba × decoil 断点交叉 | 环断点处有无融合转录本 | 中(间接) | `match_arriba_decoil.py` |
+| 2. RNA 比对 ecDNA 重建序列 | 是否存在环化特异 junction reads | seam 决定性,fj 中,bs 阴性对照 | `align_ecdna_junction.py` |
+| 3. RNA/线性背景比值 | 转录水平相对拷贝数高低 | 弱(辅助) | `rna_dna_ratio.py` |
+
+方法归属:证据 2 为本项目自行设计(判定逻辑自 DNA 层 circle-supporting
+chimeric reads,文献 4、6,迁移至 RNA 层);证据 1 对应 Zhu 2023 的 Arriba
+流程;证据 3 原法为覆盖度相关分析(文献 1),"比值 vs 屏蔽侧翼"为本项目改进。
 
 ---
 
 ## 证据 1:Arriba × decoil 断点交叉
 
-decoil 的 `reconstruct.ecDNA.filtered.bed` 给出 ecDNA 各 fragment 的基因组坐标,
-`reconstruct.links.txt` 给出 fragment 间连接;Arriba 的 `*_passed_fusions.tsv`
-(以及 `*_discarded_fusions.tsv` — 低置信也会保留断点坐标)给出 RNA 层面检测到的
-融合断点 `breakpoint1/2`。
+**做法**:decoil `filtered.bed` 的 fragment 边界坐标 × Arriba
+`*_passed/discarded_fusions.tsv` 的断点坐标,断点落在边界 ±1 kb 内即命中。
+**定位**:廉价初筛,复用主流程产物。**局限**:线性重排(易位/缺失)产生
+完全相同的 read 模式,命中只能作线索,必须回到证据 2 确认。reported 断点用
+fragment 边界坐标;discarded fusions 的命中标为 `discarded_only_noise_prone`,
+不单独作为证据。
 
-判定:Arriba 断点落在某 ecDNA fragment 边界 ±window 内(默认 1 kb,因为 RNA 剪接
-断点与 DNA 环化断点不必精确重合 — 剪接可以跨越环化点附近少量序列),即认为该 ecDNA
-存在融合转录本表达。
+## 证据 2:RNA 比对 ecDNA 重建序列(核心,本项目设计)
 
-注意:
-- 这是间接证据 — 融合转录本可能来自线性基因组重排而非环形分子。需要证据 2 确认
-  断点两侧序列在 RNA 上**共价连续**(线性 deletion 的两端不会同时出现在同一条
-  ecDNA 环上)。
-- reported 断点要用 bed 的 fragment **边界**坐标,不是 fragment 内部。
+**原理**:环化点在环分子上物理连续,以环为模板的转录物必然包含跨环化点的
+连续序列;线性转录本无法产生这种比对。**ring seam**(线性化序列首尾连接点)
+只存在于环上,是环化转录的决定性证据;**fragment junction**(环内相邻
+fragment 连接)与融合基因断点在序列层面不可区分,只作结构支持。执行必须
+分层报告。
 
-## 证据 2:ecDNA 参考序列比对(核心方法)
+**流程**(子集重比对,已验证;全转录组直接比对小参考需 5–13 h/样本且无增益):
 
-`decoil reconstruct` 已输出环形重建序列 `reconstruct.ecDNA.filtered.fasta`
-(每条 ecDNA 一条 record,fragment 首尾拼接)。把 RNA-seq reads 比对到该参考:
-
-1. 建 STAR 索引(小型,秒级):
-   ```bash
-   STAR --runMode genomeGenerate --genomeDir ecdna_index \
-        --genomeFastaFiles reconstruct.ecDNA.filtered.fasta \
-        --sjdbOverhang 99 --genomeSAindexNbases 8   # 小参考必须调小
-   ```
-2. 比对(保留 chimeric 检测参数与主流程一致):
-   ```bash
-   STAR --genomeDir ecdna_index --readFilesIn <R1> <R2> \
-        --readFilesCommand zcat --outSAMtype BAM SortedByCoordinate \
-        --chimSegmentMin 10 --outFilterMultimapNmax 100
-   ```
-3. `align_ecdna_junction.py` 统计每条 ecDNA 的三类 reads(实现注意:STAR 对跨
-   fasta 首尾连接点的 read 输出 split alignment(N)或 supplementary 对齐;脚本
-   以"单条 alignment 内连续跨越"与"N 分割"两类统计,supplementary 链接的
-   跨连接点 reads 需结合 `--chimSegmentMin` 输出的 CHIMERIC 区段另行核对):
-   - **junction_spanning_nonsplice**:跨 fasta 首尾连接点的连续比对(无 N 剪接)。
-     这是 ecDNA 模板转录的**直接证据** — 线性基因组的 reads 无法这样比对;
-   - junction_spanning_backsplice:跨连接点且为 canonical GT-AG 剪接。⚠️ 这类更
-     可能是 **circRNA**(剪接体 back-splicing),不能作为 ecDNA 表达证据,单独列出;
-   - internal:ecDNA 内部比对(背景,用于归一化)。
-4. 判定:`junction_spanning_nonsplice >= 3` 且显著高于阴性对照样本
-   (不含该 ecDNA 的样本,估计背景 chimeric 率)即判定表达。
-   报告时给出 raw count 和相对背景的富集倍数。
-
-实测提示(2026-10,E14-2 vs PlaB_P20 decoil):Arriba 的
-`*_passed_fusions.tsv` 与 PlaB_P20 ecDNA 断点无一处命中;所有匹配来自
-`*_discarded_fusions.tsv`(28 万条 min_support 拒绝记录,几乎全是噪声 chimera)。
-脚本已把这类匹配标记为 `discarded_only_noise_prone`,不能单独作为表达证据 —
-这正是证据 2(junction reads)必须做的原因。
-
-混杂控制(此方法天然排除大部分):
-- circRNA 假阳性 → nonsplice/backsplice 分类;
-- 线性 readthrough → 无法跨 fasta 首尾连接点;
-- 剩余主要混杂是 mapping 错误,通过 `-outFilterMismatchNoverReadLmax 0.04` 严控。
-
-## 证据 3:RNA/DNA 覆盖度比值
-
-对每个 ecDNA fragment:
+```bash
+# 1. 取子集(junction reads 必然来自 ecDNA 区域,子集化无损失)
+samtools view -b -L regions.bed <sample>.bam > subset.bam
+# 2. 还原 fastq(⚠️ 四个文件必须全部喂入 STAR:-0 只写 READ_OTHER,
+#    丢弃 r1/r2 会静默漏检)
+samtools fastq -1 r1.fq.gz -2 r2.fq.gz -0 r0.fq.gz -s rs.fq.gz subset.bam
+# 3. 建索引(genomeSAindexNbases 按参考大小自动计算)
+STAR --runMode genomeGenerate --genomeDir ecdna_index \
+     --genomeFastaFiles reconstruct.ecDNA.filtered.fasta \
+     --genomeSAindexNbases <auto>
+# 4. 比对(PE 按 4 个独立单端输入,解除配对约束反而提高灵敏度)
+STAR --genomeDir ecdna_index --readFilesIn r1.fq.gz,r2.fq.gz,r0.fq.gz,rs.fq.gz \
+     --readFilesCommand zcat --outSAMtype BAM SortedByCoordinate \
+     --chimSegmentMin 10 --chimOutType WithinBAM SoftClip \
+     --outFilterMultimapNmax 100 --winAnchorMultimapNmax 100 \
+     --outFilterMismatchNoverReadLmax 0.04 --seedSearchStartLmax 50
 ```
-ratio = RNA-seq 该 fragment 的 RPKM / decoil 该 fragment 的 coverage
+
+完成后检查 `Log.final.out` 的 input reads 非零。
+
+**read 分类与判定**:
+
+| 类别 | 证明力 | 判定 |
+|---|---|---|
+| nonsplice(ring seam) | 决定性 | seam ≥3 且重复方向一致 → **表达阳性** |
+| nonsplice(fragment junction) | 支持 | fj ≥3 但 seam 不足 → 弱证据("连续转录支持,环化转录未证实") |
+| backsplice(GT-AG) | 阴性对照 | backsplice-only → 疑似 circRNA,不算 ecDNA 表达 |
+| internal | 流程质控 | 为零 = 流程失败,重跑 |
+
+**seam 统计 = 主脚本 pos=0 位点 + soft-clip 核查的并集**(缺一不可):STAR
+local 模式常把跨 seam read 的另一半 soft-clip 掉,主脚本统计不到。核查标准:
+clip ≥10 bp 与环另一侧精确匹配(容 0–1 mismatch),MAPQ ≥10。
+
+**环间比较**:不同环 junction 位点数不同(1/2/3 片段环 = 1/2/3 个位点),
+raw count 不能直接跨环比较;per-junction 归一用于排序,seam 每环恒 1 个天然
+归一(判定阈值放在 seam 层的原因)。极短 fragment(<15 kb)侧的位点产出低,
+跨环比较时注明。两重复不一致时取并集计数并注明差异;单重复达阈值且另一重复
+方向一致可判阳性。
+
+## 证据 3:RNA/线性背景比值
+
+**做法**:对每个 fragment,取其左右各 ±50 kb 的基因组窗口,减去该样本全部
+ecDNA 区间(屏蔽),得到线性背景;外显子区间取 GENCODE(GRCm39 vM38)全部
+exon 合并。分别统计 fragment 与背景窗口内 MAPQ≥10 的 RNA reads(按
+query_name 去重),并计算各自与外显子区间的交集长度,然后
+
 ```
-并与(同一 fragment 的)侧翼线性区域 ±50kb 比值、以及 ecDNA 阴性样本同基因座
-比值比较。`reconstruct.ecDNA.filtered.bed` 的 coverage 列即 DNA 层覆盖。
+ratio = (片段 reads / 片段∩外显子 kb) / (背景 reads / 背景∩外显子 kb)
+```
 
-用途:排除"高覆盖是拷贝数造成"的质疑;表达活跃的 ecDNA 其 RNA/DNA ratio 应
-高于侧翼本底。单凭此不能定性,作为图表辅助。
+分母用外显子交集长度而非区间总长,因为 RNA-seq 信号只落在外显子上,裸
+区间 RPK 会把两侧外显子密度差(实测 fragment 0–14.4%、背景 1.0–10.9%)混入
+比值。标记:背景零 reads → `flank_empty`;任一侧外显子交集为 0 →
+`no_exonic`(环携带非编码/基因间区内容);背景外显子交集 <5 kb →
+`low_conf`(泊松噪声主导,不参与强弱排序);否则按 ≥2x / 1–2x / <1x 记
+`rna_above/equal/below_flank`。
 
----
+**边界**:比值是相对量,只比较 fragment/环之间;reads 无法区分来自环分子
+还是线性同座,本证据不能单独判定环化转录,用于刻画区段相对转录水平并与
+证据 2 交叉印证。
+
+## 断点共享家族(环间同源判定)
+
+**判定**:两环 fragment 边界 ±200 bp 内记为一个共享断点,共享 ≥2 个断点归
+入同一家族。脚本 `breakpoint_families.py`(聚类+断点表 TSV)、
+`plot_breakpoint_families.py`(图,`--genes-tsv` 可加基因模型)、
+`annotate_family_genes.py`(基因注释,full/partial)。数据源:
+`reconstruct.ecDNA.filtered.bed`。
+
+**实测(4 样本 × 26 环 → 9 家族)**:
+
+| 家族 | locus | 成员(样本:环) | 结构 |
+|---|---|---|---|
+| 1 | chr17:27.455/27.639Mb | 104(P06), 81(P20), 99(P06), 81(P20) | 单片段,断点 0 bp |
+| 2 | chr17:30.666/31.143Mb | 105(P06), 82(P20), 100(P06), 82(P20) | 单片段,1 bp |
+| 3 | chr3:106.030/106.219Mb | 24(P06), 16(P20), 21(P06), 18(P20) | 单片段,0 bp |
+| 4 | **chr4:145.156–145.323Mb(同源环)** | 33(P06), 22(P20), 35(P06), 31(P20) | 6 断点部分共享,结构分化 |
+| 5 | chr9:46.782/47.071Mb | 66(P06), 55(P20), 69(P06), 58(P20) | 单片段,≤1 bp |
+| 6 | chr5:148.975/149.316Mb | 47(P06), 43(P20) | 单片段,1 bp |
+| 7 | chr1:143.415/143.555Mb | 9(P06), 9(P20) | 单片段,0 bp |
+| 8 | chr4:146.27–146.57Mb | 32(P20) | 单样本环 |
+| 9 | chr17:36.370/36.503Mb | 83(P20) | 单样本环(PlaB_P20:83 被 decoil 过滤) |
+
+家族 4 的断点分层:外端 145,156/145,322 为 33+35+31 共享(除 22 的对应端);
+中央 145,295/145,300 为 33+35+31 共享;145,276/277 对为 35+31 独有。
+
+**结论口径**:家族 1/2/3/5 是"同一环的跨样本拷贝"(单片段,断点 0–1 bp,
+无结构分化);家族 4 是唯一结构分化的家族(同一祖先环重排产生的结构变体)。
+"同源环"指共享断点的环家族;fragment 级逐段比较只在结构相同的环间成立
+(当前仅 35 vs 31)。家族基因座均有明确基因内容(家族 9 = H2-T MHC-I 簇,
+家族 3 = Chil3/4 几丁质酶簇,家族 6 含 Hmgb1/Alox5ap,家族 4 = Platr16/
+Gm13230/Zfp990/Zfp268),可与证据 3 转录比值直接对应。
 
 ## 决策树
 
 ```
 证据1 命中(融合断点≈环化断点)?
-├─ 是 → 证据2 nonsplice reads 支持该断点?
-│        ├─ 是 → 强证据:ecDNA 表达,报告融合转录本 + junction counts
-│        └─ 否 → 检查证据2 backsplice:若高,疑似 circRNA 而非 ecDNA 表达
-└─ 否 → 证据2 任意 ecDNA nonsplice >= 3?
-         ├─ 是 → ecDNA 表达(无融合,可能转录本未跨断点连接基因)
-         └─ 否 → 证据3 ratio > 侧翼 2 倍以上 → 弱表达/待验证(建议长读长确认)
-                                  否则 → 无表达证据
+├─ 是 → 证据2 seam reads 支持该断点?
+│        ├─ 是 → 表达阳性(融合转录本 + junction counts)
+│        └─ 否 → backsplice 高 → 疑似 circRNA
+└─ 否 → 证据2 任意环 seam ≥3?
+         ├─ 是 → ecDNA 表达(无融合)
+         └─ 否 → 证据3 ratio > 2x → 弱表达/待验证(建议长读长)
+                                 否则 → 无表达证据
 ```
 
 ## 升级路径(现有数据不足时)
 
-- **长读长 RNA 测序**(PacBio Iso-Seq / ONT direct RNA):单分子水平跨越连接点
-  的全长转录本,最终证明;还能给出异构体结构。样本可选 ecDNA 高拷贝组(如 PlaB_P20)。
-- **capture RNA-seq**:针对 ecDNA 区域 + 连接点两侧 500bp 设计探针,富集后短读长
-  测序,成本低、灵敏度高,适合 ecDNA 数量少的场景。
-- **单细胞平行测序**(scEC&T-seq):ecDNA 与转录组同细胞关联,可回答异质性。
+- **长读长 RNA 测序**(Iso-Seq/ONT):全长跨连接点转录本,最终证明;样本选高拷贝组。
+- **capture RNA-seq**:环区域+连接点两侧探针富集,成本低,适合环少的场景。
+- **单细胞平行测序**(scEC&T-seq):环与转录组同细胞关联,回答异质性。
+
+## 实测结果汇总
+
+**证据 2**(SE,2026-10-22;4 样本 × 2 重复,26 环全覆盖):
+
+| 样本 | 环 | fj nonsplice | seam | 判定 |
+|---|---|---|---|---|
+| DMSO_P06 rep1/rep2 | circ33 | 2 / **8** | 0 / **4** | **表达阳性**(rep2 达阈值,rep1 方向一致) |
+| DMSO_P06 rep2 | circ105 | — | 1 | 单 read 辅助 |
+| DMSO_P20 | 全部 7 环 | 0 | 0 | 无表达 |
+| PlaB_P06 rep1/rep2 | circ35 | 6/5 | 1/0 | 弱证据 |
+| PlaB_P20 rep1/rep2 | circ31 | 8/5 | 1/1 | 弱证据 |
+| 其余 22 环 | — | 0 | 0 | 无表达(internal 非零,真实阴性) |
+
+详见 `../../output/iteration/eccDNA_index/junction_results/RESULTS.md`。
+
+**证据 3**(详见)
+`../../output/iteration/eccDNA_index/rna_dna_ratio/RESULTS.md`):
+
+(2026-10-24 外显子归一口径:分子分母均以 GENCODE exon 交集长度为分母,
+旧区间口径的数字已废弃)
+
+- family 6(chr5,Hmgb1/Alox5ap):242–419x,全图最强;family 2(chr17:30Mb,
+  Glo1/Dnah8):5.7–19.3x,四样本一致活跃;
+- 同源环(家族 4):片段异质 0.2–5.4x(旧口径 L 6–7x 系片段外显子密度
+  3 倍于背景所致,已修正);family 3(Chil3/Chil4)归一后 0.3–2.5x,
+  旧"6–8x 活跃"为外显子密度假象;
+- 沉默:family 1(Mir 簇)0.0–0.3x(零/极低 reads,口径无关的稳健结论)、
+  family 5 0.7–1.0x、family 7 0.9–1.3x、family 9 0.9x;
+  family 8 两片段无外显子交集(no_exonic),RNA 趋零 — 有基因装载 ≠ 转录,
+  非编码环内容可直接识别;
+- **高 RNA 丰度 ≠ 环化转录**:family 2/6 RNA 最强但 junction reads 为 0;
+  唯一同时具备转录富集 + seam 证据的是 DMSO_P06 circ33。
 
 ## 参考文献
 
 1. Zhu Y, et al. **Parallel sequencing of extrachromosomal circular DNAs and
-   transcriptomes in single cancer cells**. *Nat Genet* 55, 1366–1377 (2023).
-   doi:10.1038/s41588-023-01386-y — scEC&T-seq;ecDNA SV junction → fusion
-   transcript 的论证范式;junction-spanning reads 计数方法。
-2. Wang Y, et al. **EccDNA-mediated oncogene amplification in cancer** /
-   ecDNA 转录综述见:Wu S, et al. *Circular DNA in cancer*;核心参照:
-   Turner KM, et al. **Extrachromosomal oncogene amplification drives tumour
+   transcriptomes in single cancer cells**. *Nat Genet* 55, 880–890 (2023).
+   doi:10.1038/s41588-023-01386-y — scEC&T-seq;证据 1 参照、证据 3 原法。
+2. Turner KM, et al. **Extrachromosomal oncogene amplification drives tumour
    evolution and genetic heterogeneity**. *Nature* 543, 122–125 (2017).
-   doi:10.1038/nature21356 — ecDNA 上的基因表达与融合转录本 (e.g. EGFRvIII)。
-3. Gao L, et al. **Integrated CIRCLE-seq with RNA-seq to decipher the quantity,
-   localization, and functional features of eccDNA in AML**. *Front Oncol* 15,
-   1701989 (2025). doi:10.3389/fonc.2025.1701989 — CIRCLE-seq + RNA-seq 整合,
-   DNA 环化与转录水平一致性分析(证据 3 的比值思路)。
-4. Wang Y, et al. **scCircle-seq unveils the diversity and complexity of
-   extrachromosomal circular DNAs in single cells**. *Nat Commun* 15, 3574 (2024).
-   doi:10.41467-024-45972-y — chimeric junction reads 作为 circle-supporting
-   evidence 的判定逻辑(CPR + chimeric reads 模式)。
-5. Chen X, et al. **A comparative analysis of eccDNA and circRNA tools shows
-   increased accuracy of tool combination**. (2026) — eccDNA (DNA 层)与 circRNA
-   (RNA 层)工具的混杂与互补;back-splice motif 区分依据。
-6. Møller HD, et al. **Circular DNA elements of chromosomal repeat regions —
-   Circle-Map**. *Nucleic Acids Res* 46, e83 (2018). doi:10.1093/nar/gky352 —
-   circle-supporting chimeric reads 判定的统计学基础。
-7. Decoil:Picard C, et al. **Reconstruction of ecDNA structures from
-   long-read sequencing** (decoil, https://github.com/Decoil-Tools/decoil) —
-   本项目 ecDNA fasta/bed/links 的来源工具。
-8. Dobin A, et al. **STAR: ultrafast universal RNA-seq aligner**. *Bioinformatics*
-   29, 15–21 (2013). doi:10.1093/bioinformatics/bts635 — chimeric 检测参数
-   (chimSegmentMin 等)依据。
-
-> 注:文献 5 为 2026 年 gigascience 比较研究(eccDNA ATAC-seq/Circle-seq vs
-> circRNA RNase± 工具组合),引用时以正式卷期为准。
+   doi:10.1038/nature21356 — ecDNA 基因表达与融合转录本。
+3. Gao L, et al. **Integrated CIRCLE-seq with RNA-seq...** *Front Oncol* 15,
+   1701989 (2025). doi:10.3389/fonc.2025.1701989 — 证据 3 比值思路。
+4. Wang Y, et al. **scCircle-seq unveils the diversity...** *Nat Commun* 15,
+   3574 (2024). doi:10.41467-024-45972-y — circle-supporting chimeric reads
+   判定逻辑(证据 2 的源头)。
+5. Chen X, et al. **A comparative analysis of eccDNA and circRNA tools...**
+   (2026) — eccDNA/circRNA 工具混杂与互补。
+6. Møller HD, et al. **Circle-Map**. *Nucleic Acids Res* 46, e83 (2018).
+   doi:10.1093/nar/gky352 — chimeric reads 判定统计学基础。
+7. Picard C, et al. **decoil** — ecDNA fasta/bed/links 来源工具。
+8. Dobin A, et al. **STAR**. *Bioinformatics* 29, 15–21 (2013).
+   doi:10.1093/bioinformatics/bts635 — chimeric 参数依据。

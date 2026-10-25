@@ -258,7 +258,7 @@ rule decoil_plot:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start decoil_plot for sample {wildcards.sample_id} at {current_time}")
-            sample_vis_dir = os.path.dirname(str(output.genes_tsv))
+            sample_vis_dir = os.path.dirname(str(output.regions_tsv))
             os.makedirs(sample_vis_dir, exist_ok=True)
             script = os.path.join(sample_vis_dir, f"decoil_plot_{wildcards.sample_id}_{current_time}.sh")
             cmd = [

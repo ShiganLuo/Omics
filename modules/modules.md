@@ -213,6 +213,47 @@ rule <module>_result:
 9. **`shell(f"bash {script} >> {log_path} 2>&1")`** — 直接路径，不加 `shlex.quote` 包装
 10. **`logger.error(...)` + `raise e`** — snakemake logger 记录错误后 re-raise
 
+## 线程限流环境变量
+
+Snakemake 的 `threads:` 只约束**调度器记账**，不会约束进程内数值库的线程数：
+numpy/BLAS、numba 等默认开满全部物理核。实测一个声明 4 线程的 scanpy_auto
+进程开出 645 个 OS 线程，多个 job 并行时互相抢占、白白增加切换开销。因此
+生成的 shell 脚本必须在命令**之前**导出以下变量，把线程预算传给数值库：
+
+| 变量 | 约束对象 |
+|---|---|
+| `OMP_NUM_THREADS` | OpenMP 并行（C/C++ 数值库、scipy 部分例程） |
+| `OPENBLAS_NUM_THREADS` | OpenBLAS（numpy 矩阵乘法、线性代数） |
+| `MKL_NUM_THREADS` | Intel MKL（numpy 链接 MKL 后端时生效） |
+| `NUMBA_NUM_THREADS` | numba JIT（scanpy/pynndescent 的 kNN、UMAP） |
+| `VECLIB_MAXIMUM_THREADS` | macOS Accelerate/vecLib（Linux 导出无害，保跨平台一致） |
+
+写法（`set -euo pipefail` 之后、命令之前）：
+
+```python
+with open(script, "w") as f:
+    f.write("#!/bin/bash\nset -euo pipefail\n")
+    f.write(f"export OMP_NUM_THREADS={threads}\n")
+    f.write(f"export OPENBLAS_NUM_THREADS={threads}\n")
+    f.write(f"export MKL_NUM_THREADS={threads}\n")
+    f.write(f"export NUMBA_NUM_THREADS={threads}\n")
+    f.write(f"export VECLIB_MAXIMUM_THREADS={threads}\n")
+    f.write(" ".join(cmd) + "\n")
+```
+
+要点：
+
+1. **值取 run 块的 `threads` 变量，禁止写死。** 链路：workflow config JSON 的
+   `resources.<rule>.threads` → `rule_res()` → 规则 `threads:` → run 块的
+   `threads` 变量。JSON 是资源数量的唯一入口，改线程数只改 config；且
+   `threads` 拿到的是调度器**实际分配**的值（声明超出可用核时被自动缩放），
+   限流跟着调度走，两头永远一致。
+2. 带 `--threads`/`--localcores` 类参数的 CLI 工具（cellranger、STAR 等）应
+   把 `threads` 传给工具自身参数；环境变量是给**不接受线程参数的数值库**
+   （BLAS/numba）兜底的，两者可以并存。
+3. 线程数取值参考真实并行度：numba kNN/harmony 类负载（scanpy_auto、
+   scanpy_advanced）12~16 之后收益趋平，申报更多只增加调度压力。
+
 ## 带条件参数
 
 ```python

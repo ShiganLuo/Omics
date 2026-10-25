@@ -13,7 +13,8 @@
         "pbsv": "/home/luosg/Database/env/pbsv/pbsv.sif",
         "hiphase": "/home/luosg/Database/env/hiphase/hiphase.sif",
         "genome": "/home/luosg/Database/env/genome/genome.sif",
-        "deeptools": "/data/16T/Database/env/deeptools/deeptools.sif"
+        "deeptools": "/data/16T/Database/env/deeptools/deeptools.sif",
+        "decoil": "/data/16T/Database/env/decoil/decoil.sif"
     },
     "resources": {
         "default": {"threads": 2, "mem_mb": 8000},

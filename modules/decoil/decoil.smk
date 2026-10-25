@@ -428,7 +428,7 @@ rule decoil_igv:
         sif("decoil.yaml")
     params:
         igv_config_script = os.path.join(ROOT_DIR, "modules", "decoil", "bin", "decoil_igv_config.py"),
-        track_script      = os.path.join(ROOT_DIR, "modules", "decoil", "bin", "track.py"),
+        track_script      = os.path.join(ROOT_DIR, "modules", "track", "bin", "track.py"),
         base_igv_config   = decoil_params.get("igv", {}),
         config_json       = outdir + "/{sample_id}/visualization/igv_ecdna_config.json",
         locus             = decoil_params.get("igv", {}).get("locus", ""),

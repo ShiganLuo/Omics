@@ -81,7 +81,12 @@ def load_summary(path: str, sample_id: str) -> pd.DataFrame:
     ValueError
         If the file is missing required columns.
     """
-    df = pd.read_csv(path, sep="\t")
+    try:
+        df = pd.read_csv(path, sep="\t")
+    except pd.errors.EmptyDataError:
+        # Empty summary.txt: no ecDNA reconstructed for this sample
+        return pd.DataFrame(columns=["sample_id", "circ_id", "chr_origin",
+                                     "size_mb", "label", "topology"])
     df.columns = [str(c).strip() for c in df.columns]
     required = {"circ_id", "chr_origin", "size(MB)", "topology_name"}
     missing = required - set(df.columns)
@@ -114,8 +119,12 @@ def load_ecdna_bed(path: str, sample_id: str) -> pd.DataFrame:
         Columns: sample_id, chrom, start, end, circ_id, coverage, proportion.
         Empty frame when the file has no data lines.
     """
-    df = pd.read_csv(path, sep="\t", comment="#", header=None,
-                     dtype=str)
+    try:
+        df = pd.read_csv(path, sep="\t", comment="#", header=None,
+                         dtype=str)
+    except pd.errors.EmptyDataError:
+        # All-comment / empty file: no ecDNA passed the filter
+        df = pd.DataFrame()
     if df.empty:
         return pd.DataFrame(columns=["sample_id", "chrom", "start", "end",
                                      "circ_id", "coverage", "proportion"])

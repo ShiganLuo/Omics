@@ -6,7 +6,6 @@ outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 samples = config.get("samples", [])
 fasta = config.get("genome", {}).get("fasta")
-fai = config.get("genome", {}).get("fai")
 bam_substring = config.get("bam_substring") or ""
 
 def get_input_for_deepvariant_run(wildcards):
@@ -16,6 +15,12 @@ def get_input_for_deepvariant_run(wildcards):
     else:
         bam = os.path.join(indir, wildcards.sample_id, f"{wildcards.sample_id}.bam")
         bai = os.path.join(indir, wildcards.sample_id, f"{wildcards.sample_id}.bai")
+    fasta = config.get("genome", {}).get("fasta")
+    if not fasta or not os.path.exists(fasta):
+        raise ValueError(f"FASTA file for deepvariant_run not found. Please check config['genome']['fasta']: {fasta}")
+    fai = config.get("genome", {}).get("fai")
+    if not fai or not os.path.exists(fai):
+        fai = fasta + ".fai"
     return {"bam": bam, "bai": bai, "fasta": fasta, "fai": fai}
 
 rule deepvariant_run:

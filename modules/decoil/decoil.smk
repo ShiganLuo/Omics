@@ -103,9 +103,9 @@ def get_input_for_decoil_reconstruct(wildcards):
     in_dict["ref"] = fasta
     in_dict["gtf"] = gtf
     if not fasta or not os.path.exists(fasta):
-        raise ValueError("decoil module requires 'genome.fasta' in config. Please provide a valid reference genome FASTA path.")
+        raise ValueError(f"decoil module requires 'genome.fasta' in config. Please provide a valid reference genome FASTA path, now is {fasta}")
     if not gtf or not os.path.exists(gtf):
-        raise ValueError("decoil module requires 'genome.gtf' in config. Please provide a valid gene annotation GTF path.")
+        raise ValueError(f"decoil module requires 'genome.gtf' in config. Please provide a valid gene annotation GTF path, now is {gtf}")
     return in_dict
 
 rule decoil_reconstruct:
@@ -341,6 +341,12 @@ rule decoil_structure:
         bw                   = os.path.join(bw_dir, "{sample_id}", "{sample_id}" + bw_suffix),
     output:
         genes_tsv            = outdir + "/{sample_id}/visualization/decoil_structure_genes.tsv",
+        # NOTE: output cannot be a function (snakemake: "Only input files can
+        # be specified as functions") — formats are config-known at parse
+        # time, so expand the concrete file list here with plain string
+        # concatenation that keeps {sample_id} for wildcard resolution.
+        plot                 = [outdir + "/{sample_id}/visualization/decoil_structure." + fmt
+                                for fmt in (decoil_params.get("structure", {}).get("formats") or ["png"])],
     log:
         logdir + "/{sample_id}/decoil_structure.log"
     conda:

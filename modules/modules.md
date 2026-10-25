@@ -530,3 +530,20 @@ expand(outdir + "/{case}/{case}.{{genome_version}}.msisensor", case=samples.inde
 ## 6. nargs+ 参数拆分
 
 命令列表中 nargs+ 参数必须逐项拆分：`"-f", "heatmap", "volcano", "pca"`，不能 `"-f", "heatmap volcano pca"`（shlex 会认为是一个字符串）。
+
+## 7. output 不能是函数（只有 input 可以）
+
+Snakemake 只允许 input 指定为函数（`Only input files can be specified as
+functions`），output 必须是 parse 期可确定的 str 或 str 列表。配置驱动的
+可变输出（如按 `Params.*.formats` 出多种图）用 parse 期列表推导展开：
+
+```python
+output:
+    plot = [outdir + "/{sample_id}/viz/struct." + fmt
+            for fmt in (p.get("formats") or ["png"])],
+```
+
+用字符串拼接保留 `{sample_id}` 给通配符解析（f-string 要写成 `{{sample_id}}`）。
+同一份 config 列表放 `params` 回读给 run 块，保证脚本产出与声明一一对应。
+运行时才知道产物的场景用 `directory()` / marker / checkpoint，不要把可能
+产物全声明成 output 靠"能产哪个产哪个"（MissingOutput 不允许部分满足）。

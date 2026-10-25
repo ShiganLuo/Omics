@@ -22,7 +22,7 @@
     "scTE_quantify": {"threads": 8, "mem_mb": 16000},
     "scanpy_qc": {"threads": 4, "mem_mb": 16000},
     "scanpy_merge": {"threads": 2, "mem_mb": 32000},
-    "scanpy_auto": {"threads": 4, "mem_mb": 64000},
+    "scanpy_auto": {"threads": 12, "mem_mb": 64000},
     "scanpy_advanced": {"threads": 4, "mem_mb": 64000},
     "scanpy_differential_expression": {"threads": 2, "mem_mb": 16000},
     "star_index": {"threads": 16, "mem_mb": 64000},

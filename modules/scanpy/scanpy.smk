@@ -78,6 +78,16 @@ rule scanpy_qc:
                 cmd += ["-s", "-d", str(params.doublet_rate)]
             with open(script, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
+                # Cap numeric-library threads to the rule's thread budget
+                # (config resources -> rule_res -> threads) so the process
+                # honors what snakemake allocated instead of grabbing every
+                # core; the value is injected at script generation, never
+                # hardcoded here.
+                f.write(f"export OMP_NUM_THREADS={threads}\n")
+                f.write(f"export OPENBLAS_NUM_THREADS={threads}\n")
+                f.write(f"export MKL_NUM_THREADS={threads}\n")
+                f.write(f"export NUMBA_NUM_THREADS={threads}\n")
+                f.write(f"export VECLIB_MAXIMUM_THREADS={threads}\n")
                 f.write(" ".join(shlex.quote(str(item)) for item in cmd) + "\n")
                 f.write(f'echo "scanpy QC for {wildcards.sample_id} at {current_time} completed successfully"\n')
             shell(f"bash {script} >> {log_path} 2>&1")
@@ -133,6 +143,16 @@ rule scanpy_merge:
                 cmd += ["-b", params.te_bed, "-G", params.gene_tsv]
             with open(script, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
+                # Cap numeric-library threads to the rule's thread budget
+                # (config resources -> rule_res -> threads) so the process
+                # honors what snakemake allocated instead of grabbing every
+                # core; the value is injected at script generation, never
+                # hardcoded here.
+                f.write(f"export OMP_NUM_THREADS={threads}\n")
+                f.write(f"export OPENBLAS_NUM_THREADS={threads}\n")
+                f.write(f"export MKL_NUM_THREADS={threads}\n")
+                f.write(f"export NUMBA_NUM_THREADS={threads}\n")
+                f.write(f"export VECLIB_MAXIMUM_THREADS={threads}\n")
                 f.write(" ".join(shlex.quote(str(item)) for item in cmd) + "\n")
                 f.write(f'echo "scanpy merge for {wildcards.tissue} at {current_time} completed successfully"\n')
             shell(f"bash {script} >> {log_path} 2>&1")
@@ -224,6 +244,16 @@ rule scanpy_auto:
                 cmd.append("-C")
             with open(script_path, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
+                # Cap numeric-library threads to the rule's thread budget
+                # (config resources -> rule_res -> threads) so the process
+                # honors what snakemake allocated instead of grabbing every
+                # core; the value is injected at script generation, never
+                # hardcoded here.
+                f.write(f"export OMP_NUM_THREADS={threads}\n")
+                f.write(f"export OPENBLAS_NUM_THREADS={threads}\n")
+                f.write(f"export MKL_NUM_THREADS={threads}\n")
+                f.write(f"export NUMBA_NUM_THREADS={threads}\n")
+                f.write(f"export VECLIB_MAXIMUM_THREADS={threads}\n")
                 f.write(" ".join(shlex.quote(str(item)) for item in cmd) + "\n")
                 f.write(f'echo "scanpy auto for {wildcards.tissue} at {current_time} completed successfully"\n')
             shell(f"bash {script_path} >> {log_path} 2>&1")
@@ -292,6 +322,16 @@ rule scanpy_advanced:
             cmd += ["-p", str(output.plot_dir)]
             with open(script, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
+                # Cap numeric-library threads to the rule's thread budget
+                # (config resources -> rule_res -> threads) so the process
+                # honors what snakemake allocated instead of grabbing every
+                # core; the value is injected at script generation, never
+                # hardcoded here.
+                f.write(f"export OMP_NUM_THREADS={threads}\n")
+                f.write(f"export OPENBLAS_NUM_THREADS={threads}\n")
+                f.write(f"export MKL_NUM_THREADS={threads}\n")
+                f.write(f"export NUMBA_NUM_THREADS={threads}\n")
+                f.write(f"export VECLIB_MAXIMUM_THREADS={threads}\n")
                 f.write(" ".join(shlex.quote(str(item)) for item in cmd) + "\n")
                 f.write(f'echo "scanpy advanced analysis for {wildcards.tissue} at {current_time} completed successfully"\n')
             shell(f"bash {script} >> {log_path} 2>&1")
@@ -340,6 +380,16 @@ rule scanpy_differential_expression:
             cmd += ["-p", str(output.plot_dir)]
             with open(script, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
+                # Cap numeric-library threads to the rule's thread budget
+                # (config resources -> rule_res -> threads) so the process
+                # honors what snakemake allocated instead of grabbing every
+                # core; the value is injected at script generation, never
+                # hardcoded here.
+                f.write(f"export OMP_NUM_THREADS={threads}\n")
+                f.write(f"export OPENBLAS_NUM_THREADS={threads}\n")
+                f.write(f"export MKL_NUM_THREADS={threads}\n")
+                f.write(f"export NUMBA_NUM_THREADS={threads}\n")
+                f.write(f"export VECLIB_MAXIMUM_THREADS={threads}\n")
                 f.write(" ".join(shlex.quote(str(item)) for item in cmd) + "\n")
                 f.write(f'echo "scanpy differential expression for {wildcards.tissue} at {current_time} completed successfully"\n')
             shell(f"bash {script} >> {log_path} 2>&1")

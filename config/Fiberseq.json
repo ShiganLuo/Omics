@@ -12,7 +12,8 @@
         "deepvariant": "/home/luosg/Database/env/deepvariant/deepvariant.sif",
         "pbsv": "/home/luosg/Database/env/pbsv/pbsv.sif",
         "hiphase": "/home/luosg/Database/env/hiphase/hiphase.sif",
-        "genome": "/home/luosg/Database/env/genome/genome.sif"
+        "genome": "/home/luosg/Database/env/genome/genome.sif",
+        "deeptools": "/data/16T/Database/env/deeptools/deeptools.sif"
     },
     "resources": {
         "default": {"threads": 2, "mem_mb": 8000},
@@ -133,7 +134,42 @@
             "w_ld_chr": null,
             "munge_args": ""
         },
-        "deepvariant": {}
+        "deepvariant": {},
+        "bamCoverage": {
+            "bin_size": 50,
+            "normalizeUsing": "CPM"
+        },
+        "decoil": {
+            "enabled": true,
+            "reconstruct": {
+                "sv_caller": "sniffles1",
+                "min_sv_len": 500,
+                "fragment_min_cov": 5,
+                "fragment_max_cov": 100000,
+                "fragment_min_size": 500,
+                "min_vaf": 0.01,
+                "min_cov_alt": 6,
+                "min_cov": 8,
+                "max_explog_threshold": 0.1,
+                "filter_score": 5,
+                "extend_allowed_chromosomes": "",
+                "skip": false
+            },
+           "structure": {
+                "formats": ["png"],
+                "max_per_fig": 12,
+                "one_file_per_cycle": true
+            },
+            "plot": {
+                "formats": ["png"]
+            },
+            "compare": {
+                "formats": ["png"]
+            },
+            "igv": {
+                "locus": ""
+            }
+        }
     },
     "genome": {
         "default": "Mmul_10",

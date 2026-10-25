@@ -1949,6 +1949,15 @@ def _draw_legend(ax: plt.Axes, has_truncated: bool = True,
             va="center", ha="right", zorder=8)
 
 
+# Canonical columns of the per-gene functional table; used for EVERY write
+# (including empty ones) so the declared <out-prefix>_genes.tsv output always
+# exists with a stable header — snakemake deletes declared outputs of failed
+# jobs, and a missing table previously failed the whole rule on samples with
+# no detected ecDNA.
+GENE_TABLE_COLUMNS = ["circ_id", "gene", "status", "onco", "strand", "region",
+                      "median_coverage", "tpm", "label_x", "label_y"]
+
+
 def plot_placeholder(out_prefix: str, image_formats: List[str],
                      sample_id: str) -> None:
     """Emit a 'No ecDNA detected' placeholder figure.
@@ -2217,12 +2226,14 @@ def plot_structures(bed: pd.DataFrame, summary: pd.DataFrame,
                     bw_mean_cov, sample_id, out_prefix, image_formats,
                     exons_df, utr_df))
 
-    # Per-gene functional table (all cycles)
-    if all_gene_rows:
-        table = pd.concat(all_gene_rows, ignore_index=True)
-        table_path = f"{out_prefix}_genes.tsv"
-        table.to_csv(table_path, sep="\t", index=False)
-        logger.info(f"Saved {table_path} ({len(table)} gene annotations)")
+    # Per-gene functional table (all cycles) — always written (empty table
+    # with stable header when no gene rows) so the declared output exists.
+    table = (pd.concat(all_gene_rows, ignore_index=True) if all_gene_rows
+             else pd.DataFrame(columns=GENE_TABLE_COLUMNS))
+    table = table.reindex(columns=GENE_TABLE_COLUMNS)
+    table_path = f"{out_prefix}_genes.tsv"
+    table.to_csv(table_path, sep="\t", index=False)
+    logger.info(f"Saved {table_path} ({len(table)} gene annotations)")
 
 
 def main() -> None:
@@ -2286,6 +2297,11 @@ def main() -> None:
         # Detection guard: nothing passed the filter -> no structures to draw
         logger.info(f"{args.sample}: no ecDNA detected, drawing placeholder")
         plot_placeholder(args.out_prefix, image_formats, args.sample)
+        # Keep the output contract: write an empty genes table too, or the
+        # missing <out-prefix>_genes.tsv fails the snakemake rule (which then
+        # also deletes the freshly drawn placeholder figure).
+        pd.DataFrame(columns=GENE_TABLE_COLUMNS).to_csv(
+            f"{args.out_prefix}_genes.tsv", sep="\t", index=False)
         return
 
     logger.info(f"{args.sample}: {bed['circ_id'].nunique()} ecDNA cycles, "

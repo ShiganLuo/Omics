@@ -10,15 +10,15 @@ logdir = config.get("logdir", "log")
 samples = config.get("samples", [])
 ROOT_DIR = config.get("ROOT_DIR", ".")
 env = config.get("env", {})
-genome_cfg = config.get("genome", {})
 p = config.get("Params", {}).get("fiberseq_track", {})
+
 rule fiberseq_track_run:
     """bedGraph/bigWig accessibility and m6A density tracks + trackDb."""
     input:
         msp = indir + "/{sample_id}/{sample_id}.msp.bed.gz",
         m6a = indir + "/{sample_id}/{sample_id}.m6a.bed.gz",
         nuc = indir + "/{sample_id}/{sample_id}.nuc.bed.gz",
-        chrom_sizes = lambda wildcards: _require(genome_cfg.get("fai"), "genome.fai", "fiberseq_track"),
+        chrom_sizes = config.get("genome",{}).get("fasta", "") + ".fai",
     output:
         acc_bw = outdir + "/{sample_id}/{sample_id}.accessibility.bw",
         m6a_bw = outdir + "/{sample_id}/{sample_id}.m6a_density.bw",

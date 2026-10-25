@@ -119,6 +119,9 @@ rule genome_index:
         logdir + "/genome/genome_index.log"
     params:
         samtools = config.get("Procedure", {}).get("samtools") or "samtools",
+        outdir = outdir
+    container:
+        sif("genome.yaml")
     threads: 1
     run:
         log_path = str(log)
@@ -127,6 +130,7 @@ rule genome_index:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start genome_index at {current_time}")
+            os.makedirs(params.outdir, exist_ok=True)
             script = os.path.join(params.outdir, f"genome_index{current_time}.sh")
             cmd = [
                 params.samtools, "faidx", input.fasta
@@ -134,7 +138,7 @@ rule genome_index:
             with open(script, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
-                f.write(f"echo 'genone_index for {input.fasta} was successfuly build at {current_time}' \n")
+                f.write(f"echo 'genone_index for {input.fasta} was successfuly build for {input.fasta}' \n")
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during genome_index: {e}")

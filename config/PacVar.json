@@ -1,5 +1,15 @@
 {
     "outfiles": [],
+    "resources": {
+        "default": {"threads": 2, "mem_mb": 8000},
+        "bamCoverage": {"threads": 8, "mem_mb": 16000},
+        "decoil_reconstruct": {"threads": 16, "mem_mb": 32000},
+        "decoil_plot": {"threads": 4, "mem_mb": 8000},
+        "decoil_structure": {"threads": 4, "mem_mb": 12000},
+        "decoil_compare": {"threads": 2, "mem_mb": 8000},
+        "decoil_igv": {"threads": 1, "mem_mb": 4000},
+        "decoil_ucsc": {"threads": 1, "mem_mb": 4000}
+    },
     "ROOT_DIR": ".",
     "tmp_dir": "",
     "env": {
@@ -72,9 +82,6 @@
         "telomere": {
             "enabled": false
         },
-        "eccdna": {
-            "enabled": true
-        },
         "deepvariant": {
             "model_type": "PACBIO"
         },
@@ -108,6 +115,7 @@
             "normalizeUsing": "CPM"
         },
         "decoil": {
+            "enabled": true,
             "reconstruct": {
                 "sv_caller": "sniffles1",
                 "min_sv_len": 500,

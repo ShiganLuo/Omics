@@ -21,6 +21,18 @@ def _detect_current_server_db() -> str | None:
             return db_dir
     return None
 
+def _enabled(datajson: Dict[str, Any], step: str) -> bool:
+    """Read Params.<step>.enabled (default True).
+
+    Each downstream step has its own gate under `Params.<step>` so users
+    can switch off individual analyses (e.g. eccDNA) without affecting
+    the rest of the pipeline.
+    """
+    block = datajson.get("Params", {}).get(step)
+    if isinstance(block, dict) and "enabled" in block:
+        return bool(block["enabled"])
+    return True
+
 def _replace_server_paths(obj: Any, foreign_dirs: List[str], current_db: str) -> None:
     """Recursively replace foreign server database paths with current server's.
 
@@ -304,25 +316,13 @@ def runPacVar(
     samples: List[str] = []
     params = datajson.get("Params", {})
 
-    def _enabled(step: str) -> bool:
-        """Read Params.<step>.enabled (default True).
-
-        Each downstream step has its own gate under `Params.<step>` so users
-        can switch off individual analyses (e.g. eccDNA) without affecting
-        the rest of the pipeline.
-        """
-        block = params.get(step)
-        if isinstance(block, dict) and "enabled" in block:
-            return bool(block["enabled"])
-        return True
-
     snv_caller = params.get("snv_caller", "deepvariant")
-    enable_snp = _enabled("snv")
-    enable_sv = _enabled("sv")
-    enable_phase = _enabled("phase")
-    enable_repeat = _enabled("repeat")
-    enable_telomere = _enabled("telomere")
-    enable_eccdna = _enabled("eccdna")
+    enable_snp = _enabled(datajson, "snv")
+    enable_sv = _enabled(datajson, "sv")
+    enable_phase = _enabled(datajson, "phase")
+    enable_repeat = _enabled(datajson, "repeat")
+    enable_telomere = _enabled(datajson, "telomere")
+    enable_eccdna = _enabled(datajson, "decoil")  # Decoil is the eccDNA reconstruction step
 
     # Resolve nested genome reference (genome.default + genome.references.<org>)
     _default_genome = datajson.get("genome", {}).get("default")
@@ -765,12 +765,12 @@ def runRNAseq(
     sample_contamination = {}
     datajson["Params"]["DESeq2"]["group_pairs"] = {}
     # read enabled flags from each module's own Params (default True)
-    _te_enabled = datajson.get("Params", {}).get("TEtranscripts", {}).get("enabled", True)
-    _transcripts_enabled = datajson.get("Params", {}).get("StringTie", {}).get("enabled", True)
-    _fusion_enabled = datajson.get("Params", {}).get("arriba", {}).get("enabled", True)
-    _variation_enabled = datajson.get("Params", {}).get("gatk_RNAseq", {}).get("enabled", True)
-    _deseq2_enabled = datajson.get("Params", {}).get("DESeq2", {}).get("enabled", True)
-    _report_enabled = datajson.get("Params", {}).get("report", {}).get("enabled", True)
+    enable_te = _enabled(datajson, "TEtranscripts")
+    enable_transcripts = _enabled(datajson, "StringTie")
+    enable_fusion = _enabled(datajson, "arriba")
+    enable_variation = _enabled(datajson, "gatk_RNAseq")
+    enable_deseq2 = _enabled(datajson, "DESeq2")
+    enable_report = _enabled(datajson, "report")
     for group_pair in group_pairs:
         datajson["Params"]["DESeq2"]["group_pairs"].setdefault(group_pair.organism, {})
         datajson["Params"]["DESeq2"]["group_pairs"][group_pair.organism].setdefault(f"{group_pair.ctr_group_name}_vs_{group_pair.exp_group_name}", {
@@ -779,7 +779,7 @@ def runRNAseq(
             "control_samples": group_pair.ctr_sample_ids,
             "experimental_samples": group_pair.exp_sample_ids
         })
-        if _deseq2_enabled:
+        if enable_deseq2:
             outfiles.append(f"{outdir}/diff_expression/{group_pair.organism}/{group_pair.ctr_group_name}_vs_{group_pair.exp_group_name}/DESeq2.done")
         sample_groups.setdefault(group_pair.ctr_group_name, []).extend(group_pair.ctr_sample_ids)
         sample_groups.setdefault(group_pair.exp_group_name, []).extend(group_pair.exp_sample_ids)
@@ -805,19 +805,19 @@ def runRNAseq(
             sample_contamination.setdefault(sample_id,{}).setdefault("contaminant", sample_info.contaminated_organism)
         else:
             sample_contamination.setdefault(sample_id,{}).setdefault("contaminant", sample_info.organism)
-        if _variation_enabled:
+        if enable_variation:
             outfiles.append(f"{outdir}/variation/germline_snv_indel_RNAseq/{sample_info.organism}/{sample_id}/{sample_id}.filtered.vcf.gz")
         if sample_info.layout == "PE":
             genome_paired_samples.setdefault(sample_info.organism, []).append(sample_id)
-            if _transcripts_enabled:
+            if enable_transcripts:
                 outfiles.append(f"{outdir}/transcripts/{sample_info.organism}/raw/{sample_id}/{sample_id}_TE_chimeric_transcripts.txt")
-            if _fusion_enabled:
+            if enable_fusion:
                 outfiles.append(f"{outdir}/fusion/{sample_info.organism}/{sample_id}/{sample_id}_passed_fusions.tsv")
         elif sample_info.layout == "SE":
             genome_single_samples.setdefault(sample_info.organism, []).append(sample_id)
-            if _transcripts_enabled:
+            if enable_transcripts:
                 outfiles.append(f"{outdir}/transcripts/{sample_info.organism}/raw/{sample_id}/{sample_id}_TE_chimeric_transcripts.txt")
-            if _fusion_enabled:
+            if enable_fusion:
                 outfiles.append(f"{outdir}/fusion/{sample_info.organism}/{sample_id}/{sample_id}_passed_fusions.tsv")
         else:
             logger.error(f"Unknown layout type for sample {sample_id}: {sample_info.layout}")
@@ -846,9 +846,9 @@ def runRNAseq(
         if organism == "GRCh38":
             datajson["Params"]["function"][organism]["gsea"]["gmt"] = os.path.join(root_dir,"assests/geneset/GSI_human.gmt")
             datajson["Params"]["function"][organism]["gsva"]["gmt"] = os.path.join(root_dir,"assests/geneset/GSI_human.gmt")
-        if _fusion_enabled:
+        if enable_fusion:
             outfiles.append(f"{outdir}/fusion/{organism}/arriba_report/arriba_fusion_report.html")
-        if _transcripts_enabled:
+        if enable_transcripts:
             outfiles.append(f"{outdir}/transcripts/{organism}/stringtie_merged.gtf")
             outfiles.append(f"{outdir}/transcripts/{organism}/TE_chimeric/TE_chimeric_group_stacked.png")
             outfiles.append(f"{outdir}/transcripts/{organism}/TE_chimeric/TE_chimeric_te_type_top.png")
@@ -856,7 +856,7 @@ def runRNAseq(
             outfiles.append(f"{outdir}/transcripts/{organism}/TE_chimeric/TE_chimeric_sample_summary.tsv")
             outfiles.append(f"{outdir}/transcripts/{organism}/TE_chimeric/TE_chimeric_group_summary.tsv")
             outfiles.append(f"{outdir}/transcripts/{organism}/TE_chimeric/TE_chimeric_te_type_counts.tsv")
-        if _te_enabled or _deseq2_enabled:
+        if enable_te or enable_deseq2:
             outfiles.append(f"{outdir}/counts/TEtranscripts/{organism}/{organism}_TEcount.tsv")
             outfiles.append(f"{outdir}/counts/TEtranscripts/{organism}/{organism}_TEcount_name.tsv")
             # outfiles.append(f"{outdir}/counts/TEtranscripts/{organism}/{organism}_TElocal.tsv")
@@ -866,7 +866,7 @@ def runRNAseq(
         if datajson.get("Params", {}).get("function", {}).get(organism, {}).get("enabled", False):
             outfiles.append(f"{outdir}/function/{organism}/gsva/gsva_scores.tsv")
             outfiles.append(f"{outdir}/function/{organism}/gsva/gsva_heatmap.png")
-        if _report_enabled:
+        if enable_report:
             outfiles.append(f"{outdir}/results/{organism}/RNAseq_report.pptx")
     datajson["outfiles"] = outfiles
     datajson["Params"]["workflow"]["genome_paired_samples"] = genome_paired_samples
@@ -1101,18 +1101,26 @@ def runFiberseq(
 
     outfiles = []
     samples = []
-    params = datajson.get("Params", {}) or {}
-    func_cfg = params.get("function", {}) or {}
-    ldsc_cfg = params.get("ldsc", {}) or {}
     res = f"{outdir}/results"
     var = f"{outdir}/variation"
+    genome  = datajson.get("genome", {}).get("default", "")
+    default_ref = datajson.get("genome", {}).get("references", {}).get(genome, {})
 
-    def _on(block) -> bool:
-        return bool((block or {}).get("enabled"))
-
-    want_motif = _on(params.get("motif")) or _on(params.get("footprint"))
-    want_quant = _on(params.get("quant")) or _on(params.get("diff")) or _on(params.get("haplotype"))
-    want_hap = _on(params.get("haplotype"))
+    enable_annotate = _enabled(datajson, "annotate")
+    enable_motif = _enabled(datajson, "motif")
+    enable_footprint = _enabled(datajson, "footprint")
+    enable_nucpos = _enabled(datajson, "nucpos")
+    enable_track = _enabled(datajson, "track")
+    enable_coactuation = _enabled(datajson, "coactuation")
+    enable_censat = _enabled(datajson, "censat")
+    enable_quant = _enabled(datajson, "quant")
+    enable_diff = _enabled(datajson, "diff")
+    enable_haplotype = _enabled(datajson, "haplotype")
+    enable_lsdc = _enabled(datajson, "ldsc")
+    enable_function = _enabled(datajson, "function")
+    want_motif = enable_motif or enable_footprint
+    want_quant = enable_quant or enable_diff or enable_haplotype
+    want_eccdna = _enabled(datajson, "decoil") and default_ref.get("gtf")
 
     for sample_id, sample_info in samples_info_dict.items():
         samples.append(sample_id)
@@ -1132,41 +1140,41 @@ def runFiberseq(
         outfiles.append(f"{res}/{sample_id}/{sample_id}.qc.tsv")
 
         # Step 4: downstream (gated by Params.*.enabled)
-        if _on(params.get("annotate")):
+        if enable_annotate:
             outfiles.append(f"{res}/fiberseq_annotate/{sample_id}/{sample_id}.peaks_annotated.tsv")
             outfiles.append(f"{res}/fiberseq_annotate/{sample_id}/{sample_id}.peaks_summary.tsv")
         if want_motif:
-            outfiles.append(f"{res}/fiberseq_motif/{sample_id}/{sample_id}.motif_sites.bed")
-        if _on(params.get("motif")):
+            outfiles.append(f"{res}/fiberseq_motif/{sample_id}/{sample_id}.motif_sites.bed")    
+        if enable_motif:
             outfiles.append(f"{res}/fiberseq_motif/{sample_id}/{sample_id}.motif_profile.tsv")
             outfiles.append(f"{res}/fiberseq_motif/{sample_id}/{sample_id}.motif_footprint_scores.tsv")
             outfiles.append(f"{res}/fiberseq_motif/{sample_id}/{sample_id}.motif_profile.pdf")
-        if _on(params.get("footprint")):
+        if enable_footprint:
             outfiles.append(f"{res}/fiberseq_footprint/{sample_id}/{sample_id}.footprint_categories.tsv")
             outfiles.append(f"{res}/fiberseq_footprint/{sample_id}/{sample_id}.footprint_profiles.tsv")
             outfiles.append(f"{res}/fiberseq_footprint/{sample_id}/{sample_id}.footprint_scores.tsv")
             outfiles.append(f"{res}/fiberseq_footprint/{sample_id}/{sample_id}.footprint_profile.pdf")
-        if _on(params.get("nucpos")):
+        if enable_nucpos:
             outfiles.append(f"{res}/fiberseq_nucpos/{sample_id}/{sample_id}.nuc_offset_per_anchor.tsv")
             outfiles.append(f"{res}/fiberseq_nucpos/{sample_id}/{sample_id}.nuc_offset_summary.tsv")
             outfiles.append(f"{res}/fiberseq_nucpos/{sample_id}/{sample_id}.nucpos.pdf")
-        if _on(params.get("track")):
+        if enable_track:
             outfiles.append(f"{res}/fiberseq_track/{sample_id}/{sample_id}.accessibility.bw")
             outfiles.append(f"{res}/fiberseq_track/{sample_id}/{sample_id}.m6a_density.bw")
             outfiles.append(f"{res}/fiberseq_track/{sample_id}/trackDb.txt")
         if want_quant:
             outfiles.append(f"{res}/fiberseq_quant/{sample_id}/{sample_id}.region_quant.tsv")
-        if _on(params.get("coactuation")):
+        if enable_coactuation:
             outfiles.append(f"{res}/fiberseq_coactuation/{sample_id}/{sample_id}.coactuation.tsv")
             outfiles.append(f"{res}/fiberseq_coactuation/{sample_id}/{sample_id}.coactuation_summary.tsv")
-        if _on(params.get("censat")):
+        if enable_censat:
             outfiles.append(f"{res}/fiberseq_censat/{sample_id}/{sample_id}.censat_regions.tsv")
             outfiles.append(f"{res}/fiberseq_censat/{sample_id}/{sample_id}.censat_class_summary.tsv")
             outfiles.append(f"{res}/fiberseq_censat/{sample_id}/{sample_id}.censat_profile.tsv")
             outfiles.append(f"{res}/fiberseq_censat/{sample_id}/{sample_id}.censat_profile.pdf")
 
         # Step 5: haplotype chain
-        if want_hap:
+        if enable_haplotype:
             outfiles.append(f"{var}/germline_snv_indel/{sample_id}/{sample_id}.vcf.gz")
             outfiles.append(f"{var}/germline_snv_indel/{sample_id}/{sample_id}.vcf.gz.csi")
             outfiles.append(f"{var}/germline_sv/{sample_id}/{sample_id}.svsig.gz")
@@ -1184,13 +1192,39 @@ def runFiberseq(
             outfiles.append(f"{res}/fiberseq_haplotype/{sample_id}/{sample_id}.haplotype_diff.tsv")
             outfiles.append(f"{res}/fiberseq_haplotype/{sample_id}/{sample_id}.haplotype_summary.tsv")
 
+        # Step 6: eccDNA reconstruction (requires genome GTF) 
+        if want_eccdna:
+            outfiles.append(f"{outdir}/eccdna/{sample_id}/decoil/reconstruct.bed")
+            outfiles.append(f"{outdir}/eccdna/{sample_id}/decoil/reconstruct.ecDNA.bed")
+            outfiles.append(f"{outdir}/eccdna/{sample_id}/decoil/reconstruct.ecDNA.filtered.bed")
+            outfiles.append(f"{outdir}/eccdna/{sample_id}/decoil/summary.txt")
+            # Visualization: per-sample stats + interactive IGV HTML
+            # Same key and fallback as modules/decoil/decoil.smk ("formats",
+            # plural, or ["png"]) so registered targets match rule outputs.
+            # Normalize + validate: a str default or dirty JSON must not leak
+            # through as a non-list ("for fmt in 'png'" iterates characters).
+            formats = datajson.get("Params", {}).get("decoil", {}).get("structure", {}).get("formats") or ["png"]
+            if isinstance(formats, str):
+                formats = [formats]
+            if not isinstance(formats, list) or not all(isinstance(f, str) for f in formats):
+                raise ValueError("Params.decoil.structure.formats must be a list of strings")
+            for fmt in formats:
+                outfiles.append(f"{outdir}/eccdna/{sample_id}/visualization/decoil_stats.{fmt}")
+                outfiles.append(f"{outdir}/eccdna/{sample_id}/visualization/decoil_structure.{fmt}")
+            outfiles.append(f"{outdir}/eccdna/{sample_id}/visualization/decoil_structure_genes.tsv")
+            outfiles.append(f"{outdir}/eccdna/{sample_id}/visualization/igv_ecdna.html")
+            outfiles.append(f"{outdir}/eccdna/{sample_id}/visualization/ucsc_track.txt")
+            # Cross-sample comparison (aggregated)
+            outfiles.append(f"{outdir}/eccdna/visualization/decoil_compare.png")
+            outfiles.append(f"{outdir}/eccdna/visualization/decoil_compare_shared_unique.tsv")
+    
     # Cross-sample outputs
-    if _on(params.get("quant")) or _on(params.get("diff")):
+    if enable_quant or enable_diff:
         for metric in ("percent_accessible", "nuc_occupancy", "m6a_per_fiber", "fire_frac"):
             outfiles.append(f"{res}/fiberseq_quant/matrix/{metric}_matrix.tsv")
 
-    if _on(params.get("diff")):
-        design_tsv = (params.get("diff") or {}).get("design_tsv")
+    if enable_diff:
+        design_tsv = datajson.get("Params", {}).get("diff", {}).get("design_tsv")
         if not design_tsv:
             raise ValueError(
                 "Params.diff.enabled=true requires "
@@ -1231,7 +1265,7 @@ def runFiberseq(
             datajson["Params"].setdefault("function", {})["group_pairs"] = gp
 
         # GO/KEGG + GSEA outputs from the shared function module
-        if _on(func_cfg):
+        if enable_function:
             for contrast in sorted(contrast_groups):
                 base = f"{outdir}/function/{contrast}"
                 outfiles.append(f"{base}/go_back_to_back.png")
@@ -1242,19 +1276,16 @@ def runFiberseq(
                 outfiles.append(f"{base}/kegg_down.csv")
                 outfiles.append(f"{base}/up_genes.txt")
                 outfiles.append(f"{base}/down_genes.txt")
-            genome_cfg = datajson.get("genome", {}) or {}
-            default_ref = (genome_cfg.get("references") or {}).get(
-                genome_cfg.get("default", ""), {}) or {}
-            if func_cfg.get("gmt") and default_ref.get("geneIDAnno"):
+            if datajson.get("Params", {}).get("function", {}).get("gmt") and default_ref.get("geneIDAnno"):
                 for contrast in sorted(contrast_groups):
                     base = f"{outdir}/function/{contrast}/GSEA"
                     outfiles.append(f"{base}/TEcount_Gene_GSEA.jpeg")
                     outfiles.append(f"{base}/TEcount_Gene_GSEA.csv")
 
-    if _on(ldsc_cfg):
-        prefix = ldsc_cfg.get("annot_prefix") or "peaks"
+    if enable_lsdc:
+        prefix = datajson.get("Params", {}).get("ldsc", {}).get("annot_prefix") or "peaks"
         outfiles.append(f"{outdir}/ldsc/annot/{prefix}.annot_manifest.tsv")
-        for trait in sorted((ldsc_cfg.get("gwas") or {}).keys()):
+        for trait in sorted((datajson.get("Params", {}).get("ldsc", {}).get("gwas") or {}).keys()):
             outfiles.append(f"{outdir}/ldsc/{trait}/{trait}.sumstats.gz")
             outfiles.append(f"{outdir}/ldsc/{trait}/{trait}.cts.results")
 

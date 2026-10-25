@@ -15,7 +15,7 @@
         }
     },
     "genome": {
-        "fasta": "/data/16T/Database/Reference/mouse/NCBI/T2T_mhaESC_v1.5/GCA_056825265.1_T2T_mhaESC_v1.5_genomic.fna",
+        "fasta": "/data/16T/Database/Reference/mouse/NCBI/T2T_mhaESC_v1.5/GCA_056825265.1_T2T_mhaESC_v1.5_genomic.fa",
         "source_fasta": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
         "source_gtf": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf",
         "source_bed": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.bed"

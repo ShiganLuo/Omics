@@ -416,3 +416,65 @@ logger.debug(f"Fiber-seq ldsc config: {ldsc_config}")
 use rule ldsc_annot from ldsc as Fiberseq_ldsc_annot
 use rule ldsc_munge from ldsc as Fiberseq_ldsc_munge
 use rule ldsc_h2_cts from ldsc as Fiberseq_ldsc_h2_cts
+
+DECOIL_COV_DIR = f"{outdir}/eccdna/coverage"
+
+bamCoverage_config = {
+    "resources": config.get("resources", {}),
+    "ROOT_DIR": ROOT_DIR,
+    "env": config.get("env", {}),
+    "indir": pbmm2_config["outdir"],
+    "outdir": DECOIL_COV_DIR,
+    "logdir": f"{logdir}/sample",
+    "samples": samples,
+    "bam_substring": "fiberseq.fire.sorted",
+    "bw_suffix": ".coverage.bw",
+    "Procedure": {
+        "bamCoverage": config.get("Procedure", {}).get("bamCoverage")
+    },
+    "Params": {
+        "bamCoverage": config.get("Params", {}).get("bamCoverage", {})
+    }
+}
+module bamCoverage:
+    snakefile: "../modules/deeptools/bamCoverage.smk"
+    config: bamCoverage_config
+logger.debug(f"bamCoverage_config: {bamCoverage_config}")
+use rule bamCoverage from bamCoverage as PacVar_bamCoverage
+
+decoil_config = {
+    "resources": config.get("resources", {}),
+    "ROOT_DIR": ROOT_DIR,
+    "env": config.get("env", {}),
+    "indir": pbmm2_config["outdir"],
+    "outdir": f"{outdir}/eccdna",
+    "logdir": f"{logdir}/sample",
+    "samples": samples,
+    "bam_substring": "fiberseq.fire.sorted",
+    "vcf_dir": pbsv_config["outdir"],
+    "vcf_suffix": ".sv.vcf.gz",
+    "bw_dir": DECOIL_COV_DIR,
+    "bw_suffix": ".coverage.bw",
+    "Procedure": {
+        "decoil": config.get("Procedure", {}).get("decoil")
+    },
+    "Params": {
+        "decoil": config.get("Params", {}).get("decoil", {}),
+        "igv": config.get("Params", {}).get("igv", {})
+    },
+    "genome": {
+        "fasta": genome_ref.get("fasta"),
+        "gtf": genome_ref.get("gtf")
+    }
+}
+module decoil:
+    snakefile: "../modules/decoil/decoil.smk"
+    config: decoil_config
+logger.debug(f"decoil_config: {decoil_config}")
+use rule decoil_reconstruct from decoil as PacVar_decoil_reconstruct
+use rule decoil_result from decoil as PacVar_decoil_result
+use rule decoil_plot from decoil as PacVar_decoil_plot
+use rule decoil_structure from decoil as PacVar_decoil_structure
+use rule decoil_compare from decoil as PacVar_decoil_compare
+use rule decoil_igv from decoil as PacVar_decoil_igv
+use rule decoil_ucsc from decoil as PacVar_decoil_ucsc

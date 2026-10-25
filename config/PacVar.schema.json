@@ -103,12 +103,6 @@
         "required": false
       }
     },
-    "eccdna": {
-      "enabled": {
-        "type": "bool",
-        "required": false
-      }
-    },
     "snv_caller": {
       "type": "str",
       "required": true

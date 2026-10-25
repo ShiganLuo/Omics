@@ -1,0 +1,38 @@
+# Auto-generated Apptainer definition file for gtfbuild conda environment
+# Source YAML: gtfbuild.yaml
+# Build: apptainer build gtfbuild.sif gtfbuild.def
+# Or:   apptainer build <output.sif> <def_file>
+# Backend: micromamba
+
+Bootstrap: docker
+From: docker.1ms.run/mambaorg/micromamba:latest
+
+%files
+    gtfbuild.yaml /opt/conda/gtfbuild.yaml
+
+%post
+    /bin/bash << 'ENDOFSCRIPT'
+    set -euo pipefail
+    export MAMBA_ROOT_PREFIX="/opt/conda"
+    micromamba env create -f /opt/conda/gtfbuild.yaml < /dev/null && \
+        micromamba clean -afy && \
+        rm /opt/conda/gtfbuild.yaml
+
+    echo 'export PATH="/opt/conda/envs/gtfbuild/bin:$PATH"' >> /etc/profile.d/conda_gtfbuild.sh
+    echo 'export CONDA_DEFAULT_ENV=gtfbuild' >> /etc/profile.d/conda_gtfbuild.sh
+ENDOFSCRIPT
+
+%environment
+    export PATH="/opt/conda/envs/gtfbuild/bin:$PATH"
+    export CONDA_DEFAULT_ENV=gtfbuild
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName gtfbuild
+
+%help
+    Apptainer image for conda environment 'gtfbuild'.
+    Generated from gtfbuild.yaml.

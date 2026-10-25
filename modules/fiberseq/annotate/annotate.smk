@@ -13,25 +13,36 @@ env = config.get("env", {})
 genome_cfg = config.get("genome", {})
 p = config.get("Params", {}).get("fiberseq_annotate", {})
 
+def get_input_for_fiberseq_annotate_run(wildcards):
+    """Get input files for fiberseq_annotate_run rule."""
+    peaks = indir + f"/{wildcards.sample_id}/{wildcards.sample_id}.fire_peaks.bed"
+    gtf = genome_cfg.get("gtf")
+    if not gtf:
+        raise ValueError("Genome GTF file is not specified in the configuration.")
+    repeat_bed = genome_cfg.get("repeat_bed")
+    if not repeat_bed or not os.path.exists(repeat_bed):
+        logger.warning(f"Repeat BED file is not specified or does not exist: {repeat_bed}. Repeat overlap will be skipped.")
+        repeat_bed = None
+    return {"peaks": peaks, "gtf": gtf, "repeat_bed": repeat_bed}
 
 rule fiberseq_annotate_run:
     """Annotate FIRE peaks with gene context and repeat overlap."""
     input:
-        peaks = indir + "/{sample_id}/{sample_id}.fire_peaks.bed",
-        gtf = lambda wildcards: _require(genome_cfg.get("gtf"), "genome.gtf", "fiberseq_annotate"),
+        unpack(get_input_for_fiberseq_annotate_run)
     output:
         annotated = outdir + "/{sample_id}/{sample_id}.peaks_annotated.tsv",
         summary = outdir + "/{sample_id}/{sample_id}.peaks_summary.tsv",
     log:
         logdir + "/{sample_id}/fiberseq_annotate_run.log"
-    threads: 4
+    threads: rule_res("fiberseq_annotate").get("threads", 4)
+    resources:
+        mem_mb = rule_res("fiberseq_annotate").get("mem_mb", 8000),
     conda:
         "../fiberseq.yaml"
     container:
         sif("../fiberseq.yaml")
     params:
         script = ROOT_DIR + "/modules/fiberseq/bin/fire_annotate.py",
-        repeat_bed = genome_cfg.get("repeat_bed"),
         tss_flank = p.get("tss_flank", 1000),
         repeat_frac = p.get("repeat_frac", 0.25),
     run:
@@ -54,8 +65,8 @@ rule fiberseq_annotate_run:
                 "-f", str(params.repeat_frac),
                 "-l", log_path,
             ]
-            if params.repeat_bed:
-                cmd += ["-r", str(params.repeat_bed)]
+            if input.repeat_bed:
+                cmd += ["-r", str(input.repeat_bed)]
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write("set -euo pipefail\n")

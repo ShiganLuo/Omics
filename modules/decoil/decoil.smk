@@ -123,6 +123,9 @@ rule decoil_reconstruct:
         summary              = outdir + "/{sample_id}/decoil/summary.txt",
     log:
         logdir + "/{sample_id}/decoil_reconstruct.log"
+    threads: rule_res("decoil_reconstruct").get("threads", 16)
+    resources:
+        mem_mb = rule_res("decoil_reconstruct").get("mem_mb", 32000),
     conda:
         "decoil.yaml"
     container:
@@ -144,7 +147,6 @@ rule decoil_reconstruct:
         extend_chr       = reconstruct_param("extend_allowed_chromosomes") or "",
         skip_fasta       = bool(reconstruct_param("skip")),
         resconstruction_script = os.path.join(ROOT_DIR, "modules", "decoil", "bin", "pbsv2decoil.py")
-    threads: 16
     run:
         log_path = str(log)
         rule_logger = setup_logger(logger_name="decoil_reconstruct", log_file=log_path)
@@ -235,8 +237,13 @@ rule decoil_plot:
         reconstruct_filtered = outdir + "/{sample_id}/decoil/reconstruct.ecDNA.filtered.bed",
     output:
         regions_tsv          = outdir + "/{sample_id}/visualization/decoil_stats_ecdna_regions.tsv",
+        plot = [outdir + "/{sample_id}/visualization/decoil_stats." + fmt
+                for fmt in (decoil_params.get("structure", {}).get("formats") or ["png"])],
     log:
         logdir + "/{sample_id}/decoil_plot.log"
+    threads: rule_res("decoil_plot").get("threads", 4)
+    resources:
+        mem_mb = rule_res("decoil_plot").get("mem_mb", 8000),
     conda:
         "decoil.yaml"
     container:
@@ -288,6 +295,9 @@ rule decoil_compare:
         regions_tsv    = outdir + "/visualization/decoil_compare_ecdna_regions.tsv",
     log:
         logdir + "/decoil_compare.log"
+    threads: rule_res("decoil_compare").get("threads", 2)
+    resources:
+        mem_mb = rule_res("decoil_compare").get("mem_mb", 8000),
     conda:
         "decoil.yaml"
     container:
@@ -345,10 +355,13 @@ rule decoil_structure:
         # be specified as functions") — formats are config-known at parse
         # time, so expand the concrete file list here with plain string
         # concatenation that keeps {sample_id} for wildcard resolution.
-        plot                 = [outdir + "/{sample_id}/visualization/decoil_structure." + fmt
-                                for fmt in (decoil_params.get("structure", {}).get("formats") or ["png"])],
+        structure                 = [outdir + "/{sample_id}/visualization/decoil_structure." + fmt
+                                for fmt in (decoil_params.get("structure", {}).get("formats") or ["png"])]
     log:
         logdir + "/{sample_id}/decoil_structure.log"
+    threads: rule_res("decoil_structure").get("threads", 4)
+    resources:
+        mem_mb = rule_res("decoil_structure").get("mem_mb", 12000),
     conda:
         "decoil.yaml"
     container:
@@ -406,6 +419,9 @@ rule decoil_igv:
         html                 = outdir + "/{sample_id}/visualization/igv_ecdna.html",
     log:
         logdir + "/{sample_id}/decoil_igv.log"
+    threads: rule_res("decoil_igv").get("threads", 1)
+    resources:
+        mem_mb = rule_res("decoil_igv").get("mem_mb", 4000),
     conda:
         "decoil.yaml"
     container:
@@ -484,6 +500,9 @@ rule decoil_ucsc:
         track                = outdir + "/{sample_id}/visualization/ucsc_track.txt",
     log:
         logdir + "/{sample_id}/decoil_ucsc.log"
+    threads: rule_res("decoil_ucsc").get("threads", 1)
+    resources:
+        mem_mb = rule_res("decoil_ucsc").get("mem_mb", 4000),
     conda:
         "decoil.yaml"
     container:

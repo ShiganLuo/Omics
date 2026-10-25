@@ -23,7 +23,15 @@
         "fiberseq_coactuation": {"threads": 4, "mem_mb": 8000},
         "fiberseq_footprint": {"threads": 4, "mem_mb": 8000},
         "fiberseq_motif": {"threads": 4, "mem_mb": 8000},
-        "fiberseq_nucpos": {"threads": 4, "mem_mb": 6000}
+        "fiberseq_nucpos": {"threads": 4, "mem_mb": 6000},
+        "fiberseq_annotate": {"threads": 4, "mem_mb": 8000},
+        "bamCoverage": {"threads": 8, "mem_mb": 16000},
+        "decoil_reconstruct": {"threads": 16, "mem_mb": 32000},
+        "decoil_plot": {"threads": 4, "mem_mb": 8000},
+        "decoil_structure": {"threads": 4, "mem_mb": 12000},
+        "decoil_compare": {"threads": 2, "mem_mb": 8000},
+        "decoil_igv": {"threads": 1, "mem_mb": 4000},
+        "decoil_ucsc": {"threads": 1, "mem_mb": 4000}
     },
     "Procedure": {
         "fibertools": null,

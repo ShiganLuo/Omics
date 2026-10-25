@@ -625,7 +625,7 @@ python workflow/Omics/run.py \
 - [x] 添加json值校验模块
 - [x] schema感知的extra_args类型矫正
 - [ ] 支持多基因组并行运行；已支持：RNAseq
-- [ ] 确保资源消耗平衡，不会出现耗尽主机内存，或者爆满CPU的情况，已支持：Fiberseq
+- [ ] 根据数据量，确保资源消耗平衡，不会出现耗尽主机内存，或者爆满CPU的情况，已初步支持：Fiberseq,RNAseq；下一步需要将数据量和计算资源联系起来
 - [ ] 所以图片输出支持多种格式可选
 
 

@@ -285,6 +285,7 @@ use rule * from centromere as PacVar_centromere_*
 DECOIL_COV_DIR = f"{outdir}/eccdna/coverage"
 
 bamCoverage_config = {
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "env": config.get("env", {}),
     "indir": gatk_prepare_config["outdir"],
@@ -307,6 +308,7 @@ logger.debug(f"bamCoverage_config: {bamCoverage_config}")
 use rule bamCoverage from bamCoverage as PacVar_bamCoverage
 
 decoil_config = {
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "env": config.get("env", {}),
     "indir": gatk_prepare_config["outdir"],

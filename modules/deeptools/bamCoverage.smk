@@ -29,7 +29,9 @@ rule bamCoverage:
         bw = outdir + "/{sample_id}/{sample_id}" + bw_suffix,
     log:
         logdir + "/{sample_id}/bamCoverage.log"
-    threads: 8
+    threads: rule_res("bamCoverage").get("threads", 8)
+    resources:
+        mem_mb = rule_res("bamCoverage").get("mem_mb", 16000),
     conda:
         "deeptools.yaml"
     container:

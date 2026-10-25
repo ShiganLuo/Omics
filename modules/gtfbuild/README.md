@@ -87,7 +87,7 @@ python bin/gtfbuild_restore_bed.py --lifted <out>.lifted.paftools.bed \
 
 | 用途 | 路径 |
 |---|---|
-| 目标基因组（T2T_mhaESC_v1.5） | `/data/16T/Database/Reference/mouse/NCBI/T2T_mhaESC_v1.5/GCA_056825265.1_T2T_mhaESC_v1.5_genomic.fna` |
+| 目标基因组（T2T_mhaESC_v1.5） | `/data/16T/Database/Reference/mouse/NCBI/T2T_mhaESC_v1.5/GCA_056825265.1_T2T_mhaESC_v1.5_genomic.fa` |
 | 来源基因组（GRCm39） | `/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa` |
 | 来源注释 GTF（GENCODE vM38 basic） | `/data/16T/Database/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf` |
 | 来源 TE BED（RepeatMasker） | `/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.bed` |
@@ -119,7 +119,7 @@ python bin/gtfbuild_restore_bed.py --lifted <out>.lifted.paftools.bed \
         }
     },
     "genome": {
-        "fasta": "/data/16T/Database/Reference/mouse/NCBI/T2T_mhaESC_v1.5/GCA_056825265.1_T2T_mhaESC_v1.5_genomic.fna",
+        "fasta": "/data/16T/Database/Reference/mouse/NCBI/T2T_mhaESC_v1.5/GCA_056825265.1_T2T_mhaESC_v1.5_genomic.fa",
         "source_fasta": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
         "source_gtf": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf",
         "source_bed": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.bed"
@@ -149,7 +149,7 @@ liftoff -g /data/16T/Database/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primar
     -u /data/16T/luosg/output/gtfbuild/T2T_mhaESC_v1.5_repro/GCA_056825265.1_T2T_mhaESC_v1.5_vM38_liftoff.unmapped.gff3 \
     -p 48 -a 0.5 \
     -dir /data/16T/luosg/output/gtfbuild/T2T_mhaESC_v1.5_repro/GCA_056825265.1_T2T_mhaESC_v1.5_vM38_liftoff.liftoff_intermediate \
-    /data/16T/Database/Reference/mouse/NCBI/T2T_mhaESC_v1.5/GCA_056825265.1_T2T_mhaESC_v1.5_genomic.fna \
+    /data/16T/Database/Reference/mouse/NCBI/T2T_mhaESC_v1.5/GCA_056825265.1_T2T_mhaESC_v1.5_genomic.fa \
     /data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa
 
 gffread /data/16T/luosg/output/gtfbuild/T2T_mhaESC_v1.5_repro/GCA_056825265.1_T2T_mhaESC_v1.5_vM38_liftoff.lifted.gff3 \
@@ -168,7 +168,7 @@ python /data/16T/luosg/workflow/Omics/modules/gtfbuild/bin/gtfbuild_qc.py \
 
 # gtfbuild_wga
 minimap2 -cx asm5 -t 48 --secondary=no \
-    /data/16T/Database/Reference/mouse/NCBI/T2T_mhaESC_v1.5/GCA_056825265.1_T2T_mhaESC_v1.5_genomic.fna \
+    /data/16T/Database/Reference/mouse/NCBI/T2T_mhaESC_v1.5/GCA_056825265.1_T2T_mhaESC_v1.5_genomic.fa \
     /data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa \
     > ...GCA_056825265.1_T2T_mhaESC_v1.5_vM38_liftoff.wga.paf
 

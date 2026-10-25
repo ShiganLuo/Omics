@@ -10,6 +10,7 @@ import csv
 import json
 
 import os
+import shutil
 import sys
 import time
 from pathlib import Path
@@ -4520,6 +4521,32 @@ def _auto_finalize_outputs(
     _audit_annotations(adata, report_dir=report_dir, tissue=tissue or "")
 
 
+def _clear_dir_contents(path: str) -> None:
+    """Empty *path* if it exists (or create it empty).
+
+    Used at the start of ``mode_auto`` so a re-run never mixes stale reports
+    with the current run's outputs — e.g. an ``iteration_03/`` snapshot left
+    by an earlier, longer run would otherwise make the report dir claim
+    iterations the current ``audit_report.json`` never recorded.
+
+    Only contents are removed; the directory itself is kept. Refuses
+    filesystem root and the user's home directory.
+    """
+    resolved = os.path.realpath(path)
+    home = os.path.realpath(os.path.expanduser("~"))
+    if resolved == "/" or resolved == home:
+        raise ValueError(f"refusing to clear unsafe directory: {path}")
+    if os.path.isdir(resolved):
+        for entry in os.scandir(resolved):
+            if entry.is_dir(follow_symlinks=False):
+                shutil.rmtree(entry.path)
+            else:
+                os.remove(entry.path)
+        logger.info("Cleared stale reports in %s", resolved)
+    else:
+        os.makedirs(resolved, exist_ok=True)
+
+
 def mode_auto(
     adata: ad.AnnData,
     output: str,
@@ -4561,7 +4588,9 @@ def mode_auto(
     round can be visually judged before filtering or re-clustering. With
     *save_iteration_h5ad*, each round's annotated AnnData is also written to
     ``<plot_dir>/iteration_<NN>/iteration_<NN>.h5ad`` (off by default — these
-    files can be large).
+    files can be large). The ``<output stem>_reports/`` directory (table +
+    plot) is emptied at the start of every run so reports always reflect the
+    current run only.
 
     Args:
         adata: Merged AnnData (from mode_merge).
@@ -4588,9 +4617,16 @@ def mode_auto(
     """
     output_dir = os.path.dirname(output) or "."
     output_stem = Path(output).stem
-    report_dir = os.path.join(output_dir, f"{output_stem}_reports/table")
+    report_root = os.path.join(output_dir, f"{output_stem}_reports")
+    report_dir = os.path.join(report_root, "table")
     if not plot_dir:
-        plot_dir = os.path.join(output_dir, f"{output_stem}_reports/plot")
+        plot_dir = os.path.join(report_root, "plot")
+    # Start every run with empty report/plot dirs: iteration_<NN> snapshots
+    # and table/ outputs are per-run, and stale leftovers from a previous run
+    # (e.g. an iteration_03/ from a longer earlier run) would make the report
+    # dir claim iterations the current audit_report.json never recorded.
+    _clear_dir_contents(report_root)
+    _clear_dir_contents(plot_dir)
     os.makedirs(report_dir, exist_ok=True)
     os.makedirs(plot_dir, exist_ok=True)
     plotter = _make_plotter(plot_dir)
@@ -4759,6 +4795,10 @@ def mode_auto(
                         save_h5ad=save_iteration_h5ad,
                     )
                     resolution = new_resolution
+                    # Record this re-cluster round before `continue`, or its
+                    # iter_ctx would be silently dropped from audit_report.json.
+                    iter_ctx["outcome"] = "recluster_continuity"
+                    ctx["iterations"].append(iter_ctx)
                     continue  # Re-cluster with higher resolution
 
         # Early exit: if no clusters need filtering, break BEFORE Step 3.75 / 4
@@ -4813,6 +4853,10 @@ def mode_auto(
                 # If separation is severe and no quality issues, re-cluster immediately
                 if not flagged:
                     logger.info("No quality issues. Re-clustering with lower resolution...")
+                    # Record this re-cluster round before `continue`, or its
+                    # iter_ctx would be silently dropped from audit_report.json.
+                    iter_ctx["outcome"] = "recluster_separation"
+                    ctx["iterations"].append(iter_ctx)
                     continue  # Re-cluster with adjusted resolution
                 else:
                     logger.info("Quality issues present. Will filter first, then re-cluster.")

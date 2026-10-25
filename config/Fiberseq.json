@@ -11,7 +11,8 @@
         "ldsc": "/home/luosg/Database/env/ldsc/ldsc.sif",
         "deepvariant": "/home/luosg/Database/env/deepvariant/deepvariant.sif",
         "pbsv": "/home/luosg/Database/env/pbsv/pbsv.sif",
-        "hiphase": "/home/luosg/Database/env/hiphase/hiphase.sif"
+        "hiphase": "/home/luosg/Database/env/hiphase/hiphase.sif",
+        "genome": "/home/luosg/Database/env/genome/genome.sif"
     },
     "resources": {
         "default": {"threads": 2, "mem_mb": 8000},
@@ -59,13 +60,13 @@
             "repeat_frac": 0.25
         },
         "motif": {
-            "enabled": true,
+            "enabled": false,
             "flank": 250,
             "min_fibers": 10,
             "pwm_threshold": 0.8
         },
         "footprint": {
-            "enabled": true,
+            "enabled": false,
             "flank": 1000
         },
         "nucpos": {
@@ -149,7 +150,7 @@
                 "geneIDAnno": null
             },
             "Mmul_T2T": {
-                "fasta": "/home/luosg/Database/Reference/mulatta/NCBI/Mmul_T2T/GCF_049350105.2_T2T-MMU8v2.0_genomic.fna",
+                "fasta": "/home/luosg/Database/Reference/mulatta/NCBI/Mmul_T2T/GCF_049350105.2_T2T-MMU8v2.0_genomic.fa",
                 "fai": null,
                 "pbmm2_index": null,
                 "gtf": null,
@@ -171,8 +172,8 @@
                 "geneIDAnno": null
             },
             "T2T_mhaESC_v1.5": {
-                "fasta": "/data/16T/Database/Reference/mouse/NCBI/T2T_mhaESC_v1.5/GCA_056825265.1_T2T_mhaESC_v1.5_genomic.fna",
-                "fai": "/data/16T/Database/Reference/mouse/NCBI/T2T_mhaESC_v1.5/GCA_056825265.1_T2T_mhaESC_v1.5_genomic.fna.fai",
+                "fasta": "/data/16T/Database/Reference/mouse/NCBI/T2T_mhaESC_v1.5/GCA_056825265.1_T2T_mhaESC_v1.5_genomic.fa",
+                "fai": null,
                 "pbmm2_index": null,
                 "gtf": "/data/16T/Database/Reference/mouse/NCBI/T2T_mhaESC_v1.5/GCA_056825265.1_T2T_mhaESC_v1.5_vM38_liftoff.gtf",
                 "repeat_bed": "/data/16T/Database/Reference/mouse/NCBI/T2T_mhaESC_v1.5/GRCm39_GENCODE_rmsk_TE.lifted.bed",

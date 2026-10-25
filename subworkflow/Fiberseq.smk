@@ -41,6 +41,23 @@ rule all:
         outfiles
 
 
+genome_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "env": config.get("env", {}),
+    "logdir": f"{logdir}/group",
+    "outdir": f"{outdir}/genome",
+    "genome": {
+        "fasta": fasta,
+    },
+    "Procedure": {
+        "samtools": config.get("Procedure", {}).get("samtools")
+    }
+}
+module genome:
+    snakefile: "../modules/genome/genome.smk"
+    config: genome_config
+use rule genome_index from genome as Fiberseq_genome_index
+
 # ============================================================
 # Step 1: Prepare fiberseq BAM → common/2_fiberseq_bam
 #   predict-m6a (auto-skip if SPRQ) → add-nucleosomes → fire

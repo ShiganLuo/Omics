@@ -820,6 +820,26 @@
           }
         }
       },
+      "TEcount": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "enabled": {
+            "type": "bool",
+            "required": false
+          }
+        }
+      },
+      "TElocal": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "enabled": {
+            "type": "bool",
+            "required": false
+          }
+        }
+      },
       "function": {
         "type": "dict",
         "required": false,

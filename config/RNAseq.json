@@ -297,7 +297,10 @@
             },
             "MM": 8
         },
-        "TEtranscripts": {
+        "TEcount": {
+            "enabled": true
+        },
+        "TElocal": {
             "enabled": true
         },
         "StringTie": {

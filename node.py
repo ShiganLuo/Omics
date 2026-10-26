@@ -765,11 +765,12 @@ def runRNAseq(
     sample_contamination = {}
     datajson["Params"]["DESeq2"]["group_pairs"] = {}
     # read enabled flags from each module's own Params (default True)
-    enable_te = _enabled(datajson, "TEtranscripts")
     enable_transcripts = _enabled(datajson, "StringTie")
     enable_fusion = _enabled(datajson, "arriba")
     enable_variation = _enabled(datajson, "gatk_RNAseq")
     enable_deseq2 = _enabled(datajson, "DESeq2")
+    enable_TEcount = _enabled(datajson, "TEcount")
+    enable_TElocal = _enabled(datajson, "TElocal")
     enable_report = _enabled(datajson, "report")
     for group_pair in group_pairs:
         datajson["Params"]["DESeq2"]["group_pairs"].setdefault(group_pair.organism, {})
@@ -779,8 +780,10 @@ def runRNAseq(
             "control_samples": group_pair.ctr_sample_ids,
             "experimental_samples": group_pair.exp_sample_ids
         })
-        if enable_deseq2:
-            outfiles.append(f"{outdir}/diff_expression/{group_pair.organism}/{group_pair.ctr_group_name}_vs_{group_pair.exp_group_name}/DESeq2.done")
+        if enable_deseq2 and enable_TEcount:
+            outfiles.append(f"{outdir}/diff_expression/{group_pair.organism}/{group_pair.ctr_group_name}_vs_{group_pair.exp_group_name}/TEcount/DESeq2.done")
+        if enable_deseq2 and enable_TElocal:
+            outfiles.append(f"{outdir}/diff_expression/{group_pair.organism}/{group_pair.ctr_group_name}_vs_{group_pair.exp_group_name}/TElocal/DESeq2.done")
         sample_groups.setdefault(group_pair.ctr_group_name, []).extend(group_pair.ctr_sample_ids)
         sample_groups.setdefault(group_pair.exp_group_name, []).extend(group_pair.exp_sample_ids)
 
@@ -856,9 +859,13 @@ def runRNAseq(
             outfiles.append(f"{outdir}/transcripts/{organism}/TE_chimeric/TE_chimeric_sample_summary.tsv")
             outfiles.append(f"{outdir}/transcripts/{organism}/TE_chimeric/TE_chimeric_group_summary.tsv")
             outfiles.append(f"{outdir}/transcripts/{organism}/TE_chimeric/TE_chimeric_te_type_counts.tsv")
-        if enable_te or enable_deseq2:
+        if enable_TEcount:
             outfiles.append(f"{outdir}/counts/TEtranscripts/{organism}/{organism}_TEcount.tsv")
             outfiles.append(f"{outdir}/counts/TEtranscripts/{organism}/{organism}_TEcount_name.tsv")
+        if enable_TElocal:
+            outfiles.append(f"{outdir}/counts/TEtranscripts/{organism}/{organism}_TElocal.tsv")
+            outfiles.append(f"{outdir}/counts/TEtranscripts/{organism}/{organism}_TElocal_name.tsv")
+
             # outfiles.append(f"{outdir}/counts/TEtranscripts/{organism}/{organism}_TElocal.tsv")
         # featureCounts quantification
         outfiles.append(f"{outdir}/counts/featureCounts/{organism}/{organism}_featureCounts.tsv")

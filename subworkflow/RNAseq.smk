@@ -273,6 +273,7 @@ module DESeq2:
     config: DESeq2_config
 logger.debug(f"DESeq2_config: {DESeq2_config}")
 use rule DESeq2_TEcount from DESeq2 as RNAseq_DESeq2_TEcount
+use rule DESeq2_TElocal from DESeq2 as RNAseq_DESeq2_TElocal
 
 ### functional enrichment analysis using function module
 function_config = {

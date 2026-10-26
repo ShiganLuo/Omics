@@ -213,7 +213,8 @@ rule combine_TElocal:
     input:
         fileList = get_input_for_combine_TElocal
     output:
-        outfile = outdir + "/{genome}/{genome}_TElocal.tsv"
+        outfile_raw = outdir + "/{genome}/{genome}_TElocal.tsv",
+        outfile_annotate = outdir + "/{genome}/{genome}_TElocal_name.tsv",
     threads: rule_res("combine_TElocal").get("threads", 2)
     resources:
         mem_mb=rule_res("combine_TElocal").get("mem_mb", 8000),
@@ -234,15 +235,22 @@ rule combine_TElocal:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start combine_TElocal at {current_time}")
             script = os.path.join(params.indir, f"combine_TElocal_{current_time}.sh")
-            cmd = [
+            cmd1 = [
                 "python", str(params.combineTE),
                 "-p", "TElocal",
                 "-i", str(params.indir),
-                "-o", str(output.outfile)
+                "-o", str(output.outfile_raw)
+            ]
+            cmd2 = [
+                "python", params.geneId2Name,
+                "-c", output.outfile_raw,
+                "-g", input.gtf,
+                "-o", output.outfile_annotate
             ]
             with open(script, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
-                f.write(" ".join(cmd) + "\n")
+                f.write(" ".join(cmd1) + "\n")
+                f.write(" ".join(cmd2) + "\n")
                 f.write(f"echo 'combine_TElocal for {wildcards.genome} was completed successfully'\n")
             shell(f"bash {script} > {log_path} 2>&1")
         except Exception as e:

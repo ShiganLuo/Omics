@@ -83,10 +83,10 @@ def get_alignment_input(wildcards):
     single = f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}.single.fq.gz"
 
     if wildcards.sample_id in genome_paired_samples.get(wildcards.genome, []):
-        logger.info(f"Paired-end: {[paired_r1, paired_r2]}")
+        logger.debug(f"Paired-end: {[paired_r1, paired_r2]}")
         return [paired_r1, paired_r2]
     elif wildcards.sample_id in genome_single_samples.get(wildcards.genome, []):
-        logger.info(f"Single-end: {[single]}")
+        logger.debug(f"Single-end: {[single]}")
         return [single]
     else:
         logger.error(f"Sample {wildcards.sample_id} not in paired_samples: {genome_paired_samples.get(wildcards.genome, [])} or single_samples: {genome_single_samples.get(wildcards.genome, [])}")

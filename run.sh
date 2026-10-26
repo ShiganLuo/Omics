@@ -23,8 +23,8 @@ python ${SCRIPT_DIR}/run.py \
     -t 48 \
     --log /data/pub/zhousha/Totipotent20251031/log/pluripotent2totipotent_RNAseq.log \
     --sdm \
-    --rerun-triggers mtime \
-    --forcerun function_gsva
+    --rerun-triggers mtime
+    # --forcerun function_gsva
 
 # python ${SCRIPT_DIR}/run.py \
 #     -m /home/luosg/Data/genomeStability/data/Rn7sk/meta_input.tsv \
@@ -94,17 +94,17 @@ python ${SCRIPT_DIR}/run.py \
 #     --sdm \
 #     --dry-run
 
-python ${SCRIPT_DIR}/run.py \
-    -m /data/16T/luosg/data/meta_scRNAseq_luancao.tsv \
-    -w scRNAseq \
-    -o /data/16T/luosg/output/luanchao_mulatta \
-    -t 48 \
-    --log /data/16T/luosg/log/mulatta_scRNAseq.log \
-    --sdm \
-    --counters scTE cellranger \
-    --aligner cellranger \
-    --rerun-triggers mtime \
-    --forcerun scanpy_auto
+# python ${SCRIPT_DIR}/run.py \
+#     -m /data/16T/luosg/data/meta_scRNAseq_luancao.tsv \
+#     -w scRNAseq \
+#     -o /data/16T/luosg/output/luanchao_mulatta \
+#     -t 48 \
+#     --log /data/16T/luosg/log/mulatta_scRNAseq.log \
+#     --sdm \
+#     --counters scTE cellranger \
+#     --aligner cellranger \
+#     --rerun-triggers mtime \
+#     --forcerun scanpy_auto
         # scanpy_auto:tissue=Uterus,counter=scTE \
         # scanpy_auto:tissue=Uterus,counter=cellranger
 

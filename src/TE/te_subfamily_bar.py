@@ -30,14 +30,18 @@ from typing import Any, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
+import logging
 
-sys.path.insert(
-    0,
-    os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "modules", "function", "bin"),
-)
-from LogUtil import setup_logger  # noqa: E402
-
-logger = setup_logger(__name__)
+logger = logging.getLogger(__name__)
+if not logger.handlers:
+    _stream_handler = logging.StreamHandler()
+    _stream_handler.setFormatter(
+        logging.Formatter(
+            "%(asctime)s | %(levelname)s | %(name)s | %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
+        )
+    )
+    logger.addHandler(_stream_handler)
+logger.setLevel(logging.INFO)
 
 try:
     import matplotlib
@@ -240,9 +244,9 @@ def load_statistics_modules() -> Tuple[Any, Any]:
     """Import ``compare_groups`` and ``p_to_star`` from the statistics_plot submodule.
 
     The statistics_plot modules live in ``src/common/statistics_plot/Python``
-    and import ``common.LogUtil``; that package does not exist inside the
-    submodule, so the workflow ``LogUtil`` module is aliased under that name
-    before importing.
+    and import ``common.LogUtil.setup_logger``; that package does not exist
+    inside the submodule, so a minimal ``common.LogUtil`` module exposing a
+    logger factory is registered in ``sys.modules`` before importing.
 
     Returns
     -------
@@ -259,10 +263,11 @@ def load_statistics_modules() -> Tuple[Any, Any]:
         os.path.dirname(os.path.abspath(__file__)), "..", "common", "statistics_plot", "Python"
     )
     sys.path.insert(0, stats_dir)
-    logutil = sys.modules.setdefault("LogUtil", types.ModuleType("LogUtil"))
+    logutil = sys.modules.setdefault("common.LogUtil", types.ModuleType("common.LogUtil"))
+    if not hasattr(logutil, "setup_logger"):
+        setattr(logutil, "setup_logger", lambda name: logging.getLogger(name))
     common_pkg = sys.modules.setdefault("common", types.ModuleType("common"))
     setattr(common_pkg, "LogUtil", logutil)
-    sys.modules.setdefault("common.LogUtil", logutil)
     try:
         from bar_significance import p_to_star  # type: ignore[import-not-found]  # noqa: PLC0415
         from statistical_test import compare_groups  # type: ignore[import-not-found]  # noqa: PLC0415
@@ -327,10 +332,11 @@ def plot_subfamily_bars(
     test_alpha : float, optional
         Significance level for ``do_test``. Default ``0.05``.
     bracket_lift : float, optional
-        Height of the first significance bracket as a fraction of the
-        panel data range. Default ``1.15`` (above the tallest bar).
+        First bracket height as a multiplier over the cluster's tallest
+        bar including its error bar. Default ``1.15``.
     bracket_gap : float, optional
-        Vertical step between stacked brackets per group. Default ``1.18``.
+        Multiplicative vertical step between stacked brackets per group.
+        Default ``1.18``.
 
     Returns
     -------
@@ -346,6 +352,7 @@ def plot_subfamily_bars(
     n_g = len(groups)
     width = 0.8 / n_g
     stats = {}
+    bar_tops = np.zeros(len(patterns), dtype=float)
     for gi, grp in enumerate(groups):
         samples = [s for s in subfamily_tpm.columns if group_of.get(s) == grp]
         means = subfamily_tpm[samples].mean(axis=1).reindex(patterns)
@@ -357,6 +364,7 @@ def plot_subfamily_bars(
             error_kw=dict(lw=0.8, ecolor="#333333"),
         )
         stats[grp] = means
+        bar_tops = np.maximum(bar_tops, (means + sds).to_numpy(dtype=float))
 
     # significance brackets (optional, do_test): each group vs the
     # reference group (default: first group, e.g. fibroblasts); the test is
@@ -366,13 +374,11 @@ def plot_subfamily_bars(
         compare_groups, p_to_star = load_statistics_modules()
         ref = test_ref_group if test_ref_group in groups else groups[0]
         ref_samples = [s for s in subfamily_tpm.columns if group_of.get(s) == ref]
-        data_range = max(
-            (float(subfamily_tpm.loc[p].max()) - float(subfamily_tpm.loc[p].min()))
-            for p in patterns
-        ) if patterns else 1.0
-        floor = max(float(subfamily_tpm.min().min()), 1e-3)
-        span = max(data_range, float(subfamily_tpm.max().max()) - floor)
         for pi, pattern in enumerate(patterns):
+            # bracket base clears the tallest bar incl. its error bar in this
+            # cluster; levels stack multiplicatively so the spacing is even on
+            # log axes and never crosses the error bars on linear axes
+            base = max(float(bar_tops[pi]), 1e-9)
             level = bracket_lift
             for gi, grp in enumerate(groups):
                 if grp == ref:
@@ -389,20 +395,20 @@ def plot_subfamily_bars(
                     f"{pattern} {ref} vs {grp}: {result['test_name']}, "
                     f"p={p_val:.4g} ({p_to_star(p_val)})"
                 )
-                y = floor + span * (level - 1.0) if yscale == "log" else span * level
+                y = base * level
                 x_ref = pi + (groups.index(ref) - n_g / 2 + 0.5) * width
                 x_grp = pi + (gi - n_g / 2 + 0.5) * width
                 ax.plot([x_ref, x_ref, x_grp, x_grp],
-                        [y - span * 0.012, y, y, y - span * 0.012],
+                        [y - base * 0.015, y, y, y - base * 0.015],
                         lw=0.7, color="#333333", clip_on=False)
                 ax.text((x_ref + x_grp) / 2, y, p_to_star(p_val),
                         ha="center", va="bottom", fontsize=8, color="#333333")
                 level *= bracket_gap
-            # expand y headroom so the highest bracket fits
-            top_needed = floor + span * (level / bracket_gap - 1.0) if yscale == "log" else span * (level / bracket_gap)
+            # expand y headroom so the highest bracket and its star label fit
+            top_needed = base * level
             cur_top = ax.get_ylim()[1]
             if top_needed > cur_top:
-                ax.set_ylim(bottom=ax.get_ylim()[0], top=top_needed * 1.05)
+                ax.set_ylim(bottom=ax.get_ylim()[0], top=top_needed * 1.02)
     ax.set_xticks(np.arange(len(patterns)))
     ax.set_xticklabels(patterns, rotation=x_rotation, ha="right")
     ax.set_ylabel(ylabel)

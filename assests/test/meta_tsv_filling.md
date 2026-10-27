@@ -2,6 +2,8 @@
 
 从 run.tsv 和 fastq 实际路径生成 meta.tsv 的标准流程。
 
+python /data/16T/luosg/workflow/Omics/assests/test/gen_meta.py -d /path/to/your/dir
+
 ## meta.tsv 标准列定义
 
 | 列名 | 说明 | 来源 |

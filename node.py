@@ -765,13 +765,14 @@ def runRNAseq(
     sample_contamination = {}
     datajson["Params"]["DESeq2"]["group_pairs"] = {}
     # read enabled flags from each module's own Params (default True)
-    enable_transcripts = _enabled(datajson, "StringTie")
+    enable_te = _enabled(datajson, "TEtranscripts")
     enable_fusion = _enabled(datajson, "arriba")
     enable_variation = _enabled(datajson, "gatk_RNAseq")
     enable_deseq2 = _enabled(datajson, "DESeq2")
     enable_TEcount = _enabled(datajson, "TEcount")
     enable_TElocal = _enabled(datajson, "TElocal")
     enable_report = _enabled(datajson, "report")
+    enable_StringTie = _enabled(datajson, "StringTie")
     for group_pair in group_pairs:
         datajson["Params"]["DESeq2"]["group_pairs"].setdefault(group_pair.organism, {})
         datajson["Params"]["DESeq2"]["group_pairs"][group_pair.organism].setdefault(f"{group_pair.ctr_group_name}_vs_{group_pair.exp_group_name}", {
@@ -812,13 +813,13 @@ def runRNAseq(
             outfiles.append(f"{outdir}/variation/germline_snv_indel_RNAseq/{sample_info.organism}/{sample_id}/{sample_id}.filtered.vcf.gz")
         if sample_info.layout == "PE":
             genome_paired_samples.setdefault(sample_info.organism, []).append(sample_id)
-            if enable_transcripts:
+            if enable_StringTie:
                 outfiles.append(f"{outdir}/transcripts/{sample_info.organism}/raw/{sample_id}/{sample_id}_TE_chimeric_transcripts.txt")
             if enable_fusion:
                 outfiles.append(f"{outdir}/fusion/{sample_info.organism}/{sample_id}/{sample_id}_passed_fusions.tsv")
         elif sample_info.layout == "SE":
             genome_single_samples.setdefault(sample_info.organism, []).append(sample_id)
-            if enable_transcripts:
+            if enable_StringTie:
                 outfiles.append(f"{outdir}/transcripts/{sample_info.organism}/raw/{sample_id}/{sample_id}_TE_chimeric_transcripts.txt")
             if enable_fusion:
                 outfiles.append(f"{outdir}/fusion/{sample_info.organism}/{sample_id}/{sample_id}_passed_fusions.tsv")
@@ -851,15 +852,16 @@ def runRNAseq(
             datajson["Params"]["function"][organism]["gsva"]["gmt"] = os.path.join(root_dir,"assests/geneset/GSI_human.gmt")
         if enable_fusion:
             outfiles.append(f"{outdir}/fusion/{organism}/arriba_report/arriba_fusion_report.html")
-        if enable_transcripts:
+        if enable_StringTie:
             outfiles.append(f"{outdir}/transcripts/{organism}/stringtie_merged.gtf")
-            outfiles.append(f"{outdir}/transcripts/{organism}/TE_chimeric/TE_chimeric_group_stacked.png")
-            outfiles.append(f"{outdir}/transcripts/{organism}/TE_chimeric/TE_chimeric_te_type_top.png")
-            outfiles.append(f"{outdir}/transcripts/{organism}/TE_chimeric/TE_chimeric_te_type_by_group.png")
-            outfiles.append(f"{outdir}/transcripts/{organism}/TE_chimeric/TE_chimeric_sample_summary.tsv")
-            outfiles.append(f"{outdir}/transcripts/{organism}/TE_chimeric/TE_chimeric_group_summary.tsv")
-            outfiles.append(f"{outdir}/transcripts/{organism}/TE_chimeric/TE_chimeric_te_type_counts.tsv")
-        if enable_TEcount:
+            if len(group_pairs) > 0:
+                outfiles.append(f"{outdir}/transcripts/{organism}/TE_chimeric/TE_chimeric_group_stacked.png")
+                outfiles.append(f"{outdir}/transcripts/{organism}/TE_chimeric/TE_chimeric_te_type_top.png")
+                outfiles.append(f"{outdir}/transcripts/{organism}/TE_chimeric/TE_chimeric_te_type_by_group.png")
+                outfiles.append(f"{outdir}/transcripts/{organism}/TE_chimeric/TE_chimeric_sample_summary.tsv")
+                outfiles.append(f"{outdir}/transcripts/{organism}/TE_chimeric/TE_chimeric_group_summary.tsv")
+                outfiles.append(f"{outdir}/transcripts/{organism}/TE_chimeric/TE_chimeric_te_type_counts.tsv")
+        if enable_te or enable_deseq2:
             outfiles.append(f"{outdir}/counts/TEtranscripts/{organism}/{organism}_TEcount.tsv")
             outfiles.append(f"{outdir}/counts/TEtranscripts/{organism}/{organism}_TEcount_name.tsv")
         if enable_TElocal:

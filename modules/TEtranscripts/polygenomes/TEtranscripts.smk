@@ -207,11 +207,18 @@ def get_input_for_combine_TElocal(wildcards):
         cntTables.append(f"{outdir}/{wildcards.genome}/{sample_id}/{sample_id}.TElocal.cntTable")
     if len(cntTables) == 0:
         raise ValueError(f"rule combine_TElocal didn't get any input files,samples:{genome_samples.get(wildcards.genome, [])}")
-    return cntTables
+    gtf = config.get('genome', {}).get('references', {}).get(wildcards.genome, {}).get('gtf')
+    if not gtf or not os.path.exists(gtf):
+        raise ValueError(f"gtf file not found for genome {wildcards.genome}: {gtf}")
+    in_dict = {
+        "cntTables": cntTables,
+        "gtf": gtf
+    }
+    return in_dict
 
 rule combine_TElocal:
     input:
-        fileList = get_input_for_combine_TElocal
+        unpack(get_input_for_combine_TElocal)
     output:
         outfile_raw = outdir + "/{genome}/{genome}_TElocal.tsv",
         outfile_annotate = outdir + "/{genome}/{genome}_TElocal_name.tsv",
@@ -224,7 +231,8 @@ rule combine_TElocal:
         sif("../TEtranscripts.yaml")
     params:
         combineTE = ROOT_DIR + "/modules/TEtranscripts/bin/combineTE.py",
-        indir = outdir + "/{genome}/TElocal"
+        indir = outdir + "/{genome}",
+        geneId2Name = ROOT_DIR +"/modules/TEtranscripts/bin/geneId2Name.py"
     log:
         logdir_combine + "/TEtranscripts/{genome}/combine_TElocal.log"
     run:

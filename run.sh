@@ -24,7 +24,7 @@ python ${SCRIPT_DIR}/run.py \
     --log /data/pub/zhousha/Totipotent20251031/log/pluripotent2totipotent_RNAseq.log \
     --sdm \
     --rerun-triggers mtime
-    # --forcerun function_gsva
+        # --forcerun function_gsva
 
 # python ${SCRIPT_DIR}/run.py \
 #     -m /home/luosg/Data/genomeStability/data/Rn7sk/meta_input.tsv \

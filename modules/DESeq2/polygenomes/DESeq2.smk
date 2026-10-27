@@ -123,8 +123,8 @@ rule DESeq2_TEcount:
 
 
 def get_input_for_DESeq2_TElocal(wildcards):
-    """Dynamically determines the input count matrix for DESeq2 TEcount based on the contrast."""
-    logger.debug(f"[get_input_for_DESeq2_TEcount] called with wildcards: {wildcards}")
+    """Dynamically determines the input count matrix for DESeq2 TElocal based on the contrast."""
+    logger.debug(f"[get_input_for_DESeq2_TElocal] called with wildcards: {wildcards}")
     in_dict = {}
     count_matrix = indir + "/{genome}/{genome}_TElocal.tsv"
     geneIDAnno = config.get('genome',{}).get('references', {}).get(wildcards.genome, {}).get('geneIDAnno')
@@ -149,20 +149,20 @@ rule DESeq2_TElocal:
         deseq2_results = outdir + "/{genome}/{contrast}/TElocal/DESeq2.done",
         contrast_group = outdir + "/{genome}/{contrast}/TElocal/group.tsv",
         contrast_pca = outdir + "/{genome}/{contrast}/TElocal/PCA/{contrast}.cpmPCA.png",
-        contrast_gene_volcano = outdir + "/{genome}/{contrast}/TElocal/volcano/{contrast}.TEcount_Gene_volcano.png",
-        contrast_gene_heatmap = outdir + "/{genome}/{contrast}/TElocal/heatmap/{contrast}.TEcount_Gene_updown.png",
-        contrast_gene_updown = outdir + "/{genome}/{contrast}/TElocal/upDown/{contrast}.TEcount_Gene_updown.tsv",
-        contrast_te_updown = outdir + "/{genome}/{contrast}/TElocal/upDown/{contrast}.TEcount_TE_updown.tsv",
-        contrast_gene_te_updown = outdir + "/{genome}/{contrast}/TElocal/upDown/{contrast}.TEcount_Gene_TE_updown.tsv",
-        contrast_gene_name = outdir + "/{genome}/{contrast}/TElocal/{contrast}.TEcount_Gene.name.tsv",
-        contrast_te_name = outdir + "/{genome}/{contrast}/TElocal/{contrast}.TEcount_TE.name.tsv",
-        contrast_gene_te_name = outdir + "/{genome}/{contrast}/TElocal/{contrast}.TEcount_Gene_TE.name.tsv",
-        contrast_gene = outdir + "/{genome}/{contrast}/TElocal/{contrast}.TEcount_Gene.tsv",
-        contrast_te = outdir + "/{genome}/{contrast}/TElocal/{contrast}.TEcount_TE.tsv",
-        contrast_gene_te = outdir + "/{genome}/{contrast}/TElocal/{contrast}.TEcount_Gene_TE.tsv",
-    threads: rule_res("DESeq2_TEcount").get("threads", 4)
+        contrast_gene_volcano = outdir + "/{genome}/{contrast}/TElocal/volcano/{contrast}.TElocal_Gene_volcano.png",
+        contrast_gene_heatmap = outdir + "/{genome}/{contrast}/TElocal/heatmap/{contrast}.TElocal_Gene_updown.png",
+        contrast_gene_updown = outdir + "/{genome}/{contrast}/TElocal/upDown/{contrast}.TElocal_Gene_updown.tsv",
+        contrast_te_updown = outdir + "/{genome}/{contrast}/TElocal/upDown/{contrast}.TElocal_TE_updown.tsv",
+        contrast_gene_te_updown = outdir + "/{genome}/{contrast}/TElocal/upDown/{contrast}.TElocal_Gene_TE_updown.tsv",
+        contrast_gene_name = outdir + "/{genome}/{contrast}/TElocal/{contrast}.TElocal_Gene.name.tsv",
+        contrast_te_name = outdir + "/{genome}/{contrast}/TElocal/{contrast}.TElocal_TE.name.tsv",
+        contrast_gene_te_name = outdir + "/{genome}/{contrast}/TElocal/{contrast}.TElocal_Gene_TE.name.tsv",
+        contrast_gene = outdir + "/{genome}/{contrast}/TElocal/{contrast}.TElocal_Gene.tsv",
+        contrast_te = outdir + "/{genome}/{contrast}/TElocal/{contrast}.TElocal_TE.tsv",
+        contrast_gene_te = outdir + "/{genome}/{contrast}/TElocal/{contrast}.TElocal_Gene_TE.tsv",
+    threads: rule_res("DESeq2_TElocal").get("threads", 4)
     resources:
-        mem_mb=rule_res("DESeq2_TEcount").get("mem_mb", 16000),
+        mem_mb=rule_res("DESeq2_TElocal").get("mem_mb", 16000),
     params:
         DESeq2_script = ROOT_DIR + "/modules/DESeq2/bin/DESeq2.r",
         write_group_script = ROOT_DIR + "/modules/DESeq2/bin/write_group_tsv.py",
@@ -176,13 +176,13 @@ rule DESeq2_TElocal:
     run:
         log_path = str(log)
         open(log_path, 'w').close()
-        rule_logger = setup_logger("DESeq2_TEcount", log_file=log_path)
+        rule_logger = setup_logger("DESeq2_TElocal", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            rule_logger.info(f"Start DESeq2 TEcount at {current_time}")
+            rule_logger.info(f"Start DESeq2 TElocal at {current_time}")
             sample_outdir = os.path.dirname(str(output.deseq2_results))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(sample_outdir, f"DESeq2_TEcount_{current_time}.sh")
+            script = os.path.join(sample_outdir, f"DESeq2_TElocal_{current_time}.sh")
             control_group_name = group_pairs.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("control_group_name")
             experimental_group_name = group_pairs.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("experimental_group_name")
             if wildcards.contrast not in group_pairs.get(wildcards.genome, {}):
@@ -205,7 +205,7 @@ rule DESeq2_TElocal:
             ]
             cmd2 = [
                 "Rscript", params.DESeq2_script,
-                "-m", "TEcount",
+                "-m", "TElocal",
                 "-i", input.count_matrix,
                 "-g", f"{sample_outdir}/group.tsv",
                 "-p", control_group_name, experimental_group_name,
@@ -218,9 +218,9 @@ rule DESeq2_TElocal:
             cmd3 = [
                 "python", params.annotation_script,
                 "-i", 
-                f"{sample_outdir}/{wildcards.contrast}.TEcount_Gene.tsv",
-                f"{sample_outdir}/{wildcards.contrast}.TEcount_TE.tsv",
-                f"{sample_outdir}/{wildcards.contrast}.TEcount_Gene_TE.tsv",
+                f"{sample_outdir}/{wildcards.contrast}.TElocal_Gene.tsv",
+                f"{sample_outdir}/{wildcards.contrast}.TElocal_TE.tsv",
+                f"{sample_outdir}/{wildcards.contrast}.TElocal_Gene_TE.tsv",
                 "-g", input.gtf,
                 "-m", input.gene_map
             ]
@@ -232,9 +232,9 @@ rule DESeq2_TElocal:
                 f.write(shlex.join(cmd1) + "\n")
                 f.write(shlex.join(cmd2) + "\n")
                 f.write(shlex.join(cmd3) + "\n")
-                f.write("echo 'DESeq2 TEcount analysis completed successfully'\n")
+                f.write("echo 'DESeq2 TElocal analysis completed successfully'\n")
 
             shell(f"bash {script} >> {log_path} 2>&1")
         except Exception as e:
-            rule_logger.error(f"Error occurred during DESeq2 TEcount: {e}\n")
-            raise RuntimeError(f"Error occurred during DESeq2 TEcount: {e}\n")
+            rule_logger.error(f"Error occurred during DESeq2 TElocal: {e}\n")
+            raise RuntimeError(f"Error occurred during DESeq2 TElocal: {e}\n")

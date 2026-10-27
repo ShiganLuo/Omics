@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""TE family expression distribution across sample groups (stages).
+"""TE locus expression distribution across sample groups (stages).
 
-For each requested TE family pattern, plots the distribution of
-normalized TE expression across the TE entries matching that family,
-one box/violin per sample group (e.g. developmental stage). A burst
-shows up as the whole distribution of a family shifting up in one
-group.
+For each requested TE subfamily pattern, plots the distribution of
+normalized per-locus expression across the loci matching that
+subfamily, one box/violin per sample group (e.g. developmental stage).
+A burst shows up as the whole distribution of a subfamily shifting up
+in one group.
 
 Input data
 ----------
@@ -35,9 +35,11 @@ matrix column are ignored.
 
 Examples
 --------
-python te_family_boxplot.py --matrix GRCm39_TEcount.tsv \\
-    --annotation samples.tsv --family MT2_Mm --family L1Md --family IAP \\
-    --normalize log2cpm --kind violin -o outdir -f png -f pdf
+python te_locus_boxplot.py --matrix GRCm39_TElocal.tsv \\
+    --annotation samples.tsv --family MT2_Mm --family MERVL-int \\
+    --match-field subfamily --match-mode exact \\
+    --loci-tsv GRCm39_GENCODE_rmsk_TE.gtf.locInd \\
+    --normalize log2tpm --kind violin -o outdir -f png -f pdf
 """
 
 import argparse
@@ -191,23 +193,29 @@ def load_annotation(
 
 
 def parse_te_id(te_id: str) -> Dict[str, str]:
-    """Split a ``name:family:class`` TE id into its fields.
+    """Split a ``name[:subfamily]:family:class`` TE id into its fields.
 
     Parameters
     ----------
     te_id : str
-        TE id such as ``L1MD1:L1:LINE``. Ids without ``:`` (gene ids)
-        return all fields equal to the id.
+        TE id such as ``L1MD1:L1:LINE`` (TEcount, 3 segments) or a
+        TElocal locus id ``MT2_Mm_dup1685:MT2_Mm:MT2:SINE`` (4
+        segments; segment 2 repeats the subfamily). Ids without
+        ``:`` (gene ids) return all fields equal to the id.
 
     Returns
     -------
     Dict[str, str]
-        Keys ``name``, ``family``, ``class``.
+        Keys ``name``, ``subfamily``, ``family``, ``class``. For
+        3-segment ids ``subfamily`` equals ``name`` (no separate
+        subfamily level exists there).
     """
     fields = str(te_id).split(":")
-    if len(fields) >= 3:
-        return {"name": fields[0], "family": fields[1], "class": fields[2]}
-    return {"name": str(te_id), "family": str(te_id), "class": str(te_id)}
+    if len(fields) >= 4:
+        return {"name": fields[0], "subfamily": fields[1], "family": fields[2], "class": fields[3]}
+    if len(fields) == 3:
+        return {"name": fields[0], "subfamily": fields[0], "family": fields[1], "class": fields[2]}
+    return {"name": str(te_id), "subfamily": str(te_id), "family": str(te_id), "class": str(te_id)}
 
 
 def select_family_entries(
@@ -225,8 +233,9 @@ def select_family_entries(
     family_pattern : str
         Pattern to match.
     match_field : str, optional
-        ``"name"``, ``"family"``, ``"class"`` or ``"any"`` (match
-        against the full id string). Default is ``"any"``.
+        ``"name"``, ``"subfamily"``, ``"family"``, ``"class"`` or
+        ``"any"`` (match against the full id string). Default is
+        ``"any"``.
     match_mode : str, optional
         ``"substring"`` (case-insensitive), ``"regex"`` or
         ``"exact"`` (case-insensitive on the selected field).
@@ -242,8 +251,8 @@ def select_family_entries(
     ValueError
         If ``match_field`` or ``match_mode`` is invalid.
     """
-    if match_field not in ("name", "family", "class", "any"):
-        raise ValueError(f"match_field must be name/family/class/any, got {match_field!r}")
+    if match_field not in ("name", "subfamily", "family", "class", "any"):
+        raise ValueError(f"match_field must be name/subfamily/family/class/any, got {match_field!r}")
     if match_mode not in ("substring", "regex", "exact"):
         raise ValueError(f"match_mode must be substring/regex/exact, got {match_mode!r}")
 
@@ -266,9 +275,10 @@ def select_family_entries(
 
 def normalize_matrix(
     matrix: pd.DataFrame,
-    method: str = "log2cpm",
+    method: str = "log2tpm",
+    lengths: Optional["pd.Series"] = None,
 ) -> pd.DataFrame:
-    """Normalize raw counts to CPM / log2(CPM+1).
+    """Normalize raw counts to TPM / log2(TPM+1) / CPM variants.
 
     Parameters
     ----------
@@ -276,7 +286,12 @@ def normalize_matrix(
         Raw count matrix (all gene + TE rows; library sizes are column
         sums over everything given).
     method : str, optional
-        ``"log2cpm"`` (default), ``"cpm"`` or ``"none"``.
+        ``"log2tpm"`` (default), ``"tpm"``, ``"log2cpm"``, ``"cpm"`` or
+        ``"none"``. TPM methods require ``lengths``.
+    lengths : pd.Series, optional
+        Feature lengths indexed like ``matrix`` (required for the TPM
+        methods; typically locus lengths from a TElocal ``.locInd``
+        coordinate table).
 
     Returns
     -------
@@ -286,12 +301,27 @@ def normalize_matrix(
     Raises
     ------
     ValueError
-        If ``method`` is invalid or a library size is zero.
+        If ``method`` is invalid, a library size is zero, or TPM is
+        requested without lengths.
     """
-    if method not in ("log2cpm", "cpm", "none"):
-        raise ValueError(f"normalize method must be log2cpm/cpm/none, got {method!r}")
+    if method not in ("log2tpm", "tpm", "log2cpm", "cpm", "none"):
+        raise ValueError(f"normalize method must be log2tpm/tpm/log2cpm/cpm/none, got {method!r}")
     if method == "none":
         return matrix.copy()
+
+    if method in ("log2tpm", "tpm"):
+        if lengths is None:
+            raise ValueError(f"normalize method '{method}' requires feature lengths (--loci-tsv)")
+        common = matrix.index.intersection(lengths.index)
+        if len(common) < len(matrix):
+            logger.warning(
+                f"Lengths missing for {len(matrix) - len(common)} of {len(matrix)} rows; "
+                "those rows are dropped from TPM normalization"
+            )
+        sub = matrix.loc[common]
+        rpk = sub.div(lengths.loc[common].clip(lower=1), axis=0)
+        tpm = rpk.div(rpk.sum(axis=0), axis=1) * 1e6
+        return np.log2(tpm + 1.0) if method == "log2tpm" else tpm
 
     lib_sizes = matrix.sum(axis=0)
     zero_libs = lib_sizes[lib_sizes <= 0]
@@ -301,6 +331,47 @@ def normalize_matrix(
     if method == "cpm":
         return cpm
     return np.log2(cpm + 1.0)
+
+
+def load_loci_lengths(loci_tsv: str, matrix_index: "pd.Index") -> "pd.Series":
+    """Load per-locus lengths (max coordinate span) for TPM normalization.
+
+    Parameters
+    ----------
+    loci_tsv : str
+        A TElocal ``.locInd`` pickle, its ``.parquet`` cache, or a TSV
+        with ``locus_id``/``chrom``/``start``/``end`` columns.
+    matrix_index : pd.Index
+        Matrix row ids (locus ids); only matching lengths are kept.
+
+    Returns
+    -------
+    pd.Series
+        Lengths indexed by locus id.
+    """
+    if loci_tsv.endswith(".parquet"):
+        loci = pd.read_parquet(loci_tsv)
+    elif loci_tsv.endswith(".locInd"):
+        sys.path.insert(
+            0,
+            os.path.join(os.path.dirname(os.path.abspath(__file__))),
+        )
+        # reuse the te_manhattan loader (pickle + tree walk)
+        from te_manhattan import load_locind  # noqa: PLC0415
+
+        loci = load_locind(loci_tsv)
+    else:
+        loci = pd.read_csv(loci_tsv, sep="\t")
+    lengths = (
+        loci.assign(length=(loci["end"] - loci["start"]).clip(lower=1))
+        .groupby("locus_id")["length"].max()
+    )
+    common = lengths.reindex(matrix_index)
+    n_missing = int(common.isna().sum())
+    if n_missing:
+        logger.warning(f"Lengths missing for {n_missing}/{len(matrix_index)} matrix rows")
+    logger.info(f"Loaded lengths for {int(common.notna().sum())} loci from {loci_tsv}")
+    return common
 
 
 def collect_group_values(
@@ -560,7 +631,7 @@ def plot_family_distributions(
     fig.align_ylabels()
     for fmt in image_formats:
         out_path = f"{out_base}.{fmt}"
-        fig.savefig(out_path, dpi=dpi)
+        fig.savefig(out_path, dpi=dpi, bbox_inches="tight")
         logger.info(f"Saved {out_path}")
     plt.close(fig)
 
@@ -583,12 +654,16 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--group-order", default=None, help="Comma-separated group order.")
     parser.add_argument("--family", action="append", dest="families", metavar="PATTERN", required=True,
                         help="TE family pattern. Repeatable.")
-    parser.add_argument("--match-field", choices=["name", "family", "class", "any"], default="any",
+    parser.add_argument("--match-field", choices=["name", "subfamily", "family", "class", "any"], default="any",
                         help="TE id field to match the pattern against.")
     parser.add_argument("--match-mode", choices=["substring", "regex", "exact"], default="substring",
                         help="Pattern matching mode.")
-    parser.add_argument("--normalize", choices=["log2cpm", "cpm", "none"], default="log2cpm",
-                        help="Count normalization; use 'none' for DESeq2-normalized sample columns.")
+    parser.add_argument("--normalize", choices=["log2tpm", "tpm", "log2cpm", "cpm", "none"], default="log2tpm",
+                        help="Count normalization; TPM methods need --loci-tsv for feature lengths. "
+                             "Default: log2tpm.")
+    parser.add_argument("--loci-tsv", default=None,
+                        help="Locus coordinate table (TElocal .locInd, its .parquet cache, or a TSV with "
+                             "locus_id/chrom/start/end) providing feature lengths for TPM normalization.")
     parser.add_argument("--value-scope", choices=["group_mean_per_entry", "all_samples"],
                         default="group_mean_per_entry",
                         help="Per-entry group means (distribution across entries) or pooled samples.")
@@ -600,7 +675,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--test-ref-group", default=None, help="Reference group for --test.")
     parser.add_argument("--ncols", type=int, default=3, help="Panel columns.")
     parser.add_argument("--figsize-unit", default="4.2,3.6", help="Panel size in inches, 'w,h'.")
-    parser.add_argument("--ylabel", default="log2(CPM+1)", help="Y axis label.")
+    parser.add_argument("--ylabel", default=None,
+                        help="Y axis label (default: follows --normalize, e.g. 'log2(TPM+1)').")
     parser.add_argument("--no-points", action="store_true", help="Hide the jittered points.")
     parser.add_argument("--point-jitter", type=float, default=0.12, help="Point jitter half-width.")
     parser.add_argument("--point-size", type=float, default=2.5, help="Point size.")
@@ -638,7 +714,20 @@ def main(argv: Optional[List[str]] = None) -> None:
 
     matrix, sample_cols = load_matrix(args.matrix, id_col=args.id_col, exclude_cols=args.exclude_cols)
     annot = load_annotation(args.annotation, sample_cols, group_order=args.group_order)
-    normalized = normalize_matrix(matrix, method=args.normalize)
+
+    lengths = None
+    if args.normalize in ("log2tpm", "tpm"):
+        if not args.loci_tsv:
+            raise ValueError(f"--normalize {args.normalize} requires --loci-tsv for feature lengths")
+        lengths = load_loci_lengths(args.loci_tsv, matrix.index)
+    normalized = normalize_matrix(matrix, method=args.normalize, lengths=lengths)
+
+    ylabel = args.ylabel
+    if ylabel is None:
+        ylabel = {
+            "log2tpm": "log2(TPM+1)", "tpm": "TPM",
+            "log2cpm": "log2(CPM+1)", "cpm": "CPM", "none": "counts",
+        }[args.normalize]
 
     family_data: List[Tuple[str, pd.DataFrame]] = []
     for pattern in args.families:
@@ -659,7 +748,7 @@ def main(argv: Optional[List[str]] = None) -> None:
         ncols=args.ncols,
         figsize_unit=(w, h),
         dpi=args.dpi,
-        ylabel=args.ylabel,
+        ylabel=ylabel,
         show_points=not args.no_points,
         point_jitter=args.point_jitter,
         point_size=args.point_size,

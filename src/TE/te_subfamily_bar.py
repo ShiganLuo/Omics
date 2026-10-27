@@ -14,15 +14,19 @@ across samples). Two input flavors:
 
 Examples
 --------
-python te_subfamily_bar.py --matrix GRCh38_TEcount.tsv \\
-    --annotation samples.tsv --family HERVH-int --family SVA_D \\
+python te_subfamily_bar.py --matrix GRCh38_TEcount.tsv \
+    --annotation samples.tsv --family HERVH-int --family SVA_D \
     -o outdir -f png -f pdf
+
+Add ``--test`` to draw significance brackets (optional differential
+analysis; test auto-selected via the statistics_plot submodule).
 """
 
 import argparse
 import os
 import sys
-from typing import List, Optional, Tuple
+import types
+from typing import Any, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -232,6 +236,44 @@ def compute_subfamily_value(
     return pd.DataFrame(out).T
 
 
+def load_statistics_modules() -> Tuple[Any, Any]:
+    """Import ``compare_groups`` and ``p_to_star`` from the statistics_plot submodule.
+
+    The statistics_plot modules live in ``src/common/statistics_plot/Python``
+    and import ``common.LogUtil``; that package does not exist inside the
+    submodule, so the workflow ``LogUtil`` module is aliased under that name
+    before importing.
+
+    Returns
+    -------
+    Tuple[Any, Any]
+        ``(compare_groups, p_to_star)`` callables from ``statistical_test``
+        and ``bar_significance``.
+
+    Raises
+    ------
+    SystemExit
+        If the submodule or its scipy dependency is unavailable.
+    """
+    stats_dir = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "..", "common", "statistics_plot", "Python"
+    )
+    sys.path.insert(0, stats_dir)
+    logutil = sys.modules.setdefault("LogUtil", types.ModuleType("LogUtil"))
+    common_pkg = sys.modules.setdefault("common", types.ModuleType("common"))
+    setattr(common_pkg, "LogUtil", logutil)
+    sys.modules.setdefault("common.LogUtil", logutil)
+    try:
+        from bar_significance import p_to_star  # type: ignore[import-not-found]  # noqa: PLC0415
+        from statistical_test import compare_groups  # type: ignore[import-not-found]  # noqa: PLC0415
+    except ImportError as exc:
+        raise SystemExit(
+            f"statistics_plot modules unavailable ({exc}); --test requires "
+            "src/common/statistics_plot (git submodule) and scipy."
+        )
+    return compare_groups, p_to_star
+
+
 def plot_subfamily_bars(
     subfamily_tpm: pd.DataFrame,
     annot: pd.DataFrame,
@@ -243,7 +285,9 @@ def plot_subfamily_bars(
     yscale: str = "linear",
     errbar_capsize: float = 3.0,
     x_rotation: float = 30.0,
+    do_test: bool = False,
     test_ref_group: Optional[str] = None,
+    test_alpha: float = 0.05,
     bracket_lift: float = 1.15,
     bracket_gap: float = 1.18,
 ) -> None:
@@ -271,9 +315,17 @@ def plot_subfamily_bars(
         Error bar cap size in points.
     x_rotation : float, optional
         X tick label rotation.
+    do_test : bool, optional
+        Draw significance brackets (optional differential analysis). The
+        statistical test per group pair is auto-selected by
+        ``statistical_test.compare_groups`` (t-test / Welch / Mann-Whitney
+        after normality and variance checks); stars follow
+        ``bar_significance.p_to_star``. Default ``False`` (no test).
     test_ref_group : str, optional
-        Reference group for the Mann-Whitney significance test
-        (default: the first group, e.g. fibroblasts).
+        Reference group for the significance test (only used with
+        ``do_test``; default: the first group, e.g. fibroblasts).
+    test_alpha : float, optional
+        Significance level for ``do_test``. Default ``0.05``.
     bracket_lift : float, optional
         Height of the first significance bracket as a fraction of the
         panel data range. Default ``1.15`` (above the tallest bar).
@@ -306,14 +358,12 @@ def plot_subfamily_bars(
         )
         stats[grp] = means
 
-    # significance brackets: Mann-Whitney U of each group vs the
-    # reference group (default: first group, e.g. fibroblasts)
-    try:
-        from scipy.stats import mannwhitneyu
-    except ImportError:
-        mannwhitneyu = None
-        logger.warning("scipy not available; significance brackets skipped")
-    if mannwhitneyu is not None:
+    # significance brackets (optional, do_test): each group vs the
+    # reference group (default: first group, e.g. fibroblasts); the test is
+    # auto-selected by statistical_test.compare_groups and the star label
+    # comes from bar_significance.p_to_star (statistics_plot submodule)
+    if do_test:
+        compare_groups, p_to_star = load_statistics_modules()
         ref = test_ref_group if test_ref_group in groups else groups[0]
         ref_samples = [s for s in subfamily_tpm.columns if group_of.get(s) == ref]
         data_range = max(
@@ -322,14 +372,6 @@ def plot_subfamily_bars(
         ) if patterns else 1.0
         floor = max(float(subfamily_tpm.min().min()), 1e-3)
         span = max(data_range, float(subfamily_tpm.max().max()) - floor)
-        def star(p_val: float) -> str:
-            if p_val < 0.001:
-                return "***"
-            if p_val < 0.01:
-                return "**"
-            if p_val < 0.05:
-                return "*"
-            return "ns"
         for pi, pattern in enumerate(patterns):
             level = bracket_lift
             for gi, grp in enumerate(groups):
@@ -339,15 +381,21 @@ def plot_subfamily_bars(
                 a = subfamily_tpm.loc[pattern, ref_samples].to_numpy(dtype=float)
                 b = subfamily_tpm.loc[pattern, samples].to_numpy(dtype=float)
                 if len(a) < 2 or len(b) < 2:
+                    logger.warning(f"{pattern}: {ref} vs {grp} skipped (n<2 in a group)")
                     continue
-                _, p_val = mannwhitneyu(a, b, alternative="two-sided")
+                result = compare_groups(a.tolist(), b.tolist(), alpha=test_alpha, verbose=False)
+                p_val = result["p_value"]
+                logger.info(
+                    f"{pattern} {ref} vs {grp}: {result['test_name']}, "
+                    f"p={p_val:.4g} ({p_to_star(p_val)})"
+                )
                 y = floor + span * (level - 1.0) if yscale == "log" else span * level
                 x_ref = pi + (groups.index(ref) - n_g / 2 + 0.5) * width
                 x_grp = pi + (gi - n_g / 2 + 0.5) * width
                 ax.plot([x_ref, x_ref, x_grp, x_grp],
                         [y - span * 0.012, y, y, y - span * 0.012],
                         lw=0.7, color="#333333", clip_on=False)
-                ax.text((x_ref + x_grp) / 2, y, star(p_val),
+                ax.text((x_ref + x_grp) / 2, y, p_to_star(p_val),
                         ha="center", va="bottom", fontsize=8, color="#333333")
                 level *= bracket_gap
             # expand y headroom so the highest bracket fits
@@ -404,9 +452,16 @@ def build_parser() -> argparse.ArgumentParser:
                              "it the matrix values are used as-is (TEcount).")
     parser.add_argument("--yscale", choices=["linear", "log"], default="linear",
                         help="Y axis scale. Use 'log' when subfamilies span orders of magnitude.")
+    parser.add_argument("--test", dest="do_test", action="store_true",
+                        help="Optional differential analysis: draw significance brackets of each "
+                             "group vs the reference group. Test auto-selected by "
+                             "statistics_plot.statistical_test.compare_groups (t-test/Welch/"
+                             "Mann-Whitney after normality and variance checks).")
     parser.add_argument("--test-ref-group", default=None,
-                        help="Reference group for Mann-Whitney significance brackets "
+                        help="Reference group for --test brackets "
                              "(default: the first group in the annotation order).")
+    parser.add_argument("--test-alpha", type=float, default=0.05,
+                        help="Significance level for --test.")
     parser.add_argument("--ylabel", default="TPM", help="Y axis label.")
     parser.add_argument("--figsize", default="7.0,4.2", help="Figure size in inches, 'w,h'.")
     parser.add_argument("--dpi", type=int, default=300, help="Output resolution.")
@@ -459,7 +514,9 @@ def main(argv: Optional[List[str]] = None) -> None:
         dpi=args.dpi,
         ylabel=label,
         yscale=args.yscale,
+        do_test=args.do_test,
         test_ref_group=args.test_ref_group,
+        test_alpha=args.test_alpha,
     )
 
 

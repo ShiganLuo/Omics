@@ -129,11 +129,11 @@ DESeq2Analysis <- function(counts_df, colData, resfile = NULL,
 #'
 #' @return A data frame containing only the rows that match the "str1:str2:str3" pattern.
 #' @export
-TEFilter <- function(df){
+TEFilter <- function(df, pattern = "^[^:]+:[^:]+:[^:]+$"){
   if(is.null(rownames(df))) {
-    log_msg("ERROR","the df rownames can't be null, must be str1:str2:str3")
+    log_msg("ERROR","the df rownames can't be null, must be colon-separated fields")
   }
-  df_TE <- df[grepl("^[^:]+:[^:]+:[^:]+$", rownames(df)), , drop = FALSE]
+  df_TE <- df[grepl(pattern, rownames(df)), , drop = FALSE]
   
   df_TE
 }
@@ -469,21 +469,31 @@ plot_MA <- function(res_df, outfile, mode = c("gene","TE"), geneAnnotation = NUL
 #' \enumerate{
 #'   \item \strong{Sample Selection}: Reorganizes matrix columns to follow the order of 
 #'         \code{control} followed by \code{experiment}.
-#'   \item \strong{Feature Classification}: Uses the regex pattern \code{"^[^:]+:[^:]+:[^:]+$"} 
-#'         to identify TE entries (expecting a "str1:str2:str3" format).
-#'   \item \strong{Low-count Filtering}: Calculates the mean for each row and removes 
+#'   \item \strong{Feature Classification}: Rows matching \code{te_pattern} are TE
+#'         entries; all other rows are gene entries.
+#'   \item \strong{Low-count Filtering}: Calculates the mean for each row and removes
 #'         noise data falling below the \code{min_mean} threshold.
 #' }
 #'
+#' @param infile Character. Path to the input count matrix file (TSV format).
+#' @param control Character vector. Names of control samples (must match column names in the matrix).
+#' @param experiment Character vector. Names of experiment samples (must match column names in the matrix).
+#' @param min_mean Numeric. The threshold for row mean counts. Rows with an average
+#'   count less than or equal to this value will be filtered out. Default is 5.
+#' @param te_pattern Character. Regex identifying TE rows by colon-separated fields.
+#'   TEcount subfamily rows have 3 fields ("str1:str2:str3"); TElocal locus rows
+#'   have 4 fields. Default matches TEcount.
+#'
 #' @return A list containing three elements:
 #'   \itemize{
-#'     \item \code{Gene_TE}: The raw subsetted matrix containing all selected samples 
+#'     \item \code{Gene_TE}: The raw subsetted matrix containing all selected samples
 #'           (before low-expression filtering).
 #'     \item \code{TE}: A data frame containing only the filtered TE entries.
 #'     \item \code{Gene}: A data frame containing only the filtered Gene entries.
 #'   }
 #' @export
-TEcount_read <- function(infile, control, experiment, min_mean = 5){
+TEcount_read <- function(infile, control, experiment, min_mean = 5,
+                         te_pattern = "^[^:]+:[^:]+:[^:]+$"){
   if (!file.exists(infile)) {
     log_msg("ERROR",paste0(infile," don't exist"), quit = TRUE)
   }
@@ -495,10 +505,10 @@ TEcount_read <- function(infile, control, experiment, min_mean = 5){
   }
   TEcount <- TEcount[, samples_sel, drop = FALSE]
 
-  df_TE <- TEcount[grepl("^[^:]+:[^:]+:[^:]+$", rownames(TEcount)), , drop = FALSE]
+  df_TE <- TEcount[grepl(te_pattern, rownames(TEcount)), , drop = FALSE]
   df_TE <- df_TE[rowMeans(df_TE, na.rm = TRUE) > min_mean, , drop = FALSE]
 
-  df_Gene <- TEcount[!grepl("^[^:]+:[^:]+:[^:]+$", rownames(TEcount)), , drop = FALSE]
+  df_Gene <- TEcount[!grepl(te_pattern, rownames(TEcount)), , drop = FALSE]
   df_Gene <- df_Gene[rowMeans(df_Gene, na.rm = TRUE) > min_mean, , drop = FALSE]
 
   list(Gene_TE = TEcount, TE = df_TE, Gene = df_Gene)
@@ -506,38 +516,34 @@ TEcount_read <- function(infile, control, experiment, min_mean = 5){
 
 #' Read and Filter TElocal Locus-Specific Expression Matrix
 #'
-#' This function reads a TElocal output matrix, selects specific samples for 
-#' downstream analysis, and filters for uniquely identified Transposable Element (TE) 
-#' loci based on a quadruple-colon naming convention and expression thresholds.
+#' This function reads a TElocal output matrix, selects specific samples for
+#' downstream analysis, and splits rows into locus-specific Transposable Element
+#' (TE) entries (quadruple-colon naming convention) and gene entries, filtering
+#' both subsets for low expression. Behaves like \code{\link{TEcount_read}} but
+#' defaults to the TElocal 4-field row naming convention.
 #'
 #' @param infile Character. Path to the input TElocal matrix file (TSV format).
 #' @param control Character vector. Names of control samples to include.
 #' @param experiment Character vector. Names of experiment samples to include.
-#' @param min_mean Numeric. The threshold for row mean counts. Features with an 
-#'   average count across selected samples less than or equal to this value 
+#' @param min_mean Numeric. The threshold for row mean counts. Features with an
+#'   average count across selected samples less than or equal to this value
 #'   will be removed. Default is 5.
+#' @param te_pattern Character. Regex identifying TE loci rows. Default matches
+#'   the TElocal naming convention with four segments
+#'   (e.g. \code{TE_Name:Family:Class:Locus}).
 #'
-#' @details 
-#' The function identifies TE loci using the regex pattern \code{"^[^:]+:[^:]+:[^:]+:[^:]+$"}. 
-#' This pattern specifically targets the TElocal naming convention, which typically 
-#' includes four segments (e.g., \code{TE_Name:Family:Class:Locus}). 
-#' Only rows matching this specific format are retained.
-#'
-#' @return A data frame containing the filtered and subsetted TE expression matrix.
+#' @return A list containing three elements:
+#'   \itemize{
+#'     \item \code{Gene_TE}: The raw subsetted matrix containing all selected samples
+#'           (before low-expression filtering).
+#'     \item \code{TE}: A data frame containing only the filtered TE loci entries.
+#'     \item \code{Gene}: A data frame containing only the filtered Gene entries.
+#'   }
 #' @export
-TElocal_read <- function(infile, control, experiment, min_mean = 5){
-  if (!file.exists(infile)) {
-    log_msg("ERROR",paste0(infile," don't exist"), quit = TRUE)
-  }
-  TElocal <- read.csv(infile, sep = "\t", header = TRUE, row.names = 1, check.names = FALSE)
-  samples_sel <- c(control, experiment)
-  if(!all(samples_sel %in% colnames(TElocal))){
-    log_msg("ERROR","Some samples in control/experiment not present in matrix columns.",quit = TRUE)
-  }
-  TElocal <- TElocal[, samples_sel, drop = FALSE]
-  df_TE <- TElocal[grepl("^[^:]+:[^:]+:[^:]+:[^:]+$", rownames(TElocal)), , drop = FALSE]
-  df_TE <- df_TE[rowMeans(df_TE, na.rm = TRUE) > min_mean, , drop = FALSE]
-  df_TE
+TElocal_read <- function(infile, control, experiment, min_mean = 5,
+                         te_pattern = "^[^:]+:[^:]+:[^:]+:[^:]+$"){
+  TEcount_read(infile = infile, control = control, experiment = experiment,
+               min_mean = min_mean, te_pattern = te_pattern)
 }
 
 #' Read and Filter a Gene Expression Count Matrix
@@ -664,8 +670,15 @@ ensure_dir(outdir)
 log_msg("INFO","Mode:", args$mode, "Matrix:", args$matrix, "Outdir:", outdir, "Prefix:", prefix, "Figures:", paste(args$figure, collapse = ","))
 
 # main branch
-if(args$mode == "TEcount"){
-  dfList <- TEcount_read(args$matrix, control, experiment)
+if(args$mode %in% c("TEcount", "TElocal")){
+  # TEcount subfamily rows have 3 colon-separated fields; TElocal locus rows have 4
+  te_pattern <- if(args$mode == "TElocal") "^[^:]+:[^:]+:[^:]+:[^:]+$" else "^[^:]+:[^:]+:[^:]+$"
+  mode_tag <- args$mode
+  if(args$mode == "TElocal"){
+    dfList <- TElocal_read(args$matrix, control, experiment, te_pattern = te_pattern)
+  } else {
+    dfList <- TEcount_read(args$matrix, control, experiment, te_pattern = te_pattern)
+  }
 
   if("pca" %in% args$figure){
     df_for_pca <- dfList[["Gene"]]
@@ -689,7 +702,7 @@ if(args$mode == "TEcount"){
     log_msg("INFO","PCA saved to:", pca_out)
   }
 
-  # which TEcount parts to process
+  # which data subsets to process
   modes_to_run <- if("all" %in% args$TEcountMode) names(dfList) else args$TEcountMode
 
   for(dataType in modes_to_run){
@@ -697,13 +710,13 @@ if(args$mode == "TEcount"){
       log_msg("INFO","Skipping unknown dataType:", dataType); next
     }
     df <- dfList[[dataType]]
-    outfile <- file.path(outdir, paste0(prefix, ".TEcount_", dataType, ".tsv"))
+    outfile <- file.path(outdir, paste0(prefix, ".", mode_tag, "_", dataType, ".tsv"))
     ensure_dir(dirname(outfile))
     resDds <- DESeq2Analysis(df, colData, resfile = outfile, normMethods = "DESeq2")
     res_comb <- resDds$results
     # TEFilter only for Gene_TE type (to extract TE-like rows)
     if(dataType == "Gene_TE"){
-      res_comb_TE <- TEFilter(res_comb)
+      res_comb_TE <- TEFilter(res_comb, pattern = te_pattern)
     } else {
       res_comb_TE <- res_comb
     }
@@ -714,19 +727,19 @@ if(args$mode == "TEcount"){
       ensure_dir(heat_dir)
       # create up/down sets and heatmaps
       sf <- ScreenFeature(res_comb_TE,
-                          upfile = file.path(outdir,"upDown",paste0(prefix,".TEcount_",dataType,"_up.tsv")),
-                          downfile = file.path(outdir,"upDown",paste0(prefix,".TEcount_",dataType,"_down.tsv")),
-                          updownfile = file.path(outdir,"upDown",paste0(prefix,".TEcount_",dataType,"_updown.tsv")))
+                          upfile = file.path(outdir,"upDown",paste0(prefix,".",mode_tag,"_",dataType,"_up.tsv")),
+                          downfile = file.path(outdir,"upDown",paste0(prefix,".",mode_tag,"_",dataType,"_down.tsv")),
+                          updownfile = file.path(outdir,"upDown",paste0(prefix,".",mode_tag,"_",dataType,"_updown.tsv")))
       if(nrow(sf$up) >= 2){
-        up_file <- file.path(heat_dir, paste0(prefix,".TEcount_", dataType, "_up.", fmt))
+        up_file <- file.path(heat_dir, paste0(prefix,".", mode_tag, "_", dataType, "_up.", fmt))
         updown_heatmap(sf$up, up_file, coldata = sample_anno, format = fmt)
       } else log_msg("INFO","Less than 2 up genes; skip heatmap for up.")
       if(nrow(sf$down) >= 2){
-        down_file <- file.path(heat_dir, paste0(prefix,".TEcount_", dataType, "_down.", fmt))
+        down_file <- file.path(heat_dir, paste0(prefix,".", mode_tag, "_", dataType, "_down.", fmt))
         updown_heatmap(sf$down, down_file, coldata = sample_anno, format = fmt)
       } else log_msg("INFO","Less than 2 down genes; skip heatmap for down.")
       if(nrow(rbind(sf$up, sf$down)) >= 2){
-        all_file <- file.path(heat_dir, paste0(prefix,".TEcount_", dataType, "_updown.", fmt))
+        all_file <- file.path(heat_dir, paste0(prefix,".", mode_tag, "_", dataType, "_updown.", fmt))
         updown_heatmap(rbind(sf$up, sf$down), all_file, coldata = sample_anno, format = fmt)
       } else log_msg("INFO","Less than 2 dysregulated genes; skip combined heatmap.")
     }
@@ -737,41 +750,19 @@ if(args$mode == "TEcount"){
       # decide gene vs TE based on name pattern or dataType
       is_gene_mode <- grepl("Gene", dataType)
       if(is_gene_mode){
-        vol_out <- file.path(vol_dir, paste0(prefix,".TEcount_", dataType, "_volcano.", fmt))
-        ma_out <- file.path(vol_dir, paste0(prefix,".TEcount_", dataType, "_MA.", fmt))
+        vol_out <- file.path(vol_dir, paste0(prefix,".",mode_tag,"_", dataType, "_volcano.", fmt))
+        ma_out <- file.path(vol_dir, paste0(prefix,".",mode_tag,"_", dataType, "_MA.", fmt))
         plot_volcano(res_comb_TE, vol_out, mode = "gene", geneAnnotation = args$annotation)
         plot_MA(res_comb_TE, ma_out, mode = "gene", geneAnnotation = args$annotation)
       } else {
-        vol_out <- file.path(vol_dir, paste0(prefix,".TEcount_", dataType, "_volcano.", fmt))
-        ma_out <- file.path(vol_dir, paste0(prefix,".TEcount_", dataType, "_MA.", fmt))
+        vol_out <- file.path(vol_dir, paste0(prefix,".",mode_tag,"_", dataType, "_volcano.", fmt))
+        ma_out <- file.path(vol_dir, paste0(prefix,".",mode_tag,"_", dataType, "_MA.", fmt))
         plot_volcano(res_comb_TE, vol_out, mode = "TE")
         plot_MA(res_comb_TE, ma_out, mode = "TE")
       }
     }
   } # end loop dataType
 
-} else if(args$mode == "TElocal"){
-  df <- TElocal_read(args$matrix, control, experiment)
-  outfile <- file.path(outdir, paste0(prefix, ".TElocal_TE.tsv"))
-  resDds <- DESeq2Analysis(df, colData, resfile = outfile, normMethods = "DESeq2")
-  res_comb <- resDds$results
-  # plotting
-  if("heatmap" %in% args$figure){
-    plot_dir <- file.path(outdir, "heatmap")
-    ensure_dir(plot_dir)
-    sf <- ScreenFeature(res_comb,
-                        upfile = file.path(outdir,"upDown",paste0(prefix,".TElocal_TE_up.tsv")),
-                        downfile = file.path(outdir,"upDown",paste0(prefix,".TElocal_TE_down.tsv")),
-                        updownfile = file.path(outdir,"upDown",paste0(prefix,".TElocal_TE_updown.tsv")))
-    if(nrow(sf$up) >= 2) updown_heatmap(sf$up, file.path(plot_dir, paste0(prefix, ".TElocal_up.", fmt)), coldata = sample_anno, format = fmt)
-    if(nrow(sf$down) >= 2) updown_heatmap(sf$down, file.path(plot_dir, paste0(prefix, ".TElocal_down.", fmt)), coldata = sample_anno, format = fmt)
-  }
-  if("volcano" %in% args$figure){
-    vol_dir <- file.path(outdir, "volcano")
-    ensure_dir(vol_dir)
-    plot_volcano(res_comb, file.path(vol_dir, paste0(prefix, ".TElocal_volcano.", fmt)), mode = "TE")
-    plot_MA(res_comb, file.path(vol_dir, paste0(prefix, ".TElocal_MA.", fmt)), mode = "TE")
-  }
 } else if(args$mode == "Count"){
   df <- count_read(args$matrix, control, experiment)
   outfile <- file.path(outdir, paste0(prefix, ".Count.tsv"))

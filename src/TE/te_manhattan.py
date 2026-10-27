@@ -601,6 +601,7 @@ def plot_manhattan(
     label_top: int = 0,
     hlines: Optional[List[float]] = None,
     chrom_order: Optional[str] = None,
+    ylim: Optional[Tuple[float, float]] = None,
 ) -> None:
     """Render the genome-wide TE locus Manhattan plot.
 
@@ -644,6 +645,11 @@ def plot_manhattan(
         Horizontal reference lines (e.g. ``[1, -1]``).
     chrom_order : str, optional
         Unused here (order precomputed); kept for CLI symmetry.
+    ylim : Tuple[float, float], optional
+        Fixed y axis limits ``(ymin, ymax)``. Loci beyond the limits
+        are drawn as hollow markers pinned to the boundary (clipped,
+        not dropped) with a count note at each boundary. Default is
+        ``None`` (matplotlib autoscale).
 
     Returns
     -------
@@ -651,6 +657,26 @@ def plot_manhattan(
     """
     if image_formats is None:
         image_formats = ["png"]
+
+    if ylim is not None:
+        y_min, y_max = float(ylim[0]), float(ylim[1])
+        if y_min >= y_max:
+            raise ValueError(f"ylim must be (ymin, ymax) with ymin < ymax, got {ylim}")
+        out_of_range = loci[(loci["value"] < y_min) | (loci["value"] > y_max)]
+        loci = loci.copy()
+        if len(out_of_range):
+            logger.info(
+                f"y axis clipped to [{y_min:g}, {y_max:g}]: {len(out_of_range)} loci "
+                "pinned to the boundary as hollow markers"
+            )
+            loci["value"] = loci["value"].clip(lower=y_min, upper=y_max)
+            loci["is_pinned"] = loci.index.isin(out_of_range.index)
+        else:
+            loci["is_pinned"] = False
+    else:
+        y_min = y_max = 0.0  # sentinel; only referenced under `ylim is not None`
+        loci = loci.copy()
+        loci["is_pinned"] = False
 
     n_highlight_families = loci.loc[loci["is_highlight"], "family"].nunique() if "is_highlight" in loci else 0
     has_legend = bool(loci["is_burst"].any()) or n_highlight_families > 0
@@ -698,6 +724,30 @@ def plot_manhattan(
             alpha=0.95, linewidths=0, zorder=4, label="burst locus",
         )
         legend_handles.append(handle)
+
+    if ylim is not None and loci["is_pinned"].any():
+        pinned = loci[loci["is_pinned"]]
+        ax.scatter(
+            pinned["xpos"], pinned["value"], s=highlight_size, facecolors="none",
+            edgecolors="#333333", linewidths=0.8, zorder=5,
+        )
+        n_below = int((loci["value"] <= y_min).sum())
+        n_above = int((loci["value"] >= y_max).sum())
+        for note_y, note_n, va in (
+            (y_min, n_below, "bottom"),
+            (y_max, n_above, "top"),
+        ):
+            if note_n > 0:
+                ax.annotate(
+                    f"{note_n} loci beyond limit",
+                    xy=(0.0, note_y),
+                    xycoords=("axes fraction", "data"),
+                    ha="left", va=va, fontsize=8, color="#333333",
+                    annotation_clip=False, zorder=6,
+                )
+
+    if ylim is not None:
+        ax.set_ylim(y_min, y_max)
 
     centers = loci.groupby("chrom")["chrom_center"].first()
     ax.set_ylabel(ylabel)
@@ -797,6 +847,9 @@ def build_parser() -> argparse.ArgumentParser:
                         help="Label the N marked loci (burst+highlight) with largest |value|. Keep <= 30.")
     parser.add_argument("--hline", action="append", type=float, dest="hlines",
                         metavar="Y", help="Horizontal reference line. Repeatable.")
+    parser.add_argument("--ylim", default=None, metavar="YMIN,YMAX",
+                        help="Fixed y axis limits. Loci beyond the limits are drawn "
+                             "pinned to the boundary as hollow markers.")
     parser.add_argument("--chrom-order", default=None,
                         help="Chromosome order: file (one per line) or comma list.")
     parser.add_argument("--ylabel", default="value", help="Y axis label.")
@@ -874,6 +927,8 @@ def main(argv: Optional[List[str]] = None) -> None:
         label_top=args.label_top,
         hlines=args.hlines,
         chrom_order=args.chrom_order,
+        ylim=(float(args.ylim.split(",")[0]), float(args.ylim.split(",")[1]))
+        if args.ylim else None,
     )
 
 

@@ -844,12 +844,6 @@ def runRNAseq(
             raise ValueError(f"function module don't support {organism}, only support human or mouse(Homo sapiens or Mus musculus)")
     datajson["Params"]["report"]["date"] = time.strftime("%Y-%m-%d", time.localtime())
     for organism in Organisms:
-        if organism == "GRCm39":
-            datajson["Params"]["function"][organism]["gsea"]["gmt"] = os.path.join(root_dir,"assests/geneset/GSI_mouse.gmt")
-            datajson["Params"]["function"][organism]["gsva"]["gmt"] = os.path.join(root_dir,"assests/geneset/GSI_mouse.gmt")
-        if organism == "GRCh38":
-            datajson["Params"]["function"][organism]["gsea"]["gmt"] = os.path.join(root_dir,"assests/geneset/GSI_human.gmt")
-            datajson["Params"]["function"][organism]["gsva"]["gmt"] = os.path.join(root_dir,"assests/geneset/GSI_human.gmt")
         if enable_fusion:
             outfiles.append(f"{outdir}/fusion/{organism}/arriba_report/arriba_fusion_report.html")
         if enable_StringTie:

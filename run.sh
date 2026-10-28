@@ -14,16 +14,16 @@ python ${SCRIPT_DIR}/run.py \
     -t 48 \
     --log /data/16T/luosg/log/PlaB_10nM.log \
     --sdm \
-    --rerun-triggers mtime
+    --Params.TElocal.enabled False
 
-python ${SCRIPT_DIR}/run.py \
-    -m /data/pub/zhousha/Totipotent20251031/data/Totipotency/meat_input.tsv \
-    -w RNAseq \
-    -o /data/pub/zhousha/Totipotent20251031/output/pluripotent2totipotent \
-    -t 48 \
-    --log /data/pub/zhousha/Totipotent20251031/log/pluripotent2totipotent_RNAseq.log \
-    --sdm \
-    --rerun-triggers mtime
+# python ${SCRIPT_DIR}/run.py \
+#     -m /data/pub/zhousha/Totipotent20251031/data/Totipotency/meat_input.tsv \
+#     -w RNAseq \
+#     -o /data/pub/zhousha/Totipotent20251031/output/pluripotent2totipotent \
+#     -t 48 \
+#     --log /data/pub/zhousha/Totipotent20251031/log/pluripotent2totipotent_RNAseq.log \
+#     --sdm \
+#     --rerun-triggers mtime
         # --forcerun function_gsva
 
 # python ${SCRIPT_DIR}/run.py \

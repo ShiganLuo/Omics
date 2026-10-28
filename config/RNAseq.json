@@ -361,10 +361,10 @@
                     "species": "human"
                 },
                 "gsea": {
-                    "gmt": "/home/luosg/Data/genomeStability/workflow/Omics/assests/geneset/8C_human.gmt"
+                    "gmt": "/data/16T/Database/Reference/geneset/8C_human.gmt"
                 },
                 "gsva": {
-                    "gmt": "/home/luosg/Data/genomeStability/workflow/Omics/assests/geneset/GSI_huam.gmt"
+                    "gmt": "/data/16T/Database/Reference/geneset/GSI_human.gmt"
                 }
             },
             "GRCm39": {
@@ -376,10 +376,10 @@
                     "species": "mouse"
                 },
                 "gsea": {
-                    "gmt": "/home/luosg/Data/genomeStability/workflow/Omics/assests/geneset/2C_mouse.gmt"
+                    "gmt": "/data/16T/Database/Reference/geneset/2C_mouse.gmt"
                 },
                 "gsva": {
-                    "gmt": "/home/luosg/Data/genomeStability/workflow/Omics/assests/geneset/GSI_mouse.gmt"
+                    "gmt": "/data/16T/Database/Reference/geneset/GSI_mouse.gmt"
                 }
             }
         },

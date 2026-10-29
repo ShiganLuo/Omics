@@ -11,6 +11,7 @@
         "ldsc": "/home/luosg/Database/env/ldsc/ldsc.sif",
         "deepvariant": "/home/luosg/Database/env/deepvariant/deepvariant.sif",
         "pbsv": "/home/luosg/Database/env/pbsv/pbsv.sif",
+        "sv": "/home/luosg/Database/env/sv/sv.sif",
         "hiphase": "/home/luosg/Database/env/hiphase/hiphase.sif",
         "genome": "/home/luosg/Database/env/genome/genome.sif",
         "deeptools": "/data/16T/Database/env/deeptools/deeptools.sif",
@@ -116,6 +117,33 @@
             "enabled": true,
             "min_fibers": 10,
             "alpha": 0.05
+        },
+        "sv": {
+            "enabled": true,
+            "comparisons": {},
+            "image_formats": ["png"],
+            "genes": [],
+            "exp_specific": {
+                "vep_cache": "~/.vep",
+                "species": "macaca_mulatta",
+                "assembly": "Mmul_10",
+                "dist": 500
+            },
+            "circos": {
+                "genome": "rheMac10",
+                "cytoband": "",
+                "ins_bin_size": 100000
+            },
+            "oncoprint": {
+                "cosmic_file": "",
+                "deseq2_files": {}
+            },
+            "diff_analysis": {
+                "large_sv_threshold": 10000
+            },
+            "gene_model": {
+                "threads": 1
+            }
         },
         "censat": {
             "enabled": false,

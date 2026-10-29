@@ -83,6 +83,74 @@
       "enabled": {
         "type": "bool",
         "required": false
+      },
+      "comparisons": {
+        "type": "dict",
+        "required": false
+      },
+      "image_formats": {
+        "type": "list",
+        "required": false
+      },
+      "genes": {
+        "type": "list",
+        "required": false
+      },
+      "exp_specific": {
+        "vep_cache": {
+          "type": "str",
+          "required": true,
+          "path": "dir"
+        },
+        "species": {
+          "type": "str",
+          "required": true
+        },
+        "assembly": {
+          "type": "str",
+          "required": true
+        },
+        "dist": {
+          "type": "int",
+          "required": true
+        }
+      },
+      "circos": {
+        "genome": {
+          "type": "str",
+          "required": true
+        },
+        "cytoband": {
+          "type": "str",
+          "required": false
+        },
+        "ins_bin_size": {
+          "type": "int",
+          "required": true
+        }
+      },
+      "oncoprint": {
+        "cosmic_file": {
+          "type": "str",
+          "required": false,
+          "path": "file"
+        },
+        "deseq2_files": {
+          "type": "dict",
+          "required": false
+        }
+      },
+      "diff_analysis": {
+        "large_sv_threshold": {
+          "type": "int",
+          "required": true
+        }
+      },
+      "gene_model": {
+        "threads": {
+          "type": "int",
+          "required": true
+        }
       }
     },
     "phase": {

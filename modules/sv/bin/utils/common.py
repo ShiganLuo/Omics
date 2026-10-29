@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import List, Optional
 import logging
 logger = logging.getLogger(__name__)
 def setup_logger(logger_name: str, level: int = logging.INFO, log_file: Optional[str] = None) -> logging.Logger:

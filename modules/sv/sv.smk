@@ -8,9 +8,20 @@ indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 
-# comparisons: list of dicts, each with control_vcf, experiment_vcf, name
-comparisons = config.get("comparisons", [])
-comparison_names = [c["name"] for c in comparisons]
+# comparisons: DESeq2-style group_pairs dict keyed by comparison name
+# ("{control_group_name}_vs_{experimental_group_name}"), each entry:
+#   {control_group_name, experimental_group_name,
+#    control_samples: [...], experimental_samples: [...]}
+# SV VCF paths are resolved per sample from vcf_dir/vcf_suffix (pbsv layout);
+# no file paths live in the config.
+comparisons = config.get("comparisons", {})
+comparison_names = list(comparisons)
+vcf_dir = config.get("vcf_dir", "")
+vcf_suffix = config.get("vcf_suffix", ".sv.vcf.gz")
+
+def _sample_vcfs(sample_ids):
+    """Resolve sample IDs to their SV VCF paths under vcf_dir."""
+    return [f"{vcf_dir}/{s}/{s}{vcf_suffix}" for s in sample_ids]
 
 # Global parameters
 image_formats = config.get("Params", {}).get("image_formats", ["png"])
@@ -23,9 +34,9 @@ genes = config.get("Params", {}).get("genes", [])
 rule sv_exp_specific:
     """Run experiment-specific SV analysis: merge, extract, annotate, plot, TE enrichment."""
     input:
-        control_vcf = lambda wc: next(c["control_vcf"] for c in comparisons if c["name"] == wc.comparison),
-        experiment_vcf = lambda wc: next(c["experiment_vcf"] for c in comparisons if c["name"] == wc.comparison),
-        fasta = config.get("genome", {}).get("fasta", ""),
+        control_vcfs = lambda wc: _sample_vcfs(comparisons[wc.comparison]["control_samples"]),
+        experiment_vcfs = lambda wc: _sample_vcfs(comparisons[wc.comparison]["experimental_samples"]),
+        fasta = lambda wildcards: _require(config.get("genome", {}).get("fasta"), "genome.fasta", "sv"),
     output:
         merged_vcf = outdir + "/{comparison}/{comparison}_merged.vcf",
         specific_vcf = outdir + "/{comparison}/{comparison}_only.vcf",
@@ -43,19 +54,21 @@ rule sv_exp_specific:
     container:
         sif("sv.yaml")
     run:
+        log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger("sv_exp_specific",log_file = log_path)
         try:
-            log_path = str(log)
-            open(log_path, "w").close()
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             outprefix = f"{outdir}/{wildcards.comparison}/{wildcards.comparison}"
             script_path = os.path.join(outdir, f"{wildcards.comparison}/sv_exp_specific_{current_time}.sh")
+            rule_logger.info(f"Running sv_exp_specific for comparison: {wildcards.comparison}")
             fmt_args = []
             for fmt in image_formats:
                 fmt_args += ["-f", fmt]
             cmd = [
                 "python", params.script,
-                "-c", input.control_vcf,
-                "-e", input.experiment_vcf,
+                "-c", *list(input.control_vcfs),
+                "-e", *list(input.experiment_vcfs),
                 "-o", outprefix,
                 "-d", str(params.dist),
                 "--vep_cache", params.vep_cache,
@@ -64,20 +77,20 @@ rule sv_exp_specific:
                 "--annotate_format", "tab",
             ] + fmt_args
             with open(script_path, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
+                f.write("echo 'sv_exp_specific completed successfully.'\n")
             shell(f"bash {script_path} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"sv_exp_specific failed for {wildcards.comparison}: {e}\n")
-            raise
+            rule_logger.error(f"sv_exp_specific failed for {wildcards.comparison}: {e}")
+            raise RuntimeError(f"sv_exp_specific failed for {wildcards.comparison}: {e}")
 
 rule sv_exp_enrichment:
     """Run GO/KEGG enrichment and hotspot analysis on annotated SVs."""
     input:
         annotated_tab = outdir + "/{comparison}/{comparison}_annotated.tab",
-        gtf = config.get("genome", {}).get("gtf", ""),
-        fai = config.get("genome", {}).get("fai", ""),
+        gtf = lambda wildcards: config.get("genome", {}).get("gtf") or [],
+        fai = lambda wildcards: config.get("genome", {}).get("fai") or [],
     output:
         enrichment_dir = directory(outdir + "/{comparison}/enrichment"),
     log:
@@ -89,12 +102,14 @@ rule sv_exp_enrichment:
     container:
         sif("sv.yaml")
     run:
+        log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger("sv_exp_enrichment", log_file=log_path)
         try:
-            log_path = str(log)
-            open(log_path, "w").close()
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             enrichment_outdir = f"{outdir}/{wildcards.comparison}/enrichment"
             script_path = os.path.join(outdir, f"{wildcards.comparison}/sv_exp_enrichment_{current_time}.sh")
+            rule_logger.info(f"Running sv_exp_enrichment for comparison: {wildcards.comparison}")
             fmt_args = []
             for fmt in image_formats:
                 fmt_args += ["-f", fmt]
@@ -102,23 +117,26 @@ rule sv_exp_enrichment:
                 "python", params.script,
                 "-a", input.annotated_tab,
                 "-o", enrichment_outdir,
-                "-g", input.gtf,
-                "-fi", input.fai,
             ] + fmt_args
+            # gtf/fai are optional (hotspot analysis); only pass when configured
+            if input.gtf:
+                cmd += ["-g", input.gtf]
+            if input.fai:
+                cmd += ["-fi", input.fai]
             with open(script_path, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
+                f.write("echo 'sv_exp_enrichment completed successfully.'\n")
             shell(f"bash {script_path} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"sv_exp_enrichment failed for {wildcards.comparison}: {e}\n")
-            raise
+            rule_logger.error(f"sv_exp_enrichment failed for {wildcards.comparison}: {e}")
+            raise RuntimeError(f"sv_exp_enrichment failed for {wildcards.comparison}: {e}")
 
 rule sv_exp_circos:
     """Generate Circos plot for experiment-specific SVs."""
     input:
         specific_vcf = outdir + "/{comparison}/{comparison}_only.vcf",
-        fasta = config.get("genome", {}).get("fasta", ""),
+        fasta = lambda wildcards: _require(config.get("genome", {}).get("fasta"), "genome.fasta", "sv"),
     output:
         circos_dir = directory(outdir + "/{comparison}/circos"),
     log:
@@ -133,12 +151,14 @@ rule sv_exp_circos:
     container:
         sif("sv.yaml")
     run:
+        log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger("sv_exp_circos", log_file=log_path)
         try:
-            log_path = str(log)
-            open(log_path, "w").close()
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             circos_outdir = f"{outdir}/{wildcards.comparison}/circos"
             script_path = os.path.join(outdir, f"{wildcards.comparison}/sv_exp_circos_{current_time}.sh")
+            rule_logger.info(f"Running sv_exp_circos for comparison: {wildcards.comparison}")
             fmt_args = []
             for fmt in image_formats:
                 fmt_args += ["-f", fmt]
@@ -153,20 +173,20 @@ rule sv_exp_circos:
             if params.cytoband:
                 cmd += ["--cytoband", params.cytoband]
             with open(script_path, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
+                f.write("echo 'sv_exp_circos completed successfully.'\n")
             shell(f"bash {script_path} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"sv_exp_circos failed for {wildcards.comparison}: {e}\n")
-            raise
+            rule_logger.error(f"sv_exp_circos failed for {wildcards.comparison}: {e}")
+            raise RuntimeError(f"sv_exp_circos failed for {wildcards.comparison}: {e}")
 
 rule sv_gene_model:
     """Generate gene model plots with SV overlay for specified genes."""
     input:
-        fasta = config.get("genome", {}).get("fasta", ""),
+        fasta = lambda wildcards: _require(config.get("genome", {}).get("fasta"), "genome.fasta", "sv"),
         specific_vcf = outdir + "/{comparison}/{comparison}_only.vcf",
-        gtf = config.get("genome", {}).get("gtf", ""),
+        gtf = lambda wildcards: _require(config.get("genome", {}).get("gtf"), "genome.gtf", "sv"),
     output:
         gene_dir = directory(outdir + "/{comparison}/gene_model"),
     log:
@@ -179,12 +199,14 @@ rule sv_gene_model:
     container:
         sif("sv.yaml")
     run:
+        log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger("sv_gene_model", log_file=log_path)
         try:
-            log_path = str(log)
-            open(log_path, "w").close()
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             gene_outdir = f"{outdir}/{wildcards.comparison}/gene_model"
             script_path = os.path.join(outdir, f"{wildcards.comparison}/sv_gene_model_{current_time}.sh")
+            rule_logger.info(f"Running sv_gene_model for comparison: {wildcards.comparison}")
             gene_args = []
             for g in genes:
                 gene_args += ["-g", g]
@@ -200,13 +222,13 @@ rule sv_gene_model:
                 "-j", str(params.threads),
             ] + fmt_args
             with open(script_path, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
+                f.write("echo 'sv_gene_model completed successfully.'\n")
             shell(f"bash {script_path} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"sv_gene_model failed for {wildcards.comparison}: {e}\n")
-            raise
+            rule_logger.error(f"sv_gene_model failed for {wildcards.comparison}: {e}")
+            raise RuntimeError(f"sv_gene_model failed for {wildcards.comparison}: {e}")
 
 # ========================
 # Aggregation rules (cross-comparison)
@@ -228,16 +250,18 @@ rule sv_diff_analysis:
     container:
         sif("sv.yaml")
     run:
+        log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger("sv_diff_analysis", log_file=log_path)
         try:
-            log_path = str(log)
-            open(log_path, "w").close()
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             diff_outdir = f"{outdir}/sv_diff_analysis"
             script_path = os.path.join(outdir, f"sv_diff_analysis_{current_time}.sh")
+            rule_logger.info(f"Running sv_diff_analysis for all comparisons")
             group_args = []
-            for c in comparisons:
-                vcf_path = f"{outdir}/{c['name']}/{c['name']}_only.vcf"
-                group_args += ["-g", f"{c['name']}:{vcf_path}"]
+            for name in comparison_names:
+                vcf_path = f"{outdir}/{name}/{name}_only.vcf"
+                group_args += ["-g", f"{name}:{vcf_path}"]
             fmt_args = []
             for fmt in image_formats:
                 fmt_args += ["-f", fmt]
@@ -247,19 +271,19 @@ rule sv_diff_analysis:
                 "-s", str(params.large_sv_threshold),
             ] + group_args + fmt_args
             with open(script_path, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
+                f.write("echo 'sv_diff_analysis completed successfully.'\n")
             shell(f"bash {script_path} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"sv_diff_analysis failed: {e}\n")
-            raise
+            rule_logger.error(f"sv_diff_analysis failed: {e}")
+            raise RuntimeError(f"sv_diff_analysis failed: {e}")
 
 rule sv_oncoprint:
     """Generate OncoPrint plot from annotated SVs, COSMIC genes, and DESeq2 results."""
     input:
         annotated_tabs = expand(outdir + "/{comp}/{comp}_annotated.tab", comp=comparison_names),
-        cosmic_file = config.get("Params", {}).get("oncoprint", {}).get("cosmic_file", ""),
+        cosmic_file = lambda wildcards: _require(config.get("Params", {}).get("oncoprint", {}).get("cosmic_file"), "Params.sv.oncoprint.cosmic_file", "sv"),
     output:
         oncoprint_matrix = outdir + "/sv_oncoprint/oncoprint_matrix.csv",
         oncoprint_dir = directory(outdir + "/sv_oncoprint"),
@@ -273,16 +297,18 @@ rule sv_oncoprint:
     container:
         sif("sv.yaml")
     run:
+        log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger("sv_oncoprint", log_file=log_path)
         try:
-            log_path = str(log)
-            open(log_path, "w").close()
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             oncoprint_outdir = f"{outdir}/sv_oncoprint"
             script_path = os.path.join(outdir, f"sv_oncoprint_{current_time}.sh")
+            rule_logger.info(f"Running sv_oncoprint for all comparisons")
             group_args = []
-            for c in comparisons:
-                tab_path = f"{outdir}/{c['name']}/{c['name']}_annotated.tab"
-                group_args += ["-g", f"{c['name']}:{tab_path}"]
+            for name in comparison_names:
+                tab_path = f"{outdir}/{name}/{name}_annotated.tab"
+                group_args += ["-g", f"{name}:{tab_path}"]
             deseq2_args = []
             for cond, path in params.deseq2_files.items():
                 deseq2_args += ["-d", f"{cond}:{path}"]
@@ -295,13 +321,13 @@ rule sv_oncoprint:
                 "-o", oncoprint_outdir,
             ] + group_args + deseq2_args + fmt_args
             with open(script_path, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
+                f.write("echo 'sv_oncoprint completed successfully.'\n")
             shell(f"bash {script_path} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"sv_oncoprint failed: {e}\n")
-            raise
+            rule_logger.error(f"sv_oncoprint failed: {e}")
+            raise RuntimeError(f"sv_oncoprint failed: {e}")
 
 # ========================
 # Result aggregation rule

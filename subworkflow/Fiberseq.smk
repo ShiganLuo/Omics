@@ -123,13 +123,13 @@ use rule pbmm2_align from pbmm2 as Fiberseq_pbmm2_align
 # ============================================================
 # Step 3: Extract BED + peaks + QC → results
 # ============================================================
-analysis_outdir = f"{outdir}/results"
+extract_outdir = f"{outdir}/common/4_raw_results"
 
 fibertools_analysis_config = {
     "ROOT_DIR": ROOT_DIR,
     "env": config.get("env", {}),
     "indir": aligned_dir,
-    "outdir": analysis_outdir,
+    "outdir": extract_outdir,
     "bam_suffix": ".fiberseq.fire.sorted.bam",
     "logdir": f"{logdir}/sample",
     "samples": samples,
@@ -158,6 +158,8 @@ use rule ft_extract_fire from fibertools_analysis as Fiberseq_ft_extract_fire
 # Step 4: Downstream interpretation (one module per analysis;
 #   node.py gates outputs per Params.*.enabled)
 # ============================================================
+analysis_outdir = f"{outdir}/results"
+
 params = config.get("Params", {})
 
 
@@ -440,7 +442,7 @@ module bamCoverage:
     snakefile: "../modules/deeptools/bamCoverage.smk"
     config: bamCoverage_config
 logger.debug(f"bamCoverage_config: {bamCoverage_config}")
-use rule bamCoverage from bamCoverage as PacVar_bamCoverage
+use rule bamCoverage from bamCoverage as Fiberseq_bamCoverage
 
 decoil_config = {
     "resources": config.get("resources", {}),
@@ -471,10 +473,51 @@ module decoil:
     snakefile: "../modules/decoil/decoil.smk"
     config: decoil_config
 logger.debug(f"decoil_config: {decoil_config}")
-use rule decoil_reconstruct from decoil as PacVar_decoil_reconstruct
-use rule decoil_result from decoil as PacVar_decoil_result
-use rule decoil_plot from decoil as PacVar_decoil_plot
-use rule decoil_structure from decoil as PacVar_decoil_structure
-use rule decoil_compare from decoil as PacVar_decoil_compare
-use rule decoil_igv from decoil as PacVar_decoil_igv
-use rule decoil_ucsc from decoil as PacVar_decoil_ucsc
+use rule decoil_reconstruct from decoil as Fiberseq_decoil_reconstruct
+use rule decoil_result from decoil as Fiberseq_decoil_result
+use rule decoil_plot from decoil as Fiberseq_decoil_plot
+use rule decoil_structure from decoil as Fiberseq_decoil_structure
+use rule decoil_compare from decoil as Fiberseq_decoil_compare
+use rule decoil_igv from decoil as Fiberseq_decoil_igv
+use rule decoil_ucsc from decoil as Fiberseq_decoil_ucsc
+
+
+# ============================================================
+# Step 8: SV comparison analysis (modules/sv)
+#   exp-specific SV extraction (SURVIVOR merge + VEP annotate) →
+#   GO/KEGG enrichment → circos → gene model → cross-comparison
+#   diff analysis + OncoPrint (Params.sv gates in node.py).
+#   Params.sv.comparisons follows the DESeq2 group_pairs design
+#   (name -> group names + sample name lists); SV VCF paths are
+#   resolved per sample from vcf_dir/vcf_suffix.
+# ============================================================
+sv_params = config.get("Params", {}).get("sv", {})
+sv_outdir = f"{variation_outdir}/germline_sv_analysis"
+
+sv_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "env": config.get("env", {}),
+    "indir": pbsv_config["outdir"],
+    "outdir": sv_outdir,
+    "logdir": f"{logdir}/group",
+    "comparisons": sv_params.get("comparisons", {}),
+    "vcf_dir": pbsv_config["outdir"],
+    "vcf_suffix": ".sv.vcf.gz",
+    "Params": sv_params,
+    "genome": {
+        "fasta": genome_ref.get("fasta"),
+        "gtf": genome_ref.get("gtf"),
+        "fai": genome_ref.get("fai")
+    }
+}
+module sv:
+    snakefile: "../modules/sv/sv.smk"
+    config: sv_config
+logger.debug(f"Fiber-seq sv config: {sv_config}")
+use rule sv_exp_specific from sv as Fiberseq_sv_exp_specific
+use rule sv_exp_enrichment from sv as Fiberseq_sv_exp_enrichment
+use rule sv_exp_circos from sv as Fiberseq_sv_exp_circos
+use rule sv_gene_model from sv as Fiberseq_sv_gene_model
+use rule sv_diff_analysis from sv as Fiberseq_sv_diff_analysis
+use rule sv_oncoprint from sv as Fiberseq_sv_oncoprint
+use rule sv_result from sv as Fiberseq_sv_result

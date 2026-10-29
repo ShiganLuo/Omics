@@ -300,6 +300,7 @@ def runCLIP(
 def runPacVar(
         datajson: Dict[str, Any],
         samples_info_dict: Dict[str, SampleInfo],
+        group_pairs: List[CompareGroupPair],
         indir: str,
         outdir: str,
         raw_files: List[str],
@@ -310,6 +311,11 @@ def runPacVar(
     (snv, sv, phase, repeat, telomere, eccdna) and `Params.snv_caller`.
     The subworkflow declares every module unconditionally; this function
     decides which outfiles (and therefore which DAG leaves) are requested.
+
+    `Params.sv.enabled` additionally gates the SV comparison analysis
+    (modules/sv). `Params.sv.comparisons` follows the DESeq2 group_pairs
+    design (name -> group names + sample name lists); it is filled from the
+    meta group pairs when not hand-authored in the config.
     """
     root_dir = _init_raw_json(datajson, indir, outdir, raw_files, "PacVar")
     outfiles: List[str] = []
@@ -396,6 +402,57 @@ def runPacVar(
             outfiles.append(f"{outdir}/repeat/telomere/{sample_id}/tidk/{sample_id}_tidk_telomeres.tsv")
             # Centromere
             outfiles.append(f"{outdir}/repeat/centromere/{sample_id}/{sample_id}.centromere_stats.txt")
+
+    # SV comparison analysis (modules/sv): DESeq2-style design —
+    # Params.sv.comparisons maps "{control_group_name}_vs_{experimental_group_name}"
+    # to {control_group_name, experimental_group_name, control_samples,
+    # experimental_samples}. Sample names only: the sv rules resolve each
+    # sample's SV VCF from vcf_dir/vcf_suffix. A hand-filled config block
+    # wins; otherwise it is derived from the meta group pairs, like
+    # runRNAseq fills Params.DESeq2.group_pairs.
+    sv_params = datajson.get("Params", {}).get("sv", {})
+    comparisons = dict(sv_params.get("comparisons") or {})
+    if enable_sv and not comparisons:
+        for gp in group_pairs:
+            name = f"{gp.ctr_group_name}_vs_{gp.exp_group_name}"
+            comparisons[name] = {
+                "control_group_name": gp.ctr_group_name,
+                "experimental_group_name": gp.exp_group_name,
+                "control_samples": gp.ctr_sample_ids,
+                "experimental_samples": gp.exp_sample_ids,
+            }
+    datajson["Params"].setdefault("sv", {})["comparisons"] = comparisons
+    if enable_sv and not comparisons:
+        logger.warning(
+            "PacVar: Params.sv.enabled=true but no SV comparisons are defined; "
+            "fill Params.sv.comparisons in the config JSON or the meta design "
+            "column (ctrl_TAG / exp_TAG). Skipping SV comparison outputs."
+        )
+    if enable_sv and comparisons:
+        sv_outdir = f"{outdir}/variation/germline_sv_analysis"
+        sv_genes = sv_params.get("genes") or []
+        sv_oncoprint = sv_params.get("oncoprint") or {}
+        known_samples = set(samples_info_dict)
+        for name, c in comparisons.items():
+            for key in ("control_samples", "experimental_samples"):
+                unknown = [s for s in (c.get(key) or []) if s not in known_samples]
+                if unknown:
+                    logger.warning(
+                        f"PacVar: Params.sv.comparisons['{name}'].{key} lists "
+                        f"samples not in the meta: {unknown}"
+                    )
+            base = f"{sv_outdir}/{name}"
+            outfiles.append(f"{base}/{name}_merged.vcf")
+            outfiles.append(f"{base}/{name}_only.vcf")
+            outfiles.append(f"{base}/{name}_annotated.tab")
+            outfiles.append(f"{base}/enrichment")
+            outfiles.append(f"{base}/circos")
+            if sv_genes:
+                outfiles.append(f"{base}/gene_model")
+        outfiles.append(f"{sv_outdir}/sv_diff_analysis")
+        if sv_oncoprint.get("cosmic_file"):
+            outfiles.append(f"{sv_outdir}/sv_oncoprint/oncoprint_matrix.csv")
+
     gatk_tmp_dir = os.path.join(outdir, "tmp")
     os.makedirs(gatk_tmp_dir, exist_ok=True)
     datajson["Params"]["gatk"]["tmp-dir"] = gatk_tmp_dir
@@ -1090,6 +1147,7 @@ def runscRNAseq(
 def runFiberseq(
         datajson: Dict[str, Any],
         samples_info_dict: Dict[str, SampleInfo],
+        group_pairs: List[CompareGroupPair],
         indir: str,
         outdir: str,
         raw_files: List[str],
@@ -1099,6 +1157,11 @@ def runFiberseq(
     Pipeline: ft predict-m6a → ft fire → pbmm2 align → ft extract/call-peaks/qc
     Reference: Stergachis et al., 2020, Science (DOI: 10.1126/science.aaz1646).
     Guide: https://fiberseq.github.io/
+
+    `Params.sv.enabled` gates the SV comparison analysis (modules/sv).
+    `Params.sv.comparisons` follows the DESeq2 group_pairs design
+    (name -> group names + sample name lists); it is filled from the meta
+    group pairs when not hand-authored in the config.
     """
     root_dir = _init_raw_json(datajson, indir, outdir, raw_files, "Fiberseq")
 
@@ -1106,6 +1169,7 @@ def runFiberseq(
     samples = []
     res = f"{outdir}/results"
     var = f"{outdir}/variation"
+    raw_results_dir = f"{outdir}/common/4_raw_results"
     genome  = datajson.get("genome", {}).get("default", "")
     default_ref = datajson.get("genome", {}).get("references", {}).get(genome, {})
 
@@ -1121,6 +1185,7 @@ def runFiberseq(
     enable_haplotype = _enabled(datajson, "haplotype")
     enable_lsdc = _enabled(datajson, "ldsc")
     enable_function = _enabled(datajson, "function")
+    enable_sv = _enabled(datajson, "sv")
     want_motif = enable_motif or enable_footprint
     want_quant = enable_quant or enable_diff or enable_haplotype
     want_eccdna = _enabled(datajson, "decoil") and default_ref.get("gtf")
@@ -1132,15 +1197,15 @@ def runFiberseq(
         # Step 2: aligned BAM (pbmm2)
         outfiles.append(f"{outdir}/common/3_align_bam/{sample_id}/{sample_id}.fiberseq.fire.sorted.bam")
         outfiles.append(f"{outdir}/common/3_align_bam/{sample_id}/{sample_id}.fiberseq.fire.sorted.bai")
-        # Step 3: analysis outputs
-        outfiles.append(f"{res}/{sample_id}/{sample_id}.m6a.bed.gz")
-        outfiles.append(f"{res}/{sample_id}/{sample_id}.nuc.bed.gz")
-        outfiles.append(f"{res}/{sample_id}/{sample_id}.msp.bed.gz")
-        outfiles.append(f"{res}/{sample_id}/{sample_id}.cpg.bed.gz")
-        outfiles.append(f"{res}/{sample_id}/{sample_id}.fire_peaks.bed")
-        outfiles.append(f"{res}/{sample_id}/{sample_id}.fire_fdr_table.tsv")
-        outfiles.append(f"{res}/{sample_id}/{sample_id}.fire.bed")
-        outfiles.append(f"{res}/{sample_id}/{sample_id}.qc.tsv")
+        # Step 3: raw results
+        outfiles.append(f"{raw_results_dir}/{sample_id}/{sample_id}.m6a.bed.gz")
+        outfiles.append(f"{raw_results_dir}/{sample_id}/{sample_id}.nuc.bed.gz")
+        outfiles.append(f"{raw_results_dir}/{sample_id}/{sample_id}.msp.bed.gz")
+        outfiles.append(f"{raw_results_dir}/{sample_id}/{sample_id}.cpg.bed.gz")
+        outfiles.append(f"{raw_results_dir}/{sample_id}/{sample_id}.fire_peaks.bed")
+        outfiles.append(f"{raw_results_dir}/{sample_id}/{sample_id}.fire_fdr_table.tsv")
+        outfiles.append(f"{raw_results_dir}/{sample_id}/{sample_id}.fire.bed")
+        outfiles.append(f"{raw_results_dir}/{sample_id}/{sample_id}.qc.tsv")
 
         # Step 4: downstream (gated by Params.*.enabled)
         if enable_annotate:
@@ -1220,7 +1285,60 @@ def runFiberseq(
             # Cross-sample comparison (aggregated)
             outfiles.append(f"{outdir}/eccdna/visualization/decoil_compare.png")
             outfiles.append(f"{outdir}/eccdna/visualization/decoil_compare_shared_unique.tsv")
-    
+        if enable_sv:
+            outfiles.append(f"{var}/germline_sv/{sample_id}/{sample_id}.svsig.gz")
+            outfiles.append(f"{var}/germline_sv/{sample_id}/{sample_id}.sv.vcf.gz")
+            outfiles.append(f"{var}/germline_sv/{sample_id}/{sample_id}.sv.vcf.gz.csi")
+    # SV comparison analysis (modules/sv): DESeq2-style design —
+    # Params.sv.comparisons maps "{control_group_name}_vs_{experimental_group_name}"
+    # to {control_group_name, experimental_group_name, control_samples,
+    # experimental_samples}. Sample names only: the sv rules resolve each
+    # sample's SV VCF from vcf_dir/vcf_suffix. A hand-filled config block
+    # wins; otherwise it is derived from the meta group pairs, like
+    # runRNAseq fills Params.DESeq2.group_pairs.
+    sv_params = datajson.get("Params", {}).get("sv", {})
+    comparisons = dict(sv_params.get("comparisons") or {})
+    if enable_sv and not comparisons:
+        for gp in group_pairs:
+            name = f"{gp.ctr_group_name}_vs_{gp.exp_group_name}"
+            comparisons[name] = {
+                "control_group_name": gp.ctr_group_name,
+                "experimental_group_name": gp.exp_group_name,
+                "control_samples": gp.ctr_sample_ids,
+                "experimental_samples": gp.exp_sample_ids,
+            }
+    datajson["Params"].setdefault("sv", {})["comparisons"] = comparisons
+    if enable_sv and not comparisons:
+        logger.warning(
+            "Fiberseq: Params.sv.enabled=true but no SV comparisons are defined; "
+            "fill Params.sv.comparisons in the config JSON or the meta design "
+            "column (ctrl_TAG / exp_TAG). Skipping SV comparison outputs."
+        )
+    if enable_sv and comparisons:
+        sv_outdir = f"{var}/germline_sv_analysis"
+        sv_genes = sv_params.get("genes") or []
+        sv_oncoprint = sv_params.get("oncoprint") or {}
+        known_samples = set(samples_info_dict)
+        for name, c in comparisons.items():
+            for key in ("control_samples", "experimental_samples"):
+                unknown = [s for s in (c.get(key) or []) if s not in known_samples]
+                if unknown:
+                    logger.warning(
+                        f"Fiberseq: Params.sv.comparisons['{name}'].{key} lists "
+                        f"samples not in the meta: {unknown}"
+                    )
+            base = f"{sv_outdir}/{name}"
+            outfiles.append(f"{base}/{name}_merged.vcf")
+            outfiles.append(f"{base}/{name}_only.vcf")
+            outfiles.append(f"{base}/{name}_annotated.tab")
+            outfiles.append(f"{base}/enrichment")
+            outfiles.append(f"{base}/circos")
+            if sv_genes:
+                outfiles.append(f"{base}/gene_model")
+        outfiles.append(f"{sv_outdir}/sv_diff_analysis")
+        if sv_oncoprint.get("cosmic_file"):
+            outfiles.append(f"{sv_outdir}/sv_oncoprint/oncoprint_matrix.csv")
+
     # Cross-sample outputs
     if enable_quant or enable_diff:
         for metric in ("percent_accessible", "nuc_occupancy", "m6a_per_fiber", "fire_frac"):

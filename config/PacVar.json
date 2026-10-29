@@ -23,6 +23,7 @@
         "hiphase": "/data/pub/zhousha/Database/env/hiphase/hiphase.sif",
         "pbmm2": "/data/pub/zhousha/Database/env/pbmm2/pbmm2.sif",
         "pbsv": "/data/pub/zhousha/Database/env/pbsv/pbsv.sif",
+        "sv": "/data/pub/zhousha/Database/env/sv/sv.sif",
         "telomere": "/data/pub/zhousha/Database/env/telomere/telomere.sif",
         "trgt": "/data/pub/zhousha/Database/env/trgt/trgt.sif"
     },
@@ -71,7 +72,31 @@
             "enabled": false
         },
         "sv": {
-            "enabled": false
+            "enabled": true,
+            "comparisons": {},
+            "image_formats": ["png"],
+            "genes": [],
+            "exp_specific": {
+                "vep_cache": "~/.vep",
+                "species": "mus_musculus",
+                "assembly": "GRCm39",
+                "dist": 500
+            },
+            "circos": {
+                "genome": "mm39",
+                "cytoband": "",
+                "ins_bin_size": 100000
+            },
+            "oncoprint": {
+                "cosmic_file": "",
+                "deseq2_files": {}
+            },
+            "diff_analysis": {
+                "large_sv_threshold": 10000
+            },
+            "gene_model": {
+                "threads": 1
+            }
         },
         "phase": {
             "enabled": false

@@ -2,7 +2,9 @@
     "indir": "input",
     "outdir": "output",
     "logdir": "log",
-    "comparisons": [],
+    "comparisons": {},
+    "vcf_dir": "",
+    "vcf_suffix": ".sv.vcf.gz",
     "ROOT_DIR": ".",
     "Procedure": {},
     "Params": {

@@ -15,9 +15,19 @@
     "required": true
   },
   "comparisons": {
-    "type": "list",
+    "type": "dict",
     "nullable": true,
     "required": false
+  },
+  "vcf_dir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "vcf_suffix": {
+    "type": "str",
+    "nullable": true,
+    "required": true
   },
   "ROOT_DIR": {
     "type": "str",

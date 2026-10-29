@@ -4,13 +4,28 @@ channels:
   - bioconda
   - defaults
 dependencies:
+  # python analysis stack (imports across modules/sv/bin)
   - python>=3.10
   - pandas
-  - matplotlib
   - numpy
   - scipy
-  - gffutils
-  - pyvcf
-  - bedtools
+  - matplotlib
+  - seaborn        # repeatmasker_plot.py, enricher/function.py
+  - gseapy         # enricher/function.py (GO/KEGG via enrichr)
+  - gffutils       # utils/gene_model.py
+  - pyvcf          # utils/gene_model.py (import vcf)
+  - cyvcf2         # utils/CSQ_parser.py
+  - pysam          # utils/TRA.py, utils/sv_circos_prepare.py
+  - pyfaidx        # utils/sv_circos_prepare.py
+  # command-line tools invoked by the scripts
+  - survivor       # SURVIVOR merge (utils/VEP_SV.py)
+  - bcftools       # SUPP_VEC extraction (utils/VEP_SV.py)
+  - ensembl-vep    # vep / vep_install annotation (utils/VEP_SV.py)
+  - repeatmasker>=4.1   # TE annotation (utils/repeatmasker_analysis.py; pairs with the Dfam FamDB h5)
+  - bedtools       # hotspot intersect (run_enrichment.py)
+  - htslib         # tabix indexing (utils/sv_circos_prepare.py)
+  # R plotting (utils/circos.r, utils/OncoPrint.r)
   - r-base
-  - bioconductor-circlize
+  - r-argparse
+  - r-circlize
+  - bioconductor-complexheatmap

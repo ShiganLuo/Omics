@@ -547,13 +547,13 @@ WORKFLOW_DISPATCH = {
     "ncRNAseq":   lambda cfg, sid, sp, gp, indir, outdir, meta, rf, ci: ("ncRNAseq.smk",  runncRNAseq(cfg, sid, sp, indir, outdir, rf)),
     "CLIP":       lambda cfg, sid, sp, gp, indir, outdir, meta, rf, ci: ("CLIP.smk",      runCLIP(cfg, sid, indir, outdir, rf)),
     "Mutation":   lambda cfg, sid, sp, gp, indir, outdir, meta, rf, ci: ("Mutation.smk",  runMutation(cfg, sid, sp, indir, outdir, rf)),
-    "PacVar":     lambda cfg, sid, sp, gp, indir, outdir, meta, rf, ci: ("PacVar.smk",    runPacVar(cfg, sid, indir, outdir, rf)),
+    "PacVar":     lambda cfg, sid, sp, gp, indir, outdir, meta, rf, ci: ("PacVar.smk",    runPacVar(cfg, sid, gp, indir, outdir, rf)),
     "KARRseq":    lambda cfg, sid, sp, gp, indir, outdir, meta, rf, ci: ("KARRseq.smk",   runKARRseq(cfg, sid, indir, outdir, rf)),
     "PeakCalling":lambda cfg, sid, sp, gp, indir, outdir, meta, rf, ci: ("PeakCalling.smk",runPeakCalling(cfg, sid, sp, indir, outdir, rf)),
     "QuantMS":    lambda cfg, sid, sp, gp, indir, outdir, meta, rf, ci: ("QuantMS.smk",   runQuantMS(cfg, sid, indir, outdir, rf)),
     "tRNAseq":    lambda cfg, sid, sp, gp, indir, outdir, meta, rf, ci: ("tRNAseq.smk",   runtRNAseq(cfg, sid, indir, outdir, meta, rf)),
     "scRNAseq":   lambda cfg, sid, sp, gp, indir, outdir, meta, rf, ci: ("scRNAseq.smk",  runscRNAseq(cfg, sid, indir, outdir, rf, ci)),
-    "Fiberseq":   lambda cfg, sid, sp, gp, indir, outdir, meta, rf, ci: ("Fiberseq.smk",  runFiberseq(cfg, sid, indir, outdir, rf)),
+    "Fiberseq":   lambda cfg, sid, sp, gp, indir, outdir, meta, rf, ci: ("Fiberseq.smk",  runFiberseq(cfg, sid, gp, indir, outdir, rf)),
     "LRtranscriptome": lambda cfg, sid, sp, gp, indir, outdir, meta, rf, ci: ("LRtranscriptome.smk", runLRtranscriptome(cfg, sid, indir, outdir, rf)),
 }
 

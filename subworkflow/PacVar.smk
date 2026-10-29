@@ -343,3 +343,44 @@ use rule decoil_structure from decoil as PacVar_decoil_structure
 use rule decoil_compare from decoil as PacVar_decoil_compare
 use rule decoil_igv from decoil as PacVar_decoil_igv
 use rule decoil_ucsc from decoil as PacVar_decoil_ucsc
+
+
+# ============================================================
+# Step 9: SV comparison analysis (modules/sv)
+#   exp-specific SV extraction (SURVIVOR merge + VEP annotate) →
+#   GO/KEGG enrichment → circos → gene model → cross-comparison
+#   diff analysis + OncoPrint (Params.sv gates in node.py).
+#   Params.sv.comparisons follows the DESeq2 group_pairs design
+#   (name -> group names + sample name lists); SV VCF paths are
+#   resolved per sample from vcf_dir/vcf_suffix.
+# ============================================================
+sv_params = config.get("Params", {}).get("sv", {})
+sv_outdir = f"{outdir}/variation/germline_sv_analysis"
+
+sv_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "env": config.get("env", {}),
+    "indir": pbsv_config["outdir"],
+    "outdir": sv_outdir,
+    "logdir": logdir,
+    "comparisons": sv_params.get("comparisons", {}),
+    "vcf_dir": pbsv_config["outdir"],
+    "vcf_suffix": ".sv.vcf.gz",
+    "Params": sv_params,
+    "genome": {
+        "fasta": genome_ref.get("fasta"),
+        "gtf": genome_ref.get("gtf"),
+        "fai": genome_ref.get("fai")
+    }
+}
+module sv:
+    snakefile: "../modules/sv/sv.smk"
+    config: sv_config
+logger.debug(f"sv_config: {sv_config}")
+use rule sv_exp_specific from sv as PacVar_sv_exp_specific
+use rule sv_exp_enrichment from sv as PacVar_sv_exp_enrichment
+use rule sv_exp_circos from sv as PacVar_sv_exp_circos
+use rule sv_gene_model from sv as PacVar_sv_gene_model
+use rule sv_diff_analysis from sv as PacVar_sv_diff_analysis
+use rule sv_oncoprint from sv as PacVar_sv_oncoprint
+use rule sv_result from sv as PacVar_sv_result

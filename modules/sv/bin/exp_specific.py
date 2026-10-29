@@ -23,28 +23,29 @@ PlotFormat = Literal["png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg", "jp
 
 
 def run_exp_specific_annotation(
-    ctrl_vcf:str, 
-    exp_vcf:str, 
-    outprefix:str, 
+    ctrl_vcfs:List[str],
+    exp_vcfs:List[str],
+    outprefix:str,
     vep_cache:str = "~/.vep",
     species:str = "mus_musculus",
-    assembly:str ="GRCm39",
+    assembly:str = "GRCm39",
     dist:int = 500,
     min_support:int = 1,
     annotate_format:str = "vcf"
 ):
-    """Identify and annotate treatment-specific SVs using a VEP-based pipeline.
+    """Identify and annotate experiment-specific SVs using a VEP-based pipeline.
 
-    The pipeline merges control and experiment VCFs via SURVIVOR, extracts
-    SVs specific to the experiment (SUPP_VEC='01'), and annotates them with
-    VEP. Output format can be VCF or tab-delimited.
+    Merges control and experiment VCFs via SURVIVOR (controls first,
+    experiments second), extracts SVs supported by EVERY experiment sample
+    and no control sample (SUPP_VEC = ``"0" * n_ctrl + "1" * n_exp``), and
+    annotates them with VEP. Output format can be VCF or tab-delimited.
 
     Parameters
     ----------
-    ctrl_vcf : str
-        Path to the control VCF file (e.g. DMSO).
-    exp_vcf : str
-        Path to the experiment VCF file (e.g. PlaB).
+    ctrl_vcfs : list of str
+        Control sample VCF paths (one per sample; replicate groups allowed).
+    exp_vcfs : list of str
+        Experiment sample VCF paths (one per sample; replicate groups allowed).
     outprefix : str
         Prefix for all output files (merged, specific, annotated).
     vep_cache : str, optional
@@ -63,39 +64,51 @@ def run_exp_specific_annotation(
 
     Returns
     -------
-    str
-        Path to the annotated file containing experiment-specific SVs
-        with VEP annotations.
+    tuple of (str, str)
+        Path to the annotated file containing experiment-specific SVs with
+        VEP annotations, and path to the control callset VCF (the TE
+        enrichment background): the single control VCF when one control is
+        given, otherwise a SURVIVOR merge of the control VCFs
+        (``<outprefix>_control_merged.vcf``).
     """
-    
+
     outdir = os.path.dirname(outprefix)
     os.makedirs(outdir, exist_ok=True)
-    
+
     analysis = VEP_SV(
         vep_cache_dir=vep_cache,
         species=species,
         assembly=assembly
     )
-    
+
 
     merged_vcf = f"{outprefix}_merged.vcf"
     specific_vcf = f"{outprefix}_only.vcf"
     annotated_file = f"{outprefix}_annotated.{annotate_format}"
 
     logger.info(">>> Starting Pipeline: Merge -> Extract -> Annotate")
-    
-    # 合并 (注意列表顺序: DMSO 在前, PlaB 在后，对应 SUPP_VEC='01')
-    raw_inputs = [ctrl_vcf, exp_vcf]
+
+    # Merge controls first, experiments second: SUPP_VEC slots follow this order
+    raw_inputs = list(ctrl_vcfs) + list(exp_vcfs)
     analysis.merge_sv_survivor(raw_inputs, merged_vcf, dist=dist, min_support=min_support)
-    
-    # 提取 PlaB 独有 (Vector 为 01)
-    analysis.extract_specific_sv(merged_vcf, specific_vcf, vec="01")
-    
+
+    # Experiment-specific SVs: present in every experiment sample and
+    # absent from every control sample (SUPP_VEC = 00..11).
+    vec = "0" * len(ctrl_vcfs) + "1" * len(exp_vcfs)
+    analysis.extract_specific_sv(merged_vcf, specific_vcf, vec=vec)
+
     analysis.annotate_sv_vep(specific_vcf, annotated_file, result_format=annotate_format)
-    
+
+    # Control callset used as the TE-enrichment background
+    if len(ctrl_vcfs) == 1:
+        control_callset = ctrl_vcfs[0]
+    else:
+        control_callset = f"{outprefix}_control_merged.vcf"
+        analysis.merge_sv_survivor(list(ctrl_vcfs), control_callset, dist=dist, min_support=min_support)
+
     logger.info(f">>> Pipeline Finished. Annotated VCF: {annotated_file}")
-    
-    return annotated_file
+
+    return annotated_file, control_callset
 
 def run_vcf_analysis(
         vcf:str,
@@ -258,8 +271,8 @@ def main():
     None
     """
     paraser = argparse.ArgumentParser(description="PlaB specific SV analysis pipeline")
-    paraser.add_argument("-c","--ctrl_vcf",type=str,required=True,help="control sample VCF path")
-    paraser.add_argument("-e","--exp_vcf",type=str,required=True,help="experiment sample VCF path")
+    paraser.add_argument("-c","--ctrl_vcf",type=str,nargs="+",required=True,help="control sample VCF path(s)")
+    paraser.add_argument("-e","--exp_vcf",type=str,nargs="+",required=True,help="experiment sample VCF path(s)")
     paraser.add_argument("-o","--outprefix",type=str,required=True,help="out prefix for merged, specific, and annotated files")
     paraser.add_argument("-d","--dist",type=int,default=500,help="SURVIVOR merge distance threshold")
     paraser.add_argument("--vep_cache",type=str,default="~/.vep",help="VEP cache directory")
@@ -269,10 +282,13 @@ def main():
     paraser.add_argument("-f","--format",action="append",dest="formats",metavar="FMT",help="Image output format (png, pdf, svg, ...). Can be specified multiple times. Default: png.")
     args = paraser.parse_args()
 
-    annotated_file = run_exp_specific_annotation(
-        ctrl_vcf=args.ctrl_vcf,
-        exp_vcf=args.exp_vcf,
+    annotated_file, control_callset = run_exp_specific_annotation(
+        ctrl_vcfs=args.ctrl_vcf,
+        exp_vcfs=args.exp_vcf,
         outprefix=args.outprefix,
+        vep_cache=args.vep_cache,
+        species=args.species,
+        assembly=args.assembly,
         dist=args.dist,
         annotate_format=args.annotate_format,
     )
@@ -285,7 +301,7 @@ def main():
     )
     run_exp_enricher(
         vcf_01=f"{args.outprefix}_only.vcf",
-        vcf_1x=args.ctrl_vcf,
+        vcf_1x=control_callset,
         out_dir=f"{outdir}/enrichment",
         image_formats=args.formats
     )

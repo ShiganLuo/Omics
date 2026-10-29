@@ -26,9 +26,11 @@ def run_exp_specific_annotation(
     ctrl_vcfs:List[str],
     exp_vcfs:List[str],
     outprefix:str,
-    vep_cache:str = "~/.vep",
-    species:str = "mus_musculus",
-    assembly:str = "GRCm39",
+    vep_cache: str = "~/.vep",
+    species: str = "mus_musculus",
+    assembly: str = "GRCm39",
+    custom_gtf: Optional[str] = None,
+    custom_fasta: Optional[str] = None,
     dist:int = 500,
     min_support:int = 1,
     annotate_format:str = "vcf"
@@ -78,7 +80,9 @@ def run_exp_specific_annotation(
     analysis = VEP_SV(
         vep_cache_dir=vep_cache,
         species=species,
-        assembly=assembly
+        assembly=assembly,
+        custom_gtf=custom_gtf,
+        custom_fasta=custom_fasta
     )
 
 
@@ -185,6 +189,7 @@ def run_exp_enricher(
         out_dir:str,
         min_svlen:int = 2000,
         max_svlen:int = 10000,
+        te_lib: Optional[str] = None,
         image_formats:Optional[List[PlotFormat]] = None
 ):
     """Perform repeat-element enrichment analysis of experiment-specific SV insertions.
@@ -240,10 +245,15 @@ def run_exp_enricher(
     logger.info(f"Extracting TE candidate insertions from VCFs...: {vcf_01}, {vcf_1x}")
     fa_01 = f"{outdir}/fa/01/INS_{min_svlen/1000}-{max_svlen/1000}kb_01.fa"
     extract_te_candidate_ins(vcf_01,fa_01,min_len=min_svlen,max_len=max_svlen)
-    out_01 = run_te_annotation_pipeline(fa_01,f"{outdir}/repeatmasker/01",species="mus musculus")
+    out_01 = run_te_annotation_pipeline(fa_01,f"{outdir}/repeatmasker/01",species="mus musculus",lib=te_lib)
     fa_1x = f"{outdir}/fa/1x/INS_{min_svlen/1000}-{max_svlen/1000}_1x.fa"
     extract_te_candidate_ins(vcf_1x,fa_1x,min_len=min_svlen,max_len=max_svlen)
-    out_1x = run_te_annotation_pipeline(fa_1x,f"{outdir}/repeatmasker/1x",species="mus musculus")
+    out_1x = run_te_annotation_pipeline(fa_1x,f"{outdir}/repeatmasker/1x",species="mus musculus",lib=te_lib)
+    if out_01 is None or out_1x is None:
+        raise RuntimeError(
+            "RepeatMasker TE annotation failed (see log above); "
+            "cannot run the enrichment test"
+        )
 
     logger.info("Performing enrichment test between PlaB only and DMSO SV insertions...")
     repeatMaskerOutCompare = RepeatMaskerOutCompare(bg_out=str(out_1x),fg_out=str(out_01))
@@ -279,6 +289,9 @@ def main():
     paraser.add_argument("--species",type=str,default="mus_musculus",help="species name for VEP annotation")
     paraser.add_argument("--assembly",type=str,default="GRCm39",help="genome assembly for VEP annotation")
     paraser.add_argument("--annotate_format",type=str,choices=["vcf","tab"],default="tab",help="output format for VEP annotation")
+    paraser.add_argument("--custom_gtf",type=str,default=None,help="sorted bgzipped tabix-indexed GTF/GFF for custom genomes (bypasses the Ensembl cache)")
+    paraser.add_argument("--custom_fasta",type=str,default=None,help="genome FASTA matching --custom_gtf (required with it)")
+    paraser.add_argument("--te_lib",type=str,default=None,help="RepeatMasker library FASTA for TE annotation (for species whose Dfam partition is absent from the container, e.g. mouse)")
     paraser.add_argument("-f","--format",action="append",dest="formats",metavar="FMT",help="Image output format (png, pdf, svg, ...). Can be specified multiple times. Default: png.")
     args = paraser.parse_args()
 
@@ -289,6 +302,8 @@ def main():
         vep_cache=args.vep_cache,
         species=args.species,
         assembly=args.assembly,
+        custom_gtf=args.custom_gtf,
+        custom_fasta=args.custom_fasta,
         dist=args.dist,
         annotate_format=args.annotate_format,
     )
@@ -303,6 +318,7 @@ def main():
         vcf_01=f"{args.outprefix}_only.vcf",
         vcf_1x=control_callset,
         out_dir=f"{outdir}/enrichment",
+        te_lib=args.te_lib,
         image_formats=args.formats
     )
 

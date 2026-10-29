@@ -13,7 +13,8 @@ except ImportError:
 logger = setup_logger("VEP_SV", level=logging.INFO)
 
 class VEP_SV:
-    def __init__(self, vep_cache_dir, species="mus_musculus", assembly="GRCm39"):
+    def __init__(self, vep_cache_dir, species="mus_musculus", assembly="GRCm39",
+                 custom_gtf=None, custom_fasta=None):
         """
         Initialize the VEP_SV analysis class.
 
@@ -26,6 +27,14 @@ class VEP_SV:
             Species name used by VEP. Default is ``"mus_musculus"``.
         assembly : str, optional
             Genome assembly version. Default is ``"GRCm39"``.
+        custom_gtf : str, optional
+            Sorted, bgzipped, tabix-indexed GTF/GFF for a custom genome.
+            When set, VEP runs in ``--gtf`` mode and the Ensembl cache
+            (species/assembly/vep_install) is bypassed entirely -- custom
+            assemblies have no Ensembl cache.
+        custom_fasta : str, optional
+            Genome FASTA matching *custom_gtf* (required with it; VEP needs
+            it for HGVS/indel handling in custom mode).
 
         Returns
         -------
@@ -34,6 +43,8 @@ class VEP_SV:
         self.vep_cache_dir = str(Path(vep_cache_dir).expanduser().resolve()) # 支持 ~ 和绝对路径
         self.species = species
         self.assembly = assembly
+        self.custom_gtf = custom_gtf
+        self.custom_fasta = custom_fasta
         
         # 自动创建缓存根目录
         if not os.path.exists(self.vep_cache_dir):
@@ -219,9 +230,11 @@ class VEP_SV:
         """
         Annotate structural variants using Ensembl VEP.
 
-        Automatically installs the VEP cache for the configured species if
-        not already present. Runs VEP in offline mode with ``--everything``
-        and ``--pick`` flags.
+        Uses the custom annotation source (``--gtf``/``--gff`` + ``--fasta``)
+        when one was configured for a custom genome; otherwise falls back to
+        the Ensembl cache, installing it first if the species cache
+        directory is missing. Runs VEP in offline mode with
+        ``--everything`` and ``--pick`` flags.
 
         Parameters
         ----------
@@ -238,21 +251,41 @@ class VEP_SV:
         None
             Writes annotated output to *outfile*.
         """
-        # 检查特定物种的缓存子目录是否存在
-        species_cache = os.path.join(self.vep_cache_dir, self.species)
-        logger.info(species_cache)
-        if not os.path.exists(species_cache):
-            logger.warning(f"Cache for {self.species} not found. Attempting install...")
-            self.vep_annotation_install()
-
-        cmd = [
-            "vep", "-i", in_vcf, "-o", outfile,
-            "--cache", "--dir_cache", self.vep_cache_dir,
-            "--species", self.species,
-            "--assembly", self.assembly,
-            "--format", "vcf", f"--{result_format}", "--force_overwrite",
-            "--everything", "--pick", "--per_gene", "--offline"
-        ]
+        if self.custom_gtf:
+            # Custom genome: annotate from GTF/GFF + FASTA. The cache route
+            # is unreachable here -- vep_install exits 255 "No matching
+            # species found" for custom assemblies -- and pointing VEP at a
+            # wrong-species cache silently skips every contig.
+            if not self.custom_fasta:
+                raise ValueError(
+                    "custom_fasta (genome FASTA) is required together with "
+                    "custom_gtf for VEP custom annotation mode"
+                )
+            cmd = [
+                "vep", "-i", in_vcf, "-o", outfile,
+                "--gtf", self.custom_gtf,
+                "--fasta", self.custom_fasta,
+                "--format", "vcf", f"--{result_format}", "--force_overwrite",
+                "--everything", "--pick", "--per_gene"
+                # NOTE: no --offline/--cache here: --offline implies --cache,
+                # which conflicts with --gtf (VEP then demands a
+                # .vep/homo_sapiens cache dir and dies). VEP sets offline
+                # mode by itself when given --gtf/--gff + --fasta.
+            ]
+        else:
+            species_cache = os.path.join(self.vep_cache_dir, self.species)
+            logger.info(species_cache)
+            if not os.path.isdir(species_cache):
+                logger.warning(f"Cache for {self.species} not found. Attempting install...")
+                self.vep_annotation_install()
+            cmd = [
+                "vep", "-i", in_vcf, "-o", outfile,
+                "--cache", "--dir_cache", self.vep_cache_dir,
+                "--species", self.species,
+                "--assembly", self.assembly,
+                "--format", "vcf", f"--{result_format}", "--force_overwrite",
+                "--everything", "--pick", "--per_gene", "--offline"
+            ]
         self._run_cmd(cmd)
         logger.info(f"VEP annotation finished: {outfile}")
 

@@ -52,7 +52,8 @@ plot_sv_circos_from_files <- function(
   show_legend = TRUE, 
   outImg = "sv_circos.png",
   ins_plot_type = "points" , # "points" or "bar"
-  bin_size = 1e6 # 1Mb bins for bar plot
+  bin_size = 1e6, # 1Mb bins for bar plot
+  input_dir = dirname(file_list[[1]])  # dir holding karyotype.txt from prepare
   ) {
   
   ext <- tolower(tools::file_ext(outImg))
@@ -79,12 +80,27 @@ plot_sv_circos_from_files <- function(
   )
 
   circos.clear()
-  # cytoband = read.cytoband(species = genome)$df
-  # write.table(cytoband, file = "debug_cytoband.txt", sep = "\t", row.names = FALSE, col.names = TRUE, quote = FALSE)
   # 2. 初始化 Ideogram
-  if (!is.null(cytoband_file)) {
+  # Prefer the karyotype.txt written by sv_circos_prepare.py from the ACTUAL
+  # reference FASTA (column order: chrom, start, end -- the prepare script
+  # writes "chrom 0 length"). This is authoritative for custom genomes whose
+  # contig names (e.g. RefSeq CM166248.1) do not exist in circlize's UCSC
+  # cytoband database; species lookup is only a fallback for standard
+  # assemblies.
+  karyotype_local <- file.path(input_dir, "karyotype.txt")
+  if (!is.null(cytoband_file) && file.exists(cytoband_file)) {
     cyto_data <- read.cytoband(cytoband_file)$df
     circos.initializeWithIdeogram(cyto_data)
+  } else if (file.exists(karyotype_local)) {
+    # prepare writes "chrom 0 length" (whitespace-separated); default
+    # sep handles both spaces and tabs
+    kt <- read.table(karyotype_local, header = FALSE,
+                     colClasses = c("character", "numeric", "numeric"))
+    names(kt) <- c("chr", "start", "end")
+    circos.initializeWithIdeogram(kt, plotType = NULL)
+    circos.trackPlotRegion(ylim = c(0, 1), panel.fun = function(region, value, ...) {
+      circos.genomicAxis(...)
+    }, track.height = 0.05)
   } else {
     tryCatch({
       circos.initializeWithIdeogram(species = genome)
@@ -102,9 +118,14 @@ plot_sv_circos_from_files <- function(
     #'   \code{"chr"}-prefixed form.
     fix_chr <- function(df) {
     if (nrow(df) == 0) return(df)
-    df[[1]] <- ifelse(grepl("^chr", df[[1]]), df[[1]], paste0("chr", df[[1]]))
+    # Only add a "chr" prefix for plain numeric/XYM contig names; leave
+    # accession-style names (CM166248.1, NC_005089.1) untouched -- the
+    # karyotype sectors carry them verbatim and "chr" + accession would
+    # silently drop every record from the plot.
+    add_prefix <- function(x) ifelse(grepl("^chr", x) | grepl("^[A-Z]{2}", x), x, paste0("chr", x))
+    df[[1]] <- add_prefix(df[[1]])
     if (ncol(df) >= 3 && is.character(df[[3]])) { # 针对 TRA 的第二坐标列
-       df[[3]] <- ifelse(grepl("^chr", df[[3]]), df[[3]], paste0("chr", df[[3]]))
+       df[[3]] <- add_prefix(df[[3]])
     }
     return(df)
   }
@@ -155,20 +176,21 @@ plot_sv_circos_from_files <- function(
               }
               
               # 1. 计算 Bins，并显式确保 start < end
-              ins_bins <- ins_clean |>
-                  dplyr::group_by(
-                      chr,
-                      bin = floor(start / bin_size)
-                  ) |>
-                  dplyr::summarise(count = dplyr::n(), .groups = "drop") |>
-                  dplyr::mutate(
-                      start = as.numeric(bin * bin_size),
-                      end   = as.numeric((bin + 1) * bin_size) # 使用 bin+1 确保区间跨度
-                  ) |>
-                  # circlize 默认前三列为 genomic regions
-                  dplyr::select(chr, start, end, count) |>
-                  # 确保 start 永远小于 end (预防万一)
-                  dplyr::filter(end > start)
+              # base-R rewrite (no dplyr -- not installed in the container)
+              agg <- aggregate(
+                list(count = rep(1, nrow(ins_clean))),
+                by = list(chr = ins_clean$chr,
+                          bin = floor(ins_clean$start / bin_size)),
+                FUN = sum
+              )
+              ins_bins <- data.frame(
+                chr   = agg$chr,
+                start = as.numeric(agg$bin * bin_size),
+                end   = as.numeric((agg$bin + 1) * bin_size),
+                count = agg$count
+              )
+              # circlize 默认前三列为 genomic regions; 确保 start < end
+              ins_bins <- ins_bins[ins_bins$end > ins_bins$start, , drop = FALSE]
 
               # 4. 调试输出：检查是否有负值或异常
               # write.table(ins_bins, file = "debug_ins_bins.txt", ...)

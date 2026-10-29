@@ -1,4 +1,5 @@
 import os
+import re
 import time
 from typing import Dict, Any, List, Optional
 import logging
@@ -32,6 +33,89 @@ def _enabled(datajson: Dict[str, Any], step: str) -> bool:
     if isinstance(block, dict) and "enabled" in block:
         return bool(block["enabled"])
     return True
+
+def _resolve_genome_ref(
+        datajson: Dict[str, Any],
+        samples_info_dict: Dict[str, SampleInfo],
+        workflow: str,
+    ) -> Dict[str, Any]:
+    """Resolve and normalize ``genome.default``, return its reference block.
+
+    ``genome.default`` (which may be null) is user input and may be any
+    species alias; it is normalized through ``resolve_genome()`` exactly like
+    ``sample_info.organism`` is during meta parsing (e.g. ``"mouse"`` /
+    ``"mm39"`` -> ``"GRCm39"``) so it matches the ``genome.references`` keys,
+    and unrecognised names fall back to the raw string so custom reference
+    keys (e.g. ``"T2T_mhaESC_v1.5"``) keep working. When ``genome.default``
+    is null, the normalized sample organism recorded in the meta is used as
+    the fallback. A mismatch between the two is reported but the config value
+    is kept.
+
+    The normalized key is written back to ``datajson["genome"]["default"]``
+    so the subworkflow resolves the same reference entry.
+
+    Raises
+    ------
+    ValueError
+        When neither source resolves to a ``genome.references`` entry.
+    """
+    genome_cfg = datajson.get("genome") or {}
+    references = genome_cfg.get("references") or {}
+    raw_default = genome_cfg.get("default")
+    sample_genomes = sorted({
+        info.organism for info in samples_info_dict.values()
+        if info.organism and info.organism != "UNKNOWN"
+    })
+
+    normalized: Optional[str] = None
+    if raw_default:
+        try:
+            normalized = resolve_genome(str(raw_default))
+        except ValueError:
+            # Custom reference key (e.g. T2T_mhaESC_v1.5): use verbatim.
+            normalized = str(raw_default)
+        if normalized != str(raw_default):
+            logger.info(
+                f"{workflow}: genome.default '{raw_default}' normalized to "
+                f"'{normalized}' (sample_info.organism convention)"
+            )
+        if (sample_genomes and normalized != str(raw_default)
+                and normalized not in sample_genomes):
+            logger.warning(
+                f"{workflow}: genome.default '{normalized}' does not match the "
+                f"sample organism(s) recorded in the meta {sample_genomes}; "
+                f"keeping the config value. Check the meta organism column or "
+                f"genome.default before trusting variant calls."
+            )
+    elif sample_genomes:
+        normalized = sample_genomes[0]
+        if len(sample_genomes) > 1:
+            logger.warning(
+                f"{workflow}: samples carry several organisms {sample_genomes}; "
+                f"using '{normalized}' for genome.default"
+            )
+        logger.info(
+            f"{workflow}: genome.default is null; using the sample organism "
+            f"'{normalized}' recorded in the meta"
+        )
+    else:
+        raise ValueError(
+            f"{workflow}: genome.default is null and the meta has no "
+            f"'organism' column; set 'genome.default' in the config JSON or "
+            f"record the organism in the meta, then rerun."
+        )
+
+    ref = references.get(normalized)
+    if not ref:
+        raise ValueError(
+            f"{workflow}: 'genome.references' has no entry '{normalized}' "
+            f"(from genome.default '{raw_default}'); "
+            f"known entries: {sorted(references)}"
+        )
+
+    genome_cfg["default"] = normalized
+    datajson["genome"] = genome_cfg
+    return ref
 
 def _replace_server_paths(obj: Any, foreign_dirs: List[str], current_db: str) -> None:
     """Recursively replace foreign server database paths with current server's.
@@ -330,12 +414,9 @@ def runPacVar(
     enable_telomere = _enabled(datajson, "telomere")
     enable_eccdna = _enabled(datajson, "decoil")  # Decoil is the eccDNA reconstruction step
 
-    # Resolve nested genome reference (genome.default + genome.references.<org>)
-    _default_genome = datajson.get("genome", {}).get("default")
-    _genome_ref = (
-        datajson.get("genome", {}).get("references", {}).get(_default_genome, {})
-        if _default_genome else {}
-    )
+    # Resolve nested genome reference (genome.default normalized like
+    # sample_info.organism; falls back to the meta organism when unset)
+    _genome_ref = _resolve_genome_ref(datajson, samples_info_dict, "PacVar")
 
     for sample_id, sample_info in samples_info_dict.items():
         samples.append(sample_id)
@@ -378,9 +459,11 @@ def runPacVar(
             outfiles.append(f"{outdir}/eccdna/{sample_id}/visualization/decoil_structure_genes.tsv")
             outfiles.append(f"{outdir}/eccdna/{sample_id}/visualization/igv_ecdna.html")
             outfiles.append(f"{outdir}/eccdna/{sample_id}/visualization/ucsc_track.txt")
-        # Cross-sample comparison (aggregated)
-        outfiles.append(f"{outdir}/eccdna/visualization/decoil_compare.png")
-        outfiles.append(f"{outdir}/eccdna/visualization/decoil_compare_shared_unique.tsv")
+        # Cross-sample comparison (aggregated): decoil module writes these
+        # under {outdir}/eccdna/compare/ (rule decoil_compare), not
+        # {outdir}/eccdna/visualization/.
+        outfiles.append(f"{outdir}/eccdna/compare/decoil_compare.png")
+        outfiles.append(f"{outdir}/eccdna/compare/decoil_compare_shared_unique.tsv")
     elif enable_eccdna:
         logger.warning(
             "PacVar: Params.eccdna.enabled=true but genome.gtf is missing; "
@@ -1170,9 +1253,50 @@ def runFiberseq(
     res = f"{outdir}/results"
     var = f"{outdir}/variation"
     raw_results_dir = f"{outdir}/common/4_raw_results"
-    genome  = datajson.get("genome", {}).get("default", "")
-    default_ref = datajson.get("genome", {}).get("references", {}).get(genome, {})
-
+    default_ref = _resolve_genome_ref(datajson, samples_info_dict, "Fiberseq")
+    genome = datajson["genome"]["default"]
+    datajson["Params"]["sv"]["exp_specific"]["species"] = genome
+    datajson["Params"]["sv"]["exp_specific"]["assembly"] = genome
+    # Custom genomes (T2T/liftoff builds) have no Ensembl VEP cache: the
+    # cache route dies at vep_install ("No matching species found"). When the
+    # reference carries a GTF, annotate via VEP --gtf + --fasta instead.
+    # VEP --gtf requires a sorted, bgzipped, tabix-indexed GTF: prefer the
+    # pre-built "<stem>.sorted.gtf.gz" sibling, or an already-indexed .gtf.gz.
+    _sv_exp = datajson["Params"]["sv"]["exp_specific"]
+    _gtf = default_ref.get("gtf") if default_ref else None
+    _fasta = default_ref.get("fasta") if default_ref else None
+    _custom_gtf = None
+    if _gtf and _fasta:
+        _gtf_sorted = None
+        if _gtf.endswith((".gtf.gz", ".gff.gz", ".gff3.gz")) and os.path.exists(_gtf + ".tbi"):
+            _gtf_sorted = _gtf
+        else:
+            for _cand in (
+                re.sub(r"\.(gtf|gff|gff3)$", ".sorted.gtf.gz", _gtf),
+                re.sub(r"\.(gtf|gff|gff3)(\.gz)?$", ".sorted.gtf.gz", _gtf),
+            ):
+                if os.path.exists(_cand) and os.path.exists(_cand + ".tbi"):
+                    _gtf_sorted = _cand
+                    break
+        if _gtf_sorted:
+            _custom_gtf = _gtf_sorted
+            _sv_exp["custom_gtf"] = _gtf_sorted
+            _sv_exp["custom_fasta"] = _fasta
+    # Species-specific RepeatMasker library: the sv container's Dfam only
+    # ships partition 0, so -species lookup dies for mouse (partition 7
+    # absent). Fall back to a pre-built mouse TE library when the reference
+    # is a mouse genome and the library exists.
+    if not _sv_exp.get("te_lib"):
+        _mouse_lib = "/data/16T/Database/env/sv/famdb/mouse_te_lib.fa"
+        if os.path.isfile(_mouse_lib):
+            _sv_exp["te_lib"] = _mouse_lib
+    # .fai next to the FASTA (hot_spot analysis reads it; a null fai crashes
+    # sv_exp_enrichment with a TypeError on None).
+    _ref_block = default_ref if isinstance(default_ref, dict) else {}
+    if not _ref_block.get("fai") and _fasta:
+        _fai = _fasta + ".fai"
+        if os.path.isfile(_fai):
+            _ref_block["fai"] = _fai
     enable_annotate = _enabled(datajson, "annotate")
     enable_motif = _enabled(datajson, "motif")
     enable_footprint = _enabled(datajson, "footprint")
@@ -1248,7 +1372,9 @@ def runFiberseq(
             outfiles.append(f"{var}/germline_sv/{sample_id}/{sample_id}.svsig.gz")
             outfiles.append(f"{var}/germline_sv/{sample_id}/{sample_id}.sv.vcf.gz")
             outfiles.append(f"{var}/germline_sv/{sample_id}/{sample_id}.sv.vcf.gz.csi")
-            outfiles.append(f"{var}/phased/{sample_id}/{sample_id}.phased.bam")
+            # hiphase module writes to {outdir}/common/5_phased_bam (see
+            # subworkflow/Fiberseq.smk hiphase_config), NOT {var}/phased.
+            outfiles.append(f"{outdir}/common/5_phased_bam/{sample_id}/{sample_id}.phased.bam")
             for hap in ("hap1", "hap2"):
                 outfiles.append(f"{res}/{sample_id}/{sample_id}.{hap}.bam")
                 outfiles.append(f"{res}/{sample_id}/{sample_id}.{hap}.bam.bai")
@@ -1282,9 +1408,11 @@ def runFiberseq(
             outfiles.append(f"{outdir}/eccdna/{sample_id}/visualization/decoil_structure_genes.tsv")
             outfiles.append(f"{outdir}/eccdna/{sample_id}/visualization/igv_ecdna.html")
             outfiles.append(f"{outdir}/eccdna/{sample_id}/visualization/ucsc_track.txt")
-            # Cross-sample comparison (aggregated)
-            outfiles.append(f"{outdir}/eccdna/visualization/decoil_compare.png")
-            outfiles.append(f"{outdir}/eccdna/visualization/decoil_compare_shared_unique.tsv")
+            # Cross-sample comparison (aggregated): the decoil module writes
+            # these under {outdir}/compare/ (see modules/decoil/decoil.smk
+            # rule decoil_compare), NOT {outdir}/visualization/.
+            outfiles.append(f"{outdir}/eccdna/compare/decoil_compare.png")
+            outfiles.append(f"{outdir}/eccdna/compare/decoil_compare_shared_unique.tsv")
         if enable_sv:
             outfiles.append(f"{var}/germline_sv/{sample_id}/{sample_id}.svsig.gz")
             outfiles.append(f"{var}/germline_sv/{sample_id}/{sample_id}.sv.vcf.gz")

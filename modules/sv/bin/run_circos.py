@@ -92,8 +92,9 @@ def run_cricos_pipeline(
             "--genome", genome,
             "--ins_bin_size", str(ins_bin_size),
             "--ins_plot_type", ins_plot_type,
-            "--cytoband", cytoband_file
         ]
+        if cytoband_file:
+            circos_cmd += ["--cytoband", str(cytoband_file)]
         try:
             _run_cmd(circos_cmd,logger=logger)
             logger.info(f"Circos plot saved to: {outImage}")
@@ -101,13 +102,15 @@ def run_cricos_pipeline(
             logger.error(f"Error occurred while running Circos for {name}: {e}")
 
 def parse_args():
-    """Parse command-line arguments for the SV Circos pipeline.
+    """
+    Command-line arguments for the SV Circos pipeline.
 
     Returns
     -------
     argparse.Namespace
         Parsed arguments with attributes: ``fasta``, ``outdir``,
-        ``vcf_pattern``, ``outfile_name_mode``, ``formats``, and ``vcf``.
+        ``vcf_pattern``, ``outfile_name_mode``, ``formats``, ``vcf``,
+        ``genome``, ``ins_bin_size``, and ``cytoband``.
     """
     import argparse
     parser = argparse.ArgumentParser(description="Run SV Circos Pipeline")
@@ -117,8 +120,10 @@ def parse_args():
     parser.add_argument("--outfile_name_mode", choices=["parent", "sample"], default="sample", help="Naming mode for output directories")
     parser.add_argument("-f", "--format", action="append", dest="formats", metavar="FMT", help="Image output format (png, pdf, svg, ...). Can be specified multiple times. Default: png.")
     parser.add_argument("--vcf", required=True, help="Specific VCF file to process")
+    parser.add_argument("--genome", default="mm39", help="Genome assembly identifier (used only when no local karyotype/cytoband is available)")
+    parser.add_argument("--ins_bin_size", type=int, default=100000, help="Bin size (bp) for the INS bar plot")
+    parser.add_argument("--cytoband", default="", help="Path to a local cytoband file (overrides genome lookup)")
     return parser.parse_args()
-
 if __name__ == "__main__":
     args = parse_args()
     fasta = args.fasta
@@ -127,5 +132,14 @@ if __name__ == "__main__":
     outfile_name_mode = args.outfile_name_mode
     image_formats = args.formats
     vcf = args.vcf
-    run_cricos_pipeline(vcf=vcf, fasta=fasta, outdir=outdir, image_formats=image_formats, outfile_name_mode=outfile_name_mode)
+    run_cricos_pipeline(
+        vcf=vcf,
+        fasta=fasta,
+        outdir=outdir,
+        image_formats=image_formats,
+        outfile_name_mode=outfile_name_mode,
+        ins_bin_size=args.ins_bin_size,
+        genome=args.genome,
+        cytoband_file=args.cytoband or None,
+    )
 

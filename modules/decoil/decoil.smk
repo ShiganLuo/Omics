@@ -290,9 +290,9 @@ rule decoil_compare:
         summaries = expand(outdir + "/{sample_id}/decoil/summary.txt", sample_id=samples),
         beds      = expand(outdir + "/{sample_id}/decoil/reconstruct.ecDNA.filtered.bed", sample_id=samples),
     output:
-        png            = outdir + "/visualization/decoil_compare.png",
-        shared_tsv     = outdir + "/visualization/decoil_compare_shared_unique.tsv",
-        regions_tsv    = outdir + "/visualization/decoil_compare_ecdna_regions.tsv",
+        png            = outdir + "/compare/decoil_compare.png",
+        shared_tsv     = outdir + "/compare/decoil_compare_shared_unique.tsv",
+        regions_tsv    = outdir + "/compare/decoil_compare_ecdna_regions.tsv",
     log:
         logdir + "/decoil_compare.log"
     threads: rule_res("decoil_compare").get("threads", 2)

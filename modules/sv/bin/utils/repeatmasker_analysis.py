@@ -17,16 +17,18 @@ logger = setup_logger("RepeatMaskerAnalysis", level=logging.INFO)
 
 
 def run_te_annotation_pipeline(
-    input_fasta: str, 
-    output_dir: str, 
+    input_fasta: str,
+    output_dir: str,
     species: str = "mus musculus",
-    threads: int = 8
+    threads: int = 8,
+    lib: Optional[str] = None
 ) -> Optional[Path]:
     """
     Execute the RepeatMasker pipeline for transposable element annotation.
 
     Runs RepeatMasker on the input FASTA, moves results to the output
     directory, and cleans up temporary working folders.
+
 
     Parameters
     ----------
@@ -36,8 +38,15 @@ def run_te_annotation_pipeline(
         Target directory for the generated annotation results.
     species : str, optional
         Genomic repeat library species identifier. Default is "mus musculus".
+        Ignored when *lib* is given.
     threads : int, optional
         Number of CPU cores for parallel execution. Default is 8.
+    lib : str, optional
+        Explicit RepeatMasker library FASTA (e.g. a species-specific Dfam
+        subset built with ``famdb.py -i dfam.h5 curate``). When set, it is
+        passed as ``-lib`` and the container's built-in Dfam species
+        lookup is bypassed -- use this when the container's FamDB lacks
+        the species partition (e.g. rodent partition 7 missing).
 
     Returns
     -------
@@ -58,11 +67,14 @@ def run_te_annotation_pipeline(
         rm_cmd = [
             "RepeatMasker",
             "-pa", str(threads),
-            "-species", species,
             "-dir", str(tmp_path),
             "-gff",
-            str(fasta_path)
         ]
+        if lib:
+            rm_cmd += ["-lib", str(lib)]
+        else:
+            rm_cmd += ["-species", species]
+        rm_cmd.append(str(fasta_path))
 
         try:
             stdout = _run_cmd(rm_cmd, logger=logger)

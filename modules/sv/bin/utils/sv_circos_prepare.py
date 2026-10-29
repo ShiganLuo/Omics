@@ -40,6 +40,16 @@ class SVCircosPrepare():
         self.fasta_path = fasta_path
         self.outdir = outdir    
         self.image_format = image_format
+        # Chromosome universe: standard chr-prefixed genomes keep the
+        # chr1..chrY,M filter; custom genomes whose contigs use other naming
+        # (e.g. RefSeq CM166248.1-style accessions) fall back to ALL contigs
+        # of the FASTA, otherwise every record is filtered out and the
+        # Circos plot is silently empty.
+        fa_keys = list(Fasta(fasta_path).keys())
+        main = [c for c in fa_keys if c in self.main_chrom]
+        self.chrom_set = set(main) if main else set(fa_keys)
+        logger.info(f"Circos chromosome set: {len(self.chrom_set)} contigs "
+                    f"({'standard chr set' if main else 'all FASTA contigs'})")
 
     def open_vcf_autotabix(self) -> pysam.VariantFile:
         """
@@ -99,7 +109,7 @@ class SVCircosPrepare():
         """
         fasta_path = self.fasta_path
         fa = Fasta(fasta_path)
-        chrom_sizes = {chrom: len(fa[chrom]) for chrom in fa.keys() if chrom in self.main_chrom}
+        chrom_sizes = {chrom: len(fa[chrom]) for chrom in fa.keys() if chrom in self.chrom_set}
         return chrom_sizes
 
 
@@ -168,7 +178,7 @@ class SVCircosPrepare():
                 if end_val is not None:
                     end = end_val[0] if isinstance(end_val, (list, tuple)) else end_val
 
-            if chrom1 not in self.main_chrom:
+            if chrom1 not in self.chrom_set:
                 continue
 
             if svtype in ("INS","DUP", "INV","DEL") and end is not None:
@@ -181,7 +191,7 @@ class SVCircosPrepare():
                 alt = str(rec.alts[0])
                 chrom2, pos2, _ = self.parse_complex_bnd(alt)
                 
-                if not chrom2 or chrom2 not in self.main_chrom:
+                if not chrom2 or chrom2 not in self.chrom_set:
                     continue
 
                 if chrom1 != chrom2:

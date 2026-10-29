@@ -46,7 +46,7 @@ def main() -> None:
     with open(args.rm_out) as fh:
         in_table = False
         for line in fh:
-            if line.startswith("SW") and "perc" in line:
+            if line.lstrip().startswith("SW") and "perc" in line:
                 in_table = True
                 continue
             if not in_table or line.startswith("----") or not line.strip():

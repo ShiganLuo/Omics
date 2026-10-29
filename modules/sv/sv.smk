@@ -48,6 +48,9 @@ rule sv_exp_specific:
         vep_cache = config.get("Params", {}).get("exp_specific", {}).get("vep_cache", "~/.vep"),
         species = config.get("Params", {}).get("exp_specific", {}).get("species", "mus_musculus"),
         assembly = config.get("Params", {}).get("exp_specific", {}).get("assembly", "GRCm39"),
+        custom_gtf = config.get("Params", {}).get("exp_specific", {}).get("custom_gtf", ""),
+        custom_fasta = config.get("Params", {}).get("exp_specific", {}).get("custom_fasta", ""),
+        te_lib = config.get("Params", {}).get("exp_specific", {}).get("te_lib", ""),
         dist = config.get("Params", {}).get("exp_specific", {}).get("dist", 500),
     conda:
         "sv.yaml"
@@ -76,6 +79,12 @@ rule sv_exp_specific:
                 "--assembly", params.assembly,
                 "--annotate_format", "tab",
             ] + fmt_args
+            if params.custom_gtf:
+                cmd += ["--custom_gtf", params.custom_gtf]
+                if params.custom_fasta:
+                    cmd += ["--custom_fasta", params.custom_fasta]
+            if params.te_lib:
+                cmd += ["--te_lib", params.te_lib]
             with open(script_path, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")

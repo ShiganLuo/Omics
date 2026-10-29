@@ -1,271 +1,330 @@
 {
-    "ROOT_DIR": null,
-    "tmp_dir": null,
-    "outfiles": [],
-    "env": {
-        "env_dir": "/home/luosg/Database/env",
-        "fibertools": "/home/luosg/Database/env/fibertools/fibertools.sif",
-        "pbmm2": "/home/luosg/Database/env/pbmm2/pbmm2.sif",
-        "fiberseq": "/home/luosg/Database/env/fiberseq/fiberseq.sif",
-        "function": "/home/luosg/Database/env/function/function.sif",
-        "ldsc": "/home/luosg/Database/env/ldsc/ldsc.sif",
-        "deepvariant": "/home/luosg/Database/env/deepvariant/deepvariant.sif",
-        "pbsv": "/home/luosg/Database/env/pbsv/pbsv.sif",
-        "sv": "/home/luosg/Database/env/sv/sv.sif",
-        "hiphase": "/home/luosg/Database/env/hiphase/hiphase.sif",
-        "genome": "/home/luosg/Database/env/genome/genome.sif",
-        "deeptools": "/data/16T/Database/env/deeptools/deeptools.sif",
-        "decoil": "/data/16T/Database/env/decoil/decoil.sif"
+  "ROOT_DIR": null,
+  "tmp_dir": null,
+  "outfiles": [],
+  "env": {
+    "env_dir": "/home/luosg/Database/env",
+    "fibertools": "/home/luosg/Database/env/fibertools/fibertools.sif",
+    "pbmm2": "/home/luosg/Database/env/pbmm2/pbmm2.sif",
+    "fiberseq": "/home/luosg/Database/env/fiberseq/fiberseq.sif",
+    "function": "/home/luosg/Database/env/function/function.sif",
+    "ldsc": "/home/luosg/Database/env/ldsc/ldsc.sif",
+    "deepvariant": "/home/luosg/Database/env/deepvariant/deepvariant.sif",
+    "pbsv": "/home/luosg/Database/env/pbsv/pbsv.sif",
+    "sv": "/home/luosg/Database/env/sv/sv.sif",
+    "hiphase": "/home/luosg/Database/env/hiphase/hiphase.sif",
+    "genome": "/home/luosg/Database/env/genome/genome.sif",
+    "deeptools": "/data/16T/Database/env/deeptools/deeptools.sif",
+    "decoil": "/data/16T/Database/env/decoil/decoil.sif"
+  },
+  "resources": {
+    "default": {
+      "threads": 2,
+      "mem_mb": 8000
     },
-    "resources": {
-        "default": {"threads": 2, "mem_mb": 8000},
-        "fiberseq_track": {"threads": 4, "mem_mb": 65000},
-        "fiberseq_quant": {"threads": 4, "mem_mb": 12000},
-        "fiberseq_censat": {"threads": 4, "mem_mb": 8000},
-        "fiberseq_coactuation": {"threads": 4, "mem_mb": 8000},
-        "fiberseq_footprint": {"threads": 4, "mem_mb": 8000},
-        "fiberseq_motif": {"threads": 4, "mem_mb": 8000},
-        "fiberseq_nucpos": {"threads": 4, "mem_mb": 6000},
-        "fiberseq_annotate": {"threads": 4, "mem_mb": 8000},
-        "bamCoverage": {"threads": 8, "mem_mb": 16000},
-        "decoil_reconstruct": {"threads": 16, "mem_mb": 32000},
-        "decoil_plot": {"threads": 4, "mem_mb": 8000},
-        "decoil_structure": {"threads": 4, "mem_mb": 12000},
-        "decoil_compare": {"threads": 2, "mem_mb": 8000},
-        "decoil_igv": {"threads": 1, "mem_mb": 4000},
-        "decoil_ucsc": {"threads": 1, "mem_mb": 4000}
+    "fiberseq_track": {
+      "threads": 4,
+      "mem_mb": 65000
     },
-    "Procedure": {
-        "fibertools": null,
-        "pbmm2": null,
-        "samtools": null,
-        "deepvariant": null,
-        "pbsv": null,
-        "hiphase": null,
-        "ldsc": null,
-        "munge_sumstats": null,
-        "make_annot": null
+    "fiberseq_quant": {
+      "threads": 4,
+      "mem_mb": 12000
     },
-    "Params": {
-        "workflow": {
-            "indir": "input",
-            "outdir": "output",
-            "logdir": "logs",
-            "samples": [],
-            "raw_files": []
-        },
-        "fibertools": {
-            "add_nucleosomes_manual": null,
-            "ont": false,
-            "call_peaks_mode": "fdr",
-            "max_fdr": 0.05,
-            "min_fire_frac": 0.1,
-            "sd_cov": 5.0,
-            "haps": false,
-            "acf": false
-        },
-        "pbmm2": {},
-        "annotate": {
-            "enabled": true,
-            "tss_flank": 1000,
-            "repeat_frac": 0.25
-        },
-        "motif": {
-            "enabled": false,
-            "flank": 250,
-            "min_fibers": 10,
-            "pwm_threshold": 0.8
-        },
-        "footprint": {
-            "enabled": false,
-            "flank": 1000
-        },
-        "nucpos": {
-            "enabled": true,
-            "upstream_nucs": 5,
-            "downstream_nucs": 5,
-            "min_fibers": 10
-        },
-        "track": {
-            "enabled": true,
-            "bin": 10
-        },
-        "quant": {
-            "enabled": true,
-            "min_fibers": 10
-        },
-        "diff": {
-            "enabled": false,
-            "alpha": 0.05,
-            "design_tsv": null,
-            "annot_sample": null
-        },
-        "coactuation": {
-            "enabled": true,
-            "max_distance": 50000,
-            "min_fibers": 10,
-            "max_pairs": 200000,
-            "alpha": 0.05
-        },
-        "pbsv": {
-            "enabled": true,
-            "min_sv_len": 50,
-            "max_sv_len": 1000000,
-            "min_fibers": 10
-        },
-        "haplotype": {
-            "enabled": true,
-            "min_fibers": 10,
-            "alpha": 0.05
-        },
-        "sv": {
-            "enabled": true,
-            "comparisons": {},
-            "image_formats": ["png"],
-            "genes": [],
-            "exp_specific": {
-                "vep_cache": "~/.vep",
-                "species": "macaca_mulatta",
-                "assembly": "Mmul_10",
-                "dist": 500
-            },
-            "circos": {
-                "genome": "rheMac10",
-                "cytoband": "",
-                "ins_bin_size": 100000
-            },
-            "oncoprint": {
-                "cosmic_file": "",
-                "deseq2_files": {}
-            },
-            "diff_analysis": {
-                "large_sv_threshold": 10000
-            },
-            "gene_model": {
-                "threads": 1
-            }
-        },
-        "censat": {
-            "enabled": false,
-            "msp_min_len": 50,
-            "flank": 10000,
-            "bin": 500
-        },
-        "function": {
-            "enabled": false,
-            "species": "human",
-            "gmt": null,
-            "lfc_cut": 1.0,
-            "p_cut": 0.05,
-            "top": 10,
-            "group_pairs": {}
-        },
-        "ldsc": {
-            "enabled": false,
-            "annot_bed": null,
-            "annot_prefix": "peaks",
-            "annot_cluster_from_name": false,
-            "gwas": {},
-            "merge_alleles": null,
-            "ref_ld_chr": null,
-            "w_ld_chr": null,
-            "munge_args": ""
-        },
-        "deepvariant": {},
-        "bamCoverage": {
-            "bin_size": 50,
-            "normalizeUsing": "CPM"
-        },
-        "decoil": {
-            "enabled": true,
-            "reconstruct": {
-                "sv_caller": "sniffles1",
-                "min_sv_len": 500,
-                "fragment_min_cov": 5,
-                "fragment_max_cov": 100000,
-                "fragment_min_size": 500,
-                "min_vaf": 0.01,
-                "min_cov_alt": 6,
-                "min_cov": 8,
-                "max_explog_threshold": 0.1,
-                "filter_score": 5,
-                "extend_allowed_chromosomes": "",
-                "skip": false
-            },
-           "structure": {
-                "formats": ["png"],
-                "max_per_fig": 12,
-                "one_file_per_cycle": true
-            },
-            "plot": {
-                "formats": ["png"]
-            },
-            "compare": {
-                "formats": ["png"]
-            },
-            "igv": {
-                "locus": ""
-            }
-        }
+    "fiberseq_censat": {
+      "threads": 4,
+      "mem_mb": 8000
     },
-    "genome": {
-        "default": "Mmul_10",
-        "references": {
-            "Mmul_10": {
-                "fasta": "/home/luosg/Database/Reference/mulatta/ENSEMBL/Mmul_10/Macaca_mulatta.Mmul_10.dna.toplevel.fa",
-                "fai": null,
-                "pbmm2_index": null,
-                "gtf": null,
-                "repeat_bed": null,
-                "censat_bed": null,
-                "motif_file": null,
-                "mcpg_pileup": null,
-                "geneIDAnno": null
-            },
-            "Mmul_T2T": {
-                "fasta": "/home/luosg/Database/Reference/mulatta/NCBI/Mmul_T2T/GCF_049350105.2_T2T-MMU8v2.0_genomic.fa",
-                "fai": null,
-                "pbmm2_index": null,
-                "gtf": null,
-                "repeat_bed": null,
-                "censat_bed": null,
-                "motif_file": null,
-                "mcpg_pileup": null,
-                "geneIDAnno": null
-            },
-            "GRCm39": {
-                "fasta": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
-                "fai": null,
-                "pbmm2_index": null,
-                "gtf": null,
-                "repeat_bed": null,
-                "censat_bed": null,
-                "motif_file": null,
-                "mcpg_pileup": null,
-                "geneIDAnno": null
-            },
-            "T2T_mhaESC_v1.5": {
-                "fasta": "/data/16T/Database/Reference/mouse/NCBI/T2T_mhaESC_v1.5/GCA_056825265.1_T2T_mhaESC_v1.5_genomic.fa",
-                "fai": null,
-                "pbmm2_index": null,
-                "gtf": "/data/16T/Database/Reference/mouse/NCBI/T2T_mhaESC_v1.5/GCA_056825265.1_T2T_mhaESC_v1.5_vM38_liftoff.gtf",
-                "repeat_bed": "/data/16T/Database/Reference/mouse/NCBI/T2T_mhaESC_v1.5/GRCm39_GENCODE_rmsk_TE.lifted.bed",
-                "censat_bed": null,
-                "motif_file": "/data/16T/Database/Reference/motif/JASPAR2026_CORE_vertebrates_non-redundant.meme",
-                "mcpg_pileup": null,
-                "geneIDAnno": null
-            },
-            "GRCh38": {
-                "fasta": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa",
-                "fai": null,
-                "pbmm2_index": null,
-                "gtf": null,
-                "repeat_bed": null,
-                "censat_bed": null,
-                "motif_file": null,
-                "mcpg_pileup": null,
-                "geneIDAnno": null
-            }
-        }
+    "fiberseq_coactuation": {
+      "threads": 4,
+      "mem_mb": 8000
+    },
+    "fiberseq_footprint": {
+      "threads": 4,
+      "mem_mb": 8000
+    },
+    "fiberseq_motif": {
+      "threads": 4,
+      "mem_mb": 8000
+    },
+    "fiberseq_nucpos": {
+      "threads": 4,
+      "mem_mb": 6000
+    },
+    "fiberseq_annotate": {
+      "threads": 4,
+      "mem_mb": 8000
+    },
+    "bamCoverage": {
+      "threads": 8,
+      "mem_mb": 16000
+    },
+    "decoil_reconstruct": {
+      "threads": 16,
+      "mem_mb": 32000
+    },
+    "decoil_plot": {
+      "threads": 4,
+      "mem_mb": 8000
+    },
+    "decoil_structure": {
+      "threads": 4,
+      "mem_mb": 12000
+    },
+    "decoil_compare": {
+      "threads": 2,
+      "mem_mb": 8000
+    },
+    "decoil_igv": {
+      "threads": 1,
+      "mem_mb": 4000
+    },
+    "decoil_ucsc": {
+      "threads": 1,
+      "mem_mb": 4000
     }
+  },
+  "Procedure": {
+    "fibertools": null,
+    "pbmm2": null,
+    "samtools": null,
+    "deepvariant": null,
+    "pbsv": null,
+    "hiphase": null,
+    "ldsc": null,
+    "munge_sumstats": null,
+    "make_annot": null
+  },
+  "Params": {
+    "workflow": {
+      "indir": "input",
+      "outdir": "output",
+      "logdir": "logs",
+      "samples": [],
+      "raw_files": []
+    },
+    "fibertools": {
+      "add_nucleosomes_manual": null,
+      "ont": false,
+      "call_peaks_mode": "fdr",
+      "max_fdr": 0.05,
+      "min_fire_frac": 0.1,
+      "sd_cov": 5.0,
+      "haps": false,
+      "acf": false
+    },
+    "pbmm2": {},
+    "annotate": {
+      "enabled": true,
+      "tss_flank": 1000,
+      "repeat_frac": 0.25
+    },
+    "motif": {
+      "enabled": false,
+      "flank": 250,
+      "min_fibers": 10,
+      "pwm_threshold": 0.8
+    },
+    "footprint": {
+      "enabled": false,
+      "flank": 1000
+    },
+    "nucpos": {
+      "enabled": true,
+      "upstream_nucs": 5,
+      "downstream_nucs": 5,
+      "min_fibers": 10
+    },
+    "track": {
+      "enabled": true,
+      "bin": 10
+    },
+    "quant": {
+      "enabled": true,
+      "min_fibers": 10
+    },
+    "diff": {
+      "enabled": false,
+      "alpha": 0.05,
+      "design_tsv": null,
+      "annot_sample": null
+    },
+    "coactuation": {
+      "enabled": true,
+      "max_distance": 50000,
+      "min_fibers": 10,
+      "max_pairs": 200000,
+      "alpha": 0.05
+    },
+    "pbsv": {
+      "enabled": true,
+      "min_sv_len": 50,
+      "max_sv_len": 1000000,
+      "min_fibers": 10
+    },
+    "haplotype": {
+      "enabled": true,
+      "min_fibers": 10,
+      "alpha": 0.05
+    },
+    "sv": {
+      "enabled": true,
+      "comparisons": {},
+      "image_formats": [
+        "png"
+      ],
+      "genes": [],
+      "exp_specific": {
+        "vep_cache": "/data/16T/Database/.vep",
+        "species": "T2T_mhaESC_v1.5",
+        "assembly": "T2T_mhaESC_v1.5",
+        "dist": 500,
+        "custom_gtf": "/data/16T/Database/Reference/mouse/NCBI/T2T_mhaESC_v1.5/GCA_056825265.1_T2T_mhaESC_v1.5_vM38_liftoff.sorted.gtf.gz",
+        "custom_fasta": "/data/16T/Database/Reference/mouse/NCBI/T2T_mhaESC_v1.5/GCA_056825265.1_T2T_mhaESC_v1.5_genomic.fa",
+        "te_lib": "/data/16T/Database/env/sv/famdb/mouse_te_lib.fa"
+      },
+      "circos": {
+        "genome": "rheMac10",
+        "cytoband": "",
+        "ins_bin_size": 100000
+      },
+      "oncoprint": {
+        "cosmic_file": "",
+        "deseq2_files": {}
+      },
+      "diff_analysis": {
+        "large_sv_threshold": 10000
+      },
+      "gene_model": {
+        "threads": 1
+      }
+    },
+    "censat": {
+      "enabled": false,
+      "msp_min_len": 50,
+      "flank": 10000,
+      "bin": 500
+    },
+    "function": {
+      "enabled": false,
+      "species": "human",
+      "gmt": null,
+      "lfc_cut": 1.0,
+      "p_cut": 0.05,
+      "top": 10,
+      "group_pairs": {}
+    },
+    "ldsc": {
+      "enabled": false,
+      "annot_bed": null,
+      "annot_prefix": "peaks",
+      "annot_cluster_from_name": false,
+      "gwas": {},
+      "merge_alleles": null,
+      "ref_ld_chr": null,
+      "w_ld_chr": null,
+      "munge_args": ""
+    },
+    "deepvariant": {},
+    "bamCoverage": {
+      "bin_size": 50,
+      "normalizeUsing": "CPM"
+    },
+    "decoil": {
+      "enabled": true,
+      "reconstruct": {
+        "sv_caller": "sniffles1",
+        "min_sv_len": 500,
+        "fragment_min_cov": 5,
+        "fragment_max_cov": 100000,
+        "fragment_min_size": 500,
+        "min_vaf": 0.01,
+        "min_cov_alt": 6,
+        "min_cov": 8,
+        "max_explog_threshold": 0.1,
+        "filter_score": 5,
+        "extend_allowed_chromosomes": "",
+        "skip": false
+      },
+      "structure": {
+        "formats": [
+          "png"
+        ],
+        "max_per_fig": 12,
+        "one_file_per_cycle": true
+      },
+      "plot": {
+        "formats": [
+          "png"
+        ]
+      },
+      "compare": {
+        "formats": [
+          "png"
+        ]
+      },
+      "igv": {
+        "locus": ""
+      }
+    }
+  },
+  "genome": {
+    "default": "Mmul_10",
+    "references": {
+      "Mmul_10": {
+        "fasta": "/home/luosg/Database/Reference/mulatta/ENSEMBL/Mmul_10/Macaca_mulatta.Mmul_10.dna.toplevel.fa",
+        "fai": null,
+        "pbmm2_index": null,
+        "gtf": null,
+        "repeat_bed": null,
+        "censat_bed": null,
+        "motif_file": null,
+        "mcpg_pileup": null,
+        "geneIDAnno": null
+      },
+      "Mmul_T2T": {
+        "fasta": "/home/luosg/Database/Reference/mulatta/NCBI/Mmul_T2T/GCF_049350105.2_T2T-MMU8v2.0_genomic.fa",
+        "fai": null,
+        "pbmm2_index": null,
+        "gtf": null,
+        "repeat_bed": null,
+        "censat_bed": null,
+        "motif_file": null,
+        "mcpg_pileup": null,
+        "geneIDAnno": null
+      },
+      "GRCm39": {
+        "fasta": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
+        "fai": null,
+        "pbmm2_index": null,
+        "gtf": null,
+        "repeat_bed": null,
+        "censat_bed": null,
+        "motif_file": null,
+        "mcpg_pileup": null,
+        "geneIDAnno": null
+      },
+      "T2T_mhaESC_v1.5": {
+        "fasta": "/data/16T/Database/Reference/mouse/NCBI/T2T_mhaESC_v1.5/GCA_056825265.1_T2T_mhaESC_v1.5_genomic.fa",
+        "fai": "/data/16T/Database/Reference/mouse/NCBI/T2T_mhaESC_v1.5/GCA_056825265.1_T2T_mhaESC_v1.5_genomic.fa.fai",
+        "pbmm2_index": null,
+        "gtf": "/data/16T/Database/Reference/mouse/NCBI/T2T_mhaESC_v1.5/GCA_056825265.1_T2T_mhaESC_v1.5_vM38_liftoff.gtf",
+        "repeat_bed": "/data/16T/Database/Reference/mouse/NCBI/T2T_mhaESC_v1.5/GRCm39_GENCODE_rmsk_TE.lifted.bed",
+        "censat_bed": null,
+        "motif_file": "/data/16T/Database/Reference/motif/JASPAR2026_CORE_vertebrates_non-redundant.meme",
+        "mcpg_pileup": null,
+        "geneIDAnno": null
+      },
+      "GRCh38": {
+        "fasta": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa",
+        "fai": null,
+        "pbmm2_index": null,
+        "gtf": null,
+        "repeat_bed": null,
+        "censat_bed": null,
+        "motif_file": null,
+        "mcpg_pileup": null,
+        "geneIDAnno": null
+      }
+    }
+  }
 }

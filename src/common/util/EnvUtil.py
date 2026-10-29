@@ -16,12 +16,14 @@ remains for backward compatibility but the primary workflow is now Apptainer.
 
 import re
 import os
+import json
 import shutil
 import shlex
 import socket
 import logging
 import argparse
 import subprocess
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 from urllib.parse import urlparse
@@ -246,6 +248,7 @@ class EnvUtil:
         cmd: List[str],
         cwd: Optional[str] = None,
         timeout: Optional[int] = None,
+        log_prefix: str = "",
     ) -> int:
         """Run a command and stream merged stdout/stderr line by line.
 
@@ -257,6 +260,8 @@ class EnvUtil:
             Working directory for the subprocess.
         timeout : Optional[int]
             Maximum seconds to wait.
+        log_prefix : str
+            Prefix prepended to every streamed log line (parallel builds).
 
         Returns
         -------
@@ -269,7 +274,7 @@ class EnvUtil:
             If the command exits with a non-zero code.
         """
         cmd_str = " ".join(shlex.quote(c) for c in cmd)
-        logger.info(f"Running: {cmd_str}")
+        logger.info(f"{log_prefix}Running: {cmd_str}")
 
         # Surface apptainer build failures with verbose context. The default
         # `apptainer build` output sometimes collapses the real error to one
@@ -288,7 +293,7 @@ class EnvUtil:
         try:
             for line in process.stdout:
                 captured_lines.append(line)
-                logger.info(line.rstrip())
+                logger.info(f"{log_prefix}{line.rstrip()}")
             process.wait(timeout=timeout)
         except subprocess.TimeoutExpired:
             process.kill()
@@ -561,6 +566,33 @@ class EnvUtil:
     # ------------------------------------------------------------------
     APPTAINER_BOOTSTRAP = "docker"
 
+    # ------------------------------------------------------------------
+    # Download mirrors + explicit-spec (solve-once) support
+    # ------------------------------------------------------------------
+    # Channel name -> mirror URL for host-side solves and generated %post
+    # install commands. Channels not listed pass through unchanged.
+    CHANNEL_MIRRORS = {
+        "conda-forge": "https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/conda-forge",
+        "bioconda": "https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/bioconda",
+        "defaults": "https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/main",
+        "main": "https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/main",
+        "r": "https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/r",
+        "msys2": "https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/msys2",
+    }
+    # Package-URL prefix rewrites for explicit specs. Specific prefixes first,
+    # generic conda-forge/bioconda cloud mapping last.
+    URL_PREFIX_MIRRORS = (
+        ("https://conda.anaconda.org/defaults/", "https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/main/"),
+        ("https://conda.anaconda.org/main/", "https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/main/"),
+        ("https://conda.anaconda.org/r/", "https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/r/"),
+        ("https://conda.anaconda.org/msys2/", "https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/msys2/"),
+        ("https://repo.anaconda.com/pkgs/main/", "https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/main/"),
+        ("https://repo.anaconda.com/pkgs/r/", "https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/r/"),
+        ("https://repo.anaconda.com/pkgs/msys2/", "https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/msys2/"),
+        ("https://conda.anaconda.org/", "https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/"),
+    )
+    PYPI_MIRROR = "https://pypi.tuna.tsinghua.edu.cn/simple"
+
     @staticmethod
     def _all_on_pypi(deps: List[str]) -> bool:
         """Check if all conda dependencies are available on PyPI.
@@ -623,12 +655,130 @@ class EnvUtil:
         return False
 
     @classmethod
+    def _mirror_channel_args(cls, channels: List[str], mirror: bool) -> List[str]:
+        """Build solver channel args mapped through CHANNEL_MIRRORS.
+
+        Returns ``['--override-channels', '-c', <url>, ...]`` preserving the
+        YAML channel order; empty when mirroring is off or no channels given.
+        """
+        if not mirror or not channels:
+            return []
+        args = ["--override-channels"]
+        for ch in channels:
+            ch = str(ch).strip()
+            if not ch:
+                continue
+            args += ["-c", cls.CHANNEL_MIRRORS.get(ch, ch)]
+        return args if len(args) > 1 else []
+
+    @classmethod
+    def _mirror_url(cls, url: str) -> str:
+        """Rewrite an anaconda package URL onto the download mirror."""
+        for prefix, mirror in cls.URL_PREFIX_MIRRORS:
+            if url.startswith(prefix):
+                return mirror + url[len(prefix):]
+        return url
+
+    def solve_explicit_spec(
+        self,
+        yaml_path: str,
+        spec_path: str,
+        env_name: str,
+        mirror: bool = True,
+        refresh: bool = False,
+        timeout: Optional[int] = None,
+    ) -> str:
+        """Solve a conda YAML on the host and write a ``@EXPLICIT`` spec file.
+
+        The spec pins exact package URLs + hashes, so installing from it
+        (``conda create -f <spec>``) skips dependency solving entirely — the
+        slowest phase for complex specs. The spec is reused across rebuilds
+        unless ``refresh`` is set, so every env pays the solve exactly once.
+
+        Parameters
+        ----------
+        yaml_path : str
+            Source conda env YAML.
+        spec_path : str
+            Output spec path (conventionally ``<env_name>.spec.txt`` next to
+            the YAML).
+        env_name : str
+            Environment name (solve target name and spec header).
+        mirror : bool
+            Rewrite package URLs onto CHANNEL_MIRRORS download mirrors.
+        refresh : bool
+            Re-solve even when the spec already exists.
+        timeout : Optional[int]
+            Solve timeout in seconds (None = unbounded; a first solve of a
+            heavily-constrained spec can legitimately take a long time).
+
+        Returns
+        -------
+        str
+            Path to the explicit spec file.
+        """
+        spec = Path(spec_path)
+        if spec.is_file() and not refresh:
+            logger.info(f"Reusing explicit spec (one-time solve cached): {spec}")
+            return str(spec)
+
+        parsed = self.parse_conda_yaml(yaml_path)
+        raw_channels = parsed.get("channels") or []
+        channels = [str(c) for c in raw_channels] if isinstance(raw_channels, list) else []
+        solver = None
+        for candidate in ("mamba", "conda"):
+            if shutil.which(candidate):
+                solver = candidate
+                break
+        if solver is None:
+            raise RuntimeError("No host solver found (need 'mamba' or 'conda' on PATH)")
+
+        cmd = [solver, "create", "--dry-run", "--json", "-n", env_name,
+               "-f", str(Path(yaml_path).resolve())]
+        cmd += self._mirror_channel_args(channels, mirror)
+        logger.info(f"Solving {Path(yaml_path).name} on the host (one-time): {shlex.join(cmd)}")
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+        if result.returncode != 0:
+            raise RuntimeError(
+                f"Host solve failed (rc={result.returncode}): {result.stderr[-2000:]}")
+
+        data = json.loads(result.stdout)
+        actions = data.get("actions") or {}
+        packages: Dict[str, Dict] = {}
+        for key in ("FETCH", "LINK"):
+            for entry in actions.get(key) or []:
+                if isinstance(entry, dict) and entry.get("url"):
+                    packages[entry["url"]] = entry
+        if not packages:
+            raise RuntimeError(
+                "Host solve returned no package URLs; cannot build explicit spec")
+
+        lines = [
+            f"# Explicit spec generated by EnvUtil.py from {Path(yaml_path).name}",
+            f"# Install without solving: mamba create -n {env_name} -f {spec.name}",
+            "@EXPLICIT",
+        ]
+        for url in sorted(packages):
+            entry = packages[url]
+            if mirror:
+                url = self._mirror_url(url)
+            digest = entry.get("md5") or entry.get("sha256")
+            lines.append(f"{url}#{digest}" if digest else url)
+
+        spec.parent.mkdir(parents=True, exist_ok=True)
+        spec.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        logger.info(f"Explicit spec written ({len(packages)} packages): {spec}")
+        return str(spec)
+
+    @classmethod
     def generate_def_file(
         cls,
         yaml_path: str,
         def_path: Optional[str] = None,
         env_name: Optional[str] = None,
         backend: Optional[str] = None,
+        spec_path: Optional[str] = None,
+        mirror: bool = True,
     ) -> str:
         """Generate an Apptainer definition file from a conda env YAML.
 
@@ -705,6 +855,9 @@ class EnvUtil:
                 d = re.sub(r"(?<=[^<>~!])=(?=[0-9])", "==", d)
                 pip_packages.append(d)
 
+        _rc = parsed.get("channels")
+        raw_channels: List[str] = [str(c) for c in _rc] if isinstance(_rc, list) else []
+
         # Resolve backend
         if backend is None or backend == "auto":
             if pypi_only:
@@ -748,6 +901,10 @@ class EnvUtil:
                 post_hook=post_hook,
                 backend=resolved_backend,
                 backend_config=backend_config,
+                spec_filename=Path(spec_path).name if spec_path else None,
+                mirror=mirror,
+                channels=raw_channels,
+                pip_packages=pip_packages,
             )
 
         out = Path(def_path)
@@ -767,6 +924,10 @@ class EnvUtil:
         post_hook: str = "",
         backend: str = "micromamba",
         backend_config: Optional[Dict] = None,
+        spec_filename: Optional[str] = None,
+        mirror: bool = True,
+        channels: Optional[List[str]] = None,
+        pip_packages: Optional[List[str]] = None,
     ) -> str:
         """Render the Apptainer def file text from a template.
 
@@ -786,6 +947,20 @@ class EnvUtil:
             Build backend: ``"micromamba"``, ``"mamba"``, or ``"conda"``.
         backend_config : Optional[Dict]
             Backend configuration dictionary.
+        spec_filename : Optional[str]
+            Explicit-spec filename (``@EXPLICIT``) to install from instead of
+            solving inside the container. Solving is the slowest phase for
+            complex specs; the spec is produced by
+            :meth:`solve_explicit_spec` on the host.
+        mirror : bool
+            Route channels / package downloads through CHANNEL_MIRRORS.
+        channels : Optional[List[str]]
+            YAML channel names (mapped through CHANNEL_MIRRORS when
+            ``mirror`` is on and no spec is used).
+        pip_packages : Optional[List[str]]
+            ``pip:`` sub-section packages. Conda explicit specs cannot carry
+            pip packages, so in spec mode they are pip-installed after the
+            conda env exists.
 
         Returns
         -------
@@ -797,51 +972,85 @@ class EnvUtil:
 
         from_image = backend_config.get("apptainer_from", cls.BACKENDS[cls.DEFAULT_BACKEND]["apptainer_from"])
         hook_block = f"\n{post_hook}\n" if post_hook else ""
+        ch_args_list = cls._mirror_channel_args(list(channels or []), mirror and spec_filename is None)
+        ch_args = (" " + " ".join(ch_args_list)) if ch_args_list else ""
+        env_prefix = f"/opt/conda/envs/{env_name}"
 
-        # Generate backend-specific install commands
-        if backend == "micromamba":
+        # One command per line: a failing step must abort the build (set -e),
+        # never hide behind an `a && b` chain that lets %post continue past a
+        # failed env create (which yields an empty image reported as success).
+        if spec_filename:
+            if backend == "micromamba":
+                install_cmd = f"""    export MAMBA_ROOT_PREFIX="/opt/conda"
+    micromamba create -y -p {env_prefix} -f /opt/conda/{spec_filename} < /dev/null
+    micromamba clean -afy
+    rm /opt/conda/{spec_filename}"""
+            elif backend == "mamba":
+                install_cmd = f"""    export PATH="/opt/conda/bin:$PATH"
+    export CONDA_NO_PLUGINS=true
+    conda install -n base -c conda-forge -y mamba
+    mamba create -y -p {env_prefix} -f /opt/conda/{spec_filename} < /dev/null
+    mamba clean -afy
+    rm /opt/conda/{spec_filename}"""
+            else:  # conda
+                install_cmd = f"""    export PATH="/opt/conda/bin:$PATH"
+    export CONDA_NO_PLUGINS=true
+    conda create -y -p {env_prefix} -f /opt/conda/{spec_filename} < /dev/null
+    conda clean -afy
+    rm /opt/conda/{spec_filename}"""
+        elif backend == "micromamba":
             install_cmd = f"""    export MAMBA_ROOT_PREFIX="/opt/conda"
-    micromamba env create -f /opt/conda/{yaml_filename} < /dev/null && \\
-        micromamba clean -afy && \\
-        rm /opt/conda/{yaml_filename}"""
+    micromamba env create -f /opt/conda/{yaml_filename}{ch_args} < /dev/null
+    micromamba clean -afy
+    rm /opt/conda/{yaml_filename}"""
         elif backend == "mamba":
             install_cmd = f"""    export PATH="/opt/conda/bin:$PATH"
     export CONDA_NO_PLUGINS=true
-    conda install -n base -c conda-forge -y mamba && \\
-        mamba env create -f /opt/conda/{yaml_filename} < /dev/null && \\
-        mamba clean -afy && \\
-        rm /opt/conda/{yaml_filename}"""
+    conda install -n base -c conda-forge -y mamba
+    mamba env create -f /opt/conda/{yaml_filename}{ch_args} < /dev/null
+    mamba clean -afy
+    rm /opt/conda/{yaml_filename}"""
         else:  # conda
             install_cmd = f"""    export PATH="/opt/conda/bin:$PATH"
     export CONDA_NO_PLUGINS=true
     conda config --set solver classic
-    conda env create -f /opt/conda/{yaml_filename} < /dev/null && \\
-        conda clean -afy && \\
-        rm /opt/conda/{yaml_filename}"""
+    conda env create -f /opt/conda/{yaml_filename}{ch_args} < /dev/null
+    conda clean -afy
+    rm /opt/conda/{yaml_filename}"""
 
+        # pip: sub-section packages cannot ride in a conda explicit spec;
+        # install them after the conda env exists (spec mode only — the yaml
+        # flow lets `env create` handle the pip: section itself).
+        pip_block = ""
+        if pip_packages and spec_filename:
+            index = f"-i {cls.PYPI_MIRROR} " if mirror else ""
+            pip_block = f"\n    {env_prefix}/bin/python -m pip install {index}{' '.join(pip_packages)}"
+
+        payload = spec_filename or yaml_filename
         return f"""# Auto-generated Apptainer definition file for {env_name} conda environment
 # Source YAML: {yaml_filename}
 # Build: apptainer build {env_name}.sif {def_filename}
 # Or:   apptainer build <output.sif> <def_file>
 # Backend: {backend}
+# Install mode: {"explicit spec " + spec_filename if spec_filename else "in-container solve"}
 
 Bootstrap: {cls.APPTAINER_BOOTSTRAP}
 From: {from_image}
 
 %files
-    {yaml_filename} /opt/conda/{yaml_filename}
+    {payload} /opt/conda/{payload}
 
 %post
     /bin/bash << 'ENDOFSCRIPT'
     set -euo pipefail
-{install_cmd}
+{install_cmd}{pip_block}
 {hook_block}
-    echo 'export PATH="/opt/conda/envs/{env_name}/bin:$PATH"' >> /etc/profile.d/conda_{env_name}.sh
+    echo 'export PATH="{env_prefix}/bin:$PATH"' >> /etc/profile.d/conda_{env_name}.sh
     echo 'export CONDA_DEFAULT_ENV={env_name}' >> /etc/profile.d/conda_{env_name}.sh
 ENDOFSCRIPT
 
 %environment
-    export PATH="/opt/conda/envs/{env_name}/bin:$PATH"
+    export PATH="{env_prefix}/bin:$PATH"
     export CONDA_DEFAULT_ENV={env_name}
 
 %runscript
@@ -1295,6 +1504,7 @@ CMD ["bash"]
         force: bool = False,
         timeout: Optional[int] = None,
         yaml_path: Optional[str] = None,
+        log_prefix: str = "",
     ) -> str:
         """Run ``apptainer build`` to create a SIF image from a def file.
 
@@ -1338,13 +1548,14 @@ CMD ["bash"]
         cmd.extend([str(out), str(df)])
 
         logger.info(f"Building SIF: {out}")
-        self._run_streaming(cmd, cwd=str(df.parent), timeout=timeout)
+        self._run_streaming(cmd, cwd=str(df.parent), timeout=timeout, log_prefix=log_prefix)
 
-        # Verify build: check SIF is not just base image
+        # Verify build: reject truncated/empty artifacts. Small environments
+        # legitimately produce ~100 MB images, so this is only a low floor —
+        # the real completeness check is the in-SIF env verification below.
         sif_size_mb = out.stat().st_size / (1024 * 1024)
-        # PyPI/uv builds are smaller than conda builds; use lower threshold
         def_text = df.read_text() if df.exists() else ""
-        min_size = 100 if "PyPI/uv" in def_text else 350
+        min_size = 50
         if sif_size_mb < min_size:
             raise RuntimeError(
                 f"SIF too small ({sif_size_mb:.0f} MB) — "
@@ -1412,18 +1623,27 @@ CMD ["bash"]
         build_timeout: Optional[int] = None,
         generate_only: bool = False,
         solver: str = "auto",
+        use_spec: bool = True,
+        refresh_spec: bool = False,
+        mirror: bool = True,
+        log_prefix: str = "",
     ) -> Dict[str, str]:
         """Full Apptainer pipeline for a single conda YAML: generate def, build SIF, copy.
 
         Steps:
-        1. Generate ``<parent_dir>.def`` next to the source YAML (in the module dir).
-        2. ``apptainer build <env_name>.sif <parent_dir>.def``.
-        3. Copy ``.def`` and ``.yaml`` to the output sub-directory.
+        1. Solve the YAML on the host into ``<env_name>.spec.txt`` (one-time;
+           reused across rebuilds, ``refresh_spec`` re-solves). Installing
+           from the explicit spec skips in-container dependency solving — the
+           slowest phase for complex specs. Falls back to an in-container
+           solve when the host solve fails or ``use_spec`` is off.
+        2. Generate ``<parent_dir>.def`` next to the source YAML (in the module dir).
+        3. ``apptainer build <env_name>.sif <parent_dir>.def``.
+        4. Copy ``.def``, ``.yaml`` and the spec to the output sub-directory.
 
         Parameters
         ----------
         yaml_path : str
-            Path to the conda env YAML.
+            Path to the conda YAML.
         env_name : Optional[str]
             Override env / image name.
         output_subdir : Optional[str]
@@ -1442,12 +1662,20 @@ CMD ["bash"]
         solver : str
             Build solver backend: ``"auto"``, ``"micromamba"``, ``"mamba"``,
             ``"conda"``, or ``"uv"``. Default ``"auto"``.
+        use_spec : bool
+            Solve to an explicit spec first and install from it (default True).
+        refresh_spec : bool
+            Re-solve even when the spec file already exists.
+        mirror : bool
+            Route channels / downloads through CHANNEL_MIRRORS (default True).
+        log_prefix : str
+            Prefix for streamed build log lines (used by parallel builds).
 
         Returns
         -------
         Dict[str, str]
             Keys: ``env_name``, ``def_path``, ``sif_path``, ``output_dir``,
-            ``yaml_dest``, ``def_dest``, ``module_relpath``.
+            ``yaml_dest``, ``def_dest``, ``spec_path``, ``module_relpath``.
         """
         yaml = Path(yaml_path).resolve()
         if not yaml.is_file():
@@ -1456,18 +1684,39 @@ CMD ["bash"]
         if env_name is None:
             env_name = self.resolve_env_name(str(yaml))
 
+        # Determine output sub-directory first (spec and build files are
+        # copied there alongside the SIF).
+        if output_subdir is None:
+            output_subdir = str(self.get_output_subdir_for_module(yaml.parent))
+        out_dir = Path(output_subdir).resolve()
+        out_dir.mkdir(parents=True, exist_ok=True)
+
+        # Stage 1 (one-time, host): solve -> explicit spec.
+        spec_path: Optional[str] = None
+        if use_spec and not self.is_pypi_only(str(yaml)):
+            try:
+                spec_path = self.solve_explicit_spec(
+                    yaml_path=str(yaml),
+                    spec_path=str(yaml.parent / f"{env_name}.spec.txt"),
+                    env_name=env_name,
+                    mirror=mirror,
+                    refresh=refresh_spec,
+                )
+            except Exception as e:
+                logger.warning(
+                    f"Explicit-spec solve failed ({e}); "
+                    f"falling back to in-container solving"
+                )
+                spec_path = None
+
         # Generate .def next to the YAML (in the module directory)
         def_path = self.generate_def_file(
             yaml_path=str(yaml),
             env_name=env_name,
             backend=solver,
+            spec_path=spec_path,
+            mirror=mirror,
         )
-
-        # Determine output sub-directory
-        if output_subdir is None:
-            output_subdir = str(self.get_output_subdir_for_module(yaml.parent))
-        out_dir = Path(output_subdir).resolve()
-        out_dir.mkdir(parents=True, exist_ok=True)
 
         sif_path = out_dir / f"{env_name}.sif"
 
@@ -1478,13 +1727,16 @@ CMD ["bash"]
             "output_dir": str(out_dir),
             "yaml_dest": str(out_dir / yaml.name),
             "def_dest": str(out_dir / Path(def_path).name),
+            "spec_path": spec_path or "",
             "module_relpath": str(self.get_module_relpath_for_module(yaml.parent)),
         }
 
-        # Copy .def and .yaml to output directory
+        # Copy .def, .yaml and the explicit spec to output directory
         shutil.copy2(yaml, out_dir / yaml.name)
         shutil.copy2(def_path, out_dir / Path(def_path).name)
-        logger.info(f"Copied {yaml.name} and {Path(def_path).name} to {out_dir}")
+        if spec_path:
+            shutil.copy2(spec_path, out_dir / Path(spec_path).name)
+        logger.info(f"Copied build files for {yaml.name} to {out_dir}")
 
         if generate_only:
             logger.info(f"[GENERATE_ONLY] Def file created: {def_path}")
@@ -1502,6 +1754,7 @@ CMD ["bash"]
             force=force,
             timeout=build_timeout,
             yaml_path=str(yaml),
+            log_prefix=log_prefix,
         )
 
         logger.info(
@@ -1682,6 +1935,10 @@ CMD ["bash"]
         build_timeout: Optional[int] = None,
         generate_only: bool = False,
         solver: str = "auto",
+        jobs: int = 1,
+        use_spec: bool = True,
+        refresh_spec: bool = False,
+        mirror: bool = True,
     ) -> List[Dict[str, str]]:
         """Process every module under ``modules_dir``: generate defs, build SIFs.
 
@@ -1694,6 +1951,14 @@ CMD ["bash"]
         generate_only : bool
         solver : str
             Build solver backend.
+        jobs : int
+            Build up to N images in parallel (1 = serial, the default).
+        use_spec : bool
+            Solve each YAML to an explicit spec on the host first (one-time).
+        refresh_spec : bool
+            Re-solve even when spec files already exist.
+        mirror : bool
+            Route channels / downloads through CHANNEL_MIRRORS.
 
         Returns
         -------
@@ -1706,9 +1971,12 @@ CMD ["bash"]
         results: List[Dict[str, str]] = []
         failed: List[Tuple[str, str]] = []
 
-        for i, yaml in enumerate(yamls, 1):
+        def _process_one(
+            index: int, yaml: Path
+        ) -> Tuple[str, Optional[Dict[str, str]], Optional[str]]:
             rel = self.get_module_relpath_for_module(yaml.parent)
-            logger.info(f"[{i}/{len(yamls)}] Processing: {rel}/{yaml.name}")
+            prefix = f"[{rel.name}] " if jobs > 1 else ""
+            logger.info(f"{prefix}[{index}/{len(yamls)}] Processing: {rel}/{yaml.name}")
             try:
                 result = self.process_yaml(
                     yaml_path=str(yaml),
@@ -1718,11 +1986,33 @@ CMD ["bash"]
                     build_timeout=build_timeout,
                     generate_only=generate_only,
                     solver=solver,
+                    use_spec=use_spec,
+                    refresh_spec=refresh_spec,
+                    mirror=mirror,
+                    log_prefix=prefix,
                 )
-                results.append(result)
+                return str(yaml), result, None
             except Exception as e:
-                logger.error(f"[FAIL] {rel}/{yaml.name}: {e}")
-                failed.append((str(yaml), str(e)))
+                logger.error(f"{prefix}[FAIL] {rel}/{yaml.name}: {e}")
+                return str(yaml), None, str(e)
+
+        if jobs > 1:
+            logger.info(f"Building up to {jobs} images in parallel")
+            with ThreadPoolExecutor(max_workers=jobs) as pool:
+                futures = [pool.submit(_process_one, i, y) for i, y in enumerate(yamls, 1)]
+                for fut in futures:
+                    yaml_path, result, err = fut.result()
+                    if result is not None:
+                        results.append(result)
+                    else:
+                        failed.append((yaml_path, err or "unknown error"))
+        else:
+            for i, yaml in enumerate(yamls, 1):
+                yaml_path, result, err = _process_one(i, yaml)
+                if result is not None:
+                    results.append(result)
+                else:
+                    failed.append((yaml_path, err or "unknown error"))
 
         logger.info(
             f"Summary: {len(results)}/{len(yamls)} succeeded, "
@@ -2543,6 +2833,26 @@ def main() -> None:
         default=False,
         help="Overwrite existing SIF in apptainer build.",
     )
+    appt_common.add_argument(
+        "--no-spec",
+        action="store_false",
+        dest="use_spec",
+        default=True,
+        help="Skip the one-time host solve; install with an in-container solve.",
+    )
+    appt_common.add_argument(
+        "--refresh-spec",
+        action="store_true",
+        default=False,
+        help="Re-solve the explicit spec even if it already exists.",
+    )
+    appt_common.add_argument(
+        "--no-mirror",
+        action="store_false",
+        dest="mirror",
+        default=True,
+        help="Do not route channels/downloads through the download mirrors.",
+    )
 
     # --- args shared by docker subcommands ---
     docker_common = argparse.ArgumentParser(add_help=False)
@@ -2635,10 +2945,16 @@ def main() -> None:
         parents=[common, appt_common, image_common, build_file_common],
         help="Build SIF images from existing .def files.",
     )
-    appt_sub.add_parser(
+    p_appt_all = appt_sub.add_parser(
         "all",
         parents=[common, appt_common, image_common, all_common],
         help="Full pipeline: YAML -> .def -> SIF (build file synced to output).",
+    )
+    p_appt_all.add_argument(
+        "-j", "--jobs",
+        type=int,
+        default=1,
+        help="Build up to N images in parallel (default: 1 = serial).",
     )
 
     # ===== docker subcommands =====
@@ -2721,6 +3037,7 @@ def main() -> None:
                     yaml_path=args.yaml,
                     env_name=args.env_name,
                     backend=args.solver,
+                    mirror=args.mirror,
                 )
                 logger.info(f"Generated: {def_path}")
             else:
@@ -2728,7 +3045,7 @@ def main() -> None:
                 logger.info(f"Found {len(yamls)} conda env YAML(s)")
                 for y in yamls:
                     try:
-                        util.generate_def_file(yaml_path=str(y), backend=args.solver)
+                        util.generate_def_file(yaml_path=str(y), backend=args.solver, mirror=args.mirror)
                     except Exception as e:
                         logger.error(f"[FAIL] {y}: {e}")
 
@@ -2762,6 +3079,9 @@ def main() -> None:
                     force=args.force,
                     build_timeout=args.build_timeout,
                     solver=args.solver,
+                    use_spec=args.use_spec,
+                    refresh_spec=args.refresh_spec,
+                    mirror=args.mirror,
                 )
                 logger.info(f"Result: {result}")
             else:
@@ -2771,6 +3091,10 @@ def main() -> None:
                     force=args.force,
                     build_timeout=args.build_timeout,
                     solver=args.solver,
+                    jobs=args.jobs,
+                    use_spec=args.use_spec,
+                    refresh_spec=args.refresh_spec,
+                    mirror=args.mirror,
                 )
                 logger.info(f"Processed {len(results)} YAML(s)")
 

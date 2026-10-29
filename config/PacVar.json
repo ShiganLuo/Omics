@@ -77,7 +77,7 @@
             "image_formats": ["png"],
             "genes": [],
             "exp_specific": {
-                "vep_cache": "~/.vep",
+                "vep_cache": "/data/16T/Database/.vep",
                 "species": "mus_musculus",
                 "assembly": "GRCm39",
                 "dist": 500

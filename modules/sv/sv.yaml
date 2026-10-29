@@ -2,10 +2,10 @@ name: sv
 channels:
   - conda-forge
   - bioconda
-  - defaults
+  - r
 dependencies:
   # python analysis stack (imports across modules/sv/bin)
-  - python>=3.10
+  - python=3.11
   - pandas
   - numpy
   - scipy

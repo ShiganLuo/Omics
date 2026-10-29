@@ -163,30 +163,44 @@ analysis_outdir = f"{outdir}/results"
 params = config.get("Params", {})
 
 
-def _fs_cfg(name, ds_key, genome_keys=()):
-    """Config dict for one fiberseq_* downstream module."""
-    return {
-        "ROOT_DIR": ROOT_DIR,
-        "env": config.get("env", {}),
-        "indir": analysis_outdir,
-        "outdir": f"{analysis_outdir}/{name}",
-        "logdir": f"{logdir}/sample",
-        "samples": samples,
-        "Params": {name: params.get(ds_key, {})},
-        "genome": {k: genome_ref.get(k) for k in genome_keys},
-        "resources": config.get("resources", {}),
-    }
-
-
-fiberseq_annotate_config = _fs_cfg("fiberseq_annotate", "annotate",
-                                   ("gtf", "repeat_bed"))
+fiberseq_annotate_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "env": config.get("env", {}),
+    "indir": analysis_outdir,
+    "outdir": f"{analysis_outdir}/fiberseq_annotate",
+    "logdir": f"{logdir}/sample",
+    "samples": samples,
+    "Params": {
+        "fiberseq_annotate": params.get("annotate", {})
+    },
+    "genome": {
+        "gtf": genome_ref.get("gtf"),
+        "repeat_bed": genome_ref.get("repeat_bed"),
+    },
+    "resources": config.get("resources", {}),
+}
 module fiberseq_annotate:
     snakefile: "../modules/fiberseq/annotate/annotate.smk"
     config: fiberseq_annotate_config
 logger.debug(f"fiberseq_annotate config: {fiberseq_annotate_config}")
 use rule fiberseq_annotate_run from fiberseq_annotate as Fiberseq_annotate_run
 
-fiberseq_motif_config = _fs_cfg("fiberseq_motif", "motif", ("fasta", "motif_file"))
+fiberseq_motif_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "env": config.get("env", {}),
+    "indir": analysis_outdir,
+    "outdir": f"{analysis_outdir}/fiberseq_motif",
+    "logdir": f"{logdir}/sample",
+    "samples": samples,
+    "Params": {
+        "fiberseq_motif": params.get("motif", {})
+    },
+    "genome": {
+        "fasta": genome_ref.get("fasta"),
+        "motif_file": genome_ref.get("motif_file"),
+    },
+    "resources": config.get("resources", {}),
+}
 module fiberseq_motif:
     snakefile: "../modules/fiberseq/motif/motif.smk"
     config: fiberseq_motif_config
@@ -194,21 +208,59 @@ logger.debug(f"fiberseq_motif config: {fiberseq_motif_config}")
 use rule fiberseq_motif_scan from fiberseq_motif as Fiberseq_motif_scan
 use rule fiberseq_motif_profile from fiberseq_motif as Fiberseq_motif_profile
 
-fiberseq_footprint_config = _fs_cfg("fiberseq_footprint", "footprint")
+fiberseq_footprint_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "env": config.get("env", {}),
+    "indir": analysis_outdir,
+    "outdir": f"{analysis_outdir}/fiberseq_footprint",
+    "logdir": f"{logdir}/sample",
+    "samples": samples,
+    "Params": {
+        "fiberseq_footprint": params.get("footprint", {})
+    },
+    "genome": {},
+    "resources": config.get("resources", {}),
+}
 module fiberseq_footprint:
     snakefile: "../modules/fiberseq/footprint/footprint.smk"
     config: fiberseq_footprint_config
 logger.debug(f"fiberseq_footprint config: {fiberseq_footprint_config}")
 use rule fiberseq_footprint_run from fiberseq_footprint as Fiberseq_footprint_run
 
-fiberseq_nucpos_config = _fs_cfg("fiberseq_nucpos", "nucpos", ("gtf",))
+fiberseq_nucpos_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "env": config.get("env", {}),
+    "indir": analysis_outdir,
+    "outdir": f"{analysis_outdir}/fiberseq_nucpos",
+    "logdir": f"{logdir}/sample",
+    "samples": samples,
+    "Params": {
+        "fiberseq_nucpos": params.get("nucpos", {})
+    },
+    "genome": {
+        "gtf": genome_ref.get("gtf"),
+    },
+    "resources": config.get("resources", {}),
+}
 module fiberseq_nucpos:
     snakefile: "../modules/fiberseq/nucpos/nucpos.smk"
     config: fiberseq_nucpos_config
 logger.debug(f"fiberseq_nucpos config: {fiberseq_nucpos_config}")
 use rule fiberseq_nucpos_run from fiberseq_nucpos as Fiberseq_nucpos_run
 
-fiberseq_quant_config = _fs_cfg("fiberseq_quant", "quant")
+fiberseq_quant_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "env": config.get("env", {}),
+    "indir": analysis_outdir,
+    "outdir": f"{analysis_outdir}/fiberseq_quant",
+    "logdir": f"{logdir}/sample",
+    "samples": samples,
+    "Params": {
+        "fiberseq_quant": params.get("quant", {})
+    },
+    "genome": {},
+    "resources": config.get("resources", {}),
+}
 module fiberseq_quant:
     snakefile: "../modules/fiberseq/quant/quant.smk"
     config: fiberseq_quant_config
@@ -217,36 +269,100 @@ use rule fiberseq_quant_run from fiberseq_quant as Fiberseq_quant_run
 use rule fiberseq_quant_hap from fiberseq_quant as Fiberseq_quant_hap
 use rule fiberseq_quant_merge from fiberseq_quant as Fiberseq_quant_merge
 
-fiberseq_diff_config = _fs_cfg("fiberseq_diff", "diff")
+fiberseq_diff_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "env": config.get("env", {}),
+    "indir": analysis_outdir,
+    "outdir": f"{analysis_outdir}/fiberseq_diff",
+    "logdir": f"{logdir}/sample",
+    "samples": samples,
+    "Params": {
+        "fiberseq_diff": params.get("diff", {})
+    },
+    "genome": {},
+    "resources": config.get("resources", {}),
+}
 module fiberseq_diff:
     snakefile: "../modules/fiberseq/diff/diff.smk"
     config: fiberseq_diff_config
 logger.debug(f"fiberseq_diff config: {fiberseq_diff_config}")
 use rule fiberseq_diff_run from fiberseq_diff as Fiberseq_diff_run
 
-fiberseq_coactuation_config = _fs_cfg("fiberseq_coactuation", "coactuation")
+fiberseq_coactuation_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "env": config.get("env", {}),
+    "indir": analysis_outdir,
+    "outdir": f"{analysis_outdir}/fiberseq_coactuation",
+    "logdir": f"{logdir}/sample",
+    "samples": samples,
+    "Params": {
+        "fiberseq_coactuation": params.get("coactuation", {})
+    },
+    "genome": {},
+    "resources": config.get("resources", {}),
+}
 module fiberseq_coactuation:
     snakefile: "../modules/fiberseq/coactuation/coactuation.smk"
     config: fiberseq_coactuation_config
 logger.debug(f"fiberseq_coactuation config: {fiberseq_coactuation_config}")
 use rule fiberseq_coactuation_run from fiberseq_coactuation as Fiberseq_coactuation_run
 
-fiberseq_haplotype_config = _fs_cfg("fiberseq_haplotype", "haplotype")
+fiberseq_haplotype_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "env": config.get("env", {}),
+    "indir": analysis_outdir,
+    "outdir": f"{analysis_outdir}/fiberseq_haplotype",
+    "logdir": f"{logdir}/sample",
+    "samples": samples,
+    "Params": {
+        "fiberseq_haplotype": params.get("haplotype", {})
+    },
+    "genome": {},
+    "resources": config.get("resources", {}),
+}
 module fiberseq_haplotype:
     snakefile: "../modules/fiberseq/haplotype/haplotype.smk"
     config: fiberseq_haplotype_config
 logger.debug(f"fiberseq_haplotype config: {fiberseq_haplotype_config}")
 use rule fiberseq_haplotype_diff from fiberseq_haplotype as Fiberseq_haplotype_diff
 
-fiberseq_censat_config = _fs_cfg("fiberseq_censat", "censat",
-                                 ("censat_bed", "mcpg_pileup"))
+fiberseq_censat_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "env": config.get("env", {}),
+    "indir": analysis_outdir,
+    "outdir": f"{analysis_outdir}/fiberseq_censat",
+    "logdir": f"{logdir}/sample",
+    "samples": samples,
+    "Params": {
+        "fiberseq_censat": params.get("censat", {})
+    },
+    "genome": {
+        "censat_bed": genome_ref.get("censat_bed"),
+        "mcpg_pileup": genome_ref.get("mcpg_pileup"),
+    },
+    "resources": config.get("resources", {}),
+}
 module fiberseq_censat:
     snakefile: "../modules/fiberseq/censat/censat.smk"
     config: fiberseq_censat_config
 logger.debug(f"fiberseq_censat config: {fiberseq_censat_config}")
 use rule fiberseq_censat_run from fiberseq_censat as Fiberseq_censat_run
 
-fiberseq_track_config = _fs_cfg("fiberseq_track", "track", ("fai",))
+fiberseq_track_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "env": config.get("env", {}),
+    "indir": analysis_outdir,
+    "outdir": f"{analysis_outdir}/fiberseq_track",
+    "logdir": f"{logdir}/sample",
+    "samples": samples,
+    "Params": {
+        "fiberseq_track": params.get("track", {})
+    },
+    "genome": {
+        "fai": genome_ref.get("fai"),
+    },
+    "resources": config.get("resources", {}),
+}
 module fiberseq_track:
     snakefile: "../modules/fiberseq/track/track.smk"
     config: fiberseq_track_config
@@ -313,7 +429,7 @@ hiphase_config = {
     "ROOT_DIR": ROOT_DIR,
     "env": config.get("env", {}),
     "indir": aligned_dir,
-    "outdir": f"{variation_outdir}/phased",
+    "outdir": f"{outdir}/common/5_phased_bam",
     "logdir": f"{logdir}/sample",
     "samples": samples,
     "bam_dir": aligned_dir,
@@ -338,8 +454,8 @@ use rule hiphase_phase from hiphase as Fiberseq_hiphase_phase
 fibertools_hap_config = {
     "ROOT_DIR": ROOT_DIR,
     "env": config.get("env", {}),
-    "indir": f"{variation_outdir}/phased",
-    "outdir": analysis_outdir,
+    "indir": hiphase_config["outdir"],
+    "outdir": f"{outdir}/common/4_raw_results",
     "logdir": f"{logdir}/sample",
     "samples": samples,
     "bam_suffix": ".phased.bam",
@@ -419,14 +535,12 @@ use rule ldsc_annot from ldsc as Fiberseq_ldsc_annot
 use rule ldsc_munge from ldsc as Fiberseq_ldsc_munge
 use rule ldsc_h2_cts from ldsc as Fiberseq_ldsc_h2_cts
 
-DECOIL_COV_DIR = f"{outdir}/eccdna/coverage"
-
 bamCoverage_config = {
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "env": config.get("env", {}),
     "indir": pbmm2_config["outdir"],
-    "outdir": DECOIL_COV_DIR,
+    "outdir": f"{outdir}/common/6_coverage_bw",
     "logdir": f"{logdir}/sample",
     "samples": samples,
     "bam_substring": "fiberseq.fire.sorted",
@@ -455,7 +569,7 @@ decoil_config = {
     "bam_substring": "fiberseq.fire.sorted",
     "vcf_dir": pbsv_config["outdir"],
     "vcf_suffix": ".sv.vcf.gz",
-    "bw_dir": DECOIL_COV_DIR,
+    "bw_dir": bamCoverage_config["outdir"],
     "bw_suffix": ".coverage.bw",
     "Procedure": {
         "decoil": config.get("Procedure", {}).get("decoil")

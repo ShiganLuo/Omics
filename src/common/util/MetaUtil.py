@@ -5,7 +5,7 @@ import logging
 import pandas as pd
 from pathlib import Path
 from collections import defaultdict
-from typing import List, Tuple, Dict, Optional, Union
+from typing import Any, List, Tuple, Dict, Optional, Union
 import argparse
 import math
 try:
@@ -247,6 +247,41 @@ class MetadataUtils:
         return result
 
 
+    @staticmethod
+    def _parse_design(
+            design_raw: Any = None,
+            group_raw: Any = None,
+        ) -> Tuple[str, Optional[str]]:
+        """Resolve one sample's design string and group from raw meta cells.
+
+        Args:
+            design_raw: Raw design cell value (e.g. ``"ctr_WT"``, ``"exp_KO"``).
+                Missing/NaN values resolve to ``""``.
+            group_raw: Raw group cell value. When absent, empty, or NaN, the
+                group falls back to the design tag (the text after the
+                ctr_/ctrl_/exp_ prefix, underscores replaced by spaces) when
+                the design matches DESIGN_PATTERN.
+
+        Returns:
+            Tuple of (design, group): the cleaned design string and the group
+            name, or ``None`` when no group can be determined.
+        """
+        design = ""
+        if design_raw is not None and not pd.isna(design_raw):
+            if isinstance(design_raw, bytes):
+                design_raw = design_raw.decode("utf-8")
+            design = str(design_raw)
+        group: Optional[str] = None
+        if group_raw is not None and not pd.isna(group_raw):
+            group_str = str(group_raw).strip()
+            if group_str:
+                group = group_str
+        if group is None:
+            m = DESIGN_PATTERN.match(design.strip())
+            if m:
+                group = m.group(2).replace("_", " ")
+        return design, group
+
     def prepare_fastq_meta(
             self,
             df: pd.DataFrame,
@@ -301,8 +336,13 @@ class MetadataUtils:
                 raise ValueError(f"something wrong: {sample_id} have no {data_id_col} meta")
             
             self.samples_dict[sample_id].sample_id = sample_id
-            design_value = str(df_sample[design_col].values[0]) if design_col in df_sample.columns else ""
+            design_value, group_value = self._parse_design(
+                df_sample[design_col].values[0] if design_col in df_sample.columns else None,
+                df_sample[group_col].values[0] if group_col in df_sample.columns else None,
+            )
             self.samples_dict[sample_id].design = design_value
+            self.samples_dict[sample_id].group = group_value
+            host_organism_value = "UNKNOWN"
             try:
                 host_organism_value = str(df_sample[organism_col].values[0]) if organism_col in df_sample.columns else "UNKNOWN"
                 contaminated_organism_raw = df_sample[contaminated_organism_col].values[0] if contaminated_organism_col in df_sample.columns else None
@@ -312,24 +352,12 @@ class MetadataUtils:
                 else:
                     self.samples_dict[sample_id].contaminated_organism = None 
             except ValueError as e:
-                logger.error(f"Failed to resolve genome for organism '{df_sample[organism_col].values[0]}' in sample '{sample_id}': {e}")
+                logger.error(f"Failed to resolve genome for organism '{host_organism_value}' in sample '{sample_id}': {e}")
                 # some pipeline may not rely on organism, so we can set it to UNKNOWN and continue
                 self.samples_dict[sample_id].organism = "UNKNOWN"
                 self.samples_dict[sample_id].contaminated_organism = None
             workflow_value = str(df_sample[workflow_col].values[0]) if workflow_col in df_sample.columns else None
             self.samples_dict[sample_id].workflow = workflow_value
-            if group_col in df_sample.columns:
-                group_value = str(df_sample[group_col].values[0]).strip()
-                self.samples_dict[sample_id].group = group_value
-            elif design_col in df_sample.columns:
-                _design_val = str(df_sample[design_col].values[0]).strip()
-                _m = DESIGN_PATTERN.match(_design_val)
-                if _m:
-                    self.samples_dict[sample_id].group = _m.group(2).replace("_", " ")
-                else:
-                    self.samples_dict[sample_id].group = None
-            else:
-                self.samples_dict[sample_id].group = None
             if len(data_ids) == 1:
                 logger.info(f"Detect the relationship between {sample_id} and {data_ids[0]} is one-to-one")
                 origin_r1 = str(df_sample[fastq_r1_col].values[0]) if fastq_r1_col in df_sample.columns else None
@@ -390,7 +418,9 @@ class MetadataUtils:
         sample_id_col: str = 'sample_id',
         bam_col: str = 'bam',
         pbi_col: str = 'pbi',
-        bai_col: str = 'bai'
+        bai_col: str = 'bai',
+        design_col: str = 'design',
+        group_col: str = 'group'
     ) -> None:
         """Prepare BAM metadata: symlink BAM files per sample. may be used for PacBio CCS data or other BAM-based workflows.
         Args:
@@ -400,6 +430,8 @@ class MetadataUtils:
             pbi_col: Column name for PBI index file path.
 
             bai_col: Column name for BAI index file path.
+            design_col: Column name for experimental design (e.g. ctrl_WT, exp_KO).
+            group_col: Column name for sample group.
 
         Raises:
             ValueError: If required columns (sample_id, bam, pbi) are missing.
@@ -414,6 +446,12 @@ class MetadataUtils:
                 organism = str(df_sample.get('organism', pd.Series(["UNKNOWN"])).values[0])
                 tissue = str(df_sample.get('tissue', pd.Series(["UNKNOWN"])).values[0])
                 self.samples_dict[sample_id].tissue = tissue
+                design_value, group_value = self._parse_design(
+                    df_sample[design_col].values[0] if design_col in df_sample.columns else None,
+                    df_sample[group_col].values[0] if group_col in df_sample.columns else None,
+                )
+                self.samples_dict[sample_id].design = design_value
+                self.samples_dict[sample_id].group = group_value
                 try:
                     self.samples_dict[sample_id].organism = resolve_genome(organism)
                 except ValueError as e:
@@ -448,6 +486,12 @@ class MetadataUtils:
                 cellranger_dir = str(df_sample.get('cellranger_dir', pd.Series([None])).values[0])
                 self.samples_dict[sample_id].tissue = tissue
                 self.samples_dict[sample_id].cellranger_dir = cellranger_dir
+                design_value, group_value = self._parse_design(
+                    df_sample[design_col].values[0] if design_col in df_sample.columns else None,
+                    df_sample[group_col].values[0] if group_col in df_sample.columns else None,
+                )
+                self.samples_dict[sample_id].design = design_value
+                self.samples_dict[sample_id].group = group_value
                 try:
                     self.samples_dict[sample_id].organism = resolve_genome(organism)
                 except ValueError as e:
@@ -482,6 +526,8 @@ class MetadataUtils:
             df: pd.DataFrame,
             sample_id_col: str = 'sample_id',
             ms_file_col: str = 'ms_file',
+            design_col: str = 'design',
+            group_col: str = 'group',
         ) -> None:
         """Prepare Mass Spectrometry metadata: symlink MS files per sample.
 
@@ -491,6 +537,8 @@ class MetadataUtils:
             df: Metadata dataframe with sample_id and ms_file columns.
             sample_id_col: Column name for sample identifier.
             ms_file_col: Column name for MS file path.
+            design_col: Column name for experimental design (e.g. ctrl_WT, exp_KO).
+            group_col: Column name for sample group.
 
         Raises:
             ValueError: If ms_file_col is missing from df.
@@ -509,6 +557,12 @@ class MetadataUtils:
                 # some pipeline may not rely on organism, so we can set it to UNKNOWN and continue
                 organism = "UNKNOWN"
             self.samples_dict[sample_id].organism = organism
+            design_value, group_value = self._parse_design(
+                df_sample[design_col].values[0] if design_col in df_sample.columns else None,
+                df_sample[group_col].values[0] if group_col in df_sample.columns else None,
+            )
+            self.samples_dict[sample_id].design = design_value
+            self.samples_dict[sample_id].group = group_value
             ms_file_path = str(df_sample[ms_file_col].values[0]) if ms_file_col in df_sample.columns else None
 
             if not ms_file_path or not os.path.exists(ms_file_path):
@@ -619,10 +673,12 @@ class MetadataUtils:
             self.samples_dict[sample_id].fastq_dir = str(fastq_dir)
             self.samples_dict[sample_id].sample_prefix = sample_prefix
 
-            # Also store design/group/organism/tissue if present
-            for col in ("design", "group", "organism", "tissue"):
+            # Also store organism/tissue if present
+            for col in ("organism", "tissue"):
                 if col in df.columns:
                     setattr(self.samples_dict[sample_id], col, row[col])
+            self.samples_dict[sample_id].design, self.samples_dict[sample_id].group = self._parse_design(
+                row.get(self.design_col), row.get("group"))
 
             # Build cellranger_input for this sample
             self.cellranger_input_dict[sample_id] = CellrangerInput(

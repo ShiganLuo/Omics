@@ -1,5 +1,7 @@
 from snakemake.logging import logger
 include: "../../common/common.smk"
+
+import shutil
 import time
 import os
 
@@ -48,7 +50,9 @@ rule sv_exp_specific:
             open(log_path, "w").close()
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             outprefix = f"{outdir}/{wildcards.genome}/{wildcards.comparison}/{wildcards.comparison}"
-            script_path = os.path.join(outdir, f"{wildcards.genome}/{wildcards.comparison}/sv_exp_specific_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.genome)), exist_ok=True)
+            script_path = os.path.join(logdir, "cmd", str(wildcards.genome), f"{wildcards.genome}/{wildcards.comparison}/sv_exp_specific_{current_time}.sh")
+            plain_script = os.path.join(outdir, f"{wildcards.genome}/{wildcards.comparison}/sv_exp_specific.sh")
             fmt_args = []
             for fmt in image_formats:
                 fmt_args += ["-f", fmt]
@@ -66,7 +70,8 @@ rule sv_exp_specific:
             with open(script_path, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write(" ".join(cmd) + "\n")
-            shell(f"bash {script_path} >> {log_path} 2>&1")
+            shutil.copyfile(script_path, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path, "a") as f:
                 f.write(f"sv_exp_specific failed for {wildcards.comparison} genome {wildcards.genome}: {e}\n")
@@ -94,7 +99,9 @@ rule sv_exp_enrichment:
             open(log_path, "w").close()
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             enrichment_outdir = f"{outdir}/{wildcards.genome}/{wildcards.comparison}/enrichment"
-            script_path = os.path.join(outdir, f"{wildcards.genome}/{wildcards.comparison}/sv_exp_enrichment_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.genome)), exist_ok=True)
+            script_path = os.path.join(logdir, "cmd", str(wildcards.genome), f"{wildcards.genome}/{wildcards.comparison}/sv_exp_enrichment_{current_time}.sh")
+            plain_script = os.path.join(outdir, f"{wildcards.genome}/{wildcards.comparison}/sv_exp_enrichment.sh")
             fmt_args = []
             for fmt in image_formats:
                 fmt_args += ["-f", fmt]
@@ -108,7 +115,8 @@ rule sv_exp_enrichment:
             with open(script_path, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write(" ".join(cmd) + "\n")
-            shell(f"bash {script_path} >> {log_path} 2>&1")
+            shutil.copyfile(script_path, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path, "a") as f:
                 f.write(f"sv_exp_enrichment failed for {wildcards.comparison} genome {wildcards.genome}: {e}\n")
@@ -138,7 +146,9 @@ rule sv_exp_circos:
             open(log_path, "w").close()
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             circos_outdir = f"{outdir}/{wildcards.genome}/{wildcards.comparison}/circos"
-            script_path = os.path.join(outdir, f"{wildcards.genome}/{wildcards.comparison}/sv_exp_circos_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.genome)), exist_ok=True)
+            script_path = os.path.join(logdir, "cmd", str(wildcards.genome), f"{wildcards.genome}/{wildcards.comparison}/sv_exp_circos_{current_time}.sh")
+            plain_script = os.path.join(outdir, f"{wildcards.genome}/{wildcards.comparison}/sv_exp_circos.sh")
             fmt_args = []
             for fmt in image_formats:
                 fmt_args += ["-f", fmt]
@@ -155,7 +165,8 @@ rule sv_exp_circos:
             with open(script_path, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write(" ".join(cmd) + "\n")
-            shell(f"bash {script_path} >> {log_path} 2>&1")
+            shutil.copyfile(script_path, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path, "a") as f:
                 f.write(f"sv_exp_circos failed for {wildcards.comparison} genome {wildcards.genome}: {e}\n")
@@ -184,7 +195,9 @@ rule sv_gene_model:
             open(log_path, "w").close()
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             gene_outdir = f"{outdir}/{wildcards.genome}/{wildcards.comparison}/gene_model"
-            script_path = os.path.join(outdir, f"{wildcards.genome}/{wildcards.comparison}/sv_gene_model_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.genome)), exist_ok=True)
+            script_path = os.path.join(logdir, "cmd", str(wildcards.genome), f"{wildcards.genome}/{wildcards.comparison}/sv_gene_model_{current_time}.sh")
+            plain_script = os.path.join(outdir, f"{wildcards.genome}/{wildcards.comparison}/sv_gene_model.sh")
             gene_args = []
             for g in genes:
                 gene_args += ["-g", g]
@@ -202,7 +215,8 @@ rule sv_gene_model:
             with open(script_path, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write(" ".join(cmd) + "\n")
-            shell(f"bash {script_path} >> {log_path} 2>&1")
+            shutil.copyfile(script_path, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path, "a") as f:
                 f.write(f"sv_gene_model failed for {wildcards.comparison} genome {wildcards.genome}: {e}\n")
@@ -233,7 +247,9 @@ rule sv_diff_analysis:
             open(log_path, "w").close()
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             diff_outdir = f"{outdir}/{wildcards.genome}/sv_diff_analysis"
-            script_path = os.path.join(outdir, f"{wildcards.genome}/sv_diff_analysis_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.genome)), exist_ok=True)
+            script_path = os.path.join(logdir, "cmd", str(wildcards.genome), f"{wildcards.genome}/sv_diff_analysis_{current_time}.sh")
+            plain_script = os.path.join(outdir, f"{wildcards.genome}/sv_diff_analysis.sh")
             group_args = []
             for c in comparisons:
                 vcf_path = f"{outdir}/{wildcards.genome}/{c['name']}/{c['name']}_only.vcf"
@@ -249,7 +265,8 @@ rule sv_diff_analysis:
             with open(script_path, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write(" ".join(cmd) + "\n")
-            shell(f"bash {script_path} >> {log_path} 2>&1")
+            shutil.copyfile(script_path, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path, "a") as f:
                 f.write(f"sv_diff_analysis failed for genome {wildcards.genome}: {e}\n")
@@ -278,7 +295,9 @@ rule sv_oncoprint:
             open(log_path, "w").close()
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             oncoprint_outdir = f"{outdir}/{wildcards.genome}/sv_oncoprint"
-            script_path = os.path.join(outdir, f"{wildcards.genome}/sv_oncoprint_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.genome)), exist_ok=True)
+            script_path = os.path.join(logdir, "cmd", str(wildcards.genome), f"{wildcards.genome}/sv_oncoprint_{current_time}.sh")
+            plain_script = os.path.join(outdir, f"{wildcards.genome}/sv_oncoprint.sh")
             group_args = []
             for c in comparisons:
                 tab_path = f"{outdir}/{wildcards.genome}/{c['name']}/{c['name']}_annotated.tab"
@@ -297,7 +316,8 @@ rule sv_oncoprint:
             with open(script_path, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write(" ".join(cmd) + "\n")
-            shell(f"bash {script_path} >> {log_path} 2>&1")
+            shutil.copyfile(script_path, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path, "a") as f:
                 f.write(f"sv_oncoprint failed for genome {wildcards.genome}: {e}\n")

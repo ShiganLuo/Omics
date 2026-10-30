@@ -1,4 +1,6 @@
 include: "../common/common.smk"
+
+import shutil
 from snakemake.logging import logger
 indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
@@ -26,7 +28,9 @@ rule bcftools_sort:
             rule_logger.info(f"Start bcftools sort for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.vcf))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(sample_outdir, f"bcftools_sort_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"bcftools_sort_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, f"bcftools_sort.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write(f"mkdir -p $(dirname {output.vcf})\n")
@@ -35,7 +39,8 @@ rule bcftools_sort:
                 f.write(f"    -o {output.vcf} \\\n")
                 f.write(f"    {input.vcf} \\\n")
                 f.write(f"    > {log} 2>&1\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path, "a") as f:
                 f.write(f"Error occurred during bcftools sort for sample {wildcards.sample_id}: {e}\n")
@@ -64,11 +69,14 @@ rule bcftools_index_csi:
             rule_logger.info(f"Start bcftools index for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.csi))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(sample_outdir, f"bcftools_index_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"bcftools_index_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, f"bcftools_index.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write(f"{params.bcftools} index {input.vcf} > {log} 2>&1\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path, "a") as f:
                 f.write(f"Error occurred during bcftools index for sample {wildcards.sample_id}: {e}\n")

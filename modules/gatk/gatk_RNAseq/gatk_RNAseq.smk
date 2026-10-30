@@ -1,4 +1,6 @@
 include: "../../common/common.smk"
+
+import shutil
 indir = config.get("indir") or "input"
 outdir = config.get("outdir") or "output"
 logdir = config.get("logdir") or "log"
@@ -44,7 +46,9 @@ rule SplitNCigarReads:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start SplitNCigarReads for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.bam))
-            script = os.path.join(sample_outdir,f"SplitNCigarReads_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"SplitNCigarReads_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, f"SplitNCigarReads.sh")
             if not input.dict_index or not os.path.exists(input.dict_index) or not input.fai_index or not os.path.exists(input.fai_index):
                 fasta = indir + "/index/genome.fa"
                 os.makedirs(os.path.dirname(fasta), exist_ok=True)
@@ -64,7 +68,8 @@ rule SplitNCigarReads:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f"echo 'SplitNCigarReads completed successfully for sample {wildcards.sample_id}'\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error during SplitNCigarReads execution: {str(e)}")
             raise RuntimeError(f"Error occurred while running SplitNCigarReads for sample {wildcards.sample_id}: {e}, you can check the log file {log_path} for more details.")
@@ -95,7 +100,9 @@ rule VarientCalling:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start VarientCalling for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.vcf))
-            script = os.path.join(sample_outdir,f"VarientCalling_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"VarientCalling_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, f"VarientCalling.sh")
             if not params.fai_index or not os.path.exists(params.fai_index):
                 fasta = indir + "/index/genome.fa" # 依赖SplitNCigarReads真实执行
             else:
@@ -115,7 +122,8 @@ rule VarientCalling:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f"echo 'VarientCalling completed successfully for sample {wildcards.sample_id}'\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during VarientCalling for sample {wildcards.sample_id}: {e}")
             raise RuntimeError(f"Error occurred while running VarientCalling for sample {wildcards.sample_id}: {e}, you can check the log file {log_path} for more details.")
@@ -146,7 +154,9 @@ rule vcf_filter:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start vcf_filter for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.vcf))
-            script = os.path.join(sample_outdir,f"vcf_filter_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"vcf_filter_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, f"vcf_filter.sh")
             if not params.fai_index or not os.path.exists(params.fai_index):
                 fasta = indir + "/index/genome.fa" # 依赖SplitNCigarReads真实执行
             else:
@@ -171,7 +181,8 @@ rule vcf_filter:
                 f.write(" ".join(cmd1) + "\n")
                 f.write(f"{params.bgzip} {str(output.vcf).replace('.vcf.gz', '.vcf')}\n")
                 f.write(f"echo 'vcf_filter completed successfully for sample {wildcards.sample_id}'\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during vcf_filter for sample {wildcards.sample_id}: {e}")
             raise RuntimeError(f"Error occurred while running vcf_filter for sample {wildcards.sample_id}: {e}, you can check the log file {log_path} for more details.")

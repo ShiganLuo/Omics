@@ -1,5 +1,7 @@
 include: "../../common/common.smk"
 
+import shutil
+
 
 indir = config.get("indir", "data/protein_inference")
 outdir = config.get("outdir", "output")
@@ -117,7 +119,9 @@ rule quantification_lfq:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start LFQ quantification at {current_time}")
             os.makedirs(outdir, exist_ok=True)
-            script = os.path.join(outdir, f"quantification_lfq_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"quantification_lfq_{current_time}.sh")
+            plain_script = os.path.join(outdir, f"quantification_lfq.sh")
             cmd = [
                 params.proteomicslfq,
                 "-in", *[str(x) for x in input.mzml],
@@ -136,7 +140,8 @@ rule quantification_lfq:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
                 f.write(f"echo 'LFQ quantification completed at {current_time}'\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error during LFQ quantification: {str(e)}\n")
             raise RuntimeError(f"Error during LFQ quantification: {str(e)}\n")
@@ -168,7 +173,9 @@ rule quantification_tmt_reporter:
             rule_logger.info(f"Start isobaric reporter extraction for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(sample_outdir, f"quantification_tmt_reporter_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"quantification_tmt_reporter_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, f"quantification_tmt_reporter.sh")
             extract_cmd = [
                 params.isobaric_analyzer,
                 "-in", str(input.mzml),
@@ -198,7 +205,8 @@ rule quantification_tmt_reporter:
                 f.write(" ".join(shlex.quote(str(x)) for x in extract_cmd) + "\n")
                 f.write(" ".join(shlex.quote(str(x)) for x in map_cmd) + "\n")
                 f.write(f"echo 'Isobaric reporter extraction for {wildcards.sample_id} completed at {current_time}'\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error during isobaric reporter extraction: {str(e)}\n")
             raise RuntimeError(f"Error during isobaric reporter extraction: {str(e)}\n")
@@ -241,7 +249,9 @@ rule quantification_tmt:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start TMT quantification at {current_time}")
             os.makedirs(outdir, exist_ok=True)
-            script = os.path.join(outdir, f"quantification_tmt_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"quantification_tmt_{current_time}.sh")
+            plain_script = os.path.join(outdir, f"quantification_tmt.sh")
             quant_cmds = []
             csvs = []
             for sample_id, mapped_cxml, protein_idxml in zip(
@@ -328,7 +338,8 @@ rule quantification_tmt:
                     f.write(cmd_line + "\n")
                 f.write(stack_cmd + "\n")
                 f.write(f"echo 'TMT quantification completed at {current_time}'\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error during TMT quantification: {str(e)}\n")
             raise RuntimeError(f"Error during TMT quantification: {str(e)}\n")
@@ -361,7 +372,9 @@ rule quantification_dia:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start DIA quantification at {current_time}")
             os.makedirs(outdir, exist_ok=True)
-            script = os.path.join(outdir, f"quantification_dia_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"quantification_dia_{current_time}.sh")
+            plain_script = os.path.join(outdir, f"quantification_dia.sh")
             cmd = [
                 params.proteomicslfq,
                 "-in", *[str(x) for x in input.mzml],
@@ -380,7 +393,8 @@ rule quantification_dia:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
                 f.write(f"echo 'DIA quantification completed at {current_time}'\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error during DIA quantification: {str(e)}\n")
             raise RuntimeError(f"Error during DIA quantification: {str(e)}\n")

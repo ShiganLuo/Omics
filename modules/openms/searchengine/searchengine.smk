@@ -1,4 +1,6 @@
 include: "../../common/common.smk"
+
+import shutil
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "logs")
 samples = config.get("samples", [])
@@ -143,7 +145,9 @@ rule search_engine_comet:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start Comet search for sample {wildcards.sample_id} at {current_time}")
             _assert_label_matches_data(input.mzml)
-            script = os.path.join(outdir, f"{wildcards.sample_id}/comet_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"{wildcards.sample_id}/comet_{current_time}.sh")
+            plain_script = os.path.join(outdir, f"{wildcards.sample_id}/comet.sh")
             cmd = [
                 params.comet,
                 "-in", input.mzml,
@@ -168,7 +172,8 @@ rule search_engine_comet:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
                 f.write(f'echo "rule search_engine_comet called for {wildcards.sample_id} was successfully completed"\n')
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"rule search_engine_comet was call failed,error: {e}")
             raise RuntimeError(f"rule search_engine_comet was call failed,error: {e}")
@@ -199,7 +204,9 @@ rule search_engine_msgf:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start MSGF+ search for sample {wildcards.sample_id} at {current_time}")
             _assert_label_matches_data(input.mzml)
-            script = os.path.join(outdir, f"{wildcards.sample_id}/msgf_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"{wildcards.sample_id}/msgf_{current_time}.sh")
+            plain_script = os.path.join(outdir, f"{wildcards.sample_id}/msgf.sh")
             cmd = [
                 params.msgf,
                 "-in", input.mzml,
@@ -214,7 +221,8 @@ rule search_engine_msgf:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
                 f.write(f'echo "rule search_engine_msgf called for {wildcards.sample_id} was successfully completed"\n')
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"rule search_engine_msgf was call failed,error: {e}")
             raise RuntimeError(f"rule search_engine_msgf was call failed,error: {e}")
@@ -243,7 +251,9 @@ rule search_engine_sage:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start Sage search for sample {wildcards.sample_id} at {current_time}")
             _assert_label_matches_data(input.mzml)
-            script = os.path.join(outdir, f"{wildcards.sample_id}/sage_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"{wildcards.sample_id}/sage_{current_time}.sh")
+            plain_script = os.path.join(outdir, f"{wildcards.sample_id}/sage.sh")
             cmd = [
                 params.sage,
                 "-in", input.mzml,
@@ -257,7 +267,8 @@ rule search_engine_sage:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
                 f.write(f'echo "rule search_engine_sage called for {wildcards.sample_id} was successfully completed"\n')
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"rule search_engine_sage was call failed,error: {e}")
             raise RuntimeError(f"rule search_engine_sage was call failed,error: {e}")

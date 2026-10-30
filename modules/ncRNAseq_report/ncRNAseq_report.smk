@@ -1,4 +1,6 @@
 include: "../common/common.smk"
+
+import shutil
 import shlex
 import json as _json
 outdir = config.get("outdir", "output")
@@ -69,7 +71,9 @@ rule generate_report:
             report_dir = os.path.dirname(str(output.report))
             os.makedirs(report_dir, exist_ok=True)
             os.makedirs(params.img_dir, exist_ok=True)
-            script_path = os.path.join(report_dir, f"ncRNAseq_report_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script_path = os.path.join(logdir, "cmd", "group", f"ncRNAseq_report_{current_time}.sh")
+            plain_script = os.path.join(report_dir, f"ncRNAseq_report.sh")
             cmd = [
                 "python3", params.script,
                 "--analysis-dir", outdir,
@@ -98,7 +102,8 @@ rule generate_report:
                 fh.write("#!/bin/bash\n")
                 fh.write("set -euo pipefail\n")
                 fh.write(" ".join([shlex.quote(str(x)) for x in cmd]) + "\n")
-            shell(f"bash {script_path} > {log_path} 2>&1")
+            shutil.copyfile(script_path, plain_script)
+            shell(f"bash {plain_script} > {log_path} 2>&1")
         except Exception as e:
             with open(log_path, "a") as fh:
                 fh.write(f"ncRNAseq report generation failed: {e}\n")

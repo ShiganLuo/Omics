@@ -1,5 +1,7 @@
 include: "../common/common.smk"
 
+import shutil
+
 from snakemake.logging import logger
 import os
 import time
@@ -44,7 +46,9 @@ rule ldsc_annot:
             rule_logger.info(f"Start ldsc_annot at {current_time}")
             group_outdir = outdir + "/annot"
             os.makedirs(group_outdir, exist_ok=True)
-            script = os.path.join(group_outdir, f"ldsc_annot_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"ldsc_annot_{current_time}.sh")
+            plain_script = os.path.join(group_outdir, f"ldsc_annot.sh")
             cmd = [
                 "python", params.script,
                 "-p", str(input.peaks),
@@ -59,7 +63,8 @@ rule ldsc_annot:
                 f.write("set -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "ldsc_annot at {current_time} completed successfully"\n')
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during ldsc_annot: {e}\n")
             raise RuntimeError(f"Error occurred during ldsc_annot: {e}\n")
@@ -91,7 +96,9 @@ rule ldsc_munge:
             rule_logger.info(f"Start ldsc_munge for {wildcards.trait} at {current_time}")
             trait_outdir = outdir + f"/{wildcards.trait}"
             os.makedirs(trait_outdir, exist_ok=True)
-            script = os.path.join(trait_outdir, f"ldsc_munge_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"ldsc_munge_{current_time}.sh")
+            plain_script = os.path.join(trait_outdir, f"ldsc_munge.sh")
             cmd = [
                 params.munge,
                 "--sumstats", str(input.sumstats),
@@ -106,7 +113,8 @@ rule ldsc_munge:
                 f.write("set -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "ldsc_munge for {wildcards.trait} at {current_time} completed successfully"\n')
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during ldsc_munge for {wildcards.trait}: {e}\n")
             raise RuntimeError(f"Error occurred during ldsc_munge for {wildcards.trait}: {e}\n")
@@ -139,7 +147,9 @@ rule ldsc_h2_cts:
             rule_logger.info(f"Start ldsc_h2_cts for {wildcards.trait} at {current_time}")
             trait_outdir = outdir + f"/{wildcards.trait}"
             os.makedirs(trait_outdir, exist_ok=True)
-            script = os.path.join(trait_outdir, f"ldsc_h2_cts_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"ldsc_h2_cts_{current_time}.sh")
+            plain_script = os.path.join(trait_outdir, f"ldsc_h2_cts.sh")
             cmd = [
                 params.ldsc,
                 "--h2-cts", str(input.munged),
@@ -152,7 +162,8 @@ rule ldsc_h2_cts:
                 f.write("set -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "ldsc_h2_cts for {wildcards.trait} at {current_time} completed successfully"\n')
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during ldsc_h2_cts for {wildcards.trait}: {e}\n")
             raise RuntimeError(f"Error occurred during ldsc_h2_cts for {wildcards.trait}: {e}\n")

@@ -1,5 +1,7 @@
 include: "../../common/common.smk"
 
+import shutil
+
 from snakemake.logging import logger
 indir = config.get("indir", "output/diff_expression")
 counts_dir = config.get("counts_dir", "output/counts")
@@ -69,12 +71,15 @@ rule function_go_kegg:
                 "--top", str(params.top),
             ]
 
-            script = os.path.join(sample_outdir, f"go_kegg_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"go_kegg_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, f"go_kegg.sh")
             with open(script, 'w') as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f"echo 'GO/KEGG analysis completed successfully for {wildcards.genome} and {wildcards.contrast}'\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"GO/KEGG analysis failed: {e}\n")
             raise RuntimeError(f"GO/KEGG analysis failed: {e}\n")
@@ -126,7 +131,9 @@ rule function_gsea:
             if wildcards.contrast not in group_pairs.get(wildcards.genome, {}):
                 raise ValueError(f"Group pair {wildcards.contrast} not found in group_pairs configuration.")
             sample_outdir = os.path.dirname(str(output.func_gsea_plot))
-            script = os.path.join(sample_outdir, f"gsea_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"gsea_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, f"gsea.sh")
             graph_title = wildcards.contrast
 
             cmd = [
@@ -144,7 +151,8 @@ rule function_gsea:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f"echo 'GSEA analysis was completed successfully for {wildcards.genome} and {wildcards.contrast}'\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"GSEA analysis failed: {e}")
             raise RuntimeError(f"GSEA analysis failed: {e}")
@@ -236,13 +244,16 @@ rule function_gsva:
                 "-o", gsva_outdir,
                 "--title", f"GSVA ({species_name}) - {wildcards.genome}",
             ]
-            script = os.path.join(gsva_outdir, f"gsva_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"gsva_{current_time}.sh")
+            plain_script = os.path.join(gsva_outdir, f"gsva.sh")
             with open(script, 'w') as f:
                 f.write("#!/bin/bash\nset -e\nset -o pipefail\n")
                 f.write(" ".join(norm_cmd) + "\n")
                 f.write(" ".join(shlex.quote(str(x)) for x in gsva_cmd) + "\n")
                 f.write(f"echo 'GSVA analysis was completed successfully for {wildcards.genome} !'\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"GSVA analysis failed: {e}")
             raise RuntimeError(f"GSVA analysis failed: {e}")

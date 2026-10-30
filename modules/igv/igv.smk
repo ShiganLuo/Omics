@@ -1,4 +1,6 @@
 include: "../common/common.smk"
+
+import shutil
 indir = config.get('indir', "input")
 outdir = config.get('outdir', "output")
 logdir = config.get('logdir', "log")
@@ -31,7 +33,9 @@ rule samtools_dedup:
             rule_logger.info(f"Start rule dedup for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            script_path = os.path.join(sample_outdir, f"samtools_dedup_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script_path = os.path.join(logdir, "cmd", "group", f"samtools_dedup_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, f"samtools_dedup.sh")
             cmd = [
                 params.samtools, "sort",
                 "-n",
@@ -56,7 +60,8 @@ rule samtools_dedup:
                 f.write("#!/bin/bash\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(success_echo + "\n")
-            shell(f"bash {script_path} >> {log_path} 2>&1")
+            shutil.copyfile(script_path, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path, "a") as f:
                 f.write(f"samtools dedup failed: {e}\n")
@@ -91,7 +96,9 @@ rule wig:
             rule_logger.info(f"Start rule wig for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            script_path = os.path.join(sample_outdir, f"bamCoverage_wig_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script_path = os.path.join(logdir, "cmd", "group", f"bamCoverage_wig_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, f"bamCoverage_wig.sh")
             cmd = [
                 params.bamCoverage,
                 "--numberOfProcessors", str(threads),
@@ -110,7 +117,8 @@ rule wig:
             with open(script_path,"w") as f:
                 f.write("#!/bin/bash\n")
                 f.write(" ".join(cmd) + "\n")
-            shell(f"bash {script_path} >> {log_path} 2>&1")
+            shutil.copyfile(script_path, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path, "a") as f:
                 f.write(f"bamCoverage wig failed: {e}\n")

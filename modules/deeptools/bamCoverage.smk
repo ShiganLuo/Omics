@@ -1,5 +1,7 @@
 include: "../common/common.smk"
 
+import shutil
+
 indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
@@ -52,9 +54,14 @@ rule bamCoverage:
                 f"at {current_time}"
             )
             os.makedirs(str(params.outdir_sample), exist_ok=True)
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
             script = os.path.join(
-                str(params.outdir_sample),
+                logdir, "cmd", str(wildcards.sample_id),
                 f"bamCoverage_{wildcards.sample_id}_{current_time}.sh",
+            )
+            plain_script = os.path.join(
+                str(params.outdir_sample),
+                f"bamCoverage_{wildcards.sample_id}.sh",
             )
             cmd = [
                 params.bamCoverage,
@@ -73,7 +80,8 @@ rule bamCoverage:
                     f'{current_time} completed successfully"\n'
                 )
             rule_logger.info("Executing: " + " ".join(cmd))
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"bamCoverage failed for sample {wildcards.sample_id}: {e}")
             raise RuntimeError(f"bamCoverage failed for sample {wildcards.sample_id}: {e}")

@@ -1,4 +1,6 @@
 include: "../common/common.smk"
+
+import shutil
 indir = config.get("indir") or "input"
 outdir = config.get("outdir") or "output"
 logdir = config.get("logdir") or "log"
@@ -143,13 +145,16 @@ rule stringTieMerge:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start stringTieMerge run at {current_time}")
-            script = os.path.join(outdir, f"stringTieMerge_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"stringTieMerge_{current_time}.sh")
+            plain_script = os.path.join(outdir, f"stringTieMerge.sh")
             cmd = [params.stringtie, "--merge"] + list(input.gtfs) + ["-o", output.gtf, "-G", params.gtf]
             with open(script, 'w') as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(' '.join(cmd) + '\n')
                 f.write(f"echo 'stringTieMerge run completed successfully'\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during stringTieMerge: {e}")
             raise RuntimeError(f"Error occurred during stringTieMerge: {e}\n")

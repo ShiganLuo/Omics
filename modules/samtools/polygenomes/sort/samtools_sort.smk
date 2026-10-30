@@ -1,5 +1,7 @@
 include: "../../../common/common.smk"
 
+import shutil
+
 from snakemake.logging import logger
 import time
 import os
@@ -44,12 +46,15 @@ rule bam_sort:
             output.bam,
             output.bai
         ]
-        script = os.path.join(outdir,f"samtools_sort_{current_time}.sh")
+        os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+        script = os.path.join(logdir, "cmd", "group", f"samtools_sort_{current_time}.sh")
+        plain_script = os.path.join(outdir, f"samtools_sort.sh")
         with open(script, "w") as f:
             f.write("#!/bin/bash\n")
             f.write(" ".join(cmd1) + "\n")
             f.write(" ".join(cmd2) + "\n")
-        shell("bash {script} > {log} 2>&1")
+        shutil.copyfile(script, plain_script)
+        shell("bash {plain_script} > {log} 2>&1")
 
 rule samtools_sort_index_result:
     input:

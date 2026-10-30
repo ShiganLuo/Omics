@@ -2,6 +2,8 @@
 
 include: "../../common/common.smk"
 
+import shutil
+
 import os
 import shlex
 
@@ -65,7 +67,9 @@ rule star_3p_align:
             sample_outdir = os.path.dirname(str(output.bam))
             os.makedirs(sample_outdir, exist_ok=True)
             os.makedirs(os.path.dirname(log_path), exist_ok=True)
-            script = os.path.join(sample_outdir, f"three_pass_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"three_pass_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, f"three_pass.sh")
 
             p1 = three_pass_params.get("pass1", {})
             p2 = three_pass_params.get("pass2", {})
@@ -139,7 +143,8 @@ rule star_3p_align:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
                 f.write(f"echo 'star_3p_align for sample {wildcards.sample_id} genome {wildcards.genome} completed successfully at {current_time}'\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
 
             rule_logger.info(f"star_3p_align for sample {wildcards.sample_id} completed")
         except Exception as e:

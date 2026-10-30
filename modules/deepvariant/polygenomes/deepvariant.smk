@@ -1,6 +1,8 @@
 from snakemake.logging import logger
 
 include: "../../common/common.smk"
+
+import shutil
 indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
@@ -48,7 +50,9 @@ rule deepvariant_run:
             logger = setup_logger(logger_name="deepvariant_run", log_file=log[0])
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start DeepVariant for sample {wildcards.sample_id} genome {wildcards.genome} at {current_time}")
-            script = os.path.join(outdir, f"{wildcards.genome}/{wildcards.sample_id}/deepvariant_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.genome)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.genome), f"{wildcards.genome}/{wildcards.sample_id}/deepvariant_{current_time}.sh")
+            plain_script = os.path.join(outdir, f"{wildcards.genome}/{wildcards.sample_id}/deepvariant.sh")
             cmd1 = [
                 params.deepvariant,
                 "--num_shards", str(threads),
@@ -65,7 +69,8 @@ rule deepvariant_run:
                 f.write("#!/bin/bash\n")
                 f.write(" ".join(cmd1) + "\n")
                 f.write(" ".join(cmd2) + "\n")
-            shell("bash {script} > {log} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell("bash {plain_script} > {log} 2>&1")
         except Exception as e:
             with open(log[0], "a") as f:
                 f.write(f"Error during DeepVariant execution: {str(e)}\n")

@@ -1,4 +1,6 @@
 include: "../../common/common.smk"
+
+import shutil
 ROOT_DIR = config.get("ROOT_DIR", ".")
 indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
@@ -116,7 +118,9 @@ rule scTE_quantify:
             rule_logger.info(f"Quantifying TE expression for sample {wildcards.sample_id}")
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             sample_outdir = os.path.dirname(output.h5ad)
-            command_script = os.path.join(sample_outdir, f"scTE_quantify_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            command_script = os.path.join(logdir, "cmd", "group", f"scTE_quantify_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, f"scTE_quantify.sh")
             cmd = [
                 "python", params.script,
                 "--input", input.bam,
@@ -132,7 +136,8 @@ rule scTE_quantify:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(str(item) for item in cmd) + "\n")
                 f.write(f'echo "scTE quantification for sample {wildcards.sample_id} completed successfully"\n')
-            shell(f"bash {command_script} >> {log_path} 2>&1")
+            shutil.copyfile(command_script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path, "a") as f:
                 f.write(f"scTE_quantify failed: {e}\n")

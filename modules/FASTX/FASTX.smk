@@ -1,5 +1,7 @@
 include: "../common/common.smk"
 
+import shutil
+
 from snakemake.logging import logger
 outdir = config.get("outdir", "output")
 indir = config.get("indir", "output/raw_fastq")
@@ -33,11 +35,14 @@ rule fastx_quality_filter_single:
             rule_logger.info(f"Start fastx_quality_filter_single for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.join(params.outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(sample_outdir, f"fastx_quality_filter_single_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"fastx_quality_filter_single_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, f"fastx_quality_filter_single.sh")
             with open(script, "w") as f:
                 f.write(f"{params.fastx_toolkit} -Q {params.Q} -q {params.q} -p {params.p} \\\n")
                 f.write(f"    -i {input.fastq} -o {output.fastq} > {log_path} 2>&1\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
             rule_logger.info(f"fastx_quality_filter_single for sample {wildcards.sample_id} completed")
         except Exception as e:
             with open(log_path, "a") as f:

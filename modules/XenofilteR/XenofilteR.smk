@@ -1,4 +1,6 @@
 include: "../common/common.smk"
+
+import shutil
 from snakemake.logging import logger
 indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
@@ -54,7 +56,9 @@ rule XenofilteR:
             rule_logger.info(f"Start XenofilteR for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.csvIn))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(sample_outdir, f"XenofilteR_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"XenofilteR_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, f"XenofilteR.sh")
             cmd1 = [
                 "echo", f"{input.host_bam},{input.contaminant_bam}", ">", output.csvIn
             ]
@@ -98,7 +102,8 @@ rule XenofilteR:
                     f.write(" ".join(cmd3) + "\n")
                     f.write(" ".join(cmd4) + "\n")
                 f.write(f"echo 'XenofilteR completed successfully for sample {wildcards.sample_id}'\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during XenofilteR for sample {wildcards.sample_id}: {e}")
             raise RuntimeError(f"Error occurred during XenofilteR for sample {wildcards.sample_id}: {e}, you can check the log file {log_path} for more details.")

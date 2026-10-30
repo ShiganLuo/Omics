@@ -13,7 +13,7 @@ def get_inputFile_for_neodisambiguate(wildcards):
     }
 rule neodisambiguate:
     input:
-        **get_inputFile_for_neodisambiguate()
+        unpack(get_inputFile_for_neodisambiguate)
     output:
         clean_bam1 = outdir + "/{sample_id}/{sample_id}.{genomeA}.neodisambiguatedA.bam", # for wildcards, the order of genomeA and genomeB is not fixed, so we use .neodisambiguatedA and .neodisambiguatedB to represent the two output bam files
         clean_bam2 = outdir + "/{sample_id}/{sample_id}.{genomeB}.neodisambiguatedB.bam",

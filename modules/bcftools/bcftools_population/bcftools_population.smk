@@ -1,5 +1,5 @@
 
-include: "../common/common.smk"
+include: "../../common/common.smk"
 
 import os
 import time

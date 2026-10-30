@@ -6,12 +6,12 @@
     "required": false
   },
   "outdir": {
-    "type": "null",
+    "type": "str",
     "nullable": true,
     "required": true
   },
   "logdir": {
-    "type": "null",
+    "type": "str",
     "nullable": true,
     "required": true
   },

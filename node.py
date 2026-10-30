@@ -250,6 +250,12 @@ def runCoCulture(
         else:
             logger.error(f"Unknown layout type for sample {sample_id}: {sample_info.layout}")
     outfiles.append(f"{outdir}/disambiguate/disambiguate_qc.tsv")
+    # dual-genome co-culture: every sample is aligned against BOTH references
+    # (disambiguate later separates organism-specific reads), so the per-genome
+    # sample maps used by the polygenomes aligner cover all samples per genome
+    _co_genomes = ("GRCh38", "GRCm39")
+    datajson["Params"].setdefault("workflow", {})["genome_paired_samples"] = {g: list(paired_samples) for g in _co_genomes}
+    datajson["Params"].setdefault("workflow", {})["genome_single_samples"] = {g: list(single_samples) for g in _co_genomes}
     datajson["outfiles"] = outfiles
     datajson["paired_samples"] = paired_samples
     datajson["single_samples"] = single_samples
@@ -339,8 +345,8 @@ def runCLIP(
                 outfiles.append(f"{outdir}/star/{sample_id}/{sample_id}.bam")
             elif datajson["aligner"] == "hisat2":
                 outfiles.append(f"{outdir}/hisat2/{sample_id}.bam")
-            outfiles.append(f"{outdir}/fastqc/raw/{sample_id}/fastqc.raw.txt")
-            outfiles.append(f"{outdir}/fastqc/trimmed/{sample_id}/fastqc.trimmed.txt")
+            outfiles.append(f"{outdir}/fastqc/raw/{sample_id}/{sample_id}.fastqc.raw.txt")
+            outfiles.append(f"{outdir}/fastqc/trimmed/{sample_id}/{sample_id}.fastqc.trimmed.txt")
             outfiles.append(f"{outdir}/PureCLIP/{sample_id}.pureclip.sites.bed")
             outfiles.append(f"{outdir}/bedtools/{sample_id}/{sample_id}.bed")
             outfiles.append(f"{outdir}/bedtools/{sample_id}/{sample_id}.plus.bw")
@@ -352,8 +358,8 @@ def runCLIP(
                 outfiles.append(f"{outdir}/star/{sample_id}/{sample_id}.bam")
             elif datajson["aligner"] == "hisat2":
                 outfiles.append(f"{outdir}/hisat2/{sample_id}.bam")
-            outfiles.append(f"{outdir}/fastqc/raw/{sample_id}/fastqc.raw.txt")
-            outfiles.append(f"{outdir}/fastqc/trimmed/{sample_id}/fastqc.trimmed.txt")
+            outfiles.append(f"{outdir}/fastqc/raw/{sample_id}/{sample_id}.fastqc.raw.txt")
+            outfiles.append(f"{outdir}/fastqc/trimmed/{sample_id}/{sample_id}.fastqc.trimmed.txt")
             outfiles.append(f"{outdir}/PureCLIP/{sample_id}.pureclip.sites.bed")
             outfiles.append(f"{outdir}/bedtools/{sample_id}/{sample_id}.bed")
             outfiles.append(f"{outdir}/bedtools/{sample_id}/{sample_id}.plus.bw")

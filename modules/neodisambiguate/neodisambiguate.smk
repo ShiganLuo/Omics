@@ -32,7 +32,7 @@ rule neodisambiguate:
     run:
         log_path = str(log)
         open(log_path, 'w').close()
-logger = setup_logger(logger_name="neodisambiguate", log_file=log_path)
+        logger = setup_logger(logger_name="neodisambiguate", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start neodisambiguate for sample {wildcards.sample_id} at {current_time}")

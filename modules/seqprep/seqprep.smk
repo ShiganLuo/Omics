@@ -11,8 +11,8 @@ samples = config.get("samples", [])
 
 rule seqprep_merge:
     input:
-        read1 = indir + "/{sample_id}/{sample_id}_1.fastq.gz",
-        read2 = indir + "/{sample_id}/{sample_id}_2.fastq.gz"
+        read1 = indir + "/{sample_id}/{sample_id}_1.fq.gz",
+        read2 = indir + "/{sample_id}/{sample_id}_2.fq.gz"
     output:
         read1 = outdir + "/{sample_id}/{sample_id}_unmerge_1.fastq.gz",
         read2 = outdir + "/{sample_id}/{sample_id}_unmerge_2.fastq.gz",

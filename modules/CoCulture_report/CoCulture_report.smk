@@ -30,7 +30,7 @@ rule HRT:
     run:
         log_path = str(log)
         open(log_path, 'w').close()
-logger = setup_logger(logger_name="HRT_run", log_file=log_path)
+        logger = setup_logger(logger_name="HRT_run", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start HRT run at {current_time}")

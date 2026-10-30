@@ -1,6 +1,8 @@
 
 include: "../common/common.smk"
 
+import shutil
+
 
 ROOT_DIR = config.get("ROOT_DIR", ".")
 indir = config.get("indir", "input")
@@ -63,7 +65,9 @@ rule scanpy_qc:
             sample_outdir = os.path.dirname(str(output.h5ad))
             os.makedirs(sample_outdir, exist_ok=True)
             os.makedirs(str(output.plot_dir), exist_ok=True)
-            script = os.path.join(sample_outdir, f"scanpy_qc_{wildcards.counter}_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"scanpy_qc_{wildcards.counter}_{wildcards.sample_id}_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, f"scanpy_qc_{wildcards.counter}_{wildcards.sample_id}.sh")
             cmd = [params.python, params.script, "qc",
                    "-i", input.h5ad,
                    "-o", output.h5ad,
@@ -90,7 +94,8 @@ rule scanpy_qc:
                 f.write(f"export VECLIB_MAXIMUM_THREADS={threads}\n")
                 f.write(" ".join(shlex.quote(str(item)) for item in cmd) + "\n")
                 f.write(f'echo "scanpy QC for {wildcards.sample_id} at {current_time} completed successfully"\n')
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during scanpy QC for sample {wildcards.sample_id}: {e}")
             raise RuntimeError(f"Error occurred during scanpy QC for sample {wildcards.sample_id}: {e}")
@@ -135,7 +140,9 @@ rule scanpy_merge:
             sample_outdir = os.path.dirname(str(output.h5ad))
             os.makedirs(sample_outdir, exist_ok=True)
             os.makedirs(str(output.plot_dir), exist_ok=True)
-            script = os.path.join(sample_outdir, f"scanpy_merge_{wildcards.counter}_{wildcards.tissue}_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.tissue)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.tissue), f"scanpy_merge_{wildcards.counter}_{wildcards.tissue}_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, f"scanpy_merge_{wildcards.counter}_{wildcards.tissue}.sh")
             cmd = [params.python, params.script, "merge",
                    "-i"] + list(input.h5ad) + ["-o", output.h5ad]
             cmd += ["-p", str(output.plot_dir)]
@@ -155,7 +162,8 @@ rule scanpy_merge:
                 f.write(f"export VECLIB_MAXIMUM_THREADS={threads}\n")
                 f.write(" ".join(shlex.quote(str(item)) for item in cmd) + "\n")
                 f.write(f'echo "scanpy merge for {wildcards.tissue} at {current_time} completed successfully"\n')
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during scanpy merge for tissue {wildcards.tissue}: {e}")
             raise RuntimeError(f"Error occurred during scanpy merge for tissue {wildcards.tissue}: {e}")
@@ -209,7 +217,9 @@ rule scanpy_auto:
             rule_logger.info(f"Start scanpy auto for tissue {wildcards.tissue} at {current_time}")
             sample_outdir = os.path.dirname(str(output.h5ad))
             os.makedirs(sample_outdir, exist_ok=True)
-            script_path = os.path.join(sample_outdir, f"scanpy_auto_{wildcards.counter}_{wildcards.tissue}_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.tissue)), exist_ok=True)
+            script_path = os.path.join(logdir, "cmd", str(wildcards.tissue), f"scanpy_auto_{wildcards.counter}_{wildcards.tissue}_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, f"scanpy_auto_{wildcards.counter}_{wildcards.tissue}.sh")
             cmd = [params.python, params.script, "auto",
                    "-i", input.h5ad,
                    "-o", output.h5ad,
@@ -256,7 +266,8 @@ rule scanpy_auto:
                 f.write(f"export VECLIB_MAXIMUM_THREADS={threads}\n")
                 f.write(" ".join(shlex.quote(str(item)) for item in cmd) + "\n")
                 f.write(f'echo "scanpy auto for {wildcards.tissue} at {current_time} completed successfully"\n')
-            shell(f"bash {script_path} >> {log_path} 2>&1")
+            shutil.copyfile(script_path, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during scanpy auto for tissue {wildcards.tissue}: {e}")
             raise RuntimeError(f"Error occurred during scanpy auto for tissue {wildcards.tissue}: {e}")
@@ -301,7 +312,9 @@ rule scanpy_advanced:
             sample_outdir = os.path.dirname(str(output.h5ad))
             os.makedirs(sample_outdir, exist_ok=True)
             os.makedirs(str(output.plot_dir), exist_ok=True)
-            script = os.path.join(sample_outdir, f"scanpy_advanced_{wildcards.counter}_{wildcards.tissue}_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.tissue)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.tissue), f"scanpy_advanced_{wildcards.counter}_{wildcards.tissue}_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, f"scanpy_advanced_{wildcards.counter}_{wildcards.tissue}.sh")
             cmd = [params.python, params.script, "advanced",
                     "-i", input.h5ad,
                     "-o", output.h5ad,
@@ -334,7 +347,8 @@ rule scanpy_advanced:
                 f.write(f"export VECLIB_MAXIMUM_THREADS={threads}\n")
                 f.write(" ".join(shlex.quote(str(item)) for item in cmd) + "\n")
                 f.write(f'echo "scanpy advanced analysis for {wildcards.tissue} at {current_time} completed successfully"\n')
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during scanpy advanced analysis for tissue {wildcards.tissue}: {e}")
             raise RuntimeError(f"Error occurred during scanpy advanced analysis for tissue {wildcards.tissue}: {e}")
@@ -372,7 +386,9 @@ rule scanpy_differential_expression:
             sample_outdir = os.path.dirname(str(output.h5ad))
             os.makedirs(sample_outdir, exist_ok=True)
             os.makedirs(str(output.plot_dir), exist_ok=True)
-            script = os.path.join(sample_outdir, f"scanpy_de_{wildcards.counter}_{wildcards.tissue}_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.tissue)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.tissue), f"scanpy_de_{wildcards.counter}_{wildcards.tissue}_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, f"scanpy_de_{wildcards.counter}_{wildcards.tissue}.sh")
             cmd = [params.python, params.script, "de",
                    "-i", input.h5ad,
                    "-o", output.h5ad,
@@ -392,9 +408,78 @@ rule scanpy_differential_expression:
                 f.write(f"export VECLIB_MAXIMUM_THREADS={threads}\n")
                 f.write(" ".join(shlex.quote(str(item)) for item in cmd) + "\n")
                 f.write(f'echo "scanpy differential expression for {wildcards.tissue} at {current_time} completed successfully"\n')
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during scanpy differential expression for tissue {wildcards.tissue}: {e}")
             raise RuntimeError(f"Error occurred during scanpy differential expression for tissue {wildcards.tissue}: {e}")
 
 
+# ---------------------------------------------------------------------------
+# Pseudo-bulk DEG (PyDESeq2) — modules/scanpy/bin/pseudobulk.py
+#   aggregates per-tissue h5ad into pseudo-bulk counts, runs PyDESeq2 per
+#   Params.scanpy.pseudobulk.compare entry, plots volcano/heatmap/GO.
+#   Enabled per counter via Params.scanpy.<counter>.pseudobulk.{enabled,compare,...}
+# ---------------------------------------------------------------------------
+rule scanpy_pseudobulk:
+    """Pseudo-bulk differential expression via PyDESeq2 on merged tissue h5ad."""
+    input:
+        h5ad = outdir_combine + "/{tissue}/{tissue}_{counter}_de.h5ad"
+    output:
+        report = outdir_combine + "/{tissue}/pseudobulk/{counter}/pseudobulk_report.html",
+    log:
+        logdir_combine + "/scanpy/{tissue}/scanpy_pseudobulk_{counter}.log"
+    threads: rule_res("scanpy_pseudobulk").get("threads", 4)
+    resources:
+        mem_mb=rule_res("scanpy_pseudobulk").get("mem_mb", 32000),
+    conda:
+        "scanpy.yaml"
+    container:
+        sif("scanpy.yaml")
+    params:
+        pb_cfg = lambda wildcards: params.get(wildcards.counter, {}).get("pseudobulk", {}),
+        python = python,
+        script = os.path.join(ROOT_DIR, "modules", "scanpy", "bin", "pseudobulk.py"),
+    run:
+        log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger("scanpy_pseudobulk", log_file=log_path)
+        try:
+            current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+            rule_logger.info(f"Start scanpy pseudobulk for tissue {wildcards.tissue} at {current_time}")
+            pb = params.pb_cfg
+            out_root = os.path.dirname(str(output.report))
+            os.makedirs(out_root, exist_ok=True)
+            os.makedirs(os.path.join(logdir_combine, "cmd", str(wildcards.tissue)), exist_ok=True)
+            # dual-write receipts: timestamped copy in log/cmd, plain copy in outdir
+            script = os.path.join(logdir_combine, "cmd", str(wildcards.tissue), f"scanpy_pseudobulk_{wildcards.counter}_{wildcards.tissue}_{current_time}.sh")
+            plain_script = os.path.join(out_root, f"scanpy_pseudobulk_{wildcards.counter}_{wildcards.tissue}.sh")
+            cmd = [params.python, params.script,
+                   "--h5ad", f"{wildcards.tissue}={input.h5ad}",
+                   "--out-dir", out_root,
+                   "--min-cells", str(pb.get("min_cells", 30)),
+                   "--min-counts", str(pb.get("min_counts", 1000)),
+                   "--n-pseudo-reps", str(pb.get("n_pseudo_reps", 3))]
+            for cmp_ in pb.get("compare", []):
+                # entries: tissue:ref_sample:treat_sample[=label]
+                cmd += ["--compare", str(cmp_)]
+            for ct in pb.get("top_cell_types", []) or []:
+                cmd += ["--top-cell-types", str(ct)]
+            for g in pb.get("highlight_genes", []) or []:
+                cmd += ["--highlight-genes", str(g)]
+            for m in pb.get("deg_mode", []) or ["all"]:
+                cmd += ["--deg-mode", str(m)]
+            with open(script, "w") as f:
+                f.write("#!/bin/bash\nset -euo pipefail\n")
+                f.write(f"export OMP_NUM_THREADS={threads}\n")
+                f.write(f"export OPENBLAS_NUM_THREADS={threads}\n")
+                f.write(f"export MKL_NUM_THREADS={threads}\n")
+                f.write(f"export NUMBA_NUM_THREADS={threads}\n")
+                f.write(f"export VECLIB_MAXIMUM_THREADS={threads}\n")
+                f.write(" ".join(shlex.quote(str(item)) for item in cmd) + "\n")
+                f.write(f'echo "scanpy pseudobulk for {wildcards.tissue} at {current_time} completed successfully"\n')
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
+        except Exception as e:
+            rule_logger.error(f"Error occurred during scanpy pseudobulk for tissue {wildcards.tissue}: {e}")
+            raise RuntimeError(f"Error occurred during scanpy pseudobulk for tissue {wildcards.tissue}: {e}")

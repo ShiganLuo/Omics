@@ -1220,6 +1220,16 @@ def runscRNAseq(
                 outfiles.append(f"{outdir}/common/5_combine_h5ad/{tissue}/{tissue}_{counter}_advanced.h5ad")
             else:
                 outfiles.append(f"{outdir}/common/5_combine_h5ad/{tissue}/{tissue}_{counter}_merged.h5ad")
+            # Pseudo-bulk DEG (PyDESeq2) — gated per counter by
+            # Params.scanpy.<counter>.pseudobulk.enabled; requires the DE
+            # h5ad, so it only registers when the full chain (auto→de) runs
+            pb_cfg = (datajson["Params"].get("scanpy", {}).get(counter, {}) or {}).get("pseudobulk", {})
+            if pb_cfg.get("enabled") and pb_cfg.get("compare"):
+                # pb consumes the DE h5ad, which nothing else registers as a
+                # target — request it here so the auto→de→pseudobulk chain
+                # materializes in the DAG
+                outfiles.append(f"{outdir}/common/5_combine_h5ad/{tissue}/{tissue}_{counter}_de.h5ad")
+                outfiles.append(f"{outdir}/common/5_combine_h5ad/{tissue}/pseudobulk/{counter}/pseudobulk_report.html")
     datajson["Params"]["scanpy"]["tissue_samples"] = tissue_samples
     # outfiles.append(f"{outdir}/scRNAseq_report.pptx")
     datajson["outfiles"] = outfiles

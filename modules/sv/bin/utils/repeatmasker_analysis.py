@@ -74,10 +74,18 @@ def run_te_annotation_pipeline(
             rm_cmd += ["-lib", str(lib)]
         else:
             rm_cmd += ["-species", species]
-        rm_cmd.append(str(fasta_path))
+        # Resolve to an absolute path BEFORE running with cwd=tmp_path:
+        # RepeatMasker resolves the query relative to its CWD.
+        rm_cmd.append(str(fasta_path.resolve()))
 
         try:
-            stdout = _run_cmd(rm_cmd, logger=logger)
+            # Run with cwd=tmp_path: RepeatMasker creates its parallel scratch
+            # dir as $CWD/RM_<pid>.<date> (RepeatMasker source, createTempDir)
+            # and only falls back to -dir when mkdir there FAILS. With the
+            # workflow's output root as CWD the RM_* dirs leak into the run
+            # root and are never cleaned. Inside tmp_path they vanish with
+            # the TemporaryDirectory context on exit.
+            stdout = _run_cmd(rm_cmd, cwd=str(tmp_path), logger=logger)
             logger.info(f"RepeatMasker completed successfully:\n{stdout}")
             
             for item in tmp_path.iterdir():

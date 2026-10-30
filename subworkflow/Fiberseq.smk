@@ -43,6 +43,7 @@ rule all:
 
 genome_config = {
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "logdir": f"{logdir}/group",
     "outdir": f"{outdir}/genome",
@@ -66,6 +67,7 @@ prepare_outdir = f"{outdir}/common/2_fiberseq_bam"
 
 fibertools_prepare_config = {
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "indir": indir,
     "outdir": prepare_outdir,
@@ -104,6 +106,7 @@ pbmm2_config = {
     "logdir": f"{logdir}/sample",
     "samples": samples,
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "Procedure": {
         "pbmm2": config.get("Procedure", {}).get("pbmm2"),
@@ -129,6 +132,7 @@ extract_outdir = f"{outdir}/common/4_elements"
 
 fibertools_analysis_config = {
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "indir": aligned_dir,
     "outdir": extract_outdir,
@@ -176,6 +180,7 @@ params = config.get("Params", {})
 
 fiberseq_annotate_config = {
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "indir": elements_dir,
     "outdir": f"{analysis_outdir}/annotate",
@@ -198,6 +203,7 @@ use rule fiberseq_annotate_run from fiberseq_annotate as Fiberseq_annotate_run
 
 fiberseq_motif_config = {
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "indir": elements_dir,
     "outdir": f"{analysis_outdir}/motif",
@@ -221,6 +227,7 @@ use rule fiberseq_motif_profile from fiberseq_motif as Fiberseq_motif_profile
 
 fiberseq_footprint_config = {
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "indir": elements_dir,
     "motif_dir": fiberseq_motif_config["outdir"],
@@ -241,6 +248,7 @@ use rule fiberseq_footprint_run from fiberseq_footprint as Fiberseq_footprint_ru
 
 fiberseq_nucpos_config = {
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "indir": elements_dir,
     "outdir": f"{analysis_outdir}/nucpos",
@@ -262,6 +270,7 @@ use rule fiberseq_nucpos_run from fiberseq_nucpos as Fiberseq_nucpos_run
 
 fiberseq_quant_config = {
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "indir": elements_dir,
     "hap_dir": phased_dir,
@@ -284,6 +293,7 @@ use rule fiberseq_quant_merge from fiberseq_quant as Fiberseq_quant_merge
 
 fiberseq_diff_config = {
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "indir": elements_dir,
     "quant_dir": fiberseq_quant_config["outdir"],
@@ -305,6 +315,7 @@ use rule fiberseq_diff_run from fiberseq_diff as Fiberseq_diff_run
 
 fiberseq_coactuation_config = {
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "indir": elements_dir,
     "outdir": f"{analysis_outdir}/coactuation",
@@ -324,6 +335,7 @@ use rule fiberseq_coactuation_run from fiberseq_coactuation as Fiberseq_coactuat
 
 fiberseq_haplotype_config = {
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "indir": elements_dir,
     "quant_dir": fiberseq_quant_config["outdir"],
@@ -344,6 +356,7 @@ use rule fiberseq_haplotype_diff from fiberseq_haplotype as Fiberseq_haplotype_d
 
 fiberseq_censat_config = {
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "indir": elements_dir,
     "outdir": f"{analysis_outdir}/censat",
@@ -366,6 +379,7 @@ use rule fiberseq_censat_run from fiberseq_censat as Fiberseq_censat_run
 
 fiberseq_track_config = {
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "indir": elements_dir,
     "outdir": f"{analysis_outdir}/track",
@@ -394,6 +408,7 @@ variation_outdir = f"{outdir}/variation"
 
 deepvariant_config = {
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "indir": aligned_dir,
     "outdir": f"{variation_outdir}/germline_snv_indel",
@@ -419,6 +434,7 @@ use rule deepvariant_run from deepvariant as Fiberseq_deepvariant_run
 
 pbsv_config = {
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "indir": aligned_dir,
     "outdir": f"{variation_outdir}/germline_sv",
@@ -444,6 +460,7 @@ use rule pbsv_call from pbsv as Fiberseq_pbsv_call
 
 hiphase_config = {
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "indir": aligned_dir,
     "outdir": phased_dir,
@@ -470,6 +487,7 @@ use rule hiphase_phase from hiphase as Fiberseq_hiphase_phase
 # Per-hap element extraction from the phased BAM
 fibertools_hap_config = {
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "indir": phased_dir,
     "outdir": phased_dir,
@@ -502,6 +520,7 @@ use rule ft_extract_hap from fibertools_hap as Fiberseq_ft_extract_hap
 # ============================================================
 function_config = {
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "indir": fiberseq_diff_config["outdir"],
     "outdir": f"{outdir}/function",
@@ -531,6 +550,7 @@ use rule function_gsea from function as Fiberseq_function_gsea
 # ============================================================
 ldsc_config = {
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "outdir": f"{outdir}/ldsc",
     "logdir": f"{logdir}/sample",
@@ -555,6 +575,7 @@ use rule ldsc_h2_cts from ldsc as Fiberseq_ldsc_h2_cts
 bamCoverage_config = {
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "indir": pbmm2_config["outdir"],
     "outdir": f"{outdir}/common/6_coverage_bw",
@@ -578,6 +599,7 @@ use rule bamCoverage from bamCoverage as Fiberseq_bamCoverage
 decoil_config = {
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "indir": pbmm2_config["outdir"],
     "outdir": f"{outdir}/eccdna",
@@ -627,6 +649,7 @@ sv_outdir = f"{variation_outdir}/germline_sv_analysis"
 
 sv_config = {
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "indir": pbsv_config["outdir"],
     "outdir": sv_outdir,

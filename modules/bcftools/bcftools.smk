@@ -28,8 +28,7 @@ rule bcftools_sort:
             rule_logger.info(f"Start bcftools sort for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.vcf))
             os.makedirs(sample_outdir, exist_ok=True)
-            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
-            script = os.path.join(logdir, "cmd", "group", f"bcftools_sort_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"bcftools_sort_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"bcftools_sort.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
@@ -69,8 +68,7 @@ rule bcftools_index_csi:
             rule_logger.info(f"Start bcftools index for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.csi))
             os.makedirs(sample_outdir, exist_ok=True)
-            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
-            script = os.path.join(logdir, "cmd", "group", f"bcftools_index_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"bcftools_index_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"bcftools_index.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")

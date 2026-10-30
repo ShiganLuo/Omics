@@ -24,6 +24,15 @@ import re
 # Get ROOT_DIR from config (set by run.py)
 ROOT_DIR = config.get("ROOT_DIR", ".")
 
+# Output-root constant for command-receipt backups: subworkflows pass
+# OUTDIR_ROOT (the workflow's total output directory, absolute). Receipt
+# backups live flat under OUTDIR_ROOT/log/cmd/ — file names already carry
+# rule + sample + timestamp, so no per-key subdirectories. The directory
+# is created here once; rules only build their file path.
+OUTDIR_ROOT = config.get("OUTDIR_ROOT") or ROOT_DIR
+RECEIPT_DIR = os.path.join(OUTDIR_ROOT, "log", "cmd")
+os.makedirs(RECEIPT_DIR, exist_ok=True)
+
 # Ensure src directory is in sys.path for importing common modules
 _src_dir = os.path.join(ROOT_DIR, "src")
 if _src_dir not in sys.path:

@@ -75,8 +75,7 @@ rule diann_run:
             rule_logger.info(f"Start DIA-NN over {len(samples)} runs at {current_time}")
             group_outdir = outdir
             os.makedirs(group_outdir, exist_ok=True)
-            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
-            script = os.path.join(logdir, "cmd", "group", f"diann_run_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"diann_run_{current_time}.sh")
             plain_script = os.path.join(group_outdir, f"diann_run.sh")
             cmd = [
                 params.diann,
@@ -142,8 +141,7 @@ rule diann_summary:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start DIA-NN summary at {current_time}")
             os.makedirs(outdir, exist_ok=True)
-            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
-            script = os.path.join(logdir, "cmd", "group", f"diann_summary_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"diann_summary_{current_time}.sh")
             plain_script = os.path.join(outdir, f"diann_summary.sh")
             cmd = [
                 "python", params.script,

@@ -38,8 +38,7 @@ rule bcftools_population_filter:
             os.makedirs(os.path.dirname(log_path), exist_ok=True)
             os.makedirs(os.path.dirname(output.vcf), exist_ok=True)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
-            script = os.path.join(logdir, "cmd", "group", f"bcftools_population_filter_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"bcftools_population_filter_{current_time}.sh")
             plain_script = os.path.join(os.path.dirname(output.vcf), f"bcftools_population_filter.sh")
             cmd1 = [params.bcftools, "view", "-m2", "-M2", "-v", "snps", input.vcf]
             cmd2 = [params.bcftools, "filter", "-e", f"QUAL<{params.qual} || DP<{params.min_dp} || DP>{params.max_dp}"]

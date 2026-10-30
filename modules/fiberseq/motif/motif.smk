@@ -42,8 +42,7 @@ rule fiberseq_motif_scan:
             rule_logger.info(f"Start motif scan for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.sites))
             os.makedirs(sample_outdir, exist_ok=True)
-            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
-            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"fiberseq_motif_scan_{wildcards.sample_id}_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"fiberseq_motif_scan_{wildcards.sample_id}_{current_time}.sh")
             # timestamped copy stays in log/cmd as history; the outdir copy
             # (no timestamp, overwritten each run) documents the current command
             # next to the results it produced
@@ -104,8 +103,7 @@ rule fiberseq_motif_profile:
             rule_logger.info(f"Start motif profile for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.profile))
             os.makedirs(sample_outdir, exist_ok=True)
-            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
-            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"fiberseq_motif_profile_{wildcards.sample_id}_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"fiberseq_motif_profile_{wildcards.sample_id}_{current_time}.sh")
             # timestamped copy stays in log/cmd as history; the outdir copy
             # (no timestamp, overwritten each run) documents the current command
             # next to the results it produced

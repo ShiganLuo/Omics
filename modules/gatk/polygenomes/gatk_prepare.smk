@@ -43,8 +43,7 @@ rule gatk_index:
             rule_logger.info(f"Start gatk_index for genome {wildcards.genome} at {current_time}")
             index_outdir = os.path.join(outdir, "index", wildcards.genome)
             os.makedirs(index_outdir, exist_ok=True)
-            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
-            script = os.path.join(logdir, "cmd", "group", f"gatk_index_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"gatk_index_{current_time}.sh")
             plain_script = os.path.join(index_outdir, f"gatk_index.sh")
             cmd1 = ["ln", "-s", input.fasta, output.fasta_link]
             cmd2 = [
@@ -114,8 +113,7 @@ rule addReadsGroup:
             rule_logger.info(f"Start addReadsGroup for sample {wildcards.sample_id} genome {wildcards.genome} at {current_time}")
             sample_outdir = os.path.join(outdir, wildcards.genome, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
-            script = os.path.join(logdir, "cmd", "group", f"addReadsGroup_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"addReadsGroup_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"addReadsGroup.sh")
             cmd1 = [
                 params.gatk, "AddOrReplaceReadGroups", "--java-options", f'"{params.javaOptions}"',
@@ -177,8 +175,7 @@ rule MarkDuplicates:
             rule_logger.info(f"Start MarkDuplicates for sample {wildcards.sample_id} genome {wildcards.genome} at {current_time}")
             sample_outdir = os.path.join(outdir, wildcards.genome, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
-            script = os.path.join(logdir, "cmd", "group", f"MarkDuplicates_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"MarkDuplicates_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"MarkDuplicates.sh")
             cmd = [
                 params.gatk, "MarkDuplicates", "--java-options", f'"{params.javaOptions}"',

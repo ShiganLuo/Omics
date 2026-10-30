@@ -36,8 +36,7 @@ rule flexbar_demultiplex:
             rule_logger.info(f"Start flexbar_demultiplex for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.join(params.outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
-            script = os.path.join(logdir, "cmd", "group", f"flexbar_demultiplex_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"flexbar_demultiplex_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"flexbar_demultiplex.sh")
             with open(script, "w") as f:
                 f.write(f"{params.flexbar} -r {input.fastq} -b {input.barcodes} \\\n")

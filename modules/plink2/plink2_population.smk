@@ -12,8 +12,7 @@ analysis=config.get("Params",{}).get("analysis",{})
 
 def run_plink(rule_name, log_path, output_path, commands):
     os.makedirs(os.path.dirname(log_path),exist_ok=True); os.makedirs(os.path.dirname(output_path),exist_ok=True)
-    os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
-    script=os.path.join(logdir, "cmd", "group", f"{rule_name}_{time.strftime('%Y%m%d_%H%M%S')}.sh")
+    script = os.path.join(RECEIPT_DIR, f"{rule_name}_{time.strftime('%Y%m%d_%H%M%S')}.sh")
     plain_script=os.path.join(os.path.dirname(output_path), f"{rule_name}.sh")
     with open(log_path,"w") as log_handle: log_handle.write("")
     with open(script,"w") as handle:
@@ -77,8 +76,7 @@ if analysis.get("gwas",False):
             if input.covariates: cmd += ["--covar",input.covariates[0]]
             if params.covar_names: cmd += ["--covar-name",params.covar_names]
             cmd += ["--glm","hide-covar","allow-no-covars","--out",params.gwas_prefix]
-            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
-            script=os.path.join(logdir, "cmd", "group", f"plink2_population_gwas_{time.strftime('%Y%m%d_%H%M%S')}.sh")
+            script = os.path.join(RECEIPT_DIR, f"plink2_population_gwas_{time.strftime('%Y%m%d_%H%M%S')}.sh")
             plain_script=os.path.join(os.path.dirname(str(output.done)), "plink2_population_gwas.sh")
             with open(str(log),"w") as h: h.write("")
             with open(script,"w") as h: h.write("#!/usr/bin/env bash\nset -euo pipefail\n"+" ".join(str(x) for x in cmd)+"\ntouch "+str(output.done)+"\n")

@@ -45,8 +45,7 @@ rule bam_sort:
             output.bam,
             output.bai
         ]
-        os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
-        script = os.path.join(logdir, "cmd", "group", f"samtools_sort_{current_time}.sh")
+        script = os.path.join(RECEIPT_DIR, f"samtools_sort_{current_time}.sh")
         plain_script = os.path.join(outdir, f"samtools_sort.sh")
         with open(script, "w") as f:
             f.write("#!/bin/bash\n")

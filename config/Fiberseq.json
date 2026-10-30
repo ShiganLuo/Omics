@@ -180,7 +180,7 @@
         "dist": 500,
         "custom_gtf": "/data/16T/Database/Reference/mouse/NCBI/T2T_mhaESC_v1.5/GCA_056825265.1_T2T_mhaESC_v1.5_vM38_liftoff.sorted.gtf.gz",
         "custom_fasta": "/data/16T/Database/Reference/mouse/NCBI/T2T_mhaESC_v1.5/GCA_056825265.1_T2T_mhaESC_v1.5_genomic.fa",
-        "te_lib": "/data/16T/Database/env/sv/famdb/mouse_te_lib.fa"
+        "te_lib": "/data/16T/Database/Reference/famdb/mouse_te_lib.fa"
       },
       "circos": {
         "genome": "rheMac10",

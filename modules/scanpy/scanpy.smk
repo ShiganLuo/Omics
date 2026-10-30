@@ -65,7 +65,8 @@ rule scanpy_qc:
             sample_outdir = os.path.dirname(str(output.h5ad))
             os.makedirs(sample_outdir, exist_ok=True)
             os.makedirs(str(output.plot_dir), exist_ok=True)
-            script = os.path.join(cmd_dir(logdir, str(wildcards.sample_id)), f"scanpy_qc_{wildcards.counter}_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"scanpy_qc_{wildcards.counter}_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"scanpy_qc_{wildcards.counter}_{wildcards.sample_id}.sh")
             cmd = [params.python, params.script, "qc",
                    "-i", input.h5ad,
@@ -139,7 +140,8 @@ rule scanpy_merge:
             sample_outdir = os.path.dirname(str(output.h5ad))
             os.makedirs(sample_outdir, exist_ok=True)
             os.makedirs(str(output.plot_dir), exist_ok=True)
-            script = os.path.join(cmd_dir(logdir, str(wildcards.tissue)), f"scanpy_merge_{wildcards.counter}_{wildcards.tissue}_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.tissue)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.tissue), f"scanpy_merge_{wildcards.counter}_{wildcards.tissue}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"scanpy_merge_{wildcards.counter}_{wildcards.tissue}.sh")
             cmd = [params.python, params.script, "merge",
                    "-i"] + list(input.h5ad) + ["-o", output.h5ad]
@@ -215,7 +217,8 @@ rule scanpy_auto:
             rule_logger.info(f"Start scanpy auto for tissue {wildcards.tissue} at {current_time}")
             sample_outdir = os.path.dirname(str(output.h5ad))
             os.makedirs(sample_outdir, exist_ok=True)
-            script_path = os.path.join(cmd_dir(logdir, str(wildcards.tissue)), f"scanpy_auto_{wildcards.counter}_{wildcards.tissue}_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.tissue)), exist_ok=True)
+            script_path = os.path.join(logdir, "cmd", str(wildcards.tissue), f"scanpy_auto_{wildcards.counter}_{wildcards.tissue}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"scanpy_auto_{wildcards.counter}_{wildcards.tissue}.sh")
             cmd = [params.python, params.script, "auto",
                    "-i", input.h5ad,
@@ -309,7 +312,8 @@ rule scanpy_advanced:
             sample_outdir = os.path.dirname(str(output.h5ad))
             os.makedirs(sample_outdir, exist_ok=True)
             os.makedirs(str(output.plot_dir), exist_ok=True)
-            script = os.path.join(cmd_dir(logdir, str(wildcards.tissue)), f"scanpy_advanced_{wildcards.counter}_{wildcards.tissue}_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.tissue)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.tissue), f"scanpy_advanced_{wildcards.counter}_{wildcards.tissue}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"scanpy_advanced_{wildcards.counter}_{wildcards.tissue}.sh")
             cmd = [params.python, params.script, "advanced",
                     "-i", input.h5ad,
@@ -382,7 +386,8 @@ rule scanpy_differential_expression:
             sample_outdir = os.path.dirname(str(output.h5ad))
             os.makedirs(sample_outdir, exist_ok=True)
             os.makedirs(str(output.plot_dir), exist_ok=True)
-            script = os.path.join(cmd_dir(logdir, str(wildcards.tissue)), f"scanpy_de_{wildcards.counter}_{wildcards.tissue}_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.tissue)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.tissue), f"scanpy_de_{wildcards.counter}_{wildcards.tissue}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"scanpy_de_{wildcards.counter}_{wildcards.tissue}.sh")
             cmd = [params.python, params.script, "de",
                    "-i", input.h5ad,
@@ -445,8 +450,9 @@ rule scanpy_pseudobulk:
             pb = params.pb_cfg
             out_root = os.path.dirname(str(output.report))
             os.makedirs(out_root, exist_ok=True)
+            os.makedirs(os.path.join(logdir_combine, "cmd", str(wildcards.tissue)), exist_ok=True)
             # dual-write receipts: timestamped copy in log/cmd, plain copy in outdir
-            script = os.path.join(cmd_dir(logdir_combine, str(wildcards.tissue)), f"scanpy_pseudobulk_{wildcards.counter}_{wildcards.tissue}_{current_time}.sh")
+            script = os.path.join(logdir_combine, "cmd", str(wildcards.tissue), f"scanpy_pseudobulk_{wildcards.counter}_{wildcards.tissue}_{current_time}.sh")
             plain_script = os.path.join(out_root, f"scanpy_pseudobulk_{wildcards.counter}_{wildcards.tissue}.sh")
             cmd = [params.python, params.script,
                    "--h5ad", f"{wildcards.tissue}={input.h5ad}",

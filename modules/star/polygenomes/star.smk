@@ -56,7 +56,8 @@ rule star_index:
 
             sample_outdir = str(output.index_file)
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(cmd_dir(logdir, str(wildcards.genome)), f"star_index_{wildcards.genome}_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.genome)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.genome), f"star_index_{wildcards.genome}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"star_index_{wildcards.genome}.sh")
 
             cmd = [

@@ -31,7 +31,8 @@ rule stringtie_lr_assemble:
             rule_logger.info(f"Start StringTie long-read assembly for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.gtf))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(cmd_dir(logdir, str(wildcards.sample_id)), f"stringtie_lr_assemble_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"stringtie_lr_assemble_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"stringtie_lr_assemble_{wildcards.sample_id}.sh")
             cmd = [
                 params.stringtie, "-L",
@@ -72,7 +73,8 @@ rule stringtie_lr_merge:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start StringTie merge at {current_time}")
-            script = os.path.join(cmd_dir(logdir, "group"), f"stringtie_lr_merge_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"stringtie_lr_merge_{current_time}.sh")
             plain_script = os.path.join(outdir, f"stringtie_lr_merge.sh")
             cmd = [params.stringtie, "--merge"] + list(input.gtfs) + ["-o", output.gtf, "-G", params.gtf]
             with open(script, "w") as f:
@@ -111,7 +113,8 @@ rule stringtie_lr_quant:
             rule_logger.info(f"Start StringTie quantification for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.gtf))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(cmd_dir(logdir, str(wildcards.sample_id)), f"stringtie_lr_quant_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"stringtie_lr_quant_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"stringtie_lr_quant_{wildcards.sample_id}.sh")
             cmd = [
                 params.stringtie, "-e", "-B", "-L",

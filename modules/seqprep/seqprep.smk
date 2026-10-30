@@ -35,7 +35,8 @@ rule seqprep_merge:
     run:
         current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start SeqPrep merge for sample {wildcards.sample_id} at {current_time}")
-        script = os.path.join(cmd_dir(logdir, str(wildcards.sample_id)), f"{wildcards.sample_id}/seqprep_merge_{current_time}.sh")
+        os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
+        script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"{wildcards.sample_id}/seqprep_merge_{current_time}.sh")
         plain_script = os.path.join(outdir, f"{wildcards.sample_id}/seqprep_merge.sh")
         cmd_merge = [
             params.seqprep,

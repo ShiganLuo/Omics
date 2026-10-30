@@ -52,7 +52,8 @@ rule hifiasm_assemble:
             logger = setup_logger(logger_name="hifiasm_assemble", log_file=log[0])
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start hifiasm assembly for sample {wildcards.sample_id} at {current_time}")
-            script = os.path.join(cmd_dir(logdir, str(wildcards.sample_id)), f"{wildcards.sample_id}/hifiasm_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"{wildcards.sample_id}/hifiasm_{current_time}.sh")
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/hifiasm.sh")
             fq_gz = os.path.join(outdir, f"{wildcards.sample_id}/assembly/{wildcards.sample_id}.hifi.fq.gz")
             cmd0 = [
@@ -184,7 +185,8 @@ rule repeatmasker_run:
             logger = setup_logger(logger_name="repeatmasker_run", log_file=log[0])
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start RepeatMasker for sample {wildcards.sample_id} at {current_time}")
-            script = os.path.join(cmd_dir(logdir, str(wildcards.sample_id)), f"{wildcards.sample_id}/repeatmasker_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"{wildcards.sample_id}/repeatmasker_{current_time}.sh")
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/repeatmasker.sh")
             cmd = [
                 params.RepeatMasker,
@@ -226,7 +228,8 @@ rule centromere_extract:
             logger = setup_logger(logger_name="centromere_extract", log_file=log[0])
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start centromere stats extraction for sample {wildcards.sample_id} at {current_time}")
-            script = os.path.join(cmd_dir(logdir, str(wildcards.sample_id)), f"{wildcards.sample_id}/centromere_extract_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"{wildcards.sample_id}/centromere_extract_{current_time}.sh")
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/centromere_extract.sh")
             cmd = [
                 "python", params.script,

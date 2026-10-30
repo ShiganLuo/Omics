@@ -57,7 +57,8 @@ rule cellranger_ref:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start cellranger_ref at {current_time}")
-            command_script = os.path.join(cmd_dir(logdir, "group"), f"cellranger_ref_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            command_script = os.path.join(logdir, "cmd", "group", f"cellranger_ref_{current_time}.sh")
             plain_script = os.path.join(str(params.cellranger_ref_dir), f"cellranger_ref.sh")
             cmd = [
                 "python", params.script,
@@ -133,7 +134,8 @@ rule cellranger_count:
                 rule_logger.warning(f"Removing stale sample directory: {sample_outdir}")
                 shutil.rmtree(sample_outdir)
             # Don't create sample_outdir - cellranger will create it
-            command_script = os.path.join(cmd_dir(logdir, "group"), f"cellranger_count_{sample_id}_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            command_script = os.path.join(logdir, "cmd", "group", f"cellranger_count_{sample_id}_{current_time}.sh")
             plain_script = os.path.join(outdir, f"cellranger_count_{sample_id}.sh")
             cmd = [
                 params.cellranger, "count",
@@ -200,7 +202,8 @@ rule cellranger_to_h5ad:
             os.makedirs(os.path.dirname(output.h5ad), exist_ok=True)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             sample_outdir = os.path.dirname(output.h5ad)
-            command_script = os.path.join(cmd_dir(logdir, "group"), f"cellranger_to_h5ad_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            command_script = os.path.join(logdir, "cmd", "group", f"cellranger_to_h5ad_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"cellranger_to_h5ad.sh")
             rule_logger.info(f"Begin cellranger_to_h5ad analysis for {wildcards.sample_id} at {current_time}")
             cmd = [

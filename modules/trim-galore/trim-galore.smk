@@ -47,7 +47,8 @@ rule trimming_Paired:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start trimming_Paired for sample {wildcards.sample_id} at {current_time}")
-            script_path = os.path.join(cmd_dir(logdir, str(wildcards.sample_id)), f"{wildcards.sample_id}/trimming_Paired_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
+            script_path = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"{wildcards.sample_id}/trimming_Paired_{current_time}.sh")
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/trimming_Paired.sh")
             cmd1 = [
                 params.trim_galore, "--paired",
@@ -121,7 +122,8 @@ rule trimming_Single:
         rule_logger = setup_logger("trimming_Single", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            script_path = os.path.join(cmd_dir(logdir, str(wildcards.sample_id)), f"{wildcards.sample_id}/trimming_Single_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
+            script_path = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"{wildcards.sample_id}/trimming_Single_{current_time}.sh")
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/trimming_Single.sh")
             cmd1 = [
                 params.trim_galore, "--phred33",

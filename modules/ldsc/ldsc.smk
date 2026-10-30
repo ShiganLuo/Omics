@@ -46,7 +46,8 @@ rule ldsc_annot:
             rule_logger.info(f"Start ldsc_annot at {current_time}")
             group_outdir = outdir + "/annot"
             os.makedirs(group_outdir, exist_ok=True)
-            script = os.path.join(cmd_dir(logdir, "group"), f"ldsc_annot_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"ldsc_annot_{current_time}.sh")
             plain_script = os.path.join(group_outdir, f"ldsc_annot.sh")
             cmd = [
                 "python", params.script,
@@ -95,7 +96,8 @@ rule ldsc_munge:
             rule_logger.info(f"Start ldsc_munge for {wildcards.trait} at {current_time}")
             trait_outdir = outdir + f"/{wildcards.trait}"
             os.makedirs(trait_outdir, exist_ok=True)
-            script = os.path.join(cmd_dir(logdir, "group"), f"ldsc_munge_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"ldsc_munge_{current_time}.sh")
             plain_script = os.path.join(trait_outdir, f"ldsc_munge.sh")
             cmd = [
                 params.munge,
@@ -145,7 +147,8 @@ rule ldsc_h2_cts:
             rule_logger.info(f"Start ldsc_h2_cts for {wildcards.trait} at {current_time}")
             trait_outdir = outdir + f"/{wildcards.trait}"
             os.makedirs(trait_outdir, exist_ok=True)
-            script = os.path.join(cmd_dir(logdir, "group"), f"ldsc_h2_cts_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"ldsc_h2_cts_{current_time}.sh")
             plain_script = os.path.join(trait_outdir, f"ldsc_h2_cts.sh")
             cmd = [
                 params.ldsc,

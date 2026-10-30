@@ -18,7 +18,8 @@ if analysis.get("diversity",True):
   params: vcftools=vcftools,window=analysis.get("window_size",100000),step=analysis.get("window_step",50000),prefix=lambda wc:outdir+"/analysis/diversity/"+wc.population
   run:
    os.makedirs(os.path.dirname(str(log)),exist_ok=True);os.makedirs(os.path.dirname(str(output.pi)),exist_ok=True)
-   script = os.path.join(cmd_dir(logdir, str(wildcards.population)), f"vcftools_diversity_{wildcards.population}_{time.strftime('%Y%m%d_%H%M%S')}.sh")
+   os.makedirs(os.path.join(logdir, "cmd", str(wildcards.population)), exist_ok=True)
+   script=os.path.join(logdir, "cmd", str(wildcards.population), f"vcftools_diversity_{wildcards.population}_{time.strftime('%Y%m%d_%H%M%S')}.sh")
    plain_script=os.path.join(os.path.dirname(str(output.pi)), f"vcftools_diversity_{wildcards.population}.sh")
    cmds=[[params.vcftools,"--gzvcf",input.vcf,"--keep",input.popfile,"--window-pi",str(params.window),"--window-pi-step",str(params.step),"--out",params.prefix],[params.vcftools,"--gzvcf",input.vcf,"--keep",input.popfile,"--TajimaD",str(params.window),"--out",params.prefix]]
    with open(str(log),"w") as h:h.write("")
@@ -37,7 +38,8 @@ if analysis.get("fst",True) and len(pops)>1:
   run:
    os.makedirs(os.path.dirname(str(log)),exist_ok=True);os.makedirs(os.path.dirname(str(output[0])),exist_ok=True)
    cmd=[params.vcftools,"--gzvcf",input.vcf,"--weir-fst-pop",params.pop_a,"--weir-fst-pop",params.pop_b,"--out",params.prefix]
-   script = os.path.join(cmd_dir(logdir, "group"), f"vcftools_fst_{wildcards.population_a}_vs_{wildcards.population_b}_{time.strftime('%Y%m%d_%H%M%S')}.sh")
+   os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+   script=os.path.join(logdir, "cmd", "group", f"vcftools_fst_{wildcards.population_a}_vs_{wildcards.population_b}_{time.strftime('%Y%m%d_%H%M%S')}.sh")
    plain_script=os.path.join(os.path.dirname(str(output[0])), f"vcftools_fst_{wildcards.population_a}_vs_{wildcards.population_b}.sh")
    with open(str(log),"w") as h:h.write("")
    with open(script,"w") as h:h.write("#!/usr/bin/env bash\nset -euo pipefail\n"+" ".join(str(x) for x in cmd)+"\n")

@@ -53,7 +53,8 @@ rule fumitools_copy_umi_paired:
                 logger.info(f"Symlinked {input.r1} -> {output.r1}")
                 logger.info(f"Symlinked {input.r2} -> {output.r2}")
             else:
-                script_path = os.path.join(cmd_dir(logdir, str(wildcards.sample_id)), f"{wildcards.sample_id}/fumitools_copy_umi_{current_time}.sh")
+                os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
+                script_path = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"{wildcards.sample_id}/fumitools_copy_umi_{current_time}.sh")
                 plain_script = os.path.join(outdir, f"{wildcards.sample_id}/fumitools_copy_umi.sh")
                 cmd = [
                     params.fumi_tools, "copy_umi",
@@ -113,7 +114,8 @@ rule fumitools_copy_umi_single:
                 os.symlink(os.path.abspath(input.r1), output.r1)
                 logger.info(f"Symlinked {input.r1} -> {output.r1}")
             else:
-                script_path = os.path.join(cmd_dir(logdir, str(wildcards.sample_id)), f"{wildcards.sample_id}/fumitools_copy_umi_{current_time}.sh")
+                os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
+                script_path = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"{wildcards.sample_id}/fumitools_copy_umi_{current_time}.sh")
                 plain_script = os.path.join(outdir, f"{wildcards.sample_id}/fumitools_copy_umi.sh")
                 cmd = [
                     params.fumi_tools, "copy_umi",
@@ -164,7 +166,8 @@ rule fumitools_dedup:
             open(log_path, "w").close()
 
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            script_path = os.path.join(cmd_dir(logdir, str(wildcards.sample_id)), f"{wildcards.sample_id}/fumitools_dedup_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
+            script_path = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"{wildcards.sample_id}/fumitools_dedup_{current_time}.sh")
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/fumitools_dedup.sh")
 
             cmd = [

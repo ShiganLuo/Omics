@@ -53,6 +53,7 @@ rule ft_extract:
             cmd_dir = os.path.join(logdir, "cmd", wildcards.sample_id)
             os.makedirs(cmd_dir, exist_ok=True)
             command_script = os.path.join(cmd_dir, f"ft_extract_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, "ft_extract.sh")
             cmd = [
                 params.ft, "extract",
                 "-r",
@@ -67,7 +68,8 @@ rule ft_extract:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "Fiber-seq extraction completed for sample {wildcards.sample_id}"\n')
-            shell(f"bash {command_script} >> {log_path} 2>&1")
+            shutil.copyfile(command_script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"ft_extract failed: {e}\n")
             raise RuntimeError(f"ft_extract failed: {e}\n")
@@ -110,6 +112,7 @@ rule ft_call_peaks:
             cmd_dir = os.path.join(logdir, "cmd", wildcards.sample_id)
             os.makedirs(cmd_dir, exist_ok=True)
             command_script = os.path.join(cmd_dir, f"ft_call_peaks_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, "ft_call_peaks.sh")
             rule_logger.info(f"Calling FIRE peaks for sample {wildcards.sample_id}")
             # Build ft call-peaks command (fdr mode needs a shuffled null BED)
             mode = params.fdr_cfg.get("call_peaks_mode", "fdr")
@@ -168,7 +171,8 @@ rule ft_call_peaks:
                 f.write(f'echo "FIRE peak calling completed for sample {wildcards.sample_id}"\n')
                 f.write(f'rm -rf {scratch_dir}\n')
 
-            shell(f"bash {command_script} >> {log_path} 2>&1")
+            shutil.copyfile(command_script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"ft_call_peaks failed: {e}\n")
             raise RuntimeError(f"ft_call_peaks failed: {e}\n")
@@ -206,6 +210,7 @@ rule ft_qc:
             cmd_dir = os.path.join(logdir, "cmd", wildcards.sample_id)
             os.makedirs(cmd_dir, exist_ok=True)
             command_script = os.path.join(cmd_dir, f"ft_qc_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, "ft_qc.sh")
             cmd = [
                 params.ft, "qc",
                 "-t", str(threads),
@@ -218,7 +223,8 @@ rule ft_qc:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "QC metrics collected for sample {wildcards.sample_id}"\n')
-            shell(f"bash {command_script} >> {log_path} 2>&1")
+            shutil.copyfile(command_script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"ft_qc failed: {e}\n")
             raise RuntimeError(f"ft_qc failed: {e}\n")
@@ -260,6 +266,7 @@ rule ft_extract_fire:
             cmd_dir = os.path.join(logdir, "cmd", wildcards.sample_id)
             os.makedirs(cmd_dir, exist_ok=True)
             command_script = os.path.join(cmd_dir, f"ft_extract_fire_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, "ft_extract_fire.sh")
             # `ft fire --extract` emits records in BAM (fiber) order, which is
             # NOT chromosome-grouped/start-sorted. Every ChromSweep consumer
             # (quant/coactuation/motif/footprint/censat) requires a
@@ -281,7 +288,8 @@ rule ft_extract_fire:
                 f.write(f"tabix -f -p bed {output.fire}\n")
                 f.write(f"rm -f {tmp_fire}\n")
                 f.write(f'echo "FIRE extraction completed for sample {wildcards.sample_id}"\n')
-            shell(f"bash {command_script} >> {log_path} 2>&1")
+            shutil.copyfile(command_script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"ft_extract_fire failed: {e}\n")
             raise RuntimeError(f"ft_extract_fire failed: {e}\n")
@@ -315,13 +323,15 @@ rule ft_split_hap:
             cmd_dir = os.path.join(logdir, "cmd", wildcards.sample_id)
             os.makedirs(cmd_dir, exist_ok=True)
             command_script = os.path.join(cmd_dir, f"ft_split_hap_{wildcards.hap}_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, f"ft_split_hap_{wildcards.hap}.sh")
             with open(command_script, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(f'samtools view -b -@ {threads} -d HP:{params.hp_value} '
                         f'{input.bam} > {output.bam}\n')
                 f.write(f'samtools index {output.bam}\n')
                 f.write(f'echo "Haplotype split completed for sample {wildcards.sample_id}"\n')
-            shell(f"bash {command_script} >> {log_path} 2>&1")
+            shutil.copyfile(command_script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"ft_split_hap failed: {e}\n")
             raise RuntimeError(f"ft_split_hap failed: {e}\n")
@@ -358,6 +368,7 @@ rule ft_extract_hap:
             cmd_dir = os.path.join(logdir, "cmd", wildcards.sample_id)
             os.makedirs(cmd_dir, exist_ok=True)
             command_script = os.path.join(cmd_dir, f"ft_extract_{wildcards.hap}_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, f"ft_extract_{wildcards.hap}.sh")
             cmd = [
                 params.ft, "extract",
                 "-r",
@@ -372,7 +383,8 @@ rule ft_extract_hap:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "Haplotype extraction completed for sample {wildcards.sample_id}"\n')
-            shell(f"bash {command_script} >> {log_path} 2>&1")
+            shutil.copyfile(command_script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"ft_extract_hap failed: {e}\n")
             raise RuntimeError(f"ft_extract_hap failed: {e}\n")

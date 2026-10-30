@@ -222,22 +222,29 @@ _ENV_MAP = config.get("env", {})
 
 
 def cmd_dir(logdir, key="group"):
-    """Resolve the command-receipt directory {logdir}/cmd/<key> under the
-    project root and make sure it exists.
+    """Resolve the command-receipt directory <output_root>/log/cmd/<key>.
 
-    Modules include this shared file, so every consumer builds the receipt
-    dir the same way: logdir arrives from config (relative to the output
-    root on some workflows, absolute on others) and is anchored at ROOT_DIR
-    when relative — a per-module logdir value cannot be assumed to carry
-    its own parents.
+    The receipt location is a fixed convention: ALWAYS <output_root>/log/cmd,
+    regardless of which logdir variant a module received (subworkflows pass
+    <root>/log, <root>/log/sample or <root>/log/group). The log root is
+    recovered from the given logdir by locating its trailing "log" segment;
+    relative logdirs are anchored at ROOT_DIR first.
 
-    key: sample/group/contrast wildcard value (str) or "group".
-    Returns the absolute-ish joined path (created on disk).
+    key: sample/tissue/contrast/... wildcard value (str) or "group".
+    Returns the receipt dir path (created on disk).
     """
     _ld = str(logdir)
     if not os.path.isabs(_ld):
         _ld = os.path.join(ROOT_DIR, _ld)
-    _d = os.path.join(_ld, "cmd", str(key))
+    _ld = os.path.normpath(_ld)
+    # walk up to the .../log segment so .../log/sample and .../log/group
+    # both land on <root>/log
+    parts = _ld.split(os.sep)
+    if "log" in parts:
+        _log_root = os.sep.join(parts[: parts.index("log") + 1])
+    else:
+        _log_root = _ld  # unusual layout: keep the given dir as-is
+    _d = os.path.join(_log_root, "cmd", str(key))
     os.makedirs(_d, exist_ok=True)
     return _d
 

@@ -59,6 +59,18 @@
                 "llm_model": null,
                 "llm_api_key": null,
                 "llm_base_url": null
+            },
+            "pseudobulk": {
+                "enabled": false,
+                "compare": [],
+                "min_cells": 30,
+                "min_counts": 1000,
+                "n_pseudo_reps": 3,
+                "top_cell_types": [],
+                "highlight_genes": [],
+                "deg_mode": [
+                    "all"
+                ]
             }
         }
     }

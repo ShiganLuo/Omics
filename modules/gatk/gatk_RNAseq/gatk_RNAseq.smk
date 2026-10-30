@@ -46,8 +46,7 @@ rule SplitNCigarReads:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start SplitNCigarReads for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.bam))
-            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
-            script = os.path.join(logdir, "cmd", "group", f"SplitNCigarReads_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"SplitNCigarReads_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"SplitNCigarReads.sh")
             if not input.dict_index or not os.path.exists(input.dict_index) or not input.fai_index or not os.path.exists(input.fai_index):
                 fasta = indir + "/index/genome.fa"
@@ -100,8 +99,7 @@ rule VarientCalling:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start VarientCalling for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.vcf))
-            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
-            script = os.path.join(logdir, "cmd", "group", f"VarientCalling_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"VarientCalling_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"VarientCalling.sh")
             if not params.fai_index or not os.path.exists(params.fai_index):
                 fasta = indir + "/index/genome.fa" # 依赖SplitNCigarReads真实执行
@@ -154,8 +152,7 @@ rule vcf_filter:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start vcf_filter for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.vcf))
-            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
-            script = os.path.join(logdir, "cmd", "group", f"vcf_filter_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"vcf_filter_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"vcf_filter.sh")
             if not params.fai_index or not os.path.exists(params.fai_index):
                 fasta = indir + "/index/genome.fa" # 依赖SplitNCigarReads真实执行

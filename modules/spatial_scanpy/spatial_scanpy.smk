@@ -55,7 +55,7 @@ rule spatial_scanpy_qc:
         log_path=str(log)
         try:
             os.makedirs(os.path.dirname(log_path), exist_ok=True); os.makedirs(os.path.dirname(output.h5ad), exist_ok=True)
-            stamp=time.strftime("%Y%m%d_%H%M%S", time.localtime()); os.makedirs(os.path.join(logdir, "cmd", "spatial"), exist_ok=True);command_script=os.path.join(logdir, "cmd", "spatial", f"spatial_qc_{stamp}.sh");plain_script=os.path.join(os.path.dirname(output.h5ad), f"spatial_qc.sh")
+            stamp=time.strftime("%Y%m%d_%H%M%S", time.localtime()); command_script = os.path.join(RECEIPT_DIR, f"spatial_qc_{stamp}.sh");plain_script=os.path.join(os.path.dirname(output.h5ad), f"spatial_qc.sh")
             with open(command_script,"w") as handle:
                 handle.write("#!/usr/bin/env bash\nset -euo pipefail\n"+" ".join(shlex.quote(str(x)) for x in params.command)+"\n")
             shutil.copyfile(command_script, plain_script)
@@ -77,7 +77,7 @@ rule spatial_scanpy_cluster:
     run:
         log_path=str(log)
         try:
-            os.makedirs(os.path.dirname(log_path),exist_ok=True);os.makedirs(os.path.dirname(output.h5ad),exist_ok=True);os.makedirs(os.path.join(logdir, "cmd", "spatial"), exist_ok=True);stamp=time.strftime("%Y%m%d_%H%M%S",time.localtime());command_script=os.path.join(logdir, "cmd", "spatial", f"spatial_cluster_{stamp}.sh");plain_script=os.path.join(os.path.dirname(output.h5ad), f"spatial_cluster.sh")
+            os.makedirs(os.path.dirname(log_path),exist_ok=True);os.makedirs(os.path.dirname(output.h5ad),exist_ok=True);stamp=time.strftime("%Y%m%d_%H%M%S",time.localtime());command_script = os.path.join(RECEIPT_DIR, f"spatial_cluster_{stamp}.sh");plain_script=os.path.join(os.path.dirname(output.h5ad), f"spatial_cluster.sh")
             with open(command_script,"w") as handle: handle.write("#!/usr/bin/env bash\nset -euo pipefail\n"+" ".join(shlex.quote(str(x)) for x in params.command)+"\n")
             shutil.copyfile(command_script, plain_script)
             shell(f"bash {shlex.quote(plain_script)} >> {shlex.quote(log_path)} 2>&1")
@@ -98,7 +98,7 @@ if advanced.get("spatial_autocorrelation", True):
         run:
             log_path=str(log)
             try:
-                os.makedirs(os.path.dirname(log_path),exist_ok=True);os.makedirs(os.path.dirname(output.h5ad),exist_ok=True);os.makedirs(os.path.join(logdir, "cmd", "spatial"), exist_ok=True);stamp=time.strftime("%Y%m%d_%H%M%S",time.localtime());command_script=os.path.join(logdir, "cmd", "spatial", f"spatial_advanced_{stamp}.sh");plain_script=os.path.join(os.path.dirname(output.h5ad), f"spatial_advanced.sh")
+                os.makedirs(os.path.dirname(log_path),exist_ok=True);os.makedirs(os.path.dirname(output.h5ad),exist_ok=True);stamp=time.strftime("%Y%m%d_%H%M%S",time.localtime());command_script = os.path.join(RECEIPT_DIR, f"spatial_advanced_{stamp}.sh");plain_script=os.path.join(os.path.dirname(output.h5ad), f"spatial_advanced.sh")
                 with open(command_script,"w") as handle: handle.write("#!/usr/bin/env bash\nset -euo pipefail\n"+" ".join(shlex.quote(str(x)) for x in params.command)+"\n")
                 shutil.copyfile(command_script, plain_script)
             shell(f"bash {shlex.quote(plain_script)} >> {shlex.quote(log_path)} 2>&1")

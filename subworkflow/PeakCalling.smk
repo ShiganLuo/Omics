@@ -27,6 +27,7 @@ rule all:
 # ==============================================================================
 fastqc_raw_config = {
         "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "indir": indir,
         "outdir":  f"{outdir}/QC/1_raw_fastqc",
@@ -49,6 +50,7 @@ use rule fastqc from fastqc_raw as PeakCalling_fastqc_raw
 # ==============================================================================
 trim_galore_config = {
         "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "indir": indir,
         "outdir": f"{outdir}/common/2_trimmed_fastq",
@@ -74,6 +76,7 @@ use rule trimming_Single from trim_galore as PeakCalling_trimming_Single
 # ==============================================================================
 fastqc_trimmed_config = {
         "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "indir": trim_galore_config["outdir"],
         "outdir":  f"{outdir}/QC/2_trimmed_fastqc",
@@ -96,6 +99,7 @@ use rule fastqc from fastqc_trimmed as PeakCalling_fastqc_trimmed
 # ==============================================================================
 bowtie2_config = {
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "indir": trim_galore_config["outdir"],
     "outdir": f"{outdir}/common/3_raw_bam",
@@ -125,6 +129,7 @@ use rule bowtie2_align_single from bowtie2 as PeakCalling_bowtie2_align_single
 # =============================================================================
 gatk_prepare_config = {
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "indir": bowtie2_config["outdir"],
     "outdir": f"{outdir}/common/4_markdup_bam",
@@ -155,6 +160,7 @@ use rule MarkDuplicates from gatk_prepare as PeakCalling_MarkDuplicates
 # ==============================================================================
 igv_config = {
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "indir": bowtie2_config["outdir"],
     "outdir": f"{outdir}/results/tracks",
@@ -185,6 +191,7 @@ track_config = {
         "logdir": f"{logdir}/group",
         "samples": single_samples + paired_samples,
         "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "igv": config.get('Params', {}).get('igv', {}),
     }
@@ -199,6 +206,7 @@ use rule * from track as PeakCalling_*
 # =============================================================================
 macs3_config = {
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "indir": gatk_prepare_config["outdir"],
     "outdir": f"{outdir}/results/peaks",
@@ -230,6 +238,7 @@ use rule macs3_cutoff_plot from macs3 as PeakCalling_macs3_cutoff_plot
 # =============================================================================
 frip_score_config = {
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "indir": gatk_prepare_config["outdir"],
     "outdir": f"{outdir}/QC/3_frip_score",
@@ -254,6 +263,7 @@ use rule frip_score from frip_score as PeakCalling_frip_score
 # ==============================================================================
 deeptools_config = {
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "indir": macs3_config["outdir"],
     "outdir": f"{outdir}/results/heatmap",
@@ -291,6 +301,7 @@ use rule heatmap_gene from deeptools as PeakCalling_heatmap_gene
 # ==============================================================================
 homer_config = {
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "indir": macs3_config["outdir"],
     "outdir": f"{outdir}/results/annotation",
@@ -318,6 +329,7 @@ use rule homer_annotatepeaks from homer as PeakCalling_homer_annotatepeaks
 # ==============================================================================
 peak_te_overlap_config = {
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "outdir": f"{outdir}/results/te_overlap",
     "logdir": f"{logdir}/sample",
@@ -349,6 +361,7 @@ use rule peak_te_overlap_fig from peak_te_overlap as PeakCalling_peak_te_overlap
 # ==============================================================================
 PeakCalling_report_config = {
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "outdir": outdir,
     "logdir": f"{logdir}/sample",

@@ -50,9 +50,7 @@ rule ft_extract:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            cmd_dir = os.path.join(logdir, "cmd", wildcards.sample_id)
-            os.makedirs(cmd_dir, exist_ok=True)
-            command_script = os.path.join(cmd_dir, f"ft_extract_{current_time}.sh")
+            command_script = os.path.join(RECEIPT_DIR, f"ft_extract_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, "ft_extract.sh")
             cmd = [
                 params.ft, "extract",
@@ -109,9 +107,7 @@ rule ft_call_peaks:
             # the outdir (that duplicated ~60G per sample historically).
             sorted_bam = str(input.bam)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            cmd_dir = os.path.join(logdir, "cmd", wildcards.sample_id)
-            os.makedirs(cmd_dir, exist_ok=True)
-            command_script = os.path.join(cmd_dir, f"ft_call_peaks_{current_time}.sh")
+            command_script = os.path.join(RECEIPT_DIR, f"ft_call_peaks_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, "ft_call_peaks.sh")
             rule_logger.info(f"Calling FIRE peaks for sample {wildcards.sample_id}")
             # Build ft call-peaks command (fdr mode needs a shuffled null BED)
@@ -207,9 +203,7 @@ rule ft_qc:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            cmd_dir = os.path.join(logdir, "cmd", wildcards.sample_id)
-            os.makedirs(cmd_dir, exist_ok=True)
-            command_script = os.path.join(cmd_dir, f"ft_qc_{current_time}.sh")
+            command_script = os.path.join(RECEIPT_DIR, f"ft_qc_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, "ft_qc.sh")
             cmd = [
                 params.ft, "qc",
@@ -263,9 +257,7 @@ rule ft_extract_fire:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            cmd_dir = os.path.join(logdir, "cmd", wildcards.sample_id)
-            os.makedirs(cmd_dir, exist_ok=True)
-            command_script = os.path.join(cmd_dir, f"ft_extract_fire_{current_time}.sh")
+            command_script = os.path.join(RECEIPT_DIR, f"ft_extract_fire_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, "ft_extract_fire.sh")
             # `ft fire --extract` emits records in BAM (fiber) order, which is
             # NOT chromosome-grouped/start-sorted. Every ChromSweep consumer
@@ -320,9 +312,7 @@ rule ft_split_hap:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            cmd_dir = os.path.join(logdir, "cmd", wildcards.sample_id)
-            os.makedirs(cmd_dir, exist_ok=True)
-            command_script = os.path.join(cmd_dir, f"ft_split_hap_{wildcards.hap}_{current_time}.sh")
+            command_script = os.path.join(RECEIPT_DIR, f"ft_split_hap_{wildcards.hap}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"ft_split_hap_{wildcards.hap}.sh")
             with open(command_script, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
@@ -365,9 +355,7 @@ rule ft_extract_hap:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            cmd_dir = os.path.join(logdir, "cmd", wildcards.sample_id)
-            os.makedirs(cmd_dir, exist_ok=True)
-            command_script = os.path.join(cmd_dir, f"ft_extract_{wildcards.hap}_{current_time}.sh")
+            command_script = os.path.join(RECEIPT_DIR, f"ft_extract_{wildcards.hap}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"ft_extract_{wildcards.hap}.sh")
             cmd = [
                 params.ft, "extract",

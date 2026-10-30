@@ -17,7 +17,8 @@ outfiles = config.get("outfiles") or [qc, f"{outdir}/spatial/qc/qc_metrics.tsv",
 if advanced_enabled:
     outfiles.append(advanced_output)
 spatial_config = dict(config)
-spatial_config.update({"ROOT_DIR": ROOT_DIR, "outdir": outdir, "logdir": logdir, "input_h5ad": input_h5ad, "visium_h5": visium_h5, "spatial_dir": spatial_dir, "outfiles": outfiles})
+spatial_config.update({"ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir, "outdir": outdir, "logdir": logdir, "input_h5ad": input_h5ad, "visium_h5": visium_h5, "spatial_dir": spatial_dir, "outfiles": outfiles})
 module spatial_scanpy:
     snakefile: "../modules/spatial_scanpy/spatial_scanpy.smk"
     config: spatial_config

@@ -20,6 +20,7 @@ fumitools_config = {
     "logdir": logdir,
     "paired_samples": config.get("paired_samples", []),
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "Procedure": {
         "fumitools": config.get("Procedure", {}).get("fumitools")
@@ -38,6 +39,7 @@ use rule fumitools_copy_umi_single from fumitools as tRNAseq_fumitools_copy_umi_
 
 cutadapt_config = {
             "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
             "env": config.get("env", {}),
             "indir": fumitools_config["outdir"],
             "outdir":  f"{outdir}/fastq/trimmed_fastq",
@@ -63,6 +65,7 @@ mimseq_config = {
     "samples": samples,
     "sample_data": sample_data,
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "data_dir": config.get("Params", {}).get("mimseq", {}).get("data_dir", ""),
     "Procedure": {

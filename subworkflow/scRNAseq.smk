@@ -19,6 +19,7 @@ if aligner == "star":
     logger.info("Using STAR aligner for scRNA-seq workflow. only scTE counter is supported for STAR aligner.")
     star_config = {
         "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "resources": config.get("resources", {}),
         "indir": indir,
@@ -60,6 +61,7 @@ if aligner == "star":
         logger.info("Input mode is set to 'bam'. Skipping STAR aligner and using provided BAM files.")
         scTE_config = {
             "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
             "env": config.get("env", {}),
             "resources": config.get("resources", {}),
             "indir": star_config["outdir"],
@@ -91,6 +93,7 @@ elif aligner == "cellranger":
         logger.info("Input mode is set to 'fastq'. Running Cell Ranger aligner to generate BAM files.")
         cellranger_config = {
             "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
             "env": config.get("env", {}),
             "resources": config.get("resources", {}),
             "indir": indir,
@@ -120,6 +123,7 @@ elif aligner == "cellranger":
         logger.info("Input mode is set to 'cellranger_dir'. Skipping Cell Ranger aligner and using provided Cell Ranger directories.")
         cellranger_config = {
             "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
             "env": config.get("env", {}),
             "resources": config.get("resources", {}),
             "indir": indir,
@@ -150,6 +154,7 @@ elif aligner == "cellranger":
             logger.info("Using scTE counter for scRNA-seq workflow")
             scTE_config = {
                 "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
                 "env": config.get("env", {}),
                 "resources": config.get("resources", {}),
                 "input_mode": "cellranger_dir",
@@ -186,6 +191,7 @@ else:
 
 scanpy_config = {
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "resources": config.get("resources", {}),
     "indir": h5ad_outdir,

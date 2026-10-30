@@ -79,7 +79,8 @@ rule msfragger_run:
                  "--label", str(params.label)],
                 check=True,
             )
-            script = os.path.join(cmd_dir(logdir, "group"), f"msfragger_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"msfragger_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"msfragger.sh")
             if params.jar:
                 cmd = [params.java, f"-Xmx{params.java_xmx}", "-jar", str(params.jar)]
@@ -137,7 +138,8 @@ rule msfragger_idxml:
             rule_logger.info(f"Start pepXML -> idXML conversion for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(cmd_dir(logdir, "group"), f"msfragger_idxml_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"msfragger_idxml_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"msfragger_idxml.sh")
             # Staged copy must keep a .pepXML suffix: IDFileConverter has no
             # -in_type in OpenMS 3.x and infers the INPUT type from the

@@ -49,7 +49,8 @@ rule ft_predict_m6a:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            command_script = os.path.join(cmd_dir(logdir, "group"), f"ft_predict_m6a_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            command_script = os.path.join(logdir, "cmd", "group", f"ft_predict_m6a_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"ft_predict_m6a.sh")
             cmd = [
                 params.ft, "predict-m6a",
@@ -97,7 +98,8 @@ rule ft_add_nucleosomes:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            command_script = os.path.join(cmd_dir(logdir, "group"), f"ft_add_nucleosomes_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            command_script = os.path.join(logdir, "cmd", "group", f"ft_add_nucleosomes_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"ft_add_nucleosomes.sh")
             cmd = [
                 params.ft, "add-nucleosomes",
@@ -146,7 +148,8 @@ rule ft_fire:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            command_script = os.path.join(cmd_dir(logdir, "group"), f"ft_fire_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            command_script = os.path.join(logdir, "cmd", "group", f"ft_fire_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"ft_fire.sh")
             cmd = [
                 params.ft, "fire",
@@ -198,7 +201,8 @@ rule ft_extract:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            command_script = os.path.join(cmd_dir(logdir, "group"), f"ft_extract_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            command_script = os.path.join(logdir, "cmd", "group", f"ft_extract_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"ft_extract.sh")
             cmd = [
                 params.ft, "extract",

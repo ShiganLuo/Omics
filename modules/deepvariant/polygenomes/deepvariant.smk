@@ -50,7 +50,8 @@ rule deepvariant_run:
             logger = setup_logger(logger_name="deepvariant_run", log_file=log[0])
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start DeepVariant for sample {wildcards.sample_id} genome {wildcards.genome} at {current_time}")
-            script = os.path.join(cmd_dir(logdir, str(wildcards.genome)), f"{wildcards.genome}/{wildcards.sample_id}/deepvariant_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.genome)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.genome), f"{wildcards.genome}/{wildcards.sample_id}/deepvariant_{current_time}.sh")
             plain_script = os.path.join(outdir, f"{wildcards.genome}/{wildcards.sample_id}/deepvariant.sh")
             cmd1 = [
                 params.deepvariant,

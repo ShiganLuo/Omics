@@ -16,7 +16,8 @@ if analysis.get("history",False):
   params: tool=easy_sfs,outdir=outdir+"/analysis/history/easySFS",extra=analysis.get("history_config","")
   run:
    os.makedirs(os.path.dirname(str(log)),exist_ok=True);os.makedirs(params.outdir,exist_ok=True)
-   script = os.path.join(cmd_dir(logdir, "group"), f"easySFS_population_{time.strftime('%Y%m%d_%H%M%S')}.sh")
+   os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+   script=os.path.join(logdir, "cmd", "group", f"easySFS_population_{time.strftime('%Y%m%d_%H%M%S')}.sh")
    plain_script=os.path.join(params.outdir, "easySFS_population.sh")
    cmd=[params.tool,"-i",input.vcf,"-p",input.popmap,"-o",params.outdir]
    if params.extra: cmd += str(params.extra).split()

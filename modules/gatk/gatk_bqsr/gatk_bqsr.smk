@@ -35,7 +35,8 @@ rule BaseRecalibrator:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start BaseRecalibrator for sample {wildcards.sample_id} at {current_time}")
-            script = os.path.join(cmd_dir(logdir, str(wildcards.sample_id)), f"{wildcards.sample_id}/BaseRecalibrator_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"{wildcards.sample_id}/BaseRecalibrator_{current_time}.sh")
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/BaseRecalibrator.sh")
             cmd = [
                 params.gatk, "BaseRecalibrator",
@@ -91,7 +92,8 @@ rule ApplyBQSR:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start ApplyBQSR for sample {wildcards.sample_id} at {current_time}")
-            script = os.path.join(cmd_dir(logdir, str(wildcards.sample_id)), f"{wildcards.sample_id}/ApplyBQSR_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"{wildcards.sample_id}/ApplyBQSR_{current_time}.sh")
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/ApplyBQSR.sh")
             cmd = [
                 params.gatk, "ApplyBQSR",

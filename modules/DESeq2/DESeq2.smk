@@ -52,7 +52,8 @@ rule DESeq2_TEcount:
             rule_logger.info(f"Start DESeq2 TEcount at {current_time}")
             sample_outdir = os.path.dirname(str(output.deseq2_results))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(cmd_dir(logdir, "group"), f"DESeq2_TEcount_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"DESeq2_TEcount_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"DESeq2_TEcount.sh")
             control_group_name = group_pairs[wildcards.contrast]["control_group_name"]
             experimental_group_name = group_pairs[wildcards.contrast]["experimental_group_name"]

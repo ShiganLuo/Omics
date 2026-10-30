@@ -61,7 +61,8 @@ rule star_3pg_gene_specific:
             os.makedirs(sample_outdir, exist_ok=True)
             os.makedirs(os.path.dirname(log_path), exist_ok=True)
             input_dir = os.path.join(outdir, wildcards.genome, wildcards.sample_id)
-            script = os.path.join(cmd_dir(logdir, "group"), f"gene_specific_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"gene_specific_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"gene_specific.sh")
 
             cmd = [

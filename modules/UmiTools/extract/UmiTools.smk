@@ -31,7 +31,8 @@ rule UmiTools_extract_single:
             rule_logger.info(f"Start UmiTools_extract_single for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(cmd_dir(logdir, "group"), f"UmiTools_extract_single_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"UmiTools_extract_single_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"UmiTools_extract_single.sh")
             with open(script, "w") as f:
                 f.write(f"{params.umi_tools} extract \\\n")
@@ -76,7 +77,8 @@ rule UmiTools_extract_paired:
             rule_logger.info(f"Start UmiTools_extract_paired for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(cmd_dir(logdir, "group"), f"UmiTools_extract_paired_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"UmiTools_extract_paired_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"UmiTools_extract_paired.sh")
             with open(script, "w") as f:
                 f.write(f"{params.umi_tools} extract \\\n")

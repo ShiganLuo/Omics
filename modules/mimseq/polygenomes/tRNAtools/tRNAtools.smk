@@ -64,7 +64,8 @@ rule mimseq_tRNAtools:
             log_path = str(log)
             open(log_path, "w").close()
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            script_path = os.path.join(cmd_dir(logdir, "group"), f"mimseq_tRNAtools_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script_path = os.path.join(logdir, "cmd", "group", f"mimseq_tRNAtools_{current_time}.sh")
             plain_script = os.path.join(outdir, wildcards.genome, f"mimseq_tRNAtools.sh")
 
             cmd = [

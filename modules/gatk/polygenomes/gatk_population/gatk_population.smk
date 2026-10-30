@@ -60,7 +60,8 @@ rule gatk_population_haplotype_caller:
             os.makedirs(os.path.dirname(output.vcf), exist_ok=True)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start gatk_population_haplotype_caller for sample {wildcards.sample} genome {wildcards.genome} at {current_time}")
-            script = os.path.join(cmd_dir(logdir, str(wildcards.sample)), f"gatk_population_haplotype_caller_{wildcards.sample}_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.sample), f"gatk_population_haplotype_caller_{wildcards.sample}_{current_time}.sh")
             plain_script = os.path.join(os.path.dirname(output.vcf), f"gatk_population_haplotype_caller_{wildcards.sample}.sh")
             cmd = [params.gatk, "--java-options", params.java_options, "HaplotypeCaller", "-R", input.fasta, "-I", input.bam, "-O", output.vcf, "-ERC", "GVCF", "--native-pair-hmm-threads", str(threads)]
             if params.interval:
@@ -112,7 +113,8 @@ rule gatk_population_joint_genotyping:
             with open(sample_map, "w") as handle:
                 for sample, gvcf in zip(samples, input.gvcfs):
                     handle.write(f"{sample}\t{gvcf}\n")
-            script = os.path.join(cmd_dir(logdir, "group"), f"gatk_population_joint_genotyping_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"gatk_population_joint_genotyping_{current_time}.sh")
             plain_script = os.path.join(os.path.dirname(output.vcf), f"gatk_population_joint_genotyping.sh")
             import_cmd = [params.gatk, "--java-options", params.java_options, "GenomicsDBImport", "--sample-name-map", sample_map, "--genomicsdb-workspace-path", params.workspace, "--reader-threads", str(threads)]
             genotype_cmd = [params.gatk, "--java-options", params.java_options, "GenotypeGVCFs", "-R", input.fasta, "-V", "gendb://" + params.workspace, "-O", output.vcf]

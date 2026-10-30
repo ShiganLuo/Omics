@@ -90,7 +90,8 @@ rule generate_report:
             report_dir = os.path.dirname(str(output.report))
             os.makedirs(report_dir, exist_ok=True)
             os.makedirs(params.img_dir, exist_ok=True)
-            script_path = os.path.join(cmd_dir(logdir, "group"), f"RNAseq_report_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script_path = os.path.join(logdir, "cmd", "group", f"RNAseq_report_{current_time}.sh")
             plain_script = os.path.join(report_dir, f"RNAseq_report.sh")
             cmd = [
                 "python3", params.script,

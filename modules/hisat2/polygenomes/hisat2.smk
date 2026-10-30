@@ -49,7 +49,8 @@ rule hisat2_index:
 
             sample_outdir = os.path.dirname(params.prefix)
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(cmd_dir(logdir, "group"), f"hisat2_index_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"hisat2_index_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"hisat2_index.sh")
 
             cmd = [

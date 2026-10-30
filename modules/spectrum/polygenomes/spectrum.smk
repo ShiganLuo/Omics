@@ -30,6 +30,7 @@ rule somatic_spectrum:
     run:
         try:
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
         script = f"{logdir}/cmd/group/somatic_spectrum.{current_time}.sh"
         plain_script = f"{outdir}/{wildcards.genome}/somatic_spectrum.sh"
             experiment_vcf_map_file = os.path.join(outdir, wildcards.genome, "experiment_vcf_map.tsv")

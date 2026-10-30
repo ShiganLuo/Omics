@@ -38,7 +38,8 @@ rule ucsc_track_single:
 
             sample_outdir = os.path.dirname(str(output.track))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(cmd_dir(logdir, "group"), f"ucsc_track_bedtools_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"ucsc_track_bedtools_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"ucsc_track_bedtools.sh")
 
             cmd = [
@@ -84,7 +85,8 @@ rule ucsc_track_iclip:
 
             sample_outdir = os.path.dirname(str(output.track))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(cmd_dir(logdir, "group"), f"ucsc_track_iclip_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"ucsc_track_iclip_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"ucsc_track_iclip.sh")
 
             cmd = [
@@ -139,7 +141,8 @@ rule igv_track_single:
             sample_outdir = os.path.dirname(str(output.html))
             os.makedirs(sample_outdir, exist_ok=True)
             config_json_path = str(params.config_json)
-            script = os.path.join(cmd_dir(logdir, "group"), f"igv_track_bedtools_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"igv_track_bedtools_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"igv_track_bedtools.sh")
 
             rule_logger.info(f"Writing IGV config JSON to {config_json_path}")
@@ -199,7 +202,8 @@ rule igv_track_iclip:
             sample_outdir = os.path.dirname(str(output.html))
             os.makedirs(sample_outdir, exist_ok=True)
             config_json_path = str(params.config_json)
-            script = os.path.join(cmd_dir(logdir, "group"), f"igv_track_iclip_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"igv_track_iclip_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"igv_track_iclip.sh")
 
             rule_logger.info(f"Writing IGV config JSON to {config_json_path}")

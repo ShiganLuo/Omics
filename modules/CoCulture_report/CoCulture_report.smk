@@ -35,7 +35,8 @@ rule HRT:
             logger = setup_logger(logger_name="HRT_run", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start HRT run at {current_time}")
-            script = os.path.join(cmd_dir(logdir, "group"), f"HRT_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"HRT_{current_time}.sh")
             plain_script = os.path.join(outdir, f"HRT.sh")
             cmd = ["python", params.HTR_script,
                    "--genome1_count", input.genome1_count,

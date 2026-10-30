@@ -262,7 +262,8 @@ rule decoil_plot:
             rule_logger.info(f"Start decoil_plot for sample {wildcards.sample_id} at {current_time}")
             sample_vis_dir = os.path.dirname(str(output.regions_tsv))
             os.makedirs(sample_vis_dir, exist_ok=True)
-            script = os.path.join(cmd_dir(logdir, str(wildcards.sample_id)), f"decoil_plot_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"decoil_plot_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_vis_dir, f"decoil_plot_{wildcards.sample_id}.sh")
             cmd = [
                 "python", params.plot_script,
@@ -318,7 +319,8 @@ rule decoil_compare:
             rule_logger.info(f"Start decoil_compare for samples {samples} at {current_time}")
             compare_dir = os.path.dirname(str(output.png))
             os.makedirs(compare_dir, exist_ok=True)
-            script = os.path.join(cmd_dir(logdir, "group"), f"decoil_compare_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"decoil_compare_{current_time}.sh")
             plain_script = os.path.join(compare_dir, f"decoil_compare.sh")
             cmd = [
                 "python", params.plot_script,
@@ -386,7 +388,8 @@ rule decoil_structure:
             rule_logger.info(f"Start decoil_structure for sample {wildcards.sample_id} at {current_time}")
             sample_vis_dir = os.path.dirname(str(output.genes_tsv))
             os.makedirs(sample_vis_dir, exist_ok=True)
-            script = os.path.join(cmd_dir(logdir, str(wildcards.sample_id)), f"decoil_structure_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"decoil_structure_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_vis_dir, f"decoil_structure_{wildcards.sample_id}.sh")
             cmd = [
                 "python", params.structure_script,
@@ -465,7 +468,8 @@ rule decoil_igv:
             with open(tmp_base_json, "w") as f:
                 json.dump(base_cfg, f, indent=2)
 
-            script = os.path.join(cmd_dir(logdir, str(wildcards.sample_id)), f"decoil_igv_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"decoil_igv_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_vis_dir, f"decoil_igv_{wildcards.sample_id}.sh")
             cmd1 = [
                 "python", params.igv_config_script,
@@ -528,7 +532,8 @@ rule decoil_ucsc:
             rule_logger.info(f"Start decoil_ucsc for sample {wildcards.sample_id} at {current_time}")
             sample_vis_dir = os.path.dirname(str(output.track))
             os.makedirs(sample_vis_dir, exist_ok=True)
-            script = os.path.join(cmd_dir(logdir, str(wildcards.sample_id)), f"decoil_ucsc_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"decoil_ucsc_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_vis_dir, f"decoil_ucsc_{wildcards.sample_id}.sh")
             cmd = [
                 "python", params.track_script,

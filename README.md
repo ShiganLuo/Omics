@@ -607,14 +607,12 @@ python workflow/Omics/run.py \
 ### 一般修改流程
 
 - 如果后续新增 workflow，建议同步补充：
-  - `config/<workflow>.json`
-  - `config/<workflow>.schema.json`
-  - `subworkflow/<workflow>.smk`
-  - `modules`中的json,yaml,smk
-  - `node.py` 中的分发逻辑
-- 各软件传递参数的默认值均为软件或者适配流程的默认值
-- " ".join(cmd)。cmd不能包含None
+  - `config/<workflow>.json` 和 `config/<workflow>.schema.json`（总输入和总约束）
+  - `subworkflow/<workflow>.smk`（流程主体）
+  - `modules`中的json,yaml,smk（功能主体及约束）
+  - `node.py` 中的分发逻辑（注册结果）
 
+在添加功能时候，相关规范见（modules/modules.md）
 
 ## 计划
 
@@ -626,7 +624,8 @@ python workflow/Omics/run.py \
 - [x] schema感知的extra_args类型矫正
 - [ ] 支持多基因组并行运行；已支持：RNAseq
 - [ ] 根据数据量，确保资源消耗平衡，不会出现耗尽主机内存，或者爆满CPU的情况，已初步支持：Fiberseq,RNAseq；下一步需要将数据量和计算资源联系起来
-- [ ] 所以图片输出支持多种格式可选
+- [ ] 所有图片输出支持多种格式可选
+- [x] 完成所有pipeline的双shell记录，即在结果文件目录始终保留最终执行shell脚本，在log/cmd目录记录所有执行过的的shell脚本；目前已经支持scRNAseq,Fiberseq
 
 
 

@@ -1,5 +1,7 @@
 include: "../../common/common.smk"
 
+import shutil
+
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 indir = config.get("indir", "input")
@@ -29,7 +31,9 @@ rule manta_config:
             logger = setup_logger(logger_name="manta_config", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start manta config for sample {wildcards.sample_id} genome {wildcards.genome} at {current_time}")
-            script = os.path.join(outdir, f"{wildcards.genome}/{wildcards.sample_id}/manta_config_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.genome)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.genome), f"{wildcards.genome}/{wildcards.sample_id}/manta_config_{current_time}.sh")
+            plain_script = os.path.join(outdir, f"{wildcards.genome}/{wildcards.sample_id}/manta_config.sh")
             cmd = [
                 "configManta.py",
                 "--bam", str(input.bam),
@@ -38,7 +42,8 @@ rule manta_config:
             ]
             with open(script, 'w') as f:
                 f.write(' '.join(cmd) + '\n')
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path, 'a') as f:
                 f.write(f"Error: {e}\n")
@@ -70,14 +75,17 @@ rule manta_run:
             logger = setup_logger(logger_name="manta_run", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start manta run for sample {wildcards.sample_id} genome {wildcards.genome} at {current_time}")
-            script = os.path.join(outdir, f"{wildcards.genome}/{wildcards.sample_id}/manta_run_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.genome)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.genome), f"{wildcards.genome}/{wildcards.sample_id}/manta_run_{current_time}.sh")
+            plain_script = os.path.join(outdir, f"{wildcards.genome}/{wildcards.sample_id}/manta_run.sh")
             cmd = [
                 "python", str(input.script),
                 "-j", str(threads)
             ]
             with open(script, 'w') as f:
                 f.write(' '.join(cmd) + '\n')
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path, 'a') as f:
                 f.write(f"Error: {e}\n")

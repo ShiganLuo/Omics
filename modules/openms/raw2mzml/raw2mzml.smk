@@ -1,5 +1,7 @@
 include: "../../common/common.smk"
 
+import shutil
+
 indir = config.get("indir", "data/raw")
 outdir = config.get("outdir", "output/raw2mzml")
 logdir = config.get("logdir", "logs")
@@ -56,7 +58,9 @@ rule raw2mzml:
             rule_logger.info(f"Start raw2mzml for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(sample_outdir, f"raw2mzml_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"raw2mzml_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, f"raw2mzml.sh")
             output_dir = os.path.dirname(output.mzml)
             output_name = os.path.basename(output.mzml)
             if input.infile.endswith(".raw") or input.infile.endswith(".RAW"):
@@ -87,7 +91,8 @@ rule raw2mzml:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(shlex.quote(x) for x in cmd) + "\n")
                 f.write(f'echo "raw2mzml completed for sample {wildcards.sample_id} at $(date)"\n')
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"rule raw2mzml was call failed,error: {e}")
             raise RuntimeError(f"rule raw2mzml was call failed,error: {e}")

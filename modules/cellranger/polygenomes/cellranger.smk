@@ -49,7 +49,9 @@ rule cellranger_ref:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start cellranger_ref for genome {wildcards.genome} at {current_time}")
             os.makedirs(str(output.ref_dir), exist_ok=True)
-            command_script = os.path.join(str(output.ref_dir), f"cellranger_ref_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            command_script = os.path.join(logdir, "cmd", "group", f"cellranger_ref_{current_time}.sh")
+            plain_script = os.path.join(str(output.ref_dir), f"cellranger_ref.sh")
             cmd = [
                 "python", params.script,
                 "--fasta", input.fasta,
@@ -64,7 +66,8 @@ rule cellranger_ref:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(str(item) for item in cmd) + "\n")
                 f.write(f'echo "Cell Ranger reference for genome {wildcards.genome} built at {str(output.ref_dir)} successfully"\n')
-            shell(f"bash {command_script} >> {log_path} 2>&1")
+            shutil.copyfile(command_script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path, "a") as f:
                 f.write(f"cellranger_ref failed for genome {wildcards.genome}: {e}\n")
@@ -127,7 +130,9 @@ rule cellranger_count:
                 rule_logger.warning(f"Removing stale sample directory: {sample_outdir}")
                 shutil.rmtree(sample_outdir)
             # Don't create sample_outdir - cellranger will create it
-            command_script = os.path.join(outdir, wildcards.genome, f"cellranger_count_{sample_id}_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            command_script = os.path.join(logdir, "cmd", "group", f"cellranger_count_{sample_id}_{current_time}.sh")
+            plain_script = os.path.join(outdir, wildcards.genome, f"cellranger_count_{sample_id}.sh")
             cmd = [
                 params.cellranger, "count",
                 "--id", sample_id,
@@ -150,7 +155,8 @@ rule cellranger_count:
                 f.write(f'mv "$outs/filtered_feature_bc_matrix" "{sample_outdir}/filtered_feature_bc_matrix"\n')
                 f.write(f'mv "$outs/filtered_feature_bc_matrix.h5" "{output.h5}"\n')
                 f.write(f'echo "Cell Ranger count completed for sample {sample_id} on genome {wildcards.genome}"\n')
-            shell(f"bash {command_script} >> {log_path} 2>&1")
+            shutil.copyfile(command_script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path, "a") as f:
                 f.write(f"cellranger_count failed for genome {wildcards.genome}: {e}\n")
@@ -179,7 +185,9 @@ rule cellranger_to_h5ad:
             os.makedirs(os.path.dirname(output.h5ad), exist_ok=True)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             sample_outdir = os.path.dirname(output.h5ad)
-            command_script = os.path.join(sample_outdir, f"cellranger_to_h5ad_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            command_script = os.path.join(logdir, "cmd", "group", f"cellranger_to_h5ad_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, f"cellranger_to_h5ad.sh")
             cmd = [
                 "python", params.script,
                 "--input", input.filtered_matrix,
@@ -189,7 +197,8 @@ rule cellranger_to_h5ad:
             with open(command_script, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(str(item) for item in cmd) + "\n")
-            shell(f"bash {command_script} >> {log_path} 2>&1")
+            shutil.copyfile(command_script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path, "a") as f:
                 f.write(f"cellranger_to_h5ad failed for genome {wildcards.genome}: {e}\n")

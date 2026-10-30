@@ -1,4 +1,6 @@
 include: "../common/common.smk"
+
+import shutil
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 indir = config.get("indir", "input")
@@ -28,11 +30,14 @@ rule samtools_stats:
             rule_logger.info(f"Start samtools_stats for sample {wildcards.sample_id} at {current_time}")
             outdir_sample = os.path.dirname(str(output.stats))
             os.makedirs(outdir_sample, exist_ok=True)
-            script = os.path.join(outdir_sample, f"samtools_stats_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"samtools_stats_{current_time}.sh")
+            plain_script = os.path.join(outdir_sample, f"samtools_stats.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write(f"{params.samtools} stats {input.bam} > {output.stats}\n")
-            shell(f"bash {script} > {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} > {log_path} 2>&1")
         except Exception as e:
             with open(log_path, "a") as f:
                 f.write(f"Error occurred during samtools_stats for sample {wildcards.sample_id}: {e}\n")
@@ -62,12 +67,15 @@ rule getFragmentSize:
             rule_logger.info(f"Start getFragmentSize at {current_time}")
             outdir_fragment = os.path.dirname(str(output.hist))
             os.makedirs(outdir_fragment, exist_ok=True)
-            script = os.path.join(outdir_fragment, f"getFragmentSize_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"getFragmentSize_{current_time}.sh")
+            plain_script = os.path.join(outdir_fragment, f"getFragmentSize.sh")
             stats_str = " ".join(input.stats)
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write(f"python {params.script} --input {stats_str} --out {output.hist}\n")
-            shell(f"bash {script} > {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} > {log_path} 2>&1")
         except Exception as e:
             with open(log_path, "a") as f:
                 f.write(f"Error occurred during getFragmentSize: {e}\n")
@@ -96,11 +104,14 @@ rule plotFragmentSize:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start plotFragmentSize at {current_time}")
             outdir_fragment = os.path.dirname(str(output.png))
-            script = os.path.join(outdir_fragment, f"plotFragmentSize_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"plotFragmentSize_{current_time}.sh")
+            plain_script = os.path.join(outdir_fragment, f"plotFragmentSize.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write(f"python {params.script} --input {input.hist} --output {output.png}\n")
-            shell(f"bash {script} > {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} > {log_path} 2>&1")
         except Exception as e:
             with open(log_path, "a") as f:
                 f.write(f"Error occurred during plotFragmentSize: {e}\n")

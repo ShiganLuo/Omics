@@ -1,4 +1,6 @@
 include: "../common/common.smk"
+
+import shutil
 indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
@@ -30,7 +32,9 @@ rule pbmm2_align:
             logger = setup_logger("pbmm2_align")
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start pbmm2 alignment for sample {wildcards.sample_id} at {current_time}")
-            script = os.path.join(outdir,f"{wildcards.sample_id}/pbmm2_align_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"{wildcards.sample_id}/pbmm2_align_{current_time}.sh")
+            plain_script = os.path.join(outdir, f"{wildcards.sample_id}/pbmm2_align.sh")
             raw_align_bam = outdir + f"/{wildcards.sample_id}/{wildcards.sample_id}.raw.bam"
             cmd1 = [
                 params.pbmm2, "align",
@@ -62,7 +66,8 @@ rule pbmm2_align:
                 f.write(" ".join(cmd3) + "\n")
                 f.write(" ".join(cmd4) + "\n")
                 f.write(f"echo 'pbmm2 alignment completed for sample {wildcards.sample_id} at {time.strftime('%Y%m%d_%H%M%S', time.localtime())}'\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path, "a") as f:
                 f.write(f"Error occurred during pbmm2 alignment for sample {wildcards.sample_id}: {e}\n")

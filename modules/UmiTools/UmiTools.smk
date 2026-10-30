@@ -1,5 +1,7 @@
 include: "../common/common.smk"
 
+import shutil
+
 from snakemake.logging import logger
 outdir = config.get("outdir", "output")
 indir = config.get("indir", "output")
@@ -31,7 +33,9 @@ rule umi_tools_dedup_for_hisat2:
             rule_logger.info(f"Start umi_tools_dedup_for_hisat2 for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(sample_outdir, f"umi_tools_dedup_for_hisat2_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"umi_tools_dedup_for_hisat2_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, f"umi_tools_dedup_for_hisat2.sh")
             with open(script, "w") as f:
                 f.write(f"{params.umi_tools} dedup \\\n")
                 f.write(f"    --method={params.method} \\\n")
@@ -39,7 +43,8 @@ rule umi_tools_dedup_for_hisat2:
                 f.write(f"    -S {output.bam} \\\n")
                 f.write(f"    > {log_path} 2>&1\n")
                 f.write(f"{params.samtools} index {output.bam}\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
             rule_logger.info(f"umi_tools_dedup_for_hisat2 for sample {wildcards.sample_id} completed")
         except Exception as e:
             with open(log_path, "a") as f:
@@ -72,12 +77,15 @@ rule umi_tools_dedup_for_star:
             rule_logger.info(f"Start umi_tools_dedup_for_star for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(sample_outdir, f"umi_tools_dedup_for_star_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"umi_tools_dedup_for_star_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, f"umi_tools_dedup_for_star.sh")
             with open(script, "w") as f:
                 f.write(f"{params.umi_tools} dedup --method={params.method} \\\n")
                 f.write(f"    -I {input.bam} -S {output.bam} > {log_path} 2>&1\n")
                 f.write(f"{params.samtools} index {output.bam} 2>>{log_path}\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
             rule_logger.info(f"umi_tools_dedup_for_star for sample {wildcards.sample_id} completed")
         except Exception as e:
             with open(log_path, "a") as f:

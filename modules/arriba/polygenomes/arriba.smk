@@ -1,4 +1,6 @@
 include: "../../common/common.smk"
+
+import shutil
 indir = config.get("indir","data/fastq")
 outdir = config.get("outdir","output")
 logdir = config.get("logdir","logs")
@@ -65,7 +67,9 @@ rule arriba:
         rule_logger = setup_logger("arriba", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
-            script = f"{outdir}/{wildcards.genome}/{wildcards.sample_id}/{wildcards.sample_id}_arriba.{current_time}.sh"
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
+        script = f"{logdir}/cmd/{wildcards.sample_id}/{wildcards.sample_id}_arriba.{current_time}.sh"
+        plain_script = f"{outdir}/{wildcards.genome}/{wildcards.sample_id}/{wildcards.sample_id}_arriba.sh"
             cmd = [
                 params.arriba,
                 "-x", input.bam,
@@ -88,7 +92,8 @@ rule arriba:
                 f.write("set -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "Arriba fusion detection for sample {wildcards.sample_id} on genome {wildcards.genome} successfully completed!"\n')
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Arriba fusion detection failed for sample {wildcards.sample_id} genome {wildcards.genome}: {e}, you can check the log file {log_path} for more details.")
             raise RuntimeError(f"Arriba fusion detection failed for sample {wildcards.sample_id} genome {wildcards.genome}: {e}, you can check the log file {log_path} for more details.")
@@ -133,7 +138,8 @@ rule arriba_report:
         try:
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
             sample_outdir = os.path.dirname(output.report)
-            script = f"{sample_outdir}/arriba_report.{current_time}.sh"
+            script = f"{logdir}/cmd/group/arriba_report.{current_time}.sh"
+        plain_script = f"{sample_outdir}/arriba_report.sh"
             cmd = [
                 "python", params.summary_script,
                 "-p", ",".join(input.passed_fusions),
@@ -144,7 +150,8 @@ rule arriba_report:
                 f.write("#!/bin/bash\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "Arriba report generation for genome {wildcards.genome} successfully completed!"\n')
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Arriba report generation failed: {e}\n")
             raise RuntimeError(f"Arriba report generation failed: {e}\n")

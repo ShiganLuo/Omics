@@ -1,5 +1,7 @@
 include: "../common/common.smk"
 
+import shutil
+
 from snakemake.logging import logger
 import time
 import os
@@ -28,7 +30,9 @@ rule somatic_spectrum:
     run:
         try:
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
-            script = f"{outdir}/somatic_spectrum.{current_time}.sh"
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+        script = f"{logdir}/cmd/group/somatic_spectrum.{current_time}.sh"
+        plain_script = f"{outdir}/somatic_spectrum.sh"
             experiment_vcf_map_file = os.path.join(outdir, "experiment_vcf_map.tsv")
             with open(experiment_vcf_map_file, "w") as f:
                 f.write("experiment_sample_id\tvcf\n")
@@ -51,7 +55,7 @@ rule somatic_spectrum:
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write(" ".join(cmd) + "\n")
-            shell("bash {script} > {log} 2>&1")
+            shell("bash {plain_script} > {log} 2>&1")
         except Exception as e:
             with open(log) as f:
                 f.write(f"Error in somatic_spectrum rule: {str(e)}\n")

@@ -1,5 +1,7 @@
 include: "../common/common.smk"
 
+import shutil
+
 from snakemake.logging import logger
 import time
 indir = config.get("indir", "input")
@@ -23,7 +25,9 @@ rule tabix_bgzip:
     run:
         current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start bgzip for sample {wildcards.sample_id} at {current_time}")
-        script = os.path.join(outdir,f"bgzip_{current_time}.sh")
+        os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+        script = os.path.join(logdir, "cmd", "group", f"bgzip_{current_time}.sh")
+        plain_script = os.path.join(outdir, f"bgzip.sh")
         cmd1 = [
             params.bgzip, input.vcf,
             "-o", output.vcf_gz
@@ -35,7 +39,8 @@ rule tabix_bgzip:
             f.write("#!/bin/bash\n")
             f.write(" ".join(cmd1) + "\n")
             f.write(" ".join(cmd2) + "\n")
-        shell("bash {script} > {log} 2>&1")
+        shutil.copyfile(script, plain_script)
+        shell("bash {plain_script} > {log} 2>&1")
 
 rule tabix_result:
     input:

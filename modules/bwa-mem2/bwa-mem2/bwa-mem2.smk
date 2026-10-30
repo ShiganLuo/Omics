@@ -1,4 +1,6 @@
 include: "../common/common.smk"
+
+import shutil
 from snakemake.logging import logger
 import os
 indir = config.get("indir","input")
@@ -35,12 +37,15 @@ rule bwaMem2_index:
             rule_logger.info(f"Start bwa-mem2 index for genome {wildcards.genome} at {current_time}")
             sample_outdir = os.path.dirname(str(output.index[0]))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(sample_outdir, f"bwaMem2_index_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"bwaMem2_index_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, f"bwaMem2_index.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write(f"mkdir -p $(dirname {params.index_prefix})\n")
                 f.write(f"{params.bwa_mem2} index -p {params.index_prefix} {input.fa} > {log} 2>&1\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path, "a") as f:
                 f.write(f"Error occurred during bwa-mem2 index for genome {wildcards.genome}: {e}\n")
@@ -128,7 +133,9 @@ rule bwaMem2_alignment:
             rule_logger.info(f"Start bwa-mem2 alignment for sample {wildcards.sample_id} on genome {wildcards.genome} at {current_time}")
             sample_outdir = os.path.dirname(str(output.bam))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(sample_outdir, f"bwaMem2_alignment_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"bwaMem2_alignment_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, f"bwaMem2_alignment.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write(f"{params.bwa_mem2} mem \\\n")
@@ -139,7 +146,8 @@ rule bwaMem2_alignment:
                 f.write(f"2>> {log} \\\n")
                 f.write(f"| {params.samtools} view -b - 2>> {log} \\\n")
                 f.write(f"> {output.bam}\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path, "a") as f:
                 f.write(f"Error occurred during bwa-mem2 alignment for sample {wildcards.sample_id}: {e}\n")

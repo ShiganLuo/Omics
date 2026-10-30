@@ -1,5 +1,7 @@
 include: "../../common/common.smk"
 
+import shutil
+
 indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
@@ -40,7 +42,9 @@ rule extract_rRNA:
         try:
             open(log_path,'w').close()
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
-            script = f"{outdir}/{wildcards.genome}/extract_rRNA.{current_time}.sh"
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+        script = f"{logdir}/cmd/group/extract_rRNA.{wildcards.genome}.{current_time}.sh"
+        plain_script = f"{outdir}/{wildcards.genome}/extract_rRNA.sh"
             cmd = ["python", params.extract_rRNA_script, 
                     "--fasta", input.fasta, 
                     "--gtf", input.gtf, 
@@ -52,7 +56,8 @@ rule extract_rRNA:
                 f.write("set -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f"echo 'extract_rRNA for genome {wildcards.genome} completed'\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path, "a") as f:
                 f.write(f"Error occurred during extract_rRNA for genome {wildcards.genome}: {e}\n")

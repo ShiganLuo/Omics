@@ -1,5 +1,7 @@
 include: "../../common/common.smk"
 
+import shutil
+
 indir = config.get("indir", "data/psm_rescoring")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "logs")
@@ -34,7 +36,9 @@ rule psm_fdr:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start PSM FDR control for sample {wildcards.sample_id} at {current_time}")
-            script = os.path.join(outdir, f"{wildcards.sample_id}/psm_fdr_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"{wildcards.sample_id}/psm_fdr_{current_time}.sh")
+            plain_script = os.path.join(outdir, f"{wildcards.sample_id}/psm_fdr.sh")
             cmd = [
                 params.openms,
                 "-in", input.idxml,
@@ -61,7 +65,8 @@ rule psm_fdr:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
                 f.write(f'echo "PSM FDR control for {wildcards.sample_id} was completed successfully"\n')
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"rule psm_fdr was call failed,error: {e}")
             raise RuntimeError(f"rule psm_fdr was call failed,error: {e}")

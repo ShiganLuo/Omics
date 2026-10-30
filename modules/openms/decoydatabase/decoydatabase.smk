@@ -1,5 +1,7 @@
 include: "../../common/common.smk"
 
+import shutil
+
 indir = config.get("indir", "data/fasta")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "logs")
@@ -61,7 +63,9 @@ rule decoy_database:
                     f"FASTA (e.g. GENCODE pep.all / UniProt proteome). Set "
                     f"'genome.protein_fasta' to the protein database."
                 )
-            script = os.path.join(outdir, f"decoy_database_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"decoy_database_{current_time}.sh")
+            plain_script = os.path.join(outdir, f"decoy_database.sh")
             cmd = [
                 params.openms,
                 "-in", input.protein_fasta,
@@ -76,7 +80,8 @@ rule decoy_database:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f"echo 'Decoy database generation for {input.protein_fasta} was completed successfully'\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"rule decoy_database was call failed,error: {e}")
             raise RuntimeError(f"rule decoy_database was call failed,error: {e}")

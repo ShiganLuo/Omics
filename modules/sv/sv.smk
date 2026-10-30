@@ -1,5 +1,7 @@
 from snakemake.logging import logger
 include: "../common/common.smk"
+
+import shutil
 import time
 import os
 
@@ -72,7 +74,9 @@ rule sv_exp_specific:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             outprefix = f"{outdir}/{wildcards.comparison}/{wildcards.comparison}"
-            script_path = os.path.join(outdir, f"{wildcards.comparison}/sv_exp_specific_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.comparison)), exist_ok=True)
+            script_path = os.path.join(logdir, "cmd", str(wildcards.comparison), f"{wildcards.comparison}/sv_exp_specific_{current_time}.sh")
+            plain_script = os.path.join(outdir, f"{wildcards.comparison}/sv_exp_specific.sh")
             rule_logger.info(f"Running sv_exp_specific for comparison: {wildcards.comparison}")
             fmt_args = []
             for fmt in image_formats:
@@ -98,7 +102,8 @@ rule sv_exp_specific:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write("echo 'sv_exp_specific completed successfully.'\n")
-            shell(f"bash {script_path} >> {log_path} 2>&1")
+            shutil.copyfile(script_path, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"sv_exp_specific failed for {wildcards.comparison}: {e}")
             raise RuntimeError(f"sv_exp_specific failed for {wildcards.comparison}: {e}")
@@ -134,7 +139,9 @@ rule sv_exp_enrichment:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             enrichment_outdir = f"{outdir}/{wildcards.comparison}/enrichment"
-            script_path = os.path.join(outdir, f"{wildcards.comparison}/sv_exp_enrichment_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.comparison)), exist_ok=True)
+            script_path = os.path.join(logdir, "cmd", str(wildcards.comparison), f"{wildcards.comparison}/sv_exp_enrichment_{current_time}.sh")
+            plain_script = os.path.join(outdir, f"{wildcards.comparison}/sv_exp_enrichment.sh")
             rule_logger.info(f"Running sv_exp_enrichment for comparison: {wildcards.comparison}")
             fmt_args = []
             for fmt in image_formats:
@@ -154,7 +161,8 @@ rule sv_exp_enrichment:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write("echo 'sv_exp_enrichment completed successfully.'\n")
-            shell(f"bash {script_path} >> {log_path} 2>&1")
+            shutil.copyfile(script_path, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"sv_exp_enrichment failed for {wildcards.comparison}: {e}")
             raise RuntimeError(f"sv_exp_enrichment failed for {wildcards.comparison}: {e}")
@@ -184,7 +192,9 @@ rule sv_exp_circos:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             circos_outdir = f"{outdir}/{wildcards.comparison}/circos"
-            script_path = os.path.join(outdir, f"{wildcards.comparison}/sv_exp_circos_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.comparison)), exist_ok=True)
+            script_path = os.path.join(logdir, "cmd", str(wildcards.comparison), f"{wildcards.comparison}/sv_exp_circos_{current_time}.sh")
+            plain_script = os.path.join(outdir, f"{wildcards.comparison}/sv_exp_circos.sh")
             rule_logger.info(f"Running sv_exp_circos for comparison: {wildcards.comparison}")
             fmt_args = []
             for fmt in image_formats:
@@ -203,7 +213,8 @@ rule sv_exp_circos:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write("echo 'sv_exp_circos completed successfully.'\n")
-            shell(f"bash {script_path} >> {log_path} 2>&1")
+            shutil.copyfile(script_path, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"sv_exp_circos failed for {wildcards.comparison}: {e}")
             raise RuntimeError(f"sv_exp_circos failed for {wildcards.comparison}: {e}")
@@ -232,7 +243,9 @@ rule sv_gene_model:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             gene_outdir = f"{outdir}/{wildcards.comparison}/gene_model"
-            script_path = os.path.join(outdir, f"{wildcards.comparison}/sv_gene_model_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.comparison)), exist_ok=True)
+            script_path = os.path.join(logdir, "cmd", str(wildcards.comparison), f"{wildcards.comparison}/sv_gene_model_{current_time}.sh")
+            plain_script = os.path.join(outdir, f"{wildcards.comparison}/sv_gene_model.sh")
             rule_logger.info(f"Running sv_gene_model for comparison: {wildcards.comparison}")
             gene_args = []
             for g in genes:
@@ -252,7 +265,8 @@ rule sv_gene_model:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write("echo 'sv_gene_model completed successfully.'\n")
-            shell(f"bash {script_path} >> {log_path} 2>&1")
+            shutil.copyfile(script_path, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"sv_gene_model failed for {wildcards.comparison}: {e}")
             raise RuntimeError(f"sv_gene_model failed for {wildcards.comparison}: {e}")
@@ -283,7 +297,9 @@ rule sv_diff_analysis:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             diff_outdir = f"{outdir}/sv_diff_analysis"
-            script_path = os.path.join(outdir, f"sv_diff_analysis_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script_path = os.path.join(logdir, "cmd", "group", f"sv_diff_analysis_{current_time}.sh")
+            plain_script = os.path.join(outdir, f"sv_diff_analysis.sh")
             rule_logger.info(f"Running sv_diff_analysis for all comparisons")
             group_args = []
             for name in comparison_names:
@@ -301,7 +317,8 @@ rule sv_diff_analysis:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write("echo 'sv_diff_analysis completed successfully.'\n")
-            shell(f"bash {script_path} >> {log_path} 2>&1")
+            shutil.copyfile(script_path, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"sv_diff_analysis failed: {e}")
             raise RuntimeError(f"sv_diff_analysis failed: {e}")
@@ -330,7 +347,9 @@ rule sv_oncoprint:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             oncoprint_outdir = f"{outdir}/sv_oncoprint"
-            script_path = os.path.join(outdir, f"sv_oncoprint_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script_path = os.path.join(logdir, "cmd", "group", f"sv_oncoprint_{current_time}.sh")
+            plain_script = os.path.join(outdir, f"sv_oncoprint.sh")
             rule_logger.info(f"Running sv_oncoprint for all comparisons")
             group_args = []
             for name in comparison_names:
@@ -351,7 +370,8 @@ rule sv_oncoprint:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write("echo 'sv_oncoprint completed successfully.'\n")
-            shell(f"bash {script_path} >> {log_path} 2>&1")
+            shutil.copyfile(script_path, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"sv_oncoprint failed: {e}")
             raise RuntimeError(f"sv_oncoprint failed: {e}")

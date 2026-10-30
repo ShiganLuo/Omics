@@ -1,4 +1,6 @@
 include: "../common/common.smk"
+
+import shutil
 from typing import List
 indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
@@ -48,7 +50,9 @@ rule ngs_disambiguate:
             rule_logger = setup_logger("ngs_disambiguate", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start ngs_disambiguate for sample {wildcards.sample_id} at {current_time}")
-            script = os.path.join(params.outdir, f"ngs_disambiguate_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"ngs_disambiguate_{current_time}.sh")
+            plain_script = os.path.join(params.outdir, f"ngs_disambiguate.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write(f"{params.samtools} sort -n -@ {threads} -o {params.bamA_sortN} {input.bamA} 2>> {log_path}\n")
@@ -61,7 +65,8 @@ rule ngs_disambiguate:
                 f.write(f"    {params.bamA_sortN} \\\n")
                 f.write(f"    {params.bamB_sortN}\n")
                 f.write(f"rm -f {params.bamA_sortN} {params.bamB_sortN}\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path, "a") as f:
                 f.write(f"Error occurred during ngs_disambiguate for sample {wildcards.sample_id}: {e}\n")
@@ -100,7 +105,9 @@ rule disambiguate_sort_rename:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start disambiguate_sort_rename for sample {wildcards.sample_id} at {current_time}")
             outdir_sample = os.path.dirname(str(output.clean_bamA))
-            script = os.path.join(outdir_sample, f"sort_rename_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"sort_rename_{current_time}.sh")
+            plain_script = os.path.join(outdir_sample, f"sort_rename.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write(f"sed '1s/unique species A pairs/unique species {params.speciesA} pairs/; \\\n")
@@ -114,7 +121,8 @@ rule disambiguate_sort_rename:
                 f.write(f"{params.samtools} index {output.clean_bamA}\n")
                 f.write(f"{params.samtools} index {output.clean_bamB}\n")
                 f.write(f"rm -f {input.summary}\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path, "a") as f:
                 f.write(f"Error occurred during disambiguate_sort_rename for sample {wildcards.sample_id}: {e}\n")
@@ -143,14 +151,17 @@ rule disambiguate_report:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start disambiguate_report at {current_time}")
             report_dir = os.path.dirname(str(output.report))
-            script = os.path.join(report_dir, f"disambiguate_report_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"disambiguate_report_{current_time}.sh")
+            plain_script = os.path.join(report_dir, f"disambiguate_report.sh")
             reports_str = " ".join(input.reports)
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write(f"python {params.combine_script} \\\n")
                 f.write(f"    -i {reports_str} \\\n")
                 f.write(f"    -o {output.report}\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path, "a") as f:
                 f.write(f"Error occurred during disambiguate_report: {e}\n")

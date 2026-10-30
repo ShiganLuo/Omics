@@ -1,5 +1,7 @@
 include: "../../common/common.smk"
 
+import shutil
+
 indir = config.get("indir", "data/psm_fdr")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "logs")
@@ -48,7 +50,9 @@ rule protein_inference:
                     f"for sample {wildcards.sample_id}; check the psm_fdr step "
                     "(search/identification quality) before protein inference"
                 )
-            script = os.path.join(outdir, f"{wildcards.sample_id}/protein_inference_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"{wildcards.sample_id}/protein_inference_{current_time}.sh")
+            plain_script = os.path.join(outdir, f"{wildcards.sample_id}/protein_inference.sh")
             # Epifany (OpenMS 3.1) has no -algorithm:method: it only runs the
             # Bayesian inference; greedy_group_resolution is a TOPP-level
             # option (-greedy_group_resolution), not an algorithm subsection one.
@@ -67,7 +71,8 @@ rule protein_inference:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
                 f.write(f"echo 'Protein inference for {wildcards.sample_id} was completed successfully'\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"rule protein_inference was call failed,error: {e}")
             raise RuntimeError(f"rule protein_inference was call failed,error: {e}")

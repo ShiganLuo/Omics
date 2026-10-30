@@ -1,5 +1,7 @@
 
 include: "../../common/common.smk"
+
+import shutil
 import os
 import time
 from snakemake.logging import logger
@@ -50,7 +52,9 @@ rule gatk_population_haplotype_caller:
             os.makedirs(os.path.dirname(output.vcf), exist_ok=True)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start gatk_population_haplotype_caller for sample {wildcards.sample} at {current_time}")
-            script = os.path.join(os.path.dirname(output.vcf), f"gatk_population_haplotype_caller_{wildcards.sample}_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.sample), f"gatk_population_haplotype_caller_{wildcards.sample}_{current_time}.sh")
+            plain_script = os.path.join(os.path.dirname(output.vcf), f"gatk_population_haplotype_caller_{wildcards.sample}.sh")
             cmd = [params.gatk, "--java-options", params.java_options, "HaplotypeCaller", "-R", input.fasta, "-I", input.bam, "-O", output.vcf, "-ERC", "GVCF", "--native-pair-hmm-threads", str(threads)]
             if params.interval:
                 cmd += ["-L", params.interval]
@@ -61,7 +65,8 @@ rule gatk_population_haplotype_caller:
                 f.write(" ".join(str(item) for item in cmd) + "\n")
                 f.write(f"{params.gatk} IndexFeatureFile -I {output.vcf}\n")
                 f.write(f"echo 'gatk_population_haplotype_caller completed successfully for sample {wildcards.sample}'\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as exc:
             rule_logger.error(f"HaplotypeCaller failed for {wildcards.sample}: {exc}")
             raise RuntimeError(f"Error occurred while running HaplotypeCaller for sample {wildcards.sample}: {exc}, you can check the log file {log_path} for more details.")
@@ -100,7 +105,9 @@ rule gatk_population_joint_genotyping:
             with open(sample_map, "w") as handle:
                 for sample, gvcf in zip(samples, input.gvcfs):
                     handle.write(f"{sample}\t{gvcf}\n")
-            script = os.path.join(os.path.dirname(output.vcf), f"gatk_population_joint_genotyping_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"gatk_population_joint_genotyping_{current_time}.sh")
+            plain_script = os.path.join(os.path.dirname(output.vcf), f"gatk_population_joint_genotyping.sh")
             import_cmd = [params.gatk, "--java-options", params.java_options, "GenomicsDBImport", "--sample-name-map", sample_map, "--genomicsdb-workspace-path", params.workspace, "--reader-threads", str(threads)]
             genotype_cmd = [params.gatk, "--java-options", params.java_options, "GenotypeGVCFs", "-R", input.fasta, "-V", "gendb://" + params.workspace, "-O", output.vcf]
             if params.interval:
@@ -116,7 +123,8 @@ rule gatk_population_joint_genotyping:
                 f.write(" ".join(str(item) for item in genotype_cmd) + "\n")
                 f.write(f"{params.gatk} IndexFeatureFile -I {output.vcf}\n")
                 f.write(f"echo 'gatk_population_joint_genotyping completed successfully for genome {wildcards.genome}'\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as exc:
             rule_logger.error(f"Joint genotyping failed for {wildcards.sample}: {exc}")
             raise RuntimeError(f"Error occurred while running joint genotyping for sample {wildcards.sample}: {exc}, you can check the log file {log_path} for more details.")

@@ -1,5 +1,7 @@
 include: "../common/common.smk"
 
+import shutil
+
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 indir = config.get("indir", "input")
@@ -39,7 +41,9 @@ rule frip_score:
             rule_logger.info(f"Start FRiP score calculation for sample {wildcards.sample_id} at {current_time}")
             
             sample_outdir = os.path.dirname(str(output.frip))
-            script = os.path.join(sample_outdir, f"frip_score_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"frip_score_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, f"frip_score.sh")
             
             script_content = f"""#!/bin/bash
 set -euo pipefail
@@ -76,7 +80,8 @@ echo "FRiP score: $FRIP"
                 f.write(script_content)
             
             rule_logger.info(f"Executing script: {script}")
-            shell(f"bash {script} > {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} > {log_path} 2>&1")
             
             rule_logger.info(f"FRiP score calculation for sample {wildcards.sample_id} completed successfully")
             

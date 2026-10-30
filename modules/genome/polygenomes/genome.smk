@@ -1,5 +1,7 @@
 include: "../../common/common.smk"
 
+import shutil
+
 import os
 
 outdir = config.get("outdir", "output")
@@ -30,13 +32,16 @@ rule chromosome_sizes:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start chromosome_sizes at {current_time}")
-            script = os.path.join(os.path.dirname(output.chrom_sizes), f"chromosome_sizes_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"chromosome_sizes_{current_time}.sh")
+            plain_script = os.path.join(os.path.dirname(output.chrom_sizes), f"chromosome_sizes.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(f"{params.samtools} faidx {input.fasta} 2>> {log_path}\n")
                 f.write(f"cut -f1,2 {input.fasta}.fai > {output.chrom_sizes}\n")
                 f.write(f"echo 'chromosome_sizes completed for genome {wildcards.genome} at {current_time}'\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
             rule_logger.info(f"chromosome_sizes completed")
         except Exception as e:
             rule_logger.error(f"Error occurred during chromosome_sizes: {e}")
@@ -71,7 +76,9 @@ rule extract_smallrna:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start extract_smallrna at {current_time}")
-            script = os.path.join(params.outdir, f"extract_smallrna_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"extract_smallrna_{current_time}.sh")
+            plain_script = os.path.join(params.outdir, f"extract_smallrna.sh")
             os.makedirs(params.outdir, exist_ok=True)
             with open(script, "w") as f:
                 f.write(f"python {params.script} \\\n")
@@ -84,7 +91,8 @@ rule extract_smallrna:
                 f.write(f"    --bedtools {params.bedtools} \\\n")
                 f.write(f"    > {log_path} 2>&1\n")
                 f.write(f"echo 'extract_smallrna completed successfully at {current_time}'\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during extract_smallrna: {e}")
             raise RuntimeError(f"Error occurred during extract_smallrna: {e}, you can check the log file {log_path} for more details.")

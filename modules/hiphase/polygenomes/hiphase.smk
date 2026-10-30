@@ -1,5 +1,7 @@
 include: "../../common/common.smk"
 
+import shutil
+
 from snakemake.logging import logger
 import time
 import os
@@ -49,7 +51,9 @@ rule hiphase_phase:
     run:
         current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start hiphase for sample {wildcards.sample_id} genome {wildcards.genome} at {current_time}")
-        script = os.path.join(outdir, f"{wildcards.genome}/{wildcards.sample_id}/hiphase_{current_time}.sh")
+        os.makedirs(os.path.join(logdir, "cmd", str(wildcards.genome)), exist_ok=True)
+        script = os.path.join(logdir, "cmd", str(wildcards.genome), f"{wildcards.genome}/{wildcards.sample_id}/hiphase_{current_time}.sh")
+        plain_script = os.path.join(outdir, f"{wildcards.genome}/{wildcards.sample_id}/hiphase.sh")
         cmd1 = [
             params.hiphase,
             "--threads", str(threads),
@@ -62,7 +66,8 @@ rule hiphase_phase:
         with open(script, "w") as f:
             f.write("#!/bin/bash\n")
             f.write(" ".join(cmd1) + "\n")
-        shell("bash {script} > {log} 2>&1")
+        shutil.copyfile(script, plain_script)
+        shell("bash {plain_script} > {log} 2>&1")
 
 rule hiphase_result:
     input:

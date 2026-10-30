@@ -1,5 +1,7 @@
 include: "../common/common.smk"
 
+import shutil
+
 from snakemake.logging import logger
 outdir = config.get("outdir", "output")
 indir = config.get("indir", "output/raw_fastq")
@@ -34,14 +36,17 @@ rule flexbar_demultiplex:
             rule_logger.info(f"Start flexbar_demultiplex for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.join(params.outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(sample_outdir, f"flexbar_demultiplex_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"flexbar_demultiplex_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, f"flexbar_demultiplex.sh")
             with open(script, "w") as f:
                 f.write(f"{params.flexbar} -r {input.fastq} -b {input.barcodes} \\\n")
                 f.write(f"    -n {params.min_overlap} -m {params.allow_mismatch} \\\n")
                 f.write(f"    -t {params.outdir}/{wildcards.sample_id}.demux \\\n")
                 f.write(f"    > {log_path} 2>&1\n")
                 f.write(f"pigz -c {params.outdir}/{wildcards.sample_id}.demux_1.fastq > {output.demux}\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
             rule_logger.info(f"flexbar_demultiplex for sample {wildcards.sample_id} completed")
         except Exception as e:
             with open(log_path, "a") as f:

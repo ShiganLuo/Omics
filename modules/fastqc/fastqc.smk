@@ -1,5 +1,7 @@
 include: "../common/common.smk"
 
+import shutil
+
 import os
 indir = config.get("indir", "output/raw_fastq")
 outdir = config.get("outdir", "output")
@@ -76,12 +78,15 @@ rule fastqc:
                 "-t", str(threads),
             ] + list(input)
 
-            script = os.path.join(sample_outdir, f"fastqc_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"fastqc_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, f"fastqc.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f"touch {output.flag}\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
             rule_logger.info(f"fastqc for sample {wildcards.sample_id} completed")
         except Exception as e:
             with open(log_path, "a") as f:

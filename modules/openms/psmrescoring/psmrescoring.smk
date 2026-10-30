@@ -1,5 +1,7 @@
 include: "../../common/common.smk"
 
+import shutil
+
 shell.prefix("set -x; set -e;")
 from snakemake.logging import logger
 import os
@@ -53,7 +55,9 @@ rule psm_rescoring:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start PSM rescoring for sample {wildcards.sample_id} at {current_time}")
-            script = os.path.join(outdir, f"{wildcards.sample_id}/psm_rescoring_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"{wildcards.sample_id}/psm_rescoring_{current_time}.sh")
+            plain_script = os.path.join(outdir, f"{wildcards.sample_id}/psm_rescoring.sh")
             feat_idxml = os.path.join(outdir, f"{wildcards.sample_id}/{wildcards.sample_id}_features.idXML")
             # PercolatorAdapter needs search-engine-specific features, which
             # PSMFeatureExtractor adds between the search and the rescoring.
@@ -78,7 +82,8 @@ rule psm_rescoring:
                 f.write(" ".join(feat_cmd) + "\n")
                 f.write(" ".join(perc_cmd) + "\n")
                 f.write(f"echo 'PSM rescoring for {wildcards.sample_id} was completed successfully'\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"rule psm_rescoring was call failed,error: {e}")
             raise RuntimeError(f"rule psm_rescoring was call failed,error: {e}")

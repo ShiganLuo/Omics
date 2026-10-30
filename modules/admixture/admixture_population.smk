@@ -1,5 +1,7 @@
 
 include: "../common/common.smk"
+
+import shutil
 import os,time
 outdir=config.get("outdir","output"); logdir=config.get("logdir","logs"); admixture=config.get("Procedure",{}).get("admixture") or "admixture"; prefix=outdir+"/analysis/plink/population_snps"; ks=config.get("Params",{}).get("analysis",{}).get("admixture_k",[2,3,4,5,6])
 rule admixture_population:
@@ -13,8 +15,11 @@ rule admixture_population:
  threads: 4
  run:
   os.makedirs(os.path.dirname(str(log)),exist_ok=True);os.makedirs(os.path.dirname(str(output.q)),exist_ok=True)
-  script=os.path.join(os.path.dirname(str(output.q)),f"admixture_population_{wildcards.k}_{time.strftime('%Y%m%d_%H%M%S')}.sh")
+  os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+  script=os.path.join(logdir, "cmd", "group", f"admixture_population_{wildcards.k}_{time.strftime('%Y%m%d_%H%M%S')}.sh")
+  plain_script=os.path.join(os.path.dirname(str(output.q)), f"admixture_population_{wildcards.k}.sh")
   cmd=[params.admixture,"--seed",str(params.seed),f"-j{threads}",params.bed,str(wildcards.k)]
   with open(str(log),"w") as h:h.write("")
   with open(script,"w") as h:h.write("#!/usr/bin/env bash\nset -euo pipefail\n"+" ".join(str(x) for x in cmd)+"\nmv "+params.bed+"."+str(wildcards.k)+".Q "+str(output.q)+"\nmv "+params.bed+"."+str(wildcards.k)+".P "+str(output.p)+"\n")
-  shell(f"bash {script} >> {log} 2>&1")
+  shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log} 2>&1")

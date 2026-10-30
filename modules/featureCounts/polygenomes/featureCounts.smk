@@ -46,7 +46,9 @@ rule featureCounts_single_noMultiple:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start featureCounts_single_noMultiple at {current_time}")
-            script = os.path.join(os.path.dirname(output.outfile), f"featureCounts_single_noMultiple_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"featureCounts_single_noMultiple_{current_time}.sh")
+            plain_script = os.path.join(os.path.dirname(output.outfile), f"featureCounts_single_noMultiple.sh")
             os.makedirs(os.path.dirname(output.outfile), exist_ok=True)
             bams_str = " ".join(input.bams)
             cmd = [
@@ -62,7 +64,8 @@ rule featureCounts_single_noMultiple:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f"echo 'featureCounts_single_noMultiple for {wildcards.genome} completed at {current_time}'\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"featureCounts_single_noMultiple failed: {e}\n")
             raise RuntimeError(f"featureCounts_single_noMultiple failed: {e}\n")
@@ -108,7 +111,9 @@ rule featureCounts_paired_noMultiple:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start featureCounts_paired_noMultiple at {current_time}")
-            script = os.path.join(os.path.dirname(output.outfile), f"featureCounts_paired_noMultiple_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"featureCounts_paired_noMultiple_{current_time}.sh")
+            plain_script = os.path.join(os.path.dirname(output.outfile), f"featureCounts_paired_noMultiple.sh")
             os.makedirs(os.path.dirname(output.outfile), exist_ok=True)
             bams_str = " ".join(input.bams)
             cmd = [
@@ -132,7 +137,8 @@ rule featureCounts_paired_noMultiple:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f"echo 'featureCounts_paired_noMultiple for {wildcards.genome} completed at {current_time}'\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"featureCounts_paired_noMultiple failed: {e}\n")
             raise RuntimeError(f"featureCounts_paired_noMultiple failed: {e}\n")

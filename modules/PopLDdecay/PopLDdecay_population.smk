@@ -1,5 +1,7 @@
 
 include: "../common/common.smk"
+
+import shutil
 import os
 import time
 
@@ -32,11 +34,14 @@ if analysis.get("ld_decay", False):
             log_path = str(log)
             os.makedirs(os.path.dirname(log_path), exist_ok=True)
             os.makedirs(os.path.dirname(str(output.stat)), exist_ok=True)
-            script = os.path.join(os.path.dirname(str(output.stat)), f"PopLDdecay_{wildcards.population}_{time.strftime('%Y%m%d_%H%M%S')}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.population)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.population), f"PopLDdecay_{wildcards.population}_{time.strftime('%Y%m%d_%H%M%S')}.sh")
+            plain_script = os.path.join(os.path.dirname(str(output.stat)), f"PopLDdecay_{wildcards.population}.sh")
             cmd = [params.tool, "-InVCF", input.vcf, "-OutStat", params.prefix, "-SubPop", input.popfile, "-MaxDist", str(params.max_dist)]
             with open(log_path, "w") as handle:
                 handle.write("")
             with open(script, "w") as handle:
                 handle.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 handle.write(" ".join(str(item) for item in cmd) + "\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")

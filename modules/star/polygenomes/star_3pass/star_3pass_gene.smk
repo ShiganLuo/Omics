@@ -2,6 +2,8 @@
 
 include: "../../../common/common.smk"
 
+import shutil
+
 import os
 import shlex
 
@@ -59,7 +61,9 @@ rule star_3pg_gene_specific:
             os.makedirs(sample_outdir, exist_ok=True)
             os.makedirs(os.path.dirname(log_path), exist_ok=True)
             input_dir = os.path.join(outdir, wildcards.genome, wildcards.sample_id)
-            script = os.path.join(sample_outdir, f"gene_specific_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"gene_specific_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, f"gene_specific.sh")
 
             cmd = [
                 "python", HELPER,
@@ -134,7 +138,8 @@ rule star_3pg_gene_specific:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
                 f.write(f"echo 'star_3pg_gene_specific for sample {wildcards.sample_id} genome {wildcards.genome} completed successfully at {current_time}'\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
 
             rule_logger.info(f"star_3pg_gene_specific for sample {wildcards.sample_id} genome {wildcards.genome} completed")
         except Exception as e:

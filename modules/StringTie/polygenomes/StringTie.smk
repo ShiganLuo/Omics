@@ -159,11 +159,13 @@ rule TEChimericPlot:
                 raise ValueError(f"No samples found for genome {wildcards.genome} in genome_samples configuration.")
             genome_sample_set = set(genome_samples.get(wildcards.genome, []))
             with open(group_tsv, 'w') as f:
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write("sample\tgroup\n")
                 for group, sample_list in sample_groups.items():
                     for sample_id in sample_list:
                         if sample_id in genome_sample_set:
                             f.write(f"{sample_id}\t{group}\n")
+                f.write(f'echo "script completed successfully"\n')
             
             cmd = [
                 "python", params.TEChimericPlot,

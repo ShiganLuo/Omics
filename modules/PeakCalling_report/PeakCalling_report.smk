@@ -79,7 +79,7 @@ rule generate_report:
         sample_ip_input_map = sample_ip_input_map,
     run:
         log_path = str(log)
-open(log_path, 'w').close()
+        open(log_path, 'w').close()
 rule_logger = setup_logger("generate_report", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -120,15 +120,14 @@ rule_logger = setup_logger("generate_report", log_file=log_path)
             script = os.path.join(RECEIPT_DIR, f"generate_report_{current_time}.sh")
             plain_script = os.path.join(report_dir, f"generate_report.sh")
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(shlex.quote(str(c)) for c in cmd) + "\n")
+                f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} > {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"Error occurred during generate_report: {e}\n")
             logger.error(f"Error occurred during generate_report: {e}")
-            raise e
+            raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
 
 rule report_result:
     """Result aggregation rule for subworkflow use rule import."""

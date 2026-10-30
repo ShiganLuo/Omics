@@ -145,7 +145,7 @@ rule arriba_report:
                 "-o", outdir + f"/{wildcards.genome}/arriba_report"
             ]
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "Arriba report generation for genome {wildcards.genome} successfully completed!"\n')
             shutil.copyfile(script, plain_script)

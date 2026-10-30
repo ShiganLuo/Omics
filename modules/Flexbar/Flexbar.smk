@@ -36,15 +36,14 @@ rule flexbar_demultiplex:
             script = os.path.join(RECEIPT_DIR, f"flexbar_demultiplex_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"flexbar_demultiplex.sh")
             with open(script, "w") as f:
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(f"{params.flexbar} -r {input.fastq} -b {input.barcodes} \\\n")
                 f.write(f"    -n {params.min_overlap} -m {params.allow_mismatch} \\\n")
                 f.write(f"    -t {params.outdir}/{wildcards.sample_id}.demux \\\n")
-                f.write(f"    > {log_path} 2>&1\n")
                 f.write(f"pigz -c {params.outdir}/{wildcards.sample_id}.demux_1.fastq > {output.demux}\n")
+                f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
             rule_logger.info(f"flexbar_demultiplex for sample {wildcards.sample_id} completed")
-        except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"flexbar_demultiplex failed for sample {wildcards.sample_id}: {e}\n")
-            raise e
+        rule_logger.error(f"Error occurred: {e}")
+        raise RuntimeError(f"Error occurred: {e}, you can check the log file {log_path} for more details.")

@@ -18,6 +18,6 @@ rule admixture_population:
   plain_script=os.path.join(os.path.dirname(str(output.q)), f"admixture_population_{wildcards.k}.sh")
   cmd=[params.admixture,"--seed",str(params.seed),f"-j{threads}",params.bed,str(wildcards.k)]
   with open(str(log),"w") as h:h.write("")
-  with open(script,"w") as h:h.write("#!/usr/bin/env bash\nset -euo pipefail\n"+" ".join(str(x) for x in cmd)+"\nmv "+params.bed+"."+str(wildcards.k)+".Q "+str(output.q)+"\nmv "+params.bed+"."+str(wildcards.k)+".P "+str(output.p)+"\n")
+  with open(script,"w") as h:h.write("#!/usr/bin/env bash\nset -euo pipefail\n"+" ".join(str(x) for x in cmd)+"\nmv "+params.bed+"."+str(wildcards.k)+".Q "+str(output.q)+"\nmv "+params.bed+"."+str(wildcards.k)+".P "+str(output.p)+"\necho \"admixture completed successfully\"\n")
   shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log} 2>&1")

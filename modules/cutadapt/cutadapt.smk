@@ -88,14 +88,14 @@ rule trimming_Paired:
             cmd += [str(input[0]), str(input[1])]
             cmd_str = " ".join(cmd)
             with open(script, "w") as f:
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(cmd_str + "\n")
                 f.write(f"echo 'cutadapt paired trimming finished for {wildcards.sample_id}'\n")
+                f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} > {output.report} 2>> {log_path}")
             logger.info(f"Finished cutadapt paired trimming for sample {wildcards.sample_id}")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"cutadapt paired trimming failed for sample {wildcards.sample_id} with error: {e}\n")
             raise
 
 rule trimming_Single:
@@ -155,12 +155,12 @@ rule trimming_Single:
             cmd += [str(input[0])]
             cmd_str = " ".join(cmd)
             with open(script, "w") as f:
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(cmd_str + "\n")
                 f.write(f"echo 'cutadapt single trimming finished for {wildcards.sample_id}'\n")
+                f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} > {output.report} 2>> {log_path}")
             logger.info(f"Finished cutadapt single trimming for sample {wildcards.sample_id}")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"cutadapt single trimming failed for sample {wildcards.sample_id} with error: {e}\n")
             raise

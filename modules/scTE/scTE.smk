@@ -65,6 +65,7 @@ rule scTE_build_index:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(str(item) for item in cmd) + "\n")
                 f.write(f'echo "scTE index built at {output.index} successfully"\n')
+                f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(command_script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:

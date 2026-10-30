@@ -46,16 +46,14 @@ rule ucsc_track_single:
             cmd += list(input.bigwigs)
             cmd += ["-o", str(output.track)]
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "ucsc_track_bedtools successfully completed !"'+ "\n")
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"ucsc_track_bedtools failed with error: {e}\n")
             logger.error(f"ucsc_track_bedtools failed with error: {e}")
-            raise e
+            raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
 
 rule ucsc_track_iclip:
     input:
@@ -92,16 +90,14 @@ rule ucsc_track_iclip:
             cmd += list(input.minus_bw)
             cmd += ["-o", str(output.track)]
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "ucsc_track_iclip successfully completed !"'+ "\n")
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"ucsc_track_iclip failed with error: {e}\n")
             logger.error(f"ucsc_track_iclip failed with error: {e}")
-            raise e
+            raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
 
 rule igv_track_single:
     input:
@@ -139,7 +135,9 @@ rule igv_track_single:
 
             rule_logger.info(f"Writing IGV config JSON to {config_json_path}")
             with open(config_json_path, "w") as f:
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 json.dump(params.igv_config, f, indent=2)
+                f.write(f'echo "script completed successfully"\n')
 
             cmd = [
                 "python", params.track_script,
@@ -150,16 +148,14 @@ rule igv_track_single:
             cmd += list(input.bigwigs)
             cmd += ["-o", str(output.html)]
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "igv_track_bedtools successfully completed !"'+ "\n")
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"igv_track_bedtools failed with error: {e}\n")
             logger.error(f"igv_track_bedtools failed with error: {e}")
-            raise e
+            raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
 
 rule igv_track_iclip:
     input:
@@ -198,7 +194,9 @@ rule igv_track_iclip:
 
             rule_logger.info(f"Writing IGV config JSON to {config_json_path}")
             with open(config_json_path, "w") as f:
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 json.dump(params.igv_config, f, indent=2)
+                f.write(f'echo "script completed successfully"\n')
 
             cmd = [
                 "python", params.track_script,
@@ -210,13 +208,11 @@ rule igv_track_iclip:
             cmd += list(input.minus_bw)
             cmd += ["-o", str(output.html)]
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "igv_track_iclip successfully completed !"'+ "\n")
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"igv_track_iclip failed with error: {e}\n")
             logger.error(f"igv_track_iclip failed with error: {e}")
-            raise e
+            raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")

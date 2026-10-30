@@ -46,7 +46,7 @@ rule diff_exomePeak:
         exomePeak_script = ROOT_DIR + "/modules/exomePeak/bin/exomePeak.r",
     run:
         log_path = str(log)
-open(log_path, 'w').close()
+        open(log_path, 'w').close()
 rule_logger = setup_logger("diff_exomePeak", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -56,7 +56,7 @@ rule_logger = setup_logger("diff_exomePeak", log_file=log_path)
             script = os.path.join(RECEIPT_DIR, f"diff_exomePeak_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"diff_exomePeak.sh")
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(f"Rscript {params.exomePeak_script} \\\n")
                 f.write(f"    --gtf {params.gtf} \\\n")
                 f.write(f"    --ip_bams {input.ip_bams} \\\n")
@@ -94,13 +94,12 @@ rule_logger = setup_logger("diff_exomePeak", log_file=log_path)
                 f.write(f"    --outfile {outdir}/sig_diff_peak_gene_names.xls\n")
                 f.write(f"\n")
                 f.write(f"rm -f {outdir}/diff_peaks.bed {outdir}/diff_peaks.xls {outdir}/con_sig_diff_peak.bed {outdir}/con_sig_diff_peak.xls {outdir}/sig_diff_peak.bed {outdir}/sig_diff_peak.xls\n")
+                f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"Error occurred during diff_exomePeak: {e}\n")
             logger.error(f"Error occurred during diff_exomePeak: {e}")
-            raise e
+            raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
 
 def get_input_for_call_exomePeak():
     ip_bams = [indir + f"/{sample_id}/{sample_id}.bam" for sample_id in ip_samples]
@@ -131,7 +130,7 @@ rule call_exomePeak:
         gtf = config.get("gtf","")
     run:
         log_path = str(log)
-open(log_path, 'w').close()
+        open(log_path, 'w').close()
 rule_logger = setup_logger("call_exomePeak", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -141,7 +140,7 @@ rule_logger = setup_logger("call_exomePeak", log_file=log_path)
             script = os.path.join(RECEIPT_DIR, f"call_exomePeak_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"call_exomePeak.sh")
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(f"Rscript {params.exomePeak_script} \\\n")
                 f.write(f"--gtf {params.gtf} \\\n")
                 f.write(f"--ip_bams {input.ip_bams} \\\n")
@@ -167,13 +166,12 @@ rule_logger = setup_logger("call_exomePeak", log_file=log_path)
                 f.write(f"    --gtf {params.gtf} \\\n")
                 f.write(f"    --outfile {outdir}/con_peaks_gene_names.xls\n")
                 f.write(f"rm -f {outdir}/all_peaks.bed {outdir}/all_peaks.xls {outdir}/con_peaks.bed {outdir}/con_peaks.xls\n")
+                f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"Error occurred during call_exomePeak: {e}\n")
             logger.error(f"Error occurred during call_exomePeak: {e}")
-            raise e
+            raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
 
 rule exomePeak_result:
     input:

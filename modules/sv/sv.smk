@@ -266,9 +266,9 @@ rule sv_gene_model:
             rule_logger.error(f"sv_gene_model failed for {wildcards.comparison}: {e}")
             raise RuntimeError(f"sv_gene_model failed for {wildcards.comparison}: {e}")
 
-# ========================
-# Aggregation rules (cross-comparison)
-# ========================
+        # ========================
+        # Aggregation rules (cross-comparison)
+        # ========================
 
 rule sv_diff_analysis:
     """Run SV differential analysis across all comparison groups."""
@@ -369,9 +369,9 @@ rule sv_oncoprint:
             rule_logger.error(f"sv_oncoprint failed: {e}")
             raise RuntimeError(f"sv_oncoprint failed: {e}")
 
-# ========================
-# Result aggregation rule
-# ========================
+        # ========================
+        # Result aggregation rule
+        # ========================
 
 rule sv_result:
     """Aggregate all SV analysis outputs as dependency endpoint."""

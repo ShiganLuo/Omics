@@ -54,8 +54,9 @@ rule trgt_genotype:
             "--output-prefix", params.prefix
         ]
         with open(script, "w") as f:
-            f.write("#!/bin/bash\n")
+            f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
             f.write(" ".join(cmd) + "\n")
+            f.write(f'echo "script completed successfully"\n')
         shutil.copyfile(script, plain_script)
         shell(f"bash {plain_script} > {log} 2>&1")
 
@@ -92,8 +93,9 @@ rule trgt_plot:
             "--image", output.png
         ]
         with open(script, "w") as f:
-            f.write("#!/bin/bash\n")
+            f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
             f.write(" ".join(cmd) + "\n")
+            f.write(f'echo "script completed successfully"\n')
         shutil.copyfile(script, plain_script)
         shell(f"bash {plain_script} > {log} 2>&1")
 

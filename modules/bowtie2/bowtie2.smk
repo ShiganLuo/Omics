@@ -146,16 +146,15 @@ rule bowtie2_align_paired:
             cmd3 = ["mv", f"{params.unmapped_prefix}.2", output.unmapped2]
             success_echo = f'echo "bowtie2_align_paired for sample {wildcards.sample_id} successfully completed !"'
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd1) + "\n")
                 f.write(" ".join(cmd2) + "\n")
                 f.write(" ".join(cmd3) + "\n")
                 f.write(success_echo + "\n")
+                f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"error occurred in bowtie2_align_paired for sample {wildcards.sample_id}, error: {e}\n")
             logger.error(f"error occurred in bowtie2_align_paired for sample {wildcards.sample_id}, error: {e}\n")
             raise f"error occurred in bowtie2_align_paired for sample {wildcards.sample_id}, error: {e}\n"
 
@@ -181,7 +180,7 @@ rule bowtie2_align_single:
         sif("bowtie2.yaml")
     run:
         log_path = str(log)
-open(log_path, 'w').close()
+        open(log_path, 'w').close()
         try:
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
             script = os.path.join(RECEIPT_DIR, f"bowtie2_align_{wildcards.sample_id}_{current_time}.sh")
@@ -197,14 +196,13 @@ open(log_path, 'w').close()
             cmd2 = ["mv", params.unmapped_prefix, output.unmapped]
             success_echo = f'echo "bowtie2_align_single for sample {wildcards.sample_id} successfully completed !"'
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd1) + "\n")
                 f.write(" ".join(cmd2) + "\n")
                 f.write(success_echo + "\n")
+                f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"error occured in rule bowtie2_align_single for sample {wildcards.sample_id}, error: {e}\n")
             logger.error(f"error occured in rule bowtie2_align_single for sample {wildcards.sample_id}, error: {e}\n")
             raise f"error occured in rule bowtie2_align_single for sample {wildcards.sample_id}, error: {e}\n"

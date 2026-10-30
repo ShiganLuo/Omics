@@ -45,8 +45,9 @@ rule pbsv_discover:
             output.svsig
         ]
         with open(script, "w") as f:
-            f.write("#!/bin/bash\n")
+            f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
             f.write(" ".join(cmd) + "\n")
+            f.write(f'echo "script completed successfully"\n')
         shutil.copyfile(script, plain_script)
         shell("bash {plain_script} > {log} 2>&1")
 
@@ -92,11 +93,12 @@ rule pbsv_call:
             "rm", params.vcf
         ]
         with open(script, "w") as f:
-            f.write("#!/bin/bash\n")
+            f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
             f.write(" ".join(cmd1) + "\n")
             f.write(" ".join(cmd2) + "\n")
             f.write(" ".join(cmd3) + "\n")
             f.write(" ".join(cmd4) + "\n")
+            f.write(f'echo "script completed successfully"\n')
         shutil.copyfile(script, plain_script)
         shell("bash {plain_script} > {log} 2>&1")
 

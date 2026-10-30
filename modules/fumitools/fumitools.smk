@@ -70,13 +70,12 @@ rule fumitools_copy_umi_paired:
                     cmd += ["--tag-umi"]
 
                 with open(script_path, "w") as f:
-                    f.write("#!/bin/bash\n")
+                    f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                     f.write(" ".join(cmd) + "\n")
+                    f.write(f'echo "script completed successfully"\n')
                 shutil.copyfile(script_path, plain_script)
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"fumitools_copy_umi failed for {wildcards.sample_id}: {e}\n")
             raise
 
 rule fumitools_copy_umi_single:
@@ -127,17 +126,16 @@ rule fumitools_copy_umi_single:
                 if params.tag_umi:
                     cmd += ["--tag-umi"]
                 with open(script_path, "w") as f:
-                    f.write("#!/bin/bash\n")
+                    f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                     f.write(" ".join(cmd) + "\n")
+                    f.write(f'echo "script completed successfully"\n')
                 shutil.copyfile(script_path, plain_script)
                 shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"fumitools_copy_umi failed for {wildcards.sample_id}: {e}\n")
             raise
-# ========================
-# dedup — UMI-based deduplication on sorted BAM
-# ========================
+        # ========================
+        # dedup — UMI-based deduplication on sorted BAM
+        # ========================
 
 rule fumitools_dedup:
     """Deduplicate BAM reads based on UMI and mapping position."""
@@ -177,18 +175,17 @@ rule fumitools_dedup:
                 cmd += ["--start-only"]
 
             with open(script_path, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
+                f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script_path, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"fumitools_dedup failed for {wildcards.sample_id}: {e}\n")
             raise
 
-# ========================
-# Result rules
-# ========================
+        # ========================
+        # Result rules
+        # ========================
 
 rule fumitools_copy_umi_result:
     input:

@@ -134,15 +134,15 @@ rule gtfbuild_qc:
             rule_logger.error(f"Error occurred during gtfbuild_qc for {genome_name}: {e}\n")
             raise RuntimeError(f"Error occurred during gtfbuild_qc for {genome_name}: {e}\n")
 
-# ---- Coordinate liftover of interval files (e.g. RepeatMasker BED) ----
-# Repeat annotations must be projected through whole-genome alignment
-# (synteny blocks), not per-sequence mapping: TE copies are near-identical
-# and would land on paralogous loci. paftools.js liftover carries intervals
-# inside long collinear alignments to their orthologous positions.
+        # ---- Coordinate liftover of interval files (e.g. RepeatMasker BED) ----
+        # Repeat annotations must be projected through whole-genome alignment
+        # (synteny blocks), not per-sequence mapping: TE copies are near-identical
+        # and would land on paralogous loci. paftools.js liftover carries intervals
+        # inside long collinear alignments to their orthologous positions.
 
-BED_SRC = genome_cfg.get("source_bed") or ""
-BED_STEM = os.path.splitext(os.path.basename(BED_SRC))[0] if BED_SRC else "bed"
-PAF_OUT = outdir + f"/{genome_name}.wga.paf"
+        BED_SRC = genome_cfg.get("source_bed") or ""
+        BED_STEM = os.path.splitext(os.path.basename(BED_SRC))[0] if BED_SRC else "bed"
+        PAF_OUT = outdir + f"/{genome_name}.wga.paf"
 
 rule gtfbuild_bed_run:
     """Aggregate target: lifted BED + projection stats."""

@@ -74,6 +74,7 @@ rule bamCoverage:
                     f'echo "bamCoverage for {wildcards.sample_id} at '
                     f'{current_time} completed successfully"\n'
                 )
+                f.write(f'echo "script completed successfully"\n')
             rule_logger.info("Executing: " + " ".join(cmd))
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")

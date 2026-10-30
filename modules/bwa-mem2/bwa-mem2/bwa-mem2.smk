@@ -29,7 +29,7 @@ rule bwaMem2_index:
         index_prefix = lambda wildcards: outdir + f"/genome/{wildcards.genome}/index/{wildcards.genome}"
     run:
         log_path = str(log)
-open(log_path, 'w').close()
+        open(log_path, 'w').close()
 rule_logger = setup_logger("bwaMem2_index", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -39,16 +39,15 @@ rule_logger = setup_logger("bwaMem2_index", log_file=log_path)
             script = os.path.join(RECEIPT_DIR, f"bwaMem2_index_{wildcards.genome}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"bwaMem2_index.sh")
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(f"mkdir -p $(dirname {params.index_prefix})\n")
                 f.write(f"{params.bwa_mem2} index -p {params.index_prefix} {input.fa} > {log} 2>&1\n")
+                f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"Error occurred during bwa-mem2 index for genome {wildcards.genome}: {e}\n")
             logger.error(f"Error occurred during bwa-mem2 index for genome {wildcards.genome}: {e}")
-            raise e
+            raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
 def get_bwaMem2_index(wildcards):
     print(f"[get_bwaMem2_index] called with wildcards: {wildcards}")
     config_index_prefix = config.get('bwaMem2_index_prefix') or None
@@ -123,7 +122,7 @@ rule bwaMem2_alignment:
             f"{input.fastq[0]} {input.fastq[1]}" if len(input.fastq) == 2 else f"{input.fastq[0]}"
     run:
         log_path = str(log)
-open(log_path, 'w').close()
+        open(log_path, 'w').close()
 rule_logger = setup_logger("bwaMem2_alignment", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -133,7 +132,7 @@ rule_logger = setup_logger("bwaMem2_alignment", log_file=log_path)
             script = os.path.join(RECEIPT_DIR, f"bwaMem2_alignment_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"bwaMem2_alignment.sh")
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(f"{params.bwa_mem2} mem \\\n")
                 f.write(f"-T 0 \\\n")
                 f.write(f"-t {threads} \\\n")
@@ -142,13 +141,12 @@ rule_logger = setup_logger("bwaMem2_alignment", log_file=log_path)
                 f.write(f"2>> {log} \\\n")
                 f.write(f"| {params.samtools} view -b - 2>> {log} \\\n")
                 f.write(f"> {output.bam}\n")
+                f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"Error occurred during bwa-mem2 alignment for sample {wildcards.sample_id}: {e}\n")
             logger.error(f"Error occurred during bwa-mem2 alignment for sample {wildcards.sample_id}: {e}")
-            raise e
+            raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
 rule bwaMemm2_result:
     input:
         bam = outdir + "/bam/{genome}/{sample_id}.bam"

@@ -215,6 +215,7 @@ rule ft_qc:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "QC metrics collected for sample {wildcards.sample_id}"\n')
+                f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(command_script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:

@@ -69,4 +69,4 @@ rule merge_msi_result:
             value_info = [i.split() for i in open(outdir + f"tumor_normal_output/{case}/{case}.{wildcards.genome_version}.msisensor")]
             output_info.loc[case] = value_info[1]
         output_info.to_csv(f"{output}",sep="\t")
-# print(value_info)
+        # print(value_info)

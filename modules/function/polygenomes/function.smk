@@ -241,7 +241,7 @@ rule function_gsva:
             script = os.path.join(RECEIPT_DIR, f"gsva_{wildcards.genome}_{current_time}.sh")
             plain_script = os.path.join(gsva_outdir, f"gsva.sh")
             with open(script, 'w') as f:
-                f.write("#!/bin/bash\nset -e\nset -o pipefail\n")
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(norm_cmd) + "\n")
                 f.write(" ".join(shlex.quote(str(x)) for x in gsva_cmd) + "\n")
                 f.write(f"echo 'GSVA analysis was completed successfully for {wildcards.genome} !'\n")

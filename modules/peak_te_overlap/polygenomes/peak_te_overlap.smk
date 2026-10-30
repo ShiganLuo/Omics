@@ -68,16 +68,14 @@ rule peak_te_overlap:
             script = os.path.join(RECEIPT_DIR, f"peak_te_overlap_{wildcards.genome}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"peak_te_overlap.sh")
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(shlex.quote(str(c)) for c in cmd) + "\n")
                 f.write(f'echo "peak-TE overlap for {wildcards.sample_id} at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"Error during peak-TE overlap for {wildcards.sample_id}: {e}\n")
             logger.error(f"Error during peak-TE overlap for {wildcards.sample_id}: {e}")
-            raise e
+            raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
 
 rule peak_centric_overlap:
     """
@@ -122,16 +120,14 @@ rule peak_centric_overlap:
             script = os.path.join(RECEIPT_DIR, f"peak_centric_overlap_{wildcards.genome}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"peak_centric_overlap.sh")
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(shlex.quote(str(c)) for c in cmd) + "\n")
                 f.write(f'echo "peak-centric TE overlap for {wildcards.sample_id} at {current_time} completed successfully"\n')
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"Error during peak-centric TE overlap for {wildcards.sample_id}: {e}\n")
             logger.error(f"Error during peak-centric TE overlap for {wildcards.sample_id}: {e}")
-            raise e
+            raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
 
 rule peak_te_overlap_fig:
     """
@@ -192,8 +188,9 @@ rule peak_te_overlap_fig:
             script_path = os.path.join(RECEIPT_DIR, f"peak_te_overlap_chart_{current_time}.sh")
             plain_script = os.path.join(chart_dir, f"peak_te_overlap_chart.sh")
             with open(script_path, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(shlex.quote(str(c)) for c in cmd) + "\n")
+                f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script_path, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
 
@@ -205,10 +202,8 @@ rule peak_te_overlap_fig:
                 if os.path.exists(first_chart) and not os.path.exists(output.chart):
                     os.symlink(first_chart, output.chart)
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"Error during peak-TE overlap chart: {e}\n")
             logger.error(f"Error during peak-TE overlap chart: {e}")
-            raise e
+            raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
 
 rule peak_te_overlap_result:
     """

@@ -46,9 +46,8 @@ rule bcftools_population_filter:
                 handle.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 handle.write(" ".join(str(x) for x in cmd1) + " | " + " ".join(str(x) for x in cmd2) + " | " + " ".join(str(x) for x in cmd3) + "\n")
                 handle.write(f"{params.bcftools} index -t {output.vcf}\n")
+                handle.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as exc:
-            with open(log_path, "a") as handle:
-                handle.write(f"bcftools filtering failed: {exc}\n")
             raise

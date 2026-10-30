@@ -48,7 +48,9 @@ rule featureCounts_single_noMultiple:
             os.makedirs(os.path.dirname(output.outfile), exist_ok=True)
             bams_str = " ".join(input.bams)
             with open(script, "w") as f:
-                f.write(f"{params.featureCounts} -T {threads} -t exon -g gene_id -a {params.gtf} -o {output.outfile} {bams_str} > {log_path} 2>&1\n")
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
+                f.write(f"{params.featureCounts} -T {threads} -t exon -g gene_id -a {params.gtf} -o {output.outfile} {bams_str}\n")
+                f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
             rule_logger.info(f"featureCounts_single_noMultiple completed")
@@ -95,9 +97,11 @@ rule featureCounts_paired_noMultiple:
             os.makedirs(os.path.dirname(output.outfile), exist_ok=True)
             bams_str = " ".join(input.bams)
             with open(script, "w") as f:
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 # for multiple -M -O
                 f.write("/bin/bash\nset -euo pipefail\n")
                 f.write(f"{params.featureCounts} -T {threads} -B -p --countReadPairs -t exon -g gene_id -a {params.gtf} -o {output.outfile} {bams_str}\n")
+                f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
             rule_logger.info(f"featureCounts_paired_noMultiple completed")

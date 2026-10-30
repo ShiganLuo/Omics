@@ -56,7 +56,5 @@ rule extract_rRNA:
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"Error occurred during extract_rRNA for genome {wildcards.genome}: {e}\n")
             logger.error(f"Error occurred during extract_rRNA for genome {wildcards.genome}: {e}")
-            raise e
+            raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")

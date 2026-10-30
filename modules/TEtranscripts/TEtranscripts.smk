@@ -33,10 +33,11 @@ rule TEcount:
             script = os.path.join(RECEIPT_DIR, f"TEcount_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(params.outdir, f"TEcount_{wildcards.sample_id}.sh")
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(f"{params.TEcount} --sortByPos --format BAM --mode multi \\\n")
                 f.write(f"    -b {input.bam} --GTF {params.gtf} --TE {params.TE_gtf} \\\n")
                 f.write(f"    --project {params.project} --outdir {params.outdir}\n")
+                f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
@@ -77,7 +78,7 @@ rule combine_TEcount:
             script = os.path.join(RECEIPT_DIR, f"combine_TEcount_{current_time}.sh")
             plain_script = os.path.join(params.indir, f"combine_TEcount.sh")
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(f"python {params.combineTE} -p TEcount -i {params.indir} -o {output.outfile}\n")
                 f.write(f"echo 'combine_TEcount was completed successfully'\n")
             shutil.copyfile(script, plain_script)
@@ -114,7 +115,7 @@ rule TElocal:
             script = os.path.join(RECEIPT_DIR, f"TElocal_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(outdir_local, f"TElocal_{wildcards.sample_id}.sh")
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(f"{params.TElocal} --sortByPos -b {input.bam} \\\n")
                 f.write(f"    --GTF {params.GTF} --TE {params.TE} \\\n")
                 f.write(f"    --project {params.project}\n")
@@ -160,7 +161,7 @@ rule combine_TElocal:
             script = os.path.join(RECEIPT_DIR, f"combine_TElocal_{current_time}.sh")
             plain_script = os.path.join(params.indir, f"combine_TElocal.sh")
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(f"python {params.combineTE} -p TElocal -i {params.indir} -o {output.outfile}\n")
                 f.write(f"echo 'combine_TElocal was completed successfully'\n")
             shutil.copyfile(script, plain_script)

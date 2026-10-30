@@ -97,10 +97,8 @@ rule bigwig_ratio:
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"Error occurred during bigwig_ratio for sample {wildcards.sample_id}: {e}\n")
             logger.error(f"Error occurred during bigwig_ratio for sample {wildcards.sample_id}: {e}")
-            raise e
+            raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
 
 rule bigwig_ratio_result:
     """Aggregation rule for bigwig_ratio."""
@@ -218,10 +216,8 @@ rule heatmap:
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"Error occurred during heatmap for sample {wildcards.sample_id}: {e}\n")
             logger.error(f"Error occurred during heatmap for sample {wildcards.sample_id}: {e}")
-            raise e
+            raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
 
 rule heatmap_gene:
     """Per gene/TE name — computeMatrix + plotHeatmap in one step."""
@@ -257,14 +253,12 @@ rule heatmap_gene:
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"Error occurred during heatmap_gene for {wildcards.sample_id} {wildcards.gene_name}: {e}\n")
             logger.error(f"Error occurred during heatmap_gene for {wildcards.sample_id} {wildcards.gene_name}: {e}")
-            raise e
+            raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
 
-# ============================================================
-# Result
-# ============================================================
+        # ============================================================
+        # Result
+        # ============================================================
 
 rule deeptools_heatmap_result:
     input:

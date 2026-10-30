@@ -43,7 +43,7 @@ rule ngs_disambiguate:
         logdir + "/{sample_id}/ngs_disambiguate.log"
     run:
         log_path = str(log)
-open(log_path, 'w').close()
+        open(log_path, 'w').close()
 rule_logger = setup_logger("ngs_disambiguate", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -51,9 +51,9 @@ rule_logger = setup_logger("ngs_disambiguate", log_file=log_path)
             script = os.path.join(RECEIPT_DIR, f"ngs_disambiguate_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(params.outdir, f"ngs_disambiguate.sh")
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
-                f.write(f"{params.samtools} sort -n -@ {threads} -o {params.bamA_sortN} {input.bamA} 2>> {log_path}\n")
-                f.write(f"{params.samtools} sort -n -@ {threads} -o {params.bamB_sortN} {input.bamB} 2>> {log_path}\n")
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
+                f.write(f"{params.samtools} sort -n -@ {threads} -o {params.bamA_sortN} {input.bamA}\n")
+                f.write(f"{params.samtools} sort -n -@ {threads} -o {params.bamB_sortN} {input.bamB}\n")
                 f.write(f"\n")
                 f.write(f"{params.ngs_disambiguate} \\\n")
                 f.write(f"    -s {wildcards.sample_id} \\\n")
@@ -62,13 +62,12 @@ rule_logger = setup_logger("ngs_disambiguate", log_file=log_path)
                 f.write(f"    {params.bamA_sortN} \\\n")
                 f.write(f"    {params.bamB_sortN}\n")
                 f.write(f"rm -f {params.bamA_sortN} {params.bamB_sortN}\n")
+                f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"Error occurred during ngs_disambiguate for sample {wildcards.sample_id}: {e}\n")
             logger.error(f"Error occurred during ngs_disambiguate for sample {wildcards.sample_id}: {e}")
-            raise e
+            raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
 
 rule disambiguate_sort_rename:
     input:
@@ -96,7 +95,7 @@ rule disambiguate_sort_rename:
         logdir + "/{sample_id}/sort_rename.log"
     run:
         log_path = str(log)
-open(log_path, 'w').close()
+        open(log_path, 'w').close()
 rule_logger = setup_logger("disambiguate_sort_rename", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -105,7 +104,7 @@ rule_logger = setup_logger("disambiguate_sort_rename", log_file=log_path)
             script = os.path.join(RECEIPT_DIR, f"sort_rename_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(outdir_sample, f"sort_rename.sh")
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(f"sed '1s/unique species A pairs/unique species {params.speciesA} pairs/; \\\n")
                 f.write(f"    1s/unique species B pairs/unique species {params.speciesB} pairs/' {input.summary} > {output.clean_summary}\n")
                 f.write(f"{params.samtools} sort -@ {threads} -o {output.clean_bamA} {input.raw_bamA}\n")
@@ -117,13 +116,12 @@ rule_logger = setup_logger("disambiguate_sort_rename", log_file=log_path)
                 f.write(f"{params.samtools} index {output.clean_bamA}\n")
                 f.write(f"{params.samtools} index {output.clean_bamB}\n")
                 f.write(f"rm -f {input.summary}\n")
+                f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"Error occurred during disambiguate_sort_rename for sample {wildcards.sample_id}: {e}\n")
             logger.error(f"Error occurred during disambiguate_sort_rename for sample {wildcards.sample_id}: {e}")
-            raise e
+            raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
 
 rule disambiguate_report:
     input:
@@ -141,7 +139,7 @@ rule disambiguate_report:
     threads: 1
     run:
         log_path = str(log)
-open(log_path, 'w').close()
+        open(log_path, 'w').close()
 rule_logger = setup_logger("disambiguate_report", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -151,17 +149,16 @@ rule_logger = setup_logger("disambiguate_report", log_file=log_path)
             plain_script = os.path.join(report_dir, f"disambiguate_report.sh")
             reports_str = " ".join(input.reports)
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(f"python {params.combine_script} \\\n")
                 f.write(f"    -i {reports_str} \\\n")
                 f.write(f"    -o {output.report}\n")
+                f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"Error occurred during disambiguate_report: {e}\n")
             logger.error(f"Error occurred during disambiguate_report: {e}")
-            raise e
+            raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
 
 rule ngs_disambiguate_result:
     input:

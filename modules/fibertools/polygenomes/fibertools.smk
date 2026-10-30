@@ -39,7 +39,7 @@ rule ft_predict_m6a:
         ft = config.get("Procedure", {}).get("fibertools") or "ft"
     run:
         log_path = str(log)
-open(log_path, 'w').close()
+        open(log_path, 'w').close()
 rule_logger = setup_logger("ft_predict_m6a", log_file=log_path)
         try:
             rule_logger.info(f"Predicting m6A for sample {wildcards.sample_id}")
@@ -60,10 +60,8 @@ rule_logger = setup_logger("ft_predict_m6a", log_file=log_path)
                 f.write(f'echo "m6A prediction completed for sample {wildcards.sample_id}"\n')
             shutil.copyfile(command_script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
-        except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"ft_predict_m6a failed: {e}\n")
-            raise RuntimeError(f"ft_predict_m6a failed: {e}\n")
+        rule_logger.error(f"Error occurred: {e}")
+        raise RuntimeError(f"Error occurred: {e}, you can check the log file {log_path} for more details.")
 
 rule ft_add_nucleosomes:
     """Add nucleosome calls to Fiber-seq BAM with m6A predictions.
@@ -86,7 +84,7 @@ rule ft_add_nucleosomes:
         ft = config.get("Procedure", {}).get("fibertools") or "ft"
     run:
         log_path = str(log)
-open(log_path, 'w').close()
+        open(log_path, 'w').close()
 rule_logger = setup_logger("ft_add_nucleosomes", log_file=log_path)
         try:
             rule_logger.info(f"Adding nucleosomes for sample {wildcards.sample_id}")
@@ -107,10 +105,8 @@ rule_logger = setup_logger("ft_add_nucleosomes", log_file=log_path)
                 f.write(f'echo "Nucleosome calling completed for sample {wildcards.sample_id}"\n')
             shutil.copyfile(command_script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
-        except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"ft_add_nucleosomes failed: {e}\n")
-            raise RuntimeError(f"ft_add_nucleosomes failed: {e}\n")
+        rule_logger.error(f"Error occurred: {e}")
+        raise RuntimeError(f"Error occurred: {e}, you can check the log file {log_path} for more details.")
 
 rule ft_fire:
     """Call Fiber-seq Inferred Regulatory Elements (FIREs).
@@ -134,7 +130,7 @@ rule ft_fire:
         is_ont = config.get("Params", {}).get("fibertools", {}).get("ont", False)
     run:
         log_path = str(log)
-open(log_path, 'w').close()
+        open(log_path, 'w').close()
 rule_logger = setup_logger("ft_fire", log_file=log_path)
         try:
             rule_logger.info(f"Calling FIREs for sample {wildcards.sample_id}")
@@ -156,10 +152,8 @@ rule_logger = setup_logger("ft_fire", log_file=log_path)
                 f.write(f'echo "FIRE calling completed for sample {wildcards.sample_id}"\n')
             shutil.copyfile(command_script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
-        except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"ft_fire failed: {e}\n")
-            raise RuntimeError(f"ft_fire failed: {e}\n")
+        rule_logger.error(f"Error occurred: {e}")
+        raise RuntimeError(f"Error occurred: {e}, you can check the log file {log_path} for more details.")
 
 rule ft_extract:
     """Extract Fiber-seq data to BED format.
@@ -185,7 +179,7 @@ rule ft_extract:
         ft = config.get("Procedure", {}).get("fibertools") or "ft"
     run:
         log_path = str(log)
-open(log_path, 'w').close()
+        open(log_path, 'w').close()
 rule_logger = setup_logger("ft_extract", log_file=log_path)
         try:
             rule_logger.info(f"Extracting Fiber-seq data for sample {wildcards.sample_id}")
@@ -209,7 +203,5 @@ rule_logger = setup_logger("ft_extract", log_file=log_path)
                 f.write(f'echo "Fiber-seq extraction completed for sample {wildcards.sample_id}"\n')
             shutil.copyfile(command_script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
-        except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"ft_extract failed: {e}\n")
-            raise RuntimeError(f"ft_extract failed: {e}\n")
+        rule_logger.error(f"Error occurred: {e}")
+        raise RuntimeError(f"Error occurred: {e}, you can check the log file {log_path} for more details.")

@@ -100,8 +100,10 @@ rule gatk_population_joint_genotyping:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             sample_map = os.path.join(os.path.dirname(output.vcf), "sample_map.tsv")
             with open(sample_map, "w") as handle:
+                handle.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 for sample, gvcf in zip(samples, input.gvcfs):
                     handle.write(f"{sample}\t{gvcf}\n")
+                handle.write(f'echo "script completed successfully"\n')
             script = os.path.join(RECEIPT_DIR, f"gatk_population_joint_genotyping_{wildcards.genome}_{current_time}.sh")
             plain_script = os.path.join(os.path.dirname(output.vcf), f"gatk_population_joint_genotyping.sh")
             import_cmd = [params.gatk, "--java-options", params.java_options, "GenomicsDBImport", "--sample-name-map", sample_map, "--genomicsdb-workspace-path", params.workspace, "--reader-threads", str(threads)]

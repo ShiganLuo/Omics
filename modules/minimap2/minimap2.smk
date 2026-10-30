@@ -80,10 +80,8 @@ rule minimap2_align:
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"Error occurred during minimap2 alignment for sample {wildcards.sample_id}: {e}\n")
             logger.error(f"Error occurred during minimap2 alignment for sample {wildcards.sample_id}: {e}")
-            raise e
+            raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
         finally:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"minimap2_align finished for sample {wildcards.sample_id} at {current_time}")

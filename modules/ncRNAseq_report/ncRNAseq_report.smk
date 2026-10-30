@@ -100,11 +100,10 @@ rule generate_report:
                 fh.write("#!/bin/bash\n")
                 fh.write("set -euo pipefail\n")
                 fh.write(" ".join([shlex.quote(str(x)) for x in cmd]) + "\n")
+                fh.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script_path, plain_script)
             shell(f"bash {plain_script} > {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as fh:
-                fh.write(f"ncRNAseq report generation failed: {e}\n")
             logger.error(f"ncRNAseq report generation failed: {e}")
             raise
 

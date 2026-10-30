@@ -22,7 +22,7 @@ rule samtools_stats:
         samtools = config.get("Procedure", {}).get("samtools") or "samtools"
     run:
         log_path = str(log)
-open(log_path, 'w').close()
+        open(log_path, 'w').close()
 rule_logger = setup_logger("samtools_stats", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -32,15 +32,14 @@ rule_logger = setup_logger("samtools_stats", log_file=log_path)
             script = os.path.join(RECEIPT_DIR, f"samtools_stats_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(outdir_sample, f"samtools_stats.sh")
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(f"{params.samtools} stats {input.bam} > {output.stats}\n")
+                f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} > {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"Error occurred during samtools_stats for sample {wildcards.sample_id}: {e}\n")
             logger.error(f"Error occurred during samtools_stats for sample {wildcards.sample_id}: {e}")
-            raise e
+            raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
 
 rule getFragmentSize:
     """Extract and summarize fragment size distribution from all samples."""
@@ -58,7 +57,7 @@ rule getFragmentSize:
         sif("fragment_size.yaml")
     run:
         log_path = str(log)
-open(log_path, 'w').close()
+        open(log_path, 'w').close()
 rule_logger = setup_logger("getFragmentSize", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -69,15 +68,14 @@ rule_logger = setup_logger("getFragmentSize", log_file=log_path)
             plain_script = os.path.join(outdir_fragment, f"getFragmentSize.sh")
             stats_str = " ".join(input.stats)
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(f"python {params.script} --input {stats_str} --out {output.hist}\n")
+                f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} > {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"Error occurred during getFragmentSize: {e}\n")
             logger.error(f"Error occurred during getFragmentSize: {e}")
-            raise e
+            raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
 
 rule plotFragmentSize:
     """Plot fragment size distribution."""
@@ -95,7 +93,7 @@ rule plotFragmentSize:
         sif("fragment_size.yaml")
     run:
         log_path = str(log)
-open(log_path, 'w').close()
+        open(log_path, 'w').close()
 rule_logger = setup_logger("plotFragmentSize", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -104,15 +102,14 @@ rule_logger = setup_logger("plotFragmentSize", log_file=log_path)
             script = os.path.join(RECEIPT_DIR, f"plotFragmentSize_{current_time}.sh")
             plain_script = os.path.join(outdir_fragment, f"plotFragmentSize.sh")
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(f"python {params.script} --input {input.hist} --output {output.png}\n")
+                f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} > {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"Error occurred during plotFragmentSize: {e}\n")
             logger.error(f"Error occurred during plotFragmentSize: {e}")
-            raise e
+            raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
 
 rule fragment_size_result:
     """Result aggregation rule for subworkflow use rule import."""

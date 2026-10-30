@@ -62,16 +62,15 @@ rule hifiasm_assemble:
             ]
             cmd3 = ["rm", "-f", fq_gz]
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd0) + "\n")
                 f.write(" ".join(cmd1) + "\n")
                 f.write(" ".join(cmd2) + "\n")
                 f.write(" ".join(cmd3) + "\n")
+                f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log[0]} 2>&1")
         except Exception as e:
-            with open(log[0], "a") as f:
-                f.write(f"hifiasm assembly failed for sample {wildcards.sample_id} with error: {e}\n")
             raise f"hifiasm assembly failed for sample {wildcards.sample_id} with error: {e}"
 
 rule repeatmasker_init:
@@ -97,7 +96,9 @@ rule repeatmasker_init:
             tmpdir = tempfile.mkdtemp()
             dummy_fa = os.path.join(tmpdir, "dummy.fa")
             with open(dummy_fa, "w") as f:
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(">dummy\nATCGATCGATCG\n")
+                f.write(f'echo "script completed successfully"\n')
             cmd1 = [
                 params.RepeatMasker,
                 "-species", f"'{params.species}'",
@@ -136,15 +137,15 @@ rule repeatmasker_init:
             else:
                 logger.warning("No valid Dfam h5 provided for RepeatMasker, using default libraries. please ensure the default libraries include relevant satellite DNA for target species.")
             with open(script, "w") as f:
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd1) + "\n")
                 f.write(" ".join(cmd2) + "\n")
                 f.write(" ".join(cmd3) + "\n")
                 f.write(" ".join(cmd4) + "\n")
+                f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log[0]} 2>&1")
         except Exception as e:
-            with open(log[0], "a") as f:
-                f.write(f"RepeatMasker init failed with error: {e}\n")
             raise f"RepeatMasker init failed with error: {e}"
 
 def get_input_for_repeatmasker(wildcards):
@@ -191,13 +192,12 @@ rule repeatmasker_run:
                 input.fasta
             ]
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
+                f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log[0]} 2>&1")
         except Exception as e:
-            with open(log[0], "a") as f:
-                f.write(f"RepeatMasker failed for sample {wildcards.sample_id} with error: {e}\n")
             raise f"RepeatMasker failed for sample {wildcards.sample_id} with error: {e}"
 
 rule centromere_extract:
@@ -229,13 +229,12 @@ rule centromere_extract:
                 "--output", output.stats
             ]
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
+                f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log[0]} 2>&1")
         except Exception as e:
-            with open(log[0], "a") as f:
-                f.write(f"Centromere stats extraction failed for sample {wildcards.sample_id} with error: {e}\n")
             raise f"Centromere stats extraction failed for sample {wildcards.sample_id} with error: {e}"
 
 rule centromere_result:

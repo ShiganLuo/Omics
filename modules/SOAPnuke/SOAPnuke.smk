@@ -54,17 +54,17 @@ rule soapnuke_filter_paired:
                 "-T", str(threads),
             ]
             with open(script, "w") as f:
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f"mv {sample_outdir}/{params.clean_fastq1} {output.clean_fastq1}\n")
                 f.write(f"mv {sample_outdir}/{params.clean_fastq2} {output.clean_fastq2}\n")
+                f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
 
             rule_logger.info(f"soapnuke_filter_paired for sample {wildcards.sample_id} completed")
-        except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"soapnuke_filter_paired failed for sample {wildcards.sample_id}: {e}\n")
-            raise e
+        rule_logger.error(f"Error occurred: {e}")
+        raise RuntimeError(f"Error occurred: {e}, you can check the log file {log_path} for more details.")
 
 rule soapnuke_filter_single:
     input:
@@ -111,16 +111,16 @@ rule soapnuke_filter_single:
                 "-T", str(threads),
             ]
             with open(script, "w") as f:
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f"mv {sample_outdir}/{params.clean_fastq} {output.clean_fastq}\n")
+                f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
 
             rule_logger.info(f"soapnuke_filter_single for sample {wildcards.sample_id} completed")
-        except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"soapnuke_filter_single failed for sample {wildcards.sample_id}: {e}\n")
-            raise e
+        rule_logger.error(f"Error occurred: {e}")
+        raise RuntimeError(f"Error occurred: {e}, you can check the log file {log_path} for more details.")
 
 rule soapnuke_filter_paired_result:
     input:

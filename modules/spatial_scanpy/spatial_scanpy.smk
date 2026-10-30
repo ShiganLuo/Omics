@@ -56,11 +56,12 @@ rule spatial_scanpy_qc:
             os.makedirs(os.path.dirname(log_path), exist_ok=True); os.makedirs(os.path.dirname(output.h5ad), exist_ok=True)
             stamp=time.strftime("%Y%m%d_%H%M%S", time.localtime()); command_script = os.path.join(RECEIPT_DIR, f"spatial_qc_{stamp}.sh");plain_script=os.path.join(os.path.dirname(output.h5ad), f"spatial_qc.sh")
             with open(command_script,"w") as handle:
-                handle.write("#!/usr/bin/env bash\nset -euo pipefail\n"+" ".join(shlex.quote(str(x)) for x in params.command)+"\n")
+                handle.write("#!/usr/bin/env bash\nset -euo pipefail\n"+" ".join(shlex.quote(str(x)) for x in params.command)+"\necho \"script completed successfully\"\n")
             shutil.copyfile(command_script, plain_script)
             shell(f"bash {shlex.quote(plain_script)} >> {shlex.quote(log_path)} 2>&1")
         except Exception as exc:
-            with open(log_path,"a") as handle: handle.write(f"spatial QC failed: {exc}\n")
+            rule_logger.error(f"spatial QC failed: {exc}")
+            raise RuntimeError(f"spatial QC failed: {exc}, see {log_path} for details.")
             raise
 
 rule spatial_scanpy_cluster:
@@ -77,11 +78,12 @@ rule spatial_scanpy_cluster:
         log_path=str(log)
         try:
             os.makedirs(os.path.dirname(log_path),exist_ok=True);os.makedirs(os.path.dirname(output.h5ad),exist_ok=True);stamp=time.strftime("%Y%m%d_%H%M%S",time.localtime());command_script = os.path.join(RECEIPT_DIR, f"spatial_cluster_{stamp}.sh");plain_script=os.path.join(os.path.dirname(output.h5ad), f"spatial_cluster.sh")
-            with open(command_script,"w") as handle: handle.write("#!/usr/bin/env bash\nset -euo pipefail\n"+" ".join(shlex.quote(str(x)) for x in params.command)+"\n")
+            with open(command_script,"w") as handle: handle.write("#!/usr/bin/env bash\nset -euo pipefail\n"+" ".join(shlex.quote(str(x)) for x in params.command)+"\necho \"script completed successfully\"\n")
             shutil.copyfile(command_script, plain_script)
             shell(f"bash {shlex.quote(plain_script)} >> {shlex.quote(log_path)} 2>&1")
         except Exception as exc:
-            with open(log_path,"a") as handle: handle.write(f"spatial clustering failed: {exc}\n")
+            rule_logger.error(f"spatial clustering failed: {exc}")
+            raise RuntimeError(f"spatial clustering failed: {exc}, see {log_path} for details.")
             raise
 
 if advanced.get("spatial_autocorrelation", True):
@@ -98,9 +100,10 @@ if advanced.get("spatial_autocorrelation", True):
             log_path=str(log)
             try:
                 os.makedirs(os.path.dirname(log_path),exist_ok=True);os.makedirs(os.path.dirname(output.h5ad),exist_ok=True);stamp=time.strftime("%Y%m%d_%H%M%S",time.localtime());command_script = os.path.join(RECEIPT_DIR, f"spatial_advanced_{stamp}.sh");plain_script=os.path.join(os.path.dirname(output.h5ad), f"spatial_advanced.sh")
-                with open(command_script,"w") as handle: handle.write("#!/usr/bin/env bash\nset -euo pipefail\n"+" ".join(shlex.quote(str(x)) for x in params.command)+"\n")
+                with open(command_script,"w") as handle: handle.write("#!/usr/bin/env bash\nset -euo pipefail\n"+" ".join(shlex.quote(str(x)) for x in params.command)+"\necho \"script completed successfully\"\n")
                 shutil.copyfile(command_script, plain_script)
             shell(f"bash {shlex.quote(plain_script)} >> {shlex.quote(log_path)} 2>&1")
             except Exception as exc:
-                with open(log_path,"a") as handle: handle.write(f"spatial advanced analysis failed: {exc}\n")
+                rule_logger.error(f"spatial advanced analysis failed: {exc}")
+            raise RuntimeError(f"spatial advanced analysis failed: {exc}, see {log_path} for details.")
                 raise

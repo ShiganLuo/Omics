@@ -30,8 +30,7 @@ rule samtools_stats:
             rule_logger.info(f"Start samtools_stats for sample {wildcards.sample_id} at {current_time}")
             outdir_sample = os.path.dirname(str(output.stats))
             os.makedirs(outdir_sample, exist_ok=True)
-            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
-            script = os.path.join(logdir, "cmd", "group", f"samtools_stats_{current_time}.sh")
+            script = os.path.join(cmd_dir(logdir, "group"), f"samtools_stats_{current_time}.sh")
             plain_script = os.path.join(outdir_sample, f"samtools_stats.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
@@ -67,8 +66,7 @@ rule getFragmentSize:
             rule_logger.info(f"Start getFragmentSize at {current_time}")
             outdir_fragment = os.path.dirname(str(output.hist))
             os.makedirs(outdir_fragment, exist_ok=True)
-            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
-            script = os.path.join(logdir, "cmd", "group", f"getFragmentSize_{current_time}.sh")
+            script = os.path.join(cmd_dir(logdir, "group"), f"getFragmentSize_{current_time}.sh")
             plain_script = os.path.join(outdir_fragment, f"getFragmentSize.sh")
             stats_str = " ".join(input.stats)
             with open(script, "w") as f:
@@ -104,8 +102,7 @@ rule plotFragmentSize:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start plotFragmentSize at {current_time}")
             outdir_fragment = os.path.dirname(str(output.png))
-            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
-            script = os.path.join(logdir, "cmd", "group", f"plotFragmentSize_{current_time}.sh")
+            script = os.path.join(cmd_dir(logdir, "group"), f"plotFragmentSize_{current_time}.sh")
             plain_script = os.path.join(outdir_fragment, f"plotFragmentSize.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")

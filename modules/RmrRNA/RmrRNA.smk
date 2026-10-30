@@ -26,7 +26,6 @@ rule extract_rRNA:
         sif("RmrRNA.yaml")
     run:
         current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
-        os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
         script = f"{logdir}/cmd/group/extract_rRNA.{current_time}.sh"
         plain_script = f"{outdir}/extract_rRNA.sh"
         cmd = ["python", params.extract_rRNA_script, 

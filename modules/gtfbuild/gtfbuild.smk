@@ -58,8 +58,7 @@ rule gtfbuild_liftoff:
             rule_logger.info(f"Start LiftOff projection for {genome_name} at {current_time}")
             sample_outdir = os.path.dirname(str(output.gff3))
             os.makedirs(sample_outdir, exist_ok=True)
-            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
-            script = os.path.join(logdir, "cmd", "group", f"gtfbuild_liftoff_{genome_name}_{current_time}.sh")
+            script = os.path.join(cmd_dir(logdir, "group"), f"gtfbuild_liftoff_{genome_name}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"gtfbuild_liftoff_{genome_name}.sh")
             lift_cmd = [
                 "liftoff",
@@ -118,8 +117,7 @@ rule gtfbuild_qc:
             rule_logger.info(f"Start gtfbuild QC for {genome_name} at {current_time}")
             sample_outdir = os.path.dirname(str(output.qc))
             os.makedirs(sample_outdir, exist_ok=True)
-            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
-            script = os.path.join(logdir, "cmd", "group", f"gtfbuild_qc_{genome_name}_{current_time}.sh")
+            script = os.path.join(cmd_dir(logdir, "group"), f"gtfbuild_qc_{genome_name}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"gtfbuild_qc_{genome_name}.sh")
             cmd = [
                 "python", params.script,
@@ -185,8 +183,7 @@ rule gtfbuild_wga:
             rule_logger.info(f"Start whole-genome alignment for {genome_name} at {current_time}")
             sample_outdir = os.path.dirname(str(output.paf))
             os.makedirs(sample_outdir, exist_ok=True)
-            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
-            script = os.path.join(logdir, "cmd", "group", f"gtfbuild_wga_{genome_name}_{current_time}.sh")
+            script = os.path.join(cmd_dir(logdir, "group"), f"gtfbuild_wga_{genome_name}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"gtfbuild_wga_{genome_name}.sh")
             cmd = [
                 "minimap2",
@@ -237,8 +234,7 @@ rule gtfbuild_liftover_bed:
             rule_logger.info(f"Start BED liftover for {genome_name} at {current_time}")
             sample_outdir = os.path.dirname(str(output.bed))
             os.makedirs(sample_outdir, exist_ok=True)
-            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
-            script = os.path.join(logdir, "cmd", "group", f"gtfbuild_liftover_bed_{BED_STEM}_{current_time}.sh")
+            script = os.path.join(cmd_dir(logdir, "group"), f"gtfbuild_liftover_bed_{BED_STEM}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"gtfbuild_liftover_bed_{BED_STEM}.sh")
             cmd = [
                 "paftools.js", "liftover",

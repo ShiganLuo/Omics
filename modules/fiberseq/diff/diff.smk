@@ -2,6 +2,7 @@ include: "../../common/common.smk"
 
 from snakemake.logging import logger
 import os
+import shutil
 import time
 
 indir = config.get("indir", "common/4_elements")
@@ -53,6 +54,7 @@ rule fiberseq_diff_run:
             os.makedirs(contrast_outdir, exist_ok=True)
             os.makedirs(os.path.join(logdir, "cmd", str(wildcards.contrast)), exist_ok=True)
             script = os.path.join(logdir, "cmd", str(wildcards.contrast), f"fiberseq_diff_run_{wildcards.contrast}_{current_time}.sh")
+            plain_script = os.path.join(contrast_outdir, f"fiberseq_diff_run_{wildcards.contrast}.sh")
             cmd = [
                 "python", params.script,
                 "-m", str(input.matrix),
@@ -68,7 +70,8 @@ rule fiberseq_diff_run:
                 f.write("set -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "fiberseq_diff_run for {wildcards.contrast} at {current_time} completed successfully"\n')
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during fiberseq_diff_run for {wildcards.contrast}: {e}\n")
             raise RuntimeError(f"Error occurred during fiberseq_diff_run for {wildcards.contrast}: {e}\n")

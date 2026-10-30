@@ -30,7 +30,9 @@ Cell Rep Methods 2024 [1]、Genome Res 2024 [2]、Nat Genet 2025 [3]。
 - motif 位点：`{analysis}/motif/{sample_id}/{sample_id}.motif_sites.bed`
 - 定量矩阵：`{analysis}/quant/matrix/`；hap 定量：`{analysis}/quant/{sample_id}/`
 - peak 注释：`{analysis}/annotate/{sample_id}/`（diff 用，annot_sample 可指定）
-- 命令回执统一写 `{logdir}/cmd/{sample_id|contrast}/`，不落在结果目录
+- 命令回执双写：outdir 里 `<rule>_<sample>.sh`（无时间戳，每次覆盖，
+  与结果同在，可直接复制重跑）；`{logdir}/cmd/{sample_id|contrast}/` 里
+  `<rule>_<sample>_<timestamp>.sh`（带时间戳历史备份）
 
 ## 环境
 

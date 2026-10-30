@@ -2,6 +2,7 @@ include: "../../common/common.smk"
 
 from snakemake.logging import logger
 import os
+import shutil
 import time
 
 indir = config.get("indir", "common/4_elements")
@@ -43,6 +44,10 @@ rule fiberseq_motif_scan:
             os.makedirs(sample_outdir, exist_ok=True)
             os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
             script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"fiberseq_motif_scan_{wildcards.sample_id}_{current_time}.sh")
+            # timestamped copy stays in log/cmd as history; the outdir copy
+            # (no timestamp, overwritten each run) documents the current command
+            # next to the results it produced
+            plain_script = os.path.join(sample_outdir, f"fiberseq_motif_scan_{wildcards.sample_id}.sh")
             cmd = [
                 "python", params.script,
                 "-m", str(input.motif_file),
@@ -59,7 +64,8 @@ rule fiberseq_motif_scan:
                 f.write("set -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "fiberseq_motif_scan for {wildcards.sample_id} at {current_time} completed successfully"\n')
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during fiberseq_motif_scan for {wildcards.sample_id}: {e}\n")
             raise RuntimeError(f"Error occurred during fiberseq_motif_scan for {wildcards.sample_id}: {e}\n")
@@ -100,6 +106,10 @@ rule fiberseq_motif_profile:
             os.makedirs(sample_outdir, exist_ok=True)
             os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
             script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"fiberseq_motif_profile_{wildcards.sample_id}_{current_time}.sh")
+            # timestamped copy stays in log/cmd as history; the outdir copy
+            # (no timestamp, overwritten each run) documents the current command
+            # next to the results it produced
+            plain_script = os.path.join(sample_outdir, f"fiberseq_motif_profile_{wildcards.sample_id}.sh")
             cmd = [
                 "python", params.script,
                 "-m", str(input.sites),
@@ -117,7 +127,8 @@ rule fiberseq_motif_profile:
                 f.write("set -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "fiberseq_motif_profile for {wildcards.sample_id} at {current_time} completed successfully"\n')
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during fiberseq_motif_profile for {wildcards.sample_id}: {e}\n")
             raise RuntimeError(f"Error occurred during fiberseq_motif_profile for {wildcards.sample_id}: {e}\n")

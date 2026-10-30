@@ -121,9 +121,11 @@ use rule pbmm2_align from pbmm2 as Fiberseq_pbmm2_align
 
 
 # ============================================================
-# Step 3: Extract BED + peaks + QC → results
+# Step 3: Extract BED + peaks + QC → common/4_elements
+#   (element BEDs' single authoritative location; fire.bed
+#   is bgzip+tabix compressed)
 # ============================================================
-extract_outdir = f"{outdir}/common/4_raw_results"
+extract_outdir = f"{outdir}/common/4_elements"
 
 fibertools_analysis_config = {
     "ROOT_DIR": ROOT_DIR,
@@ -157,8 +159,17 @@ use rule ft_extract_fire from fibertools_analysis as Fiberseq_ft_extract_fire
 # ============================================================
 # Step 4: Downstream interpretation (one module per analysis;
 #   node.py gates outputs per Params.*.enabled)
+#   indir = extract step's outdir (element BEDs' single
+#   authoritative location). Cross-module inputs always
+#   reference the producing module's config["outdir"], so a
+#   path is written exactly once and wiring follows the DAG.
 # ============================================================
-analysis_outdir = f"{outdir}/results"
+analysis_outdir = f"{outdir}/fiberseq_analysis"
+extract_config = fibertools_analysis_config
+elements_dir = extract_config["outdir"]
+# phased-BAM dir: defined once; hiphase writes into it (Step 5) and the
+# quant module reads per-hap element BEDs from it (Step 4)
+phased_dir = f"{outdir}/common/5_phased_bam"
 
 params = config.get("Params", {})
 
@@ -166,8 +177,8 @@ params = config.get("Params", {})
 fiberseq_annotate_config = {
     "ROOT_DIR": ROOT_DIR,
     "env": config.get("env", {}),
-    "indir": analysis_outdir,
-    "outdir": f"{analysis_outdir}/fiberseq_annotate",
+    "indir": elements_dir,
+    "outdir": f"{analysis_outdir}/annotate",
     "logdir": f"{logdir}/sample",
     "samples": samples,
     "Params": {
@@ -188,8 +199,8 @@ use rule fiberseq_annotate_run from fiberseq_annotate as Fiberseq_annotate_run
 fiberseq_motif_config = {
     "ROOT_DIR": ROOT_DIR,
     "env": config.get("env", {}),
-    "indir": analysis_outdir,
-    "outdir": f"{analysis_outdir}/fiberseq_motif",
+    "indir": elements_dir,
+    "outdir": f"{analysis_outdir}/motif",
     "logdir": f"{logdir}/sample",
     "samples": samples,
     "Params": {
@@ -211,8 +222,9 @@ use rule fiberseq_motif_profile from fiberseq_motif as Fiberseq_motif_profile
 fiberseq_footprint_config = {
     "ROOT_DIR": ROOT_DIR,
     "env": config.get("env", {}),
-    "indir": analysis_outdir,
-    "outdir": f"{analysis_outdir}/fiberseq_footprint",
+    "indir": elements_dir,
+    "motif_dir": fiberseq_motif_config["outdir"],
+    "outdir": f"{analysis_outdir}/footprint",
     "logdir": f"{logdir}/sample",
     "samples": samples,
     "Params": {
@@ -230,8 +242,8 @@ use rule fiberseq_footprint_run from fiberseq_footprint as Fiberseq_footprint_ru
 fiberseq_nucpos_config = {
     "ROOT_DIR": ROOT_DIR,
     "env": config.get("env", {}),
-    "indir": analysis_outdir,
-    "outdir": f"{analysis_outdir}/fiberseq_nucpos",
+    "indir": elements_dir,
+    "outdir": f"{analysis_outdir}/nucpos",
     "logdir": f"{logdir}/sample",
     "samples": samples,
     "Params": {
@@ -251,8 +263,9 @@ use rule fiberseq_nucpos_run from fiberseq_nucpos as Fiberseq_nucpos_run
 fiberseq_quant_config = {
     "ROOT_DIR": ROOT_DIR,
     "env": config.get("env", {}),
-    "indir": analysis_outdir,
-    "outdir": f"{analysis_outdir}/fiberseq_quant",
+    "indir": elements_dir,
+    "hap_dir": phased_dir,
+    "outdir": f"{analysis_outdir}/quant",
     "logdir": f"{logdir}/sample",
     "samples": samples,
     "Params": {
@@ -272,8 +285,10 @@ use rule fiberseq_quant_merge from fiberseq_quant as Fiberseq_quant_merge
 fiberseq_diff_config = {
     "ROOT_DIR": ROOT_DIR,
     "env": config.get("env", {}),
-    "indir": analysis_outdir,
-    "outdir": f"{analysis_outdir}/fiberseq_diff",
+    "indir": elements_dir,
+    "quant_dir": fiberseq_quant_config["outdir"],
+    "annot_dir": fiberseq_annotate_config["outdir"],
+    "outdir": f"{analysis_outdir}/diff",
     "logdir": f"{logdir}/sample",
     "samples": samples,
     "Params": {
@@ -291,8 +306,8 @@ use rule fiberseq_diff_run from fiberseq_diff as Fiberseq_diff_run
 fiberseq_coactuation_config = {
     "ROOT_DIR": ROOT_DIR,
     "env": config.get("env", {}),
-    "indir": analysis_outdir,
-    "outdir": f"{analysis_outdir}/fiberseq_coactuation",
+    "indir": elements_dir,
+    "outdir": f"{analysis_outdir}/coactuation",
     "logdir": f"{logdir}/sample",
     "samples": samples,
     "Params": {
@@ -310,8 +325,9 @@ use rule fiberseq_coactuation_run from fiberseq_coactuation as Fiberseq_coactuat
 fiberseq_haplotype_config = {
     "ROOT_DIR": ROOT_DIR,
     "env": config.get("env", {}),
-    "indir": analysis_outdir,
-    "outdir": f"{analysis_outdir}/fiberseq_haplotype",
+    "indir": elements_dir,
+    "quant_dir": fiberseq_quant_config["outdir"],
+    "outdir": f"{analysis_outdir}/haplotype",
     "logdir": f"{logdir}/sample",
     "samples": samples,
     "Params": {
@@ -329,8 +345,8 @@ use rule fiberseq_haplotype_diff from fiberseq_haplotype as Fiberseq_haplotype_d
 fiberseq_censat_config = {
     "ROOT_DIR": ROOT_DIR,
     "env": config.get("env", {}),
-    "indir": analysis_outdir,
-    "outdir": f"{analysis_outdir}/fiberseq_censat",
+    "indir": elements_dir,
+    "outdir": f"{analysis_outdir}/censat",
     "logdir": f"{logdir}/sample",
     "samples": samples,
     "Params": {
@@ -351,14 +367,15 @@ use rule fiberseq_censat_run from fiberseq_censat as Fiberseq_censat_run
 fiberseq_track_config = {
     "ROOT_DIR": ROOT_DIR,
     "env": config.get("env", {}),
-    "indir": analysis_outdir,
-    "outdir": f"{analysis_outdir}/fiberseq_track",
+    "indir": elements_dir,
+    "outdir": f"{analysis_outdir}/track",
     "logdir": f"{logdir}/sample",
     "samples": samples,
     "Params": {
         "fiberseq_track": params.get("track", {})
     },
     "genome": {
+        "fasta": fasta,
         "fai": genome_ref.get("fai"),
     },
     "resources": config.get("resources", {}),
@@ -429,12 +446,12 @@ hiphase_config = {
     "ROOT_DIR": ROOT_DIR,
     "env": config.get("env", {}),
     "indir": aligned_dir,
-    "outdir": f"{outdir}/common/5_phased_bam",
+    "outdir": phased_dir,
     "logdir": f"{logdir}/sample",
     "samples": samples,
     "bam_dir": aligned_dir,
     "input_bam_substring": "fiberseq.fire.sorted",
-    "vcf_dir": f"{variation_outdir}/germline_snv_indel",
+    "vcf_dir": deepvariant_config["outdir"],
     "input_vcf_substring": "",
     "output_substring": "",
     "Procedure": {
@@ -454,8 +471,8 @@ use rule hiphase_phase from hiphase as Fiberseq_hiphase_phase
 fibertools_hap_config = {
     "ROOT_DIR": ROOT_DIR,
     "env": config.get("env", {}),
-    "indir": hiphase_config["outdir"],
-    "outdir": f"{outdir}/common/4_raw_results",
+    "indir": phased_dir,
+    "outdir": phased_dir,
     "logdir": f"{logdir}/sample",
     "samples": samples,
     "bam_suffix": ".phased.bam",
@@ -486,7 +503,7 @@ use rule ft_extract_hap from fibertools_hap as Fiberseq_ft_extract_hap
 function_config = {
     "ROOT_DIR": ROOT_DIR,
     "env": config.get("env", {}),
-    "indir": f"{analysis_outdir}/fiberseq_diff",
+    "indir": fiberseq_diff_config["outdir"],
     "outdir": f"{outdir}/function",
     "logdir": f"{logdir}/sample",
     "samples": samples,

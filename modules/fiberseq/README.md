@@ -6,7 +6,7 @@ Cell Rep Methods 2024 [1]、Genome Res 2024 [2]、Nat Genet 2025 [3]。
 
 ## 子模块（每个 .smk 一个原子分析，独立可复用）
 
-| 子模块 | 规则 | 输出（`<outdir>/{sample_id|contrast}/`） |
+| 子模块 | 规则 | 输出（`fiberseq_analysis/<子模块>/{sample_id|contrast}/`） |
 |---|---|---|
 | `annotate/` | fiberseq_annotate_run | peaks_annotated.tsv / peaks_summary.tsv |
 | `motif/` | fiberseq_motif_scan, fiberseq_motif_profile | motif_sites.bed / motif_profile.tsv / 谱图 |
@@ -21,12 +21,16 @@ Cell Rep Methods 2024 [1]、Genome Res 2024 [2]、Nat Genet 2025 [3]。
 
 共享脚本在 `bin/`，共享库 `src/common/util/FiberlibUtil.py`。
 
-## 跨子模块输入约定（config 的 indir = results 根）
+## 跨子模块输入约定
 
-- 元素文件：`{indir}/{sample_id}/{sample_id}.{m6a,nuc,msp,cpg}.bed.gz`、`.fire.bed`、`.fire_peaks.bed`
-- motif 位点：`{indir}/fiberseq_motif/{sample_id}/{sample_id}.motif_sites.bed`
-- 定量矩阵：`{indir}/fiberseq_quant/matrix/`；hap 定量：`{indir}/fiberseq_quant/{sample_id}/`
-- peak 注释：`{indir}/fiberseq_annotate/{sample_id}/`（diff 用，annot_sample 可指定）
+- 元素文件（indir = `common/4_elements`，唯一权威路径）：
+  `{indir}/{sample_id}/{sample_id}.{m6a,nuc,msp,cpg}.bed.gz`、
+  `.fire.bed.gz`（bgzip+tabix）、`.fire_peaks.bed`
+- 分析产物根 = `fiberseq_analysis/`（子目录无 `fiberseq_` 前缀）：
+- motif 位点：`{analysis}/motif/{sample_id}/{sample_id}.motif_sites.bed`
+- 定量矩阵：`{analysis}/quant/matrix/`；hap 定量：`{analysis}/quant/{sample_id}/`
+- peak 注释：`{analysis}/annotate/{sample_id}/`（diff 用，annot_sample 可指定）
+- 命令回执统一写 `{logdir}/cmd/{sample_id|contrast}/`，不落在结果目录
 
 ## 环境
 

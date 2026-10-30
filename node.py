@@ -1250,9 +1250,9 @@ def runFiberseq(
 
     outfiles = []
     samples = []
-    res = f"{outdir}/results"
+    res = f"{outdir}/fiberseq_analysis"
     var = f"{outdir}/variation"
-    raw_results_dir = f"{outdir}/common/4_raw_results"
+    raw_results_dir = f"{outdir}/common/4_elements"
     default_ref = _resolve_genome_ref(datajson, samples_info_dict, "Fiberseq")
     genome = datajson["genome"]["default"]
     datajson["Params"]["sv"]["exp_specific"]["species"] = genome
@@ -1328,42 +1328,42 @@ def runFiberseq(
         outfiles.append(f"{raw_results_dir}/{sample_id}/{sample_id}.cpg.bed.gz")
         outfiles.append(f"{raw_results_dir}/{sample_id}/{sample_id}.fire_peaks.bed")
         outfiles.append(f"{raw_results_dir}/{sample_id}/{sample_id}.fire_fdr_table.tsv")
-        outfiles.append(f"{raw_results_dir}/{sample_id}/{sample_id}.fire.bed")
+        outfiles.append(f"{raw_results_dir}/{sample_id}/{sample_id}.fire.bed.gz")
         outfiles.append(f"{raw_results_dir}/{sample_id}/{sample_id}.qc.tsv")
 
         # Step 4: downstream (gated by Params.*.enabled)
         if enable_annotate:
-            outfiles.append(f"{res}/fiberseq_annotate/{sample_id}/{sample_id}.peaks_annotated.tsv")
-            outfiles.append(f"{res}/fiberseq_annotate/{sample_id}/{sample_id}.peaks_summary.tsv")
+            outfiles.append(f"{res}/annotate/{sample_id}/{sample_id}.peaks_annotated.tsv")
+            outfiles.append(f"{res}/annotate/{sample_id}/{sample_id}.peaks_summary.tsv")
         if want_motif:
-            outfiles.append(f"{res}/fiberseq_motif/{sample_id}/{sample_id}.motif_sites.bed")    
+            outfiles.append(f"{res}/motif/{sample_id}/{sample_id}.motif_sites.bed")    
         if enable_motif:
-            outfiles.append(f"{res}/fiberseq_motif/{sample_id}/{sample_id}.motif_profile.tsv")
-            outfiles.append(f"{res}/fiberseq_motif/{sample_id}/{sample_id}.motif_footprint_scores.tsv")
-            outfiles.append(f"{res}/fiberseq_motif/{sample_id}/{sample_id}.motif_profile.pdf")
+            outfiles.append(f"{res}/motif/{sample_id}/{sample_id}.motif_profile.tsv")
+            outfiles.append(f"{res}/motif/{sample_id}/{sample_id}.motif_footprint_scores.tsv")
+            outfiles.append(f"{res}/motif/{sample_id}/{sample_id}.motif_profile.pdf")
         if enable_footprint:
-            outfiles.append(f"{res}/fiberseq_footprint/{sample_id}/{sample_id}.footprint_categories.tsv")
-            outfiles.append(f"{res}/fiberseq_footprint/{sample_id}/{sample_id}.footprint_profiles.tsv")
-            outfiles.append(f"{res}/fiberseq_footprint/{sample_id}/{sample_id}.footprint_scores.tsv")
-            outfiles.append(f"{res}/fiberseq_footprint/{sample_id}/{sample_id}.footprint_profile.pdf")
+            outfiles.append(f"{res}/footprint/{sample_id}/{sample_id}.footprint_categories.tsv")
+            outfiles.append(f"{res}/footprint/{sample_id}/{sample_id}.footprint_profiles.tsv")
+            outfiles.append(f"{res}/footprint/{sample_id}/{sample_id}.footprint_scores.tsv")
+            outfiles.append(f"{res}/footprint/{sample_id}/{sample_id}.footprint_profile.pdf")
         if enable_nucpos:
-            outfiles.append(f"{res}/fiberseq_nucpos/{sample_id}/{sample_id}.nuc_offset_per_anchor.tsv")
-            outfiles.append(f"{res}/fiberseq_nucpos/{sample_id}/{sample_id}.nuc_offset_summary.tsv")
-            outfiles.append(f"{res}/fiberseq_nucpos/{sample_id}/{sample_id}.nucpos.pdf")
+            outfiles.append(f"{res}/nucpos/{sample_id}/{sample_id}.nuc_offset_per_anchor.tsv")
+            outfiles.append(f"{res}/nucpos/{sample_id}/{sample_id}.nuc_offset_summary.tsv")
+            outfiles.append(f"{res}/nucpos/{sample_id}/{sample_id}.nucpos.pdf")
         if enable_track:
-            outfiles.append(f"{res}/fiberseq_track/{sample_id}/{sample_id}.accessibility.bw")
-            outfiles.append(f"{res}/fiberseq_track/{sample_id}/{sample_id}.m6a_density.bw")
-            outfiles.append(f"{res}/fiberseq_track/{sample_id}/trackDb.txt")
+            outfiles.append(f"{res}/track/{sample_id}/{sample_id}.accessibility.bw")
+            outfiles.append(f"{res}/track/{sample_id}/{sample_id}.m6a_density.bw")
+            outfiles.append(f"{res}/track/{sample_id}/trackDb.txt")
         if want_quant:
-            outfiles.append(f"{res}/fiberseq_quant/{sample_id}/{sample_id}.region_quant.tsv")
+            outfiles.append(f"{res}/quant/{sample_id}/{sample_id}.region_quant.tsv")
         if enable_coactuation:
-            outfiles.append(f"{res}/fiberseq_coactuation/{sample_id}/{sample_id}.coactuation.tsv")
-            outfiles.append(f"{res}/fiberseq_coactuation/{sample_id}/{sample_id}.coactuation_summary.tsv")
+            outfiles.append(f"{res}/coactuation/{sample_id}/{sample_id}.coactuation.tsv")
+            outfiles.append(f"{res}/coactuation/{sample_id}/{sample_id}.coactuation_summary.tsv")
         if enable_censat:
-            outfiles.append(f"{res}/fiberseq_censat/{sample_id}/{sample_id}.censat_regions.tsv")
-            outfiles.append(f"{res}/fiberseq_censat/{sample_id}/{sample_id}.censat_class_summary.tsv")
-            outfiles.append(f"{res}/fiberseq_censat/{sample_id}/{sample_id}.censat_profile.tsv")
-            outfiles.append(f"{res}/fiberseq_censat/{sample_id}/{sample_id}.censat_profile.pdf")
+            outfiles.append(f"{res}/censat/{sample_id}/{sample_id}.censat_regions.tsv")
+            outfiles.append(f"{res}/censat/{sample_id}/{sample_id}.censat_class_summary.tsv")
+            outfiles.append(f"{res}/censat/{sample_id}/{sample_id}.censat_profile.tsv")
+            outfiles.append(f"{res}/censat/{sample_id}/{sample_id}.censat_profile.pdf")
 
         # Step 5: haplotype chain
         if enable_haplotype:
@@ -1375,16 +1375,17 @@ def runFiberseq(
             # hiphase module writes to {outdir}/common/5_phased_bam (see
             # subworkflow/Fiberseq.smk hiphase_config), NOT {var}/phased.
             outfiles.append(f"{outdir}/common/5_phased_bam/{sample_id}/{sample_id}.phased.bam")
+            phased_dir = f"{outdir}/common/5_phased_bam"
             for hap in ("hap1", "hap2"):
-                outfiles.append(f"{res}/{sample_id}/{sample_id}.{hap}.bam")
-                outfiles.append(f"{res}/{sample_id}/{sample_id}.{hap}.bam.bai")
-                outfiles.append(f"{res}/{sample_id}/{sample_id}.{hap}.m6a.bed.gz")
-                outfiles.append(f"{res}/{sample_id}/{sample_id}.{hap}.nuc.bed.gz")
-                outfiles.append(f"{res}/{sample_id}/{sample_id}.{hap}.msp.bed.gz")
-                outfiles.append(f"{res}/{sample_id}/{sample_id}.{hap}.cpg.bed.gz")
-                outfiles.append(f"{res}/fiberseq_quant/{sample_id}/{sample_id}.{hap}.region_quant.tsv")
-            outfiles.append(f"{res}/fiberseq_haplotype/{sample_id}/{sample_id}.haplotype_diff.tsv")
-            outfiles.append(f"{res}/fiberseq_haplotype/{sample_id}/{sample_id}.haplotype_summary.tsv")
+                outfiles.append(f"{phased_dir}/{sample_id}/{sample_id}.{hap}.bam")
+                outfiles.append(f"{phased_dir}/{sample_id}/{sample_id}.{hap}.bam.bai")
+                outfiles.append(f"{phased_dir}/{sample_id}/{sample_id}.{hap}.m6a.bed.gz")
+                outfiles.append(f"{phased_dir}/{sample_id}/{sample_id}.{hap}.nuc.bed.gz")
+                outfiles.append(f"{phased_dir}/{sample_id}/{sample_id}.{hap}.msp.bed.gz")
+                outfiles.append(f"{phased_dir}/{sample_id}/{sample_id}.{hap}.cpg.bed.gz")
+                outfiles.append(f"{res}/quant/{sample_id}/{sample_id}.{hap}.region_quant.tsv")
+            outfiles.append(f"{res}/haplotype/{sample_id}/{sample_id}.haplotype_diff.tsv")
+            outfiles.append(f"{res}/haplotype/{sample_id}/{sample_id}.haplotype_summary.tsv")
 
         # Step 6: eccDNA reconstruction (requires genome GTF) 
         if want_eccdna:
@@ -1470,7 +1471,7 @@ def runFiberseq(
     # Cross-sample outputs
     if enable_quant or enable_diff:
         for metric in ("percent_accessible", "nuc_occupancy", "m6a_per_fiber", "fire_frac"):
-            outfiles.append(f"{res}/fiberseq_quant/matrix/{metric}_matrix.tsv")
+            outfiles.append(f"{res}/quant/matrix/{metric}_matrix.tsv")
 
     if enable_diff:
         design_tsv = datajson.get("Params", {}).get("diff", {}).get("design_tsv")
@@ -1492,7 +1493,7 @@ def runFiberseq(
                     contrast_groups.setdefault(f[cidx], {}).setdefault(
                         f[gidx], []).append(f[sidx])
         for contrast, groups in sorted(contrast_groups.items()):
-            base = f"{res}/fiberseq_diff/{contrast}"
+            base = f"{res}/diff/{contrast}"
             outfiles.append(f"{base}/diff_{contrast}.tsv")
             outfiles.append(f"{base}/volcano_{contrast}.pdf")
             outfiles.append(f"{base}/class_summary_{contrast}.tsv")

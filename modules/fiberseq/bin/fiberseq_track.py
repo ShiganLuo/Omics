@@ -103,6 +103,9 @@ def to_bigwig(bedgraph: Path, chrom_sizes: Path, bigwig: Path) -> bool:
     if res.returncode != 0:
         logger.error(f"bedGraphToBigWig failed: {res.stderr.strip()}")
         return False
+    # bigWig conversion succeeded: the bedGraph was only an intermediate,
+    # drop it (tens of GB per sample uncompressed)
+    bedgraph.unlink(missing_ok=True)
     return True
 
 

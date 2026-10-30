@@ -4,8 +4,8 @@ from snakemake.logging import logger
 import os
 import time
 
-indir = config.get("indir", "results")
-outdir = config.get("outdir", "results/fiberseq_coactuation")
+indir = config.get("indir", "common/4_elements")
+outdir = config.get("outdir", "fiberseq_analysis/coactuation")
 logdir = config.get("logdir", "log")
 samples = config.get("samples", [])
 ROOT_DIR = config.get("ROOT_DIR", ".")
@@ -15,7 +15,7 @@ rule fiberseq_coactuation_run:
     """Same-fiber co-actuation of region pairs (Fisher + actual vs expected)."""
     input:
         peaks = indir + "/{sample_id}/{sample_id}.fire_peaks.bed",
-        fire = indir + "/{sample_id}/{sample_id}.fire.bed",
+        fire = indir + "/{sample_id}/{sample_id}.fire.bed.gz",
         msp = indir + "/{sample_id}/{sample_id}.msp.bed.gz",
         nuc = indir + "/{sample_id}/{sample_id}.nuc.bed.gz",
     output:
@@ -45,7 +45,8 @@ rule fiberseq_coactuation_run:
             rule_logger.info(f"Start co-actuation for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.pairs))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(sample_outdir, f"fiberseq_coactuation_run_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"fiberseq_coactuation_run_{wildcards.sample_id}_{current_time}.sh")
             cmd = [
                 "python", params.script,
                 "-p", str(input.peaks),

@@ -43,14 +43,10 @@ rule mimseq_prepare_sample_data:
                     design = sample_condition_dict[sample_id]
                     f.write(f"{os.path.join(indir, sample_id, f'{sample_id}.single.fq.gz')}\t{design}\n")
 
-            with open(log_path, "a") as f:
-                f.write(f"Created sample_data.tsv with {len(samples)} samples\n")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"mimseq_prepare_sample_data failed: {e}\n")
             raise
 
-# Include sub-modules
+        # Include sub-modules
 include: "tRNAtools/tRNAtools.smk"
 include: "align/align.smk"
 include: "clusters/clusters.smk"

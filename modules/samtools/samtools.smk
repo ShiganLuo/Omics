@@ -21,7 +21,7 @@ rule bam_flagstat:
         samtools = config.get("Procedure", {}).get("samtools") or "samtools"
     run:
         log_path = str(log)
-open(log_path, 'w').close()
+        open(log_path, 'w').close()
 rule_logger = setup_logger("bam_flagstat", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -31,15 +31,14 @@ rule_logger = setup_logger("bam_flagstat", log_file=log_path)
             script = os.path.join(RECEIPT_DIR, f"bam_flagstat_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"bam_flagstat.sh")
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(f"{params.samtools} flagstat {input.bam} > {output.flagstat}\n")
+                f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"Error occurred during samtools flagstat for sample {wildcards.sample_id}: {e}\n")
             logger.error(f"Error occurred during samtools flagstat for sample {wildcards.sample_id}: {e}")
-            raise e
+            raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
 
 rule samtools_result:
     input:

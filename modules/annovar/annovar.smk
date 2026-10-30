@@ -20,7 +20,7 @@ rule TEcoutCPM:
         sif("annovar.yaml")
     run:
         log_path = str(log.log)
-open(log_path, 'w').close()
+        open(log_path, 'w').close()
 logger = setup_logger(logger_name="TEcoutCPM_run", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -29,7 +29,9 @@ logger = setup_logger(logger_name="TEcoutCPM_run", log_file=log_path)
             plain_script = os.path.join(outdir, f"TEcoutCPM.sh")
             cmd = [params.Rscript, params.script, "-i", input.infile, "-o", output.outfile]
             with open(script, 'w') as f:
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(' '.join(cmd) + '\n')
+                f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
@@ -67,12 +69,12 @@ rule commonExpression:
                 "--threshold", "5"
             ]
             with open(script, "w") as f:
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
+                f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"commonExpression failed with error: {e}\n")
             raise f"commonExpression failed with error: {e}"
         finally:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -108,12 +110,12 @@ rule getBed:
                 "--TEGtf", params.TE_gtf
             ]
             with open(script, "w") as f:
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
+                f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"getBed failed with error: {e}\n")
             raise f"getBed failed with error: {e}"
         finally:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -146,12 +148,12 @@ rule vcfIntersectBed:
                 "-wa", "-wb"
             ]
             with open(script, "w") as f:
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
+                f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"vcfIntersectBed failed for sample {wildcards.sample_id} with error: {e}\n")
             raise f"vcfIntersectBed failed for sample {wildcards.sample_id} with error: {e}"
         finally:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -174,7 +176,7 @@ rule annovar_convert:
         sif("annovar.yaml")
     run:
         log_path = str(log.log)
-open(log_path, 'w').close()
+        open(log_path, 'w').close()
 logger = setup_logger(logger_name="annovar_convert_run", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -183,7 +185,9 @@ logger = setup_logger(logger_name="annovar_convert_run", log_file=log_path)
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/annovar_convert.sh")
             cmd = [params.perl, params.convert, "-format", "vcf4", "-withfreq", input.vcf, ">", output.avinput, "2>", log_path]
             with open(script, 'w') as f:
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(' '.join(cmd) + '\n')
+                f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
@@ -214,7 +218,7 @@ rule annovar_table:
         sif("annovar.yaml")
     run:
         log_path = str(log.log)
-open(log_path, 'w').close()
+        open(log_path, 'w').close()
 logger = setup_logger(logger_name="annovar_table_run", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -223,7 +227,9 @@ logger = setup_logger(logger_name="annovar_table_run", log_file=log_path)
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/annovar_table.sh")
             cmd = [params.perl, params.table, input.avinput, params.db, "-buildver", params.buildver, "-out", params.out, "-remove", "-protocol", "refGene", "-operation", "g", "-nastring", ".", "-csvout"]
             with open(script, 'w') as f:
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(' '.join(cmd) + '\n')
+                f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:

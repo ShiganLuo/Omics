@@ -31,19 +31,18 @@ rule UmiTools_extract_single:
             script = os.path.join(RECEIPT_DIR, f"UmiTools_extract_single_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"UmiTools_extract_single.sh")
             with open(script, "w") as f:
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(f"{params.umi_tools} extract \\\n")
                 f.write(f"    --extract-method={params.extract_method} \\\n")
                 f.write(f"    --bc-pattern={params.bc_pattern} \\\n")
                 f.write(f"    -I {input.fastq} \\\n")
                 f.write(f"    -S {output.fastq} \\\n")
-                f.write(f"    > {log_path} 2>&1\n")
+                f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
             rule_logger.info(f"UmiTools_extract_single for sample {wildcards.sample_id} completed")
-        except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"UmiTools_extract_single failed for sample {wildcards.sample_id}: {e}\n")
-            raise e
+        rule_logger.error(f"Error occurred: {e}")
+        raise RuntimeError(f"Error occurred: {e}, you can check the log file {log_path} for more details.")
 
 rule UmiTools_extract_paired:
     input:
@@ -76,6 +75,7 @@ rule UmiTools_extract_paired:
             script = os.path.join(RECEIPT_DIR, f"UmiTools_extract_paired_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"UmiTools_extract_paired.sh")
             with open(script, "w") as f:
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(f"{params.umi_tools} extract \\\n")
                 f.write(f"    --extract-method={params.extract_method} \\\n")
                 f.write(f"    --bc-pattern={params.bc_pattern} \\\n")
@@ -83,11 +83,9 @@ rule UmiTools_extract_paired:
                 f.write(f"    --bc-pattern2={params.bc_pattern2} \\\n")
                 f.write(f"    --read2-in={input.fastq2} \\\n")
                 f.write(f"    --read2-out={output.fastq2} \\\n")
-                f.write(f"    > {log_path} 2>&1\n")
+                f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
             rule_logger.info(f"UmiTools_extract_paired for sample {wildcards.sample_id} completed")
-        except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"UmiTools_extract_paired failed for sample {wildcards.sample_id}: {e}\n")
-            raise e
+        rule_logger.error(f"Error occurred: {e}")
+        raise RuntimeError(f"Error occurred: {e}, you can check the log file {log_path} for more details.")

@@ -52,11 +52,12 @@ rule karrseq_chimeric_to_pairs:
         ]
         cmd_cleanup = ["rm", params.tmp1, params.tmp2]
         with open(script_file, "w") as f:
-            f.write("#!/bin/bash\n")
+            f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
             f.write(" ".join(cmd_view) + "\n")
             f.write(" ".join(cmd_chimeric) + "\n")
             f.write(" ".join(cmd_merge) + "\n")
             f.write(" ".join(cmd_cleanup) + "\n")
+            f.write(f'echo "script completed successfully"\n')
         shell("bash {plain_script} > {log} 2>&1")
 
 rule karrseq_remove_duplicates:
@@ -99,12 +100,13 @@ rule karrseq_remove_duplicates:
         ]
         cmd_index = ["pairix", output.pairs_gz]
         with open(script_file, "w") as f:
-            f.write("#!/bin/bash\n")
+            f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
             f.write(" ".join(cmd_dedup) + "\n")
             f.write(" ".join(cmd_bed) + "\n")
             f.write(" ".join(cmd_pairs) + "\n")
             f.write("sleep 120\n")
             f.write(" ".join(cmd_index) + "\n")
+            f.write(f'echo "script completed successfully"\n')
         shell("bash {plain_script} > {log} 2>&1")
 
 rule karrseq_ligation:
@@ -137,10 +139,11 @@ rule karrseq_ligation:
         cmd_bgzip = ["|", "bgzip", "-c", ">", output.pairs_gz]
         cmd_index = ["pairix", output.pairs_gz]
         with open(script_file, "w") as f:
-            f.write("#!/bin/bash\n")
+            f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
             f.write(" ".join(cmd_awk1 + cmd_awk2 + cmd_sort + cmd_bgzip) + "\n")
             f.write("sleep 60\n")
             f.write(" ".join(cmd_index) + "\n")
+            f.write(f'echo "script completed successfully"\n')
         shell("bash {plain_script} > {log} 2>&1")
 
 rule karrseq_result:

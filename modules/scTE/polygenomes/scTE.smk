@@ -69,12 +69,11 @@ rule scTE_build_index:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(str(item) for item in cmd) + "\n")
                 f.write(f'echo "scTE index built at {output.index} successfully"\n')
+                f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(command_script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
-        except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"scTE_build_index failed: {e}\n")
-            raise RuntimeError(f"scTE_build_index failed: {e}\n")
+        rule_logger.error(f"Error occurred: {e}")
+        raise RuntimeError(f"Error occurred: {e}, you can check the log file {log_path} for more details.")
 
 def get_input_for_scTE_quantify(wildcards):
     """Get input files for scTE_quantify rule."""
@@ -137,7 +136,5 @@ rule_logger = setup_logger("scTE_quantify", log_file=log_path)
                 f.write(f'echo "scTE quantification for sample {wildcards.sample_id} completed successfully"\n')
             shutil.copyfile(command_script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
-        except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"scTE_quantify failed: {e}\n")
-            raise RuntimeError(f"scTE_quantify failed: {e}\n")
+        rule_logger.error(f"Error occurred: {e}")
+        raise RuntimeError(f"Error occurred: {e}, you can check the log file {log_path} for more details.")

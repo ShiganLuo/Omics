@@ -31,14 +31,18 @@ rule somatic_spectrum:
         plain_script = f"{outdir}/somatic_spectrum.sh"
             experiment_vcf_map_file = os.path.join(outdir, "experiment_vcf_map.tsv")
             with open(experiment_vcf_map_file, "w") as f:
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write("experiment_sample_id\tvcf\n")
                 for experiment_id, vcf_file in experiment_somatic_vcf_dict.items():
                     f.write(f"{experiment_id}\t{vcf_file}\n")
+                f.write(f'echo "script completed successfully"\n')
             experiment_group_map_file = os.path.join(outdir, "experiment_group_map.tsv")
             with open(experiment_group_map_file, "w") as f:
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write("experiment_sample_id\tgroup\n")
                 for experiment_id, group_id in experiment_group_dict.items():
                     f.write(f"{experiment_id}\t{group_id}\n")
+                f.write(f'echo "script completed successfully"\n')
             fasta = config.get('genome', {}).get('fasta')
             if not os.path.exists(fasta):
                 raise ValueError(f"Reference fasta file not found: {fasta}")
@@ -49,8 +53,9 @@ rule somatic_spectrum:
                     "--output-prefix", params.outprefix
                     ]
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
+                f.write(f'echo "script completed successfully"\n')
             shell("bash {plain_script} > {log} 2>&1")
         except Exception as e:
             with open(log) as f:

@@ -95,9 +95,9 @@ rule scanpy_qc:
             rule_logger.error(f"Error occurred during scanpy QC for sample {wildcards.sample_id}: {e}")
             raise RuntimeError(f"Error occurred during scanpy QC for sample {wildcards.sample_id}: {e}")
 
-# ---------------------------------------------------------------------------
-# Merge by tissue
-# ---------------------------------------------------------------------------
+        # ---------------------------------------------------------------------------
+        # Merge by tissue
+        # ---------------------------------------------------------------------------
 def get_tissue_qc_files(wildcards):
     """Get QC'd h5ad paths for all samples in a tissue group."""
     sample_ids = tissue_samples[wildcards.tissue]
@@ -399,12 +399,12 @@ rule scanpy_differential_expression:
             rule_logger.error(f"Error occurred during scanpy differential expression for tissue {wildcards.tissue}: {e}")
             raise RuntimeError(f"Error occurred during scanpy differential expression for tissue {wildcards.tissue}: {e}")
 
-# ---------------------------------------------------------------------------
-# Pseudo-bulk DEG (PyDESeq2) — modules/scanpy/bin/pseudobulk.py
-#   aggregates per-tissue h5ad into pseudo-bulk counts, runs PyDESeq2 per
-#   Params.scanpy.pseudobulk.compare entry, plots volcano/heatmap/GO.
-#   Enabled per counter via Params.scanpy.<counter>.pseudobulk.{enabled,compare,...}
-# ---------------------------------------------------------------------------
+        # ---------------------------------------------------------------------------
+        # Pseudo-bulk DEG (PyDESeq2) — modules/scanpy/bin/pseudobulk.py
+        #   aggregates per-tissue h5ad into pseudo-bulk counts, runs PyDESeq2 per
+        #   Params.scanpy.pseudobulk.compare entry, plots volcano/heatmap/GO.
+        #   Enabled per counter via Params.scanpy.<counter>.pseudobulk.{enabled,compare,...}
+        # ---------------------------------------------------------------------------
 rule scanpy_pseudobulk:
     """Pseudo-bulk differential expression via PyDESeq2 on merged tissue h5ad."""
     input:

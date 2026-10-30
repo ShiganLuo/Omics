@@ -78,6 +78,6 @@ if analysis.get("gwas",False):
             script = os.path.join(RECEIPT_DIR, f"plink2_population_gwas_{time.strftime('%Y%m%d_%H%M%S')}.sh")
             plain_script=os.path.join(os.path.dirname(str(output.done)), "plink2_population_gwas.sh")
             with open(str(log),"w") as h: h.write("")
-            with open(script,"w") as h: h.write("#!/usr/bin/env bash\nset -euo pipefail\n"+" ".join(str(x) for x in cmd)+"\ntouch "+str(output.done)+"\n")
+            with open(script,"w") as h: h.write("#!/usr/bin/env bash\nset -euo pipefail\n"+" ".join(str(x) for x in cmd)+"\ntouch "+str(output.done)+"\necho \"plink2 completed successfully\"\n")
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log} 2>&1")

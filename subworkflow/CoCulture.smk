@@ -4,8 +4,11 @@ ROOT_DIR = config.get("ROOT_DIR", ".")
 indir = config.get("indir","data/fastq")
 outdir = config.get("outdir","output")
 logdir = config.get("logdir","logs")
-paired_samples = config.get("paired_samples", [])
-single_samples = config.get("single_samples", [])
+_wf = config.get("Params", {}).get("workflow", {})
+paired_samples = _wf.get("paired_samples") or config.get("paired_samples", [])
+single_samples = _wf.get("single_samples") or config.get("single_samples", [])
+genome_paired_samples = _wf.get("genome_paired_samples") or config.get("genome_paired_samples", {})
+genome_single_samples = _wf.get("genome_single_samples") or config.get("genome_single_samples", {})
 genome_pairs = config.get("genome_pairs", [])
 genome = config.get("genome", {})
 outfiles = config.get("outfiles", [])
@@ -39,10 +42,14 @@ hisat2_config = {
         "env": config.get("env", {}),
         "paired_samples": paired_samples,
         "single_samples": single_samples,
+        "genome_paired_samples": genome_paired_samples,
+        "genome_single_samples": genome_single_samples,
         "Procedure": {
             "hisat2": config.get('Procedure',{}).get('hisat2')
         },
-        "genome": config.get("genome", {})
+        # polygenomes modules resolve refs via genome.references.<genome>.fasta
+        # while CoCulture's config keeps them flat (genome.<genome>.fasta)
+        "genome": {"references": config.get("genome", {})}
     }
 
 module hisat2:

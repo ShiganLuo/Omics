@@ -119,6 +119,35 @@ elif aligner == "cellranger":
             config: cellranger_config
         logger.debug(f"Using Cell Ranger aligner for scRNA-seq workflow. Cell Ranger config: {cellranger_config}")
         use rule * from cellranger as scRNAseq_*
+        if "scTE" in counters:
+            logger.info("Using scTE counter for scRNA-seq workflow (cellranger/fastq path)")
+            scTE_config = {
+                "ROOT_DIR": ROOT_DIR,
+                "OUTDIR_ROOT": outdir,
+                "env": config.get("env", {}),
+                "resources": config.get("resources", {}),
+                "input_mode": "bam",
+                "indir": raw_bam_outdir,
+                "outdir": h5ad_outdir,
+                "logdir": f"{logdir}/sample",
+                "logdir_index": f"{logdir}/group",
+                "Params": {
+                    "scTE": config.get("Params", {}).get("scTE", {}),
+                },
+                "genome": {
+                    "scTE_index": config.get("genome", {}).get("references", {}).get(genome, {}).get("scTE_index"),
+                    "gtf": config.get("genome", {}).get("references", {}).get(genome, {}).get("gtf"),
+                    "te_bed": config.get("genome", {}).get("references", {}).get(genome, {}).get("te_bed")
+                },
+                "Procedure": {
+                    "scTE": config.get("Procedure", {}).get("scTE") or "scTE"
+                }
+            }
+            module scTE:
+                snakefile: "../modules/scTE/scTE.smk"
+                config: scTE_config
+            logger.debug(f"Using scTE counter for scRNA-seq workflow. scTE config: {scTE_config}")
+            use rule * from scTE as scRNAseq_*
     elif input_mode == "cellranger_dir":
         logger.info("Input mode is set to 'cellranger_dir'. Skipping Cell Ranger aligner and using provided Cell Ranger directories.")
         cellranger_config = {

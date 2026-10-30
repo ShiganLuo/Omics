@@ -126,7 +126,7 @@ rule bowtie2_align_paired:
         sif("bowtie2.yaml")
     run:
         log_path = str(log)
-            open(log_path, 'w').close()
+        open(log_path, 'w').close()
         try:
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
             sample_outdir = os.path.dirname(str(output.bam))

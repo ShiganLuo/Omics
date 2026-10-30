@@ -75,6 +75,9 @@ logger.info(f"fastqc_trimmed_config: {fastqc_trimmed_config}")
 use rule fastqc from fastqc_trimmed as Mutation_fastqc_trimmed
 
 bwa_mem2_confg = {
+    "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
+    "env": config.get("env", {}),
     "indir": cutadapt_config["outdir"],
     "outdir":  f"{outdir}/bam/1_sorted_bam",
     "logdir": logdir,
@@ -160,7 +163,7 @@ gatk_somatic_config = {
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "indir": gatk_prepare_config["outdir"],
-    "outdir": f"{outdir}/variation/somatic_snv_indel",
+    "outdir": f"{outdir}/mutation/gatk/somatic",
     "logdir": logdir,
     "Procedure": {
         "gatk": config.get("Procedure", {}).get("gatk"),
@@ -180,7 +183,7 @@ gatk_germline_config = {
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "indir": gatk_prepare_config["outdir"],
-    "outdir": f"{outdir}/variation/germline_snv_indel",
+    "outdir": f"{outdir}/mutation/gatk/germline",
     "logdir": logdir,
     "Procedure": {
         "gatk": config.get("Procedure", {}).get("gatk"),
@@ -201,9 +204,11 @@ if config.get("Params", {}).get("somatic_spectrum", {}).get("sample_somatic_vcf_
     logger.info(f"sample_somatic_vcf_dict and sample_group_dict provided for somatic_spectrum. Will run somatic_spectrum module.")
     somatic_spectrum_config = {
         "indir": gatk_somatic_config["outdir"],
-        "outdir": f"{outdir}/results/spectrum",
+        "outdir": f"{outdir}/mutation/spectrum",
         "logdir": logdir,
         "ROOT_DIR":ROOT_DIR,
+        "OUTDIR_ROOT":outdir,
+        "env": config.get("env", {}),
         "sample_somatic_vcf_dict": config.get("Params", {}).get("somatic_spectrum", {}).get("sample_somatic_vcf_dict", {}),
         "sample_group_dict": config.get("Params", {}).get("somatic_spectrum", {}).get("sample_group_dict", {}),
         "genome": {
@@ -224,7 +229,8 @@ else:
 skip_fragment_size = config.get("Params", {}).get("skip_fragment_size", False)
 if not skip_fragment_size:
     fragment_size_config = {
-        "indir": gatk_prepare_config["outdir"],
+        "bam_suffix": ".sorted_markdup",
+    "indir": gatk_prepare_config["outdir"],
         "outdir": f"{outdir}/results/fragment_size",
         "logdir": logdir,
         "ROOT_DIR": ROOT_DIR,
@@ -251,8 +257,9 @@ else:
 skip_sv = config.get("Params", {}).get("skip_sv", False)
 if not skip_sv:
     manta_config = {
-        "indir": gatk_prepare_config["outdir"],
-        "outdir": f"{outdir}/variation/somatic_sv",
+        "bam_suffix": ".sorted_markdup",
+    "indir": gatk_prepare_config["outdir"],
+        "outdir": f"{outdir}/mutation/sv/manta",
         "logdir": logdir,
         "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
@@ -285,8 +292,9 @@ skip_cnv = config.get("Params", {}).get("skip_cnv", False)
 if not skip_cnv:
     control_samples = config.get("control_samples", [])
     cnvkit_config = {
-        "indir": gatk_prepare_config["outdir"],
-        "outdir": f"{outdir}/variation/germline_cnv",
+        "bam_suffix": ".sorted_markdup",
+    "indir": gatk_prepare_config["outdir"],
+        "outdir": f"{outdir}/mutation/cnv/cnvkit",
         "logdir": logdir,
         "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,

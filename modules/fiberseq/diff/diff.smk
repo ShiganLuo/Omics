@@ -29,7 +29,7 @@ rule fiberseq_diff_run:
         diff = outdir + "/{contrast}/diff_{contrast}.tsv",
         volcano = outdir + "/{contrast}/volcano_{contrast}.pdf",
         class_summary = outdir + "/{contrast}/class_summary_{contrast}.tsv",
-        gene_table = outdir + "/{contrast}/{contrast}.TEcount_Gene.name.tsv",
+        gene_table = outdir + "/{contrast}/TEcount/{contrast}.TEcount_Gene.name.tsv",
     log:
         logdir + "/group/fiberseq_diff_run_{contrast}.log"
     threads: 4

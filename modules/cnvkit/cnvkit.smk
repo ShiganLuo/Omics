@@ -7,14 +7,15 @@ import os
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 indir = config.get("indir", "input")
+bam_suffix = config.get("bam_suffix", "")
 samples = config.get("samples", [])
 control_samples = config.get("control_samples", [])
 ROOT_DIR = config.get("ROOT_DIR", ".")
 
 def get_cnvkit_bams(wildcards):
     """Get BAM files for CNVkit batch analysis."""
-    treat_bams = [f"{indir}/{sid}/{sid}.bam" for sid in samples]
-    control_bams = [f"{indir}/{sid}/{sid}.bam" for sid in control_samples] if control_samples else []
+    treat_bams = [f"{indir}/{sid}/{sid}{bam_suffix}.bam" for sid in samples]
+    control_bams = [f"{indir}/{sid}/{sid}{bam_suffix}.bam" for sid in control_samples] if control_samples else []
     return {"treat": treat_bams, "control": control_bams}
 
 rule cnvkit_reference:

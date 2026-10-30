@@ -23,7 +23,10 @@ def get_input_for_fiberseq_annotate_run(wildcards):
     if not repeat_bed or not os.path.exists(repeat_bed):
         logger.warning(f"Repeat BED file is not specified or does not exist: {repeat_bed}. Repeat overlap will be skipped.")
         repeat_bed = None
-    return {"peaks": peaks, "gtf": gtf, "repeat_bed": repeat_bed}
+    out = {"peaks": peaks, "gtf": gtf}
+    if repeat_bed:
+        out["repeat_bed"] = repeat_bed
+    return out
 
 rule fiberseq_annotate_run:
     """Annotate FIRE peaks with gene context and repeat overlap."""

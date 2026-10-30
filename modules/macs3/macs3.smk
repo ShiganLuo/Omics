@@ -38,6 +38,7 @@ rule macs3_callpeak:
         unpack(get_macs3_input)
     output:
         narrow_peak = outdir + "/{sample_id}/{sample_id}_peaks.narrowPeak",
+        summits = outdir + "/{sample_id}/{sample_id}_summits.bed",
         narrow_xls = outdir + "/{sample_id}/{sample_id}_peaks.xls",
         narrow_cutoff = outdir + "/{sample_id}/{sample_id}_cutoff_analysis.txt",
         broad_peak = outdir + "/{sample_id}/{sample_id}_broad_peaks.broadPeak",
@@ -150,7 +151,7 @@ rule macs3_cutoff_plot:
             shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             logger.error(f"Error during cutoff plot: {e}")
-            raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
+            raise RuntimeError(f"Error during macs3 cutoff plot: {e}, you can check the log file {log_path} for more details.")
 
 rule macs3_result:
     """
@@ -158,6 +159,7 @@ rule macs3_result:
     """
     input:
         narrow_peak = outdir + "/{sample_id}/{sample_id}_peaks.narrowPeak",
+        summits = outdir + "/{sample_id}/{sample_id}_summits.bed",
         narrow_xls = outdir + "/{sample_id}/{sample_id}_peaks.xls",
         narrow_cutoff = outdir + "/{sample_id}/{sample_id}_cutoff_analysis.txt",
         broad_peak = outdir + "/{sample_id}/{sample_id}_broad_peaks.broadPeak",

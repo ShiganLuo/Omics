@@ -693,7 +693,7 @@ def execute_workflows(args: argparse.Namespace, root_dir: str, logger: logging.L
         import pandas as pd
         import tempfile
         df = pd.read_csv(meta_path, sep="\t")
-        path_cols = [c for c in df.columns if c.startswith("fastq_") or c in ("bam", "pbi")]
+        path_cols = [c for c in df.columns if c.startswith("fastq_") or c in ("bam", "pbi", "ms_file")]
         changed = False
         for col in path_cols:
             for i, val in df[col].items():

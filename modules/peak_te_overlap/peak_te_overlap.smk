@@ -147,6 +147,12 @@ rule peak_te_overlap_fig:
     output:
         chart = outdir + "/te_subfamily_overlap_combined.png",
         combined_tsv = outdir + "/te_subfamily_overlap_combined.tsv",
+        # per-IP:input enrichment figures written by the chart script
+        # (default mode); empty when combine=True or no map
+        pair_charts = ([] if (config.get("Params", {}).get("peak_te_overlap", {}).get("combine", False)
+                             or not config.get("sample_ip_input_map"))
+                       else [outdir + f"/{ip}_vs_{inp}_enrichment.png"
+                             for ip, inp in config.get("sample_ip_input_map", {}).items()]),
         done = touch(outdir + "/.peak_te_overlap_fig.done"),
     log:
         logdir + "/../group/peak_te_overlap/peak_te_overlap.log"

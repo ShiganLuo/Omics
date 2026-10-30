@@ -14,7 +14,7 @@ species = config.get("Params", {}).get("function", {}).get("species", "mouse")
 
 rule function_go_kegg:
     input:
-        deseq2_result = indir + "/{contrast}/{contrast}.TEcount_Gene.name.tsv",
+        deseq2_result = indir + "/{contrast}/TEcount/{contrast}.TEcount_Gene.name.tsv",
     output:
         func_go_plot = outdir + "/{contrast}/go_back_to_back.png",
         func_kegg_plot = outdir + "/{contrast}/kegg_back_to_back.png",

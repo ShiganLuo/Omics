@@ -3,13 +3,14 @@ include: "../common/common.smk"
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 indir = config.get("indir", "input")
+bam_suffix = config.get("bam_suffix", "")
 samples = config.get("samples", [])
 ROOT_DIR = config.get("ROOT_DIR", ".")
 
 rule samtools_stats:
     """Get BAM statistics including fragment size distribution."""
     input:
-        bam = indir + "/{sample_id}/{sample_id}.bam"
+        bam = indir + "/{sample_id}/{sample_id}" + bam_suffix + ".bam"
     output:
         stats = outdir + "/stats/{sample_id}/{sample_id}_stats.txt"
     log:

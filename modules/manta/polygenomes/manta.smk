@@ -25,7 +25,7 @@ rule manta_config:
     run:
         log_path = str(log)
         open(log_path, 'w').close()
-logger = setup_logger(logger_name="manta_config", log_file=log_path)
+        logger = setup_logger(logger_name="manta_config", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start manta config for sample {wildcards.sample_id} genome {wildcards.genome} at {current_time}")
@@ -70,7 +70,7 @@ rule manta_run:
     run:
         log_path = str(log)
         open(log_path, 'w').close()
-logger = setup_logger(logger_name="manta_run", log_file=log_path)
+        logger = setup_logger(logger_name="manta_run", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start manta run for sample {wildcards.sample_id} genome {wildcards.genome} at {current_time}")

@@ -53,8 +53,7 @@ rule msstats:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start MSstats input preparation at {current_time}")
             os.makedirs(outdir, exist_ok=True)
-            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
-            script = os.path.join(logdir, "cmd", "group", f"msstats_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"msstats_{current_time}.sh")
             plain_script = os.path.join(outdir, f"msstats.sh")
             if params.method == "tmt":
                 # Isobaric consensusXML -> MSstats (MSstatsTMT) input CSV.

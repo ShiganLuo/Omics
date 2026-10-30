@@ -68,8 +68,7 @@ rule peak_te_overlap:
             if input.input_bam:
                 cmd += ["--input-bam", input.input_bam]
 
-            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
-            script = os.path.join(logdir, "cmd", "group", f"peak_te_overlap_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"peak_te_overlap_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"peak_te_overlap.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
@@ -124,8 +123,7 @@ rule peak_centric_overlap:
                 "--sample-id", wildcards.sample_id,
             ]
 
-            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
-            script = os.path.join(logdir, "cmd", "group", f"peak_centric_overlap_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"peak_centric_overlap_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"peak_centric_overlap.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
@@ -196,8 +194,7 @@ rule peak_te_overlap_fig:
                 pairs = ";".join(f"{ip}:{inp}" for ip, inp in params.sample_ip_input_map.items())
                 cmd += ["--ip-input-pairs", pairs]
 
-            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
-            script_path = os.path.join(logdir, "cmd", "group", f"peak_te_overlap_chart_{current_time}.sh")
+            script_path = os.path.join(RECEIPT_DIR, f"peak_te_overlap_chart_{current_time}.sh")
             plain_script = os.path.join(chart_dir, f"peak_te_overlap_chart.sh")
             with open(script_path, "w") as f:
                 f.write("#!/bin/bash\n")

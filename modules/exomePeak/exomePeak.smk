@@ -54,8 +54,7 @@ rule diff_exomePeak:
             rule_logger.info(f"Start diff_exomePeak at {current_time}")
             sample_outdir = outdir
             os.makedirs(sample_outdir, exist_ok=True)
-            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
-            script = os.path.join(logdir, "cmd", "group", f"diff_exomePeak_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"diff_exomePeak_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"diff_exomePeak.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
@@ -140,8 +139,7 @@ rule call_exomePeak:
             rule_logger.info(f"Start call_exomePeak at {current_time}")
             sample_outdir = outdir
             os.makedirs(sample_outdir, exist_ok=True)
-            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
-            script = os.path.join(logdir, "cmd", "group", f"call_exomePeak_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"call_exomePeak_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"call_exomePeak.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")

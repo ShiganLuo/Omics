@@ -32,8 +32,7 @@ rule TEcount:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start TEcount for sample {wildcards.sample_id} at {current_time}")
-            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
-            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"TEcount_{wildcards.sample_id}_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"TEcount_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(params.outdir, f"TEcount_{wildcards.sample_id}.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
@@ -77,8 +76,7 @@ rule combine_TEcount:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start combine_TEcount at {current_time}")
-            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
-            script = os.path.join(logdir, "cmd", "group", f"combine_TEcount_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"combine_TEcount_{current_time}.sh")
             plain_script = os.path.join(params.indir, f"combine_TEcount.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
@@ -115,8 +113,7 @@ rule TElocal:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start TElocal for sample {wildcards.sample_id} at {current_time}")
             outdir_local = os.path.dirname(str(output.project))
-            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
-            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"TElocal_{wildcards.sample_id}_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"TElocal_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(outdir_local, f"TElocal_{wildcards.sample_id}.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
@@ -162,8 +159,7 @@ rule combine_TElocal:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start combine_TElocal at {current_time}")
-            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
-            script = os.path.join(logdir, "cmd", "group", f"combine_TElocal_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"combine_TElocal_{current_time}.sh")
             plain_script = os.path.join(params.indir, f"combine_TElocal.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")

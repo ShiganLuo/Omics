@@ -17,6 +17,7 @@ rule all:
 
 raw2mzml_config = {
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "indir": indir,
     "outdir": f"{outdir}/common/2_raw2mzml",
@@ -40,6 +41,7 @@ logger.info(f"raw2mzml_config: {raw2mzml_config}")
 
 decoy_database_config = {
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "indir": indir,
     "outdir": f"{outdir}/decoy_database",
@@ -63,6 +65,7 @@ logger.info(f"decoy_database_config: {decoy_database_config}")
 
 search_engine_config = {
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "mzML_dir": raw2mzml_config["outdir"],
     "decoy_dir": decoy_database_config["outdir"],
@@ -97,6 +100,7 @@ logger.info(f"search_engine_config: {search_engine_config}")
 # unconditionally and only run when node.py registers their outputs.
 msfragger_config = {
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "indir": raw2mzml_config["outdir"],
     "outdir": f"{outdir}/common/3_search_engine",
@@ -128,6 +132,7 @@ logger.info(f"msfragger_config: {msfragger_config}")
 
 psm_rescoring_config = {
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "indir": search_engine_config["outdir"],
     "outdir": f"{outdir}/common/4_psm_rescoring",
@@ -150,6 +155,7 @@ logger.info(f"psm_rescoring_config: {psm_rescoring_config}")
 
 psm_fdr_config = {
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "indir": psm_rescoring_config["outdir"],
     "outdir": f"{outdir}/common/5_psm_fdr",
@@ -171,6 +177,7 @@ logger.info(f"psm_fdr_config: {psm_fdr_config}")
 
 protein_inference_config = {
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "indir": psm_fdr_config["outdir"],
     "outdir": f"{outdir}/common/6_protein_inference",
@@ -192,6 +199,7 @@ logger.info(f"protein_inference_config: {protein_inference_config}")
 
 quantification_config = {
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "indir": protein_inference_config["outdir"],
     "outdir": f"{outdir}/common/7_quantification",
@@ -233,6 +241,7 @@ logger.info(f"quantification_config: {quantification_config}")
 
 msstats_config = {
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "indir": quantification_config["outdir"],
     "outdir": f"{outdir}/common/8_msstats",
@@ -261,6 +270,7 @@ logger.info(f"msstats_config: {msstats_config}")
 # ============================================================
 diann_config = {
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "indir": raw2mzml_config["outdir"],
     "outdir": f"{outdir}/common/3_diann",

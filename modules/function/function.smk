@@ -72,8 +72,7 @@ rule function_go_kegg:
                 "--top", str(params.top),
             ]
 
-            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
-            script = os.path.join(logdir, "cmd", "group", f"go_kegg_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"go_kegg_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"go_kegg.sh")
             with open(script, 'w') as f:
                 f.write("#!/bin/bash\n")
@@ -160,8 +159,7 @@ rule function_gsea:
                 "-t", graph_title,
             ]
 
-            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
-            script = os.path.join(logdir, "cmd", "group", f"gsea_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"gsea_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"gsea.sh")
             with open(script, 'w') as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
@@ -283,8 +281,7 @@ rule function_gsva:
                 "-o", gsva_outdir,
                 "--title", f"GSVA ({params.species})",
             ]
-            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
-            script = os.path.join(logdir, "cmd", "group", f"gsva_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"gsva_{current_time}.sh")
             plain_script = os.path.join(gsva_outdir, f"gsva.sh")
             with open(script, 'w') as f:
                 f.write("#!/bin/bash\nset -e\nset -o pipefail\n")

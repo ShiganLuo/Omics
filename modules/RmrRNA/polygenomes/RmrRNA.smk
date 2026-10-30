@@ -42,7 +42,6 @@ rule extract_rRNA:
         try:
             open(log_path,'w').close()
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
-            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
         script = f"{logdir}/cmd/group/extract_rRNA.{wildcards.genome}.{current_time}.sh"
         plain_script = f"{outdir}/{wildcards.genome}/extract_rRNA.sh"
             cmd = ["python", params.extract_rRNA_script, 

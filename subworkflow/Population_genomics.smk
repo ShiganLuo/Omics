@@ -36,9 +36,11 @@ if not outfiles:
         outfiles.append(f"{outdir}/analysis/gwas/gwas.done")
 
 base_config = dict(config)
-base_config.update({"ROOT_DIR": ROOT_DIR, "indir": indir, "outdir": outdir, "logdir": logdir, "samples": samples, "sample_bams": sample_bams, "populations": populations, "outfiles": outfiles})
+base_config.update({"ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir, "indir": indir, "outdir": outdir, "logdir": logdir, "samples": samples, "sample_bams": sample_bams, "populations": populations, "outfiles": outfiles})
 
-metadata_config = {"ROOT_DIR": ROOT_DIR, "outdir": outdir, "logdir": logdir, "populations": populations}
+metadata_config = {"ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir, "outdir": outdir, "logdir": logdir, "populations": populations}
 module population_metadata:
     snakefile: "../modules/population_metadata/population_metadata.smk"
     config: metadata_config

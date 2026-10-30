@@ -209,16 +209,30 @@ rule <module>_result:
 | 位置 | 文件名 | 行为 |
 |---|---|---|
 | 输出目录（`sample_outdir`） | `<rule>_<sample>.sh`（**无时间戳**） | 每次运行覆盖，始终对应当前命令，与结果同在，可直接复制重跑 |
-| `{logdir}/cmd/<sample_id>/` | `<rule>_<sample>_<时间戳>.sh` | 历史备份，按运行累积，供审计对比 |
+| `<OUTDIR_ROOT>/log/cmd/`（**扁平，无子目录**） | `<rule>_<sample>_<时间戳>.sh` | 备份池：按运行累积，文件名自带规则+样本+时间戳，天然唯一 |
 
-对比级规则用 `{logdir}/cmd/<contrast>/`，组级（merge 类）用 `{logdir}/cmd/group/`。
+`OUTDIR_ROOT`（大写常量，common.smk 提供）= 流程总输出目录，由 subworkflow
+统一传入（`"OUTDIR_ROOT": outdir`），缺省回退 `ROOT_DIR`。配套常量
+`RECEIPT_DIR = <OUTDIR_ROOT>/log/cmd`，common.smk 已 `makedirs`，规则只拼
+文件路径：
 
-写文件顺序：先写时间戳版（`script`），`shutil.copyfile(script, plain_script)` 复制为无时间戳版（`plain_script`），然后 `shell()` 执行 `plain_script`。注意 plain 文件名若含通配符插值（`{wildcards.sample_id}`）必须是 f-string。
+```python
+# ✅ 正确
+script = os.path.join(RECEIPT_DIR, f"<rule>_{wildcards.sample_id}_{current_time}.sh")
+plain_script = os.path.join(sample_outdir, f"<rule>_{wildcards.sample_id}.sh")
+...
+shutil.copyfile(script, plain_script)
+shell(f"bash {plain_script} >> {log_path} 2>&1")
 
-理由：
-- 结果目录自证来源——拿到结果目录就知道它是哪条命令产的，无需翻日志
-- outdir 无时间戳 → 不堆积；历史仍在 log/cmd 可追溯
-- 回执不要写进任何被声明为 `directory()` 的输出目录——Snakemake 运行前会清空该目录，回执会被删（sv 模块 RepeatMasker 结果被 `sv_exp_enrichment` 的 `directory(enrichment/)` 误删即是此坑）
+# ❌ 错误
+script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"...")  # 挂在模块 logdir 下,不收敛
+script = os.path.join(RECEIPT_DIR, f"{wildcards.sample_id}/xxx.sh")    # 备份池是扁平的,禁子目录
+os.makedirs(os.path.join(logdir, "cmd", ...))                          # 目录已由 common 保证
+```
+
+写文件顺序：先写时间戳备份版（`script`），`shutil.copyfile` 复制为无时间戳
+版（`plain_script`），然后 `shell()` 执行 `plain_script`。注意 plain 文件名若
+含通配符插值（`{wildcards.sample_id}`）必须是 f-string。
 
 ## 输出目录卫生（强制）
 

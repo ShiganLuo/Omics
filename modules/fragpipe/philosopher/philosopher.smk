@@ -42,8 +42,7 @@ rule philosopher_database:
             rule_logger.info(f"Start Philosopher database build at {current_time}")
             db_dir = os.path.join(outdir, "database")
             os.makedirs(db_dir, exist_ok=True)
-            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
-            script = os.path.join(logdir, "cmd", "group", f"philosopher_database_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"philosopher_database_{current_time}.sh")
             plain_script = os.path.join(db_dir, f"philosopher_database.sh")
             # Philosopher writes a dated '<date>-decoys-contam-<name>.fas';
             # rename to a stable output so reruns stay mtime-stable.
@@ -99,8 +98,7 @@ rule philosopher_filter:
                     os.link(str(input.pepxml), local_pepxml)
                 except OSError:
                     shutil.copy(str(input.pepxml), local_pepxml)
-            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
-            script = os.path.join(logdir, "cmd", "group", f"philosopher_filter_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"philosopher_filter_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"philosopher_filter.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")

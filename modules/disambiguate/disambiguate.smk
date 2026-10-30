@@ -50,8 +50,7 @@ rule ngs_disambiguate:
             rule_logger = setup_logger("ngs_disambiguate", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start ngs_disambiguate for sample {wildcards.sample_id} at {current_time}")
-            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
-            script = os.path.join(logdir, "cmd", "group", f"ngs_disambiguate_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"ngs_disambiguate_{current_time}.sh")
             plain_script = os.path.join(params.outdir, f"ngs_disambiguate.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
@@ -105,8 +104,7 @@ rule disambiguate_sort_rename:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start disambiguate_sort_rename for sample {wildcards.sample_id} at {current_time}")
             outdir_sample = os.path.dirname(str(output.clean_bamA))
-            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
-            script = os.path.join(logdir, "cmd", "group", f"sort_rename_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"sort_rename_{current_time}.sh")
             plain_script = os.path.join(outdir_sample, f"sort_rename.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
@@ -151,8 +149,7 @@ rule disambiguate_report:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start disambiguate_report at {current_time}")
             report_dir = os.path.dirname(str(output.report))
-            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
-            script = os.path.join(logdir, "cmd", "group", f"disambiguate_report_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"disambiguate_report_{current_time}.sh")
             plain_script = os.path.join(report_dir, f"disambiguate_report.sh")
             reports_str = " ".join(input.reports)
             with open(script, "w") as f:

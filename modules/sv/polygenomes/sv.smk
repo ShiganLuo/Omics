@@ -50,8 +50,7 @@ rule sv_exp_specific:
             open(log_path, "w").close()
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             outprefix = f"{outdir}/{wildcards.genome}/{wildcards.comparison}/{wildcards.comparison}"
-            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.genome)), exist_ok=True)
-            script_path = os.path.join(logdir, "cmd", str(wildcards.genome), f"{wildcards.genome}/{wildcards.comparison}/sv_exp_specific_{current_time}.sh")
+            script_path = os.path.join(RECEIPT_DIR, f"sv_exp_specific_{current_time}.sh")
             plain_script = os.path.join(outdir, f"{wildcards.genome}/{wildcards.comparison}/sv_exp_specific.sh")
             fmt_args = []
             for fmt in image_formats:
@@ -99,8 +98,7 @@ rule sv_exp_enrichment:
             open(log_path, "w").close()
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             enrichment_outdir = f"{outdir}/{wildcards.genome}/{wildcards.comparison}/enrichment"
-            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.genome)), exist_ok=True)
-            script_path = os.path.join(logdir, "cmd", str(wildcards.genome), f"{wildcards.genome}/{wildcards.comparison}/sv_exp_enrichment_{current_time}.sh")
+            script_path = os.path.join(RECEIPT_DIR, f"sv_exp_enrichment_{current_time}.sh")
             plain_script = os.path.join(outdir, f"{wildcards.genome}/{wildcards.comparison}/sv_exp_enrichment.sh")
             fmt_args = []
             for fmt in image_formats:
@@ -146,8 +144,7 @@ rule sv_exp_circos:
             open(log_path, "w").close()
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             circos_outdir = f"{outdir}/{wildcards.genome}/{wildcards.comparison}/circos"
-            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.genome)), exist_ok=True)
-            script_path = os.path.join(logdir, "cmd", str(wildcards.genome), f"{wildcards.genome}/{wildcards.comparison}/sv_exp_circos_{current_time}.sh")
+            script_path = os.path.join(RECEIPT_DIR, f"sv_exp_circos_{current_time}.sh")
             plain_script = os.path.join(outdir, f"{wildcards.genome}/{wildcards.comparison}/sv_exp_circos.sh")
             fmt_args = []
             for fmt in image_formats:
@@ -195,8 +192,7 @@ rule sv_gene_model:
             open(log_path, "w").close()
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             gene_outdir = f"{outdir}/{wildcards.genome}/{wildcards.comparison}/gene_model"
-            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.genome)), exist_ok=True)
-            script_path = os.path.join(logdir, "cmd", str(wildcards.genome), f"{wildcards.genome}/{wildcards.comparison}/sv_gene_model_{current_time}.sh")
+            script_path = os.path.join(RECEIPT_DIR, f"sv_gene_model_{current_time}.sh")
             plain_script = os.path.join(outdir, f"{wildcards.genome}/{wildcards.comparison}/sv_gene_model.sh")
             gene_args = []
             for g in genes:
@@ -247,8 +243,7 @@ rule sv_diff_analysis:
             open(log_path, "w").close()
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             diff_outdir = f"{outdir}/{wildcards.genome}/sv_diff_analysis"
-            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.genome)), exist_ok=True)
-            script_path = os.path.join(logdir, "cmd", str(wildcards.genome), f"{wildcards.genome}/sv_diff_analysis_{current_time}.sh")
+            script_path = os.path.join(RECEIPT_DIR, f"sv_diff_analysis_{current_time}.sh")
             plain_script = os.path.join(outdir, f"{wildcards.genome}/sv_diff_analysis.sh")
             group_args = []
             for c in comparisons:
@@ -295,8 +290,7 @@ rule sv_oncoprint:
             open(log_path, "w").close()
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             oncoprint_outdir = f"{outdir}/{wildcards.genome}/sv_oncoprint"
-            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.genome)), exist_ok=True)
-            script_path = os.path.join(logdir, "cmd", str(wildcards.genome), f"{wildcards.genome}/sv_oncoprint_{current_time}.sh")
+            script_path = os.path.join(RECEIPT_DIR, f"sv_oncoprint_{current_time}.sh")
             plain_script = os.path.join(outdir, f"{wildcards.genome}/sv_oncoprint.sh")
             group_args = []
             for c in comparisons:

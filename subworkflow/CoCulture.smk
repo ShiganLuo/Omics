@@ -18,6 +18,7 @@ SOAPnuke_cofig = {
         "indir": indir,
         "outdir":  f"{outdir}/common/2_trimmed_fastq",
         "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "logdir": logdir
 }
@@ -34,6 +35,7 @@ hisat2_config = {
         "outdir":  f"{outdir}/common/3_raw_bam",
         "logdir": logdir,
         "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "paired_samples": paired_samples,
         "single_samples": single_samples,
@@ -56,6 +58,7 @@ disambiguate_config = {
         "outdir": f"{outdir}/disambiguate",
         "logdir": logdir,
         "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "genome_pairs": config.get("genome_pairs", []),
         "single_samples": single_samples,
@@ -80,6 +83,7 @@ TEtranscripts_config = {
         "outdir": f"{outdir}/TEtranscripts",
         "logdir": logdir,
         "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "genome_pairs": disambiguate_config["genome_pairs"],
         "samples": single_samples + paired_samples,

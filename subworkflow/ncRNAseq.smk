@@ -21,6 +21,7 @@ rule all:
         outfiles
 fastqc_raw_config = {
         "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "indir": indir,
         "outdir":  f"{outdir}/QC/1_raw_fastqc",
@@ -43,6 +44,7 @@ use rule fastqc from fastqc_raw as ncRNAseq_fastqc_raw
 if aligner in ["stat_3pass", "star_3pass_gene"]:
     demultiplexer_config = {
             "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
             "env": config.get("env", {}),
             "indir": indir,
             "outdir": f"{outdir}/common/2_trimmed_dedup_fastq/jla-demultiplexer",
@@ -61,6 +63,7 @@ if aligner in ["stat_3pass", "star_3pass_gene"]:
 
 trim_galore_config = {
         "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "indir": demultiplexer_config["outdir"] if aligner in ["stat_3pass", "star_3pass_gene"] else indir,
         "outdir": f"{outdir}/common/2_trimmed_dedup_fastq/final_trimmed_fastq",
@@ -89,6 +92,7 @@ else:
     logger.info("Subsampling is enabled. Proceeding with subsample step.")
     subsample_config = {
             "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
             "env": config.get("env", {}),
             "indir": trim_galore_config["outdir"],
             "outdir": f"{outdir}/common/2_trimmed_dedup_fastq/trimmed_subsampled_fastq",
@@ -115,6 +119,7 @@ else:
 
 fastqc_trimmed_config = {
         "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "indir": final_fastq_outdir,
         "outdir":  f"{outdir}/QC/2_trimmed_fastqc",
@@ -142,6 +147,7 @@ star_index_dir = config.get("genome", {}).get("references", {}).get(genome, {}).
 if aligner == "hisat2":
     hisat2_config = {
         "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "indir": final_fastq_outdir,
         "outdir": f"{outdir}/common/3_raw_bam",
@@ -172,6 +178,7 @@ if aligner == "hisat2":
     use rule hisat2_align_ncRNAseq_single from hisat2 as ncRNAseq_hisat2_align
     gatk_prepare_config = {
         "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "indir": hisat2_config["outdir"],
         "outdir": f"{outdir}/common/4_markdup_bam",
@@ -199,6 +206,7 @@ elif aligner == "star":
     if not star_index_dir:
         star_genome_idx_config = {
             "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
             "env": config.get("env", {}),
             "outdir": f"{outdir}/genome/whole_genome",
             "logdir": os.path.join(logdir,"group"),
@@ -223,6 +231,7 @@ elif aligner == "star":
 
     star_config = {
         "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "indir": final_fastq_outdir,
         "outdir": f"{outdir}/common/3_raw_bam",
@@ -259,6 +268,7 @@ elif aligner == "star":
     use rule star_align from star as ncRNAseq_star_align
     gatk_prepare_config = {
         "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "indir": star_config["outdir"],
         "outdir": f"{outdir}/common/4_markdup_bam",
@@ -304,6 +314,7 @@ elif aligner == "star_3pass":
     if not star_index_dir or not os.path.exists(star_index_dir):
         star_genome_idx_config = {
             "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
             "env": config.get("env", {}),
             "outdir": f"{outdir}/genome/whole_genome",
             "logdir": os.path.join(logdir,"sample"),
@@ -329,6 +340,7 @@ elif aligner == "star_3pass":
     # ── Import genome module (extract smallRNA BED/FASTA) ──────────────
     genome_sm_config = {
         "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "outdir": outdir,
         "logdir": os.path.join(logdir,"group"),
@@ -359,6 +371,7 @@ elif aligner == "star_3pass":
     if not smallrna_star_index_dir or not os.path.exists(smallrna_star_index_dir):
         star_smallrna_idx_config = {
             "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
             "env": config.get("env", {}),
             "indir": f"{outdir}/genome/smallrna",
             "outdir": f"{outdir}/genome/smallrna",
@@ -385,6 +398,7 @@ elif aligner == "star_3pass":
     # ── Canonical three-pass alignment in one execution rule ─────────────
     star_3pass_config = {
         "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "indir": final_fastq_outdir,
         "outdir": f"{outdir}/common/3_raw_bam/final_bam",
@@ -409,6 +423,7 @@ elif aligner == "star_3pass":
     use rule star_3p_align from star_3pass as ncRNAseq_star3p_align
     tailer_config = {
         "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "indir": star_3pass_config["outdir"],
         "outdir": f"{outdir}/results/tailer",
@@ -454,6 +469,7 @@ elif aligner == "star_3pass_gene":
     if not star_index_dir or not os.path.exists(star_index_dir):
         star_genome_idx_config = {
             "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
             "env": config.get("env", {}),
             "outdir": f"{outdir}/genome/whole_genome",
             "logdir": os.path.join(logdir,"sample"),
@@ -479,6 +495,7 @@ elif aligner == "star_3pass_gene":
     # ── Import genome module (extract smallRNA BED/FASTA) ──────────────
     genome_sm_config = {
         "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "outdir": outdir,
         "logdir": os.path.join(logdir,"group"),
@@ -513,6 +530,7 @@ elif aligner == "star_3pass_gene":
     elif not os.path.exists(smallrna_star_index_dir):
         star_smallrna_idx_config = {
             "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
             "env": config.get("env", {}),
             "outdir": f"{outdir}/genome/smallrna",
             "logdir": os.path.join(logdir,"sample"),
@@ -537,6 +555,7 @@ elif aligner == "star_3pass_gene":
     p3g = config.get("Params", {}).get("star_3pass_gene", {})
     star_3pass_gene_upstream_config = {
         "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "indir": final_fastq_outdir,
         "outdir": f"{outdir}/common/3_raw_bam",
@@ -565,6 +584,7 @@ elif aligner == "star_3pass_gene":
     # ── Strict post-final-BAM gene-specific local alignment ──────────────
     star_3pass_gene_config = {
         "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "outdir": f"{outdir}/common/4_per_gene_bam",
         "final_bam_dir": star_3pass_gene_upstream_config["outdir"],
@@ -607,6 +627,7 @@ else:
 
 igv_config = {
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "indir": align_bam_dir,
     "outdir": f"{outdir}/tracks",
@@ -638,6 +659,7 @@ track_config = {
         "logdir": os.path.join(logdir,"group"),
         "samples": single_samples + paired_samples,
         "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "igv": config.get('Params', {}).get('track', {}).get('igv', {}).get('configs', {}).get(genome, {}),
     }
@@ -652,6 +674,7 @@ use rule * from track as ncRNAseq_*
 
 featureCounts_config = {
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "indir": align_bam_dir,
     "outdir": f"{outdir}/counts",
@@ -679,6 +702,7 @@ use rule featureCounts_result from featureCounts as ncRNAseq_featureCounts_resul
 # ── ncRNAseq report (all branches) ───────────────────────────────────────
 ncRNAseq_report_config = {
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "outdir": outdir,
     "logdir": os.path.join(logdir, "sample"),

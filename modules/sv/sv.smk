@@ -74,8 +74,7 @@ rule sv_exp_specific:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             outprefix = f"{outdir}/{wildcards.comparison}/{wildcards.comparison}"
-            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.comparison)), exist_ok=True)
-            script_path = os.path.join(logdir, "cmd", str(wildcards.comparison), f"{wildcards.comparison}/sv_exp_specific_{current_time}.sh")
+            script_path = os.path.join(RECEIPT_DIR, f"sv_exp_specific_{current_time}.sh")
             plain_script = os.path.join(outdir, f"{wildcards.comparison}/sv_exp_specific.sh")
             rule_logger.info(f"Running sv_exp_specific for comparison: {wildcards.comparison}")
             fmt_args = []
@@ -139,8 +138,7 @@ rule sv_exp_enrichment:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             enrichment_outdir = f"{outdir}/{wildcards.comparison}/enrichment"
-            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.comparison)), exist_ok=True)
-            script_path = os.path.join(logdir, "cmd", str(wildcards.comparison), f"{wildcards.comparison}/sv_exp_enrichment_{current_time}.sh")
+            script_path = os.path.join(RECEIPT_DIR, f"sv_exp_enrichment_{current_time}.sh")
             plain_script = os.path.join(outdir, f"{wildcards.comparison}/sv_exp_enrichment.sh")
             rule_logger.info(f"Running sv_exp_enrichment for comparison: {wildcards.comparison}")
             fmt_args = []
@@ -192,8 +190,7 @@ rule sv_exp_circos:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             circos_outdir = f"{outdir}/{wildcards.comparison}/circos"
-            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.comparison)), exist_ok=True)
-            script_path = os.path.join(logdir, "cmd", str(wildcards.comparison), f"{wildcards.comparison}/sv_exp_circos_{current_time}.sh")
+            script_path = os.path.join(RECEIPT_DIR, f"sv_exp_circos_{current_time}.sh")
             plain_script = os.path.join(outdir, f"{wildcards.comparison}/sv_exp_circos.sh")
             rule_logger.info(f"Running sv_exp_circos for comparison: {wildcards.comparison}")
             fmt_args = []
@@ -243,8 +240,7 @@ rule sv_gene_model:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             gene_outdir = f"{outdir}/{wildcards.comparison}/gene_model"
-            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.comparison)), exist_ok=True)
-            script_path = os.path.join(logdir, "cmd", str(wildcards.comparison), f"{wildcards.comparison}/sv_gene_model_{current_time}.sh")
+            script_path = os.path.join(RECEIPT_DIR, f"sv_gene_model_{current_time}.sh")
             plain_script = os.path.join(outdir, f"{wildcards.comparison}/sv_gene_model.sh")
             rule_logger.info(f"Running sv_gene_model for comparison: {wildcards.comparison}")
             gene_args = []
@@ -297,8 +293,7 @@ rule sv_diff_analysis:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             diff_outdir = f"{outdir}/sv_diff_analysis"
-            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
-            script_path = os.path.join(logdir, "cmd", "group", f"sv_diff_analysis_{current_time}.sh")
+            script_path = os.path.join(RECEIPT_DIR, f"sv_diff_analysis_{current_time}.sh")
             plain_script = os.path.join(outdir, f"sv_diff_analysis.sh")
             rule_logger.info(f"Running sv_diff_analysis for all comparisons")
             group_args = []
@@ -347,8 +342,7 @@ rule sv_oncoprint:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             oncoprint_outdir = f"{outdir}/sv_oncoprint"
-            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
-            script_path = os.path.join(logdir, "cmd", "group", f"sv_oncoprint_{current_time}.sh")
+            script_path = os.path.join(RECEIPT_DIR, f"sv_oncoprint_{current_time}.sh")
             plain_script = os.path.join(outdir, f"sv_oncoprint.sh")
             rule_logger.info(f"Running sv_oncoprint for all comparisons")
             group_args = []

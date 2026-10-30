@@ -37,6 +37,7 @@ trimmed_fastq_dir = f"{outdir}/common/2_trimmed_fastq"
 
 star_config_for_index = {
         "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
         "outdir":  f"{outdir}/genome",
         "logdir_index": os.path.join(logdir,"group"),
         "env": config.get("env", {}),
@@ -56,6 +57,7 @@ if trimmer == "cutadapt":
     trimmed_fastq_dir = f"{outdir}/common/2_trimmed_fastq"
     cutadapt_config = {
             "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
             "env": config.get("env", {}),
             "indir": indir,
             "outdir":  trimmed_fastq_dir,
@@ -75,6 +77,7 @@ elif trimmer == "trimmomatic":
     trimmed_fastq_dir = f"{outdir}/common/2_trimmed_fastq"
     trimmomatic_config = {
             "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
             "env": config.get("env", {}),
             "indir": indir,
             "outdir":  trimmed_fastq_dir,
@@ -101,6 +104,7 @@ else:
     logger.info("use default trimmer: trim_galore")
     trim_galore_config = {
             "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
             "env": config.get("env", {}),
             "indir": indir,
             "outdir":  trimmed_fastq_dir,
@@ -120,6 +124,7 @@ else:
 if aligner_TEtranscripts == 'hisat2':
     hisat2_config_for_TEtranscripts = {
             "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
             "indir": trimmed_fastq_dir,
             "outdir":  f"{outdir}/common/3_TEtranscripts_bam",
             "env": config.get("env", {}),
@@ -150,6 +155,7 @@ if aligner_TEtranscripts == 'hisat2':
 elif aligner_TEtranscripts == 'star':
     star_config_for_TEtranscripts = {
             "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
             "indir": trimmed_fastq_dir,
             "outdir":  f"{outdir}/common/3_TEtranscripts_bam",
             "logdir": os.path.join(logdir,"sample"),
@@ -189,6 +195,7 @@ TEtranscripts_config = {
         "logdir_combine": os.path.join(logdir,"group"),
         "genome_samples": genome_samples,
         "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "Procedure": {
             "TEcount": config.get('Procedure',{}).get('TEcount') or 'TEcount',
@@ -206,6 +213,7 @@ use rule * from TEtranscripts as RNAseq_*
 
 star_config_for_featureCounts = {
         "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
         "indir": trimmed_fastq_dir,
         "outdir":  f"{outdir}/common/11_featureCounts_bam",
         "logdir": os.path.join(logdir,"sample"),
@@ -238,6 +246,7 @@ featureCounts_config = {
     "genome_paired_samples": genome_paired_samples,
     "genome_single_samples": genome_single_samples,
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "Procedure": {
         "featureCounts": config.get('Procedure', {}).get('featureCounts') or 'featureCounts'
@@ -260,6 +269,7 @@ DESeq2_config = {
         "outdir":  f"{outdir}/diff_expression",
         "logdir": os.path.join(logdir,"group"),
         "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "group_pairs": config.get("Params", {}).get("DESeq2", {}).get("group_pairs"),
         "genome": config.get('genome',{}),
@@ -278,6 +288,7 @@ use rule DESeq2_TElocal from DESeq2 as RNAseq_DESeq2_TElocal
 ### functional enrichment analysis using function module
 function_config = {
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "indir": DESeq2_config["outdir"],
     "counts_dir": featureCounts_config["outdir"],
@@ -302,6 +313,7 @@ use rule function_gsva from function as RNAseq_function_gsva
 
 hisat2_config_for_StringTie = {
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "indir": trimmed_fastq_dir,
     "outdir":  f"{outdir}/common/4_stringtie_bam",
     "env": config.get("env", {}),
@@ -336,6 +348,7 @@ StringTie_config = {
         "logdir_combine": os.path.join(logdir,"group"),
         "genome_samples": genome_samples,
         "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
         "sample_groups": config.get("Params",{}).get("StringTie",{}).get('sample_groups'),
         "genome": config.get('genome',{}),
         "Procedure": {
@@ -357,6 +370,7 @@ rmrRNA_config = {
     "logdir": os.path.join(logdir,"group"),
     "env": config.get("env", {}),
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "genome": config.get('genome',{}),
     "Params": {
         "RmrRNA": {
@@ -374,6 +388,7 @@ use rule * from RmrRNA as RNAseq_rRNA_*
 logger.debug(f"rmrRNA_config: {rmrRNA_config}")
 bowtie2_rRNA_config = {
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "indir": trimmed_fastq_dir,
     "outdir":  f"{outdir}/common/5_rRNA_fastq",
@@ -400,6 +415,7 @@ use rule * from bowtie2_for_rRNA as RNAseq_rRNA_*
 
 star_config_for_fusion = {
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "indir": bowtie2_rRNA_config["outdir"],
     "outdir":  f"{outdir}/common/6_fusion_bam",
     "logdir": os.path.join(logdir,"sample"),
@@ -439,6 +455,7 @@ logger.debug(f"star_config_for_fusion: {star_config_for_fusion}")
 
 gatk_prepare_config = {
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "indir": star_config_for_fusion["outdir"],
     "outdir":  f"{outdir}/common/7_markdup_bam",
@@ -464,6 +481,7 @@ arriba_config = {
         "logdir": os.path.join(logdir,"sample"),
         "logdir_combine": os.path.join(logdir,"group"),
         "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "bam_substring": "sorted_markdup",
         "genome_samples": genome_samples,
@@ -492,6 +510,7 @@ logger.debug(f"arriba_config: {arriba_config}")
 
 star_config_for_SNP = {
         "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
         "indir": trimmed_fastq_dir,
         "outdir":  f"{outdir}/common/8_SNP_bam",
         "logdir": os.path.join(logdir,"sample"),
@@ -517,6 +536,7 @@ use rule star_align from star_for_SNP as RNAseq_star_align_for_SNP
 ### RNA SNP calling using GATK
 XenofilteR_config = {
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "indir": star_config_for_SNP["outdir"],
     "outdir": f"{outdir}/common/9_xenofilteR_bam",
@@ -538,6 +558,7 @@ logger.debug(f"XenofilteR_config: {XenofilteR_config}")
 
 gatk_prepare_SNP_config = {
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "indir": XenofilteR_config["outdir"],
     "outdir":  f"{outdir}/common/10_markdup_deContaimation_bam",
@@ -559,6 +580,7 @@ logger.debug(f"gatk_prepare_SNP_config: {gatk_prepare_SNP_config}")
 
 gatk_RNAseq_config = {
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "indir": gatk_prepare_SNP_config['outdir'],
     "outdir":  f"{outdir}/variation/germline_snv_indel_RNAseq",
@@ -581,6 +603,7 @@ logger.debug(f"gatk_RNAseq_config: {gatk_RNAseq_config}")
 
 RNAseq_report_config = {
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "indir": outdir,
     "outdir": os.path.join(outdir, "results"),

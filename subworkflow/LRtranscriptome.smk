@@ -25,6 +25,7 @@ minimap2_config = {
     "logdir": logdir,
     "samples": samples,
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "Procedure": {
         "minimap2": config.get("Procedure", {}).get("minimap2"),
@@ -53,6 +54,7 @@ longread_config = {
     "logdir": logdir,
     "samples": samples,
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "merged_gtf": f"{outdir}/stringtie/stringtie_merged.gtf",
     "Procedure": {
@@ -78,6 +80,7 @@ if not skip_quant:
         "logdir": logdir,
         "samples": samples,
         "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "merged_gtf": f"{outdir}/stringtie/stringtie_merged.gtf",
         "Procedure": {

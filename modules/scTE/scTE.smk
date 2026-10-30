@@ -118,8 +118,7 @@ rule scTE_quantify:
             rule_logger.info(f"Quantifying TE expression for sample {wildcards.sample_id}")
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             sample_outdir = os.path.dirname(output.h5ad)
-            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
-            command_script = os.path.join(logdir, "cmd", "group", f"scTE_quantify_{current_time}.sh")
+            command_script = os.path.join(RECEIPT_DIR, f"scTE_quantify_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"scTE_quantify.sh")
             cmd = [
                 "python", params.script,

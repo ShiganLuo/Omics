@@ -18,6 +18,7 @@ rule all:
 
 genome_config = {
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "genome": {
         "fasta": genome_ref.get("fasta"),
@@ -34,6 +35,7 @@ pbmm2_config = {
     "logdir": logdir,
     "samples": samples,
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "Procedure": {
         "pbmm2": config.get("Procedure", {}).get("pbmm2")
@@ -51,6 +53,7 @@ use rule pbmm2_align from pbmm2 as PacVar_pbmm2_align
 
 gatk_prepare_config = {
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "indir": pbmm2_config["outdir"],
     "outdir": f"{outdir}/common/3_markdup_bam",
@@ -90,6 +93,7 @@ use rule MarkDuplicates from gatk_prepare as PacVar_MarkDuplicates
 if snv_caller == "deepvariant":
     deepvariant_config = {
         "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "indir": gatk_prepare_config["outdir"],
         "outdir": f"{outdir}/variation/germline_snv_indel",
@@ -119,6 +123,7 @@ elif snv_caller == "gatk4":
 
 pbsv_config = {
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "indir": gatk_prepare_config["outdir"],
     "outdir": f"{outdir}/variation/germline_sv",
@@ -141,6 +146,7 @@ use rule pbsv_call from pbsv as PacVar_pbsv_call
 
 hiphase_snp_config = {
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "indir": gatk_prepare_config["outdir"],
     "outdir": f"{outdir}/variation/germline_snv_indel",
@@ -166,6 +172,7 @@ use rule hiphase_phase from hiphase_snp as PacVar_hiphase_snp
 
 hiphase_sv_config = {
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "indir": gatk_prepare_config["outdir"],
     "outdir": f"{outdir}/variation/germline_sv",
@@ -192,6 +199,7 @@ use rule hiphase_phase from hiphase_sv as PacVar_hiphase_sv
 
 trgt_config = {
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "indir": gatk_prepare_config["outdir"],
     "outdir": f"{outdir}/repeat/trgt",
@@ -225,6 +233,7 @@ centromere_outdir = f"{outdir}/repeat/centromere"
 
 telomere_config = {
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "indir": gatk_prepare_config["outdir"],
     "outdir": f"{outdir}/repeat/telomere",
@@ -251,6 +260,7 @@ use rule tidk_scan from telomere as PacVar_tidk_scan
 
 centromere_config = {
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "indir": indir,
     "outdir": centromere_outdir,
@@ -287,6 +297,7 @@ DECOIL_COV_DIR = f"{outdir}/eccdna/coverage"
 bamCoverage_config = {
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "indir": gatk_prepare_config["outdir"],
     "outdir": DECOIL_COV_DIR,
@@ -310,6 +321,7 @@ use rule bamCoverage from bamCoverage as PacVar_bamCoverage
 decoil_config = {
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "indir": gatk_prepare_config["outdir"],
     "outdir": f"{outdir}/eccdna",
@@ -359,6 +371,7 @@ sv_outdir = f"{outdir}/variation/germline_sv_analysis"
 
 sv_config = {
     "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "indir": pbsv_config["outdir"],
     "outdir": sv_outdir,

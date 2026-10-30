@@ -78,8 +78,7 @@ rule fastqc:
                 "-t", str(threads),
             ] + list(input)
 
-            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
-            script = os.path.join(logdir, "cmd", "group", f"fastqc_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"fastqc_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"fastqc.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")

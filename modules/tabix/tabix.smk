@@ -25,8 +25,7 @@ rule tabix_bgzip:
     run:
         current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start bgzip for sample {wildcards.sample_id} at {current_time}")
-        os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
-        script = os.path.join(logdir, "cmd", "group", f"bgzip_{current_time}.sh")
+        script = os.path.join(RECEIPT_DIR, f"bgzip_{current_time}.sh")
         plain_script = os.path.join(outdir, f"bgzip.sh")
         cmd1 = [
             params.bgzip, input.vcf,

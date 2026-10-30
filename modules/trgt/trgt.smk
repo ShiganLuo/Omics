@@ -48,8 +48,7 @@ rule trgt_genotype:
     run:
         current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start trgt genotype for sample {wildcards.sample_id} at {current_time}")
-        os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
-        script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"{wildcards.sample_id}/trgt_genotype_{current_time}.sh")
+        script = os.path.join(RECEIPT_DIR, f"trgt_genotype_{current_time}.sh")
         plain_script = os.path.join(outdir, f"{wildcards.sample_id}/trgt_genotype.sh")
         cmd = [params.trgt, "genotype",
             "--num-threads", str(threads),
@@ -98,8 +97,7 @@ rule trgt_plot:
     run:
         current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start trgt plot for sample {wildcards.sample_id} at {current_time}")
-        os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
-        script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"{wildcards.sample_id}/trgt_plot_{current_time}.sh")
+        script = os.path.join(RECEIPT_DIR, f"trgt_plot_{current_time}.sh")
         plain_script = os.path.join(outdir, f"{wildcards.sample_id}/trgt_plot.sh")
         cmd = [
             {params.trgt} , "plot",

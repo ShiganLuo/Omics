@@ -80,7 +80,7 @@ rule generate_report:
     run:
         log_path = str(log)
         open(log_path, 'w').close()
-rule_logger = setup_logger("generate_report", log_file=log_path)
+        rule_logger = setup_logger("generate_report", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start generate_report at {current_time}")

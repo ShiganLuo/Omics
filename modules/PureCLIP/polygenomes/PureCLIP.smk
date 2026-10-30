@@ -26,7 +26,7 @@ rule pureclip:
     run:
         log_path = str(log)
         open(log_path, 'w').close()
-rule_logger = setup_logger("pureclip", log_file=log_path)
+        rule_logger = setup_logger("pureclip", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start pureclip for sample {wildcards.sample_id} at {current_time}")

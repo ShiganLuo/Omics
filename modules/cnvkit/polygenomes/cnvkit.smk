@@ -40,7 +40,7 @@ rule cnvkit_reference:
     run:
         log_path = str(log)
         open(log_path, 'w').close()
-rule_logger = setup_logger("cnvkit_reference", log_file=log_path)
+        rule_logger = setup_logger("cnvkit_reference", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start cnvkit reference build for genome {wildcards.genome} at {current_time}")
@@ -91,7 +91,7 @@ rule cnvkit_batch:
     run:
         log_path = str(log)
         open(log_path, 'w').close()
-rule_logger = setup_logger("cnvkit_batch", log_file=log_path)
+        rule_logger = setup_logger("cnvkit_batch", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start cnvkit batch for genome {wildcards.genome} at {current_time}")

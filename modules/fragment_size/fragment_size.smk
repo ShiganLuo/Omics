@@ -23,7 +23,7 @@ rule samtools_stats:
     run:
         log_path = str(log)
         open(log_path, 'w').close()
-rule_logger = setup_logger("samtools_stats", log_file=log_path)
+        rule_logger = setup_logger("samtools_stats", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start samtools_stats for sample {wildcards.sample_id} at {current_time}")
@@ -58,7 +58,7 @@ rule getFragmentSize:
     run:
         log_path = str(log)
         open(log_path, 'w').close()
-rule_logger = setup_logger("getFragmentSize", log_file=log_path)
+        rule_logger = setup_logger("getFragmentSize", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start getFragmentSize at {current_time}")
@@ -94,7 +94,7 @@ rule plotFragmentSize:
     run:
         log_path = str(log)
         open(log_path, 'w').close()
-rule_logger = setup_logger("plotFragmentSize", log_file=log_path)
+        rule_logger = setup_logger("plotFragmentSize", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start plotFragmentSize at {current_time}")

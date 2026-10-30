@@ -31,7 +31,7 @@ rule bwaMem2_index:
     run:
         log_path = str(log)
         open(log_path, 'w').close()
-rule_logger = setup_logger("bwaMem2_index", log_file=log_path)
+        rule_logger = setup_logger("bwaMem2_index", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start bwa-mem2 index at {current_time}")
@@ -117,7 +117,7 @@ rule bwaMem2_alignment:
     run:
         log_path = str(log)
         open(log_path, 'w').close()
-rule_logger = setup_logger("bwaMem2_alignment", log_file=log_path)
+        rule_logger = setup_logger("bwaMem2_alignment", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start bwa-mem2 alignment for sample {wildcards.sample_id} at {current_time}")

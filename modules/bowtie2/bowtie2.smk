@@ -39,8 +39,8 @@ rule bowtie2_index:
         try:
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
             rule_logger.info(f"Start bowtie2 index at {current_time}")
-        script = os.path.join(RECEIPT_DIR, f"bowtie2_index_{wildcards.sample_id}_{current_time}.sh")
-        plain_script = f"{outdir}/index/bowtie2_index.sh"
+            script = os.path.join(RECEIPT_DIR, f"bowtie2_index_{wildcards.sample_id}_{current_time}.sh")
+            plain_script = f"{outdir}/index/bowtie2_index.sh"
             cmd = [params.bowtie2_build, 
                     "--threads", str(threads), 
                     input.fasta, 
@@ -130,8 +130,8 @@ rule bowtie2_align_paired:
         try:
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
             sample_outdir = os.path.dirname(str(output.bam))
-        script = os.path.join(RECEIPT_DIR, f"bowtie2_align_{wildcards.sample_id}_{current_time}.sh")
-        plain_script = f"{sample_outdir}/bowtie2_align.sh"
+            script = os.path.join(RECEIPT_DIR, f"bowtie2_align_{wildcards.sample_id}_{current_time}.sh")
+            plain_script = f"{sample_outdir}/bowtie2_align.sh"
             cmd1 = [params.bowtie2, 
                     "-x", params.index_prefix, 
                     "-1", input.fastq1, 

@@ -43,7 +43,7 @@ rule cellranger_ref:
     run:
         log_path = str(log)
         open(log_path, 'w').close()
-rule_logger = setup_logger(logger_name="cellranger_ref", log_file=log_path)
+        rule_logger = setup_logger(logger_name="cellranger_ref", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start cellranger_ref for genome {wildcards.genome} at {current_time}")
@@ -67,8 +67,9 @@ rule_logger = setup_logger(logger_name="cellranger_ref", log_file=log_path)
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(command_script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
-        rule_logger.error(f"Error occurred: {e}")
-        raise RuntimeError(f"Error occurred: {e}, you can check the log file {log_path} for more details.")
+        except Exception as e:
+            rule_logger.error(f"Error occurred: {e}")
+            raise RuntimeError(f"Error occurred: {e}, you can check the log file {log_path} for more details.")
 
 def get_input_for_cellranger_count(wildcards):
     """Get input files for cellranger_count rule."""
@@ -115,7 +116,7 @@ rule cellranger_count:
     run:
         log_path = str(log)
         open(log_path, 'w').close()
-rule_logger = setup_logger(logger_name="cellranger_count", log_file=log_path)
+        rule_logger = setup_logger(logger_name="cellranger_count", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start cellranger_count for sample {wildcards.sample_id} on genome {wildcards.genome} at {current_time}")
@@ -153,8 +154,9 @@ rule_logger = setup_logger(logger_name="cellranger_count", log_file=log_path)
                 f.write(f'echo "Cell Ranger count completed for sample {sample_id} on genome {wildcards.genome}"\n')
             shutil.copyfile(command_script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
-        rule_logger.error(f"Error occurred: {e}")
-        raise RuntimeError(f"Error occurred: {e}, you can check the log file {log_path} for more details.")
+        except Exception as e:
+            rule_logger.error(f"Error occurred: {e}")
+            raise RuntimeError(f"Error occurred: {e}, you can check the log file {log_path} for more details.")
 
 rule cellranger_to_h5ad:
     """Convert Cell Ranger filtered matrix to h5ad."""
@@ -193,5 +195,6 @@ rule cellranger_to_h5ad:
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(command_script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
-        rule_logger.error(f"Error occurred: {e}")
-        raise RuntimeError(f"Error occurred: {e}, you can check the log file {log_path} for more details.")
+        except Exception as e:
+            rule_logger.error(f"Error occurred: {e}")
+            raise RuntimeError(f"Error occurred: {e}, you can check the log file {log_path} for more details.")

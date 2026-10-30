@@ -21,7 +21,7 @@ rule bcftools_sort:
     run:
         log_path = str(log)
         open(log_path, 'w').close()
-rule_logger = setup_logger("bcftools_sort", log_file=log_path)
+        rule_logger = setup_logger("bcftools_sort", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start bcftools sort for sample {wildcards.sample_id} at {current_time}")
@@ -60,7 +60,7 @@ rule bcftools_index_csi:
     run:
         log_path = str(log)
         open(log_path, 'w').close()
-rule_logger = setup_logger("bcftools_index", log_file=log_path)
+        rule_logger = setup_logger("bcftools_index", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start bcftools index for sample {wildcards.sample_id} at {current_time}")

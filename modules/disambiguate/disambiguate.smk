@@ -44,7 +44,7 @@ rule ngs_disambiguate:
     run:
         log_path = str(log)
         open(log_path, 'w').close()
-rule_logger = setup_logger("ngs_disambiguate", log_file=log_path)
+        rule_logger = setup_logger("ngs_disambiguate", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start ngs_disambiguate for sample {wildcards.sample_id} at {current_time}")
@@ -96,7 +96,7 @@ rule disambiguate_sort_rename:
     run:
         log_path = str(log)
         open(log_path, 'w').close()
-rule_logger = setup_logger("disambiguate_sort_rename", log_file=log_path)
+        rule_logger = setup_logger("disambiguate_sort_rename", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start disambiguate_sort_rename for sample {wildcards.sample_id} at {current_time}")
@@ -140,7 +140,7 @@ rule disambiguate_report:
     run:
         log_path = str(log)
         open(log_path, 'w').close()
-rule_logger = setup_logger("disambiguate_report", log_file=log_path)
+        rule_logger = setup_logger("disambiguate_report", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start disambiguate_report at {current_time}")

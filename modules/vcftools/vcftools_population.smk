@@ -23,7 +23,7 @@ if analysis.get("diversity",True):
    with open(str(log),"w") as h:h.write("")
    with open(script,"w") as h:h.write("#!/usr/bin/env bash\nset -euo pipefail\n"+"\n".join(" ".join(str(x) for x in c) for c in cmds)+"\n")
    shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log} 2>&1")
+   shell(f"bash {plain_script} >> {log} 2>&1")
 if analysis.get("fst",True) and len(pops)>1:
  rule vcftools_population_fst:
   input: vcf=vcf,tbi=vcf+".tbi",popfiles=[outdir+"/metadata/populations/"+p+".txt" for p in pops]
@@ -41,4 +41,4 @@ if analysis.get("fst",True) and len(pops)>1:
    with open(str(log),"w") as h:h.write("")
    with open(script,"w") as h:h.write("#!/usr/bin/env bash\nset -euo pipefail\n"+" ".join(str(x) for x in cmd)+"\n")
    shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log} 2>&1")
+   shell(f"bash {plain_script} >> {log} 2>&1")

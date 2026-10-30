@@ -4,6 +4,12 @@ MODULE_DIR = os.path.join(ROOT_DIR, "modules", "annovar")
 logger.info(f"Annovar module directory: {MODULE_DIR}")
 
 # need test
+include: "../common/common.smk"
+
+indir = config.get("indir", "input")
+outdir = config.get("outdir", "output")
+logdir = config.get("logdir", "log")
+
 rule TEcoutCPM:
     input:
        infile = outdir + "/counts/humanTEcount.cntTable"
@@ -50,7 +56,7 @@ rule commonExpression:
     log:
         log = outdir + "/log/human/commonExpression.log"
     conda:
-        config['conda']['RNA-SNP']
+        config.get('conda', {}).get('RNA-SNP') or 'annovar.yaml'
     params:
         script = MODULE_DIR + "scripts/SNP/commonExpression.py"
     run:
@@ -88,11 +94,11 @@ rule getBed:
     log:
         log = outdir + "/log/human/getBed.log"
     conda:
-        config['conda']['RNA-SNP']
+        config.get('conda', {}).get('RNA-SNP') or 'annovar.yaml'
     params:
         script = MODULE_DIR + "scripts/SNP/getBed.py",
-        gtf = config['bed']['human']['gtf'],
-        TE_gtf = config['bed']['human']['TE_gtf']
+        gtf = config.get('bed', {}).get('human', {}).get('gtf'),
+        TE_gtf = config.get('bed', {}).get('human', {}).get('TE_gtf')
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -130,7 +136,7 @@ rule vcfIntersectBed:
     log:
         log = outdir + "/log/human/{sample_id}/vcfIntersectBed.log"
     conda:
-        config['conda']['RNA-SNP']
+        config.get('conda', {}).get('RNA-SNP') or 'annovar.yaml'
     threads:4 #防止同时执行太多，爆内存
     run:
         log_path = str(log)
@@ -206,10 +212,10 @@ rule annovar_table:
     log:
         log = outdir + "/log/human/{sample_id}/annovar_table.log"
     params:
-        db = config['annovar']['human']['db'],
-        buildver = config['annovar']['human']['buildver'],
+        db = config.get('annovar', {}).get('human', {}).get('db'),
+        buildver = config.get('annovar', {}).get('human', {}).get('buildver'),
         # annotate = "/opt/annovar/annotate_variation.pl",
-        table = config["Procedure"]["table_annovar"],
+        table = config.get("Procedure", {}).get("table_annovar") or "table_annovar.pl",
         out = outdir + "/annovar/human/{sample_id}/{sample_id}"
     threads: 4 #防止同时执行太多，爆内存
     conda:

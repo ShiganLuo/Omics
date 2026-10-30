@@ -22,4 +22,4 @@ if analysis.get("history",False):
    with open(str(log),"w") as h:h.write("")
    with open(script,"w") as h:h.write("#!/usr/bin/env bash\nset -euo pipefail\n"+" ".join(str(x) for x in cmd)+"\ntouch "+str(output.done)+"\n")
    shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log} 2>&1")
+   shell(f"bash {plain_script} >> {log} 2>&1")

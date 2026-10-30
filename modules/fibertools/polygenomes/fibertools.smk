@@ -9,7 +9,7 @@ Provides rules for:
 Requires fibertools-rs (ft) CLI tool.
 See: https://fiberseq.github.io/
 """
-include: "../../../common/common.smk"
+include: "../../common/common.smk"
 
 ROOT_DIR = config.get("ROOT_DIR", ".")
 indir = config.get("indir", "input")

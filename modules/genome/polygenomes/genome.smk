@@ -11,7 +11,7 @@ ROOT_DIR = config.get("ROOT_DIR", os.path.dirname(os.path.dirname(os.path.dirnam
 
 rule chromosome_sizes:
     input:
-        fasta = config.get('genome', {}).get(wildcards.genome, {}).get('fasta')
+        fasta = lambda wildcards: config.get('genome', {}).get(wildcards.genome, {}).get('fasta')
     output:
         chrom_sizes = outdir + "/{genome}/chrom.sizes"
     log:

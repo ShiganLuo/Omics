@@ -3,6 +3,7 @@ include: "../../common/common.smk"
 indir = config.get("indir") or "input"
 outdir = config.get("outdir") or "output"
 logdir = config.get("logdir") or "log"
+fasta = config.get("reference", {}).get("fasta")
 interval = config.get("reference", {}).get("interval")
 known_sites = config.get("reference", {}).get("known_sites", [])
 

@@ -495,6 +495,20 @@ fiberseq_footprint_config = {
   `annot_dir`/`hap_dir`/`vcf_dir`），fallback 用 `config.get("xxx") or indir`
 - 判断标准：一个物理路径在整个 subworkflow 里只出现一次字面定义
 
+# 模块测试（run_module.py --test）
+
+模块没有固定输入（不走 meta.tsv），但必须可独立加载、可建 DAG。测试框架
+`run.py --test all` 会自动追加模块阶段（内部调 `run_module.py --test all`），
+对每个 `modules/**/<stem>.smk + <stem>.json` 单元检查：
+
+- config 加载 + schema 校验（"Required field is empty" 视为待填模板，不判失败）
+- `default_targets()` 目标展开 + wrapper 生成 + snakemake 干跑
+- 测试路径自动注入（复用 `SchemaValidator.generate_test_paths`，与 workflow
+  测试同一机制）；输入缺失/InputFunction/未绑定通配符/配置门控的 DAG 停止
+  算通过（无固定输入的预期），语法/接线/配置名错误判失败
+
+单独跑：`python run_module.py --test all`（或 `--test <module>`）。
+
 # Conda 环境模板（.yaml）
 
 ```yaml

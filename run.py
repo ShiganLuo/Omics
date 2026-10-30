@@ -916,6 +916,23 @@ def execute_workflows(args: argparse.Namespace, root_dir: str, logger: logging.L
                 test_results[wf] = (False, str(e)[:200])
 
         print_test_summary(test_results)
+
+        # Module-scope tests: run_module.py --test sweeps every standalone
+        # module (smk+json unit) with the same test-path generator. Modules
+        # carry no fixed inputs, so the sweep checks config/schema/target
+        # plumbing and tolerates DAG stops on missing inputs.
+        import subprocess as _sp
+        import sys as _sys
+        mod_cmd = [_sys.executable, os.path.join(ROOT_DIR, "run_module.py"),
+                   "--test", "all", "-o", os.path.join(args.output_dir, "module_test")]
+        logger.info("[modules] running: %s", " ".join(mod_cmd))
+        mod = _sp.run(mod_cmd, cwd=ROOT_DIR)
+        wf_failed = [k for k, (ok, _) in test_results.items() if not ok]
+        if wf_failed or mod.returncode != 0:
+            logger.error("[test] FAILED: %s%s",
+                         f"workflows: {', '.join(wf_failed)}; " if wf_failed else "",
+                         "modules (run_module.py --test)" if mod.returncode != 0 else "")
+            raise SystemExit(1)
     else:
         if n_workflows == 1:
             _run_cmd(smk_cmds[0][0], cwd=smk_cmds[0][1])

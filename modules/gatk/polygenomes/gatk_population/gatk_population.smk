@@ -69,6 +69,7 @@ rule gatk_population_haplotype_caller:
                 handle.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 handle.write(" ".join(str(item) for item in cmd) + "\n")
                 handle.write(f"{params.gatk} IndexFeatureFile -I {output.vcf}\n")
+                handle.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as exc:
@@ -108,8 +109,10 @@ rule gatk_population_joint_genotyping:
             rule_logger.info(f"Start gatk_population_joint_genotyping for genome {wildcards.genome} at {current_time}")
             sample_map = os.path.join(os.path.dirname(output.vcf), "sample_map.tsv")
             with open(sample_map, "w") as handle:
+                handle.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 for sample, gvcf in zip(samples, input.gvcfs):
                     handle.write(f"{sample}\t{gvcf}\n")
+                handle.write(f'echo "script completed successfully"\n')
             script = os.path.join(RECEIPT_DIR, f"gatk_population_joint_genotyping_{wildcards.genome}_{current_time}.sh")
             plain_script = os.path.join(os.path.dirname(output.vcf), f"gatk_population_joint_genotyping.sh")
             import_cmd = [params.gatk, "--java-options", params.java_options, "GenomicsDBImport", "--sample-name-map", sample_map, "--genomicsdb-workspace-path", params.workspace, "--reader-threads", str(threads)]
@@ -127,6 +130,7 @@ rule gatk_population_joint_genotyping:
                 handle.write(" ".join(str(item) for item in import_cmd) + "\n")
                 handle.write(" ".join(str(item) for item in genotype_cmd) + "\n")
                 handle.write(f"{params.gatk} IndexFeatureFile -I {output.vcf}\n")
+                handle.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as exc:

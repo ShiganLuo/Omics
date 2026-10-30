@@ -105,10 +105,12 @@ rule TEChimericPlot:
             rule_logger.info(f"Start TEChimericPlot run at {current_time}")
             group_tsv = outdir + "/TE_chimeric/sample_groups.tsv"
             with open(group_tsv, 'w') as f:
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write("sample\tgroup\n")
                 for group, sample_list in sample_groups.items():
                     for sample_id in sample_list:
                         f.write(f"{sample_id}\t{group}\n")
+                f.write(f'echo "script completed successfully"\n')
             cmd = [
                 "python", params.TEChimericPlot,
                 "-i", os.path.join(outdir,"raw"),

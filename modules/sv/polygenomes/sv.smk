@@ -66,13 +66,12 @@ rule sv_exp_specific:
                 "--annotate_format", "tab",
             ] + fmt_args
             with open(script_path, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
+                f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script_path, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"sv_exp_specific failed for {wildcards.comparison} genome {wildcards.genome}: {e}\n")
             raise
 
 rule sv_exp_enrichment:
@@ -110,13 +109,12 @@ rule sv_exp_enrichment:
                 "-fi", input.fai,
             ] + fmt_args
             with open(script_path, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
+                f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script_path, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"sv_exp_enrichment failed for {wildcards.comparison} genome {wildcards.genome}: {e}\n")
             raise
 
 rule sv_exp_circos:
@@ -159,13 +157,12 @@ rule sv_exp_circos:
             if params.cytoband:
                 cmd += ["--cytoband", params.cytoband]
             with open(script_path, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
+                f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script_path, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"sv_exp_circos failed for {wildcards.comparison} genome {wildcards.genome}: {e}\n")
             raise
 
 rule sv_gene_model:
@@ -208,18 +205,17 @@ rule sv_gene_model:
                 "-j", str(params.threads),
             ] + fmt_args
             with open(script_path, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
+                f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script_path, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"sv_gene_model failed for {wildcards.comparison} genome {wildcards.genome}: {e}\n")
             raise
 
-# ========================
-# Aggregation rules (cross-comparison)
-# ========================
+        # ========================
+        # Aggregation rules (cross-comparison)
+        # ========================
 
 rule sv_diff_analysis:
     """Run SV differential analysis across all comparison groups."""
@@ -257,13 +253,12 @@ rule sv_diff_analysis:
                 "-s", str(params.large_sv_threshold),
             ] + group_args + fmt_args
             with open(script_path, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
+                f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script_path, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"sv_diff_analysis failed for genome {wildcards.genome}: {e}\n")
             raise
 
 rule sv_oncoprint:
@@ -307,18 +302,17 @@ rule sv_oncoprint:
                 "-o", oncoprint_outdir,
             ] + group_args + deseq2_args + fmt_args
             with open(script_path, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
+                f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script_path, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"sv_oncoprint failed for genome {wildcards.genome}: {e}\n")
             raise
 
-# ========================
-# Result aggregation rule
-# ========================
+        # ========================
+        # Result aggregation rule
+        # ========================
 
 rule sv_result:
     """Aggregate all SV analysis outputs as dependency endpoint."""

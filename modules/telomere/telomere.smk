@@ -119,18 +119,17 @@ rule telogator2_run:
             if params.ref:
                 cmd.extend(["-t", params.ref])
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
+                f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"telogator2 failed for sample {wildcards.sample_id} with error: {e}\n")
             raise
 
-# ============================================================
-# Rule 2: Assembly-based telomere scan (Approach A)
-# ============================================================
+        # ============================================================
+        # Rule 2: Assembly-based telomere scan (Approach A)
+        # ============================================================
 rule assembly_telomere_scan:
     """Scan hifiasm assembly contig ends for telomeric repeats.
 
@@ -169,18 +168,17 @@ rule assembly_telomere_scan:
                 "--scan_length", str(params.scan_length)
             ]
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
+                f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"Assembly telomere scan failed for sample {wildcards.sample_id} with error: {e}\n")
             raise
 
-# ============================================================
-# Rule 3: Read-level k-mer density (Approach B)
-# ============================================================
+        # ============================================================
+        # Rule 3: Read-level k-mer density (Approach B)
+        # ============================================================
 rule read_density_telomere:
     """Estimate genome-wide average telomere length from read-level k-mer density.
 
@@ -219,18 +217,17 @@ rule read_density_telomere:
                 "--n_chrom_arms", str(params.n_chrom_arms)
             ]
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
+                f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"Read density telomere failed for sample {wildcards.sample_id} with error: {e}\n")
             raise
 
-# ============================================================
-# Rule 4: tidk scan (Approach C)
-# ============================================================
+        # ============================================================
+        # Rule 4: tidk scan (Approach C)
+        # ============================================================
 rule tidk_init:
     """Build tidk reference database (one-time init)."""
     output:
@@ -254,14 +251,13 @@ rule tidk_init:
             cmd = [params.tidk, "build"]
             cmd_touch = ["touch", output[0]]
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(" ".join(cmd_touch) + "\n")
+                f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"tidk build failed with error: {e}\n")
             raise
 
 rule tidk_scan:
@@ -302,9 +298,10 @@ rule tidk_scan:
                 input.fasta
             ]
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write("mkdir -p " + params.output_dir + "\n")
                 f.write(" ".join(cmd_search) + "\n")
+                f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
 
@@ -319,13 +316,11 @@ rule tidk_scan:
                     f.write("# No telomeric repeats found by tidk\n")
 
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"tidk scan failed for sample {wildcards.sample_id} with error: {e}\n")
             raise
 
-# ============================================================
-# Result rules (aggregation points for subworkflow)
-# ============================================================
+        # ============================================================
+        # Result rules (aggregation points for subworkflow)
+        # ============================================================
 rule telogator2_result:
     """Result aggregation for telogator2."""
     input:

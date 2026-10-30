@@ -33,19 +33,18 @@ rule umi_tools_dedup_for_hisat2:
             script = os.path.join(RECEIPT_DIR, f"umi_tools_dedup_for_hisat2_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"umi_tools_dedup_for_hisat2.sh")
             with open(script, "w") as f:
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(f"{params.umi_tools} dedup \\\n")
                 f.write(f"    --method={params.method} \\\n")
                 f.write(f"    -I {input.bam} \\\n")
                 f.write(f"    -S {output.bam} \\\n")
-                f.write(f"    > {log_path} 2>&1\n")
                 f.write(f"{params.samtools} index {output.bam}\n")
+                f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
             rule_logger.info(f"umi_tools_dedup_for_hisat2 for sample {wildcards.sample_id} completed")
-        except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"umi_tools_dedup_for_hisat2 failed for sample {wildcards.sample_id}: {e}\n")
-            raise e
+        rule_logger.error(f"Error occurred: {e}")
+        raise RuntimeError(f"Error occurred: {e}, you can check the log file {log_path} for more details.")
 
 rule umi_tools_dedup_for_star:
     input:
@@ -76,13 +75,13 @@ rule umi_tools_dedup_for_star:
             script = os.path.join(RECEIPT_DIR, f"umi_tools_dedup_for_star_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"umi_tools_dedup_for_star.sh")
             with open(script, "w") as f:
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(f"{params.umi_tools} dedup --method={params.method} \\\n")
-                f.write(f"    -I {input.bam} -S {output.bam} > {log_path} 2>&1\n")
-                f.write(f"{params.samtools} index {output.bam} 2>>{log_path}\n")
+                f.write(f"    -I {input.bam} -S {output.bam}\n")
+                f.write(f"{params.samtools} index {output.bam}\n")
+                f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
             rule_logger.info(f"umi_tools_dedup_for_star for sample {wildcards.sample_id} completed")
-        except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"umi_tools_dedup_for_star failed for sample {wildcards.sample_id}: {e}\n")
-            raise e
+        rule_logger.error(f"Error occurred: {e}")
+        raise RuntimeError(f"Error occurred: {e}, you can check the log file {log_path} for more details.")

@@ -31,7 +31,7 @@ rule neodisambiguate:
         sif("neodisambiguate.yaml")
     run:
         log_path = str(log)
-open(log_path, 'w').close()
+        open(log_path, 'w').close()
 logger = setup_logger(logger_name="neodisambiguate", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -46,7 +46,9 @@ logger = setup_logger(logger_name="neodisambiguate", log_file=log_path)
                 str(input.bam2)
             ]
             with open(script, 'w') as f:
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(' '.join(cmd) + '\n')
+                f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:

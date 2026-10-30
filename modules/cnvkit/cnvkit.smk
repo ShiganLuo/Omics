@@ -39,7 +39,7 @@ rule cnvkit_reference:
         control_bams = lambda wildcards: " ".join([f"{indir}/{sid}/{sid}.bam" for sid in control_samples])
     run:
         log_path = str(log)
-open(log_path, 'w').close()
+        open(log_path, 'w').close()
 rule_logger = setup_logger("cnvkit_reference", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -49,7 +49,7 @@ rule_logger = setup_logger("cnvkit_reference", log_file=log_path)
             script = os.path.join(RECEIPT_DIR, f"cnvkit_reference_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"cnvkit_reference.sh")
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(f"{params.cnvkit} batch \\\n")
                 f.write(f"    {params.control_bams} \\\n")
                 f.write(f"    --method {params.method} \\\n")
@@ -58,13 +58,12 @@ rule_logger = setup_logger("cnvkit_reference", log_file=log_path)
                 f.write(f"    --processes {threads} \\\n")
                 f.write(f"    --output-reference {output.ref} \\\n")
                 f.write(f"    > {log} 2>&1\n")
+                f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"Error occurred during cnvkit reference build: {e}\n")
             logger.error(f"Error occurred during cnvkit reference build: {e}")
-            raise e
+            raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
 
 rule cnvkit_batch:
     """Run CNVkit batch analysis on all samples."""
@@ -91,7 +90,7 @@ rule cnvkit_batch:
         outdir = outdir + "/cnv"
     run:
         log_path = str(log)
-open(log_path, 'w').close()
+        open(log_path, 'w').close()
 rule_logger = setup_logger("cnvkit_batch", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -100,7 +99,7 @@ rule_logger = setup_logger("cnvkit_batch", log_file=log_path)
             plain_script = os.path.join(params.outdir, f"cnvkit_batch.sh")
             os.makedirs(params.outdir, exist_ok=True)
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(f"if [ -f {input.ref} ]; then\n")
                 f.write(f"    {params.cnvkit} batch \\\n")
                 f.write(f"        {params.treat_bams} \\\n")
@@ -120,13 +119,12 @@ rule_logger = setup_logger("cnvkit_batch", log_file=log_path)
                 f.write(f"        --scatter --diagram \\\n")
                 f.write(f"        > {log} 2>&1\n")
                 f.write(f"fi\n")
+                f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"Error occurred during cnvkit batch: {e}\n")
             logger.error(f"Error occurred during cnvkit batch: {e}")
-            raise e
+            raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
 
 rule cnvkit_result:
     """Result aggregation rule for subworkflow use rule import."""

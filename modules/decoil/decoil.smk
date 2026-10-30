@@ -209,6 +209,7 @@ rule decoil_reconstruct:
                     f'echo "decoil_reconstruct for {wildcards.sample_id} at '
                     f'{current_time} completed successfully"\n'
                 )
+                f.write(f'echo "script completed successfully"\n')
             rule_logger.info("Executing: " + " ".join(cmd))
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -270,8 +271,9 @@ rule decoil_plot:
             for fmt in params.formats:
                 cmd += ["-f", str(fmt)]
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
+                f.write(f'echo "script completed successfully"\n')
             rule_logger.info("Executing: " + " ".join(cmd))
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -327,8 +329,9 @@ rule decoil_compare:
             for fmt in params.formats:
                 cmd += ["-f", str(fmt)]
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
+                f.write(f'echo "script completed successfully"\n')
             rule_logger.info("Executing: " + " ".join(cmd))
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -397,8 +400,9 @@ rule decoil_structure:
             for fmt in params.formats:
                 cmd += ["-f", str(fmt)]
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
+                f.write(f'echo "script completed successfully"\n')
             rule_logger.info("Executing: " + " ".join(cmd))
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -456,7 +460,9 @@ rule decoil_igv:
             config_json_path = str(params.config_json)
             tmp_base_json = os.path.join(sample_vis_dir, f"igv_base_{wildcards.sample_id}.json")
             with open(tmp_base_json, "w") as f:
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 json.dump(base_cfg, f, indent=2)
+                f.write(f'echo "script completed successfully"\n')
 
             script = os.path.join(RECEIPT_DIR, f"decoil_igv_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_vis_dir, f"decoil_igv_{wildcards.sample_id}.sh")
@@ -477,9 +483,10 @@ rule decoil_igv:
                 "-o", str(output.html),
             ]
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd1) + "\n")
                 f.write(" ".join(cmd2) + "\n")
+                f.write(f'echo "script completed successfully"\n')
             rule_logger.info("Executing: " + " ".join(cmd1) + " && " + " ".join(cmd2))
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -529,12 +536,13 @@ rule decoil_ucsc:
                 "-o", str(output.track),
             ]
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(
                     f'echo "decoil_ucsc for {wildcards.sample_id} for '
                     f'{wildcards.sample_id} was completed successfully"\n'
                 )
+                f.write(f'echo "script completed successfully"\n')
             rule_logger.info("Executing: " + " ".join(cmd))
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")

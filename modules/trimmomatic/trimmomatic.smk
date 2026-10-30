@@ -42,6 +42,7 @@ rule trimmomatic_Paired:
             script = os.path.join(RECEIPT_DIR, f"trimmomatic_Paired_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"trimmomatic_Paired.sh")
             with open(script, "w") as f:
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(f"{params.cmd} PE -threads {threads} \\\n")
                 f.write(f"    {input.fastq1} {input.fastq2} \\\n")
                 f.write(f"    -summary {output.report} \\\n")
@@ -51,14 +52,12 @@ rule trimmomatic_Paired:
                 f.write(f"    LEADING:3 TRAILING:3 \\\n")
                 f.write(f"    SLIDINGWINDOW:4:15 \\\n")
                 f.write(f"    MINLEN:80 \\\n")
-                f.write(f"    2> {log_path}\n")
+                f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
             rule_logger.info(f"trimmomatic_Paired for sample {wildcards.sample_id} completed")
-        except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"trimmomatic_Paired failed for sample {wildcards.sample_id}: {e}\n")
-            raise e
+        rule_logger.error(f"Error occurred: {e}")
+        raise RuntimeError(f"Error occurred: {e}, you can check the log file {log_path} for more details.")
 
 rule trimmomatic_Single:
     input:
@@ -96,6 +95,7 @@ rule trimmomatic_Single:
             script = os.path.join(RECEIPT_DIR, f"trimmomatic_Single_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"trimmomatic_Single.sh")
             with open(script, "w") as f:
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(f"{params.cmd} SE -threads {threads} \\\n")
                 f.write(f"    {input.fastq} {output.fastq} \\\n")
                 f.write(f"    -summary {output.report} \\\n")
@@ -103,11 +103,9 @@ rule trimmomatic_Single:
                 f.write(f"    LEADING:3 TRAILING:3 \\\n")
                 f.write(f"    SLIDINGWINDOW:4:15 \\\n")
                 f.write(f"    MINLEN:80 \\\n")
-                f.write(f"    2> {log_path}\n")
+                f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
             rule_logger.info(f"trimmomatic_Single for sample {wildcards.sample_id} completed")
-        except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"trimmomatic_Single failed for sample {wildcards.sample_id}: {e}\n")
-            raise e
+        rule_logger.error(f"Error occurred: {e}")
+        raise RuntimeError(f"Error occurred: {e}, you can check the log file {log_path} for more details.")

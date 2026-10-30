@@ -356,7 +356,7 @@ rule quantification_dia:
     run:
         log_path = str(log)
         rule_logger = setup_logger("quantification_dia", log_file=log_path)
-open(log_path, "w").close()
+        open(log_path, "w").close()
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start DIA quantification at {current_time}")
@@ -387,17 +387,17 @@ open(log_path, "w").close()
             rule_logger.error(f"Error during DIA quantification: {str(e)}\n")
             raise RuntimeError(f"Error during DIA quantification: {str(e)}\n")
 
-# Panel rule: which quantification products the workflow registers is decided
-# by node.py through the output paths it writes into outfiles; this rule only
-# aggregates the products of the configured quantification method.
-# tmt: the merged-design mzTab needs an experimental design (plex -> channel
-# -> condition mapping); without one the per-plex protein tables and the long
-# abundance table are the deliverables.
-_RESULT_MZTAB = {
+        # Panel rule: which quantification products the workflow registers is decided
+        # by node.py through the output paths it writes into outfiles; this rule only
+        # aggregates the products of the configured quantification method.
+        # tmt: the merged-design mzTab needs an experimental design (plex -> channel
+        # -> condition mapping); without one the per-plex protein tables and the long
+        # abundance table are the deliverables.
+        _RESULT_MZTAB = {
     "tmt": outdir + "/tmt_quantification.mzTab" if config.get("expdesign", "") else outdir + "/tmt_protein_abundances.csv",
     "lfq": outdir + "/lfq_quantification.mzTab",
     "dia": outdir + "/dia_quantification.mzTab",
-}
+        }
 
 rule quantification_result:
     input:

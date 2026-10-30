@@ -42,7 +42,7 @@ rule cellranger_ref:
         nthreads = 16,
     run:
         log_path = str(log)
-open(log_path, 'w').close()
+        open(log_path, 'w').close()
 rule_logger = setup_logger(logger_name="cellranger_ref", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -64,12 +64,11 @@ rule_logger = setup_logger(logger_name="cellranger_ref", log_file=log_path)
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(str(item) for item in cmd) + "\n")
                 f.write(f'echo "Cell Ranger reference for genome {wildcards.genome} built at {str(output.ref_dir)} successfully"\n')
+                f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(command_script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
-        except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"cellranger_ref failed for genome {wildcards.genome}: {e}\n")
-            raise RuntimeError(f"cellranger_ref failed for genome {wildcards.genome}: {e}\n")
+        rule_logger.error(f"Error occurred: {e}")
+        raise RuntimeError(f"Error occurred: {e}, you can check the log file {log_path} for more details.")
 
 def get_input_for_cellranger_count(wildcards):
     """Get input files for cellranger_count rule."""
@@ -115,7 +114,7 @@ rule cellranger_count:
         sample_prefix = lambda wildcards: cellranger_input_dict.get(wildcards.sample_id, {}).get("sample_prefix")
     run:
         log_path = str(log)
-open(log_path, 'w').close()
+        open(log_path, 'w').close()
 rule_logger = setup_logger(logger_name="cellranger_count", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -154,10 +153,8 @@ rule_logger = setup_logger(logger_name="cellranger_count", log_file=log_path)
                 f.write(f'echo "Cell Ranger count completed for sample {sample_id} on genome {wildcards.genome}"\n')
             shutil.copyfile(command_script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
-        except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"cellranger_count failed for genome {wildcards.genome}: {e}\n")
-            raise RuntimeError(f"cellranger_count failed for genome {wildcards.genome}: {e}\n")
+        rule_logger.error(f"Error occurred: {e}")
+        raise RuntimeError(f"Error occurred: {e}, you can check the log file {log_path} for more details.")
 
 rule cellranger_to_h5ad:
     """Convert Cell Ranger filtered matrix to h5ad."""
@@ -193,9 +190,8 @@ rule cellranger_to_h5ad:
             with open(command_script, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(str(item) for item in cmd) + "\n")
+                f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(command_script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
-        except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"cellranger_to_h5ad failed for genome {wildcards.genome}: {e}\n")
-            raise RuntimeError(f"cellranger_to_h5ad failed for genome {wildcards.genome}: {e}\n")
+        rule_logger.error(f"Error occurred: {e}")
+        raise RuntimeError(f"Error occurred: {e}, you can check the log file {log_path} for more details.")

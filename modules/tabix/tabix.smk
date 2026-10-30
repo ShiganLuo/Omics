@@ -33,9 +33,10 @@ rule tabix_bgzip:
             params.tabix, "-p", "vcf", output.vcf_gz
         ]
         with open(script, "w") as f:
-            f.write("#!/bin/bash\n")
+            f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
             f.write(" ".join(cmd1) + "\n")
             f.write(" ".join(cmd2) + "\n")
+            f.write(f'echo "script completed successfully"\n')
         shutil.copyfile(script, plain_script)
         shell("bash {plain_script} > {log} 2>&1")
 

@@ -32,7 +32,7 @@ rule frip_score:
         sif("frip_score.yaml")
     run:
         log_path = str(log)
-open(log_path, 'w').close()
+        open(log_path, 'w').close()
 rule_logger = setup_logger("frip_score", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -74,7 +74,9 @@ echo "Total mapped reads: $TOTAL_MAPPED"
 echo "FRiP score: $FRIP"
 """
             with open(script, "w") as f:
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(script_content)
+                f.write(f'echo "script completed successfully"\n')
             
             rule_logger.info(f"Executing script: {script}")
             shutil.copyfile(script, plain_script)
@@ -83,10 +85,8 @@ echo "FRiP score: $FRIP"
             rule_logger.info(f"FRiP score calculation for sample {wildcards.sample_id} completed successfully")
             
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"Error occurred during FRiP score calculation for sample {wildcards.sample_id}: {e}\n")
             logger.error(f"Error occurred during FRiP score calculation for sample {wildcards.sample_id}: {e}")
-            raise e
+            raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
 
 rule frip_score_result:
     """

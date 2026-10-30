@@ -41,14 +41,13 @@ rule mimseq_deseq:
                 cmd += ["--mito-trnas", params.mito_trnas]
 
             with open(script_path, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write("export PATH=/data/pub/zhousha/env/mutation_0.1/eda061b3f191779ad16ff11ee6fe53b4_/bin:$PATH\n")
                 f.write(" ".join(cmd) + "\n")
+                f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script_path, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"mimseq_deseq failed: {e}\n")
             raise
 
 rule mimseq_deseq_result:

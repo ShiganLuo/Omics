@@ -77,7 +77,7 @@ rule arriba:
             if params.p:
                 cmd += ["-p", params.p]
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "Arriba fusion detection for sample {wildcards.sample_id} successfully completed!"\n')
             shutil.copyfile(script, plain_script)
@@ -120,7 +120,7 @@ rule arriba_report:
                 "-o", outdir + "/arriba_report"
             ]
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "Arriba report generation successfully completed!"\n')
             shutil.copyfile(script, plain_script)

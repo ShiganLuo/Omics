@@ -48,9 +48,10 @@ rule seqprep_merge:
             params.seqkit, "stats", output.merge, ">", output.report
         ]
         with open(script, "w") as f:
-            f.write("#!/bin/bash\n")
+            f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
             f.write(" ".join(cmd_merge) + " 2> {log}\n")
             f.write(" ".join(cmd_stats) + " 2>> {log}\n")
+            f.write(f'echo "script completed successfully"\n')
         shutil.copyfile(script, plain_script)
         shell("bash {plain_script} > {log} 2>&1")
 

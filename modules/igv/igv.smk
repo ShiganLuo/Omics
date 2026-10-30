@@ -55,14 +55,12 @@ rule_logger = setup_logger("dedup",log_file=log_path)
             ]
             success_echo = f'echo "dedup for sample {wildcards.sample_id} successfully completed !"'
             with open(script_path,"w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(success_echo + "\n")
             shutil.copyfile(script_path, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"samtools dedup failed: {e}\n")
             logger.error(f"samtools dedup failed: {e}\n")
             raise f"samtools dedup failed: {e}\n"
             
@@ -112,13 +110,12 @@ rule_logger = setup_logger("wig",log_file=log_path)
             if params.offset:
                 cmd += ["--Offset", params.offset]
             with open(script_path,"w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
+                f.write(f'echo "wig completed successfully"\n')
             shutil.copyfile(script_path, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"bamCoverage wig failed: {e}\n")
             logger.error(f"bamCoverage wig failed: {e}\n")
             raise f"bamCoverage wig failed: {e}\n"
 

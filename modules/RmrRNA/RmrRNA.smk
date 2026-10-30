@@ -32,7 +32,8 @@ rule extract_rRNA:
                 "--threads", str(threads)
                 ]
         with open(script, "w") as f:
-            f.write("#!/bin/bash\n")
+            f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
             f.write(" ".join(cmd) + "\n")
+            f.write(f'echo "script completed successfully"\n')
         shell("bash {plain_script} > {log} 2>&1")
 

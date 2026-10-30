@@ -68,14 +68,13 @@ rule deepvariant_run:
                 params.bcftools, "index", output.vcf
             ]
             with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd1) + "\n")
                 f.write(" ".join(cmd2) + "\n")
+                f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"Error during DeepVariant execution: {str(e)}\n")
             raise f"Error occurred while running DeepVariant for sample {wildcards.sample_id}: {e}, you can check the log file {log_path} for more details."
 
 rule deepvariant_result:

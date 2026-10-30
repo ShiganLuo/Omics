@@ -97,14 +97,13 @@ rule mimseq_tRNAtools:
                 cmd += ["--cluster"]
 
             with open(script_path, "w") as f:
-                f.write("#!/bin/bash\n")
+                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write("source /home/zhousha/miniforge3/bin/activate /data/pub/zhousha/env/mutation_0.1/eda061b3f191779ad16ff11ee6fe53b4_\n")
                 f.write(" ".join(cmd) + "\n")
+                f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script_path, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            with open(log_path, "a") as f:
-                f.write(f"mimseq_tRNAtools failed: {e}\n")
             raise
 
 rule mimseq_tRNAtools_result:

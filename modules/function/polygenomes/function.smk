@@ -13,7 +13,7 @@ func_params = config.get("Params", {}).get("function", {})
 
 rule function_go_kegg:
     input:
-        deseq2_result = indir + "/{genome}/{contrast}/{contrast}.TEcount_Gene.name.tsv",
+        deseq2_result = indir + "/{genome}/{contrast}/TEcount/{contrast}.TEcount_Gene.name.tsv",
     output:
         func_go_plot = outdir + "/{genome}/{contrast}/go_back_to_back.png",
         func_kegg_plot = outdir + "/{genome}/{contrast}/kegg_back_to_back.png",
@@ -84,7 +84,7 @@ rule function_go_kegg:
 def get_input_for_function_gsea(wildcards):
     logger.debug(f"[get_input_for_function_gsea] called with wildcards: {wildcards}")
     in_dict = {}
-    deseq2_result = indir + f"/{wildcards.genome}/{wildcards.contrast}/{wildcards.contrast}.TEcount_Gene.tsv"
+    deseq2_result = indir + f"/{wildcards.genome}/{wildcards.contrast}/TEcount/{wildcards.contrast}.TEcount_Gene.tsv"
     annotation = config.get('genome',{}).get('references', {}).get(wildcards.genome, {}).get('geneIDAnno')
     if not annotation or not os.path.exists(annotation):
         raise FileNotFoundError(f"Gene ID annotation not found for genome {wildcards.genome}.")

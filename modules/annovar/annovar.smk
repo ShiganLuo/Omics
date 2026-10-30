@@ -21,7 +21,7 @@ rule TEcoutCPM:
     run:
         log_path = str(log.log)
         open(log_path, 'w').close()
-logger = setup_logger(logger_name="TEcoutCPM_run", log_file=log_path)
+        logger = setup_logger(logger_name="TEcoutCPM_run", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start TEcoutCPM run at {current_time}")
@@ -177,7 +177,7 @@ rule annovar_convert:
     run:
         log_path = str(log.log)
         open(log_path, 'w').close()
-logger = setup_logger(logger_name="annovar_convert_run", log_file=log_path)
+        logger = setup_logger(logger_name="annovar_convert_run", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start annovar_convert run for sample {wildcards.sample_id} at {current_time}")
@@ -219,7 +219,7 @@ rule annovar_table:
     run:
         log_path = str(log.log)
         open(log_path, 'w').close()
-logger = setup_logger(logger_name="annovar_table_run", log_file=log_path)
+        logger = setup_logger(logger_name="annovar_table_run", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start annovar_table run for sample {wildcards.sample_id} at {current_time}")

@@ -1,5 +1,5 @@
-sample_id	data_id	design	fastq_1	fastq_2
-TestIP1	TestIP1	exp_Test	fastq/TestIP1/TestIP1_1.fq.gz	fastq/TestIP1/TestIP1_2.fq.gz
-TestInput1	TestInput1	ctr_Test	fastq/TestInput1/TestInput1_1.fq.gz	fastq/TestInput1/TestInput1_2.fq.gz
-TestIP2	TestIP2	exp_Test2	fastq/TestIP2/TestIP2_1.fq.gz	fastq/TestIP2/TestIP2_2.fq.gz
-TestInput2	TestInput2	ctr_Test2	fastq/TestInput2/TestInput2_1.fq.gz	fastq/TestInput2/TestInput2_2.fq.gz
+sample_id	organism	group	data_id	design	fastq_1	fastq_2	contaminated_organism
+TestIP1	GRCm39		TestIP1	exp_Test	fastq/TestIP1/TestIP1_1.fq.gz	fastq/TestIP1/TestIP1_2.fq.gz	
+TestInput1	GRCm39		TestInput1	ctr_Test	fastq/TestInput1/TestInput1_1.fq.gz	fastq/TestInput1/TestInput1_2.fq.gz	
+TestIP2	GRCm39		TestIP2	exp_Test2	fastq/TestIP2/TestIP2_1.fq.gz	fastq/TestIP2/TestIP2_2.fq.gz	
+TestInput2	GRCm39		TestInput2	ctr_Test2	fastq/TestInput2/TestInput2_1.fq.gz	fastq/TestInput2/TestInput2_2.fq.gz	

@@ -3,13 +3,14 @@ include: "../common/common.smk"
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 indir = config.get("indir", "input")
+bam_suffix = config.get("bam_suffix", "")
 samples = config.get("samples", [])
 ROOT_DIR = config.get("ROOT_DIR", ".")
 
 rule manta_config:
     """Configure Manta SV caller."""
     input:
-        bam = indir + "/{sample_id}/{sample_id}.bam",
+        bam = indir + "/{sample_id}/{sample_id}" + bam_suffix + ".bam",
         fasta = config.get("genome", {}).get("fasta")
     output:
         config = outdir + "/{sample_id}/runWorkflow.py.config.pickle",
@@ -25,7 +26,7 @@ rule manta_config:
     run:
         log_path = str(log)
         open(log_path, 'w').close()
-logger = setup_logger(logger_name="manta_config", log_file=log_path)
+        logger = setup_logger(logger_name="manta_config", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start manta config for sample {wildcards.sample_id} at {current_time}")
@@ -70,7 +71,7 @@ rule manta_run:
     run:
         log_path = str(log)
         open(log_path, 'w').close()
-logger = setup_logger(logger_name="manta_run", log_file=log_path)
+        logger = setup_logger(logger_name="manta_run", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start manta run for sample {wildcards.sample_id} at {current_time}")

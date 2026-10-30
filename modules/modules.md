@@ -176,7 +176,10 @@ rule <tool>_<action>:
             rule_logger.info(f"Start <tool> <action> for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.xxx))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(sample_outdir, f"<tool>_<action>_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
+            # 带时间戳的备份(log/cmd 历史);outdir 只放无时间戳的当前命令(见"命令回执双写")
+            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"<tool>_<action>_{wildcards.sample_id}_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, f"<tool>_<action>_{wildcards.sample_id}.sh")
             cmd = [
                 params.<tool>, "<action>",
                 ...
@@ -186,7 +189,8 @@ rule <tool>_<action>:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "<tool> <action> for {wildcards.sample_id} was completed successfully"\n')
             rule_logger.info("Executing: " + " ".join(cmd))
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during <tool> <action> for sample {wildcards.sample_id}: {e}\n")
             raise RuntimeError(f"Error occurred during <tool> <action> for sample {wildcards.sample_id}: {e}, you can check the log file {log_path} for more details.\n")
@@ -198,6 +202,31 @@ rule <tool>_<action>:
 rule <module>_result:
     input: ...
 ```
+## 命令回执双写（强制）
+
+每条规则生成的 `.sh` 回执**必须同时写到两个位置**：
+
+| 位置 | 文件名 | 行为 |
+|---|---|---|
+| 输出目录（`sample_outdir`） | `<rule>_<sample>.sh`（**无时间戳**） | 每次运行覆盖，始终对应当前命令，与结果同在，可直接复制重跑 |
+| `{logdir}/cmd/<sample_id>/` | `<rule>_<sample>_<时间戳>.sh` | 历史备份，按运行累积，供审计对比 |
+
+对比级规则用 `{logdir}/cmd/<contrast>/`，组级（merge 类）用 `{logdir}/cmd/group/`。
+
+写文件顺序：先写时间戳版（`script`），`shutil.copyfile(script, plain_script)` 复制为无时间戳版（`plain_script`），然后 `shell()` 执行 `plain_script`。注意 plain 文件名若含通配符插值（`{wildcards.sample_id}`）必须是 f-string。
+
+理由：
+- 结果目录自证来源——拿到结果目录就知道它是哪条命令产的，无需翻日志
+- outdir 无时间戳 → 不堆积；历史仍在 log/cmd 可追溯
+- 回执不要写进任何被声明为 `directory()` 的输出目录——Snakemake 运行前会清空该目录，回执会被删（sv 模块 RepeatMasker 结果被 `sv_exp_enrichment` 的 `directory(enrichment/)` 误删即是此坑）
+
+## 输出目录卫生（强制）
+
+- **中间大文件不留输出目录**：规则不得在自己的 outdir 里复制/重排上游大文件（BAM/大 BED）。需要排序/索引版上游文件时，让上游规则产它或直接引用上游路径
+- **未压缩大 BED 一律 bgzip**：BED 超过 1G 的产出用 bgzip+tabix（容器选含 htslib 的环境），下游用流式读取（`open_maybe_gzip`）
+- **`.tmp` 中间物用前清理**：`path.unlink(missing_ok=True)`，失败中断的残留下次运行前清掉
+- **转换成功即删中间物**：如 bedGraph→bigWig 成功后删除 bedGraph
+
 ## 要点
 
 1. **`open(log_path, "w").close()`** — 清空旧日志，避免追加混淆
@@ -212,6 +241,7 @@ rule <module>_result:
 8. **`echo` 完成标记** — 脚本末尾写 `echo "...completed successfully"`，执行成功时日志中有明确结尾
 9. **`shell(f"bash {script} >> {log_path} 2>&1")`** — 直接路径，不加 `shlex.quote` 包装
 10. **`logger.error(...)` + `raise e`** — snakemake logger 记录错误后 re-raise
+11. **`import shutil`** — 模块头部需要（回执双写的 `shutil.copyfile`）
 
 ## 线程限流环境变量
 
@@ -425,6 +455,32 @@ use rule generate_report from <Workflow>_report as <Workflow>_generate_report
 use rule report_result from <Workflow>_report as <Workflow>_report_result
 ```
 
+# Subworkflow 跨模块衔接（强制）
+
+subworkflow 中后一个模块消费前一个模块的输出时，**输入目录一律引用上游
+config 的 `outdir`**，不得手拼同一路径的 f-string 副本：
+
+```python
+# ✅ 正确：路径知识只写一次，wiring 跟随 DAG
+fiberseq_footprint_config = {
+    "indir": elements_dir,                        # = extract 步的 outdir
+    "motif_dir": fiberseq_motif_config["outdir"], # 上游模块 config["outdir"]
+    "outdir": f"{analysis_outdir}/footprint",
+    ...
+}
+
+# ❌ 错误：同一路径出现两个手拼副本，改一处漏一处
+"motif_dir": f"{outdir}/fiberseq_analysis/motif",   # 与 motif 模块的 outdir 重复定义
+```
+
+规则：
+- 上下游目录在 subworkflow 里定义**模块级常量**（`elements_dir`、
+  `phased_dir`），由产出方 config 引用同一常量；Snakefile 是顺序执行的，
+  **禁止前向引用**后面才定义的 config 字典（NameError）
+- 模块 .smk 内部接收这类输入用独立 config 键（`motif_dir`/`quant_dir`/
+  `annot_dir`/`hap_dir`/`vcf_dir`），fallback 用 `config.get("xxx") or indir`
+- 判断标准：一个物理路径在整个 subworkflow 里只出现一次字面定义
+
 # Conda 环境模板（.yaml）
 
 ```yaml
@@ -547,3 +603,17 @@ output:
 同一份 config 列表放 `params` 回读给 run 块，保证脚本产出与声明一一对应。
 运行时才知道产物的场景用 `directory()` / marker / checkpoint，不要把可能
 产物全声明成 output 靠"能产哪个产哪个"（MissingOutput 不允许部分满足）。
+
+## 8. directory() 输出会在规则运行前被清空
+
+声明 `directory(path)` 为 output 的规则，Snakemake 在运行前删除整个目录
+（含其中"别人写的"文件）。多个规则向同一目录写文件时，后跑的会清掉先跑
+的产出（sv 模块 `enrichment/` 被 `sv_exp_enrichment` 清空、exp_specific
+的 RepeatMasker 结果被误删即是实例）。规矩：一个 directory 输出只属于一条
+规则；其他规则要写就写自己的目录。
+
+## 9. outdir 里的时间戳回执会无限堆积
+
+带时间戳的 `.sh` 每次重跑多一份，结果目录因此逐渐变脏。回执一律双写：
+outdir 放无时间戳版（覆盖），`log/cmd/` 放时间戳版（历史），见
+「命令回执双写」。

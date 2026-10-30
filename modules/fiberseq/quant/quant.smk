@@ -2,6 +2,7 @@ include: "../../common/common.smk"
 
 from snakemake.logging import logger
 import os
+import shutil
 import time
 
 indir = config.get("indir", "common/4_elements")
@@ -51,6 +52,10 @@ rule fiberseq_quant_run:
             os.makedirs(sample_outdir, exist_ok=True)
             os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
             script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"fiberseq_quant_run_{wildcards.sample_id}_{current_time}.sh")
+            # timestamped copy stays in log/cmd as history; the outdir copy
+            # (no timestamp, overwritten each run) documents the current command
+            # next to the results it produced
+            plain_script = os.path.join(sample_outdir, f"fiberseq_quant_run_{wildcards.sample_id}.sh")
             cmd = [
                 "python", params.script, "run",
                 "-p", str(input.peaks),
@@ -67,7 +72,8 @@ rule fiberseq_quant_run:
                 f.write("set -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "fiberseq_quant_run for {wildcards.sample_id} at {current_time} completed successfully"\n')
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during fiberseq_quant_run for {wildcards.sample_id}: {e}\n")
             raise RuntimeError(f"Error occurred during fiberseq_quant_run for {wildcards.sample_id}: {e}\n")
@@ -102,6 +108,10 @@ rule fiberseq_quant_hap:
             os.makedirs(sample_outdir, exist_ok=True)
             os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
             script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"fiberseq_quant_hap_{wildcards.hap}_{wildcards.sample_id}_{current_time}.sh")
+            # timestamped copy stays in log/cmd as history; the outdir copy
+            # (no timestamp, overwritten each run) documents the current command
+            # next to the results it produced
+            plain_script = os.path.join(sample_outdir, f"fiberseq_quant_hap_{wildcards.hap}_{wildcards.sample_id}.sh")
             cmd = [
                 "python", params.script, "run",
                 "-p", str(input.peaks),
@@ -117,7 +127,8 @@ rule fiberseq_quant_hap:
                 f.write("set -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "fiberseq_quant_hap for {wildcards.sample_id} at {current_time} completed successfully"\n')
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during fiberseq_quant_hap for {wildcards.sample_id}: {e}\n")
             raise RuntimeError(f"Error occurred during fiberseq_quant_hap for {wildcards.sample_id}: {e}\n")
@@ -153,6 +164,7 @@ rule fiberseq_quant_merge:
             os.makedirs(group_outdir, exist_ok=True)
             os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
             script = os.path.join(logdir, "cmd", "group", f"fiberseq_quant_merge_{current_time}.sh")
+            plain_script = os.path.join(group_outdir, "fiberseq_quant_merge.sh")
             cmd = [
                 "python", params.script, "merge",
                 "-q", ",".join(str(x) for x in input.quants),
@@ -164,7 +176,8 @@ rule fiberseq_quant_merge:
                 f.write("set -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "fiberseq_quant_merge at {current_time} completed successfully"\n')
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during fiberseq_quant_merge: {e}\n")
             raise RuntimeError(f"Error occurred during fiberseq_quant_merge: {e}\n")

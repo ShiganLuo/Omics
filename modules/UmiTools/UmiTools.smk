@@ -1,8 +1,5 @@
 include: "../common/common.smk"
 
-import shutil
-
-from snakemake.logging import logger
 outdir = config.get("outdir", "output")
 indir = config.get("indir", "output")
 logdir = config.get("logdir", "log")
@@ -26,14 +23,14 @@ rule umi_tools_dedup_for_hisat2:
         log = logdir + "/{sample_id}/umi_tools_dedup_run.txt"
     run:
         log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger("umi_tools_dedup_for_hisat2", log_file=log_path)
         try:
-            open(log_path, "w").close()
-            rule_logger = setup_logger("umi_tools_dedup_for_hisat2", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start umi_tools_dedup_for_hisat2 for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"umi_tools_dedup_for_hisat2_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"umi_tools_dedup_for_hisat2_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"umi_tools_dedup_for_hisat2.sh")
             with open(script, "w") as f:
                 f.write(f"{params.umi_tools} dedup \\\n")
@@ -69,14 +66,14 @@ rule umi_tools_dedup_for_star:
         log = logdir + "/{sample_id}/umi_tools_dedup_run.txt"
     run:
         log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger("umi_tools_dedup_for_star", log_file=log_path)
         try:
-            open(log_path, "w").close()
-            rule_logger = setup_logger("umi_tools_dedup_for_star", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start umi_tools_dedup_for_star for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"umi_tools_dedup_for_star_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"umi_tools_dedup_for_star_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"umi_tools_dedup_for_star.sh")
             with open(script, "w") as f:
                 f.write(f"{params.umi_tools} dedup --method={params.method} \\\n")

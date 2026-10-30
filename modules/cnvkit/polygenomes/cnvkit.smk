@@ -1,6 +1,5 @@
 include: "../../common/common.smk"
 
-import shutil
 from snakemake.logging import logger
 import time
 import os
@@ -40,14 +39,14 @@ rule cnvkit_reference:
         control_bams = lambda wildcards: " ".join([f"{indir}/{sid}/{sid}.bam" for sid in control_samples])
     run:
         log_path = str(log)
+open(log_path, 'w').close()
+rule_logger = setup_logger("cnvkit_reference", log_file=log_path)
         try:
-            open(log_path, 'w').close()
-            rule_logger = setup_logger("cnvkit_reference", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start cnvkit reference build for genome {wildcards.genome} at {current_time}")
             sample_outdir = os.path.dirname(str(output.ref))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"cnvkit_reference_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"cnvkit_reference_{wildcards.genome}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"cnvkit_reference.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
@@ -92,12 +91,12 @@ rule cnvkit_batch:
         batch_outdir = lambda wildcards: outdir + f"/{wildcards.genome}/cnv"
     run:
         log_path = str(log)
+open(log_path, 'w').close()
+rule_logger = setup_logger("cnvkit_batch", log_file=log_path)
         try:
-            open(log_path, 'w').close()
-            rule_logger = setup_logger("cnvkit_batch", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start cnvkit batch for genome {wildcards.genome} at {current_time}")
-            script = os.path.join(RECEIPT_DIR, f"cnvkit_batch_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"cnvkit_batch_{wildcards.genome}_{current_time}.sh")
             plain_script = os.path.join(params.batch_outdir, f"cnvkit_batch.sh")
             os.makedirs(params.batch_outdir, exist_ok=True)
             with open(script, "w") as f:

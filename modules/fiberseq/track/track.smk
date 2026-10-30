@@ -1,8 +1,6 @@
 include: "../../common/common.smk"
 
-from snakemake.logging import logger
 import os
-import shutil
 import time
 
 indir = config.get("indir", "common/4_elements")
@@ -71,7 +69,6 @@ rule fiberseq_track_run:
         except Exception as e:
             rule_logger.error(f"Error occurred during fiberseq_track_run for {wildcards.sample_id}: {e}\n")
             raise RuntimeError(f"Error occurred during fiberseq_track_run for {wildcards.sample_id}: {e}\n")
-
 
 rule fiberseq_track_result:
     input:

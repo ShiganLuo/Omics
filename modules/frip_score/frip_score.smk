@@ -1,7 +1,5 @@
 include: "../common/common.smk"
 
-import shutil
-
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 indir = config.get("indir", "input")
@@ -34,14 +32,14 @@ rule frip_score:
         sif("frip_score.yaml")
     run:
         log_path = str(log)
+open(log_path, 'w').close()
+rule_logger = setup_logger("frip_score", log_file=log_path)
         try:
-            open(log_path, 'w').close()
-            rule_logger = setup_logger("frip_score", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start FRiP score calculation for sample {wildcards.sample_id} at {current_time}")
             
             sample_outdir = os.path.dirname(str(output.frip))
-            script = os.path.join(RECEIPT_DIR, f"frip_score_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"frip_score_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"frip_score.sh")
             
             script_content = f"""#!/bin/bash
@@ -89,7 +87,6 @@ echo "FRiP score: $FRIP"
                 f.write(f"Error occurred during FRiP score calculation for sample {wildcards.sample_id}: {e}\n")
             logger.error(f"Error occurred during FRiP score calculation for sample {wildcards.sample_id}: {e}")
             raise e
-
 
 rule frip_score_result:
     """

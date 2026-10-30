@@ -1,6 +1,5 @@
 include: "../common/common.smk"
 
-import shutil
 import shlex
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
@@ -122,7 +121,6 @@ rule generate_report:
         except Exception as e:
             rule_logger.error(f"RNAseq report generation failed: {e}")
             raise RuntimeError(f"RNAseq report generation failed: {e}, please check the log file: {log_path} for details.")
-
 
 rule report_result:
     input:

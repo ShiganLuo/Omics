@@ -1,6 +1,5 @@
 include: "../../common/common.smk"
 
-import shutil
 ROOT_DIR = config.get("ROOT_DIR", ".")
 indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
@@ -10,7 +9,6 @@ logdir_index = config.get("logdir_index", "logs/index")
 _scTE_genome = config.get("Params", {}).get("scTE", {}).get("genome", "hg38")
 _scTE_mode = config.get("Params", {}).get("scTE", {}).get("mode", "exclusive")
 _scTE_index = f"{outdir}/index/{_scTE_genome}.{_scTE_mode}.idx"
-
 
 rule scTE_build_index:
     """Build scTE genome index.
@@ -44,8 +42,9 @@ rule scTE_build_index:
             rule_logger = setup_logger("scTE_build_index",log_file=log_path)
             out_prefix = os.path.join(params.index_dir, params.genome)
             command_script = os.path.join(
-                params.index_dir, f"scTE_build_index_{current_time}.sh"
+                RECEIPT_DIR, f"scTE_build_index_{params.genome}_{current_time}.sh"
             )
+            plain_script = os.path.join(params.index_dir, "scTE_build_index.sh")
             rule_logger.info(f"Building scTE index for genome {params.genome} with mode {params.mode}")
             if params.gene_gtf and params.te_bed:
                 # Resource-based: build from local gene GTF + TE BED
@@ -70,7 +69,8 @@ rule scTE_build_index:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(str(item) for item in cmd) + "\n")
                 f.write(f'echo "scTE index built at {output.index} successfully"\n')
-            shell(f"bash {command_script} >> {log_path} 2>&1")
+            shutil.copyfile(command_script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path, "a") as f:
                 f.write(f"scTE_build_index failed: {e}\n")
@@ -113,12 +113,12 @@ rule scTE_quantify:
         scte_bin = config.get("Procedure", {}).get("scTE") or "scTE",
     run:
         log_path = str(log)
+rule_logger = setup_logger("scTE_quantify", log_file=log_path)
         try:
-            rule_logger = setup_logger("scTE_quantify", log_file=log_path)
             rule_logger.info(f"Quantifying TE expression for sample {wildcards.sample_id}")
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             sample_outdir = os.path.dirname(output.h5ad)
-            command_script = os.path.join(RECEIPT_DIR, f"scTE_quantify_{current_time}.sh")
+            command_script = os.path.join(RECEIPT_DIR, f"scTE_quantify_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"scTE_quantify.sh")
             cmd = [
                 "python", params.script,

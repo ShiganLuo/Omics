@@ -11,13 +11,11 @@ See: https://fiberseq.github.io/
 """
 include: "../common/common.smk"
 
-import shutil
 ROOT_DIR = config.get("ROOT_DIR", ".")
 indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 samples = config.get("samples", [])
-
 
 def _detect_m6a_sh(bam_path: str) -> str:
     """Return shell snippet that sets HAS_M6A=1 or HAS_M6A=0.
@@ -33,7 +31,6 @@ elif samtools view {bam_path} 2>/dev/null | head -100 | grep -q 'MM:Z:'; then
     HAS_M6A=1
 fi
 """
-
 
 # Pre-detect m6A at DAG time (runs on host) for fire input routing
 _fibertools_sif = sif("fibertools.yaml")
@@ -51,7 +48,6 @@ def _has_m6a(sample_id):
         return "103-496-900" in r.stdout
     except Exception:
         return False
-
 
 rule ft_predict_m6a:
     """Predict m6A positions from PacBio HiFi CCS BAM with kinetics.
@@ -80,7 +76,7 @@ rule ft_predict_m6a:
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            command_script = os.path.join(RECEIPT_DIR, f"ft_predict_m6a_{current_time}.sh")
+            command_script = os.path.join(RECEIPT_DIR, f"ft_predict_m6a_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"ft_predict_m6a.sh")
 
             detect_sh = _detect_m6a_sh(input.bam)
@@ -105,7 +101,6 @@ rule ft_predict_m6a:
             rule_logger.error(f"ft_predict_m6a failed: {e}")
             raise RuntimeError(f"ft_predict_m6a failed: {e}\n")
 
-
 def get_input_for_ft_fire(wildcards):
     """Determine fire input based on m6A detection and manual config.
 
@@ -119,7 +114,6 @@ def get_input_for_ft_fire(wildcards):
         return outdir + "/{sample_id}/{sample_id}.fiberseq.nuc.bam"
     else:
         return outdir + "/{sample_id}/{sample_id}.fiberseq.bam"
-
 
 rule ft_add_nucleosomes:
     """Add nucleosome calls to Fiber-seq BAM with m6A predictions.
@@ -149,7 +143,7 @@ rule ft_add_nucleosomes:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            command_script = os.path.join(RECEIPT_DIR, f"ft_add_nucleosomes_{current_time}.sh")
+            command_script = os.path.join(RECEIPT_DIR, f"ft_add_nucleosomes_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"ft_add_nucleosomes.sh")
             cmd = [
                 params.ft, "add-nucleosomes",
@@ -166,7 +160,6 @@ rule ft_add_nucleosomes:
         except Exception as e:
             rule_logger.error(f"ft_add_nucleosomes failed: {e}")
             raise RuntimeError(f"ft_add_nucleosomes failed: {e}\n")
-
 
 rule ft_fire:
     """Call Fiber-seq Inferred Regulatory Elements (FIREs).
@@ -197,7 +190,7 @@ rule ft_fire:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            command_script = os.path.join(RECEIPT_DIR, f"ft_fire_{current_time}.sh")
+            command_script = os.path.join(RECEIPT_DIR, f"ft_fire_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"ft_fire.sh")
             cmd = [
                 params.ft, "fire",

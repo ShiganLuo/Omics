@@ -1,8 +1,5 @@
 include: "../../common/common.smk"
 
-import shutil
-
-
 indir = config.get("indir", "data/protein_inference")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "logs")
@@ -72,7 +69,6 @@ if not channel_descriptions and tmt_params.get("channel_annotation"):
             ch, desc = pair.split(":", 1)
             channel_descriptions[ch.strip()] = desc.strip()
 
-
 def _plfq_summarization_cmd():
     """ProteomicsLFQ arguments shared by the LFQ and DIA group rules."""
     cmd = [
@@ -90,7 +86,6 @@ def _plfq_summarization_cmd():
     if quantify_decoys:
         cmd.append("-PeptideQuantification:quantify_decoys")
     return cmd
-
 
 rule quantification_lfq:
     input:
@@ -145,7 +140,6 @@ rule quantification_lfq:
             rule_logger.error(f"Error during LFQ quantification: {str(e)}\n")
             raise RuntimeError(f"Error during LFQ quantification: {str(e)}\n")
 
-
 rule quantification_tmt_reporter:
     input:
         mzml = mzml_dir + "/{sample_id}/{sample_id}.mzML",
@@ -172,7 +166,7 @@ rule quantification_tmt_reporter:
             rule_logger.info(f"Start isobaric reporter extraction for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"quantification_tmt_reporter_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"quantification_tmt_reporter_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"quantification_tmt_reporter.sh")
             extract_cmd = [
                 params.isobaric_analyzer,
@@ -208,7 +202,6 @@ rule quantification_tmt_reporter:
         except Exception as e:
             rule_logger.error(f"Error during isobaric reporter extraction: {str(e)}\n")
             raise RuntimeError(f"Error during isobaric reporter extraction: {str(e)}\n")
-
 
 rule quantification_tmt:
     input:
@@ -341,7 +334,6 @@ rule quantification_tmt:
             rule_logger.error(f"Error during TMT quantification: {str(e)}\n")
             raise RuntimeError(f"Error during TMT quantification: {str(e)}\n")
 
-
 rule quantification_dia:
     input:
         mzml = expand(mzml_dir + "/{sample_id}/{sample_id}.mzML", sample_id=samples),
@@ -364,8 +356,8 @@ rule quantification_dia:
     run:
         log_path = str(log)
         rule_logger = setup_logger("quantification_dia", log_file=log_path)
+open(log_path, "w").close()
         try:
-            open(log_path, "w").close()
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start DIA quantification at {current_time}")
             os.makedirs(outdir, exist_ok=True)
@@ -395,7 +387,6 @@ rule quantification_dia:
             rule_logger.error(f"Error during DIA quantification: {str(e)}\n")
             raise RuntimeError(f"Error during DIA quantification: {str(e)}\n")
 
-
 # Panel rule: which quantification products the workflow registers is decided
 # by node.py through the output paths it writes into outfiles; this rule only
 # aggregates the products of the configured quantification method.
@@ -407,7 +398,6 @@ _RESULT_MZTAB = {
     "lfq": outdir + "/lfq_quantification.mzTab",
     "dia": outdir + "/dia_quantification.mzTab",
 }
-
 
 rule quantification_result:
     input:

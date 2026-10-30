@@ -1,8 +1,5 @@
 include: "../common/common.smk"
 
-import shutil
-
-from snakemake.logging import logger
 outdir = config.get("outdir", "output")
 indir = config.get("indir", "output/raw_fastq")
 logdir = config.get("logdir", "log")
@@ -29,14 +26,14 @@ rule flexbar_demultiplex:
         log = logdir + "/{sample_id}/flexbar_demux_run.txt"
     run:
         log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger("flexbar_demultiplex", log_file=log_path)
         try:
-            open(log_path, "w").close()
-            rule_logger = setup_logger("flexbar_demultiplex", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start flexbar_demultiplex for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.join(params.outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"flexbar_demultiplex_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"flexbar_demultiplex_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"flexbar_demultiplex.sh")
             with open(script, "w") as f:
                 f.write(f"{params.flexbar} -r {input.fastq} -b {input.barcodes} \\\n")

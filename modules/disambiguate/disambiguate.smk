@@ -1,6 +1,5 @@
 include: "../common/common.smk"
 
-import shutil
 from typing import List
 indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
@@ -10,7 +9,6 @@ paired_samples =  config.get("paired_samples", [])
 single_samples = config.get("single_samples", [])
 genome_pairs: List[str] = config.get("genome_pairs", [])
 genomeA, genomeB = genome_pairs
-
 
 def get_inputFile_for_ngs_disambiguate(wildcards):
     logger.info(f"[get_inputFile_for_ngs_disambiguate] called with wildcards: {wildcards}")
@@ -45,12 +43,12 @@ rule ngs_disambiguate:
         logdir + "/{sample_id}/ngs_disambiguate.log"
     run:
         log_path = str(log)
+open(log_path, 'w').close()
+rule_logger = setup_logger("ngs_disambiguate", log_file=log_path)
         try:
-            open(log_path, 'w').close()
-            rule_logger = setup_logger("ngs_disambiguate", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start ngs_disambiguate for sample {wildcards.sample_id} at {current_time}")
-            script = os.path.join(RECEIPT_DIR, f"ngs_disambiguate_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"ngs_disambiguate_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(params.outdir, f"ngs_disambiguate.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
@@ -98,13 +96,13 @@ rule disambiguate_sort_rename:
         logdir + "/{sample_id}/sort_rename.log"
     run:
         log_path = str(log)
+open(log_path, 'w').close()
+rule_logger = setup_logger("disambiguate_sort_rename", log_file=log_path)
         try:
-            open(log_path, 'w').close()
-            rule_logger = setup_logger("disambiguate_sort_rename", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start disambiguate_sort_rename for sample {wildcards.sample_id} at {current_time}")
             outdir_sample = os.path.dirname(str(output.clean_bamA))
-            script = os.path.join(RECEIPT_DIR, f"sort_rename_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"sort_rename_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(outdir_sample, f"sort_rename.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
@@ -143,9 +141,9 @@ rule disambiguate_report:
     threads: 1
     run:
         log_path = str(log)
+open(log_path, 'w').close()
+rule_logger = setup_logger("disambiguate_report", log_file=log_path)
         try:
-            open(log_path, 'w').close()
-            rule_logger = setup_logger("disambiguate_report", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start disambiguate_report at {current_time}")
             report_dir = os.path.dirname(str(output.report))

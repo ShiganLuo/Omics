@@ -1,14 +1,11 @@
 include: "../common/common.smk"
 
-import shutil
-
 indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 
 bam_substring = config.get("bam_substring") or ""
 bw_suffix = config.get("bw_suffix") or ".coverage.bw"
-
 
 def get_bam_input(wildcards):
     """Resolve markdup BAM + BAI inputs."""
@@ -22,7 +19,6 @@ def get_bam_input(wildcards):
         "bam": os.path.join(indir, sid, f"{sid}.bam"),
         "bai": os.path.join(indir, sid, f"{sid}.bai"),
     }
-
 
 rule bamCoverage:
     input:
@@ -84,7 +80,6 @@ rule bamCoverage:
         except Exception as e:
             rule_logger.error(f"bamCoverage failed for sample {wildcards.sample_id}: {e}")
             raise RuntimeError(f"bamCoverage failed for sample {wildcards.sample_id}: {e}")
-
 
 rule bamCoverage_result:
     """Result aggregation rule."""

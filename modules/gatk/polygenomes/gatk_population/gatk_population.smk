@@ -1,10 +1,8 @@
 
 include: "../../../common/common.smk"
 
-import shutil
 import os
 import time
-from snakemake.logging import logger
 
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "logs")
@@ -112,7 +110,7 @@ rule gatk_population_joint_genotyping:
             with open(sample_map, "w") as handle:
                 for sample, gvcf in zip(samples, input.gvcfs):
                     handle.write(f"{sample}\t{gvcf}\n")
-            script = os.path.join(RECEIPT_DIR, f"gatk_population_joint_genotyping_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"gatk_population_joint_genotyping_{wildcards.genome}_{current_time}.sh")
             plain_script = os.path.join(os.path.dirname(output.vcf), f"gatk_population_joint_genotyping.sh")
             import_cmd = [params.gatk, "--java-options", params.java_options, "GenomicsDBImport", "--sample-name-map", sample_map, "--genomicsdb-workspace-path", params.workspace, "--reader-threads", str(threads)]
             genotype_cmd = [params.gatk, "--java-options", params.java_options, "GenotypeGVCFs", "-R", input.fasta, "-V", "gendb://" + params.workspace, "-O", output.vcf]

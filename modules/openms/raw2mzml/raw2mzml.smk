@@ -1,7 +1,5 @@
 include: "../../common/common.smk"
 
-import shutil
-
 indir = config.get("indir", "data/raw")
 outdir = config.get("outdir", "output/raw2mzml")
 logdir = config.get("logdir", "logs")
@@ -12,7 +10,6 @@ converter = config.get("Params", {}).get("raw_to_mzml", {}).get("converter") or 
 converter_mode = (config.get("Params", {}).get("raw_to_mzml", {}).get("mode") or "thermorawfileparser").lower()
 converter_args = config.get("Params", {}).get("raw_to_mzml", {}).get("args") or ""
 extra_filter = config.get("Params", {}).get("raw_to_mzml", {}).get("peak_picking", True)
-
 
 def get_raw_input(wildcards):
     if raw_files and wildcards.sample_id in samples:
@@ -30,7 +27,6 @@ def get_raw_input(wildcards):
         if os.path.exists(path):
             return os.path.realpath(path)
     return candidates[0]
-
 
 rule raw2mzml:
     input:
@@ -58,7 +54,7 @@ rule raw2mzml:
             rule_logger.info(f"Start raw2mzml for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"raw2mzml_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"raw2mzml_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"raw2mzml.sh")
             output_dir = os.path.dirname(output.mzml)
             output_name = os.path.basename(output.mzml)

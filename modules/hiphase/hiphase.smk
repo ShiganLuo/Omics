@@ -1,7 +1,5 @@
 include: "../common/common.smk"
 
-import shutil
-
 from snakemake.logging import logger
 import time
 import os
@@ -52,7 +50,7 @@ rule hiphase_phase:
     run:
         current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start hiphase for sample {wildcards.sample_id} at {current_time}")
-        script = os.path.join(RECEIPT_DIR, f"hiphase_{current_time}.sh")
+        script = os.path.join(RECEIPT_DIR, f"hiphase_{wildcards.sample_id}_{current_time}.sh")
         plain_script = os.path.join(outdir, f"{wildcards.sample_id}/hiphase.sh")
         cmd1 = [
             params.hiphase,

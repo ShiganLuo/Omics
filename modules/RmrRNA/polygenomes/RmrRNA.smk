@@ -1,7 +1,5 @@
 include: "../../common/common.smk"
 
-import shutil
-
 indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
@@ -42,7 +40,7 @@ rule extract_rRNA:
         try:
             open(log_path,'w').close()
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
-        script = f"{logdir}/cmd/group/extract_rRNA.{wildcards.genome}.{current_time}.sh"
+        script = os.path.join(RECEIPT_DIR, f"extract_rRNA.{wildcards.genome}_{current_time}.sh")
         plain_script = f"{outdir}/{wildcards.genome}/extract_rRNA.sh"
             cmd = ["python", params.extract_rRNA_script, 
                     "--fasta", input.fasta, 

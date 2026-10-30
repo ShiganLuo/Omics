@@ -1,8 +1,6 @@
 include: "../../common/common.smk"
 
-from snakemake.logging import logger
 import os
-import shutil
 import time
 
 indir = config.get("indir", "common/4_elements")
@@ -18,7 +16,6 @@ p = config.get("Params", {}).get("fiberseq_diff", {})
 QUANT_DIR = config.get("quant_dir") or indir + "/quant"
 ANNOT_DIR = config.get("annot_dir") or indir + "/annotate"
 ANNOT_SAMPLE = p.get("annot_sample") or (samples[0] if samples else "")
-
 
 rule fiberseq_diff_run:
     """Per-region differential accessibility for one contrast."""
@@ -74,7 +71,6 @@ rule fiberseq_diff_run:
         except Exception as e:
             rule_logger.error(f"Error occurred during fiberseq_diff_run for {wildcards.contrast}: {e}\n")
             raise RuntimeError(f"Error occurred during fiberseq_diff_run for {wildcards.contrast}: {e}\n")
-
 
 rule fiberseq_diff_result:
     input:

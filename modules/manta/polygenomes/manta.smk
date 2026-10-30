@@ -1,7 +1,5 @@
 include: "../../common/common.smk"
 
-import shutil
-
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 indir = config.get("indir", "input")
@@ -26,12 +24,12 @@ rule manta_config:
         sif("../manta.yaml")
     run:
         log_path = str(log)
+open(log_path, 'w').close()
+logger = setup_logger(logger_name="manta_config", log_file=log_path)
         try:
-            open(log_path, 'w').close()
-            logger = setup_logger(logger_name="manta_config", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start manta config for sample {wildcards.sample_id} genome {wildcards.genome} at {current_time}")
-            script = os.path.join(RECEIPT_DIR, f"manta_config_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"manta_config_{wildcards.genome}_{current_time}.sh")
             plain_script = os.path.join(outdir, f"{wildcards.genome}/{wildcards.sample_id}/manta_config.sh")
             cmd = [
                 "configManta.py",
@@ -69,12 +67,12 @@ rule manta_run:
         sif("../manta.yaml")
     run:
         log_path = str(log)
+open(log_path, 'w').close()
+logger = setup_logger(logger_name="manta_run", log_file=log_path)
         try:
-            open(log_path, 'w').close()
-            logger = setup_logger(logger_name="manta_run", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start manta run for sample {wildcards.sample_id} genome {wildcards.genome} at {current_time}")
-            script = os.path.join(RECEIPT_DIR, f"manta_run_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"manta_run_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(outdir, f"{wildcards.genome}/{wildcards.sample_id}/manta_run.sh")
             cmd = [
                 "python", str(input.script),

@@ -1,7 +1,6 @@
 
 include: "../common/common.smk"
 
-import shutil
 import os,time
 outdir=config.get("outdir","output"); logdir=config.get("logdir","logs"); easy_sfs=config.get("Procedure",{}).get("easySFS") or "easySFS.py"; analysis=config.get("Params",{}).get("analysis",{})
 if analysis.get("history",False):

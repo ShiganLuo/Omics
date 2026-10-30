@@ -1,6 +1,5 @@
 include: "../common/common.smk"
 
-import shutil
 from snakemake.logging import logger
 
 indir = config.get("indir", "output/diff_expression")
@@ -12,8 +11,6 @@ group_pairs = config.get("group_pairs", {})
 paired_samples = config.get("paired_samples", [])
 single_samples = config.get("single_samples", [])
 species = config.get("Params", {}).get("function", {}).get("species", "mouse")
-
-
 
 rule function_go_kegg:
     input:
@@ -72,7 +69,7 @@ rule function_go_kegg:
                 "--top", str(params.top),
             ]
 
-            script = os.path.join(RECEIPT_DIR, f"go_kegg_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"go_kegg_{wildcards.contrast}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"go_kegg.sh")
             with open(script, 'w') as f:
                 f.write("#!/bin/bash\n")
@@ -85,7 +82,6 @@ rule function_go_kegg:
         except Exception as e:
             rule_logger.error(f"GO/KEGG analysis failed: {e}")
             raise RuntimeError(f"GO/KEGG analysis failed: {e}\n")
-
 
 def get_input_for_function_gsea(wildcards):
     """Resolve inputs for function_gsea: DESeq2 result + GMT + geneIDAnno."""
@@ -159,7 +155,7 @@ rule function_gsea:
                 "-t", graph_title,
             ]
 
-            script = os.path.join(RECEIPT_DIR, f"gsea_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"gsea_{wildcards.contrast}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"gsea.sh")
             with open(script, 'w') as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
@@ -170,7 +166,6 @@ rule function_gsea:
         except Exception as e:
             rule_logger.error(f"GSEA analysis failed: {e}")
             raise RuntimeError(f"GSEA analysis failed: {e}")
-
 
 def get_input_for_function_gsva(wildcards):
     """Resolve inputs for function_gsva: featureCounts counts matrix + GMT + GTF."""
@@ -201,7 +196,6 @@ def get_input_for_function_gsva(wildcards):
         raise ValueError("GSVA requires a GTF. Please set genome.gtf in config.")
     in_dict['gtf'] = gtf
     return in_dict
-
 
 rule function_gsva:
     """GSVA enrichment analysis on featureCounts normalized expression.

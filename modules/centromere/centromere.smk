@@ -11,14 +11,11 @@ Note: This module includes common.smk for shared utilities.
 # Include common utilities
 include: "../common/common.smk"
 
-import shutil
-
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 indir = config.get("indir", "input")
 samples = config.get("samples", [])
 bam_substring = config.get("bam_substring") or ""
-
 
 def get_input_for_hifiasm(wildcards):
     """Get input files for hifiasm assembly."""
@@ -30,7 +27,6 @@ def get_input_for_hifiasm(wildcards):
         in_dict["bam"] = os.path.join(indir, f"{wildcards.sample_id}.bam")
         in_dict["bai"] = os.path.join(indir, f"{wildcards.sample_id}.bam.pbi")
     return in_dict
-
 
 rule hifiasm_assemble:
     """Assemble HiFi reads with hifiasm."""
@@ -52,7 +48,7 @@ rule hifiasm_assemble:
             logger = setup_logger(logger_name="hifiasm_assemble", log_file=log[0])
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start hifiasm assembly for sample {wildcards.sample_id} at {current_time}")
-            script = os.path.join(RECEIPT_DIR, f"hifiasm_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"hifiasm_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/hifiasm.sh")
             fq_gz = os.path.join(outdir, f"{wildcards.sample_id}/assembly/{wildcards.sample_id}.hifi.fq.gz")
             cmd0 = [
@@ -77,7 +73,6 @@ rule hifiasm_assemble:
             with open(log[0], "a") as f:
                 f.write(f"hifiasm assembly failed for sample {wildcards.sample_id} with error: {e}\n")
             raise f"hifiasm assembly failed for sample {wildcards.sample_id} with error: {e}"
-
 
 rule repeatmasker_init:
     """Build RepeatMasker library cache once to avoid concurrent makeblastdb conflicts."""
@@ -114,7 +109,8 @@ rule repeatmasker_init:
             cmd3 = ["touch", output[0]]
             cmd2 = ["rm", "-rf", tmpdir]
             cmd4 = ["echo", "RepeatMasker library cache initialized."]
-            script = os.path.join(tmpdir, "init.sh")
+            script = os.path.join(RECEIPT_DIR, f"repeatmasker_init_{current_time}.sh")
+            plain_script = os.path.join(os.path.dirname(str(output[0])), "repeatmasker_init.sh")
             if input.dfam_h5 and os.path.exists(input.dfam_h5):
                 logger.warning("RepeatMasker don't support specifying custom Dfam h5 directly, pipeline will try to find the corresponding library dir and link your dfam h5 to the library dir with a name that RepeatMasker can recognize. Please ensure the Dfam h5 you provided is compatible with your RepeatMasker version and includes relevant satellite DNA for target species.")
                 RepeatMasker_lib_dir = ""
@@ -144,12 +140,12 @@ rule repeatmasker_init:
                 f.write(" ".join(cmd2) + "\n")
                 f.write(" ".join(cmd3) + "\n")
                 f.write(" ".join(cmd4) + "\n")
-            shell(f"bash {script} >> {log[0]} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log[0]} 2>&1")
         except Exception as e:
             with open(log[0], "a") as f:
                 f.write(f"RepeatMasker init failed with error: {e}\n")
             raise f"RepeatMasker init failed with error: {e}"
-
 
 def get_input_for_repeatmasker(wildcards):
     """Get input files for RepeatMasker."""
@@ -184,7 +180,7 @@ rule repeatmasker_run:
             logger = setup_logger(logger_name="repeatmasker_run", log_file=log[0])
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start RepeatMasker for sample {wildcards.sample_id} at {current_time}")
-            script = os.path.join(RECEIPT_DIR, f"repeatmasker_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"repeatmasker_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/repeatmasker.sh")
             cmd = [
                 params.RepeatMasker,
@@ -203,7 +199,6 @@ rule repeatmasker_run:
             with open(log[0], "a") as f:
                 f.write(f"RepeatMasker failed for sample {wildcards.sample_id} with error: {e}\n")
             raise f"RepeatMasker failed for sample {wildcards.sample_id} with error: {e}"
-
 
 rule centromere_extract:
     """Extract satellite DNA statistics from RepeatMasker output."""
@@ -226,7 +221,7 @@ rule centromere_extract:
             logger = setup_logger(logger_name="centromere_extract", log_file=log[0])
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start centromere stats extraction for sample {wildcards.sample_id} at {current_time}")
-            script = os.path.join(RECEIPT_DIR, f"centromere_extract_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"centromere_extract_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/centromere_extract.sh")
             cmd = [
                 "python", params.script,
@@ -242,7 +237,6 @@ rule centromere_extract:
             with open(log[0], "a") as f:
                 f.write(f"Centromere stats extraction failed for sample {wildcards.sample_id} with error: {e}\n")
             raise f"Centromere stats extraction failed for sample {wildcards.sample_id} with error: {e}"
-
 
 rule centromere_result:
     """Result aggregation rule for subworkflow use rule import."""

@@ -1,8 +1,5 @@
 include: "../../common/common.smk"
 
-import shutil
-
-from snakemake.logging import logger
 outdir = config.get("outdir", "output")
 indir = config.get("indir", "output")
 logdir = config.get("logdir", "log")
@@ -24,14 +21,14 @@ rule UmiTools_extract_single:
     threads: 2
     run:
         log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger("UmiTools_extract_single", log_file=log_path)
         try:
-            open(log_path, "w").close()
-            rule_logger = setup_logger("UmiTools_extract_single", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start UmiTools_extract_single for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"UmiTools_extract_single_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"UmiTools_extract_single_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"UmiTools_extract_single.sh")
             with open(script, "w") as f:
                 f.write(f"{params.umi_tools} extract \\\n")
@@ -69,14 +66,14 @@ rule UmiTools_extract_paired:
         sif("../UmiTools.yaml")
     run:
         log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger("UmiTools_extract_paired", log_file=log_path)
         try:
-            open(log_path, "w").close()
-            rule_logger = setup_logger("UmiTools_extract_paired", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start UmiTools_extract_paired for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"UmiTools_extract_paired_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"UmiTools_extract_paired_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"UmiTools_extract_paired.sh")
             with open(script, "w") as f:
                 f.write(f"{params.umi_tools} extract \\\n")

@@ -1,6 +1,5 @@
 include: "../../common/common.smk"
 
-import shutil
 indir = config.get("indir", "data")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
@@ -99,7 +98,7 @@ rule generate_report:
             report_dir = os.path.dirname(str(output.report))
             os.makedirs(report_dir, exist_ok=True)
             os.makedirs(params.img_dir, exist_ok=True)
-            script_path = os.path.join(RECEIPT_DIR, f"RNAseq_report_{current_time}.sh")
+            script_path = os.path.join(RECEIPT_DIR, f"RNAseq_report_{wildcards.genome}_{current_time}.sh")
             plain_script = os.path.join(report_dir, f"RNAseq_report.sh")
             # Create symlink structure for generate_report.py compatibility
             # Script expects: analysis_dir/transcripts/..., analysis_dir/fusion/...
@@ -144,7 +143,6 @@ rule generate_report:
         except Exception as e:
             rule_logger.error(f"RNAseq report generation failed: {e}")
             raise RuntimeError(f"RNAseq report generation failed: {e}, please check the log file: {log_path} for details.")
-
 
 rule report_result:
     input:

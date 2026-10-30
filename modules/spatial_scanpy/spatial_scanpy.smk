@@ -1,7 +1,6 @@
 
 include: "../common/common.smk"
 
-import shutil
 import os
 import shlex
 import time

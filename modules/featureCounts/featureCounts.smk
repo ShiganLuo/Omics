@@ -1,7 +1,5 @@
 include: "../common/common.smk"
 
-import shutil
-
 from snakemake.logging import logger
 indir = config.get("indir", "output")
 outdir = config.get("outdir", "output")
@@ -106,7 +104,6 @@ rule featureCounts_paired_noMultiple:
         except Exception as e:
             rule_logger.error(f"featureCounts_paired_noMultiple failed: {e}\n")
             raise RuntimeError(f"featureCounts_paired_noMultiple failed: {e}\n")
-
 
 rule featureCounts_result:
     input:

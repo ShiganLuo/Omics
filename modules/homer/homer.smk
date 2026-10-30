@@ -1,6 +1,5 @@
 include: "../common/common.smk"
 
-import shutil
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 indir = config.get("indir", "input")
@@ -40,13 +39,13 @@ rule homer_annotatepeaks:
         annotatePeaks = config.get("Procedure", {}).get("annotatePeaks") or "annotatePeaks.pl"
     run:
         log_path = str(log)
+open(log_path, 'w').close()
+rule_logger = setup_logger("homer_annotatepeaks", log_file=log_path)
         try:
-            open(log_path, 'w').close()
-            rule_logger = setup_logger("homer_annotatepeaks", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start HOMER annotatePeaks for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.annotation))
-            script = os.path.join(RECEIPT_DIR, f"homer_annotatepeaks_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"homer_annotatepeaks_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"homer_annotatepeaks.sh")
             cmd = [
                 params.annotatePeaks,

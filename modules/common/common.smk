@@ -29,7 +29,7 @@ ROOT_DIR = config.get("ROOT_DIR", ".")
 # backups live flat under OUTDIR_ROOT/log/cmd/ — file names already carry
 # rule + sample + timestamp, so no per-key subdirectories. The directory
 # is created here once; rules only build their file path.
-OUTDIR_ROOT = config.get("OUTDIR_ROOT") or ROOT_DIR
+OUTDIR_ROOT = config.get("OUTDIR_ROOT") or "output"
 RECEIPT_DIR = os.path.join(OUTDIR_ROOT, "log", "cmd")
 os.makedirs(RECEIPT_DIR, exist_ok=True)
 

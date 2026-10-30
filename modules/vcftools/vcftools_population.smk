@@ -1,7 +1,6 @@
 
 include: "../common/common.smk"
 
-import shutil
 import os,time
 from itertools import combinations
 outdir=config.get("outdir","output"); logdir=config.get("logdir","logs")

@@ -1,5 +1,7 @@
 include: "../../common/common.smk"
 
+import shutil
+
 
 indir = config.get("indir", "data/quantification")
 outdir = config.get("outdir", "output")
@@ -51,7 +53,9 @@ rule msstats:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start MSstats input preparation at {current_time}")
             os.makedirs(outdir, exist_ok=True)
-            script = os.path.join(outdir, f"msstats_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"msstats_{current_time}.sh")
+            plain_script = os.path.join(outdir, f"msstats.sh")
             if params.method == "tmt":
                 # Isobaric consensusXML -> MSstats (MSstatsTMT) input CSV.
                 # Requires an experimental design AND a merged consensusXML
@@ -80,7 +84,8 @@ rule msstats:
                         f.write("#!/bin/bash\nset -euo pipefail\n")
                         f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
                         f.write(f"echo 'MSstats input preparation completed at {current_time}'\n")
-                    shell(f"bash {script} >> {log_path} 2>&1")
+                    shutil.copyfile(script, plain_script)
+                    shell(f"bash {plain_script} >> {log_path} 2>&1")
             else:
                 # ProteomicsLFQ -out_msstats already writes the MSstats input
                 # CSV; stage it under the uniform final path.

@@ -1,4 +1,6 @@
 include: "../../common/common.smk"
+
+import shutil
 indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
@@ -47,7 +49,9 @@ rule hisat2_index:
 
             sample_outdir = os.path.dirname(params.prefix)
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(sample_outdir, f"hisat2_index_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"hisat2_index_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, f"hisat2_index.sh")
 
             cmd = [
                 params.HISAT2_BUILD, "-p", str(threads),
@@ -57,7 +61,8 @@ rule hisat2_index:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f"echo 'hisat2_index for genome {wildcards.genome} completed'\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"hisat2_index failed for genome {wildcards.genome}: {e}")
             raise RuntimeError(f"hisat2_index failed for genome {wildcards.genome}: {e}")

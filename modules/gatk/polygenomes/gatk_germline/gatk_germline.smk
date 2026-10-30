@@ -1,5 +1,7 @@
 from snakemake.logging import logger
 include: "../../../common/common.smk"
+
+import shutil
 indir = config.get("indir") or "input"
 outdir = config.get("outdir") or "output"
 logdir = config.get("logdir") or "log"
@@ -59,7 +61,9 @@ rule HaplotypeCaller:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start HaplotypeCaller for sample {wildcards.sample_id} genome {wildcards.genome} at {current_time}")
-            script = os.path.join(outdir, f"{wildcards.genome}/{wildcards.sample_id}/HaplotypeCaller_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.genome)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.genome), f"{wildcards.genome}/{wildcards.sample_id}/HaplotypeCaller_{current_time}.sh")
+            plain_script = os.path.join(outdir, f"{wildcards.genome}/{wildcards.sample_id}/HaplotypeCaller.sh")
             cmd = [
                 params.gatk, "--java-options", f'"{params.javaOptions}"', "HaplotypeCaller",
                 "-R", input.fasta,
@@ -72,7 +76,8 @@ rule HaplotypeCaller:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f"echo 'HaplotypeCaller completed successfully for sample {wildcards.sample_id} genome {wildcards.genome}'\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred while running HaplotypeCaller for sample {wildcards.sample_id} genome {wildcards.genome}: {e}")
             raise RuntimeError(f"Error occurred while running HaplotypeCaller for sample {wildcards.sample_id} genome {wildcards.genome}: {e}, you can check the log file {log_path} for more details.")
@@ -124,7 +129,9 @@ rule filterHaplotypeCallerVcf:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start filterHaplotypeCallerVcf for sample {wildcards.sample_id} genome {wildcards.genome} at {current_time}")
-            script = os.path.join(outdir, f"{wildcards.genome}/{wildcards.sample_id}/filterHaplotypeCallerVcf_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.genome)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.genome), f"{wildcards.genome}/{wildcards.sample_id}/filterHaplotypeCallerVcf_{current_time}.sh")
+            plain_script = os.path.join(outdir, f"{wildcards.genome}/{wildcards.sample_id}/filterHaplotypeCallerVcf.sh")
             cmd1 = [
                 params.gatk, "--java-options", f'"{params.javaOptions}"', "VariantFiltration",
                 "-R", input.fasta,
@@ -147,7 +154,8 @@ rule filterHaplotypeCallerVcf:
                 f.write(" ".join(cmd1) + "\n")
                 f.write(" ".join(cmd2) + "\n")
                 f.write(f"echo 'filterHaplotypeCallerVcf completed successfully for sample {wildcards.sample_id} genome {wildcards.genome}'\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred while filtering HaplotypeCaller VCF for sample {wildcards.sample_id} genome {wildcards.genome}: {e}")
             raise RuntimeError(f"Error occurred while filtering HaplotypeCaller VCF for sample {wildcards.sample_id} genome {wildcards.genome}: {e}, you can check the log file {log_path} for more details.")

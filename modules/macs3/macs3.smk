@@ -1,4 +1,6 @@
 include: "../common/common.smk"
+
+import shutil
 import shlex
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
@@ -65,7 +67,9 @@ rule macs3_callpeak:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start macs3 call peak for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.narrow_peak))
-            script = os.path.join(sample_outdir, f"macs3_callpeak_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"macs3_callpeak_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, f"macs3_callpeak.sh")
             cmd = [
                 params.macs3, "callpeak",
                 "--bw", str(params.bw),
@@ -102,7 +106,8 @@ rule macs3_callpeak:
                 f.write(" ".join(cmd) + "\n")
                 f.write(" ".join(broad_cmd) + "\n")
                 f.write(f'echo "macs3 call peak (narrow + broad) for sample {wildcards.sample_id} completed !"'+ "\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path,"a") as f:
                 f.write(f"Error occurred during macs3 call peak for sample {wildcards.sample_id}: {e}\n")
@@ -140,11 +145,14 @@ rule macs3_cutoff_plot:
 
             plot_dir = os.path.dirname(str(output.plot))
             os.makedirs(plot_dir, exist_ok=True)
-            script = os.path.join(plot_dir, f"plot_cutoff_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"plot_cutoff_{current_time}.sh")
+            plain_script = os.path.join(plot_dir, f"plot_cutoff.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write(" ".join(shlex.quote(str(c)) for c in cmd) + "\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path, "a") as f:
                 f.write(f"Error during cutoff plot: {e}\n")

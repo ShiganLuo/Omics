@@ -1,4 +1,6 @@
 include: "../../common/common.smk"
+
+import shutil
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 samples = config.get("samples", [])
@@ -29,7 +31,9 @@ rule stringtie_lr_assemble:
             rule_logger.info(f"Start StringTie long-read assembly for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.gtf))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(sample_outdir, f"stringtie_lr_assemble_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"stringtie_lr_assemble_{wildcards.sample_id}_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, f"stringtie_lr_assemble_{wildcards.sample_id}.sh")
             cmd = [
                 params.stringtie, "-L",
                 "-p", str(threads),
@@ -41,7 +45,8 @@ rule stringtie_lr_assemble:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "StringTie LR assembly for {wildcards.sample_id} at {current_time} completed successfully"\n')
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error during StringTie LR assembly for sample {wildcards.sample_id}: {e}")
             raise RuntimeError(f"Error during StringTie LR assembly for sample {wildcards.sample_id}: {e}\n")
@@ -68,13 +73,16 @@ rule stringtie_lr_merge:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start StringTie merge at {current_time}")
-            script = os.path.join(outdir, f"stringtie_lr_merge_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"stringtie_lr_merge_{current_time}.sh")
+            plain_script = os.path.join(outdir, f"stringtie_lr_merge.sh")
             cmd = [params.stringtie, "--merge"] + list(input.gtfs) + ["-o", output.gtf, "-G", params.gtf]
             with open(script, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "StringTie merge at {current_time} completed successfully"\n')
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error during StringTie merge: {e}")
             raise RuntimeError(f"Error during StringTie merge: {e}\n")
@@ -105,7 +113,9 @@ rule stringtie_lr_quant:
             rule_logger.info(f"Start StringTie quantification for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.gtf))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(sample_outdir, f"stringtie_lr_quant_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"stringtie_lr_quant_{wildcards.sample_id}_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, f"stringtie_lr_quant_{wildcards.sample_id}.sh")
             cmd = [
                 params.stringtie, "-e", "-B", "-L",
                 "-p", str(threads),
@@ -118,7 +128,8 @@ rule stringtie_lr_quant:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "StringTie quantification for {wildcards.sample_id} at {current_time} completed successfully"\n')
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error during StringTie quantification for sample {wildcards.sample_id}: {e}")
             raise RuntimeError(f"Error during StringTie quantification for sample {wildcards.sample_id}: {e}\n")

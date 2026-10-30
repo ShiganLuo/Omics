@@ -1,4 +1,6 @@
 include: "../../common/common.smk"
+
+import shutil
 indir = config.get("indir", "data")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "logs")
@@ -65,7 +67,9 @@ rule DESeq2_TEcount:
             rule_logger.info(f"Start DESeq2 TEcount at {current_time}")
             sample_outdir = os.path.dirname(str(output.deseq2_results))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(sample_outdir, f"DESeq2_TEcount_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"DESeq2_TEcount_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, f"DESeq2_TEcount.sh")
             control_group_name = group_pairs.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("control_group_name")
             experimental_group_name = group_pairs.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("experimental_group_name")
             if wildcards.contrast not in group_pairs.get(wildcards.genome, {}):
@@ -116,7 +120,8 @@ rule DESeq2_TEcount:
                 f.write(shlex.join(cmd3) + "\n")
                 f.write("echo 'DESeq2 TEcount analysis completed successfully'\n")
 
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during DESeq2 TEcount: {e}\n")
             raise RuntimeError(f"Error occurred during DESeq2 TEcount: {e}\n")
@@ -182,7 +187,9 @@ rule DESeq2_TElocal:
             rule_logger.info(f"Start DESeq2 TElocal at {current_time}")
             sample_outdir = os.path.dirname(str(output.deseq2_results))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(sample_outdir, f"DESeq2_TElocal_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"DESeq2_TElocal_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, f"DESeq2_TElocal.sh")
             control_group_name = group_pairs.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("control_group_name")
             experimental_group_name = group_pairs.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("experimental_group_name")
             if wildcards.contrast not in group_pairs.get(wildcards.genome, {}):
@@ -234,7 +241,8 @@ rule DESeq2_TElocal:
                 f.write(shlex.join(cmd3) + "\n")
                 f.write("echo 'DESeq2 TElocal analysis completed successfully'\n")
 
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during DESeq2 TElocal: {e}\n")
             raise RuntimeError(f"Error occurred during DESeq2 TElocal: {e}\n")

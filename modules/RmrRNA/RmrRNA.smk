@@ -1,5 +1,7 @@
 include: "../common/common.smk"
 
+import shutil
+
 from snakemake.logging import logger
 import time
 import os
@@ -24,7 +26,9 @@ rule extract_rRNA:
         sif("RmrRNA.yaml")
     run:
         current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
-        script = f"{outdir}/extract_rRNA.{current_time}.sh"
+        os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+        script = f"{logdir}/cmd/group/extract_rRNA.{current_time}.sh"
+        plain_script = f"{outdir}/extract_rRNA.sh"
         cmd = ["python", params.extract_rRNA_script, 
                 "--fasta", input.fasta, 
                 "--gtf", input.gtf, 
@@ -34,5 +38,5 @@ rule extract_rRNA:
         with open(script, "w") as f:
             f.write("#!/bin/bash\n")
             f.write(" ".join(cmd) + "\n")
-        shell("bash {script} > {log} 2>&1")
+        shell("bash {plain_script} > {log} 2>&1")
 

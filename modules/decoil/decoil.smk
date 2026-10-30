@@ -38,6 +38,8 @@ Citation:
 
 include: "../common/common.smk"
 
+import shutil
+
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 indir = config.get("indir", "input")
@@ -260,7 +262,9 @@ rule decoil_plot:
             rule_logger.info(f"Start decoil_plot for sample {wildcards.sample_id} at {current_time}")
             sample_vis_dir = os.path.dirname(str(output.regions_tsv))
             os.makedirs(sample_vis_dir, exist_ok=True)
-            script = os.path.join(sample_vis_dir, f"decoil_plot_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"decoil_plot_{wildcards.sample_id}_{current_time}.sh")
+            plain_script = os.path.join(sample_vis_dir, f"decoil_plot_{wildcards.sample_id}.sh")
             cmd = [
                 "python", params.plot_script,
                 "--mode", "single",
@@ -274,7 +278,8 @@ rule decoil_plot:
                 f.write("#!/bin/bash\n")
                 f.write(" ".join(cmd) + "\n")
             rule_logger.info("Executing: " + " ".join(cmd))
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"decoil_plot failed for sample {wildcards.sample_id}: {e}")
             raise RuntimeError(f"decoil_plot failed for sample {wildcards.sample_id}: {e}")
@@ -314,7 +319,9 @@ rule decoil_compare:
             rule_logger.info(f"Start decoil_compare for samples {samples} at {current_time}")
             compare_dir = os.path.dirname(str(output.png))
             os.makedirs(compare_dir, exist_ok=True)
-            script = os.path.join(compare_dir, f"decoil_compare_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"decoil_compare_{current_time}.sh")
+            plain_script = os.path.join(compare_dir, f"decoil_compare.sh")
             cmd = [
                 "python", params.plot_script,
                 "--mode", "compare",
@@ -330,7 +337,8 @@ rule decoil_compare:
                 f.write("#!/bin/bash\n")
                 f.write(" ".join(cmd) + "\n")
             rule_logger.info("Executing: " + " ".join(cmd))
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"decoil_compare failed: {e}")
             raise RuntimeError(f"decoil_compare failed: {e}")
@@ -380,7 +388,9 @@ rule decoil_structure:
             rule_logger.info(f"Start decoil_structure for sample {wildcards.sample_id} at {current_time}")
             sample_vis_dir = os.path.dirname(str(output.genes_tsv))
             os.makedirs(sample_vis_dir, exist_ok=True)
-            script = os.path.join(sample_vis_dir, f"decoil_structure_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"decoil_structure_{wildcards.sample_id}_{current_time}.sh")
+            plain_script = os.path.join(sample_vis_dir, f"decoil_structure_{wildcards.sample_id}.sh")
             cmd = [
                 "python", params.structure_script,
                 "--sample", str(wildcards.sample_id),
@@ -399,7 +409,8 @@ rule decoil_structure:
                 f.write("#!/bin/bash\n")
                 f.write(" ".join(cmd) + "\n")
             rule_logger.info("Executing: " + " ".join(cmd))
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"decoil_structure failed for sample {wildcards.sample_id}: {e}")
             raise RuntimeError(f"decoil_structure failed for sample {wildcards.sample_id}: {e}")
@@ -457,7 +468,9 @@ rule decoil_igv:
             with open(tmp_base_json, "w") as f:
                 json.dump(base_cfg, f, indent=2)
 
-            script = os.path.join(sample_vis_dir, f"decoil_igv_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"decoil_igv_{wildcards.sample_id}_{current_time}.sh")
+            plain_script = os.path.join(sample_vis_dir, f"decoil_igv_{wildcards.sample_id}.sh")
             cmd1 = [
                 "python", params.igv_config_script,
                 "--sample", f"{wildcards.sample_id}:{input.reconstruct_filtered}",
@@ -479,7 +492,8 @@ rule decoil_igv:
                 f.write(" ".join(cmd1) + "\n")
                 f.write(" ".join(cmd2) + "\n")
             rule_logger.info("Executing: " + " ".join(cmd1) + " && " + " ".join(cmd2))
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"decoil_igv failed for sample {wildcards.sample_id}: {e}")
             raise RuntimeError(f"decoil_igv failed for sample {wildcards.sample_id}: {e}")
@@ -518,7 +532,9 @@ rule decoil_ucsc:
             rule_logger.info(f"Start decoil_ucsc for sample {wildcards.sample_id} at {current_time}")
             sample_vis_dir = os.path.dirname(str(output.track))
             os.makedirs(sample_vis_dir, exist_ok=True)
-            script = os.path.join(sample_vis_dir, f"decoil_ucsc_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"decoil_ucsc_{wildcards.sample_id}_{current_time}.sh")
+            plain_script = os.path.join(sample_vis_dir, f"decoil_ucsc_{wildcards.sample_id}.sh")
             cmd = [
                 "python", params.track_script,
                 "--mode", "ucsc",
@@ -533,7 +549,8 @@ rule decoil_ucsc:
                     f'{wildcards.sample_id} was completed successfully"\n'
                 )
             rule_logger.info("Executing: " + " ".join(cmd))
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"decoil_ucsc failed for sample {wildcards.sample_id}: {e}")
             raise RuntimeError(f"decoil_ucsc failed for sample {wildcards.sample_id}: {e}")

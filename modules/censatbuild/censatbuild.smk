@@ -1,5 +1,7 @@
 include: "../common/common.smk"
 
+import shutil
+
 from snakemake.logging import logger
 import os
 import time
@@ -98,7 +100,9 @@ rule censatbuild_arrays:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start satellite clustering for {genome_name} at {current_time}")
             os.makedirs(outdir, exist_ok=True)
-            script = os.path.join(outdir, f"censatbuild_arrays_{genome_name}_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"censatbuild_arrays_{genome_name}_{current_time}.sh")
+            plain_script = os.path.join(outdir, f"censatbuild_arrays_{genome_name}.sh")
             cmd = [
                 "python", params.script,
                 "--rm-out", str(input.rm_out),
@@ -114,7 +118,8 @@ rule censatbuild_arrays:
                 f.write("set -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "censatbuild_arrays for {genome_name} at {current_time} completed successfully"\n')
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during censatbuild_arrays for {genome_name}: {e}\n")
             raise RuntimeError(f"Error occurred during censatbuild_arrays for {genome_name}: {e}\n")
@@ -145,7 +150,9 @@ rule censatbuild_flank:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start flank/merge for {genome_name} at {current_time}")
-            script = os.path.join(outdir, f"censatbuild_flank_{genome_name}_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"censatbuild_flank_{genome_name}_{current_time}.sh")
+            plain_script = os.path.join(outdir, f"censatbuild_flank_{genome_name}.sh")
             flank_bed = outdir + f"/{genome_name}.sat_flank.bed"
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
@@ -157,7 +164,8 @@ rule censatbuild_flank:
                         f"END{{print \"class\",\"count\",\"total_bp\"; for (c in n) print c, n[c], s[c]}}' "
                         f"{output.bed} > {output.stats}\n")
                 f.write(f'echo "censatbuild_flank for {genome_name} at {current_time} completed successfully"\n')
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during censatbuild_flank for {genome_name}: {e}\n")
             raise RuntimeError(f"Error occurred during censatbuild_flank for {genome_name}: {e}\n")
@@ -187,7 +195,9 @@ rule censatbuild_mcg_pileup:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start modkit CpG pileup at {current_time}")
-            script = os.path.join(outdir, f"censatbuild_mcg_pileup_{genome_name}_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"censatbuild_mcg_pileup_{genome_name}_{current_time}.sh")
+            plain_script = os.path.join(outdir, f"censatbuild_mcg_pileup_{genome_name}.sh")
             tmp_bed = outdir + f"/{genome_name}.mcpg_pileup.bedMethyl"
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
@@ -196,7 +206,8 @@ rule censatbuild_mcg_pileup:
                 f.write(f"awk 'BEGIN{{OFS=\"\\t\"}} !/^#/ {{print $1,$2,$3,$11/100}}' "
                         f"{tmp_bed} > {output.bedgraph}\n")
                 f.write(f'echo "censatbuild_mcg_pileup at {current_time} completed successfully"\n')
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during censatbuild_mcg_pileup: {e}\n")
             raise RuntimeError(f"Error occurred during censatbuild_mcg_pileup: {e}\n")

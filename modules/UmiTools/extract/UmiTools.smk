@@ -1,5 +1,7 @@
 include: "../../common/common.smk"
 
+import shutil
+
 from snakemake.logging import logger
 outdir = config.get("outdir", "output")
 indir = config.get("indir", "output")
@@ -29,7 +31,9 @@ rule UmiTools_extract_single:
             rule_logger.info(f"Start UmiTools_extract_single for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(sample_outdir, f"UmiTools_extract_single_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"UmiTools_extract_single_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, f"UmiTools_extract_single.sh")
             with open(script, "w") as f:
                 f.write(f"{params.umi_tools} extract \\\n")
                 f.write(f"    --extract-method={params.extract_method} \\\n")
@@ -37,7 +41,8 @@ rule UmiTools_extract_single:
                 f.write(f"    -I {input.fastq} \\\n")
                 f.write(f"    -S {output.fastq} \\\n")
                 f.write(f"    > {log_path} 2>&1\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
             rule_logger.info(f"UmiTools_extract_single for sample {wildcards.sample_id} completed")
         except Exception as e:
             with open(log_path, "a") as f:
@@ -72,7 +77,9 @@ rule UmiTools_extract_paired:
             rule_logger.info(f"Start UmiTools_extract_paired for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(sample_outdir, f"UmiTools_extract_paired_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"UmiTools_extract_paired_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, f"UmiTools_extract_paired.sh")
             with open(script, "w") as f:
                 f.write(f"{params.umi_tools} extract \\\n")
                 f.write(f"    --extract-method={params.extract_method} \\\n")
@@ -82,7 +89,8 @@ rule UmiTools_extract_paired:
                 f.write(f"    --read2-in={input.fastq2} \\\n")
                 f.write(f"    --read2-out={output.fastq2} \\\n")
                 f.write(f"    > {log_path} 2>&1\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
             rule_logger.info(f"UmiTools_extract_paired for sample {wildcards.sample_id} completed")
         except Exception as e:
             with open(log_path, "a") as f:

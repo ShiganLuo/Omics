@@ -1,4 +1,6 @@
 include: "../common/common.smk"
+
+import shutil
 from snakemake.logging import logger
 indir = config.get("indir","input")
 outdir = config.get("outdir", "output")
@@ -27,11 +29,14 @@ rule bam_flagstat:
             rule_logger.info(f"Start samtools flagstat for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.flagstat))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(sample_outdir, f"bam_flagstat_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"bam_flagstat_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, f"bam_flagstat.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write(f"{params.samtools} flagstat {input.bam} > {output.flagstat}\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path, "a") as f:
                 f.write(f"Error occurred during samtools flagstat for sample {wildcards.sample_id}: {e}\n")

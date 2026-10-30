@@ -1,4 +1,6 @@
 include: "../../common/common.smk"
+
+import shutil
 indir = config.get("indir", "data")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
@@ -97,7 +99,9 @@ rule generate_report:
             report_dir = os.path.dirname(str(output.report))
             os.makedirs(report_dir, exist_ok=True)
             os.makedirs(params.img_dir, exist_ok=True)
-            script_path = os.path.join(report_dir, f"RNAseq_report_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script_path = os.path.join(logdir, "cmd", "group", f"RNAseq_report_{current_time}.sh")
+            plain_script = os.path.join(report_dir, f"RNAseq_report.sh")
             # Create symlink structure for generate_report.py compatibility
             # Script expects: analysis_dir/transcripts/..., analysis_dir/fusion/...
             # Actual paths: {outdir}/transcripts/{genome}/..., {outdir}/fusion/{genome}/...
@@ -136,7 +140,8 @@ rule generate_report:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join([shlex.quote(str(x)) for x in cmd]) + "\n")
                 f.write("echo 'RNAseq report generation completed successfully.'\n")
-            shell(f"bash {script_path} >> {log_path} 2>&1")
+            shutil.copyfile(script_path, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"RNAseq report generation failed: {e}")
             raise RuntimeError(f"RNAseq report generation failed: {e}, please check the log file: {log_path} for details.")

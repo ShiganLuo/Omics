@@ -1,4 +1,6 @@
 include: "../common/common.smk"
+
+import shutil
 import shlex
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
@@ -90,12 +92,15 @@ rule bigwig_ratio:
                 "-o", output.ratio_bigwig,
                 "-p", str(threads),
             ]
-            script = os.path.join(sample_outdir, f"bigwig_ratio_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"bigwig_ratio_{wildcards.sample_id}_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, f"bigwig_ratio_{wildcards.sample_id}.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(shlex.quote(str(c)) for c in cmd) + "\n")
                 f.write(f'echo "bigwig_ratio for {wildcards.sample_id} at {current_time} completed successfully"\n')
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path, "a") as f:
                 f.write(f"Error occurred during bigwig_ratio for sample {wildcards.sample_id}: {e}\n")
@@ -215,12 +220,15 @@ rule heatmap:
             inp = sample_ip_input_map.get(wildcards.sample_id, "")
             title = f"{wildcards.sample_id} vs {inp}" if inp else wildcards.sample_id
             cmd = _build_heatmap_cmd(wildcards, input, output, threads, title)
-            script = os.path.join(sample_outdir, f"heatmap_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"heatmap_{wildcards.sample_id}_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, f"heatmap_{wildcards.sample_id}.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(shlex.quote(str(c)) for c in cmd) + "\n")
                 f.write(f'echo "heatmap for {wildcards.sample_id} at {current_time} completed successfully"\n')
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path, "a") as f:
                 f.write(f"Error occurred during heatmap for sample {wildcards.sample_id}: {e}\n")
@@ -253,12 +261,15 @@ rule heatmap_gene:
             if inp:
                 title += f" vs {inp}"
             cmd = _build_heatmap_cmd(wildcards, input, output, threads, title, gene_names=[wildcards.gene_name])
-            script = os.path.join(sample_outdir, f"heatmap_gene_{wildcards.sample_id}_{wildcards.gene_name}_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"heatmap_gene_{wildcards.sample_id}_{wildcards.gene_name}_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, f"heatmap_gene_{wildcards.sample_id}_{wildcards.gene_name}.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(shlex.quote(str(c)) for c in cmd) + "\n")
                 f.write(f'echo "heatmap_gene for {wildcards.sample_id} {wildcards.gene_name} at {current_time} completed successfully"\n')
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path, "a") as f:
                 f.write(f"Error occurred during heatmap_gene for {wildcards.sample_id} {wildcards.gene_name}: {e}\n")

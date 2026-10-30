@@ -1,4 +1,6 @@
 include: "../../common/common.smk"
+
+import shutil
 from typing import Tuple
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
@@ -43,13 +45,16 @@ rule TEcount:
             rule_logger = setup_logger("TEcount", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start TEcount for sample {wildcards.sample_id} genome {wildcards.genome} at {current_time}")
-            script = os.path.join(params.outdir, f"TEcount_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"TEcount_{wildcards.sample_id}_{current_time}.sh")
+            plain_script = os.path.join(params.outdir, f"TEcount_{wildcards.sample_id}.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write(f"{params.TEcount} --sortByPos --format BAM --mode multi \\\n")
                 f.write(f"    -b {input.bamA} --GTF {params.gtf} --TE {params.TE_gtf} \\\n")
                 f.write(f"    --project {params.project} --outdir {params.outdir}\n")
-            shell(f"bash {script} > {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} > {log_path} 2>&1")
         except Exception as e:
             with open(log_path, "a") as f:
                 f.write(f"Error occurred during TEcount for sample {wildcards.sample_id} genome {wildcards.genome}: {e}\n")
@@ -90,12 +95,15 @@ rule combine_TEcount:
             rule_logger = setup_logger("combine_TEcount", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start combine_TEcount for genome {wildcards.genome} at {current_time}")
-            script = os.path.join(params.indir, f"combine_TEcount_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"combine_TEcount_{current_time}.sh")
+            plain_script = os.path.join(params.indir, f"combine_TEcount.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write(f"python {params.combineTE} -p TEcount -i {params.indir} -o {output.outfile_id}\n")
                 f.write(f"python {params.geneId2Name} -c {output.outfile_id} -g {params.gtf} -o {output.outfile_name}\n")
-            shell(f"bash {script} > {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} > {log_path} 2>&1")
         except Exception as e:
             with open(log_path, "a") as f:
                 f.write(f"Error occurred during combine_TEcount for genome {wildcards.genome}: {e}\n")
@@ -137,14 +145,17 @@ rule TElocal:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start TElocal for sample {wildcards.sample_id} genome {wildcards.genome} at {current_time}")
             outdir_local = os.path.dirname(str(output.project))
-            script = os.path.join(outdir_local, f"TElocal_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"TElocal_{wildcards.sample_id}_{current_time}.sh")
+            plain_script = os.path.join(outdir_local, f"TElocal_{wildcards.sample_id}.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write(f"{params.TElocal} --sortByPos -b {input.bam} \\\n")
                 f.write(f"    --GTF {params.GTF} --TE {params.TE} \\\n")
                 f.write(f"    --project {params.project}\n")
                 f.write(f"mv {params.project}.cntTable {output.project}\n")
-            shell(f"bash {script} > {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} > {log_path} 2>&1")
         except Exception as e:
             with open(log_path, "a") as f:
                 f.write(f"Error occurred during TElocal for sample {wildcards.sample_id} genome {wildcards.genome}: {e}\n")
@@ -186,12 +197,15 @@ rule combine_TElocal:
             rule_logger = setup_logger("combine_TElocal", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start combine_TElocal for genome {wildcards.genome} at {current_time}")
-            script = os.path.join(params.indir, f"combine_TElocal_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"combine_TElocal_{current_time}.sh")
+            plain_script = os.path.join(params.indir, f"combine_TElocal.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write(f"python {params.combineTE} -p TElocal -i {params.indir} -o {output.outfile_id}\n")
                 f.write(f"python {params.geneId2Name} -c {output.outfile_id} -g {params.gtf} -o {output.outfile_name}\n")
-            shell(f"bash {script} > {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} > {log_path} 2>&1")
         except Exception as e:
             with open(log_path, "a") as f:
                 f.write(f"Error occurred during combine_TElocal for genome {wildcards.genome}: {e}\n")

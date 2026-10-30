@@ -1,5 +1,7 @@
 include: "../common/common.smk"
 
+import shutil
+
 indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
@@ -31,7 +33,9 @@ rule hisat2_index:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start hisat2 index at {current_time}")
-            script = os.path.join(outdir, f"index/hisat2_index_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"index/hisat2_index_{current_time}.sh")
+            plain_script = os.path.join(outdir, f"index/hisat2_index.sh")
             cmd = [
                 "mkdir", "-p", os.path.dirname(str(params.prefix))
             ]
@@ -47,7 +51,8 @@ rule hisat2_index:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(cmd_str)
                 f.write(f"echo 'hisat2 index was successfully completed'\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"hisat2_index failed: {e}")
             raise RuntimeError(f"hisat2_index failed: {e}")

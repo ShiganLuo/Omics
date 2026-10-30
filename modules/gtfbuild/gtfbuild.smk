@@ -1,5 +1,7 @@
 include: "../common/common.smk"
 
+import shutil
+
 outdir = config.get("outdir", "results/gtfbuild")
 logdir = config.get("logdir", "log")
 ROOT_DIR = config.get("ROOT_DIR", ".")
@@ -56,7 +58,9 @@ rule gtfbuild_liftoff:
             rule_logger.info(f"Start LiftOff projection for {genome_name} at {current_time}")
             sample_outdir = os.path.dirname(str(output.gff3))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(sample_outdir, f"gtfbuild_liftoff_{genome_name}_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"gtfbuild_liftoff_{genome_name}_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, f"gtfbuild_liftoff_{genome_name}.sh")
             lift_cmd = [
                 "liftoff",
                 "-g", str(input.source_gtf),
@@ -80,7 +84,8 @@ rule gtfbuild_liftoff:
                         f'--genome {genome_name} --source-gtf {input.source_gtf}\n')
                 f.write(f"mv {output.gtf}.tmp {output.gtf}\n")
                 f.write(f'echo "gtfbuild_liftoff for {genome_name} at {current_time} completed successfully"\n')
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during gtfbuild_liftoff for {genome_name}: {e}\n")
             raise RuntimeError(f"Error occurred during gtfbuild_liftoff for {genome_name}: {e}\n")
@@ -113,7 +118,9 @@ rule gtfbuild_qc:
             rule_logger.info(f"Start gtfbuild QC for {genome_name} at {current_time}")
             sample_outdir = os.path.dirname(str(output.qc))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(sample_outdir, f"gtfbuild_qc_{genome_name}_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"gtfbuild_qc_{genome_name}_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, f"gtfbuild_qc_{genome_name}.sh")
             cmd = [
                 "python", params.script,
                 "--src-gtf", str(input.source_gtf),
@@ -128,7 +135,8 @@ rule gtfbuild_qc:
                 f.write("set -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "gtfbuild_qc for {genome_name} at {current_time} completed successfully"\n')
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during gtfbuild_qc for {genome_name}: {e}\n")
             raise RuntimeError(f"Error occurred during gtfbuild_qc for {genome_name}: {e}\n")
@@ -177,7 +185,9 @@ rule gtfbuild_wga:
             rule_logger.info(f"Start whole-genome alignment for {genome_name} at {current_time}")
             sample_outdir = os.path.dirname(str(output.paf))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(sample_outdir, f"gtfbuild_wga_{genome_name}_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"gtfbuild_wga_{genome_name}_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, f"gtfbuild_wga_{genome_name}.sh")
             cmd = [
                 "minimap2",
                 "-cx", str(params.preset),
@@ -191,7 +201,8 @@ rule gtfbuild_wga:
                 f.write("set -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "gtfbuild_wga for {genome_name} at {current_time} completed successfully"\n')
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during gtfbuild_wga for {genome_name}: {e}\n")
             raise RuntimeError(f"Error occurred during gtfbuild_wga for {genome_name}: {e}\n")
@@ -226,7 +237,9 @@ rule gtfbuild_liftover_bed:
             rule_logger.info(f"Start BED liftover for {genome_name} at {current_time}")
             sample_outdir = os.path.dirname(str(output.bed))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(sample_outdir, f"gtfbuild_liftover_bed_{BED_STEM}_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"gtfbuild_liftover_bed_{BED_STEM}_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, f"gtfbuild_liftover_bed_{BED_STEM}.sh")
             cmd = [
                 "paftools.js", "liftover",
                 "-q", str(params.min_mapq),
@@ -250,7 +263,8 @@ rule gtfbuild_liftover_bed:
                     f'> {output.stats}\n'
                 )
                 f.write(f'echo "gtfbuild_liftover_bed for {BED_STEM} at {current_time} completed successfully"\n')
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during gtfbuild_liftover_bed for {BED_STEM}: {e}\n")
             raise RuntimeError(f"Error occurred during gtfbuild_liftover_bed for {BED_STEM}: {e}\n")

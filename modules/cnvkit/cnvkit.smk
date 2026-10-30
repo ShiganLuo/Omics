@@ -1,4 +1,6 @@
 include: "../common/common.smk"
+
+import shutil
 from snakemake.logging import logger
 import time
 import os
@@ -45,7 +47,9 @@ rule cnvkit_reference:
             rule_logger.info(f"Start cnvkit reference build at {current_time}")
             sample_outdir = os.path.dirname(str(output.ref))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(sample_outdir, f"cnvkit_reference_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"cnvkit_reference_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, f"cnvkit_reference.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write(f"{params.cnvkit} batch \\\n")
@@ -56,7 +60,8 @@ rule cnvkit_reference:
                 f.write(f"    --processes {threads} \\\n")
                 f.write(f"    --output-reference {output.ref} \\\n")
                 f.write(f"    > {log} 2>&1\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path, "a") as f:
                 f.write(f"Error occurred during cnvkit reference build: {e}\n")
@@ -93,7 +98,9 @@ rule cnvkit_batch:
             rule_logger = setup_logger("cnvkit_batch", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start cnvkit batch at {current_time}")
-            script = os.path.join(params.outdir, f"cnvkit_batch_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"cnvkit_batch_{current_time}.sh")
+            plain_script = os.path.join(params.outdir, f"cnvkit_batch.sh")
             os.makedirs(params.outdir, exist_ok=True)
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
@@ -116,7 +123,8 @@ rule cnvkit_batch:
                 f.write(f"        --scatter --diagram \\\n")
                 f.write(f"        > {log} 2>&1\n")
                 f.write(f"fi\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path, "a") as f:
                 f.write(f"Error occurred during cnvkit batch: {e}\n")

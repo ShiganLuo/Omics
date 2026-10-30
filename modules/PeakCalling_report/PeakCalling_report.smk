@@ -1,4 +1,6 @@
 include: "../common/common.smk"
+
+import shutil
 import shlex
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
@@ -116,11 +118,14 @@ rule generate_report:
                 "--top-n", str(params.top_n),
             ]
 
-            script = os.path.join(report_dir, f"generate_report_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"generate_report_{current_time}.sh")
+            plain_script = os.path.join(report_dir, f"generate_report.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write(" ".join(shlex.quote(str(c)) for c in cmd) + "\n")
-            shell(f"bash {script} > {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} > {log_path} 2>&1")
         except Exception as e:
             with open(log_path, "a") as f:
                 f.write(f"Error occurred during generate_report: {e}\n")

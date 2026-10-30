@@ -1,5 +1,7 @@
 include: "../common/common.smk"
 
+import shutil
+
 from snakemake.logging import logger
 indir = config.get("indir", "output")
 outdir = config.get("outdir", "output")
@@ -43,12 +45,15 @@ rule featureCounts_single_noMultiple:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start featureCounts_single_noMultiple at {current_time}")
-            script = os.path.join(os.path.dirname(output.outfile), f"featureCounts_single_noMultiple_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"featureCounts_single_noMultiple_{current_time}.sh")
+            plain_script = os.path.join(os.path.dirname(output.outfile), f"featureCounts_single_noMultiple.sh")
             os.makedirs(os.path.dirname(output.outfile), exist_ok=True)
             bams_str = " ".join(input.bams)
             with open(script, "w") as f:
                 f.write(f"{params.featureCounts} -T {threads} -t exon -g gene_id -a {params.gtf} -o {output.outfile} {bams_str} > {log_path} 2>&1\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
             rule_logger.info(f"featureCounts_single_noMultiple completed")
         except Exception as e:
             rule_logger.error(f"featureCounts_single_noMultiple failed: {e}\n")
@@ -88,14 +93,17 @@ rule featureCounts_paired_noMultiple:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start featureCounts_paired_noMultiple at {current_time}")
-            script = os.path.join(os.path.dirname(output.outfile), f"featureCounts_paired_noMultiple_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"featureCounts_paired_noMultiple_{current_time}.sh")
+            plain_script = os.path.join(os.path.dirname(output.outfile), f"featureCounts_paired_noMultiple.sh")
             os.makedirs(os.path.dirname(output.outfile), exist_ok=True)
             bams_str = " ".join(input.bams)
             with open(script, "w") as f:
                 # for multiple -M -O
                 f.write("/bin/bash\nset -euo pipefail\n")
                 f.write(f"{params.featureCounts} -T {threads} -B -p --countReadPairs -t exon -g gene_id -a {params.gtf} -o {output.outfile} {bams_str}\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
             rule_logger.info(f"featureCounts_paired_noMultiple completed")
         except Exception as e:
             rule_logger.error(f"featureCounts_paired_noMultiple failed: {e}\n")

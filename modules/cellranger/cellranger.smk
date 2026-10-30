@@ -57,7 +57,9 @@ rule cellranger_ref:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start cellranger_ref at {current_time}")
-            command_script = os.path.join(str(params.cellranger_ref_dir), f"cellranger_ref_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            command_script = os.path.join(logdir, "cmd", "group", f"cellranger_ref_{current_time}.sh")
+            plain_script = os.path.join(str(params.cellranger_ref_dir), f"cellranger_ref.sh")
             cmd = [
                 "python", params.script,
                 "--fasta", input.fasta,
@@ -72,7 +74,8 @@ rule cellranger_ref:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(str(item) for item in cmd) + "\n")
                 f.write(f'echo "Cell Ranger reference built at {str(output.ref_dir)} successfully"\n')
-            shell(f"bash {command_script} >> {log_path} 2>&1")
+            shutil.copyfile(command_script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"cellranger_ref failed: {e}\n")
             raise RuntimeError(f"cellranger_ref failed: {e}\n")
@@ -131,7 +134,9 @@ rule cellranger_count:
                 rule_logger.warning(f"Removing stale sample directory: {sample_outdir}")
                 shutil.rmtree(sample_outdir)
             # Don't create sample_outdir - cellranger will create it
-            command_script = os.path.join(outdir, f"cellranger_count_{sample_id}_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            command_script = os.path.join(logdir, "cmd", "group", f"cellranger_count_{sample_id}_{current_time}.sh")
+            plain_script = os.path.join(outdir, f"cellranger_count_{sample_id}.sh")
             cmd = [
                 params.cellranger, "count",
                 "--id", sample_id,
@@ -154,7 +159,8 @@ rule cellranger_count:
                 f.write(f"mv \"$outs/filtered_feature_bc_matrix\" \"{sample_outdir}/filtered_feature_bc_matrix\"\n")
                 f.write(f"mv \"$outs/filtered_feature_bc_matrix.h5\" \"{output.h5}\"\n")
                 f.write(f'echo "Cell Ranger count completed for sample {sample_id}"\n')
-            shell(f"bash {command_script} >> {log_path} 2>&1")
+            shutil.copyfile(command_script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"cellranger_count failed: {e}\n")
             raise RuntimeError(f"cellranger_count failed: {e}\n")
@@ -196,7 +202,9 @@ rule cellranger_to_h5ad:
             os.makedirs(os.path.dirname(output.h5ad), exist_ok=True)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             sample_outdir = os.path.dirname(output.h5ad)
-            command_script = os.path.join(sample_outdir, f"cellranger_to_h5ad_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            command_script = os.path.join(logdir, "cmd", "group", f"cellranger_to_h5ad_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, f"cellranger_to_h5ad.sh")
             rule_logger.info(f"Begin cellranger_to_h5ad analysis for {wildcards.sample_id} at {current_time}")
             cmd = [
                 "python", params.script,
@@ -208,7 +216,8 @@ rule cellranger_to_h5ad:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(str(item) for item in cmd) + "\n")
                 f.write(f'echo "cellranger_to_h5ad completed for sample {wildcards.sample_id}"\n')
-            shell(f"bash {command_script} >> {log_path} 2>&1")
+            shutil.copyfile(command_script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"cellranger_to_h5ad failed: {e}\n")
             raise RuntimeError(f"cellranger_to_h5ad failed: {e}\n")

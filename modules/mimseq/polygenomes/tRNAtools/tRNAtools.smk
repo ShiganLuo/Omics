@@ -1,5 +1,7 @@
 include: "../../../common/common.smk"
 
+import shutil
+
 from snakemake.logging import logger
 import time
 import os
@@ -62,7 +64,9 @@ rule mimseq_tRNAtools:
             log_path = str(log)
             open(log_path, "w").close()
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            script_path = os.path.join(outdir, wildcards.genome, f"mimseq_tRNAtools_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script_path = os.path.join(logdir, "cmd", "group", f"mimseq_tRNAtools_{current_time}.sh")
+            plain_script = os.path.join(outdir, wildcards.genome, f"mimseq_tRNAtools.sh")
 
             cmd = [
                 "/data/pub/zhousha/env/mutation_0.1/eda061b3f191779ad16ff11ee6fe53b4_/bin/python", params.script,
@@ -100,7 +104,8 @@ rule mimseq_tRNAtools:
                 f.write("#!/bin/bash\n")
                 f.write("source /home/zhousha/miniforge3/bin/activate /data/pub/zhousha/env/mutation_0.1/eda061b3f191779ad16ff11ee6fe53b4_\n")
                 f.write(" ".join(cmd) + "\n")
-            shell(f"bash {script_path} >> {log_path} 2>&1")
+            shutil.copyfile(script_path, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path, "a") as f:
                 f.write(f"mimseq_tRNAtools failed: {e}\n")

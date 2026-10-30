@@ -1,4 +1,6 @@
 include: "../common/common.smk"
+
+import shutil
 indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
@@ -37,7 +39,9 @@ rule pbsv_discover:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start pbsv discover for sample {wildcards.sample_id} at {current_time}")
-            script = os.path.join(outdir,f"{wildcards.sample_id}/pbsv_discover_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"{wildcards.sample_id}/pbsv_discover_{current_time}.sh")
+            plain_script = os.path.join(outdir, f"{wildcards.sample_id}/pbsv_discover.sh")
             cmd = [
                 params.pbsv, "discover",
                 input.bam,
@@ -47,7 +51,8 @@ rule pbsv_discover:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f"echo 'pbsv discover was successfully completed for sample {wildcards.sample_id}'\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"pbsv discover failed for sample {wildcards.sample_id}: {e}")
             raise RuntimeError(f"pbsv discover failed: {e}\n")
@@ -79,7 +84,9 @@ rule pbsv_call:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start pbsv call for sample {wildcards.sample_id} at {current_time}")
-            script = os.path.join(outdir,f"{wildcards.sample_id}/pbsv_call_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"{wildcards.sample_id}/pbsv_call_{current_time}.sh")
+            plain_script = os.path.join(outdir, f"{wildcards.sample_id}/pbsv_call.sh")
             cmd1 = [
                 params.pbsv, "call",
                 "--num-threads", str(threads),
@@ -104,7 +111,8 @@ rule pbsv_call:
                 f.write(" ".join(cmd3) + "\n")
                 f.write(" ".join(cmd4) + "\n")
                 f.write(f"echo 'pbsv call was successfully completed for sample {wildcards.sample_id}'\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"pbsv call failed for sample {wildcards.sample_id}: {e}")
             raise RuntimeError(f"pbsv_call error: {e}, please check the log file {log_path} for more details.")

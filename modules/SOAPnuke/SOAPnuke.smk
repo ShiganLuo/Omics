@@ -1,5 +1,7 @@
 include: "../common/common.smk"
 
+import shutil
+
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 indir = config.get("indir", "output/raw_fastq")
@@ -37,7 +39,9 @@ rule soapnuke_filter_paired:
 
             sample_outdir = params.workdir
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(sample_outdir, f"soapnuke_filter_paired_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"soapnuke_filter_paired_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, f"soapnuke_filter_paired.sh")
 
             cmd = [
                 params.SOAPnuke, "filter",
@@ -56,7 +60,8 @@ rule soapnuke_filter_paired:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f"mv {sample_outdir}/{params.clean_fastq1} {output.clean_fastq1}\n")
                 f.write(f"mv {sample_outdir}/{params.clean_fastq2} {output.clean_fastq2}\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
 
             rule_logger.info(f"soapnuke_filter_paired for sample {wildcards.sample_id} completed")
         except Exception as e:
@@ -94,7 +99,9 @@ rule soapnuke_filter_single:
 
             sample_outdir = params.workdir
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(sample_outdir, f"soapnuke_filter_single_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"soapnuke_filter_single_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, f"soapnuke_filter_single.sh")
 
             cmd = [
                 params.SOAPnuke, "filter",
@@ -110,7 +117,8 @@ rule soapnuke_filter_single:
             with open(script, "w") as f:
                 f.write(" ".join(cmd) + "\n")
                 f.write(f"mv {sample_outdir}/{params.clean_fastq} {output.clean_fastq}\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
 
             rule_logger.info(f"soapnuke_filter_single for sample {wildcards.sample_id} completed")
         except Exception as e:

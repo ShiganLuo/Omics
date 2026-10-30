@@ -1,4 +1,6 @@
 include: "../common/common.smk"
+
+import shutil
 from snakemake.logging import logger
 indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
@@ -52,7 +54,9 @@ rule diff_exomePeak:
             rule_logger.info(f"Start diff_exomePeak at {current_time}")
             sample_outdir = outdir
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(sample_outdir, f"diff_exomePeak_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"diff_exomePeak_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, f"diff_exomePeak.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write(f"Rscript {params.exomePeak_script} \\\n")
@@ -92,7 +96,8 @@ rule diff_exomePeak:
                 f.write(f"    --outfile {outdir}/sig_diff_peak_gene_names.xls\n")
                 f.write(f"\n")
                 f.write(f"rm -f {outdir}/diff_peaks.bed {outdir}/diff_peaks.xls {outdir}/con_sig_diff_peak.bed {outdir}/con_sig_diff_peak.xls {outdir}/sig_diff_peak.bed {outdir}/sig_diff_peak.xls\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path, "a") as f:
                 f.write(f"Error occurred during diff_exomePeak: {e}\n")
@@ -135,7 +140,9 @@ rule call_exomePeak:
             rule_logger.info(f"Start call_exomePeak at {current_time}")
             sample_outdir = outdir
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(sample_outdir, f"call_exomePeak_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"call_exomePeak_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, f"call_exomePeak.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write(f"Rscript {params.exomePeak_script} \\\n")
@@ -163,7 +170,8 @@ rule call_exomePeak:
                 f.write(f"    --gtf {params.gtf} \\\n")
                 f.write(f"    --outfile {outdir}/con_peaks_gene_names.xls\n")
                 f.write(f"rm -f {outdir}/all_peaks.bed {outdir}/all_peaks.xls {outdir}/con_peaks.bed {outdir}/con_peaks.xls\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path, "a") as f:
                 f.write(f"Error occurred during call_exomePeak: {e}\n")

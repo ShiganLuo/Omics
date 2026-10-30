@@ -1,5 +1,7 @@
 include: "../common/common.smk"
 
+import shutil
+
 outdir = config.get("outdir", "output")
 indir = config.get("indir", "input")
 logdir = config.get("logdir", "logs")
@@ -62,7 +64,9 @@ rule trimming_Paired:
             logger = setup_logger(logger_name="cutadapt_paired", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start cutadapt paired trimming for sample {wildcards.sample_id} at {current_time}")
-            script = os.path.join(outdir, f"{wildcards.sample_id}/cutadapt_paired_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"{wildcards.sample_id}/cutadapt_paired_{current_time}.sh")
+            plain_script = os.path.join(outdir, f"{wildcards.sample_id}/cutadapt_paired.sh")
             cmd = [
                 params.cutadapt,
                 "-j", str(threads),
@@ -92,7 +96,8 @@ rule trimming_Paired:
             with open(script, "w") as f:
                 f.write(cmd_str + "\n")
                 f.write(f"echo 'cutadapt paired trimming finished for {wildcards.sample_id}'\n")
-            shell(f"bash {script} > {output.report} 2>> {log_path}")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} > {output.report} 2>> {log_path}")
             logger.info(f"Finished cutadapt paired trimming for sample {wildcards.sample_id}")
         except Exception as e:
             with open(log_path, "a") as f:
@@ -132,7 +137,9 @@ rule trimming_Single:
             logger = setup_logger(logger_name="cutadapt_single", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start cutadapt single trimming for sample {wildcards.sample_id} at {current_time}")
-            script = os.path.join(outdir, f"{wildcards.sample_id}/cutadapt_single_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"{wildcards.sample_id}/cutadapt_single_{current_time}.sh")
+            plain_script = os.path.join(outdir, f"{wildcards.sample_id}/cutadapt_single.sh")
             cmd = [
                 params.cutadapt,
                 "-j", str(threads),
@@ -158,7 +165,8 @@ rule trimming_Single:
             with open(script, "w") as f:
                 f.write(cmd_str + "\n")
                 f.write(f"echo 'cutadapt single trimming finished for {wildcards.sample_id}'\n")
-            shell(f"bash {script} > {output.report} 2>> {log_path}")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} > {output.report} 2>> {log_path}")
             logger.info(f"Finished cutadapt single trimming for sample {wildcards.sample_id}")
         except Exception as e:
             with open(log_path, "a") as f:

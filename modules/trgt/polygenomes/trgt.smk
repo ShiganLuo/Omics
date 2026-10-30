@@ -1,5 +1,7 @@
 include: "../../common/common.smk"
 
+import shutil
+
 from snakemake.logging import logger
 import time
 import os
@@ -43,7 +45,9 @@ rule trgt_genotype:
     run:
         current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start trgt genotype for sample {wildcards.sample_id} genome {wildcards.genome} at {current_time}")
-        script = os.path.join(outdir, f"{wildcards.genome}/{wildcards.sample_id}/trgt_genotype_{current_time}.sh")
+        os.makedirs(os.path.join(logdir, "cmd", str(wildcards.genome)), exist_ok=True)
+        script = os.path.join(logdir, "cmd", str(wildcards.genome), f"{wildcards.genome}/{wildcards.sample_id}/trgt_genotype_{current_time}.sh")
+        plain_script = os.path.join(outdir, f"{wildcards.genome}/{wildcards.sample_id}/trgt_genotype.sh")
         cmd = [params.trgt, "genotype",
             "--num-threads", str(threads),
             "--genome", input.fasta,
@@ -55,7 +59,8 @@ rule trgt_genotype:
         with open(script, "w") as f:
             f.write("#!/bin/bash\n")
             f.write(" ".join(cmd) + "\n")
-        shell(f"bash {script} > {log} 2>&1")
+        shutil.copyfile(script, plain_script)
+        shell(f"bash {plain_script} > {log} 2>&1")
 
 rule trgt_plot:
     input:
@@ -78,7 +83,9 @@ rule trgt_plot:
     run:
         current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start trgt plot for sample {wildcards.sample_id} genome {wildcards.genome} at {current_time}")
-        script = os.path.join(outdir, f"{wildcards.genome}/{wildcards.sample_id}/trgt_plot_{current_time}.sh")
+        os.makedirs(os.path.join(logdir, "cmd", str(wildcards.genome)), exist_ok=True)
+        script = os.path.join(logdir, "cmd", str(wildcards.genome), f"{wildcards.genome}/{wildcards.sample_id}/trgt_plot_{current_time}.sh")
+        plain_script = os.path.join(outdir, f"{wildcards.genome}/{wildcards.sample_id}/trgt_plot.sh")
         cmd = [
             params.trgt, "plot",
             "--genome", input.fasta,
@@ -91,7 +98,8 @@ rule trgt_plot:
         with open(script, "w") as f:
             f.write("#!/bin/bash\n")
             f.write(" ".join(cmd) + "\n")
-        shell(f"bash {script} > {log} 2>&1")
+        shutil.copyfile(script, plain_script)
+        shell(f"bash {plain_script} > {log} 2>&1")
 
 rule trgt_result:
     input:

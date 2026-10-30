@@ -13,6 +13,8 @@ Note: For mouse telomeres (30-150kb), Approach A is recommended as HiFi reads
 
 include: "../common/common.smk"
 
+import shutil
+
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 indir = config.get("indir", "input")
@@ -113,7 +115,9 @@ rule telogator2_run:
             logger = setup_logger(logger_name="telogator2_run", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start telogator2 for sample {wildcards.sample_id} at {current_time}")
-            script = os.path.join(outdir, f"{wildcards.sample_id}/telogator2_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"{wildcards.sample_id}/telogator2_{current_time}.sh")
+            plain_script = os.path.join(outdir, f"{wildcards.sample_id}/telogator2.sh")
             output_dir = os.path.join(outdir, f"{wildcards.sample_id}/telogator2")
             cmd = [
                 params.telogator2, "-i", input.bam,
@@ -126,7 +130,8 @@ rule telogator2_run:
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write(" ".join(cmd) + "\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path, "a") as f:
                 f.write(f"telogator2 failed for sample {wildcards.sample_id} with error: {e}\n")
@@ -164,7 +169,9 @@ rule assembly_telomere_scan:
             logger = setup_logger(logger_name="assembly_telomere_scan", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start assembly telomere scan for sample {wildcards.sample_id} at {current_time}")
-            script = os.path.join(outdir, f"{wildcards.sample_id}/assembly_telomere_scan_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"{wildcards.sample_id}/assembly_telomere_scan_{current_time}.sh")
+            plain_script = os.path.join(outdir, f"{wildcards.sample_id}/assembly_telomere_scan.sh")
             cmd = [
                 "python", params.script,
                 "--fasta", input.fasta,
@@ -175,7 +182,8 @@ rule assembly_telomere_scan:
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write(" ".join(cmd) + "\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path, "a") as f:
                 f.write(f"Assembly telomere scan failed for sample {wildcards.sample_id} with error: {e}\n")
@@ -213,7 +221,9 @@ rule read_density_telomere:
             logger = setup_logger(logger_name="read_density_telomere", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start read density telomere for sample {wildcards.sample_id} at {current_time}")
-            script = os.path.join(outdir, f"{wildcards.sample_id}/read_density_telomere_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"{wildcards.sample_id}/read_density_telomere_{current_time}.sh")
+            plain_script = os.path.join(outdir, f"{wildcards.sample_id}/read_density_telomere.sh")
             cmd = [
                 "python", params.script,
                 "--bam", input.bam,
@@ -224,7 +234,8 @@ rule read_density_telomere:
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write(" ".join(cmd) + "\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path, "a") as f:
                 f.write(f"Read density telomere failed for sample {wildcards.sample_id} with error: {e}\n")
@@ -293,7 +304,9 @@ rule tidk_scan:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start tidk scan for sample {wildcards.sample_id} at {current_time}")
 
-            script = os.path.join(outdir, f"{wildcards.sample_id}/tidk_scan_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"{wildcards.sample_id}/tidk_scan_{current_time}.sh")
+            plain_script = os.path.join(outdir, f"{wildcards.sample_id}/tidk_scan.sh")
             # tidk search: --string, --output (prefix), --dir, positional FASTA
             cmd_search = [
                 params.tidk, "search",
@@ -306,7 +319,8 @@ rule tidk_scan:
                 f.write("#!/bin/bash\n")
                 f.write("mkdir -p " + params.output_dir + "\n")
                 f.write(" ".join(cmd_search) + "\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
 
             # tidk search outputs <output>_telomeric_repeat.tsv in --dir
             search_tsv = os.path.join(params.output_dir, f"{wildcards.sample_id}_tidk_search_telomeric_repeat.tsv")

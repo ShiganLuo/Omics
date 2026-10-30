@@ -1,4 +1,6 @@
 include: "../../common/common.smk"
+
+import shutil
 indir = config.get("indir") or "input"
 outdir = config.get("outdir") or "output"
 logdir = config.get("logdir") or "log"
@@ -33,7 +35,9 @@ rule BaseRecalibrator:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start BaseRecalibrator for sample {wildcards.sample_id} at {current_time}")
-            script = os.path.join(outdir,f"{wildcards.sample_id}/BaseRecalibrator_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"{wildcards.sample_id}/BaseRecalibrator_{current_time}.sh")
+            plain_script = os.path.join(outdir, f"{wildcards.sample_id}/BaseRecalibrator.sh")
             cmd = [
                 params.gatk, "BaseRecalibrator",
                 "--java-options", params.javaOptions,
@@ -52,7 +56,8 @@ rule BaseRecalibrator:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f"echo 'BaseRecalibrator completed successfully for sample {wildcards.sample_id}'\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error during BaseRecalibrator execution: {str(e)}")
             raise RuntimeError(f"Error occurred while running BaseRecalibrator for sample {wildcards.sample_id}: {e}, you can check the log file {log_path} for more details.")
@@ -87,7 +92,9 @@ rule ApplyBQSR:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start ApplyBQSR for sample {wildcards.sample_id} at {current_time}")
-            script = os.path.join(outdir,f"{wildcards.sample_id}/ApplyBQSR_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"{wildcards.sample_id}/ApplyBQSR_{current_time}.sh")
+            plain_script = os.path.join(outdir, f"{wildcards.sample_id}/ApplyBQSR.sh")
             cmd = [
                 params.gatk, "ApplyBQSR",
                 "--java-options", params.javaOptions,
@@ -104,7 +111,8 @@ rule ApplyBQSR:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f"echo 'ApplyBQSR completed successfully for sample {wildcards.sample_id}'\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error during ApplyBQSR execution: {str(e)}")
             raise RuntimeError(f"Error occurred while running ApplyBQSR for sample {wildcards.sample_id}: {e}, you can check the log file {log_path} for more details.")

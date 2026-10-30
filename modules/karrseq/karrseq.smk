@@ -1,5 +1,7 @@
 include: "../common/common.smk"
 
+import shutil
+
 from snakemake.logging import logger
 import time
 import os
@@ -33,7 +35,9 @@ rule karrseq_chimeric_to_pairs:
     run:
         current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start KARRseq chimeric to pairs for sample {wildcards.sample_id} at {current_time}")
-        script_file = os.path.join(outdir, f"{wildcards.sample_id}/karrseq_chimeric_to_pairs_{current_time}.sh")
+        os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
+        script_file = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"karrseq_chimeric_to_pairs_{current_time}.sh")
+        plain_script = os.path.join(outdir, f"{wildcards.sample_id}/karrseq_chimeric_to_pairs.sh")
         cmd_view = [
             "samtools", "view", input.aligned,
             "|", "python", params.script, "Aligned", str(params.mapq), str(params.span),
@@ -57,7 +61,7 @@ rule karrseq_chimeric_to_pairs:
             f.write(" ".join(cmd_chimeric) + "\n")
             f.write(" ".join(cmd_merge) + "\n")
             f.write(" ".join(cmd_cleanup) + "\n")
-        shell("bash {script_file} > {log} 2>&1")
+        shell("bash {plain_script} > {log} 2>&1")
 
 
 rule karrseq_remove_duplicates:
@@ -81,7 +85,9 @@ rule karrseq_remove_duplicates:
     run:
         current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start KARRseq dedup for sample {wildcards.sample_id} at {current_time}")
-        script_file = os.path.join(outdir, f"{wildcards.sample_id}/karrseq_dedup_{current_time}.sh")
+        os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
+        script_file = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"karrseq_dedup_{current_time}.sh")
+        plain_script = os.path.join(outdir, f"{wildcards.sample_id}/karrseq_dedup.sh")
         cmd_dedup = [
             "zcat", input.pairs,
             "|", "python", params.dedup_script, params.todedup,
@@ -105,7 +111,7 @@ rule karrseq_remove_duplicates:
             f.write(" ".join(cmd_pairs) + "\n")
             f.write("sleep 120\n")
             f.write(" ".join(cmd_index) + "\n")
-        shell("bash {script_file} > {log} 2>&1")
+        shell("bash {plain_script} > {log} 2>&1")
 
 
 rule karrseq_ligation:
@@ -123,7 +129,9 @@ rule karrseq_ligation:
     run:
         current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start KARRseq ligation for sample {wildcards.sample_id} at {current_time}")
-        script_file = os.path.join(outdir, f"{wildcards.sample_id}/karrseq_ligation_{current_time}.sh")
+        os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
+        script_file = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"karrseq_ligation_{current_time}.sh")
+        plain_script = os.path.join(outdir, f"{wildcards.sample_id}/karrseq_ligation.sh")
         cmd_awk1 = [
             "zcat", input.dedup,
             "|", "awk", "'{print $1\"\\t\"$2\"\\t\"$3+$10\"\\t\"$4\"\\t\"$5\"\\t\"$6\"\\t\"$7}'"
@@ -141,7 +149,7 @@ rule karrseq_ligation:
             f.write(" ".join(cmd_awk1 + cmd_awk2 + cmd_sort + cmd_bgzip) + "\n")
             f.write("sleep 60\n")
             f.write(" ".join(cmd_index) + "\n")
-        shell("bash {script_file} > {log} 2>&1")
+        shell("bash {plain_script} > {log} 2>&1")
 
 
 rule karrseq_result:

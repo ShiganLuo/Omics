@@ -1,5 +1,7 @@
 include: "../common/common.smk"
 
+import shutil
+
 from snakemake.logging import logger
 
 indir = config.get("indir", "input")
@@ -36,7 +38,9 @@ rule ucsc_track_single:
 
             sample_outdir = os.path.dirname(str(output.track))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(sample_outdir, f"ucsc_track_bedtools_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"ucsc_track_bedtools_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, f"ucsc_track_bedtools.sh")
 
             cmd = [
                 "python", params.track_script,
@@ -49,7 +53,8 @@ rule ucsc_track_single:
                 f.write("#!/bin/bash\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "ucsc_track_bedtools successfully completed !"'+ "\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path, "a") as f:
                 f.write(f"ucsc_track_bedtools failed with error: {e}\n")
@@ -80,7 +85,9 @@ rule ucsc_track_iclip:
 
             sample_outdir = os.path.dirname(str(output.track))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(sample_outdir, f"ucsc_track_iclip_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"ucsc_track_iclip_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, f"ucsc_track_iclip.sh")
 
             cmd = [
                 "python", params.track_script,
@@ -94,7 +101,8 @@ rule ucsc_track_iclip:
                 f.write("#!/bin/bash\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "ucsc_track_iclip successfully completed !"'+ "\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path, "a") as f:
                 f.write(f"ucsc_track_iclip failed with error: {e}\n")
@@ -133,7 +141,9 @@ rule igv_track_single:
             sample_outdir = os.path.dirname(str(output.html))
             os.makedirs(sample_outdir, exist_ok=True)
             config_json_path = str(params.config_json)
-            script = os.path.join(sample_outdir, f"igv_track_bedtools_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"igv_track_bedtools_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, f"igv_track_bedtools.sh")
 
             rule_logger.info(f"Writing IGV config JSON to {config_json_path}")
             with open(config_json_path, "w") as f:
@@ -151,7 +161,8 @@ rule igv_track_single:
                 f.write("#!/bin/bash\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "igv_track_bedtools successfully completed !"'+ "\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path, "a") as f:
                 f.write(f"igv_track_bedtools failed with error: {e}\n")
@@ -191,7 +202,9 @@ rule igv_track_iclip:
             sample_outdir = os.path.dirname(str(output.html))
             os.makedirs(sample_outdir, exist_ok=True)
             config_json_path = str(params.config_json)
-            script = os.path.join(sample_outdir, f"igv_track_iclip_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"igv_track_iclip_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, f"igv_track_iclip.sh")
 
             rule_logger.info(f"Writing IGV config JSON to {config_json_path}")
             with open(config_json_path, "w") as f:
@@ -210,7 +223,8 @@ rule igv_track_iclip:
                 f.write("#!/bin/bash\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "igv_track_iclip successfully completed !"'+ "\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path, "a") as f:
                 f.write(f"igv_track_iclip failed with error: {e}\n")

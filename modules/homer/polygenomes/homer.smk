@@ -1,4 +1,6 @@
 include: "../../common/common.smk"
+
+import shutil
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 indir = config.get("indir", "input")
@@ -32,7 +34,9 @@ rule homer_annotatepeaks:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start HOMER annotatePeaks for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.annotation))
-            script = os.path.join(sample_outdir, f"homer_annotatepeaks_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"homer_annotatepeaks_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, f"homer_annotatepeaks.sh")
             cmd = [
                 params.annotatePeaks,
                 str(input.peak),
@@ -45,7 +49,8 @@ rule homer_annotatepeaks:
                 f.write("#!/bin/bash\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(success_echo + "\n")
-            shell(f"bash {script} > {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} > {log_path} 2>&1")
         except Exception as e:
             with open(log_path, "a") as f:
                 f.write(f"Error occurred during HOMER annotatePeaks for sample {wildcards.sample_id}: {e}\n")

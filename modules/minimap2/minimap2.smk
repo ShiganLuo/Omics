@@ -1,4 +1,6 @@
 include: "../common/common.smk"
+
+import shutil
 indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
@@ -54,7 +56,9 @@ rule minimap2_align:
             rule_logger.info(f"Start minimap2 alignment for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.bam))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(sample_outdir, f"minimap2_align_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"minimap2_align_{wildcards.sample_id}_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, f"minimap2_align_{wildcards.sample_id}.sh")
             raw_bam = outdir + f"/{wildcards.sample_id}/{wildcards.sample_id}.raw.bam"
             # minimap2 align → samtools sort → samtools index
             cmd_align = [
@@ -75,7 +79,8 @@ rule minimap2_align:
                 f.write(f"mv {raw_bam} {output.bam}\n")
                 f.write(f"mv {raw_bam}.bai {output.bai}\n")
                 f.write(f'echo "minimap2 alignment for {wildcards.sample_id} at {current_time} completed successfully"\n')
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path, "a") as f:
                 f.write(f"Error occurred during minimap2 alignment for sample {wildcards.sample_id}: {e}\n")

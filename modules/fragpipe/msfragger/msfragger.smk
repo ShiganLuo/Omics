@@ -1,5 +1,7 @@
 include: "../../common/common.smk"
 
+import shutil
+
 indir = config.get("indir", "data/raw2mzml")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "logs")
@@ -77,7 +79,9 @@ rule msfragger_run:
                  "--label", str(params.label)],
                 check=True,
             )
-            script = os.path.join(sample_outdir, f"msfragger_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"msfragger_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, f"msfragger.sh")
             if params.jar:
                 cmd = [params.java, f"-Xmx{params.java_xmx}", "-jar", str(params.jar)]
             else:
@@ -100,7 +104,8 @@ rule msfragger_run:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
                 f.write(f"echo 'MSFragger search for {wildcards.sample_id} completed at {current_time}'\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error during MSFragger search: {str(e)}\n")
             raise RuntimeError(f"Error during MSFragger search: {str(e)}\n")
@@ -133,7 +138,9 @@ rule msfragger_idxml:
             rule_logger.info(f"Start pepXML -> idXML conversion for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(sample_outdir, f"msfragger_idxml_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"msfragger_idxml_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, f"msfragger_idxml.sh")
             # Staged copy must keep a .pepXML suffix: IDFileConverter has no
             # -in_type in OpenMS 3.x and infers the INPUT type from the
             # extension (it only offers -out_type).
@@ -198,7 +205,8 @@ rule msfragger_idxml:
                 f.write(annotate_cmd + "\n")
                 f.write(f"rm -f {shlex.quote(tmp_idxml)} {shlex.quote(tmp_pepxml)}\n")
                 f.write(f"echo 'pepXML -> idXML conversion for {wildcards.sample_id} completed at {current_time}'\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error during pepXML -> idXML conversion: {str(e)}\n")
             raise RuntimeError(f"Error during pepXML -> idXML conversion: {str(e)}\n")

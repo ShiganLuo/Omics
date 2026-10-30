@@ -1,5 +1,7 @@
 
 include: "../common/common.smk"
+
+import shutil
 import os, time
 
 outdir=config.get("outdir","output"); logdir=config.get("logdir","logs")
@@ -10,12 +12,15 @@ analysis=config.get("Params",{}).get("analysis",{})
 
 def run_plink(rule_name, log_path, output_path, commands):
     os.makedirs(os.path.dirname(log_path),exist_ok=True); os.makedirs(os.path.dirname(output_path),exist_ok=True)
-    script=os.path.join(os.path.dirname(output_path),f"{rule_name}_{time.strftime('%Y%m%d_%H%M%S')}.sh")
+    os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+    script=os.path.join(logdir, "cmd", "group", f"{rule_name}_{time.strftime('%Y%m%d_%H%M%S')}.sh")
+    plain_script=os.path.join(os.path.dirname(output_path), f"{rule_name}.sh")
     with open(log_path,"w") as log_handle: log_handle.write("")
     with open(script,"w") as handle:
         handle.write("#!/usr/bin/env bash\nset -euo pipefail\n")
         for command in commands: handle.write(" ".join(str(x) for x in command)+"\n")
-    shell(f"bash {script} >> {log_path} 2>&1")
+    shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
 
 rule plink2_population_pgen:
     input: vcf=vcf, tbi=vcf+".tbi"
@@ -72,7 +77,10 @@ if analysis.get("gwas",False):
             if input.covariates: cmd += ["--covar",input.covariates[0]]
             if params.covar_names: cmd += ["--covar-name",params.covar_names]
             cmd += ["--glm","hide-covar","allow-no-covars","--out",params.gwas_prefix]
-            script=os.path.join(os.path.dirname(str(output.done)),f"plink2_population_gwas_{time.strftime('%Y%m%d_%H%M%S')}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script=os.path.join(logdir, "cmd", "group", f"plink2_population_gwas_{time.strftime('%Y%m%d_%H%M%S')}.sh")
+            plain_script=os.path.join(os.path.dirname(str(output.done)), "plink2_population_gwas.sh")
             with open(str(log),"w") as h: h.write("")
             with open(script,"w") as h: h.write("#!/usr/bin/env bash\nset -euo pipefail\n"+" ".join(str(x) for x in cmd)+"\ntouch "+str(output.done)+"\n")
-            shell(f"bash {script} >> {log} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log} 2>&1")

@@ -1,5 +1,7 @@
 from snakemake.logging import logger
 include: "../common/common.smk"
+
+import shutil
 import time
 import os
 import sys
@@ -51,7 +53,9 @@ rule fumitools_copy_umi_paired:
                 logger.info(f"Symlinked {input.r1} -> {output.r1}")
                 logger.info(f"Symlinked {input.r2} -> {output.r2}")
             else:
-                script_path = os.path.join(outdir, f"{wildcards.sample_id}/fumitools_copy_umi_{current_time}.sh")
+                os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
+                script_path = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"{wildcards.sample_id}/fumitools_copy_umi_{current_time}.sh")
+                plain_script = os.path.join(outdir, f"{wildcards.sample_id}/fumitools_copy_umi.sh")
                 cmd = [
                     params.fumi_tools, "copy_umi",
                     "-i", input.r1,
@@ -71,7 +75,8 @@ rule fumitools_copy_umi_paired:
                 with open(script_path, "w") as f:
                     f.write("#!/bin/bash\n")
                     f.write(" ".join(cmd) + "\n")
-                shell(f"bash {script_path} >> {log_path} 2>&1")
+                shutil.copyfile(script_path, plain_script)
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path, "a") as f:
                 f.write(f"fumitools_copy_umi failed for {wildcards.sample_id}: {e}\n")
@@ -109,7 +114,9 @@ rule fumitools_copy_umi_single:
                 os.symlink(os.path.abspath(input.r1), output.r1)
                 logger.info(f"Symlinked {input.r1} -> {output.r1}")
             else:
-                script_path = os.path.join(outdir, f"{wildcards.sample_id}/fumitools_copy_umi_{current_time}.sh")
+                os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
+                script_path = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"{wildcards.sample_id}/fumitools_copy_umi_{current_time}.sh")
+                plain_script = os.path.join(outdir, f"{wildcards.sample_id}/fumitools_copy_umi.sh")
                 cmd = [
                     params.fumi_tools, "copy_umi",
                     "-i", input.r1,
@@ -126,7 +133,8 @@ rule fumitools_copy_umi_single:
                 with open(script_path, "w") as f:
                     f.write("#!/bin/bash\n")
                     f.write(" ".join(cmd) + "\n")
-                shell(f"bash {script_path} >> {log_path} 2>&1")
+                shutil.copyfile(script_path, plain_script)
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path, "a") as f:
                 f.write(f"fumitools_copy_umi failed for {wildcards.sample_id}: {e}\n")
@@ -158,7 +166,9 @@ rule fumitools_dedup:
             open(log_path, "w").close()
 
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            script_path = os.path.join(outdir, f"{wildcards.sample_id}/fumitools_dedup_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
+            script_path = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"{wildcards.sample_id}/fumitools_dedup_{current_time}.sh")
+            plain_script = os.path.join(outdir, f"{wildcards.sample_id}/fumitools_dedup.sh")
 
             cmd = [
                 params.fumi_tools, "dedup",
@@ -175,7 +185,8 @@ rule fumitools_dedup:
             with open(script_path, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write(" ".join(cmd) + "\n")
-            shell(f"bash {script_path} >> {log_path} 2>&1")
+            shutil.copyfile(script_path, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             with open(log_path, "a") as f:
                 f.write(f"fumitools_dedup failed for {wildcards.sample_id}: {e}\n")

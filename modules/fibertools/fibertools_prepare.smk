@@ -10,6 +10,8 @@ Requires fibertools-rs (ft) CLI tool.
 See: https://fiberseq.github.io/
 """
 include: "../common/common.smk"
+
+import shutil
 ROOT_DIR = config.get("ROOT_DIR", ".")
 indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
@@ -78,7 +80,9 @@ rule ft_predict_m6a:
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            command_script = os.path.join(sample_outdir, f"ft_predict_m6a_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            command_script = os.path.join(logdir, "cmd", "group", f"ft_predict_m6a_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, f"ft_predict_m6a.sh")
 
             detect_sh = _detect_m6a_sh(input.bam)
             cmd_predict = " ".join([params.ft, "predict-m6a", "-t", str(threads), input.bam, output.bam])
@@ -96,7 +100,8 @@ rule ft_predict_m6a:
                 f.write(f'    {cmd_predict}\n')
                 f.write(f'    echo "m6A prediction completed for sample {wildcards.sample_id}"\n')
                 f.write('fi\n')
-            shell(f"bash {command_script} >> {log_path} 2>&1")
+            shutil.copyfile(command_script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"ft_predict_m6a failed: {e}")
             raise RuntimeError(f"ft_predict_m6a failed: {e}\n")
@@ -145,7 +150,9 @@ rule ft_add_nucleosomes:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            command_script = os.path.join(sample_outdir, f"ft_add_nucleosomes_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            command_script = os.path.join(logdir, "cmd", "group", f"ft_add_nucleosomes_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, f"ft_add_nucleosomes.sh")
             cmd = [
                 params.ft, "add-nucleosomes",
                 "-t", str(threads),
@@ -156,7 +163,8 @@ rule ft_add_nucleosomes:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "Nucleosome calling completed for sample {wildcards.sample_id}"\n')
-            shell(f"bash {command_script} >> {log_path} 2>&1")
+            shutil.copyfile(command_script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"ft_add_nucleosomes failed: {e}")
             raise RuntimeError(f"ft_add_nucleosomes failed: {e}\n")
@@ -191,7 +199,9 @@ rule ft_fire:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            command_script = os.path.join(sample_outdir, f"ft_fire_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            command_script = os.path.join(logdir, "cmd", "group", f"ft_fire_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, f"ft_fire.sh")
             cmd = [
                 params.ft, "fire",
                 "-t", str(threads),
@@ -204,7 +214,8 @@ rule ft_fire:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "FIRE calling completed for sample {wildcards.sample_id}"\n')
-            shell(f"bash {command_script} >> {log_path} 2>&1")
+            shutil.copyfile(command_script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"ft_fire failed: {e}")
             raise RuntimeError(f"ft_fire failed: {e}\n")

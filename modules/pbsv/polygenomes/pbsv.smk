@@ -1,5 +1,7 @@
 include: "../../common/common.smk"
 
+import shutil
+
 from snakemake.logging import logger
 import time
 import os
@@ -36,7 +38,9 @@ rule pbsv_discover:
     run:
         current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start pbsv discover for sample {wildcards.sample_id} genome {wildcards.genome} at {current_time}")
-        script = os.path.join(outdir, f"{wildcards.genome}/{wildcards.sample_id}/pbsv_discover_{current_time}.sh")
+        os.makedirs(os.path.join(logdir, "cmd", str(wildcards.genome)), exist_ok=True)
+        script = os.path.join(logdir, "cmd", str(wildcards.genome), f"{wildcards.genome}/{wildcards.sample_id}/pbsv_discover_{current_time}.sh")
+        plain_script = os.path.join(outdir, f"{wildcards.genome}/{wildcards.sample_id}/pbsv_discover.sh")
         cmd = [
             params.pbsv, "discover",
             "--num-threads", str(threads),
@@ -46,7 +50,8 @@ rule pbsv_discover:
         with open(script, "w") as f:
             f.write("#!/bin/bash\n")
             f.write(" ".join(cmd) + "\n")
-        shell("bash {script} > {log} 2>&1")
+        shutil.copyfile(script, plain_script)
+        shell("bash {plain_script} > {log} 2>&1")
 
 
 rule pbsv_call:
@@ -71,7 +76,9 @@ rule pbsv_call:
     run:
         current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start pbsv call for sample {wildcards.sample_id} genome {wildcards.genome} at {current_time}")
-        script = os.path.join(outdir, f"{wildcards.genome}/{wildcards.sample_id}/pbsv_call_{current_time}.sh")
+        os.makedirs(os.path.join(logdir, "cmd", str(wildcards.genome)), exist_ok=True)
+        script = os.path.join(logdir, "cmd", str(wildcards.genome), f"{wildcards.genome}/{wildcards.sample_id}/pbsv_call_{current_time}.sh")
+        plain_script = os.path.join(outdir, f"{wildcards.genome}/{wildcards.sample_id}/pbsv_call.sh")
         cmd1 = [
             params.pbsv, "call",
             "--num-threads", str(threads),
@@ -95,7 +102,8 @@ rule pbsv_call:
             f.write(" ".join(cmd2) + "\n")
             f.write(" ".join(cmd3) + "\n")
             f.write(" ".join(cmd4) + "\n")
-        shell("bash {script} > {log} 2>&1")
+        shutil.copyfile(script, plain_script)
+        shell("bash {plain_script} > {log} 2>&1")
 
 
 rule pbsv_result:

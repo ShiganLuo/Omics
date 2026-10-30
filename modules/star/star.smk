@@ -1,5 +1,7 @@
 include: "../common/common.smk"
 
+import shutil
+
 import logging
 import time
 logger = logging.getLogger(__name__)
@@ -48,7 +50,9 @@ rule star_index:
 
             sample_outdir = os.path.dirname(str(output.index_file))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(sample_outdir, f"star_index_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"star_index_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, f"star_index.sh")
 
             cmd = [
                 params.STAR, "--runMode", "genomeGenerate",
@@ -93,7 +97,8 @@ rule star_index:
                 f.write(f'cd "{sample_outdir}"\n')
                 f.write(" ".join(cmd) + "\n")
                 f.write("echo 'STAR index generation completed successfully.'\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during star_index: {e}")
             raise RuntimeError(f"Error occurred during star_index: {e}, you can check the log file {log_path} for more details.")

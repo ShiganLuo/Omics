@@ -1,5 +1,7 @@
 include: "../common/common.smk"
 
+import shutil
+
 from snakemake.logging import logger
 outdir = config.get("outdir", "output")
 indir = config.get("indir", "output/raw_fastq")
@@ -40,7 +42,9 @@ rule trimmomatic_Paired:
             rule_logger.info(f"Start trimmomatic_Paired for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.join(params.outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(sample_outdir, f"trimmomatic_Paired_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"trimmomatic_Paired_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, f"trimmomatic_Paired.sh")
             with open(script, "w") as f:
                 f.write(f"{params.cmd} PE -threads {threads} \\\n")
                 f.write(f"    {input.fastq1} {input.fastq2} \\\n")
@@ -52,7 +56,8 @@ rule trimmomatic_Paired:
                 f.write(f"    SLIDINGWINDOW:4:15 \\\n")
                 f.write(f"    MINLEN:80 \\\n")
                 f.write(f"    2> {log_path}\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
             rule_logger.info(f"trimmomatic_Paired for sample {wildcards.sample_id} completed")
         except Exception as e:
             with open(log_path, "a") as f:
@@ -92,7 +97,9 @@ rule trimmomatic_Single:
             rule_logger.info(f"Start trimmomatic_Single for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.join(params.outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(sample_outdir, f"trimmomatic_Single_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"trimmomatic_Single_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, f"trimmomatic_Single.sh")
             with open(script, "w") as f:
                 f.write(f"{params.cmd} SE -threads {threads} \\\n")
                 f.write(f"    {input.fastq} {output.fastq} \\\n")
@@ -102,7 +109,8 @@ rule trimmomatic_Single:
                 f.write(f"    SLIDINGWINDOW:4:15 \\\n")
                 f.write(f"    MINLEN:80 \\\n")
                 f.write(f"    2> {log_path}\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
             rule_logger.info(f"trimmomatic_Single for sample {wildcards.sample_id} completed")
         except Exception as e:
             with open(log_path, "a") as f:

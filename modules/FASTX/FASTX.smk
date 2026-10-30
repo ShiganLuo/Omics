@@ -1,8 +1,5 @@
 include: "../common/common.smk"
 
-import shutil
-
-from snakemake.logging import logger
 outdir = config.get("outdir", "output")
 indir = config.get("indir", "output/raw_fastq")
 logdir = config.get("logdir", "log")

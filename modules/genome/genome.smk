@@ -1,6 +1,5 @@
 include: "../common/common.smk"
 
-import shutil
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 smallrna_types = config.get("Params", {}).get("smallrna_types",
@@ -137,7 +136,8 @@ rule genome_index:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start genome_index at {current_time}")
             os.makedirs(params.outdir, exist_ok=True)
-            script = os.path.join(params.outdir, f"genome_index{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"genome_index_{current_time}.sh")
+            plain_script = os.path.join(params.outdir, "genome_index.sh")
             cmd = [
                 params.samtools, "faidx", input.fasta
             ]
@@ -145,7 +145,8 @@ rule genome_index:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f"echo 'genone_index for {input.fasta} was successfuly build for {input.fasta}' \n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during genome_index: {e}")
             raise RuntimeError(f"Error occurred during genome_index: {e}, you can check the log file {log_path} for more details.")

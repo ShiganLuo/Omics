@@ -1,7 +1,6 @@
 from snakemake.logging import logger
 include: "../common/common.smk"
 
-import shutil
 import time
 import os
 import sys
@@ -15,7 +14,6 @@ indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 paired_samples = config.get("paired_samples", [])
-
 
 rule fumitools_copy_umi_paired:
     """Copy UMI from read sequence into FASTQ header."""
@@ -37,9 +35,9 @@ rule fumitools_copy_umi_paired:
     container:
         sif("fumitools.yaml")
     run:
+        log_path = str(log)
+        open(log_path, "w").close()
         try:
-            log_path = str(log)
-            open(log_path, "w").close()
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger = setup_logger(logger_name="fumitools_copy_umi_paired", log_file=log_path)
             # Check if UMI is already present in the read header (check R1)
@@ -53,7 +51,7 @@ rule fumitools_copy_umi_paired:
                 logger.info(f"Symlinked {input.r1} -> {output.r1}")
                 logger.info(f"Symlinked {input.r2} -> {output.r2}")
             else:
-                script_path = os.path.join(RECEIPT_DIR, f"fumitools_copy_umi_{current_time}.sh")
+                script_path = os.path.join(RECEIPT_DIR, f"fumitools_copy_umi_{wildcards.sample_id}_{current_time}.sh")
                 plain_script = os.path.join(outdir, f"{wildcards.sample_id}/fumitools_copy_umi.sh")
                 cmd = [
                     params.fumi_tools, "copy_umi",
@@ -98,9 +96,9 @@ rule fumitools_copy_umi_single:
     container:
         sif("fumitools.yaml")
     run:
+        log_path = str(log)
+        open(log_path, "w").close()
         try:
-            log_path = str(log)
-            open(log_path, "w").close()
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger = setup_logger(logger_name="fumitools_copy_umi_single", log_file=log_path)
             # Check if UMI is already present in the read header
@@ -113,7 +111,7 @@ rule fumitools_copy_umi_single:
                 os.symlink(os.path.abspath(input.r1), output.r1)
                 logger.info(f"Symlinked {input.r1} -> {output.r1}")
             else:
-                script_path = os.path.join(RECEIPT_DIR, f"fumitools_copy_umi_{current_time}.sh")
+                script_path = os.path.join(RECEIPT_DIR, f"fumitools_copy_umi_{wildcards.sample_id}_{current_time}.sh")
                 plain_script = os.path.join(outdir, f"{wildcards.sample_id}/fumitools_copy_umi.sh")
                 cmd = [
                     params.fumi_tools, "copy_umi",
@@ -159,12 +157,11 @@ rule fumitools_dedup:
     container:
         sif("fumitools.yaml")
     run:
+        log_path = str(log)
+        open(log_path, "w").close()
         try:
-            log_path = str(log)
-            open(log_path, "w").close()
-
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            script_path = os.path.join(RECEIPT_DIR, f"fumitools_dedup_{current_time}.sh")
+            script_path = os.path.join(RECEIPT_DIR, f"fumitools_dedup_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/fumitools_dedup.sh")
 
             cmd = [

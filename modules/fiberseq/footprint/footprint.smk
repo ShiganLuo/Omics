@@ -1,8 +1,6 @@
 include: "../../common/common.smk"
 
-from snakemake.logging import logger
 import os
-import shutil
 import time
 
 indir = config.get("indir", "common/4_elements")
@@ -15,7 +13,6 @@ p = config.get("Params", {}).get("fiberseq_footprint", {})
 
 # upstream contract: motif sites come from fiberseq_analysis/motif
 MOTIF_DIR = config.get("motif_dir") or indir + "/motif"
-
 
 rule fiberseq_footprint_run:
     """Single-fiber TF footprinting (3-category) around motif sites."""
@@ -76,7 +73,6 @@ rule fiberseq_footprint_run:
         except Exception as e:
             rule_logger.error(f"Error occurred during fiberseq_footprint_run for {wildcards.sample_id}: {e}\n")
             raise RuntimeError(f"Error occurred during fiberseq_footprint_run for {wildcards.sample_id}: {e}\n")
-
 
 rule fiberseq_footprint_result:
     input:

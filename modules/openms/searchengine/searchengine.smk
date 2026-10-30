@@ -1,6 +1,5 @@
 include: "../../common/common.smk"
 
-import shutil
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "logs")
 samples = config.get("samples", [])
@@ -50,7 +49,6 @@ _VAR_MOD_DEFAULTS = {
 }
 _LABEL_TOKENS = ("tmt", "itraq")
 
-
 def _normalize_label_mods(fixed, variable, method):
     """Force isobaric label mods into the variable-modification list, first.
 
@@ -82,7 +80,6 @@ def _normalize_label_mods(fixed, variable, method):
     other = [m for m in variable if m not in label]
     return fixed, label + other
 
-
 _quant_method = (config.get("quantification_method") or "").lower()
 _comet_params = config.get("Params", {}).get("search_engine", {}).get("comet", {})
 _fixed_mods, _variable_mods = _normalize_label_mods(
@@ -100,7 +97,6 @@ _expect_reporters = any(
     for m in list(_fixed_mods) + list(_variable_mods)
 )
 
-
 def _assert_label_matches_data(mzml_path):
     """Fail when isobaric label mods are configured but spectra carry no reporters."""
     if not _expect_reporters:
@@ -115,7 +111,6 @@ def _assert_label_matches_data(mzml_path):
             f"fixed_modifications without label mods) — searching labelled "
             f"peptide masses against unlabelled spectra yields only noise."
         )
-
 
 rule search_engine_comet:
     input:
@@ -145,7 +140,7 @@ rule search_engine_comet:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start Comet search for sample {wildcards.sample_id} at {current_time}")
             _assert_label_matches_data(input.mzml)
-            script = os.path.join(RECEIPT_DIR, f"comet_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"comet_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/comet.sh")
             cmd = [
                 params.comet,
@@ -203,7 +198,7 @@ rule search_engine_msgf:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start MSGF+ search for sample {wildcards.sample_id} at {current_time}")
             _assert_label_matches_data(input.mzml)
-            script = os.path.join(RECEIPT_DIR, f"msgf_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"msgf_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/msgf.sh")
             cmd = [
                 params.msgf,
@@ -249,7 +244,7 @@ rule search_engine_sage:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start Sage search for sample {wildcards.sample_id} at {current_time}")
             _assert_label_matches_data(input.mzml)
-            script = os.path.join(RECEIPT_DIR, f"sage_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"sage_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/sage.sh")
             cmd = [
                 params.sage,

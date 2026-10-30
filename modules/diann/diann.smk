@@ -1,8 +1,5 @@
 include: "../common/common.smk"
 
-import shutil
-
-from snakemake.logging import logger
 import os
 import time
 
@@ -15,7 +12,6 @@ env = config.get("env", {})
 genome_cfg = config.get("genome", {})
 p = config.get("Params", {}).get("diann", {})
 
-
 def _require(value, key):
     if not value:
         raise ValueError(
@@ -24,10 +20,8 @@ def _require(value, key):
         )
     return value
 
-
 def _mzml_inputs(wildcards=None):
     return [f"{indir}/{s}/{s}.mzML" for s in samples]
-
 
 rule diann_run:
     """DIA-NN library-free (or library) analysis over all DIA runs jointly.
@@ -116,7 +110,6 @@ rule diann_run:
             rule_logger.error(f"Error occurred during diann_run: {e}\n")
             raise RuntimeError(f"Error occurred during diann_run: {e}\n")
 
-
 rule diann_summary:
     """Per-run QC summary and protein matrix from the DIA-NN report."""
     input:
@@ -159,7 +152,6 @@ rule diann_summary:
         except Exception as e:
             rule_logger.error(f"Error occurred during diann_summary: {e}\n")
             raise RuntimeError(f"Error occurred during diann_summary: {e}\n")
-
 
 rule diann_result:
     input:

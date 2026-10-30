@@ -1,7 +1,6 @@
 
 include: "../common/common.smk"
 
-import shutil
 import os,time
 outdir=config.get("outdir","output"); logdir=config.get("logdir","logs"); admixture=config.get("Procedure",{}).get("admixture") or "admixture"; prefix=outdir+"/analysis/plink/population_snps"; ks=config.get("Params",{}).get("analysis",{}).get("admixture_k",[2,3,4,5,6])
 rule admixture_population:

@@ -1,8 +1,5 @@
 include: "../common/common.smk"
 
-import shutil
-
-from snakemake.logging import logger
 import time
 import os
 indir = config.get("indir") or "input"
@@ -30,7 +27,7 @@ rule somatic_spectrum:
     run:
         try:
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
-        script = f"{logdir}/cmd/group/somatic_spectrum.{current_time}.sh"
+        script = os.path.join(RECEIPT_DIR, f"somatic_spectrum_{current_time}.sh")
         plain_script = f"{outdir}/somatic_spectrum.sh"
             experiment_vcf_map_file = os.path.join(outdir, "experiment_vcf_map.tsv")
             with open(experiment_vcf_map_file, "w") as f:

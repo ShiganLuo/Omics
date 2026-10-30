@@ -1,7 +1,5 @@
 include: "../common/common.smk"
 
-import shutil
-
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 indir = config.get("indir", "output/raw_fastq")
@@ -31,15 +29,15 @@ rule soapnuke_filter_paired:
     threads: 8
     run:
         log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger("soapnuke_filter_paired", log_file=log_path)
         try:
-            open(log_path, "w").close()
-            rule_logger = setup_logger("soapnuke_filter_paired", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start soapnuke_filter_paired for sample {wildcards.sample_id} at {current_time}")
 
             sample_outdir = params.workdir
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"soapnuke_filter_paired_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"soapnuke_filter_paired_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"soapnuke_filter_paired.sh")
 
             cmd = [
@@ -90,15 +88,15 @@ rule soapnuke_filter_single:
     threads: 8
     run:
         log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger("soapnuke_filter_single", log_file=log_path)
         try:
-            open(log_path, "w").close()
-            rule_logger = setup_logger("soapnuke_filter_single", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start soapnuke_filter_single for sample {wildcards.sample_id} at {current_time}")
 
             sample_outdir = params.workdir
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"soapnuke_filter_single_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"soapnuke_filter_single_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"soapnuke_filter_single.sh")
 
             cmd = [

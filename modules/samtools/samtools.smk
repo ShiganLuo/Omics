@@ -1,6 +1,5 @@
 include: "../common/common.smk"
 
-import shutil
 from snakemake.logging import logger
 indir = config.get("indir","input")
 outdir = config.get("outdir", "output")
@@ -22,14 +21,14 @@ rule bam_flagstat:
         samtools = config.get("Procedure", {}).get("samtools") or "samtools"
     run:
         log_path = str(log)
+open(log_path, 'w').close()
+rule_logger = setup_logger("bam_flagstat", log_file=log_path)
         try:
-            open(log_path, 'w').close()
-            rule_logger = setup_logger("bam_flagstat", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start samtools flagstat for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.flagstat))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"bam_flagstat_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"bam_flagstat_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"bam_flagstat.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")

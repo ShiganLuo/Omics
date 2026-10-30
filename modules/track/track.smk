@@ -1,7 +1,5 @@
 include: "../common/common.smk"
 
-import shutil
-
 from snakemake.logging import logger
 
 indir = config.get("indir", "input")
@@ -14,7 +12,6 @@ ROOT_DIR = config.get("ROOT_DIR", ".")
 igv_config = config.get("igv", {})
 if not igv_config:
     logger.warning("IGV configuration is missing in config under 'igv'. IGV track rules will fail if triggered.")
-
 
 rule ucsc_track_single:
     input:
@@ -30,9 +27,9 @@ rule ucsc_track_single:
         track_script = ROOT_DIR + "/modules/track/bin/track.py"
     run:
         log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger(logger_name="ucsc_track_bedtools", log_file=log_path)
         try:
-            open(log_path, "w").close()
-            rule_logger = setup_logger(logger_name="ucsc_track_bedtools", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start ucsc_track_bedtools at {current_time}")
 
@@ -60,7 +57,6 @@ rule ucsc_track_single:
             logger.error(f"ucsc_track_bedtools failed with error: {e}")
             raise e
 
-
 rule ucsc_track_iclip:
     input:
         plus_bw = expand("{indir}/{sample_id}/{sample_id}.plus.bw", indir=indir, sample_id=samples),
@@ -76,9 +72,9 @@ rule ucsc_track_iclip:
         track_script = ROOT_DIR + "/modules/track/bin/track.py"
     run:
         log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger(logger_name="ucsc_track_iclip", log_file=log_path)
         try:
-            open(log_path, "w").close()
-            rule_logger = setup_logger(logger_name="ucsc_track_iclip", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start ucsc_track_iclip at {current_time}")
 
@@ -107,7 +103,6 @@ rule ucsc_track_iclip:
             logger.error(f"ucsc_track_iclip failed with error: {e}")
             raise e
 
-
 rule igv_track_single:
     input:
         bigwigs = expand("{indir}/{sample_id}/{sample_id}.bigwig", indir=indir, sample_id=samples)
@@ -124,10 +119,10 @@ rule igv_track_single:
         config_json = outdir + "/igv_track_bedtools_config.json",
     run:
         log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger(logger_name="igv_track_bedtools", log_file=log_path)
         try:
             import json
-            open(log_path, "w").close()
-            rule_logger = setup_logger(logger_name="igv_track_bedtools", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start igv_track_bedtools at {current_time}")
             if not params.igv_config:
@@ -166,7 +161,6 @@ rule igv_track_single:
             logger.error(f"igv_track_bedtools failed with error: {e}")
             raise e
 
-
 rule igv_track_iclip:
     input:
         plus_bw = expand("{indir}/{sample_id}/{sample_id}.plus.bw", indir=indir, sample_id=samples),
@@ -184,10 +178,10 @@ rule igv_track_iclip:
         config_json = outdir + "/igv_track_iclip_config.json",
     run:
         log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger(logger_name="igv_track_iclip", log_file=log_path)
         try:
             import json
-            open(log_path, "w").close()
-            rule_logger = setup_logger(logger_name="igv_track_iclip", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start igv_track_iclip at {current_time}")
             if not params.igv_config:

@@ -1,6 +1,5 @@
 include: "../common/common.smk"
 
-import shutil
 from snakemake.logging import logger
 indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
@@ -47,9 +46,9 @@ rule diff_exomePeak:
         exomePeak_script = ROOT_DIR + "/modules/exomePeak/bin/exomePeak.r",
     run:
         log_path = str(log)
+open(log_path, 'w').close()
+rule_logger = setup_logger("diff_exomePeak", log_file=log_path)
         try:
-            open(log_path, 'w').close()
-            rule_logger = setup_logger("diff_exomePeak", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start diff_exomePeak at {current_time}")
             sample_outdir = outdir
@@ -132,9 +131,9 @@ rule call_exomePeak:
         gtf = config.get("gtf","")
     run:
         log_path = str(log)
+open(log_path, 'w').close()
+rule_logger = setup_logger("call_exomePeak", log_file=log_path)
         try:
-            open(log_path, 'w').close()
-            rule_logger = setup_logger("call_exomePeak", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start call_exomePeak at {current_time}")
             sample_outdir = outdir

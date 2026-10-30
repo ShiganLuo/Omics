@@ -1,6 +1,5 @@
 include: "../../common/common.smk"
 
-import shutil
 import shlex
 
 outdir = config.get("outdir", "output")
@@ -12,14 +11,12 @@ sample_ip_input_map = config.get("sample_ip_input_map", {})
 MODULE_DIR = os.path.join(config.get("ROOT_DIR", "."), "modules", "peak_te_overlap")
 CHART_SCRIPT = os.path.join(MODULE_DIR, "bin", "plot_te_overlap.py")
 
-
 def get_input_bam(wildcards):
     """Get the matched Input BAM for an IP sample."""
     input_sample = sample_ip_input_map.get(wildcards.sample_id)
     if input_sample and bam_indir:
         return bam_indir + f"/{input_sample}/{input_sample}.sorted_markdup.bam"
     return ""
-
 
 rule peak_te_overlap:
     """
@@ -46,9 +43,9 @@ rule peak_te_overlap:
         te_gtf = lambda wildcards: config['genome'][wildcards.genome]['te_gtf'],
     run:
         log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger("peak_te_overlap", log_file=log_path)
         try:
-            open(log_path, "w").close()
-            rule_logger = setup_logger("peak_te_overlap", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start peak-TE overlap for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.overlap_bed))
@@ -68,7 +65,7 @@ rule peak_te_overlap:
             if input.input_bam:
                 cmd += ["--input-bam", input.input_bam]
 
-            script = os.path.join(RECEIPT_DIR, f"peak_te_overlap_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"peak_te_overlap_{wildcards.genome}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"peak_te_overlap.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
@@ -81,7 +78,6 @@ rule peak_te_overlap:
                 f.write(f"Error during peak-TE overlap for {wildcards.sample_id}: {e}\n")
             logger.error(f"Error during peak-TE overlap for {wildcards.sample_id}: {e}")
             raise e
-
 
 rule peak_centric_overlap:
     """
@@ -106,9 +102,9 @@ rule peak_centric_overlap:
         script = os.path.join(MODULE_DIR, "bin", "peak_centric_overlap.py"),
     run:
         log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger("peak_centric_overlap", log_file=log_path)
         try:
-            open(log_path, "w").close()
-            rule_logger = setup_logger("peak_centric_overlap", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start peak-centric TE overlap for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.tsv))
@@ -123,7 +119,7 @@ rule peak_centric_overlap:
                 "--sample-id", wildcards.sample_id,
             ]
 
-            script = os.path.join(RECEIPT_DIR, f"peak_centric_overlap_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"peak_centric_overlap_{wildcards.genome}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"peak_centric_overlap.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
@@ -136,7 +132,6 @@ rule peak_centric_overlap:
                 f.write(f"Error during peak-centric TE overlap for {wildcards.sample_id}: {e}\n")
             logger.error(f"Error during peak-centric TE overlap for {wildcards.sample_id}: {e}")
             raise e
-
 
 rule peak_te_overlap_fig:
     """
@@ -165,9 +160,9 @@ rule peak_te_overlap_fig:
         combine = config.get("Params", {}).get("peak_te_overlap", {}).get("combine", False),
     run:
         log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger("peak_te_overlap_chart", log_file=log_path)
         try:
-            open(log_path, "w").close()
-            rule_logger = setup_logger("peak_te_overlap_chart", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start peak-TE overlap chart generation at {current_time}")
 
@@ -214,7 +209,6 @@ rule peak_te_overlap_fig:
                 f.write(f"Error during peak-TE overlap chart: {e}\n")
             logger.error(f"Error during peak-TE overlap chart: {e}")
             raise e
-
 
 rule peak_te_overlap_result:
     """

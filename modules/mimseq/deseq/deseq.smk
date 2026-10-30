@@ -1,8 +1,5 @@
 include: "../../common/common.smk"
 
-import shutil
-
-from snakemake.logging import logger
 import time
 import os
 import sys
@@ -26,9 +23,9 @@ rule mimseq_deseq:
         mito_trnas = config.get("genome", {}).get("mito_trnas", ""),
     threads: 4
     run:
+        log_path = str(log)
+        open(log_path, "w").close()
         try:
-            log_path = str(log)
-            open(log_path, "w").close()
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             script_path = os.path.join(RECEIPT_DIR, f"mimseq_deseq_{current_time}.sh")
             plain_script = os.path.join(outdir, f"mimseq_deseq.sh")

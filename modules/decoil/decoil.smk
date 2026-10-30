@@ -38,8 +38,6 @@ Citation:
 
 include: "../common/common.smk"
 
-import shutil
-
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 indir = config.get("indir", "input")
@@ -54,7 +52,6 @@ bw_suffix = config.get("bw_suffix") or ".bigwig"
 # (reconstruct / plot / compare / igv), shared params at the parent level
 # (e.g. formats). Rule-level keys fall back to the parent field.
 decoil_params = config.get("Params", {}).get("decoil", {})
-
 
 def reconstruct_param(key: str, default=None):
     """Resolve Params.decoil.reconstruct.<key> → Params.decoil.<key> → default.
@@ -72,7 +69,6 @@ def reconstruct_param(key: str, default=None):
         The resolved config value.
     """
     return decoil_params.get("reconstruct", {}).get(key, decoil_params.get(key, default))
-
 
 def get_input_for_decoil_reconstruct(wildcards):
     """Resolve BAM + SV VCF + coverage bigwig + reference inputs.
@@ -162,9 +158,10 @@ rule decoil_reconstruct:
             sample_outdir = os.path.dirname(str(output.reconstruct_all))
             os.makedirs(sample_outdir, exist_ok=True)
             script = os.path.join(
-                sample_outdir,
+                RECEIPT_DIR,
                 f"decoil_reconstruct_{wildcards.sample_id}_{current_time}.sh",
             )
+            plain_script = os.path.join(sample_outdir, "decoil_reconstruct.sh")
 
             # `decoil reconstruct` has no --threads flag (Decoil 2.x argparse
             # rejects it), reads VCFs as plain text (no bgzip), and requires
@@ -213,12 +210,11 @@ rule decoil_reconstruct:
                     f'{current_time} completed successfully"\n'
                 )
             rule_logger.info("Executing: " + " ".join(cmd))
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"decoil_reconstruct failed for sample {wildcards.sample_id}: {e}")
             raise RuntimeError(f"decoil_reconstruct failed for sample {wildcards.sample_id}: {e}")
-
-
 
 rule decoil_result:
     """Result aggregation — touch sentinel for Snakemake DAG tracking."""
@@ -283,7 +279,6 @@ rule decoil_plot:
             rule_logger.error(f"decoil_plot failed for sample {wildcards.sample_id}: {e}")
             raise RuntimeError(f"decoil_plot failed for sample {wildcards.sample_id}: {e}")
 
-
 rule decoil_compare:
     """Cross-sample ecDNA comparison panel + shared/unique region table.
 
@@ -340,7 +335,6 @@ rule decoil_compare:
         except Exception as e:
             rule_logger.error(f"decoil_compare failed: {e}")
             raise RuntimeError(f"decoil_compare failed: {e}")
-
 
 rule decoil_structure:
     """Per-cycle ecDNA structure plots with detection guard.
@@ -411,7 +405,6 @@ rule decoil_structure:
         except Exception as e:
             rule_logger.error(f"decoil_structure failed for sample {wildcards.sample_id}: {e}")
             raise RuntimeError(f"decoil_structure failed for sample {wildcards.sample_id}: {e}")
-
 
 rule decoil_igv:
     """Interactive IGV.js HTML per sample: coverage bigwig + ecDNA BED + GTF.
@@ -493,7 +486,6 @@ rule decoil_igv:
         except Exception as e:
             rule_logger.error(f"decoil_igv failed for sample {wildcards.sample_id}: {e}")
             raise RuntimeError(f"decoil_igv failed for sample {wildcards.sample_id}: {e}")
-
 
 rule decoil_ucsc:
     """UCSC Genome Browser track line file per sample.

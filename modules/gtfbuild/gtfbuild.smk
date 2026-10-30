@@ -1,7 +1,5 @@
 include: "../common/common.smk"
 
-import shutil
-
 outdir = config.get("outdir", "results/gtfbuild")
 logdir = config.get("logdir", "log")
 ROOT_DIR = config.get("ROOT_DIR", ".")
@@ -12,13 +10,11 @@ p = config.get("Params", {}).get("gtfbuild", {})
 
 GTF_OUT = outdir + f"/{genome_name}.gtf"
 
-
 rule gtfbuild_run:
     """Aggregate target: projected gene annotation GTF + QC report."""
     input:
         gtf = GTF_OUT,
         qc = outdir + f"/{genome_name}.gtf_qc.tsv",
-
 
 rule gtfbuild_liftoff:
     """Project a source GTF (e.g. GENCODE) onto a target assembly with LiftOff.
@@ -89,7 +85,6 @@ rule gtfbuild_liftoff:
             rule_logger.error(f"Error occurred during gtfbuild_liftoff for {genome_name}: {e}\n")
             raise RuntimeError(f"Error occurred during gtfbuild_liftoff for {genome_name}: {e}\n")
 
-
 rule gtfbuild_qc:
     """Projection QC: mapping rate / complete models / extra copies."""
     input:
@@ -139,7 +134,6 @@ rule gtfbuild_qc:
             rule_logger.error(f"Error occurred during gtfbuild_qc for {genome_name}: {e}\n")
             raise RuntimeError(f"Error occurred during gtfbuild_qc for {genome_name}: {e}\n")
 
-
 # ---- Coordinate liftover of interval files (e.g. RepeatMasker BED) ----
 # Repeat annotations must be projected through whole-genome alignment
 # (synteny blocks), not per-sequence mapping: TE copies are near-identical
@@ -150,13 +144,11 @@ BED_SRC = genome_cfg.get("source_bed") or ""
 BED_STEM = os.path.splitext(os.path.basename(BED_SRC))[0] if BED_SRC else "bed"
 PAF_OUT = outdir + f"/{genome_name}.wga.paf"
 
-
 rule gtfbuild_bed_run:
     """Aggregate target: lifted BED + projection stats."""
     input:
         bed = outdir + f"/{BED_STEM}.lifted.bed",
         stats = outdir + f"/{BED_STEM}.lifted.stats.tsv",
-
 
 rule gtfbuild_wga:
     """Whole-genome alignment (PAF) between target and source assembly."""
@@ -203,7 +195,6 @@ rule gtfbuild_wga:
         except Exception as e:
             rule_logger.error(f"Error occurred during gtfbuild_wga for {genome_name}: {e}\n")
             raise RuntimeError(f"Error occurred during gtfbuild_wga for {genome_name}: {e}\n")
-
 
 rule gtfbuild_liftover_bed:
     """Project a BED (e.g. RepeatMasker TEs) to the target assembly via WGA."""

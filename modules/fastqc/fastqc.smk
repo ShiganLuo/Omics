@@ -1,7 +1,5 @@
 include: "../common/common.smk"
 
-import shutil
-
 import os
 indir = config.get("indir", "output/raw_fastq")
 outdir = config.get("outdir", "output")
@@ -42,7 +40,6 @@ def get_fastqc_input(wildcards):
         logger.error(f"样本 {wildcards.sample_id} 未在 paired_samples 或 single_samples 中定义")
         raise ValueError(f"Sample {wildcards.sample_id} not defined in paired_samples or single_samples")
 
-
 wildcard_constraints:
     sample_id = "[^/]+"
 
@@ -63,9 +60,9 @@ rule fastqc:
         sif("fastqc.yaml")
     run:
         log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger("fastqc", log_file=log_path)
         try:
-            open(log_path, "w").close()
-            rule_logger = setup_logger("fastqc", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start fastqc for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
@@ -78,7 +75,7 @@ rule fastqc:
                 "-t", str(threads),
             ] + list(input)
 
-            script = os.path.join(RECEIPT_DIR, f"fastqc_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"fastqc_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"fastqc.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")

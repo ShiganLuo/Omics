@@ -1,12 +1,10 @@
 include: "../../common/common.smk"
 
-import shutil
 indir = config.get("indir") or "input"
 outdir = config.get("outdir") or "output"
 logdir = config.get("logdir") or "log"
 interval = config.get("reference", {}).get("interval")
 known_sites = config.get("reference", {}).get("known_sites", [])
-
 
 rule BaseRecalibrator:
     input:
@@ -35,7 +33,7 @@ rule BaseRecalibrator:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start BaseRecalibrator for sample {wildcards.sample_id} at {current_time}")
-            script = os.path.join(RECEIPT_DIR, f"BaseRecalibrator_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"BaseRecalibrator_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/BaseRecalibrator.sh")
             cmd = [
                 params.gatk, "BaseRecalibrator",
@@ -60,9 +58,6 @@ rule BaseRecalibrator:
         except Exception as e:
             rule_logger.error(f"Error during BaseRecalibrator execution: {str(e)}")
             raise RuntimeError(f"Error occurred while running BaseRecalibrator for sample {wildcards.sample_id}: {e}, you can check the log file {log_path} for more details.")
-
-
-
 
 rule ApplyBQSR:
     input:
@@ -91,7 +86,7 @@ rule ApplyBQSR:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start ApplyBQSR for sample {wildcards.sample_id} at {current_time}")
-            script = os.path.join(RECEIPT_DIR, f"ApplyBQSR_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"ApplyBQSR_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/ApplyBQSR.sh")
             cmd = [
                 params.gatk, "ApplyBQSR",

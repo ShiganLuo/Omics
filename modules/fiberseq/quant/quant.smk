@@ -1,8 +1,6 @@
 include: "../../common/common.smk"
 
-from snakemake.logging import logger
 import os
-import shutil
 import time
 
 indir = config.get("indir", "common/4_elements")
@@ -18,7 +16,6 @@ p = config.get("Params", {}).get("fiberseq_quant", {})
 
 wildcard_constraints:
     hap = "hap[12]",
-
 
 rule fiberseq_quant_run:
     """Per-region percent accessibility / occupancy / m6A / FIRE fraction."""
@@ -77,7 +74,6 @@ rule fiberseq_quant_run:
             rule_logger.error(f"Error occurred during fiberseq_quant_run for {wildcards.sample_id}: {e}\n")
             raise RuntimeError(f"Error occurred during fiberseq_quant_run for {wildcards.sample_id}: {e}\n")
 
-
 rule fiberseq_quant_hap:
     """Per-region quantification on a haplotype-split element set."""
     input:
@@ -131,7 +127,6 @@ rule fiberseq_quant_hap:
             rule_logger.error(f"Error occurred during fiberseq_quant_hap for {wildcards.sample_id}: {e}\n")
             raise RuntimeError(f"Error occurred during fiberseq_quant_hap for {wildcards.sample_id}: {e}\n")
 
-
 rule fiberseq_quant_merge:
     """Merge per-sample quant tables into regions x samples matrices."""
     input:
@@ -178,7 +173,6 @@ rule fiberseq_quant_merge:
         except Exception as e:
             rule_logger.error(f"Error occurred during fiberseq_quant_merge: {e}\n")
             raise RuntimeError(f"Error occurred during fiberseq_quant_merge: {e}\n")
-
 
 rule fiberseq_quant_result:
     input:

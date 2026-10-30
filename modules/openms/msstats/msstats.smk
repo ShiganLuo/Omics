@@ -1,8 +1,5 @@
 include: "../../common/common.smk"
 
-import shutil
-
-
 indir = config.get("indir", "data/quantification")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "logs")
@@ -94,7 +91,6 @@ rule msstats:
         except Exception as e:
             rule_logger.error(f"Error during MSstats input preparation: {str(e)}\n")
             raise RuntimeError(f"Error during MSstats input preparation: {str(e)}\n")
-
 
 rule msstats_result:
     input:

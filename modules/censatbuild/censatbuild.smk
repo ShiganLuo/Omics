@@ -1,8 +1,5 @@
 include: "../common/common.smk"
 
-import shutil
-
-from snakemake.logging import logger
 import os
 import time
 
@@ -18,13 +15,11 @@ ARRAYS_OUT = outdir + f"/{genome_name}.sat_arrays.bed"
 CENSAT_OUT = outdir + f"/{genome_name}.censat.bed"
 RM_OUT = outdir + f"/{genome_name}/RepeatMasker/asm.bp.p_ctg.fa.out"
 
-
 rule censatbuild_run:
     """Aggregate target: censat region-class BED + stats."""
     input:
         bed = CENSAT_OUT,
         stats = outdir + f"/{genome_name}.censat.stats.tsv",
-
 
 # ---- RepeatMasker reuses modules/centromere (Dfam species library + FamDB) ----
 # The centromere module consumes the hifiasm layout {outdir}/{sample_id}/
@@ -49,7 +44,6 @@ module centromere:
 
 use rule repeatmasker_run from centromere as censatbuild_repeatmasker_run
 
-
 rule censatbuild_link_genome:
     """Place the target genome at the layout expected by repeatmasker_run."""
     input:
@@ -70,7 +64,6 @@ rule censatbuild_link_genome:
             os.remove(link_path)
         os.symlink(target, link_path)
         rule_logger.info(f"Linked genome {target} -> {link_path}")
-
 
 rule censatbuild_arrays:
     """Cluster monomer hits into satellite arrays and classify them."""
@@ -123,7 +116,6 @@ rule censatbuild_arrays:
             rule_logger.error(f"Error occurred during censatbuild_arrays for {genome_name}: {e}\n")
             raise RuntimeError(f"Error occurred during censatbuild_arrays for {genome_name}: {e}\n")
 
-
 rule censatbuild_flank:
     """Add flanking regions and write the final censat region-class BED."""
     input:
@@ -167,7 +159,6 @@ rule censatbuild_flank:
         except Exception as e:
             rule_logger.error(f"Error occurred during censatbuild_flank for {genome_name}: {e}\n")
             raise RuntimeError(f"Error occurred during censatbuild_flank for {genome_name}: {e}\n")
-
 
 rule censatbuild_mcg_pileup:
     """Optional: CpG methylation pileup (bedGraph) from an aligned BAM.

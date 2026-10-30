@@ -31,9 +31,9 @@ rule tailer_global:
         Tailer = config.get("Procedure", {}).get("tailer") or config.get("Procedure", {}).get("Tailer") or "Tailer"
     run:
         log_path = str(log)
+open(log_path, 'w').close()
+rule_logger = setup_logger("tailer_global", log_file=log_path)
         try:
-            open(log_path, 'w').close()
-            rule_logger = setup_logger("tailer_global", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start tailer_global for sample {wildcards.sample_id} at {current_time}")
 

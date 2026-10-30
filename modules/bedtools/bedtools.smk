@@ -1,6 +1,5 @@
 include: "../common/common.smk"
 
-import shutil
 from snakemake.logging import logger
 indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
@@ -27,14 +26,14 @@ rule iCLIP_bedtools:
         bedGraphToBigWig = config.get('Procedure',{}).get('bedGraphToBigWig') or 'bedGraphToBigWig'
     run:
         log_path = str(log)
+open(log_path, 'w').close()
+rule_logger = setup_logger("iCLIP_bedtools", log_file=log_path)
         try:
-            open(log_path, 'w').close()
-            rule_logger = setup_logger("iCLIP_bedtools", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start iCLIP bedtools for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.bed))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"iCLIP_bedtools_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"iCLIP_bedtools_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"iCLIP_bedtools.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")

@@ -1,12 +1,10 @@
 include: "../common/common.smk"
 
-import shutil
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 indir= config.get("indir", "output/raw_fastq")
 ROOT_DIR = config.get("ROOT_DIR", "./")
 samples = config.get("samples", [])
-
 
 rule TEcount:
     input:

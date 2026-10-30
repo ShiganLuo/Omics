@@ -1,7 +1,5 @@
 include: "../../common/common.smk"
 
-import shutil
-
 indir = config.get("indir", "data/fasta")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "logs")

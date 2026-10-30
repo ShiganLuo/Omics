@@ -1,7 +1,5 @@
 include: "../../common/common.smk"
 
-import shutil
-
 indir = config.get("indir", "data/raw2mzml")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "logs")
@@ -26,7 +24,6 @@ if label not in ("tmt16", "label-free"):
 # Get executables (bioconda installs the launcher in lower case: 'msfragger')
 msfragger = config.get("Procedure", {}).get("msfragger") or "msfragger"
 make_params = ROOT_DIR + "/modules/fragpipe/bin/make_fragger_params.py"
-
 
 rule msfragger_run:
     input:
@@ -79,7 +76,7 @@ rule msfragger_run:
                  "--label", str(params.label)],
                 check=True,
             )
-            script = os.path.join(RECEIPT_DIR, f"msfragger_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"msfragger_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"msfragger.sh")
             if params.jar:
                 cmd = [params.java, f"-Xmx{params.java_xmx}", "-jar", str(params.jar)]
@@ -109,7 +106,6 @@ rule msfragger_run:
             rule_logger.error(f"Error during MSFragger search: {str(e)}\n")
             raise RuntimeError(f"Error during MSFragger search: {str(e)}\n")
 
-
 rule msfragger_idxml:
     input:
         pepxml = outdir + "/{sample_id}/{sample_id}.pepXML",
@@ -137,7 +133,7 @@ rule msfragger_idxml:
             rule_logger.info(f"Start pepXML -> idXML conversion for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"msfragger_idxml_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"msfragger_idxml_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"msfragger_idxml.sh")
             # Staged copy must keep a .pepXML suffix: IDFileConverter has no
             # -in_type in OpenMS 3.x and infers the INPUT type from the
@@ -208,7 +204,6 @@ rule msfragger_idxml:
         except Exception as e:
             rule_logger.error(f"Error during pepXML -> idXML conversion: {str(e)}\n")
             raise RuntimeError(f"Error during pepXML -> idXML conversion: {str(e)}\n")
-
 
 rule msfragger_result:
     input:

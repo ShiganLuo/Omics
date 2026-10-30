@@ -1,6 +1,5 @@
 include: "../common/common.smk"
 
-import shutil
 from snakemake.logging import logger
 indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
@@ -21,14 +20,14 @@ rule bcftools_sort:
         bcftools = config.get("Procedure", {}).get("bcftools") or "bcftools"
     run:
         log_path = str(log)
+open(log_path, 'w').close()
+rule_logger = setup_logger("bcftools_sort", log_file=log_path)
         try:
-            open(log_path, 'w').close()
-            rule_logger = setup_logger("bcftools_sort", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start bcftools sort for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.vcf))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"bcftools_sort_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"bcftools_sort_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"bcftools_sort.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
@@ -61,14 +60,14 @@ rule bcftools_index_csi:
         bcftools = config.get("Procedure", {}).get("bcftools") or "bcftools"
     run:
         log_path = str(log)
+open(log_path, 'w').close()
+rule_logger = setup_logger("bcftools_index", log_file=log_path)
         try:
-            open(log_path, 'w').close()
-            rule_logger = setup_logger("bcftools_index", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start bcftools index for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.csi))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"bcftools_index_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"bcftools_index_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"bcftools_index.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")

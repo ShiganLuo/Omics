@@ -106,6 +106,14 @@ rule sv_exp_enrichment:
         logdir + "/{comparison}/sv_exp_enrichment.log"
     params:
         script = os.path.join(ROOT_DIR, "modules/sv/bin/run_enrichment.py"),
+        # exp_specific.species carries the assembly name (e.g.
+        # T2T_mhaESC_v1.5); map it onto an Enrichr organism for gseapy
+        organism = (
+            "mouse" if "mouse" in str(config.get("Params", {}).get("exp_specific", {}).get("species", "mouse")).lower()
+            or "mhESC".lower() in str(config.get("Params", {}).get("exp_specific", {}).get("species", "")).lower()
+            or "GRCm".lower() in str(config.get("Params", {}).get("exp_specific", {}).get("species", "")).lower()
+            else "human"
+        ),
     conda:
         "sv.yaml"
     container:
@@ -126,6 +134,7 @@ rule sv_exp_enrichment:
                 "python", params.script,
                 "-a", input.annotated_tab,
                 "-o", enrichment_outdir,
+                "--organism", params.organism,
             ] + fmt_args
             # gtf/fai are optional (hotspot analysis); only pass when configured
             if input.gtf:

@@ -40,7 +40,7 @@ rule TEcount:
     run:
         log_path = str(log)
         open(log_path, 'w').close()
-rule_logger = setup_logger("TEcount", log_file=log_path)
+        rule_logger = setup_logger("TEcount", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start TEcount for sample {wildcards.sample_id} genome {wildcards.genome} at {current_time}")
@@ -88,7 +88,7 @@ rule combine_TEcount:
     run:
         log_path = str(log)
         open(log_path, 'w').close()
-rule_logger = setup_logger("combine_TEcount", log_file=log_path)
+        rule_logger = setup_logger("combine_TEcount", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start combine_TEcount for genome {wildcards.genome} at {current_time}")
@@ -135,7 +135,7 @@ rule TElocal:
     run:
         log_path = str(log)
         open(log_path, 'w').close()
-rule_logger = setup_logger("TElocal", log_file=log_path)
+        rule_logger = setup_logger("TElocal", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start TElocal for sample {wildcards.sample_id} genome {wildcards.genome} at {current_time}")
@@ -186,7 +186,7 @@ rule combine_TElocal:
     run:
         log_path = str(log)
         open(log_path, 'w').close()
-rule_logger = setup_logger("combine_TElocal", log_file=log_path)
+        rule_logger = setup_logger("combine_TElocal", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start combine_TElocal for genome {wildcards.genome} at {current_time}")

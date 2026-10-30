@@ -40,7 +40,7 @@ rule ft_predict_m6a:
     run:
         log_path = str(log)
         open(log_path, 'w').close()
-rule_logger = setup_logger("ft_predict_m6a", log_file=log_path)
+        rule_logger = setup_logger("ft_predict_m6a", log_file=log_path)
         try:
             rule_logger.info(f"Predicting m6A for sample {wildcards.sample_id}")
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -60,8 +60,9 @@ rule_logger = setup_logger("ft_predict_m6a", log_file=log_path)
                 f.write(f'echo "m6A prediction completed for sample {wildcards.sample_id}"\n')
             shutil.copyfile(command_script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
-        rule_logger.error(f"Error occurred: {e}")
-        raise RuntimeError(f"Error occurred: {e}, you can check the log file {log_path} for more details.")
+        except Exception as e:
+            rule_logger.error(f"Error occurred: {e}")
+            raise RuntimeError(f"Error occurred: {e}, you can check the log file {log_path} for more details.")
 
 rule ft_add_nucleosomes:
     """Add nucleosome calls to Fiber-seq BAM with m6A predictions.
@@ -85,7 +86,7 @@ rule ft_add_nucleosomes:
     run:
         log_path = str(log)
         open(log_path, 'w').close()
-rule_logger = setup_logger("ft_add_nucleosomes", log_file=log_path)
+        rule_logger = setup_logger("ft_add_nucleosomes", log_file=log_path)
         try:
             rule_logger.info(f"Adding nucleosomes for sample {wildcards.sample_id}")
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -105,8 +106,9 @@ rule_logger = setup_logger("ft_add_nucleosomes", log_file=log_path)
                 f.write(f'echo "Nucleosome calling completed for sample {wildcards.sample_id}"\n')
             shutil.copyfile(command_script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
-        rule_logger.error(f"Error occurred: {e}")
-        raise RuntimeError(f"Error occurred: {e}, you can check the log file {log_path} for more details.")
+        except Exception as e:
+            rule_logger.error(f"Error occurred: {e}")
+            raise RuntimeError(f"Error occurred: {e}, you can check the log file {log_path} for more details.")
 
 rule ft_fire:
     """Call Fiber-seq Inferred Regulatory Elements (FIREs).
@@ -131,7 +133,7 @@ rule ft_fire:
     run:
         log_path = str(log)
         open(log_path, 'w').close()
-rule_logger = setup_logger("ft_fire", log_file=log_path)
+        rule_logger = setup_logger("ft_fire", log_file=log_path)
         try:
             rule_logger.info(f"Calling FIREs for sample {wildcards.sample_id}")
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -152,8 +154,9 @@ rule_logger = setup_logger("ft_fire", log_file=log_path)
                 f.write(f'echo "FIRE calling completed for sample {wildcards.sample_id}"\n')
             shutil.copyfile(command_script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
-        rule_logger.error(f"Error occurred: {e}")
-        raise RuntimeError(f"Error occurred: {e}, you can check the log file {log_path} for more details.")
+        except Exception as e:
+            rule_logger.error(f"Error occurred: {e}")
+            raise RuntimeError(f"Error occurred: {e}, you can check the log file {log_path} for more details.")
 
 rule ft_extract:
     """Extract Fiber-seq data to BED format.
@@ -180,7 +183,7 @@ rule ft_extract:
     run:
         log_path = str(log)
         open(log_path, 'w').close()
-rule_logger = setup_logger("ft_extract", log_file=log_path)
+        rule_logger = setup_logger("ft_extract", log_file=log_path)
         try:
             rule_logger.info(f"Extracting Fiber-seq data for sample {wildcards.sample_id}")
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -203,5 +206,6 @@ rule_logger = setup_logger("ft_extract", log_file=log_path)
                 f.write(f'echo "Fiber-seq extraction completed for sample {wildcards.sample_id}"\n')
             shutil.copyfile(command_script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
-        rule_logger.error(f"Error occurred: {e}")
-        raise RuntimeError(f"Error occurred: {e}, you can check the log file {log_path} for more details.")
+        except Exception as e:
+            rule_logger.error(f"Error occurred: {e}")
+            raise RuntimeError(f"Error occurred: {e}, you can check the log file {log_path} for more details.")

@@ -45,5 +45,6 @@ rule flexbar_demultiplex:
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
             rule_logger.info(f"flexbar_demultiplex for sample {wildcards.sample_id} completed")
-        rule_logger.error(f"Error occurred: {e}")
-        raise RuntimeError(f"Error occurred: {e}, you can check the log file {log_path} for more details.")
+        except Exception as e:
+            rule_logger.error(f"Error occurred: {e}")
+            raise RuntimeError(f"Error occurred: {e}, you can check the log file {log_path} for more details.")

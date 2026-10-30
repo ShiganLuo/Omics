@@ -72,8 +72,9 @@ rule scTE_build_index:
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(command_script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
-        rule_logger.error(f"Error occurred: {e}")
-        raise RuntimeError(f"Error occurred: {e}, you can check the log file {log_path} for more details.")
+        except Exception as e:
+            rule_logger.error(f"Error occurred: {e}")
+            raise RuntimeError(f"Error occurred: {e}, you can check the log file {log_path} for more details.")
 
 def get_input_for_scTE_quantify(wildcards):
     """Get input files for scTE_quantify rule."""
@@ -112,7 +113,7 @@ rule scTE_quantify:
         scte_bin = config.get("Procedure", {}).get("scTE") or "scTE",
     run:
         log_path = str(log)
-rule_logger = setup_logger("scTE_quantify", log_file=log_path)
+        rule_logger = setup_logger("scTE_quantify", log_file=log_path)
         try:
             rule_logger.info(f"Quantifying TE expression for sample {wildcards.sample_id}")
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -136,5 +137,6 @@ rule_logger = setup_logger("scTE_quantify", log_file=log_path)
                 f.write(f'echo "scTE quantification for sample {wildcards.sample_id} completed successfully"\n')
             shutil.copyfile(command_script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
-        rule_logger.error(f"Error occurred: {e}")
-        raise RuntimeError(f"Error occurred: {e}, you can check the log file {log_path} for more details.")
+        except Exception as e:
+            rule_logger.error(f"Error occurred: {e}")
+            raise RuntimeError(f"Error occurred: {e}, you can check the log file {log_path} for more details.")

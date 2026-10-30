@@ -26,7 +26,7 @@ rule samtools_dedup:
         samtools = config.get('Procedure',{}).get('samtools') or 'samtools'
     run:
         log_path = str(log)
-rule_logger = setup_logger("dedup",log_file=log_path)
+        rule_logger = setup_logger("dedup",log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start rule dedup for sample {wildcards.sample_id} at {current_time}")
@@ -86,7 +86,7 @@ rule wig:
         extendReads = config.get('Params', {}).get('bamCoverage',{}).get('extendReads') or False
     run:
         log_path = str(log)
-rule_logger = setup_logger("wig",log_file=log_path)
+        rule_logger = setup_logger("wig",log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start rule wig for sample {wildcards.sample_id} at {current_time}")

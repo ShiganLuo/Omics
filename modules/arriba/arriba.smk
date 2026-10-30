@@ -51,8 +51,8 @@ rule arriba:
         rule_logger = setup_logger("arriba", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
-        script = os.path.join(RECEIPT_DIR, f"{wildcards.sample_id}_arriba_{current_time}.sh")
-        plain_script = f"{outdir}/{wildcards.sample_id}/{wildcards.sample_id}_arriba.sh"
+            script = os.path.join(RECEIPT_DIR, f"{wildcards.sample_id}_arriba_{current_time}.sh")
+            plain_script = f"{outdir}/{wildcards.sample_id}/{wildcards.sample_id}_arriba.sh"
             if not os.path.exists(input.blacklist):
                 rule_logger.error(f"Blacklist file not found: {input.blacklist}")
                 raise ValueError(f"Blacklist file not found: {input.blacklist}")
@@ -112,7 +112,7 @@ rule arriba_report:
         try:
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
             script = os.path.join(RECEIPT_DIR, f"arriba_report_{current_time}.sh")
-        plain_script = f"{outdir}/arriba_report.sh"
+            plain_script = f"{outdir}/arriba_report.sh"
             cmd = [
                 "python", params.summary_script,
                 "-p", ",".join(input.passed_fusions),

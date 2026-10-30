@@ -66,8 +66,8 @@ rule arriba:
         rule_logger = setup_logger("arriba", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
-        script = os.path.join(RECEIPT_DIR, f"{wildcards.sample_id}_arriba_{current_time}.sh")
-        plain_script = f"{outdir}/{wildcards.genome}/{wildcards.sample_id}/{wildcards.sample_id}_arriba.sh"
+            script = os.path.join(RECEIPT_DIR, f"{wildcards.sample_id}_arriba_{current_time}.sh")
+            plain_script = f"{outdir}/{wildcards.genome}/{wildcards.sample_id}/{wildcards.sample_id}_arriba.sh"
             cmd = [
                 params.arriba,
                 "-x", input.bam,
@@ -137,7 +137,7 @@ rule arriba_report:
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
             sample_outdir = os.path.dirname(output.report)
             script = os.path.join(RECEIPT_DIR, f"arriba_report_{wildcards.genome}_{current_time}.sh")
-        plain_script = f"{sample_outdir}/arriba_report.sh"
+            plain_script = f"{sample_outdir}/arriba_report.sh"
             cmd = [
                 "python", params.summary_script,
                 "-p", ",".join(input.passed_fusions),

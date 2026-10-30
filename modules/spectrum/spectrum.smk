@@ -27,8 +27,8 @@ rule somatic_spectrum:
     run:
         try:
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
-        script = os.path.join(RECEIPT_DIR, f"somatic_spectrum_{current_time}.sh")
-        plain_script = f"{outdir}/somatic_spectrum.sh"
+            script = os.path.join(RECEIPT_DIR, f"somatic_spectrum_{current_time}.sh")
+            plain_script = f"{outdir}/somatic_spectrum.sh"
             experiment_vcf_map_file = os.path.join(outdir, "experiment_vcf_map.tsv")
             with open(experiment_vcf_map_file, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")

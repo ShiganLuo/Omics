@@ -71,8 +71,7 @@ rule function_go_kegg:
                 "--top", str(params.top),
             ]
 
-            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
-            script = os.path.join(logdir, "cmd", "group", f"go_kegg_{current_time}.sh")
+            script = os.path.join(cmd_dir(logdir, "group"), f"go_kegg_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"go_kegg.sh")
             with open(script, 'w') as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
@@ -131,8 +130,7 @@ rule function_gsea:
             if wildcards.contrast not in group_pairs.get(wildcards.genome, {}):
                 raise ValueError(f"Group pair {wildcards.contrast} not found in group_pairs configuration.")
             sample_outdir = os.path.dirname(str(output.func_gsea_plot))
-            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
-            script = os.path.join(logdir, "cmd", "group", f"gsea_{current_time}.sh")
+            script = os.path.join(cmd_dir(logdir, "group"), f"gsea_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"gsea.sh")
             graph_title = wildcards.contrast
 
@@ -244,8 +242,7 @@ rule function_gsva:
                 "-o", gsva_outdir,
                 "--title", f"GSVA ({species_name}) - {wildcards.genome}",
             ]
-            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
-            script = os.path.join(logdir, "cmd", "group", f"gsva_{current_time}.sh")
+            script = os.path.join(cmd_dir(logdir, "group"), f"gsva_{current_time}.sh")
             plain_script = os.path.join(gsva_outdir, f"gsva.sh")
             with open(script, 'w') as f:
                 f.write("#!/bin/bash\nset -e\nset -o pipefail\n")

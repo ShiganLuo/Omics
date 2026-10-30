@@ -41,8 +41,7 @@ rule frip_score:
             rule_logger.info(f"Start FRiP score calculation for sample {wildcards.sample_id} at {current_time}")
             
             sample_outdir = os.path.dirname(str(output.frip))
-            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
-            script = os.path.join(logdir, "cmd", "group", f"frip_score_{current_time}.sh")
+            script = os.path.join(cmd_dir(logdir, "group"), f"frip_score_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"frip_score.sh")
             
             script_content = f"""#!/bin/bash

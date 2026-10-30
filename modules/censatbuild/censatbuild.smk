@@ -100,8 +100,7 @@ rule censatbuild_arrays:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start satellite clustering for {genome_name} at {current_time}")
             os.makedirs(outdir, exist_ok=True)
-            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
-            script = os.path.join(logdir, "cmd", "group", f"censatbuild_arrays_{genome_name}_{current_time}.sh")
+            script = os.path.join(cmd_dir(logdir, "group"), f"censatbuild_arrays_{genome_name}_{current_time}.sh")
             plain_script = os.path.join(outdir, f"censatbuild_arrays_{genome_name}.sh")
             cmd = [
                 "python", params.script,
@@ -150,8 +149,7 @@ rule censatbuild_flank:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start flank/merge for {genome_name} at {current_time}")
-            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
-            script = os.path.join(logdir, "cmd", "group", f"censatbuild_flank_{genome_name}_{current_time}.sh")
+            script = os.path.join(cmd_dir(logdir, "group"), f"censatbuild_flank_{genome_name}_{current_time}.sh")
             plain_script = os.path.join(outdir, f"censatbuild_flank_{genome_name}.sh")
             flank_bed = outdir + f"/{genome_name}.sat_flank.bed"
             with open(script, "w") as f:
@@ -195,8 +193,7 @@ rule censatbuild_mcg_pileup:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start modkit CpG pileup at {current_time}")
-            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
-            script = os.path.join(logdir, "cmd", "group", f"censatbuild_mcg_pileup_{genome_name}_{current_time}.sh")
+            script = os.path.join(cmd_dir(logdir, "group"), f"censatbuild_mcg_pileup_{genome_name}_{current_time}.sh")
             plain_script = os.path.join(outdir, f"censatbuild_mcg_pileup_{genome_name}.sh")
             tmp_bed = outdir + f"/{genome_name}.mcpg_pileup.bedMethyl"
             with open(script, "w") as f:

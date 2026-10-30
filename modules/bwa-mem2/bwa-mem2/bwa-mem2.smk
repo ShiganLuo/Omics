@@ -37,8 +37,7 @@ rule bwaMem2_index:
             rule_logger.info(f"Start bwa-mem2 index for genome {wildcards.genome} at {current_time}")
             sample_outdir = os.path.dirname(str(output.index[0]))
             os.makedirs(sample_outdir, exist_ok=True)
-            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
-            script = os.path.join(logdir, "cmd", "group", f"bwaMem2_index_{current_time}.sh")
+            script = os.path.join(cmd_dir(logdir, "group"), f"bwaMem2_index_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"bwaMem2_index.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
@@ -133,8 +132,7 @@ rule bwaMem2_alignment:
             rule_logger.info(f"Start bwa-mem2 alignment for sample {wildcards.sample_id} on genome {wildcards.genome} at {current_time}")
             sample_outdir = os.path.dirname(str(output.bam))
             os.makedirs(sample_outdir, exist_ok=True)
-            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
-            script = os.path.join(logdir, "cmd", "group", f"bwaMem2_alignment_{current_time}.sh")
+            script = os.path.join(cmd_dir(logdir, "group"), f"bwaMem2_alignment_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"bwaMem2_alignment.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")

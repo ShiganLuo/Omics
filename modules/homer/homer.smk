@@ -46,8 +46,7 @@ rule homer_annotatepeaks:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start HOMER annotatePeaks for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.annotation))
-            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
-            script = os.path.join(logdir, "cmd", "group", f"homer_annotatepeaks_{current_time}.sh")
+            script = os.path.join(cmd_dir(logdir, "group"), f"homer_annotatepeaks_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"homer_annotatepeaks.sh")
             cmd = [
                 params.annotatePeaks,

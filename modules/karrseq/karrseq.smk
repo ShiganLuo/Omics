@@ -35,8 +35,7 @@ rule karrseq_chimeric_to_pairs:
     run:
         current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start KARRseq chimeric to pairs for sample {wildcards.sample_id} at {current_time}")
-        os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
-        script_file = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"karrseq_chimeric_to_pairs_{current_time}.sh")
+        script_file = os.path.join(cmd_dir(logdir, str(wildcards.sample_id)), f"karrseq_chimeric_to_pairs_{current_time}.sh")
         plain_script = os.path.join(outdir, f"{wildcards.sample_id}/karrseq_chimeric_to_pairs.sh")
         cmd_view = [
             "samtools", "view", input.aligned,
@@ -85,8 +84,7 @@ rule karrseq_remove_duplicates:
     run:
         current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start KARRseq dedup for sample {wildcards.sample_id} at {current_time}")
-        os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
-        script_file = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"karrseq_dedup_{current_time}.sh")
+        script_file = os.path.join(cmd_dir(logdir, str(wildcards.sample_id)), f"karrseq_dedup_{current_time}.sh")
         plain_script = os.path.join(outdir, f"{wildcards.sample_id}/karrseq_dedup.sh")
         cmd_dedup = [
             "zcat", input.pairs,
@@ -129,8 +127,7 @@ rule karrseq_ligation:
     run:
         current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start KARRseq ligation for sample {wildcards.sample_id} at {current_time}")
-        os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
-        script_file = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"karrseq_ligation_{current_time}.sh")
+        script_file = os.path.join(cmd_dir(logdir, str(wildcards.sample_id)), f"karrseq_ligation_{current_time}.sh")
         plain_script = os.path.join(outdir, f"{wildcards.sample_id}/karrseq_ligation.sh")
         cmd_awk1 = [
             "zcat", input.dedup,

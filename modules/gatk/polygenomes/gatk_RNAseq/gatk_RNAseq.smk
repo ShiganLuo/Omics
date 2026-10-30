@@ -53,8 +53,7 @@ rule SplitNCigarReads:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start SplitNCigarReads for sample {wildcards.sample_id} genome {wildcards.genome} at {current_time}")
             sample_outdir = os.path.dirname(str(output.bam))
-            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
-            script = os.path.join(logdir, "cmd", "group", f"SplitNCigarReads_{current_time}.sh")
+            script = os.path.join(cmd_dir(logdir, "group"), f"SplitNCigarReads_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"SplitNCigarReads.sh")
             fasta = input.fasta
 
@@ -123,8 +122,7 @@ rule VarientCalling:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start VarientCalling for sample {wildcards.sample_id} genome {wildcards.genome} at {current_time}")
             sample_outdir = os.path.dirname(str(output.vcf))
-            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
-            script = os.path.join(logdir, "cmd", "group", f"VarientCalling_{current_time}.sh")
+            script = os.path.join(cmd_dir(logdir, "group"), f"VarientCalling_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"VarientCalling.sh")
             cmd = [
                 params.gatk, "HaplotypeCaller",
@@ -195,8 +193,7 @@ rule vcf_filter:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start vcf_filter for sample {wildcards.sample_id} genome {wildcards.genome} at {current_time}")
             sample_outdir = os.path.dirname(str(output.vcf))
-            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
-            script = os.path.join(logdir, "cmd", "group", f"vcf_filter_{current_time}.sh")
+            script = os.path.join(cmd_dir(logdir, "group"), f"vcf_filter_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"vcf_filter.sh")
             cmd1 = [
                 params.gatk, "VariantFiltration",

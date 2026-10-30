@@ -176,9 +176,10 @@ rule <tool>_<action>:
             rule_logger.info(f"Start <tool> <action> for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.xxx))
             os.makedirs(sample_outdir, exist_ok=True)
-            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
-            # 带时间戳的备份(log/cmd 历史);outdir 只放无时间戳的当前命令(见"命令回执双写")
-            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"<tool>_<action>_{wildcards.sample_id}_{current_time}.sh")
+            # 带时间戳的备份(log/cmd 历史;路径经 cmd_dir() 构造并保证目录存在,
+            # 见"命令回执双写");outdir 只放无时间戳的当前命令
+            script = os.path.join(cmd_dir(logdir, str(wildcards.sample_id)),
+                                  f"<tool>_<action>_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"<tool>_<action>_{wildcards.sample_id}.sh")
             cmd = [
                 params.<tool>, "<action>",
@@ -209,11 +210,34 @@ rule <module>_result:
 | 位置 | 文件名 | 行为 |
 |---|---|---|
 | 输出目录（`sample_outdir`） | `<rule>_<sample>.sh`（**无时间戳**） | 每次运行覆盖，始终对应当前命令，与结果同在，可直接复制重跑 |
-| `{logdir}/cmd/<sample_id>/` | `<rule>_<sample>_<时间戳>.sh` | 历史备份，按运行累积，供审计对比 |
+| `{logdir}/cmd/<key>/` | `<rule>_<sample>_<时间戳>.sh` | 历史备份，按运行累积，供审计对比 |
 
-对比级规则用 `{logdir}/cmd/<contrast>/`，组级（merge 类）用 `{logdir}/cmd/group/`。
+`<key>` 按规则粒度取通配符值（sample_id/tissue/contrast/population/genome…），
+组级（merge/index 类）用 `group`。
 
-写文件顺序：先写时间戳版（`script`），`shutil.copyfile(script, plain_script)` 复制为无时间戳版（`plain_script`），然后 `shell()` 执行 `plain_script`。注意 plain 文件名若含通配符插值（`{wildcards.sample_id}`）必须是 f-string。
+**时间戳版路径必须经共享 helper `cmd_dir()` 构造**（common.smk 提供，
+所有模块 include 后直接可用）：
+
+```python
+# ✅ 正确：cmd_dir 锚定 ROOT_DIR 并保证目录存在
+script = os.path.join(cmd_dir(logdir, str(wildcards.sample_id)),
+                      f"<rule>_{wildcards.sample_id}_{current_time}.sh")
+
+# ❌ 错误：手拼 logdir + "cmd"
+script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"...")   # 谁来 makedirs？
+script = os.path.join(ROOT_DIR, logdir, "cmd", ...)                      # 重复造轮子，logdir 可能已是绝对路径
+```
+
+理由：
+- **每个模块消费同一个 ROOT_DIR，但 logdir 不一定同源**——有的 workflow 传相对
+  路径、有的传绝对路径；`cmd_dir()` 内部判断相对路径则锚定 `ROOT_DIR`，两种
+  形态统一处理
+- **目录存在性由 helper 保证**（内部 `os.makedirs(exist_ok=True)`），模块里
+  不再散落 `makedirs(join(logdir, "cmd", ...))`
+
+写文件顺序：先写时间戳版（`script`），`shutil.copyfile(script, plain_script)`
+复制为无时间戳版（`plain_script`），然后 `shell()` 执行 `plain_script`。注意
+plain 文件名若含通配符插值（`{wildcards.sample_id}`）必须是 f-string。
 
 理由：
 - 结果目录自证来源——拿到结果目录就知道它是哪条命令产的，无需翻日志
@@ -616,4 +640,6 @@ output:
 
 带时间戳的 `.sh` 每次重跑多一份，结果目录因此逐渐变脏。回执一律双写：
 outdir 放无时间戳版（覆盖），`log/cmd/` 放时间戳版（历史），见
-「命令回执双写」。
+「命令回执双写」。时间戳版路径必须经 `cmd_dir(logdir, key)` 构造——
+它负责把相对 logdir 锚定到 ROOT_DIR 并确保目录存在；各模块手拼
+`os.path.join(logdir, "cmd", ...)` + `makedirs` 是被禁止的。

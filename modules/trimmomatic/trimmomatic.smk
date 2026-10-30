@@ -42,8 +42,7 @@ rule trimmomatic_Paired:
             rule_logger.info(f"Start trimmomatic_Paired for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.join(params.outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
-            script = os.path.join(logdir, "cmd", "group", f"trimmomatic_Paired_{current_time}.sh")
+            script = os.path.join(cmd_dir(logdir, "group"), f"trimmomatic_Paired_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"trimmomatic_Paired.sh")
             with open(script, "w") as f:
                 f.write(f"{params.cmd} PE -threads {threads} \\\n")
@@ -97,8 +96,7 @@ rule trimmomatic_Single:
             rule_logger.info(f"Start trimmomatic_Single for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.join(params.outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
-            script = os.path.join(logdir, "cmd", "group", f"trimmomatic_Single_{current_time}.sh")
+            script = os.path.join(cmd_dir(logdir, "group"), f"trimmomatic_Single_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"trimmomatic_Single.sh")
             with open(script, "w") as f:
                 f.write(f"{params.cmd} SE -threads {threads} \\\n")

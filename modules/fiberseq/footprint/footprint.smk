@@ -50,8 +50,7 @@ rule fiberseq_footprint_run:
             rule_logger.info(f"Start footprint for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.categories))
             os.makedirs(sample_outdir, exist_ok=True)
-            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
-            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"fiberseq_footprint_run_{wildcards.sample_id}_{current_time}.sh")
+            script = os.path.join(cmd_dir(logdir, str(wildcards.sample_id)), f"fiberseq_footprint_run_{wildcards.sample_id}_{current_time}.sh")
             # timestamped copy stays in log/cmd as history; the outdir copy
             # (no timestamp, overwritten each run) documents the current command
             # next to the results it produced

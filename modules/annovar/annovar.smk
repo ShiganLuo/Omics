@@ -27,8 +27,7 @@ rule TEcoutCPM:
             logger = setup_logger(logger_name="TEcoutCPM_run", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start TEcoutCPM run at {current_time}")
-            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
-            script = os.path.join(logdir, "cmd", "group", f"TEcoutCPM_{current_time}.sh")
+            script = os.path.join(cmd_dir(logdir, "group"), f"TEcoutCPM_{current_time}.sh")
             plain_script = os.path.join(outdir, f"TEcoutCPM.sh")
             cmd = [params.Rscript, params.script, "-i", input.infile, "-o", output.outfile]
             with open(script, 'w') as f:
@@ -61,8 +60,7 @@ rule commonExpression:
             logger = setup_logger(logger_name="commonExpression", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start commonExpression at {current_time}")
-            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
-            script = os.path.join(logdir, "cmd", "group", f"commonExpression_{current_time}.sh")
+            script = os.path.join(cmd_dir(logdir, "group"), f"commonExpression_{current_time}.sh")
             plain_script = os.path.join(outdir, f"commonExpression.sh")
             cmd = [
                 "python", params.script,
@@ -102,8 +100,7 @@ rule getBed:
             logger = setup_logger(logger_name="getBed", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start getBed at {current_time}")
-            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
-            script = os.path.join(logdir, "cmd", "group", f"getBed_{current_time}.sh")
+            script = os.path.join(cmd_dir(logdir, "group"), f"getBed_{current_time}.sh")
             plain_script = os.path.join(outdir, f"getBed.sh")
             cmd = [
                 "python", params.script,
@@ -142,8 +139,7 @@ rule vcfIntersectBed:
             logger = setup_logger(logger_name="vcfIntersectBed", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start vcfIntersectBed for sample {wildcards.sample_id} at {current_time}")
-            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
-            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"{wildcards.sample_id}/vcfIntersectBed_{current_time}.sh")
+            script = os.path.join(cmd_dir(logdir, str(wildcards.sample_id)), f"{wildcards.sample_id}/vcfIntersectBed_{current_time}.sh")
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/vcfIntersectBed.sh")
             cmd = [
                 "bedtools", "intersect",
@@ -185,8 +181,7 @@ rule annovar_convert:
             logger = setup_logger(logger_name="annovar_convert_run", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start annovar_convert run for sample {wildcards.sample_id} at {current_time}")
-            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
-            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"{wildcards.sample_id}/annovar_convert_{current_time}.sh")
+            script = os.path.join(cmd_dir(logdir, str(wildcards.sample_id)), f"{wildcards.sample_id}/annovar_convert_{current_time}.sh")
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/annovar_convert.sh")
             cmd = [params.perl, params.convert, "-format", "vcf4", "-withfreq", input.vcf, ">", output.avinput, "2>", log_path]
             with open(script, 'w') as f:
@@ -226,8 +221,7 @@ rule annovar_table:
             logger = setup_logger(logger_name="annovar_table_run", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start annovar_table run for sample {wildcards.sample_id} at {current_time}")
-            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
-            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"{wildcards.sample_id}/annovar_table_{current_time}.sh")
+            script = os.path.join(cmd_dir(logdir, str(wildcards.sample_id)), f"{wildcards.sample_id}/annovar_table_{current_time}.sh")
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/annovar_table.sh")
             cmd = [params.perl, params.table, input.avinput, params.db, "-buildver", params.buildver, "-out", params.out, "-remove", "-protocol", "refGene", "-operation", "g", "-nastring", ".", "-csvout"]
             with open(script, 'w') as f:

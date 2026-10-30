@@ -38,8 +38,7 @@ rule neodisambiguate:
             logger = setup_logger(logger_name="neodisambiguate", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start neodisambiguate for sample {wildcards.sample_id} at {current_time}")
-            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
-            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"{wildcards.sample_id}/neodisambiguate_{current_time}.sh")
+            script = os.path.join(cmd_dir(logdir, str(wildcards.sample_id)), f"{wildcards.sample_id}/neodisambiguate_{current_time}.sh")
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/neodisambiguate.sh")
             cmd = [
                 str(params.neodisambiguate),

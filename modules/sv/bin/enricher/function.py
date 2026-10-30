@@ -56,13 +56,20 @@ def enrich_go(
                      'GO_Cellular_Component_2021',
                      'GO_Molecular_Function_2021']
     
+    # gseapy >=1.x requires a lowercase organism ("human"/"mouse");
+    # uppercase values raise Invalid organism
+    organism = organism.lower()
     for cat in go_categories:
         enr = gp.enrichr(
             gene_list=gene_list,
             gene_sets=cat,
             organism=organism,
             outdir=outdir,
-            cutoff=cutoff
+            cutoff=cutoff,
+            # gseapy's built-in barplot raises ValueError("No enrich terms")
+            # when nothing passes the cutoff — a valid outcome, not an error.
+            # We draw our own top_n plots below.
+            no_plot=True,
         )
         df = enr.results
         results_dict[cat] = df
@@ -117,14 +124,17 @@ def enrich_kegg(
     if image_formats is None:
         image_formats = ['png']
     results_dict = {}
-    kegg_cat = 'KEGG_2021_Human' if organism.lower()=='human' else 'KEGG_2021_Mouse'
+    # Enrichr retired KEGG_2021_Mouse; KEGG_2026 is the current
+    # organism-agnostic KEGG library (mouse symbols resolve fine)
+    kegg_cat = 'KEGG_2021_Human' if organism.lower()=='human' else 'KEGG_2026'
     enr_kegg = gp.enrichr(
         gene_list=gene_list,
         gene_sets=kegg_cat,
         organism=organism,
-        description='KEGG',
+        # gseapy >=1.x removed the `description` kwarg
         outdir=outdir,
-        cutoff=cutoff
+        cutoff=cutoff,
+        no_plot=True,
     )
     df_kegg = enr_kegg.results
     results_dict['KEGG'] = df_kegg

@@ -314,10 +314,15 @@ def main():
         out_dir=outdir,
         image_formats=args.formats
     )
+    # NOTE: TE annotation writes to {outdir}/repeatmasker, deliberately NOT
+    # under {outdir}/enrichment — sv_exp_enrichment declares
+    # directory(enrichment/) as its Snakemake output, and Snakemake removes
+    # the whole directory before that rule runs, which would silently wipe
+    # these results (observed 2026-10-29).
     run_exp_enricher(
         vcf_01=f"{args.outprefix}_only.vcf",
         vcf_1x=control_callset,
-        out_dir=f"{outdir}/enrichment",
+        out_dir=f"{outdir}/repeatmasker",
         te_lib=args.te_lib,
         image_formats=args.formats
     )

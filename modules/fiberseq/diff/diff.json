@@ -1,6 +1,6 @@
 {
-    "indir": "results",
-    "outdir": "results/fiberseq_diff",
+    "indir": "common/4_elements",
+    "outdir": "fiberseq_analysis/diff",
     "logdir": "log",
     "samples": [],
     "Procedure": {},

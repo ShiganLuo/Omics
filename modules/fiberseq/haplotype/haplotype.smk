@@ -4,16 +4,16 @@ from snakemake.logging import logger
 import os
 import time
 
-indir = config.get("indir", "results")
-outdir = config.get("outdir", "results/fiberseq_haplotype")
+indir = config.get("indir", "common/4_elements")
+outdir = config.get("outdir", "fiberseq_analysis/haplotype")
 logdir = config.get("logdir", "log")
 samples = config.get("samples", [])
 ROOT_DIR = config.get("ROOT_DIR", ".")
 env = config.get("env", {})
 p = config.get("Params", {}).get("fiberseq_haplotype", {})
 
-# upstream contract: per-hap quant tables from modules/fiberseq_quant
-QUANT_DIR = config.get("quant_dir") or indir + "/fiberseq_quant"
+# upstream contract: per-hap quant tables from fiberseq_analysis/quant
+QUANT_DIR = config.get("quant_dir") or indir + "/quant"
 
 
 rule fiberseq_haplotype_diff:
@@ -44,7 +44,8 @@ rule fiberseq_haplotype_diff:
             rule_logger.info(f"Start haplotype diff for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.diff))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(sample_outdir, f"fiberseq_haplotype_diff_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"fiberseq_haplotype_diff_{wildcards.sample_id}_{current_time}.sh")
             cmd = [
                 "python", params.script,
                 "-1", str(input.hap1),

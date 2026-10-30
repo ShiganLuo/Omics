@@ -4,8 +4,11 @@ from snakemake.logging import logger
 import os
 import time
 
-indir = config.get("indir", "results")
-outdir = config.get("outdir", "results/fiberseq_quant")
+indir = config.get("indir", "common/4_elements")
+outdir = config.get("outdir", "fiberseq_analysis/quant")
+# hap element BEDs live with the phased BAMs (modules/fibertools
+# ft_split_hap/ft_extract_hap write into the phased dir), not in indir
+hap_dir = config.get("hap_dir") or indir
 logdir = config.get("logdir", "log")
 samples = config.get("samples", [])
 ROOT_DIR = config.get("ROOT_DIR", ".")
@@ -23,7 +26,7 @@ rule fiberseq_quant_run:
         msp = indir + "/{sample_id}/{sample_id}.msp.bed.gz",
         nuc = indir + "/{sample_id}/{sample_id}.nuc.bed.gz",
         m6a = indir + "/{sample_id}/{sample_id}.m6a.bed.gz",
-        fire = indir + "/{sample_id}/{sample_id}.fire.bed",
+        fire = indir + "/{sample_id}/{sample_id}.fire.bed.gz",
     output:
         quant = outdir + "/{sample_id}/{sample_id}.region_quant.tsv",
     log:
@@ -46,7 +49,8 @@ rule fiberseq_quant_run:
             rule_logger.info(f"Start quantification for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.quant))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(sample_outdir, f"fiberseq_quant_run_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"fiberseq_quant_run_{wildcards.sample_id}_{current_time}.sh")
             cmd = [
                 "python", params.script, "run",
                 "-p", str(input.peaks),
@@ -73,9 +77,9 @@ rule fiberseq_quant_hap:
     """Per-region quantification on a haplotype-split element set."""
     input:
         peaks = indir + "/{sample_id}/{sample_id}.fire_peaks.bed",
-        msp = indir + "/{sample_id}/{sample_id}.{hap}.msp.bed.gz",
-        nuc = indir + "/{sample_id}/{sample_id}.{hap}.nuc.bed.gz",
-        m6a = indir + "/{sample_id}/{sample_id}.{hap}.m6a.bed.gz",
+        msp = hap_dir + "/{sample_id}/{sample_id}.{hap}.msp.bed.gz",
+        nuc = hap_dir + "/{sample_id}/{sample_id}.{hap}.nuc.bed.gz",
+        m6a = hap_dir + "/{sample_id}/{sample_id}.{hap}.m6a.bed.gz",
     output:
         quant = outdir + "/{sample_id}/{sample_id}.{hap}.region_quant.tsv",
     log:
@@ -96,7 +100,8 @@ rule fiberseq_quant_hap:
             rule_logger.info(f"Start hap quantification for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.quant))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(sample_outdir, f"fiberseq_quant_hap_{wildcards.hap}_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"fiberseq_quant_hap_{wildcards.hap}_{wildcards.sample_id}_{current_time}.sh")
             cmd = [
                 "python", params.script, "run",
                 "-p", str(input.peaks),
@@ -146,7 +151,8 @@ rule fiberseq_quant_merge:
             rule_logger.info(f"Start quant merge at {current_time}")
             group_outdir = outdir + "/matrix"
             os.makedirs(group_outdir, exist_ok=True)
-            script = os.path.join(group_outdir, f"fiberseq_quant_merge_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"fiberseq_quant_merge_{current_time}.sh")
             cmd = [
                 "python", params.script, "merge",
                 "-q", ",".join(str(x) for x in input.quants),

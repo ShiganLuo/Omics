@@ -67,9 +67,12 @@ python workflow/Omics/src/common/util/EnvUtil.py apptainer all \
     -y workflow/Omics/modules/<module>/<module>.yaml -o /home/luosg/Database/env/<module> --force
 ```
 
-## 7. 输出速查（每个分析一个模块，布局 `results/fiberseq_<模块>/<样本|对比>/`）
+## 7. 输出速查（每个分析一个模块，布局 `fiberseq_analysis/<模块>/<样本|对比>/`）
 
-- `fiberseq_annotate/` peak 注释 · `fiberseq_motif/` motif 位点/谱 · `fiberseq_footprint/` 三分类 footprint
-- `fiberseq_nucpos/` 核小体定位 · `fiberseq_quant/` 区域定量+matrix · `fiberseq_track/` bigWig+trackDb
-- `fiberseq_coactuation/` 共活化 · `fiberseq_haplotype/` 单倍型差异 · `fiberseq_censat/` 着丝粒专题
-- `fiberseq_diff/<contrast>/` 组间差异+基因表 · `function/<contrast>/` GO/KEGG · `output/ldsc/`
+元素 BED 唯一权威路径在 `common/4_elements/<样本>/`（fire.bed 为
+bgzip+tabix 压缩）；hap BAM 唯一在 `common/5_phased_bam/<样本>/`。
+
+- `annotate/` peak 注释 · `motif/` motif 位点/谱 · `footprint/` 三分类 footprint
+- `nucpos/` 核小体定位 · `quant/` 区域定量+matrix · `track/` bigWig+trackDb
+- `coactuation/` 共活化 · `haplotype/` 单倍型差异 · `censat/` 着丝粒专题
+- `diff/<contrast>/` 组间差异+基因表 · `function/<contrast>/` GO/KEGG · `ldsc/`

@@ -1,6 +1,6 @@
 {
-    "indir": "results",
-    "outdir": "results/fiberseq_coactuation",
+    "indir": "common/4_elements",
+    "outdir": "fiberseq_analysis/coactuation",
     "logdir": "log",
     "samples": [],
     "Procedure": {},

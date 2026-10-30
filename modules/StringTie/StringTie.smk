@@ -145,8 +145,7 @@ rule stringTieMerge:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start stringTieMerge run at {current_time}")
-            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
-            script = os.path.join(logdir, "cmd", "group", f"stringTieMerge_{current_time}.sh")
+            script = os.path.join(cmd_dir(logdir, "group"), f"stringTieMerge_{current_time}.sh")
             plain_script = os.path.join(outdir, f"stringTieMerge.sh")
             cmd = [params.stringtie, "--merge"] + list(input.gtfs) + ["-o", output.gtf, "-G", params.gtf]
             with open(script, 'w') as f:

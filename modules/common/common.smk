@@ -221,6 +221,27 @@ def check_reporter_ions(mzml_path, max_spectra=400):
 _ENV_MAP = config.get("env", {})
 
 
+def cmd_dir(logdir, key="group"):
+    """Resolve the command-receipt directory {logdir}/cmd/<key> under the
+    project root and make sure it exists.
+
+    Modules include this shared file, so every consumer builds the receipt
+    dir the same way: logdir arrives from config (relative to the output
+    root on some workflows, absolute on others) and is anchored at ROOT_DIR
+    when relative — a per-module logdir value cannot be assumed to carry
+    its own parents.
+
+    key: sample/group/contrast wildcard value (str) or "group".
+    Returns the absolute-ish joined path (created on disk).
+    """
+    _ld = str(logdir)
+    if not os.path.isabs(_ld):
+        _ld = os.path.join(ROOT_DIR, _ld)
+    _d = os.path.join(_ld, "cmd", str(key))
+    os.makedirs(_d, exist_ok=True)
+    return _d
+
+
 def sif(yaml_filename: str) -> str:
     """Resolve the SIF container path for a conda env YAML.
 

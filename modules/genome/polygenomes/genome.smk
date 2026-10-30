@@ -32,8 +32,7 @@ rule chromosome_sizes:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start chromosome_sizes at {current_time}")
-            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
-            script = os.path.join(logdir, "cmd", "group", f"chromosome_sizes_{current_time}.sh")
+            script = os.path.join(cmd_dir(logdir, "group"), f"chromosome_sizes_{current_time}.sh")
             plain_script = os.path.join(os.path.dirname(output.chrom_sizes), f"chromosome_sizes.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
@@ -76,8 +75,7 @@ rule extract_smallrna:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start extract_smallrna at {current_time}")
-            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
-            script = os.path.join(logdir, "cmd", "group", f"extract_smallrna_{current_time}.sh")
+            script = os.path.join(cmd_dir(logdir, "group"), f"extract_smallrna_{current_time}.sh")
             plain_script = os.path.join(params.outdir, f"extract_smallrna.sh")
             os.makedirs(params.outdir, exist_ok=True)
             with open(script, "w") as f:

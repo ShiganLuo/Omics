@@ -56,8 +56,7 @@ rule minimap2_align:
             rule_logger.info(f"Start minimap2 alignment for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.bam))
             os.makedirs(sample_outdir, exist_ok=True)
-            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
-            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"minimap2_align_{wildcards.sample_id}_{current_time}.sh")
+            script = os.path.join(cmd_dir(logdir, str(wildcards.sample_id)), f"minimap2_align_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"minimap2_align_{wildcards.sample_id}.sh")
             raw_bam = outdir + f"/{wildcards.sample_id}/{wildcards.sample_id}.raw.bam"
             # minimap2 align → samtools sort → samtools index

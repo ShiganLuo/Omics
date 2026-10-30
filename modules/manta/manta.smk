@@ -31,8 +31,7 @@ rule manta_config:
             logger = setup_logger(logger_name="manta_config", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start manta config for sample {wildcards.sample_id} at {current_time}")
-            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
-            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"{wildcards.sample_id}/manta_config_{current_time}.sh")
+            script = os.path.join(cmd_dir(logdir, str(wildcards.sample_id)), f"{wildcards.sample_id}/manta_config_{current_time}.sh")
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/manta_config.sh")
             cmd = [
                 "configManta.py",
@@ -75,8 +74,7 @@ rule manta_run:
             logger = setup_logger(logger_name="manta_run", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start manta run for sample {wildcards.sample_id} at {current_time}")
-            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
-            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"{wildcards.sample_id}/manta_run_{current_time}.sh")
+            script = os.path.join(cmd_dir(logdir, str(wildcards.sample_id)), f"{wildcards.sample_id}/manta_run_{current_time}.sh")
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/manta_run.sh")
             cmd = [
                 "python", str(input.script),

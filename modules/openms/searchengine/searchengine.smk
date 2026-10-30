@@ -145,8 +145,7 @@ rule search_engine_comet:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start Comet search for sample {wildcards.sample_id} at {current_time}")
             _assert_label_matches_data(input.mzml)
-            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
-            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"{wildcards.sample_id}/comet_{current_time}.sh")
+            script = os.path.join(cmd_dir(logdir, str(wildcards.sample_id)), f"{wildcards.sample_id}/comet_{current_time}.sh")
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/comet.sh")
             cmd = [
                 params.comet,
@@ -204,8 +203,7 @@ rule search_engine_msgf:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start MSGF+ search for sample {wildcards.sample_id} at {current_time}")
             _assert_label_matches_data(input.mzml)
-            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
-            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"{wildcards.sample_id}/msgf_{current_time}.sh")
+            script = os.path.join(cmd_dir(logdir, str(wildcards.sample_id)), f"{wildcards.sample_id}/msgf_{current_time}.sh")
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/msgf.sh")
             cmd = [
                 params.msgf,
@@ -251,8 +249,7 @@ rule search_engine_sage:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start Sage search for sample {wildcards.sample_id} at {current_time}")
             _assert_label_matches_data(input.mzml)
-            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
-            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"{wildcards.sample_id}/sage_{current_time}.sh")
+            script = os.path.join(cmd_dir(logdir, str(wildcards.sample_id)), f"{wildcards.sample_id}/sage_{current_time}.sh")
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/sage.sh")
             cmd = [
                 params.sage,

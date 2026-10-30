@@ -23,6 +23,7 @@ def sv_go(
         gene_col: str = "SYMBOL",
         outdir: str = "enrichment_results",
         image_formats: Optional[List[PlotFormat]] = None,
+        organism: str = "mouse",
         **kwargs
 ) -> None:
     """Perform GO and KEGG enrichment analysis on structural variants.
@@ -60,14 +61,13 @@ def sv_go(
     df = read_vep_tab(anno_file, **kwargs)
     df_filtered = df[df["IMPACT"].isin(IMPACT_filter)]
     logger.info(f"Total SVs: {len(df)}, Filtered SVs (IMPACT in {IMPACT_filter}): {len(df_filtered)}")
-    try:
-        enrich_go(df_filtered[gene_col].dropna().unique().tolist(), outdir=f"{outdir}/go", image_formats=image_formats)
-    except Exception as e:
-        logger.error(f"Error during enrichment: {e}")
-    try:
-        enrich_kegg(df_filtered[gene_col].dropna().unique().tolist(), outdir=f"{outdir}/kegg", image_formats=image_formats)
-    except Exception as e:
-        logger.error(f"Error during enrichment: {e}")
+    gene_list = df_filtered[gene_col].dropna().unique().tolist()
+    # propagate failures: a silently-missing GO/KEGG table is worse than a
+    # red job (both were swallowed here on 2026-10-29)
+    enrich_go(gene_list, organism=organism,
+              outdir=f"{outdir}/go", image_formats=image_formats)
+    enrich_kegg(gene_list, organism=organism,
+                outdir=f"{outdir}/kegg", image_formats=image_formats)
 
 def hot_spot(
     annotated_tab: str,
@@ -199,6 +199,7 @@ def parse_args():
     parser.add_argument("--gene_col", default="SYMBOL", help="Column name for gene symbols in the annotation file")
     parser.add_argument("--IMPACT_filter", nargs="+", default=["HIGH", "MODERATE", "LOW"], help="IMPACT levels to include in enrichment")
     parser.add_argument("-f", "--format", action="append", dest="formats", metavar="FMT", help="Image output format (png, pdf, svg, ...). Can be specified multiple times. Default: png.")
+    parser.add_argument("--organism", default="mouse", help="Enrichr organism (human/mouse); must match the data or the enrichment queries the wrong library")
     return parser.parse_args()
 def main():
     """Entry point for the SV enrichment analysis pipeline.
@@ -215,7 +216,8 @@ def main():
     outdir = args.outdir
     fai_file = args.fai
     gtf_file = args.gtf
-    sv_go(anno_file, outdir=outdir, gene_col="SYMBOL", image_formats=args.formats)
+    sv_go(anno_file, outdir=outdir, gene_col="SYMBOL",
+          image_formats=args.formats, organism=args.organism)
 
     out_hot = os.path.join(outdir, "hotspots_1000.tsv")
     hot_spot(

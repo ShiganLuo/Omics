@@ -1,7 +1,5 @@
 include: "../common/common.smk"
 
-import shutil
-from snakemake.logging import logger
 indir = config.get("indir", "data")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "logs")
@@ -52,7 +50,7 @@ rule DESeq2_TEcount:
             rule_logger.info(f"Start DESeq2 TEcount at {current_time}")
             sample_outdir = os.path.dirname(str(output.deseq2_results))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"DESeq2_TEcount_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"DESeq2_TEcount_{wildcards.contrast}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"DESeq2_TEcount.sh")
             control_group_name = group_pairs[wildcards.contrast]["control_group_name"]
             experimental_group_name = group_pairs[wildcards.contrast]["experimental_group_name"]
@@ -91,7 +89,6 @@ rule DESeq2_TEcount:
                 "-g", params.gtf,
                 "-m", params.gene_map
             ]
-
 
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")

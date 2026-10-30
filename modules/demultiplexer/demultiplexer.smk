@@ -30,9 +30,9 @@ rule demultiplex_trim_dedup:
         max_ham = max_ham,
     run:
         log_path = str(log)
+open(log_path, 'w').close()
+rule_logger = setup_logger("demultiplex_trim_dedup", log_file=log_path)
         try:
-            open(log_path, 'w').close()
-            rule_logger = setup_logger("demultiplex_trim_dedup", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start demultiplex_trim_dedup for sample {wildcards.sample_id} at {current_time}")
 

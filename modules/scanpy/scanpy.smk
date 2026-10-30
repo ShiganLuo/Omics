@@ -1,16 +1,12 @@
 
 include: "../common/common.smk"
 
-import shutil
-
-
 ROOT_DIR = config.get("ROOT_DIR", ".")
 indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "logs")
 outdir_combine = config.get("outdir_combine", outdir)
 logdir_combine = config.get("logdir_combine", logdir)
-
 
 procedure = config.get("Procedure", {})
 params = config.get("Params", {}).get("scanpy", {})
@@ -107,7 +103,6 @@ def get_tissue_qc_files(wildcards):
     sample_ids = tissue_samples[wildcards.tissue]
     return [outdir + f"/{sample_id}/{sample_id}_{wildcards.counter}_qc.h5ad" for sample_id in sample_ids]
 
-
 rule scanpy_merge:
     """Merge QC'd single-cell data for a tissue group using Scanpy."""
     input:
@@ -165,7 +160,6 @@ rule scanpy_merge:
         except Exception as e:
             rule_logger.error(f"Error occurred during scanpy merge for tissue {wildcards.tissue}: {e}")
             raise RuntimeError(f"Error occurred during scanpy merge for tissue {wildcards.tissue}: {e}")
-
 
 rule scanpy_auto:
     """Automated Scanpy analysis for merged tissue data, including clustering and annotation.
@@ -269,8 +263,6 @@ rule scanpy_auto:
             rule_logger.error(f"Error occurred during scanpy auto for tissue {wildcards.tissue}: {e}")
             raise RuntimeError(f"Error occurred during scanpy auto for tissue {wildcards.tissue}: {e}")
 
-
-
 rule scanpy_advanced:
     """Advanced Scanpy analysis for merged tissue data, including trajectory inference, RNA velocity, cell-cell communication, and CNV analysis.
     """
@@ -349,8 +341,6 @@ rule scanpy_advanced:
             rule_logger.error(f"Error occurred during scanpy advanced analysis for tissue {wildcards.tissue}: {e}")
             raise RuntimeError(f"Error occurred during scanpy advanced analysis for tissue {wildcards.tissue}: {e}")
 
-
-
 rule scanpy_differential_expression:
     """Perform differential expression analysis on merged tissue data using Scanpy.
     """
@@ -408,7 +398,6 @@ rule scanpy_differential_expression:
         except Exception as e:
             rule_logger.error(f"Error occurred during scanpy differential expression for tissue {wildcards.tissue}: {e}")
             raise RuntimeError(f"Error occurred during scanpy differential expression for tissue {wildcards.tissue}: {e}")
-
 
 # ---------------------------------------------------------------------------
 # Pseudo-bulk DEG (PyDESeq2) — modules/scanpy/bin/pseudobulk.py

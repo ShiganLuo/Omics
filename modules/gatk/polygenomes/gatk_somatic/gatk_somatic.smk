@@ -1,7 +1,6 @@
 from snakemake.logging import logger
 include: "../../../common/common.smk"
 
-import shutil
 indir = config.get("indir") or "input"
 outdir = config.get("outdir") or "output"
 logdir = config.get("logdir") or "log"
@@ -41,7 +40,6 @@ def get_input_somaticMutect2(wildcards):
         in_dict["fasta"] = f"{indir}/index/{wildcards.genome}/genome.fa"
     return in_dict
 
-
 rule somaticMutect2:
     input:
        unpack(get_input_somaticMutect2)
@@ -66,7 +64,7 @@ rule somaticMutect2:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start somaticMutect2 for normal sample {wildcards.normal_sample_id} and experimental sample {wildcards.experimental_sample_id} genome {wildcards.genome} at {current_time}")
-            script = os.path.join(RECEIPT_DIR, f"mutect2_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"mutect2_{wildcards.normal_sample_id}_{current_time}.sh")
             plain_script = os.path.join(outdir, f"{wildcards.genome}/mutect2-vcf/{wildcards.normal_sample_id}_vs_{wildcards.experimental_sample_id}/mutect2.sh")
             cmd = [
                 params.gatk, "Mutect2",

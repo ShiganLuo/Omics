@@ -1,14 +1,11 @@
 include: "../common/common.smk"
 
-import shutil
-
 outdir = config.get("outdir", "output")
 indir = config.get("indir", "input")
 logdir = config.get("logdir", "logs")
 paired_samples = config.get("paired_samples", [])
 single_samples = config.get("single_samples", [])
 mode = config.get("mode") or None
-
 
 def get_cutadapt_input_paired(wildcards):
     """Return paired-end FASTQ inputs, with optional UMI suffix."""
@@ -22,13 +19,11 @@ def get_cutadapt_input_paired(wildcards):
         f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}_2.fq.gz",
     ]
 
-
 def get_cutadapt_input_single(wildcards):
     """Return single-end FASTQ input, with optional UMI suffix."""
     if mode == "UMI":
         return f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}.umi.single.fq.gz"
     return f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}.single.fq.gz"
-
 
 rule trimming_Paired:
     input:
@@ -58,13 +53,13 @@ rule trimming_Paired:
     container:
         sif("cutadapt.yaml")
     run:
+        log_path = str(log)
+        open(log_path, "w").close()
+        logger = setup_logger(logger_name="cutadapt_paired", log_file=log_path)
         try:
-            log_path = str(log)
-            open(log_path, "w").close()
-            logger = setup_logger(logger_name="cutadapt_paired", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start cutadapt paired trimming for sample {wildcards.sample_id} at {current_time}")
-            script = os.path.join(RECEIPT_DIR, f"cutadapt_paired_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"cutadapt_paired_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/cutadapt_paired.sh")
             cmd = [
                 params.cutadapt,
@@ -103,7 +98,6 @@ rule trimming_Paired:
                 f.write(f"cutadapt paired trimming failed for sample {wildcards.sample_id} with error: {e}\n")
             raise
 
-
 rule trimming_Single:
     input:
         get_cutadapt_input_single
@@ -131,12 +125,12 @@ rule trimming_Single:
         sif("cutadapt.yaml")
     run:
         log_path = str(log)
+        open(log_path, "w").close()
+        logger = setup_logger(logger_name="cutadapt_single", log_file=log_path)
         try:
-            open(log_path, "w").close()
-            logger = setup_logger(logger_name="cutadapt_single", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start cutadapt single trimming for sample {wildcards.sample_id} at {current_time}")
-            script = os.path.join(RECEIPT_DIR, f"cutadapt_single_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"cutadapt_single_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/cutadapt_single.sh")
             cmd = [
                 params.cutadapt,

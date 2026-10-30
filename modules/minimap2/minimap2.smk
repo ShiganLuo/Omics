@@ -1,6 +1,5 @@
 include: "../common/common.smk"
 
-import shutil
 indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
@@ -49,9 +48,9 @@ rule minimap2_align:
         extra = config.get("Params", {}).get("minimap2", {}).get("extra") or ""
     run:
         log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger("minimap2_align", log_file=log_path)
         try:
-            open(log_path, "w").close()
-            rule_logger = setup_logger("minimap2_align", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start minimap2 alignment for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.bam))

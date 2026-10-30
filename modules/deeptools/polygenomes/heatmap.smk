@@ -1,6 +1,5 @@
 include: "../../common/common.smk"
 
-import shutil
 import shlex
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
@@ -15,8 +14,6 @@ MODULE_DIR = os.path.join(config.get("ROOT_DIR", "."), "modules", "deeptools_hea
 HEATMAP_SCRIPT = os.path.join(MODULE_DIR, "bin", "run_heatmap.py")
 cm_params = config.get("Params", {}).get("computeMatrix", {})
 ph_params = config.get("Params", {}).get("plotHeatmap", {})
-
-
 
 def _is_gene_regions():
     return isinstance(regions_cfg, dict) and "genes" in regions_cfg
@@ -72,9 +69,9 @@ rule bigwig_ratio:
     container: sif("../deeptools_heatmap.yaml")
     run:
         log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger("bigwig_ratio", log_file=log_path)
         try:
-            open(log_path, "w").close()
-            rule_logger = setup_logger("bigwig_ratio", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start bigwig_ratio for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.ratio_bigwig))
@@ -102,16 +99,13 @@ rule bigwig_ratio:
             logger.error(f"Error occurred during bigwig_ratio for sample {wildcards.sample_id}: {e}")
             raise e
 
-
 rule bigwig_ratio_result:
     """Aggregation rule for bigwig_ratio."""
     input:
         ratio_bigwig = outdir + "/{genome}/{sample_id}/{sample_id}_IP_over_Input.bigwig",
 
-
 def get_ratio_bigwig(wildcards):
     return os.path.join(outdir, wildcards.genome, wildcards.sample_id, wildcards.sample_id + "_IP_over_Input.bigwig")
-
 
 # ============================================================
 # Heatmap (computeMatrix + plotHeatmap unified)
@@ -172,7 +166,6 @@ def _build_heatmap_cmd(wildcards, input, output, threads, title, gene_names=None
 
     return cmd
 
-
 def _get_gtf_for_heatmap(wildcards):
     """Return GTF path when mode needs it, empty list otherwise."""
     tss_bed = config['genome'][wildcards.genome].get('tss_bed')
@@ -181,7 +174,6 @@ def _get_gtf_for_heatmap(wildcards):
     if _is_gene_regions():
         return _get_gene_gtf(wildcards) or []
     return []
-
 
 def _get_regions_for_heatmap(wildcards):
     """Return pre-made BED only for peaks mode."""
@@ -192,7 +184,6 @@ def _get_regions_for_heatmap(wildcards):
     if regions_cfg == "tss" and tss_bed and os.path.isfile(tss_bed):
         return tss_bed
     return []
-
 
 rule heatmap:
     """TSS / peaks / gene-list mode — computeMatrix + plotHeatmap in one step."""
@@ -208,9 +199,9 @@ rule heatmap:
     container: sif("../deeptools_heatmap.yaml")
     run:
         log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger("heatmap", log_file=log_path)
         try:
-            open(log_path, "w").close()
-            rule_logger = setup_logger("heatmap", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start heatmap for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.heatmap))
@@ -245,9 +236,9 @@ rule heatmap_gene:
     container: sif("../deeptools_heatmap.yaml")
     run:
         log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger("heatmap_gene", log_file=log_path)
         try:
-            open(log_path, "w").close()
-            rule_logger = setup_logger("heatmap_gene", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start heatmap_gene for {wildcards.sample_id} {wildcards.gene_name} at {current_time}")
             sample_outdir = os.path.dirname(str(output.heatmap))
@@ -270,7 +261,6 @@ rule heatmap_gene:
                 f.write(f"Error occurred during heatmap_gene for sample {wildcards.sample_id} {wildcards.gene_name}: {e}\n")
             logger.error(f"Error occurred during heatmap_gene for sample {wildcards.sample_id} {wildcards.gene_name}: {e}")
             raise e
-
 
 # ============================================================
 # Result

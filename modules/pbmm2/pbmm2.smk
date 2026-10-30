@@ -1,6 +1,5 @@
 include: "../common/common.smk"
 
-import shutil
 indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
@@ -32,7 +31,7 @@ rule pbmm2_align:
             logger = setup_logger("pbmm2_align")
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start pbmm2 alignment for sample {wildcards.sample_id} at {current_time}")
-            script = os.path.join(RECEIPT_DIR, f"pbmm2_align_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"pbmm2_align_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/pbmm2_align.sh")
             raw_align_bam = outdir + f"/{wildcards.sample_id}/{wildcards.sample_id}.raw.bam"
             cmd1 = [

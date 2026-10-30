@@ -46,7 +46,7 @@ rule featureCounts_single_noMultiple:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start featureCounts_single_noMultiple at {current_time}")
-            script = os.path.join(RECEIPT_DIR, f"featureCounts_single_noMultiple_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"featureCounts_single_noMultiple_{wildcards.genome}_{current_time}.sh")
             plain_script = os.path.join(os.path.dirname(output.outfile), f"featureCounts_single_noMultiple.sh")
             os.makedirs(os.path.dirname(output.outfile), exist_ok=True)
             bams_str = " ".join(input.bams)
@@ -110,7 +110,7 @@ rule featureCounts_paired_noMultiple:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start featureCounts_paired_noMultiple at {current_time}")
-            script = os.path.join(RECEIPT_DIR, f"featureCounts_paired_noMultiple_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"featureCounts_paired_noMultiple_{wildcards.genome}_{current_time}.sh")
             plain_script = os.path.join(os.path.dirname(output.outfile), f"featureCounts_paired_noMultiple.sh")
             os.makedirs(os.path.dirname(output.outfile), exist_ok=True)
             bams_str = " ".join(input.bams)
@@ -200,7 +200,6 @@ rule featureCounts_merge:
         except Exception as e:
             rule_logger.error(f"featureCounts merge failed: {e}\n")
             raise RuntimeError(f"featureCounts merge failed: {e}\n")
-
 
 rule featureCounts_results:
     input:

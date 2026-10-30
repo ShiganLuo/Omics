@@ -50,7 +50,7 @@ rule ft_extract:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            command_script = os.path.join(RECEIPT_DIR, f"ft_extract_{current_time}.sh")
+            command_script = os.path.join(RECEIPT_DIR, f"ft_extract_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, "ft_extract.sh")
             cmd = [
                 params.ft, "extract",
@@ -71,7 +71,6 @@ rule ft_extract:
         except Exception as e:
             rule_logger.error(f"ft_extract failed: {e}\n")
             raise RuntimeError(f"ft_extract failed: {e}\n")
-
 
 rule ft_call_peaks:
     """Call FIRE peaks using FDR-based peak calling.
@@ -107,7 +106,7 @@ rule ft_call_peaks:
             # the outdir (that duplicated ~60G per sample historically).
             sorted_bam = str(input.bam)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            command_script = os.path.join(RECEIPT_DIR, f"ft_call_peaks_{current_time}.sh")
+            command_script = os.path.join(RECEIPT_DIR, f"ft_call_peaks_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, "ft_call_peaks.sh")
             rule_logger.info(f"Calling FIRE peaks for sample {wildcards.sample_id}")
             # Build ft call-peaks command (fdr mode needs a shuffled null BED)
@@ -173,7 +172,6 @@ rule ft_call_peaks:
             rule_logger.error(f"ft_call_peaks failed: {e}\n")
             raise RuntimeError(f"ft_call_peaks failed: {e}\n")
 
-
 rule ft_qc:
     """Collect QC metrics from a Fiber-seq BAM.
 
@@ -203,7 +201,7 @@ rule ft_qc:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            command_script = os.path.join(RECEIPT_DIR, f"ft_qc_{current_time}.sh")
+            command_script = os.path.join(RECEIPT_DIR, f"ft_qc_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, "ft_qc.sh")
             cmd = [
                 params.ft, "qc",
@@ -223,10 +221,8 @@ rule ft_qc:
             rule_logger.error(f"ft_qc failed: {e}\n")
             raise RuntimeError(f"ft_qc failed: {e}\n")
 
-
 wildcard_constraints:
     hap = "hap[12]",
-
 
 rule ft_extract_fire:
     """Extract per-fiber FIRE elements to BED9 via `ft fire --extract`.
@@ -257,7 +253,7 @@ rule ft_extract_fire:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            command_script = os.path.join(RECEIPT_DIR, f"ft_extract_fire_{current_time}.sh")
+            command_script = os.path.join(RECEIPT_DIR, f"ft_extract_fire_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, "ft_extract_fire.sh")
             # `ft fire --extract` emits records in BAM (fiber) order, which is
             # NOT chromosome-grouped/start-sorted. Every ChromSweep consumer
@@ -285,7 +281,6 @@ rule ft_extract_fire:
         except Exception as e:
             rule_logger.error(f"ft_extract_fire failed: {e}\n")
             raise RuntimeError(f"ft_extract_fire failed: {e}\n")
-
 
 rule ft_split_hap:
     """Split an HP-tagged aligned BAM into haplotype BAMs with samtools."""
@@ -325,7 +320,6 @@ rule ft_split_hap:
         except Exception as e:
             rule_logger.error(f"ft_split_hap failed: {e}\n")
             raise RuntimeError(f"ft_split_hap failed: {e}\n")
-
 
 rule ft_extract_hap:
     """Extract m6A/nuc/MSP/CpG BEDs from a haplotype-split BAM."""

@@ -1,7 +1,5 @@
 include: "../common/common.smk"
 
-import shutil
-
 from snakemake.logging import logger
 import time
 import os
@@ -10,7 +8,6 @@ indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 samples = config.get("samples", [])
-
 
 rule seqprep_merge:
     input:
@@ -35,7 +32,7 @@ rule seqprep_merge:
     run:
         current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start SeqPrep merge for sample {wildcards.sample_id} at {current_time}")
-        script = os.path.join(RECEIPT_DIR, f"seqprep_merge_{current_time}.sh")
+        script = os.path.join(RECEIPT_DIR, f"seqprep_merge_{wildcards.sample_id}_{current_time}.sh")
         plain_script = os.path.join(outdir, f"{wildcards.sample_id}/seqprep_merge.sh")
         cmd_merge = [
             params.seqprep,
@@ -56,7 +53,6 @@ rule seqprep_merge:
             f.write(" ".join(cmd_stats) + " 2>> {log}\n")
         shutil.copyfile(script, plain_script)
         shell("bash {plain_script} > {log} 2>&1")
-
 
 rule seqprep_result:
     input:

@@ -1,6 +1,5 @@
 include: "../common/common.smk"
 
-import shutil
 from snakemake.logging import logger
 indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
@@ -56,7 +55,7 @@ rule XenofilteR:
             rule_logger.info(f"Start XenofilteR for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.csvIn))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"XenofilteR_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"XenofilteR_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"XenofilteR.sh")
             cmd1 = [
                 "echo", f"{input.host_bam},{input.contaminant_bam}", ">", output.csvIn

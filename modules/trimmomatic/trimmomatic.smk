@@ -1,8 +1,5 @@
 include: "../common/common.smk"
 
-import shutil
-
-from snakemake.logging import logger
 outdir = config.get("outdir", "output")
 indir = config.get("indir", "output/raw_fastq")
 logdir = config.get("logdir", "log")
@@ -35,14 +32,14 @@ rule trimmomatic_Paired:
         log = logdir + "/{sample_id}/trimmomatic.txt"
     run:
         log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger("trimmomatic_Paired", log_file=log_path)
         try:
-            open(log_path, "w").close()
-            rule_logger = setup_logger("trimmomatic_Paired", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start trimmomatic_Paired for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.join(params.outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"trimmomatic_Paired_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"trimmomatic_Paired_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"trimmomatic_Paired.sh")
             with open(script, "w") as f:
                 f.write(f"{params.cmd} PE -threads {threads} \\\n")
@@ -89,14 +86,14 @@ rule trimmomatic_Single:
         log = logdir + "/{sample_id}/trimmomatic.txt"
     run:
         log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger("trimmomatic_Single", log_file=log_path)
         try:
-            open(log_path, "w").close()
-            rule_logger = setup_logger("trimmomatic_Single", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start trimmomatic_Single for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.join(params.outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"trimmomatic_Single_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"trimmomatic_Single_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"trimmomatic_Single.sh")
             with open(script, "w") as f:
                 f.write(f"{params.cmd} SE -threads {threads} \\\n")

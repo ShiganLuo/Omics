@@ -1,7 +1,5 @@
 include: "../../common/common.smk"
 
-import shutil
-
 import logging
 import time
 outdir = config.get("outdir", "output")
@@ -237,7 +235,8 @@ rule star_align:
         try:
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
             sample_outdir = os.path.dirname(str(output.bam))
-            script = f"{sample_outdir}/star_align.{current_time}.sh"
+            script = os.path.join(RECEIPT_DIR, f"star_align_{wildcards.sample_id}_{current_time}.sh")
+            plain_script = f"{sample_outdir}/star_align.sh"
             rule_logger.info(f"Start STAR alignment for sample {wildcards.sample_id} genome {wildcards.genome} at {current_time}")
             cmd1 = [
                 params.STAR, "--runThreadN", str(threads),
@@ -295,7 +294,8 @@ rule star_align:
                 f.write(f"test -f {output.unmapped_r1} || touch {output.unmapped_r1}\n")
                 f.write(f"test -f {output.unmapped_r2} || touch {output.unmapped_r2}\n")
                 f.write(f"echo 'STAR alignment for {wildcards.sample_id} completed successfully.'\n")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error during STAR alignment for sample {wildcards.sample_id}: {str(e)}")
             raise RuntimeError(f"STAR alignment failed for sample {wildcards.sample_id}: {str(e)}")

@@ -1,7 +1,5 @@
 include: "../../common/common.smk"
 
-import shutil
-
 from snakemake.logging import logger
 indir = config.get("indir", "output/diff_expression")
 counts_dir = config.get("counts_dir", "output/counts")
@@ -71,7 +69,7 @@ rule function_go_kegg:
                 "--top", str(params.top),
             ]
 
-            script = os.path.join(RECEIPT_DIR, f"go_kegg_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"go_kegg_{wildcards.genome}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"go_kegg.sh")
             with open(script, 'w') as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
@@ -130,7 +128,7 @@ rule function_gsea:
             if wildcards.contrast not in group_pairs.get(wildcards.genome, {}):
                 raise ValueError(f"Group pair {wildcards.contrast} not found in group_pairs configuration.")
             sample_outdir = os.path.dirname(str(output.func_gsea_plot))
-            script = os.path.join(RECEIPT_DIR, f"gsea_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"gsea_{wildcards.contrast}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"gsea.sh")
             graph_title = wildcards.contrast
 
@@ -155,7 +153,6 @@ rule function_gsea:
             rule_logger.error(f"GSEA analysis failed: {e}")
             raise RuntimeError(f"GSEA analysis failed: {e}")
 
-
 def get_input_for_function_gsva(wildcards):
     """Resolve inputs for function_gsva: featureCounts counts matrix + GMT file."""
     logger.debug(f"[get_input_for_function_gsva] called with wildcards: {wildcards}")
@@ -176,7 +173,6 @@ def get_input_for_function_gsva(wildcards):
         raise ValueError(f"GTF not found for genome {wildcards.genome} in config.genome.references.")
     in_dict['gtf'] = gtf
     return in_dict
-
 
 rule function_gsva:
     """GSVA enrichment analysis on featureCounts normalized expression.
@@ -242,7 +238,7 @@ rule function_gsva:
                 "-o", gsva_outdir,
                 "--title", f"GSVA ({species_name}) - {wildcards.genome}",
             ]
-            script = os.path.join(RECEIPT_DIR, f"gsva_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"gsva_{wildcards.genome}_{current_time}.sh")
             plain_script = os.path.join(gsva_outdir, f"gsva.sh")
             with open(script, 'w') as f:
                 f.write("#!/bin/bash\nset -e\nset -o pipefail\n")
@@ -254,7 +250,6 @@ rule function_gsva:
         except Exception as e:
             rule_logger.error(f"GSVA analysis failed: {e}")
             raise RuntimeError(f"GSVA analysis failed: {e}")
-
 
 rule function_result:
     input:

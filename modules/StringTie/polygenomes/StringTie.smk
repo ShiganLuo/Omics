@@ -1,6 +1,5 @@
 include: "../../common/common.smk"
 
-import shutil
 indir = config.get("indir") or "input"
 outdir = config.get("outdir") or "output"
 logdir = config.get("logdir") or "log"
@@ -45,13 +44,15 @@ rule stringTie:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start stringTie run for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(output.gtf)
-            script = f"{sample_outdir}/stringTie_{current_time}.sh"
+            script = os.path.join(RECEIPT_DIR, f"stringTie_{wildcards.sample_id}_{current_time}.sh")
+            plain_script = f"{sample_outdir}/stringTie.sh"
             cmd = [params.stringtie, "-o", output.gtf, input.bam, "-G", input.gtf, "-p", str(threads)]
             with open(script, 'w') as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(' '.join(cmd) + '\n')
                 f.write(f'echo "StringTie for sample {wildcards.sample_id} on genome {wildcards.genome} successfully completed!"\n')
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during stringTie run: {e}")
             raise RuntimeError(f"Error occurred during stringTie run for sample {wildcards.sample_id}: {e}, you can check the log file for more details: {log_path}\n")
@@ -92,7 +93,8 @@ rule TEChimericTranscripts:
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
             rule_logger.info(f"Start TEChimericTranscripts run for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(output.txt)
-            script = f"{sample_outdir}/TEChimericTranscripts.{current_time}.sh"
+            script = os.path.join(RECEIPT_DIR, f"TEChimericTranscripts_{wildcards.sample_id}_{current_time}.sh")
+            plain_script = f"{sample_outdir}/TEChimericTranscripts.sh"
             cmd = [
                 "python", params.TEChimericTranscripts,
                 "-s", input.gtf,
@@ -103,7 +105,8 @@ rule TEChimericTranscripts:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "TEChimericTranscripts for sample {wildcards.sample_id} on genome {wildcards.genome} successfully completed!"\n')
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during TEChimericTranscripts: {e}")
             raise RuntimeError(f"Error occurred during TEChimericTranscripts for sample {wildcards.sample_id}: {e}, you can check the log file for more details: {log_path}\n")
@@ -148,7 +151,8 @@ rule TEChimericPlot:
         try:
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
             sample_outdir = os.path.dirname(output.group_stack)
-            script = f"{sample_outdir}/TEChimericPlot.{current_time}.sh"
+            script = os.path.join(RECEIPT_DIR, f"TEChimericPlot_{wildcards.genome}_{current_time}.sh")
+            plain_script = f"{sample_outdir}/TEChimericPlot.sh"
             rule_logger.info(f"Start TEChimericPlot run at {current_time}")
             group_tsv = outdir + f"/{wildcards.genome}/TE_chimeric/sample_groups.tsv"
             if genome_samples.get(wildcards.genome) is None or len(genome_samples[wildcards.genome]) == 0:
@@ -171,11 +175,11 @@ rule TEChimericPlot:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(' '.join(cmd) + "\n")
                 f.write(f'echo "TEChimericPlot for genome {wildcards.genome} was successfully completed!"\n')
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"Error occurred during TEChimericPlot: {e}")
             raise RuntimeError(f"Error occurred during TEChimericPlot for genome {wildcards.genome}: {e}, you can check the log file for more details: {log_path}\n")
-
 
 def get_input_for_stringTieMerge(wildcards):
     logger.debug(f"[get_input_for_stringTieMerge] called with wildcards: {wildcards}")
@@ -217,7 +221,7 @@ rule stringTieMerge:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start stringTieMerge run at {current_time}")
             sample_outdir = os.path.dirname(output.gtf)
-            script = os.path.join(RECEIPT_DIR, f"stringTieMerge_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"stringTieMerge_{wildcards.genome}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"stringTieMerge.sh")
             cmd = [params.stringtie, "--merge"] + list(input.gtfs) + ["-o", output.gtf, "-G", input.gtf]
             with open(script, 'w') as f:

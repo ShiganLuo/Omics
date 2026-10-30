@@ -1,6 +1,5 @@
 include: "../common/common.smk"
 
-import shutil
 indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
@@ -39,7 +38,7 @@ rule pbsv_discover:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start pbsv discover for sample {wildcards.sample_id} at {current_time}")
-            script = os.path.join(RECEIPT_DIR, f"pbsv_discover_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"pbsv_discover_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/pbsv_discover.sh")
             cmd = [
                 params.pbsv, "discover",
@@ -55,7 +54,6 @@ rule pbsv_discover:
         except Exception as e:
             rule_logger.error(f"pbsv discover failed for sample {wildcards.sample_id}: {e}")
             raise RuntimeError(f"pbsv discover failed: {e}\n")
-
 
 rule pbsv_call:
     input:
@@ -83,7 +81,7 @@ rule pbsv_call:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start pbsv call for sample {wildcards.sample_id} at {current_time}")
-            script = os.path.join(RECEIPT_DIR, f"pbsv_call_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"pbsv_call_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/pbsv_call.sh")
             cmd1 = [
                 params.pbsv, "call",

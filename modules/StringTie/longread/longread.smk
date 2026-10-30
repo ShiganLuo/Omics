@@ -1,6 +1,5 @@
 include: "../../common/common.smk"
 
-import shutil
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 samples = config.get("samples", [])
@@ -49,7 +48,6 @@ rule stringtie_lr_assemble:
         except Exception as e:
             rule_logger.error(f"Error during StringTie LR assembly for sample {wildcards.sample_id}: {e}")
             raise RuntimeError(f"Error during StringTie LR assembly for sample {wildcards.sample_id}: {e}\n")
-
 
 rule stringtie_lr_merge:
     input:

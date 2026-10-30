@@ -1,6 +1,5 @@
 include: "../../common/common.smk"
 
-import shutil
 from typing import Tuple
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
@@ -40,9 +39,9 @@ rule TEcount:
         sif("../TEtranscripts.yaml")
     run:
         log_path = str(log)
+open(log_path, 'w').close()
+rule_logger = setup_logger("TEcount", log_file=log_path)
         try:
-            open(log_path, 'w').close()
-            rule_logger = setup_logger("TEcount", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start TEcount for sample {wildcards.sample_id} genome {wildcards.genome} at {current_time}")
             script = os.path.join(RECEIPT_DIR, f"TEcount_{wildcards.sample_id}_{current_time}.sh")
@@ -89,12 +88,12 @@ rule combine_TEcount:
         logdir + "/all/TEtranscripts/{genome}_combine_TEcount.log"
     run:
         log_path = str(log)
+open(log_path, 'w').close()
+rule_logger = setup_logger("combine_TEcount", log_file=log_path)
         try:
-            open(log_path, 'w').close()
-            rule_logger = setup_logger("combine_TEcount", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start combine_TEcount for genome {wildcards.genome} at {current_time}")
-            script = os.path.join(RECEIPT_DIR, f"combine_TEcount_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"combine_TEcount_{wildcards.genome}_{current_time}.sh")
             plain_script = os.path.join(params.indir, f"combine_TEcount.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
@@ -137,9 +136,9 @@ rule TElocal:
         sif("../TEtranscripts.yaml")
     run:
         log_path = str(log)
+open(log_path, 'w').close()
+rule_logger = setup_logger("TElocal", log_file=log_path)
         try:
-            open(log_path, 'w').close()
-            rule_logger = setup_logger("TElocal", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start TElocal for sample {wildcards.sample_id} genome {wildcards.genome} at {current_time}")
             outdir_local = os.path.dirname(str(output.project))
@@ -189,12 +188,12 @@ rule combine_TElocal:
         logdir + "/all/TEtranscripts/{genome}_combine_TElocal.log"
     run:
         log_path = str(log)
+open(log_path, 'w').close()
+rule_logger = setup_logger("combine_TElocal", log_file=log_path)
         try:
-            open(log_path, 'w').close()
-            rule_logger = setup_logger("combine_TElocal", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start combine_TElocal for genome {wildcards.genome} at {current_time}")
-            script = os.path.join(RECEIPT_DIR, f"combine_TElocal_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"combine_TElocal_{wildcards.genome}_{current_time}.sh")
             plain_script = os.path.join(params.indir, f"combine_TElocal.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")

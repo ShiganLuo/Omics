@@ -1,8 +1,5 @@
 include: "../common/common.smk"
 
-import shutil
-
-from snakemake.logging import logger
 import os
 import time
 
@@ -18,7 +15,6 @@ BIN = ROOT_DIR + "/modules/ldsc/bin"
 
 wildcard_constraints:
     trait = ".+",
-
 
 rule ldsc_annot:
     """Split FIRE peak clusters into LDSC annotation BEDs."""
@@ -68,7 +64,6 @@ rule ldsc_annot:
             rule_logger.error(f"Error occurred during ldsc_annot: {e}\n")
             raise RuntimeError(f"Error occurred during ldsc_annot: {e}\n")
 
-
 rule ldsc_munge:
     """Munge one GWAS sumstats file with munge_sumstats.py."""
     input:
@@ -95,7 +90,7 @@ rule ldsc_munge:
             rule_logger.info(f"Start ldsc_munge for {wildcards.trait} at {current_time}")
             trait_outdir = outdir + f"/{wildcards.trait}"
             os.makedirs(trait_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"ldsc_munge_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"ldsc_munge_{wildcards.trait}_{current_time}.sh")
             plain_script = os.path.join(trait_outdir, f"ldsc_munge.sh")
             cmd = [
                 params.munge,
@@ -116,7 +111,6 @@ rule ldsc_munge:
         except Exception as e:
             rule_logger.error(f"Error occurred during ldsc_munge for {wildcards.trait}: {e}\n")
             raise RuntimeError(f"Error occurred during ldsc_munge for {wildcards.trait}: {e}\n")
-
 
 rule ldsc_h2_cts:
     """Partitioned heritability (ldsc.py --h2-cts) for one GWAS trait."""
@@ -145,7 +139,7 @@ rule ldsc_h2_cts:
             rule_logger.info(f"Start ldsc_h2_cts for {wildcards.trait} at {current_time}")
             trait_outdir = outdir + f"/{wildcards.trait}"
             os.makedirs(trait_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"ldsc_h2_cts_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"ldsc_h2_cts_{wildcards.trait}_{current_time}.sh")
             plain_script = os.path.join(trait_outdir, f"ldsc_h2_cts.sh")
             cmd = [
                 params.ldsc,
@@ -164,7 +158,6 @@ rule ldsc_h2_cts:
         except Exception as e:
             rule_logger.error(f"Error occurred during ldsc_h2_cts for {wildcards.trait}: {e}\n")
             raise RuntimeError(f"Error occurred during ldsc_h2_cts for {wildcards.trait}: {e}\n")
-
 
 rule ldsc_result:
     """Panel of per-trait LDSC results."""

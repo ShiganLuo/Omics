@@ -1,7 +1,5 @@
 include: "../../common/common.smk"
 
-import shutil
-
 from snakemake.logging import logger
 import os
 
@@ -33,14 +31,14 @@ rule bwaMem2_index:
         index_prefix = lambda wildcards: outdir + f"/index/{wildcards.genome}/{wildcards.genome}"
     run:
         log_path = str(log)
+open(log_path, 'w').close()
+rule_logger = setup_logger("bwaMem2_index", log_file=log_path)
         try:
-            open(log_path, 'w').close()
-            rule_logger = setup_logger("bwaMem2_index", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start bwa-mem2 index for genome {wildcards.genome} at {current_time}")
             sample_outdir = os.path.dirname(str(output.index[0]))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"bwaMem2_index_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"bwaMem2_index_{wildcards.genome}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"bwaMem2_index.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
@@ -100,7 +98,6 @@ def get_alignment_input(wildcards):
             f"Checked paths:\n- {paired_r1}\n- {paired_r2}\n- {single}"
         )
 
-
 rule bwaMem2_alignment:
     input:
         fastq = get_alignment_input,
@@ -122,14 +119,14 @@ rule bwaMem2_alignment:
             f"{input.fastq[0]} {input.fastq[1]}" if len(input.fastq) == 2 else f"{input.fastq[0]}"
     run:
         log_path = str(log)
+open(log_path, 'w').close()
+rule_logger = setup_logger("bwaMem2_alignment", log_file=log_path)
         try:
-            open(log_path, 'w').close()
-            rule_logger = setup_logger("bwaMem2_alignment", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start bwa-mem2 alignment for sample {wildcards.sample_id} on genome {wildcards.genome} at {current_time}")
             sample_outdir = os.path.dirname(str(output.bam))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"bwaMem2_alignment_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"bwaMem2_alignment_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"bwaMem2_alignment.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")

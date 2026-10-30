@@ -1,8 +1,6 @@
 include: "../../common/common.smk"
 
-from snakemake.logging import logger
 import os
-import shutil
 import time
 
 indir = config.get("indir", "common/4_elements")
@@ -69,7 +67,6 @@ rule fiberseq_motif_scan:
             rule_logger.error(f"Error occurred during fiberseq_motif_scan for {wildcards.sample_id}: {e}\n")
             raise RuntimeError(f"Error occurred during fiberseq_motif_scan for {wildcards.sample_id}: {e}\n")
 
-
 rule fiberseq_motif_profile:
     """Aggregate m6A/accessibility/nucleosome profiles around motif sites."""
     input:
@@ -130,7 +127,6 @@ rule fiberseq_motif_profile:
         except Exception as e:
             rule_logger.error(f"Error occurred during fiberseq_motif_profile for {wildcards.sample_id}: {e}\n")
             raise RuntimeError(f"Error occurred during fiberseq_motif_profile for {wildcards.sample_id}: {e}\n")
-
 
 rule fiberseq_motif_result:
     input:

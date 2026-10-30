@@ -1,6 +1,5 @@
 include: "../../common/common.smk"
 
-import shutil
 import shlex
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
@@ -61,13 +60,13 @@ rule macs3_callpeak:
         broad_cutoff = config.get("Params",{}).get("macs3", {}).get("broad_cutoff") or "0.1"
     run:
         log_path = str(log)
+open(log_path, 'w').close()
+rule_logger = setup_logger("macs3_callpeak",log_file=log_path)
         try:
-            open(log_path, 'w').close()
-            rule_logger = setup_logger("macs3_callpeak",log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start macs3 call peak for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.narrow_peak))
-            script = os.path.join(RECEIPT_DIR, f"macs3_callpeak_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"macs3_callpeak_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"macs3_callpeak.sh")
             cmd = [
                 params.macs3, "callpeak",
@@ -130,9 +129,9 @@ rule macs3_cutoff_plot:
         sif("../macs3.yaml")
     run:
         log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger("macs3_cutoff_plot", log_file=log_path)
         try:
-            open(log_path, "w").close()
-            rule_logger = setup_logger("macs3_cutoff_plot", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start cutoff plot for {ip_samples} at {current_time}")
 

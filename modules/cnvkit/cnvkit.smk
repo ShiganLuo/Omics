@@ -1,6 +1,5 @@
 include: "../common/common.smk"
 
-import shutil
 from snakemake.logging import logger
 import time
 import os
@@ -40,9 +39,9 @@ rule cnvkit_reference:
         control_bams = lambda wildcards: " ".join([f"{indir}/{sid}/{sid}.bam" for sid in control_samples])
     run:
         log_path = str(log)
+open(log_path, 'w').close()
+rule_logger = setup_logger("cnvkit_reference", log_file=log_path)
         try:
-            open(log_path, 'w').close()
-            rule_logger = setup_logger("cnvkit_reference", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start cnvkit reference build at {current_time}")
             sample_outdir = os.path.dirname(str(output.ref))
@@ -92,9 +91,9 @@ rule cnvkit_batch:
         outdir = outdir + "/cnv"
     run:
         log_path = str(log)
+open(log_path, 'w').close()
+rule_logger = setup_logger("cnvkit_batch", log_file=log_path)
         try:
-            open(log_path, 'w').close()
-            rule_logger = setup_logger("cnvkit_batch", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start cnvkit batch at {current_time}")
             script = os.path.join(RECEIPT_DIR, f"cnvkit_batch_{current_time}.sh")

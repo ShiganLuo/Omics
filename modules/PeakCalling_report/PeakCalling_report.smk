@@ -1,6 +1,5 @@
 include: "../common/common.smk"
 
-import shutil
 import shlex
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
@@ -80,9 +79,9 @@ rule generate_report:
         sample_ip_input_map = sample_ip_input_map,
     run:
         log_path = str(log)
+open(log_path, 'w').close()
+rule_logger = setup_logger("generate_report", log_file=log_path)
         try:
-            open(log_path, 'w').close()
-            rule_logger = setup_logger("generate_report", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start generate_report at {current_time}")
             report_dir = os.path.dirname(str(output.report))
@@ -130,7 +129,6 @@ rule generate_report:
                 f.write(f"Error occurred during generate_report: {e}\n")
             logger.error(f"Error occurred during generate_report: {e}")
             raise e
-
 
 rule report_result:
     """Result aggregation rule for subworkflow use rule import."""

@@ -1,7 +1,5 @@
 include: "../../common/common.smk"
 
-import shutil
-
 indir = config.get("indir", "data/psm_rescoring")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "logs")
@@ -36,7 +34,7 @@ rule psm_fdr:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start PSM FDR control for sample {wildcards.sample_id} at {current_time}")
-            script = os.path.join(RECEIPT_DIR, f"psm_fdr_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"psm_fdr_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/psm_fdr.sh")
             cmd = [
                 params.openms,

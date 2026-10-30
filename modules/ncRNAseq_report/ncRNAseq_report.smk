@@ -1,6 +1,5 @@
 include: "../common/common.smk"
 
-import shutil
 import shlex
 import json as _json
 outdir = config.get("outdir", "output")
@@ -63,9 +62,9 @@ rule generate_report:
         script = REPORT_SCRIPT,
     run:
         log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger("ncRNAseq_generate_report", log_file=log_path)
         try:
-            open(log_path, "w").close()
-            rule_logger = setup_logger("ncRNAseq_generate_report", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start ncRNAseq report generation at {current_time}")
             report_dir = os.path.dirname(str(output.report))
@@ -108,7 +107,6 @@ rule generate_report:
                 fh.write(f"ncRNAseq report generation failed: {e}\n")
             logger.error(f"ncRNAseq report generation failed: {e}")
             raise
-
 
 rule report_result:
     input:

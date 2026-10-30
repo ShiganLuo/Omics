@@ -1,6 +1,5 @@
 include: "../common/common.smk"
 
-import shutil
 outdir = config.get("outdir", "output")
 indir = config.get("indir", "output/raw_fastq")
 logdir = config.get("logdir", "log")
@@ -47,7 +46,7 @@ rule trimming_Paired:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start trimming_Paired for sample {wildcards.sample_id} at {current_time}")
-            script_path = os.path.join(RECEIPT_DIR, f"trimming_Paired_{current_time}.sh")
+            script_path = os.path.join(RECEIPT_DIR, f"trimming_Paired_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/trimming_Paired.sh")
             cmd1 = [
                 params.trim_galore, "--paired",
@@ -121,7 +120,7 @@ rule trimming_Single:
         rule_logger = setup_logger("trimming_Single", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            script_path = os.path.join(RECEIPT_DIR, f"trimming_Single_{current_time}.sh")
+            script_path = os.path.join(RECEIPT_DIR, f"trimming_Single_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/trimming_Single.sh")
             cmd1 = [
                 params.trim_galore, "--phred33",
@@ -151,7 +150,4 @@ rule trimming_Single:
         except Exception as e:
             rule_logger.error(f"trimming_Single failed for {wildcards.sample_id}: {e}")
             raise RuntimeError(f"trimming_Single failed for {wildcards.sample_id}: {e}\n")
-
-
-
 

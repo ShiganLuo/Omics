@@ -2,8 +2,6 @@
 
 include: "../../../common/common.smk"
 
-import shutil
-
 import os
 import shlex
 
@@ -27,11 +25,9 @@ tailer_params = config.get("Params", {}).get("tailer", {})
 HELPER = os.path.join(config["ROOT_DIR"], "modules/star/star_3pass/bin/gene_specific_align.py")
 PREPARE_HELPER = os.path.join(config["ROOT_DIR"], "modules/star/star_3pass/bin/prepare_gene_inputs.py")
 
-
 def final_bam(wildcards):
     return [f"{final_bam_dir}/{wildcards.genome}/{wildcards.sample_id}/{wildcards.sample_id}.bam",
             f"{final_bam_dir}/{wildcards.genome}/{wildcards.sample_id}/{wildcards.sample_id}.bam.bai"]
-
 
 rule star_3pg_gene_specific:
     input:
@@ -61,7 +57,7 @@ rule star_3pg_gene_specific:
             os.makedirs(sample_outdir, exist_ok=True)
             os.makedirs(os.path.dirname(log_path), exist_ok=True)
             input_dir = os.path.join(outdir, wildcards.genome, wildcards.sample_id)
-            script = os.path.join(RECEIPT_DIR, f"gene_specific_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"gene_specific_{wildcards.genome}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"gene_specific.sh")
 
             cmd = [

@@ -1,7 +1,6 @@
-from snakemake.logging import logger
+
 include: "../common/common.smk"
 
-import shutil
 import time
 import os
 
@@ -74,7 +73,7 @@ rule sv_exp_specific:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             outprefix = f"{outdir}/{wildcards.comparison}/{wildcards.comparison}"
-            script_path = os.path.join(RECEIPT_DIR, f"sv_exp_specific_{current_time}.sh")
+            script_path = os.path.join(RECEIPT_DIR, f"sv_exp_specific_{wildcards.comparison}_{current_time}.sh")
             plain_script = os.path.join(outdir, f"{wildcards.comparison}/sv_exp_specific.sh")
             rule_logger.info(f"Running sv_exp_specific for comparison: {wildcards.comparison}")
             fmt_args = []
@@ -138,7 +137,7 @@ rule sv_exp_enrichment:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             enrichment_outdir = f"{outdir}/{wildcards.comparison}/enrichment"
-            script_path = os.path.join(RECEIPT_DIR, f"sv_exp_enrichment_{current_time}.sh")
+            script_path = os.path.join(RECEIPT_DIR, f"sv_exp_enrichment_{wildcards.comparison}_{current_time}.sh")
             plain_script = os.path.join(outdir, f"{wildcards.comparison}/sv_exp_enrichment.sh")
             rule_logger.info(f"Running sv_exp_enrichment for comparison: {wildcards.comparison}")
             fmt_args = []
@@ -190,7 +189,7 @@ rule sv_exp_circos:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             circos_outdir = f"{outdir}/{wildcards.comparison}/circos"
-            script_path = os.path.join(RECEIPT_DIR, f"sv_exp_circos_{current_time}.sh")
+            script_path = os.path.join(RECEIPT_DIR, f"sv_exp_circos_{wildcards.comparison}_{current_time}.sh")
             plain_script = os.path.join(outdir, f"{wildcards.comparison}/sv_exp_circos.sh")
             rule_logger.info(f"Running sv_exp_circos for comparison: {wildcards.comparison}")
             fmt_args = []
@@ -240,7 +239,7 @@ rule sv_gene_model:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             gene_outdir = f"{outdir}/{wildcards.comparison}/gene_model"
-            script_path = os.path.join(RECEIPT_DIR, f"sv_gene_model_{current_time}.sh")
+            script_path = os.path.join(RECEIPT_DIR, f"sv_gene_model_{wildcards.comparison}_{current_time}.sh")
             plain_script = os.path.join(outdir, f"{wildcards.comparison}/sv_gene_model.sh")
             rule_logger.info(f"Running sv_gene_model for comparison: {wildcards.comparison}")
             gene_args = []

@@ -11,15 +11,12 @@ See: https://fiberseq.github.io/
 """
 include: "../../../common/common.smk"
 
-import shutil
-
 ROOT_DIR = config.get("ROOT_DIR", ".")
 indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 samples = config.get("samples", [])
 # fasta resolved per-genome in rules
-
 
 rule ft_predict_m6a:
     """Predict m6A positions from PacBio HiFi CCS BAM with kinetics.
@@ -42,14 +39,14 @@ rule ft_predict_m6a:
         ft = config.get("Procedure", {}).get("fibertools") or "ft"
     run:
         log_path = str(log)
+open(log_path, 'w').close()
+rule_logger = setup_logger("ft_predict_m6a", log_file=log_path)
         try:
-            open(log_path, 'w').close()
-            rule_logger = setup_logger("ft_predict_m6a", log_file=log_path)
             rule_logger.info(f"Predicting m6A for sample {wildcards.sample_id}")
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            command_script = os.path.join(RECEIPT_DIR, f"ft_predict_m6a_{current_time}.sh")
+            command_script = os.path.join(RECEIPT_DIR, f"ft_predict_m6a_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"ft_predict_m6a.sh")
             cmd = [
                 params.ft, "predict-m6a",
@@ -67,7 +64,6 @@ rule ft_predict_m6a:
             with open(log_path, "a") as f:
                 f.write(f"ft_predict_m6a failed: {e}\n")
             raise RuntimeError(f"ft_predict_m6a failed: {e}\n")
-
 
 rule ft_add_nucleosomes:
     """Add nucleosome calls to Fiber-seq BAM with m6A predictions.
@@ -90,14 +86,14 @@ rule ft_add_nucleosomes:
         ft = config.get("Procedure", {}).get("fibertools") or "ft"
     run:
         log_path = str(log)
+open(log_path, 'w').close()
+rule_logger = setup_logger("ft_add_nucleosomes", log_file=log_path)
         try:
-            open(log_path, 'w').close()
-            rule_logger = setup_logger("ft_add_nucleosomes", log_file=log_path)
             rule_logger.info(f"Adding nucleosomes for sample {wildcards.sample_id}")
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            command_script = os.path.join(RECEIPT_DIR, f"ft_add_nucleosomes_{current_time}.sh")
+            command_script = os.path.join(RECEIPT_DIR, f"ft_add_nucleosomes_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"ft_add_nucleosomes.sh")
             cmd = [
                 params.ft, "add-nucleosomes",
@@ -115,7 +111,6 @@ rule ft_add_nucleosomes:
             with open(log_path, "a") as f:
                 f.write(f"ft_add_nucleosomes failed: {e}\n")
             raise RuntimeError(f"ft_add_nucleosomes failed: {e}\n")
-
 
 rule ft_fire:
     """Call Fiber-seq Inferred Regulatory Elements (FIREs).
@@ -139,14 +134,14 @@ rule ft_fire:
         is_ont = config.get("Params", {}).get("fibertools", {}).get("ont", False)
     run:
         log_path = str(log)
+open(log_path, 'w').close()
+rule_logger = setup_logger("ft_fire", log_file=log_path)
         try:
-            open(log_path, 'w').close()
-            rule_logger = setup_logger("ft_fire", log_file=log_path)
             rule_logger.info(f"Calling FIREs for sample {wildcards.sample_id}")
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            command_script = os.path.join(RECEIPT_DIR, f"ft_fire_{current_time}.sh")
+            command_script = os.path.join(RECEIPT_DIR, f"ft_fire_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"ft_fire.sh")
             cmd = [
                 params.ft, "fire",
@@ -165,7 +160,6 @@ rule ft_fire:
             with open(log_path, "a") as f:
                 f.write(f"ft_fire failed: {e}\n")
             raise RuntimeError(f"ft_fire failed: {e}\n")
-
 
 rule ft_extract:
     """Extract Fiber-seq data to BED format.
@@ -191,14 +185,14 @@ rule ft_extract:
         ft = config.get("Procedure", {}).get("fibertools") or "ft"
     run:
         log_path = str(log)
+open(log_path, 'w').close()
+rule_logger = setup_logger("ft_extract", log_file=log_path)
         try:
-            open(log_path, 'w').close()
-            rule_logger = setup_logger("ft_extract", log_file=log_path)
             rule_logger.info(f"Extracting Fiber-seq data for sample {wildcards.sample_id}")
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            command_script = os.path.join(RECEIPT_DIR, f"ft_extract_{current_time}.sh")
+            command_script = os.path.join(RECEIPT_DIR, f"ft_extract_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"ft_extract.sh")
             cmd = [
                 params.ft, "extract",

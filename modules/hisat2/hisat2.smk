@@ -1,7 +1,5 @@
 include: "../common/common.smk"
 
-import shutil
-
 indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
@@ -33,7 +31,7 @@ rule hisat2_index:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start hisat2 index at {current_time}")
-            script = os.path.join(RECEIPT_DIR, f"hisat2_index_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"hisat2_index_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(outdir, f"index/hisat2_index.sh")
             cmd = [
                 "mkdir", "-p", os.path.dirname(str(params.prefix))
@@ -64,7 +62,6 @@ def get_hisat2_index(wildcards):
         if os.path.exists(first_file):
             return [f"{config_index_prefix}.{idx}.ht2" for idx in [1, 2, 3, 4, 5, 6, 7, 8]]
     return [outdir + f"/index/genome.{idx}.ht2" for idx in [1, 2, 3, 4, 5, 6, 7, 8]]
-
 
 def get_alignment_input(wildcards):
     """
@@ -130,7 +127,8 @@ rule hisat2_align:
         try:
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
             sample_outdir = os.path.dirname(output.outfile)
-            script = f"{sample_outdir}/hisat2_align.{current_time}.sh"
+            script = os.path.join(RECEIPT_DIR, f"hisat2_align_{wildcards.sample_id}_{current_time}.sh")
+            plain_script = f"{sample_outdir}/hisat2_align.sh"
             cmd1 = [
                 f"{params.hisat2}",
                 "-x", params.index_prefix,
@@ -152,7 +150,8 @@ rule hisat2_align:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) +"\n")
                 f.write(f"echo 'hisat_align for {wildcards.sample_id} was completed successfully at {current_time}'")
-            shell(f"bash {script} >> {log_path} 2>&1")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             rule_logger.error(f"hisat_align failed for sample {wildcards.sample_id}: {e}")
             raise RuntimeError(f"histat_align failed: {e}")

@@ -1,6 +1,5 @@
 include: "../common/common.smk"
 
-import shutil
 from snakemake.logging import logger
 indir = config.get("indir", "data")
 outdir = config.get("outdir", "results")
@@ -30,9 +29,9 @@ rule HRT:
         sif("CoCulture_report.yaml")
     run:
         log_path = str(log)
+open(log_path, 'w').close()
+logger = setup_logger(logger_name="HRT_run", log_file=log_path)
         try:
-            open(log_path, 'w').close()
-            logger = setup_logger(logger_name="HRT_run", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start HRT run at {current_time}")
             script = os.path.join(RECEIPT_DIR, f"HRT_{current_time}.sh")

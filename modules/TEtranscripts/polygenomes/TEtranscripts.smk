@@ -1,6 +1,5 @@
 include: "../../common/common.smk"
 
-import shutil
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 indir= config.get("indir", "output/raw_fastq")
@@ -117,7 +116,7 @@ rule combine_TEcount:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start combine_TEcount at {current_time}")
             sample_outdir = os.path.dirname(str(output.outfile_raw))
-            script = os.path.join(RECEIPT_DIR, f"combine_TEcount_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"combine_TEcount_{wildcards.genome}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"combine_TEcount.sh")
             cmd1 = [
                 "python", params.combineTE,
@@ -250,7 +249,7 @@ rule combine_TElocal:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start combine_TElocal at {current_time}")
-            script = os.path.join(RECEIPT_DIR, f"combine_TElocal_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"combine_TElocal_{wildcards.genome}_{current_time}.sh")
             plain_script = os.path.join(params.indir, f"combine_TElocal.sh")
             cmd1 = [
                 "python", str(params.combineTE),

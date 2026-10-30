@@ -1,6 +1,5 @@
 include: "../common/common.smk"
 
-import shutil
 indir = config.get('indir', "input")
 outdir = config.get('outdir', "output")
 logdir = config.get('logdir', "log")
@@ -27,13 +26,13 @@ rule samtools_dedup:
         samtools = config.get('Procedure',{}).get('samtools') or 'samtools'
     run:
         log_path = str(log)
+rule_logger = setup_logger("dedup",log_file=log_path)
         try:
-            rule_logger = setup_logger("dedup",log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start rule dedup for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            script_path = os.path.join(RECEIPT_DIR, f"samtools_dedup_{current_time}.sh")
+            script_path = os.path.join(RECEIPT_DIR, f"samtools_dedup_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"samtools_dedup.sh")
             cmd = [
                 params.samtools, "sort",
@@ -89,13 +88,13 @@ rule wig:
         extendReads = config.get('Params', {}).get('bamCoverage',{}).get('extendReads') or False
     run:
         log_path = str(log)
+rule_logger = setup_logger("wig",log_file=log_path)
         try:
-            rule_logger = setup_logger("wig",log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start rule wig for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            script_path = os.path.join(RECEIPT_DIR, f"bamCoverage_wig_{current_time}.sh")
+            script_path = os.path.join(RECEIPT_DIR, f"bamCoverage_wig_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"bamCoverage_wig.sh")
             cmd = [
                 params.bamCoverage,

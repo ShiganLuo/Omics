@@ -1,8 +1,6 @@
 include: "../../common/common.smk"
 
-from snakemake.logging import logger
 import os
-import shutil
 import time
 
 indir = config.get("indir", "common/4_elements")
@@ -15,7 +13,6 @@ p = config.get("Params", {}).get("fiberseq_haplotype", {})
 
 # upstream contract: per-hap quant tables from fiberseq_analysis/quant
 QUANT_DIR = config.get("quant_dir") or indir + "/quant"
-
 
 rule fiberseq_haplotype_diff:
     """Haplotype-specific accessibility differences (Fisher per region)."""
@@ -70,7 +67,6 @@ rule fiberseq_haplotype_diff:
         except Exception as e:
             rule_logger.error(f"Error occurred during fiberseq_haplotype_diff for {wildcards.sample_id}: {e}\n")
             raise RuntimeError(f"Error occurred during fiberseq_haplotype_diff for {wildcards.sample_id}: {e}\n")
-
 
 rule fiberseq_haplotype_result:
     input:

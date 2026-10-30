@@ -1,6 +1,5 @@
 include: "../../common/common.smk"
 
-import shutil
 indir= config.get("indir", "input")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
@@ -47,7 +46,7 @@ rule bowtie2_index:
         try:
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
             rule_logger.info(f"Start bowtie2 index for genome {wildcards.genome} at {current_time}")
-        script = f"{logdir}/cmd/group/bowtie2_index.{wildcards.genome}.{current_time}.sh"
+        script = os.path.join(RECEIPT_DIR, f"bowtie2_index.{wildcards.genome}_{current_time}.sh")
         plain_script = f"{outdir}/index/{wildcards.genome}/bowtie2_index.sh"
             cmd = [params.bowtie2_build, 
                     "--threads", str(threads), 
@@ -63,7 +62,6 @@ rule bowtie2_index:
         except Exception as e:
             rule_logger.error(f"Error occurred during bowtie2 index for genome {wildcards.genome}, error: {e}\n")
             raise RuntimeError(f"Error occurred during bowtie2 index for genome {wildcards.genome}, error: {e}, please check the {log_path} file for more details.\n")
-
 
 def get_alignment_input(wildcards):
     """
@@ -144,7 +142,7 @@ rule bowtie2_align_paired:
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
             rule_logger.info(f"Start bowtie2_align_paired for sample {wildcards.sample_id} on genome {wildcards.genome} at {current_time}")
             sample_outdir = os.path.dirname(str(output.bam))
-        script = f"{logdir}/cmd/{wildcards.sample_id}/bowtie2_align.{current_time}.sh"
+        script = os.path.join(RECEIPT_DIR, f"bowtie2_align_{wildcards.sample_id}_{current_time}.sh")
         plain_script = f"{sample_outdir}/bowtie2_align.sh"
             cmd1 = [params.bowtie2, 
                     "-x", params.index_prefix, 
@@ -199,7 +197,7 @@ rule bowtie2_align_single:
         try:
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
             rule_logger.info(f"Start bowtie2_align_single for sample {wildcards.sample_id} on genome {wildcards.genome} at {current_time}")
-            script = f"{outdir}/{wildcards.genome}/{wildcards.sample_id}/bowtie2_align.{current_time}.sh"
+            script = os.path.join(RECEIPT_DIR, f"bowtie2_align_{wildcards.sample_id}_{current_time}.sh")
             cmd1 = [params.bowtie2, 
                     "-x", params.index_prefix, 
                     "-U", input.fastq, 

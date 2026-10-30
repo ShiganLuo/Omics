@@ -1,6 +1,5 @@
 include: "../common/common.smk"
 
-from snakemake.logging import logger
 import time
 import os
 import sys
@@ -31,10 +30,9 @@ rule mimseq_prepare_sample_data:
     container:
         sif("mimseq.yaml")
     run:
+        log_path = str(log)
+        open(log_path, "w").close()
         try:
-            log_path = str(log)
-            open(log_path, "w").close()
-
             sample_condition_dict = extract_condition(input.meta)
             os.makedirs(outdir, exist_ok=True)
 

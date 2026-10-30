@@ -1,6 +1,5 @@
 include: "../common/common.smk"
 
-import shutil
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 indir = config.get("indir", "input")
@@ -23,14 +22,14 @@ rule samtools_stats:
         samtools = config.get("Procedure", {}).get("samtools") or "samtools"
     run:
         log_path = str(log)
+open(log_path, 'w').close()
+rule_logger = setup_logger("samtools_stats", log_file=log_path)
         try:
-            open(log_path, 'w').close()
-            rule_logger = setup_logger("samtools_stats", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start samtools_stats for sample {wildcards.sample_id} at {current_time}")
             outdir_sample = os.path.dirname(str(output.stats))
             os.makedirs(outdir_sample, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"samtools_stats_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"samtools_stats_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(outdir_sample, f"samtools_stats.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
@@ -59,9 +58,9 @@ rule getFragmentSize:
         sif("fragment_size.yaml")
     run:
         log_path = str(log)
+open(log_path, 'w').close()
+rule_logger = setup_logger("getFragmentSize", log_file=log_path)
         try:
-            open(log_path, 'w').close()
-            rule_logger = setup_logger("getFragmentSize", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start getFragmentSize at {current_time}")
             outdir_fragment = os.path.dirname(str(output.hist))
@@ -96,9 +95,9 @@ rule plotFragmentSize:
         sif("fragment_size.yaml")
     run:
         log_path = str(log)
+open(log_path, 'w').close()
+rule_logger = setup_logger("plotFragmentSize", log_file=log_path)
         try:
-            open(log_path, 'w').close()
-            rule_logger = setup_logger("plotFragmentSize", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start plotFragmentSize at {current_time}")
             outdir_fragment = os.path.dirname(str(output.png))

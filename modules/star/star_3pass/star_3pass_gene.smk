@@ -2,8 +2,6 @@
 
 include: "../../common/common.smk"
 
-import shutil
-
 import os
 import shlex
 
@@ -32,11 +30,9 @@ PREPARE_HELPER = os.path.join(config["ROOT_DIR"], "modules/star/star_3pass/bin/p
 if not final_bam_dir or not smallrna_bed or not genome_fasta:
     raise ValueError("star_3pass_gene requires final_bam_dir, smallrna_bed, and genome_fasta")
 
-
 def final_bam(wildcards):
     return [f"{final_bam_dir}/{wildcards.sample_id}/{wildcards.sample_id}.bam",
             f"{final_bam_dir}/{wildcards.sample_id}/{wildcards.sample_id}.bam.bai"]
-
 
 rule star_3pg_gene_specific:
     input:
@@ -66,7 +62,7 @@ rule star_3pg_gene_specific:
             os.makedirs(sample_outdir, exist_ok=True)
             os.makedirs(os.path.dirname(log_path), exist_ok=True)
             input_dir = os.path.join(outdir, wildcards.sample_id)
-            script = os.path.join(RECEIPT_DIR, f"gene_specific_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"gene_specific_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"gene_specific.sh")
 
             cmd = [

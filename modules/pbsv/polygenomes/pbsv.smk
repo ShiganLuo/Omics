@@ -1,7 +1,5 @@
 include: "../../common/common.smk"
 
-import shutil
-
 from snakemake.logging import logger
 import time
 import os
@@ -38,7 +36,7 @@ rule pbsv_discover:
     run:
         current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start pbsv discover for sample {wildcards.sample_id} genome {wildcards.genome} at {current_time}")
-        script = os.path.join(RECEIPT_DIR, f"pbsv_discover_{current_time}.sh")
+        script = os.path.join(RECEIPT_DIR, f"pbsv_discover_{wildcards.sample_id}_{current_time}.sh")
         plain_script = os.path.join(outdir, f"{wildcards.genome}/{wildcards.sample_id}/pbsv_discover.sh")
         cmd = [
             params.pbsv, "discover",
@@ -51,7 +49,6 @@ rule pbsv_discover:
             f.write(" ".join(cmd) + "\n")
         shutil.copyfile(script, plain_script)
         shell("bash {plain_script} > {log} 2>&1")
-
 
 rule pbsv_call:
     input:
@@ -75,7 +72,7 @@ rule pbsv_call:
     run:
         current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start pbsv call for sample {wildcards.sample_id} genome {wildcards.genome} at {current_time}")
-        script = os.path.join(RECEIPT_DIR, f"pbsv_call_{current_time}.sh")
+        script = os.path.join(RECEIPT_DIR, f"pbsv_call_{wildcards.genome}_{current_time}.sh")
         plain_script = os.path.join(outdir, f"{wildcards.genome}/{wildcards.sample_id}/pbsv_call.sh")
         cmd1 = [
             params.pbsv, "call",
@@ -102,7 +99,6 @@ rule pbsv_call:
             f.write(" ".join(cmd4) + "\n")
         shutil.copyfile(script, plain_script)
         shell("bash {plain_script} > {log} 2>&1")
-
 
 rule pbsv_result:
     input:

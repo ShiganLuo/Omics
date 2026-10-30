@@ -1,7 +1,5 @@
 include: "../../common/common.smk"
 
-import shutil
-
 indir = config.get("indir", "data/msfragger")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "logs")
@@ -17,7 +15,6 @@ picked = phil_params.get("picked", True)
 
 # Get executables
 philosopher = config.get("Procedure", {}).get("philosopher") or "philosopher"
-
 
 rule philosopher_database:
     input:
@@ -61,7 +58,6 @@ rule philosopher_database:
             rule_logger.error(f"Error during Philosopher database build: {str(e)}\n")
             raise RuntimeError(f"Error during Philosopher database build: {str(e)}\n")
 
-
 rule philosopher_filter:
     input:
         pepxml = indir + "/{sample_id}/{sample_id}.pepXML",
@@ -98,7 +94,7 @@ rule philosopher_filter:
                     os.link(str(input.pepxml), local_pepxml)
                 except OSError:
                     shutil.copy(str(input.pepxml), local_pepxml)
-            script = os.path.join(RECEIPT_DIR, f"philosopher_filter_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"philosopher_filter_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"philosopher_filter.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
@@ -127,7 +123,6 @@ rule philosopher_filter:
         except Exception as e:
             rule_logger.error(f"Error during Philosopher filter: {str(e)}\n")
             raise RuntimeError(f"Error during Philosopher filter: {str(e)}\n")
-
 
 rule philosopher_result:
     input:

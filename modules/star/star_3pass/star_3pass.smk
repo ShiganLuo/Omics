@@ -2,8 +2,6 @@
 
 include: "../../common/common.smk"
 
-import shutil
-
 import os
 import shlex
 
@@ -16,7 +14,6 @@ smallrna_bed = config.get("genome", {}).get("smallrna_bed")
 three_pass_params = config.get("Params", {}).get("star_3pass", {})
 HELPER = os.path.join(config["ROOT_DIR"], "modules/star/star_3pass/bin/three_pass_align.py")
 
-
 def fq_inputs(wildcards):
     """Resolve paired- or single-end preprocessed FASTQ inputs."""
     indir = config.get("indir", "input")
@@ -26,7 +23,6 @@ def fq_inputs(wildcards):
             f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}_2.fq.gz",
         ]
     return [f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}.single.fq.gz"]
-
 
 rule star_3p_align:
     input:
@@ -67,7 +63,7 @@ rule star_3p_align:
             sample_outdir = os.path.dirname(str(output.bam))
             os.makedirs(sample_outdir, exist_ok=True)
             os.makedirs(os.path.dirname(log_path), exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"three_pass_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"three_pass_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"three_pass.sh")
 
             p1 = three_pass_params.get("pass1", {})

@@ -1,7 +1,5 @@
 include: "../../common/common.smk"
 
-import shutil
-
 import os
 
 outdir = config.get("outdir", "output")
@@ -32,7 +30,7 @@ rule chromosome_sizes:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start chromosome_sizes at {current_time}")
-            script = os.path.join(RECEIPT_DIR, f"chromosome_sizes_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"chromosome_sizes_{wildcards.genome}_{current_time}.sh")
             plain_script = os.path.join(os.path.dirname(output.chrom_sizes), f"chromosome_sizes.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")

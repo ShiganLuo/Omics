@@ -1303,7 +1303,9 @@ def runFiberseq(
     # absent). Fall back to a pre-built mouse TE library when the reference
     # is a mouse genome and the library exists.
     if not _sv_exp.get("te_lib"):
-        _mouse_lib = "/data/16T/Database/env/sv/famdb/mouse_te_lib.fa"
+        # lib lives with the FamDB reference data, not inside the env dir
+        # (moved 2026-10-29; the old env/sv/famdb path no longer exists)
+        _mouse_lib = "/data/16T/Database/Reference/famdb/mouse_te_lib.fa"
         if os.path.isfile(_mouse_lib):
             _sv_exp["te_lib"] = _mouse_lib
     # .fai next to the FASTA (hot_spot analysis reads it; a null fai crashes

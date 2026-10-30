@@ -4,16 +4,16 @@ from snakemake.logging import logger
 import os
 import time
 
-indir = config.get("indir", "results")
-outdir = config.get("outdir", "results/fiberseq_footprint")
+indir = config.get("indir", "common/4_elements")
+outdir = config.get("outdir", "fiberseq_analysis/footprint")
 logdir = config.get("logdir", "log")
 samples = config.get("samples", [])
 ROOT_DIR = config.get("ROOT_DIR", ".")
 env = config.get("env", {})
 p = config.get("Params", {}).get("fiberseq_footprint", {})
 
-# upstream contract: motif sites come from modules/fiberseq_motif
-MOTIF_DIR = config.get("motif_dir") or indir + "/fiberseq_motif"
+# upstream contract: motif sites come from fiberseq_analysis/motif
+MOTIF_DIR = config.get("motif_dir") or indir + "/motif"
 
 
 rule fiberseq_footprint_run:
@@ -49,7 +49,8 @@ rule fiberseq_footprint_run:
             rule_logger.info(f"Start footprint for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.categories))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(sample_outdir, f"fiberseq_footprint_run_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"fiberseq_footprint_run_{wildcards.sample_id}_{current_time}.sh")
             cmd = [
                 "python", params.script,
                 "-m", str(input.sites),

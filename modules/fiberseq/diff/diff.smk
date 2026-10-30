@@ -4,18 +4,18 @@ from snakemake.logging import logger
 import os
 import time
 
-indir = config.get("indir", "results")
-outdir = config.get("outdir", "results/fiberseq_diff")
+indir = config.get("indir", "common/4_elements")
+outdir = config.get("outdir", "fiberseq_analysis/diff")
 logdir = config.get("logdir", "log")
 samples = config.get("samples", [])
 ROOT_DIR = config.get("ROOT_DIR", ".")
 env = config.get("env", {})
 p = config.get("Params", {}).get("fiberseq_diff", {})
 
-# upstream contract: matrices from modules/fiberseq_quant, annotations from
-# modules/fiberseq_annotate
-QUANT_DIR = config.get("quant_dir") or indir + "/fiberseq_quant"
-ANNOT_DIR = config.get("annot_dir") or indir + "/fiberseq_annotate"
+# upstream contract: matrices from fiberseq_analysis/quant, annotations from
+# fiberseq_analysis/annotate
+QUANT_DIR = config.get("quant_dir") or indir + "/quant"
+ANNOT_DIR = config.get("annot_dir") or indir + "/annotate"
 ANNOT_SAMPLE = p.get("annot_sample") or (samples[0] if samples else "")
 
 
@@ -51,7 +51,8 @@ rule fiberseq_diff_run:
             rule_logger.info(f"Start diff analysis for {wildcards.contrast} at {current_time}")
             contrast_outdir = os.path.dirname(str(output.diff))
             os.makedirs(contrast_outdir, exist_ok=True)
-            script = os.path.join(contrast_outdir, f"fiberseq_diff_run_{wildcards.contrast}_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.contrast)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.contrast), f"fiberseq_diff_run_{wildcards.contrast}_{current_time}.sh")
             cmd = [
                 "python", params.script,
                 "-m", str(input.matrix),

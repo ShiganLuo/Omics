@@ -1,6 +1,6 @@
 {
-    "indir": "results",
-    "outdir": "results/fiberseq_motif",
+    "indir": "common/4_elements",
+    "outdir": "fiberseq_analysis/motif",
     "logdir": "log",
     "samples": [],
     "Procedure": {},

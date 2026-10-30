@@ -4,8 +4,8 @@ from snakemake.logging import logger
 import os
 import time
 
-indir = config.get("indir", "results")
-outdir = config.get("outdir", "results/fiberseq_motif")
+indir = config.get("indir", "common/4_elements")
+outdir = config.get("outdir", "fiberseq_analysis/motif")
 logdir = config.get("logdir", "log")
 samples = config.get("samples", [])
 ROOT_DIR = config.get("ROOT_DIR", ".")
@@ -41,7 +41,8 @@ rule fiberseq_motif_scan:
             rule_logger.info(f"Start motif scan for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.sites))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(sample_outdir, f"fiberseq_motif_scan_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"fiberseq_motif_scan_{wildcards.sample_id}_{current_time}.sh")
             cmd = [
                 "python", params.script,
                 "-m", str(input.motif_file),
@@ -97,7 +98,8 @@ rule fiberseq_motif_profile:
             rule_logger.info(f"Start motif profile for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.profile))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(sample_outdir, f"fiberseq_motif_profile_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"fiberseq_motif_profile_{wildcards.sample_id}_{current_time}.sh")
             cmd = [
                 "python", params.script,
                 "-m", str(input.sites),

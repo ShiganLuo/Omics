@@ -50,7 +50,9 @@ rule ft_extract:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            command_script = os.path.join(sample_outdir, f"ft_extract_{current_time}.sh")
+            cmd_dir = os.path.join(logdir, "cmd", wildcards.sample_id)
+            os.makedirs(cmd_dir, exist_ok=True)
+            command_script = os.path.join(cmd_dir, f"ft_extract_{current_time}.sh")
             cmd = [
                 params.ft, "extract",
                 "-r",
@@ -100,9 +102,14 @@ rule ft_call_peaks:
         try:
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            sorted_bam = os.path.join(sample_outdir, f"{wildcards.sample_id}.fire.sorted.bam")
+            # The pbmm2-aligned BAM (indir) is already coordinate-sorted;
+            # reuse it in place — do NOT materialize another sorted copy in
+            # the outdir (that duplicated ~60G per sample historically).
+            sorted_bam = str(input.bam)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            command_script = os.path.join(sample_outdir, f"ft_call_peaks_{current_time}.sh")
+            cmd_dir = os.path.join(logdir, "cmd", wildcards.sample_id)
+            os.makedirs(cmd_dir, exist_ok=True)
+            command_script = os.path.join(cmd_dir, f"ft_call_peaks_{current_time}.sh")
             rule_logger.info(f"Calling FIRE peaks for sample {wildcards.sample_id}")
             # Build ft call-peaks command (fdr mode needs a shuffled null BED)
             mode = params.fdr_cfg.get("call_peaks_mode", "fdr")
@@ -111,8 +118,12 @@ rule ft_call_peaks:
                     "call_peaks_mode=fdr requires 'genome.fai' in the config JSON "
                     "(chrom sizes for the shuffled null)."
                 )
-            fibers_bed = os.path.join(sample_outdir, f"{wildcards.sample_id}.fibers.bed")
-            shuffled_bed = os.path.join(sample_outdir, f"{wildcards.sample_id}.fibers.shuffled.bed")
+            # shuffle null intermediates are scratch: keep them in a tmp
+            # dir (removed on success), never in the results dir
+            scratch_dir = os.path.join(outdir, ".tmp_ft_call_peaks", wildcards.sample_id)
+            os.makedirs(scratch_dir, exist_ok=True)
+            fibers_bed = os.path.join(scratch_dir, f"{wildcards.sample_id}.fibers.bed")
+            shuffled_bed = os.path.join(scratch_dir, f"{wildcards.sample_id}.fibers.shuffled.bed")
             ft_cmd = [
                 params.ft, "call-peaks",
                 "-t", str(threads),
@@ -143,9 +154,7 @@ rule ft_call_peaks:
                 f.write(f'    printf "#chrom\\tstart\\tend\\tname\\tscore\\tstrand\\n" > {output.peaks}\n')
                 f.write(f'    exit 0\n')
                 f.write(f'fi\n')
-                f.write(f'echo "Sorting BAM"\n')
-                f.write(f'samtools sort -@ {threads} -o {sorted_bam} {input.bam}\n')
-                f.write(f'samtools index {sorted_bam}\n')
+                f.write(f'echo "Using aligned BAM in place (already sorted): {sorted_bam}"\n')
                 if mode == "fdr":
                     f.write(f'echo "Building shuffled null"\n')
                     f.write(f'samtools view -F 0x904 {sorted_bam} | '
@@ -157,6 +166,7 @@ rule ft_call_peaks:
                 if mode != "fdr":
                     f.write(f'printf "#FDR table not computed (fire_frac mode)\\n" > {output.fdr_table}\n')
                 f.write(f'echo "FIRE peak calling completed for sample {wildcards.sample_id}"\n')
+                f.write(f'rm -rf {scratch_dir}\n')
 
             shell(f"bash {command_script} >> {log_path} 2>&1")
         except Exception as e:
@@ -193,7 +203,9 @@ rule ft_qc:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            command_script = os.path.join(sample_outdir, f"ft_qc_{current_time}.sh")
+            cmd_dir = os.path.join(logdir, "cmd", wildcards.sample_id)
+            os.makedirs(cmd_dir, exist_ok=True)
+            command_script = os.path.join(cmd_dir, f"ft_qc_{current_time}.sh")
             cmd = [
                 params.ft, "qc",
                 "-t", str(threads),
@@ -225,14 +237,14 @@ rule ft_extract_fire:
     input:
         bam = indir + "/{sample_id}/{sample_id}" + _bam_suffix
     output:
-        fire = outdir + "/{sample_id}/{sample_id}.fire.bed",
+        fire = outdir + "/{sample_id}/{sample_id}.fire.bed.gz",
     log:
         logdir + "/{sample_id}/ft_extract_fire.log"
     threads: 8
     conda:
-        "fibertools.yaml"
+        "../samtools/samtools.yaml"
     container:
-        sif("fibertools.yaml")
+        sif("../samtools/samtools.yaml")
     params:
         ft = config.get("Procedure", {}).get("fibertools") or "ft",
         is_ont = config.get("Params", {}).get("fibertools", {}).get("ont", False),
@@ -245,7 +257,9 @@ rule ft_extract_fire:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            command_script = os.path.join(sample_outdir, f"ft_extract_fire_{current_time}.sh")
+            cmd_dir = os.path.join(logdir, "cmd", wildcards.sample_id)
+            os.makedirs(cmd_dir, exist_ok=True)
+            command_script = os.path.join(cmd_dir, f"ft_extract_fire_{current_time}.sh")
             # `ft fire --extract` emits records in BAM (fiber) order, which is
             # NOT chromosome-grouped/start-sorted. Every ChromSweep consumer
             # (quant/coactuation/motif/footprint/censat) requires a
@@ -263,7 +277,8 @@ rule ft_extract_fire:
             with open(command_script, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
-                f.write(f"LC_ALL=C sort -k1,1 -k2,2n {tmp_fire} > {output.fire}\n")
+                f.write(f"LC_ALL=C sort -k1,1 -k2,2n {tmp_fire} | bgzip -c > {output.fire}\n")
+                f.write(f"tabix -f -p bed {output.fire}\n")
                 f.write(f"rm -f {tmp_fire}\n")
                 f.write(f'echo "FIRE extraction completed for sample {wildcards.sample_id}"\n')
             shell(f"bash {command_script} >> {log_path} 2>&1")
@@ -297,7 +312,9 @@ rule ft_split_hap:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            command_script = os.path.join(sample_outdir, f"ft_split_hap_{wildcards.hap}_{current_time}.sh")
+            cmd_dir = os.path.join(logdir, "cmd", wildcards.sample_id)
+            os.makedirs(cmd_dir, exist_ok=True)
+            command_script = os.path.join(cmd_dir, f"ft_split_hap_{wildcards.hap}_{current_time}.sh")
             with open(command_script, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(f'samtools view -b -@ {threads} -d HP:{params.hp_value} '
@@ -338,7 +355,9 @@ rule ft_extract_hap:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            command_script = os.path.join(sample_outdir, f"ft_extract_{wildcards.hap}_{current_time}.sh")
+            cmd_dir = os.path.join(logdir, "cmd", wildcards.sample_id)
+            os.makedirs(cmd_dir, exist_ok=True)
+            command_script = os.path.join(cmd_dir, f"ft_extract_{wildcards.hap}_{current_time}.sh")
             cmd = [
                 params.ft, "extract",
                 "-r",

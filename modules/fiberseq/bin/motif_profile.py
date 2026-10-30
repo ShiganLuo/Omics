@@ -144,6 +144,7 @@ def run(args: argparse.Namespace) -> int:
     args.outdir.mkdir(parents=True, exist_ok=True)
     scores_path = args.outdir / f"{args.sample}.motif_footprint_scores.tsv"
     scores_tmp = Path(f"{scores_path}.tmp")
+    scores_tmp.unlink(missing_ok=True)  # clear stale leftovers from failed runs
     scores_fh = scores_tmp.open("w", encoding="utf-8")
     scores_fh.write("\t".join(
         ["chrom", "start", "end", "motif", "footprint_score", "mean_m6a_frac"]) + "\n")

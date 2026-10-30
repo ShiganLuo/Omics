@@ -1,6 +1,6 @@
 {
-    "indir": "results",
-    "outdir": "results/fiberseq_haplotype",
+    "indir": "common/4_elements",
+    "outdir": "fiberseq_analysis/haplotype",
     "logdir": "log",
     "samples": [],
     "Procedure": {},

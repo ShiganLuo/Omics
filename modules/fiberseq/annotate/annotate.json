@@ -1,6 +1,6 @@
 {
-    "indir": "results",
-    "outdir": "results/fiberseq_annotate",
+    "indir": "common/4_elements",
+    "outdir": "fiberseq_analysis/annotate",
     "logdir": "log",
     "samples": [],
     "Procedure": {},

@@ -230,7 +230,9 @@ def run(args: argparse.Namespace) -> int:
 
     args.outdir.mkdir(parents=True, exist_ok=True)
     cats_path = args.outdir / f"{args.sample}.footprint_categories.tsv"
-    cats_fh = Path(f"{cats_path}.tmp").open("w", encoding="utf-8")
+    cats_tmp = Path(f"{cats_path}.tmp")
+    cats_tmp.unlink(missing_ok=True)  # clear stale leftovers from failed runs
+    cats_fh = cats_tmp.open("w", encoding="utf-8")
     cats_fh.write("\t".join(["chrom", "start", "end", "motif", *CATEGORIES]) + "\n")
 
     agg = {c: {"cov": np.zeros(width), "m6a": np.zeros(width)} for c in CATEGORIES}
@@ -333,7 +335,7 @@ def run(args: argparse.Namespace) -> int:
                     f"{len(S_un.start)} union spans, {time.time() - t0:.0f}s elapsed")
 
     cats_fh.close()
-    os.replace(Path(f"{cats_path}.tmp"), cats_path)
+    os.replace(cats_tmp, cats_path)
 
     if sum(len(v) for v in score_sets.values()) == 0:
         logger.error("no fiber classified at any site; no outputs")

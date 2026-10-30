@@ -3,7 +3,7 @@ include: "../../common/common.smk"
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 samples = config.get("samples", [])
-upstream_indir = config.get("upstream_indir", config.get("indir", "input"))
+upstream_indir = config.get("upstream_indir") or config.get("indir") or "input"
 merged_gtf = config.get("merged_gtf", outdir + "/stringtie_merged.gtf")
 
 rule stringtie_lr_assemble:

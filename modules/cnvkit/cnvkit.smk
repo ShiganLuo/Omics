@@ -21,7 +21,7 @@ def get_cnvkit_bams(wildcards):
 rule cnvkit_reference:
     """Build CNVkit reference from control samples."""
     input:
-        control_bams = expand(f"{indir}/{sid}/{sid}.bam", sid=control_samples),
+        control_bams = expand(indir + "/{sid}/{sid}" + bam_suffix + ".bam", sid=control_samples),
         fasta = config.get("genome", {}).get("fasta"),
         access = config.get("genome", {}).get("access")
     output:

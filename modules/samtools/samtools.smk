@@ -29,7 +29,8 @@ rule bam_flagstat:
             rule_logger.info(f"Start samtools flagstat for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.flagstat))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(cmd_dir(logdir, "group"), f"bam_flagstat_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"bam_flagstat_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"bam_flagstat.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")

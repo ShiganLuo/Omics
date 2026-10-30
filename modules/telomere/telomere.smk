@@ -115,7 +115,8 @@ rule telogator2_run:
             logger = setup_logger(logger_name="telogator2_run", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start telogator2 for sample {wildcards.sample_id} at {current_time}")
-            script = os.path.join(cmd_dir(logdir, str(wildcards.sample_id)), f"{wildcards.sample_id}/telogator2_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"{wildcards.sample_id}/telogator2_{current_time}.sh")
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/telogator2.sh")
             output_dir = os.path.join(outdir, f"{wildcards.sample_id}/telogator2")
             cmd = [
@@ -168,7 +169,8 @@ rule assembly_telomere_scan:
             logger = setup_logger(logger_name="assembly_telomere_scan", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start assembly telomere scan for sample {wildcards.sample_id} at {current_time}")
-            script = os.path.join(cmd_dir(logdir, str(wildcards.sample_id)), f"{wildcards.sample_id}/assembly_telomere_scan_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"{wildcards.sample_id}/assembly_telomere_scan_{current_time}.sh")
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/assembly_telomere_scan.sh")
             cmd = [
                 "python", params.script,
@@ -219,7 +221,8 @@ rule read_density_telomere:
             logger = setup_logger(logger_name="read_density_telomere", log_file=log_path)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start read density telomere for sample {wildcards.sample_id} at {current_time}")
-            script = os.path.join(cmd_dir(logdir, str(wildcards.sample_id)), f"{wildcards.sample_id}/read_density_telomere_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"{wildcards.sample_id}/read_density_telomere_{current_time}.sh")
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/read_density_telomere.sh")
             cmd = [
                 "python", params.script,
@@ -301,7 +304,8 @@ rule tidk_scan:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             logger.info(f"Start tidk scan for sample {wildcards.sample_id} at {current_time}")
 
-            script = os.path.join(cmd_dir(logdir, str(wildcards.sample_id)), f"{wildcards.sample_id}/tidk_scan_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"{wildcards.sample_id}/tidk_scan_{current_time}.sh")
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/tidk_scan.sh")
             # tidk search: --string, --output (prefix), --dir, positional FASTA
             cmd_search = [

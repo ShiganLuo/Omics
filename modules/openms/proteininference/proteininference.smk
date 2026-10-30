@@ -50,7 +50,8 @@ rule protein_inference:
                     f"for sample {wildcards.sample_id}; check the psm_fdr step "
                     "(search/identification quality) before protein inference"
                 )
-            script = os.path.join(cmd_dir(logdir, str(wildcards.sample_id)), f"{wildcards.sample_id}/protein_inference_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"{wildcards.sample_id}/protein_inference_{current_time}.sh")
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/protein_inference.sh")
             # Epifany (OpenMS 3.1) has no -algorithm:method: it only runs the
             # Bayesian inference; greedy_group_resolution is a TOPP-level

@@ -88,7 +88,8 @@ rule bigwig_ratio:
                 "-o", output.ratio_bigwig,
                 "-p", str(threads),
             ]
-            script = os.path.join(cmd_dir(logdir, str(wildcards.sample_id)), f"bigwig_ratio_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"bigwig_ratio_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"bigwig_ratio_{wildcards.sample_id}.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
@@ -218,7 +219,8 @@ rule heatmap:
             inp = sample_ip_input_map.get(wildcards.sample_id, "")
             title = f"{wildcards.sample_id} vs {inp}" if inp else wildcards.sample_id
             cmd = _build_heatmap_cmd(wildcards, input, output, threads, title)
-            script = os.path.join(cmd_dir(logdir, str(wildcards.sample_id)), f"heatmap_{wildcards.sample_id}_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"heatmap_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"heatmap_{wildcards.sample_id}.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
@@ -257,7 +259,8 @@ rule heatmap_gene:
             if inp:
                 title += f" vs {inp}"
             cmd = _build_heatmap_cmd(wildcards, input, output, threads, title, gene_names=[wildcards.gene_name])
-            script = os.path.join(cmd_dir(logdir, str(wildcards.sample_id)), f"heatmap_gene_{wildcards.sample_id}_{wildcards.gene_name}_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.sample_id), f"heatmap_gene_{wildcards.sample_id}_{wildcards.gene_name}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"heatmap_gene_{wildcards.sample_id}_{wildcards.gene_name}.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")

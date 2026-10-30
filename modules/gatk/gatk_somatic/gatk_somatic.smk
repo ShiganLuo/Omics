@@ -66,7 +66,8 @@ rule somaticMutect2:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start somaticMutect2 for normal sample {wildcards.normal_sample_id} and experimental sample {wildcards.experimental_sample_id} at {current_time}")
-            script = os.path.join(cmd_dir(logdir, str(wildcards.normal_sample_id)), f"mutect2-vcf/{wildcards.normal_sample_id}_vs_{wildcards.experimental_sample_id}/mutect2_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.normal_sample_id)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.normal_sample_id), f"mutect2-vcf/{wildcards.normal_sample_id}_vs_{wildcards.experimental_sample_id}/mutect2_{current_time}.sh")
             plain_script = os.path.join(outdir, f"mutect2-vcf/{wildcards.normal_sample_id}_vs_{wildcards.experimental_sample_id}/mutect2.sh")
             cmd = [
                 params.gatk, "Mutect2",

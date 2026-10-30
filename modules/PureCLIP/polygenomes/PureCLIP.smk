@@ -33,7 +33,8 @@ rule pureclip:
             rule_logger.info(f"Start pureclip for sample {wildcards.sample_id} at {current_time}")
             sample_outdir = os.path.dirname(str(output.sites))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(cmd_dir(logdir, "group"), f"pureclip_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
+            script = os.path.join(logdir, "cmd", "group", f"pureclip_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"pureclip.sh")
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")

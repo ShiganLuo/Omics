@@ -47,6 +47,7 @@ rule bowtie2_index:
         try:
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
             rule_logger.info(f"Start bowtie2 index for genome {wildcards.genome} at {current_time}")
+            os.makedirs(os.path.join(logdir, "cmd", "group"), exist_ok=True)
         script = f"{logdir}/cmd/group/bowtie2_index.{wildcards.genome}.{current_time}.sh"
         plain_script = f"{outdir}/index/{wildcards.genome}/bowtie2_index.sh"
             cmd = [params.bowtie2_build, 
@@ -144,6 +145,7 @@ rule bowtie2_align_paired:
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
             rule_logger.info(f"Start bowtie2_align_paired for sample {wildcards.sample_id} on genome {wildcards.genome} at {current_time}")
             sample_outdir = os.path.dirname(str(output.bam))
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
         script = f"{logdir}/cmd/{wildcards.sample_id}/bowtie2_align.{current_time}.sh"
         plain_script = f"{sample_outdir}/bowtie2_align.sh"
             cmd1 = [params.bowtie2, 

@@ -61,7 +61,8 @@ rule HaplotypeCaller:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start HaplotypeCaller for sample {wildcards.sample_id} genome {wildcards.genome} at {current_time}")
-            script = os.path.join(cmd_dir(logdir, str(wildcards.genome)), f"{wildcards.genome}/{wildcards.sample_id}/HaplotypeCaller_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.genome)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.genome), f"{wildcards.genome}/{wildcards.sample_id}/HaplotypeCaller_{current_time}.sh")
             plain_script = os.path.join(outdir, f"{wildcards.genome}/{wildcards.sample_id}/HaplotypeCaller.sh")
             cmd = [
                 params.gatk, "--java-options", f'"{params.javaOptions}"', "HaplotypeCaller",
@@ -128,7 +129,8 @@ rule filterHaplotypeCallerVcf:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start filterHaplotypeCallerVcf for sample {wildcards.sample_id} genome {wildcards.genome} at {current_time}")
-            script = os.path.join(cmd_dir(logdir, str(wildcards.genome)), f"{wildcards.genome}/{wildcards.sample_id}/filterHaplotypeCallerVcf_{current_time}.sh")
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.genome)), exist_ok=True)
+            script = os.path.join(logdir, "cmd", str(wildcards.genome), f"{wildcards.genome}/{wildcards.sample_id}/filterHaplotypeCallerVcf_{current_time}.sh")
             plain_script = os.path.join(outdir, f"{wildcards.genome}/{wildcards.sample_id}/filterHaplotypeCallerVcf.sh")
             cmd1 = [
                 params.gatk, "--java-options", f'"{params.javaOptions}"', "VariantFiltration",

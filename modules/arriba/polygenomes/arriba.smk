@@ -67,6 +67,7 @@ rule arriba:
         rule_logger = setup_logger("arriba", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
+            os.makedirs(os.path.join(logdir, "cmd", str(wildcards.sample_id)), exist_ok=True)
         script = f"{logdir}/cmd/{wildcards.sample_id}/{wildcards.sample_id}_arriba.{current_time}.sh"
         plain_script = f"{outdir}/{wildcards.genome}/{wildcards.sample_id}/{wildcards.sample_id}_arriba.sh"
             cmd = [

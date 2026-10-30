@@ -100,7 +100,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('-w','--workflow_name', type=str, nargs='+',
         choices=["CoCulture", "MERIP", "RNAseq", "ncRNAseq", "scRNAseq", "tRNAseq", "CLIP", "Mutation", "PacVar", "KARRseq", "PeakCalling", "QuantMS", "Fiberseq", "LRtranscriptome"],
         default=['CoCulture'], help='workflow name(s), multiple for parallel execution')
-    parser.add_argument('-o','--output_dir', type=str, default=None, help='output dir')
+    parser.add_argument('-o','--output_dir','--output-dir', dest='output_dir', type=str, default=None, help='output dir')
     parser.add_argument('-t','--threads', type=int, default=10, help='threads')
     parser.add_argument('--dry-run', action='store_true', help='dry run')
     parser.add_argument('--touch', action='store_true', help='touch output files to update timestamps without re-running (cannot combine with --dry-run)')

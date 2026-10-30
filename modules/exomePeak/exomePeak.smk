@@ -47,7 +47,7 @@ rule diff_exomePeak:
     run:
         log_path = str(log)
         open(log_path, 'w').close()
-rule_logger = setup_logger("diff_exomePeak", log_file=log_path)
+        rule_logger = setup_logger("diff_exomePeak", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start diff_exomePeak at {current_time}")
@@ -131,7 +131,7 @@ rule call_exomePeak:
     run:
         log_path = str(log)
         open(log_path, 'w').close()
-rule_logger = setup_logger("call_exomePeak", log_file=log_path)
+        rule_logger = setup_logger("call_exomePeak", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start call_exomePeak at {current_time}")

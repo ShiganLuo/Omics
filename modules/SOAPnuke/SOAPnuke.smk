@@ -63,8 +63,9 @@ rule soapnuke_filter_paired:
             shell(f"bash {plain_script} >> {log_path} 2>&1")
 
             rule_logger.info(f"soapnuke_filter_paired for sample {wildcards.sample_id} completed")
-        rule_logger.error(f"Error occurred: {e}")
-        raise RuntimeError(f"Error occurred: {e}, you can check the log file {log_path} for more details.")
+        except Exception as e:
+            rule_logger.error(f"Error occurred: {e}")
+            raise RuntimeError(f"Error occurred: {e}, you can check the log file {log_path} for more details.")
 
 rule soapnuke_filter_single:
     input:
@@ -119,8 +120,9 @@ rule soapnuke_filter_single:
             shell(f"bash {plain_script} >> {log_path} 2>&1")
 
             rule_logger.info(f"soapnuke_filter_single for sample {wildcards.sample_id} completed")
-        rule_logger.error(f"Error occurred: {e}")
-        raise RuntimeError(f"Error occurred: {e}, you can check the log file {log_path} for more details.")
+        except Exception as e:
+            rule_logger.error(f"Error occurred: {e}")
+            raise RuntimeError(f"Error occurred: {e}, you can check the log file {log_path} for more details.")
 
 rule soapnuke_filter_paired_result:
     input:

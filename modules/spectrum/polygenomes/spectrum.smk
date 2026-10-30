@@ -27,8 +27,8 @@ rule somatic_spectrum:
     run:
         try:
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
-        script = os.path.join(RECEIPT_DIR, f"somatic_spectrum_{wildcards.genome}_{current_time}.sh")
-        plain_script = f"{outdir}/{wildcards.genome}/somatic_spectrum.sh"
+            script = os.path.join(RECEIPT_DIR, f"somatic_spectrum_{wildcards.genome}_{current_time}.sh")
+            plain_script = f"{outdir}/{wildcards.genome}/somatic_spectrum.sh"
             experiment_vcf_map_file = os.path.join(outdir, wildcards.genome, "experiment_vcf_map.tsv")
             os.makedirs(os.path.dirname(experiment_vcf_map_file), exist_ok=True)
             with open(experiment_vcf_map_file, "w") as f:

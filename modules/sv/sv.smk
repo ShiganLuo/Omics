@@ -41,6 +41,15 @@ rule sv_exp_specific:
         merged_vcf = outdir + "/{comparison}/{comparison}_merged.vcf",
         specific_vcf = outdir + "/{comparison}/{comparison}_only.vcf",
         annotated_tab = outdir + "/{comparison}/{comparison}_annotated.tab",
+        # TE enrichment + per-SV stats are produced by the same script run:
+        # run_exp_enricher writes repeatmasker/ (bed2fa + RepeatMasker +
+        # subfamily enrichment test), run_vcf_analysis writes plot/ and
+        # table/. Declaring them keeps "output drives the workflow" intact —
+        # previously they were undeclared side products that node.py never
+        # registered, so nothing requested them.
+        repeatmasker_dir = directory(outdir + "/{comparison}/repeatmasker"),
+        plot_dir = directory(outdir + "/{comparison}/plot"),
+        table_dir = directory(outdir + "/{comparison}/table"),
     log:
         logdir + "/{comparison}/sv_exp_specific.log"
     params:
@@ -355,6 +364,9 @@ rule sv_result:
     """Aggregate all SV analysis outputs as dependency endpoint."""
     input:
         annotated_tabs = expand(outdir + "/{comp}/{comp}_annotated.tab", comp=comparison_names),
+        repeatmasker_dirs = expand(outdir + "/{comp}/repeatmasker", comp=comparison_names),
+        plot_dirs = expand(outdir + "/{comp}/plot", comp=comparison_names),
+        table_dirs = expand(outdir + "/{comp}/table", comp=comparison_names),
         enrichment_dirs = expand(outdir + "/{comp}/enrichment", comp=comparison_names),
         circos_dirs = expand(outdir + "/{comp}/circos", comp=comparison_names),
         gene_model_dirs = expand(outdir + "/{comp}/gene_model", comp=comparison_names),

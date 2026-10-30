@@ -528,6 +528,12 @@ def runPacVar(
             outfiles.append(f"{base}/{name}_merged.vcf")
             outfiles.append(f"{base}/{name}_only.vcf")
             outfiles.append(f"{base}/{name}_annotated.tab")
+            # TE enrichment (RepeatMasker subfamily test) + per-SV stats from
+            # sv_exp_specific — registered so the rule's declared directory
+            # outputs are requested by the DAG
+            outfiles.append(f"{base}/repeatmasker")
+            outfiles.append(f"{base}/plot")
+            outfiles.append(f"{base}/table")
             outfiles.append(f"{base}/enrichment")
             outfiles.append(f"{base}/circos")
             if sv_genes:
@@ -1470,6 +1476,12 @@ def runFiberseq(
             outfiles.append(f"{base}/{name}_merged.vcf")
             outfiles.append(f"{base}/{name}_only.vcf")
             outfiles.append(f"{base}/{name}_annotated.tab")
+            # TE enrichment (RepeatMasker subfamily test) + per-SV stats from
+            # sv_exp_specific — registered so the rule's declared directory
+            # outputs are requested by the DAG
+            outfiles.append(f"{base}/repeatmasker")
+            outfiles.append(f"{base}/plot")
+            outfiles.append(f"{base}/table")
             outfiles.append(f"{base}/enrichment")
             outfiles.append(f"{base}/circos")
             if sv_genes:

@@ -424,7 +424,8 @@ deepvariant_config = {
     "genome": {
         "fasta": fasta,
         "fai": genome_ref.get("fai"),
-    }
+    },
+    "tmp_dir": config.get("tmp_dir") or f"{outdir}/tmp",
 }
 module deepvariant:
     snakefile: "../modules/deepvariant/deepvariant.smk"

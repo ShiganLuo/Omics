@@ -8,6 +8,7 @@ logdir = config.get("logdir", "log")
 samples = config.get("samples", [])
 fasta = config.get("genome", {}).get("fasta")
 bam_substring = config.get("bam_substring") or ""
+tmp_dir = config.get("tmp_dir") or os.path.join(outdir, "tmp")
 
 def get_input_for_deepvariant_run(wildcards):
     if bam_substring != "":
@@ -69,6 +70,11 @@ rule deepvariant_run:
             ]
             with open(script, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
+                # run_deepvariant's GNU parallel inherits TMPDIR from the
+                # calling environment; a host-only TMPDIR (not bind-mounted
+                # into the container) kills it at startup. Force the
+                # workflow's bound tmp_dir instead.
+                f.write(f'export TMPDIR="{tmp_dir}"\n')
                 f.write(" ".join(cmd1) + "\n")
                 f.write(" ".join(cmd2) + "\n")
                 f.write(f'echo "script completed successfully"\n')

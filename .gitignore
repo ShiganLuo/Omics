@@ -9,3 +9,4 @@ workflow.log
 test/
 test.log
 **/*.resolved
+**/module_test

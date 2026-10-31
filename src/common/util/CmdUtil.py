@@ -3,6 +3,7 @@ import subprocess
 import shutil
 import logging
 import shlex
+import os
 logger = logging.getLogger(__name__)
 def _shell_join(cmd: List[str]) -> str:
     """Render a command list as a shell-like string for logging.
@@ -98,12 +99,33 @@ def _run_cmd(cmd:List, cwd: Optional[str] = None) -> str:
         raise RuntimeError(f"Command not found: {cmd_bin}")
 
     try:
+        # TMPDIR sanitization: the calling shell may export a host-only
+        # TMPDIR (agent scratch dirs etc.) that is NOT bind-mounted into
+        # apptainer containers — tools inheriting it (GNU parallel,
+        # fibertools temp files, ...) die at startup inside the container.
+        # Force TMPDIR to the workflow's own tmp_dir, which the snakemake
+        # invocation always binds (and maps to /tmp inside the container).
+        env = dict(os.environ)
+        cfg_tmp = None
+        if "--configfile" in cmd:
+            import json as _json
+            idx = cmd.index("--configfile")
+            if idx + 1 < len(cmd):
+                try:
+                    with open(cmd[idx + 1], "r", encoding="utf-8") as _f:
+                        _cfg = _json.load(_f)
+                    cfg_tmp = _cfg.get("tmp_dir")
+                except Exception:
+                    cfg_tmp = None
+        if cfg_tmp and os.path.isdir(cfg_tmp):
+            env["TMPDIR"] = cfg_tmp
         result = subprocess.run(
             cmd,
             check=True,
             capture_output=True,
             text=True,
-            cwd=cwd
+            cwd=cwd,
+            env=env
         )
 
         if result.stdout:

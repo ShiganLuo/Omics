@@ -350,7 +350,10 @@ rule decoil_structure:
     input:
         summary              = outdir + "/{sample_id}/decoil/summary.txt",
         reconstruct_filtered = outdir + "/{sample_id}/decoil/reconstruct.ecDNA.filtered.bed",
-        gtf                  = config.get("genome", {}).get("gtf"),
+        # _required at DAG build: a null gtf here otherwise surfaces as the
+        # cryptic "Input and output files have to be specified as strings"
+        # instead of naming the missing config key.
+        gtf                  = lambda wildcards: _require(config.get("genome", {}).get("gtf"), "genome.gtf", "decoil_structure"),
         bw                   = os.path.join(bw_dir, "{sample_id}", "{sample_id}" + bw_suffix),
     output:
         genes_tsv            = outdir + "/{sample_id}/visualization/decoil_structure_genes.tsv",

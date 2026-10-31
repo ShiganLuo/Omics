@@ -58,9 +58,9 @@ rule sv_exp_specific:
         vep_cache = config.get("Params", {}).get("exp_specific", {}).get("vep_cache", "~/.vep"),
         species = config.get("Params", {}).get("exp_specific", {}).get("species", "mus_musculus"),
         assembly = config.get("Params", {}).get("exp_specific", {}).get("assembly", "GRCm39"),
-        custom_gtf = config.get("Params", {}).get("exp_specific", {}).get("custom_gtf", ""),
-        custom_fasta = config.get("Params", {}).get("exp_specific", {}).get("custom_fasta", ""),
-        te_lib = config.get("Params", {}).get("exp_specific", {}).get("te_lib", ""),
+        custom_gtf = config.get("genome", {}).get("custom_gtf", ""),
+        custom_fasta = config.get("genome", {}).get("custom_fasta", ""),
+        te_lib = config.get("genome", {}).get("te_lib", ""),
         dist = config.get("Params", {}).get("exp_specific", {}).get("dist", 500),
     conda:
         "sv.yaml"

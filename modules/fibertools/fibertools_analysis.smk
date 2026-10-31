@@ -238,10 +238,14 @@ rule ft_extract_fire:
     log:
         logdir + "/{sample_id}/ft_extract_fire.log"
     threads: 8
+    # fibertools.yaml, NOT ../samtools/samtools.yaml: the script's first
+    # command is `ft fire --extract` (fibertools binary); samtools.sif has
+    # no `ft` and dies "ft: command not found". The fibertools container
+    # also carries bgzip/tabix/sort needed by the sort+publish steps.
     conda:
-        "../samtools/samtools.yaml"
+        "fibertools.yaml"
     container:
-        sif("../samtools/samtools.yaml")
+        sif("fibertools.yaml")
     params:
         ft = config.get("Procedure", {}).get("fibertools") or "ft",
         is_ont = config.get("Params", {}).get("fibertools", {}).get("ont", False),

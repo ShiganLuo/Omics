@@ -15,6 +15,17 @@ SERVER_DATABASE_DIR = {
     "lv": "/disk5/luosg/Database",
     "lv_zheda": "/data/16T/Database"
 }
+
+# Genome reference key -> Dfam species alias for <alias>_te_lib.fa lookups
+# (libraries under <server_db>/Reference/famdb/, built with
+# modules/sv/bin/utils/famdb.py from dfam39_full.7.h5).
+GENOME_TE_SPECIES = {
+    "GRCh38": "human",
+    "GRCm39": "mouse",
+    "T2T_mhaESC_v1.5": "mouse",
+    "Mmul_10": "rhesus",
+    "Mmul_T2T": "rhesus",
+}
 def _detect_current_server_db() -> str | None:
     """Detect current server's database dir by checking which paths in SERVER_DATABASE_DIR exist."""
     for db_dir in SERVER_DATABASE_DIR.values():
@@ -423,6 +434,45 @@ def runPacVar(
     # Resolve nested genome reference (genome.default normalized like
     # sample_info.organism; falls back to the meta organism when unset)
     _genome_ref = _resolve_genome_ref(datajson, samples_info_dict, "PacVar")
+
+    # Custom-genome sv resources, same convention as runFiberseq: they are
+    # properties of the active reference block (custom_gtf / custom_fasta /
+    # te_lib), auto-filled when the files exist — never Params.sv fields.
+    _genome_name = datajson["genome"]["default"]
+    datajson["Params"].setdefault("sv", {}).setdefault("exp_specific", {})
+    datajson["Params"]["sv"]["exp_specific"]["species"] = _genome_name
+    datajson["Params"]["sv"]["exp_specific"]["assembly"] = _genome_name
+    _gtf = _genome_ref.get("gtf") if isinstance(_genome_ref, dict) else None
+    _fasta = _genome_ref.get("fasta") if isinstance(_genome_ref, dict) else None
+    if _gtf and _fasta:
+        _gtf_sorted = None
+        if _gtf.endswith((".gtf.gz", ".gff.gz", ".gff3.gz")) and os.path.exists(_gtf + ".tbi"):
+            _gtf_sorted = _gtf
+        else:
+            for _cand in (
+                re.sub(r"\.(gtf|gff|gff3)$", ".sorted.gtf.gz", _gtf),
+                re.sub(r"\.(gtf|gff|gff3)(\.gz)?$", ".sorted.gtf.gz", _gtf),
+            ):
+                if os.path.exists(_cand) and os.path.exists(_cand + ".tbi"):
+                    _gtf_sorted = _cand
+                    break
+        if _gtf_sorted:
+            _genome_ref["custom_gtf"] = _gtf_sorted
+            _genome_ref["custom_fasta"] = _fasta
+    if not _genome_ref.get("te_lib"):
+        _famdb_dir = os.path.join(
+            _detect_current_server_db() or "/data/16T/Database",
+            "Reference", "famdb",
+        )
+        _te_species = GENOME_TE_SPECIES.get(str(_genome_name))
+        if _te_species:
+            _te_lib = os.path.join(_famdb_dir, f"{_te_species}_te_lib.fa")
+            if os.path.isfile(_te_lib):
+                _genome_ref["te_lib"] = _te_lib
+    if not _genome_ref.get("fai") and _fasta:
+        _fai = _fasta + ".fai"
+        if os.path.isfile(_fai):
+            _genome_ref["fai"] = _fai
 
     for sample_id, sample_info in samples_info_dict.items():
         samples.append(sample_id)
@@ -1284,10 +1334,12 @@ def runFiberseq(
     # reference carries a GTF, annotate via VEP --gtf + --fasta instead.
     # VEP --gtf requires a sorted, bgzipped, tabix-indexed GTF: prefer the
     # pre-built "<stem>.sorted.gtf.gz" sibling, or an already-indexed .gtf.gz.
-    _sv_exp = datajson["Params"]["sv"]["exp_specific"]
+    # Custom-genome sv resources live in the genome REFERENCE block
+    # (custom_gtf / custom_fasta / te_lib), not under Params.sv.exp_specific:
+    # they are properties of the reference, not run parameters.
     _gtf = default_ref.get("gtf") if default_ref else None
     _fasta = default_ref.get("fasta") if default_ref else None
-    _custom_gtf = None
+    _ref_block = default_ref if isinstance(default_ref, dict) else {}
     if _gtf and _fasta:
         _gtf_sorted = None
         if _gtf.endswith((".gtf.gz", ".gff.gz", ".gff3.gz")) and os.path.exists(_gtf + ".tbi"):
@@ -1301,22 +1353,23 @@ def runFiberseq(
                     _gtf_sorted = _cand
                     break
         if _gtf_sorted:
-            _custom_gtf = _gtf_sorted
-            _sv_exp["custom_gtf"] = _gtf_sorted
-            _sv_exp["custom_fasta"] = _fasta
+            _ref_block["custom_gtf"] = _gtf_sorted
+            _ref_block["custom_fasta"] = _fasta
     # Species-specific RepeatMasker library: the sv container's Dfam only
-    # ships partition 0, so -species lookup dies for mouse (partition 7
-    # absent). Fall back to a pre-built mouse TE library when the reference
-    # is a mouse genome and the library exists.
-    if not _sv_exp.get("te_lib"):
-        # lib lives with the FamDB reference data, not inside the env dir
-        # (moved 2026-10-29; the old env/sv/famdb path no longer exists)
-        _mouse_lib = "/data/16T/Database/Reference/famdb/mouse_te_lib.fa"
-        if os.path.isfile(_mouse_lib):
-            _sv_exp["te_lib"] = _mouse_lib
+    # ships partition 0, so -species lookup dies for most mammals. Resolve
+    # the prebuilt <species>_te_lib.fa from the famdb reference dir.
+    if not _ref_block.get("te_lib"):
+        _famdb_dir = os.path.join(
+            _detect_current_server_db() or "/data/16T/Database",
+            "Reference", "famdb",
+        )
+        _te_species = GENOME_TE_SPECIES.get(str(genome))
+        if _te_species:
+            _te_lib = os.path.join(_famdb_dir, f"{_te_species}_te_lib.fa")
+            if os.path.isfile(_te_lib):
+                _ref_block["te_lib"] = _te_lib
     # .fai next to the FASTA (hot_spot analysis reads it; a null fai crashes
     # sv_exp_enrichment with a TypeError on None).
-    _ref_block = default_ref if isinstance(default_ref, dict) else {}
     if not _ref_block.get("fai") and _fasta:
         _fai = _fasta + ".fai"
         if os.path.isfile(_fai):

@@ -1,192 +1,244 @@
 {
-    "outfiles": [],
-    "resources": {
-        "default": {"threads": 2, "mem_mb": 8000},
-        "bamCoverage": {"threads": 8, "mem_mb": 16000},
-        "decoil_reconstruct": {"threads": 16, "mem_mb": 32000},
-        "decoil_plot": {"threads": 4, "mem_mb": 8000},
-        "decoil_structure": {"threads": 4, "mem_mb": 12000},
-        "decoil_compare": {"threads": 2, "mem_mb": 8000},
-        "decoil_igv": {"threads": 1, "mem_mb": 4000},
-        "decoil_ucsc": {"threads": 1, "mem_mb": 4000}
+  "outfiles": [],
+  "resources": {
+    "default": {
+      "threads": 2,
+      "mem_mb": 8000
     },
-    "ROOT_DIR": ".",
-    "tmp_dir": "",
-    "env": {
-        "env_dir": "/data/pub/zhousha/Database/env",
-        "genome": "/data/pub/zhousha/Database/env/genome/genome.sif",
-        "centromere": "/data/pub/zhousha/Database/env/centromere/centromere.sif",
-        "deeptools": "/data/pub/zhousha/Database/env/deeptools/deeptools.sif",
-        "deepvariant": "/data/pub/zhousha/Database/env/deepvariant/deepvariant.sif",
-        "decoil": "/data/pub/zhousha/Database/env/decoil/decoil.sif",
-        "gatk": "/data/pub/zhousha/Database/env/gatk/gatk4.sif",
-        "hiphase": "/data/pub/zhousha/Database/env/hiphase/hiphase.sif",
-        "pbmm2": "/data/pub/zhousha/Database/env/pbmm2/pbmm2.sif",
-        "pbsv": "/data/pub/zhousha/Database/env/pbsv/pbsv.sif",
-        "sv": "/data/pub/zhousha/Database/env/sv/sv.sif",
-        "telomere": "/data/pub/zhousha/Database/env/telomere/telomere.sif",
-        "trgt": "/data/pub/zhousha/Database/env/trgt/trgt.sif"
+    "bamCoverage": {
+      "threads": 8,
+      "mem_mb": 16000
     },
-    "Procedure": {
-        "pbmm2": null,
-        "samtools": null,
-        "deepvariant": null,
-        "gatk": null,
-        "pbsv": null,
-        "bgzip": null,
-        "tabix": null,
-        "bcftools": null,
-        "hiphase": null,
-        "trgt": null,
-        "decoil": null
+    "decoil_reconstruct": {
+      "threads": 16,
+      "mem_mb": 32000
     },
-    "Params": {
-        "workflow": {
-            "indir": "input",
-            "outdir": "output",
-            "logdir": "logs",
-            "samples": [],
-            "raw_files": [],
-            "snv_caller": "deepvariant"
-        },
-        "igv": {
-            "js": "/data/pub/zhousha/Reference/igv.min.js",
-            "id": "mm39",
-            "name": "Mouse (GRCm39/mm39)",
-            "publicPathMap": {
-            "/data/pub/zhousha/": "/data/"
-            },
-            "fastaURL": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
-            "indexURL": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa.fai",
-            "cytobandURL": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/mm39.cytoBand.txt",
-            "tracks": [
-            {
-                "name": "Gencode vM38 genes",
-                "format": "gtf",
-                "url": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/gencode.vM38.basic.gene_exon.sorted.gtf.gz",
-                "indexUrl": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/gencode.vM38.basic.gene_exon.sorted.gtf.gz.tbi"
-            }
-            ]
-        },
-        "snv": {
-            "enabled": false
-        },
-        "sv": {
-            "enabled": true,
-            "comparisons": {},
-            "image_formats": ["png"],
-            "genes": [],
-            "exp_specific": {
-                "vep_cache": "/data/16T/Database/.vep",
-                "species": "mus_musculus",
-                "assembly": "GRCm39",
-                "dist": 500
-            },
-            "circos": {
-                "genome": "mm39",
-                "cytoband": "",
-                "ins_bin_size": 100000
-            },
-            "oncoprint": {
-                "cosmic_file": "",
-                "deseq2_files": {}
-            },
-            "diff_analysis": {
-                "large_sv_threshold": 10000
-            },
-            "gene_model": {
-                "threads": 1
-            }
-        },
-        "phase": {
-            "enabled": false
-        },
-        "repeat": {
-            "enabled": false
-        },
-        "telomere": {
-            "enabled": false
-        },
-        "deepvariant": {
-            "model_type": "PACBIO"
-        },
-        "trgt": {
-            "enabled": false,
-            "karyotype": "XX",
-            "repeat_id": "HTT"
-        },
-        "telogator2": {
-            "threads": 16
-        },
-        "hifiasm": {
-            "threads": 48
-        },
-        "RepeatMasker": {
-            "species": "Mus musculus",
-            "threads": 16,
-            "dfam_h5": "/data/16T/Database/env/famdb/dfam39_full.7.h5"
-        },
-        "gatk": {
-            "javaOptions": "-Xmx45g",
-            "tmp-dir": null,
-            "addReadsGroup": {
-                "RGLB": "DNA",
-                "RGPL": "PacBio",
-                "RGPU": "HiFi"
-            }
-        },
-        "bamCoverage": {
-            "bin_size": 50,
-            "normalizeUsing": "CPM"
-        },
-        "decoil": {
-            "enabled": true,
-            "reconstruct": {
-                "sv_caller": "sniffles1",
-                "min_sv_len": 500,
-                "fragment_min_cov": 5,
-                "fragment_max_cov": 100000,
-                "fragment_min_size": 500,
-                "min_vaf": 0.01,
-                "min_cov_alt": 6,
-                "min_cov": 8,
-                "max_explog_threshold": 0.1,
-                "filter_score": 5,
-                "extend_allowed_chromosomes": "",
-                "skip": false
-            },
-           "structure": {
-                "formats": ["png"],
-                "max_per_fig": 12,
-                "one_file_per_cycle": true
-            },
-            "plot": {
-                "formats": ["png"]
-            },
-            "compare": {
-                "formats": ["png"]
-            },
-            "igv": {
-                "locus": ""
-            }
-        }
+    "decoil_plot": {
+      "threads": 4,
+      "mem_mb": 8000
     },
-    "genome": {
-     "default": "GRCm39",
-     "references": {
-       "GRCh38": {
-         "fasta": "/data/pub/zhousha/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa",
-         "fai": null,
-         "gtf": "/data/pub/zhousha/Reference/human/GENCODE/GRCh38/gencode.v49.primary_assembly.basic.annotation.gtf",
-         "repeat_bed": null
-       },
-       "GRCm39": {
-         "fasta": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
-         "fai": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa.fai",
-         "gtf": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf",
-         "dict": null,
-         "repeat_bed": null
-       }
-     }
+    "decoil_structure": {
+      "threads": 4,
+      "mem_mb": 12000
+    },
+    "decoil_compare": {
+      "threads": 2,
+      "mem_mb": 8000
+    },
+    "decoil_igv": {
+      "threads": 1,
+      "mem_mb": 4000
+    },
+    "decoil_ucsc": {
+      "threads": 1,
+      "mem_mb": 4000
     }
+  },
+  "ROOT_DIR": ".",
+  "tmp_dir": "",
+  "env": {
+    "env_dir": "/data/pub/zhousha/Database/env",
+    "genome": "/data/pub/zhousha/Database/env/genome/genome.sif",
+    "centromere": "/data/pub/zhousha/Database/env/centromere/centromere.sif",
+    "deeptools": "/data/pub/zhousha/Database/env/deeptools/deeptools.sif",
+    "deepvariant": "/data/pub/zhousha/Database/env/deepvariant/deepvariant.sif",
+    "decoil": "/data/pub/zhousha/Database/env/decoil/decoil.sif",
+    "gatk": "/data/pub/zhousha/Database/env/gatk/gatk4.sif",
+    "hiphase": "/data/pub/zhousha/Database/env/hiphase/hiphase.sif",
+    "pbmm2": "/data/pub/zhousha/Database/env/pbmm2/pbmm2.sif",
+    "pbsv": "/data/pub/zhousha/Database/env/pbsv/pbsv.sif",
+    "sv": "/data/pub/zhousha/Database/env/sv/sv.sif",
+    "telomere": "/data/pub/zhousha/Database/env/telomere/telomere.sif",
+    "trgt": "/data/pub/zhousha/Database/env/trgt/trgt.sif"
+  },
+  "Procedure": {
+    "pbmm2": null,
+    "samtools": null,
+    "deepvariant": null,
+    "gatk": null,
+    "pbsv": null,
+    "bgzip": null,
+    "tabix": null,
+    "bcftools": null,
+    "hiphase": null,
+    "trgt": null,
+    "decoil": null
+  },
+  "Params": {
+    "workflow": {
+      "indir": "input",
+      "outdir": "output",
+      "logdir": "logs",
+      "samples": [],
+      "raw_files": [],
+      "snv_caller": "deepvariant"
+    },
+    "igv": {
+      "js": "/data/pub/zhousha/Reference/igv.min.js",
+      "id": "mm39",
+      "name": "Mouse (GRCm39/mm39)",
+      "publicPathMap": {
+        "/data/pub/zhousha/": "/data/"
+      },
+      "fastaURL": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
+      "indexURL": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa.fai",
+      "cytobandURL": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/mm39.cytoBand.txt",
+      "tracks": [
+        {
+          "name": "Gencode vM38 genes",
+          "format": "gtf",
+          "url": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/gencode.vM38.basic.gene_exon.sorted.gtf.gz",
+          "indexUrl": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/gencode.vM38.basic.gene_exon.sorted.gtf.gz.tbi"
+        }
+      ]
+    },
+    "snv": {
+      "enabled": false
+    },
+    "sv": {
+      "enabled": true,
+      "comparisons": {},
+      "image_formats": [
+        "png"
+      ],
+      "genes": [],
+      "exp_specific": {
+        "vep_cache": "/data/16T/Database/.vep",
+        "species": "mus_musculus",
+        "assembly": "GRCm39",
+        "dist": 500
+      },
+      "circos": {
+        "genome": "mm39",
+        "cytoband": "",
+        "ins_bin_size": 100000
+      },
+      "oncoprint": {
+        "cosmic_file": "",
+        "deseq2_files": {}
+      },
+      "diff_analysis": {
+        "large_sv_threshold": 10000
+      },
+      "gene_model": {
+        "threads": 1
+      }
+    },
+    "phase": {
+      "enabled": false
+    },
+    "repeat": {
+      "enabled": false
+    },
+    "telomere": {
+      "enabled": false
+    },
+    "deepvariant": {
+      "model_type": "PACBIO"
+    },
+    "trgt": {
+      "enabled": false,
+      "karyotype": "XX",
+      "repeat_id": "HTT"
+    },
+    "telogator2": {
+      "threads": 16
+    },
+    "hifiasm": {
+      "threads": 48
+    },
+    "RepeatMasker": {
+      "species": "Mus musculus",
+      "threads": 16,
+      "dfam_h5": "/data/16T/Database/env/famdb/dfam39_full.7.h5"
+    },
+    "gatk": {
+      "javaOptions": "-Xmx45g",
+      "tmp-dir": null,
+      "addReadsGroup": {
+        "RGLB": "DNA",
+        "RGPL": "PacBio",
+        "RGPU": "HiFi"
+      }
+    },
+    "bamCoverage": {
+      "bin_size": 50,
+      "normalizeUsing": "CPM"
+    },
+    "decoil": {
+      "enabled": true,
+      "reconstruct": {
+        "sv_caller": "sniffles1",
+        "min_sv_len": 500,
+        "fragment_min_cov": 5,
+        "fragment_max_cov": 100000,
+        "fragment_min_size": 500,
+        "min_vaf": 0.01,
+        "min_cov_alt": 6,
+        "min_cov": 8,
+        "max_explog_threshold": 0.1,
+        "filter_score": 5,
+        "extend_allowed_chromosomes": "",
+        "skip": false
+      },
+      "structure": {
+        "formats": [
+          "png"
+        ],
+        "max_per_fig": 12,
+        "one_file_per_cycle": true
+      },
+      "plot": {
+        "formats": [
+          "png"
+        ]
+      },
+      "compare": {
+        "formats": [
+          "png"
+        ]
+      },
+      "igv": {
+        "locus": ""
+      }
+    }
+  },
+  "genome": {
+    "default": "GRCm39",
+    "references": {
+      "GRCh38": {
+        "fasta": "/data/pub/zhousha/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa",
+        "fai": null,
+        "gtf": "/data/pub/zhousha/Reference/human/GENCODE/GRCh38/gencode.v49.primary_assembly.basic.annotation.gtf",
+        "repeat_bed": null,
+        "te_lib": "/data/16T/Database/Reference/famdb/human_te_lib.fa"
+      },
+      "GRCm39": {
+        "fasta": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
+        "fai": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa.fai",
+        "gtf": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf",
+        "dict": null,
+        "repeat_bed": null,
+        "te_lib": "/data/16T/Database/Reference/famdb/mouse_te_lib.fa"
+      },
+      "Mmul_T2T": {
+        "fasta": "/data/16T/Database/Reference/mulatta/NCBI/Mmul_T2T/GCF_049350105.2_T2T-MMU8v2.0_genomic.fa",
+        "fai": null,
+        "gtf": "/data/16T/Database/Reference/mulatta/NCBI/Mmul_T2T/GCF_049350105.2_T2T-MMU8v2.0_genomic.gtf",
+        "repeat_bed": null,
+        "custom_gtf": "/data/16T/Database/Reference/mulatta/NCBI/Mmul_T2T/GCF_049350105.2_T2T-MMU8v2.0_genomic.sorted.gtf.gz",
+        "custom_fasta": "/data/16T/Database/Reference/mulatta/NCBI/Mmul_T2T/GCF_049350105.2_T2T-MMU8v2.0_genomic.fa",
+        "te_lib": "/data/16T/Database/Reference/famdb/rhesus_te_lib.fa"
+      },
+      "Mmul_10": {
+        "fasta": "/data/16T/Database/Reference/mulatta/ENSEMBL/Mmul_10/Macaca_mulatta.Mmul_10.dna.toplevel.fa",
+        "fai": null,
+        "gtf": "/data/16T/Database/Reference/mulatta/ENSEMBL/Mmul_10/Macaca_mulatta.Mmul_10.116.gtf",
+        "repeat_bed": null,
+        "custom_gtf": "/data/16T/Database/Reference/mulatta/ENSEMBL/Mmul_10/Macaca_mulatta.Mmul_10.116.sorted.gtf.gz",
+        "custom_fasta": "/data/16T/Database/Reference/mulatta/ENSEMBL/Mmul_10/Macaca_mulatta.Mmul_10.dna.toplevel.fa",
+        "te_lib": "/data/16T/Database/Reference/famdb/rhesus_te_lib.fa"
+      }
+    }
+  }
 }

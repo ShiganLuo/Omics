@@ -661,7 +661,10 @@ sv_config = {
     "genome": {
         "fasta": genome_ref.get("fasta"),
         "gtf": genome_ref.get("gtf"),
-        "fai": genome_ref.get("fai")
+        "fai": genome_ref.get("fai"),
+        "custom_gtf": genome_ref.get("custom_gtf"),
+        "custom_fasta": genome_ref.get("custom_fasta"),
+        "te_lib": genome_ref.get("te_lib")
     }
 }
 module sv:

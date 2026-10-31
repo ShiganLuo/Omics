@@ -54,10 +54,6 @@
             "threads": 4,
             "mem_mb": 64000
         },
-        "scanpy_differential_expression": {
-            "threads": 2,
-            "mem_mb": 16000
-        },
         "star_index": {
             "threads": 16,
             "mem_mb": 64000
@@ -198,7 +194,7 @@
                     "llm_base_url": null
                 },
                 "pseudobulk": {
-                    "enabled": false,
+                    "enabled": true,
                     "compare": [],
                     "min_cells": 30,
                     "min_counts": 1000,
@@ -261,7 +257,7 @@
                     "llm_base_url": null
                 },
                 "pseudobulk": {
-                    "enabled": false,
+                    "enabled": true,
                     "compare": [],
                     "min_cells": 30,
                     "min_counts": 1000,

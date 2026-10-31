@@ -341,74 +341,23 @@ rule scanpy_advanced:
             rule_logger.error(f"Error occurred during scanpy advanced analysis for tissue {wildcards.tissue}: {e}")
             raise RuntimeError(f"Error occurred during scanpy advanced analysis for tissue {wildcards.tissue}: {e}")
 
-rule scanpy_differential_expression:
-    """Perform differential expression analysis on merged tissue data using Scanpy.
-    """
-    input:
-        h5ad = outdir_combine + "/{tissue}/{tissue}_{counter}_advanced.h5ad"
-    output:
-        h5ad = outdir_combine + "/{tissue}/{tissue}_{counter}_de.h5ad",
-        table = outdir_combine + "/{tissue}/{tissue}_{counter}_markers.tsv",
-        plot_dir = directory(outdir_combine + "/{tissue}/plots/{counter}/de")
-    log:
-        logdir_combine + "/scanpy/{tissue}/scanpy_de_{counter}.log"
-    threads: rule_res("scanpy_differential_expression").get("threads", 2)
-    resources:
-        mem_mb=rule_res("scanpy_differential_expression").get("mem_mb", 16000),
-    conda:
-        "scanpy.yaml"
-    container:
-        sif("scanpy.yaml")
-    params:
-        python=python,
-        script=script
-    run:
-        log_path = str(log)
-        open(log_path, "w").close()
-        rule_logger = setup_logger("scanpy_differential_expression", log_file=log_path)
-        try:
-            current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            rule_logger.info(f"Start scanpy differential expression for tissue {wildcards.tissue} at {current_time}")
-            sample_outdir = os.path.dirname(str(output.h5ad))
-            os.makedirs(sample_outdir, exist_ok=True)
-            os.makedirs(str(output.plot_dir), exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"scanpy_de_{wildcards.counter}_{wildcards.tissue}_{current_time}.sh")
-            plain_script = os.path.join(sample_outdir, f"scanpy_de_{wildcards.counter}_{wildcards.tissue}.sh")
-            cmd = [params.python, params.script, "de",
-                   "-i", input.h5ad,
-                   "-o", output.h5ad,
-                   "-D", output.table]
-            cmd += ["-p", str(output.plot_dir)]
-            with open(script, "w") as f:
-                f.write("#!/bin/bash\nset -euo pipefail\n")
-                # Cap numeric-library threads to the rule's thread budget
-                # (config resources -> rule_res -> threads) so the process
-                # honors what snakemake allocated instead of grabbing every
-                # core; the value is injected at script generation, never
-                # hardcoded here.
-                f.write(f"export OMP_NUM_THREADS={threads}\n")
-                f.write(f"export OPENBLAS_NUM_THREADS={threads}\n")
-                f.write(f"export MKL_NUM_THREADS={threads}\n")
-                f.write(f"export NUMBA_NUM_THREADS={threads}\n")
-                f.write(f"export VECLIB_MAXIMUM_THREADS={threads}\n")
-                f.write(" ".join(shlex.quote(str(item)) for item in cmd) + "\n")
-                f.write(f'echo "scanpy differential expression for {wildcards.tissue} at {current_time} completed successfully"\n')
-            shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
-        except Exception as e:
-            rule_logger.error(f"Error occurred during scanpy differential expression for tissue {wildcards.tissue}: {e}")
-            raise RuntimeError(f"Error occurred during scanpy differential expression for tissue {wildcards.tissue}: {e}")
-
         # ---------------------------------------------------------------------------
         # Pseudo-bulk DEG (PyDESeq2) — modules/scanpy/bin/pseudobulk.py
-        #   aggregates per-tissue h5ad into pseudo-bulk counts, runs PyDESeq2 per
+        #   Two-file design: --h5ad (scanpy_auto output) supplies the cell_type
+        #   annotations; --counts-h5ad (scanpy_merge output) supplies the
+        #   full-gene integer layers["counts"] (the auto file's counts layer is
+        #   HVG-subset and its raw slot is log1p-normalised — neither is valid
+        #   pseudobulk input). Runs PyDESeq2 per
         #   Params.scanpy.pseudobulk.compare entry, plots volcano/heatmap/GO.
-        #   Enabled per counter via Params.scanpy.<counter>.pseudobulk.{enabled,compare,...}
+        #   Enabled per counter via
+        #   Params.scanpy.<counter>.pseudobulk.{enabled,compare,...}
         # ---------------------------------------------------------------------------
 rule scanpy_pseudobulk:
-    """Pseudo-bulk differential expression via PyDESeq2 on merged tissue h5ad."""
+    """Pseudo-bulk DEG via PyDESeq2: annotations from scanpy_auto, full-gene
+    raw counts from the merged h5ad."""
     input:
-        h5ad = outdir_combine + "/{tissue}/{tissue}_{counter}_de.h5ad"
+        h5ad = outdir_combine + "/{tissue}/{tissue}_{counter}_auto.h5ad",
+        counts = outdir_combine + "/{tissue}/{tissue}_{counter}_merged.h5ad"
     output:
         report = outdir_combine + "/{tissue}/pseudobulk/{counter}/pseudobulk_report.html",
     log:
@@ -439,6 +388,7 @@ rule scanpy_pseudobulk:
             plain_script = os.path.join(out_root, f"scanpy_pseudobulk_{wildcards.counter}_{wildcards.tissue}.sh")
             cmd = [params.python, params.script,
                    "--h5ad", f"{wildcards.tissue}={input.h5ad}",
+                   "--counts-h5ad", f"{wildcards.tissue}={input.counts}",
                    "--out-dir", out_root,
                    "--min-cells", str(pb.get("min_cells", 30)),
                    "--min-counts", str(pb.get("min_counts", 1000)),

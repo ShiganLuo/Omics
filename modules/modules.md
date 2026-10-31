@@ -392,8 +392,7 @@ rule deepvariant_result:
 ```python
 rule scanpy_result:
     input:
-        h5ad = expand(de_dir + "/{t}_de.h5ad", t=tissues),
-        table = expand(de_dir + "/{t}_markers.tsv", t=tissues)
+        h5ad = expand(auto_dir + "/{t}_auto.h5ad", t=tissues)
 ```
 
 # 报告模块（_report）

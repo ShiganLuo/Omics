@@ -1,7 +1,16 @@
 {
   "ROOT_DIR": {
-    "type": "null",
+    "type": "str",
     "nullable": true,
+    "required": false
+  },
+  "tmp_dir": {
+    "type": "str",
+    "nullable": true,
+    "required": false
+  },
+  "outfiles": {
+    "type": "list",
     "required": false
   },
   "env": {
@@ -35,17 +44,17 @@
   },
   "Procedure": {
     "STAR": {
-      "type": "null",
+      "type": "str",
       "nullable": true,
       "required": false
     },
     "scTE": {
-      "type": "null",
+      "type": "str",
       "nullable": true,
       "required": false
     },
     "scTE_build": {
-      "type": "null",
+      "type": "str",
       "nullable": true,
       "required": false
     }
@@ -194,20 +203,6 @@
           }
         }
       },
-      "scanpy_differential_expression": {
-        "type": "dict",
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "required": false
-          },
-          "mem_mb": {
-            "type": "int",
-            "required": false
-          }
-        }
-      },
       "star_index": {
         "type": "dict",
         "required": false,
@@ -333,7 +328,7 @@
           "required": false
         },
         "indir": {
-          "type": "null",
+          "type": "str",
           "nullable": true,
           "required": false
         },
@@ -345,12 +340,12 @@
           "required": false
         },
         "outdir": {
-          "type": "null",
+          "type": "str",
           "nullable": true,
           "required": false
         },
         "logdir": {
-          "type": "null",
+          "type": "str",
           "nullable": true,
           "required": false
         },
@@ -416,7 +411,7 @@
         "required": true
       },
       "soloCBwhitelist": {
-        "type": "null",
+        "type": "str",
         "nullable": true,
         "required": false
       },
@@ -469,13 +464,13 @@
         "required": true
       },
       "gene_gtf": {
-        "type": "null",
+        "type": "str",
         "nullable": true,
         "required": false,
         "path": "file"
       },
       "te_bed": {
-        "type": "null",
+        "type": "str",
         "nullable": true,
         "required": false,
         "path": "file"
@@ -484,7 +479,8 @@
     "scanpy": {
       "tissue_samples": {
         "type": "dict",
-        "required": true
+        "nullable": true,
+        "required": false
       },
       "qc": {
         "min_genes": {
@@ -776,6 +772,45 @@
             "type": "str",
             "required": false
           }
+        },
+        "pseudobulk": {
+          "type": "dict",
+          "required": false,
+          "properties": {
+            "enabled": {
+              "type": "bool",
+              "required": false
+            },
+            "compare": {
+              "type": "list",
+              "required": false,
+              "description": "tissue:ref_sample:treat_sample[=label] entries"
+            },
+            "min_cells": {
+              "type": "int",
+              "required": false
+            },
+            "min_counts": {
+              "type": "int",
+              "required": false
+            },
+            "n_pseudo_reps": {
+              "type": "int",
+              "required": false
+            },
+            "top_cell_types": {
+              "type": "list",
+              "required": false
+            },
+            "highlight_genes": {
+              "type": "list",
+              "required": false
+            },
+            "deg_mode": {
+              "type": "list",
+              "required": false
+            }
+          }
         }
       },
       "scTE": {
@@ -967,6 +1002,45 @@
           "llm_base_url": {
             "type": "str",
             "required": false
+          }
+        },
+        "pseudobulk": {
+          "type": "dict",
+          "required": false,
+          "properties": {
+            "enabled": {
+              "type": "bool",
+              "required": false
+            },
+            "compare": {
+              "type": "list",
+              "required": false,
+              "description": "tissue:ref_sample:treat_sample[=label] entries"
+            },
+            "min_cells": {
+              "type": "int",
+              "required": false
+            },
+            "min_counts": {
+              "type": "int",
+              "required": false
+            },
+            "n_pseudo_reps": {
+              "type": "int",
+              "required": false
+            },
+            "top_cell_types": {
+              "type": "list",
+              "required": false
+            },
+            "highlight_genes": {
+              "type": "list",
+              "required": false
+            },
+            "deg_mode": {
+              "type": "list",
+              "required": false
+            }
           }
         }
       }

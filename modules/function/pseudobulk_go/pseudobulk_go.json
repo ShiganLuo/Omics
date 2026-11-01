@@ -1,0 +1,19 @@
+{
+  "indir": "",
+  "outdir": "output/function",
+  "logdir": "log",
+  "ROOT_DIR": "/path/to/workflow/directory",
+  "Params": {
+    "function": {
+      "pseudobulk_go": {
+        "root": null,
+        "modes": ["all", "gene", "te"],
+        "species": "macaque",
+        "lfc_cut": 1,
+        "p_cut": 0.05,
+        "top": 10,
+        "format": "png"
+      }
+    }
+  }
+}

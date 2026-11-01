@@ -1117,6 +1117,46 @@
         }
       }
     },
+    "function": {
+      "type": "dict",
+      "required": false,
+      "pseudobulk_go": {
+        "type": "dict",
+        "required": false,
+        "enabled": {
+          "type": "bool",
+          "required": false
+        },
+        "modes": {
+          "type": "enum",
+          "values": ["all", "gene", "te"],
+          "required": false,
+          "description": "pseudobulk feature modes to enrich (DEG table prefixes deg_pseudobulk{,_gene,_te})"
+        },
+        "species": {
+          "type": "enum",
+          "values": ["human", "mouse", "macaque"],
+          "required": false
+        },
+        "lfc_cut": {
+          "type": "float",
+          "required": false
+        },
+        "p_cut": {
+          "type": "float",
+          "required": false
+        },
+        "top": {
+          "type": "int",
+          "required": false
+        },
+        "format": {
+          "type": "enum",
+          "values": ["png", "pdf", "svg"],
+          "required": false
+        }
+      }
+    },
     "sccoda": {
       "type": "dict",
       "required": false,

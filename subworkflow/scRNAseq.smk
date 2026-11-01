@@ -291,3 +291,50 @@ module sccoda:
 logger.debug(f"Using scCODA for cell-type differential abundance. sccoda config: {sccoda_config}")
 
 use rule * from sccoda as scRNAseq_*
+
+# ---------------------------------------------------------------------------
+# GO/KEGG enrichment over the pseudobulk output tree (modules/function/
+# pseudobulk_go). A runtime discovery checkpoint scans
+# <combine_dir>/<tissue>/pseudobulk/<counter>/deg_pseudobulk*/... after
+# scanpy_pseudobulk, then one enrichment job per
+# (counter, mode, tissue, contrast, cell_type) unit. The ordering edge over
+# scanpy_pseudobulk comes from the per-(tissue, counter) report prerequisites
+# (same gate as node.py's pseudobulk registration).
+# ---------------------------------------------------------------------------
+def _pbgo_prerequisites():
+    """Pseudobulk report htmls of every (tissue, counter) whose pseudobulk runs."""
+    reqs = []
+    for tissue in (config.get("Params", {}).get("scanpy", {}).get("tissue_samples", {}) or {}):
+        for counter in counters:
+            pb = ((config.get("Params", {}).get("scanpy", {}).get(counter, {}) or {})
+                  .get("pseudobulk", {}) or {})
+            if pb.get("enabled") and any(
+                    str(c).split(":", 1)[0] == tissue
+                    for c in (pb.get("compare") or [])):
+                reqs.append(
+                    f"{combine_dir}/{tissue}/pseudobulk/{counter}/pseudobulk_report.html")
+    return reqs
+
+
+pseudobulk_go_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
+    "env": config.get("env", {}),
+    "resources": config.get("resources", {}),
+    "indir": combine_dir,
+    "outdir": outdir,
+    "logdir": f"{logdir}/group",
+    "prerequisites": _pbgo_prerequisites(),
+    "Params": {
+        "function": config.get("Params", {}).get("function", {}),
+    },
+    "Procedure": {
+        "python": config.get("Procedure", {}).get("python") or "python",
+    },
+}
+module pseudobulk_go:
+    snakefile: "../modules/function/pseudobulk_go/pseudobulk_go.smk"
+    config: pseudobulk_go_config
+logger.debug(f"Using function/pseudobulk_go for pseudobulk GO/KEGG enrichment. config: {pseudobulk_go_config}")
+
+use rule * from pseudobulk_go as scRNAseq_*

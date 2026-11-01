@@ -7,7 +7,8 @@
     "star": "/home/luosg/Database/env/star/star.sif",
     "scTE": "/home/luosg/Database/env/scTE/scTE.sif",
     "cellranger": "/home/luosg/Database/env/cellranger/cellranger.sif",
-    "scanpy": "/home/luosg/Database/env/scanpy/scanpy.sif"
+    "scanpy": "/home/luosg/Database/env/scanpy/scanpy.sif",
+    "sccoda": "/data/16T/Database/env/sccoda/sccoda.sif"
   },
   "Procedure": {
     "STAR": null,
@@ -61,6 +62,10 @@
     "scanpy_reannotate": {
       "mem_mb": 16000,
       "threads": 2
+    },
+    "sccoda_run": {
+      "threads": 4,
+      "mem_mb": 32000
     },
     "star_align": {
       "threads": 12,
@@ -286,6 +291,27 @@
             "all"
           ]
         }
+      },
+      "tissue_samples": {}
+    },
+    "sccoda": {
+      "scTE": {
+        "enabled": true,
+        "compare": [],
+        "ref_celltype": "automatic",
+        "formula": "condition",
+        "credible_threshold": 0.9,
+        "num_samples": 2000,
+        "num_warmup": 500
+      },
+      "cellranger": {
+        "enabled": true,
+        "compare": [],
+        "ref_celltype": "automatic",
+        "formula": "condition",
+        "credible_threshold": 0.9,
+        "num_samples": 2000,
+        "num_warmup": 500
       },
       "tissue_samples": {}
     }

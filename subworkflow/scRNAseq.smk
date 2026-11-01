@@ -15,6 +15,7 @@ rule all:
 genome = config.get("genome", {}).get("default")
 raw_bam_outdir = f"{outdir}/common/2_raw_bam"
 h5ad_outdir = f"{outdir}/common/3_raw_h5ad"
+combine_dir = f"{outdir}/common/5_combine_h5ad"
 if aligner == "star":
     logger.info("Using STAR aligner for scRNA-seq workflow. only scTE counter is supported for STAR aligner.")
     star_config = {
@@ -225,7 +226,7 @@ scanpy_config = {
     "resources": config.get("resources", {}),
     "indir": h5ad_outdir,
     "outdir": f"{outdir}/common/4_qc_h5ad",
-    "outdir_combine": f"{outdir}/common/5_combine_h5ad",
+    "outdir_combine": combine_dir,
     "logdir": f"{logdir}/sample",
     "logdir_combine": f"{logdir}/group",
     "te_bed": config.get("genome", {}).get("references", {}).get(genome, {}).get("te_bed", ""),
@@ -244,3 +245,49 @@ module scanpy:
 logger.debug(f"Using scanpy for scRNA-seq downstream analysis. scanpy config: {scanpy_config}")
 
 use rule * from scanpy as scRNAseq_*
+
+# ---------------------------------------------------------------------------
+# scCODA differential abundance (modules/sccoda) — consumes the annotated
+# scanpy_auto h5ad from the combine stage. Cross-module knowledge lives here:
+# the reannotate ordering guard forwards scanpy's per-counter
+# cluster_annotations map, so the sccoda rule depends on the in-place
+# label-fix marker only when a reannotate run will produce it.
+# ---------------------------------------------------------------------------
+scanpy_params_all = config.get("Params", {}).get("scanpy", {}) or {}
+
+
+def _scanpy_cluster_annotations(counter):
+    """scanpy's per-counter cluster_annotations map ({tissue: override_json}).
+
+    Test-path injection can leave a placeholder STRING here; anything that
+    is not a tissue-keyed dict forwards as an empty map."""
+    ca = ((scanpy_params_all.get(counter, {}) or {}).get("auto", {})
+          or {}).get("cluster_annotations", {}) or {}
+    return ca if isinstance(ca, dict) else {}
+
+
+sccoda_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
+    "env": config.get("env", {}),
+    "resources": config.get("resources", {}),
+    "indir": combine_dir,
+    "outdir": combine_dir,
+    "logdir": f"{logdir}/group",
+    "reannotate": {
+        c: _scanpy_cluster_annotations(c)
+        for c in counters
+    },
+    "Params": {
+        "sccoda": config.get("Params", {}).get("sccoda", {}),
+    },
+    "Procedure": {
+        "python": config.get("Procedure", {}).get("python") or "python",
+    },
+}
+module sccoda:
+    snakefile: "../modules/sccoda/sccoda.smk"
+    config: sccoda_config
+logger.debug(f"Using scCODA for cell-type differential abundance. sccoda config: {sccoda_config}")
+
+use rule * from sccoda as scRNAseq_*

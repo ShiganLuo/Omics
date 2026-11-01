@@ -1,0 +1,98 @@
+{
+    "indir": {
+        "type": "str",
+        "nullable": true,
+        "required": true
+    },
+    "outdir": {
+        "type": "str",
+        "nullable": true,
+        "required": true
+    },
+    "logdir": {
+        "type": "str",
+        "nullable": true,
+        "required": true
+    },
+    "ROOT_DIR": {
+        "type": "str",
+        "path": "dir",
+        "nullable": true,
+        "required": false
+    },
+    "reannotate": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {}
+    },
+    "Procedure": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+            "python": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+            }
+        }
+    },
+    "Params": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+            "sccoda": {
+                "type": "dict",
+                "nullable": true,
+                "required": false,
+                "properties": {
+                    "enabled": {
+                        "type": "bool",
+                        "nullable": true,
+                        "required": false
+                    },
+                    "compare": {
+                        "type": "list",
+                        "nullable": true,
+                        "required": false,
+                        "description": "tissue:ref_sample:treat_sample[=label] entries; empty = shared from Params.scanpy.<counter>.pseudobulk.compare"
+                    },
+                    "ref_celltype": {
+                        "type": "str",
+                        "nullable": true,
+                        "required": false,
+                        "description": "'automatic' or an explicit cell-type name"
+                    },
+                    "formula": {
+                        "type": "str",
+                        "nullable": true,
+                        "required": false
+                    },
+                    "credible_threshold": {
+                        "type": "float",
+                        "nullable": true,
+                        "required": false
+                    },
+                    "num_samples": {
+                        "type": "int",
+                        "nullable": true,
+                        "required": false
+                    },
+                    "num_warmup": {
+                        "type": "int",
+                        "nullable": true,
+                        "required": false
+                    },
+                    "tissue_samples": {
+                        "type": "dict",
+                        "nullable": true,
+                        "required": false,
+                        "properties": {}
+                    }
+                }
+            }
+        }
+    }
+}

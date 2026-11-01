@@ -804,12 +804,44 @@ def execute_workflows(args: argparse.Namespace, root_dir: str, logger: logging.L
                         return str(d / genome)
                     return str(ref / genome)
 
+                # Schema awareness for the injection below: a field the
+                # workflow schema declares as a container (dict/list) is
+                # never a bare path. Filling such fields with a path STRING
+                # produced invalid configs that crashed dict-suffixed param
+                # lambdas (e.g. scanpy marker_supplement/cluster_annotations
+                # .get(tissue)) as soon as their rule entered the test DAG.
+                wf_schema: Dict[str, Any] = {}
+                try:
+                    sv_inject = SchemaValidator()
+                    sv_inject._schema_dir = os.path.join(root_dir, "config")
+                    sv_inject.load_workflow(wf_name)
+                    wf_schema = sv_inject._schema
+                except FileNotFoundError:
+                    wf_schema = {}
+
+                def _schema_node(dotted: str) -> Dict[str, Any]:
+                    node: Any = wf_schema
+                    for seg in dotted.split("."):
+                        if not isinstance(node, dict):
+                            return {}
+                        props = node.get("properties")
+                        if isinstance(props, dict) and seg in props:
+                            node = props[seg]
+                        elif seg in node:
+                            node = node[seg]
+                        else:
+                            return {}
+                    return node if isinstance(node, dict) else {}
+
                 def _inject(cfg: Dict[str, Any], prefix: str, wf_extra: Dict[str, Any]) -> None:
                     for field, val in cfg.items():
                         dotted = f"{prefix}.{field}" if prefix else field
                         if isinstance(val, dict):
                             _inject(val, dotted, wf_extra)
                         elif _is_path(val):
+                            declared = _schema_node(dotted).get("type")
+                            if declared in ("dict", "list", "array"):
+                                continue  # container field: never a bare path
                             wf_extra[dotted] = base_paths.get(dotted, _make_test_path(field, test_data, args._test_genome))
 
                 wf_extra: Dict[str, Any] = dict(args.extra_args) if hasattr(args, 'extra_args') else {}

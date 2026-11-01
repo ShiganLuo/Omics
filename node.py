@@ -1289,6 +1289,13 @@ def runscRNAseq(
             pb_cfg = (datajson["Params"].get("scanpy", {}).get(counter, {}) or {}).get("pseudobulk", {})
             if pb_cfg.get("enabled") and pb_cfg.get("compare"):
                 outfiles.append(f"{outdir}/common/5_combine_h5ad/{tissue}/pseudobulk/{counter}/pseudobulk_report.html")
+            # Manual cluster-annotation overrides (scanpy_reannotate): an
+            # in-place label fix over the auto h5ad (auto.h5ad.bak keeps
+            # one generation). Register the marker file only for tissues
+            # with an override JSON configured.
+            ca = (datajson["Params"].get("scanpy", {}).get(counter, {}) or {}).get("auto", {}).get("cluster_annotations", {}) or {}
+            if tissue in ca:
+                outfiles.append(f"{outdir}/common/5_combine_h5ad/{tissue}/{tissue}_{counter}_auto.h5ad.reannotated")
     datajson["Params"]["scanpy"]["tissue_samples"] = tissue_samples
     # outfiles.append(f"{outdir}/scRNAseq_report.pptx")
     datajson["outfiles"] = outfiles

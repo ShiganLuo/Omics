@@ -80,6 +80,38 @@ def _run_cmd_p36(cmd: List[str]) -> str:
         logger.error(f"Execution failed: {str(e)}")
         raise RuntimeError(f"Command execution failed: {cmd_str}") from e
 
+def _sanitized_env(cmd: List[str]) -> dict:
+    """Build a subprocess environment with TMPDIR forced to the workflow's
+    own tmp_dir.
+
+    The calling shell may export a host-only TMPDIR (agent scratch dirs etc.)
+    that is NOT bind-mounted into apptainer containers — tools inheriting it
+    (GNU parallel, fibertools temp files, ...) die at startup inside the
+    container. The workflow's own tmp_dir is always bind-mounted (and mapped
+    to /tmp inside the container), so force that instead. Relative tmp_dir
+    values resolve against the configfile's directory, matching
+    run.build_snakemake_cmd.
+    """
+    env = dict(os.environ)
+    cfg_tmp = None
+    if "--configfile" in cmd:
+        import json as _json
+        idx = cmd.index("--configfile")
+        if idx + 1 < len(cmd):
+            cfg_path = cmd[idx + 1]
+            try:
+                with open(cfg_path, "r", encoding="utf-8") as _f:
+                    _cfg = _json.load(_f)
+                cfg_tmp = _cfg.get("tmp_dir")
+            except Exception:
+                cfg_tmp = None
+            if cfg_tmp and not os.path.isabs(cfg_tmp):
+                cfg_tmp = os.path.join(os.path.dirname(cfg_path), cfg_tmp)
+    if cfg_tmp:
+        os.makedirs(cfg_tmp, exist_ok=True)
+        env["TMPDIR"] = cfg_tmp
+    return env
+
 def _run_cmd(cmd:List, cwd: Optional[str] = None) -> str:
     """
     execute complex command and return stdout
@@ -99,33 +131,13 @@ def _run_cmd(cmd:List, cwd: Optional[str] = None) -> str:
         raise RuntimeError(f"Command not found: {cmd_bin}")
 
     try:
-        # TMPDIR sanitization: the calling shell may export a host-only
-        # TMPDIR (agent scratch dirs etc.) that is NOT bind-mounted into
-        # apptainer containers — tools inheriting it (GNU parallel,
-        # fibertools temp files, ...) die at startup inside the container.
-        # Force TMPDIR to the workflow's own tmp_dir, which the snakemake
-        # invocation always binds (and maps to /tmp inside the container).
-        env = dict(os.environ)
-        cfg_tmp = None
-        if "--configfile" in cmd:
-            import json as _json
-            idx = cmd.index("--configfile")
-            if idx + 1 < len(cmd):
-                try:
-                    with open(cmd[idx + 1], "r", encoding="utf-8") as _f:
-                        _cfg = _json.load(_f)
-                    cfg_tmp = _cfg.get("tmp_dir")
-                except Exception:
-                    cfg_tmp = None
-        if cfg_tmp and os.path.isdir(cfg_tmp):
-            env["TMPDIR"] = cfg_tmp
         result = subprocess.run(
             cmd,
             check=True,
             capture_output=True,
             text=True,
             cwd=cwd,
-            env=env
+            env=_sanitized_env(cmd)
         )
 
         if result.stdout:
@@ -172,6 +184,7 @@ def _run_cmds_parallel(cmds: List) -> List[str]:
             stderr=subprocess.PIPE,
             text=True,
             cwd=cwd,
+            env=_sanitized_env(cmd),
         )
         processes.append(p)
 

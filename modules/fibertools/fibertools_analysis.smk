@@ -34,7 +34,9 @@ rule ft_extract:
         cpg = outdir + "/{sample_id}/{sample_id}.cpg.bed.gz",
     log:
         logdir + "/{sample_id}/ft_extract.log"
-    threads: 8
+    threads: rule_res("ft_extract").get("threads", 8)
+    resources:
+        mem_mb = rule_res("ft_extract").get("mem_mb", 8000),
     conda:
         "fibertools.yaml"
     container:
@@ -85,7 +87,9 @@ rule ft_call_peaks:
         fdr_table = outdir + "/{sample_id}/{sample_id}.fire_fdr_table.tsv",
     log:
         logdir + "/{sample_id}/ft_call_peaks.log"
-    threads: 8
+    threads: rule_res("ft_call_peaks").get("threads", 8)
+    resources:
+        mem_mb = rule_res("ft_call_peaks").get("mem_mb", 8000),
     conda:
         "fibertools.yaml"
     container:
@@ -184,7 +188,9 @@ rule ft_qc:
         qc = outdir + "/{sample_id}/{sample_id}.qc.tsv",
     log:
         logdir + "/{sample_id}/ft_qc.log"
-    threads: 8
+    threads: rule_res("ft_qc").get("threads", 8)
+    resources:
+        mem_mb = rule_res("ft_qc").get("mem_mb", 8000),
     conda:
         "fibertools.yaml"
     container:
@@ -237,7 +243,9 @@ rule ft_extract_fire:
         fire = outdir + "/{sample_id}/{sample_id}.fire.bed.gz",
     log:
         logdir + "/{sample_id}/ft_extract_fire.log"
-    threads: 8
+    threads: rule_res("ft_extract_fire").get("threads", 8)
+    resources:
+        mem_mb = rule_res("ft_extract_fire").get("mem_mb", 8000),
     # fibertools.yaml, NOT ../samtools/samtools.yaml: the script's first
     # command is `ft fire --extract` (fibertools binary); samtools.sif has
     # no `ft` and dies "ft: command not found". The fibertools container
@@ -274,8 +282,15 @@ rule ft_extract_fire:
             ]
             if params.is_ont:
                 cmd.extend(["--ont"])
+            # `ft fire` (and GNU sort in the publish step below) create temp
+            # files in $TMPDIR; a host-only TMPDIR (agent scratch dirs etc.)
+            # is not bind-mounted into the container and kills them at
+            # startup. Force the workflow's own bound tmp_dir instead.
+            tmp_dir = config.get("tmp_dir") or os.path.join(outdir, "tmp")
+            os.makedirs(tmp_dir, exist_ok=True)
             with open(command_script, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
+                f.write(f'export TMPDIR="{tmp_dir}"\n')
                 f.write(" ".join(cmd) + "\n")
                 f.write(f"LC_ALL=C sort -k1,1 -k2,2n {tmp_fire} | bgzip -c > {output.fire}\n")
                 f.write(f"tabix -f -p bed {output.fire}\n")
@@ -296,7 +311,9 @@ rule ft_split_hap:
         bai = outdir + "/{sample_id}/{sample_id}.{hap}.bam.bai",
     log:
         logdir + "/{sample_id}/ft_split_hap_{hap}.log"
-    threads: 4
+    threads: rule_res("ft_split_hap").get("threads", 4)
+    resources:
+        mem_mb = rule_res("ft_split_hap").get("mem_mb", 8000),
     conda:
         "fibertools.yaml"
     container:
@@ -338,7 +355,9 @@ rule ft_extract_hap:
         cpg = outdir + "/{sample_id}/{sample_id}.{hap}.cpg.bed.gz",
     log:
         logdir + "/{sample_id}/ft_extract_{hap}.log"
-    threads: 8
+    threads: rule_res("ft_extract_hap").get("threads", 8)
+    resources:
+        mem_mb = rule_res("ft_extract_hap").get("mem_mb", 8000),
     conda:
         "fibertools.yaml"
     container:

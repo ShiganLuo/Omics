@@ -681,8 +681,9 @@ def pca_exploration_plot(adata, output_path, sample_col="sample_id",
         logger.warning(f"PCA skipped: only {len(samples)} samples (need >= 3)")
         return False
 
-    # Aggregate per sample
-    raw = adata.raw.to_adata()
+    # Aggregate per sample (no raw slot on the counts_h5ad-rewritten
+    # AnnData — its X is already the verified integer counts)
+    raw = adata.raw.to_adata() if adata.raw is not None else adata
     rows = []
     for sample in samples:
         mask = adata.obs[sample_col] == sample
@@ -785,7 +786,7 @@ def sample_filter_plot(adata, output_path, sample_col="sample_id",
     Returns:
         pd.DataFrame: Summary table with sample, cell_type, n_cells, n_counts, pass_qc.
     """
-    raw = adata.raw.to_adata()
+    raw = adata.raw.to_adata() if adata.raw is not None else adata
     records = []
     for (sample, ct), group_idx in adata.obs.groupby([sample_col, type_col]).groups.items():
         mask = adata.obs.index.isin(group_idx)
@@ -1079,7 +1080,7 @@ def top_deg_heatmap(adata, deg_df, cell_type, comparison, output_path, top_n=20)
     genes = sub["gene"].tolist()
 
     sub_adata = adata[adata.obs["cell_type"] == cell_type]
-    raw = sub_adata.raw.to_adata()
+    raw = sub_adata.raw.to_adata() if sub_adata.raw is not None else sub_adata
     gene_idx = [i for i, g in enumerate(raw.var_names) if g in genes]
     found_genes = [raw.var_names[i] for i in gene_idx]
     if not gene_idx:
@@ -1519,6 +1520,109 @@ Examples:
     return args, config
 
 
+def _write_html_report(out_dir, config, run_params):
+    """Write ``<out_dir>/pseudobulk_report.html``: the run's declared output.
+
+    Self-contained HTML summary of a pseudobulk run: run parameters, the
+    tissue comparison design, a DEG results table (one row per DEG CSV with
+    significant-gene counts), and a gallery of every figure produced. Built
+    by walking *out_dir*, so it is emitted on EVERY code path — including
+    zero-result runs — keeping the snakemake output contract satisfiable
+    (a declared output with no producer fails the job even after every
+    analysis succeeds).
+
+    Args:
+        out_dir: Output root (the report is written directly into it).
+        config: ``{tissue: {"comparisons": [...]}}`` design mapping.
+        run_params: Dict of run parameters for the header table.
+    """
+    import csv as _csv
+    from html import escape as _escape
+
+    report_path = os.path.join(out_dir, "pseudobulk_report.html")
+
+    deg_rows = []
+    figures = []
+    for root, _dirs, files in os.walk(out_dir):
+        for fn in sorted(files):
+            path = os.path.join(root, fn)
+            rel = os.path.relpath(path, out_dir)
+            if fn.endswith("_DEG.csv") or fn == "all_pseudobulk_DEG.csv":
+                n_rows = n_sig = 0
+                with open(path, newline="", encoding="utf-8") as fh:
+                    reader = _csv.DictReader(fh)
+                    has_sig = "significant" in (reader.fieldnames or [])
+                    for row in reader:
+                        n_rows += 1
+                        if has_sig and str(row.get("significant", "")) \
+                                .strip().lower() in ("true", "1", "yes"):
+                            n_sig += 1
+                deg_rows.append((rel, n_rows, n_sig if has_sig else None))
+            elif fn.lower().endswith((".png", ".pdf", ".svg")):
+                figures.append(rel)
+
+    comp_rows = []
+    for tissue, cfg in sorted(config.items()):
+        for comp in cfg.get("comparisons", []):
+            comp_rows.append((tissue, comp.get("label") or comp.get("key", ""),
+                              comp.get("ref", ""), comp.get("treat", "")))
+
+    def _tr(cells):
+        return "<tr>" + "".join(f"<td>{c}</td>" for c in cells) + "</tr>"
+
+    parts = [
+        "<!doctype html><html><head><meta charset='utf-8'>",
+        "<title>Pseudobulk DEG report</title>",
+        "<style>body{font-family:sans-serif;max-width:1100px;margin:2em auto;"
+        "padding:0 1em}table{border-collapse:collapse}td,th{border:1px solid #ccc;"
+        "padding:4px 8px;font-size:13px}img{max-width:360px;display:block;"
+        "margin:4px 0}.gallery{display:flex;flex-wrap:wrap;gap:16px}"
+        ".fig{border:1px solid #ddd;padding:8px;max-width:380px}"
+        "code{background:#f4f4f4;padding:1px 4px}</style></head><body>",
+        "<h1>Pseudobulk DEG report</h1>",
+        f"<p>Output root: <code>{_escape(out_dir)}</code></p>",
+        "<h2>Run parameters</h2><table>",
+        _tr(["parameter", "value"]),
+    ]
+    for k, v in run_params.items():
+        parts.append(_tr([_escape(str(k)), _escape(str(v))]))
+    parts += [
+        "</table>",
+        "<h2>Comparisons</h2><table>",
+        _tr(["tissue", "label", "reference", "treatment"]),
+    ]
+    for row in comp_rows:
+        parts.append(_tr([_escape(str(c)) for c in row]))
+    if not comp_rows:
+        parts.append(_tr(["—", "no comparisons", "", ""]))
+    parts += [
+        "</table>",
+        "<h2>DEG results</h2><table>",
+        _tr(["file", "rows", "significant"]),
+    ]
+    for rel, n_rows, n_sig in sorted(deg_rows):
+        sig = "—" if n_sig is None else str(n_sig)
+        parts.append(_tr(
+            [f"<a href='{_escape(rel)}'>{_escape(rel)}</a>", str(n_rows), sig]))
+    if not deg_rows:
+        parts.append(_tr(["—", "no DEG tables produced", ""]))
+    parts += ["</table>", "<h2>Figures</h2><div class='gallery'>"]
+    for rel in sorted(figures):
+        parts.append(
+            f"<div class='fig'><code>{_escape(rel)}</code>"
+            f"<a href='{_escape(rel)}'>"
+            f"<img src='{_escape(rel)}' alt='{_escape(rel)}'></a></div>")
+    if not figures:
+        parts.append("<p>no figures produced</p>")
+    parts += ["</div></body></html>"]
+
+    tmp = report_path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as fh:
+        fh.write("\n".join(parts) + "\n")
+    os.replace(tmp, report_path)
+    logger.info("Pseudobulk report: %s", report_path)
+
+
 def main():
     """Entry point: prepare counts → PyDESeq2 DEG → generate figures."""
     args, config = parse_cli_args()
@@ -1644,6 +1748,18 @@ def main():
             logger.info("=" * 60)
             plot_all(config, args.out_dir, deg_dir, go_dir, fig_dir,
                      args.top_cell_types, args.highlight_genes)
+
+    # The declared rule output must exist on EVERY path (including
+    # zero-result and skip-flag runs), so the report is written
+    # unconditionally at the very end.
+    _write_html_report(
+        args.out_dir, config,
+        {"min_cells": args.min_cells, "min_counts": args.min_counts,
+         "n_pseudo_reps": args.n_pseudo_reps,
+         "deg_mode": ",".join(args.deg_mode),
+         "skip_deseq2": args.skip_deseq2, "skip_plot": args.skip_plot,
+         "skip_prepare": args.skip_prepare, "skip_qc": args.skip_qc},
+    )
 
     logger.info("\n" + "=" * 60)
     logger.info("DONE")

@@ -1287,7 +1287,13 @@ def runscRNAseq(
             # scanpy_auto h5ad, so registering the report target pulls the
             # qc→merge→auto chain into the DAG
             pb_cfg = (datajson["Params"].get("scanpy", {}).get(counter, {}) or {}).get("pseudobulk", {})
-            if pb_cfg.get("enabled") and pb_cfg.get("compare"):
+            # Register the report only for tissues owning at least one
+            # compare entry: entries are tissue-scoped
+            # "tissue:ref:treat[=label]" strings and the per-tissue rule
+            # filters by prefix, so a tissue with no entries cannot run.
+            pb_compare = pb_cfg.get("compare") or []
+            if pb_cfg.get("enabled") and any(
+                    str(c).split(":", 1)[0] == tissue for c in pb_compare):
                 outfiles.append(f"{outdir}/common/5_combine_h5ad/{tissue}/pseudobulk/{counter}/pseudobulk_report.html")
             # Manual cluster-annotation overrides (scanpy_reannotate): an
             # in-place label fix over the auto h5ad (auto.h5ad.bak keeps

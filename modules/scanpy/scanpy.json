@@ -61,7 +61,8 @@
                 "llm_base_url": null,
                 "cluster_annotations": {},
                 "marker_supplement": {},
-                "exclude_genes": ""
+                "exclude_genes": "",
+                "exclude_from_deg": false
             },
             "pseudobulk": {
                 "enabled": false,

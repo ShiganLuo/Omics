@@ -785,7 +785,12 @@
           "exclude_genes": {
             "type": "str",
             "required": false,
-            "description": "Path to a gene-symbol list excluded from the analysis feature space (HVG/clustering/DEG; kept in raw), e.g. cell-cycle genes"
+            "description": "Path to a gene-symbol list excluded from the clustering feature space (HVG/PCA; kept in raw and in the DEG space unless exclude_from_deg), e.g. cell-cycle genes"
+          },
+          "exclude_from_deg": {
+            "type": "bool",
+            "required": false,
+            "description": "Also mask the exclude_genes list from the DEG space the annotator sees (default false: list affects clustering only)"
           }
         },
         "pseudobulk": {
@@ -1031,7 +1036,12 @@
           "exclude_genes": {
             "type": "str",
             "required": false,
-            "description": "Path to a gene-symbol list excluded from the analysis feature space (HVG/clustering/DEG; kept in raw), e.g. cell-cycle genes"
+            "description": "Path to a gene-symbol list excluded from the clustering feature space (HVG/PCA; kept in raw and in the DEG space unless exclude_from_deg), e.g. cell-cycle genes"
+          },
+          "exclude_from_deg": {
+            "type": "bool",
+            "required": false,
+            "description": "Also mask the exclude_genes list from the DEG space the annotator sees (default false: list affects clustering only)"
           }
         },
         "pseudobulk": {

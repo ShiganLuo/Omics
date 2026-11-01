@@ -34,7 +34,7 @@ rule arriba:
         discarded_fusion_tsv = outdir + "/{sample_id}/{sample_id}_discarded_fusions.tsv",
     log:
         logdir + "/{sample_id}/arriba.log"
-    threads: 4
+    threads: rule_res("arriba").get("threads", 4)
     resources:
         mem_mb = rule_res("arriba").get("mem_mb", 8000),
     params:

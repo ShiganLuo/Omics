@@ -21,7 +21,7 @@
     },
     "SplitNCigarReads": {
       "threads": 8,
-      "mem_mb": 32000
+      "mem_mb": 16000
     },
     "TEChimericPlot": {
       "threads": 1,
@@ -29,22 +29,22 @@
     },
     "TEChimericTranscripts": {
       "threads": 5,
-      "mem_mb": 16000
+      "mem_mb": 8000
     },
     "TEcount": {
-      "threads": 8,
-      "mem_mb": 16000
+      "threads": 2,
+      "mem_mb": 32000
     },
     "TElocal": {
-      "threads": 8,
-      "mem_mb": 16000
+      "threads": 2,
+      "mem_mb": 32000
     },
     "TEtranscripts_result": {
       "mem_mb": 8000
     },
     "VarientCalling": {
-      "threads": 12,
-      "mem_mb": 32000
+      "threads": 8,
+      "mem_mb": 16000
     },
     "XenofilteR": {
       "threads": 8,
@@ -52,11 +52,11 @@
     },
     "addReadsGroup": {
       "threads": 8,
-      "mem_mb": 32000
+      "mem_mb": 16000
     },
     "arriba": {
       "threads": 4,
-      "mem_mb": 16000
+      "mem_mb": 8000
     },
     "arriba_report": {
       "mem_mb": 8000
@@ -65,28 +65,28 @@
       "mem_mb": 8000
     },
     "bowtie2_align_paired": {
-      "threads": 12,
+      "threads": 8,
       "mem_mb": 16000
     },
     "bowtie2_align_single": {
-      "threads": 12,
-      "mem_mb": 8000
+      "threads": 8,
+      "mem_mb": 16000
     },
     "bowtie2_index": {
       "threads": 12,
-      "mem_mb": 16000
+      "mem_mb": 8000
     },
     "combine_TEcount": {
-      "threads": 2,
+      "threads": 1,
       "mem_mb": 8000
     },
     "combine_TElocal": {
-      "threads": 2,
+      "threads": 1,
       "mem_mb": 8000
     },
     "extract_rRNA": {
-      "threads": 8,
-      "mem_mb": 16000
+      "threads": 2,
+      "mem_mb": 8000
     },
     "featureCounts_merge": {
       "threads": 2,
@@ -94,26 +94,26 @@
     },
     "featureCounts_paired_noMultiple": {
       "threads": 10,
-      "mem_mb": 32000
+      "mem_mb": 8000
     },
     "featureCounts_result": {
       "mem_mb": 8000
     },
     "featureCounts_single_noMultiple": {
       "threads": 10,
-      "mem_mb": 16000
+      "mem_mb": 8000
     },
     "function_go_kegg": {
-      "threads": 4,
-      "mem_mb": 16000
+      "threads": 1,
+      "mem_mb": 8000
     },
     "function_gsea": {
-      "threads": 4,
-      "mem_mb": 16000
+      "threads": 1,
+      "mem_mb": 8000
     },
     "function_gsva": {
-      "threads": 4,
-      "mem_mb": 16000
+      "threads": 1,
+      "mem_mb": 8000
     },
     "gatk_index": {
       "threads": 4,
@@ -128,18 +128,18 @@
     },
     "hisat2_align": {
       "threads": 12,
-      "mem_mb": 16000
+      "mem_mb": 32000
     },
     "hisat2_index": {
       "threads": 8,
-      "mem_mb": 16000
+      "mem_mb": 8000
     },
     "star_align": {
       "threads": 12,
       "mem_mb": 32000
     },
     "star_index": {
-      "threads": 16,
+      "threads": 12,
       "mem_mb": 64000
     },
     "star_result": {
@@ -151,7 +151,7 @@
     },
     "stringTieMerge": {
       "threads": 1,
-      "mem_mb": 8000
+      "mem_mb": 32000
     },
     "trimming_Paired": {
       "threads": 6,
@@ -170,7 +170,7 @@
       "mem_mb": 4000
     },
     "vcf_filter": {
-      "threads": 4,
+      "threads": 8,
       "mem_mb": 8000
     }
   },

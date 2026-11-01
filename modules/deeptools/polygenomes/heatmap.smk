@@ -184,6 +184,7 @@ def _get_regions_for_heatmap(wildcards):
     if regions_cfg == "tss" and tss_bed and os.path.isfile(tss_bed):
         return tss_bed
     return []
+    threads: rule_res("bigwig_ratio_result").get("threads", 1)
     resources:
         mem_mb = rule_res("bigwig_ratio_result").get("mem_mb", 8000),
 

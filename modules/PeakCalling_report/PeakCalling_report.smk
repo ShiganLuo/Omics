@@ -63,7 +63,7 @@ rule generate_report:
         excel = outdir + "/PeakCalling_report.xlsx",
     log:
         logdir + "/PeakCalling_report.log"
-    threads: 1
+    threads: rule_res("generate_report").get("threads", 1)
     resources:
         mem_mb = rule_res("generate_report").get("mem_mb", 8000),
     conda:

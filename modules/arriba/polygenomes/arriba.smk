@@ -49,7 +49,7 @@ rule arriba:
         logdir + "/{sample_id}/{genome}/arriba.log"
     threads: rule_res("arriba").get("threads", 4)
     resources:
-        mem_mb=rule_res("arriba").get("mem_mb", 16000),
+        mem_mb=rule_res("arriba").get("mem_mb", 8000),
     params:
         arriba = config.get('Procedure',{}).get('arriba') or 'arriba',
         t = config.get('Params',{}).get('arriba',{}).get('t') or None,

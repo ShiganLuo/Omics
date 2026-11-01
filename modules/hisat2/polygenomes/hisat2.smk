@@ -28,7 +28,7 @@ rule hisat2_index:
         ix8 = outdir + "/index/{genome}/{genome}.8.ht2"
     threads: rule_res("hisat2_index").get("threads", 8)
     resources:
-        mem_mb=rule_res("hisat2_index").get("mem_mb", 16000),
+        mem_mb=rule_res("hisat2_index").get("mem_mb", 8000),
     conda:
         "../hisat2.yaml"
     container:
@@ -105,7 +105,7 @@ rule hisat2_align:
         logdir + "/{sample_id}/{genome}/hisat2_align.log"
     threads: rule_res("hisat2_align").get("threads", 12)
     resources:
-        mem_mb=rule_res("hisat2_align").get("mem_mb", 16000),
+        mem_mb=rule_res("hisat2_align").get("mem_mb", 32000),
     conda:
         "../hisat2.yaml"
     params:

@@ -106,6 +106,9 @@ rule bigwig_ratio_result:
     """Aggregation rule for bigwig_ratio."""
     input:
         ratio_bigwig = outdir + "/{sample_id}/{sample_id}_IP_over_Input.bigwig",
+    threads: rule_res("bigwig_ratio_result").get("threads", 1)
+    resources:
+        mem_mb = rule_res("bigwig_ratio_result").get("mem_mb", 8000),
 
 def get_ratio_bigwig(wildcards):
     return os.path.join(outdir, wildcards.sample_id, wildcards.sample_id + "_IP_over_Input.bigwig")
@@ -197,8 +200,6 @@ rule heatmap:
     threads: rule_res("heatmap").get("threads", 4)
     resources:
         mem_mb = rule_res("heatmap").get("mem_mb", 16000),
-    resources:
-        mem_mb = rule_res("bigwig_ratio_result").get("mem_mb", 8000),
     conda: "deeptools.yaml"
     container: sif("deeptools.yaml")
     run:

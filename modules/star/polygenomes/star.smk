@@ -30,7 +30,7 @@ rule star_index:
         index_file = directory(outdir + "/index/{genome}")
     log:
         logdir_index + "/star/{genome}/" + log_index_substring + ".log"
-    threads: rule_res("star_index").get("threads", 16)
+    threads: rule_res("star_index").get("threads", 12)
     resources:
         mem_mb=rule_res("star_index").get("mem_mb", 64000),
     conda:

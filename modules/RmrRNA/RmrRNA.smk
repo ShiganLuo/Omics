@@ -14,7 +14,7 @@ rule extract_rRNA:
         rRNA_fasta = outdir + "/rRNA.fasta"
     log:
         logdir + "/../group/RmrRNA/extract_rRNA.log"
-    threads: 2
+    threads: rule_res("extract_rRNA").get("threads", 2)
     resources:
         mem_mb = rule_res("extract_rRNA").get("mem_mb", 8000),
     params:

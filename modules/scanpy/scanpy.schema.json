@@ -297,6 +297,11 @@
                                 "nullable": true,
                                 "required": false
                             },
+                            "marker_supplement_llm": {
+                                "type": "bool",
+                                "nullable": true,
+                                "required": false
+                            },
                             "exclude_genes": {
                                 "type": "str",
                                 "nullable": true,
@@ -351,7 +356,8 @@
                                 "required": false
                             },
                             "deg_mode": {
-                                "type": "list",
+                                "type": "enum",
+                                "values": ["gene", "te", "all"],
                                 "nullable": true,
                                 "required": false
                             }

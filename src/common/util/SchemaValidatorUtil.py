@@ -270,7 +270,7 @@ class SchemaValidator:
                 errors.extend(path_errors)
 
             # ---- enum validation ----------------------------------------
-            allowed = field_def.get("enum")
+            allowed = field_def.get("enum") or field_def.get("values")
             if allowed is not None and isinstance(allowed, list):
                 enum_errors = self._validate_enum(key, result[key], allowed)
                 errors.extend(enum_errors)
@@ -434,6 +434,16 @@ class SchemaValidator:
         Returns:
             List of error messages (empty if valid).
         """
+        if isinstance(value, list):
+            bad = [v for v in value if v not in allowed]
+            if not bad:
+                return []
+            display = ", ".join(repr(v) for v in allowed[:10])
+            suffix = "..." if len(allowed) > 10 else ""
+            return [
+                f"字段 '{field_name}' 不在允许值范围内: "
+                f"收到 {bad!r}，有效值: {display}{suffix}"
+            ]
         if value in allowed:
             return []
         display = ", ".join(repr(v) for v in allowed[:10])

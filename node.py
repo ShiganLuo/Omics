@@ -1332,6 +1332,13 @@ def runscRNAseq(
                 outfiles.append(f"{outdir}/common/5_combine_h5ad/{tissue}/{tissue}_{counter}_auto.h5ad.reannotated")
     datajson["Params"]["scanpy"]["tissue_samples"] = tissue_samples
     datajson["Params"]["sccoda"]["tissue_samples"] = tissue_samples
+    # GO/KEGG enrichment over the pseudobulk tree (modules/function/
+    # pseudobulk_go): one sentinel target pulls the per-unit enrichment jobs
+    # behind the runtime discovery checkpoint. Gated by
+    # Params.function.pseudobulk_go.enabled.
+    pbgo_cfg = (datajson["Params"].get("function", {}) or {}).get("pseudobulk_go", {}) or {}
+    if pbgo_cfg.get("enabled"):
+        outfiles.append(f"{outdir}/function/go_kegg/enrichment.done")
     # outfiles.append(f"{outdir}/scRNAseq_report.pptx")
     datajson["outfiles"] = outfiles
     return _write_raw_json(datajson, outdir)

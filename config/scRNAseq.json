@@ -67,6 +67,10 @@
       "threads": 4,
       "mem_mb": 32000
     },
+    "function_pseudobulk_go": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
     "star_align": {
       "threads": 12,
       "mem_mb": 32000
@@ -314,6 +318,17 @@
         "num_warmup": 500
       },
       "tissue_samples": {}
+    },
+    "function": {
+      "pseudobulk_go": {
+        "enabled": false,
+        "modes": ["all", "gene", "te"],
+        "species": "macaque",
+        "lfc_cut": 1,
+        "p_cut": 0.05,
+        "top": 10,
+        "format": "png"
+      }
     }
   }
 }

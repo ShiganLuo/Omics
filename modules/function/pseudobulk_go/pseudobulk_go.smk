@@ -31,19 +31,66 @@ _MODE_DIRS = {
     "te": "deg_pseudobulk_te",
 }
 
-# Parse-time discovery of (counter, mode, tissue, contrast, cell_type) units
-# from the pseudobulk tree; all_pseudobulk_DEG.csv lives one level up and is
-# not matched. The <tissue> dir and the deg_<tissue> dir must agree.
-_w = glob_wildcards(
-    pb_root + ("/{tissue}/pseudobulk/{counter}/{mode_dir}/deg_{dtissue}"
-               "/{contrast}/{cell_type}/{stem}_DEG.csv"))
-PB_UNITS = sorted({
-    (_w.counter[i], mode, _w.tissue[i], _w.contrast[i], _w.cell_type[i])
-    for i in range(len(_w.stem))
-    for mode, mode_dir in _MODE_DIRS.items()
-    if mode in pb_modes and _w.mode_dir[i] == mode_dir
-    if _w.dtissue[i] == _w.tissue[i]
-})
+# Unit discovery is a RUNTIME checkpoint: in workflow runs the tree only
+# exists after scanpy_pseudobulk, so the parse-time glob of a standalone run
+# cannot be used. scan_unit_lines() re-implements the same match at
+# checkpoint time. `prerequisites` = the per-(tissue, counter) pseudobulk
+# report htmls (ordering edge; empty for standalone runs on an existing tree).
+prerequisites = config.get("prerequisites") or []
+import glob as _glob  # noqa: E402
+
+
+def scan_unit_lines():
+    """List 'counter/mode/tissue/contrast/cell_type' units under pb_root."""
+    mode_of = {v: k for k, v in _MODE_DIRS.items()}
+    pat = os.path.join(pb_root, "*", "pseudobulk", "*", "deg_pseudobulk*",
+                       "deg_*", "*", "*", "*_DEG.csv")
+    units = set()
+    for path in _glob.glob(pat):
+        rel = os.path.relpath(path, pb_root).split(os.sep)
+        if len(rel) != 8:
+            continue
+        tissue, _pb, counter, mode_dir, deg_tissue, contrast, cell_type, fname = rel
+        if deg_tissue != f"deg_{tissue}":
+            continue
+        if fname != f"{contrast}_{cell_type}_DEG.csv":
+            continue
+        mode = mode_of.get(mode_dir)
+        if mode is None or mode not in pb_modes:
+            continue
+        units.add(f"{counter}/{mode}/{tissue}/{contrast}/{cell_type}")
+    return sorted(units)
+
+
+checkpoint function_pseudobulk_go_index:
+    """Discover enrichment units under the pseudobulk tree (after prereqs)."""
+    input:
+        prerequisites
+    output:
+        units = outdir + "/function/go_kegg/units.txt"
+    log:
+        logdir + "/function/pseudobulk_go_index.log"
+    threads: 1
+    resources:
+        mem_mb=rule_res("function_pseudobulk_go").get("mem_mb", 8000),
+    run:
+        log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger("function_pseudobulk_go_index", log_file=log_path)
+        try:
+            current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+            units = scan_unit_lines()
+            os.makedirs(os.path.dirname(str(output.units)), exist_ok=True)
+            with open(str(output.units), "w") as fh:
+                fh.write("\n".join(units) + ("\n" if units else ""))
+            rule_logger.info(
+                f"Pseudobulk GO/KEGG unit discovery at {current_time}: "
+                f"{len(units)} unit(s)")
+        except Exception as e:
+            rule_logger.error(f"Error during unit discovery: {e}")
+            raise RuntimeError(
+                f"Error during unit discovery: {e}, you can check the log "
+                f"file {log_path} for more details.")
 
 
 def _go_out(name):
@@ -155,9 +202,19 @@ rule function_pseudobulk_go:
                 f"{e}, you can check the log file {log_path} for more details.")
 
 
+def _go_targets(wildcards):
+    """go_up.csv of every discovered unit (resolved after the checkpoint)."""
+    units_file = checkpoints.function_pseudobulk_go_index.get(**wildcards).output.units
+    lines = [ln.strip() for ln in open(units_file) if ln.strip()]
+    return [outdir + f"/function/go_kegg/{u}/go_up.csv" for u in lines]
+
+
 rule function_pseudobulk_go_result:
-    """Panel rule: aggregates every discovered GO/KEGG unit."""
+    """Aggregates every discovered unit; writes the sentinel node.py registers."""
     input:
-        [_go_out("go_up.csv").format(counter=co, mode=m, tissue=t,
-                                     contrast=c, cell_type=ct)
-         for (co, m, t, c, ct) in PB_UNITS]
+        _go_targets
+    output:
+        outdir + "/function/go_kegg/enrichment.done"
+    run:
+        with open(str(output), "w") as fh:
+            fh.write(time.strftime("%Y%m%d_%H%M%S", time.localtime()) + "\n")

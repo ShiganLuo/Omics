@@ -19,7 +19,9 @@ rule chromosome_sizes:
         chrom_sizes = outdir + "/genome/chrom.sizes"
     log:
         logdir + "/genome/chromosome_sizes.log"
-    threads: 1
+    threads: rule_res("chromosome_sizes").get("threads", 1)
+    resources:
+        mem_mb = rule_res("chromosome_sizes").get("mem_mb", 8000),
     conda:
         "genome.yaml"
     container:
@@ -69,7 +71,9 @@ rule extract_smallrna:
         fasta = outdir + "/genome/smallrna/smallrna_genes_flank.fa",
     log:
         logdir + "/genome/extract_smallrna.log"
-    threads: 1
+    threads: rule_res("extract_smallrna").get("threads", 1)
+    resources:
+        mem_mb = rule_res("extract_smallrna").get("mem_mb", 8000),
     conda:
         "genome.yaml"
     container:
@@ -127,7 +131,9 @@ rule genome_index:
         outdir = outdir
     container:
         sif("genome.yaml")
-    threads: 1
+    threads: rule_res("genome_index").get("threads", 1)
+    resources:
+        mem_mb = rule_res("genome_index").get("mem_mb", 8000),
     run:
         log_path = str(log)
         open(log_path,"w").close()

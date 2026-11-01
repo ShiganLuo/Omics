@@ -15,6 +15,8 @@ rule gtfbuild_run:
     input:
         gtf = GTF_OUT,
         qc = outdir + f"/{genome_name}.gtf_qc.tsv",
+    resources:
+        mem_mb = rule_res("gtfbuild_run").get("mem_mb", 8000),
 
 rule gtfbuild_liftoff:
     """Project a source GTF (e.g. GENCODE) onto a target assembly with LiftOff.
@@ -35,6 +37,8 @@ rule gtfbuild_liftoff:
     log:
         logdir + "/gtfbuild_liftoff.log"
     threads: p.get("threads", 32)
+    resources:
+        mem_mb = rule_res("gtfbuild_liftoff").get("mem_mb", 32000),
     conda:
         "gtfbuild.yaml"
     container:
@@ -96,7 +100,9 @@ rule gtfbuild_qc:
         qc = outdir + f"/{genome_name}.gtf_qc.tsv",
     log:
         logdir + "/gtfbuild_qc.log"
-    threads: 1
+    threads: rule_res("gtfbuild_qc").get("threads", 1)
+    resources:
+        mem_mb = rule_res("gtfbuild_qc").get("mem_mb", 8000),
     conda:
         "gtfbuild.yaml"
     container:
@@ -149,6 +155,8 @@ rule gtfbuild_bed_run:
     input:
         bed = outdir + f"/{BED_STEM}.lifted.bed",
         stats = outdir + f"/{BED_STEM}.lifted.stats.tsv",
+    resources:
+        mem_mb = rule_res("gtfbuild_bed_run").get("mem_mb", 8000),
 
 rule gtfbuild_wga:
     """Whole-genome alignment (PAF) between target and source assembly."""
@@ -160,6 +168,8 @@ rule gtfbuild_wga:
     log:
         logdir + "/gtfbuild_wga.log"
     threads: p.get("threads", 32)
+    resources:
+        mem_mb = rule_res("gtfbuild_wga").get("mem_mb", 64000),
     conda:
         "gtfbuild.yaml"
     container:
@@ -207,7 +217,9 @@ rule gtfbuild_liftover_bed:
         stats = outdir + f"/{BED_STEM}.lifted.stats.tsv",
     log:
         logdir + "/gtfbuild_liftover_bed.log"
-    threads: 1
+    threads: rule_res("gtfbuild_liftover_bed").get("threads", 1)
+    resources:
+        mem_mb = rule_res("gtfbuild_liftover_bed").get("mem_mb", 8000),
     conda:
         "gtfbuild.yaml"
     container:

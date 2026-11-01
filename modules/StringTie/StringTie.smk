@@ -17,6 +17,8 @@ rule stringTie:
         gtf = config.get('genome', {}).get('gtf'), #最好使用完整的gtf文件，更有利于准确判断是否是新转录本
         stringtie = config.get("Procedure", {}).get("stringtie") or "stringtie"
     threads: 5
+    resources:
+        mem_mb = rule_res("stringTie").get("mem_mb", 16000),
     conda:
         "StringTie.yaml"
     container:
@@ -52,6 +54,8 @@ rule TEChimericTranscripts:
         te_gtf = config.get('genome', {}).get('TE_gtf'),
         TEChimericTranscripts = ROOT_DIR + "/modules/StringTie/bin/TEChimericTranscripts.py"
     threads: 5
+    resources:
+        mem_mb = rule_res("TEChimericTranscripts").get("mem_mb", 8000),
     conda:
         "StringTie.yaml"
     container:
@@ -91,6 +95,8 @@ rule TEChimericPlot:
     params:
         TEChimericPlot = ROOT_DIR + "/modules/StringTie/bin/TEChimericPlot.py"
     threads: 1
+    resources:
+        mem_mb = rule_res("TEChimericPlot").get("mem_mb", 8000),
     conda:
         "StringTie.yaml"
     container:
@@ -134,6 +140,8 @@ rule stringTieMerge:
         gtf = outdir + "/stringtie_merged.gtf"
     log:
         logdir + "/../group/stringtie/stringTieMerge.log"
+    resources:
+        mem_mb = rule_res("stringTieMerge").get("mem_mb", 32000),
     params:
         gtf = config.get('genome', {}).get('gtf'), #最好使用完整的gtf文件，更有利于准确判断是否是新转录本
         stringtie = config.get("Procedure", {}).get("stringtie") or "stringtie"

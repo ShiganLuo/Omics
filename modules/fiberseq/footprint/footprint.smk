@@ -80,3 +80,5 @@ rule fiberseq_footprint_result:
                             sample_id=samples),
         scores = expand(outdir + "/{sample_id}/{sample_id}.footprint_scores.tsv",
                         sample_id=samples),
+    resources:
+        mem_mb = rule_res("fiberseq_footprint_result").get("mem_mb", 8000),

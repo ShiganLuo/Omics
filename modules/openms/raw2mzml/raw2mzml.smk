@@ -35,7 +35,9 @@ rule raw2mzml:
         mzml = outdir + "/{sample_id}/{sample_id}.mzML"
     log:
         logdir + "/{sample_id}/raw2mzml.log"
-    threads: 2
+    threads: rule_res("raw2mzml").get("threads", 2)
+    resources:
+        mem_mb = rule_res("raw2mzml").get("mem_mb", 8000),
     conda:
         "../openms.yaml"
     container:
@@ -95,3 +97,5 @@ rule raw2mzml:
 rule raw2mzml_result:
     input:
         expand(outdir + "/{sample_id}/{sample_id}.mzML", sample_id=samples)
+    resources:
+        mem_mb = rule_res("raw2mzml_result").get("mem_mb", 8000),

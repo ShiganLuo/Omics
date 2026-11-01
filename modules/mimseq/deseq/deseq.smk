@@ -21,7 +21,9 @@ rule mimseq_deseq:
         control_cond = config.get("Params", {}).get("mimseq", {}).get("control_cond", ""),
         p_adj = config.get("Params", {}).get("mimseq", {}).get("p_adj", 0.05),
         mito_trnas = config.get("genome", {}).get("mito_trnas", ""),
-    threads: 4
+    threads: rule_res("mimseq_deseq").get("threads", 4)
+    resources:
+        mem_mb = rule_res("mimseq_deseq").get("mem_mb", 16000),
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -54,3 +56,5 @@ rule mimseq_deseq_result:
     """Result rule for deseq module."""
     input:
         deseq_done = outdir + "/deseq.done",
+    resources:
+        mem_mb = rule_res("mimseq_deseq_result").get("mem_mb", 8000),

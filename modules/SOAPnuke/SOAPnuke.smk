@@ -26,7 +26,9 @@ rule soapnuke_filter_paired:
         "SOAPnuke.yaml"
     container:
         sif("SOAPnuke.yaml")
-    threads: 8
+    threads: rule_res("soapnuke_filter_paired").get("threads", 8)
+    resources:
+        mem_mb = rule_res("soapnuke_filter_paired").get("mem_mb", 8000),
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -86,7 +88,9 @@ rule soapnuke_filter_single:
         "SOAPnuke.yaml"
     container:
         sif("SOAPnuke.yaml")
-    threads: 8
+    threads: rule_res("soapnuke_filter_single").get("threads", 8)
+    resources:
+        mem_mb = rule_res("soapnuke_filter_single").get("mem_mb", 8000),
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -128,7 +132,11 @@ rule soapnuke_filter_paired_result:
     input:
         clean_fastq1 = outdir + "/{sample_id}/{sample_id}_1.fq.gz",
         clean_fastq2 = outdir + "/{sample_id}/{sample_id}_2.fq.gz",
+    resources:
+        mem_mb = rule_res("soapnuke_filter_paired_result").get("mem_mb", 8000),
 
 rule soapnuke_filter_single_result:
     input:
         clean_fastq = outdir + "/{sample_id}/{sample_id}.single.fq.gz",
+    resources:
+        mem_mb = rule_res("soapnuke_filter_single_result").get("mem_mb", 8000),

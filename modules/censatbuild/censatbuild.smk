@@ -43,6 +43,8 @@ module centromere:
     config: centromere_config
 
 use rule repeatmasker_run from centromere as censatbuild_repeatmasker_run
+    resources:
+        mem_mb = rule_res("censatbuild_run").get("mem_mb", 8000),
 
 rule censatbuild_link_genome:
     """Place the target genome at the layout expected by repeatmasker_run."""
@@ -52,7 +54,9 @@ rule censatbuild_link_genome:
         link = outdir + f"/{genome_name}/assembly/asm.bp.p_ctg.fa",
     log:
         logdir + "/censatbuild_link_genome.log"
-    threads: 1
+    threads: rule_res("censatbuild_link_genome").get("threads", 1)
+    resources:
+        mem_mb = rule_res("censatbuild_link_genome").get("mem_mb", 8000),
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -74,7 +78,9 @@ rule censatbuild_arrays:
         hits = outdir + f"/{genome_name}.sat_hits.bed",
     log:
         logdir + "/censatbuild_arrays.log"
-    threads: 1
+    threads: rule_res("censatbuild_arrays").get("threads", 1)
+    resources:
+        mem_mb = rule_res("censatbuild_arrays").get("mem_mb", 8000),
     conda:
         "censatbuild.yaml"
     container:
@@ -126,7 +132,9 @@ rule censatbuild_flank:
         stats = outdir + f"/{genome_name}.censat.stats.tsv",
     log:
         logdir + "/censatbuild_flank.log"
-    threads: 1
+    threads: rule_res("censatbuild_flank").get("threads", 1)
+    resources:
+        mem_mb = rule_res("censatbuild_flank").get("mem_mb", 8000),
     conda:
         "censatbuild.yaml"
     container:
@@ -173,6 +181,8 @@ rule censatbuild_mcg_pileup:
     log:
         logdir + "/censatbuild_mcg_pileup.log"
     threads: p.get("threads", 32)
+    resources:
+        mem_mb = rule_res("censatbuild_mcg_pileup").get("mem_mb", 32000),
     conda:
         "censatbuild.yaml"
     container:

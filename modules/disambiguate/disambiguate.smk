@@ -34,7 +34,9 @@ rule ngs_disambiguate:
         aligner = config.get("Params", {}).get("ngs_disambiguate", {}).get("aligner") or "hisat2",
         ngs_disambiguate = config.get("Procedure", {}).get("ngs_disambiguate") or "ngs_disambiguate",
         samtools = config.get("Procedure", {}).get("samtools") or "samtools"
-    threads: 4
+    threads: rule_res("ngs_disambiguate").get("threads", 4)
+    resources:
+        mem_mb = rule_res("ngs_disambiguate").get("mem_mb", 16000),
     conda:
         "disambiguate.yaml"
     container:
@@ -86,7 +88,9 @@ rule disambiguate_sort_rename:
         samtools = config.get("Procedure", {}).get("samtools") or "samtools",
         speciesA = genome_pairs[0],
         speciesB = genome_pairs[1]
-    threads: 4
+    threads: rule_res("disambiguate_sort_rename").get("threads", 4)
+    resources:
+        mem_mb = rule_res("disambiguate_sort_rename").get("mem_mb", 16000),
     conda:
         "disambiguate.yaml"
     container:
@@ -136,7 +140,9 @@ rule disambiguate_report:
         "disambiguate.yaml"
     container:
         sif("disambiguate.yaml")
-    threads: 1
+    threads: rule_res("disambiguate_report").get("threads", 1)
+    resources:
+        mem_mb = rule_res("disambiguate_report").get("mem_mb", 8000),
     run:
         log_path = str(log)
         open(log_path, 'w').close()
@@ -164,3 +170,5 @@ rule ngs_disambiguate_result:
     input:
         bamA = lambda wc: f"{outdir}/{wc.sample_id}/{wc.sample_id}.disambiguatedSpecies_{genome_pairs[0]}.bam",
         bamB = lambda wc: f"{outdir}/{wc.sample_id}/{wc.sample_id}.disambiguatedSpecies_{genome_pairs[1]}.bam"
+    resources:
+        mem_mb = rule_res("ngs_disambiguate_result").get("mem_mb", 8000),

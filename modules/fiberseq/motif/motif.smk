@@ -134,3 +134,5 @@ rule fiberseq_motif_result:
                        sample_id=samples),
         profile = expand(outdir + "/{sample_id}/{sample_id}.motif_profile.tsv",
                          sample_id=samples),
+    resources:
+        mem_mb = rule_res("fiberseq_motif_result").get("mem_mb", 8000),

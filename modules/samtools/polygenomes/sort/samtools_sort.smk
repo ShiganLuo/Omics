@@ -16,7 +16,9 @@ rule bam_sort:
         bai = outdir + "/{genome}/{sample_id}/{sample_id}.bam.bai"
     log:
         logdir + "/{genome}/{sample_id}/samtools_sort.log"
-    threads: 8
+    threads: rule_res("bam_sort").get("threads", 8)
+    resources:
+        mem_mb = rule_res("bam_sort").get("mem_mb", 32000),
     conda:
         "../../samtools.yaml"
     container:
@@ -58,3 +60,5 @@ rule samtools_sort_index_result:
     input:
         bam = outdir + "/{genome}/{sample_id}/{sample_id}.bam",
         bai = outdir + "/{genome}/{sample_id}/{sample_id}.bam.bai"
+    resources:
+        mem_mb = rule_res("samtools_sort_index_result").get("mem_mb", 8000),

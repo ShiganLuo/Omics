@@ -78,3 +78,5 @@ rule fiberseq_coactuation_result:
     input:
         pairs = expand(outdir + "/{sample_id}/{sample_id}.coactuation.tsv",
                        sample_id=samples),
+    resources:
+        mem_mb = rule_res("fiberseq_coactuation_result").get("mem_mb", 8000),

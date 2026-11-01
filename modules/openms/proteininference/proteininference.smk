@@ -19,6 +19,8 @@ rule protein_inference:
         protein_idxml = outdir + "/{sample_id}/{sample_id}_protein.idXML"
     log:
         logdir + "/{sample_id}/protein_inference.log"
+    resources:
+        mem_mb = rule_res("protein_inference").get("mem_mb", 32000),
     conda:
         "../openms.yaml"
     container:
@@ -77,3 +79,5 @@ rule protein_inference:
 rule protein_inference_result:
     input:
         protein_idxml = outdir + "/{sample_id}/{sample_id}_protein.idXML"
+    resources:
+        mem_mb = rule_res("protein_inference_result").get("mem_mb", 8000),

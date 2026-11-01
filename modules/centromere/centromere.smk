@@ -39,7 +39,9 @@ rule hifiasm_assemble:
     conda: "centromere.yaml"
     container:
         sif("centromere.yaml")
-    threads: 12
+    threads: rule_res("hifiasm_assemble").get("threads", 12)
+    resources:
+        mem_mb = rule_res("hifiasm_assemble").get("mem_mb", 64000),
     params:
         prefix = outdir + "/{sample_id}/assembly/asm"
     run:
@@ -87,7 +89,9 @@ rule repeatmasker_init:
     params:
         species = config.get("Params", {}).get("RepeatMasker", {}).get("species", "Mus musculus"),
         RepeatMasker = config.get("Procedure", {}).get("RepeatMasker") or "RepeatMasker"
-    threads: 1
+    threads: rule_res("repeatmasker_init").get("threads", 1)
+    resources:
+        mem_mb = rule_res("repeatmasker_init").get("mem_mb", 8000),
     run:
         try:
             open(log[0], "w").close()
@@ -169,7 +173,9 @@ rule repeatmasker_run:
     conda: "centromere.yaml"
     container:
         sif("centromere.yaml")
-    threads: 12
+    threads: rule_res("repeatmasker_run").get("threads", 12)
+    resources:
+        mem_mb = rule_res("repeatmasker_run").get("mem_mb", 32000),
     params:
         species = config.get("Params", {}).get("RepeatMasker", {}).get("species", "Mus musculus"),
         rm_dir = outdir + "/{sample_id}/RepeatMasker",
@@ -211,7 +217,9 @@ rule centromere_extract:
     params:
         script = os.path.join(ROOT_DIR, "modules/centromere/bin/extract_centromere_stats.py"),
         python = config.get("Procedure", {}).get("python") or "python"
-    threads: 1
+    threads: rule_res("centromere_extract").get("threads", 1)
+    resources:
+        mem_mb = rule_res("centromere_extract").get("mem_mb", 8000),
     conda: "centromere.yaml"
     container:
         sif("centromere.yaml")
@@ -241,3 +249,5 @@ rule centromere_result:
     """Result aggregation rule for subworkflow use rule import."""
     input:
         stats = outdir + "/{sample_id}/{sample_id}.centromere_stats.txt"
+    resources:
+        mem_mb = rule_res("centromere_result").get("mem_mb", 8000),

@@ -14,6 +14,8 @@ rule population_metadata:
         popfiles = [outdir + "/metadata/populations/" + pop + ".txt" for pop in pop_names]
     log:
         logdir + "/population_metadata.log"
+    resources:
+        mem_mb = rule_res("population_metadata").get("mem_mb", 8000),
     run:
         log_path = str(log)
         os.makedirs(os.path.dirname(log_path), exist_ok=True)

@@ -52,7 +52,9 @@ rule HaplotypeCaller:
         javaOptions =  config.get("Params", {}).get("gatk", {}).get("javaOptions") or "-Xmx30g",
         gatk = config.get("Procedure", {}).get("gatk") or "gatk",
         tmp_dir = config.get("Params", {}).get("gatk", {}).get("tmp-dir") or None
-    threads: 10
+    threads: rule_res("HaplotypeCaller").get("threads", 10)
+    resources:
+        mem_mb = rule_res("HaplotypeCaller").get("mem_mb", 32000),
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -107,7 +109,9 @@ rule filterHaplotypeCallerVcf:
         "../gatk.yaml"
     container:
         sif("../gatk.yaml")
-    threads: 10
+    threads: rule_res("filterHaplotypeCallerVcf").get("threads", 10)
+    resources:
+        mem_mb = rule_res("filterHaplotypeCallerVcf").get("mem_mb", 16000),
     params:
         gatk = config.get("Procedure", {}).get("gatk") or "gatk",
         bcftools = config.get("Procedure", {}).get("bcftools") or "bcftools",
@@ -158,3 +162,5 @@ rule gatk_haplotypeCaller_result:
     input:
         vcf = outdir + "/{sample_id}/{sample_id}.filtered.vcf.gz",
         csi = outdir + "/{sample_id}/{sample_id}.filtered.vcf.gz.csi"
+    resources:
+        mem_mb = rule_res("gatk_haplotypeCaller_result").get("mem_mb", 8000),

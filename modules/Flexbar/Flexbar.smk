@@ -17,7 +17,9 @@ rule flexbar_demultiplex:
         min_overlap = config.get('Params',{}).get('flexbar',{}).get('barcode_min_overlap', 1),
         allow_mismatch = config.get('Params',{}).get('flexbar',{}).get('barcode_allow_mismatch', 0),
         outdir = outdir
-    threads: 4
+    threads: rule_res("flexbar_demultiplex").get("threads", 4)
+    resources:
+        mem_mb = rule_res("flexbar_demultiplex").get("mem_mb", 8000),
     conda:
         "Flexbar.yaml"
     container:

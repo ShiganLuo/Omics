@@ -74,3 +74,5 @@ rule fiberseq_track_result:
     input:
         tracks = expand(outdir + "/{sample_id}/{sample_id}.accessibility.bw",
                         sample_id=samples),
+    resources:
+        mem_mb = rule_res("fiberseq_track_result").get("mem_mb", 8000),

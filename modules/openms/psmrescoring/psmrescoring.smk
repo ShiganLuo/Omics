@@ -36,6 +36,8 @@ rule psm_rescoring:
         scored_idxml = outdir + "/{sample_id}/{sample_id}_scored.idXML"
     log:
         logdir + "/{sample_id}/psm_rescoring.log"
+    resources:
+        mem_mb = rule_res("psm_rescoring").get("mem_mb", 32000),
     conda:
         "../openms.yaml"
     container:
@@ -88,3 +90,5 @@ rule psm_rescoring:
 rule psm_rescoring_result:
     input:
         expand(outdir + "/{sid}/{sid}_scored.idXML", sid=samples)
+    resources:
+        mem_mb = rule_res("psm_rescoring_result").get("mem_mb", 8000),

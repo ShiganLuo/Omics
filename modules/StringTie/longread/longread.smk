@@ -14,7 +14,9 @@ rule stringtie_lr_assemble:
         gtf = outdir + "/raw/{sample_id}/{sample_id}.gtf"
     log:
         logdir + "/{sample_id}/stringtie_lr_assemble.log"
-    threads: 8
+    threads: rule_res("stringtie_lr_assemble").get("threads", 8)
+    resources:
+        mem_mb = rule_res("stringtie_lr_assemble").get("mem_mb", 32000),
     conda:
         "../StringTie.yaml"
     container:
@@ -56,6 +58,8 @@ rule stringtie_lr_merge:
         gtf = outdir + "/stringtie_merged.gtf"
     log:
         logdir + "/stringtie_lr_merge.log"
+    resources:
+        mem_mb = rule_res("stringtie_lr_merge").get("mem_mb", 16000),
     conda:
         "../StringTie.yaml"
     container:
@@ -93,7 +97,9 @@ rule stringtie_lr_quant:
         gtf = outdir + "/{sample_id}/{sample_id}.quant.gtf"
     log:
         logdir + "/{sample_id}/stringtie_lr_quant.log"
-    threads: 4
+    threads: rule_res("stringtie_lr_quant").get("threads", 4)
+    resources:
+        mem_mb = rule_res("stringtie_lr_quant").get("mem_mb", 16000),
     conda:
         "../StringTie.yaml"
     container:
@@ -134,3 +140,5 @@ rule stringtie_lr_result:
         merged_gtf = outdir + "/stringtie_merged.gtf",
         abund = expand(outdir + "/{sid}/{sid}.gene_abund.tab", sid=samples),
         quant_gtf = expand(outdir + "/{sid}/{sid}.quant.gtf", sid=samples)
+    resources:
+        mem_mb = rule_res("stringtie_lr_result").get("mem_mb", 8000),

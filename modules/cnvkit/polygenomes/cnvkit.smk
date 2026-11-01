@@ -29,6 +29,8 @@ rule cnvkit_reference:
         logdir + "/{genome}/cnvkit_reference.log"
     threads:
         config.get("Params", {}).get("cnvkit", {}).get("processes") or 8
+    resources:
+        mem_mb = rule_res("cnvkit_reference").get("mem_mb", 16000),
     conda:
         "../cnvkit.yaml"
     container:
@@ -79,6 +81,8 @@ rule cnvkit_batch:
         logdir + "/{genome}/cnvkit_batch.log"
     threads:
         config.get("Params", {}).get("cnvkit", {}).get("processes") or 8
+    resources:
+        mem_mb = rule_res("cnvkit_batch").get("mem_mb", 32000),
     conda:
         "../cnvkit.yaml"
     container:
@@ -131,3 +135,5 @@ rule cnvkit_result:
     input:
         cnr = expand(outdir + "/{{genome}}/cnv/{sample_id}.cnr", sample_id=samples),
         cns = expand(outdir + "/{{genome}}/cnv/{sample_id}.cns", sample_id=samples)
+    resources:
+        mem_mb = rule_res("cnvkit_result").get("mem_mb", 8000),

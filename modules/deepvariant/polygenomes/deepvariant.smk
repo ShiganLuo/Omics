@@ -31,7 +31,9 @@ rule deepvariant_run:
         gvcf = outdir + "/{genome}/{sample_id}/{sample_id}.g.vcf.gz"
     log:
         logdir + "/{genome}/{sample_id}/deepvariant.log"
-    threads: 8
+    threads: rule_res("deepvariant_run").get("threads", 8)
+    resources:
+        mem_mb = rule_res("deepvariant_run").get("mem_mb", 32000),
     container:
         config.get("container", {}).get("deepvariant") or "docker://google/deepvariant:1.10.0"
     params:
@@ -77,3 +79,5 @@ rule deepvariant_result:
     input:
         vcf = outdir + "/{genome}/{sample_id}/{sample_id}.vcf.gz",
         tbi = outdir + "/{genome}/{sample_id}/{sample_id}.vcf.gz.csi"
+    resources:
+        mem_mb = rule_res("deepvariant_result").get("mem_mb", 8000),

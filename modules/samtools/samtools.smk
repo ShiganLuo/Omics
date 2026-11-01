@@ -13,6 +13,8 @@ rule bam_flagstat:
         flagstat = outdir + "/{sample_id}/{sample_id}_flagstat.txt"
     log:
         logdir + "/{sample_id}/flagstat.log"
+    resources:
+        mem_mb = rule_res("bam_flagstat").get("mem_mb", 8000),
     conda:
         "samtools.yaml"
     container:
@@ -43,4 +45,6 @@ rule bam_flagstat:
 rule samtools_result:
     input:
         flagstat = outdir + "/{sample_id}/{sample_id}_flagstat.txt"
+    resources:
+        mem_mb = rule_res("samtools_result").get("mem_mb", 8000),
 

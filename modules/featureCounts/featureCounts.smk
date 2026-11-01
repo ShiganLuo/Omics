@@ -33,6 +33,8 @@ rule featureCounts_single_noMultiple:
         sif("featureCounts.yaml")
     threads:
         10
+    resources:
+        mem_mb = rule_res("featureCounts_single_noMultiple").get("mem_mb", 8000),
     params:
         featureCounts = config.get('Procedure',{}).get('featureCounts') or 'featureCounts',
         gtf = config["genome"]["gtf"]
@@ -82,6 +84,8 @@ rule featureCounts_paired_noMultiple:
         sif("featureCounts.yaml")
     threads:
         10
+    resources:
+        mem_mb = rule_res("featureCounts_paired_noMultiple").get("mem_mb", 8000),
     params:
         featureCounts = config.get('Procedure',{}).get('featureCounts') or 'featureCounts',
         gtf = config["genome"]["gtf"]
@@ -115,3 +119,5 @@ rule featureCounts_result:
         single = outdir + "/all_single_featureCounts.tsv"
     output:
         touch(outdir + "/featureCounts.done")
+    resources:
+        mem_mb = rule_res("featureCounts_result").get("mem_mb", 8000),

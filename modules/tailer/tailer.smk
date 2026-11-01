@@ -18,7 +18,9 @@ rule tailer_global:
         tail = outdir + "/{sample_id}/{sample_id}_tail.csv",
     log:
         logdir + "/{sample_id}/tailer.log"
-    threads: 1
+    threads: rule_res("tailer_global").get("threads", 1)
+    resources:
+        mem_mb = rule_res("tailer_global").get("mem_mb", 8000),
     conda:
         "tailer.yaml"
     container:

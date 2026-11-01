@@ -32,7 +32,9 @@ rule gatk_population_haplotype_caller:
         tbi=outdir + "/variants/gvcf/{sample}.g.vcf.gz.tbi"
     log:
         logdir + "/variants/{sample}/gatk_population_haplotype_caller.log"
-    threads: 8
+    threads: rule_res("gatk_population_haplotype_caller").get("threads", 8)
+    resources:
+        mem_mb = rule_res("gatk_population_haplotype_caller").get("mem_mb", 32000),
     conda:
         "../gatk.yaml"
     container:
@@ -80,7 +82,9 @@ rule gatk_population_joint_genotyping:
         tbi=outdir + "/variants/joint/joint.vcf.gz.tbi"
     log:
         logdir + "/variants/gatk_population_joint_genotyping.log"
-    threads: 8
+    threads: rule_res("gatk_population_joint_genotyping").get("threads", 8)
+    resources:
+        mem_mb = rule_res("gatk_population_joint_genotyping").get("mem_mb", 32000),
     conda:
         "../gatk.yaml"
     container:

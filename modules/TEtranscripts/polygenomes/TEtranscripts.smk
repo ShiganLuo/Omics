@@ -278,3 +278,5 @@ rule TEtranscripts_result:
     input:
         TEcount = outdir + "/{genome}/{genome}_TEcount.tsv",
         TElocal = outdir + "/{genome}/{genome}_TElocal.tsv"
+    resources:
+        mem_mb = rule_res("TEtranscripts_result").get("mem_mb", 8000),

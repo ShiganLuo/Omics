@@ -56,7 +56,9 @@ rule somaticMutect2:
         gatk = config.get("Procedure", {}).get("gatk") or "gatk",
         tmp_dir = config.get("Params", {}).get("gatk", {}).get("tmp-dir") or None,
         parameters = config.get("mutect2_parameters") or ""
-    threads: 10
+    threads: rule_res("somaticMutect2").get("threads", 10)
+    resources:
+        mem_mb = rule_res("somaticMutect2").get("mem_mb", 32000),
     run:
         log_path = str(log)
         open(log_path, "w").close()

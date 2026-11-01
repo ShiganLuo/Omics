@@ -33,6 +33,8 @@ rule TEcount:
     log:
         logdir + "/{sample_id}/{genome}/TEcount.log"
     threads: 2
+    resources:
+        mem_mb = rule_res("TEcount").get("mem_mb", 32000),
     conda:
         "../TEtranscripts.yaml"
     container:
@@ -83,6 +85,8 @@ rule combine_TEcount:
         indir = outdir + "/TEcount/{genome}",
         gtf = lambda wildcards: config['genome'][wildcards.genome]['gtf']
     threads: 1
+    resources:
+        mem_mb = rule_res("combine_TEcount").get("mem_mb", 8000),
     log:
         logdir + "/all/TEtranscripts/{genome}_combine_TEcount.log"
     run:
@@ -128,6 +132,8 @@ rule TElocal:
         GTF = lambda wildcards: config['genome'][wildcards.genome]['gtf'],
         TElocal = config.get('Procedure',{}).get('TElocal') or 'TElocal'
     threads: 2
+    resources:
+        mem_mb = rule_res("TElocal").get("mem_mb", 32000),
     conda:
         "../TEtranscripts.yaml"
     container:
@@ -181,6 +187,8 @@ rule combine_TElocal:
         indir = outdir + "/TElocal/{genome}",
         gtf = lambda wildcards: config['genome'][wildcards.genome]['gtf']
     threads: 1
+    resources:
+        mem_mb = rule_res("combine_TElocal").get("mem_mb", 8000),
     log:
         logdir + "/all/TEtranscripts/{genome}_combine_TElocal.log"
     run:
@@ -207,3 +215,5 @@ rule TEtranscripts_result:
     input:
         TEcount = outdir + "/TEcount/{genome}/all_TEcount.tsv",
         TElocal = outdir + "/TElocal/{genome}/all_TElocal.tsv"
+    resources:
+        mem_mb = rule_res("TEtranscripts_result").get("mem_mb", 8000),

@@ -167,6 +167,8 @@ rule featureCounts_merge:
         merged = outdir + "/{genome}/{genome}_featureCounts.tsv"
     log:
         logdir + "/{genome}/featureCounts_merge.log"
+    resources:
+        mem_mb = rule_res("featureCounts_merge").get("mem_mb", 8000),
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -204,3 +206,5 @@ rule featureCounts_merge:
 rule featureCounts_results:
     input:
         merged = outdir + "/{genome}/{genome}_featureCounts.tsv"
+    resources:
+        mem_mb = rule_res("featureCounts_results").get("mem_mb", 8000),

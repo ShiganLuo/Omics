@@ -35,6 +35,8 @@ rule arriba:
     log:
         logdir + "/{sample_id}/arriba.log"
     threads: 4
+    resources:
+        mem_mb = rule_res("arriba").get("mem_mb", 8000),
     params:
         arriba = config.get('Procedure',{}).get('arriba') or 'arriba',
         t = config.get('Params',{}).get('arriba',{}).get('t') or None,
@@ -99,6 +101,8 @@ rule arriba_report:
         fusion_figs = expand(outdir + "/arriba_report/figures/{fig}", fig=FUSION_FIGS),
     log:
         logdir + "/arriba/arriba_report.log"
+    resources:
+        mem_mb = rule_res("arriba_report").get("mem_mb", 8000),
     params:
         summary_script = os.path.join(ROOT_DIR, "modules/arriba/bin/summarize_arriba_fusions.py")
     conda:
@@ -132,3 +136,5 @@ rule arriba_result:
     input:
         passed_fusion_tsv = outdir + "/{sample_id}/{sample_id}_passed_fusions.tsv",
         discarded_fusion_tsv = outdir + "/{sample_id}/{sample_id}_discarded_fusions.tsv"
+    resources:
+        mem_mb = rule_res("arriba_result").get("mem_mb", 8000),

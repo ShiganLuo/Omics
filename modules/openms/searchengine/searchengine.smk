@@ -119,7 +119,9 @@ rule search_engine_comet:
         idxml = outdir + "/{sample_id}/{sample_id}_comet.idXML"
     log:
         logdir + "/{sample_id}/search_engine_comet.log"
-    threads: 4
+    threads: rule_res("search_engine_comet").get("threads", 4)
+    resources:
+        mem_mb = rule_res("search_engine_comet").get("mem_mb", 32000),
     conda:
         "../openms.yaml"
     container:
@@ -180,7 +182,9 @@ rule search_engine_msgf:
         idxml = outdir + "/{sample_id}/{sample_id}_msgf.idXML"
     log:
         logdir + "/{sample_id}/search_engine_msgf.log"
-    threads: 4
+    threads: rule_res("search_engine_msgf").get("threads", 4)
+    resources:
+        mem_mb = rule_res("search_engine_msgf").get("mem_mb", 32000),
     conda:
         "../openms.yaml"
     container:
@@ -227,7 +231,9 @@ rule search_engine_sage:
         idxml = outdir + "/{sample_id}/{sample_id}_sage.idXML"
     log:
         logdir + "/{sample_id}/search_engine_sage.log"
-    threads: 4
+    threads: rule_res("search_engine_sage").get("threads", 4)
+    resources:
+        mem_mb = rule_res("search_engine_sage").get("mem_mb", 32000),
     conda:
         "../openms.yaml"
     container:

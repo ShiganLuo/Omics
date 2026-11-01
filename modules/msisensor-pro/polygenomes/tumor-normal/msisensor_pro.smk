@@ -33,6 +33,8 @@ rule scan:
         outdir + "reference/{genome_version}.msisensor.scan.list"
     log:
         outdir + "reference/{genome_version}.msisensor.scan.log"
+    resources:
+        mem_mb = rule_res("scan").get("mem_mb", 8000),
     conda:
         "../../msisensor_pro.schema.yaml"
     container:
@@ -50,6 +52,8 @@ rule msisensor_msi:
         outdir + "tumor_normal_output/{case}/{case}.{genome_version}.msisensor"
     log:
         outdir + "tumor_normal_output/{case}/{case}.{genome_version}.msisensor.log"
+    resources:
+        mem_mb = rule_res("msisensor_msi").get("mem_mb", 16000),
     conda:
         "../../msisensor_pro.schema.yaml"
     container:
@@ -62,6 +66,8 @@ rule merge_msi_result:
         expand(outdir + "tumor_normal_output/{case}/{case}.{{genome_version}}.msisensor",case=samples.index)
     output:
         outdir + "tumor_normal_output.{genome_version}.merge.tsv"
+    resources:
+        mem_mb = rule_res("merge_msi_result").get("mem_mb", 8000),
     run:
         output_info = pd.DataFrame(columns=["Total_number_of_sites", "Number_of_unstable_sites", "MSI_score"])
         output_info.index.name="case_name"

@@ -123,6 +123,8 @@ rule arriba_report:
         fusion_figs = expand(outdir + "/{genome}/arriba_report/figures/{fig}", fig=FUSION_FIGS, genome="{genome}"),
     log:
         logdir_combine + "/arriba/{genome}/arriba_report.log"
+    resources:
+        mem_mb = rule_res("arriba_report").get("mem_mb", 8000),
     params:
         summary_script = os.path.join(ROOT_DIR, "modules/arriba/bin/summarize_arriba_fusions.py")
     conda:
@@ -157,3 +159,5 @@ rule arriba_result:
     input:
         passed_fusion_tsv = outdir + "/{genome}/{sample_id}/{sample_id}_passed_fusions.tsv",
         discarded_fusion_tsv = outdir + "/{genome}/{sample_id}/{sample_id}_discarded_fusions.tsv"
+    resources:
+        mem_mb = rule_res("arriba_result").get("mem_mb", 8000),

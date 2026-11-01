@@ -40,7 +40,9 @@ rule diff_exomePeak:
         "exomePeak.yaml"
     container:
         sif("exomePeak.yaml")
-    threads: 1
+    threads: rule_res("diff_exomePeak").get("threads", 1)
+    resources:
+        mem_mb = rule_res("diff_exomePeak").get("mem_mb", 8000),
     params:
         gtf = config.get("gtf",""),
         exomePeak_script = ROOT_DIR + "/modules/exomePeak/bin/exomePeak.r",
@@ -123,7 +125,9 @@ rule call_exomePeak:
         "exomePeak.yaml"
     container:
         sif("exomePeak.yaml")
-    threads: 12
+    threads: rule_res("call_exomePeak").get("threads", 12)
+    resources:
+        mem_mb = rule_res("call_exomePeak").get("mem_mb", 8000),
     params:
         exomePeak_script = ROOT_DIR + "/modules/exomePeak/bin/exomePeak.r",
         geneId2name_script = ROOT_DIR + "/modules/exomePeak/bin/geneId2name.r",
@@ -177,4 +181,6 @@ rule exomePeak_result:
     input:
         call_exomePeak = rules.call_exomePeak.output,
         diff_exomePeak = rules.diff_exomePeak.output
+    resources:
+        mem_mb = rule_res("exomePeak_result").get("mem_mb", 8000),
 

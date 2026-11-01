@@ -16,7 +16,9 @@ rule pureclip:
         pureclip = config.get('Procedure',{}).get('pureclip') or 'pureclip',
         ld = '--ld' if config.get('Params',{}).get('pureclip',{}).get('ld', True) else '',
         outdir = outdir
-    threads: 8
+    threads: rule_res("pureclip").get("threads", 8)
+    resources:
+        mem_mb = rule_res("pureclip").get("mem_mb", 16000),
     conda:
         "PureCLIP.yaml"
     container:

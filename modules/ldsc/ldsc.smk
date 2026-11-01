@@ -25,7 +25,9 @@ rule ldsc_annot:
         manifest = outdir + "/annot/" + (ldsc_cfg.get("annot_prefix") or "peaks") + ".annot_manifest.tsv",
     log:
         logdir + "/ldsc_annot.log"
-    threads: 1
+    threads: rule_res("ldsc_annot").get("threads", 1)
+    resources:
+        mem_mb = rule_res("ldsc_annot").get("mem_mb", 8000),
     conda:
         "ldsc.yaml"
     container:
@@ -73,7 +75,9 @@ rule ldsc_munge:
         munged = outdir + "/{trait}/{trait}.sumstats.gz",
     log:
         logdir + "/ldsc_munge_{trait}.log"
-    threads: 1
+    threads: rule_res("ldsc_munge").get("threads", 1)
+    resources:
+        mem_mb = rule_res("ldsc_munge").get("mem_mb", 8000),
     conda:
         "ldsc.yaml"
     container:
@@ -121,7 +125,9 @@ rule ldsc_h2_cts:
         results = outdir + "/{trait}/{trait}.cts.results",
     log:
         logdir + "/ldsc_h2_cts_{trait}.log"
-    threads: 1
+    threads: rule_res("ldsc_h2_cts").get("threads", 1)
+    resources:
+        mem_mb = rule_res("ldsc_h2_cts").get("mem_mb", 8000),
     conda:
         "ldsc.yaml"
     container:
@@ -163,3 +169,5 @@ rule ldsc_result:
     """Panel of per-trait LDSC results."""
     input:
         results = expand(outdir + "/{trait}/{trait}.cts.results", trait=traits),
+    resources:
+        mem_mb = rule_res("ldsc_result").get("mem_mb", 8000),

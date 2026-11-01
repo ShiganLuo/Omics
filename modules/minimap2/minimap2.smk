@@ -36,7 +36,9 @@ rule minimap2_align:
         bai = outdir + "/{sample_id}/{sample_id}.sorted.bam.bai"
     log:
         logdir + "/{sample_id}/minimap2_align.log"
-    threads: 16
+    threads: rule_res("minimap2_align").get("threads", 16)
+    resources:
+        mem_mb = rule_res("minimap2_align").get("mem_mb", 32000),
     conda:
         "minimap2.yaml"
     container:
@@ -90,3 +92,5 @@ rule minimap2_result:
     input:
         bam = outdir + "/{sample_id}/{sample_id}.sorted.bam",
         bai = outdir + "/{sample_id}/{sample_id}.sorted.bam.bai"
+    resources:
+        mem_mb = rule_res("minimap2_result").get("mem_mb", 8000),

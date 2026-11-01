@@ -17,6 +17,8 @@ rule manta_config:
         script = outdir + "/{sample_id}/runWorkflow.py"
     log:
         logdir + "/{sample_id}/manta_config.log"
+    resources:
+        mem_mb = rule_res("manta_config").get("mem_mb", 8000),
     params:
         manta_outdir = outdir + "/{sample_id}"
     conda:
@@ -64,6 +66,8 @@ rule manta_run:
         logdir + "/{sample_id}/manta_run.log"
     threads:
         config.get("Params", {}).get("manta", {}).get("threads") or 8
+    resources:
+        mem_mb = rule_res("manta_run").get("mem_mb", 32000),
     conda:
         "manta.yaml"
     container:
@@ -100,3 +104,5 @@ rule manta_result:
     input:
         vcf = outdir + "/{sample_id}/results/variants/candidateSV.vcf.gz",
         tbi = outdir + "/{sample_id}/results/variants/candidateSV.vcf.gz.tbi"
+    resources:
+        mem_mb = rule_res("manta_result").get("mem_mb", 8000),

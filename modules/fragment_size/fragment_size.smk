@@ -15,6 +15,8 @@ rule samtools_stats:
         stats = outdir + "/stats/{sample_id}/{sample_id}_stats.txt"
     log:
         logdir + "/{sample_id}/samtools_stats.log"
+    resources:
+        mem_mb = rule_res("samtools_stats").get("mem_mb", 8000),
     conda:
         "fragment_size.yaml"
     container:
@@ -50,6 +52,8 @@ rule getFragmentSize:
         hist = outdir + "/fragment/FragmentSize.txt"
     log:
         logdir + "/getFragmentSize.log"
+    resources:
+        mem_mb = rule_res("getFragmentSize").get("mem_mb", 8000),
     params:
         script = os.path.join(ROOT_DIR, "modules/fragment_size/bin/getFragmentSize.py")
     conda:
@@ -86,6 +90,8 @@ rule plotFragmentSize:
         png = outdir + "/fragment/FragmentSize.png"
     log:
         logdir + "/plotFragmentSize.log"
+    resources:
+        mem_mb = rule_res("plotFragmentSize").get("mem_mb", 8000),
     params:
         script = os.path.join(ROOT_DIR, "modules/fragment_size/bin/plotFragmentSize.py")
     conda:
@@ -117,3 +123,5 @@ rule fragment_size_result:
     input:
         hist = outdir + "/fragment/FragmentSize.txt",
         png = outdir + "/fragment/FragmentSize.png"
+    resources:
+        mem_mb = rule_res("fragment_size_result").get("mem_mb", 8000),

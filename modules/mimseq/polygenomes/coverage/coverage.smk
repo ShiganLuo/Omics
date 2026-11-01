@@ -21,7 +21,9 @@ rule mimseq_coverage:
         control_cond = config.get("Params", {}).get("mimseq", {}).get("control_cond", ""),
         mito_trnas = lambda wildcards: config["genome"][wildcards.genome].get("mito_trnas", ""),
         misinc_thresh = config.get("Params", {}).get("mimseq", {}).get("misinc_thresh", 0.1),
-    threads: 4
+    threads: rule_res("mimseq_coverage").get("threads", 4)
+    resources:
+        mem_mb = rule_res("mimseq_coverage").get("mem_mb", 16000),
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -58,3 +60,5 @@ rule mimseq_coverage_result:
     """Result rule for coverage module."""
     input:
         coverage_done = outdir + "/{genome}/coverage.done",
+    resources:
+        mem_mb = rule_res("mimseq_coverage_result").get("mem_mb", 8000),

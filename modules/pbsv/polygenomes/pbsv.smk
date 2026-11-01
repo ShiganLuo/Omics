@@ -26,7 +26,9 @@ rule pbsv_discover:
         svsig = outdir + "/{genome}/{sample_id}/{sample_id}.svsig.gz"
     log:
         logdir + "/{genome}/{sample_id}/pbsv_discover.log"
-    threads: 4
+    threads: rule_res("pbsv_discover").get("threads", 4)
+    resources:
+        mem_mb = rule_res("pbsv_discover").get("mem_mb", 16000),
     params:
         pbsv = config.get("Procedure", {}).get("pbsv") or "pbsv"
     conda:
@@ -60,7 +62,9 @@ rule pbsv_call:
         tbi = outdir + "/{genome}/{sample_id}/{sample_id}.sv.vcf.gz.csi"
     log:
         logdir + "/{genome}/{sample_id}/pbsv_call.log"
-    threads: 8
+    threads: rule_res("pbsv_call").get("threads", 8)
+    resources:
+        mem_mb = rule_res("pbsv_call").get("mem_mb", 16000),
     params:
         pbsv = config.get("Procedure", {}).get("pbsv") or "pbsv",
         bgzip = config.get("Procedure", {}).get("bgzip") or "bgzip",
@@ -106,3 +110,5 @@ rule pbsv_result:
     input:
         vcf = outdir + "/{genome}/{sample_id}/{sample_id}.sv.vcf.gz",
         tbi = outdir + "/{genome}/{sample_id}/{sample_id}.sv.vcf.gz.csi"
+    resources:
+        mem_mb = rule_res("pbsv_result").get("mem_mb", 8000),

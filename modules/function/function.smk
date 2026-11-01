@@ -27,6 +27,8 @@ rule function_go_kegg:
     log:
         logdir + "/../group/function/{contrast}.go_kegg.log"
     threads: 1
+    resources:
+        mem_mb = rule_res("function_go_kegg").get("mem_mb", 8000),
     params:
         go_kegg_script = ROOT_DIR + "/modules/function/bin/go-kegg.r",
         species = species,
@@ -117,6 +119,8 @@ rule function_gsea:
     log:
         logdir + "/../group/function/{contrast}.gsea.log"
     threads: 1
+    resources:
+        mem_mb = rule_res("function_gsea").get("mem_mb", 8000),
     params:
         gsea_script = ROOT_DIR + "/modules/function/bin/gsea.r",
     conda:
@@ -221,6 +225,8 @@ rule function_gsva:
     log:
         logdir + "/function/gsva.log"
     threads: 1
+    resources:
+        mem_mb = rule_res("function_gsva").get("mem_mb", 8000),
     params:
         norm_script = ROOT_DIR + "/modules/function/bin/normalization.py",
         gsva_script = ROOT_DIR + "/modules/function/bin/gsva.py",

@@ -25,6 +25,8 @@ rule plink2_population_pgen:
     output:
         pgen=prefix+".pgen", pvar=prefix+".pvar", psam=prefix+".psam"
     log: logdir+"/analysis/plink2_population_pgen.log"
+    resources:
+        mem_mb = rule_res("plink2_population_pgen").get("mem_mb", 8000),
     conda: "plink2_population.yaml"
     container:
         sif("plink2_population.yaml")
@@ -36,6 +38,8 @@ rule plink2_population_bed:
     input: pgen=prefix+".pgen", pvar=prefix+".pvar", psam=prefix+".psam"
     output: bed=prefix+".bed", bim=prefix+".bim", fam=prefix+".fam"
     log: logdir+"/analysis/plink2_population_bed.log"
+    resources:
+        mem_mb = rule_res("plink2_population_bed").get("mem_mb", 8000),
     conda: "plink2_population.yaml"
     container:
         sif("plink2_population.yaml")

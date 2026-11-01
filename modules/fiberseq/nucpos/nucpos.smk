@@ -75,3 +75,5 @@ rule fiberseq_nucpos_result:
     input:
         summary = expand(outdir + "/{sample_id}/{sample_id}.nuc_offset_summary.tsv",
                          sample_id=samples),
+    resources:
+        mem_mb = rule_res("fiberseq_nucpos_result").get("mem_mb", 8000),

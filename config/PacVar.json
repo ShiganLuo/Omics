@@ -5,21 +5,20 @@
       "threads": 2,
       "mem_mb": 8000
     },
+    "assembly_telomere_scan": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
     "bamCoverage": {
       "threads": 8,
       "mem_mb": 16000
     },
-    "decoil_reconstruct": {
-      "threads": 16,
-      "mem_mb": 32000
-    },
-    "decoil_plot": {
-      "threads": 4,
+    "centromere_extract": {
+      "threads": 1,
       "mem_mb": 8000
     },
-    "decoil_structure": {
-      "threads": 4,
-      "mem_mb": 12000
+    "centromere_result": {
+      "mem_mb": 8000
     },
     "decoil_compare": {
       "threads": 2,
@@ -29,9 +28,96 @@
       "threads": 1,
       "mem_mb": 4000
     },
+    "decoil_plot": {
+      "threads": 4,
+      "mem_mb": 8000
+    },
+    "decoil_reconstruct": {
+      "threads": 16,
+      "mem_mb": 32000
+    },
+    "decoil_result": {
+      "mem_mb": 8000
+    },
+    "decoil_structure": {
+      "threads": 4,
+      "mem_mb": 12000
+    },
     "decoil_ucsc": {
       "threads": 1,
       "mem_mb": 4000
+    },
+    "genome_index": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "hifiasm_assemble": {
+      "threads": 12,
+      "mem_mb": 64000
+    },
+    "hiphase_phase": {
+      "threads": 8,
+      "mem_mb": 16000
+    },
+    "pbmm2_align": {
+      "threads": 16,
+      "mem_mb": 32000
+    },
+    "pbsv_call": {
+      "threads": 8,
+      "mem_mb": 16000
+    },
+    "pbsv_discover": {
+      "threads": 4,
+      "mem_mb": 16000
+    },
+    "read_density_telomere": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "repeatmasker_init": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "repeatmasker_run": {
+      "threads": 12,
+      "mem_mb": 32000
+    },
+    "sv_diff_analysis": {
+      "mem_mb": 8000
+    },
+    "sv_exp_circos": {
+      "mem_mb": 8000
+    },
+    "sv_exp_enrichment": {
+      "mem_mb": 8000
+    },
+    "sv_exp_specific": {
+      "mem_mb": 8000
+    },
+    "sv_gene_model": {
+      "mem_mb": 8000
+    },
+    "sv_oncoprint": {
+      "mem_mb": 8000
+    },
+    "sv_result": {
+      "mem_mb": 8000
+    },
+    "telogator2_run": {
+      "threads": 16,
+      "mem_mb": 16000
+    },
+    "tidk_scan": {
+      "threads": 1,
+      "mem_mb": 16000
+    },
+    "trgt_genotype": {
+      "threads": 4,
+      "mem_mb": 32000
+    },
+    "trgt_plot": {
+      "mem_mb": 16000
     }
   },
   "ROOT_DIR": ".",

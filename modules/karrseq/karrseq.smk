@@ -24,7 +24,9 @@ rule karrseq_chimeric_to_pairs:
         script = os.path.join(ROOT_DIR, "modules/karrseq/bin/get_STAR_reads.py"),
         tmp1 = outdir + "/{sample_id}/{sample_id}.tmp1",
         tmp2 = outdir + "/{sample_id}/{sample_id}.tmp2"
-    threads: 4
+    threads: rule_res("karrseq_chimeric_to_pairs").get("threads", 4)
+    resources:
+        mem_mb = rule_res("karrseq_chimeric_to_pairs").get("mem_mb", 8000),
     conda:
         "karrseq.yaml"
     container:
@@ -69,6 +71,8 @@ rule karrseq_remove_duplicates:
         pairs_gz = outdir + "/{sample_id}/{sample_id}.dedup.pairs.gz"
     log:
         logdir + "/{sample_id}/karrseq_remove_duplicates.log"
+    resources:
+        mem_mb = rule_res("karrseq_remove_duplicates").get("mem_mb", 8000),
     params:
         mapq = config.get("Params", {}).get("karrseq", {}).get("mapq") or 1,
         dedup_script = os.path.join(ROOT_DIR, "modules/karrseq/bin/remove_duplicates.py"),
@@ -116,7 +120,9 @@ rule karrseq_ligation:
         pairs_gz = outdir + "/{sample_id}/{sample_id}.dedup.ligation.pairs.gz"
     log:
         logdir + "/{sample_id}/karrseq_ligation.log"
-    threads: 4
+    threads: rule_res("karrseq_ligation").get("threads", 4)
+    resources:
+        mem_mb = rule_res("karrseq_ligation").get("mem_mb", 8000),
     conda:
         "karrseq.yaml"
     container:
@@ -149,3 +155,5 @@ rule karrseq_ligation:
 rule karrseq_result:
     input:
         pairs_gz = outdir + "/{sample_id}/{sample_id}.dedup.ligation.pairs.gz"
+    resources:
+        mem_mb = rule_res("karrseq_result").get("mem_mb", 8000),

@@ -33,7 +33,9 @@ rule peak_te_overlap:
         subfamily_tsv = outdir + "/{genome}/{sample_id}/{sample_id}_te_subfamily_overlap.tsv",
     log:
         logdir + "/{genome}/{sample_id}/peak_te_overlap.log"
-    threads: 1
+    threads: rule_res("peak_te_overlap").get("threads", 1)
+    resources:
+        mem_mb = rule_res("peak_te_overlap").get("mem_mb", 8000),
     conda:
         "../peak_te_overlap.yaml"
     container:
@@ -89,7 +91,9 @@ rule peak_centric_overlap:
         tsv = outdir + "/{genome}/{sample_id}/{sample_id}_peak_centric_te.tsv",
     log:
         logdir + "/{genome}/{sample_id}/peak_centric_overlap.log"
-    threads: 1
+    threads: rule_res("peak_centric_overlap").get("threads", 1)
+    resources:
+        mem_mb = rule_res("peak_centric_overlap").get("mem_mb", 8000),
     conda:
         "../peak_te_overlap.yaml"
     container:
@@ -143,7 +147,9 @@ rule peak_te_overlap_fig:
         done = touch(outdir + "/{genome}/.peak_te_overlap_fig.done"),
     log:
         logdir + "/{genome}/../group/peak_te_overlap/peak_te_overlap.log"
-    threads: 1
+    threads: rule_res("peak_te_overlap_fig").get("threads", 1)
+    resources:
+        mem_mb = rule_res("peak_te_overlap_fig").get("mem_mb", 8000),
     conda:
         "../peak_te_overlap.yaml"
     container:
@@ -212,3 +218,5 @@ rule peak_te_overlap_result:
     input:
         chart = outdir + "/{genome}/te_subfamily_overlap_combined.png",
         peak_centric = expand(outdir + "/{genome}/{sid}/{sid}_peak_centric_te.tsv", sid=samples, genome="{genome}"),
+    resources:
+        mem_mb = rule_res("peak_te_overlap_result").get("mem_mb", 8000),

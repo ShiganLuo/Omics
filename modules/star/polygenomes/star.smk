@@ -302,3 +302,5 @@ rule star_align:
 rule star_result:
     input:
         star_align = outdir + "/{genome}/{sample_id}/{sample_id}.bam"
+    resources:
+        mem_mb = rule_res("star_result").get("mem_mb", 8000),

@@ -20,7 +20,9 @@ rule bwaMem2_index:
         )
     log:
         logdir + "/index/bwa_mem2-index.log"
-    threads: 15
+    threads: rule_res("bwaMem2_index").get("threads", 15)
+    resources:
+        mem_mb = rule_res("bwaMem2_index").get("mem_mb", 64000),
     conda:
         "bwa-mem2.yaml"
     container:
@@ -103,7 +105,9 @@ rule bwaMem2_alignment:
         bam = outdir + "/{sample_id}/{sample_id}.bam",
     log:
         logdir + "/{sample_id}/bwa_mem2-alignment.txt"
-    threads: 15
+    threads: rule_res("bwaMem2_alignment").get("threads", 15)
+    resources:
+        mem_mb = rule_res("bwaMem2_alignment").get("mem_mb", 32000),
     conda:
         "bwa-mem2.yaml"
     container:
@@ -145,3 +149,5 @@ rule bwaMem2_alignment:
 rule bwaMemm2_result:
     input:
         bam = outdir + "/{sample_id}/{sample_id}.bam"
+    resources:
+        mem_mb = rule_res("bwaMemm2_result").get("mem_mb", 8000),

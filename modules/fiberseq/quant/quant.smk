@@ -85,7 +85,9 @@ rule fiberseq_quant_hap:
         quant = outdir + "/{sample_id}/{sample_id}.{hap}.region_quant.tsv",
     log:
         logdir + "/{sample_id}/fiberseq_quant_hap_{hap}.log"
-    threads: 1
+    threads: rule_res("fiberseq_quant_hap").get("threads", 1)
+    resources:
+        mem_mb = rule_res("fiberseq_quant_hap").get("mem_mb", 8000),
     conda:
         "../fiberseq.yaml"
     container:
@@ -139,7 +141,9 @@ rule fiberseq_quant_merge:
         fire = outdir + "/matrix/fire_frac_matrix.tsv",
     log:
         logdir + "/group/fiberseq_quant_merge.log"
-    threads: 1
+    threads: rule_res("fiberseq_quant_merge").get("threads", 1)
+    resources:
+        mem_mb = rule_res("fiberseq_quant_merge").get("mem_mb", 8000),
     conda:
         "../fiberseq.yaml"
     container:
@@ -179,3 +183,5 @@ rule fiberseq_quant_result:
         quants = expand(outdir + "/{sample_id}/{sample_id}.region_quant.tsv",
                         sample_id=samples),
         matrix = outdir + "/matrix/percent_accessible_matrix.tsv",
+    resources:
+        mem_mb = rule_res("fiberseq_quant_result").get("mem_mb", 8000),

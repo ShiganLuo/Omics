@@ -47,7 +47,9 @@ rule star_3p_align:
         bai=outdir + "/{sample_id}/{sample_id}.bam.bai",
     log:
         logdir + "/{sample_id}/star3p.log"
-    threads: 12
+    threads: rule_res("star_3p_align").get("threads", 12)
+    resources:
+        mem_mb = rule_res("star_3p_align").get("mem_mb", 32000),
     conda:
         "../star.yaml"
     container:

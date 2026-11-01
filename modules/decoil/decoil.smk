@@ -224,6 +224,8 @@ rule decoil_result:
         reconstruct_ecdna    = outdir + "/{sample_id}/decoil/reconstruct.ecDNA.bed",
         reconstruct_filtered = outdir + "/{sample_id}/decoil/reconstruct.ecDNA.filtered.bed",
         summary              = outdir + "/{sample_id}/decoil/summary.txt",
+    resources:
+        mem_mb = rule_res("decoil_result").get("mem_mb", 8000),
 
 rule decoil_plot:
     """Per-sample ecDNA statistics: size distribution, topology, region table.

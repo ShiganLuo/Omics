@@ -16,7 +16,9 @@ rule fastx_quality_filter_single:
         p = config.get('Params',{}).get("fastx_toolkit", {}).get('p') or 100,
         Q = config.get('Params',{}).get("fastx_toolkit", {}).get('Q') or 33,
         outdir = outdir
-    threads: 2
+    threads: rule_res("fastx_quality_filter_single").get("threads", 2)
+    resources:
+        mem_mb = rule_res("fastx_quality_filter_single").get("mem_mb", 8000),
     conda:
         "FASTX.yaml"
     container:

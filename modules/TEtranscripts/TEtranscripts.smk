@@ -11,6 +11,8 @@ rule TEcount:
         bam = indir + "/{sample_id}/{sample_id}.bam"
     output:
         project = outdir + "/TEcount/{sample_id}.TEcount.cntTable"
+    resources:
+        mem_mb = rule_res("TEcount").get("mem_mb", 32000),
     params:
         project = "{sample_id}.TEcount",
         outdir = outdir + "/TEcount",
@@ -59,6 +61,8 @@ rule combine_TEcount:
         fileList = get_cntTable_for_TEcount
     output:
         outfile = outdir + "/TEcount/all_TEcount.tsv"
+    resources:
+        mem_mb = rule_res("combine_TEcount").get("mem_mb", 8000),
     conda:
         "TEtranscripts.yaml"
     container:
@@ -100,6 +104,8 @@ rule TElocal:
         GTF = lambda wildcards: config['genome']['gtf'],
         TElocal = config.get('Procedure',{}).get('TElocal') or 'TElocal'
     threads: 2
+    resources:
+        mem_mb = rule_res("TElocal").get("mem_mb", 32000),
     conda:
         "TEtranscripts.yaml"
     container:
@@ -142,6 +148,8 @@ rule combine_TElocal:
         fileList = get_cntTable_for_TElocal
     output:
         outfile = outdir + "/TElocal/all_TElocal.tsv"
+    resources:
+        mem_mb = rule_res("combine_TElocal").get("mem_mb", 8000),
     conda:
         "TEtranscripts.yaml"
     container:
@@ -174,3 +182,5 @@ rule TEtranscripts_result:
     input:
         TEcount = outdir + "/TEcount/all_TEcount.tsv",
         TElocal = outdir + "/TElocal/all_TElocal.tsv"
+    resources:
+        mem_mb = rule_res("TEtranscripts_result").get("mem_mb", 8000),

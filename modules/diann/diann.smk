@@ -38,7 +38,9 @@ rule diann_run:
         stats = outdir + "/diann.report.stats.tsv",
     log:
         logdir + "/group/diann_run.log"
-    threads: 16
+    threads: rule_res("diann_run").get("threads", 16)
+    resources:
+        mem_mb = rule_res("diann_run").get("mem_mb", 32000),
     conda:
         "diann.yaml"
     container:
@@ -119,7 +121,9 @@ rule diann_summary:
         matrix = outdir + "/diann_protein_matrix.tsv",
     log:
         logdir + "/group/diann_summary.log"
-    threads: 1
+    threads: rule_res("diann_summary").get("threads", 1)
+    resources:
+        mem_mb = rule_res("diann_summary").get("mem_mb", 8000),
     conda:
         "diann.yaml"
     container:
@@ -159,3 +163,5 @@ rule diann_result:
         stats = outdir + "/diann.report.stats.tsv",
         qc = outdir + "/diann_qc.tsv",
         matrix = outdir + "/diann_protein_matrix.tsv",
+    resources:
+        mem_mb = rule_res("diann_result").get("mem_mb", 8000),

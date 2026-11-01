@@ -17,6 +17,8 @@ rule TEcoutCPM:
         outfile = outdir + "/counts/humanTEcountCPM.cntTable"
     log:
         log = outdir + "/log/human/TEcoutCPM.log"
+    resources:
+        mem_mb = rule_res("TEcoutCPM").get("mem_mb", 8000),
     params:
         script = MODULE_DIR + "/scripts/SNP/run-NormCountMat.R",
         Rscript = config["Procedure"]["Rscript"]
@@ -55,6 +57,8 @@ rule commonExpression:
         outfile = outdir + "/counts/humanTEcountCommon.cntTable"
     log:
         log = outdir + "/log/human/commonExpression.log"
+    resources:
+        mem_mb = rule_res("commonExpression").get("mem_mb", 8000),
     conda:
         config.get('conda', {}).get('RNA-SNP') or 'annovar.yaml'
     params:
@@ -93,6 +97,8 @@ rule getBed:
         outfile = outdir + "/counts/humanTEcountCommon.bed"
     log:
         log = outdir + "/log/human/getBed.log"
+    resources:
+        mem_mb = rule_res("getBed").get("mem_mb", 8000),
     conda:
         config.get('conda', {}).get('RNA-SNP') or 'annovar.yaml'
     params:
@@ -137,7 +143,9 @@ rule vcfIntersectBed:
         log = outdir + "/log/human/{sample_id}/vcfIntersectBed.log"
     conda:
         config.get('conda', {}).get('RNA-SNP') or 'annovar.yaml'
-    threads:4 #防止同时执行太多，爆内存
+    threads: rule_res("vcfIntersectBed").get("threads", 4)  #防止同时执行太多，爆内存
+    resources:
+        mem_mb = rule_res("vcfIntersectBed").get("mem_mb", 8000),
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -175,7 +183,9 @@ rule annovar_convert:
     params:
         convert = "/opt/annovar/convert2annovar.pl",
         perl = config["Procedure"]["perl"]
-    threads:4 #防止同时执行太多，爆内存
+    threads: rule_res("annovar_convert").get("threads", 4)  #防止同时执行太多，爆内存
+    resources:
+        mem_mb = rule_res("annovar_convert").get("mem_mb", 8000),
     conda:
         "annovar.yaml"
     container:
@@ -217,7 +227,9 @@ rule annovar_table:
         # annotate = "/opt/annovar/annotate_variation.pl",
         table = config.get("Procedure", {}).get("table_annovar") or "table_annovar.pl",
         out = outdir + "/annovar/human/{sample_id}/{sample_id}"
-    threads: 4 #防止同时执行太多，爆内存
+    threads: rule_res("annovar_table").get("threads", 4)  #防止同时执行太多，爆内存
+    resources:
+        mem_mb = rule_res("annovar_table").get("mem_mb", 16000),
     conda:
         "annovar.yaml"
     container:

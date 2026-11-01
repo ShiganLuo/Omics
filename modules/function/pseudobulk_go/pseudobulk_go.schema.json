@@ -1,0 +1,58 @@
+{
+  "indir": {
+    "type": "str",
+    "nullable": true,
+    "required": false
+  },
+  "outdir": {
+    "type": "str",
+    "required": true
+  },
+  "logdir": {
+    "type": "str",
+    "nullable": true,
+    "required": false
+  },
+  "ROOT_DIR": {
+    "type": "str",
+    "required": true
+  },
+  "Params": {
+    "function": {
+      "pseudobulk_go": {
+        "root": {
+          "type": "str",
+          "nullable": true,
+          "required": false
+        },
+        "modes": {
+          "type": "enum",
+          "values": ["all", "gene", "te"],
+          "required": false
+        },
+        "species": {
+          "type": "enum",
+          "values": ["human", "mouse", "macaque"],
+          "required": true
+        },
+        "lfc_cut": {
+          "type": "float",
+          "required": false
+        },
+        "p_cut": {
+          "type": "float",
+          "required": false
+        },
+        "top": {
+          "type": "int",
+          "required": false
+        },
+        "format": {
+          "type": "enum",
+          "values": ["png", "pdf", "svg"],
+          "required": false
+        }
+      }
+    }
+  }
+}

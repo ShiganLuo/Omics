@@ -144,8 +144,17 @@ smooth muscle / stromal fibroblast)的 canonical 面板高度重叠,单靠面板
 记 warning 后跳过;`_` 开头的键为注释键,忽略。接入方式:
 `Params.scanpy.<counter>.auto.marker_supplement = {tissue: json 路径}`(scanpy.smk
 在 scanpy_auto / scanpy_reannotate 两个规则透传 `-X`)。**仅作用于绘图**
-(marker panels),不进入 LLM 提示词与特异性打分。实例:
-`/data/16T/luosg/data/Uterus_scTE_marker_supplement.json`。刷新面板用 no-op 覆写
+(marker panels),不进入 LLM 提示词与特异性打分。来源有两路,按 cell_type key
+合并,人工 `-X` 条目整条覆盖 LLM 自动版(大小写不敏感):
+1. **LLM 自动产出**(默认开,`marker_supplement_llm: false` 或 CLI `-M` 关闭):
+   auto 模式注释收敛后追加一次 LLM 调用,为近缘易混类型生成判别组合
+   (positive 期望表达 + negative 期望不表达),原子写
+   `<output stem>_reports/table/marker_supplement.auto.json`;reannotate
+   自动发现同目录文件并合并。任何失败(调用/解析)降级为空,不阻塞运行。
+2. **人工维护**:`Params.scanpy.<counter>.auto.marker_supplement` 的 JSON
+   (需要覆盖或补充 LLM 版时写)。
+示例:`modules/scanpy/examples/marker_supplement.example.json`
+(真实案例:`/data/16T/luosg/data/Uterus_scTE_marker_supplement.json`)。刷新面板用 no-op 覆写
 (JSON 中 corrected == original)+ `--forcerun scRNAseq_scanpy_reannotate
 --rerun-triggers mtime`:figure-only rerun,只重建图与报告,h5ad 不动(§3.2)。
 
@@ -207,6 +216,11 @@ combined = min(z) AND 逻辑;control = 同管线随机基因`。
   }
 }
 ```
+
+完整示例(两种条目:纯改名、带 evidence 全字段):
+`modules/scanpy/examples/cluster_annotations.example.json`。注意与 marker_supplement
+不同,顶层键必须是 cluster id,**不支持注释键**(`_comment` 会触发 unknown cluster
+id 报错)。
 
 ### 3.2 安全闸与就地覆盖语义
 

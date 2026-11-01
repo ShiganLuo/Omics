@@ -1,0 +1,60 @@
+{
+  "_comment": "Discriminating combination markers for confusable uterine mesenchymal cell types (marker-panel review aid). positive = expected PRESENT in the type, negative = expected ABSENT (contrast against the sibling types). Consumed by scRNAseq.py -X/--marker-supplement (Params.scanpy.<counter>.auto.marker_supplement); display-level only, never fed into annotation prompts or scoring.",
+  "Smooth muscle cell": {
+    "positive": [
+      "MYOCD",
+      "SMTN",
+      "ACTG2",
+      "LMOD1"
+    ],
+    "negative": [
+      "POSTN",
+      "CTHRC1",
+      "PI16",
+      "DPT"
+    ]
+  },
+  "Stromal fibroblast": {
+    "positive": [
+      "PI16",
+      "DPT",
+      "SFRP4",
+      "ALDH1A1"
+    ],
+    "negative": [
+      "ACTA2",
+      "MYH11",
+      "MYOCD",
+      "POSTN"
+    ]
+  },
+  "Pericyte": {
+    "positive": [],
+    "negative": [
+      "MYH11",
+      "MYOCD",
+      "POSTN",
+      "CTHRC1",
+      "PI16",
+      "DPT"
+    ]
+  },
+  "Proliferating glandular epithelial cell": {
+    "positive": [],
+    "negative": [
+      "COL1A1",
+      "SFRP4",
+      "CD3D",
+      "CD68"
+    ]
+  },
+  "Proliferating stromal cell": {
+    "positive": [],
+    "negative": [
+      "EPCAM",
+      "WFDC2",
+      "CD3D",
+      "CD68"
+    ]
+  }
+}

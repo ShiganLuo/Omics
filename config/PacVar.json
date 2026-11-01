@@ -5,6 +5,14 @@
       "threads": 2,
       "mem_mb": 8000
     },
+    "MarkDuplicates": {
+      "threads": 8,
+      "mem_mb": 32000
+    },
+    "addReadsGroup": {
+      "threads": 8,
+      "mem_mb": 16000
+    },
     "assembly_telomere_scan": {
       "threads": 1,
       "mem_mb": 8000
@@ -46,6 +54,10 @@
     "decoil_ucsc": {
       "threads": 1,
       "mem_mb": 4000
+    },
+    "gatk_index": {
+      "threads": 4,
+      "mem_mb": 8000
     },
     "genome_index": {
       "threads": 1,

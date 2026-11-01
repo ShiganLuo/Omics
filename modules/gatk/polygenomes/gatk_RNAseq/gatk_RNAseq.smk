@@ -41,7 +41,7 @@ rule SplitNCigarReads:
         sif("../../gatk.yaml")
     threads: rule_res("SplitNCigarReads").get("threads", 8)
     resources:
-        mem_mb=rule_res("SplitNCigarReads").get("mem_mb", 32000),
+        mem_mb=rule_res("SplitNCigarReads").get("mem_mb", 16000),
     log:
         logdir + "/{sample_id}/{genome}/SplitNCigarReads.log"
     run:
@@ -110,9 +110,9 @@ rule VarientCalling:
         javaOptions = config.get("Params", {}).get("gatk", {}).get("javaOptions") or "-Xmx30g",
         tmp_dir = config.get("Params", {}).get("gatk", {}).get("tmp-dir") or None,
         gatk = config.get("Procedure", {}).get("gatk") or "gatk",
-    threads: rule_res("VarientCalling").get("threads", 12)
+    threads: rule_res("VarientCalling").get("threads", 8)
     resources:
-        mem_mb=rule_res("VarientCalling").get("mem_mb", 32000),
+        mem_mb=rule_res("VarientCalling").get("mem_mb", 16000),
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -175,7 +175,7 @@ rule vcf_filter:
     conda: "../../gatk.yaml"
     container:
         sif("../../gatk.yaml")
-    threads: rule_res("vcf_filter").get("threads", 4)
+    threads: rule_res("vcf_filter").get("threads", 8)
     resources:
         mem_mb=rule_res("vcf_filter").get("mem_mb", 8000),
     params:

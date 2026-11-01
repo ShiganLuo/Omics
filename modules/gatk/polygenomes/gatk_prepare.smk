@@ -92,7 +92,7 @@ rule addReadsGroup:
         sif("../gatk.yaml")
     threads: rule_res("addReadsGroup").get("threads", 8)
     resources:
-        mem_mb=rule_res("addReadsGroup").get("mem_mb", 32000),
+        mem_mb=rule_res("addReadsGroup").get("mem_mb", 16000),
     params:
         id = "{sample_id}",
         javaOptions = config.get("Params", {}).get("gatk", {}).get("javaOptions") or "-Xmx30g",

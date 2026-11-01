@@ -34,7 +34,7 @@ rule SplitNCigarReads:
     conda: "../gatk.yaml"
     container:
         sif("../gatk.yaml")
-    threads: 8 
+    threads: rule_res("SplitNCigarReads").get("threads", 8)
     resources:
         mem_mb = rule_res("SplitNCigarReads").get("mem_mb", 16000),
     log:
@@ -90,7 +90,7 @@ rule VarientCalling:
         gatk = config.get("Procedure", {}).get("gatk") or "gatk",
         fasta = config.get("genome", {}).get("fasta"),
         fai_index = config.get("genome", {}).get("fai_index")
-    threads: 8
+    threads: rule_res("VarientCalling").get("threads", 8)
     resources:
         mem_mb = rule_res("VarientCalling").get("mem_mb", 16000),
     run:
@@ -138,7 +138,7 @@ rule vcf_filter:
     conda: "../gatk.yaml"
     container:
         sif("../gatk.yaml")
-    threads: 8
+    threads: rule_res("vcf_filter").get("threads", 8)
     resources:
         mem_mb = rule_res("vcf_filter").get("mem_mb", 8000),
     params:

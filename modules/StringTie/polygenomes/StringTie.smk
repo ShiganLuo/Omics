@@ -80,7 +80,7 @@ rule TEChimericTranscripts:
         TEChimericTranscripts = ROOT_DIR + "/modules/StringTie/bin/TEChimericTranscripts.py"
     threads: rule_res("TEChimericTranscripts").get("threads", 5)
     resources:
-        mem_mb=rule_res("TEChimericTranscripts").get("mem_mb", 16000),
+        mem_mb=rule_res("TEChimericTranscripts").get("mem_mb", 8000),
     conda:
         "../StringTie.yaml"
     container:
@@ -206,7 +206,7 @@ rule stringTieMerge:
         gtf = outdir + "/{genome}/stringtie_merged.gtf"
     threads: rule_res("stringTieMerge").get("threads", 1)
     resources:
-        mem_mb=rule_res("stringTieMerge").get("mem_mb", 8000),
+        mem_mb=rule_res("stringTieMerge").get("mem_mb", 32000),
     log:
         logdir_combine + "/stringtie/{genome}/stringTieMerge.log"
     params:

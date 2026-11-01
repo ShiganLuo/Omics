@@ -26,6 +26,7 @@ rule DESeq2_TEcount:
         contrast_gene = outdir + "/{contrast}/TEcount/{contrast}.TEcount_Gene.tsv",
         contrast_te = outdir + "/{contrast}/TEcount/{contrast}.TEcount_TE.tsv",
         contrast_gene_te = outdir + "/{contrast}/TEcount/{contrast}.TEcount_Gene_TE.tsv",
+    threads: rule_res("DESeq2_TEcount").get("threads", 4)
     resources:
         mem_mb = rule_res("DESeq2_TEcount").get("mem_mb", 16000),
     params:

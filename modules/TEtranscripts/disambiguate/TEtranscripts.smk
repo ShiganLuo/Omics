@@ -32,7 +32,7 @@ rule TEcount:
         TEcount = config.get('Procedure',{}).get('TEcount') or 'TEcount'
     log:
         logdir + "/{sample_id}/{genome}/TEcount.log"
-    threads: 2
+    threads: rule_res("TEcount").get("threads", 2)
     resources:
         mem_mb = rule_res("TEcount").get("mem_mb", 32000),
     conda:
@@ -84,7 +84,7 @@ rule combine_TEcount:
         geneId2Name = ROOT_DIR +"/modules/TEtranscripts/bin/geneId2Name.py",
         indir = outdir + "/TEcount/{genome}",
         gtf = lambda wildcards: config['genome'][wildcards.genome]['gtf']
-    threads: 1
+    threads: rule_res("combine_TEcount").get("threads", 1)
     resources:
         mem_mb = rule_res("combine_TEcount").get("mem_mb", 8000),
     log:
@@ -131,7 +131,7 @@ rule TElocal:
         TE = lambda wildcards: config['genome'][wildcards.genome]['TEind'],
         GTF = lambda wildcards: config['genome'][wildcards.genome]['gtf'],
         TElocal = config.get('Procedure',{}).get('TElocal') or 'TElocal'
-    threads: 2
+    threads: rule_res("TElocal").get("threads", 2)
     resources:
         mem_mb = rule_res("TElocal").get("mem_mb", 32000),
     conda:
@@ -186,7 +186,7 @@ rule combine_TElocal:
         geneId2Name = ROOT_DIR +"/modules/TEtranscripts/bin/geneId2Name.py",
         indir = outdir + "/TElocal/{genome}",
         gtf = lambda wildcards: config['genome'][wildcards.genome]['gtf']
-    threads: 1
+    threads: rule_res("combine_TElocal").get("threads", 1)
     resources:
         mem_mb = rule_res("combine_TElocal").get("mem_mb", 8000),
     log:

@@ -26,9 +26,9 @@ rule extract_rRNA:
         rRNA_fasta = outdir + "/{genome}/rRNA.fasta"
     log:
         logdir + "/RmrRNA/{genome}/extract_rRNA.log"
-    threads: rule_res("extract_rRNA").get("threads", 8)
+    threads: rule_res("extract_rRNA").get("threads", 2)
     resources:
-        mem_mb=rule_res("extract_rRNA").get("mem_mb", 16000),
+        mem_mb=rule_res("extract_rRNA").get("mem_mb", 8000),
     params:
         extract_rRNA_script = os.path.join(ROOT_DIR, "modules/RmrRNA/bin/extract_rRNA.py")
     conda:

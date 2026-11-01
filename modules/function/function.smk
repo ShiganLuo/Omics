@@ -26,7 +26,7 @@ rule function_go_kegg:
         func_down_genes = outdir + "/{contrast}/down_genes.txt"
     log:
         logdir + "/../group/function/{contrast}.go_kegg.log"
-    threads: 1
+    threads: rule_res("function_go_kegg").get("threads", 1)
     resources:
         mem_mb = rule_res("function_go_kegg").get("mem_mb", 8000),
     params:
@@ -118,7 +118,7 @@ rule function_gsea:
         func_gsea_csv = outdir + "/{contrast}/GSEA/TEcount_Gene_GSEA.csv"
     log:
         logdir + "/../group/function/{contrast}.gsea.log"
-    threads: 1
+    threads: rule_res("function_gsea").get("threads", 1)
     resources:
         mem_mb = rule_res("function_gsea").get("mem_mb", 8000),
     params:
@@ -224,7 +224,7 @@ rule function_gsva:
         gsva_heatmap = outdir + "/gsva/gsva_heatmap.png",
     log:
         logdir + "/function/gsva.log"
-    threads: 1
+    threads: rule_res("function_gsva").get("threads", 1)
     resources:
         mem_mb = rule_res("function_gsva").get("mem_mb", 8000),
     params:

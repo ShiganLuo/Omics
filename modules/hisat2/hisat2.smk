@@ -14,7 +14,7 @@ rule hisat2_index:
             outdir + "/index/genome.{idx}.ht2",
             idx = [1, 2, 3, 4, 5, 6, 7, 8]
         )
-    threads: 8
+    threads: rule_res("hisat2_index").get("threads", 8)
     resources:
         mem_mb = rule_res("hisat2_index").get("mem_mb", 8000),
     params:
@@ -106,7 +106,7 @@ rule hisat2_align:
         splice = outdir + "/{sample_id}/{sample_id}.splice.txt"
     log:
         logdir + "/{sample_id}/hisat2_align.log"
-    threads: 12
+    threads: rule_res("hisat2_align").get("threads", 12)
     resources:
         mem_mb = rule_res("hisat2_align").get("mem_mb", 32000),
     params:

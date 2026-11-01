@@ -67,7 +67,7 @@
       "mem_mb": 32000
     },
     "star_index": {
-      "threads": 16,
+      "threads": 12,
       "mem_mb": 64000
     }
   },

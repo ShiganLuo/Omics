@@ -31,7 +31,7 @@ rule bowtie2_index:
         logdir + "/index/{genome}/bowtie2_index.log"
     threads: rule_res("bowtie2_index").get("threads", 12)
     resources:
-        mem_mb=rule_res("bowtie2_index").get("mem_mb", 16000),
+        mem_mb=rule_res("bowtie2_index").get("mem_mb", 8000),
     params:
         bowtie2_build = config.get('Procedure',{}).get('bowtie2-build') or 'bowtie2-build',
         index_prefix = lambda wildcards: outdir + f"/index/{wildcards.genome}/{wildcards.genome}"
@@ -122,7 +122,7 @@ rule bowtie2_align_paired:
         unmapped2 = outdir + "/{genome}/{sample_id}/{sample_id}_unmapped_2.fq.gz"
     log:
         logdir + "/{sample_id}/{genome}/bowtie2_align.log"
-    threads: rule_res("bowtie2_align_paired").get("threads", 12)
+    threads: rule_res("bowtie2_align_paired").get("threads", 8)
     resources:
         mem_mb=rule_res("bowtie2_align_paired").get("mem_mb", 16000),
     params:
@@ -178,9 +178,9 @@ rule bowtie2_align_single:
         unmapped = outdir + "/{genome}/{sample_id}/{sample_id}_unmapped.single.fq.gz"
     log:
         logdir + "/{sample_id}/{genome}/bowtie2_align.log"
-    threads: rule_res("bowtie2_align_single").get("threads", 12)
+    threads: rule_res("bowtie2_align_single").get("threads", 8)
     resources:
-        mem_mb=rule_res("bowtie2_align_single").get("mem_mb", 8000),
+        mem_mb=rule_res("bowtie2_align_single").get("mem_mb", 16000),
     params:
         bowtie2 = config.get('Procedure',{}).get('bowtie2') or 'bowtie2',
         unmapped_prefix = outdir + "/{genome}/{sample_id}/{sample_id}_unmapped",

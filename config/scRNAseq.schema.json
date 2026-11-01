@@ -775,12 +775,17 @@
           "cluster_annotations": {
             "type": "dict",
             "required": false,
-            "description": "Per-tissue cluster annotation override JSON paths {tissue: path}; applied after LLM annotation"
+            "description": "Per-tissue cluster annotation override JSON paths {tissue: path}; human-supplied corrections applied after LLM annotation (example: modules/scanpy/examples/cluster_annotations.example.json)"
           },
           "marker_supplement": {
             "type": "dict",
             "required": false,
-            "description": "Per-tissue discriminating marker supplement JSON paths {tissue: path} ({cell_type: {positive, negative}}); appended to marker panels, display-level only"
+            "description": "Per-tissue discriminating marker supplement JSON paths {tissue: path} ({cell_type: {positive, negative}}); human-curated review aid, appended to marker panels, display-level only (example: modules/scanpy/examples/marker_supplement.example.json)"
+          },
+          "marker_supplement_llm": {
+            "type": "bool",
+            "required": false,
+            "description": "Auto-generate a discriminating-marker supplement via one LLM call after annotation (default true); written to marker_supplement.auto.json and merged into the marker panels, display-level only, human marker_supplement entries win per cell type"
           },
           "exclude_genes": {
             "type": "str",
@@ -827,8 +832,10 @@
               "required": false
             },
             "deg_mode": {
-              "type": "list",
-              "required": false
+              "type": "enum",
+              "values": ["gene", "te", "all"],
+              "required": false,
+              "description": "DEG feature modes: gene (exclude TE), te (TE only), all (genes+TE); one or more, run sequentially"
             }
           }
         }
@@ -1026,12 +1033,17 @@
           "cluster_annotations": {
             "type": "dict",
             "required": false,
-            "description": "Per-tissue cluster annotation override JSON paths {tissue: path}; applied after LLM annotation"
+            "description": "Per-tissue cluster annotation override JSON paths {tissue: path}; human-supplied corrections applied after LLM annotation (example: modules/scanpy/examples/cluster_annotations.example.json)"
           },
           "marker_supplement": {
             "type": "dict",
             "required": false,
-            "description": "Per-tissue discriminating marker supplement JSON paths {tissue: path} ({cell_type: {positive, negative}}); appended to marker panels, display-level only"
+            "description": "Per-tissue discriminating marker supplement JSON paths {tissue: path} ({cell_type: {positive, negative}}); human-curated review aid, appended to marker panels, display-level only (example: modules/scanpy/examples/marker_supplement.example.json)"
+          },
+          "marker_supplement_llm": {
+            "type": "bool",
+            "required": false,
+            "description": "Auto-generate a discriminating-marker supplement via one LLM call after annotation (default true); written to marker_supplement.auto.json and merged into the marker panels, display-level only, human marker_supplement entries win per cell type"
           },
           "exclude_genes": {
             "type": "str",
@@ -1078,8 +1090,10 @@
               "required": false
             },
             "deg_mode": {
-              "type": "list",
-              "required": false
+              "type": "enum",
+              "values": ["gene", "te", "all"],
+              "required": false,
+              "description": "DEG feature modes: gene (exclude TE), te (TE only), all (genes+TE); one or more, run sequentially"
             }
           }
         }

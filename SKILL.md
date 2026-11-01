@@ -144,7 +144,7 @@ assests/test/
 # 硬性规则
 
 - **任务输出目录、测试输出目录绝不能位于仓库目录内**：`run.py` 的 `-o`、`run_module.py` 的 outdir、`--test` 输出、任何实验/测试产物一律写到仓库外（scratch 或专用工作目录）；执行时 cwd 也不要放在仓库根。收尾自检：仓库根不得残留 `output/`、`test/`、`module_test/`、`.snakemake/`、`.cache/`、`.config/`、`__pycache__/` —— `.gitignore` 会掩盖它们，`git status` 干净不代表仓库没被污染。测试输入（fixtures）属于 `assests/test/`（tracked），是唯一例外。
-- **过程性/细节文档不进仓库**：plan、调研、方案类文档写 `/data/16T/luosg/.hermes/doces/`；仓库 `docs/` 只放面向使用者的文档（使用指南、设计原则、专题说明）。
+- **过程性/细节文档不进仓库**：plan、调研、方案类文档写 `/data/16T/luosg/.hermes/docs/`；仓库 `docs/` 只放面向使用者的文档（使用指南、设计原则、专题说明）。
 
 # 原则
 

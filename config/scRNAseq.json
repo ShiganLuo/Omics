@@ -200,17 +200,14 @@
           "llm_model": null,
           "llm_api_key": null,
           "llm_base_url": null,
-          "cluster_annotations": {
-            "Uterus": "/data/16T/luosg/data/Uterus_scTE_cluster_annotations.json"
-          },
-          "marker_supplement": {
-              "Uterus": "/data/16T/luosg/data/Uterus_scTE_marker_supplement.json"
-          },
+          "cluster_annotations": null,
+          "marker_supplement": null,
+          "marker_supplement_llm": true,
           "exclude_genes": "",
           "exclude_from_deg": false
         },
         "pseudobulk": {
-          "enabled": false,
+          "enabled": true,
           "compare": [],
           "min_cells": 30,
           "min_counts": 1000,
@@ -218,7 +215,7 @@
           "top_cell_types": [],
           "highlight_genes": [],
           "deg_mode": [
-            "all"
+            "gene", "te", "all"
           ]
         }
       },
@@ -271,8 +268,9 @@
           "llm_model": null,
           "llm_api_key": null,
           "llm_base_url": null,
-          "cluster_annotations": {},
-          "marker_supplement": {},
+          "cluster_annotations": null,
+          "marker_supplement": null,
+          "marker_supplement_llm": true,
           "exclude_genes": "",
           "exclude_from_deg": false
         },

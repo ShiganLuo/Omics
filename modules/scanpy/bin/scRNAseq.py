@@ -880,10 +880,16 @@ def _apply_cluster_overrides(
           "<cluster_id>": {
             "original_cell_type": "M1_Macrophage",
             "corrected_cell_type": "Tissue_Resident_Macrophage",
+            "canonical_markers": ["CD68", ...],   # optional, for marker plots
             "reasoning": "..."
           },
           ...
         }
+
+    When ``original_cell_type`` is given it MUST match the cluster's
+    current label (idempotent re-application is allowed: a cluster already
+    holding ``corrected_cell_type`` passes) — a mismatch raises, protecting
+    against leiden renumbering.
 
     Cluster ids must be strings and must exist in
     ``adata.obs[group_key]``. The function fails loudly on:
@@ -981,6 +987,22 @@ def _apply_cluster_overrides(
         pre_label = adata.obs.loc[mask, "cell_type"].iloc[0]
         original_effective = str(pre_label) if not original else original
 
+        # Fail loudly when the JSON's expected original label does not
+        # match the cluster's current label (unless already applied):
+        # leiden ids can be renumbered by a re-cluster, and a silently
+        # mis-targeted override would corrupt the wrong cluster.
+        if (
+            original
+            and str(pre_label) != corrected
+            and str(pre_label) != original
+        ):
+            raise ValueError(
+                f"override for cluster {cluster_id!r} expects "
+                f"original_cell_type {original!r} but the cluster currently "
+                f"reads {pre_label!r} — cluster ids may have been "
+                f"renumbered; refusing to apply"
+            )
+
         # `cell_type` is a Categorical (set by _annotate_markers /
         # mode_auto). Pandas refuses to setitem with a value that is not
         # already a known category — extend categories first so we can
@@ -1003,6 +1025,28 @@ def _apply_cluster_overrides(
             "Override cluster %s (%d cells): %s -> %s",
             cluster_str, n_cells, original_effective, corrected,
         )
+
+    # Drop categories that lost all cells to an override and realign the
+    # palette: scanpy draws a legend entry for EVERY category, so a
+    # zero-cell leftover label (e.g. the pre-override cell type) renders
+    # as a ghost entry in the UMAP panels.
+    col = adata.obs["cell_type"]
+    if isinstance(col.dtype, pd.CategoricalDtype):
+        old_cats = col.cat.categories.tolist()
+        old_colors = list(adata.uns.get("cell_type_colors", []))
+        new_col = col.cat.remove_unused_categories()
+        new_cats = new_col.cat.categories.tolist()
+        if old_colors and len(old_colors) == len(old_cats):
+            # Palette is positional to categories: realign by name so each
+            # label keeps its color across the cleanup.
+            idx = {c: i for i, c in enumerate(old_cats)}
+            adata.uns["cell_type_colors"] = [old_colors[idx[c]] for c in new_cats]
+        elif "cell_type_colors" in adata.uns:
+            del adata.uns["cell_type_colors"]  # stale palette: let scanpy rebuild
+        adata.obs["cell_type"] = new_col
+        dropped = set(old_cats) - set(new_cats)
+        if dropped:
+            logger.info("Dropped unused cell_type categories: %s", sorted(dropped))
 
     # Store audit trail in uns so it survives write_h5ad.
     # h5ad round-tripping requires homogeneous string arrays — pack the
@@ -1620,6 +1664,27 @@ def _build_auto_annotation_prompt(
             )
         specificity_context = "\n".join(spec_lines)
 
+    # COMPLETE panel-marker evidence table (fixes the absence fallacy).
+    # The top-N specificity view above cannot show genes that are PRESENT
+    # but not specific (e.g. ACTA2 at 82% cells / 0.8x), which previously
+    # led the LLM to assert a false 'absence of ACTA2'. Every panel
+    # canonical marker gets its expression facts here.
+    panel_evidence_context = ""
+    if marker_specificity:
+        by_ct: Dict[str, List] = {}
+        for (ct, gene), m in marker_specificity.items():
+            by_ct.setdefault(ct, []).append((
+                m.get("specificity", 0.0),
+                f"{gene} (mean={m.get('this_mean', 0.0):.2f}, "
+                f"{m.get('pct_pos', 0.0):.0f}%, "
+                f"{m.get('specificity', 0.0):.1f}x)",
+            ))
+        panel_lines = []
+        for ct in sorted(by_ct):
+            genes_sorted = [g for _, g in sorted(by_ct[ct], key=lambda kv: -kv[0])]
+            panel_lines.append(f"  - {ct}: " + ", ".join(genes_sorted))
+        panel_evidence_context = "\n".join(panel_lines)
+
     prompt = f"""You are an expert single-cell RNA-seq analyst. Annotate the following cluster from a {tissue} dataset.
 
 ## Cluster {cluster_id}
@@ -1648,6 +1713,22 @@ specificity = this cluster's mean / max mean in other clusters.
 Higher specificity = more diagnostic. >=2.0x = strong evidence.
 {deg_warning}
 {specificity_context}
+"""
+
+    # PANEL EVIDENCE: complete marker facts for every candidate identity
+    if panel_evidence_context:
+        prompt += f"""
+## PANEL MARKER EVIDENCE - COMPLETE (all candidate cell types)
+Format: gene (mean expression, % cells expressing, specificity vs other clusters).
+This table is AUTHORITATIVE for presence/absence claims:
+- % HIGH + specificity LOW -> gene is EXPRESSED but shared. Describe it as
+  "present, not specific". NEVER call it "absent" or "lacking".
+- % LOW (<5%) -> genuinely not expressed; you may claim absence, and your
+  reasoning MUST cite the % value.
+- A gene NOT listed in ANY table above -> write "not evaluated"; asserting
+  its absence is FORBIDDEN.
+
+{panel_evidence_context}
 """
 
     # SECONDARY: DEGs — supplementary context
@@ -1726,8 +1807,22 @@ Output a JSON object with:
 - "cell_type": predicted cell type name (use standard nomenclature, e.g. "Stromal", "Smooth_muscle", "Endothelial", "Macrophage", "T_cell", "Unknown", etc.)
 - "key_markers": list of 5-10 genes that best support this identification. PRIORITIZE high-specificity markers over generic DEGs.
 - "canonical_markers": list of 6-10 canonical marker genes for this cell type from published literature. These should be the STANDARD markers used to identify this cell type, NOT limited to the DEGs provided. For example, for Granulosa cells: ["FOXL2", "CYP19A1", "FSHR", "AMH", "HSD17B1", "INHA"]. For Endothelial: ["PECAM1", "VWF", "CDH5", "KDR", "FLT1"]. This is critical for specificity-weighted scoring.
+- "evidence": object describing HOW the identity is evidenced. OMIT it when a
+    single diagnostic marker suffices. For combination-defined types (no
+    single specific marker) provide:
+      "programs": {"<functional program>": [gene, ...], ...}  - split your
+        canonical_markers into 2-3 functional programs (e.g. "contractile",
+        "ECM"); the pipeline renders a combined signature score UMAP plus
+        per-program panels for human review.
+      "ruling_out": {"<competing cell type>": [gene, ...]}  - markers whose
+        ABSENCE excludes that competitor (only claim absence for genes with
+        a low % value in the panel table).
 - "reasoning": brief explanation of your reasoning, including:
   * Why this cell type? Cite the specificity markers that support your decision.
+  * Evidence discipline: any "absent"/"lacks"/"without X" claim MUST cite the
+    panel marker table % value for X. If X is not listed in any table, write
+    "not evaluated" instead of asserting absence. A gene with high % but low
+    specificity is "present, not specific" - never "absent".
   * Is this a subcluster of another cluster? If so, which one?
   * Are there quality concerns?
   * Should this cluster be merged with another cluster?
@@ -1829,6 +1924,7 @@ def _ai_annotate_cluster(
         "cell_type": raw.get("cell_type", "Unknown"),
         "key_markers": raw.get("key_markers", []),
         "canonical_markers": raw.get("canonical_markers", []),  # Standard markers from literature
+        "evidence": raw.get("evidence") or {},  # {programs, ruling_out} for composite identities
         "reasoning": raw.get("reasoning", ""),
         "confidence": raw.get("confidence", "low"),
         "quality_flag": raw.get("quality_flag"),
@@ -3090,6 +3186,401 @@ def _audit_annotations(
             flush=True,
         )
     return audit
+
+
+def _render_signature_packs(
+    plotter,
+    adata: ad.AnnData,
+    annotations: Dict[str, Dict],
+    cluster_key: str = "leiden",
+    table_dir: str = "",
+) -> None:
+    """Render composite-evidence review packs for annotations that declare
+    an ``evidence`` block (programs / ruling_out). Diagnostic-marker types
+    are skipped here — their canonical UMAP panels already suffice.
+
+    Dispatch (per cell type):
+      - evidence.programs  -> plot_signature_pack (combined + per-program
+        score UMAPs + co-expression TSV)
+      - evidence.ruling_out -> plot_evidence (differential dotplot of the
+        exclusion markers against every cluster)
+    """
+    packs: Dict[str, Dict[str, List[str]]] = {}
+    targets: Dict[str, List[str]] = {}
+    evidence_map: Dict[str, Dict[str, List[str]]] = {}
+    for cl, ann in annotations.items():
+        ct = str(ann.get("cell_type", "Unknown"))
+        ev = ann.get("evidence") or {}
+        if not isinstance(ev, dict):
+            continue
+        progs = ev.get("programs") or {}
+        if progs:
+            packs.setdefault(ct, progs)
+            targets.setdefault(ct, []).append(str(cl))
+        rule = ev.get("ruling_out") or {}
+        if rule:
+            neg: List[str] = []
+            for genes in rule.values():
+                for g in genes or []:
+                    if g not in neg:
+                        neg.append(g)
+            if neg:
+                slot = evidence_map.setdefault(ct, {"negative": [], "positive": []})
+                slot["negative"] = neg
+                targets.setdefault(ct, []).append(str(cl))
+    if not packs and not evidence_map:
+        return
+    for ct, progs in packs.items():
+        try:
+            plotter.plot_signature_pack(
+                adata, ct, progs, target_clusters=targets.get(ct),
+                cluster_key=cluster_key, table_dir=table_dir or None,
+            )
+        except Exception as exc:  # a figure failure must not lose the h5ad
+            logger.warning("Signature pack failed for %s: %s", ct, exc)
+    if evidence_map:
+        try:
+            plotter.plot_evidence(
+                adata, annotations, evidence_map,
+                cluster_key=cluster_key, table_dir=table_dir or None,
+            )
+        except Exception as exc:
+            logger.warning("Differential evidence plot failed: %s", exc)
+
+
+def _load_marker_supplement(path: str) -> Dict[str, Dict[str, List[str]]]:
+    """Load the per-cell-type discriminating marker supplement JSON.
+
+    Display-level extension of the marker panels rendered by
+    ``plot_markers`` (never fed back into annotation): each entry adds
+    user-curated combination markers for cell types whose canonical
+    panels overlap heavily (e.g. myofibroblast / smooth muscle / stromal
+    fibroblast).
+
+    Accepted shapes per cell-type key::
+
+        {"Myofibroblast": ["POSTN", "CTHRC1"]}                    # all positive
+        {"Myofibroblast": {"positive": ["POSTN"],
+                           "negative": ["MYH11", "PI16"]}}
+
+    ``positive`` genes are expected present; ``negative`` genes are
+    expected ABSENT (contrast against confusable sibling types) and get
+    an ``(exp. absent)`` panel-title suffix.
+
+    Args:
+        path: JSON file path; empty string disables the supplement.
+
+    Returns:
+        ``{cell_type: {"positive": [...], "negative": [...]}}``, or ``{}``
+        when *path* is empty.
+
+    Raises:
+        ValueError: file missing or malformed (error names the path).
+    """
+    if not path:
+        return {}
+    try:
+        with open(path, encoding="utf-8") as fh:
+            raw = json.load(fh)
+    except FileNotFoundError:
+        raise ValueError(f"marker supplement JSON not found: {path}")
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"marker supplement JSON malformed: {path}: {exc}")
+    if not isinstance(raw, dict):
+        raise ValueError(
+            f"marker supplement JSON must be an object "
+            f"{{cell_type: genes|{{positive, negative}}}}: {path}")
+    out: Dict[str, Dict[str, List[str]]] = {}
+    for ct, payload in raw.items():
+        if str(ct).startswith("_"):
+            continue  # metadata/comment keys (e.g. "_comment")
+        if isinstance(payload, dict):
+            pos = payload.get("positive") or []
+            neg = payload.get("negative") or []
+        elif isinstance(payload, list):
+            pos, neg = list(payload), []
+        else:
+            raise ValueError(
+                f"marker supplement entry for {ct!r} must be a list or "
+                f"{{positive, negative}} object: {path}")
+        if not isinstance(pos, list) or not isinstance(neg, list):
+            raise ValueError(
+                f"marker supplement genes for {ct!r} must be lists: {path}")
+        out[str(ct)] = {
+            "positive": [str(g) for g in pos],
+            "negative": [str(g) for g in neg],
+        }
+    logger.info("Loaded marker supplement (%d cell types) from %s",
+                len(out), path)
+    return out
+
+
+def mode_reannotate(
+    adata: ad.AnnData,
+    output: str,
+    overrides_json: str,
+    plot_dir: str = "",
+    input_path: str = "",
+    tissue: str = "",
+    marker_supplement: str = "",
+) -> None:
+    """Apply cluster annotation overrides to an already-annotated h5ad.
+
+    Lightweight post-processing over a finished ``mode_auto`` output: reads
+    the override JSON, rewrites ``obs["cell_type"]`` via
+    :func:`_apply_cluster_overrides` (audit trail kept in
+    ``uns["cluster_annotation_overrides"]``), then regenerates ONLY the
+    annotation-derived outputs (annotation_report.tsv, marker UMAP plots,
+    annotation_audit.json) — no re-clustering, no LLM calls, no QC loop.
+    Leiden cluster ids are exactly the ones in the input h5ad, so overrides
+    cannot drift onto the wrong cluster.
+
+    IN-PLACE MODE: when *output* equals *input_path* (the canonical
+    invocation from the scanpy_reannotate rule), the auto h5ad is
+    overwritten in place after backing up the previous version to
+    ``<output>.bak`` (one generation, matching the repo convention), and
+    reports/plots are regenerated into the auto run's own report dir so
+    no parallel ``_reannotated`` artifact set exists. The write is atomic
+    (tmp file + os.replace).
+
+    Args:
+        adata: Annotated AnnData (from mode_auto), with ``leiden`` and
+            ``cell_type`` in obs.
+        output: Path to write the re-annotated h5ad (same as the input
+            path for in-place mode).
+        overrides_json: JSON path, schema as in
+            :func:`_apply_cluster_overrides`.
+        plot_dir: Directory for regenerated marker plots. In-place mode
+            defaults to the auto run's own report plot dir.
+        input_path: Path the adata was loaded from (enables prior-report
+            inheritance and in-place detection).
+        tissue: Tissue label for the regenerated annotation audit.
+        marker_supplement: Optional JSON path with per-cell-type
+            discriminating markers (see :func:`_load_marker_supplement`);
+            appended to the regenerated marker panels, display-level only.
+    """
+    if "cell_type" not in adata.obs.columns:
+        raise ValueError(
+            "input h5ad has no obs['cell_type'] — nothing to reannotate; "
+            "run auto mode first"
+        )
+    in_place = bool(
+        input_path
+        and os.path.abspath(output) == os.path.abspath(input_path)
+    )
+    # Snapshot labels before the override: when nothing actually changes
+    # (figure-only iterations), skip the multi-GB h5ad rewrite and the
+    # audit regeneration — they dominate the runtime for zero benefit.
+    pre_labels = adata.obs["cell_type"].astype(str).copy()
+    _apply_cluster_overrides(
+        adata,
+        json_path=overrides_json,
+        group_key="leiden",
+    )
+    labels_changed = bool(
+        (adata.obs["cell_type"].astype(str) != pre_labels).any()
+    )
+    if not labels_changed:
+        logger.info("No label changes; skipping h5ad rewrite and audit regeneration")
+
+    # Rebuild annotations dict from obs so reports reflect the overrides.
+    # Overridden clusters carry their override reasoning; untouched clusters
+    # inherit key_markers/confidence from the auto run's annotation_report
+    # (adjacent to the input h5ad) so the regenerated report is complete.
+    override_trail = {}
+    if "cluster_annotation_overrides" in adata.uns:
+        df = adata.uns["cluster_annotation_overrides"]
+        for _, row in df.iterrows():
+            override_trail[str(row["cluster_id"])] = dict(row)
+    prior: Dict[str, Dict] = {}
+    canonical_map: Dict[str, List[str]] = {}
+    input_stem = os.path.basename(input_path) if input_path else ""
+    if input_stem:
+        prior_path = os.path.join(
+            os.path.dirname(input_path),
+            f"{input_stem.rsplit('.', 1)[0]}_reports", "table", "annotation_report.tsv",
+        )
+        if os.path.isfile(prior_path):
+            try:
+                prior_df = pd.read_csv(prior_path, sep="\t", dtype={"cluster": str})
+                for _, row in prior_df.iterrows():
+                    prior[str(row["cluster"])] = dict(row)
+                logger.info("Inherited annotations from %s", prior_path)
+            except Exception as exc:  # malformed prior report is non-fatal
+                logger.warning("Could not read prior report %s: %s", prior_path, exc)
+        # The auto run's audit_report.json holds the LLM tissue panel with
+        # canonical literature markers per cell type — the authoritative
+        # marker set for the regenerated marker plots.
+        audit_path = os.path.join(
+            os.path.dirname(input_path),
+            f"{input_stem.rsplit('.', 1)[0]}_reports", "table", "audit_report.json",
+        )
+        if os.path.isfile(audit_path):
+            try:
+                with open(audit_path, encoding="utf-8") as fh:
+                    audit_data = json.load(fh)
+                canonical_map = audit_data.get("tissue_cell_types") or {}
+                logger.info("Loaded canonical marker panel (%d cell types)",
+                            len(canonical_map))
+                # The ctx iterations hold the AUTO run's original per-cluster
+                # annotations (reasoning, key_markers, confidence) — the
+                # authoritative source for the report rebuild. They win over
+                # the report TSV, which may itself have been rewritten by an
+                # earlier reannotate pass.
+                iters = audit_data.get("iterations") or []
+                if iters:
+                    for cl, e in (iters[-1].get("annotations") or {}).items():
+                        prior.setdefault(str(cl), {}).update({
+                            "reasoning": e.get("reasoning", ""),
+                            "key_markers": ",".join(e.get("key_markers", []) or []),
+                            "confidence": e.get("confidence", ""),
+                            "cell_type": e.get("cell_type", ""),
+                        })
+            except Exception as exc:  # non-fatal: falls back to key_markers
+                logger.warning("Could not read tissue panel %s: %s", audit_path, exc)
+        # Override JSON entries may carry marker sets for corrected labels:
+        # evidence_markers (negative controls + positive contrast, rendered
+        # as "annotation evidence") or canonical_markers (literature
+        # signature) for labels absent from the tissue panel.
+        evidence_map: Dict[str, List[str]] = {}
+        ev_by_ct: Dict[str, Dict[str, Any]] = {}
+        try:
+            with open(overrides_json, encoding="utf-8") as fh:
+                for payload in (json.load(fh) or {}).values():
+                    if not isinstance(payload, dict):
+                        continue
+                    name = payload.get("corrected_cell_type", "")
+                    if not name:
+                        continue
+                    evid = payload.get("evidence_markers") or {}
+                    evid_genes = list(evid.get("negative") or []) + list(evid.get("positive") or [])
+                    if evid_genes:
+                        evidence_map[name] = {
+                            "negative": list(evid.get("negative") or []),
+                            "positive": list(evid.get("positive") or []),
+                        }
+                    # LLM-schema evidence block (programs / ruling_out) for
+                    # combination-defined identities.
+                    ev_block = payload.get("evidence") or {}
+                    if isinstance(ev_block, dict) and ev_block:
+                        ev_by_ct[name] = ev_block
+                    genes = payload.get("canonical_markers") or []
+                    if genes and name not in canonical_map and name not in evidence_map:
+                        canonical_map[name] = list(genes)
+        except Exception as exc:
+            logger.warning("Could not read override marker sets: %s", exc)
+    annotations: Dict[str, Dict] = {}
+    for cl, sub in adata.obs.groupby("leiden", observed=True):
+        cl_str = str(cl)
+        prev = prior.get(cl_str, {})
+        entry: Dict[str, Any] = {
+            "cell_type": str(sub["cell_type"].iloc[0]),
+            "confidence": "override" if cl_str in override_trail else str(prev.get("confidence", "kept")),
+            "key_markers": [g for g in str(prev.get("key_markers", "")).split(",") if g],
+            # Keep the auto run's original reasoning for untouched clusters;
+            # the report must not lose the LLM's evidence trail.
+            "reasoning": str(prev.get("reasoning", "") or f"cluster {cl_str} unchanged"),
+        }
+        if cl_str in override_trail:
+            entry["reasoning"] = str(
+                override_trail[cl_str].get("reasoning", "")
+            ) or f"{override_trail[cl_str].get('original_cell_type','')} -> {override_trail[cl_str].get('corrected_cell_type','')}"
+            entry["original_cell_type"] = str(
+                override_trail[cl_str].get("original_cell_type", "")
+            )
+        # Attach the composite-evidence block (programs / ruling_out) from
+        # the override JSON so the signature pack can render.
+        entry["evidence"] = ev_by_ct.get(str(sub["cell_type"].iloc[0]), {})
+        annotations[cl_str] = entry
+
+    report_dir = os.path.join(
+        os.path.dirname(output), f"{os.path.basename(output).rsplit('.', 1)[0]}_reports", "table"
+    )
+    os.makedirs(report_dir, exist_ok=True)
+    # In-place mode defaults plot_dir to the auto run's own plot dir so the
+    # marker panels regenerate with the corrected labels (stale
+    # <old_cell_type>.png files are removed by plot_markers' rmtree).
+    if in_place and not plot_dir:
+        plot_dir = os.path.join(os.path.dirname(report_dir), "plot")
+    _write_annotation_report(
+        annotations, [], os.path.join(report_dir, "annotation_report.tsv")
+    )
+
+    # Regenerate the annotation audit against the corrected labels so the
+    # audit table does not contradict the overridden obs values. Skipped
+    # when labels did not change — the audit is label-derived.
+    if labels_changed:
+        try:
+            _audit_annotations(
+                adata, report_dir=report_dir, tissue=tissue or "",
+            )
+        except Exception as exc:  # audit failure must not lose the h5ad
+            logger.warning("Annotation audit regeneration failed: %s", exc)
+
+    if plot_dir:
+        plotter = _make_plotter(plot_dir)
+        if plotter:
+            # Evidence sets render as dotplot + auditable TSV (plot_evidence):
+            # UMAP feature panels cannot show relative enrichment or
+            # negative controls, so those cell types are excluded from
+            # plot_markers and get the contrast rendering instead.
+            evidence_cts = set(evidence_map)
+            ann_for_markers = {
+                cl: e for cl, e in annotations.items()
+                if e.get("cell_type") not in evidence_cts
+            }
+            if ann_for_markers:
+                plotter.plot_markers(
+                    adata, ann_for_markers,
+                    canonical_map=canonical_map or None,
+                    supplement_map=_load_marker_supplement(
+                        marker_supplement) or None,
+                )
+            if evidence_map:
+                plotter.plot_evidence(
+                    adata, annotations, evidence_map,
+                    table_dir=report_dir,
+                )
+            # Composite-evidence packs (signature scores + ruling-out
+            # differentials) for labels that declare an evidence block.
+            _render_signature_packs(plotter, adata, annotations,
+                                    table_dir=report_dir)
+            # Redraw the cell_type UMAP so its legend cannot contradict the
+            # corrected labels (the auto run's panel still names the old
+            # cell type for any overridden cluster).
+            try:
+                plotter.plot_annotate(
+                    adata,
+                    marker_file="",
+                    annotate_group="leiden",
+                    annotation_keys=["cell_type"] if "cell_type" in adata.obs.columns else [],
+                    has_rank_genes=False,
+                )
+            except Exception as exc:
+                logger.warning("cell_type UMAP regeneration failed: %s", exc)
+
+    if in_place and not labels_changed:
+        # Figure-only rerun: the on-disk h5ad already carries the labels.
+        logger.info("Reannotate rerun with unchanged labels: %s kept as-is",
+                    output)
+    elif in_place:
+        # Backup once (the pristine pre-override version), then
+        # atomic-replace the auto h5ad with the re-annotated version so no
+        # parallel artifact set exists. Later re-annotation passes must NOT
+        # clobber the backup — it is the only copy of the original labels.
+        bak = output + ".bak"
+        tmp = output + f".tmp{os.getpid()}"
+        if os.path.exists(output) and not os.path.exists(bak):
+            shutil.copyfile(output, bak)
+        adata.write_h5ad(tmp)
+        os.replace(tmp, output)
+        logger.info(
+            "Re-annotated h5ad in place: %s (original preserved at %s)",
+            output, bak,
+        )
+    else:
+        adata.write_h5ad(output)
+        logger.info("Re-annotated h5ad: %s", output)
 
 
 # ---------------------------------------------------------------------------
@@ -4504,8 +4995,17 @@ def _auto_finalize_outputs(
         )
 
         # Marker expression on UMAP (per-cluster panels with centroid labels)
-        n_markers_used = plotter.plot_markers(adata, annotations)
+        n_markers_used = plotter.plot_markers(
+            adata, annotations,
+            canonical_map=ctx.get("tissue_cell_types") or None,
+            supplement_map=ctx.get("marker_supplement") or None,
+        )
         logger.info("Marker expression plots: %d unique markers plotted", n_markers_used)
+        # Composite-evidence packs for annotations that declare an evidence
+        # block (programs / ruling_out) — signature score UMAPs for
+        # combination-defined identities.
+        _render_signature_packs(plotter, adata, annotations,
+                                table_dir=report_dir)
 
     adata.write_h5ad(output)
     ctx["final_cells"] = adata.n_obs
@@ -4572,6 +5072,7 @@ def mode_auto(
     skip_te: bool = False,
     save_iteration_h5ad: bool = False,
     regress_cell_cycle: bool = True,
+    marker_supplement: str = "",
 ) -> None:
     """Fully autonomous: cluster → AI annotate → QC → filter → re-cluster.
 
@@ -4612,6 +5113,10 @@ def mode_auto(
         batch_key: Batch key column.
         auto_n_pcs: Auto-detect n_pcs.
         plot_dir: Directory for plots.
+        marker_supplement: Optional JSON path with per-cell-type
+            discriminating markers (see :func:`_load_marker_supplement`);
+            appended to the final marker panels, display-level only —
+            annotation prompts and scoring are unaffected.
         save_iteration_h5ad: Also save each iteration's annotated h5ad
             (default False).
     """
@@ -4679,6 +5184,7 @@ def mode_auto(
         tissue_cell_types, llm_method, llm_model, llm_api_key, llm_base_url,
     )
     ctx["tissue_cell_types"] = tissue_cell_types
+    ctx["marker_supplement"] = _load_marker_supplement(marker_supplement)
 
     iteration = 0
     detect_diag: Dict = {}
@@ -5196,6 +5702,26 @@ def build_parser() -> argparse.ArgumentParser:
                    help="API key for LLM backend (env: LLM_API_KEY)")
     p.add_argument("-u", "--llm-base-url", default=os.environ.get("LLM_BASE_URL", ""),
                    help="Base URL for LLM API (env: LLM_BASE_URL)")
+    p.add_argument("-X", "--marker-supplement", default="",
+                   help="JSON with per-cell-type discriminating markers "
+                        "{cell_type: {positive: [...], negative: [...]}} "
+                        "appended to the marker panels (display-level only)")
+
+    # -- reannotate: apply cluster overrides to a finished auto h5ad ----
+    p = sub.add_parser("reannotate",
+                       help="Apply cluster annotation overrides to an "
+                            "annotated h5ad (no re-clustering, no LLM)")
+    _add_common_args(p)
+    p.add_argument("-Y", "--cluster-annotations", required=True,
+                   help="JSON file with cluster-level annotation overrides "
+                        "{cluster_id: {original_cell_type, corrected_cell_type, "
+                        "reasoning}}. Cluster ids must exist in leiden.")
+    p.add_argument("-T", "--tissue", default="",
+                   help="Tissue label for the regenerated annotation audit")
+    p.add_argument("-X", "--marker-supplement", default="",
+                   help="JSON with per-cell-type discriminating markers "
+                        "{cell_type: {positive: [...], negative: [...]}} "
+                        "appended to the marker panels (display-level only)")
 
     # -- advanced: trajectory / velocity / communication / CNV ----------
     p = sub.add_parser("advanced",
@@ -5318,6 +5844,17 @@ def main():
             skip_te=args.skip_te,
             save_iteration_h5ad=args.save_iteration_h5ad,
             regress_cell_cycle=args.regress_cell_cycle,
+            marker_supplement=args.marker_supplement,
+        )
+    elif args.mode == "reannotate":
+        mode_reannotate(
+            adata,
+            output=args.output,
+            overrides_json=args.cluster_annotations,
+            plot_dir=args.plot_dir,
+            input_path=args.input[0],
+            tissue=getattr(args, "tissue", ""),
+            marker_supplement=args.marker_supplement,
         )
     elif args.mode == "advanced":
         mode_advanced(

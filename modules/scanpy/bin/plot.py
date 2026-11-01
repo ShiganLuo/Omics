@@ -673,12 +673,39 @@ class ScanpyPlotter:
         adata: AnnData,
         annotations: Dict[str, Dict],
         cluster_key: str = "leiden",
+        canonical_map: Optional[Dict[str, List[str]]] = None,
+        supplement_map: Optional[Dict[str, Dict[str, List[str]]]] = None,
     ) -> int:
         """Plot marker gene expression on UMAP, grouped by cell type.
 
-        For each unique cell type, plots ALL key_markers from all its
-        clusters on the UMAP with cluster centroid labels.  Multiple
-        clusters sharing the same cell type are highlighted together.
+        Marker source per cell type (in priority order):
+        1. ``canonical_map[<cell_type>]`` — canonical literature markers
+           for the cell type (from the LLM tissue panel / annotation),
+           the authoritative identity signature.
+        2. Per-cluster ``canonical_markers`` returned by the LLM.
+        3. ``key_markers`` union across the cell type's clusters — the
+           per-cluster evidence genes (DEG-derived), used as fallback
+           when no canonical set is available.
+
+        ``supplement_map`` appends user-curated discriminating markers
+        after the base set (display-level only, never fed back into
+        annotation): ``positive`` genes extend the identity signature;
+        ``negative`` genes are expected ABSENT in this cell type and are
+        plotted as contrast against confusable sibling types (their panel
+        titles carry the ``(exp. absent)`` suffix). This is how closely
+        related types (e.g. myofibroblast / smooth muscle / stromal
+        fibroblast, whose canonical panels overlap heavily) get
+        reviewable combination-marker panels. Cell-type keys are matched
+        case-insensitively; genes missing from the expression matrix are
+        logged and skipped.
+
+        Labels verified by position/negative evidence instead of a
+        diagnostic signature should NOT be plotted here — see
+        :meth:`plot_evidence` for the dotplot+table contrast rendering.
+
+        For each unique cell type, plots the marker set on the UMAP with
+        cluster centroid labels. Multiple clusters sharing the same cell
+        type are highlighted together.
 
         Also generates:
         - A combined panel (one top marker per cell type).
@@ -691,6 +718,12 @@ class ScanpyPlotter:
             annotations: Dict mapping cluster_id -> annotation dict
                 (must contain ``cell_type`` and ``key_markers``).
             cluster_key: Column in ``adata.obs`` for cluster labels.
+            canonical_map: Optional ``{cell_type: [gene, ...]}`` mapping
+                of canonical literature markers (e.g. the LLM tissue
+                panel).
+            supplement_map: Optional ``{cell_type: {"positive": [...],
+                "negative": [...]}}`` discriminating-marker extension
+                (shorthand ``{cell_type: [genes...]}`` = all positive).
 
         Returns:
             Total number of unique markers actually plotted.
@@ -787,6 +820,14 @@ class ScanpyPlotter:
                               facecolor="white", alpha=0.0, edgecolor="none"),
                 )
 
+        # Case-insensitive supplement lookup: cell-type labels are
+        # LLM-generated and drift run to run, so exact-name matching on a
+        # user-curated supplement would silently drop entries.
+        supp_lookup: Dict[str, Dict[str, List[str]]] = {}
+        for _k, _v in (supplement_map or {}).items():
+            supp_lookup[_k.lower()] = _v
+        used_supp_keys: set = set()
+
         # ── Per-cell-type marker panels ──
         total_unique_markers = 0
         seen_genes: set = set()
@@ -794,14 +835,73 @@ class ScanpyPlotter:
         all_top_cts: List[str] = []
 
         for ct, cluster_ids in ct_to_clusters.items():
-            # Collect ALL unique markers from all clusters of this cell type
+            # Canonical (literature) markers first: they verify the cell
+            # type identity and are far more specific than the per-cluster
+            # evidence genes. Fall back to the key_markers union (DEG-derived)
+            # when no canonical set is known for this cell type.
             markers: List[str] = []
             seen_ct_genes: set = set()
-            for cid in cluster_ids:
-                for g in annotations[cid].get("key_markers", []):
-                    if g in all_genes and g not in seen_ct_genes:
+            gene_role: Dict[str, str] = {}
+            marker_source = "key markers (DEG)"
+            canon: List[str] = list((canonical_map or {}).get(ct) or [])
+            if not canon:
+                for cid in cluster_ids:
+                    for g in annotations[cid].get("canonical_markers", []):
+                        if g not in canon:
+                            canon.append(g)
+            if canon:
+                marker_source = "canonical markers"
+                missing_canon: List[str] = []
+                for g in canon:
+                    if g not in seen_ct_genes:
+                        if g in all_genes:
+                            markers.append(g)
+                            seen_ct_genes.add(g)
+                        else:
+                            missing_canon.append(g)
+                if missing_canon:
+                    logger.warning(
+                        "Canonical markers absent from expression matrix "
+                        "for %s: %s", ct, ", ".join(missing_canon))
+            if not markers:
+                marker_source = "key markers (DEG)"
+                for cid in cluster_ids:
+                    for g in annotations[cid].get("key_markers", []):
+                        if g in all_genes and g not in seen_ct_genes:
+                            markers.append(g)
+                            seen_ct_genes.add(g)
+
+            # User-curated discriminating markers (display-level only):
+            # positive genes extend the identity signature; negative genes
+            # are expected ABSENT in this cell type — plotted as contrast
+            # against confusable sibling types so the panel reads as a
+            # combination-marker test instead of a shared-ECM wash.
+            supp = supp_lookup.get(ct.lower()) if supp_lookup else None
+            if supp:
+                used_supp_keys.add(ct.lower())
+                if isinstance(supp, dict):
+                    supp_pos = list(supp.get("positive") or [])
+                    supp_neg = list(supp.get("negative") or [])
+                else:
+                    supp_pos, supp_neg = list(supp), []
+                supp_missing: List[str] = []
+                for g in supp_pos + supp_neg:
+                    if g in seen_ct_genes:
+                        if g in supp_neg:
+                            gene_role[g] = "negative"
+                        continue
+                    if g in all_genes:
                         markers.append(g)
                         seen_ct_genes.add(g)
+                        gene_role[g] = "negative" if g in supp_neg else "positive"
+                    else:
+                        supp_missing.append(g)
+                if supp_missing:
+                    logger.warning(
+                        "Supplement markers absent from expression matrix "
+                        "for %s: %s", ct, ", ".join(supp_missing))
+                if (supp_pos or supp_neg) and markers:
+                    marker_source = f"{marker_source} + supplement"
 
             if not markers:
                 continue
@@ -826,7 +926,10 @@ class ScanpyPlotter:
                     alpha=0.7, edgecolors="none",
                 )
                 _annotate_centroids(ax, cluster_ids)
-                ax.set_title(gene, fontsize=11, fontweight="bold")
+                title = gene
+                if gene_role.get(gene) == "negative":
+                    title = f"{gene} (exp. absent)"
+                ax.set_title(title, fontsize=11, fontweight="bold")
                 ax.set_xticks([])
                 ax.set_yticks([])
                 plt.colorbar(sm, ax=ax, fraction=0.046, pad=0.04,
@@ -871,9 +974,9 @@ class ScanpyPlotter:
             for j in range(total_panels, len(axes_flat)):
                 axes_flat[j].set_visible(False)
 
-            # Title: cell type + cluster ids
+            # Title: cell type + cluster ids + marker provenance
             cid_str = ", ".join(f"C{c}" for c in cluster_ids)
-            fig.suptitle(f"{ct}  [{cid_str}]",
+            fig.suptitle(f"{ct}  [{cid_str}]  — {marker_source}",
                          fontsize=14, fontweight="bold", y=1.02)
             plt.tight_layout()
             safe_ct = ct.replace("/", "_").replace(" ", "_")
@@ -886,14 +989,21 @@ class ScanpyPlotter:
                     seen_genes.add(g)
                     total_unique_markers += 1
 
-            # Collect top marker for combined panel
-            for cid in cluster_ids:
-                for g in annotations[cid].get("key_markers", []):
-                    if g in all_genes and g not in all_top_markers:
-                        all_top_markers.append(g)
-                        all_top_cts.append(ct)
-                        break
-                if len(all_top_cts) > 0 and all_top_cts[-1] == ct:
+            # Collect top marker for combined panel (canonical first)
+            top_pool: List[str] = []
+            _canon_top = list((canonical_map or {}).get(ct) or [])
+            if _canon_top:
+                top_pool = _canon_top
+            else:
+                for cid in cluster_ids:
+                    for g in annotations[cid].get("canonical_markers", []) \
+                            + annotations[cid].get("key_markers", []):
+                        if g not in top_pool:
+                            top_pool.append(g)
+            for g in top_pool:
+                if g in all_genes and g not in all_top_markers:
+                    all_top_markers.append(g)
+                    all_top_cts.append(ct)
                     break
 
         # ── Combined panel: one top marker per cell type ──
@@ -976,6 +1086,13 @@ class ScanpyPlotter:
             if col in adata.obs.columns:
                 adata.obs.drop(columns=[col], inplace=True)
 
+        unused_supp = [k for k in (supplement_map or {})
+                       if k.lower() not in used_supp_keys]
+        if unused_supp:
+            logger.warning(
+                "Marker supplement keys matched no plotted cell type: %s",
+                ", ".join(unused_supp))
+
         logger.info("Marker plots saved to %s (%d unique markers, %d cell types)",
                      marker_dir, total_unique_markers, len(ct_to_clusters))
         return total_unique_markers
@@ -983,6 +1100,393 @@ class ScanpyPlotter:
     # ------------------------------------------------------------------
     # Advanced (trajectory / CNV)
     # ------------------------------------------------------------------
+    def plot_evidence(
+        self,
+        adata: AnnData,
+        annotations: Dict[str, Dict],
+        evidence_map: Dict[str, Dict[str, List[str]]],
+        cluster_key: str = "leiden",
+        table_dir: Optional[str] = None,
+    ) -> None:
+        """Render annotation-evidence contrast sets as cluster x gene dotplots.
+
+        For labels verified by position / negative evidence (no diagnostic
+        positive signature exists), a UMAP feature panel is unreadable:
+        absolute colour scales hide relative enrichment and negative
+        controls look like "empty" panels. Instead each cell type gets ONE
+        dotplot where the evidence is directly decodable:
+
+        - rows = evidence genes, grouped as "negative controls (expected
+          ABSENT)" first, then "positive (relative enrichment)";
+        - columns = every cluster (target clusters named in the title);
+        - colour = mean expression scaled per gene row
+          (``standard_scale="var"``), so a row reads as a relative
+          comparison across clusters;
+        - dot size = fraction of expressing cells.
+
+        A companion TSV (``<table_dir>/<cell_type>_evidence.tsv``) records
+        per-cluster mean/pct numbers for every gene so the claim is
+        auditable without reading colour scales.
+
+        Output: ``<plot_dir>/marker/<cell_type>.png`` + the TSV.
+
+        Args:
+            adata: Annotated AnnData (``raw`` preferred for expression).
+            annotations: cluster_id -> annotation dict (target-cluster
+                lookup for titles).
+            evidence_map: ``{cell_type: {"negative": [...], "positive":
+                [...]}}`` contrast sets.
+            cluster_key: Column in ``adata.obs`` for cluster labels.
+            table_dir: Directory for the evidence TSVs (optional).
+        """
+        marker_dir = os.path.join(self.plot_dir, "marker")
+        os.makedirs(marker_dir, exist_ok=True)
+        evid_dir = os.path.join(self.plot_dir, "evidence")
+        os.makedirs(evid_dir, exist_ok=True)
+        ct_to_clusters: Dict[str, List[str]] = {}
+        for cid in sorted(annotations.keys(), key=lambda x: int(x) if str(x).isdigit() else str(x)):
+            ct = annotations[cid].get("cell_type", "Unknown")
+            ct_to_clusters.setdefault(ct, []).append(str(cid))
+
+        src = adata.raw if adata.raw is not None else adata
+        labels = adata.obs[cluster_key].astype(str)
+        clusters = sorted(
+            labels.unique(),
+            key=lambda x: int(x) if str(x).isdigit() else str(x),
+        )
+        cmap = plt.get_cmap("Reds")
+
+        for ct, evid in evidence_map.items():
+            neg = [g for g in (evid.get("negative") or []) if g in src.var_names]
+            pos = [g for g in (evid.get("positive") or []) if g in src.var_names]
+            genes = neg + pos
+            if not genes:
+                logger.warning("No evidence genes present for %s; skipping", ct)
+                continue
+            safe_ct = ct.replace("/", "_").replace(" ", "_")
+
+            # Per-cluster mean / pct per gene (single matrix pass; the same
+            # numbers feed the TSV so figure and table cannot disagree).
+            mat = src[:, genes].X
+            means = np.zeros((len(clusters), len(genes)))
+            pcts = np.zeros((len(clusters), len(genes)))
+            rows = []
+            for yi, cl in enumerate(clusters):
+                mask = (labels == cl).values
+                n = int(mask.sum())
+                if n == 0:
+                    continue
+                sub = mat[mask]
+                for xi, g in enumerate(genes):
+                    col = sub[:, xi]
+                    col = col.toarray().ravel() if hasattr(col, "toarray") \
+                        else np.asarray(col).ravel()
+                    means[yi, xi] = float(col.mean())
+                    pcts[yi, xi] = float((col > 0).mean())
+                    rows.append({
+                        "gene": g,
+                        "role": "negative" if g in neg else "positive",
+                        "cluster": cl,
+                        "n_cells": n,
+                        "mean_expr": round(means[yi, xi], 4),
+                        "pct_expr": round(pcts[yi, xi], 4),
+                    })
+            # Colour: each gene (column) scaled 0-1 across clusters, so a row
+            # of dots reads as a relative comparison for that gene.
+            span = means.max(axis=0) - means.min(axis=0)
+            span[span == 0] = 1.0
+            scaled = (means - means.min(axis=0)) / span
+
+            target = ct_to_clusters.get(ct, [])
+            cid_str = ", ".join(f"C{c}" for c in target)
+            n_genes, n_cl = len(genes), len(clusters)
+            fig, ax = plt.subplots(
+                figsize=(0.85 * n_genes + 3.0, 0.32 * n_cl + 2.0))
+
+            # Row banding: target cluster highlighted, others alternating.
+            for yi, cl in enumerate(clusters):
+                if cl in target:
+                    ax.axhspan(yi - 0.5, yi + 0.5, color="#fdeecf", zorder=0)
+                elif yi % 2:
+                    ax.axhspan(yi - 0.5, yi + 0.5, color="#f5f5f5", zorder=0)
+
+            for yi in range(n_cl):
+                for xi in range(n_genes):
+                    ax.scatter(
+                        xi, yi, s=16 + 240 * pcts[yi, xi],
+                        c=[cmap(scaled[yi, xi])],
+                        edgecolors="none", zorder=3,
+                    )
+
+            ax.set_xticks(range(n_genes))
+            ax.set_xticklabels(genes, rotation=38, ha="right", fontsize=10)
+            ax.set_yticks(range(n_cl))
+            ax.set_yticklabels([f"C{c}" for c in clusters], fontsize=9)
+            for tick, cl in zip(ax.get_yticklabels(), clusters):
+                if cl in target:
+                    tick.set_fontweight("bold")
+                    tick.set_color("#b3261e")
+            ax.set_ylim(n_cl - 0.5, -0.5)   # cluster 0 on top
+            ax.set_xlim(-0.6, n_genes - 0.4)
+            for spine in ax.spines.values():
+                spine.set_visible(False)
+            ax.tick_params(length=0)
+
+            # Gene-group separator + horizontal section headers (no vertical
+            # text anywhere; the old scanpy var_group labels collided with
+            # the title).
+            trans = ax.get_xaxis_transform()  # x=data, y=axes
+            if neg and pos:
+                ax.axvline(len(neg) - 0.5, color="#b0b0b0", lw=1, zorder=1)
+            if neg:
+                ax.text(
+                    (len(neg) - 1) / 2.0, 1.03,
+                    "negative controls — expected absent",
+                    transform=trans, ha="center", va="bottom",
+                    fontsize=8.5, color="#555555",
+                )
+            if pos:
+                ax.text(
+                    len(neg) + (len(pos) - 1) / 2.0, 1.03,
+                    "positive — relative enrichment",
+                    transform=trans, ha="center", va="bottom",
+                    fontsize=8.5, color="#555555",
+                )
+            ax.set_title(f"{ct}  [{cid_str}]  — annotation evidence",
+                         fontsize=13, fontweight="bold", pad=32)
+
+            sm = plt.cm.ScalarMappable(
+                cmap=cmap, norm=plt.Normalize(0.0, 1.0))
+            cbar = fig.colorbar(sm, ax=ax, fraction=0.030, pad=0.02)
+            cbar.set_label("mean expression (scaled per gene)", fontsize=8.5)
+            cbar.ax.tick_params(labelsize=8)
+            fig.text(
+                0.995, 0.012,
+                f"dot size = % cells expressing; exact values in "
+                f"table/{safe_ct}_evidence.tsv",
+                ha="right", fontsize=7.5, color="#777777",
+            )
+
+            out_png = os.path.join(evid_dir, f"{safe_ct}_differential.png")
+            fig.savefig(out_png, dpi=self.dpi, bbox_inches="tight")
+            plt.close(fig)
+            logger.info("Evidence dotplot: %s", out_png)
+
+            if table_dir:
+                os.makedirs(table_dir, exist_ok=True)
+                out_tsv = os.path.join(table_dir, f"{safe_ct}_evidence.tsv")
+                with open(out_tsv, "w", newline="", encoding="utf-8") as fh:
+                    writer = csv.DictWriter(
+                        fh,
+                        fieldnames=["gene", "role", "cluster", "n_cells",
+                                    "mean_expr", "pct_expr"],
+                        delimiter="\t",
+                    )
+                    writer.writeheader()
+                    writer.writerows(rows)
+                logger.info("Evidence table: %s", out_tsv)
+
+    def plot_signature_pack(
+        self,
+        adata: AnnData,
+        cell_type: str,
+        programs: Dict[str, List[str]],
+        target_clusters: Optional[List[str]] = None,
+        cluster_key: str = "leiden",
+        table_dir: Optional[str] = None,
+    ) -> None:
+        """Review pack for combination-defined identities (composite evidence).
+
+        When no single diagnostic marker exists, the identity lives in a
+        COMBINATION of expression programs. This pack renders:
+
+        1. Signature score UMAP — ``score_genes`` over the union of all
+           program genes; the combined score is specific even when every
+           single gene is shared with neighbouring lineages.
+        2. Program split panels — one score UMAP per program, so the
+           defining combination reads directly (e.g. contractile-high +
+           ECM-high).
+        3. Co-expression stats TSV — per-cluster % of cells positive in
+           >=1 marker of each program and in their intersection, ruling
+           out "two populations glued together" mixtures.
+
+        Output: ``<plot_dir>/evidence/<cell_type>.png`` and
+        ``<table_dir>/<cell_type>_signature.tsv``.
+
+        Args:
+            adata: Annotated AnnData with ``X_umap`` (``raw`` preferred
+                for expression).
+            cell_type: Label for titles / file names.
+            programs: ``{program_name: [gene, ...]}`` functional groups.
+            target_clusters: Cluster ids to annotate in red on the UMAPs.
+            cluster_key: Column in ``adata.obs`` for cluster labels.
+            table_dir: Directory for the co-expression TSV (optional).
+        """
+        evid_dir = os.path.join(self.plot_dir, "evidence")
+        os.makedirs(evid_dir, exist_ok=True)
+        src = adata.raw if adata.raw is not None else adata
+        use_raw = adata.raw is not None
+
+        def _zscore_col(raw_col: str, out_col: str) -> None:
+            v = np.asarray(adata.obs[raw_col].values, dtype=float)
+            sd = float(v.std())
+            adata.obs[out_col] = (v - float(v.mean())) / (sd if sd > 0 else 1.0)
+            del adata.obs[raw_col]
+
+        scores: Dict[str, str] = {}
+        union: List[str] = []
+        prog_genes: Dict[str, List[str]] = {}
+        for pname, genes in programs.items():
+            keep = [g for g in genes if g in src.var_names]
+            if not keep:
+                logger.warning("Program %r has no genes in data; skipped", pname)
+                continue
+            prog_genes[pname] = keep
+            for g in keep:
+                if g not in union:
+                    union.append(g)
+            raw_col = f"_zraw_{pname.replace(' ', '_')}"
+            sc.tl.score_genes(adata, keep, score_name=raw_col, use_raw=use_raw)
+            col = f"_z_{pname.replace(' ', '_')}"
+            _zscore_col(raw_col, col)
+            scores[pname] = col
+        if not scores:
+            logger.warning("No scorable programs for %s; skipping pack", cell_type)
+            return
+
+        # Combined score = min(z) across programs = AND logic: a cell must
+        # score high on EVERY program. A plain mean over the union is OR
+        # logic (one loud program dominates) and cannot single out a
+        # combination-defined identity.
+        z_cols = [scores[p] for p in scores]
+        zmat = np.vstack([np.asarray(adata.obs[c].values, dtype=float)
+                          for c in z_cols])
+        adata.obs["_z_combined"] = zmat.min(axis=0)
+
+        # Negative control: identical pipeline over a size-matched random
+        # gene set (seed 42). If the "signature" were just high-expression
+        # regions glowing, the control panel would light up the same way.
+        rng = np.random.RandomState(42)
+        pool = [g for g in src.var_names if g not in set(union)]
+        ctrl_genes = [str(g) for g in rng.choice(
+            pool, size=min(len(union), max(len(pool), 1)), replace=False)] \
+            if pool else []
+        if ctrl_genes:
+            sc.tl.score_genes(adata, ctrl_genes, score_name="_zraw_ctrl",
+                              use_raw=use_raw)
+            _zscore_col("_zraw_ctrl", "_z_ctrl")
+        else:
+            adata.obs["_z_ctrl"] = 0.0
+
+        target = [str(c) for c in (target_clusters or [])]
+        umap = adata.obsm["X_umap"]
+        panels = [
+            (f"negative control (random n={len(ctrl_genes)})", "_z_ctrl"),
+            ("signature: min(z) AND-score", "_z_combined"),
+        ] + [(f"program z: {p}", scores[p]) for p in scores]
+        n_panels = len(panels)
+        fig, axes = plt.subplots(1, n_panels, figsize=(4.4 * n_panels, 4.8))
+        if n_panels == 1:
+            axes = [axes]
+        for ax, (title, col) in zip(axes, panels):
+            v = np.asarray(adata.obs[col].values, dtype=float)
+            order = np.argsort(v)
+            ax.scatter(umap[:, 0], umap[:, 1], c="#e0e0e0",
+                       s=2, alpha=0.3, edgecolors="none")
+            sm = ax.scatter(umap[order, 0], umap[order, 1], c=v[order],
+                            cmap="Reds", s=3, alpha=0.75, edgecolors="none")
+            for cid in target:
+                mask = (adata.obs[cluster_key].astype(str) == cid).values
+                if not mask.sum():
+                    continue
+                pts = umap[mask]
+                # Convex-hull outline marks the cluster region itself —
+                # expression colours alone leave the target unidentifiable.
+                if len(pts) >= 3:
+                    try:
+                        from scipy.spatial import ConvexHull
+                        hull = ConvexHull(pts)
+                        poly = pts[hull.vertices]
+                        ax.add_patch(plt.Polygon(
+                            poly, closed=True, fill=False, edgecolor="#b3261e",
+                            lw=1.6, zorder=4))
+                    except Exception:
+                        pass
+                # Label ABOVE the blob with a light box; a heavy box over
+                # the centroid used to obscure cells ("C6 has no colour").
+                top_y = float(pts[:, 1].max())
+                ax.annotate(
+                    f"C{cid}", (float(pts[:, 0].mean()), top_y),
+                    xytext=(0, 8), textcoords="offset points",
+                    fontsize=10, fontweight="bold", color="#b3261e",
+                    ha="center", va="bottom", zorder=5,
+                    bbox=dict(boxstyle="round,pad=0.15", facecolor="white",
+                              alpha=0.35, edgecolor="none"),
+                )
+            ax.set_title(title, fontsize=11)
+            ax.set_xticks([])
+            ax.set_yticks([])
+            plt.colorbar(sm, ax=ax, fraction=0.046, pad=0.04)
+        safe_ct = cell_type.replace("/", "_").replace(" ", "_")
+        fig.suptitle(f"{cell_type}  — signature evidence (composite)",
+                     fontsize=13, fontweight="bold", y=1.02)
+        fig.text(
+            0.995, 0.012,
+            "score = scanpy score_genes (bin-matched control genes), "
+            "z-transformed across cells; combined = min(z) over "
+            f"{len(scores)} programs (AND logic); control = same pipeline "
+            f"on {len(ctrl_genes)} random genes (seed 42)",
+            ha="right", fontsize=7.5, color="#777777",
+        )
+        fig.tight_layout()
+        fig.savefig(os.path.join(evid_dir, f"{safe_ct}.png"),
+                    dpi=self.dpi, bbox_inches="tight")
+        plt.close(fig)
+        logger.info("Signature pack: %s", os.path.join(evid_dir, f"{safe_ct}.png"))
+
+        # Co-expression stats: per cluster, % positive in >=1 marker of each
+        # program and in the pairwise intersections.
+        if table_dir and len(prog_genes) >= 2:
+            labels = adata.obs[cluster_key].astype(str)
+            pos: Dict[str, np.ndarray] = {}
+            for pname, genes in prog_genes.items():
+                mat = src[:, genes].X
+                if hasattr(mat, "toarray"):
+                    mat = mat.toarray()
+                pos[pname] = np.asarray((mat > 0).any(axis=1)).ravel()
+            names = list(prog_genes)
+            rows = []
+            for cl in sorted(labels.unique(),
+                             key=lambda x: int(x) if str(x).isdigit() else str(x)):
+                mask = (labels == cl).values
+                n = int(mask.sum())
+                if n == 0:
+                    continue
+                row = {"cluster": cl, "n_cells": n}
+                for pn in names:
+                    row[f"pct_{pn}+"] = round(float(pos[pn][mask].mean()), 4)
+                for i in range(len(names)):
+                    for j in range(i + 1, len(names)):
+                        both = pos[names[i]] & pos[names[j]]
+                        row[f"pct_{names[i]}+_{names[j]}+"] = round(
+                            float(both[mask].mean()), 4)
+                # Per-cluster mean z scores make the AND-score claim
+                # checkable without reading colour scales.
+                for sname, scol in list(scores.items()) + [
+                        ("combined", "_z_combined"), ("control", "_z_ctrl")]:
+                    row[f"mean_z_{sname}"] = round(
+                        float(np.asarray(adata.obs[scol].values)[mask].mean()), 4)
+                rows.append(row)
+            out_tsv = os.path.join(table_dir, f"{safe_ct}_signature.tsv")
+            if rows:
+                fieldnames = list(rows[0].keys())
+                with open(out_tsv, "w", newline="", encoding="utf-8") as fh:
+                    writer = csv.DictWriter(fh, fieldnames=fieldnames,
+                                            delimiter="\t")
+                    writer.writeheader()
+                    writer.writerows(rows)
+                logger.info("Signature co-expression table: %s", out_tsv)
+
     def plot_advanced(
         self,
         adata: AnnData,

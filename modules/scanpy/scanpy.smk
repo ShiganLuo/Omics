@@ -199,6 +199,7 @@ rule scanpy_auto:
         skip_te=lambda wildcards: params.get(wildcards.counter, {}).get("auto", {}).get("skip_te", True),
         regress_cell_cycle=lambda wildcards: params.get(wildcards.counter, {}).get("auto", {}).get("regress_cell_cycle", True),
         save_iteration_h5ad=lambda wildcards: params.get(wildcards.counter, {}).get("auto", {}).get("save_iteration_h5ad", False),
+        marker_supplement=lambda wildcards: (params.get(wildcards.counter, {}).get("auto", {}).get("marker_supplement", {}) or {}).get(wildcards.tissue, ""),
         species=species
     run:
         log_path = str(log)
@@ -243,6 +244,8 @@ rule scanpy_auto:
                 cmd.append("-H")
             if not params.regress_cell_cycle:
                 cmd.append("-C")
+            if params.marker_supplement:
+                cmd += ["-X", str(params.marker_supplement)]
             with open(script_path, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 # Cap numeric-library threads to the rule's thread budget
@@ -263,11 +266,90 @@ rule scanpy_auto:
             rule_logger.error(f"Error occurred during scanpy auto for tissue {wildcards.tissue}: {e}")
             raise RuntimeError(f"Error occurred during scanpy auto for tissue {wildcards.tissue}: {e}")
 
+def _reannotate_override(wildcards):
+    """Override JSON path for this tissue/counter, or [] when disabled."""
+    return (params.get(wildcards.counter, {}).get("auto", {})
+            .get("cluster_annotations", {}) or {}
+            ).get(wildcards.tissue, "") or []
+
+
+def _reannotate_marker(wildcards):
+    """Marker file input enforcing auto -> reannotate -> consumers ordering.
+
+    The reannotate step overwrites the auto h5ad in place; downstream rules
+    (advanced, pseudobulk) depend on this marker so they never read a
+    pre-override auto.h5ad. Empty when no overrides are configured."""
+    return (outdir_combine + f"/{wildcards.tissue}/{wildcards.tissue}_{wildcards.counter}_auto.h5ad.reannotated"
+            if _reannotate_override(wildcards) else [])
+
+
+rule scanpy_reannotate:
+    """Apply manual cluster annotation overrides to a finished auto h5ad.
+
+    IN-PLACE: backs the auto h5ad up to <auto>.bak, overwrites it with the
+    corrected labels, and regenerates annotation_report.tsv /
+    annotation_audit.json / marker plots inside the auto run's own report
+    dir — no parallel _reannotated artifact set. The rule's declared
+    output is a .reannotated marker file (DAG ordering only). No
+    re-clustering, no LLM. Only enters the DAG for tissues with an
+    override JSON configured.
+    """
+    input:
+        h5ad = outdir_combine + "/{tissue}/{tissue}_{counter}_auto.h5ad",
+        overrides = _reannotate_override
+    output:
+        marker = outdir_combine + "/{tissue}/{tissue}_{counter}_auto.h5ad.reannotated",
+    log:
+        logdir_combine + "/scanpy/{tissue}/scanpy_reannotate_{counter}.log"
+    threads: rule_res("scanpy_reannotate").get("threads", 2)
+    resources:
+        mem_mb=rule_res("scanpy_reannotate").get("mem_mb", 16000),
+    conda:
+        "scanpy.yaml"
+    container:
+        sif("scanpy.yaml")
+    params:
+        python=python,
+        script=script,
+        marker_supplement=lambda wildcards: (params.get(wildcards.counter, {}).get("auto", {}).get("marker_supplement", {}) or {}).get(wildcards.tissue, ""),
+    run:
+        log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger("scanpy_reannotate", log_file=log_path)
+        try:
+            current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+            rule_logger.info(f"Start scanpy reannotate (in-place) for tissue {wildcards.tissue}")
+            sample_outdir = os.path.dirname(str(input.h5ad))
+            script = os.path.join(RECEIPT_DIR, f"scanpy_reannotate_{wildcards.counter}_{wildcards.tissue}_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, f"scanpy_reannotate_{wildcards.counter}_{wildcards.tissue}.sh")
+            cmd = [params.python, params.script, "reannotate",
+                   "-i", input.h5ad,
+                   "-o", input.h5ad,
+                   "-Y", input.overrides,
+                   "-T", wildcards.tissue]
+            if params.marker_supplement:
+                cmd += ["-X", str(params.marker_supplement)]
+            with open(script, "w") as f:
+                f.write("#!/bin/bash\nset -euo pipefail\n")
+                f.write(" ".join(shlex.quote(str(item)) for item in cmd) + "\n")
+                f.write(f'echo "scanpy reannotate for {wildcards.tissue} at {current_time} completed successfully"\n')
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
+            with open(str(output.marker), "w") as f:
+                f.write(f"reannotated at {current_time}\n")
+        except Exception as e:
+            rule_logger.error(f"Error occurred during scanpy reannotate for tissue {wildcards.tissue}: {e}")
+            raise RuntimeError(f"Error occurred during scanpy reannotate for tissue {wildcards.tissue}: {e}")
+
 rule scanpy_advanced:
     """Advanced Scanpy analysis for merged tissue data, including trajectory inference, RNA velocity, cell-cell communication, and CNV analysis.
     """
     input:
-        h5ad = outdir_combine + "/{tissue}/{tissue}_{counter}_auto.h5ad"
+        h5ad = outdir_combine + "/{tissue}/{tissue}_{counter}_auto.h5ad",
+        # ordering guard: when overrides are configured for this tissue,
+        # reannotate rewrites the auto h5ad in place; this marker ensures
+        # advanced reads the post-override labels.
+        reannotated = _reannotate_marker
     output:
         h5ad = outdir_combine + "/{tissue}/{tissue}_{counter}_advanced.h5ad",
         plot_dir = directory(outdir_combine + "/{tissue}/plots/{counter}/advanced")
@@ -354,9 +436,11 @@ rule scanpy_advanced:
         # ---------------------------------------------------------------------------
 rule scanpy_pseudobulk:
     """Pseudo-bulk DEG via PyDESeq2: annotations from scanpy_auto, full-gene
-    raw counts from the merged h5ad."""
+    raw counts from the merged h5ad. When overrides are configured for the
+    tissue, the reannotate marker orders pb after the in-place label fix."""
     input:
         h5ad = outdir_combine + "/{tissue}/{tissue}_{counter}_auto.h5ad",
+        reannotated = _reannotate_marker,
         counts = outdir_combine + "/{tissue}/{tissue}_{counter}_merged.h5ad"
     output:
         report = outdir_combine + "/{tissue}/pseudobulk/{counter}/pseudobulk_report.html",

@@ -771,6 +771,16 @@
           "llm_base_url": {
             "type": "str",
             "required": false
+          },
+          "cluster_annotations": {
+            "type": "dict",
+            "required": false,
+            "description": "Per-tissue cluster annotation override JSON paths {tissue: path}; applied after LLM annotation"
+          },
+          "marker_supplement": {
+            "type": "dict",
+            "required": false,
+            "description": "Per-tissue discriminating marker supplement JSON paths {tissue: path} ({cell_type: {positive, negative}}); appended to marker panels, display-level only"
           }
         },
         "pseudobulk": {
@@ -1002,6 +1012,16 @@
           "llm_base_url": {
             "type": "str",
             "required": false
+          },
+          "cluster_annotations": {
+            "type": "dict",
+            "required": false,
+            "description": "Per-tissue cluster annotation override JSON paths {tissue: path}; applied after LLM annotation"
+          },
+          "marker_supplement": {
+            "type": "dict",
+            "required": false,
+            "description": "Per-tissue discriminating marker supplement JSON paths {tissue: path} ({cell_type: {positive, negative}}); appended to marker panels, display-level only"
           }
         },
         "pseudobulk": {

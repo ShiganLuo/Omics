@@ -3406,6 +3406,225 @@ def _load_marker_supplement(path: str) -> Dict[str, Dict[str, List[str]]]:
     return out
 
 
+_MARKER_SUPPLEMENT_AUTO_NAME = "marker_supplement.auto.json"
+
+
+def _normalize_marker_supplement_payload(
+    raw: Dict[str, Any],
+    var_names,
+    source: str,
+) -> Dict[str, Dict[str, List[str]]]:
+    """Normalize a raw supplement mapping to the ``{positive, negative}`` shape.
+
+    Accepts the same entry shapes as :func:`_load_marker_supplement` (a bare
+    list = all positive; ``_``-prefixed keys are comments). Genes absent
+    from *var_names* are logged and skipped, matching the plot-side filter.
+
+    Args:
+        raw: ``{cell_type: genes | {positive, negative}}`` mapping.
+        var_names: Gene universe the marker panels can plot.
+        source: Provenance label used in log lines.
+
+    Returns:
+        ``{cell_type: {"positive": [...], "negative": [...]}}``; entries
+        with no surviving genes are dropped.
+    """
+    universe = {str(g) for g in var_names}
+    out: Dict[str, Dict[str, List[str]]] = {}
+    for ct, payload in raw.items():
+        if str(ct).startswith("_"):
+            continue  # metadata/comment keys (e.g. "_comment")
+        if isinstance(payload, dict):
+            pos = payload.get("positive") or []
+            neg = payload.get("negative") or []
+        elif isinstance(payload, list):
+            pos, neg = list(payload), []
+        else:
+            logger.warning("%s: entry %r is neither a list nor "
+                           "{positive, negative}; skipped", source, ct)
+            continue
+        entry = {"positive": [], "negative": []}
+        for role, genes in (("positive", pos), ("negative", neg)):
+            for g in genes:
+                g = str(g)
+                if g not in universe:
+                    logger.warning("%s: gene %s (%s, %s) not in the "
+                                   "expression matrix; skipped",
+                                   source, g, ct, role)
+                elif g not in entry[role]:
+                    entry[role].append(g)
+        if entry["positive"] or entry["negative"]:
+            out[str(ct)] = entry
+    return out
+
+
+def _merge_marker_supplement(
+    auto_map: Dict[str, Dict[str, List[str]]],
+    human_map: Dict[str, Dict[str, List[str]]],
+) -> Dict[str, Dict[str, List[str]]]:
+    """Merge the LLM-generated and human-curated marker supplements.
+
+    Human curation wins per cell-type key (case-insensitive, matching
+    ``plot_markers`` key semantics): a hand-written entry replaces the
+    LLM's for that cell type, while LLM-only types keep theirs.
+
+    Args:
+        auto_map: Supplement produced by :func:`_generate_marker_supplement`.
+        human_map: Supplement loaded from the human ``-X`` JSON.
+
+    Returns:
+        Merged ``{cell_type: {"positive": [...], "negative": [...]}}``.
+    """
+    merged: Dict[str, Dict[str, List[str]]] = {
+        str(k): dict(v) for k, v in (auto_map or {}).items()
+    }
+    for ct, payload in (human_map or {}).items():
+        key = str(ct)
+        clash = next((k for k in merged if k.lower() == key.lower()), None)
+        if clash is not None and clash != key:
+            merged.pop(clash)
+        merged[key] = dict(payload)
+    return merged
+
+
+def _write_marker_supplement_auto(path: str, data: Dict[str, Any]) -> None:
+    """Atomically write the auto marker supplement JSON (tmp + os.replace)."""
+    tmp = f"{path}.tmp"
+    with open(tmp, "w", encoding="utf-8") as fh:
+        json.dump(data, fh, indent=2, ensure_ascii=False)
+        fh.write("\n")
+    os.replace(tmp, path)
+
+
+def _generate_marker_supplement(
+    annotations: Dict[str, Dict],
+    tissue_cell_types: Optional[Dict[str, List[str]]],
+    var_names,
+    tissue: str,
+    llm_method: str,
+    llm_model: str,
+    llm_api_key: str,
+    llm_base_url: str,
+) -> Dict[str, Dict[str, List[str]]]:
+    """Ask the LLM once for discriminating-marker supplements (display-level).
+
+    Runs after mode_auto's annotation loop converges, over the FINAL
+    annotations: for confusable sibling cell types (overlapping canonical
+    panels) the LLM proposes combination markers expected PRESENT
+    (``positive``) plus competing-type markers expected ABSENT
+    (``negative``) — the same ``{cell_type: {positive, negative}}`` shape
+    as the human ``-X`` JSON. Only types where the supplement adds
+    discriminating value are expected back; an empty ``{}`` is a valid
+    answer. Genes absent from *var_names* are dropped with a warning.
+
+    Display-level only, like the human supplement: never fed back into
+    annotation prompts or specificity scoring. Every failure (backend
+    error, unparseable answer) degrades to ``{}`` — a display aid must
+    never fail a run.
+
+    Args:
+        annotations: Final per-cluster annotation dicts (``cell_type``,
+            ``canonical_markers``, ``evidence`` with programs/ruling_out).
+        tissue_cell_types: Tissue panel (canonical markers per type).
+        var_names: Gene universe the marker panels can plot.
+        tissue: Tissue label for prompt context.
+        llm_method: LLM backend (``"openai"``, ``"anthropic"``, ``"ollama"``).
+        llm_model: Model identifier.
+        llm_api_key: API key for the LLM backend.
+        llm_base_url: Base URL for the LLM API.
+
+    Returns:
+        ``{cell_type: {"positive": [...], "negative": [...]}}`` or ``{}``.
+    """
+    if llm_method not in ("openai", "anthropic", "ollama") or not annotations:
+        return {}
+    reserved = {"Unknown", "Unannotated", "Unverified", "Unverified_TE",
+                "ERVK_high", "Alu_high"}
+    per_type: Dict[str, Dict[str, Any]] = {}
+    for ann in annotations.values():
+        ct = str(ann.get("cell_type") or "").strip()
+        if not ct or ct in reserved:
+            continue
+        slot = per_type.setdefault(
+            ct, {"canonical": [], "programs": {}, "ruling_out": {}},
+        )
+        panel_genes = list((tissue_cell_types or {}).get(ct) or [])
+        for g in list(ann.get("canonical_markers") or []) + panel_genes:
+            if g not in slot["canonical"]:
+                slot["canonical"].append(str(g))
+        ev = ann.get("evidence") or {}
+        if isinstance(ev, dict):
+            for block_name in ("programs", "ruling_out"):
+                block = ev.get(block_name) or {}
+                if isinstance(block, dict):
+                    for name, genes in block.items():
+                        target = slot[block_name].setdefault(str(name), [])
+                        for g in genes or []:
+                            if str(g) not in target:
+                                target.append(str(g))
+    if len(per_type) < 2:
+        logger.info("Auto marker supplement skipped: %d eligible cell "
+                    "type(s) — no confusable siblings to separate.",
+                    len(per_type))
+        return {}
+
+    def _fmt(entry: Dict[str, Any]) -> str:
+        parts = []
+        if entry["canonical"]:
+            parts.append("canonical " + ", ".join(entry["canonical"][:10]))
+        for block_name in ("programs", "ruling_out"):
+            for name, genes in entry[block_name].items():
+                parts.append(f"{block_name} {name}: " + ", ".join(genes[:8]))
+        return "; ".join(parts) or "no marker detail"
+
+    listing = "\n".join(
+        f"- {ct} ({_fmt(entry)})" for ct, entry in sorted(per_type.items())
+    )
+    prompt = f"""You are a single-cell RNA-seq expert reviewing the FINAL cluster annotations for {tissue} tissue.
+
+Cell types found (canonical markers and annotation evidence):
+{listing}
+
+Task: for cell types with CONFUSABLE SIBLINGS (overlapping canonical panels — e.g. myofibroblast vs smooth muscle vs stromal fibroblast), propose a discriminating marker supplement a reviewer can use to tell them apart on marker panels:
+- "positive": combination markers expected PRESENT in that type (2-6 genes; prefer combinations that separate it from its siblings, not generic lineage genes)
+- "negative": markers of competing sibling types expected ABSENT in that type (2-6 genes; only claim absence for genes a competitor is known for)
+
+Rules:
+- Only include cell types where the supplement adds discriminating value; types with a single unambiguous diagnostic marker need no entry. Returning an empty object is valid.
+- Use official gene symbols; do not invent genes. Keys must be exact cell type names from the list above.
+- Keep every entry compact: at most 6 positive and 6 negative genes.
+
+Output ONLY a JSON object: {{"marker_supplement": {{"<cell type>": {{"positive": [...], "negative": [...]}}}}}}"""
+
+    try:
+        if llm_method == "openai":
+            raw = _call_openai(prompt, llm_model=llm_model,
+                               llm_api_key=llm_api_key, llm_base_url=llm_base_url)
+        elif llm_method == "anthropic":
+            raw = _call_anthropic(prompt, llm_model=llm_model,
+                                  llm_api_key=llm_api_key, llm_base_url=llm_base_url)
+        else:
+            raw = _call_ollama(prompt, llm_model=llm_model, llm_base_url=llm_base_url)
+    except Exception as exc:
+        logger.warning("Auto marker supplement LLM call failed (%s); "
+                       "keeping the manual supplement only.", exc)
+        return {}
+    if not isinstance(raw, dict) or not raw:
+        logger.warning("Auto marker supplement returned no mapping; "
+                       "keeping the manual supplement only.")
+        return {}
+    payload = raw.get("marker_supplement")
+    if not isinstance(payload, dict):
+        # Tolerate a bare {cell_type: {positive, negative}} answer.
+        payload = raw if all(isinstance(v, (dict, list))
+                             for v in raw.values()) else {}
+    out = _normalize_marker_supplement_payload(
+        payload, var_names, "auto marker supplement")
+    logger.info("Auto marker supplement: %d cell type(s) with "
+                "discriminating entries", len(out))
+    return out
+
+
 def mode_reannotate(
     adata: ad.AnnData,
     output: str,
@@ -3620,12 +3839,21 @@ def mode_reannotate(
                 cl: e for cl, e in annotations.items()
                 if e.get("cell_type") not in evidence_cts
             }
+            # Merge the LLM-generated auto supplement (mode_auto wrote it
+            # into this run's table dir) with the human -X JSON; human wins
+            # per cell-type key (same as the auto path).
+            auto_supp_path = os.path.join(
+                report_dir, _MARKER_SUPPLEMENT_AUTO_NAME)
+            supplement_map = _merge_marker_supplement(
+                _load_marker_supplement(auto_supp_path)
+                if os.path.isfile(auto_supp_path) else {},
+                _load_marker_supplement(marker_supplement),
+            )
             if ann_for_markers:
                 plotter.plot_markers(
                     adata, ann_for_markers,
                     canonical_map=canonical_map or None,
-                    supplement_map=_load_marker_supplement(
-                        marker_supplement) or None,
+                    supplement_map=supplement_map or None,
                 )
             if evidence_map:
                 plotter.plot_evidence(
@@ -5165,6 +5393,7 @@ def mode_auto(
     save_iteration_h5ad: bool = False,
     regress_cell_cycle: bool = True,
     marker_supplement: str = "",
+    auto_marker_supplement: bool = True,
     exclude_genes: str = "",
     exclude_from_deg: bool = False,
 ) -> None:
@@ -5211,6 +5440,12 @@ def mode_auto(
             discriminating markers (see :func:`_load_marker_supplement`);
             appended to the final marker panels, display-level only —
             annotation prompts and scoring are unaffected.
+        auto_marker_supplement: Ask the LLM once after the annotation loop
+            for discriminating-marker supplements of confusable sibling
+            types (see :func:`_generate_marker_supplement`); written to
+            ``<output stem>_reports/table/marker_supplement.auto.json`` and
+            merged into the marker panels (human *marker_supplement* entries
+            win per cell-type key). Display-level only (default True).
         save_iteration_h5ad: Also save each iteration's annotated h5ad
             (default False).
     """
@@ -5533,6 +5768,35 @@ def mode_auto(
         iter_ctx["filter_cells_remaining"] = adata.n_obs
         ctx["iterations"].append(iter_ctx)
 
+    # ── Step 4.5: LLM-generated discriminating-marker supplement ──
+    # One extra LLM call over the FINAL annotations (same graceful pattern
+    # as the panel-name canonicalizer). Display-level only: merged into the
+    # marker panels below, never into prompts or scoring. Human -X entries
+    # win per cell-type key. Any failure degrades to no auto supplement.
+    if auto_marker_supplement:
+        try:
+            auto_supp = _generate_marker_supplement(
+                annotations, tissue_cell_types,
+                adata.raw.var_names if adata.raw is not None else adata.var_names,
+                tissue, llm_method, llm_model, llm_api_key, llm_base_url,
+            )
+        except Exception as exc:
+            logger.warning("Auto marker supplement generation failed (%s); "
+                           "keeping the manual supplement only.", exc)
+            auto_supp = {}
+        if auto_supp:
+            supp_path = os.path.join(report_dir, _MARKER_SUPPLEMENT_AUTO_NAME)
+            _write_marker_supplement_auto(supp_path, {
+                "_comment": "LLM-generated discriminating markers "
+                            "(display-level only); entries in the human -X "
+                            "marker_supplement JSON override per cell type.",
+                **auto_supp,
+            })
+            ctx["marker_supplement"] = _merge_marker_supplement(
+                auto_supp, ctx.get("marker_supplement") or {})
+            logger.info("Auto marker supplement: %d cell type(s) -> %s",
+                        len(auto_supp), supp_path)
+
     # ── Final: save reports and h5ad ──
     _auto_finalize_outputs(
         plotter, adata, output, report_dir, annotations, quality_reports,
@@ -5814,6 +6078,12 @@ def build_parser() -> argparse.ArgumentParser:
                    help="JSON with per-cell-type discriminating markers "
                         "{cell_type: {positive: [...], negative: [...]}} "
                         "appended to the marker panels (display-level only)")
+    p.add_argument("-M", "--no-auto-marker-supplement",
+                   dest="auto_marker_supplement", action="store_false",
+                   help="Disable the LLM-generated discriminating-marker "
+                        "supplement (one extra LLM call after annotation; "
+                        "written to marker_supplement.auto.json and merged "
+                        "into the marker panels, display-level only)")
 
     # -- reannotate: apply cluster overrides to a finished auto h5ad ----
     p = sub.add_parser("reannotate",
@@ -5955,6 +6225,7 @@ def main():
             save_iteration_h5ad=args.save_iteration_h5ad,
             regress_cell_cycle=args.regress_cell_cycle,
             marker_supplement=args.marker_supplement,
+            auto_marker_supplement=args.auto_marker_supplement,
             exclude_genes=args.exclude_genes,
             exclude_from_deg=args.exclude_from_deg,
         )

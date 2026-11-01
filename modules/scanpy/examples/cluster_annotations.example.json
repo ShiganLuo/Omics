@@ -1,0 +1,45 @@
+{
+  "13": {
+    "original_cell_type": "Venous endothelial cell",
+    "corrected_cell_type": "Endothelial cell",
+    "reasoning": "Venous evidence is only 2 markers (ACKR1, SELP), both below the 2.0x specificity threshold; the other 8 markers (PECAM1, VWF, RAMP2, EGFL7, CAVIN2, ADGRL4, CLEC14A) are pan-endothelial and shared with cluster 12 (audit top-DEG Jaccard overlap). At this clustering resolution the arterio-venous distinction is a gradient; medium confidence cannot support a subtype-level call, so collapse to lineage level (matching cluster 12). Cluster 10 keeps 'Arterial endothelial cell' (GJA5 9.1x, BMX 4.6x, HEY1 4.2x, high confidence)."
+  },
+  "6": {
+    "original_cell_type": "Myofibroblast",
+    "corrected_cell_type": "Pericyte",
+    "evidence": {
+      "programs": {
+        "pericyte": [
+          "RGS5",
+          "PDGFRB",
+          "KCNJ8",
+          "ABCC9"
+        ],
+        "ECM": [
+          "COL1A1",
+          "COL3A1",
+          "COL4A2",
+          "COL18A1"
+        ]
+      },
+      "ruling_out": {
+        "Smooth muscle cell": [
+          "MYOCD",
+          "DES",
+          "ACTG2"
+        ],
+        "Myofibroblast": [
+          "POSTN",
+          "CTHRC1",
+          "COMP"
+        ],
+        "Stromal fibroblast": [
+          "PI16",
+          "DPT",
+          "PDGFRA"
+        ]
+      }
+    },
+    "reasoning": "Marker-differential correction (label chain: Stromal fibroblast -> Myometrial fibroblast -> Myofibroblast -> Pericyte). The earlier Myofibroblast call rested on contractile+ECM co-expression, but contractile genes are not discriminating between pericyte and myofibroblast. The discriminating combination markers decide against it: POSTN 0.08/9%, CTHRC1 0.04/6%, COMP ~0 in C6 (classic myofibroblast positives absent dataset-wide), while the pericyte program is the strongest in the dataset - RGS5 3.52 mean/99% (higher than the classic pericyte cluster C5: 3.20/95%), PDGFRB 1.43/91%, KCNJ8 0.53/53%, ABCC9 0.48/52% (both above C5). Mature smooth muscle excluded (MYOCD 0.01, DES 0.01, ACTG2 0.32; MYH11 0.63/57% vs SMC 2.4-3.0/92-96%); stromal fibroblast excluded (PI16 0.44/DPT 0.12/PDGFRA 0.20 vs C18 PI16 3.08). The ECM program (COL1A1 2.96/99%, COL3A1/4A2/18A1, SPARC) is an activation state of an ECM-producing pericyte, not a separate identity; subtype naming would need subtype markers, so C6 collapses to the lineage label Pericyte (C5+C6)."
+  }
+}

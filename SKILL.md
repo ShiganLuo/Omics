@@ -130,7 +130,7 @@ assests/test/
 4. 在 `workflow/Omics/subworkflow/` 提供对应 snakefile
 5. 更新 `outfiles` 逻辑以匹配预期输出
 6. 更新subworkflow/README.md和README.md
-7. 在 `test/` 添加对应的 meta_<Workflow>.tsv 和测试数据
+7. 在 `assests/test/` 添加对应的 meta_<Workflow>.tsv 和测试数据
 8. 在 `TEST_WORKFLOWS` 字典中注册
 
 修改流程时：
@@ -140,6 +140,10 @@ assests/test/
 2. 在 `workflow/Omics/subworkflow/<Workflow>.smk` 中更新各个module的config或整体流程控制参数
 3. 在 `config/<Workflow>.json` 修改相关参数,
 4. 在 `config/<Workflow>.schema.json` 中修改相关参数的约束
+
+# 硬性规则
+
+- **任务输出目录、测试输出目录绝不能位于仓库目录内**：`run.py` 的 `-o`、`run_module.py` 的 outdir、`--test` 输出、任何实验/测试产物一律写到仓库外（scratch 或专用工作目录）；执行时 cwd 也不要放在仓库根。收尾自检：仓库根不得残留 `output/`、`test/`、`module_test/`、`.snakemake/`、`.cache/`、`.config/`、`__pycache__/` —— `.gitignore` 会掩盖它们，`git status` 干净不代表仓库没被污染。测试输入（fixtures）属于 `assests/test/`（tracked），是唯一例外。
 
 # 原则
 

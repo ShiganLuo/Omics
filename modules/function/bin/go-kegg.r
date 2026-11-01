@@ -77,7 +77,10 @@ run_go_kegg <- function(
 ) {
   species <- match.arg(species)
   type <- match.arg(type)
-  if (length(genes) == 0) return(data.frame())
+  if (length(genes) == 0) return(data.frame(
+    ID = character(), Description = character(), GeneRatio = character(),
+    BgRatio = character(), pvalue = numeric(), p.adjust = numeric(),
+    qvalue = numeric(), geneID = character(), Count = integer()))
 
   if (species == "human") {
     OrgDb <- org.Hs.eg.db
@@ -96,7 +99,10 @@ run_go_kegg <- function(
   )
 
   entrez <- unique(gene_df$ENTREZID)
-  if (length(entrez) == 0) return(data.frame())
+  if (length(entrez) == 0) return(data.frame(
+    ID = character(), Description = character(), GeneRatio = character(),
+    BgRatio = character(), pvalue = numeric(), p.adjust = numeric(),
+    qvalue = numeric(), geneID = character(), Count = integer()))
 
   if (type == "go") {
     res <- enrichGO(
@@ -256,10 +262,12 @@ run_pipeline <- function(
           "  Down genes:", length(genes$down))
 
   if (length(genes$up) == 0 && length(genes$down) == 0) {
-    log_msg("WARN", "No significant genes, skipping GO/KEGG enrichment.")
-    return(invisible(NULL))
+    log_msg("WARN", "No significant genes; emitting empty GO/KEGG outputs.")
   }
 
+  # Outputs are written on EVERY path (including zero significant genes):
+  # downstream rules declare them and a silent skip fails the DAG with
+  # MissingOutputException. Empty enrichments render as "No enriched terms".
   writeLines(genes$up, file.path(outdir, "up_genes.txt"))
   writeLines(genes$down, file.path(outdir, "down_genes.txt"))
 

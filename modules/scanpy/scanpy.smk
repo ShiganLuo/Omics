@@ -200,6 +200,7 @@ rule scanpy_auto:
         regress_cell_cycle=lambda wildcards: params.get(wildcards.counter, {}).get("auto", {}).get("regress_cell_cycle", True),
         save_iteration_h5ad=lambda wildcards: params.get(wildcards.counter, {}).get("auto", {}).get("save_iteration_h5ad", False),
         marker_supplement=lambda wildcards: (params.get(wildcards.counter, {}).get("auto", {}).get("marker_supplement", {}) or {}).get(wildcards.tissue, ""),
+        marker_supplement_llm=lambda wildcards: bool(params.get(wildcards.counter, {}).get("auto", {}).get("marker_supplement_llm", True)),
         exclude_genes=lambda wildcards: params.get(wildcards.counter, {}).get("auto", {}).get("exclude_genes", "") or "",
         exclude_from_deg=lambda wildcards: bool(params.get(wildcards.counter, {}).get("auto", {}).get("exclude_from_deg", False)),
         species=species
@@ -248,6 +249,8 @@ rule scanpy_auto:
                 cmd.append("-C")
             if params.marker_supplement:
                 cmd += ["-X", str(params.marker_supplement)]
+            if not params.marker_supplement_llm:
+                cmd.append("-M")
             if params.exclude_genes:
                 cmd += ["-E", str(params.exclude_genes)]
             if params.exclude_from_deg:
@@ -483,15 +486,30 @@ rule scanpy_pseudobulk:
                    "--min-cells", str(pb.get("min_cells", 30)),
                    "--min-counts", str(pb.get("min_counts", 1000)),
                    "--n-pseudo-reps", str(pb.get("n_pseudo_reps", 3))]
-            for cmp_ in pb.get("compare", []):
-                # entries: tissue:ref_sample:treat_sample[=label]
-                cmd += ["--compare", str(cmp_)]
+            # entries: tissue:ref_sample:treat_sample[=label] — every entry
+            # is scoped to ONE tissue (pseudobulk.py rejects a compare whose
+            # tissue has no --h5ad definition), so this per-tissue job only
+            # takes the entries prefixed with its own wildcard.
+            tissue_compares = [
+                str(c) for c in (pb.get("compare") or [])
+                if str(c).split(":", 1)[0] == wildcards.tissue
+            ]
+            if not tissue_compares:
+                raise RuntimeError(
+                    f"Params.scanpy.{wildcards.counter}.pseudobulk.compare "
+                    f"has no entry for tissue '{wildcards.tissue}' — expected "
+                    f"entries like '{wildcards.tissue}:ref_sample:"
+                    f"treat_sample[=label]'")
+            for cmp_ in tissue_compares:
+                cmd += ["--compare", cmp_]
             for ct in pb.get("top_cell_types", []) or []:
                 cmd += ["--top-cell-types", str(ct)]
             for g in pb.get("highlight_genes", []) or []:
                 cmd += ["--highlight-genes", str(g)]
-            for m in pb.get("deg_mode", []) or ["all"]:
-                cmd += ["--deg-mode", str(m)]
+            # --deg-mode is nargs='+': ONE flag carrying all values —
+            # repeated flags overwrite each other in argparse and only the
+            # last mode would run.
+            cmd += ["--deg-mode"] + [str(m) for m in (pb.get("deg_mode") or ["all"])]
             with open(script, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(f"export OMP_NUM_THREADS={threads}\n")

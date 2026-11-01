@@ -122,6 +122,11 @@ run_go_kegg <- function(
     )
   }
 
+  if (is.null(res)) return(data.frame(
+    ID = character(), Description = character(), GeneRatio = character(),
+    BgRatio = character(), pvalue = numeric(), p.adjust = numeric(),
+    qvalue = numeric(), geneID = character(), Count = integer()))
+
   as.data.frame(res@result)
 }
 

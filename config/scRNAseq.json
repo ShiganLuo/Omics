@@ -204,8 +204,9 @@
             "Uterus": "/data/16T/luosg/data/Uterus_scTE_cluster_annotations.json"
           },
           "marker_supplement": {
-            "Uterus": "/data/16T/luosg/data/Uterus_scTE_marker_supplement.json"
-          }
+              "Uterus": "/data/16T/luosg/data/Uterus_scTE_marker_supplement.json"
+          },
+          "exclude_genes": ""
         },
         "pseudobulk": {
           "enabled": false,
@@ -270,7 +271,8 @@
           "llm_api_key": null,
           "llm_base_url": null,
           "cluster_annotations": {},
-          "marker_supplement": {}
+          "marker_supplement": {},
+          "exclude_genes": ""
         },
         "pseudobulk": {
           "enabled": true,

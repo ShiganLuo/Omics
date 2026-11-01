@@ -296,6 +296,11 @@
                                 "type": "dict",
                                 "nullable": true,
                                 "required": false
+                            },
+                            "exclude_genes": {
+                                "type": "str",
+                                "nullable": true,
+                                "required": false
                             }
                         }
                     },

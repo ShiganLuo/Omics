@@ -550,6 +550,97 @@ def _filter_te(adata: ad.AnnData) -> ad.AnnData:
     return adata[:, mask].copy()
 
 
+def _load_exclude_genes(path: str) -> set:
+    """Load a user gene-exclusion list (``--exclude-genes``).
+
+    Plain text: one gene symbol per line; comma/whitespace separated values
+    and ``#`` comments are accepted.
+
+    Args:
+        path: File path; empty string disables the exclusion.
+
+    Returns:
+        Set of gene symbols (empty when *path* is empty).
+
+    Raises:
+        ValueError: file missing or holding no genes (error names the path).
+    """
+    if not path:
+        return set()
+    genes: set = set()
+    try:
+        with open(path, encoding="utf-8") as fh:
+            for line in fh:
+                line = line.split("#", 1)[0].strip()
+                if not line:
+                    continue
+                for tok in line.replace(",", " ").split():
+                    genes.add(tok)
+    except FileNotFoundError:
+        raise ValueError(f"--exclude-genes file not found: {path}")
+    if not genes:
+        raise ValueError(f"--exclude-genes file contains no genes: {path}")
+    logger.info("exclude-genes: %d genes loaded from %s", len(genes), path)
+    return genes
+
+
+def _filter_excluded(adata: ad.AnnData, exclude: set) -> ad.AnnData:
+    """Drop user-excluded genes (``--exclude-genes``) from the analysis space.
+
+    Applied right after the TE filter, before HVG selection: the genes leave
+    the clustering / DEG feature space but stay in ``raw`` (assigned before
+    this call) so marker plots and review tools can still show them.
+
+    Args:
+        adata: AnnData (after the ``raw`` snapshot).
+        exclude: Gene symbols to drop; empty set is a no-op.
+
+    Returns:
+        Subset AnnData (unchanged when *exclude* is empty).
+    """
+    if not exclude:
+        return adata
+    n_before = adata.n_vars
+    keep = ~adata.var_names.isin(exclude)
+    logger.info("exclude-genes filter: %d -> %d genes (%d user-excluded removed)",
+                n_before, int(keep.sum()), n_before - int(keep.sum()))
+    return adata[:, keep].copy()
+
+
+def _swap_raw_for_deg(adata: ad.AnnData, skip_te: bool,
+                      exclude: set) -> Optional["ad.AnnData"]:
+    """Mask the DEG raw space; returns the original raw to restore after.
+
+    Drops TE/structural-RNA features (``skip_te``, via :func:`_non_te_mask`)
+    and user-excluded genes (``--exclude-genes``) from what
+    ``rank_genes_groups`` sees. The caller restores ``adata._raw`` with the
+    return value right after the call.
+
+    Args:
+        adata: AnnData with a populated ``raw``.
+        skip_te: Apply the TE/structural-RNA mask.
+        exclude: User-excluded gene symbols.
+
+    Returns:
+        The original ``adata.raw`` when the mask changed the space, else
+        None (nothing to restore).
+    """
+    keep = None
+    if skip_te and "gene_type" in adata.raw.var.columns:
+        keep = _non_te_mask(adata.raw.var)
+    if exclude:
+        user_keep = pd.Series(~adata.raw.var_names.isin(exclude),
+                              index=adata.raw.var_names)
+        keep = user_keep if keep is None else (keep & user_keep)
+    if keep is None or bool(keep.all()):
+        return None
+    orig = adata.raw
+    adata._raw = adata.raw[:, keep].copy()
+    logger.info("DEG: filtered TE/structural-RNA from raw (%d -> %d genes)",
+                 orig.shape[1], adata.raw.shape[1])
+    return orig
+
+
 # ---------------------------------------------------------------------------
 # Cluster
 # ---------------------------------------------------------------------------
@@ -566,6 +657,7 @@ def mode_cluster(
     plot_dir: str = "",
     auto_n_pcs: bool = True,
     skip_te: bool = False,
+    exclude_genes: str = "",
 ) -> None:
     """Cluster cells: preprocess → batch correct → neighbours → UMAP → Leiden.
 
@@ -613,6 +705,8 @@ def mode_cluster(
     # 2.5 Filter TE genes before HVG selection
     if skip_te:
         adata = _filter_te(adata)
+    exclude_set = _load_exclude_genes(exclude_genes)
+    adata = _filter_excluded(adata, exclude_set)
 
     # 3. Detect HVGs (keep all genes for plotting, subset later)
     resolved_batch_key = batch_key or ("sample_id" if "sample_id" in adata.obs else "batch")
@@ -686,15 +780,9 @@ def mode_cluster(
     )
 
     # 11. DEG — use raw for full gene coverage
-    # If skip_te, temporarily swap raw to the TE/structural-RNA-filtered copy
-    # so DEG excludes them (reverted right after rank_genes_groups)
-    _orig_raw = None
-    if skip_te and "gene_type" in adata.raw.var.columns:
-        _orig_raw = adata.raw
-        te_mask = _non_te_mask(adata.raw.var)
-        adata._raw = adata.raw[:, te_mask].copy()
-        logger.info("DEG: filtered TE/structural-RNA from raw (%d -> %d genes)",
-                     _orig_raw.shape[1], adata.raw.shape[1])
+    # Temporarily mask the raw DEG space (TE/structural-RNA + user-excluded
+    # genes); _swap_raw_for_deg returns the original raw to restore after.
+    _orig_raw = _swap_raw_for_deg(adata, skip_te, exclude_set)
     sc.tl.rank_genes_groups(adata, "leiden", method="wilcoxon", use_raw=True)
     if _orig_raw is not None:
         adata._raw = _orig_raw
@@ -3920,6 +4008,7 @@ def _auto_cluster_iteration(
     batch_key: str,
     skip_te: bool,
     regress_cell_cycle: bool = True,
+    exclude_genes: Optional[set] = None,
 ) -> Tuple[ad.AnnData, int, Dict, str, Dict[str, Any]]:
     """mode_auto Step 1: expression prep, PCA, batch correction, clustering.
 
@@ -3978,6 +4067,7 @@ def _auto_cluster_iteration(
 
     if skip_te:
         adata = _filter_te(adata)
+    adata = _filter_excluded(adata, exclude_genes or set())
 
     try:
         sc.pp.highly_variable_genes(
@@ -4044,6 +4134,7 @@ def _auto_cluster_iteration(
         adata.raw = adata.copy()
         if skip_te:
             adata = _filter_te(adata)
+        adata = _filter_excluded(adata, exclude_genes or set())
         sc.pp.highly_variable_genes(adata, n_top_genes=min(n_top_genes, adata.n_vars // 2), flavor="seurat", subset=False)
         adata = adata[:, adata.var["highly_variable"]].copy()
         sc.pp.scale(adata, max_value=10)
@@ -4076,15 +4167,9 @@ def _auto_cluster_iteration(
     sc.tl.umap(adata, min_dist=0.1, spread=0.8)
     sc.tl.leiden(adata, resolution=resolution, key_added="leiden",
                  flavor="igraph", n_iterations=2, directed=False)
-    # If skip_te, temporarily swap raw to the TE/structural-RNA-filtered copy
-    # so DEG excludes them (reverted right after rank_genes_groups)
-    _orig_raw = None
-    if skip_te and "gene_type" in adata.raw.var.columns:
-        _orig_raw = adata.raw
-        te_mask = _non_te_mask(adata.raw.var)
-        adata._raw = adata.raw[:, te_mask].copy()
-        logger.info("DEG: filtered TE/structural-RNA from raw (%d -> %d genes)",
-                     _orig_raw.shape[1], adata.raw.shape[1])
+    # Temporarily mask the raw DEG space (TE/structural-RNA + user-excluded
+    # genes); _swap_raw_for_deg returns the original raw to restore after.
+    _orig_raw = _swap_raw_for_deg(adata, skip_te, exclude_genes or set())
     sc.tl.rank_genes_groups(adata, "leiden", method="wilcoxon", use_raw=True)
     if _orig_raw is not None:
         adata._raw = _orig_raw
@@ -5073,6 +5158,7 @@ def mode_auto(
     save_iteration_h5ad: bool = False,
     regress_cell_cycle: bool = True,
     marker_supplement: str = "",
+    exclude_genes: str = "",
 ) -> None:
     """Fully autonomous: cluster → AI annotate → QC → filter → re-cluster.
 
@@ -5185,6 +5271,7 @@ def mode_auto(
     )
     ctx["tissue_cell_types"] = tissue_cell_types
     ctx["marker_supplement"] = _load_marker_supplement(marker_supplement)
+    exclude_set = _load_exclude_genes(exclude_genes)
 
     iteration = 0
     detect_diag: Dict = {}
@@ -5207,6 +5294,7 @@ def mode_auto(
                 n_neighbors=n_neighbors, n_top_genes=n_top_genes,
                 batch_method=batch_method, batch_key=batch_key,
                 skip_te=skip_te, regress_cell_cycle=regress_cell_cycle,
+                exclude_genes=exclude_set,
             )
 
         # ── Steps 1.5 + 2: AI annotate each cluster ──
@@ -5601,6 +5689,12 @@ def _add_cluster_args(p: argparse.ArgumentParser, with_markers: bool = True) -> 
                    help="Exclude TE and structural-RNA genes (TE, rRNA, "
                         "misc_RNA, snRNA, snoRNA) before HVG selection, "
                         "clustering and DEG")
+    p.add_argument("-E", "--exclude-genes", default="",
+                   help="File of gene symbols to exclude from the analysis "
+                        "feature space (one per line; comma/whitespace "
+                        "separated and # comments accepted): dropped before "
+                        "HVG/clustering and from the DEG space, kept in "
+                        "raw (e.g. a cell-cycle gene list)")
     p.add_argument("-B", "--batch-method", default="harmony",
                    choices=["harmony", "bbknn", ""],
                    help="Batch correction method (default: harmony, empty to skip)")
@@ -5807,6 +5901,7 @@ def main():
             plot_dir=args.plot_dir,
             auto_n_pcs=args.auto_n_pcs,
             skip_te=args.skip_te,
+            exclude_genes=args.exclude_genes,
         )
     elif args.mode == "annotate":
         mode_annotate(
@@ -5845,6 +5940,7 @@ def main():
             save_iteration_h5ad=args.save_iteration_h5ad,
             regress_cell_cycle=args.regress_cell_cycle,
             marker_supplement=args.marker_supplement,
+            exclude_genes=args.exclude_genes,
         )
     elif args.mode == "reannotate":
         mode_reannotate(

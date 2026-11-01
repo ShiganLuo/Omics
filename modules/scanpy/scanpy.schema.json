@@ -286,6 +286,16 @@
                                 "type": "null",
                                 "nullable": true,
                                 "required": false
+                            },
+                            "cluster_annotations": {
+                                "type": "dict",
+                                "nullable": true,
+                                "required": false
+                            },
+                            "marker_supplement": {
+                                "type": "dict",
+                                "nullable": true,
+                                "required": false
                             }
                         }
                     },

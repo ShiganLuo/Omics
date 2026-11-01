@@ -658,6 +658,7 @@ def mode_cluster(
     auto_n_pcs: bool = True,
     skip_te: bool = False,
     exclude_genes: str = "",
+    exclude_from_deg: bool = False,
 ) -> None:
     """Cluster cells: preprocess → batch correct → neighbours → UMAP → Leiden.
 
@@ -780,9 +781,11 @@ def mode_cluster(
     )
 
     # 11. DEG — use raw for full gene coverage
-    # Temporarily mask the raw DEG space (TE/structural-RNA + user-excluded
-    # genes); _swap_raw_for_deg returns the original raw to restore after.
-    _orig_raw = _swap_raw_for_deg(adata, skip_te, exclude_set)
+    # Temporarily mask the raw DEG space (TE/structural-RNA +, only with
+    # --exclude-from-deg, the user-excluded genes); _swap_raw_for_deg
+    # returns the original raw to restore after.
+    _orig_raw = _swap_raw_for_deg(
+        adata, skip_te, exclude_set if exclude_from_deg else set())
     sc.tl.rank_genes_groups(adata, "leiden", method="wilcoxon", use_raw=True)
     if _orig_raw is not None:
         adata._raw = _orig_raw
@@ -4009,6 +4012,7 @@ def _auto_cluster_iteration(
     skip_te: bool,
     regress_cell_cycle: bool = True,
     exclude_genes: Optional[set] = None,
+    exclude_from_deg: bool = False,
 ) -> Tuple[ad.AnnData, int, Dict, str, Dict[str, Any]]:
     """mode_auto Step 1: expression prep, PCA, batch correction, clustering.
 
@@ -4167,9 +4171,12 @@ def _auto_cluster_iteration(
     sc.tl.umap(adata, min_dist=0.1, spread=0.8)
     sc.tl.leiden(adata, resolution=resolution, key_added="leiden",
                  flavor="igraph", n_iterations=2, directed=False)
-    # Temporarily mask the raw DEG space (TE/structural-RNA + user-excluded
-    # genes); _swap_raw_for_deg returns the original raw to restore after.
-    _orig_raw = _swap_raw_for_deg(adata, skip_te, exclude_genes or set())
+    # Temporarily mask the raw DEG space (TE/structural-RNA +, only with
+    # --exclude-from-deg, the user-excluded genes); _swap_raw_for_deg
+    # returns the original raw to restore after.
+    _orig_raw = _swap_raw_for_deg(
+        adata, skip_te,
+        (exclude_genes or set()) if exclude_from_deg else set())
     sc.tl.rank_genes_groups(adata, "leiden", method="wilcoxon", use_raw=True)
     if _orig_raw is not None:
         adata._raw = _orig_raw
@@ -5159,6 +5166,7 @@ def mode_auto(
     regress_cell_cycle: bool = True,
     marker_supplement: str = "",
     exclude_genes: str = "",
+    exclude_from_deg: bool = False,
 ) -> None:
     """Fully autonomous: cluster → AI annotate → QC → filter → re-cluster.
 
@@ -5295,6 +5303,7 @@ def mode_auto(
                 batch_method=batch_method, batch_key=batch_key,
                 skip_te=skip_te, regress_cell_cycle=regress_cell_cycle,
                 exclude_genes=exclude_set,
+                exclude_from_deg=exclude_from_deg,
             )
 
         # ── Steps 1.5 + 2: AI annotate each cluster ──
@@ -5690,11 +5699,16 @@ def _add_cluster_args(p: argparse.ArgumentParser, with_markers: bool = True) -> 
                         "misc_RNA, snRNA, snoRNA) before HVG selection, "
                         "clustering and DEG")
     p.add_argument("-E", "--exclude-genes", default="",
-                   help="File of gene symbols to exclude from the analysis "
+                   help="File of gene symbols to exclude from the clustering "
                         "feature space (one per line; comma/whitespace "
                         "separated and # comments accepted): dropped before "
-                        "HVG/clustering and from the DEG space, kept in "
-                        "raw (e.g. a cell-cycle gene list)")
+                        "HVG/PCA/clustering only, kept in raw AND in the DEG "
+                        "space so the annotator still sees e.g. MKI67 (e.g. "
+                        "a cell-cycle gene list)")
+    p.add_argument("-D", "--exclude-from-deg", action="store_true",
+                   help="Also mask the --exclude-genes list from the DEG "
+                        "space the annotator sees (default: the list only "
+                        "affects clustering)")
     p.add_argument("-B", "--batch-method", default="harmony",
                    choices=["harmony", "bbknn", ""],
                    help="Batch correction method (default: harmony, empty to skip)")
@@ -5902,6 +5916,7 @@ def main():
             auto_n_pcs=args.auto_n_pcs,
             skip_te=args.skip_te,
             exclude_genes=args.exclude_genes,
+            exclude_from_deg=args.exclude_from_deg,
         )
     elif args.mode == "annotate":
         mode_annotate(
@@ -5941,6 +5956,7 @@ def main():
             regress_cell_cycle=args.regress_cell_cycle,
             marker_supplement=args.marker_supplement,
             exclude_genes=args.exclude_genes,
+            exclude_from_deg=args.exclude_from_deg,
         )
     elif args.mode == "reannotate":
         mode_reannotate(

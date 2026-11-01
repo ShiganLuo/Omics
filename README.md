@@ -2,56 +2,72 @@
 
 [English](README_EN.md) | 中文
 
-这里是 `Omics` 相关的统一工作流入口。当前目录下的 `run.py` 会根据样本元信息和 `workflow_name` 选择对应的 Snakemake 子流程，并自动生成各流程所需的 `raw.json` 配置文件。
+![Snakemake](https://img.shields.io/badge/Snakemake-9.16.3%2B-1f7a4d)
+![Python](https://img.shields.io/badge/Python-3.12-3776ab)
+![Apptainer](https://img.shields.io/badge/Apptainer-1.5.4-e2761b)
+![Workflows](https://img.shields.io/badge/workflows-16-6a5acd)
+![Modules](https://img.shields.io/badge/modules-86-2f7d32)
 
-- README.md为人类阅读文档
-- 目录名.md为agent加载的skill
+16 个组学分析工作流，一个入口跑完：`python run.py -w <workflow>`。转录组、单细胞、ChIP-seq、突变、长读长、蛋白组、群体基因组共享同一批可复用模块——整条 pipeline 一键跑，也能用 `run_module.py` 单独跑任意模块；所有运行参数沉淀在 `raw.json` 里可完整追溯，conda / Apptainer 环境自动装配，AI 可直接接手排查与扩展。
 
-## 流程优点
+> 文档约定：`README.md` 给人读；仓库内各 `<名称>.md` 是给 AI agent 加载的 skill。
 
-每一项优点后面都跟着具体用法——CLI 命令、参数或工作流入口；跳到「快速开始」或「运行指南」可以看完整示例。
+## 目录
 
-**参数全留痕，结果可复现**
+- [亮点](#亮点)
+- [快速开始](#快速开始)
+- [支持的工作流](#支持的工作流)
+- [环境依赖](#环境依赖)
+- [目录结构](#目录结构)
+- [运行指南](#运行指南)
+- [修改指南](#修改指南)
+- [计划](#计划)
+
+## 亮点
+
+### 参数全留痕，结果可复现
+
 所有运行参数版本化在 `output/<workflow>/raw.json` 里，输入 → 输出的依赖由 Snakemake 描述，中间结果自动可恢复，事后可完整追溯每次运行用了什么参数、什么版本。
 
-**配置高度可定制，支持非法输入值检测**
-所有工具参数渐进式披露在 `config/<workflow>.json`，人类可读、可直接改，而且通过schema.json约束合法值（这点在非法输出提醒和列表型参数识别尤其有用）；也可以不改文件，运行时通过嵌套 CLI 字段覆盖（如 `--Params.trim_galore.quality 10`）：
+### schema 校验 + 运行时覆盖，配置随你改
+
+所有工具参数渐进式披露在 `config/<workflow>.json`，人类可读、可直接改，并由 `schema.json` 约束合法值（非法值当场提醒，列表型参数自动识别）。不想改文件，就用嵌套 CLI 字段在运行时覆盖：
 
 ```bash
 python workflow/Omics/run.py -m data/meta/fastq -w CLIP -o output \
   --Params.trim_galore.quality 10
 ```
 
-另外图片输出格式可选，默认png，科研场景常用pdf,也可以同时输出多种图片格式，可以通过json中暴露的接口定义
+图片输出格式同样可配置：默认 png，科研出图常用 pdf，还能一次输出多种格式。
 
-**一套入口，高度复用**
-RNA-seq、scRNA-seq、ChIP-seq、WGS、群体基因组等十余类分析收敛到同一入口 `python run.py -w <workflow>`，共享 `modules/` 与 `config/`。新流程建立在已有模块之上，不重复造轮子。
+### 一套入口，模块拼装
 
-**可单独调用模块进行分析**
-各个模块都有自己的json输入文件，使用run_module可单独运行模块，给分析增加更多灵活度
+十余类分析收敛到同一入口，共享 `modules/` 与 `config/`，新流程建立在已有模块之上，不重复造轮子。
 
-**加分支不改主线**
-加分支只声明新 output，不改已有 input——DAG 描述依赖而非命令式执行，主线天然不漂移。流程变更可被 git 追溯，重跑决策由 Snakemake 缓存。
+### 既能跑完整 pipeline，也能单独跑模块
 
-**支持探索性分析（LLM auto 模式）**
-`scRNAseq` 工作流提供 `auto` 模式——内置 LLM 决策，自动挑 PC 数、调整 clustering resolution、过滤低质量 cluster、调用 LLM 做细胞类型注释并产出审计报告。只需要提供数据和组织名：
+整条流程用 `run.py` 一键跑完，也可以只跑其中一个模块：`run_module.py` 按模块自己的 json 输入单独运行，`--until`、`--target`、`--rules`、`--samples` 精确圈定要跑的范围，`--dry-run`、`--sdm` 容器模式等运行控制同样适用：
 
 ```bash
-python workflow/Omics/run.py -m data/meta/fastq -w scRNAseq -o output \
-  --auto --tissue ovaries
+# 跑完整 pipeline
+python workflow/Omics/run.py -m data/meta.tsv -w RNAseq -o output
+
+# 只跑其中一个模块
+python workflow/Omics/run_module.py -m macs3 --config my_macs3.json -o out/
 ```
 
-**支持精确重跑**
-输出驱动的 DAG——`--until <rule>` 跑到指定 stage 停止，`--forcerun` 强制重跑任意规则，同时支持跑到指定规则（支持 `规则:wildcard=value` 精确到通配符组合），`--target-jobs` 可把任意中间产物作为终点：
+### 加分支不改主线
+
+加分支只声明新 output，不改已有 input——DAG 描述依赖而非命令式执行，主线天然不漂移。流程变更可被 git 追溯，重跑决策由 Snakemake 缓存。
+
+### 精确重跑
+
+`--until <rule>` 跑到指定 stage 停止，`--forcerun` 强制重跑任意规则（支持 `规则:wildcard=value` 精确到通配符组合），`--target-jobs` 可把任意中间产物作为终点：
 
 ```bash
 # 只要 dedup 后的 BAM 就停
 python workflow/Omics/run.py -m data/meta.tsv -w Mutation -o output \
   --until mutation_markduplicates
-
-# 重跑某个规则（无通配符）
-python workflow/Omics/run.py -m data/meta.tsv -w RNAseq -o output \
-  --forcerun function_gsea
 
 # 精准重跑带通配符的规则
 python workflow/Omics/run.py -m data/meta.tsv -w scRNAseq -o output \
@@ -59,53 +75,89 @@ python workflow/Omics/run.py -m data/meta.tsv -w scRNAseq -o output \
   --forcerun scanpy_auto:tissue=Uterus,counter=scTE
 ```
 
-**资源分配可控**
-通过 `resources` 字段按规则控制线程数和内存（`resources.default` 兜底、按规则名覆盖），避免耗尽主机内存或打满 CPU。
+### 环境免手动安装
 
-**环境免手动安装**
 各流程用到的软件不需要手动装：conda 模式由 Snakemake 按 `modules/*/*.yaml` 自动创建环境，容器模式直接用预构建 SIF 镜像，bind 路径由 `run.py` 自动推导。
 
-**内置测试模式**
-`--test <workflow>`（或 `--test all`）用自带测试数据完成配置解析、`raw.json` 生成和 dry-run，不真正执行，快速验证流程是否可用。
+### 资源分配可控
 
-**AI 友好**
-得益于统一入口和结构化设计，所有信息都沉淀在 JSON（配置、`raw.json`、schema）和日志文件中，无需人肉翻代码即可掌握每次运行的完整上下文；配合专有 skill（目录名.md），AI 可直接针对流程做分析——排查失败原因、提升流程性能、增加分析模块等。
+`resources` 字段按规则控制线程数和内存（`resources.default` 兜底、按规则名覆盖），避免耗尽主机内存或打满 CPU。
 
-具体怎么开始见「快速开始」，各工作流的能力清单见「支持的工作流」。
+### 内置测试模式
 
-## 目录结构
+`--test <workflow>`（或 `--test all`）用自带测试数据完成配置解析、`raw.json` 生成和 dry-run，不真正执行，几秒钟验证流程是否可用。
 
-- `run.py`：统一入口脚本，读取元信息、合并配置并调用 Snakemake。
-- `run.sh`：当前项目里常用的一键运行示例。
-- `config/`：各工作流的模板配置文件。
-- `subworkflow/`：各分析流程的 Snakemake 主入口。
-- `modules/`：可复用模块定义。
-- `example/`：示例配置和示例流程文件。
+### AI 友好，还带 LLM auto 模式
+
+所有信息都沉淀在 JSON（配置、`raw.json`、schema）和日志文件中，无需人肉翻代码即可掌握每次运行的完整上下文；配合专有 skill（目录名.md），AI 可直接排查失败原因、提升流程性能、增加分析模块。`scRNAseq` 更进一步提供 `auto` 模式——内置 LLM 决策，自动挑 PC 数、调整 clustering resolution、过滤低质量 cluster、调用 LLM 做细胞类型注释并产出审计报告，只需要提供数据和组织名：
+
+```bash
+python workflow/Omics/run.py -m data/meta/fastq -w scRNAseq -o output \
+  --auto --tissue ovaries
+```
+
+## 快速开始
+
+1. 装基础环境：snakemake >= 9.16.3（容器模式再装 apptainer，见「环境依赖」）。
+
+   ```bash
+   conda create -n smk -c conda-forge -c bioconda "snakemake>=9.16.3" -y
+   conda activate smk
+   ```
+
+2. 准备输入：传元信息文件（含样本、物种、测序布局等），或直接传 fastq 目录，`run.py` 会自己解析样本信息。
+3. 选环境模式：conda 模式指定 `--conda-prefix`（`run.py` 自动加 `--use-conda`）；容器模式指定 `--sdm`（SIF 镜像运行，bind 路径自动推导）。
+4. 启动：
+
+   ```bash
+   # conda 模式
+   python workflow/Omics/run.py \
+     -m data/meta/fastq \
+     -w CLIP \
+     -o output \
+     -t 48 \
+     --log log/CLIP.log \
+     --conda-prefix /path/to/conda/envs \
+     --Params.trim_galore.quality 10
+
+   # 容器模式
+   python workflow/Omics/run.py \
+     -m data/meta/fastq \
+     -w CLIP \
+     -o output \
+     -t 48 \
+     --sdm \
+     --rerun-triggers mtime
+   ```
+
+先加 `--dry-run` 看一遍要执行的 job 再放开跑；不放心流程本身，可先 `--test CLIP` 用自带测试数据做一次无副作用的验证（详见「运行指南」）。
 
 ## 支持的工作流
 
 `run.py` 通过 `-w/--workflow_name` 选择工作流：
 
-| 工作流 | 说明 | 典型输出 |
-| --- | --- | --- |
-| `CoCulture` | 共培养样本分析（物种分离 + TE 表达） | SOAPnuke QC、hisat2 比对、ngs_disambiguate 物种分离、TEtranscripts 表达定量 |
-| `MERIP` | MeRIP-seq / m6A-seq 分析 | dedup BAM、peak 结果、IGV 可视化 |
-| `RNAseq` | 常规转录组综合分析（表达定量、差异分析、融合基因、变异检测） | count 矩阵、TE 表达结果、DESeq2 差异分析、GO/KEGG/GSEA 富集、融合基因（arriba）、胚系 SNV/INDEL、转录本组装（StringTie）、HTML 报告 |
-| `ncRNAseq` | 非编码 RNA 分析（含 tailer 和小 RNA） | demultiplexer、trim_galore、hisat2/star 比对、gatk dedup、small RNA 提取、star 3pass、tailer 分析、ncRNA 表达量 |
-| `CLIP` | iCLIP / CLIP-seq 分析 | 质控、比对、PureCLIP、bedGraph / bigWig、IGV 页面 |
-| `Mutation` | 体细胞/胚系突变分析（tumor vs normal）及 cfDNA 分析 | fastqc、cutadapt、bwa-mem2、GATK（Mutect2 体细胞 + 胚系）、突变频谱、cfDNA 片段长度、manta SV、cnvkit CNV |
-| `PacVar` | PacBio 长读长变异检测 | 结构变异 VCF、SNP VCF、phasing 结果、端粒长度（4种方法）、着丝粒统计、SV 比较分析（exp-specific SV、富集、circos、OncoPrint）、可选 eccDNA 重建（DECOIL）及可视化（统计图 + 跨样本对比 + IGV 交互 HTML） |
-| `KARRseq` | Kethoxal-Assisted RNA-RNA interaction sequencing | RNA-RNA 相互作用 pairs 文件 |
-| `PeakCalling` | ChIP-seq / ChIRP-seq / DIP-seq peak calling 分析 | fastqc、trim_galore、bowtie2 比对、gatk dedup、IGV/wig 可视化、MACS3 peak calling、FRiP score、deeptools 热图、Homer 注释、peak-TE overlap、汇总报告 |
-| `QuantMS` | 定量蛋白质组学分析（TMT/LFQ/DIA） | mzTab 定量结果、MSstats 统计分析 |
-| `tRNAseq` | tRNA 修饰诱导错配测序分析（mim-tRNAseq） | 覆盖度、修饰定量、CCA 分析、DESeq2 差异表达 |
-| `scRNAseq` | 单细胞 RNA-seq 分析 | Cell Ranger/STARsolo 比对、scTE TE 定量、Scanpy QC/聚类/注释/高级分析 |
-| `spatial_transcriptomics` | 空间转录组分析 | Scanpy QC、聚类、高级分析 |
-| `Population_genomics` | 群体基因组学分析 | GATK HaplotypeCaller + joint genotyping、bcftools 过滤、plink2/vcftools 统计、admixture 群体结构、easySFS 历史推断、PopLDdecay LD 衰减 |
-| `Fiberseq` | Fiber-seq 表观遗传分析 | 甲基化检测、核小体定位、FIRE 活性区域、数据提取、SV 比较分析（exp-specific SV、富集、circos、OncoPrint） |
+| 类别 | 工作流 | 说明 | 典型输出 |
+| --- | --- | --- | --- |
+| 转录组 | `RNAseq` | 常规转录组综合分析（表达定量、差异分析、融合基因、变异检测） | count 矩阵、TE 表达结果、DESeq2 差异分析、GO/KEGG/GSEA 富集、融合基因（arriba）、胚系 SNV/INDEL、转录本组装（StringTie）、HTML 报告 |
+| 转录组 | `ncRNAseq` | 非编码 RNA 分析（含 tailer 和小 RNA） | demultiplexer、trim_galore、hisat2/star 比对、gatk dedup、small RNA 提取、star 3pass、tailer 分析、ncRNA 表达量 |
+| 转录组 | `LRtranscriptome` | 长读长转录组分析 | minimap2 比对、表达定量（可跳过） |
+| 转录组 | `CoCulture` | 共培养样本分析（物种分离 + TE 表达） | SOAPnuke QC、hisat2 比对、ngs_disambiguate 物种分离、TEtranscripts 表达定量 |
+| 表观/修饰 | `MERIP` | MeRIP-seq / m6A-seq 分析 | dedup BAM、peak 结果、IGV 可视化 |
+| 表观/修饰 | `CLIP` | iCLIP / CLIP-seq 分析 | 质控、比对、PureCLIP、bedGraph / bigWig、IGV 页面 |
+| 表观/修饰 | `tRNAseq` | tRNA 修饰诱导错配测序分析（mim-tRNAseq） | 覆盖度、修饰定量、CCA 分析、DESeq2 差异表达 |
+| 表观/修饰 | `Fiberseq` | Fiber-seq 表观遗传分析 | 甲基化检测、核小体定位、FIRE 活性区域、数据提取、SV 比较分析（exp-specific SV、富集、circos、OncoPrint） |
+| 表观/修饰 | `PeakCalling` | ChIP-seq / ChIRP-seq / DIP-seq peak calling 分析 | fastqc、trim_galore、bowtie2 比对、gatk dedup、IGV/wig 可视化、MACS3 peak calling、FRiP score、deeptools 热图、Homer 注释、peak-TE overlap、汇总报告 |
+| 变异/基因组 | `Mutation` | 体细胞/胚系突变分析（tumor vs normal）及 cfDNA 分析 | fastqc、cutadapt、bwa-mem2、GATK（Mutect2 体细胞 + 胚系）、突变频谱、cfDNA 片段长度、manta SV、cnvkit CNV |
+| 变异/基因组 | `PacVar` | PacBio 长读长变异检测 | 结构变异 VCF、SNP VCF、phasing 结果、端粒长度（4种方法）、着丝粒统计、SV 比较分析（exp-specific SV、富集、circos、OncoPrint）、可选 eccDNA 重建（DECOIL）及可视化（统计图 + 跨样本对比 + IGV 交互 HTML） |
+| 变异/基因组 | `Population_genomics` † | 群体基因组学分析 | GATK HaplotypeCaller + joint genotyping、bcftools 过滤、plink2/vcftools 统计、admixture 群体结构、easySFS 历史推断、PopLDdecay LD 衰减 |
+| 单细胞/空间 | `scRNAseq` | 单细胞 RNA-seq 分析 | Cell Ranger/STARsolo 比对、scTE TE 定量、Scanpy QC/聚类/注释/高级分析 |
+| 单细胞/空间 | `spatial_transcriptomics` † | 空间转录组分析 | Scanpy QC、聚类、高级分析（Squidpy 空间邻域、Moran's I） |
+| 相互作用 | `KARRseq` | Kethoxal-Assisted RNA-RNA interaction sequencing | RNA-RNA 相互作用 pairs 文件 |
+| 蛋白组 | `QuantMS` | 定量蛋白质组学分析（TMT/LFQ/DIA） | mzTab 定量结果、MSstats 统计分析 |
 
-各个流程详细介绍见[subworkflow](./subworkflow/README.md)
+† `Population_genomics` 与 `spatial_transcriptomics` 尚未接入 `run.py -w`，通过 `snakemake -s subworkflow/<name>.smk --configfile <raw.json>` 直接运行。
 
+各个流程详细介绍见 [subworkflow](./subworkflow/README.md)。
 
 ## 环境依赖
 
@@ -137,278 +189,42 @@ sudo apt install fakeroot uidmap
 # 从 https://github.com/apptainer/apptainer/releases 下载 deb（不要选 trixie+ 后缀）
 # apptainer 和 apptainer-suid 必须都装：suid 包提供 setuid root 的 starter-suid，
 # 是 setuid 模式的关键文件；缺了它退回非特权模式，Ubuntu 24.04 上无法启动容器
-sudo apt dpkg -i ./apptainer_1.5.4_amd64.deb ./apptainer-suid_1.5.4_amd64.deb
+sudo dpkg -i ./apptainer_1.5.4_amd64.deb ./apptainer-suid_1.5.4_amd64.deb
 ```
 
 - Ubuntu 24.04 必须用 setuid 版，非特权版（含 conda 安装）会因 AppArmor 限制
-  无法启动容器（见「常见问题」）。
+  无法启动容器（见 [docs/apptainer.md](docs/apptainer.md)「常见问题」）。
 - 安装后注意 PATH 优先级：若 conda 环境里也装过 apptainer，建议移除，确保使用
   系统安装的版本。
 
 当前验证可用的组合：Python 3.12 + Snakemake 9.22.0 + Apptainer 1.5.4（setuid 版）。
 
-## 快速开始
+容器模式的完整说明——SIF 构建、路径解析、bind 推导、手动调用 Snakemake、常见问题、`apptainer exec` 工具箱——见 **[docs/apptainer.md](docs/apptainer.md)**。
 
-1. 准备输入数据。
-   - 如果传入的是元信息文件，通常应包含样本、物种、测序布局等信息。
-   - 如果传入的是 fastq 目录，`run.py` 会直接从目录中解析样本信息。
-2. 准备运行环境：选择 conda 模式或容器（Apptainer/SIF）模式。
-   - **conda 模式**：需指定 `--conda-prefix`，`run.py` 会自动添加 `--use-conda`。
-   - **容器模式**：指定 `--sdm`，`run.py` 会省略 `--use-conda`，改为让 Snakemake 用 `container:` 指令解析的 SIF 镜像运行。SIF 镜像由 `EnvUtil.py` 从 conda yaml 生成（见 `src/common/util/EnvUtil.py`），`common.smk` 的 `sif()` 函数根据 yaml 文件名 stem 查找路径。
-3. 使用 `run.py` 启动对应流程。
+## 目录结构
 
-推荐示例（conda 模式）：
-
-```bash
-python workflow/Omics/run.py \
-  -m data/meta/fastq \
-  -w CLIP \
-  -o output \
-  -t 48 \
-  --log log/CLIP.log \
-  --conda-prefix /data/pub/zhousha/env/mutation_0.1 \
-  --Params.trim_galore.quality 10
-```
-
-容器模式示例：
-
-```bash
-python workflow/Omics/run.py \
-  -m data/meta/fastq \
-  -w CLIP \
-  -o output \
-  -t 48 \
-  --sdm \
-  --rerun-triggers mtime
-```
-
-容器模式下 `run.py` 会自动从配置 JSON 中提取路径并生成 `--singularity-args --bind ...`，
-无需手动指定。如需覆盖，用 `--singularity-args`。
-
-如果只是想检查流程而不真正执行，可加上 `--dry-run`。
-
-### Apptainer 容器模式详解
-
-#### 原理
-
-每个模块的 conda 环境 YAML（`modules/<module>/<name>.yaml`）可构建为 Apptainer SIF 镜像。Snakemake 通过 `container:` 指令在运行时自动调用对应的 SIF。
-
-#### 构建 SIF 镜像
-
-使用 `EnvUtil.py` 从 conda YAML 生成 `.def` 文件并构建 `.sif`：
-
-```bash
-# 生成 .def 文件（不构建）
-python workflow/Omics/src/common/util/EnvUtil.py gen \
-  --modules-dir workflow/Omics/modules \
-  --outdir /path/to/env
-
-# 构建已有 .def 文件为 .sif
-python workflow/Omics/src/common/util/EnvUtil.py build \
-  --modules-dir workflow/Omics/modules \
-  --outdir /path/to/env
-
-# 完整流程：YAML → .def → .sif（推荐）
-python workflow/Omics/src/common/util/EnvUtil.py all \
-  --modules-dir workflow/Omics/modules \
-  --outdir /path/to/env
-```
-
-构建后的 SIF 存放结构：
-```
-/path/to/env/
-  bowtie2/
-    bowtie2.sif
-  macs3/
-    macs3.sif
-  fastqc/
-    fastqc.sif
-  ...
-```
-
-#### SIF 路径解析
-
-`common.smk` 中的 `sif()` 函数负责路径解析：
-
-```python
-# modules/common/common.smk
-def sif(yaml_filename: str) -> str:
-    """根据 config["env"] 映射查找 SIF 路径"""
-```
-
-配置 JSON 中的 `env` 字段建立 YAML stem → SIF 路径的映射：
-
-```json
-{
-  "env": {
-    "env_dir": "/path/to/env",
-    "bowtie2": "/path/to/env/bowtie2/bowtie2.sif",
-    "macs3": "/path/to/env/macs3/macs3.sif"
-  }
-}
-```
-
-未显式映射的模块会自动回退到 `<env_dir>/<module>/<yaml_stem>.sif`。
-
-#### Bind 路径自动推导
-
-`run.py --sdm` 模式下，`_collect_bind_paths()` 会递归扫描配置 JSON 中的所有路径字符串，自动推导需要 bind-mount 的目录列表，并合并父目录以最小化 bind 数量。
-
-自动 bind 包含：
-- 输入数据目录（raw FASTQ 路径）
-- 输出目录
-- 参考基因组目录
-- 软件/env 目录
-- `/tmp`（临时文件）
-
-如需额外 bind 路径：
-
-```bash
-python workflow/Omics/run.py \
-  -m data/meta.tsv -w PeakCalling -o output \
-  --sdm \
-  --singularity-args '--bind /extra/data,/extra/ref'
-```
-
-#### 手动运行 Snakemake + Apptainer
-
-不通过 `run.py`，直接调用 Snakemake：
-
-```bash
-snakemake -s workflow/Omics/subworkflow/PeakCalling.smk \
-  --configfile output/Rnp/PeakCalling/raw.json \
-  --cores 48 \
-  --sdm apptainer \
-  --singularity-args '--bind /data,/home/user/Database,/home/user/Data,/tmp' \
-  --rerun-triggers code input mtime params software-env
-```
-
-#### 常见问题
-
-- **`command not found`**：SIF 内的工具不在 PATH 中，检查 `.def` 文件的 `%environment` 或 `%post` 段是否正确设置了 PATH。
-- **权限错误**：确保 `--bind` 的目标目录对当前用户可读写。
-- **SIF 过期**：conda YAML 更新后需重新构建 SIF（`EnvUtil.py all`）。
-- **启动容器报 `Could not write info to setgroups: Permission denied` / `Error while waiting event for user namespace mappings: no event received`**：
-  conda 装的非特权版 apptainer 依赖 user namespace，Ubuntu 24.04 默认 AppArmor
-  禁止非特权用户命名空间（`kernel.apparmor_restrict_unprivileged_userns=1`）导致
-  启动失败。解决：改用 setuid 版 `apptainer-suid`（见「环境依赖」）。
-  修复后若 conda 环境里的非特权版 apptainer 在 PATH 中优先，会复现同样报错。
-  同时出现的 `fuse2fs not found` 只是无关提示，可忽略。
-
-#### Apptainer 直接执行命令
-
-SIF 镜像内的工具可直接通过 `apptainer exec` 调用，无需经过 Snakemake。每个 SIF 的 `%runscript` 设置为 `exec "$@"`，因此传入的命令会直接执行。
-
-基本语法：
-
-```bash
-apptainer exec \
-  --bind /data,/home/user/Database,/tmp \
-  /path/to/env/<module>/<module>.sif \
-  <tool> [arguments...]
-```
-
-常用工具示例：
-
-```bash
-BIND="--bind /home/luosg/Data,/home/luosg/Database,/tmp"
-ENV="/home/luosg/Database/env"
-
-# FastQC 质控
-apptainer exec $BIND $ENV/fastqc/fastqc.sif \
-  fastqc --threads 8 -o output/QC/ sample_1.fq.gz sample_2.fq.gz
-
-# Trim Galore 接头修剪
-apptainer exec $BIND $ENV/trim-galore/trim-galore.sif \
-  trim_galore --quality 25 --paired -o output/trimmed/ sample_1.fq.gz sample_2.fq.gz
-
-# Bowtie2 比对
-apptainer exec $BIND $ENV/bowtie2/bowtie2.sif \
-  bowtie2 -x /path/to/index -1 sample_1.fq.gz -2 sample_2.fq.gz --very-sensitive -S output.sam
-
-# SAMtools 处理
-apptainer exec $BIND $ENV/samtools/samtools.sif \
-  samtools sort -@ 8 -o output.bam input.sam
-
-# GATK MarkDuplicates
-apptainer exec $BIND $ENV/gatk/gatk4.sif \
-  gatk MarkDuplicates -I input.bam -O output.bam -M metrics.txt
-
-# MACS3 Peak Calling
-apptainer exec $BIND $ENV/macs3/macs3.sif \
-  macs3 callpeak -t IP.bam -c Input.bam -f BAM -g mm -n sample --outdir peaks/
-
-# HOMER 注释
-apptainer exec $BIND $ENV/homer/homer.sif \
-  annotatePeaks.pl peaks.narrowPeak mm39 -gtf annotation.gtf > annotation.txt
-
-# BEDTools 交集
-apptainer exec $BIND $ENV/bedtools/bedtools.sif \
-  bedtools intersect -a peaks.bed -b TE.gtf -wa -wb > overlap.bed
-
-# deeptools computeMatrix
-apptainer exec $BIND $ENV/deeptools_heatmap/deeptools_heatmap.sif \
-  computeMatrix reference-point -S signal.bigwig -R peaks.bed -a 3000 -b 3000 -o matrix.gz
-
-# deeptools plotHeatmap
-apptainer exec $BIND $ENV/deeptools_heatmap/deeptools_heatmap.sif \
-  plotHeatmap -m matrix.gz -o heatmap.png --whatToShow 'heatmap and colorbar'
-
-# FRiP score 计算（bedtools + samtools 组合）
-apptainer exec $BIND $ENV/samtools/samtools.sif \
-  samtools view -c -F 4 aligned.bam  # 总 mapped reads
-apptainer exec $BIND $ENV/bedtools/bedtools.sif \
-  bedtools intersect -a aligned.bam -b peaks.bed -u | samtools view -c  # peaks 内 reads
-```
-
-调试容器内部环境：
-
-```bash
-# 进入容器交互式 shell
-apptainer shell --bind /home/luosg/Data,/home/luosg/Database,/tmp \
-  /home/luosg/Database/env/bowtie2/bowtie2.sif
-
-# 查看容器内可用命令
-apptainer exec $ENV/bowtie2/bowtie2.sif which bowtie2
-apptainer exec $ENV/bowtie2/bowtie2.sif bowtie2 --version
-```
-
-### 测试模式（`--test`）
-
-`run.py` 支持内置测试模式，用于快速检查某个工作流是否能正确解析配置、生成 `raw.json` 并完成 Snakemake dry-run。
-
-```bash
-# 测试单个工作流
-python workflow/Omics/run.py \
-  --test ncRNAseq \
-  -o output
-
-# 测试所有工作流
-python workflow/Omics/run.py \
-  --test all \
-  -o output
-```
-
-测试模式会自动：
-- 使用 `workflow/Omics/assests/test/meta_<workflow>.tsv`
-- 从 `workflow/Omics/assests/test/data/` 生成测试路径
-- 输出到 `output/test/`（或你指定的输出目录下的 `test/`）
-- 开启 `--dry-run`
-- 使用本地 `.conda` 前缀，避免污染共享环境
-
-如果某个工作流没有对应的测试 meta 文件，`run.py` 会跳过该工作流并提示警告。
+- `run.py`：统一入口脚本，读取元信息、合并配置并调用 Snakemake。
+- `run.sh`：历史运行命令存档（默认全部注释），需要时取消注释即可复用。
+- `run_module.py`：单模块运行入口，配合各模块自己的 json 输入使用。
+- `node.py`：各工作流的结果注册与配置分发。
+- `config/`：各工作流的模板配置文件及 schema 约束。
+- `subworkflow/`：各分析流程的 Snakemake 主入口。
+- `modules/`：可复用模块定义（86 个），规范见 [modules/modules.md](modules/modules.md)。
+- `src/`：公共工具与独立分析脚本（如 `common/util/EnvUtil.py`）。
+- `docs/`：设计文档与专项指南。
+- `assests/`：内置测试数据与测试 meta 模板。
 
 ## 运行指南
 
 ### 运行示例
 
-当前仓库中已有的示例脚本可以直接参考 `run.sh`。它对应的典型执行方式是：
+仓库里的 `run.sh` 记录了实际跑过的命令，可直接参考或取消注释复用：
 
 ```bash
-bash workflow/RNA-SNP/run.sh
+bash workflow/Omics/run.sh
 ```
 
-如果需要手动调用 Snakemake，也可以参考 `run.py` 最终拼接出来的命令形式。
+如果需要手动调用 Snakemake，参考 `run.py` 最终拼接出来的命令形式即可。
 
 ### 运行特定步骤
 
@@ -466,7 +282,7 @@ python workflow/Omics/run.py \
 
 #### `--touch`：更新输出文件时间戳
 
-防止重跑某个规则后，再次执行会执行后面的规则
+重跑某个规则后，用 `--touch` 把下游输出的时间戳刷新为最新，避免下次执行时把下游规则又跑一遍：
 
 ```bash
 # 标记所有输出为最新（不实际运行）
@@ -488,6 +304,7 @@ python workflow/Omics/run.py \
 ```
 
 输出示例：
+
 ```
 all
 scRNAseq_cellranger_ref
@@ -505,6 +322,7 @@ python workflow/Omics/run.py \
 ```
 
 输出示例（比 `--list-target-rules` 更全，包含带通配符的规则）：
+
 ```
 all
 scRNAseq_cellranger_ref
@@ -515,6 +333,7 @@ scRNAseq_scanpy_cluster
 ```
 
 **`--list-target-rules` vs `--list-rules`**：
+
 - `--list-target-rules`：只显示可直接作为 `snakemake` 命令目标的规则（无通配符），适合日常查看。
 - `--list-rules`：显示所有规则（含带通配符的），适合调试和了解完整 DAG 结构。
 
@@ -542,7 +361,7 @@ snakemake -s workflow/Omics/subworkflow/RNAseq.smk \
 
 #### 跳过指定规则
 
-如需跳过某个规则及其下游,可通过 `--snakemake-args` 透传 snakemake 的 `--omit-from`:
+如需跳过某个规则及其下游，可通过 `--snakemake-args` 透传 snakemake 的 `--omit-from`：
 
 ```bash
 python workflow/Omics/run.py \
@@ -550,10 +369,36 @@ python workflow/Omics/run.py \
   --snakemake-args --omit-from RNAseq_generate_report
 ```
 
+### 测试模式（`--test`）
+
+`run.py` 支持内置测试模式，用于快速检查某个工作流是否能正确解析配置、生成 `raw.json` 并完成 Snakemake dry-run。
+
+```bash
+# 测试单个工作流
+python workflow/Omics/run.py \
+  --test ncRNAseq \
+  -o output
+
+# 测试所有工作流
+python workflow/Omics/run.py \
+  --test all \
+  -o output
+```
+
+测试模式会自动：
+
+- 使用 `workflow/Omics/assests/test/meta_<workflow>.tsv`
+- 从 `workflow/Omics/assests/test/data/` 生成测试路径
+- 输出到 `output/test/`（或你指定的输出目录下的 `test/`）
+- 开启 `--dry-run`
+- 使用本地 `.conda` 前缀，避免污染共享环境
+
+如果某个工作流没有对应的测试 meta 文件，`run.py` 会跳过该工作流并提示警告。
+
 ### `run.py` 参数说明
 
 - `-m, --meta`：元信息文件或 fastq 目录。
-- `-w, --workflow_name`：工作流名称，可选 `CoCulture`、`MERIP`、`RNAseq`、`ncRNAseq`、`CLIP`、`Mutation`、`PacVar`、`KARRseq`、`PeakCalling`、`QuantMS`、`tRNAseq`、`scRNAseq`、`Fiberseq`。
+- `-w, --workflow_name`：工作流名称，可选 `CoCulture`、`MERIP`、`RNAseq`、`ncRNAseq`、`scRNAseq`、`tRNAseq`、`CLIP`、`Mutation`、`PacVar`、`KARRseq`、`PeakCalling`、`QuantMS`、`Fiberseq`、`LRtranscriptome`（`Population_genomics`、`spatial_transcriptomics` 见「支持的工作流」脚注）。
 - `-o, --output_dir`：输出目录。
 - `-t, --threads`：Snakemake 线程数。
 - `--dry-run`：只生成计划，不执行。
@@ -561,7 +406,7 @@ python workflow/Omics/run.py \
 - `--conda-prefix`：conda 包缓存目录（conda 模式必需，容器模式下省略）。
 - `--sdm`：使用 Apptainer 容器后端（SIF 镜像）。设置后 `run.py` 不添加 `--use-conda`，改用 `container:` 指令解析的 SIF 运行。自动从配置 JSON 提取路径生成 `--singularity-args --bind ...`。
 - `--singularity-args`：手动指定 singularity/apptainer 参数，如 `--singularity-args '--bind /path1,/path2'`（与 `--sdm` 配合使用，覆盖自动生成的 bind 列表）。
-- `--rerun-trigger`：Snakemake 的重跑触发条件，默认 `input`。可选值及含义：
+- `--rerun-trigger`（别名 `--rerun-triggers`）：Snakemake 的重跑触发条件，默认全部五个（与 Snakemake 默认一致）。指定后只检查指定的触发器：
 
   | 参数 | 含义 |
   | --- | --- |
@@ -571,9 +416,9 @@ python workflow/Omics/run.py \
   | `params` | rule 的 params 发生变化时重跑 |
   | `software-env` | conda 环境发生变化时重跑 |
 
-  不指定 `--rerun-trigger` 时，Snakemake 默认使用全部五个触发器。指定 `--rerun-trigger input` 表示**仅**检查 input 内容变化，不检查 code/mtime/params/software-env，更轻量但依赖 metadata。
+  例如 `--rerun-triggers mtime` 表示**仅**在输入比输出新时重跑，不检查 code/input/params/software-env，更轻量；`--rerun-trigger input` 只看内容哈希，依赖 metadata。
 
-- `--conda-frontend`：`conda` 或 `mamba`。
+- `--conda-frontend`：`conda` 或 `mamba`（默认 mamba）。
 - `--forcerun`：强制重跑指定规则或文件路径，格式：`RULE` 或 `/path/to/file` 或 `RULE:wildcard=value`。规则名自动加 workflow 前缀。
 - `--target-jobs`：按 wildcard 约束定位 job，格式：`RULE:WILDCARD1=VALUE,...`。配合 `--forcerun` 使用。
 - `--touch`：更新输出文件时间戳，不实际运行。与 `--dry-run` 冲突。
@@ -594,7 +439,7 @@ python workflow/Omics/run.py \
 
 #### 输入约定
 
-- 为了确保Wildcards正常生成，sample_id尽量不能包含`.`，避免被错误识别
+- 为了确保 Wildcards 正常生成，sample_id 尽量不能包含 `.`，避免被错误识别。
 - 单端文件：通常识别为单个 `fq.gz` / `fastq.gz` 文件。
 - 双端文件：通常识别为成对的 `*_1.fq.gz`、`*_2.fq.gz`，或 `*_R1.fq.gz`、`*_R2.fq.gz`。
 - `trim_galore` 只是包装命令，实际运行时仍需要 `cutadapt`。
@@ -606,30 +451,24 @@ python workflow/Omics/run.py \
 
 ### 一般修改流程
 
-- 如果后续新增 workflow，建议同步补充：
-  - `config/<workflow>.json` 和 `config/<workflow>.schema.json`（总输入和总约束）
-  - `subworkflow/<workflow>.smk`（流程主体）
-  - `modules`中的json,yaml,smk（功能主体及约束）
-  - `node.py` 中的分发逻辑（注册结果）
+新增 workflow 时同步补充：
 
-在添加功能时候，相关规范见（modules/modules.md）
+- `config/<workflow>.json` 和 `config/<workflow>.schema.json`（总输入和总约束）
+- `subworkflow/<workflow>.smk`（流程主体）
+- `modules` 中的 json、yaml、smk（功能主体及约束）
+- `node.py` 中的分发逻辑（注册结果）
+
+添加功能时的相关规范见 [modules/modules.md](modules/modules.md)。
 
 ## 计划
 
 - [x] 整合所有曾经分析过的流程
-- [x] 实际执行包装成shell，兼容HPC
-- [x] 添加项目skill文档
-- [x] 完善meta设计
-- [x] 添加json值校验模块
-- [x] schema感知的extra_args类型矫正
+- [x] 实际执行包装成 shell，兼容 HPC
+- [x] 添加项目 skill 文档
+- [x] 完善 meta 设计
+- [x] 添加 json 值校验模块
+- [x] schema 感知的 extra_args 类型矫正
+- [x] 完成所有 pipeline 的双 shell 记录，即在结果文件目录始终保留最终执行 shell 脚本，在 log/cmd 目录记录所有执行过的 shell 脚本；目前已经支持 scRNAseq、Fiberseq
 - [ ] 支持多基因组并行运行；已支持：RNAseq
-- [ ] 根据数据量，确保资源消耗平衡，不会出现耗尽主机内存，或者爆满CPU的情况，已初步支持：Fiberseq,RNAseq；下一步需要将数据量和计算资源联系起来
+- [ ] 根据数据量，确保资源消耗平衡，不会出现耗尽主机内存或者爆满 CPU 的情况；已初步支持：Fiberseq、RNAseq，下一步需要将数据量和计算资源联系起来
 - [ ] 所有图片输出支持多种格式可选
-- [x] 完成所有pipeline的双shell记录，即在结果文件目录始终保留最终执行shell脚本，在log/cmd目录记录所有执行过的的shell脚本；目前已经支持scRNAseq,Fiberseq
-
-
-
-
-
-
-

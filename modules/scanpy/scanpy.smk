@@ -201,6 +201,7 @@ rule scanpy_auto:
         save_iteration_h5ad=lambda wildcards: params.get(wildcards.counter, {}).get("auto", {}).get("save_iteration_h5ad", False),
         marker_supplement=lambda wildcards: (params.get(wildcards.counter, {}).get("auto", {}).get("marker_supplement", {}) or {}).get(wildcards.tissue, ""),
         exclude_genes=lambda wildcards: params.get(wildcards.counter, {}).get("auto", {}).get("exclude_genes", "") or "",
+        exclude_from_deg=lambda wildcards: bool(params.get(wildcards.counter, {}).get("auto", {}).get("exclude_from_deg", False)),
         species=species
     run:
         log_path = str(log)
@@ -249,6 +250,8 @@ rule scanpy_auto:
                 cmd += ["-X", str(params.marker_supplement)]
             if params.exclude_genes:
                 cmd += ["-E", str(params.exclude_genes)]
+            if params.exclude_from_deg:
+                cmd.append("-D")
             with open(script_path, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 # Cap numeric-library threads to the rule's thread budget

@@ -301,6 +301,11 @@
                                 "type": "str",
                                 "nullable": true,
                                 "required": false
+                            },
+                            "exclude_from_deg": {
+                                "type": "bool",
+                                "nullable": true,
+                                "required": false
                             }
                         }
                     },

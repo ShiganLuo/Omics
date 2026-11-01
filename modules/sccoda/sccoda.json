@@ -1,0 +1,22 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "logs",
+    "ROOT_DIR": null,
+    "reannotate": {},
+    "Procedure": {
+        "python": null
+    },
+    "Params": {
+        "sccoda": {
+            "enabled": false,
+            "compare": [],
+            "ref_celltype": "automatic",
+            "formula": "condition",
+            "credible_threshold": 0.9,
+            "num_samples": 2000,
+            "num_warmup": 500,
+            "tissue_samples": {}
+        }
+    }
+}

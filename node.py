@@ -1233,6 +1233,23 @@ def runscRNAseq(
     datajson["Params"]["workflow"]["single_samples"] = single_samples
     datajson["Params"]["workflow"]["cellranger_dirs"] = cellranger_dirs
 
+    # scCODA compare sharing: Params.sccoda.<counter>.compare defaults to the
+    # pseudobulk comparison design (identical tissue:ref:treat[=label] entry
+    # shape) — one --Params.scanpy.<counter>.pseudobulk.compare serves both
+    # analyses. A hand-filled sccoda compare wins over the shared one.
+    for counter in counters:
+        sccoda_counter = (datajson["Params"].setdefault("sccoda", {})
+                          .setdefault(counter, {}))
+        if not sccoda_counter.get("compare"):
+            pb = ((datajson["Params"].get("scanpy", {}).get(counter, {}) or {})
+                  .get("pseudobulk", {}) or {})
+            shared = pb.get("compare") or []
+            if shared:
+                sccoda_counter["compare"] = list(shared)
+                logger.info(
+                    f"[sccoda] Params.sccoda.{counter}.compare is empty — "
+                    f"sharing the pseudobulk design ({len(shared)} entries)")
+
     if len(organisms) != 1:
         raise ValueError(f"meta don't support multiple organsim temporarily, please check your meta file, found: {organisms}")
     try:
@@ -1295,6 +1312,17 @@ def runscRNAseq(
             if pb_cfg.get("enabled") and any(
                     str(c).split(":", 1)[0] == tissue for c in pb_compare):
                 outfiles.append(f"{outdir}/common/5_combine_h5ad/{tissue}/pseudobulk/{counter}/pseudobulk_report.html")
+            # scCODA differential abundance (modules/sccoda) — gated per
+            # counter by Params.sccoda.<counter>.enabled; consumes the
+            # scanpy_auto h5ad (obs: sample_id + cell_type), so registering
+            # the report target pulls the qc->merge->auto chain into the
+            # DAG. Same tissue-prefix gate expression as the rule's compare
+            # filter.
+            sc_cfg = (datajson["Params"].get("sccoda", {}) or {}).get(counter, {}) or {}
+            sc_compare = sc_cfg.get("compare") or []
+            if sc_cfg.get("enabled") and any(
+                    str(c).split(":", 1)[0] == tissue for c in sc_compare):
+                outfiles.append(f"{outdir}/common/5_combine_h5ad/{tissue}/sccoda/{counter}/sccoda_report.html")
             # Manual cluster-annotation overrides (scanpy_reannotate): an
             # in-place label fix over the auto h5ad (auto.h5ad.bak keeps
             # one generation). Register the marker file only for tissues
@@ -1303,6 +1331,7 @@ def runscRNAseq(
             if tissue in ca:
                 outfiles.append(f"{outdir}/common/5_combine_h5ad/{tissue}/{tissue}_{counter}_auto.h5ad.reannotated")
     datajson["Params"]["scanpy"]["tissue_samples"] = tissue_samples
+    datajson["Params"]["sccoda"]["tissue_samples"] = tissue_samples
     # outfiles.append(f"{outdir}/scRNAseq_report.pptx")
     datajson["outfiles"] = outfiles
     return _write_raw_json(datajson, outdir)

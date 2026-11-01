@@ -1,0 +1,16 @@
+name: sccoda
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python=3.11
+  - pip
+  - numpy
+  - pandas
+  - scipy
+  - scanpy
+  - anndata
+  - matplotlib
+  - pertpy
+  - jax
+  - numpyro

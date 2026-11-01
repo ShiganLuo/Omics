@@ -39,6 +39,10 @@
       "star": {
         "type": "str",
         "required": false
+      },
+      "sccoda": {
+        "type": "str",
+        "required": false
       }
     }
   },
@@ -148,6 +152,20 @@
         }
       },
       "scanpy_qc": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "sccoda_run": {
         "type": "dict",
         "required": false,
         "properties": {
@@ -1096,6 +1114,81 @@
               "description": "DEG feature modes: gene (exclude TE), te (TE only), all (genes+TE); one or more, run sequentially"
             }
           }
+        }
+      }
+    },
+    "sccoda": {
+      "type": "dict",
+      "required": false,
+      "tissue_samples": {
+        "type": "dict",
+        "nullable": true,
+        "required": false
+      },
+      "scTE": {
+        "type": "dict",
+        "required": false,
+        "enabled": {
+          "type": "bool",
+          "required": false
+        },
+        "compare": {
+          "type": "list",
+          "required": false,
+          "description": "tissue:ref_sample:treat_sample[=label] entries; empty = shared from Params.scanpy.<counter>.pseudobulk.compare"
+        },
+        "ref_celltype": {
+          "type": "str",
+          "required": false
+        },
+        "formula": {
+          "type": "str",
+          "required": false
+        },
+        "credible_threshold": {
+          "type": "float",
+          "required": false
+        },
+        "num_samples": {
+          "type": "int",
+          "required": false
+        },
+        "num_warmup": {
+          "type": "int",
+          "required": false
+        }
+      },
+      "cellranger": {
+        "type": "dict",
+        "required": false,
+        "enabled": {
+          "type": "bool",
+          "required": false
+        },
+        "compare": {
+          "type": "list",
+          "required": false,
+          "description": "tissue:ref_sample:treat_sample[=label] entries; empty = shared from Params.scanpy.<counter>.pseudobulk.compare"
+        },
+        "ref_celltype": {
+          "type": "str",
+          "required": false
+        },
+        "formula": {
+          "type": "str",
+          "required": false
+        },
+        "credible_threshold": {
+          "type": "float",
+          "required": false
+        },
+        "num_samples": {
+          "type": "int",
+          "required": false
+        },
+        "num_warmup": {
+          "type": "int",
+          "required": false
         }
       }
     }

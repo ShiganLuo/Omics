@@ -17,6 +17,8 @@ rule HRT:
         report = outdir + "/CoCulture_report/CoCulture_report.html"
     log:
         logdir + "/CoCulture_report/CoCulture_report.log"
+    resources:
+        mem_mb = rule_res("HRT").get("mem_mb", 8000),
     params:
         genome1 = genome1,
         genome2 = genome2,

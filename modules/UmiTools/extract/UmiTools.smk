@@ -18,7 +18,9 @@ rule UmiTools_extract_single:
         "../UmiTools.yaml"
     container:
         sif("../UmiTools.yaml")
-    threads: 2
+    threads: rule_res("UmiTools_extract_single").get("threads", 2)
+    resources:
+        mem_mb = rule_res("UmiTools_extract_single").get("mem_mb", 8000),
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -59,7 +61,9 @@ rule UmiTools_extract_paired:
         bc_pattern2 = config.get('Params',{}).get('umi_tools',{}).get('bc_pattern2') or 'NNNXXXXNN'
     log:
         logdir + "/{sample_id}/umi_tools_extract_paired_run.txt"
-    threads: 2
+    threads: rule_res("UmiTools_extract_paired").get("threads", 2)
+    resources:
+        mem_mb = rule_res("UmiTools_extract_paired").get("mem_mb", 8000),
     conda:
         "../UmiTools.yaml"
     container:

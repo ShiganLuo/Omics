@@ -33,7 +33,9 @@ rule msstats:
         csv = outdir + "/msstats_input.csv"
     log:
         logdir + "/msstats/msstats.log"
-    threads: 1
+    threads: rule_res("msstats").get("threads", 1)
+    resources:
+        mem_mb = rule_res("msstats").get("mem_mb", 16000),
     conda:
         "../openms.yaml"
     container:
@@ -95,3 +97,5 @@ rule msstats:
 rule msstats_result:
     input:
         outdir + "/msstats_input.csv"
+    resources:
+        mem_mb = rule_res("msstats_result").get("mem_mb", 8000),

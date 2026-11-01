@@ -37,6 +37,8 @@ rule scan:
         outdir + "reference/{genome_version}.msisensor.scan.list"
     log:
         outdir + "reference/{genome_version}.msisensor.scan.log"
+    resources:
+        mem_mb = rule_res("scan").get("mem_mb", 8000),
     conda:
         "../../msisensro_pro.schema.yaml"
     container:
@@ -51,7 +53,9 @@ rule pro_pre:
         ref=lambda wildcards: genome_reference[wildcards.genome_version],
     output:
         outdir + "baselines/details/{sample}.{genome_version}.baseline.out"
-    threads: 2
+    threads: rule_res("pro_pre").get("threads", 2)
+    resources:
+        mem_mb = rule_res("pro_pre").get("mem_mb", 8000),
     conda:
         "../../msisensro_pro.schema.yaml"
     container:
@@ -64,6 +68,8 @@ rule merge:
         expand(outdir + "baselines/details/{sample}.{{genome_version}}.baseline.out",sample=baseline_samples.index)
     output:
         outdir + "baselines/{genome_version}.baseline.samples.list"
+    resources:
+        mem_mb = rule_res("merge").get("mem_mb", 8000),
     conda:
         "../../msisensro_pro.schema.yaml"
     container:
@@ -79,6 +85,8 @@ rule baseline:
         ms=outdir + "reference/{genome_version}.msisensor.scan.list",
     output:
         outdir + "baselines/{genome_version}.baseline.tsv"
+    resources:
+        mem_mb = rule_res("baseline").get("mem_mb", 8000),
     conda:
         "../../msisensro_pro.schema.yaml"
     container:
@@ -94,6 +102,8 @@ rule run_pro:
         outdir + "tumor_only_output/{case}/{case}.{genome_version}.msisensor-pro"
     log:
         outdir + "tumor_only_output/{case}/{case}.{genome_version}.msisensor-pro.log"
+    resources:
+        mem_mb = rule_res("run_pro").get("mem_mb", 8000),
     conda:
         "../../msisensro_pro.schema.yaml"
     container:
@@ -106,6 +116,8 @@ rule merge_msi_result:
         expand(outdir + "tumor_only_output/{case}/{case}.{{genome_version}}.msisensor-pro",case=samples.index)
     output:
         outdir + "tumor_only_output.{genome_version}.merge.tsv"
+    resources:
+        mem_mb = rule_res("merge_msi_result").get("mem_mb", 8000),
     run:
         output_info = pd.DataFrame(columns=["Total_number_of_sites", "Number_of_unstable_sites", "MSI_score"])
         output_info.index.name="case_name"

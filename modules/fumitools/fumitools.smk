@@ -29,7 +29,9 @@ rule fumitools_copy_umi_paired:
         fumi_tools = config.get("Procedure", {}).get("fumitools") or "fumi_tools",
         umi_length = config.get("Params", {}).get("fumitools", {}).get("umi_length") or None,
         tag_umi = config.get("Params", {}).get("fumitools", {}).get("tag_umi") or False,
-    threads: 4
+    threads: rule_res("fumitools_copy_umi_paired").get("threads", 4)
+    resources:
+        mem_mb = rule_res("fumitools_copy_umi_paired").get("mem_mb", 8000),
     conda:
         "fumitools.yaml"
     container:
@@ -89,7 +91,9 @@ rule fumitools_copy_umi_single:
         fumi_tools = config.get("Procedure", {}).get("fumitools") or "fumi_tools",
         umi_length = config.get("Params", {}).get("fumitools", {}).get("umi_length") or None,
         tag_umi = config.get("Params", {}).get("fumitools", {}).get("tag_umi") or False,
-    threads: 4
+    threads: rule_res("fumitools_copy_umi_single").get("threads", 4)
+    resources:
+        mem_mb = rule_res("fumitools_copy_umi_single").get("mem_mb", 8000),
     conda:
         "fumitools.yaml"
     container:
@@ -150,6 +154,8 @@ rule fumitools_dedup:
         memory = config.get("Params", {}).get("fumitools", {}).get("memory", "3G"),
         start_only = config.get("Params", {}).get("fumitools", {}).get("start_only", False),
     threads: config.get("Params", {}).get("fumitools", {}).get("threads", 4)
+    resources:
+        mem_mb = rule_res("fumitools_dedup").get("mem_mb", 16000),
     conda:
         "fumitools.yaml"
     container:
@@ -190,7 +196,11 @@ rule fumitools_dedup:
 rule fumitools_copy_umi_result:
     input:
         r1 = outdir + "/{sample_id}/{sample_id}_1.umi.fq.gz",
+    resources:
+        mem_mb = rule_res("fumitools_copy_umi_result").get("mem_mb", 8000),
 
 rule fumitools_dedup_result:
     input:
         bam = outdir + "/{sample_id}/{sample_id}.dedup.bam",
+    resources:
+        mem_mb = rule_res("fumitools_dedup_result").get("mem_mb", 8000),

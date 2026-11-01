@@ -30,6 +30,8 @@ rule cellranger_ref:
     log:
         logdir_ref + "/cellranger_ref/{genome}/cellranger_ref.log"
     threads: 16
+    resources:
+        mem_mb = rule_res("cellranger_ref").get("mem_mb", 64000),
     conda:
         "../cellranger.yaml"
     container:
@@ -104,6 +106,8 @@ rule cellranger_count:
     log:
         logdir + "/{sample_id}/{genome}/cellranger_count.log"
     threads: 8
+    resources:
+        mem_mb = rule_res("cellranger_count").get("mem_mb", 32000),
     conda:
         "../cellranger.yaml"
     container:
@@ -168,6 +172,8 @@ rule cellranger_to_h5ad:
     log:
         logdir + "/{sample_id}/{genome}/cellranger_to_h5ad.log"
     threads: 1
+    resources:
+        mem_mb = rule_res("cellranger_to_h5ad").get("mem_mb", 16000),
     conda:
         "../cellranger.yaml"
     container:

@@ -34,7 +34,9 @@ rule deepvariant_run:
         gvcf = outdir + "/{sample_id}/{sample_id}.g.vcf.gz"
     log:
         logdir + "/{sample_id}/deepvariant.log"
-    threads: 8
+    threads: rule_res("deepvariant_run").get("threads", 8)
+    resources:
+        mem_mb = rule_res("deepvariant_run").get("mem_mb", 32000),
     conda: "deepvariant.yaml"
     container:
         sif("deepvariant.yaml")
@@ -87,3 +89,5 @@ rule deepvariant_result:
     input:
         vcf = outdir + "/{sample_id}/{sample_id}.vcf.gz",
         tbi = outdir + "/{sample_id}/{sample_id}.vcf.gz.csi"
+    resources:
+        mem_mb = rule_res("deepvariant_result").get("mem_mb", 8000),

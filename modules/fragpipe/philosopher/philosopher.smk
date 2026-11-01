@@ -23,7 +23,9 @@ rule philosopher_database:
         db = outdir + "/database/fragpipe_db.fasta",
     log:
         logdir + "/philosopher_database/philosopher_database.log"
-    threads: 1
+    threads: rule_res("philosopher_database").get("threads", 1)
+    resources:
+        mem_mb = rule_res("philosopher_database").get("mem_mb", 8000),
     conda:
         "../fragpipe.yaml"
     container:
@@ -68,7 +70,9 @@ rule philosopher_filter:
         peptide = outdir + "/{sample_id}/peptide.tsv",
     log:
         logdir + "/{sample_id}/philosopher_filter.log"
-    threads: 1
+    threads: rule_res("philosopher_filter").get("threads", 1)
+    resources:
+        mem_mb = rule_res("philosopher_filter").get("mem_mb", 8000),
     conda:
         "../fragpipe.yaml"
     container:
@@ -128,3 +132,5 @@ rule philosopher_result:
     input:
         expand(outdir + "/{sample_id}/psm.tsv", sample_id=samples),
         outdir + "/database/fragpipe_db.fasta",
+    resources:
+        mem_mb = rule_res("philosopher_result").get("mem_mb", 8000),

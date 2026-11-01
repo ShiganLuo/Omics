@@ -15,7 +15,9 @@ rule pbmm2_align:
         bai = outdir + "/{genome}/{sample_id}/{sample_id}.sorted.bai"
     log:
         logdir + "/{sample_id}/{genome}/pbmm2_align.log"
-    threads: 16
+    threads: rule_res("pbmm2_align").get("threads", 16)
+    resources:
+        mem_mb = rule_res("pbmm2_align").get("mem_mb", 32000),
     conda: "../pbmm2.yaml"
     container:
         sif("../pbmm2.yaml")
@@ -72,3 +74,5 @@ rule pbmm2_result:
     input:
         bam = outdir + "/{genome}/{sample_id}/{sample_id}.sorted.bam",
         bai = outdir + "/{genome}/{sample_id}/{sample_id}.sorted.bai"
+    resources:
+        mem_mb = rule_res("pbmm2_result").get("mem_mb", 8000),

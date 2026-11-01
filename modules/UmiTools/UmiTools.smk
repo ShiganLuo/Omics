@@ -14,7 +14,9 @@ rule umi_tools_dedup_for_hisat2:
         umi_tools = config.get('Procedure',{}).get('umi_tools') or 'umi_tools',
         method = config.get('Params',{}).get('umi_tools',{}).get('method') or 'unique',
         samtools = config.get('Procedure',{}).get('samtools') or 'samtools'
-    threads: 2
+    threads: rule_res("umi_tools_dedup_for_hisat2").get("threads", 2)
+    resources:
+        mem_mb = rule_res("umi_tools_dedup_for_hisat2").get("mem_mb", 8000),
     conda:
         "UmiTools.yaml"
     container:
@@ -57,7 +59,9 @@ rule umi_tools_dedup_for_star:
         umi_tools = config.get('Procedure',{}).get('umi_tools') or 'umi_tools',
         method = config.get('Params',{}).get('umi_tools',{}).get('method') or 'unique',
         samtools = config.get('Procedure',{}).get('samtools') or 'samtools'
-    threads: 2
+    threads: rule_res("umi_tools_dedup_for_star").get("threads", 2)
+    resources:
+        mem_mb = rule_res("umi_tools_dedup_for_star").get("mem_mb", 8000),
     conda:
         "UmiTools.yaml"
     container:

@@ -24,13 +24,44 @@
       "threads": 2,
       "mem_mb": 8000
     },
-    "fiberseq_track": {
-      "threads": 4,
-      "mem_mb": 65000
+    "bamCoverage": {
+      "threads": 8,
+      "mem_mb": 16000
     },
-    "fiberseq_quant": {
+    "decoil_compare": {
+      "threads": 2,
+      "mem_mb": 8000
+    },
+    "decoil_igv": {
+      "threads": 1,
+      "mem_mb": 4000
+    },
+    "decoil_plot": {
+      "threads": 4,
+      "mem_mb": 8000
+    },
+    "decoil_reconstruct": {
+      "threads": 16,
+      "mem_mb": 32000
+    },
+    "decoil_result": {
+      "mem_mb": 8000
+    },
+    "decoil_structure": {
       "threads": 4,
       "mem_mb": 12000
+    },
+    "decoil_ucsc": {
+      "threads": 1,
+      "mem_mb": 4000
+    },
+    "deepvariant_run": {
+      "threads": 8,
+      "mem_mb": 32000
+    },
+    "fiberseq_annotate": {
+      "threads": 4,
+      "mem_mb": 8000
     },
     "fiberseq_censat": {
       "threads": 4,
@@ -40,7 +71,15 @@
       "threads": 4,
       "mem_mb": 8000
     },
+    "fiberseq_diff_run": {
+      "threads": 4,
+      "mem_mb": 8000
+    },
     "fiberseq_footprint": {
+      "threads": 4,
+      "mem_mb": 8000
+    },
+    "fiberseq_haplotype_diff": {
       "threads": 4,
       "mem_mb": 8000
     },
@@ -52,37 +91,110 @@
       "threads": 4,
       "mem_mb": 6000
     },
-    "fiberseq_annotate": {
-      "threads": 4,
-      "mem_mb": 8000
-    },
-    "bamCoverage": {
-      "threads": 8,
-      "mem_mb": 16000
-    },
-    "decoil_reconstruct": {
-      "threads": 16,
-      "mem_mb": 32000
-    },
-    "decoil_plot": {
-      "threads": 4,
-      "mem_mb": 8000
-    },
-    "decoil_structure": {
+    "fiberseq_quant": {
       "threads": 4,
       "mem_mb": 12000
     },
-    "decoil_compare": {
-      "threads": 2,
+    "fiberseq_quant_hap": {
+      "threads": 1,
       "mem_mb": 8000
     },
-    "decoil_igv": {
+    "fiberseq_quant_merge": {
       "threads": 1,
-      "mem_mb": 4000
+      "mem_mb": 8000
     },
-    "decoil_ucsc": {
+    "fiberseq_track": {
+      "threads": 4,
+      "mem_mb": 65000
+    },
+    "ft_add_nucleosomes": {
+      "threads": 16,
+      "mem_mb": 8000
+    },
+    "ft_call_peaks": {
+      "mem_mb": 8000,
+      "threads": 8
+    },
+    "ft_extract": {
+      "mem_mb": 8000,
+      "threads": 8
+    },
+    "ft_extract_fire": {
+      "mem_mb": 8000,
+      "threads": 8
+    },
+    "ft_extract_hap": {
+      "mem_mb": 8000,
+      "threads": 8
+    },
+    "ft_fire": {
+      "threads": 8,
+      "mem_mb": 8000
+    },
+    "ft_predict_m6a": {
+      "threads": 16,
+      "mem_mb": 32000
+    },
+    "ft_qc": {
+      "mem_mb": 8000,
+      "threads": 8
+    },
+    "ft_split_hap": {
+      "mem_mb": 8000,
+      "threads": 4
+    },
+    "genome_index": {
       "threads": 1,
-      "mem_mb": 4000
+      "mem_mb": 8000
+    },
+    "hiphase_phase": {
+      "threads": 8,
+      "mem_mb": 16000
+    },
+    "ldsc_annot": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "ldsc_h2_cts": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "ldsc_munge": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "pbmm2_align": {
+      "threads": 16,
+      "mem_mb": 32000
+    },
+    "pbsv_call": {
+      "threads": 8,
+      "mem_mb": 16000
+    },
+    "pbsv_discover": {
+      "threads": 4,
+      "mem_mb": 16000
+    },
+    "sv_diff_analysis": {
+      "mem_mb": 8000
+    },
+    "sv_exp_circos": {
+      "mem_mb": 8000
+    },
+    "sv_exp_enrichment": {
+      "mem_mb": 8000
+    },
+    "sv_exp_specific": {
+      "mem_mb": 8000
+    },
+    "sv_gene_model": {
+      "mem_mb": 8000
+    },
+    "sv_oncoprint": {
+      "mem_mb": 8000
+    },
+    "sv_result": {
+      "mem_mb": 8000
     }
   },
   "Procedure": {

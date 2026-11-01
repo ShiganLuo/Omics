@@ -11,7 +11,9 @@ rule admixture_population:
  container:
      sif("admixture_population.yaml")
  params: admixture=admixture,bed=prefix+".bed",seed=config.get("Params",{}).get("analysis",{}).get("admixture_seed",2026)
- threads: 4
+ threads: rule_res("admixture_population").get("threads", 4)
+    resources:
+        mem_mb = rule_res("admixture_population").get("mem_mb", 8000),
  run:
   os.makedirs(os.path.dirname(str(log)),exist_ok=True);os.makedirs(os.path.dirname(str(output.q)),exist_ok=True)
   script = os.path.join(RECEIPT_DIR, f"admixture_population_{wildcards.k}_{time.strftime('%Y%m%d_%H%M%S')}.sh")

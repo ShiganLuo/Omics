@@ -23,6 +23,8 @@ rule frip_score:
         frip = outdir + "/{sample_id}/{sample_id}.FRiP.txt"
     log:
         logdir + "/{sample_id}/frip_score.log"
+    resources:
+        mem_mb = rule_res("frip_score").get("mem_mb", 16000),
     params:
         bedtools = config.get("Procedure", {}).get("bedtools") or "bedtools",
         samtools = config.get("Procedure", {}).get("samtools") or "samtools"
@@ -94,3 +96,5 @@ rule frip_score_result:
     """
     input:
         frip = outdir + "/{sample_id}/{sample_id}.FRiP.txt"
+    resources:
+        mem_mb = rule_res("frip_score_result").get("mem_mb", 8000),

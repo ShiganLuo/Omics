@@ -64,7 +64,9 @@ rule bigwig_ratio:
     output:
         ratio_bigwig = outdir + "/{genome}/{sample_id}/{sample_id}_IP_over_Input.bigwig",
     log: logdir + "/{genome}/{sample_id}/bigwig_ratio.log"
-    threads: 4
+    threads: rule_res("bigwig_ratio").get("threads", 4)
+    resources:
+        mem_mb = rule_res("bigwig_ratio").get("mem_mb", 8000),
     conda: "../deeptools_heatmap.yaml"
     container: sif("../deeptools_heatmap.yaml")
     run:
@@ -182,6 +184,8 @@ def _get_regions_for_heatmap(wildcards):
     if regions_cfg == "tss" and tss_bed and os.path.isfile(tss_bed):
         return tss_bed
     return []
+    resources:
+        mem_mb = rule_res("bigwig_ratio_result").get("mem_mb", 8000),
 
 rule heatmap:
     """TSS / peaks / gene-list mode — computeMatrix + plotHeatmap in one step."""
@@ -192,7 +196,9 @@ rule heatmap:
     output:
         heatmap = outdir + "/{genome}/{sample_id}/{sample_id}_" + HEATMAP_SUFFIX + "_heatmap.png",
     log: logdir + "/{genome}/{sample_id}/heatmap.log"
-    threads: 4
+    threads: rule_res("heatmap").get("threads", 4)
+    resources:
+        mem_mb = rule_res("heatmap").get("mem_mb", 16000),
     conda: "../deeptools_heatmap.yaml"
     container: sif("../deeptools_heatmap.yaml")
     run:
@@ -227,7 +233,9 @@ rule heatmap_gene:
     output:
         heatmap = outdir + "/{genome}/{sample_id}/{sample_id}_{gene_name}_heatmap.png",
     log: logdir + "/{genome}/{sample_id}/heatmap_{gene_name}.log"
-    threads: 4
+    threads: rule_res("heatmap_gene").get("threads", 4)
+    resources:
+        mem_mb = rule_res("heatmap_gene").get("mem_mb", 16000),
     conda: "../deeptools_heatmap.yaml"
     container: sif("../deeptools_heatmap.yaml")
     run:
@@ -263,3 +271,5 @@ rule heatmap_gene:
 rule deeptools_heatmap_result:
     input:
         heatmap = outdir + "/{genome}/{sample_id}/{sample_id}_" + HEATMAP_SUFFIX + "_heatmap.png",
+    resources:
+        mem_mb = rule_res("deeptools_heatmap_result").get("mem_mb", 8000),

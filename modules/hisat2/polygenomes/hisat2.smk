@@ -162,3 +162,5 @@ rule hisat2_align:
 rule hisat2_result:
     input:
         bam = outdir + "/{genome}/{sample_id}/{sample_id}.bam"
+    resources:
+        mem_mb = rule_res("hisat2_result").get("mem_mb", 8000),

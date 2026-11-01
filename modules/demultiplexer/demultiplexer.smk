@@ -20,7 +20,9 @@ rule demultiplex_trim_dedup:
         r2 = outdir + "/{sample_id}/{sample_id}_2.fq.gz",
     log:
         logdir + "/{sample_id}/demultiplexer.log"
-    threads: 1
+    threads: rule_res("demultiplex_trim_dedup").get("threads", 1)
+    resources:
+        mem_mb = rule_res("demultiplex_trim_dedup").get("mem_mb", 8000),
     conda:
         "demultiplexer.yaml"
     container:

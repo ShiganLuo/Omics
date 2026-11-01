@@ -62,6 +62,8 @@ rule generate_report:
     log:
         logdir + "/RNAseq_report.log"
     threads: 1
+    resources:
+        mem_mb = rule_res("generate_report").get("mem_mb", 8000),
     conda:
         "RNAseq_report.yaml"
     container:
@@ -126,3 +128,5 @@ rule report_result:
     input:
         report = outdir + "/RNAseq_report.pptx",
         file_inventory = outdir + "/RNAseq_report_files.xlsx",
+    resources:
+        mem_mb = rule_res("report_result").get("mem_mb", 8000),

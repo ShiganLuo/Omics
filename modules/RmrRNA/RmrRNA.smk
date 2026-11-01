@@ -15,6 +15,8 @@ rule extract_rRNA:
     log:
         logdir + "/../group/RmrRNA/extract_rRNA.log"
     threads: 2
+    resources:
+        mem_mb = rule_res("extract_rRNA").get("mem_mb", 8000),
     params:
         extract_rRNA_script = os.path.join(ROOT_DIR, "modules/RmrRNA/bin/extract_rRNA.py")
     conda:

@@ -19,7 +19,9 @@ rule bcftools_population_filter:
         tbi=outdir + "/variants/filtered/population_snps.vcf.gz.tbi"
     log:
         logdir + "/variants/bcftools_population_filter.log"
-    threads: 4
+    threads: rule_res("bcftools_population_filter").get("threads", 4)
+    resources:
+        mem_mb = rule_res("bcftools_population_filter").get("mem_mb", 8000),
     conda:
         "../bcftools.yaml"
     container:

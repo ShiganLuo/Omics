@@ -749,14 +749,14 @@ class ScanpyPlotter:
 
         # Compute cluster centroids
         centroids: Dict[str, np.ndarray] = {}
-        for cid in sorted(annotations.keys(), key=lambda x: int(x)):
+        for cid in sorted(annotations.keys(), key=lambda x: (0, int(x)) if str(x).isdigit() else (1, str(x))):
             mask = adata.obs[cluster_key] == cid
             if mask.sum() > 0:
                 centroids[cid] = umap[mask.values].mean(axis=0)
 
         # Group clusters by cell type
         ct_to_clusters: Dict[str, List[str]] = {}
-        for cid in sorted(annotations.keys(), key=lambda x: int(x)):
+        for cid in sorted(annotations.keys(), key=lambda x: (0, int(x)) if str(x).isdigit() else (1, str(x))):
             ct = annotations[cid]["cell_type"]
             ct_to_clusters.setdefault(ct, []).append(cid)
 
@@ -1054,7 +1054,7 @@ class ScanpyPlotter:
             type_count[ann["cell_type"]] = type_count.get(ann["cell_type"], 0) + 1
 
         label_map: Dict[str, str] = {}
-        for cid in sorted(annotations.keys(), key=lambda x: int(x)):
+        for cid in sorted(annotations.keys(), key=lambda x: (0, int(x)) if str(x).isdigit() else (1, str(x))):
             ct = annotations[cid]["cell_type"]
             if type_count[ct] > 1:
                 label_map[cid] = f"{ct} (C{cid})"
@@ -1144,7 +1144,7 @@ class ScanpyPlotter:
         evid_dir = os.path.join(self.plot_dir, "evidence")
         os.makedirs(evid_dir, exist_ok=True)
         ct_to_clusters: Dict[str, List[str]] = {}
-        for cid in sorted(annotations.keys(), key=lambda x: int(x) if str(x).isdigit() else str(x)):
+        for cid in sorted(annotations.keys(), key=lambda x: (0, int(x)) if str(x).isdigit() else (1, str(x))):
             ct = annotations[cid].get("cell_type", "Unknown")
             ct_to_clusters.setdefault(ct, []).append(str(cid))
 

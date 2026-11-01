@@ -200,3 +200,5 @@ rule gatk_prepare_result:
         bam = outdir + "/{genome}/{sample_id}/{sample_id}.sorted_markdup.bam",
         bai = outdir + "/{genome}/{sample_id}/{sample_id}.sorted_markdup.bai",
         metrics = outdir + "/{genome}/{sample_id}/{sample_id}.Markdup-metrics.txt"
+    resources:
+        mem_mb = rule_res("gatk_prepare_result").get("mem_mb", 8000),

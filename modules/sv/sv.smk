@@ -53,6 +53,8 @@ rule sv_exp_specific:
         table_dir = directory(outdir + "/{comparison}/table"),
     log:
         logdir + "/{comparison}/sv_exp_specific.log"
+    resources:
+        mem_mb = rule_res("sv_exp_specific").get("mem_mb", 8000),
     params:
         script = os.path.join(ROOT_DIR, "modules/sv/bin/exp_specific.py"),
         vep_cache = config.get("Params", {}).get("exp_specific", {}).get("vep_cache", "~/.vep"),
@@ -116,6 +118,8 @@ rule sv_exp_enrichment:
         enrichment_dir = directory(outdir + "/{comparison}/enrichment"),
     log:
         logdir + "/{comparison}/sv_exp_enrichment.log"
+    resources:
+        mem_mb = rule_res("sv_exp_enrichment").get("mem_mb", 8000),
     params:
         script = os.path.join(ROOT_DIR, "modules/sv/bin/run_enrichment.py"),
         # exp_specific.species carries the assembly name (e.g.
@@ -173,6 +177,8 @@ rule sv_exp_circos:
         circos_dir = directory(outdir + "/{comparison}/circos"),
     log:
         logdir + "/{comparison}/sv_exp_circos.log"
+    resources:
+        mem_mb = rule_res("sv_exp_circos").get("mem_mb", 8000),
     params:
         script = os.path.join(ROOT_DIR, "modules/sv/bin/run_circos.py"),
         genome = config.get("Params", {}).get("circos", {}).get("genome", "mm39"),
@@ -225,6 +231,8 @@ rule sv_gene_model:
         gene_dir = directory(outdir + "/{comparison}/gene_model"),
     log:
         logdir + "/{comparison}/sv_gene_model.log"
+    resources:
+        mem_mb = rule_res("sv_gene_model").get("mem_mb", 8000),
     params:
         script = os.path.join(ROOT_DIR, "modules/sv/bin/utils/gene_model.py"),
         threads = config.get("Params", {}).get("gene_model", {}).get("threads", 1),
@@ -278,6 +286,8 @@ rule sv_diff_analysis:
         diff_dir = directory(outdir + "/sv_diff_analysis"),
     log:
         logdir + "/all/sv_diff_analysis.log"
+    resources:
+        mem_mb = rule_res("sv_diff_analysis").get("mem_mb", 8000),
     params:
         script = os.path.join(ROOT_DIR, "modules/sv/bin/pbsv_sv_diff_analysis.py"),
         large_sv_threshold = config.get("Params", {}).get("diff_analysis", {}).get("large_sv_threshold", 10000),
@@ -327,6 +337,8 @@ rule sv_oncoprint:
         oncoprint_dir = directory(outdir + "/sv_oncoprint"),
     log:
         logdir + "/all/sv_oncoprint.log"
+    resources:
+        mem_mb = rule_res("sv_oncoprint").get("mem_mb", 8000),
     params:
         script = os.path.join(ROOT_DIR, "modules/sv/bin/run_OncoPrint.py"),
         deseq2_files = config.get("Params", {}).get("oncoprint", {}).get("deseq2_files", {}),
@@ -385,3 +397,5 @@ rule sv_result:
         gene_model_dirs = expand(outdir + "/{comp}/gene_model", comp=comparison_names),
         diff_dir = outdir + "/sv_diff_analysis",
         oncoprint_dir = outdir + "/sv_oncoprint",
+    resources:
+        mem_mb = rule_res("sv_result").get("mem_mb", 8000),

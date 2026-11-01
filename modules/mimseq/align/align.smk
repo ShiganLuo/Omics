@@ -24,7 +24,9 @@ rule mimseq_align:
         mismatches = config.get("Params", {}).get("mimseq", {}).get("max_mismatches", 0.075),
         remap = config.get("Params", {}).get("mimseq", {}).get("remap", True),
         keep_temp = config.get("Params", {}).get("mimseq", {}).get("keep_temp", False),
-    threads: 10
+    threads: rule_res("mimseq_align").get("threads", 10)
+    resources:
+        mem_mb = rule_res("mimseq_align").get("mem_mb", 32000),
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -60,3 +62,5 @@ rule mimseq_align_result:
     """Result rule for align module."""
     input:
         align_done = outdir + "/align.done",
+    resources:
+        mem_mb = rule_res("mimseq_align_result").get("mem_mb", 8000),

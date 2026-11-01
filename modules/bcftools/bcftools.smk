@@ -12,6 +12,8 @@ rule bcftools_sort:
         vcf = outdir + "/sort/{sample_id}/{sample_id}.sorted.vcf.gz"
     log:
         logdir + "/{sample_id}/bcftools_sort.log"
+    resources:
+        mem_mb = rule_res("bcftools_sort").get("mem_mb", 8000),
     conda:
         "bcftools.yaml"
     container:
@@ -51,6 +53,8 @@ rule bcftools_index_csi:
         csi = outdir + "/{sample_id}/{sample_id}.vcf.gz.csi"
     log:
         logdir + "/{sample_id}/bcftools_index.log"
+    resources:
+        mem_mb = rule_res("bcftools_index_csi").get("mem_mb", 8000),
     conda:
         "bcftools.yaml"
     container:
@@ -82,3 +86,5 @@ rule bcftools_result:
     input:
         vcf = outdir + "/sort/{sample_id}/{sample_id}.sorted.vcf.gz",
         csi = outdir + "/{sample_id}/{sample_id}.vcf.gz.csi"
+    resources:
+        mem_mb = rule_res("bcftools_result").get("mem_mb", 8000),

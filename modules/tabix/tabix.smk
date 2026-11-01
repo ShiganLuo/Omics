@@ -14,6 +14,8 @@ rule tabix_bgzip:
         tbi = outdir + "/{sample_id}/{sample_id}.vcf.gz.tbi"
     log:
         logdir + "/{sample_id}/bgzip.log"
+    resources:
+        mem_mb = rule_res("tabix_bgzip").get("mem_mb", 8000),
     params:
         bgzip = config.get("Procedure", {}).get("bgzip") or "bgzip"
     conda:
@@ -44,3 +46,5 @@ rule tabix_result:
     input:
         vcf_gz = outdir + "/{sample_id}/{sample_id}.vcf.gz",
         tbi = outdir + "/{sample_id}/{sample_id}.vcf.gz.tbi"
+    resources:
+        mem_mb = rule_res("tabix_result").get("mem_mb", 8000),

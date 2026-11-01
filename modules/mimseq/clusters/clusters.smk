@@ -21,7 +21,9 @@ rule mimseq_clusters:
         name = config.get("Params", {}).get("mimseq", {}).get("name", "tRNAseq"),
         cluster_id = config.get("Params", {}).get("mimseq", {}).get("cluster_id", 0.97),
         cov_diff = config.get("Params", {}).get("mimseq", {}).get("cov_diff", 0.5),
-    threads: 4
+    threads: rule_res("mimseq_clusters").get("threads", 4)
+    resources:
+        mem_mb = rule_res("mimseq_clusters").get("mem_mb", 8000),
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -55,3 +57,5 @@ rule mimseq_clusters_result:
     """Result rule for clusters module."""
     input:
         clusters_done = outdir + "/clusters.done",
+    resources:
+        mem_mb = rule_res("mimseq_clusters_result").get("mem_mb", 8000),

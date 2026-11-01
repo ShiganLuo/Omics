@@ -98,7 +98,9 @@ rule quantification_lfq:
         **({"triqler": outdir + "/lfq_quantification.triqler.tsv"} if add_triqler_output else {})
     log:
         logdir + "/quantification/quantification_lfq.log"
-    threads: 8
+    threads: rule_res("quantification_lfq").get("threads", 8)
+    resources:
+        mem_mb = rule_res("quantification_lfq").get("mem_mb", 16000),
     conda:
         "../openms.yaml"
     container:
@@ -149,7 +151,9 @@ rule quantification_tmt_reporter:
         mapped = outdir + "/{sample_id}/{sample_id}.mapped.consensusXML",
     log:
         logdir + "/{sample_id}/quantification_tmt_reporter.log"
-    threads: 2
+    threads: rule_res("quantification_tmt_reporter").get("threads", 2)
+    resources:
+        mem_mb = rule_res("quantification_tmt_reporter").get("mem_mb", 16000),
     conda:
         "../openms.yaml"
     container:
@@ -224,7 +228,9 @@ rule quantification_tmt:
            if config.get("expdesign", "") else {}),
     log:
         logdir + "/quantification/quantification_tmt.log"
-    threads: 8
+    threads: rule_res("quantification_tmt").get("threads", 8)
+    resources:
+        mem_mb = rule_res("quantification_tmt").get("mem_mb", 16000),
     conda:
         "../openms.yaml"
     container:
@@ -345,7 +351,9 @@ rule quantification_dia:
         **({"triqler": outdir + "/dia_quantification.triqler.tsv"} if add_triqler_output else {})
     log:
         logdir + "/quantification/quantification_dia.log"
-    threads: 8
+    threads: rule_res("quantification_dia").get("threads", 8)
+    resources:
+        mem_mb = rule_res("quantification_dia").get("mem_mb", 32000),
     conda:
         "../openms.yaml"
     container:
@@ -402,3 +410,5 @@ _RESULT_MZTAB = {
 rule quantification_result:
     input:
         mztab = _RESULT_MZTAB.get(quantification_method, outdir + "/lfq_quantification.mzTab")
+    resources:
+        mem_mb = rule_res("quantification_result").get("mem_mb", 8000),

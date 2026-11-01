@@ -34,7 +34,9 @@ rule msfragger_run:
         tsv = outdir + "/{sample_id}/{sample_id}.tsv",
     log:
         logdir + "/{sample_id}/msfragger.log"
-    threads: 16
+    threads: rule_res("msfragger_run").get("threads", 16)
+    resources:
+        mem_mb = rule_res("msfragger_run").get("mem_mb", 32000),
     conda:
         "../fragpipe.yaml"
     container:
@@ -115,7 +117,9 @@ rule msfragger_idxml:
         idxml = outdir + "/{sample_id}/{sample_id}_msfragger.idXML",
     log:
         logdir + "/{sample_id}/msfragger_idxml.log"
-    threads: 1
+    threads: rule_res("msfragger_idxml").get("threads", 1)
+    resources:
+        mem_mb = rule_res("msfragger_idxml").get("mem_mb", 8000),
     conda:
         "../../openms/openms.yaml"
     container:
@@ -209,3 +213,5 @@ rule msfragger_result:
     input:
         expand(outdir + "/{sample_id}/{sample_id}.pepXML", sample_id=samples),
         expand(outdir + "/{sample_id}/{sample_id}_msfragger.idXML", sample_id=samples),
+    resources:
+        mem_mb = rule_res("msfragger_result").get("mem_mb", 8000),

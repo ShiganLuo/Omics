@@ -40,7 +40,9 @@ rule hiphase_phase:
         bam = outdir + "/{sample_id}/{sample_id}.phased.bam" if output_substring == "" else outdir + "/{sample_id}/{sample_id}." + output_substring + ".phased.bam"
     log:
         logdir + "/{sample_id}/hiphase.log"
-    threads: 8
+    threads: rule_res("hiphase_phase").get("threads", 8)
+    resources:
+        mem_mb = rule_res("hiphase_phase").get("mem_mb", 16000),
     params:
         hiphase = config.get("Procedure", {}).get("hiphase") or "hiphase",
     conda:
@@ -72,3 +74,5 @@ rule hiphase_result:
     input:
         vcf = outdir + "/{sample_id}/{sample_id}.phased.vcf.gz" if output_substring == "" else outdir + "/{sample_id}/{sample_id}." + output_substring + ".phased.vcf.gz",
         bam = outdir + "/{sample_id}/{sample_id}.phased.bam" if output_substring == "" else outdir + "/{sample_id}/{sample_id}." + output_substring + ".phased.bam"
+    resources:
+        mem_mb = rule_res("hiphase_result").get("mem_mb", 8000),

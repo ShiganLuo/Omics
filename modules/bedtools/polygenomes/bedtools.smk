@@ -16,7 +16,9 @@ rule iCLIP_bedtools:
         minus_bedgraph = outdir + "/{genome}/{sample_id}/{sample_id}.minus.bw"
     log:
         log = logdir + "/{genome}/{sample_id}/bedtools.log"
-    threads: 4
+    threads: rule_res("iCLIP_bedtools").get("threads", 4)
+    resources:
+        mem_mb = rule_res("iCLIP_bedtools").get("mem_mb", 8000),
     conda:
         "../bedtools.yaml"
     container:

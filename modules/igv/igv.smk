@@ -17,7 +17,9 @@ rule samtools_dedup:
         bai = outdir + "/{sample_id}/{sample_id}.dedup.bam.bai",
     log:
         logdir + "/{sample_id}/samtools_dedup.log"
-    threads: 12
+    threads: rule_res("samtools_dedup").get("threads", 12)
+    resources:
+        mem_mb = rule_res("samtools_dedup").get("mem_mb", 16000),
     conda:
         "igv.yaml"
     container:
@@ -77,7 +79,9 @@ rule wig:
         "igv.yaml"
     container:
         sif("igv.yaml")
-    threads: 12 
+    threads: rule_res("wig").get("threads", 12)
+    resources:
+        mem_mb = rule_res("wig").get("mem_mb", 8000),
     params:
         binSize= config.get('Params',{}).get('bamCoverage',{}).get('binSize') or 50,
         bamCoverage = config.get('Procedure',{}).get('bamCoverage') or 'bamCoverage',
@@ -122,3 +126,5 @@ rule wig:
 rule igv_result:
     input:
         bigwig = outdir + "/{sample_id}/{sample_id}.bigwig"
+    resources:
+        mem_mb = rule_res("igv_result").get("mem_mb", 8000),

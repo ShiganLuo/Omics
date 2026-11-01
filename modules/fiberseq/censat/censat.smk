@@ -82,3 +82,5 @@ rule fiberseq_censat_result:
     input:
         class_summary = expand(outdir + "/{sample_id}/{sample_id}.censat_class_summary.tsv",
                                sample_id=samples),
+    resources:
+        mem_mb = rule_res("fiberseq_censat_result").get("mem_mb", 8000),

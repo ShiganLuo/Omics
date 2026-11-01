@@ -50,9 +50,17 @@
       "threads": 2,
       "mem_mb": 32000
     },
+    "scanpy_pseudobulk": {
+      "mem_mb": 32000,
+      "threads": 4
+    },
     "scanpy_qc": {
       "threads": 4,
       "mem_mb": 16000
+    },
+    "scanpy_reannotate": {
+      "mem_mb": 16000,
+      "threads": 2
     },
     "star_align": {
       "threads": 12,

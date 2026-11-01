@@ -91,3 +91,5 @@ rule fiberseq_annotate_result:
                            sample_id=samples),
         summary = expand(outdir + "/{sample_id}/{sample_id}.peaks_summary.tsv",
                          sample_id=samples),
+    resources:
+        mem_mb = rule_res("fiberseq_annotate_result").get("mem_mb", 8000),

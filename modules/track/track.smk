@@ -20,6 +20,8 @@ rule ucsc_track_single:
         track = outdir + "/ucsc_track.txt"
     log:
         logdir + "/track/ucsc_track_single.log"
+    resources:
+        mem_mb = rule_res("ucsc_track_single").get("mem_mb", 8000),
     conda: "track.yaml"
     container:
         sif("track.yaml")
@@ -63,6 +65,8 @@ rule ucsc_track_iclip:
         track = outdir + "/ucsc_track_iclip.txt"
     log:
         logdir + "/track/ucsc_track_iclip.log"
+    resources:
+        mem_mb = rule_res("ucsc_track_iclip").get("mem_mb", 8000),
     conda: "track.yaml"
     container:
         sif("track.yaml")
@@ -106,6 +110,8 @@ rule igv_track_single:
         html = outdir + "/igv_track.html"
     log:
         logdir + "/track/igv_track_single.log"
+    resources:
+        mem_mb = rule_res("igv_track_single").get("mem_mb", 8000),
     conda: "track.yaml"
     container:
         sif("track.yaml")
@@ -165,6 +171,8 @@ rule igv_track_iclip:
         html = outdir + "/igv_track_iclip.html"
     log:
         logdir + "/track/igv_track_iclip.log"
+    resources:
+        mem_mb = rule_res("igv_track_iclip").get("mem_mb", 8000),
     conda: "track.yaml"
     container:
         sif("track.yaml")

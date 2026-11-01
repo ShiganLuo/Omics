@@ -255,3 +255,5 @@ rule function_result:
     input:
         go_kegg = outdir + "/{genome}/{contrast}/go_back_to_back.png",
         gsea = outdir + "/{genome}/{contrast}/GSEA/TEcount_Gene_GSEA.jpeg"
+    resources:
+        mem_mb = rule_res("function_result").get("mem_mb", 8000),

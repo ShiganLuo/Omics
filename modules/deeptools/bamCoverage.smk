@@ -86,3 +86,5 @@ rule bamCoverage_result:
     """Result aggregation rule."""
     input:
         bw = outdir + "/{sample_id}/{sample_id}" + bw_suffix
+    resources:
+        mem_mb = rule_res("bamCoverage_result").get("mem_mb", 8000),

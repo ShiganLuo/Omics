@@ -21,6 +21,8 @@ rule gatk_index:
     log:
         logdir + "/index/gatk_index.log"
     threads: 4
+    resources:
+        mem_mb = rule_res("gatk_index").get("mem_mb", 8000),
     conda: "gatk.yaml"
     container:
         sif("gatk.yaml")
@@ -86,6 +88,8 @@ rule addReadsGroup:
     container:
         sif("gatk.yaml")
     threads: 8
+    resources:
+        mem_mb = rule_res("addReadsGroup").get("mem_mb", 16000),
     params:
         id = "{sample_id}",
         javaOptions =  config.get("Params", {}).get("gatk", {}).get("javaOptions") or "-Xmx30g",
@@ -149,6 +153,8 @@ rule MarkDuplicates:
     container:
         sif("gatk.yaml")
     threads: 8
+    resources:
+        mem_mb = rule_res("MarkDuplicates").get("mem_mb", 32000),
     params:
         javaOptions =  config.get("Params", {}).get("gatk", {}).get("javaOptions") or "-Xmx30g",
         gatk = config.get("Procedure", {}).get("gatk") or "gatk",
@@ -189,4 +195,6 @@ rule gatk_prepare_result:
         bam = outdir + "/{sample_id}/{sample_id}.sorted_markdup.bam",
         bai = outdir + "/{sample_id}/{sample_id}.sorted_markdup.bai",
         metrics = outdir + "/{sample_id}/{sample_id}.Markdup-metrics.txt"
+    resources:
+        mem_mb = rule_res("gatk_prepare_result").get("mem_mb", 8000),
 

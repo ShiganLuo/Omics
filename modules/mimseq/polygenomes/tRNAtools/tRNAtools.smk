@@ -51,7 +51,9 @@ rule mimseq_tRNAtools:
         plastid_trnas = lambda wildcards: config["genome"][wildcards.genome].get("plastid_trnas", ""),
         modifications = os.path.join(ROOT_DIR, "modules", "mimseq", "mimseq", "modifications"),
         data_dir = data_dir,
-    threads: 4
+    threads: rule_res("mimseq_tRNAtools").get("threads", 4)
+    resources:
+        mem_mb = rule_res("mimseq_tRNAtools").get("mem_mb", 8000),
     conda:
         "../../mimseq.yaml"
     container:
@@ -110,3 +112,5 @@ rule mimseq_tRNAtools_result:
     """Result rule for tRNAtools module."""
     input:
         state_dir = outdir + "/{genome}/state",
+    resources:
+        mem_mb = rule_res("mimseq_tRNAtools_result").get("mem_mb", 8000),

@@ -148,3 +148,5 @@ rule report_result:
     input:
         report = outdir + "/{genome}/RNAseq_report.pptx",
         file_inventory = outdir + "/{genome}/RNAseq_report_files.xlsx",
+    resources:
+        mem_mb = rule_res("report_result").get("mem_mb", 8000),

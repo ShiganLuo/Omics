@@ -30,7 +30,9 @@ rule homer_annotatepeaks:
         annotation = outdir + "/{sample_id}/{sample_id}_peaks.annotatePeaks.txt"
     log:
         logdir + "/{sample_id}/homer_annotatepeaks.log"
-    threads: 1
+    threads: rule_res("homer_annotatepeaks").get("threads", 1)
+    resources:
+        mem_mb = rule_res("homer_annotatepeaks").get("mem_mb", 16000),
     conda:
         "homer.yaml"
     container:
@@ -72,3 +74,5 @@ rule homer_annotatepeaks_result:
     """
     input:
         annotation = outdir + "/{sample_id}/{sample_id}_peaks.annotatePeaks.txt"
+    resources:
+        mem_mb = rule_res("homer_annotatepeaks_result").get("mem_mb", 8000),

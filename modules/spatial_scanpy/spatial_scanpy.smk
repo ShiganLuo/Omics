@@ -43,7 +43,9 @@ rule spatial_scanpy_qc:
         metrics=outdir + "/spatial/qc/qc_metrics.tsv"
     log:
         logdir + "/spatial/spatial_scanpy_qc.log"
-    threads: 4
+    threads: rule_res("spatial_scanpy_qc").get("threads", 4)
+    resources:
+        mem_mb = rule_res("spatial_scanpy_qc").get("mem_mb", 8000),
     conda:
         "spatial_scanpy.yaml"
     container:
@@ -67,7 +69,9 @@ rule spatial_scanpy_cluster:
     input: h5ad=qc_h5ad
     output: h5ad=cluster_h5ad, genes=outdir + "/spatial/cluster/spatial_markers.tsv"
     log: logdir + "/spatial/spatial_scanpy_cluster.log"
-    threads: 4
+    threads: rule_res("spatial_scanpy_cluster").get("threads", 4)
+    resources:
+        mem_mb = rule_res("spatial_scanpy_cluster").get("mem_mb", 8000),
     conda: "spatial_scanpy.yaml"
     container:
         sif("spatial_scanpy.yaml")

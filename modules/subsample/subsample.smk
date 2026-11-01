@@ -31,7 +31,9 @@ rule subsample_fastq:
         r2 = outdir + "/{sample_id}/{sample_id}_2.fq.gz",
     log:
         logdir + "/{sample_id}/subsample.log"
-    threads: 1
+    threads: rule_res("subsample_fastq").get("threads", 1)
+    resources:
+        mem_mb = rule_res("subsample_fastq").get("mem_mb", 8000),
     conda:
         "subsample.yaml"
     container:

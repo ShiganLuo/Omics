@@ -17,6 +17,8 @@ rule somatic_spectrum:
         spectrum_png = outdir + "/{genome}/somatic_spectrum_stacked_bar.png"
     log:
         logdir + "/{genome}/all/spectrum/somatic_spectrum.log"
+    resources:
+        mem_mb = rule_res("somatic_spectrum").get("mem_mb", 8000),
     params:
         spectrum_script = os.path.join(ROOT_DIR, "modules/spectrum/bin/spectrum.py"),
         outprefix = lambda wildcards: outdir + f"/{wildcards.genome}/somatic_spectrum"

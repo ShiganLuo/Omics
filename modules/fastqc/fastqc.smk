@@ -51,7 +51,9 @@ rule fastqc:
         flag = outdir + "/{sample_id}/{sample_id}.fastqc." + log_suffix
     params:
         fastqc = config.get("Procedure", {}).get("fastqc") or "fastqc"
-    threads: 2
+    threads: rule_res("fastqc").get("threads", 2)
+    resources:
+        mem_mb = rule_res("fastqc").get("mem_mb", 8000),
     log:
         log = logdir + "/{sample_id}/fastqc." + log_suffix
     conda:

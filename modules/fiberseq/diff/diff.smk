@@ -32,7 +32,9 @@ rule fiberseq_diff_run:
         gene_table = outdir + "/{contrast}/TEcount/{contrast}.TEcount_Gene.name.tsv",
     log:
         logdir + "/group/fiberseq_diff_run_{contrast}.log"
-    threads: 4
+    threads: rule_res("fiberseq_diff_run").get("threads", 4)
+    resources:
+        mem_mb = rule_res("fiberseq_diff_run").get("mem_mb", 8000),
     conda:
         "../fiberseq.yaml"
     container:
@@ -75,3 +77,5 @@ rule fiberseq_diff_run:
 rule fiberseq_diff_result:
     input:
         matrix = QUANT_DIR + "/matrix/percent_accessible_matrix.tsv",
+    resources:
+        mem_mb = rule_res("fiberseq_diff_result").get("mem_mb", 8000),

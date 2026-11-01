@@ -21,7 +21,9 @@ rule mimseq_mods:
         name = config.get("Params", {}).get("mimseq", {}).get("name", "tRNAseq"),
         min_cov = config.get("Params", {}).get("mimseq", {}).get("min_cov", 0.0005),
         misinc_thresh = config.get("Params", {}).get("mimseq", {}).get("misinc_thresh", 0.1),
-    threads: 4
+    threads: rule_res("mimseq_mods").get("threads", 4)
+    resources:
+        mem_mb = rule_res("mimseq_mods").get("mem_mb", 32000),
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -59,3 +61,5 @@ rule mimseq_mods_result:
     """Result rule for mods module."""
     input:
         mods_done = outdir + "/mods.done",
+    resources:
+        mem_mb = rule_res("mimseq_mods_result").get("mem_mb", 8000),

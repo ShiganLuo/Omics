@@ -61,7 +61,9 @@ rule ft_predict_m6a:
         bam = outdir + "/{sample_id}/{sample_id}.fiberseq.bam"
     log:
         logdir + "/{sample_id}/ft_predict_m6a.log"
-    threads: 16
+    threads: rule_res("ft_predict_m6a").get("threads", 16)
+    resources:
+        mem_mb = rule_res("ft_predict_m6a").get("mem_mb", 32000),
     conda:
         "fibertools.yaml"
     container:
@@ -127,7 +129,9 @@ rule ft_add_nucleosomes:
         bam = outdir + "/{sample_id}/{sample_id}.fiberseq.nuc.bam"
     log:
         logdir + "/{sample_id}/ft_add_nucleosomes.log"
-    threads: 16
+    threads: rule_res("ft_add_nucleosomes").get("threads", 16)
+    resources:
+        mem_mb = rule_res("ft_add_nucleosomes").get("mem_mb", 8000),
     conda:
         "fibertools.yaml"
     container:
@@ -173,7 +177,9 @@ rule ft_fire:
         bam = outdir + "/{sample_id}/{sample_id}.fiberseq.fire.bam"
     log:
         logdir + "/{sample_id}/ft_fire.log"
-    threads: 8
+    threads: rule_res("ft_fire").get("threads", 8)
+    resources:
+        mem_mb = rule_res("ft_fire").get("mem_mb", 8000),
     conda:
         "fibertools.yaml"
     container:

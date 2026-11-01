@@ -45,7 +45,9 @@ rule star_3pg_gene_specific:
         tail=outdir + "/{sample_id}/{sample_id}_tail.csv",
     log:
         logdir + "/{sample_id}/star3p_gene_specific.log"
-    threads: 2
+    threads: rule_res("star_3pg_gene_specific").get("threads", 2)
+    resources:
+        mem_mb = rule_res("star_3pg_gene_specific").get("mem_mb", 8000),
     conda:
         "../star.yaml"
     container:

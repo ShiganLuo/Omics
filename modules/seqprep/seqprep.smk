@@ -22,6 +22,8 @@ rule seqprep_merge:
         report = outdir + "/{sample_id}/{sample_id}_merge.report"
     log:
         logdir + "/{sample_id}/seqprep_merge.log"
+    resources:
+        mem_mb = rule_res("seqprep_merge").get("mem_mb", 8000),
     params:
         seqprep = config.get("Procedure", {}).get("SeqPrep") or "SeqPrep",
         seqkit = config.get("Procedure", {}).get("seqkit") or "seqkit"
@@ -59,3 +61,5 @@ rule seqprep_result:
     input:
         merge = outdir + "/{sample_id}/{sample_id}_merge.fastq.gz",
         report = outdir + "/{sample_id}/{sample_id}_merge.report"
+    resources:
+        mem_mb = rule_res("seqprep_result").get("mem_mb", 8000),

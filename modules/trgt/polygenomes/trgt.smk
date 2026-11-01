@@ -31,7 +31,9 @@ rule trgt_genotype:
         bam = outdir + "/{genome}/genotype/{sample_id}/{sample_id}.trgt.spanning.sorted.bam"
     log:
         logdir + "/{genome}/{sample_id}/trgt_genotype.log"
-    threads: 4
+    threads: rule_res("trgt_genotype").get("threads", 4)
+    resources:
+        mem_mb = rule_res("trgt_genotype").get("mem_mb", 32000),
     params:
         trgt = config.get("Procedure", {}).get("trgt") or "trgt",
         karyotype = karyotype,
@@ -71,6 +73,8 @@ rule trgt_plot:
         png = outdir + "/{genome}/plot/{sample_id}/{sample_id}.trgt.repeat.png"
     log:
         logdir + "/{genome}/{sample_id}/trgt_plot.log"
+    resources:
+        mem_mb = rule_res("trgt_plot").get("mem_mb", 16000),
     params:
         trgt = config.get("Procedure", {}).get("trgt") or "trgt",
         repeat_id = config.get("Params", {}).get("trgt", {}).get("repeat_id") or "HTT"
@@ -103,3 +107,5 @@ rule trgt_result:
     input:
         vcf = outdir + "/{genome}/genotype/{sample_id}/{sample_id}.trgt.vcf.gz",
         png = outdir + "/{genome}/plot/{sample_id}/{sample_id}.trgt.repeat.png"
+    resources:
+        mem_mb = rule_res("trgt_result").get("mem_mb", 8000),

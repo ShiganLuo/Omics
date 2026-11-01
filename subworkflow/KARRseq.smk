@@ -87,7 +87,9 @@ rule KARRseq_star_align:
         chimeric = outdir + "/bam/{sample_id}/{sample_id}_Chimeric.out.sam"
     log:
         logdir + "/{sample_id}/STAR.log"
-    threads: 15
+    threads: rule_res("KARRseq_star_align").get("threads", 15)
+    resources:
+        mem_mb = rule_res("KARRseq_star_align").get("mem_mb", 8000),
     params:
         STAR = config.get("Procedure", {}).get("STAR") or "STAR",
         index = star_index_dir,

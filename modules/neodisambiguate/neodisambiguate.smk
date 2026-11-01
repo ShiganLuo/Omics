@@ -22,7 +22,9 @@ rule neodisambiguate:
     params:
         prefix = lambda wildcards: f"{outdir}/{wildcards.sample_id}.neodisambiguated",
         neodisambiguate = config.get("Procedure", {}).get("neodisambiguate") or "neodisambiguate"
-    threads: 8
+    threads: rule_res("neodisambiguate").get("threads", 8)
+    resources:
+        mem_mb = rule_res("neodisambiguate").get("mem_mb", 16000),
     log:
         logdir + "/{sample_id}/neodisambiguate.log"
     conda:

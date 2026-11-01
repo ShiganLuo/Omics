@@ -781,6 +781,11 @@
             "type": "dict",
             "required": false,
             "description": "Per-tissue discriminating marker supplement JSON paths {tissue: path} ({cell_type: {positive, negative}}); appended to marker panels, display-level only"
+          },
+          "exclude_genes": {
+            "type": "str",
+            "required": false,
+            "description": "Path to a gene-symbol list excluded from the analysis feature space (HVG/clustering/DEG; kept in raw), e.g. cell-cycle genes"
           }
         },
         "pseudobulk": {
@@ -1022,6 +1027,11 @@
             "type": "dict",
             "required": false,
             "description": "Per-tissue discriminating marker supplement JSON paths {tissue: path} ({cell_type: {positive, negative}}); appended to marker panels, display-level only"
+          },
+          "exclude_genes": {
+            "type": "str",
+            "required": false,
+            "description": "Path to a gene-symbol list excluded from the analysis feature space (HVG/clustering/DEG; kept in raw), e.g. cell-cycle genes"
           }
         },
         "pseudobulk": {

@@ -807,9 +807,35 @@ class ScanpyPlotter:
                 idx = 0
             return _to_hex(_tab_palette[idx % len(_tab_palette)])
 
-        def _annotate_centroids(ax: plt.Axes, highlight_cids: List[str]) -> None:
+        def _annotate_centroids(ax: plt.Axes, highlight_cids: List[str],
+                                label_ids: Optional[List[str]] = None,
+                                offset_targets: bool = False) -> None:
+            """Centroid labels.
+
+            ``label_ids`` limits annotation to those cluster ids (gene panels
+            label only their target — stacked id labels of small neighbour
+            groups otherwise bury the data, e.g. a 24-cell target under its
+            own neighbours' labels). ``offset_targets`` floats target labels
+            above the centroid with a thin leader arrow so a small target
+            cluster is not covered by its own name.
+            """
             for _cid, (cx, cy) in centroids.items():
+                if label_ids is not None and _cid not in label_ids:
+                    continue
                 is_target = _cid in highlight_cids
+                if is_target and offset_targets:
+                    ax.annotate(
+                        _cid, (cx, cy),
+                        textcoords="offset points", xytext=(0, 14),
+                        fontsize=9, fontweight="bold", color="red",
+                        ha="center", va="center",
+                        bbox=dict(boxstyle="round,pad=0.15",
+                                  facecolor="white", alpha=0.8,
+                                  edgecolor="none"),
+                        arrowprops=dict(arrowstyle="-", linewidth=0.6,
+                                        color="red", shrinkA=0, shrinkB=2),
+                    )
+                    continue
                 ax.annotate(
                     _cid, (cx, cy),
                     fontsize=9 if is_target else 7,
@@ -925,7 +951,19 @@ class ScanpyPlotter:
                     c=expr[sort_idx], cmap="Reds", s=3,
                     alpha=0.7, edgecolors="none",
                 )
-                _annotate_centroids(ax, cluster_ids)
+                # Redraw target cells larger on the same colour scale: at
+                # n_obs ~ 1e4 a 20-cell target is a 1-px smear otherwise.
+                t_mask = adata.obs[cluster_key].astype(str) \
+                    .isin(cluster_ids).values
+                t_idx = sort_idx[t_mask[sort_idx]]
+                if t_idx.size:
+                    ax.scatter(umap[t_idx, 0], umap[t_idx, 1],
+                               c=expr[t_idx], cmap="Reds", s=12, alpha=0.95,
+                               vmin=float(expr.min()), vmax=float(expr.max()),
+                               edgecolors="none")
+                _annotate_centroids(ax, cluster_ids,
+                                    label_ids=cluster_ids,
+                                    offset_targets=True)
                 title = gene
                 if gene_role.get(gene) == "negative":
                     title = f"{gene} (exp. absent)"

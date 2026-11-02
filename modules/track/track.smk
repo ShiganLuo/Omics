@@ -141,9 +141,7 @@ rule igv_track_single:
 
             rule_logger.info(f"Writing IGV config JSON to {config_json_path}")
             with open(config_json_path, "w") as f:
-                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 json.dump(params.igv_config, f, indent=2)
-                f.write(f'echo "script completed successfully"\n')
 
             cmd = [
                 "python", params.track_script,
@@ -202,9 +200,7 @@ rule igv_track_iclip:
 
             rule_logger.info(f"Writing IGV config JSON to {config_json_path}")
             with open(config_json_path, "w") as f:
-                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 json.dump(params.igv_config, f, indent=2)
-                f.write(f'echo "script completed successfully"\n')
 
             cmd = [
                 "python", params.track_script,

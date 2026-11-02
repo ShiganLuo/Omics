@@ -583,7 +583,7 @@ def runMutation(
     sample_somatic_vcf_dict = {}
     sample_group_dict = {}
     for designPair in designPairs:
-        somatic_file = f"{outdir}/mutation/gatk/somatic/mutect2-vcf/{designPair.ctr_sample_id}_vs_{designPair.exp_sample_id}/{designPair.ctr_sample_id}_vs_{designPair.exp_sample_id}.vcf.gz"
+        somatic_file = f"{outdir}/variation/gatk/somatic/mutect2-vcf/{designPair.ctr_sample_id}_vs_{designPair.exp_sample_id}/{designPair.ctr_sample_id}_vs_{designPair.exp_sample_id}.vcf.gz"
         sample_somatic_vcf_dict[designPair.exp_sample_id] = somatic_file
         sample_group_dict[designPair.exp_sample_id] = designPair.exp_group
         outfiles.append(somatic_file)
@@ -597,16 +597,17 @@ def runMutation(
             if sample_id in mutect2_samples:
                 logger.info(f"Sample {sample_id} is involved in mutect2 analysis, skipping germline workflow for this sample.")
                 continue
-            outfiles.append(f"{outdir}/mutation/gatk/germline/{sample_id}/{sample_id}.filtered.vcf.gz")
+            outfiles.append(f"{outdir}/variation/germline_snv_indel/{sample_id}/{sample_id}.filtered.vcf.gz")
         elif sample_info.layout == "SE":
             single_samples.append(sample_id)
             if sample_id in mutect2_samples:
                 logger.info(f"Sample {sample_id} is involved in mutect2 analysis, skipping germline workflow for this sample.")
                 continue
-            outfiles.append(f"{outdir}/mutation/gatk/germline/{sample_id}/{sample_id}.filtered.vcf.gz")
+            outfiles.append(f"{outdir}/variation/germline_snv_indel/{sample_id}/{sample_id}.filtered.vcf.gz")
         else:
             logger.error(f"Unknown layout type for sample {sample_id}: {sample_info.layout}")
-    outfiles.append(f"{outdir}/mutation/spectrum/somatic_spectrum_stacked_bar.png")
+    if designPairs:
+        outfiles.append(f"{outdir}/variation/spectrum/somatic_spectrum_stacked_bar.png")
     
     all_samples = paired_samples + single_samples
     
@@ -620,14 +621,17 @@ def runMutation(
     skip_sv = datajson.get("Params", {}).get("skip_sv", False)
     if not skip_sv:
         for sample_id in all_samples:
-            outfiles.append(f"{outdir}/mutation/sv/manta/{sample_id}/results/variants/candidateSV.vcf.gz")
+            outfiles.append(f"{outdir}/variation/germline_sv/{sample_id}/results/variants/candidateSV.vcf.gz")
     
     # CNV detection with CNVkit outputs (unless skipped)
     skip_cnv = datajson.get("Params", {}).get("skip_cnv", False)
     if not skip_cnv:
         for sample_id in all_samples:
-            outfiles.append(f"{outdir}/mutation/cnv/cnvkit/cnv/{sample_id}.cnr")
-            outfiles.append(f"{outdir}/mutation/cnv/cnvkit/cnv/{sample_id}.cns")
+            outfiles.append(f"{outdir}/variation/cnv/cnvkit/cnv/{sample_id}.cnr")
+            outfiles.append(f"{outdir}/variation/cnv/cnvkit/cnv/{sample_id}.cns")
+        control_samples = datajson.get("control_samples", []) or []
+        if control_samples:
+            outfiles.append(f"{outdir}/variation/cnv/cnvkit/reference/reference.cnn")
     
     datajson["Params"]["somatic_spectrum"]["sample_somatic_vcf_dict"] = sample_somatic_vcf_dict
     datajson["Params"]["somatic_spectrum"]["sample_group_dict"] = sample_group_dict

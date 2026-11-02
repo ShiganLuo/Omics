@@ -1,5 +1,7 @@
 sample_id	data_id	design	fastq_1	fastq_2
-TestIP1	TestIP1	exp_Test	fastq/TestIP1/TestIP1_1.fq.gz	fastq/TestIP1/TestIP1_2.fq.gz
-TestInput1	TestInput1	ctr_Test	fastq/TestInput1/TestInput1_1.fq.gz	fastq/TestInput1/TestInput1_2.fq.gz
-TestIP2	TestIP2	exp_Test2	fastq/TestIP2/TestIP2_1.fq.gz	fastq/TestIP2/TestIP2_2.fq.gz
-TestInput2	TestInput2	ctr_Test2	fastq/TestInput2/TestInput2_1.fq.gz	fastq/TestInput2/TestInput2_2.fq.gz
+E14-1	E14-1		/data/16T/Data/RNAseq_Exome_E14-KSR-TLSC_20250212/Exome/Rawdata/E14-1/E14-1_R1.fq.gz	/data/16T/Data/RNAseq_Exome_E14-KSR-TLSC_20250212/Exome/Rawdata/E14-1/E14-1_R2.fq.gz
+E14-2	E14-2		/data/16T/Data/RNAseq_Exome_E14-KSR-TLSC_20250212/Exome/Rawdata/E14-2/E14-2_R1.fq.gz	/data/16T/Data/RNAseq_Exome_E14-KSR-TLSC_20250212/Exome/Rawdata/E14-2/E14-2_R2.fq.gz
+KSR-1	KSR-1		/data/16T/Data/RNAseq_Exome_E14-KSR-TLSC_20250212/Exome/Rawdata/KSR-1/KSR-1_R1.fq.gz	/data/16T/Data/RNAseq_Exome_E14-KSR-TLSC_20250212/Exome/Rawdata/KSR-1/KSR-1_R2.fq.gz
+KSR-2	KSR-2		/data/16T/Data/RNAseq_Exome_E14-KSR-TLSC_20250212/Exome/Rawdata/KSR-2/KSR-2_R1.fq.gz	/data/16T/Data/RNAseq_Exome_E14-KSR-TLSC_20250212/Exome/Rawdata/KSR-2/KSR-2_R2.fq.gz
+TLSCS-1	TLSCS-1		/data/16T/Data/RNAseq_Exome_E14-KSR-TLSC_20250212/Exome/Rawdata/TLSCS-1/TLSCS-1_R1.fq.gz	/data/16T/Data/RNAseq_Exome_E14-KSR-TLSC_20250212/Exome/Rawdata/TLSCS-1/TLSCS-1_R2.fq.gz
+TLSCS-2	TLSCS-2		/data/16T/Data/RNAseq_Exome_E14-KSR-TLSC_20250212/Exome/Rawdata/TLSCS-2/TLSCS-2_R1.fq.gz	/data/16T/Data/RNAseq_Exome_E14-KSR-TLSC_20250212/Exome/Rawdata/TLSCS-2/TLSCS-2_R2.fq.gz

@@ -34,7 +34,7 @@ rule fiberseq_footprint_run:
     conda:
         "../fiberseq.yaml"
     container:
-        sif("../fiberseq.yaml")
+        sif("../fiberseq.yaml", "fiberseq_footprint_run")
     params:
         script = ROOT_DIR + "/modules/fiberseq/bin/footprint_profile.py",
         flank = p.get("flank", 1000),

@@ -18,7 +18,7 @@ rule bam_flagstat:
     conda:
         "samtools.yaml"
     container:
-        sif("samtools.yaml")
+        sif("samtools.yaml", "bam_flagstat")
     params:
         samtools = config.get("Procedure", {}).get("samtools") or "samtools"
     run:

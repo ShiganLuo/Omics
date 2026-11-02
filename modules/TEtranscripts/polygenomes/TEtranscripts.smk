@@ -40,7 +40,7 @@ rule TEcount:
     conda:
         "../TEtranscripts.yaml"
     container:
-        sif("../TEtranscripts.yaml")
+        sif("../TEtranscripts.yaml", "TEcount")
     run:
         log_path = str(log)
         open(log_path, 'w').close()
@@ -101,7 +101,7 @@ rule combine_TEcount:
     conda:
         "../TEtranscripts.yaml"
     container:
-        sif("../TEtranscripts.yaml")
+        sif("../TEtranscripts.yaml", "combine_TEcount")
     params:
         combineTE = ROOT_DIR + "/modules/TEtranscripts/bin/combineTE.py",
         geneId2Name = ROOT_DIR +"/modules/TEtranscripts/bin/geneId2Name.py",
@@ -174,7 +174,7 @@ rule TElocal:
     conda:
         "../TEtranscripts.yaml"
     container:
-        sif("../TEtranscripts.yaml")
+        sif("../TEtranscripts.yaml", "TElocal")
     run:
         log_path = str(log)
         open(log_path, 'w').close()
@@ -235,7 +235,7 @@ rule combine_TElocal:
     conda:
         "../TEtranscripts.yaml"
     container:
-        sif("../TEtranscripts.yaml")
+        sif("../TEtranscripts.yaml", "combine_TElocal")
     params:
         combineTE = ROOT_DIR + "/modules/TEtranscripts/bin/combineTE.py",
         indir = outdir + "/{genome}",

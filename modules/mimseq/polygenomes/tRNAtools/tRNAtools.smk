@@ -57,7 +57,7 @@ rule mimseq_tRNAtools:
     conda:
         "../../mimseq.yaml"
     container:
-        sif("../../mimseq.yaml")
+        sif("../../mimseq.yaml", "mimseq_tRNAtools")
     run:
         log_path = str(log)
         open(log_path, "w").close()

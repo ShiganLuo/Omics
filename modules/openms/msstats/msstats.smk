@@ -39,7 +39,7 @@ rule msstats:
     conda:
         "../openms.yaml"
     container:
-        sif("../openms.yaml")
+        sif("../openms.yaml", "msstats")
     params:
         msstats_converter = msstats_converter,
         expdesign = expdesign,

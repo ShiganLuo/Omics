@@ -50,7 +50,7 @@ rule somaticMutect2:
     conda:
         "../../gatk.yaml"
     container:
-        sif("../../gatk.yaml")
+        sif("../../gatk.yaml", "somaticMutect2")
     params:
         javaOptions = config.get("Params", {}).get("gatk", {}).get("javaOptions") or "-Xmx30g",
         gatk = config.get("Procedure", {}).get("gatk") or "gatk",

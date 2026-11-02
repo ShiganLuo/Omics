@@ -35,7 +35,7 @@ rule fiberseq_quant_run:
     conda:
         "../fiberseq.yaml"
     container:
-        sif("../fiberseq.yaml")
+        sif("../fiberseq.yaml", "fiberseq_quant_run")
     params:
         script = ROOT_DIR + "/modules/fiberseq/bin/quant_matrix.py",
     run:
@@ -91,7 +91,7 @@ rule fiberseq_quant_hap:
     conda:
         "../fiberseq.yaml"
     container:
-        sif("../fiberseq.yaml")
+        sif("../fiberseq.yaml", "fiberseq_quant_hap")
     params:
         script = ROOT_DIR + "/modules/fiberseq/bin/quant_matrix.py",
     run:
@@ -147,7 +147,7 @@ rule fiberseq_quant_merge:
     conda:
         "../fiberseq.yaml"
     container:
-        sif("../fiberseq.yaml")
+        sif("../fiberseq.yaml", "fiberseq_quant_merge")
     params:
         script = ROOT_DIR + "/modules/fiberseq/bin/quant_matrix.py",
     run:

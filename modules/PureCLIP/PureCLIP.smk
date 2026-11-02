@@ -22,7 +22,7 @@ rule pureclip:
     conda:
         "PureCLIP.yaml"
     container:
-        sif("PureCLIP.yaml")
+        sif("PureCLIP.yaml", "pureclip")
     log:
         log = logdir + "/{sample_id}/pureclip_run.txt"
     run:

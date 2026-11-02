@@ -51,7 +51,7 @@ rule trimming_Paired:
     conda:
         "cutadapt.yaml"
     container:
-        sif("cutadapt.yaml")
+        sif("cutadapt.yaml", "trimming_Paired")
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -122,7 +122,7 @@ rule trimming_Single:
     conda:
         "cutadapt.yaml"
     container:
-        sif("cutadapt.yaml")
+        sif("cutadapt.yaml", "trimming_Single")
     run:
         log_path = str(log)
         open(log_path, "w").close()

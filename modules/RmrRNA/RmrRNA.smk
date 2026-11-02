@@ -22,7 +22,7 @@ rule extract_rRNA:
     conda:
         "RmrRNA.yaml"
     container:
-        sif("RmrRNA.yaml")
+        sif("RmrRNA.yaml", "extract_rRNA")
     run:
         current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
         script = os.path.join(RECEIPT_DIR, f"extract_rRNA_{current_time}.sh")

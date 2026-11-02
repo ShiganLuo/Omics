@@ -32,8 +32,10 @@ elif samtools view {bam_path} 2>/dev/null | head -100 | grep -q 'MM:Z:'; then
 fi
 """
 
-# Pre-detect m6A at DAG time (runs on host) for fire input routing
-_fibertools_sif = sif("fibertools.yaml")
+# Pre-detect m6A at DAG time (runs on host) for fire input routing.
+# DAG-time probe used by _has_m6a() only — per-rule SIF preference does not
+# apply here, so resolve via the generic module-level lookup.
+_fibertools_sif = sif("fibertools.yaml", "")
 
 def _has_m6a(sample_id):
     """Check header for SPRQ binding kit via container's samtools."""
@@ -67,7 +69,7 @@ rule ft_predict_m6a:
     conda:
         "fibertools.yaml"
     container:
-        sif("fibertools.yaml")
+        sif("fibertools.yaml", "ft_predict_m6a")
     params:
         ft = config.get("Procedure", {}).get("fibertools") or "ft"
     run:
@@ -135,7 +137,7 @@ rule ft_add_nucleosomes:
     conda:
         "fibertools.yaml"
     container:
-        sif("fibertools.yaml")
+        sif("fibertools.yaml", "ft_add_nucleosomes")
     params:
         ft = config.get("Procedure", {}).get("fibertools") or "ft"
     run:
@@ -183,7 +185,7 @@ rule ft_fire:
     conda:
         "fibertools.yaml"
     container:
-        sif("fibertools.yaml")
+        sif("fibertools.yaml", "ft_fire")
     params:
         ft = config.get("Procedure", {}).get("fibertools") or "ft",
         is_ont = config.get("Params", {}).get("fibertools", {}).get("ont", False)

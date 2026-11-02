@@ -27,7 +27,7 @@ rule fiberseq_motif_scan:
     conda:
         "../fiberseq.yaml"
     container:
-        sif("../fiberseq.yaml")
+        sif("../fiberseq.yaml", "fiberseq_motif_scan")
     params:
         script = ROOT_DIR + "/modules/fiberseq/bin/motif_scan.py",
         pwm_threshold = p.get("pwm_threshold", 0.8),
@@ -86,7 +86,7 @@ rule fiberseq_motif_profile:
     conda:
         "../fiberseq.yaml"
     container:
-        sif("../fiberseq.yaml")
+        sif("../fiberseq.yaml", "fiberseq_motif_profile")
     params:
         script = ROOT_DIR + "/modules/fiberseq/bin/motif_profile.py",
         flank = p.get("flank", 250),

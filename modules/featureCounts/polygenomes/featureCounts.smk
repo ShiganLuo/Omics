@@ -33,7 +33,7 @@ rule featureCounts_single_noMultiple:
     conda: 
         "../featureCounts.yaml"
     container:
-        sif("../featureCounts.yaml")
+        sif("../featureCounts.yaml", "featureCounts_single_noMultiple")
     threads: rule_res("featureCounts_single_noMultiple").get("threads", 10)
     resources:
         mem_mb=rule_res("featureCounts_single_noMultiple").get("mem_mb", 8000),
@@ -95,7 +95,7 @@ rule featureCounts_paired_noMultiple:
     conda:
         "../featureCounts.yaml"
     container:
-        sif("../featureCounts.yaml")
+        sif("../featureCounts.yaml", "featureCounts_paired_noMultiple")
     threads: rule_res("featureCounts_paired_noMultiple").get("threads", 10)
     resources:
         mem_mb=rule_res("featureCounts_paired_noMultiple").get("mem_mb", 8000),

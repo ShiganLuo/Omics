@@ -13,7 +13,7 @@ if analysis.get("diversity",True):
   log: logdir+"/analysis/vcftools_diversity_{population}.log"
   conda: "vcftools_population.yaml"
   container:
-      sif("vcftools_population.yaml")
+      sif("vcftools_population.yaml", "vcftools_population_diversity")
   params: vcftools=vcftools,window=analysis.get("window_size",100000),step=analysis.get("window_step",50000),prefix=lambda wc:outdir+"/analysis/diversity/"+wc.population
   run:
    os.makedirs(os.path.dirname(str(log)),exist_ok=True);os.makedirs(os.path.dirname(str(output.pi)),exist_ok=True)
@@ -31,7 +31,7 @@ if analysis.get("fst",True) and len(pops)>1:
   log: logdir+"/analysis/vcftools_fst_{population_a}_vs_{population_b}.log"
   conda: "vcftools_population.yaml"
   container:
-      sif("vcftools_population.yaml")
+      sif("vcftools_population.yaml", "vcftools_population_fst")
   params: vcftools=vcftools,pop_a=lambda wc:outdir+"/metadata/populations/"+wc.population_a+".txt",pop_b=lambda wc:outdir+"/metadata/populations/"+wc.population_b+".txt",prefix=lambda wc:outdir+"/analysis/fst/"+wc.population_a+"_vs_"+wc.population_b
   run:
    os.makedirs(os.path.dirname(str(log)),exist_ok=True);os.makedirs(os.path.dirname(str(output[0])),exist_ok=True)

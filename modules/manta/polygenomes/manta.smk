@@ -23,7 +23,7 @@ rule manta_config:
     conda:
         "../manta.yaml"
     container:
-        sif("../manta.yaml")
+        sif("../manta.yaml", "manta_config")
     run:
         log_path = str(log)
         open(log_path, 'w').close()
@@ -70,7 +70,7 @@ rule manta_run:
     conda:
         "../manta.yaml"
     container:
-        sif("../manta.yaml")
+        sif("../manta.yaml", "manta_run")
     run:
         log_path = str(log)
         open(log_path, 'w').close()

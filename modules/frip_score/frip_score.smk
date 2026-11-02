@@ -31,7 +31,7 @@ rule frip_score:
     conda:
         "frip_score.yaml"
     container:
-        sif("frip_score.yaml")
+        sif("frip_score.yaml", "frip_score")
     run:
         log_path = str(log)
         open(log_path, 'w').close()

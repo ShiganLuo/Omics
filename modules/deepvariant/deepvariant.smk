@@ -39,7 +39,7 @@ rule deepvariant_run:
         mem_mb = rule_res("deepvariant_run").get("mem_mb", 32000),
     conda: "deepvariant.yaml"
     container:
-        sif("deepvariant.yaml")
+        sif("deepvariant.yaml", "deepvariant_run")
     params:
         deepvariant = config.get("Procedure", {}).get("deepvariant") or "run_deepvariant",
         bcftools = config.get("Procedure", {}).get("bcftools") or "bcftools",
@@ -48,7 +48,7 @@ rule deepvariant_run:
     conda:
         "deepvariant.yaml"
     container:
-        sif("deepvariant.yaml")
+        sif("deepvariant.yaml", "deepvariant_run")
     run:
         log_path = str(log)
         open(log_path, "w").close()

@@ -40,7 +40,7 @@ rule ngs_disambiguate:
     conda:
         "disambiguate.yaml"
     container:
-        sif("disambiguate.yaml")
+        sif("disambiguate.yaml", "ngs_disambiguate")
     log:
         logdir + "/{sample_id}/ngs_disambiguate.log"
     run:
@@ -94,7 +94,7 @@ rule disambiguate_sort_rename:
     conda:
         "disambiguate.yaml"
     container:
-        sif("disambiguate.yaml")
+        sif("disambiguate.yaml", "disambiguate_sort_rename")
     log:
         logdir + "/{sample_id}/sort_rename.log"
     run:
@@ -139,7 +139,7 @@ rule disambiguate_report:
     conda:
         "disambiguate.yaml"
     container:
-        sif("disambiguate.yaml")
+        sif("disambiguate.yaml", "disambiguate_report")
     threads: rule_res("disambiguate_report").get("threads", 1)
     resources:
         mem_mb = rule_res("disambiguate_report").get("mem_mb", 8000),

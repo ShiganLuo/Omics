@@ -42,7 +42,7 @@ rule scanpy_qc:
     conda:
         "scanpy.yaml"
     container:
-        sif("scanpy.yaml")
+        sif("scanpy.yaml", "scanpy_qc")
     params:
         python=python,
         script=script,
@@ -120,7 +120,7 @@ rule scanpy_merge:
     conda:
         "scanpy.yaml"
     container:
-        sif("scanpy.yaml")
+        sif("scanpy.yaml", "scanpy_merge")
     params:
         python=python,
         script=script,
@@ -178,7 +178,7 @@ rule scanpy_auto:
     conda:
         "scanpy.yaml"
     container:
-        sif("scanpy.yaml")
+        sif("scanpy.yaml", "scanpy_auto")
     params:
         python=python,
         script=script,
@@ -318,7 +318,7 @@ rule scanpy_reannotate:
     conda:
         "scanpy.yaml"
     container:
-        sif("scanpy.yaml")
+        sif("scanpy.yaml", "scanpy_reannotate")
     params:
         python=python,
         script=script,
@@ -372,7 +372,7 @@ rule scanpy_advanced:
     conda:
         "scanpy.yaml"
     container:
-        sif("scanpy.yaml")
+        sif("scanpy.yaml", "scanpy_advanced")
     params:
         python=python,
         script=script,
@@ -463,7 +463,7 @@ rule scanpy_pseudobulk:
     conda:
         "scanpy.yaml"
     container:
-        sif("scanpy.yaml")
+        sif("scanpy.yaml", "scanpy_pseudobulk")
     params:
         pb_cfg = lambda wildcards: params.get(wildcards.counter, {}).get("pseudobulk", {}),
         python = python,

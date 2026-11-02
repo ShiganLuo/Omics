@@ -42,7 +42,7 @@ rule gtfbuild_liftoff:
     conda:
         "gtfbuild.yaml"
     container:
-        sif("gtfbuild.yaml")
+        sif("gtfbuild.yaml", "gtfbuild_liftoff")
     params:
         coverage = p.get("coverage", 0.5),
         copies = "-copies" if p.get("copies", False) else "",
@@ -106,7 +106,7 @@ rule gtfbuild_qc:
     conda:
         "gtfbuild.yaml"
     container:
-        sif("gtfbuild.yaml")
+        sif("gtfbuild.yaml", "gtfbuild_qc")
     params:
         script = ROOT_DIR + "/modules/gtfbuild/bin/gtfbuild_qc.py",
     run:
@@ -173,7 +173,7 @@ rule gtfbuild_wga:
     conda:
         "gtfbuild.yaml"
     container:
-        sif("gtfbuild.yaml")
+        sif("gtfbuild.yaml", "gtfbuild_wga")
     params:
         preset = p.get("wga_preset", "asm5"),
     run:
@@ -223,7 +223,7 @@ rule gtfbuild_liftover_bed:
     conda:
         "gtfbuild.yaml"
     container:
-        sif("gtfbuild.yaml")
+        sif("gtfbuild.yaml", "gtfbuild_liftover_bed")
     params:
         min_mapq = p.get("liftover_min_mapq", 5),
         min_aln = p.get("liftover_min_aln", 50000),

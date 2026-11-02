@@ -38,7 +38,7 @@ rule bowtie2_index:
     conda:
         "../bowtie2.yaml"
     container:
-        sif("../bowtie2.yaml")
+        sif("../bowtie2.yaml", "bowtie2_index")
     run:
         log_path = str(log)
         open(log_path, 'w').close()
@@ -133,7 +133,7 @@ rule bowtie2_align_paired:
     conda:
         "../bowtie2.yaml"
     container:
-        sif("../bowtie2.yaml")
+        sif("../bowtie2.yaml", "bowtie2_align_paired")
     run:
         log_path = str(log)
         open(log_path, 'w').close()
@@ -189,7 +189,7 @@ rule bowtie2_align_single:
     conda:
         "../bowtie2.yaml"
     container:
-        sif("../bowtie2.yaml")
+        sif("../bowtie2.yaml", "bowtie2_align_single")
     run:
         log_path = str(log)
         open(log_path, 'w').close()

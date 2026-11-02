@@ -21,7 +21,7 @@ rule tabix_bgzip:
     conda:
         "tabix.yaml"
     container:
-        sif("tabix.yaml")
+        sif("tabix.yaml", "tabix_bgzip")
     run:
         current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start bgzip for sample {wildcards.sample_id} at {current_time}")

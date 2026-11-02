@@ -34,7 +34,7 @@ rule cnvkit_reference:
     conda:
         "../cnvkit.yaml"
     container:
-        sif("../cnvkit.yaml")
+        sif("../cnvkit.yaml", "cnvkit_reference")
     params:
         cnvkit = config.get("Procedure", {}).get("cnvkit") or "cnvkit.py",
         method = config.get("Params", {}).get("cnvkit", {}).get("method") or "wgs",
@@ -86,7 +86,7 @@ rule cnvkit_batch:
     conda:
         "../cnvkit.yaml"
     container:
-        sif("../cnvkit.yaml")
+        sif("../cnvkit.yaml", "cnvkit_batch")
     params:
         cnvkit = config.get("Procedure", {}).get("cnvkit") or "cnvkit.py",
         method = config.get("Params", {}).get("cnvkit", {}).get("method") or "wgs",

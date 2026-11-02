@@ -24,7 +24,7 @@ rule psm_fdr:
     conda:
         "../openms.yaml"
     container:
-        sif("../openms.yaml")
+        sif("../openms.yaml", "psm_fdr")
     params:
         openms = openms,
         fdr = fdr,

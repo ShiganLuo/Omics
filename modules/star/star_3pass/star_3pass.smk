@@ -53,7 +53,7 @@ rule star_3p_align:
     conda:
         "../star.yaml"
     container:
-        sif("../star.yaml")
+        sif("../star.yaml", "star_3p_align")
     run:
         log_path = str(log)
         open(log_path, "w").close()

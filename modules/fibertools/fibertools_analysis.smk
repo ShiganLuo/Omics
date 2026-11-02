@@ -40,7 +40,7 @@ rule ft_extract:
     conda:
         "fibertools.yaml"
     container:
-        sif("fibertools.yaml")
+        sif("fibertools.yaml", "ft_extract")
     params:
         ft = config.get("Procedure", {}).get("fibertools") or "ft"
     run:
@@ -93,7 +93,7 @@ rule ft_call_peaks:
     conda:
         "fibertools.yaml"
     container:
-        sif("fibertools.yaml")
+        sif("fibertools.yaml", "ft_call_peaks")
     params:
         ft = config.get("Procedure", {}).get("fibertools") or "ft",
         fdr_cfg = config.get("Params", {}).get("fibertools", {}),
@@ -194,7 +194,7 @@ rule ft_qc:
     conda:
         "fibertools.yaml"
     container:
-        sif("fibertools.yaml")
+        sif("fibertools.yaml", "ft_qc")
     params:
         ft = config.get("Procedure", {}).get("fibertools") or "ft",
         use_acf = config.get("Params", {}).get("fibertools", {}).get("acf", False),
@@ -253,7 +253,7 @@ rule ft_extract_fire:
     conda:
         "fibertools.yaml"
     container:
-        sif("fibertools.yaml")
+        sif("fibertools.yaml", "ft_extract_fire")
     params:
         ft = config.get("Procedure", {}).get("fibertools") or "ft",
         is_ont = config.get("Params", {}).get("fibertools", {}).get("ont", False),
@@ -317,7 +317,7 @@ rule ft_split_hap:
     conda:
         "fibertools.yaml"
     container:
-        sif("fibertools.yaml")
+        sif("fibertools.yaml", "ft_split_hap")
     params:
         hp_value = lambda wildcards: wildcards.hap[-1],
     run:
@@ -361,7 +361,7 @@ rule ft_extract_hap:
     conda:
         "fibertools.yaml"
     container:
-        sif("fibertools.yaml")
+        sif("fibertools.yaml", "ft_extract_hap")
     params:
         ft = config.get("Procedure", {}).get("fibertools") or "ft",
     run:

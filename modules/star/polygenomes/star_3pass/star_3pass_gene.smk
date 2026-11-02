@@ -46,7 +46,7 @@ rule star_3pg_gene_specific:
     conda:
         "../../star.yaml"
     container:
-        sif("../../star.yaml")
+        sif("../../star.yaml", "star_3pg_gene_specific")
     run:
         log_path = str(log)
         open(log_path, "w").close()

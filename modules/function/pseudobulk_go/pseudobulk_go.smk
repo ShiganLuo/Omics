@@ -128,7 +128,7 @@ rule function_pseudobulk_go:
     conda:
         "../function.yaml"
     container:
-        sif("../function.yaml")
+        sif("../function.yaml", "function_pseudobulk_go")
     params:
         go_kegg_script=ROOT_DIR + "/modules/function/bin/go-kegg.r",
         species=pb_species,

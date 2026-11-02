@@ -24,7 +24,7 @@ rule tailer_global:
     conda:
         "../tailer.yaml"
     container:
-        sif("../tailer.yaml")
+        sif("../tailer.yaml", "tailer_global")
     params:
         gtf = lambda wildcards: config.get("genome", {}).get(wildcards.genome, {}).get("gtf"),
         read_num = read_num,

@@ -25,7 +25,7 @@ rule hisat2_index:
     conda:
         "hisat2.yaml"
     container:
-        sif("hisat2.yaml")
+        sif("hisat2.yaml", "hisat2_index")
     run:
         log_path = str(log)
         open(log_path, 'w').close()
@@ -123,7 +123,7 @@ rule hisat2_align:
     conda:
         "hisat2.yaml"
     container:
-        sif("hisat2.yaml")
+        sif("hisat2.yaml", "hisat2_align")
     run:
         log_path = str(log)
         open(log_path, "w").close()

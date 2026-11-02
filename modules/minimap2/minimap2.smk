@@ -42,7 +42,7 @@ rule minimap2_align:
     conda:
         "minimap2.yaml"
     container:
-        sif("minimap2.yaml")
+        sif("minimap2.yaml", "minimap2_align")
     params:
         minimap2 = config.get("Procedure", {}).get("minimap2") or "minimap2",
         samtools = config.get("Procedure", {}).get("samtools") or "samtools",

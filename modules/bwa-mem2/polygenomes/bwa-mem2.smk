@@ -27,7 +27,7 @@ rule bwaMem2_index:
     conda:
         "../bwa-mem2.yaml"
     container:
-        sif("../bwa-mem2.yaml")
+        sif("../bwa-mem2.yaml", "bwaMem2_index")
     params:
         bwa_mem2 = config.get("Procedure",{}).get("bwaMem2") or "bwa-mem2",
         index_prefix = lambda wildcards: outdir + f"/index/{wildcards.genome}/{wildcards.genome}"
@@ -113,7 +113,7 @@ rule bwaMem2_alignment:
     conda:
         "../bwa-mem2.yaml"
     container:
-        sif("../bwa-mem2.yaml")
+        sif("../bwa-mem2.yaml", "bwaMem2_alignment")
     params:
         bwa_mem2 = config.get("Procedure",{}).get("bwaMem2") or "bwa-mem2",
         samtools = config.get("Procedure",{}).get("samtools") or "samtools",

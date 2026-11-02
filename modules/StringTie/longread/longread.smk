@@ -20,7 +20,7 @@ rule stringtie_lr_assemble:
     conda:
         "../StringTie.yaml"
     container:
-        sif("../StringTie.yaml")
+        sif("../StringTie.yaml", "stringtie_lr_assemble")
     params:
         stringtie = config.get("Procedure", {}).get("stringtie") or "stringtie"
     run:
@@ -63,7 +63,7 @@ rule stringtie_lr_merge:
     conda:
         "../StringTie.yaml"
     container:
-        sif("../StringTie.yaml")
+        sif("../StringTie.yaml", "stringtie_lr_merge")
     params:
         gtf = config.get("genome", {}).get("gtf") or "/dev/null",
         stringtie = config.get("Procedure", {}).get("stringtie") or "stringtie"
@@ -103,7 +103,7 @@ rule stringtie_lr_quant:
     conda:
         "../StringTie.yaml"
     container:
-        sif("../StringTie.yaml")
+        sif("../StringTie.yaml", "stringtie_lr_quant")
     params:
         stringtie = config.get("Procedure", {}).get("stringtie") or "stringtie"
     run:

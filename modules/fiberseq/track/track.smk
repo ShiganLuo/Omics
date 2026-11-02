@@ -30,7 +30,7 @@ rule fiberseq_track_run:
     conda:
         "../fiberseq.yaml"
     container:
-        sif("../fiberseq.yaml")
+        sif("../fiberseq.yaml", "fiberseq_track_run")
     params:
         script = ROOT_DIR + "/modules/fiberseq/bin/fiberseq_track.py",
         bin = p.get("bin", 10),

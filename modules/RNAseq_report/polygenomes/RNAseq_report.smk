@@ -74,7 +74,7 @@ rule generate_report:
     conda:
         "../RNAseq_report.yaml"
     container:
-        sif("../RNAseq_report.yaml")
+        sif("../RNAseq_report.yaml", "generate_report")
     params:
         samples = lambda wildcards: genome_paired_samples.get(wildcards.genome, []) + genome_single_samples.get(wildcards.genome, []),
         paired_samples = lambda wildcards: genome_paired_samples.get(wildcards.genome, []),

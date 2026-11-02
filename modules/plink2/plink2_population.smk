@@ -29,7 +29,7 @@ rule plink2_population_pgen:
         mem_mb = rule_res("plink2_population_pgen").get("mem_mb", 8000),
     conda: "plink2_population.yaml"
     container:
-        sif("plink2_population.yaml")
+        sif("plink2_population.yaml", "plink2_population_pgen")
     params: plink2=plink2, prefix=prefix
     run:
         run_plink("plink2_population_pgen",str(log),output.pgen,[[params.plink2,"--vcf",input.vcf,"dosage=DS","--make-pgen","--out",params.prefix]])
@@ -42,7 +42,7 @@ rule plink2_population_bed:
         mem_mb = rule_res("plink2_population_bed").get("mem_mb", 8000),
     conda: "plink2_population.yaml"
     container:
-        sif("plink2_population.yaml")
+        sif("plink2_population.yaml", "plink2_population_bed")
     params: plink2=plink2, prefix=prefix
     run:
         run_plink("plink2_population_bed",str(log),output.bed,[[params.plink2,"--pfile",params.prefix,"--make-bed","--out",params.prefix]])
@@ -54,7 +54,7 @@ if analysis.get("pca",True):
         log: logdir+"/analysis/plink2_population_pca.log"
         conda: "plink2_population.yaml"
         container:
-            sif("plink2_population.yaml")
+            sif("plink2_population.yaml", "plink2_population_pca")
         params: plink2=plink2, prefix=prefix, components=analysis.get("pca_components",10)
         run:
             run_plink("plink2_population_pca",str(log),output.eigenvec,[[params.plink2,"--pfile",params.prefix,"--pca",str(params.components),"approx","--out",params.prefix]])
@@ -70,7 +70,7 @@ if analysis.get("gwas",False):
         log: logdir+"/analysis/plink2_population_gwas.log"
         conda: "plink2_population.yaml"
         container:
-            sif("plink2_population.yaml")
+            sif("plink2_population.yaml", "plink2_population_gwas")
         params: plink2=plink2, prefix=prefix, pheno_name=analysis.get("phenotype_name"), covar_names=analysis.get("covariate_names"), gwas_prefix=outdir+"/analysis/gwas/population"
         run:
             os.makedirs(os.path.dirname(str(output.done)),exist_ok=True)

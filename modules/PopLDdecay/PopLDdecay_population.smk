@@ -24,7 +24,7 @@ if analysis.get("ld_decay", False):
         conda:
             "PopLDdecay_population.yaml"
         container:
-            sif("PopLDdecay_population.yaml")
+            sif("PopLDdecay_population.yaml", "PopLDdecay_population")
         params:
             tool=tool,
             prefix=lambda wc: outdir + "/analysis/ld_decay/" + wc.population,

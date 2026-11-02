@@ -31,7 +31,7 @@ rule ldsc_annot:
     conda:
         "ldsc.yaml"
     container:
-        sif("ldsc.yaml")
+        sif("ldsc.yaml", "ldsc_annot")
     params:
         script = BIN + "/ldsc_annot.py",
         prefix = ldsc_cfg.get("annot_prefix") or "peaks",
@@ -81,7 +81,7 @@ rule ldsc_munge:
     conda:
         "ldsc.yaml"
     container:
-        sif("ldsc.yaml")
+        sif("ldsc.yaml", "ldsc_munge")
     params:
         munge = config.get("Procedure", {}).get("munge_sumstats") or "munge_sumstats.py",
         extra = ldsc_cfg.get("munge_args", ""),
@@ -131,7 +131,7 @@ rule ldsc_h2_cts:
     conda:
         "ldsc.yaml"
     container:
-        sif("ldsc.yaml")
+        sif("ldsc.yaml", "ldsc_h2_cts")
     params:
         ldsc = config.get("Procedure", {}).get("ldsc") or "ldsc.py",
         ref_ld = ldsc_cfg.get("ref_ld_chr"),

@@ -42,7 +42,7 @@ rule scan:
     conda:
         "../msisensro_pro.schema.yaml"
     container:
-        sif("../msisensro_pro.schema.yaml")
+        sif("../msisensro_pro.schema.yaml", "scan")
     run:
         shell("{msisensor_pro} scan -d {input} -o {output} 2>{log} 1>{log}")
 
@@ -59,7 +59,7 @@ rule pro_pre:
     conda:
         "../msisensro_pro.schema.yaml"
     container:
-        sif("../msisensro_pro.schema.yaml")
+        sif("../msisensro_pro.schema.yaml", "pro_pre")
     run:
         shell("{msisensor_pro} pro -d {input.ms} -t {input.bam} -g {input.ref} -o {output}")
 
@@ -73,7 +73,7 @@ rule merge:
     conda:
         "../msisensro_pro.schema.yaml"
     container:
-        sif("../msisensro_pro.schema.yaml")
+        sif("../msisensro_pro.schema.yaml", "merge")
     run:
         with open(f"{output}","w") as f:
             for i in input:
@@ -90,7 +90,7 @@ rule baseline:
     conda:
         "../msisensro_pro.schema.yaml"
     container:
-        sif("../msisensro_pro.schema.yaml")
+        sif("../msisensro_pro.schema.yaml", "baseline")
     run:
         shell(f"{msisensor_pro} baseline  -d {input.ms} -i {input.conf} -o {output} -s 1")
 rule run_pro:
@@ -107,7 +107,7 @@ rule run_pro:
     conda:
         "../msisensro_pro.schema.yaml"
     container:
-        sif("../msisensro_pro.schema.yaml")
+        sif("../msisensro_pro.schema.yaml", "run_pro")
     run:
         shell("{msisensor_pro} pro -d {input.ms} -t {input.t} -g {input.ref}  -o {output} 2>{log}")
 

@@ -39,7 +39,7 @@ rule peak_te_overlap:
     conda:
         "../peak_te_overlap.yaml"
     container:
-        sif("../peak_te_overlap.yaml")
+        sif("../peak_te_overlap.yaml", "peak_te_overlap")
     params:
         bedtools = config.get("Procedure", {}).get("bedtools") or "bedtools",
         te_gtf = lambda wildcards: config['genome'][wildcards.genome]['te_gtf'],
@@ -97,7 +97,7 @@ rule peak_centric_overlap:
     conda:
         "../peak_te_overlap.yaml"
     container:
-        sif("../peak_te_overlap.yaml")
+        sif("../peak_te_overlap.yaml", "peak_centric_overlap")
     params:
         bedtools = config.get("Procedure", {}).get("bedtools") or "bedtools",
         te_gtf = lambda wildcards: config['genome'][wildcards.genome]['te_gtf'],
@@ -153,7 +153,7 @@ rule peak_te_overlap_fig:
     conda:
         "../peak_te_overlap.yaml"
     container:
-        sif("../peak_te_overlap.yaml")
+        sif("../peak_te_overlap.yaml", "peak_te_overlap_fig")
     params:
         sample_ip_input_map = config.get("sample_ip_input_map", {}),
         method = config.get("Params", {}).get("peak_te_overlap", {}).get("method", "count"),

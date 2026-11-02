@@ -230,39 +230,68 @@ def check_reporter_ions(mzml_path, max_spectra=400):
 _ENV_MAP = config.get("env", {})
 
 
-def sif(yaml_filename: str) -> str:
+def sif(yaml_filename: str, rule_name: str = "") -> str:
     """Resolve the SIF container path for a conda env YAML.
 
-    Looks up ``config["env"][<yaml_stem>]`` where ``yaml_stem`` is the
-    YAML filename without extension (e.g. ``star.yaml`` -> ``star``).
-    If not found, falls back to ``<env_dir>/<module_dir>/<yaml_stem>.sif``
-    where ``env_dir`` is taken from ``config["env"]["env_dir"]``.
+    Priority (specific over general, explicit config over filesystem):
+
+    1. ``config["env"][<rule_name>]`` — explicit per-rule mapping
+    2. ``config["env"][<yaml_stem>]`` — explicit module-level mapping,
+       where ``yaml_stem`` is the YAML filename without extension
+       (e.g. ``star.yaml`` -> ``star``)
+    3. ``<env_dir>/<rule_name>/<yaml_stem>.sif`` — per-rule container
+       directory, used only when the file exists on disk
+    4. ``<env_dir>/<module_dir>/<yaml_stem>.sif`` — module-level
+       fallback, where ``module_dir`` is ``workflow.basedir``'s basename
+       and ``env_dir`` comes from ``config["env"]["env_dir"]``
 
     Parameters
     ----------
     yaml_filename : str
         The conda YAML filename (same value passed to ``conda:`` in a rule).
+    rule_name : str, optional
+        Name of the enclosing rule. Enables the per-rule container lookup
+        (steps 1 and 3). Empty string disables per-rule resolution.
 
     Returns
     -------
     str
         Path to the ``.sif`` file.
+
+    Notes
+    -----
+    Call sites pass the rule name explicitly, e.g.::
+
+        container: sif("star.yaml", "star_align")
     """
     stem = os.path.splitext(os.path.basename(yaml_filename))[0]
-    logger.debug(f"stem:{stem}, yaml_filename: {yaml_filename}")
+    logger.debug(f"stem:{stem}, yaml_filename: {yaml_filename}, rule_name: {rule_name}")
     logger.debug(f"_ENV_MAP: {_ENV_MAP}")
-    # 1. Explicit mapping in config["env"]
+
+    # 1. Explicit per-rule mapping in config["env"]
+    if rule_name and rule_name in _ENV_MAP:
+        return _ENV_MAP[rule_name]
+
+    # 2. Explicit module-level mapping in config["env"]
     if stem in _ENV_MAP:
         return _ENV_MAP[stem]
 
-    # 2. Fallback: env_dir / <module_dir> / <stem>.sif
     env_dir = _ENV_MAP.get("env_dir")
     if not env_dir:
         raise ValueError(
-            f"SIF path for '{stem}' not found in config['env'] "
-            f"and no 'env_dir' fallback set. Please add "
+            f"SIF path for '{stem}' (rule '{rule_name}') not found in "
+            f"config['env'] and no 'env_dir' fallback set. Please add "
+            f"'\"{rule_name}\": \"/path/to/{stem}.sif\"' or "
             f"'\"{stem}\": \"/path/to/{stem}.sif\"' or "
             f"'\"env_dir\": \"/path/to/env\"' to the 'env' section of your config."
         )
+
+    # 3. Per-rule container directory (rule-specific SIF wins over module SIF)
+    if rule_name:
+        rule_sif = os.path.join(env_dir, rule_name, f"{stem}.sif")
+        if os.path.isfile(rule_sif):
+            return rule_sif
+
+    # 4. Fallback: env_dir / <module_dir> / <stem>.sif
     module_dir = os.path.basename(workflow.basedir)
     return os.path.join(env_dir, module_dir, f"{stem}.sif")

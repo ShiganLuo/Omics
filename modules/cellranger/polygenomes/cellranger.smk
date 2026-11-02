@@ -35,7 +35,7 @@ rule cellranger_ref:
     conda:
         "../cellranger.yaml"
     container:
-        sif("../cellranger.yaml")
+        sif("../cellranger.yaml", "cellranger_ref")
     params:
         script = os.path.join(ROOT_DIR, "modules", "cellranger", "bin", "cellranger_ref.py"),
         cellranger = config.get("Procedure", {}).get("cellranger") or "cellranger",
@@ -111,7 +111,7 @@ rule cellranger_count:
     conda:
         "../cellranger.yaml"
     container:
-        sif("../cellranger.yaml")
+        sif("../cellranger.yaml", "cellranger_count")
     params:
         cellranger = config.get("Procedure", {}).get("cellranger") or "cellranger",
         create_bam = config.get("Params", {}).get("cellranger", {}).get("count", {}).get("create-bam") or False,
@@ -177,7 +177,7 @@ rule cellranger_to_h5ad:
     conda:
         "../cellranger.yaml"
     container:
-        sif("../cellranger.yaml")
+        sif("../cellranger.yaml", "cellranger_to_h5ad")
     params:
         script = os.path.join(ROOT_DIR, "modules", "cellranger", "bin", "cellranger_to_h5ad.py")
     run:

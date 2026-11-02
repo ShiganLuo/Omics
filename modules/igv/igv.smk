@@ -23,7 +23,7 @@ rule samtools_dedup:
     conda:
         "igv.yaml"
     container:
-        sif("igv.yaml")
+        sif("igv.yaml", "samtools_dedup")
     params:
         samtools = config.get('Procedure',{}).get('samtools') or 'samtools'
     run:
@@ -78,7 +78,7 @@ rule wig:
     conda:
         "igv.yaml"
     container:
-        sif("igv.yaml")
+        sif("igv.yaml", "wig")
     threads: rule_res("wig").get("threads", 12)
     resources:
         mem_mb = rule_res("wig").get("mem_mb", 8000),

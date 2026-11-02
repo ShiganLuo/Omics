@@ -25,7 +25,7 @@ rule somatic_spectrum:
     conda:
         "spectrum.yaml"
     container:
-        sif("spectrum.yaml")
+        sif("spectrum.yaml", "somatic_spectrum")
     run:
         try:
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())

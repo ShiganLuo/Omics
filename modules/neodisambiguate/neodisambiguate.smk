@@ -30,7 +30,7 @@ rule neodisambiguate:
     conda:
         "neodisambiguate.yaml"
     container:
-        sif("neodisambiguate.yaml")
+        sif("neodisambiguate.yaml", "neodisambiguate")
     run:
         log_path = str(log)
         open(log_path, 'w').close()

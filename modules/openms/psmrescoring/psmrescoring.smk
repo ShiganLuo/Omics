@@ -41,7 +41,7 @@ rule psm_rescoring:
     conda:
         "../openms.yaml"
     container:
-        sif("../openms.yaml")
+        sif("../openms.yaml", "psm_rescoring")
     params:
         percolator = percolator,
         feature_extractor = config.get("Procedure", {}).get("psm_feature_extractor") or "PSMFeatureExtractor",

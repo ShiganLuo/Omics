@@ -47,7 +47,7 @@ rule HaplotypeCaller:
     conda:
         "../gatk.yaml"
     container:
-        sif("../gatk.yaml")
+        sif("../gatk.yaml", "HaplotypeCaller")
     params:
         javaOptions =  config.get("Params", {}).get("gatk", {}).get("javaOptions") or "-Xmx30g",
         gatk = config.get("Procedure", {}).get("gatk") or "gatk",
@@ -108,7 +108,7 @@ rule filterHaplotypeCallerVcf:
     conda:
         "../gatk.yaml"
     container:
-        sif("../gatk.yaml")
+        sif("../gatk.yaml", "filterHaplotypeCallerVcf")
     threads: rule_res("filterHaplotypeCallerVcf").get("threads", 10)
     resources:
         mem_mb = rule_res("filterHaplotypeCallerVcf").get("mem_mb", 16000),

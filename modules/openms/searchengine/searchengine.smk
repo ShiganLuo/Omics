@@ -125,7 +125,7 @@ rule search_engine_comet:
     conda:
         "../openms.yaml"
     container:
-        sif("../openms.yaml")
+        sif("../openms.yaml", "search_engine_comet")
     params:
         comet = comet,
         precursor_mass_tolerance = config.get("Params").get("search_engine",{}).get("comet", {}).get("precursor_mass_tolerance", 20),
@@ -188,7 +188,7 @@ rule search_engine_msgf:
     conda:
         "../openms.yaml"
     container:
-        sif("../openms.yaml")
+        sif("../openms.yaml", "search_engine_msgf")
     params:
         msgf = msgf,
         precursor_mass_tolerance = config.get("Params").get("search_engine",{}).get("msgf", {}).get("precursor_mass_tolerance", 20),
@@ -237,7 +237,7 @@ rule search_engine_sage:
     conda:
         "../openms.yaml"
     container:
-        sif("../openms.yaml")
+        sif("../openms.yaml", "search_engine_sage")
     params:
         sage = sage,
         precursor_mass_tolerance = config.get("Params").get("search_engine",{}).get("sage", {}).get("precursor_mass_tolerance", 20),

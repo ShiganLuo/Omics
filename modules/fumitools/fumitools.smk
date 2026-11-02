@@ -35,7 +35,7 @@ rule fumitools_copy_umi_paired:
     conda:
         "fumitools.yaml"
     container:
-        sif("fumitools.yaml")
+        sif("fumitools.yaml", "fumitools_copy_umi_paired")
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -97,7 +97,7 @@ rule fumitools_copy_umi_single:
     conda:
         "fumitools.yaml"
     container:
-        sif("fumitools.yaml")
+        sif("fumitools.yaml", "fumitools_copy_umi_single")
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -159,7 +159,7 @@ rule fumitools_dedup:
     conda:
         "fumitools.yaml"
     container:
-        sif("fumitools.yaml")
+        sif("fumitools.yaml", "fumitools_dedup")
     run:
         log_path = str(log)
         open(log_path, "w").close()

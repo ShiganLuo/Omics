@@ -34,7 +34,7 @@ rule extract_rRNA:
     conda:
         "../RmrRNA.yaml"
     container:
-        sif("../RmrRNA.yaml")
+        sif("../RmrRNA.yaml", "extract_rRNA")
     run:
         log_path = str(log)
         try:

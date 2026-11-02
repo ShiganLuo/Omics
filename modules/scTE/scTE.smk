@@ -22,7 +22,7 @@ rule scTE_build_index:
     conda:
         "scTE.yaml"
     container:
-        sif("scTE.yaml")
+        sif("scTE.yaml", "scTE_build_index")
     params:
         scte_build = config.get("Procedure", {}).get("scTE_build") or "scTE_build",
         genome = _scTE_genome,
@@ -105,7 +105,7 @@ rule scTE_quantify:
     conda:
         "scTE.yaml"
     container:
-        sif("scTE.yaml")
+        sif("scTE.yaml", "scTE_quantify")
     params:
         script = os.path.join(ROOT_DIR, "modules", "scTE", "bin", "scTE_quantify.py"),
         cb_tag = config.get("Params", {}).get("scTE", {}).get("cb_tag", "CB"),

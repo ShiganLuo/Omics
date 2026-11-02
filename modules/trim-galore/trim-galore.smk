@@ -38,7 +38,7 @@ rule trimming_Paired:
     conda:
         "trim-galore.yaml"
     container:
-        sif("trim-galore.yaml")
+        sif("trim-galore.yaml", "trimming_Paired")
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -113,7 +113,7 @@ rule trimming_Single:
     conda:
         "trim-galore.yaml"
     container:
-        sif("trim-galore.yaml")
+        sif("trim-galore.yaml", "trimming_Single")
     run:
         log_path = str(log)
         open(log_path, "w").close()

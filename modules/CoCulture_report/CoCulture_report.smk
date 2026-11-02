@@ -28,7 +28,7 @@ rule HRT:
     conda:
         "CoCulture_report.yaml"
     container:
-        sif("CoCulture_report.yaml")
+        sif("CoCulture_report.yaml", "HRT")
     run:
         log_path = str(log)
         open(log_path, 'w').close()

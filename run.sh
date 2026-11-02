@@ -32,8 +32,7 @@ python ${SCRIPT_DIR}/run.py \
     -o /data/16T/luosg/output/Totipotency \
     -t 48 \
     --log /data/16T/luosg/log/Exome_Totipotency.log \
-    --sdm \
-    --dry-run
+    --sdm
 
 
 # python ${SCRIPT_DIR}/run.py \

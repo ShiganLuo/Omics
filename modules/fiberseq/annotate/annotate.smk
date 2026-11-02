@@ -43,7 +43,7 @@ rule fiberseq_annotate_run:
     conda:
         "../fiberseq.yaml"
     container:
-        sif("../fiberseq.yaml")
+        sif("../fiberseq.yaml", "fiberseq_annotate_run")
     params:
         script = ROOT_DIR + "/modules/fiberseq/bin/fire_annotate.py",
         tss_flank = p.get("tss_flank", 1000),

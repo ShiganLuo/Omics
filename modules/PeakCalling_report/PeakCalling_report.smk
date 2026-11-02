@@ -69,7 +69,7 @@ rule generate_report:
     conda:
         "PeakCalling_report.yaml"
     container:
-        sif("PeakCalling_report.yaml")
+        sif("PeakCalling_report.yaml", "generate_report")
     params:
         script = REPORT_SCRIPT,
         title = config.get("Params", {}).get("report", {}).get("title") or "ChIP-seq Peak Calling Report",

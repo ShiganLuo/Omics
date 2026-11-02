@@ -54,7 +54,7 @@ rule DESeq2_TEcount:
     conda:
         "../DESeq2.yaml"
     container:
-        sif("../DESeq2.yaml")
+        sif("../DESeq2.yaml", "DESeq2_TEcount")
     log:
         logdir + "/DESeq2/{genome}/{contrast}.log"
     run:
@@ -171,7 +171,7 @@ rule DESeq2_TElocal:
     conda:
         "../DESeq2.yaml"
     container:
-        sif("../DESeq2.yaml")
+        sif("../DESeq2.yaml", "DESeq2_TElocal")
     log:
         logdir + "/DESeq2/{genome}/{contrast}.log"
     run:
@@ -326,7 +326,7 @@ rule DESeq2_TElocal_manhattan:
     conda:
         "../TEfigs.yaml"
     container:
-        sif("../TEfigs.yaml")
+        sif("../TEfigs.yaml", "DESeq2_TElocal_manhattan")
     log:
         logdir + "/DESeq2/{genome}/{contrast}.manhattan.log"
     run:
@@ -395,7 +395,7 @@ rule DESeq2_TElocal_locus_boxplot:
     conda:
         "../TEfigs.yaml"
     container:
-        sif("../TEfigs.yaml")
+        sif("../TEfigs.yaml", "DESeq2_TElocal_locus_boxplot")
     log:
         logdir + "/DESeq2/{genome}/{contrast}.locus_box.log"
     run:
@@ -468,7 +468,7 @@ rule DESeq2_TElocal_subfamily_bar:
     conda:
         "../TEfigs.yaml"
     container:
-        sif("../TEfigs.yaml")
+        sif("../TEfigs.yaml", "DESeq2_TElocal_subfamily_bar")
     log:
         logdir + "/DESeq2/{genome}/{contrast}.subfamily_bar.log"
     run:

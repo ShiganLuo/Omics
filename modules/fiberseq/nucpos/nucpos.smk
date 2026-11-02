@@ -28,7 +28,7 @@ rule fiberseq_nucpos_run:
     conda:
         "../fiberseq.yaml"
     container:
-        sif("../fiberseq.yaml")
+        sif("../fiberseq.yaml", "fiberseq_nucpos_run")
     params:
         script = ROOT_DIR + "/modules/fiberseq/bin/nucpos.py",
         upstream = p.get("upstream_nucs", 5),

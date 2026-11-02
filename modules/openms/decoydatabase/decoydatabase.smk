@@ -30,7 +30,7 @@ rule decoy_database:
     conda:
         "../openms.yaml"
     container:
-        sif("../openms.yaml")
+        sif("../openms.yaml", "decoy_database")
     params:
         openms = openms,
         decoy_string = decoy_string,

@@ -31,7 +31,7 @@ rule fiberseq_censat_run:
     conda:
         "../fiberseq.yaml"
     container:
-        sif("../fiberseq.yaml")
+        sif("../fiberseq.yaml", "fiberseq_censat_run")
     params:
         script = ROOT_DIR + "/modules/fiberseq/bin/censat_profile.py",
         pileup = genome_cfg.get("mcpg_pileup"),

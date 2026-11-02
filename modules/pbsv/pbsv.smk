@@ -32,7 +32,7 @@ rule pbsv_discover:
     conda:
         "pbsv.yaml"
     container:
-        sif("pbsv.yaml")
+        sif("pbsv.yaml", "pbsv_discover")
     run:
         log_path = str(log)
         open(log_path,"w").close()
@@ -77,7 +77,7 @@ rule pbsv_call:
     conda:
         "pbsv.yaml"
     container:
-        sif("pbsv.yaml")
+        sif("pbsv.yaml", "pbsv_call")
     run:
         log_path = str(log)
         open(log_path,"w").close()

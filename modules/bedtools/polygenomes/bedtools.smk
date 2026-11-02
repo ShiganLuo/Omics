@@ -22,7 +22,7 @@ rule iCLIP_bedtools:
     conda:
         "../bedtools.yaml"
     container:
-        sif("../bedtools.yaml")
+        sif("../bedtools.yaml", "iCLIP_bedtools")
     params:
         bedtools = config.get('Procedure',{}).get('bedtools') or 'bedtools',
         bedGraphToBigWig = config.get('Procedure',{}).get('bedGraphToBigWig') or 'bedGraphToBigWig'

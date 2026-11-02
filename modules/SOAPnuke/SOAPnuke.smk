@@ -25,7 +25,7 @@ rule soapnuke_filter_paired:
     conda:
         "SOAPnuke.yaml"
     container:
-        sif("SOAPnuke.yaml")
+        sif("SOAPnuke.yaml", "soapnuke_filter_paired")
     threads: rule_res("soapnuke_filter_paired").get("threads", 8)
     resources:
         mem_mb = rule_res("soapnuke_filter_paired").get("mem_mb", 8000),
@@ -87,7 +87,7 @@ rule soapnuke_filter_single:
     conda:
         "SOAPnuke.yaml"
     container:
-        sif("SOAPnuke.yaml")
+        sif("SOAPnuke.yaml", "soapnuke_filter_single")
     threads: rule_res("soapnuke_filter_single").get("threads", 8)
     resources:
         mem_mb = rule_res("soapnuke_filter_single").get("mem_mb", 8000),

@@ -28,7 +28,7 @@ rule gatk_index:
         mem_mb=rule_res("gatk_index").get("mem_mb", 8000),
     conda: "../gatk.yaml"
     container:
-        sif("../gatk.yaml")
+        sif("../gatk.yaml", "gatk_index")
     params:
         gatk = config.get("Procedure", {}).get("gatk") or "gatk",
         javaOptions = config.get("Params", {}).get("gatk", {}).get("javaOptions") or "-Xmx30g",
@@ -89,7 +89,7 @@ rule addReadsGroup:
         logdir + "/{sample_id}/{genome}/addReadsGroup.log"
     conda: "../gatk.yaml"
     container:
-        sif("../gatk.yaml")
+        sif("../gatk.yaml", "addReadsGroup")
     threads: rule_res("addReadsGroup").get("threads", 8)
     resources:
         mem_mb=rule_res("addReadsGroup").get("mem_mb", 16000),
@@ -155,7 +155,7 @@ rule MarkDuplicates:
         logdir + "/{sample_id}/{genome}/MarkDuplicates.log"
     conda: "../gatk.yaml"
     container:
-        sif("../gatk.yaml")
+        sif("../gatk.yaml", "MarkDuplicates")
     threads: rule_res("MarkDuplicates").get("threads", 8)
     resources:
         mem_mb=rule_res("MarkDuplicates").get("mem_mb", 32000),

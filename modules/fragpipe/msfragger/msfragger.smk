@@ -40,7 +40,7 @@ rule msfragger_run:
     conda:
         "../fragpipe.yaml"
     container:
-        sif("../fragpipe.yaml")
+        sif("../fragpipe.yaml", "msfragger_run")
     params:
         msfragger = msfragger,
         make_params = make_params,
@@ -123,7 +123,7 @@ rule msfragger_idxml:
     conda:
         "../../openms/openms.yaml"
     container:
-        sif("../../openms/openms.yaml")
+        sif("../../openms/openms.yaml", "msfragger_idxml")
     params:
         converter = config.get("Procedure", {}).get("id_converter") or "IDFileConverter",
         indexer = config.get("Procedure", {}).get("peptide_indexer") or "PeptideIndexer",

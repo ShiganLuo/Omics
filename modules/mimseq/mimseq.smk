@@ -30,7 +30,7 @@ rule mimseq_prepare_sample_data:
     conda:
         "mimseq.yaml"
     container:
-        sif("mimseq.yaml")
+        sif("mimseq.yaml", "mimseq_prepare_sample_data")
     run:
         log_path = str(log)
         open(log_path, "w").close()

@@ -127,7 +127,7 @@ rule decoil_reconstruct:
     conda:
         "decoil.yaml"
     container:
-        sif("decoil.yaml")
+        sif("decoil.yaml", "decoil_reconstruct")
     params:
         # Tool executable
         decoil           = config.get("Procedure", {}).get("decoil") or "decoil",
@@ -248,7 +248,7 @@ rule decoil_plot:
     conda:
         "decoil.yaml"
     container:
-        sif("decoil.yaml")
+        sif("decoil.yaml", "decoil_plot")
     params:
         plot_script = os.path.join(ROOT_DIR, "modules", "decoil", "bin", "decoil_plot.py"),
         formats     = decoil_params.get("plot", {}).get("formats") or ["png"],
@@ -304,7 +304,7 @@ rule decoil_compare:
     conda:
         "decoil.yaml"
     container:
-        sif("decoil.yaml")
+        sif("decoil.yaml", "decoil_compare")
     params:
         plot_script = os.path.join(ROOT_DIR, "modules", "decoil", "bin", "decoil_plot.py"),
         formats     = decoil_params.get("compare", {}).get("formats") or ["png"],
@@ -373,7 +373,7 @@ rule decoil_structure:
     conda:
         "decoil.yaml"
     container:
-        sif("decoil.yaml")
+        sif("decoil.yaml", "decoil_structure")
     params:
         structure_script = os.path.join(ROOT_DIR, "modules", "decoil", "bin", "decoil_structure.py"),
         formats          = decoil_params.get("structure", {}).get("formats") or ["png"],
@@ -435,7 +435,7 @@ rule decoil_igv:
     conda:
         "decoil.yaml"
     container:
-        sif("decoil.yaml")
+        sif("decoil.yaml", "decoil_igv")
     params:
         igv_config_script = os.path.join(ROOT_DIR, "modules", "decoil", "bin", "decoil_igv_config.py"),
         track_script      = os.path.join(ROOT_DIR, "modules", "track", "bin", "track.py"),
@@ -518,7 +518,7 @@ rule decoil_ucsc:
     conda:
         "decoil.yaml"
     container:
-        sif("decoil.yaml")
+        sif("decoil.yaml", "decoil_ucsc")
     params:
         track_script = os.path.join(ROOT_DIR, "modules", "track", "bin", "track.py"),
     run:

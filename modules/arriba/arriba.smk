@@ -46,7 +46,7 @@ rule arriba:
     conda:
         "arriba.yaml"
     container:
-        sif("arriba.yaml")
+        sif("arriba.yaml", "arriba")
     run:
         log_path = str(log)
         open(log_path, 'w').close()
@@ -108,7 +108,7 @@ rule arriba_report:
     conda:
         "arriba.yaml"
     container:
-        sif("arriba.yaml")
+        sif("arriba.yaml", "arriba_report")
     run:
         log_path = str(log)
         open(log_path, 'w').close()

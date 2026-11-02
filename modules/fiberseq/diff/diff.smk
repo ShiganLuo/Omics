@@ -38,7 +38,7 @@ rule fiberseq_diff_run:
     conda:
         "../fiberseq.yaml"
     container:
-        sif("../fiberseq.yaml")
+        sif("../fiberseq.yaml", "fiberseq_diff_run")
     params:
         script = ROOT_DIR + "/modules/fiberseq/bin/diff_accessibility.py",
         alpha = p.get("alpha", 0.05),

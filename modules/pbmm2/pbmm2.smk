@@ -22,7 +22,7 @@ rule pbmm2_align:
         mem_mb = rule_res("pbmm2_align").get("mem_mb", 32000),
     conda: "pbmm2.yaml"
     container:
-        sif("pbmm2.yaml")
+        sif("pbmm2.yaml", "pbmm2_align")
     params:
         pbmm2 = config.get("Procedure", {}).get("pbmm2") or "pbmm2",
         samtools = config.get("Procedure", {}).get("samtools") or "samtools"

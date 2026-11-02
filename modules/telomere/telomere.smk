@@ -95,7 +95,7 @@ rule telogator2_run:
         logdir + "/{sample_id}/telogator2.log"
     conda: "telomere.yaml"
     container:
-        sif("telomere.yaml")
+        sif("telomere.yaml", "telogator2_run")
     params:
         telogator2 = config.get("Procedure", {}).get("telogator2") or "telogator2",
         ref = get_telogator2_ref()
@@ -147,7 +147,7 @@ rule assembly_telomere_scan:
         logdir + "/{sample_id}/assembly_telomere_scan.log"
     conda: "telomere.yaml"
     container:
-        sif("telomere.yaml")
+        sif("telomere.yaml", "assembly_telomere_scan")
     params:
         script = os.path.join(ROOT_DIR, "modules/telomere/bin/scan_assembly_telomere.py"),
         output_dir = os.path.join(outdir, "{sample_id}/assembly_scan"),
@@ -205,7 +205,7 @@ rule read_density_telomere:
         mem_mb = rule_res("read_density_telomere").get("mem_mb", 8000),
     conda: "telomere.yaml"
     container:
-        sif("telomere.yaml")
+        sif("telomere.yaml", "read_density_telomere")
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -247,7 +247,7 @@ rule tidk_init:
         mem_mb = rule_res("tidk_init").get("mem_mb", 8000),
     conda: "telomere.yaml"
     container:
-        sif("telomere.yaml")
+        sif("telomere.yaml", "tidk_init")
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -288,7 +288,7 @@ rule tidk_scan:
         mem_mb = rule_res("tidk_scan").get("mem_mb", 16000),
     conda: "telomere.yaml"
     container:
-        sif("telomere.yaml")
+        sif("telomere.yaml", "tidk_scan")
     run:
         log_path = str(log)
         open(log_path, "w").close()

@@ -24,7 +24,7 @@ rule protein_inference:
     conda:
         "../openms.yaml"
     container:
-        sif("../openms.yaml")
+        sif("../openms.yaml", "protein_inference")
     params:
         epifany = epifany,
         method = method,

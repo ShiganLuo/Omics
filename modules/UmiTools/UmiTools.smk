@@ -20,7 +20,7 @@ rule umi_tools_dedup_for_hisat2:
     conda:
         "UmiTools.yaml"
     container:
-        sif("UmiTools.yaml")
+        sif("UmiTools.yaml", "umi_tools_dedup_for_hisat2")
     log:
         log = logdir + "/{sample_id}/umi_tools_dedup_run.txt"
     run:
@@ -65,7 +65,7 @@ rule umi_tools_dedup_for_star:
     conda:
         "UmiTools.yaml"
     container:
-        sif("UmiTools.yaml")
+        sif("UmiTools.yaml", "umi_tools_dedup_for_star")
     log:
         log = logdir + "/{sample_id}/umi_tools_dedup_run.txt"
     run:

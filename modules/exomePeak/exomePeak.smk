@@ -39,7 +39,7 @@ rule diff_exomePeak:
     conda:
         "exomePeak.yaml"
     container:
-        sif("exomePeak.yaml")
+        sif("exomePeak.yaml", "diff_exomePeak")
     threads: rule_res("diff_exomePeak").get("threads", 1)
     resources:
         mem_mb = rule_res("diff_exomePeak").get("mem_mb", 8000),
@@ -124,7 +124,7 @@ rule call_exomePeak:
     conda:
         "exomePeak.yaml"
     container:
-        sif("exomePeak.yaml")
+        sif("exomePeak.yaml", "call_exomePeak")
     threads: rule_res("call_exomePeak").get("threads", 12)
     resources:
         mem_mb = rule_res("call_exomePeak").get("mem_mb", 8000),

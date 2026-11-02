@@ -22,7 +22,7 @@ rule bam_sort:
     conda:
         "../samtools.yaml"
     container:
-        sif("../samtools.yaml")
+        sif("../samtools.yaml", "bam_sort")
     params:
         samtools = config.get("Procedure", {}).get("samtools") or "samtools"
     run:

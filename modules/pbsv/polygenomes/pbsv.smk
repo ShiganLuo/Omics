@@ -34,7 +34,7 @@ rule pbsv_discover:
     conda:
         "../pbsv.yaml"
     container:
-        sif("../pbsv.yaml")
+        sif("../pbsv.yaml", "pbsv_discover")
     run:
         current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start pbsv discover for sample {wildcards.sample_id} genome {wildcards.genome} at {current_time}")
@@ -73,7 +73,7 @@ rule pbsv_call:
     conda:
         "../pbsv.yaml"
     container:
-        sif("../pbsv.yaml")
+        sif("../pbsv.yaml", "pbsv_call")
     run:
         current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start pbsv call for sample {wildcards.sample_id} genome {wildcards.genome} at {current_time}")

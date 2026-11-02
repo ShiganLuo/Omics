@@ -41,7 +41,7 @@ rule DESeq2_TEcount:
     conda:
         "DESeq2.yaml"
     container:
-        sif("DESeq2.yaml")
+        sif("DESeq2.yaml", "DESeq2_TEcount")
     log:
         logdir + "/DESeq2/{contrast}.log"
     run:

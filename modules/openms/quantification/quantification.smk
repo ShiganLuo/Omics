@@ -104,7 +104,7 @@ rule quantification_lfq:
     conda:
         "../openms.yaml"
     container:
-        sif("../openms.yaml")
+        sif("../openms.yaml", "quantification_lfq")
     params:
         proteomicslfq = proteomicslfq,
         expdesign = expdesign,
@@ -157,7 +157,7 @@ rule quantification_tmt_reporter:
     conda:
         "../openms.yaml"
     container:
-        sif("../openms.yaml")
+        sif("../openms.yaml", "quantification_tmt_reporter")
     params:
         isobaric_analyzer = isobaric_analyzer,
         id_mapper = id_mapper,
@@ -234,7 +234,7 @@ rule quantification_tmt:
     conda:
         "../openms.yaml"
     container:
-        sif("../openms.yaml")
+        sif("../openms.yaml", "quantification_tmt")
     params:
         proteinquantifier = proteinquantifier,
         expdesign = config.get("expdesign", ""),
@@ -357,7 +357,7 @@ rule quantification_dia:
     conda:
         "../openms.yaml"
     container:
-        sif("../openms.yaml")
+        sif("../openms.yaml", "quantification_dia")
     params:
         proteomicslfq = proteomicslfq,
         expdesign = expdesign,

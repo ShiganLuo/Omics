@@ -29,7 +29,7 @@ rule philosopher_database:
     conda:
         "../fragpipe.yaml"
     container:
-        sif("../fragpipe.yaml")
+        sif("../fragpipe.yaml", "philosopher_database")
     params:
         philosopher = philosopher,
     run:
@@ -76,7 +76,7 @@ rule philosopher_filter:
     conda:
         "../fragpipe.yaml"
     container:
-        sif("../fragpipe.yaml")
+        sif("../fragpipe.yaml", "philosopher_filter")
     params:
         philosopher = philosopher,
         pep_fdr = pep_fdr,

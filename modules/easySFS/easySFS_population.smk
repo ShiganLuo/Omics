@@ -11,7 +11,7 @@ if analysis.get("history",False):
   log: logdir+"/analysis/easySFS_population.log"
   conda: "easySFS_population.yaml"
   container:
-      sif("easySFS_population.yaml")
+      sif("easySFS_population.yaml", "easySFS_population_history")
   params: tool=easy_sfs,outdir=outdir+"/analysis/history/easySFS",extra=analysis.get("history_config","")
   run:
    os.makedirs(os.path.dirname(str(log)),exist_ok=True);os.makedirs(params.outdir,exist_ok=True)

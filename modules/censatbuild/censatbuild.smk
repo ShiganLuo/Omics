@@ -84,7 +84,7 @@ rule censatbuild_arrays:
     conda:
         "censatbuild.yaml"
     container:
-        sif("censatbuild.yaml")
+        sif("censatbuild.yaml", "censatbuild_arrays")
     params:
         script = ROOT_DIR + "/modules/censatbuild/bin/censatbuild_rm2bed.py",
         gap = p.get("gap", 10000),
@@ -138,7 +138,7 @@ rule censatbuild_flank:
     conda:
         "censatbuild.yaml"
     container:
-        sif("censatbuild.yaml")
+        sif("censatbuild.yaml", "censatbuild_flank")
     params:
         flank = p.get("flank", 10000),
         flank_name = f"flank_{p.get('flank', 10000) // 1000}kb",
@@ -186,7 +186,7 @@ rule censatbuild_mcg_pileup:
     conda:
         "censatbuild.yaml"
     container:
-        sif("censatbuild.yaml")
+        sif("censatbuild.yaml", "censatbuild_mcg_pileup")
     run:
         log_path = str(log)
         open(log_path, "w").close()

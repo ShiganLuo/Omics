@@ -22,7 +22,7 @@ rule stringTie:
     conda:
         "StringTie.yaml"
     container:
-        sif("StringTie.yaml")
+        sif("StringTie.yaml", "stringTie")
     run:
         log_path = str(log)
         open(log_path, 'w').close()
@@ -59,7 +59,7 @@ rule TEChimericTranscripts:
     conda:
         "StringTie.yaml"
     container:
-        sif("StringTie.yaml")
+        sif("StringTie.yaml", "TEChimericTranscripts")
     run:
         log_path = str(log)
         open(log_path, 'w').close()
@@ -100,7 +100,7 @@ rule TEChimericPlot:
     conda:
         "StringTie.yaml"
     container:
-        sif("StringTie.yaml")
+        sif("StringTie.yaml", "TEChimericPlot")
     run:
         log_path = str(log)
         open(log_path, 'w').close()
@@ -149,7 +149,7 @@ rule stringTieMerge:
     conda:
         "StringTie.yaml"
     container:
-        sif("StringTie.yaml")
+        sif("StringTie.yaml", "stringTieMerge")
     run:
         log_path = str(log)
         open(log_path, 'w').close()

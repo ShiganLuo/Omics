@@ -59,7 +59,7 @@ rule fastqc:
     conda:
         "fastqc.yaml"
     container:
-        sif("fastqc.yaml")
+        sif("fastqc.yaml", "fastqc")
     run:
         log_path = str(log)
         open(log_path, "w").close()

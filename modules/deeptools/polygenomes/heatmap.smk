@@ -68,7 +68,7 @@ rule bigwig_ratio:
     resources:
         mem_mb = rule_res("bigwig_ratio").get("mem_mb", 8000),
     conda: "../deeptools_heatmap.yaml"
-    container: sif("../deeptools_heatmap.yaml")
+    container: sif("../deeptools_heatmap.yaml", "bigwig_ratio")
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -201,7 +201,7 @@ rule heatmap:
     resources:
         mem_mb = rule_res("heatmap").get("mem_mb", 16000),
     conda: "../deeptools_heatmap.yaml"
-    container: sif("../deeptools_heatmap.yaml")
+    container: sif("../deeptools_heatmap.yaml", "heatmap")
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -238,7 +238,7 @@ rule heatmap_gene:
     resources:
         mem_mb = rule_res("heatmap_gene").get("mem_mb", 16000),
     conda: "../deeptools_heatmap.yaml"
-    container: sif("../deeptools_heatmap.yaml")
+    container: sif("../deeptools_heatmap.yaml", "heatmap_gene")
     run:
         log_path = str(log)
         open(log_path, "w").close()

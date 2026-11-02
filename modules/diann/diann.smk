@@ -44,7 +44,7 @@ rule diann_run:
     conda:
         "diann.yaml"
     container:
-        sif("diann.yaml")
+        sif("diann.yaml", "diann_run")
     params:
         diann = config.get("Procedure", {}).get("diann") or "diann",
         qvalue = p.get("qvalue", 0.01),
@@ -127,7 +127,7 @@ rule diann_summary:
     conda:
         "diann.yaml"
     container:
-        sif("diann.yaml")
+        sif("diann.yaml", "diann_summary")
     params:
         script = ROOT_DIR + "/modules/diann/bin/diann_summary.py",
     run:

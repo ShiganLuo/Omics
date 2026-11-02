@@ -22,7 +22,7 @@ rule fastx_quality_filter_single:
     conda:
         "FASTX.yaml"
     container:
-        sif("FASTX.yaml")
+        sif("FASTX.yaml", "fastx_quality_filter_single")
     log:
         logdir + "/{sample_id}/fastx_quality_filter_single.log"
     run:

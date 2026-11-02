@@ -44,7 +44,7 @@ rule deepvariant_run:
     conda:
         "../deepvariant.yaml"
     container:
-        sif("../deepvariant.yaml")
+        sif("../deepvariant.yaml", "deepvariant_run")
     run:
         try:
             open(log[0], "w").close()

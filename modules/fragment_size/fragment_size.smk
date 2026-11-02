@@ -20,7 +20,7 @@ rule samtools_stats:
     conda:
         "fragment_size.yaml"
     container:
-        sif("fragment_size.yaml")
+        sif("fragment_size.yaml", "samtools_stats")
     params:
         samtools = config.get("Procedure", {}).get("samtools") or "samtools"
     run:
@@ -59,7 +59,7 @@ rule getFragmentSize:
     conda:
         "fragment_size.yaml"
     container:
-        sif("fragment_size.yaml")
+        sif("fragment_size.yaml", "getFragmentSize")
     run:
         log_path = str(log)
         open(log_path, 'w').close()
@@ -97,7 +97,7 @@ rule plotFragmentSize:
     conda:
         "fragment_size.yaml"
     container:
-        sif("fragment_size.yaml")
+        sif("fragment_size.yaml", "plotFragmentSize")
     run:
         log_path = str(log)
         open(log_path, 'w').close()

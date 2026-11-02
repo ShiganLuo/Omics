@@ -36,7 +36,7 @@ rule ft_predict_m6a:
     conda:
         "../fibertools.yaml"
     container:
-        sif("../fibertools.yaml")
+        sif("../fibertools.yaml", "ft_predict_m6a")
     params:
         ft = config.get("Procedure", {}).get("fibertools") or "ft"
     run:
@@ -84,7 +84,7 @@ rule ft_add_nucleosomes:
     conda:
         "../fibertools.yaml"
     container:
-        sif("../fibertools.yaml")
+        sif("../fibertools.yaml", "ft_add_nucleosomes")
     params:
         ft = config.get("Procedure", {}).get("fibertools") or "ft"
     run:
@@ -132,7 +132,7 @@ rule ft_fire:
     conda:
         "../fibertools.yaml"
     container:
-        sif("../fibertools.yaml")
+        sif("../fibertools.yaml", "ft_fire")
     params:
         ft = config.get("Procedure", {}).get("fibertools") or "ft",
         is_ont = config.get("Params", {}).get("fibertools", {}).get("ont", False)
@@ -185,7 +185,7 @@ rule ft_extract:
     conda:
         "../fibertools.yaml"
     container:
-        sif("../fibertools.yaml")
+        sif("../fibertools.yaml", "ft_extract")
     params:
         ft = config.get("Procedure", {}).get("fibertools") or "ft"
     run:

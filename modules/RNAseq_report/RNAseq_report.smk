@@ -67,7 +67,7 @@ rule generate_report:
     conda:
         "RNAseq_report.yaml"
     container:
-        sif("RNAseq_report.yaml")
+        sif("RNAseq_report.yaml", "generate_report")
     params:
         samples = samples,
         paired_samples = paired_samples,

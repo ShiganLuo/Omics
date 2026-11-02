@@ -44,7 +44,7 @@ rule sv_exp_specific:
     conda:
         "../sv.yaml"
     container:
-        sif("../sv.yaml")
+        sif("../sv.yaml", "sv_exp_specific")
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -93,7 +93,7 @@ rule sv_exp_enrichment:
     conda:
         "../sv.yaml"
     container:
-        sif("../sv.yaml")
+        sif("../sv.yaml", "sv_exp_enrichment")
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -140,7 +140,7 @@ rule sv_exp_circos:
     conda:
         "../sv.yaml"
     container:
-        sif("../sv.yaml")
+        sif("../sv.yaml", "sv_exp_circos")
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -189,7 +189,7 @@ rule sv_gene_model:
     conda:
         "../sv.yaml"
     container:
-        sif("../sv.yaml")
+        sif("../sv.yaml", "sv_gene_model")
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -241,7 +241,7 @@ rule sv_diff_analysis:
     conda:
         "../sv.yaml"
     container:
-        sif("../sv.yaml")
+        sif("../sv.yaml", "sv_diff_analysis")
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -289,7 +289,7 @@ rule sv_oncoprint:
     conda:
         "../sv.yaml"
     container:
-        sif("../sv.yaml")
+        sif("../sv.yaml", "sv_oncoprint")
     run:
         log_path = str(log)
         open(log_path, "w").close()

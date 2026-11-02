@@ -41,7 +41,7 @@ rule raw2mzml:
     conda:
         "../openms.yaml"
     container:
-        sif("../openms.yaml")
+        sif("../openms.yaml", "raw2mzml")
     params:
         converter = converter,
         converter_mode = converter_mode,

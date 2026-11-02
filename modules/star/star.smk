@@ -30,7 +30,7 @@ rule star_index:
     conda:
         "star.yaml"
     container:
-        sif("star.yaml")
+        sif("star.yaml", "star_index")
     params:
         STAR = config.get('Procedure',{}).get('STAR') or 'STAR',
         index_dir = outdir + "/index",
@@ -205,7 +205,7 @@ rule star_align:
     conda:
         "star.yaml"
     container:
-        sif("star.yaml")
+        sif("star.yaml", "star_align")
     run:
         log_path = str(log)
         open(log_path, 'w').close()

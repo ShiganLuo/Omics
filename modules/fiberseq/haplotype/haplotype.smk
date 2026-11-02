@@ -30,7 +30,7 @@ rule fiberseq_haplotype_diff:
     conda:
         "../fiberseq.yaml"
     container:
-        sif("../fiberseq.yaml")
+        sif("../fiberseq.yaml", "fiberseq_haplotype_diff")
     params:
         script = ROOT_DIR + "/modules/fiberseq/bin/haplotype_diff.py",
         min_fibers = p.get("min_fibers", 10),

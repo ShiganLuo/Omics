@@ -37,7 +37,7 @@ rule subsample_fastq:
     conda:
         "subsample.yaml"
     container:
-        sif("subsample.yaml")
+        sif("subsample.yaml", "subsample_fastq")
     params:
         n = get_subsample_n,
         seed = subsample_seed,

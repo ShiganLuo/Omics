@@ -45,7 +45,7 @@ rule XenofilteR:
     conda:
         "XenofilteR.yaml"
     container:
-        sif("XenofilteR.yaml")
+        sif("XenofilteR.yaml", "XenofilteR")
     run:
         log_path = str(log)
         open(log_path, 'w').close()

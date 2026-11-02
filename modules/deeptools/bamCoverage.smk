@@ -33,7 +33,7 @@ rule bamCoverage:
     conda:
         "deeptools.yaml"
     container:
-        sif("deeptools.yaml")
+        sif("deeptools.yaml", "bamCoverage")
     params:
         bamCoverage = config.get("Procedure", {}).get("bamCoverage") or "bamCoverage",
         bin_size    = config.get("Params", {}).get("bamCoverage", {}).get("bin_size") or 50,

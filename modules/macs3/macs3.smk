@@ -52,7 +52,7 @@ rule macs3_callpeak:
     conda:
         "macs3.yaml"
     container:
-        sif("macs3.yaml")
+        sif("macs3.yaml", "macs3_callpeak")
     params:
         macs3 = config.get("Procedure", {}).get("macs3") or "macs3",
         name = lambda wildcards: wildcards.sample_id,
@@ -129,7 +129,7 @@ rule macs3_cutoff_plot:
     conda:
         "macs3.yaml"
     container:
-        sif("macs3.yaml")
+        sif("macs3.yaml", "macs3_cutoff_plot")
     run:
         log_path = str(log)
         open(log_path, "w").close()

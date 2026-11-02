@@ -17,7 +17,7 @@ rule bcftools_sort:
     conda:
         "bcftools.yaml"
     container:
-        sif("bcftools.yaml")
+        sif("bcftools.yaml", "bcftools_sort")
     params:
         bcftools = config.get("Procedure", {}).get("bcftools") or "bcftools"
     run:
@@ -58,7 +58,7 @@ rule bcftools_index_csi:
     conda:
         "bcftools.yaml"
     container:
-        sif("bcftools.yaml")
+        sif("bcftools.yaml", "bcftools_index_csi")
     params:
         bcftools = config.get("Procedure", {}).get("bcftools") or "bcftools"
     run:

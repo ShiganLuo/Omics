@@ -37,7 +37,7 @@ rule function_go_kegg:
     conda:
         "../function.yaml"
     container:
-        sif("../function.yaml")
+        sif("../function.yaml", "function_go_kegg")
     run:
         log_path = str(log)
         open(log_path, 'w').close()
@@ -112,7 +112,7 @@ rule function_gsea:
     conda:
         "../function.yaml"
     container:
-        sif("../function.yaml")
+        sif("../function.yaml", "function_gsea")
     run:
         log_path = str(log)
         open(log_path, 'w').close()
@@ -207,7 +207,7 @@ rule function_gsva:
     conda:
         "../function.yaml"
     container:
-        sif("../function.yaml")
+        sif("../function.yaml", "function_gsva")
     run:
         log_path = str(log)
         open(log_path, 'w').close()

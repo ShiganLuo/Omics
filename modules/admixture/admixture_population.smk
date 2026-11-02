@@ -9,7 +9,7 @@ rule admixture_population:
  log: logdir+"/analysis/admixture.K{k}.log"
  conda: "admixture_population.yaml"
  container:
-     sif("admixture_population.yaml")
+     sif("admixture_population.yaml", "admixture_population")
  params: admixture=admixture,bed=prefix+".bed",seed=config.get("Params",{}).get("analysis",{}).get("admixture_seed",2026)
  threads: rule_res("admixture_population").get("threads", 4)
     resources:

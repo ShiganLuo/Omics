@@ -41,7 +41,7 @@ rule trgt_genotype:
     conda:
         "../trgt.yaml"
     container:
-        sif("../trgt.yaml")
+        sif("../trgt.yaml", "trgt_genotype")
     run:
         current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start trgt genotype for sample {wildcards.sample_id} genome {wildcards.genome} at {current_time}")
@@ -81,7 +81,7 @@ rule trgt_plot:
     conda:
         "../trgt.yaml"
     container:
-        sif("../trgt.yaml")
+        sif("../trgt.yaml", "trgt_plot")
     run:
         current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         logger.info(f"Start trgt plot for sample {wildcards.sample_id} genome {wildcards.genome} at {current_time}")

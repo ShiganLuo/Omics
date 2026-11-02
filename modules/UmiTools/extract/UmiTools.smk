@@ -17,7 +17,7 @@ rule UmiTools_extract_single:
     conda:
         "../UmiTools.yaml"
     container:
-        sif("../UmiTools.yaml")
+        sif("../UmiTools.yaml", "UmiTools_extract_single")
     threads: rule_res("UmiTools_extract_single").get("threads", 2)
     resources:
         mem_mb = rule_res("UmiTools_extract_single").get("mem_mb", 8000),
@@ -67,7 +67,7 @@ rule UmiTools_extract_paired:
     conda:
         "../UmiTools.yaml"
     container:
-        sif("../UmiTools.yaml")
+        sif("../UmiTools.yaml", "UmiTools_extract_paired")
     run:
         log_path = str(log)
         open(log_path, "w").close()

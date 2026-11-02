@@ -60,7 +60,7 @@ rule sccoda_run:
     conda:
         "sccoda.yaml"
     container:
-        sif("sccoda.yaml")
+        sif("sccoda.yaml", "sccoda_run")
     params:
         python = python,
         script = script,

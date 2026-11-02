@@ -25,7 +25,7 @@ rule bcftools_population_filter:
     conda:
         "../bcftools.yaml"
     container:
-        sif("../bcftools.yaml")
+        sif("../bcftools.yaml", "bcftools_population_filter")
     params:
         bcftools=bcftools,
         maf=filters.get("maf", 0.05),

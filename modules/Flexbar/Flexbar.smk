@@ -23,7 +23,7 @@ rule flexbar_demultiplex:
     conda:
         "Flexbar.yaml"
     container:
-        sif("Flexbar.yaml")
+        sif("Flexbar.yaml", "flexbar_demultiplex")
     log:
         log = logdir + "/{sample_id}/flexbar_demux_run.txt"
     run:

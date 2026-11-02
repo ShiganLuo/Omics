@@ -25,7 +25,7 @@ rule TEcoutCPM:
     conda:
         "annovar.yaml"
     container:
-        sif("annovar.yaml")
+        sif("annovar.yaml", "TEcoutCPM")
     run:
         log_path = str(log.log)
         open(log_path, 'w').close()
@@ -189,7 +189,7 @@ rule annovar_convert:
     conda:
         "annovar.yaml"
     container:
-        sif("annovar.yaml")
+        sif("annovar.yaml", "annovar_convert")
     run:
         log_path = str(log.log)
         open(log_path, 'w').close()
@@ -233,7 +233,7 @@ rule annovar_table:
     conda:
         "annovar.yaml"
     container:
-        sif("annovar.yaml")
+        sif("annovar.yaml", "annovar_table")
     run:
         log_path = str(log.log)
         open(log_path, 'w').close()

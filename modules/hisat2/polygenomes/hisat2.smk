@@ -32,7 +32,7 @@ rule hisat2_index:
     conda:
         "../hisat2.yaml"
     container:
-        sif("../hisat2.yaml")
+        sif("../hisat2.yaml", "hisat2_index")
     params:
         prefix = lambda wildcards: outdir + f"/index/{wildcards.genome}/{wildcards.genome}",
         HISAT2_BUILD = config.get('Procedure', {}).get('hisat2-build') or 'hisat2-build'
@@ -122,7 +122,7 @@ rule hisat2_align:
     conda:
         "hisat2.yaml"
     container:
-        sif("hisat2.yaml")
+        sif("hisat2.yaml", "hisat2_align")
     run:
         log_path = str(log)
         open(log_path, "w").close()

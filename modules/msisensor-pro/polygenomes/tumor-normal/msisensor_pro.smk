@@ -38,7 +38,7 @@ rule scan:
     conda:
         "../../msisensor_pro.schema.yaml"
     container:
-        sif("../../msisensor_pro.schema.yaml")
+        sif("../../msisensor_pro.schema.yaml", "scan")
     run:
         shell("{msisensor_pro} scan -d {input} -o {output} 2>{log} 1>{log}")
 
@@ -57,7 +57,7 @@ rule msisensor_msi:
     conda:
         "../../msisensor_pro.schema.yaml"
     container:
-        sif("../../msisensor_pro.schema.yaml")
+        sif("../../msisensor_pro.schema.yaml", "msisensor_msi")
     run:
         shell("{msisensor_pro} msi -d {input.ms} -n {input.n} -t {input.t} -g {input.ref}  -o {output} 2>{log}")
 

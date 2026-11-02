@@ -27,7 +27,7 @@ rule trimmomatic_Paired:
     conda:
         "trimmomatic.yaml"
     container:
-        sif("trimmomatic.yaml")
+        sif("trimmomatic.yaml", "trimmomatic_Paired")
     log:
         log = logdir + "/{sample_id}/trimmomatic.txt"
     run:
@@ -81,7 +81,7 @@ rule trimmomatic_Single:
     conda:
         "trimmomatic.yaml"
     container:
-        sif("trimmomatic.yaml")
+        sif("trimmomatic.yaml", "trimmomatic_Single")
     log:
         log = logdir + "/{sample_id}/trimmomatic.txt"
     run:

@@ -24,7 +24,7 @@ rule ucsc_track_single:
         mem_mb = rule_res("ucsc_track_single").get("mem_mb", 8000),
     conda: "track.yaml"
     container:
-        sif("track.yaml")
+        sif("track.yaml", "ucsc_track_single")
     params:
         track_script = ROOT_DIR + "/modules/track/bin/track.py"
     run:
@@ -69,7 +69,7 @@ rule ucsc_track_iclip:
         mem_mb = rule_res("ucsc_track_iclip").get("mem_mb", 8000),
     conda: "track.yaml"
     container:
-        sif("track.yaml")
+        sif("track.yaml", "ucsc_track_iclip")
     params:
         track_script = ROOT_DIR + "/modules/track/bin/track.py"
     run:
@@ -114,7 +114,7 @@ rule igv_track_single:
         mem_mb = rule_res("igv_track_single").get("mem_mb", 8000),
     conda: "track.yaml"
     container:
-        sif("track.yaml")
+        sif("track.yaml", "igv_track_single")
     params:
         track_script = ROOT_DIR + "/modules/track/bin/track.py",
         igv_config = igv_config,
@@ -173,7 +173,7 @@ rule igv_track_iclip:
         mem_mb = rule_res("igv_track_iclip").get("mem_mb", 8000),
     conda: "track.yaml"
     container:
-        sif("track.yaml")
+        sif("track.yaml", "igv_track_iclip")
     params:
         track_script = ROOT_DIR + "/modules/track/bin/track.py",
         igv_config = igv_config,

@@ -26,7 +26,7 @@ rule demultiplex_trim_dedup:
     conda:
         "demultiplexer.yaml"
     container:
-        sif("demultiplexer.yaml")
+        sif("demultiplexer.yaml", "demultiplex_trim_dedup")
     params:
         ranmer_len = ranmer_len,
         max_ham = max_ham,

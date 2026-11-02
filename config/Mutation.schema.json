@@ -1,188 +1,784 @@
 {
-  "indir": {
-    "type": "str",
-    "required": true
-  },
-  "outdir": {
-    "type": "str",
-    "required": true
-  },
-  "logdir": {
-    "type": "str",
-    "required": true
-  },
-  "paired_samples": {
-    "type": "list",
-    "required": true
-  },
-  "single_samples": {
-    "type": "list",
-    "required": true
-  },
-  "control_samples": {
-    "type": "list",
-    "required": true
-  },
-  "Procedure": {
-    "fastqc": {
-      "type": "null",
-      "nullable": true,
-      "required": false
-    },
-    "bwaMem2": {
-      "type": "null",
-      "nullable": true,
-      "required": false
-    },
-    "samtools": {
-      "type": "null",
-      "nullable": true,
-      "required": false
-    },
-    "bgzip": {
-      "type": "null",
-      "nullable": true,
-      "required": false
-    },
-    "gatk": {
-      "type": "null",
-      "nullable": true,
-      "required": false
-    },
-    "manta": {
-      "type": "null",
-      "nullable": true,
-      "required": false
-    },
-    "cnvkit": {
-      "type": "null",
-      "nullable": true,
-      "required": false
-    }
-  },
-  "Params": {
-    "trim_galore": {
-      "quality": {
-        "type": "int",
-        "required": true
-      }
-    },
-    "samtools": {
-      "onlykeep_properpair": {
-        "type": "bool",
-        "required": true
-      }
-    },
-    "gatk": {
-      "addReadsGroup": {
-        "RGLB": {
-          "type": "str",
-          "required": true
+    "Procedure": {
+        "fastqc": {
+            "type": "null",
+            "nullable": true,
+            "required": false
         },
-        "RGPL": {
-          "type": "str",
-          "required": true
+        "bwaMem2": {
+            "type": "null",
+            "nullable": true,
+            "required": false
         },
-        "RGPU": {
-          "type": "str",
-          "required": true
+        "samtools": {
+            "type": "null",
+            "nullable": true,
+            "required": false
+        },
+        "bgzip": {
+            "type": "null",
+            "nullable": true,
+            "required": false
+        },
+        "gatk": {
+            "type": "null",
+            "nullable": true,
+            "required": false
+        },
+        "manta": {
+            "type": "null",
+            "nullable": true,
+            "required": false
+        },
+        "cnvkit": {
+            "type": "null",
+            "nullable": true,
+            "required": false
         }
-      },
-      "VariantFiltration": {
-        "FS_threshold": {
-          "type": "float",
-          "required": true
+    },
+    "Params": {
+        "trim_galore": {
+            "quality": {
+                "type": "int",
+                "required": true
+            }
         },
-        "QD_threshold": {
-          "type": "float",
-          "required": true
+        "samtools": {
+            "onlykeep_properpair": {
+                "type": "bool",
+                "required": true
+            }
         },
-        "DP_threshold": {
-          "type": "float",
-          "required": true
+        "gatk": {
+            "addReadsGroup": {
+                "RGLB": {
+                    "type": "str",
+                    "required": true
+                },
+                "RGPL": {
+                    "type": "str",
+                    "required": true
+                },
+                "RGPU": {
+                    "type": "str",
+                    "required": true
+                }
+            },
+            "VariantFiltration": {
+                "FS_threshold": {
+                    "type": "float",
+                    "required": true
+                },
+                "QD_threshold": {
+                    "type": "float",
+                    "required": true
+                },
+                "DP_threshold": {
+                    "type": "float",
+                    "required": true
+                },
+                "QUAL_threshold": {
+                    "type": "float",
+                    "required": true
+                }
+            }
         },
-        "QUAL_threshold": {
-          "type": "float",
-          "required": true
+        "manta": {
+            "threads": {
+                "type": "int",
+                "required": true
+            }
+        },
+        "cnvkit": {
+            "method": {
+                "type": "str",
+                "required": true
+            },
+            "processes": {
+                "type": "int",
+                "required": true
+            }
+        },
+        "somatic_spectrum": {
+            "sample_somatic_vcf_dict": {},
+            "sample_group_dict": {}
+        },
+        "skip_fragment_size": {
+            "type": "bool",
+            "required": true
+        },
+        "skip_sv": {
+            "type": "bool",
+            "required": true
+        },
+        "skip_cnv": {
+            "type": "bool",
+            "required": true
+        },
+        "workflow": {
+            "type": "dict",
+            "required": true,
+            "properties": {
+                "indir": {
+                    "type": "str",
+                    "required": false
+                },
+                "raw_files": {
+                    "type": "list",
+                    "required": false
+                },
+                "outdir": {
+                    "type": "str",
+                    "required": false
+                },
+                "logdir": {
+                    "type": "str",
+                    "required": false
+                },
+                "paired_samples": {
+                    "type": "list",
+                    "required": false
+                },
+                "single_samples": {
+                    "type": "list",
+                    "required": false
+                },
+                "control_samples": {
+                    "type": "list",
+                    "required": false
+                }
+            }
         }
-      }
     },
-    "manta": {
-      "threads": {
-        "type": "int",
-        "required": true
-      }
+    "genome": {
+        "type": "dict",
+        "required": true,
+        "properties": {
+            "default": {
+                "type": "str",
+                "required": true
+            },
+            "references": {
+                "type": "dict",
+                "required": true,
+                "additionalProperties": {
+                    "type": "dict",
+                    "properties": {
+                        "fasta": {
+                            "type": "str",
+                            "nullable": true,
+                            "required": false
+                        },
+                        "gtf": {
+                            "type": "str",
+                            "nullable": true,
+                            "required": false
+                        },
+                        "geneIDAnno": {
+                            "type": "str",
+                            "nullable": true,
+                            "required": false
+                        },
+                        "gene_map": {
+                            "type": "str",
+                            "nullable": true,
+                            "required": false
+                        },
+                        "TE_gtf": {
+                            "type": "str",
+                            "nullable": true,
+                            "required": false
+                        },
+                        "TEind": {
+                            "type": "str",
+                            "nullable": true,
+                            "required": false
+                        },
+                        "hisat2_index_prefix": {
+                            "type": "str",
+                            "nullable": true,
+                            "required": false
+                        },
+                        "star_index_dir": {
+                            "type": "str",
+                            "nullable": true,
+                            "required": false
+                        },
+                        "rRNA_fasta": {
+                            "type": "str",
+                            "nullable": true,
+                            "required": false
+                        },
+                        "bowtie2_index_prefix_for_rRNA": {
+                            "type": "str",
+                            "nullable": true,
+                            "required": false
+                        },
+                        "bwaMem2_index_prefix": {
+                            "type": "str",
+                            "nullable": true,
+                            "required": false
+                        },
+                        "known_sites": {
+                            "type": "str",
+                            "nullable": true,
+                            "required": false
+                        },
+                        "interval": {
+                            "type": "str",
+                            "nullable": true,
+                            "required": false
+                        },
+                        "access": {
+                            "type": "str",
+                            "nullable": true,
+                            "required": false
+                        }
+                    }
+                }
+            }
+        }
     },
-    "cnvkit": {
-      "method": {
-        "type": "str",
-        "required": true
-      },
-      "processes": {
-        "type": "int",
-        "required": true
-      }
+    "env": {
+        "type": "dict",
+        "required": false
     },
-    "somatic_spectrum": {
-      "sample_somatic_vcf_dict": {},
-      "sample_group_dict": {}
+    "outfiles": {
+        "type": "list",
+        "required": false
     },
-    "skip_fragment_size": {
-      "type": "bool",
-      "required": true
+    "ROOT_DIR": {
+        "type": "null",
+        "nullable": true,
+        "required": false
     },
-    "skip_sv": {
-      "type": "bool",
-      "required": true
+    "tmp_dir": {
+        "type": "null",
+        "nullable": true,
+        "required": false
     },
-    "skip_cnv": {
-      "type": "bool",
-      "required": true
+    "resources": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+            "default": {
+                "type": "dict",
+                "required": false,
+                "properties": {
+                    "threads": {
+                        "type": "int",
+                        "required": false
+                    },
+                    "mem_mb": {
+                        "type": "int",
+                        "required": false
+                    }
+                }
+            },
+            "trimming_Paired": {
+                "type": "dict",
+                "required": false,
+                "properties": {
+                    "threads": {
+                        "type": "int",
+                        "required": false
+                    },
+                    "mem_mb": {
+                        "type": "int",
+                        "required": false
+                    }
+                }
+            },
+            "trimming_Single": {
+                "type": "dict",
+                "required": false,
+                "properties": {
+                    "threads": {
+                        "type": "int",
+                        "required": false
+                    },
+                    "mem_mb": {
+                        "type": "int",
+                        "required": false
+                    }
+                }
+            },
+            "trimmomatic_Paired": {
+                "type": "dict",
+                "required": false,
+                "properties": {
+                    "threads": {
+                        "type": "int",
+                        "required": false
+                    },
+                    "mem_mb": {
+                        "type": "int",
+                        "required": false
+                    }
+                }
+            },
+            "trimmomatic_Single": {
+                "type": "dict",
+                "required": false,
+                "properties": {
+                    "threads": {
+                        "type": "int",
+                        "required": false
+                    },
+                    "mem_mb": {
+                        "type": "int",
+                        "required": false
+                    }
+                }
+            },
+            "star_index": {
+                "type": "dict",
+                "required": false,
+                "properties": {
+                    "threads": {
+                        "type": "int",
+                        "required": false
+                    },
+                    "mem_mb": {
+                        "type": "int",
+                        "required": false
+                    }
+                }
+            },
+            "hisat2_index": {
+                "type": "dict",
+                "required": false,
+                "properties": {
+                    "threads": {
+                        "type": "int",
+                        "required": false
+                    },
+                    "mem_mb": {
+                        "type": "int",
+                        "required": false
+                    }
+                }
+            },
+            "hisat2_align": {
+                "type": "dict",
+                "required": false,
+                "properties": {
+                    "threads": {
+                        "type": "int",
+                        "required": false
+                    },
+                    "mem_mb": {
+                        "type": "int",
+                        "required": false
+                    }
+                }
+            },
+            "TEcount": {
+                "type": "dict",
+                "required": false,
+                "properties": {
+                    "threads": {
+                        "type": "int",
+                        "required": false
+                    },
+                    "mem_mb": {
+                        "type": "int",
+                        "required": false
+                    }
+                }
+            },
+            "TElocal": {
+                "type": "dict",
+                "required": false,
+                "properties": {
+                    "threads": {
+                        "type": "int",
+                        "required": false
+                    },
+                    "mem_mb": {
+                        "type": "int",
+                        "required": false
+                    }
+                }
+            },
+            "combine_TEcount": {
+                "type": "dict",
+                "required": false,
+                "properties": {
+                    "threads": {
+                        "type": "int",
+                        "required": false
+                    },
+                    "mem_mb": {
+                        "type": "int",
+                        "required": false
+                    }
+                }
+            },
+            "combine_TElocal": {
+                "type": "dict",
+                "required": false,
+                "properties": {
+                    "threads": {
+                        "type": "int",
+                        "required": false
+                    },
+                    "mem_mb": {
+                        "type": "int",
+                        "required": false
+                    }
+                }
+            },
+            "featureCounts_paired_noMultiple": {
+                "type": "dict",
+                "required": false,
+                "properties": {
+                    "threads": {
+                        "type": "int",
+                        "required": false
+                    },
+                    "mem_mb": {
+                        "type": "int",
+                        "required": false
+                    }
+                }
+            },
+            "featureCounts_single_noMultiple": {
+                "type": "dict",
+                "required": false,
+                "properties": {
+                    "threads": {
+                        "type": "int",
+                        "required": false
+                    },
+                    "mem_mb": {
+                        "type": "int",
+                        "required": false
+                    }
+                }
+            },
+            "featureCounts_merge": {
+                "type": "dict",
+                "required": false,
+                "properties": {
+                    "threads": {
+                        "type": "int",
+                        "required": false
+                    },
+                    "mem_mb": {
+                        "type": "int",
+                        "required": false
+                    }
+                }
+            },
+            "stringTie": {
+                "type": "dict",
+                "required": false,
+                "properties": {
+                    "threads": {
+                        "type": "int",
+                        "required": false
+                    },
+                    "mem_mb": {
+                        "type": "int",
+                        "required": false
+                    }
+                }
+            },
+            "TEChimericTranscripts": {
+                "type": "dict",
+                "required": false,
+                "properties": {
+                    "threads": {
+                        "type": "int",
+                        "required": false
+                    },
+                    "mem_mb": {
+                        "type": "int",
+                        "required": false
+                    }
+                }
+            },
+            "TEChimericPlot": {
+                "type": "dict",
+                "required": false,
+                "properties": {
+                    "threads": {
+                        "type": "int",
+                        "required": false
+                    },
+                    "mem_mb": {
+                        "type": "int",
+                        "required": false
+                    }
+                }
+            },
+            "stringTieMerge": {
+                "type": "dict",
+                "required": false,
+                "properties": {
+                    "threads": {
+                        "type": "int",
+                        "required": false
+                    },
+                    "mem_mb": {
+                        "type": "int",
+                        "required": false
+                    }
+                }
+            },
+            "extract_rRNA": {
+                "type": "dict",
+                "required": false,
+                "properties": {
+                    "threads": {
+                        "type": "int",
+                        "required": false
+                    },
+                    "mem_mb": {
+                        "type": "int",
+                        "required": false
+                    }
+                }
+            },
+            "bowtie2_index": {
+                "type": "dict",
+                "required": false,
+                "properties": {
+                    "threads": {
+                        "type": "int",
+                        "required": false
+                    },
+                    "mem_mb": {
+                        "type": "int",
+                        "required": false
+                    }
+                }
+            },
+            "bowtie2_align_paired": {
+                "type": "dict",
+                "required": false,
+                "properties": {
+                    "threads": {
+                        "type": "int",
+                        "required": false
+                    },
+                    "mem_mb": {
+                        "type": "int",
+                        "required": false
+                    }
+                }
+            },
+            "bowtie2_align_single": {
+                "type": "dict",
+                "required": false,
+                "properties": {
+                    "threads": {
+                        "type": "int",
+                        "required": false
+                    },
+                    "mem_mb": {
+                        "type": "int",
+                        "required": false
+                    }
+                }
+            },
+            "gatk_index": {
+                "type": "dict",
+                "required": false,
+                "properties": {
+                    "threads": {
+                        "type": "int",
+                        "required": false
+                    },
+                    "mem_mb": {
+                        "type": "int",
+                        "required": false
+                    }
+                }
+            },
+            "addReadsGroup": {
+                "type": "dict",
+                "required": false,
+                "properties": {
+                    "threads": {
+                        "type": "int",
+                        "required": false
+                    },
+                    "mem_mb": {
+                        "type": "int",
+                        "required": false
+                    }
+                }
+            },
+            "MarkDuplicates": {
+                "type": "dict",
+                "required": false,
+                "properties": {
+                    "threads": {
+                        "type": "int",
+                        "required": false
+                    },
+                    "mem_mb": {
+                        "type": "int",
+                        "required": false
+                    }
+                }
+            },
+            "arriba": {
+                "type": "dict",
+                "required": false,
+                "properties": {
+                    "threads": {
+                        "type": "int",
+                        "required": false
+                    },
+                    "mem_mb": {
+                        "type": "int",
+                        "required": false
+                    }
+                }
+            },
+            "SplitNCigarReads": {
+                "type": "dict",
+                "required": false,
+                "properties": {
+                    "threads": {
+                        "type": "int",
+                        "required": false
+                    },
+                    "mem_mb": {
+                        "type": "int",
+                        "required": false
+                    }
+                }
+            },
+            "VarientCalling": {
+                "type": "dict",
+                "required": false,
+                "properties": {
+                    "threads": {
+                        "type": "int",
+                        "required": false
+                    },
+                    "mem_mb": {
+                        "type": "int",
+                        "required": false
+                    }
+                }
+            },
+            "vcf_filter": {
+                "type": "dict",
+                "required": false,
+                "properties": {
+                    "threads": {
+                        "type": "int",
+                        "required": false
+                    },
+                    "mem_mb": {
+                        "type": "int",
+                        "required": false
+                    }
+                }
+            },
+            "XenofilteR": {
+                "type": "dict",
+                "required": false,
+                "properties": {
+                    "threads": {
+                        "type": "int",
+                        "required": false
+                    },
+                    "mem_mb": {
+                        "type": "int",
+                        "required": false
+                    }
+                }
+            },
+            "DESeq2_TEcount": {
+                "type": "dict",
+                "required": false,
+                "properties": {
+                    "threads": {
+                        "type": "int",
+                        "required": false
+                    },
+                    "mem_mb": {
+                        "type": "int",
+                        "required": false
+                    }
+                }
+            },
+            "function_go_kegg": {
+                "type": "dict",
+                "required": false,
+                "properties": {
+                    "threads": {
+                        "type": "int",
+                        "required": false
+                    },
+                    "mem_mb": {
+                        "type": "int",
+                        "required": false
+                    }
+                }
+            },
+            "function_gsea": {
+                "type": "dict",
+                "required": false,
+                "properties": {
+                    "threads": {
+                        "type": "int",
+                        "required": false
+                    },
+                    "mem_mb": {
+                        "type": "int",
+                        "required": false
+                    }
+                }
+            },
+            "function_gsva": {
+                "type": "dict",
+                "required": false,
+                "properties": {
+                    "threads": {
+                        "type": "int",
+                        "required": false
+                    },
+                    "mem_mb": {
+                        "type": "int",
+                        "required": false
+                    }
+                }
+            },
+            "generate_report": {
+                "type": "dict",
+                "required": false,
+                "properties": {
+                    "threads": {
+                        "type": "int",
+                        "required": false
+                    },
+                    "mem_mb": {
+                        "type": "int",
+                        "required": false
+                    }
+                }
+            },
+            "star_align": {
+                "type": "dict",
+                "required": false,
+                "properties": {
+                    "threads": {
+                        "type": "int",
+                        "required": false
+                    },
+                    "mem_mb": {
+                        "type": "int",
+                        "required": false
+                    }
+                }
+            }
+        }
     }
-  },
-  "genome": {
-    "fasta": {
-      "type": "str",
-      "required": true,
-      "path": "file"
-    },
-    "dict_index": {
-      "type": "null",
-      "nullable": true,
-      "required": false
-    },
-    "fai_index": {
-      "type": "null",
-      "nullable": true,
-      "required": false
-    },
-    "bwaMem2_index_prefix": {
-      "type": "null",
-      "nullable": true,
-      "required": false
-    },
-    "known_sites": {
-      "type": "null",
-      "nullable": true,
-      "required": false
-    },
-    "interval": {
-      "type": "null",
-      "nullable": true,
-      "required": false
-    },
-    "access": {
-      "type": "null",
-      "nullable": true,
-      "required": false
-    }
-  },
-  "env": {
-    "type": "dict",
-    "required": false
-  },
-  "raw_files": {
-    "type": "list",
-    "required": false
-  }
 }

@@ -179,7 +179,7 @@ def _init_raw_json(
     tmp_dir = datajson.get("tmp_dir") or os.path.join(outdir, "tmp")
     if not datajson.get("tmp_dir"):
         os.makedirs(tmp_dir, exist_ok=True)
-    if workflow in ["PacVar", "ncRNAseq", "RNAseq", "QuantMS", "Fiberseq", "scRNAseq"]:
+    if workflow in ["PacVar", "ncRNAseq", "RNAseq", "QuantMS", "Fiberseq", "scRNAseq", "Mutation"]:
         datajson["ROOT_DIR"] = root_dir
         datajson["Params"]["workflow"]["indir"] = indir
         datajson["Params"]["workflow"]["outdir"] = outdir
@@ -575,7 +575,8 @@ def runMutation(
         outdir: str,
         raw_files: List[str],
     ):
-    root_dir = _init_raw_json(datajson, indir, outdir, raw_files)
+    root_dir = _init_raw_json(datajson, indir, outdir, raw_files, workflow="Mutation")
+    _genome_ref = _resolve_genome_ref(datajson, samples_info_dict, "Mutation")
     outfiles = []
     paired_samples = []
     single_samples = []
@@ -629,15 +630,16 @@ def runMutation(
         for sample_id in all_samples:
             outfiles.append(f"{outdir}/variation/cnv/cnvkit/cnv/{sample_id}.cnr")
             outfiles.append(f"{outdir}/variation/cnv/cnvkit/cnv/{sample_id}.cns")
-        control_samples = datajson.get("control_samples", []) or []
+        control_samples = datajson["Params"]["workflow"].get("control_samples", []) or []
         if control_samples:
             outfiles.append(f"{outdir}/variation/cnv/cnvkit/reference/reference.cnn")
     
     datajson["Params"]["somatic_spectrum"]["sample_somatic_vcf_dict"] = sample_somatic_vcf_dict
     datajson["Params"]["somatic_spectrum"]["sample_group_dict"] = sample_group_dict
     datajson["outfiles"] = outfiles
-    datajson["paired_samples"] = paired_samples
-    datajson["single_samples"] = single_samples
+    datajson["Params"]["workflow"]["paired_samples"] = paired_samples
+    datajson["Params"]["workflow"]["single_samples"] = single_samples
+    datajson["Params"]["workflow"]["control_samples"] = datajson["Params"]["workflow"].get("control_samples", []) or []
     return _write_raw_json(datajson, outdir)
 
 def runKARRseq(

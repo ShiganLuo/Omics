@@ -4,7 +4,7 @@ include: "../../common/common.smk"
 # (layout-C sub-tool of modules/function; engine: bin/go-kegg.r).
 #
 # Input contract (Omics pseudobulk output):
-#   <root>/<tissue>/pseudobulk/<counter>/deg_pseudobulk{,_gene,_te}/
+#   <root>/<tissue>/<counter>/deg_pseudobulk{,_gene,_te}/
 #       deg_<tissue>/<contrast>/<cell_type>/<contrast>_<cell_type>_DEG.csv
 #   (columns: gene, cell_type, comparison, baseMean, log2FC, lfcSE, stat,
 #    pval, pval_adj, significant)
@@ -43,14 +43,14 @@ import glob as _glob  # noqa: E402
 def scan_unit_lines():
     """List 'counter/mode/tissue/contrast/cell_type' units under pb_root."""
     mode_of = {v: k for k, v in _MODE_DIRS.items()}
-    pat = os.path.join(pb_root, "*", "pseudobulk", "*", "deg_pseudobulk*",
+    pat = os.path.join(pb_root, "*", "*", "deg_pseudobulk*",
                        "deg_*", "*", "*", "*_DEG.csv")
     units = set()
     for path in _glob.glob(pat):
         rel = os.path.relpath(path, pb_root).split(os.sep)
-        if len(rel) != 8:
+        if len(rel) != 7:
             continue
-        tissue, _pb, counter, mode_dir, deg_tissue, contrast, cell_type, fname = rel
+        tissue, counter, mode_dir, deg_tissue, contrast, cell_type, fname = rel
         if deg_tissue != f"deg_{tissue}":
             continue
         if fname != f"{contrast}_{cell_type}_DEG.csv":
@@ -107,7 +107,7 @@ rule function_pseudobulk_go:
     """GO/KEGG enrichment for one pseudobulk DEG table (up and down split)."""
     input:
         deg=lambda wildcards: os.path.join(
-            pb_root, wildcards.tissue, "pseudobulk", wildcards.counter,
+            pb_root, wildcards.tissue, wildcards.counter,
             _MODE_DIRS[wildcards.mode], f"deg_{wildcards.tissue}",
             wildcards.contrast, wildcards.cell_type,
             f"{wildcards.contrast}_{wildcards.cell_type}_DEG.csv")

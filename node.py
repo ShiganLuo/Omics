@@ -431,49 +431,11 @@ def runPacVar(
     enable_telomere = _enabled(datajson, "telomere")
     enable_eccdna = _enabled(datajson, "decoil")  # Decoil is the eccDNA reconstruction step
 
-    # Resolve nested genome reference (genome.default normalized like
-    # sample_info.organism; falls back to the meta organism when unset)
     _genome_ref = _resolve_genome_ref(datajson, samples_info_dict, "PacVar")
-
-    # Custom-genome sv resources, same convention as runFiberseq: they are
-    # properties of the active reference block (custom_gtf / custom_fasta /
-    # te_lib), auto-filled when the files exist — never Params.sv fields.
     _genome_name = datajson["genome"]["default"]
     datajson["Params"].setdefault("sv", {}).setdefault("exp_specific", {})
     datajson["Params"]["sv"]["exp_specific"]["species"] = _genome_name
     datajson["Params"]["sv"]["exp_specific"]["assembly"] = _genome_name
-    _gtf = _genome_ref.get("gtf") if isinstance(_genome_ref, dict) else None
-    _fasta = _genome_ref.get("fasta") if isinstance(_genome_ref, dict) else None
-    if _gtf and _fasta:
-        _gtf_sorted = None
-        if _gtf.endswith((".gtf.gz", ".gff.gz", ".gff3.gz")) and os.path.exists(_gtf + ".tbi"):
-            _gtf_sorted = _gtf
-        else:
-            for _cand in (
-                re.sub(r"\.(gtf|gff|gff3)$", ".sorted.gtf.gz", _gtf),
-                re.sub(r"\.(gtf|gff|gff3)(\.gz)?$", ".sorted.gtf.gz", _gtf),
-            ):
-                if os.path.exists(_cand) and os.path.exists(_cand + ".tbi"):
-                    _gtf_sorted = _cand
-                    break
-        if _gtf_sorted:
-            _genome_ref["custom_gtf"] = _gtf_sorted
-            _genome_ref["custom_fasta"] = _fasta
-    if not _genome_ref.get("te_lib"):
-        _famdb_dir = os.path.join(
-            _detect_current_server_db() or "/data/16T/Database",
-            "Reference", "famdb",
-        )
-        _te_species = GENOME_TE_SPECIES.get(str(_genome_name))
-        if _te_species:
-            _te_lib = os.path.join(_famdb_dir, f"{_te_species}_te_lib.fa")
-            if os.path.isfile(_te_lib):
-                _genome_ref["te_lib"] = _te_lib
-    if not _genome_ref.get("fai") and _fasta:
-        _fai = _fasta + ".fai"
-        if os.path.isfile(_fai):
-            _genome_ref["fai"] = _fai
-
     for sample_id, sample_info in samples_info_dict.items():
         samples.append(sample_id)
         # SNP calling
@@ -1311,7 +1273,7 @@ def runscRNAseq(
             pb_compare = pb_cfg.get("compare") or []
             if pb_cfg.get("enabled") and any(
                     str(c).split(":", 1)[0] == tissue for c in pb_compare):
-                outfiles.append(f"{outdir}/common/5_combine_h5ad/{tissue}/pseudobulk/{counter}/pseudobulk_report.html")
+                outfiles.append(f"{outdir}/diff/pseudobulk/{tissue}/{counter}/pseudobulk_report.html")
             # scCODA differential abundance (modules/sccoda) — gated per
             # counter by Params.sccoda.<counter>.enabled; consumes the
             # scanpy_auto h5ad (obs: sample_id + cell_type), so registering
@@ -1322,7 +1284,7 @@ def runscRNAseq(
             sc_compare = sc_cfg.get("compare") or []
             if sc_cfg.get("enabled") and any(
                     str(c).split(":", 1)[0] == tissue for c in sc_compare):
-                outfiles.append(f"{outdir}/common/5_combine_h5ad/{tissue}/sccoda/{counter}/sccoda_report.html")
+                outfiles.append(f"{outdir}/diff/abundance/{tissue}/{counter}/sccoda_report.html")
             # Manual cluster-annotation overrides (scanpy_reannotate): an
             # in-place label fix over the auto h5ad (auto.h5ad.bak keeps
             # one generation). Register the marker file only for tissues
@@ -1368,58 +1330,9 @@ def runFiberseq(
 
     outfiles = []
     samples = []
-    res = f"{outdir}/fiberseq_analysis"
-    var = f"{outdir}/variation"
-    raw_results_dir = f"{outdir}/common/4_elements"
+    genome_versions = set()
     default_ref = _resolve_genome_ref(datajson, samples_info_dict, "Fiberseq")
-    genome = datajson["genome"]["default"]
-    datajson["Params"]["sv"]["exp_specific"]["species"] = genome
-    datajson["Params"]["sv"]["exp_specific"]["assembly"] = genome
-    # Custom genomes (T2T/liftoff builds) have no Ensembl VEP cache: the
-    # cache route dies at vep_install ("No matching species found"). When the
-    # reference carries a GTF, annotate via VEP --gtf + --fasta instead.
-    # VEP --gtf requires a sorted, bgzipped, tabix-indexed GTF: prefer the
-    # pre-built "<stem>.sorted.gtf.gz" sibling, or an already-indexed .gtf.gz.
-    # Custom-genome sv resources live in the genome REFERENCE block
-    # (custom_gtf / custom_fasta / te_lib), not under Params.sv.exp_specific:
-    # they are properties of the reference, not run parameters.
-    _gtf = default_ref.get("gtf") if default_ref else None
-    _fasta = default_ref.get("fasta") if default_ref else None
-    _ref_block = default_ref if isinstance(default_ref, dict) else {}
-    if _gtf and _fasta:
-        _gtf_sorted = None
-        if _gtf.endswith((".gtf.gz", ".gff.gz", ".gff3.gz")) and os.path.exists(_gtf + ".tbi"):
-            _gtf_sorted = _gtf
-        else:
-            for _cand in (
-                re.sub(r"\.(gtf|gff|gff3)$", ".sorted.gtf.gz", _gtf),
-                re.sub(r"\.(gtf|gff|gff3)(\.gz)?$", ".sorted.gtf.gz", _gtf),
-            ):
-                if os.path.exists(_cand) and os.path.exists(_cand + ".tbi"):
-                    _gtf_sorted = _cand
-                    break
-        if _gtf_sorted:
-            _ref_block["custom_gtf"] = _gtf_sorted
-            _ref_block["custom_fasta"] = _fasta
-    # Species-specific RepeatMasker library: the sv container's Dfam only
-    # ships partition 0, so -species lookup dies for most mammals. Resolve
-    # the prebuilt <species>_te_lib.fa from the famdb reference dir.
-    if not _ref_block.get("te_lib"):
-        _famdb_dir = os.path.join(
-            _detect_current_server_db() or "/data/16T/Database",
-            "Reference", "famdb",
-        )
-        _te_species = GENOME_TE_SPECIES.get(str(genome))
-        if _te_species:
-            _te_lib = os.path.join(_famdb_dir, f"{_te_species}_te_lib.fa")
-            if os.path.isfile(_te_lib):
-                _ref_block["te_lib"] = _te_lib
-    # .fai next to the FASTA (hot_spot analysis reads it; a null fai crashes
-    # sv_exp_enrichment with a TypeError on None).
-    if not _ref_block.get("fai") and _fasta:
-        _fai = _fasta + ".fai"
-        if os.path.isfile(_fai):
-            _ref_block["fai"] = _fai
+    ### switch 
     enable_annotate = _enabled(datajson, "annotate")
     enable_motif = _enabled(datajson, "motif")
     enable_footprint = _enabled(datajson, "footprint")
@@ -1437,7 +1350,9 @@ def runFiberseq(
     want_quant = enable_quant or enable_diff or enable_haplotype
     want_eccdna = _enabled(datajson, "decoil") and default_ref.get("gtf")
 
+    ### collect data
     for sample_id, sample_info in samples_info_dict.items():
+        genome_versions.add(sample_info.organism)
         samples.append(sample_id)
         # Step 1: prepare fiberseq BAM (predict-m6a + fire)
         outfiles.append(f"{outdir}/common/2_fiberseq_bam/{sample_id}/{sample_id}.fiberseq.fire.bam")
@@ -1445,56 +1360,56 @@ def runFiberseq(
         outfiles.append(f"{outdir}/common/3_align_bam/{sample_id}/{sample_id}.fiberseq.fire.sorted.bam")
         outfiles.append(f"{outdir}/common/3_align_bam/{sample_id}/{sample_id}.fiberseq.fire.sorted.bai")
         # Step 3: raw results
-        outfiles.append(f"{raw_results_dir}/{sample_id}/{sample_id}.m6a.bed.gz")
-        outfiles.append(f"{raw_results_dir}/{sample_id}/{sample_id}.nuc.bed.gz")
-        outfiles.append(f"{raw_results_dir}/{sample_id}/{sample_id}.msp.bed.gz")
-        outfiles.append(f"{raw_results_dir}/{sample_id}/{sample_id}.cpg.bed.gz")
-        outfiles.append(f"{raw_results_dir}/{sample_id}/{sample_id}.fire_peaks.bed")
-        outfiles.append(f"{raw_results_dir}/{sample_id}/{sample_id}.fire_fdr_table.tsv")
-        outfiles.append(f"{raw_results_dir}/{sample_id}/{sample_id}.fire.bed.gz")
-        outfiles.append(f"{raw_results_dir}/{sample_id}/{sample_id}.qc.tsv")
+        outfiles.append(f"{outdir}/common/4_elements/{sample_id}/{sample_id}.m6a.bed.gz")
+        outfiles.append(f"{outdir}/common/4_elements/{sample_id}/{sample_id}.nuc.bed.gz")
+        outfiles.append(f"{outdir}/common/4_elements/{sample_id}/{sample_id}.msp.bed.gz")
+        outfiles.append(f"{outdir}/common/4_elements/{sample_id}/{sample_id}.cpg.bed.gz")
+        outfiles.append(f"{outdir}/common/4_elements/{sample_id}/{sample_id}.fire_peaks.bed")
+        outfiles.append(f"{outdir}/common/4_elements/{sample_id}/{sample_id}.fire_fdr_table.tsv")
+        outfiles.append(f"{outdir}/common/4_elements/{sample_id}/{sample_id}.fire.bed.gz")
+        outfiles.append(f"{outdir}/common/4_elements/{sample_id}/{sample_id}.qc.tsv")
 
         # Step 4: downstream (gated by Params.*.enabled)
         if enable_annotate:
-            outfiles.append(f"{res}/annotate/{sample_id}/{sample_id}.peaks_annotated.tsv")
-            outfiles.append(f"{res}/annotate/{sample_id}/{sample_id}.peaks_summary.tsv")
+            outfiles.append(f"{outdir}/fiberseq_analysis/annotate/{sample_id}/{sample_id}.peaks_annotated.tsv")
+            outfiles.append(f"{outdir}/fiberseq_analysis/annotate/{sample_id}/{sample_id}.peaks_summary.tsv")
         if want_motif:
-            outfiles.append(f"{res}/motif/{sample_id}/{sample_id}.motif_sites.bed")    
+            outfiles.append(f"{outdir}/fiberseq_analysis/motif/{sample_id}/{sample_id}.motif_sites.bed")    
         if enable_motif:
-            outfiles.append(f"{res}/motif/{sample_id}/{sample_id}.motif_profile.tsv")
-            outfiles.append(f"{res}/motif/{sample_id}/{sample_id}.motif_footprint_scores.tsv")
-            outfiles.append(f"{res}/motif/{sample_id}/{sample_id}.motif_profile.pdf")
+            outfiles.append(f"{outdir}/fiberseq_analysis/motif/{sample_id}/{sample_id}.motif_profile.tsv")
+            outfiles.append(f"{outdir}/fiberseq_analysis/motif/{sample_id}/{sample_id}.motif_footprint_scores.tsv")
+            outfiles.append(f"{outdir}/fiberseq_analysis/motif/{sample_id}/{sample_id}.motif_profile.pdf")
         if enable_footprint:
-            outfiles.append(f"{res}/footprint/{sample_id}/{sample_id}.footprint_categories.tsv")
-            outfiles.append(f"{res}/footprint/{sample_id}/{sample_id}.footprint_profiles.tsv")
-            outfiles.append(f"{res}/footprint/{sample_id}/{sample_id}.footprint_scores.tsv")
-            outfiles.append(f"{res}/footprint/{sample_id}/{sample_id}.footprint_profile.pdf")
+            outfiles.append(f"{outdir}/fiberseq_analysis/footprint/{sample_id}/{sample_id}.footprint_categories.tsv")
+            outfiles.append(f"{outdir}/fiberseq_analysis/footprint/{sample_id}/{sample_id}.footprint_profiles.tsv")
+            outfiles.append(f"{outdir}/fiberseq_analysis/footprint/{sample_id}/{sample_id}.footprint_scores.tsv")
+            outfiles.append(f"{outdir}/fiberseq_analysis/footprint/{sample_id}/{sample_id}.footprint_profile.pdf")
         if enable_nucpos:
-            outfiles.append(f"{res}/nucpos/{sample_id}/{sample_id}.nuc_offset_per_anchor.tsv")
-            outfiles.append(f"{res}/nucpos/{sample_id}/{sample_id}.nuc_offset_summary.tsv")
-            outfiles.append(f"{res}/nucpos/{sample_id}/{sample_id}.nucpos.pdf")
+            outfiles.append(f"{outdir}/fiberseq_analysis/nucpos/{sample_id}/{sample_id}.nuc_offset_per_anchor.tsv")
+            outfiles.append(f"{outdir}/fiberseq_analysis/nucpos/{sample_id}/{sample_id}.nuc_offset_summary.tsv")
+            outfiles.append(f"{outdir}/fiberseq_analysis/nucpos/{sample_id}/{sample_id}.nucpos.pdf")
         if enable_track:
-            outfiles.append(f"{res}/track/{sample_id}/{sample_id}.accessibility.bw")
-            outfiles.append(f"{res}/track/{sample_id}/{sample_id}.m6a_density.bw")
-            outfiles.append(f"{res}/track/{sample_id}/trackDb.txt")
+            outfiles.append(f"{outdir}/fiberseq_analysis/track/{sample_id}/{sample_id}.accessibility.bw")
+            outfiles.append(f"{outdir}/fiberseq_analysis/track/{sample_id}/{sample_id}.m6a_density.bw")
+            outfiles.append(f"{outdir}/fiberseq_analysis/track/{sample_id}/trackDb.txt")
         if want_quant:
-            outfiles.append(f"{res}/quant/{sample_id}/{sample_id}.region_quant.tsv")
+            outfiles.append(f"{outdir}/fiberseq_analysis/quant/{sample_id}/{sample_id}.region_quant.tsv")
         if enable_coactuation:
-            outfiles.append(f"{res}/coactuation/{sample_id}/{sample_id}.coactuation.tsv")
-            outfiles.append(f"{res}/coactuation/{sample_id}/{sample_id}.coactuation_summary.tsv")
+            outfiles.append(f"{outdir}/fiberseq_analysis/coactuation/{sample_id}/{sample_id}.coactuation.tsv")
+            outfiles.append(f"{outdir}/fiberseq_analysis/coactuation/{sample_id}/{sample_id}.coactuation_summary.tsv")
         if enable_censat:
-            outfiles.append(f"{res}/censat/{sample_id}/{sample_id}.censat_regions.tsv")
-            outfiles.append(f"{res}/censat/{sample_id}/{sample_id}.censat_class_summary.tsv")
-            outfiles.append(f"{res}/censat/{sample_id}/{sample_id}.censat_profile.tsv")
-            outfiles.append(f"{res}/censat/{sample_id}/{sample_id}.censat_profile.pdf")
+            outfiles.append(f"{outdir}/fiberseq_analysis/censat/{sample_id}/{sample_id}.censat_regions.tsv")
+            outfiles.append(f"{outdir}/fiberseq_analysis/censat/{sample_id}/{sample_id}.censat_class_summary.tsv")
+            outfiles.append(f"{outdir}/fiberseq_analysis/censat/{sample_id}/{sample_id}.censat_profile.tsv")
+            outfiles.append(f"{outdir}/fiberseq_analysis/censat/{sample_id}/{sample_id}.censat_profile.pdf")
 
         # Step 5: haplotype chain
         if enable_haplotype:
-            outfiles.append(f"{var}/germline_snv_indel/{sample_id}/{sample_id}.vcf.gz")
-            outfiles.append(f"{var}/germline_snv_indel/{sample_id}/{sample_id}.vcf.gz.csi")
-            outfiles.append(f"{var}/germline_sv/{sample_id}/{sample_id}.svsig.gz")
-            outfiles.append(f"{var}/germline_sv/{sample_id}/{sample_id}.sv.vcf.gz")
-            outfiles.append(f"{var}/germline_sv/{sample_id}/{sample_id}.sv.vcf.gz.csi")
+            outfiles.append(f"{outdir}/variation/germline_snv_indel/{sample_id}/{sample_id}.vcf.gz")
+            outfiles.append(f"{outdir}/variation/germline_snv_indel/{sample_id}/{sample_id}.vcf.gz.csi")
+            outfiles.append(f"{outdir}/variation/germline_sv/{sample_id}/{sample_id}.svsig.gz")
+            outfiles.append(f"{outdir}/variation/germline_sv/{sample_id}/{sample_id}.sv.vcf.gz")
+            outfiles.append(f"{outdir}/variation/germline_sv/{sample_id}/{sample_id}.sv.vcf.gz.csi")
             # hiphase module writes to {outdir}/common/5_phased_bam (see
             # subworkflow/Fiberseq.smk hiphase_config), NOT {var}/phased.
             outfiles.append(f"{outdir}/common/5_phased_bam/{sample_id}/{sample_id}.phased.bam")
@@ -1506,9 +1421,9 @@ def runFiberseq(
                 outfiles.append(f"{phased_dir}/{sample_id}/{sample_id}.{hap}.nuc.bed.gz")
                 outfiles.append(f"{phased_dir}/{sample_id}/{sample_id}.{hap}.msp.bed.gz")
                 outfiles.append(f"{phased_dir}/{sample_id}/{sample_id}.{hap}.cpg.bed.gz")
-                outfiles.append(f"{res}/quant/{sample_id}/{sample_id}.{hap}.region_quant.tsv")
-            outfiles.append(f"{res}/haplotype/{sample_id}/{sample_id}.haplotype_diff.tsv")
-            outfiles.append(f"{res}/haplotype/{sample_id}/{sample_id}.haplotype_summary.tsv")
+                outfiles.append(f"{outdir}/fiberseq_analysis/quant/{sample_id}/{sample_id}.{hap}.region_quant.tsv")
+            outfiles.append(f"{outdir}/fiberseq_analysis/haplotype/{sample_id}/{sample_id}.haplotype_diff.tsv")
+            outfiles.append(f"{outdir}/fiberseq_analysis/haplotype/{sample_id}/{sample_id}.haplotype_summary.tsv")
 
         # Step 6: eccDNA reconstruction (requires genome GTF) 
         if want_eccdna:
@@ -1538,16 +1453,11 @@ def runFiberseq(
             outfiles.append(f"{outdir}/eccdna/compare/decoil_compare.png")
             outfiles.append(f"{outdir}/eccdna/compare/decoil_compare_shared_unique.tsv")
         if enable_sv:
-            outfiles.append(f"{var}/germline_sv/{sample_id}/{sample_id}.svsig.gz")
-            outfiles.append(f"{var}/germline_sv/{sample_id}/{sample_id}.sv.vcf.gz")
-            outfiles.append(f"{var}/germline_sv/{sample_id}/{sample_id}.sv.vcf.gz.csi")
-    # SV comparison analysis (modules/sv): DESeq2-style design —
-    # Params.sv.comparisons maps "{control_group_name}_vs_{experimental_group_name}"
-    # to {control_group_name, experimental_group_name, control_samples,
-    # experimental_samples}. Sample names only: the sv rules resolve each
-    # sample's SV VCF from vcf_dir/vcf_suffix. A hand-filled config block
-    # wins; otherwise it is derived from the meta group pairs, like
-    # runRNAseq fills Params.DESeq2.group_pairs.
+            outfiles.append(f"{outdir}/variation/germline_sv/{sample_id}/{sample_id}.svsig.gz")
+            outfiles.append(f"{outdir}/variation/germline_sv/{sample_id}/{sample_id}.sv.vcf.gz")
+            outfiles.append(f"{outdir}/variation/germline_sv/{sample_id}/{sample_id}.sv.vcf.gz.csi")
+
+    ### inject outfiles
     sv_params = datajson.get("Params", {}).get("sv", {})
     comparisons = dict(sv_params.get("comparisons") or {})
     if enable_sv and not comparisons:
@@ -1567,7 +1477,7 @@ def runFiberseq(
             "column (ctrl_TAG / exp_TAG). Skipping SV comparison outputs."
         )
     if enable_sv and comparisons:
-        sv_outdir = f"{var}/germline_sv_analysis"
+        sv_outdir = f"{outdir}/variation/germline_sv_analysis"
         sv_genes = sv_params.get("genes") or []
         sv_oncoprint = sv_params.get("oncoprint") or {}
         known_samples = set(samples_info_dict)
@@ -1600,7 +1510,7 @@ def runFiberseq(
     # Cross-sample outputs
     if enable_quant or enable_diff:
         for metric in ("percent_accessible", "nuc_occupancy", "m6a_per_fiber", "fire_frac"):
-            outfiles.append(f"{res}/quant/matrix/{metric}_matrix.tsv")
+            outfiles.append(f"{outdir}/fiberseq_analysis/quant/matrix/{metric}_matrix.tsv")
 
     if enable_diff:
         design_tsv = datajson.get("Params", {}).get("diff", {}).get("design_tsv")
@@ -1622,7 +1532,7 @@ def runFiberseq(
                     contrast_groups.setdefault(f[cidx], {}).setdefault(
                         f[gidx], []).append(f[sidx])
         for contrast, groups in sorted(contrast_groups.items()):
-            base = f"{res}/diff/{contrast}"
+            base = f"{outdir}/fiberseq_analysis/diff/{contrast}"
             outfiles.append(f"{base}/diff_{contrast}.tsv")
             outfiles.append(f"{base}/volcano_{contrast}.pdf")
             outfiles.append(f"{base}/class_summary_{contrast}.tsv")
@@ -1667,7 +1577,17 @@ def runFiberseq(
         for trait in sorted((datajson.get("Params", {}).get("ldsc", {}).get("gwas") or {}).keys()):
             outfiles.append(f"{outdir}/ldsc/{trait}/{trait}.sumstats.gz")
             outfiles.append(f"{outdir}/ldsc/{trait}/{trait}.cts.results")
-
+    if len(genome_versions) != 1:
+        raise ValueError(f"meta don't support multiple organsim temporarily, please check your meta file, found: {genome_versions}")
+    genome_version = next(iter(genome_versions))
+    order_genome_version = datajson["genome"]["default"]
+    if genome_version != order_genome_version:
+        logger.warning(
+            f"user defined genome versions in meta file ({genome_version}) do not match the genome version defined in config.json ({order_genome_version}) it may come from default value or command-line arguments. ",
+            f"Using the genome version from meta file ({genome_version}) for downstream analysis."
+        )
+    datajson["Params"]["sv"]["exp_specific"]["species"] = genome_version
+    datajson["Params"]["sv"]["exp_specific"]["assembly"] = genome_version
     datajson["Params"]["workflow"]["samples"] = samples
     datajson["Params"]["workflow"]["raw_files"] = raw_files
     datajson["outfiles"] = outfiles

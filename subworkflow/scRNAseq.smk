@@ -227,6 +227,7 @@ scanpy_config = {
     "indir": h5ad_outdir,
     "outdir": f"{outdir}/common/4_qc_h5ad",
     "outdir_combine": combine_dir,
+    "outdir_pseudobulk": f"{outdir}/diff/pseudobulk",
     "logdir": f"{logdir}/sample",
     "logdir_combine": f"{logdir}/group",
     "te_bed": config.get("genome", {}).get("references", {}).get(genome, {}).get("te_bed", ""),
@@ -272,7 +273,7 @@ sccoda_config = {
     "env": config.get("env", {}),
     "resources": config.get("resources", {}),
     "indir": combine_dir,
-    "outdir": combine_dir,
+    "outdir": f"{outdir}/diff/abundance",
     "logdir": f"{logdir}/group",
     "reannotate": {
         c: _scanpy_cluster_annotations(c)
@@ -295,7 +296,7 @@ use rule * from sccoda as scRNAseq_*
 # ---------------------------------------------------------------------------
 # GO/KEGG enrichment over the pseudobulk output tree (modules/function/
 # pseudobulk_go). A runtime discovery checkpoint scans
-# <combine_dir>/<tissue>/pseudobulk/<counter>/deg_pseudobulk*/... after
+# <outdir>/diff/pseudobulk/<tissue>/<counter>/deg_pseudobulk*/... after
 # scanpy_pseudobulk, then one enrichment job per
 # (counter, mode, tissue, contrast, cell_type) unit. The ordering edge over
 # scanpy_pseudobulk comes from the per-(tissue, counter) report prerequisites
@@ -312,7 +313,7 @@ def _pbgo_prerequisites():
                     str(c).split(":", 1)[0] == tissue
                     for c in (pb.get("compare") or [])):
                 reqs.append(
-                    f"{combine_dir}/{tissue}/pseudobulk/{counter}/pseudobulk_report.html")
+                    f"{outdir}/diff/pseudobulk/{tissue}/{counter}/pseudobulk_report.html")
     return reqs
 
 
@@ -321,7 +322,7 @@ pseudobulk_go_config = {
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "resources": config.get("resources", {}),
-    "indir": combine_dir,
+    "indir": f"{outdir}/diff/pseudobulk",
     "outdir": outdir,
     "logdir": f"{logdir}/group",
     "prerequisites": _pbgo_prerequisites(),

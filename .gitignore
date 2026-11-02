@@ -11,3 +11,4 @@ test.log
 **/*.resolved
 **/module_test
 **output
+data

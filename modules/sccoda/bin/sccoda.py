@@ -56,6 +56,7 @@ os.environ.setdefault("MPLBACKEND", "Agg")
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from matplotlib.patches import Rectangle
 import numpy as np
 import pandas as pd
 import scanpy as sc
@@ -165,6 +166,89 @@ def parse_compare_items(items: List[str],
 # scCODA per comparison
 # ---------------------------------------------------------------------------
 
+def _plot_stacked_ribbon(counts_df: pd.DataFrame, out_path: Path,
+                         title: str) -> None:
+    """Stacked proportion bars per sample with light same-color ribbons.
+
+    Reference da_sccoda style with an alluvial touch: bars are stacked cell-
+    type proportions per sample, and same-cell-type segments of adjacent bars
+    are connected by a lighter fill of that color. No x-axis label (sample
+    names on the ticks are self-explanatory), two-line title, tight bbox.
+
+    Parameters
+    ----------
+    counts_df : DataFrame
+        Samples x cell types raw counts (index = sample ids in plot order).
+    out_path : Path
+        Target PNG.
+    title : str
+        Plot title; the `` (`` before the comparison is turned into a line
+        break so long titles cannot clip at the canvas edge.
+    """
+    counts = counts_df.to_numpy(dtype=np.float64)
+    samples = [str(s) for s in counts_df.index]
+    cell_types = [str(c) for c in counts_df.columns]
+    totals = counts.sum(axis=1, keepdims=True)
+    totals[totals == 0] = 1.0
+    props = counts / totals * 100.0
+
+    # Stable stacking order: most abundant cell type at the bottom.
+    order = np.argsort(-counts.sum(axis=0))
+    props = props[:, order]
+    cell_types = [cell_types[i] for i in order]
+
+    n_s, n_c = props.shape
+    cmap = plt.get_cmap("tab20" if n_c <= 20 else "tab20b")
+    colors = [cmap(i / max(n_c - 1, 1)) for i in range(n_c)]
+
+    fig, ax = plt.subplots(figsize=(max(6.0, 1.2 * n_s + 4.5), 6))
+    width = 0.55
+    xs = np.arange(n_s, dtype=float)
+
+    # Segment bounds per sample (n_s x n_c), bottom to top.
+    y1 = np.cumsum(props, axis=1)
+    y0 = y1 - props
+
+    # Ribbons first (behind the bars): lighter fill of the same color
+    # connecting same-cell-type segments between adjacent bars. Vertical
+    # transition uses a smoothstep (S-curve) so ribbons read as soft flows
+    # instead of angular trapezoids.
+    t = np.linspace(0.0, 1.0, 40)
+    s = t * t * (3.0 - 2.0 * t)  # smoothstep
+    for i in range(n_c):
+        for j in range(n_s - 1):
+            xl0, xl1 = xs[j] + width / 2, xs[j + 1] - width / 2
+            xline = xl0 + (xl1 - xl0) * t
+            y0line = y0[j, i] + (y0[j + 1, i] - y0[j, i]) * s
+            y1line = y1[j, i] + (y1[j + 1, i] - y1[j, i]) * s
+            ax.fill(np.concatenate([xline, xline[::-1]]),
+                    np.concatenate([y0line, y1line[::-1]]),
+                    color=colors[i], alpha=0.22, linewidth=0, zorder=1)
+
+    # Bars on top.
+    for i in range(n_c):
+        ax.bar(xs, props[:, i], bottom=y0[:, i], width=width,
+               color=colors[i], edgecolor="white", linewidth=0.4, zorder=2)
+
+    ax.set_xticks(xs)
+    ax.set_xticklabels(samples, rotation=45, ha="right", fontsize=10)
+    ax.set_ylabel("Proportion (%)", fontsize=12)
+    ax.set_ylim(0, 100)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    handles = [Rectangle((0, 0), 1, 1, color=colors[i])
+               for i in range(n_c)]
+    ax.legend(handles, cell_types, bbox_to_anchor=(1.02, 1.0),
+              loc="upper left", fontsize=9, frameon=False, title="cell_type")
+    # Title OUTSIDE the axes (pad-based): a y=0.97 multi-line title dips
+    # into the plot and overlaps the top y tick label.
+    ax.set_title(title.replace(" (", "\n("), fontsize=14, pad=16)
+    fig.subplots_adjust(top=0.88)
+    fig.savefig(out_path, dpi=300, facecolor="white",
+                bbox_inches="tight", pad_inches=0.3)
+    plt.close(fig)
+
+
 def run_sccoda(adata: sc.AnnData, comp: dict, formula: str,
                ref_celltype: str, credible_threshold: float,
                num_samples: int, num_warmup: int,
@@ -199,7 +283,9 @@ def run_sccoda(adata: sc.AnnData, comp: dict, formula: str,
     ref, treat = comp["ref"], comp["treat"]
     tissue, label = comp["tissue"], comp["label"]
     notes: List[str] = []
-    prefix = f"{tissue}_{label}"
+    # Reference naming (analysis/results/da_sccoda convention):
+    # da_sccoda_<ref>_vs_<treat>_{da.csv,effects_barplot.png,stacked_barplot.png}
+    prefix = f"da_sccoda_{comp['ref']}_vs_{comp['treat']}"
     da_dir.mkdir(parents=True, exist_ok=True)
 
     sub = adata[adata.obs["sample_id"].isin([ref, treat])].copy()
@@ -229,6 +315,29 @@ def run_sccoda(adata: sc.AnnData, comp: dict, formula: str,
                 f"({sorted(sub.obs.columns)})")
 
     sccoda = pt.tl.Sccoda()
+
+    # --- numpyro/anndata compatibility shim (pertpy 1.0.x quirks) ----------
+    # 1) anndata>=0.12 coerces 1-D obsm entries into (N,1) columns, so
+    #    prepare()'s sample_counts (= np.sum(X, 1), meant to be (N,)) is
+    #    stored and passed on as (N,1). numpyro's DirichletMultinomial
+    #    broadcasts that into an (N,N) batch whose multinomial support check
+    #    marks every obs row out-of-support -> -inf log-probs -> "Cannot find
+    #    valid initial parameters" (or "invalid total_count parameter" when
+    #    fractional). obsm assignment cannot hold a 1-D array, so flatten at
+    #    the model boundary instead.
+    # 2) prepare() pseudocounts zeros with 0.5, yielding fractional counts
+    #    that numpyro's nonnegative_integer total_count check rejects. Pre-
+    #    fill zeros with 1 (integer) before prepare so its 0.5 path never
+    #    fires and counts/totals stay integer-valued.
+    _orig_model = sccoda.model
+
+    def _model(counts, covariates, n_total, ref_index, sample_adata):
+        return _orig_model(counts, covariates,
+                           np.asarray(n_total, dtype=np.float64).reshape(-1),
+                           ref_index, sample_adata)
+
+    sccoda.model = _model
+
     logger.info("Aggregating cell-level to sample-level (cell_type x sample)")
     mdata = sccoda.load(
         sub,
@@ -240,6 +349,17 @@ def run_sccoda(adata: sc.AnnData, comp: dict, formula: str,
     )
     logger.info("  sample-level shape: %s x %s",
                 mdata["coda"].shape[0], mdata["coda"].shape[1])
+
+    # Zero pre-fill for the model shim above (integer pseudocount).
+    coda = mdata["coda"]
+    X = np.asarray(coda.X.todense() if hasattr(coda.X, "todense") else coda.X,
+                   dtype=np.float64)
+    n_zero = int((X == 0).sum())
+    if n_zero:
+        logger.info("  %d zero sample-level counts; pre-filling with 1 "
+                    "(integer pseudocount)", n_zero)
+        X[X == 0] = 1.0
+    coda.X = X
 
     sccoda.prepare(mdata, formula=formula,
                    reference_cell_type=ref_celltype)
@@ -279,61 +399,70 @@ def run_sccoda(adata: sc.AnnData, comp: dict, formula: str,
 
     title = f"{tissue.upper()} DA: {label} ({ref} vs {treat})"
 
-    if n_total > 0:
+    # DA effect plot — reference style (analysis/results/da_sccoda): one
+    # horizontal bar per cell type, sorted by log2FC, credible effects in
+    # distinct colors with black edges, non-credible grey.
+    if len(summary):
         try:
-            fg = sccoda.plot_effects_barplot(
-                mdata,
-                covariates="condition",
-                parameter="log2-fold change",
-                plot_facets=True,
-                plot_zero_covariate=False,
-                plot_zero_cell_type=False,
-                figsize=(10, 4),
-                return_fig=True,
-            )
-            if hasattr(fg, "fig"):
-                # Force the actual canvas size — pertpy leaves a tall FacetGrid
-                # even when there's only one facet, so resize manually.
-                fg.fig.set_size_inches(10, 5.5)
-                fg.fig.suptitle(title, fontsize=14, y=0.97)
-                for ax in fg.axes.flat:
-                    plt.setp(ax.get_xticklabels(), rotation=45, ha="right",
-                             fontsize=10)
-                    ax.set_title("")
-                    ax.set_ylabel(ax.get_ylabel(), fontsize=12)
-                fg.fig.subplots_adjust(left=0.08, right=0.98, top=0.85,
-                                       bottom=0.38)
-                out = da_dir / f"{prefix}_effects_barplot.png"
-                fg.fig.savefig(out, dpi=300, facecolor="white")
-                plt.close(fg.fig)
-                logger.info("Saved: %s", out)
+            dfp = summary.sort_values("log2FC").reset_index(drop=True)
+            n = len(dfp)
+            n_credible = int(dfp["is_credible"].sum())
+            cmap = plt.get_cmap("tab20" if n_credible <= 20 else "tab20b")
+            cred_colors = [cmap(i / max(n_credible - 1, 1))
+                           for i in range(n_credible)]
+            ci = 0
+            colors = []
+            for _, row in dfp.iterrows():
+                if row["is_credible"]:
+                    colors.append(cred_colors[ci])
+                    ci += 1
+                else:
+                    colors.append("#cccccc")
+            fig, ax = plt.subplots(figsize=(10, max(4, n * 0.45 + 1.5)))
+            for i, (_, row) in enumerate(dfp.iterrows()):
+                edgecolor = "black" if row["is_credible"] else "none"
+                lw = 0.8 if row["is_credible"] else 0
+                ax.barh(i, row["log2FC"], color=colors[i],
+                        edgecolor=edgecolor, linewidth=lw, height=0.7,
+                        zorder=2)
+            ax.set_yticks(range(n))
+            ax.set_yticklabels(dfp["cell_type"], fontsize=10)
+            ax.set_xlabel("log2-fold change", fontsize=12)
+            # Two-line title + tight bbox: long "<label> (<ref> vs <treat>)"
+            # titles clipped at the figure's right edge otherwise.
+            ax.set_title(title.replace(" (", "\n("), fontsize=14, y=0.97)
+            ax.axvline(0, color="black", linewidth=0.5, alpha=0.5, zorder=1)
+            ax.spines["top"].set_visible(False)
+            ax.spines["right"].set_visible(False)
+            ax.tick_params(axis="x", labelsize=10)
+            fig.subplots_adjust(left=0.25, right=0.98, top=0.88, bottom=0.10)
+            out = da_dir / f"{prefix}_effects_barplot.png"
+            fig.savefig(out, dpi=300, facecolor="white",
+                        bbox_inches="tight", pad_inches=0.3)
+            plt.close(fig)
+            logger.info("Saved: %s", out)
         except Exception as e:
             plt.close("all")
             notes.append(f"effects_barplot skipped (plot error: {e})")
-            logger.warning("plot_effects_barplot failed: %s", e)
+            logger.warning("effects_barplot failed: %s", e)
     else:
-        notes.append("effects_barplot skipped: no credible effects")
-        logger.info("  skip effects_barplot: no credible effects to plot")
+        notes.append("effects_barplot skipped: empty result table")
+        logger.info("  skip effects_barplot: empty result table")
 
     try:
-        fig = sccoda.plot_stacked_barplot(
-            mdata, feature_name="samples", figsize=(10, 4.5),
-            return_fig=True,
-        )
-        if fig is None:
-            # pertpy sometimes still leaves the figure open — grab current
-            fig = plt.gcf()
-        fig.set_size_inches(10, 5.0)
-        fig.suptitle(title, fontsize=14, y=0.97)
-        fig.subplots_adjust(left=0.08, right=0.78, top=0.86, bottom=0.22)
+        # Stacked proportions per sample with same-color ribbon links.
+        # Built from the raw cell-level crosstab (the coda counts carry the
+        # integer zero pre-fill, which would distort proportions).
+        counts_df = pd.crosstab(sub.obs["sample_id"], sub.obs["cell_type"])
+        counts_df = counts_df.reindex(
+            index=[ref, treat], columns=mdata["coda"].var.index, fill_value=0)
         out = da_dir / f"{prefix}_stacked_barplot.png"
-        fig.savefig(out, dpi=300, facecolor="white")
-        plt.close(fig)
+        _plot_stacked_ribbon(counts_df, out, title)
         logger.info("Saved: %s", out)
     except Exception as e:
         plt.close("all")
         notes.append(f"stacked_barplot skipped (plot error: {e})")
-        logger.warning("plot_stacked_barplot failed: %s", e)
+        logger.warning("stacked_barplot failed: %s", e)
 
     return summary, notes
 
@@ -425,7 +554,7 @@ def write_report(out_dir: Path, comparisons: List[dict],
         for note in res.get("notes", []):
             parts.append(f"<p>Note: {_escape(note)}</p>")
         for fname in sorted((out_dir / "da").glob(
-                f"{comp['tissue']}_{comp['label']}_*.png")):
+                f"da_sccoda_{comp['ref']}_vs_{comp['treat']}_*.png")):
             rel = os.path.relpath(fname, out_dir)
             parts.append(f"<img src='{_escape(rel)}' "
                          f"alt='{_escape(fname.name)}'>")

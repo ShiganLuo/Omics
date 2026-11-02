@@ -1,0 +1,18 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "log",
+    "bam_suffix": "",
+    "samples": [],
+    "ROOT_DIR": ".",
+    "Params": {
+        "derive": {
+            "min_depth": 10,
+            "min_bq": 20,
+            "min_mq": 20,
+            "min_gap": 50,
+            "min_region": 50
+        }
+    },
+    "genome": {}
+}

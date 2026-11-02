@@ -32,19 +32,17 @@
             }
         },
         "manta": {
-            "threads": 8
+            "threads": 8,
+            "enabled": true
         },
         "cnvkit": {
             "method": "wgs",
-            "processes": 8
+            "enabled": true
         },
         "somatic_spectrum": {
             "sample_somatic_vcf_dict": {},
             "sample_group_dict": {}
         },
-        "skip_fragment_size": false,
-        "skip_sv": false,
-        "skip_cnv": true,
         "workflow": {
             "indir": "input",
             "raw_files": [],
@@ -53,6 +51,16 @@
             "paired_samples": [],
             "single_samples": [],
             "control_samples": []
+        },
+        "derive_targets": {
+            "min_depth": 10,
+            "min_bq": 20,
+            "min_mq": 20,
+            "min_gap": 50,
+            "min_region": 50
+        },
+        "fragment_size": {
+            "enabled": true
         }
     },
     "genome": {
@@ -62,54 +70,25 @@
                 "fasta": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
                 "fai_index": null,
                 "dict_index": null,
-                "gtf": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf",
-                "geneIDAnno": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/geneIDAnnotation.csv",
-                "gene_map": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/gene_map.pkl",
-                "TE_gtf": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.gtf",
-                "TEind": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.gtf.locInd",
-                "hisat2_index_prefix": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/hisat2/genome",
-                "star_index_dir": null,
-                "rRNA_fasta": null,
-                "bowtie2_index_prefix_for_rRNA": null,
-                "bwaMem2_index_prefix": null,
-                "known_sites": null,
-                "interval": null,
-                "access": null
+                "bwaMem2_index_prefix": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/bwa_mem2/GRCm39",
+                "access": null,
+                "targets": null
             },
             "GRCh38": {
                 "fasta": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa",
                 "fai_index": null,
                 "dict_index": null,
-                "gtf": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/gencode.v49.primary_assembly.basic.annotation.gtf",
-                "geneIDAnno": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/geneIDAnnotation.csv",
-                "gene_map": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/gene_map.pkl",
-                "TE_gtf": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/GRCh38_GENCODE_rmsk_TE.gtf",
-                "TEind": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/GRCh38_GENCODE_rmsk_TE.gtf.locInd",
-                "hisat2_index_prefix": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/hisat2/GRCh38",
-                "star_index_dir": null,
-                "rRNA_fasta": null,
-                "bowtie2_index_prefix_for_rRNA": null,
-                "bwaMem2_index_prefix": null,
-                "known_sites": null,
-                "interval": null,
-                "access": null
+                "bwaMem2_index_prefix": "/data/16T/Database/Reference/human/GENCODE/GRCh38/bwa_mem2/genome",
+                "access": null,
+                "targets": null
             },
             "Mmul_10": {
                 "fasta": "/home/luosg/Database/Reference/mulatta/ENSEMBL/Mmul_10/Macaca_mulatta.Mmul_10.dna.toplevel.fa",
                 "fai_index": null,
                 "dict_index": null,
-                "gtf": "/home/luosg/Database/Reference/mulatta/ENSEMBL/Mmul_10/Macaca_mulatta.Mmul_10.116.gtf",
-                "geneIDAnno": "/home/luosg/Database/Reference/mulatta/ENSEMBL/Mmul_10/geneIDAnnotation.csv",
-                "gene_map": null,
-                "TE_gtf": "/home/luosg/Database/Reference/mulatta/ENSEMBL/Mmul_10/rheMac10_rmsk_TE.gtf",
-                "TEind": "/home/luosg/Database/Reference/mulatta/ENSEMBL/Mmul_10/rheMac10_rmsk_TE.gtf.locInd.locations",
-                "hisat2_index_prefix": null,
-                "rRNA_fasta": null,
-                "star_index_dir": null,
                 "bwaMem2_index_prefix": null,
-                "known_sites": null,
-                "interval": null,
-                "access": null
+                "access": null,
+                "targets": null
             }
         }
     },
@@ -202,6 +181,10 @@
         "fastqc": {
             "threads": 2,
             "mem_mb": 8000
+        },
+        "derive_targets": {
+            "threads": 4,
+            "mem_mb": 16000
         }
     }
 }

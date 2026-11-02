@@ -11,6 +11,8 @@ bam_suffix = config.get("bam_suffix", "")
 samples = config.get("samples", [])
 control_samples = config.get("control_samples", [])
 access = config.get("genome", {}).get("access")
+targets_bed = config.get("genome", {}).get("targets")
+_method = config.get("Params", {}).get("cnvkit", {}).get("method") or "wgs" 
 ROOT_DIR = config.get("ROOT_DIR", ".")
 
 def get_cnvkit_bams(wildcards):
@@ -25,12 +27,12 @@ rule cnvkit_reference:
         control_bams = expand(indir + "/{sid}/{sid}" + bam_suffix + ".bam", sid=control_samples),
         fasta = lambda wildcards: _require(config.get("genome", {}).get("fasta"), "genome.fasta", "cnvkit"),
         access = lambda wildcards: [access] if access else [],
+        targets = lambda wildcards: [targets_bed] if (_method == "hybrid" and targets_bed) else [],
     output:
         ref = outdir + "/reference/reference.cnn"
     log:
         logdir + "/cnvkit_reference.log"
-    threads:
-        config.get("Params", {}).get("cnvkit", {}).get("processes") or 8
+    threads: rule_res("cnvkit_reference").get("threads", 8)
     resources:
         mem_mb = rule_res("cnvkit_reference").get("mem_mb", 16000),
     conda:
@@ -56,6 +58,8 @@ rule cnvkit_reference:
             cmd += ["--method", params.method, "--fasta", str(input.fasta)]
             if input.access:
                 cmd += ["--access", str(input.access[0])]
+            if input.targets:
+                cmd += ["--targets", str(input.targets[0])]
             cmd += ["--processes", str(threads), "--output-reference", str(output.ref)]
             with open(script, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
@@ -74,13 +78,13 @@ rule cnvkit_batch:
         ref = lambda wildcards: [outdir + "/reference/reference.cnn"] if control_samples else [],
         fasta = lambda wildcards: _require(config.get("genome", {}).get("fasta"), "genome.fasta", "cnvkit"),
         access = lambda wildcards: [access] if access else [],
+        targets = lambda wildcards: [targets_bed] if (_method == "hybrid" and targets_bed) else [],
     output:
         cnr = expand(outdir + "/cnv/{sample_id}.cnr", sample_id=samples),
         cns = expand(outdir + "/cnv/{sample_id}.cns", sample_id=samples)
     log:
         logdir + "/cnvkit_batch.log"
-    threads:
-        config.get("Params", {}).get("cnvkit", {}).get("processes") or 8
+    threads: rule_res("cnvkit_batch").get("threads", 8)
     resources:
         mem_mb = rule_res("cnvkit_batch").get("mem_mb", 32000),
     conda:
@@ -109,6 +113,8 @@ rule cnvkit_batch:
                 cmd += ["--method", params.method, "--fasta", str(input.fasta)]
                 if input.access:
                     cmd += ["--access", str(input.access[0])]
+                if input.targets:
+                    cmd += ["--targets", str(input.targets[0])]
             cmd += ["--processes", str(threads), "--output-dir", params.outdir, "--scatter", "--diagram"]
             with open(script, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")

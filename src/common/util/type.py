@@ -31,6 +31,7 @@ class SampleInfo:
     workflow: Optional[str] = None
     group: Optional[str] = None
     design: Optional[str] = None
+    assay: Optional[str] = None  # Sequencing assay type: WGS / Exome / Panel / RNA-seq etc.
     pacbio_bam: Optional[str] = None # PacBio BAM file
     pacbio_pbi: Optional[str] = None # PacBio index file
     bam: Optional[str] = None # BAM file

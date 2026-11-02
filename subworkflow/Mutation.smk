@@ -161,6 +161,31 @@ use rule gatk_index from gatk_prepare as Mutation_gatk_index
 use rule addReadsGroup from gatk_prepare as Mutation_addReadsGroup
 use rule MarkDuplicates from gatk_prepare as Mutation_MarkDuplicates
 
+# Derive capture-region BED from markdup BAMs for exome/hybrid assays:
+# consumed by GATK callers (-L) and CNVkit (--targets). Runs only when the
+# assay is exome and no explicit genome.references.<g>.targets BED is set;
+# node.py registers the output and fills the reference entry accordingly.
+# Resolved by node.py: explicit BED path, the derived targets.bed, or None.
+_targets_bed = genome_ref.get("targets") or None
+targets_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
+    "env": config.get("env", {}),
+    "indir": gatk_prepare_config["outdir"],
+    "outdir": f"{outdir}/common/targets",
+    "logdir": logdir,
+    "bam_suffix": ".sorted_markdup",
+    "samples": paired_samples + single_samples,
+    "Params": {
+        "derive": config.get("Params", {}).get("derive_targets", {})
+    },
+}
+module targets:
+    snakefile: "../modules/targets/targets.smk"
+    config: targets_config
+logger.info(f"targets parameters: {targets_config}")
+use rule derive_targets from targets as Mutation_derive_targets
+
 gatk_somatic_config = {
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
@@ -172,7 +197,8 @@ gatk_somatic_config = {
         "gatk": config.get("Procedure", {}).get("gatk"),
     },
     "genome": {
-        "fasta": genome_ref.get("fasta")
+        "fasta": genome_ref.get("fasta"),
+        "targets": _targets_bed
     }
 }
 module gatk_somatic:
@@ -194,7 +220,8 @@ gatk_germline_config = {
     "genome": {
         "fasta": genome_ref.get("fasta"),
         "fai_index": genome_ref.get("fai_index"),
-        "dict_index": genome_ref.get("dict_index")
+        "dict_index": genome_ref.get("dict_index"),
+        "targets": _targets_bed
     }
 }
 module gatk_germline:
@@ -228,7 +255,7 @@ use rule somatic_spectrum from somatic_spectrum as Mutation_somatic_spectrum
 # Fragment Size Analysis (cfDNA)
 # ============================================
 # Wired unconditionally; node.py controls whether it runs by registering
-# (or omitting) the fragment-size outputs (Params.skip_fragment_size).
+# (or omitting) the fragment-size outputs (Params.fragment_size.enabled).
 fragment_size_config = {
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
@@ -254,7 +281,7 @@ use rule plotFragmentSize from fragment_size as Mutation_plotFragmentSize
 # SV Detection with Manta (cfDNA)
 # ============================================
 # Wired unconditionally; node.py controls whether it runs by registering
-# (or omitting) the Manta outputs (Params.skip_sv).
+# (or omitting) the Manta outputs (Params.manta.enabled).
 manta_config = {
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
@@ -286,7 +313,7 @@ use rule manta_run from manta as Mutation_manta_run
 # CNV Detection with CNVkit (cfDNA)
 # ============================================
 # Wired unconditionally; node.py controls whether it runs by registering
-# (or omitting) the CNVkit outputs (Params.skip_cnv; control_samples
+# (or omitting) the CNVkit outputs (Params.cnvkit.enabled; control_samples
 # additionally registers the reference panel output).
 control_samples = config.get("Params", {}).get("workflow", {}).get("control_samples", [])
 cnvkit_config = {
@@ -308,13 +335,15 @@ cnvkit_config = {
     },
     "genome": {
         "fasta": genome_ref.get("fasta"),
-        "access": genome_ref.get("access")
+        "access": genome_ref.get("access"),
+        "targets": _targets_bed
     }
 }
 module cnvkit:
     snakefile: "../modules/cnvkit/cnvkit.smk"
     config: cnvkit_config
 logger.info(f"cnvkit_config: {cnvkit_config}")
+use rule cnvkit_targets from cnvkit as Mutation_cnvkit_targets
 use rule cnvkit_reference from cnvkit as Mutation_cnvkit_reference
 use rule cnvkit_batch from cnvkit as Mutation_cnvkit_batch
 

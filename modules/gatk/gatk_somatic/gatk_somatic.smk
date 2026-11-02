@@ -7,6 +7,7 @@ logdir = config.get("logdir") or "log"
 fai_index = config.get("genome", {}).get("fai_index")
 dict_index = config.get("genome", {}).get("dict_index")
 fasta = config.get("genome", {}).get("fasta")
+targets = config.get("genome", {}).get("targets")
 known_sites = config.get("genome", {}).get("known_sites")
 interval = config.get("genome", {}).get("interval")
 
@@ -42,7 +43,8 @@ def get_input_somaticMutect2(wildcards):
 
 rule somaticMutect2:
     input:
-       unpack(get_input_somaticMutect2)
+       unpack(get_input_somaticMutect2),
+       targets = lambda wildcards: [targets] if targets else [],
     output:
         vcf = outdir + "/mutect2-vcf/{normal_sample_id}_vs_{experimental_sample_id}/{normal_sample_id}_vs_{experimental_sample_id}.vcf.gz"
     log:
@@ -78,6 +80,8 @@ rule somaticMutect2:
                 "-O", output.vcf,
                 "--native-pair-hmm-threads", str(threads)
             ] + params.parameters.split()
+            if input.targets:
+                cmd.extend(["-L", str(input.targets[0])])
             if params.tmp_dir:
                 cmd.extend(["--tmp-dir", params.tmp_dir])
             with open(script, "w") as f:

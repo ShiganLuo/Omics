@@ -10,8 +10,7 @@
     },
     "Params": {
         "cnvkit": {
-            "method": "wgs",
-            "processes": 8
+            "method": "wgs"
         }
     },
     "genome": {

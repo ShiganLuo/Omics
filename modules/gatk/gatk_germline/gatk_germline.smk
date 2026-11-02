@@ -8,6 +8,7 @@ fasta = config.get("genome", {}).get("fasta")
 fai_index = config.get("genome", {}).get("fai_index")
 dict_index = config.get("genome", {}).get("dict_index")
 interval = config.get("reference", {}).get("interval")
+targets = config.get("genome", {}).get("targets")
 known_sites = config.get("reference", {}).get("known_sites", [])
 
 def get_input_HaplotypeCaller(wildcards):
@@ -35,6 +36,8 @@ def get_input_HaplotypeCaller(wildcards):
         in_dict["fai"] = f"{indir}/index/genome.fa.fai"
         in_dict["dict"] = f"{indir}/index/genome.dict"
         in_dict["fasta"] = f"{indir}/index/genome.fa"
+    if targets:
+        in_dict["targets"] = [targets]
     return in_dict
 
 rule HaplotypeCaller:
@@ -70,6 +73,8 @@ rule HaplotypeCaller:
                 "-I", input.bam,
                 "-O", output.vcf
             ]
+            if input.targets:
+                cmd.extend(["-L", str(input.targets[0])])
             if params.tmp_dir:
                 cmd.extend(["--tmp-dir", params.tmp_dir])
             with open(script, "w") as f:

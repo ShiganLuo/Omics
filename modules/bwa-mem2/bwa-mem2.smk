@@ -44,11 +44,11 @@ rule bwaMem2_index:
             rule_logger.info(f"Start bwa-mem2 index at {current_time}")
             sample_outdir = os.path.dirname(str(output.index[0]))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"bwaMem2_index_{wildcards.sample_id}_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"bwaMem2_index_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"bwaMem2_index.sh")
             with open(script, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
-                f.write(f"{params.bwa_mem2} index -p {params.index_prefix} {input.fasta} > {log} 2>&1\n")
+                f.write(f"{params.bwa_mem2} index -p {params.index_prefix} {input.fasta}\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")

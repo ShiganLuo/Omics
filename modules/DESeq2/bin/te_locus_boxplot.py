@@ -43,6 +43,7 @@ python te_locus_boxplot.py --matrix GRCm39_TElocal.tsv \\
 """
 
 import argparse
+import logging
 import os
 import sys
 from typing import Dict, List, Optional, Tuple
@@ -50,13 +51,16 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 import pandas as pd
 
-sys.path.insert(
-    0,
-    os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "modules", "function", "bin"),
-)
-from LogUtil import setup_logger  # noqa: E402
-
-logger = setup_logger(__name__)
+logger = logging.getLogger(__name__)
+if not logger.handlers:
+    _stream_handler = logging.StreamHandler()
+    _stream_handler.setFormatter(
+        logging.Formatter(
+            "%(asctime)s | %(levelname)s | %(name)s | %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
+        )
+    )
+    logger.addHandler(_stream_handler)
+logger.setLevel(logging.INFO)
 
 try:
     import matplotlib

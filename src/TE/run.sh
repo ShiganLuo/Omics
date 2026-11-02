@@ -6,7 +6,7 @@
 set -euo pipefail
 
 DNA_PY=/data/pub/zhousha/miniforge3/envs/RNA/bin/python
-TE_DIR=/data/pub/zhousha/Totipotent20251031/workflow/Omics/src/TE
+TE_DIR=/data/pub/zhousha/Totipotent20251031/workflow/Omics/modules/DESeq2/bin
 DIFF=/data/pub/zhousha/Totipotent20251031/output/pluripotent2totipotent/RNAseq/diff_expression
 DB=/data/pub/zhousha/Database/Reference
 LOCI_GRCh38=$DB/human/GENCODE/GRCh38/GRCh38_GENCODE_rmsk_TE.gtf.locInd

@@ -272,6 +272,9 @@ DESeq2_config = {
     "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "group_pairs": config.get("Params", {}).get("DESeq2", {}).get("group_pairs"),
+        "Params": {
+            "DESeq2": config.get("Params", {}).get("DESeq2", {})
+        },
         "genome": config.get('genome',{}),
         "Procedure": {
             "DESeq2": config.get('Procedure',{}).get('DESeq2') or 'DESeq2'
@@ -284,6 +287,9 @@ module DESeq2:
 logger.debug(f"DESeq2_config: {DESeq2_config}")
 use rule DESeq2_TEcount from DESeq2 as RNAseq_DESeq2_TEcount
 use rule DESeq2_TElocal from DESeq2 as RNAseq_DESeq2_TElocal
+use rule DESeq2_TElocal_manhattan from DESeq2 as RNAseq_DESeq2_TElocal_manhattan
+use rule DESeq2_TElocal_locus_boxplot from DESeq2 as RNAseq_DESeq2_TElocal_locus_boxplot
+use rule DESeq2_TElocal_subfamily_bar from DESeq2 as RNAseq_DESeq2_TElocal_subfamily_bar
 
 ### functional enrichment analysis using function module
 function_config = {

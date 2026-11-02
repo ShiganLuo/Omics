@@ -62,7 +62,8 @@ except ImportError as exc:  # pragma: no cover - environment dependent
 # statistics_plot lives in the src/common submodule; make it importable
 # (only used with --test).
 _STATISTICS_PLOT_DIR = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "..", "common", "statistics_plot", "Python"
+    os.path.dirname(os.path.abspath(__file__)),
+    "..", "..", "..", "src", "common", "statistics_plot", "Python",
 )
 if os.path.isdir(_STATISTICS_PLOT_DIR) and _STATISTICS_PLOT_DIR not in sys.path:
     sys.path.insert(0, _STATISTICS_PLOT_DIR)

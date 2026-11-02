@@ -1,11 +1,19 @@
 # TE 绘图脚本（bulk 转录组，展示 TE 大爆发）
 
+> **迁移说明**：`te_manhattan.py`、`te_locus_boxplot.py`（原
+> `te_family_boxplot.py`）、`te_subfamily_bar.py`
+> 已迁至 `modules/DESeq2/bin/`，并以 `DESeq2_TElocal_manhattan` /
+> `DESeq2_TElocal_locus_boxplot` / `DESeq2_TElocal_subfamily_bar` 规则集成到
+> DESeq2 模块（见 `modules/DESeq2/README.md`），日志改为标准库 logging，
+> 不再依赖 LogUtil。本文档中的路径示例对这三个脚本请以新位置为准；
+> `te_locus_coverage.py` 等仍在本目录。
+
 三个独立 CLI 脚本，"全局—家族—位点"三层展示 TE 爆发：
 
 | 脚本 | 图 | 输入数据 |
 |------|----|----------|
 | `te_manhattan.py` | 全基因组 Manhattan 散点（爆发的全局性） | 位点级数值表（坐标在表内或经 rmsk TE GTF 解析） |
-| `te_family_boxplot.py` | 家族表达分布箱线/小小提琴（阶段间分布上移） | TEcount 合并计数表或 DESeq2 结果表 + sample→group 注释 |
+| `te_locus_boxplot.py` | 家族表达分布箱线/小小提琴（阶段间分布上移） | TEcount 合并计数表或 DESeq2 结果表 + sample→group 注释 |
 | `te_locus_coverage.py` | IGV 式堆叠覆盖度轨道（代表位点证据） | BAM / bigWig / bedGraph 轨道 + 基因组区间 |
 
 公共约定：NumPy 风格英文 docstring + 全量类型标注；日志走
@@ -53,7 +61,7 @@ python te_manhattan.py --values locus_deseq2.tsv --te-gtf GRCm39_GENCODE_rmsk_TE
     --ylabel "log2FC" -o outdir -f png -f pdf
 ```
 
-## 2. te_family_boxplot.py — 家族表达分布（按组/阶段）
+## 2. te_locus_boxplot.py — 家族表达分布（按组/阶段）
 
 每个 `--family` 模式一个面板，面板内每个样本组一个小提琴/箱线，
 展示该家族所有 TE 条目表达分布随阶段整体上移（爆发）。
@@ -80,7 +88,7 @@ python te_manhattan.py --values locus_deseq2.tsv --te-gtf GRCm39_GENCODE_rmsk_TE
 --stat-headroom/--figsize-unit` 可调。
 
 ```bash
-python te_family_boxplot.py --matrix GRCm39_TEcount.tsv --annotation samples.tsv \
+python te_locus_boxplot.py --matrix GRCm39_TEcount.tsv --annotation samples.tsv \
     --family MT2 --family L1Md --family IAP --kind violin --ncols 2 \
     --test mannwhitney --test-ref-group mESC -o outdir -f png
 ```

@@ -191,7 +191,8 @@
     "trim-galore": "/home/luosg/Database/env/trim-galore/trim-galore.sif",
     "trimmomatic": "/home/luosg/Database/env/trimmomatic/trimmomatic.sif",
     "XenofilteR": "/home/luosg/Database/env/XenofilteR/XenofilteR.sif",
-    "featureCounts": "/home/luosg/Database/env/featureCounts/featureCounts.sif"
+    "featureCounts": "/home/luosg/Database/env/featureCounts/featureCounts.sif",
+    "TEfigs": "/home/luosg/Database/env/DESeq2/TEfigs.sif"
   },
   "Procedure": {
     "TEcount": null,
@@ -370,6 +371,36 @@
               "sample4"
             ]
           }
+        }
+      },
+      "manhattan": {
+        "label_top": 10,
+        "ylabel": "log2(1+|delta TPM|)",
+        "highlight_families": {
+          "GRCm39": {},
+          "GRCh38": {}
+        }
+      },
+      "locus_boxplot": {
+        "match_field": "subfamily",
+        "match_mode": "exact",
+        "normalize": "log2tpm",
+        "kind": "box",
+        "families": {
+          "GRCm39": {},
+          "GRCh38": {}
+        }
+      },
+      "subfamily_bar": {
+        "match_field": "subfamily",
+        "match_mode": "exact",
+        "value": "total",
+        "normalize": "tpm",
+        "yscale": "linear",
+        "ylabel": "TPM",
+        "families": {
+          "GRCm39": {},
+          "GRCh38": {}
         }
       }
     },

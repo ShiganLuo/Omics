@@ -50,8 +50,8 @@ rule sccoda_run:
         h5ad = indir + "/{tissue}/{tissue}_{counter}_auto.h5ad",
         reannotated = _reannotate_marker
     output:
-        report = outdir + "/{tissue}/sccoda/{counter}/sccoda_report.html",
-        da_dir = directory(outdir + "/{tissue}/sccoda/{counter}/da")
+        report = outdir + "/{tissue}/{counter}/sccoda_report.html",
+        da_dir = directory(outdir + "/{tissue}/{counter}/da")
     log:
         logdir + "/sccoda/{tissue}/sccoda_run_{counter}.log"
     threads: rule_res("sccoda_run").get("threads", 4)
@@ -126,5 +126,5 @@ rule sccoda_run:
 rule sccoda_result:
     """Panel rule aggregating the module's main outputs."""
     input:
-        expand(outdir + "/{tissue}/sccoda/{counter}/sccoda_report.html",
+        expand(outdir + "/{tissue}/{counter}/sccoda_report.html",
                tissue=tissues, counter=counters)

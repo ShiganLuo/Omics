@@ -6,6 +6,8 @@ indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "logs")
 outdir_combine = config.get("outdir_combine", outdir)
+# pseudobulk deliverables root (scRNAseq: <outdir>/diff/pseudobulk)
+outdir_pseudobulk = config.get("outdir_pseudobulk", outdir_combine)
 logdir_combine = config.get("logdir_combine", logdir)
 
 procedure = config.get("Procedure", {})
@@ -452,7 +454,7 @@ rule scanpy_pseudobulk:
         reannotated = _reannotate_marker,
         counts = outdir_combine + "/{tissue}/{tissue}_{counter}_merged.h5ad"
     output:
-        report = outdir_combine + "/{tissue}/pseudobulk/{counter}/pseudobulk_report.html",
+        report = outdir_pseudobulk + "/{tissue}/{counter}/pseudobulk_report.html",
     log:
         logdir_combine + "/scanpy/{tissue}/scanpy_pseudobulk_{counter}.log"
     threads: rule_res("scanpy_pseudobulk").get("threads", 4)

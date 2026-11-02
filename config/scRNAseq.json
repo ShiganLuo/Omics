@@ -321,7 +321,7 @@
     },
     "function": {
       "pseudobulk_go": {
-        "enabled": false,
+        "enabled": true,
         "modes": ["all", "gene", "te"],
         "species": "macaque",
         "lfc_cut": 1,

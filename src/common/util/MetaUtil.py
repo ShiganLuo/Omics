@@ -223,6 +223,19 @@ class MetadataUtils:
         return sample_pairs, group_pairs
 
 
+
+    @staticmethod
+    def _parse_assay(assay_raw: Any) -> Optional[str]:
+        """Resolve one sample's sequencing assay type from a raw meta cell.
+
+        Returns the stripped string (e.g. "WGS", "Exome", "Panel"), or None
+        when the cell is absent/empty/NaN.
+        """
+        if assay_raw is None or (isinstance(assay_raw, float) and math.isnan(assay_raw)):
+            return None
+        s = str(assay_raw).strip()
+        return s or None
+
     def _collect_raw_files(self) -> List[str]:
         """Collect resolved input file paths from raw_fq_dir.
 
@@ -290,6 +303,7 @@ class MetadataUtils:
             design_col:str = 'design',
             fastq_r1_col:str = 'fastq_1',
             fastq_r2_col:str = "fastq_2",
+            assay_col:str = "assay",
             organism_col:str = "organism",
             workflow_col:str = "workflow",
             group_col:str = "group",
@@ -342,6 +356,8 @@ class MetadataUtils:
             )
             self.samples_dict[sample_id].design = design_value
             self.samples_dict[sample_id].group = group_value
+            self.samples_dict[sample_id].assay = self._parse_assay(
+                df_sample[assay_col].values[0] if assay_col in df_sample.columns else None)
             host_organism_value = "UNKNOWN"
             try:
                 host_organism_value = str(df_sample[organism_col].values[0]) if organism_col in df_sample.columns else "UNKNOWN"
@@ -420,6 +436,7 @@ class MetadataUtils:
         pbi_col: str = 'pbi',
         bai_col: str = 'bai',
         design_col: str = 'design',
+        assay_col: str = "assay",
         group_col: str = 'group'
     ) -> None:
         """Prepare BAM metadata: symlink BAM files per sample. may be used for PacBio CCS data or other BAM-based workflows.
@@ -452,6 +469,8 @@ class MetadataUtils:
                 )
                 self.samples_dict[sample_id].design = design_value
                 self.samples_dict[sample_id].group = group_value
+                self.samples_dict[sample_id].assay = self._parse_assay(
+                    df_sample[assay_col].values[0] if assay_col in df_sample.columns else None)
                 try:
                     self.samples_dict[sample_id].organism = resolve_genome(organism)
                 except ValueError as e:
@@ -492,6 +511,8 @@ class MetadataUtils:
                 )
                 self.samples_dict[sample_id].design = design_value
                 self.samples_dict[sample_id].group = group_value
+                self.samples_dict[sample_id].assay = self._parse_assay(
+                    df_sample[assay_col].values[0] if assay_col in df_sample.columns else None)
                 try:
                     self.samples_dict[sample_id].organism = resolve_genome(organism)
                 except ValueError as e:
@@ -527,6 +548,7 @@ class MetadataUtils:
             sample_id_col: str = 'sample_id',
             ms_file_col: str = 'ms_file',
             design_col: str = 'design',
+            assay_col: str = "assay",
             group_col: str = 'group',
         ) -> None:
         """Prepare Mass Spectrometry metadata: symlink MS files per sample.
@@ -563,6 +585,8 @@ class MetadataUtils:
             )
             self.samples_dict[sample_id].design = design_value
             self.samples_dict[sample_id].group = group_value
+            self.samples_dict[sample_id].assay = self._parse_assay(
+                df_sample[assay_col].values[0] if assay_col in df_sample.columns else None)
             ms_file_path = str(df_sample[ms_file_col].values[0]) if ms_file_col in df_sample.columns else None
 
             if not ms_file_path or not os.path.exists(ms_file_path):
@@ -679,6 +703,7 @@ class MetadataUtils:
                     setattr(self.samples_dict[sample_id], col, row[col])
             self.samples_dict[sample_id].design, self.samples_dict[sample_id].group = self._parse_design(
                 row.get(self.design_col), row.get("group"))
+            self.samples_dict[sample_id].assay = self._parse_assay(row.get("assay"))
 
             # Build cellranger_input for this sample
             self.cellranger_input_dict[sample_id] = CellrangerInput(

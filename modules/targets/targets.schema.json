@@ -1,0 +1,63 @@
+{
+    "indir": {
+        "type": "str",
+        "required": true
+    },
+    "outdir": {
+        "type": "str",
+        "required": true
+    },
+    "logdir": {
+        "type": "str",
+        "required": true
+    },
+    "bam_suffix": {
+        "type": "str",
+        "required": false
+    },
+    "samples": {
+        "type": "list",
+        "required": true
+    },
+    "ROOT_DIR": {
+        "type": "str",
+        "required": false
+    },
+    "Params": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+            "derive": {
+                "type": "dict",
+                "required": false,
+                "properties": {
+                    "min_depth": {
+                        "type": "int",
+                        "nullable": true,
+                        "required": false
+                    },
+                    "min_bq": {
+                        "type": "int",
+                        "nullable": true,
+                        "required": false
+                    },
+                    "min_mq": {
+                        "type": "int",
+                        "nullable": true,
+                        "required": false
+                    },
+                    "min_gap": {
+                        "type": "int",
+                        "nullable": true,
+                        "required": false
+                    },
+                    "min_region": {
+                        "type": "int",
+                        "nullable": true,
+                        "required": false
+                    }
+                }
+            }
+        }
+    }
+}

@@ -1,85 +1,84 @@
 {
-  "indir": {
-    "type": "str",
-    "nullable": true,
-    "required": true
-  },
-  "outdir": {
-    "type": "str",
-    "nullable": true,
-    "required": true
-  },
-  "logdir": {
-    "type": "str",
-    "nullable": true,
-    "required": true
-  },
-  "samples": {
-    "type": "list",
-    "nullable": true,
-    "required": false
-  },
-  "control_samples": {
-    "type": "list",
-    "nullable": true,
-    "required": false
-  },
-  "Procedure": {
-    "type": "dict",
-    "nullable": true,
-    "required": false,
-    "properties": {
-      "cnvkit": {
-        "type": "null",
+    "indir": {
+        "type": "str",
+        "nullable": true,
+        "required": true
+    },
+    "outdir": {
+        "type": "str",
+        "nullable": true,
+        "required": true
+    },
+    "logdir": {
+        "type": "str",
+        "nullable": true,
+        "required": true
+    },
+    "samples": {
+        "type": "list",
         "nullable": true,
         "required": false
-      },
-      "samtools": {
-        "type": "null",
+    },
+    "control_samples": {
+        "type": "list",
         "nullable": true,
         "required": false
-      }
-    }
-  },
-  "Params": {
-    "type": "dict",
-    "nullable": true,
-    "required": false,
-    "properties": {
-      "cnvkit": {
+    },
+    "Procedure": {
         "type": "dict",
         "nullable": true,
         "required": false,
         "properties": {
-          "method": {
-            "type": "str",
-            "nullable": true,
-            "required": false
-          },
-          "processes": {
-            "type": "int",
-            "nullable": true,
-            "required": false
-          }
+            "cnvkit": {
+                "type": "null",
+                "nullable": true,
+                "required": false
+            },
+            "samtools": {
+                "type": "null",
+                "nullable": true,
+                "required": false
+            }
         }
-      }
-    }
-  },
-  "genome": {
-    "type": "dict",
-    "nullable": true,
-    "required": false,
-    "properties": {
-      "fasta": {
-        "type": "null",
+    },
+    "Params": {
+        "type": "dict",
         "nullable": true,
-        "required": false
-      },
-      "access": {
-        "type": "null",
+        "required": false,
+        "properties": {
+            "cnvkit": {
+                "type": "dict",
+                "nullable": true,
+                "required": false,
+                "properties": {
+                    "method": {
+                        "type": "enum",
+                        "values": [
+                            "hybrid",
+                            "amplicon",
+                            "wgs"
+                        ],
+                        "required": true
+                    }
+                }
+            }
+        }
+    },
+    "genome": {
+        "type": "dict",
         "nullable": true,
-        "required": false
-      }
+        "required": false,
+        "properties": {
+            "fasta": {
+                "type": "null",
+                "nullable": true,
+                "required": false
+            },
+            "access": {
+                "type": "null",
+                "nullable": true,
+                "required": false
+            }
+        }
     }
-  }
 }

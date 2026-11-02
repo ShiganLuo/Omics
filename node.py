@@ -577,12 +577,51 @@ def runMutation(
     ):
     root_dir = _init_raw_json(datajson, indir, outdir, raw_files, workflow="Mutation")
     _genome_ref = _resolve_genome_ref(datajson, samples_info_dict, "Mutation")
+    # Sequencing assay type -> CNVkit --seq-method (meta `assay` column wins over
+    # the config value; all samples must share one assay for a single cnvkit run).
+    _ASSAY_TO_CNVKIT_METHOD = {
+        "wgs": "wgs", "exome": "hybrid", "wes": "hybrid",
+        "panel": "amplicon", "amplicon": "amplicon",
+    }
+    assays = sorted({(info.assay or "").strip().lower() for info in samples_info_dict.values()} - {""})
+    if assays:
+        if len(assays) > 1:
+            raise ValueError(
+                f"Mutation: meta assay column holds mixed assay types {assays}; "
+                "CNVkit needs a single sequencing method per run."
+            )
+        method = _ASSAY_TO_CNVKIT_METHOD.get(assays[0])
+        if method is None:
+            raise ValueError(
+                f"Mutation: unknown meta assay '{assays[0]}'; expected one of "
+                f"{sorted(_ASSAY_TO_CNVKIT_METHOD)}"
+            )
+        configured = datajson["Params"].setdefault("cnvkit", {}).get("method")
+        if configured != method:
+            logger.info(
+                f"Mutation: meta assay '{assays[0]}' -> Params.cnvkit.method "
+                f"'{configured}' overridden to '{method}'"
+            )
+        datajson["Params"]["cnvkit"]["method"] = method
     outfiles = []
     paired_samples = []
     single_samples = []
     mutect2_samples = []
     sample_somatic_vcf_dict = {}
     sample_group_dict = {}
+    # Exome assays get a capture-region BED for GATK -L and CNVkit --targets:
+    # an explicit genome.references.<g>.targets BED wins; otherwise derive it
+    # from markdup BAM coverage (upstream rule) and register the output.
+    _ref_entry = datajson["genome"]["references"][datajson["genome"]["default"]]
+    if _ref_entry.get("targets"):
+        _targets = _ref_entry["targets"]
+    elif assays and datajson["Params"]["cnvkit"].get("method") == "hybrid":
+        _targets = f"{outdir}/common/targets/targets.bed"
+        outfiles.append(_targets)
+        _ref_entry["targets"] = _targets
+    else:
+        _targets = None
+        _ref_entry["targets"] = None
     for designPair in designPairs:
         somatic_file = f"{outdir}/variation/gatk/somatic/mutect2-vcf/{designPair.ctr_sample_id}_vs_{designPair.exp_sample_id}/{designPair.ctr_sample_id}_vs_{designPair.exp_sample_id}.vcf.gz"
         sample_somatic_vcf_dict[designPair.exp_sample_id] = somatic_file
@@ -612,21 +651,16 @@ def runMutation(
     
     all_samples = paired_samples + single_samples
     
-    # Fragment size analysis outputs (unless skipped)
-    skip_fragment_size = datajson.get("Params", {}).get("skip_fragment_size", False)
-    if not skip_fragment_size:
+    # Per-module gates: Params.<module>.enabled (default true)
+    if _enabled(datajson, "fragment_size"):
         outfiles.append(f"{outdir}/results/fragment_size/fragment/FragmentSize.txt")
         outfiles.append(f"{outdir}/results/fragment_size/fragment/FragmentSize.png")
-    
-    # SV detection with Manta outputs (unless skipped)
-    skip_sv = datajson.get("Params", {}).get("skip_sv", False)
-    if not skip_sv:
+
+    if _enabled(datajson, "manta"):
         for sample_id in all_samples:
             outfiles.append(f"{outdir}/variation/germline_sv/{sample_id}/results/variants/candidateSV.vcf.gz")
-    
-    # CNV detection with CNVkit outputs (unless skipped)
-    skip_cnv = datajson.get("Params", {}).get("skip_cnv", False)
-    if not skip_cnv:
+
+    if _enabled(datajson, "cnvkit"):
         for sample_id in all_samples:
             outfiles.append(f"{outdir}/variation/cnv/cnvkit/cnv/{sample_id}.cnr")
             outfiles.append(f"{outdir}/variation/cnv/cnvkit/cnv/{sample_id}.cns")

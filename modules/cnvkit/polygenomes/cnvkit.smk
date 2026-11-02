@@ -27,8 +27,7 @@ rule cnvkit_reference:
         ref = outdir + "/{genome}/reference/reference.cnn"
     log:
         logdir + "/{genome}/cnvkit_reference.log"
-    threads:
-        config.get("Params", {}).get("cnvkit", {}).get("processes") or 8
+    threads: rule_res("cnvkit_reference").get("threads", 8)
     resources:
         mem_mb = rule_res("cnvkit_reference").get("mem_mb", 16000),
     conda:
@@ -79,8 +78,7 @@ rule cnvkit_batch:
         cns = expand(outdir + "/{{genome}}/cnv/{sample_id}.cns", sample_id=samples)
     log:
         logdir + "/{genome}/cnvkit_batch.log"
-    threads:
-        config.get("Params", {}).get("cnvkit", {}).get("processes") or 8
+    threads: rule_res("cnvkit_batch").get("threads", 8)
     resources:
         mem_mb = rule_res("cnvkit_batch").get("mem_mb", 32000),
     conda:

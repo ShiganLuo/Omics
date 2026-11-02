@@ -87,33 +87,30 @@
             "threads": {
                 "type": "int",
                 "required": true
+            },
+            "enabled": {
+                "type": "bool",
+                "required": false
             }
         },
         "cnvkit": {
             "method": {
-                "type": "str",
+                "type": "enum",
+                "values": [
+                    "hybrid",
+                    "amplicon",
+                    "wgs"
+                ],
                 "required": true
             },
-            "processes": {
-                "type": "int",
-                "required": true
+            "enabled": {
+                "type": "bool",
+                "required": false
             }
         },
         "somatic_spectrum": {
             "sample_somatic_vcf_dict": {},
             "sample_group_dict": {}
-        },
-        "skip_fragment_size": {
-            "type": "bool",
-            "required": true
-        },
-        "skip_sv": {
-            "type": "bool",
-            "required": true
-        },
-        "skip_cnv": {
-            "type": "bool",
-            "required": true
         },
         "workflow": {
             "type": "dict",
@@ -148,6 +145,42 @@
                     "required": false
                 }
             }
+        },
+        "derive_targets": {
+            "type": "dict",
+            "required": false,
+            "properties": {
+                "min_depth": {
+                    "type": "int",
+                    "required": false
+                },
+                "min_bq": {
+                    "type": "int",
+                    "required": false
+                },
+                "min_mq": {
+                    "type": "int",
+                    "required": false
+                },
+                "min_gap": {
+                    "type": "int",
+                    "required": false
+                },
+                "min_region": {
+                    "type": "int",
+                    "required": false
+                }
+            }
+        },
+        "fragment_size": {
+            "type": "dict",
+            "required": false,
+            "properties": {
+                "enabled": {
+                    "type": "bool",
+                    "required": false
+                }
+            }
         }
     },
     "genome": {
@@ -169,67 +202,17 @@
                             "nullable": true,
                             "required": false
                         },
-                        "gtf": {
-                            "type": "str",
-                            "nullable": true,
-                            "required": false
-                        },
-                        "geneIDAnno": {
-                            "type": "str",
-                            "nullable": true,
-                            "required": false
-                        },
-                        "gene_map": {
-                            "type": "str",
-                            "nullable": true,
-                            "required": false
-                        },
-                        "TE_gtf": {
-                            "type": "str",
-                            "nullable": true,
-                            "required": false
-                        },
-                        "TEind": {
-                            "type": "str",
-                            "nullable": true,
-                            "required": false
-                        },
-                        "hisat2_index_prefix": {
-                            "type": "str",
-                            "nullable": true,
-                            "required": false
-                        },
-                        "star_index_dir": {
-                            "type": "str",
-                            "nullable": true,
-                            "required": false
-                        },
-                        "rRNA_fasta": {
-                            "type": "str",
-                            "nullable": true,
-                            "required": false
-                        },
-                        "bowtie2_index_prefix_for_rRNA": {
-                            "type": "str",
-                            "nullable": true,
-                            "required": false
-                        },
                         "bwaMem2_index_prefix": {
                             "type": "str",
                             "nullable": true,
                             "required": false
                         },
-                        "known_sites": {
-                            "type": "str",
-                            "nullable": true,
-                            "required": false
-                        },
-                        "interval": {
-                            "type": "str",
-                            "nullable": true,
-                            "required": false
-                        },
                         "access": {
+                            "type": "str",
+                            "nullable": true,
+                            "required": false
+                        },
+                        "targets": {
                             "type": "str",
                             "nullable": true,
                             "required": false

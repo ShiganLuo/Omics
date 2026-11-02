@@ -465,9 +465,7 @@ rule decoil_igv:
             config_json_path = str(params.config_json)
             tmp_base_json = os.path.join(sample_vis_dir, f"igv_base_{wildcards.sample_id}.json")
             with open(tmp_base_json, "w") as f:
-                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 json.dump(base_cfg, f, indent=2)
-                f.write(f'echo "script completed successfully"\n')
 
             script = os.path.join(RECEIPT_DIR, f"decoil_igv_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_vis_dir, f"decoil_igv_{wildcards.sample_id}.sh")

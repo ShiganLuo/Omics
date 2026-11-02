@@ -147,7 +147,8 @@ FASTQ
 | Params key | 产出文件 | 说明 |
 | --- | --- | --- |
 | `Params.TEtranscripts.enabled` | `counts/{genome}/TEcount/all_TEcount.tsv`<br>`counts/{genome}/TElocal/all_TElocal.tsv` | TE 表达定量矩阵 |
-| `Params.DESeq2.enabled` | `diff_expression/{genome}/{ctr}_vs_{exp}/DESeq2.done` | 差异表达分析；需要 TEcount 作为输入 |
+| `Params.DESeq2.enabled` | `diff_expression/{genome}/{ctr}_vs_{exp}/TEcount/DESeq2.done`<br>`diff_expression/{genome}/{ctr}_vs_{exp}/TElocal/DESeq2.done` | 差异表达分析；需要 TEcount/TElocal 矩阵作为输入 |
+| `Params.DESeq2.manhattan/locus_boxplot/subfamily_bar` | `diff_expression/{genome}/{contrast}/TElocal/manhattan/{contrast}.manhattan.png`<br>`diff_expression/{genome}/{contrast}/TElocal/locus_box/{contrast}.locus_box.png`<br>`diff_expression/{genome}/{contrast}/TElocal/subfamily_bar/{contrast}.subfamily_bar.png` | TElocal 位点图（Manhattan 全景 / 家族分布 / 亚家族定量）；manhattan 随 DESeq2+TElocal 自动产出，后两者需配置 `Params.DESeq2.<rule>.families` 按对比启用，详见 [modules/DESeq2/README.md](../modules/DESeq2/README.md) |
 | `Params.function.<organism>.enabled` | `function/{genome}/{pair}/go_*.png`<br>`function/{genome}/{pair}/kegg_*.png`<br>`function/{genome}/{pair}/GSEA/*.jpeg`<br>`function/{genome}/{pair}/*.csv` | GO/KEGG/GSEA，per-organism 控制 |
 | `Params.StringTie.enabled` | `transcripts/{genome}/stringtie_merged.gtf`<br>`transcripts/{genome}/TE_chimeric/*.png`<br>`transcripts/{genome}/TE_chimeric/*.tsv` | 转录本组装 + TE chimeric 分析 |
 | `Params.arriba.enabled` | `fusion/{genome}/arriba_report/arriba_fusion_report.html`<br>`fusion/{genome}/{sample}/{sample}_passed_fusions.tsv` | 融合基因检测 |

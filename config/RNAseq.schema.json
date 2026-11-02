@@ -817,6 +817,84 @@
                 }
               }
             }
+          },
+          "manhattan": {
+            "type": "dict",
+            "required": false,
+            "properties": {
+              "label_top": {
+                "type": "int",
+                "required": false
+              },
+              "ylabel": {
+                "type": "str",
+                "required": false
+              },
+              "highlight_families": {
+                "type": "dict",
+                "required": false
+              }
+            }
+          },
+          "locus_boxplot": {
+            "type": "dict",
+            "required": false,
+            "properties": {
+              "match_field": {
+                "type": "str",
+                "required": false
+              },
+              "match_mode": {
+                "type": "str",
+                "required": false
+              },
+              "normalize": {
+                "type": "str",
+                "required": false
+              },
+              "kind": {
+                "type": "str",
+                "required": false
+              },
+              "families": {
+                "type": "dict",
+                "required": false
+              }
+            }
+          },
+          "subfamily_bar": {
+            "type": "dict",
+            "required": false,
+            "properties": {
+              "match_field": {
+                "type": "str",
+                "required": false
+              },
+              "match_mode": {
+                "type": "str",
+                "required": false
+              },
+              "value": {
+                "type": "str",
+                "required": false
+              },
+              "normalize": {
+                "type": "str",
+                "required": false
+              },
+              "yscale": {
+                "type": "str",
+                "required": false
+              },
+              "ylabel": {
+                "type": "str",
+                "required": false
+              },
+              "families": {
+                "type": "dict",
+                "required": false
+              }
+            }
           }
         }
       },

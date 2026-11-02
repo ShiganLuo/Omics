@@ -18,7 +18,7 @@ B=$D/common/3_TEtranscripts_bam/GRCm39
 TEGTF=/data/pub/zhousha/Database/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.gtf
 
 # 1) 家族分布（真实数据）
-$PY te_family_boxplot.py \
+$PY te_locus_boxplot.py \
     --matrix $D/counts/TEtranscripts/GRCm39/GRCm39_TEcount.tsv \
     --annotation examples/samples_mouse.tsv \
     --family MT2 --family L1Md --family IAP --family B2 \

@@ -948,7 +948,15 @@ def runRNAseq(
         if enable_deseq2 and enable_TEcount:
             outfiles.append(f"{outdir}/diff_expression/{group_pair.organism}/{group_pair.ctr_group_name}_vs_{group_pair.exp_group_name}/TEcount/DESeq2.done")
         if enable_deseq2 and enable_TElocal:
-            outfiles.append(f"{outdir}/diff_expression/{group_pair.organism}/{group_pair.ctr_group_name}_vs_{group_pair.exp_group_name}/TElocal/DESeq2.done")
+            te_figures_dir = f"{outdir}/diff_expression/{group_pair.organism}/{group_pair.ctr_group_name}_vs_{group_pair.exp_group_name}/TElocal"
+            outfiles.append(f"{te_figures_dir}/DESeq2.done")
+            outfiles.append(f"{te_figures_dir}/manhattan/{group_pair.ctr_group_name}_vs_{group_pair.exp_group_name}.manhattan.png")
+            # locus boxplot / subfamily bar only run when their per-contrast
+            # family patterns are configured (Params.DESeq2.<rule>.families).
+            for te_fig_rule, te_fig_dir in (("locus_boxplot", "locus_box"), ("subfamily_bar", "subfamily_bar")):
+                te_fig_families = (datajson.get("Params", {}).get("DESeq2", {}).get(te_fig_rule, {}) or {}).get("families", {}) or {}
+                if te_fig_families.get(group_pair.organism, {}).get(f"{group_pair.ctr_group_name}_vs_{group_pair.exp_group_name}"):
+                    outfiles.append(f"{te_figures_dir}/{te_fig_dir}/{group_pair.ctr_group_name}_vs_{group_pair.exp_group_name}.{te_fig_dir}.png")
         sample_groups.setdefault(group_pair.ctr_group_name, []).extend(group_pair.ctr_sample_ids)
         sample_groups.setdefault(group_pair.exp_group_name, []).extend(group_pair.exp_sample_ids)
 

@@ -39,6 +39,12 @@
             "type": "str",
             "nullable": true,
             "required": false
+          },
+          "TEind": {
+            "type": "str",
+            "path": "file",
+            "nullable": true,
+            "required": false
           }
         }
       },
@@ -60,6 +66,12 @@
           },
           "gene_map": {
             "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "TEind": {
+            "type": "str",
+            "path": "file",
             "nullable": true,
             "required": false
           }
@@ -93,6 +105,144 @@
                 "nullable": true,
                 "required": false,
                 "properties": {}
+              }
+            }
+          },
+          "manhattan": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "label_top": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "ylabel": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "highlight_families": {
+                "type": "dict",
+                "nullable": true,
+                "required": false,
+                "properties": {
+                  "GRCm39": {
+                    "type": "dict",
+                    "nullable": true,
+                    "required": false,
+                    "properties": {}
+                  },
+                  "GRCh38": {
+                    "type": "dict",
+                    "nullable": true,
+                    "required": false,
+                    "properties": {}
+                  }
+                }
+              }
+            }
+          },
+          "locus_boxplot": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "match_field": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "match_mode": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "normalize": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "kind": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "families": {
+                "type": "dict",
+                "nullable": true,
+                "required": false,
+                "properties": {
+                  "GRCm39": {
+                    "type": "dict",
+                    "nullable": true,
+                    "required": false,
+                    "properties": {}
+                  },
+                  "GRCh38": {
+                    "type": "dict",
+                    "nullable": true,
+                    "required": false,
+                    "properties": {}
+                  }
+                }
+              }
+            }
+          },
+          "subfamily_bar": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "match_field": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "match_mode": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "value": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "normalize": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "yscale": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "ylabel": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "families": {
+                "type": "dict",
+                "nullable": true,
+                "required": false,
+                "properties": {
+                  "GRCm39": {
+                    "type": "dict",
+                    "nullable": true,
+                    "required": false,
+                    "properties": {}
+                  },
+                  "GRCh38": {
+                    "type": "dict",
+                    "nullable": true,
+                    "required": false,
+                    "properties": {}
+                  }
+                }
               }
             }
           }

@@ -1,25 +1,57 @@
 {
-  "indir": "data",
-  "outdir": "output",
-  "logdir": "logs",
-  "genome": {
-    "GRCm39": {
-      "geneIDAnno": "path/to/geneIDAnnotation.csv",
-      "gtf": "path/to/annotation.gtf",
-      "gene_map": "path/to/gene_map.pkl"
+    "indir": "data",
+    "outdir": "output",
+    "logdir": "logs",
+    "genome": {
+        "GRCm39": {
+            "geneIDAnno": "path/to/geneIDAnnotation.csv",
+            "gtf": "path/to/annotation.gtf",
+            "gene_map": "path/to/gene_map.pkl",
+            "TEind": "path/to/GRCm39_GENCODE_rmsk_TE.gtf.locInd"
+        },
+        "GRCh38": {
+            "geneIDAnno": "path/to/geneIDAnnotation.csv",
+            "gtf": "path/to/annotation.gtf",
+            "gene_map": "path/to/gene_map.pkl",
+            "TEind": "path/to/GRCh38_GENCODE_rmsk_TE.gtf.locInd"
+        }
     },
-    "GRCh38": {
-      "geneIDAnno": "path/to/geneIDAnnotation.csv",
-      "gtf": "path/to/annotation.gtf",
-      "gene_map": "path/to/gene_map.pkl"
+    "Params": {
+        "DESeq2": {
+            "group_pairs": {
+                "GRCm39": {},
+                "GRCh38": {}
+            },
+            "manhattan": {
+                "label_top": 10,
+                "ylabel": "log2(1+|delta TPM|)",
+                "highlight_families": {
+                    "GRCm39": {},
+                    "GRCh38": {}
+                }
+            },
+            "locus_boxplot": {
+                "match_field": "subfamily",
+                "match_mode": "exact",
+                "normalize": "log2tpm",
+                "kind": "box",
+                "families": {
+                    "GRCm39": {},
+                    "GRCh38": {}
+                }
+            },
+            "subfamily_bar": {
+                "match_field": "subfamily",
+                "match_mode": "exact",
+                "value": "total",
+                "normalize": "tpm",
+                "yscale": "linear",
+                "ylabel": "TPM",
+                "families": {
+                    "GRCm39": {},
+                    "GRCh38": {}
+                }
+            }
+        }
     }
-  },
-  "Params": {
-    "DESeq2": {
-      "group_pairs": {
-        "GRCm39": {},
-        "GRCh38": {}
-      }
-    }
-  }
 }

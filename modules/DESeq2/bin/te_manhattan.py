@@ -50,35 +50,17 @@ import logging
 import math
 import os
 import pickle
-import re
-import sys
 from typing import Any, Dict, List, Optional, Tuple
-
 import numpy as np
 import pandas as pd
-
-logger = logging.getLogger(__name__)
-if not logger.handlers:
-    _stream_handler = logging.StreamHandler()
-    _stream_handler.setFormatter(
-        logging.Formatter(
-            "%(asctime)s | %(levelname)s | %(name)s | %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
-        )
-    )
-    logger.addHandler(_stream_handler)
-logger.setLevel(logging.INFO)
-
+import matplotlib
+import matplotlib.pyplot as plt
 try:
-    import matplotlib
-
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
-except ImportError as exc:  # pragma: no cover - environment dependent
-    raise SystemExit(
-        f"matplotlib is required for {os.path.basename(__file__)}: {exc}. "
-        "Install it into the current environment (no auto-install)."
-    )
-
+    from .LogUtil import setup_logger
+except ImportError:
+    from LogUtil import setup_logger
+logger = setup_logger(__name__, level=logging.INFO)
+matplotlib.use("Agg")
 PlotFormat = str  # any matplotlib savefig format: png, pdf, svg, ...
 
 

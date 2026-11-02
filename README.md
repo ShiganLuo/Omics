@@ -78,10 +78,11 @@ python workflow/Omics/run.py -m data/meta.tsv -w scRNAseq -o output \
 ### 环境免手动安装
 
 各流程用到的软件不需要手动装：conda 模式由 Snakemake 按 `modules/*/*.yaml` 自动创建环境，容器模式直接用预构建 SIF 镜像，bind 路径由 `run.py` 自动推导。
+环境精确到rule,后续可以合并不同环境，减少空间占用
 
 ### 资源分配可控
 
-`resources` 字段按规则控制线程数和内存（`resources.default` 兜底、按规则名覆盖），避免耗尽主机内存或打满 CPU。
+`resources` 字段按规则控制线程数和内存（`resources.default` 兜底、按规则名覆盖），避免耗尽主机内存或打满 CPU，精确到rule。
 
 ### 内置测试模式
 

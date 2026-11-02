@@ -10,9 +10,14 @@ paired_samples = config.get("paired_samples")
 single_samples = config.get("single_samples")
 BWAMEM2_IDX_SUFFIX = ["0123", "amb", "ann", "bwt.2bit.64", "pac"]
 #Mapping with bwa
+def get_input_for_bwaMem2_index(wildcards):
+    logger.debug(f"[get_input_for_bwaMem2_index] called with wildcards: {wildcards}")
+    if not fasta or not os.path.exists(fasta):
+        raise FileNotFoundError(f"Fasta file for indexing is not found: {fasta}")
+    return fasta
 rule bwaMem2_index:
     input:
-        fasta = fasta
+        fasta = get_input_for_bwaMem2_index
     output:
         index = expand(
             outdir + "/index/genome.{ext}",

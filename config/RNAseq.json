@@ -192,7 +192,9 @@
     "trimmomatic": "/home/luosg/Database/env/trimmomatic/trimmomatic.sif",
     "XenofilteR": "/home/luosg/Database/env/XenofilteR/XenofilteR.sif",
     "featureCounts": "/home/luosg/Database/env/featureCounts/featureCounts.sif",
-    "TEfigs": "/home/luosg/Database/env/DESeq2/TEfigs.sif"
+    "DESeq2_TElocal_manhattan": "/data/16T/Database/env/fiberseq/fiberseq.sif",
+    "DESeq2_TElocal_locus_boxplot": "/data/16T/Database/env/fiberseq/fiberseq.sif",
+    "DESeq2_TElocal_subfamily_bar": "/data/16T/Database/env/fiberseq/fiberseq.sif"
   },
   "Procedure": {
     "TEcount": null,

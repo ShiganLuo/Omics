@@ -12,6 +12,12 @@ across samples). Two input flavors:
 * TElocal locus matrix (``--loci-tsv`` given): per-locus TPM is
   computed with locus lengths, then summed per subfamily.
 
+Significance brackets use display-point (pt) offsets above the
+tallest bar of each cluster, so spacing is identical on linear and
+log axes; the y headroom is computed from the bracket stack before
+rendering, so brackets never collide with error bars and are never
+clipped.
+
 Examples
 --------
 python te_subfamily_bar.py --matrix GRCh38_TEcount.tsv \
@@ -25,8 +31,7 @@ analysis; test auto-selected via the statistics_plot submodule).
 import argparse
 import os
 import sys
-import types
-from typing import Any, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -53,6 +58,14 @@ except ImportError as exc:  # pragma: no cover - environment dependent
         f"matplotlib is required for {os.path.basename(__file__)}: {exc}. "
         "Install it into the current environment (no auto-install)."
     )
+
+# statistics_plot lives in the src/common submodule; make it importable
+# (only used with --test).
+_STATISTICS_PLOT_DIR = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "..", "common", "statistics_plot", "Python"
+)
+if os.path.isdir(_STATISTICS_PLOT_DIR) and _STATISTICS_PLOT_DIR not in sys.path:
+    sys.path.insert(0, _STATISTICS_PLOT_DIR)
 
 PlotFormat = str
 
@@ -85,7 +98,7 @@ def parse_te_id(te_id: str) -> dict:
 
 
 def load_matrix(matrix_tsv: str) -> Tuple[pd.DataFrame, List[str]]:
-    """Load the TElocal locus count matrix.
+    """Load the TElocus locus count matrix.
 
     Parameters
     ----------
@@ -240,45 +253,6 @@ def compute_subfamily_value(
     return pd.DataFrame(out).T
 
 
-def load_statistics_modules() -> Tuple[Any, Any]:
-    """Import ``compare_groups`` and ``p_to_star`` from the statistics_plot submodule.
-
-    The statistics_plot modules live in ``src/common/statistics_plot/Python``
-    and import ``common.LogUtil.setup_logger``; that package does not exist
-    inside the submodule, so a minimal ``common.LogUtil`` module exposing a
-    logger factory is registered in ``sys.modules`` before importing.
-
-    Returns
-    -------
-    Tuple[Any, Any]
-        ``(compare_groups, p_to_star)`` callables from ``statistical_test``
-        and ``bar_significance``.
-
-    Raises
-    ------
-    SystemExit
-        If the submodule or its scipy dependency is unavailable.
-    """
-    stats_dir = os.path.join(
-        os.path.dirname(os.path.abspath(__file__)), "..", "common", "statistics_plot", "Python"
-    )
-    sys.path.insert(0, stats_dir)
-    logutil = sys.modules.setdefault("common.LogUtil", types.ModuleType("common.LogUtil"))
-    if not hasattr(logutil, "setup_logger"):
-        setattr(logutil, "setup_logger", lambda name: logging.getLogger(name))
-    common_pkg = sys.modules.setdefault("common", types.ModuleType("common"))
-    setattr(common_pkg, "LogUtil", logutil)
-    try:
-        from bar_significance import p_to_star  # type: ignore[import-not-found]  # noqa: PLC0415
-        from statistical_test import compare_groups  # type: ignore[import-not-found]  # noqa: PLC0415
-    except ImportError as exc:
-        raise SystemExit(
-            f"statistics_plot modules unavailable ({exc}); --test requires "
-            "src/common/statistics_plot (git submodule) and scipy."
-        )
-    return compare_groups, p_to_star
-
-
 def plot_subfamily_bars(
     subfamily_tpm: pd.DataFrame,
     annot: pd.DataFrame,
@@ -293,8 +267,6 @@ def plot_subfamily_bars(
     do_test: bool = False,
     test_ref_group: Optional[str] = None,
     test_alpha: float = 0.05,
-    bracket_lift: float = 1.15,
-    bracket_gap: float = 1.18,
 ) -> None:
     """Render grouped bars: one bar cluster per subfamily, one bar per group.
 
@@ -325,18 +297,15 @@ def plot_subfamily_bars(
         statistical test per group pair is auto-selected by
         ``statistical_test.compare_groups`` (t-test / Welch / Mann-Whitney
         after normality and variance checks); stars follow
-        ``bar_significance.p_to_star``. Default ``False`` (no test).
+        ``bar_significance.p_to_star``. Brackets are laid out with
+        display-point offsets above each cluster's tallest bar (incl.
+        error bar), so they never collide with error bars and spacing is
+        identical on linear and log axes. Default ``False`` (no test).
     test_ref_group : str, optional
         Reference group for the significance test (only used with
         ``do_test``; default: the first group, e.g. fibroblasts).
     test_alpha : float, optional
         Significance level for ``do_test``. Default ``0.05``.
-    bracket_lift : float, optional
-        First bracket height as a multiplier over the cluster's tallest
-        bar including its error bar. Default ``1.15``.
-    bracket_gap : float, optional
-        Multiplicative vertical step between stacked brackets per group.
-        Default ``1.18``.
 
     Returns
     -------
@@ -347,14 +316,21 @@ def plot_subfamily_bars(
     groups = [str(g) for g in annot["group"].cat.categories]
     group_of = annot.set_index("sample")["group"].astype(str)
 
-    patterns = list(subfamily_tpm.index)
+    # y scale first: subsequent display transforms must reflect it
     fig, ax = plt.subplots(figsize=figsize)
+    if yscale == "log":
+        ax.set_yscale("log")
+
+    patterns = list(subfamily_tpm.index)
     n_g = len(groups)
     width = 0.8 / n_g
     stats = {}
     bar_tops = np.zeros(len(patterns), dtype=float)
+    samples_by_group = {
+        grp: [s for s in subfamily_tpm.columns if group_of.get(s) == grp] for grp in groups
+    }
     for gi, grp in enumerate(groups):
-        samples = [s for s in subfamily_tpm.columns if group_of.get(s) == grp]
+        samples = samples_by_group[grp]
         means = subfamily_tpm[samples].mean(axis=1).reindex(patterns)
         sds = subfamily_tpm[samples].std(axis=1, ddof=1).reindex(patterns).fillna(0.0)
         xs = np.arange(len(patterns)) + (gi - n_g / 2 + 0.5) * width
@@ -366,59 +342,57 @@ def plot_subfamily_bars(
         stats[grp] = means
         bar_tops = np.maximum(bar_tops, (means + sds).to_numpy(dtype=float))
 
-    # significance brackets (optional, do_test): each group vs the
-    # reference group (default: first group, e.g. fibroblasts); the test is
-    # auto-selected by statistical_test.compare_groups and the star label
-    # comes from bar_significance.p_to_star (statistics_plot submodule)
-    if do_test:
-        compare_groups, p_to_star = load_statistics_modules()
-        ref = test_ref_group if test_ref_group in groups else groups[0]
-        ref_samples = [s for s in subfamily_tpm.columns if group_of.get(s) == ref]
-        for pi, pattern in enumerate(patterns):
-            # bracket base clears the tallest bar incl. its error bar in this
-            # cluster; levels stack multiplicatively so the spacing is even on
-            # log axes and never crosses the error bars on linear axes
-            base = max(float(bar_tops[pi]), 1e-9)
-            level = bracket_lift
-            for gi, grp in enumerate(groups):
-                if grp == ref:
-                    continue
-                samples = [s for s in subfamily_tpm.columns if group_of.get(s) == grp]
-                a = subfamily_tpm.loc[pattern, ref_samples].to_numpy(dtype=float)
-                b = subfamily_tpm.loc[pattern, samples].to_numpy(dtype=float)
-                if len(a) < 2 or len(b) < 2:
-                    logger.warning(f"{pattern}: {ref} vs {grp} skipped (n<2 in a group)")
-                    continue
-                result = compare_groups(a.tolist(), b.tolist(), alpha=test_alpha, verbose=False)
-                p_val = result["p_value"]
-                logger.info(
-                    f"{pattern} {ref} vs {grp}: {result['test_name']}, "
-                    f"p={p_val:.4g} ({p_to_star(p_val)})"
-                )
-                y = base * level
-                x_ref = pi + (groups.index(ref) - n_g / 2 + 0.5) * width
-                x_grp = pi + (gi - n_g / 2 + 0.5) * width
-                ax.plot([x_ref, x_ref, x_grp, x_grp],
-                        [y - base * 0.015, y, y, y - base * 0.015],
-                        lw=0.7, color="#333333", clip_on=False)
-                ax.text((x_ref + x_grp) / 2, y, p_to_star(p_val),
-                        ha="center", va="bottom", fontsize=8, color="#333333")
-                level *= bracket_gap
-            # expand y headroom so the highest bracket and its star label fit
-            top_needed = base * level
-            cur_top = ax.get_ylim()[1]
-            if top_needed > cur_top:
-                ax.set_ylim(bottom=ax.get_ylim()[0], top=top_needed * 1.02)
     ax.set_xticks(np.arange(len(patterns)))
     ax.set_xticklabels(patterns, rotation=x_rotation, ha="right")
     ax.set_ylabel(ylabel)
-    if yscale == "log":
-        ax.set_yscale("log")
     # legend outside the axes (right side) so it never covers bars
     ax.legend(frameon=False, fontsize=9, loc="center left", bbox_to_anchor=(1.02, 0.5))
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
     fig.tight_layout()
+
+    # significance brackets (optional, do_test): each group vs the
+    # reference group (default: first group, e.g. fibroblasts); test
+    # auto-selected by statistical_test.compare_groups; bracket layout
+    # and headroom come from bar_significance (statistics_plot
+    # submodule) -- display-point based, so spacing is identical on
+    # linear/log axes; headroom is computed after tight layout so
+    # transforms are final.
+    if do_test:
+        from bar_significance import draw_significance_bracket, fit_bracket_headroom, p_to_star  # type: ignore[import-not-found]  # noqa: PLC0415
+        from statistical_test import compare_groups  # type: ignore[import-not-found]  # noqa: PLC0415
+
+        fig.canvas.draw()
+        ref = test_ref_group if test_ref_group in groups else groups[0]
+        x_of = {grp: np.arange(len(patterns)) + (gi - n_g / 2 + 0.5) * width
+                for gi, grp in enumerate(groups)}
+
+        # pre-pass: expand y headroom so every bracket stack fits
+        fit_bracket_headroom(ax, bar_tops, max(1, n_g - 1))
+
+        for pi, pattern in enumerate(patterns):
+            base_data = max(float(bar_tops[pi]), 1e-9)
+            level = 0
+            for gi, grp in enumerate(groups):
+                if grp == ref:
+                    continue
+                a = subfamily_tpm.loc[pattern, samples_by_group[ref]].to_numpy(dtype=float)
+                b = subfamily_tpm.loc[pattern, samples_by_group[grp]].to_numpy(dtype=float)
+                if len(a) < 2 or len(b) < 2:
+                    logger.warning(f"{pattern}: {ref} vs {grp} skipped (n<2 in a group)")
+                    continue
+                result = compare_groups(a.tolist(), b.tolist(), alpha=test_alpha, verbose=False)
+                p_val = result["p_value"]
+                star = p_to_star(p_val)
+                logger.info(
+                    f"{pattern} {ref} vs {grp}: {result['test_name']}, "
+                    f"p={p_val:.4g} ({star})"
+                )
+                draw_significance_bracket(
+                    ax, x_of[ref][pi], x_of[grp][pi], base_data, star, level=level
+                )
+                level += 1
+
     for fmt in image_formats:
         out_path = f"{out_base}.{fmt}"
         fig.savefig(out_path, dpi=dpi, bbox_inches="tight")

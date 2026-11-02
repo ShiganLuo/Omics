@@ -41,7 +41,8 @@ WORKFLOWS = {
     "CoCulture":       {"kind": "fastq", "columns": FASTQ_COLS},
     "KARRseq":         {"kind": "fastq", "columns": FASTQ_COLS},
     "MERIP":           {"kind": "fastq", "columns": FASTQ_COLS},
-    "Mutation":        {"kind": "fastq", "columns": FASTQ_COLS},
+    "Mutation":        {"kind": "fastq", "columns": ["sample_id", "organism", "data_id", "design",
+                                                     "group", "fastq_1", "fastq_2"]},
     "ncRNAseq":        {"kind": "fastq", "columns": FASTQ_COLS},
     "PeakCalling":     {"kind": "fastq", "columns": FASTQ_COLS},
     "tRNAseq":         {"kind": "fastq", "columns": FASTQ_COLS},
@@ -147,11 +148,14 @@ def main():
                     help="fastq layout filter (any = auto-detect)")
     ap.add_argument("--organism", default="", help="fill organism column (workflows that have it)")
     ap.add_argument("--contaminated-organism", default="", help="fill contaminated_organism (RNAseq)")
-    ap.add_argument("--group", default="", help="fill group column (RNAseq)")
+    ap.add_argument("--group", default="", help="fill group column (RNAseq, Mutation)")
     ap.add_argument("--sample-map", default=None, help="TSV: data_id<TAB>sample_id (merge replicates)")
     ap.add_argument("--design-map", default=None, help="TSV: data_id or sample_id<TAB>design")
+    ap.add_argument("--group-map", default=None, help="TSV: data_id or sample_id<TAB>group")
     ap.add_argument("--design-strip-rep", action="store_true",
                     help="fill design from sample_id with replicate suffix stripped")
+    ap.add_argument("--group-strip-rep", action="store_true",
+                    help="fill group from sample_id with replicate suffix stripped (e.g. E14-1 -> E14)")
     args = ap.parse_args()
 
     spec = WORKFLOWS[args.workflow]
@@ -185,6 +189,7 @@ def main():
 
     sample_map = load_map(args.sample_map)
     design_map = load_map(args.design_map)
+    group_map = load_map(args.group_map)
 
     out = Path(args.out) if args.out else Path(f"meta_{args.workflow}.tsv")
     n = 0
@@ -198,7 +203,10 @@ def main():
             design = design_map.get(did) or design_map.get(sid) or ""
             if not design and args.design_strip_rep:
                 design = REP_SUFFIX_RE.sub("", sid)
-            row = {"sample_id": sid, "data_id": did, "design": design}
+            group = group_map.get(did) or group_map.get(sid) or ""
+            if not group and args.group_strip_rep:
+                group = REP_SUFFIX_RE.sub("", sid)
+            row = {"sample_id": sid, "data_id": did, "design": design, "group": group}
             if kind == "fastq":
                 row["fastq_1"] = os.path.abspath(f1)
                 row["fastq_2"] = os.path.abspath(f2) if f2 else ""  # SE: leave empty, never "NA"
@@ -207,7 +215,8 @@ def main():
             else:
                 row["ms_file"] = os.path.abspath(f1)
             row["organism"] = args.organism
-            row["group"] = args.group
+            if not row.get("group"):
+                row["group"] = args.group
             row["contaminated_organism"] = args.contaminated_organism
             w.writerow([row.get(c, "") for c in columns])
             n += 1

@@ -1,11 +1,14 @@
 shell.prefix("set -x; set -e;")
 from snakemake.logging import logger
-indir = config.get("indir","data/fastq")
-outdir = config.get("outdir","output")
-logdir = config.get("logdir","logs")
+indir = config.get("Params", {}).get("workflow", {}).get("indir", "data/fastq")
+outdir = config.get("Params", {}).get("workflow", {}).get("outdir", "output")
+logdir = config.get("Params", {}).get("workflow", {}).get("logdir", "logs")
 outfiles = config.get("outfiles", [])
-paired_samples = config.get("paired_samples", [])
-single_samples = config.get("single_samples", [])
+paired_samples = config.get("Params", {}).get("workflow", {}).get("paired_samples", [])
+single_samples = config.get("Params", {}).get("workflow", {}).get("single_samples", [])
+# Genome reference resolution - nested `default` + `references` pattern
+default_genome = config.get("genome", {}).get("default")
+genome_ref = config.get("genome", {}).get("references", {}).get(default_genome, {}) if default_genome else {}
 ROOT_DIR = config.get("ROOT_DIR", ".")
 rule all:
     input:
@@ -88,8 +91,8 @@ bwa_mem2_confg = {
         "samtools": config.get("Procedure",{}).get("samtools")
     },
     "genome": {
-        "fasta": config.get("genome",{}).get("fasta"),
-        "index_prefix": config.get("genome",{}).get("bwaMem2_index_prefix")
+        "fasta": genome_ref.get("fasta"),
+        "index_prefix": genome_ref.get("bwaMem2_index_prefix")
     }
 }
 
@@ -145,9 +148,9 @@ gatk_prepare_config = {
         }
     },
     "genome": {
-        "fasta": config.get("genome",{}).get("fasta"),
-        "fai_index": config.get("genome",{}).get("fai_index"),
-        "dict_index": config.get("genome",{}).get("dict_index")
+        "fasta": genome_ref.get("fasta"),
+        "fai_index": genome_ref.get("fai_index"),
+        "dict_index": genome_ref.get("dict_index")
     }
 }
 module gatk_prepare:
@@ -169,7 +172,7 @@ gatk_somatic_config = {
         "gatk": config.get("Procedure", {}).get("gatk"),
     },
     "genome": {
-        "fasta": config.get("genome",{}).get("fasta")
+        "fasta": genome_ref.get("fasta")
     }
 }
 module gatk_somatic:
@@ -189,9 +192,9 @@ gatk_germline_config = {
         "gatk": config.get("Procedure", {}).get("gatk"),
     },
     "genome": {
-        "fasta": config.get("genome",{}).get("fasta"),
-        "fai_index": config.get("genome",{}).get("fai_index"),
-        "dict_index": config.get("genome",{}).get("dict_index")
+        "fasta": genome_ref.get("fasta"),
+        "fai_index": genome_ref.get("fai_index"),
+        "dict_index": genome_ref.get("dict_index")
     }
 }
 module gatk_germline:
@@ -212,7 +215,7 @@ somatic_spectrum_config = {
     "sample_somatic_vcf_dict": config.get("Params", {}).get("somatic_spectrum", {}).get("sample_somatic_vcf_dict", {}),
     "sample_group_dict": config.get("Params", {}).get("somatic_spectrum", {}).get("sample_group_dict", {}),
     "genome": {
-        "fasta": config.get("genome", {}).get("fasta")
+        "fasta": genome_ref.get("fasta")
     }
 }
 module somatic_spectrum:
@@ -269,7 +272,7 @@ manta_config = {
         "manta": config.get("Params", {}).get("manta", {})
     },
     "genome": {
-        "fasta": config.get("genome", {}).get("fasta")
+        "fasta": genome_ref.get("fasta")
     }
 }
 module manta:
@@ -285,7 +288,7 @@ use rule manta_run from manta as Mutation_manta_run
 # Wired unconditionally; node.py controls whether it runs by registering
 # (or omitting) the CNVkit outputs (Params.skip_cnv; control_samples
 # additionally registers the reference panel output).
-control_samples = config.get("control_samples", [])
+control_samples = config.get("Params", {}).get("workflow", {}).get("control_samples", [])
 cnvkit_config = {
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
@@ -304,8 +307,8 @@ cnvkit_config = {
         "cnvkit": config.get("Params", {}).get("cnvkit", {})
     },
     "genome": {
-        "fasta": config.get("genome", {}).get("fasta"),
-        "access": config.get("genome", {}).get("access")
+        "fasta": genome_ref.get("fasta"),
+        "access": genome_ref.get("access")
     }
 }
 module cnvkit:

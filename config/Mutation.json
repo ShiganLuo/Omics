@@ -68,7 +68,7 @@
         "references": {
             "GRCm39": {
                 "fasta": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
-                "fai_index": null,
+                "fai_index": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa.fai",
                 "dict_index": null,
                 "bwaMem2_index_prefix": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/bwa_mem2/GRCm39",
                 "access": null,
@@ -76,7 +76,7 @@
             },
             "GRCh38": {
                 "fasta": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa",
-                "fai_index": null,
+                "fai_index": "/data/16T/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa.fai",
                 "dict_index": null,
                 "bwaMem2_index_prefix": "/data/16T/Database/Reference/human/GENCODE/GRCh38/bwa_mem2/genome",
                 "access": null,

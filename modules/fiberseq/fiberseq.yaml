@@ -2,7 +2,6 @@ name: fiberseq
 channels:
   - conda-forge
   - bioconda
-  - defaults
 dependencies:
   - python>=3.10
   - numpy
@@ -10,4 +9,5 @@ dependencies:
   - scipy
   - matplotlib
   - pysam
+  - pyarrow
   - ucsc-bedgraphtobigwig

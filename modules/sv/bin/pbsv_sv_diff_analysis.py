@@ -5,19 +5,10 @@ import argparse
 import os
 import logging
 from typing import Dict, List, Literal, Optional
-
-try:
-    from .utils.common import setup_logger
-    from .utils.SV_TYPE_plot import plot_sv_type_barplot,plot_sv_length_boxplot,plot_large_sv_barplot,plot_group_type_comparison
-    from .utils.SV_TYPE import parse_pbsv_vcf
-except ImportError:
-    from utils.common import setup_logger
-    from utils.SV_TYPE_plot import plot_sv_type_barplot,plot_sv_length_boxplot,plot_large_sv_barplot,plot_group_type_comparison
-    from utils.SV_TYPE import parse_pbsv_vcf
-logger = setup_logger("pbsv_sv_diff_analysis", level=logging.INFO)
-
-
-PlotFormat = Literal["png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg", "jpeg", "pgf", "raw", "rgba"]
+from utils.common import setup_logger, PlotFormat
+from utils.SV_TYPE_plot import plot_sv_type_barplot,plot_sv_length_boxplot,plot_large_sv_barplot,plot_group_type_comparison
+from utils.SV_TYPE import parse_pbsv_vcf
+logger = setup_logger(__name__)
 
 
 def run_pbsv_diff_analysis(

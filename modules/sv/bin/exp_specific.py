@@ -4,22 +4,13 @@ from typing import Literal, List, Optional
 from pathlib import Path
 import logging
 import argparse
-try:
-    from .utils.common import setup_logger
-    from .utils.VEP_SV import VEP_SV
-    from .utils.SV_TYPE import parse_pbsv_vcf,run_sv_stratification,extract_te_candidate_ins,generate_plot_input
-    from .utils.SV_TYPE_plot import plot_stacking_bar,plot_multi_smooth_curves
-    from .utils.repeatmasker_analysis import run_te_annotation_pipeline,RepeatMaskerOutCompare
-    from .utils.repeatmasker_plot import plot_enrichment
-except ImportError:
-    from utils.common import setup_logger
-    from utils.VEP_SV import VEP_SV
-    from utils.SV_TYPE import parse_pbsv_vcf,run_sv_stratification,extract_te_candidate_ins,generate_plot_input
-    from utils.SV_TYPE_plot import plot_stacking_bar,plot_multi_smooth_curves
-    from utils.repeatmasker_analysis import run_te_annotation_pipeline,RepeatMaskerOutCompare
-    from utils.repeatmasker_plot import plot_enrichment
-logger = setup_logger("exp_specific", level=logging.INFO)
-PlotFormat = Literal["png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg", "jpeg", "pgf", "raw", "rgba"]
+from utils.common import setup_logger, PlotFormat
+from utils.VEP_SV import VEP_SV
+from utils.SV_TYPE import parse_pbsv_vcf,run_sv_stratification,extract_te_candidate_ins,generate_plot_input
+from utils.SV_TYPE_plot import plot_stacking_bar,plot_multi_smooth_curves
+from utils.repeatmasker_analysis import run_te_annotation_pipeline,RepeatMaskerOutCompare
+from utils.repeatmasker_plot import plot_enrichment
+logger = setup_logger(__name__)
 
 
 def run_exp_specific_annotation(
@@ -153,15 +144,12 @@ def run_vcf_analysis(
     """
     if image_formats is None:
         image_formats = ["png"]
-    outdir = Path(out_dir)
-    outdir_table = outdir / "table"
-    outdir_table.mkdir(parents=True,exist_ok=True)
-    outdir_plot = outdir / "plot"
-    outdir_plot.mkdir(parents=True,exist_ok=True)
+    outdir = Path(out_dir) / "statstics"
+    outdir.mkdir(parents=True,exist_ok=True)
     logger.info("Starting VCF analysis and visualization...")
-    matrix,summary = run_sv_stratification(vcf,str(outdir_table))
+    matrix,summary = run_sv_stratification(vcf,str(outdir))
     for fmt in image_formats:
-        outpng_bar = outdir_plot / f"size_bin.{fmt}"
+        outpng_bar = outdir / f"size_bin.{fmt}"
         plot_stacking_bar(matrix,
                           xlabel="bin",
                           ylabel="count",
@@ -175,7 +163,7 @@ def run_vcf_analysis(
     df_sta = parse_pbsv_vcf(vcf)
     plot_data = generate_plot_input(df_sta)
     for fmt in image_formats:
-        outpng_curve = outdir_plot / f"svlen_count.{fmt}"
+        outpng_curve = outdir / f"svlen_count.{fmt}"
         plot_multi_smooth_curves(plot_data,
                                  x_label="svlen",
                                  y_label="count",

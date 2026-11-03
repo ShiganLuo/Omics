@@ -1,16 +1,10 @@
 import os
-import sys
-import logging
 import re
 from pathlib import Path
 from typing import List, Literal, Optional
-try:
-    from .utils.common import setup_logger, _run_cmd
-except ImportError:
-    from utils.common import setup_logger, _run_cmd
-logger = setup_logger("run_circos", level=logging.INFO)
+from utils.common import setup_logger, _run_cmd, PlotFormat
+logger = setup_logger(__name__)
 
-PlotFormat = Literal["png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg", "jpeg", "pgf", "raw", "rgba"]
 def run_cricos_pipeline(
         vcf: str,
         fasta: str,

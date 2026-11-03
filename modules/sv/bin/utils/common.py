@@ -1,8 +1,9 @@
-from typing import List, Optional
+from typing import List, Optional, Literal
 import logging
 import shutil
 import subprocess
 logger = logging.getLogger(__name__)
+PlotFormat = Literal["png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg", "jpeg", "pgf", "raw", "rgba"]
 def setup_logger(logger_name: str, level: int = logging.INFO, log_file: Optional[str] = None) -> logging.Logger:
     """Create and configure a logger with stream/file handlers.
 

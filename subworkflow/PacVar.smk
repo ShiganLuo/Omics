@@ -400,3 +400,24 @@ use rule sv_gene_model from sv as PacVar_sv_gene_model
 use rule sv_diff_analysis from sv as PacVar_sv_diff_analysis
 use rule sv_oncoprint from sv as PacVar_sv_oncoprint
 use rule sv_result from sv as PacVar_sv_result
+
+svgokegg_params = config.get("Params", {}).get("function", {}).get("sv_go_kegg", {})
+sv_go_kegg_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
+    "env": config.get("env", {}),
+    "indir": sv_outdir,
+    "outdir": f"{sv_outdir}/sv_go_kegg",
+    "logdir": f"{logdir}/group",
+    "comparisons": sv_config.get("comparisons", {}),
+    "Params": {
+        "function": {
+            "sv_go_kegg": svgokegg_params,
+        }
+    },
+}
+module sv_go_kegg:
+    snakefile: "../modules/function/sv_go_kegg/sv_go_kegg.smk"
+    config: sv_go_kegg_config
+logger.debug(f"PacVar sv_go_kegg config: {sv_go_kegg_config}")
+use rule sv_go_kegg from sv_go_kegg as PacVar_sv_go_kegg

@@ -572,18 +572,18 @@ def runPacVar(
             outfiles.append(f"{sv_outdir}/sv_oncoprint/oncoprint_matrix.csv")
         # SV-affected genes GO/KEGG (modules/function/sv_go; macaque-aware
         # clusterProfiler route). Registered only when the gate is on.
-        svgo_params = datajson.get("Params", {}).get("function", {}).get("sv_go", {}) or {}
-        if svgo_params.get("enabled"):
-            svgo_species = resolve_genome(_genome_name,"alias")
-            if svgo_species not in ("human", "mouse", "macaque"):
+        svgokegg_params = datajson.get("Params", {}).get("function", {}).get("sv_go_kegg", {}) or {}
+        if svgokegg_params.get("enabled"):
+            svgokegg_species = resolve_genome(_genome_name,"alias")
+            if svgokegg_species not in ("human", "mouse", "macaque"):
                 raise ValueError(
-                    "PacVar: Params.function.sv_go.enabled=true requires "
-                    "Params.function.sv_go.species to be one of "
-                    f"human/mouse/macaque (got: {svgo_species!r})."
+                    "PacVar: Params.function.sv_go_kegg.enabled=true requires "
+                    "Params.function.sv_go_kegg.species to be one of "
+                    f"human/mouse/macaque (got: {svgokegg_species!r})."
                 )
-            datajson["Params"]["function"]["sv_go"]["species"] = svgo_species
+            datajson["Params"]["function"]["sv_go_kegg"]["species"] = svgokegg_species
             for name in comparisons:
-                outfiles.append(f"{sv_outdir}/sv_go/{name}/sv_go_kegg.done")
+                outfiles.append(f"{sv_outdir}/sv_go_kegg/{name}/sv_go_kegg.done")
 
     gatk_tmp_dir = os.path.join(outdir, "tmp")
     os.makedirs(gatk_tmp_dir, exist_ok=True)
@@ -1590,24 +1590,24 @@ def runFiberseq(
             # sv_exp_specific — registered so the rule's declared directory
             # outputs are requested by the DAG
             outfiles.append(f"{base}/repeatmasker")
-            outfiles.append(f"{base}/statstics")
+            outfiles.append(f"{base}/statistics")
             outfiles.append(f"{base}/circos")
             if sv_genes:
                 outfiles.append(f"{base}/gene_model")
         # SV-affected genes GO/KEGG (modules/function/sv_go; macaque-aware
         # clusterProfiler route). Registered only when the gate is on.
-        svgo_params = datajson.get("Params", {}).get("function", {}).get("sv_go", {}) or {}
-        if svgo_params.get("enabled"):
-            svgo_species = resolve_genome(genome_version,"alias")
-            if svgo_species not in ("human", "mouse", "macaque"):
+        svgokegg_params = datajson.get("Params", {}).get("function", {}).get("sv_go_kegg", {}) or {}
+        if svgokegg_params.get("enabled"):
+            svgokegg_species = resolve_genome(genome_version,"alias")
+            if svgokegg_species not in ("human", "mouse", "macaque"):
                 raise ValueError(
-                    "Fiberseq: Params.function.sv_go.enabled=true requires "
-                    "Params.function.sv_go.species to be one of "
-                    f"human/mouse/macaque (got: {svgo_species!r})."
+                    "Fiberseq: Params.function.sv_go_kegg.enabled=true requires "
+                    "Params.function.sv_go_kegg.species to be one of "
+                    f"human/mouse/macaque (got: {svgokegg_species!r})."
                 )
-            datajson["Params"]["function"]["sv_go"]["species"] = svgo_species
+            datajson["Params"]["function"]["sv_go_kegg"]["species"] = svgokegg_species
             for name in comparisons:
-                outfiles.append(f"{sv_outdir}/sv_go/{name}/sv_go_kegg.done")
+                outfiles.append(f"{sv_outdir}/sv_go_kegg/{name}/sv_go_kegg.done")
         outfiles.append(f"{sv_outdir}/sv_diff_analysis")
         if sv_oncoprint.get("cosmic_file"):
             outfiles.append(f"{sv_outdir}/sv_oncoprint/oncoprint_matrix.csv")

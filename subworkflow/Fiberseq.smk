@@ -684,23 +684,23 @@ use rule sv_result from sv as Fiberseq_sv_result
 # Step 8b: SV-affected genes GO/KEGG via modules/function/sv_go
 #   (clusterProfiler + org.Mmu.eg.db → macaque first-class; the gseapy
 #   route above only knows human/mouse). Gated by Params.function.sv_go.
-svgo_params = config.get("Params", {}).get("function", {}).get("sv_go", {})
-sv_go_config = {
+svgokegg_params = config.get("Params", {}).get("function", {}).get("sv_go_kegg", {})
+sv_go_kegg_config = {
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "indir": sv_outdir,
-    "outdir": f"{sv_outdir}/sv_go",
+    "outdir": f"{sv_outdir}/sv_go_kegg",
     "logdir": f"{logdir}/group",
     "comparisons": sv_config.get("comparisons", {}),
     "Params": {
         "function": {
-            "sv_go": svgo_params,
+            "sv_go_kegg": svgokegg_params,
         }
     },
 }
-module sv_go:
-    snakefile: "../modules/function/sv_go/sv_go.smk"
-    config: sv_go_config
-logger.debug(f"Fiber-seq sv_go config: {sv_go_config}")
-use rule sv_go_kegg from sv_go as Fiberseq_sv_go_kegg
+module sv_go_kegg:
+    snakefile: "../modules/function/sv_go_kegg/sv_go_kegg.smk"
+    config: sv_go_kegg_config
+logger.debug(f"Fiber-seq sv_go config: {sv_go_kegg_config}")
+use rule sv_go_kegg from sv_go_kegg as Fiberseq_sv_go_kegg

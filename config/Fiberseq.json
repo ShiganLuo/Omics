@@ -331,7 +331,7 @@
       "p_cut": 0.05,
       "top": 10,
       "group_pairs": {},
-      "sv_go": {
+      "sv_go_kegg": {
         "enabled": true,
         "species": null,
         "impact": "HIGH,MODERATE,LOW",

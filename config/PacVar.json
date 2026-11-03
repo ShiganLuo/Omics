@@ -299,6 +299,22 @@
       "igv": {
         "locus": ""
       }
+    },
+    "function": {
+      "enabled": false,
+      "species": "human",
+      "gmt": null,
+      "lfc_cut": 1.0,
+      "p_cut": 0.05,
+      "top": 10,
+      "group_pairs": {},
+      "sv_go_kegg": {
+        "enabled": true,
+        "species": null,
+        "impact": "HIGH,MODERATE,LOW",
+        "top": 10,
+        "format": "png"
+      }
     }
   },
   "genome": {

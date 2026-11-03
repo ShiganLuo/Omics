@@ -110,6 +110,11 @@ rule cnvkit_batch:
             if input.ref:
                 cmd += ["--reference", str(input.ref[0])]
             else:
+                # No control samples: pass a bare -n so CNVkit builds a FLAT
+                # reference (uniform expected coverage). Without it, batch
+                # refuses to run: "Option -n/--normal must be given to build
+                # a new reference if -r/--reference is not used."
+                cmd += ["-n"]
                 cmd += ["--method", params.method, "--fasta", str(input.fasta)]
                 if input.access:
                     cmd += ["--access", str(input.access[0])]

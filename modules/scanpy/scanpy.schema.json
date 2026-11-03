@@ -345,6 +345,18 @@
                                 "nullable": true,
                                 "required": false
                             },
+                            "min_cells_per_rep": {
+                                "type": "int",
+                                "nullable": true,
+                                "required": false,
+                                "description": "Min cells per pseudo-replicate when splitting single-sample conditions (lower for rare cell types)"
+                            },
+                            "cell_types": {
+                                "type": "list",
+                                "nullable": true,
+                                "required": false,
+                                "description": "Restrict pseudobulk to these cell types (exact obs['cell_type'] values); empty = all"
+                            },
                             "top_cell_types": {
                                 "type": "list",
                                 "nullable": true,

@@ -239,7 +239,7 @@ def _resolve_count_matrix(sub, raw_sub):
 def aggregate_pseudobulk(adata, cell_type, sample_col="sample_id",
                          type_col="cell_type", min_cells=30,
                          min_counts=1000, n_pseudo_reps=0,
-                         feature_mode="all"):
+                         feature_mode="all", min_cells_per_rep=10):
     """Sum raw UMI counts per sample for one cell type.
 
     Filters out samples with fewer than *min_cells* cells or
@@ -264,6 +264,10 @@ def aggregate_pseudobulk(adata, cell_type, sample_col="sample_id",
         feature_mode: ``"all"`` (default), ``"gene"`` (exclude TE),
             or ``"te"`` (only TE). Requires ``gene_type`` column in
             ``adata.raw.var``.
+        min_cells_per_rep: Minimum cells per pseudo-replicate when
+            splitting (see :func:`_split_pseudo_reps`). Lower this for
+            rare populations (e.g. 24-cell oocytes: 3 reps need >= 3
+            cells/rep, not the default 10).
 
     Returns:
         tuple:
@@ -333,11 +337,13 @@ def aggregate_pseudobulk(adata, cell_type, sample_col="sample_id",
                     _CountsView(counts_matrix[np.asarray(mask)]),
                     raw_sub.var_names,
                     n_pseudo_reps=n_pseudo_reps, seed=42 + i,
+                    min_cells_per_rep=min_cells_per_rep,
                 )
             else:
                 rep_rows = _split_pseudo_reps(
                     sub_cells, sample, raw_cells, raw_sub.var_names,
                     n_pseudo_reps=n_pseudo_reps, seed=42 + i,
+                    min_cells_per_rep=min_cells_per_rep,
                 )
             rows.extend(rep_rows)
         else:
@@ -362,7 +368,8 @@ def aggregate_pseudobulk(adata, cell_type, sample_col="sample_id",
 
 
 def prepare_counts(h5ad_path, out_dir, label, min_cells=30, min_counts=1000,
-                   n_pseudo_reps=0, feature_mode="all", counts_h5ad=None):
+                   n_pseudo_reps=0, feature_mode="all", counts_h5ad=None,
+                   cell_types=None, min_cells_per_rep=10):
     """Prepare pseudo-bulk count CSVs for all cell types in an h5ad.
 
     Iterates over every unique cell type in the h5ad, aggregates counts
@@ -383,6 +390,14 @@ def prepare_counts(h5ad_path, out_dir, label, min_cells=30, min_counts=1000,
             *h5ad_path* when it is the upstream merge) supplies the
             counts. Use when *h5ad_path* is a clustered auto file whose
             raw slot is log-normalised.
+        cell_types: Optional list restricting the analysis to these
+            cell types (exact match against ``obs["cell_type"]``).
+            Default None = all cell types. Rare populations (e.g.
+            Oocyte) can be analysed alone without lowering thresholds
+            for every other type.
+        min_cells_per_rep: Minimum cells per pseudo-replicate when
+            splitting single-sample conditions (see
+            :func:`_split_pseudo_reps`).
 
     Returns:
         tuple:
@@ -428,12 +443,21 @@ def prepare_counts(h5ad_path, out_dir, label, min_cells=30, min_counts=1000,
         counts_adata = None
 
     targets = sorted(adata.obs["cell_type"].unique().tolist())
+    if cell_types:
+        wanted = list(dict.fromkeys(cell_types))
+        unknown = [ct for ct in wanted if ct not in targets]
+        if unknown:
+            raise ValueError(
+                f"--cell-types not present in {h5ad_path} obs['cell_type']: "
+                f"{unknown}. Available: {targets}")
+        targets = wanted
     written = []
     for ct in targets:
         df, kept = aggregate_pseudobulk(adata, ct, min_cells=min_cells,
                                         min_counts=min_counts,
                                         n_pseudo_reps=n_pseudo_reps,
-                                        feature_mode=feature_mode)
+                                        feature_mode=feature_mode,
+                                        min_cells_per_rep=min_cells_per_rep)
         if df is None:
             continue
         ct_safe = ct.replace(" ", "_").replace("/", "-")
@@ -1458,6 +1482,15 @@ Examples:
                         help="Min total UMIs per pseudobulk sample (default: 1000)")
     parser.add_argument("--n-pseudo-reps", type=int, default=3,
                         help="Split single-sample conditions into N pseudo-replicates for DESeq2 (default: 3, 0=disabled)")
+    parser.add_argument("--min-cells-per-rep", "-R", type=int, default=10,
+                        help="Min cells per pseudo-replicate when splitting "
+                             "(default: 10). Lower for rare populations, e.g. "
+                             "24-cell Oocyte with 3 reps needs 3, not 10")
+    parser.add_argument("--cell-types", "-c", nargs="+", default=None,
+                        metavar="CT",
+                        help="Restrict the analysis to these cell types "
+                             "(exact obs['cell_type'] values, repeatable "
+                             "values). Default: all cell types")
     parser.add_argument("--top-cell-types", nargs="+", default=None)
     parser.add_argument("--skip-deseq2", action="store_true",
                         help="Skip PyDESeq2 DEG step")
@@ -1654,6 +1687,8 @@ def main():
                     n_pseudo_reps=args.n_pseudo_reps,
                     feature_mode=mode,
                     counts_h5ad=cfg.get("counts_h5ad"),
+                    cell_types=args.cell_types,
+                    min_cells_per_rep=args.min_cells_per_rep,
                 )
                 all_written.extend(written)
                 tissue_adata[tissue] = adata
@@ -1756,6 +1791,8 @@ def main():
         args.out_dir, config,
         {"min_cells": args.min_cells, "min_counts": args.min_counts,
          "n_pseudo_reps": args.n_pseudo_reps,
+         "min_cells_per_rep": args.min_cells_per_rep,
+         "cell_types": ", ".join(args.cell_types) if args.cell_types else "all",
          "deg_mode": ",".join(args.deg_mode),
          "skip_deseq2": args.skip_deseq2, "skip_plot": args.skip_plot,
          "skip_prepare": args.skip_prepare, "skip_qc": args.skip_qc},

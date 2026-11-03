@@ -71,6 +71,8 @@
                 "min_cells": 30,
                 "min_counts": 1000,
                 "n_pseudo_reps": 3,
+                "min_cells_per_rep": 10,
+                "cell_types": [],
                 "top_cell_types": [],
                 "highlight_genes": [],
                 "deg_mode": [

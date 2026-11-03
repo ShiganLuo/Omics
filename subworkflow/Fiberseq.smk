@@ -685,24 +685,22 @@ use rule sv_result from sv as Fiberseq_sv_result
 #   (clusterProfiler + org.Mmu.eg.db → macaque first-class; the gseapy
 #   route above only knows human/mouse). Gated by Params.function.sv_go.
 svgo_params = config.get("Params", {}).get("function", {}).get("sv_go", {})
-svgo_enabled = bool(svgo_params.get("enabled")) and bool(sv_config.get("comparisons"))
-if svgo_enabled:
-    sv_go_config = {
-        "ROOT_DIR": ROOT_DIR,
-        "OUTDIR_ROOT": outdir,
-        "env": config.get("env", {}),
-        "indir": sv_outdir,
-        "outdir": f"{sv_outdir}/sv_go",
-        "logdir": f"{logdir}/group",
-        "comparisons": sv_config.get("comparisons", {}),
-        "Params": {
-            "function": {
-                "sv_go": svgo_params,
-            }
-        },
-    }
-    module sv_go:
-        snakefile: "../modules/function/sv_go/sv_go.smk"
-        config: sv_go_config
-    logger.debug(f"Fiber-seq sv_go config: {sv_go_config}")
-    use rule sv_go_kegg from sv_go as Fiberseq_sv_go_kegg
+sv_go_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
+    "env": config.get("env", {}),
+    "indir": sv_outdir,
+    "outdir": f"{sv_outdir}/sv_go",
+    "logdir": f"{logdir}/group",
+    "comparisons": sv_config.get("comparisons", {}),
+    "Params": {
+        "function": {
+            "sv_go": svgo_params,
+        }
+    },
+}
+module sv_go:
+    snakefile: "../modules/function/sv_go/sv_go.smk"
+    config: sv_go_config
+logger.debug(f"Fiber-seq sv_go config: {sv_go_config}")
+use rule sv_go_kegg from sv_go as Fiberseq_sv_go_kegg

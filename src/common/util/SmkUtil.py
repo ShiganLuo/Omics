@@ -1,4 +1,4 @@
-from typing import Dict,Union, Optional
+from typing import Dict,Union, Literal
 try:
     from LogUtil import setup_logger
 except ImportError:
@@ -30,19 +30,38 @@ SPECIES_TO_GENOME: Dict[str, str] = {
     "mulatta": "Mmul_10"
 }
 
-def resolve_genome(organism: Union[str, int, float, None]) -> str:
+GENOME_TO_SPECIES: Dict[str,str] = {
+    "GRCm39": "mouse",
+    "T2T_mhaESC_v1.5": "mouse",
+    "GRCh38": "human",
+    "Mmul_T2T": "macaque",
+    "Mmul_10": "macaque"
+}
+
+def resolve_genome(organism: Union[str, int, float, None], direction: Literal["version", "alias"] = "version") -> str:
     """Resolve a species alias to its canonical genome version.
+
+    If direction is "version", returns the canonical genome version.
+    If direction is "alias", returns the first alias that maps to the given genome version.
 
     Raises ValueError if the alias is not recognised.
     """
+
     if isinstance(organism, (int, float)) or not organism:
         logger.info(f"Invalid organism: {organism}, return None")
         return "UNKNOWN"
-    key = organism.strip().lower()
-    if key in SPECIES_TO_GENOME.keys():
-        return SPECIES_TO_GENOME[key]
-    if key in SPECIES_TO_GENOME.values():
-        return key
+    if direction == "version":
+        key = organism.strip().lower()
+        if key in SPECIES_TO_GENOME.keys():
+            return SPECIES_TO_GENOME[key]
+        if key in SPECIES_TO_GENOME.values():
+            return key
+    elif direction == "alias":
+        key = organism.strip()
+        if key in GENOME_TO_SPECIES.keys():
+            return GENOME_TO_SPECIES[key]
+        if key in GENOME_TO_SPECIES.values():
+            return key
     raise ValueError(
         f"Unknown organism alias '{organism}'. "
         f"Known aliases: {sorted(set(SPECIES_TO_GENOME.values()))}"

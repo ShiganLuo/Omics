@@ -20,7 +20,7 @@ indir = config.get("indir") or "input"
 outdir = config.get("outdir") or "output"
 logdir = config.get("logdir") or "log"
 
-_sg = (config.get("Params", {}).get("function", {}) or {}).get("sv_go", {}) or {}
+_sg = (config.get("Params", {}).get("function", {}) or {}).get("sv_go_kegg", {}) or {}
 comparisons = config.get("comparisons") or {}
 sg_species = _sg.get("species") or ""
 sg_impact = _sg.get("impact") or "HIGH,MODERATE,LOW"

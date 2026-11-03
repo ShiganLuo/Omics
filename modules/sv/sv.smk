@@ -42,14 +42,8 @@ rule sv_exp_specific:
         merged_vcf = outdir + "/{comparison}/{comparison}_merged.vcf",
         specific_vcf = outdir + "/{comparison}/{comparison}_only.vcf",
         annotated_tab = outdir + "/{comparison}/{comparison}_annotated.tab",
-        # TE enrichment + per-SV stats are produced by the same script run:
-        # run_exp_enricher writes repeatmasker/ (bed2fa + RepeatMasker +
-        # subfamily enrichment test), run_vcf_analysis writes plot/ and
-        # table/. Declaring them keeps "output drives the workflow" intact —
-        # previously they were undeclared side products that node.py never
-        # registered, so nothing requested them.
         repeatmasker_dir = directory(outdir + "/{comparison}/repeatmasker"),
-        statistics_dir = directory(outdir + "/{comparison}/statstics"),
+        statistics_dir = directory(outdir + "/{comparison}/statistics"),
     log:
         logdir + "/{comparison}/sv_exp_specific.log"
     resources:

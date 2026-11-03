@@ -10,5 +10,6 @@ test/
 test.log
 **/*.resolved
 **/module_test
-**output
+**/output
+**/out
 data

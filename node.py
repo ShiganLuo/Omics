@@ -576,13 +576,14 @@ def runPacVar(
         # clusterProfiler route). Registered only when the gate is on.
         svgo_params = datajson.get("Params", {}).get("function", {}).get("sv_go", {}) or {}
         if svgo_params.get("enabled"):
-            svgo_species = svgo_params.get("species")
+            svgo_species = resolve_genome(_genome_name,"alias")
             if svgo_species not in ("human", "mouse", "macaque"):
                 raise ValueError(
                     "PacVar: Params.function.sv_go.enabled=true requires "
                     "Params.function.sv_go.species to be one of "
                     f"human/mouse/macaque (got: {svgo_species!r})."
                 )
+            datajson["Params"]["function"]["sv_go"]["species"] = svgo_species
             for name in comparisons:
                 outfiles.append(f"{sv_outdir}/sv_go/{name}/sv_go_kegg.done")
 
@@ -1531,6 +1532,26 @@ def runFiberseq(
             outfiles.append(f"{outdir}/variation/germline_sv/{sample_id}/{sample_id}.sv.vcf.gz")
             outfiles.append(f"{outdir}/variation/germline_sv/{sample_id}/{sample_id}.sv.vcf.gz.csi")
 
+    if len(genome_versions) != 1:
+        raise ValueError(f"meta don't support multiple organsim temporarily, please check your meta file, found: {genome_versions}")
+    genome_version = next(iter(genome_versions))
+    order_genome_version = datajson["genome"]["default"]
+    if genome_version == "UNKNOWN":
+        # meta organism column is empty/unrecognized; the literal "UNKNOWN"
+        # must never reach Params.sv.exp_specific.species/assembly: vep_install
+        # would run with -s UNKNOWN and die with exit 255 "No matching
+        # species". Fall back to the config genome.default, which the
+        # reference table resolves.
+        logger.warning(
+            f"meta organism column is UNKNOWN; using genome.default from config.json "
+            f"({order_genome_version}) for Params.sv.exp_specific instead of the literal UNKNOWN."
+        )
+        genome_version = order_genome_version
+    if genome_version != order_genome_version:
+        logger.warning(
+            f"user defined genome versions in meta file ({genome_version}) do not match the genome version defined in config.json ({order_genome_version}) it may come from default value or command-line arguments. "
+            f"Using the genome version from meta file ({genome_version}) for downstream analysis."
+        )
     ### inject outfiles
     sv_params = datajson.get("Params", {}).get("sv", {})
     comparisons = dict(sv_params.get("comparisons") or {})
@@ -1581,13 +1602,14 @@ def runFiberseq(
         # clusterProfiler route). Registered only when the gate is on.
         svgo_params = datajson.get("Params", {}).get("function", {}).get("sv_go", {}) or {}
         if svgo_params.get("enabled"):
-            svgo_species = svgo_params.get("species")
+            svgo_species = resolve_genome(genome_version,"alias")
             if svgo_species not in ("human", "mouse", "macaque"):
                 raise ValueError(
                     "Fiberseq: Params.function.sv_go.enabled=true requires "
                     "Params.function.sv_go.species to be one of "
                     f"human/mouse/macaque (got: {svgo_species!r})."
                 )
+            datajson["Params"]["function"]["sv_go"]["species"] = svgo_species
             for name in comparisons:
                 outfiles.append(f"{sv_outdir}/sv_go/{name}/sv_go_kegg.done")
         outfiles.append(f"{sv_outdir}/sv_diff_analysis")
@@ -1664,26 +1686,7 @@ def runFiberseq(
         for trait in sorted((datajson.get("Params", {}).get("ldsc", {}).get("gwas") or {}).keys()):
             outfiles.append(f"{outdir}/ldsc/{trait}/{trait}.sumstats.gz")
             outfiles.append(f"{outdir}/ldsc/{trait}/{trait}.cts.results")
-    if len(genome_versions) != 1:
-        raise ValueError(f"meta don't support multiple organsim temporarily, please check your meta file, found: {genome_versions}")
-    genome_version = next(iter(genome_versions))
-    order_genome_version = datajson["genome"]["default"]
-    if genome_version == "UNKNOWN":
-        # meta organism column is empty/unrecognized; the literal "UNKNOWN"
-        # must never reach Params.sv.exp_specific.species/assembly: vep_install
-        # would run with -s UNKNOWN and die with exit 255 "No matching
-        # species". Fall back to the config genome.default, which the
-        # reference table resolves.
-        logger.warning(
-            f"meta organism column is UNKNOWN; using genome.default from config.json "
-            f"({order_genome_version}) for Params.sv.exp_specific instead of the literal UNKNOWN."
-        )
-        genome_version = order_genome_version
-    if genome_version != order_genome_version:
-        logger.warning(
-            f"user defined genome versions in meta file ({genome_version}) do not match the genome version defined in config.json ({order_genome_version}) it may come from default value or command-line arguments. "
-            f"Using the genome version from meta file ({genome_version}) for downstream analysis."
-        )
+
     datajson["Params"]["sv"]["exp_specific"]["species"] = genome_version
     datajson["Params"]["sv"]["exp_specific"]["assembly"] = genome_version
     datajson["Params"]["workflow"]["samples"] = samples

@@ -60,14 +60,29 @@ class ScanpyPlotter:
     def _umap(adata: AnnData, color: str, *,
               ax: plt.Axes, title: str = "", legend_loc: str = "right margin",
               legend_fontsize: int = 8, legend_fontoutline: int = 2) -> None:
-        """Thin wrapper around sc.pl.umap with standard styling."""
+        """Thin wrapper around sc.pl.umap with standard styling.
+
+        frameon=True keeps axis ticks/labels (UMAP1/UMAP2 coordinates) on
+        every UMAP figure — required for cross-figure position comparison.
+        """
         sc.pl.umap(
-            adata, color=color, frameon=False, show=False, ax=ax,
+            adata, color=color, frameon=True, show=False, ax=ax,
             title=title or color,
             legend_loc=legend_loc,
             legend_fontsize=legend_fontsize,
             legend_fontoutline=legend_fontoutline,
         )
+        # scanpy's frameon=True draws the full box; keep it minimal but
+        # WITH ticks and tick labels
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+        # scanpy 1.11 clears the tick locator (empty FixedLocator) even
+        # under frameon=True — restore real numeric ticks
+        import matplotlib.ticker as _mt
+        ax.xaxis.set_major_locator(_mt.MaxNLocator(6))
+        ax.yaxis.set_major_locator(_mt.MaxNLocator(6))
+        ax.set_xlabel("UMAP1")
+        ax.set_ylabel("UMAP2")
 
     # ------------------------------------------------------------------
     # QC

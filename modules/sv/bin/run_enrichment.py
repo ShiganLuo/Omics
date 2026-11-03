@@ -220,17 +220,27 @@ def main():
           image_formats=args.formats, organism=args.organism)
 
     out_hot = os.path.join(outdir, "hotspots_1000.tsv")
-    hot_spot(
-        annotated_tab=anno_file,
-        outfile=out_hot,
-        fai_file=fai_file
-    )
+    if fai_file:
+        hot_spot(
+            annotated_tab=anno_file,
+            outfile=out_hot,
+            fai_file=fai_file
+        )
+    else:
+        print("WARNING: no --fai provided; skipping hotspot analysis "
+              "(hotspots_1000.tsv not written). Set genome.fai in the config "
+              "to enable it.")
     out_annotated_hot = os.path.join(outdir, "annotated_hotspots.tsv")
-    annotate_hotspots_with_bedtools(
-        hotspot_file=out_hot,
-        gtf_file=gtf_file,
-        output_file=out_annotated_hot
-    )
+    if gtf_file and os.path.exists(out_hot):
+        annotate_hotspots_with_bedtools(
+            hotspot_file=out_hot,
+            gtf_file=gtf_file,
+            output_file=out_annotated_hot
+        )
+    elif not gtf_file:
+        print("WARNING: no --gtf provided; skipping hotspot annotation "
+              "(annotated_hotspots.tsv not written). Set genome.gtf in the "
+              "config to enable it.")
 
 if __name__ == "__main__":
     main()

@@ -487,7 +487,12 @@ rule scanpy_pseudobulk:
                    "--out-dir", out_root,
                    "--min-cells", str(pb.get("min_cells", 30)),
                    "--min-counts", str(pb.get("min_counts", 1000)),
-                   "--n-pseudo-reps", str(pb.get("n_pseudo_reps", 3))]
+                   "--n-pseudo-reps", str(pb.get("n_pseudo_reps", 3)),
+                   "--min-cells-per-rep", str(pb.get("min_cells_per_rep", 10))]
+            # --cell-types is nargs='+': ONE flag carrying all values —
+            # repeated flags overwrite each other in argparse.
+            if pb.get("cell_types"):
+                cmd += ["--cell-types"] + [str(ct) for ct in pb["cell_types"]]
             # entries: tissue:ref_sample:treat_sample[=label] — every entry
             # is scoped to ONE tissue (pseudobulk.py rejects a compare whose
             # tissue has no --h5ad definition), so this per-tissue job only

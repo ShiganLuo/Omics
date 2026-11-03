@@ -49,8 +49,7 @@ rule sv_exp_specific:
         # previously they were undeclared side products that node.py never
         # registered, so nothing requested them.
         repeatmasker_dir = directory(outdir + "/{comparison}/repeatmasker"),
-        plot_dir = directory(outdir + "/{comparison}/plot"),
-        table_dir = directory(outdir + "/{comparison}/table"),
+        statistics_dir = directory(outdir + "/{comparison}/statstics"),
     log:
         logdir + "/{comparison}/sv_exp_specific.log"
     resources:
@@ -107,67 +106,6 @@ rule sv_exp_specific:
         except Exception as e:
             rule_logger.error(f"sv_exp_specific failed for {wildcards.comparison}: {e}")
             raise RuntimeError(f"sv_exp_specific failed for {wildcards.comparison}: {e}")
-
-rule sv_exp_enrichment:
-    """Run GO/KEGG enrichment and hotspot analysis on annotated SVs."""
-    input:
-        annotated_tab = outdir + "/{comparison}/{comparison}_annotated.tab",
-        gtf = lambda wildcards: config.get("genome", {}).get("gtf") or [],
-        fai = lambda wildcards: config.get("genome", {}).get("fai") or [],
-    output:
-        enrichment_dir = directory(outdir + "/{comparison}/enrichment"),
-    log:
-        logdir + "/{comparison}/sv_exp_enrichment.log"
-    resources:
-        mem_mb = rule_res("sv_exp_enrichment").get("mem_mb", 8000),
-    params:
-        script = os.path.join(ROOT_DIR, "modules/sv/bin/run_enrichment.py"),
-        # exp_specific.species carries the assembly name (e.g.
-        # T2T_mhaESC_v1.5); map it onto an Enrichr organism for gseapy
-        organism = (
-            "mouse" if "mouse" in str(config.get("Params", {}).get("exp_specific", {}).get("species", "mouse")).lower()
-            or "mhESC".lower() in str(config.get("Params", {}).get("exp_specific", {}).get("species", "")).lower()
-            or "GRCm".lower() in str(config.get("Params", {}).get("exp_specific", {}).get("species", "")).lower()
-            else "human"
-        ),
-    conda:
-        "sv.yaml"
-    container:
-        sif("sv.yaml", "sv_exp_enrichment")
-    run:
-        log_path = str(log)
-        open(log_path, "w").close()
-        rule_logger = setup_logger("sv_exp_enrichment", log_file=log_path)
-        try:
-            current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            enrichment_outdir = f"{outdir}/{wildcards.comparison}/enrichment"
-            script_path = os.path.join(RECEIPT_DIR, f"sv_exp_enrichment_{wildcards.comparison}_{current_time}.sh")
-            plain_script = os.path.join(outdir, f"{wildcards.comparison}/sv_exp_enrichment.sh")
-            rule_logger.info(f"Running sv_exp_enrichment for comparison: {wildcards.comparison}")
-            fmt_args = []
-            for fmt in image_formats:
-                fmt_args += ["-f", fmt]
-            cmd = [
-                "python", params.script,
-                "-a", input.annotated_tab,
-                "-o", enrichment_outdir,
-                "--organism", params.organism,
-            ] + fmt_args
-            # gtf/fai are optional (hotspot analysis); only pass when configured
-            if input.gtf:
-                cmd += ["-g", input.gtf]
-            if input.fai:
-                cmd += ["-fi", input.fai]
-            with open(script_path, "w") as f:
-                f.write("#!/bin/bash\nset -euo pipefail\n")
-                f.write(" ".join(cmd) + "\n")
-                f.write("echo 'sv_exp_enrichment completed successfully.'\n")
-            shutil.copyfile(script_path, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
-        except Exception as e:
-            rule_logger.error(f"sv_exp_enrichment failed for {wildcards.comparison}: {e}")
-            raise RuntimeError(f"sv_exp_enrichment failed for {wildcards.comparison}: {e}")
-
 rule sv_exp_circos:
     """Generate Circos plot for experiment-specific SVs."""
     input:
@@ -390,8 +328,7 @@ rule sv_result:
     input:
         annotated_tabs = expand(outdir + "/{comp}/{comp}_annotated.tab", comp=comparison_names),
         repeatmasker_dirs = expand(outdir + "/{comp}/repeatmasker", comp=comparison_names),
-        plot_dirs = expand(outdir + "/{comp}/plot", comp=comparison_names),
-        table_dirs = expand(outdir + "/{comp}/table", comp=comparison_names),
+        statistics_dirs = expand(outdir + "/{comp}/statstics", comp=comparison_names),
         enrichment_dirs = expand(outdir + "/{comp}/enrichment", comp=comparison_names),
         circos_dirs = expand(outdir + "/{comp}/circos", comp=comparison_names),
         gene_model_dirs = expand(outdir + "/{comp}/gene_model", comp=comparison_names),

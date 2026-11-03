@@ -563,9 +563,7 @@ def runPacVar(
             # sv_exp_specific — registered so the rule's declared directory
             # outputs are requested by the DAG
             outfiles.append(f"{base}/repeatmasker")
-            outfiles.append(f"{base}/plot")
-            outfiles.append(f"{base}/table")
-            outfiles.append(f"{base}/enrichment")
+            outfiles.append(f"{base}/statistics")
             outfiles.append(f"{base}/circos")
             if sv_genes:
                 outfiles.append(f"{base}/gene_model")
@@ -1592,9 +1590,7 @@ def runFiberseq(
             # sv_exp_specific — registered so the rule's declared directory
             # outputs are requested by the DAG
             outfiles.append(f"{base}/repeatmasker")
-            outfiles.append(f"{base}/plot")
-            outfiles.append(f"{base}/table")
-            outfiles.append(f"{base}/enrichment")
+            outfiles.append(f"{base}/statstics")
             outfiles.append(f"{base}/circos")
             if sv_genes:
                 outfiles.append(f"{base}/gene_model")

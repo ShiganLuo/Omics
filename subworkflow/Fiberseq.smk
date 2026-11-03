@@ -680,3 +680,29 @@ use rule sv_gene_model from sv as Fiberseq_sv_gene_model
 use rule sv_diff_analysis from sv as Fiberseq_sv_diff_analysis
 use rule sv_oncoprint from sv as Fiberseq_sv_oncoprint
 use rule sv_result from sv as Fiberseq_sv_result
+
+# Step 8b: SV-affected genes GO/KEGG via modules/function/sv_go
+#   (clusterProfiler + org.Mmu.eg.db → macaque first-class; the gseapy
+#   route above only knows human/mouse). Gated by Params.function.sv_go.
+svgo_params = config.get("Params", {}).get("function", {}).get("sv_go", {})
+svgo_enabled = bool(svgo_params.get("enabled")) and bool(sv_config.get("comparisons"))
+if svgo_enabled:
+    sv_go_config = {
+        "ROOT_DIR": ROOT_DIR,
+        "OUTDIR_ROOT": outdir,
+        "env": config.get("env", {}),
+        "indir": sv_outdir,
+        "outdir": f"{sv_outdir}/sv_go",
+        "logdir": f"{logdir}/group",
+        "comparisons": sv_config.get("comparisons", {}),
+        "Params": {
+            "function": {
+                "sv_go": svgo_params,
+            }
+        },
+    }
+    module sv_go:
+        snakefile: "../modules/function/sv_go/sv_go.smk"
+        config: sv_go_config
+    logger.debug(f"Fiber-seq sv_go config: {sv_go_config}")
+    use rule sv_go_kegg from sv_go as Fiberseq_sv_go_kegg

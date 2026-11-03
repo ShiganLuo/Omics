@@ -39,7 +39,7 @@ rule gatk_index:
             rule_logger.info(f"Start gatk_index at {current_time}")
             index_outdir = os.path.join(outdir, "index")
             os.makedirs(index_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"gatk_index_{wildcards.sample_id}_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"gatk_index_{current_time}.sh")
             plain_script = os.path.join(index_outdir, f"gatk_index.sh")
             cmd1 = ["ln", "-s", input.fasta, output.fasta_link]
             cmd2 = [
@@ -60,7 +60,7 @@ rule gatk_index:
                 f.write(" ".join(cmd1) + "\n")
                 f.write(" ".join(cmd2) + "\n")
                 f.write(" ".join(cmd3) + "\n")
-                f.write(f"echo '{gatk_index} was completed successfully for {input.fasta} !'\n")
+                f.write(f"echo 'gatk_index was completed successfully for {input.fasta} !'\n")
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:

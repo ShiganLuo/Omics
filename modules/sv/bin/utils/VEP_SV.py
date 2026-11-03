@@ -179,9 +179,19 @@ class VEP_SV:
             logger.info(f"Final VCF list path: {tmp_list}")
             logger.info(f"VCF list content:\n{open(tmp_list).read()}")
 
-            # 执行 SURVIVOR
-            cmd = ["SURVIVOR", "merge", tmp_list, str(dist), str(min_support), "1", "1", "0", "50", out_vcf]
+            # 执行 SURVIVOR (先写临时文件: SURVIVOR 输出按染色体分组、
+            # 但染色体内位置不保证升序, 而 VEP custom-GTF 模式要求输入
+            # VCF 完全排序, 否则 "input file appears to be unsorted" 退出)
+            raw_merged = os.path.abspath(os.path.join(tmp_folder, "merged_unsorted.vcf"))
+            cmd = ["SURVIVOR", "merge", tmp_list, str(dist), str(min_support), "1", "1", "0", "50", raw_merged]
             self._run_cmd(cmd)
+            sort_cmd = [
+                "bcftools", "sort",
+                "-T", tmp_folder,
+                "-O", "v", "-o", out_vcf,
+                raw_merged,
+            ]
+            self._run_cmd(sort_cmd)
 
             # 验证结果
             with open(out_vcf, 'r') as f:

@@ -34,7 +34,6 @@ python ${SCRIPT_DIR}/run.py \
     --log /data/16T/luosg/log/Exome_Totipotency.log \
     --sdm
 
-
 # python ${SCRIPT_DIR}/run.py \
 #     -m /data/pub/zhousha/20260207_Exome/data/tRNA/meta.tsv \
 #     -w tRNAseq \

@@ -134,24 +134,30 @@ def load_merged_vcf(path):
 
 # ------------------------------------------------------- RepeatMasker classify
 def run_repeatmasker(seqs, ids, workdir, species_lib, threads=4):
-    """Write FASTA, run RepeatMasker, parse .out -> {id: best hit dict}."""
+    """Write FASTA, run RepeatMasker, parse .out -> {id: best hit dict}.
+
+    Reuses an existing ins.fa.out when it covers all ids (cache hit after a
+    parser-fix rerun; the FASTA is rewritten only when absent)."""
     fa = os.path.join(workdir, "ins.fa")
-    with open(fa, "w") as fh:
-        for i, (sid, s) in enumerate(zip(ids, seqs)):
-            fh.write(f">{sid}\n")
-            for j in range(0, len(s), 60):
-                fh.write(s[j:j + 60] + "\n")
-    cmd = ["RepeatMasker", "-no_is", "-s", "-pa",
-           str(threads), "-lib", species_lib, "-dir", workdir, fa]
-    log(f"running RepeatMasker on {len(seqs)} sequences (this can take a while)")
-    r = subprocess.run(cmd, capture_output=True, text=True)
-    if r.returncode != 0:
-        log(f"RepeatMasker failed: {r.stderr[:500]}")
-        return {}
     out = os.path.join(workdir, "ins.fa.out")
     if not os.path.exists(out):
-        log("RepeatMasker .out missing")
-        return {}
+        with open(fa, "w") as fh:
+            for i, (sid, s) in enumerate(zip(ids, seqs)):
+                fh.write(f">{sid}\n")
+                for j in range(0, len(s), 60):
+                    fh.write(s[j:j + 60] + "\n")
+        cmd = ["RepeatMasker", "-no_is", "-s", "-pa",
+               str(threads), "-lib", species_lib, "-dir", workdir, fa]
+        log(f"running RepeatMasker on {len(seqs)} sequences (this can take a while)")
+        r = subprocess.run(cmd, capture_output=True, text=True)
+        if r.returncode != 0:
+            log(f"RepeatMasker failed: {r.stderr[:500]}")
+            return {}
+        if not os.path.exists(out):
+            log("RepeatMasker .out missing")
+            return {}
+    else:
+        log(f"reusing cached {out}")
     hits = defaultdict(list)
     with open(out) as fh:
         for line in fh:
@@ -169,34 +175,45 @@ def run_repeatmasker(seqs, ids, workdir, species_lib, threads=4):
                 begin, end = int(f[5]), int(f[6])
             except (ValueError, IndexError):
                 continue
-            # find the class/family token: contains '/' (e.g. LINE/L1,
-            # SINE/Alu, Simple_repeat, Low_complexity); it sits two tokens
-            # right of the repeat name. Scan from position 7 on.
+            # find the class/family token by scanning from the RIGHT: the last
+            # three tokens are ID, and (in the 15-col layout) rep-end/rep-begin
+            # sit left of the ID; class/family and repeat name are fixed
+            # anchors relative to them. Repeat names may themselves contain
+            # '/' (e.g. ALR/Alpha in the macaque lib), so anchoring on the
+            # FIRST '/'-token from the left mis-parses satellite rows into
+            # strand '+' / 'C' as the "repeat name".
             rep = cls = fam = ""
             strand = "+"
-            i = 7
-            if i < len(f) and f[i] in ("+", "-", "C", "C?"):
-                # 'C' here is a strand/complement marker only when followed
-                # by a name token; ambiguous — handle both below
-                pass
-            for j in range(7, len(f) - 3):
-                tok = f[j]
-                if "/" in tok or tok in ("Simple_repeat", "Low_complexity",
-                                          "rRNA", "snRNA", "scRNA", "tRNA",
-                                          "Satellite", "ARTEFACT"):
-                    # repeat name is one token before, rep-begin after
-                    rep = f[j - 1].rstrip("?")
-                    cls = tok
-                    if (j + 1 < len(f) and f[j + 1].isdigit()):
-                        fam = ""  # class/family came as one token
-                    else:
-                        fam = f[j + 1] if j + 1 < len(f) else ""
-                    # strand: token before repeat name
-                    prev = f[j - 2] if j - 2 >= 7 else "+"
-                    strand = prev if prev in ("+", "-", "C") else "+"
-                    break
-            if not rep:
+            # Right-anchored walk: skip the trailing '*' column if present,
+            # land on the ID, then walk left across the whole repeat-position
+            # block (numbers and (numbers), in either order), and the first
+            # non-numeric token left of the block is the class/family; one
+            # further left the repeat name (may itself contain '/', e.g.
+            # ALR/Alpha), one further the strand.
+            def _num(t):
+                return t.isdigit()
+
+            def _pnum(t):
+                # (123) or (-1): the (left) column can be negative
+                body = t.strip("()")
+                return t.startswith("(") and body.lstrip("-").isdigit()
+
+            k = len(f) - 1
+            if f[k] == "*":
+                k -= 1
+            if k < 8 or not f[k].rstrip("*").isdigit():
                 continue
+            j = k - 1
+            while j >= 8 and (_num(f[j]) or _pnum(f[j])):
+                j -= 1
+            if j < 8:
+                continue
+            cls = f[j]
+            rep = f[j - 1].rstrip("?")
+            strand = f[j - 2] if j - 2 >= 8 and f[j - 2] in ("+", "-", "C") else "+"
+            fam = ""
+            if "/" in cls:
+                fam = cls.split("/", 1)[1]
             hits[sid].append({
                 "begin": begin, "end": end, "repeat": rep,
                 "class": cls, "family": fam, "sw": sw, "strand": strand,

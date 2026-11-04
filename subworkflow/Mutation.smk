@@ -20,7 +20,7 @@ fastqc_raw_config = {
         "env": config.get("env", {}),
         "indir": indir,
         "outdir":  f"{outdir}/quality/fastqc/raw",
-        "logdir": logdir,
+        "logdir": f"{logdir}/sample",
         "log_suffix": "raw.txt",
         "paired_samples": paired_samples,
         "single_samples": single_samples,
@@ -39,8 +39,8 @@ cutadapt_config = {
     "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "indir": indir,
-        "outdir": f"{outdir}/fastq/cutadapt",
-        "logdir": logdir,
+        "outdir": f"{outdir}/common/2_trimmed_fastq",
+        "logdir": f"{logdir}/sample",
         "Procedure": {
             "trim_galore": config.get('Procedure',{}).get('trim_galore')
         },
@@ -63,7 +63,7 @@ fastqc_trimmed_config = {
         "env": config.get("env", {}),
         "indir": cutadapt_config["outdir"],
         "outdir":  f"{outdir}/quality/fastqc/trimmed",
-        "logdir": logdir,
+        "logdir": f"{logdir}/sample",
         "paired_samples": paired_samples,
         "single_samples": single_samples,
         "log_suffix": "trimmed.txt",
@@ -82,8 +82,8 @@ bwa_mem2_confg = {
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "indir": cutadapt_config["outdir"],
-    "outdir":  f"{outdir}/common/1_sorted_bam",
-    "logdir": logdir,
+    "outdir":  f"{outdir}/common/3_sorted_bam",
+    "logdir": f"{logdir}/sample",
     "paired_samples": paired_samples,
     "single_samples": single_samples,
     "Procedure": {
@@ -109,7 +109,7 @@ samtools_config = {
     "env": config.get("env", {}),
     "indir": bwa_mem2_confg["outdir"],
     "outdir": bwa_mem2_confg["outdir"],
-    "logdir": logdir,
+    "logdir": f"{logdir}/sample",
     "Procedure": {
         "samtools": config.get("Procedure",{}).get("samtools")
     },
@@ -132,8 +132,8 @@ gatk_prepare_config = {
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "indir": bwa_mem2_confg["outdir"],
-    "outdir": f"{outdir}/common/2_markdup_bam",
-    "logdir": logdir,
+    "outdir": f"{outdir}/common/4_markdup_bam",
+    "logdir": f"{logdir}/sample",
     "Procedure": {
         "gatk": config.get("Procedure", {}).get("gatk"),
         "samtools": config.get("Procedure", {}).get("samtools"),
@@ -172,8 +172,8 @@ targets_config = {
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "indir": gatk_prepare_config["outdir"],
-    "outdir": f"{outdir}/common/targets",
-    "logdir": logdir,
+    "outdir": f"{outdir}/common/5_targets_bed",
+    "logdir": f"{logdir}/group",
     "bam_suffix": ".sorted_markdup",
     "samples": paired_samples + single_samples,
     "Params": {
@@ -189,17 +189,26 @@ use rule derive_targets from targets as Mutation_derive_targets
 gatk_somatic_config = {
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
+    "tmp_dir": config.get("tmp_dir"),
     "env": config.get("env", {}),
     "indir": gatk_prepare_config["outdir"],
-    "outdir": f"{outdir}/variation/gatk/somatic",
-    "logdir": logdir,
+    "outdir": f"{outdir}/variation/somatic_snv_indel",
+    "logdir": f"{logdir}/group",
     "Procedure": {
         "gatk": config.get("Procedure", {}).get("gatk"),
     },
     "genome": {
         "fasta": genome_ref.get("fasta"),
-        "targets": _targets_bed
-    }
+        "targets": _targets_bed,
+        "germline_resource": genome_ref.get("germline_resource")
+    },
+    "Params": {
+        "gatk": {
+            "Mutect2": {
+                "panel_of_normals": config.get("Params", {}).get("gatk", {}).get("Mutect2", {}).get("panel_of_normals")
+            }
+        }
+    },
 }
 module gatk_somatic:
     snakefile: "../modules/gatk/gatk_somatic/gatk_somatic.smk"
@@ -213,7 +222,7 @@ gatk_germline_config = {
     "env": config.get("env", {}),
     "indir": gatk_prepare_config["outdir"],
     "outdir": f"{outdir}/variation/germline_snv_indel",
-    "logdir": logdir,
+    "logdir": f"{logdir}/sample",
     "Procedure": {
         "gatk": config.get("Procedure", {}).get("gatk"),
     },
@@ -238,7 +247,7 @@ somatic_spectrum_config = {
     "env": config.get("env", {}),
     "indir": gatk_somatic_config["outdir"],
     "outdir": f"{outdir}/variation/spectrum",
-    "logdir": logdir,
+    "logdir": f"{logdir}/group",
     "sample_somatic_vcf_dict": config.get("Params", {}).get("somatic_spectrum", {}).get("sample_somatic_vcf_dict", {}),
     "sample_group_dict": config.get("Params", {}).get("somatic_spectrum", {}).get("sample_group_dict", {}),
     "genome": {
@@ -263,7 +272,8 @@ fragment_size_config = {
     "bam_suffix": ".sorted_markdup",
     "indir": gatk_prepare_config["outdir"],
     "outdir": f"{outdir}/results/fragment_size",
-    "logdir": logdir,
+    "logdir": f"{logdir}/sample",
+    "logdir_combine": f"{logdir}/group",
     "samples": paired_samples + single_samples,
     "Procedure": {
         "samtools": config.get("Procedure", {}).get("samtools")
@@ -289,7 +299,7 @@ manta_config = {
     "bam_suffix": ".sorted_markdup",
     "indir": gatk_prepare_config["outdir"],
     "outdir": f"{outdir}/variation/germline_sv",
-    "logdir": logdir,
+    "logdir": f"{logdir}/sample",
     "samples": paired_samples + single_samples,
     "Procedure": {
         "manta": config.get("Procedure", {}).get("manta"),
@@ -322,10 +332,11 @@ cnvkit_config = {
     "env": config.get("env", {}),
     "bam_suffix": ".sorted_markdup",
     "indir": gatk_prepare_config["outdir"],
-    "outdir": f"{outdir}/variation/cnv/cnvkit",
-    "logdir": logdir,
+    "outdir": f"{outdir}/variation/cnv",
+    "logdir": f"{logdir}/group",
     "samples": paired_samples + single_samples,
     "control_samples": control_samples,
+    "paired_design": config.get("Params", {}).get("workflow", {}).get("paired_design", []),
     "Procedure": {
         "cnvkit": config.get("Procedure", {}).get("cnvkit"),
         "samtools": config.get("Procedure", {}).get("samtools")
@@ -346,4 +357,5 @@ logger.info(f"cnvkit_config: {cnvkit_config}")
 use rule cnvkit_targets from cnvkit as Mutation_cnvkit_targets
 use rule cnvkit_reference from cnvkit as Mutation_cnvkit_reference
 use rule cnvkit_batch from cnvkit as Mutation_cnvkit_batch
+use rule cnvkit_paired from cnvkit as Mutation_cnvkit_paired
 

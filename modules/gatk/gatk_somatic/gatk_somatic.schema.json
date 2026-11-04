@@ -57,6 +57,39 @@
         "type": "str",
         "nullable": true,
         "required": false
+      },
+      "germline_resource": {
+        "type": "str",
+        "path": "file",
+        "nullable": true,
+        "required": false
+      }
+    }
+  },
+  "Params": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "gatk": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "Mutect2": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "panel_of_normals": {
+                "type": "str",
+                "path": "file",
+                "nullable": true,
+                "required": false
+              }
+            }
+          }
+        }
       }
     }
   }

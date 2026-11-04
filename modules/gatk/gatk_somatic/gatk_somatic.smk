@@ -10,6 +10,14 @@ fasta = config.get("genome", {}).get("fasta")
 targets = config.get("genome", {}).get("targets")
 known_sites = config.get("genome", {}).get("known_sites")
 interval = config.get("genome", {}).get("interval")
+# Germline suppression resources for Mutect2/FilterMutectCalls (both optional):
+#   genome.germline_resource - population allele-frequency VCF (e.g. gnomAD),
+#                       assembly-tied so it lives in genome.references.<name>
+#   Params.gatk.Mutect2.panel_of_normals - sites observed in a SELF-BUILT
+#                       normal panel (cohort/lab property, not a genome
+#                       property); recurrent artifacts get hard-filtered
+germline_resource = config.get("genome", {}).get("germline_resource")
+panel_of_normals = config.get("Params", {}).get("gatk", {}).get("Mutect2", {}).get("panel_of_normals")
 
 def get_input_somaticMutect2(wildcards):
     """
@@ -45,10 +53,12 @@ rule somaticMutect2:
     input:
        unpack(get_input_somaticMutect2),
        targets = lambda wildcards: [targets] if targets else [],
+       germline_resource = lambda wildcards: [germline_resource] if germline_resource else [],
+       panel_of_normals = lambda wildcards: [panel_of_normals] if panel_of_normals else [],
     output:
-        vcf = outdir + "/mutect2-vcf/{normal_sample_id}_vs_{experimental_sample_id}/{normal_sample_id}_vs_{experimental_sample_id}.vcf.gz"
+        vcf = outdir + "/{normal_sample_id}_vs_{experimental_sample_id}/{normal_sample_id}_vs_{experimental_sample_id}.vcf.gz"
     log:
-        logdir + "/all/gatk/{normal_sample_id}_{experimental_sample_id}/mutect2.log"
+        logdir + "/{normal_sample_id}_{experimental_sample_id}_mutect2.log"
     conda:
         "../gatk.yaml"
     container:
@@ -56,8 +66,7 @@ rule somaticMutect2:
     params:
         javaOptions =  config.get("Params", {}).get("gatk", {}).get("javaOptions") or "-Xmx30g",
         gatk = config.get("Procedure", {}).get("gatk") or "gatk",
-        tmp_dir = config.get("Params", {}).get("gatk", {}).get("tmp-dir") or None,
-        parameters = config.get("mutect2_parameters") or ""
+        tmp_dir = config.get("tmp_dir") or None
     threads: rule_res("somaticMutect2").get("threads", 10)
     resources:
         mem_mb = rule_res("somaticMutect2").get("mem_mb", 32000),
@@ -68,8 +77,9 @@ rule somaticMutect2:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start somaticMutect2 for normal sample {wildcards.normal_sample_id} and experimental sample {wildcards.experimental_sample_id} at {current_time}")
-            script = os.path.join(RECEIPT_DIR, f"mutect2_{wildcards.normal_sample_id}_{current_time}.sh")
-            plain_script = os.path.join(outdir, f"mutect2-vcf/{wildcards.normal_sample_id}_vs_{wildcards.experimental_sample_id}/mutect2.sh")
+            script = os.path.join(RECEIPT_DIR, f"somaticMutect2_{wildcards.normal_sample_id}_{current_time}.sh")
+            sample_outdir = os.path.dirname(output.vcf)
+            plain_script = os.path.join(sample_outdir, "somaticMutect2.sh")
             cmd = [
                 params.gatk, "Mutect2",
                 "--java-options", params.javaOptions,
@@ -79,9 +89,15 @@ rule somaticMutect2:
                 "-normal", wildcards.normal_sample_id,
                 "-O", output.vcf,
                 "--native-pair-hmm-threads", str(threads)
-            ] + params.parameters.split()
+            ]
             if input.targets:
                 cmd.extend(["-L", str(input.targets[0])])
+            # Germline suppression: population AF resource + normal panel.
+            # Both flow through to FilterMutectCalls via the raw VCF header.
+            if input.germline_resource:
+                cmd.extend(["--germline-resource", str(input.germline_resource[0])])
+            if input.panel_of_normals:
+                cmd.extend(["--pon", str(input.panel_of_normals[0])])
             if params.tmp_dir:
                 cmd.extend(["--tmp-dir", params.tmp_dir])
             with open(script, "w") as f:

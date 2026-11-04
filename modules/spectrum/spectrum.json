@@ -2,8 +2,13 @@
     "indir": "input",
     "outdir": "output",
     "logdir": "log",
-    "sample_vcf_dict": {},
-    "sample_group_dict": {},
+    "ROOT_DIR": ".",
+    "sample_somatic_vcf_dict": {
+        "sample1": "path/to/sample1.vcf.gz"
+    },
+    "sample_group_dict": {
+        "sample1": "group1"
+    },
     "genome": {
         "fasta": ""
     }

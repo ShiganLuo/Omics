@@ -81,6 +81,13 @@
                     "type": "float",
                     "required": true
                 }
+            },
+            "Mutect2": {
+                "panel_of_normals": {
+                    "type": "str",
+                    "nullable": true,
+                    "required": false
+                }
             }
         },
         "manta": {
@@ -105,6 +112,21 @@
             },
             "enabled": {
                 "type": "bool",
+                "required": false
+            },
+            "mode": {
+                "type": "enum",
+                "values": [
+                    "auto",
+                    "paired",
+                    "pooled",
+                    "flat"
+                ],
+                "required": false
+            },
+            "control_samples": {
+                "type": "list",
+                "nullable": true,
                 "required": false
             }
         },
@@ -137,6 +159,10 @@
                     "required": false
                 },
                 "single_samples": {
+                    "type": "list",
+                    "required": false
+                },
+                "paired_design": {
                     "type": "list",
                     "required": false
                 },
@@ -213,6 +239,11 @@
                             "required": false
                         },
                         "targets": {
+                            "type": "str",
+                            "nullable": true,
+                            "required": false
+                        },
+                        "germline_resource": {
                             "type": "str",
                             "nullable": true,
                             "required": false

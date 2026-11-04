@@ -22,7 +22,7 @@ rule derive_targets:
     output:
         bed = outdir + "/targets.bed",
     log:
-        logdir + "/derive_targets.log",
+        logdir + "/targets/derive_targets.log",
     threads: rule_res("derive_targets").get("threads", 4),
     resources:
         mem_mb = rule_res("derive_targets").get("mem_mb", 16000),

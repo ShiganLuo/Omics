@@ -51,6 +51,96 @@ description: 撰写subworkflow时需要遵循此套规范
 - `ROOT_DIR`：项目根路径，**所有模块配置必须传入**（common.smk 依赖此变量定位 `src/` 和 `bin/` 脚本）
 - `env`：SIF 容器路径映射字典，**所有模块配置必须传入**（common.smk 的 `sif()` 函数依赖此字段解析 `.sif` 路径）
 
+# 日志规范
+
+subworkflow 顶层从 config 读取 `logdir`，下发给模块配置时**按规则粒度分流**到两个固定分段目录：
+
+- 单样本规则 → `logdir/sample`
+- 多样本（组级/跨样本）规则 → `logdir/group`
+
+## 传法
+
+| 模块内规则构成 | 模块配置传入 | 模块内日志落点 |
+|---|---|---|
+| 仅单样本规则 | `"logdir": f"{logdir}/sample"` | `{logdir}/sample/{sample_id}/{规则名}.log` |
+| 仅多样本规则 | `"logdir": f"{logdir}/group"` | `{logdir}/group/{module名}/{规则名}.log` |
+| 单样本 + 多样本混合 | `"logdir": f"{logdir}/sample"`<br>加 `"logdir_combine": f"{logdir}/group"` | 单样本规则用 `logdir`，多样本规则用 `logdir_combine` |
+
+混合模块必须**同时传两个变量**（`logdir` 与 `logdir_combine`），模块侧据此把两类规则的路由分开（模块内部怎么消费见 `modules/modules.md` 的日志规范）。
+
+## 示例（Mutation.smk，混合模块 fragment_size）
+
+```python
+fragment_size_config = {
+    ...
+    "logdir": f"{logdir}/sample",
+    "logdir_combine": f"{logdir}/group",
+    ...
+}
+```
+
+## 约束
+
+- 分段目录名固定为 `sample` / `group`，不要新造名字（不要 `logs`、`combine`、`multi` 等）。
+- 不要把顶层 `logdir` 原样传给模块——那会让样本日志与组级日志混在同一级目录。
+- 本规范只约束规则日志（`log:` 指令）；命令回执池 `OUTDIR_ROOT/log/cmd/` 由 `OUTDIR_ROOT` 派生，与 logdir 分段无关。
+
+# 模块衔接规范
+
+subworkflow 内模块按执行顺序自上而下编排。**下游模块消费上游输出时，输入目录一律引用上游 config 的 `outdir`**（`xxx_config["outdir"]`），禁止手拼同一路径的 f-string 副本——路径知识只写一次，上游改布局下游自动跟随：
+
+```python
+# ✅ 正确：indir 引用上游 config["outdir"]
+cutadapt_config = {
+    "outdir": f"{outdir}/fastq/cutadapt",
+    ...
+}
+star_config = {
+    "indir": cutadapt_config["outdir"],   # 上游 outdir，不重拼
+    "outdir": f"{outdir}/star",
+    ...
+}
+
+# ❌ 错误：同一路径出现两个手拼副本，改一处漏一处
+star_config = {
+    "indir": f"{outdir}/fastq/cutadapt",  # 与 cutadapt_config["outdir"] 重复定义
+    ...
+}
+```
+
+## 模块级常量
+
+一个输出目录被多个下游消费时，在产出方 config **之后**定义模块级常量，下游统一引用常量：
+
+```python
+extract_config = {
+    "outdir": f"{analysis_outdir}/extract",
+    ...
+}
+elements_dir = extract_config["outdir"]      # 常量引用产出方 config
+
+footprint_config = {
+    "indir": elements_dir,
+    ...
+}
+```
+
+## 条件分支的衔接
+
+上游是二选一（如 aligner）时，用条件表达式取实际选中的那个 config：
+
+```python
+# 来自 CLIP.smk
+"indir": star_config["outdir"] if aligner == 'star' else hisat2_config["outdir"],
+```
+
+## 约束
+
+- Snakefile 顺序执行：config 字典与常量**先定义后使用**，禁止前向引用后面才定义的 config（NameError）。
+- 判断标准：一个物理路径在整个 subworkflow 里只出现**一次字面定义**，其余位置全部通过 `xxx_config["outdir"]`（或引用它的常量）获取。
+- 衔接只打通路径；是否真的运行由 node.py 注册的 outfiles 驱动，DAG 自动解析依赖（下游 enabled 自动拉起上游）。
+- 模块 .smk 内部如何消费这些输入键（`motif_dir` / `vcf_dir` 等独立 config 键）见 `modules/modules.md` 的「Subworkflow 跨模块衔接」。
+
 # 典型模式示例
 
 ## 1) 条件分支选择 trimmer（来自 RNAseq.smk）

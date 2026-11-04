@@ -11,6 +11,14 @@
     "dict_index": "path/to/genome.dict",
     "fasta": "path/to/genome.fa",
     "known_sites": "path/to/known_sites.vcf.gz",
-    "interval": "path/to/interval.list"
+    "interval": "path/to/interval.list",
+    "germline_resource": null
+  },
+  "Params": {
+    "gatk": {
+      "Mutect2": {
+        "panel_of_normals": null
+      }
+    }
   }
 }

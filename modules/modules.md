@@ -145,6 +145,42 @@ modules/common/
 - 收尾规则：`<tool>_result`，仅声明 `input:` 作为依赖聚合点（无 `shell`/`run`）
 - 报告规则：`<tool>_report`，聚合所有样本输出生成跨样本报告
 
+# 日志规范
+
+规则日志（`log:` 指令）按**规则粒度**分两种路径，模块从 config 读取 `logdir`：
+
+- **单样本规则**（一次处理一个样本，log 路径含 `{sample_id}` 通配符）：
+
+```python
+log:
+    logdir + "/{sample_id}/{规则名}.log"
+```
+
+- **多样本规则**（一次任务处理多个样本 / 组级聚合，log 路径无 `{sample_id}`）：
+
+```python
+log:
+    logdir + "/{module名}/{规则名}.log"
+```
+
+subworkflow 会把 `logdir` 指到对应分段目录：单样本模块收到 `{总logdir}/sample`，
+多样本模块收到 `{总logdir}/group`（分流规则见 `subworkflow/subworkflow.md` 的日志规范）。
+
+## 同时包含单样本与多样本规则的模块
+
+必须读取**两个变量**，subworkflow 会同时传入：
+
+```python
+logdir = config.get("logdir", "log")
+logdir_combine = config.get("logdir_combine", logdir)
+```
+
+- 单样本规则用 `logdir + "/{sample_id}/{规则名}.log"`
+- 多样本规则一律用 `logdir_combine + "/{module名}/{规则名}.log"`
+
+参考实现：`modules/trgt/trgt.smk`（纯单样本）、`modules/fragment_size/fragment_size.smk`
+（混合模块：`samtools_stats` 单样本、`getFragmentSize`/`plotFragmentSize` 走 `logdir_combine`）。
+
 # 规则编写风格：`run:` 块 + shell 脚本生成
 
 所有规则统一使用 `run:` 块，不允许使用纯 `shell:` 块。命令通过列表构建，写入 `.sh` 脚本后执行。

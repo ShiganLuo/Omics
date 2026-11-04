@@ -634,6 +634,7 @@ def runMutation(
     mutect2_samples = []
     sample_somatic_vcf_dict = {}
     sample_group_dict = {}
+    paired_design = []
     # Exome assays get a capture-region BED for GATK -L and CNVkit --targets:
     # an explicit genome.references.<g>.targets BED wins; otherwise derive it
     # from markdup BAM coverage (upstream rule) and register the output.
@@ -641,20 +642,57 @@ def runMutation(
     if _ref_entry.get("targets"):
         _targets = _ref_entry["targets"]
     elif assays and datajson["Params"]["cnvkit"].get("method") == "hybrid":
-        _targets = f"{outdir}/common/targets/targets.bed"
+        _targets = f"{outdir}/common/5_targets_bed/targets.bed"
         outfiles.append(_targets)
         _ref_entry["targets"] = _targets
     else:
         _targets = None
         _ref_entry["targets"] = None
     for designPair in designPairs:
-        somatic_file = f"{outdir}/variation/gatk/somatic/mutect2-vcf/{designPair.ctr_sample_id}_vs_{designPair.exp_sample_id}/{designPair.ctr_sample_id}_vs_{designPair.exp_sample_id}.vcf.gz"
+        somatic_file = f"{outdir}/variation/somatic_snv_indel/{designPair.ctr_sample_id}_vs_{designPair.exp_sample_id}/{designPair.ctr_sample_id}_vs_{designPair.exp_sample_id}.vcf.gz"
         sample_somatic_vcf_dict[designPair.exp_sample_id] = somatic_file
         sample_group_dict[designPair.exp_sample_id] = designPair.exp_group
         outfiles.append(somatic_file)
         mutect2_samples.append(designPair.ctr_sample_id)
         mutect2_samples.append(designPair.exp_sample_id)
-    
+        paired_design.append({"control": designPair.ctr_sample_id, "experimental": designPair.exp_sample_id})
+
+    datajson["Params"]["workflow"]["paired_design"] = paired_design
+    # CNVkit calling mode resolution (Params.cnvkit.mode; "auto" decides here
+    # from the design): matched normals in the design pairs -> paired; else a
+    # normal panel (Params.workflow.control_samples) -> pooled; else flat.
+    # An explicit mode wins over "auto"; impossible combos hard-error below.
+    _cnv_cfg = datajson["Params"].setdefault("cnvkit", {})
+    _paired_map = {
+        rec["experimental"]: rec["control"]
+        for rec in paired_design
+        if rec.get("experimental") and rec.get("control")
+    }
+    _cnv_mode = _cnv_cfg.get("mode") or "auto"
+    if _cnv_mode == "auto":
+        _cnv_mode = "paired" if _paired_map else (
+            "pooled" if (datajson["Params"]["workflow"].get("control_samples") or []) else "flat"
+        )
+        _cnv_cfg["mode"] = _cnv_mode
+        logger.info(f"Mutation: cnvkit mode auto -> {_cnv_mode} "
+                    f"(design pairs: {len(_paired_map)}, "
+                    f"control_samples: {len(datajson['Params']['workflow'].get('control_samples') or [])})")
+    if _cnv_mode == "paired" and not _paired_map:
+        raise ValueError(
+            "Mutation: Params.cnvkit.mode 'paired' requires matched normal "
+            "samples in the meta design; none found. Use mode 'pooled' (with "
+            "control_samples) or 'flat'."
+        )
+    if _cnv_mode == "pooled" and not (datajson["Params"]["workflow"].get("control_samples") or []):
+        raise ValueError(
+            "Mutation: Params.cnvkit.mode 'pooled' requires "
+            "Params.workflow.control_samples; none found. Use mode 'flat' "
+            "or provide a normal panel."
+        )
+    if _cnv_mode == "paired":
+        # Paired mode must not also build a pooled reference alongside the
+        # per-pair references (conflicting reference semantics).
+        datajson["Params"]["workflow"]["control_samples"] = []
     for sample_id, sample_info in samples_info_dict.items():
         
         if sample_info.layout == "PE":
@@ -673,6 +711,8 @@ def runMutation(
             logger.error(f"Unknown layout type for sample {sample_id}: {sample_info.layout}")
     if designPairs:
         outfiles.append(f"{outdir}/variation/spectrum/somatic_spectrum_stacked_bar.png")
+        outfiles.append(f"{outdir}/variation/spectrum/somatic_spectrum_heatmap.png")
+        outfiles.append(f"{outdir}/variation/spectrum/somatic_spectrum.csv")
     
     all_samples = paired_samples + single_samples
     
@@ -686,12 +726,19 @@ def runMutation(
             outfiles.append(f"{outdir}/variation/germline_sv/{sample_id}/results/variants/candidateSV.vcf.gz")
 
     if _enabled(datajson, "cnvkit"):
-        for sample_id in all_samples:
-            outfiles.append(f"{outdir}/variation/cnv/cnvkit/cnv/{sample_id}.cnr")
-            outfiles.append(f"{outdir}/variation/cnv/cnvkit/cnv/{sample_id}.cns")
-        control_samples = datajson["Params"]["workflow"].get("control_samples", []) or []
-        if control_samples:
-            outfiles.append(f"{outdir}/variation/cnv/cnvkit/reference/reference.cnn")
+        # Mode-aware registration: paired -> per-pair tumors only (no pooled
+        # reference); pooled -> all samples + shared reference.cnn; flat ->
+        # all samples, no reference.
+        if _cnv_mode == "paired":
+            for sample_id in _paired_map:
+                outfiles.append(f"{outdir}/variation/cnv/{sample_id}/{sample_id}.cnr")
+                outfiles.append(f"{outdir}/variation/cnv/{sample_id}/{sample_id}.cns")
+        else:
+            for sample_id in all_samples:
+                outfiles.append(f"{outdir}/variation/cnv/{sample_id}/{sample_id}.cnr")
+                outfiles.append(f"{outdir}/variation/cnv/{sample_id}/{sample_id}.cns")
+            if _cnv_mode == "pooled":
+                outfiles.append(f"{outdir}/variation/cnv/reference/reference.cnn")
     
     datajson["Params"]["somatic_spectrum"]["sample_somatic_vcf_dict"] = sample_somatic_vcf_dict
     datajson["Params"]["somatic_spectrum"]["sample_group_dict"] = sample_group_dict

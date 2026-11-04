@@ -1,7 +1,7 @@
-# Auto-generated Dockerfile for star conda environment
-# Source: /home/luosg/Data/genomeStability/workflow/Omics/modules/spectrum/spectrum.yaml
-# Build: docker build -t star -f Dockerfile .
-# Save:  docker save star -o /home/luosg/Database/env/star.tar
+# Auto-generated Dockerfile for spectrum conda environment
+# Source: /data/16T/luosg/workflow/Omics/modules/spectrum/spectrum.yaml
+# Build: docker build -t spectrum -f Dockerfile .
+# Save:  docker save spectrum -o /data/16T/Database/env/spectrum.tar
 
 FROM continuumio/miniconda3:latest
 
@@ -11,7 +11,7 @@ RUN conda env create -f /tmp/spectrum.yaml && \
     conda clean -afy && \
     rm /tmp/spectrum.yaml
 
-ENV CONDA_DEFAULT_ENV=star
-ENV PATH="/opt/conda/envs/star/bin:$PATH"
+ENV CONDA_DEFAULT_ENV=spectrum
+ENV PATH="/opt/conda/envs/spectrum/bin:$PATH"
 
 CMD ["bash"]

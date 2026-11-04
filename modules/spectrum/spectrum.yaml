@@ -1,4 +1,4 @@
-name: star
+name: spectrum
 channels:
   - conda-forge
   - bioconda

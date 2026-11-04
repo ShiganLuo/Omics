@@ -2,6 +2,7 @@ include: "../common/common.smk"
 
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
+logdir_combine = config.get("logdir_combine", "log")
 indir = config.get("indir", "input")
 bam_suffix = config.get("bam_suffix", "")
 samples = config.get("samples", [])
@@ -51,7 +52,7 @@ rule getFragmentSize:
     output:
         hist = outdir + "/fragment/FragmentSize.txt"
     log:
-        logdir + "/getFragmentSize.log"
+        logdir_combine + "/fragment/getFragmentSize.log"
     resources:
         mem_mb = rule_res("getFragmentSize").get("mem_mb", 8000),
     params:
@@ -89,7 +90,7 @@ rule plotFragmentSize:
     output:
         png = outdir + "/fragment/FragmentSize.png"
     log:
-        logdir + "/plotFragmentSize.log"
+        logdir_combine + "/fragment/plotFragmentSize.log"
     resources:
         mem_mb = rule_res("plotFragmentSize").get("mem_mb", 8000),
     params:

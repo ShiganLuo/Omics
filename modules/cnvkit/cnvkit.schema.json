@@ -24,6 +24,11 @@
         "nullable": true,
         "required": false
     },
+    "paired_design": {
+        "type": "dict",
+        "nullable": true,
+        "required": false
+    },
     "Procedure": {
         "type": "dict",
         "nullable": true,
@@ -59,6 +64,16 @@
                             "wgs"
                         ],
                         "required": true
+                    },
+                    "mode": {
+                        "type": "enum",
+                        "values": [
+                            "auto",
+                            "paired",
+                            "pooled",
+                            "flat"
+                        ],
+                        "required": false
                     }
                 }
             }

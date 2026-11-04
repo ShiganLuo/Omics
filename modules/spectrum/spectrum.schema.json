@@ -14,7 +14,13 @@
     "nullable": true,
     "required": true
   },
-  "sample_vcf_dict": {
+  "ROOT_DIR": {
+    "type": "str",
+    "path": "dir",
+    "nullable": true,
+    "required": false
+  },
+  "sample_somatic_vcf_dict": {
     "type": "dict",
     "nullable": true,
     "required": false,

@@ -41,8 +41,8 @@ plt.rcParams.update({
 })
 
 GROUP_ORDER = ["ctrl_specific", "exp_specific", "shared"]
-GROUP_LABEL = {"ctrl_specific": "group1-specific\n(ctrl)",
-               "exp_specific": "group2-specific\n(exp)",
+GROUP_LABEL = {"ctrl_specific": "ctrl-specific",
+               "exp_specific": "exp-specific",
                "shared": "shared"}
 GROUP_COLOR = {"ctrl_specific": "#4A72B7", "exp_specific": "#D73027",
                "shared": "#7F7F7F"}
@@ -52,6 +52,31 @@ FAM_COLOR = {"Alu": "#E08214", "L1": "#4A72B7", "SVA": "#8E44AD",
              "LTR": "#27AE60", "DNA": "#16A085", "simple_repeat": "#95A5A6",
              "other": "#BDC3C7", "unclassified": "#7F8C8D",
              "short_unclassified": "#D5D8DC"}
+# fig1 keeps one granularity: the three primate MEI families (family level)
+# plus microsatellites (RepeatMasker simple_repeat, e.g. (CA)n). Class-level
+# buckets (LTR, DNA) and noise buckets (other/unclassified) stay in the
+# events TSV but dilute the family-level signal — excluded from the figure.
+FIG1_FAMS = ["Alu", "L1", "SVA", "simple_repeat"]
+FAM_DISPLAY = {"simple_repeat": "microsatellite"}
+
+# Real group names from the workflow config (Params.sv.comparisons.<key>),
+# injected via --ctrl-name/--exp-name. Falls back to generic labels.
+GROUP_NAMES = {"ctrl": "ctrl", "exp": "exp"}
+
+
+def group_label(key: str) -> str:
+    """Display label for a group key: '<name>-specific' or 'shared'."""
+    if key == "ctrl_specific":
+        return f"{GROUP_NAMES['ctrl']}-specific"
+    if key == "exp_specific":
+        return f"{GROUP_NAMES['exp']}-specific"
+    return "shared"
+
+
+def _clean_str(s):
+    """NaN/None/'nan' -> '' so empty-string semantics survive a CSV round-trip."""
+    out = pd.Series(s.astype("object").where(s.notna(), ""))
+    return out.apply(lambda v: "" if v is None or str(v) == "nan" else str(v))
 
 
 def b64(path):
@@ -60,9 +85,9 @@ def b64(path):
 
 
 def fig1_family_by_group(df, out):
-    fig, axes = plt.subplots(1, 2, figsize=(11, 4.5),
+    fig, axes = plt.subplots(1, 2, figsize=(11.5, 4.8),
                              gridspec_kw={"width_ratios": [2, 1]})
-    fams = [f for f in FAM_ORDER if (df["family"] == f).any()]
+    fams = [f for f in FIG1_FAMS if (df["family"] == f).any()]
     groups = [g for g in GROUP_ORDER if (df["group"] == g).any()]
 
     # left: grouped bars
@@ -71,26 +96,28 @@ def fig1_family_by_group(df, out):
     for gi, g in enumerate(groups):
         vals = [(df[(df.family == f) & (df.group == g)]).shape[0] for f in fams]
         axes[0].bar(x + gi * w - 0.4 + w / 2, vals, width=w * 0.92,
-                    color=GROUP_COLOR[g], label=GROUP_LABEL[g].replace("\n", " "))
+                    color=GROUP_COLOR[g], label=group_label(g))
     axes[0].set_xticks(x)
-    axes[0].set_xticklabels(fams, rotation=30, ha="right")
+    axes[0].set_xticklabels([FAM_DISPLAY.get(f, f) for f in fams],
+                            rotation=30, ha="right")
     axes[0].set_ylabel("insertions")
     axes[0].set_yscale("log")
-    axes[0].legend(frameon=False)
+    axes[0].legend(frameon=False, loc="upper right", bbox_to_anchor=(1.0, 1.02))
     axes[0].set_title("A  TE family x group (log scale)")
 
-    # right: totals per group
-    tot = [ (df.group == g).sum() for g in groups]
+    # right: totals per group (same family subset as panel A)
+    sub = df[df.family.isin(fams)]
+    tot = [(sub.group == g).sum() for g in groups]
     axes[1].bar(range(len(groups)), tot,
                 color=[GROUP_COLOR[g] for g in groups])
     for i, v in enumerate(tot):
         axes[1].text(i, v * 1.02, f"{v:,}", ha="center", fontsize=9)
     axes[1].set_xticks(range(len(groups)))
-    axes[1].set_xticklabels([GROUP_LABEL[g] for g in groups], fontsize=8)
+    axes[1].set_xticklabels([group_label(g) for g in groups], fontsize=9)
     axes[1].set_ylabel("total insertions")
     axes[1].set_title("B  group totals")
     ymax = max(tot)
-    axes[1].set_ylim(0, ymax * 1.15)
+    axes[1].set_ylim(0, ymax * 1.18)
 
     fig.tight_layout()
     fig.savefig(out)
@@ -121,85 +148,93 @@ def fig2_length_family(df, out):
 
 
 def fig3_context(df, out):
-    fams = [f for f in ["Alu", "L1", "SVA", "LTR", "DNA"]
-            if (df["family"] == f).any()]
+    """Insertion count by genomic context, one panel per group.
+
+    All three contexts are drawn on ONE log-count axis — the same unit and
+    scale for exon/intron/intergenic — so the rare exon category (9-12
+    events vs tens of thousands) is a real, visible bar instead of an
+    invisible sliver on a percentage axis (which silently read as 'no exon
+    insertions'). Zero-count bars are simply absent; no '0' annotations.
+    """
+    fams = [f for f in FIG1_FAMS if (df["family"] == f).any()]
     groups = [g for g in GROUP_ORDER if (df["group"] == g).any()]
     ctxs = ["exon", "intron", "intergenic"]
     ctx_colors = {"exon": "#C0392B", "intron": "#E67E22",
                   "intergenic": "#BDC3C7"}
 
-    fig, axes = plt.subplots(1, len(groups), figsize=(4.2 * len(groups), 4.5),
-                             sharey=True)
+    fig, axes = plt.subplots(1, len(groups),
+                             figsize=(4.2 * len(groups), 4.5), sharey=True)
     if len(groups) == 1:
         axes = [axes]
+    y = np.arange(len(fams))
+    h = 0.8 / len(ctxs)
     for ax, g in zip(axes, groups):
         sub = df[(df.group == g) & (df.family.isin(fams))]
         tab = (sub.groupby(["family", "context"]).size()
                .unstack(fill_value=0).reindex(fams, fill_value=0))
-        pct = tab.div(tab.sum(axis=1), axis=0) * 100
-        bottom = np.zeros(len(fams))
-        y = np.arange(len(fams))
-        for c in ctxs:
-            if c in pct.columns:
-                vals = pct[c].values if c in pct.columns else np.zeros(len(fams))
-            else:
-                vals = np.zeros(len(fams))
-            ax.barh(y, vals, left=bottom, color=ctx_colors[c], label=c,
-                    height=0.7)
-            bottom += vals
+        for ci, c in enumerate(ctxs):
+            vals = tab[c].values if c in tab.columns else np.zeros(len(fams))
+            pos = y + 0.4 - ci * h
+            ax.barh(pos, vals, height=h * 0.92, color=ctx_colors[c])
+            for fi, v in enumerate(vals):
+                if v > 0:  # label every bar with its count
+                    ax.text(v * 1.18, pos[fi], f"{int(v):,}", va="center",
+                            ha="left", fontsize=7.5, color="#333333")
+        ax.set_xscale("log")
+        ax.set_xlim(1, 2e5)
         ax.set_yticks(y)
-        ax.set_yticklabels([f"{f}\n(n={int(tab.sum(axis=1)[f]):,})" for f in fams],
-                           fontsize=8)
-        ax.set_xlabel("% of insertions")
-        ax.set_title(GROUP_LABEL[g], fontsize=10)
-        ax.set_xlim(0, 100)
+        ax.set_yticklabels(
+            [f"{FAM_DISPLAY.get(f, f)}\n(n={int(tab.sum(axis=1)[f]):,})"
+             for f in fams], fontsize=8)
+        ax.set_xlabel("insertion count (log)")
+        ax.set_title(group_label(g), fontsize=10)
     axes[0].set_ylabel("TE family")
     handles = [plt.Rectangle((0, 0), 1, 1, color=ctx_colors[c]) for c in ctxs]
-    axes[-1].legend(handles, ctxs, frameon=False, fontsize=8,
-                    loc="lower right")
-    fig.suptitle("genomic context of TE insertions", fontweight="bold")
-    fig.tight_layout()
-    fig.savefig(out)
+    fig.legend(handles, ctxs, loc="upper center", ncol=3, frameon=False,
+               fontsize=9, bbox_to_anchor=(0.5, 1.00))
+    fig.suptitle("insertions by genomic context", fontweight="bold", y=1.08)
+    fig.tight_layout(rect=(0, 0, 1, 0.94))
+    fig.savefig(out, bbox_inches="tight")
     plt.close(fig)
 
 
 def fig4_te_region(df, out):
-    fams = [f for f in ["Alu", "L1", "SVA", "LTR", "DNA"]
-            if (df["family"] == f).any()]
+    fams = [f for f in FIG1_FAMS if (df["family"] == f).any()]
     groups = [g for g in GROUP_ORDER if (df["group"] == g).any()]
-    fig, ax = plt.subplots(figsize=(7, 4.5))
+    te_flag = _clean_str(df["in_te_region"]) if "in_te_region" in df else \
+        pd.Series([""] * len(df))
+    df = df.assign(_in_te=te_flag != "")
+    fig, ax = plt.subplots(figsize=(7.5, 4.8))
     x = np.arange(len(fams))
     w = 0.8 / len(groups)
     for gi, g in enumerate(groups):
         vals = []
         for f in fams:
             sub = df[(df.family == f) & (df.group == g)]
-            if len(sub) == 0 or "in_te_region" not in sub:
-                vals.append(0.0)
-                continue
-            in_te = (sub["in_te_region"].astype(str) != "").mean() * 100
-            vals.append(in_te)
+            vals.append(sub["_in_te"].mean() * 100 if len(sub) else 0.0)
         ax.bar(x + gi * w - 0.4 + w / 2, vals, width=w * 0.92,
-               color=GROUP_COLOR[g], label=GROUP_LABEL[g].replace("\n", " "))
+               color=GROUP_COLOR[g], label=group_label(g))
     ax.set_xticks(x)
-    ax.set_xticklabels(fams)
+    ax.set_xticklabels([FAM_DISPLAY.get(f, f) for f in fams])
     ax.set_ylabel("% insertions inside reference TE region")
     ax.set_title("TE-into-TE vs unique-site insertions")
-    ax.legend(frameon=False, fontsize=9)
+    ax.set_ylim(0, 105)
+    ax.legend(frameon=False, fontsize=9, loc="upper left",
+              bbox_to_anchor=(1.01, 1.0))
     fig.tight_layout()
-    fig.savefig(out)
+    fig.savefig(out, bbox_inches="tight")
     plt.close(fig)
 
 
 def fig5_full_length_l1(df, out, fl_file):
     fl = df[df["full_length_L1"] == True] if "full_length_L1" in df else \
         pd.read_csv(fl_file, sep="\t")
-    fig, axes = plt.subplots(1, 2, figsize=(11, 4.5))
+    fig, axes = plt.subplots(1, 2, figsize=(11, 4.8))
     groups = [g for g in GROUP_ORDER if (fl.group == g).any()]
     axes[0].hist([fl.loc[fl.group == g, "svlen"] for g in groups],
                  bins=30, stacked=True,
                  color=[GROUP_COLOR[g] for g in groups],
-                 label=[GROUP_LABEL[g].replace("\n", " ") for g in groups])
+                 label=[group_label(g) for g in groups])
     axes[0].set_xlabel("SV length (bp)")
     axes[0].set_ylabel("full-length L1 candidates")
     axes[0].set_title("A  length distribution")
@@ -211,7 +246,7 @@ def fig5_full_length_l1(df, out, fl_file):
     for i, v in enumerate(counts):
         axes[1].text(i, v * 1.02, f"{v:,}", ha="center", fontsize=9)
     axes[1].set_xticks(range(len(groups)))
-    axes[1].set_xticklabels([GROUP_LABEL[g] for g in groups], fontsize=8)
+    axes[1].set_xticklabels([group_label(g) for g in groups], fontsize=9)
     axes[1].set_ylim(0, max(counts) * 1.18 if counts else 1)
     axes[1].set_title("B  per-group counts")
     fig.tight_layout()
@@ -220,27 +255,31 @@ def fig5_full_length_l1(df, out, fl_file):
 
 
 def fig6_polya_tsd(df, out):
-    fams = [f for f in ["Alu", "L1", "SVA", "LTR", "DNA"]
-            if (df["family"] == f).any()]
+    # Fingerprints (polyA/TSD) are hallmarks of L1-mediated retrotransposition
+    # — only the retrotransposon MEI families carry the mechanism. LTR/DNA
+    # transpose by other mechanisms and were never TSD/polyA-annotated in
+    # mei_analysis.py, so including them showed meaningless bars.
+    fams = [f for f in ["Alu", "L1", "SVA"] if (df["family"] == f).any()]
     sub = df[df.family.isin(fams)].copy()
     sub["polyA_b"] = sub["polyA"].astype(str) == "True"
-    sub["tsd_b"] = sub["tsd"].astype(str) != ""
-    fig, axes = plt.subplots(1, 2, figsize=(11, 4.5), sharey=True)
+    sub["tsd_b"] = _clean_str(sub["tsd"]) != ""
+    fig, axes = plt.subplots(1, 2, figsize=(10, 4.8), sharey=True)
     x = np.arange(len(fams))
     for ax, col, ttl in [(axes[0], "polyA_b", "poly(A) tail"),
                          (axes[1], "tsd_b", "target site duplication")]:
         vals = [sub.loc[sub.family == f, col].mean() * 100 for f in fams]
-        ax.bar(x, vals, color=[FAM_COLOR[f] for f in fams], width=0.65)
+        ax.bar(x, vals, color=[FAM_COLOR[f] for f in fams], width=0.6)
         for i, v in enumerate(vals):
-            ax.text(i, v + 1.5, f"{v:.1f}%", ha="center", fontsize=8)
+            ax.text(i, min(v + 2.5, 96), f"{v:.1f}%", ha="center", fontsize=9)
         ax.set_xticks(x)
-        ax.set_xticklabels(fams, rotation=20, ha="right")
+        ax.set_xticklabels(fams)
         ax.set_title(ttl)
-        ax.set_ylim(0, 100)
+        ax.set_ylim(0, 108)
+        ax.set_yticks([0, 20, 40, 60, 80, 100])
     axes[0].set_ylabel("% of insertions")
     fig.suptitle("MEI fingerprints (L1-mediated insertion hallmarks)",
                  fontweight="bold")
-    fig.tight_layout()
+    fig.tight_layout(rect=(0, 0, 1, 0.96))
     fig.savefig(out)
     plt.close(fig)
 
@@ -313,11 +352,26 @@ def main():
     ap.add_argument("--mei-dir", required=True,
                     help="output dir of mei_analysis.py")
     ap.add_argument("--title", default="youth_vs_aged")
+    ap.add_argument("--ctrl-name", default=None,
+                    help="control group display name (from "
+                         "Params.sv.comparisons.<key>.control_group_name)")
+    ap.add_argument("--exp-name", default=None,
+                    help="experimental group display name (from "
+                         "Params.sv.comparisons.<key>.experimental_group_name)")
     args = ap.parse_args()
 
     d = args.mei_dir
     df = pd.read_csv(os.path.join(d, "mei_events.tsv"), sep="\t",
                      dtype={"tsd": str, "in_te_region": str})
+    # empty-string columns survive a TSV round-trip as NaN -> 'nan' strings;
+    # normalize before any != '' test (fig4/fig6 read these columns)
+    for col in ("tsd", "in_te_region", "context"):
+        if col in df:
+            df[col] = _clean_str(df[col])
+    if args.ctrl_name:
+        GROUP_NAMES["ctrl"] = args.ctrl_name
+    if args.exp_name:
+        GROUP_NAMES["exp"] = args.exp_name
     with open(os.path.join(d, "mei_summary.json")) as fh:
         summary = json.load(fh)
 

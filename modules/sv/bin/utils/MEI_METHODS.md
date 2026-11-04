@@ -74,9 +74,10 @@ apptainer exec ... /data/16T/Database/env/sv/sv.sif python \
 
 ## 五、本数据集关键结果(luanchao_mulatta, youth_vs_aged, 1v1)
 
-- 76,322 INS 全量分类:Alu 45,545 / L1 5,589 / LTR 1,530 / SVA 20
-- 家族分布在两组间几乎对称(Alu 16,424 vs 16,829;L1 2,011 vs 1,988)
-  ——**个体多态为主,无年龄方向性偏移**
+- 76,322 INS 全量分类:Alu 45,543 / L1 5,587 / LTR 1,533 / SVA 20 / microsatellite 2,661
+  (ALR/Alpha 卫星 6,167 条归 other 桶,RepeatMasker 解析修复后无错位行)
+- 家族分布在两组间几乎对称(Alu 16,423 vs 16,828;L1 2,010 vs 1,988;
+  microsatellite 864 vs 941)——**个体多态为主,无年龄方向性偏移**
 - 全长 L1 候选 1,486 条(ctrl 610 / exp 611 / shared 265)
 - 外显子插入 49 条(功能破坏候选,events 表按 context=exon 过滤)
 - 语境:intergenic 54,288 / intron 21,985 / exon 49

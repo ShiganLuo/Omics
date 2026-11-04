@@ -434,6 +434,58 @@ python workflow/Omics/run.py \
 - `--key=value`
 - 嵌套字段：`--Params.trim_galore.quality 10`
 
+### 单模块运行（`run_module.py`）
+
+模块（`modules/<name>/`）是独立单元：有自己的 Snakefile 和 json 输入，与工作流的 meta.tsv 无关。`run_module.py` 不解析 meta、不做工作流分发，直接以模块自己的 Snakefile 为入口、模块 json 为唯一配置单独运行；环境装配（conda/SIF 解析、bind 路径收集、跨服务器 Database 路径迁移、内存探测）复用 `run.py` 同一套逻辑：
+
+```bash
+# 用模块自带的 json 跑 cutadapt（smk/json 自动发现，优先 polygenomes/ 变体）
+python workflow/Omics/run_module.py -m cutadapt \
+  -i /path/to/fastq_dir -o /path/to/cutadapt_run \
+  --samples SampleA SampleB --sdm
+
+# 指定自己的 config，运行时用嵌套字段覆盖参数
+python workflow/Omics/run_module.py -m cutadapt \
+  --config my_cutadapt.json \
+  -o /path/to/out --samples SampleA SampleB \
+  --Params.cutadapt.quality 30 --sdm
+
+# 跑到指定规则为止 / 只构建一个目标
+python workflow/Omics/run_module.py -m star --samples SampleA --sdm --until star_align
+python workflow/Omics/run_module.py -m macs3 --samples SampleA --sdm \
+  --target /path/to/out/SampleA/SampleA_peaks.narrowPeak
+
+# 列出模块规则；测试单个 / 所有模块（dry-run 校验，不真正执行）
+python workflow/Omics/run_module.py -m cutadapt --list-rules
+python workflow/Omics/run_module.py --test cutadapt -o /path/to/module_test
+python workflow/Omics/run_module.py --test all -o /path/to/module_test
+```
+
+输入约定：模块 json 里的输入相对 `indir` 描述（如 cutadapt 期望 `indir/<sample>/<sample>_1.fq.gz`）；把 `indir` 指向数据目录、`outdir` 指向运行目录即可（`-i` / `-o`、改 json、嵌套字段覆盖都可以）。
+
+目标选择：多数模块 Snakefile 没有 `rule all`（首条规则带通配符，Snakemake 拒绝其作为默认目标）。不带 `--until` / `--target` 时，脚本会展开各规则的输出路径（用 `--samples` 的值替换 `{sample_id}`），生成包装 Snakefile（`<outdir>/.run_module/all.smk`，只补一个无通配符的 `rule all`，不改模块本体）再交给 Snakemake；因此带样本通配符的规则必须提供 `--samples`，否则报 "No output patterns generated"。
+
+生效配置会写为 `<outdir>/<module>.config.json`（可完整追溯），模块仓库里的原 json 保持不动。
+
+#### `run_module.py` 参数说明
+
+- `-m, --module`：模块名；smk/json 在 `modules/<name>/` 下自动发现（优先 `polygenomes/` 变体，找不到再退回其他可解析的入口 smk）。给了 `--snakefile` 时可省略（从路径推断）。
+- `--config`：模块 config JSON，默认取 snakefile 同目录的同名 `<stem>.json`。
+- `--snakefile`：直接指定模块 Snakefile（例如用 `modules/star/star.smk` 单基因组变体替代默认的 `polygenomes/` 版本），其同名 json 自动作为 config。
+- `-o, --outdir`：运行/输出目录（覆盖 config 的 outdir；默认 `./<module>_run`）。
+- `-i, --indir`：输入目录（覆盖 config 的 indir）。
+- `-t, --threads`：线程数（默认 8）。
+- `--samples`：`sample_id` 通配符取值（空格分隔多个），把每样本规则展开成具体目标，没有 `rule all` 的模块由此可直接运行。
+- `--rules`：限定参与目标展开的规则（模块本地规则名）；默认所有带通配符的每样本规则。
+- `--genome`：限定 `genome` 通配符取值（多基因组模块）。
+- `--until`：跑到此规则为止（上游自动构建）。
+- `--target`：只构建该输出文件/规则（此模式不生成包装 Snakefile，直接运行模块 smk）。
+- `--list-rules`：列出模块规则后退出。
+- `--dry-run`、`--sdm`、`--conda-prefix`、`--conda-frontend`、`--singularity-args`、`--rerun-trigger`、`--snakemake-args`：含义与 `run.py` 相同。注意不加 `--sdm` 时 `--conda-prefix` 必填（脚本会直接报错提示）。
+- `--test [MODULE]`：模块测试模式。dry-run 校验所有独立模块（或指定一个）：config 加载 + schema 校验、目标展开、DAG 构建。模块没有固定测试输入，缺输入导致的 DAG 停止算通过；解析错误、接线错误、配置键名错误才算失败，任一失败退出码非零。
+- `--log`：日志文件路径。
+- 嵌套字段覆盖：与 `run.py` 相同，支持 `--key value`、`--key=value`、`--Params.cutadapt.quality 30`；逗号分隔的值自动转列表（如 `--genome_paired_samples.GRCm39=S1,S2`）。
+
 ## 修改指南
 
 ### 约定

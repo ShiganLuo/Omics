@@ -434,6 +434,59 @@ If a workflow has no corresponding test meta file, `run.py` skips it with a warn
 - `--key=value`
 - Nested fields: `--Params.trim_galore.quality 10`
 
+### Running a single module (`run_module.py`)
+
+A module (`modules/<name>/`) is an independent unit: it has its own Snakefile and json input, unrelated to any workflow's meta.tsv. `run_module.py` parses no meta and does no workflow dispatch — it runs one module directly, with the module's own Snakefile as the entrypoint and its json as the sole configuration. Environment handling (conda/SIF resolution, bind-path collection, cross-server Database path migration, memory detection) reuses the same logic as `run.py`:
+
+```bash
+# Run cutadapt with the module's own json (smk/json auto-discovered,
+# polygenomes/ variant preferred)
+python workflow/Omics/run_module.py -m cutadapt \
+  -i /path/to/fastq_dir -o /path/to/cutadapt_run \
+  --samples SampleA SampleB --sdm
+
+# Use your own config and override parameters at runtime
+python workflow/Omics/run_module.py -m cutadapt \
+  --config my_cutadapt.json \
+  -o /path/to/out --samples SampleA SampleB \
+  --Params.cutadapt.quality 30 --sdm
+
+# Stop after a given rule / build a single target
+python workflow/Omics/run_module.py -m star --samples SampleA --sdm --until star_align
+python workflow/Omics/run_module.py -m macs3 --samples SampleA --sdm \
+  --target /path/to/out/SampleA/SampleA_peaks.narrowPeak
+
+# List module rules; test one module / all modules (dry-run validation only)
+python workflow/Omics/run_module.py -m cutadapt --list-rules
+python workflow/Omics/run_module.py --test cutadapt -o /path/to/module_test
+python workflow/Omics/run_module.py --test all -o /path/to/module_test
+```
+
+Input convention: module JSONs describe inputs relative to `indir` (e.g. cutadapt expects `indir/<sample>/<sample>_1.fq.gz`); point `indir` at your data directory and `outdir` at the run directory (via `-i` / `-o`, editing the json, or dotted overrides).
+
+Target selection: most module Snakefiles have no `rule all` (their first rule carries wildcards, which snakemake rejects as a default target). Without `--until` / `--target`, the script expands each rule's output paths (substituting `--samples` values for `{sample_id}`) and generates a wrapper Snakefile (`<outdir>/.run_module/all.smk`, adding only a wildcard-free `rule all` — the module itself is never modified) before invoking Snakemake. Per-sample rules therefore require `--samples`, otherwise the script aborts with "No output patterns generated".
+
+The effective config is written to `<outdir>/<module>.config.json` (fully traceable); the module's original json in the repo stays untouched.
+
+#### `run_module.py` Parameters
+
+- `-m, --module`: module name; the smk/json pair is auto-discovered under `modules/<name>/` (the `polygenomes/` variant preferred, falling back to other resolvable entry smks). Optional when `--snakefile` is given (inferred from the path).
+- `--config`: module config JSON; defaults to the sibling `<stem>.json` next to the snakefile.
+- `--snakefile`: use this exact module Snakefile (e.g. `modules/star/star.smk` for the single-genome variant instead of the default `polygenomes/` one); its sibling json becomes the config.
+- `-o, --outdir`: run/output directory (overrides config outdir; default `./<module>_run`).
+- `-i, --indir`: input directory (overrides config indir).
+- `-t, --threads`: thread count (default 8).
+- `--samples`: `sample_id` wildcard values (space-separated); expands per-sample rules into concrete targets so a module without `rule all` runs directly.
+- `--rules`: restrict target expansion to these rules (module-local names); default: every wildcarded per-sample rule.
+- `--genome`: restrict to this `genome` wildcard value (multi-genome modules).
+- `--until`: stop after this rule (upstream is built automatically).
+- `--target`: build this output file/rule only (no wrapper Snakefile is generated in this mode; the module smk runs directly).
+- `--list-rules`: list the module's rules and exit.
+- `--dry-run`, `--sdm`, `--conda-prefix`, `--conda-frontend`, `--singularity-args`, `--rerun-trigger`, `--snakemake-args`: same meanings as in `run.py`. Note `--conda-prefix` is mandatory without `--sdm` (the script errors out explicitly).
+- `--test [MODULE]`: module test mode. Dry-run validates every standalone module (or one named module): config loading + schema validation, target expansion, and DAG construction. Modules carry no fixed test inputs, so DAG stops on missing inputs count as passes; parse errors, wiring errors, and wrong config key names are failures. Exits non-zero on any failure.
+- `--log`: log file path.
+- Dotted overrides: same as `run.py` — `--key value`, `--key=value`, `--Params.cutadapt.quality 30`; comma-separated values become lists (e.g. `--genome_paired_samples.GRCm39=S1,S2`).
+
 ## Modification Guide
 
 ### Conventions

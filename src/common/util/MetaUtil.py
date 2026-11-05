@@ -851,12 +851,27 @@ class MetadataUtils:
     def _link_file(self, src: str, dst: str) -> None:
         """Create a symbolic link to a file or directory.
 
-        If dst is already a symlink pointing to src, this is a no-op.
-        If dst is a symlink pointing elsewhere, it is replaced.
-        If dst exists and is not a symlink, a RuntimeError is raised.
+        Fails fast when src does not exist: silently creating a dangling
+        symlink here defers the error to pipeline runtime (e.g. Snakemake
+        "Unable to obtain modification time ... although it existed before"),
+        so a missing source raises immediately with the offending path.
+
+        If dst is already a symlink pointing to src (and src exists), this
+        is a no-op. If dst is a dangling symlink or points elsewhere, it is
+        replaced. If dst exists and is not a symlink, a RuntimeError is
+        raised.
         """
-        src = os.path.realpath(src)
+        src_given = os.fspath(src)
+        src = os.path.realpath(src_given)
         dst = os.fspath(dst)
+
+        if not os.path.exists(src):
+            detail = f" (resolved: {src})" if src != src_given else ""
+            raise FileNotFoundError(
+                f"Source file does not exist, refusing to create symlink: "
+                f"src={src_given}{detail}, dst={dst}. "
+                f"Check the path in the meta file (was the data dir renamed or moved?)."
+            )
 
         os.makedirs(os.path.dirname(os.path.abspath(dst)), exist_ok=True)
 
@@ -864,6 +879,9 @@ class MetadataUtils:
             if os.path.realpath(dst) == src:
                 logger.debug(f"[SKIP] Link already correct: {dst}")
                 return
+            logger.warning(
+                f"Replacing stale/dangling symlink: {dst} -> {os.path.realpath(dst)} (new target: {src})"
+            )
             os.unlink(dst)
         elif os.path.exists(dst):
             raise RuntimeError(f"Destination exists and is not symlink: {dst}")

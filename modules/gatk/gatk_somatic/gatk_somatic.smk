@@ -61,12 +61,20 @@ rule somaticMutect2:
     input:
        unpack(get_input_somaticMutect2),
        targets = lambda wildcards: [targets] if targets else [],
-       germline_resource = lambda wildcards: [germline_resource] if germline_resource else [],
+       # strain-specific resource wins over the all-strain one (both feed
+       # Mutect2 at CALLING time; FilterMutectCalls has no --germline-resource
+       # and reads the prior back from the raw VCF header)
+       germline_resource = lambda wildcards: (
+           [outdir + "/germline_strain/" + pair_strains[wildcards.experimental_sample_id] + ".vcf.gz"]
+           if (strain_resource_src and pair_strains.get(wildcards.experimental_sample_id)) else
+           ([germline_resource] if germline_resource else [])
+       ),
        panel_of_normals = lambda wildcards: [panel_of_normals] if panel_of_normals else [],
     output:
-        vcf = outdir + "/{normal_sample_id}_vs_{experimental_sample_id}/{normal_sample_id}_vs_{experimental_sample_id}.vcf.gz"
+        vcf = outdir + "/{normal_sample_id}_vs_{experimental_sample_id}/{normal_sample_id}_vs_{experimental_sample_id}.vcf.gz",
+        stats = outdir + "/{normal_sample_id}_vs_{experimental_sample_id}/{normal_sample_id}_vs_{experimental_sample_id}.vcf.gz.stats"
     log:
-        logdir + "/{normal_sample_id}_{experimental_sample_id}_mutect2.log"
+        logdir + "/gatk/{normal_sample_id}_{experimental_sample_id}/{normal_sample_id}_{experimental_sample_id}_mutect2.log"
     conda:
         "../gatk.yaml"
     container:
@@ -206,19 +214,19 @@ rule filterMutectCalls:
     germline prior matches the strain actually being analyzed.
     """
     input:
-        raw_vcf = lambda wildcards: f"{outdir}/{{normal_sample_id}}_vs_{{experimental_sample_id}}/{{normal_sample_id}}_vs_{{experimental_sample_id}}.vcf.gz".replace("{{normal_sample_id}}", wildcards.normal_sample_id).replace("{{experimental_sample_id}}", wildcards.experimental_sample_id),
+        raw_vcf = lambda wildcards: f"{outdir}/{wildcards.normal_sample_id}_vs_{wildcards.experimental_sample_id}/{wildcards.normal_sample_id}_vs_{wildcards.experimental_sample_id}.vcf.gz",
+        # Mutect2 emits a .vcf.gz.stats table next to the raw VCF; FilterMutectCalls
+        # REQUIRES it (callable sites / read counts feed the statistical filters).
+        raw_stats = lambda wildcards: f"{outdir}/{wildcards.normal_sample_id}_vs_{wildcards.experimental_sample_id}/{wildcards.normal_sample_id}_vs_{wildcards.experimental_sample_id}.vcf.gz.stats",
         fai = lambda wildcards: fai_index if fai_index else f"{indir}/index/genome.fa.fai",
         dict = lambda wildcards: dict_index if dict_index else f"{indir}/index/genome.dict",
-        fasta = lambda wildcards: fasta if fasta else f"{indir}/index/genome.fa",
-        germline_resource = lambda wildcards: (
-            [outdir + "/germline_strain/" + pair_strains[wildcards.experimental_sample_id] + ".vcf.gz"]
-            if (strain_resource_src and pair_strains.get(wildcards.experimental_sample_id)) else
-            ([germline_resource] if germline_resource else [])
-        ),
+        # The workflow-built index fasta carries the .dict GATK needs; a bare
+        # Database fasta without dict fails CreateSequenceDictionary-free runs.
+        fasta = lambda wildcards: fasta if (fasta and dict_index) else f"{indir}/index/genome.fa",
     output:
         vcf = outdir + "/{normal_sample_id}_vs_{experimental_sample_id}/{normal_sample_id}_vs_{experimental_sample_id}.filtered.vcf.gz",
     log:
-        logdir + "/{normal_sample_id}_{experimental_sample_id}_filterMutectCalls.log",
+        logdir + "/gatk/{normal_sample_id}_{experimental_sample_id}/{normal_sample_id}_{experimental_sample_id}_filterMutectCalls.log",
     threads: rule_res("filterMutectCalls").get("threads", 2)
     resources:
         mem_mb = rule_res("filterMutectCalls").get("mem_mb", 8000),
@@ -247,8 +255,9 @@ rule filterMutectCalls:
                 "-V", str(input.raw_vcf),
                 "-O", str(output.vcf),
             ]
-            if input.germline_resource:
-                cmd += ["--germline-resource", str(input.germline_resource[0])]
+            # NOTE: FilterMutectCalls has NO --germline-resource argument —
+            # the population-AF prior is baked into the raw VCF header by
+            # Mutect2 at calling time; this rule only applies the filters.
             if params.tmp_dir:
                 cmd += ["--tmp-dir", params.tmp_dir]
             with open(script, "w") as f:

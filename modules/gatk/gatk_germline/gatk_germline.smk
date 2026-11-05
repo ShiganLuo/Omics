@@ -1,3 +1,5 @@
+import shlex
+
 from snakemake.logging import logger
 include: "../../common/common.smk"
 
@@ -142,10 +144,12 @@ rule filterHaplotypeCallerVcf:
                 "-O", output.vcf,
                 "-window", "35",
                 "-cluster", "3",
-                "--filter-name", "FS", "--filter", f"FS > {params.FS_threshold}",
-                "--filter-name", "QD", "--filter", f"QD < {params.QD_threshold}",
-                "--filter-name", "DP", "--filter", f"DP < {params.DP_threshold}",
-                "--filter-name", "QUAL", "--filter", f"QUAL < {params.QUAL_threshold}"
+                # JEXL filter expressions carry >/< operators — MUST be
+                # shell-quoted or bash treats them as redirections.
+                "--filter-name", "FS", "--filter", shlex.quote(f"FS > {params.FS_threshold}"),
+                "--filter-name", "QD", "--filter", shlex.quote(f"QD < {params.QD_threshold}"),
+                "--filter-name", "DP", "--filter", shlex.quote(f"DP < {params.DP_threshold}"),
+                "--filter-name", "QUAL", "--filter", shlex.quote(f"QUAL < {params.QUAL_threshold}")
             ]
             if params.tmp_dir:
                 cmd1.extend(["--tmp-dir", params.tmp_dir])

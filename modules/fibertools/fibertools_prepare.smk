@@ -43,9 +43,11 @@ def _has_m6a(sample_id):
     if not os.path.exists(bam):
         return False
     try:
+        # samtools follows the symlink to the raw data, so the bind must cover
+        # the real target's directory, not just the 1_raw_data staging dir.
         real_bam = os.path.realpath(bam)
         bam_dir = os.path.dirname(real_bam)
-        cmd = ["apptainer", "exec", "--bind", f"{bam_dir}:{bam_dir}", _fibertools_sif, "samtools", "view", "-H", real_bam]
+        cmd = ["apptainer", "exec", "--bind", f"{bam_dir}:{bam_dir}", _fibertools_sif, "samtools", "view", "-H", bam]
         r = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
         return "103-496-900" in r.stdout
     except Exception:
@@ -92,7 +94,7 @@ rule ft_predict_m6a:
                 f.write(detect_sh)
                 f.write('if [ "$HAS_M6A" -eq 1 ]; then\n')
                 f.write(f'    echo "BAM already has m6A calls (SPRQ?), skipping predict-m6a"\n')
-                f.write(f'    ln -sf "$(realpath {input.bam})" {output.bam}\n')
+                f.write(f'    ln -sf "{input.bam}" {output.bam}\n')
                 f.write(f'    echo "Symlinked {input.bam} -> {output.bam}"\n')
                 f.write('else\n')
                 f.write(f'    echo "Predicting m6A for sample {wildcards.sample_id}"\n')

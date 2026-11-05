@@ -1,7 +1,7 @@
 # MEI 指纹检测原理:poly(A) 尾与 TSD —— 为什么它们是 L1 介导插入的标记
 
-配套脚本:`modules/sv/bin/mei_analysis.py`(检测) + `mei_plot.py` polya_tsd_fingerprint 图(可视化)。
-管线总览见 `MEI_METHODS.md`;本文档聚焦两个指纹的生物学原理与算法细节。
+方法文档, 只记录原理、算法与判定依据; 不含数据结果与运行用法。
+检测实现位于 `modules/sv/bin/mei_analysis.py`, 管线总览见 `MEI_METHODS.md`。
 
 ---
 
@@ -29,8 +29,7 @@ ORF2p 才能完成插入(in trans mobilization)。因此:
 
 对比:LTR 逆转座子(类逆转录病毒,经 RNA 中间体但走 cDNA 剪接/整合酶
 途径)和 DNA 转座子(剪切-粘贴)不走这条通路,不产生这套指纹。这也是
-mei_analysis.py 只对 family ∈ {L1, Alu, SVA} 做 TSD 检测、polya_tsd 图只画这三个
-家族的原因。
+检测只对 family ∈ {L1, Alu, SVA} 做 TSD 判定、指纹图只画这三个家族的原因。
 
 ## 二、TPRT:指纹的产生机制
 
@@ -77,18 +76,11 @@ L1 介导的插入遵循 **TPRT(Target-Primed Reverse Transcription,靶标引物
 - **阴性不能证伪**:polyA 可能因 caller 对 ALT 序列截断而丢失;参考基因
   组该位点若已带祖先插入(群体/物种固定拷贝),则参考中根本不存在"插入
   前"的侧翼序列,TSD 必然检不出。所以 TSD/polyA 缺失 ≠ 非转座事件。
+  指纹检出率应作为"携带指纹的插入占比",即 L1 介导插入比例的**下限**。
 
-## 三、算法实现(modules/sv/bin/mei_analysis.py)
+## 三、检测算法与判定依据
 
-### 3.1 poly(A) 尾检测 — `poly_a_tail()`
-
-```python
-def poly_a_tail(seq, min_len=12, min_frac=0.9):
-    tail_win = seq[-60:] if len(seq) >= 60 else seq
-    best_run = max连续A数(tail_win)          # 允许被打断,取最长纯A run
-    a_frac   = count(A)/len(tail_win)
-    return best_run >= min_len or a_frac >= min_frac
-```
+### 3.1 poly(A) 尾检测
 
 - 窗口:插入序列**末 60 bp**(不足 60 取全长)。poly(A) 尾长度典型
   20–150 bp,60 bp 窗口兼顾灵敏度与特异性(全序列统计会被长元件稀释)。
@@ -97,81 +89,48 @@ def poly_a_tail(seq, min_len=12, min_frac=0.9):
      12 连 A 的概率 ≈ (1/4)^12 ≈ 6e-8,基本排除背景;
   2. 窗口内 **A 占比 ≥90%**——容忍测序错误造成的零星打断,覆盖
      "A-rich 但不纯"的真实尾巴(逆转录/复制过程中的滑移、替换)。
-- 前置条件:`ins_len ≥ 200` 才检测(太短的插入多为噪声,记 NaN)。
+- 前置条件:插入长度 ≥200bp 才检测(太短的插入多为噪声,记缺失)。
 - 只查 3' 端、不区分链方向:MEI 的 ALT 序列方向由 caller 决定,polyA
-  若在序列 5' 端说明该序列是反向的,靠 RepeatMasker 的 strand 列交叉
-  判断(见 mei_events.tsv 的 te_strand)。
+  若在序列 5' 端说明该序列是反向的,靠 RepeatMasker 的链方向列交叉判断。
 
-### 3.2 TSD 检测 — `microhomology_tsd()`
-
-```python
-def microhomology_tsd(ref_fa_idx, chrom, pos, ins_seq, flank=30):
-    up   = ref[pos-1-30 : pos-1]     # 断点上游 30bp(VCF POS 为 1-based 锚定碱基)
-    down = ref[pos   : pos+1+30]     # 断点下游 30bp(插入位于 POS 与 POS+1 之间)
-    for k in range(20, 6, -1):       # 从长到短,优先报最长 TSD
-        a, b = up[-k:], down[:k]     # 紧贴断点两侧的 k-mer
-        if a == b and set(a) != {'N'}:
-            return {'tsd': a, 'len': k}
-    return None
-```
+### 3.2 TSD 检测
 
 - 坐标约定:VCF 中 INS 的 POS 是插入前 1-based 锚定碱基,插入发生在
   POS 与 POS+1 之间;pysam fetch 是 0-based 半开区间,故上游取
-  `[pos-1-flank, pos)`,下游取 `[pos, pos+flank+1)`。
-- 判定标准:紧邻断点上游末 k bp 与下游首 k bp**完全相同**(k=20 递减到
-  7)。要求"紧邻 + 两侧同时存在 + 精确匹配",对应 TPRT 产生的典型
-  7–20 bp 直接重复;全 N(参考缺口)排除。
+  `[pos-1-flank, pos)`,下游取 `[pos, pos+flank+1)`(flank=30)。
+- 判定标准:紧邻断点上游末 k bp 与下游首 k bp**完全相同**(k 从 20
+  递减到 7)。要求"紧邻 + 两侧同时存在 + 精确匹配",对应 TPRT 产生的
+  典型 7–20 bp 直接重复;全 N(参考缺口)排除。
 - 从长到短扫描:一个真实 TSD 若两侧完好,最长匹配就是它本身;先扫短
   k 会把 TSD 的子串误当 TSD,长度信息也丢失。
-- 只对 family ∈ {L1, Alu, SVA} 检测(LTR/DNA 转座子无此机制,检测无意义,
-  且会引入假阳性)。
-- 输出:mei_events.tsv 的 `tsd` 列存重复序列本身,`tsd_len` 存长度,
-  未检出为空。
+- 只对 family ∈ {L1, Alu, SVA} 检测(LTR/DNA 转座子无此机制,检测无
+  意义,且会引入假阳性)。
+- 输出语义:重复序列本身与长度分列记录,未检出为空。
 
-### 3.3 下游统计(mei_plot.py fig6)
+### 3.3 指纹率统计
 
-- polyA 率 = family 内 `polyA == True` 的比例;
-- TSD 率 = family 内 `tsd` 非空的比例;
-- 仅统计 Alu/L1/SVA,以"携带指纹的插入占比"作为该批事件中 L1(TPRT)
-  介导新生插入比例的**下限估计**。
+polyA 率 = family 内 polyA 阳性比例;TSD 率 = family 内 TSD 非空比例。
+仅统计 Alu/L1/SVA。解读注意:
+- polyA 面板是主判据,TSD 面板是"能确证的下限"——TSD 判定要求断点
+  精确到碱基且两侧序列完全相同,真实 SV call 断点常有数 bp–数十 bp
+  模糊,一侧偏移 1bp 即配对失败,检出率天然极低;
+- Alu 的 polyA 检出率通常高于 L1:Alu 全长仅 ~300bp,插入序列常完整
+  回收(含 3' 尾);L1 多为 5' 截短拷贝,caller 对长 ALT 的截断更激进;
+- SVA 事件数通常极少,占比无统计意义时不下结论;
+- "至少 X% 是 L1 介导",不是"只有 X% 是 L1 介导"(见判读不对称性)。
 
-## 四、如何解读 fig6(以 luanchao_mulatta youth_vs_aged 数据集为例)
+## 四、参数与依据
 
-实测值(mei_events.tsv 复核):Alu n=45,543,L1 n=5,587,SVA n=20。
-
-| 家族 | polyA 率 | TSD 率 |
+| 参数 | 默认 | 依据 |
 | --- | --- | --- |
-| Alu | 40.4% | 1.2% |
-| L1  | 21.4% | 0.9% |
-| SVA | 0.0% | 0.0%(n=20,无统计意义) |
+| polyA 窗口 | 60 bp | 尾长典型 20–150bp;全序列统计会被长元件稀释 |
+| 连续 A 阈值 | 12 | (1/4)^12≈6e-8 随机背景概率,特异性充分 |
+| A 占比阈值 | 0.90 | 容忍测序错误打断的真实尾巴 |
+| TSD k 范围 | 7–20 | TPRT 典型 TSD 长度分布(L1 ~15-20bp, Alu ~7-15bp) |
+| TSD 侧翼 | 30 bp | 覆盖断点模糊度;匹配要求不随 flank 放宽 |
+| polyA 最小插入 | 200 bp | 更短的插入多为测序噪声 |
 
-1. **polyA 面板是主要证据**:约 1/5–2/5 的 Alu/L1 插入 3' 端带 A-rich
-   尾,直接支持这部分事件是 TPRT 介导的新生插入,而非比对错误或参考中
-   已有拷贝的误报。
-2. **Alu 检出率高于 L1 的原因**:Alu 全长仅 ~300 bp,插入序列通常完整
-   回收(含 3' 尾);L1 插入多为 5' 截短拷贝,caller 对长 ALT 的表示/
-   截断也更激进,尾巴更易丢失。
-3. **TSD 检出率极低是分辨率问题,不是机制缺失**:TSD 判定要求断点精确
-   到碱基且两侧序列完全相同;pbsv/SURVIVOR 的 INS 断点常有数 bp–数十 bp
-   模糊,一侧偏移 1 bp 即配对失败。本数据集检出的 TSD 几乎全为
-   poly(A)-like 同聚物(如 AAAAAAAAAA),也说明精确匹配在真实 SV call
-   上何等苛刻。**TSD 面板应视为"能确证的下限",polyA 面板才是主判据。**
-4. **未检出 polyA 的 L1/Alu 事件不能就此否定**:ALT 截断(见
-   MEI_METHODS.md 已知限制 #2)会人为压低检出率,故 fig6 的读法是
-   "至少 X% 是 L1 介导",而不是"只有 X% 是 L1 介导"。
-
-## 五、参数与调优
-
-| 参数 | 默认 | 位置 | 调整建议 |
-| --- | --- | --- | --- |
-| polyA 窗口 | 60 bp | `poly_a_tail()` 硬编码 | 想抓更长的尾巴可加大,但特异性略降 |
-| 连续 A 阈值 | 12 | 同上 | 降 to 10 会略增灵敏度,(1/4)^10≈1e-6 仍可控 |
-| A 占比阈值 | 0.90 | 同上 | 测序质量差的数据集可降到 0.85 |
-| TSD k 范围 | 7–20 | `microhomology_tsd()` 循环 | 物种/家族 TSD 长度分布不同时可收窄 |
-| TSD 侧翼 | 30 bp | 同上 flank | 断点误差大的 caller 可加大,但匹配要求不变 |
-| polyA 最小插入 | 200 bp | 主循环 | — |
-
-## 六、参考
+## 五、参考
 
 - Feng Q, et al. Human L1 retrotransposon encodes a conserved endonuclease
   required for retrotransposition. *Cell* 87:905-916 (1996). — L1 ORF2p

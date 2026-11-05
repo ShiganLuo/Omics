@@ -3,6 +3,7 @@ include: "../common/common.smk"
 
 import time
 import os
+import json
 
 ROOT_DIR = config.get("ROOT_DIR", ".")
 indir = config.get("indir", "input")
@@ -45,7 +46,7 @@ rule sv_exp_specific:
         repeatmasker_dir = directory(outdir + "/{comparison}/repeatmasker"),
         statistics_dir = directory(outdir + "/{comparison}/statistics"),
     log:
-        logdir + "/{comparison}/sv_exp_specific.log"
+        logdir + "/sv/{comparison}/sv_exp_specific.log"
     resources:
         mem_mb = rule_res("sv_exp_specific").get("mem_mb", 8000),
     params:
@@ -108,7 +109,7 @@ rule sv_exp_circos:
     output:
         circos_dir = directory(outdir + "/{comparison}/circos"),
     log:
-        logdir + "/{comparison}/sv_exp_circos.log"
+        logdir + "/sv/{comparison}/sv_exp_circos.log"
     resources:
         mem_mb = rule_res("sv_exp_circos").get("mem_mb", 8000),
     params:
@@ -162,7 +163,7 @@ rule sv_gene_model:
     output:
         gene_dir = directory(outdir + "/{comparison}/gene_model"),
     log:
-        logdir + "/{comparison}/sv_gene_model.log"
+        logdir + "/sv/{comparison}/sv_gene_model.log"
     resources:
         mem_mb = rule_res("sv_gene_model").get("mem_mb", 8000),
     params:
@@ -213,11 +214,11 @@ rule sv_gene_model:
 rule sv_diff_analysis:
     """Run SV differential analysis across all comparison groups."""
     input:
-        specific_vcfs = expand(outdir + "/{comp}/{comp}_only.vcf", comp=comparison_names),
+        specific_vcfs = expand(outdir + "/{comparison}/{comparison}_only.vcf", comparison=comparison_names),
     output:
         diff_dir = directory(outdir + "/sv_diff_analysis"),
     log:
-        logdir + "/all/sv_diff_analysis.log"
+        logdir + "/sv/sv_diff_analysis.log"
     resources:
         mem_mb = rule_res("sv_diff_analysis").get("mem_mb", 8000),
     params:
@@ -233,7 +234,6 @@ rule sv_diff_analysis:
         rule_logger = setup_logger("sv_diff_analysis", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            diff_outdir = f"{outdir}/sv_diff_analysis"
             script_path = os.path.join(RECEIPT_DIR, f"sv_diff_analysis_{current_time}.sh")
             plain_script = os.path.join(outdir, f"sv_diff_analysis.sh")
             rule_logger.info(f"Running sv_diff_analysis for all comparisons")
@@ -246,7 +246,7 @@ rule sv_diff_analysis:
                 fmt_args += ["-f", fmt]
             cmd = [
                 "python", params.script,
-                "-o", diff_outdir,
+                "-o", str(output.diff_dir),
                 "-s", str(params.large_sv_threshold),
             ] + group_args + fmt_args
             with open(script_path, "w") as f:
@@ -268,7 +268,7 @@ rule sv_oncoprint:
         oncoprint_matrix = outdir + "/sv_oncoprint/oncoprint_matrix.csv",
         oncoprint_dir = directory(outdir + "/sv_oncoprint"),
     log:
-        logdir + "/all/sv_oncoprint.log"
+        logdir + "/sv/oncoprint.log"
     resources:
         mem_mb = rule_res("sv_oncoprint").get("mem_mb", 8000),
     params:
@@ -336,18 +336,21 @@ rule sv_mei:
     output:
         mei_dir = directory(outdir + "/{comparison}/mei"),
     log:
-        logdir + "/{comparison}/sv_mei.log"
+        logdir + "/sv/{comparison}/sv_mei.log"
     resources:
         mem_mb = rule_res("sv_mei").get("mem_mb", 16000),
     params:
         analysis = os.path.join(ROOT_DIR, "modules/sv/bin/mei_analysis.py"),
-        plot = os.path.join(ROOT_DIR, "modules/sv/bin/mei_plot.py"),
+        # figures chain INSIDE the entry via bin/utils/mei_plot.py (dead param,
+        # kept only for readability of the rule's toolchain)
+        plot = os.path.join(ROOT_DIR, "modules/sv/bin/utils/mei_plot.py"),
         min_len = config.get("Params", {}).get("mei", {}).get("min_len", 100),
         full_length = config.get("Params", {}).get("mei", {}).get("full_length", 6000),
         full_length_family = config.get("Params", {}).get("mei", {}).get("full_length_family", "L1"),
         threads = lambda wildcards: rule_res("sv_mei").get("threads", 4),
         ctrl_name = lambda wildcards: (comparisons.get(wildcards.comparison, {}) or {}).get("control_group_name") or "",
         exp_name = lambda wildcards: (comparisons.get(wildcards.comparison, {}) or {}).get("experimental_group_name") or "",
+        te_buckets = config.get("Params", {}).get("sv", {}).get("mei", {}).get("te_buckets", "primate"),
     conda:
         "sv.yaml"
     container:
@@ -378,6 +381,11 @@ rule sv_mei:
                 cmd += ["--ctrl-name", shlex.quote(params.ctrl_name)]
             if params.exp_name:
                 cmd += ["--exp-name", shlex.quote(params.exp_name)]
+            # TE bucket profile: preset name or inline bucket list (JSON)
+            tb = params.te_buckets
+            if isinstance(tb, (list, dict)):
+                tb = json.dumps(tb, ensure_ascii=False)
+            cmd += ["--te-buckets", shlex.quote(str(tb))]
             if input.fasta:
                 cmd += ["--fasta", str(input.fasta[0])]
             if input.gtf:
@@ -400,7 +408,7 @@ rule sv_result:
     input:
         annotated_tabs = expand(outdir + "/{comp}/{comp}_annotated.tab", comp=comparison_names),
         repeatmasker_dirs = expand(outdir + "/{comp}/repeatmasker", comp=comparison_names),
-        statistics_dirs = expand(outdir + "/{comp}/statstics", comp=comparison_names),
+        statistics_dirs = expand(outdir + "/{comp}/statistics", comp=comparison_names),
         enrichment_dirs = expand(outdir + "/{comp}/enrichment", comp=comparison_names),
         circos_dirs = expand(outdir + "/{comp}/circos", comp=comparison_names),
         gene_model_dirs = expand(outdir + "/{comp}/gene_model", comp=comparison_names),

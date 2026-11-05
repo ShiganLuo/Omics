@@ -17,9 +17,10 @@ Pipeline (per INS event):
      regions (rmsk TE bed) -> exon / intron / intergenic / TE-into-TE
   5. Full-length L1 detection: >=6000 bp + L1 family + full-length-ish hit
 
-Stages (the entry runs all three; skip with --skip-plot / --skip-te-age):
-  analysis (this file) -> figures (utils/mei_plot.py) ->
-  TE insertion dating (utils/te_age_analysis.py)
+Stages (the entry runs analysis + figures; --skip-plot to skip figures):
+  analysis (this file) -> 6-figure suite (utils/mei_plot.py).
+TE insertion dating (utils/te_age_analysis.py) is a SEPARATE analysis,
+run standalone with --mei-dir afterwards.
 
 Outputs (all under --outdir):
   mei_events.tsv        per-event table (all INS, classified or not)
@@ -392,8 +393,7 @@ def main():
                     help="figure/report title (default: parent dir of --outdir)")
     ap.add_argument("--skip-plot", action="store_true",
                     help="skip the figure stage (utils/mei_plot.py)")
-    ap.add_argument("--skip-te-age", action="store_true",
-                    help="skip the TE insertion dating stage")
+
     args = ap.parse_args()
 
     os.makedirs(args.outdir, exist_ok=True)
@@ -564,14 +564,8 @@ def main():
             plot_cmd += ["--ctrl-name", args.ctrl_name]
         if args.exp_name:
             plot_cmd += ["--exp-name", args.exp_name]
-        log("stage 2/3: figures -> " + " ".join(plot_cmd))
+        log("figures -> " + " ".join(plot_cmd))
         subprocess.run(plot_cmd, check=True)
-    # ---- stage 3: TE insertion dating (utils/te_age_analysis.py) ----
-    if not args.skip_te_age:
-        age_cmd = [sys.executable, os.path.join(utils_dir, "te_age_analysis.py"),
-                   "--mei-dir", args.outdir]
-        log("stage 3/3: te_age -> " + " ".join(age_cmd))
-        subprocess.run(age_cmd, check=True)
     log(f"done. outputs in {args.outdir}")
     log(f"families: {summary['family_counts_overall']}")
 

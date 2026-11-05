@@ -1,10 +1,9 @@
 # MEI (Mobile Element Insertion) 分析方法文档
 
 针对 SURVIVOR 合并 SV VCF（pbsv 来源）的转座事件分析管线。
-脚本:上级目录 `modules/sv/bin/mei_analysis.py` 是**唯一入口**,一条命令跑完三段:分析 → 作图(`utils/mei_plot.py`)→ TE 插入定年(`utils/te_age_analysis.py`),后两段自动串联,可用 `--skip-plot` / `--skip-te-age` 单独关闭。
+脚本:上级目录 `modules/sv/bin/mei_analysis.py` 是**唯一入口**,一条命令跑完:分析 → 6 图(`utils/mei_plot.py` 自动串联;`--skip-plot` 可关)。TE 插入定年(`utils/te_age_analysis.py`)是独立分析,不在本管线内,用 `--mei-dir` 事后单独跑。
 poly(A)/TSD 指纹的检测算法与 TPRT 生物学原理详见 `README_polyA_TSD.md`。
-TE 插入年龄(divergence-from-consensus 分子钟)输出至 `<mei-dir>/te_age/`
-(也可单独跑:`utils/te_age_analysis.py --mei-dir <mei_outdir>`)。
+TE 插入年龄(divergence-from-consensus 分子钟)为独立分析:`utils/te_age_analysis.py --mei-dir <mei_outdir> --min-len <分析时的阈值>`,输出至 `<mei-dir>/te_age/`。
 运行环境:`sv.sif` 容器(RepeatMasker / pysam / pandas / matplotlib)。
 
 ## 一、输入契约
@@ -67,7 +66,7 @@ apptainer exec --bind /data/16T/Database --bind <output_dir> --bind <workflow_di
   --fasta /data/16T/Database/Reference/mulatta/NCBI/Mmul_T2T/GCF_049350105.2_T2T-MMU8v2.0_genomic.fa \
   --threads 12 \
   --title "<label>"
-# 图组与 te_age 定年自动接续(无需单独命令);--skip-plot / --skip-te-age 可关闭
+# 6 张图自动接续(无需单独命令);--skip-plot 可关闭;te_age 需单独跑
 ```
 
 调试:`--max-records 500` 先小样本试跑。

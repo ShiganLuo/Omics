@@ -319,6 +319,32 @@
           "type": "int",
           "required": true
         }
+      },
+      "mei": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "enabled": {
+            "type": "bool",
+            "required": false
+          },
+          "min_len": {
+            "type": "int",
+            "required": false
+          },
+          "full_length": {
+            "type": "int",
+            "required": false
+          },
+          "full_length_family": {
+            "type": "str",
+            "required": false
+          },
+          "te_age": {
+            "type": "bool",
+            "required": false
+          }
+        }
       }
     },
     "censat": {

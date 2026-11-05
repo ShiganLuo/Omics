@@ -27,7 +27,7 @@ Output (in --outdir, default <mei-dir>/te_age):
   te_age_by_group.tsv        family x group stats + MWU/KS p-values
   te_age_subfamily.tsv       per-subfamily divergence table
   te_full_length_L1_age.tsv  full-length L1 (SVLEN>=6000) with ages
-  te_age_fig1..4.png         figs (hist/landscape/box/full-length-L1)
+  te_age figures (divergence_hist/landscape/divergence_box/full_length_L1)         figs (hist/landscape/box/full-length-L1)
   te_age_report.md           digest report
 """
 import argparse
@@ -250,7 +250,7 @@ def main():
             axes[r_, c].set_ylabel("insertions")
         axes[0, c].legend(fontsize=7)
     fig.tight_layout()
-    fig.savefig(os.path.join(outdir, "te_age_fig1_div_hist.png"), dpi=150)
+    fig.savefig(os.path.join(outdir, "te_age_divergence_hist.png"), dpi=150)
     plt.close(fig)
 
     # fig2: age landscape: div bins x family, stacked by group, fraction
@@ -274,7 +274,7 @@ def main():
     axes[0, 0].legend()
     fig.suptitle("Divergence-bin landscape by group (rate-free relative age)")
     fig.tight_layout()
-    fig.savefig(os.path.join(outdir, "te_age_fig2_landscape.png"), dpi=150)
+    fig.savefig(os.path.join(outdir, "te_age_landscape.png"), dpi=150)
     plt.close(fig)
 
     # fig3: boxplots of divergence by group per family (all analyzed fams)
@@ -298,7 +298,7 @@ def main():
     ax.set_title("TE insertion age proxy by family and group")
     plt.xticks(rotation=60, fontsize=7)
     fig.tight_layout()
-    fig.savefig(os.path.join(outdir, "te_age_fig3_box.png"), dpi=150)
+    fig.savefig(os.path.join(outdir, "te_age_divergence_box.png"), dpi=150)
     plt.close(fig)
 
     # fig4: full-length L1 divergence
@@ -315,7 +315,7 @@ def main():
             patch.set_facecolor(list(colors.values())[i % 3])
         ax.set_ylabel("divergence (%)")
     fig.tight_layout()
-    fig.savefig(os.path.join(outdir, "te_age_fig4_full_length_L1.png"), dpi=150)
+    fig.savefig(os.path.join(outdir, "te_age_full_length_L1.png"), dpi=150)
     plt.close(fig)
 
     # ---- markdown digest report ----

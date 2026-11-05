@@ -374,6 +374,13 @@ def main():
                     help="minimum inserted-sequence length to classify (default 100)")
     ap.add_argument("--full-length-l1", type=int, default=6000,
                     help="min SVLEN for full-length L1 candidacy (default 6000)")
+    ap.add_argument("--full-length-family", default="L1",
+                    help="family considered for full-length candidacy "
+                         "(default L1; set to e.g. ERVK for other clades)")
+    ap.add_argument("--ctrl-name", default=None,
+                    help="label for the control branch (default: ctrl)")
+    ap.add_argument("--exp-name", default=None,
+                    help="label for the experimental branch (default: exp)")
     ap.add_argument("--threads", type=int, default=4)
     ap.add_argument("--max-records", type=int, default=0,
                     help="debug: cap number of INS records (0 = all)")
@@ -386,8 +393,12 @@ def main():
         recs = recs[: args.max_records]
     log(f"sample columns: {samples}")
 
-    # group labelling by SUPP_VEC: assumes control-first merge order
-    vec = {"10": "ctrl_specific", "01": "exp_specific", "11": "shared"}
+    # group labelling by SUPP_VEC: assumes control-first merge order.
+    # Custom branch labels keep figures/tables readable for any design
+    # (e.g. --ctrl-name serum --exp-name KSR).
+    cb = args.ctrl_name or "ctrl"
+    eb = args.exp_name or "exp"
+    vec = {"10": f"{cb}_specific", "01": f"{eb}_specific", "11": "shared"}
     for r in recs:
         r["group"] = vec.get(r["supp_vec"], f"other({r['supp_vec']})")
 
@@ -486,8 +497,9 @@ def main():
             r["context"] = r["gene"] = r["in_te_region"] = ""
 
     # full-length L1 candidates
+    fl_fam = args.full_length_family
     fl = [r for r in recs
-          if r["family"] == "L1" and r["svlen"] >= args.full_length_l1]
+          if r["family"] == fl_fam and r["svlen"] >= args.full_length_l1]
     for r in fl:
         r["full_length_L1"] = True
     for r in recs:
@@ -517,6 +529,8 @@ def main():
 
     summary = {
         "input": args.input,
+        "branches": {"control": cb, "experiment": eb},
+        "full_length_family": fl_fam,
         "n_ins_total": len(recs),
         "n_classified": int((df["family"] != "unclassified").sum()
                             + (df["family"] == "short_unclassified").sum() * 0),

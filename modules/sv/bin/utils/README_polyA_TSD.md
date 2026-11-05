@@ -1,6 +1,6 @@
 # MEI 指纹检测原理:poly(A) 尾与 TSD —— 为什么它们是 L1 介导插入的标记
 
-配套脚本:`mei_analysis.py`(检测) + `mei_plot.py` fig6(可视化)。
+配套脚本:`modules/sv/bin/mei_analysis.py`(检测) + `mei_plot.py` polya_tsd_fingerprint 图(可视化)。
 管线总览见 `MEI_METHODS.md`;本文档聚焦两个指纹的生物学原理与算法细节。
 
 ---
@@ -29,7 +29,7 @@ ORF2p 才能完成插入(in trans mobilization)。因此:
 
 对比:LTR 逆转座子(类逆转录病毒,经 RNA 中间体但走 cDNA 剪接/整合酶
 途径)和 DNA 转座子(剪切-粘贴)不走这条通路,不产生这套指纹。这也是
-mei_analysis.py 只对 family ∈ {L1, Alu, SVA} 做 TSD 检测、fig6 只画这三个
+mei_analysis.py 只对 family ∈ {L1, Alu, SVA} 做 TSD 检测、polya_tsd 图只画这三个
 家族的原因。
 
 ## 二、TPRT:指纹的产生机制
@@ -78,7 +78,7 @@ L1 介导的插入遵循 **TPRT(Target-Primed Reverse Transcription,靶标引物
   组该位点若已带祖先插入(群体/物种固定拷贝),则参考中根本不存在"插入
   前"的侧翼序列,TSD 必然检不出。所以 TSD/polyA 缺失 ≠ 非转座事件。
 
-## 三、算法实现(mei_analysis.py)
+## 三、算法实现(modules/sv/bin/mei_analysis.py)
 
 ### 3.1 poly(A) 尾检测 — `poly_a_tail()`
 

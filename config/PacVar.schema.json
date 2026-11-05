@@ -151,6 +151,32 @@
           "type": "int",
           "required": true
         }
+      },
+      "mei": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "enabled": {
+            "type": "bool",
+            "required": false
+          },
+          "min_len": {
+            "type": "int",
+            "required": false
+          },
+          "full_length": {
+            "type": "int",
+            "required": false
+          },
+          "full_length_family": {
+            "type": "str",
+            "required": false
+          },
+          "te_age": {
+            "type": "bool",
+            "required": false
+          }
+        }
       }
     },
     "phase": {
@@ -230,22 +256,61 @@
       "reconstruct": {
         "type": "dict",
         "required": true,
-        "additionalProperties":{
+        "additionalProperties": {
           "type": "dict",
           "properties": {
-          "min_sv_len": {"type": "int", "required": true},
-          "fragment_min_cov": {"type": "int", "required": true},
-          "fragment_max_cov": {"type": "int", "required": true},
-          "fragment_min_size": {"type": "int", "required": true},
-          "min_vaf": {"type": "float", "required": true},
-          "min_cov_alt": {"type": "int", "required": true},
-          "min_cov": {"type": "int", "required": true},
-          "max_explog_threshold": {"type": "float", "required": true},
-          "filter_score": {"type": "int", "required": true},
-          "sv_caller": {"type": "str", "required": true},
-          "threads": {"type": "int", "required": true},
-          "extend_allowed_chromosomes": {"type": "str", "required": false},
-          "skip": {"type": "bool", "required": false}
+            "min_sv_len": {
+              "type": "int",
+              "required": true
+            },
+            "fragment_min_cov": {
+              "type": "int",
+              "required": true
+            },
+            "fragment_max_cov": {
+              "type": "int",
+              "required": true
+            },
+            "fragment_min_size": {
+              "type": "int",
+              "required": true
+            },
+            "min_vaf": {
+              "type": "float",
+              "required": true
+            },
+            "min_cov_alt": {
+              "type": "int",
+              "required": true
+            },
+            "min_cov": {
+              "type": "int",
+              "required": true
+            },
+            "max_explog_threshold": {
+              "type": "float",
+              "required": true
+            },
+            "filter_score": {
+              "type": "int",
+              "required": true
+            },
+            "sv_caller": {
+              "type": "str",
+              "required": true
+            },
+            "threads": {
+              "type": "int",
+              "required": true
+            },
+            "extend_allowed_chromosomes": {
+              "type": "str",
+              "required": false
+            },
+            "skip": {
+              "type": "bool",
+              "required": false
+            }
           }
         }
       },

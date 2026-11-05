@@ -317,6 +317,91 @@ rule sv_oncoprint:
         # Result aggregation rule
         # ========================
 
+
+rule sv_mei:
+    """MEI (mobile element insertion) analysis per comparison.
+
+    Consumes the SURVIVOR-merged VCF from sv_exp_specific; classifies INS
+    alleles by RepeatMasker against the species TE lib, detects poly(A)/TSD
+    fingerprints, annotates genomic context, and renders the figure suite
+    (modules/sv/bin/mei_analysis.py + mei_plot.py + optional te_age_analysis).
+    """
+    input:
+        merged_vcf = outdir + "/{comparison}/{comparison}_merged.vcf",
+        te_lib = lambda wildcards: _require(config.get("genome", {}).get("te_lib"), "genome.te_lib", "sv_mei"),
+        fasta = lambda wildcards: [config.get("genome", {}).get("fasta")] if config.get("genome", {}).get("fasta") else [],
+        gtf = lambda wildcards: [config.get("genome", {}).get("gtf")] if config.get("genome", {}).get("gtf") else [],
+        te_bed = lambda wildcards: [config.get("genome", {}).get("repeat_bed")] if config.get("genome", {}).get("repeat_bed") else [],
+    output:
+        mei_dir = directory(outdir + "/{comparison}/mei"),
+    log:
+        logdir + "/{comparison}/sv_mei.log"
+    resources:
+        mem_mb = rule_res("sv_mei").get("mem_mb", 16000),
+    params:
+        analysis = os.path.join(ROOT_DIR, "modules/sv/bin/mei_analysis.py"),
+        plot = os.path.join(ROOT_DIR, "modules/sv/bin/mei_plot.py"),
+        te_age = os.path.join(ROOT_DIR, "modules/sv/bin/te_age_analysis.py"),
+        min_len = config.get("Params", {}).get("mei", {}).get("min_len", 100),
+        full_length = config.get("Params", {}).get("mei", {}).get("full_length", 6000),
+        full_length_family = config.get("Params", {}).get("mei", {}).get("full_length_family", "L1"),
+        te_age_enabled = config.get("Params", {}).get("mei", {}).get("te_age", True),
+        threads = lambda wildcards: rule_res("sv_mei").get("threads", 4),
+        ctrl_name = lambda wildcards: (comparisons.get(wildcards.comparison, {}) or {}).get("control_group_name") or "",
+        exp_name = lambda wildcards: (comparisons.get(wildcards.comparison, {}) or {}).get("experimental_group_name") or "",
+    conda:
+        "sv.yaml"
+    container:
+        sif("sv.yaml", "sv_mei")
+    run:
+        log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger("sv_mei", log_file=log_path)
+        try:
+            import shlex
+            current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+            mei_out = os.path.join(str(outdir), wildcards.comparison, "mei")
+            os.makedirs(mei_out, exist_ok=True)
+            script_path = os.path.join(RECEIPT_DIR, f"sv_mei_{wildcards.comparison}_{current_time}.sh")
+            plain_script = os.path.join(str(outdir), wildcards.comparison, "sv_mei.sh")
+            cmd = [
+                "python", params.analysis,
+                "-i", str(input.merged_vcf),
+                "-o", mei_out,
+                "--te-lib", str(input.te_lib),
+                "--min-len", str(params.min_len),
+                "--full-length-l1", str(params.full_length),
+                "--full-length-family", params.full_length_family,
+                "--threads", str(params.threads),
+            ]
+            if params.ctrl_name:
+                cmd += ["--ctrl-name", shlex.quote(params.ctrl_name)]
+            if params.exp_name:
+                cmd += ["--exp-name", shlex.quote(params.exp_name)]
+            if input.fasta:
+                cmd += ["--fasta", str(input.fasta[0])]
+            if input.gtf:
+                cmd += ["--gtf", str(input.gtf[0])]
+            if input.te_bed:
+                cmd += ["--te-bed", str(input.te_bed[0])]
+            cmd += ["&&", "python", params.plot, "--mei-dir", mei_out,
+                    "--title", wildcards.comparison]
+            if params.ctrl_name:
+                cmd += ["--ctrl-name", shlex.quote(params.ctrl_name)]
+            if params.exp_name:
+                cmd += ["--exp-name", shlex.quote(params.exp_name)]
+            if params.te_age_enabled:
+                cmd += ["&&", "python", params.te_age, "--mei-dir", mei_out]
+            with open(script_path, "w") as f:
+                f.write("#!/bin/bash\nset -euo pipefail\n")
+                f.write(" ".join(cmd) + "\n")
+                f.write(f'echo "sv_mei completed successfully for {wildcards.comparison}"\n')
+            shutil.copyfile(script_path, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
+        except Exception as e:
+            rule_logger.error(f"sv_mei failed for {wildcards.comparison}: {e}")
+            raise RuntimeError(f"sv_mei failed for {wildcards.comparison}: {e}")
+
 rule sv_result:
     """Aggregate all SV analysis outputs as dependency endpoint."""
     input:
@@ -326,6 +411,7 @@ rule sv_result:
         enrichment_dirs = expand(outdir + "/{comp}/enrichment", comp=comparison_names),
         circos_dirs = expand(outdir + "/{comp}/circos", comp=comparison_names),
         gene_model_dirs = expand(outdir + "/{comp}/gene_model", comp=comparison_names),
+        mei_dirs = expand(outdir + "/{comp}/mei", comp=comparison_names),
         diff_dir = outdir + "/sv_diff_analysis",
         oncoprint_dir = outdir + "/sv_oncoprint",
     resources:

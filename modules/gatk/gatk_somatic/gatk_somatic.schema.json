@@ -63,7 +63,23 @@
         "path": "file",
         "nullable": true,
         "required": false
+      },
+      "strain_resource": {
+        "type": "str",
+        "path": "file",
+        "nullable": true,
+        "required": false
       }
+    },
+    "pair_strains": {
+        "type": "dict",
+        "nullable": true,
+        "required": false
+    },
+    "design_pairs": {
+        "type": "list",
+        "nullable": true,
+        "required": false
     }
   },
   "Params": {

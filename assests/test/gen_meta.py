@@ -42,7 +42,7 @@ WORKFLOWS = {
     "KARRseq":         {"kind": "fastq", "columns": FASTQ_COLS},
     "MERIP":           {"kind": "fastq", "columns": FASTQ_COLS},
     "Mutation":        {"kind": "fastq", "columns": ["sample_id", "organism", "data_id", "design",
-                                                     "group", "assay", "fastq_1", "fastq_2"]},
+                                                     "group", "assay", "strain", "fastq_1", "fastq_2"]},
     "ncRNAseq":        {"kind": "fastq", "columns": FASTQ_COLS},
     "PeakCalling":     {"kind": "fastq", "columns": FASTQ_COLS},
     "tRNAseq":         {"kind": "fastq", "columns": FASTQ_COLS},
@@ -150,6 +150,8 @@ def main():
     ap.add_argument("--contaminated-organism", default="", help="fill contaminated_organism (RNAseq)")
     ap.add_argument("--group", default="", help="fill group column (RNAseq, Mutation)")
     ap.add_argument("--assay", default="", help="fill assay column, e.g. WGS / Exome / Panel (Mutation)")
+    ap.add_argument("--strain", default="", help="fill strain column, e.g. 129P2_OlaHsd (Mutation; "
+                                                  "enables strain-aware germline filtering, empty = all-strain resource)")
     ap.add_argument("--sample-map", default=None, help="TSV: data_id<TAB>sample_id (merge replicates)")
     ap.add_argument("--design-map", default=None, help="TSV: data_id or sample_id<TAB>design")
     ap.add_argument("--group-map", default=None, help="TSV: data_id or sample_id<TAB>group")
@@ -217,6 +219,7 @@ def main():
                 row["ms_file"] = os.path.abspath(f1)
             row["organism"] = args.organism
             row["assay"] = args.assay
+            row["strain"] = args.strain
             if not row.get("group"):
                 row["group"] = args.group
             row["contaminated_organism"] = args.contaminated_organism

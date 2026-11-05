@@ -32,6 +32,7 @@ class SampleInfo:
     group: Optional[str] = None
     design: Optional[str] = None
     assay: Optional[str] = None  # Sequencing assay type: WGS / Exome / Panel / RNA-seq etc.
+    strain: Optional[str] = None  # Mouse strain (e.g. 129P2_OlaHsd) for strain-aware germline filtering
     pacbio_bam: Optional[str] = None # PacBio BAM file
     pacbio_pbi: Optional[str] = None # PacBio index file
     bam: Optional[str] = None # BAM file

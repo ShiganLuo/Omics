@@ -236,6 +236,19 @@ class MetadataUtils:
         s = str(assay_raw).strip()
         return s or None
 
+    @staticmethod
+    def _parse_strain(strain_raw: Any) -> Optional[str]:
+        """Resolve one sample's mouse strain name from a raw meta cell.
+
+        Returns the stripped string (e.g. "129P2_OlaHsd"), or None when the
+        cell is absent/empty/NaN. Shared by every prepare_*_meta path so the
+        ``strain`` column survives regardless of the input modality.
+        """
+        if strain_raw is None or (isinstance(strain_raw, float) and math.isnan(strain_raw)):
+            return None
+        s = str(strain_raw).strip()
+        return s or None
+
     def _collect_raw_files(self) -> List[str]:
         """Collect resolved input file paths from raw_fq_dir.
 
@@ -358,6 +371,7 @@ class MetadataUtils:
             self.samples_dict[sample_id].group = group_value
             self.samples_dict[sample_id].assay = self._parse_assay(
                 df_sample[assay_col].values[0] if assay_col in df_sample.columns else None)
+            self.samples_dict[sample_id].strain = self._parse_strain(df_sample["strain"].values[0] if "strain" in df_sample.columns else None)
             host_organism_value = "UNKNOWN"
             try:
                 host_organism_value = str(df_sample[organism_col].values[0]) if organism_col in df_sample.columns else "UNKNOWN"
@@ -471,6 +485,7 @@ class MetadataUtils:
                 self.samples_dict[sample_id].group = group_value
                 self.samples_dict[sample_id].assay = self._parse_assay(
                     df_sample[assay_col].values[0] if assay_col in df_sample.columns else None)
+                self.samples_dict[sample_id].strain = self._parse_strain(df_sample["strain"].values[0] if "strain" in df_sample.columns else None)
                 try:
                     self.samples_dict[sample_id].organism = resolve_genome(organism)
                 except ValueError as e:
@@ -513,6 +528,7 @@ class MetadataUtils:
                 self.samples_dict[sample_id].group = group_value
                 self.samples_dict[sample_id].assay = self._parse_assay(
                     df_sample[assay_col].values[0] if assay_col in df_sample.columns else None)
+                self.samples_dict[sample_id].strain = self._parse_strain(df_sample["strain"].values[0] if "strain" in df_sample.columns else None)
                 try:
                     self.samples_dict[sample_id].organism = resolve_genome(organism)
                 except ValueError as e:
@@ -587,6 +603,7 @@ class MetadataUtils:
             self.samples_dict[sample_id].group = group_value
             self.samples_dict[sample_id].assay = self._parse_assay(
                 df_sample[assay_col].values[0] if assay_col in df_sample.columns else None)
+            self.samples_dict[sample_id].strain = self._parse_strain(df_sample["strain"].values[0] if "strain" in df_sample.columns else None)
             ms_file_path = str(df_sample[ms_file_col].values[0]) if ms_file_col in df_sample.columns else None
 
             if not ms_file_path or not os.path.exists(ms_file_path):
@@ -704,6 +721,7 @@ class MetadataUtils:
             self.samples_dict[sample_id].design, self.samples_dict[sample_id].group = self._parse_design(
                 row.get(self.design_col), row.get("group"))
             self.samples_dict[sample_id].assay = self._parse_assay(row.get("assay"))
+            self.samples_dict[sample_id].strain = self._parse_strain(row.get("strain"))
 
             # Build cellranger_input for this sample
             self.cellranger_input_dict[sample_id] = CellrangerInput(

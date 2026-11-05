@@ -649,7 +649,7 @@ def runMutation(
         _targets = None
         _ref_entry["targets"] = None
     for designPair in designPairs:
-        somatic_file = f"{outdir}/variation/somatic_snv_indel/{designPair.ctr_sample_id}_vs_{designPair.exp_sample_id}/{designPair.ctr_sample_id}_vs_{designPair.exp_sample_id}.vcf.gz"
+        somatic_file = f"{outdir}/variation/somatic_snv_indel/{designPair.ctr_sample_id}_vs_{designPair.exp_sample_id}/{designPair.ctr_sample_id}_vs_{designPair.exp_sample_id}.filtered.vcf.gz"
         sample_somatic_vcf_dict[designPair.exp_sample_id] = somatic_file
         sample_group_dict[designPair.exp_sample_id] = designPair.exp_group
         outfiles.append(somatic_file)
@@ -658,6 +658,16 @@ def runMutation(
         paired_design.append({"control": designPair.ctr_sample_id, "experimental": designPair.exp_sample_id})
 
     datajson["Params"]["workflow"]["paired_design"] = paired_design
+    # Strain-aware germline filtering (meta ``strain`` column -> per-pair strain
+    # map for gatk_somatic; empty when the column is absent/left blank).
+    pair_strains = {}
+    for designPair in designPairs:
+        strain = getattr(samples_info_dict.get(designPair.exp_sample_id), "strain", None)
+        if strain:
+            pair_strains[designPair.exp_sample_id] = strain
+    datajson["Params"]["workflow"]["pair_strains"] = pair_strains
+    if pair_strains:
+        logger.info(f"Mutation: strain-aware germline filtering enabled for pairs: {pair_strains}")
     # CNVkit calling mode resolution (Params.cnvkit.mode; "auto" decides here
     # from the design): matched normals in the design pairs -> paired; else a
     # normal panel (Params.workflow.control_samples) -> pooled; else flat.

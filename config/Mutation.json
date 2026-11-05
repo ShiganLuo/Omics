@@ -19,7 +19,8 @@
             "logdir": "logs",
             "paired_samples": [],
             "single_samples": [],
-            "paired_design": []
+            "paired_design": [],
+            "pair_strains": {}
         },
         "trim_galore": {
             "quality": 25
@@ -78,7 +79,8 @@
                 "bwaMem2_index_prefix": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/bwa_mem2/GRCm39",
                 "access": null,
                 "targets": null,
-                "germline_resource": "/data/16T/Database/Reference/mouse/Ensembl/GRCm39/germline_resource.GRCm39.vcf.gz"
+                "germline_resource": "/data/16T/Database/Reference/mouse/MGP/GRCm39/germline_resource.MGP52.GRCm39.vcf.gz",
+                "strain_resource": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/germline/129/mgp_REL2021_snps.vcf.gz"
             },
             "GRCh38": {
                 "fasta": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa",
@@ -87,7 +89,8 @@
                 "bwaMem2_index_prefix": "/data/16T/Database/Reference/human/GENCODE/GRCh38/bwa_mem2/genome",
                 "access": null,
                 "targets": null,
-                "germline_resource": "/data/16T/Database/Reference/human/gnomAD/GRCh38/af-only-gnomad.hg38.vcf.gz"
+                "germline_resource": "/data/16T/Database/Reference/human/gnomAD/GRCh38/af-only-gnomad.hg38.vcf.gz",
+                "strain_resource": null
             },
             "Mmul_10": {
                 "fasta": "/home/luosg/Database/Reference/mulatta/ENSEMBL/Mmul_10/Macaca_mulatta.Mmul_10.dna.toplevel.fa",
@@ -96,7 +99,8 @@
                 "bwaMem2_index_prefix": null,
                 "access": null,
                 "targets": null,
-                "germline_resource": null
+                "germline_resource": null,
+                "strain_resource": null
             }
         }
     },
@@ -196,6 +200,14 @@
         },
         "derive_targets": {
             "threads": 4,
+            "mem_mb": 16000
+        },
+        "filterMutectCalls": {
+            "threads": 2,
+            "mem_mb": 8000
+        },
+        "germline_resource_strain": {
+            "threads": 2,
             "mem_mb": 16000
         }
     }

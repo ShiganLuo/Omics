@@ -2,6 +2,9 @@
 
 针对 SURVIVOR 合并 SV VCF（pbsv 来源）的转座事件分析管线。
 脚本:本目录 `mei_analysis.py`(分析)+ `mei_plot.py`(可视化)。
+poly(A)/TSD 指纹的检测算法与 TPRT 生物学原理详见 `README_polyA_TSD.md`。
+TE 插入年龄(divergence-from-consensus 分子钟)分析:`te_age_analysis.py`
+(用法:`te_age_analysis.py --mei-dir <mei_outdir>`,输出至 `<mei-dir>/te_age/`)。
 运行环境:`sv.sif` 容器(RepeatMasker / pysam / pandas / matplotlib)。
 
 ## 一、输入契约

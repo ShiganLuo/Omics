@@ -171,10 +171,6 @@
           "full_length_family": {
             "type": "str",
             "required": false
-          },
-          "te_age": {
-            "type": "bool",
-            "required": false
           }
         }
       }

@@ -20,7 +20,7 @@ Usage:
 Input (all under --mei-dir):
   mei_events.tsv          per-event table from mei_analysis.py
   repeatmasker/ins.fa.out RepeatMasker raw output (divergence column)
-  repeatmasker/ins.fa     inserted-sequence FASTA (id order = events >=100bp)
+  repeatmasker/ins.fa     inserted-sequence FASTA (id order = events >=min_len)
 
 Output (in --outdir, default <mei-dir>/te_age):
   te_divergence_per_ins.tsv  per-insertion divergence + ages at 3 mu values
@@ -96,6 +96,9 @@ def main():
     ap.add_argument("--mei-dir", required=True,
                     help="mei_analysis.py output dir (contains mei_events.tsv "
                          "and repeatmasker/)")
+    ap.add_argument("--min-len", type=int, default=100,
+                    help="same insertion-length cutoff mei_analysis used "
+                         "(events >= this fill repeatmasker/ins.fa)")
     ap.add_argument("-o", "--outdir", default=None,
                     help="output dir (default: <mei-dir>/te_age)")
     ap.add_argument("--families", default="Alu,L1,LTR,SVA,DNA",
@@ -120,14 +123,14 @@ def main():
     ev = pd.read_csv(events, sep="\t", keep_default_na=False)
     hits = parse_out(rm_out)
 
-    # ---- map insN ids: i-th event row with ins_len>=100 (VCF record order)
+    # ---- map insN ids: i-th event row with ins_len>=min_len (VCF record order)
     # = ins{i} ----
     n_fa = 0
     with open(rm_fa) as fh:
         for line in fh:
             if line.startswith(">"):
                 n_fa += 1
-    sub = ev[ev["ins_len"] >= 100].copy().reset_index(drop=True)
+    sub = ev[ev["ins_len"] >= args.min_len].copy().reset_index(drop=True)
     if len(sub) != n_fa:
         sys.exit(f"FATAL: events>=100bp ({len(sub)}) != ins.fa seqs ({n_fa})")
     sub["ins_id"] = [f"ins{i}" for i in range(len(sub))]

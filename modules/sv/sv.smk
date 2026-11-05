@@ -323,8 +323,9 @@ rule sv_mei:
 
     Consumes the SURVIVOR-merged VCF from sv_exp_specific; classifies INS
     alleles by RepeatMasker against the species TE lib, detects poly(A)/TSD
-    fingerprints, annotates genomic context, and renders the figure suite
-    (modules/sv/bin/mei_analysis.py + mei_plot.py + optional te_age_analysis).
+    fingerprints, annotates genomic context, and renders the 6-figure suite
+    via the single entry modules/sv/bin/mei_analysis.py. TE insertion dating
+    (te_age_analysis.py) is a separate standalone analysis, not run here.
     """
     input:
         merged_vcf = outdir + "/{comparison}/{comparison}_merged.vcf",
@@ -341,11 +342,9 @@ rule sv_mei:
     params:
         analysis = os.path.join(ROOT_DIR, "modules/sv/bin/mei_analysis.py"),
         plot = os.path.join(ROOT_DIR, "modules/sv/bin/mei_plot.py"),
-        te_age = os.path.join(ROOT_DIR, "modules/sv/bin/te_age_analysis.py"),
         min_len = config.get("Params", {}).get("mei", {}).get("min_len", 100),
         full_length = config.get("Params", {}).get("mei", {}).get("full_length", 6000),
         full_length_family = config.get("Params", {}).get("mei", {}).get("full_length_family", "L1"),
-        te_age_enabled = config.get("Params", {}).get("mei", {}).get("te_age", True),
         threads = lambda wildcards: rule_res("sv_mei").get("threads", 4),
         ctrl_name = lambda wildcards: (comparisons.get(wildcards.comparison, {}) or {}).get("control_group_name") or "",
         exp_name = lambda wildcards: (comparisons.get(wildcards.comparison, {}) or {}).get("experimental_group_name") or "",
@@ -385,10 +384,7 @@ rule sv_mei:
                 cmd += ["--gtf", str(input.gtf[0])]
             if input.te_bed:
                 cmd += ["--te-bed", str(input.te_bed[0])]
-            if not params.te_age_enabled:
-                cmd += ["--skip-te-age"]
-            # figures + te_age run INSIDE the entry (params.plot/te_age kept
-            # for provenance only)
+            # figures run INSIDE the entry (utils/mei_plot.py chained)
             with open(script_path, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")

@@ -33,8 +33,7 @@ python ${SCRIPT_DIR}/run.py \
     -t 48 \
     --log /data/16T/luosg/log/Exome_Totipotency.log \
     --sdm \
-    --rerun-triggers mtime \
-    --dry-run
+    --rerun-triggers mtime
 
 # python ${SCRIPT_DIR}/run.py \
 #     -m /data/pub/zhousha/20260207_Exome/data/tRNA/meta.tsv \

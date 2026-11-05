@@ -144,7 +144,7 @@ def run_vcf_analysis(
     """
     if image_formats is None:
         image_formats = ["png"]
-    outdir = Path(out_dir) / "statstics"
+    outdir = Path(out_dir) / "statistics"
     outdir.mkdir(parents=True,exist_ok=True)
     logger.info("Starting VCF analysis and visualization...")
     matrix,summary = run_sv_stratification(vcf,str(outdir))

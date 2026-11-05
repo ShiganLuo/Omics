@@ -32,20 +32,23 @@ Outputs (all under --outdir):
 """
 
 import argparse
+import copy
 import gzip
 import json
+import logging
 import os
 import re
 import subprocess
 import sys
 import tempfile
 from collections import Counter, defaultdict
+from pathlib import Path
 
 import pandas as pd
 
+from utils.common import setup_logger
 
-def log(msg):
-    print(f"[MEI] {msg}", flush=True)
+logger = setup_logger("mei_analysis")
 
 
 # ---------------------------------------------------------------- VCF parsing
@@ -132,7 +135,7 @@ def load_merged_vcf(path):
                 "supp": info.get("SUPP", "."),
                 "samples": samples,
             })
-    log(f"parsed INS records with sequence: {len(recs)} "
+    logger.info(f"parsed INS records with sequence: {len(recs)} "
         f"(dropped symbolic/no-seq: {dropped_symbolic})")
     return recs, samples
 
@@ -153,16 +156,16 @@ def run_repeatmasker(seqs, ids, workdir, species_lib, threads=4):
                     fh.write(s[j:j + 60] + "\n")
         cmd = ["RepeatMasker", "-no_is", "-s", "-pa",
                str(threads), "-lib", species_lib, "-dir", workdir, fa]
-        log(f"running RepeatMasker on {len(seqs)} sequences (this can take a while)")
+        logger.info(f"running RepeatMasker on {len(seqs)} sequences (this can take a while)")
         r = subprocess.run(cmd, capture_output=True, text=True)
         if r.returncode != 0:
-            log(f"RepeatMasker failed: {r.stderr[:500]}")
+            logger.info(f"RepeatMasker failed: {r.stderr[:500]}")
             return {}
         if not os.path.exists(out):
-            log("RepeatMasker .out missing")
+            logger.info("RepeatMasker .out missing")
             return {}
     else:
-        log(f"reusing cached {out}")
+        logger.info(f"reusing cached {out}")
     hits = defaultdict(list)
     with open(out) as fh:
         for line in fh:
@@ -265,6 +268,180 @@ def microhomology_tsd(ref_fa_idx, chrom, pos, ins_seq, flank=30):
             if a == b and set(a) != {"N"}:
                 return {"tsd": a, "len": k}
     return None
+
+
+# ------------------------------------------------- family bucket profiles
+# A profile is an ORDERED list of buckets; the first bucket whose match
+# level hits claims the event (so put specific buckets before generic
+# ones, e.g. IAP/ETn before a bare LTR bucket).
+#
+# Bucket schema (all matching is EXACT, case-insensitive):
+#   name       display/bucket name (never used for matching)
+#   subfamily  match against the RM repeat NAME (AluY / B1_Mm / IAP1 ...)
+#   family     match against the RM class/family suffix ("SINE/Alu" -> Alu;
+#              entries without a slash match the whole string)
+#   class      match against the RM class/family prefix ("SINE", "LTR" ...)
+# Level probing order is subfamily -> family -> class; ONLY the first
+# non-empty level list of a bucket participates in matching.
+#   catch_all  "classified"   RM hit but no bucket matched
+#              "unclassified" no RM hit at all
+#   retro_fingerprint  true -> include this bucket in the fingerprint figure
+#   zero_slot   false -> omit the bucket from figures when it has zero
+#               events (default true: keep the slot, labelled "0")
+
+TE_BUCKETS_PRIMATE = [
+    # Exact matching at each level: 'subfamily' compares the RM repeat NAME
+    # (AluJr4, B1_Mus1 ...), 'family' the class/family SUFFIX (SINE/Alu ->
+    # Alu), 'class' the PREFIX (SINE). Exact match means subfamily lists
+    # only work for names WITHOUT subfamily suffixes — for L1/SVA/IAP the
+    # real names are L1_Md_A / SVA_A / IAP-dIAP1-int, so those buckets
+    # must match at family level.
+    {"name": "Alu", "family": ["Alu"], "retro_fingerprint": True},
+    {"name": "L1", "family": ["L1", "LINE"], "retro_fingerprint": True},
+    {"name": "SVA", "family": ["SVA"], "retro_fingerprint": True},
+    {"name": "LTR", "class": ["LTR"]},
+    {"name": "DNA", "class": ["DNA"]},
+    {"name": "microsatellite", "class": ["Simple_repeat"]},
+    {"name": "other", "catch_all": "classified"},
+    {"name": "unclassified", "catch_all": "unclassified"},
+]
+
+TE_BUCKETS_MOUSE = [
+    {"name": "IAP/ETn", "family": ["ERVK"], "retro_fingerprint": True},
+    {"name": "B1", "family": ["Alu"], "retro_fingerprint": True},
+    {"name": "B2/ID", "family": ["tRNA", "B2"], "retro_fingerprint": True},
+    {"name": "L1", "family": ["L1", "LINE"], "retro_fingerprint": True},
+    {"name": "LTR", "class": ["LTR"]},
+    {"name": "DNA", "class": ["DNA"]},
+    {"name": "microsatellite", "class": ["Simple_repeat"]},
+    {"name": "other", "catch_all": "classified"},
+    {"name": "unclassified", "catch_all": "unclassified"},
+]
+
+TE_BUCKETS_PRESETS = {"primate": TE_BUCKETS_PRIMATE,
+                      "mouse": TE_BUCKETS_MOUSE}
+
+# Species alias -> sentinel family-name markers that a sane TE consensus
+# library for that species MUST contain (see utils/famdb.py
+# SENTINEL_SUBFAMILIES; mirrored here so consumers validate the -lib FASTA
+# without importing famdb). A te-buckets preset maps to an alias; custom
+# bucket lists skip the check (unknown vocabulary, no sentinels defined).
+TE_LIB_SENTINELS = {
+    "mouse": (["l1m", "l1mus"], ["b1"], ["b2"], ["iap"], ["etn", "mervl"]),
+    "primate": (["l1p", "l1hs", "l1_"], ["alu"], ["sva"], ["erv", "ltr"]),
+}
+
+
+def validate_te_lib(te_lib_path, preset_name):
+    """Warn loudly when the TE library lacks species sentinel families.
+
+    Returns None; logs a WARNING naming the missing groups and the rebuild
+    command. Deterministic for the wrong-branch failure mode (a library
+    with only ancestor-level families); cannot detect sequence-level
+    corruption.
+    """
+    groups = TE_LIB_SENTINELS.get(preset_name)
+    if not groups or not os.path.exists(te_lib_path):
+        return
+    names = set()
+    with open(te_lib_path) as fh:
+        for line in fh:
+            if line.startswith(">"):
+                names.add(line[1:].split()[0].lower())
+                if len(names) > 5000:
+                    break
+    missing = ["/".join(g) for g in groups
+               if not any(any(m in n for n in names) for m in g)]
+    if missing:
+        logger.warning(f"TE library {te_lib_path} lacks sentinel families "
+            f"for preset '{preset_name}': {', '.join(missing)}. It was "
+            f"likely curated on the wrong lineage branch — every "
+            f"insertion may classify as noise. Rebuild with: python "
+            f"modules/sv/bin/utils/famdb.py -i <dfam.h5> -s "
+            f"{'mouse' if preset_name == 'mouse' else 'human'} "
+            f"-o {te_lib_path}")
+
+
+def resolve_te_profile(spec):
+    """--te-buckets value -> validated bucket list.
+
+    spec is a preset name ("primate"/"mouse"), an inline JSON string (a
+    list of buckets or {"buckets": [...]}), a path to a JSON file, or the
+    already-parsed list/dict (when invoked programmatically). Raises
+    ValueError with the offending detail on malformed input.
+    """
+    if isinstance(spec, str):
+        if spec in TE_BUCKETS_PRESETS:
+            return copy.deepcopy(TE_BUCKETS_PRESETS[spec])
+        stripped = spec.strip()
+        if stripped.startswith(("[", "{")):
+            try:
+                spec = json.loads(stripped)
+            except json.JSONDecodeError as e:
+                raise ValueError(
+                    f"te-buckets looks like inline JSON but does not parse: "
+                    f"{e}") from e
+        else:
+            p = Path(spec)
+            if p.exists():
+                with open(p) as fh:
+                    spec = json.load(fh)
+            else:
+                raise ValueError(
+                    f"unknown te-buckets preset '{spec}' and not a file; "
+                    f"presets: {sorted(TE_BUCKETS_PRESETS)}")
+    if isinstance(spec, dict) and "buckets" in spec:
+        spec = spec["buckets"]
+    if not isinstance(spec, list) or not spec:
+        raise ValueError("TE buckets must be a non-empty list")
+    for i, b in enumerate(spec):
+        if not isinstance(b, dict) or "name" not in b:
+            raise ValueError(f"bucket #{i} must be a dict with a 'name'")
+        levels = [k for k in ("subfamily", "family", "class")
+                  if b.get(k) not in (None, [])]
+        ca = b.get("catch_all")
+        if not levels and not ca:
+            raise ValueError(
+                f"bucket '{b['name']}' has none of subfamily/family/class/"
+                "catch_all")
+        if ca and ca not in ("classified", "unclassified"):
+            raise ValueError(
+                f"bucket '{b['name']}': catch_all must be 'classified' or "
+                "'unclassified'")
+        for k in levels:
+            if not (isinstance(b[k], list)
+                    and all(isinstance(x, str) for x in b[k])):
+                raise ValueError(
+                    f"bucket '{b['name']}': '{k}' must be a list of strings")
+    return spec
+
+
+def make_bucket_fn(buckets):
+    """Compile a bucket list into classify(te_repeat, te_class) -> name."""
+    compiled = []  # (name, level, {lowercased values})
+    catch = {}
+    for b in buckets:
+        for level in ("subfamily", "family", "class"):
+            vals = b.get(level)
+            if vals:
+                compiled.append((b["name"], level, {v.lower() for v in vals}))
+                break  # only the FIRST non-empty level participates
+        if b.get("catch_all"):
+            catch[b["catch_all"]] = b["name"]
+    def classify(rep, cls):
+        rep = (rep or "").strip()
+        cls = (cls or "").strip()
+        if not rep or rep.lower() == "none":
+            return catch.get("unclassified", "unclassified")
+        rep_l, cls_l = rep.lower(), cls.lower()
+        family = cls_l.split("/")[-1] if "/" in cls_l else cls_l
+        klass = cls_l.split("/")[0] if "/" in cls_l else cls_l
+        field = {"subfamily": rep_l, "family": family, "class": klass}
+        for name, level, vals in compiled:
+            if field[level] in vals:
+                return name
+        return catch.get("classified", "other")
+    return classify
 
 
 # ------------------------------------------------------------------ annotation
@@ -382,6 +559,13 @@ def main():
     ap.add_argument("--full-length-family", default="L1",
                     help="family considered for full-length candidacy "
                          "(default L1; set to e.g. ERVK for other clades)")
+    ap.add_argument("--te-buckets", default="primate",
+                    help="family bucket profile: preset name "
+                         "(primate|mouse), inline JSON (list of buckets or "
+                         "{\"buckets\": [...]}) or path to a JSON file. "
+                         "Buckets are ordered; matching is exact and "
+                         "case-insensitive at the first non-empty level of "
+                         "subfamily/family/class (default: primate)")
     ap.add_argument("--ctrl-name", default=None,
                     help="label for the control branch (default: ctrl)")
     ap.add_argument("--exp-name", default=None,
@@ -396,12 +580,19 @@ def main():
 
     args = ap.parse_args()
 
+    buckets = resolve_te_profile(args.te_buckets)
+    classify = make_bucket_fn(buckets)
+    logger.info(f"TE buckets ({len(buckets)}): "
+        + ", ".join(b["name"] for b in buckets))
+    if isinstance(args.te_buckets, str) and args.te_buckets in TE_BUCKETS_PRESETS:
+        validate_te_lib(args.te_lib, args.te_buckets)
+
     os.makedirs(args.outdir, exist_ok=True)
 
     recs, samples = load_merged_vcf(args.input)
     if args.max_records:
         recs = recs[: args.max_records]
-    log(f"sample columns: {samples}")
+    logger.info(f"sample columns: {samples}")
 
     # group labelling by SUPP_VEC: assumes control-first merge order.
     # Custom branch labels keep figures/tables readable for any design
@@ -416,7 +607,7 @@ def main():
     import bisect as _bs
 
     to_classify = [r for r in recs if r["ins_len"] >= args.min_len]
-    log(f"classifying {len(to_classify)} INS >= {args.min_len} bp "
+    logger.info(f"classifying {len(to_classify)} INS >= {args.min_len} bp "
         f"(shorter kept as 'short_unclassified')")
 
     rm_dir = os.path.join(args.outdir, "repeatmasker")
@@ -443,28 +634,15 @@ def main():
             r["te_strand"] = ""
             r["te_sw"] = 0
 
-    # family bucket: SINE/Alu, LINE/L1, SVA, LTR, DNA, simple_repeat, none
-    def bucket(r):
-        rep = (r["te_repeat"] or "").lower()
-        cls = (r["te_class"] or "").lower()
-        if not rep or rep == "none":
-            return "unclassified"
-        if "alu" in rep or "alu" in cls:
-            return "Alu"
-        if rep.startswith("l1") or "line" in cls or rep.startswith("lre"):
-            return "L1"
-        if "sva" in rep:
-            return "SVA"
-        if "ltr" in cls or rep.startswith("erv") or "maa" in rep:
-            return "LTR"
-        if "dna" in cls:
-            return "DNA"
-        if "(" in rep and ")" in rep:
-            return "simple_repeat"
-        return "other"
+    # family bucket: profile-driven (see TE_BUCKETS_* / --te-buckets)
+    fingerprint_fams = {b["name"] for b in buckets
+                        if b.get("retro_fingerprint")}
     for r in recs:
-        r["family"] = bucket(r) if r.get("te_repeat") else (
-            "short_unclassified" if r["ins_len"] < args.min_len else "unclassified")
+        if r.get("te_repeat"):
+            r["family"] = classify(r["te_repeat"], r["te_class"])
+        else:
+            r["family"] = ("short_unclassified"
+                           if r["ins_len"] < args.min_len else "unclassified")
 
     # ---------------- fingerprints ----------------
     fa_idx = None
@@ -473,13 +651,13 @@ def main():
             import pysam
             fa_idx = pysam.FastaFile(args.fasta)
         except ImportError:
-            log("pysam not available; TSD detection skipped")
+            logger.info("pysam not available; TSD detection skipped")
     n_polya = 0
     for r in recs:
         r["polyA"] = bool(poly_a_tail(r["seq"])) if r["ins_len"] >= 200 else None
         if r["polyA"]:
             n_polya += 1
-        if fa_idx is not None and r["family"] in ("L1", "Alu", "SVA"):
+        if fa_idx is not None and r["family"] in fingerprint_fams:
             r["tsd"] = microhomology_tsd(fa_idx, r["chrom"], r["pos"], r["seq"])
         else:
             r["tsd"] = None
@@ -528,7 +706,12 @@ def main():
     fam_group.to_csv(os.path.join(args.outdir, "mei_family_by_group.tsv"),
                      sep="\t")
 
-    ctx_tbl = (df[df["family"].isin(["Alu", "L1", "SVA", "LTR", "DNA"])]
+    # context table: TE buckets only (exclude microsatellite/other/
+    # unclassified noise so the table stays interpretable)
+    te_bucket_names = [b["name"] for b in buckets
+                       if not b.get("catch_all")
+                       and b["name"] != "microsatellite"]
+    ctx_tbl = (df[df["family"].isin(te_bucket_names)]
                .groupby(["family", "group", "context"]).size()
                .unstack(fill_value=0))
     ctx_tbl.to_csv(os.path.join(args.outdir, "mei_context.tsv"), sep="\t")
@@ -540,6 +723,7 @@ def main():
     summary = {
         "input": args.input,
         "branches": {"control": cb, "experiment": eb},
+        "te_buckets": buckets,
         "full_length_family": fl_fam,
         "n_ins_total": len(recs),
         "n_classified": int((df["family"] != "unclassified").sum()
@@ -564,10 +748,10 @@ def main():
             plot_cmd += ["--ctrl-name", args.ctrl_name]
         if args.exp_name:
             plot_cmd += ["--exp-name", args.exp_name]
-        log("figures -> " + " ".join(plot_cmd))
+        logger.info("figures -> " + " ".join(plot_cmd))
         subprocess.run(plot_cmd, check=True)
-    log(f"done. outputs in {args.outdir}")
-    log(f"families: {summary['family_counts_overall']}")
+    logger.info(f"done. outputs in {args.outdir}")
+    logger.info(f"families: {summary['family_counts_overall']}")
 
 
 if __name__ == "__main__":

@@ -26,6 +26,42 @@ GENOME_TE_SPECIES = {
     "Mmul_10": "rhesus",
     "Mmul_T2T": "rhesus",
 }
+
+# Genome reference key -> default MEI TE-bucket preset (modules/sv/bin/
+# mei_analysis.py --te-buckets). When the genome has no entry here the
+# generic "primate" preset stays the fallback; an explicit
+# Params.sv.mei.te_buckets in the config always wins.
+GENOME_TE_BUCKET_PRESET = {
+    "GRCh38": "primate",
+    "GRCm39": "mouse",
+    "T2T_mhaESC_v1.5": "mouse",
+    "Mmul_10": "primate",
+    "Mmul_T2T": "primate",
+}
+def _fill_mei_te_buckets(datajson: Dict[str, Any], workflow: str) -> None:
+    """Default Params.sv.mei.te_buckets from the resolved genome.default.
+
+    The MEI suite (modules/sv/bin/mei_analysis.py) buckets insertions with
+    a species-specific TE vocabulary; the right default follows the genome,
+    not the user's memory. GENOME_TE_BUCKET_PRESET maps the normalized
+    genome key to a preset name; an explicit Params.sv.mei.te_buckets
+    (config JSON or --Params.sv.mei.te_buckets override) always wins.
+    Genomes without an entry keep mei_analysis's own default.
+    """
+    sv_params = datajson.setdefault("Params", {}).setdefault("sv", {})
+    mei = sv_params.setdefault("mei", {})
+    if mei.get("te_buckets"):
+        return  # explicit config wins
+    genome_key = datajson.get("genome", {}).get("default")
+    preset = GENOME_TE_BUCKET_PRESET.get(str(genome_key)) if genome_key else None
+    if preset:
+        mei["te_buckets"] = preset
+        logger.info(
+            f"{workflow}: Params.sv.mei.te_buckets auto-set to '{preset}' "
+            f"from genome.default '{genome_key}'"
+        )
+
+
 def _detect_current_server_db() -> str | None:
     """Detect current server's database dir by checking which paths in SERVER_DATABASE_DIR exist."""
     for db_dir in SERVER_DATABASE_DIR.values():
@@ -525,6 +561,7 @@ def runPacVar(
     # wins; otherwise it is derived from the meta group pairs, like
     # runRNAseq fills Params.DESeq2.group_pairs.
     sv_params = datajson.get("Params", {}).get("sv", {})
+    _fill_mei_te_buckets(datajson, "PacVar")
     comparisons = dict(sv_params.get("comparisons") or {})
     if enable_sv and not comparisons:
         for gp in group_pairs:
@@ -587,7 +624,7 @@ def runPacVar(
                 )
             datajson["Params"]["function"]["sv_go_kegg"]["species"] = svgokegg_species
             for name in comparisons:
-                outfiles.append(f"{sv_outdir}/sv_go_kegg/{name}/sv_go_kegg.done")
+                outfiles.append(f"{sv_outdir}/{name}/sv_go_kegg/sv_go_kegg.done")
 
     gatk_tmp_dir = os.path.join(outdir, "tmp")
     os.makedirs(gatk_tmp_dir, exist_ok=True)
@@ -1613,6 +1650,7 @@ def runFiberseq(
         )
     ### inject outfiles
     sv_params = datajson.get("Params", {}).get("sv", {})
+    _fill_mei_te_buckets(datajson, "Fiberseq")
     comparisons = dict(sv_params.get("comparisons") or {})
     if enable_sv and not comparisons:
         for gp in group_pairs:
@@ -1672,7 +1710,7 @@ def runFiberseq(
                 )
             datajson["Params"]["function"]["sv_go_kegg"]["species"] = svgokegg_species
             for name in comparisons:
-                outfiles.append(f"{sv_outdir}/sv_go_kegg/{name}/sv_go_kegg.done")
+                outfiles.append(f"{sv_outdir}/{name}/sv_go_kegg/sv_go_kegg.done")
         outfiles.append(f"{sv_outdir}/sv_diff_analysis")
         if sv_oncoprint.get("cosmic_file"):
             outfiles.append(f"{sv_outdir}/sv_oncoprint/oncoprint_matrix.csv")

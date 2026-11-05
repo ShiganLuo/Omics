@@ -33,12 +33,12 @@ rule sv_go_kegg:
     input:
         annotated_tab=indir + "/{comparison}/{comparison}_annotated.tab"
     output:
-        genes=outdir + "/{comparison}/sv_genes.txt",
-        go_csv=outdir + "/{comparison}/go_enrichment.csv",
-        go_plot=outdir + "/{comparison}/go_enrichment." + sg_format,
-        kegg_csv=outdir + "/{comparison}/kegg_enrichment.csv",
-        kegg_plot=outdir + "/{comparison}/kegg_enrichment." + sg_format,
-        done=outdir + "/{comparison}/sv_go_kegg.done",
+        genes=outdir + "/{comparison}/sv_go_kegg/sv_genes.txt",
+        go_csv=outdir + "/{comparison}/sv_go_kegg/go_enrichment.csv",
+        go_plot=outdir + "/{comparison}/sv_go_kegg/go_enrichment." + sg_format,
+        kegg_csv=outdir + "/{comparison}/sv_go_kegg/kegg_enrichment.csv",
+        kegg_plot=outdir + "/{comparison}/sv_go_kegg/kegg_enrichment." + sg_format,
+        done=outdir + "/{comparison}/sv_go_kegg/sv_go_kegg.done",
     log:
         logdir + "/{comparison}/sv_go_kegg.log"
     threads: rule_res("sv_go_kegg").get("threads", 1)
@@ -49,7 +49,7 @@ rule sv_go_kegg:
     container:
         sif("../function.yaml", "sv_go_kegg")
     params:
-        script=ROOT_DIR + "/modules/function/sv_go/bin/sv_go-kegg.r",
+        script=ROOT_DIR + "/modules/function/sv_go_kegg/bin/sv_go-kegg.r",
         species=sg_species,
         impact=sg_impact,
         top=sg_top,

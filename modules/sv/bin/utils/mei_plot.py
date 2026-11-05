@@ -49,18 +49,17 @@ GROUP_LABEL = {"ctrl_specific": "ctrl-specific",
                "shared": "shared"}
 GROUP_COLOR = {"ctrl_specific": "#4A72B7", "exp_specific": "#D73027",
                "shared": "#7F7F7F"}
-FAM_ORDER = ["Alu", "L1", "SVA", "LTR", "DNA", "simple_repeat", "other",
+
+# Fallback bucket vocabulary for mei dirs produced before te_buckets was
+# recorded in mei_summary.json (plot-only; analysis always writes its own).
+FAM_ORDER = ["Alu", "L1", "SVA", "LTR", "DNA", "microsatellite", "other",
              "unclassified", "short_unclassified"]
 FAM_COLOR = {"Alu": "#E08214", "L1": "#4A72B7", "SVA": "#8E44AD",
-             "LTR": "#27AE60", "DNA": "#16A085", "simple_repeat": "#95A5A6",
+             "LTR": "#27AE60", "DNA": "#16A085", "microsatellite": "#95A5A6",
+             "B1": "#F0A04B", "B2/ID": "#E4B363", "IAP/ETn": "#C0392B",
              "other": "#BDC3C7", "unclassified": "#7F8C8D",
              "short_unclassified": "#D5D8DC"}
-# fig1 keeps one granularity: the three primate MEI families (family level)
-# plus microsatellites (RepeatMasker simple_repeat, e.g. (CA)n). Class-level
-# buckets (LTR, DNA) and noise buckets (other/unclassified) stay in the
-# events TSV but dilute the family-level signal — excluded from the figure.
-FIG1_FAMS = ["Alu", "L1", "SVA", "simple_repeat"]
-FAM_DISPLAY = {"simple_repeat": "microsatellite"}
+FAM_DISPLAY = {"microsatellite": "microsatellite"}
 
 # Real group names from the workflow config (Params.sv.comparisons.<key>),
 # injected via --ctrl-name/--exp-name. Falls back to generic labels.
@@ -92,26 +91,67 @@ def b64(path):
         return base64.b64encode(fh.read()).decode()
 
 
-def fig1_family_by_group(df, out):
+def bucket_vocab(summary, df):
+    """(slot_buckets, fingerprint_buckets) from the recorded te_buckets
+    profile; falls back to FAM_ORDER for pre-profile mei dirs.
+
+    slot_buckets: ordered figure slots — every profile bucket with
+    zero_slot != false (zero-count buckets KEEP their slot, labelled 0),
+    plus short_unclassified when present in the data.
+    fingerprint_buckets: buckets flagged retro_fingerprint (fig6).
+    """
+    prof = (summary or {}).get("te_buckets")
+    if isinstance(prof, list) and prof:
+        names = [b.get("name") for b in prof
+                 if isinstance(b, dict) and b.get("name")]
+        slots = [n for b, n in zip(prof, names) if b.get("zero_slot", True)]
+        fp = [n for b, n in zip(prof, names) if b.get("retro_fingerprint")]
+    else:
+        present = set(df["family"].dropna())
+        slots = [f for f in FAM_ORDER if f in present]
+        fp = [f for f in slots if f not in
+              ("microsatellite", "other", "unclassified",
+               "short_unclassified")]
+    if "short_unclassified" in set(df["family"].dropna()) \
+            and "short_unclassified" not in slots:
+        slots.append("short_unclassified")
+    return slots, fp
+
+
+def fam_color(f):
+    return FAM_COLOR.get(f, "#BDC3C7")
+
+
+def fig1_family_by_group(df, out, fams=None):
+    fams = fams or FAM_ORDER
     fig, axes = plt.subplots(1, 2, figsize=(11.5, 4.8),
                              gridspec_kw={"width_ratios": [2, 1]})
-    fams = [f for f in FIG1_FAMS if (df["family"] == f).any()]
     groups = [g for g in GROUP_ORDER if (df["group"] == g).any()]
 
-    # left: grouped bars
+    # left: grouped bars — every profile bucket keeps its slot; zero-count
+    # slots stay visible as a "0" marker at the axis floor (log scale)
     x = np.arange(len(fams))
-    w = 0.8 / len(groups)
+    w = 0.8 / max(len(groups), 1)
     for gi, g in enumerate(groups):
-        vals = [(df[(df.family == f) & (df.group == g)]).shape[0] for f in fams]
-        axes[0].bar(x + gi * w - 0.4 + w / 2, vals, width=w * 0.92,
+        vals = [(df[(df.family == f) & (df.group == g)]).shape[0]
+                for f in fams]
+        pos = x + gi * w - 0.4 + w / 2
+        axes[0].bar(pos, vals, width=w * 0.92,
                     color=GROUP_COLOR[g], label=group_label(g))
+        for xi, v in zip(pos, vals):
+            if v == 0:
+                axes[0].text(xi, 0.75, "0", ha="center", fontsize=8,
+                             color="#95A5A6")
     axes[0].set_xticks(x)
     axes[0].set_xticklabels([FAM_DISPLAY.get(f, f) for f in fams],
                             rotation=30, ha="right")
     axes[0].set_ylabel("insertions")
     axes[0].set_yscale("log")
-    axes[0].legend(frameon=False, loc="upper right", bbox_to_anchor=(1.0, 1.02))
-    axes[0].set_title("A  TE family x group (log scale)")
+    axes[0].set_ylim(0.5, None)
+    # legend OUTSIDE the axes: a log-scale upper-right legend overlaps bars
+    axes[0].legend(frameon=False, loc="upper left",
+                   bbox_to_anchor=(0.0, 1.14), ncol=len(groups))
+    axes[0].set_title("A  TE family x group (log scale)", pad=24)
 
     # right: totals per group (same family subset as panel A)
     sub = df[df.family.isin(fams)]
@@ -132,8 +172,8 @@ def fig1_family_by_group(df, out):
     plt.close(fig)
 
 
-def fig2_length_family(df, out):
-    fams = ["Alu", "L1", "SVA", "LTR"]
+def fig2_length_family(df, out, fams=None):
+    fams = fams or ["Alu", "L1", "SVA", "LTR"]
     fig, ax = plt.subplots(figsize=(7, 4.5))
     bins = np.logspace(1.7, 4.3, 45)
     for f in fams:
@@ -141,7 +181,7 @@ def fig2_length_family(df, out):
         if len(vals) == 0:
             continue
         ax.hist(vals, bins=bins, alpha=0.55, label=f"{f} (n={len(vals):,})",
-                color=FAM_COLOR[f])
+                color=fam_color(f))
     ax.set_xscale("log")
     ax.set_xlabel("inserted sequence length (bp, log)")
     ax.set_ylabel("count")
@@ -155,16 +195,16 @@ def fig2_length_family(df, out):
     plt.close(fig)
 
 
-def fig3_context(df, out):
+def fig3_context(df, out, fams=None):
     """Insertion count by genomic context, one panel per group.
 
     All three contexts are drawn on ONE log-count axis — the same unit and
     scale for exon/intron/intergenic — so the rare exon category (9-12
     events vs tens of thousands) is a real, visible bar instead of an
     invisible sliver on a percentage axis (which silently read as 'no exon
-    insertions'). Zero-count bars are simply absent; no '0' annotations.
+    insertions'). Zero-count buckets keep their slot (y row) with no bar.
     """
-    fams = [f for f in FIG1_FAMS if (df["family"] == f).any()]
+    fams = fams or FAM_ORDER
     groups = [g for g in GROUP_ORDER if (df["group"] == g).any()]
     ctxs = ["exon", "intron", "intergenic"]
     ctx_colors = {"exon": "#C0392B", "intron": "#E67E22",
@@ -206,8 +246,8 @@ def fig3_context(df, out):
     plt.close(fig)
 
 
-def fig4_te_region(df, out):
-    fams = [f for f in FIG1_FAMS if (df["family"] == f).any()]
+def fig4_te_region(df, out, fams=None):
+    fams = fams or FAM_ORDER
     groups = [g for g in GROUP_ORDER if (df["group"] == g).any()]
     te_flag = _clean_str(df["in_te_region"]) if "in_te_region" in df else \
         pd.Series([""] * len(df))
@@ -274,21 +314,23 @@ def fig5_full_length_l1(df, out, fl_file):
     plt.close(fig)
 
 
-def fig6_polya_tsd(df, out):
+def fig6_polya_tsd(df, out, fams=None):
     # Fingerprints (polyA/TSD) are hallmarks of L1-mediated retrotransposition
-    # — only the retrotransposon MEI families carry the mechanism. LTR/DNA
-    # transpose by other mechanisms and were never TSD/polyA-annotated in
-    # mei_analysis.py, so including them showed meaningless bars.
-    fams = [f for f in ["Alu", "L1", "SVA"] if (df["family"] == f).any()]
+    # — only retrotransposon MEI families carry the mechanism (profile flag
+    # retro_fingerprint). LTR/DNA transpose by other mechanisms.
+    fams = fams or [f for f in ["Alu", "L1", "SVA"]
+                    if (df["family"] == f).any()]
     sub = df[df.family.isin(fams)].copy()
     sub["polyA_b"] = sub["polyA"].astype(str) == "True"
     sub["tsd_b"] = _clean_str(sub["tsd"]) != ""
-    fig, axes = plt.subplots(1, 2, figsize=(10, 4.8), sharey=True)
+    fig, axes = plt.subplots(1, 2, figsize=(max(10, 2.2 * len(fams) + 5),
+                                            4.8), sharey=True)
     x = np.arange(len(fams))
     for ax, col, ttl in [(axes[0], "polyA_b", "poly(A) tail"),
                          (axes[1], "tsd_b", "target site duplication")]:
-        vals = [sub.loc[sub.family == f, col].mean() * 100 for f in fams]
-        ax.bar(x, vals, color=[FAM_COLOR[f] for f in fams], width=0.6)
+        vals = [sub.loc[sub.family == f, col].mean() * 100
+                for f in fams]
+        ax.bar(x, vals, color=[fam_color(f) for f in fams], width=0.6)
         for i, v in enumerate(vals):
             ax.text(i, min(v + 2.5, 96), f"{v:.1f}%", ha="center", fontsize=9)
         ax.set_xticks(x)
@@ -306,7 +348,15 @@ def fig6_polya_tsd(df, out):
 
 def html_report(meidir, title, figs, df, summary, out_html):
     fam_group = df.groupby(["family", "group"]).size().unstack(fill_value=0)
-    ctx = (df[df.family.isin(["Alu", "L1", "SVA", "LTR", "DNA"])]
+    prof = (summary or {}).get("te_buckets") or []
+    te_names = [b.get("name") for b in prof
+                if isinstance(b, dict) and b.get("name")
+                and not b.get("catch_all") and b.get("name") != "microsatellite"]
+    if not te_names:  # pre-profile mei dir
+        te_names = [f for f in ["Alu", "L1", "SVA", "LTR", "DNA", "B1",
+                                "B2/ID", "IAP/ETn"]
+                    if f in set(df["family"].dropna())]
+    ctx = (df[df.family.isin(te_names)]
            .groupby(["family", "context"]).size().unstack(fill_value=0))
     n_exon = int((df["context"] == "exon").sum())
     n_fl = int((df["full_length_L1"] == True).sum()) \
@@ -420,15 +470,21 @@ def main():
     GROUP_COLOR[f"{exp}_specific"] = GROUP_COLOR.pop("exp_specific", "#D73027")
 
     figs = []
+    slots, fp_fams = bucket_vocab(summary, df)
     jobs = [
-        ("mei_family_by_group.png", lambda f: fig1_family_by_group(df, f)),
-        ("mei_insert_length_by_family.png", lambda f: fig2_length_family(df, f)),
-        ("mei_genomic_context.png", lambda f: fig3_context(df, f)),
-        ("mei_te_region_ratio.png", lambda f: fig4_te_region(df, f)),
+        ("mei_family_by_group.png",
+         lambda f: fig1_family_by_group(df, f, fams=slots)),
+        ("mei_insert_length_by_family.png",
+         lambda f: fig2_length_family(df, f, fams=slots)),
+        ("mei_genomic_context.png",
+         lambda f: fig3_context(df, f, fams=slots)),
+        ("mei_te_region_ratio.png",
+         lambda f: fig4_te_region(df, f, fams=slots)),
         ("mei_full_length_L1.png",
          lambda f: fig5_full_length_l1(df, f,
                                        os.path.join(d, "mei_full_length_L1.tsv"))),
-        ("mei_polya_tsd_fingerprint.png", lambda f: fig6_polya_tsd(df, f)),
+        ("mei_polya_tsd_fingerprint.png",
+         lambda f: fig6_polya_tsd(df, f, fams=fp_fams)),
     ]
     for name, fn in jobs:
         out = os.path.join(d, name)

@@ -1,9 +1,5 @@
 include: "../common/common.smk"
-
-from snakemake.logging import logger
-import time
-import os
-
+ROOT_DIR = config.get("ROOT_DIR", ".")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 indir = config.get("indir", "input")
@@ -17,10 +13,6 @@ control_samples = config.get("control_samples", [])
 #            + cnvkit_batch --reference)
 #   flat   - no reference at all (bare -n; uniform expected coverage)
 _mode_cfg = config.get("Params", {}).get("cnvkit", {}).get("mode") or "auto"
-# Paired (tumor -> matched normal) design, normally derived by node.py from
-# the meta design pairs and passed as Params.workflow.paired_design: a list
-# of {"control","experimental"} records. A hand-filled {tumor: normal} map is
-# also accepted. Consumed only in paired mode. Sample NAMES only, no paths.
 _paired_design_raw = config.get("paired_design") or []
 if isinstance(_paired_design_raw, list):
     paired_design = {
@@ -40,36 +32,14 @@ if _mode_cfg == "paired" and not paired_design:
         "cnvkit: Params.cnvkit.mode 'paired' but paired_design is empty; "
         "fill it (or let node.py derive it from the meta design)."
     )
-# Rule output gating: paired mode disables the pooled batch + shared
-# reference; non-paired modes disable cnvkit_paired.
 use_paired = (_mode_cfg == "paired")
 access = config.get("genome", {}).get("access")
 targets_bed = config.get("genome", {}).get("targets")
 _method = config.get("Params", {}).get("cnvkit", {}).get("method") or "wgs"
-ROOT_DIR = config.get("ROOT_DIR", ".")
-
-# Tumors that have a matched normal (paired mode products); empty otherwise.
 paired_tumors = list(paired_design.keys())
-# Samples that actually get CNVkit calls: per-pair tumors in paired mode,
-# every sample through the pooled/flat batch otherwise.
 cnv_samples = paired_tumors if use_paired else list(samples)
 
-def get_cnvkit_bams(wildcards):
-    """Get BAM files for CNVkit batch analysis."""
-    treat_bams = [f"{indir}/{sid}/{sid}{bam_suffix}.bam" for sid in samples]
-    control_bams = [f"{indir}/{sid}/{sid}{bam_suffix}.bam" for sid in control_samples] if control_samples else []
-    return {"treat": treat_bams, "control": control_bams}
 
-def get_paired_normal_bam(wildcards):
-    """Resolve the matched normal BAM for a tumor sample (paired mode)."""
-    normal_sid = paired_design.get(wildcards.sample_id)
-    if not normal_sid:
-        raise ValueError(
-            f"cnvkit: no matched normal in paired_design for sample "
-            f"'{wildcards.sample_id}'; fill Params paired_design or unset it "
-            "to use the pooled/flat batch mode."
-        )
-    return f"{indir}/{normal_sid}/{normal_sid}{bam_suffix}.bam"
 
 rule cnvkit_reference:
     """Build CNVkit reference from control samples."""
@@ -79,7 +49,6 @@ rule cnvkit_reference:
         access = lambda wildcards: [access] if access else [],
         targets = lambda wildcards: [targets_bed] if (_method == "hybrid" and targets_bed) else [],
     output:
-        # [] when disabled (paired mode) — empty STRING is job-build-fatal.
         ref = [outdir + "/reference/reference.cnn"] if (control_samples and not use_paired) else []
     log:
         logdir + "/cnvkit/cnvkit_reference.log"
@@ -126,10 +95,10 @@ rule cnvkit_batch:
     """Run CNVkit batch analysis on all samples."""
     input:
         treat_bams = expand(indir + "/{sid}/{sid}" + bam_suffix + ".bam", sid=samples),
-        ref = lambda wildcards: [outdir + "/reference/reference.cnn"] if control_samples else [],
-        fasta = lambda wildcards: _require(config.get("genome", {}).get("fasta"), "genome.fasta", "cnvkit"),
-        access = lambda wildcards: [access] if access else [],
-        targets = lambda wildcards: [targets_bed] if (_method == "hybrid" and targets_bed) else [],
+        ref = outdir + "/reference/reference.cnn" if control_samples else "",
+        fasta =  _require(config.get("genome", {}).get("fasta"), "genome.fasta", "cnvkit"),
+        access = access if access else "",
+        targets = targets_bed if (_method == "hybrid" and targets_bed) else "",
     output:
         cnr = expand(outdir + "/{sample_id}/{sample_id}.cnr", sample_id=samples) if not use_paired else [],
         cns = expand(outdir + "/{sample_id}/{sample_id}.cns", sample_id=samples) if not use_paired else []
@@ -145,10 +114,6 @@ rule cnvkit_batch:
     params:
         cnvkit = config.get("Procedure", {}).get("cnvkit") or "cnvkit.py",
         method = config.get("Params", {}).get("cnvkit", {}).get("method") or "wgs",
-        # CNVkit batch writes every artifact flat into --output-dir; the batch
-        # run stages there first and the receipt script relocates each
-        # sample's artifact set into its per-sample dir outdir/<sample_id>/
-        # before dropping the staging dir.
         staging = outdir + "/batch",
     run:
         log_path = str(log)
@@ -164,7 +129,7 @@ rule cnvkit_batch:
             cmd = [params.cnvkit, "batch"]
             cmd += [str(bam) for bam in input.treat_bams]
             if input.ref:
-                cmd += ["--reference", str(input.ref[0])]
+                cmd += ["--reference", str(input.ref)]
             else:
                 # No control samples: pass a bare -n so CNVkit builds a FLAT
                 # reference (uniform expected coverage). Without it, batch
@@ -173,22 +138,30 @@ rule cnvkit_batch:
                 cmd += ["-n"]
                 cmd += ["--method", params.method, "--fasta", str(input.fasta)]
                 if input.access:
-                    cmd += ["--access", str(input.access[0])]
+                    cmd += ["--access", str(input.access)]
                 if input.targets:
-                    cmd += ["--targets", str(input.targets[0])]
+                    cmd += ["--targets", str(input.targets)]
             cmd += ["--processes", str(threads), "--output-dir", params.staging, "--scatter", "--diagram"]
             with open(script, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 # Relocate each sample's flat artifacts from the staging dir
-                # into the declared per-sample dirs (outdir/<sample_id>/).
-                # CNVkit names tables "<sid>.<ext>" but plots "<sid>-scatter.png"
-                # / "<sid>-diagram.pdf", so both globs are needed.
+                # into the declared per-sample dirs (outdir/<sample_id>/) and
+                # STRIP bam_suffix: CNVkit names every artifact after the
+                # input BAM basename (<sid><bam_suffix>.cnr, plots
+                # <sid><bam_suffix>-scatter.png), while the declared outputs
+                # are <sid>.cnr / <sid>.cns.
                 for sid in samples:
                     f.write(f'mkdir -p "{outdir}/{sid}"\n')
-                    f.write(f'for f in "{params.staging}/{sid}."* "{params.staging}/{sid}-"*; do\n')
-                    f.write(f'    if [ -e "$f" ]; then mv "$f" "{outdir}/{sid}/"; fi\n')
+                    f.write(f'for f in "{params.staging}/{sid}{bam_suffix}."* "{params.staging}/{sid}{bam_suffix}-"*; do\n')
+                    f.write(f'    if [ -e "$f" ]; then\n')
+                    f.write(f'        base="${{f##*/}}"\n')
+                    f.write(f'        mv "$f" "{outdir}/{sid}/{sid}${{base#{sid}{bam_suffix}}}"\n')
+                    f.write(f'    fi\n')
                     f.write(f'done\n')
+                    f.write(f'if [ ! -s "{outdir}/{sid}/{sid}.cnr" ] || [ ! -s "{outdir}/{sid}/{sid}.cns" ]; then\n')
+                    f.write(f'    echo "ERROR: declared output {outdir}/{sid}/{sid}.cnr or .cns missing/empty after cnvkit batch" >&2; exit 1\n')
+                    f.write(f'fi\n')
                 # Drop staging dir remnants now that artifacts are relocated.
                 f.write(f'rm -rf "{params.staging}"\n')
                 f.write(f'echo "script completed successfully"\n')
@@ -197,6 +170,17 @@ rule cnvkit_batch:
         except Exception as e:
             rule_logger.error(f"Error occurred during cnvkit batch: {e}")
             raise RuntimeError(f"Error occurred during cnvkit batch: {e}, you can check the log file {log_path} for more details.")
+
+def get_paired_normal_bam(wildcards):
+    """Resolve the matched normal BAM for a tumor sample (paired mode)."""
+    normal_sid = paired_design.get(wildcards.sample_id)
+    if not normal_sid:
+        raise ValueError(
+            f"cnvkit: no matched normal in paired_design for sample "
+            f"'{wildcards.sample_id}'; fill Params paired_design or unset it "
+            "to use the pooled/flat batch mode."
+        )
+    return f"{indir}/{normal_sid}/{normal_sid}{bam_suffix}.bam"
 
 rule cnvkit_paired:
     """Run CNVkit batch per tumor/normal pair (paired mode).
@@ -229,8 +213,6 @@ rule cnvkit_paired:
     params:
         cnvkit = config.get("Procedure", {}).get("cnvkit") or "cnvkit.py",
         method = config.get("Params", {}).get("cnvkit", {}).get("method") or "wgs",
-        # Per-pair staging dir; the receipt script relocates the pair's flat
-        # artifacts into outdir/<sample_id>/ and drops the staging dir.
         staging = outdir + "/batch_paired/{sample_id}",
     run:
         log_path = str(log)
@@ -261,12 +243,27 @@ rule cnvkit_paired:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")
                 # Relocate the pair's flat artifacts into outdir/<sample_id>/
-                # (tables "<sid>.<ext>", plots "<sid>-scatter.png" etc.).
+                # AND strip bam_suffix from every name: CNVkit names all
+                # artifacts after the input BAM basename
+                # (<sid><bam_suffix>.cnr / <sid><bam_suffix>-scatter.png),
+                # while the declared and node.py-registered outputs are
+                # <sid>.cnr / <sid>.cns. A plain mv keeps the suffix and the
+                # job then dies on "Missing output files" after a batch run
+                # that logged nothing but success.
                 sid = wildcards.sample_id
-                f.write(f'for f in "{params.staging}/{sid}."* "{params.staging}/{sid}-"*; do\n')
-                f.write(f'    if [ -e "$f" ]; then mv "$f" "{outdir}/{sid}/"; fi\n')
+                f.write(f'for f in "{params.staging}/{sid}{bam_suffix}."* "{params.staging}/{sid}{bam_suffix}-"*; do\n')
+                f.write(f'    if [ -e "$f" ]; then\n')
+                f.write(f'        base="${{f##*/}}"\n')
+                f.write(f'        mv "$f" "{outdir}/{sid}/{sid}${{base#{sid}{bam_suffix}}}"\n')
+                f.write(f'    fi\n')
                 f.write(f'done\n')
                 f.write(f'rm -rf "{params.staging}"\n')
+                # The batch exit code alone does not prove the declared
+                # outputs exist; fail loudly here instead of leaving it to
+                # Snakemake's cause-less "Missing output files".
+                f.write(f'if [ ! -s "{outdir}/{sid}/{sid}.cnr" ] || [ ! -s "{outdir}/{sid}/{sid}.cns" ]; then\n')
+                f.write(f'    echo "ERROR: declared output {outdir}/{sid}/{sid}.cnr or .cns missing/empty after cnvkit batch" >&2; exit 1\n')
+                f.write(f'fi\n')
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")

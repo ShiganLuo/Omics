@@ -195,6 +195,43 @@ def curate_library(h5path: str, taxid: int, min_len: int, use_stages: bool) -> L
     return out
 
 
+# Sentinel subfamilies per species alias: a curated species library MUST
+# contain at least one family from each of these (active-clade marker
+# names). A library lacking them was built against the wrong lineage
+# branch (observed 2026-10-29: mouse_te_lib.fa carried only
+# Amniota/Vertebrata-level families and silently classified every mouse
+# insertion as noise). Checked at build time (refuse to write) and usable
+# by consumers via validate_library().
+SENTINEL_SUBFAMILIES = {
+    "mouse": [["L1Md", "L1M", "L1Mus"], ["B1_Mm", "B1_Mus", "B1"],
+              ["B2_Mm", "B2"], ["IAP"], ["ETn", "MERVL"]],
+    "human": [["L1PA", "L1HS", "L1"], ["AluY", "AluJ", "AluS", "Alu"],
+              ["SVA"], ["HERV", "LTR"]],
+    "rhesus": [["L1PA", "L1"], ["AluY", "AluJ", "AluS", "Alu"],
+               ["SVA"], ["HERV", "LTR"]],
+}
+
+
+def validate_library(records, species_alias: str) -> List[str]:
+    """Return list of missing sentinel groups ([] = library OK).
+
+    records: [(header, seq)] as produced by curate_library. A sentinel
+    group passes when ANY of its names appears as a word-start in some
+    header family name (case-insensitive). Deterministic: catches
+    wrong-branch/wrong-species curation and empty libraries; it is not a
+    checksum for sequence-level corruption.
+    """
+    groups = SENTINEL_SUBFAMILIES.get(species_alias)
+    if not groups:  # unmapped species: no sentinels known, nothing to check
+        return []
+    headers = [h.lower() for h, _ in records]
+    missing = []
+    for group in groups:
+        if not any(any(g.lower() in h for h in headers) for g in group):
+            missing.append("/".join(group))
+    return missing
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(
         description="Extract a species-specific TE consensus library from a Dfam FamDB HDF5 file",
@@ -219,6 +256,18 @@ def main(argv=None) -> int:
                              use_stages=not args.no_stage_filter)
     if not records:
         logger.error("no families matched taxon %d — wrong taxid or unsupported file?", taxid)
+        return 1
+
+    # refuse to write a wrong-branch library: every sentinel group of the
+    # species must be present (build-time half of the integrity check)
+    alias = next((a for a, t in SPECIES_TAXID.items()
+                  if t == taxid and " " not in a), str(taxid))
+    missing = validate_library(records, alias)
+    if missing:
+        logger.error(
+            "curated library for '%s' is missing sentinel families: %s — "
+            "the curation likely selected the wrong lineage branch; "
+            "NOT writing %s", alias, ", ".join(missing), args.output)
         return 1
 
     out = Path(args.output)

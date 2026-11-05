@@ -793,7 +793,10 @@ def execute_workflows(args: argparse.Namespace, root_dir: str, logger: logging.L
                     ref = Path(test_data) / "ref"
                     ref.mkdir(parents=True, exist_ok=True)
                     for name in ("smallrna", "rRNA", "access", "repeat", "decoy"):
-                        if name in key: return str(ref / name)
+                        if name in key:
+                            f = ref / name
+                            f.touch(exist_ok=True)  # fixture must exist or DAG breaks
+                            return str(f)
                     if key.endswith(("_dir", "_index")):
                         d = Path(test_data) / "index" / key.replace("_dir", "").replace("_index", "")
                         d.mkdir(parents=True, exist_ok=True)
@@ -802,7 +805,9 @@ def execute_workflows(args: argparse.Namespace, root_dir: str, logger: logging.L
                         d = Path(test_data) / "index" / key.replace("_index_prefix", "").replace("_prefix", "")
                         d.mkdir(parents=True, exist_ok=True)
                         return str(d / genome)
-                    return str(ref / genome)
+                    g = ref / genome
+                    g.touch(exist_ok=True)  # fixture must exist or DAG breaks
+                    return str(g)
 
                 # Schema awareness for the injection below: a field the
                 # workflow schema declares as a container (dict/list) is

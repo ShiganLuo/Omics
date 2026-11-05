@@ -17,6 +17,7 @@
 - [亮点](#亮点)
 - [快速开始](#快速开始)
 - [支持的工作流](#支持的工作流)
+- [数据与支持](#数据与支持)
 - [环境依赖](#环境依赖)
 - [目录结构](#目录结构)
 - [运行指南](#运行指南)
@@ -159,6 +160,17 @@ python workflow/Omics/run.py -m data/meta/fastq -w scRNAseq -o output \
 † `Population_genomics` 与 `spatial_transcriptomics` 尚未接入 `run.py -w`，通过 `snakemake -s subworkflow/<name>.smk --configfile <raw.json>` 直接运行。
 
 各个流程详细介绍见 [subworkflow](./subworkflow/README.md)。
+
+## 数据与支持
+
+流程依赖的参考数据库（基因组、索引、种系资源等）统一放在 `Database/` 目录，**不随仓库分发**。
+需要该数据库（含各物种参考基因组、MGP/gnomAD 种系变异资源、预构建 SIF 容器镜像等）的，
+请邮件联系：**[goodzyx36@gmail.com](mailto:goodzyx36@gmail.com)**
+
+更多生信相关内容欢迎访问：
+
+- **博客**：<https://blog.shiganluo.top/home> —— 生信分析笔记与流程使用心得
+- **生信云平台**：<https://bio.shiganluo.top/> —— 在线运行分析流程
 
 ## 环境依赖
 

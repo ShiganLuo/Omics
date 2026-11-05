@@ -17,6 +17,7 @@ English | [中文](README.md)
 - [Highlights](#highlights)
 - [Quick Start](#quick-start)
 - [Supported Workflows](#supported-workflows)
+- [Data & Support](#data--support)
 - [Environment Dependencies](#environment-dependencies)
 - [Directory Structure](#directory-structure)
 - [Running Guide](#running-guide)
@@ -158,6 +159,19 @@ Add `--dry-run` first to review the jobs before letting it run. To sanity-check 
 † `Population_genomics` and `spatial_transcriptomics` are not yet wired into `run.py -w`; run them directly via `snakemake -s subworkflow/<name>.smk --configfile <raw.json>`.
 
 Detailed workflow descriptions: [subworkflow](./subworkflow/README.md)
+
+## Data & Support
+
+The reference databases the workflows rely on (genomes, indices, germline resources, etc.)
+live under the `Database/` directory and are **not distributed with this repository**.
+To obtain the database (species reference genomes, MGP/gnomAD germline variation
+resources, prebuilt SIF container images, and more), contact:
+**[goodzyx36@gmail.com](mailto:goodzyx36@gmail.com)**
+
+For more bioinformatics content, visit:
+
+- **Blog**: <https://blog.shiganluo.top/home> — analysis notes and pipeline walkthroughs
+- **Bioinformatics cloud platform**: <https://bio.shiganluo.top/> — run analysis pipelines online
 
 ## Environment Dependencies
 

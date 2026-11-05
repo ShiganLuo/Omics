@@ -239,6 +239,18 @@ def fig5_full_length_l1(df, out, fl_file):
         pd.read_csv(fl_file, sep="\t")
     fig, axes = plt.subplots(1, 2, figsize=(11, 4.8))
     groups = [g for g in GROUP_ORDER if (fl.group == g).any()]
+    if not groups:
+        # zero candidates: emit the figure in an explicit empty state so the
+        # stage never dies on degenerate data (skill: every declared output)
+        for ax in axes:
+            ax.text(0.5, 0.5, "no full-length L1 candidates",
+                    ha="center", va="center", fontsize=11, color="#7F8C8D")
+            ax.set_xticks([]); ax.set_yticks([])
+        fig.suptitle("full-length L1 candidates", fontweight="bold")
+        fig.tight_layout()
+        fig.savefig(out, bbox_inches="tight")
+        plt.close(fig)
+        return
     axes[0].hist([fl.loc[fl.group == g, "svlen"] for g in groups],
                  bins=30, stacked=True,
                  color=[GROUP_COLOR[g] for g in groups],

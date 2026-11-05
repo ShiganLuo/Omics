@@ -17,6 +17,10 @@ Pipeline (per INS event):
      regions (rmsk TE bed) -> exon / intron / intergenic / TE-into-TE
   5. Full-length L1 detection: >=6000 bp + L1 family + full-length-ish hit
 
+Stages (the entry runs all three; skip with --skip-plot / --skip-te-age):
+  analysis (this file) -> figures (utils/mei_plot.py) ->
+  TE insertion dating (utils/te_age_analysis.py)
+
 Outputs (all under --outdir):
   mei_events.tsv        per-event table (all INS, classified or not)
   mei_summary.json      counts per (group, family), full-length L1 list
@@ -384,6 +388,12 @@ def main():
     ap.add_argument("--threads", type=int, default=4)
     ap.add_argument("--max-records", type=int, default=0,
                     help="debug: cap number of INS records (0 = all)")
+    ap.add_argument("--title", default=None,
+                    help="figure/report title (default: parent dir of --outdir)")
+    ap.add_argument("--skip-plot", action="store_true",
+                    help="skip the figure stage (utils/mei_plot.py)")
+    ap.add_argument("--skip-te-age", action="store_true",
+                    help="skip the TE insertion dating stage")
     args = ap.parse_args()
 
     os.makedirs(args.outdir, exist_ok=True)
@@ -543,6 +553,25 @@ def main():
     }
     with open(os.path.join(args.outdir, "mei_summary.json"), "w") as fh:
         json.dump(summary, fh, indent=2)
+    # ---- stage 2: figures (utils/mei_plot.py) ----
+    utils_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "utils")
+    if not args.skip_plot:
+        title = args.title or os.path.basename(
+            os.path.dirname(os.path.abspath(args.outdir.rstrip("/"))))
+        plot_cmd = [sys.executable, os.path.join(utils_dir, "mei_plot.py"),
+                    "--mei-dir", args.outdir, "--title", title]
+        if args.ctrl_name:
+            plot_cmd += ["--ctrl-name", args.ctrl_name]
+        if args.exp_name:
+            plot_cmd += ["--exp-name", args.exp_name]
+        log("stage 2/3: figures -> " + " ".join(plot_cmd))
+        subprocess.run(plot_cmd, check=True)
+    # ---- stage 3: TE insertion dating (utils/te_age_analysis.py) ----
+    if not args.skip_te_age:
+        age_cmd = [sys.executable, os.path.join(utils_dir, "te_age_analysis.py"),
+                   "--mei-dir", args.outdir]
+        log("stage 3/3: te_age -> " + " ".join(age_cmd))
+        subprocess.run(age_cmd, check=True)
     log(f"done. outputs in {args.outdir}")
     log(f"families: {summary['family_counts_overall']}")
 

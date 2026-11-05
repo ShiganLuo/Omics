@@ -373,6 +373,7 @@ rule sv_mei:
                 "--full-length-l1", str(params.full_length),
                 "--full-length-family", params.full_length_family,
                 "--threads", str(params.threads),
+                "--title", wildcards.comparison,
             ]
             if params.ctrl_name:
                 cmd += ["--ctrl-name", shlex.quote(params.ctrl_name)]
@@ -384,14 +385,10 @@ rule sv_mei:
                 cmd += ["--gtf", str(input.gtf[0])]
             if input.te_bed:
                 cmd += ["--te-bed", str(input.te_bed[0])]
-            cmd += ["&&", "python", params.plot, "--mei-dir", mei_out,
-                    "--title", wildcards.comparison]
-            if params.ctrl_name:
-                cmd += ["--ctrl-name", shlex.quote(params.ctrl_name)]
-            if params.exp_name:
-                cmd += ["--exp-name", shlex.quote(params.exp_name)]
-            if params.te_age_enabled:
-                cmd += ["&&", "python", params.te_age, "--mei-dir", mei_out]
+            if not params.te_age_enabled:
+                cmd += ["--skip-te-age"]
+            # figures + te_age run INSIDE the entry (params.plot/te_age kept
+            # for provenance only)
             with open(script_path, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")

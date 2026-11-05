@@ -565,6 +565,10 @@ def runPacVar(
             outfiles.append(f"{base}/repeatmasker")
             outfiles.append(f"{base}/statistics")
             outfiles.append(f"{base}/circos")
+            # MEI suite (sv_mei rule): classified insertions + figures +
+            # optional te_age; gate via Params.mei.enabled (default on)
+            if (datajson.get("Params", {}).get("sv", {}).get("mei", {}) or {}).get("enabled", True):
+                outfiles.append(f"{base}/mei")
             if sv_genes:
                 outfiles.append(f"{base}/gene_model")
         outfiles.append(f"{sv_outdir}/sv_diff_analysis")
@@ -1649,6 +1653,10 @@ def runFiberseq(
             outfiles.append(f"{base}/repeatmasker")
             outfiles.append(f"{base}/statistics")
             outfiles.append(f"{base}/circos")
+            # MEI suite (sv_mei rule): classified insertions + figures +
+            # optional te_age; gate via Params.mei.enabled (default on)
+            if (datajson.get("Params", {}).get("sv", {}).get("mei", {}) or {}).get("enabled", True):
+                outfiles.append(f"{base}/mei")
             if sv_genes:
                 outfiles.append(f"{base}/gene_model")
         # SV-affected genes GO/KEGG (modules/function/sv_go; macaque-aware

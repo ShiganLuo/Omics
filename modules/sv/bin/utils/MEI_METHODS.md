@@ -1,7 +1,7 @@
 # MEI (Mobile Element Insertion) 分析方法文档
 
 针对 SURVIVOR 合并 SV VCF（pbsv 来源）的转座事件分析管线。
-脚本:本目录 `mei_analysis.py`(分析)+ `mei_plot.py`(可视化)。
+脚本:上级目录 `modules/sv/bin/mei_analysis.py`(分析)+ `mei_plot.py`(可视化)。
 poly(A)/TSD 指纹的检测算法与 TPRT 生物学原理详见 `README_polyA_TSD.md`。
 TE 插入年龄(divergence-from-consensus 分子钟)分析:`te_age_analysis.py`
 (用法:`te_age_analysis.py --mei-dir <mei_outdir>`,输出至 `<mei-dir>/te_age/`)。
@@ -48,7 +48,7 @@ SUPP_VEC 位数自适应:对照组在前、实验组在后的 merge 顺序下,
 | `mei_context.tsv` | 家族 × 组别 × 语境计数 |
 | `mei_full_length_L1.tsv` | 全长 L1 候选清单 |
 | `mei_summary.json` | 汇总指标 |
-| `mei_fig1..6.png` | 图组(家族×组别 / 长度分布 / 语境 / TE-into-TE / 全长L1 / 指纹比例) |
+| `mei_*.png` 图组 | family_by_group / insert_length_by_family / genomic_context / te_region_ratio / full_length_L1 / polya_tsd_fingerprint |
 | `mei_report.html` | 自包含报告(嵌图+表+方法+统计警告) |
 | `repeatmasker/ins.fa.out` | RepeatMasker 原始输出(可复查亚家族) |
 
@@ -58,7 +58,7 @@ SUPP_VEC 位数自适应:对照组在前、实验组在后的 merge 顺序下,
 # 分析(约 25 分钟,RepeatMasker 为主体;12 线程)
 apptainer exec --bind /data/16T/Database --bind <output_dir> --bind <workflow_dir> \
   /data/16T/Database/env/sv/sv.sif python \
-  <workflow_dir>/modules/sv/bin/utils/mei_analysis.py \
+  <workflow_dir>/modules/sv/bin/mei_analysis.py \
   -i <comparison>_merged.vcf \
   -o <comparison>_mei \
   --te-lib /data/16T/Database/Reference/famdb/rhesus_te_lib.fa \
@@ -69,7 +69,7 @@ apptainer exec --bind /data/16T/Database --bind <output_dir> --bind <workflow_di
 
 # 可视化 + HTML 报告(秒级)
 apptainer exec ... /data/16T/Database/env/sv/sv.sif python \
-  <workflow_dir>/modules/sv/bin/utils/mei_plot.py \
+  <workflow_dir>/modules/sv/bin/mei_plot.py \
   --mei-dir <comparison>_mei --title "<label>"
 ```
 

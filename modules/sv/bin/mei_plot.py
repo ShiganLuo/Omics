@@ -4,14 +4,14 @@
 Reads the mei/ outputs (mei_events.tsv etc.) and renders the publication-
 style figure set:
 
-  mei_fig1_family_by_group.png    family x group stacked bar + group totals
-  mei_fig2_length_family.png      insertion length distribution per family
-  mei_fig3_context.png            genomic context (exon/intron/intergenic)
+  mei_family_by_group.png    family x group stacked bar + group totals
+  mei_insert_length_by_family.png      insertion length distribution per family
+  mei_genomic_context.png            genomic context (exon/intron/intergenic)
                                   per family x group (100% stacked)
-  mei_fig4_te_region.png          TE-into-TE vs unique-site insertion ratio
-  mei_fig5_full_length_L1.png     full-length L1 candidates: length hist +
+  mei_te_region_ratio.png          TE-into-TE vs unique-site insertion ratio
+  mei_full_length_L1.png     full-length L1 candidates: length hist +
                                   per-group counts
-  mei_fig6_polya_tsd.png          MEI fingerprint rates (polyA, TSD) per family
+  mei_polya_tsd_fingerprint.png          MEI fingerprint rates (polyA, TSD) per family
   mei_report.html                 self-contained summary report embedding
                                   all figures and key tables
 
@@ -40,7 +40,10 @@ plt.rcParams.update({
     "axes.spines.right": False,
 })
 
+# default group vocabulary; overridden in main() from --ctrl-name/--exp-name
+# so custom designs (serum_vs_KSR) get readable labels instead of ctrl/exp.
 GROUP_ORDER = ["ctrl_specific", "exp_specific", "shared"]
+GROUP_BASE = None  # (ctrl, exp) set at runtime
 GROUP_LABEL = {"ctrl_specific": "ctrl-specific",
                "exp_specific": "exp-specific",
                "shared": "shared"}
@@ -65,12 +68,17 @@ GROUP_NAMES = {"ctrl": "ctrl", "exp": "exp"}
 
 
 def group_label(key: str) -> str:
-    """Display label for a group key: '<name>-specific' or 'shared'."""
-    if key == "ctrl_specific":
-        return f"{GROUP_NAMES['ctrl']}-specific"
-    if key == "exp_specific":
-        return f"{GROUP_NAMES['exp']}-specific"
-    return "shared"
+    """Display label for a group key: '<name>-specific' or 'shared'.
+
+    Name-agnostic: works both on the default ctrl_/exp_ vocabulary and on
+    relabeled keys produced by --ctrl-name/--exp-name (main() renames the
+    group column before any figure is drawn).
+    """
+    if key == "shared":
+        return "shared"
+    if key.endswith("_specific"):
+        return key[:-len("_specific")].replace("_", " ") + "-specific"
+    return key
 
 
 def _clean_str(s):
@@ -347,6 +355,17 @@ TSD = identical 7–20 bp k-mer immediately 5' and 3' of the breakpoint (ref FAS
         fh.write(html)
 
 
+def _relabeled(group, ctrl, exp):
+    """Map internal ctrl_/exp_ prefixes to caller-provided branch names."""
+    if group is None:
+        return group
+    if group.startswith("ctrl_"):
+        return group.replace("ctrl_", ctrl + "_", 1)
+    if group.startswith("exp_"):
+        return group.replace("exp_", exp + "_", 1)
+    return group
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--mei-dir", required=True,
@@ -368,23 +387,36 @@ def main():
     for col in ("tsd", "in_te_region", "context"):
         if col in df:
             df[col] = _clean_str(df[col])
+    with open(os.path.join(d, "mei_summary.json")) as fh:
+        summary = json.load(fh)
+    # branch names: CLI wins, else fall back to what mei_analysis recorded
+    branches = summary.get("branches") or {}
+    ctrl = args.ctrl_name or branches.get("control") or "ctrl"
+    exp = args.exp_name or branches.get("experiment") or "exp"
     if args.ctrl_name:
         GROUP_NAMES["ctrl"] = args.ctrl_name
     if args.exp_name:
         GROUP_NAMES["exp"] = args.exp_name
-    with open(os.path.join(d, "mei_summary.json")) as fh:
-        summary = json.load(fh)
+    # relabel the group column (ctrl_specific -> <ctrl>_specific) and keep the
+    # default GROUP_ORDER/GROUP_LABEL machinery working on the new prefixes
+    global GROUP_ORDER
+    df["group"] = df["group"].apply(lambda g: _relabeled(g, ctrl, exp))
+    GROUP_ORDER = [f"{ctrl}_specific", f"{exp}_specific", "shared"]
+    GROUP_LABEL[f"{ctrl}_specific"] = f"{ctrl}-specific"
+    GROUP_LABEL[f"{exp}_specific"] = f"{exp}-specific"
+    GROUP_COLOR[f"{ctrl}_specific"] = GROUP_COLOR.pop("ctrl_specific", "#4A72B7")
+    GROUP_COLOR[f"{exp}_specific"] = GROUP_COLOR.pop("exp_specific", "#D73027")
 
     figs = []
     jobs = [
-        ("mei_fig1_family_by_group.png", lambda f: fig1_family_by_group(df, f)),
-        ("mei_fig2_length_family.png", lambda f: fig2_length_family(df, f)),
-        ("mei_fig3_context.png", lambda f: fig3_context(df, f)),
-        ("mei_fig4_te_region.png", lambda f: fig4_te_region(df, f)),
-        ("mei_fig5_full_length_L1.png",
+        ("mei_family_by_group.png", lambda f: fig1_family_by_group(df, f)),
+        ("mei_insert_length_by_family.png", lambda f: fig2_length_family(df, f)),
+        ("mei_genomic_context.png", lambda f: fig3_context(df, f)),
+        ("mei_te_region_ratio.png", lambda f: fig4_te_region(df, f)),
+        ("mei_full_length_L1.png",
          lambda f: fig5_full_length_l1(df, f,
                                        os.path.join(d, "mei_full_length_L1.tsv"))),
-        ("mei_fig6_polya_tsd.png", lambda f: fig6_polya_tsd(df, f)),
+        ("mei_polya_tsd_fingerprint.png", lambda f: fig6_polya_tsd(df, f)),
     ]
     for name, fn in jobs:
         out = os.path.join(d, name)

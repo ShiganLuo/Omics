@@ -166,6 +166,10 @@
                     "type": "list",
                     "required": false
                 },
+                "pair_strains": {
+                    "type": "dict",
+                    "required": false
+                },
                 "control_samples": {
                     "type": "list",
                     "required": false
@@ -244,6 +248,11 @@
                             "required": false
                         },
                         "germline_resource": {
+                            "type": "str",
+                            "nullable": true,
+                            "required": false
+                        },
+                        "strain_resource": {
                             "type": "str",
                             "nullable": true,
                             "required": false

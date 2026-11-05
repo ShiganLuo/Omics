@@ -1,4 +1,3 @@
-
 {
   "indir": "output/raw_fastq",
   "outdir": "output",
@@ -6,13 +5,14 @@
   "Procedure": {
     "gatk": "path/to/gatk"
   },
-  "genome":{
+  "genome": {
     "fai_index": "path/to/genome.fa.fai",
     "dict_index": "path/to/genome.dict",
     "fasta": "path/to/genome.fa",
     "known_sites": "path/to/known_sites.vcf.gz",
     "interval": "path/to/interval.list",
-    "germline_resource": null
+    "germline_resource": null,
+    "strain_resource": null
   },
   "Params": {
     "gatk": {
@@ -20,5 +20,7 @@
         "panel_of_normals": null
       }
     }
-  }
+  },
+  "pair_strains": {},
+  "design_pairs": []
 }

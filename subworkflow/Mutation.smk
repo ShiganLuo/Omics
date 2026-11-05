@@ -200,8 +200,11 @@ gatk_somatic_config = {
     "genome": {
         "fasta": genome_ref.get("fasta"),
         "targets": _targets_bed,
-        "germline_resource": genome_ref.get("germline_resource")
+        "germline_resource": genome_ref.get("germline_resource"),
+        "strain_resource": genome_ref.get("strain_resource")
     },
+    "pair_strains": config.get("Params", {}).get("workflow", {}).get("pair_strains", {}),
+    "design_pairs": config.get("Params", {}).get("workflow", {}).get("paired_design", []),
     "Params": {
         "gatk": {
             "Mutect2": {
@@ -215,6 +218,8 @@ module gatk_somatic:
     config: gatk_somatic_config
 logger.info(f"gatk_somatic parameters: {gatk_somatic_config}")
 use rule somaticMutect2 from gatk_somatic as Mutation_somaticMutect2
+use rule germline_resource_strain from gatk_somatic as Mutation_germline_resource_strain
+use rule filterMutectCalls from gatk_somatic as Mutation_filterMutectCalls
 
 gatk_germline_config = {
     "ROOT_DIR": ROOT_DIR,

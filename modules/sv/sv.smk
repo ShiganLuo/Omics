@@ -350,7 +350,7 @@ rule sv_mei:
         threads = lambda wildcards: rule_res("sv_mei").get("threads", 4),
         ctrl_name = lambda wildcards: (comparisons.get(wildcards.comparison, {}) or {}).get("control_group_name") or "",
         exp_name = lambda wildcards: (comparisons.get(wildcards.comparison, {}) or {}).get("experimental_group_name") or "",
-        te_buckets = config.get("Params", {}).get("sv", {}).get("mei", {}).get("te_buckets", "primate"),
+        te_buckets = config.get("Params", {}).get("sv", {}).get("mei", {}).get("te_buckets") or "primate",
     conda:
         "sv.yaml"
     container:

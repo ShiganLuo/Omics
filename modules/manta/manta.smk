@@ -56,8 +56,8 @@ rule manta_run_germline:
         script = outdir + "/{sample_id}/runWorkflow.py",
         config = outdir + "/{sample_id}/runWorkflow.py.config.pickle"
     output:
-        vcf = outdir + "/{sample_id}/candidateSV.vcf.gz",
-        tbi = outdir + "/{sample_id}/candidateSV.vcf.gz.tbi"
+        vcf = outdir + "/{sample_id}/results/variants/candidateSV.vcf.gz",
+        tbi = outdir + "/{sample_id}/results/variants/candidateSV.vcf.gz.tbi"
     log:
         logdir + "/{sample_id}/manta_run.log"
     threads:
@@ -90,14 +90,6 @@ rule manta_run_germline:
         except Exception as e:
             rule_logger.error(f"manta_run failed for sample {wildcards.sample_id} with error: {e}")
             raise RuntimeError(f"manta_run failed for sample {wildcards.sample_id} with error: {e}")
-
-rule manta_result:
-    """Result aggregation rule for subworkflow use rule import."""
-    input:
-        vcf = outdir + "/{sample_id}/candidateSV.vcf.gz",
-        tbi = outdir + "/{sample_id}/candidateSV.vcf.gz.tbi"
-    resources:
-        mem_mb = rule_res("manta_result").get("mem_mb", 8000),
 
 rule manta_config_somatic:
     """Configure Manta SV caller for tumor-normal (somatic) mode."""
@@ -151,10 +143,10 @@ rule manta_run_somatic:
         script = outdir + "/{normal_sample_id}_vs_{experimental_sample_id}/runWorkflow.py",
         config = outdir + "/{normal_sample_id}_vs_{experimental_sample_id}/runWorkflow.py.config.pickle"
     output:
-        vcf = outdir + "/{normal_sample_id}_vs_{experimental_sample_id}/somaticSV.vcf.gz",
-        tbi = outdir + "/{normal_sample_id}_vs_{experimental_sample_id}/somaticSV.vcf.gz.tbi"
+        vcf = outdir + "/{normal_sample_id}_vs_{experimental_sample_id}/results/variants/somaticSV.vcf.gz",
+        tbi = outdir + "/{normal_sample_id}_vs_{experimental_sample_id}/results/variants/somaticSV.vcf.gz.tbi"
     log:
-        logdir + "/{normal_sample_id}_vs_{experimental_sample_id}/manta_run_somatic.log"
+        logdir + "/manta/{normal_sample_id}_vs_{experimental_sample_id}/manta_run_somatic.log"
     threads:
         config.get("Params", {}).get("manta", {}).get("threads") or 8
     resources:
@@ -185,3 +177,11 @@ rule manta_run_somatic:
         except Exception as e:
             rule_logger.error(f"manta_run_somatic failed for normal sample {wildcards.normal_sample_id} and experimental sample {wildcards.experimental_sample_id} with error: {e}")
             raise RuntimeError(f"manta_run_somatic failed for normal sample {wildcards.normal_sample_id} and experimental sample {wildcards.experimental_sample_id} with error: {e}")
+
+rule manta_result:
+    """Result aggregation rule for subworkflow use rule import."""
+    input:
+        vcf = outdir + "/{sample_id}/results/variants/candidateSV.vcf.gz",
+        tbi = outdir + "/{sample_id}/results/variants/candidateSV.vcf.gz.tbi"
+    resources:
+        mem_mb = rule_res("manta_result").get("mem_mb", 8000),

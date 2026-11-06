@@ -325,16 +325,60 @@
                 "min_len": 100,
                 "full_length": 6000,
                 "full_length_family": "L1",
-                "te_buckets": [
-                    {"name": "Alu", "family": ["Alu"], "retro_fingerprint": true},
-                    {"name": "L1", "family": ["L1", "LINE"], "retro_fingerprint": true},
-                    {"name": "SVA", "family": ["SVA"], "retro_fingerprint": true},
-                    {"name": "LTR", "class": ["LTR"]},
-                    {"name": "DNA", "class": ["DNA"]},
-                    {"name": "microsatellite", "class": ["Simple_repeat"]},
-                    {"name": "other", "catch_all": "classified"},
-                    {"name": "unclassified", "catch_all": "unclassified"}
-                ]
+                "te_buckets": {
+                    "GRCh38": [
+                        {"name": "Alu", "family": ["Alu"], "retro_fingerprint": true},
+                        {"name": "L1", "family": ["L1", "LINE"], "retro_fingerprint": true},
+                        {"name": "SVA", "family": ["SVA"], "retro_fingerprint": true},
+                        {"name": "LTR", "class": ["LTR"]},
+                        {"name": "DNA", "class": ["DNA"]},
+                        {"name": "microsatellite", "class": ["Simple_repeat"]},
+                        {"name": "other", "catch_all": "classified"},
+                        {"name": "unclassified", "catch_all": "unclassified"}
+                    ],
+                    "GRCm39": [
+                        {"name": "IAP/ETn", "family": ["ERVK"], "retro_fingerprint": true},
+                        {"name": "B1", "family": ["Alu"], "retro_fingerprint": true},
+                        {"name": "B2/ID", "family": ["tRNA", "B2"], "retro_fingerprint": true},
+                        {"name": "L1", "family": ["L1", "LINE"], "retro_fingerprint": true},
+                        {"name": "LTR", "class": ["LTR"]},
+                        {"name": "DNA", "class": ["DNA"]},
+                        {"name": "microsatellite", "class": ["Simple_repeat"]},
+                        {"name": "other", "catch_all": "classified"},
+                        {"name": "unclassified", "catch_all": "unclassified"}
+                    ],
+                    "T2T_mhaESC_v1.5": [
+                        {"name": "IAP/ETn", "family": ["ERVK"], "retro_fingerprint": true},
+                        {"name": "B1", "family": ["Alu"], "retro_fingerprint": true},
+                        {"name": "B2/ID", "family": ["tRNA", "B2"], "retro_fingerprint": true},
+                        {"name": "L1", "family": ["L1", "LINE"], "retro_fingerprint": true},
+                        {"name": "LTR", "class": ["LTR"]},
+                        {"name": "DNA", "class": ["DNA"]},
+                        {"name": "microsatellite", "class": ["Simple_repeat"]},
+                        {"name": "other", "catch_all": "classified"},
+                        {"name": "unclassified", "catch_all": "unclassified"}
+                    ],
+                    "Mmul_10": [
+                        {"name": "Alu", "family": ["Alu"], "retro_fingerprint": true},
+                        {"name": "L1", "family": ["L1", "LINE"], "retro_fingerprint": true},
+                        {"name": "SVA", "family": ["SVA"], "retro_fingerprint": true},
+                        {"name": "LTR", "class": ["LTR"]},
+                        {"name": "DNA", "class": ["DNA"]},
+                        {"name": "microsatellite", "class": ["Simple_repeat"]},
+                        {"name": "other", "catch_all": "classified"},
+                        {"name": "unclassified", "catch_all": "unclassified"}
+                    ],
+                    "Mmul_T2T": [
+                        {"name": "Alu", "family": ["Alu"], "retro_fingerprint": true},
+                        {"name": "L1", "family": ["L1", "LINE"], "retro_fingerprint": true},
+                        {"name": "SVA", "family": ["SVA"], "retro_fingerprint": true},
+                        {"name": "LTR", "class": ["LTR"]},
+                        {"name": "DNA", "class": ["DNA"]},
+                        {"name": "microsatellite", "class": ["Simple_repeat"]},
+                        {"name": "other", "catch_all": "classified"},
+                        {"name": "unclassified", "catch_all": "unclassified"}
+                    ]
+                }
             }
         },
         "censat": {

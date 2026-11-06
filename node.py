@@ -65,8 +65,9 @@ TE_BUCKET_PRESETS = {"primate": TE_BUCKETS_PRIMATE,
                      "mouse": TE_BUCKETS_MOUSE}
 
 # Genome reference key -> TE-bucket preset (the species vocabulary follows
-# the genome). Genomes without an entry fall back to generic "primate";
-# an explicit Params.sv.mei.te_buckets list in the config always wins.
+# the genome). Genomes without an entry fall back to generic "primate".
+# Per the design this mapping is the customization point: node.py rewrites
+# Params.sv.mei.te_buckets to the species list at config generation.
 GENOME_TE_BUCKET_PRESET = {
     "GRCh38": "primate",
     "GRCm39": "mouse",
@@ -110,29 +111,26 @@ def _validate_te_lib(te_lib_path, preset, workflow):
             f"{'mouse' if preset == 'mouse' else 'human'} -o {te_lib_path}")
 
 def _fill_mei_te_buckets(datajson: Dict[str, Any], workflow: str) -> None:
-    """Fill Params.sv.mei.te_buckets with the species bucket list.
+    """Rewrite Params.sv.mei.te_buckets with the species bucket list.
 
     te_buckets IS the ordered bucket list (schema in
-    modules/sv/bin/mei_analysis.py), and the species vocabulary follows
-    the genome (GENOME_TE_BUCKET_PRESET -> TE_BUCKET_PRESETS). An explicit
-    list in the config (or --Params.sv.mei.te_buckets override) always
-    wins. Also sanity-checks the genome's TE lib sentinels.
+    modules/sv/bin/mei_analysis.py); its declared default is the generic
+    primate vocabulary. The species vocabulary follows the genome and is
+    written here at config generation — custom vocabularies are maintained
+    in TE_BUCKET_PRESETS / GENOME_TE_BUCKET_PRESET below, not per-run in
+    the config. Also sanity-checks the genome's TE lib sentinels.
     """
     mei = (datajson.setdefault("Params", {}).setdefault("sv", {})
            .setdefault("mei", {}))
     genome_key = datajson.get("genome", {}).get("default")
     preset = GENOME_TE_BUCKET_PRESET.get(str(genome_key), "primate")
-    if mei.get("te_buckets"):
+    buckets = copy.deepcopy(TE_BUCKET_PRESETS[preset])
+    if mei.get("te_buckets") != buckets:
         logger.info(
-            f"{workflow}: Params.sv.mei.te_buckets explicit "
-            f"({len(mei['te_buckets'])} buckets); genome preset "
-            f"'{preset}' not applied")
-    else:
-        mei["te_buckets"] = copy.deepcopy(TE_BUCKET_PRESETS[preset])
-        logger.info(
-            f"{workflow}: Params.sv.mei.te_buckets auto-filled with "
-            f"'{preset}' preset ({len(mei['te_buckets'])} buckets) from "
-            f"genome.default '{genome_key}'")
+            f"{workflow}: Params.sv.mei.te_buckets rewritten to '{preset}' "
+            f"preset ({len(buckets)} buckets) from genome.default "
+            f"'{genome_key}'")
+    mei["te_buckets"] = buckets
     te_lib = ((datajson.get("genome", {}).get("references", {})
                .get(str(genome_key)) or {}).get("te_lib"))
     _validate_te_lib(te_lib, preset, workflow)

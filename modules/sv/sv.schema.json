@@ -146,6 +146,58 @@
             "required": false
           }
         }
+      },
+      "mei": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "enabled": {
+            "type": "bool",
+            "nullable": true,
+            "required": false,
+            "default": true,
+            "description": "Gate the sv_mei analysis (MEI classification + figure suite)."
+          },
+          "min_len": {
+            "type": "int",
+            "nullable": true,
+            "required": false,
+            "default": 100,
+            "description": "Minimum inserted-sequence length (bp) sent to RepeatMasker; shorter events stay 'short_unclassified'."
+          },
+          "full_length": {
+            "type": "int",
+            "nullable": true,
+            "required": false,
+            "default": 6000,
+            "description": "Minimum insertion length (bp) for full-length candidacy."
+          },
+          "full_length_family": {
+            "type": "str",
+            "nullable": true,
+            "required": false,
+            "default": "L1",
+            "description": "Bucket name considered for full-length candidacy (L1 by default; e.g. an ERVK bucket for other clades)."
+          },
+          "te_buckets": {
+            "type": "list",
+            "nullable": true,
+            "required": false,
+            "default": [
+              {"name": "Alu", "family": ["Alu"], "retro_fingerprint": true},
+              {"name": "L1", "family": ["L1", "LINE"], "retro_fingerprint": true},
+              {"name": "SVA", "family": ["SVA"], "retro_fingerprint": true},
+              {"name": "LTR", "class": ["LTR"]},
+              {"name": "DNA", "class": ["DNA"]},
+              {"name": "microsatellite", "class": ["Simple_repeat"]},
+              {"name": "other", "catch_all": "classified"},
+              {"name": "unclassified", "catch_all": "unclassified"}
+            ],
+            "items": {"type": "dict"},
+            "description": "Ordered TE bucket list ({name, subfamily, family, class, catch_all, retro_fingerprint, zero_slot} dicts; matching schema in bin/mei_analysis.py). Default = generic primate vocabulary; node.py rewrites it to the species vocabulary from genome.default at config generation (custom vocabularies live in node.py TE_BUCKET_PRESETS)."
+          }
+        }
       }
     }
   },

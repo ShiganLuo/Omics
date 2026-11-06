@@ -321,8 +321,39 @@ module manta:
     snakefile: "../modules/manta/manta.smk"
     config: manta_config
 logger.info(f"manta_config: {manta_config}")
-use rule manta_config from manta as Mutation_manta_config
-use rule manta_run from manta as Mutation_manta_run
+use rule manta_config_germline from manta as Mutation_manta_config_germline
+use rule manta_run_germline from manta as Mutation_manta_run_germline
+
+# Somatic (tumor/normal) SV calling via the same manta module, instantiated
+# with a separate outdir/logdir. Wired unconditionally; node.py registers the
+# somaticSV output only when matched-normal design pairs exist (mirroring the
+# somatic SNV / Mutect2 pair judgment), which drives the DAG.
+manta_somatic_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
+    "env": config.get("env", {}),
+    "bam_suffix": ".sorted_markdup",
+    "indir": gatk_prepare_config["outdir"],
+    "outdir": f"{outdir}/variation/somatic_sv",
+    "logdir": f"{logdir}/group",
+    "samples": paired_samples + single_samples,
+    "Procedure": {
+        "manta": config.get("Procedure", {}).get("manta"),
+        "samtools": config.get("Procedure", {}).get("samtools")
+    },
+    "Params": {
+        "manta": config.get("Params", {}).get("manta", {})
+    },
+    "genome": {
+        "fasta": genome_ref.get("fasta")
+    }
+}
+module manta_somatic:
+    snakefile: "../modules/manta/manta.smk"
+    config: manta_somatic_config
+logger.info(f"manta_somatic_config: {manta_somatic_config}")
+use rule manta_config_somatic from manta_somatic as Mutation_manta_config_somatic
+use rule manta_run_somatic from manta_somatic as Mutation_manta_run_somatic
 
 # ============================================
 # CNV Detection with CNVkit (cfDNA)

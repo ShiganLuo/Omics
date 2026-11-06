@@ -617,6 +617,9 @@ include: "../modules/common/common.smk"
 decoil_params = config.get("Params", {}).get("decoil", {})
 ```
 
+- **参数链条保持完整**：配置字段从模板到消费方保持同一条完整嵌套路径（如 `Params.sv.mei.te_buckets`），subworkflow 组装模块 config 时保留层级，不缩短、不改根、不拍平。
+- **只传用得到的参数**：subworkflow 组装模块 config 的 `Params` 时只放该模块实际读取的子树/字段，用不到的参数不传。
+
 # Pitfalls
 
 ## 1. 子目录 conda 路径

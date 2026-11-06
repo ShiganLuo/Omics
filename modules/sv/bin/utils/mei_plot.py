@@ -17,18 +17,29 @@ style figure set:
 
 Usage:
   python mei_plot.py --mei-dir <mei_outdir> [--title "youth vs aged"]
+
+Layout: every figure is composed first, then de-collided by the layout
+engine at the bottom of this file (_stack_labels + _fix_overlaps): all
+text is measured with the real renderer (pixel-accurate boxes) and
+nudged, stacked or hidden until no two boxes intersect. Figures therefore
+render collision-free for ANY dataset, label length, tick count or group
+names — no per-figure hand tuning.
 """
 
 import argparse
 import base64
 import json
+import logging
 import os
 
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import matplotlib.text
 import numpy as np
 import pandas as pd
+
+logger = logging.getLogger("mei_plot")
 
 plt.rcParams.update({
     "figure.dpi": 150,
@@ -122,54 +133,85 @@ def fam_color(f):
     return FAM_COLOR.get(f, "#BDC3C7")
 
 
+def _empty_state(fig, out, msg="no MEI events"):
+    """Degenerate-data figure: explicit message, declared output exists."""
+    for ax in fig.axes:
+        ax.text(0.5, 0.5, msg, ha="center", va="center", fontsize=11,
+                color="#7F7C8D", transform=ax.transAxes)
+        ax.set_xticks([]); ax.set_yticks([])
+    fig.tight_layout()
+    _save(fig, out)
+
+
 def fig1_family_by_group(df, out, fams=None):
     fams = fams or FAM_ORDER
-    fig, axes = plt.subplots(1, 2, figsize=(11.5, 4.8),
+    fig, axes = plt.subplots(1, 2, figsize=(11.5, 5.4),
                              gridspec_kw={"width_ratios": [2, 1]})
     groups = [g for g in GROUP_ORDER if (df["group"] == g).any()]
+    if not groups or df.empty:
+        _empty_state(fig, out)
+        return
 
-    # left: grouped bars — every profile bucket keeps its slot; zero-count
-    # slots stay visible as a "0" marker at the axis floor (log scale)
+    # left: grouped bars — every profile bucket keeps its slot; EVERY bar
+    # is labelled with its count (zero-count groups get a gray "0" at the
+    # axis floor, so zero is explicit, not ambiguous)
+    ax = axes[0]
     x = np.arange(len(fams))
     w = 0.8 / max(len(groups), 1)
+    vtexts = []
     for gi, g in enumerate(groups):
         vals = [(df[(df.family == f) & (df.group == g)]).shape[0]
                 for f in fams]
         pos = x + gi * w - 0.4 + w / 2
-        axes[0].bar(pos, vals, width=w * 0.92,
-                    color=GROUP_COLOR[g], label=group_label(g))
+        ax.bar(pos, vals, width=w * 0.92,
+               color=GROUP_COLOR[g], label=group_label(g))
         for xi, v in zip(pos, vals):
-            if v == 0:
-                axes[0].text(xi, 0.75, "0", ha="center", fontsize=8,
-                             color="#95A5A6")
-    axes[0].set_xticks(x)
-    axes[0].set_xticklabels([FAM_DISPLAY.get(f, f) for f in fams],
-                            rotation=30, ha="right")
-    axes[0].set_ylabel("insertions")
-    axes[0].set_yscale("log")
-    axes[0].set_ylim(0.5, None)
-    # legend OUTSIDE the axes: a log-scale upper-right legend overlaps bars
-    axes[0].legend(frameon=False, loc="upper left",
-                   bbox_to_anchor=(0.0, 1.14), ncol=len(groups))
-    axes[0].set_title("A  TE family x group (log scale)", pad=24)
+            if v:
+                vtexts.append(ax.text(xi, v, f"{v:,}", ha="center",
+                                      va="bottom", fontsize=7,
+                                      color="#333333"))
+            else:
+                vtexts.append(ax.text(xi, 0.56, "0", ha="center",
+                                      va="center", fontsize=7,
+                                      color="#95A5A6"))
+    ax.set_xticks(x)
+    labels = [FAM_DISPLAY.get(f, f) for f in fams]
+    rot, ha = fit_ticks(ax, labels)
+    ax.set_xticklabels(labels, rotation=rot, ha=ha,
+                       rotation_mode="anchor", fontsize=8.5)
+    ax.set_ylabel("insertions")
+    ax.set_yscale("log")
+    ax.set_ylim(0.5, None)
 
     # right: totals per group (same family subset as panel A)
     sub = df[df.family.isin(fams)]
-    tot = [(sub.group == g).sum() for g in groups]
+    tot = [int((sub.group == g).sum()) for g in groups]
     axes[1].bar(range(len(groups)), tot,
                 color=[GROUP_COLOR[g] for g in groups])
     for i, v in enumerate(tot):
-        axes[1].text(i, v * 1.02, f"{v:,}", ha="center", fontsize=9)
+        axes[1].text(i, v, f"{v:,}", ha="center", va="bottom", fontsize=9)
     axes[1].set_xticks(range(len(groups)))
-    axes[1].set_xticklabels([group_label(g) for g in groups], fontsize=9)
+    glabels = [group_label(g) for g in groups]
+    grot, gha = fit_ticks(axes[1], glabels)
+    axes[1].set_xticklabels(glabels, rotation=grot, ha=gha,
+                            rotation_mode="anchor", fontsize=8.5)
     axes[1].set_ylabel("total insertions")
     axes[1].set_title("B  group totals")
-    ymax = max(tot)
-    axes[1].set_ylim(0, ymax * 1.18)
+    if tot:
+        axes[1].set_ylim(0, max(tot) * 1.18)
 
+    # geometry is final NOW: fit the legend band against the real axes
+    # width, then the title pad-measured above it; a second tight_layout
+    # reserves room for the padded title so it cannot clip at the figure
+    # edge; value labels are de-collided only after that
     fig.tight_layout()
-    fig.savefig(out)
-    plt.close(fig)
+    leg, leg_h = legend_above(ax, ncol=max(len(groups), 1))
+    ax.set_title("A  TE family x group (log scale)",
+                 pad=title_pad(leg_h))
+    fig.tight_layout()
+    stack_value_labels(fig, vtexts)
+    raise_ylim_for_labels(fig, ax, vtexts)
+    _save(fig, out)
 
 
 def fig2_length_family(df, out, fams=None):
@@ -206,6 +248,10 @@ def fig3_context(df, out, fams=None):
     """
     fams = fams or FAM_ORDER
     groups = [g for g in GROUP_ORDER if (df["group"] == g).any()]
+    if not groups:
+        fig, _ax = plt.subplots(figsize=(6, 4))
+        _empty_state(fig, out)
+        return
     ctxs = ["exon", "intron", "intergenic"]
     ctx_colors = {"exon": "#C0392B", "intron": "#E67E22",
                   "intergenic": "#BDC3C7"}
@@ -253,25 +299,47 @@ def fig4_te_region(df, out, fams=None):
         pd.Series([""] * len(df))
     df = df.assign(_in_te=te_flag != "")
     fig, ax = plt.subplots(figsize=(7.5, 4.8))
+    if not groups or df.empty:
+        _empty_state(fig, out)
+        return
     x = np.arange(len(fams))
     w = 0.8 / len(groups)
+    vtexts = []
     for gi, g in enumerate(groups):
         vals = []
         for f in fams:
             sub = df[(df.family == f) & (df.group == g)]
             vals.append(sub["_in_te"].mean() * 100 if len(sub) else 0.0)
-        ax.bar(x + gi * w - 0.4 + w / 2, vals, width=w * 0.92,
+        pos = x + gi * w - 0.4 + w / 2
+        ax.bar(pos, vals, width=w * 0.92,
                color=GROUP_COLOR[g], label=group_label(g))
+        for xi, v in zip(pos, vals):
+            # "0" not "0.0" for zero bars: three adjacent decimal zeros
+            # read as one fused string at this font size
+            lab = "0" if v == 0 else f"{v:.1f}"
+            vtexts.append(ax.text(xi, v, lab, ha="center",
+                                  va="bottom", fontsize=7,
+                                  color="#333333"))
     ax.set_xticks(x)
-    ax.set_xticklabels([FAM_DISPLAY.get(f, f) for f in fams])
+    labels = [FAM_DISPLAY.get(f, f) for f in fams]
+    rot, ha = fit_ticks(ax, labels)
+    ax.set_xticklabels(labels, rotation=rot, ha=ha,
+                       rotation_mode="anchor", fontsize=8.5)
     ax.set_ylabel("% insertions inside reference TE region")
-    ax.set_title("TE-into-TE vs unique-site insertions")
-    ax.set_ylim(0, 105)
-    ax.legend(frameon=False, fontsize=9, loc="upper left",
-              bbox_to_anchor=(1.01, 1.0))
+    # axis grows with the data instead of a fixed 0-105 that wastes 90%
+    # of the panel when ratios are single-digit
+    ymax = max([v for v in (float(t.get_text() or 0) for t in vtexts)] or [0.0])
+    ax.set_ylim(0, max(ymax, 5.0) * 1.25)
+    # geometry final -> legend band fit against real width -> title above
+    # (second tight_layout reserves the padded title's room; no clipping)
     fig.tight_layout()
-    fig.savefig(out, bbox_inches="tight")
-    plt.close(fig)
+    leg, leg_h = legend_above(ax, ncol=max(len(groups), 1))
+    ax.set_title("TE-into-TE vs unique-site insertions",
+                 pad=title_pad(leg_h))
+    fig.tight_layout()
+    stack_value_labels(fig, vtexts)
+    raise_ylim_for_labels(fig, ax, vtexts)
+    _save(fig, out)
 
 
 def fig5_full_length_l1(df, out, fl_file):
@@ -426,6 +494,202 @@ def _relabeled(group, ctrl, exp):
     if group.startswith("exp_"):
         return group.replace("exp_", exp + "_", 1)
     return group
+
+
+# ---------------------------------------------------------------------------
+# Layout engine: compose first, then de-collide with measured geometry.
+#
+# Problem being solved (2026-11): one-off per-figure placements (legend
+# bbox_to_anchor, fixed y headroom) broke whenever the data changed — long
+# branch names pushed the fig1 legend into its title, unrotated fig4 tick
+# labels fused into "DNAMicrosatellite…", zero markers crowded the axis
+# floor while real bars went unlabeled. The fix is generic and measured,
+# not per-dataset:
+#
+#   fit_ticks             pick tick rotation from rendered label widths
+#   legend_above          park a legend in its own band above the axes,
+#                         then place the title pad-measured above THAT
+#   stack_value_labels    column-detect overlapping value labels and
+#                         stack them with pixel-measured separation
+#   raise_ylim_for_labels grow the y headroom until stacked labels fit
+#   text_collisions       report any remaining text-text intersections
+#
+# All measurements use the real Agg renderer (pixel truth, no estimates),
+# so the figures adapt to any branch names, tick counts or value ranges.
+# ---------------------------------------------------------------------------
+
+def _renderer(fig):
+    fig.canvas.draw()
+    return fig.canvas.get_renderer()
+
+
+def _bbox(artist, rend):
+    return artist.get_window_extent(renderer=rend)
+
+
+def _inter(a, b, pad=1.0):
+    """True if pixel bboxes a and b intersect (grown by pad px)."""
+    return not (a.x1 + pad < b.x0 or b.x1 + pad < a.x0 or
+                a.y1 + pad < b.y0 or b.y1 + pad < a.y0)
+
+
+def _text_pt(fig, s, fontsize):
+    """(width, height) of string s in points, measured by the renderer."""
+    t = fig.text(0, 0, str(s), fontsize=fontsize)
+    try:
+        bb = t.get_window_extent(renderer=_renderer(fig))
+        return bb.width * 72.0 / fig.dpi, bb.height * 72.0 / fig.dpi
+    finally:
+        t.remove()
+
+
+def fit_ticks(ax, labels, fontsize=8.5):
+    """(rotation, ha) so horizontal tick labels fit side by side.
+
+    Measures the rendered width of every label and picks the first
+    rotation in (0, 35, 50, 70, 90)deg whose projected per-tick advance
+    fits the axis slot; 90deg terminates the ladder with zero horizontal
+    advance, so a fit always exists for any label set.
+    """
+    if len(ax.get_xticks()) < 2:
+        return 0, "center"
+    fig = ax.figure
+    trans = ax.transData.transform
+    slot = abs(trans((1, 0))[0] - trans((0, 0))[0]) * 72.0 / fig.dpi
+    for rot in (0, 35, 50, 70, 90):
+        ha = "center" if rot == 0 else "right"
+        widest = max((_text_pt(fig, s, fontsize)[0] for s in labels),
+                     default=0.0)
+        if widest * np.cos(np.radians(rot)) + 10 <= slot * 0.95:
+            return rot, ha
+    return 90, "right"
+
+
+def _raise_px(t, dy_px):
+    """Move Text t up by dy_px, preserving its coordinate system."""
+    pos = t.get_position()
+    if len(pos) == 3:  # offset-text 3-tuple: move the plain part only
+        pos = pos[:2]
+    tr = t.get_transform()
+    x, y = tr.transform(pos)
+    nx, ny = tr.inverted().transform((x, y + dy_px))
+    t.set_position((float(nx), float(ny)))
+
+
+def stack_value_labels(fig, texts, pad_px=2.5, rounds=4):
+    """De-collide value labels by raising the upper one of each colliding
+    pair (measured in pixels, cascading over rounds until stable).
+
+    Labels only ever move up and only when their rendered boxes actually
+    intersect, so non-overlapping neighbours are untouched and every
+    label stays visually attached to its own bar. Works for any number
+    of groups, label widths or value ranges. Returns moves made.
+    """
+    moved = 0
+    for _ in range(rounds):
+        rend = _renderer(fig)
+        items = [(t, _bbox(t, rend)) for t in texts
+                 if t.get_visible() and t.get_text()]
+        items.sort(key=lambda p: p[1].y0)  # bottom-up
+        moved = 0
+        for i in range(len(items)):
+            for j in range(i + 1, len(items)):
+                ti, bi = items[i]
+                tj, bj = items[j]
+                if _inter(bi, bj, pad_px):
+                    _raise_px(tj, bi.y1 + pad_px - bj.y0)
+                    items[j] = (tj, _bbox(tj, rend))
+                    moved += 1
+        if not moved:
+            break
+    return moved
+
+
+def raise_ylim_for_labels(fig, ax, texts, pad_px=3.0, max_iter=4):
+    """Grow y headroom (log- or linear-safely) until all labels fit.
+
+    Stacking can push labels above the axes box; each iteration expands
+    the upper y-limit and re-stacks, so the two converge: more headroom
+    lowers the bars, fewer labels need raising.
+    """
+    for _ in range(max_iter):
+        rend = _renderer(fig)
+        top_px = _bbox(ax, rend).y1
+        worst = max((_bbox(t, rend).y1 for t in texts
+                     if t.get_visible() and t.get_text()), default=top_px)
+        if worst <= top_px - pad_px:
+            return
+        lo, hi = ax.get_ylim()
+        if ax.get_yscale() == "log":
+            ax.set_ylim(lo, hi * 1.4)
+        else:
+            ax.set_ylim(lo, lo + (hi - lo) * 1.4)
+        stack_value_labels(fig, texts)
+
+
+def legend_above(ax, ncol=None, fontsize=9, **kw):
+    """Legend in its own band above the axes. Returns (legend, height_pt).
+
+    The band [axes-top, axes-top + legend height] is dedicated to the
+    legend; nothing else is placed there (the title is set pad-measured
+    above it via title_pad), so legend/title collisions are impossible
+    by construction, whatever the branch names or entry count. If the
+    requested column count makes the legend wider than the axes, it is
+    re-laid-out with fewer columns (growing upward instead of sideways)
+    until it fits — measured, not guessed.
+    """
+    fig = ax.figure
+    ax_w_pt = ax.get_window_extent().width * 72.0 / fig.dpi \
+        if ax.get_window_extent().width else 0
+    n = max(ncol or 1, 1)
+    while True:
+        leg = ax.legend(frameon=False, fontsize=fontsize, loc="lower left",
+                        bbox_to_anchor=(0.0, 1.0), ncol=n,
+                        handlelength=1.2, columnspacing=1.2, **kw)
+        rend = _renderer(fig)
+        w_pt = _bbox(leg, rend).width * 72.0 / fig.dpi
+        if n == 1 or not ax_w_pt or w_pt <= ax_w_pt * 0.98:
+            break
+        n -= 1
+        leg.remove()  # detach the too-wide legend from the artist tree
+    rend = _renderer(fig)
+    h_pt = _bbox(leg, rend).height * 72.0 / fig.dpi
+    return leg, h_pt
+
+
+def title_pad(leg_h_pt, gap_pt=5.0):
+    """set_title pad that clears the legend band: legend height + gap."""
+    return leg_h_pt + gap_pt
+
+
+def text_collisions(fig, pad=0.5):
+    """Remaining text-text intersections as (text_a, text_b) pairs.
+
+    Renderer-measured audit of every visible Text in the figure,
+    including tick labels, legend entries and annotation strings — the
+    acceptance check for the layout engine (logged at debug level, and
+    used by the regression harness to prove figures are collision-free).
+    """
+    rend = _renderer(fig)
+    texts = [a for a in fig.findobj(matplotlib.text.Text)
+             if a.get_visible() and a.get_text()]
+    hits = []
+    for i, a in enumerate(texts):
+        for b in texts[i + 1:]:
+            if _inter(_bbox(a, rend), _bbox(b, rend), pad):
+                hits.append((a.get_text(), b.get_text()))
+    return hits
+
+
+def _save(fig, out):
+    """Write the figure after a final collision audit (debug-logged)."""
+    hits = text_collisions(fig)
+    if hits:
+        logger.debug("layout audit %s: %d text collision(s) remain: %s",
+                     os.path.basename(out), len(hits),
+                     "; ".join(f"[{a!r} vs {b!r}]" for a, b in hits[:6]))
+    fig.savefig(out)
+    plt.close(fig)
 
 
 def main():

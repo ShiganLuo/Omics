@@ -659,7 +659,9 @@ sv_config = {
     "comparisons": sv_params.get("comparisons", {}),
     "vcf_dir": pbsv_config["outdir"],
     "vcf_suffix": ".sv.vcf.gz",
-    "Params": sv_params,
+    "Params": {
+        "sv": sv_params
+    },
     "genome": {
         "fasta": genome_ref.get("fasta"),
         "gtf": genome_ref.get("gtf"),

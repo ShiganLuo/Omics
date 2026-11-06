@@ -339,6 +339,10 @@
           "full_length_family": {
             "type": "str",
             "required": false
+          },
+          "te_buckets": {
+            "type": "str",
+            "required": false
           }
         }
       }

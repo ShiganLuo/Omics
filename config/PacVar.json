@@ -229,7 +229,8 @@
                 "enabled": true,
                 "min_len": 100,
                 "full_length": 6000,
-                "full_length_family": "L1"
+                "full_length_family": "L1",
+                "te_buckets": ""
             }
         },
         "phase": {

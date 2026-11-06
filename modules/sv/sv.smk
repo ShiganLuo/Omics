@@ -344,13 +344,14 @@ rule sv_mei:
         # figures chain INSIDE the entry via bin/utils/mei_plot.py (dead param,
         # kept only for readability of the rule's toolchain)
         plot = os.path.join(ROOT_DIR, "modules/sv/bin/utils/mei_plot.py"),
-        min_len = config.get("Params", {}).get("mei", {}).get("min_len", 100),
-        full_length = config.get("Params", {}).get("mei", {}).get("full_length", 6000),
-        full_length_family = config.get("Params", {}).get("mei", {}).get("full_length_family", "L1"),
+        min_len = config.get("Params", {}).get("sv", {}).get("mei", {}).get("min_len", 100),
+        full_length = config.get("Params", {}).get("sv", {}).get("mei", {}).get("full_length", 6000),
+        full_length_family = config.get("Params", {}).get("sv", {}).get("mei", {}).get("full_length_family", "L1"),
         threads = lambda wildcards: rule_res("sv_mei").get("threads", 4),
         ctrl_name = lambda wildcards: (comparisons.get(wildcards.comparison, {}) or {}).get("control_group_name") or "",
         exp_name = lambda wildcards: (comparisons.get(wildcards.comparison, {}) or {}).get("experimental_group_name") or "",
-        te_buckets = config.get("Params", {}).get("sv", {}).get("mei", {}).get("te_buckets") or "primate",
+        # ordered TE bucket list, filled by node.py from genome.default
+        te_buckets = config.get("Params", {}).get("sv", {}).get("mei", {}).get("te_buckets"),
     conda:
         "sv.yaml"
     container:
@@ -381,11 +382,9 @@ rule sv_mei:
                 cmd += ["--ctrl-name", shlex.quote(params.ctrl_name)]
             if params.exp_name:
                 cmd += ["--exp-name", shlex.quote(params.exp_name)]
-            # TE bucket profile: preset name or inline bucket list (JSON)
-            tb = params.te_buckets
-            if isinstance(tb, (list, dict)):
-                tb = json.dumps(tb, ensure_ascii=False)
-            cmd += ["--te-buckets", shlex.quote(str(tb))]
+            # TE bucket list (Params.sv.mei.te_buckets), JSON transport
+            cmd += ["--te-buckets",
+                    shlex.quote(json.dumps(params.te_buckets, ensure_ascii=False))]
             if input.fasta:
                 cmd += ["--fasta", str(input.fasta[0])]
             if input.gtf:

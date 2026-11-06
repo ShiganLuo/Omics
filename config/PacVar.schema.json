@@ -173,7 +173,7 @@
             "required": false
           },
           "te_buckets": {
-            "type": "str",
+            "type": "list",
             "required": false
           }
         }

@@ -1,3 +1,4 @@
+import copy
 import os
 import re
 import time
@@ -27,10 +28,45 @@ GENOME_TE_SPECIES = {
     "Mmul_T2T": "rhesus",
 }
 
-# Genome reference key -> default MEI TE-bucket preset (modules/sv/bin/
-# mei_analysis.py --te-buckets). When the genome has no entry here the
-# generic "primate" preset stays the fallback; an explicit
-# Params.sv.mei.te_buckets in the config always wins.
+# MEI TE-bucket vocabularies (species preset -> ordered bucket list).
+# te_buckets is the LIST itself end to end: node.py fills
+# Params.sv.mei.te_buckets with it and sv.smk hands it to
+# modules/sv/bin/mei_analysis.py --te-buckets as JSON. Bucket schema and
+# matching semantics (name display-only; exact, case-insensitive match at
+# the FIRST non-empty level of subfamily/family/class; ordered, first hit
+# wins) are documented in mei_analysis.py above parse_te_buckets. Exact
+# matching means subfamily lists only work for names WITHOUT subfamily
+# suffixes — real RM names are L1_Md_A / SVA_A / IAP-dIAP1-int, so those
+# buckets match at family level.
+TE_BUCKETS_PRIMATE = [
+    {"name": "Alu", "family": ["Alu"], "retro_fingerprint": True},
+    {"name": "L1", "family": ["L1", "LINE"], "retro_fingerprint": True},
+    {"name": "SVA", "family": ["SVA"], "retro_fingerprint": True},
+    {"name": "LTR", "class": ["LTR"]},
+    {"name": "DNA", "class": ["DNA"]},
+    {"name": "microsatellite", "class": ["Simple_repeat"]},
+    {"name": "other", "catch_all": "classified"},
+    {"name": "unclassified", "catch_all": "unclassified"},
+]
+
+TE_BUCKETS_MOUSE = [
+    {"name": "IAP/ETn", "family": ["ERVK"], "retro_fingerprint": True},
+    {"name": "B1", "family": ["Alu"], "retro_fingerprint": True},
+    {"name": "B2/ID", "family": ["tRNA", "B2"], "retro_fingerprint": True},
+    {"name": "L1", "family": ["L1", "LINE"], "retro_fingerprint": True},
+    {"name": "LTR", "class": ["LTR"]},
+    {"name": "DNA", "class": ["DNA"]},
+    {"name": "microsatellite", "class": ["Simple_repeat"]},
+    {"name": "other", "catch_all": "classified"},
+    {"name": "unclassified", "catch_all": "unclassified"},
+]
+
+TE_BUCKET_PRESETS = {"primate": TE_BUCKETS_PRIMATE,
+                     "mouse": TE_BUCKETS_MOUSE}
+
+# Genome reference key -> TE-bucket preset (the species vocabulary follows
+# the genome). Genomes without an entry fall back to generic "primate";
+# an explicit Params.sv.mei.te_buckets list in the config always wins.
 GENOME_TE_BUCKET_PRESET = {
     "GRCh38": "primate",
     "GRCm39": "mouse",
@@ -38,28 +74,68 @@ GENOME_TE_BUCKET_PRESET = {
     "Mmul_10": "primate",
     "Mmul_T2T": "primate",
 }
-def _fill_mei_te_buckets(datajson: Dict[str, Any], workflow: str) -> None:
-    """Default Params.sv.mei.te_buckets from the resolved genome.default.
 
-    The MEI suite (modules/sv/bin/mei_analysis.py) buckets insertions with
-    a species-specific TE vocabulary; the right default follows the genome,
-    not the user's memory. GENOME_TE_BUCKET_PRESET maps the normalized
-    genome key to a preset name; an explicit Params.sv.mei.te_buckets
-    (config JSON or --Params.sv.mei.te_buckets override) always wins.
-    Genomes without an entry keep mei_analysis's own default.
+# Preset -> sentinel family-name markers that a sane TE consensus library
+# MUST contain (see utils/famdb.py SENTINEL_SUBFAMILIES; mirrored here so
+# the check runs at config time without importing famdb).
+TE_LIB_SENTINELS = {
+    "mouse": (["l1m", "l1mus"], ["b1"], ["b2"], ["iap"], ["etn", "mervl"]),
+    "primate": (["l1p", "l1hs", "l1_"], ["alu"], ["sva"], ["erv", "ltr"]),
+}
+
+def _validate_te_lib(te_lib_path, preset, workflow):
+    """Warn when the TE library lacks species sentinel families.
+
+    Deterministic for the wrong-branch failure mode (a library with only
+    ancestor-level families); cannot detect sequence-level corruption.
     """
-    sv_params = datajson.setdefault("Params", {}).setdefault("sv", {})
-    mei = sv_params.setdefault("mei", {})
-    if mei.get("te_buckets"):
-        return  # explicit config wins
+    groups = TE_LIB_SENTINELS.get(preset)
+    if not groups or not te_lib_path or not os.path.exists(te_lib_path):
+        return
+    names = set()
+    with open(te_lib_path) as fh:
+        for line in fh:
+            if line.startswith(">"):
+                names.add(line[1:].split()[0].lower())
+                if len(names) > 5000:
+                    break
+    missing = ["/".join(g) for g in groups
+               if not any(any(m in n for n in names) for m in g)]
+    if missing:
+        logger.warning(f"{workflow}: TE library {te_lib_path} lacks sentinel "
+            f"families for preset '{preset}': {', '.join(missing)}. It was "
+            f"likely curated on the wrong lineage branch — every insertion "
+            f"may classify as noise. Rebuild with: python "
+            f"modules/sv/bin/utils/famdb.py -i <dfam.h5> -s "
+            f"{'mouse' if preset == 'mouse' else 'human'} -o {te_lib_path}")
+
+def _fill_mei_te_buckets(datajson: Dict[str, Any], workflow: str) -> None:
+    """Fill Params.sv.mei.te_buckets with the species bucket list.
+
+    te_buckets IS the ordered bucket list (schema in
+    modules/sv/bin/mei_analysis.py), and the species vocabulary follows
+    the genome (GENOME_TE_BUCKET_PRESET -> TE_BUCKET_PRESETS). An explicit
+    list in the config (or --Params.sv.mei.te_buckets override) always
+    wins. Also sanity-checks the genome's TE lib sentinels.
+    """
+    mei = (datajson.setdefault("Params", {}).setdefault("sv", {})
+           .setdefault("mei", {}))
     genome_key = datajson.get("genome", {}).get("default")
-    preset = GENOME_TE_BUCKET_PRESET.get(str(genome_key)) if genome_key else None
-    if preset:
-        mei["te_buckets"] = preset
+    preset = GENOME_TE_BUCKET_PRESET.get(str(genome_key), "primate")
+    if mei.get("te_buckets"):
         logger.info(
-            f"{workflow}: Params.sv.mei.te_buckets auto-set to '{preset}' "
-            f"from genome.default '{genome_key}'"
-        )
+            f"{workflow}: Params.sv.mei.te_buckets explicit "
+            f"({len(mei['te_buckets'])} buckets); genome preset "
+            f"'{preset}' not applied")
+    else:
+        mei["te_buckets"] = copy.deepcopy(TE_BUCKET_PRESETS[preset])
+        logger.info(
+            f"{workflow}: Params.sv.mei.te_buckets auto-filled with "
+            f"'{preset}' preset ({len(mei['te_buckets'])} buckets) from "
+            f"genome.default '{genome_key}'")
+    te_lib = ((datajson.get("genome", {}).get("references", {})
+               .get(str(genome_key)) or {}).get("te_lib"))
+    _validate_te_lib(te_lib, preset, workflow)
 
 
 def _detect_current_server_db() -> str | None:

@@ -409,7 +409,7 @@ sv_go_kegg_config = {
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "indir": sv_outdir,
-    "outdir": f"{sv_outdir}/sv_go_kegg",
+    "outdir": sv_outdir,
     "logdir": f"{logdir}/group",
     "comparisons": sv_config.get("comparisons", {}),
     "Params": {

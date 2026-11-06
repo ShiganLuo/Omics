@@ -647,6 +647,13 @@ use rule decoil_ucsc from decoil as Fiberseq_decoil_ucsc
 #   resolved per sample from vcf_dir/vcf_suffix.
 # ============================================================
 sv_params = config.get("Params", {}).get("sv", {})
+# mei.te_buckets: per-species dict (keyed like genome.references) -> the
+# active genome's list; a plain list passes through.
+_mei = sv_params.get("mei", {})
+if isinstance(_mei.get("te_buckets"), dict):
+    sv_params = {**sv_params, "mei": {**_mei,
+                 "te_buckets": _mei["te_buckets"].get(default_genome, [])}}
+
 sv_outdir = f"{variation_outdir}/germline_sv_analysis"
 
 sv_config = {

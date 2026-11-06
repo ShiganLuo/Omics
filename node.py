@@ -28,46 +28,14 @@ GENOME_TE_SPECIES = {
     "Mmul_T2T": "rhesus",
 }
 
-# MEI TE-bucket vocabularies (species preset -> ordered bucket list).
-# te_buckets is the LIST itself end to end: node.py fills
-# Params.sv.mei.te_buckets with it and sv.smk hands it to
-# modules/sv/bin/mei_analysis.py --te-buckets as JSON. Bucket schema and
-# matching semantics (name display-only; exact, case-insensitive match at
-# the FIRST non-empty level of subfamily/family/class; ordered, first hit
-# wins) are documented in mei_analysis.py above parse_te_buckets. Exact
-# matching means subfamily lists only work for names WITHOUT subfamily
-# suffixes — real RM names are L1_Md_A / SVA_A / IAP-dIAP1-int, so those
-# buckets match at family level.
-TE_BUCKETS_PRIMATE = [
-    {"name": "Alu", "family": ["Alu"], "retro_fingerprint": True},
-    {"name": "L1", "family": ["L1", "LINE"], "retro_fingerprint": True},
-    {"name": "SVA", "family": ["SVA"], "retro_fingerprint": True},
-    {"name": "LTR", "class": ["LTR"]},
-    {"name": "DNA", "class": ["DNA"]},
-    {"name": "microsatellite", "class": ["Simple_repeat"]},
-    {"name": "other", "catch_all": "classified"},
-    {"name": "unclassified", "catch_all": "unclassified"},
-]
+# MEI TE-bucket vocabularies live in the config templates
+# (Params.sv.mei.te_buckets keyed by genome reference key, like
+# genome.references) — node.py only selects the active genome's list.
+# Bucket schema and matching semantics are documented in
+# modules/sv/bin/mei_analysis.py above parse_te_buckets.
 
-TE_BUCKETS_MOUSE = [
-    {"name": "IAP/ETn", "family": ["ERVK"], "retro_fingerprint": True},
-    {"name": "B1", "family": ["Alu"], "retro_fingerprint": True},
-    {"name": "B2/ID", "family": ["tRNA", "B2"], "retro_fingerprint": True},
-    {"name": "L1", "family": ["L1", "LINE"], "retro_fingerprint": True},
-    {"name": "LTR", "class": ["LTR"]},
-    {"name": "DNA", "class": ["DNA"]},
-    {"name": "microsatellite", "class": ["Simple_repeat"]},
-    {"name": "other", "catch_all": "classified"},
-    {"name": "unclassified", "catch_all": "unclassified"},
-]
-
-TE_BUCKET_PRESETS = {"primate": TE_BUCKETS_PRIMATE,
-                     "mouse": TE_BUCKETS_MOUSE}
-
-# Genome reference key -> TE-bucket preset (the species vocabulary follows
-# the genome). Genomes without an entry fall back to generic "primate".
-# Per the design this mapping is the customization point: node.py rewrites
-# Params.sv.mei.te_buckets to the species list at config generation.
+# Genome reference key -> TE-bucket preset name (for the TE-lib sentinel
+# check below only).
 GENOME_TE_BUCKET_PRESET = {
     "GRCh38": "primate",
     "GRCm39": "mouse",
@@ -84,17 +52,21 @@ TE_LIB_SENTINELS = {
     "primate": (["l1p", "l1hs", "l1_"], ["alu"], ["sva"], ["erv", "ltr"]),
 }
 
-def _validate_te_lib(te_lib_path, preset, workflow):
-    """Warn when the TE library lacks species sentinel families.
+def _validate_te_lib(datajson: Dict[str, Any], workflow: str) -> None:
+    """Warn when the genome's TE library lacks species sentinel families.
 
     Deterministic for the wrong-branch failure mode (a library with only
     ancestor-level families); cannot detect sequence-level corruption.
     """
+    genome_key = str(datajson.get("genome", {}).get("default"))
+    preset = GENOME_TE_BUCKET_PRESET.get(genome_key, "primate")
+    te_lib = ((datajson.get("genome", {}).get("references", {})
+               .get(genome_key) or {}).get("te_lib"))
     groups = TE_LIB_SENTINELS.get(preset)
-    if not groups or not te_lib_path or not os.path.exists(te_lib_path):
+    if not groups or not te_lib or not os.path.exists(te_lib):
         return
     names = set()
-    with open(te_lib_path) as fh:
+    with open(te_lib) as fh:
         for line in fh:
             if line.startswith(">"):
                 names.add(line[1:].split()[0].lower())
@@ -103,37 +75,13 @@ def _validate_te_lib(te_lib_path, preset, workflow):
     missing = ["/".join(g) for g in groups
                if not any(any(m in n for n in names) for m in g)]
     if missing:
-        logger.warning(f"{workflow}: TE library {te_lib_path} lacks sentinel "
+        logger.warning(f"{workflow}: TE library {te_lib} lacks sentinel "
             f"families for preset '{preset}': {', '.join(missing)}. It was "
             f"likely curated on the wrong lineage branch — every insertion "
             f"may classify as noise. Rebuild with: python "
             f"modules/sv/bin/utils/famdb.py -i <dfam.h5> -s "
-            f"{'mouse' if preset == 'mouse' else 'human'} -o {te_lib_path}")
+            f"{'mouse' if preset == 'mouse' else 'human'} -o {te_lib}")
 
-def _fill_mei_te_buckets(datajson: Dict[str, Any], workflow: str) -> None:
-    """Rewrite Params.sv.mei.te_buckets with the species bucket list.
-
-    te_buckets IS the ordered bucket list (schema in
-    modules/sv/bin/mei_analysis.py); its declared default is the generic
-    primate vocabulary. The species vocabulary follows the genome and is
-    written here at config generation — custom vocabularies are maintained
-    in TE_BUCKET_PRESETS / GENOME_TE_BUCKET_PRESET below, not per-run in
-    the config. Also sanity-checks the genome's TE lib sentinels.
-    """
-    mei = (datajson.setdefault("Params", {}).setdefault("sv", {})
-           .setdefault("mei", {}))
-    genome_key = datajson.get("genome", {}).get("default")
-    preset = GENOME_TE_BUCKET_PRESET.get(str(genome_key), "primate")
-    buckets = copy.deepcopy(TE_BUCKET_PRESETS[preset])
-    if mei.get("te_buckets") != buckets:
-        logger.info(
-            f"{workflow}: Params.sv.mei.te_buckets rewritten to '{preset}' "
-            f"preset ({len(buckets)} buckets) from genome.default "
-            f"'{genome_key}'")
-    mei["te_buckets"] = buckets
-    te_lib = ((datajson.get("genome", {}).get("references", {})
-               .get(str(genome_key)) or {}).get("te_lib"))
-    _validate_te_lib(te_lib, preset, workflow)
 
 
 def _detect_current_server_db() -> str | None:
@@ -635,7 +583,7 @@ def runPacVar(
     # wins; otherwise it is derived from the meta group pairs, like
     # runRNAseq fills Params.DESeq2.group_pairs.
     sv_params = datajson.get("Params", {}).get("sv", {})
-    _fill_mei_te_buckets(datajson, "PacVar")
+    _validate_te_lib(datajson, "PacVar")
     comparisons = dict(sv_params.get("comparisons") or {})
     if enable_sv and not comparisons:
         for gp in group_pairs:
@@ -851,12 +799,12 @@ def runMutation(
         # mirroring the somatic SNV (Mutect2) pair judgment above; paired
         # samples are skipped from germline SV exactly like mutect2_samples.
         for designPair in designPairs:
-            outfiles.append(f"{outdir}/variation/somatic_sv/{designPair.ctr_sample_id}_vs_{designPair.exp_sample_id}/somaticSV.vcf.gz")
+            outfiles.append(f"{outdir}/variation/somatic_sv/{designPair.ctr_sample_id}_vs_{designPair.exp_sample_id}/results/variants/somaticSV.vcf.gz")
         for sample_id in all_samples:
             if sample_id in mutect2_samples:
                 logger.info(f"Sample {sample_id} is involved in manta somatic analysis, skipping germline SV workflow for this sample.")
                 continue
-            outfiles.append(f"{outdir}/variation/germline_sv/{sample_id}/candidateSV.vcf.gz")
+            outfiles.append(f"{outdir}/variation/germline_sv/{sample_id}/results/variants/candidateSV.vcf.gz")
 
     if _enabled(datajson, "cnvkit"):
         # Mode-aware registration: paired -> per-pair tumors only (no pooled
@@ -1732,7 +1680,7 @@ def runFiberseq(
         )
     ### inject outfiles
     sv_params = datajson.get("Params", {}).get("sv", {})
-    _fill_mei_te_buckets(datajson, "Fiberseq")
+    _validate_te_lib(datajson, "Fiberseq")
     comparisons = dict(sv_params.get("comparisons") or {})
     if enable_sv and not comparisons:
         for gp in group_pairs:

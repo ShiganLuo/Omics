@@ -847,8 +847,16 @@ def runMutation(
         outfiles.append(f"{outdir}/results/fragment_size/fragment/FragmentSize.png")
 
     if _enabled(datajson, "manta"):
+        # Matched-normal design pairs -> Manta somatic mode (somaticSV.vcf.gz),
+        # mirroring the somatic SNV (Mutect2) pair judgment above; paired
+        # samples are skipped from germline SV exactly like mutect2_samples.
+        for designPair in designPairs:
+            outfiles.append(f"{outdir}/variation/somatic_sv/{designPair.ctr_sample_id}_vs_{designPair.exp_sample_id}/somaticSV.vcf.gz")
         for sample_id in all_samples:
-            outfiles.append(f"{outdir}/variation/germline_sv/{sample_id}/results/variants/candidateSV.vcf.gz")
+            if sample_id in mutect2_samples:
+                logger.info(f"Sample {sample_id} is involved in manta somatic analysis, skipping germline SV workflow for this sample.")
+                continue
+            outfiles.append(f"{outdir}/variation/germline_sv/{sample_id}/candidateSV.vcf.gz")
 
     if _enabled(datajson, "cnvkit"):
         # Mode-aware registration: paired -> per-pair tumors only (no pooled

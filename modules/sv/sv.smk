@@ -51,9 +51,9 @@ rule sv_exp_specific:
         mem_mb = rule_res("sv_exp_specific").get("mem_mb", 8000),
     params:
         script = os.path.join(ROOT_DIR, "modules/sv/bin/exp_specific.py"),
-        vep_cache = config.get("Params", {}).get("exp_specific", {}).get("vep_cache", "~/.vep"),
-        species = config.get("Params", {}).get("exp_specific", {}).get("species", "mus_musculus"),
-        assembly = config.get("Params", {}).get("exp_specific", {}).get("assembly", "GRCm39"),
+        vep_cache = config.get("Params", {}).get("sv", {}).get("exp_specific", {}).get("vep_cache", "~/.vep"),
+        species = config.get("Params", {}).get("sv", {}).get("exp_specific", {}).get("species", "mus_musculus"),
+        assembly = config.get("Params", {}).get("sv", {}).get("exp_specific", {}).get("assembly", "GRCm39"),
         custom_gtf = config.get("genome", {}).get("custom_gtf", ""),
         custom_fasta = config.get("genome", {}).get("custom_fasta", ""),
         te_lib = config.get("genome", {}).get("te_lib", ""),
@@ -114,9 +114,9 @@ rule sv_exp_circos:
         mem_mb = rule_res("sv_exp_circos").get("mem_mb", 8000),
     params:
         script = os.path.join(ROOT_DIR, "modules/sv/bin/run_circos.py"),
-        genome = config.get("Params", {}).get("circos", {}).get("genome", "mm39"),
-        cytoband = config.get("Params", {}).get("circos", {}).get("cytoband", ""),
-        ins_bin_size = config.get("Params", {}).get("circos", {}).get("ins_bin_size", 100000),
+        genome = config.get("Params", {}).get("sv", {}).get("circos", {}).get("genome", "mm39"),
+        cytoband = config.get("Params", {}).get("sv", {}).get("circos", {}).get("cytoband", ""),
+        ins_bin_size = config.get("Params", {}).get("sv", {}).get("circos", {}).get("ins_bin_size", 100000),
     conda:
         "sv.yaml"
     container:
@@ -168,7 +168,7 @@ rule sv_gene_model:
         mem_mb = rule_res("sv_gene_model").get("mem_mb", 8000),
     params:
         script = os.path.join(ROOT_DIR, "modules/sv/bin/utils/gene_model.py"),
-        threads = config.get("Params", {}).get("gene_model", {}).get("threads", 1),
+        threads = config.get("Params", {}).get("sv", {}).get("gene_model", {}).get("threads", 1),
     conda:
         "sv.yaml"
     container:
@@ -223,7 +223,7 @@ rule sv_diff_analysis:
         mem_mb = rule_res("sv_diff_analysis").get("mem_mb", 8000),
     params:
         script = os.path.join(ROOT_DIR, "modules/sv/bin/pbsv_sv_diff_analysis.py"),
-        large_sv_threshold = config.get("Params", {}).get("diff_analysis", {}).get("large_sv_threshold", 10000),
+        large_sv_threshold = config.get("Params", {}).get("sv", {}).get("diff_analysis", {}).get("large_sv_threshold", 10000),
     conda:
         "sv.yaml"
     container:
@@ -263,7 +263,7 @@ rule sv_oncoprint:
     """Generate OncoPrint plot from annotated SVs, COSMIC genes, and DESeq2 results."""
     input:
         annotated_tabs = expand(outdir + "/{comp}/{comp}_annotated.tab", comp=comparison_names),
-        cosmic_file = lambda wildcards: _require(config.get("Params", {}).get("oncoprint", {}).get("cosmic_file"), "Params.sv.oncoprint.cosmic_file", "sv"),
+        cosmic_file = lambda wildcards: _require(config.get("Params", {}).get("sv", {}).get("oncoprint", {}).get("cosmic_file"), "Params.sv.oncoprint.cosmic_file", "sv"),
     output:
         oncoprint_matrix = outdir + "/sv_oncoprint/oncoprint_matrix.csv",
         oncoprint_dir = directory(outdir + "/sv_oncoprint"),
@@ -273,7 +273,7 @@ rule sv_oncoprint:
         mem_mb = rule_res("sv_oncoprint").get("mem_mb", 8000),
     params:
         script = os.path.join(ROOT_DIR, "modules/sv/bin/run_OncoPrint.py"),
-        deseq2_files = config.get("Params", {}).get("oncoprint", {}).get("deseq2_files", {}),
+        deseq2_files = config.get("Params", {}).get("sv", {}).get("oncoprint", {}).get("deseq2_files", {}),
     conda:
         "sv.yaml"
     container:
@@ -344,14 +344,14 @@ rule sv_mei:
         # figures chain INSIDE the entry via bin/utils/mei_plot.py (dead param,
         # kept only for readability of the rule's toolchain)
         plot = os.path.join(ROOT_DIR, "modules/sv/bin/utils/mei_plot.py"),
-        min_len = config.get("Params", {}).get("mei", {}).get("min_len", 100),
-        full_length = config.get("Params", {}).get("mei", {}).get("full_length", 6000),
-        full_length_family = config.get("Params", {}).get("mei", {}).get("full_length_family", "L1"),
+        min_len = config.get("Params", {}).get("sv", {}).get("mei", {}).get("min_len", 100),
+        full_length = config.get("Params", {}).get("sv", {}).get("mei", {}).get("full_length", 6000),
+        full_length_family = config.get("Params", {}).get("sv", {}).get("mei", {}).get("full_length_family", "L1"),
         threads = lambda wildcards: rule_res("sv_mei").get("threads", 4),
         ctrl_name = lambda wildcards: (comparisons.get(wildcards.comparison, {}) or {}).get("control_group_name") or "",
         exp_name = lambda wildcards: (comparisons.get(wildcards.comparison, {}) or {}).get("experimental_group_name") or "",
         # ordered TE bucket list, filled by node.py from genome.default
-        te_buckets = config.get("Params", {}).get("mei", {}).get("te_buckets"),
+        te_buckets = config.get("Params", {}).get("sv", {}).get("mei", {}).get("te_buckets"),
     conda:
         "sv.yaml"
     container:

@@ -212,6 +212,11 @@ class SchemaValidator:
 
             # ---- cast by target type ------------------------------------
             if type_str in ("list", "array"):
+                if isinstance(value, str):
+                    try:
+                        value = json.loads(value)
+                    except (json.JSONDecodeError, ValueError):
+                        value = [value]
                 if not isinstance(value, list):
                     value = [value]
                 if items_def:

@@ -325,7 +325,7 @@
                 "min_len": 100,
                 "full_length": 6000,
                 "full_length_family": "L1",
-                "te_buckets": ""
+                "te_buckets": []
             }
         },
         "censat": {

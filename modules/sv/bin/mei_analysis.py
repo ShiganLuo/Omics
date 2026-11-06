@@ -32,7 +32,6 @@ Outputs (all under --outdir):
 """
 
 import argparse
-import copy
 import gzip
 import json
 import logging
@@ -42,7 +41,6 @@ import subprocess
 import sys
 import tempfile
 from collections import Counter, defaultdict
-from pathlib import Path
 
 import pandas as pd
 
@@ -289,111 +287,25 @@ def microhomology_tsd(ref_fa_idx, chrom, pos, ins_seq, flank=30):
 #   zero_slot   false -> omit the bucket from figures when it has zero
 #               events (default true: keep the slot, labelled "0")
 
-TE_BUCKETS_PRIMATE = [
-    # Exact matching at each level: 'subfamily' compares the RM repeat NAME
-    # (AluJr4, B1_Mus1 ...), 'family' the class/family SUFFIX (SINE/Alu ->
-    # Alu), 'class' the PREFIX (SINE). Exact match means subfamily lists
-    # only work for names WITHOUT subfamily suffixes — for L1/SVA/IAP the
-    # real names are L1_Md_A / SVA_A / IAP-dIAP1-int, so those buckets
-    # must match at family level.
-    {"name": "Alu", "family": ["Alu"], "retro_fingerprint": True},
-    {"name": "L1", "family": ["L1", "LINE"], "retro_fingerprint": True},
-    {"name": "SVA", "family": ["SVA"], "retro_fingerprint": True},
-    {"name": "LTR", "class": ["LTR"]},
-    {"name": "DNA", "class": ["DNA"]},
-    {"name": "microsatellite", "class": ["Simple_repeat"]},
-    {"name": "other", "catch_all": "classified"},
-    {"name": "unclassified", "catch_all": "unclassified"},
-]
+def parse_te_buckets(spec):
+    """--te-buckets value -> validated ordered bucket list.
 
-TE_BUCKETS_MOUSE = [
-    {"name": "IAP/ETn", "family": ["ERVK"], "retro_fingerprint": True},
-    {"name": "B1", "family": ["Alu"], "retro_fingerprint": True},
-    {"name": "B2/ID", "family": ["tRNA", "B2"], "retro_fingerprint": True},
-    {"name": "L1", "family": ["L1", "LINE"], "retro_fingerprint": True},
-    {"name": "LTR", "class": ["LTR"]},
-    {"name": "DNA", "class": ["DNA"]},
-    {"name": "microsatellite", "class": ["Simple_repeat"]},
-    {"name": "other", "catch_all": "classified"},
-    {"name": "unclassified", "catch_all": "unclassified"},
-]
-
-TE_BUCKETS_PRESETS = {"primate": TE_BUCKETS_PRIMATE,
-                      "mouse": TE_BUCKETS_MOUSE}
-
-# Species alias -> sentinel family-name markers that a sane TE consensus
-# library for that species MUST contain (see utils/famdb.py
-# SENTINEL_SUBFAMILIES; mirrored here so consumers validate the -lib FASTA
-# without importing famdb). A te-buckets preset maps to an alias; custom
-# bucket lists skip the check (unknown vocabulary, no sentinels defined).
-TE_LIB_SENTINELS = {
-    "mouse": (["l1m", "l1mus"], ["b1"], ["b2"], ["iap"], ["etn", "mervl"]),
-    "primate": (["l1p", "l1hs", "l1_"], ["alu"], ["sva"], ["erv", "ltr"]),
-}
-
-
-def validate_te_lib(te_lib_path, preset_name):
-    """Warn loudly when the TE library lacks species sentinel families.
-
-    Returns None; logs a WARNING naming the missing groups and the rebuild
-    command. Deterministic for the wrong-branch failure mode (a library
-    with only ancestor-level families); cannot detect sequence-level
-    corruption.
-    """
-    groups = TE_LIB_SENTINELS.get(preset_name)
-    if not groups or not os.path.exists(te_lib_path):
-        return
-    names = set()
-    with open(te_lib_path) as fh:
-        for line in fh:
-            if line.startswith(">"):
-                names.add(line[1:].split()[0].lower())
-                if len(names) > 5000:
-                    break
-    missing = ["/".join(g) for g in groups
-               if not any(any(m in n for n in names) for m in g)]
-    if missing:
-        logger.warning(f"TE library {te_lib_path} lacks sentinel families "
-            f"for preset '{preset_name}': {', '.join(missing)}. It was "
-            f"likely curated on the wrong lineage branch — every "
-            f"insertion may classify as noise. Rebuild with: python "
-            f"modules/sv/bin/utils/famdb.py -i <dfam.h5> -s "
-            f"{'mouse' if preset_name == 'mouse' else 'human'} "
-            f"-o {te_lib_path}")
-
-
-def resolve_te_profile(spec):
-    """--te-buckets value -> validated bucket list.
-
-    spec is a preset name ("primate"/"mouse"), an inline JSON string (a
-    list of buckets or {"buckets": [...]}), a path to a JSON file, or the
-    already-parsed list/dict (when invoked programmatically). Raises
-    ValueError with the offending detail on malformed input.
+    ONE input form: the bucket list itself (the schema documented above),
+    transported as a JSON string on the CLI. The flow config carries the
+    list natively (node.py fills Params.sv.mei.te_buckets from the genome;
+    sv.smk json.dumps it here). Raises ValueError on malformed input.
     """
     if isinstance(spec, str):
-        if spec in TE_BUCKETS_PRESETS:
-            return copy.deepcopy(TE_BUCKETS_PRESETS[spec])
-        stripped = spec.strip()
-        if stripped.startswith(("[", "{")):
-            try:
-                spec = json.loads(stripped)
-            except json.JSONDecodeError as e:
-                raise ValueError(
-                    f"te-buckets looks like inline JSON but does not parse: "
-                    f"{e}") from e
-        else:
-            p = Path(spec)
-            if p.exists():
-                with open(p) as fh:
-                    spec = json.load(fh)
-            else:
-                raise ValueError(
-                    f"unknown te-buckets preset '{spec}' and not a file; "
-                    f"presets: {sorted(TE_BUCKETS_PRESETS)}")
-    if isinstance(spec, dict) and "buckets" in spec:
-        spec = spec["buckets"]
+        try:
+            spec = json.loads(spec)
+        except json.JSONDecodeError as e:
+            raise ValueError(
+                f"--te-buckets must be a JSON list of buckets: {e}") from e
     if not isinstance(spec, list) or not spec:
-        raise ValueError("TE buckets must be a non-empty list")
+        raise ValueError(
+            "TE buckets must be a non-empty list; Params.sv.mei.te_buckets "
+            "is empty or missing — regenerate the run config with run.py "
+            "(it fills the species list from genome.default)")
     for i, b in enumerate(spec):
         if not isinstance(b, dict) or "name" not in b:
             raise ValueError(f"bucket #{i} must be a dict with a 'name'")
@@ -559,13 +471,12 @@ def main():
     ap.add_argument("--full-length-family", default="L1",
                     help="family considered for full-length candidacy "
                          "(default L1; set to e.g. ERVK for other clades)")
-    ap.add_argument("--te-buckets", default="primate",
-                    help="family bucket profile: preset name "
-                         "(primate|mouse), inline JSON (list of buckets or "
-                         "{\"buckets\": [...]}) or path to a JSON file. "
+    ap.add_argument("--te-buckets", required=True,
+                    help="ordered TE bucket list as JSON (the flow fills "
+                         "Params.sv.mei.te_buckets from genome.default). "
                          "Buckets are ordered; matching is exact and "
                          "case-insensitive at the first non-empty level of "
-                         "subfamily/family/class (default: primate)")
+                         "subfamily/family/class")
     ap.add_argument("--ctrl-name", default=None,
                     help="label for the control branch (default: ctrl)")
     ap.add_argument("--exp-name", default=None,
@@ -580,12 +491,10 @@ def main():
 
     args = ap.parse_args()
 
-    buckets = resolve_te_profile(args.te_buckets)
+    buckets = parse_te_buckets(args.te_buckets)
     classify = make_bucket_fn(buckets)
     logger.info(f"TE buckets ({len(buckets)}): "
         + ", ".join(b["name"] for b in buckets))
-    if isinstance(args.te_buckets, str) and args.te_buckets in TE_BUCKETS_PRESETS:
-        validate_te_lib(args.te_lib, args.te_buckets)
 
     os.makedirs(args.outdir, exist_ok=True)
 
@@ -634,7 +543,7 @@ def main():
             r["te_strand"] = ""
             r["te_sw"] = 0
 
-    # family bucket: profile-driven (see TE_BUCKETS_* / --te-buckets)
+    # family bucket: profile-driven (see the bucket schema / --te-buckets)
     fingerprint_fams = {b["name"] for b in buckets
                         if b.get("retro_fingerprint")}
     for r in recs:

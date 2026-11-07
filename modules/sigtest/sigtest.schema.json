@@ -1,0 +1,126 @@
+{
+  "indir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "outdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "logdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "ROOT_DIR": {
+    "type": "str",
+    "nullable": true,
+    "required": false
+  },
+  "sigtest_table": {
+    "type": "str",
+    "path": "file",
+    "nullable": true,
+    "required": true
+  },
+  "contrasts": {
+    "type": "list",
+    "nullable": true,
+    "required": false,
+    "default": []
+  },
+  "Params": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "sigtest": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "feature_col": {
+            "type": "str",
+            "nullable": true,
+            "required": false,
+            "default": "feature"
+          },
+          "group_col": {
+            "type": "str",
+            "nullable": true,
+            "required": false,
+            "default": "group"
+          },
+          "value_col": {
+            "type": "str",
+            "nullable": true,
+            "required": false,
+            "default": "value"
+          },
+          "groups": {
+            "type": "list",
+            "nullable": true,
+            "required": false,
+            "default": []
+          },
+          "method": {
+            "type": "str",
+            "nullable": true,
+            "required": false,
+            "default": "auto"
+          },
+          "paired": {
+            "type": "bool",
+            "nullable": true,
+            "required": false,
+            "default": false
+          },
+          "alpha": {
+            "type": "float",
+            "nullable": true,
+            "required": false,
+            "default": 0.05
+          },
+          "correction": {
+            "type": "str",
+            "nullable": true,
+            "required": false,
+            "default": "none"
+          },
+          "ylabel": {
+            "type": "str",
+            "nullable": true,
+            "required": false,
+            "default": "value"
+          },
+          "legend": {
+            "type": "list",
+            "nullable": true,
+            "required": false,
+            "default": []
+          },
+          "annotate_ns": {
+            "type": "bool",
+            "nullable": true,
+            "required": false,
+            "default": false
+          },
+          "no_errorbars": {
+            "type": "bool",
+            "nullable": true,
+            "required": false,
+            "default": false
+          },
+          "no_plot": {
+            "type": "bool",
+            "nullable": true,
+            "required": false,
+            "default": false
+          }
+        }
+      }
+    }
+  }
+}

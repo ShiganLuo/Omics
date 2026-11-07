@@ -1,0 +1,10 @@
+name: sigtest
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python=3.11
+  - numpy=1.26
+  - scipy=1.11
+  - pandas=2.2
+  - matplotlib-base=3.8

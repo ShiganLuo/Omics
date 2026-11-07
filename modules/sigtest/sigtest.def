@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for sigtest conda environment
+# Source YAML: sigtest.yaml
+# Build: apptainer build sigtest.sif sigtest.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    sigtest.yaml /opt/conda/sigtest.yaml
+
+%post
+    conda env create -f /opt/conda/sigtest.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/sigtest.yaml
+
+    echo 'export PATH="/opt/conda/envs/sigtest/bin:$PATH"' >> /etc/profile.d/conda_sigtest.sh
+    echo 'export CONDA_DEFAULT_ENV=sigtest' >> /etc/profile.d/conda_sigtest.sh
+
+%environment
+    export PATH="/opt/conda/envs/sigtest/bin:$PATH"
+    export CONDA_DEFAULT_ENV=sigtest
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName sigtest
+
+%help
+    Apptainer image for conda environment 'sigtest'.
+    Generated from sigtest.yaml.

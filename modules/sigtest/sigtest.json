@@ -1,0 +1,25 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "logs",
+    "ROOT_DIR": ".",
+    "sigtest_table": "",
+    "contrasts": ["control_vs_treatment"],
+    "Params": {
+        "sigtest": {
+            "feature_col": "feature",
+            "group_col": "group",
+            "value_col": "value",
+            "groups": [],
+            "method": "auto",
+            "paired": false,
+            "alpha": 0.05,
+            "correction": "none",
+            "ylabel": "value",
+            "legend": [],
+            "annotate_ns": false,
+            "no_errorbars": false,
+            "no_plot": false
+        }
+    }
+}

@@ -1,0 +1,94 @@
+{
+  "outdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "logdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "ROOT_DIR": {
+    "type": "str",
+    "nullable": true,
+    "required": false
+  },
+  "samples": {
+    "type": "list",
+    "nullable": true,
+    "required": false
+  },
+  "tracks": {
+    "type": "list",
+    "nullable": true,
+    "required": false
+  },
+  "Params": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "regionplot": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "regions_bed": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "sample_group_dict": {
+            "type": "dict",
+            "nullable": true,
+            "required": false
+          },
+          "sample_order": {
+            "type": "list",
+            "nullable": true,
+            "required": false
+          },
+          "plot_height_per_track": {
+            "type": "float",
+            "nullable": true,
+            "required": false
+          },
+          "plot_width": {
+            "type": "float",
+            "nullable": true,
+            "required": false
+          },
+          "formats": {
+            "type": "list",
+            "nullable": true,
+            "required": false
+          },
+          "gtf_track": {
+            "type": "bool",
+            "nullable": true,
+            "required": false
+          }
+        }
+      }
+    }
+  },
+  "genome": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "gtf": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      }
+    }
+  },
+  "env": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {}
+  }
+}

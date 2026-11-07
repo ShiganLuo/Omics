@@ -16,7 +16,8 @@
         "igv": "/home/luosg/Database/env/igv/hisat2.sif",
         "macs3": "/home/luosg/Database/env/macs3/macs3.sif",
         "track": "/home/luosg/Database/env/track/track.sif",
-        "gatk": "/home/luosg/Database/env/gatk/gatk4.sif"
+        "gatk": "/home/luosg/Database/env/gatk/gatk4.sif",
+        "regionplot": "/data/16T/Database/env/regionplot/regionplot.sif"
     },
     "Procedure": {
         "trim_galore": null,
@@ -163,7 +164,7 @@
             ],
             "seed": 42
         },
-        "track":{
+        "track": {
             "igv": {
                 "default": "GRCh38",
                 "configs": {
@@ -221,8 +222,20 @@
                     }
                 }
             }
+        },
+        "regionplot": {
+            "enabled": false,
+            "regions_bed": null,
+            "sample_group_dict": {},
+            "sample_order": [],
+            "plot_height_per_track": 1.5,
+            "plot_width": 12,
+            "formats": [
+                "png",
+                "svg"
+            ],
+            "gtf_track": true
         }
-
     },
     "genome": {
         "default": "GRCh38",
@@ -246,6 +259,5 @@
                 "smallrna_star_index_dir": null
             }
         }
-
     }
 }

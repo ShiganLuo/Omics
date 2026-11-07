@@ -185,6 +185,36 @@ logger.debug(f"igv_config: {igv_config}")
 use rule samtools_dedup from igv as PeakCalling_dedup
 use rule wig from igv as PeakCalling_bigwig
 
+
+# ============================================================
+# Region-focused multi-sample track stacking plots (modules/regionplot)
+#   Consumes this workflow's bigwigs; gated by Params.regionplot in
+#   node.py (subworkflow wiring is unconditional per repo convention).
+# ============================================================
+regionplot_params = config.get("Params", {}).get("regionplot", {})
+regionplot_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
+    "env": config.get("env", {}),
+    "outdir": f"{outdir}/regionplot",
+    "logdir": f"{logdir}/group",
+    "samples": ip_samples + input_samples,
+    "tracks": [{"label": "bigwig", "dir": igv_config["outdir"], "suffix": ".bigwig"}],
+    "Params": {
+        "regionplot": regionplot_params
+    },
+    "genome": {
+        "gtf": genome_ref.get("gtf"),
+    },
+    "resources": config.get("resources", {}),
+}
+module regionplot:
+    snakefile: "../modules/regionplot/regionplot.smk"
+    config: regionplot_config
+logger.debug(f"regionplot_config: {regionplot_config}")
+use rule regionplot from regionplot as PeakCalling_regionplot
+use rule regionplot_result from regionplot as PeakCalling_regionplot_result
+
 track_config = {
         "indir": igv_config["outdir"],
         "outdir":  igv_config["outdir"],

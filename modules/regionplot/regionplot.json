@@ -1,0 +1,28 @@
+{
+    "outdir": "output/regionplot",
+    "logdir": "log/group",
+    "ROOT_DIR": ".",
+    "samples": [],
+    "tracks": [
+        {
+            "label": "bigwig",
+            "dir": "results/igv",
+            "suffix": ".bigwig"
+        }
+    ],
+    "Params": {
+        "regionplot": {
+            "regions_bed": null,
+            "sample_group_dict": {},
+            "sample_order": [],
+            "plot_height_per_track": 1.5,
+            "plot_width": 12,
+            "formats": ["png", "svg"],
+            "gtf_track": true
+        }
+    },
+    "genome": {
+        "gtf": null
+    },
+    "env": {}
+}

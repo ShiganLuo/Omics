@@ -1,0 +1,9 @@
+name: msi
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - msisensor-pro>=1.2.0
+  - r-base>=4.2
+  - r-argparse

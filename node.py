@@ -28,6 +28,29 @@ GENOME_TE_SPECIES = {
     "Mmul_T2T": "rhesus",
 }
 
+# Genome reference key -> Ensembl VEP species/assembly names for the
+# burden module's TMB annotation (modules/burden/bin/vep_ann.py). Genomes
+# without an entry must set Params.burden.vep_species/vep_assembly
+# explicitly — never guess a species.
+GENOME_VEP_SPECIES = {
+    "GRCh38": ("homo_sapiens", "GRCh38"),
+    "GRCm39": ("mus_musculus", "GRCm39"),
+    "Mmul_10": ("macaca_mulatta", "Mmul_10"),
+}
+
+# Genome reference key -> RepeatMasker/Dfam species term for the sv.mei
+# Dfam classification path (Params.sv.mei.dfam_h5; the famdb.py export
+# term and RM -species search term, e.g. 'Mus musculus'). Filled into
+# Params.sv.mei.rm_species when unset — genomes without an entry must
+# set it explicitly, never guess a species (same policy as VEP).
+GENOME_RM_SPECIES = {
+    "GRCh38": "Homo sapiens",
+    "GRCm39": "Mus musculus",
+    "T2T_mhaESC_v1.5": "Mus musculus",
+    "Mmul_10": "Macaca mulatta",
+    "Mmul_T2T": "Macaca mulatta",
+}
+
 # MEI TE-bucket vocabularies live in the config templates
 # (Params.sv.mei.te_buckets keyed by genome reference key, like
 # genome.references) — node.py only selects the active genome's list.
@@ -81,6 +104,35 @@ def _validate_te_lib(datajson: Dict[str, Any], workflow: str) -> None:
             f"may classify as noise. Rebuild with: python "
             f"modules/sv/bin/utils/famdb.py -i <dfam.h5> -s "
             f"{'mouse' if preset == 'mouse' else 'human'} -o {te_lib}")
+
+
+def _fill_mei_rm_species(datajson: Dict[str, Any], workflow: str) -> None:
+    """Auto-fill Params.sv.mei.rm_species from genome.default.
+
+    The sv.mei Dfam path (Params.sv.mei.dfam_h5) classifies insertions
+    with RepeatMasker against a Dfam FamDB database and needs the
+    species term for the curated famdb export ('Mus musculus' ...).
+    An explicit config value always wins; for genomes without a
+    GENOME_RM_SPECIES entry the value must be set explicitly — never
+    guess a species (same policy as the burden VEP settings).
+    """
+    mei = (datajson.get("Params", {}).get("sv", {}).get("mei") or {})
+    if mei.get("rm_species") or not mei.get("dfam_h5"):
+        return
+    genome_key = str(datajson.get("genome", {}).get("default"))
+    species = GENOME_RM_SPECIES.get(genome_key)
+    if not species:
+        raise ValueError(
+            f"{workflow}: genome '{genome_key}' has no known RepeatMasker "
+            f"species for the sv.mei Dfam classification; set "
+            f"'Params.sv.mei.rm_species' in the config JSON, or drop "
+            f"Params.sv.mei.dfam_h5 to keep the te_lib path."
+        )
+    datajson.setdefault("Params", {}).setdefault("sv", {}).setdefault(
+        "mei", {})["rm_species"] = species
+    logger.info(
+        f"{workflow}: Params.sv.mei.rm_species := '{species}' "
+        f"(genome '{genome_key}')")
 
 
 
@@ -584,6 +636,7 @@ def runPacVar(
     # runRNAseq fills Params.DESeq2.group_pairs.
     sv_params = datajson.get("Params", {}).get("sv", {})
     _validate_te_lib(datajson, "PacVar")
+    _fill_mei_rm_species(datajson, "PacVar")
     comparisons = dict(sv_params.get("comparisons") or {})
     if enable_sv and not comparisons:
         for gp in group_pairs:
@@ -627,7 +680,7 @@ def runPacVar(
             # MEI suite (sv_mei rule): classified insertions + 6-figure
             # suite; gate via Params.sv.mei.enabled (default on)
             if (datajson.get("Params", {}).get("sv", {}).get("mei", {}) or {}).get("enabled", True):
-                outfiles.append(f"{base}/mei")
+                outfiles.append(f"{base}/mei/mei.done")
             if sv_genes:
                 outfiles.append(f"{base}/gene_model")
         outfiles.append(f"{sv_outdir}/sv_diff_analysis")
@@ -806,6 +859,14 @@ def runMutation(
                 continue
             outfiles.append(f"{outdir}/variation/germline_sv/{sample_id}/results/variants/candidateSV.vcf.gz")
 
+    if _enabled(datajson, "msi") and designPairs:
+        for designPair in designPairs:
+            outfiles.append(
+                f"{outdir}/variation/msi/{designPair.exp_sample_id}/"
+                f"{designPair.exp_sample_id}_msi_pro.tsv")
+        outfiles.append(f"{outdir}/variation/msi/msi_input.txt")
+        outfiles.append(f"{outdir}/variation/msi/msi_barplot.jpg")
+
     if _enabled(datajson, "cnvkit"):
         # Mode-aware registration: paired -> per-pair tumors only (no pooled
         # reference); pooled -> all samples + shared reference.cnn; flat ->
@@ -821,6 +882,62 @@ def runMutation(
             if _cnv_mode == "pooled":
                 outfiles.append(f"{outdir}/variation/cnv/reference/reference.cnn")
     
+    # Mutation burden (modules/burden): SNV/InDel TMB + SV + CNV burden for
+    # each tumor sample. The three sample -> file maps derive from the somatic
+    # and CNV outputs above (hand-filled Params.burden entries win); the CNV
+    # sample set follows the resolved CNVkit mode (paired -> tumors only).
+    if _enabled(datajson, "burden"):
+        burden_cfg = datajson["Params"].setdefault("burden", {})
+        snv_vcf_dict = dict(sample_somatic_vcf_dict)  # {tumor: somatic SNV VCF}
+        sv_vcf_dict = {
+            designPair.exp_sample_id:
+                f"{outdir}/variation/somatic_sv/{designPair.ctr_sample_id}_vs_{designPair.exp_sample_id}/results/variants/somaticSV.vcf.gz"
+            for designPair in designPairs
+        }
+        if _cnv_mode == "paired":
+            burden_cnv_samples = list(_paired_map)
+        else:
+            burden_cnv_samples = list(all_samples)
+        cnv_dict = {
+            sample_id: f"{outdir}/variation/cnv/{sample_id}/{sample_id}.cns"
+            for sample_id in burden_cnv_samples
+        }
+        for key, derived in (("sample_snv_vcf_dict", snv_vcf_dict),
+                             ("sample_sv_vcf_dict", sv_vcf_dict),
+                             ("sample_cnv_dict", cnv_dict)):
+            if not burden_cfg.get(key):
+                burden_cfg[key] = derived
+        # VEP annotation settings (Params.burden.annotate, default on):
+        # species/assembly are derived from the genome; an explicit config
+        # value wins and an unmapped genome hard-errors instead of guessing.
+        if burden_cfg.get("annotate", True):
+            if not burden_cfg.get("vep_species") or not burden_cfg.get("vep_assembly"):
+                _genome_key = str(datajson["genome"]["default"])
+                mapped = GENOME_VEP_SPECIES.get(_genome_key)
+                if not mapped:
+                    raise ValueError(
+                        f"Mutation: genome '{_genome_key}' has no known VEP "
+                        f"species/assembly for the burden annotation; set "
+                        f"'Params.burden.vep_species' and "
+                        f"'Params.burden.vep_assembly' in the config JSON, or "
+                        f"disable annotation with Params.burden.annotate=false."
+                    )
+                burden_cfg.setdefault("vep_species", mapped[0])
+                burden_cfg.setdefault("vep_assembly", mapped[1])
+                logger.info(
+                    f"Mutation: burden VEP settings auto-filled for genome "
+                    f"'{_genome_key}': species={mapped[0]} assembly={mapped[1]}"
+                )
+        for sample_id in burden_cfg["sample_snv_vcf_dict"]:
+            outfiles.append(f"{outdir}/variation/burden/{sample_id}/{sample_id}.snv_indel_burden.tsv")
+        for sample_id in burden_cfg["sample_sv_vcf_dict"]:
+            outfiles.append(f"{outdir}/variation/burden/{sample_id}/{sample_id}.sv_burden.tsv")
+        for sample_id in burden_cfg["sample_cnv_dict"]:
+            outfiles.append(f"{outdir}/variation/burden/{sample_id}/{sample_id}.cnv_burden.tsv")
+        if (burden_cfg["sample_snv_vcf_dict"] or burden_cfg["sample_sv_vcf_dict"]
+                or burden_cfg["sample_cnv_dict"]):
+            outfiles.append(f"{outdir}/variation/burden/burden_summary.tsv")
+
     datajson["Params"]["somatic_spectrum"]["sample_somatic_vcf_dict"] = sample_somatic_vcf_dict
     datajson["Params"]["somatic_spectrum"]["sample_group_dict"] = sample_group_dict
     datajson["outfiles"] = outfiles
@@ -1681,6 +1798,7 @@ def runFiberseq(
     ### inject outfiles
     sv_params = datajson.get("Params", {}).get("sv", {})
     _validate_te_lib(datajson, "Fiberseq")
+    _fill_mei_rm_species(datajson, "Fiberseq")
     comparisons = dict(sv_params.get("comparisons") or {})
     if enable_sv and not comparisons:
         for gp in group_pairs:
@@ -1724,7 +1842,7 @@ def runFiberseq(
             # MEI suite (sv_mei rule): classified insertions + 6-figure
             # suite; gate via Params.sv.mei.enabled (default on)
             if (datajson.get("Params", {}).get("sv", {}).get("mei", {}) or {}).get("enabled", True):
-                outfiles.append(f"{base}/mei")
+                outfiles.append(f"{base}/mei/mei.done")
             if sv_genes:
                 outfiles.append(f"{base}/gene_model")
         # SV-affected genes GO/KEGG (modules/function/sv_go; macaque-aware

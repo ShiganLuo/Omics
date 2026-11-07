@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for burden conda environment
+# Source YAML: burden.yaml
+# Build: apptainer build burden.sif burden.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    burden.yaml /opt/conda/burden.yaml
+
+%post
+    conda env create -f /opt/conda/burden.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/burden.yaml
+
+    echo 'export PATH="/opt/conda/envs/burden/bin:$PATH"' >> /etc/profile.d/conda_burden.sh
+    echo 'export CONDA_DEFAULT_ENV=burden' >> /etc/profile.d/conda_burden.sh
+
+%environment
+    export PATH="/opt/conda/envs/burden/bin:$PATH"
+    export CONDA_DEFAULT_ENV=burden
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName burden
+
+%help
+    Apptainer image for conda environment 'burden'.
+    Generated from burden.yaml.

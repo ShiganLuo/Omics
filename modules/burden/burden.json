@@ -1,0 +1,33 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "log",
+    "logdir_combine": "log",
+    "ROOT_DIR": ".",
+    "sample_snv_vcf_dict": {
+        "sample1": "path/to/sample1.filtered.vcf.gz"
+    },
+    "sample_sv_vcf_dict": {
+        "sample1": "path/to/sample1.somaticSV.vcf.gz"
+    },
+    "sample_cnv_dict": {
+        "sample1": "path/to/sample1.cns"
+    },
+    "Params": {
+        "burden": {
+            "min_vaf": 0.05,
+            "size_mb": 34.0,
+            "gtf_feature": "exon",
+            "include_sex_chroms": false,
+            "min_abs_log2": 0.3,
+            "annotate": true,
+            "vep_cache": "~/.vep",
+            "vep_species": "mus_musculus",
+            "vep_assembly": "GRCm39"
+        }
+    },
+    "genome": {
+        "targets": "",
+        "gtf": ""
+    }
+}

@@ -83,3 +83,45 @@ polya_tsd_fingerprint)、自包含 HTML 报告、RepeatMasker 原始输出留档
    TSD 面板是"能确证的下限", polyA 才是主判据。
 4. **RepeatMasker 分类局限**: 比对的是共识序列而非基因组拷贝; 嵌合/
    重排插入只报最长命中; 低覆盖度命中分类可信度低。
+
+## 六、差异分析(mei_diff, 探索性)
+
+在 ctrl/exp 两分支间给 TE 家族/亚家族排序, 回答"哪个最不一样"。无
+生物学重复, 结论仅限探索性(见五.1)。
+
+**分组单位**: `mei_diff.tsv`(family 级 = TE 桶)与
+`mei_diff_by_repeat.tsv`(te_repeat 级 = RepeatMasker 亚家族名, 无命中
+记录不参与)。summary.json 另存 `diff_top` / `diff_top_repeat`(前 10)。
+
+**表列语义**:
+
+- `n_ctrl_specific` / `n_exp_specific` / `n_shared`: 两分支特异调用数与
+  共享数(shared 计入两分支的指标计算);
+- `log2fc_exp_vs_ctrl`: 火山图横轴,
+  `log2(((b+0.5)/(N_exp+1)) / ((a+0.5)/(N_ctrl+1)))`——该家族占 exp 特异
+  调用的**份额**与占 ctrl 特异调用份额之比的对数(a/b = 该家族两分支特异
+  数, N = 各分支特异总数)。用份额而非原始计数, 以约掉两分支总调用数的
+  不对称; 伪计数防小计数爆炸; x = ±1 即份额 2 倍差;
+- `p_value`: 双侧 Fisher 精确检验, 2×2 表 `[[a, N_ctrl-a], [b, N_exp-b]]`。
+  零假设 = 该家族特异调用按两分支总量比例随机分配; **边缘固定**使全局
+  调用率差异被条件化进零假设, 且稀疏格(4 vs 0)下依然精确(卡方不适用);
+- `fdr`: BH 校正(每张表内多重检验);
+- `ctrl_/exp_polyA_pct`、`in_te_pct`、`median_ins_len`: 两分支的 poly(A)
+  率、落入参考 TE 区率、中位插入长度。
+
+**重点关注规则(`focus` 列, 候选筛选非显著性声明)**: 同时满足
+
+1. `|log2FC| >= 1`——占比 2 倍差(效应量门槛);
+2. `p < 0.05`——失衡超出随机分配(水平线, 图中已标);
+3. `n_ctrl_specific + n_exp_specific >= 10`——排除小计数噪声比值。
+
+**火山图(mei_diff_volcano.png)**: x = log2FC, y = -log10(p), 不画参考
+线; 显著点(p<0.05)黑边、标签加 `*`; 标注 = 负数区间(ctrl 富集)与正数
+区间(exp 富集)各前 5 个, 按联合分数 `|log2FC| * -log10(p)` 排序("双高"
+规则——单维极端(大计数小效应、或大效应弱证据)不入选), 标签自动避障。
+图只画 te_repeat 级; 家族级查 mei_diff.tsv。
+
+**判读要点**: p 随计数放大——大计数家族的微小失衡也会"显著"(如
+ALR/Alpha 型技术失衡), 先看 |log2FC| 与计数规模, 再看 p; focus 候选需
+用 rm_id 回查多命中结构(完整前病毒 vs 片段)、polyA/in_te 列, 并以独立
+证据(RNA-seq、重复样本)复核后才能作为生物学结论。

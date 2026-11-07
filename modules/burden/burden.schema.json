@@ -1,0 +1,121 @@
+{
+  "indir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "outdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "logdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "logdir_combine": {
+    "type": "str",
+    "nullable": true,
+    "required": false
+  },
+  "ROOT_DIR": {
+    "type": "str",
+    "path": "dir",
+    "nullable": true,
+    "required": false
+  },
+  "sample_snv_vcf_dict": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {}
+  },
+  "sample_sv_vcf_dict": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {}
+  },
+  "sample_cnv_dict": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {}
+  },
+  "Params": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "burden": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "min_vaf": {
+            "type": "float",
+            "required": false
+          },
+          "size_mb": {
+            "type": "float",
+            "required": false
+          },
+          "gtf_feature": {
+            "type": "enum",
+            "values": [
+              "exon",
+              "CDS"
+            ],
+            "required": false
+          },
+          "include_sex_chroms": {
+            "type": "bool",
+            "required": false
+          },
+          "min_abs_log2": {
+            "type": "float",
+            "required": false
+          },
+          "annotate": {
+            "type": "bool",
+            "required": false
+          },
+          "vep_cache": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "vep_species": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "vep_assembly": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          }
+        }
+      }
+    }
+  },
+  "genome": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "targets": {
+        "type": "str",
+        "path": "file",
+        "nullable": true,
+        "required": false
+      },
+      "gtf": {
+        "type": "str",
+        "path": "file",
+        "nullable": true,
+        "required": false
+      }
+    }
+  }
+}

@@ -138,6 +138,36 @@ modules/common/
 | `ROOT_DIR` | 项目根目录，用于引用 bin/ 脚本 | 有自定义脚本的模块 |
 | `env` | conda/SIF 环境映射 | 所有模块（通过 common.smk） |
 
+# 脚本撰写规范（任意语言）
+
+模块 `bin/` 下的脚本、辅助工具、交付给下游的任何代码一律遵守，不限语言：
+
+1. **功能注释全覆盖** — 每个函数/方法必须有说明职责的 docstring/头注释：做什么、参数含义与单位、返回什么、何时返回空/报错；关键步骤（算法选择、外部工具调用、边界处理、为什么这样做）配行内注释。禁止复述代码的无信息注释（`# 循环`）。
+2. **能抽函数就抽函数** — 独立步骤、重复逻辑、超过 ~30 行的代码块提取为单一职责函数，函数名自解释（动词开头）；入口（`main` / `__main__`）只做编排：解析参数 → 按序调用阶段函数 → 收尾日志。
+3. **支持类型的语言必须标注形参与返回类型** — Python 用 PEP 484 注解（`def f(x: str) -> int`，复杂结构先定义类型别名，如 `Rec = Dict[str, Any]`）；R/Rust/Go/Java/TS 等用各自类型系统。类型是文档的一部分，也让静态检查能抓出真实的不精确。
+4. **优雅优先** — 命名自解释；控制流扁平（早返回/卫语句）；同一数据的读取与规范化只写一次（单一来源）；删除恒真恒假的死代码；不做多余包装（如单字符串包列表再 `[0]` 解包）；错误信息带修复指引；同一函数的返回值语义一致（不混返 bool/str/None）。
+5. **能向量化不用循环** — 表格/数组运算用 pandas/numpy 向量化（布尔掩码、`groupby().agg()`、`np.where`、`.str` 访问器），不写逐行 Python 循环；纯循环只留给无法向量化的控制流。
+6. **能并行不串行** — 相互独立的工作单元（多样本、多文件、分块）用多线程（I/O 密集）或多进程（CPU 密集）；注意库级锁陷阱（如 HDF5 全局锁会把多线程串行化，实测更慢，须换多进程）；并行度从 `--threads` 参数传入，合并结果后排序，保证输出确定性。琐碎工作不要为并行而并行。
+7. **大文件流式读取** — VCF/GTF/BED/FASTA 等可能上 GB 的文件逐行或分块读取（生成器、`pandas.read_csv(chunksize=...)`），不整读进内存；确需全量驻留时在注释中说明内存预算。
+8. **长耗时脚本必须有缓存机制** — 输入不变时复用已有产物，不重算：输入指纹（内容哈希或路径+大小+mtime、全部影响输出的参数）写入 stamp 文件，命中即跳过；缓存粒度对准最贵的步骤（外部工具调用），输入变了要能精确失效；提供强制重算开关（如 `--force-rerun`），默认使用缓存；开关暴露到流程配置 JSON 中。
+
+> 向量化与流式的取舍：向量化要求数据在内存——中小表格直接向量化；超大文件先流式过滤/聚合出小结果集，再对结果向量化。两者冲突时以"不整读大文件"优先。
+
+## 输出声明:禁用 `directory()`,用标记文件或文件清单(强制)
+
+规则的 `output:` 不要写 `directory()`。Snakemake 在每次 job 执行前会**强制
+删除** directory() 输出的整个目录(`IOFile.remove` 对 `is_directory` 走
+`remove_non_empty_dir=True`,非空目录保护对它无效),脚本级缓存、手工管理
+的中间产物会被连锅端;且 directory() 只跟踪"目录存在",内容变化不触发重跑。
+正确做法:
+
+1. **标记文件**(推荐):产物目录不声明为输出,规则成功后 touch 一个标记
+   (如 `outdir/{comparison}/mei/mei.done`)作为 DAG 跟踪的输出;
+2. 或声明**具体文件清单**:真正要交付的那几个文件逐个列出。
+
+长耗时脚本带缓存时尤其依赖此条——缓存放在 directory() 输出里,每次重跑
+都会被清空,永远命不中。
+
 # 命名约定
 
 - 规则名描述动作：`*_index` / `*_align` / `*_run` / `*_phase`
@@ -413,6 +443,71 @@ def get_hisat2_index(wildcards):
 ```
 
 代表：bowtie2、hisat2、star
+
+# 输入文件校验与 run 块规范（强制）
+
+## 消费的文件必须声明为 input
+
+规则消费的一切文件（参考序列、GTF、索引、TE 数据库、上游输出）都必须出现在 `input:` 中。Snakemake 在 **DAG 构建期**校验 input 存在性：缺文件在任何 job 启动前抛 `MissingInputException`。藏在 `params:` 或 run 块里的路径则要到**执行期**才报错——dry-run 假通过，job 跑到一半死于缺文件这类非代码原因。
+
+❌ 错误（文件不进 input，执行期才炸）：
+```python
+params:
+    gtf = config.get("genome", {}).get("gtf"),
+run:
+    if params.gtf:
+        cmd += ["--gtf", params.gtf]   # 路径写错/文件缺失，job 跑到一半才发现
+```
+
+✅ 正确（一个输入函数声明全部文件，rule 里 `unpack` 展开）：
+```python
+def sv_mei_inputs(wildcards):
+    """声明全部输入文件；缺文件在建图期即失败。"""
+    files = {
+        "merged_vcf": outdir + f"/{wildcards.comparison}/{wildcards.comparison}_merged.vcf",
+        "classifier": classifier,
+    }
+    for name, key in (("fasta", "fasta"), ("gtf", "gtf")):
+        if genome.get(key):
+            files[name] = genome[key]   # 可选文件：配置了才进 input
+    return files
+
+rule sv_mei:
+    input:
+        unpack(sv_mei_inputs),
+```
+
+## 可选文件的两种合规写法
+
+1. **推荐**：配置了才加入输入函数返回的 dict，run 里 `getattr(input, "gtf", "")` 安全取值；
+2. `[x] if x else []` 列表形式，run 里 `if input.x:` 门控。
+
+必填文件永远返回裸字符串；把单个字符串包成单元素列表再 `[0]` 解包是噪音，禁止。静态参考文件（genome fasta/GTF/数据库）也不例外——"它一直都在"不是免检理由。
+
+## run 块禁止模块级全局变量
+
+run 块只允许引用 `input / params / wildcards / output / log`；配置值经 `params` 传入。同一配置块的规范化读取（str→list 归一、默认值）收敛为一个函数，输入函数与 `params` 共用同一来源，禁止重复深链取值：
+
+```python
+def _sv_mei_cfg():
+    """sv.mei 配置块规范化（dfam_h5 恒为 list）。"""
+    mei = dict(config.get("Params", {}).get("sv", {}).get("mei", {}) or {})
+    dfam_h5 = mei.get("dfam_h5") or []
+    mei["dfam_h5"] = [dfam_h5] if isinstance(dfam_h5, str) else list(dfam_h5)
+    return mei
+
+rule sv_mei:
+    params:
+        mei = _sv_mei_cfg(),   # run 里用 params.mei.get("min_len", 100)
+```
+
+## 必填配置缺失 = 建图期报错
+
+输入函数里直接 `raise ValueError("...set Params.x.y...")`，让配置错误在建图期暴露并给出修复指引。物种、基因组等科学参数禁止静默猜测（never guess a species）。
+
+## bin/*.py 入口配套
+
+入口脚本 `main()` 只做编排（解析参数 → 各阶段函数按序调用），阶段逻辑拆单一职责函数；外部工具调用校验返回码与产物存在性，失败信息带修复指引。
 
 # 收尾规则（_result）
 

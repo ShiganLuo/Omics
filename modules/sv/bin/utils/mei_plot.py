@@ -414,7 +414,88 @@ def fig6_polya_tsd(df, out, fams=None):
     plt.close(fig)
 
 
-def html_report(meidir, title, figs, df, summary, out_html):
+def _repel_labels(fig, labels, step: float = 6.0,
+                  max_iter: int = 60) -> None:
+    """Nudge overlapping point labels apart (vertical repulsion).
+
+    Labels are ``annotate`` texts positioned in offset points; repeated
+    pairwise passes push overlapping pairs apart until stable.
+    """
+    fig.canvas.draw()
+    renderer = fig.canvas.get_renderer()
+    for _ in range(max_iter):
+        boxes = [t.get_window_extent(renderer) for t in labels]
+        moved = False
+        for i in range(len(labels)):
+            for j in range(i + 1, len(labels)):
+                if boxes[i].overlaps(boxes[j]):
+                    xi, yi = labels[i].get_position()
+                    labels[i].set_position((xi, yi + step / 2))
+                    xj, yj = labels[j].get_position()
+                    labels[j].set_position((xj, yj - step / 2))
+                    moved = True
+        if not moved:
+            break
+        fig.canvas.draw()
+
+
+def fig7_diff_volcano(diff_tsv: str, out: str,
+                      ctrl: str = "ctrl", exp: str = "exp") -> None:
+    """Volcano of TE-repeat-level differences (mei_diff_by_repeat.tsv).
+
+    x: Haldane-corrected log2 fold change of the exp vs ctrl call share;
+    y: -log10 Fisher exact p. Significant points (p < 0.05) are black-
+    edged and labelled names carry a " *" suffix for them. Labels: the
+    top 5 per side (ctrl-/exp-enriched) by the joint score
+    |log2FC| * -log10(p) — the "double-high" rule skips points extreme
+    in only one dimension. Labels are auto-repelled. Exploratory: p
+    values reflect call-count imbalance (no biological replicates).
+    """
+    tsv = diff_tsv.replace("mei_diff.tsv", "mei_diff_by_repeat.tsv")
+    dd = pd.read_csv(tsv, sep="\t") if os.path.exists(tsv) else pd.DataFrame()
+    fig, ax = plt.subplots(figsize=(7.5, 5.2))
+    if dd.empty or "log2fc_exp_vs_ctrl" not in dd or "te_repeat" not in dd:
+        _empty_state(fig, out)
+        return
+    x = dd["log2fc_exp_vs_ctrl"].astype(float)
+    p = dd["p_value"].astype(float).clip(lower=1e-300)
+    y = -np.log10(p)
+    sig = dd["p_value"].astype(float) < 0.05
+    up = x > 0
+    ax.scatter(x[~up & ~sig], y[~up & ~sig], s=18, color="#4A72B7",
+               alpha=0.8, label="ctrl-enriched", zorder=3)
+    ax.scatter(x[up & ~sig], y[up & ~sig], s=18, color="#D73027",
+               alpha=0.8, label="exp-enriched", zorder=3)
+    ax.scatter(x[sig], y[sig], s=26,
+               c=np.where(up[sig], "#D73027", "#4A72B7"),
+               edgecolors="black", linewidths=0.6, zorder=4,
+               label="p < 0.05")
+    # labels: top 5 per side (ctrl-/exp-enriched) by the joint score
+    # |log2FC| * -log10(p) — a "double-high" rule that skips points
+    # extreme in only one dimension (huge n with tiny effect, or huge
+    # effect backed by ~no evidence)
+    score = x.abs() * y
+    labels = []
+    for sel in (x < 0, x >= 0):
+        for i in score[sel].sort_values(ascending=False).head(5).index:
+            name = str(dd.at[i, "te_repeat"])
+            if float(dd.at[i, "p_value"]) < 0.05:
+                name += " *"
+            labels.append(ax.annotate(name, (float(x[i]), float(y[i])),
+                                      fontsize=7, xytext=(5, 5),
+                                      textcoords="offset points",
+                                      color="#333333", zorder=5))
+    _repel_labels(fig, labels)
+    ax.set_xlabel(f"log2({exp}-specific / {ctrl}-specific call share)")
+    ax.set_ylabel("-log10(Fisher exact p)")
+    leg, leg_h = legend_above(ax, ncol=3)
+    ax.set_title("TE repeat differential ranking (exploratory)",
+                 pad=title_pad(leg_h))
+    fig.tight_layout()
+    _save(fig, out)
+
+
+def html_report(meidir: str, title: str, figs, df, summary, out_html):
     fam_group = df.groupby(["family", "group"]).size().unstack(fill_value=0)
     prof = (summary or {}).get("te_buckets") or []
     te_names = [b.get("name") for b in prof
@@ -749,6 +830,9 @@ def main():
                                        os.path.join(d, "mei_full_length_L1.tsv"))),
         ("mei_polya_tsd_fingerprint.png",
          lambda f: fig6_polya_tsd(df, f, fams=fp_fams)),
+        ("mei_diff_volcano.png",
+         lambda f: fig7_diff_volcano(os.path.join(d, "mei_diff.tsv"), f,
+                                     ctrl, exp)),
     ]
     for name, fn in jobs:
         out = os.path.join(d, name)

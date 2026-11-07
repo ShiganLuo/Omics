@@ -25,6 +25,13 @@
             "nullable": true,
             "required": false
         },
+        "msi": {
+          "type": "dict",
+          "required": false,
+          "properties": {
+            "enabled": {"type": "bool", "required": false, "default": true, "description": "Gate the MSI analysis (msisensor-pro tumor-vs-normal per design pair + bar plot)."}
+          }
+        },
         "manta": {
             "type": "null",
             "nullable": true,
@@ -128,6 +135,62 @@
                 "type": "list",
                 "nullable": true,
                 "required": false
+            }
+        },
+        "burden": {
+            "type": "dict",
+            "required": false,
+            "properties": {
+                "enabled": {
+                    "type": "bool",
+                    "required": false
+                },
+                "min_vaf": {
+                    "type": "float",
+                    "required": false
+                },
+                "size_mb": {
+                    "type": "float",
+                    "required": false
+                },
+                "gtf_feature": {
+                    "type": "enum",
+                    "values": [
+                        "exon",
+                        "CDS"
+                    ],
+                    "required": false
+                },
+                "include_sex_chroms": {
+                    "type": "bool",
+                    "required": false
+                },
+                "min_abs_log2": {
+                    "type": "float",
+                    "required": false
+                },
+                "annotate": {
+                    "type": "bool",
+                    "required": false
+                },
+                "vep_cache": {
+                    "type": "str",
+                    "nullable": true,
+                    "required": false
+                },
+                "vep_species": {
+                    "type": "str",
+                    "nullable": true,
+                    "required": false
+                },
+                "vep_assembly": {
+                    "type": "str",
+                    "nullable": true,
+                    "required": false
+                },
+                "sample_snv_vcf_dict": {},
+                "sample_sv_vcf_dict": {},
+                "sample_cnv_dict": {}
             }
         },
         "somatic_spectrum": {
@@ -243,6 +306,11 @@
                             "required": false
                         },
                         "targets": {
+                            "type": "str",
+                            "nullable": true,
+                            "required": false
+                        },
+                        "gtf": {
                             "type": "str",
                             "nullable": true,
                             "required": false
@@ -789,6 +857,76 @@
                 }
             },
             "star_align": {
+                "type": "dict",
+                "required": false,
+                "properties": {
+                    "threads": {
+                        "type": "int",
+                        "required": false
+                    },
+                    "mem_mb": {
+                        "type": "int",
+                        "required": false
+                    }
+                }
+            },
+            "burden_snv_indel": {
+                "type": "dict",
+                "required": false,
+                "properties": {
+                    "threads": {
+                        "type": "int",
+                        "required": false
+                    },
+                    "mem_mb": {
+                        "type": "int",
+                        "required": false
+                    }
+                }
+            },
+            "burden_sv": {
+                "type": "dict",
+                "required": false,
+                "properties": {
+                    "threads": {
+                        "type": "int",
+                        "required": false
+                    },
+                    "mem_mb": {
+                        "type": "int",
+                        "required": false
+                    }
+                }
+            },
+            "burden_cnv": {
+                "type": "dict",
+                "required": false,
+                "properties": {
+                    "threads": {
+                        "type": "int",
+                        "required": false
+                    },
+                    "mem_mb": {
+                        "type": "int",
+                        "required": false
+                    }
+                }
+            },
+            "burden_aggregate": {
+                "type": "dict",
+                "required": false,
+                "properties": {
+                    "threads": {
+                        "type": "int",
+                        "required": false
+                    },
+                    "mem_mb": {
+                        "type": "int",
+                        "required": false
+                    }
+                }
+            },
+            "burden_result": {
                 "type": "dict",
                 "required": false,
                 "properties": {

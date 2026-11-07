@@ -215,13 +215,9 @@ rule filterMutectCalls:
     """
     input:
         raw_vcf = lambda wildcards: f"{outdir}/{wildcards.normal_sample_id}_vs_{wildcards.experimental_sample_id}/{wildcards.normal_sample_id}_vs_{wildcards.experimental_sample_id}.vcf.gz",
-        # Mutect2 emits a .vcf.gz.stats table next to the raw VCF; FilterMutectCalls
-        # REQUIRES it (callable sites / read counts feed the statistical filters).
         raw_stats = lambda wildcards: f"{outdir}/{wildcards.normal_sample_id}_vs_{wildcards.experimental_sample_id}/{wildcards.normal_sample_id}_vs_{wildcards.experimental_sample_id}.vcf.gz.stats",
         fai = lambda wildcards: fai_index if fai_index else f"{indir}/index/genome.fa.fai",
         dict = lambda wildcards: dict_index if dict_index else f"{indir}/index/genome.dict",
-        # The workflow-built index fasta carries the .dict GATK needs; a bare
-        # Database fasta without dict fails CreateSequenceDictionary-free runs.
         fasta = lambda wildcards: fasta if (fasta and dict_index) else f"{indir}/index/genome.fa",
     output:
         vcf = outdir + "/{normal_sample_id}_vs_{experimental_sample_id}/{normal_sample_id}_vs_{experimental_sample_id}.filtered.vcf.gz",
@@ -255,9 +251,6 @@ rule filterMutectCalls:
                 "-V", str(input.raw_vcf),
                 "-O", str(output.vcf),
             ]
-            # NOTE: FilterMutectCalls has NO --germline-resource argument —
-            # the population-AF prior is baked into the raw VCF header by
-            # Mutect2 at calling time; this rule only applies the filters.
             if params.tmp_dir:
                 cmd += ["--tmp-dir", params.tmp_dir]
             with open(script, "w") as f:

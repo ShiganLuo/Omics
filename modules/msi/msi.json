@@ -1,0 +1,17 @@
+{
+    "indir": "input",
+    "outdir": "output",
+    "logdir": "logs",
+    "pairs": {},
+    "bam_substring": "",
+    "Procedure": {
+        "msisensorpro": null
+    },
+    "Params": {
+        "msi": {}
+    },
+    "genome": {
+        "fasta": null,
+        "fai": null
+    }
+}

@@ -1,0 +1,72 @@
+{
+  "indir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "outdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "logdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "pairs": {
+    "type": "dict",
+    "nullable": true,
+    "required": true,
+    "description": "tumor sample ID -> matched normal sample ID (msisensor-pro msi -n normal -t tumor)."
+  },
+  "bam_substring": {
+    "type": "str",
+    "nullable": true,
+    "required": false,
+    "description": "Optional BAM name infix: {indir}/{sample}/{sample}.<bam_substring>.bam; empty -> {sample}.bam."
+  },
+  "Procedure": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "msisensorpro": {
+        "type": "null",
+        "nullable": true,
+        "required": false,
+        "description": "msisensor-pro executable path; null -> 'msisensorpro' from PATH."
+      }
+    }
+  },
+  "Params": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "msi": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {}
+      }
+    }
+  },
+  "genome": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "fasta": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      },
+      "fai": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      }
+    }
+  }
+}

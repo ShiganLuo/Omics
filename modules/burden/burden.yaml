@@ -1,0 +1,7 @@
+name: burden
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - pandas=2.3.3
+  - ensembl-vep>=110

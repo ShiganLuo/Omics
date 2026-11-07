@@ -221,6 +221,40 @@ use rule somaticMutect2 from gatk_somatic as Mutation_somaticMutect2
 use rule germline_resource_strain from gatk_somatic as Mutation_germline_resource_strain
 use rule filterMutectCalls from gatk_somatic as Mutation_filterMutectCalls
 
+msi_pairs = {
+    rec["experimental"]: rec["control"]
+    for rec in config.get("Params", {}).get("workflow", {}).get("paired_design", [])
+    if rec.get("experimental") and rec.get("control")
+}
+msi_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
+    "env": config.get("env", {}),
+    "indir": gatk_prepare_config["outdir"],
+    "outdir": f"{outdir}/variation/msi",
+    "logdir": f"{logdir}/group",
+    "bam_substring": "sorted_markdup",
+    "pairs": msi_pairs,
+    "Procedure": {
+        "msisensorpro": config.get("Procedure", {}).get("msisensorpro"),
+    },
+    "Params": {
+        "msi": config.get("Params", {}).get("msi", {}),
+    },
+    "genome": {
+        "fasta": genome_ref.get("fasta"),
+        "fai": genome_ref.get("fai_index"),
+    },
+}
+module msi:
+    snakefile: "../modules/msi/msi.smk"
+    config: msi_config
+logger.debug(f"msi_config: {msi_config}")
+use rule msi_scan from msi as Mutation_msi_scan
+use rule msi_call from msi as Mutation_msi_call
+use rule msi_plot from msi as Mutation_msi_plot
+use rule msi_result from msi as Mutation_msi_result
+
 gatk_germline_config = {
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
@@ -251,7 +285,7 @@ somatic_spectrum_config = {
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "indir": gatk_somatic_config["outdir"],
-    "outdir": f"{outdir}/variation/spectrum",
+    "outdir": f"{outdir}/stability/spectrum",
     "logdir": f"{logdir}/group",
     "sample_somatic_vcf_dict": config.get("Params", {}).get("somatic_spectrum", {}).get("sample_somatic_vcf_dict", {}),
     "sample_group_dict": config.get("Params", {}).get("somatic_spectrum", {}).get("sample_group_dict", {}),
@@ -394,4 +428,38 @@ use rule cnvkit_targets from cnvkit as Mutation_cnvkit_targets
 use rule cnvkit_reference from cnvkit as Mutation_cnvkit_reference
 use rule cnvkit_batch from cnvkit as Mutation_cnvkit_batch
 use rule cnvkit_paired from cnvkit as Mutation_cnvkit_paired
+
+# ============================================
+# Mutation Burden (SNV/InDel TMB + SV + CNV)
+# ============================================
+# Wired unconditionally; node.py controls whether it runs by registering
+# (or omitting) the burden outputs (Params.burden.enabled). The three
+# sample -> file maps are filled by node.py from the somatic/cnv outputs
+# above; hand-filled config entries win.
+burden_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
+    "env": config.get("env", {}),
+    "outdir": f"{outdir}/stability/burden",
+    "logdir": f"{logdir}/sample",
+    "logdir_combine": f"{logdir}/group",
+    "sample_snv_vcf_dict": config.get("Params", {}).get("burden", {}).get("sample_snv_vcf_dict", {}),
+    "sample_sv_vcf_dict": config.get("Params", {}).get("burden", {}).get("sample_sv_vcf_dict", {}),
+    "sample_cnv_dict": config.get("Params", {}).get("burden", {}).get("sample_cnv_dict", {}),
+    "Params": {
+        "burden": config.get("Params", {}).get("burden", {})
+    },
+    "genome": {
+        "targets": _targets_bed,
+        "gtf": genome_ref.get("gtf")
+    }
+}
+module burden:
+    snakefile: "../modules/burden/burden.smk"
+    config: burden_config
+logger.info(f"burden_config: {burden_config}")
+use rule burden_snv_indel from burden as Mutation_burden_snv_indel
+use rule burden_sv from burden as Mutation_burden_sv
+use rule burden_cnv from burden as Mutation_burden_cnv
+use rule burden_aggregate from burden as Mutation_burden_aggregate
 

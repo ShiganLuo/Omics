@@ -318,40 +318,67 @@ rule sv_oncoprint:
         # ========================
 
 
+def _sv_mei_cfg():
+    """Normalized sv.mei config block (dfam_h5 always a list)."""
+    mei = dict(config.get("Params", {}).get("sv", {}).get("mei", {}) or {})
+    dfam_h5 = mei.get("dfam_h5") or []
+    mei["dfam_h5"] = [dfam_h5] if isinstance(dfam_h5, str) else list(dfam_h5)
+    return mei
+
+
+def sv_mei_inputs(wildcards):
+    """sv_mei file inputs — declared so the DAG validates them up front.
+
+    Classifier source: Dfam FamDB h5 partition(s) (Params.sv.mei.dfam_h5,
+    preferred) or the legacy te_lib consensus FASTA (genome.te_lib).
+    Optional reference files join the inputs only when configured, so a
+    missing file fails at DAG build instead of mid-execution.
+    """
+    mei = _sv_mei_cfg()
+    te_lib = config.get("genome", {}).get("te_lib") or ""
+    classifier = mei["dfam_h5"] or ([te_lib] if te_lib and os.path.exists(te_lib) else [])
+    if not classifier:
+        raise ValueError("sv_mei: set Params.sv.mei.dfam_h5 or genome.te_lib")
+    files = {
+        "merged_vcf": outdir + f"/{wildcards.comparison}/{wildcards.comparison}_merged.vcf",
+        "classifier": classifier,
+    }
+    genome = config.get("genome", {})
+    for name, key in (("fasta", "fasta"), ("gtf", "gtf"), ("te_bed", "repeat_bed")):
+        if genome.get(key):
+            files[name] = genome[key]
+    return files
+
+
 rule sv_mei:
     """MEI (mobile element insertion) analysis per comparison.
 
     Consumes the SURVIVOR-merged VCF from sv_exp_specific; classifies INS
-    alleles by RepeatMasker against the species TE lib, detects poly(A)/TSD
-    fingerprints, annotates genomic context, and renders the 6-figure suite
-    via the single entry modules/sv/bin/mei_analysis.py. TE insertion dating
+    alleles by RepeatMasker (Dfam famdb export or the te_lib consensus),
+    detects poly(A)/TSD fingerprints, annotates genomic context, and
+    renders the 6-figure suite via the single entry
+    modules/sv/bin/mei_analysis.py. TE insertion dating
     (te_age_analysis.py) is a separate standalone analysis, not run here.
     """
     input:
-        merged_vcf = outdir + "/{comparison}/{comparison}_merged.vcf",
-        te_lib = lambda wildcards: _require(config.get("genome", {}).get("te_lib"), "genome.te_lib", "sv_mei"),
-        fasta = lambda wildcards: [config.get("genome", {}).get("fasta")] if config.get("genome", {}).get("fasta") else [],
-        gtf = lambda wildcards: [config.get("genome", {}).get("gtf")] if config.get("genome", {}).get("gtf") else [],
-        te_bed = lambda wildcards: [config.get("genome", {}).get("repeat_bed")] if config.get("genome", {}).get("repeat_bed") else [],
+        unpack(sv_mei_inputs),
     output:
-        mei_dir = directory(outdir + "/{comparison}/mei"),
+        # marker file, NOT directory(): Snakemake force-removes directory()
+        # outputs before every rerun (IOFile.remove), which would wipe the
+        # script-level caches (mei_run.stamp.json, repeatmasker/) living in
+        # mei/. The marker alone tracks rule completion.
+        mei_done = outdir + "/{comparison}/mei/mei.done",
     log:
         logdir + "/sv/{comparison}/sv_mei.log"
     resources:
         mem_mb = rule_res("sv_mei").get("mem_mb", 16000),
     params:
         analysis = os.path.join(ROOT_DIR, "modules/sv/bin/mei_analysis.py"),
-        # figures chain INSIDE the entry via bin/utils/mei_plot.py (dead param,
-        # kept only for readability of the rule's toolchain)
-        plot = os.path.join(ROOT_DIR, "modules/sv/bin/utils/mei_plot.py"),
-        min_len = config.get("Params", {}).get("sv", {}).get("mei", {}).get("min_len", 100),
-        full_length = config.get("Params", {}).get("sv", {}).get("mei", {}).get("full_length", 6000),
-        full_length_family = config.get("Params", {}).get("sv", {}).get("mei", {}).get("full_length_family", "L1"),
+        mei = _sv_mei_cfg(),
+        te_lib = config.get("genome", {}).get("te_lib") or "",
         threads = lambda wildcards: rule_res("sv_mei").get("threads", 4),
         ctrl_name = lambda wildcards: (comparisons.get(wildcards.comparison, {}) or {}).get("control_group_name") or "",
         exp_name = lambda wildcards: (comparisons.get(wildcards.comparison, {}) or {}).get("experimental_group_name") or "",
-        # ordered TE bucket list, filled by node.py from genome.default
-        te_buckets = config.get("Params", {}).get("sv", {}).get("mei", {}).get("te_buckets"),
     conda:
         "sv.yaml"
     container:
@@ -367,30 +394,36 @@ rule sv_mei:
             os.makedirs(mei_out, exist_ok=True)
             script_path = os.path.join(RECEIPT_DIR, f"sv_mei_{wildcards.comparison}_{current_time}.sh")
             plain_script = os.path.join(str(outdir), wildcards.comparison, "sv_mei.sh")
+            mei = params.mei
             cmd = [
                 "python", params.analysis,
                 "-i", str(input.merged_vcf),
                 "-o", mei_out,
-                "--te-lib", str(input.te_lib),
-                "--min-len", str(params.min_len),
-                "--full-length-l1", str(params.full_length),
-                "--full-length-family", params.full_length_family,
+                "--min-len", str(mei.get("min_len", 100)),
+                "--full-length-l1", str(mei.get("full_length", 6000)),
+                "--full-length-family", mei.get("full_length_family", "L1"),
                 "--threads", str(params.threads),
                 "--title", wildcards.comparison,
             ]
-            if params.ctrl_name:
-                cmd += ["--ctrl-name", shlex.quote(params.ctrl_name)]
-            if params.exp_name:
-                cmd += ["--exp-name", shlex.quote(params.exp_name)]
+            if mei["dfam_h5"]:
+                for h5 in mei["dfam_h5"]:
+                    cmd += ["--dfam-h5", h5]
+                cmd += ["--rm-species", shlex.quote(mei.get("rm_species") or ""),
+                        "--dfam-mode", mei.get("dfam_mode", "export")]
+            elif params.te_lib:
+                cmd += ["--te-lib", params.te_lib]
+            if mei.get("force_rerun"):
+                cmd += ["--force-rerun"]
             # TE bucket list (Params.sv.mei.te_buckets), JSON transport
             cmd += ["--te-buckets",
-                    shlex.quote(json.dumps(params.te_buckets, ensure_ascii=False))]
-            if input.fasta:
-                cmd += ["--fasta", str(input.fasta[0])]
-            if input.gtf:
-                cmd += ["--gtf", str(input.gtf[0])]
-            if input.te_bed:
-                cmd += ["--te-bed", str(input.te_bed[0])]
+                    shlex.quote(json.dumps(mei.get("te_buckets"), ensure_ascii=False))]
+            for flag, val in (("--ctrl-name", params.ctrl_name),
+                              ("--exp-name", params.exp_name),
+                              ("--fasta", getattr(input, "fasta", "")),
+                              ("--gtf", getattr(input, "gtf", "")),
+                              ("--te-bed", getattr(input, "te_bed", ""))):
+                if val:
+                    cmd += [flag, shlex.quote(str(val))]
             # figures run INSIDE the entry (utils/mei_plot.py chained)
             with open(script_path, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
@@ -398,6 +431,10 @@ rule sv_mei:
                 f.write(f'echo "sv_mei completed successfully for {wildcards.comparison}"\n')
             shutil.copyfile(script_path, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
+            # completion marker: mei/ is NOT a directory() output, so the
+            # script-level caches and artifacts inside survive reruns
+            with open(str(output.mei_done), "w") as f:
+                f.write("ok\n")
         except Exception as e:
             rule_logger.error(f"sv_mei failed for {wildcards.comparison}: {e}")
             raise RuntimeError(f"sv_mei failed for {wildcards.comparison}: {e}")
@@ -411,7 +448,7 @@ rule sv_result:
         enrichment_dirs = expand(outdir + "/{comp}/enrichment", comp=comparison_names),
         circos_dirs = expand(outdir + "/{comp}/circos", comp=comparison_names),
         gene_model_dirs = expand(outdir + "/{comp}/gene_model", comp=comparison_names),
-        mei_dirs = expand(outdir + "/{comp}/mei", comp=comparison_names),
+        mei_done = expand(outdir + "/{comp}/mei/mei.done", comp=comparison_names),
         diff_dir = outdir + "/sv_diff_analysis",
         oncoprint_dir = outdir + "/sv_oncoprint",
     resources:

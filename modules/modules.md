@@ -142,6 +142,8 @@ modules/common/
 
 模块 `bin/` 下的脚本、辅助工具、交付给下游的任何代码一律遵守，不限语言：
 
+0. **脚本自包含（强制）** — `modules/` 内的脚本不得引用模块目录之外的任何代码：禁止 `sys.path.insert` 引向仓库根、禁止 `from src.common... import`、禁止跨模块 `import`（`modules/<A>/bin/x.py` 导入 `modules/<B>/bin/y.py` 同样禁止）。模块目录整体拷走即能运行，这是 modules 可迁移性的底线。需要 `src/common/util/` 里的工具（如 `setup_logger`）时，把该函数（连同其依赖）直接复制进本模块 `bin/` 下的脚本或私有 helper 文件，保持行为与格式一致即可；`.smk` 规则层不受此条约束（`include: "../common/common.smk"` 由 subworkflow 的 `ROOT_DIR` config 保证，且 Snakemake 模块机制本身支持相对 include）。参照实现：`modules/sigtest/bin/sigtest.py`（直接复制了 LogUtil 的 `setup_logger`）。存量模块中引用 `src.common` 的脚本（fiberseq、DESeq2、arriba 等）在下次触碰时收敛为本规范，不要求一次性回改。
+
 1. **功能注释全覆盖** — 每个函数/方法必须有说明职责的 docstring/头注释：做什么、参数含义与单位、返回什么、何时返回空/报错；关键步骤（算法选择、外部工具调用、边界处理、为什么这样做）配行内注释。禁止复述代码的无信息注释（`# 循环`）。
 2. **能抽函数就抽函数** — 独立步骤、重复逻辑、超过 ~30 行的代码块提取为单一职责函数，函数名自解释（动词开头）；入口（`main` / `__main__`）只做编排：解析参数 → 按序调用阶段函数 → 收尾日志。
 3. **支持类型的语言必须标注形参与返回类型** — Python 用 PEP 484 注解（`def f(x: str) -> int`，复杂结构先定义类型别名，如 `Rec = Dict[str, Any]`）；R/Rust/Go/Java/TS 等用各自类型系统。类型是文档的一部分，也让静态检查能抓出真实的不精确。

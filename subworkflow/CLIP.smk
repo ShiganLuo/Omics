@@ -214,6 +214,37 @@ module bedtools:
 logger.info(f"bedtools_config: {bedtools_config}")
 use rule iCLIP_bedtools from bedtools as CLIP_bedtools
 
+
+# ============================================================
+# Region-focused multi-sample track stacking plots (modules/regionplot)
+#   Consumes this workflow's bigwigs; gated by Params.regionplot in
+#   node.py (subworkflow wiring is unconditional per repo convention).
+# ============================================================
+regionplot_params = config.get("Params", {}).get("regionplot", {})
+regionplot_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
+    "env": config.get("env", {}),
+    "outdir": f"{outdir}/regionplot",
+    "logdir": f"{logdir}/group",
+    "samples": single_samples + paired_samples,
+    "tracks": [{"label": "plus", "dir": bedtools_config["outdir"], "suffix": ".plus.bw"},
+              {"label": "minus", "dir": bedtools_config["outdir"], "suffix": ".minus.bw"}],
+    "Params": {
+        "regionplot": regionplot_params
+    },
+    "genome": {
+        "gtf": config.get("genome", {}).get("gtf"),
+    },
+    "resources": config.get("resources", {}),
+}
+module regionplot:
+    snakefile: "../modules/regionplot/regionplot.smk"
+    config: regionplot_config
+logger.debug(f"regionplot_config: {regionplot_config}")
+use rule regionplot from regionplot as CLIP_regionplot
+use rule regionplot_result from regionplot as CLIP_regionplot_result
+
 PureCLIP_config = {
         "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,

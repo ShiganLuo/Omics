@@ -5,7 +5,8 @@
         "exomePeak": "/home/luosg/Database/env/exomePeak/exomePeak.sif",
         "hisat2": "/home/luosg/Database/env/hisat2/hisat2.sif",
         "igv": "/home/luosg/Database/env/igv/hisat2.sif",
-        "trim-galore": "/home/luosg/Database/env/trim-galore/trim-galore.sif"
+        "trim-galore": "/home/luosg/Database/env/trim-galore/trim-galore.sif",
+        "regionplot": "/data/16T/Database/env/regionplot/regionplot.sif"
     },
     "indir": null,
     "raw_files": [],
@@ -39,6 +40,19 @@
             "binSize": 50,
             "normalizeUsing": "CPM",
             "offset": "0"
+        },
+        "regionplot": {
+            "enabled": false,
+            "regions_bed": null,
+            "sample_group_dict": {},
+            "sample_order": [],
+            "plot_height_per_track": 1.5,
+            "plot_width": 12,
+            "formats": [
+                "png",
+                "svg"
+            ],
+            "gtf_track": true
         }
     }
 }

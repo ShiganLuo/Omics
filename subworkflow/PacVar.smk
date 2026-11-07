@@ -318,6 +318,36 @@ module bamCoverage:
 logger.debug(f"bamCoverage_config: {bamCoverage_config}")
 use rule bamCoverage from bamCoverage as PacVar_bamCoverage
 
+
+# ============================================================
+# Region-focused multi-sample track stacking plots (modules/regionplot)
+#   Consumes this workflow's bigwigs; gated by Params.regionplot in
+#   node.py (subworkflow wiring is unconditional per repo convention).
+# ============================================================
+regionplot_params = config.get("Params", {}).get("regionplot", {})
+regionplot_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
+    "env": config.get("env", {}),
+    "outdir": f"{outdir}/regionplot",
+    "logdir": f"{logdir}/group",
+    "samples": samples,
+    "tracks": [{"label": "coverage", "dir": DECOIL_COV_DIR, "suffix": ".coverage.bw"}],
+    "Params": {
+        "regionplot": regionplot_params
+    },
+    "genome": {
+        "gtf": genome_ref.get("gtf"),
+    },
+    "resources": config.get("resources", {}),
+}
+module regionplot:
+    snakefile: "../modules/regionplot/regionplot.smk"
+    config: regionplot_config
+logger.debug(f"regionplot_config: {regionplot_config}")
+use rule regionplot from regionplot as PacVar_regionplot
+use rule regionplot_result from regionplot as PacVar_regionplot_result
+
 decoil_config = {
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,

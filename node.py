@@ -155,6 +155,92 @@ def _enabled(datajson: Dict[str, Any], step: str) -> bool:
         return bool(block["enabled"])
     return True
 
+
+
+def _register_regionplot(
+        datajson: Dict[str, Any],
+        samples_info_dict: Dict[str, SampleInfo],
+        samples: List[str],
+        outdir: str,
+        workflow: str,
+    ) -> List[str]:
+    """Register regionplot panel outputs under the Params.regionplot gate.
+
+    Shared by the six bw-producing workflows (Fiberseq/PacVar/CLIP/MERIP/
+    ncRNAseq/PeakCalling). Requires ``Params.regionplot.regions_bed`` when
+    enabled, auto-fills ``sample_group_dict`` from the meta group column
+    (a hand-filled config value wins), and returns the outfile list to
+    append (per panel: every requested format + tracks.ini +
+    track_sources.tsv + regions.bed).
+
+    Parameters
+    ----------
+    datajson : the workflow config being materialized (mutated: the
+        ``Params.regionplot`` block gets ``sample_group_dict`` written back).
+    samples_info_dict : meta sample info (source of the group column).
+    samples : sample ids that own bigwigs in this workflow.
+    outdir : workflow output root.
+    workflow : workflow name (for error messages).
+
+    Returns
+    -------
+    List[str]
+        Outfile paths to register; empty when the gate is off.
+    """
+    params = datajson.get("Params", {}).get("regionplot", {})
+    if not _enabled(datajson, "regionplot"):
+        return []
+    regions_bed = params.get("regions_bed")
+    if not regions_bed:
+        raise ValueError(
+            f"{workflow}: Params.regionplot.enabled=true requires "
+            "Params.regionplot.regions_bed (a BED of chrom/start/end[/name] "
+            "rows); set it in the workflow config JSON, then rerun.")
+    # group map: hand-filled config wins, else derive from meta group column
+    group_dict = dict(params.get("sample_group_dict") or {})
+    for sid in samples:
+        if sid not in group_dict:
+            group = getattr(samples_info_dict.get(sid), "group", None)
+            if group:
+                group_dict[sid] = group
+    datajson.setdefault("Params", {}).setdefault("regionplot", {})[
+        "sample_group_dict"] = group_dict
+    # formats normalize (same expression as the module smk)
+    formats = params.get("formats") or ["png", "svg"]
+    if isinstance(formats, str):
+        formats = [formats]
+    if not isinstance(formats, list) or not all(isinstance(f, str) for f in formats):
+        raise ValueError(f"{workflow}: Params.regionplot.formats must be a list of strings")
+    # panel names mirror the module's BED parsing (col4 or chrom_start_end)
+    panels: List[str] = []
+    seen: Dict[str, int] = {}
+    with open(regions_bed) as fh:
+        for line in fh:
+            if not line.strip() or line.startswith(("#", "track", "browser")):
+                continue
+            f = line.rstrip("\n").split("\t")
+            name = (f[3].strip() if len(f) >= 4 and f[3].strip()
+                    else f"{f[0]}_{f[1]}_{f[2]}")
+            name = name.replace("/", "_").replace(" ", "_")
+            if name in seen:
+                seen[name] += 1
+                name = f"{name}.{seen[name]}"
+            else:
+                seen[name] = 0
+            panels.append(name)
+    if not panels:
+        raise ValueError(
+            f"{workflow}: Params.regionplot.regions_bed has no rows: {regions_bed}")
+    out = []
+    for panel in panels:
+        for fmt in formats:
+            out.append(f"{outdir}/regionplot/{panel}/{panel}.{fmt}")
+        out.append(f"{outdir}/regionplot/{panel}/tracks.ini")
+        out.append(f"{outdir}/regionplot/{panel}/track_sources.tsv")
+        out.append(f"{outdir}/regionplot/{panel}/regions.bed")
+    return out
+
+
 def _resolve_genome_ref(
         datajson: Dict[str, Any],
         samples_info_dict: Dict[str, SampleInfo],
@@ -449,6 +535,9 @@ def runMERIP(
         else:
             logger.error(f"Unknown design type for sample {sample_id}: {sample_info.design}")
     outfiles.append(f"{outdir}/exomePeak/sig_diff_peak_gene_names.xls")
+    outfiles += _register_regionplot(datajson, samples_info_dict,
+                                     ip_samples + input_samples + treated_ip_samples + treated_input_samples,
+                                     outdir, "MERIP")
     datajson["outfiles"] = outfiles
     datajson["paired_samples"] = paired_samples
     datajson["single_samples"] = single_samples
@@ -502,6 +591,9 @@ def runCLIP(
             logger.error(f"Unknown layout type for sample {sample_id}: {sample_info.layout}")
     outfiles.append(f"{outdir}/track/igv_track_iclip.html")
     outfiles.append(f"{outdir}/track/ucsc_track_iclip.txt")
+    outfiles += _register_regionplot(datajson, samples_info_dict,
+                                     paired_samples + single_samples,
+                                     outdir, "CLIP")
     datajson["outfiles"] = outfiles
     datajson["paired_samples"] = paired_samples
     datajson["single_samples"] = single_samples
@@ -705,6 +797,7 @@ def runPacVar(
     os.makedirs(gatk_tmp_dir, exist_ok=True)
     datajson["Params"]["gatk"]["tmp-dir"] = gatk_tmp_dir
     datajson["Params"]["workflow"]["samples"] = samples
+    outfiles += _register_regionplot(datajson, samples_info_dict, samples, outdir, "PacVar")
     datajson["outfiles"] = outfiles
     return _write_raw_json(datajson, outdir)
 
@@ -1109,6 +1202,9 @@ def runPeakCalling(
     datajson["ip_samples"] = ip_samples
     datajson["input_samples"] = input_samples
     datajson["sample_ip_input_map"] = sample_ip_input_map
+    outfiles += _register_regionplot(datajson, samples_info_dict,
+                                     ip_samples + input_samples,
+                                     outdir, "PeakCalling")
     datajson["outfiles"] = outfiles
 
     return _write_raw_json(datajson, outdir)
@@ -1453,6 +1549,8 @@ def runncRNAseq(
     outfiles.append(f"{outdir}/tracks/ucsc_track.txt")
     outfiles.append(f"{outdir}/ncRNAseq_report.pptx")
     outfiles.append(f"{outdir}/ncRNAseq_report_files.xlsx")
+    outfiles += _register_regionplot(datajson, samples_info_dict,
+                                     all_samples, outdir, "ncRNAseq")
     datajson["outfiles"] = outfiles
     datajson["Params"]["workflow"]["samples"] = all_samples
     datajson["Params"]["workflow"]["raw_files"] = raw_files
@@ -1938,6 +2036,7 @@ def runFiberseq(
     datajson["Params"]["sv"]["exp_specific"]["assembly"] = genome_version
     datajson["Params"]["workflow"]["samples"] = samples
     datajson["Params"]["workflow"]["raw_files"] = raw_files
+    outfiles += _register_regionplot(datajson, samples_info_dict, samples, outdir, "Fiberseq")
     datajson["outfiles"] = outfiles
     instance_json = os.path.join(outdir, "raw.json")
     with open(instance_json, 'w', encoding='utf-8') as wf:

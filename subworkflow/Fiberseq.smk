@@ -402,6 +402,7 @@ logger.debug(f"fiberseq_track config: {fiberseq_track_config}")
 use rule fiberseq_track_run from fiberseq_track as Fiberseq_track_run
 
 
+
 # ============================================================
 # Step 5: Haplotype chain (variant calling → phasing → per-hap analysis)
 # ============================================================
@@ -597,6 +598,37 @@ module bamCoverage:
     config: bamCoverage_config
 logger.debug(f"bamCoverage_config: {bamCoverage_config}")
 use rule bamCoverage from bamCoverage as Fiberseq_bamCoverage
+
+# ============================================================
+# Region-focused multi-sample track stacking plots (modules/regionplot)
+#   Consumes this workflow's bigwigs; gated by Params.regionplot in
+#   node.py (subworkflow wiring is unconditional per repo convention).
+# ============================================================
+regionplot_params = config.get("Params", {}).get("regionplot", {})
+regionplot_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
+    "env": config.get("env", {}),
+    "outdir": f"{outdir}/regionplot",
+    "logdir": f"{logdir}/group",
+    "samples": samples,
+    "tracks": [{"label": "accessibility", "dir": f"{analysis_outdir}/track", "suffix": ".accessibility.bw"},
+              {"label": "m6a_density", "dir": f"{analysis_outdir}/track", "suffix": ".m6a_density.bw"},
+              {"label": "coverage", "dir": bamCoverage_config["outdir"], "suffix": ".coverage.bw"}],
+    "Params": {
+        "regionplot": regionplot_params
+    },
+    "genome": {
+        "gtf": genome_ref.get("gtf"),
+    },
+    "resources": config.get("resources", {}),
+}
+module regionplot:
+    snakefile: "../modules/regionplot/regionplot.smk"
+    config: regionplot_config
+logger.debug(f"regionplot_config: {regionplot_config}")
+use rule regionplot from regionplot as Fiberseq_regionplot
+use rule regionplot_result from regionplot as Fiberseq_regionplot_result
 
 decoil_config = {
     "resources": config.get("resources", {}),

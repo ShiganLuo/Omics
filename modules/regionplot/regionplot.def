@@ -1,0 +1,29 @@
+# Apptainer definition file for regionplot
+# Engine: pyGenomeTracks 3.9 (region-focused multi-sample track stacking plots)
+# Built after the deeptools def pattern (PyPI/pip, no conda solve inside build).
+# Build: apptainer build regionplot.sif regionplot.def
+
+Bootstrap: docker
+From: docker.m.daocloud.io/python:3.11-slim
+
+%post
+    set -euo pipefail
+    apt-get update && apt-get install -y --no-install-recommends build-essential zlib1g-dev libbz2-dev liblzma-dev && \
+        rm -rf /var/lib/apt/lists/*
+    pip install --no-cache-dir uv && \
+        uv pip install --system --no-cache-dir "pygenometracks==3.9" "matplotlib>=3.7" "numpy>=1.24" "pyBigWig>=0.3.22"
+
+%environment
+    export PATH="/usr/local/bin:$PATH"
+    export MPLBACKEND=Agg
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName regionplot
+
+%help
+    Apptainer image for regionplot (pyGenomeTracks 3.9 + pyBigWig).
+    Region-focused multi-sample bigWig track stacking plots.

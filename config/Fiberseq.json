@@ -17,7 +17,8 @@
         "deeptools": "/data/16T/Database/env/deeptools/deeptools.sif",
         "decoil": "/data/16T/Database/env/decoil/decoil.sif",
         "samtools": "/data/16T/Database/env/samtools/samtools.sif",
-        "tabix": "/data/16T/Database/env/tabix/tabix.sif"
+        "tabix": "/data/16T/Database/env/tabix/tabix.sif",
+        "regionplot": "/data/16T/Database/env/regionplot/regionplot.sif"
     },
     "resources": {
         "default": {
@@ -330,66 +331,351 @@
                 "force_rerun": false,
                 "te_buckets": {
                     "GRCh38": [
-                        {"name": "Alu", "family": ["Alu"], "retro_fingerprint": true},
-                        {"name": "L1", "family": ["L1"], "retro_fingerprint": true},
-                        {"name": "SVA", "family": ["SVA"], "retro_fingerprint": true},
-                        {"name": "LTR", "class": ["LTR"]},
-                        {"name": "DNA", "class": ["DNA"]},
-                        {"name": "simple_repeat", "class": ["Simple_repeat"]},
-                        {"name": "other", "catch_all": "classified"},
-                        {"name": "unclassified", "catch_all": "unclassified"}
+                        {
+                            "name": "Alu",
+                            "family": [
+                                "Alu"
+                            ],
+                            "retro_fingerprint": true
+                        },
+                        {
+                            "name": "L1",
+                            "family": [
+                                "L1"
+                            ],
+                            "retro_fingerprint": true
+                        },
+                        {
+                            "name": "SVA",
+                            "family": [
+                                "SVA"
+                            ],
+                            "retro_fingerprint": true
+                        },
+                        {
+                            "name": "LTR",
+                            "class": [
+                                "LTR"
+                            ]
+                        },
+                        {
+                            "name": "DNA",
+                            "class": [
+                                "DNA"
+                            ]
+                        },
+                        {
+                            "name": "simple_repeat",
+                            "class": [
+                                "Simple_repeat"
+                            ]
+                        },
+                        {
+                            "name": "other",
+                            "catch_all": "classified"
+                        },
+                        {
+                            "name": "unclassified",
+                            "catch_all": "unclassified"
+                        }
                     ],
                     "GRCm39": [
-                        {"name": "MERVL", "subfamily": ["MT2_Mm", "MERVL-int", "MERVL"], "retro_fingerprint": true},
-                        {"name": "MERVL-2A/MT2-other", "subfamily": ["MERVL_2A", "MERVL_2A-int", "MT2A", "MT2B", "MT2B1", "MT2B2", "MT2C_Mm", "MT2C", "MT2"]},
-                        {"name": "ERVK", "family": ["ERVK"], "retro_fingerprint": true},
-                        {"name": "Alu", "family": ["Alu"], "retro_fingerprint": true},
-                        {"name": "B2/B4/ID", "family": ["B2", "B4", "ID"], "retro_fingerprint": true},
-                        {"name": "L1", "family": ["L1"], "retro_fingerprint": true},
-                        {"name": "LTR", "class": ["LTR"]},
-                        {"name": "DNA", "class": ["DNA"]},
-                        {"name": "simple_repeat", "class": ["Simple_repeat"]},
-                        {"name": "satellite", "class": ["Satellite"]},
-                        {"name": "other", "catch_all": "classified"},
-                        {"name": "unclassified", "catch_all": "unclassified"}
+                        {
+                            "name": "MERVL",
+                            "subfamily": [
+                                "MT2_Mm",
+                                "MERVL-int",
+                                "MERVL"
+                            ],
+                            "retro_fingerprint": true
+                        },
+                        {
+                            "name": "MERVL-2A/MT2-other",
+                            "subfamily": [
+                                "MERVL_2A",
+                                "MERVL_2A-int",
+                                "MT2A",
+                                "MT2B",
+                                "MT2B1",
+                                "MT2B2",
+                                "MT2C_Mm",
+                                "MT2C",
+                                "MT2"
+                            ]
+                        },
+                        {
+                            "name": "ERVK",
+                            "family": [
+                                "ERVK"
+                            ],
+                            "retro_fingerprint": true
+                        },
+                        {
+                            "name": "Alu",
+                            "family": [
+                                "Alu"
+                            ],
+                            "retro_fingerprint": true
+                        },
+                        {
+                            "name": "B2/B4/ID",
+                            "family": [
+                                "B2",
+                                "B4",
+                                "ID"
+                            ],
+                            "retro_fingerprint": true
+                        },
+                        {
+                            "name": "L1",
+                            "family": [
+                                "L1"
+                            ],
+                            "retro_fingerprint": true
+                        },
+                        {
+                            "name": "LTR",
+                            "class": [
+                                "LTR"
+                            ]
+                        },
+                        {
+                            "name": "DNA",
+                            "class": [
+                                "DNA"
+                            ]
+                        },
+                        {
+                            "name": "simple_repeat",
+                            "class": [
+                                "Simple_repeat"
+                            ]
+                        },
+                        {
+                            "name": "satellite",
+                            "class": [
+                                "Satellite"
+                            ]
+                        },
+                        {
+                            "name": "other",
+                            "catch_all": "classified"
+                        },
+                        {
+                            "name": "unclassified",
+                            "catch_all": "unclassified"
+                        }
                     ],
                     "T2T_mhaESC_v1.5": [
-                        {"name": "MERVL", "subfamily": ["MT2_Mm", "MERVL-int", "MERVL"], "retro_fingerprint": true},
-                        {"name": "MERVL-2A/MT2-other", "subfamily": ["MERVL_2A", "MERVL_2A-int", "MT2A", "MT2B", "MT2B1", "MT2B2", "MT2C_Mm", "MT2C", "MT2"]},
-                        {"name": "ERVK", "family": ["ERVK"], "retro_fingerprint": true},
-                        {"name": "Alu", "family": ["Alu"], "retro_fingerprint": true},
-                        {"name": "B2/B4/ID", "family": ["B2", "B4", "ID"], "retro_fingerprint": true},
-                        {"name": "L1", "family": ["L1"], "retro_fingerprint": true},
-                        {"name": "LTR", "class": ["LTR"]},
-                        {"name": "DNA", "class": ["DNA"]},
-                        {"name": "simple_repeat", "class": ["Simple_repeat"]},
-                        {"name": "satellite", "class": ["Satellite"]},
-                        {"name": "other", "catch_all": "classified"},
-                        {"name": "unclassified", "catch_all": "unclassified"}
+                        {
+                            "name": "MERVL",
+                            "subfamily": [
+                                "MT2_Mm",
+                                "MERVL-int",
+                                "MERVL"
+                            ],
+                            "retro_fingerprint": true
+                        },
+                        {
+                            "name": "MERVL-2A/MT2-other",
+                            "subfamily": [
+                                "MERVL_2A",
+                                "MERVL_2A-int",
+                                "MT2A",
+                                "MT2B",
+                                "MT2B1",
+                                "MT2B2",
+                                "MT2C_Mm",
+                                "MT2C",
+                                "MT2"
+                            ]
+                        },
+                        {
+                            "name": "ERVK",
+                            "family": [
+                                "ERVK"
+                            ],
+                            "retro_fingerprint": true
+                        },
+                        {
+                            "name": "Alu",
+                            "family": [
+                                "Alu"
+                            ],
+                            "retro_fingerprint": true
+                        },
+                        {
+                            "name": "B2/B4/ID",
+                            "family": [
+                                "B2",
+                                "B4",
+                                "ID"
+                            ],
+                            "retro_fingerprint": true
+                        },
+                        {
+                            "name": "L1",
+                            "family": [
+                                "L1"
+                            ],
+                            "retro_fingerprint": true
+                        },
+                        {
+                            "name": "LTR",
+                            "class": [
+                                "LTR"
+                            ]
+                        },
+                        {
+                            "name": "DNA",
+                            "class": [
+                                "DNA"
+                            ]
+                        },
+                        {
+                            "name": "simple_repeat",
+                            "class": [
+                                "Simple_repeat"
+                            ]
+                        },
+                        {
+                            "name": "satellite",
+                            "class": [
+                                "Satellite"
+                            ]
+                        },
+                        {
+                            "name": "other",
+                            "catch_all": "classified"
+                        },
+                        {
+                            "name": "unclassified",
+                            "catch_all": "unclassified"
+                        }
                     ],
                     "Mmul_10": [
-                        {"name": "ERVK", "family": ["ERVK"], "retro_fingerprint": true},
-                        {"name": "ERVL-MaLR", "family": ["ERVL-MaLR"]},
-                        {"name": "Alu", "family": ["Alu"], "retro_fingerprint": true},
-                        {"name": "L1", "family": ["L1"], "retro_fingerprint": true},
-                        {"name": "SVA", "family": ["SVA"], "retro_fingerprint": true},
-                        {"name": "LTR", "class": ["LTR"]},
-                        {"name": "DNA", "class": ["DNA"]},
-                        {"name": "simple_repeat", "class": ["Simple_repeat"]},
-                        {"name": "other", "catch_all": "classified"},
-                        {"name": "unclassified", "catch_all": "unclassified"}
+                        {
+                            "name": "ERVK",
+                            "family": [
+                                "ERVK"
+                            ],
+                            "retro_fingerprint": true
+                        },
+                        {
+                            "name": "ERVL-MaLR",
+                            "family": [
+                                "ERVL-MaLR"
+                            ]
+                        },
+                        {
+                            "name": "Alu",
+                            "family": [
+                                "Alu"
+                            ],
+                            "retro_fingerprint": true
+                        },
+                        {
+                            "name": "L1",
+                            "family": [
+                                "L1"
+                            ],
+                            "retro_fingerprint": true
+                        },
+                        {
+                            "name": "SVA",
+                            "family": [
+                                "SVA"
+                            ],
+                            "retro_fingerprint": true
+                        },
+                        {
+                            "name": "LTR",
+                            "class": [
+                                "LTR"
+                            ]
+                        },
+                        {
+                            "name": "DNA",
+                            "class": [
+                                "DNA"
+                            ]
+                        },
+                        {
+                            "name": "simple_repeat",
+                            "class": [
+                                "Simple_repeat"
+                            ]
+                        },
+                        {
+                            "name": "other",
+                            "catch_all": "classified"
+                        },
+                        {
+                            "name": "unclassified",
+                            "catch_all": "unclassified"
+                        }
                     ],
                     "Mmul_T2T": [
-                        {"name": "ERVK", "family": ["ERVK"], "retro_fingerprint": true},
-                        {"name": "ERVL-MaLR", "family": ["ERVL-MaLR"]},
-                        {"name": "Alu", "family": ["Alu"], "retro_fingerprint": true},
-                        {"name": "L1", "family": ["L1"], "retro_fingerprint": true},
-                        {"name": "SVA", "family": ["SVA"], "retro_fingerprint": true},
-                        {"name": "LTR", "class": ["LTR"]},
-                        {"name": "DNA", "class": ["DNA"]},
-                        {"name": "simple_repeat", "class": ["Simple_repeat"]},
-                        {"name": "other", "catch_all": "classified"},
-                        {"name": "unclassified", "catch_all": "unclassified"}
+                        {
+                            "name": "ERVK",
+                            "family": [
+                                "ERVK"
+                            ],
+                            "retro_fingerprint": true
+                        },
+                        {
+                            "name": "ERVL-MaLR",
+                            "family": [
+                                "ERVL-MaLR"
+                            ]
+                        },
+                        {
+                            "name": "Alu",
+                            "family": [
+                                "Alu"
+                            ],
+                            "retro_fingerprint": true
+                        },
+                        {
+                            "name": "L1",
+                            "family": [
+                                "L1"
+                            ],
+                            "retro_fingerprint": true
+                        },
+                        {
+                            "name": "SVA",
+                            "family": [
+                                "SVA"
+                            ],
+                            "retro_fingerprint": true
+                        },
+                        {
+                            "name": "LTR",
+                            "class": [
+                                "LTR"
+                            ]
+                        },
+                        {
+                            "name": "DNA",
+                            "class": [
+                                "DNA"
+                            ]
+                        },
+                        {
+                            "name": "simple_repeat",
+                            "class": [
+                                "Simple_repeat"
+                            ]
+                        },
+                        {
+                            "name": "other",
+                            "catch_all": "classified"
+                        },
+                        {
+                            "name": "unclassified",
+                            "catch_all": "unclassified"
+                        }
                     ]
                 }
             }
@@ -468,6 +754,19 @@
             "igv": {
                 "locus": ""
             }
+        },
+        "regionplot": {
+            "enabled": false,
+            "regions_bed": null,
+            "sample_group_dict": {},
+            "sample_order": [],
+            "plot_height_per_track": 1.5,
+            "plot_width": 12,
+            "formats": [
+                "png",
+                "svg"
+            ],
+            "gtf_track": true
         }
     },
     "genome": {

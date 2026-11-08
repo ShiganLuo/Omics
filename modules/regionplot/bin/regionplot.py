@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Render region-focused multi-sample track stacking plots with pyGenomeTracks.
 
-Given a regions BED, one or more track groups (label + per-sample bigWig paths)
+Given a regions file (BED rows or a ``[NAME=]chr:start-end`` list, formats
+may be mixed), one or more track groups (label + per-sample bigWig paths)
 and an optional group map (sample -> biological group), writes a
 pyGenomeTracks ``.ini`` per region panel and calls ``pyGenomeTracks`` to
 produce PNG/SVG stacking plots: one wiggle track line per sample, samples of
@@ -26,6 +27,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import re
 import shutil
 import subprocess
 import sys
@@ -94,21 +96,77 @@ logger = _get_logger()
 # Input parsing
 # ----------------------------------------------------------------------------
 
-def parse_regions_bed(path: Path) -> List[Tuple[str, int, int, str]]:
-    """Read regions BED rows.
+def _sanitize_panel_name(name: str) -> str:
+    """Make a region name safe as a path element (panel directory name)."""
+    for ch in ("/", " ", ":", "="):
+        name = name.replace(ch, "_")
+    return name
+
+
+_REGION_RE = re.compile(r"([^:]+):([\d,]+)-([\d,]+)")
+
+
+def _parse_region_string(s: str) -> Tuple[str, int, int, str]:
+    """Parse one ``[NAME=]chrom:start-end`` region string.
+
+    Parameters
+    ----------
+    s : str
+        Region string, e.g. ``MYC_locus=chr8:127735000-127745000`` or
+        ``chr8:127735000-127745000`` (name defaults to the string with
+        ``:``/``-``/``,`` replaced by ``_``). Thousands separators
+        (``1,277,350``) are tolerated and stripped.
+
+    Returns
+    -------
+    (chrom, start, end, name)
+        Coordinates passed to pyGenomeTracks verbatim (same 0-based
+        half-open window a BED row ``chrom start end`` would plot).
+
+    Raises
+    ------
+    ValueError
+        On a malformed string or end <= start.
+    """
+    name = s
+    region = s
+    if "=" in s:
+        name, region = s.split("=", 1)
+    match = _REGION_RE.fullmatch(region.strip())
+    if match is None:
+        raise ValueError(
+            f"malformed region {s!r}, expected [NAME=]chrom:start-end")
+    chrom = match.group(1)
+    start = int(match.group(2).replace(",", ""))
+    end = int(match.group(3).replace(",", ""))
+    if end <= start:
+        raise ValueError(f"region end <= start: {s!r}")
+    if name == s:
+        # default name mirrors the BED default chrom_start_end shape
+        name = f"{chrom}_{start}_{end}"
+    return chrom, start, end, _sanitize_panel_name(name)
+
+
+def parse_regions(path: Path) -> List[Tuple[str, int, int, str]]:
+    """Read regions from a BED-style or ``chr:start-end`` list file.
+
+    Each non-comment row is auto-detected: tab-separated rows with >= 3
+    columns parse as BED (chrom/start/end[/name]); anything else parses
+    as one ``[NAME=]chrom:start-end`` string. Formats may be mixed.
 
     Parameters
     ----------
     path : Path
-        BED with >= 3 columns (chrom, start, end); optional 4th column
-        used as the panel name.
+        Regions file (BED or chr:start-end list; ``#``/``track``/
+        ``browser`` lines skipped).
 
     Returns
     -------
     list of (chrom, start, end, panel_name)
-        panel_name is the 4th column when present else ``chrom_start_end``.
-        Duplicate names get ``.1``/``.2`` suffixes so panel wildcards stay
-        unique.
+        panel_name is the BED col4 / ``NAME=`` prefix when present else
+        ``chrom_start_end``. Duplicate names get ``.1``/``.2`` suffixes
+        so panel wildcards stay unique.
+
     Raises
     ------
     ValueError
@@ -119,17 +177,20 @@ def parse_regions_bed(path: Path) -> List[Tuple[str, int, int, str]]:
     with open(path) as fh:
         for line in fh:
             line = line.rstrip("\n")
-            if not line or line.startswith(("#", "track", "browser")):
+            if not line.strip() or line.startswith(("#", "track", "browser")):
                 continue
-            f = line.split("\t")
-            if len(f) < 3:
-                raise ValueError(f"regions BED row needs >=3 columns: {line!r}")
-            chrom, start, end = f[0], int(f[1]), int(f[2])
-            if end <= start:
-                raise ValueError(f"region end <= start: {line!r}")
-            name = f[3].strip() if len(f) >= 4 and f[3].strip() else f"{chrom}_{start}_{end}"
-            # sanitize: panel name becomes a path element
-            name = name.replace("/", "_").replace(" ", "_")
+            if "\t" in line:
+                f = line.split("\t")
+                if len(f) < 3:
+                    raise ValueError(f"regions BED row needs >=3 columns: {line!r}")
+                chrom, start, end = f[0], int(f[1]), int(f[2])
+                if end <= start:
+                    raise ValueError(f"region end <= start: {line!r}")
+                name = (f[3].strip() if len(f) >= 4 and f[3].strip()
+                        else f"{chrom}_{start}_{end}")
+                name = _sanitize_panel_name(name)
+            else:
+                chrom, start, end, name = _parse_region_string(line.strip())
             if name in seen:
                 seen[name] += 1
                 name = f"{name}.{seen[name]}"
@@ -424,7 +485,7 @@ def render_panel(outdir: Path, region: Tuple[str, int, int, str], rows: List[Dic
 
 
 def run(args: argparse.Namespace) -> int:
-    regions = parse_regions_bed(Path(args.regions))
+    regions = parse_regions(Path(args.regions))
     if args.panel:
         regions = [r for r in regions if r[3] == args.panel]
         if not regions:
@@ -455,7 +516,8 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     p.add_argument("-r", "--regions", type=Path, required=True,
-                   help="regions BED (chrom/start/end[/name])")
+                   help="regions file: BED rows (chrom/start/end[/name]) or "
+                        "[NAME=]chrom:start-end list lines; formats may be mixed")
     p.add_argument("--panel", type=str, default=None,
                    help="render only this panel (region name); default renders all regions")
     p.add_argument("-t", "--track-tsv", type=Path, required=True,

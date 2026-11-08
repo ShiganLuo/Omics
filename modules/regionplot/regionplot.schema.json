@@ -34,10 +34,11 @@
         "nullable": true,
         "required": false,
         "properties": {
-          "regions_bed": {
+          "regions": {
             "type": "str",
             "nullable": true,
-            "required": false
+            "required": false,
+            "description": "Regions file, required when enabled. Auto-detected per row: BED rows (chrom<TAB>start<TAB>end[<TAB>name], col4 names the panel) or list lines ([NAME=]chrom:start-end, same string pyGenomeTracks --region consumes; NAME= names the panel, else chrom_start_end). Formats may be mixed; #/track/browser lines skipped."
           },
           "sample_group_dict": {
             "type": "dict",

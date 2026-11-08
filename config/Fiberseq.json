@@ -757,7 +757,7 @@
         },
         "regionplot": {
             "enabled": false,
-            "regions_bed": null,
+            "regions": null,
             "sample_group_dict": {},
             "sample_order": [],
             "plot_height_per_track": 1.5,

@@ -143,6 +143,10 @@ def _detect_current_server_db() -> str | None:
             return db_dir
     return None
 
+# [NAME=]chrom:start-end region row (thousands separators tolerated)
+_REGION_RE = re.compile(r"([^:]+):([\d,]+)-([\d,]+)")
+
+
 def _enabled(datajson: Dict[str, Any], step: str) -> bool:
     """Read Params.<step>.enabled (default True).
 
@@ -167,7 +171,7 @@ def _register_regionplot(
     """Register regionplot panel outputs under the Params.regionplot gate.
 
     Shared by the six bw-producing workflows (Fiberseq/PacVar/CLIP/MERIP/
-    ncRNAseq/PeakCalling). Requires ``Params.regionplot.regions_bed`` when
+    ncRNAseq/PeakCalling). Requires ``Params.regionplot.regions`` when
     enabled, auto-fills ``sample_group_dict`` from the meta group column
     (a hand-filled config value wins), and returns the outfile list to
     append (per panel: every requested format + tracks.ini +
@@ -190,12 +194,14 @@ def _register_regionplot(
     params = datajson.get("Params", {}).get("regionplot", {})
     if not _enabled(datajson, "regionplot"):
         return []
-    regions_bed = params.get("regions_bed")
-    if not regions_bed:
+    # regions: BED rows or a [NAME=]chrom:start-end list
+    regions_file = params.get("regions")
+    if not regions_file:
         raise ValueError(
             f"{workflow}: Params.regionplot.enabled=true requires "
-            "Params.regionplot.regions_bed (a BED of chrom/start/end[/name] "
-            "rows); set it in the workflow config JSON, then rerun.")
+            "Params.regionplot.regions (a BED of chrom/start/end[/name] "
+            "rows or a list of [NAME=]chrom:start-end lines); set it in "
+            "the workflow config JSON, then rerun.")
     # group map: hand-filled config wins, else derive from meta group column
     group_dict = dict(params.get("sample_group_dict") or {})
     for sid in samples:
@@ -211,17 +217,34 @@ def _register_regionplot(
         formats = [formats]
     if not isinstance(formats, list) or not all(isinstance(f, str) for f in formats):
         raise ValueError(f"{workflow}: Params.regionplot.formats must be a list of strings")
-    # panel names mirror the module's BED parsing (col4 or chrom_start_end)
+    # panel names mirror the module's regions parsing (BED col4 or
+    # chrom_start_end; list NAME= prefix or the sanitized chr:start-end)
     panels: List[str] = []
     seen: Dict[str, int] = {}
-    with open(regions_bed) as fh:
+    with open(regions_file) as fh:
         for line in fh:
             if not line.strip() or line.startswith(("#", "track", "browser")):
                 continue
-            f = line.rstrip("\n").split("\t")
-            name = (f[3].strip() if len(f) >= 4 and f[3].strip()
-                    else f"{f[0]}_{f[1]}_{f[2]}")
-            name = name.replace("/", "_").replace(" ", "_")
+            line = line.rstrip("\n")
+            if "\t" in line:
+                f = line.split("\t")
+                name = (f[3].strip() if len(f) >= 4 and f[3].strip()
+                        else f"{f[0]}_{f[1]}_{f[2]}")
+            else:
+                s = line.strip()
+                if "=" in s:
+                    name = s.split("=", 1)[0]
+                else:
+                    m = _REGION_RE.fullmatch(s)
+                    if m is None:
+                        raise ValueError(
+                            f"{workflow}: malformed region row {s!r} in "
+                            f"{regions_file} (expected [NAME=]chrom:start-end)")
+                    name = (f"{m.group(1)}_"
+                            f"{int(m.group(2).replace(',', ''))}_"
+                            f"{int(m.group(3).replace(',', ''))}")
+            for ch in ("/", " ", ":", "="):
+                name = name.replace(ch, "_")
             if name in seen:
                 seen[name] += 1
                 name = f"{name}.{seen[name]}"
@@ -230,7 +253,7 @@ def _register_regionplot(
             panels.append(name)
     if not panels:
         raise ValueError(
-            f"{workflow}: Params.regionplot.regions_bed has no rows: {regions_bed}")
+            f"{workflow}: Params.regionplot.regions has no rows: {regions_file}")
     out = []
     for panel in panels:
         for fmt in formats:

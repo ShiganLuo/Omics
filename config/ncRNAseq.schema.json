@@ -60,6 +60,56 @@
     }
   },
   "Params": {
+    "regionplot": {
+      "enabled": {
+        "type": "bool",
+        "required": false,
+        "default": false,
+        "description": "Gate for the regionplot module (multi-sample track stacking plots over user regions, consumes this workflow's bigwigs)."
+      },
+      "regions": {
+        "type": "str",
+        "required": false,
+        "default": null,
+        "description": "Regions file, required when enabled. Auto-detected per row: BED rows (chrom<TAB>start<TAB>end[<TAB>name], col4 names the panel) or list lines ([NAME=]chrom:start-end, the same string pyGenomeTracks --region consumes; NAME= names the panel, else chrom_start_end). Formats may be mixed; #/track/browser lines skipped."
+      },
+      "sample_group_dict": {
+        "type": "dict",
+        "required": false,
+        "default": {},
+        "description": "sample_id -> biological group for track coloring; auto-filled from the meta group column by node.py, hand-filled values win."
+      },
+      "sample_order": {
+        "type": "list",
+        "required": false,
+        "default": [],
+        "description": "Plotting order of samples; empty = meta order."
+      },
+      "formats": {
+        "type": "list",
+        "required": false,
+        "default": ["png", "svg"],
+        "description": "Output image formats (pyGenomeTracks --outFileName extensions)."
+      },
+      "gtf_track": {
+        "type": "bool",
+        "required": false,
+        "default": true,
+        "description": "Add a gene-model track at the bottom when the genome GTF exists."
+      },
+      "plot_height_per_track": {
+        "type": "float",
+        "required": false,
+        "default": 1.5,
+        "description": "Track height in inches per sample track."
+      },
+      "plot_width": {
+        "type": "float",
+        "required": false,
+        "default": 12,
+        "description": "Figure width in inches."
+      }
+    },
     "workflow": {
       "indir": {
         "type": "str",

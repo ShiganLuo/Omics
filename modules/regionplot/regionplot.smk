@@ -14,7 +14,8 @@ genome_cfg = config.get("genome", {})
 # paths expand to {dir}/{sample_id}/{sample_id}{suffix}. Wired by each
 # subworkflow from its own bw-producing rules; not a user-facing key.
 _track_defs = config.get("tracks", []) or []
-_regions_bed = p.get("regions_bed")
+# regions: BED rows or a [NAME=]chrom:start-end list (auto-detected per row)
+_regions = p.get("regions")
 _formats = p.get("formats") or ["png", "svg"]
 if isinstance(_formats, str):
     _formats = [_formats]
@@ -29,17 +30,19 @@ _group_dict = p.get("sample_group_dict", {}) or {}
 def _regionplot_inputs(wildcards):
     """Collect every input file; required keys raise at DAG-build time.
 
-    Returns a dict with the explicit bw list, the regions BED, and the
-    optional GTF (present only when configured).
+    Returns a dict with the explicit bw list, the regions file (BED or
+    chr:start-end list), and the optional GTF (present only when
+    configured).
     """
-    if not _regions_bed:
+    if not _regions:
         raise ValueError(
-            "Params.regionplot.regions_bed is empty: set it in the workflow "
-            "config JSON (a BED of chrom/start/end[/name] rows), then rerun.")
+            "Params.regionplot.regions is empty: set it in the workflow "
+            "config JSON (a BED of chrom/start/end[/name] rows or a list "
+            "of [NAME=]chrom:start-end lines), then rerun.")
     files = {
         "bws": [f"{t['dir']}/{s}/{s}{t['suffix']}"
                 for t in _track_defs for s in _sample_order],
-        "regions": _regions_bed,
+        "regions": _regions,
     }
     gtf = genome_cfg.get("gtf")
     if gtf and p.get("gtf_track", True):
@@ -47,19 +50,41 @@ def _regionplot_inputs(wildcards):
     return files
 
 
-def _panel_names(regions_bed):
-    """Panel names = regions BED col4 (deduped) or chrom_start_end."""
-    from pathlib import Path as _P
+def _panel_names(regions_file):
+    """Panel names from a regions file; mirrors bin/regionplot.py parsing.
+
+    BED rows use col4 (deduped) else chrom_start_end; list rows use the
+    ``NAME=`` prefix else the sanitized chrom:start-end string.
+    """
+    import re as _re
+    _region_re = _re.compile(r"([^:]+):([\d,]+)-([\d,]+)")
+
+    def _sanitize(name):
+        for ch in ("/", " ", ":", "="):
+            name = name.replace(ch, "_")
+        return name
+
     names = []
     seen = {}
-    with open(regions_bed) as fh:
+    with open(regions_file) as fh:
         for line in fh:
             if not line.strip() or line.startswith(("#", "track", "browser")):
                 continue
-            f = line.rstrip("\n").split("\t")
-            name = (f[3].strip() if len(f) >= 4 and f[3].strip()
-                    else f"{f[0]}_{f[1]}_{f[2]}")
-            name = name.replace("/", "_").replace(" ", "_")
+            line = line.rstrip("\n")
+            if "\t" in line:
+                f = line.split("\t")
+                name = (f[3].strip() if len(f) >= 4 and f[3].strip()
+                        else f"{f[0]}_{f[1]}_{f[2]}")
+            else:
+                s = line.strip()
+                if "=" in s:
+                    name = s.split("=", 1)[0]
+                else:
+                    m = _region_re.fullmatch(s)
+                    name = (f"{m.group(1)}_"
+                            f"{int(m.group(2).replace(',', ''))}_"
+                            f"{int(m.group(3).replace(',', ''))}")
+            name = _sanitize(name)
             if name in seen:
                 seen[name] += 1
                 name = f"{name}.{seen[name]}"
@@ -111,7 +136,7 @@ rule regionplot:
             script = os.path.join(RECEIPT_DIR, f"regionplot_{wildcards.panel}_{current_time}.sh")
             plain_script = os.path.join(panel_outdir, "regionplot.sh")
 
-            # regions BED copy delivered beside the plots (traceability)
+            # regions file copy delivered beside the plots (traceability)
             import shutil as _shutil
             _shutil.copyfile(str(input.regions), str(output.bed))
 
@@ -162,7 +187,7 @@ rule regionplot:
             raise RuntimeError(f"Error occurred during regionplot for {wildcards.panel}: {e}\n")
 
 
-_panels = _panel_names(_regions_bed) if _regions_bed else []
+_panels = _panel_names(_regions) if _regions else []
 
 rule regionplot_result:
     input:

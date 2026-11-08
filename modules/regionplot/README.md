@@ -1,33 +1,42 @@
 # regionplot
 
-Region-focused multi-sample track stacking plots. Given a regions BED and a
+Region-focused multi-sample track stacking plots. Given a regions file (BED
+rows or a `[NAME=]chrom:start-end` list; formats may be mixed) and a
 set of per-sample bigWigs already produced by the workflow, renders one
 pyGenomeTracks figure per region: one wiggle line per sample, optional group
 coloring + legend (from the meta `group` column or hand-filled
 `Params.regionplot.sample_group_dict`), and an optional gene-model track from
 the genome GTF. One image per region panel (PNG + SVG by default).
 
+Region file formats (auto-detected per row):
+
+- BED: `chrom<TAB>start<TAB>end[<TAB>name]` — col4 (sanitized, deduplicated)
+  names the panel, else `chrom_start_end`.
+- List: one `[NAME=]chrom:start-end` per line (matches the `--region` string
+  pyGenomeTracks consumes); `NAME=` names the panel, else the sanitized
+  `chrom_start_end`.
+
 ## Inputs
 
 - Per-sample bigWigs via the `tracks` contract (wired by the subworkflow,
   not user-facing): `[{label, dir, suffix}]` expands to
   `{dir}/{sample_id}/{sample_id}{suffix}`.
-- `Params.regionplot.regions_bed`: BED of `chrom/start/end[/name]` rows;
-  col4 (sanitized, deduplicated) names the panel, else `chrom_start_end`.
+- `Params.regionplot.regions`: BED rows or `[NAME=]chrom:start-end` list
+  lines.
 
 ## Outputs (`{outdir}/regionplot/{panel}/`)
 
 - `<panel>.png` / `<panel>.svg` — the stacked-track figure
 - `tracks.ini` — pyGenomeTracks config (rerun to restyle)
 - `track_sources.tsv` — audit table (sample / track group / bw path)
-- `regions.bed` — copy of the panel's region row
+- `regions.bed` — copy of the regions file
 - `group_map.tsv` + `group_legend.{png,svg}` — only when groups exist
 
 ## Config keys (module `Params.regionplot`)
 
 | key | default | meaning |
 |---|---|---|
-| `regions_bed` | null | regions BED; required when enabled |
+| `regions` | null | regions file (BED or `[NAME=]chr:start-end` list); required when enabled |
 | `sample_group_dict` | {} | sample -> group; auto-filled from meta `group` by node.py (`_register_regionplot`), hand-filled config wins |
 | `sample_order` | [] | plotting order; empty = meta order |
 | `formats` | ["png","svg"] | output image formats |
@@ -51,11 +60,14 @@ map and panel outfiles.
 
 ```
 python modules/regionplot/bin/regionplot.py \
-    -r regions.bed --panel MYC_locus \
+    -r regions.txt --panel MYC_locus \
     -t track_table.tsv -g group_map.tsv \
     --gtf genes.gtf --gtf-track \
     -o out/MYC_locus --formats png svg
 ```
+
+`regions.txt` may be a BED (`chrom<TAB>start<TAB>end[<TAB>name]`) or a list
+of `[NAME=]chrom:start-end` lines (formats may be mixed).
 
 `track_table.tsv`: `label<TAB>sample_id<TAB>bw_path` (group-major order =
 plot order). Engine runs in the `regionplot.sif` container

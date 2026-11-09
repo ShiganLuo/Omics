@@ -42,9 +42,14 @@ rule bwaMem2_index:
             os.makedirs(sample_outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"bwaMem2_index_{wildcards.genome}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"bwaMem2_index.sh")
+            cmd = [
+                str(params.bwa_mem2), "index",
+                "-p", str(params.index_prefix),
+                str(input.fasta)
+            ]
             with open(script, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
-                f.write(f"{params.bwa_mem2} index -p {params.index_prefix} {input.fasta} > {log} 2>&1\n")
+                f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
@@ -53,16 +58,16 @@ rule bwaMem2_index:
             raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
 
 def get_bwaMem2_index(wildcards):
-    logger.info(f"[get_bwaMem2_index] called with wildcards: {wildcards}")
+    logger.debug(f"[get_bwaMem2_index] called with wildcards: {wildcards}")
     config_index_prefix = config.get('genome',{}).get(wildcards.genome,{}).get("index_prefix") or None
     if config_index_prefix:
         first_file = f"{config_index_prefix}.0123"
         if os.path.exists(first_file):
             return [f"{config_index_prefix}.{ext}" for ext in BWAMEM2_IDX_SUFFIX]
         else:
-            logger.info(f"Config index prefix {config_index_prefix} provided, but does not exist. Falling back to default index path.")
+            logger.debug(f"Config index prefix {config_index_prefix} provided, but does not exist. Falling back to default index path.")
     else:
-        logger.info(f"No config index prefix provided. Using default index path.")
+        logger.debug(f"No config index prefix provided. Using default index path.")
     return [f"{outdir}/index/{wildcards.genome}/{wildcards.genome}.{ext}" for ext in BWAMEM2_IDX_SUFFIX]
 
 def get_alignment_input(wildcards):
@@ -78,7 +83,7 @@ def get_alignment_input(wildcards):
 
     return: A list of input file paths for the STAR alignment step. 
     """
-    logger.info(f"[get_alignment_input] called with wildcards: {wildcards}")
+    logger.debug(f"[get_alignment_input] called with wildcards: {wildcards}")
     # 构造可能的输入路径
     paired_r1 = f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}_1.fq.gz"
     paired_r2 = f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}_2.fq.gz"
@@ -86,12 +91,12 @@ def get_alignment_input(wildcards):
     
     # 检查文件实际存在情况
     if wildcards.sample_id in paired_samples:
-        logger.info(f"双端测序：{[paired_r1, paired_r2]}")
-        logger.info(f"双端测序：{[paired_r1, paired_r2]}")
+        logger.debug(f"双端测序：{[paired_r1, paired_r2]}")
+        logger.debug(f"双端测序：{[paired_r1, paired_r2]}")
         return [paired_r1, paired_r2]
     elif wildcards.sample_id in single_samples:
-        logger.info(f"单端测序：{[single]}")
-        logger.info(f"单端测序：{[single]}")
+        logger.debug(f"单端测序：{[single]}")
+        logger.debug(f"单端测序：{[single]}")
         return [single]
     else:
         raise FileNotFoundError(
@@ -131,22 +136,36 @@ rule bwaMem2_alignment:
             os.makedirs(sample_outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"bwaMem2_alignment_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"bwaMem2_alignment.sh")
+            cmd1 = [
+                str(params.bwa_mem2), "mem", 
+                "-T", "0", 
+                "-t", str(threads),
+                str(params.index_prefix),
+                str(params.input_params),
+                "2>>", log_path,
+                "|",
+                str(params.samtools), "view",
+                "-b", "-",
+                "2>>", log_path,
+                "|",
+                str(params.samtools), "sort",
+                "-@", str(threads),
+                ">", str(output.bam),
+            ]
+            cmd2 = [
+                str(params.samtools), "index",
+                "-@", str(threads),
+                str(output.bam)
+            ]
             with open(script, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
-                f.write(f"{params.bwa_mem2} mem \\\n")
-                f.write(f"-T 0 \\\n")
-                f.write(f"-t {threads} \\\n")
-                f.write(f"{params.index_prefix} \\\n")
-                f.write(f"{params.input_params} \\\n")
-                f.write(f"2>> {log} \\\n")
-                f.write(f"| {params.samtools} view -b - 2>> {log} \\\n")
-                f.write(f"| {params.samtools} sort  -@ {threads}  > {output.bam} 2>>{log}\n")
-                f.write(f"{params.samtools} index -@ {threads} {output.bam} 2>>{log}\n")
+                f.write(" ".join(cmd1) + "\n")
+                f.write(" ".join(cmd2) + "\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
-            logger.error(f"Error occurred during bwa-mem2 alignment for sample {wildcards.sample_id} on genome {wildcards.genome}: {e}")
+            rule_logger.error(f"Error occurred during bwa-mem2 alignment for sample {wildcards.sample_id} on genome {wildcards.genome}: {e}")
             raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
 
 rule bwaMemm2_result:

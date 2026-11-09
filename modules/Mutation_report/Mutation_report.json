@@ -1,0 +1,15 @@
+{
+  "outdir": "output",
+  "logdir": "logs",
+  "samples": [],
+  "paired_design": [],
+  "qc_summary": null,
+  "somatic_dir": null,
+  "spectrum_dir": null,
+  "burden_dir": null,
+  "msi_dir": null,
+  "fragment_dir": null,
+  "Params": {
+    "report": {}
+  }
+}

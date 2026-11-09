@@ -86,6 +86,12 @@
     },
     "fragment_size": {
       "enabled": true
+    },
+    "report": {
+      "enabled": true,
+      "title": null,
+      "pipeline": null,
+      "genome": null
     }
   },
   "genome": {
@@ -138,8 +144,10 @@
     "manta": "/home/luosg/Database/env/manta/manta.sif",
     "samtools": "/home/luosg/Database/env/samtools/samtools.sif",
     "spectrum": "/data/16T/Database/env/spectrum/spectrum.sif",
-    "deepvariant": "/home/luosg/Database/env/deepvariant/deepvariant.sif",
-    "msi": "/data/16T/Database/env/msi/msi.sif"
+    "deepvariant": "/data/16T/Database/env/deepvariant/deepvariant.sif",
+    "msi": "/data/16T/Database/env/msi/msi.sif",
+    "qc_summary": "/data/16T/Database/env/ncRNAseq_report/ncRNAseq_report.sif",
+    "Mutation_report": "/data/16T/Database/env/ncRNAseq_report/ncRNAseq_report.sif"
   },
   "resources": {
     "default": {

@@ -231,7 +231,7 @@ msi_config = {
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
     "indir": gatk_prepare_config["outdir"],
-    "outdir": f"{outdir}/variation/msi",
+    "outdir": f"{outdir}/stability/msi",
     "logdir": f"{logdir}/group",
     "bam_substring": "sorted_markdup",
     "pairs": msi_pairs,
@@ -462,4 +462,60 @@ use rule burden_snv_indel from burden as Mutation_burden_snv_indel
 use rule burden_sv from burden as Mutation_burden_sv
 use rule burden_cnv from burden as Mutation_burden_cnv
 use rule burden_aggregate from burden as Mutation_burden_aggregate
+
+# ============================================
+# QC Summary (cross-sample metric aggregation)
+# ============================================
+# Wired unconditionally; node.py registers the qc_summary outputs so the
+# aggregation always runs for the delivered output set (subworkflow.md
+# 「QC 汇总与 report 模块规范」).
+qc_summary_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
+    "env": config.get("env", {}),
+    "outdir": f"{outdir}/QC/qc_summary",
+    "logdir": f"{logdir}/group",
+    "samples": paired_samples + single_samples,
+    "qc_dirs": {
+        "fastqc_raw": fastqc_raw_config["outdir"],
+        "fastqc_trimmed": fastqc_trimmed_config["outdir"],
+        "flagstat": samtools_config["outdir"],
+        "markdup": gatk_prepare_config["outdir"],
+        "msi": msi_config["outdir"],
+    },
+}
+module qc_summary:
+    snakefile: "../modules/qc_summary/qc_summary.smk"
+    config: qc_summary_config
+logger.info(f"qc_summary_config: {qc_summary_config}")
+use rule qc_summary from qc_summary as Mutation_qc_summary
+
+# ============================================
+# Final Report (PPT)
+# ============================================
+# Wired unconditionally; node.py registers the pptx only when
+# Params.report.enabled is set (downstream enabled pulls the upstream DAG).
+Mutation_report_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
+    "env": config.get("env", {}),
+    "outdir": outdir,
+    "logdir": f"{logdir}/group",
+    "samples": paired_samples + single_samples,
+    "paired_design": config.get("Params", {}).get("workflow", {}).get("paired_design", []),
+    "qc_summary": qc_summary_config["outdir"],
+    "somatic_dir": gatk_somatic_config["outdir"],
+    "spectrum_dir": somatic_spectrum_config["outdir"],
+    "burden_dir": burden_config["outdir"],
+    "msi_dir": msi_config["outdir"],
+    "fragment_dir": f"{fragment_size_config['outdir']}/fragment",
+    "Params": {
+        "report": config.get("Params", {}).get("report", {})
+    }
+}
+module Mutation_report:
+    snakefile: "../modules/Mutation_report/Mutation_report.smk"
+    config: Mutation_report_config
+logger.info(f"Mutation_report_config: {Mutation_report_config}")
+use rule generate_report from Mutation_report as Mutation_generate_report
 

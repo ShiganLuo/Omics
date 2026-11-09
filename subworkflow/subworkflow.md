@@ -30,6 +30,8 @@ description: 撰写subworkflow时需要遵循此套规范
 
 5) 每个模块配置记录日志（`logger.info`）
 
+6) 每个 subworkflow 收尾必须包含一个 **QC 汇总模块**和一个 **report 模块**（见「QC 汇总与 report 模块规范」）
+
 注意：暂不支持在子工作流内部拼接/串联其他 subworkflow；如需组合流程，请在 `run.py` 侧编排并生成 `outfiles`。
 
 # 命名约定
@@ -140,6 +142,104 @@ footprint_config = {
 - 判断标准：一个物理路径在整个 subworkflow 里只出现**一次字面定义**，其余位置全部通过 `xxx_config["outdir"]`（或引用它的常量）获取。
 - 衔接只打通路径；是否真的运行由 node.py 注册的 outfiles 驱动，DAG 自动解析依赖（下游 enabled 自动拉起上游）。
 - 模块 .smk 内部如何消费这些输入键（`motif_dir` / `vcf_dir` 等独立 config 键）见 `modules/modules.md` 的「Subworkflow 跨模块衔接」。
+
+# QC 汇总与 report 模块规范（强制）
+
+背景：Mutation 流程曾只有零散的 QC 产物（fastqc raw/trimmed、flagstat 等），各自落在独立目录、无人汇总，导致交付时需要人工翻目录拼 QC 结论。为避免每个流程重复出现这个问题，规定**每个 subworkflow 收尾必须编排两个模块**：一个 QC 汇总模块 + 一个 report 模块。
+
+## 1) QC 汇总模块（`qc_summary`）
+
+**职责**：跨样本聚合全流程各环节的 QC 指标，产出机器可读的汇总表 + 人可读的可视化，是流程质量结论的单一入口。QC 汇总是**数据层**：收指标、对齐样本、给阈值判定，供 report 模块和人工排查消费。
+
+**模块落地**：`modules/qc_summary/qc_summary.smk`（一个模块被所有 subworkflow 复用；各流程的指标差异通过 config 的指标目录清单表达，不复制多份模块）。subworkflow 侧命名 `<WF>_qc_summary_config`，规则别名 `<WF>_qc_summary`。
+
+**config 字段**：
+
+- `qc_dirs`：指标目录字典，key 为环节名（`fastqc_raw` / `fastqc_trimmed` / `flagstat` / `frip` / `insert_size` / `msi` 等），value 为该环节产物目录。**一律引用上游 config 的 `outdir`**（模块衔接规范同样适用于 QC 目录），禁止手拼重复路径：
+
+```python
+qc_summary_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
+    "env": config.get("env", {}),
+    "outdir": f"{outdir}/QC/qc_summary",
+    "logdir": f"{logdir}/group",          # 跨样本聚合 → group 分段
+    "samples": paired_samples + single_samples,
+    "qc_dirs": {
+        "fastqc_raw": fastqc_raw_config["outdir"],
+        "fastqc_trimmed": fastqc_trimmed_config["outdir"],
+        "flagstat": samtools_config["outdir"],
+    },
+}
+module qc_summary:
+    snakefile: "../modules/qc_summary/qc_summary.smk"
+    config: qc_summary_config
+use rule qc_summary from qc_summary as Mutation_qc_summary
+```
+
+**产出约定**：
+
+- `{outdir}/QC/qc_summary/qc_summary.tsv` — 样本 × 指标汇总表（每行一个样本）
+- `{outdir}/QC/qc_summary/qc_summary.html`（或 `.png` 集合）— 可视化
+- 允许按流程追加环节专属指标列；缺该环节产物时对应列留空（`NA`），不报错——模块对缺失目录必须容错，因为可选环节（msi/cnvkit/burden 等）是否运行由 node.py 决定。
+
+**日志**：QC 汇总是组级规则（一次消费全部样本），`logdir` 传 `f"{logdir}/group"`。
+
+## 2) report 模块（`<WF>_report`）
+
+**职责**：面向交付的最终汇总报告（PPT/HTML），聚合 QC 结论 + 各分析环节的关键结果图表。report 是**呈现层**：只消费已注册的产出文件（QC 汇总表、spectrum/burden/fusion 等结果图），不重算任何指标。
+
+**模块落地**：每个流程一个专属模块 `modules/<WF>_report/`（内容因流程而异，无法共用），规则名 `generate_report`，收尾提供 `<WF>_report_result` 面板规则（仅 `input:`，见 modules.md 收尾规则约定）。subworkflow 侧命名 `<WF>_report_config`，规则别名 `<WF>_generate_report`。
+
+**config 字段**：
+
+```python
+Mutation_report_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
+    "env": config.get("env", {}),
+    "outdir": outdir,
+    "logdir": f"{logdir}/group",
+    "samples": paired_samples + single_samples,
+    "qc_summary": qc_summary_config["outdir"],   # 引用 QC 汇总模块 outdir
+    "spectrum_dir": somatic_spectrum_config["outdir"],
+    "burden_dir": burden_config["outdir"],
+    "Params": {
+        "report": config.get("Params", {}).get("report", {})
+    }
+}
+module Mutation_report:
+    snakefile: "../modules/Mutation_report/Mutation_report.smk"
+    config: Mutation_report_config
+use rule generate_report from Mutation_report as Mutation_generate_report
+```
+
+- 输入目录一律引用上游 config 的 `outdir` 常量；report 的输入项允许超集（模块内对缺失目录容错），可选环节未注册时报告对应章节自动缺省。
+- **产出必须是 PPT + Excel 双件**（对齐 PeakCalling_report / ncRNAseq_report 现状）：
+  - `{outdir}/<WF>_report.pptx` — 汇报用幻灯片（QC 结论 + 各环节关键结果图表）
+  - `{outdir}/<WF>_report.xlsx` — 结果收录工作簿，交付后可离线检索全部数据。固定 sheet 结构：
+    1. `Overview` — 运行元信息（pipeline/genome/日期/样本/配对）
+    2. `QC Summary` — qc_summary.tsv 整表收录
+    3. 每个分析模块一个 sheet（变异/峰/表达等，逐行收录该模块的核心表格数据；表大的收录汇总层，行级明细保留在原文件）
+    4. `File Inventory`（收尾） — 关键交付文件清单：module / path / exists / bytes，供核对产物完整性
+  - 模块未运行时对应 sheet 写一行 note 占位，**不报错、不省略 sheet**（交付物结构稳定）
+- Excel 由 `generate_report` 同一条规则产出（`--excel-output` 参数），不另设规则；node.py 把 pptx 和 xlsx 一起注册进 outfiles。
+
+## 3) node.py 侧注册（两模块缺一不可）
+
+- QC 汇总：`outfiles.append(f"{outdir}/QC/qc_summary/qc_summary.tsv")`
+- report：受 `Params.report.enabled` 门控（`_enabled(datajson, "report")`），**pptx 和 xlsx 成对注册**（`f"{outdir}/<WF>_report.pptx"` + `.xlsx`）。report enabled 时自动拉起上游（DAG 反推），QC 汇总随之运行。
+- 两个模块**无条件接线**（subworkflow 里始终 `module` + `use rule`），是否真的运行由 outfiles 注册驱动——与「输出决定流程走向」铁律一致，不要用 if 包裹模块定义。
+
+## 4) 检查清单（新增流程 / 审查存量流程时逐条过）
+
+- [ ] subworkflow 末尾有 `qc_summary_config` + `module qc_summary` + `use rule ... as <WF>_qc_summary`
+- [ ] subworkflow 末尾有 `<WF>_report_config` + `module <WF>_report` + `use rule generate_report ... as <WF>_generate_report`
+- [ ] `qc_dirs` / report 输入目录全部引用上游 config `["outdir"]`，无手拼重复路径
+- [ ] QC 汇总输出注册进 outfiles；report 输出（pptx + xlsx 成对）经 `Params.report.enabled` 门控注册
+- [ ] 两模块日志走 `logdir/group`
+- [ ] 存量流程缺口记录在案：Mutation 已补齐（qc_summary + Mutation_report，2026-11）；CoCulture / KARRseq / QuantMS / tRNAseq / PacVar / Population_genomics / Fiberseq / spatial 等（无 QC 汇总或无 report，逐个补齐）
+- [ ] subworkflow/README.md 的流程简介同步列出这两个收尾模块
 
 # 典型模式示例
 
@@ -300,6 +400,42 @@ module example:
 		}
 	}
 use rule run_example from example as MyWorkflow_example
+
+# 收尾：QC 汇总模块（modules/qc_summary，全流程共用）+ report 模块（modules/<WF>_report）
+example_config = {}  # 占位：上文各模块 config，供 qc_dirs / report 引用 outdir
+
+qc_summary_config = {
+	"ROOT_DIR": ROOT_DIR,
+	"OUTDIR_ROOT": outdir,
+	"env": env,
+	"outdir": f"{outdir}/QC/qc_summary",
+	"logdir": f"{logdir}/group",
+	"samples": paired_samples + single_samples,
+	"qc_dirs": {
+		"example": f"{outdir}/example",   # 实际写法：example_config["outdir"]
+	},
+}
+module qc_summary:
+	snakefile: "../modules/qc_summary/qc_summary.smk"
+	config: qc_summary_config
+use rule qc_summary from qc_summary as MyWorkflow_qc_summary
+
+MyWorkflow_report_config = {
+	"ROOT_DIR": ROOT_DIR,
+	"OUTDIR_ROOT": outdir,
+	"env": env,
+	"outdir": outdir,
+	"logdir": f"{logdir}/group",
+	"samples": paired_samples + single_samples,
+	"qc_summary": qc_summary_config["outdir"],
+	"Params": {
+		"report": config.get("Params", {}).get("report", {})
+	}
+}
+module MyWorkflow_report:
+	snakefile: "../modules/MyWorkflow_report/MyWorkflow_report.smk"
+	config: MyWorkflow_report_config
+use rule generate_report from MyWorkflow_report as MyWorkflow_generate_report
 ```
 
 # Pitfalls

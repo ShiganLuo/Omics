@@ -233,6 +233,9 @@ FASTQ
   - 支持跳过CNV检测（`Params.skip_cnv=true`）
   - CNVkit支持对照样本构建参考（`control_samples`参数）
   - 片段长度分析适用于cfDNA/ctDNA液体活检样本
+- **收尾模块**（见 `subworkflow.md`「QC 汇总与 report 模块规范」）：
+  - qc_summary：跨样本 QC 指标汇总表（`{outdir}/QC/qc_summary/qc_summary.tsv` + `.html`），聚合 fastqc raw/trimmed、flagstat、markdup、msi 指标
+  - Mutation_report：汇总报告（`{outdir}/Mutation_report.pptx` + `.xlsx`），PPT 含 QC 表、体细胞 SNV/InDel 计数、频谱图、MSI、TMB burden、cfDNA 片段长度；Excel 按模块分 sheet 收录结果（Overview / QC Summary / Somatic Variants / Somatic Counts / MSI / Burden / Spectrum / Fragment Size / File Inventory）；由 `Params.report.enabled` 门控
 
 ### 8. PacVar.smk
 - **用途**：PacBio 长读长变异检测。

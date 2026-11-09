@@ -952,9 +952,9 @@ def runMutation(
         else:
             logger.error(f"Unknown layout type for sample {sample_id}: {sample_info.layout}")
     if designPairs:
-        outfiles.append(f"{outdir}/variation/spectrum/somatic_spectrum_stacked_bar.png")
-        outfiles.append(f"{outdir}/variation/spectrum/somatic_spectrum_heatmap.png")
-        outfiles.append(f"{outdir}/variation/spectrum/somatic_spectrum.csv")
+        outfiles.append(f"{outdir}/stability/spectrum/somatic_spectrum_stacked_bar.png")
+        outfiles.append(f"{outdir}/stability/spectrum/somatic_spectrum_heatmap.png")
+        outfiles.append(f"{outdir}/stability/spectrum/somatic_spectrum.csv")
     
     all_samples = paired_samples + single_samples
     
@@ -978,10 +978,10 @@ def runMutation(
     if _enabled(datajson, "msi") and designPairs:
         for designPair in designPairs:
             outfiles.append(
-                f"{outdir}/variation/msi/{designPair.exp_sample_id}/"
+                f"{outdir}/stability/msi/{designPair.exp_sample_id}/"
                 f"{designPair.exp_sample_id}_msi_pro.tsv")
-        outfiles.append(f"{outdir}/variation/msi/msi_input.txt")
-        outfiles.append(f"{outdir}/variation/msi/msi_barplot.jpg")
+        outfiles.append(f"{outdir}/stability/msi/msi_input.txt")
+        outfiles.append(f"{outdir}/stability/msi/msi_barplot.jpg")
 
     if _enabled(datajson, "cnvkit"):
         # Mode-aware registration: paired -> per-pair tumors only (no pooled
@@ -1045,17 +1045,31 @@ def runMutation(
                     f"'{_genome_key}': species={mapped[0]} assembly={mapped[1]}"
                 )
         for sample_id in burden_cfg["sample_snv_vcf_dict"]:
-            outfiles.append(f"{outdir}/variation/burden/{sample_id}/{sample_id}.snv_indel_burden.tsv")
+            outfiles.append(f"{outdir}/stability/burden/{sample_id}/{sample_id}.snv_indel_burden.tsv")
         for sample_id in burden_cfg["sample_sv_vcf_dict"]:
-            outfiles.append(f"{outdir}/variation/burden/{sample_id}/{sample_id}.sv_burden.tsv")
+            outfiles.append(f"{outdir}/stability/burden/{sample_id}/{sample_id}.sv_burden.tsv")
         for sample_id in burden_cfg["sample_cnv_dict"]:
-            outfiles.append(f"{outdir}/variation/burden/{sample_id}/{sample_id}.cnv_burden.tsv")
+            outfiles.append(f"{outdir}/stability/burden/{sample_id}/{sample_id}.cnv_burden.tsv")
         if (burden_cfg["sample_snv_vcf_dict"] or burden_cfg["sample_sv_vcf_dict"]
                 or burden_cfg["sample_cnv_dict"]):
-            outfiles.append(f"{outdir}/variation/burden/burden_summary.tsv")
+            outfiles.append(f"{outdir}/stability/burden/burden_summary.tsv")
 
     datajson["Params"]["somatic_spectrum"]["sample_somatic_vcf_dict"] = sample_somatic_vcf_dict
     datajson["Params"]["somatic_spectrum"]["sample_group_dict"] = sample_group_dict
+
+    # QC summary module (modules/qc_summary): cross-sample metric table +
+    # HTML summary; always part of the delivered output set.
+    outfiles.append(f"{outdir}/QC/qc_summary/qc_summary.tsv")
+    outfiles.append(f"{outdir}/QC/qc_summary/qc_summary.html")
+
+    # Final PPT report + results workbook (modules/Mutation_report), gated
+    # by Params.report.enabled like the other report modules.
+    if _enabled(datajson, "report"):
+        report_params = datajson["Params"].setdefault("report", {})
+        report_params.setdefault("date", time.strftime("%Y-%m-%d", time.localtime()))
+        outfiles.append(f"{outdir}/Mutation_report.pptx")
+        outfiles.append(f"{outdir}/Mutation_report.xlsx")
+
     datajson["outfiles"] = outfiles
     datajson["Params"]["workflow"]["paired_samples"] = paired_samples
     datajson["Params"]["workflow"]["single_samples"] = single_samples

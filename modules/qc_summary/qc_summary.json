@@ -1,0 +1,9 @@
+{
+  "outdir": "output",
+  "logdir": "logs",
+  "samples": [],
+  "qc_dirs": {},
+  "Params": {
+    "qc_summary": {}
+  }
+}

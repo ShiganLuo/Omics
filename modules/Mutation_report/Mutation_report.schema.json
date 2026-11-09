@@ -1,0 +1,65 @@
+{
+  "outdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "logdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "samples": {
+    "type": "list",
+    "nullable": true,
+    "required": false
+  },
+  "paired_design": {
+    "type": "list",
+    "nullable": true,
+    "required": false
+  },
+  "qc_summary": {
+    "type": "str",
+    "nullable": true,
+    "required": false
+  },
+  "somatic_dir": {
+    "type": "str",
+    "nullable": true,
+    "required": false
+  },
+  "spectrum_dir": {
+    "type": "str",
+    "nullable": true,
+    "required": false
+  },
+  "burden_dir": {
+    "type": "str",
+    "nullable": true,
+    "required": false
+  },
+  "msi_dir": {
+    "type": "str",
+    "nullable": true,
+    "required": false
+  },
+  "fragment_dir": {
+    "type": "str",
+    "nullable": true,
+    "required": false
+  },
+  "Params": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "report": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {}
+      }
+    }
+  }
+}

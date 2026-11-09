@@ -936,15 +936,17 @@ def runMutation(
         # per-pair references (conflicting reference semantics).
         datajson["Params"]["workflow"]["control_samples"] = []
     for sample_id, sample_info in samples_info_dict.items():
-        
+
         if sample_info.layout == "PE":
             paired_samples.append(sample_id)
+            outfiles.append(f"{outdir}/common/3_sorted_bam/{sample_id}/{sample_id}_flagstat.txt")
             if sample_id in mutect2_samples:
                 logger.info(f"Sample {sample_id} is involved in mutect2 analysis, skipping germline workflow for this sample.")
                 continue
             outfiles.append(f"{outdir}/variation/germline_snv_indel/{sample_id}/{sample_id}.filtered.vcf.gz")
         elif sample_info.layout == "SE":
             single_samples.append(sample_id)
+            outfiles.append(f"{outdir}/common/3_sorted_bam/{sample_id}/{sample_id}_flagstat.txt")
             if sample_id in mutect2_samples:
                 logger.info(f"Sample {sample_id} is involved in mutect2 analysis, skipping germline workflow for this sample.")
                 continue

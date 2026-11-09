@@ -181,6 +181,110 @@ def parse_fastqc(stage_dir: str, sample: str) -> Dict[str, str]:
     return metrics
 
 
+def parse_cutadapt(stage_dir: str, sample: str) -> Dict[str, str]:
+    """Parse cutadapt full report (<sample>.cutadapt_report.txt paired,
+    <sample>.single.cutadapt_report.txt single): read throughput and
+    trimming percentages from the Summary block. Unknown trailing lines
+    (the wrapper script's echo output) are ignored."""
+    path = None
+    for cand in (
+        os.path.join(stage_dir, sample, f"{sample}.cutadapt_report.txt"),
+        os.path.join(stage_dir, sample, f"{sample}.single.cutadapt_report.txt"),
+        os.path.join(stage_dir, f"{sample}.cutadapt_report.txt"),
+        os.path.join(stage_dir, f"{sample}.single.cutadapt_report.txt"),
+    ):
+        if os.path.isfile(cand):
+            path = cand
+            break
+    if not path:
+        return {}
+
+    metrics: Dict[str, str] = {}
+    pct_re = re.compile(r"\(([\d.]+)%\)")
+    with open(path) as fh:
+        for line in fh:
+            m = re.match(r"^Total read pairs processed:\s*([\d,]+)", line)
+            if m:
+                metrics["cutadapt_read_pairs"] = m.group(1).replace(",", "")
+                continue
+            m = re.match(r"^Total reads processed:\s*([\d,]+)", line)
+            if m:
+                metrics["cutadapt_reads"] = m.group(1).replace(",", "")
+                continue
+            m = re.match(r"^Pairs written \(passing filters\):\s*([\d,]+)", line)
+            if m:
+                pct = pct_re.search(line)
+                metrics["cutadapt_pairs_written_pct"] = pct.group(1) if pct else ""
+                continue
+            m = re.match(r"^Reads written \(passing filters\):\s*([\d,]+)", line)
+            if m:
+                pct = pct_re.search(line)
+                metrics["cutadapt_reads_written_pct"] = pct.group(1) if pct else ""
+                continue
+            m = re.match(r"^Quality-trimmed:\s*[\d,]+ bp", line)
+            if m:
+                pct = pct_re.search(line)
+                metrics["cutadapt_quality_trimmed_pct"] = pct.group(1) if pct else ""
+                continue
+            m = re.match(r"^Total written \(filtered\):\s*[\d,]+ bp", line)
+            if m:
+                pct = pct_re.search(line)
+                metrics["cutadapt_bases_written_pct"] = pct.group(1) if pct else ""
+    # drop empty extractions (report present but block missing)
+    return {k: v for k, v in metrics.items() if v != ""}
+
+
+def parse_bwa_mem2(stage_dir: str, sample: str) -> Dict[str, str]:
+    """Parse bwa-mem2 alignment log (bwa_mem2-alignment.txt in the rule-log
+    dir): PE insert-size distribution inferred from the dominant FR
+    orientation — mean/std/median, plus candidate unique-pair count.
+
+    Only the FIRST FR block is taken (deterministic; the first chunk's
+    inference already uses ~1M pairs). SE samples have no PE lines and
+    keep NA. Non-metric bwa-mem2 chatter is ignored.
+    """
+    path = None
+    for cand in (
+        os.path.join(stage_dir, sample, "bwa_mem2-alignment.txt"),
+        os.path.join(stage_dir, sample, "bwa-mem2-alignment.txt"),
+        os.path.join(stage_dir, sample, "bwaMem2_alignment.log"),
+        os.path.join(stage_dir, f"{sample}-bwa_mem2-alignment.txt"),
+    ):
+        if os.path.isfile(cand):
+            path = cand
+            break
+    if not path:
+        return {}
+
+    metrics: Dict[str, str] = {}
+    in_fr = False
+    with open(path) as fh:
+        for line in fh:
+            if "analyzing insert size distribution for orientation FR" in line:
+                in_fr = True
+                continue
+            if not in_fr:
+                # candidate unique pairs: (FF, FR, RF, RR) — FR is 2nd
+                m = re.search(r"\[PE\] # candidate unique pairs.*?: \(\d+, (\d+),", line)
+                if m:
+                    metrics.setdefault("bwa_unique_pairs_fr", m.group(1))
+                continue
+            # "(25, 50, 75) percentile: (152, 186, 227)" — median is the
+            # SECOND value of the VALUE tuple (186), not the label tuple
+            m = re.search(r"percentile: \(\d+, (\d+), \d+\)", line)
+            if m:
+                metrics["insert_size_median"] = m.group(1)
+                continue
+            # anchor on "[PE] mean and std" so the "boundaries for computing
+            # mean and std.dev: (low, high)" line cannot match
+            m = re.search(r"\[PE\] mean and std\.dev: \(([\d.]+), ([\d.]+)\)", line)
+            if m:
+                metrics["insert_size_mean"] = m.group(1)
+                metrics["insert_size_std"] = m.group(2)
+                break  # first FR block done
+    return metrics
+
+
 def parse_flagstat(stage_dir: str, sample: str) -> Dict[str, str]:
     """Parse samtools flagstat output (<sample>_flagstat.txt preferred,
     <sample>.flagstat fallback) into named counters plus mapped_rate."""
@@ -266,7 +370,9 @@ PARSERS = {
     "fastqc_raw": parse_fastqc,
     "fastqc_trimmed": parse_fastqc,
     "fastqc": parse_fastqc,
+    "cutadapt": parse_cutadapt,
     "flagstat": parse_flagstat,
+    "bwa_mem2": parse_bwa_mem2,
     "markdup": parse_markdup,
     "msi": parse_msi,
 }
@@ -309,7 +415,12 @@ def build_table(samples: List[str], stages: Dict[str, Dict[str, Dict[str, str]]]
 
     core_order = [
         "total_sequences", "sequence_length", "percent_gc",
+        "cutadapt_read_pairs", "cutadapt_reads",
+        "cutadapt_pairs_written_pct", "cutadapt_reads_written_pct",
+        "cutadapt_quality_trimmed_pct", "cutadapt_bases_written_pct",
         "total", "mapped", "mapped_rate", "properly_paired",
+        "insert_size_mean", "insert_size_median", "insert_size_std",
+        "bwa_unique_pairs_fr",
         "percent_duplication", "read_pair_duplicates", "msi_score",
     ]
     cols = [c for c in core_order if c in table.columns]

@@ -479,7 +479,9 @@ qc_summary_config = {
     "qc_dirs": {
         "fastqc_raw": fastqc_raw_config["outdir"],
         "fastqc_trimmed": fastqc_trimmed_config["outdir"],
+        "cutadapt": cutadapt_config["outdir"],
         "flagstat": samtools_config["outdir"],
+        "bwa_mem2": f"{logdir}/sample",
         "markdup": gatk_prepare_config["outdir"],
         "msi": msi_config["outdir"],
     },

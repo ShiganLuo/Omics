@@ -41,19 +41,18 @@ rule sexcheck_idxstats:
             sample_outdir = os.path.dirname(str(output.tsv))
             os.makedirs(sample_outdir, exist_ok=True)
             cmd = [
-                "echo", "-e", f"{wildcards.sample_id}\\t$( {params.samtools} idxstats {input.bam} "
-                "| awk -F '\\t' '{print $1\"\\t\"$2\"\\t\"$3}' )",
+                params.samtools, "idxstats",
+                str(input.bam),
+                "|", "awk", "-F", "'\\t'", f"-v", f"s={wildcards.sample_id}",
+                "'{print s\"\\t\"$1\"\\t\"$2\"\\t\"$3}'",
                 ">", str(output.tsv),
             ]
             script = os.path.join(RECEIPT_DIR, f"sexcheck_idxstats_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, "sexcheck_idxstats.sh")
             with open(script, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
-                # shell pipeline: annotate idxstats rows with the sample id
-                f.write(f"{params.samtools} idxstats {input.bam} "
-                        f"| awk -F '\\t' -v s={wildcards.sample_id} "
-                        f"'{{print s\"\\t\"$1\"\\t\"$2\"\\t\"$3}}' > {output.tsv}\n")
-                f.write('echo "script completed successfully"\n')
+                f.write(" ".join(str(c) for c in cmd) + "\n")
+                f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:

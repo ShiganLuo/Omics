@@ -109,6 +109,16 @@ _FLAGSTAT_FIELDS = [
     "singletons", "mate_mapped_diff_chr", "mate_mapped_diff_chr_mapq5",
 ]
 
+# samtools flagstat label -> metric key. The whitelist above uses short
+# keys, but real flagstat labels read "in total", "paired in sequencing",
+# "with itself and mate mapped", "with mate mapped to a different chr".
+_FLAGSTAT_LABEL_ALIASES = {
+    "in_total": "total",
+    "paired_in_sequencing": "paired",
+    "with_itself_and_mate_mapped": "with_itself",
+    "with_mate_mapped_to_a_different_chr": "mate_mapped_diff_chr",
+}
+
 # GATK MarkDuplicates metrics file -> kept columns (LIBRARY row)
 _MARKDUP_FIELDS = [
     "READ_PAIRS_EXAMINED", "READ_PAIR_DUPLICATES", "READ_PAIR_OPTICAL_DUPLICATES",
@@ -301,15 +311,22 @@ def parse_flagstat(stage_dir: str, sample: str) -> Dict[str, str]:
     if not path:
         return {}
 
-    # summary lines: "<n> + <n> <label> (<pct>%)" — keep the FIRST n per label
+    # summary lines: "<n> + <n> <label> (<pct>%)". Non-percentage lines
+    # ("primary", "read1", "read2", "paired in sequencing") have no trailing
+    # "(...)" block, so accept the bare "<n> + <n> <label>" form too; keep
+    # the FIRST n per label (skips the "primary ..." repeats).
+    no_pct = re.compile(r"^(\d+) \+ \d+\s+([A-Za-z0-9_% ()/-]+?)\s*$")
     metrics: Dict[str, str] = {}
     with open(path) as fh:
         for line in fh:
             m = re.match(r"^(\d+) \+ \d+ ([A-Za-z0-9_% ()/-]+?)\s+\(", line)
             if not m:
+                m = no_pct.match(line)
+            if not m:
                 continue
             count, label = m.group(1), m.group(2).strip()
             key = re.sub(r"[^a-z0-9]+", "_", label.lower()).strip("_")
+            key = _FLAGSTAT_LABEL_ALIASES.get(key, key)
             if key in _FLAGSTAT_FIELDS and key not in metrics:
                 metrics[key] = count
     if "mapped" in metrics and "total" in metrics and int(metrics["total"]):

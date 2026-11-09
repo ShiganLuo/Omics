@@ -88,15 +88,16 @@ def msp_coverage_fraction(msp_ov, chrom: str, core_s: int, core_e: int,
 
     Clipping is done against the REGION core itself (not the sweep window):
     a fiber counts through any long MSP block overlapping the core, exactly
-    like the whole-file implementation.
+    like the whole-file implementation. Per-fiber coverage is computed as an
+    interval union (no per-fiber mask arrays), so memory stays O(core) even
+    for megabase-scale regions.
     """
     length = max(1, core_e - core_s)
     cover = np.zeros(length, dtype=bool)
-    fiber_masks: Dict[str, np.ndarray] = {}
+    fiber_spans: Dict[str, List[Tuple[int, int]]] = defaultdict(list)
     for r in msp_ov:
         if r.chrom != chrom:
             continue
-        mask = None
         for bs, be in r.blocks:
             if be - bs < msp_min_len:
                 continue
@@ -104,13 +105,24 @@ def msp_coverage_fraction(msp_ov, chrom: str, core_s: int, core_e: int,
             e = be if be < core_e else core_e
             if s < e:
                 cover[s - core_s:e - core_s] = True
-                if mask is None:
-                    mask = fiber_masks.setdefault(
-                        r.name, np.zeros(length, dtype=bool))
-                mask[s - core_s:e - core_s] = True
+                fiber_spans[r.name].append((s, e))
+
+    def _covered_frac(spans: List[Tuple[int, int]]) -> float:
+        spans = sorted(spans)
+        cs, ce = spans[0]
+        covered = 0
+        for s, e in spans[1:]:
+            if s <= ce:
+                ce = max(ce, e)
+            else:
+                covered += ce - cs
+                cs, ce = s, e
+        covered += ce - cs
+        return covered / length
+
     pooled = float(np.mean(cover))
-    fiber_means = ([float(np.mean(m)) for m in fiber_masks.values()]
-                   if fiber_masks else [0.0])
+    fiber_means = ([_covered_frac(v) for v in fiber_spans.values()]
+                   if fiber_spans else [0.0])
     return pooled, float(np.mean(fiber_means))
 
 
@@ -170,13 +182,21 @@ def run(args: argparse.Namespace) -> int:
         # records outside the clipped anchor simply contribute nothing)
         ws, we = r.start - args.flank, r.end + args.flank
         acc_sig = block_signal(ov[0], r.chrom, ws, we, uniq_fibers=True)
+        # per-base cpg mark density (marks are 1bp blocks, so per-base sum
+        # per bin == blocks overlapping the bin, matching the region formula)
+        meth_sig = (block_signal(ov[2], r.chrom, ws, we, uniq_fibers=False)
+                    if use_cpg else None)
         nbins = max(1, (we - ws) // args.bin)
         for b in range(nbins):
             s0, e0 = b * args.bin, min((b + 1) * args.bin, we - ws)
             acc_bin = float(np.mean(acc_sig[s0:e0])) if e0 > s0 else float("nan")
             pos = ws + (s0 + e0) // 2 - (core_s + core_e) // 2
-            meth_bin = (bedgraph_mean(pileup, r.chrom, ws + s0, ws + e0)
-                        if pileup is not None else float("nan"))
+            if pileup is not None:
+                meth_bin = bedgraph_mean(pileup, r.chrom, ws + s0, ws + e0)
+            elif meth_sig is not None:
+                meth_bin = float(np.sum(meth_sig[s0:e0])) / max(1, e0 - s0) * 1000.0
+            else:
+                meth_bin = float("nan")
             prof_rows.append([cls, core_s, core_e, pos, round(acc_bin, 6),
                               round(meth_bin, 6) if meth_bin == meth_bin else "NA"])
 

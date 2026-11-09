@@ -464,51 +464,6 @@ use rule burden_cnv from burden as Mutation_burden_cnv
 use rule burden_aggregate from burden as Mutation_burden_aggregate
 
 # ============================================
-# QC Summary (cross-sample metric aggregation)
-# ============================================
-# Wired unconditionally; node.py registers the qc_summary outputs so the
-# aggregation always runs for the delivered output set (subworkflow.md
-# 「QC 汇总与 report 模块规范」).
-qc_summary_config = {
-    "ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir,
-    "env": config.get("env", {}),
-    "outdir": f"{outdir}/QC/qc_summary",
-    "logdir": f"{logdir}/group",
-    "samples": paired_samples + single_samples,
-    "qc_dirs": {
-        "fastqc_raw": fastqc_raw_config["outdir"],
-        "fastqc_trimmed": fastqc_trimmed_config["outdir"],
-        "cutadapt": cutadapt_config["outdir"],
-        "flagstat": samtools_config["outdir"],
-        "bwa_mem2": f"{logdir}/sample",
-        "markdup": gatk_prepare_config["outdir"],
-        "msi": msi_config["outdir"],
-    },
-    # DAG anchors: per-sample files whose producing rules are guaranteed to
-    # run, so qc_summary is ordered after them AND re-runs when one is
-    # refreshed. fastqc stages are intentionally NOT anchored (their outputs
-    # are not registered for this workflow; they stay best-effort scans).
-    # The bwa-mem2 alignment log (log: directive) is always written.
-    "qc_anchors": {
-        "cutadapt": "{sample}/{sample}.cutadapt_report.txt",
-        "flagstat": "{sample}/{sample}_flagstat.txt",
-        "bwa_mem2": "{sample}/bwa_mem2-alignment.txt",
-        "markdup": "{sample}/{sample}.Markdup-metrics.txt",
-        "msi": "{sample}/{sample}_msi_pro.tsv",
-    },
-    # MSI anchors exist only for the tumor sample of each design pair
-    "qc_anchor_samples": {
-        "msi": [rec["experimental"] for rec in config.get("Params", {}).get("workflow", {}).get("paired_design", []) if rec.get("experimental")],
-    },
-}
-module qc_summary:
-    snakefile: "../modules/qc_summary/qc_summary.smk"
-    config: qc_summary_config
-logger.info(f"qc_summary_config: {qc_summary_config}")
-use rule qc_summary from qc_summary as Mutation_qc_summary
-
-# ============================================
 # Sex check (coverage on sex chromosomes)
 # ============================================
 # Wired unconditionally over the markdup BAMs; node.py registers the
@@ -538,6 +493,56 @@ module sexcheck:
 logger.info(f"sexcheck_config: {sexcheck_config}")
 use rule sexcheck_idxstats from sexcheck as Mutation_sexcheck_idxstats
 use rule sexcheck from sexcheck as Mutation_sexcheck
+
+# ============================================
+# QC Summary (cross-sample metric aggregation)
+# ============================================
+# Wired unconditionally; node.py registers the qc_summary outputs so the
+# aggregation always runs for the delivered output set (subworkflow.md
+# 「QC 汇总与 report 模块规范」).
+qc_summary_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
+    "env": config.get("env", {}),
+    "outdir": f"{outdir}/QC/qc_summary",
+    "logdir": f"{logdir}/group",
+    "samples": paired_samples + single_samples,
+    "qc_dirs": {
+        "fastqc_raw": fastqc_raw_config["outdir"],
+        "fastqc_trimmed": fastqc_trimmed_config["outdir"],
+        "cutadapt": cutadapt_config["outdir"],
+        "flagstat": samtools_config["outdir"],
+        "bwa_mem2": f"{logdir}/sample",
+        "markdup": gatk_prepare_config["outdir"],
+        "msi": msi_config["outdir"],
+        "sexcheck": sexcheck_config["outdir"],
+    },
+    # DAG anchors: per-sample files whose producing rules are guaranteed to
+    # run, so qc_summary is ordered after them AND re-runs when one is
+    # refreshed. fastqc stages are intentionally NOT anchored (their outputs
+    # are not registered for this workflow; they stay best-effort scans).
+    # The bwa-mem2 alignment log (log: directive) is always written.
+    # sexcheck is a run-level table (no {sample} wildcard) — its anchor is
+    # the single registered sexcheck.tsv, wiring qc_summary AFTER the whole
+    # sexcheck stage.
+    "qc_anchors": {
+        "cutadapt": "{sample}/{sample}.cutadapt_report.txt",
+        "flagstat": "{sample}/{sample}_flagstat.txt",
+        "bwa_mem2": "{sample}/bwa_mem2-alignment.txt",
+        "markdup": "{sample}/{sample}.Markdup-metrics.txt",
+        "msi": "{sample}/{sample}_msi_pro.tsv",
+        "sexcheck": "sexcheck.tsv",
+    },
+    # MSI anchors exist only for the tumor sample of each design pair
+    "qc_anchor_samples": {
+        "msi": [rec["experimental"] for rec in config.get("Params", {}).get("workflow", {}).get("paired_design", []) if rec.get("experimental")],
+    },
+}
+module qc_summary:
+    snakefile: "../modules/qc_summary/qc_summary.smk"
+    config: qc_summary_config
+logger.info(f"qc_summary_config: {qc_summary_config}")
+use rule qc_summary from qc_summary as Mutation_qc_summary
 
 # ============================================
 # Final Report (PPT)

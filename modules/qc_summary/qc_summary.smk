@@ -25,20 +25,26 @@ QC_SCRIPT = os.path.join(ROOT_DIR, "modules", "qc_summary", "bin", "qc_summary.p
 
 
 def _qc_stage_inputs():
-    """Concrete per-sample anchor files for the anchored QC stages.
+    """Concrete anchor files for the anchored QC stages.
 
-    Expands qc_anchors templates against each stage's directory (from
-    qc_dirs) and its sample list (qc_anchor_samples override or all
-    samples). Invalid entries (stage without a dir, template without a
-    '{sample}' placeholder) are skipped defensively.
+    Per-sample templates (containing '{sample}') expand against each
+    stage's directory (from qc_dirs) and its sample list
+    (qc_anchor_samples override or all samples). Templates WITHOUT the
+    placeholder are run-level anchors (one table for the whole run, e.g.
+    sexcheck.tsv) and are joined as a single file. Entries for stages
+    without a dir are skipped defensively.
     """
     files = []
     for stage, template in qc_anchors.items():
         stage_dir = qc_dirs.get(stage)
-        if not stage_dir or "{sample}" not in str(template):
+        if not stage_dir:
+            continue
+        template = str(template)
+        if "{sample}" not in template:
+            files.append(os.path.join(stage_dir, template))
             continue
         stage_samples = qc_anchor_samples.get(stage, samples)
-        files += [os.path.join(stage_dir, str(template).format(sample=s))
+        files += [os.path.join(stage_dir, template.format(sample=s))
                   for s in stage_samples]
     return files
 

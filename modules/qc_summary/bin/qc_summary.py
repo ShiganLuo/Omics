@@ -365,6 +365,31 @@ def parse_msi(stage_dir: str, sample: str) -> Dict[str, str]:
     return {}
 
 
+def parse_sexcheck(stage_dir: str, sample: str) -> Dict[str, str]:
+    """Parse the sexcheck module's per-run table (sexcheck.tsv): one row
+    per sample (sample_id, x/y coverage metrics, ..., sex). This stage is
+    run-level (ONE table for all samples), unlike the per-sample parsers
+    above — we read the whole table once per call and return only the
+    queried sample's row (call cost is negligible; the table is small).
+    """
+    path = os.path.join(stage_dir, "sexcheck.tsv")
+    if not os.path.isfile(path):
+        return {}
+    metrics: Dict[str, str] = {}
+    with open(path) as fh:
+        header: List[str] = []
+        for line in fh:
+            fields = line.rstrip("\n").split("\t")
+            if not header:
+                header = fields
+                continue
+            if fields and fields[0] == sample:
+                for key, val in zip(header[1:], fields[1:]):
+                    metrics[f"sex_{key}"] = val
+                break
+    return metrics
+
+
 # stage name -> parser (unknown stages fall back to fastqc layout probing)
 PARSERS = {
     "fastqc_raw": parse_fastqc,
@@ -375,6 +400,7 @@ PARSERS = {
     "bwa_mem2": parse_bwa_mem2,
     "markdup": parse_markdup,
     "msi": parse_msi,
+    "sexcheck": parse_sexcheck,
 }
 
 
@@ -422,6 +448,7 @@ def build_table(samples: List[str], stages: Dict[str, Dict[str, Dict[str, str]]]
         "insert_size_mean", "insert_size_median", "insert_size_std",
         "bwa_unique_pairs_fr",
         "percent_duplication", "read_pair_duplicates", "msi_score",
+        "sex_sex", "sex_ratio_x_to_y",
     ]
     cols = [c for c in core_order if c in table.columns]
     cols += [c for c in table.columns if c not in cols]

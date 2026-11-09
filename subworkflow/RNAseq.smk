@@ -678,3 +678,33 @@ module sexcheck:
 logger.info(f"sexcheck_config: {sexcheck_config}")
 use rule sexcheck_idxstats from sexcheck as RNAseq_sexcheck_idxstats
 use rule sexcheck from sexcheck as RNAseq_sexcheck
+
+
+# ============================================
+# QC Summary (cross-sample metric aggregation)
+# ============================================
+# Wired unconditionally; node.py registers the qc_summary outputs (see
+# subworkflow.md QC wiring spec). Only stages with qc_summary parsers are
+# declared; unregistered stages stay best-effort scans.
+qc_summary_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
+    "env": config.get("env", {}),
+    "outdir": f"{outdir}/QC/qc_summary",
+    "logdir": f"{logdir}/group",
+    "samples": [s for g in list(genome_paired_samples) + list(genome_single_samples) for s in genome_paired_samples.get(g, []) + genome_single_samples.get(g, [])],
+    "qc_dirs": {
+        "cutadapt": trim_galore_config["outdir"],
+        "markdup": gatk_prepare_config["outdir"],
+        "sexcheck": sexcheck_config["outdir"],
+    },
+    "qc_anchors": {
+        "sexcheck": "sexcheck.tsv",
+    },
+}
+module qc_summary:
+    snakefile: "../modules/qc_summary/qc_summary.smk"
+    config: qc_summary_config
+logger.info(f"qc_summary_config: {qc_summary_config}")
+use rule qc_summary from qc_summary as RNAseq_qc_summary
+

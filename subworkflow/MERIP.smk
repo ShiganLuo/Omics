@@ -122,6 +122,34 @@ use rule sexcheck_idxstats from sexcheck as MERIP_sexcheck_idxstats
 use rule sexcheck from sexcheck as MERIP_sexcheck
 
 
+# ============================================
+# QC Summary (cross-sample metric aggregation)
+# ============================================
+# Wired unconditionally; node.py registers the qc_summary outputs (see
+# subworkflow.md QC wiring spec). Only stages with qc_summary parsers are
+# declared; unregistered stages stay best-effort scans.
+qc_summary_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
+    "env": config.get("env", {}),
+    "outdir": f"{outdir}/QC/qc_summary",
+    "logdir": f"{logdir}/group",
+    "samples": paired_samples + single_samples,
+    "qc_dirs": {
+        "sexcheck": sexcheck_config["outdir"],
+    },
+    "qc_anchors": {
+        "sexcheck": "sexcheck.tsv",
+    },
+}
+module qc_summary:
+    snakefile: "../modules/qc_summary/qc_summary.smk"
+    config: qc_summary_config
+logger.info(f"qc_summary_config: {qc_summary_config}")
+use rule qc_summary from qc_summary as MERIP_qc_summary
+
+
+
 
 # ============================================================
 # Region-focused multi-sample track stacking plots (modules/regionplot)

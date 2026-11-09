@@ -50,41 +50,6 @@ module pbmm2:
 logger.debug(f"pbmm2_config: {pbmm2_config}")
 use rule pbmm2_align from pbmm2 as PacVar_pbmm2_align
 
-# ============================================
-# Sex check (coverage on sex chromosomes)
-# ============================================
-# Wired unconditionally over the alignment BAMs; node.py registers the
-# sexcheck outputs (subworkflow.md QC wiring).
-sexcheck_config = {
-    "ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir,
-    "env": config.get("env", {}),
-    "outdir": f"{outdir}/QC/sexcheck",
-    "logdir": f"{logdir}/sample",
-    "logdir_combine": f"{logdir}/group",
-    "samples": samples,
-    "sample_bams": {
-        s: f"{pbmm2_config['outdir']}/{s}/{s}.sorted.bam"
-        for s in samples
-    },
-    "Procedure": {
-        "samtools": config.get("Procedure", {}).get("samtools")
-    },
-    "genome": {
-        "sex_chroms": (config.get("genome", {}) or {}).get("references", {})
-            .get(config.get("genome", {}).get("default"), {})
-            .get("sex_chroms")
-    },
-    "Params": {
-        "sexcheck": config.get("Params", {}).get("sexcheck", {})
-    },
-}
-module sexcheck:
-    snakefile: "../modules/sexcheck/sexcheck.smk"
-    config: sexcheck_config
-logger.info(f"sexcheck_config: {sexcheck_config}")
-use rule sexcheck_idxstats from sexcheck as PacVar_sexcheck_idxstats
-use rule sexcheck from sexcheck as PacVar_sexcheck
 
 
 
@@ -125,6 +90,72 @@ logger.debug(f"gatk_prepare parameters: {gatk_prepare_config}")
 use rule gatk_index from gatk_prepare as PacVar_gatk_index
 use rule addReadsGroup from gatk_prepare as PacVar_addReadsGroup
 use rule MarkDuplicates from gatk_prepare as PacVar_MarkDuplicates
+
+
+# ============================================
+# Sex check (coverage on sex chromosomes)
+# ============================================
+# Wired unconditionally over the alignment BAMs; node.py registers the
+# sexcheck outputs (subworkflow.md QC wiring).
+sexcheck_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
+    "env": config.get("env", {}),
+    "outdir": f"{outdir}/QC/sexcheck",
+    "logdir": f"{logdir}/sample",
+    "logdir_combine": f"{logdir}/group",
+    "samples": samples,
+    "sample_bams": {
+        s: f"{pbmm2_config['outdir']}/{s}/{s}.sorted.bam"
+        for s in samples
+    },
+    "Procedure": {
+        "samtools": config.get("Procedure", {}).get("samtools")
+    },
+    "genome": {
+        "sex_chroms": (config.get("genome", {}) or {}).get("references", {})
+            .get(config.get("genome", {}).get("default"), {})
+            .get("sex_chroms")
+    },
+    "Params": {
+        "sexcheck": config.get("Params", {}).get("sexcheck", {})
+    },
+}
+module sexcheck:
+    snakefile: "../modules/sexcheck/sexcheck.smk"
+    config: sexcheck_config
+logger.info(f"sexcheck_config: {sexcheck_config}")
+use rule sexcheck_idxstats from sexcheck as PacVar_sexcheck_idxstats
+use rule sexcheck from sexcheck as PacVar_sexcheck
+
+
+
+# ============================================
+# QC Summary (cross-sample metric aggregation)
+# ============================================
+# Wired unconditionally; node.py registers the qc_summary outputs (see
+# subworkflow.md QC wiring spec). Only stages with qc_summary parsers are
+# declared; unregistered stages stay best-effort scans.
+qc_summary_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
+    "env": config.get("env", {}),
+    "outdir": f"{outdir}/QC/qc_summary",
+    "logdir": f"{logdir}/group",
+    "samples": samples,
+    "qc_dirs": {
+        "markdup": gatk_prepare_config["outdir"],
+        "sexcheck": sexcheck_config["outdir"],
+    },
+    "qc_anchors": {
+        "sexcheck": "sexcheck.tsv",
+    },
+}
+module qc_summary:
+    snakefile: "../modules/qc_summary/qc_summary.smk"
+    config: qc_summary_config
+logger.info(f"qc_summary_config: {qc_summary_config}")
+use rule qc_summary from qc_summary as PacVar_qc_summary
 
 
 if snv_caller == "deepvariant":

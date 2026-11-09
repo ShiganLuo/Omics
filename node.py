@@ -531,6 +531,10 @@ def runCoCulture(
     # Sex check (modules/sexcheck): per-sample sex call from sex-chromosome
     # coverage over the alignment BAMs; registered for every sample BAM.
     outfiles.append(f"{outdir}/QC/sexcheck/sexcheck.tsv")
+    # QC summary module (modules/qc_summary): cross-sample metric table +
+    # HTML summary; always part of the delivered output set.
+    outfiles.append(f"{outdir}/QC/qc_summary/qc_summary.tsv")
+    outfiles.append(f"{outdir}/QC/qc_summary/qc_summary.html")
     datajson["outfiles"] = outfiles
     datajson["paired_samples"] = paired_samples
     datajson["single_samples"] = single_samples
@@ -596,6 +600,10 @@ def runMERIP(
     # Sex check (modules/sexcheck): per-sample sex call from sex-chromosome
     # coverage over the alignment BAMs; registered for every sample BAM.
     outfiles.append(f"{outdir}/QC/sexcheck/sexcheck.tsv")
+    # QC summary module (modules/qc_summary): cross-sample metric table +
+    # HTML summary; always part of the delivered output set.
+    outfiles.append(f"{outdir}/QC/qc_summary/qc_summary.tsv")
+    outfiles.append(f"{outdir}/QC/qc_summary/qc_summary.html")
     datajson["outfiles"] = outfiles
     datajson["paired_samples"] = paired_samples
     datajson["single_samples"] = single_samples
@@ -655,6 +663,10 @@ def runCLIP(
     # Sex check (modules/sexcheck): per-sample sex call from sex-chromosome
     # coverage over the alignment BAMs; registered for every sample BAM.
     outfiles.append(f"{outdir}/QC/sexcheck/sexcheck.tsv")
+    # QC summary module (modules/qc_summary): cross-sample metric table +
+    # HTML summary; always part of the delivered output set.
+    outfiles.append(f"{outdir}/QC/qc_summary/qc_summary.tsv")
+    outfiles.append(f"{outdir}/QC/qc_summary/qc_summary.html")
     datajson["outfiles"] = outfiles
     datajson["paired_samples"] = paired_samples
     datajson["single_samples"] = single_samples
@@ -862,6 +874,10 @@ def runPacVar(
     # Sex check (modules/sexcheck): per-sample sex call from sex-chromosome
     # coverage over the alignment BAMs; registered for every sample BAM.
     outfiles.append(f"{outdir}/QC/sexcheck/sexcheck.tsv")
+    # QC summary module (modules/qc_summary): cross-sample metric table +
+    # HTML summary; always part of the delivered output set.
+    outfiles.append(f"{outdir}/QC/qc_summary/qc_summary.tsv")
+    outfiles.append(f"{outdir}/QC/qc_summary/qc_summary.html")
     datajson["outfiles"] = outfiles
     return _write_raw_json(datajson, outdir)
 
@@ -1152,6 +1168,10 @@ def runKARRseq(
     # Sex check (modules/sexcheck): per-sample sex call from sex-chromosome
     # coverage over the alignment BAMs; registered for every sample BAM.
     outfiles.append(f"{outdir}/QC/sexcheck/sexcheck.tsv")
+    # QC summary module (modules/qc_summary): cross-sample metric table +
+    # HTML summary; always part of the delivered output set.
+    outfiles.append(f"{outdir}/QC/qc_summary/qc_summary.tsv")
+    outfiles.append(f"{outdir}/QC/qc_summary/qc_summary.html")
     datajson["outfiles"] = outfiles
 
     return _write_raw_json(datajson, outdir)
@@ -1294,6 +1314,10 @@ def runPeakCalling(
     # Sex check (modules/sexcheck): per-sample sex call from sex-chromosome
     # coverage over the alignment BAMs; registered for every sample BAM.
     outfiles.append(f"{outdir}/QC/sexcheck/sexcheck.tsv")
+    # QC summary module (modules/qc_summary): cross-sample metric table +
+    # HTML summary; always part of the delivered output set.
+    outfiles.append(f"{outdir}/QC/qc_summary/qc_summary.tsv")
+    outfiles.append(f"{outdir}/QC/qc_summary/qc_summary.html")
     datajson["outfiles"] = outfiles
 
     return _write_raw_json(datajson, outdir)
@@ -1541,6 +1565,10 @@ def runRNAseq(
     # Sex check (modules/sexcheck): per-sample sex call from sex-chromosome
     # coverage over the alignment BAMs; registered for every sample BAM.
     outfiles.append(f"{outdir}/QC/sexcheck/sexcheck.tsv")
+    # QC summary module (modules/qc_summary): cross-sample metric table +
+    # HTML summary; always part of the delivered output set.
+    outfiles.append(f"{outdir}/QC/qc_summary/qc_summary.tsv")
+    outfiles.append(f"{outdir}/QC/qc_summary/qc_summary.html")
     datajson["outfiles"] = outfiles
     datajson["Params"]["workflow"]["genome_paired_samples"] = genome_paired_samples
     datajson["Params"]["workflow"]["genome_single_samples"] = genome_single_samples
@@ -1646,6 +1674,10 @@ def runncRNAseq(
     # Sex check (modules/sexcheck): per-sample sex call from sex-chromosome
     # coverage over the alignment BAMs; registered for every sample BAM.
     outfiles.append(f"{outdir}/QC/sexcheck/sexcheck.tsv")
+    # QC summary module (modules/qc_summary): cross-sample metric table +
+    # HTML summary; always part of the delivered output set.
+    outfiles.append(f"{outdir}/QC/qc_summary/qc_summary.tsv")
+    outfiles.append(f"{outdir}/QC/qc_summary/qc_summary.html")
     datajson["outfiles"] = outfiles
     datajson["Params"]["workflow"]["samples"] = all_samples
     datajson["Params"]["workflow"]["raw_files"] = raw_files
@@ -2135,6 +2167,10 @@ def runFiberseq(
     # Sex check (modules/sexcheck): per-sample sex call from sex-chromosome
     # coverage over the alignment BAMs; registered for every sample BAM.
     outfiles.append(f"{outdir}/QC/sexcheck/sexcheck.tsv")
+    # QC summary module (modules/qc_summary): cross-sample metric table +
+    # HTML summary; always part of the delivered output set.
+    outfiles.append(f"{outdir}/QC/qc_summary/qc_summary.tsv")
+    outfiles.append(f"{outdir}/QC/qc_summary/qc_summary.html")
     datajson["outfiles"] = outfiles
     instance_json = os.path.join(outdir, "raw.json")
     with open(instance_json, 'w', encoding='utf-8') as wf:
@@ -2190,5 +2226,9 @@ def runLRtranscriptome(
     # Sex check (modules/sexcheck): per-sample sex call from sex-chromosome
     # coverage over the alignment BAMs; registered for every sample BAM.
     outfiles.append(f"{outdir}/QC/sexcheck/sexcheck.tsv")
+    # QC summary module (modules/qc_summary): cross-sample metric table +
+    # HTML summary; always part of the delivered output set.
+    outfiles.append(f"{outdir}/QC/qc_summary/qc_summary.tsv")
+    outfiles.append(f"{outdir}/QC/qc_summary/qc_summary.html")
     datajson["outfiles"] = outfiles
     return _write_raw_json(datajson, outdir)

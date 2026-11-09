@@ -111,6 +111,19 @@ sexcheck_config = {
     "Procedure": {
         "samtools": config.get("Procedure", {}).get("samtools")
     },
+    "genome": {
+        # multi-genome workflow: per-genome sex contigs {genome: [x, y]}
+        "sex_chroms_map": {
+            g: (refs.get("sex_chroms") or [None, None])[:2]
+            for g, refs in (config.get("genome", {}) or {}).get("references", {}).items()
+        },
+        # per-sample genome assignment (pure sample_id keys)
+        "samples": {
+            s: g
+            for g in list(genome_paired_samples) + list(genome_single_samples)
+            for s in genome_paired_samples.get(g, []) + genome_single_samples.get(g, [])
+        },
+    },
     "Params": {
         "sexcheck": config.get("Params", {}).get("sexcheck", {})
     },

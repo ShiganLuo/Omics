@@ -196,6 +196,11 @@ sexcheck_config = {
     "Procedure": {
         "samtools": config.get("Procedure", {}).get("samtools")
     },
+    "genome": {
+        "sex_chroms": (config.get("genome", {}) or {}).get("references", {})
+            .get(config.get("genome", {}).get("default"), {})
+            .get("sex_chroms")
+    },
     "Params": {
         "sexcheck": config.get("Params", {}).get("sexcheck", {})
     },

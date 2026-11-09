@@ -30,6 +30,7 @@ Usage:
 """
 
 import argparse
+import json
 import os
 import sys
 from typing import Dict, List, Optional, Tuple
@@ -97,10 +98,18 @@ X_NAMES = ("chrX", "X", "x")
 Y_NAMES = ("chrY", "Y", "y")
 
 
-def pick_sex_chroms(chroms: List[str]) -> Tuple[Optional[str], Optional[str]]:
-    """Return (x_name, y_name) actually present in the idxstats chrom list."""
-    x = next((c for c in chroms if c in X_NAMES), None)
-    y = next((c for c in chroms if c in Y_NAMES), None)
+def pick_sex_chroms(chroms: List[str], x_hint: Optional[str] = None,
+                    y_hint: Optional[str] = None) -> Tuple[Optional[str], Optional[str]]:
+    """Return (x_name, y_name) actually present in the idxstats chrom list.
+
+    Explicit hints (from genome.references.<g>.sex_chroms, auto-filled by
+    node.py's GENOME_SEX_CHROMS for NCBI-accession assemblies) win when
+    the hinted contig exists; otherwise the chrX/X and chrY/Y naming
+    conventions are sniffed as before. A hint pointing at a missing contig
+    falls through to sniffing (with the hint logged for diagnosis).
+    """
+    x = x_hint if x_hint in chroms else next((c for c in chroms if c in X_NAMES), None)
+    y = y_hint if y_hint in chroms else next((c for c in chroms if c in Y_NAMES), None)
     return x, y
 
 
@@ -110,12 +119,25 @@ def load_idxstats(path: str) -> pd.DataFrame:
     return df
 
 
-def build_table(df: pd.DataFrame) -> pd.DataFrame:
-    """Per-sample X/Y coverage metrics; NA when a chromosome is absent."""
+def build_table(df: pd.DataFrame, x_hint: Optional[str] = None,
+                   y_hint: Optional[str] = None,
+                   sex_chroms_map: Optional[Dict[str, tuple]] = None,
+                   sample_genomes: Optional[Dict[str, str]] = None) -> pd.DataFrame:
+    """Per-sample X/Y coverage metrics; NA when a chromosome is absent.
+
+    Sex-contig name resolution per sample: (1) single-genome runs pass
+    x_hint/y_hint; (2) multi-genome runs pass sex_chroms_map
+    {genome: (x, y)} + sample_genomes {sample: genome}. Hints absent or
+    pointing at missing contigs fall back to chrX/X + chrY/Y sniffing.
+    """
+    sex_chroms_map = sex_chroms_map or {}
+    sample_genomes = sample_genomes or {}
     rows = []
     for sample, rec in df.groupby("sample", sort=True):
         chroms = list(rec["chrom"])
-        x_name, y_name = pick_sex_chroms(chroms)
+        g = sample_genomes.get(str(sample))
+        gxy = (sex_chroms_map.get(g) or (None, None)) if g else (None, None)
+        x_name, y_name = pick_sex_chroms(chroms, gxy[0] or x_hint, gxy[1] or y_hint)
         def _get(name: Optional[str]) -> Tuple[float, float]:
             if name is None:
                 return float("nan"), float("nan")
@@ -193,6 +215,17 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
                    help="Output directory (sexcheck.tsv + sexcheck.done)")
     p.add_argument("--ratio-xy-threshold", type=float, default=2.0,
                    help="x/y coverage-ratio decision threshold (XX above band, XY below)")
+    p.add_argument("--x-chrom", default=None,
+                   help="Explicit X contig name (from genome sex_chroms; "
+                        "default: sniff chrX/X)")
+    p.add_argument("--y-chrom", default=None,
+                   help="Explicit Y contig name (from genome sex_chroms; "
+                        "default: sniff chrY/Y)")
+    p.add_argument("--sex-chroms-map", default="",
+                   help="JSON {genome: [x, y]} for multi-genome runs")
+    p.add_argument("--sample-genome", action="append", default=[],
+                   metavar="SAMPLE=GENOME",
+                   help="Sample -> genome assignment (repeatable, multi-genome runs)")
     p.add_argument("--y-min-frac", type=float, default=0.01,
                    help="Minimum y reads_per_mb for the Y to count as present")
     p.add_argument("-l", "--log", default=None,
@@ -209,7 +242,15 @@ def main(argv: Optional[List[str]] = None) -> int:
     if df.empty:
         logger.error("empty idxstats input")
         return 1
-    table = build_table(df)
+    sex_chroms_map = json.loads(args.sex_chroms_map) if args.sex_chroms_map else {}
+    sample_genomes = {}
+    for pair in args.sample_genome:
+        if "=" in pair:
+            s, g = pair.split("=", 1)
+            sample_genomes[s] = g
+    table = build_table(df, args.x_chrom, args.y_chrom,
+                        sex_chroms_map=sex_chroms_map,
+                        sample_genomes=sample_genomes)
     table = call_sex(table, args.y_min_frac, args.ratio_xy_threshold, logger)
     os.makedirs(args.outdir, exist_ok=True)
     out_tsv = os.path.join(args.outdir, "sexcheck.tsv")

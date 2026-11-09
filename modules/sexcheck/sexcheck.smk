@@ -1,5 +1,6 @@
 include: "../common/common.smk"
 
+import json
 import os
 
 outdir = config.get("outdir", "output/QC/sexcheck")
@@ -11,6 +12,12 @@ samples = config.get("samples", []) or {}
 sample_bams = config.get("sample_bams", {}) or {}
 
 SEXCHECK_SCRIPT = os.path.join(ROOT_DIR, "modules", "sexcheck", "bin", "sexcheck.py")
+
+# Sex-contig names from config genome.sex_chroms (single-genome wiring);
+# absent/short lists yield None -> the script falls back to name sniffing
+_sex_chroms = (config.get("genome", {}) or {}).get("sex_chroms") or []
+X_CHROM = _sex_chroms[0] if len(_sex_chroms) > 0 else None
+Y_CHROM = _sex_chroms[1] if len(_sex_chroms) > 1 else None
 
 
 rule sexcheck_idxstats:
@@ -80,6 +87,15 @@ rule sexcheck:
         sif("sexcheck.yaml", "sexcheck")
     params:
         script=SEXCHECK_SCRIPT,
+        # sex-contig names from genome.references.<g>.sex_chroms (auto-filled
+        # by node.py GENOME_SEX_CHROMS for NCBI-accession assemblies); null
+        # falls back to the script's chrX/X + chrY/Y name sniffing.
+        # Multi-genome workflows pass genome.sex_chroms_map + genome.samples
+        # instead (single-genome workflows omit them).
+        x_chrom=X_CHROM,
+        y_chrom=Y_CHROM,
+        sex_chroms_map=(config.get("genome", {}) or {}).get("sex_chroms_map") or {},
+        sample_genomes=(config.get("genome", {}) or {}).get("samples") or {},
         # numeric-only passthrough: null placeholders (and test-mode path
         # injections) fall back to the script's own defaults
         ratio=(lambda v: v if isinstance(v, (int, float)) else None)(
@@ -110,6 +126,14 @@ rule sexcheck:
                 cmd += ["--ratio-xy-threshold", str(params.ratio)]
             if params.y_min:
                 cmd += ["--y-min-frac", str(params.y_min)]
+            if params.x_chrom:
+                cmd += ["--x-chrom", str(params.x_chrom)]
+            if params.y_chrom:
+                cmd += ["--y-chrom", str(params.y_chrom)]
+            if params.sex_chroms_map:
+                cmd += ["--sex-chroms-map", json.dumps(params.sex_chroms_map)]
+            for s, g in (params.sample_genomes or {}).items():
+                cmd += ["--sample-genome", f"{s}={g}"]
             script = os.path.join(RECEIPT_DIR, f"sexcheck_{current_time}.sh")
             plain_script = os.path.join(summary_dir, "sexcheck.sh")
             with open(script, "w") as f:

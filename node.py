@@ -38,6 +38,24 @@ GENOME_VEP_SPECIES = {
     "Mmul_10": ("macaca_mulatta", "Mmul_10"),
 }
 
+# Genome reference key -> sex-chromosome contig names (X, Y) for
+# sex-inference and any sex-aware analysis (modules/sexcheck first
+# consumer). Naming is assembly-dependent: UCSC-style chrX/chrY
+# (GENCODE GRCm39/GRCh38), Ensembl bare X/Y (Mmul_10), NCBI accessions
+# (T2T assemblies: CM166267.1/CM166268.1, NC_133426.1/NC_133427.1 —
+# verified against the local FASTA headers 2026-11). Filled into
+# genome.references.<g>.sex_chroms when unset; genomes without an entry
+# fall back to the module's name sniffing (chrX/X, chrY/Y) — add an
+# entry here when a new assembly's sex contigs use neither convention.
+GENOME_SEX_CHROMS = {
+    "GRCh38": ("chrX", "chrY"),
+    "GRCm39": ("chrX", "chrY"),
+    "GRCm38": ("chrX", "chrY"),
+    "Mmul_10": ("X", "Y"),
+    "T2T_mhaESC_v1.5": ("CM166267.1", "CM166268.1"),
+    "Mmul_T2T": ("NC_133426.1", "NC_133427.1"),
+}
+
 # Genome reference key -> RepeatMasker/Dfam species term for the sv.mei
 # Dfam classification path (Params.sv.mei.dfam_h5; the famdb.py export
 # term and RM -species search term, e.g. 'Mus musculus'). Filled into
@@ -355,6 +373,17 @@ def _resolve_genome_ref(
             f"{workflow}: genome.fai not set; auto-filled '{ref['fai']}' "
             f"(genome_index rule builds it if missing)"
         )
+
+    # Auto-fill sex-chromosome contig names from the genome key (modules/
+    # sexcheck + future sex-aware analyses); an explicit value wins.
+    if not ref.get("sex_chroms"):
+        mapped = GENOME_SEX_CHROMS.get(normalized)
+        if mapped:
+            ref["sex_chroms"] = list(mapped)
+            logger.info(
+                f"{workflow}: genome.references.{normalized}.sex_chroms "
+                f"auto-filled: {list(mapped)}"
+            )
 
     genome_cfg["default"] = normalized
     datajson["genome"] = genome_cfg

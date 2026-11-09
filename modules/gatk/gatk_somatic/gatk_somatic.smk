@@ -18,12 +18,6 @@ interval = config.get("genome", {}).get("interval")
 #                       property); recurrent artifacts get hard-filtered
 germline_resource = config.get("genome", {}).get("germline_resource")
 panel_of_normals = config.get("Params", {}).get("gatk", {}).get("Mutect2", {}).get("panel_of_normals")
-# Strain-aware germline filtering: full-genotype source VCF (e.g. MGP REL-2112
-# with one sample column per strain) plus the per-pair strain name resolved by
-# node.py from the meta ``strain`` column. When both are set, each pair gets a
-# strain-specific germline resource (variants carried by THAT strain, AF from
-# its genotype) built by rule germline_resource_strain; without them the
-# all-strain germline_resource is used as-is.
 strain_resource_src = config.get("genome", {}).get("strain_resource")
 pair_strains = config.get("pair_strains") or {}  # {experimental_sample_id: strain}
 
@@ -61,9 +55,6 @@ rule somaticMutect2:
     input:
        unpack(get_input_somaticMutect2),
        targets = lambda wildcards: [targets] if targets else [],
-       # strain-specific resource wins over the all-strain one (both feed
-       # Mutect2 at CALLING time; FilterMutectCalls has no --germline-resource
-       # and reads the prior back from the raw VCF header)
        germline_resource = lambda wildcards: (
            [outdir + "/germline_strain/" + pair_strains[wildcards.experimental_sample_id] + ".vcf.gz"]
            if (strain_resource_src and pair_strains.get(wildcards.experimental_sample_id)) else

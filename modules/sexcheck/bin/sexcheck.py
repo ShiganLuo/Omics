@@ -17,7 +17,7 @@ midpoint), otherwise the fixed defaults apply. This keeps the call
 meaningful for mouse (X ≈ 5% of genome, ratio gap wide) and human alike.
 
 Inputs:
-    --tsv idxstats.tsv   one row per line: sample <tab> chrom <tab> length <tab> mapped
+    --tsv idxstats.tsv   one row per line: sample <tab> chrom <tab> length <tab> mapped <tab> unmapped
                          (produced by the sexcheck smk rule; concatenated per-sample files)
 Outputs:
     <outdir>/sexcheck.tsv   sample_id, x_mapped, y_mapped, x_len, y_len,
@@ -114,8 +114,15 @@ def pick_sex_chroms(chroms: List[str], x_hint: Optional[str] = None,
 
 
 def load_idxstats(path: str) -> pd.DataFrame:
-    """Load concatenated idxstats rows: sample/chrom/length/mapped."""
-    df = pd.read_csv(path, sep="\t", names=["sample", "chrom", "length", "mapped"])
+    """Load concatenated idxstats rows: sample/chrom/length/mapped/unmapped.
+
+    The trailing unmapped column (4th samtools column; the '*' row carries
+    the per-sample total there) is parsed when present and ignored by the
+    X/Y logic — it is kept so qc consumers can compute unmapped rates.
+    Legacy 4-column files (no unmapped) still load.
+    """
+    df = pd.read_csv(path, sep="\t", names=["sample", "chrom", "length",
+                                             "mapped", "unmapped"])
     return df
 
 

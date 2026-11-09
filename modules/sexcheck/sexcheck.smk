@@ -26,7 +26,7 @@ rule sexcheck_idxstats:
     input:
         bam=lambda wildcards: sample_bams[wildcards.sample_id],
     output:
-        tsv=outdir + "/idxstats/{sample_id}.idxstats.tsv",
+        tsv=outdir + "/idxstats/{sample_id}/{sample_id}.idxstats.tsv",
     log:
         logdir + "/{sample_id}/sexcheck_idxstats.log"
     threads: rule_res("sexcheck_idxstats").get("threads", 1)
@@ -51,11 +51,13 @@ rule sexcheck_idxstats:
                 params.samtools, "idxstats",
                 str(input.bam),
                 "|", "awk", "-F", "'\\t'", f"-v", f"s={wildcards.sample_id}",
-                "'{print s\"\\t\"$1\"\\t\"$2\"\\t\"$3}'",
+                "'{print s\"\\t\"$1\"\\t\"$2\"\\t\"$3\"\\t\"$4}'",
                 ">", str(output.tsv),
             ]
-            script = os.path.join(RECEIPT_DIR, f"sexcheck_idxstats_{wildcards.sample_id}_{current_time}.sh")
-            plain_script = os.path.join(sample_outdir, "sexcheck_idxstats.sh")
+            script = os.path.join(RECEIPT_DIR, f"sexcheck_idxstats_{current_time}.sh")
+            # plain_script must carry sample_id: all samples share the
+            # idxstats/ outdir, a fixed name races under parallel jobs.
+            plain_script = os.path.join(sample_outdir, f"sexcheck_idxstats.sh")
             with open(script, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(str(c) for c in cmd) + "\n")
@@ -71,7 +73,7 @@ rule sexcheck:
     """Infer sample sex from sex-chromosome coverage (group rule: consumes
     every sample's idxstats table and calls XX/XY/unknown)."""
     input:
-        idxstats=expand(outdir + "/idxstats/{sample_id}.idxstats.tsv",
+        idxstats=expand(outdir + "/idxstats/{sample_id}/{sample_id}.idxstats.tsv",
                         sample_id=list(sample_bams)),
     output:
         tsv=outdir + "/sexcheck.tsv",
@@ -142,7 +144,6 @@ rule sexcheck:
                 f.write('echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
-            rule_logger.info(f"sexcheck completed: {output.tsv}")
         except Exception as e:
             rule_logger.error(f"Error occurred during sexcheck: {e}")
             raise RuntimeError(f"Error occurred during sexcheck: {e}, you can check the log file {log_path} for more details.")

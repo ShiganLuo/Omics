@@ -138,6 +138,24 @@ modules/common/
 | `ROOT_DIR` | 项目根目录，用于引用 bin/ 脚本 | 有自定义脚本的模块 |
 | `env` | conda/SIF 环境映射 | 所有模块（通过 common.smk） |
 
+## per-sample 输入的两种形态与选择（2026-11 sexcheck 定案）
+
+模块消费 per-sample 文件（BAM/VCF/表）有两种合法形态，按**模块的复用面**选择：
+
+**形态 A：`indir` + 布局参数（单一布局模块）** —— `indir`（上游 config 的 `outdir`）+ `bam_suffix` 等布局参数 + 样本列表，模块 input 函数自己拼 `{indir}/{sample_id}/{sample_id}{suffix}`（参照 `msi.smk::_bam`、`cnvkit.smk`、`fragment_size.smk`）。适用于模块只接一种上游布局的场景。
+
+**形态 B：`sample_bams` 字典（跨布局公用模块）** —— config 传「样本 ID → 完整文件路径」字典（参照 `sexcheck.smk`、`hiphase` 的 `bam_dir` 键）。适用于一个模块被**布局互不相同**的多个流程复用（markdup/.dedup/.sorted/STAR 直出/polygenomes 多层）——布局差异本来就该 subworkflow 知道，字典把模块从布局知识里解耦。
+
+**形态 B 的三条强制约束**（否则退回形态 A）：
+
+1. **字典值必须引用上游 config 的 `outdir` 拼**（f-string 引用 `xxx_config["outdir"]`），禁止手拼裸路径副本——路径知识仍只写一次，上游改布局字典自动跟随（同 subworkflow.md 衔接规范）；
+2. **DAG 依赖验证**：字典值路径必须能被 Snakemake 反推出生产者规则。dry-run 中消费规则的 reason 应出现 "Input files updated by another job: <字典指向的 BAM>"；若字典指向**未被任何规则声明为 output** 的文件（副产物/外部文件），依赖会静默缺失——这类输入不能只用字典，需另行声明 input 锚点；
+3. **样本 ID 必须是纯 sample_id**：per-genome 布局把 genome 放进值的路径段（`f"{cfg['outdir']}/{g}/{s}/..."`），**禁止**把 `genome/sample` 斜杠串当字典键——键污染 wildcards 和日志目录。
+
+节点侧配套：形态 B 同样要在 node.py 注册模块产出（outfiles 驱动 DAG）——注册缺失时模块静默不跑，与写法无关（2026-11 实录：node.py 注册被误 checkout 回退未察觉，sexcheck 消失于 DAG，排查时一度误判为字典写法破坏依赖；dry-run reason 证实字典路径的依赖追踪完好）。
+
+判断标准：模块 config 出现 sample→路径字典时检查上述三条；违反任何一条 = 改回形态 A。
+
 # 脚本撰写规范（任意语言）
 
 模块 `bin/` 下的脚本、辅助工具、交付给下游的任何代码一律遵守，不限语言：

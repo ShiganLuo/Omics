@@ -628,3 +628,40 @@ module RNAseq_report:
     config: RNAseq_report_config
 logger.debug(f"RNAseq_report_config: {RNAseq_report_config}")
 use rule generate_report from RNAseq_report as RNAseq_generate_report
+
+# ============================================
+# Sex check (coverage on sex chromosomes)
+# ============================================
+# Wired unconditionally over the polygenomes markdup BAMs; per-genome
+# sample/sample->BAM dict values reference the upstream config outdir
+# (path knowledge written once). node.py registers the sexcheck output.
+sexcheck_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
+    "env": config.get("env", {}),
+    "outdir": f"{outdir}/QC/sexcheck",
+    "logdir": f"{logdir}/sample",
+    "logdir_combine": f"{logdir}/group",
+    "samples": [
+        s
+        for g in list(genome_paired_samples) + list(genome_single_samples)
+        for s in genome_paired_samples.get(g, []) + genome_single_samples.get(g, [])
+    ],
+    "sample_bams": {
+        s: f"{gatk_prepare_config['outdir']}/{g}/{s}/{s}.sorted_markdup.bam"
+        for g in list(genome_paired_samples) + list(genome_single_samples)
+        for s in genome_paired_samples.get(g, []) + genome_single_samples.get(g, [])
+    },
+    "Procedure": {
+        "samtools": config.get("Procedure", {}).get("samtools")
+    },
+    "Params": {
+        "sexcheck": config.get("Params", {}).get("sexcheck", {})
+    },
+}
+module sexcheck:
+    snakefile: "../modules/sexcheck/sexcheck.smk"
+    config: sexcheck_config
+logger.info(f"sexcheck_config: {sexcheck_config}")
+use rule sexcheck_idxstats from sexcheck as RNAseq_sexcheck_idxstats
+use rule sexcheck from sexcheck as RNAseq_sexcheck

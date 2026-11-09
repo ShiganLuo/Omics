@@ -499,6 +499,9 @@ def runCoCulture(
     _co_genomes = ("GRCh38", "GRCm39")
     datajson["Params"].setdefault("workflow", {})["genome_paired_samples"] = {g: list(paired_samples) for g in _co_genomes}
     datajson["Params"].setdefault("workflow", {})["genome_single_samples"] = {g: list(single_samples) for g in _co_genomes}
+    # Sex check (modules/sexcheck): per-sample sex call from sex-chromosome
+    # coverage over the alignment BAMs; registered for every sample BAM.
+    outfiles.append(f"{outdir}/QC/sexcheck/sexcheck.tsv")
     datajson["outfiles"] = outfiles
     datajson["paired_samples"] = paired_samples
     datajson["single_samples"] = single_samples
@@ -561,6 +564,9 @@ def runMERIP(
     outfiles += _register_regionplot(datajson, samples_info_dict,
                                      ip_samples + input_samples + treated_ip_samples + treated_input_samples,
                                      outdir, "MERIP")
+    # Sex check (modules/sexcheck): per-sample sex call from sex-chromosome
+    # coverage over the alignment BAMs; registered for every sample BAM.
+    outfiles.append(f"{outdir}/QC/sexcheck/sexcheck.tsv")
     datajson["outfiles"] = outfiles
     datajson["paired_samples"] = paired_samples
     datajson["single_samples"] = single_samples
@@ -617,6 +623,9 @@ def runCLIP(
     outfiles += _register_regionplot(datajson, samples_info_dict,
                                      paired_samples + single_samples,
                                      outdir, "CLIP")
+    # Sex check (modules/sexcheck): per-sample sex call from sex-chromosome
+    # coverage over the alignment BAMs; registered for every sample BAM.
+    outfiles.append(f"{outdir}/QC/sexcheck/sexcheck.tsv")
     datajson["outfiles"] = outfiles
     datajson["paired_samples"] = paired_samples
     datajson["single_samples"] = single_samples
@@ -821,6 +830,9 @@ def runPacVar(
     datajson["Params"]["gatk"]["tmp-dir"] = gatk_tmp_dir
     datajson["Params"]["workflow"]["samples"] = samples
     outfiles += _register_regionplot(datajson, samples_info_dict, samples, outdir, "PacVar")
+    # Sex check (modules/sexcheck): per-sample sex call from sex-chromosome
+    # coverage over the alignment BAMs; registered for every sample BAM.
+    outfiles.append(f"{outdir}/QC/sexcheck/sexcheck.tsv")
     datajson["outfiles"] = outfiles
     return _write_raw_json(datajson, outdir)
 
@@ -1072,6 +1084,9 @@ def runMutation(
         outfiles.append(f"{outdir}/Mutation_report.pptx")
         outfiles.append(f"{outdir}/Mutation_report.xlsx")
 
+    # Sex check (modules/sexcheck): per-sample sex call from sex-chromosome
+    # coverage over the alignment BAMs; registered for every sample BAM.
+    outfiles.append(f"{outdir}/QC/sexcheck/sexcheck.tsv")
     datajson["outfiles"] = outfiles
     datajson["Params"]["workflow"]["paired_samples"] = paired_samples
     datajson["Params"]["workflow"]["single_samples"] = single_samples
@@ -1105,6 +1120,9 @@ def runKARRseq(
 
     datajson["paired_samples"] = paired_samples
     datajson["single_samples"] = single_samples
+    # Sex check (modules/sexcheck): per-sample sex call from sex-chromosome
+    # coverage over the alignment BAMs; registered for every sample BAM.
+    outfiles.append(f"{outdir}/QC/sexcheck/sexcheck.tsv")
     datajson["outfiles"] = outfiles
 
     return _write_raw_json(datajson, outdir)
@@ -1244,6 +1262,9 @@ def runPeakCalling(
     outfiles += _register_regionplot(datajson, samples_info_dict,
                                      ip_samples + input_samples,
                                      outdir, "PeakCalling")
+    # Sex check (modules/sexcheck): per-sample sex call from sex-chromosome
+    # coverage over the alignment BAMs; registered for every sample BAM.
+    outfiles.append(f"{outdir}/QC/sexcheck/sexcheck.tsv")
     datajson["outfiles"] = outfiles
 
     return _write_raw_json(datajson, outdir)
@@ -1488,6 +1509,9 @@ def runRNAseq(
             outfiles.append(f"{outdir}/function/{organism}/gsva/gsva_heatmap.png")
         if enable_report:
             outfiles.append(f"{outdir}/results/{organism}/RNAseq_report.pptx")
+    # Sex check (modules/sexcheck): per-sample sex call from sex-chromosome
+    # coverage over the alignment BAMs; registered for every sample BAM.
+    outfiles.append(f"{outdir}/QC/sexcheck/sexcheck.tsv")
     datajson["outfiles"] = outfiles
     datajson["Params"]["workflow"]["genome_paired_samples"] = genome_paired_samples
     datajson["Params"]["workflow"]["genome_single_samples"] = genome_single_samples
@@ -1590,6 +1614,9 @@ def runncRNAseq(
     outfiles.append(f"{outdir}/ncRNAseq_report_files.xlsx")
     outfiles += _register_regionplot(datajson, samples_info_dict,
                                      all_samples, outdir, "ncRNAseq")
+    # Sex check (modules/sexcheck): per-sample sex call from sex-chromosome
+    # coverage over the alignment BAMs; registered for every sample BAM.
+    outfiles.append(f"{outdir}/QC/sexcheck/sexcheck.tsv")
     datajson["outfiles"] = outfiles
     datajson["Params"]["workflow"]["samples"] = all_samples
     datajson["Params"]["workflow"]["raw_files"] = raw_files
@@ -2076,6 +2103,9 @@ def runFiberseq(
     datajson["Params"]["workflow"]["samples"] = samples
     datajson["Params"]["workflow"]["raw_files"] = raw_files
     outfiles += _register_regionplot(datajson, samples_info_dict, samples, outdir, "Fiberseq")
+    # Sex check (modules/sexcheck): per-sample sex call from sex-chromosome
+    # coverage over the alignment BAMs; registered for every sample BAM.
+    outfiles.append(f"{outdir}/QC/sexcheck/sexcheck.tsv")
     datajson["outfiles"] = outfiles
     instance_json = os.path.join(outdir, "raw.json")
     with open(instance_json, 'w', encoding='utf-8') as wf:
@@ -2128,5 +2158,8 @@ def runLRtranscriptome(
             outfiles.append(f"{outdir}/quantification/{sample_id}/{sample_id}.quant.gtf")
 
     datajson["samples"] = samples
+    # Sex check (modules/sexcheck): per-sample sex call from sex-chromosome
+    # coverage over the alignment BAMs; registered for every sample BAM.
+    outfiles.append(f"{outdir}/QC/sexcheck/sexcheck.tsv")
     datajson["outfiles"] = outfiles
     return _write_raw_json(datajson, outdir)

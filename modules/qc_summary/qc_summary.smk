@@ -8,21 +8,39 @@ samples = config.get("samples", []) or []
 # stage name -> QC artifact directory; subworkflow passes upstream
 # xxx_config["outdir"] values here (subworkflow.md chaining rule)
 qc_dirs = config.get("qc_dirs", {}) or {}
+# stage -> per-sample anchor filename template ('{sample}' placeholder),
+# ONLY for stages whose producing rules are guaranteed to run (registered
+# outputs or unavoidable intermediates). Anchors become tracked rule inputs
+# so Snakemake orders qc_summary after the producers AND re-runs it when an
+# upstream artifact is refreshed. Stages listed in qc_dirs but absent here
+# (e.g. fastqc outputs the workflow never registers) stay best-effort:
+# the script scans the directory and skips it with a warning when missing.
+qc_anchors = config.get("qc_anchors", {}) or {}
+# optional per-stage sample list override (default: all samples) — e.g. MSI
+# anchors exist only for tumor samples in the design pairs
+qc_anchor_samples = config.get("qc_anchor_samples", {}) or {}
 report_title = config.get("Params", {}).get("qc_summary", {}).get("title") or "QC Summary"
 
 QC_SCRIPT = os.path.join(ROOT_DIR, "modules", "qc_summary", "bin", "qc_summary.py")
 
 
 def _qc_stage_inputs():
-    """Input files anchoring each declared QC stage to the DAG.
+    """Concrete per-sample anchor files for the anchored QC stages.
 
-    One anchor file per (stage, sample) via the stage's canonical layout
-    (see bin/qc_summary.py parsers). Stages whose anchor files do not
-    exist as declared outputs are still passed as directories — the script
-    tolerates missing stages (NA columns), which keeps optional stages
-    (msi/cnvkit/...) working when node.py did not register them.
+    Expands qc_anchors templates against each stage's directory (from
+    qc_dirs) and its sample list (qc_anchor_samples override or all
+    samples). Invalid entries (stage without a dir, template without a
+    '{sample}' placeholder) are skipped defensively.
     """
-    return []
+    files = []
+    for stage, template in qc_anchors.items():
+        stage_dir = qc_dirs.get(stage)
+        if not stage_dir or "{sample}" not in str(template):
+            continue
+        stage_samples = qc_anchor_samples.get(stage, samples)
+        files += [os.path.join(stage_dir, str(template).format(sample=s))
+                  for s in stage_samples]
+    return files
 
 
 rule qc_summary:

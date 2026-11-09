@@ -155,7 +155,9 @@ footprint_config = {
 
 **config 字段**：
 
-- `qc_dirs`：指标目录字典，key 为环节名（`fastqc_raw` / `fastqc_trimmed` / `flagstat` / `frip` / `insert_size` / `msi` 等），value 为该环节产物目录。**一律引用上游 config 的 `outdir`**（模块衔接规范同样适用于 QC 目录），禁止手拼重复路径：
+- `qc_dirs`：指标目录字典，key 为环节名（`fastqc_raw` / `fastqc_trimmed` / `flagstat` / `frip` / `insert_size` / `msi` 等），value 为该环节产物目录。**一律引用上游 config 的 `outdir`**（模块衔接规范同样适用于 QC 目录），禁止手拼重复路径
+- `qc_anchors`：**DAG 锚点**模板字典（`"{sample}/{sample}_flagstat.txt"` 这类含 `{sample}` 占位符的相对路径），只声明**保证会产出**的文件（node.py 注册的输出、或规则必然写的 log/metrics）。锚点会展开成 qc_summary 规则的 `input:`，作用有二：① 排序——qc_summary 一定在上游之后跑；② 失效——上游任一锚点被刷新，qc_summary 自动重跑。**输出未注册的环节（如 fastqc）不要锚定**，否则 DAG 直接 MissingInputException；这类环节留在 `qc_dirs` 里做 best-effort 扫描（缺了降级为 NA 列，不报错）
+- `qc_anchor_samples`：可选的按环节覆盖样本列表（如 MSI 锚点只存在于配对设计中的 tumor 样本），缺省用全样本：
 
 ```python
 qc_summary_config = {
@@ -169,6 +171,10 @@ qc_summary_config = {
         "fastqc_raw": fastqc_raw_config["outdir"],
         "fastqc_trimmed": fastqc_trimmed_config["outdir"],
         "flagstat": samtools_config["outdir"],
+    },
+    # 只锚定保证产出的环节；fastqc 未注册输出，不锚定
+    "qc_anchors": {
+        "flagstat": "{sample}/{sample}_flagstat.txt",
     },
 }
 module qc_summary:
@@ -236,6 +242,7 @@ use rule generate_report from Mutation_report as Mutation_generate_report
 - [ ] subworkflow 末尾有 `qc_summary_config` + `module qc_summary` + `use rule ... as <WF>_qc_summary`
 - [ ] subworkflow 末尾有 `<WF>_report_config` + `module <WF>_report` + `use rule generate_report ... as <WF>_generate_report`
 - [ ] `qc_dirs` / report 输入目录全部引用上游 config `["outdir"]`，无手拼重复路径
+- [ ] 保证产出的 QC 环节都声明了 `qc_anchors`（qc_summary 的 input 依赖上游，上游刷新自动重跑汇总）；未注册输出的环节只进 `qc_dirs` 不锚定
 - [ ] QC 汇总输出注册进 outfiles；report 输出（pptx + xlsx 成对）经 `Params.report.enabled` 门控注册
 - [ ] 两模块日志走 `logdir/group`
 - [ ] 存量流程缺口记录在案：Mutation 已补齐（qc_summary + Mutation_report，2026-11）；CoCulture / KARRseq / QuantMS / tRNAseq / PacVar / Population_genomics / Fiberseq / spatial 等（无 QC 汇总或无 report，逐个补齐）

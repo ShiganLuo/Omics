@@ -485,6 +485,22 @@ qc_summary_config = {
         "markdup": gatk_prepare_config["outdir"],
         "msi": msi_config["outdir"],
     },
+    # DAG anchors: per-sample files whose producing rules are guaranteed to
+    # run, so qc_summary is ordered after them AND re-runs when one is
+    # refreshed. fastqc stages are intentionally NOT anchored (their outputs
+    # are not registered for this workflow; they stay best-effort scans).
+    # The bwa-mem2 alignment log (log: directive) is always written.
+    "qc_anchors": {
+        "cutadapt": "{sample}/{sample}.cutadapt_report.txt",
+        "flagstat": "{sample}/{sample}_flagstat.txt",
+        "bwa_mem2": "{sample}/bwa_mem2-alignment.txt",
+        "markdup": "{sample}/{sample}.Markdup-metrics.txt",
+        "msi": "{sample}/{sample}_msi_pro.tsv",
+    },
+    # MSI anchors exist only for the tumor sample of each design pair
+    "qc_anchor_samples": {
+        "msi": [rec["experimental"] for rec in config.get("Params", {}).get("workflow", {}).get("paired_design", []) if rec.get("experimental")],
+    },
 }
 module qc_summary:
     snakefile: "../modules/qc_summary/qc_summary.smk"

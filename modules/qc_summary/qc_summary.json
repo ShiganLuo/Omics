@@ -3,6 +3,8 @@
   "logdir": "logs",
   "samples": [],
   "qc_dirs": {},
+  "qc_anchors": {},
+  "qc_anchor_samples": {},
   "Params": {
     "qc_summary": {}
   }

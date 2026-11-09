@@ -20,6 +20,18 @@
     "required": false,
     "properties": {}
   },
+  "qc_anchors": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {}
+  },
+  "qc_anchor_samples": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {}
+  },
   "Params": {
     "type": "dict",
     "nullable": true,

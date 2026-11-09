@@ -1,263 +1,268 @@
 {
-    "outfiles": [],
-    "ROOT_DIR": ".",
-    "env": {
-        "env_dir": "/home/luosg/Database/env",
-        "demultiplexer": "/home/luosg/Database/env/demultiplexer/demultiplexer.sif",
-        "fastqc": "/home/luosg/Database/env/fastqc/fastqc.sif",
-        "featureCounts": "/home/luosg/Database/env/featureCounts/featureCounts.sif",
-        "genome": "/home/luosg/Database/env/genome/genome.sif",
-        "hisat2": "/home/luosg/Database/env/hisat2/hisat2.sif",
-        "star": "/home/luosg/Database/env/star/star.sif",
-        "subsample": "/home/luosg/Database/env/subsample/subsample.sif",
-        "tailer": "/home/luosg/Database/env/tailer/tailer.sif",
-        "trim-galore": "/home/luosg/Database/env/trim-galore/trim-galore.sif",
-        "ncRNAseq_report": "/home/luosg/Database/env/ncRNAseq_report/ncRNAseq_report.sif",
-        "igv": "/home/luosg/Database/env/igv/hisat2.sif",
-        "macs3": "/home/luosg/Database/env/macs3/macs3.sif",
-        "track": "/home/luosg/Database/env/track/track.sif",
-        "gatk": "/home/luosg/Database/env/gatk/gatk4.sif",
-        "regionplot": "/data/16T/Database/env/regionplot/regionplot.sif"
+  "outfiles": [],
+  "ROOT_DIR": ".",
+  "env": {
+    "env_dir": "/home/luosg/Database/env",
+    "demultiplexer": "/home/luosg/Database/env/demultiplexer/demultiplexer.sif",
+    "fastqc": "/home/luosg/Database/env/fastqc/fastqc.sif",
+    "featureCounts": "/home/luosg/Database/env/featureCounts/featureCounts.sif",
+    "genome": "/home/luosg/Database/env/genome/genome.sif",
+    "hisat2": "/home/luosg/Database/env/hisat2/hisat2.sif",
+    "star": "/home/luosg/Database/env/star/star.sif",
+    "subsample": "/home/luosg/Database/env/subsample/subsample.sif",
+    "tailer": "/home/luosg/Database/env/tailer/tailer.sif",
+    "trim-galore": "/home/luosg/Database/env/trim-galore/trim-galore.sif",
+    "ncRNAseq_report": "/home/luosg/Database/env/ncRNAseq_report/ncRNAseq_report.sif",
+    "igv": "/home/luosg/Database/env/igv/hisat2.sif",
+    "macs3": "/home/luosg/Database/env/macs3/macs3.sif",
+    "track": "/home/luosg/Database/env/track/track.sif",
+    "gatk": "/home/luosg/Database/env/gatk/gatk4.sif",
+    "regionplot": "/data/16T/Database/env/regionplot/regionplot.sif",
+    "sexcheck": "/data/16T/Database/env/fragment_size/fragment_size.sif"
+  },
+  "Procedure": {
+    "trim_galore": null,
+    "hisat2": null,
+    "hisat2-build": null,
+    "STAR": null,
+    "samtools": null,
+    "bedtools": null,
+    "seqtk": null,
+    "featureCounts": null,
+    "tailer": null,
+    "fastqc": null
+  },
+  "Params": {
+    "workflow": {
+      "indir": "input",
+      "outdir": "output",
+      "logdir": "logs",
+      "samples": [],
+      "raw_files": [],
+      "paired_samples": [],
+      "single_samples": [],
+      "ip_samples": [],
+      "input_samples": [],
+      "sample_ip_input_map": {},
+      "aligner": "star"
     },
-    "Procedure": {
-        "trim_galore": null,
-        "hisat2": null,
-        "hisat2-build": null,
-        "STAR": null,
-        "samtools": null,
-        "bedtools": null,
-        "seqtk": null,
-        "featureCounts": null,
-        "tailer": null,
-        "fastqc": null
+    "hisat2": {
+      "no-spliced-alignment": true,
+      "k": "99999",
+      "score-min": "L,0,-0.6"
     },
-    "Params": {
-        "workflow": {
-            "indir": "input",
-            "outdir": "output",
-            "logdir": "logs",
-            "samples": [],
-            "raw_files": [],
-            "paired_samples": [],
-            "single_samples": [],
-            "ip_samples": [],
-            "input_samples": [],
-            "sample_ip_input_map": {},
-            "aligner": "star"
+    "star": {
+      "twopassMode": null,
+      "genomeLoad": "LoadAndRemove",
+      "limitBAMsortRAM": 20000000000,
+      "outReadsUnmapped": "Fastx",
+      "outFilterMultimapNmax": 99999,
+      "outFilterMismatchNoverLmax": 0.1,
+      "outFilterMatchNminOverLread": 0.66,
+      "alignSJoverhangMin": 999,
+      "alignSJDBoverhangMin": 999,
+      "index": {
+        "sjdbOverhang": 100
+      }
+    },
+    "star_3pass": {
+      "index": {
+        "genome": {
+          "sjdbOverhang": 100
         },
-        "hisat2": {
-            "no-spliced-alignment": true,
-            "k": "99999",
-            "score-min": "L,0,-0.6"
-        },
-        "star": {
-            "twopassMode": null,
-            "genomeLoad": "LoadAndRemove",
-            "limitBAMsortRAM": 20000000000,
-            "outReadsUnmapped": "Fastx",
-            "outFilterMultimapNmax": 99999,
-            "outFilterMismatchNoverLmax": 0.1,
-            "outFilterMatchNminOverLread": 0.66,
-            "alignSJoverhangMin": 999,
-            "alignSJDBoverhangMin": 999,
-            "index": {
-                "sjdbOverhang": 100
-            }
-        },
-        "star_3pass": {
-            "index": {
-                "genome": {
-                    "sjdbOverhang": 100
-                },
-                "smallrna": {
-                    "sjdbOverhang": 100
-                }
-            },
-            "pass1": {
-                "alignEndsType": "Local",
-                "outFilterMultimapNmax": 1000,
-                "alignIntronMin": 9999999,
-                "outFilterMultimapScoreRange": 1,
-                "outFilterMismatchNoverLmax": 0.2
-            },
-            "pass2": {
-                "outFilterMultimapNmax": 1000,
-                "outFilterMultimapScoreRange": 0,
-                "outFilterMismatchNoverLmax": 0.2,
-                "outFilterMismatchNoverReadLmax": 0.05,
-                "clip5pNbases": "20 0",
-                "clip3pNbases": "0 20",
-                "alignIntronMin": 9999999,
-                "alignMatesGapMax": 500,
-                "alignEndsType": "EndToEnd",
-                "outReadsUnmapped": "Fastx"
-            },
-            "pass3": {
-                "outFilterMultimapNmax": 1000,
-                "outFilterMultimapScoreRange": 0,
-                "outFilterMismatchNoverLmax": 0.025,
-                "alignIntronMin": 9999999,
-                "alignMatesGapMax": 500,
-                "alignEndsType": "Local"
-            }
-        },
-        "star_3pass_gene": {
-            "ambiguous": "exclude",
-            "flank": 50,
-            "index": {
-                "genomeSAindexNbases": 3
-            },
-            "passes": {
-                "pass1": {
-                    "alignEndsType": "Local",
-                    "outFilterMultimapNmax": 1000,
-                    "outFilterMultimapScoreRange": 1,
-                    "outFilterMismatchNoverLmax": 0.2,
-                    "alignIntronMin": 9999999
-                },
-                "pass2": {
-                    "alignEndsType": "EndToEnd",
-                    "outFilterMultimapNmax": 1000,
-                    "outFilterMultimapScoreRange": 0,
-                    "outFilterMismatchNoverLmax": 0.2,
-                    "outFilterMismatchNoverReadLmax": 0.05,
-                    "clip5pNbases": "0 0",
-                    "clip3pNbases": "0 0",
-                    "alignIntronMin": 9999999,
-                    "alignMatesGapMax": 500
-                },
-                "pass3": {
-                    "alignEndsType": "Local",
-                    "outFilterMultimapNmax": 1000,
-                    "outFilterMultimapScoreRange": 0,
-                    "outFilterMismatchNoverLmax": 0.025,
-                    "alignIntronMin": 9999999,
-                    "alignMatesGapMax": 500
-                }
-            }
-        },
-        "tailer": {
-            "read": 2,
-            "threshold": 50,
-            "rev_comp": false
-        },
-        "ncRNAseq": {
-            "subsample": false,
-            "abund_small_rnas": [
-                "U1",
-                "U2",
-                "U3",
-                "7SL",
-                "7SK"
-            ],
-            "subsample_n": 100000,
-            "smallrna_flank": 50,
-            "smallrna_types": [
-                "snRNA",
-                "misc_RNA",
-                "rRNA",
-                "rRNA_pseudogene",
-                "snoRNA",
-                "scaRNA",
-                "ribozyme",
-                "TERC"
-            ],
-            "seed": 42
-        },
-        "track": {
-            "igv": {
-                "default": "GRCh38",
-                "configs": {
-                    "GRCm39": {
-                        "js": "/home/luosg/Database/SoftWare/igv.min.js",
-                        "id": "mm39",
-                        "name": "Mouse (GRCm39/mm39)",
-                        "publicPathMap": {
-                            "/home/luosg/Data/genomeStability/": "/data/",
-                            "/home/luosg/Database/Reference/": "/ref/"
-                        },
-                        "fastaURL": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
-                        "indexURL": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa.fai",
-                        "cytobandURL": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/mm39.cytoBand.txt",
-                        "tracks": [
-                            {
-                                "name": "Gencode vM38 genes",
-                                "format": "gtf",
-                                "url": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gene_exon.sorted.gtf.gz",
-                                "indexURL": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gene_exon.sorted.gtf.gz.tbi"
-                            },
-                            {
-                                "name": "Gencode rmsk repeats",
-                                "format": "gtf",
-                                "url": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.sorted.gtf.gz",
-                                "indexURL": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.sorted.gtf.gz.tbi"
-                            }
-                        ]
-                    },
-                    "GRCh38": {
-                        "js": "/home/luosg/Database/SoftWare/igv.min.js",
-                        "id": "hg38",
-                        "name": "Human (GRCh38/hg38)",
-                        "publicPathMap": {
-                            "/home/luosg/Data/genomeStability/": "/data/",
-                            "/home/luosg/Database/Reference/": "/ref/"
-                        },
-                        "fastaURL": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa",
-                        "indexURL": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa.fai",
-                        "cytobandURL": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/hg38.cytoBand.txt",
-                        "tracks": [
-                            {
-                                "name": "Gencode vM38 genes",
-                                "format": "gtf",
-                                "url": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/gencode.v49.primary_assembly.basic.annotation.gene_exon.sorted.gtf.gz",
-                                "indexURL": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/gencode.v49.primary_assembly.basic.annotation.gene_exon.sorted.gtf.gz.tbi"
-                            },
-                            {
-                                "name": "Gencode rmsk repeats",
-                                "format": "gtf",
-                                "url": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/GRCh38_GENCODE_rmsk_TE.sorted.gtf.gz",
-                                "indexURL": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/GRCh38_GENCODE_rmsk_TE.sorted.gtf.gz.tbi"
-                            }
-                        ]
-                    }
-                }
-            }
-        },
-        "regionplot": {
-            "enabled": false,
-            "regions": null,
-            "sample_group_dict": {},
-            "sample_order": [],
-            "plot_height_per_track": 1.5,
-            "plot_width": 12,
-            "formats": [
-                "png",
-                "svg"
-            ],
-            "gtf_track": true
+        "smallrna": {
+          "sjdbOverhang": 100
         }
+      },
+      "pass1": {
+        "alignEndsType": "Local",
+        "outFilterMultimapNmax": 1000,
+        "alignIntronMin": 9999999,
+        "outFilterMultimapScoreRange": 1,
+        "outFilterMismatchNoverLmax": 0.2
+      },
+      "pass2": {
+        "outFilterMultimapNmax": 1000,
+        "outFilterMultimapScoreRange": 0,
+        "outFilterMismatchNoverLmax": 0.2,
+        "outFilterMismatchNoverReadLmax": 0.05,
+        "clip5pNbases": "20 0",
+        "clip3pNbases": "0 20",
+        "alignIntronMin": 9999999,
+        "alignMatesGapMax": 500,
+        "alignEndsType": "EndToEnd",
+        "outReadsUnmapped": "Fastx"
+      },
+      "pass3": {
+        "outFilterMultimapNmax": 1000,
+        "outFilterMultimapScoreRange": 0,
+        "outFilterMismatchNoverLmax": 0.025,
+        "alignIntronMin": 9999999,
+        "alignMatesGapMax": 500,
+        "alignEndsType": "Local"
+      }
     },
-    "genome": {
+    "star_3pass_gene": {
+      "ambiguous": "exclude",
+      "flank": 50,
+      "index": {
+        "genomeSAindexNbases": 3
+      },
+      "passes": {
+        "pass1": {
+          "alignEndsType": "Local",
+          "outFilterMultimapNmax": 1000,
+          "outFilterMultimapScoreRange": 1,
+          "outFilterMismatchNoverLmax": 0.2,
+          "alignIntronMin": 9999999
+        },
+        "pass2": {
+          "alignEndsType": "EndToEnd",
+          "outFilterMultimapNmax": 1000,
+          "outFilterMultimapScoreRange": 0,
+          "outFilterMismatchNoverLmax": 0.2,
+          "outFilterMismatchNoverReadLmax": 0.05,
+          "clip5pNbases": "0 0",
+          "clip3pNbases": "0 0",
+          "alignIntronMin": 9999999,
+          "alignMatesGapMax": 500
+        },
+        "pass3": {
+          "alignEndsType": "Local",
+          "outFilterMultimapNmax": 1000,
+          "outFilterMultimapScoreRange": 0,
+          "outFilterMismatchNoverLmax": 0.025,
+          "alignIntronMin": 9999999,
+          "alignMatesGapMax": 500
+        }
+      }
+    },
+    "tailer": {
+      "read": 2,
+      "threshold": 50,
+      "rev_comp": false
+    },
+    "ncRNAseq": {
+      "subsample": false,
+      "abund_small_rnas": [
+        "U1",
+        "U2",
+        "U3",
+        "7SL",
+        "7SK"
+      ],
+      "subsample_n": 100000,
+      "smallrna_flank": 50,
+      "smallrna_types": [
+        "snRNA",
+        "misc_RNA",
+        "rRNA",
+        "rRNA_pseudogene",
+        "snoRNA",
+        "scaRNA",
+        "ribozyme",
+        "TERC"
+      ],
+      "seed": 42
+    },
+    "track": {
+      "igv": {
         "default": "GRCh38",
-        "references": {
-            "GRCh38": {
-                "fasta": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa",
-                "gtf": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/gencode.v49.primary_assembly.basic.annotation.gtf",
-                "hisat2_index_prefix": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/hisat2/GRCh38",
-                "star_index_dir": null,
-                "smallrna_fasta": null,
-                "smallrna_bed": null,
-                "smallrna_star_index_dir": null
+        "configs": {
+          "GRCm39": {
+            "js": "/home/luosg/Database/SoftWare/igv.min.js",
+            "id": "mm39",
+            "name": "Mouse (GRCm39/mm39)",
+            "publicPathMap": {
+              "/home/luosg/Data/genomeStability/": "/data/",
+              "/home/luosg/Database/Reference/": "/ref/"
             },
-            "GRCm39": {
-                "fasta": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
-                "gtf": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf",
-                "hisat2_index_prefix": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/hisat2/genome",
-                "star_index_dir": null,
-                "smallrna_fasta": null,
-                "smallrna_bed": null,
-                "smallrna_star_index_dir": null
-            }
+            "fastaURL": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
+            "indexURL": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa.fai",
+            "cytobandURL": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/mm39.cytoBand.txt",
+            "tracks": [
+              {
+                "name": "Gencode vM38 genes",
+                "format": "gtf",
+                "url": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gene_exon.sorted.gtf.gz",
+                "indexURL": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gene_exon.sorted.gtf.gz.tbi"
+              },
+              {
+                "name": "Gencode rmsk repeats",
+                "format": "gtf",
+                "url": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.sorted.gtf.gz",
+                "indexURL": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.sorted.gtf.gz.tbi"
+              }
+            ]
+          },
+          "GRCh38": {
+            "js": "/home/luosg/Database/SoftWare/igv.min.js",
+            "id": "hg38",
+            "name": "Human (GRCh38/hg38)",
+            "publicPathMap": {
+              "/home/luosg/Data/genomeStability/": "/data/",
+              "/home/luosg/Database/Reference/": "/ref/"
+            },
+            "fastaURL": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa",
+            "indexURL": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa.fai",
+            "cytobandURL": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/hg38.cytoBand.txt",
+            "tracks": [
+              {
+                "name": "Gencode vM38 genes",
+                "format": "gtf",
+                "url": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/gencode.v49.primary_assembly.basic.annotation.gene_exon.sorted.gtf.gz",
+                "indexURL": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/gencode.v49.primary_assembly.basic.annotation.gene_exon.sorted.gtf.gz.tbi"
+              },
+              {
+                "name": "Gencode rmsk repeats",
+                "format": "gtf",
+                "url": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/GRCh38_GENCODE_rmsk_TE.sorted.gtf.gz",
+                "indexURL": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/GRCh38_GENCODE_rmsk_TE.sorted.gtf.gz.tbi"
+              }
+            ]
+          }
         }
+      }
+    },
+    "regionplot": {
+      "enabled": false,
+      "regions": null,
+      "sample_group_dict": {},
+      "sample_order": [],
+      "plot_height_per_track": 1.5,
+      "plot_width": 12,
+      "formats": [
+        "png",
+        "svg"
+      ],
+      "gtf_track": true
+    },
+    "sexcheck": {
+      "ratio_xy_threshold": null,
+      "y_min_frac": null
     }
+  },
+  "genome": {
+    "default": "GRCh38",
+    "references": {
+      "GRCh38": {
+        "fasta": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa",
+        "gtf": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/gencode.v49.primary_assembly.basic.annotation.gtf",
+        "hisat2_index_prefix": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/hisat2/GRCh38",
+        "star_index_dir": null,
+        "smallrna_fasta": null,
+        "smallrna_bed": null,
+        "smallrna_star_index_dir": null
+      },
+      "GRCm39": {
+        "fasta": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
+        "gtf": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf",
+        "hisat2_index_prefix": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/hisat2/genome",
+        "star_index_dir": null,
+        "smallrna_fasta": null,
+        "smallrna_bed": null,
+        "smallrna_star_index_dir": null
+      }
+    }
+  }
 }

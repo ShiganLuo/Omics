@@ -1,0 +1,12 @@
+{
+  "outdir": "output/QC/sexcheck",
+  "logdir": "logs",
+  "samples": [],
+  "sample_bams": {},
+  "Params": {
+    "sexcheck": {
+      "ratio_xy_threshold": null,
+      "y_min_frac": null
+    }
+  }
+}

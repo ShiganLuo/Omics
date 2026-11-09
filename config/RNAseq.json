@@ -194,7 +194,8 @@
     "featureCounts": "/data/16T/Database/env/featureCounts/featureCounts.sif",
     "DESeq2_TElocal_manhattan": "/data/16T/Database/env/fiberseq/fiberseq.sif",
     "DESeq2_TElocal_locus_boxplot": "/data/16T/Database/env/fiberseq/fiberseq.sif",
-    "DESeq2_TElocal_subfamily_bar": "/data/16T/Database/env/fiberseq/fiberseq.sif"
+    "DESeq2_TElocal_subfamily_bar": "/data/16T/Database/env/fiberseq/fiberseq.sif",
+    "sexcheck": "/data/16T/Database/env/fragment_size/fragment_size.sif"
   },
   "Procedure": {
     "TEcount": null,
@@ -446,6 +447,10 @@
       "genome": "GRCm39",
       "date": "2026-07-27",
       "lang": "zh"
+    },
+    "sexcheck": {
+      "ratio_xy_threshold": null,
+      "y_min_frac": null
     }
   }
 }

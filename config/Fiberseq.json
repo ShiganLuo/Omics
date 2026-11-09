@@ -1,841 +1,846 @@
 {
-    "ROOT_DIR": null,
-    "tmp_dir": null,
-    "outfiles": [],
-    "env": {
-        "env_dir": "/home/luosg/Database/env",
-        "fibertools": "/home/luosg/Database/env/fibertools/fibertools.sif",
-        "pbmm2": "/home/luosg/Database/env/pbmm2/pbmm2.sif",
-        "fiberseq": "/home/luosg/Database/env/fiberseq/fiberseq.sif",
-        "function": "/home/luosg/Database/env/function/function.sif",
-        "ldsc": "/home/luosg/Database/env/ldsc/ldsc.sif",
-        "deepvariant": "/home/luosg/Database/env/deepvariant/deepvariant.sif",
-        "pbsv": "/home/luosg/Database/env/pbsv/pbsv.sif",
-        "sv": "/home/luosg/Database/env/sv/sv.sif",
-        "hiphase": "/home/luosg/Database/env/hiphase/hiphase.sif",
-        "genome": "/home/luosg/Database/env/genome/genome.sif",
-        "deeptools": "/data/16T/Database/env/deeptools/deeptools.sif",
-        "decoil": "/data/16T/Database/env/decoil/decoil.sif",
-        "samtools": "/data/16T/Database/env/samtools/samtools.sif",
-        "tabix": "/data/16T/Database/env/tabix/tabix.sif",
-        "regionplot": "/data/16T/Database/env/regionplot/regionplot.sif"
+  "ROOT_DIR": null,
+  "tmp_dir": null,
+  "outfiles": [],
+  "env": {
+    "env_dir": "/home/luosg/Database/env",
+    "fibertools": "/home/luosg/Database/env/fibertools/fibertools.sif",
+    "pbmm2": "/home/luosg/Database/env/pbmm2/pbmm2.sif",
+    "fiberseq": "/home/luosg/Database/env/fiberseq/fiberseq.sif",
+    "function": "/home/luosg/Database/env/function/function.sif",
+    "ldsc": "/home/luosg/Database/env/ldsc/ldsc.sif",
+    "deepvariant": "/home/luosg/Database/env/deepvariant/deepvariant.sif",
+    "pbsv": "/home/luosg/Database/env/pbsv/pbsv.sif",
+    "sv": "/home/luosg/Database/env/sv/sv.sif",
+    "hiphase": "/home/luosg/Database/env/hiphase/hiphase.sif",
+    "genome": "/home/luosg/Database/env/genome/genome.sif",
+    "deeptools": "/data/16T/Database/env/deeptools/deeptools.sif",
+    "decoil": "/data/16T/Database/env/decoil/decoil.sif",
+    "samtools": "/data/16T/Database/env/samtools/samtools.sif",
+    "tabix": "/data/16T/Database/env/tabix/tabix.sif",
+    "regionplot": "/data/16T/Database/env/regionplot/regionplot.sif",
+    "sexcheck": "/data/16T/Database/env/fragment_size/fragment_size.sif"
+  },
+  "resources": {
+    "default": {
+      "threads": 2,
+      "mem_mb": 8000
     },
-    "resources": {
-        "default": {
-            "threads": 2,
-            "mem_mb": 8000
-        },
-        "bamCoverage": {
-            "threads": 8,
-            "mem_mb": 16000
-        },
-        "decoil_compare": {
-            "threads": 2,
-            "mem_mb": 8000
-        },
-        "decoil_igv": {
-            "threads": 1,
-            "mem_mb": 4000
-        },
-        "decoil_plot": {
-            "threads": 4,
-            "mem_mb": 8000
-        },
-        "decoil_reconstruct": {
-            "threads": 16,
-            "mem_mb": 32000
-        },
-        "decoil_result": {
-            "mem_mb": 8000
-        },
-        "decoil_structure": {
-            "threads": 4,
-            "mem_mb": 12000
-        },
-        "decoil_ucsc": {
-            "threads": 1,
-            "mem_mb": 4000
-        },
-        "deepvariant_run": {
-            "threads": 8,
-            "mem_mb": 32000
-        },
-        "fiberseq_annotate": {
-            "threads": 4,
-            "mem_mb": 8000
-        },
-        "fiberseq_censat": {
-            "threads": 4,
-            "mem_mb": 8000
-        },
-        "fiberseq_coactuation": {
-            "threads": 4,
-            "mem_mb": 8000
-        },
-        "fiberseq_diff_run": {
-            "threads": 4,
-            "mem_mb": 8000
-        },
-        "fiberseq_footprint": {
-            "threads": 4,
-            "mem_mb": 8000
-        },
-        "fiberseq_haplotype_diff": {
-            "threads": 4,
-            "mem_mb": 8000
-        },
-        "fiberseq_motif": {
-            "threads": 4,
-            "mem_mb": 8000
-        },
-        "fiberseq_nucpos": {
-            "threads": 4,
-            "mem_mb": 6000
-        },
-        "fiberseq_quant": {
-            "threads": 4,
-            "mem_mb": 12000
-        },
-        "fiberseq_quant_hap": {
-            "threads": 1,
-            "mem_mb": 8000
-        },
-        "fiberseq_quant_merge": {
-            "threads": 1,
-            "mem_mb": 8000
-        },
-        "fiberseq_track": {
-            "threads": 4,
-            "mem_mb": 65000
-        },
-        "ft_add_nucleosomes": {
-            "threads": 16,
-            "mem_mb": 8000
-        },
-        "ft_call_peaks": {
-            "mem_mb": 8000,
-            "threads": 8
-        },
-        "ft_extract": {
-            "mem_mb": 8000,
-            "threads": 8
-        },
-        "ft_extract_fire": {
-            "mem_mb": 8000,
-            "threads": 8
-        },
-        "ft_extract_hap": {
-            "mem_mb": 8000,
-            "threads": 8
-        },
-        "ft_fire": {
-            "threads": 8,
-            "mem_mb": 8000
-        },
-        "ft_predict_m6a": {
-            "threads": 16,
-            "mem_mb": 32000
-        },
-        "ft_qc": {
-            "mem_mb": 8000,
-            "threads": 8
-        },
-        "ft_split_hap": {
-            "mem_mb": 8000,
-            "threads": 4
-        },
-        "function_go_kegg": {
-            "threads": 1,
-            "mem_mb": 8000
-        },
-        "function_gsea": {
-            "threads": 1,
-            "mem_mb": 8000
-        },
-        "genome_index": {
-            "threads": 1,
-            "mem_mb": 8000
-        },
-        "hiphase_phase": {
-            "threads": 8,
-            "mem_mb": 16000
-        },
-        "ldsc_annot": {
-            "threads": 1,
-            "mem_mb": 8000
-        },
-        "ldsc_h2_cts": {
-            "threads": 1,
-            "mem_mb": 8000
-        },
-        "ldsc_munge": {
-            "threads": 1,
-            "mem_mb": 8000
-        },
-        "pbmm2_align": {
-            "threads": 16,
-            "mem_mb": 32000
-        },
-        "pbsv_call": {
-            "threads": 8,
-            "mem_mb": 16000
-        },
-        "pbsv_discover": {
-            "threads": 4,
-            "mem_mb": 16000
-        },
-        "sv_diff_analysis": {
-            "mem_mb": 8000
-        },
-        "sv_exp_circos": {
-            "mem_mb": 8000
-        },
-        "sv_exp_enrichment": {
-            "mem_mb": 8000
-        },
-        "sv_exp_specific": {
-            "mem_mb": 8000
-        },
-        "sv_gene_model": {
-            "mem_mb": 8000
-        },
-        "sv_oncoprint": {
-            "mem_mb": 8000
-        },
-        "sv_result": {
-            "mem_mb": 8000
-        },
-        "sv_mei": {
-            "threads": 4,
-            "mem_mb": 16000
-        }
+    "bamCoverage": {
+      "threads": 8,
+      "mem_mb": 16000
     },
-    "Procedure": {
-        "fibertools": null,
-        "pbmm2": null,
-        "samtools": null,
-        "deepvariant": null,
-        "pbsv": null,
-        "hiphase": null,
-        "ldsc": null,
-        "munge_sumstats": null,
-        "make_annot": null
+    "decoil_compare": {
+      "threads": 2,
+      "mem_mb": 8000
     },
-    "Params": {
-        "workflow": {
-            "indir": "input",
-            "outdir": "output",
-            "logdir": "logs",
-            "samples": [],
-            "raw_files": []
-        },
-        "fibertools": {
-            "add_nucleosomes_manual": null,
-            "ont": false,
-            "call_peaks_mode": "fdr",
-            "max_fdr": 0.05,
-            "min_fire_frac": 0.1,
-            "sd_cov": 5.0,
-            "haps": false,
-            "acf": false
-        },
-        "pbmm2": {},
-        "annotate": {
-            "enabled": true,
-            "tss_flank": 1000,
-            "repeat_frac": 0.25
-        },
-        "motif": {
-            "enabled": false,
-            "flank": 250,
-            "min_fibers": 10,
-            "pwm_threshold": 0.8
-        },
-        "footprint": {
-            "enabled": false,
-            "flank": 1000
-        },
-        "nucpos": {
-            "enabled": true,
-            "upstream_nucs": 5,
-            "downstream_nucs": 5,
-            "min_fibers": 10
-        },
-        "track": {
-            "enabled": true,
-            "bin": 10
-        },
-        "quant": {
-            "enabled": true,
-            "min_fibers": 10
-        },
-        "diff": {
-            "enabled": false,
-            "alpha": 0.05,
-            "design_tsv": null,
-            "annot_sample": null
-        },
-        "coactuation": {
-            "enabled": true,
-            "max_distance": 50000,
-            "min_fibers": 10,
-            "max_pairs": 200000,
-            "alpha": 0.05
-        },
-        "pbsv": {
-            "enabled": true,
-            "min_sv_len": 50,
-            "max_sv_len": 1000000,
-            "min_fibers": 10
-        },
-        "haplotype": {
-            "enabled": true,
-            "min_fibers": 10,
-            "alpha": 0.05
-        },
-        "sv": {
-            "enabled": true,
-            "comparisons": {},
-            "image_formats": [
-                "png"
-            ],
-            "genes": [],
-            "exp_specific": {
-                "vep_cache": "/data/16T/Database/.vep",
-                "species": "T2T_mhaESC_v1.5",
-                "assembly": "T2T_mhaESC_v1.5",
-                "dist": 500
-            },
-            "circos": {
-                "genome": "rheMac10",
-                "cytoband": "",
-                "ins_bin_size": 100000
-            },
-            "oncoprint": {
-                "cosmic_file": "",
-                "deseq2_files": {}
-            },
-            "diff_analysis": {
-                "large_sv_threshold": 10000
-            },
-            "gene_model": {
-                "threads": 1
-            },
-            "mei": {
-                "enabled": true,
-                "min_len": 100,
-                "full_length": 6000,
-                "full_length_family": "L1",
-                "dfam_h5": "/data/16T/Database/Reference/famdb/dfam39_full.7.h5",
-                "dfam_mode": "export",
-                "force_rerun": false,
-                "te_buckets": {
-                    "GRCh38": [
-                        {
-                            "name": "Alu",
-                            "family": [
-                                "Alu"
-                            ],
-                            "retro_fingerprint": true
-                        },
-                        {
-                            "name": "L1",
-                            "family": [
-                                "L1"
-                            ],
-                            "retro_fingerprint": true
-                        },
-                        {
-                            "name": "SVA",
-                            "family": [
-                                "SVA"
-                            ],
-                            "retro_fingerprint": true
-                        },
-                        {
-                            "name": "LTR",
-                            "class": [
-                                "LTR"
-                            ]
-                        },
-                        {
-                            "name": "DNA",
-                            "class": [
-                                "DNA"
-                            ]
-                        },
-                        {
-                            "name": "simple_repeat",
-                            "class": [
-                                "Simple_repeat"
-                            ]
-                        },
-                        {
-                            "name": "other",
-                            "catch_all": "classified"
-                        },
-                        {
-                            "name": "unclassified",
-                            "catch_all": "unclassified"
-                        }
-                    ],
-                    "GRCm39": [
-                        {
-                            "name": "MERVL",
-                            "subfamily": [
-                                "MT2_Mm",
-                                "MERVL-int",
-                                "MERVL"
-                            ],
-                            "retro_fingerprint": true
-                        },
-                        {
-                            "name": "MERVL-2A/MT2-other",
-                            "subfamily": [
-                                "MERVL_2A",
-                                "MERVL_2A-int",
-                                "MT2A",
-                                "MT2B",
-                                "MT2B1",
-                                "MT2B2",
-                                "MT2C_Mm",
-                                "MT2C",
-                                "MT2"
-                            ]
-                        },
-                        {
-                            "name": "ERVK",
-                            "family": [
-                                "ERVK"
-                            ],
-                            "retro_fingerprint": true
-                        },
-                        {
-                            "name": "Alu",
-                            "family": [
-                                "Alu"
-                            ],
-                            "retro_fingerprint": true
-                        },
-                        {
-                            "name": "B2/B4/ID",
-                            "family": [
-                                "B2",
-                                "B4",
-                                "ID"
-                            ],
-                            "retro_fingerprint": true
-                        },
-                        {
-                            "name": "L1",
-                            "family": [
-                                "L1"
-                            ],
-                            "retro_fingerprint": true
-                        },
-                        {
-                            "name": "LTR",
-                            "class": [
-                                "LTR"
-                            ]
-                        },
-                        {
-                            "name": "DNA",
-                            "class": [
-                                "DNA"
-                            ]
-                        },
-                        {
-                            "name": "simple_repeat",
-                            "class": [
-                                "Simple_repeat"
-                            ]
-                        },
-                        {
-                            "name": "satellite",
-                            "class": [
-                                "Satellite"
-                            ]
-                        },
-                        {
-                            "name": "other",
-                            "catch_all": "classified"
-                        },
-                        {
-                            "name": "unclassified",
-                            "catch_all": "unclassified"
-                        }
-                    ],
-                    "T2T_mhaESC_v1.5": [
-                        {
-                            "name": "MERVL",
-                            "subfamily": [
-                                "MT2_Mm",
-                                "MERVL-int",
-                                "MERVL"
-                            ],
-                            "retro_fingerprint": true
-                        },
-                        {
-                            "name": "MERVL-2A/MT2-other",
-                            "subfamily": [
-                                "MERVL_2A",
-                                "MERVL_2A-int",
-                                "MT2A",
-                                "MT2B",
-                                "MT2B1",
-                                "MT2B2",
-                                "MT2C_Mm",
-                                "MT2C",
-                                "MT2"
-                            ]
-                        },
-                        {
-                            "name": "ERVK",
-                            "family": [
-                                "ERVK"
-                            ],
-                            "retro_fingerprint": true
-                        },
-                        {
-                            "name": "Alu",
-                            "family": [
-                                "Alu"
-                            ],
-                            "retro_fingerprint": true
-                        },
-                        {
-                            "name": "B2/B4/ID",
-                            "family": [
-                                "B2",
-                                "B4",
-                                "ID"
-                            ],
-                            "retro_fingerprint": true
-                        },
-                        {
-                            "name": "L1",
-                            "family": [
-                                "L1"
-                            ],
-                            "retro_fingerprint": true
-                        },
-                        {
-                            "name": "LTR",
-                            "class": [
-                                "LTR"
-                            ]
-                        },
-                        {
-                            "name": "DNA",
-                            "class": [
-                                "DNA"
-                            ]
-                        },
-                        {
-                            "name": "simple_repeat",
-                            "class": [
-                                "Simple_repeat"
-                            ]
-                        },
-                        {
-                            "name": "satellite",
-                            "class": [
-                                "Satellite"
-                            ]
-                        },
-                        {
-                            "name": "other",
-                            "catch_all": "classified"
-                        },
-                        {
-                            "name": "unclassified",
-                            "catch_all": "unclassified"
-                        }
-                    ],
-                    "Mmul_10": [
-                        {
-                            "name": "ERVK",
-                            "family": [
-                                "ERVK"
-                            ],
-                            "retro_fingerprint": true
-                        },
-                        {
-                            "name": "ERVL-MaLR",
-                            "family": [
-                                "ERVL-MaLR"
-                            ]
-                        },
-                        {
-                            "name": "Alu",
-                            "family": [
-                                "Alu"
-                            ],
-                            "retro_fingerprint": true
-                        },
-                        {
-                            "name": "L1",
-                            "family": [
-                                "L1"
-                            ],
-                            "retro_fingerprint": true
-                        },
-                        {
-                            "name": "SVA",
-                            "family": [
-                                "SVA"
-                            ],
-                            "retro_fingerprint": true
-                        },
-                        {
-                            "name": "LTR",
-                            "class": [
-                                "LTR"
-                            ]
-                        },
-                        {
-                            "name": "DNA",
-                            "class": [
-                                "DNA"
-                            ]
-                        },
-                        {
-                            "name": "simple_repeat",
-                            "class": [
-                                "Simple_repeat"
-                            ]
-                        },
-                        {
-                            "name": "other",
-                            "catch_all": "classified"
-                        },
-                        {
-                            "name": "unclassified",
-                            "catch_all": "unclassified"
-                        }
-                    ],
-                    "Mmul_T2T": [
-                        {
-                            "name": "ERVK",
-                            "family": [
-                                "ERVK"
-                            ],
-                            "retro_fingerprint": true
-                        },
-                        {
-                            "name": "ERVL-MaLR",
-                            "family": [
-                                "ERVL-MaLR"
-                            ]
-                        },
-                        {
-                            "name": "Alu",
-                            "family": [
-                                "Alu"
-                            ],
-                            "retro_fingerprint": true
-                        },
-                        {
-                            "name": "L1",
-                            "family": [
-                                "L1"
-                            ],
-                            "retro_fingerprint": true
-                        },
-                        {
-                            "name": "SVA",
-                            "family": [
-                                "SVA"
-                            ],
-                            "retro_fingerprint": true
-                        },
-                        {
-                            "name": "LTR",
-                            "class": [
-                                "LTR"
-                            ]
-                        },
-                        {
-                            "name": "DNA",
-                            "class": [
-                                "DNA"
-                            ]
-                        },
-                        {
-                            "name": "simple_repeat",
-                            "class": [
-                                "Simple_repeat"
-                            ]
-                        },
-                        {
-                            "name": "other",
-                            "catch_all": "classified"
-                        },
-                        {
-                            "name": "unclassified",
-                            "catch_all": "unclassified"
-                        }
-                    ]
-                }
-            }
-        },
-        "censat": {
-            "enabled": false,
-            "msp_min_len": 50,
-            "flank": 10000,
-            "bin": 500
-        },
-        "function": {
-            "enabled": false,
-            "species": "human",
-            "gmt": null,
-            "lfc_cut": 1.0,
-            "p_cut": 0.05,
-            "top": 10,
-            "group_pairs": {},
-            "sv_go_kegg": {
-                "enabled": true,
-                "species": null,
-                "impact": "HIGH,MODERATE,LOW",
-                "top": 10,
-                "format": "png"
-            }
-        },
-        "ldsc": {
-            "enabled": false,
-            "annot_bed": null,
-            "annot_prefix": "peaks",
-            "annot_cluster_from_name": false,
-            "gwas": {},
-            "merge_alleles": null,
-            "ref_ld_chr": null,
-            "w_ld_chr": null,
-            "munge_args": ""
-        },
-        "deepvariant": {},
-        "bamCoverage": {
-            "bin_size": 50,
-            "normalizeUsing": "CPM"
-        },
-        "decoil": {
-            "enabled": true,
-            "reconstruct": {
-                "sv_caller": "sniffles1",
-                "min_sv_len": 500,
-                "fragment_min_cov": 5,
-                "fragment_max_cov": 100000,
-                "fragment_min_size": 500,
-                "min_vaf": 0.01,
-                "min_cov_alt": 6,
-                "min_cov": 8,
-                "max_explog_threshold": 0.1,
-                "filter_score": 5,
-                "extend_allowed_chromosomes": "",
-                "skip": false
-            },
-            "structure": {
-                "formats": [
-                    "png"
-                ],
-                "max_per_fig": 12,
-                "one_file_per_cycle": true
-            },
-            "plot": {
-                "formats": [
-                    "png"
-                ]
-            },
-            "compare": {
-                "formats": [
-                    "png"
-                ]
-            },
-            "igv": {
-                "locus": ""
-            }
-        },
-        "regionplot": {
-            "enabled": false,
-            "regions": null,
-            "sample_group_dict": {},
-            "sample_order": [],
-            "plot_height_per_track": 1.5,
-            "plot_width": 12,
-            "formats": [
-                "png",
-                "svg"
-            ],
-            "gtf_track": true
-        }
+    "decoil_igv": {
+      "threads": 1,
+      "mem_mb": 4000
     },
-    "genome": {
-        "default": "Mmul_10",
-        "references": {
-            "Mmul_10": {
-                "fasta": "/data/16T/Database/Reference/mulatta/ENSEMBL/Mmul_10/Macaca_mulatta.Mmul_10.dna.toplevel.fa",
-                "fai": null,
-                "pbmm2_index": null,
-                "gtf": "/data/16T/Database/Reference/mulatta/ENSEMBL/Mmul_10/Macaca_mulatta.Mmul_10.116.gtf",
-                "repeat_bed": null,
-                "censat_bed": null,
-                "motif_file": null,
-                "mcpg_pileup": null,
-                "geneIDAnno": null,
-                "te_lib": "/data/16T/Database/Reference/famdb/rhesus_te_lib.fa"
-            },
-            "Mmul_T2T": {
-                "fasta": "/data/16T/Database/Reference/mulatta/NCBI/Mmul_T2T/GCF_049350105.2_T2T-MMU8v2.0_genomic.fa",
-                "fai": "/data/16T/Database/Reference/mulatta/NCBI/Mmul_T2T/GCF_049350105.2_T2T-MMU8v2.0_genomic.fa.fai",
-                "pbmm2_index": null,
-                "gtf": "/data/16T/Database/Reference/mulatta/NCBI/Mmul_T2T/GCF_049350105.2_T2T-MMU8v2.0_genomic.gtf",
-                "repeat_bed": "/data/16T/Database/Reference/mulatta/NCBI/Mmul_T2T/rheMac10_rmsk_TE.lifted.bed",
-                "custom_gtf": "/data/16T/Database/Reference/mulatta/NCBI/Mmul_T2T/GCF_049350105.2_T2T-MMU8v2.0_genomic.sorted.gtf.gz",
-                "custom_fasta": "/data/16T/Database/Reference/mulatta/NCBI/Mmul_T2T/GCF_049350105.2_T2T-MMU8v2.0_genomic.fa",
-                "censat_bed": null,
-                "motif_file": null,
-                "mcpg_pileup": null,
-                "geneIDAnno": null,
-                "te_lib": "/data/16T/Database/Reference/famdb/rhesus_te_lib.fa"
-            },
-            "GRCm39": {
-                "fasta": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
-                "fai": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa.fai",
-                "pbmm2_index": null,
-                "gtf": null,
-                "repeat_bed": null,
-                "censat_bed": null,
-                "motif_file": null,
-                "mcpg_pileup": null,
-                "geneIDAnno": null,
-                "te_lib": "/data/16T/Database/Reference/famdb/mouse_te_lib.fa"
-            },
-            "T2T_mhaESC_v1.5": {
-                "fasta": "/data/16T/Database/Reference/mouse/NCBI/T2T_mhaESC_v1.5/GCA_056825265.1_T2T_mhaESC_v1.5_genomic.fa",
-                "fai": "/data/16T/Database/Reference/mouse/NCBI/T2T_mhaESC_v1.5/GCA_056825265.1_T2T_mhaESC_v1.5_genomic.fa.fai",
-                "pbmm2_index": "/data/16T/Database/Reference/mouse/NCBI/T2T_mhaESC_v1.5/GCA_056825265.1_T2T_mhaESC_v1.5_genomic.fa.mmi",
-                "gtf": "/data/16T/Database/Reference/mouse/NCBI/T2T_mhaESC_v1.5/GCA_056825265.1_T2T_mhaESC_v1.5_vM38_liftoff.gtf",
-                "repeat_bed": "/data/16T/Database/Reference/mouse/NCBI/T2T_mhaESC_v1.5/GRCm39_GENCODE_rmsk_TE.lifted.bed",
-                "censat_bed": null,
-                "motif_file": "/data/16T/Database/Reference/motif/JASPAR2026_CORE_vertebrates_non-redundant.meme",
-                "custom_gtf": "/data/16T/Database/Reference/mouse/NCBI/T2T_mhaESC_v1.5/GCA_056825265.1_T2T_mhaESC_v1.5_vM38_liftoff.sorted.gtf.gz",
-                "custom_fasta": "/data/16T/Database/Reference/mouse/NCBI/T2T_mhaESC_v1.5/GCA_056825265.1_T2T_mhaESC_v1.5_genomic.fa",
-                "mcpg_pileup": null,
-                "geneIDAnno": null,
-                "te_lib": "/data/16T/Database/Reference/famdb/mouse_te_lib.fa"
-            },
-            "GRCh38": {
-                "fasta": "/data/16T/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa",
-                "fai": "/data/16T/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa.fai",
-                "pbmm2_index": null,
-                "gtf": null,
-                "repeat_bed": null,
-                "censat_bed": null,
-                "motif_file": null,
-                "mcpg_pileup": null,
-                "geneIDAnno": null,
-                "te_lib": "/data/16T/Database/Reference/famdb/human_te_lib.fa"
-            }
-        }
+    "decoil_plot": {
+      "threads": 4,
+      "mem_mb": 8000
+    },
+    "decoil_reconstruct": {
+      "threads": 16,
+      "mem_mb": 32000
+    },
+    "decoil_result": {
+      "mem_mb": 8000
+    },
+    "decoil_structure": {
+      "threads": 4,
+      "mem_mb": 12000
+    },
+    "decoil_ucsc": {
+      "threads": 1,
+      "mem_mb": 4000
+    },
+    "deepvariant_run": {
+      "threads": 8,
+      "mem_mb": 32000
+    },
+    "fiberseq_annotate": {
+      "threads": 4,
+      "mem_mb": 8000
+    },
+    "fiberseq_censat": {
+      "threads": 4,
+      "mem_mb": 8000
+    },
+    "fiberseq_coactuation": {
+      "threads": 4,
+      "mem_mb": 8000
+    },
+    "fiberseq_diff_run": {
+      "threads": 4,
+      "mem_mb": 8000
+    },
+    "fiberseq_footprint": {
+      "threads": 4,
+      "mem_mb": 8000
+    },
+    "fiberseq_haplotype_diff": {
+      "threads": 4,
+      "mem_mb": 8000
+    },
+    "fiberseq_motif": {
+      "threads": 4,
+      "mem_mb": 8000
+    },
+    "fiberseq_nucpos": {
+      "threads": 4,
+      "mem_mb": 6000
+    },
+    "fiberseq_quant": {
+      "threads": 4,
+      "mem_mb": 12000
+    },
+    "fiberseq_quant_hap": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "fiberseq_quant_merge": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "fiberseq_track": {
+      "threads": 4,
+      "mem_mb": 65000
+    },
+    "ft_add_nucleosomes": {
+      "threads": 16,
+      "mem_mb": 8000
+    },
+    "ft_call_peaks": {
+      "mem_mb": 8000,
+      "threads": 8
+    },
+    "ft_extract": {
+      "mem_mb": 8000,
+      "threads": 8
+    },
+    "ft_extract_fire": {
+      "mem_mb": 8000,
+      "threads": 8
+    },
+    "ft_extract_hap": {
+      "mem_mb": 8000,
+      "threads": 8
+    },
+    "ft_fire": {
+      "threads": 8,
+      "mem_mb": 8000
+    },
+    "ft_predict_m6a": {
+      "threads": 16,
+      "mem_mb": 32000
+    },
+    "ft_qc": {
+      "mem_mb": 8000,
+      "threads": 8
+    },
+    "ft_split_hap": {
+      "mem_mb": 8000,
+      "threads": 4
+    },
+    "function_go_kegg": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "function_gsea": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "genome_index": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "hiphase_phase": {
+      "threads": 8,
+      "mem_mb": 16000
+    },
+    "ldsc_annot": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "ldsc_h2_cts": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "ldsc_munge": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "pbmm2_align": {
+      "threads": 16,
+      "mem_mb": 32000
+    },
+    "pbsv_call": {
+      "threads": 8,
+      "mem_mb": 16000
+    },
+    "pbsv_discover": {
+      "threads": 4,
+      "mem_mb": 16000
+    },
+    "sv_diff_analysis": {
+      "mem_mb": 8000
+    },
+    "sv_exp_circos": {
+      "mem_mb": 8000
+    },
+    "sv_exp_enrichment": {
+      "mem_mb": 8000
+    },
+    "sv_exp_specific": {
+      "mem_mb": 8000
+    },
+    "sv_gene_model": {
+      "mem_mb": 8000
+    },
+    "sv_oncoprint": {
+      "mem_mb": 8000
+    },
+    "sv_result": {
+      "mem_mb": 8000
+    },
+    "sv_mei": {
+      "threads": 4,
+      "mem_mb": 16000
     }
+  },
+  "Procedure": {
+    "fibertools": null,
+    "pbmm2": null,
+    "samtools": null,
+    "deepvariant": null,
+    "pbsv": null,
+    "hiphase": null,
+    "ldsc": null,
+    "munge_sumstats": null,
+    "make_annot": null
+  },
+  "Params": {
+    "workflow": {
+      "indir": "input",
+      "outdir": "output",
+      "logdir": "logs",
+      "samples": [],
+      "raw_files": []
+    },
+    "fibertools": {
+      "add_nucleosomes_manual": null,
+      "ont": false,
+      "call_peaks_mode": "fdr",
+      "max_fdr": 0.05,
+      "min_fire_frac": 0.1,
+      "sd_cov": 5.0,
+      "haps": false,
+      "acf": false
+    },
+    "pbmm2": {},
+    "annotate": {
+      "enabled": true,
+      "tss_flank": 1000,
+      "repeat_frac": 0.25
+    },
+    "motif": {
+      "enabled": false,
+      "flank": 250,
+      "min_fibers": 10,
+      "pwm_threshold": 0.8
+    },
+    "footprint": {
+      "enabled": false,
+      "flank": 1000
+    },
+    "nucpos": {
+      "enabled": true,
+      "upstream_nucs": 5,
+      "downstream_nucs": 5,
+      "min_fibers": 10
+    },
+    "track": {
+      "enabled": true,
+      "bin": 10
+    },
+    "quant": {
+      "enabled": true,
+      "min_fibers": 10
+    },
+    "diff": {
+      "enabled": false,
+      "alpha": 0.05,
+      "design_tsv": null,
+      "annot_sample": null
+    },
+    "coactuation": {
+      "enabled": true,
+      "max_distance": 50000,
+      "min_fibers": 10,
+      "max_pairs": 200000,
+      "alpha": 0.05
+    },
+    "pbsv": {
+      "enabled": true,
+      "min_sv_len": 50,
+      "max_sv_len": 1000000,
+      "min_fibers": 10
+    },
+    "haplotype": {
+      "enabled": true,
+      "min_fibers": 10,
+      "alpha": 0.05
+    },
+    "sv": {
+      "enabled": true,
+      "comparisons": {},
+      "image_formats": [
+        "png"
+      ],
+      "genes": [],
+      "exp_specific": {
+        "vep_cache": "/data/16T/Database/.vep",
+        "species": "T2T_mhaESC_v1.5",
+        "assembly": "T2T_mhaESC_v1.5",
+        "dist": 500
+      },
+      "circos": {
+        "genome": "rheMac10",
+        "cytoband": "",
+        "ins_bin_size": 100000
+      },
+      "oncoprint": {
+        "cosmic_file": "",
+        "deseq2_files": {}
+      },
+      "diff_analysis": {
+        "large_sv_threshold": 10000
+      },
+      "gene_model": {
+        "threads": 1
+      },
+      "mei": {
+        "enabled": true,
+        "min_len": 100,
+        "full_length": 6000,
+        "full_length_family": "L1",
+        "dfam_h5": "/data/16T/Database/Reference/famdb/dfam39_full.7.h5",
+        "dfam_mode": "export",
+        "force_rerun": false,
+        "te_buckets": {
+          "GRCh38": [
+            {
+              "name": "Alu",
+              "family": [
+                "Alu"
+              ],
+              "retro_fingerprint": true
+            },
+            {
+              "name": "L1",
+              "family": [
+                "L1"
+              ],
+              "retro_fingerprint": true
+            },
+            {
+              "name": "SVA",
+              "family": [
+                "SVA"
+              ],
+              "retro_fingerprint": true
+            },
+            {
+              "name": "LTR",
+              "class": [
+                "LTR"
+              ]
+            },
+            {
+              "name": "DNA",
+              "class": [
+                "DNA"
+              ]
+            },
+            {
+              "name": "simple_repeat",
+              "class": [
+                "Simple_repeat"
+              ]
+            },
+            {
+              "name": "other",
+              "catch_all": "classified"
+            },
+            {
+              "name": "unclassified",
+              "catch_all": "unclassified"
+            }
+          ],
+          "GRCm39": [
+            {
+              "name": "MERVL",
+              "subfamily": [
+                "MT2_Mm",
+                "MERVL-int",
+                "MERVL"
+              ],
+              "retro_fingerprint": true
+            },
+            {
+              "name": "MERVL-2A/MT2-other",
+              "subfamily": [
+                "MERVL_2A",
+                "MERVL_2A-int",
+                "MT2A",
+                "MT2B",
+                "MT2B1",
+                "MT2B2",
+                "MT2C_Mm",
+                "MT2C",
+                "MT2"
+              ]
+            },
+            {
+              "name": "ERVK",
+              "family": [
+                "ERVK"
+              ],
+              "retro_fingerprint": true
+            },
+            {
+              "name": "Alu",
+              "family": [
+                "Alu"
+              ],
+              "retro_fingerprint": true
+            },
+            {
+              "name": "B2/B4/ID",
+              "family": [
+                "B2",
+                "B4",
+                "ID"
+              ],
+              "retro_fingerprint": true
+            },
+            {
+              "name": "L1",
+              "family": [
+                "L1"
+              ],
+              "retro_fingerprint": true
+            },
+            {
+              "name": "LTR",
+              "class": [
+                "LTR"
+              ]
+            },
+            {
+              "name": "DNA",
+              "class": [
+                "DNA"
+              ]
+            },
+            {
+              "name": "simple_repeat",
+              "class": [
+                "Simple_repeat"
+              ]
+            },
+            {
+              "name": "satellite",
+              "class": [
+                "Satellite"
+              ]
+            },
+            {
+              "name": "other",
+              "catch_all": "classified"
+            },
+            {
+              "name": "unclassified",
+              "catch_all": "unclassified"
+            }
+          ],
+          "T2T_mhaESC_v1.5": [
+            {
+              "name": "MERVL",
+              "subfamily": [
+                "MT2_Mm",
+                "MERVL-int",
+                "MERVL"
+              ],
+              "retro_fingerprint": true
+            },
+            {
+              "name": "MERVL-2A/MT2-other",
+              "subfamily": [
+                "MERVL_2A",
+                "MERVL_2A-int",
+                "MT2A",
+                "MT2B",
+                "MT2B1",
+                "MT2B2",
+                "MT2C_Mm",
+                "MT2C",
+                "MT2"
+              ]
+            },
+            {
+              "name": "ERVK",
+              "family": [
+                "ERVK"
+              ],
+              "retro_fingerprint": true
+            },
+            {
+              "name": "Alu",
+              "family": [
+                "Alu"
+              ],
+              "retro_fingerprint": true
+            },
+            {
+              "name": "B2/B4/ID",
+              "family": [
+                "B2",
+                "B4",
+                "ID"
+              ],
+              "retro_fingerprint": true
+            },
+            {
+              "name": "L1",
+              "family": [
+                "L1"
+              ],
+              "retro_fingerprint": true
+            },
+            {
+              "name": "LTR",
+              "class": [
+                "LTR"
+              ]
+            },
+            {
+              "name": "DNA",
+              "class": [
+                "DNA"
+              ]
+            },
+            {
+              "name": "simple_repeat",
+              "class": [
+                "Simple_repeat"
+              ]
+            },
+            {
+              "name": "satellite",
+              "class": [
+                "Satellite"
+              ]
+            },
+            {
+              "name": "other",
+              "catch_all": "classified"
+            },
+            {
+              "name": "unclassified",
+              "catch_all": "unclassified"
+            }
+          ],
+          "Mmul_10": [
+            {
+              "name": "ERVK",
+              "family": [
+                "ERVK"
+              ],
+              "retro_fingerprint": true
+            },
+            {
+              "name": "ERVL-MaLR",
+              "family": [
+                "ERVL-MaLR"
+              ]
+            },
+            {
+              "name": "Alu",
+              "family": [
+                "Alu"
+              ],
+              "retro_fingerprint": true
+            },
+            {
+              "name": "L1",
+              "family": [
+                "L1"
+              ],
+              "retro_fingerprint": true
+            },
+            {
+              "name": "SVA",
+              "family": [
+                "SVA"
+              ],
+              "retro_fingerprint": true
+            },
+            {
+              "name": "LTR",
+              "class": [
+                "LTR"
+              ]
+            },
+            {
+              "name": "DNA",
+              "class": [
+                "DNA"
+              ]
+            },
+            {
+              "name": "simple_repeat",
+              "class": [
+                "Simple_repeat"
+              ]
+            },
+            {
+              "name": "other",
+              "catch_all": "classified"
+            },
+            {
+              "name": "unclassified",
+              "catch_all": "unclassified"
+            }
+          ],
+          "Mmul_T2T": [
+            {
+              "name": "ERVK",
+              "family": [
+                "ERVK"
+              ],
+              "retro_fingerprint": true
+            },
+            {
+              "name": "ERVL-MaLR",
+              "family": [
+                "ERVL-MaLR"
+              ]
+            },
+            {
+              "name": "Alu",
+              "family": [
+                "Alu"
+              ],
+              "retro_fingerprint": true
+            },
+            {
+              "name": "L1",
+              "family": [
+                "L1"
+              ],
+              "retro_fingerprint": true
+            },
+            {
+              "name": "SVA",
+              "family": [
+                "SVA"
+              ],
+              "retro_fingerprint": true
+            },
+            {
+              "name": "LTR",
+              "class": [
+                "LTR"
+              ]
+            },
+            {
+              "name": "DNA",
+              "class": [
+                "DNA"
+              ]
+            },
+            {
+              "name": "simple_repeat",
+              "class": [
+                "Simple_repeat"
+              ]
+            },
+            {
+              "name": "other",
+              "catch_all": "classified"
+            },
+            {
+              "name": "unclassified",
+              "catch_all": "unclassified"
+            }
+          ]
+        }
+      }
+    },
+    "censat": {
+      "enabled": false,
+      "msp_min_len": 50,
+      "flank": 10000,
+      "bin": 500
+    },
+    "function": {
+      "enabled": false,
+      "species": "human",
+      "gmt": null,
+      "lfc_cut": 1.0,
+      "p_cut": 0.05,
+      "top": 10,
+      "group_pairs": {},
+      "sv_go_kegg": {
+        "enabled": true,
+        "species": null,
+        "impact": "HIGH,MODERATE,LOW",
+        "top": 10,
+        "format": "png"
+      }
+    },
+    "ldsc": {
+      "enabled": false,
+      "annot_bed": null,
+      "annot_prefix": "peaks",
+      "annot_cluster_from_name": false,
+      "gwas": {},
+      "merge_alleles": null,
+      "ref_ld_chr": null,
+      "w_ld_chr": null,
+      "munge_args": ""
+    },
+    "deepvariant": {},
+    "bamCoverage": {
+      "bin_size": 50,
+      "normalizeUsing": "CPM"
+    },
+    "decoil": {
+      "enabled": true,
+      "reconstruct": {
+        "sv_caller": "sniffles1",
+        "min_sv_len": 500,
+        "fragment_min_cov": 5,
+        "fragment_max_cov": 100000,
+        "fragment_min_size": 500,
+        "min_vaf": 0.01,
+        "min_cov_alt": 6,
+        "min_cov": 8,
+        "max_explog_threshold": 0.1,
+        "filter_score": 5,
+        "extend_allowed_chromosomes": "",
+        "skip": false
+      },
+      "structure": {
+        "formats": [
+          "png"
+        ],
+        "max_per_fig": 12,
+        "one_file_per_cycle": true
+      },
+      "plot": {
+        "formats": [
+          "png"
+        ]
+      },
+      "compare": {
+        "formats": [
+          "png"
+        ]
+      },
+      "igv": {
+        "locus": ""
+      }
+    },
+    "regionplot": {
+      "enabled": false,
+      "regions": null,
+      "sample_group_dict": {},
+      "sample_order": [],
+      "plot_height_per_track": 1.5,
+      "plot_width": 12,
+      "formats": [
+        "png",
+        "svg"
+      ],
+      "gtf_track": true
+    },
+    "sexcheck": {
+      "ratio_xy_threshold": null,
+      "y_min_frac": null
+    }
+  },
+  "genome": {
+    "default": "Mmul_10",
+    "references": {
+      "Mmul_10": {
+        "fasta": "/data/16T/Database/Reference/mulatta/ENSEMBL/Mmul_10/Macaca_mulatta.Mmul_10.dna.toplevel.fa",
+        "fai": null,
+        "pbmm2_index": null,
+        "gtf": "/data/16T/Database/Reference/mulatta/ENSEMBL/Mmul_10/Macaca_mulatta.Mmul_10.116.gtf",
+        "repeat_bed": null,
+        "censat_bed": null,
+        "motif_file": null,
+        "mcpg_pileup": null,
+        "geneIDAnno": null,
+        "te_lib": "/data/16T/Database/Reference/famdb/rhesus_te_lib.fa"
+      },
+      "Mmul_T2T": {
+        "fasta": "/data/16T/Database/Reference/mulatta/NCBI/Mmul_T2T/GCF_049350105.2_T2T-MMU8v2.0_genomic.fa",
+        "fai": "/data/16T/Database/Reference/mulatta/NCBI/Mmul_T2T/GCF_049350105.2_T2T-MMU8v2.0_genomic.fa.fai",
+        "pbmm2_index": null,
+        "gtf": "/data/16T/Database/Reference/mulatta/NCBI/Mmul_T2T/GCF_049350105.2_T2T-MMU8v2.0_genomic.gtf",
+        "repeat_bed": "/data/16T/Database/Reference/mulatta/NCBI/Mmul_T2T/rheMac10_rmsk_TE.lifted.bed",
+        "custom_gtf": "/data/16T/Database/Reference/mulatta/NCBI/Mmul_T2T/GCF_049350105.2_T2T-MMU8v2.0_genomic.sorted.gtf.gz",
+        "custom_fasta": "/data/16T/Database/Reference/mulatta/NCBI/Mmul_T2T/GCF_049350105.2_T2T-MMU8v2.0_genomic.fa",
+        "censat_bed": null,
+        "motif_file": null,
+        "mcpg_pileup": null,
+        "geneIDAnno": null,
+        "te_lib": "/data/16T/Database/Reference/famdb/rhesus_te_lib.fa"
+      },
+      "GRCm39": {
+        "fasta": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
+        "fai": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa.fai",
+        "pbmm2_index": null,
+        "gtf": null,
+        "repeat_bed": null,
+        "censat_bed": null,
+        "motif_file": null,
+        "mcpg_pileup": null,
+        "geneIDAnno": null,
+        "te_lib": "/data/16T/Database/Reference/famdb/mouse_te_lib.fa"
+      },
+      "T2T_mhaESC_v1.5": {
+        "fasta": "/data/16T/Database/Reference/mouse/NCBI/T2T_mhaESC_v1.5/GCA_056825265.1_T2T_mhaESC_v1.5_genomic.fa",
+        "fai": "/data/16T/Database/Reference/mouse/NCBI/T2T_mhaESC_v1.5/GCA_056825265.1_T2T_mhaESC_v1.5_genomic.fa.fai",
+        "pbmm2_index": "/data/16T/Database/Reference/mouse/NCBI/T2T_mhaESC_v1.5/GCA_056825265.1_T2T_mhaESC_v1.5_genomic.fa.mmi",
+        "gtf": "/data/16T/Database/Reference/mouse/NCBI/T2T_mhaESC_v1.5/GCA_056825265.1_T2T_mhaESC_v1.5_vM38_liftoff.gtf",
+        "repeat_bed": "/data/16T/Database/Reference/mouse/NCBI/T2T_mhaESC_v1.5/GRCm39_GENCODE_rmsk_TE.lifted.bed",
+        "censat_bed": null,
+        "motif_file": "/data/16T/Database/Reference/motif/JASPAR2026_CORE_vertebrates_non-redundant.meme",
+        "custom_gtf": "/data/16T/Database/Reference/mouse/NCBI/T2T_mhaESC_v1.5/GCA_056825265.1_T2T_mhaESC_v1.5_vM38_liftoff.sorted.gtf.gz",
+        "custom_fasta": "/data/16T/Database/Reference/mouse/NCBI/T2T_mhaESC_v1.5/GCA_056825265.1_T2T_mhaESC_v1.5_genomic.fa",
+        "mcpg_pileup": null,
+        "geneIDAnno": null,
+        "te_lib": "/data/16T/Database/Reference/famdb/mouse_te_lib.fa"
+      },
+      "GRCh38": {
+        "fasta": "/data/16T/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa",
+        "fai": "/data/16T/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa.fai",
+        "pbmm2_index": null,
+        "gtf": null,
+        "repeat_bed": null,
+        "censat_bed": null,
+        "motif_file": null,
+        "mcpg_pileup": null,
+        "geneIDAnno": null,
+        "te_lib": "/data/16T/Database/Reference/famdb/human_te_lib.fa"
+      }
+    }
+  }
 }

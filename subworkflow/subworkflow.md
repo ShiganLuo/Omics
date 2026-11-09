@@ -237,7 +237,17 @@ use rule generate_report from Mutation_report as Mutation_generate_report
 - report：受 `Params.report.enabled` 门控（`_enabled(datajson, "report")`），**pptx 和 xlsx 成对注册**（`f"{outdir}/<WF>_report.pptx"` + `.xlsx`）。report enabled 时自动拉起上游（DAG 反推），QC 汇总随之运行。
 - 两个模块**无条件接线**（subworkflow 里始终 `module` + `use rule`），是否真的运行由 outfiles 注册驱动——与「输出决定流程走向」铁律一致，不要用 if 包裹模块定义。
 
-## 4) 检查清单（新增流程 / 审查存量流程时逐条过）
+## 4) sexcheck 模块（性别核查，产 BAM 流程必备）
+
+`modules/sexcheck/`：通过比对 BAM 在性染色体上的覆盖度推断样本性别（XY/XX/unknown），防样本混淆。所有产全基因组 BAM 的 subworkflow 必须接入：
+
+- **接线**：subworkflow 里 `sexcheck_config` 的 `sample_bams` 逐样本指向**比对/markdup 产出的 BAM**（引用上游 config 的 `outdir`，per-genome 流程用 `genome/sample` 元组展开）；`logdir` 传 sample 分段、`logdir_combine` 传 group 分段（模块含单样本 idxstats 规则 + 组级判型规则）
+- **判型**：X/Y 覆盖度按染色体长度归一化（reads/Mb）后取比值；XY= Y 有覆盖且比值低，XX= Y 近零，unknown= 参考无 chrY 或落在模糊带。阈值可经 `Params.sexcheck.{ratio_xy_threshold, y_min_frac}` 覆盖（仅接受数值，null 走脚本默认）
+- **输出**：`{outdir}/QC/sexcheck/sexcheck.tsv`（样本 × X/Y 覆盖度指标 + sex 列）；node.py 无条件注册该输出
+- **容器**：env 映射复用同时含 samtools + pandas 的 SIF（当前 fragment_size.sif）
+- 无全基因组 BAM 的流程（scRNAseq/spatial/QuantMS/tRNAseq）不适用，不接
+
+## 5) 检查清单（新增流程 / 审查存量流程时逐条过）
 
 - [ ] subworkflow 末尾有 `qc_summary_config` + `module qc_summary` + `use rule ... as <WF>_qc_summary`
 - [ ] subworkflow 末尾有 `<WF>_report_config` + `module <WF>_report` + `use rule generate_report ... as <WF>_generate_report`
@@ -245,6 +255,7 @@ use rule generate_report from Mutation_report as Mutation_generate_report
 - [ ] 保证产出的 QC 环节都声明了 `qc_anchors`（qc_summary 的 input 依赖上游，上游刷新自动重跑汇总）；未注册输出的环节只进 `qc_dirs` 不锚定
 - [ ] QC 汇总输出注册进 outfiles；report 输出（pptx + xlsx 成对）经 `Params.report.enabled` 门控注册
 - [ ] 两模块日志走 `logdir/group`
+- [ ] 产全基因组 BAM 的流程接入了 sexcheck（`sample_bams` 引用比对产出，node.py 注册 sexcheck.tsv）
 - [ ] 存量流程缺口记录在案：Mutation 已补齐（qc_summary + Mutation_report，2026-11）；CoCulture / KARRseq / QuantMS / tRNAseq / PacVar / Population_genomics / Fiberseq / spatial 等（无 QC 汇总或无 report，逐个补齐）
 - [ ] subworkflow/README.md 的流程简介同步列出这两个收尾模块
 

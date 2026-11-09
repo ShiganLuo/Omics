@@ -44,6 +44,38 @@ module minimap2:
 logger.info(f"minimap2_config: {minimap2_config}")
 use rule minimap2_align from minimap2 as LRtranscriptome_minimap2_align
 
+# ============================================
+# Sex check (coverage on sex chromosomes)
+# ============================================
+# Wired unconditionally over the alignment BAMs; node.py registers the
+# sexcheck outputs (subworkflow.md QC wiring).
+sexcheck_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
+    "env": config.get("env", {}),
+    "outdir": f"{outdir}/QC/sexcheck",
+    "logdir": f"{logdir}/sample",
+    "logdir_combine": f"{logdir}/group",
+    "samples": samples,
+    "sample_bams": {
+        s: f"{minimap2_config['outdir']}/{s}/{s}.sorted.bam"
+        for s in samples
+    },
+    "Procedure": {
+        "samtools": config.get("Procedure", {}).get("samtools")
+    },
+    "Params": {
+        "sexcheck": config.get("Params", {}).get("sexcheck", {})
+    },
+}
+module sexcheck:
+    snakefile: "../modules/sexcheck/sexcheck.smk"
+    config: sexcheck_config
+logger.info(f"sexcheck_config: {sexcheck_config}")
+use rule sexcheck_idxstats from sexcheck as LRtranscriptome_sexcheck_idxstats
+use rule sexcheck from sexcheck as LRtranscriptome_sexcheck
+
+
 # ============================================================
 # Step 2-4: StringTie long-read pipeline (assemble + merge + quant)
 # ============================================================

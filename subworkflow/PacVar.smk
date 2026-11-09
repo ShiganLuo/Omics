@@ -50,6 +50,38 @@ module pbmm2:
 logger.debug(f"pbmm2_config: {pbmm2_config}")
 use rule pbmm2_align from pbmm2 as PacVar_pbmm2_align
 
+# ============================================
+# Sex check (coverage on sex chromosomes)
+# ============================================
+# Wired unconditionally over the alignment BAMs; node.py registers the
+# sexcheck outputs (subworkflow.md QC wiring).
+sexcheck_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
+    "env": config.get("env", {}),
+    "outdir": f"{outdir}/QC/sexcheck",
+    "logdir": f"{logdir}/sample",
+    "logdir_combine": f"{logdir}/group",
+    "samples": samples,
+    "sample_bams": {
+        s: f"{pbmm2_config['outdir']}/{s}/{s}.sorted.bam"
+        for s in samples
+    },
+    "Procedure": {
+        "samtools": config.get("Procedure", {}).get("samtools")
+    },
+    "Params": {
+        "sexcheck": config.get("Params", {}).get("sexcheck", {})
+    },
+}
+module sexcheck:
+    snakefile: "../modules/sexcheck/sexcheck.smk"
+    config: sexcheck_config
+logger.info(f"sexcheck_config: {sexcheck_config}")
+use rule sexcheck_idxstats from sexcheck as PacVar_sexcheck_idxstats
+use rule sexcheck from sexcheck as PacVar_sexcheck
+
+
 
 gatk_prepare_config = {
     "ROOT_DIR": ROOT_DIR,

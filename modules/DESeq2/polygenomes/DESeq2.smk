@@ -324,9 +324,9 @@ rule DESeq2_TElocal_manhattan:
         label_top = fig_param("manhattan", "label_top", 10),
         ylabel = fig_param("manhattan", "ylabel", "log2(1+|delta TPM|)"),
     conda:
-        "../TEfigs.yaml"
+        "../../fiberseq/fiberseq.yaml"
     container:
-        sif("../TEfigs.yaml", "DESeq2_TElocal_manhattan")
+        sif("../../fiberseq/fiberseq.yaml", "DESeq2_TElocal_manhattan")
     log:
         logdir + "/DESeq2/{genome}/{contrast}.manhattan.log"
     run:
@@ -393,9 +393,9 @@ rule DESeq2_TElocal_locus_boxplot:
         normalize = fig_param("locus_boxplot", "normalize", "log2tpm"),
         kind = fig_param("locus_boxplot", "kind", "box"),
     conda:
-        "../TEfigs.yaml"
+        "../../fiberseq/fiberseq.yaml"
     container:
-        sif("../TEfigs.yaml", "DESeq2_TElocal_locus_boxplot")
+        sif("../../fiberseq/fiberseq.yaml", "DESeq2_TElocal_locus_boxplot")
     log:
         logdir + "/DESeq2/{genome}/{contrast}.locus_box.log"
     run:
@@ -466,9 +466,9 @@ rule DESeq2_TElocal_subfamily_bar:
         yscale = fig_param("subfamily_bar", "yscale", "linear"),
         ylabel = fig_param("subfamily_bar", "ylabel", "TPM"),
     conda:
-        "../TEfigs.yaml"
+        "../../fiberseq/fiberseq.yaml"
     container:
-        sif("../TEfigs.yaml", "DESeq2_TElocal_subfamily_bar")
+        sif("../../fiberseq/fiberseq.yaml", "DESeq2_TElocal_subfamily_bar")
     log:
         logdir + "/DESeq2/{genome}/{contrast}.subfamily_bar.log"
     run:

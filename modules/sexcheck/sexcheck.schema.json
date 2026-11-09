@@ -1,0 +1,47 @@
+{
+  "outdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "logdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "samples": {
+    "type": "list",
+    "nullable": true,
+    "required": false
+  },
+  "sample_bams": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {}
+  },
+  "Params": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "sexcheck": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "ratio_xy_threshold": {
+            "type": "null",
+            "nullable": true,
+            "required": false
+          },
+          "y_min_frac": {
+            "type": "null",
+            "nullable": true,
+            "required": false
+          }
+        }
+      }
+    }
+  }
+}

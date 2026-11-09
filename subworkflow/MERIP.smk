@@ -85,6 +85,38 @@ logger.info(f"igv_config: {igv_config}")
 use rule samtools_dedup from igv as MERIP_dedup
 use rule wig from igv as MERIP_wig
 
+# ============================================
+# Sex check (coverage on sex chromosomes)
+# ============================================
+# Wired unconditionally over the alignment BAMs; node.py registers the
+# sexcheck outputs (subworkflow.md QC wiring).
+sexcheck_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
+    "env": config.get("env", {}),
+    "outdir": f"{outdir}/QC/sexcheck",
+    "logdir": f"{logdir}/sample",
+    "logdir_combine": f"{logdir}/group",
+    "samples": paired_samples + single_samples,
+    "sample_bams": {
+        s: f"{igv_config['outdir']}/{s}/{s}.dedup.bam"
+        for s in paired_samples + single_samples
+    },
+    "Procedure": {
+        "samtools": config.get("Procedure", {}).get("samtools")
+    },
+    "Params": {
+        "sexcheck": config.get("Params", {}).get("sexcheck", {})
+    },
+}
+module sexcheck:
+    snakefile: "../modules/sexcheck/sexcheck.smk"
+    config: sexcheck_config
+logger.info(f"sexcheck_config: {sexcheck_config}")
+use rule sexcheck_idxstats from sexcheck as MERIP_sexcheck_idxstats
+use rule sexcheck from sexcheck as MERIP_sexcheck
+
+
 
 # ============================================================
 # Region-focused multi-sample track stacking plots (modules/regionplot)

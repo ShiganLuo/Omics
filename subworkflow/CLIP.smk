@@ -174,6 +174,40 @@ logger.info(f"umi_tools_dedup_config: {umi_tools_dedup_config}")
 use rule umi_tools_dedup_for_star from UmiTools_dedup as CLIP_umi_tools_dedup_for_star
 use rule umi_tools_dedup_for_hisat2 from UmiTools_dedup as CLIP_umi_tools_dedup_for_hisat2
 
+# ============================================
+# Sex check (coverage on sex chromosomes)
+# ============================================
+# Wired unconditionally over the alignment BAMs; node.py registers the
+# sexcheck outputs (subworkflow.md QC wiring).
+# aligner-conditional BAM source (config dicts are both defined above)
+_sexcheck_bam_dir = star_config["outdir"] if aligner == "star" else hisat2_config["outdir"]
+sexcheck_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
+    "env": config.get("env", {}),
+    "outdir": f"{outdir}/QC/sexcheck",
+    "logdir": f"{logdir}/sample",
+    "logdir_combine": f"{logdir}/group",
+    "samples": paired_samples + single_samples,
+    "sample_bams": {
+        s: f"{_sexcheck_bam_dir}/{s}/{s}.bam"
+        for s in paired_samples + single_samples
+    },
+    "Procedure": {
+        "samtools": config.get("Procedure", {}).get("samtools")
+    },
+    "Params": {
+        "sexcheck": config.get("Params", {}).get("sexcheck", {})
+    },
+}
+module sexcheck:
+    snakefile: "../modules/sexcheck/sexcheck.smk"
+    config: sexcheck_config
+logger.info(f"sexcheck_config: {sexcheck_config}")
+use rule sexcheck_idxstats from sexcheck as CLIP_sexcheck_idxstats
+use rule sexcheck from sexcheck as CLIP_sexcheck
+
+
 genome_config = {
         "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,

@@ -18,6 +18,17 @@ shell.prefix("set -x; set -e;")
 from snakemake.logging import logger
 import os
 
+
+def rule_res(name):
+    """Resolve per-rule resources from config['resources'] (common.smk
+    semantics; KARRseq.smk does not include common.smk, so this is the
+    local copy). Missing keys fall back through 'default'; no section at
+    all yields the caller's .get() defaults."""
+    res_cfg = config.get("resources") or {}
+    merged = dict(res_cfg.get("default") or {})
+    merged.update(res_cfg.get(name) or {})
+    return merged
+
 indir = config.get("indir", "data/fastq")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
@@ -78,6 +89,38 @@ def get_alignment_input(wildcards):
     else:
         raise ValueError(f"Sample {wildcards.sample_id} not in paired_samples or single_samples")
 
+
+
+# ============================================
+# Sex check (coverage on sex chromosomes)
+# ============================================
+# Wired unconditionally over the alignment BAMs; node.py registers the
+# sexcheck outputs (subworkflow.md QC wiring).
+sexcheck_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
+    "env": config.get("env", {}),
+    "outdir": f"{outdir}/QC/sexcheck",
+    "logdir": f"{logdir}/sample",
+    "logdir_combine": f"{logdir}/group",
+    "samples": paired_samples + single_samples,
+    "sample_bams": {
+        s: f"{outdir}/bam/{s}/{s}_Aligned.sortedByCoord.out.bam"
+        for s in paired_samples + single_samples
+    },
+    "Procedure": {
+        "samtools": config.get("Procedure", {}).get("samtools")
+    },
+    "Params": {
+        "sexcheck": config.get("Params", {}).get("sexcheck", {})
+    },
+}
+module sexcheck:
+    snakefile: "../modules/sexcheck/sexcheck.smk"
+    config: sexcheck_config
+logger.info(f"sexcheck_config: {sexcheck_config}")
+use rule sexcheck_idxstats from sexcheck as KARRseq_sexcheck_idxstats
+use rule sexcheck from sexcheck as KARRseq_sexcheck
 
 rule KARRseq_star_align:
     input:

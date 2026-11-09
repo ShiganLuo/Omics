@@ -85,6 +85,44 @@ use rule ngs_disambiguate from disambiguate as CoCulture_ngs_disambiguate
 use rule disambiguate_sort_rename from disambiguate as CoCulture_disambiguate_sort_rename
 use rule disambiguate_report from disambiguate as CoCulture_disambiguate_report
 
+# ============================================
+# Sex check (coverage on sex chromosomes)
+# ============================================
+# Wired unconditionally over the alignment BAMs; node.py registers the
+# sexcheck outputs (subworkflow.md QC wiring).
+# genome/sample tuples ("GRCh38/TestSample1") expanded from the per-genome dicts
+_sexcheck_samples = [
+    f"{g}/{s}"
+    for g in list(genome_paired_samples) + list(genome_single_samples)
+    for s in genome_paired_samples.get(g, []) + genome_single_samples.get(g, [])
+]
+sexcheck_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
+    "env": config.get("env", {}),
+    "outdir": f"{outdir}/QC/sexcheck",
+    "logdir": f"{logdir}/sample",
+    "logdir_combine": f"{logdir}/group",
+    "samples": _sexcheck_samples,
+    "sample_bams": {
+        s: f"{hisat2_config['outdir']}/{s.split('/')[0]}/{s.split('/')[1]}/{s.split('/')[1]}.bam"
+        for s in _sexcheck_samples
+    },
+    "Procedure": {
+        "samtools": config.get("Procedure", {}).get("samtools")
+    },
+    "Params": {
+        "sexcheck": config.get("Params", {}).get("sexcheck", {})
+    },
+}
+module sexcheck:
+    snakefile: "../modules/sexcheck/sexcheck.smk"
+    config: sexcheck_config
+logger.info(f"sexcheck_config: {sexcheck_config}")
+use rule sexcheck_idxstats from sexcheck as CoCulture_sexcheck_idxstats
+use rule sexcheck from sexcheck as CoCulture_sexcheck
+
+
 TEtranscripts_config = {
         "indir": disambiguate_config["outdir"],
         "outdir": f"{outdir}/TEtranscripts",

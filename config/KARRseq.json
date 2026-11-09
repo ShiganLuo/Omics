@@ -1,39 +1,44 @@
 {
-    "env": {
-        "env_dir": "/home/luosg/Database/env",
-        "karrseq": "/home/luosg/Database/env/karrseq/karrseq.sif",
-        "seqprep": "/home/luosg/Database/env/seqprep/seqprep.sif"
+  "env": {
+    "env_dir": "/home/luosg/Database/env",
+    "karrseq": "/home/luosg/Database/env/karrseq/karrseq.sif",
+    "seqprep": "/home/luosg/Database/env/seqprep/seqprep.sif",
+    "sexcheck": "/data/16T/Database/env/fragment_size/fragment_size.sif"
+  },
+  "indir": "input",
+  "raw_files": [],
+  "outdir": "output",
+  "logdir": "log",
+  "paired_samples": [],
+  "single_samples": [],
+  "outfiles": [],
+  "Procedure": {
+    "SeqPrep": null,
+    "STAR": null,
+    "samtools": "samtools"
+  },
+  "Params": {
+    "star": {
+      "outFilterMultimapNmax": 100,
+      "outSAMattributes": "All",
+      "alignIntronMin": 1,
+      "scoreGapNoncan": -4,
+      "scoreGapATAC": -4,
+      "chimSegmentMin": 15,
+      "chimJunctionOverhangMin": 15,
+      "limitOutSJcollapsed": 10000000,
+      "limitIObufferSize": 1500000000
     },
-    "indir": "input",
-    "raw_files": [],
-    "outdir": "output",
-    "logdir": "log",
-    "paired_samples": [],
-    "single_samples": [],
-    "outfiles": [],
-    "Procedure": {
-        "SeqPrep": null,
-        "STAR": null,
-        "samtools": "samtools"
+    "karrseq": {
+      "mapq": 1,
+      "span": 0
     },
-    "Params": {
-        "star": {
-            "outFilterMultimapNmax": 100,
-            "outSAMattributes": "All",
-            "alignIntronMin": 1,
-            "scoreGapNoncan": -4,
-            "scoreGapATAC": -4,
-            "chimSegmentMin": 15,
-            "chimJunctionOverhangMin": 15,
-            "limitOutSJcollapsed": 10000000,
-            "limitIObufferSize": 1500000000
-        },
-        "karrseq": {
-            "mapq": 1,
-            "span": 0
-        }
-    },
-    "genome": {
-        "star_index_dir": null
+    "sexcheck": {
+      "ratio_xy_threshold": null,
+      "y_min_frac": null
     }
+  },
+  "genome": {
+    "star_index_dir": null
+  }
 }

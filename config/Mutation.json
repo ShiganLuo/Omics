@@ -59,19 +59,19 @@
       "control_samples": []
     },
     "burden": {
-        "enabled": true,
-        "min_vaf": 0.05,
-        "size_mb": 34.0,
-        "gtf_feature": "exon",
-        "include_sex_chroms": false,
-        "min_abs_log2": 0.3,
-        "annotate": true,
-        "vep_cache": "~/.vep",
-        "vep_species": null,
-        "vep_assembly": null,
-        "sample_snv_vcf_dict": {},
-        "sample_sv_vcf_dict": {},
-        "sample_cnv_dict": {}
+      "enabled": true,
+      "min_vaf": 0.05,
+      "size_mb": 34.0,
+      "gtf_feature": "exon",
+      "include_sex_chroms": false,
+      "min_abs_log2": 0.3,
+      "annotate": true,
+      "vep_cache": "~/.vep",
+      "vep_species": null,
+      "vep_assembly": null,
+      "sample_snv_vcf_dict": {},
+      "sample_sv_vcf_dict": {},
+      "sample_cnv_dict": {}
     },
     "somatic_spectrum": {
       "sample_somatic_vcf_dict": {},
@@ -92,6 +92,10 @@
       "title": null,
       "pipeline": null,
       "genome": null
+    },
+    "sexcheck": {
+      "ratio_xy_threshold": null,
+      "y_min_frac": null
     }
   },
   "genome": {
@@ -147,7 +151,8 @@
     "deepvariant": "/data/16T/Database/env/deepvariant/deepvariant.sif",
     "msi": "/data/16T/Database/env/msi/msi.sif",
     "qc_summary": "/data/16T/Database/env/ncRNAseq_report/ncRNAseq_report.sif",
-    "Mutation_report": "/data/16T/Database/env/ncRNAseq_report/ncRNAseq_report.sif"
+    "Mutation_report": "/data/16T/Database/env/ncRNAseq_report/ncRNAseq_report.sif",
+    "sexcheck": "/data/16T/Database/env/fragment_size/fragment_size.sif"
   },
   "resources": {
     "default": {

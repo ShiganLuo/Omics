@@ -798,3 +798,12 @@ output:
 带时间戳的 `.sh` 每次重跑多一份，结果目录因此逐渐变脏。回执一律双写：
 outdir 放无时间戳版（覆盖），`log/cmd/` 放时间戳版（历史），见
 「命令回执双写」。
+
+## 10. 扁平输出目录下 plain_script 不带样本名会并发互踩
+
+多样本规则的输出若都在同一目录（如 `outdir/idxstats/{sample}.tsv`，dirname
+相同），`plain_script` 写成固定名 `rule.sh` 时并行 job 互相覆盖，A 样本会执行
+到 B 样本的命令（症状：产出串样本 / MissingOutput，日志却显示成功）。规矩：
+`plain_script = <rule>_{wildcards.<key>}.sh`，key 必须含区分并行 job 的通配符
+（样本/对比/基因组）；out-dir 含通配符目录（`outdir/{sample_id}/`）的规则不受
+影响。实例：sexcheck_idxstats 曾因固定名在 6 并行下 5 个 job 串台。

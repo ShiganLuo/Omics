@@ -127,6 +127,11 @@ logger.info(f"samtools parameters: {samtools_config}")
 use rule bam_flagstat from samtools as Mutation_bam_flagstat
 
 
+# Exome capture region resolved BEFORE any module config consumes it (an
+# explicit genome.references.<g>.targets BED wins; exome/hybrid assays get
+# the coverage-derived targets.bed node.py registers into the reference
+# entry — see node.py runMutation).
+_targets_bed = genome_ref.get("targets") or None
 gatk_prepare_config = {
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
@@ -150,8 +155,10 @@ gatk_prepare_config = {
     "genome": {
         "fasta": genome_ref.get("fasta"),
         "fai_index": genome_ref.get("fai_index"),
-        "dict_index": genome_ref.get("dict_index")
-    }
+        "dict_index": genome_ref.get("dict_index"),
+        "targets": _targets_bed,
+    },
+    "resources": config.get("resources", {}),
 }
 module gatk_prepare:
     snakefile: "../modules/gatk/gatk_prepare.smk"
@@ -160,13 +167,13 @@ logger.info(f"gatk_prepare parameters: {gatk_prepare_config}")
 use rule gatk_index from gatk_prepare as Mutation_gatk_index
 use rule addReadsGroup from gatk_prepare as Mutation_addReadsGroup
 use rule MarkDuplicates from gatk_prepare as Mutation_MarkDuplicates
+use rule collectHsMetrics from gatk_prepare as Mutation_collectHsMetrics
 
 # Derive capture-region BED from markdup BAMs for exome/hybrid assays:
 # consumed by GATK callers (-L) and CNVkit (--targets). Runs only when the
 # assay is exome and no explicit genome.references.<g>.targets BED is set;
 # node.py registers the output and fills the reference entry accordingly.
-# Resolved by node.py: explicit BED path, the derived targets.bed, or None.
-_targets_bed = genome_ref.get("targets") or None
+# _targets_bed is resolved above (before gatk_prepare_config).
 targets_config = {
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
@@ -519,6 +526,7 @@ qc_summary_config = {
         "flagstat": samtools_config["outdir"],
         "bwa_mem2": f"{logdir}/sample",
         "markdup": gatk_prepare_config["outdir"],
+        "hs_metrics": gatk_prepare_config["outdir"],
         "msi": msi_config["outdir"],
         "sexcheck": sexcheck_config["outdir"],
     },
@@ -530,6 +538,8 @@ qc_summary_config = {
     # sexcheck is a run-level table (no {sample} wildcard) — its anchor is
     # the single registered sexcheck.tsv, wiring qc_summary AFTER the whole
     # sexcheck stage.
+    # hs_metrics anchors exist only for exome/hybrid runs (targets BED
+    # resolved); the anchor list is built conditionally below.
     "qc_anchors": {
         "cutadapt": "{sample}/{sample}.cutadapt_report.txt",
         "flagstat": "{sample}/{sample}_flagstat.txt",
@@ -543,6 +553,10 @@ qc_summary_config = {
         "msi": [rec["experimental"] for rec in config.get("Params", {}).get("workflow", {}).get("paired_design", []) if rec.get("experimental")],
     },
 }
+# hs_metrics anchor + plot exist only for exome/hybrid runs (targets BED
+# resolved by node.py); WGS runs keep the stage unanchored and best-effort.
+if _targets_bed:
+    qc_summary_config["qc_anchors"]["hs_metrics"] = "{sample}/{sample}.hs_metrics.txt"
 module qc_summary:
     snakefile: "../modules/qc_summary/qc_summary.smk"
     config: qc_summary_config

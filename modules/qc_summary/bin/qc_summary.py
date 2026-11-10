@@ -364,6 +364,73 @@ def parse_markdup(stage_dir: str, sample: str) -> Dict[str, str]:
     return metrics
 
 
+# GATK CollectHsMetrics <sample>.hs_metrics.txt -> kept columns (data row
+# after the header line starting with BAIT_SET; pick the row whose first
+# field equals the sample id, else the first non-empty data row)
+_HS_METRICS_FIELDS = [
+    "BAIT_TERRITORY", "TOTAL_READS", "PF_READS", "PF_UNIQUE_READS",
+    "PF_UQ_READS_ALIGNED", "ON_BAIT_BASES", "NEAR_BAIT_BASES",
+    "OFF_BAIT_BASES", "PCT_SELECTED_BASES", "PCT_OFF_BAIT",
+    "ON_BAIT_VS_SELECTED", "MEAN_BAIT_COVERAGE", "FOLD_ENRICHMENT",
+    "HS_LIBRARY_SIZE", "TARGET_TERRITORY", "ON_TARGET_BASES",
+    "PCT_PF_UQ_READS_ALIGNED", "MEAN_TARGET_COVERAGE",
+    "MEDIAN_TARGET_COVERAGE", "MAX_TARGET_COVERAGE", "PCT_TARGET_BASES_10X",
+    "PCT_TARGET_BASES_20X", "PCT_TARGET_BASES_30X", "PCT_TARGET_BASES_40X",
+    "PCT_TARGET_BASES_50X", "PCT_TARGET_BASES_100X", "AT_DROPOUT",
+    "GC_DROPOUT", "PCT_EXC_DUPE", "PCT_EXC_OFF_TARGET", "PCT_EXC_MAPQ",
+    "SNP_SENSITIVITY", "SNP_REFERENCE_BASES",
+]
+
+
+def parse_hs_metrics(stage_dir: str, sample: str) -> Dict[str, str]:
+    """Parse GATK CollectHsMetrics output (<sample>.hs_metrics.txt), keeping
+    the whitelisted hybrid-selection metrics from the per-sample data row.
+
+    The file carries one header line (starts with BAIT_SET) and one data
+    row per bait set; the row whose first field matches the sample id wins,
+    otherwise the first non-empty data row is used.
+
+    Parameters
+    ----------
+    stage_dir : str
+        Directory holding ``<sample>/<sample>.hs_metrics.txt`` (or the file
+        directly inside stage_dir).
+    sample : str
+        Sample id.
+
+    Returns
+    -------
+    Dict[str, str]
+        Metric -> value (lowercased keys, e.g. mean_target_coverage);
+        empty when no metrics file is found.
+    """
+    path = os.path.join(stage_dir, sample, f"{sample}.hs_metrics.txt")
+    if not os.path.isfile(path):
+        path = os.path.join(stage_dir, f"{sample}.hs_metrics.txt")
+    if not os.path.isfile(path):
+        return {}
+
+    metrics: Dict[str, str] = {}
+    header: List[str] = []
+    with open(path) as fh:
+        for line in fh:
+            line = line.rstrip("\n")
+            if line.startswith("BAIT_SET\t"):
+                header = line.split("\t")
+                continue
+            if not header or not line.strip() or line.startswith("#"):
+                continue
+            fields = line.split("\t")
+            if fields[0] != sample and metrics:
+                continue  # not our bait-set row and a row was already taken
+            for key, val in zip(header[1:], fields[1:]):
+                if key in _HS_METRICS_FIELDS and val != "":
+                    metrics[key.lower()] = val
+            if fields[0] == sample:
+                break
+    return metrics
+
+
 def parse_msi(stage_dir: str, sample: str) -> Dict[str, str]:
     """Parse msisensor-pro msi output (<sample>_msi_pro.tsv): 3-column
     row (total, evaluable, score) -> msi_score."""
@@ -416,6 +483,7 @@ PARSERS = {
     "flagstat": parse_flagstat,
     "bwa_mem2": parse_bwa_mem2,
     "markdup": parse_markdup,
+    "hs_metrics": parse_hs_metrics,
     "msi": parse_msi,
     "sexcheck": parse_sexcheck,
 }
@@ -466,6 +534,11 @@ def build_table(samples: List[str], stages: Dict[str, Dict[str, Dict[str, str]]]
         "bwa_unique_pairs_fr",
         "percent_duplication", "read_pair_duplicates", "msi_score",
         "sex_sex", "sex_ratio_x_to_y",
+        "mean_target_coverage", "median_target_coverage",
+        "pct_target_bases_10x", "pct_target_bases_20x", "pct_target_bases_30x",
+        "pct_target_bases_50x", "pct_target_bases_100x",
+        "fold_enrichment", "pct_off_bait", "pct_selected_bases",
+        "target_territory", "hs_library_size",
     ]
     cols = [c for c in core_order if c in table.columns]
     cols += [c for c in table.columns if c not in cols]
@@ -506,6 +579,11 @@ def render_plots(table: pd.DataFrame, outdir: str, plots: List[str]) -> List[str
             vals = to_num(table["total_sequences"]) if "total_sequences" in table.columns else pd.Series(dtype=float)
             if vals.notna().any():
                 _bar_plot((vals / 1e6).sort_index(), "Raw reads (M)", "total sequences", path)
+                written.append(path)
+        elif name == "target_coverage":
+            vals = to_num(table["mean_target_coverage"]) if "mean_target_coverage" in table.columns else pd.Series(dtype=float)
+            if vals.notna().any():
+                _bar_plot(vals.sort_index(), "Mean target coverage (X)", "mean target coverage", path)
                 written.append(path)
     return written
 
@@ -588,7 +666,7 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     p.add_argument("-o", "--outdir", required=True,
                    help="Output directory for qc_summary.tsv/html/png")
     p.add_argument("-p", "--plot", action="append", default=["mapped_rate", "duplication", "total_sequences"],
-                   choices=["mapped_rate", "duplication", "total_sequences"],
+                   choices=["mapped_rate", "duplication", "total_sequences", "target_coverage"],
                    help="QC plots to render (repeatable)")
     p.add_argument("-t", "--title", default="QC Summary",
                    help="Report title shown in the HTML header")

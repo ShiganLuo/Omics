@@ -77,6 +77,24 @@
         "path": "file",
         "nullable": true,
         "required": false
+      },
+      "fai_index": {
+        "type": "str",
+        "nullable": true,
+        "required": false,
+        "path": "file"
+      },
+      "dict_index": {
+        "type": "str",
+        "nullable": true,
+        "required": false,
+        "path": "file"
+      },
+      "targets": {
+        "type": "str",
+        "nullable": true,
+        "required": false,
+        "path": "file"
       }
     }
   }

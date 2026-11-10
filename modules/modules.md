@@ -807,3 +807,29 @@ outdir 放无时间戳版（覆盖），`log/cmd/` 放时间戳版（历史）�
 `plain_script = <rule>_{wildcards.<key>}.sh`，key 必须含区分并行 job 的通配符
 （样本/对比/基因组）；out-dir 含通配符目录（`outdir/{sample_id}/`）的规则不受
 影响。实例：sexcheck_idxstats 曾因固定名在 6 并行下 5 个 job 串台。
+
+# QC 指标接入规范（新增 QC 产物时，强制）
+
+任何模块产出 QC 类指标（metrics/统计表/日志推断值）并希望进入
+`qc_summary.tsv` 时，必须一次完成以下四件事，缺一即视为接入未完成：
+
+1. **解析器**：在 `modules/qc_summary/bin/qc_summary.py` 新增 `parse_<stage>`
+   函数（输入 stage_dir + sample，返回扁平 `{metric: value}` dict，键小写、
+   值保持字符串；文件缺失返回 `{}`），并注册进 `PARSERS`。选入指标走模块级
+   白名单常量（如 `_HS_METRICS_FIELDS`），不要整行收录无关列。
+2. **subworkflow 接线**：对应 `subworkflow/<Workflow>.smk` 的
+   `qc_summary_config` 加三处——`qc_dirs` 加 `"<stage>": <producer>_config["outdir"]`
+   （引用上游 config dict，禁止重拼路径字符串）；产物被 node.py 注册或必然
+   生成时同步加 `qc_anchors` 的 `{sample}` 模板锚点（保证排序与重跑联动），
+   产物可能缺席（如按 assay 门控）时锚点用条件语句注入、不得无条件声明；
+   锚点只对部分样本存在时加 `qc_anchor_samples` 覆盖。
+3. **指标登记**：在 `modules/qc_summary/metrics.md` 对应 stage 章节登记每个
+   新列：指标名（=tsv 列名）、含义、计算原理（原始文件哪行哪字段、如何换算）、
+   反映什么/怎么看（含典型范围与阈值）；stage 概览表同步加一行。三要素不齐
+   全不算收录完成（metrics.md 顶部既有约定，此处升格为模块级强制规范）。
+4. **列序与出图**：核心指标加入 `build_table()` 的 `core_order`（数值核心项
+   排前），需要出图的加 `render_plots()` 分支并扩 `--plot` choices。
+
+node.py 侧按 assay/配置门控该 QC 规则的 outfiles 注册（如 exome 才有
+collectHsMetrics），WGS 等不适用场景的列为 NA 属预期，不构成接入缺失。
+消费方（报告着色阈值等）同步要求见 metrics.md 的「指标登记规范」。

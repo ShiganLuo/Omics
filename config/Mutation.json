@@ -266,6 +266,10 @@
     "burden_result": {
       "threads": 1,
       "mem_mb": 8000
+    },
+    "collectHsMetrics": {
+      "threads": 4,
+      "mem_mb": 16000
     }
   }
 }

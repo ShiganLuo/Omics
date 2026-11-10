@@ -14,6 +14,7 @@
 | `flagstat` | `<sample>/<sample>_flagstat.txt`（samtools flagstat） | `parse_flagstat` |
 | `bwa_mem2` | `<sample>/bwa_mem2-alignment.txt`（比对规则日志） | `parse_bwa_mem2` |
 | `markdup` | `<sample>/<sample>.Markdup-metrics.txt`（GATK MarkDuplicates） | `parse_markdup` |
+| `hs_metrics` | `<sample>/<sample>.hs_metrics.txt`（GATK CollectHsMetrics） | `parse_hs_metrics` |
 | `msi` | `<sample>/<sample>_msi_pro.tsv`（MSIsensor-pro） | `parse_msi` |
 | `sexcheck` | `sexcheck.tsv`（run 级整表，每样本一行） | `parse_sexcheck` |
 
@@ -100,7 +101,33 @@ metrics 文件 `LIBRARY` 行（表头在 `## METRICS CLASS` 之后）。
 | `estimated_library_size` | 估算的文库独特分子数 | GATK 由 duplicates–depth 关系外推（`ESTIMATED_LIBRARY_SIZE`） | 文库复杂度上限指示，越大越好；与 read_pairs_examined 差距越大 → 饱和度越低 |
 
 
-## 6. MSI（msi，MSIsensor-pro）
+## 6. 捕获质控（hs_metrics，GATK CollectHsMetrics）
+
+仅 exome/hybrid 运行有值（node.py 在解析出 targets BED 时注册 collectHsMetrics
+输出并加入本 stage 的 qc_anchors）；WGS 无捕获设计，整列为 NA，属预期。运行对象
+是 analysis-ready 的 `{sample}.sorted_markdup.bam`（与变异调用同一文件），BAM 中
+已标记的 duplicate 默认被排除，指标描述的是**有效可调用深度**。注意 GATK
+4.6.2.0 的 CollectHsMetrics 无多线程参数（help 无 thread/parallel 类选项），
+单线程运行（约 10–20 分钟/样本，40M pairs）。
+
+| 指标 | 含义 | 计算原理 | 反映了什么 / 怎么看 |
+|---|---|---|---|
+| `mean_target_coverage` | 靶区平均覆盖深度（X） | `MEAN_TARGET_COVERAGE` 列原值 | **核心指标**。WES 典型 50–150×；组内样本间差异 > 2 倍会直接影响变异检出灵敏度与负荷可比性，需在下机前均衡 |
+| `median_target_coverage` | 靶区覆盖深度中位数（X） | `MEDIAN_TARGET_COVERAGE` 列原值 | 比均值更抗离群（off-target 高深度区域拉高均值）；与均值差距大 → 覆盖分布右偏/存在超深热点 |
+| `pct_target_bases_10x` / `_20x` / `_30x` / `_50x` / `_100x` | 覆盖深度 ≥ N× 的靶区碱基比例（0–1） | `PCT_TARGET_BASES_10X` 等列原值 | 覆盖均一性与可调用性。体细胞 SNV 检出通常要求 ≥ 30X；`pct_target_bases_30x` < 0.8 时低深度靶区变异漏检风险上升。40X 亦收录（不进 core 列序，追加在表尾） |
+| `fold_enrichment` | 捕获富集倍数 | `FOLD_ENRICHMENT` 列原值 = on-near-bait 碱基比例 / 靶区占基因组比例 | 捕获效率。WES 典型 20–70×；< 10 → 探针效率低或文库降解，伴随 off-bait 升高 |
+| `pct_off_bait` | off-bait 碱基占已比对碱基比例（0–1） | `PCT_OFF_BAIT` 列原值 | 落在捕获区外的测序占比。WES 正常 < 15–20%；偏高 → 捕获效率低、探头交叉杂交或文库污染 |
+| `pct_selected_bases` | on+near-bait 占已比对碱基比例（0–1） | `PCT_SELECTED_BASES` 列原值 | 与 `pct_off_bait` 互补（和 ≈ 1），解读同上 |
+| `target_territory` | 靶区总碱基数（bp） | `TARGET_TERRITORY` 列原值 | 捕获面板大小。同 run 内各样本应一致（本流程共用同一 targets.bed）；突变率 per-Mb 分母与此对应（98.83 Mb） |
+| `bait_territory` | bait 区总碱基数（bp） | `BAIT_TERRITORY` 列原值 | 本流程 bait=target（区间由覆盖推导，无独立 bait 设计），应与 `target_territory` 相等 |
+| `hs_library_size` | 杂交捕获文库复杂度估计（独特分子数） | `HS_LIBRARY_SIZE` 列原值 | 越大越好；与 `estimated_library_size`（markdup）互证，偏小 → 文库复杂度不足 |
+| `total_reads` / `pf_reads` / `pf_unique_reads` | 进入 CollectHsMetrics 的总/PF/去重后 reads 数 | 对应列原值 | 与 flagstat/markdup 计数对照可核口径（PF=passing filter） |
+| `on_target_bases` / `on_bait_bases` / `near_bait_bases` / `off_bait_bases` | 各类区域已比对碱基数 | 对应列原值 | 深度指标的分子，备查 |
+| `mean_bait_coverage` | bait 区平均深度（X） | `MEAN_BAIT_COVERAGE` 列原值 | bait=target 时 ≈ `mean_target_coverage` |
+| `at_dropout` / `gc_dropout` | AT/GC 偏好性遗漏率（%） | `AT_DROPOUT` / `GC_DROPOUT` 列原值 | 覆盖均一性的极端区域度量，WES 典型 < 5%；偏高 → GC 极端区域系统性漏检 |
+| `pct_exc_dupe` / `pct_exc_off_target` / `pct_exc_mapq` | 被 duplicate/off-target/MAPQ 排除的碱基比例 | `PCT_EXC_DUPE` 等列原值 | 排除项分解，定位深度损失原因时用 |
+
+## 7. MSI（msi，MSIsensor-pro）
 
 仅 tumor 样本有值（node.py 按 paired_design 的 experimental 样本注册 msi 输出），
 normal 及未配对样本为 NA。
@@ -113,7 +140,7 @@ normal 及未配对样本为 NA。
 
 ---
 
-## 7. 性别判定（sexcheck，run 级整表）
+## 8. 性别判定（sexcheck，run 级整表）
 
 sexcheck.tsv 为全流程一张表（每样本一行），解析时整表读入、按 sample_id 取行，全部列以 `sex_` 前缀收录。核心两列（`sex_sex`/`sex_ratio_x_to_y`）进 core 列序；其余覆盖度明细列（`sex_x_reads_per_mb`、`sex_y_reads_per_mb`、`sex_x_mapped` 等）追加在表尾备查。
 

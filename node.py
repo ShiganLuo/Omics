@@ -1017,6 +1017,14 @@ def runMutation(
     
     all_samples = paired_samples + single_samples
     
+    # Hybrid-selection QC (modules/gatk collectHsMetrics): per-sample
+    # CollectHsMetrics on the markdup BAM over the capture region. Requires
+    # a targets BED/interval_list (exome/hybrid runs; node.py fills the
+    # reference entry above); WGS runs resolve _targets to None and skip.
+    if _targets:
+        for sample_id in all_samples:
+            outfiles.append(f"{outdir}/common/4_markdup_bam/{sample_id}/{sample_id}.hs_metrics.txt")
+    
     # Per-module gates: Params.<module>.enabled (default true)
     if _enabled(datajson, "fragment_size"):
         outfiles.append(f"{outdir}/results/fragment_size/fragment/FragmentSize.txt")

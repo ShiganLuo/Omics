@@ -190,6 +190,119 @@ rule MarkDuplicates:
             rule_logger.error(f"Error during MarkDuplicates execution for sample {wildcards.sample_id}: {str(e)}\n")
             raise RuntimeError(f"Error occurred while running MarkDuplicates for sample {wildcards.sample_id}: {e}, you can check the log file {log_path} for more details.")
 
+_targets_bed = config.get("genome", {}).get("targets")
+_fai_index = config.get("genome", {}).get("fai_index")
+_dict_index = config.get("genome", {}).get("dict_index")
+
+
+def get_input_for_collectHsMetrics(wildcards):
+    """Resolve collectHsMetrics inputs; missing targets fails at DAG build.
+
+    The capture region (BED or Picard interval_list) is mandatory: WGS runs
+    have no bait design and simply do not request this rule's outputs, so a
+    missing ``genome.targets`` here means a wiring error and must stop the
+    DAG build with a self-identifying message.
+    """
+    if not _targets_bed:
+        raise ValueError(
+            "gatk_prepare/collectHsMetrics requires 'genome.targets' (capture "
+            "BED or interval list) in the config JSON, then rerun."
+        )
+    in_dict = {
+        "targets": _targets_bed,
+        "bam": outdir + f"/{wildcards.sample_id}/{wildcards.sample_id}.sorted_markdup.bam",
+        "bai": outdir + f"/{wildcards.sample_id}/{wildcards.sample_id}.sorted_markdup.bai",
+    }
+    if _fai_index and _dict_index:
+        in_dict["fai"] = _fai_index
+        in_dict["dict"] = _dict_index
+        in_dict["fasta"] = fasta
+    else:
+        in_dict["fai"] = outdir + "/index/genome.fa.fai"
+        in_dict["dict"] = outdir + "/index/genome.dict"
+        in_dict["fasta"] = outdir + "/index/genome.fa"
+    return in_dict
+
+
+rule collectHsMetrics:
+    """Per-sample hybrid-selection QC metrics (GATK CollectHsMetrics).
+
+    Runs on the analysis-ready markdup BAM (the exact file the variant
+    callers consume), so the reported on-target depth and coverage
+    uniformity describe the effective callable territory. The targets BED is
+    converted to a Picard interval_list with BedToIntervalList (bait =
+    target: the region is reconstructed from actual coverage, there is no
+    separate bait design); a user-supplied ``.interval_list`` is staged
+    as-is. Both outputs are declared unconditionally so the DAG shape never
+    depends on the input format.
+    """
+    input:
+        unpack(get_input_for_collectHsMetrics),
+    output:
+        metrics = outdir + "/{sample_id}/{sample_id}.hs_metrics.txt",
+        interval_list = outdir + "/{sample_id}/{sample_id}.targets.interval_list",
+    log:
+        logdir + "/{sample_id}/collectHsMetrics.log",
+    conda:
+        "gatk.yaml"
+    container:
+        sif("gatk.yaml", "collectHsMetrics")
+    threads: rule_res("collectHsMetrics").get("threads", 4)
+    resources:
+        mem_mb = rule_res("collectHsMetrics").get("mem_mb", 16000),
+    params:
+        gatk = config.get("Procedure", {}).get("gatk") or "gatk",
+        javaOptions = config.get("Params", {}).get("gatk", {}).get("javaOptions") or "-Xmx8g",
+        tmp_dir = config.get("Params", {}).get("gatk", {}).get("tmp-dir") or None,
+    run:
+        log_path = str(log)
+        open(log_path, "w").close()
+        rule_logger = setup_logger(logger_name="collectHsMetrics", log_file=log_path)
+        try:
+            current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+            rule_logger.info(f"Start collectHsMetrics for sample {wildcards.sample_id} at {current_time}")
+            sample_outdir = os.path.join(outdir, wildcards.sample_id)
+            os.makedirs(sample_outdir, exist_ok=True)
+            script = os.path.join(RECEIPT_DIR, f"collectHsMetrics_{wildcards.sample_id}_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, "collectHsMetrics.sh")
+            cmds = []
+            if str(input.targets).endswith(".interval_list"):
+                cmds.append(["cp", str(input.targets), str(output.interval_list)])
+            else:
+                cmd_bed = [
+                    params.gatk, "BedToIntervalList",
+                    "--java-options", params.javaOptions,
+                    "--INPUT", str(input.targets),
+                    "--OUTPUT", str(output.interval_list),
+                    "--SEQUENCE_DICTIONARY", str(input.dict),
+                ]
+                if params.tmp_dir:
+                    cmd_bed.extend(["--TMP_DIR", params.tmp_dir])
+                cmds.append(cmd_bed)
+            cmd_hsm = [
+                params.gatk, "CollectHsMetrics",
+                "--java-options", params.javaOptions,
+                "--INPUT", str(input.bam),
+                "--OUTPUT", str(output.metrics),
+                "--REFERENCE_SEQUENCE", str(input.fasta),
+                "--BAIT_INTERVALS", str(output.interval_list),
+                "--TARGET_INTERVALS", str(output.interval_list),
+            ]
+            if params.tmp_dir:
+                cmd_hsm.extend(["--TMP_DIR", params.tmp_dir])
+            cmds.append(cmd_hsm)
+            with open(script, "w") as f:
+                f.write("#!/bin/bash\nset -euo pipefail\n")
+                for cmd in cmds:
+                    f.write(" ".join(cmd) + "\n")
+                f.write(f"echo 'collectHsMetrics was completed successfully for {wildcards.sample_id} !'\n")
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
+        except Exception as e:
+            rule_logger.error(f"Error during collectHsMetrics execution for {wildcards.sample_id}: {str(e)}")
+            raise RuntimeError(f"Error occurred while running collectHsMetrics for {wildcards.sample_id}: {e}, you can check the log file {log_path} for more information.")
+
+
 rule gatk_prepare_result:
     input:
         bam = outdir + "/{sample_id}/{sample_id}.sorted_markdup.bam",

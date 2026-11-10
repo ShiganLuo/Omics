@@ -16,6 +16,9 @@
     }
   },
   "genome": {
-    "fasta": "path/to/human_genome.fa"
+    "fasta": "path/to/human_genome.fa",
+    "fai_index": "path/to/human_genome.fa.fai",
+    "dict_index": "path/to/human_genome.dict",
+    "targets": "path/to/capture_targets.bed"
   }
 }

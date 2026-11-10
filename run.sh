@@ -16,6 +16,15 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 #     --sdm \
 #     --dry-run
 
+python ${SCRIPT_DIR}/run.py \
+    -m /data/pub/zhousha/20260207_Exome/data/RNAseq/meta_input.csv \
+    -w RNAseq \
+    -o /data/pub/zhousha/20260207_Exome/output \
+    -t 48 \
+    --log /data/pub/zhousha/20260207_Exome/log/exome_paired_RNAseq.log \
+    --sdm \
+    --rerun-triggers mtime
+        # --forcerun function_gsva
 
 # python ${SCRIPT_DIR}/run.py \
 #     -m /home/luosg/Data/genomeStability/data/Rn7sk/meta_input.tsv \

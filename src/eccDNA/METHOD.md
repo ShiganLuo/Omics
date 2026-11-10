@@ -128,6 +128,45 @@ ratio = (片段 reads / 片段∩外显子 kb) / (背景 reads / 背景∩外显
 家族 3 = Chil3/4 几丁质酶簇,家族 6 含 Hmgb1/Alox5ap,家族 4 = Platr16/
 Gm13230/Zfp990/Zfp268),可与证据 3 转录比值直接对应。
 
+## 断点与整体重复序列分析(2026-10-28)
+
+回答两个问题:断点处有无重复序列;eccDNA 整体有无重复富集。
+数据源 `reconstruct.ecDNA.filtered.bed` + `reconstruct.links.ecDNA.filtered.txt`
+(links 节点号 = filtered.bed 数据行序号,side 1 = end 侧、side 0 = start 侧);
+重复注释 GRCm39 GENCODE rmsk TE GTF(UCSC rmsk);微同源用 GRCm39 FASTA。
+
+**定义与口径**:
+
+- 断点 = fragment 边界;跨样本 ±200 bp 折叠为位点(66 边界 → 28 位点);
+  junction 同法折叠(33 → 14 唯一)。
+- 断点重复含量:`breakpoint_repeat.py`,窗口 ±0/100/500/2000 bp 命中率、
+  最近重复距离、±500 bp 家族组成(位点占比)。零模型三套,各 1000 次
+  逐位点置换:局部(同环 span ±50 kb)、环内部(该环 fragment 内部)、
+  全基因组(同染色体均匀)。局部零模型控制区域重复密度,环内部控制
+  "上了环的 DNA"本身。
+- 整体富集:`ecdna_repeat_enrichment.py`,全部 fragment 跨样本合并
+  (11 区间 2.21 Mb)按 class/family 统计 bp 覆盖;背景 = 每区间在同
+  染色体上随机重放同长度区间(1000 次);双侧经验 p + BH-FDR
+  (family 级 102 检验)。
+- 微同源:`junction_microhomology.py`,junction 两侧各取向内 50 bp
+  (分子方向),取最大 k 使上游 flank 末 k bp == 下游 flank 首 k bp
+  (跨连接点直接重复,放置歧义 footprint);零模型 = 同染色体随机断点对
+  同向取 flank,同法统计。
+
+**实测结论**(详见 `../../output/eccdna_repeats/RESULTS.md`):
+
+- 断点精确位置 8/28 落在重复内,低于全部零模型(局部 45%,耗竭侧
+  p=0.044);中位最近重复距离 53 bp——断点贴着重复但不在重复里。
+- ±500 bp 内 25/28 有重复(背景 81–85%,无差异);近邻家族 **ERV1
+  4.0x**(p=0.0014,FDR=0.016,三个零模型一致),B2 边缘 1.8x,ERVK 反向。
+- 微同源:5/14 junction 有 ≥2 bp(零模型 1.2,p=0.002),≥5 bp 无——
+  短微同源信号,无长同源介导证据。
+- 整体:总重复 40.6% vs 背景 39.8%(无富集);**LTR class 1.50x**
+  (p=0.004,FDR=0.044);family 级 ERVK 1.82x/ERV1 1.75x/LTR 4.09x
+  名义显著但 102 检验 FDR 不过线;L1/LINE 耗竭趋势(0.65–0.67x,ns)。
+- 口径提示:family 级富集仅作候选;结论只用跨零模型稳健信号
+  (ERV1 断点近邻、LTR class 整体、≥2 bp 微同源、断点位置耗竭)。
+
 ## 决策树
 
 ```

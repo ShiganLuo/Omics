@@ -47,7 +47,7 @@ WORKFLOWS = {
     "PeakCalling":     {"kind": "fastq", "columns": FASTQ_COLS},
     "tRNAseq":         {"kind": "fastq", "columns": FASTQ_COLS},
     "CLIP":            {"kind": "fastq", "columns": FASTQ_COLS},
-    "PacVar":          {"kind": "fastq", "columns": FASTQ_COLS},
+    "PacVar":          {"kind": "bam_pbi", "columns": ["sample_id", "data_id", "design", "group", "bam", "pbi"]},
     "scRNAseq":        {"kind": "fastq", "columns": FASTQ_COLS},
     "LRtranscriptome": {"kind": "fastq", "columns": FASTQ_COLS + ["organism"]},
     "RNAseq":          {"kind": "fastq", "columns": ["sample_id", "organism", "group", "data_id",
@@ -112,7 +112,8 @@ def find_bam_pbi_units(search_dir):
         if pbi is None:
             logger.warning(f"{bam}: no .pbi index found, skipping (required for Fiberseq)")
             continue
-        units.append((bam.name[:-4], bam, pbi))
+        stem = re.sub(r"\.(hifi_reads|subreads|ccs|polymerase|scraps)$", "", bam.name[:-4])
+        units.append((stem, bam, pbi))
     return units
 
 
@@ -171,13 +172,32 @@ def main():
         extras = [c for c in columns if c not in base + ["fastq_1", "fastq_2", "bam", "pbi", "ms_file"]]
         columns = base + file_cols + extras
 
-    units = []
-    find = {"fastq": find_fastq_units, "bam_pbi": find_bam_pbi_units, "ms": find_ms_units}[kind]
-    for d in args.search_dir:
-        search_dir = Path(d).resolve()
-        if not search_dir.is_dir():
-            die(f"search directory not found: {search_dir}")
-        units.extend(find(search_dir))
+    def scan_with(k):
+        found = []
+        for d in args.search_dir:
+            sd = Path(d).resolve()
+            if not sd.is_dir():
+                die(f"search directory not found: {sd}")
+            found.extend({"fastq": find_fastq_units, "bam_pbi": find_bam_pbi_units, "ms": find_ms_units}[k](sd))
+        return found
+
+    units = scan_with(kind)
+    if not units and not args.kind:
+        # recognition fallback: workflow's default kind found nothing, probe others
+        for alt in ("fastq", "bam_pbi", "ms"):
+            if alt == kind:
+                continue
+            alt_units = scan_with(alt)
+            if alt_units:
+                logger.warning(f"no {kind} files found, auto-detected {alt} input ({len(alt_units)} units)")
+                kind = alt
+                file_cols = {"fastq": ["fastq_1", "fastq_2"], "bam_pbi": ["bam", "pbi"], "ms": ["ms_file"]}[kind]
+                if not set(file_cols) <= set(columns):
+                    base = ["sample_id", "data_id", "design"]
+                    extras = [c for c in columns if c not in base + ["fastq_1", "fastq_2", "bam", "pbi", "ms_file"]]
+                    columns = base + file_cols + extras
+                units = alt_units
+                break
     if kind == "fastq" and args.layout != "any":
         want_pe = args.layout == "pe"
         units = [u for u in units if (u[2] is not None) == want_pe]

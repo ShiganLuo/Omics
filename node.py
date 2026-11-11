@@ -2101,6 +2101,47 @@ def runFiberseq(
         for metric in ("percent_accessible", "nuc_occupancy", "m6a_per_fiber", "fire_frac"):
             outfiles.append(f"{outdir}/fiberseq_analysis/quant/matrix/{metric}_matrix.tsv")
 
+    # Modification significance (modules/fiberseq/mods + sigtest): m6A/CpG
+    # per-fiber density over FIRE peaks, tested per contrast; significant
+    # regions land in a regionplot-ready BED under fiberseq_analysis/mods.
+    enable_mods = _enabled(datajson, "mods")
+    if enable_mods:
+        mods_params = datajson.setdefault("Params", {}).setdefault("mods", {})
+        mods_design = mods_params.get("design_tsv") or datajson.get("Params", {}).get("diff", {}).get("design_tsv")
+        if not mods_design:
+            raise ValueError(
+                "Params.mods.enabled=true requires Params.mods.design_tsv "
+                "(or Params.diff.design_tsv) in the config JSON."
+            )
+        mod_type = mods_params.get("mod_type", "m6a")
+        metric = mods_params.get("metric", f"{mod_type}_per_fiber")
+        # contrast list from the SAME design TSV diff uses (sample/group/
+        # contrast rows); samples not in a contrast simply don't contribute
+        mods_contrasts = {}
+        with open(mods_design) as fh:
+            header = fh.readline().rstrip("\n").split("\t")
+            low = [h.strip().lower() for h in header]
+            for col in ("sample", "group", "contrast"):
+                if col not in low:
+                    raise ValueError(f"design TSV {mods_design} lacks a '{col}' column")
+            cidx, gidx, sidx = (low.index(c) for c in ("contrast", "group", "sample"))
+            for line in fh:
+                f = line.rstrip("\n").split("\t")
+                if len(f) > cidx and f[cidx]:
+                    mods_contrasts.setdefault(f[cidx], {}).setdefault(
+                        f[gidx], []).append(f[sidx])
+        contrast_names = sorted(mods_contrasts)
+        # parse-time expand in the module needs the contrast list here
+        mods_params["contrasts"] = contrast_names
+        mods_base = f"{outdir}/fiberseq_analysis/mods"
+        outfiles.append(f"{mods_base}/{metric}_long.tsv")
+        for contrast in contrast_names:
+            base = f"{mods_base}/{contrast}"
+            outfiles.append(f"{base}/significance_test.tsv")
+            outfiles.append(f"{base}/significant_objects.tsv")
+            outfiles.append(f"{base}/significant_objects.bed")
+            outfiles.append(f"{base}/nonsignificant_objects.tsv")
+
     if enable_diff:
         design_tsv = datajson.get("Params", {}).get("diff", {}).get("design_tsv")
         if not design_tsv:

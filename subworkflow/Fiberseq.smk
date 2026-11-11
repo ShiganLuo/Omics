@@ -357,6 +357,36 @@ use rule fiberseq_quant_run from fiberseq_quant as Fiberseq_quant_run
 use rule fiberseq_quant_hap from fiberseq_quant as Fiberseq_quant_hap
 use rule fiberseq_quant_merge from fiberseq_quant as Fiberseq_quant_merge
 
+# ============================================================
+# Modification significance (modules/fiberseq/mods + sigtest):
+#   m6A/CpG calls over FIRE peaks -> long table -> sigtest per
+#   contrast -> significant objects as TSV + regionplot-ready
+#   BED. Contrasts derive from the SAME design TSV diff uses;
+#   node.py gates registration via Params.mods.enabled.
+# ============================================================
+fiberseq_mods_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
+    "env": config.get("env", {}),
+    "indir": elements_dir,
+    "outdir": f"{analysis_outdir}/mods",
+    "logdir": f"{logdir}/group",
+    "samples": samples,
+    # contrasts resolved by node.py from the diff design TSV and written
+    # into raw.json (parse-time expand needs them in the module config)
+    "contrasts": config.get("Params", {}).get("mods", {}).get("contrasts", []),
+    "Params": {
+        "fiberseq_mods": params.get("mods", {})
+    },
+    "resources": config.get("resources", {}),
+}
+module fiberseq_mods:
+    snakefile: "../modules/fiberseq/mods/mods.smk"
+    config: fiberseq_mods_config
+logger.debug(f"fiberseq_mods config: {fiberseq_mods_config}")
+use rule fiberseq_mods_longtable from fiberseq_mods as Fiberseq_mods_longtable
+use rule fiberseq_mods_sigtest from fiberseq_mods as Fiberseq_mods_sigtest
+
 fiberseq_diff_config = {
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,

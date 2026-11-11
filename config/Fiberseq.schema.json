@@ -91,7 +91,10 @@
       "formats": {
         "type": "list",
         "required": false,
-        "default": ["png", "svg"],
+        "default": [
+          "png",
+          "svg"
+        ],
         "description": "Output image formats (pyGenomeTracks --outFileName extensions)."
       },
       "gtf_track": {
@@ -261,6 +264,57 @@
         "required": false
       }
     },
+    "mods": {
+      "enabled": {
+        "type": "bool",
+        "required": false
+      },
+      "design_tsv": {
+        "type": "str",
+        "nullable": true,
+        "required": false
+      },
+      "mod_type": {
+        "type": "str",
+        "nullable": true,
+        "required": false
+      },
+      "metric": {
+        "type": "str",
+        "nullable": true,
+        "required": false
+      },
+      "method": {
+        "type": "str",
+        "nullable": true,
+        "required": false
+      },
+      "correction": {
+        "type": "str",
+        "nullable": true,
+        "required": false
+      },
+      "alpha": {
+        "type": "float",
+        "nullable": true,
+        "required": false
+      },
+      "groups": {
+        "type": "list",
+        "nullable": true,
+        "required": false
+      },
+      "no_plot": {
+        "type": "bool",
+        "nullable": true,
+        "required": false
+      },
+      "top_n": {
+        "type": "int",
+        "nullable": true,
+        "required": false
+      }
+    },
     "coactuation": {
       "enabled": {
         "type": "bool",
@@ -403,68 +457,315 @@
             "required": false,
             "default": {
               "GRCh38": [
-                {"name": "Alu", "family": ["Alu"], "retro_fingerprint": true},
-                {"name": "L1", "family": ["L1", "LINE"], "retro_fingerprint": true},
-                {"name": "SVA", "family": ["SVA"], "retro_fingerprint": true},
-                {"name": "LTR", "class": ["LTR"]},
-                {"name": "DNA", "class": ["DNA"]},
-                {"name": "microsatellite", "class": ["Simple_repeat"]},
-                {"name": "other", "catch_all": "classified"},
-                {"name": "unclassified", "catch_all": "unclassified"}
+                {
+                  "name": "Alu",
+                  "family": [
+                    "Alu"
+                  ],
+                  "retro_fingerprint": true
+                },
+                {
+                  "name": "L1",
+                  "family": [
+                    "L1",
+                    "LINE"
+                  ],
+                  "retro_fingerprint": true
+                },
+                {
+                  "name": "SVA",
+                  "family": [
+                    "SVA"
+                  ],
+                  "retro_fingerprint": true
+                },
+                {
+                  "name": "LTR",
+                  "class": [
+                    "LTR"
+                  ]
+                },
+                {
+                  "name": "DNA",
+                  "class": [
+                    "DNA"
+                  ]
+                },
+                {
+                  "name": "microsatellite",
+                  "class": [
+                    "Simple_repeat"
+                  ]
+                },
+                {
+                  "name": "other",
+                  "catch_all": "classified"
+                },
+                {
+                  "name": "unclassified",
+                  "catch_all": "unclassified"
+                }
               ],
               "GRCm39": [
-                {"name": "IAP/ETn", "family": ["ERVK"], "retro_fingerprint": true},
-                {"name": "B1", "family": ["Alu"], "retro_fingerprint": true},
-                {"name": "B2/ID", "family": ["tRNA", "B2"], "retro_fingerprint": true},
-                {"name": "L1", "family": ["L1", "LINE"], "retro_fingerprint": true},
-                {"name": "LTR", "class": ["LTR"]},
-                {"name": "DNA", "class": ["DNA"]},
-                {"name": "microsatellite", "class": ["Simple_repeat"]},
-                {"name": "other", "catch_all": "classified"},
-                {"name": "unclassified", "catch_all": "unclassified"}
+                {
+                  "name": "IAP/ETn",
+                  "family": [
+                    "ERVK"
+                  ],
+                  "retro_fingerprint": true
+                },
+                {
+                  "name": "B1",
+                  "family": [
+                    "Alu"
+                  ],
+                  "retro_fingerprint": true
+                },
+                {
+                  "name": "B2/ID",
+                  "family": [
+                    "tRNA",
+                    "B2"
+                  ],
+                  "retro_fingerprint": true
+                },
+                {
+                  "name": "L1",
+                  "family": [
+                    "L1",
+                    "LINE"
+                  ],
+                  "retro_fingerprint": true
+                },
+                {
+                  "name": "LTR",
+                  "class": [
+                    "LTR"
+                  ]
+                },
+                {
+                  "name": "DNA",
+                  "class": [
+                    "DNA"
+                  ]
+                },
+                {
+                  "name": "microsatellite",
+                  "class": [
+                    "Simple_repeat"
+                  ]
+                },
+                {
+                  "name": "other",
+                  "catch_all": "classified"
+                },
+                {
+                  "name": "unclassified",
+                  "catch_all": "unclassified"
+                }
               ],
               "T2T_mhaESC_v1.5": [
-                {"name": "IAP/ETn", "family": ["ERVK"], "retro_fingerprint": true},
-                {"name": "B1", "family": ["Alu"], "retro_fingerprint": true},
-                {"name": "B2/ID", "family": ["tRNA", "B2"], "retro_fingerprint": true},
-                {"name": "L1", "family": ["L1", "LINE"], "retro_fingerprint": true},
-                {"name": "LTR", "class": ["LTR"]},
-                {"name": "DNA", "class": ["DNA"]},
-                {"name": "microsatellite", "class": ["Simple_repeat"]},
-                {"name": "other", "catch_all": "classified"},
-                {"name": "unclassified", "catch_all": "unclassified"}
+                {
+                  "name": "IAP/ETn",
+                  "family": [
+                    "ERVK"
+                  ],
+                  "retro_fingerprint": true
+                },
+                {
+                  "name": "B1",
+                  "family": [
+                    "Alu"
+                  ],
+                  "retro_fingerprint": true
+                },
+                {
+                  "name": "B2/ID",
+                  "family": [
+                    "tRNA",
+                    "B2"
+                  ],
+                  "retro_fingerprint": true
+                },
+                {
+                  "name": "L1",
+                  "family": [
+                    "L1",
+                    "LINE"
+                  ],
+                  "retro_fingerprint": true
+                },
+                {
+                  "name": "LTR",
+                  "class": [
+                    "LTR"
+                  ]
+                },
+                {
+                  "name": "DNA",
+                  "class": [
+                    "DNA"
+                  ]
+                },
+                {
+                  "name": "microsatellite",
+                  "class": [
+                    "Simple_repeat"
+                  ]
+                },
+                {
+                  "name": "other",
+                  "catch_all": "classified"
+                },
+                {
+                  "name": "unclassified",
+                  "catch_all": "unclassified"
+                }
               ],
               "Mmul_10": [
-                {"name": "Alu", "family": ["Alu"], "retro_fingerprint": true},
-                {"name": "L1", "family": ["L1", "LINE"], "retro_fingerprint": true},
-                {"name": "SVA", "family": ["SVA"], "retro_fingerprint": true},
-                {"name": "LTR", "class": ["LTR"]},
-                {"name": "DNA", "class": ["DNA"]},
-                {"name": "microsatellite", "class": ["Simple_repeat"]},
-                {"name": "other", "catch_all": "classified"},
-                {"name": "unclassified", "catch_all": "unclassified"}
+                {
+                  "name": "Alu",
+                  "family": [
+                    "Alu"
+                  ],
+                  "retro_fingerprint": true
+                },
+                {
+                  "name": "L1",
+                  "family": [
+                    "L1",
+                    "LINE"
+                  ],
+                  "retro_fingerprint": true
+                },
+                {
+                  "name": "SVA",
+                  "family": [
+                    "SVA"
+                  ],
+                  "retro_fingerprint": true
+                },
+                {
+                  "name": "LTR",
+                  "class": [
+                    "LTR"
+                  ]
+                },
+                {
+                  "name": "DNA",
+                  "class": [
+                    "DNA"
+                  ]
+                },
+                {
+                  "name": "microsatellite",
+                  "class": [
+                    "Simple_repeat"
+                  ]
+                },
+                {
+                  "name": "other",
+                  "catch_all": "classified"
+                },
+                {
+                  "name": "unclassified",
+                  "catch_all": "unclassified"
+                }
               ],
               "Mmul_T2T": [
-                {"name": "Alu", "family": ["Alu"], "retro_fingerprint": true},
-                {"name": "L1", "family": ["L1", "LINE"], "retro_fingerprint": true},
-                {"name": "SVA", "family": ["SVA"], "retro_fingerprint": true},
-                {"name": "LTR", "class": ["LTR"]},
-                {"name": "DNA", "class": ["DNA"]},
-                {"name": "microsatellite", "class": ["Simple_repeat"]},
-                {"name": "other", "catch_all": "classified"},
-                {"name": "unclassified", "catch_all": "unclassified"}
+                {
+                  "name": "Alu",
+                  "family": [
+                    "Alu"
+                  ],
+                  "retro_fingerprint": true
+                },
+                {
+                  "name": "L1",
+                  "family": [
+                    "L1",
+                    "LINE"
+                  ],
+                  "retro_fingerprint": true
+                },
+                {
+                  "name": "SVA",
+                  "family": [
+                    "SVA"
+                  ],
+                  "retro_fingerprint": true
+                },
+                {
+                  "name": "LTR",
+                  "class": [
+                    "LTR"
+                  ]
+                },
+                {
+                  "name": "DNA",
+                  "class": [
+                    "DNA"
+                  ]
+                },
+                {
+                  "name": "microsatellite",
+                  "class": [
+                    "Simple_repeat"
+                  ]
+                },
+                {
+                  "name": "other",
+                  "catch_all": "classified"
+                },
+                {
+                  "name": "unclassified",
+                  "catch_all": "unclassified"
+                }
               ]
             },
             "items": {
               "type": "dict",
               "properties": {
-                "name": {"type": "str", "required": true, "description": "Bucket display name; never used for matching."},
-                "subfamily": {"type": "list", "required": false, "description": "Exact (case-insensitive) match against the RM repeat NAME (AluY / B1_Mm / IAP1 ...)."},
-                "family": {"type": "list", "required": false, "description": "Exact match against the RM class/family suffix (SINE/Alu -> Alu; no-slash entries match whole string)."},
-                "class": {"type": "list", "required": false, "description": "Exact match against the RM class/family prefix (SINE, LTR, DNA ...). Only the FIRST non-empty of subfamily/family/class participates (probe order subfamily -> family -> class)."},
-                "catch_all": {"type": "str", "required": false, "enum": ["classified", "unclassified"], "description": "classified: RM hit but no bucket matched; unclassified: no RM hit at all."},
-                "retro_fingerprint": {"type": "bool", "required": false, "description": "true -> this bucket gets TSD detection (needs reference flanks) and is included in the retrotransposon fingerprint figure (polyA/TSD rates). Mark only active retrotransposon families (primate Alu/L1/SVA; mouse IAP/ETn, B1, B2/ID, L1)."},
-                "zero_slot": {"type": "bool", "required": false, "default": true, "description": "false -> omit this bucket from figures when it has zero events (default true keeps the slot labelled 0)."}
+                "name": {
+                  "type": "str",
+                  "required": true,
+                  "description": "Bucket display name; never used for matching."
+                },
+                "subfamily": {
+                  "type": "list",
+                  "required": false,
+                  "description": "Exact (case-insensitive) match against the RM repeat NAME (AluY / B1_Mm / IAP1 ...)."
+                },
+                "family": {
+                  "type": "list",
+                  "required": false,
+                  "description": "Exact match against the RM class/family suffix (SINE/Alu -> Alu; no-slash entries match whole string)."
+                },
+                "class": {
+                  "type": "list",
+                  "required": false,
+                  "description": "Exact match against the RM class/family prefix (SINE, LTR, DNA ...). Only the FIRST non-empty of subfamily/family/class participates (probe order subfamily -> family -> class)."
+                },
+                "catch_all": {
+                  "type": "str",
+                  "required": false,
+                  "enum": [
+                    "classified",
+                    "unclassified"
+                  ],
+                  "description": "classified: RM hit but no bucket matched; unclassified: no RM hit at all."
+                },
+                "retro_fingerprint": {
+                  "type": "bool",
+                  "required": false,
+                  "description": "true -> this bucket gets TSD detection (needs reference flanks) and is included in the retrotransposon fingerprint figure (polyA/TSD rates). Mark only active retrotransposon families (primate Alu/L1/SVA; mouse IAP/ETn, B1, B2/ID, L1)."
+                },
+                "zero_slot": {
+                  "type": "bool",
+                  "required": false,
+                  "default": true,
+                  "description": "false -> omit this bucket from figures when it has zero events (default true keeps the slot labelled 0)."
+                }
               }
             },
             "description": "Per-species ordered TE bucket lists keyed by genome reference key (like genome.references; different species get different default vocabularies). A plain bucket list is also accepted and applies as-is. node.py resolves the active genome's list into raw.json. Bucket dict keys: name, subfamily, family, class, catch_all, retro_fingerprint, zero_slot; matching schema in modules/sv/bin/mei_analysis.py."

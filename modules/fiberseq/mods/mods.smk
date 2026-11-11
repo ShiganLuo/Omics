@@ -29,8 +29,6 @@ samples = config.get("samples", [])
 ROOT_DIR = config.get("ROOT_DIR", ".")
 p = config.get("Params", {}).get("fiberseq_mods", {})
 
-# design TSV (sample/group[/contrast]) — same file diff uses
-_design = p.get("design_tsv")
 _mod_type = p.get("mod_type", "m6a")            # m6a | cpg
 _metric = p.get("metric", f"{_mod_type}_per_fiber")
 # region axis: fire_peaks (default) | te (RepeatMasker loci collapsed per level)
@@ -49,33 +47,17 @@ _tmp_dir = config.get("tmp_dir") or os.path.join(outdir, "tmp")
 sigtest_contrasts = [str(c) for c in (config.get("contrasts") or [])]
 
 
-def _mods_design(wildcards):
-    """Required design TSV; missing key fails at DAG time naming it."""
-    return _require(_design, "Params.mods.design_tsv", "fiberseq_mods")
-
-
 def _group_samples_spec() -> str:
-    """'gA:s1+s2,gB:s3' from config group_samples (node.py writes it from
-    the meta design); a hand-filled design_tsv still parses as fallback."""
+    """'gA:s1+s2,gB:s3' from config group_samples.
+
+    node.py derives it from the meta design (group_pairs) — the meta is
+    the single source of grouping for this module.
+    """
     gs = dict(p.get("group_samples") or {})
-    if not gs and p.get("design_tsv"):
-        sample_group: dict = {}
-        with open(p["design_tsv"]) as fh:
-            hdr = fh.readline().rstrip("\n").split("\t")
-            low = [h.strip().lower() for h in hdr]
-            si, gi = low.index("sample"), low.index("group")
-            for line in fh:
-                f = line.rstrip("\n").split("\t")
-                if len(f) > max(si, gi) and f[si].strip():
-                    sample_group[f[si].strip()] = f[gi].strip()
-        gs = {}
-        for s, g in sample_group.items():
-            gs.setdefault(g, []).append(s)
     if not gs:
         raise ValueError(
-            "fiberseq_mods needs sample grouping: fill the meta design/group "
-            "columns (drives Params.fiberseq_mods.group_samples) or set "
-            "Params.fiberseq_mods.design_tsv.")
+            "fiberseq_mods needs Params.fiberseq_mods.group_samples: fill "
+            "the meta design/group columns (node.py derives them) and rerun.")
     return ",".join(f"{g}:{'+'.join(ss)}" for g, ss in gs.items())
 
 
@@ -83,8 +65,7 @@ def _mods_longtable_inputs(wildcards):
     """Inputs for the active region axis (DAG-time file declaration).
 
     Grouping arrives via Params (group_samples derived from the meta
-    design by node.py) — a design file input only when hand-authored
-    design_tsv is set.
+    design by node.py) — no design file input.
     """
     files = {
         "mods": expand(indir + "/{sample_id}/{sample_id}." + _mod_type + ".bed.gz",
@@ -92,8 +73,6 @@ def _mods_longtable_inputs(wildcards):
         "msp": expand(indir + "/{sample_id}/{sample_id}.msp.bed.gz",
                       sample_id=samples),
     }
-    if p.get("design_tsv"):
-        files["design"] = _mods_design(wildcards)
     if _is_te:
         files["te_bed"] = _require(_te_bed, "genome.repeat_bed", "fiberseq_mods")
     else:

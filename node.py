@@ -2256,8 +2256,7 @@ def runFiberseq(
     # per-fiber density over FIRE peaks, tested per contrast; significant
     # regions land in a regionplot-ready BED under fiberseq_analysis/mods.
     # Groups/contrasts come from the meta-derived group_pairs (same source
-    # sv uses) — no extra design file to fill; an explicit
-    # Params.fiberseq_mods.design_tsv still wins when hand-authoring.
+    # sv uses) — the meta is the single source of grouping, no design file.
     enable_mods = _enabled(datajson, "fiberseq_mods") or _enabled(datajson, "mods")
     if enable_mods:
         mods_params = (datajson.setdefault("Params", {}).get("fiberseq_mods")
@@ -2273,37 +2272,18 @@ def runFiberseq(
             long_name = f"te_{mod_type}_{te_level}_long.tsv"
         else:
             long_name = f"{metric}_long.tsv"
-        mods_design = (mods_params.get("design_tsv")
-                       or datajson.get("Params", {}).get("diff", {}).get("design_tsv"))
-        mods_contrasts: Dict[str, Dict[str, List[str]]] = {}
-        if mods_design:
-            # hand-authored design TSV (sample/group/contrast rows) wins
-            with open(mods_design) as fh:
-                header = fh.readline().rstrip("\n").split("\t")
-                low = [h.strip().lower() for h in header]
-                for col in ("sample", "group", "contrast"):
-                    if col not in low:
-                        raise ValueError(f"design TSV {mods_design} lacks a '{col}' column")
-                cidx, gidx, sidx = (low.index(c) for c in ("contrast", "group", "sample"))
-                for line in fh:
-                    f = line.rstrip("\n").split("\t")
-                    if len(f) > cidx and f[cidx]:
-                        mods_contrasts.setdefault(f[cidx], {}).setdefault(
-                            f[gidx], []).append(f[sidx])
-        elif group_pairs:
-            # default: the SAME meta-derived design sv/function consume
-            # (ctr_vs_<exp> contrast, group name -> sample lists)
-            for gp in group_pairs:
-                mods_contrasts[f"{gp.ctr_group_name}_vs_{gp.exp_group_name}"] = {
-                    gp.ctr_group_name: list(gp.ctr_sample_ids),
-                    gp.exp_group_name: list(gp.exp_sample_ids),
-                }
-        else:
+        # grouping: meta design ONLY (group_pairs, same source sv uses)
+        if not group_pairs:
             raise ValueError(
-                "Params.fiberseq_mods.enabled=true needs a study design: "
-                "fill the meta design/group columns (drives group_pairs) or "
-                "set Params.fiberseq_mods.design_tsv."
+                "Params.fiberseq_mods.enabled=true needs the meta "
+                "design/group columns filled (they drive group_pairs)."
             )
+        mods_contrasts: Dict[str, Dict[str, List[str]]] = {}
+        for gp in group_pairs:
+            mods_contrasts[f"{gp.ctr_group_name}_vs_{gp.exp_group_name}"] = {
+                gp.ctr_group_name: list(gp.ctr_sample_ids),
+                gp.exp_group_name: list(gp.exp_sample_ids),
+            }
         contrast_names = sorted(mods_contrasts)
         # group -> sample lists for the module (long-table group column +
         # top-loci group specs); parse-time expand needs the contrast list

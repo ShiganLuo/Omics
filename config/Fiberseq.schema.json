@@ -269,11 +269,6 @@
         "type": "bool",
         "required": false
       },
-      "design_tsv": {
-        "type": "str",
-        "nullable": true,
-        "required": false
-      },
       "mod_type": {
         "type": "str",
         "nullable": true,

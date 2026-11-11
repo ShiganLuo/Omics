@@ -6,7 +6,6 @@
     "contrasts": [],
     "Params": {
         "fiberseq_mods": {
-            "design_tsv": null,
             "mod_type": "m6a",
             "metric": "m6a_per_fiber",
             "method": "auto",

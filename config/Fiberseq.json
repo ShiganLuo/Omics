@@ -278,7 +278,6 @@
     },
     "fiberseq_mods": {
       "enabled": false,
-      "design_tsv": null,
       "mod_type": "m6a",
       "metric": "m6a_per_fiber",
       "method": "auto",

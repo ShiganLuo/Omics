@@ -34,11 +34,6 @@
         "nullable": true,
         "required": false,
         "properties": {
-          "design_tsv": {
-            "type": "null",
-            "nullable": true,
-            "required": false
-          },
           "mod_type": {
             "type": "str",
             "nullable": true,

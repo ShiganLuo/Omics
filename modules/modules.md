@@ -68,6 +68,18 @@ echo；引擎脚本自包含（规范 #0）、入口 `main()` 只编排、阶段
 声明型输出（含占位文件）在每条退出路径上都落盘。参照实现：
 `modules/fibertools/bin/call_peaks.py` + `fibertools_analysis.smk::ft_call_peaks`。
 
+## 模块不得引用外部脚本（强制）
+
+模块**不得调用其他模块目录下的脚本**（`ROOT_DIR + "/modules/<B>/bin/y.py"`
+这类跨模块路径出现在 cmd 里即违规）。可复用的分析能力是一个独立模块，
+消费方通过 subworkflow 的 `module` + `use rule` 接线消费它的**输出文件**，
+而不是 import/执行它的代码。理由：模块目录整体拷走即能运行是 modules
+可迁移性的底线（同规范 #0 的脚本自包含），跨模块脚本引用在拷走后全部断裂。
+上游模块只负责准备好输入文件（长表、矩阵、BED），下游模块以文件为接口。
+参照实现：`fiberseq/mods` 准备 `{metric}_long.tsv` → subworkflow
+`use rule sigtest_run from sigtest` 消费该表 → `fiberseq/mods` 的后处理规则
+拆分显著对象；三个模块互不引用对方代码。
+
 **模块 .smk 中禁止条件分支**（`if`/`else` 包裹 rule 定义）。模块应该定义所有可能的 rule，由 subworkflow 决定 `use rule` 哪些。条件逻辑（如是否启用 batch correction、是否跑 velocity）属于 subworkflow 层，不属于模块层。
 
 判断标准：

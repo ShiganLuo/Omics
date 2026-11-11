@@ -4,9 +4,14 @@ import os
 import time
 
 # ---------------------------------------------------------------------------
-# mods: aggregate ft_extract modification calls (m6A/CpG) over FIRE peaks
-# into a sigtest long table, test per-region group differences, and split
-# significant regions into a regionplot-ready BED.
+# mods: prepare the modification long table (m6A/CpG per fiber over FIRE
+# peaks or TE loci) for the sigtest module, then postprocess sigtest's
+# results (significant objects split; TE-axis top-loci BED for regionplot).
+#
+# The sigtest module itself is a SEPARATE module consumed via subworkflow
+# `use rule` — cross-module contract is files only (modules.md 模块不得
+# 引用外部脚本): our long table -> sigtest's table input; sigtest's
+# significance_test.tsv -> our split/top-loci inputs (sigtest_dir config).
 #
 # region_axis=te switches the region axis to transposable elements:
 # per-locus quantification over a RepeatMasker TE BED (genome.repeat_bed,
@@ -105,6 +110,12 @@ rule fiberseq_mods_longtable:
                   else ROOT_DIR + "/modules/fiberseq/mods/bin/extract_modification_longtable.py"),
         metric = _metric,
         group_spec = _group_samples_spec(),
+        is_te = _is_te,
+        mod_type = _mod_type,
+        te_level = _te_level,
+        min_fibers = _min_fibers,
+        loci_name = _loci_name or "",
+        tmp_dir = _tmp_dir,
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -116,27 +127,27 @@ rule fiberseq_mods_longtable:
             os.makedirs(sample_outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"fiberseq_mods_longtable_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, "fiberseq_mods_longtable.sh")
-            if _is_te:
+            if params.is_te:
                 cmd = [
                     "python", params.script,
                     "--mods", ",".join(
-                        f"{s}:{indir}/{s}/{s}.{_mod_type}.bed.gz" for s in samples),
+                        f"{s}:{indir}/{s}/{s}.{params.mod_type}.bed.gz" for s in samples),
                     "--msp", ",".join(
                         f"{indir}/{s}/{s}.msp.bed.gz" for s in samples),
                     "--te", str(input.te_bed),
                     "--group-samples", params.group_spec,
-                    "--te-level", _te_level,
-                    "--min-fibers", str(_min_fibers),
+                    "--te-level", params.te_level,
+                    "--min-fibers", str(params.min_fibers),
                     "--out-long", str(output.longtable),
-                    "--out-loci", os.path.join(outdir, _loci_name),
-                    "--tmp-dir", _tmp_dir,
+                    "--out-loci", os.path.join(outdir, params.loci_name),
+                    "--tmp-dir", params.tmp_dir,
                     "-l", log_path,
                 ]
             else:
                 cmd = [
                     "python", params.script,
                     "--mods", ",".join(
-                        f"{s}:{indir}/{s}/{s}.{_mod_type}.bed.gz" for s in samples),
+                        f"{s}:{indir}/{s}/{s}.{params.mod_type}.bed.gz" for s in samples),
                     "--peaks", ",".join(
                         f"{indir}/{s}/{s}.fire_peaks.bed" for s in samples),
                     "--msp", ",".join(
@@ -158,121 +169,158 @@ rule fiberseq_mods_longtable:
             raise RuntimeError(f"Error occurred during fiberseq_mods_longtable: {e}, you can check the log file {log_path} for more details.\n")
 
 
-rule fiberseq_mods_sigtest:
-    """Per-feature significance test on the mods long table (sigtest module).
+# Directory where the sigtest module's outputs land (subworkflow wires
+# sigtest's outdir to <mods>/sigtest and its input table to our long table;
+# cross-module contract is FILES ONLY — no script references either way).
+SIGTEST_DIR = config.get("sigtest_dir") or os.path.join(outdir, "sigtest")
 
-    TE axis: features are subfamily/family names; significant groups then
-    get a per-group top-loci shortlist (regionplot browsing BED) from the
-    per-loci table via te_top_loci.py.
+
+def _sigtest_tsv(wildcards):
+    """The sigtest module's result table for one contrast."""
+    return os.path.join(SIGTEST_DIR, wildcards.contrast, "significance_test.tsv")
+
+
+rule fiberseq_mods_split:
+    """Split sigtest results into significant objects (TSV + regionplot BED).
+
+    Consumes the sigtest module's significance_test.tsv; the split engine
+    and the BED writer live in THIS module's bin/ (self-contained).
     """
     input:
-        longtable = outdir + f"/{_long_name}",
-        loci = ([outdir + "/" + _loci_name] if _is_te else []),
+        sig = _sigtest_tsv,
     output:
-        tsv = outdir + "/{contrast}/significance_test.tsv",
-        png = outdir + "/{contrast}/significance_bars.png",
         sig_tsv = outdir + "/{contrast}/significant_objects.tsv",
         sig_bed = outdir + "/{contrast}/significant_objects.bed",
         rest_tsv = outdir + "/{contrast}/nonsignificant_objects.tsv",
-        top_loci_tsv = ([outdir + "/{contrast}/top_loci.tsv"] if _is_te else []),
-        top_loci_bed = ([outdir + "/{contrast}/top_loci.bed"] if _is_te else []),
     log:
-        logdir + "/mods/{contrast}.log"
-    threads: rule_res("fiberseq_mods_sigtest").get("threads", 1)
+        logdir + "/mods/split_{contrast}.log"
+    threads: rule_res("fiberseq_mods_split").get("threads", 1)
     resources:
-        mem_mb = rule_res("fiberseq_mods_sigtest").get("mem_mb", 8000),
+        mem_mb = rule_res("fiberseq_mods_split").get("mem_mb", 4000),
     conda:
         "../fiberseq.yaml"
     container:
-        sif("../fiberseq.yaml", "fiberseq_mods_sigtest")
+        sif("../fiberseq.yaml", "fiberseq_mods_split")
     params:
-        sigtest_script = ROOT_DIR + "/modules/sigtest/bin/sigtest.py",
         split_script = ROOT_DIR + "/modules/fiberseq/mods/bin/split_significant.py",
-        top_loci_script = ROOT_DIR + "/modules/fiberseq/mods/bin/te_top_loci.py",
-        group_spec = _group_samples_spec(),
         p = p,
-        metric = _metric,
     run:
         log_path = str(log)
         open(log_path, "w").close()
-        rule_logger = setup_logger("fiberseq_mods_sigtest", log_file=log_path)
+        rule_logger = setup_logger("fiberseq_mods_split", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            rule_logger.info(f"Start mods sigtest for contrast {wildcards.contrast} at {current_time}")
-            sample_outdir = os.path.dirname(str(output.tsv))
+            rule_logger.info(f"Splitting sigtest results for contrast {wildcards.contrast}")
+            sample_outdir = os.path.dirname(str(output.sig_tsv))
             os.makedirs(sample_outdir, exist_ok=True)
-            script = os.path.join(RECEIPT_DIR, f"fiberseq_mods_sigtest_{wildcards.contrast}_{current_time}.sh")
-            plain_script = os.path.join(sample_outdir, f"fiberseq_mods_sigtest_{wildcards.contrast}.sh")
-            sig_cmd = [
-                "python", params.sigtest_script,
-                "-i", str(input.longtable),
-                "-o", sample_outdir,
-                "-f", "feature",
-                "--group-col", "group",
-                "-v", "value",
-                "-m", params.p.get("method", "auto"),
-                "-c", params.p.get("correction", "bh"),
-                "-a", str(params.p.get("alpha", 0.05)),
-                "-y", params.p.get("ylabel", params.metric),
-                "-l", log_path,
-            ]
-            groups = params.p.get("groups") or []
-            if len(groups) == 2:
-                sig_cmd += ["-g", str(groups[0]), str(groups[1])]
-            if params.p.get("no_plot"):
-                sig_cmd += ["--no-plot"]
-            split_cmd = [
+            script = os.path.join(RECEIPT_DIR, f"fiberseq_mods_split_{wildcards.contrast}_{current_time}.sh")
+            plain_script = os.path.join(sample_outdir, f"fiberseq_mods_split_{wildcards.contrast}.sh")
+            cmd = [
                 "python", params.split_script,
-                "-i", str(output.tsv),
+                "-i", str(input.sig),
                 "--out-tsv", str(output.sig_tsv),
                 "--out-bed", str(output.sig_bed),
                 "--out-rest-tsv", str(output.rest_tsv),
                 "--top-n", str(params.p.get("top_n", 0)),
             ]
-            # TE axis: rank loci inside significant groups (browsing BED —
-            # group-level p is the statistical assertion, loci are ranked)
-            top_loci_cmd = []
-            if _is_te:
-                # group spec (params.group_spec = 'gA:s1+s2,gB:s3'), restricted
-                # to the two groups sigtest compared (Params groups or first two)
-                grp_pair = params.p.get("groups") or [
-                    tok.split(":", 1)[0] for tok in params.group_spec.split(",")]
+            with open(script, "w") as f:
+                f.write("#!/bin/bash\n")
+                f.write("set -euo pipefail\n")
+                f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
+                f.write(f'echo "fiberseq_mods_split for {wildcards.contrast} completed successfully"\n')
+            shutil.copyfile(script, plain_script)
+            shell(f"bash {plain_script} >> {log_path} 2>&1")
+        except Exception as e:
+            rule_logger.error(f"Error occurred during fiberseq_mods_split for {wildcards.contrast}: {e}\n")
+            raise RuntimeError(f"Error occurred during fiberseq_mods_split for {wildcards.contrast}: {e}, you can check the log file {log_path} for more details.\n")
+
+
+rule fiberseq_mods_top_loci:
+    """Rank top loci within significant TE subfamilies/families (TE axis only).
+
+    A regionplot browsing shortlist — the subfamily-level p-value from the
+    sigtest module is the only statistical assertion; loci are ranked by
+    |group mean diff|, not tested.
+    """
+    input:
+        sig = _sigtest_tsv,
+        loci = outdir + "/" + _loci_name if _is_te else [],
+    output:
+        tsv = [outdir + "/{contrast}/top_loci.tsv"] if _is_te else [],
+        bed = [outdir + "/{contrast}/top_loci.bed"] if _is_te else [],
+    log:
+        logdir + "/mods/top_loci_{contrast}.log"
+    threads: rule_res("fiberseq_mods_top_loci").get("threads", 1)
+    resources:
+        mem_mb = rule_res("fiberseq_mods_top_loci").get("mem_mb", 4000),
+    conda:
+        "../fiberseq.yaml"
+    container:
+        sif("../fiberseq.yaml", "fiberseq_mods_top_loci")
+    params:
+        top_loci_script = ROOT_DIR + "/modules/fiberseq/mods/bin/te_top_loci.py",
+        group_spec = _group_samples_spec(),
+        p = p,
+        mod_type = _mod_type,
+        min_fibers = _min_fibers,
+        is_te = _is_te,
+    run:
+        if not params.is_te:
+            # fire_peaks axis declares empty outputs; nothing to rank
+            for out in list(output.tsv) + list(output.bed):
+                open(str(out), "w").close()
+        else:
+            log_path = str(log)
+            open(log_path, "w").close()
+            rule_logger = setup_logger("fiberseq_mods_top_loci", log_file=log_path)
+            try:
+                current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+                rule_logger.info(f"Ranking top loci for contrast {wildcards.contrast}")
+                sample_outdir = os.path.dirname(str(output.tsv[0]))
+                os.makedirs(sample_outdir, exist_ok=True)
+                script = os.path.join(RECEIPT_DIR, f"fiberseq_mods_top_loci_{wildcards.contrast}_{current_time}.sh")
+                plain_script = os.path.join(sample_outdir, f"fiberseq_mods_top_loci_{wildcards.contrast}.sh")
+                # group spec restricted to the two compared groups
+                grp_pair = (params.p.get("groups_by_contrast", {}).get(str(wildcards.contrast))
+                            or params.p.get("groups") or [
+                                tok.split(":", 1)[0] for tok in params.group_spec.split(",")])
                 by_group = {
                     tok.split(":", 1)[0]: tok.split(":", 1)[1]
                     for tok in params.group_spec.split(",")}
                 grp_spec = ",".join(f"{g}:{by_group[g]}" for g in grp_pair[:2])
-                top_loci_cmd = [
+                cmd = [
                     "python", params.top_loci_script,
-                    "--sig", str(output.tsv),
+                    "--sig", str(input.sig),
                     "--loci", str(input.loci[0]),
                     "--groups", grp_spec,
-                    "--value-suffix", f"{_mod_type}_per_fiber",
+                    "--value-suffix", f"{params.mod_type}_per_fiber",
                     "--top-n", str(params.p.get("loci_top_n", 5)),
-                    "--min-fibers", str(_min_fibers),
-                    "--out-tsv", str(output.top_loci_tsv),
-                    "--out-bed", str(output.top_loci_bed),
+                    "--min-fibers", str(params.min_fibers),
+                    "--out-tsv", str(output.tsv[0]),
+                    "--out-bed", str(output.bed[0]),
                 ]
-            with open(script, "w") as f:
-                f.write("#!/bin/bash\n")
-                f.write("set -euo pipefail\n")
-                f.write(" ".join(shlex.quote(str(x)) for x in sig_cmd) + "\n")
-                f.write(" ".join(shlex.quote(str(x)) for x in split_cmd) + "\n")
-                if top_loci_cmd:
-                    f.write(" ".join(shlex.quote(str(x)) for x in top_loci_cmd) + "\n")
-                f.write(f'echo "fiberseq_mods_sigtest for {wildcards.contrast} at {current_time} completed successfully"\n')
-            shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
-        except Exception as e:
-            rule_logger.error(f"Error occurred during fiberseq_mods_sigtest for {wildcards.contrast}: {e}\n")
-            raise RuntimeError(f"Error occurred during fiberseq_mods_sigtest for {wildcards.contrast}: {e}, you can check the log file {log_path} for more details.\n")
+                with open(script, "w") as f:
+                    f.write("#!/bin/bash\n")
+                    f.write("set -euo pipefail\n")
+                    f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
+                    f.write(f'echo "fiberseq_mods_top_loci for {wildcards.contrast} completed successfully"\n')
+                shutil.copyfile(script, plain_script)
+                shell(f"bash {plain_script} >> {log_path} 2>&1")
+            except Exception as e:
+                rule_logger.error(f"Error occurred during fiberseq_mods_top_loci for {wildcards.contrast}: {e}\n")
+                raise RuntimeError(f"Error occurred during fiberseq_mods_top_loci for {wildcards.contrast}: {e}, you can check the log file {log_path} for more details.\n")
 
 
 rule fiberseq_mods_result:
-    """Panel: aggregate mods outputs as a dependency point for use rule."""
+    """Panel: aggregate mods outputs as a dependency point for use rule.
+
+    significance_test.tsv itself belongs to the sigtest module (its own
+    result panel aggregates it); this panel covers the mods-owned outputs.
+    """
     input:
         longtable = outdir + f"/{_long_name}",
-        tsv = expand(outdir + "/{contrast}/significance_test.tsv",
-                     contrast=sigtest_contrasts),
+        sig_tsv = expand(outdir + "/{contrast}/significant_objects.tsv",
+                         contrast=sigtest_contrasts),
         sig_bed = expand(outdir + "/{contrast}/significant_objects.bed",
                          contrast=sigtest_contrasts),
         top_loci = (expand(outdir + "/{contrast}/top_loci.bed",

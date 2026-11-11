@@ -70,7 +70,10 @@ rule sigtest_run:
                 "-a", str(params.p.get("alpha", 0.05)),
                 "-y", params.p.get("ylabel", "value"),
             ]
-            groups = params.p.get("groups") or []
+            # per-contrast group pair when provided (multi-contrast runs),
+            # falling back to the global Params.sigtest.groups
+            groups = (params.p.get("groups_by_contrast", {}).get(str(wildcards.contrast))
+                      or params.p.get("groups") or [])
             if len(groups) == 2:
                 cmd += ["-g", str(groups[0]), str(groups[1])]
             if params.p.get("paired"):

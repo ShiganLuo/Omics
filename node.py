@@ -1014,6 +1014,32 @@ def runMutation(
         outfiles.append(f"{outdir}/stability/spectrum/somatic_spectrum_stacked_bar.png")
         outfiles.append(f"{outdir}/stability/spectrum/somatic_spectrum_heatmap.png")
         outfiles.append(f"{outdir}/stability/spectrum/somatic_spectrum.csv")
+        outfiles.append(f"{outdir}/stability/spectrum/somatic_spectrum_per_sample.csv")
+        outfiles.append(f"{outdir}/stability/spectrum/somatic_spectrum_sample_stats.csv")
+        # Signature analysis (modules/spectrum): refit against COSMIC and/or
+        # de novo NMF. Gated by Params.somatic_spectrum.signature.enabled
+        # (default off); mode selects which outputs are registered.
+        _sig_cfg = datajson["Params"].get("somatic_spectrum", {}).get("signature", {}) or {}
+        if _sig_cfg.get("enabled"):
+            _sig_mode = str(_sig_cfg.get("mode", "both")).lower()
+            if _sig_mode in ("refit", "both"):
+                for _f in ("signature_refit_exposures.csv",
+                           "signature_refit_exposure_fractions.csv",
+                           "signature_refit_family_exposures.csv",
+                           "signature_refit_summary.csv",
+                           "signature_refit_exposure_stacked_bar.png",
+                           "signature_refit_exposure_heatmap.png"):
+                    outfiles.append(f"{outdir}/stability/spectrum/{_f}")
+            if _sig_mode in ("nmf", "both"):
+                for _f in ("signature_nmf_signatures.csv",
+                           "signature_nmf_exposures.csv",
+                           "signature_nmf_rank_diagnostics.csv",
+                           "signature_nmf_rank_diagnostics.png",
+                           "signature_nmf_signatures.png",
+                           "signature_nmf_exposures_stacked_bar.png",
+                           "signature_nmf_cosmic_similarity.csv",
+                           "signature_nmf_cosmic_best_match.csv"):
+                    outfiles.append(f"{outdir}/stability/spectrum/{_f}")
     
     all_samples = paired_samples + single_samples
     
@@ -2305,10 +2331,20 @@ def runFiberseq(
             g: samples for ctr in mods_contrasts.values() for g, samples in ctr.items()
         }
         mods_base = f"{outdir}/fiberseq_analysis/mods"
+        # sigtest module wiring (subworkflow use rule): its input table is
+        # our long table; group pair per contrast comes from the same map
+        sigtest_params = datajson["Params"].setdefault("sigtest", {})
+        sigtest_params["sigtest_table"] = f"{mods_base}/{long_name}"
+        sigtest_params["contrasts"] = contrast_names
+        sigtest_params["groups_by_contrast"] = {
+            c: sorted(groups) for c, groups in mods_contrasts.items()
+        }
         outfiles.append(f"{mods_base}/{long_name}")
+        # sigtest module outputs (own subtree); mods postprocess outputs
         for contrast in contrast_names:
+            outfiles.append(f"{outdir}/fiberseq_analysis/sigtest/{contrast}/significance_test.tsv")
+            outfiles.append(f"{outdir}/fiberseq_analysis/sigtest/{contrast}/significance_bars.png")
             base = f"{mods_base}/{contrast}"
-            outfiles.append(f"{base}/significance_test.tsv")
             outfiles.append(f"{base}/significant_objects.tsv")
             outfiles.append(f"{base}/significant_objects.bed")
             outfiles.append(f"{base}/nonsignificant_objects.tsv")

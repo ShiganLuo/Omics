@@ -330,6 +330,38 @@
         "required": false
       }
     },
+    "sigtest": {
+      "method": {
+        "type": "str",
+        "nullable": true,
+        "required": false
+      },
+      "correction": {
+        "type": "str",
+        "nullable": true,
+        "required": false
+      },
+      "alpha": {
+        "type": "float",
+        "nullable": true,
+        "required": false
+      },
+      "groups": {
+        "type": "list",
+        "nullable": true,
+        "required": false
+      },
+      "ylabel": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      },
+      "no_plot": {
+        "type": "bool",
+        "nullable": true,
+        "required": false
+      }
+    },
     "coactuation": {
       "enabled": {
         "type": "bool",

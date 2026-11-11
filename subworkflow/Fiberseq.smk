@@ -358,12 +358,17 @@ use rule fiberseq_quant_hap from fiberseq_quant as Fiberseq_quant_hap
 use rule fiberseq_quant_merge from fiberseq_quant as Fiberseq_quant_merge
 
 # ============================================================
-# Modification significance (modules/fiberseq/mods + sigtest):
-#   m6A/CpG calls over FIRE peaks -> long table -> sigtest per
-#   contrast -> significant objects as TSV + regionplot-ready
-#   BED. Contrasts derive from the SAME design TSV diff uses;
-#   node.py gates registration via Params.mods.enabled.
+# Modification significance (fiberseq/mods -> sigtest -> mods):
+#   m6A/CpG calls over FIRE peaks or TE loci -> long table ->
+#   sigtest per contrast (its own module, file interface) ->
+#   significant objects TSV + regionplot-ready BED + TE top loci.
+#   node.py derives contrasts/group_samples from the meta design
+#   (group_pairs) and gates registration via Params.fiberseq_mods.
 # ============================================================
+# sigtest module output dir — hoisted so both configs reference one
+# definition (subworkflow executes sequentially; no forward refs)
+sigtest_dir = f"{analysis_outdir}/sigtest"
+
 fiberseq_mods_config = {
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
@@ -372,9 +377,12 @@ fiberseq_mods_config = {
     "outdir": f"{analysis_outdir}/mods",
     "logdir": f"{logdir}/group",
     "samples": samples,
-    # TE region axis (Params.mods.region_axis=te): RepeatMasker loci BED
+    # TE region axis (Params.fiberseq_mods.region_axis=te): RepeatMasker
+    # loci BED; sorted copy cached under tmp_dir
     "te_bed": genome_ref.get("repeat_bed"),
     "tmp_dir": config.get("tmp_dir") or f"{outdir}/tmp",
+    # postprocess rules consume the sigtest module's outputs from here
+    "sigtest_dir": sigtest_dir,
     # contrasts + group_samples are written by node.py into the config
     # (derived from the meta design / group_pairs) before the DAG builds
     "contrasts": (config.get("Params", {}).get("fiberseq_mods", {})
@@ -389,7 +397,32 @@ module fiberseq_mods:
     config: fiberseq_mods_config
 logger.debug(f"fiberseq_mods config: {fiberseq_mods_config}")
 use rule fiberseq_mods_longtable from fiberseq_mods as Fiberseq_mods_longtable
-use rule fiberseq_mods_sigtest from fiberseq_mods as Fiberseq_mods_sigtest
+use rule fiberseq_mods_split from fiberseq_mods as Fiberseq_mods_split
+use rule fiberseq_mods_top_loci from fiberseq_mods as Fiberseq_mods_top_loci
+
+# sigtest module: consumes the mods long table (sigtest_table written by
+# node.py); per-contrast group pairs ride in Params.sigtest.groups_by_contrast
+fiberseq_sigtest_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
+    "env": config.get("env", {}),
+    "outdir": sigtest_dir,
+    "logdir": f"{logdir}/group",
+    "sigtest_table": (config.get("Params", {}).get("sigtest", {})
+                      or {}).get("sigtest_table", ""),
+    "contrasts": (config.get("Params", {}).get("sigtest", {})
+                  or {}).get("contrasts", []),
+    "Params": {
+        "sigtest": params.get("sigtest", {})
+    },
+    "resources": config.get("resources", {}),
+}
+module sigtest:
+    snakefile: "../modules/sigtest/sigtest.smk"
+    config: fiberseq_sigtest_config
+logger.debug(f"fiberseq_sigtest config: {fiberseq_sigtest_config}")
+use rule sigtest_run from sigtest as Fiberseq_sigtest_run
+use rule sigtest_result from sigtest as Fiberseq_sigtest_result
 
 fiberseq_diff_config = {
     "ROOT_DIR": ROOT_DIR,

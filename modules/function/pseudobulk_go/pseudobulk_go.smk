@@ -215,6 +215,8 @@ rule function_pseudobulk_go_result:
         _go_targets
     output:
         outdir + "/function/go_kegg/enrichment.done"
+    log:
+        logdir + "/function/function_pseudobulk_go_result.log"
     run:
         with open(str(output), "w") as fh:
             fh.write(time.strftime("%Y%m%d_%H%M%S", time.localtime()) + "\n")

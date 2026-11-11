@@ -53,6 +53,8 @@ rule pro_pre:
         ref=lambda wildcards: genome_reference[wildcards.genome_version],
     output:
         outdir + "baselines/details/{sample}.{genome_version}.baseline.out"
+    log:
+        outdir + "baselines/details/{sample}.{genome_version}.baseline.out.log"
     threads: rule_res("pro_pre").get("threads", 2)
     resources:
         mem_mb = rule_res("pro_pre").get("mem_mb", 8000),
@@ -61,13 +63,15 @@ rule pro_pre:
     container:
         sif("../msisensro_pro.schema.yaml", "pro_pre")
     run:
-        shell("{msisensor_pro} pro -d {input.ms} -t {input.bam} -g {input.ref} -o {output}")
+        shell("{msisensor_pro} pro -d {input.ms} -t {input.bam} -g {input.ref} -o {output} >> {log} 2>&1")
 
 rule merge:
     input:
         expand(outdir + "baselines/details/{sample}.{{genome_version}}.baseline.out",sample=baseline_samples.index)
     output:
         outdir + "baselines/{genome_version}.baseline.samples.list"
+    log:
+        outdir + "baselines/{genome_version}.baseline.samples.list.log"
     resources:
         mem_mb = rule_res("merge").get("mem_mb", 8000),
     conda:
@@ -85,6 +89,8 @@ rule baseline:
         ms=outdir + "reference/{genome_version}.msisensor.scan.list",
     output:
         outdir + "baselines/{genome_version}.baseline.tsv"
+    log:
+        outdir + "baselines/{genome_version}.baseline.tsv.log"
     resources:
         mem_mb = rule_res("baseline").get("mem_mb", 8000),
     conda:
@@ -92,7 +98,7 @@ rule baseline:
     container:
         sif("../msisensro_pro.schema.yaml", "baseline")
     run:
-        shell(f"{msisensor_pro} baseline  -d {input.ms} -i {input.conf} -o {output} -s 1")
+        shell(f"{msisensor_pro} baseline  -d {input.ms} -i {input.conf} -o {output} -s 1 >> {log} 2>&1")
 rule run_pro:
     input:
         ms = outdir + "baselines/{genome_version}.baseline.tsv",
@@ -116,6 +122,8 @@ rule merge_msi_result:
         expand(outdir + "tumor_only_output/{case}/{case}.{{genome_version}}.msisensor-pro",case=samples.index)
     output:
         outdir + "tumor_only_output.{genome_version}.merge.tsv"
+    log:
+        outdir + "tumor_only_output.{genome_version}.merge.tsv.log"
     resources:
         mem_mb = rule_res("merge_msi_result").get("mem_mb", 8000),
     run:

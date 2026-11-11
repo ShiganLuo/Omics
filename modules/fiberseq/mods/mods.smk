@@ -98,6 +98,8 @@ rule fiberseq_mods_longtable:
     output:
         longtable = outdir + f"/{_long_name}",
         loci = ([outdir + "/" + _loci_name] if _is_te else []),
+    log:
+        logdir + f"/mods/fiberseq_mods_longtable_{_long_name}.log"
     threads: rule_res(_longtable_rule_key).get("threads", 1)
     resources:
         mem_mb = rule_res(_longtable_rule_key).get("mem_mb", 8000),

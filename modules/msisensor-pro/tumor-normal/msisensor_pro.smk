@@ -66,6 +66,8 @@ rule merge_msi_result:
         expand(outdir + "tumor_normal_output/{case}/{case}.{{genome_version}}.msisensor",case=samples.index)
     output:
         outdir + "tumor_normal_output.{genome_version}.merge.tsv"
+    log:
+        outdir + "tumor_normal_output.{genome_version}.merge.tsv.log"
     resources:
         mem_mb = rule_res("merge_msi_result").get("mem_mb", 8000),
     run:

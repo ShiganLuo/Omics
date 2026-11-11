@@ -1,0 +1,91 @@
+{
+  "indir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "outdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "logdir": {
+    "type": "str",
+    "nullable": true,
+    "required": true
+  },
+  "samples": {
+    "type": "list",
+    "nullable": true,
+    "required": false
+  },
+  "contrasts": {
+    "type": "list",
+    "nullable": true,
+    "required": false
+  },
+  "Params": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "fiberseq_mods": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "design_tsv": {
+            "type": "null",
+            "nullable": true,
+            "required": false
+          },
+          "mod_type": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "metric": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "method": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "correction": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "alpha": {
+            "type": "float",
+            "nullable": true,
+            "required": false
+          },
+          "groups": {
+            "type": "list",
+            "nullable": true,
+            "required": false
+          },
+          "ylabel": {
+            "type": "null",
+            "nullable": true,
+            "required": false
+          },
+          "no_plot": {
+            "type": "bool",
+            "nullable": true,
+            "required": false
+          },
+          "top_n": {
+            "type": "int",
+            "nullable": true,
+            "required": false
+          }
+        }
+      }
+    }
+  }
+}

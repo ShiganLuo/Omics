@@ -14,6 +14,7 @@ Cell Rep Methods 2024 [1]、Genome Res 2024 [2]、Nat Genet 2025 [3]。
 | `nucpos/` | fiberseq_nucpos_run | nuc_offset_{per_anchor,summary}.tsv + PDF |
 | `quant/` | fiberseq_quant_run, fiberseq_quant_hap, fiberseq_quant_merge | region_quant.tsv / matrix/ |
 | `diff/` | fiberseq_diff_run | diff_*.tsv + volcano + 基因表（供 modules/function） |
+| `mods/` | fiberseq_mods_longtable, fiberseq_mods_sigtest | {metric}_long.tsv + {contrast}/significance_test.tsv + significant_objects.{tsv,bed}（BED 可直接喂 regionplot regions） |
 | `coactuation/` | fiberseq_coactuation_run | coactuation*.tsv |
 | `haplotype/` | fiberseq_haplotype_diff | haplotype_diff.tsv |
 | `censat/` | fiberseq_censat_run | censat_*.tsv + PDF |

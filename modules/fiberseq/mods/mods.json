@@ -1,0 +1,21 @@
+{
+    "indir": "common/4_elements",
+    "outdir": "fiberseq_analysis/mods",
+    "logdir": "log",
+    "samples": [],
+    "contrasts": [],
+    "Params": {
+        "fiberseq_mods": {
+            "design_tsv": null,
+            "mod_type": "m6a",
+            "metric": "m6a_per_fiber",
+            "method": "auto",
+            "correction": "bh",
+            "alpha": 0.05,
+            "groups": [],
+            "ylabel": null,
+            "no_plot": false,
+            "top_n": 0
+        }
+    }
+}

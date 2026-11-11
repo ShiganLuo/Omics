@@ -51,6 +51,23 @@ def _get_gtf_for_heatmap(wildcards):
 
 每个模块封装**一个工具**或**一个原子分析步骤**。规则只负责校验和调用，所有逻辑在 `bin/*.py` 中。
 
+## 逻辑收敛到 bin/ 脚本（强制）
+
+规则 run 块里出现下列任一情况，就是把支撑逻辑写错了地方，必须抽到 `bin/*.py`
+引擎脚本、规则只留一条调用命令：
+
+- **多阶段编排**：守卫分支（如空 BAM 占位输出）、前置数据加工（格式转换、
+  索引、null 构建）、工具调用、清理，两段以上拼在同一个回执 `.sh` 里；
+- **shell 控制流**：`if/then/else`、命令替换 `$(...)`、管道 `|` 出现在
+  f.write 生成的脚本里（管道只允许作为两条列表构建命令之间的连接符）；
+- **inline awk/sed/printf 魔法**：字段下标、转义符堆积的文本加工——这类
+  逻辑在 Python 里是流式逐行 + 具名函数，可测试、可读。
+
+标准形态：回执里只有 `python bin/<engine>.py --a x --b y` 一条命令加收尾
+echo；引擎脚本自包含（规范 #0）、入口 `main()` 只编排、阶段函数单一职责、
+声明型输出（含占位文件）在每条退出路径上都落盘。参照实现：
+`modules/fibertools/bin/call_peaks.py` + `fibertools_analysis.smk::ft_call_peaks`。
+
 **模块 .smk 中禁止条件分支**（`if`/`else` 包裹 rule 定义）。模块应该定义所有可能的 rule，由 subworkflow 决定 `use rule` 哪些。条件逻辑（如是否启用 batch correction、是否跑 velocity）属于 subworkflow 层，不属于模块层。
 
 判断标准：

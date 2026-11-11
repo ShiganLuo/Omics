@@ -586,6 +586,10 @@ Mutation_report_config = {
     "burden_dir": burden_config["outdir"],
     "msi_dir": msi_config["outdir"],
     "fragment_dir": f"{fragment_size_config['outdir']}/fragment",
+    # registered outputs -> DAG anchors inside the report module (module
+    # filters them by its consumed dirs; only registered files enter, so
+    # disabled stages stay best-effort 'not run' notes)
+    "outfiles": outfiles,
     "Params": {
         "report": config.get("Params", {}).get("report", {})
     }

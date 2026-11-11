@@ -372,6 +372,9 @@ fiberseq_mods_config = {
     "outdir": f"{analysis_outdir}/mods",
     "logdir": f"{logdir}/group",
     "samples": samples,
+    # TE region axis (Params.mods.region_axis=te): RepeatMasker loci BED
+    "te_bed": genome_ref.get("repeat_bed"),
+    "tmp_dir": config.get("tmp_dir") or f"{outdir}/tmp",
     # contrasts resolved by node.py from the diff design TSV and written
     # into raw.json (parse-time expand needs them in the module config)
     "contrasts": config.get("Params", {}).get("mods", {}).get("contrasts", []),

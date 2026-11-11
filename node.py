@@ -1330,6 +1330,157 @@ def runPeakCalling(
 
     return _write_raw_json(datajson, outdir)
 
+def runRIPseq(
+        datajson: Dict[str, Any],
+        samples_info_dict: Dict[str, SampleInfo],
+        design_pairs:List[DesignPair],
+        indir: str,
+        outdir: str,
+        raw_files: List[str],
+    ):
+    """Prepare input JSON for the RIPseq (RNA Immunoprecipitation sequencing) workflow.
+    
+    Workflow steps:
+    1. FastQC (raw)
+    2. Trimming (trim_galore)
+    3. FastQC (trimmed)
+    4. HISAT2 alignment
+    5. AddReadsGroup + MarkDuplicates (GATK4)
+    6. BigWig tracks (bamCoverage)
+    7. MACS3 peak calling
+    8. FRiP score
+    9. deeptools enrichment heatmap
+    10. HOMER peak annotation
+    
+    Supports IP vs Input peak analysis of RNA-protein binding (RIP-seq).
+    """
+    root_dir = _init_raw_json(datajson, indir, outdir, raw_files)
+
+    ip_samples = []
+    input_samples = []
+    sample_ip_input_map = {}
+    outfiles = []
+    for design_pair in design_pairs:
+        sample_ip_input_map[design_pair.exp_sample_id] = design_pair.ctr_sample_id
+        ip_samples.append(design_pair.exp_sample_id)
+        input_samples.append(design_pair.ctr_sample_id)
+
+    paired_samples, single_samples = _classify_layouts(samples_info_dict)
+
+    # Auto-detect organism and set genome default (RNAseq pattern)
+    organisms = set()
+    for sample_id, sample_info in samples_info_dict.items():
+        if sample_info.organism:
+            organisms.add(sample_info.organism)
+    if len(organisms) == 1:
+        try:
+            organism = resolve_genome(next(iter(organisms)))
+        except Exception as e:
+            logger.error(f"Failed to resolve genome for organism {next(iter(organisms))}: {e}")
+            raise ValueError(f"Failed to resolve genome for organism {next(iter(organisms))}: {e}")
+        datajson["genome"]["default"] = organism
+        datajson["Params"]["report"]["genome"] = organism
+    elif len(organisms) > 1:
+        logger.warning(f"Multiple organisms detected: {organisms}, using config default genome")
+    datajson["Params"]["report"]["date"] = time.strftime("%Y-%m-%d", time.localtime())
+
+    # Heatmap samples: from computeMatrix.samples, fallback to all ip_samples
+    cm_params = datajson.get("Params", {}).get("computeMatrix", {})
+    cm_heatmap_samples = cm_params.get("samples", None) or ip_samples
+    # Heatmap output suffix based on regions mode
+    cm_regions = cm_params.get("regions", "tss")
+    # Gene names for per_gene mode
+    cm_gene_names = cm_regions.get("genes", []) if isinstance(cm_regions, dict) else []
+    if cm_regions == "tss":
+        hm_suffix = "tss"
+    elif cm_regions == "peaks":
+        hm_suffix = "peaks"
+    elif isinstance(cm_regions, dict) and "genes" in cm_regions:
+        # Per-gene heatmap files are only registered when the gene list is
+        # non-empty (mirrors the deeptools module's HEATMAP_GENE_MODE gating);
+        # otherwise the module emits the combined {sample}_genes_heatmap.png.
+        hm_suffix = "per_gene" if (cm_regions.get("per_gene") and cm_gene_names) else "genes"
+    else:
+        hm_suffix = "heatmap"
+
+    if input_samples:
+        for ip_sample in ip_samples:
+            outfiles.append(f"{outdir}/QC/1_raw_fastqc/{ip_sample}/{ip_sample}.fastqc.raw.txt")
+            outfiles.append(f"{outdir}/QC/2_trimmed_fastqc/{ip_sample}/{ip_sample}.fastqc.trimmed.txt")
+            # Step 5: AddReadsGroup + MarkDuplicates (GATK4)
+            outfiles.append(f"{outdir}/common/4_markdup_bam/{ip_sample}/{ip_sample}.sorted_markdup.bam")
+            # Step 6: BigWig tracks
+            outfiles.append(f"{outdir}/results/tracks/{ip_sample}/{ip_sample}.bigwig")
+            # Step 7: MACS3 peak calling
+            outfiles.append(f"{outdir}/results/peaks/{ip_sample}/{ip_sample}_peaks.narrowPeak")
+            outfiles.append(f"{outdir}/results/peaks/{ip_sample}/{ip_sample}_broad_peaks.broadPeak")
+            # Step 8: FRiP score
+            outfiles.append(f"{outdir}/QC/3_frip_score/{ip_sample}/{ip_sample}.FRiP.txt")
+            # Step 9: deeptools enrichment heatmap
+            if ip_sample in cm_heatmap_samples:
+                if hm_suffix == "per_gene" and cm_gene_names:
+                    for gene_name in cm_gene_names:
+                        outfiles.append(f"{outdir}/results/heatmap/{ip_sample}/{ip_sample}_{gene_name}_heatmap.png")
+                else:
+                    outfiles.append(f"{outdir}/results/heatmap/{ip_sample}/{ip_sample}_{hm_suffix}_heatmap.png")
+            # Step 10: HOMER annotation
+            outfiles.append(f"{outdir}/results/annotation/{ip_sample}/{ip_sample}_peaks.annotatePeaks.txt")
+            # Step 11: Peak-TE overlap
+            outfiles.append(f"{outdir}/results/te_overlap/{ip_sample}/{ip_sample}_te_subfamily_overlap.tsv")
+            outfiles.append(f"{outdir}/results/te_overlap/{ip_sample}/{ip_sample}_peak_centric_te.tsv")
+        outfiles.append(f"{outdir}/results/peaks/cutoff_analysis.png")
+        outfiles.append(f"{outdir}/results/te_overlap/te_subfamily_overlap_combined.png")
+        for input_sample in input_samples:
+            outfiles.append(f"{outdir}/common/4_markdup_bam/{input_sample}/{input_sample}.sorted_markdup.bam")
+            outfiles.append(f"{outdir}/results/tracks/{input_sample}/{input_sample}.bigwig")
+    else:
+        logger.warning("No Input samples found. MACS3 will run without control.")
+        for ip_sample in ip_samples:
+            sample_ip_input_map[ip_sample] = None
+            outfiles.append(f"{outdir}/common/4_markdup_bam/{ip_sample}/{ip_sample}.sorted_markdup.bam")
+            outfiles.append(f"{outdir}/results/tracks/{ip_sample}/{ip_sample}.bigwig")
+            outfiles.append(f"{outdir}/results/peaks/{ip_sample}/{ip_sample}_peaks.narrowPeak")
+            outfiles.append(f"{outdir}/results/peaks/{ip_sample}/{ip_sample}_broad_peaks.broadPeak")
+            outfiles.append(f"{outdir}/QC/3_frip_score/{ip_sample}/{ip_sample}.FRiP.txt")
+            # Step 9: deeptools enrichment heatmap
+            if ip_sample in cm_heatmap_samples:
+                if hm_suffix == "per_gene" and cm_gene_names:
+                    for gene_name in cm_gene_names:
+                        outfiles.append(f"{outdir}/results/heatmap/{ip_sample}/{ip_sample}_{gene_name}_heatmap.png")
+                else:
+                    outfiles.append(f"{outdir}/results/heatmap/{ip_sample}/{ip_sample}_{hm_suffix}_heatmap.png")
+            # Step 10: HOMER annotation
+            outfiles.append(f"{outdir}/results/annotation/{ip_sample}/{ip_sample}_peaks.annotatePeaks.txt")
+            # Step 11: Peak-TE overlap
+            outfiles.append(f"{outdir}/results/te_overlap/{ip_sample}/{ip_sample}_te_subfamily_overlap.tsv")
+            outfiles.append(f"{outdir}/results/te_overlap/{ip_sample}/{ip_sample}_peak_centric_te.tsv")
+    outfiles.append(f"{outdir}/results/te_overlap/te_subfamily_overlap_combined.png")
+    outfiles.append(f"{outdir}/results/tracks/ucsc_track.txt")
+    outfiles.append(f"{outdir}/results/tracks/igv_track.html")
+    # Report (subworkflow.md: pptx + xlsx pair, gated by Params.report.enabled)
+    if _enabled(datajson, "report"):
+        outfiles.append(f"{outdir}/RIPseq_report.pptx")
+        outfiles.append(f"{outdir}/RIPseq_report.xlsx")
+    datajson["paired_samples"] = paired_samples
+    datajson["single_samples"] = single_samples
+    datajson["samples"] = paired_samples + single_samples
+    datajson["ip_samples"] = ip_samples
+    datajson["input_samples"] = input_samples
+    datajson["sample_ip_input_map"] = sample_ip_input_map
+    outfiles += _register_regionplot(datajson, samples_info_dict,
+                                     ip_samples + input_samples,
+                                     outdir, "RIPseq")
+    # Sex check (modules/sexcheck): per-sample sex call from sex-chromosome
+    # coverage over the alignment BAMs; registered for every sample BAM.
+    outfiles.append(f"{outdir}/QC/sexcheck/sexcheck.tsv")
+    # QC summary module (modules/qc_summary): cross-sample metric table +
+    # HTML summary; always part of the delivered output set.
+    outfiles.append(f"{outdir}/QC/qc_summary/qc_summary.tsv")
+    outfiles.append(f"{outdir}/QC/qc_summary/qc_summary.html")
+    datajson["outfiles"] = outfiles
+
+    return _write_raw_json(datajson, outdir)
+
 def runQuantMS(
         datajson: Dict[str, Any],
         samples_info_dict: Dict[str, SampleInfo],
@@ -2115,6 +2266,15 @@ def runFiberseq(
             )
         mod_type = mods_params.get("mod_type", "m6a")
         metric = mods_params.get("metric", f"{mod_type}_per_fiber")
+        # region axis: fire_peaks (per-peak values) | te (RepeatMasker loci,
+        # coverage-weighted collapse to te_level, sigtest at that level,
+        # per-significant-group top-loci BED for regionplot browsing)
+        region_axis = mods_params.get("region_axis", "fire_peaks")
+        if region_axis == "te":
+            te_level = mods_params.get("te_level", "subfamily")
+            long_name = f"te_{mod_type}_{te_level}_long.tsv"
+        else:
+            long_name = f"{metric}_long.tsv"
         # contrast list from the SAME design TSV diff uses (sample/group/
         # contrast rows); samples not in a contrast simply don't contribute
         mods_contrasts = {}
@@ -2134,13 +2294,16 @@ def runFiberseq(
         # parse-time expand in the module needs the contrast list here
         mods_params["contrasts"] = contrast_names
         mods_base = f"{outdir}/fiberseq_analysis/mods"
-        outfiles.append(f"{mods_base}/{metric}_long.tsv")
+        outfiles.append(f"{mods_base}/{long_name}")
         for contrast in contrast_names:
             base = f"{mods_base}/{contrast}"
             outfiles.append(f"{base}/significance_test.tsv")
             outfiles.append(f"{base}/significant_objects.tsv")
             outfiles.append(f"{base}/significant_objects.bed")
             outfiles.append(f"{base}/nonsignificant_objects.tsv")
+            if region_axis == "te":
+                outfiles.append(f"{base}/top_loci.tsv")
+                outfiles.append(f"{base}/top_loci.bed")
 
     if enable_diff:
         design_tsv = datajson.get("Params", {}).get("diff", {}).get("design_tsv")

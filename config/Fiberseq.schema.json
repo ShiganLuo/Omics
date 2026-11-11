@@ -313,6 +313,26 @@
         "type": "int",
         "nullable": true,
         "required": false
+      },
+      "region_axis": {
+        "type": "str",
+        "nullable": true,
+        "required": false
+      },
+      "te_level": {
+        "type": "str",
+        "nullable": true,
+        "required": false
+      },
+      "min_fibers": {
+        "type": "int",
+        "nullable": true,
+        "required": false
+      },
+      "loci_top_n": {
+        "type": "int",
+        "nullable": true,
+        "required": false
       }
     },
     "coactuation": {

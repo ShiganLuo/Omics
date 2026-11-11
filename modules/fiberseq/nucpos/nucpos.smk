@@ -1,7 +1,5 @@
 include: "../../common/common.smk"
 
-import os
-import time
 
 indir = config.get("indir", "common/4_elements")
 outdir = config.get("outdir", "fiberseq_analysis/nucpos")

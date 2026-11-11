@@ -1,9 +1,5 @@
-from snakemake.logging import logger
 include: "../common/common.smk"
 
-import time
-import os
-import sys
 
 # Import UMI detection helper from bin/
 _fumitools_bin_dir = os.path.join(ROOT_DIR, "modules", "fumitools", "bin")

@@ -1,7 +1,5 @@
 include: "../common/common.smk"
 
-import os
-import time
 
 outdir = config.get("outdir", "results/censatbuild")
 logdir = config.get("logdir", "log")

@@ -1,8 +1,6 @@
 
 include: "../../common/common.smk"
 
-import os
-import time
 
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "logs")

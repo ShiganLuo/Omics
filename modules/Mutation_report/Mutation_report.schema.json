@@ -19,6 +19,11 @@
     "nullable": true,
     "required": false
   },
+  "outfiles": {
+    "type": "list",
+    "nullable": true,
+    "required": false
+  },
   "qc_summary": {
     "type": "str",
     "nullable": true,

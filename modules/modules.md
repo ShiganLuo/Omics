@@ -147,6 +147,15 @@ modules/common/
 
 提供所有模块共享的工具函数（`setup_logger`、`sif` 等）。详见 [Common 模块](#common-模块)。
 
+## 导入去重（强制）
+
+common.smk 已 `import` 的名字（`sys / os / time / shutil / tempfile /
+subprocess / shlex / re / snakemake.logging.logger`）随 `include` 一并进入
+模块命名空间——模块 .smk **不得重复导入**它们，也不得在 include 之前预先
+导入。新写规则前先查 common.smk 的 import 区：只有它没有的包（numpy、
+pandas、json、gzip …）才在模块里 import。重复导入不报错、不省时间，
+纯属噪音（102 个文件 186 行存量曾因此堆积）。
+
 # 配置入口
 
 模块通过 `config.get()` 读取参数。subworkflow 组装 config dict 传入模块，字段约定：

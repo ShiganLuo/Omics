@@ -1,6 +1,5 @@
 include: "../common/common.smk"
 
-import time
 import gzip
 
 indir = config.get("indir", "input")

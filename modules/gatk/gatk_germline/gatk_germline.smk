@@ -1,6 +1,4 @@
-import shlex
 
-from snakemake.logging import logger
 include: "../../common/common.smk"
 
 indir = config.get("indir") or "input"

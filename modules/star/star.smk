@@ -1,7 +1,6 @@
 include: "../common/common.smk"
 
 import logging
-import time
 logger = logging.getLogger(__name__)
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")

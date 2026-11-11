@@ -1,8 +1,5 @@
 include: "../../common/common.smk"
 
-import time
-import os
-import sys
 
 ROOT_DIR = config.get("ROOT_DIR", ".")
 data_dir = config.get("Params", {}).get("mimseq", {}).get("data_dir", "") or os.path.join(ROOT_DIR, "modules", "mimseq", "mimseq", "data")

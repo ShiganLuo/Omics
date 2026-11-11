@@ -5,9 +5,10 @@ Generates a PPTX summary report aggregating:
   1. QC summary table (from the qc_summary module's qc_summary.tsv)
   2. Per-pair somatic SNV/InDel counts (Mutect2 filtered VCFs)
   3. Somatic spectrum figures (stacked bar + heatmap, when present)
-  4. TMB / SV / CNV burden table (burden_summary.tsv, when present)
-  5. Optional MSI scores (msi_input.txt / per-sample *_msi_pro.tsv)
-  6. Optional cfDNA fragment-size distribution plot
+  4. Mutational signature analysis (COSMIC refit + de novo NMF, when run)
+  5. TMB / SV / CNV burden table (burden_summary.tsv, when present)
+  6. Optional MSI scores (msi_input.txt / per-sample *_msi_pro.tsv)
+  7. Optional cfDNA fragment-size distribution plot
 
 Every section degrades gracefully: missing files leave a "not run" note
 instead of failing, because optional stages are gated by node.py outfiles.
@@ -273,6 +274,52 @@ def burden_to_rows(df: pd.DataFrame, max_cols: int = 8) -> List[List[str]]:
     return rows
 
 
+def df_to_rows(df: pd.DataFrame) -> List[List]:
+    """DataFrame -> string-safe rows (NA for missing); header handled apart."""
+    return [["NA" if pd.isna(v) else v for v in rec]
+            for rec in df.astype(object).where(df.notna(), None).values.tolist()]
+
+
+def load_signature_refit(spectrum_dir: str) -> Tuple[Optional[pd.DataFrame], Optional[pd.DataFrame]]:
+    """Signature-refit summary + family exposure tables from the spectrum dir.
+
+    Both are None when the signature stage was not run — the PPT/Excel
+    sections then degrade to a "not run" note.
+    """
+    summary = family = None
+    p = os.path.join(spectrum_dir, "signature_refit_summary.csv")
+    if os.path.isfile(p):
+        try:
+            summary = pd.read_csv(p)
+        except Exception:
+            summary = None
+    p = os.path.join(spectrum_dir, "signature_refit_family_exposures.csv")
+    if os.path.isfile(p):
+        try:
+            family = pd.read_csv(p, index_col=0)
+        except Exception:
+            family = None
+    return summary, family
+
+
+def load_signature_nmf(spectrum_dir: str) -> Tuple[Optional[pd.DataFrame], Optional[pd.DataFrame]]:
+    """NMF rank diagnostics + COSMIC best-match tables from the spectrum dir."""
+    rank_diag = best = None
+    p = os.path.join(spectrum_dir, "signature_nmf_rank_diagnostics.csv")
+    if os.path.isfile(p):
+        try:
+            rank_diag = pd.read_csv(p)
+        except Exception:
+            rank_diag = None
+    p = os.path.join(spectrum_dir, "signature_nmf_cosmic_best_match.csv")
+    if os.path.isfile(p):
+        try:
+            best = pd.read_csv(p)
+        except Exception:
+            best = None
+    return rank_diag, best
+
+
 def collect_qc_rows(qc_dir: str) -> Tuple[List[List[str]], Dict[str, List[float]]]:
     """QC table rows + numeric columns for coloring from qc_summary.tsv.
 
@@ -455,6 +502,33 @@ def write_results_excel(output_path: str, args: argparse.Namespace) -> None:
     else:
         _write_rows(ws_sp, ["note"], [["somatic_spectrum.csv not found — no paired design"]])
 
+    # 7b. Signature Refit (per-sample fit summary + family exposures)
+    ws_sr = wb.create_sheet(_sheet("Signature Refit"))
+    sig_summary, sig_family = load_signature_refit(args.spectrum_dir)
+    if sig_summary is not None and len(sig_summary):
+        _write_rows(ws_sr, list(sig_summary.columns), df_to_rows(sig_summary))
+        if sig_family is not None and len(sig_family):
+            ws_sr.append([])
+            ws_sr.append(["family exposure fractions"])
+            fam = sig_family.reset_index()
+            _write_rows(ws_sr, list(fam.columns), df_to_rows(fam))
+    else:
+        _write_rows(ws_sr, ["note"],
+                    [["signature_refit_summary.csv not found — signature refit not run"]])
+
+    # 7c. Signature NMF (rank diagnostics + COSMIC best match)
+    ws_sn = wb.create_sheet(_sheet("Signature NMF"))
+    nmf_rank, nmf_best = load_signature_nmf(args.spectrum_dir)
+    if nmf_rank is not None and len(nmf_rank):
+        _write_rows(ws_sn, list(nmf_rank.columns), df_to_rows(nmf_rank))
+        if nmf_best is not None and len(nmf_best):
+            ws_sn.append([])
+            ws_sn.append(["best COSMIC match per extracted signature"])
+            _write_rows(ws_sn, list(nmf_best.columns), df_to_rows(nmf_best))
+    else:
+        _write_rows(ws_sn, ["note"],
+                    [["signature_nmf_rank_diagnostics.csv not found — signature NMF not run"]])
+
     # 8. Fragment Size (insert-size histogram, first col = insertion size)
     ws_fs = wb.create_sheet(_sheet("Fragment Size"))
     fs_path = os.path.join(args.fragment_dir, "FragmentSize.txt")
@@ -490,6 +564,20 @@ def write_results_excel(output_path: str, args: argparse.Namespace) -> None:
         ("spectrum", os.path.join(args.spectrum_dir, "somatic_spectrum_stacked_bar.png")),
         ("spectrum", os.path.join(args.spectrum_dir, "somatic_spectrum_heatmap.png")),
         ("spectrum", os.path.join(args.spectrum_dir, "somatic_spectrum.csv")),
+        ("spectrum", os.path.join(args.spectrum_dir, "somatic_spectrum_per_sample.csv")),
+        ("spectrum", os.path.join(args.spectrum_dir, "somatic_spectrum_sample_stats.csv")),
+        ("signature", os.path.join(args.spectrum_dir, "signature_refit_summary.csv")),
+        ("signature", os.path.join(args.spectrum_dir, "signature_refit_exposures.csv")),
+        ("signature", os.path.join(args.spectrum_dir, "signature_refit_family_exposures.csv")),
+        ("signature", os.path.join(args.spectrum_dir, "signature_refit_exposure_stacked_bar.png")),
+        ("signature", os.path.join(args.spectrum_dir, "signature_refit_exposure_heatmap.png")),
+        ("signature", os.path.join(args.spectrum_dir, "signature_nmf_signatures.csv")),
+        ("signature", os.path.join(args.spectrum_dir, "signature_nmf_exposures.csv")),
+        ("signature", os.path.join(args.spectrum_dir, "signature_nmf_rank_diagnostics.csv")),
+        ("signature", os.path.join(args.spectrum_dir, "signature_nmf_rank_diagnostics.png")),
+        ("signature", os.path.join(args.spectrum_dir, "signature_nmf_signatures.png")),
+        ("signature", os.path.join(args.spectrum_dir, "signature_nmf_cosmic_similarity.csv")),
+        ("signature", os.path.join(args.spectrum_dir, "signature_nmf_cosmic_best_match.csv")),
         ("fragment", os.path.join(args.fragment_dir, "FragmentSize.txt")),
         ("fragment", os.path.join(args.fragment_dir, "FragmentSize.png")),
     ]
@@ -574,6 +662,54 @@ def build_report(args: argparse.Namespace, logger) -> None:
                      os.path.join(args.spectrum_dir, "somatic_spectrum_heatmap.png"),
                      "Spectrum heatmap")
 
+    # ---- Signature refit slide (COSMIC known signatures)
+    slide = prs.slides.add_slide(blank); _bg(slide)
+    _header(slide, "突变签名 refit / COSMIC Signature Refit")
+    sig_summary, sig_family = load_signature_refit(args.spectrum_dir)
+    if sig_summary is not None and len(sig_summary):
+        show = [c for c in ["sample_id", "n_mutations", "reliable",
+                            "n_signatures_used", "reconstruction_cosine",
+                            "top_signature", "top_signature_fraction"]
+                if c in sig_summary.columns]
+        rows = [show] + [[str(v) for v in rec] for rec in
+                         sig_summary[show].astype(object).where(
+                             sig_summary[show].notna(), None).values.tolist()]
+        _table(slide, MARGIN_L, CONTENT_TOP, CONTENT_W,
+               0.3 + 0.3 * len(rows), rows, font_size=9)
+        bar = os.path.join(args.spectrum_dir, "signature_refit_exposure_stacked_bar.png")
+        if os.path.isfile(bar):
+            slide.shapes.add_picture(bar, Inches(MARGIN_L), Inches(CONTENT_TOP + 0.45 + 0.3 * len(rows)),
+                                     width=Inches(CONTENT_W))
+    else:
+        _textbox(slide, MARGIN_L, CONTENT_TOP + 1.5, CONTENT_W, 0.5,
+                 "Signature refit — 未运行 / not run (签名分析未启用或无配对设计)",
+                 font_size=12, color=C_MUTED, align=PP_ALIGN.CENTER)
+
+    # ---- Signature NMF slide (de novo extraction)
+    slide = prs.slides.add_slide(blank); _bg(slide)
+    _header(slide, "de novo 突变签名（NMF）/ De novo Signatures (NMF)")
+    nmf_rank, nmf_best = load_signature_nmf(args.spectrum_dir)
+    if nmf_rank is not None and len(nmf_rank):
+        rows = [list(nmf_rank.columns)] + [[str(v) for v in rec] for rec in
+                                           df_to_rows(nmf_rank)]
+        _table(slide, MARGIN_L, CONTENT_TOP, CONTENT_W * 0.45,
+               0.3 + 0.3 * len(rows), rows, font_size=8)
+        if nmf_best is not None and len(nmf_best):
+            best3 = nmf_best.iloc[:, :3]
+            brow = [list(best3.columns)] + [[str(v) for v in rec] for rec in
+                                            df_to_rows(best3)]
+            _table(slide, MARGIN_L + CONTENT_W * 0.5, CONTENT_TOP, CONTENT_W * 0.5,
+                   0.3 + 0.3 * len(brow), brow, font_size=8)
+        prof = os.path.join(args.spectrum_dir, "signature_nmf_signatures.png")
+        if os.path.isfile(prof):
+            slide.shapes.add_picture(prof, Inches(MARGIN_L),
+                                     Inches(CONTENT_TOP + 0.5 + 0.3 * len(rows)),
+                                     width=Inches(CONTENT_W))
+    else:
+        _textbox(slide, MARGIN_L, CONTENT_TOP + 1.5, CONTENT_W, 0.5,
+                 "Signature NMF — 未运行 / not run (签名分析未启用或无配对设计)",
+                 font_size=12, color=C_MUTED, align=PP_ALIGN.CENTER)
+
     # ---- MSI slide
     slide = prs.slides.add_slide(blank); _bg(slide)
     _header(slide, "微卫星不稳定性 / MSI (msisensor-pro)")
@@ -627,6 +763,25 @@ def build_report(args: argparse.Namespace, logger) -> None:
                                f"每配对 {min(counts)}–{max(counts)} 个 filtered 变异")
     if msi_rows:
         conclusions.append(f"MSI：{len(msi_rows)} 个样本有评分")
+    if sig_summary is not None and len(sig_summary):
+        if "reliable" in sig_summary.columns:
+            n_rel = int(sig_summary["reliable"].astype(bool).to_numpy().sum())
+        else:
+            n_rel = 0
+        conclusions.append(
+            f"签名 refit：{len(sig_summary)} 个样本完成 COSMIC 拟合，"
+            f"{n_rel} 个可靠（n≥阈值）；细节见 Signature Refit sheet")
+    if nmf_rank is not None and len(nmf_rank):
+        if "selected" in nmf_rank.columns:
+            chosen = nmf_rank[nmf_rank["selected"].astype(bool)]
+        else:
+            chosen = nmf_rank
+        rank_vals = [int(v) for v in chosen["rank"].tolist()]
+        k = int(rank_vals[0]) if len(rank_vals) else "?"
+        n_match = len(nmf_best) if nmf_best is not None else 0
+        conclusions.append(
+            f"de novo NMF：选定秩 K={k}，提取 {n_match} 个签名；"
+            f"COSMIC 最佳匹配见 Signature NMF sheet")
     if burden_df is not None and not burden_df.empty:
         conclusions.append(f"Burden 汇总表覆盖 {len(burden_df)} 行（TMB/SV/CNV）")
     if not conclusions:

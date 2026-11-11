@@ -1,6 +1,5 @@
 include: "../../common/common.smk"
 
-from snakemake.logging import logger
 indir = config.get("indir", "output/diff_expression")
 counts_dir = config.get("counts_dir", "output/counts")
 outdir = config.get("outdir", "output/function")

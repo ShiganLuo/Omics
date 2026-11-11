@@ -1,4 +1,3 @@
-from snakemake.logging import logger
 include: "../../common/common.smk"
 
 indir = config.get("indir") or "input"
@@ -172,7 +171,6 @@ rule germline_resource_strain:
             # annotate -x FORMAT strips genotypes -> sites-only af resource.
             # The filter expression contains quotes/brackets -> MUST shlex.quote
             # it (bare " ".join would let bash eat the quotes: skill pitfall).
-            import shlex
             strain_expr = shlex.quote('GT[0]="alt"')
             # -G in the final view drops ALL genotype columns (sites-only);
             # annotate -x FORMAT alone leaves the sample column behind (verified).

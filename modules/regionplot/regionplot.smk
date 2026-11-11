@@ -1,7 +1,5 @@
 include: "../common/common.smk"
 
-import os
-import time
 
 outdir = config.get("outdir", "output/regionplot")
 logdir = config.get("logdir", "log/group")

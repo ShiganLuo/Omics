@@ -1,9 +1,6 @@
 
 include: "../common/common.smk"
 
-import os
-import shlex
-import time
 
 ROOT_DIR = config.get("ROOT_DIR", ".")
 outdir = config.get("outdir", "output")

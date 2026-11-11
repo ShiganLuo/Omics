@@ -1,6 +1,5 @@
 include: "../common/common.smk"
 
-from snakemake.logging import logger
 
 indir = config.get("indir", "output/diff_expression")
 counts_dir = config.get("counts_dir", "output/counts")
@@ -249,7 +248,6 @@ rule function_gsva:
             # Step 0: merge PE/SE featureCounts matrices when both layouts exist
             counts_list = list(input.counts)
             if len(counts_list) > 1:
-                import re
                 import pandas as pd
                 counts_file = os.path.join(gsva_outdir, "all_featureCounts.tsv")
                 df_pe = pd.read_csv(counts_list[0], sep="\t", comment='#')

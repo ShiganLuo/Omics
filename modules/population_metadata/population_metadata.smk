@@ -1,6 +1,5 @@
 
 include: "../common/common.smk"
-import os
 from pathlib import Path
 
 outdir = config.get("outdir", "output")

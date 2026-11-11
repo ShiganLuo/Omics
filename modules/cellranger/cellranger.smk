@@ -129,7 +129,6 @@ rule cellranger_count:
             sample_outdir = os.path.join(outdir, sample_id)
             # Clean up stale sample directory (cellranger fails if dir exists but isn't a valid pipestance)
             if os.path.exists(sample_outdir):
-                import shutil
                 rule_logger.warning(f"Removing stale sample directory: {sample_outdir}")
                 shutil.rmtree(sample_outdir)
             # Don't create sample_outdir - cellranger will create it

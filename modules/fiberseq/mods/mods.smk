@@ -1,7 +1,5 @@
 include: "../../common/common.smk"
 
-import os
-import time
 
 # ---------------------------------------------------------------------------
 # mods: prepare the modification long table (m6A/CpG per fiber over FIRE

@@ -2,8 +2,6 @@
 
 include: "../../../common/common.smk"
 
-import os
-import shlex
 
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")

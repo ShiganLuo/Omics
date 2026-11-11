@@ -1,6 +1,5 @@
 include: "../common/common.smk"
 
-import shlex
 import json as _json
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")

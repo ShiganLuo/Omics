@@ -1,8 +1,6 @@
 
 include: "../../common/common.smk"
 
-import time
-import os
 
 ROOT_DIR = config.get("ROOT_DIR", ".")
 indir = config.get("indir", "input")

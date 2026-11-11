@@ -2,8 +2,6 @@ include: "../../common/common.smk"
 
 shell.prefix("set -x; set -e;")
 
-import os
-import time
 
 indir = config.get("indir", "data/search_engine")
 outdir = config.get("outdir", "output")

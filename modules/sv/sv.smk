@@ -1,8 +1,6 @@
 
 include: "../common/common.smk"
 
-import time
-import os
 import json
 
 ROOT_DIR = config.get("ROOT_DIR", ".")
@@ -388,7 +386,6 @@ rule sv_mei:
         open(log_path, "w").close()
         rule_logger = setup_logger("sv_mei", log_file=log_path)
         try:
-            import shlex
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             mei_out = os.path.join(str(outdir), wildcards.comparison, "mei")
             os.makedirs(mei_out, exist_ok=True)

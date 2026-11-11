@@ -1,7 +1,6 @@
 
 include: "../common/common.smk"
 
-import os, time
 
 outdir=config.get("outdir","output"); logdir=config.get("logdir","logs")
 plink2=config.get("Procedure",{}).get("plink2") or "plink2"

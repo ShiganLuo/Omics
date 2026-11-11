@@ -1,5 +1,4 @@
 include: "../../common/common.smk"
-from snakemake.logging import logger
 indir = config.get("indir", "output")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
@@ -191,12 +190,10 @@ rule featureCounts_merge:
                 rule_logger.info(f"PE+SE merged: {df_merged.shape[0]} genes × {df_merged.shape[1] - 6} samples")
             elif has_paired:
                 # PE only: copy
-                import shutil
                 shutil.copy2(input.paired, output.merged)
                 rule_logger.info(f"PE-only: copied {input.paired} → {output.merged}")
             elif has_single:
                 # SE only: copy
-                import shutil
                 shutil.copy2(input.single, output.merged)
                 rule_logger.info(f"SE-only: copied {input.single} → {output.merged}")
         except Exception as e:

@@ -267,7 +267,6 @@ def run_nmf(counts, args, sig_ref=None) -> None:
         logger.info(f"rank {k}: KL={kl:.1f} cophenetic={coph:.4f} stability={stab:.4f}")
 
     diag = pd.DataFrame(rows, columns=["rank", "kl_divergence", "cophenetic", "stability"])
-    diag.to_csv(f"{args.output_prefix}_rank_diagnostics.csv", index=False)
 
     # Choose rank: the KL elbow (first K where the improvement from K to K+1
     # collapses relative to the improvement that got K here), restricted to
@@ -294,6 +293,8 @@ def run_nmf(counts, args, sig_ref=None) -> None:
             else:
                 chosen = 1
     logger.info(f"Chosen rank: {chosen} (override with --rank)")
+    diag["selected"] = diag["rank"] == chosen
+    diag.to_csv(f"{args.output_prefix}_rank_diagnostics.csv", index=False)
 
     w, h, kl = best_per_rank[chosen]
     order = np.argsort(-h.sum(axis=1))

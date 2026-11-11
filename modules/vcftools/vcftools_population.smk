@@ -1,7 +1,6 @@
 
 include: "../common/common.smk"
 
-import os,time
 from itertools import combinations
 outdir=config.get("outdir","output"); logdir=config.get("logdir","logs")
 vcftools=config.get("Procedure",{}).get("vcftools") or "vcftools"; vcf=config.get("input_vcf") or outdir+"/variants/filtered/population_snps.vcf.gz"

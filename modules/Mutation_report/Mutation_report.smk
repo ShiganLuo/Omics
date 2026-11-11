@@ -1,6 +1,5 @@
 include: "../common/common.smk"
 
-import os
 
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
@@ -8,6 +7,13 @@ samples = config.get("samples", []) or []
 # tumor -> normal design pairs (same shape as Params.workflow.paired_design
 # consumed by gatk_somatic/msi: {"experimental": t, "control": n})
 paired_design = config.get("paired_design", []) or []
+# Registered workflow outputs (node.py outfiles, passed through by the
+# subworkflow). Used as DAG anchors: every registered file under a consumed
+# directory becomes a tracked input so this report runs AFTER its producers
+# and re-runs when a section output is refreshed (qc_summary's qc_anchors
+# semantics). Optional stages that were never registered contribute nothing,
+# so no MissingInputException.
+outfiles = config.get("outfiles") or []
 
 # Upstream result directories — subworkflow passes xxx_config["outdir"]
 # values (subworkflow.md chaining rule); the script tolerates absent dirs.
@@ -20,14 +26,34 @@ fragment_dir = config.get("fragment_dir") or os.path.join(outdir, "results/fragm
 
 REPORT_SCRIPT = os.path.join(ROOT_DIR, "modules", "Mutation_report", "bin", "generate_report.py")
 
+
+def _report_anchors():
+    """Registered outputs under the consumed dirs -> DAG anchor files.
+
+    The report renders everything it finds under these directories (qc
+    tables, spectrum/signature figures and CSVs, burden, msi, fragment);
+    anchoring on their registered outputs both orders this rule after the
+    producers and invalidates the report when any of them is regenerated.
+    Files outside the consumed dirs (e.g. this report's own outputs) are
+    ignored. Only registered outputs enter the list, so optional stages
+    that never ran cannot raise MissingInputException.
+    """
+    dirs = [d for d in (qc_dir, somatic_dir, spectrum_dir, burden_dir,
+                        msi_dir, fragment_dir) if d]
+    return [f for f in outfiles
+            if any(str(f).startswith(str(d).rstrip("/") + "/") for d in dirs)]
+
 rule generate_report:
     """Generate the Mutation summary PPT report (QC + somatic calls +
-    spectrum + MSI + burden + fragment size) and the results workbook
-    (one sheet per module + file inventory). Optional sections degrade to
-    'not run' notes when their upstream dirs are absent."""
+    spectrum + signatures + MSI + burden + fragment size) and the results
+    workbook (one sheet per module + file inventory). Optional sections
+    degrade to 'not run' notes when their upstream dirs are absent."""
     input:
-        # QC summary table anchors this report after the qc_summary rule
-        # (DAG ordering; every other section re-discovers files on disk)
+        # QC summary table + every registered output under the consumed
+        # dirs anchor this report after their producing rules (DAG
+        # ordering + invalidation; the script itself re-discovers files
+        # on disk and degrades to 'not run' notes for absent stages)
+        anchors = _report_anchors(),
         qc_tsv = qc_dir + "/qc_summary.tsv",
     output:
         report = outdir + "/Mutation_report.pptx",

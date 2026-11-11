@@ -1,6 +1,5 @@
 include: "../common/common.smk"
 
-import os
 indir = config.get("indir", "output/raw_fastq")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")

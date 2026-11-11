@@ -1,7 +1,6 @@
 include: "../common/common.smk"
 
 import json
-import os
 
 outdir = config.get("outdir", "output/QC/sexcheck")
 logdir = config.get("logdir", "log")

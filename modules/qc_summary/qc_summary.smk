@@ -1,6 +1,5 @@
 include: "../common/common.smk"
 
-import os
 
 outdir = config.get("outdir", "output/QC/qc_summary")
 logdir = config.get("logdir", "log")

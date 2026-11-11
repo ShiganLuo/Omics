@@ -1,7 +1,5 @@
 include: "../common/common.smk"
 
-import os
-import time
 
 indir = config.get("indir", "common/2_raw2mzml")
 outdir = config.get("outdir", "common/3_diann")

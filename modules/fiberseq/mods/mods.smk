@@ -54,15 +54,46 @@ def _mods_design(wildcards):
     return _require(_design, "Params.mods.design_tsv", "fiberseq_mods")
 
 
+def _group_samples_spec() -> str:
+    """'gA:s1+s2,gB:s3' from config group_samples (node.py writes it from
+    the meta design); a hand-filled design_tsv still parses as fallback."""
+    gs = dict(p.get("group_samples") or {})
+    if not gs and p.get("design_tsv"):
+        sample_group: dict = {}
+        with open(p["design_tsv"]) as fh:
+            hdr = fh.readline().rstrip("\n").split("\t")
+            low = [h.strip().lower() for h in hdr]
+            si, gi = low.index("sample"), low.index("group")
+            for line in fh:
+                f = line.rstrip("\n").split("\t")
+                if len(f) > max(si, gi) and f[si].strip():
+                    sample_group[f[si].strip()] = f[gi].strip()
+        gs = {}
+        for s, g in sample_group.items():
+            gs.setdefault(g, []).append(s)
+    if not gs:
+        raise ValueError(
+            "fiberseq_mods needs sample grouping: fill the meta design/group "
+            "columns (drives Params.fiberseq_mods.group_samples) or set "
+            "Params.fiberseq_mods.design_tsv.")
+    return ",".join(f"{g}:{'+'.join(ss)}" for g, ss in gs.items())
+
+
 def _mods_longtable_inputs(wildcards):
-    """Inputs for the active region axis (DAG-time file declaration)."""
+    """Inputs for the active region axis (DAG-time file declaration).
+
+    Grouping arrives via Params (group_samples derived from the meta
+    design by node.py) — a design file input only when hand-authored
+    design_tsv is set.
+    """
     files = {
-        "design": _mods_design(wildcards),
         "mods": expand(indir + "/{sample_id}/{sample_id}." + _mod_type + ".bed.gz",
                        sample_id=samples),
         "msp": expand(indir + "/{sample_id}/{sample_id}.msp.bed.gz",
                       sample_id=samples),
     }
+    if p.get("design_tsv"):
+        files["design"] = _mods_design(wildcards)
     if _is_te:
         files["te_bed"] = _require(_te_bed, "genome.repeat_bed", "fiberseq_mods")
     else:
@@ -94,6 +125,7 @@ rule fiberseq_mods_longtable:
         script = (ROOT_DIR + "/modules/fiberseq/mods/bin/te_modification.py" if _is_te
                   else ROOT_DIR + "/modules/fiberseq/mods/bin/extract_modification_longtable.py"),
         metric = _metric,
+        group_spec = _group_samples_spec(),
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -113,7 +145,7 @@ rule fiberseq_mods_longtable:
                     "--msp", ",".join(
                         f"{indir}/{s}/{s}.msp.bed.gz" for s in samples),
                     "--te", str(input.te_bed),
-                    "--design", str(input.design),
+                    "--group-samples", params.group_spec,
                     "--te-level", _te_level,
                     "--min-fibers", str(_min_fibers),
                     "--out-long", str(output.longtable),
@@ -130,7 +162,7 @@ rule fiberseq_mods_longtable:
                         f"{indir}/{s}/{s}.fire_peaks.bed" for s in samples),
                     "--msp", ",".join(
                         f"{indir}/{s}/{s}.msp.bed.gz" for s in samples),
-                    "--design", str(input.design),
+                    "--group-samples", params.group_spec,
                     "--metric", params.metric,
                     "--out", str(output.longtable),
                     "-l", log_path,
@@ -178,7 +210,7 @@ rule fiberseq_mods_sigtest:
         sigtest_script = ROOT_DIR + "/modules/sigtest/bin/sigtest.py",
         split_script = ROOT_DIR + "/modules/fiberseq/mods/bin/split_significant.py",
         top_loci_script = ROOT_DIR + "/modules/fiberseq/mods/bin/te_top_loci.py",
-        design = _design,
+        group_spec = _group_samples_spec(),
         p = p,
         metric = _metric,
     run:
@@ -222,20 +254,14 @@ rule fiberseq_mods_sigtest:
             # group-level p is the statistical assertion, loci are ranked)
             top_loci_cmd = []
             if _is_te:
-                # group->samples spec from the design TSV, restricted to the
-                # two groups sigtest compared (params.p.groups or first two)
-                import csv as _csv
-                sample_groups: dict = {}
-                with open(str(params.design)) as fh:
-                    hdr = fh.readline().rstrip("\n").split("\t")
-                    low = [h.strip().lower() for h in hdr]
-                    si, gi = low.index("sample"), low.index("group")
-                    for line in fh:
-                        f = line.rstrip("\n").split("\t")
-                        if len(f) > max(si, gi) and f[si].strip():
-                            sample_groups.setdefault(f[gi].strip(), []).append(f[si].strip())
-                grp_pair = params.p.get("groups") or sorted(sample_groups)
-                grp_spec = ",".join(f"{g}:{'+'.join(sample_groups[g])}" for g in grp_pair[:2])
+                # group spec (params.group_spec = 'gA:s1+s2,gB:s3'), restricted
+                # to the two groups sigtest compared (Params groups or first two)
+                grp_pair = params.p.get("groups") or [
+                    tok.split(":", 1)[0] for tok in params.group_spec.split(",")]
+                by_group = {
+                    tok.split(":", 1)[0]: tok.split(":", 1)[1]
+                    for tok in params.group_spec.split(",")}
+                grp_spec = ",".join(f"{g}:{by_group[g]}" for g in grp_pair[:2])
                 top_loci_cmd = [
                     "python", params.top_loci_script,
                     "--sig", str(output.tsv),

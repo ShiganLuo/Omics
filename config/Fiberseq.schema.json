@@ -264,7 +264,7 @@
         "required": false
       }
     },
-    "mods": {
+    "fiberseq_mods": {
       "enabled": {
         "type": "bool",
         "required": false

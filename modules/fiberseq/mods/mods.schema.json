@@ -103,6 +103,11 @@
             "type": "int",
             "nullable": true,
             "required": false
+          },
+          "group_samples": {
+            "type": "dict",
+            "nullable": true,
+            "required": false
           }
         }
       }

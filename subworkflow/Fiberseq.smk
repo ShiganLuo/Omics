@@ -375,11 +375,12 @@ fiberseq_mods_config = {
     # TE region axis (Params.mods.region_axis=te): RepeatMasker loci BED
     "te_bed": genome_ref.get("repeat_bed"),
     "tmp_dir": config.get("tmp_dir") or f"{outdir}/tmp",
-    # contrasts resolved by node.py from the diff design TSV and written
-    # into raw.json (parse-time expand needs them in the module config)
-    "contrasts": config.get("Params", {}).get("mods", {}).get("contrasts", []),
+    # contrasts + group_samples are written by node.py into the config
+    # (derived from the meta design / group_pairs) before the DAG builds
+    "contrasts": (config.get("Params", {}).get("fiberseq_mods", {})
+                  or {}).get("contrasts", []),
     "Params": {
-        "fiberseq_mods": params.get("mods", {})
+        "fiberseq_mods": (params.get("fiberseq_mods") or params.get("mods") or {})
     },
     "resources": config.get("resources", {}),
 }

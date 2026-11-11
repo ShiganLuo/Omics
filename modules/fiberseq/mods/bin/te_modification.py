@@ -61,26 +61,21 @@ def _stdout_logger(lg: logging.Logger) -> logging.Logger:
     return lg
 
 
-def parse_design(path: str) -> Dict[str, str]:
-    """Parse the design TSV (sample -> group); same contract as diff/mods.
+def parse_group_samples(spec: str) -> Dict[str, str]:
+    """Parse 'gA:s1+s2,gB:s3' (node.py group_samples) into sample -> group.
 
-    Expects ``sample`` and ``group`` columns; rows with an empty sample
-    are skipped. Raises ValueError naming the file when columns are absent.
+    Raises ValueError naming the malformed token so a config typo surfaces
+    at DAG/run time with the offending element.
     """
     sample_group: Dict[str, str] = {}
-    with open(path) as fh:
-        header = fh.readline().rstrip("\n").split("\t")
-        low = [h.strip().lower() for h in header]
-        if "sample" not in low or "group" not in low:
-            raise ValueError(
-                f"design TSV {path} needs 'sample' and 'group' columns "
-                f"(found: {header})"
-            )
-        sidx, gidx = low.index("sample"), low.index("group")
-        for line in fh:
-            f = line.rstrip("\n").split("\t")
-            if len(f) > max(sidx, gidx) and f[sidx].strip():
-                sample_group[f[sidx].strip()] = f[gidx].strip()
+    for tok in spec.split(","):
+        if ":" not in tok:
+            raise ValueError(f"malformed group spec token {tok!r} "
+                             "(expected group:sample[+sample])")
+        group, s_str = tok.split(":", 1)
+        for s in s_str.split("+"):
+            if s.strip():
+                sample_group[s.strip()] = group.strip()
     return sample_group
 
 
@@ -243,7 +238,7 @@ def run(args: argparse.Namespace) -> int:
     if len(msp_beds) != len(sample_ids):
         logger.error("--msp must list one bed per sample, same order as --mods")
         return 1
-    sample_group = parse_design(args.design)
+    sample_group = parse_group_samples(args.group_samples)
     missing = [s for s in sample_ids if s not in sample_group]
     if missing:
         logger.error(f"samples absent from design TSV: {missing}")
@@ -313,8 +308,8 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
                    help="comma list of per-sample msp.bed.gz (fiber denominator)")
     p.add_argument("--te", required=True,
                    help="TE BED sorted k1,1 -k2,2n (col4 subfamily, col7 family, col8 class)")
-    p.add_argument("--design", required=True,
-                   help="design TSV with sample/group columns")
+    p.add_argument("--group-samples", required=True,
+                   help="group spec 'gA:s1+s2,gB:s3' (sample -> group mapping)")
     p.add_argument("--te-level", choices=["subfamily", "family"],
                    default="subfamily",
                    help="collapse/test level (subfamily = col4, family = col7)")

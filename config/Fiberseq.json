@@ -276,7 +276,7 @@
       "design_tsv": null,
       "annot_sample": null
     },
-    "mods": {
+    "fiberseq_mods": {
       "enabled": false,
       "design_tsv": null,
       "mod_type": "m6a",

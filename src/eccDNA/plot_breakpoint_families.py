@@ -3,9 +3,6 @@
 
 One row per family: sample-colored circle tracks, shared/private breakpoint
 lines, and (optionally) GENCODE gene models below.
-
-布局(与 2026-10-23 15:35 稳定版一致):所有家族行等高,标题在每行上方
-内部预留带中,基因模型/标签在轨道下方的固定带内,底部为全局元素图例。
 """
 from __future__ import annotations
 

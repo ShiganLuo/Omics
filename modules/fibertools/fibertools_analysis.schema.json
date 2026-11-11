@@ -45,6 +45,11 @@
             "type": "bool",
             "nullable": true,
             "required": false
+          },
+          "call_peaks_mode": {
+            "type": "str",
+            "nullable": true,
+            "required": false
           }
         }
       }
@@ -56,6 +61,11 @@
     "required": false,
     "properties": {
       "fasta": {
+        "type": "null",
+        "nullable": true,
+        "required": false
+      },
+      "fai": {
         "type": "null",
         "nullable": true,
         "required": false

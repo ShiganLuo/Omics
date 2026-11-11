@@ -74,14 +74,81 @@ rule ft_extract:
             rule_logger.error(f"ft_extract failed: {e}\n")
             raise RuntimeError(f"ft_extract failed: {e}\n")
 
+def _call_peaks_mode():
+    """Normalize Params.fibertools.call_peaks_mode ('fdr' | 'fire_frac').
+
+    Single source shared by the input function (DAG-time gating) and the
+    run block (command construction), per modules.md run 块禁止模块级全局变量.
+    """
+    return config.get("Params", {}).get("fibertools", {}).get("call_peaks_mode", "fdr")
+
+
+def _ft_call_peaks_inputs(wildcards):
+    """Declare every file ft_call_peaks consumes; missing ones fail at DAG
+    build time instead of mid-job (modules.md: 消费的文件必须声明为 input).
+
+    Returns a dict for ``unpack``: the aligned BAM plus, in fdr mode, the
+    null-model references (chrom sizes + shuffle script) — optional-file
+    pattern #1 from modules.md 可选文件的两种合规写法.
+    """
+    files = {
+        "bam": indir + "/{sample_id}/{sample_id}" + _bam_suffix,
+        "shuffle_script": ROOT_DIR + "/modules/fibertools/bin/shuffle_bed.py",
+    }
+    if _call_peaks_mode() == "fdr":
+        # fdr mode shuffles fibers genome-wide; without chrom sizes the
+        # null cannot be built — fail at DAG time naming the JSON key.
+        files["fai"] = _require(
+            config.get("genome", {}).get("fai"),
+            "genome.fai", "ft_call_peaks",
+        )
+    return files
+
+
+def _call_peaks_mode():
+    """Normalize Params.fibertools.call_peaks_mode ('fdr' | 'fire_frac').
+
+    Single source shared by the input function (DAG-time gating) and the
+    run block (command construction), per modules.md run 块禁止模块级全局变量.
+    """
+    return config.get("Params", {}).get("fibertools", {}).get("call_peaks_mode", "fdr")
+
+
+def _ft_call_peaks_inputs(wildcards):
+    """Declare every file ft_call_peaks consumes; missing ones fail at DAG
+    build time instead of mid-job (modules.md: 消费的文件必须声明为 input).
+
+    Returns a dict for ``unpack``: the aligned BAM plus the fdr-mode null
+    references (chrom sizes + engine script), added only when configured —
+    optional-file pattern #1 from modules.md 可选文件的两种合规写法.
+    """
+    files = {
+        "bam": indir + "/{sample_id}/{sample_id}" + _bam_suffix,
+        "engine": ROOT_DIR + "/modules/fibertools/bin/call_peaks.py",
+        "shuffle_script": ROOT_DIR + "/modules/fibertools/bin/shuffle_bed.py",
+    }
+    if _call_peaks_mode() == "fdr":
+        # fdr mode shuffles fibers genome-wide; without chrom sizes the
+        # null cannot be built — fail at DAG time naming the JSON key.
+        files["fai"] = _require(
+            config.get("genome", {}).get("fai"),
+            "genome.fai", "ft_call_peaks",
+        )
+    return files
+
+
 rule ft_call_peaks:
     """Call FIRE peaks using FDR-based peak calling.
 
-    Input: Fiber-seq BAM with FIRE calls.
-    Output: BED file with called FIRE peaks.
+    Input: Fiber-seq BAM with FIRE calls (+ genome.fai in fdr mode).
+    Output: BED file with called FIRE peaks and the FDR threshold table.
+
+    All support logic (aligned-read guard, fiber-span extraction, shuffled
+    null, scratch cleanup) lives in bin/call_peaks.py — the rule only
+    validates and invokes it (modules.md 核心原则).
     """
     input:
-        bam = indir + "/{sample_id}/{sample_id}" + _bam_suffix
+        unpack(_ft_call_peaks_inputs),
     output:
         peaks = outdir + "/{sample_id}/{sample_id}.fire_peaks.bed",
         fdr_table = outdir + "/{sample_id}/{sample_id}.fire_fdr_table.tsv",
@@ -96,80 +163,46 @@ rule ft_call_peaks:
         sif("fibertools.yaml", "ft_call_peaks")
     params:
         ft = config.get("Procedure", {}).get("fibertools") or "ft",
-        fdr_cfg = config.get("Params", {}).get("fibertools", {}),
-        fai = config.get("genome", {}).get("fai", ""),
-        shuffle_script = ROOT_DIR + "/modules/fibertools/bin/shuffle_bed.py",
+        cfg = config.get("Params", {}).get("fibertools", {}),
+        tmp_dir = config.get("tmp_dir") or os.path.join(outdir, "tmp"),
     run:
         log_path = str(log)
+        open(log_path, "w").close()
         rule_logger = setup_logger("ft_call_peaks", log_file=log_path)
         try:
             sample_outdir = os.path.join(outdir, wildcards.sample_id)
             os.makedirs(sample_outdir, exist_ok=True)
-            # The pbmm2-aligned BAM (indir) is already coordinate-sorted;
-            # reuse it in place — do NOT materialize another sorted copy in
-            # the outdir (that duplicated ~60G per sample historically).
-            sorted_bam = str(input.bam)
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             command_script = os.path.join(RECEIPT_DIR, f"ft_call_peaks_{wildcards.sample_id}_{current_time}.sh")
-            plain_script = os.path.join(sample_outdir, "ft_call_peaks.sh")
+            plain_script = os.path.join(sample_outdir, f"ft_call_peaks_{wildcards.sample_id}.sh")
             rule_logger.info(f"Calling FIRE peaks for sample {wildcards.sample_id}")
-            # Build ft call-peaks command (fdr mode needs a shuffled null BED)
-            mode = params.fdr_cfg.get("call_peaks_mode", "fdr")
-            if mode == "fdr" and not params.fai:
-                raise RuntimeError(
-                    "call_peaks_mode=fdr requires 'genome.fai' in the config JSON "
-                    "(chrom sizes for the shuffled null)."
-                )
-            # shuffle null intermediates are scratch: keep them in a tmp
-            # dir (removed on success), never in the results dir
-            scratch_dir = os.path.join(outdir, ".tmp_ft_call_peaks", wildcards.sample_id)
-            os.makedirs(scratch_dir, exist_ok=True)
-            fibers_bed = os.path.join(scratch_dir, f"{wildcards.sample_id}.fibers.bed")
-            shuffled_bed = os.path.join(scratch_dir, f"{wildcards.sample_id}.fibers.shuffled.bed")
-            ft_cmd = [
-                params.ft, "call-peaks",
-                "-t", str(threads),
-                "-o", str(output.peaks),
-                "--sd-cov", str(params.fdr_cfg.get("sd_cov", 5.0)),
+            cmd = [
+                "python", str(input.engine),
+                "--bam", str(input.bam),
+                "--out-peaks", str(output.peaks),
+                "--fdr-table", str(output.fdr_table),
+                "--mode", params.cfg.get("call_peaks_mode", "fdr"),
+                "--threads", str(threads),
+                "--ft", params.ft,
+                "--tmp-dir", params.tmp_dir,
+                "--sample-id", wildcards.sample_id,
             ]
-            if mode == "fdr":
-                ft_cmd.extend([
-                    "--max-fdr", str(params.fdr_cfg.get("max_fdr", 0.05)),
-                    "--shuffled", shuffled_bed,
-                    "--fdr-table-out", str(output.fdr_table),
-                ])
+            if params.cfg.get("call_peaks_mode", "fdr") == "fdr":
+                cmd += [
+                    "--fai", str(input.fai),
+                    "--shuffle-script", str(input.shuffle_script),
+                    "--sd-cov", str(params.cfg.get("sd_cov", 5.0)),
+                    "--max-fdr", str(params.cfg.get("max_fdr", 0.05)),
+                ]
             else:
-                ft_cmd.extend(["--min-fire-frac", str(params.fdr_cfg.get("min_fire_frac", 0.1))])
-            if params.fdr_cfg.get("haps", False):
-                ft_cmd.append("--haps")
-            ft_cmd.append(sorted_bam)
-            ft_cmd_str = " ".join(ft_cmd)
-
-            # Write shell script — all commands run inside conda/container env via shell()
+                cmd += ["--min-fire-frac", str(params.cfg.get("min_fire_frac", 0.1))]
+            if params.cfg.get("haps", False):
+                cmd.append("--haps")
             with open(command_script, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
-                f.write(f'echo "Checking alignment for {wildcards.sample_id}"\n')
-                f.write(f'aligned=$(samtools view -c -F 4 {input.bam})\n')
-                f.write(f'echo "Aligned reads: $aligned"\n')
-                f.write(f'if [ "$aligned" -eq 0 ]; then\n')
-                f.write(f'    echo "BAM has no aligned reads — skipping ft call-peaks"\n')
-                f.write(f'    printf "#chrom\\tstart\\tend\\tname\\tscore\\tstrand\\n" > {output.peaks}\n')
-                f.write(f'    exit 0\n')
-                f.write(f'fi\n')
-                f.write(f'echo "Using aligned BAM in place (already sorted): {sorted_bam}"\n')
-                if mode == "fdr":
-                    f.write(f'echo "Building shuffled null"\n')
-                    f.write(f'samtools view -F 0x904 {sorted_bam} | '
-                            f'awk \'BEGIN{{OFS="\\t"}}{{print $3, $4-1, $4-1+length($10), $1}}\' > {fibers_bed}\n')
-                    f.write(f'python {params.shuffle_script} -i {fibers_bed} '
-                            f'-g {params.fai} -o {shuffled_bed} --seed 42\n')
-                f.write(f'echo "Calling FIRE peaks ({mode} mode)"\n')
-                f.write(ft_cmd_str + "\n")
-                if mode != "fdr":
-                    f.write(f'printf "#FDR table not computed (fire_frac mode)\\n" > {output.fdr_table}\n')
+                f.write(f"export TMPDIR={params.tmp_dir}\n")
+                f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
                 f.write(f'echo "FIRE peak calling completed for sample {wildcards.sample_id}"\n')
-                f.write(f'rm -rf {scratch_dir}\n')
-
             shutil.copyfile(command_script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
@@ -246,10 +279,6 @@ rule ft_extract_fire:
     threads: rule_res("ft_extract_fire").get("threads", 8)
     resources:
         mem_mb = rule_res("ft_extract_fire").get("mem_mb", 8000),
-    # fibertools.yaml, NOT ../samtools/samtools.yaml: the script's first
-    # command is `ft fire --extract` (fibertools binary); samtools.sif has
-    # no `ft` and dies "ft: command not found". The fibertools container
-    # also carries bgzip/tabix/sort needed by the sort+publish steps.
     conda:
         "fibertools.yaml"
     container:
@@ -268,10 +297,6 @@ rule ft_extract_fire:
             os.makedirs(sample_outdir, exist_ok=True)
             command_script = os.path.join(RECEIPT_DIR, f"ft_extract_fire_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, "ft_extract_fire.sh")
-            # `ft fire --extract` emits records in BAM (fiber) order, which is
-            # NOT chromosome-grouped/start-sorted. Every ChromSweep consumer
-            # (quant/coactuation/motif/footprint/censat) requires a
-            # chromosome-grouped, start-sorted BED: sort before publishing.
             tmp_fire = str(output.fire) + ".unsorted.tmp.bed"
             cmd = [
                 params.ft, "fire",
@@ -282,10 +307,6 @@ rule ft_extract_fire:
             ]
             if params.is_ont:
                 cmd.extend(["--ont"])
-            # `ft fire` (and GNU sort in the publish step below) create temp
-            # files in $TMPDIR; a host-only TMPDIR (agent scratch dirs etc.)
-            # is not bind-mounted into the container and kills them at
-            # startup. Force the workflow's own bound tmp_dir instead.
             tmp_dir = config.get("tmp_dir") or os.path.join(outdir, "tmp")
             os.makedirs(tmp_dir, exist_ok=True)
             with open(command_script, "w") as f:
@@ -394,3 +415,17 @@ rule ft_extract_hap:
         except Exception as e:
             rule_logger.error(f"ft_extract_hap failed: {e}\n")
             raise RuntimeError(f"ft_extract_hap failed: {e}\n")
+
+
+rule fibertools_analysis_result:
+    """Panel rule: aggregate this module's main outputs as a dependency
+    point for subworkflow `use rule` (modules.md 收尾规则)."""
+    input:
+        m6a = expand(outdir + "/{sample_id}/{sample_id}.m6a.bed.gz", sample_id=samples),
+        nuc = expand(outdir + "/{sample_id}/{sample_id}.nuc.bed.gz", sample_id=samples),
+        msp = expand(outdir + "/{sample_id}/{sample_id}.msp.bed.gz", sample_id=samples),
+        cpg = expand(outdir + "/{sample_id}/{sample_id}.cpg.bed.gz", sample_id=samples),
+        fire = expand(outdir + "/{sample_id}/{sample_id}.fire.bed.gz", sample_id=samples),
+        peaks = expand(outdir + "/{sample_id}/{sample_id}.fire_peaks.bed", sample_id=samples),
+        fdr_table = expand(outdir + "/{sample_id}/{sample_id}.fire_fdr_table.tsv", sample_id=samples),
+        qc = expand(outdir + "/{sample_id}/{sample_id}.qc.tsv", sample_id=samples)

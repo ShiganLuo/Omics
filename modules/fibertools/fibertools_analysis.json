@@ -8,11 +8,13 @@
     },
     "Params": {
         "fibertools": {
-            "ont": false
+            "ont": false,
+            "call_peaks_mode": "fdr"
         }
     },
     "genome": {
-        "fasta": null
+        "fasta": null,
+        "fai": null
     },
     "bam_suffix": ".sorted.bam"
 }

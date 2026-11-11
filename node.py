@@ -2009,6 +2009,24 @@ def runscRNAseq(
 
 
 
+def _contrasts_from_group_pairs(
+        group_pairs: List[CompareGroupPair],
+) -> Dict[str, Dict[str, List[str]]]:
+    """Meta-derived contrast map: name -> {group -> [samples]}.
+
+    Shared by every group-level Fiber-seq analysis (mods, diff, ...):
+    one source of grouping (the meta design/group columns that drive
+    group_pairs), no per-module design files.
+    """
+    contrasts: Dict[str, Dict[str, List[str]]] = {}
+    for gp in group_pairs:
+        contrasts[f"{gp.ctr_group_name}_vs_{gp.exp_group_name}"] = {
+            gp.ctr_group_name: list(gp.ctr_sample_ids),
+            gp.exp_group_name: list(gp.exp_sample_ids),
+        }
+    return contrasts
+
+
 def runFiberseq(
         datajson: Dict[str, Any],
         samples_info_dict: Dict[str, SampleInfo],
@@ -2278,12 +2296,7 @@ def runFiberseq(
                 "Params.fiberseq_mods.enabled=true needs the meta "
                 "design/group columns filled (they drive group_pairs)."
             )
-        mods_contrasts: Dict[str, Dict[str, List[str]]] = {}
-        for gp in group_pairs:
-            mods_contrasts[f"{gp.ctr_group_name}_vs_{gp.exp_group_name}"] = {
-                gp.ctr_group_name: list(gp.ctr_sample_ids),
-                gp.exp_group_name: list(gp.exp_sample_ids),
-            }
+        mods_contrasts = _contrasts_from_group_pairs(group_pairs)
         contrast_names = sorted(mods_contrasts)
         # group -> sample lists for the module (long-table group column +
         # top-loci group specs); parse-time expand needs the contrast list
@@ -2304,30 +2317,24 @@ def runFiberseq(
                 outfiles.append(f"{base}/top_loci.bed")
 
     if enable_diff:
-        design_tsv = datajson.get("Params", {}).get("diff", {}).get("design_tsv")
-        if not design_tsv:
+        # grouping: meta design ONLY (group_pairs) — same source mods uses
+        if not group_pairs:
             raise ValueError(
-                "Params.diff.enabled=true requires "
-                "Params.diff.design_tsv in the config JSON."
+                "Params.diff.enabled=true needs the meta "
+                "design/group columns filled (they drive group_pairs)."
             )
-        contrast_groups = {}
-        with open(design_tsv) as fh:
-            header = fh.readline().rstrip("\n").split("\t")
-            for col_name in ("contrast", "group", "sample"):
-                if col_name not in header:
-                    raise ValueError(f"design TSV {design_tsv} lacks a '{col_name}' column")
-            cidx, gidx, sidx = (header.index(c) for c in ("contrast", "group", "sample"))
-            for line in fh:
-                f = line.rstrip("\n").split("\t")
-                if len(f) > cidx and f[cidx]:
-                    contrast_groups.setdefault(f[cidx], {}).setdefault(
-                        f[gidx], []).append(f[sidx])
+        contrast_groups = _contrasts_from_group_pairs(group_pairs)
+        # contrast spec string for the engine (diff_accessibility --group-spec)
+        datajson["Params"].setdefault("diff", {})["group_spec"] = ",".join(
+            f"{c}:" + "|".join(f"{g}:{'+'.join(ss)}" for g, ss in gs.items())
+            for c, gs in contrast_groups.items()
+        )
         for contrast, groups in sorted(contrast_groups.items()):
             base = f"{outdir}/fiberseq_analysis/diff/{contrast}"
             outfiles.append(f"{base}/diff_{contrast}.tsv")
             outfiles.append(f"{base}/volcano_{contrast}.pdf")
             outfiles.append(f"{base}/class_summary_{contrast}.tsv")
-            outfiles.append(f"{base}/{contrast}.TEcount_Gene.name.tsv")
+            outfiles.append(f"{base}/TEcount/{contrast}.TEcount_Gene.name.tsv")
 
         # function module needs group_pairs keyed by contrast; derive when absent
         # (group order matches diff_accessibility: sorted group names -> control,

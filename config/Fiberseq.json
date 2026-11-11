@@ -273,8 +273,8 @@
     "diff": {
       "enabled": false,
       "alpha": 0.05,
-      "design_tsv": null,
-      "annot_sample": null
+      "annot_sample": null,
+      "group_spec": null
     },
     "fiberseq_mods": {
       "enabled": false,

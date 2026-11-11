@@ -65,6 +65,27 @@ def read_design(path: str) -> Dict[str, dict]:
     return {c: dict(g) for c, g in contrasts.items()}
 
 
+def parse_group_spec(spec: str) -> Dict[str, Dict[str, List[str]]]:
+    """Parse 'contrast:gA:s1+s2|gB:s3,...' (meta-derived, node.py writes it)
+    into contrast -> {group -> [samples]} — same shape read_design returns.
+
+    Each contrast is '<name>:<group>:<s1>+<s2>|<group>:<s3>'; groups within
+    a contrast are '|' separated. Raises ValueError naming the bad token.
+    """
+    contrasts: Dict[str, Dict[str, List[str]]] = {}
+    for tok in spec.split(","):
+        name, rest = tok.split(":", 1) if ":" in tok else ("", tok)
+        groups: Dict[str, List[str]] = {}
+        for gspec in rest.split("|"):
+            g, samples = gspec.split(":", 1)
+            groups[g] = [s for s in samples.split("+") if s]
+        if not name or len(groups) < 2:
+            raise ValueError(f"malformed contrast spec {tok!r} "
+                             "(expected name:gA:s1+s2|gB:s3)")
+        contrasts[name] = groups
+    return contrasts
+
+
 def read_matrix(path: str):
     """Read regions x samples matrix; returns (header, rows as dicts)."""
     rows = []
@@ -81,7 +102,8 @@ def run(args: argparse.Namespace) -> int:
 
     header, rows = read_matrix(str(args.matrix))
     samples_in_matrix = header[4:]
-    contrasts = read_design(str(args.design))
+    contrasts = (parse_group_spec(args.group_spec) if args.group_spec
+                 else read_design(str(args.design)))
     logger.info(f"Matrix: {len(rows)} regions x {len(samples_in_matrix)} samples; "
                 f"contrasts: {list(contrasts)}")
 
@@ -173,8 +195,11 @@ def _gene_table(args, contrast: str, res_rows, gene_by_key: Dict[str, str]) -> N
         if gene not in best or p < float(best[gene][10]):
             best[gene] = r
     rows = [[gene, r[9], r[11]] for gene, r in best.items()]
-    args.outdir.mkdir(parents=True, exist_ok=True)
-    out = args.outdir / f"{contrast}.TEcount_Gene.name.tsv"
+    # rule output declares <outdir>/TEcount/<contrast>.TEcount_Gene.name.tsv
+    # (function_go_kegg consumes it at that path via indir=<workflow diff root>)
+    out_dir = args.outdir / "TEcount"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out = out_dir / f"{contrast}.TEcount_Gene.name.tsv"
     write_tsv(str(out), ["GeneName", "log2FoldChange", "padj"], rows)
     logger.info(f"Wrote {out} ({len(rows)} genes)")
 
@@ -221,11 +246,14 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     )
     p.add_argument("-m", "--matrix", type=Path, required=True,
                    help="merged quant matrix TSV (regions x samples)")
-    p.add_argument("-d", "--design", type=Path, required=True,
+    p.add_argument("-d", "--design", type=Path, default=None,
                    help="design TSV with sample/group/contrast columns")
     p.add_argument("-a", "--annot", type=Path, default=None,
                    help="annotated peaks TSV (adds region_class stratification)")
     p.add_argument("-o", "--outdir", type=Path, required=True, help="output directory")
+    p.add_argument("--group-spec", type=str, default=None,
+                   help="meta-derived contrasts 'name:gA:s1+s2|gB:s3,...' "
+                        "(overrides --design)")
     p.add_argument("-C", "--contrast", type=str, default=None,
                    help="run only this contrast (default: all contrasts in design)")
     p.add_argument("--metric", type=str, default="percent_accessible",

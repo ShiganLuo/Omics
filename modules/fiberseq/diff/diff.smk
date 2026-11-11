@@ -21,9 +21,6 @@ rule fiberseq_diff_run:
     """Per-region differential accessibility for one contrast."""
     input:
         matrix = QUANT_DIR + "/matrix/percent_accessible_matrix.tsv",
-        design = lambda wildcards: _require(p.get("design_tsv"),
-                                            "Params.diff.design_tsv",
-                                            "fiberseq_diff"),
         annot = ANNOT_DIR + "/" + ANNOT_SAMPLE + "/" + ANNOT_SAMPLE + ".peaks_annotated.tsv",
     output:
         diff = outdir + "/{contrast}/diff_{contrast}.tsv",
@@ -42,6 +39,7 @@ rule fiberseq_diff_run:
     params:
         script = ROOT_DIR + "/modules/fiberseq/bin/diff_accessibility.py",
         alpha = p.get("alpha", 0.05),
+        group_spec = p.get("group_spec") or "",
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -56,7 +54,7 @@ rule fiberseq_diff_run:
             cmd = [
                 "python", params.script,
                 "-m", str(input.matrix),
-                "-d", str(input.design),
+                "--group-spec", params.group_spec,
                 "-a", str(input.annot),
                 "-C", str(wildcards.contrast),
                 "-o", contrast_outdir,

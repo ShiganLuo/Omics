@@ -253,12 +253,12 @@
         "type": "float",
         "required": false
       },
-      "design_tsv": {
+      "annot_sample": {
         "type": "str",
         "nullable": true,
         "required": false
       },
-      "annot_sample": {
+      "group_spec": {
         "type": "str",
         "nullable": true,
         "required": false

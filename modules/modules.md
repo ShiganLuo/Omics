@@ -550,6 +550,36 @@ rule sv_mei:
         mei = _sv_mei_cfg(),   # run 里用 params.mei.get("min_len", 100)
 ```
 
+## Params 不得无故提升为模块全局变量（强制）
+
+配置值（`Params.*` 及其派生量）**在需要它的位置读取**：input 函数与
+`params:` 表达式内直读 `config.get(...)`，或经上面的规范化函数统一取。
+只有一种情况允许定义模块级变量：`input:`/`output:`/`log:`/`threads:`
+等 **parse 期指令**自身需要的派生值（输出文件名、轴开关、expand 列表）
+——指令里无法调用 params，只能用全局可见的量，且定义处注明是为指令服务。
+
+判断标准：如果一个全局变量只被 `params:` 或 run 块引用，放全局**没有任何
+收益**（不省解析时间），只损失可读性——删掉，在使用点读取。
+
+反例（禁止）：
+```python
+_min_fibers = int(p.get("min_fibers", 3))   # 只被 params 引用，却定义在全局
+_tmp_dir = config.get("tmp_dir") or ...     # 同上
+rule x:
+    params:
+        min_fibers = _min_fibers,
+```
+正例：
+```python
+def _mods_cfg():
+    return config.get("Params", {}).get("fiberseq_mods", {}) or {}
+
+_long_name = ...        # output 指令需要，允许（注明用途）
+rule x:
+    params:
+        min_fibers = int(_mods_cfg().get("min_fibers", 3)),
+```
+
 ## 必填配置缺失 = 建图期报错
 
 输入函数里直接 `raise ValueError("...set Params.x.y...")`，让配置错误在建图期暴露并给出修复指引。物种、基因组等科学参数禁止静默猜测（never guess a species）。

@@ -32,24 +32,26 @@ outdir = config.get("outdir", "fiberseq_analysis/mods")
 logdir = config.get("logdir", "log")
 samples = config.get("samples", [])
 ROOT_DIR = config.get("ROOT_DIR", ".")
-p = config.get("Params", {}).get("fiberseq_mods", {})
 
-_mod_type = p.get("mod_type", "m6a")            # m6a | cpg
-_metric = p.get("metric", f"{_mod_type}_per_fiber")
-# region axis: fire_peaks (default) | te (RepeatMasker loci collapsed per level)
-_region_axis = p.get("region_axis", "fire_peaks")
-_te_level = p.get("te_level", "subfamily")      # subfamily (col4) | family (col7)
-_min_fibers = int(p.get("min_fibers", 3))
-_te_bed = config.get("te_bed") or config.get("genome", {}).get("repeat_bed")
-_is_te = _region_axis == "te"
-# axis-dependent long-table path: TE mode namespaces outputs under te_<level>
-_long_name = f"te_{_mod_type}_{_te_level}_long.tsv" if _is_te else f"{_metric}_long.tsv"
-_loci_name = f"te_{_mod_type}_loci.tsv" if _is_te else None
-# TE mode reuses the longtable rule name's resources but scales up (4M-loci sweeps)
-_longtable_rule_key = "fiberseq_mods_te_longtable" if _is_te else "fiberseq_mods_longtable"
-_tmp_dir = config.get("tmp_dir") or os.path.join(outdir, "tmp")
 
-sigtest_contrasts = [str(c) for c in (config.get("contrasts") or [])]
+def _mods_cfg() -> dict:
+    """Params.fiberseq_mods block — read at point of use (modules.md:
+    Params 不得无故提升为模块全局变量); input functions and params both
+    call this one normalized source."""
+    return config.get("Params", {}).get("fiberseq_mods", {}) or {}
+
+
+# Parse-time directive values only (output/log/threads cannot call params):
+_mod_type = _mods_cfg().get("mod_type", "m6a")                # for output names
+_metric = _mods_cfg().get("metric", f"{_mod_type}_per_fiber")  # for output names
+_te_level = _mods_cfg().get("te_level", "subfamily")           # for output names
+_is_te = _mods_cfg().get("region_axis", "fire_peaks") == "te"  # output off-switch
+_long_name = (f"te_{_mod_type}_{_te_level}_long.tsv" if _is_te
+              else f"{_metric}_long.tsv")                     # output: longtable
+_loci_name = f"te_{_mod_type}_loci.tsv" if _is_te else None    # output: loci
+_longtable_rule_key = ("fiberseq_mods_te_longtable" if _is_te
+                       else "fiberseq_mods_longtable")          # threads/res
+sigtest_contrasts = [str(c) for c in (config.get("contrasts") or [])]  # expand()
 
 
 def _group_samples_spec() -> str:
@@ -58,7 +60,7 @@ def _group_samples_spec() -> str:
     node.py derives it from the meta design (group_pairs) — the meta is
     the single source of grouping for this module.
     """
-    gs = dict(p.get("group_samples") or {})
+    gs = dict(_mods_cfg().get("group_samples") or {})
     if not gs:
         raise ValueError(
             "fiberseq_mods needs Params.fiberseq_mods.group_samples: fill "
@@ -79,7 +81,8 @@ def _mods_longtable_inputs(wildcards):
                       sample_id=samples),
     }
     if _is_te:
-        files["te_bed"] = _require(_te_bed, "genome.repeat_bed", "fiberseq_mods")
+        te_bed = config.get("te_bed") or config.get("genome", {}).get("repeat_bed")
+        files["te_bed"] = _require(te_bed, "genome.repeat_bed", "fiberseq_mods")
     else:
         files["peaks"] = expand(indir + "/{sample_id}/{sample_id}.fire_peaks.bed",
                                 sample_id=samples)
@@ -115,9 +118,9 @@ rule fiberseq_mods_longtable:
         is_te = _is_te,
         mod_type = _mod_type,
         te_level = _te_level,
-        min_fibers = _min_fibers,
+        min_fibers = int(_mods_cfg().get("min_fibers", 3)),
         loci_name = _loci_name or "",
-        tmp_dir = _tmp_dir,
+        tmp_dir = config.get("tmp_dir") or os.path.join(outdir, "tmp"),
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -171,15 +174,14 @@ rule fiberseq_mods_longtable:
             raise RuntimeError(f"Error occurred during fiberseq_mods_longtable: {e}, you can check the log file {log_path} for more details.\n")
 
 
-# Directory where the sigtest module's outputs land (subworkflow wires
-# sigtest's outdir to <mods>/sigtest and its input table to our long table;
-# cross-module contract is FILES ONLY — no script references either way).
-SIGTEST_DIR = config.get("sigtest_dir") or os.path.join(outdir, "sigtest")
-
-
 def _sigtest_tsv(wildcards):
-    """The sigtest module's result table for one contrast."""
-    return os.path.join(SIGTEST_DIR, wildcards.contrast, "significance_test.tsv")
+    """The sigtest module's result table for one contrast.
+
+    The subworkflow wires sigtest's outdir to <mods>/sigtest (file-only
+    cross-module contract); config.get at point of use, no global.
+    """
+    sigtest_dir = config.get("sigtest_dir") or os.path.join(outdir, "sigtest")
+    return os.path.join(sigtest_dir, wildcards.contrast, "significance_test.tsv")
 
 
 rule fiberseq_mods_split:
@@ -205,7 +207,7 @@ rule fiberseq_mods_split:
         sif("../fiberseq.yaml", "fiberseq_mods_split")
     params:
         split_script = ROOT_DIR + "/modules/fiberseq/mods/bin/split_significant.py",
-        p = p,
+        p = _mods_cfg(),
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -262,9 +264,9 @@ rule fiberseq_mods_top_loci:
     params:
         top_loci_script = ROOT_DIR + "/modules/fiberseq/mods/bin/te_top_loci.py",
         group_spec = _group_samples_spec(),
-        p = p,
+        p = _mods_cfg(),
         mod_type = _mod_type,
-        min_fibers = _min_fibers,
+        min_fibers = int(_mods_cfg().get("min_fibers", 3)),
         is_te = _is_te,
     run:
         if not params.is_te:

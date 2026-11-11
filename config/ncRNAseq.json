@@ -12,7 +12,7 @@
     "subsample": "/home/luosg/Database/env/subsample/subsample.sif",
     "tailer": "/home/luosg/Database/env/tailer/tailer.sif",
     "trim-galore": "/home/luosg/Database/env/trim-galore/trim-galore.sif",
-    "ncRNAseq_report": "/home/luosg/Database/env/ncRNAseq_report/ncRNAseq_report.sif",
+    "ncRNAseq_report": "/data/16T/Database/env/report/report.sif",
     "igv": "/home/luosg/Database/env/igv/hisat2.sif",
     "macs3": "/home/luosg/Database/env/macs3/macs3.sif",
     "track": "/home/luosg/Database/env/track/track.sif",

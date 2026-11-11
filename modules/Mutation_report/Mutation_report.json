@@ -12,5 +12,8 @@
     "fragment_dir": null,
     "Params": {
         "report": {}
+    },
+    "env": {
+        "Mutation_report": "/data/16T/Database/env/report/report.sif"
     }
 }

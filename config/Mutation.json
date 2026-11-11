@@ -164,8 +164,8 @@
         "spectrum": "/data/16T/Database/env/spectrum/spectrum.sif",
         "deepvariant": "/data/16T/Database/env/deepvariant/deepvariant.sif",
         "msi": "/data/16T/Database/env/msi/msi.sif",
-        "qc_summary": "/data/16T/Database/env/ncRNAseq_report/ncRNAseq_report.sif",
-        "Mutation_report": "/data/16T/Database/env/ncRNAseq_report/ncRNAseq_report.sif",
+        "qc_summary": "/data/16T/Database/env/report/report.sif",
+        "Mutation_report": "/data/16T/Database/env/report/report.sif",
         "sexcheck": "/data/16T/Database/env/fragment_size/fragment_size.sif"
     },
     "resources": {

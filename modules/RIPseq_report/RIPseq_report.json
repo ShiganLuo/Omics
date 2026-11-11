@@ -19,5 +19,8 @@
             "top_n": 20
         }
     },
-    "ip_samples": []
+    "ip_samples": [],
+    "env": {
+        "RIPseq_report": "/data/16T/Database/env/report/report.sif"
+    }
 }

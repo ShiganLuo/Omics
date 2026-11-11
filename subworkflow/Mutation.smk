@@ -534,16 +534,6 @@ qc_summary_config = {
         "msi": msi_config["outdir"],
         "sexcheck": sexcheck_config["outdir"],
     },
-    # DAG anchors: per-sample files whose producing rules are guaranteed to
-    # run, so qc_summary is ordered after them AND re-runs when one is
-    # refreshed. fastqc stages are intentionally NOT anchored (their outputs
-    # are not registered for this workflow; they stay best-effort scans).
-    # The bwa-mem2 alignment log (log: directive) is always written.
-    # sexcheck is a run-level table (no {sample} wildcard) — its anchor is
-    # the single registered sexcheck.tsv, wiring qc_summary AFTER the whole
-    # sexcheck stage.
-    # hs_metrics anchors exist only for exome/hybrid runs (targets BED
-    # resolved); the anchor list is built conditionally below.
     "qc_anchors": {
         "cutadapt": "{sample}/{sample}.cutadapt_report.txt",
         "flagstat": "{sample}/{sample}_flagstat.txt",

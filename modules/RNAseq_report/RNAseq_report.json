@@ -15,5 +15,8 @@
             "date": "",
             "lang": "zh"
         }
+    },
+    "env": {
+        "RNAseq_report": "/data/16T/Database/env/report/report.sif"
     }
 }

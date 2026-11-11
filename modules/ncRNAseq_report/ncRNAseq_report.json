@@ -17,5 +17,8 @@
             "date": "",
             "lang": "zh"
         }
+    },
+    "env": {
+        "ncRNAseq_report": "/data/16T/Database/env/report/report.sif"
     }
 }

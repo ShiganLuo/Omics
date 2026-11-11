@@ -34,31 +34,17 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import logging
 import shlex
 import subprocess
 import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, TextIO, Tuple
 
-_BIN_DIR = Path(__file__).resolve().parent
-if str(_BIN_DIR) not in sys.path:
-    sys.path.insert(0, str(_BIN_DIR))
-_ROOT_DIR = _BIN_DIR.parent.parent.parent
-if str(_ROOT_DIR) not in sys.path:
-    sys.path.insert(0, str(_ROOT_DIR))
-from src.common.util.LogUtil import setup_logger  # noqa: E402
-from src.common.util.FiberlibUtil import ChromSweep  # noqa: E402
+# Self-contained module bin scripts import the module-private helper
+# (verbatim src/common copies) — modules.md 脚本撰写规范 #0.
+from _fiberlib import ChromSweep, setup_logger
 
-logger = setup_logger("TeModification")
-
-
-def _stdout_logger(lg: logging.Logger) -> logging.Logger:
-    """Point the logger's stream handler at stdout (repo convention)."""
-    for handler in lg.handlers:
-        if type(handler) is logging.StreamHandler:
-            handler.setStream(sys.stdout)
-    return lg
+logger = setup_logger("TeModification", stream=sys.stdout)
 
 
 def parse_group_samples(spec: str) -> Dict[str, str]:
@@ -329,9 +315,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     global logger
     args = parse_args(argv)
     if args.log:
-        logger = _stdout_logger(setup_logger("TeModification", log_file=str(args.log)))
-    else:
-        logger = _stdout_logger(setup_logger("TeModification"))
+        logger = setup_logger("TeModification", log_file=str(args.log),
+                              stream=sys.stdout)
     logger.info(f"Command: {' '.join(sys.argv)}")
     return run(args)
 

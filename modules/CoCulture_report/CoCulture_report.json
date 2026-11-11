@@ -8,5 +8,8 @@
         "genome1",
         "genome2"
     ],
-    "ROOT_DIR": null
+    "ROOT_DIR": null,
+    "env": {
+        "CoCulture_report": "/data/16T/Database/env/report/report.sif"
+    }
 }

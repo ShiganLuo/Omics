@@ -10,6 +10,18 @@
         "sample1": "group1"
     },
     "genome": {
-        "fasta": ""
+        "fasta": "",
+        "signature_matrix": "/data/16T/Database/cosmic_signatures/GRCh38/COSMIC_v3.6_SBS_GRCh38.txt"
+    },
+    "signature": {
+        "enabled": true,
+        "mode": "both",
+        "min_mutations": 200,
+        "min_exposure_frac": 0.02,
+        "family_map": null,
+        "max_rank": 8,
+        "restarts": 20,
+        "seed": 42,
+        "rank": null
     }
 }

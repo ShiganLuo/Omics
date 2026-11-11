@@ -612,6 +612,29 @@ Visium 输入示例：
 }
 ```
 
+### 16. RIPseq.smk
+- **用途**：RIP-seq（RNA 免疫沉淀测序）RNA-蛋白结合位点分析（IP vs Input）。
+- **主要模块**：
+  - fastqc：原始数据和修剪后质控
+  - trim_galore：去接头
+  - hisat2：建立索引和比对（splice-aware，适配 RNA 靶标）
+  - gatk_prepare：addReadsGroup + MarkDuplicates
+  - igv：dedup BAM → bigWig 可视化
+  - track：IGV/UCSC track 生成
+  - macs3：peak calling + cutoff 图
+  - frip_score：FRiP 质控
+  - deeptools_heatmap：bigWig ratio + 热图
+  - homer：annotatepeaks 峰注释
+  - peak_te_overlap：peak-TE overlap 分析 + 可视化
+  - qc_summary：跨样本 QC 汇总（tsv + html）
+  - RIPseq_report：汇总报告（PPT + Excel）
+- **输入**：fastq，IP 样本和 Input 对照样本设计信息（design pairs）
+- **输出**：比对 BAM、narrowPeak/broadPeak peak 文件、FRiP 分数、deeptools 热图、Homer 注释、peak-TE overlap、qc_summary、RIPseq_report.pptx/xlsx
+- **特点**：
+  - 支持有对照（IP vs Input）和无对照模式
+  - RNA 感知的剪接比对（hisat2），区别于 PeakCalling 的 bowtie2
+  - 支持多个基因组
+
 ## 使用说明
 
 - 每个 .smk 文件可作为 Snakemake 主入口，需配合对应 config json/yaml。

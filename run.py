@@ -9,7 +9,7 @@ from src.common.util.LogUtil import setup_logger
 from src.common.util.CmdUtil import _run_cmd, _run_cmds_parallel
 from src.common.util.SchemaValidatorUtil import SchemaValidator, smart_cast
 from src.common.util.EnvUtil import is_path_like
-from node import runCoCulture, runMERIP, runRNAseq, runncRNAseq, runCLIP, runMutation, runPacVar, runKARRseq, runPeakCalling, runQuantMS, runtRNAseq, runscRNAseq, runFiberseq, runLRtranscriptome
+from node import runCoCulture, runMERIP, runRNAseq, runncRNAseq, runCLIP, runMutation, runPacVar, runKARRseq, runPeakCalling, runRIPseq, runQuantMS, runtRNAseq, runscRNAseq, runFiberseq, runLRtranscriptome
 import logging
 from typing import Dict, Any, List, Optional, Tuple, Set, Union
 logger = setup_logger(__name__, level=logging.DEBUG)
@@ -550,6 +550,7 @@ WORKFLOW_DISPATCH = {
     "PacVar":     lambda cfg, sid, sp, gp, indir, outdir, meta, rf, ci: ("PacVar.smk",    runPacVar(cfg, sid, gp, indir, outdir, rf)),
     "KARRseq":    lambda cfg, sid, sp, gp, indir, outdir, meta, rf, ci: ("KARRseq.smk",   runKARRseq(cfg, sid, indir, outdir, rf)),
     "PeakCalling":lambda cfg, sid, sp, gp, indir, outdir, meta, rf, ci: ("PeakCalling.smk",runPeakCalling(cfg, sid, sp, indir, outdir, rf)),
+    "RIPseq":     lambda cfg, sid, sp, gp, indir, outdir, meta, rf, ci: ("RIPseq.smk",   runRIPseq(cfg, sid, sp, indir, outdir, rf)),
     "QuantMS":    lambda cfg, sid, sp, gp, indir, outdir, meta, rf, ci: ("QuantMS.smk",   runQuantMS(cfg, sid, indir, outdir, rf)),
     "tRNAseq":    lambda cfg, sid, sp, gp, indir, outdir, meta, rf, ci: ("tRNAseq.smk",   runtRNAseq(cfg, sid, indir, outdir, meta, rf)),
     "scRNAseq":   lambda cfg, sid, sp, gp, indir, outdir, meta, rf, ci: ("scRNAseq.smk",  runscRNAseq(cfg, sid, indir, outdir, rf, ci)),

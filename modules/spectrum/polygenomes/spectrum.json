@@ -11,10 +11,23 @@
     },
     "genome": {
         "genome1": {
-            "fasta": "path/to/genome1.fa"
+            "fasta": "path/to/genome1.fa",
+            "signature_matrix": ""
         },
         "genome2": {
-            "fasta": "path/to/genome2.fa"
+            "fasta": "path/to/genome2.fa",
+            "signature_matrix": ""
         }
+    },
+    "signature": {
+        "enabled": true,
+        "mode": "both",
+        "min_mutations": 200,
+        "min_exposure_frac": 0.02,
+        "family_map": null,
+        "max_rank": 8,
+        "restarts": 20,
+        "seed": 42,
+        "rank": null
     }
 }

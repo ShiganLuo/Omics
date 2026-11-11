@@ -1,0 +1,487 @@
+shell.prefix("set -x; set -e;")
+from snakemake.logging import logger
+
+indir = config.get("indir", "data/fastq")
+outdir = config.get("outdir", "output")
+logdir = config.get("logdir", "logs")
+ROOT_DIR = config.get("ROOT_DIR", ".")
+outfiles = config.get("outfiles", [])
+paired_samples = config.get("paired_samples", [])
+single_samples = config.get("single_samples", [])
+samples = config.get("samples", [])
+ip_samples = config.get("ip_samples", [])
+input_samples = config.get("input_samples", [])
+sample_ip_input_map = config.get("sample_ip_input_map", {})
+
+# Genome reference resolution — RNAseq pattern
+genome = config.get("genome", {}).get("default")
+genome_ref = config.get("genome", {}).get("references", {}).get(genome, {})
+logger.debug(f"RIPseq genome: {genome}, ref keys: {list(genome_ref.keys())}")
+
+rule all:
+    input:
+        outfiles
+
+# =============================================================================
+# Step 1: Raw FastQC
+# =============================================================================
+fastqc_raw_config = {
+        "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
+        "env": config.get("env", {}),
+        "indir": indir,
+        "outdir":  f"{outdir}/QC/1_raw_fastqc",
+        "logdir": f"{logdir}/sample",
+        "log_suffix": "raw.txt",
+        "paired_samples": paired_samples,
+        "single_samples": single_samples,
+        "Procedure": {
+            "fastqc": config.get("Procedure", {}).get("fastqc") or "fastqc"
+        }
+    }
+module fastqc_raw:
+    snakefile: "../modules/fastqc/fastqc.smk"
+    config: fastqc_raw_config
+logger.debug(f"fastqc_raw_config: {fastqc_raw_config}")
+use rule fastqc from fastqc_raw as RIPseq_fastqc_raw
+
+# =============================================================================
+# Step 2: Trim Galore
+# =============================================================================
+trim_galore_config = {
+        "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
+        "env": config.get("env", {}),
+        "indir": indir,
+        "outdir": f"{outdir}/common/2_trimmed_fastq",
+        "logdir": f"{logdir}/sample",
+        "Procedure": {
+            "trim_galore": config.get('Procedure',{}).get('trim_galore')
+        },
+        "Params": {
+            "trim_galore": {
+                "quality": config.get('Params',{}).get("trim_galore", {}).get('quality')
+            }
+        },
+    }
+module trim_galore:
+    snakefile: "../modules/trim-galore/trim-galore.smk"
+    config: trim_galore_config
+logger.debug(f"TrimGalore parameters: {trim_galore_config}")
+use rule trimming_Paired from trim_galore as RIPseq_trimming_Paired
+use rule trimming_Single from trim_galore as RIPseq_trimming_Single
+
+# =============================================================================
+# Step 3: Trimmed FastQC
+# =============================================================================
+fastqc_trimmed_config = {
+        "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
+        "env": config.get("env", {}),
+        "indir": trim_galore_config["outdir"],
+        "outdir":  f"{outdir}/QC/2_trimmed_fastqc",
+        "logdir": f"{logdir}/sample",
+        "paired_samples": paired_samples,
+        "single_samples": single_samples,
+        "log_suffix": "trimmed.txt",
+        "Procedure": {
+            "fastqc": config.get("Procedure", {}).get("fastqc") or "fastqc"
+        }
+    }
+module fastqc_trimmed:
+    snakefile: "../modules/fastqc/fastqc.smk"
+    config: fastqc_trimmed_config
+logger.debug(f"fastqc_trimmed_config: {fastqc_trimmed_config}")
+use rule fastqc from fastqc_trimmed as RIPseq_fastqc_trimmed
+
+# =============================================================================
+# Step 4: HISAT2 Alignment (splice-aware, RNA targets)
+# =============================================================================
+hisat2_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
+    "env": config.get("env", {}),
+    "indir": trim_galore_config["outdir"],
+    "outdir": f"{outdir}/common/3_raw_bam",
+    "logdir": f"{logdir}/sample",
+    "paired_samples": paired_samples,
+    "single_samples": single_samples,
+    "Procedure": {
+        "hisat2": config.get("Procedure", {}).get("hisat2"),
+        "hisat2-build": config.get("Procedure", {}).get("hisat2-build"),
+        "samtools": config.get("Procedure", {}).get("samtools") or "samtools"
+    },
+    "Params": {
+        "hisat2": config.get("Params", {}).get("hisat2", {})
+    },
+    "genome": {
+        "fasta": genome_ref.get("fasta"),
+        "index_prefix": genome_ref.get("hisat2_index_prefix")
+    }
+}
+module hisat2:
+    snakefile: "../modules/hisat2/hisat2.smk"
+    config: hisat2_config
+logger.debug(f"hisat2_config: {hisat2_config}")
+use rule hisat2_index from hisat2 as RIPseq_hisat2_index
+use rule hisat2_align from hisat2 as RIPseq_hisat2_align
+
+# =============================================================================
+# Step 5: Add Read Groups + Mark Duplicates (GATK4)
+# Consistent with nf-core/chipseq: AddOrReplaceReadGroups + MarkDuplicates.
+# Duplicates are flagged but not removed; downstream tools (MACS3, FRiP)
+# handle duplicate filtering via --keep-dup.
+# =============================================================================
+gatk_prepare_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
+    "env": config.get("env", {}),
+    "indir": hisat2_config["outdir"],
+    "outdir": f"{outdir}/common/4_markdup_bam",
+    "logdir": f"{logdir}/sample",
+    "input_bam_substring": "",
+    "Procedure": {
+        "gatk": config.get("Procedure", {}).get("gatk") or "gatk",
+        "samtools": config.get("Procedure", {}).get("samtools") or "samtools"
+    },
+    "Params": {
+        "gatk": config.get("Params", {}).get("gatk", {})
+    },
+    "genome": {
+        "fasta": genome_ref.get("fasta")
+    }
+}
+module gatk_prepare:
+    snakefile: "../modules/gatk/gatk_prepare.smk"
+    config: gatk_prepare_config
+logger.debug(f"gatk_prepare_config: {gatk_prepare_config}")
+use rule addReadsGroup from gatk_prepare as RIPseq_addReadsGroup
+use rule MarkDuplicates from gatk_prepare as RIPseq_MarkDuplicates
+
+# =============================================================================
+# Step 6: BigWig Track Generation (bamCoverage)
+# Generates normalized coverage tracks for visualization in genome browsers.
+# Uses the existing igv module's dedup + wig rules.
+# =============================================================================
+igv_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
+    "env": config.get("env", {}),
+    "indir": hisat2_config["outdir"],
+    "outdir": f"{outdir}/results/tracks",
+    "logdir": f"{logdir}/sample",
+    "Procedure": {
+        "samtools": config.get("Procedure", {}).get("samtools") or "samtools",
+        "bamCoverage": config.get("Procedure", {}).get("bamCoverage") or "bamCoverage"
+    },
+    "Params": {
+        "bamCoverage": {
+            "binSize": config.get("Params", {}).get("bamCoverage", {}).get("binSize") or 50,
+            "normalizeUsing": config.get("Params", {}).get("bamCoverage", {}).get("normalizeUsing") or "CPM",
+            "offset": config.get("Params", {}).get("bamCoverage", {}).get("offset"),
+            "extendReads": config.get("Params", {}).get("bamCoverage", {}).get("extendReads") or False
+        }
+    }
+}
+module igv:
+    snakefile: "../modules/igv/igv.smk"
+    config: igv_config
+logger.debug(f"igv_config: {igv_config}")
+use rule samtools_dedup from igv as RIPseq_dedup
+use rule wig from igv as RIPseq_bigwig
+
+# ============================================================
+# Region-focused multi-sample track stacking plots (modules/regionplot)
+#   Consumes this workflow's bigwigs; gated by Params.regionplot in
+#   node.py (subworkflow wiring is unconditional per repo convention).
+# ============================================================
+regionplot_params = config.get("Params", {}).get("regionplot", {})
+regionplot_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
+    "env": config.get("env", {}),
+    "outdir": f"{outdir}/regionplot",
+    "logdir": f"{logdir}/group",
+    "samples": ip_samples + input_samples,
+    "tracks": [{"label": "bigwig", "dir": igv_config["outdir"], "suffix": ".bigwig"}],
+    "Params": {
+        "regionplot": regionplot_params
+    },
+    "genome": {
+        "gtf": genome_ref.get("gtf"),
+    },
+    "resources": config.get("resources", {}),
+}
+module regionplot:
+    snakefile: "../modules/regionplot/regionplot.smk"
+    config: regionplot_config
+logger.debug(f"regionplot_config: {regionplot_config}")
+use rule regionplot from regionplot as RIPseq_regionplot
+use rule regionplot_result from regionplot as RIPseq_regionplot_result
+
+track_config = {
+        "indir": igv_config["outdir"],
+        "outdir":  igv_config["outdir"],
+        "logdir": f"{logdir}/group",
+        "samples": single_samples + paired_samples,
+        "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
+        "env": config.get("env", {}),
+        "igv": config.get('Params', {}).get('igv', {}),
+    }
+
+module track:
+    snakefile: "../modules/track/track.smk"
+    config: track_config
+logger.debug(f"track_config: {track_config}")
+use rule * from track as RIPseq_*
+# =============================================================================
+# Step 7: MACS3 Peak Calling
+# =============================================================================
+macs3_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
+    "env": config.get("env", {}),
+    "indir": gatk_prepare_config["outdir"],
+    "outdir": f"{outdir}/results/peaks",
+    "logdir": f"{logdir}/sample",
+    "ip_samples": ip_samples,
+    "input_samples": input_samples,
+    "sample_ip_input_map": sample_ip_input_map,
+    "Procedure": {
+        "macs3": config.get("Procedure", {}).get("macs3")
+    },
+    "Params": {
+        "macs3": config.get("Params", {}).get("macs3", {})
+    },
+    "genome": {
+        "fasta": genome_ref.get("fasta")
+    }
+}
+module macs3:
+    snakefile: "../modules/macs3/macs3.smk"
+    config: macs3_config
+logger.debug(f"macs3_config: {macs3_config}")
+use rule macs3_callpeak from macs3 as RIPseq_macs3_callpeak
+use rule macs3_cutoff_plot from macs3 as RIPseq_macs3_cutoff_plot
+
+# =============================================================================
+# Step 8: FRIP Score (Fraction of Reads in Peaks)
+# Key enrichment QC metric: FRiP = reads_in_peaks / total_mapped_reads
+# =============================================================================
+frip_score_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
+    "env": config.get("env", {}),
+    "indir": gatk_prepare_config["outdir"],
+    "outdir": f"{outdir}/QC/3_frip_score",
+    "logdir": f"{logdir}/sample",
+    "peaks_indir": macs3_config["outdir"],
+    "samples": ip_samples,
+    "Procedure": {
+        "samtools": config.get("Procedure", {}).get("samtools") or "samtools",
+        "bedtools": config.get("Procedure", {}).get("bedtools") or "bedtools"
+    }
+}
+module frip_score:
+    snakefile: "../modules/frip_score/frip_score.smk"
+    config: frip_score_config
+logger.debug(f"frip_score_config: {frip_score_config}")
+use rule frip_score from frip_score as RIPseq_frip_score
+
+# =============================================================================
+# Step 9: deeptools Enrichment Heatmap
+# Computes signal matrix around peaks (computeMatrix) and plots heatmap
+# (plotHeatmap) for visualizing RIP-seq enrichment patterns.
+# =============================================================================
+deeptools_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
+    "env": config.get("env", {}),
+    "indir": macs3_config["outdir"],
+    "outdir": f"{outdir}/results/heatmap",
+    "logdir": f"{logdir}/sample",
+    "bigwig_dir": igv_config["outdir"],
+    "samples": ip_samples,
+    "sample_ip_input_map": sample_ip_input_map,
+    "Procedure": {
+        "computeMatrix": config.get("Procedure", {}).get("computeMatrix") or "computeMatrix",
+        "plotHeatmap": config.get("Procedure", {}).get("plotHeatmap") or "plotHeatmap",
+    },
+    "Params": {
+        "computeMatrix": config.get("Params", {}).get("computeMatrix", {}),
+        "plotHeatmap": config.get("Params", {}).get("plotHeatmap", {}),
+    },
+    "genome": {
+        "gtf": genome_ref.get("gtf"),
+        "te_gtf": genome_ref.get("te_gtf"),
+        "tss_bed": genome_ref.get("tss_bed"),
+    },
+}
+module deeptools:
+    snakefile: "../modules/deeptools/heatmap.smk"
+    config: deeptools_config
+logger.debug(f"deeptools_config: {deeptools_config}")
+use rule bigwig_ratio from deeptools as RIPseq_bigwig_ratio
+use rule bigwig_ratio_result from deeptools as RIPseq_bigwig_ratio_result
+use rule heatmap from deeptools as RIPseq_heatmap
+use rule heatmap_gene from deeptools as RIPseq_heatmap_gene
+
+# =============================================================================
+# Step 10: HOMER Peak Annotation
+# Annotates peaks with genomic features (promoter, intron, intergenic, etc.)
+# and nearest gene information.
+# =============================================================================
+homer_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
+    "env": config.get("env", {}),
+    "indir": macs3_config["outdir"],
+    "outdir": f"{outdir}/results/annotation",
+    "logdir": f"{logdir}/sample",
+    "samples": ip_samples,
+    "Procedure": {
+        "annotatePeaks": config.get("Procedure", {}).get("annotatePeaks") or "annotatePeaks.pl"
+    },
+    "genome": {
+        "fasta": genome_ref.get("fasta"),
+        "gtf": genome_ref.get("gtf")
+    }
+}
+module homer:
+    snakefile: "../modules/homer/homer.smk"
+    config: homer_config
+logger.debug(f"homer_config: {homer_config}")
+use rule homer_annotatepeaks from homer as RIPseq_homer_annotatepeaks
+
+# =============================================================================
+# Step 11: Peak-TE Overlap Analysis
+# Calculates overlap between peaks and TE (Transposable Element) annotation,
+# producing per-sample overlap counts and a grouped bar chart comparing
+# IP vs Input samples across TE families.
+# =============================================================================
+peak_te_overlap_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
+    "env": config.get("env", {}),
+    "outdir": f"{outdir}/results/te_overlap",
+    "logdir": f"{logdir}/sample",
+    "peaks_indir": macs3_config["outdir"],
+    "bam_indir": gatk_prepare_config["outdir"],
+    "samples": ip_samples,
+    "sample_ip_input_map": sample_ip_input_map,
+    "Procedure": {
+        "bedtools": config.get("Procedure", {}).get("bedtools") or "bedtools",
+    },
+    "Params": {
+        "peak_te_overlap": config.get("Params", {}).get("peak_te_overlap", {}),
+    },
+    "genome": {
+        "te_gtf": genome_ref.get("te_gtf"),
+    },
+}
+module peak_te_overlap:
+    snakefile: "../modules/peak_te_overlap/peak_te_overlap.smk"
+    config: peak_te_overlap_config
+logger.debug(f"peak_te_overlap_config: {peak_te_overlap_config}")
+use rule peak_te_overlap from peak_te_overlap as RIPseq_peak_te_overlap
+use rule peak_centric_overlap from peak_te_overlap as RIPseq_peak_centric_overlap
+use rule peak_te_overlap_fig from peak_te_overlap as RIPseq_peak_te_overlap_fig
+
+# ============================================
+# Sex check (coverage on sex chromosomes)
+# ============================================
+# Wired unconditionally over the alignment BAMs; node.py registers the
+# sexcheck outputs (subworkflow.md QC wiring).
+sexcheck_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
+    "env": config.get("env", {}),
+    "outdir": f"{outdir}/QC/sexcheck",
+    "logdir": f"{logdir}/sample",
+    "logdir_combine": f"{logdir}/group",
+    "samples": ip_samples + input_samples,
+    "sample_bams": {
+        s: f"{gatk_prepare_config['outdir']}/{s}/{s}.sorted_markdup.bam"
+        for s in ip_samples + input_samples
+    },
+    "Procedure": {
+        "samtools": config.get("Procedure", {}).get("samtools")
+    },
+    "genome": {
+        "sex_chroms": (config.get("genome", {}) or {}).get("references", {})
+            .get(config.get("genome", {}).get("default"), {})
+            .get("sex_chroms")
+    },
+    "Params": {
+        "sexcheck": config.get("Params", {}).get("sexcheck", {})
+    },
+}
+module sexcheck:
+    snakefile: "../modules/sexcheck/sexcheck.smk"
+    config: sexcheck_config
+logger.info(f"sexcheck_config: {sexcheck_config}")
+use rule sexcheck_idxstats from sexcheck as RIPseq_sexcheck_idxstats
+use rule sexcheck from sexcheck as RIPseq_sexcheck
+
+
+# ============================================
+# QC Summary (cross-sample metric aggregation)
+# ============================================
+# Wired unconditionally; node.py registers the qc_summary outputs (see
+# subworkflow.md QC wiring spec). Only stages with qc_summary parsers are
+# declared; unregistered stages stay best-effort scans.
+qc_summary_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
+    "env": config.get("env", {}),
+    "outdir": f"{outdir}/QC/qc_summary",
+    "logdir": f"{logdir}/group",
+    "samples": ip_samples + input_samples,
+    "qc_dirs": {
+        "fastqc_raw": fastqc_raw_config["outdir"],
+        "fastqc_trimmed": fastqc_trimmed_config["outdir"],
+        "cutadapt": trim_galore_config["outdir"],
+        "markdup": gatk_prepare_config["outdir"],
+        "sexcheck": sexcheck_config["outdir"],
+    },
+    "qc_anchors": {
+        "markdup": "{sample}/{sample}.Markdup-metrics.txt",
+        "sexcheck": "sexcheck.tsv",
+    },
+}
+module qc_summary:
+    snakefile: "../modules/qc_summary/qc_summary.smk"
+    config: qc_summary_config
+logger.info(f"qc_summary_config: {qc_summary_config}")
+use rule qc_summary from qc_summary as RIPseq_qc_summary
+
+
+# =============================================================================
+# Step 12: Generate Report
+# Creates comprehensive PPT + Excel report with QC metrics, peak statistics,
+# and annotation.
+# =============================================================================
+RIPseq_report_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
+    "env": config.get("env", {}),
+    "outdir": outdir,
+    "logdir": f"{logdir}/sample",
+    "samples": ip_samples,
+    "input_samples": input_samples,
+    "sample_ip_input_map": sample_ip_input_map,
+    "peaks_dir": f"{outdir}/results/peaks",
+    "annotation_dir": f"{outdir}/results/annotation",
+    "qc_dir": f"{outdir}/QC/3_frip_score",
+    "log_sample_dir": f"{logdir}/sample",
+    "markdup_dir": f"{outdir}/common/4_markdup_bam",
+    "Params": {
+        "report": config.get("Params", {}).get("report", {})
+    }
+}
+module RIPseq_report:
+    snakefile: "../modules/RIPseq_report/RIPseq_report.smk"
+    config: RIPseq_report_config
+logger.debug(f"report_config: {RIPseq_report_config}")
+use rule generate_report from RIPseq_report as RIPseq_generate_report

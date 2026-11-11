@@ -42,6 +42,63 @@
         "path": "file",
         "nullable": true,
         "required": false
+      },
+      "signature_matrix": {
+        "type": "str",
+        "path": "file",
+        "nullable": true,
+        "required": false
+      }
+    }
+  },
+  "signature": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "enabled": {
+        "type": "bool",
+        "required": false
+      },
+      "mode": {
+        "type": "enum",
+        "values": [
+          "refit",
+          "nmf",
+          "both"
+        ],
+        "required": false
+      },
+      "min_mutations": {
+        "type": "int",
+        "required": false
+      },
+      "min_exposure_frac": {
+        "type": "float",
+        "required": false
+      },
+      "family_map": {
+        "type": "str",
+        "path": "file",
+        "nullable": true,
+        "required": false
+      },
+      "max_rank": {
+        "type": "int",
+        "required": false
+      },
+      "restarts": {
+        "type": "int",
+        "required": false
+      },
+      "seed": {
+        "type": "int",
+        "required": false
+      },
+      "rank": {
+        "type": "int",
+        "nullable": true,
+        "required": false
       }
     }
   }

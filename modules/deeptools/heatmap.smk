@@ -55,6 +55,18 @@ def _heatmap_suffix():
 
 HEATMAP_SUFFIX = _heatmap_suffix()
 
+# Mutually exclusive output gating for the two heatmap rules (modules.md
+# conditional outputs): heatmap serves the tss/peaks/genes-combined modes
+# and heatmap_gene serves the per-gene mode. Only one may expose outputs
+# per config — with both active they claim the same
+# {sample_id}_{suffix}_heatmap.png shapes (AmbiguousRuleException on e.g.
+# {sample_id}_tss_heatmap.png).
+HEATMAP_GENE_MODE = (
+    _is_gene_regions()
+    and bool(regions_cfg.get("genes"))
+    and bool(regions_cfg.get("per_gene"))
+)
+
 # ============================================================
 # bigwigCompare: IP/Input ratio bigwig
 # ============================================================
@@ -195,7 +207,7 @@ rule heatmap:
         gtf = _get_gtf_for_heatmap,
         regions = _get_regions_for_heatmap,
     output:
-        heatmap = outdir + "/{sample_id}/{sample_id}_" + HEATMAP_SUFFIX + "_heatmap.png",
+        heatmap = (outdir + "/{sample_id}/{sample_id}_" + HEATMAP_SUFFIX + "_heatmap.png") if not HEATMAP_GENE_MODE else [],
     log: logdir + "/{sample_id}/heatmap.log"
     threads: rule_res("heatmap").get("threads", 4)
     resources:
@@ -232,7 +244,7 @@ rule heatmap_gene:
         ratio_bigwig = get_ratio_bigwig,
         gtf = _get_gene_gtf,
     output:
-        heatmap = outdir + "/{sample_id}/{sample_id}_{gene_name}_heatmap.png",
+        heatmap = (outdir + "/{sample_id}/{sample_id}_{gene_name}_heatmap.png") if HEATMAP_GENE_MODE else [],
     log: logdir + "/{sample_id}/heatmap_{gene_name}.log"
     threads: rule_res("heatmap_gene").get("threads", 4)
     resources:

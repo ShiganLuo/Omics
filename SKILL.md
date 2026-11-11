@@ -44,6 +44,7 @@ description: Omics 工作流入口技能与子技能组织说明
 | PacVar | PacVar.smk | PacBio 变异 |
 | KARRseq | KARRseq.smk | KARR-seq |
 | PeakCalling | PeakCalling.smk | ChIP-seq/DIP-seq |
+| RIPseq | RIPseq.smk | RIP-seq |
 | QuantMS | QuantMS.smk | 定量蛋白质组学 |
 | tRNAseq | tRNAseq.smk | tRNA-seq |
 
@@ -90,7 +91,7 @@ python run.py --test ncRNAseq
 python run.py --test PeakCalling
 
 # 所有注册工作流均可测试
-# PeakCalling, ncRNAseq, RNAseq, Mutation, CLIP, MERIP, KARRseq, CoCulture, tRNAseq, PacVar, QuantMS
+# PeakCalling, RIPseq, ncRNAseq, RNAseq, Mutation, CLIP, MERIP, KARRseq, CoCulture, tRNAseq, PacVar, QuantMS
 ```
 
 测试资源位于 `assests/test/`:

@@ -1,0 +1,33 @@
+# Auto-generated Apptainer definition file for report conda environment
+# Source YAML: RIPseq_report.yaml
+# Build: apptainer build RIPseq_report.sif RIPseq_report.def
+# Or:   apptainer build <output.sif> <def_file>
+
+Bootstrap: docker
+From: docker.m.daocloud.io/continuumio/miniconda3:latest
+
+%files
+    RIPseq_report.yaml /opt/conda/RIPseq_report.yaml
+
+%post
+    conda env create -f /opt/conda/RIPseq_report.yaml && \
+        conda clean -afy && \
+        rm /opt/conda/RIPseq_report.yaml
+
+    echo 'export PATH="/opt/conda/envs/report/bin:$PATH"' >> /etc/profile.d/conda_report.sh
+    echo 'export CONDA_DEFAULT_ENV=report' >> /etc/profile.d/conda_report.sh
+
+%environment
+    export PATH="/opt/conda/envs/report/bin:$PATH"
+    export CONDA_DEFAULT_ENV=report
+
+%runscript
+    exec "$@"
+
+%labels
+    Author genomestability
+    EnvName report
+
+%help
+    Apptainer image for conda environment 'report'.
+    Generated from RIPseq_report.yaml.

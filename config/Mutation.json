@@ -1,275 +1,289 @@
 {
-  "outfiles": [],
-  "ROOT_DIR": null,
-  "tmp_dir": null,
-  "Procedure": {
-    "fastqc": null,
-    "bwaMem2": null,
-    "samtools": null,
-    "bgzip": null,
-    "gatk": null,
-    "manta": null,
-    "cnvkit": null,
-    "msisensorpro": "msisensor-pro"
-  },
-  "Params": {
-    "workflow": {
-      "indir": "input",
-      "raw_files": [],
-      "outdir": "output",
-      "logdir": "logs",
-      "paired_samples": [],
-      "single_samples": [],
-      "paired_design": [],
-      "pair_strains": {}
+    "outfiles": [],
+    "ROOT_DIR": null,
+    "tmp_dir": null,
+    "Procedure": {
+        "fastqc": null,
+        "bwaMem2": null,
+        "samtools": null,
+        "bgzip": null,
+        "gatk": null,
+        "manta": null,
+        "cnvkit": null,
+        "msisensorpro": "msisensor-pro"
     },
-    "trim_galore": {
-      "quality": 25
+    "Params": {
+        "workflow": {
+            "indir": "input",
+            "raw_files": [],
+            "outdir": "output",
+            "logdir": "logs",
+            "paired_samples": [],
+            "single_samples": [],
+            "paired_design": [],
+            "pair_strains": {}
+        },
+        "trim_galore": {
+            "quality": 25
+        },
+        "samtools": {
+            "onlykeep_properpair": false
+        },
+        "gatk": {
+            "addReadsGroup": {
+                "RGLB": "mRNA",
+                "RGPL": "Illumina",
+                "RGPU": "Illumina_NextSeq_500"
+            },
+            "VariantFiltration": {
+                "FS_threshold": 20.0,
+                "QD_threshold": 2.0,
+                "DP_threshold": 10.0,
+                "QUAL_threshold": 20.0
+            },
+            "Mutect2": {
+                "panel_of_normals": null
+            }
+        },
+        "msi": {
+            "enabled": true
+        },
+        "manta": {
+            "threads": 8,
+            "enabled": true
+        },
+        "cnvkit": {
+            "enabled": true,
+            "method": "wgs",
+            "mode": "auto",
+            "control_samples": []
+        },
+        "burden": {
+            "enabled": true,
+            "min_vaf": 0.05,
+            "size_mb": 34.0,
+            "gtf_feature": "exon",
+            "include_sex_chroms": false,
+            "min_abs_log2": 0.3,
+            "annotate": true,
+            "vep_cache": "~/.vep",
+            "vep_species": null,
+            "vep_assembly": null,
+            "sample_snv_vcf_dict": {},
+            "sample_sv_vcf_dict": {},
+            "sample_cnv_dict": {}
+        },
+        "somatic_spectrum": {
+            "sample_somatic_vcf_dict": {},
+            "sample_group_dict": {},
+            "signature": {
+                "enabled": true,
+                "mode": "both",
+                "min_mutations": 200,
+                "min_exposure_frac": 0.02,
+                "family_map": null,
+                "max_rank": 8,
+                "restarts": 20,
+                "seed": 42,
+                "rank": null
+            }
+        },
+        "derive_targets": {
+            "min_depth": 10,
+            "min_bq": 20,
+            "min_mq": 20,
+            "min_gap": 50,
+            "min_region": 50
+        },
+        "fragment_size": {
+            "enabled": true
+        },
+        "report": {
+            "enabled": true,
+            "title": null,
+            "pipeline": null,
+            "genome": null
+        },
+        "sexcheck": {
+            "ratio_xy_threshold": null,
+            "y_min_frac": null
+        }
     },
-    "samtools": {
-      "onlykeep_properpair": false
+    "genome": {
+        "default": "GRCm39",
+        "references": {
+            "GRCm39": {
+                "fasta": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
+                "fai_index": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa.fai",
+                "dict_index": null,
+                "bwaMem2_index_prefix": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/bwa_mem2/GRCm39",
+                "access": null,
+                "targets": null,
+                "gtf": null,
+                "germline_resource": "/data/16T/Database/Reference/mouse/MGP/GRCm39/germline_resource.MGP52.GRCm39.vcf.gz",
+                "strain_resource": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/germline/129/mgp_REL2021_snps.vcf.gz",
+                "signature_matrix": "/data/16T/Database/cosmic_signatures/mm39/COSMIC_v3.6_SBS_mm39.txt"
+            },
+            "GRCh38": {
+                "fasta": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa",
+                "fai_index": "/data/16T/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa.fai",
+                "dict_index": null,
+                "bwaMem2_index_prefix": "/data/16T/Database/Reference/human/GENCODE/GRCh38/bwa_mem2/genome",
+                "access": null,
+                "targets": null,
+                "gtf": null,
+                "germline_resource": "/data/16T/Database/Reference/human/gnomAD/GRCh38/af-only-gnomad.hg38.vcf.gz",
+                "strain_resource": null,
+                "signature_matrix": "/data/16T/Database/cosmic_signatures/GRCh38/COSMIC_v3.6_SBS_GRCh38.txt"
+            },
+            "Mmul_10": {
+                "fasta": "/home/luosg/Database/Reference/mulatta/ENSEMBL/Mmul_10/Macaca_mulatta.Mmul_10.dna.toplevel.fa",
+                "fai_index": null,
+                "dict_index": null,
+                "bwaMem2_index_prefix": null,
+                "access": null,
+                "targets": null,
+                "gtf": null,
+                "germline_resource": null,
+                "strain_resource": null,
+                "signature_matrix": null
+            }
+        }
     },
-    "gatk": {
-      "addReadsGroup": {
-        "RGLB": "mRNA",
-        "RGPL": "Illumina",
-        "RGPU": "Illumina_NextSeq_500"
-      },
-      "VariantFiltration": {
-        "FS_threshold": 20.0,
-        "QD_threshold": 2.0,
-        "DP_threshold": 10.0,
-        "QUAL_threshold": 20.0
-      },
-      "Mutect2": {
-        "panel_of_normals": null
-      }
+    "env": {
+        "env_dir": "/home/luosg/Database/env",
+        "burden": "/data/16T/Database/env/burden/burden.sif",
+        "bwa-mem2": "/home/luosg/Database/env/bwa-mem2/bwa-mem2.sif",
+        "cnvkit": "/home/luosg/Database/env/cnvkit/cnvkit.sif",
+        "cutadapt": "/home/luosg/Database/env/cutadapt/cutadapt.sif",
+        "fastqc": "/home/luosg/Database/env/fastqc/fastqc.sif",
+        "fragment_size": "/home/luosg/Database/env/fragment_size/fragment_size.sif",
+        "gatk": "/home/luosg/Database/env/gatk/gatk4.sif",
+        "manta": "/home/luosg/Database/env/manta/manta.sif",
+        "samtools": "/home/luosg/Database/env/samtools/samtools.sif",
+        "spectrum": "/data/16T/Database/env/spectrum/spectrum.sif",
+        "deepvariant": "/data/16T/Database/env/deepvariant/deepvariant.sif",
+        "msi": "/data/16T/Database/env/msi/msi.sif",
+        "qc_summary": "/data/16T/Database/env/ncRNAseq_report/ncRNAseq_report.sif",
+        "Mutation_report": "/data/16T/Database/env/ncRNAseq_report/ncRNAseq_report.sif",
+        "sexcheck": "/data/16T/Database/env/fragment_size/fragment_size.sif"
     },
-    "msi": {
-      "enabled": true
-    },
-    "manta": {
-      "threads": 8,
-      "enabled": true
-    },
-    "cnvkit": {
-      "enabled": true,
-      "method": "wgs",
-      "mode": "auto",
-      "control_samples": []
-    },
-    "burden": {
-      "enabled": true,
-      "min_vaf": 0.05,
-      "size_mb": 34.0,
-      "gtf_feature": "exon",
-      "include_sex_chroms": false,
-      "min_abs_log2": 0.3,
-      "annotate": true,
-      "vep_cache": "~/.vep",
-      "vep_species": null,
-      "vep_assembly": null,
-      "sample_snv_vcf_dict": {},
-      "sample_sv_vcf_dict": {},
-      "sample_cnv_dict": {}
-    },
-    "somatic_spectrum": {
-      "sample_somatic_vcf_dict": {},
-      "sample_group_dict": {}
-    },
-    "derive_targets": {
-      "min_depth": 10,
-      "min_bq": 20,
-      "min_mq": 20,
-      "min_gap": 50,
-      "min_region": 50
-    },
-    "fragment_size": {
-      "enabled": true
-    },
-    "report": {
-      "enabled": true,
-      "title": null,
-      "pipeline": null,
-      "genome": null
-    },
-    "sexcheck": {
-      "ratio_xy_threshold": null,
-      "y_min_frac": null
+    "resources": {
+        "default": {
+            "threads": 2,
+            "mem_mb": 8000
+        },
+        "bwaMem2_index": {
+            "threads": 15,
+            "mem_mb": 64000
+        },
+        "bwaMem2_alignment": {
+            "threads": 15,
+            "mem_mb": 32000
+        },
+        "somaticMutect2": {
+            "threads": 10,
+            "mem_mb": 32000
+        },
+        "HaplotypeCaller": {
+            "threads": 10,
+            "mem_mb": 32000
+        },
+        "filterHaplotypeCallerVcf": {
+            "threads": 10,
+            "mem_mb": 16000
+        },
+        "MarkDuplicates": {
+            "threads": 8,
+            "mem_mb": 32000
+        },
+        "addReadsGroup": {
+            "threads": 8,
+            "mem_mb": 16000
+        },
+        "gatk_index": {
+            "threads": 4,
+            "mem_mb": 8000
+        },
+        "BaseRecalibrator": {
+            "threads": 8,
+            "mem_mb": 32000
+        },
+        "ApplyBQSR": {
+            "threads": 8,
+            "mem_mb": 16000
+        },
+        "vcf_filter": {
+            "threads": 8,
+            "mem_mb": 8000
+        },
+        "manta_run": {
+            "threads": 8,
+            "mem_mb": 32000
+        },
+        "manta_config": {
+            "threads": 1,
+            "mem_mb": 8000
+        },
+        "cnvkit_batch": {
+            "threads": 8,
+            "mem_mb": 32000
+        },
+        "cnvkit_paired": {
+            "threads": 8,
+            "mem_mb": 32000
+        },
+        "cnvkit_reference": {
+            "threads": 8,
+            "mem_mb": 16000
+        },
+        "samtools_stats": {
+            "threads": 1,
+            "mem_mb": 8000
+        },
+        "trimming_Paired": {
+            "threads": 6,
+            "mem_mb": 8000
+        },
+        "fastqc": {
+            "threads": 2,
+            "mem_mb": 8000
+        },
+        "derive_targets": {
+            "threads": 4,
+            "mem_mb": 16000
+        },
+        "filterMutectCalls": {
+            "threads": 2,
+            "mem_mb": 8000
+        },
+        "germline_resource_strain": {
+            "threads": 2,
+            "mem_mb": 16000
+        },
+        "burden_snv_indel": {
+            "threads": 1,
+            "mem_mb": 8000
+        },
+        "burden_sv": {
+            "threads": 1,
+            "mem_mb": 8000
+        },
+        "burden_cnv": {
+            "threads": 1,
+            "mem_mb": 8000
+        },
+        "burden_aggregate": {
+            "threads": 1,
+            "mem_mb": 8000
+        },
+        "burden_result": {
+            "threads": 1,
+            "mem_mb": 8000
+        },
+        "collectHsMetrics": {
+            "threads": 4,
+            "mem_mb": 16000
+        }
     }
-  },
-  "genome": {
-    "default": "GRCm39",
-    "references": {
-      "GRCm39": {
-        "fasta": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
-        "fai_index": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa.fai",
-        "dict_index": null,
-        "bwaMem2_index_prefix": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/bwa_mem2/GRCm39",
-        "access": null,
-        "targets": null,
-        "gtf": null,
-        "germline_resource": "/data/16T/Database/Reference/mouse/MGP/GRCm39/germline_resource.MGP52.GRCm39.vcf.gz",
-        "strain_resource": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/germline/129/mgp_REL2021_snps.vcf.gz"
-      },
-      "GRCh38": {
-        "fasta": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa",
-        "fai_index": "/data/16T/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa.fai",
-        "dict_index": null,
-        "bwaMem2_index_prefix": "/data/16T/Database/Reference/human/GENCODE/GRCh38/bwa_mem2/genome",
-        "access": null,
-        "targets": null,
-        "gtf": null,
-        "germline_resource": "/data/16T/Database/Reference/human/gnomAD/GRCh38/af-only-gnomad.hg38.vcf.gz",
-        "strain_resource": null
-      },
-      "Mmul_10": {
-        "fasta": "/home/luosg/Database/Reference/mulatta/ENSEMBL/Mmul_10/Macaca_mulatta.Mmul_10.dna.toplevel.fa",
-        "fai_index": null,
-        "dict_index": null,
-        "bwaMem2_index_prefix": null,
-        "access": null,
-        "targets": null,
-        "gtf": null,
-        "germline_resource": null,
-        "strain_resource": null
-      }
-    }
-  },
-  "env": {
-    "env_dir": "/home/luosg/Database/env",
-    "burden": "/data/16T/Database/env/burden/burden.sif",
-    "bwa-mem2": "/home/luosg/Database/env/bwa-mem2/bwa-mem2.sif",
-    "cnvkit": "/home/luosg/Database/env/cnvkit/cnvkit.sif",
-    "cutadapt": "/home/luosg/Database/env/cutadapt/cutadapt.sif",
-    "fastqc": "/home/luosg/Database/env/fastqc/fastqc.sif",
-    "fragment_size": "/home/luosg/Database/env/fragment_size/fragment_size.sif",
-    "gatk": "/home/luosg/Database/env/gatk/gatk4.sif",
-    "manta": "/home/luosg/Database/env/manta/manta.sif",
-    "samtools": "/home/luosg/Database/env/samtools/samtools.sif",
-    "spectrum": "/data/16T/Database/env/spectrum/spectrum.sif",
-    "deepvariant": "/data/16T/Database/env/deepvariant/deepvariant.sif",
-    "msi": "/data/16T/Database/env/msi/msi.sif",
-    "qc_summary": "/data/16T/Database/env/ncRNAseq_report/ncRNAseq_report.sif",
-    "Mutation_report": "/data/16T/Database/env/ncRNAseq_report/ncRNAseq_report.sif",
-    "sexcheck": "/data/16T/Database/env/fragment_size/fragment_size.sif"
-  },
-  "resources": {
-    "default": {
-      "threads": 2,
-      "mem_mb": 8000
-    },
-    "bwaMem2_index": {
-      "threads": 15,
-      "mem_mb": 64000
-    },
-    "bwaMem2_alignment": {
-      "threads": 15,
-      "mem_mb": 32000
-    },
-    "somaticMutect2": {
-      "threads": 10,
-      "mem_mb": 32000
-    },
-    "HaplotypeCaller": {
-      "threads": 10,
-      "mem_mb": 32000
-    },
-    "filterHaplotypeCallerVcf": {
-      "threads": 10,
-      "mem_mb": 16000
-    },
-    "MarkDuplicates": {
-      "threads": 8,
-      "mem_mb": 32000
-    },
-    "addReadsGroup": {
-      "threads": 8,
-      "mem_mb": 16000
-    },
-    "gatk_index": {
-      "threads": 4,
-      "mem_mb": 8000
-    },
-    "BaseRecalibrator": {
-      "threads": 8,
-      "mem_mb": 32000
-    },
-    "ApplyBQSR": {
-      "threads": 8,
-      "mem_mb": 16000
-    },
-    "vcf_filter": {
-      "threads": 8,
-      "mem_mb": 8000
-    },
-    "manta_run": {
-      "threads": 8,
-      "mem_mb": 32000
-    },
-    "manta_config": {
-      "threads": 1,
-      "mem_mb": 8000
-    },
-    "cnvkit_batch": {
-      "threads": 8,
-      "mem_mb": 32000
-    },
-    "cnvkit_paired": {
-      "threads": 8,
-      "mem_mb": 32000
-    },
-    "cnvkit_reference": {
-      "threads": 8,
-      "mem_mb": 16000
-    },
-    "samtools_stats": {
-      "threads": 1,
-      "mem_mb": 8000
-    },
-    "trimming_Paired": {
-      "threads": 6,
-      "mem_mb": 8000
-    },
-    "fastqc": {
-      "threads": 2,
-      "mem_mb": 8000
-    },
-    "derive_targets": {
-      "threads": 4,
-      "mem_mb": 16000
-    },
-    "filterMutectCalls": {
-      "threads": 2,
-      "mem_mb": 8000
-    },
-    "germline_resource_strain": {
-      "threads": 2,
-      "mem_mb": 16000
-    },
-    "burden_snv_indel": {
-      "threads": 1,
-      "mem_mb": 8000
-    },
-    "burden_sv": {
-      "threads": 1,
-      "mem_mb": 8000
-    },
-    "burden_cnv": {
-      "threads": 1,
-      "mem_mb": 8000
-    },
-    "burden_aggregate": {
-      "threads": 1,
-      "mem_mb": 8000
-    },
-    "burden_result": {
-      "threads": 1,
-      "mem_mb": 8000
-    },
-    "collectHsMetrics": {
-      "threads": 4,
-      "mem_mb": 16000
-    }
-  }
 }

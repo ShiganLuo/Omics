@@ -1,0 +1,529 @@
+{
+  "ROOT_DIR": {
+    "type": "str",
+    "required": false
+  },
+  "indir": {
+    "type": "str",
+    "required": false
+  },
+  "outdir": {
+    "type": "str",
+    "required": false
+  },
+  "logdir": {
+    "type": "str",
+    "required": false
+  },
+  "samples": {
+    "type": "list",
+    "required": true
+  },
+  "paired_samples": {
+    "type": "list",
+    "required": true
+  },
+  "single_samples": {
+    "type": "list",
+    "required": true
+  },
+  "ip_samples": {
+    "type": "list",
+    "required": true
+  },
+  "input_samples": {
+    "type": "list",
+    "required": true
+  },
+  "sample_ip_input_map": {},
+  "outfiles": {
+    "type": "list",
+    "required": true
+  },
+  "Procedure": {
+    "trim_galore": {
+      "type": "str",
+      "required": true,
+      "path": "file"
+    },
+    "hisat2": {
+      "type": "str",
+      "nullable": true,
+      "required": false
+    },
+    "hisat2-build": {
+      "type": "str",
+      "nullable": true,
+      "required": false
+    },
+    "samtools": {
+      "type": "str",
+      "nullable": true,
+      "required": false
+    },
+    "gatk": {
+      "type": "str",
+      "nullable": true,
+      "required": false
+    },
+    "bamCoverage": {
+      "type": "str",
+      "nullable": true,
+      "required": false
+    },
+    "macs3": {
+      "type": "str",
+      "nullable": true,
+      "required": false
+    },
+    "bedtools": {
+      "type": "str",
+      "nullable": true,
+      "required": false
+    },
+    "annotatePeaks": {
+      "type": "str",
+      "nullable": true,
+      "required": false
+    },
+    "computeMatrix": {
+      "type": "str",
+      "nullable": true,
+      "required": false
+    },
+    "plotHeatmap": {
+      "type": "str",
+      "nullable": true,
+      "required": false
+    }
+  },
+  "Params": {
+    "regionplot": {
+      "enabled": {
+        "type": "bool",
+        "required": false,
+        "default": false,
+        "description": "Gate for the regionplot module (multi-sample track stacking plots over user regions, consumes this workflow's bigwigs)."
+      },
+      "regions": {
+        "type": "str",
+        "required": false,
+        "default": null,
+        "description": "Regions file, required when enabled. Auto-detected per row: BED rows (chrom<TAB>start<TAB>end[<TAB>name], col4 names the panel) or list lines ([NAME=]chrom:start-end, the same string pyGenomeTracks --region consumes; NAME= names the panel, else chrom_start_end). Formats may be mixed; #/track/browser lines skipped."
+      },
+      "sample_group_dict": {
+        "type": "dict",
+        "required": false,
+        "default": {},
+        "description": "sample_id -> biological group for track coloring; auto-filled from the meta group column by node.py, hand-filled values win."
+      },
+      "sample_order": {
+        "type": "list",
+        "required": false,
+        "default": [],
+        "description": "Plotting order of samples; empty = meta order."
+      },
+      "formats": {
+        "type": "list",
+        "required": false,
+        "default": [
+          "png",
+          "svg"
+        ],
+        "description": "Output image formats (pyGenomeTracks --outFileName extensions)."
+      },
+      "gtf_track": {
+        "type": "bool",
+        "required": false,
+        "default": true,
+        "description": "Add a gene-model track at the bottom when the genome GTF exists."
+      },
+      "plot_height_per_track": {
+        "type": "float",
+        "required": false,
+        "default": 1.5,
+        "description": "Track height in inches per sample track."
+      },
+      "plot_width": {
+        "type": "float",
+        "required": false,
+        "default": 12,
+        "description": "Figure width in inches."
+      }
+    },
+    "trim_galore": {
+      "quality": {
+        "type": "int",
+        "required": true
+      }
+    },
+    "hisat2": {},
+    "gatk": {
+      "javaOptions": {
+        "type": "str",
+        "required": true
+      },
+      "tmp-dir": {
+        "type": "str",
+        "nullable": true,
+        "required": false
+      },
+      "addReadsGroup": {
+        "RGLB": {
+          "type": "str",
+          "required": true
+        },
+        "RGPL": {
+          "type": "str",
+          "required": true
+        },
+        "RGPU": {
+          "type": "str",
+          "required": true
+        }
+      }
+    },
+    "bamCoverage": {
+      "binSize": {
+        "type": "int",
+        "required": true
+      },
+      "normalizeUsing": {
+        "type": "str",
+        "required": true
+      },
+      "offset": {
+        "type": "str",
+        "nullable": true,
+        "required": false
+      },
+      "extendReads": {
+        "type": "bool",
+        "required": true
+      }
+    },
+    "computeMatrix": {
+      "samples": {
+        "type": "list",
+        "required": false,
+        "default": [],
+        "items": {
+          "type": "str"
+        },
+        "description": "IP sample names to generate heatmaps for. If empty/missing, uses all ip_samples. node.py reads this to control which samples produce heatmap outputs."
+      },
+      "regions": {
+        "type": "str|dict",
+        "required": true,
+        "description": "Region source mode. Three forms: (1) \"tss\" — TSS ±flank from GTF or pre-existing tss_bed; (2) \"peaks\" — use MACS3 narrowPeak as regions; (3) dict with \"genes\" key — extract specific gene/TE bodies from GTF.",
+        "variants": {
+          "tss": {
+            "type": "str",
+            "description": "TSS mode. Uses genome.tss_bed if it exists, otherwise generates from genome.gtf."
+          },
+          "peaks": {
+            "type": "str",
+            "description": "Peaks mode. Uses each sample's narrowPeak file as regions."
+          },
+          "genes": {
+            "type": "dict",
+            "description": "Gene/TE list mode. Extract specific gene bodies from GTF.",
+            "genes": {
+              "type": "list",
+              "required": true,
+              "description": "Gene or TE names to extract (e.g. [\"TP53\", \"BRCA1\"] or [\"L1MB3\", \"AluY\"])"
+            },
+            "per_gene": {
+              "type": "bool",
+              "required": false,
+              "default": false,
+              "description": "If true, generate one heatmap per gene/TE. If false (default), combine all into one heatmap."
+            },
+            "gtf": {
+              "type": "str",
+              "required": false,
+              "default": "gene",
+              "enum": [
+                "gene",
+                "te"
+              ],
+              "description": "Which GTF to use. \"te\" uses genome.te_gtf, \"gene\" (default) uses genome.gtf."
+            },
+            "match_by": {
+              "type": "str",
+              "required": false,
+              "default": "gene_name",
+              "enum": [
+                "gene_name",
+                "gene_id",
+                "family_id",
+                "class_id"
+              ],
+              "description": "GTF attribute to match names against. Use gene_id/family_id/class_id for TE GTF."
+            }
+          }
+        }
+      },
+      "mode": {
+        "type": "str",
+        "required": false,
+        "default": "reference-point",
+        "enum": [
+          "reference-point",
+          "scale-regions"
+        ],
+        "description": "computeMatrix mode. reference-point: anchor at a fixed point (TSS/TES/center). scale-regions: scale all regions to same body length."
+      },
+      "referencePoint": {
+        "type": "str",
+        "required": false,
+        "default": "center",
+        "enum": [
+          "TSS",
+          "TES",
+          "center"
+        ],
+        "description": "Anchor point for reference-point mode. Auto-set to \"TSS\" when regions=\"tss\", \"center\" when regions=\"peaks\"."
+      },
+      "before": {
+        "type": "int",
+        "required": false,
+        "default": 3000,
+        "description": "Distance upstream of reference-point (bp). Used in reference-point mode."
+      },
+      "after": {
+        "type": "int",
+        "required": false,
+        "default": 3000,
+        "description": "Distance downstream of reference-point (bp). Used in reference-point mode."
+      },
+      "upstream": {
+        "type": "int",
+        "required": false,
+        "default": 3000,
+        "description": "Distance upstream of region start (bp). Used in scale-regions mode."
+      },
+      "downstream": {
+        "type": "int",
+        "required": false,
+        "default": 3000,
+        "description": "Distance downstream of region end (bp). Used in scale-regions mode."
+      },
+      "bodyLength": {
+        "type": "int",
+        "required": false,
+        "default": 5000,
+        "description": "Scaled body length (bp). Used in scale-regions mode."
+      },
+      "binSize": {
+        "type": "int",
+        "required": false,
+        "default": 10,
+        "description": "Bin size in bp for computeMatrix."
+      },
+      "sortUsing": {
+        "type": "str",
+        "required": false,
+        "default": "mean",
+        "enum": [
+          "mean",
+          "median",
+          "max",
+          "min",
+          "sum",
+          "region_length"
+        ],
+        "description": "How to sort the heatmap rows."
+      },
+      "sortRegions": {
+        "type": "str",
+        "required": false,
+        "default": "keep",
+        "enum": [
+          "descend",
+          "ascend",
+          "no",
+          "keep"
+        ],
+        "description": "Sort order for regions."
+      },
+      "missingDataAsZero": {
+        "type": "bool",
+        "required": false,
+        "default": true,
+        "description": "Treat missing data as zero."
+      },
+      "tss_flank": {
+        "type": "int",
+        "required": false,
+        "default": 1000,
+        "description": "Flanking region around TSS (bp). Only used when regions=\"tss\" and no pre-existing tss_bed."
+      },
+      "top_n": {
+        "type": "int",
+        "required": false,
+        "default": 0,
+        "description": "Top N peaks to include (0 = all). Sorted by score descending."
+      }
+    },
+    "plotHeatmap": {
+      "colorMap": {
+        "type": "str",
+        "required": false,
+        "default": "YlOrRd",
+        "description": "Matplotlib colormap name (e.g. YlOrRd, Reds, Blues, viridis, coolwarm)."
+      },
+      "heatmapHeight": {
+        "type": "int",
+        "required": false,
+        "default": 15,
+        "description": "Heatmap height in cm."
+      },
+      "heatmapWidth": {
+        "type": "int",
+        "required": false,
+        "default": 8,
+        "description": "Heatmap width in cm."
+      },
+      "whatToShow": {
+        "type": "str",
+        "required": false,
+        "default": "heatmap and colorbar",
+        "enum": [
+          "heatmap and colorbar",
+          "heatmap only",
+          "colorbar only",
+          "plot and heatmap",
+          "plot, heatmap and colorbar"
+        ],
+        "description": "Elements to show in the output."
+      }
+    },
+    "macs3": {
+      "bw": {
+        "type": "int",
+        "required": true
+      },
+      "pvalue": {
+        "type": "str",
+        "required": true
+      },
+      "genome_size": {
+        "type": "str",
+        "required": true
+      },
+      "broad_cutoff": {
+        "type": "str",
+        "required": true
+      }
+    },
+    "peak_te_overlap": {
+      "method": {
+        "type": "str",
+        "required": false
+      },
+      "sort_by": {
+        "type": "str",
+        "required": false
+      },
+      "top_n": {
+        "type": "int",
+        "required": false
+      }
+    },
+    "report": {
+      "title": {
+        "type": "str",
+        "required": true
+      },
+      "subtitle": {
+        "type": "str",
+        "required": true
+      },
+      "pipeline": {
+        "type": "str",
+        "required": true
+      },
+      "genome": {
+        "type": "str",
+        "required": true
+      },
+      "date": {
+        "type": "str",
+        "required": true
+      },
+      "top_n": {
+        "type": "int",
+        "required": true
+      },
+      "enabled": {
+        "type": "bool",
+        "required": false,
+        "default": true,
+        "description": "Gate for the RIPseq_report module (PPT + Excel deliverables)."
+      }
+    },
+    "igv": {
+      "js": {
+        "type": "str",
+        "required": true,
+        "path": "file"
+      },
+      "id": {
+        "type": "str",
+        "required": true
+      },
+      "name": {
+        "type": "str",
+        "required": true
+      },
+      "publicPathMap": {
+        "/home/luosg/Data/genomeStability/": {
+          "type": "str",
+          "required": false
+        },
+        "/home/luosg/Database/Reference/": {
+          "type": "str",
+          "required": false
+        }
+      },
+      "fastaURL": {
+        "type": "str",
+        "required": true,
+        "path": "file"
+      },
+      "indexURL": {
+        "type": "str",
+        "required": true,
+        "path": "file"
+      },
+      "cytobandURL": {
+        "type": "str",
+        "required": true,
+        "path": "file"
+      },
+      "tracks": {
+        "type": "list",
+        "required": true
+      }
+    }
+  },
+  "genome": {
+    "default": {
+      "type": "str",
+      "required": true
+    },
+    "references": {
+      "type": "dict",
+      "required": true
+    }
+  },
+  "env": {
+    "type": "dict",
+    "required": false
+  },
+  "raw_files": {
+    "type": "list",
+    "required": false
+  }
+}

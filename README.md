@@ -149,6 +149,7 @@ python workflow/Omics/run.py -m data/meta/fastq -w scRNAseq -o output \
 | 表观/修饰 | `tRNAseq` | tRNA 修饰诱导错配测序分析（mim-tRNAseq） | 覆盖度、修饰定量、CCA 分析、DESeq2 差异表达 |
 | 表观/修饰 | `Fiberseq` | Fiber-seq 表观遗传分析 | 甲基化检测、核小体定位、FIRE 活性区域、数据提取、SV 比较分析（exp-specific SV、富集、circos、OncoPrint） |
 | 表观/修饰 | `PeakCalling` | ChIP-seq / ChIRP-seq / DIP-seq peak calling 分析 | fastqc、trim_galore、bowtie2 比对、gatk dedup、IGV/wig 可视化、MACS3 peak calling、FRiP score、deeptools 热图、Homer 注释、peak-TE overlap、汇总报告 |
+| 表观/修饰 | `RIPseq` | RIP-seq RNA-蛋白结合位点分析（IP vs Input） | fastqc、trim_galore、hisat2 比对、gatk dedup、IGV/wig 可视化、MACS3 peak calling、FRiP score、deeptools 热图、Homer 注释、peak-TE overlap、汇总报告（PPT + Excel） |
 | 变异/基因组 | `Mutation` | 体细胞/胚系突变分析（tumor vs normal）及 cfDNA 分析 | fastqc、cutadapt、bwa-mem2、GATK（Mutect2 体细胞 + 胚系）、突变频谱、cfDNA 片段长度、manta SV、cnvkit CNV |
 | 变异/基因组 | `PacVar` | PacBio 长读长变异检测 | 结构变异 VCF、SNP VCF、phasing 结果、端粒长度（4种方法）、着丝粒统计、SV 比较分析（exp-specific SV、富集、circos、OncoPrint）、可选 eccDNA 重建（DECOIL）及可视化（统计图 + 跨样本对比 + IGV 交互 HTML） |
 | 变异/基因组 | `Population_genomics` † | 群体基因组学分析 | GATK HaplotypeCaller + joint genotyping、bcftools 过滤、plink2/vcftools 统计、admixture 群体结构、easySFS 历史推断、PopLDdecay LD 衰减 |

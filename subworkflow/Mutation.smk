@@ -297,14 +297,18 @@ somatic_spectrum_config = {
     "sample_somatic_vcf_dict": config.get("Params", {}).get("somatic_spectrum", {}).get("sample_somatic_vcf_dict", {}),
     "sample_group_dict": config.get("Params", {}).get("somatic_spectrum", {}).get("sample_group_dict", {}),
     "genome": {
-        "fasta": genome_ref.get("fasta")
-    }
+        "fasta": genome_ref.get("fasta"),
+        "signature_matrix": genome_ref.get("signature_matrix"),
+    },
+    "signature": config.get("Params", {}).get("somatic_spectrum", {}).get("signature", {}),
 }
 module somatic_spectrum:
     snakefile: "../modules/spectrum/spectrum.smk"
     config: somatic_spectrum_config
 logger.info(f"somatic_spectrum parameters: {somatic_spectrum_config}")
 use rule somatic_spectrum from somatic_spectrum as Mutation_somatic_spectrum
+use rule somatic_signature_refit from somatic_spectrum as Mutation_somatic_signature_refit
+use rule somatic_signature_nmf from somatic_spectrum as Mutation_somatic_signature_nmf
 
 # ============================================
 # Fragment Size Analysis (cfDNA)

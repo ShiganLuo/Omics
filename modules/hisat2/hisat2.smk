@@ -33,7 +33,7 @@ rule hisat2_index:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start hisat2 index at {current_time}")
-            script = os.path.join(RECEIPT_DIR, f"hisat2_index_{wildcards.sample_id}_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"hisat2_index_{current_time}.sh")
             plain_script = os.path.join(outdir, f"index/hisat2_index.sh")
             cmd = [
                 "mkdir", "-p", os.path.dirname(str(params.prefix))

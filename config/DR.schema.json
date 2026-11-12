@@ -1,0 +1,162 @@
+{
+  "outfiles": {
+    "type": "list",
+    "nullable": true,
+    "required": false
+  },
+  "ROOT_DIR": {
+    "type": "null",
+    "nullable": true,
+    "required": false
+  },
+  "tmp_dir": {
+    "type": "str",
+    "nullable": true,
+    "required": false
+  },
+  "resources": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {}
+  },
+  "Procedure": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {}
+  },
+  "genome": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "default": {
+        "type": "str",
+        "nullable": true,
+        "required": false
+      },
+      "references": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {}
+      }
+    }
+  },
+  "Params": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "workflow": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "indir": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "outdir": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "logdir": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "trimmer": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "wes_indir": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "somatic_normal": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "wes_paired_samples": {
+            "type": "list",
+            "nullable": true,
+            "required": false,
+            "items": {
+              "type": "str"
+            }
+          },
+          "wes_single_samples": {
+            "type": "list",
+            "nullable": true,
+            "required": false,
+            "items": {
+              "type": "str"
+            }
+          },
+          "paired_design": {
+            "type": "list",
+            "nullable": true,
+            "required": false
+          },
+          "pair_strains": {
+            "type": "dict",
+            "nullable": true,
+            "required": false
+          },
+          "dr_pairs": {
+            "type": "dict",
+            "nullable": true,
+            "required": false
+          },
+          "drclass_samples": {
+            "type": "dict",
+            "nullable": true,
+            "required": false
+          },
+          "drclass_strain_vcfs": {
+            "type": "dict",
+            "nullable": true,
+            "required": false
+          }
+        }
+      },
+      "trim_galore": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {}
+      },
+      "samtools": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {}
+      },
+      "gatk": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {}
+      },
+      "cutadapt": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {}
+      },
+      "drclass": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {}
+      }
+    }
+  }
+}

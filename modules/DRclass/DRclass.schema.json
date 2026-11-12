@@ -1,0 +1,170 @@
+{
+  "outdir": {
+    "type": "str",
+    "nullable": false,
+    "required": true
+  },
+  "logdir": {
+    "type": "str",
+    "nullable": false,
+    "required": true
+  },
+  "Procedure": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "python3": {
+        "type": "str",
+        "nullable": true,
+        "required": false
+      },
+      "bcftools": {
+        "type": "str",
+        "nullable": true,
+        "required": false
+      }
+    }
+  },
+  "genome": {
+    "type": "dict",
+    "nullable": false,
+    "required": true,
+    "properties": {
+      "fasta": {
+        "type": "str",
+        "nullable": false,
+        "required": true
+      },
+      "fai_index": {
+        "type": "str",
+        "nullable": false,
+        "required": true
+      }
+    }
+  },
+  "Params": {
+    "type": "dict",
+    "nullable": true,
+    "required": false,
+    "properties": {
+      "drclass": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "min_af": {
+            "type": "float",
+            "nullable": false,
+            "required": false
+          },
+          "min_ad": {
+            "type": "int",
+            "nullable": false,
+            "required": false
+          },
+          "min_dp": {
+            "type": "int",
+            "nullable": false,
+            "required": false
+          },
+          "germline_af": {
+            "type": "float",
+            "nullable": false,
+            "required": false
+          },
+          "germline_dp": {
+            "type": "int",
+            "nullable": false,
+            "required": false
+          },
+          "splice_window": {
+            "type": "int",
+            "nullable": false,
+            "required": false
+          },
+          "min_mq": {
+            "type": "int",
+            "nullable": false,
+            "required": false
+          },
+          "min_bq": {
+            "type": "int",
+            "nullable": false,
+            "required": false
+          },
+          "max_r4_fraction": {
+            "type": "float",
+            "nullable": false,
+            "required": false
+          }
+        }
+      }
+    }
+  },
+  "samples": {
+    "type": "dict",
+    "nullable": false,
+    "required": true,
+    "properties": {},
+    "additional_properties": {
+      "type": "dict",
+      "nullable": false,
+      "required": true,
+      "properties": {
+        "somatic_vcf": {
+          "type": "str",
+          "nullable": false,
+          "required": true
+        },
+        "germline_vcf": {
+          "type": "str",
+          "nullable": true,
+          "required": false
+        },
+        "rna_vcf": {
+          "type": "str",
+          "nullable": false,
+          "required": true
+        },
+        "rna_bam": {
+          "type": "str",
+          "nullable": false,
+          "required": true
+        },
+        "rna_bam_index": {
+          "type": "str",
+          "nullable": true,
+          "required": false
+        },
+        "strain_vcf": {
+          "type": "list",
+          "nullable": true,
+          "required": false,
+          "items": {
+            "type": "str",
+            "nullable": false
+          }
+        },
+        "splice_bed": {
+          "type": "list",
+          "nullable": true,
+          "required": false,
+          "items": {
+            "type": "str",
+            "nullable": false
+          }
+        },
+        "editing_bed": {
+          "type": "list",
+          "nullable": true,
+          "required": false,
+          "items": {
+            "type": "str",
+            "nullable": false
+          }
+        }
+      }
+    }
+  }
+}

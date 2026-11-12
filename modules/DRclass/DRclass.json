@@ -1,0 +1,75 @@
+{
+  "outdir": "/data/16T/luosg/output/Totipotency/DRclass",
+  "logdir": "/data/16T/luosg/output/Totipotency/DRclass/log",
+  "Procedure": {
+    "python3": "python3",
+    "bcftools": "bcftools"
+  },
+  "genome": {
+    "fasta": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
+    "fai_index": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa.fai"
+  },
+  "Params": {
+    "drclass": {
+      "min_af": 0.02,
+      "min_ad": 4,
+      "min_dp": 20,
+      "germline_af": 0.2,
+      "germline_dp": 10,
+      "splice_window": 5,
+      "min_mq": 20,
+      "min_bq": 30,
+      "max_r4_fraction": 0.3
+    }
+  },
+  "samples": {
+    "KSR-1": {
+      "somatic_vcf": "/data/16T/luosg/output/Totipotency/Mutation/variation/somatic_snv_indel/E14-1_vs_KSR-1/E14-1_vs_KSR-1.filtered.vcf.gz",
+      "germline_vcf": "/data/16T/luosg/output/Totipotency/Mutation/variation/germline_snv_indel/KSR-1/KSR-1.raw.vcf.gz",
+      "rna_vcf": "FILL_ME: KSR-1 配对 RNA 的 gatk_RNAseq filtered.vcf.gz",
+      "rna_bam": "FILL_ME: KSR-1 配对 RNA 的 sorted_markdup.bam",
+      "rna_bam_index": "FILL_ME: 同 .bai",
+      "strain_vcf": [
+        "/data/16T/luosg/output/Totipotency/Mutation/variation/somatic_snv_indel/germline_strain/129P2_OlaHsd.vcf.gz"
+      ],
+      "splice_bed": [],
+      "editing_bed": []
+    },
+    "KSR-2": {
+      "somatic_vcf": "/data/16T/luosg/output/Totipotency/Mutation/variation/somatic_snv_indel/E14-1_vs_KSR-2/E14-1_vs_KSR-2.filtered.vcf.gz",
+      "germline_vcf": "/data/16T/luosg/output/Totipotency/Mutation/variation/germline_snv_indel/KSR-2/KSR-2.raw.vcf.gz",
+      "rna_vcf": "FILL_ME",
+      "rna_bam": "FILL_ME",
+      "rna_bam_index": "FILL_ME",
+      "strain_vcf": [
+        "/data/16T/luosg/output/Totipotency/Mutation/variation/somatic_snv_indel/germline_strain/129P2_OlaHsd.vcf.gz"
+      ],
+      "splice_bed": [],
+      "editing_bed": []
+    },
+    "TLSCS-1": {
+      "somatic_vcf": "/data/16T/luosg/output/Totipotency/Mutation/variation/somatic_snv_indel/E14-1_vs_TLSCS-1/E14-1_vs_TLSCS-1.filtered.vcf.gz",
+      "germline_vcf": null,
+      "rna_vcf": "FILL_ME",
+      "rna_bam": "FILL_ME",
+      "rna_bam_index": "FILL_ME",
+      "strain_vcf": [
+        "/data/16T/luosg/output/Totipotency/Mutation/variation/somatic_snv_indel/germline_strain/129P2_OlaHsd.vcf.gz"
+      ],
+      "splice_bed": [],
+      "editing_bed": []
+    },
+    "TLSCS-2": {
+      "somatic_vcf": "/data/16T/luosg/output/Totipotency/Mutation/variation/somatic_snv_indel/E14-1_vs_TLSCS-2/E14-1_vs_TLSCS-2.filtered.vcf.gz",
+      "germline_vcf": null,
+      "rna_vcf": "FILL_ME",
+      "rna_bam": "FILL_ME",
+      "rna_bam_index": "FILL_ME",
+      "strain_vcf": [
+        "/data/16T/luosg/output/Totipotency/Mutation/variation/somatic_snv_indel/germline_strain/129P2_OlaHsd.vcf.gz"
+      ],
+      "splice_bed": [],
+      "editing_bed": []
+    }
+  }
+}

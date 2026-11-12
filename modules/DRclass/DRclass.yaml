@@ -1,0 +1,8 @@
+name: drclass
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+dependencies:
+  - bcftools>=1.20
+  - python>=3.9

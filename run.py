@@ -127,6 +127,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('--conda-frontend', type=str, choices=["conda", "mamba"], default="mamba", help='conda frontend for snakemake')
     parser.add_argument('--forcerun', type=str, nargs='+', default=None,
         help='force re-run specific rules or files, format: RULE or /path/to/file, e.g. --forcerun scanpy_qc')
+    parser.add_argument('--forcerun-downstream', type=str, nargs='+', default=None,
+        help='force re-run these rules/files AND continue through their downstream '
+             'dependents (the whole workflow runs; unlike --forcerun which stops at '
+             'the named rules), format: RULE, RULE:wildcard=value, or /path/to/file, '
+             'e.g. --forcerun-downstream somatic_spectrum')
     parser.add_argument('--unlock', action='store_true', help='unlock snakemake working directory')
     parser.add_argument('--no-schema-validate', dest='schema_validate', action='store_false',
         default=True, help='disable schema-based type casting for extra args')
@@ -295,12 +300,15 @@ def build_snakemake_cmd(root_dir: str, smk: str, input_json: str, threads: int,
                         forcerun: Optional[List[str]] = None, unlock: bool = False,
                         touch: bool = False, list_target_rules: bool = False,
                         list_rules: bool = False,
+                        forcerun_downstream: Optional[List[str]] = None,
                         mem_mb: Optional[int] = None) -> List[str]:
     """Build the snakemake CLI command list for a given subworkflow.
 
     Configures conda or apptainer container backend, collects bind paths
     from the config JSON, merges user singularity args, and appends
-    forcerun targets if specified.
+    forcerun targets if specified. forcerun targets scope the DAG to the
+    named rules and stop there; forcerun_downstream targets additionally
+    continue through their dependents (whole-workflow scope).
 
     Args:
         root_dir: Project root directory (contains subworkflow/ and config/).
@@ -315,6 +323,8 @@ def build_snakemake_cmd(root_dir: str, smk: str, input_json: str, threads: int,
         sdm: Snakemake deployment method (e.g. "apptainer"). None for conda mode.
         singularity_args: Extra singularity/apptainer arguments (e.g. "--bind /path1,/path2").
         forcerun: List of rule names to force re-run (with optional wildcards).
+        forcerun_downstream: Like forcerun, but also re-run the rules'
+            downstream dependents (whole-workflow scope).
         unlock: If True, append --unlock.
         touch: If True, append --touch.
         list_target_rules: If True, append --list-target-rules.
@@ -379,14 +389,37 @@ def build_snakemake_cmd(root_dir: str, smk: str, input_json: str, threads: int,
         cmd.append("--touch")
     if unlock:
         cmd.append("--unlock")
-    if forcerun:
-        # File paths and plain rule names → --until + --forcerun (original)
-        plain_targets = [t for t in forcerun if not (":" in t and "=" in t)]
+    if forcerun or forcerun_downstream:
+        # File paths and plain rule names → POSITIONAL targets + --forcerun.
+        # Positional targets scope the DAG exactly like --until (targets and
+        # their upstream, stop after them) but avoid two snakemake defects of
+        # the --until translation this replaces:
+        #   * --until deadlocks ("BUG: Out of jobs ready to be started") when
+        #     the until set contains both a rule and its dependent (e.g.
+        #     somatic_spectrum feeding the signature rules): dag.finish()
+        #     never decrements the readiness counter of dependents of an
+        #     until job (snakemake issue #823);
+        #   * --until REPLACES the target set (dag.set_until_jobs), silently
+        #     dropping --target-jobs wildcard expansions from a mixed
+        #     forcerun list.
+        # forcerun_downstream additionally continues THROUGH the dependents:
+        # positional target `all` keeps the whole workflow in the DAG (also
+        # needed because --target-jobs would otherwise replace the default
+        # target set), and downstream jobs then re-run automatically with
+        # "Input files updated by another job" as the forced jobs rewrite
+        # their outputs. When both lists are given, every target is forced
+        # and the whole-workflow scope wins.
+        # Positional targets must lead argv: the --forcerun/--target-jobs
+        # options take nargs='+' and would swallow trailing positionals.
+        forced = list(forcerun or []) + list(forcerun_downstream or [])
+        plain_targets = [t for t in forced if not (":" in t and "=" in t)]
         # Wildcard specs (rule:wildcard=value) → --target-jobs + --force
-        wildcard_targets = [t for t in forcerun if ":" in t and "=" in t]
+        wildcard_targets = [t for t in forced if ":" in t and "=" in t]
+        if forcerun_downstream:
+            cmd[1:1] = ["all"]
+        elif plain_targets:
+            cmd[1:1] = plain_targets
         if plain_targets:
-            cmd.append("--until")
-            cmd.extend(plain_targets)
             cmd.append("--forcerun")
             cmd.extend(plain_targets)
         if wildcard_targets:
@@ -400,6 +433,47 @@ def build_snakemake_cmd(root_dir: str, smk: str, input_json: str, threads: int,
     if snakemake_args:
         cmd.extend(snakemake_args)    
     return cmd
+
+def _prefix_forcerun_targets(targets: List[str], wf_name: str) -> List[str]:
+    """Auto-prefix forcerun-style targets with the workflow name.
+
+    Supports three formats:
+      - File paths (/path/to/file) — passed through as-is
+      - Rule:wildcard syntax (rule:wildcard=value) — prefix rule name only
+      - Plain rule names — prefix with workflow name ("all" and already
+        prefixed names pass through untouched).
+
+    Args:
+        targets: Raw target strings from --forcerun / --forcerun-downstream.
+        wf_name: Workflow name used as the rule prefix.
+
+    Returns:
+        Prefixed target list, order preserved.
+    """
+    prefixed: List[str] = []
+    for t in targets:
+        # File paths — pass through as-is
+        if "/" in t:
+            prefixed.append(t)
+            continue
+        # Wildcard syntax (rule:wildcard=value) — prefix rule part only
+        if ":" in t and "=" in t:
+            rule_part, wildcards = t.split(":", 1)
+            if not rule_part.startswith(f"{wf_name}_"):
+                rule_part = f"{wf_name}_{rule_part}"
+            prefixed.append(f"{rule_part}:{wildcards}")
+            continue
+        # Plain rule name — standard prefix logic
+        if ":" in t:
+            rule_part, rest = t.split(":", 1)
+            rest = ":" + rest
+        else:
+            rule_part, rest = t, ""
+        if rule_part == "all" or rule_part.startswith(f"{wf_name}_"):
+            prefixed.append(t)
+        else:
+            prefixed.append(f"{wf_name}_{rule_part}{rest}")
+    return prefixed
 
 def _expand_wildcard_rule_targets(
     targets: List[str],
@@ -881,47 +955,25 @@ def execute_workflows(args: argparse.Namespace, root_dir: str, logger: logging.L
                 raw_fastq_dir, abs_outdir, _get_meta(wf_name), raw_files, cellranger_input_dict
             )
 
-            # Auto-prefix forcerun targets with workflow name if not already prefixed.
-            # Supports three formats:
-            #   - File paths (/path/to/file) — passed through as-is
-            #   - Rule:wildcard syntax (rule:wildcard=value) — prefix rule name only
-            #   - Plain rule names — prefix with workflow name; rules with
-            #     wildcards are additionally EXPANDED into rule:wildcard=value
-            #     targets (see _expand_wildcard_rule_targets below), because
-            #     snakemake's bare-rule --forcerun/--until cannot pull jobs
-            #     whose outputs already exist ("Nothing to be done").
+            # Auto-prefix forcerun targets with workflow name if not already
+            # prefixed (_prefix_forcerun_targets: file paths pass through,
+            # rule:wildcard=value prefixes the rule part only, plain rule
+            # names get the workflow prefix). Rules with wildcards are
+            # additionally EXPANDED into rule:wildcard=value targets (see
+            # _expand_wildcard_rule_targets below), because snakemake's
+            # bare-rule --forcerun/--until cannot pull jobs whose outputs
+            # already exist ("Nothing to be done").
             forcerun_targets: Optional[List[str]] = None
             if args.forcerun:
-                forcerun_targets = []
-                for t in args.forcerun:
-                    # File paths — pass through as-is
-                    if "/" in t:
-                        forcerun_targets.append(t)
-                        continue
-                    # Wildcard syntax (rule:wildcard=value) — prefix rule part only
-                    if ":" in t and "=" in t:
-                        rule_part, wildcards = t.split(":", 1)
-                        if not rule_part.startswith(f"{wf_name}_"):
-                            rule_part = f"{wf_name}_{rule_part}"
-                        forcerun_targets.append(f"{rule_part}:{wildcards}")
-                        continue
-                    # Plain rule name — standard prefix logic
-                    if ":" in t:
-                        rule_part, rest = t.split(":", 1)
-                        rest = ":" + rest
-                    else:
-                        rule_part, rest = t, ""
-                    if rule_part == "all" or rule_part.startswith(f"{wf_name}_"):
-                        forcerun_targets.append(t)
-                    else:
-                        forcerun_targets.append(f"{wf_name}_{rule_part}{rest}")
-
-                # Bare wildcarded rules cannot be forced via snakemake's
-                # --forcerun (their existing outputs make the DAG empty).
-                # Expand them into explicit rule:wildcard=value targets from
-                # the workflow config so "Nothing to be done" can't happen.
                 forcerun_targets = _expand_wildcard_rule_targets(
-                    forcerun_targets, wf_name, workflow_config, input_json, logger,
+                    _prefix_forcerun_targets(args.forcerun, wf_name),
+                    wf_name, workflow_config, input_json, logger,
+                )
+            forcerun_downstream_targets: Optional[List[str]] = None
+            if args.forcerun_downstream:
+                forcerun_downstream_targets = _expand_wildcard_rule_targets(
+                    _prefix_forcerun_targets(args.forcerun_downstream, wf_name),
+                    wf_name, workflow_config, input_json, logger,
                 )
             cmd = build_snakemake_cmd(
                 root_dir, smk, input_json, threads_per_workflow,
@@ -930,7 +982,9 @@ def execute_workflows(args: argparse.Namespace, root_dir: str, logger: logging.L
                 sdm=args.sdm, singularity_args=args.singularity_args,
                 forcerun=forcerun_targets, unlock=args.unlock,
                 touch=args.touch, list_target_rules=args.list_target_rules,
-                list_rules=args.list_rules, mem_mb=args.mem_mb
+                list_rules=args.list_rules,
+                forcerun_downstream=forcerun_downstream_targets,
+                mem_mb=args.mem_mb
             )
             logger.info(f"[{wf_name}] {cmd}")
             smk_cmds.append((cmd, abs_outdir))

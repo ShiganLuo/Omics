@@ -42,8 +42,8 @@ python ${SCRIPT_DIR}/run.py \
     -t 48 \
     --log /data/16T/luosg/log/Exome_Totipotency.log \
     --sdm \
-    --rerun-triggers mtime
-
+    --rerun-triggers mtime \
+    --forcerun somatic_spectrum somatic_signature_refit somatic_signature_nmf
 # python ${SCRIPT_DIR}/run.py \
 #     -m /data/pub/zhousha/20260207_Exome/data/tRNA/meta.tsv \
 #     -w tRNAseq \

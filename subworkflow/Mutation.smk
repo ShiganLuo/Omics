@@ -309,6 +309,7 @@ logger.info(f"somatic_spectrum parameters: {somatic_spectrum_config}")
 use rule somatic_spectrum from somatic_spectrum as Mutation_somatic_spectrum
 use rule somatic_signature_refit from somatic_spectrum as Mutation_somatic_signature_refit
 use rule somatic_signature_nmf from somatic_spectrum as Mutation_somatic_signature_nmf
+use rule spectrum_result from somatic_spectrum as Mutation_spectrum_result
 
 # ============================================
 # Fragment Size Analysis (cfDNA)

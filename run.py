@@ -9,7 +9,7 @@ from src.common.util.LogUtil import setup_logger
 from src.common.util.CmdUtil import _run_cmd, _run_cmds_parallel
 from src.common.util.SchemaValidatorUtil import SchemaValidator, smart_cast
 from src.common.util.EnvUtil import is_path_like
-from node import runCoCulture, runMERIP, runRNAseq, runncRNAseq, runCLIP, runMutation, runPacVar, runKARRseq, runPeakCalling, runRIPseq, runQuantMS, runtRNAseq, runscRNAseq, runFiberseq, runLRtranscriptome
+from node import runCoCulture, runMERIP, runRNAseq, runncRNAseq, runCLIP, runMutation, runPacVar, runKARRseq, runPeakCalling, runRIPseq, runQuantMS, runtRNAseq, runscRNAseq, runFiberseq, runLRtranscriptome, runDR
 import logging
 from typing import Dict, Any, List, Optional, Tuple, Set, Union
 logger = setup_logger(__name__, level=logging.DEBUG)
@@ -98,7 +98,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="workflow")
     parser.add_argument('-m','--meta', type=str, default=None, help='meta input file or data dir which condatain fastq file')
     parser.add_argument('-w','--workflow_name', type=str, nargs='+',
-        choices=["CoCulture", "MERIP", "RNAseq", "ncRNAseq", "scRNAseq", "tRNAseq", "CLIP", "Mutation", "PacVar", "KARRseq", "PeakCalling", "QuantMS", "Fiberseq", "LRtranscriptome"],
+        choices=["CoCulture", "MERIP", "RNAseq", "ncRNAseq", "scRNAseq", "tRNAseq", "CLIP", "Mutation", "PacVar", "KARRseq", "PeakCalling", "QuantMS", "Fiberseq", "LRtranscriptome", "DR"],
         default=['CoCulture'], help='workflow name(s), multiple for parallel execution')
     parser.add_argument('-o','--output_dir','--output-dir', dest='output_dir', type=str, default=None, help='output dir')
     parser.add_argument('-t','--threads', type=int, default=10, help='threads')
@@ -630,6 +630,7 @@ WORKFLOW_DISPATCH = {
     "scRNAseq":   lambda cfg, sid, sp, gp, indir, outdir, meta, rf, ci: ("scRNAseq.smk",  runscRNAseq(cfg, sid, indir, outdir, rf, ci)),
     "Fiberseq":   lambda cfg, sid, sp, gp, indir, outdir, meta, rf, ci: ("Fiberseq.smk",  runFiberseq(cfg, sid, gp, indir, outdir, rf)),
     "LRtranscriptome": lambda cfg, sid, sp, gp, indir, outdir, meta, rf, ci: ("LRtranscriptome.smk", runLRtranscriptome(cfg, sid, indir, outdir, rf)),
+    "DR":         lambda cfg, sid, sp, gp, indir, outdir, meta, rf, ci: ("DR.smk",         runDR(cfg, sid, sp, indir, outdir, rf)),
 }
 
 
@@ -1013,18 +1014,27 @@ def execute_workflows(args: argparse.Namespace, root_dir: str, logger: logging.L
         # module (smk+json unit) with the same test-path generator. Modules
         # carry no fixed inputs, so the sweep checks config/schema/target
         # plumbing and tolerates DAG stops on missing inputs.
-        import subprocess as _sp
-        import sys as _sys
-        mod_cmd = [_sys.executable, os.path.join(ROOT_DIR, "run_module.py"),
-                   "--test", "all", "-o", os.path.join(args.output_dir, "module_test")]
-        logger.info("[modules] running: %s", " ".join(mod_cmd))
-        mod = _sp.run(mod_cmd, cwd=ROOT_DIR)
-        wf_failed = [k for k, (ok, _) in test_results.items() if not ok]
-        if wf_failed or mod.returncode != 0:
-            logger.error("[test] FAILED: %s%s",
-                         f"workflows: {', '.join(wf_failed)}; " if wf_failed else "",
-                         "modules (run_module.py --test)" if mod.returncode != 0 else "")
-            raise SystemExit(1)
+        # Scope: only the full sweep (--test all) chains the module sweep —
+        # a single-workflow --test (e.g. --test DR) must not pay for (nor
+        # fail on) 180+ unrelated modules.
+        if args.test == "all":
+            import subprocess as _sp
+            import sys as _sys
+            mod_cmd = [_sys.executable, os.path.join(ROOT_DIR, "run_module.py"),
+                       "--test", "all", "-o", os.path.join(args.output_dir, "module_test")]
+            logger.info("[modules] running: %s", " ".join(mod_cmd))
+            mod = _sp.run(mod_cmd, cwd=ROOT_DIR)
+            wf_failed = [k for k, (ok, _) in test_results.items() if not ok]
+            if wf_failed or mod.returncode != 0:
+                logger.error("[test] FAILED: %s%s",
+                             f"workflows: {', '.join(wf_failed)}; " if wf_failed else "",
+                             "modules (run_module.py --test)" if mod.returncode != 0 else "")
+                raise SystemExit(1)
+        else:
+            wf_failed = [k for k, (ok, _) in test_results.items() if not ok]
+            if wf_failed:
+                logger.error("[test] FAILED: workflows: %s", ", ".join(wf_failed))
+                raise SystemExit(1)
     else:
         if n_workflows == 1:
             _run_cmd(smk_cmds[0][0], cwd=smk_cmds[0][1])

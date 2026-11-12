@@ -1,4 +1,5 @@
 import copy
+import glob
 import os
 import re
 import time
@@ -440,7 +441,7 @@ def _init_raw_json(
     tmp_dir = datajson.get("tmp_dir") or os.path.join(outdir, "tmp")
     if not datajson.get("tmp_dir"):
         os.makedirs(tmp_dir, exist_ok=True)
-    if workflow in ["PacVar", "ncRNAseq", "RNAseq", "QuantMS", "Fiberseq", "scRNAseq", "Mutation"]:
+    if workflow in ["PacVar", "ncRNAseq", "RNAseq", "QuantMS", "Fiberseq", "scRNAseq", "Mutation", "DR"]:
         datajson["ROOT_DIR"] = root_dir
         datajson["Params"]["workflow"]["indir"] = indir
         datajson["Params"]["workflow"]["outdir"] = outdir
@@ -2484,5 +2485,173 @@ def runLRtranscriptome(
     # HTML summary; always part of the delivered output set.
     outfiles.append(f"{outdir}/QC/qc_summary/qc_summary.tsv")
     outfiles.append(f"{outdir}/QC/qc_summary/qc_summary.html")
+    datajson["outfiles"] = outfiles
+    return _write_raw_json(datajson, outdir)
+
+
+def runDR(
+        datajson: Dict[str, Any],
+        samples_info_dict: Dict[str, SampleInfo],
+        designPairs: List[DesignPair],
+        indir: str,
+        outdir: str,
+        raw_files: List[str],
+    ) -> str:
+    """Prepare input JSON for the DR workflow (DNA x RNA joint evidence).
+
+    End-to-end pipeline (subworkflow/DR.smk):
+    0. WES somatic chain from raw WES fastq (wes_indir): fastqc -> cutadapt
+       -> bwa-mem2 -> gatk_prepare markdup -> targets -> Mutect2+Filter
+       -> gatk_germline. Outputs under {outdir}/WES/.
+    1. RNA chain from raw RNA fastq (meta indir): cutadapt -> star
+       -> gatk_prepare markdup -> gatk_RNAseq calling. Outputs under
+       {outdir}/RNA/.
+    2. DRclass module: anchors -> bcftools pileup -> state-machine
+       classification -> per-sample tables + summary ({outdir}/DRclass/).
+
+    Meta conventions:
+      - ALL samples (WES and RNA) carry fastq paths in the meta; the
+        framework stages them into {outdir}/common/1_raw_data/ with
+        <ID>_{1,2}.fq.gz naming. Chain 0 reads WES ids from there, chain 1
+        reads RNA ids.
+      - design column pairs each RNA sample with its WES sample:
+        ctr_<tag> rows = WES sample ids, exp_<tag> rows = RNA sample ids
+        (tag token shared within a pair). A ctr_ row without exp partner
+        (e.g. ctr_normal E14-1) is the somatic calling normal.
+      - Params.workflow.somatic_normal overrides the normal auto-pick.
+    """
+    root_dir = _init_raw_json(datajson, indir, outdir, raw_files, workflow="DR")
+    _resolve_genome_ref(datajson, samples_info_dict, "DR")
+
+    # WES fastq come from the SAME meta raw-data staging as RNA: the
+    # framework links every meta sample's fastq into {outdir}/common/1_raw_data/
+    # with <ID>_{1,2}.fq.gz naming. WES rows (ctr_ role) and RNA rows (exp_
+    # role) are both staged there; chain 0 consumes WES ids, chain 1 RNA ids.
+    wes_raw_staging = os.path.join(outdir, "common", "1_raw_data")
+
+    outfiles = []
+    dr_pairs = {}           # wes_sample_id -> rna_sample_id
+    genome_paired_samples = {}
+    genome_single_samples = {}
+    wes_paired_samples = []
+    wes_single_samples = []
+    wes_all = []
+    paired_design = []
+    pair_strains = {}
+    drclass_samples = {}
+    strain_vcfs = datajson.get("Params", {}).get("workflow", {}).get("drclass_strain_vcfs", {})
+
+    # --- resolve WES<->RNA pairs from design; collect WES sample set ---
+    for designPair in designPairs:
+        wes_id, rna_id = designPair.ctr_sample_id, designPair.exp_sample_id
+        rna_info = samples_info_dict.get(rna_id)
+        if rna_info is None:
+            raise ValueError(f"DR: RNA sample {rna_id} not found in meta samples")
+        dr_pairs[wes_id] = rna_id
+
+    # WES samples = every ctr_ sample in the design graph (controls without
+    # exp partners, e.g. the somatic calling normal E14-1, still need their
+    # WES chain products for Mutect2 pairing).
+    for sample_id, info in samples_info_dict.items():
+        design_val = (info.design or "").strip()
+        if design_val.startswith(("ctr_", "ctrl_")):
+            wes_all.append(sample_id)
+    for wes_id in dr_pairs:
+        if wes_id not in wes_all:
+            wes_all.append(wes_id)
+
+    # --- WES chain: verify staged fastq, register targets, build design ---
+    for wes_id in wes_all:
+        r1 = os.path.join(wes_raw_staging, wes_id, f"{wes_id}_1.fq.gz")
+        r2 = os.path.join(wes_raw_staging, wes_id, f"{wes_id}_2.fq.gz")
+        if os.path.exists(r2):
+            wes_paired_samples.append(wes_id)
+        elif os.path.exists(r1):
+            wes_single_samples.append(wes_id)
+        else:
+            raise ValueError(f"DR: WES fastq not staged for {wes_id} under {wes_raw_staging} "
+                             f"(expected {r1}; meta must carry fastq_1/fastq_2 for WES rows)")
+        info = samples_info_dict.get(wes_id)
+        strain = getattr(info, "strain", None) if info else None
+        if strain:
+            pair_strains[wes_id] = strain
+
+    # somatic paired design: each DR pair uses the shared normal from
+    # Params.workflow.somatic_normal (meta group or explicit), default = the
+    # single ctr_ sample that is not itself in dr_pairs (the E14-1 role).
+    somatic_normal = datajson.get("Params", {}).get("workflow", {}).get("somatic_normal") or ""
+    if not somatic_normal:
+        normals = [s for s in wes_all if s not in dr_pairs]
+        if len(normals) == 1:
+            somatic_normal = normals[0]
+        elif len(normals) == 0:
+            raise ValueError("DR: no somatic normal found — set Params.workflow.somatic_normal "
+                             "(the matched-normal WES sample, e.g. E14-1)")
+        else:
+            raise ValueError(f"DR: multiple normal candidates {normals} — set "
+                             "Params.workflow.somatic_normal explicitly")
+    if somatic_normal not in wes_all:
+        raise ValueError(f"DR: somatic_normal {somatic_normal} is not a ctr_ meta row")
+    for wes_id in dr_pairs:
+        paired_design.append({"control": somatic_normal, "experimental": wes_id})
+
+    # --- RNA chain sample grouping ---
+    for wes_id, rna_id in dr_pairs.items():
+        rna_info = samples_info_dict[rna_id]
+        organism = rna_info.organism
+        if rna_info.layout == "PE":
+            genome_paired_samples.setdefault(organism, []).append(rna_id)
+        elif rna_info.layout == "SE":
+            genome_single_samples.setdefault(organism, []).append(rna_id)
+        else:
+            raise ValueError(f"DR: unknown layout for RNA sample {rna_id}: {rna_info.layout}")
+
+    # --- DRclass per-sample explicit file map (chain outputs) ---
+    for wes_id, rna_id in dr_pairs.items():
+        rna_info = samples_info_dict[rna_id]
+        organism = rna_info.organism
+        somatic_vcf = (f"{outdir}/WES/variation/somatic_snv_indel/"
+                       f"{somatic_normal}_vs_{wes_id}/{somatic_normal}_vs_{wes_id}.filtered.vcf.gz")
+        germline_vcf = (f"{outdir}/WES/variation/germline_snv_indel/"
+                        f"{wes_id}/{wes_id}.raw.vcf.gz")
+        rna_vcf = (f"{outdir}/RNA/variation/germline_snv_indel_RNAseq/"
+                   f"{organism}/{rna_id}/{rna_id}.filtered.vcf.gz")
+        rna_bam = (f"{outdir}/RNA/common/10_markdup_deContaimation_bam/"
+                   f"{organism}/{rna_id}/{rna_id}.sorted_markdup.bam")
+        drclass_samples[wes_id] = {
+            "somatic_vcf": somatic_vcf,
+            "germline_vcf": germline_vcf,
+            "rna_vcf": rna_vcf,
+            "rna_bam": rna_bam,
+            "rna_bam_index": rna_bam.replace(".bam", ".bai"),
+            "strain_vcf": strain_vcfs.get(wes_id) or strain_vcfs.get("*") or [],
+            "splice_bed": [],
+            "editing_bed": [],
+        }
+        outfiles += [
+            f"{outdir}/DRclass/{wes_id}/{wes_id}.dna_anchored.tsv",
+            f"{outdir}/DRclass/{wes_id}/{wes_id}.rna_anchored.tsv",
+        ]
+        # chain-1 RNA products (so the DAG builds them)
+        outfiles += [rna_vcf, rna_bam]
+    # chain-0 WES products (somatic + germline for every pair member)
+    for rec in paired_design:
+        outfiles.append(f"{outdir}/WES/variation/somatic_snv_indel/"
+                        f"{rec['control']}_vs_{rec['experimental']}/"
+                        f"{rec['control']}_vs_{rec['experimental']}.filtered.vcf.gz")
+    for wes_id in wes_all:
+        outfiles.append(f"{outdir}/WES/variation/germline_snv_indel/"
+                        f"{wes_id}/{wes_id}.raw.vcf.gz")
+
+    outfiles.append(f"{outdir}/DRclass/DRclass_summary.tsv")
+
+    datajson["Params"]["workflow"]["dr_pairs"] = dr_pairs
+    datajson["Params"]["workflow"]["drclass_samples"] = drclass_samples
+    datajson["Params"]["workflow"]["genome_paired_samples"] = genome_paired_samples
+    datajson["Params"]["workflow"]["genome_single_samples"] = genome_single_samples
+    datajson["Params"]["workflow"]["wes_paired_samples"] = wes_paired_samples
+    datajson["Params"]["workflow"]["wes_single_samples"] = wes_single_samples
+    datajson["Params"]["workflow"]["paired_design"] = paired_design
+    datajson["Params"]["workflow"]["pair_strains"] = pair_strains
     datajson["outfiles"] = outfiles
     return _write_raw_json(datajson, outdir)

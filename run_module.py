@@ -577,9 +577,10 @@ def run_module_tests(test_name: str, base_out: Optional[str]) -> int:
             raise SystemExit(f"No testable module matched: {test_name}")
 
     out_root = os.path.abspath(base_out or os.path.join(os.getcwd(), "module_test"))
+    units_total = len(units)
     results = {}
-    for rel, smk, cfg_path in units:
-        tag = rel[:-4].replace(os.sep, "__")  # e.g. polygenomes__star
+    for idx, (rel, smk, cfg_path) in enumerate(units, 1):
+        tag = rel[:-4].replace(os.sep, "_")  # e.g. polygenomes__star
         run_dir = os.path.join(out_root, tag)
         shutil.rmtree(run_dir, ignore_errors=True)
         os.makedirs(run_dir, exist_ok=True)
@@ -672,14 +673,20 @@ def run_module_tests(test_name: str, base_out: Optional[str]) -> int:
             results[rel] = (False, f"{e}"[:200])
         except Exception as e:
             results[rel] = (False, f"{type(e).__name__}: {e}"[:200])
+        # stream each result as it completes; summary prints at the end
+        _ok, _note = results[rel]
+        print(f"  [{idx}/{units_total}] [{'PASS' if _ok else 'FAIL'}] {rel}"
+              + (f" — {_note}" if not _ok else ""), flush=True)
 
     passed = [k for k, (ok, _) in results.items() if ok]
     failed = [k for k, (ok, _) in results.items() if not ok]
     print(f"[run_module --test] {len(results)} modules: "
           f"passed {len(passed)}, failed {len(failed)}")
-    for k in sorted(results):
-        ok, note = results[k]
-        print(f"  [{'PASS' if ok else 'FAIL'}] {k}" + (f" — {note}" if not ok else ""))
+    if failed:
+        print("  failed modules:")
+        for k in sorted(failed):
+            _, note = results[k]
+            print(f"  [FAIL] {k}" + (f" — {note}" if note else ""))
     return 1 if failed else 0
 
 

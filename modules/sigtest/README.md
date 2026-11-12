@@ -62,7 +62,7 @@ with `cfg.json` (the exact config used in verification):
     "logdir": "<workdir>/module_run/log",
     "sigtest_table": "<workdir>/expr_long.tsv",
     "contrasts": ["P6_vs_P20"],
-    "env": {"sigtest": "/data/16T/Database/env/sigtest/sigtest.sif"},
+    "env": {"sigtest": "/data/16T/Database/env/sv/sv.sif"},
     "resources": {"sigtest_run": {"threads": 1, "mem_mb": 4000}},
     "Params": {"sigtest": {"feature_col": "gene", "group_col": "group",
                            "value_col": "expr", "method": "auto",

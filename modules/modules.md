@@ -755,6 +755,66 @@ YAML 文件名、`name:` 字段、SIF 文件名必须三者一致，等于模块
 
 > **例外**：如确实需要名称与目录不同，在 config 的 `env` 字典中显式映射：`"yaml_stem": "/path/to/actual.sif"`。
 
+## SIF 镜像选用：优先复用，按需新建（强制）
+
+依赖的唯一来源是 `<module_dir>.yaml`；SIF 只是它的构建产物或经验证的等价镜像。选用顺序：
+
+1. **优先复用已有镜像**（纯 Python 脚本模块）：镜像库里已有镜像经下述探针验证
+   完整覆盖 yaml 依赖时，直接复用并在 `env` 字典显式映射
+   （如 `sexcheck -> fragment_size/fragment_size.sif`、`qc_summary -> report/report.sif`）：
+   `"<module_dir>": "/data/16T/Database/env/<owner>/<owner>.sif"`。
+   显式映射是唯一合法的复用方式——禁止依赖 `sif()` 的文件系统回退路径去找别人的镜像。
+2. **新建专用镜像**：模块带二进制工具链（ft/pbmm2/...）、yaml 钉了版本且结果
+   要求长期可复现、或没有镜像覆盖依赖时。命名按上节规范。
+
+### 复用前必须跑验证探针（强制）
+
+候选镜像必须对 yaml 的**每一个**依赖都可用，并实际跑通模块 bin 脚本——缺任何
+一个依赖（哪怕只是 scipy）都会等到任务运行期才报错：
+
+```bash
+# 1) 依赖覆盖检查：yaml 里每个包都要 import 成功
+apptainer exec <candidate.sif> python -c \
+    "import numpy, scipy, pandas, matplotlib; print('covered')"
+# 2) bin 脚本冒烟：小 fixture 或 --help 走一遍；--bind 要带齐，
+#    容器内看不到未绑定的路径（"host 有文件但容器说没有"就是这个）
+apptainer exec --bind <repo/data roots> <candidate.sif> \
+    python modules/<tool>/bin/<script>.py --help
+```
+
+探针通过后才允许写入 `env` 映射。复用镜像由它**自己的**模块 yaml 治理，
+重建后版本可能跨大版本漂移（如 pandas 2.x → 3.x）：升级共享镜像后必须对
+所有复用方重跑探针；要求版本钉死的模块不要复用，建专用镜像。
+
+### 新建专用镜像流程
+
+```bash
+# def 由 yaml 生成；改 yaml 必须同步改 def 并重建
+apptainer build /data/16T/Database/env/<module_dir>/<module_dir>.sif \
+    modules/<module_dir>/<module_dir>.def
+```
+
+- 构建**直接输出到** `sif()` 会解析的路径，不留 scratch 再拷贝（部署遗漏
+  或版本不一致时，规则实际用的和你验证的不是同一个文件）；完成后跑同样的探针。
+- 镜像较大（约 1~2 GB），复用能省就省；但不要为省镜像把共享镜像的
+  漂移风险转嫁给钉版本的模块。
+
+### env 注册（强制，两处都写）
+
+镜像就绪后，映射必须同时写进**模板** `config/<Workflow>.json` 和**已生成的
+raw.json**（raw.json 不会从模板自动刷新，下次 node.py 重建才带上）：
+
+```json
+"env": {
+  "sigtest": "/data/16T/Database/env/sv/sv.sif"
+}
+```
+
+漏注册不在建图期报错：`sif()` 落到文件系统回退路径
+`<env_dir>/<basename(workflow.basedir)>/<stem>.sif`（通常不存在），任务开始
+执行才以 apptainer 退出码 255 失败，规则日志只有
+`returned non-zero exit status 255`。
+
 # Common 模块
 
 `modules/common/common.smk` 提供所有模块共享的工具函数。
@@ -772,12 +832,18 @@ ROOT_DIR = config.get("ROOT_DIR", ".")
 from common.util.LogUtil import setup_logger
 
 # SIF 容器路径解析
-def sif(yaml_filename: str) -> str:
-    """用 YAML 文件名 stem 查找 SIF 路径。
-    1. config["env"][<stem>] -- 精确映射
-    2. config["env"]["env_dir"] + <module_dir>/<stem>.sif -- 约定回退
+def sif(yaml_filename: str, rule_name: str = "") -> str:
+    """用 YAML 文件名 stem 查找 SIF 路径，优先级从高到低：
+    1. config["env"][<rule_name>]      -- 规则级显式映射
+    2. config["env"][<yaml_stem>]      -- 模块级显式映射（复用/别名写这里）
+    3. <env_dir>/<rule_name>/<yaml_stem>.sif  -- 仅当文件存在时
+    4. <env_dir>/<basename(workflow.basedir)>/<yaml_stem>.sif -- 约定回退
     """
 ```
+
+1/2（`env` 显式映射）是唯一可靠来源；3/4 是文件系统回退，4 在 subworkflow
+组装下通常指向不存在的目录——落到回退说明 `env` 注册漏了，见
+[SIF 镜像选用](#sif-镜像选用优先复用按需新建强制)。
 
 ## 使用方式
 

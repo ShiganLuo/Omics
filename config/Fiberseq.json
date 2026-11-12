@@ -20,7 +20,8 @@
     "tabix": "/data/16T/Database/env/tabix/tabix.sif",
     "regionplot": "/data/16T/Database/env/regionplot/regionplot.sif",
     "sexcheck": "/data/16T/Database/env/fragment_size/fragment_size.sif",
-    "qc_summary": "/data/16T/Database/env/report/report.sif"
+    "qc_summary": "/data/16T/Database/env/report/report.sif",
+    "sigtest": "/data/16T/Database/env/sv/sv.sif"
   },
   "resources": {
     "default": {

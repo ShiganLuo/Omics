@@ -571,13 +571,14 @@ def write_results_excel(output_path: str, args: argparse.Namespace) -> None:
         ("signature", os.path.join(args.spectrum_dir, "signature_refit_family_exposures.csv")),
         ("signature", os.path.join(args.spectrum_dir, "signature_refit_exposure_stacked_bar.png")),
         ("signature", os.path.join(args.spectrum_dir, "signature_refit_exposure_heatmap.png")),
+        ("signature", os.path.join(args.spectrum_dir, "signature_refit_signature_cosine.png")),
         ("signature", os.path.join(args.spectrum_dir, "signature_nmf_signatures.csv")),
         ("signature", os.path.join(args.spectrum_dir, "signature_nmf_exposures.csv")),
         ("signature", os.path.join(args.spectrum_dir, "signature_nmf_rank_diagnostics.csv")),
         ("signature", os.path.join(args.spectrum_dir, "signature_nmf_rank_diagnostics.png")),
-        ("signature", os.path.join(args.spectrum_dir, "signature_nmf_signatures.png")),
         ("signature", os.path.join(args.spectrum_dir, "signature_nmf_cosmic_similarity.csv")),
         ("signature", os.path.join(args.spectrum_dir, "signature_nmf_cosmic_best_match.csv")),
+        ("signature", os.path.join(args.spectrum_dir, "signature_nmf_cosmic_match.png")),
         ("fragment", os.path.join(args.fragment_dir, "FragmentSize.txt")),
         ("fragment", os.path.join(args.fragment_dir, "FragmentSize.png")),
     ]
@@ -700,7 +701,7 @@ def build_report(args: argparse.Namespace, logger) -> None:
                                             df_to_rows(best3)]
             _table(slide, MARGIN_L + CONTENT_W * 0.5, CONTENT_TOP, CONTENT_W * 0.5,
                    0.3 + 0.3 * len(brow), brow, font_size=8)
-        prof = os.path.join(args.spectrum_dir, "signature_nmf_signatures.png")
+        prof = os.path.join(args.spectrum_dir, "signature_nmf_cosmic_match.png")
         if os.path.isfile(prof):
             slide.shapes.add_picture(prof, Inches(MARGIN_L),
                                      Inches(CONTENT_TOP + 0.5 + 0.3 * len(rows)),

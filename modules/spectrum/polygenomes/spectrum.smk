@@ -146,7 +146,8 @@ rule somatic_signature_refit:
         families = outdir + "/{genome}/signature_refit_family_exposures.csv",
         summary = outdir + "/{genome}/signature_refit_summary.csv",
         stacked_bar = outdir + "/{genome}/signature_refit_exposure_stacked_bar.png",
-        heatmap = outdir + "/{genome}/signature_refit_exposure_heatmap.png"
+        heatmap = outdir + "/{genome}/signature_refit_exposure_heatmap.png",
+        sig_cosine = outdir + "/{genome}/signature_refit_signature_cosine.png"
     log:
         logdir + "/{genome}/spectrum/somatic_signature_refit.log"
     threads: rule_res("somatic_signature_refit").get("threads", 1)
@@ -207,10 +208,10 @@ rule somatic_signature_nmf:
         exposures = outdir + "/{genome}/signature_nmf_exposures.csv",
         rank_diagnostics = outdir + "/{genome}/signature_nmf_rank_diagnostics.csv",
         rank_plot = outdir + "/{genome}/signature_nmf_rank_diagnostics.png",
-        profiles = outdir + "/{genome}/signature_nmf_signatures.png",
         stacked_bar = outdir + "/{genome}/signature_nmf_exposures_stacked_bar.png",
         cosmic_similarity = outdir + "/{genome}/signature_nmf_cosmic_similarity.csv",
-        cosmic_best = outdir + "/{genome}/signature_nmf_cosmic_best_match.csv"
+        cosmic_best = outdir + "/{genome}/signature_nmf_cosmic_best_match.csv",
+        cosmic_match = outdir + "/{genome}/signature_nmf_cosmic_match.png"
     log:
         logdir + "/{genome}/spectrum/somatic_signature_nmf.log"
     threads: rule_res("somatic_signature_nmf").get("threads", 1)

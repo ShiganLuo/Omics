@@ -29,6 +29,9 @@ Outputs (<prefix> = --output-prefix):
   <prefix>_exposures_stacked_bar.png  per-sample exposure stacked bar
   <prefix>_cosmic_similarity.csv      extracted x COSMIC cosine matrix (opt.)
   <prefix>_cosmic_best_match.csv      best COSMIC match per signature (opt.)
+  <prefix>_cosmic_match.png           match evidence figure: extracted vs
+                                      top-3 COSMIC profiles + top-5 cosine
+                                      bars (opt.)
 
 Usage:
     python signature_nmf.py \
@@ -221,6 +224,109 @@ def consensus_stability(m: np.ndarray, k: int, rng: np.random.Generator,
     return float(np.mean(scores)) if scores else float("nan")
 
 
+CLASS_COLORS = {
+    "C>A": "#4DBBD5", "C>G": "#000000", "C>T": "#E64B35",
+    "T>A": "#7E9AC8", "T>C": "#4DAF4A", "T>G": "#CC79A7",
+}
+
+
+def _context_axis_labels(ax, contexts, fontsize: float = 8.0) -> None:
+    """Readable x axis for a 96-context profile panel.
+
+    One tick per substitution class at its group center (e.g. ``C>A``)
+    instead of 96 rotated context labels, which always overlap into
+    illegible text at panel width. Class order follows first appearance
+    in ``contexts``; the axis title names what the axis encodes.
+    """
+    centers, labels = [], []
+    for i, label in enumerate(contexts):
+        cls = label.split("[")[1].split("]")[0]
+        if cls not in labels:
+            labels.append(cls)
+            centers.append([])
+        centers[labels.index(cls)].append(i)
+    ax.set_xticks([float(np.mean(pos)) for pos in centers])
+    ax.set_xticklabels(labels, fontsize=fontsize)
+    ax.tick_params(axis="x", length=3)
+    ax.set_xlabel("Trinucleotide context", fontsize=fontsize)
+
+
+def plot_cosmic_match(contexts, sig_df, sig_ref, sim_df, names: List[str],
+                      out_path: str) -> None:
+    """Evidence figure for the extracted-vs-COSMIC match claim.
+
+    One row per extracted signature: the extracted profile next to its
+    top-3 COSMIC profiles (cosine in each panel title) plus a top-5 cosine
+    bar panel. The best-match claim in cosmic_best_match.csv becomes
+    visually checkable instead of resting on a bare number; when several
+    COSMIC profiles score close (flat-signature degeneracy) the row shows
+    it directly.
+
+    Parameters
+    ----------
+    contexts : Index
+        96 context labels, row order of sig_df / sig_ref.
+    sig_df : DataFrame
+        Extracted signatures (96 x K, fractions).
+    sig_ref : DataFrame
+        COSMIC signature matrix (96 x M, aligned to contexts).
+    sim_df : DataFrame
+        Extracted x COSMIC cosine matrix (K x M).
+    names : list of str
+        Extracted signature names, row order of sim_df.
+    out_path : str
+        PNG destination.
+    """
+    import pandas as pd  # noqa: F401  (DataFrame type use at call sites)
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    x = np.arange(96)
+    colors = [CLASS_COLORS[label.split("[")[1].split("]")[0]] for label in contexts]
+    n_cols = 5  # extracted | best | second | third | cosine bar
+    fig, axes = plt.subplots(len(names), n_cols,
+                             figsize=(3.0 * n_cols, 2.6 * len(names)),
+                             squeeze=False)
+    for row, name in enumerate(names):
+        order_idx = np.argsort(-sim_df.loc[name].to_numpy())
+        profiles = [(f"{name} (extracted)", sig_df[name].to_numpy())]
+        for i in order_idx[:3]:
+            ref_name = sim_df.columns[i]
+            profiles.append((
+                f"{ref_name} (cosine {sim_df.loc[name, ref_name]:.3f})",
+                sig_ref[ref_name].to_numpy(),
+            ))
+        ymax = max(v.max() for _, v in profiles)
+        for col, (title, vals) in enumerate(profiles):
+            ax = axes[row][col]
+            ax.bar(x, vals, color=colors, width=0.85)
+            ax.set_xlim(-1, 96)
+            ax.set_ylim(0, ymax * 1.08)
+            ax.set_title(title, fontsize=8)
+            if col == 0:
+                ax.set_ylabel("Fraction")
+            if row == len(names) - 1:
+                _context_axis_labels(ax, contexts)
+            else:
+                ax.set_xticks([])
+        # Top-5 cosine ranking bar in the last column.
+        ax = axes[row][n_cols - 1]
+        top5 = order_idx[:5]
+        labels = [sim_df.columns[i] for i in top5][::-1]
+        vals = [float(sim_df.loc[name, sim_df.columns[i]]) for i in top5][::-1]
+        ax.barh(labels, vals, color="#E64B35", height=0.6)
+        for i, v in enumerate(vals):
+            ax.text(min(v + 0.01, 1.0), i, f"{v:.3f}", va="center", fontsize=7)
+        ax.set_xlim(0, 1.05)
+        ax.set_xlabel("Cosine")
+        ax.set_title(f"{name}: top-5 COSMIC matches", fontsize=8)
+    plt.tight_layout()
+    plt.savefig(out_path, dpi=300)
+    plt.close()
+
+
 def cosine_matrix(a: np.ndarray, b: np.ndarray) -> np.ndarray:
     """Pairwise cosine similarity between row vectors of a and b."""
     na = np.linalg.norm(a, axis=1, keepdims=True)
@@ -325,27 +431,6 @@ def run_nmf(counts, args, sig_ref=None) -> None:
     plt.savefig(f"{args.output_prefix}_rank_diagnostics.png", dpi=300)
     plt.close()
 
-    # Signature profiles: 96-channel bars colored by substitution class.
-    class_colors = {
-        "C>A": "#4DBBD5", "C>G": "#000000", "C>T": "#E64B35",
-        "T>A": "#7E9AC8", "T>C": "#4DAF4A", "T>G": "#CC79A7",
-    }
-    fig, axes = plt.subplots(chosen, 1, figsize=(12, 2.6 * chosen), squeeze=False)
-    x = np.arange(96)
-    for idx, name in enumerate(names):
-        ax = axes[idx][0]
-        vals = sig_df[name].to_numpy()
-        colors = [class_colors[label.split("[")[1].split("]")[0]] for label in contexts]
-        ax.bar(x, vals, color=colors, width=0.85)
-        ax.set_ylabel("Fraction")
-        ax.set_title(f"{name} (KL rank {chosen})", fontsize=9)
-        ax.set_xlim(-1, 96)
-    axes[-1][0].set_xticks(x)
-    axes[-1][0].set_xticklabels(contexts, rotation=90, fontsize=5)
-    plt.tight_layout()
-    plt.savefig(f"{args.output_prefix}_signatures.png", dpi=300)
-    plt.close()
-
     # Exposure stacked bar per sample.
     ax = exp_df.plot(kind="bar", stacked=True, figsize=(max(6, 1.2 * len(samples)), 6))
     ax.set_ylabel("Exposure (mutations)")
@@ -378,9 +463,16 @@ def run_nmf(counts, args, sig_ref=None) -> None:
             "extracted_signature", "best_match", "cosine",
             "second_match", "second_cosine",
         ]).to_csv(f"{args.output_prefix}_cosmic_best_match.csv", index=False)
+        # The best-match claim must be visible as evidence, not only a CSV
+        # number: profile-vs-profile figure with cosine annotated.
+        plot_cosmic_match(
+            contexts, sig_df, sig_ref, sim_df, names,
+            f"{args.output_prefix}_cosmic_match.png",
+        )
         logger.info(
             f"Wrote {args.output_prefix}_cosmic_similarity.csv, "
-            f"{args.output_prefix}_cosmic_best_match.csv"
+            f"{args.output_prefix}_cosmic_best_match.csv, "
+            f"{args.output_prefix}_cosmic_match.png"
         )
 
     logger.info(
@@ -388,7 +480,6 @@ def run_nmf(counts, args, sig_ref=None) -> None:
         f"{args.output_prefix}_exposures.csv, "
         f"{args.output_prefix}_rank_diagnostics.csv, "
         f"{args.output_prefix}_rank_diagnostics.png, "
-        f"{args.output_prefix}_signatures.png, "
         f"{args.output_prefix}_exposures_stacked_bar.png"
     )
 

@@ -1028,17 +1028,18 @@ def runMutation(
                            "signature_refit_family_exposures.csv",
                            "signature_refit_summary.csv",
                            "signature_refit_exposure_stacked_bar.png",
-                           "signature_refit_exposure_heatmap.png"):
+                           "signature_refit_exposure_heatmap.png",
+                           "signature_refit_signature_cosine.png"):
                     outfiles.append(f"{outdir}/stability/spectrum/{_f}")
             if _sig_mode in ("nmf", "both"):
                 for _f in ("signature_nmf_signatures.csv",
                            "signature_nmf_exposures.csv",
                            "signature_nmf_rank_diagnostics.csv",
                            "signature_nmf_rank_diagnostics.png",
-                           "signature_nmf_signatures.png",
                            "signature_nmf_exposures_stacked_bar.png",
                            "signature_nmf_cosmic_similarity.csv",
-                           "signature_nmf_cosmic_best_match.csv"):
+                           "signature_nmf_cosmic_best_match.csv",
+                           "signature_nmf_cosmic_match.png"):
                     outfiles.append(f"{outdir}/stability/spectrum/{_f}")
     
     all_samples = paired_samples + single_samples

@@ -88,6 +88,7 @@ WES 数据用同目录 `_exome.txt` 变体（外显子机会数归一化版本�
 | `signature_refit_family_exposures.csv` | 签名家族级聚合比例 |
 | `signature_refit_summary.csv` | 每样本拟合统计：n、reliable、用到的签名数、重构余弦、top 签名 |
 | `signature_refit_exposure_stacked_bar.png` / `_exposure_heatmap.png` | 曝光图 |
+| `signature_refit_signature_cosine.png` | 用到的签名两两余弦热图（简并证据：高余弦对之间的逐签名归属不可辨识，应读家族级） |
 
 `somatic_signature_nmf`（P2，de novo 提取）：
 
@@ -96,8 +97,8 @@ WES 数据用同目录 `_exome.txt` 变体（外显子机会数归一化版本�
 | `signature_nmf_signatures.csv` | 提取的签名（96 通道 × K） |
 | `signature_nmf_exposures.csv` | 样本 × K 曝光 |
 | `signature_nmf_rank_diagnostics.csv` / `.png` | 每秩 KL / cophenetic / 稳定性 + 选中的秩 |
-| `signature_nmf_signatures.png` | 提取签名的 96 通道剖面 |
 | `signature_nmf_cosmic_similarity.csv` / `_best_match.csv` | 与 COSMIC 的余弦矩阵 + 最佳匹配（跨物种时按"跨物种参考"解读） |
+| `signature_nmf_cosmic_match.png` | 匹配证据图：提取签名剖面 + top-3 COSMIC 剖面 + top-5 余弦条（提取剖面即首列，不再单独出图；匹配结论必须可目检，不只留 CSV 数字） |
 
 ## CLI 等价命令
 

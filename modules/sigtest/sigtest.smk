@@ -62,13 +62,13 @@ rule sigtest_run:
                 "python", params.sigtest_script,
                 "-i", str(input.table),
                 "-o", sample_outdir,
-                "-f", params.p.get("feature_col", "feature"),
-                "--group-col", params.p.get("group_col", "group"),
-                "-v", params.p.get("value_col", "value"),
-                "-m", params.p.get("method", "auto"),
-                "-c", params.p.get("correction", "none"),
-                "-a", str(params.p.get("alpha", 0.05)),
-                "-y", params.p.get("ylabel", "value"),
+                "-f", params.p.get("feature_col") or "feature",
+                "--group-col", params.p.get("group_col") or "group",
+                "-v", params.p.get("value_col") or "value",
+                "-m", params.p.get("method") or "auto",
+                "-c", params.p.get("correction") or "none",
+                "-a", str(0.05 if params.p.get("alpha") is None else params.p.get("alpha")),
+                "-y", params.p.get("ylabel") or "value",
             ]
             # per-contrast group pair when provided (multi-contrast runs),
             # falling back to the global Params.sigtest.groups
@@ -96,7 +96,7 @@ rule sigtest_run:
                 f.write(f"export VECLIB_MAXIMUM_THREADS={threads}\n")
                 f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
                 f.write('echo "sigtest completed successfully"\n')
-            rule_logger.info("Executing: " + " ".join(cmd))
+            rule_logger.info("Executing: " + " ".join(str(x) for x in cmd))
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
             rule_logger.info(f"sigtest completed for contrast {wildcards.contrast}")

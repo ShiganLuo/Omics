@@ -21,8 +21,12 @@ Outputs (<prefix> = --output-prefix):
   <prefix>_exposure_fractions.csv   row-normalized exposure fractions
   <prefix>_family_exposures.csv     samples x signature families, fractions
   <prefix>_summary.csv              per-sample fit statistics and flags
-  <prefix>_exposure_stacked_bar.png family-fraction stacked bar per sample
+  <prefix>_exposure_stacked_bar.png  family-fraction stacked bar per sample
   <prefix>_exposure_heatmap.png     sample x signature fraction heatmap
+  <prefix>_signature_cosine.png     signature x signature cosine heatmap of
+                                    the signatures used anywhere (degeneracy
+                                    evidence: near-1 pairs make per-signature
+                                    attribution non-unique)
 
 Usage:
     python signature_refit.py \
@@ -306,13 +310,38 @@ def run_refit(counts, sig, args) -> None:
         plt.savefig(f"{args.output_prefix}_exposure_heatmap.png", dpi=300)
         plt.close()
 
+    # Signature x signature cosine heatmap over the used signatures
+    # (design doc §6 common outputs). The refit solution is only unique up
+    # to collinear columns: two near-identical signatures can trade mass
+    # with no change in reconstruction, so a high off-diagonal value marks
+    # attribution that must be read at family level, not per signature.
+    if used:
+        cols = [names.index(u) for u in used]
+        sub = w_mat[:, cols]
+        norms = np.linalg.norm(sub, axis=0)
+        cos_mat = (sub.T @ sub) / np.outer(norms, norms)
+        import seaborn as sns
+
+        side = max(5, 0.5 * len(used))
+        plt.figure(figsize=(side, side * 0.85))
+        sns.heatmap(
+            pd.DataFrame(cos_mat, index=used, columns=used),
+            cmap="Blues", vmin=0, vmax=1, annot=True, fmt=".2f",
+            annot_kws={"fontsize": 7},
+        )
+        plt.title("Signature-signature cosine (used signatures)")
+        plt.tight_layout()
+        plt.savefig(f"{args.output_prefix}_signature_cosine.png", dpi=300)
+        plt.close()
+
     logger.info(
         f"Wrote {args.output_prefix}_exposures.csv, "
         f"{args.output_prefix}_exposure_fractions.csv, "
         f"{args.output_prefix}_family_exposures.csv, "
         f"{args.output_prefix}_summary.csv, "
         f"{args.output_prefix}_exposure_stacked_bar.png, "
-        f"{args.output_prefix}_exposure_heatmap.png"
+        f"{args.output_prefix}_exposure_heatmap.png, "
+        f"{args.output_prefix}_signature_cosine.png"
     )
 
 

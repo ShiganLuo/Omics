@@ -126,6 +126,14 @@ def build_long_table(args: argparse.Namespace) -> int:
         sample_ids, mod_beds, peak_beds, msp_beds
     ):
         peaks = read_bed(peak_bed)
+        if not peaks:
+            logger.error(
+                f"sample {sid}: 0 peaks read from {peak_bed} — refusing to "
+                f"build a long table with a missing sample (an empty peaks "
+                f"file is usually call_peaks' zero-read placeholder or a "
+                f"clobbered ft_call_peaks output; check its rule log)"
+            )
+            return 1
         n_calls = count_region_calls(peaks, mod_bed)
         n_fibers = count_region_fibers(peaks, msp_bed)
         for peak, calls, fibers in zip(peaks, n_calls, n_fibers):

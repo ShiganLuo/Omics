@@ -56,7 +56,16 @@ WORKFLOWS = {
     "QuantMS":         {"kind": "ms", "columns": ["sample_id", "data_id", "design", "ms_file"]},
 }
 
-FQ_PE_RE = re.compile(r"^(?P<base>.+?)(?:_R?(?P<read>[12]))[^/]*\.(?:f(?:ast)?q)(?:\.gz)?$", re.IGNORECASE)
+# The read tag must sit at the END of the stem (only a lane suffix or ".raw"
+# may follow), so a replicate digit inside the sample name (S2_2, sh1_1) is
+# never mistaken for the read tag. Accepts _R1/_R2, _1/_2, .R1/.R2,
+# _R1_001 (Illumina lane tail) and provider "*.R1.raw.fastq.gz" deliveries.
+FQ_PE_RE = re.compile(
+    r"^(?P<base>.+?)[._-](?:R(?P<read_r>[12])|(?P<read_d>[12]))"
+    r"(?:(?:[_-](?:00)?\d+)|(?:\.raw)*)*"
+    r"\.(?:f(?:ast)?q)(?:\.gz)?$",
+    re.IGNORECASE,
+)
 FQ_EXT = (".fq.gz", ".fastq.gz", ".fq", ".fastq")
 MS_EXT = (".raw", ".mzml", ".mgf", ".wiff", ".d")
 REP_SUFFIX_RE = re.compile(r"(?:[-_](?:Rep)?\d+)$", re.IGNORECASE)
@@ -75,7 +84,7 @@ def find_fastq_units(search_dir):
             continue
         m = FQ_PE_RE.match(f.name)
         if m:
-            groups[m.group("base")][m.group("read")].append(f)
+            groups[m.group("base")][m.group("read_r") or m.group("read_d")].append(f)
         else:
             stem = re.sub(r"\.(?:f(?:ast)?q)(?:\.gz)?$", "", f.name, flags=re.IGNORECASE)
             groups[stem]["se"].append(f)

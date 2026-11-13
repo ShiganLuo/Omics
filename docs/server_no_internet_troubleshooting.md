@@ -176,7 +176,62 @@ campus_auth.sh --login -u <学号> -p <真实密码>
 
 ---
 
-## 附录：campus_auth.sh 全文
+## 8. Python HTTPS 超时但 curl 正常：后量子 TLS 密钥分享被网关丢弃
+
+> 2026-11-13 发现并解决。与 portal 认证无关——网络已认证、curl 全通，
+> 只有 Python 的 requests/urllib 超时或 TLS 握手失败。
+
+### 8.1 现象
+
+- `curl` 访问 NCBI/ENA 一切正常（2 秒返回，证书验证通过）。
+- Python 侧（requests、urllib）全部失败，三种表现：
+  `ReadTimeout`（read timeout=20）、`SSL: UNEXPECTED_EOF_WHILE_READING`、
+  `urlopen error _ssl.c:1064: The handshake operation timed out`。
+- 影响实例：`src/download/GEO_soft.py` 下载 GEO SOFT 超时中断；
+  `sra_download.py` 内部的 requests 探测同理。
+
+### 8.2 原理
+
+Python 3.14 内置 OpenSSL 3.6，TLS 握手默认携带 X25519MLKEM768
+（后量子混合）密钥分享，ClientHello 明显变大；校园网关对这种握手包
+处理有问题，直接丢弃。系统 curl 用的是 OpenSSL 3.0，不发后量子
+key share，所以不受影响。验证：`python -c "import ssl; print
+(ssl.OPENSSL_VERSION)"` 是 3.6.x 而 `curl -V` 是 3.0.x。
+
+### 8.3 解决
+
+限制 TLS 密钥交换组为经典算法（一个 OpenSSL 配置文件即可，无侵入）：
+
+```ini
+# openssl_classic.cnf — 禁用后量子混合密钥分享
+openssl_conf = openssl_init
+[openssl_init]
+ssl_conf = ssl_sect
+[ssl_sect]
+system_default = system_default_sect
+[system_default_sect]
+Groups = X25519:P-256:P-384
+```
+
+跑任何 Python 网络工具前带上环境变量：
+
+```bash
+OPENSSL_CONF=/path/to/openssl_classic.cnf python src/download/GEO_soft.py GSE246705 ...
+```
+
+现有副本：`/data/16T/Data/LRtranscriptome_GSE246705/openssl_classic.cnf`
+（下载脚本、GEO_soft.py 均可复用）。SIF 构建如在 %post 里跑 conda
+（miniconda3 新镜像同样带 OpenSSL 3.5+），把该 cnf 拷进镜像并在
+%post 开头 `export OPENSSL_CONF=<cnf>`，见
+`/data/16T/Database/env/minimap2/minimap2.def` 的先例。
+
+### 8.4 经验
+
+- 「curl 通、Python 不通」优先对比两边的 OpenSSL 版本与 TLS 组，
+  不要先怀疑代理或 DNS。
+- 该 workaround 对能接受后量子握手的网络无副作用，可长期挂着。
+
+# 附录：campus_auth.sh 全文
 
 ```bash
 #!/usr/bin/env bash

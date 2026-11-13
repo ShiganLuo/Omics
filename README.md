@@ -63,12 +63,12 @@ python workflow/Omics/run_module.py -m macs3 --config my_macs3.json -o out/
 
 ### 精确重跑
 
-`--until <rule>` 跑到指定 stage 停止，`--forcerun` 强制重跑任意规则（支持 `规则:wildcard=value` 精确到通配符组合），`--target-jobs` 可把任意中间产物作为终点：
+`--forcerun` 强制重跑任意规则（支持 `规则:wildcard=value` 精确到通配符组合），作用域到命名规则为止；`--forcerun-downstream` 进一步把依赖其输出的下游规则全部带上重跑：
 
 ```bash
-# 只要 dedup 后的 BAM 就停
+# 强制重跑 somatic_spectrum，依赖它的 signature refit/NMF/报告自动跟进重跑
 python workflow/Omics/run.py -m data/meta.tsv -w Mutation -o output \
-  --until mutation_markduplicates
+  --forcerun-downstream somatic_spectrum
 
 # 精准重跑带通配符的规则
 python workflow/Omics/run.py -m data/meta.tsv -w scRNAseq -o output \
@@ -242,11 +242,11 @@ bash workflow/Omics/run.sh
 
 ### 运行特定步骤
 
-`run.py` 提供 `--forcerun` 和 `--target-jobs` 参数，用于精确重跑特定规则。
+`run.py` 提供 `--forcerun` 和 `--forcerun-downstream` 参数，用于精确重跑特定规则。
 
 #### `--forcerun`：强制重跑规则
 
-接受规则名、文件路径或 `规则:wildcard=value` 格式。规则名自动补前缀。
+接受规则名、文件路径或 `规则:wildcard=value` 格式。规则名自动补前缀。作用域到命名规则为止：只强制这些规则（及其上游），下游规则不跟进。
 
 ```bash
 # 重跑某个规则（所有 wildcards）
@@ -293,6 +293,19 @@ python workflow/Omics/run.py \
     scanpy_auto:tissue=Uterus,counter=scTE \
     scanpy_auto:tissue=Uterus,counter=cellranger
 ```
+
+#### `--forcerun-downstream`：强制重跑并继续下游
+
+与 `--forcerun` 接受完全相同的三种格式，但作用域扩展到整条工作流：命名规则被强制重跑，依赖其输出的下游规则会因输入更新自动跟进重跑。适合修改了上游产出逻辑后连带刷新下游结果的场景：
+
+```bash
+# 重跑 somatic_spectrum 后，signature refit/NMF/报告自动跟着重跑
+python workflow/Omics/run.py \
+  -m data/meta.tsv -w Mutation -o output --sdm \
+  --forcerun-downstream somatic_spectrum
+```
+
+两个参数可以混用（`--forcerun A --forcerun-downstream B`）：A、B 都被强制重跑，作用域取整条工作流。
 
 #### `--touch`：更新输出文件时间戳
 
@@ -369,7 +382,7 @@ python workflow/Omics/run.py \
 snakemake -s workflow/Omics/subworkflow/RNAseq.smk \
   --configfile output/RNAseq/raw.json \
   --cores 1 --sdm apptainer \
-  --until RNAseq_function_gsea --forcerun RNAseq_function_gsea \
+  RNAseq_function_gsea --forcerun RNAseq_function_gsea \
   --dag | dot -Tpng > dag.png
 ```
 
@@ -433,8 +446,8 @@ python workflow/Omics/run.py \
   例如 `--rerun-triggers mtime` 表示**仅**在输入比输出新时重跑，不检查 code/input/params/software-env，更轻量；`--rerun-trigger input` 只看内容哈希，依赖 metadata。
 
 - `--conda-frontend`：`conda` 或 `mamba`（默认 mamba）。
-- `--forcerun`：强制重跑指定规则或文件路径，格式：`RULE` 或 `/path/to/file` 或 `RULE:wildcard=value`。规则名自动加 workflow 前缀。
-- `--target-jobs`：按 wildcard 约束定位 job，格式：`RULE:WILDCARD1=VALUE,...`。配合 `--forcerun` 使用。
+- `--forcerun`：强制重跑指定规则或文件路径，格式：`RULE` 或 `/path/to/file` 或 `RULE:wildcard=value`。规则名自动加 workflow 前缀；作用域到命名规则为止，不重跑下游。`规则:wildcard=value` 内部转译为 snakemake 的 `--target-jobs ... --force`。
+- `--forcerun-downstream`：同 `--forcerun` 格式，但作用域为整条工作流——命名规则的下游依赖会因输入更新自动跟进重跑。
 - `--touch`：更新输出文件时间戳，不实际运行。与 `--dry-run` 冲突。
 - `--list-target-rules`：列出工作流中可作为目标的规则（不含通配符），不执行。
 - `--list-rules`：列出工作流中所有规则（含带通配符的），不执行。
@@ -534,7 +547,7 @@ python workflow/Omics/run_module.py --test all -o /path/to/module_test
 - [x] 完善 meta 设计
 - [x] 添加 json 值校验模块
 - [x] schema 感知的 extra_args 类型矫正
-- [x] 完成所有 pipeline 的双 shell 记录，即在结果文件目录始终保留最终执行 shell 脚本，在 log/cmd 目录记录所有执行过的 shell 脚本；目前已经支持 scRNAseq、Fiberseq
+- [x] 完成所有 pipeline 的双 shell 记录，即在结果文件目录始终保留最终执行 shell 脚本，在 log/cmd 目录记录所有执行过的 shell 脚本
 - [ ] 支持多基因组并行运行；已支持：RNAseq
 - [ ] 根据数据量，确保资源消耗平衡，不会出现耗尽主机内存或者爆满 CPU 的情况；已初步支持：Fiberseq、RNAseq，下一步需要将数据量和计算资源联系起来
 - [ ] 所有图片输出支持多种格式可选

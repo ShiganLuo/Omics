@@ -13,6 +13,11 @@ trinucleotide context, and writes both per-sample and per-group outputs:
   <prefix>_heatmap.png       group x context heatmap
 
 Filtering policy (drop reasons are counted in the sample-stats table):
+  - FILTER scope: only records passing the VCF filters are counted by
+    default (``--filter PASS``; ``PASS`` and ``.`` both count as passing).
+    Somatic spectrum claims must rest on the same high-confidence callset
+    as burden statistics; ``--filter all`` keeps every record when the
+    caller's unfiltered output is genuinely wanted.
   - non-SNV records (REF or any ALT allele not a single A/C/G/T base),
   - records on contigs absent from the reference FASTA,
   - contexts whose flanks contain non-ACGT bases (N stretches, edges).
@@ -141,23 +146,32 @@ def get_trinucleotide(ref_seq: Dict[str, str], chrom: str, pos: int, ref: str, a
     return f"{tri[0]}[{ref_base}>{alt_base}]{tri[2]}"
 
 
-def process_vcf(vcf_file: str, ref_seq: Dict[str, str], sample_id: str) -> Dict[str, object]:
+def process_vcf(vcf_file: str, ref_seq: Dict[str, str], sample_id: str,
+                pass_only: bool = True) -> Dict[str, object]:
     """Count SBS96 contexts of one sample's VCF and account for dropped records.
 
     Multi-allelic ALT fields (``G,T``) are split and each SNV allele counted
-    separately. Records are dropped as non-SNV (REF/ALT allele is not a single
-    A/C/G/T base), unknown contig, or context-unavailable (N flank / edge).
+    separately. With ``pass_only``, records whose FILTER is neither ``PASS``
+    nor ``.`` are dropped before counting. Records are further dropped as
+    non-SNV (REF/ALT allele is not a single A/C/G/T base), unknown contig,
+    or context-unavailable (N flank / edge).
 
     Returns
     -------
     dict with keys: counts (Counter of context label), n_records,
-    n_snv_alleles, n_counted, n_non_snv, n_unknown_contig, n_no_context.
+    n_filter_fail, n_snv_alleles, n_counted, n_non_snv, n_unknown_contig,
+    n_no_context.
     """
     import pandas as pd
 
-    cols = ["CHROM", "POS", "ID", "REF", "ALT", "QUAL"]
-    df = pd.read_csv(vcf_file, sep="\t", comment="#", header=None, usecols=range(6), names=cols)
+    cols = ["CHROM", "POS", "ID", "REF", "ALT", "QUAL", "FILTER"]
+    df = pd.read_csv(vcf_file, sep="\t", comment="#", header=None, usecols=range(7), names=cols)
     n_records = len(df)
+    n_filter_fail = 0
+    if pass_only:
+        keep = df["FILTER"].isin(("PASS", "."))
+        n_filter_fail = int((~keep).sum())
+        df = df[keep]
     n_snv_alleles = 0
     n_non_snv = 0
     n_unknown_contig = 0
@@ -181,12 +195,14 @@ def process_vcf(vcf_file: str, ref_seq: Dict[str, str], sample_id: str) -> Dict[
     n_counted = sum(counts.values())
     logger.info(
         f"{sample_id}: {n_records} records -> {n_snv_alleles} SNV alleles, "
-        f"{n_counted} counted (dropped: {n_non_snv} non-SNV, "
-        f"{n_unknown_contig} unknown contig, {n_no_context} no context)"
+        f"{n_counted} counted (dropped: {n_filter_fail} FILTER, "
+        f"{n_non_snv} non-SNV, {n_unknown_contig} unknown contig, "
+        f"{n_no_context} no context)"
     )
     return {
         "counts": counts,
         "n_records": n_records,
+        "n_filter_fail": n_filter_fail,
         "n_snv_alleles": n_snv_alleles,
         "n_counted": n_counted,
         "n_non_snv": n_non_snv,
@@ -259,8 +275,8 @@ def write_sample_stats(stats: Dict[str, Dict[str, object]], sample_groups: Dict[
                        sample_order: List[str], output_file: str) -> None:
     """Write the per-sample SNV accounting table."""
     fields = [
-        "sample_id", "group", "n_records", "n_snv_alleles", "n_counted",
-        "n_non_snv", "n_unknown_contig", "n_no_context",
+        "sample_id", "group", "n_records", "n_filter_fail", "n_snv_alleles",
+        "n_counted", "n_non_snv", "n_unknown_contig", "n_no_context",
     ]
     with open(output_file, "w", newline="") as handle:
         writer = csv.writer(handle)
@@ -269,13 +285,15 @@ def write_sample_stats(stats: Dict[str, Dict[str, object]], sample_groups: Dict[
             s = stats[sample]
             writer.writerow([
                 sample, sample_groups.get(sample, ""),
-                s["n_records"], s["n_snv_alleles"], s["n_counted"],
-                s["n_non_snv"], s["n_unknown_contig"], s["n_no_context"],
+                s["n_records"], s["n_filter_fail"], s["n_snv_alleles"],
+                s["n_counted"], s["n_non_snv"], s["n_unknown_contig"],
+                s["n_no_context"],
             ])
 
 
 def mutation_spectrum_analysis(vcf_files: Dict[str, str], sample_groups: Dict[str, str],
-                               ref_fasta: str, output_prefix: str) -> None:
+                               ref_fasta: str, output_prefix: str,
+                               pass_only: bool = True) -> None:
     """Run the full spectrum analysis and write per-sample + per-group outputs."""
     ref_seq = load_reference_genome(ref_fasta)
     sample_order = list(vcf_files.keys())
@@ -283,7 +301,7 @@ def mutation_spectrum_analysis(vcf_files: Dict[str, str], sample_groups: Dict[st
     stats: Dict[str, Dict[str, object]] = {}
     for sample in sample_order:
         logger.info(f"Processing {sample} ...")
-        res = process_vcf(vcf_files[sample], ref_seq, sample)
+        res = process_vcf(vcf_files[sample], ref_seq, sample, pass_only=pass_only)
         all_counts[sample] = res["counts"]
         stats[sample] = res
 
@@ -327,6 +345,10 @@ def parse_args():
                         help="Reference FASTA")
     parser.add_argument("-o", "--output-prefix", required=True,
                         help="Output prefix")
+    parser.add_argument("--filter", choices=["PASS", "all"], default="PASS",
+                        help="FILTER scope: PASS counts only records passing "
+                             "the VCF filters (PASS/'.'); all keeps every "
+                             "record (default: PASS)")
     parser.add_argument("-l", "--log", default=None,
                         help="Optional log file (in addition to stdout)")
     return parser.parse_args()
@@ -348,7 +370,8 @@ def main():
             f"Samples missing from the group map: {missing_groups}; "
             f"every sample in {args.vcf_map} needs a row in {args.group_map}."
         )
-    mutation_spectrum_analysis(vcf_files, sample_groups, args.ref_fasta, args.output_prefix)
+    mutation_spectrum_analysis(vcf_files, sample_groups, args.ref_fasta,
+                               args.output_prefix, pass_only=(args.filter == "PASS"))
 
 
 if __name__ == "__main__":

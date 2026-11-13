@@ -1,25 +1,27 @@
 {
-    "indir": "common/4_elements",
-    "outdir": "fiberseq_analysis/mods",
-    "logdir": "log",
-    "samples": [],
-    "contrasts": [],
-    "Params": {
-        "fiberseq_mods": {
-            "mod_type": "m6a",
-            "metric": "m6a_per_fiber",
-            "method": "auto",
-            "correction": "bh",
-            "alpha": 0.05,
-            "groups": [],
-            "ylabel": null,
-            "no_plot": false,
-            "top_n": 0,
-            "region_axis": "fire_peaks",
-            "te_level": "subfamily",
+  "indir": "common/4_elements",
+  "outdir": "fiberseq_analysis/mods",
+  "logdir": "log",
+  "samples": [],
+  "contrasts": [],
+  "Params": {
+    "fiberseq_mods": {
+      "mod_type": "m6a",
+      "groups": [],
+      "region_axis": {
+        "default": "fire_peaks",
+        "options": {
+          "te": {
             "min_fibers": 3,
-            "loci_top_n": 5,
-            "group_samples": {}
+            "loci_top_n": 5
+          },
+          "fire_peaks": {
+            "metric": "m6a_per_fiber",
+            "top_n": 0
+          }
         }
+      },
+      "group_samples": {}
     }
+  }
 }

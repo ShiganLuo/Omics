@@ -267,99 +267,125 @@
     "fiberseq_mods": {
       "enabled": {
         "type": "bool",
-        "required": false
+        "nullable": true,
+        "required": false,
+        "description": "运行 fiberseq_mods + sigtest 检验链;false 时整条不注册进 DAG"
       },
       "mod_type": {
         "type": "str",
         "nullable": true,
-        "required": false
-      },
-      "metric": {
-        "type": "str",
-        "nullable": true,
-        "required": false
-      },
-      "method": {
-        "type": "str",
-        "nullable": true,
-        "required": false
-      },
-      "correction": {
-        "type": "str",
-        "nullable": true,
-        "required": false
-      },
-      "alpha": {
-        "type": "float",
-        "nullable": true,
-        "required": false
+        "required": false,
+        "description": "修饰信号类型: cpg=5mC(读 cpg.bed.gz) / m6a=6mA(读 m6a.bed.gz);决定输入文件与输出文件名"
       },
       "groups": {
         "type": "list",
         "nullable": true,
-        "required": false
-      },
-      "no_plot": {
-        "type": "bool",
-        "nullable": true,
-        "required": false
-      },
-      "top_n": {
-        "type": "int",
-        "nullable": true,
-        "required": false
+        "required": false,
+        "description": "手工覆盖两组合名(如 [aged,youth]);留空时由 node.py 从 meta 设计自动推导——正常情况下留空"
       },
       "region_axis": {
-        "type": "str",
+        "type": "dict",
         "nullable": true,
-        "required": false
-      },
-      "te_level": {
-        "type": "str",
-        "nullable": true,
-        "required": false
-      },
-      "min_fibers": {
-        "type": "int",
-        "nullable": true,
-        "required": false
-      },
-      "loci_top_n": {
-        "type": "int",
-        "nullable": true,
-        "required": false
+        "required": false,
+        "description": "区域轴判别式对象(genome 同构 {default, options}):取值决定引擎/长表 schema/下游规则;轴专属参数在对应 options 条目内",
+        "default": {
+          "type": "str",
+          "required": true,
+          "description": "当前生效的轴: te=RepeatMasker TE locus(检验 subfamily/family 层级) / fire_peaks=各样本 FIRE peak(检验 peak)"
+        },
+        "options": {
+          "type": "dict",
+          "required": true,
+          "description": "轴枚举到属性集的闭合映射;default 必须是它的键",
+          "te": {
+            "type": "dict",
+            "nullable": true,
+            "properties": {
+              "min_fibers": {
+                "type": "int",
+                "nullable": true,
+                "description": "覆盖门控: locus 在某样本的覆盖 fiber 数 < N 时该样本的这个 locus 不进长表(不填零)"
+              },
+              "loci_top_n": {
+                "type": "int",
+                "nullable": true,
+                "description": "每个显著 TE 组内按|组间均值差|排序,top_loci.bed 只留前 N 个 locus(regionplot 浏览短名单)"
+              }
+            }
+          },
+          "fire_peaks": {
+            "type": "dict",
+            "nullable": true,
+            "properties": {
+              "metric": {
+                "type": "str",
+                "nullable": true,
+                "description": "fire_peaks 轴指标名,仅用于长表文件名({metric}_long.tsv);默认 {mod_type}_per_fiber 派生"
+              },
+              "top_n": {
+                "type": "int",
+                "nullable": true,
+                "description": "significant_objects.bed 按 p 值升序只留前 N 个 peak(0=全保留;TSV 永远全量);TE 轴下 BED 恒为空,此键无效"
+              }
+            }
+          }
+        }
       }
     },
     "sigtest": {
       "method": {
         "type": "str",
         "nullable": true,
-        "required": false
+        "required": false,
+        "description": "检验方法: auto=按数据自动选(正态+方差齐→t检验,否则 Mann-Whitney;loci 数大时几乎总落 MW) / t-test / welch / mannwhitney / wilcoxon(配对) / chi2 / fisher(计数)"
       },
       "correction": {
         "type": "str",
         "nullable": true,
-        "required": false
+        "required": false,
+        "description": "多重检验校正: bh=Benjamini-Hochberg FDR(成百上千 feature 同时检验时的正确选择) / none=不校正"
       },
       "alpha": {
         "type": "float",
         "nullable": true,
-        "required": false
+        "required": false,
+        "description": "显著性阈值;用于 auto 的正态/方差判断与 significant/stars 列的划线"
       },
       "groups": {
         "type": "list",
         "nullable": true,
-        "required": false
+        "required": false,
+        "description": "手工指定两组合名覆盖;留空时 node.py 按 contrast 自动写入 groups_by_contrast——正常情况下留空"
       },
-      "ylabel": {
-        "type": "null",
+      "feature_col": {
+        "type": "str",
         "nullable": true,
-        "required": false
+        "required": false,
+        "description": "长表中作为 feature 的列名(全局兜底);TE 轴下由 node.py 按 contrast 自动覆盖(feature_col_by_contrast),此处留 null 即可"
       },
-      "no_plot": {
-        "type": "bool",
+      "te_levels": {
+        "type": "list",
         "nullable": true,
-        "required": false
+        "required": false,
+        "description": "TE 轴检验层级: node.py 把每个组对×每层级展开成带后缀 contrast(youth_vs_aged.subfamily 等),结果并存;只要一个层级就删掉另一个"
+      },
+      "plot": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "description": "柱状图输出控制",
+        "properties": {
+          "formats": {
+            "type": "list",
+            "nullable": true,
+            "description": "图片格式列表(多种同时输出): png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba;空列表 []=不出图(吸收旧 no_plot)"
+          },
+          "ylabel": {
+            "type": "str",
+            "nullable": true,
+            "description": "柱状图 y 轴标签;null 显示 value(建议填有意义的标签如 CpG per fiber)"
+          }
+        }
       }
     },
     "coactuation": {

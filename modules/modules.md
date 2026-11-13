@@ -208,6 +208,47 @@ pandas、json、gzip …）才在模块里 import。重复导入不报错、不�
 6. **能并行不串行** — 相互独立的工作单元（多样本、多文件、分块）用多线程（I/O 密集）或多进程（CPU 密集）；注意库级锁陷阱（如 HDF5 全局锁会把多线程串行化，实测更慢，须换多进程）；并行度从 `--threads` 参数传入，合并结果后排序，保证输出确定性。琐碎工作不要为并行而并行。
 7. **大文件流式读取** — VCF/GTF/BED/FASTA 等可能上 GB 的文件逐行或分块读取（生成器、`pandas.read_csv(chunksize=...)`），不整读进内存；确需全量驻留时在注释中说明内存预算。
 8. **长耗时脚本必须有缓存机制** — 输入不变时复用已有产物，不重算：输入指纹（内容哈希或路径+大小+mtime、全部影响输出的参数）写入 stamp 文件，命中即跳过；缓存粒度对准最贵的步骤（外部工具调用），输入变了要能精确失效；提供强制重算开关（如 `--force-rerun`），默认使用缓存；开关暴露到流程配置 JSON 中。
+9. **输出图片的脚本必须支持多格式（强制）** — 凡产出图片的脚本（matplotlib/R ggplot2 等），格式必须可调且支持多种格式**同时**输出，默认支持全部格式：`png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba`（matplotlib `savefig` 全集；R 侧对应 `ggsave` 设备集）。统一形态（与既有实现 `modules/DESeq2/bin/te_subfamily_bar.py`、`src/common/util/LogUtil.py` 的 `PlotFormat` 一致）：
+    - 函数签名 `image_formats: Optional[List[PlotFormat]] = None`，`None` 时默认 `["png"]`；保存循环 `for fmt in image_formats: fig.savefig(f"{out_prefix}.{fmt}", ...)`，输出文件 = 前缀 + `.{fmt}`；
+    - CLI 用 `--format FMT`（`action="append"`，可重复传）暴露，如 `--format png --format pdf`；
+    - 流程配置 JSON 的参数段（如 `Params.<module>.formats`）为 list 类型，经 rule 的 params 逐个展开成 `--format`；规则 `output:` 用 expand 逐一声明每种格式的输出文件（格式列表来自配置，parse 期展开）；
+    - dpi 只对位图格式（png/jpg/tif 等）生效，矢量格式忽略之，无需按格式特判；
+    - 不合法格式直接报错退出并列出合法值（快速失败），不要静默跳过。
+    参照实现：`modules/DESeq2/bin/te_subfamily_bar.py`（CLI + 函数双层）；`src/eccDNA/plot_rna_dna_ratio.py`。存量出图脚本在下次触碰时收敛，不要求一次性回改。
+
+    **rule 层如何声明多格式 output**（真实样例摘自 `modules/regionplot/regionplot.smk`，三段缺一不可）：
+
+    ```python
+    # ① parse 期读入 + 规范化 + 校验（output 指令无法调用函数，格式列表
+    #    必须是模块级变量；str 收成单元素 list，非法值建图期报错）
+    _formats = p.get("formats") or ["png", "svg"]
+    if isinstance(_formats, str):
+        _formats = [_formats]
+    if not isinstance(_formats, list) or not all(isinstance(f, str) for f in _formats):
+        raise ValueError("Params.regionplot.formats must be a list of strings")
+
+    rule regionplot:
+        output:
+            # ② 按格式展开，每种格式一个输出文件
+            plots = [outdir + "/{panel}/{panel}." + fmt for fmt in _formats],
+        params:
+            # ③ 转发给 run 块，展开成脚本 CLI 参数
+            formats = _formats,
+        run:
+            cmd = ["python", params.script, ..., "--formats", *params.formats]
+
+    # 收尾规则用 expand 聚合全部格式（node.py 侧 outfiles 注册同形）
+    rule regionplot_result:
+        input:
+            plots = expand(outdir + "/{panel}/{panel}.{fmt}",
+                           panel=_panels, fmt=_formats),
+    ```
+
+    配置 JSON 侧：参数段带 `"formats": ["png", "svg"]` 默认值，schema 声明
+    `"type": "list"`。嵌套参数段（各段独立出图）每段一个 `formats` key
+    （参照 `modules/decoil/decoil.smk` 的 `structure`/`plot`/`compare`）。
+    subworkflow 接线与 node.py 注册侧的规范见 `subworkflow/subworkflow.md`
+    的「绘图模块的 formats 参数」。
 
 > 向量化与流式的取舍：向量化要求数据在内存——中小表格直接向量化；超大文件先流式过滤/聚合出小结果集，再对结果向量化。两者冲突时以"不整读大文件"优先。
 

@@ -2308,15 +2308,38 @@ def runFiberseq(
         mods_params = (datajson.setdefault("Params", {}).get("fiberseq_mods")
                        or datajson["Params"].setdefault("fiberseq_mods", {}))
         mod_type = mods_params.get("mod_type", "m6a")
-        metric = mods_params.get("metric", f"{mod_type}_per_fiber")
-        # region axis: fire_peaks (per-peak values) | te (RepeatMasker loci,
-        # coverage-weighted collapse to te_level, sigtest at that level,
-        # per-significant-group top-loci BED for regionplot browsing)
-        region_axis = mods_params.get("region_axis", "fire_peaks")
+        # region_axis is a discriminant object ({default, options}); the
+        # axis id selects the engine, the long-table schema, and which
+        # axis-specific params (min_fibers/loci_top_n vs metric/top_n)
+        # apply. Flat strings are NOT accepted (closed-set parse error).
+        _ra = mods_params.get("region_axis") or {}
+        if not isinstance(_ra, dict):
+            raise ValueError(
+                "Params.fiberseq_mods.region_axis must be a discriminant "
+                'object {default, options} (genome-shaped); flat strings '
+                "are not accepted")
+        region_axis = _ra.get("default") or "fire_peaks"
+        axis_opts = (_ra.get("options", {}) or {}).get(region_axis) or {}
+        if region_axis not in (_ra.get("options") or {}):
+            raise ValueError(
+                f"Params.fiberseq_mods.region_axis.default must name a key "
+                f"of its options (got {region_axis!r}, "
+                f"options={sorted(_ra.get('options') or {})})")
+        metric = axis_opts.get("metric", f"{mod_type}_per_fiber")
         if region_axis == "te":
-            te_level = mods_params.get("te_level", "subfamily")
-            long_name = f"te_{mod_type}_{te_level}_long.tsv"
+            # tested TE levels belong to sigtest (they choose its feature
+            # column); read there with a legacy fallback to mods
+            sigtest_params = datajson["Params"].setdefault("sigtest", {})
+            te_levels = ([lv for lv in sigtest_params.get("te_levels", ["subfamily", "family"])
+                          if lv in ("subfamily", "family")])
+            if not te_levels:
+                raise ValueError(
+                    "Params.sigtest.te_levels must name at least one of "
+                    "subfamily/family."
+                )
+            long_name = f"te_{mod_type}_long.tsv"
         else:
+            te_levels = []
             long_name = f"{metric}_long.tsv"
         # grouping: meta design ONLY (group_pairs, same source sv uses)
         if not group_pairs:
@@ -2325,27 +2348,56 @@ def runFiberseq(
                 "design/group columns filled (they drive group_pairs)."
             )
         mods_contrasts = _contrasts_from_group_pairs(group_pairs)
-        contrast_names = sorted(mods_contrasts)
+        # TE axis: one sigtest contrast per (group pair x te level) named
+        # "<contrast>.<level>"; fire_peaks axis: bare contrast names.
+        contrast_names = sorted(
+            f"{c}.{lv}" if lv else c
+            for c in mods_contrasts
+            for lv in (te_levels or [None])
+        )
         # group -> sample lists for the module (long-table group column +
         # top-loci group specs); parse-time expand needs the contrast list
         mods_params["contrasts"] = contrast_names
         mods_params["group_samples"] = {
             g: samples for ctr in mods_contrasts.values() for g, samples in ctr.items()
         }
+        # group pair per contrast ALSO into mods params: its top_loci rule
+        # reads groups_by_contrast from ITS OWN config (multi-group designs
+        # would otherwise fall back to "first two groups" for every contrast)
+        mods_params["groups_by_contrast"] = {
+            f"{c}.{lv}" if lv else c: sorted(groups)
+            for c, groups in mods_contrasts.items()
+            for lv in (te_levels or [None])
+        }
         mods_base = f"{outdir}/fiberseq_analysis/mods"
         # sigtest module wiring (subworkflow use rule): its input table is
-        # our long table; group pair per contrast comes from the same map
+        # our long table; group pair per contrast comes from the same map,
+        # feature column per contrast from the level suffix
         sigtest_params = datajson["Params"].setdefault("sigtest", {})
         sigtest_params["sigtest_table"] = f"{mods_base}/{long_name}"
         sigtest_params["contrasts"] = contrast_names
         sigtest_params["groups_by_contrast"] = {
-            c: sorted(groups) for c, groups in mods_contrasts.items()
+            f"{c}.{lv}" if lv else c: sorted(groups)
+            for c, groups in mods_contrasts.items()
+            for lv in (te_levels or [None])
         }
+        if te_levels:
+            sigtest_params["feature_col_by_contrast"] = {
+                f"{c}.{lv}": lv for c in mods_contrasts for lv in te_levels
+            }
+        # sigtest plot formats ([] = no figure; absorbs the old no_plot)
+        _st_plot = (sigtest_params.get("plot", {}) or {})
+        _plot_fmts = _st_plot.get("formats")
+        if _plot_fmts is None:
+            _plot_fmts = ["png"]
+        if isinstance(_plot_fmts, str):
+            _plot_fmts = [_plot_fmts]
         outfiles.append(f"{mods_base}/{long_name}")
         # sigtest module outputs (own subtree); mods postprocess outputs
         for contrast in contrast_names:
             outfiles.append(f"{outdir}/fiberseq_analysis/sigtest/{contrast}/significance_test.tsv")
-            outfiles.append(f"{outdir}/fiberseq_analysis/sigtest/{contrast}/significance_bars.png")
+            for fmt in _plot_fmts:
+                outfiles.append(f"{outdir}/fiberseq_analysis/sigtest/{contrast}/significance_bars.{fmt}")
             base = f"{mods_base}/{contrast}"
             outfiles.append(f"{base}/significant_objects.tsv")
             outfiles.append(f"{base}/significant_objects.bed")

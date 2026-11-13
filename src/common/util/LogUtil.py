@@ -1,5 +1,6 @@
-from typing import Optional, TextIO
+from typing import Optional, TextIO, Literal
 import logging
+PlotFormat = Literal["png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg", "jpeg", "pgf", "raw", "rgba"]
 def setup_logger(
     logger_name: str,
     level: int = logging.INFO,

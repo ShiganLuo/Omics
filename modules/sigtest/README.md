@@ -37,9 +37,10 @@ Stars: p<1e-4 `****`, <1e-3 `***`, <1e-2 `**`, <0.05 `*`, else `ns`.
 `sigtest_result` expands over it), and `Params.sigtest.*`:
 `feature_col` (default `feature`), `group_col` (`group`), `value_col`
 (`value`), `groups` ([g1, g2]; default: first two distinct labels), `method`
-(`auto`), `paired` (false), `alpha` (0.05), `correction` (`none`), `ylabel`
-(`value`), `legend` ([l1, l2]), `annotate_ns` (false), `no_errorbars`
-(false), `no_plot` (false).
+(`auto`), `paired` (false), `alpha` (0.05), `correction` (`none`), `formats`
+(repeatable image formats, default `png`; an explicit empty value = no
+figure), `ylabel` (`value`), `legend` ([l1, l2]), `annotate_ns` (false),
+`no_errorbars` (false).
 
 ## Example
 

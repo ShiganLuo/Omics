@@ -96,6 +96,11 @@ FONT_ASCENT_PT = 8.0
 BRACKET_STEP_PT = 14.0
 
 BAR_COLORS: Tuple[str, str] = ("#4C72B0", "#DD8452")
+
+# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
+# fails fast at parse time instead of dying inside savefig (modules.md #9)
+VALID_FORMATS: Tuple[str, ...] = ("png", "pdf", "svg", "ps", "eps", "tif",
+                                  "tiff", "jpg", "jpeg", "pgf", "raw", "rgba")
 BAR_WIDTH = 0.36
 
 
@@ -1164,6 +1169,7 @@ def plot_grouped_bars(
 
     out_path = Path(out_png)
     out_path.parent.mkdir(parents=True, exist_ok=True)
+    # savefig infers the format from the extension (multi-format support)
     fig.savefig(out_path, dpi=dpi)
     plt.close(fig)
     logger.info(f"Plot saved: {out_path}")
@@ -1234,8 +1240,12 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
                    help="multiple-testing correction across features")
     p.add_argument("-s", "--sep", default=None,
                    help="input delimiter; default auto-detects tab vs comma")
-    p.add_argument("--no-plot", action="store_true",
-                   help="skip the bar figure, write only the results TSV")
+    p.add_argument("--formats", action="append", dest="formats", metavar="FMT",
+                   default=None,
+                   help="image format(s) for the bar figure (png/pdf/svg/...; "
+                        "matplotlib savefig set). Repeatable, e.g. --formats png "
+                        "--formats pdf. An explicit empty value (--formats '') "
+                        "means no figure; default png when absent.")
     p.add_argument("--annotate-ns", action="store_true",
                    help="draw brackets also for non-significant features")
     p.add_argument("--no-errorbars", action="store_true",
@@ -1286,7 +1296,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     plan = (
         f"Plan: method={args.method} paired={args.paired} alpha={args.alpha} "
         f"correction={args.correction} groups={args.groups or 'auto'} "
-        f"plot={'off' if args.no_plot else 'on'}"
+        f"formats={args.formats if args.formats is not None else ['png']}"
     )
     if args.dry_run:
         logger.info(f"[DRY-RUN] {plan}")
@@ -1333,11 +1343,21 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     for test_name, count in tested["test"].value_counts().items():
         logger.info(f"  {test_name}: {count}")
 
-    if not args.no_plot:
+    # formats: None (flag absent) = default ["png"]; an explicit empty
+    # value (--formats '') = no figure. No separate boolean switch.
+    formats = ([f for f in (str(x) for x in args.formats) if f]
+               if args.formats is not None else ["png"])
+    bad = [f for f in formats if f not in VALID_FORMATS]
+    if bad:
+        raise ValueError(
+            f"Unsupported image format(s): {', '.join(bad)}; "
+            f"valid formats: {', '.join(VALID_FORMATS)}")
+    for fmt in formats:
+        out_png = str(args.outdir / f"significance_bars.{fmt}")
         plot_grouped_bars(
             df,
             results,
-            str(args.outdir / "significance_bars.png"),
+            out_png,
             feature_col=args.feature_col,
             group_col=args.group_col,
             value_col=args.value_col,
@@ -1349,6 +1369,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             show_errorbars=not args.no_errorbars,
             dpi=args.dpi,
         )
+        logger.info(f"Plot saved: {out_png}")
     return 0
 
 

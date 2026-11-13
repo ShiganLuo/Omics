@@ -13,9 +13,10 @@ include: "../../common/common.smk"
 #
 # region_axis=te switches the region axis to transposable elements:
 # per-locus quantification over a RepeatMasker TE BED (genome.repeat_bed,
-# col4 subfamily / col7 family / col8 class), coverage-weighted collapse
-# to Params.mods.te_level, sigtest at that level, and a per-significant-
-# group top-loci BED (browsing shortlist for regionplot — the family-level
+# col4 subfamily / col7 family / col8 class); the long table carries ALL
+# annotation levels, sigtest runs once per Params.sigtest.te_levels entry
+# (its feature column picks the level), and a per-significant-group
+# top-loci BED (browsing shortlist for regionplot — the family-level
 # p-value is the only statistical assertion; loci are ranked, not tested).
 #
 # Upstream contract (subworkflow passes):
@@ -41,10 +42,47 @@ def _mods_cfg() -> dict:
 
 # Parse-time directive values only (output/log/threads cannot call params):
 _mod_type = _mods_cfg().get("mod_type", "m6a")                # for output names
-_metric = _mods_cfg().get("metric", f"{_mod_type}_per_fiber")  # for output names
-_te_level = _mods_cfg().get("te_level", "subfamily")           # for output names
-_is_te = _mods_cfg().get("region_axis", "fire_peaks") == "te"  # output off-switch
-_long_name = (f"te_{_mod_type}_{_te_level}_long.tsv" if _is_te
+# region_axis is a DISCRIMINANT object (genome-style {default, options}):
+# its value selects one of N mutually exclusive region axes, and the
+# axis-specific params live INSIDE their own options entry — closed set,
+# parse-time validated (subworkflow.md JSON 规范).
+def _axis_cfg() -> dict:
+    """Active region-axis options block (params for the selected axis).
+
+    Reads Params.fiberseq_mods.region_axis.{default,options}; the default
+    must name a key of options (closed-set assertion at parse time). The
+    unselected options stay visible in config but are never read here —
+    they are part of the run's complete state, not dead weight.
+    """
+    axis = _mods_cfg().get("region_axis")
+    if not isinstance(axis, dict):
+        raise ValueError(
+            "Params.fiberseq_mods.region_axis must be a discriminant object "
+            '{default, options} (genome-shaped), e.g. {"default": "te", '
+            '"options": {"te": {...}, "fire_peaks": {...}}} — flat strings '
+            "are not accepted")
+    opts = axis.get("options") or {}
+    which = axis.get("default") or "fire_peaks"
+    if not isinstance(opts, dict) or which not in opts:
+        raise ValueError(
+            f"Params.fiberseq_mods.region_axis.default must name a key of its "
+            f"options (got default={which!r}, options={sorted(opts)})")
+    return opts[which] or {}
+
+
+_axis = _axis_cfg()
+
+
+def _axis_name() -> str:
+    """Selected axis id ('te' / 'fire_peaks' / ...)."""
+    return str((_mods_cfg().get("region_axis") or {}).get("default") or "fire_peaks")
+
+
+_is_te = _axis_name() == "te"                                   # output off-switch
+_metric = _axis.get("metric", f"{_mod_type}_per_fiber")       # for output names
+# Long table carries subfamily/family/class columns (te axis); the tested
+# level is sigtest's feature_col choice — one sweep serves every level.
+_long_name = (f"te_{_mod_type}_long.tsv" if _is_te
               else f"{_metric}_long.tsv")                     # output: longtable
 _loci_name = f"te_{_mod_type}_loci.tsv" if _is_te else None    # output: loci
 _longtable_rule_key = ("fiberseq_mods_te_longtable" if _is_te
@@ -91,8 +129,9 @@ rule fiberseq_mods_longtable:
     """Aggregate per-fiber modification calls over the region axis (long table).
 
     fire_peaks axis: per-peak values, feature = peak locus.
-    te axis: per-locus values collapsed coverage-weighted to te_level,
-    plus the per-loci table consumed by fiberseq_mods_top_loci.
+    te axis: per-locus values with subfamily/family/class annotation
+    columns (sigtest's feature column picks the tested level), plus the
+    per-loci table consumed by fiberseq_mods_top_loci.
     """
     input:
         unpack(_mods_longtable_inputs),
@@ -115,8 +154,7 @@ rule fiberseq_mods_longtable:
         group_spec = _group_samples_spec(),
         is_te = _is_te,
         mod_type = _mod_type,
-        te_level = _te_level,
-        min_fibers = int(_mods_cfg().get("min_fibers", 3)),
+        min_fibers = int(_axis.get("min_fibers", 3)),
         loci_name = _loci_name or "",
         tmp_dir = config.get("tmp_dir") or os.path.join(outdir, "tmp"),
     run:
@@ -139,7 +177,7 @@ rule fiberseq_mods_longtable:
                         f"{indir}/{s}/{s}.msp.bed.gz" for s in samples),
                     "--te", str(input.te_bed),
                     "--group-samples", params.group_spec,
-                    "--te-level", params.te_level,
+                    "--mod-type", params.mod_type,
                     "--min-fibers", str(params.min_fibers),
                     "--out-long", str(output.longtable),
                     "--out-loci", os.path.join(outdir, params.loci_name),
@@ -223,7 +261,7 @@ rule fiberseq_mods_split:
                 "--out-tsv", str(output.sig_tsv),
                 "--out-bed", str(output.sig_bed),
                 "--out-rest-tsv", str(output.rest_tsv),
-                "--top-n", str(params.p.get("top_n", 0)),
+                "--top-n", str(_axis.get("top_n", 0)),
             ]
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
@@ -264,7 +302,7 @@ rule fiberseq_mods_top_loci:
         group_spec = _group_samples_spec(),
         p = _mods_cfg(),
         mod_type = _mod_type,
-        min_fibers = int(_mods_cfg().get("min_fibers", 3)),
+        min_fibers = int(_axis.get("min_fibers", 3)),
         is_te = _is_te,
     run:
         if not params.is_te:
@@ -296,7 +334,7 @@ rule fiberseq_mods_top_loci:
                     "--loci", str(input.loci[0]),
                     "--groups", grp_spec,
                     "--value-suffix", f"{params.mod_type}_per_fiber",
-                    "--top-n", str(params.p.get("loci_top_n", 5)),
+                    "--top-n", str(_axis.get("loci_top_n", 5)),
                     "--min-fibers", str(params.min_fibers),
                     "--out-tsv", str(output.tsv[0]),
                     "--out-bed", str(output.bed[0]),

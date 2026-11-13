@@ -41,6 +41,77 @@ description: 撰写subworkflow时需要遵循此套规范
 - 配置对象统一 `_config` 后缀：`star_config_for_TEtranscripts`
 - `Procedure` / `Params` 使用 `config.get(...)` 读取，保证容错
 
+# JSON 规范（流程配置的组织方式，强制）
+
+流程 JSON（模板 `config/<Workflow>.json` 与运行时落盘的 `raw.json`）的**职责是
+记录一次运行的完整可变状态**:所有会影响行为的旋钮都出现在 JSON 里,一个键是否
+被 node.py 自动填充不是它缺席的理由——自动填充留下的 `[]`/`null` 本身就是状态
+("本次未手工覆盖")。审计/复现一次运行只看 JSON,不需要读源码。按此推出五条:
+
+## 1. 完整性:模板声明模块的全部可变量
+
+模板 JSON 是用户发现模块能力的唯一入口,也是模块参数的文档。模块参数段(`Params.<module>`)
+必须声明该模块**全部**可配置键(含覆盖类键,如 `groups`/`feature_col`),每键在
+对应 schema 里带 `description`(做什么、默认值、什么时候需要改、哪些情况留空即可)。
+死键(无任何消费点)不得保留——判断方法:grep 该键在整个消费链(`modules/<m>/` 的
+.smk 与 bin/*.py、node.py、run.py)里的读取点。
+
+## 2. 判别式对象:互斥路线用 `{default, options}` 组织(genome 同构)
+
+模块内存在互斥路线时(一个参数的取值切换引擎/输出 schema/下游规则,如
+`fiberseq_mods.region_axis`: te ↔ fire_peaks),该参数提升为**判别式对象**,
+与 `genome` 的 `{default, references}` 同构:
+
+```json
+"region_axis": {
+  "default": "te",
+  "options": {
+    "te":         { "min_fibers": 3, "loci_top_n": 5 },
+    "fire_peaks": { "metric": "cpg_per_fiber", "top_n": 0 }
+  }
+}
+```
+
+约束:
+- **子块名 ≡ 判别式枚举值**;`default` 必须是 `options` 的键(闭合集,解析处
+  建图期断言,不存在"选了 te 但 te 块丢失"的中间态)。
+- **键归属判据 = "换一条路线这个键还有意义吗"**:路线专属键(只在某条路线的
+  引擎/规则里被读)归入该路线的 options 条目;两路线共用的键留模块参数段顶层。
+- **未选路线可见但不读**:options 全量出现在 JSON 里(完整性——能看到另一条
+  路存在及其默认值),解析代码只取 `options[default]`。
+- **跨模块的路线接线归 node.py**:路线的语义若延伸进通用模块(如 TE 路线决定
+  sigtest 的 feature 列),翻译工作在 node.py(读判别式→展开→填充派生键→注册
+  对应 outfiles),通用模块的配置段不长出特定流程的路线块。
+- 解析惯用法(与 genome 同构,读代码的人学一遍即可):
+
+```python
+axis = cfg["region_axis"]                  # 必须是判别式对象(平铺字符串建图期报错)
+route = axis["options"][axis["default"]]   # 生效配置 = options[default]
+```
+
+## 3. 出图参数统一收进 `plot` 子块,`formats` 吸收开关布尔
+
+出图控制(ylabel/dpi/图例等)收进 `plot: {}` 子块;**必须含 `formats` 列表**
+(见「绘图模块的 formats 参数」),空列表 `[]` 即关图——**禁止另设 `no_plot`
+类布尔**,一个旋钮("出哪些格式")不该有两个开关且可互相矛盾。存量 `no_plot`
+在下次触碰该模块时收敛。
+
+## 4. 命名与分层
+
+- 覆盖类键(运行时被 node.py 派生值先命中,仅独立使用/手工覆盖时生效)的
+  description 必须写明"留空=自动推导"。
+- 嵌套参数段按产出物分块(参照 decoil 的 `structure`/`plot`/`compare`),块名
+  对应概念(数据侧/检验侧/图),不把六个维度的键平铺在一段里。
+- 键名自解释:并排的 `top_n`/`loci_top_n` 这类要么改名(`sig_top_n`),要么靠
+  路线分块把语义分开(已选:fire_peaks 块的 `top_n` 管 BED 截断,te 块的
+  `loci_top_n` 管 locus 短名单)。
+
+## 5. schema 同构
+
+模板 JSON 怎么嵌,schema 就怎么声明(`"type": "dict"` + 嵌套 properties/default),
+schema 校验器按嵌套路径取值;判别式对象在 schema 里同样给 `default`/`options`
+两层,保证 run.py 校验 config 时结构与语义一致。
+
 # 配置字典规范
 
 推荐包含以下字段（按需选用）：
@@ -52,6 +123,30 @@ description: 撰写subworkflow时需要遵循此套规范
 - `genome`：基因组相关路径（`fasta` / `gtf` / `index_dir` 等）
 - `ROOT_DIR`：项目根路径，**所有模块配置必须传入**（common.smk 依赖此变量定位 `src/` 和 `bin/` 脚本）
 - `env`：SIF 容器路径映射字典，**所有模块配置必须传入**（common.smk 的 `sif()` 函数依赖此字段解析 `.sif` 路径）
+
+## 绘图模块的 formats 参数（强制）
+
+每个**产出图片**的模块（自家脚本画图，或转发格式给画图工具），其参数段必须提供
+`formats` 列表参数，代表输出哪些格式的图片（多种格式同时输出）。约束：
+
+- **类型与默认**：list of str；不配置时模块自行默认（推荐 `["png"]`，浏览类
+  图推荐 `["png", "svg"]`）。合法值为 matplotlib `savefig` 全集：
+  `png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba`（R 侧对应 `ggsave` 设备集）。
+- **接线三件套**（parse 期完成，参照 `modules/regionplot/regionplot.smk`）：
+  1. 读入即规范化 + 校验（str 收成单元素 list，非法类型/元素建图期报错）；
+  2. rule `output:` 按格式展开：`plots = [outdir + "/{panel}/{panel}." + fmt for fmt in _formats]`；
+  3. `params:` 转发 `formats = _formats`，run 块展开成 CLI 参数（`"--formats", *params.formats`）。
+- **node.py 侧注册**：每种格式的输出文件逐一 append 进 `outfiles`
+  （`f"{base}/{name}.{fmt}" for fmt in formats`），保证 DAG 目标与磁盘一致。
+- 嵌套参数段（如 decoil 的 `structure`/`plot`/`compare` 各自出图）同样每段
+  一个 `formats` key，不提升到模块顶层。
+- 模板 JSON（`config/<Workflow>.json`）的对应参数段必须带 `formats` 默认值，
+  schema（`config/<Workflow>.schema.json`）声明 `"type": "list"`。
+
+参照实现：`modules/regionplot/regionplot.smk`（校验 + output 展开 + params
+转发 + result 规则 expand，全套）；`modules/decoil/decoil.smk`（嵌套参数段
+各自的 formats）；`modules/DESeq2/bin/te_subfamily_bar.py`（脚本层多格式保存
+与非法格式快速失败，见 modules.md 脚本撰写规范 #9）。
 
 # 日志规范
 

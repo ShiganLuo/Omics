@@ -8,13 +8,17 @@ every sample, computes modification calls per covering fiber (m6A or CpG,
 same call-block logic as extract_modification_longtable). A locus row is
 kept per sample only when >= min_fibers fibers cover it.
 
-Stage 2 (collapse): groups loci by subfamily (BED col4) or family (col7,
-configurable) and computes the coverage-weighted mean per group x sample —
-loci weighted by their covering-fiber count, uncovered loci excluded from
-that sample's mean. Output is the sigtest long table (feature x sample x
-group x value) at the FAMILY/SUBFAMILY level, plus a per-locus value
-table (all samples, annotation columns kept) consumed downstream to rank
-top loci within significant families.
+Stage 2 (emit): writes the sigtest long table with ONE ROW PER LOCUS x
+sample, carrying ALL annotation levels as columns (subfamily, family,
+class) — the tested level is sigtest's choice (its -f/--feature-col), so
+switching or co-running subfamily vs family reuses this one table and
+never repeats the sweeps. Every covered locus is one data point, so a
+group's n reflects its usable loci rather than its sample count (design
+that works with a single biological replicate per group). Loci with
+fibers < min_fibers in a sample are excluded from that sample's rows
+(they carry no reliable signal), not zero-filled. Also writes a
+per-locus value table (all samples wide, annotation columns kept)
+consumed downstream to rank top loci within significant families.
 
 BED format (rheMac10_rmsk_TE.lifted.bed convention):
     chrom start end subfamily score strand family class
@@ -27,8 +31,8 @@ Usage:
         --mods m6a:s1.m6a.bed.gz,m6a:s2.m6a.bed.gz \
         --msp s1.msp.bed.gz,s2.msp.bed.gz \
         --te te.sorted.bed --design design.tsv \
-        --te-level subfamily --min-fibers 3 \
-        --out-long te_m6a_subfamily_long.tsv \
+        --min-fibers 3 \
+        --out-long te_m6a_long.tsv \
         --out-loci te_m6a_loci.tsv
 """
 from __future__ import annotations
@@ -132,48 +136,46 @@ def quantify_sample(loci: List[TeLocus], mod_bed: str, msp_bed: str) -> None:
         loci[k].fibers = len({r.name for r in ov[0]})
 
 
-def collapse_to_level(
+def write_long_table(
     loci: List[TeLocus],
     per_sample: Dict[str, List[TeLocus]],
     sample_ids: Sequence[str],
+    sample_group: Dict[str, str],
     min_fibers: int,
-    level: str,
-) -> Tuple[Dict[str, Dict[str, float]], Dict[str, Tuple[str, str]], List[str]]:
-    """Coverage-weighted mean per te-level group x sample.
+    out_long: str,
+) -> Tuple[int, int]:
+    """Per-locus sigtest long table: one row per covered locus x sample.
 
-    Loci with fibers < min_fibers in a sample are excluded from THAT
-    sample's mean (they carry no reliable signal), not zero-filled —
-    a group's n naturally reflects usable loci. Returns (values, level ->
-    (family, class) annotation, level order).
+    Columns: subfamily, family, class, sample, group, value. The tested
+    feature level (subfamily or family) is sigtest's -f choice — both
+    levels ride in this one table, so switching or co-running them never
+    repeats the sweeps. Every covered locus contributes one data point,
+    so a group's n reflects its usable loci rather than its sample count
+    (works with one replicate per group). Loci with fibers < min_fibers
+    in a sample are excluded from THAT sample's rows (no reliable
+    signal), not zero-filled. Rows with neither subfamily nor family
+    annotation are dropped. Returns (n_rows, n_subfamilies).
     """
-    attr = "subfamily" if level == "subfamily" else "family"
-    sums: Dict[str, Dict[str, float]] = {}
-    weights: Dict[str, Dict[str, float]] = {}
-    annot: Dict[str, Tuple[str, str]] = {}
-    order: List[str] = []
-    for sid in sample_ids:
-        for t in per_sample[sid]:
-            if t.fibers < min_fibers:
+    subfamilies: set = set()
+    n_rows = 0
+    out = Path(out_long)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    with open(out, "w") as fh:
+        fh.write("subfamily\tfamily\tclass\tsample\tgroup\tvalue\n")
+        for i, t in enumerate(loci):
+            if t.subfamily == "." and t.family == ".":
                 continue
-            name = getattr(t, attr)
-            if name == ".":
-                continue
-            if name not in sums:
-                sums[name] = {}
-                weights[name] = {}
-                annot[name] = (t.family, t.cls)
-                order.append(name)
-            val = t.calls / t.fibers
-            sums[name][sid] = sums[name].get(sid, 0.0) + val * t.fibers
-            weights[name][sid] = weights[name].get(sid, 0.0) + t.fibers
-    values: Dict[str, Dict[str, float]] = {}
-    for name in order:
-        values[name] = {}
-        for sid in sample_ids:
-            w = weights[name].get(sid, 0.0)
-            if w > 0:
-                values[name][sid] = sums[name][sid] / w
-    return values, annot, order
+            row: List[str] = []
+            for sid in sample_ids:
+                st = per_sample[sid][i]
+                if st.fibers >= min_fibers:
+                    row.append(f"{t.subfamily}\t{t.family}\t{t.cls}\t{sid}"
+                               f"\t{sample_group[sid]}\t{st.calls / st.fibers:.6f}")
+            if row:
+                subfamilies.add(t.subfamily)
+                n_rows += len(row)
+                fh.write("\n".join(row) + "\n")
+    return n_rows, len(subfamilies)
 
 
 def sort_te_bed(te_path: str, tmp_dir: str) -> str:
@@ -233,41 +235,35 @@ def run(args: argparse.Namespace) -> int:
     te_path = sort_te_bed(args.te, args.tmp_dir)
     loci = read_te_bed(te_path)
     logger.info(
-        f"TE bed: {len(loci)} loci; level={args.te_level} "
-        f"min_fibers={args.min_fibers}; samples={sample_ids}"
+        f"TE bed: {len(loci)} loci; min_fibers={args.min_fibers}; samples={sample_ids}"
     )
-    # per-locus per-sample tables (fresh copies: values are sample-specific)
+    # per-locus per-sample tables (fresh copies: values are sample-specific);
+    # ALWAYS parse the sorted copy te_path — parsing args.te here would give
+    # a different row order than `loci` (sort_te_bed may have sorted), and the
+    # writers below join them BY INDEX.
     per_sample: Dict[str, List[TeLocus]] = {}
     for sid, mod_bed, msp_bed in zip(sample_ids, mod_beds, msp_beds):
-        sample_loci = read_te_bed(args.te)
+        sample_loci = read_te_bed(te_path)
         quantify_sample(sample_loci, mod_bed, msp_bed)
         per_sample[sid] = sample_loci
         n_cov = sum(1 for t in sample_loci if t.fibers >= args.min_fibers)
         logger.info(f"sample {sid}: {n_cov}/{len(sample_loci)} loci covered "
                     f"(>= {args.min_fibers} fibers)")
 
-    values, annot, order = collapse_to_level(
-        loci, per_sample, sample_ids, args.min_fibers, args.te_level
+    # per-locus long table for sigtest: all annotation levels as columns,
+    # the tested level is sigtest's -f choice (one sweep serves both)
+    n_rows, n_subfam = write_long_table(
+        loci, per_sample, sample_ids, sample_group,
+        args.min_fibers, args.out_long,
     )
-    # family-level long table for sigtest
-    out = Path(args.out_long)
-    out.parent.mkdir(parents=True, exist_ok=True)
-    with open(out, "w") as fh:
-        fh.write("feature\tsample\tgroup\tvalue\n")
-        for name in order:
-            for sid in sample_ids:
-                if sid in values[name]:
-                    fh.write(
-                        f"{name}\t{sid}\t{sample_group[sid]}\t"
-                        f"{values[name][sid]:.6f}\n"
-                    )
-    logger.info(f"Wrote family-level long table: {out} ({len(order)} {args.te_level}s)")
+    logger.info(f"Wrote per-locus long table: {args.out_long} "
+                f"({n_rows} rows, {n_subfam} subfamilies)")
 
     # per-locus table (all samples wide + annotation) for top-loci ranking
     loci_out = Path(args.out_loci)
     with open(loci_out, "w") as fh:
         fh.write("chrom\tstart\tend\tsubfamily\tfamily\tclass\t"
-                 + "\t".join(f"{s}.m6a_per_fiber" for s in sample_ids)
+                 + "\t".join(f"{s}.{args.mod_type}_per_fiber" for s in sample_ids)
                  + "\t" + "\t".join(f"{s}.fibers" for s in sample_ids) + "\n")
         for i, t in enumerate(loci):
             vals = []
@@ -296,13 +292,14 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
                    help="TE BED sorted k1,1 -k2,2n (col4 subfamily, col7 family, col8 class)")
     p.add_argument("--group-samples", required=True,
                    help="group spec 'gA:s1+s2,gB:s3' (sample -> group mapping)")
-    p.add_argument("--te-level", choices=["subfamily", "family"],
-                   default="subfamily",
-                   help="collapse/test level (subfamily = col4, family = col7)")
+    p.add_argument("--mod-type", default="m6a",
+                   help="modification flavor (m6a/cpg); names the per-locus "
+                        "table value columns <sample>.<mod>_per_fiber")
     p.add_argument("--min-fibers", type=int, default=3,
                    help="per-sample locus coverage gate for collapsing")
     p.add_argument("--out-long", required=True,
-                   help="family-level sigtest long TSV")
+                   help="per-locus sigtest long TSV (subfamily/family/class "
+                        "annotation columns; sigtest -f picks the level)")
     p.add_argument("--out-loci", required=True,
                    help="per-locus value TSV (top-loci ranking input)")
     p.add_argument("--tmp-dir", default="/tmp",

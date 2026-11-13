@@ -161,7 +161,7 @@ def run(args: argparse.Namespace) -> int:
     logger.info(f"significant groups from {args.sig}: {len(sig_names)}")
 
     rows, _samples = read_loci(args.loci, groups, args.value_suffix)
-    # bucket loci by BOTH subfamily and family so either te_level matches
+    # bucket loci by BOTH subfamily and family so either tested level matches
     by_level: Dict[str, List[dict]] = {}
     for row in rows:
         for key in (row["subfamily"], row["family"]):

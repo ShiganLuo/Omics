@@ -29,12 +29,31 @@ def _sigtest_table(wildcards):
     )
 
 
+# Plot formats (modules.md #9 / subworkflow.md formats 规范): list of
+# matplotlib savefig formats, one output file per entry; [] = no figure
+# (absorbs the old no_plot boolean). Validated at parse time.
+_plot_formats = (sigtest_params.get("plot", {}) or {}).get("formats")
+if _plot_formats is None:
+    _plot_formats = ["png"]
+if isinstance(_plot_formats, str):
+    _plot_formats = [_plot_formats]
+if not isinstance(_plot_formats, list) or not all(isinstance(f, str) for f in _plot_formats):
+    raise ValueError("Params.sigtest.plot.formats must be a list of strings")
+_bad_fmts = [f for f in _plot_formats if f not in ("png", "pdf", "svg", "ps", "eps",
+                                                   "tif", "tiff", "jpg", "jpeg",
+                                                   "pgf", "raw", "rgba")]
+if _bad_fmts:
+    raise ValueError(f"Params.sigtest.plot.formats holds unsupported format(s): "
+                     f"{', '.join(_bad_fmts)}")
+
+
 rule sigtest_run:
     input:
         table = _sigtest_table,
     output:
         tsv = outdir + "/{contrast}/significance_test.tsv",
-        png = outdir + "/{contrast}/significance_bars.png",
+        plots = [outdir + "/{contrast}/significance_bars." + fmt
+                 for fmt in _plot_formats],
     log:
         logdir + "/sigtest/{contrast}.log"
     threads: rule_res("sigtest_run").get("threads", 1)
@@ -43,6 +62,7 @@ rule sigtest_run:
     params:
         sigtest_script = os.path.join(ROOT_DIR, "modules", "sigtest", "bin", "sigtest.py"),
         p = sigtest_params,
+        formats = _plot_formats,
     conda:
         "sigtest.yaml"
     container:
@@ -62,7 +82,11 @@ rule sigtest_run:
                 "python", params.sigtest_script,
                 "-i", str(input.table),
                 "-o", sample_outdir,
-                "-f", params.p.get("feature_col") or "feature",
+                # per-contrast feature column (e.g. TE subfamily vs family
+                # level rides on ONE long table) with the global fallback
+                "-f", (params.p.get("feature_col_by_contrast", {})
+                       .get(str(wildcards.contrast))
+                       or params.p.get("feature_col") or "feature"),
                 "--group-col", params.p.get("group_col") or "group",
                 "-v", params.p.get("value_col") or "value",
                 "-m", params.p.get("method") or "auto",
@@ -82,8 +106,9 @@ rule sigtest_run:
                 cmd += ["--annotate-ns"]
             if params.p.get("no_errorbars"):
                 cmd += ["--no-errorbars"]
-            if params.p.get("no_plot"):
-                cmd += ["--no-plot"]
+            # one --formats flag per requested format; empty list = no figure
+            for fmt in params.formats:
+                cmd += ["--formats", str(fmt)]
             legend = params.p.get("legend") or []
             if len(legend) == 2:
                 cmd += ["--legend", str(legend[0]), str(legend[1])]
@@ -108,4 +133,5 @@ rule sigtest_run:
 rule sigtest_result:
     input:
         tsv = expand(outdir + "/{contrast}/significance_test.tsv", contrast=sigtest_contrasts),
-        png = expand(outdir + "/{contrast}/significance_bars.png", contrast=sigtest_contrasts),
+        plots = expand(outdir + "/{contrast}/significance_bars.{fmt}",
+                       contrast=sigtest_contrasts, fmt=_plot_formats),

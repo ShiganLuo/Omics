@@ -45,7 +45,25 @@
             "type": "str",
             "nullable": true,
             "required": false,
-            "default": "feature"
+            "default": "feature",
+            "description": "feature column in the long table (subfamily/family on the TE axis)"
+          },
+          "feature_col_by_contrast": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "default": {},
+            "description": "per-contrast feature column override (node.py fills it for TE levels)"
+          },
+          "te_levels": {
+            "type": "list",
+            "nullable": true,
+            "required": false,
+            "default": [
+              "subfamily",
+              "family"
+            ],
+            "description": "TE annotation levels to sigtest, one contrast per level (mods TE axis; long table carries all levels)"
           },
           "group_col": {
             "type": "str",
@@ -113,11 +131,32 @@
             "required": false,
             "default": false
           },
-          "no_plot": {
-            "type": "bool",
+          "plot": {
+            "type": "dict",
             "nullable": true,
             "required": false,
-            "default": false
+            "default": {
+              "formats": [
+                "png"
+              ],
+              "ylabel": "value"
+            },
+            "properties": {
+              "formats": {
+                "type": "list",
+                "nullable": true,
+                "default": [
+                  "png"
+                ],
+                "description": "图片格式(多种同时输出);[] = 不出图(吸收旧 no_plot)"
+              },
+              "ylabel": {
+                "type": "str",
+                "nullable": true,
+                "default": "value",
+                "description": "柱状图 y 轴标签"
+              }
+            }
           }
         }
       }

@@ -56,6 +56,11 @@ if os.path.isdir(_STATISTICS_PLOT_DIR) and _STATISTICS_PLOT_DIR not in sys.path:
 
 PlotFormat = str
 
+# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
+# fails fast at parse time instead of dying inside savefig (modules.md #9)
+VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
+                 "jpeg", "pgf", "raw", "rgba")
+
 GROUP_PALETTE = [
     "#4C72B0", "#DD8452", "#55A868", "#C44E52", "#8172B3",
     "#937860", "#64B5CD", "#CCB974",
@@ -300,6 +305,11 @@ def plot_subfamily_bars(
     """
     if image_formats is None:
         image_formats = ["png"]
+    bad = [f for f in image_formats if f not in VALID_FORMATS]
+    if bad:
+        raise ValueError(
+            f"Unsupported image format(s): {', '.join(bad)}; "
+            f"valid formats: {', '.join(VALID_FORMATS)}")
     groups = [str(g) for g in annot["group"].cat.categories]
     group_of = annot.set_index("sample")["group"].astype(str)
 

@@ -281,25 +281,37 @@
     "fiberseq_mods": {
       "enabled": true,
       "mod_type": "cpg",
-      "metric": "cpg_per_fiber",
-      "method": "auto",
-      "correction": "bh",
-      "alpha": 0.05,
       "groups": [],
-      "no_plot": false,
-      "top_n": 0,
-      "region_axis": "te",
-      "te_level": "subfamily",
-      "min_fibers": 3,
-      "loci_top_n": 5
+      "region_axis": {
+        "default": "te",
+        "options": {
+          "te": {
+            "min_fibers": 3,
+            "loci_top_n": 5
+          },
+          "fire_peaks": {
+            "metric": "cpg_per_fiber",
+            "top_n": 0
+          }
+        }
+      }
     },
     "sigtest": {
       "method": "auto",
       "correction": "bh",
       "alpha": 0.05,
       "groups": [],
-      "ylabel": null,
-      "no_plot": false
+      "feature_col": null,
+      "te_levels": [
+        "subfamily",
+        "family"
+      ],
+      "plot": {
+        "formats": [
+          "png"
+        ],
+        "ylabel": null
+      }
     },
     "coactuation": {
       "enabled": true,

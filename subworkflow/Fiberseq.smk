@@ -358,12 +358,11 @@ use rule fiberseq_quant_hap from fiberseq_quant as Fiberseq_quant_hap
 use rule fiberseq_quant_merge from fiberseq_quant as Fiberseq_quant_merge
 
 # ============================================================
-# Modification significance (fiberseq/mods -> sigtest -> mods):
-#   m6A/CpG calls over FIRE peaks or TE loci -> long table ->
-#   sigtest per contrast (its own module, file interface) ->
-#   significant objects TSV + regionplot-ready BED + TE top loci.
-#   node.py derives contrasts/group_samples from the meta design
-#   (group_pairs) and gates registration via Params.fiberseq_mods.
+# Modification significance (fiberseq/mods): m6A/CpG calls over FIRE peaks
+# or TE loci -> long table -> sigtest per contrast x tested level (its own
+# module, file interface) -> significant objects TSV + regionplot-ready
+# BED + TE top loci. node.py derives contrasts/group_samples from the meta
+# design (group_pairs) and gates registration via Params.fiberseq_mods.
 # ============================================================
 # sigtest module output dir — hoisted so both configs reference one
 # definition (subworkflow executes sequentially; no forward refs)

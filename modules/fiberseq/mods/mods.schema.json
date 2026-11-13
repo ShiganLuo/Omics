@@ -39,65 +39,37 @@
             "nullable": true,
             "required": false
           },
-          "metric": {
-            "type": "str",
-            "nullable": true,
-            "required": false
-          },
-          "method": {
-            "type": "str",
-            "nullable": true,
-            "required": false
-          },
-          "correction": {
-            "type": "str",
-            "nullable": true,
-            "required": false
-          },
-          "alpha": {
-            "type": "float",
-            "nullable": true,
-            "required": false
-          },
           "groups": {
             "type": "list",
             "nullable": true,
             "required": false
           },
-          "ylabel": {
-            "type": "null",
-            "nullable": true,
-            "required": false
-          },
-          "no_plot": {
-            "type": "bool",
-            "nullable": true,
-            "required": false
-          },
-          "top_n": {
-            "type": "int",
-            "nullable": true,
-            "required": false
-          },
           "region_axis": {
-            "type": "str",
+            "type": "dict",
             "nullable": true,
-            "required": false
-          },
-          "te_level": {
-            "type": "str",
-            "nullable": true,
-            "required": false
-          },
-          "min_fibers": {
-            "type": "int",
-            "nullable": true,
-            "required": false
-          },
-          "loci_top_n": {
-            "type": "int",
-            "nullable": true,
-            "required": false
+            "required": false,
+            "default": {
+              "default": "fire_peaks",
+              "options": {
+                "te": {
+                  "min_fibers": 3,
+                  "loci_top_n": 5
+                },
+                "fire_peaks": {
+                  "metric": "m6a_per_fiber",
+                  "top_n": 0
+                }
+              }
+            },
+            "description": "区域轴判别式对象 {default, options}(genome 同构):轴专属参数在对应 options 条目内",
+            "default_prop": {
+              "type": "str",
+              "required": true
+            },
+            "options": {
+              "type": "dict",
+              "required": true
+            }
           },
           "group_samples": {
             "type": "dict",

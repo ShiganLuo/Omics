@@ -4,11 +4,14 @@ import glob
 import json
 import os
 import re
+import signal
+import sys
 from src.common.util.MetaUtil import MetadataUtils
 from src.common.util.LogUtil import setup_logger
 from src.common.util.CmdUtil import _run_cmd, _run_cmds_parallel
 from src.common.util.SchemaValidatorUtil import SchemaValidator, smart_cast
 from src.common.util.EnvUtil import is_path_like
+from src.common.util.CallbackUtil import ExecutionCallback, DEFAULT_CALLBACK_URL
 from node import runCoCulture, runMERIP, runRNAseq, runncRNAseq, runCLIP, runMutation, runPacVar, runKARRseq, runPeakCalling, runRIPseq, runQuantMS, runtRNAseq, runscRNAseq, runFiberseq, runLRtranscriptome, runDR
 import logging
 from typing import Dict, Any, List, Optional, Tuple, Set, Union
@@ -107,6 +110,17 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('--test', type=str, nargs='?', const='all', metavar='WORKFLOW',
         help='run dry-run test for a workflow (or "all"). Auto-sets meta/output/dry-run from test/ directory')
     parser.add_argument('--log', type=str, default='workflow.log', help='log file')
+    parser.add_argument('--callback-url', type=str, default=None,
+        help='execution callback endpoint (default: env BIPLATFORM_CALLBACK_URL '
+             'or ' + DEFAULT_CALLBACK_URL + ')')
+    parser.add_argument('--callback-execution-id', type=str, default=None,
+        help='execution id reported to the callback endpoint (default: env '
+             'BIPLATFORM_EXECUTION_ID or EXECUTION_ID)')
+    parser.add_argument('--callback-token', type=str, default=None,
+        help='per-execution callback token (default: env '
+             'BIPLATFORM_CALLBACK_TOKEN)')
+    parser.add_argument('--no-callback', action='store_true',
+        help='disable the execution callback even when id/token are configured')
     parser.add_argument('--conda-prefix', type=str, default=None, help='conda prefix for snakemake (required when NOT using --sdm apptainer)')
     parser.add_argument('--sdm', action='store_const', const='apptainer', default=None,
         help='use apptainer container backend (SIF images). When set, --use-conda is omitted')
@@ -1044,22 +1058,102 @@ def execute_workflows(args: argparse.Namespace, root_dir: str, logger: logging.L
             logger.info("All workflows completed.")
 
 
+def _build_execution_callback(args: argparse.Namespace,
+                              logger: logging.Logger) -> Optional[ExecutionCallback]:
+    """Resolve the execution callback from CLI flags and environment.
+
+    CLI flags win over environment variables; the callback arms only when
+    BOTH the execution id and the token resolve (both required by the
+    platform API). A partially configured setup logs a warning and stays
+    disarmed.
+
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Parsed CLI arguments (callback-url / callback-execution-id /
+        callback-token / no-callback).
+    logger : logging.Logger
+
+    Returns
+    -------
+    ExecutionCallback or None
+        None when disabled (--no-callback) or not fully configured.
+    """
+    if getattr(args, "no_callback", False):
+        logger.info("execution callback disabled by --no-callback")
+        return None
+    url = (args.callback_url or os.environ.get("BIPLATFORM_CALLBACK_URL")
+           or DEFAULT_CALLBACK_URL)
+    exec_id = (args.callback_execution_id
+               or os.environ.get("BIPLATFORM_EXECUTION_ID")
+               or os.environ.get("EXECUTION_ID"))
+    token = args.callback_token or os.environ.get("BIPLATFORM_CALLBACK_TOKEN")
+    if not exec_id or not token:
+        if exec_id or token:
+            logger.warning(
+                "execution callback not armed: BOTH execution id and token "
+                "are required (id: --callback-execution-id or env "
+                "BIPLATFORM_EXECUTION_ID/EXECUTION_ID; token: "
+                "--callback-token or env BIPLATFORM_CALLBACK_TOKEN)")
+        return None
+    cb = ExecutionCallback(url, exec_id, token, logger=logger)
+    logger.info(f"execution callback armed: url={url} executionId={cb.execution_id}")
+    return cb
+
+
 if __name__ == "__main__":
     args = parse_args()
-    if args.mem_mb is None:
-        args.mem_mb = _detect_total_mem_mb()
-    ROOT_DIR = os.path.dirname(__file__)
 
-    # Warn if --touch and --dry-run are both specified
-    if args.touch and args.dry_run:
-        logger.warning("--touch 和 --dry-run 同时指定，--dry-run 会阻止 --touch 生效，将忽略 --touch")
-        args.touch = False
+    # Execution callback: report the terminal state to the BI platform
+    # exactly once (ExecutionCallback guards the once-semantics); callback
+    # failures never change the exit path below.
+    callback = _build_execution_callback(args, logger)
 
-    # Configure args based on mode
-    if args.test is not None:
-        setup_test_args(args, ROOT_DIR)
-    else:
-        setup_normal_args(args)
+    def _on_terminate(signum, frame):
+        if callback is not None:
+            callback.send("CANCELLED", message=f"terminated by signal {signum}",
+                          exit_code=128 + signum)
+        os._exit(128 + signum)
 
-    logger = setup_logger("root", level=logging.DEBUG, log_file=args.log)
-    execute_workflows(args, ROOT_DIR, logger)
+    signal.signal(signal.SIGTERM, _on_terminate)
+
+    try:
+        if args.mem_mb is None:
+            args.mem_mb = _detect_total_mem_mb()
+        ROOT_DIR = os.path.dirname(__file__)
+
+        # Warn if --touch and --dry-run are both specified
+        if args.touch and args.dry_run:
+            logger.warning("--touch 和 --dry-run 同时指定，--dry-run 会阻止 --touch 生效，将忽略 --touch")
+            args.touch = False
+
+        # Configure args based on mode
+        if args.test is not None:
+            setup_test_args(args, ROOT_DIR)
+        else:
+            setup_normal_args(args)
+
+        logger = setup_logger("root", level=logging.DEBUG, log_file=args.log)
+        execute_workflows(args, ROOT_DIR, logger)
+    except SystemExit as e:
+        code = e.code
+        if isinstance(code, str):
+            if callback is not None:
+                callback.send("FAILED", message=code, exit_code=1)
+            raise
+        code = 0 if code is None else int(code)
+        if callback is not None:
+            callback.send("SUCCESS" if code == 0 else "FAILED",
+                          message="" if code == 0 else f"run.py exited with code {code}",
+                          exit_code=code)
+        raise
+    except KeyboardInterrupt:
+        if callback is not None:
+            callback.send("CANCELLED", message="interrupted (SIGINT)", exit_code=130)
+        sys.exit(130)
+    except Exception as e:
+        if callback is not None:
+            callback.send("FAILED", message=f"{type(e).__name__}: {e}", exit_code=1)
+        raise
+    if callback is not None:
+        callback.send("SUCCESS", exit_code=0)

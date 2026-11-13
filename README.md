@@ -452,6 +452,7 @@ python workflow/Omics/run.py \
 - `--list-target-rules`：列出工作流中可作为目标的规则（不含通配符），不执行。
 - `--list-rules`：列出工作流中所有规则（含带通配符的），不执行。
 - `--no-schema-validate`：禁用 schema 感知的 extra_args 类型矫正（默认启用）。
+- `--callback-url` / `--callback-execution-id` / `--callback-token` / `--no-callback`：执行状态回调（BI 平台），见「执行状态回调」。
 - `--snakemake-args`：透传给 Snakemake 的额外参数，放在这个标志后面，例如 `--snakemake-args --keep-going --rerun-incomplete`。
 
 `run.py` 还支持额外参数透传给配置文件：
@@ -459,6 +460,43 @@ python workflow/Omics/run.py \
 - `--key value`
 - `--key=value`
 - 嵌套字段：`--Params.trim_galore.quality 10`
+
+### 执行状态回调（BI 平台）
+
+`run.py` 在流程结束或异常终止时向 BI 平台的执行回调接口发一条状态消息（POST,免登录,凭每执行专属令牌）：
+
+```
+POST http://127.0.0.1:8083/api/public/executions/callback
+{
+  "executionId": 12,
+  "token": "<每执行专属>",
+  "status": "SUCCESS | FAILED | CANCELLED",
+  "message": "失败原因等(可选)",
+  "exitCode": 0
+}
+```
+
+配置来源（CLI 优先于环境变量，两者可混用）：
+
+| 字段 | CLI | 环境变量 | 说明 |
+| --- | --- | --- | --- |
+| 接口地址 | `--callback-url` | `BIPLATFORM_CALLBACK_URL` | 默认 `http://127.0.0.1:8083/api/public/executions/callback` |
+| executionId | `--callback-execution-id` | `BIPLATFORM_EXECUTION_ID` 或 `EXECUTION_ID` | 必填，数字自动转 int |
+| token | `--callback-token` | `BIPLATFORM_CALLBACK_TOKEN` | 必填，每执行专属 |
+
+行为约定：
+
+- **id 与 token 都到位才布防**；只给其一只告警不上报。`--no-callback` 强制关闭（手工重跑时避免打扰平台）。
+- 状态映射：全部成功 → `SUCCESS`（exitCode=0）；任意失败/异常 → `FAILED`（exitCode=退出码，`message` 带异常文本）；SIGTERM → `CANCELLED`（exitCode=143），SIGINT → `CANCELLED`（exitCode=130）。
+- **每个进程只发一次**（信号与异常竞态也有守护），回调失败（超时/拒绝）只记告警，**绝不改变流程退出码**；单次超时 10 秒，失败重试 1 次。
+- `run_module.py` 不发回调（一次执行只报一次）。
+
+示例：
+
+```bash
+BIPLATFORM_EXECUTION_ID=12 BIPLATFORM_CALLBACK_TOKEN=xxx \
+python workflow/Omics/run.py -m data/meta.tsv -w RNAseq -o output --sdm
+```
 
 ### 单模块运行（`run_module.py`）
 

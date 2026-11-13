@@ -145,7 +145,12 @@
     },
     "sexcheck": {
       "ratio_xy_threshold": null,
-      "y_min_frac": null
+      "y_min_frac": null,
+      "data_type": "RNA",
+      "xist_gene": null,
+      "y_genes": null,
+      "y_min_rpkm": null,
+      "xist_min_rpkm": null
     }
   },
   "genome": {

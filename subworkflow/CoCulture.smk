@@ -117,6 +117,12 @@ sexcheck_config = {
             g: (refs.get("sex_chroms") or [None, None])[:2]
             for g, refs in (config.get("genome", {}) or {}).get("references", {}).items()
         },
+        # RNA-mode marker lookup per genome {genome: gtf}
+        "gtf_map": {
+            g: refs.get("gtf")
+            for g, refs in (config.get("genome", {}) or {}).get("references", {}).items()
+            if refs.get("gtf")
+        },
         # per-sample genome assignment (pure sample_id keys)
         "samples": {
             s: g

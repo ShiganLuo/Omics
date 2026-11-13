@@ -1,9 +1,10 @@
 {
   "env": {
-    "env_dir": "/home/luosg/Database/env",
-    "minimap2": "/home/luosg/Database/env/minimap2/minimap2.sif",
-    "StringTie": "/home/luosg/Database/env/StringTie/StringTie.sif",
-    "sexcheck": "/data/16T/Database/env/fragment_size/fragment_size.sif"
+    "env_dir": "/data/16T/Database/env",
+    "minimap2": "/data/16T/Database/env/minimap2/minimap2.sif",
+    "StringTie": "/data/16T/Database/env/StringTie/StringTie.sif",
+    "sexcheck": "/data/16T/Database/env/fragment_size/fragment_size.sif",
+    "qc_summary": "/data/16T/Database/env/report/report.sif"
   },
   "indir": "input",
   "outdir": "output",
@@ -23,19 +24,26 @@
     },
     "sexcheck": {
       "ratio_xy_threshold": null,
-      "y_min_frac": null
+      "y_min_frac": null,
+      "data_type": "RNA",
+      "xist_gene": null,
+      "y_genes": null,
+      "y_min_rpkm": null,
+      "xist_min_rpkm": null
     }
   },
   "genome": {
     "default": "GRCm39",
     "references": {
       "GRCm39": {
-        "fasta": "/path/to/genome.fa",
-        "gtf": "/path/to/genes.gtf"
+        "fasta": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
+        "gtf": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf",
+        "sex_chroms": ["chrX", "chrY"]
       },
       "GRCh38": {
-        "fasta": "/path/to/genome.fa",
-        "gtf": "/path/to/genes.gtf"
+        "fasta": "/data/16T/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa",
+        "gtf": "/data/16T/Database/Reference/human/GENCODE/GRCh38/gencode.v49.primary_assembly.basic.annotation.gtf",
+        "sex_chroms": ["chrX", "chrY"]
       }
     }
   }

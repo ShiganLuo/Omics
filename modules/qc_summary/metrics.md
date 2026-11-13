@@ -135,14 +135,20 @@ normal 及未配对样本为 NA。
 | 指标 | 含义 | 计算原理 | 反映了什么 / 怎么看 |
 |---|---|---|---|
 | `msi_score` | 微卫星不稳定分数 | MSIsensor-pro `msi` 输出 tsv 数据行第 3 列（总位点数、可评估位点数、score） | ≥ 2 为 MSI-H 常用阈值（MSIsensor 系惯例，具体以临床指南为准）；tumor-only 无配对 normal 时可信度降低，解读需谨慎 |
-| `sex_sex` | 样本性别判定 | sexcheck 模块按性染色体长度归一化覆盖度（reads/Mb）比值判型；XY=Y 有覆盖且比值低、XX=Y 近零、unknown=参考无 chrY 或落在模糊带 | 与 meta 表性别列不符提示样本混淆/标签错误；unknown 不判好坏，先查参考是否含 chrY |
+| `sex_sex` | 样本性别判定 | sexcheck 模块判型（DNA 模式按性染色体覆盖度比值，RNA 模式按标记基因表达，见 §8）；XY/XX/unknown | 与 meta 表性别列不符提示样本混淆/标签错误；unknown 不判好坏，先查参考是否含 chrY / 标记基因 |
 | `sex_ratio_x_to_y` | X/Y 归一化覆盖度比值 | `x_reads_per_mb / y_reads_per_mb`（inf 表示 Y 覆盖为 0） | 判型依据本身；XY 预期 <1 区间、XX 预期 inf 或极大；落中间带输出 unknown |
+| `sex_xist_rpkm` / `sex_y_rpkm_sum` | RNA 模式判型指标 | XIST 与 Y 连锁标记基因的 RPKM（reads / 基因长度kb / 总 mapped 百万） | XY=y 高 xist 低、XX=xist 高 y 低；两者皆高/皆低输出 unknown |
 
 ---
 
 ## 8. 性别判定（sexcheck，run 级整表）
 
-sexcheck.tsv 为全流程一张表（每样本一行），解析时整表读入、按 sample_id 取行，全部列以 `sex_` 前缀收录。核心两列（`sex_sex`/`sex_ratio_x_to_y`）进 core 列序；其余覆盖度明细列（`sex_x_reads_per_mb`、`sex_y_reads_per_mb`、`sex_x_mapped` 等）追加在表尾备查。
+sexcheck.tsv 为全流程一张表（每样本一行），解析时整表读入、按 sample_id 取行，全部列以 `sex_` 前缀收录。核心列 `sex_sex` 进 core 列序；其余明细列追加在表尾备查。
+
+sexcheck 支持两种判型逻辑，由 `Params.sexcheck.data_type` 选择：
+
+- **DNA（默认）**：性染色体长度归一化覆盖度（reads/Mb）比值判型；XY=Y 有覆盖且比值低于阈值、XX=Y 近零或比值高、unknown=参考无 chrY 或落在模糊带。明细列 `sex_ratio_x_to_y`、`sex_x_reads_per_mb`、`sex_y_reads_per_mb`、`sex_x_mapped` 等。注意该指标对转录组数据无效（Y 基因表达稀疏，雄性样本也会落进 XX 区）。
+- **RNA**（`data_type: "RNA"`，LRtranscriptome 流程默认启用）：XIST + Y 连锁标记基因（默认 Ddx3y/Eif2s3y/Kdm5d/Uty/Usp9y，按 GTF `gene_name` 大小写不敏感匹配，`xist_gene`/`y_genes` 可覆盖）表达量判型。XY=`y_rpkm_sum >= y_min_rpkm` 且 `xist_rpkm < xist_min_rpkm`、XX=镜像条件、unknown=两者皆有/皆无、标记基因缺失或样本无 BAM。明细列 `sex_xist_rpkm`、`sex_y_rpkm_sum`、`sex_y_rpkm_max`、`sex_y_rpkm_detail`、`sex_total_mapped` 等；阈值 `y_min_rpkm`（默认 0.5）、`xist_min_rpkm`（默认 0.1）可调。
 
 
 ## 指标登记规范（新增指标时）

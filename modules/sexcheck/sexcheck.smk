@@ -18,6 +18,14 @@ _sex_chroms = (config.get("genome", {}) or {}).get("sex_chroms") or []
 X_CHROM = _sex_chroms[0] if len(_sex_chroms) > 0 else None
 Y_CHROM = _sex_chroms[1] if len(_sex_chroms) > 1 else None
 
+# Marker-expression (RNA) mode wiring: Params.sexcheck.data_type selects the
+# calling logic ("DNA" = coverage ratio, "RNA" = XIST/Y-marker expression);
+# genome.gtf feeds the marker-gene lookup (RNA mode only), genome.gtf_map
+# {genome: gtf} for multi-genome runs.
+_sex_params = (config.get("Params", {}) or {}).get("sexcheck", {}) or {}
+gtf_path = (config.get("genome", {}) or {}).get("gtf")
+gtf_map = (config.get("genome", {}) or {}).get("gtf_map") or {}
+
 
 rule sexcheck_idxstats:
     """Per-sample samtools idxstats (chrom/length/mapped/unmapped) tagged
@@ -74,6 +82,9 @@ rule sexcheck:
     input:
         idxstats=expand(outdir + "/idxstats/{sample_id}/{sample_id}.idxstats.tsv",
                         sample_id=list(sample_bams)),
+        # consumed by RNA-mode marker counting; empty when no gtf is wired
+        bams=sorted(set(sample_bams.values())),
+        gtf=(gtf_path if gtf_path else []),
     output:
         tsv=outdir + "/sexcheck.tsv",
         done=outdir + "/sexcheck.done",
@@ -100,9 +111,25 @@ rule sexcheck:
         # numeric-only passthrough: null placeholders (and test-mode path
         # injections) fall back to the script's own defaults
         ratio=(lambda v: v if isinstance(v, (int, float)) else None)(
-            config.get("Params", {}).get("sexcheck", {}).get("ratio_xy_threshold")),
+            _sex_params.get("ratio_xy_threshold")),
         y_min=(lambda v: v if isinstance(v, (int, float)) else None)(
-            config.get("Params", {}).get("sexcheck", {}).get("y_min_frac")),
+            _sex_params.get("y_min_frac")),
+        # RNA-mode passthrough: data_type selects the calling logic; marker
+        # gene/threshold overrides fall back to the script's own defaults
+        data_type=(lambda v: str(v).upper() if v else None)(
+            _sex_params.get("data_type")),
+        gtf=gtf_path,
+        gtf_map=gtf_map,
+        bam_map=sample_bams,
+        xist_gene=_sex_params.get("xist_gene"),
+        # accept a comma string or a list in config; the script takes CSV
+        y_genes=(lambda v: ",".join(v) if isinstance(v, list) else v)(
+            _sex_params.get("y_genes")),
+        y_min_rpkm=(lambda v: v if isinstance(v, (int, float)) else None)(
+            _sex_params.get("y_min_rpkm")),
+        xist_min_rpkm=(lambda v: v if isinstance(v, (int, float)) else None)(
+            _sex_params.get("xist_min_rpkm")),
+        samtools_cmd=config.get("Procedure", {}).get("samtools") or "samtools",
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -135,6 +162,24 @@ rule sexcheck:
                 cmd += ["--sex-chroms-map", json.dumps(params.sex_chroms_map)]
             for s, g in (params.sample_genomes or {}).items():
                 cmd += ["--sample-genome", f"{s}={g}"]
+            if params.data_type:
+                cmd += ["--data-type", str(params.data_type)]
+            if params.gtf:
+                cmd += ["--gtf", str(params.gtf)]
+            if params.gtf_map:
+                cmd += ["--gtf-map", json.dumps(params.gtf_map)]
+            if params.bam_map:
+                cmd += ["--bam-map", json.dumps(params.bam_map)]
+            if params.samtools_cmd:
+                cmd += ["--samtools", str(params.samtools_cmd)]
+            if params.xist_gene:
+                cmd += ["--xist-gene", str(params.xist_gene)]
+            if params.y_genes:
+                cmd += ["--y-genes", str(params.y_genes)]
+            if params.y_min_rpkm is not None:
+                cmd += ["--y-min-rpkm", str(params.y_min_rpkm)]
+            if params.xist_min_rpkm is not None:
+                cmd += ["--xist-min-rpkm", str(params.xist_min_rpkm)]
             script = os.path.join(RECEIPT_DIR, f"sexcheck_{current_time}.sh")
             plain_script = os.path.join(summary_dir, "sexcheck.sh")
             with open(script, "w") as f:

@@ -67,7 +67,9 @@ sexcheck_config = {
     "genome": {
         "sex_chroms": (config.get("genome", {}) or {}).get("references", {})
             .get(config.get("genome", {}).get("default"), {})
-            .get("sex_chroms")
+            .get("sex_chroms"),
+        # RNA-mode marker lookup (XIST / Y-linked genes) reads the annotation
+        "gtf": genome_ref.get("gtf")
     },
     "Params": {
         "sexcheck": config.get("Params", {}).get("sexcheck", {})

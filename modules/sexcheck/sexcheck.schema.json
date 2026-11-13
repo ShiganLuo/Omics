@@ -26,21 +26,46 @@
     "required": false,
     "properties": {
       "sexcheck": {
-        "type": "dict",
-        "nullable": true,
-        "required": false,
-        "properties": {
-          "ratio_xy_threshold": {
-            "type": "null",
-            "nullable": true,
-            "required": false
-          },
-          "y_min_frac": {
-            "type": "null",
-            "nullable": true,
-            "required": false
+          "type": "dict",
+          "nullable": true,
+          "required": false,
+          "properties": {
+              "ratio_xy_threshold": {
+                  "type": "float",
+                  "nullable": true,
+                  "required": false
+              },
+              "y_min_frac": {
+                  "type": "float",
+                  "nullable": true,
+                  "required": false
+              },
+              "data_type": {
+                  "type": "str",
+                  "nullable": true,
+                  "required": false
+              },
+              "xist_gene": {
+                  "type": "str",
+                  "nullable": true,
+                  "required": false
+              },
+              "y_genes": {
+                  "type": "str",
+                  "nullable": true,
+                  "required": false
+              },
+              "y_min_rpkm": {
+                  "type": "float",
+                  "nullable": true,
+                  "required": false
+              },
+              "xist_min_rpkm": {
+                  "type": "float",
+                  "nullable": true,
+                  "required": false
+              }
           }
-        }
       }
     }
   }

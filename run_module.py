@@ -707,6 +707,20 @@ def main(argv: List[str] | None = None) -> None:
     logger.info("module=%s snakefile=%s config=%s", module, snakefile, config_path)
 
     cfg = load_module_config(config_path, module)
+    if getattr(args, "config", None):
+        import json as _json
+
+        def _deep_merge(base, over):
+            for k, v in (over or {}).items():
+                if isinstance(v, dict) and isinstance(base.get(k), dict):
+                    _deep_merge(base[k], v)
+                else:
+                    base[k] = v
+            return base
+
+        with open(args.config, "r", encoding="utf-8") as f:
+            _deep_merge(cfg, _json.load(f))
+        logger.info("user config merged: %s", args.config)
     apply_overrides(cfg, args.extra_args)
 
     # schema validation: <config_stem>.schema.json next to the module JSON

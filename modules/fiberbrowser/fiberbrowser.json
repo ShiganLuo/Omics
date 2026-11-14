@@ -1,0 +1,21 @@
+{
+    "outdir": "output/fiberbrowser",
+    "logdir": "log/group",
+    "ROOT_DIR": ".",
+    "samples": [],
+    "sample_sams": {},
+    "Params": {
+        "fiberbrowser": {
+            "enabled": false,
+            "loci": null,
+            "loci_map": {},
+            "sample_group_dict": {},
+            "variants": ["plain", "zoom"],
+            "max_fibers": 12,
+            "zoom_bp": 2100,
+            "formats": ["png", "svg"],
+            "dpi": 200
+        }
+    },
+    "env": {}
+}

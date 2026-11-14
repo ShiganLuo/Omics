@@ -761,6 +761,37 @@ logger.debug(f"regionplot_config: {regionplot_config}")
 use rule regionplot from regionplot as Fiberseq_regionplot
 use rule regionplot_result from regionplot as Fiberseq_regionplot_result
 
+# ============================================================
+# Paper-style fiber-seq locus browser figures (modules/fiberbrowser)
+#   Consumes this workflow's aligned fiberseq BAMs (pbmm2 outdir, form B
+#   dict so DAG dependency tracking follows Fiberseq_pbmm2_align); gated by
+#   Params.fiberbrowser.enabled in node.py (wiring is unconditional per
+#   repo convention; default off = 不主动调用,按参数决定是否输出).
+# ============================================================
+fiberbrowser_params = config.get("Params", {}).get("fiberbrowser", {})
+fiberbrowser_config = {
+    "ROOT_DIR": ROOT_DIR,
+    "OUTDIR_ROOT": outdir,
+    "env": config.get("env", {}),
+    "outdir": f"{outdir}/fiberbrowser",
+    "logdir": f"{logdir}/group",
+    "samples": samples,
+    "sample_sams": {
+        s: f"{pbmm2_config['outdir']}/{s}/{s}.fiberseq.fire.sorted.bam"
+        for s in samples
+    },
+    "Params": {
+        "fiberbrowser": fiberbrowser_params
+    },
+    "resources": config.get("resources", {}),
+}
+module fiberbrowser:
+    snakefile: "../modules/fiberbrowser/fiberbrowser.smk"
+    config: fiberbrowser_config
+logger.debug(f"fiberbrowser_config: {fiberbrowser_config}")
+use rule fiberbrowser from fiberbrowser as Fiberseq_fiberbrowser
+use rule fiberbrowser_result from fiberbrowser as Fiberseq_fiberbrowser_result
+
 decoil_config = {
     "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,

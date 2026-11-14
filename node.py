@@ -283,6 +283,126 @@ def _register_regionplot(
     return out
 
 
+def _register_fiberbrowser(
+        datajson: Dict[str, Any],
+        samples_info_dict: Dict[str, SampleInfo],
+        samples: List[str],
+        outdir: str,
+        workflow: str,
+    ) -> List[str]:
+    """Register fiberbrowser figure outputs under the Params.fiberbrowser gate.
+
+    Figure delivery is opt-in (default OFF; unlike _enabled's default-on —
+    a presentation deliverable that is not requested must not materialize).
+    When enabled: requires ``Params.fiberbrowser.loci`` (BED rows or
+    [NAME=]chrom:start-end lines); parses it into the shell-safe
+    ``loci_map`` ({panel_name: "chrom:start-end"}) written back to the
+    config — the module consumes it for output naming and per-locus engine
+    calls; auto-fills ``sample_group_dict`` from the meta group column (a
+    hand-filled config value wins).  Returns the figure outfiles to append
+    (locus x variant x format).
+
+    Parameters
+    ----------
+    datajson : the workflow config being materialized (mutated: the
+        ``Params.fiberbrowser`` block gets ``loci_map`` and
+        ``sample_group_dict`` written back).
+    samples_info_dict : meta sample info (source of the group column).
+    samples : sample ids whose alignments feed the figures.
+    outdir : workflow output root.
+    workflow : workflow name (for error messages).
+
+    Returns
+    -------
+    List[str]
+        Outfile paths to register; empty when the gate is off.
+    """
+    params = datajson.get("Params", {}).get("fiberbrowser", {})
+    if not (isinstance(params, dict) and params.get("enabled")):
+        return []
+    loci_file = params.get("loci")
+    if not loci_file:
+        raise ValueError(
+            f"{workflow}: Params.fiberbrowser.enabled=true requires "
+            "Params.fiberbrowser.loci (a BED of chrom/start/end[/name] rows "
+            "or a list of [NAME=]chrom:start-end lines); set it in the "
+            "workflow config JSON, then rerun.")
+    # group map: hand-filled config wins, else derive from meta group column
+    group_dict = dict(params.get("sample_group_dict") or {})
+    for sid in samples:
+        if sid not in group_dict:
+            group = getattr(samples_info_dict.get(sid), "group", None)
+            if group:
+                group_dict[sid] = group
+    formats = params.get("formats") or ["png"]
+    if isinstance(formats, str):
+        formats = [formats]
+    if not isinstance(formats, list) or not all(isinstance(f, str) for f in formats):
+        raise ValueError(f"{workflow}: Params.fiberbrowser.formats must be a list of strings")
+    variants = params.get("variants") or ["plain", "zoom"]
+    if isinstance(variants, str):
+        variants = [variants]
+    variant_suffix = {"plain": "", "zoom": "_zoom"}
+    bad = [v for v in variants if v not in variant_suffix]
+    if bad:
+        raise ValueError(
+            f"{workflow}: Params.fiberbrowser.variants entries must be "
+            f"'plain' or 'zoom', got {bad}")
+    # loci parse; names become output path components AND receipt arguments,
+    # so sanitize to a shell-safe charset and dedupe
+    loci_map: Dict[str, str] = {}
+    seen: Dict[str, int] = {}
+    with open(loci_file) as fh:
+        for line in fh:
+            if not line.strip() or line.startswith(("#", "track", "browser")):
+                continue
+            line = line.rstrip("\n")
+            if "\t" in line:
+                f = line.split("\t")
+                name = (f[3].strip() if len(f) >= 4 and f[3].strip()
+                        else f"{f[0]}_{f[1]}_{f[2]}")
+                region = f"{f[0]}:{f[1]}-{f[2]}"
+                if _REGION_RE.fullmatch(region) is None:
+                    raise ValueError(
+                        f"{workflow}: malformed BED row {line!r} in "
+                        f"{loci_file} (expected chrom<TAB>start<TAB>end"
+                        "[<TAB>name])")
+            else:
+                s = line.strip()
+                if "=" in s:
+                    name, region = s.split("=", 1)
+                else:
+                    region = s
+                    m = _REGION_RE.fullmatch(s)
+                    if m is None:
+                        raise ValueError(
+                            f"{workflow}: malformed locus row {s!r} in "
+                            f"{loci_file} (expected [NAME=]chrom:start-end)")
+                    name = (f"{m.group(1)}_"
+                            f"{int(m.group(2).replace(',', ''))}_"
+                            f"{int(m.group(3).replace(',', ''))}")
+            name = re.sub(r"[^A-Za-z0-9._-]", "_", name)
+            if name in seen:
+                seen[name] += 1
+                name = f"{name}.{seen[name]}"
+            else:
+                seen[name] = 0
+            loci_map[name] = region.replace(",", "")
+    if not loci_map:
+        raise ValueError(
+            f"{workflow}: Params.fiberbrowser.loci has no rows: {loci_file}")
+    fiberbrowser = datajson.setdefault("Params", {}).setdefault("fiberbrowser", {})
+    fiberbrowser["loci_map"] = loci_map
+    fiberbrowser["sample_group_dict"] = group_dict
+    out = []
+    for name in loci_map:
+        for v in variants:
+            for fmt in formats:
+                out.append(
+                    f"{outdir}/fiberbrowser/{name}/{name}{variant_suffix[v]}.{fmt}")
+    return out
+
+
 def _resolve_genome_ref(
         datajson: Dict[str, Any],
         samples_info_dict: Dict[str, SampleInfo],
@@ -2393,18 +2513,29 @@ def runFiberseq(
         if isinstance(_plot_fmts, str):
             _plot_fmts = [_plot_fmts]
         outfiles.append(f"{mods_base}/{long_name}")
-        # sigtest module outputs (own subtree); mods postprocess outputs
+        # sigtest subtree: significance tables/figures AND the mods
+        # postprocess products (significant_objects/top_loci) all live
+        # under sigtest/<contrast>/ — postprocess outputs are classified
+        # by their DATA (sigtest results), not by the producing module
         for contrast in contrast_names:
-            outfiles.append(f"{outdir}/fiberseq_analysis/sigtest/{contrast}/significance_test.tsv")
+            sig_base = f"{outdir}/fiberseq_analysis/sigtest/{contrast}"
+            outfiles.append(f"{sig_base}/significance_test.tsv")
             for fmt in _plot_fmts:
-                outfiles.append(f"{outdir}/fiberseq_analysis/sigtest/{contrast}/significance_bars.{fmt}")
-            base = f"{mods_base}/{contrast}"
-            outfiles.append(f"{base}/significant_objects.tsv")
-            outfiles.append(f"{base}/significant_objects.bed")
-            outfiles.append(f"{base}/nonsignificant_objects.tsv")
+                # per-format figures live under significance_bars/ +
+                # optional significance_bars_overview.{fmt}; all tracked
+                # by the done marker the rule declares
+                pass
+            if _plot_fmts:
+                outfiles.append(f"{sig_base}/significance_bars.done")
+            outfiles.append(f"{sig_base}/significant_objects.tsv")
+            if region_axis != "te":
+                # BED only on the fire_peaks axis (coordinate features);
+                # TE features are family names -- no BED
+                outfiles.append(f"{sig_base}/significant_objects.bed")
+            outfiles.append(f"{sig_base}/nonsignificant_objects.tsv")
             if region_axis == "te":
-                outfiles.append(f"{base}/top_loci.tsv")
-                outfiles.append(f"{base}/top_loci.bed")
+                outfiles.append(f"{sig_base}/top_loci.tsv")
+                outfiles.append(f"{sig_base}/top_loci.bed")
 
     if enable_diff:
         # grouping: meta design ONLY (group_pairs) — same source mods uses
@@ -2471,6 +2602,7 @@ def runFiberseq(
     datajson["Params"]["workflow"]["samples"] = samples
     datajson["Params"]["workflow"]["raw_files"] = raw_files
     outfiles += _register_regionplot(datajson, samples_info_dict, samples, outdir, "Fiberseq")
+    outfiles += _register_fiberbrowser(datajson, samples_info_dict, samples, outdir, "Fiberseq")
     # Sex check (modules/sexcheck): per-sample sex call from sex-chromosome
     # coverage over the alignment BAMs; registered for every sample BAM.
     outfiles.append(f"{outdir}/QC/sexcheck/sexcheck.tsv")

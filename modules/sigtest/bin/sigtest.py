@@ -64,6 +64,8 @@ from __future__ import annotations
 
 import argparse
 import logging
+import os
+import re
 import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, TextIO, Tuple
@@ -85,15 +87,16 @@ COUNT_METHODS: Tuple[str, ...] = ("chi2", "fisher")
 ALL_METHODS: Tuple[str, ...] = SAMPLE_METHODS + COUNT_METHODS
 CORRECTIONS: Tuple[str, ...] = ("none", "bh", "bonferroni")
 
-# Bracket geometry in display points (identical on linear and log axes):
-# the first bracket sits LEG_PT above the cluster's tallest bar top; each
-# further stacked bracket adds BRACKET_STEP_PT; the star label sits TEXT_PT
-# above its bracket line; FONT_ASCENT_PT approximates the label font's
-# ascent for headroom reservation.
-LEG_PT = 10.0
-TEXT_PT = 4.0
-FONT_ASCENT_PT = 8.0
-BRACKET_STEP_PT = 14.0
+# Statistical test + bracket layout come from the vendored house scripts
+# (verbatim copies of src/common/statistics_plot/Python/{statistical_test,
+# bar_significance}.py — modules.md 脚本自包含规范 #0): compare_groups does
+# the testing, draw_significance_bracket/fit_bracket_headroom the layout.
+from statistical_test import compare_groups  # noqa: E402
+from bar_significance import (  # noqa: E402
+    LEG_PT, TEXT_PT, FONT_ASCENT_PT, BRACKET_STEP_PT,
+    y_to_px, px_to_y, fit_bracket_headroom, draw_significance_bracket,
+)
+from boxplot import plot_comparison  # noqa: E402
 
 BAR_COLORS: Tuple[str, str] = ("#4C72B0", "#DD8452")
 
@@ -154,433 +157,6 @@ def setup_logger(
 
 
 logger = setup_logger("SigTest", stream=sys.stdout)
-
-
-# ---------------------------------------------------------------------------
-# Assumption checks (from statistical_test.py)
-# ---------------------------------------------------------------------------
-def check_normality(data: List[float], alpha: float = 0.05) -> Tuple[bool, float, str]:
-    """Check if data follows a normal distribution using Shapiro-Wilk test.
-
-    Parameters
-    ----------
-    data : list of float
-        The data to test for normality.
-    alpha : float, optional
-        Significance level for the test (default: 0.05).
-
-    Returns
-    -------
-    is_normal : bool
-        True if data appears to be normally distributed (p > alpha).
-    p_value : float
-        The p-value from the Shapiro-Wilk test.
-    message : str
-        Interpretation of the test result.
-
-    Notes
-    -----
-    - H0: The data is normally distributed.
-    - If p > alpha, we fail to reject H0 (data appears normal).
-    - Requires at least 3 data points; fewer are treated as non-normal.
-    """
-    if len(data) < 3:
-        return False, 0.0, "Sample size too small for normality test (n < 3)"
-
-    stat, p_value = stats.shapiro(data)
-    is_normal = p_value > alpha
-
-    if is_normal:
-        message = f"Data appears normally distributed (Shapiro-Wilk p={p_value:.4f} > {alpha})"
-    else:
-        message = f"Data does not appear normally distributed (Shapiro-Wilk p={p_value:.4f} <= {alpha})"
-
-    return is_normal, p_value, message
-
-
-def check_equal_variance(group1: List[float], group2: List[float], alpha: float = 0.05) -> Tuple[bool, float, str]:
-    """Check if two groups have equal variances using Levene's test.
-
-    Parameters
-    ----------
-    group1 : list of float
-        First group of data.
-    group2 : list of float
-        Second group of data.
-    alpha : float, optional
-        Significance level for the test (default: 0.05).
-
-    Returns
-    -------
-    equal_variance : bool
-        True if groups appear to have equal variances (p > alpha).
-    p_value : float
-        The p-value from Levene's test.
-    message : str
-        Interpretation of the test result.
-    """
-    stat, p_value = stats.levene(group1, group2)
-    equal_variance = p_value > alpha
-
-    if equal_variance:
-        message = f"Groups appear to have equal variances (Levene p={p_value:.4f} > {alpha})"
-    else:
-        message = f"Groups appear to have unequal variances (Levene p={p_value:.4f} <= {alpha})"
-
-    return equal_variance, p_value, message
-
-
-# ---------------------------------------------------------------------------
-# Sample-based comparison (from statistical_test.py, with method override)
-# ---------------------------------------------------------------------------
-def compare_groups(
-    group1: List[float],
-    group2: List[float],
-    paired: bool = False,
-    alpha: float = 0.05,
-    verbose: bool = True,
-    method: str = "auto",
-) -> Dict[str, Any]:
-    """Compare two groups to determine if there is a statistically significant difference.
-
-    ``method='auto'`` selects the test from the data characteristics
-    (normality, equal variance); the other choices force one test.
-
-    Parameters
-    ----------
-    group1 : list of float
-        First group of numerical data.
-    group2 : list of float
-        Second group of numerical data.
-    paired : bool, optional
-        If True, perform a paired test (default: False).
-    alpha : float, optional
-        Significance level for hypothesis tests (default: 0.05).
-    verbose : bool, optional
-        If True, log detailed information about the tests (default: True).
-    method : str, optional
-        'auto' (default), 't-test', 'welch', 'mannwhitney' or 'wilcoxon'.
-
-    Returns
-    -------
-    result : dict
-        Dictionary containing:
-        - 'test_name': Name of the statistical test used
-        - 'statistic': Test statistic value
-        - 'p_value': p-value from the test
-        - 'significant': Boolean indicating if difference is significant (p <= alpha)
-        - 'alpha': Significance level used
-        - 'group1_mean', 'group2_mean', 'group1_std', 'group2_std'
-        - 'effect_size': Cohen's d (parametric) or rank-biserial r
-        - 'effect_size_name', 'effect_size_interpretation'
-        - 'interpretation': Human-readable interpretation of results
-        - 'assumptions': Dictionary with assumption check results
-
-    Raises
-    ------
-    ValueError
-        If either group has fewer than 2 data points, pairing is requested
-        for an independent-only test (or vice versa), or paired groups have
-        unequal lengths.
-    """
-    if method not in SAMPLE_METHODS:
-        raise ValueError(f"Unsupported sample method: {method}")
-    if method == "mannwhitney" and paired:
-        raise ValueError("Mann-Whitney U tests independent samples; drop --paired or use 'wilcoxon'")
-    if method == "welch" and paired:
-        raise ValueError("Welch's t-test is for independent samples; use paired t-test instead")
-    if len(group1) < 2 or len(group2) < 2:
-        raise ValueError("Each group must have at least 2 data points")
-
-    use_paired = paired or method == "wilcoxon"
-    if use_paired and len(group1) != len(group2):
-        raise ValueError("Paired samples must have the same number of observations")
-
-    # Convert to numpy arrays
-    g1 = np.array(group1, dtype=float)
-    g2 = np.array(group2, dtype=float)
-
-    # Calculate basic statistics
-    g1_mean, g1_std = np.mean(g1), np.std(g1, ddof=1)
-    g2_mean, g2_std = np.mean(g2), np.std(g2, ddof=1)
-
-    # Check assumptions
-    assumptions: Dict[str, Any] = {}
-
-    # Normality tests
-    g1_normal, g1_normal_p, g1_normal_msg = check_normality(g1, alpha)
-    g2_normal, g2_normal_p, g2_normal_msg = check_normality(g2, alpha)
-
-    assumptions['group1_normality'] = {
-        'is_normal': g1_normal,
-        'p_value': g1_normal_p,
-        'message': g1_normal_msg
-    }
-    assumptions['group2_normality'] = {
-        'is_normal': g2_normal,
-        'p_value': g2_normal_p,
-        'message': g2_normal_msg
-    }
-
-    # Both groups normal?
-    both_normal = g1_normal and g2_normal
-
-    # Equal variance test (only if both groups are normal)
-    if both_normal:
-        equal_var, equal_var_p, equal_var_msg = check_equal_variance(g1, g2, alpha)
-        assumptions['equal_variance'] = {
-            'equal': equal_var,
-            'p_value': equal_var_p,
-            'message': equal_var_msg
-        }
-    else:
-        equal_var = False
-        assumptions['equal_variance'] = {
-            'equal': False,
-            'p_value': None,
-            'message': 'Skipped (not both groups are normal)'
-        }
-
-    # Select and perform the test. Forced methods decide purely from the
-    # method name; 'auto' decides from the assumption checks.
-    need_paired = use_paired
-    need_normal = both_normal if method == "auto" else method == "t-test"
-
-    if need_paired:
-        if need_normal:
-            # Paired t-test
-            test_name = "Paired t-test"
-            statistic, p_value = stats.ttest_rel(g1, g2)
-            # Effect size: Cohen's d for paired samples
-            diff = g1 - g2
-            effect_size = np.mean(diff) / np.std(diff, ddof=1)
-            effect_size_name = "Cohen's d"
-        else:
-            # Wilcoxon signed-rank test
-            test_name = "Wilcoxon signed-rank test"
-            statistic, p_value = stats.wilcoxon(g1, g2)
-            # Effect size: rank-biserial correlation
-            n = len(g1)
-            effect_size = statistic / (n * (n + 1) / 2)
-            effect_size_name = "rank-biserial r"
-    elif need_normal:
-        if equal_var:
-            # Independent t-test (equal variance)
-            test_name = "Independent t-test (equal variance)"
-            statistic, p_value = stats.ttest_ind(g1, g2, equal_var=True)
-        else:
-            # Welch's t-test (unequal variance)
-            test_name = "Welch's t-test (unequal variance)"
-            statistic, p_value = stats.ttest_ind(g1, g2, equal_var=False)
-        # Effect size: Cohen's d for independent samples
-        pooled_std = np.sqrt(((len(g1) - 1) * g1_std**2 + (len(g2) - 1) * g2_std**2) /
-                             (len(g1) + len(g2) - 2))
-        effect_size = (g1_mean - g2_mean) / pooled_std
-        effect_size_name = "Cohen's d"
-    else:
-        # Mann-Whitney U test
-        test_name = "Mann-Whitney U test"
-        statistic, p_value = stats.mannwhitneyu(g1, g2, alternative='two-sided')
-        # Effect size: rank-biserial correlation
-        u1 = statistic
-        u2 = len(g1) * len(g2) - u1
-        u_max = max(u1, u2)
-        effect_size = 1 - (2 * u_max) / (len(g1) * len(g2))
-        effect_size_name = "rank-biserial r"
-
-    # Determine significance
-    significant = p_value <= alpha
-
-    # Effect size interpretation
-    abs_effect = abs(effect_size)
-    if abs_effect < 0.2:
-        effect_interp = "negligible"
-    elif abs_effect < 0.5:
-        effect_interp = "small"
-    elif abs_effect < 0.8:
-        effect_interp = "medium"
-    else:
-        effect_interp = "large"
-
-    # Build interpretation
-    if significant:
-        interpretation = (
-            f"There IS a statistically significant difference between the two groups "
-            f"(p = {p_value:.4f} <= {alpha}). "
-            f"The effect size is {effect_interp} ({effect_size_name} = {effect_size:.4f})."
-        )
-    else:
-        interpretation = (
-            f"There is NO statistically significant difference between the two groups "
-            f"(p = {p_value:.4f} > {alpha}). "
-            f"The effect size is {effect_interp} ({effect_size_name} = {effect_size:.4f})."
-        )
-
-    # Prepare result
-    result = {
-        'test_name': test_name,
-        'statistic': float(statistic),
-        'p_value': float(p_value),
-        'significant': significant,
-        'alpha': alpha,
-        'group1_mean': float(g1_mean),
-        'group2_mean': float(g2_mean),
-        'group1_std': float(g1_std),
-        'group2_std': float(g2_std),
-        'effect_size': float(effect_size),
-        'effect_size_name': effect_size_name,
-        'effect_size_interpretation': effect_interp,
-        'interpretation': interpretation,
-        'assumptions': assumptions
-    }
-
-    # Log detailed output if verbose
-    if verbose:
-        logger.info("=" * 70)
-        logger.info("STATISTICAL COMPARISON OF TWO GROUPS")
-        logger.info("=" * 70)
-        logger.info(f"\nSample sizes: Group 1 = {len(g1)}, Group 2 = {len(g2)}")
-        logger.info(f"Group 1: Mean = {g1_mean:.4f}, SD = {g1_std:.4f}")
-        logger.info(f"Group 2: Mean = {g2_mean:.4f}, SD = {g2_std:.4f}")
-        logger.info(f"\nSample type: {'Paired' if use_paired else 'Independent'}")
-        logger.info(f"Significance level (alpha): {alpha}")
-
-        logger.info("\n" + "-" * 70)
-        logger.info("ASSUMPTION CHECKS")
-        logger.info("-" * 70)
-        logger.info(f"Group 1 normality: {g1_normal_msg}")
-        logger.info(f"Group 2 normality: {g2_normal_msg}")
-        if assumptions['equal_variance']['p_value'] is not None:
-            logger.info(f"Equal variance: {assumptions['equal_variance']['message']}")
-
-        logger.info("\n" + "-" * 70)
-        logger.info("TEST RESULTS")
-        logger.info("-" * 70)
-        logger.info(f"Test used: {test_name}")
-        logger.info(f"Test statistic: {statistic:.4f}")
-        logger.info(f"p-value: {p_value:.4f}")
-        logger.info(f"{effect_size_name}: {effect_size:.4f} ({effect_interp} effect)")
-
-        logger.info("\n" + "-" * 70)
-        logger.info("CONCLUSION")
-        logger.info("-" * 70)
-        logger.info(interpretation)
-        logger.info("=" * 70)
-
-    return result
-
-
-def compare_groups_simple(
-    group1: List[float],
-    group2: List[float],
-    paired: bool = False,
-    alpha: float = 0.05
-) -> Tuple[bool, float, str]:
-    """Simplified interface to compare two groups.
-
-    Parameters
-    ----------
-    group1 : list of float
-        First group of numerical data.
-    group2 : list of float
-        Second group of numerical data.
-    paired : bool, optional
-        If True, perform a paired test (default: False).
-    alpha : float, optional
-        Significance level (default: 0.05).
-
-    Returns
-    -------
-    significant : bool
-        True if there is a significant difference.
-    p_value : float
-        The p-value from the test.
-    message : str
-        Brief interpretation of the result.
-    """
-    result = compare_groups(group1, group2, paired=paired, alpha=alpha, verbose=False)
-    return result['significant'], result['p_value'], result['interpretation']
-
-
-# ---------------------------------------------------------------------------
-# Count-based tests (from bar_significance.py)
-# ---------------------------------------------------------------------------
-def compute_pvalue(
-    table: np.ndarray,
-    method: str = "chi2"
-) -> float:
-    """Compute p-value for a 2x2 contingency table or two-sample comparison.
-
-    Parameters
-    ----------
-    table : np.ndarray
-        Input data:
-        - For "chi2" / "fisher": shape (2, 2)
-        - For "t-test" / "mannwhitney": shape (2, n)
-    method : str, default="chi2"
-        Statistical test method. Supported:
-        - "chi2" : Chi-square test
-        - "fisher" : Fisher's exact test
-        - "t-test" : Independent t-test
-        - "mannwhitney" : Mann-Whitney U test
-
-    Returns
-    -------
-    float
-        P-value.
-
-    Raises
-    ------
-    ValueError
-        If the method is unsupported.
-    """
-    if method == "chi2":
-        _, p, _, _ = stats.chi2_contingency(table)
-    elif method == "fisher":
-        _, p = stats.fisher_exact(table)
-    elif method == "t-test":
-        p = stats.ttest_ind(table[0], table[1], equal_var=False).pvalue
-    elif method == "mannwhitney":
-        p = stats.mannwhitneyu(table[0], table[1], alternative="two-sided").pvalue
-    else:
-        raise ValueError(f"Unsupported method: {method}")
-    return p
-
-
-def compute_significance(
-    pivot: pd.DataFrame,
-    group_order: Tuple[str, str],
-    method: str = "chi2"
-) -> Dict[str, str]:
-    """Compute significance stars per feature row of a count pivot table.
-
-    Parameters
-    ----------
-    pivot : pandas.DataFrame
-        Pivot table with features as index and groups as columns
-        (one summarized count per feature x group cell).
-    group_order : tuple of str
-        Two groups to compare.
-    method : str, default="chi2"
-        'chi2' or 'fisher'.
-
-    Returns
-    -------
-    dict
-        Mapping: feature -> significance stars.
-    """
-    stars: Dict[str, str] = {}
-    g1, g2 = group_order
-
-    for feature in pivot.index:
-        table = np.array([
-            [pivot.loc[feature, g1], pivot[g1].sum() - pivot.loc[feature, g1]],
-            [pivot.loc[feature, g2], pivot[g2].sum() - pivot.loc[feature, g2]],
-        ])
-        p = compute_pvalue(table, method)
-        stars[feature] = p_to_star(p)
-
-    return stars
 
 
 # ---------------------------------------------------------------------------
@@ -812,10 +388,31 @@ def test_long_table(
             g1_vals = sub.loc[sub[group_col] == g1_name, value_col].to_numpy(dtype=float)
             g2_vals = sub.loc[sub[group_col] == g2_name, value_col].to_numpy(dtype=float)
             try:
+                # vendored statistical_test.compare_groups: auto test
+                # selection (Shapiro/Levene -> t/welch/MW/wilcoxon); a
+                # forced sample method goes through the same scipy calls
                 res = compare_groups(
-                    g1_vals, g2_vals, paired=paired, alpha=alpha,
-                    verbose=False, method=method,
+                    [float(x) for x in g1_vals], [float(x) for x in g2_vals],
+                    paired=paired, alpha=alpha, verbose=False,
                 )
+                if method != "auto":
+                    from scipy import stats as _st
+                    if method == "wilcoxon":
+                        stat, p_value = _st.wilcoxon(g1_vals, g2_vals)
+                        res["test_name"] = "Wilcoxon signed-rank test"
+                    elif method == "t-test":
+                        stat, p_value = _st.ttest_ind(g1_vals, g2_vals, equal_var=True)
+                        res["test_name"] = "Independent t-test (equal variance)"
+                    elif method == "welch":
+                        stat, p_value = _st.ttest_ind(g1_vals, g2_vals, equal_var=False)
+                        res["test_name"] = "Welch's t-test"
+                    else:  # mannwhitney
+                        stat, p_value = _st.mannwhitneyu(g1_vals, g2_vals,
+                                                         alternative="two-sided")
+                        res["test_name"] = "Mann-Whitney U test"
+                    res["statistic"] = float(stat)
+                    res["p_value"] = float(p_value)
+                    res["significant"] = bool(p_value <= alpha)
             except ValueError as exc:
                 rows.append({
                     "feature": feature,
@@ -862,156 +459,6 @@ def test_long_table(
 
 
 # ---------------------------------------------------------------------------
-# Bracket drawing (display-point layout, from bar_significance.py)
-# ---------------------------------------------------------------------------
-def y_to_px(ax: plt.Axes, y_data: float) -> float:
-    """Map a data y value on ``ax`` to display coordinates (pixels).
-
-    Parameters
-    ----------
-    ax : matplotlib.axes.Axes
-        Axes whose transform is used.
-    y_data : float
-        Data-coordinate y value.
-
-    Returns
-    -------
-    float
-        Display-coordinate y (pixels).
-    """
-    return float(ax.transData.transform((0.0, y_data))[1])
-
-
-def px_to_y(ax: plt.Axes, y_disp: float) -> float:
-    """Map a display-coordinate y (pixels) to a data value on ``ax``.
-
-    Parameters
-    ----------
-    ax : matplotlib.axes.Axes
-        Axes whose transform is used.
-    y_disp : float
-        Display-coordinate y (pixels).
-
-    Returns
-    -------
-    float
-        Data-coordinate y value.
-    """
-    return float(ax.transData.inverted().transform((0.0, y_disp))[1])
-
-
-def fit_bracket_headroom(ax: plt.Axes, bases: Sequence[float], n_brackets: int) -> None:
-    """Raise the y upper limit so the tallest bracket stack fits.
-
-    Finalize the axes layout (ticks, legend, tight_layout, canvas.draw)
-    BEFORE calling this: display transforms must be stable afterwards.
-    The new top is bisected so that the tallest base lands exactly the
-    stack height below the axes-top pixel. Only ``ylim[1]`` moves, so
-    this works identically on linear and log axes.
-
-    Parameters
-    ----------
-    ax : matplotlib.axes.Axes
-        Axes already containing the bars and error bars.
-    bases : array-like of float
-        Per-cluster y of the tallest bar top including its error bar.
-    n_brackets : int
-        Maximum number of stacked brackets in any cluster.
-
-    Returns
-    -------
-    None
-    """
-    if not n_brackets:
-        return
-    fig = ax.get_figure()
-    px_per_pt = fig.dpi / 72.0
-    stack_px = (LEG_PT + (n_brackets - 1) * BRACKET_STEP_PT + TEXT_PT + FONT_ASCENT_PT + 2.0) * px_per_pt
-    positives = [float(b) for b in bases if b > 0]
-    if not positives:
-        return
-    base = max(positives)
-    axes_top_px = y_to_px(ax, ax.get_ylim()[1])  # top of the axes box
-    target_px = axes_top_px - stack_px
-    if y_to_px(ax, base) <= target_px:
-        return  # already fits
-    bottom = ax.get_ylim()[0]
-    is_log = ax.get_yscale() == "log"
-    lo = ax.get_ylim()[1]
-    hi = lo * 10.0 if is_log else lo + (lo - bottom)
-    while y_to_px(ax, base) > target_px:  # expand until it fits
-        lo = hi
-        hi = hi * 10.0 if is_log else hi + (hi - bottom)
-        ax.set_ylim(bottom=bottom, top=hi)
-        if hi > 1e12 * lo:
-            break
-    for _ in range(60):  # bisect the top value
-        mid = np.sqrt(lo * hi) if is_log else (lo + hi) / 2.0
-        ax.set_ylim(bottom=bottom, top=mid)
-        if y_to_px(ax, base) > target_px:
-            lo = mid
-        else:
-            hi = mid
-    ax.set_ylim(bottom=bottom, top=hi)
-
-
-def draw_significance_bracket(
-    ax: plt.Axes,
-    x1: float,
-    x2: float,
-    y_base: float,
-    label: str,
-    level: int = 0,
-    lw: float = 0.7,
-    fontsize: float = 8.0,
-    color: str = "#333333",
-) -> float:
-    """Draw one bracket-with-ticks significance annotation above a bar cluster.
-
-    The bracket is placed ``LEG_PT + level * BRACKET_STEP_PT`` display
-    points above ``y_base`` (screen units, so spacing is identical on
-    linear and log axes). The horizontal line spans ``x1`` to ``x2``
-    (bar centers) with small outward diagonal ticks at both ends, drawn
-    as a single polyline to avoid line-cap overlap at junctions.
-
-    Parameters
-    ----------
-    ax : matplotlib.axes.Axes
-        Target axes (layout already finalized, see fit_bracket_headroom).
-    x1, x2 : float
-        Data x of the left/right bar centers.
-    y_base : float
-        Data y of the cluster's tallest bar top including its error bar.
-    label : str
-        Star label (from p_to_star or custom text).
-    level : int, default=0
-        Stack level (0 = closest to the bars).
-    lw : float, default=0.7
-        Bracket line width.
-    fontsize : float, default=8.0
-        Star label font size.
-    color : str, default="#333333"
-        Bracket and label color.
-
-    Returns
-    -------
-    float
-        Display y (pixels) of the star label top, for further stacking.
-    """
-    fig = ax.get_figure()
-    px_per_pt = fig.dpi / 72.0
-    y_hat_disp = y_to_px(ax, y_base) + (LEG_PT + level * BRACKET_STEP_PT) * px_per_pt
-    y_hat = px_to_y(ax, y_hat_disp)
-    y_text = px_to_y(ax, y_hat_disp + TEXT_PT * px_per_pt)
-    y_tick = px_to_y(ax, y_hat_disp - 3.0 * px_per_pt)
-    ax.plot([x1, x1, x2, x2], [y_tick, y_hat, y_hat, y_tick],
-            lw=lw, color=color, clip_on=False)
-    ax.text((x1 + x2) / 2, y_text, label,
-            ha="center", va="bottom", fontsize=fontsize, color=color)
-    return y_hat_disp + (TEXT_PT + FONT_ASCENT_PT) * px_per_pt
-
-
-# ---------------------------------------------------------------------------
 # Grouped bar plot with significance brackets
 # ---------------------------------------------------------------------------
 def _pivot_group_stats(
@@ -1037,6 +484,147 @@ def _pivot_group_stats(
         .fillna(0.0)
         .astype(float)
     )
+
+
+def plot_feature_distributions(
+    df: pd.DataFrame,
+    results: pd.DataFrame,
+    out_dir: str,
+    feature_col: str = "feature",
+    group_col: str = "group",
+    value_col: str = "value",
+    groups: Optional[Sequence[str]] = None,
+    features: Optional[Sequence[str]] = None,
+    ylabel: str = "value",
+    formats: Sequence[str] = ("png",),
+    dpi: int = 300,
+    processes: int = 1,
+    alpha: float = 0.05,
+) -> List[str]:
+    """Draw ONE DISTRIBUTION FIGURE PER FEATURE (house boxplot style).
+
+    Each figure is the house style from statistics_plot (boxplot.py::
+    plot_comparison over statistical_test.compare_groups): box + jittered
+    points showing the two groups' DISTRIBUTIONS, significance stars and
+    p-value on a bracket, effect size (Cohen's d / rank-biserial with
+    interpretation) top-right, test name bottom-left. The old mean-bar
+    rendering dropped the distribution entirely — with thousands of loci
+    per group the distribution IS the story.
+
+    A single all-features figure exceeds matplotlib's 2^16-px canvas past
+    ~380 features; per-feature figures are bounded. Figures are
+    independent work units — ``processes`` > 1 shards them across a pool
+    (a 1271-feature set renders in ~1 min at 8 processes).
+
+    Parameters
+    ----------
+    df, results, feature_col, group_col, value_col, groups, features, ylabel
+        Same meaning as in test_long_table / plot_grouped_bars.
+    formats : sequence of str
+        Output image formats (matplotlib savefig set); one file each.
+    dpi : int
+        Output resolution.
+    processes : int, default 1
+        Worker processes for figure rendering (1 = serial).
+    alpha : float
+        Significance level for the per-feature comparison.
+
+    Returns
+    -------
+    list of str
+        The written file paths.
+    """
+    work = df.dropna(subset=[value_col]).copy()
+    if groups is None:
+        distinct = list(dict.fromkeys(work[group_col].astype(str)))
+        if len(distinct) < 2:
+            raise ValueError("Need at least two groups to plot")
+        groups = distinct[:2]
+    g1_name, g2_name = str(groups[0]), str(groups[1])
+
+    if features is None:
+        features = results["feature"].astype(str).tolist()
+    features = [str(f) for f in features]
+
+    sub = work[work[group_col].isin([g1_name, g2_name])]
+    by_feat_g1: Dict[str, List[float]] = {}
+    by_feat_g2: Dict[str, List[float]] = {}
+    g1_rows = sub[sub[group_col] == g1_name]
+    g2_rows = sub[sub[group_col] == g2_name]
+    for feat, vals in g1_rows.groupby(feature_col)[value_col]:
+        by_feat_g1[str(feat)] = [float(v) for v in vals]
+    for feat, vals in g2_rows.groupby(feature_col)[value_col]:
+        by_feat_g2[str(feat)] = [float(v) for v in vals]
+
+    # per-feature stats come from the RESULTS table (already computed by
+    # test_long_table) — the renderer never re-tests; skipped features
+    # (n<2 etc.) have no figure, same as they have no tested row
+    res_rows = results.set_index(results["feature"].astype(str))
+    out_root = Path(out_dir)
+    out_root.mkdir(parents=True, exist_ok=True)
+    jobs = []
+    for feat in features:
+        if feat not in by_feat_g1 or feat not in by_feat_g2:
+            continue
+        if feat not in res_rows.index or str(res_rows.loc[feat, "test"]) == "skipped":
+            continue
+        row = res_rows.loc[feat]
+        jobs.append(
+            (feat, str(out_root), g1_name, g2_name, ylabel,
+             by_feat_g1[feat], by_feat_g2[feat],
+             tuple(formats), dpi,
+             {
+                 "test_name": str(row["test"]),
+                 "p_value": float(row["p_value"]),
+                 "significant": str(row["significant"]).lower() in ("true", "1"),
+                 "effect_size": float(row["effect_size"]),
+                 "effect_size_name": str(row["effect_size_name"]) or "effect size",
+                 # same thresholds as statistical_test.compare_groups
+                 "effect_size_interpretation": (
+                     "negligible" if abs(float(row["effect_size"])) < 0.2
+                     else "small" if abs(float(row["effect_size"])) < 0.5
+                     else "medium" if abs(float(row["effect_size"])) < 0.8
+                     else "large"),
+             })
+        )
+    if processes > 1 and len(jobs) > 1:
+        import multiprocessing as mp
+        ctx = mp.get_context("fork")
+        with ctx.Pool(min(processes, len(jobs))) as pool:
+            written_nested = pool.map(_render_feature_distribution, jobs)
+        written = [p for sub_list in written_nested for p in sub_list]
+    else:
+        written = []
+        for job in jobs:
+            written.extend(_render_feature_distribution(job))
+    return written
+
+
+def _render_feature_distribution(job: tuple) -> List[str]:
+    """Render one feature's distribution comparison; module-level for pickling.
+
+    Stats arrive in the job (from the results table — never re-tested);
+    boxplot.plot_comparison (vendored house style) does the rendering.
+    """
+    (feat, out_root, g1_name, g2_name, ylabel, g1_vals, g2_vals,
+     formats, dpi, comparison) = job
+    result = {
+        "group1_name": g1_name, "group2_name": g2_name,
+        "group1_data": g1_vals, "group2_data": g2_vals,
+        "comparison": comparison,
+    }
+    safe = re.sub(r"[^\w.\-+=(),]", "_", feat)
+    written: List[str] = []
+    for fmt in formats:
+        out_path = os.path.join(out_root, f"{safe}.{fmt}")
+        fig = plot_comparison(
+            result, title=feat, xlabel="", ylabel=ylabel,
+            show_points=True, show_stats=True,
+            save_path=out_path, dpi=dpi, verbose=False,
+        )
+        plt.close(fig)
+        written.append(out_path)
+    return written
 
 
 def plot_grouped_bars(
@@ -1242,10 +830,18 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
                    help="input delimiter; default auto-detects tab vs comma")
     p.add_argument("--formats", action="append", dest="formats", metavar="FMT",
                    default=None,
-                   help="image format(s) for the bar figure (png/pdf/svg/...; "
+                   help="image format(s) for the bar figures (png/pdf/svg/...; "
                         "matplotlib savefig set). Repeatable, e.g. --formats png "
                         "--formats pdf. An explicit empty value (--formats '') "
                         "means no figure; default png when absent.")
+    p.add_argument("--overview-threshold", type=int, default=60, metavar="N",
+                   help="emit the all-features overview figure only when the "
+                        "feature count is <= N (its canvas is unbounded; "
+                        "per-feature figures are always written). 0 disables "
+                        "the overview. Default 60.")
+    p.add_argument("-t", "--threads", type=int, default=1, metavar="N",
+                   help="worker processes for per-feature figure rendering "
+                        "(1 = serial).")
     p.add_argument("--annotate-ns", action="store_true",
                    help="draw brackets also for non-significant features")
     p.add_argument("--no-errorbars", action="store_true",
@@ -1352,24 +948,42 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         raise ValueError(
             f"Unsupported image format(s): {', '.join(bad)}; "
             f"valid formats: {', '.join(VALID_FORMATS)}")
-    for fmt in formats:
-        out_png = str(args.outdir / f"significance_bars.{fmt}")
-        plot_grouped_bars(
-            df,
-            results,
-            out_png,
-            feature_col=args.feature_col,
-            group_col=args.group_col,
-            value_col=args.value_col,
-            groups=args.groups,
-            feature_order=results["feature"].tolist(),
+    if formats:
+        # ONE FIGURE PER FEATURE (default; bounded canvas at any feature
+        # count — a single all-in figure exceeds matplotlib's 2^16-px
+        # limit once features pass ~380 at 300 dpi)
+        written = plot_feature_distributions(
+            df, results, str(args.outdir / "significance_bars"),
+            feature_col=args.feature_col, group_col=args.group_col,
+            value_col=args.value_col, groups=args.groups,
             ylabel=args.ylabel,
-            legend_labels=args.legend,
-            annotate_ns=args.annotate_ns,
-            show_errorbars=not args.no_errorbars,
-            dpi=args.dpi,
+            formats=formats, dpi=args.dpi,
+            processes=max(1, args.threads),
+            alpha=args.alpha,
         )
-        logger.info(f"Plot saved: {out_png}")
+        logger.info(f"Per-feature figures: {len(written)} file(s) under "
+                    f"{args.outdir / 'significance_bars'}")
+        # DAG marker for the figure subdir (modules.md: no directory()
+        # outputs; the rule declares significance_bars.done)
+        (args.outdir / "significance_bars.done").write_text(
+            "\n".join(written) + "\n")
+        # overview (all features in one) only when the canvas stays small;
+        # --overview-threshold <= 0 disables it entirely
+        n_feat = len(results)
+        if 0 < args.overview_threshold and n_feat <= args.overview_threshold:
+            for fmt in formats:
+                out_png = str(args.outdir / f"significance_bars_overview.{fmt}")
+                plot_grouped_bars(
+                    df, results, out_png,
+                    feature_col=args.feature_col, group_col=args.group_col,
+                    value_col=args.value_col, groups=args.groups,
+                    feature_order=results["feature"].tolist(),
+                    ylabel=args.ylabel, legend_labels=args.legend,
+                    annotate_ns=args.annotate_ns,
+                    show_errorbars=not args.no_errorbars,
+                    dpi=args.dpi,
+                )
+                logger.info(f"Overview plot saved: {out_png}")
     return 0
 
 

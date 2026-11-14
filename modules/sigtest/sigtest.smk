@@ -45,8 +45,12 @@ rule sigtest_run:
         table = _sigtest_table,
     output:
         tsv = outdir + "/{contrast}/significance_test.tsv",
-        plots = [outdir + "/{contrast}/significance_bars." + fmt
-                 for fmt in _plot_formats],
+        # per-feature figures live in the significance_bars/ subdir and are
+        # tracked by the done marker (modules.md: no directory() outputs);
+        # an all-in overview figure (<= overview-threshold features) is
+        # written as significance_bars_overview.{fmt} beside it
+        plots = ([outdir + "/{contrast}/significance_bars.done"]
+                 if _plot_formats else []),
     log:
         logdir + "/sigtest/{contrast}.log"
     threads: rule_res("sigtest_run").get("threads", 1)
@@ -102,6 +106,8 @@ rule sigtest_run:
             # one --formats flag per requested format; empty list = no figure
             for fmt in params.formats:
                 cmd += ["--formats", str(fmt)]
+            # render worker processes for the per-feature figures
+            cmd += ["--threads", str(threads)]
             legend = params.p.get("legend") or []
             if len(legend) == 2:
                 cmd += ["--legend", str(legend[0]), str(legend[1])]
@@ -126,5 +132,4 @@ rule sigtest_run:
 rule sigtest_result:
     input:
         tsv = expand(outdir + "/{contrast}/significance_test.tsv", contrast=sigtest_contrasts),
-        plots = expand(outdir + "/{contrast}/significance_bars.{fmt}",
-                       contrast=sigtest_contrasts, fmt=_plot_formats),
+        plots = expand(outdir + "/{contrast}/significance_bars.done", contrast=sigtest_contrasts),

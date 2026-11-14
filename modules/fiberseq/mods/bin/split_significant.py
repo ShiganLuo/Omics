@@ -141,23 +141,28 @@ def split_results(args: argparse.Namespace) -> int:
             for r in rows:
                 fh.write("\t".join(r) + "\n")
 
-    bed = Path(args.out_bed)
-    bed.parent.mkdir(parents=True, exist_ok=True)
-    with open(bed, "w") as fh:
-        fh.write("#chrom\tstart\tend\tname\tscore\tstrand\tp_adjusted\tstars\n")
-        for r in bed_rows:
-            m = _REGION_RE.match(r[f_idx])
-            if not m:
-                n_bad += 1
-                continue
-            chrom, start, end, name = m.groups()
-            p = r[p_idx]
-            stars = r[low.index("stars")] if "stars" in low else ""
-            fh.write(f"{chrom}\t{start}\t{end}\t{name}\t{p}\t.\t{p}\t{stars}\n")
+    bed = Path(args.out_bed) if args.out_bed else None
+    if bed is None:
+        # no BED requested (TE axis: features are family names, no coords)
+        logger.info(" BED skipped (--out-bed absent)")
+    else:
+        bed.parent.mkdir(parents=True, exist_ok=True)
+        with open(bed, "w") as fh:
+            fh.write("#chrom\tstart\tend\tname\tscore\tstrand\tp_adjusted\tstars\n")
+            for r in bed_rows:
+                m = _REGION_RE.match(r[f_idx])
+                if not m:
+                    n_bad += 1
+                    continue
+                chrom, start, end, name = m.groups()
+                p = r[p_idx]
+                stars = r[low.index("stars")] if "stars" in low else ""
+                fh.write(f"{chrom}\t{start}\t{end}\t{name}\t{p}\t.\t{p}\t{stars}\n")
 
+    bed_desc = str(bed) if bed is not None else "no BED"
     logger.info(
         f"significant={len(sig_rows)} non-significant/skipped={len(rest_rows)} "
-        f"-> {args.out_tsv}, {args.out_bed}"
+        f"-> {args.out_tsv}, {bed_desc}"
         + (f"; BED limited to top {len(bed_rows)} by p ({n_trimmed} trimmed)"
            if n_trimmed else "")
         + (f" ({n_bad} unparseable feature ids stayed TSV-only)" if n_bad else "")
@@ -175,7 +180,7 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     )
     p.add_argument("-i", "--input", required=True, help="sigtest significance_test.tsv")
     p.add_argument("--out-tsv", required=True, help="significant subset TSV (all columns)")
-    p.add_argument("--out-bed", required=True,
+    p.add_argument("--out-bed", default=None,
                    help="significant subset BED (regionplot-ready)")
     p.add_argument("--out-rest-tsv", required=True, help="non-significant remainder TSV")
     p.add_argument("--min-abs-effect", type=float, default=0.0,

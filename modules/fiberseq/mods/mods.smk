@@ -40,6 +40,7 @@ ROOT_DIR = config.get("ROOT_DIR", ".")
 region_axis = config.get("Params", {}).get("fiberseq_mods", {}).get("region_axis") or {}
 mod_type = config.get("Params", {}).get("fiberseq_mods", {}).get("mod_type", "m6a")
 te_axis = region_axis.get("default", "fire_peaks") == "te"
+sigtest_outdir = config.get("sigtest_dir") or os.path.join(outdir, "sigtest")  # sigtest 模块的输出根(subworkflow 接线);split/top_loci 的产物与它的表同目录
 sigtest_contrasts = [str(c) for c in (config.get("contrasts") or [])]
 
 
@@ -153,13 +154,9 @@ rule fiberseq_mods_longtable:
 
 
 def _sigtest_tsv(wildcards):
-    """The sigtest module's result table for one contrast.
-
-    The subworkflow wires sigtest's outdir to <mods>/sigtest (file-only
-    cross-module contract); config.get at point of use, no global.
-    """
-    sigtest_dir = config.get("sigtest_dir") or os.path.join(outdir, "sigtest")
-    return os.path.join(sigtest_dir, wildcards.contrast, "significance_test.tsv")
+    """The sigtest module's result table for one contrast (file-only
+    cross-module contract; sigtest_outdir comes from the subworkflow)."""
+    return os.path.join(sigtest_outdir, wildcards.contrast, "significance_test.tsv")
 
 
 rule fiberseq_mods_split:
@@ -171,9 +168,12 @@ rule fiberseq_mods_split:
     input:
         sig = _sigtest_tsv,
     output:
-        sig_tsv = outdir + "/{contrast}/significant_objects.tsv",
-        sig_bed = outdir + "/{contrast}/significant_objects.bed",
-        rest_tsv = outdir + "/{contrast}/nonsignificant_objects.tsv",
+        sig_tsv = sigtest_outdir + "/{contrast}/significant_objects.tsv",
+        # BED 只在 fire_peaks 轴声明(feature id = chrom:start-end|name 可解析成坐标);
+        # TE 轴 feature 是 subfamily/family 名,无坐标,BED 恒为空表头 -> 不产出
+        sig_bed = ([] if te_axis
+                   else [sigtest_outdir + "/{contrast}/significant_objects.bed"]),
+        rest_tsv = sigtest_outdir + "/{contrast}/nonsignificant_objects.tsv",
     log:
         logdir + "/mods/split_{contrast}.log"
     threads: rule_res("fiberseq_mods_split").get("threads", 1)
@@ -202,10 +202,11 @@ rule fiberseq_mods_split:
                 "python", params.split_script,
                 "-i", str(input.sig),
                 "--out-tsv", str(output.sig_tsv),
-                "--out-bed", str(output.sig_bed),
                 "--out-rest-tsv", str(output.rest_tsv),
                 "--top-n", str(params.top_n),
             ]
+            if output.sig_bed:
+                cmd += ["--out-bed", str(output.sig_bed[0])]
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write("set -euo pipefail\n")
@@ -227,10 +228,10 @@ rule fiberseq_mods_top_loci:
     """
     input:
         sig = _sigtest_tsv,
-        loci = outdir + f"/te_{mod_type}_loci.tsv" if te_axis else [],
+        loci = [outdir + f"/te_{mod_type}_loci.tsv"] if te_axis else [],
     output:
-        tsv = [outdir + "/{contrast}/top_loci.tsv"] if te_axis else [],
-        bed = [outdir + "/{contrast}/top_loci.bed"] if te_axis else [],
+        tsv = [sigtest_outdir + "/{contrast}/top_loci.tsv"] if te_axis else [],
+        bed = [sigtest_outdir + "/{contrast}/top_loci.bed"] if te_axis else [],
     log:
         logdir + "/mods/top_loci_{contrast}.log"
     threads: rule_res("fiberseq_mods_top_loci").get("threads", 1)
@@ -247,7 +248,10 @@ rule fiberseq_mods_top_loci:
         grp_by_contrast = config.get("Params", {}).get("fiberseq_mods", {}).get("groups_by_contrast", {}),
         groups = config.get("Params", {}).get("fiberseq_mods", {}).get("groups", []),
         mod_type = mod_type,
+        # <- Params.fiberseq_mods.region_axis.options.te.min_fibers
         min_fibers = int(region_axis["options"]["te"].get("min_fibers", 3)),
+        # <- Params.fiberseq_mods.region_axis.options.te.loci_top_n
+        loci_top_n = int(region_axis["options"]["te"].get("loci_top_n", 5)),
         is_te = te_axis,
     run:
         if not params.is_te:
@@ -274,7 +278,7 @@ rule fiberseq_mods_top_loci:
                 cmd = [
                     "python", params.top_loci_script,
                     "--sig", str(input.sig),
-                    "--loci", str(input.loci[0]),
+                    "--loci", str(input.loci[0] if input.loci else ""),
                     "--groups", grp_spec,
                     "--value-suffix", f"{params.mod_type}_per_fiber",
                     "--top-n", str(params.loci_top_n),
@@ -303,9 +307,10 @@ rule fiberseq_mods_result:
     input:
         longtable = (outdir + f"/te_{mod_type}_long.tsv" if te_axis
                      else outdir + f"/{region_axis['options']['fire_peaks'].get('metric', f'{mod_type}_per_fiber')}_long.tsv"),
-        sig_tsv = expand(outdir + "/{contrast}/significant_objects.tsv",
+        sig_tsv = expand(sigtest_outdir + "/{contrast}/significant_objects.tsv",
                          contrast=sigtest_contrasts),
-        sig_bed = expand(outdir + "/{contrast}/significant_objects.bed",
-                         contrast=sigtest_contrasts),
-        top_loci = (expand(outdir + "/{contrast}/top_loci.bed",
+        sig_bed = ([] if te_axis
+                   else expand(sigtest_outdir + "/{contrast}/significant_objects.bed",
+                               contrast=sigtest_contrasts)),
+        top_loci = (expand(sigtest_outdir + "/{contrast}/top_loci.bed",
                            contrast=sigtest_contrasts) if te_axis else []),

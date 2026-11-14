@@ -115,7 +115,7 @@ def parse_args() -> argparse.Namespace:
              'or ' + DEFAULT_CALLBACK_URL + ')')
     parser.add_argument('--callback-execution-id', type=str, default=None,
         help='execution id reported to the callback endpoint (default: env '
-             'BIPLATFORM_EXECUTION_ID or EXECUTION_ID)')
+             'BIPLATFORM_EXEC_ID)')
     parser.add_argument('--callback-token', type=str, default=None,
         help='per-execution callback token (default: env '
              'BIPLATFORM_CALLBACK_TOKEN)')
@@ -1085,15 +1085,14 @@ def _build_execution_callback(args: argparse.Namespace,
     url = (args.callback_url or os.environ.get("BIPLATFORM_CALLBACK_URL")
            or DEFAULT_CALLBACK_URL)
     exec_id = (args.callback_execution_id
-               or os.environ.get("BIPLATFORM_EXECUTION_ID")
-               or os.environ.get("EXECUTION_ID"))
+               or os.environ.get("BIPLATFORM_EXEC_ID"))
     token = args.callback_token or os.environ.get("BIPLATFORM_CALLBACK_TOKEN")
     if not exec_id or not token:
         if exec_id or token:
             logger.warning(
                 "execution callback not armed: BOTH execution id and token "
                 "are required (id: --callback-execution-id or env "
-                "BIPLATFORM_EXECUTION_ID/EXECUTION_ID; token: "
+                "BIPLATFORM_EXEC_ID; token: "
                 "--callback-token or env BIPLATFORM_CALLBACK_TOKEN)")
         return None
     cb = ExecutionCallback(url, exec_id, token, logger=logger)

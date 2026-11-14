@@ -94,24 +94,26 @@ echo；引擎脚本自包含（规范 #0）、入口 `main()` 只编排、阶段
 
 # 目录布局
 
-## A. 简单 3 文件模块（最常见）
+## A. 简单模块（3 文件 + README，最常见）
 
 ```
 modules/<tool>/
   <tool>.smk
   <tool>.json
   <tool>.yaml
+  README.md
 ```
 
 代表：samtools、fastqc、deepvariant、hiphase、pbsv、tabix、trgt
 
-## B. 3 文件 + bin 目录（自定义脚本）
+## B. 3 文件 + README + bin 目录（自定义脚本）
 
 ```
 modules/<tool>/
   <tool>.smk
   <tool>.json
   <tool>.yaml
+  README.md
   bin/
     summarize.py
     plot.py
@@ -128,10 +130,12 @@ modules/<tool>/
   <tool>.smk                # 主规则或 prepare 规则
   <tool>.yaml               # 主模块 conda 环境
   <tool>.json
+  README.md
   <subtool>/
     <subtool>.smk           # 子工具规则
     [<subtool>.yaml]        # 子工具独立 conda 环境（可选；省略则共享父目录 yaml）
     <subtool>.json
+    README.md
 ```
 
 代表：gatk（gatk_prepare.smk + gatk_bqsr/ + gatk_germline/ + gatk_somatic/ + gatk_RNAseq/）、samtools（samtools.smk + sort/）、openms（decoydatabase/ + searchengine/ + psmfdr/ + ...）
@@ -155,6 +159,22 @@ subprocess / shlex / re / snakemake.logging.logger`）随 `include` 一并进入
 导入。新写规则前先查 common.smk 的 import 区：只有它没有的包（numpy、
 pandas、json、gzip …）才在模块里 import。重复导入不报错、不省时间，
 纯属噪音（102 个文件 186 行存量曾因此堆积）。
+
+# 模块 README.md（强制）
+
+每个模块目录必须有 `README.md`（与 `<tool>.smk` 同级；C 形态的子模块目录
+各自一份）。它是模块的说明书：目录整体拷走时随行，消费方（subworkflow
+编写者、复用者）不读 .smk 也能完成接线与调用。至少记录三部分：
+
+1. **模块输入输出与参数** — 输入（config 键、文件形态与格式要求、路径由
+   谁拼接）、输出（路径/命名模式）、参数表（config 字段 ↔ 引擎 CLI ↔
+   默认值 ↔ 说明）、直接调用引擎的示例命令；
+2. **算法原理与生物学意义** — 工具/算法做什么、关键公式与判定规则、
+   结果怎么读；纯工具封装模块可简写为工具用途；
+3. **参考文献** — 方法出处：论文与 DOI、软件/文档链接与版本。
+
+参照实现：`modules/fiberbrowser/README.md`。存量模块在下次触碰时补齐，
+不要求一次性回改。
 
 # 配置入口
 

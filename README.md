@@ -572,7 +572,7 @@ python workflow/Omics/run_module.py --test all -o /path/to/module_test
 
 - `config/<workflow>.json` 和 `config/<workflow>.schema.json`（总输入和总约束）
 - `subworkflow/<workflow>.smk`（流程主体）
-- `modules` 中的 json、yaml、smk（功能主体及约束）
+- `modules` 中的 json,yaml,smk和README.md（功能主体及约束）
 - `node.py` 中的分发逻辑（注册结果）
 
 添加功能时的相关规范见 [modules/modules.md](modules/modules.md)。

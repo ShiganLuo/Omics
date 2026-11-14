@@ -17,10 +17,8 @@ polygenomes 布局下的 tumor-vs-normal 微卫星不稳定(MSI)检测:对每个
 | `outdir` (config) | 输出目录(末尾自动补 `/`) |
 | `genome.<g>.fasta` (config) | 示例 config 里列出的多基因组参考字典;本 .smk 实际只消费 `reference` 键 |
 
-环境文件:规则声明 `conda: "../../msisensor_pro.schema.yaml"`(相对本
-.smk 即 `modules/msisensor-pro/msisensor_pro.schema.yaml`);仓库内实际
-存在的同名环境文件在 `modules/msisensor-pro/tumor-normal/msisensor_pro.schema.yaml`,
-接线时请确认环境文件路径指向。
+环境文件:规则声明 `conda: "../../msisensor-pro.yaml"`(共享祖父目录的
+msisensor-pro 环境)。
 
 ### 1.2 输出
 

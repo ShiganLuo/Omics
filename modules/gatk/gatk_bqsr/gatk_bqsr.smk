@@ -36,8 +36,10 @@ rule BaseRecalibrator:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start BaseRecalibrator for sample {wildcards.sample_id} at {current_time}")
+            os.makedirs(os.path.dirname(str(output.table)), exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"BaseRecalibrator_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/BaseRecalibrator.sh")
+            os.makedirs(os.path.dirname(plain_script), exist_ok=True)
             cmd = [
                 params.gatk, "BaseRecalibrator",
                 "--java-options", params.javaOptions,
@@ -65,7 +67,7 @@ rule BaseRecalibrator:
 rule ApplyBQSR:
     input:
         bam = indir + "/{sample_id}/{sample_id}.sorted_markdup.bam",
-        table = outdir + "/{sample_id}/{sample_id}.recal_data.table",
+        table = outdir + "/bqsr/{sample_id}.recal_data.table",
         ref = fasta
     output:
         bam = outdir + "/{sample_id}/{sample_id}.sorted_markdup.bqsr.bam"
@@ -91,8 +93,10 @@ rule ApplyBQSR:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start ApplyBQSR for sample {wildcards.sample_id} at {current_time}")
+            os.makedirs(os.path.dirname(str(output.bam)), exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"ApplyBQSR_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(outdir, f"{wildcards.sample_id}/ApplyBQSR.sh")
+            os.makedirs(os.path.dirname(plain_script), exist_ok=True)
             cmd = [
                 params.gatk, "ApplyBQSR",
                 "--java-options", params.javaOptions,

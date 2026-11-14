@@ -21,6 +21,10 @@ rule mimseq_deseq:
     threads: rule_res("mimseq_deseq").get("threads", 4)
     resources:
         mem_mb = rule_res("mimseq_deseq").get("mem_mb", 16000),
+    conda:
+        "../../mimseq.yaml"
+    container:
+        sif("../../mimseq.yaml", "mimseq_deseq")
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -30,7 +34,7 @@ rule mimseq_deseq:
             plain_script = os.path.join(outdir, wildcards.genome, f"mimseq_deseq.sh")
 
             cmd = [
-                "/data/pub/zhousha/env/mutation_0.1/eda061b3f191779ad16ff11ee6fe53b4_/bin/python", params.script,
+                "python", params.script,
                 "--out", outdir + f"/{wildcards.genome}/",
                 "--p-adj", str(params.p_adj),
             ]
@@ -41,7 +45,6 @@ rule mimseq_deseq:
 
             with open(script_path, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
-                f.write("export PATH=/data/pub/zhousha/env/mutation_0.1/eda061b3f191779ad16ff11ee6fe53b4_/bin:$PATH\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script_path, plain_script)

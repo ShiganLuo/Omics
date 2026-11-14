@@ -25,8 +25,8 @@
 | `samples` / `paired_samples` / `single_samples` / `contrasts` (config) | 样本与对比列表(进报告文本与 expand) |
 | `outdir` / `logdir` / `ROOT_DIR` (config) | 上游产物根(即 `--analysis-dir`)/日志/项目根 |
 
-注:定量矩阵三条 input 含 `{genome}` 占位(`{genome}_TEcount.tsv` 等),
-.smk 未展开该占位(疑似遗留),接线前需确认。
+注:定量矩阵三条 input 的文件名前缀取 config 的 `Params.report.genome`
+标签(缺省 `all`),规则不带 `{genome}` 通配符。
 
 ### 1.2 输出
 

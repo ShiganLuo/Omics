@@ -1,56 +1,100 @@
 {
-    "indir": "input",
-    "outdir": "output",
-    "logdir": "log",
-    "comparisons": {},
-    "vcf_dir": "",
-    "vcf_suffix": ".sv.vcf.gz",
-    "ROOT_DIR": ".",
-    "Procedure": {},
-    "Params": {
-        "image_formats": ["png"],
-        "genes": [],
-        "exp_specific": {
-            "vep_cache": "~/.vep",
-            "species": "mus_musculus",
-            "assembly": "GRCm39",
-            "dist": 500
-        },
-        "circos": {
-            "genome": "mm39",
-            "cytoband": "",
-            "ins_bin_size": 100000
-        },
-        "oncoprint": {
-            "cosmic_file": "",
-            "deseq2_files": {}
-        },
-        "diff_analysis": {
-            "large_sv_threshold": 10000
-        },
-        "gene_model": {
-            "threads": 1
-        },
-        "mei": {
-            "enabled": true,
-            "min_len": 100,
-            "full_length": 6000,
-            "full_length_family": "L1",
-            "te_buckets": [
-                {"name": "Alu", "family": ["Alu"], "retro_fingerprint": true},
-                {"name": "L1", "family": ["L1", "LINE"], "retro_fingerprint": true},
-                {"name": "SVA", "family": ["SVA"], "retro_fingerprint": true},
-                {"name": "LTR", "class": ["LTR"]},
-                {"name": "DNA", "class": ["DNA"]},
-                {"name": "microsatellite", "class": ["Simple_repeat"]},
-                {"name": "other", "catch_all": "classified"},
-                {"name": "unclassified", "catch_all": "unclassified"}
+  "indir": "input",
+  "outdir": "output",
+  "logdir": "log",
+  "comparisons": {},
+  "vcf_dir": "",
+  "vcf_suffix": ".sv.vcf.gz",
+  "ROOT_DIR": ".",
+  "Procedure": {},
+  "Params": {
+    "sv": {
+      "image_formats": [
+        "png"
+      ],
+      "genes": [],
+      "exp_specific": {
+        "vep_cache": "~/.vep",
+        "species": "mus_musculus",
+        "assembly": "GRCm39",
+        "dist": 500
+      },
+      "circos": {
+        "genome": "mm39",
+        "cytoband": "",
+        "ins_bin_size": 100000
+      },
+      "oncoprint": {
+        "cosmic_file": "",
+        "deseq2_files": {}
+      },
+      "diff_analysis": {
+        "large_sv_threshold": 10000
+      },
+      "gene_model": {
+        "threads": 1
+      },
+      "mei": {
+        "enabled": true,
+        "min_len": 100,
+        "full_length": 6000,
+        "full_length_family": "L1",
+        "te_buckets": [
+          {
+            "name": "Alu",
+            "family": [
+              "Alu"
+            ],
+            "retro_fingerprint": true
+          },
+          {
+            "name": "L1",
+            "family": [
+              "L1",
+              "LINE"
+            ],
+            "retro_fingerprint": true
+          },
+          {
+            "name": "SVA",
+            "family": [
+              "SVA"
+            ],
+            "retro_fingerprint": true
+          },
+          {
+            "name": "LTR",
+            "class": [
+              "LTR"
             ]
-        }
-    },
-    "genome": {
-        "fasta": "",
-        "gtf": "",
-        "fai": ""
+          },
+          {
+            "name": "DNA",
+            "class": [
+              "DNA"
+            ]
+          },
+          {
+            "name": "microsatellite",
+            "class": [
+              "Simple_repeat"
+            ]
+          },
+          {
+            "name": "other",
+            "catch_all": "classified"
+          },
+          {
+            "name": "unclassified",
+            "catch_all": "unclassified"
+          }
+        ]
+      }
     }
+  },
+  "genome": {
+    "fasta": "",
+    "gtf": "",
+    "fai": ""
+  }
 }

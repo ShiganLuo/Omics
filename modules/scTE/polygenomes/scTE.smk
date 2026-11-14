@@ -32,8 +32,8 @@ rule scTE_build_index:
         scte_build = config.get("Procedure", {}).get("scTE_build") or "scTE_build",
         genome = _scTE_genome,
         mode = _scTE_mode,
-        gene_gtf = config.get("genome", {}).get(wildcards.genome, {}).get("gtf"),
-        te_bed = config.get("genome", {}).get(wildcards.genome, {}).get("te_bed"),
+        gene_gtf = config.get("genome", {}).get(_scTE_genome, {}).get("gtf"),
+        te_bed = config.get("genome", {}).get(_scTE_genome, {}).get("te_bed"),
         index_dir = outdir + "/index",
     run:
         log_path = str(log)

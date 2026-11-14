@@ -21,6 +21,10 @@ rule mimseq_mods:
     threads: rule_res("mimseq_mods").get("threads", 4)
     resources:
         mem_mb = rule_res("mimseq_mods").get("mem_mb", 32000),
+    conda:
+        "../mimseq.yaml"
+    container:
+        sif("../mimseq.yaml", "mimseq_mods")
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -30,7 +34,7 @@ rule mimseq_mods:
             plain_script = os.path.join(outdir, f"mimseq_mods.sh")
 
             cmd = [
-                "/data/pub/zhousha/env/mutation_0.1/eda061b3f191779ad16ff11ee6fe53b4_/bin/python", params.script,
+                "python", params.script,
                 "--out", outdir + "/",
                 "--name", params.name,
                 "--threads", str(threads),
@@ -46,7 +50,6 @@ rule mimseq_mods:
 
             with open(script_path, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
-                f.write("export PATH=/data/pub/zhousha/env/mutation_0.1/eda061b3f191779ad16ff11ee6fe53b4_/bin:$PATH\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script_path, plain_script)

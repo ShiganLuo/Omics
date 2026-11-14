@@ -72,10 +72,6 @@ gatk --java-options -Xmx30g GenotypeGVCFs \
 gatk IndexFeatureFile -I outdir/variants/joint/joint.vcf.gz
 ```
 
-注意:joint_genotyping 回执脚本名引用了 `wildcards.genome`,而该规则
-并无 genome wildcard,写回执时会抛 AttributeError——接线/排查时留意
-这一处。
-
 ## 2. 算法原理与生物学意义
 
 GATK 群体变异检测最佳实践两段式:

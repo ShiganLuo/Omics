@@ -1,17 +1,17 @@
-# Auto-generated Dockerfile for samtools conda environment
-# Source: /home/luosg/Data/genomeStability/workflow/Omics/modules/msisensor-pro/msisensro_pro.yaml
-# Build: docker build -t samtools -f Dockerfile .
-# Save:  docker save samtools -o /home/luosg/Database/env/samtools.tar
+# Auto-generated Dockerfile for msisensor-pro conda environment
+# Source: modules/msisensor-pro/msisensor-pro.yaml
+# Build: docker build -t msisensor-pro -f msisensor-pro.dockerfile .
+# Save:  docker save msisensor-pro -o /data/16T/Database/env/msisensor-pro/msisensor-pro.tar
 
 FROM continuumio/miniconda3:latest
 
-COPY msisensro_pro.yaml /tmp/msisensro_pro.yaml
+COPY msisensor-pro.yaml /tmp/msisensor-pro.yaml
 
-RUN conda env create -f /tmp/msisensro_pro.yaml && \
+RUN conda env create -f /tmp/msisensor-pro.yaml && \
     conda clean -afy && \
-    rm /tmp/msisensro_pro.yaml
+    rm /tmp/msisensor-pro.yaml
 
-ENV CONDA_DEFAULT_ENV=samtools
-ENV PATH="/opt/conda/envs/samtools/bin:$PATH"
+ENV CONDA_DEFAULT_ENV=msisensor-pro
+ENV PATH="/opt/conda/envs/msisensor-pro/bin:$PATH"
 
 CMD ["bash"]

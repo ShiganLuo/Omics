@@ -24,8 +24,8 @@ def _sample_vcfs(sample_ids):
     return [f"{vcf_dir}/{s}/{s}{vcf_suffix}" for s in sample_ids]
 
 # Global parameters
-image_formats = config.get("Params", {}).get("image_formats", ["png"])
-genes = config.get("Params", {}).get("genes", [])
+image_formats = config.get("Params", {}).get("sv", {}).get("image_formats", ["png"])
+genes = config.get("Params", {}).get("sv", {}).get("genes", [])
 
 # ========================
 # Per-comparison rules
@@ -55,7 +55,7 @@ rule sv_exp_specific:
         custom_gtf = config.get("genome", {}).get("custom_gtf", ""),
         custom_fasta = config.get("genome", {}).get("custom_fasta", ""),
         te_lib = config.get("genome", {}).get("te_lib", ""),
-        dist = config.get("Params", {}).get("exp_specific", {}).get("dist", 500),
+        dist = config.get("Params", {}).get("sv", {}).get("exp_specific", {}).get("dist", 500),
     conda:
         "sv.yaml"
     container:

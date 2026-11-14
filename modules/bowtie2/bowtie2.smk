@@ -41,7 +41,7 @@ rule bowtie2_index:
         try:
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
             rule_logger.info(f"Start bowtie2 index at {current_time}")
-            script = os.path.join(RECEIPT_DIR, f"bowtie2_index_{wildcards.sample_id}_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"bowtie2_index_{current_time}.sh")
             plain_script = f"{outdir}/index/bowtie2_index.sh"
             cmd = [params.bowtie2_build, 
                     "--threads", str(threads), 
@@ -75,15 +75,13 @@ def get_alignment_input(wildcards):
     # 构造可能的输入路径
     paired_r1 = f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}_1.fq.gz"
     paired_r2 = f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}_2.fq.gz"
-    single = f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}single.fq.gz"
-    
+    single = f"{indir}/{wildcards.sample_id}/{wildcards.sample_id}.single.fq.gz"
+
     # 检查文件实际存在情况
     if wildcards.sample_id in paired_samples:
         logger.info(f"双端测序：{[paired_r1, paired_r2]}")
-        logger.info(f"双端测序：{[paired_r1, paired_r2]}")
         return [paired_r1, paired_r2]
     elif wildcards.sample_id in single_samples:
-        logger.info(f"单端测序：{[single]}")
         logger.info(f"单端测序：{[single]}")
         return [single]
     else:
@@ -160,7 +158,7 @@ rule bowtie2_align_paired:
             shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             logger.error(f"error occurred in bowtie2_align_paired for sample {wildcards.sample_id}, error: {e}\n")
-            raise f"error occurred in bowtie2_align_paired for sample {wildcards.sample_id}, error: {e}\n"
+            raise RuntimeError(f"error occurred in bowtie2_align_paired for sample {wildcards.sample_id}, error: {e}\n")
 
 rule bowtie2_align_single:
     input:
@@ -189,10 +187,12 @@ rule bowtie2_align_single:
         open(log_path, 'w').close()
         try:
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
+            sample_outdir = os.path.dirname(str(output.bam))
             script = os.path.join(RECEIPT_DIR, f"bowtie2_align_{wildcards.sample_id}_{current_time}.sh")
-            cmd1 = [params.bowtie2, 
-                    "-x", params.index_prefix, 
-                    "-U", input.fastq, 
+            plain_script = f"{sample_outdir}/bowtie2_align.sh"
+            cmd1 = [params.bowtie2,
+                    "-x", params.index_prefix,
+                    "-U", input.fastq,
                     "--threads", str(threads),
                     "--sam-append-comment" if params.sam_append_comment else "",
                     "--met-file", output.metrics,
@@ -211,4 +211,4 @@ rule bowtie2_align_single:
             shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as e:
             logger.error(f"error occured in rule bowtie2_align_single for sample {wildcards.sample_id}, error: {e}\n")
-            raise f"error occured in rule bowtie2_align_single for sample {wildcards.sample_id}, error: {e}\n"
+            raise RuntimeError(f"error occured in rule bowtie2_align_single for sample {wildcards.sample_id}, error: {e}\n")

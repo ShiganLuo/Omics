@@ -1,7 +1,7 @@
-name: samtools
+name: msisensor-pro
 channels:
-  - bioconda
   - conda-forge
+  - bioconda
   - defaults
 dependencies:
   - msisensor-pro=1.3.0

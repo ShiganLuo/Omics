@@ -1,33 +1,33 @@
-# Auto-generated Apptainer definition file for samtools conda environment
-# Source YAML: msisensro_pro.yaml
-# Build: apptainer build samtools.sif msisensor-pro.def
+# Auto-generated Apptainer definition file for msisensor-pro conda environment
+# Source YAML: msisensor-pro.yaml
+# Build: apptainer build msisensor-pro.sif msisensor-pro.def
 # Or:   apptainer build <output.sif> <def_file>
 
 Bootstrap: docker
 From: docker.m.daocloud.io/continuumio/miniconda3:latest
 
 %files
-    msisensro_pro.yaml /opt/conda/msisensro_pro.yaml
+    msisensor-pro.yaml /opt/conda/msisensor-pro.yaml
 
 %post
-    conda env create -f /opt/conda/msisensro_pro.yaml && \
+    conda env create -f /opt/conda/msisensor-pro.yaml && \
         conda clean -afy && \
-        rm /opt/conda/msisensro_pro.yaml
+        rm /opt/conda/msisensor-pro.yaml
 
-    echo 'export PATH="/opt/conda/envs/samtools/bin:$PATH"' >> /etc/profile.d/conda_samtools.sh
-    echo 'export CONDA_DEFAULT_ENV=samtools' >> /etc/profile.d/conda_samtools.sh
+    echo 'export PATH="/opt/conda/envs/msisensor-pro/bin:$PATH"' >> /etc/profile.d/conda_msisensor-pro.sh
+    echo 'export CONDA_DEFAULT_ENV=msisensor-pro' >> /etc/profile.d/conda_msisensor-pro.sh
 
 %environment
-    export PATH="/opt/conda/envs/samtools/bin:$PATH"
-    export CONDA_DEFAULT_ENV=samtools
+    export PATH="/opt/conda/envs/msisensor-pro/bin:$PATH"
+    export CONDA_DEFAULT_ENV=msisensor-pro
 
 %runscript
     exec "$@"
 
 %labels
     Author genomestability
-    EnvName samtools
+    EnvName msisensor-pro
 
 %help
-    Apptainer image for conda environment 'samtools'.
-    Generated from msisensro_pro.yaml.
+    Apptainer image for conda environment 'msisensor-pro'.
+    Generated from msisensor-pro.yaml.

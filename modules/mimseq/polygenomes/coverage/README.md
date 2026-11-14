@@ -38,7 +38,7 @@ logdir/{genome}/mimseq_coverage.log      # 规则日志
 | `outdir` / `logdir` | — | `output` / `log` | 目录基路径(输出按 `{genome}/` 分层) |
 
 线程/内存经 `rule_res("mimseq_coverage")` 配置:threads 默认 4,mem_mb
-默认 16000。运行的 Python 解释器与 `PATH` 在 .smk 中硬编码(站点路径)。
+默认 16000。运行的 Python 解释器为规则 conda 环境(`../../mimseq.yaml`)的 `python`。
 
 引擎命令(回执脚本原文):
 

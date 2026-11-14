@@ -29,8 +29,8 @@ MSIsensor-pro 基线(baseline)模式:用一组正常/基线样本建立微卫星
 {outdir}tumor_only_output.{genome_version}.merge.tsv                  # 合并结果(rule all 目标)
 ```
 
-日志:同名 `.log` 旁挂在输出旁。环境:`conda: "../../msisensro_pro.schema.yaml"`
-(注意:父目录共享 yaml,文件名含 `msisensro` 拼写,以仓库实名为准)。
+日志:同名 `.log` 旁挂在输出旁。环境:`conda: "../../msisensor-pro.yaml"`
+(conda 环境共享祖父目录)。
 
 ### 1.3 参数
 

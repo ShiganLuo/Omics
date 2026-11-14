@@ -45,9 +45,7 @@ python modules/mimseq/bin/clusters/run.py \
     --cluster-id 0.97 --cov-diff 0.5 --cluster
 ```
 
-注:规则内 Python 解释器为硬编码绝对路径
-(`/data/pub/zhousha/env/mutation_0.1/.../bin/python`,并在回执里 export
-其 PATH)——换部署环境需改 .smk(父 README 注意事项 1)。
+注:解释器为规则 conda 环境(`../mimseq.yaml`)的 `python`。
 
 ## 2. 算法原理与生物学意义
 

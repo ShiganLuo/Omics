@@ -34,7 +34,7 @@ config 位于 `Params.mimseq` 下,与 `deseq/run.py` CLI 对应:
 | `genome.mito_trnas` | `--mito-trnas` | "" | 线粒体 tRNA 注释(可选) |
 | threads / mem_mb | — | 4 / 16000 | `rule_res("mimseq_deseq")` 配置 |
 
-注:规则内解释器为固定 conda 环境路径(见 .smk)。
+注:解释器为规则 conda 环境(`../mimseq.yaml`)的 `python`。
 
 直接调用示例(脱离流程):
 

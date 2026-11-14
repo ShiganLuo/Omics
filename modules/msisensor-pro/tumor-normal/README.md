@@ -38,8 +38,7 @@ MSIsensor-pro 作者(Peng Jia)提供的 baseline 构建风格实现。
 | — | `msi -d <list> -n <normal> -t <tumor> -g <ref> -o <out>` | 固定 | 配对 MSI 判定 |
 | mem_mb | — | scan/merge 8000,msi 16000 | `rule_res` 配置 |
 
-conda 环境按 `../msisensor_pro.schema.yaml` 解析(父目录;本子目录另有
-同名 `msisensor_pro.schema.yaml`)。
+conda 环境按 `../msisensor-pro.yaml` 解析(父目录共享)。
 
 直接调用示例(脱离流程):
 

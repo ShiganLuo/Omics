@@ -24,6 +24,10 @@ rule mimseq_align:
     threads: rule_res("mimseq_align").get("threads", 10)
     resources:
         mem_mb = rule_res("mimseq_align").get("mem_mb", 32000),
+    conda:
+        "../mimseq.yaml"
+    container:
+        sif("../mimseq.yaml", "mimseq_align")
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -33,7 +37,7 @@ rule mimseq_align:
             plain_script = os.path.join(outdir, f"mimseq_align.sh")
 
             cmd = [
-                "/data/pub/zhousha/env/mutation_0.1/eda061b3f191779ad16ff11ee6fe53b4_/bin/python", params.script,
+                "python", params.script,
                 "--sample-data", input.sample_data,
                 "--name", params.name,
                 "--out", outdir + "/",
@@ -47,7 +51,6 @@ rule mimseq_align:
 
             with open(script_path, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
-                f.write("export PATH=/data/pub/zhousha/env/mutation_0.1/eda061b3f191779ad16ff11ee6fe53b4_/bin:$PATH\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script_path, plain_script)

@@ -64,7 +64,7 @@ rule mimseq_tRNAtools:
             plain_script = os.path.join(outdir, wildcards.genome, f"mimseq_tRNAtools.sh")
 
             cmd = [
-                "/data/pub/zhousha/env/mutation_0.1/eda061b3f191779ad16ff11ee6fe53b4_/bin/python", params.script,
+                "python", params.script,
                 "--modifications", params.modifications,
                 "--name", params.name,
                 "--out", outdir + f"/{wildcards.genome}/",
@@ -97,7 +97,6 @@ rule mimseq_tRNAtools:
 
             with open(script_path, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
-                f.write("source /home/zhousha/miniforge3/bin/activate /data/pub/zhousha/env/mutation_0.1/eda061b3f191779ad16ff11ee6fe53b4_\n")
                 f.write(" ".join(cmd) + "\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script_path, plain_script)

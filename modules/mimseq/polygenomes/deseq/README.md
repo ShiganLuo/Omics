@@ -47,8 +47,7 @@ python modules/mimseq/bin/deseq/run.py \
     --control-cond control --mito-trnas mito_trnas.fa
 ```
 
-注:规则内 Python 解释器为硬编码绝对路径(同家族其余子模块,见父
-README 注意事项 1)。
+注:解释器为规则 conda 环境(`../../mimseq.yaml`)的 `python`。
 
 ## 2. 算法原理与生物学意义
 

@@ -36,9 +36,9 @@ rule scan:
     resources:
         mem_mb = rule_res("scan").get("mem_mb", 8000),
     conda:
-        "../../msisensor_pro.schema.yaml"
+        "../../msisensor-pro.yaml"
     container:
-        sif("../../msisensor_pro.schema.yaml", "scan")
+        sif("../../msisensor-pro.yaml", "scan")
     run:
         shell("{msisensor_pro} scan -d {input} -o {output} 2>{log} 1>{log}")
 
@@ -55,9 +55,9 @@ rule msisensor_msi:
     resources:
         mem_mb = rule_res("msisensor_msi").get("mem_mb", 16000),
     conda:
-        "../../msisensor_pro.schema.yaml"
+        "../../msisensor-pro.yaml"
     container:
-        sif("../../msisensor_pro.schema.yaml", "msisensor_msi")
+        sif("../../msisensor-pro.yaml", "msisensor_msi")
     run:
         shell("{msisensor_pro} msi -d {input.ms} -n {input.n} -t {input.t} -g {input.ref}  -o {output} 2>{log}")
 

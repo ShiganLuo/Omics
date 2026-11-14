@@ -40,8 +40,8 @@ mim-tRNAseq 流程的 mods 步:对 tRNA 比对结果做修饰诱导错配
 `Params.mimseq` 段其余字段(species、cluster_id、max_mismatches、p_adj 等)
 由 mimseq 其他阶段(align/clusters/coverage/deseq)模块消费,本规则不转发。
 资源默认:`threads = 4`(经 `rule_res("mimseq_mods")` 可覆盖)、
-`mem_mb = 32000`。注意:引擎解释器在 .smk 中硬编码为特定 conda 环境的
-`python` 绝对路径,换环境需改 .smk。
+`mem_mb = 32000`。引擎解释器为规则 conda 环境(`../mimseq.yaml`)的
+`python`。
 
 直接调用示例(共享引擎脚本 `modules/mimseq/bin/mods/run.py`):
 

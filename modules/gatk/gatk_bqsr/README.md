@@ -24,10 +24,6 @@ GATK BaseRecalibrator + ApplyBQSR 两步:先用已知位点估计碱基质量协
 {logdir}/{sample_id}/gatk_bqsr.log / ApplyBQSR.log    # 日志
 ```
 
-注意:BaseRecalibrator 的输出表路径为 `bqsr/` 子目录,而 ApplyBQSR 的
-`table` 输入声明为 `{outdir}/{sample_id}/{sample_id}.recal_data.table`——
-两规则对表路径的声明不一致,消费/调试时须留意(以上均为源码原样记录)。
-
 ### 1.3 参数
 
 | config 字段 | CLI | 默认 | 说明 |

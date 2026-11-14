@@ -45,7 +45,7 @@ config 位于 `Params.mimseq` 与 `genome` 下,与 `tRNAtools/run.py` CLI 对应
 | `Procedure.mimseq` | — | `mimseq` | mimseq 可执行路径(声明) |
 | threads / mem_mb | — | 4 / 8000 | `rule_res("mimseq_tRNAtools")` 配置 |
 
-注:规则内解释器为固定 conda 环境路径(见 .smk),非 `Procedure` 配置。
+注:解释器为规则 conda 环境(`../mimseq.yaml`)的 `python`,非 `Procedure` 配置。
 
 直接调用示例(脱离流程):
 

@@ -36,8 +36,8 @@ logdir/mimseq_align.log                  # 运行日志
 | `indir` / `outdir` / `logdir` | — | `input` / `output` / `log` | 目录基路径 |
 
 线程/内存经 `rule_res("mimseq_align")` 配置:threads 默认 10(传
-`--threads`),mem_mb 默认 32000。运行的 Python 解释器与 `PATH` 在 .smk 中
-硬编码(站点路径,部署时按父 README 注意事项 1 调整)。
+`--threads`),mem_mb 默认 32000。运行的 Python 解释器为规则 conda 环境
+(`../mimseq.yaml`)的 `python`。
 
 引擎命令(回执脚本原文):
 

@@ -135,7 +135,7 @@ mimseq.done (result)
 
 ## 注意事项
 
-1. **conda 环境路径**：当前 smk 文件中硬编码了 Python 路径，需根据部署环境调整
+1. **conda 环境**:解释器统一为规则 conda 环境(`mimseq.yaml`)的 `python`,无站点路径硬编码
 2. **mimseq 输出目录**：路径必须有尾部 `/`，否则内部路径拼接会出错
 3. **pickle 状态**：tRNAtools 通过 pickle 传递状态到下游模块，`bin/serialize.py` 提供 load/save 工具
 4. **coverage_byaa.txt 用途**：可直接用于绘制氨基酸水平表达热力图（如 PPT 中的 slide_cn-4）

@@ -6,6 +6,9 @@ samples = config.get("samples", [])
 paired_samples = config.get("paired_samples", [])
 single_samples = config.get("single_samples", [])
 contrasts = config.get("contrasts", [])
+# counts 矩阵文件名的 genome 前缀(单基因组变体:产物按 config 的
+# Params.report.genome 标签命名,规则本身不带 {genome} 通配符)
+genome_label = config.get("Params", {}).get("report", {}).get("genome") or "all"
 
 REPORT_SCRIPT = os.path.join(ROOT_DIR, "modules", "RNAseq_report", "bin", "generate_report.py")
 FUSION_FIGS = [
@@ -25,9 +28,9 @@ rule generate_report:
         te_group_plot = outdir + "/transcripts/TE_chimeric/TE_chimeric_group_stacked.png",
         te_type_top_plot = outdir + "/transcripts/TE_chimeric/TE_chimeric_te_type_top.png",
         te_type_group_plot = outdir + "/transcripts/TE_chimeric/TE_chimeric_te_type_by_group.png",
-        tecount_matrix = outdir + "/counts/TEtranscripts/{genome}_TEcount.tsv",
-        tecount_name_matrix = outdir + "/counts/TEtranscripts/{genome}_TEcount_name.tsv",
-        featurecounts_matrix = outdir + "/counts/featureCounts/{genome}_featureCounts.tsv",
+        tecount_matrix = outdir + f"/counts/TEtranscripts/{genome_label}_TEcount.tsv",
+        tecount_name_matrix = outdir + f"/counts/TEtranscripts/{genome_label}_TEcount_name.tsv",
+        featurecounts_matrix = outdir + f"/counts/featureCounts/{genome_label}_featureCounts.tsv",
         gsva_heatmap = outdir + "/function/gsva/gsva_heatmap.png",
         gsva_scores = outdir + "/function/gsva/gsva_scores.tsv",
         fusion_summary = outdir + "/fusion/arriba_report/per_sample_summary.tsv",

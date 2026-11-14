@@ -15,7 +15,7 @@ Bowtie2 参考基因组建索引与短读长比对封装:双端/单端 FASTQ 比
 | `genome.index_prefix` (config) | 可选:已有 Bowtie2 索引前缀;若 `<prefix>.1.bt2` 存在则直接使用,不再构建 |
 | `outdir` / `logdir` / `logdir_combine` (config) | 输出/日志目录 |
 
-注:`get_alignment_input` 中单端候选路径写作 `{indir}/{sample_id}/{sample_id}single.fq.gz`(无点号),与规则 input 的 `{sample_id}.single.fq.gz` 拼写不一致——样本路由以 `paired_samples`/`single_samples` 列表成员身份为准,不以文件存在性为准。已知问题:`bowtie2_align_single` 的 run 块中 `plain_script` 未定义(`shutil.copyfile(script, plain_script)` 处会 NameError),单端路径接线前需修复。
+注:样本路由以 `paired_samples`/`single_samples` 列表成员身份为准,不以文件存在性为准。
 
 ### 1.2 输出
 

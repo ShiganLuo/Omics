@@ -3,7 +3,7 @@
 MSIsensor-pro 的 tumor-only 工作流:先用一组正常样本构建微卫星基线
 (baseline),再对肿瘤样本评估微卫星不稳定性(MSI)。该模块为独立形态
 (config 顶层键,非 Procedure/Params 段);conda 环境共享父目录
-`../msisensro_pro.schema.yaml`(文件名拼写即为 msisensro,容器同源)。
+`../msisensor-pro.yaml`(容器同源)。
 
 ## 1. 模块输入输出与参数
 

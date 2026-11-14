@@ -104,7 +104,7 @@ rule gatk_population_joint_genotyping:
             with open(sample_map, "w") as handle:
                 for sample, gvcf in zip(samples, input.gvcfs):
                     handle.write(f"{sample}\t{gvcf}\n")
-            script = os.path.join(RECEIPT_DIR, f"gatk_population_joint_genotyping_{wildcards.genome}_{current_time}.sh")
+            script = os.path.join(RECEIPT_DIR, f"gatk_population_joint_genotyping_{current_time}.sh")
             plain_script = os.path.join(os.path.dirname(output.vcf), f"gatk_population_joint_genotyping.sh")
             import_cmd = [params.gatk, "--java-options", params.java_options, "GenomicsDBImport", "--sample-name-map", sample_map, "--genomicsdb-workspace-path", params.workspace, "--reader-threads", str(threads)]
             genotype_cmd = [params.gatk, "--java-options", params.java_options, "GenotypeGVCFs", "-R", input.fasta, "-V", "gendb://" + params.workspace, "-O", output.vcf]
@@ -120,9 +120,9 @@ rule gatk_population_joint_genotyping:
                 f.write(" ".join(str(item) for item in import_cmd) + "\n")
                 f.write(" ".join(str(item) for item in genotype_cmd) + "\n")
                 f.write(f"{params.gatk} IndexFeatureFile -I {output.vcf}\n")
-                f.write(f"echo 'gatk_population_joint_genotyping completed successfully for genome {wildcards.genome}'\n")
+                f.write(f"echo 'gatk_population_joint_genotyping completed successfully'\n")
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
         except Exception as exc:
-            rule_logger.error(f"Joint genotyping failed for {wildcards.sample}: {exc}")
-            raise RuntimeError(f"Error occurred while running joint genotyping for sample {wildcards.sample}: {exc}, you can check the log file {log_path} for more details.")
+            rule_logger.error(f"Joint genotyping failed: {exc}")
+            raise RuntimeError(f"Error occurred while running joint genotyping: {exc}, you can check the log file {log_path} for more details.")

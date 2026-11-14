@@ -65,9 +65,8 @@ python modules/scTE/bin/scTE_quantify.py \
     --scte-bin scTE --sample-id sample1
 ```
 
-注:`scTE_build_index` 的 params 通过 `wildcards.genome` 取
-`config["genome"]` 的 gtf/te_bed,而该规则输出并无 genome wildcard
-(索引按 `Params.scTE.genome` 命名)——接线时留意该引用的求值。
+注:`scTE_build_index` 的 gtf/te_bed 按 `Params.scTE.genome`(索引命名
+同源)从 `config["genome"]` 读取;该规则不带 genome 通配符。
 
 ## 2. 算法原理与生物学意义
 

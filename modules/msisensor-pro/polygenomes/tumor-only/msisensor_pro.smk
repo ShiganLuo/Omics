@@ -40,9 +40,9 @@ rule scan:
     resources:
         mem_mb = rule_res("scan").get("mem_mb", 8000),
     conda:
-        "../../msisensro_pro.schema.yaml"
+        "../../msisensor-pro.yaml"
     container:
-        sif("../../msisensro_pro.schema.yaml", "scan")
+        sif("../../msisensor-pro.yaml", "scan")
     run:
         shell("{msisensor_pro} scan -d {input} -o {output} 2>{log} 1>{log}")
 
@@ -59,9 +59,9 @@ rule pro_pre:
     resources:
         mem_mb = rule_res("pro_pre").get("mem_mb", 8000),
     conda:
-        "../../msisensro_pro.schema.yaml"
+        "../../msisensor-pro.yaml"
     container:
-        sif("../../msisensro_pro.schema.yaml", "pro_pre")
+        sif("../../msisensor-pro.yaml", "pro_pre")
     run:
         shell("{msisensor_pro} pro -d {input.ms} -t {input.bam} -g {input.ref} -o {output} >> {log} 2>&1")
 
@@ -75,9 +75,9 @@ rule merge:
     resources:
         mem_mb = rule_res("merge").get("mem_mb", 8000),
     conda:
-        "../../msisensro_pro.schema.yaml"
+        "../../msisensor-pro.yaml"
     container:
-        sif("../../msisensro_pro.schema.yaml", "merge")
+        sif("../../msisensor-pro.yaml", "merge")
     run:
         with open(f"{output}","w") as f:
             for i in input:
@@ -94,9 +94,9 @@ rule baseline:
     resources:
         mem_mb = rule_res("baseline").get("mem_mb", 8000),
     conda:
-        "../../msisensro_pro.schema.yaml"
+        "../../msisensor-pro.yaml"
     container:
-        sif("../../msisensro_pro.schema.yaml", "baseline")
+        sif("../../msisensor-pro.yaml", "baseline")
     run:
         shell(f"{msisensor_pro} baseline  -d {input.ms} -i {input.conf} -o {output} -s 1 >> {log} 2>&1")
 rule run_pro:
@@ -111,9 +111,9 @@ rule run_pro:
     resources:
         mem_mb = rule_res("run_pro").get("mem_mb", 8000),
     conda:
-        "../../msisensro_pro.schema.yaml"
+        "../../msisensor-pro.yaml"
     container:
-        sif("../../msisensro_pro.schema.yaml", "run_pro")
+        sif("../../msisensor-pro.yaml", "run_pro")
     run:
         shell("{msisensor_pro} pro -d {input.ms} -t {input.t} -g {input.ref}  -o {output} 2>{log}")
 

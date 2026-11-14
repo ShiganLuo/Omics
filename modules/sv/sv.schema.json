@@ -46,176 +46,247 @@
     "nullable": true,
     "required": false,
     "properties": {
-      "image_formats": {
-        "type": "list",
-        "nullable": true,
-        "required": false
-      },
-      "genes": {
-        "type": "list",
-        "nullable": true,
-        "required": false
-      },
-      "exp_specific": {
+      "sv": {
         "type": "dict",
         "nullable": true,
         "required": false,
         "properties": {
-          "vep_cache": {
-            "type": "str",
+          "image_formats": {
+            "type": "list",
             "nullable": true,
             "required": false
           },
-          "species": {
-            "type": "str",
+          "genes": {
+            "type": "list",
             "nullable": true,
             "required": false
           },
-          "assembly": {
-            "type": "str",
-            "nullable": true,
-            "required": false
-          },
-          "dist": {
-            "type": "int",
-            "nullable": true,
-            "required": false
-          }
-        }
-      },
-      "circos": {
-        "type": "dict",
-        "nullable": true,
-        "required": false,
-        "properties": {
-          "genome": {
-            "type": "str",
-            "nullable": true,
-            "required": false
-          },
-          "cytoband": {
-            "type": "str",
-            "nullable": true,
-            "required": false
-          },
-          "ins_bin_size": {
-            "type": "int",
-            "nullable": true,
-            "required": false
-          }
-        }
-      },
-      "oncoprint": {
-        "type": "dict",
-        "nullable": true,
-        "required": false,
-        "properties": {
-          "cosmic_file": {
-            "type": "str",
-            "nullable": true,
-            "required": false
-          },
-          "deseq2_files": {
+          "exp_specific": {
             "type": "dict",
             "nullable": true,
             "required": false,
-            "properties": {}
-          }
-        }
-      },
-      "diff_analysis": {
-        "type": "dict",
-        "nullable": true,
-        "required": false,
-        "properties": {
-          "large_sv_threshold": {
-            "type": "int",
-            "nullable": true,
-            "required": false
-          }
-        }
-      },
-      "gene_model": {
-        "type": "dict",
-        "nullable": true,
-        "required": false,
-        "properties": {
-          "threads": {
-            "type": "int",
-            "nullable": true,
-            "required": false
-          }
-        }
-      },
-      "mei": {
-        "type": "dict",
-        "nullable": true,
-        "required": false,
-        "properties": {
-          "enabled": {
-            "type": "bool",
-            "nullable": true,
-            "required": false,
-            "default": true,
-            "description": "Gate the sv_mei analysis (MEI classification + figure suite)."
-          },
-          "min_len": {
-            "type": "int",
-            "nullable": true,
-            "required": false,
-            "default": 100,
-            "description": "Minimum inserted-sequence length (bp) sent to RepeatMasker; shorter events stay 'short_unclassified'."
-          },
-          "full_length": {
-            "type": "int",
-            "nullable": true,
-            "required": false,
-            "default": 6000,
-            "description": "Minimum insertion length (bp) for full-length candidacy."
-          },
-          "full_length_family": {
-            "type": "str",
-            "nullable": true,
-            "required": false,
-            "default": "L1",
-            "description": "Bucket name considered for full-length candidacy (L1 by default; e.g. an ERVK bucket for other clades)."
-          },
-          "te_buckets": {
-            "type": "list",
-            "nullable": true,
-            "required": false,
-            "default": [
-              {"name": "Alu", "family": ["Alu"], "retro_fingerprint": true},
-              {"name": "L1", "family": ["L1", "LINE"], "retro_fingerprint": true},
-              {"name": "SVA", "family": ["SVA"], "retro_fingerprint": true},
-              {"name": "LTR", "class": ["LTR"]},
-              {"name": "DNA", "class": ["DNA"]},
-              {"name": "microsatellite", "class": ["Simple_repeat"]},
-              {"name": "other", "catch_all": "classified"},
-              {"name": "unclassified", "catch_all": "unclassified"}
-            ],
-            "items": {
-              "type": "dict",
-              "properties": {
-                "name": {"type": "str", "required": true,
-                  "description": "Bucket display name; never used for matching."},
-                "subfamily": {"type": "list", "required": false,
-                  "description": "Exact (case-insensitive) match against the RM repeat NAME (AluY / B1_Mm / IAP1 ...)."},
-                "family": {"type": "list", "required": false,
-                  "description": "Exact match against the RM class/family suffix (SINE/Alu -> Alu; no-slash entries match whole string)."},
-                "class": {"type": "list", "required": false,
-                  "description": "Exact match against the RM class/family prefix (SINE, LTR, DNA ...). Only the FIRST non-empty of subfamily/family/class participates (probe order subfamily -> family -> class)."},
-                "catch_all": {"type": "str", "required": false,
-                  "enum": ["classified", "unclassified"],
-                  "description": "'classified': RM hit but no bucket matched; 'unclassified': no RM hit at all."},
-                "retro_fingerprint": {"type": "bool", "required": false,
-                  "description": "true -> this bucket gets TSD detection (needs reference flanks) and is included in the retrotransposon fingerprint figure (polyA/TSD rates). Mark only active retrotransposon families (primate Alu/L1/SVA; mouse IAP/ETn, B1, B2/ID, L1)."},
-                "zero_slot": {"type": "bool", "required": false,
-                  "default": true,
-                  "description": "false -> omit this bucket from figures when it has zero events (default true keeps the slot labelled 0)."}
+            "properties": {
+              "vep_cache": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "species": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "assembly": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "dist": {
+                "type": "int",
+                "nullable": true,
+                "required": false
               }
-            },
-            "description": "Ordered TE bucket list ({name, subfamily, family, class, catch_all, retro_fingerprint, zero_slot} dicts; matching schema in bin/mei_analysis.py). Default = generic primate vocabulary; node.py rewrites it to the species vocabulary from genome.default at config generation (custom vocabularies live in node.py TE_BUCKET_PRESETS)."
+            }
+          },
+          "circos": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "genome": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "cytoband": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "ins_bin_size": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              }
+            }
+          },
+          "oncoprint": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "cosmic_file": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "deseq2_files": {
+                "type": "dict",
+                "nullable": true,
+                "required": false,
+                "properties": {}
+              }
+            }
+          },
+          "diff_analysis": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "large_sv_threshold": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              }
+            }
+          },
+          "gene_model": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "threads": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              }
+            }
+          },
+          "mei": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "enabled": {
+                "type": "bool",
+                "nullable": true,
+                "required": false,
+                "default": true,
+                "description": "Gate the sv_mei analysis (MEI classification + figure suite)."
+              },
+              "min_len": {
+                "type": "int",
+                "nullable": true,
+                "required": false,
+                "default": 100,
+                "description": "Minimum inserted-sequence length (bp) sent to RepeatMasker; shorter events stay 'short_unclassified'."
+              },
+              "full_length": {
+                "type": "int",
+                "nullable": true,
+                "required": false,
+                "default": 6000,
+                "description": "Minimum insertion length (bp) for full-length candidacy."
+              },
+              "full_length_family": {
+                "type": "str",
+                "nullable": true,
+                "required": false,
+                "default": "L1",
+                "description": "Bucket name considered for full-length candidacy (L1 by default; e.g. an ERVK bucket for other clades)."
+              },
+              "te_buckets": {
+                "type": "list",
+                "nullable": true,
+                "required": false,
+                "default": [
+                  {
+                    "name": "Alu",
+                    "family": [
+                      "Alu"
+                    ],
+                    "retro_fingerprint": true
+                  },
+                  {
+                    "name": "L1",
+                    "family": [
+                      "L1",
+                      "LINE"
+                    ],
+                    "retro_fingerprint": true
+                  },
+                  {
+                    "name": "SVA",
+                    "family": [
+                      "SVA"
+                    ],
+                    "retro_fingerprint": true
+                  },
+                  {
+                    "name": "LTR",
+                    "class": [
+                      "LTR"
+                    ]
+                  },
+                  {
+                    "name": "DNA",
+                    "class": [
+                      "DNA"
+                    ]
+                  },
+                  {
+                    "name": "microsatellite",
+                    "class": [
+                      "Simple_repeat"
+                    ]
+                  },
+                  {
+                    "name": "other",
+                    "catch_all": "classified"
+                  },
+                  {
+                    "name": "unclassified",
+                    "catch_all": "unclassified"
+                  }
+                ],
+                "items": {
+                  "type": "dict",
+                  "properties": {
+                    "name": {
+                      "type": "str",
+                      "required": true,
+                      "description": "Bucket display name; never used for matching."
+                    },
+                    "subfamily": {
+                      "type": "list",
+                      "required": false,
+                      "description": "Exact (case-insensitive) match against the RM repeat NAME (AluY / B1_Mm / IAP1 ...)."
+                    },
+                    "family": {
+                      "type": "list",
+                      "required": false,
+                      "description": "Exact match against the RM class/family suffix (SINE/Alu -> Alu; no-slash entries match whole string)."
+                    },
+                    "class": {
+                      "type": "list",
+                      "required": false,
+                      "description": "Exact match against the RM class/family prefix (SINE, LTR, DNA ...). Only the FIRST non-empty of subfamily/family/class participates (probe order subfamily -> family -> class)."
+                    },
+                    "catch_all": {
+                      "type": "str",
+                      "required": false,
+                      "enum": [
+                        "classified",
+                        "unclassified"
+                      ],
+                      "description": "'classified': RM hit but no bucket matched; 'unclassified': no RM hit at all."
+                    },
+                    "retro_fingerprint": {
+                      "type": "bool",
+                      "required": false,
+                      "description": "true -> this bucket gets TSD detection (needs reference flanks) and is included in the retrotransposon fingerprint figure (polyA/TSD rates). Mark only active retrotransposon families (primate Alu/L1/SVA; mouse IAP/ETn, B1, B2/ID, L1)."
+                    },
+                    "zero_slot": {
+                      "type": "bool",
+                      "required": false,
+                      "default": true,
+                      "description": "false -> omit this bucket from figures when it has zero events (default true keeps the slot labelled 0)."
+                    }
+                  }
+                },
+                "description": "Ordered TE bucket list ({name, subfamily, family, class, catch_all, retro_fingerprint, zero_slot} dicts; matching schema in bin/mei_analysis.py). Default = generic primate vocabulary; node.py rewrites it to the species vocabulary from genome.default at config generation (custom vocabularies live in node.py TE_BUCKET_PRESETS)."
+              }
+            }
           }
         }
       }

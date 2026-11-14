@@ -1415,6 +1415,7 @@ CMD ["bash"]
         "msgpack-python": "msgpack",
         "protobuf": "google.protobuf",
         "mosek": "mosek",
+        "telocal": "TElocal_Toolkit",
     }
 
     @classmethod

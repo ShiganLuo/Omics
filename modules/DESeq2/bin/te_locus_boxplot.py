@@ -346,10 +346,13 @@ def load_loci_lengths(loci_tsv: str, matrix_index: "pd.Index") -> "pd.Series":
             0,
             os.path.join(os.path.dirname(os.path.abspath(__file__))),
         )
-        # reuse the te_manhattan loader (pickle + tree walk)
-        from te_manhattan import load_locind  # noqa: PLC0415
+        # reuse the te_manhattan loader: consults the <locInd>.parquet
+        # cache when present, else falls back to pickle + tree walk
+        # (the pickle walk needs TElocal_Toolkit, absent from this
+        # container)
+        from te_manhattan import load_loci_table  # noqa: PLC0415
 
-        loci = load_locind(loci_tsv)
+        loci = load_loci_table(loci_tsv)
     else:
         loci = pd.read_csv(loci_tsv, sep="\t")
     lengths = (

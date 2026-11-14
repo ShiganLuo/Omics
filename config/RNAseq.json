@@ -192,10 +192,11 @@
     "trimmomatic": "/data/16T/Database/env/trimmomatic/trimmomatic.sif",
     "XenofilteR": "/data/16T/Database/env/XenofilteR/XenofilteR.sif",
     "featureCounts": "/data/16T/Database/env/featureCounts/featureCounts.sif",
-    "DESeq2_TElocal_manhattan": "/data/16T/Database/env/fiberseq/fiberseq.sif",
-    "DESeq2_TElocal_locus_boxplot": "/data/16T/Database/env/fiberseq/fiberseq.sif",
-    "DESeq2_TElocal_subfamily_bar": "/data/16T/Database/env/fiberseq/fiberseq.sif",
-    "sexcheck": "/data/16T/Database/env/fragment_size/fragment_size.sif"
+    "DESeq2_TElocal_manhattan": "/data/16T/Database/env/DESeq2/tefig.sif",
+    "DESeq2_TElocal_locus_boxplot": "/data/16T/Database/env/DESeq2/tefig.sif",
+    "DESeq2_TElocal_subfamily_bar": "/data/16T/Database/env/DESeq2/tefig.sif",
+    "sexcheck": "/data/16T/Database/env/fragment_size/fragment_size.sif",
+    "tefig": "/data/16T/Database/env/DESeq2/tefig.sif"
   },
   "Procedure": {
     "TEcount": null,

@@ -178,6 +178,7 @@
     "env_dir": "/data/16T/Database/env",
     "DESeq2": "/data/16T/Database/env/DESeq2/DESeq2.sif",
     "RNAseq_report": "/data/16T/Database/env/report/report.sif",
+    "qc_summary": "/data/16T/Database/env/report/report.sif",
     "RmrRNA": "/data/16T/Database/env/RmrRNA/RmrRNA.sif",
     "StringTie": "/data/16T/Database/env/StringTie/StringTie.sif",
     "TEtranscripts": "/data/16T/Database/env/TEtranscripts/TEtranscripts.sif",

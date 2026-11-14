@@ -100,9 +100,7 @@ rule repeatmasker_init:
             tmpdir = tempfile.mkdtemp()
             dummy_fa = os.path.join(tmpdir, "dummy.fa")
             with open(dummy_fa, "w") as f:
-                f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(">dummy\nATCGATCGATCG\n")
-                f.write(f'echo "script completed successfully"\n')
             cmd1 = [
                 params.RepeatMasker,
                 "-species", f"'{params.species}'",

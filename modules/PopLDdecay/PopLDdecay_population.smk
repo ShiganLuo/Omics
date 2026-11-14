@@ -35,9 +35,7 @@ if analysis.get("ld_decay", False):
             plain_script = os.path.join(os.path.dirname(str(output.stat)), f"PopLDdecay_{wildcards.population}.sh")
             cmd = [params.tool, "-InVCF", input.vcf, "-OutStat", params.prefix, "-SubPop", input.popfile, "-MaxDist", str(params.max_dist)]
             with open(log_path, "w") as handle:
-                handle.write("#!/usr/bin/env bash\nset -euo pipefail\n")
-                handle.write("")
-                handle.write(f'echo "script completed successfully"\n')
+                pass
             with open(script, "w") as handle:
                 handle.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 handle.write(" ".join(str(item) for item in cmd) + "\n")

@@ -31,20 +31,13 @@ def _sigtest_table(wildcards):
 
 # Plot formats (modules.md #9 / subworkflow.md formats 规范): list of
 # matplotlib savefig formats, one output file per entry; [] = no figure
-# (absorbs the old no_plot boolean). Validated at parse time.
+# (absorbs the old no_plot boolean). Format legality is schema's job
+# (run.py); the module only normalizes str -> single-element list.
 _plot_formats = (sigtest_params.get("plot", {}) or {}).get("formats")
 if _plot_formats is None:
     _plot_formats = ["png"]
 if isinstance(_plot_formats, str):
     _plot_formats = [_plot_formats]
-if not isinstance(_plot_formats, list) or not all(isinstance(f, str) for f in _plot_formats):
-    raise ValueError("Params.sigtest.plot.formats must be a list of strings")
-_bad_fmts = [f for f in _plot_formats if f not in ("png", "pdf", "svg", "ps", "eps",
-                                                   "tif", "tiff", "jpg", "jpeg",
-                                                   "pgf", "raw", "rgba")]
-if _bad_fmts:
-    raise ValueError(f"Params.sigtest.plot.formats holds unsupported format(s): "
-                     f"{', '.join(_bad_fmts)}")
 
 
 rule sigtest_run:

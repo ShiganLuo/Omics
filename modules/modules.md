@@ -219,13 +219,11 @@ pandas、json、gzip …）才在模块里 import。重复导入不报错、不�
     **rule 层如何声明多格式 output**（真实样例摘自 `modules/regionplot/regionplot.smk`，三段缺一不可）：
 
     ```python
-    # ① parse 期读入 + 规范化 + 校验（output 指令无法调用函数，格式列表
-    #    必须是模块级变量；str 收成单元素 list，非法值建图期报错）
+    # ① parse 期读入(output 指令无法调用函数,格式列表必须是模块级变量;
+    #    str 收成单元素 list。格式合法性由 schema 声明,模块不再断言)
     _formats = p.get("formats") or ["png", "svg"]
     if isinstance(_formats, str):
         _formats = [_formats]
-    if not isinstance(_formats, list) or not all(isinstance(f, str) for f in _formats):
-        raise ValueError("Params.regionplot.formats must be a list of strings")
 
     rule regionplot:
         output:
@@ -583,56 +581,80 @@ rule sv_mei:
 
 必填文件永远返回裸字符串；把单个字符串包成单元素列表再 `[0]` 解包是噪音，禁止。静态参考文件（genome fasta/GTF/数据库）也不例外——"它一直都在"不是免检理由。
 
-## run 块禁止模块级全局变量
+## 模块全局区:只做串联与派生名,不做校验、不做逻辑(强制)
 
-run 块只允许引用 `input / params / wildcards / output / log`；配置值经 `params` 传入。同一配置块的规范化读取（str→list 归一、默认值）收敛为一个函数，输入函数与 `params` 共用同一来源，禁止重复深链取值：
+run 块只允许引用 `input / params / wildcards / output / log`;配置值经
+`params` 传入。模块级全局区(标准 config 头之后)只允许三类内容:
+
+1. **config 一等字段**:`indir/outdir/logdir/samples/ROOT_DIR` 等直读赋值;
+2. **指令派生名**:`output:`/`log:`/`threads:` 等 parse 期指令无法调用函数,
+   其所需的派生值(输出文件名、轴开关、expand 列表)定义为全局,变量名 = config
+   原名(禁止 `_axis` 式缩写别名——JSON 里叫什么,代码里就叫什么);
+3. **input 函数**:声明/串联输入文件(建图期存在性校验由此触发)。
+
+**配置形状校验不属于模块**:配置正确性由 schema(run.py 加载期)与 node.py
+(生成方)保证,模块对配置只取值不审判;模块校验的对象只有**输入文件**
+(input 指令 + `_require`)。在模块里写配置形状断言是重复防御,删除。
+分支逻辑归 run 块/引擎脚本,全局区不写 `if/else` 逻辑(指令里的
+`x if cond else y` 三元式不算逻辑)。
+
+活样例(`modules/fiberseq/mods/mods.smk` 全局区全文):
 
 ```python
-def _sv_mei_cfg():
-    """sv.mei 配置块规范化（dfam_h5 恒为 list）。"""
-    mei = dict(config.get("Params", {}).get("sv", {}).get("mei", {}) or {})
-    dfam_h5 = mei.get("dfam_h5") or []
-    mei["dfam_h5"] = [dfam_h5] if isinstance(dfam_h5, str) else list(dfam_h5)
-    return mei
+include: "../../common/common.smk"
+import json  # noqa: E402  (common.smk 未导入而本模块需要的包)
 
-rule sv_mei:
+indir  = config.get("indir", "common/4_elements")
+outdir = config.get("outdir", "fiberseq_analysis/mods")
+logdir = config.get("logdir", "log")
+samples = config.get("samples", [])
+ROOT_DIR = config.get("ROOT_DIR", ".")
+
+# 指令串联所需的派生名(变量名 = config 原名)
+region_axis = config.get("Params", {}).get("fiberseq_mods", {}).get("region_axis") or {}
+mod_type = config.get("Params", {}).get("fiberseq_mods", {}).get("mod_type", "m6a")
+te_axis = region_axis.get("default", "fire_peaks") == "te"
+sigtest_contrasts = [str(c) for c in (config.get("contrasts") or [])]
+
+def _mods_longtable_inputs(wildcards):   # input 函数:串联输入文件
+    ...
+
+rule fiberseq_mods_longtable:
+    output:
+        longtable = (outdir + f"/te_{mod_type}_long.tsv" if te_axis
+                     else outdir + f"/{region_axis['options']['fire_peaks'].get('metric', f'{mod_type}_per_fiber')}_long.tsv"),
     params:
-        mei = _sv_mei_cfg(),   # run 里用 params.mei.get("min_len", 100)
+        # <- Params.fiberseq_mods.region_axis.options.te.min_fibers
+        min_fibers = int(region_axis["options"]["te"].get("min_fibers", 3)),
+        group_samples = config.get("Params", {}).get("fiberseq_mods", {}).get("group_samples", {}),
+    run:
+        # run 只碰 params;config dict 经 json.dumps 直达引擎 CLI
+        cmd += ["--group-samples", json.dumps(params.group_samples)]
 ```
 
-## Params 不得无故提升为模块全局变量（强制）
+判断标准:全局区出现**函数**(input 函数除外)、**缩写别名**、**配置断言**、
+**被 run 块引用的配置全局**之一即违规。
 
-配置值（`Params.*` 及其派生量）**在需要它的位置读取**：input 函数与
-`params:` 表达式内直读 `config.get(...)`，或经上面的规范化函数统一取。
-只有一种情况允许定义模块级变量：`input:`/`output:`/`log:`/`threads:`
-等 **parse 期指令**自身需要的派生值（输出文件名、轴开关、expand 列表）
-——指令里无法调用 params，只能用全局可见的量，且定义处注明是为指令服务。
+## 引擎 CLI 吃 config 原生形态,禁止中间格式
 
-判断标准：如果一个全局变量只被 `params:` 或 run 块引用，放全局**没有任何
-收益**（不省解析时间），只损失可读性——删掉，在使用点读取。
+自有引擎(bin/*.py)的 CLI 参数直接消费 config 的数据形态(经
+`json.dumps` 序列化),不发明 `gA:s1+s2,gB:s3` 这类自定义字符串格式——
+那会迫使模块层写序列化函数、引擎层写反解析函数,数据 dict→str→dict
+走一圈变形记,两头都要维护。config 是 dict 就传 JSON dict;列表、嵌套
+对象同理。引擎收到即 `json.loads`,形态与 config 完全一致。
+活样例:`te_modification.py --group-samples '{"youth":["s1"],...}'`
+(与 `Params.fiberseq_mods.group_samples` 同形);反例(已清除):
+`_group_samples_spec()` 拼 `g:s1+s2` 串 + 引擎 `split(",")/split("+")` 解剖。
 
-反例（禁止）：
-```python
-_min_fibers = int(p.get("min_fibers", 3))   # 只被 params 引用，却定义在全局
-_tmp_dir = config.get("tmp_dir") or ...     # 同上
-rule x:
-    params:
-        min_fibers = _min_fibers,
-```
-正例：
-```python
-def _mods_cfg():
-    return config.get("Params", {}).get("fiberseq_mods", {}) or {}
+## 配置错误的归属:schema 与 node.py,不是模块
 
-_long_name = ...        # output 指令需要，允许（注明用途）
-rule x:
-    params:
-        min_fibers = int(_mods_cfg().get("min_fibers", 3)),
-```
-
-## 必填配置缺失 = 建图期报错
-
-输入函数里直接 `raise ValueError("...set Params.x.y...")`，让配置错误在建图期暴露并给出修复指引。物种、基因组等科学参数禁止静默猜测（never guess a species）。
+模块对配置只取值不审判(见上节)。配置形状/取值错误由两层拦截:
+**schema**(`config/<Workflow>.schema.json`,run.py 加载期校验,判别式对象
+要声明嵌套的 default enum + options 子键)与 **node.py**(生成派生键的
+一方,生成前检查上游键存在)。物种、基因组等科学参数禁止静默猜测
+(never guess a species)——这条约束 node.py 与 schema 同样适用。
+模块内 input 函数的 `raise` 只用于**输入文件**缺失(带修复指引),
+不用于配置形状。
 
 ## bin/*.py 入口配套
 

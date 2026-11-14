@@ -1,5 +1,7 @@
 include: "../../common/common.smk"
 
+import json  # noqa: E402  (not in common.smk; group_samples -> engine CLI JSON)
+
 
 # ---------------------------------------------------------------------------
 # mods: prepare the modification long table (m6A/CpG per fiber over FIRE
@@ -33,75 +35,12 @@ samples = config.get("samples", [])
 ROOT_DIR = config.get("ROOT_DIR", ".")
 
 
-def _mods_cfg() -> dict:
-    """Params.fiberseq_mods block — read at point of use (modules.md:
-    Params 不得无故提升为模块全局变量); input functions and params both
-    call this one normalized source."""
-    return config.get("Params", {}).get("fiberseq_mods", {}) or {}
-
-
-# Parse-time directive values only (output/log/threads cannot call params):
-_mod_type = _mods_cfg().get("mod_type", "m6a")                # for output names
-# region_axis is a DISCRIMINANT object (genome-style {default, options}):
-# its value selects one of N mutually exclusive region axes, and the
-# axis-specific params live INSIDE their own options entry — closed set,
-# parse-time validated (subworkflow.md JSON 规范).
-def _axis_cfg() -> dict:
-    """Active region-axis options block (params for the selected axis).
-
-    Reads Params.fiberseq_mods.region_axis.{default,options}; the default
-    must name a key of options (closed-set assertion at parse time). The
-    unselected options stay visible in config but are never read here —
-    they are part of the run's complete state, not dead weight.
-    """
-    axis = _mods_cfg().get("region_axis")
-    if not isinstance(axis, dict):
-        raise ValueError(
-            "Params.fiberseq_mods.region_axis must be a discriminant object "
-            '{default, options} (genome-shaped), e.g. {"default": "te", '
-            '"options": {"te": {...}, "fire_peaks": {...}}} — flat strings '
-            "are not accepted")
-    opts = axis.get("options") or {}
-    which = axis.get("default") or "fire_peaks"
-    if not isinstance(opts, dict) or which not in opts:
-        raise ValueError(
-            f"Params.fiberseq_mods.region_axis.default must name a key of its "
-            f"options (got default={which!r}, options={sorted(opts)})")
-    return opts[which] or {}
-
-
-_axis = _axis_cfg()
-
-
-def _axis_name() -> str:
-    """Selected axis id ('te' / 'fire_peaks' / ...)."""
-    return str((_mods_cfg().get("region_axis") or {}).get("default") or "fire_peaks")
-
-
-_is_te = _axis_name() == "te"                                   # output off-switch
-_metric = _axis.get("metric", f"{_mod_type}_per_fiber")       # for output names
-# Long table carries subfamily/family/class columns (te axis); the tested
-# level is sigtest's feature_col choice — one sweep serves every level.
-_long_name = (f"te_{_mod_type}_long.tsv" if _is_te
-              else f"{_metric}_long.tsv")                     # output: longtable
-_loci_name = f"te_{_mod_type}_loci.tsv" if _is_te else None    # output: loci
-_longtable_rule_key = ("fiberseq_mods_te_longtable" if _is_te
-                       else "fiberseq_mods_longtable")          # threads/res
-sigtest_contrasts = [str(c) for c in (config.get("contrasts") or [])]  # expand()
-
-
-def _group_samples_spec() -> str:
-    """'gA:s1+s2,gB:s3' from config group_samples.
-
-    node.py derives it from the meta design (group_pairs) — the meta is
-    the single source of grouping for this module.
-    """
-    gs = dict(_mods_cfg().get("group_samples") or {})
-    if not gs:
-        raise ValueError(
-            "fiberseq_mods needs Params.fiberseq_mods.group_samples: fill "
-            "the meta design/group columns (node.py derives them) and rerun.")
-    return ",".join(f"{g}:{'+'.join(ss)}" for g, ss in gs.items())
+# 指令串联所需的派生名(output/log/threads 指令无法调用函数);
+# 配置形状由 schema(run.py)与 node.py 保证,模块只校验输入文件。
+region_axis = config.get("Params", {}).get("fiberseq_mods", {}).get("region_axis") or {}
+mod_type = config.get("Params", {}).get("fiberseq_mods", {}).get("mod_type", "m6a")
+te_axis = region_axis.get("default", "fire_peaks") == "te"
+sigtest_contrasts = [str(c) for c in (config.get("contrasts") or [])]
 
 
 def _mods_longtable_inputs(wildcards):
@@ -111,12 +50,12 @@ def _mods_longtable_inputs(wildcards):
     design by node.py) — no design file input.
     """
     files = {
-        "mods": expand(indir + "/{sample_id}/{sample_id}." + _mod_type + ".bed.gz",
+        "mods": expand(indir + "/{sample_id}/{sample_id}." + mod_type + ".bed.gz",
                        sample_id=samples),
         "msp": expand(indir + "/{sample_id}/{sample_id}.msp.bed.gz",
                       sample_id=samples),
     }
-    if _is_te:
+    if te_axis:
         te_bed = config.get("te_bed") or config.get("genome", {}).get("repeat_bed")
         files["te_bed"] = _require(te_bed, "genome.repeat_bed", "fiberseq_mods")
     else:
@@ -136,26 +75,29 @@ rule fiberseq_mods_longtable:
     input:
         unpack(_mods_longtable_inputs),
     output:
-        longtable = outdir + f"/{_long_name}",
-        loci = ([outdir + "/" + _loci_name] if _is_te else []),
+        longtable = (outdir + f"/te_{mod_type}_long.tsv" if te_axis
+                     else outdir + f"/{region_axis['options']['fire_peaks'].get('metric', f'{mod_type}_per_fiber')}_long.tsv"),
+        loci = ([outdir + f"/te_{mod_type}_loci.tsv"] if te_axis else []),
     log:
-        logdir + f"/mods/fiberseq_mods_longtable_{_long_name}.log"
-    threads: rule_res(_longtable_rule_key).get("threads", 1)
+        logdir + (f"/mods/fiberseq_mods_longtable_te_{mod_type}_long.tsv.log" if te_axis
+                 else f"/mods/fiberseq_mods_longtable_{region_axis['options']['fire_peaks'].get('metric', f'{mod_type}_per_fiber')}_long.tsv.log")
+    threads: rule_res("fiberseq_mods_te_longtable" if te_axis else "fiberseq_mods_longtable").get("threads", 1)
     resources:
-        mem_mb = rule_res(_longtable_rule_key).get("mem_mb", 8000),
+        mem_mb = rule_res("fiberseq_mods_te_longtable" if te_axis else "fiberseq_mods_longtable").get("mem_mb", 8000),
     conda:
         "../fiberseq.yaml"
     container:
         sif("../fiberseq.yaml", "fiberseq_mods_longtable")
     params:
-        script = (ROOT_DIR + "/modules/fiberseq/mods/bin/te_modification.py" if _is_te
+        script = (ROOT_DIR + "/modules/fiberseq/mods/bin/te_modification.py" if te_axis
                   else ROOT_DIR + "/modules/fiberseq/mods/bin/extract_modification_longtable.py"),
-        metric = _metric,
-        group_spec = _group_samples_spec(),
-        is_te = _is_te,
-        mod_type = _mod_type,
-        min_fibers = int(_axis.get("min_fibers", 3)),
-        loci_name = _loci_name or "",
+        metric = region_axis["options"]["fire_peaks"].get("metric", f"{mod_type}_per_fiber"),
+        # <- Params.fiberseq_mods.group_samples (node.py 从 meta 设计派生)
+        group_samples = config.get("Params", {}).get("fiberseq_mods", {}).get("group_samples", {}),
+        is_te = te_axis,
+        mod_type = mod_type,
+        min_fibers = int(region_axis["options"]["te"].get("min_fibers", 3)),
+        loci_name = (f"te_{mod_type}_loci.tsv" if te_axis else ""),
         tmp_dir = config.get("tmp_dir") or os.path.join(outdir, "tmp"),
     run:
         log_path = str(log)
@@ -176,7 +118,7 @@ rule fiberseq_mods_longtable:
                     "--msp", ",".join(
                         f"{indir}/{s}/{s}.msp.bed.gz" for s in samples),
                     "--te", str(input.te_bed),
-                    "--group-samples", params.group_spec,
+                    "--group-samples", json.dumps(params.group_samples),
                     "--mod-type", params.mod_type,
                     "--min-fibers", str(params.min_fibers),
                     "--out-long", str(output.longtable),
@@ -193,7 +135,7 @@ rule fiberseq_mods_longtable:
                         f"{indir}/{s}/{s}.fire_peaks.bed" for s in samples),
                     "--msp", ",".join(
                         f"{indir}/{s}/{s}.msp.bed.gz" for s in samples),
-                    "--group-samples", params.group_spec,
+                    "--group-samples", json.dumps(params.group_samples),
                     "--metric", params.metric,
                     "--out", str(output.longtable),
                     "-l", log_path,
@@ -243,7 +185,8 @@ rule fiberseq_mods_split:
         sif("../fiberseq.yaml", "fiberseq_mods_split")
     params:
         split_script = ROOT_DIR + "/modules/fiberseq/mods/bin/split_significant.py",
-        p = _mods_cfg(),
+        # <- Params.fiberseq_mods.region_axis.options.fire_peaks.top_n
+        top_n = int(region_axis["options"]["fire_peaks"].get("top_n", 0)),
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -261,7 +204,7 @@ rule fiberseq_mods_split:
                 "--out-tsv", str(output.sig_tsv),
                 "--out-bed", str(output.sig_bed),
                 "--out-rest-tsv", str(output.rest_tsv),
-                "--top-n", str(_axis.get("top_n", 0)),
+                "--top-n", str(params.top_n),
             ]
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
@@ -284,10 +227,10 @@ rule fiberseq_mods_top_loci:
     """
     input:
         sig = _sigtest_tsv,
-        loci = outdir + "/" + _loci_name if _is_te else [],
+        loci = outdir + f"/te_{mod_type}_loci.tsv" if te_axis else [],
     output:
-        tsv = [outdir + "/{contrast}/top_loci.tsv"] if _is_te else [],
-        bed = [outdir + "/{contrast}/top_loci.bed"] if _is_te else [],
+        tsv = [outdir + "/{contrast}/top_loci.tsv"] if te_axis else [],
+        bed = [outdir + "/{contrast}/top_loci.bed"] if te_axis else [],
     log:
         logdir + "/mods/top_loci_{contrast}.log"
     threads: rule_res("fiberseq_mods_top_loci").get("threads", 1)
@@ -299,11 +242,13 @@ rule fiberseq_mods_top_loci:
         sif("../fiberseq.yaml", "fiberseq_mods_top_loci")
     params:
         top_loci_script = ROOT_DIR + "/modules/fiberseq/mods/bin/te_top_loci.py",
-        group_spec = _group_samples_spec(),
-        p = _mods_cfg(),
-        mod_type = _mod_type,
-        min_fibers = int(_axis.get("min_fibers", 3)),
-        is_te = _is_te,
+        # <- Params.fiberseq_mods.group_samples (node.py 从 meta 设计派生)
+        group_samples = config.get("Params", {}).get("fiberseq_mods", {}).get("group_samples", {}),
+        grp_by_contrast = config.get("Params", {}).get("fiberseq_mods", {}).get("groups_by_contrast", {}),
+        groups = config.get("Params", {}).get("fiberseq_mods", {}).get("groups", []),
+        mod_type = mod_type,
+        min_fibers = int(region_axis["options"]["te"].get("min_fibers", 3)),
+        is_te = te_axis,
     run:
         if not params.is_te:
             # fire_peaks axis declares empty outputs; nothing to rank
@@ -320,21 +265,19 @@ rule fiberseq_mods_top_loci:
                 os.makedirs(sample_outdir, exist_ok=True)
                 script = os.path.join(RECEIPT_DIR, f"fiberseq_mods_top_loci_{wildcards.contrast}_{current_time}.sh")
                 plain_script = os.path.join(sample_outdir, f"fiberseq_mods_top_loci_{wildcards.contrast}.sh")
-                # group spec restricted to the two compared groups
-                grp_pair = (params.p.get("groups_by_contrast", {}).get(str(wildcards.contrast))
-                            or params.p.get("groups") or [
-                                tok.split(":", 1)[0] for tok in params.group_spec.split(",")])
-                by_group = {
-                    tok.split(":", 1)[0]: tok.split(":", 1)[1]
-                    for tok in params.group_spec.split(",")}
-                grp_spec = ",".join(f"{g}:{by_group[g]}" for g in grp_pair[:2])
+                # the two compared groups for this contrast (node.py
+                # groups_by_contrast -> global groups -> all groups), their
+                # sample lists picked from group_samples
+                grp_pair = (params.grp_by_contrast.get(str(wildcards.contrast))
+                            or params.groups or list(params.group_samples))[:2]
+                grp_spec = json.dumps({g: params.group_samples[g] for g in grp_pair})
                 cmd = [
                     "python", params.top_loci_script,
                     "--sig", str(input.sig),
                     "--loci", str(input.loci[0]),
                     "--groups", grp_spec,
                     "--value-suffix", f"{params.mod_type}_per_fiber",
-                    "--top-n", str(_axis.get("loci_top_n", 5)),
+                    "--top-n", str(params.loci_top_n),
                     "--min-fibers", str(params.min_fibers),
                     "--out-tsv", str(output.tsv[0]),
                     "--out-bed", str(output.bed[0]),
@@ -358,10 +301,11 @@ rule fiberseq_mods_result:
     result panel aggregates it); this panel covers the mods-owned outputs.
     """
     input:
-        longtable = outdir + f"/{_long_name}",
+        longtable = (outdir + f"/te_{mod_type}_long.tsv" if te_axis
+                     else outdir + f"/{region_axis['options']['fire_peaks'].get('metric', f'{mod_type}_per_fiber')}_long.tsv"),
         sig_tsv = expand(outdir + "/{contrast}/significant_objects.tsv",
                          contrast=sigtest_contrasts),
         sig_bed = expand(outdir + "/{contrast}/significant_objects.bed",
                          contrast=sigtest_contrasts),
         top_loci = (expand(outdir + "/{contrast}/top_loci.bed",
-                           contrast=sigtest_contrasts) if _is_te else []),
+                           contrast=sigtest_contrasts) if te_axis else []),

@@ -31,6 +31,7 @@ Usage:
         --mods m6a:s1.m6a.bed.gz,m6a:s2.m6a.bed.gz \
         --msp s1.msp.bed.gz,s2.msp.bed.gz \
         --te te.sorted.bed --design design.tsv \
+        --group-samples '{"youth": ["s1"], "aged": ["s2"]}' \
         --min-fibers 3 \
         --out-long te_m6a_long.tsv \
         --out-loci te_m6a_loci.tsv
@@ -38,6 +39,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import json
 import shlex
 import subprocess
 import sys
@@ -52,20 +54,24 @@ logger = setup_logger("TeModification", stream=sys.stdout)
 
 
 def parse_group_samples(spec: str) -> Dict[str, str]:
-    """Parse 'gA:s1+s2,gB:s3' (node.py group_samples) into sample -> group.
+    """'{"gA": ["s1","s2"], "gB": ["s3"]}' JSON into sample -> group.
 
-    Raises ValueError naming the malformed token so a config typo surfaces
-    at DAG/run time with the offending element.
+    Accepts the Params.fiberseq_mods.group_samples shape verbatim (dict of
+    group -> sample list); raises ValueError naming the bad payload so a
+    config typo surfaces at run time with the offending element.
     """
+    try:
+        parsed = json.loads(spec)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"--group-samples must be a JSON object "
+                         f'{{group: [samples]}} — parse error: {exc}')
+    if not isinstance(parsed, dict) or not parsed:
+        raise ValueError(f"--group-samples must be a non-empty JSON object "
+                         f"(dict of group -> sample list), got {spec!r}")
     sample_group: Dict[str, str] = {}
-    for tok in spec.split(","):
-        if ":" not in tok:
-            raise ValueError(f"malformed group spec token {tok!r} "
-                             "(expected group:sample[+sample])")
-        group, s_str = tok.split(":", 1)
-        for s in s_str.split("+"):
-            if s.strip():
-                sample_group[s.strip()] = group.strip()
+    for group, samples in parsed.items():
+        for s in samples:
+            sample_group[str(s)] = str(group)
     return sample_group
 
 
@@ -291,7 +297,8 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     p.add_argument("--te", required=True,
                    help="TE BED sorted k1,1 -k2,2n (col4 subfamily, col7 family, col8 class)")
     p.add_argument("--group-samples", required=True,
-                   help="group spec 'gA:s1+s2,gB:s3' (sample -> group mapping)")
+                   help='JSON object {group: [sample, ...]} (same shape as '
+                        'Params.fiberseq_mods.group_samples)')
     p.add_argument("--mod-type", default="m6a",
                    help="modification flavor (m6a/cpg); names the per-locus "
                         "table value columns <sample>.<mod>_per_fiber")

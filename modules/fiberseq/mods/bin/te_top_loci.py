@@ -16,13 +16,14 @@ mirrors the collapse step).
 Usage:
     python te_top_loci.py \
         --sig significance_test.tsv --loci te_m6a_loci.tsv \
-        --design design.tsv --groups aged,youth \
+        --groups '{"aged": ["s1"], "youth": ["s2"]}' \
         --top-n 5 --min-fibers 3 \
         --out-tsv top_loci.tsv --out-bed top_loci.bed
 """
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 import sys
 from pathlib import Path
@@ -149,12 +150,14 @@ def locus_diff(row: dict, group_samples: Dict[str, List[str]],
 
 def run(args: argparse.Namespace) -> int:
     """Write per-significant-group top loci as TSV + regionplot BED."""
-    groups = {}
-    for pair in args.groups.split(","):
-        g, s_str = pair.split(":", 1)
-        groups[g] = [s.strip() for s in s_str.split("+") if s.strip()]
+    try:
+        groups = {str(g): [str(s) for s in ss]
+                  for g, ss in json.loads(args.groups).items()}
+    except (json.JSONDecodeError, AttributeError):
+        logger.error(f'--groups must be a JSON object {{group: [samples]}} — got {args.groups!r}')
+        return 1
     if len(groups) != 2:
-        logger.error(f"--groups needs exactly two group:sample[+sample] entries, got {groups}")
+        logger.error(f"--groups needs exactly two groups, got {sorted(groups)}")
         return 1
 
     sig_names = set(read_significant(args.sig))
@@ -206,7 +209,7 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     p.add_argument("--sig", required=True, help="family-level significance_test.tsv")
     p.add_argument("--loci", required=True, help="per-locus table from te_modification.py")
     p.add_argument("--groups", required=True,
-                   help="two group specs 'gA:s1+s2,gB:s3+s4' (design groups -> samples)")
+                   help='JSON object {group: [sample, ...]} with exactly two groups')
     p.add_argument("--value-suffix", default="m6a_per_fiber",
                    help="value column suffix in the loci table")
     p.add_argument("--top-n", type=int, default=5,

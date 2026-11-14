@@ -73,8 +73,9 @@ description: 撰写subworkflow时需要遵循此套规范
 ```
 
 约束:
-- **子块名 ≡ 判别式枚举值**;`default` 必须是 `options` 的键(闭合集,解析处
-  建图期断言,不存在"选了 te 但 te 块丢失"的中间态)。
+- **子块名 ≡ 判别式枚举值**;`default` 必须是 `options` 的键(闭合集,由
+  schema 声明 enum + options 子键拦截,模块不做形状断言——模块只取
+  `options[default]` 或按需取 `options` 内的条目,坏形状以默认值兜底)。
 - **键归属判据 = "换一条路线这个键还有意义吗"**:路线专属键(只在某条路线的
   引擎/规则里被读)归入该路线的 options 条目;两路线共用的键留模块参数段顶层。
 - **未选路线可见但不读**:options 全量出现在 JSON 里(完整性——能看到另一条
@@ -85,8 +86,9 @@ description: 撰写subworkflow时需要遵循此套规范
 - 解析惯用法(与 genome 同构,读代码的人学一遍即可):
 
 ```python
-axis = cfg["region_axis"]                  # 必须是判别式对象(平铺字符串建图期报错)
-route = axis["options"][axis["default"]]   # 生效配置 = options[default]
+region_axis = config.get("Params", {}).get("fiberseq_mods", {}).get("region_axis") or {}
+te_axis = region_axis.get("default", "fire_peaks") == "te"
+opts = region_axis.get("options", {}).get("te", {})   # 按需取活动路线的条目
 ```
 
 ## 3. 出图参数统一收进 `plot` 子块,`formats` 吸收开关布尔

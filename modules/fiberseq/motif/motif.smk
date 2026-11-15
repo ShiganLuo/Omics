@@ -9,6 +9,10 @@ ROOT_DIR = config.get("ROOT_DIR", ".")
 env = config.get("env", {})
 genome_cfg = config.get("genome", {})
 p = config.get("Params", {}).get("fiberseq_motif", {})
+# ① parse 期读入 + 规范化（str 收成单元素 list；合法值由 schema 声明）
+_formats = p.get("formats") or ["pdf"]
+if isinstance(_formats, str):
+    _formats = [_formats]
 rule fiberseq_motif_scan:
     """Scan a MEME motif file in FIRE peak sequences (any species)."""
     input:
@@ -75,7 +79,9 @@ rule fiberseq_motif_profile:
     output:
         profile = outdir + "/{sample_id}/{sample_id}.motif_profile.tsv",
         scores = outdir + "/{sample_id}/{sample_id}.motif_footprint_scores.tsv",
-        pdf = outdir + "/{sample_id}/{sample_id}.motif_profile.pdf",
+        # ② 按格式展开：每种格式一个输出文件（base 不带扩展名）
+        plots = [outdir + "/{sample_id}/{sample_id}.motif_profile." + fmt
+                 for fmt in _formats],
     log:
         logdir + "/{sample_id}/fiberseq_motif_profile.log"
     threads: rule_res("fiberseq_motif").get("threads", 1)
@@ -89,6 +95,7 @@ rule fiberseq_motif_profile:
         script = ROOT_DIR + "/modules/fiberseq/bin/motif_profile.py",
         flank = p.get("flank", 250),
         min_fibers = p.get("min_fibers", 10),
+        formats = _formats,   # ③ 转发
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -115,6 +122,8 @@ rule fiberseq_motif_profile:
                 "-i", str(params.min_fibers),
                 "-l", log_path,
             ]
+            for fmt in params.formats:
+                cmd += ["--format", str(fmt)]
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write("set -euo pipefail\n")
@@ -132,5 +141,7 @@ rule fiberseq_motif_result:
                        sample_id=samples),
         profile = expand(outdir + "/{sample_id}/{sample_id}.motif_profile.tsv",
                          sample_id=samples),
+        plots = expand(outdir + "/{sample_id}/{sample_id}.motif_profile.{fmt}",
+                       sample_id=samples, fmt=_formats),
     resources:
         mem_mb = rule_res("fiberseq_motif_result").get("mem_mb", 8000),

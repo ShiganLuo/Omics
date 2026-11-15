@@ -8,7 +8,8 @@
     "Params": {
         "mimseq": {
             "control_cond": "",
-            "p_adj": 0.05
+            "p_adj": 0.05,
+            "formats": ["pdf"]
         }
     },
     "genome": {

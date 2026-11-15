@@ -180,6 +180,33 @@ def _enabled(datajson: Dict[str, Any], step: str) -> bool:
 
 
 
+def _plot_formats(
+        datajson: Dict[str, Any], *path: str,
+        default: Optional[List[str]] = None) -> Optional[List[str]]:
+    """Formats list of a plotting param section (modules.md #9 formats 规范).
+
+    Reads Params.<path...>.formats (plain str normalized to a one-element
+    list) and returns it; ``default`` mirrors the consuming module smk's own
+    parse-time default so node.py outfiles always match what the rules write
+    to disk. Returns None when the key is absent and no default is given
+    (lets callers implement section-level fallback chains).
+    """
+    node: Any = datajson.get("Params", {})
+    for key in path:
+        node = (node.get(key) or {}) if isinstance(node, dict) else {}
+    fmts = node.get("formats") if isinstance(node, dict) else None
+    if fmts is None:
+        return list(default) if default is not None else None
+    if isinstance(fmts, str):
+        fmts = [fmts]
+    return [str(f) for f in fmts]
+
+
+def _figs(base: str, fmts) -> List[str]:
+    """Per-format figure files for one extension-less figure base."""
+    return [f"{base}.{fmt}" for fmt in fmts]
+
+
 def _register_regionplot(
         datajson: Dict[str, Any],
         samples_info_dict: Dict[str, SampleInfo],
@@ -866,7 +893,9 @@ def runPacVar(
         # repeat characterization
         if enable_repeat and _genome_ref.get("repeat_bed"):
             outfiles.append(f"{outdir}/repeat/trgt/genotype/{sample_id}/{sample_id}.trgt.vcf.gz")
-            outfiles.append(f"{outdir}/repeat/trgt/plot/{sample_id}/{sample_id}.trgt.repeat.png")
+            outfiles += _figs(
+                f"{outdir}/repeat/trgt/plot/{sample_id}/{sample_id}.trgt.repeat",
+                _plot_formats(datajson, "trgt", default=("png",)))
 
     # eccDNA / ecDNA reconstruction via Decoil
     # Decoil is reconstruction-only: SV VCF comes from pbsv upstream and the
@@ -881,15 +910,21 @@ def runPacVar(
             outfiles.append(f"{outdir}/eccdna/{sample_id}/decoil/reconstruct.ecDNA.filtered.bed")
             outfiles.append(f"{outdir}/eccdna/{sample_id}/decoil/summary.txt")
             # Visualization: per-sample stats + interactive IGV HTML
-            outfiles.append(f"{outdir}/eccdna/{sample_id}/visualization/decoil_stats.png")
-            outfiles.append(f"{outdir}/eccdna/{sample_id}/visualization/decoil_structure.png")
+            outfiles += _figs(
+                f"{outdir}/eccdna/{sample_id}/visualization/decoil_stats",
+                _plot_formats(datajson, "decoil", "plot", default=("png",)))
+            outfiles += _figs(
+                f"{outdir}/eccdna/{sample_id}/visualization/decoil_structure",
+                _plot_formats(datajson, "decoil", "structure", default=("png",)))
             outfiles.append(f"{outdir}/eccdna/{sample_id}/visualization/decoil_structure_genes.tsv")
             outfiles.append(f"{outdir}/eccdna/{sample_id}/visualization/igv_ecdna.html")
             outfiles.append(f"{outdir}/eccdna/{sample_id}/visualization/ucsc_track.txt")
         # Cross-sample comparison (aggregated): decoil module writes these
         # under {outdir}/eccdna/compare/ (rule decoil_compare), not
         # {outdir}/eccdna/visualization/.
-        outfiles.append(f"{outdir}/eccdna/compare/decoil_compare.png")
+        outfiles += _figs(f"{outdir}/eccdna/compare/decoil_compare",
+                          _plot_formats(datajson, "decoil", "compare",
+                                        default=("png",)))
         outfiles.append(f"{outdir}/eccdna/compare/decoil_compare_shared_unique.tsv")
     elif enable_eccdna:
         logger.warning(
@@ -1132,8 +1167,12 @@ def runMutation(
         else:
             logger.error(f"Unknown layout type for sample {sample_id}: {sample_info.layout}")
     if designPairs:
-        outfiles.append(f"{outdir}/stability/spectrum/somatic_spectrum_stacked_bar.png")
-        outfiles.append(f"{outdir}/stability/spectrum/somatic_spectrum_heatmap.png")
+        outfiles += _figs(f"{outdir}/stability/spectrum/somatic_spectrum_stacked_bar",
+                          _plot_formats(datajson, "somatic_spectrum", "plot",
+                                        default=("png",)))
+        outfiles += _figs(f"{outdir}/stability/spectrum/somatic_spectrum_heatmap",
+                          _plot_formats(datajson, "somatic_spectrum", "plot",
+                                        default=("png",)))
         outfiles.append(f"{outdir}/stability/spectrum/somatic_spectrum.csv")
         outfiles.append(f"{outdir}/stability/spectrum/somatic_spectrum_per_sample.csv")
         outfiles.append(f"{outdir}/stability/spectrum/somatic_spectrum_sample_stats.csv")
@@ -1144,24 +1183,32 @@ def runMutation(
         if _sig_cfg.get("enabled"):
             _sig_mode = str(_sig_cfg.get("mode", "both")).lower()
             if _sig_mode in ("refit", "both"):
+                _sig_fmts = _plot_formats(datajson, "somatic_spectrum",
+                                          "signature", default=("png",))
                 for _f in ("signature_refit_exposures.csv",
                            "signature_refit_exposure_fractions.csv",
                            "signature_refit_family_exposures.csv",
-                           "signature_refit_summary.csv",
-                           "signature_refit_exposure_stacked_bar.png",
-                           "signature_refit_exposure_heatmap.png",
-                           "signature_refit_signature_cosine.png"):
+                           "signature_refit_summary.csv"):
                     outfiles.append(f"{outdir}/stability/spectrum/{_f}")
+                for _b in ("signature_refit_exposure_stacked_bar",
+                           "signature_refit_exposure_heatmap",
+                           "signature_refit_signature_cosine"):
+                    outfiles += _figs(f"{outdir}/stability/spectrum/{_b}",
+                                      _sig_fmts)
             if _sig_mode in ("nmf", "both"):
+                _sig_fmts = _plot_formats(datajson, "somatic_spectrum",
+                                          "signature", default=("png",))
                 for _f in ("signature_nmf_signatures.csv",
                            "signature_nmf_exposures.csv",
                            "signature_nmf_rank_diagnostics.csv",
-                           "signature_nmf_rank_diagnostics.png",
-                           "signature_nmf_exposures_stacked_bar.png",
                            "signature_nmf_cosmic_similarity.csv",
-                           "signature_nmf_cosmic_best_match.csv",
-                           "signature_nmf_cosmic_match.png"):
+                           "signature_nmf_cosmic_best_match.csv"):
                     outfiles.append(f"{outdir}/stability/spectrum/{_f}")
+                for _b in ("signature_nmf_rank_diagnostics",
+                           "signature_nmf_exposures_stacked_bar",
+                           "signature_nmf_cosmic_match"):
+                    outfiles += _figs(f"{outdir}/stability/spectrum/{_b}",
+                                      _sig_fmts)
     
     all_samples = paired_samples + single_samples
     
@@ -1176,7 +1223,9 @@ def runMutation(
     # Per-module gates: Params.<module>.enabled (default true)
     if _enabled(datajson, "fragment_size"):
         outfiles.append(f"{outdir}/results/fragment_size/fragment/FragmentSize.txt")
-        outfiles.append(f"{outdir}/results/fragment_size/fragment/FragmentSize.png")
+        outfiles += _figs(f"{outdir}/results/fragment_size/fragment/FragmentSize",
+                          _plot_formats(datajson, "fragment_size",
+                                        default=("png",)))
 
     if _enabled(datajson, "manta"):
         # Matched-normal design pairs -> Manta somatic mode (somaticSV.vcf.gz),
@@ -1196,7 +1245,8 @@ def runMutation(
                 f"{outdir}/stability/msi/{designPair.exp_sample_id}/"
                 f"{designPair.exp_sample_id}_msi_pro.tsv")
         outfiles.append(f"{outdir}/stability/msi/msi_input.txt")
-        outfiles.append(f"{outdir}/stability/msi/msi_barplot.jpg")
+        outfiles += _figs(f"{outdir}/stability/msi/msi_barplot",
+                          _plot_formats(datajson, "msi", default=("jpg",)))
 
     if _enabled(datajson, "cnvkit"):
         # Mode-aware registration: paired -> per-pair tumors only (no pooled
@@ -1284,6 +1334,9 @@ def runMutation(
         report_params.setdefault("date", time.strftime("%Y-%m-%d", time.localtime()))
         outfiles.append(f"{outdir}/Mutation_report.pptx")
         outfiles.append(f"{outdir}/Mutation_report.xlsx")
+        # 报告自有图导出清单(报告模块规范:figures/<name>.<fmt> 条件产出,
+        # 以 manifest.tsv 锚定 DAG 与磁盘一致)
+        outfiles.append(f"{outdir}/figures/manifest.tsv")
 
     # Sex check (modules/sexcheck): per-sample sex call from sex-chromosome
     # coverage over the alignment BAMs; registered for every sample BAM.
@@ -1419,16 +1472,22 @@ def runPeakCalling(
             if ip_sample in cm_heatmap_samples:
                 if hm_suffix == "per_gene" and cm_gene_names:
                     for gene_name in cm_gene_names:
-                        outfiles.append(f"{outdir}/results/heatmap/{ip_sample}/{ip_sample}_{gene_name}_heatmap.png")
+                        outfiles += _figs(
+                            f"{outdir}/results/heatmap/{ip_sample}/{ip_sample}_{gene_name}_heatmap",
+                            _plot_formats(datajson, "plotHeatmap", default=("png",)))
                 else:
-                    outfiles.append(f"{outdir}/results/heatmap/{ip_sample}/{ip_sample}_{hm_suffix}_heatmap.png")
+                    outfiles += _figs(
+                        f"{outdir}/results/heatmap/{ip_sample}/{ip_sample}_{hm_suffix}_heatmap",
+                        _plot_formats(datajson, "plotHeatmap", default=("png",)))
             # Step 10: HOMER annotation
             outfiles.append(f"{outdir}/results/annotation/{ip_sample}/{ip_sample}_peaks.annotatePeaks.txt")
             # Step 11: Peak-TE overlap
             outfiles.append(f"{outdir}/results/te_overlap/{ip_sample}/{ip_sample}_te_subfamily_overlap.tsv")
             outfiles.append(f"{outdir}/results/te_overlap/{ip_sample}/{ip_sample}_peak_centric_te.tsv")
-        outfiles.append(f"{outdir}/results/peaks/cutoff_analysis.png")
-        outfiles.append(f"{outdir}/results/te_overlap/te_subfamily_overlap_combined.png")
+        outfiles += _figs(f"{outdir}/results/peaks/cutoff_analysis",
+                          _plot_formats(datajson, "macs3", default=("png",)))
+        outfiles += _figs(f"{outdir}/results/te_overlap/te_subfamily_overlap_combined",
+                          _plot_formats(datajson, "peak_te_overlap", default=("png",)))
         for input_sample in input_samples:
             outfiles.append(f"{outdir}/common/4_markdup_bam/{input_sample}/{input_sample}.sorted_markdup.bam")
             outfiles.append(f"{outdir}/results/tracks/{input_sample}/{input_sample}.bigwig")
@@ -1445,19 +1504,25 @@ def runPeakCalling(
             if ip_sample in cm_heatmap_samples:
                 if hm_suffix == "per_gene" and cm_gene_names:
                     for gene_name in cm_gene_names:
-                        outfiles.append(f"{outdir}/results/heatmap/{ip_sample}/{ip_sample}_{gene_name}_heatmap.png")
+                        outfiles += _figs(
+                            f"{outdir}/results/heatmap/{ip_sample}/{ip_sample}_{gene_name}_heatmap",
+                            _plot_formats(datajson, "plotHeatmap", default=("png",)))
                 else:
-                    outfiles.append(f"{outdir}/results/heatmap/{ip_sample}/{ip_sample}_{hm_suffix}_heatmap.png")
+                    outfiles += _figs(
+                        f"{outdir}/results/heatmap/{ip_sample}/{ip_sample}_{hm_suffix}_heatmap",
+                        _plot_formats(datajson, "plotHeatmap", default=("png",)))
             # Step 10: HOMER annotation
             outfiles.append(f"{outdir}/results/annotation/{ip_sample}/{ip_sample}_peaks.annotatePeaks.txt")
             # Step 11: Peak-TE overlap
             outfiles.append(f"{outdir}/results/te_overlap/{ip_sample}/{ip_sample}_te_subfamily_overlap.tsv")
             outfiles.append(f"{outdir}/results/te_overlap/{ip_sample}/{ip_sample}_peak_centric_te.tsv")
-    outfiles.append(f"{outdir}/results/te_overlap/te_subfamily_overlap_combined.png")
+    outfiles += _figs(f"{outdir}/results/te_overlap/te_subfamily_overlap_combined",
+                      _plot_formats(datajson, "peak_te_overlap", default=("png",)))
     outfiles.append(f"{outdir}/results/tracks/ucsc_track.txt")
     outfiles.append(f"{outdir}/results/tracks/igv_track.html")
     outfiles.append(f"{outdir}/PeakCalling_report.pptx")
     outfiles.append(f"{outdir}/PeakCalling_report.xlsx")
+    outfiles.append(f"{outdir}/figures/manifest.tsv")
     datajson["paired_samples"] = paired_samples
     datajson["single_samples"] = single_samples
     datajson["samples"] = paired_samples + single_samples
@@ -1568,16 +1633,22 @@ def runRIPseq(
             if ip_sample in cm_heatmap_samples:
                 if hm_suffix == "per_gene" and cm_gene_names:
                     for gene_name in cm_gene_names:
-                        outfiles.append(f"{outdir}/results/heatmap/{ip_sample}/{ip_sample}_{gene_name}_heatmap.png")
+                        outfiles += _figs(
+                            f"{outdir}/results/heatmap/{ip_sample}/{ip_sample}_{gene_name}_heatmap",
+                            _plot_formats(datajson, "plotHeatmap", default=("png",)))
                 else:
-                    outfiles.append(f"{outdir}/results/heatmap/{ip_sample}/{ip_sample}_{hm_suffix}_heatmap.png")
+                    outfiles += _figs(
+                        f"{outdir}/results/heatmap/{ip_sample}/{ip_sample}_{hm_suffix}_heatmap",
+                        _plot_formats(datajson, "plotHeatmap", default=("png",)))
             # Step 10: HOMER annotation
             outfiles.append(f"{outdir}/results/annotation/{ip_sample}/{ip_sample}_peaks.annotatePeaks.txt")
             # Step 11: Peak-TE overlap
             outfiles.append(f"{outdir}/results/te_overlap/{ip_sample}/{ip_sample}_te_subfamily_overlap.tsv")
             outfiles.append(f"{outdir}/results/te_overlap/{ip_sample}/{ip_sample}_peak_centric_te.tsv")
-        outfiles.append(f"{outdir}/results/peaks/cutoff_analysis.png")
-        outfiles.append(f"{outdir}/results/te_overlap/te_subfamily_overlap_combined.png")
+        outfiles += _figs(f"{outdir}/results/peaks/cutoff_analysis",
+                          _plot_formats(datajson, "macs3", default=("png",)))
+        outfiles += _figs(f"{outdir}/results/te_overlap/te_subfamily_overlap_combined",
+                          _plot_formats(datajson, "peak_te_overlap", default=("png",)))
         for input_sample in input_samples:
             outfiles.append(f"{outdir}/common/4_markdup_bam/{input_sample}/{input_sample}.sorted_markdup.bam")
             outfiles.append(f"{outdir}/results/tracks/{input_sample}/{input_sample}.bigwig")
@@ -1594,21 +1665,27 @@ def runRIPseq(
             if ip_sample in cm_heatmap_samples:
                 if hm_suffix == "per_gene" and cm_gene_names:
                     for gene_name in cm_gene_names:
-                        outfiles.append(f"{outdir}/results/heatmap/{ip_sample}/{ip_sample}_{gene_name}_heatmap.png")
+                        outfiles += _figs(
+                            f"{outdir}/results/heatmap/{ip_sample}/{ip_sample}_{gene_name}_heatmap",
+                            _plot_formats(datajson, "plotHeatmap", default=("png",)))
                 else:
-                    outfiles.append(f"{outdir}/results/heatmap/{ip_sample}/{ip_sample}_{hm_suffix}_heatmap.png")
+                    outfiles += _figs(
+                        f"{outdir}/results/heatmap/{ip_sample}/{ip_sample}_{hm_suffix}_heatmap",
+                        _plot_formats(datajson, "plotHeatmap", default=("png",)))
             # Step 10: HOMER annotation
             outfiles.append(f"{outdir}/results/annotation/{ip_sample}/{ip_sample}_peaks.annotatePeaks.txt")
             # Step 11: Peak-TE overlap
             outfiles.append(f"{outdir}/results/te_overlap/{ip_sample}/{ip_sample}_te_subfamily_overlap.tsv")
             outfiles.append(f"{outdir}/results/te_overlap/{ip_sample}/{ip_sample}_peak_centric_te.tsv")
-    outfiles.append(f"{outdir}/results/te_overlap/te_subfamily_overlap_combined.png")
+    outfiles += _figs(f"{outdir}/results/te_overlap/te_subfamily_overlap_combined",
+                      _plot_formats(datajson, "peak_te_overlap", default=("png",)))
     outfiles.append(f"{outdir}/results/tracks/ucsc_track.txt")
     outfiles.append(f"{outdir}/results/tracks/igv_track.html")
     # Report (subworkflow.md: pptx + xlsx pair, gated by Params.report.enabled)
     if _enabled(datajson, "report"):
         outfiles.append(f"{outdir}/RIPseq_report.pptx")
         outfiles.append(f"{outdir}/RIPseq_report.xlsx")
+        outfiles.append(f"{outdir}/figures/manifest.tsv")
     datajson["paired_samples"] = paired_samples
     datajson["single_samples"] = single_samples
     datajson["samples"] = paired_samples + single_samples
@@ -1776,21 +1853,36 @@ def runRNAseq(
         if enable_deseq2 and enable_TElocal:
             te_figures_dir = f"{outdir}/diff_expression/{group_pair.organism}/{group_pair.ctr_group_name}_vs_{group_pair.exp_group_name}/TElocal"
             outfiles.append(f"{te_figures_dir}/DESeq2.done")
-            outfiles.append(f"{te_figures_dir}/manhattan/{group_pair.ctr_group_name}_vs_{group_pair.exp_group_name}.manhattan.png")
+            outfiles += _figs(
+                f"{te_figures_dir}/manhattan/{group_pair.ctr_group_name}_vs_{group_pair.exp_group_name}.manhattan",
+                _plot_formats(datajson, "DESeq2", "manhattan")
+                or _plot_formats(datajson, "DESeq2", default=("png",)))
             # locus boxplot / subfamily bar only run when their per-contrast
             # family patterns are configured (Params.DESeq2.<rule>.families).
             for te_fig_rule, te_fig_dir in (("locus_boxplot", "locus_box"), ("subfamily_bar", "subfamily_bar")):
                 te_fig_families = (datajson.get("Params", {}).get("DESeq2", {}).get(te_fig_rule, {}) or {}).get("families", {}) or {}
                 if te_fig_families.get(group_pair.organism, {}).get(f"{group_pair.ctr_group_name}_vs_{group_pair.exp_group_name}"):
-                    outfiles.append(f"{te_figures_dir}/{te_fig_dir}/{group_pair.ctr_group_name}_vs_{group_pair.exp_group_name}.{te_fig_dir}.png")
+                    outfiles += _figs(
+                        f"{te_figures_dir}/{te_fig_dir}/{group_pair.ctr_group_name}_vs_{group_pair.exp_group_name}.{te_fig_dir}",
+                        _plot_formats(datajson, "DESeq2", te_fig_rule)
+                        or _plot_formats(datajson, "DESeq2", default=("png",)))
         sample_groups.setdefault(group_pair.ctr_group_name, []).extend(group_pair.ctr_sample_ids)
         sample_groups.setdefault(group_pair.exp_group_name, []).extend(group_pair.exp_sample_ids)
 
         if datajson.get("Params", {}).get("function", {}).get(group_pair.organism, {}).get("enabled", False):
             pair_dir = f"{outdir}/function/{group_pair.organism}/{group_pair.ctr_group_name}_vs_{group_pair.exp_group_name}"
-            outfiles.append(f"{pair_dir}/go_back_to_back.png")
-            outfiles.append(f"{pair_dir}/kegg_back_to_back.png")
-            outfiles.append(f"{pair_dir}/GSEA/TEcount_Gene_GSEA.jpeg")
+            outfiles += _figs(f"{pair_dir}/go_back_to_back",
+                              _plot_formats(datajson, "function",
+                                            group_pair.organism, "go_kegg",
+                                            default=("png",)))
+            outfiles += _figs(f"{pair_dir}/kegg_back_to_back",
+                              _plot_formats(datajson, "function",
+                                            group_pair.organism, "go_kegg",
+                                            default=("png",)))
+            outfiles += _figs(f"{pair_dir}/GSEA/TEcount_Gene_GSEA",
+                              _plot_formats(datajson, "function",
+                                            group_pair.organism, "gsea",
+                                            default=("jpeg",)))
             outfiles.append(f"{pair_dir}/go_up.csv")
             outfiles.append(f"{pair_dir}/go_down.csv")
             outfiles.append(f"{pair_dir}/kegg_up.csv")
@@ -1847,9 +1939,12 @@ def runRNAseq(
         if enable_StringTie:
             outfiles.append(f"{outdir}/transcripts/{organism}/stringtie_merged.gtf")
             if len(group_pairs) > 0:
-                outfiles.append(f"{outdir}/transcripts/{organism}/TE_chimeric/TE_chimeric_group_stacked.png")
-                outfiles.append(f"{outdir}/transcripts/{organism}/TE_chimeric/TE_chimeric_te_type_top.png")
-                outfiles.append(f"{outdir}/transcripts/{organism}/TE_chimeric/TE_chimeric_te_type_by_group.png")
+                for _st_fig in ("TE_chimeric_group_stacked",
+                                "TE_chimeric_te_type_top",
+                                "TE_chimeric_te_type_by_group"):
+                    outfiles += _figs(
+                        f"{outdir}/transcripts/{organism}/TE_chimeric/{_st_fig}",
+                        _plot_formats(datajson, "StringTie", default=("png",)))
                 outfiles.append(f"{outdir}/transcripts/{organism}/TE_chimeric/TE_chimeric_sample_summary.tsv")
                 outfiles.append(f"{outdir}/transcripts/{organism}/TE_chimeric/TE_chimeric_group_summary.tsv")
                 outfiles.append(f"{outdir}/transcripts/{organism}/TE_chimeric/TE_chimeric_te_type_counts.tsv")
@@ -1866,9 +1961,12 @@ def runRNAseq(
         # GSVA enrichment analysis
         if datajson.get("Params", {}).get("function", {}).get(organism, {}).get("enabled", False):
             outfiles.append(f"{outdir}/function/{organism}/gsva/gsva_scores.tsv")
-            outfiles.append(f"{outdir}/function/{organism}/gsva/gsva_heatmap.png")
+            outfiles += _figs(f"{outdir}/function/{organism}/gsva/gsva_heatmap",
+                              _plot_formats(datajson, "function", organism,
+                                            "gsva", default=("png",)))
         if enable_report:
             outfiles.append(f"{outdir}/results/{organism}/RNAseq_report.pptx")
+            outfiles.append(f"{outdir}/results/{organism}/figures/manifest.tsv")
     # Sex check (modules/sexcheck): per-sample sex call from sex-chromosome
     # coverage over the alignment BAMs; registered for every sample BAM.
     outfiles.append(f"{outdir}/QC/sexcheck/sexcheck.tsv")
@@ -1976,6 +2074,7 @@ def runncRNAseq(
     outfiles.append(f"{outdir}/tracks/ucsc_track.txt")
     outfiles.append(f"{outdir}/ncRNAseq_report.pptx")
     outfiles.append(f"{outdir}/ncRNAseq_report_files.xlsx")
+    outfiles.append(f"{outdir}/figures/manifest.tsv")
     outfiles += _register_regionplot(datajson, samples_info_dict,
                                      all_samples, outdir, "ncRNAseq")
     # Sex check (modules/sexcheck): per-sample sex call from sex-chromosome
@@ -2246,16 +2345,22 @@ def runFiberseq(
         if enable_motif:
             outfiles.append(f"{outdir}/fiberseq_analysis/motif/{sample_id}/{sample_id}.motif_profile.tsv")
             outfiles.append(f"{outdir}/fiberseq_analysis/motif/{sample_id}/{sample_id}.motif_footprint_scores.tsv")
-            outfiles.append(f"{outdir}/fiberseq_analysis/motif/{sample_id}/{sample_id}.motif_profile.pdf")
+            outfiles += _figs(
+                f"{outdir}/fiberseq_analysis/motif/{sample_id}/{sample_id}.motif_profile",
+                _plot_formats(datajson, "motif", default=("pdf",)))
         if enable_footprint:
             outfiles.append(f"{outdir}/fiberseq_analysis/footprint/{sample_id}/{sample_id}.footprint_categories.tsv")
             outfiles.append(f"{outdir}/fiberseq_analysis/footprint/{sample_id}/{sample_id}.footprint_profiles.tsv")
             outfiles.append(f"{outdir}/fiberseq_analysis/footprint/{sample_id}/{sample_id}.footprint_scores.tsv")
-            outfiles.append(f"{outdir}/fiberseq_analysis/footprint/{sample_id}/{sample_id}.footprint_profile.pdf")
+            outfiles += _figs(
+                f"{outdir}/fiberseq_analysis/footprint/{sample_id}/{sample_id}.footprint_profile",
+                _plot_formats(datajson, "footprint", default=("pdf",)))
         if enable_nucpos:
             outfiles.append(f"{outdir}/fiberseq_analysis/nucpos/{sample_id}/{sample_id}.nuc_offset_per_anchor.tsv")
             outfiles.append(f"{outdir}/fiberseq_analysis/nucpos/{sample_id}/{sample_id}.nuc_offset_summary.tsv")
-            outfiles.append(f"{outdir}/fiberseq_analysis/nucpos/{sample_id}/{sample_id}.nucpos.pdf")
+            outfiles += _figs(
+                f"{outdir}/fiberseq_analysis/nucpos/{sample_id}/{sample_id}.nucpos",
+                _plot_formats(datajson, "nucpos", default=("pdf",)))
         if enable_track:
             outfiles.append(f"{outdir}/fiberseq_analysis/track/{sample_id}/{sample_id}.accessibility.bw")
             outfiles.append(f"{outdir}/fiberseq_analysis/track/{sample_id}/{sample_id}.m6a_density.bw")
@@ -2269,7 +2374,9 @@ def runFiberseq(
             outfiles.append(f"{outdir}/fiberseq_analysis/censat/{sample_id}/{sample_id}.censat_regions.tsv")
             outfiles.append(f"{outdir}/fiberseq_analysis/censat/{sample_id}/{sample_id}.censat_class_summary.tsv")
             outfiles.append(f"{outdir}/fiberseq_analysis/censat/{sample_id}/{sample_id}.censat_profile.tsv")
-            outfiles.append(f"{outdir}/fiberseq_analysis/censat/{sample_id}/{sample_id}.censat_profile.pdf")
+            outfiles += _figs(
+                f"{outdir}/fiberseq_analysis/censat/{sample_id}/{sample_id}.censat_profile",
+                _plot_formats(datajson, "censat", default=("pdf",)))
 
         # Step 5: haplotype chain
         if enable_haplotype:
@@ -2318,7 +2425,9 @@ def runFiberseq(
             # Cross-sample comparison (aggregated): the decoil module writes
             # these under {outdir}/compare/ (see modules/decoil/decoil.smk
             # rule decoil_compare), NOT {outdir}/visualization/.
-            outfiles.append(f"{outdir}/eccdna/compare/decoil_compare.png")
+            outfiles += _figs(f"{outdir}/eccdna/compare/decoil_compare",
+                              _plot_formats(datajson, "decoil", "compare",
+                                            default=("png",)))
             outfiles.append(f"{outdir}/eccdna/compare/decoil_compare_shared_unique.tsv")
         if enable_sv:
             outfiles.append(f"{outdir}/variation/germline_sv/{sample_id}/{sample_id}.svsig.gz")
@@ -2553,7 +2662,8 @@ def runFiberseq(
         for contrast, groups in sorted(contrast_groups.items()):
             base = f"{outdir}/fiberseq_analysis/diff/{contrast}"
             outfiles.append(f"{base}/diff_{contrast}.tsv")
-            outfiles.append(f"{base}/volcano_{contrast}.pdf")
+            outfiles += _figs(f"{base}/volcano_{contrast}",
+                              _plot_formats(datajson, "diff", default=("pdf",)))
             outfiles.append(f"{base}/class_summary_{contrast}.tsv")
             outfiles.append(f"{base}/TEcount/{contrast}.TEcount_Gene.name.tsv")
 
@@ -2576,8 +2686,12 @@ def runFiberseq(
         if enable_function:
             for contrast in sorted(contrast_groups):
                 base = f"{outdir}/function/{contrast}"
-                outfiles.append(f"{base}/go_back_to_back.png")
-                outfiles.append(f"{base}/kegg_back_to_back.png")
+                outfiles += _figs(f"{base}/go_back_to_back",
+                                  _plot_formats(datajson, "function",
+                                                "go_kegg", default=("png",)))
+                outfiles += _figs(f"{base}/kegg_back_to_back",
+                                  _plot_formats(datajson, "function",
+                                                "go_kegg", default=("png",)))
                 outfiles.append(f"{base}/go_up.csv")
                 outfiles.append(f"{base}/go_down.csv")
                 outfiles.append(f"{base}/kegg_up.csv")
@@ -2587,7 +2701,9 @@ def runFiberseq(
             if datajson.get("Params", {}).get("function", {}).get("gmt") and default_ref.get("geneIDAnno"):
                 for contrast in sorted(contrast_groups):
                     base = f"{outdir}/function/{contrast}/GSEA"
-                    outfiles.append(f"{base}/TEcount_Gene_GSEA.jpeg")
+                    outfiles += _figs(f"{base}/TEcount_Gene_GSEA",
+                                      _plot_formats(datajson, "function",
+                                                    "gsea", default=("jpeg",)))
                     outfiles.append(f"{base}/TEcount_Gene_GSEA.csv")
 
     if enable_lsdc:

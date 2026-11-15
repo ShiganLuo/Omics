@@ -13,8 +13,9 @@ include: "../../common/common.smk"
 #   <indir>/<comparison>/<comparison>_annotated.tab
 # Output (per comparison):
 #   <outdir>/<comparison>/{sv_genes.txt, go_enrichment.csv,
-#                          go_enrichment.png, kegg_enrichment.csv,
-#                          kegg_enrichment.png, sv_go_kegg.done}
+#                          go_enrichment.<fmt>, kegg_enrichment.csv,
+#                          kegg_enrichment.<fmt>, sv_go_kegg.done}
+#   (<fmt> per Params.function.sv_go_kegg.formats, default png)
 
 indir = config.get("indir") or "input"
 outdir = config.get("outdir") or "output"
@@ -25,7 +26,11 @@ comparisons = config.get("comparisons") or {}
 sg_species = _sg.get("species") or ""
 sg_impact = _sg.get("impact") or "HIGH,MODERATE,LOW"
 sg_top = _sg.get("top", 10)
-sg_format = _sg.get("format") or "png"
+# ① parse 期读入 + 规范化(str 收成单元素 list;合法值由 schema 声明)。
+# 旧配置的单数键 "format" 仍然受理(向后兼容),优先读 "formats"。
+sg_formats = _sg.get("formats") or _sg.get("format") or ["png"]
+if isinstance(sg_formats, str):
+    sg_formats = [sg_formats]
 
 
 rule sv_go_kegg:
@@ -35,9 +40,12 @@ rule sv_go_kegg:
     output:
         genes=outdir + "/{comparison}/sv_go_kegg/sv_genes.txt",
         go_csv=outdir + "/{comparison}/sv_go_kegg/go_enrichment.csv",
-        go_plot=outdir + "/{comparison}/sv_go_kegg/go_enrichment." + sg_format,
+        # ② 按格式展开:每种格式一个输出文件(base 不带扩展名)
+        go_plot=[outdir + "/{comparison}/sv_go_kegg/go_enrichment." + fmt
+                 for fmt in sg_formats],
         kegg_csv=outdir + "/{comparison}/sv_go_kegg/kegg_enrichment.csv",
-        kegg_plot=outdir + "/{comparison}/sv_go_kegg/kegg_enrichment." + sg_format,
+        kegg_plot=[outdir + "/{comparison}/sv_go_kegg/kegg_enrichment." + fmt
+                   for fmt in sg_formats],
         done=outdir + "/{comparison}/sv_go_kegg/sv_go_kegg.done",
     log:
         logdir + "/{comparison}/sv_go_kegg.log"
@@ -53,7 +61,7 @@ rule sv_go_kegg:
         species=sg_species,
         impact=sg_impact,
         top=sg_top,
-        format=sg_format,
+        formats=sg_formats,   # ③ 转发
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -84,8 +92,9 @@ rule sv_go_kegg:
                 "-s", params.species,
                 "--impact", params.impact,
                 "--top", str(params.top),
-                "--format", params.format,
             ]
+            for fmt in params.formats:
+                cmd += ["--format", str(fmt)]
             script = os.path.join(
                 RECEIPT_DIR,
                 f"sv_go_kegg_{wildcards.comparison}_{current_time}.sh")

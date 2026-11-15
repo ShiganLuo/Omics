@@ -29,6 +29,8 @@
 ```
 {outdir}/RIPseq_report.pptx    # PPT 报告(QC 指标、图表、各模块摘要)
 {outdir}/RIPseq_report.xlsx    # 全量结果数据工作簿
+{outdir}/figures/<name>.<fmt>  # 报告插图独立交付(alignment、peak_frip、annotation、tss_distance、dup_rate、trim_stats、peak_centric_te)
+{outdir}/figures/manifest.tsv  # 插图文件清单(name<TAB>filename)
 {outdir}/generate_report.sh    # 回执
 logdir/RIPseq_report.log       # 运行日志
 ```
@@ -48,6 +50,7 @@ logdir/RIPseq_report.log       # 运行日志
 | `Params.report.genome` | `--genome` | "" | 物种/基因组 |
 | `Params.report.date` | `--date` | "" | 日期 |
 | `Params.report.top_n` | `--top-n` | 5(json:20) | 图表取 top N |
+| `Params.report.formats` | `--format`(可重复) | `["png"]` | 图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba |
 | `peaks_dir` / `annotation_dir` / `qc_dir` / `markdup_dir` / `log_sample_dir` | 同名 `--*-dir` | 见上表 | 目录覆盖(供 subworkflow 导入) |
 | `ROOT_DIR` / `outdir` / `logdir` | — | `.` / `output` / `log` | 基础键 |
 

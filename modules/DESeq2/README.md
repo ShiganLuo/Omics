@@ -8,9 +8,11 @@
 | --- | --- | --- |
 | `DESeq2_TEcount` | `diff_expression/{genome}/{contrast}/TEcount/` | TEcount（亚家族级）差异表达 |
 | `DESeq2_TElocal` | `diff_expression/{genome}/{contrast}/TElocal/` | TElocal（位点级）差异表达 |
-| `DESeq2_TElocal_manhattan` | `.../TElocal/manhattan/{contrast}.manhattan.png` | 全基因组 TE 位点 Manhattan 散点（爆发全局性） |
-| `DESeq2_TElocal_locus_boxplot` | `.../TElocal/locus_box/{contrast}.locus_box.png` | 家族表达分布箱线/小提琴（分布上移） |
-| `DESeq2_TElocal_subfamily_bar` | `.../TElocal/subfamily_bar/{contrast}.subfamily_bar.png` | 亚家族定量分组柱状（表达幅度） |
+| `DESeq2_TElocal_manhattan` | `.../TElocal/manhattan/{contrast}.manhattan.{fmt}` | 全基因组 TE 位点 Manhattan 散点（爆发全局性） |
+| `DESeq2_TElocal_locus_boxplot` | `.../TElocal/locus_box/{contrast}.locus_box.{fmt}` | 家族表达分布箱线/小提琴（分布上移） |
+| `DESeq2_TElocal_subfamily_bar` | `.../TElocal/subfamily_bar/{contrast}.subfamily_bar.{fmt}` | 亚家族定量分组柱状（表达幅度） |
+
+`{fmt}` 由 `formats` 参数展开（默认 `png`，每种格式一个文件）。
 
 ## TE 位点图（te_*.py，bin/ 下的独立 argparse CLI）
 
@@ -38,6 +40,8 @@
 | `subfamily_bar.value` | `total` | total/mean（成员位点求和/均值） |
 | `subfamily_bar.normalize` / `ylabel` | `tpm` / `TPM` | 标准量纲为 TPM |
 | `subfamily_bar.yscale` | `linear` | linear/log |
+| `manhattan.formats` / `locus_boxplot.formats` / `subfamily_bar.formats` | `--format`（可重复） | `["png"]` | 出图格式（每种格式一个文件 `<base>.<fmt>`）；逐规则覆盖，缺省回退 `Params.DESeq2.formats`；合法值 matplotlib 全集 png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba |
+| `Params.DESeq2.formats` | DESeq2.r `--format`（可重复） | `["png"]` | R 图（cpmPCA/火山/热图）格式，同时作为 TE 位点图 formats 的回退；R 侧合法值仅 ggsave 设备集 png pdf svg ps eps tif tiff jpg jpeg，pgf/raw/rgba 传入即报错 |
 
 说明：
 
@@ -47,5 +51,8 @@
 - 选择家族按数据驱动：按显著上调位点的 delta TPM 之和排序挑选亚家族，
   宽度（位点数）× 幅度（总量）共同支撑结论，至少含一个年轻自主家族
   （IAPEz/SVA/L1HS 类）。
+- 图片多格式输出：`formats` 为列表，每种格式一个文件（`<base>.<fmt>`，
+  base 不带扩展名）；默认 `["png"]`，不配置时输出文件名与历史完全一致；
+  非法格式解析期 fail fast。
 - 规则会生成可复现的 `.sh`（输出目录内 `DESeq2_TElocal_*.sh`），
   手动复现/调试直接跑它。

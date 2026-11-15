@@ -11,6 +11,31 @@ suppressMessages(library(grid))
 suppressMessages(library(gtable))
 suppressMessages(library(ggpol))
 
+# ---- multi-format figure output (repo formats sweep; minimal vendored hook) --
+# MIMSEQ_PLOT_FORMATS (comma-separated; default "pdf") selects the output
+# format(s) for every ggsave() figure. The default keeps upstream .pdf
+# filenames byte-identical. Figures drawn through pdf()/png() devices directly
+# are NOT affected and stay fixed-format.
+.plot_formats <- strsplit(Sys.getenv("MIMSEQ_PLOT_FORMATS", "pdf"), "[,;[:space:]]+")[[1]]
+.plot_formats <- .plot_formats[.plot_formats != ""]
+if (length(.plot_formats) == 0) .plot_formats <- "pdf"
+.plot_valid <- c("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg", "jpeg")
+if (!all(.plot_formats %in% .plot_valid)) {
+    stop(sprintf("Unsupported image format(s): %s; valid: %s",
+                 paste(setdiff(.plot_formats, .plot_valid), collapse = ", "),
+                 paste(.plot_valid, collapse = " ")))
+}
+ggsave <- function(filename, plot = ggplot2::last_plot(), ...) {
+    dots <- list(...)
+    for (fmt in .plot_formats) {
+        args <- dots
+        if (fmt != "pdf") args$useDingbats <- NULL
+        do.call(ggplot2::ggsave,
+                c(list(sub("\\.[A-Za-z0-9]+$", paste0(".", fmt), filename), plot),
+                  args))
+    }
+}
+
 args = commandArgs(trailingOnly = TRUE)
 
 # source facet_share.R

@@ -32,6 +32,20 @@ ad.settings.allow_write_nullable_strings = True
 # Lazy import: plotter loaded only when --plot-dir is set
 _plotter_cls = None
 
+PlotFormat = str
+
+# matplotlib savefig's full format set (LogUtil.PlotFormat); duplicated from
+# plot.py so CLI validation works without importing matplotlib/scanpy at
+# startup (modules.md #9)
+VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
+                 "jpeg", "pgf", "raw", "rgba")
+
+# Plot formats parsed once from the CLI (-f/--format, repeatable) and
+# forwarded to every ScanpyPlotter built by _make_plotter, so the files each
+# plotter writes carry the requested extensions. None = ["png"] (today's
+# fixed output names).
+_IMAGE_FORMATS: Optional[List[str]] = None
+
 
 def _get_plotter():
     """Lazy-load ScanpyPlotter to avoid matplotlib import at startup."""
@@ -71,12 +85,13 @@ def _make_plotter(plot_dir: str):
         plot_dir: Directory path for saving plots. Empty string disables plotting.
 
     Returns:
-        A ScanpyPlotter instance or None.
+        A ScanpyPlotter instance or None. The plotter saves every figure in
+        ``_IMAGE_FORMATS`` (set once from the CLI ``--format`` flag).
     """
     if not plot_dir:
         return None
     cls = _get_plotter()
-    return cls(plot_dir)
+    return cls(plot_dir, image_formats=_IMAGE_FORMATS)
 
 
 def is_outlier(adata: ad.AnnData, metric: str, nmads: int) -> np.ndarray:
@@ -5940,6 +5955,10 @@ def _add_common_args(p: argparse.ArgumentParser) -> None:
     p.add_argument("-o", "--output", required=True, help="Output h5ad path")
     p.add_argument("-p", "--plot-dir", default="",
                    help="Directory to save plots (optional)")
+    # long-only: annotate mode already owns -f/--marker-file
+    p.add_argument("--format", action="append", dest="formats",
+                   metavar="FMT",
+                   help="Image format (png/pdf/svg/...). Repeatable. Default: png.")
 
 
 def _add_cluster_args(p: argparse.ArgumentParser, with_markers: bool = True) -> None:
@@ -6133,7 +6152,17 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main():
     """Parse CLI arguments and dispatch to the requested mode function."""
+    global _IMAGE_FORMATS
     args = build_parser().parse_args()
+
+    # Image formats: fail fast at parse time (modules.md #9), then hand to
+    # every ScanpyPlotter via _make_plotter.
+    _IMAGE_FORMATS = list(args.formats) if args.formats else ["png"]
+    bad = [f for f in _IMAGE_FORMATS if f not in VALID_FORMATS]
+    if bad:
+        raise SystemExit(
+            f"Unsupported image format(s): {', '.join(bad)}; "
+            f"valid: {', '.join(VALID_FORMATS)}")
 
     # LLM config second-pass: even when CLI default pulls from env (above),
     # Snakemake may pass `--llm-method ""` explicitly and shadow the env value.

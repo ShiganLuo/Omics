@@ -9,17 +9,22 @@ Supports three region modes:
 Usage:
     # Pre-made BED
     python run_heatmap.py \\
-        --ip-bigwig IP.bigwig --regions regions.bed --output heatmap.png
+        --ip-bigwig IP.bigwig --regions regions.bed --output heatmap
 
     # TSS mode
     python run_heatmap.py \\
         --ip-bigwig IP.bigwig --gtf genes.gtf --region-mode tss \\
-        --tss-flank 1000 --output heatmap.png
+        --tss-flank 1000 --output heatmap
 
-    # Gene list mode
+    # Gene list mode (writes heatmap.png + heatmap.pdf)
     python run_heatmap.py \\
         --ip-bigwig IP.bigwig --gtf genes.gtf --region-mode genes \\
-        --gene-names TP53 BRCA1 --merge --output heatmap.png
+        --gene-names TP53 BRCA1 --merge --output heatmap \\
+        -f png -f pdf
+
+``--output`` is a base path without extension; one ``<output>.<fmt>`` file is
+written per ``--format`` (default ``png``), forwarded to plotHeatmap's
+``--plotFileFormat``.
 """
 import argparse
 import logging
@@ -31,6 +36,13 @@ from collections import defaultdict
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger("run_heatmap")
+
+PlotFormat = str
+
+# deeptools plotHeatmap --plotFileFormat full set (probed from the deeptools
+# SIF); anything else fails fast at parse time instead of dying inside
+# plotHeatmap (modules.md #9). NOTE: this is the TOOL's set, not matplotlib's.
+VALID_FORMATS = ("png", "eps", "pdf", "svg", "plotly")
 
 
 # ============================================================
@@ -147,7 +159,13 @@ def main():
     p.add_argument("--ip-bigwig", required=True)
     p.add_argument("--input-bigwig", default="")
     p.add_argument("--regions", default="", help="Pre-made BED file (mutually exclusive with --gtf)")
-    p.add_argument("--output", required=True, help="Output heatmap PNG")
+    p.add_argument("--output", required=True,
+                   help="Output heatmap base path (no extension); one file "
+                        "<output>.<fmt> is written per --format")
+    p.add_argument("-f", "--format", action="append", dest="formats",
+                   metavar="FMT",
+                   help="Image format (png/eps/pdf/svg/plotly — deeptools "
+                        "plotFileFormat set). Repeatable. Default: png.")
     # GTF-based region generation
     p.add_argument("--gtf", default="", help="GTF annotation file (generates regions on the fly)")
     p.add_argument("--region-mode", default="", choices=["tss", "genes", ""],
@@ -184,6 +202,14 @@ def main():
     p.add_argument("--keep-matrix", default="", help="If set, save matrix.gz to this path")
     p.add_argument("--keep-regions-bed", default="", help="If set, save generated BED to this path")
     args = p.parse_args()
+
+    # --- Image formats (fail fast; tool set, not matplotlib's) ---
+    image_formats = args.formats if args.formats else ["png"]
+    bad = [f for f in image_formats if f not in VALID_FORMATS]
+    if bad:
+        raise ValueError(
+            f"Unsupported image format(s): {', '.join(bad)}; "
+            f"valid: {', '.join(VALID_FORMATS)}")
 
     # --- Resolve regions BED ---
     regions_file = args.regions
@@ -251,25 +277,28 @@ def main():
     run_cmd(cm_cmd)
     logger.info(f"Matrix: {matrix_path}")
 
-    # --- plotHeatmap ---
-    ph_cmd = [
-        args.plotHeatmap,
-        "-m", matrix_path,
-        "-o", args.output,
-        "--colorMap", args.color_map,
-        "--heatmapHeight", str(args.height),
-        "--heatmapWidth", str(args.width),
-        "--whatToShow", args.what_to_show,
-        "--dpi", str(args.dpi),
-    ]
-    if args.title:
-        ph_cmd += ["--plotTitle", args.title]
+    # --- plotHeatmap (once per requested format; matrix computed once) ---
     # Label: use sample name from ratio bigwig filename
     sample_label = os.path.splitext(os.path.basename(args.ip_bigwig))[0].replace("_IP_over_Input", "")
-    ph_cmd += ["--samplesLabel", sample_label]
+    for fmt in image_formats:
+        out_path = f"{args.output}.{fmt}"
+        ph_cmd = [
+            args.plotHeatmap,
+            "-m", matrix_path,
+            "-o", out_path,
+            "--plotFileFormat", fmt,
+            "--colorMap", args.color_map,
+            "--heatmapHeight", str(args.height),
+            "--heatmapWidth", str(args.width),
+            "--whatToShow", args.what_to_show,
+            "--dpi", str(args.dpi),
+        ]
+        if args.title:
+            ph_cmd += ["--plotTitle", args.title]
+        ph_cmd += ["--samplesLabel", sample_label]
 
-    run_cmd(ph_cmd)
-    logger.info(f"Heatmap: {args.output}")
+        run_cmd(ph_cmd)
+        logger.info(f"Heatmap: {out_path}")
 
     # --- Cleanup ---
     if not args.keep_matrix and os.path.exists(matrix_path):

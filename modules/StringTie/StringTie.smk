@@ -6,6 +6,14 @@ logdir = config.get("logdir") or "log"
 samples = config.get("samples") or []
 sample_groups = config.get("sample_groups") or {}
 ROOT_DIR = config.get("ROOT_DIR", ".")
+
+# TEChimericPlot image formats (modules.md #9) — ① parse 期读入 + 规范化
+# (str 收成单元素 list;合法值由 schema 声明)。output 指令无法调用函数,
+# 格式列表必须是模块级变量。
+_formats = config.get("Params", {}).get("StringTie", {}).get("formats") or ["png"]
+if isinstance(_formats, str):
+    _formats = [_formats]
+
 rule stringTie:
     input:
         bam = indir + "/{sample_id}/{sample_id}.bam"
@@ -84,16 +92,18 @@ rule TEChimericPlot:
     input:
         txts = expand(outdir + "/raw/{sample_id}/{sample_id}_TE_chimeric_transcripts.txt", sample_id=samples)
     output:
-        group_stack = outdir + "/TE_chimeric/TE_chimeric_group_stacked.png",
-        type_top = outdir + "/TE_chimeric/TE_chimeric_te_type_top.png",
-        type_by_group = outdir + "/TE_chimeric/TE_chimeric_te_type_by_group.png",
+        # ② 按格式展开:每种格式一个输出文件(base 不带扩展名)
+        group_stack = [outdir + "/TE_chimeric/TE_chimeric_group_stacked." + fmt for fmt in _formats],
+        type_top = [outdir + "/TE_chimeric/TE_chimeric_te_type_top." + fmt for fmt in _formats],
+        type_by_group = [outdir + "/TE_chimeric/TE_chimeric_te_type_by_group." + fmt for fmt in _formats],
         sample_summary = outdir + "/TE_chimeric/TE_chimeric_sample_summary.tsv",
         group_summary = outdir + "/TE_chimeric/TE_chimeric_group_summary.tsv",
         te_type_counts = outdir + "/TE_chimeric/TE_chimeric_te_type_counts.tsv"
     log:
         logdir + "/../group/stringtie/TEChimericPlot.log"
     params:
-        TEChimericPlot = ROOT_DIR + "/modules/StringTie/bin/TEChimericPlot.py"
+        TEChimericPlot = ROOT_DIR + "/modules/StringTie/bin/TEChimericPlot.py",
+        formats = _formats,   # ③ 转发
     threads: rule_res("TEChimericPlot").get("threads", 1)
     resources:
         mem_mb = rule_res("TEChimericPlot").get("mem_mb", 8000),
@@ -121,6 +131,8 @@ rule TEChimericPlot:
                 "-g", group_tsv,
                 "-o", f"{outdir}/TE_chimeric/TE_chimeric"
             ]
+            for fmt in params.formats:
+                cmd += ["--format", str(fmt)]
             with open(script, 'w') as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(' '.join(cmd) + "\n")

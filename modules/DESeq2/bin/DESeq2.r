@@ -38,6 +38,54 @@ log_msg <- function(level = c("INFO","WARN","ERROR"), ..., quit = FALSE) {
 }
 
 # ---------------------------
+# Image output formats
+# ---------------------------
+# Valid output image formats = the R ggsave/base-graphics device set.
+# pgf/raw/rgba are matplotlib-only and fail fast here (modules.md #9).
+VALID_FORMATS <- c("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg", "jpeg")
+
+#' Validate image output formats, fail fast on anything unsupported
+#'
+#' @param formats Character vector of requested formats.
+#' @return The validated formats (invisibly usable as a vector).
+check_formats <- function(formats) {
+  formats <- as.character(formats)
+  bad <- setdiff(formats, VALID_FORMATS)
+  if (length(bad)) {
+    stop(sprintf("Unsupported image format(s): %s; valid: %s",
+                 paste(bad, collapse = ", "), paste(VALID_FORMATS, collapse = " ")))
+  }
+  formats
+}
+
+#' Open a graphics device for one output format (base graphics / pheatmap)
+#'
+#' Device-per-extension helper; sizing is in inches for every format so the
+#' geometry is identical across devices.
+#'
+#' @param path Output file path (with extension).
+#' @param fmt One of VALID_FORMATS.
+#' @param width_in Device width in inches.
+#' @param height_in Device height in inches.
+#' @param res Resolution for raster devices. Default 300.
+open_image_device <- function(path, fmt, width_in, height_in, res = 300) {
+  switch(fmt,
+    png = grDevices::png(path, width = width_in, height = height_in,
+                         units = "in", res = res),
+    pdf = grDevices::pdf(path, width = width_in, height = height_in),
+    svg = grDevices::svg(path, width = width_in, height = height_in),
+    ps  = grDevices::postscript(path, width = width_in, height = height_in),
+    eps = grDevices::postscript(path, width = width_in, height = height_in,
+                                onefile = FALSE, horizontal = FALSE),
+    tif =, tiff = grDevices::tiff(path, width = width_in, height = height_in,
+                                  units = "in", res = res),
+    jpg =, jpeg = grDevices::jpeg(path, width = width_in, height = height_in,
+                                  units = "in", res = res),
+    stop(sprintf("Unsupported image format(s): %s; valid: %s", fmt,
+                 paste(VALID_FORMATS, collapse = " "))))
+}
+
+# ---------------------------
 # DESeq2Analysis: core function
 # ---------------------------
 #' Perform DESeq2 differential expression and return results + dds
@@ -213,11 +261,15 @@ ScreenFeature <- function(res_df, upfile = NULL, downfile = NULL, updownfile = N
 #'
 #' @param res_df Data frame. The input data where the first 7 columns are typically 
 #'   statistics (log2FC, padj, etc.) and subsequent columns are normalized counts.
-#' @param outfile Character. The output path for the PNG file (e.g., "heatmap.png").
+#' @param out_base Character. Output path without extension; one file is
+#'   written per requested format as \code{<out_base>.<fmt>} (e.g.
+#'   \code{"heatmap"} -> \code{"heatmap.png"}).
 #' @param coldata Data frame. Optional metadata for columns (samples) to display 
 #'   annotation bars at the top of the heatmap. Default is NULL.
 #' @param brewer_palette Character. A color palette name from RColorBrewer (e.g., "RdBu", "PiYG"). 
 #'   Default is "RdBu".
+#' @param formats Character vector of image formats (png/pdf/svg/ps/eps/tif/
+#'   tiff/jpg/jpeg). Default \code{"png"}.
 #'
 #' @details 
 #' The function assumes that normalized counts start from the 8th column. 
@@ -225,9 +277,9 @@ ScreenFeature <- function(res_df, upfile = NULL, downfile = NULL, updownfile = N
 #' changes across samples. Row names (gene IDs) are automatically hidden if the 
 #' number of genes exceeds 50 to maintain legibility.
 #'
-#' @return None. Saves a PNG image to the specified \code{outfile}.
+#' @return None. Saves one image per requested format to \code{<out_base>.<fmt>}.
 #' @export
-updown_heatmap <- function(res_df, outfile, coldata = NULL, brewer_palette = "RdBu", format = "png"){
+updown_heatmap <- function(res_df, out_base, coldata = NULL, brewer_palette = "RdBu", formats = "png"){
   
   if (!is.data.frame(res_df)) {
     log_msg("ERROR","The res_df must be dataframe", quit = TRUE)
@@ -239,28 +291,28 @@ updown_heatmap <- function(res_df, outfile, coldata = NULL, brewer_palette = "Rd
   ramp <- colorRampPalette(RColorBrewer::brewer.pal(11, brewer_palette))(256)
   ramp <- rev(ramp) # original used reversed palette
 
-  ensure_dir(dirname(outfile))
+  formats <- check_formats(formats)
+  ensure_dir(dirname(out_base))
   # compute sensible row/column font sizes
   n_genes <- nrow(heatmat)
   row_font <- ifelse(n_genes <= 50, 8, max(3, 200 / n_genes))
   show_rows <- n_genes <=50
-  # use pheatmap; write to file via png device to avoid device issues
-  fmt <- match.arg(format, choices = c("png", "pdf"))
-  if (fmt == "png") {
-    png(filename = outfile, width = 2000, height = 1500, res = 200)
-  } else {
-    pdf(file = outfile, width = 10, height = 7.5)
+  # use pheatmap; write via one graphics device per format extension
+  # (10 x 7.5 in, res 200 -- same geometry as the old fixed png/pdf devices)
+  for (fmt in formats) {
+    outfile <- sprintf("%s.%s", out_base, fmt)
+    open_image_device(outfile, fmt, width_in = 10, height_in = 7.5, res = 200)
+    pheatmap::pheatmap(heatmat, color = ramp, scale = "row",
+                       annotation_col = if(!is.null(coldata)) coldata else NA,
+                       fontsize_col = 10,
+                       cluster_cols = FALSE,
+                       cluster_rows = FALSE,
+                       show_rownames = show_rows,
+                       fontsize_row = row_font,
+                       border_color = NA)
+    dev.off()
+    log_msg("INFO", "Heatmap saved to:", outfile)
   }
-  pheatmap::pheatmap(heatmat, color = ramp, scale = "row",
-                     annotation_col = if(!is.null(coldata)) coldata else NA,
-                     fontsize_col = 10,
-                     cluster_cols = FALSE,
-                     cluster_rows = FALSE,
-                     show_rownames = show_rows,
-                     fontsize_row = row_font,
-                     border_color = NA)
-  dev.off()
-  log_msg("INFO", "Heatmap saved to:", outfile)
 }
 
 #' Add Gene Names with Fallback Logic
@@ -321,7 +373,9 @@ updown_heatmap <- function(res_df, outfile, coldata = NULL, brewer_palette = "Rd
 #'
 #' @param res_df Data frame. The results from differential expression analysis 
 #'   (containing at least `log2FoldChange` and `padj` columns).
-#' @param outfile Character. The path where the final plot will be saved (e.g., "volcano.png").
+#' @param out_base Character. Output path without extension; one file is
+#'   written per requested format as \code{<out_base>.<fmt>} (e.g.
+#'   \code{"volcano"} -> \code{"volcano.png"}).
 #' @param mode Character. Either "gene" or "TE", used for gene name mapping via `.add_gene_name`.
 #' @param geneAnnotation Character. Path to the annotation file required if `mode` is "gene".
 #' @param lfc_cut Numeric. Absolute log2 Fold Change threshold for significance. Default is 0.58.
@@ -336,10 +390,15 @@ updown_heatmap <- function(res_df, outfile, coldata = NULL, brewer_palette = "Rd
 #' the `lfc_cut` and `padj_cut`. The legend automatically includes the count (n) 
 #' for each category. Text labeling is handled by `ggrepel` to avoid overlapping.
 #'
-#' @return None. Saves a high-resolution (300 DPI) image to the specified \code{outfile}.
+#' @param formats Character vector of image formats (png/pdf/svg/ps/eps/tif/
+#'   tiff/jpg/jpeg). Default \code{"png"}.
+#'
+#' @return None. Saves one high-resolution (300 DPI) image per requested
+#'   format to \code{<out_base>.<fmt>}.
 #' @export
-plot_volcano <- function(res_df, outfile, mode = c("gene","TE"), geneAnnotation = NULL,
-                         lfc_cut = 0.58, padj_cut = 0.05, nlabel = 10, label.by = c("padj","log2FoldChange")){
+plot_volcano <- function(res_df, out_base, mode = c("gene","TE"), geneAnnotation = NULL,
+                         lfc_cut = 0.58, padj_cut = 0.05, nlabel = 10, label.by = c("padj","log2FoldChange"),
+                         formats = "png"){
   mode <- match.arg(mode)
   label.by <- match.arg(label.by)
   res <- .add_gene_name(res_df, mode = mode, geneAnnotation = geneAnnotation)
@@ -379,9 +438,13 @@ plot_volcano <- function(res_df, outfile, mode = c("gene","TE"), geneAnnotation 
     theme_classic() +
     theme(legend.title = element_blank())
 
-  ensure_dir(dirname(outfile))
-  ggsave(outfile, plot = p, width = 8, height = 6, dpi = 300)
-  log_msg("INFO","Volcano plot saved to:", outfile)
+  formats <- check_formats(formats)
+  ensure_dir(dirname(out_base))
+  for (fmt in formats) {
+    outfile <- sprintf("%s.%s", out_base, fmt)
+    ggsave(outfile, plot = p, width = 8, height = 6, dpi = 300)
+    log_msg("INFO","Volcano plot saved to:", outfile)
+  }
 }
 
 #' Generate an MA Plot for Differential Expression Analysis
@@ -392,7 +455,9 @@ plot_volcano <- function(res_df, outfile, mode = c("gene","TE"), geneAnnotation 
 #'
 #' @param res_df Data frame. The differential expression results (e.g., from DESeq2). 
 #'   Must contain `baseMean`, `log2FoldChange`, and `padj` columns.
-#' @param outfile Character. The output path for the PNG/PDF file (e.g., "MA_plot.png").
+#' @param out_base Character. Output path without extension; one file is
+#'   written per requested format as \code{<out_base>.<fmt>} (e.g.
+#'   \code{"MA_plot"} -> \code{"MA_plot.png"}).
 #' @param mode Character. Either "gene" or "TE", used for identifier mapping via `.add_gene_name`.
 #' @param geneAnnotation Character. Optional path to the gene annotation file for "gene" mode.
 #' @param lfc_cut Numeric. The log2 Fold Change threshold for significance. Default is 0.58.
@@ -407,10 +472,15 @@ plot_volcano <- function(res_df, outfile, mode = c("gene","TE"), geneAnnotation 
 #' Significant features are colored (Red for Up, Blue for Down) based on both the 
 #' `lfc_cut` and `padj_cut` thresholds.
 #'
-#' @return None. Saves a high-resolution image to the specified \code{outfile}.
+#' @param formats Character vector of image formats (png/pdf/svg/ps/eps/tif/
+#'   tiff/jpg/jpeg). Default \code{"png"}.
+#'
+#' @return None. Saves one high-resolution image per requested format to
+#'   \code{<out_base>.<fmt>}.
 #' @export
-plot_MA <- function(res_df, outfile, mode = c("gene","TE"), geneAnnotation = NULL,
-                    lfc_cut = 0.58, padj_cut = 0.05, nlabel = 10, label.by = c("padj","log2FoldChange")){
+plot_MA <- function(res_df, out_base, mode = c("gene","TE"), geneAnnotation = NULL,
+                    lfc_cut = 0.58, padj_cut = 0.05, nlabel = 10, label.by = c("padj","log2FoldChange"),
+                    formats = "png"){
   mode <- match.arg(mode)
   label.by <- match.arg(label.by)
   res <- .add_gene_name(res_df, mode = mode, geneAnnotation = geneAnnotation)
@@ -447,9 +517,13 @@ plot_MA <- function(res_df, outfile, mode = c("gene","TE"), geneAnnotation = NUL
     theme_classic() +
     theme(legend.title = element_blank())
 
-  ensure_dir(dirname(outfile))
-  ggsave(outfile, plot = p, width = 8, height = 6, dpi = 300)
-  log_msg("INFO","MA plot saved to:", outfile)
+  formats <- check_formats(formats)
+  ensure_dir(dirname(out_base))
+  for (fmt in formats) {
+    outfile <- sprintf("%s.%s", out_base, fmt)
+    ggsave(outfile, plot = p, width = 8, height = 6, dpi = 300)
+    log_msg("INFO","MA plot saved to:", outfile)
+  }
 }
 
 #' Read and Classify TEcount Expression Matrix
@@ -618,6 +692,11 @@ count_read <- function(infile, control, experiment, min_mean = 5) {
 #'   \item \bold{-Tcm, --TEcountMode}: \emph{Character (Multiple allowed)}. Only applicable 
 #'     for \code{TEcount} mode. Specifies which data subsets to analyze. 
 #'     Default is \code{all}.
+#'   \item \bold{--format}: \emph{Character (Multiple allowed)}. Output image
+#'     format(s), repeatable (\code{--format png --format pdf}); no short flag
+#'     because \code{-f} is taken by \code{--figure}. Valid: png pdf svg ps eps
+#'     tif tiff jpg jpeg (pgf/raw/rgba are matplotlib-only and fail fast).
+#'     Default is \code{png}.
 #' }
 parser <- ArgumentParser(description = 'DESeq2 analysis for TEcount and TElocal')
 parser$add_argument('-m', '--mode', type = 'character', required = TRUE, choices = c("TEcount", "TElocal", "Count"))
@@ -634,9 +713,12 @@ parser$add_argument('-a', '--annotation', type = 'character', required = FALSE, 
                     help = 'annotation file: gene_id, gene_type, gene_name (tab)')
 parser$add_argument('-Tcm', '--TEcountMode', type = 'character', nargs = "+",
                     choices = c("all","Gene_TE","TE","Gene"), default = "all")
-parser$add_argument('--format', type = 'character', default = "png",
-                    choices = c("png", "pdf"), help = 'output image format (default: png)')
+# repeatable --format (action="append"); no short flag because -f is taken by
+# --figure. Valid set is the R ggsave device set; fail fast before any analysis.
+parser$add_argument('--format', type = 'character', action = 'append', default = NULL,
+                    help = 'output image format, repeatable (default: png); valid: png pdf svg ps eps tif tiff jpg jpeg')
 args <- parser$parse_args()
+fmts <- check_formats(if (is.null(args$format)) "png" else as.character(unlist(args$format)))
 
 # read group and extract sample lists
 df_group <- read.csv(args$group, sep = "\t", header = TRUE, stringsAsFactors = FALSE)
@@ -665,7 +747,6 @@ colDataPca <- factor(c(rep(controlStr, length(control)), rep(experimentStr, leng
 
 outdir <- args$outdir
 prefix <- args$prefix
-fmt <- args$format
 ensure_dir(outdir)
 log_msg("INFO","Mode:", args$mode, "Matrix:", args$matrix, "Outdir:", outdir, "Prefix:", prefix, "Figures:", paste(args$figure, collapse = ","))
 
@@ -684,7 +765,7 @@ if(args$mode %in% c("TEcount", "TElocal")){
     df_for_pca <- dfList[["Gene"]]
     res_for_pca <- DESeq2Analysis(df_for_pca, colData, normMethods = "cpm")
     # res_for_pca$results contains combined table; pass normalized to PCA plotting
-    pca_out <- file.path(outdir, "PCA", paste0(prefix, ".cpmPCA.", fmt))
+    pca_out <- file.path(outdir, "PCA", paste0(prefix, ".cpmPCA"))
     ensure_dir(dirname(pca_out))
     # create a simple PCA plot using normalized counts
     normalized <- res_for_pca$normalized
@@ -698,8 +779,11 @@ if(args$mode %in% c("TEcount", "TElocal")){
            y = paste0("PC2: ", round(summary(pca_mat)$importance[2,2]*100,2), "%"),
            title = "PCA Plot of CPM Values") +
       theme_minimal()
-    ggsave(pca_out, plot = p, width = 8, height = 6, dpi = 300)
-    log_msg("INFO","PCA saved to:", pca_out)
+    for (fmt in fmts) {
+      out_file <- sprintf("%s.%s", pca_out, fmt)
+      ggsave(out_file, plot = p, width = 8, height = 6, dpi = 300)
+      log_msg("INFO","PCA saved to:", out_file)
+    }
   }
 
   # which data subsets to process
@@ -731,16 +815,16 @@ if(args$mode %in% c("TEcount", "TElocal")){
                           downfile = file.path(outdir,"upDown",paste0(prefix,".",mode_tag,"_",dataType,"_down.tsv")),
                           updownfile = file.path(outdir,"upDown",paste0(prefix,".",mode_tag,"_",dataType,"_updown.tsv")))
       if(nrow(sf$up) >= 2){
-        up_file <- file.path(heat_dir, paste0(prefix,".", mode_tag, "_", dataType, "_up.", fmt))
-        updown_heatmap(sf$up, up_file, coldata = sample_anno, format = fmt)
+        up_file <- file.path(heat_dir, paste0(prefix,".", mode_tag, "_", dataType, "_up"))
+        updown_heatmap(sf$up, up_file, coldata = sample_anno, formats = fmts)
       } else log_msg("INFO","Less than 2 up genes; skip heatmap for up.")
       if(nrow(sf$down) >= 2){
-        down_file <- file.path(heat_dir, paste0(prefix,".", mode_tag, "_", dataType, "_down.", fmt))
-        updown_heatmap(sf$down, down_file, coldata = sample_anno, format = fmt)
+        down_file <- file.path(heat_dir, paste0(prefix,".", mode_tag, "_", dataType, "_down"))
+        updown_heatmap(sf$down, down_file, coldata = sample_anno, formats = fmts)
       } else log_msg("INFO","Less than 2 down genes; skip heatmap for down.")
       if(nrow(rbind(sf$up, sf$down)) >= 2){
-        all_file <- file.path(heat_dir, paste0(prefix,".", mode_tag, "_", dataType, "_updown.", fmt))
-        updown_heatmap(rbind(sf$up, sf$down), all_file, coldata = sample_anno, format = fmt)
+        all_file <- file.path(heat_dir, paste0(prefix,".", mode_tag, "_", dataType, "_updown"))
+        updown_heatmap(rbind(sf$up, sf$down), all_file, coldata = sample_anno, formats = fmts)
       } else log_msg("INFO","Less than 2 dysregulated genes; skip combined heatmap.")
     }
 
@@ -750,15 +834,15 @@ if(args$mode %in% c("TEcount", "TElocal")){
       # decide gene vs TE based on name pattern or dataType
       is_gene_mode <- grepl("Gene", dataType)
       if(is_gene_mode){
-        vol_out <- file.path(vol_dir, paste0(prefix,".",mode_tag,"_", dataType, "_volcano.", fmt))
-        ma_out <- file.path(vol_dir, paste0(prefix,".",mode_tag,"_", dataType, "_MA.", fmt))
-        plot_volcano(res_comb_TE, vol_out, mode = "gene", geneAnnotation = args$annotation)
-        plot_MA(res_comb_TE, ma_out, mode = "gene", geneAnnotation = args$annotation)
+        vol_out <- file.path(vol_dir, paste0(prefix,".",mode_tag,"_", dataType, "_volcano"))
+        ma_out <- file.path(vol_dir, paste0(prefix,".",mode_tag,"_", dataType, "_MA"))
+        plot_volcano(res_comb_TE, vol_out, mode = "gene", geneAnnotation = args$annotation, formats = fmts)
+        plot_MA(res_comb_TE, ma_out, mode = "gene", geneAnnotation = args$annotation, formats = fmts)
       } else {
-        vol_out <- file.path(vol_dir, paste0(prefix,".",mode_tag,"_", dataType, "_volcano.", fmt))
-        ma_out <- file.path(vol_dir, paste0(prefix,".",mode_tag,"_", dataType, "_MA.", fmt))
-        plot_volcano(res_comb_TE, vol_out, mode = "TE")
-        plot_MA(res_comb_TE, ma_out, mode = "TE")
+        vol_out <- file.path(vol_dir, paste0(prefix,".",mode_tag,"_", dataType, "_volcano"))
+        ma_out <- file.path(vol_dir, paste0(prefix,".",mode_tag,"_", dataType, "_MA"))
+        plot_volcano(res_comb_TE, vol_out, mode = "TE", formats = fmts)
+        plot_MA(res_comb_TE, ma_out, mode = "TE", formats = fmts)
       }
     }
   } # end loop dataType
@@ -776,14 +860,14 @@ if(args$mode %in% c("TEcount", "TElocal")){
                         upfile = file.path(outdir,"upDown",paste0(prefix,".Count_up.tsv")),
                         downfile = file.path(outdir,"upDown",paste0(prefix,".Count_down.tsv")),
                         updownfile = file.path(outdir,"upDown",paste0(prefix,".Count_updown.tsv")))
-    if(nrow(sf$up) >= 2) updown_heatmap(sf$up, file.path(plot_dir, paste0(prefix, ".Count_up.", fmt)), coldata = sample_anno, format = fmt)
-    if(nrow(sf$down) >= 2) updown_heatmap(sf$down, file.path(plot_dir, paste0(prefix, ".Count_down.", fmt)), coldata = sample_anno, format = fmt)
+    if(nrow(sf$up) >= 2) updown_heatmap(sf$up, file.path(plot_dir, paste0(prefix, ".Count_up")), coldata = sample_anno, formats = fmts)
+    if(nrow(sf$down) >= 2) updown_heatmap(sf$down, file.path(plot_dir, paste0(prefix, ".Count_down")), coldata = sample_anno, formats = fmts)
   }
   if("volcano" %in% args$figure){
     vol_dir <- file.path(outdir, "volcano")
     ensure_dir(vol_dir)
-    plot_volcano(res_comb, file.path(vol_dir, paste0(prefix, ".Count_volcano.", fmt)), mode = "gene")
-    plot_MA(res_comb, file.path(vol_dir, paste0(prefix, ".Count_MA.", fmt)), mode = "gene")
+    plot_volcano(res_comb, file.path(vol_dir, paste0(prefix, ".Count_volcano")), mode = "gene", formats = fmts)
+    plot_MA(res_comb, file.path(vol_dir, paste0(prefix, ".Count_MA")), mode = "gene", formats = fmts)
   }
 } else {
   log_msg("ERROR","Unsupported mode:", args$mode, quit = TRUE)

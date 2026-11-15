@@ -8,6 +8,10 @@ samples = config.get("samples", [])
 ROOT_DIR = config.get("ROOT_DIR", ".")
 env = config.get("env", {})
 p = config.get("Params", {}).get("fiberseq_footprint", {})
+# ① parse 期读入 + 规范化（str 收成单元素 list；合法值由 schema 声明）
+_formats = p.get("formats") or ["pdf"]
+if isinstance(_formats, str):
+    _formats = [_formats]
 
 # upstream contract: motif sites come from fiberseq_analysis/motif
 MOTIF_DIR = config.get("motif_dir") or indir + "/motif"
@@ -23,7 +27,9 @@ rule fiberseq_footprint_run:
         categories = outdir + "/{sample_id}/{sample_id}.footprint_categories.tsv",
         profiles = outdir + "/{sample_id}/{sample_id}.footprint_profiles.tsv",
         scores = outdir + "/{sample_id}/{sample_id}.footprint_scores.tsv",
-        pdf = outdir + "/{sample_id}/{sample_id}.footprint_profile.pdf",
+        # ② 按格式展开：每种格式一个输出文件（base 不带扩展名）
+        plots = [outdir + "/{sample_id}/{sample_id}.footprint_profile." + fmt
+                 for fmt in _formats],
     log:
         logdir + "/{sample_id}/fiberseq_footprint_run.log"
     threads: rule_res("fiberseq_footprint").get("threads", 4)
@@ -36,6 +42,7 @@ rule fiberseq_footprint_run:
     params:
         script = ROOT_DIR + "/modules/fiberseq/bin/footprint_profile.py",
         flank = p.get("flank", 1000),
+        formats = _formats,   # ③ 转发
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -61,6 +68,8 @@ rule fiberseq_footprint_run:
                 "-f", str(params.flank),
                 "-l", log_path,
             ]
+            for fmt in params.formats:
+                cmd += ["--format", str(fmt)]
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write("set -euo pipefail\n")
@@ -78,5 +87,7 @@ rule fiberseq_footprint_result:
                             sample_id=samples),
         scores = expand(outdir + "/{sample_id}/{sample_id}.footprint_scores.tsv",
                         sample_id=samples),
+        plots = expand(outdir + "/{sample_id}/{sample_id}.footprint_profile.{fmt}",
+                       sample_id=samples, fmt=_formats),
     resources:
         mem_mb = rule_res("fiberseq_footprint_result").get("mem_mb", 8000),

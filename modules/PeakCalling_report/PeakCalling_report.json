@@ -16,7 +16,8 @@
             "pipeline": "MACS3 -> deeptools -> report",
             "genome": null,
             "date": null,
-            "top_n": 20
+            "top_n": 20,
+            "formats": ["png"]
         }
     },
     "ip_samples": [],

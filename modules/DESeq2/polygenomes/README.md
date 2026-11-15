@@ -24,21 +24,23 @@ te_manhattan.py、te_locus_boxplot.py、te_subfamily_bar.py)。
 ```
 {outdir}/{genome}/{contrast}/{mode}/DESeq2.done
 {outdir}/{genome}/{contrast}/{mode}/group.tsv
-{outdir}/{genome}/{contrast}/{mode}/PCA/{contrast}.cpmPCA.png
-{outdir}/{genome}/{contrast}/{mode}/volcano/{contrast}.{mode}_Gene_volcano.png
-{outdir}/{genome}/{contrast}/{mode}/heatmap/{contrast}.{mode}_Gene_updown.png
+{outdir}/{genome}/{contrast}/{mode}/PCA/{contrast}.cpmPCA.{fmt}
+{outdir}/{genome}/{contrast}/{mode}/volcano/{contrast}.{mode}_Gene_volcano.{fmt}
+{outdir}/{genome}/{contrast}/{mode}/heatmap/{contrast}.{mode}_Gene_updown.{fmt}
 {outdir}/{genome}/{contrast}/{mode}/upDown/{contrast}.{mode}_{Gene,TE,Gene_TE}_updown.tsv
 {outdir}/{genome}/{contrast}/{mode}/{contrast}.{mode}_{Gene,TE,Gene_TE}.tsv
 {outdir}/{genome}/{contrast}/{mode}/{contrast}.{mode}_{Gene,TE,Gene_TE}.name.tsv
 ```
 
-TElocal 专属图:
+TElocal 专属图：
 
 ```
-{outdir}/{genome}/{contrast}/TElocal/manhattan/{contrast}.manhattan.png
-{outdir}/{genome}/{contrast}/TElocal/locus_box/{contrast}.locus_box.png
-{outdir}/{genome}/{contrast}/TElocal/subfamily_bar/{contrast}.subfamily_bar.png
+{outdir}/{genome}/{contrast}/TElocal/manhattan/{contrast}.manhattan.{fmt}
+{outdir}/{genome}/{contrast}/TElocal/locus_box/{contrast}.locus_box.{fmt}
+{outdir}/{genome}/{contrast}/TElocal/subfamily_bar/{contrast}.subfamily_bar.{fmt}
 ```
+
+`{fmt}` 由 `formats` 参数展开（每种格式一个文件；默认 `png`，与历史一致）。
 
 日志:`{logdir}/DESeq2/{genome}/{contrast}.log`、`.{manhattan|locus_box|subfamily_bar}.log`。
 
@@ -60,14 +62,18 @@ TElocal 专属图:
 | `Params.DESeq2.subfamily_bar.match_field` / `match_mode` | 同上 | `subfamily` / `exact` | 家族匹配 |
 | `Params.DESeq2.subfamily_bar.yscale` / `ylabel` | `--yscale` / `--ylabel` | `linear` / `TPM` | 轴 |
 | `Params.DESeq2.subfamily_bar.families` | `--family` | 必需 | 同 locus_boxplot |
+| `Params.DESeq2.manhattan.formats` / `locus_boxplot.formats` / `subfamily_bar.formats` | `--format`（可重复） | `["png"]` | TE 位点图出图格式（每种格式一个文件 `<base>.<fmt>`）；缺省回退 `Params.DESeq2.formats`；合法值 matplotlib 全集 png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba |
+| `Params.DESeq2.formats` | DESeq2.r `--format`（可重复） | `["png"]` | R 图（cpmPCA/火山/热图）格式；R 侧合法值仅 png pdf svg ps eps tif tiff jpg jpeg，pgf/raw/rgba 传入即报错 |
 | 线程/内存 | — | 分析 `threads=4, mem_mb=16000`;出图 `threads=2, mem_mb=8000` | `rule_res(...)` 可覆盖 |
 
 图参数解析顺序(.smk 内置 `fig_param`):`Params.DESeq2.<rule>.<key>` →
 `Params.DESeq2.<key>` → 内置默认;家族列表按 `[genome][contrast]` 取。
 固定调用:DESeq2.r `-m <mode> -i <matrix> -g group.tsv -p <ctrl> <exp>
--f heatmap volcano pca -o <dir> -a <geneIDAnno> -Tcm all -px <contrast>`;
-Manhattan 固定 `--signif-col padj --signif-thresh 0.05 --value-thresh 0
---burst-sign up --y-transform log2 --y-break-auto --hline 0 -f png`。
+-f heatmap volcano pca -o <dir> -a <geneIDAnno> -Tcm all -px <contrast>
+--format <fmt>...`(每种 formats 一个 `--format`);Manhattan 固定
+`--signif-col padj --signif-thresh 0.05 --value-thresh 0
+--burst-sign up --y-transform log2 --y-break-auto --hline 0
+--format <fmt>...`。
 
 直接调用示例(等价引擎命令):
 
@@ -77,7 +83,7 @@ python modules/DESeq2/bin/write_group_tsv.py \
 Rscript modules/DESeq2/bin/DESeq2.r \
   -m TEcount -i counts/GRCm39_TEcount.tsv -g group.tsv -p youth aged \
   -f heatmap volcano pca -o out/GRCm39/aged_vs_youth/TEcount \
-  -a geneIDAnnotation.csv -Tcm all -px aged_vs_youth
+  -a geneIDAnnotation.csv -Tcm all -px aged_vs_youth --format png
 python modules/DESeq2/bin/gene_id2name.py \
   -i aged_vs_youth.TEcount_Gene.tsv aged_vs_youth.TEcount_TE.tsv \
      aged_vs_youth.TEcount_Gene_TE.tsv \
@@ -86,7 +92,7 @@ python modules/DESeq2/bin/te_locus_boxplot.py \
   --matrix counts/GRCm39_TElocal.tsv --annotation group.tsv \
   --match-field subfamily --match-mode exact --normalize log2tpm --kind box \
   --group-order youth,aged --loci-tsv TE.gtf.locInd \
-  -o out/.../locus_box --out-prefix aged_vs_youth.locus_box -f png --family ERVL
+  -o out/.../locus_box --out-prefix aged_vs_youth.locus_box --format png --family ERVL
 ```
 
 ## 2. 算法原理与生物学意义

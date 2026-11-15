@@ -13,17 +13,19 @@ Output:
       positive = gene set concentrated at the high-expression end)
     - gsva_mean_z.tsv: mean per-gene z-score matrix (geneset × samples;
       per-gene z on log2(TPM+1) across samples, averaged within the set)
-    - gsva_heatmap.png: heatmap of the mean z-score matrix
+    - gsva_heatmap.<fmt>: heatmap of the mean z-score matrix, one file per
+      requested image format (default png)
 
 Usage:
-    python gsva.py -i expression_tpm.tsv -g geneset.gmt -o outdir [--title GSVA]
+    python gsva.py -i expression_tpm.tsv -g geneset.gmt -o outdir \
+        [--title GSVA] [-f png] [-f pdf]
 """
 
 import argparse
 import os
 import sys
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Optional
 import numpy as np
 import pandas as pd
 from scipy.stats import rankdata
@@ -32,6 +34,13 @@ try:
 except ImportError:
     from LogUtil import setup_logger
 logger = setup_logger(__name__)
+
+PlotFormat = str
+
+# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
+# fails fast at parse time instead of dying inside savefig (modules.md #9)
+VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
+                 "jpeg", "pgf", "raw", "rgba")
 
 def parse_gmt(gmt_path: str) -> Dict[str, List[str]]:
     """Parse a GMT (Gene Matrix Transposed) file.
@@ -190,7 +199,8 @@ def compute_mean_z(
 
 def plot_heatmap(
     scores: pd.DataFrame,
-    output_path: str,
+    out_base: str,
+    image_formats: Optional[List[PlotFormat]] = None,
     title: str = "GSVA Enrichment Scores",
     value_label: str = "Row z-score",
     row_scale: bool = True,
@@ -203,8 +213,11 @@ def plot_heatmap(
     ----------
     scores : pd.DataFrame
         Score matrix (genesets × samples).
-    output_path : str
-        Path to save the heatmap PNG.
+    out_base : str
+        Output path prefix without extension; each format is written as
+        ``{out_base}.{fmt}``.
+    image_formats : List[str], optional
+        Save formats. Default ``["png"]``.
     title : str
         Plot title.
     value_label : str
@@ -224,6 +237,13 @@ def plot_heatmap(
     and sizes the figure width from the longest wrapped label so long
     gene-set names do not squeeze the heatmap into a sliver.
     """
+    if image_formats is None:
+        image_formats = ["png"]
+    bad = [f for f in image_formats if f not in VALID_FORMATS]
+    if bad:
+        raise ValueError(
+            f"Unsupported image format(s): {', '.join(bad)}; "
+            f"valid: {', '.join(VALID_FORMATS)}")
     import textwrap
     import matplotlib
     matplotlib.use("Agg")
@@ -276,9 +296,11 @@ def plot_heatmap(
     ax.tick_params(which="minor", bottom=False, left=False)
 
     fig.colorbar(im, ax=ax, shrink=0.8, label=value_label)
-    fig.savefig(output_path, dpi=300)
+    for fmt in image_formats:
+        out_path = f"{out_base}.{fmt}"
+        fig.savefig(out_path, dpi=300)
+        logger.info(f"Heatmap saved to {out_path}")
     plt.close(fig)
-    logger.info(f"Heatmap saved to {output_path}")
 
 
 def main() -> None:
@@ -299,6 +321,10 @@ def main() -> None:
                    help="Disable log2(x + 1) for mean z-score (input already log-scale)")
     p.add_argument("--no-abs-rank", action="store_true",
                    help="Disable absolute ranking (positive-only enrichment)")
+    p.add_argument("-f", "--format", action="append", dest="formats",
+                   metavar="FMT",
+                   help="Image format (png/pdf/svg/...). Repeatable. "
+                        "Default: png.")
     args = p.parse_args()
 
     os.makedirs(args.outdir, exist_ok=True)
@@ -333,10 +359,16 @@ def main() -> None:
     logger.info(f"Mean z-score matrix saved to {mean_z_path}")
 
     # Plot heatmap of row-scaled mean z-scores
-    heatmap_path = os.path.join(args.outdir, "gsva_heatmap.png")
+    heatmap_base = os.path.join(args.outdir, "gsva_heatmap")
     transform_note = "" if args.no_log2 else " (log2(x+1) of TPM before z)"
     value_label = f"Row z-score of mean gene z{transform_note}"
-    plot_heatmap(mean_z, heatmap_path, title=args.title, value_label=value_label)
+    plot_heatmap(
+        mean_z,
+        heatmap_base,
+        image_formats=args.formats if args.formats else ["png"],
+        title=args.title,
+        value_label=value_label,
+    )
 
     logger.info("GSVA analysis completed successfully")
 

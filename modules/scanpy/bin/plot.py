@@ -28,6 +28,13 @@ except ImportError:
     from LogUtil import setup_logger
 logger = setup_logger(__name__)
 
+PlotFormat = str
+
+# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
+# fails fast at parse time instead of dying inside savefig (modules.md #9)
+VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
+                 "jpeg", "pgf", "raw", "rgba")
+
 # ---------------------------------------------------------------------------
 # Default style
 # ---------------------------------------------------------------------------
@@ -38,22 +45,39 @@ class ScanpyPlotter:
     """Generates pipeline stage plots for scanpy scRNA-seq analysis.
 
     Args:
-        plot_dir: Output directory for PNG figures.
+        plot_dir: Output directory for the figures.
         dpi: Resolution for saved figures.
+        image_formats: Save formats. Default ``["png"]``.
     """
 
-    def __init__(self, plot_dir: str, dpi: int = 300) -> None:
+    def __init__(self, plot_dir: str, dpi: int = 300,
+                 image_formats: Optional[List[PlotFormat]] = None) -> None:
+        if image_formats is None:
+            image_formats = ["png"]
+        bad = [f for f in image_formats if f not in VALID_FORMATS]
+        if bad:
+            raise ValueError(
+                f"Unsupported image format(s): {', '.join(bad)}; "
+                f"valid: {', '.join(VALID_FORMATS)}")
         self.plot_dir = plot_dir
         self.dpi = dpi
+        self.image_formats = image_formats
         os.makedirs(plot_dir, exist_ok=True)
 
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
-    def _save(self, filename: str) -> None:
-        """Save current matplotlib figure and release memory."""
-        path = os.path.join(self.plot_dir, filename)
-        plt.savefig(path, dpi=self.dpi, bbox_inches="tight")
+    def _save_fig(self, fig, directory: str, base: str) -> None:
+        """Save *fig* as ``<directory>/<base>.<fmt>`` for every format."""
+        for fmt in self.image_formats:
+            out_path = os.path.join(directory, f"{base}.{fmt}")
+            fig.savefig(out_path, dpi=self.dpi, bbox_inches="tight")
+            logger.info("Saved %s", out_path)
+        plt.close(fig)
+
+    def _save(self, base: str) -> None:
+        """Save current matplotlib figure (one file per format) and release memory."""
+        self._save_fig(plt.gcf(), self.plot_dir, base)
         plt.close("all")
 
     @staticmethod
@@ -116,13 +140,13 @@ class ScanpyPlotter:
         fig, ax = plt.subplots(figsize=(8, 4))
         sns.histplot(adata_before.obs[counts_col], bins=100, kde=False, ax=ax)
         ax.set_title("Total Counts Distribution")
-        self._save("qc_total_counts_distribution.png")
+        self._save("qc_total_counts_distribution")
 
         # 2. Violin: mt%
         fig, ax = plt.subplots(figsize=(4, 6))
         sc.pl.violin(adata_before, mt_col, show=False, ax=ax)
         ax.set_title(f"% Mitochondrial Counts ({mt_col})")
-        self._save("qc_pct_counts_mt_violin.png")
+        self._save("qc_pct_counts_mt_violin")
 
         # Compute unified axis limits for before/after comparison
         all_counts = np.concatenate([adata_before.obs[counts_col].values,
@@ -163,7 +187,7 @@ class ScanpyPlotter:
         cbar = fig.colorbar(ax2.collections[0], cax=cax)
         cbar.set_label(mt_col)
 
-        self._save("qc_scatter_filter_comparison.png")
+        self._save("qc_scatter_filter_comparison")
 
         logger.info("QC plots saved to %s", self.plot_dir)
 
@@ -189,7 +213,7 @@ class ScanpyPlotter:
         ax.set_xlabel("Sample")
         ax.set_ylabel("Number of Cells")
         plt.xticks(rotation=45, ha="right")
-        self._save("merge_cell_counts_per_sample.png")
+        self._save("merge_cell_counts_per_sample")
 
         logger.info("Merge plots saved to %s", self.plot_dir)
 
@@ -281,7 +305,7 @@ class ScanpyPlotter:
         )
 
         fig.tight_layout()
-        self._save("cluster_highly_variable_genes.png")
+        self._save("cluster_highly_variable_genes")
         logger.info("HVG plot saved to %s", self.plot_dir)
 
     # ------------------------------------------------------------------
@@ -315,12 +339,12 @@ class ScanpyPlotter:
         self._umap(adata, cluster_key, ax=ax,
                    title=f"{cluster_key} Clusters",
                    legend_loc="on data", legend_fontsize=10)
-        self._save(f"cluster_umap_{cluster_key}.png")
+        self._save(f"cluster_umap_{cluster_key}")
 
         if sample_key in adata.obs.columns:
             fig, ax = plt.subplots(figsize=(8, 6))
             self._umap(adata, sample_key, ax=ax, title="Samples")
-            self._save(f"cluster_umap_{sample_key}.png")
+            self._save(f"cluster_umap_{sample_key}")
 
         logger.info("Cluster plots saved to %s", self.plot_dir)
 
@@ -378,7 +402,7 @@ class ScanpyPlotter:
         self._umap(adata, cluster_key, ax=ax,
                    title=f"Iteration {iteration} — {cluster_key} clusters",
                    legend_loc="on data", legend_fontsize=10)
-        self._save_to(iter_dir, "umap_leiden.png")
+        self._save_to(iter_dir, "umap_leiden")
 
         # 2. Cell type annotation UMAP
         if annotation_col in adata.obs.columns:
@@ -387,7 +411,7 @@ class ScanpyPlotter:
                        title=f"Iteration {iteration} — {annotation_col}",
                        legend_loc="right margin", legend_fontsize=9,
                        legend_fontoutline=1)
-            self._save_to(iter_dir, "umap_cell_type.png")
+            self._save_to(iter_dir, "umap_cell_type")
 
         # 3. Flagged clusters highlighted (always drawn — clean rounds too)
         coords = adata.obsm["X_umap"]
@@ -409,7 +433,7 @@ class ScanpyPlotter:
             ax.set_title(f"Iteration {iteration} — no flagged clusters")
         ax.set_xticks([])
         ax.set_yticks([])
-        self._save_to(iter_dir, "umap_flagged.png")
+        self._save_to(iter_dir, "umap_flagged")
 
         # 4. QC violins per cluster with threshold lines (flagged in red)
         qc_metrics = [
@@ -442,15 +466,17 @@ class ScanpyPlotter:
                 ax.tick_params(axis="x", rotation=90, labelsize=7)
             fig.suptitle(f"Iteration {iteration} — QC per cluster "
                          f"(red = flagged)")
-            self._save_to(iter_dir, "qc_violins.png")
+            self._save_to(iter_dir, "qc_violins")
 
         logger.info("Iteration %d snapshot saved to %s", iteration, iter_dir)
         return iter_dir
 
-    def _save_to(self, directory: str, filename: str) -> None:
-        """Save the current figure into *directory* (not ``self.plot_dir``)."""
-        path = os.path.join(directory, filename)
-        plt.savefig(path, dpi=self.dpi, bbox_inches="tight")
+    def _save_to(self, directory: str, base: str) -> None:
+        """Save the current figure into *directory* (not ``self.plot_dir``).
+
+        One file per requested format: ``<directory>/<base>.<fmt>``.
+        """
+        self._save_fig(plt.gcf(), directory, base)
         plt.close("all")
 
     # ------------------------------------------------------------------
@@ -552,7 +578,7 @@ class ScanpyPlotter:
             ax_right.legend(fontsize=7)
 
         fig.tight_layout()
-        self._save("cluster_pca_variance_ratio.png")
+        self._save("cluster_pca_variance_ratio")
         logger.info("PCA variance plot saved to %s", self.plot_dir)
 
     # ------------------------------------------------------------------
@@ -588,14 +614,14 @@ class ScanpyPlotter:
             fig, ax = plt.subplots(figsize=(8, 6))
             self._umap(adata, sample_key, ax=ax,
                        title=f"After {title_suffix} — Samples")
-            self._save(f"batch_umap_{sample_key}.png")
+            self._save(f"batch_umap_{sample_key}")
 
         # 2. UMAP — cluster
         fig, ax = plt.subplots(figsize=(8, 6))
         self._umap(adata, cluster_key, ax=ax,
                    title=f"After {title_suffix} — {cluster_key}",
                    legend_loc="on data", legend_fontsize=10)
-        self._save(f"batch_umap_{cluster_key}.png")
+        self._save(f"batch_umap_{cluster_key}")
 
         # 3. Side-by-side comparison
         if has_sample:
@@ -604,7 +630,7 @@ class ScanpyPlotter:
             self._umap(adata, sample_key, ax=ax1, title="Sample")
             self._umap(adata, cluster_key, ax=ax2, title=cluster_key,
                        legend_loc="on data", legend_fontsize=10)
-            self._save("batch_umap_side_by_side.png")
+            self._save("batch_umap_side_by_side")
 
         logger.info("Batch correction plots saved to %s", self.plot_dir)
 
@@ -653,15 +679,15 @@ class ScanpyPlotter:
                     adata, var_names=marker_dict, groupby=annotate_group,
                     standard_scale="var", show=False,
                 )
-                self._save("annotate_marker_dotplot.png")
+                self._save("annotate_marker_dotplot")
 
         # 2. Rank genes groups overview
         if has_rank_genes:
             sc.pl.rank_genes_groups(adata, n_genes=5, show=False)
-            self._save("annotate_rank_genes_groups.png")
+            self._save("annotate_rank_genes_groups")
 
             sc.pl.rank_genes_groups_dotplot(adata, n_genes=3, show=False)
-            self._save("annotate_deg_dotplot.png")
+            self._save("annotate_deg_dotplot")
 
         # 3. UMAP — each annotation column
         for col in annotation_keys:
@@ -669,14 +695,14 @@ class ScanpyPlotter:
                 fig, ax = plt.subplots(figsize=(10, 6))
                 self._umap(adata, col, ax=ax, legend_loc="right margin",
                            legend_fontsize=9, legend_fontoutline=1)
-                self._save(f"annotate_umap_{col}.png")
+                self._save(f"annotate_umap_{col}")
 
         # 4. Confidence score
         if score_col in adata.obs.columns:
             fig, ax = plt.subplots(figsize=(8, 6))
             self._umap(adata, score_col, ax=ax,
                        title=f"Confidence Score ({score_col})")
-            self._save(f"annotate_{score_col}.png")
+            self._save(f"annotate_{score_col}")
 
         logger.info("Annotation plots saved to %s", self.plot_dir)
 
@@ -1033,9 +1059,7 @@ class ScanpyPlotter:
                          fontsize=14, fontweight="bold", y=1.02)
             plt.tight_layout()
             safe_ct = ct.replace("/", "_").replace(" ", "_")
-            fig.savefig(os.path.join(marker_dir, f"{safe_ct}.png"),
-                        dpi=self.dpi, bbox_inches="tight")
-            plt.close(fig)
+            self._save_fig(fig, marker_dir, safe_ct)
 
             for g in markers:
                 if g not in seen_genes:
@@ -1093,9 +1117,7 @@ class ScanpyPlotter:
             fig.suptitle("Top marker expression on UMAP (per cell type)",
                          fontsize=14, fontweight="bold")
             plt.tight_layout()
-            fig.savefig(os.path.join(marker_dir, "all_cell_types_top_marker.png"),
-                        dpi=self.dpi, bbox_inches="tight")
-            plt.close(fig)
+            self._save_fig(fig, marker_dir, "all_cell_types_top_marker")
 
         # ── Dotplot grouped by cell_type ──
         # Use ALL markers, grouped by cell type label
@@ -1130,8 +1152,7 @@ class ScanpyPlotter:
                 groupby="_marker_ct_label", standard_scale="var",
                 show=False,
             )
-            plt.savefig(os.path.join(marker_dir, "marker_dotplot.png"),
-                        dpi=self.dpi, bbox_inches="tight")
+            self._save_fig(plt.gcf(), marker_dir, "marker_dotplot")
             plt.close("all")
 
         # Clean up temporary columns from adata.obs
@@ -1320,10 +1341,9 @@ class ScanpyPlotter:
                 ha="right", fontsize=7.5, color="#777777",
             )
 
-            out_png = os.path.join(evid_dir, f"{safe_ct}_differential.png")
-            fig.savefig(out_png, dpi=self.dpi, bbox_inches="tight")
-            plt.close(fig)
-            logger.info("Evidence dotplot: %s", out_png)
+            out_base = f"{safe_ct}_differential"
+            self._save_fig(fig, evid_dir, out_base)
+            logger.info("Evidence dotplot: %s", os.path.join(evid_dir, out_base))
 
             if table_dir:
                 os.makedirs(table_dir, exist_ok=True)
@@ -1492,10 +1512,8 @@ class ScanpyPlotter:
             ha="right", fontsize=7.5, color="#777777",
         )
         fig.tight_layout()
-        fig.savefig(os.path.join(evid_dir, f"{safe_ct}.png"),
-                    dpi=self.dpi, bbox_inches="tight")
-        plt.close(fig)
-        logger.info("Signature pack: %s", os.path.join(evid_dir, f"{safe_ct}.png"))
+        self._save_fig(fig, evid_dir, safe_ct)
+        logger.info("Signature pack: %s", os.path.join(evid_dir, safe_ct))
 
         # Co-expression stats: per cluster, % positive in >=1 marker of each
         # program and in the pairwise intersections.
@@ -1577,14 +1595,14 @@ class ScanpyPlotter:
             fig, ax = plt.subplots(figsize=(8, 6))
             sc.pl.diffmap(adata, color=color, components=["2, 3"],
                           show=False, ax=ax, title="Diffusion Map")
-            self._save("advanced_diffmap.png")
+            self._save("advanced_diffmap")
 
             if pseudotime_col in adata.obs.columns:
                 fig, ax = plt.subplots(figsize=(8, 6))
                 sc.pl.diffmap(adata, color=pseudotime_col,
                               components=["2, 3"], show=False, ax=ax,
                               title="Pseudotime")
-                self._save("advanced_pseudotime.png")
+                self._save("advanced_pseudotime")
 
         # --- CNV ---
         if cnv:
@@ -1618,7 +1636,7 @@ class ScanpyPlotter:
         # 1. Chromosome heatmap by annotation
         if groupby:
             cnv.pl.chromosome_heatmap(adata, groupby=groupby, show=False)
-            self._save("advanced_cnv_heatmap.png")
+            self._save("advanced_cnv_heatmap")
 
         # 2. CNV clustering + UMAP panels
         cnv.tl.pca(adata)
@@ -1638,12 +1656,12 @@ class ScanpyPlotter:
             cnv.pl.umap(adata, color=annotation_key, ax=axes[1, 0], show=False)
             axes[1, 0].set_title(annotation_key)
         fig.suptitle("CNV Analysis", fontsize=14, y=0.98)
-        self._save("advanced_cnv_umap.png")
+        self._save("advanced_cnv_umap")
 
         # 3. CNV heatmap by cnv_leiden
         cnv.pl.chromosome_heatmap(adata, groupby="cnv_leiden",
                                   dendrogram=True, show=False)
-        self._save("advanced_cnv_heatmap_leiden.png")
+        self._save("advanced_cnv_heatmap_leiden")
 
     # ------------------------------------------------------------------
     # Differential expression
@@ -1670,11 +1688,11 @@ class ScanpyPlotter:
         """
         # 1. Rank genes groups overview
         sc.pl.rank_genes_groups(adata, n_genes=10, show=False)
-        self._save("de_rank_genes_groups.png")
+        self._save("de_rank_genes_groups")
 
         # 2. Rank genes groups dotplot
         sc.pl.rank_genes_groups_dotplot(adata, n_genes=5, show=False)
-        self._save("de_rank_genes_dotplot.png")
+        self._save("de_rank_genes_dotplot")
 
         # 3. Volcano plot
         vg = volcano_group
@@ -1734,7 +1752,7 @@ class ScanpyPlotter:
         ax.axhline(-np.log10(0.05), ls="--", color="grey", alpha=0.5)
         ax.axvline(-1, ls="--", color="grey", alpha=0.5)
         ax.axvline(1, ls="--", color="grey", alpha=0.5)
-        self._save(f"de_volcano_{group}.png")
+        self._save(f"de_volcano_{group}")
 
     # ------------------------------------------------------------------
     # Utilities

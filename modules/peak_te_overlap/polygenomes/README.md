@@ -24,13 +24,14 @@ plot_te_overlap.py),conda 环境共享父目录 `../peak_te_overlap.yaml`。
 {outdir}/{genome}/{sample_id}/{sample_id}_peak_te_overlap.bed        # peak×TE 重叠全表(bedtools intersect)
 {outdir}/{genome}/{sample_id}/{sample_id}_te_subfamily_overlap.tsv   # 位点级:重叠比例/peak 数/TE class/IP Input read 计数
 {outdir}/{genome}/{sample_id}/{sample_id}_peak_centric_te.tsv        # peak 级:TE 数/class 集/覆盖碱基/覆盖比例
-{outdir}/{genome}/te_subfamily_overlap_combined.png                  # 富集图
+{outdir}/{genome}/te_subfamily_overlap_combined.<fmt>                # 富集图(<fmt> 取自 formats,默认 png)
 {outdir}/{genome}/te_subfamily_overlap_combined.tsv                  # 合并 TSV
 {outdir}/{genome}/.peak_te_overlap_fig.done                          # 图规则标记文件
 ```
 
 (separate 模式下另按 IP:Input 对各出一图
-`{ip}_vs_{input}_enrichment.png`,首对图软链为 combined.png。)收尾规则
+`{ip}_vs_{input}_enrichment.<fmt>`,每格式首对图软链为
+`te_subfamily_overlap_combined.<fmt>`。)收尾规则
 `peak_te_overlap_result` 聚合 chart + 各样本 peak_centric TSV。
 
 ### 1.3 参数
@@ -44,6 +45,7 @@ config 位于 `Params.peak_te_overlap` 下(出图规则),工具路径在
 | `sort_by` | `--sort-by` | `te_length` | 亚家族排序依据 |
 | `top_n` | `--top-n` | 30 | 图中展示的亚家族数 |
 | `combine` | `--combine` | false | true 时全部 IP:Input 对合并一张图;false 每对一图 |
+| `formats` | `-f/--format`(可重复) | `["png"]` | 图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib 全集) |
 | `sample_ip_input_map` | `--ip-input-pairs`(格式 `ip:input;...`) | {} | IP/Input 配对(见输入) |
 | `Procedure.bedtools` | — | `bedtools` | 区间交集引擎 |
 | threads / mem_mb | — | 1 / 8000(每规则) | `rule_res` 配置 |
@@ -65,8 +67,11 @@ python modules/peak_te_overlap/bin/plot_te_overlap.py \
   --tsvs S1_te_subfamily_overlap.tsv,S2_te_subfamily_overlap.tsv \
   --output out/ --combined-tsv out/te_subfamily_overlap_combined.tsv \
   --method count --sort-by te_length --top-n 30 \
-  --ip-input-pairs "S1:C1;S2:C2"
+  --ip-input-pairs "S1:C1;S2:C2" --format png --format pdf
 ```
+
+(`--output` 在 separate 模式为输出目录,combined 模式(`--combine`)为
+不带扩展名的输出 base 路径;每种 `--format` 各写一份 `<base>.<fmt>`。)
 
 ## 2. 算法原理与生物学意义
 

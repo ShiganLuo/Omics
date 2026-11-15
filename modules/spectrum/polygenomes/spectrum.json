@@ -19,6 +19,9 @@
             "signature_matrix": ""
         }
     },
+    "plot": {
+        "formats": ["png"]
+    },
     "signature": {
         "enabled": true,
         "mode": "both",
@@ -28,6 +31,7 @@
         "max_rank": 8,
         "restarts": 20,
         "seed": 42,
-        "rank": null
+        "rank": null,
+        "formats": ["png"]
     }
 }

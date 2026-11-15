@@ -22,15 +22,16 @@ gsva.py)。
 ### 1.2 输出
 
 ```
-{outdir}/{genome}/{contrast}/go_back_to_back.png        # GO 上下调背靠背图
-{outdir}/{genome}/{contrast}/kegg_back_to_back.png      # KEGG 上下调背靠背图
+# 图按 formats 每种格式一份(go_kegg 默认 png,gsea 默认 jpeg,gsva 默认 png)
+{outdir}/{genome}/{contrast}/go_back_to_back.<fmt>        # GO 上下调背靠背图
+{outdir}/{genome}/{contrast}/kegg_back_to_back.<fmt>      # KEGG 上下调背靠背图
 {outdir}/{genome}/{contrast}/go_up.csv / go_down.csv    # GO 富集表(上/下调)
 {outdir}/{genome}/{contrast}/kegg_up.csv / kegg_down.csv
 {outdir}/{genome}/{contrast}/up_genes.txt / down_genes.txt
-{outdir}/{genome}/{contrast}/GSEA/TEcount_Gene_GSEA.jpeg
+{outdir}/{genome}/{contrast}/GSEA/TEcount_Gene_GSEA.<fmt>
 {outdir}/{genome}/{contrast}/GSEA/TEcount_Gene_GSEA.csv
 {outdir}/{genome}/gsva/gsva_scores.tsv                  # 基因集×样本 富集分数
-{outdir}/{genome}/gsva/gsva_heatmap.png                 # GSVA 聚类热图
+{outdir}/{genome}/gsva/gsva_heatmap.<fmt>               # GSVA 聚类热图
 ```
 
 日志:`{logdir}/function/{genome}/{contrast}.go_kegg.log`、`.gsea.log`、
@@ -45,9 +46,16 @@ gsva.py)。
 | `Params.function.<genome>.go_kegg.lfc_cut` | `--lfc-cut` | `1` | 上下调基因 log2FC 阈值 |
 | `Params.function.<genome>.go_kegg.p_cut` | `--p-cut` | `0.05` | 显著性阈值 |
 | `Params.function.<genome>.go_kegg.top` | `--top` | `10` | 展示条目数 |
+| `Params.function.<genome>.go_kegg.formats` | `--format`(可重复) | `[png]` | 输出图片格式(多种同时输出);合法值 png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib 全集;R 侧 ggsave 设备集)。go-kegg.r 为 R 脚本,仅受理 ggsave 设备集,pgf/raw/rgba 传入即报错 |
 | `Params.function.<genome>.gsea.gmt` | `-g` | 必需 | GSEA 基因集 |
+| `Params.function.<genome>.gsea.formats` | `--format`(可重复) | `[jpeg]` | GSEA 图输出格式(gsea.r 为 R 脚本,ggsave 设备集) |
 | `Params.function.<genome>.gsva.gmt` | `-g` | 必需 | GSVA 基因集 |
+| `Params.function.<genome>.gsva.formats` | `-f`/`--format`(可重复) | `[png]` | GSVA 热图输出格式(matplotlib 全集) |
 | `ROOT_DIR` | — | `.` | 拼父目录 `modules/function/bin/` 脚本 |
+
+注意:各 genome 段的 `formats` 取值必须一致(规则 output 在 parse 期展开,
+`{genome}` 通配符维度上不能各自不同);只在部分 genome 段设置时其余沿用该
+取值,多个 genome 设置了不同取值会在 parse 期报错。
 
 固定调用:go-kegg.r `-i <deseq2 tsv> -o <outdir> -s <species> --lfc-cut --p-cut
 --top`;gsea.r `-m Gene -g <gmt> -i <tsv> -o <outdir> -a <geneIDAnno> -t <title>`;

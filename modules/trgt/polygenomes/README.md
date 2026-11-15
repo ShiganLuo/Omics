@@ -20,11 +20,12 @@ conda 环境共享父目录 `../trgt.yaml`(容器同源)。
 ```
 {outdir}/{genome}/genotype/{sample_id}/{sample_id}.trgt.vcf.gz            # 重复基因分型 VCF
 {outdir}/{genome}/genotype/{sample_id}/{sample_id}.trgt.spanning.sorted.bam  # 跨越重复区的 reads
-{outdir}/{genome}/plot/{sample_id}/{sample_id}.trgt.repeat.png            # 重复长度可视化
+{outdir}/{genome}/plot/{sample_id}/{sample_id}.trgt.repeat.{fmt}       # 重复长度可视化(每种格式一个文件)
 {logdir}/{genome}/{sample_id}/trgt_genotype.log / trgt_plot.log
 ```
 
-收尾规则 `trgt_result` 聚合 VCF + PNG。
+`{fmt}` 取自 `Params.trgt.formats`(默认 `["png"]`,与旧版文件名一致)。
+收尾规则 `trgt_result` 聚合 VCF + 全部格式的图。
 
 ### 1.3 参数
 
@@ -33,6 +34,7 @@ conda 环境共享父目录 `../trgt.yaml`(容器同源)。
 | `Procedure.trgt` | 可执行文件本身 | `trgt` | TRGT 可执行路径 |
 | `Params.trgt.karyotype` | `--karyotype` | `XX` | 性染色体核型(XX/XY,影响 X/Y 重复位点基因型判定) |
 | `Params.trgt.repeat_id` | `--repeat-id` | `HTT` | trgt plot 出图的重复位点 ID(默认亨廷顿 HTT 位点) |
+| `Params.trgt.formats` | `--image <base>.<fmt>` | `["png"]` | 图片格式列表,每种格式一个输出文件;合法值 `png` `svg` `pdf`(trgt 5.1.0 `--image` 扩展名工具集,解析期校验 fail fast) |
 | `bam_substring` | — | `""` | 输入 BAM 文件名 `.bam` 前的修饰段 |
 | `genome.<G>.fasta/.fai` | `--genome` | — | 每基因组参考 |
 | `genome.<G>.repeat_bed` | `--repeats` | — | 重复位点注释 BED |

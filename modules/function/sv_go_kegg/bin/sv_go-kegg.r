@@ -29,6 +29,37 @@ log_msg <- function(level = c("INFO","WARN","ERROR"), ..., quit = FALSE) {
   if (quit) stop(msg, call. = FALSE)
 }
 
+## =========================
+## Multi-format figure output (modules.md #9)
+## =========================
+## ggsave derives the device from the file extension, so writing every
+## requested format is a plain loop over "{out_base}.{fmt}". pgf/raw/rgba
+## are matplotlib-only and fail fast here (R ggsave device set).
+VALID_FORMATS <- c("png", "pdf", "svg", "ps", "eps", "tif", "tiff",
+                   "jpg", "jpeg")
+
+## Fail fast on unsupported formats, listing what ggsave can write.
+validate_formats <- function(formats) {
+  bad <- setdiff(formats, VALID_FORMATS)
+  if (length(bad) > 0) {
+    stop(sprintf("Unsupported image format(s): %s; valid: %s",
+                 paste(bad, collapse = ", "),
+                 paste(VALID_FORMATS, collapse = ", ")))
+  }
+  invisible(formats)
+}
+
+## Save one ggplot per requested format as "{out_base}.{fmt}".
+save_ggsave_formats <- function(plot, out_base, formats, width, height,
+                                dpi = 300, ...) {
+  validate_formats(formats)
+  for (fmt in formats) {
+    out <- sprintf("%s.%s", out_base, fmt)
+    ggsave(out, plot = plot, width = width, height = height, dpi = dpi, ...)
+  }
+  invisible(out_base)
+}
+
 ## Read VEP tab: locate the #Uploaded_variation header, take unique SYMBOLs
 read_vep_genes <- function(tab_file, impact_filter = c("HIGH","MODERATE","LOW")) {
   header_line <- NULL
@@ -134,13 +165,13 @@ wrap_plot_labels <- function(labels, width = 42) {
   )
 }
 
-plot_bar <- function(res_df, top = 10, title = "", outfile) {
+plot_bar <- function(res_df, top = 10, title = "", out_base, formats = "png") {
   if (is.null(res_df) || nrow(res_df) == 0) {
     p <- ggplot() +
       annotate("text", x = 0, y = 0, label = "No enriched terms", size = 6) +
       labs(title = title, x = NULL, y = NULL) +
       theme_void() + theme(plot.title = element_text(hjust = 0.5))
-    ggsave(outfile, p, width = 10, height = 4, dpi = 300, bg = "white")
+    save_ggsave_formats(p, out_base, formats, width = 10, height = 4, bg = "white")
     return(invisible(NULL))
   }
   top_df <- res_df %>% arrange(pvalue) %>% slice_head(n = top)
@@ -158,9 +189,9 @@ plot_bar <- function(res_df, top = 10, title = "", outfile) {
       plot.title = element_text(hjust = 0.5)
     )
   n_labels <- length(unique(top_df$plot_label))
-  ggsave(outfile, p, width = 12,
-         height = max(6, min(18, 2.5 + 0.32 * n_labels)),
-         dpi = 300, bg = "white")
+  save_ggsave_formats(p, out_base, formats, width = 12,
+                      height = max(6, min(18, 2.5 + 0.32 * n_labels)),
+                      bg = "white")
 }
 
 ## =========================
@@ -179,9 +210,15 @@ parser$add_argument("--impact", type = "character", default = "HIGH,MODERATE,LOW
                     help = "Comma-separated IMPACT levels to keep (default: HIGH,MODERATE,LOW)")
 parser$add_argument("--top", type = "integer", default = 10,
                     help = "Top N pathways to plot (default: 10)")
-parser$add_argument("--format", type = "character", default = "png",
-                    choices = c("png", "pdf"), help = "Output image format (default: png)")
+parser$add_argument("--format", action = "append", dest = "formats", type = "character",
+                    default = NULL, metavar = "FMT",
+                    help = "Output image format (png/pdf/svg/ps/eps/tif/tiff/jpg/jpeg; repeatable). Default: png")
 args <- parser$parse_args()
+
+## One format per --format flag; default keeps the historical png output.
+## Fail fast on pgf/raw/rgba etc. before any heavy computation runs.
+formats <- if (is.null(args$formats)) "png" else unlist(args$formats)
+validate_formats(formats)
 
 ## =========================
 ## Main
@@ -208,7 +245,8 @@ for (type in c("go", "kegg")) {
             row.names = FALSE)
   plot_bar(res, top = args$top,
            title = paste0(toupper(type), " enrichment (SV-affected genes)"),
-           outfile = file.path(args$outdir, paste0(type, "_enrichment.", args$format)))
+           out_base = file.path(args$outdir, paste0(type, "_enrichment")),
+           formats = formats)
 }
 
 log_msg("INFO", "SV GO/KEGG analysis completed.")

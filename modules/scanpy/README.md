@@ -74,6 +74,7 @@ auto.h5ad(备份 `<auto>.bak`,重生成注释报告),只对配置了覆写 JSON 
 | `pseudobulk.n_pseudo_reps` / `min_cells_per_rep` | `--n-pseudo-reps` / `--min-cells-per-rep` | `3` / `10` | 伪重复设计 |
 | `pseudobulk.cell_types` / `top_cell_types` / `highlight_genes` | `--cell-types` / `--top-cell-types` / `--highlight-genes` | `[]` | 目标细胞类型/基因 |
 | `pseudobulk.deg_mode` | `--deg-mode`(nargs+) | `["all"]` | DEG 模式 |
+| `formats`(qc/auto/advanced/pseudobulk 段内或 counter 级共享) | `--format`(可重复) | `["png"]` | 图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib 全集);出图文件 `<base>.<fmt>` 每种格式一个(图目录为 directory(),形态不变) |
 | `Procedure.python` | — | `python` | 解释器 |
 
 工程细节:所有 run 块导出 `OMP/OPENBLAS/MKL/NUMBA/VECLIB` 线程上限 = 规则

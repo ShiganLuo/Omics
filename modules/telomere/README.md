@@ -30,6 +30,12 @@
 {outdir}/.tidk_build.done                                       # tidk 建库标记
 ```
 
+> **图片格式说明(限制)**:`all_final_alleles.png` / `violin_atl.png` 由
+> telogator2 内部直接渲染,**无格式开关**(实测 `telogator2 --help` 只有
+> `[ALL_FINAL_ALLELES.PNG]` / `[VIOLIN_ATL.PNG]` 两组坐标轴参数,无任何
+> 图片格式选项),因此本模块不提供 `formats` 参数、不做多格式展开,输出
+> 固定为 png。其他模块的多格式 `formats` 参数不适用于此处(不伪造支持)。
+
 ### 1.3 参数
 
 | 参数 | CLI | 默认 | 说明 |

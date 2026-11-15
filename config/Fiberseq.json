@@ -253,17 +253,26 @@
       "enabled": false,
       "flank": 250,
       "min_fibers": 10,
-      "pwm_threshold": 0.8
+      "pwm_threshold": 0.8,
+      "formats": [
+        "pdf"
+      ]
     },
     "footprint": {
       "enabled": false,
-      "flank": 1000
+      "flank": 1000,
+      "formats": [
+        "pdf"
+      ]
     },
     "nucpos": {
       "enabled": true,
       "upstream_nucs": 5,
       "downstream_nucs": 5,
-      "min_fibers": 10
+      "min_fibers": 10,
+      "formats": [
+        "pdf"
+      ]
     },
     "track": {
       "enabled": true,
@@ -277,7 +286,10 @@
       "enabled": false,
       "alpha": 0.05,
       "annot_sample": null,
-      "group_spec": null
+      "group_spec": null,
+      "formats": [
+        "pdf"
+      ]
     },
     "fiberseq_mods": {
       "enabled": true,
@@ -717,13 +729,19 @@
             }
           ]
         }
-      }
+      },
+      "formats": [
+        "png"
+      ]
     },
     "censat": {
       "enabled": false,
       "msp_min_len": 50,
       "flank": 10000,
-      "bin": 500
+      "bin": 500,
+      "formats": [
+        "pdf"
+      ]
     },
     "function": {
       "enabled": false,
@@ -738,7 +756,20 @@
         "species": null,
         "impact": "HIGH,MODERATE,LOW",
         "top": 10,
-        "format": "png"
+        "format": "png",
+        "formats": [
+          "png"
+        ]
+      },
+      "go_kegg": {
+        "formats": [
+          "png"
+        ]
+      },
+      "gsea": {
+        "formats": [
+          "jpeg"
+        ]
       }
     },
     "ldsc": {
@@ -821,7 +852,7 @@
         "png",
         "svg"
       ],
-      "dpi": 200
+      "dpi": 300
     },
     "sexcheck": {
       "ratio_xy_threshold": null,

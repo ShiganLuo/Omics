@@ -18,6 +18,38 @@ metrics_dir = outdir + "/common/3_raw_bam"
 te_dir = outdir + "/results/te_overlap"
 heatmap_dir = outdir + "/results/heatmap"
 
+# 图片格式（report 模块 figures/<name>.<fmt> 多格式输出）① parse 期读入 +
+# 规范化（str 收成单元素 list；合法值由 schema 声明）
+_formats = config.get("Params", {}).get("report", {}).get("formats") or ["png"]
+if isinstance(_formats, str):
+    _formats = [_formats]
+
+# ── 上游产出图 raster-first 变体解析(modules.md #9 formats 规范)──
+# report input 消费上游生产者的图(te_enrichment 归 peak_te_overlap、
+# heatmap 归 deeptools plotHeatmap);生产者按 Params.<producer>.formats 每
+# 格式写一个 `<base>.<fmt>`,这里在 parse 期 raster-first(png → jpg → jpeg
+# → tif → tiff,都没有则取配置列表首个)选定一个具体扩展名。默认配置下解析
+# 结果与历史硬编码扩展名逐字节一致。
+_RASTER_FMT_ORDER = ("png", "jpg", "jpeg", "tif", "tiff")
+
+
+def _producer_fmt(formats):
+    """Raster-first extension among one producer's configured formats."""
+    fmts = formats or ["png"]
+    if isinstance(fmts, dict):
+        # schema-metadata 占位形状 {"type": ..., "default": [...]} — 取 default
+        fmts = fmts.get("default") or ["png"]
+    if isinstance(fmts, str):
+        fmts = [fmts]
+    for fmt in _RASTER_FMT_ORDER:
+        if fmt in fmts:
+            return fmt
+    return fmts[0]
+
+
+_pto_formats = (config.get("Params", {}).get("peak_te_overlap") or {}).get("formats") or ["png"]
+_ph_formats = (config.get("Params", {}).get("plotHeatmap") or {}).get("formats") or ["png"]
+
 REPORT_SCRIPT = os.path.join(ROOT_DIR, "modules", "RIPseq_report", "bin", "generate_report.py")
 
 all_samples = ip_samples + input_samples
@@ -50,16 +82,19 @@ rule generate_report:
         # TE overlap
         te_subfamily = expand(te_dir + "/{sample}/{sample}_te_subfamily_overlap.tsv", sample=ip_samples),
         peak_centric_te = expand(te_dir + "/{sample}/{sample}_peak_centric_te.tsv", sample=ip_samples),
-        te_enrichment = expand(te_dir + "/{sample}_vs_{input}_enrichment.png",
+        te_enrichment = expand(te_dir + "/{sample}_vs_{input}_enrichment." + _producer_fmt(_pto_formats),
                                zip, sample=ip_samples,
                                input=[sample_ip_input_map.get(s, "") for s in ip_samples]),
         # TE heatmaps
-        heatmaps = expand(heatmap_dir + "/{sample}/{sample}_{te}_heatmap.png",
+        heatmaps = expand(heatmap_dir + "/{sample}/{sample}_{te}_heatmap." + _producer_fmt(_ph_formats),
                           sample=ip_samples,
                           te=config.get("Params", {}).get("computeMatrix", {}).get("regions", {}).get("genes", []) if isinstance(config.get("Params", {}).get("computeMatrix", {}).get("regions"), dict) else []),
     output:
         report = outdir + "/RIPseq_report.pptx",
         excel = outdir + "/RIPseq_report.xlsx",
+        # ② 按格式展开的 figures/<name>.<fmt> 由脚本落盘，DAG 用
+        # 文件清单 manifest.tsv 锚定（no directory() outputs）
+        figures_manifest = outdir + "/figures/manifest.tsv",
     log:
         logdir + "/RIPseq_report.log"
     threads: rule_res("generate_report").get("threads", 1)
@@ -78,6 +113,8 @@ rule generate_report:
         date = config.get("Params", {}).get("report", {}).get("date") or "",
         top_n = config.get("Params", {}).get("report", {}).get("top_n") or 5,
         sample_ip_input_map = sample_ip_input_map,
+        formats = _formats,   # ③ 转发
+        img_dir = outdir + "/figures",
     run:
         log_path = str(log)
         open(log_path, 'w').close()
@@ -108,6 +145,7 @@ rule generate_report:
                 "--metrics-dir", metrics_dir,
                 "--te-dir", te_dir,
                 "--heatmap-dir", heatmap_dir,
+                "--img-dir", params.img_dir,
                 "--output", output.report,
                 "--excel-output", output.excel,
                 "--title", params.title,
@@ -117,6 +155,8 @@ rule generate_report:
                 "--date", params.date,
                 "--top-n", str(params.top_n),
             ]
+            for fmt in params.formats:
+                cmd += ["--format", str(fmt)]
 
             script = os.path.join(RECEIPT_DIR, f"generate_report_{current_time}.sh")
             plain_script = os.path.join(report_dir, f"generate_report.sh")
@@ -135,5 +175,6 @@ rule report_result:
     input:
         report = outdir + "/RIPseq_report.pptx",
         excel = outdir + "/RIPseq_report.xlsx",
+        figures_manifest = outdir + "/figures/manifest.tsv",
     resources:
         mem_mb = rule_res("report_result").get("mem_mb", 8000),

@@ -10,6 +10,11 @@ from utils.SV_TYPE_plot import plot_sv_type_barplot,plot_sv_length_boxplot,plot_
 from utils.SV_TYPE import parse_pbsv_vcf
 logger = setup_logger(__name__)
 
+# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
+# fails fast at parse time instead of dying inside savefig (modules.md #9)
+VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
+                 "jpeg", "pgf", "raw", "rgba")
+
 
 def run_pbsv_diff_analysis(
     group_vcf: Dict[str, str],
@@ -39,6 +44,11 @@ def run_pbsv_diff_analysis(
     """
     if plot_formats is None:
         plot_formats = ["png"]
+    bad = [f for f in plot_formats if f not in VALID_FORMATS]
+    if bad:
+        raise ValueError(
+            f"Unsupported image format(s): {', '.join(bad)}; "
+            f"valid: {', '.join(VALID_FORMATS)}")
 
     os.makedirs(f"{out_dir}/table", exist_ok=True)
     os.makedirs(f"{out_dir}/plot", exist_ok=True)

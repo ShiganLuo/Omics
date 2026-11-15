@@ -38,7 +38,7 @@ pbsv_sv_diff_analysis.py、run_OncoPrint.py)。
 | 参数 | CLI | 默认 | 说明 |
 |---|---|---|---|
 | `comparisons` | `-c`/`-e`(exp_specific) | `[]` | 比较定义(见输入) |
-| `Params.image_formats` | — | `["png"]` | 出图格式列表 |
+| `Params.formats` | `-f`(可重复) | `["png"]` | 出图格式列表(matplotlib 全集;旧键 `Params.image_formats` 兼容读取,以 `formats` 为准) |
 | `Params.genes` | — | `[]` | gene_model 目标基因列表 |
 | `Params.exp_specific.dist` | `-d` | `500` | SV 邻近判定距离(bp) |
 | `Params.exp_specific.vep_cache` | `--vep_cache` | `~/.vep` | VEP 缓存目录 |

@@ -48,7 +48,8 @@ MACS3 (Model-based Analysis of ChIP-Seq) peak calling for ChIP-seq/DIP-seq data.
             "bw": 200,
             "pvalue": "1e-5",
             "genome_size": "mm",
-            "broad_cutoff": "0.1"
+            "broad_cutoff": "0.1",
+            "formats": ["png"]
         }
     }
 }
@@ -60,7 +61,8 @@ MACS3 (Model-based Analysis of ChIP-Seq) peak calling for ChIP-seq/DIP-seq data.
 | `pvalue` | 1e-5 | Narrow peak p-value 阈值 |
 | `genome_size` | mm | 基因组大小 (hs/mm/ce/dm 或具体数值) |
 | `broad_cutoff` | 0.1 | Broad peak q-value 阈值 |
+| `formats` | `["png"]` | cutoff 汇总图 `cutoff_analysis.<fmt>` 的图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib 全集) |
 
 ## Cutoff Analysis
 
-两条命令均无条件启用 `--cutoff-analysis`，生成阈值分析报告。该报告列出不同 p-value/q-value 阈值对应的 peak 数量，供人工评估最优阈值。MACS3 不支持自动调参，需根据报告手动调整 `pvalue` 或 `broad_cutoff` 后重跑。
+两条命令均无条件启用 `--cutoff-analysis`，生成阈值分析报告。该报告列出不同 p-value/q-value 阈值对应的 peak 数量，供人工评估最优阈值。MACS3 不支持自动调参，需根据报告手动调整 `pvalue` 或 `broad_cutoff` 后重跑。`macs3_cutoff_plot` 规则把所有 IP 样本的 narrow cutoff 曲线汇总为 `cutoff_analysis.<fmt>`(格式由 `Params.macs3.formats` 控制,默认 `["png"]`,可多格式同时输出;绘图脚本 `--output` 为不带扩展名的 base 路径)。

@@ -16,7 +16,8 @@
             "t": "/path/to/tags.tsv",
             "d": "/path/to/structural_variants_from_WGS.tsv",
             "E": 0.3,
-            "p": "/path/to/protein_domains.gff3"
+            "p": "/path/to/protein_domains.gff3",
+            "formats": ["png"]
         }
     }
 }

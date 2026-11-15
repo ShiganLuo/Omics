@@ -9,8 +9,9 @@ trinucleotide context, and writes both per-sample and per-group outputs:
                              signature_nmf.py)
   <prefix>_sample_stats.csv  per-sample SNV counts and drop accounting
   <prefix>.csv               96 contexts x groups (group-aggregated view)
-  <prefix>_stacked_bar.png   group spectra stacked bar plot
-  <prefix>_heatmap.png       group x context heatmap
+  <prefix>_stacked_bar.<fmt> group spectra stacked bar plot
+  <prefix>_heatmap.<fmt>     group x context heatmap
+                             (one file per requested -f/--format, default png)
 
 Filtering policy (drop reasons are counted in the sample-stats table):
   - FILTER scope: only records passing the VCF filters are counted by
@@ -88,6 +89,13 @@ def setup_logger(
 
 
 logger = setup_logger("Spectrum", stream=sys.stdout)
+
+PlotFormat = str
+
+# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
+# fails fast at parse time instead of dying inside savefig (modules.md #9)
+VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
+                 "jpeg", "pgf", "raw", "rgba")
 
 # Canonical order of the six pyrimidine-strand base substitutions.
 BASE_MUT_ORDER = ["C>A", "C>G", "C>T", "T>A", "T>C", "T>G"]
@@ -238,8 +246,26 @@ def build_group_dataframe(per_sample_mat, sample_groups: Dict[str, str], sample_
     return tri_df
 
 
-def plot_stacked_bar(tri_df, output_file: str) -> None:
-    """Render the per-group trinucleotide mutation spectrum as a stacked bar plot."""
+def plot_stacked_bar(tri_df, out_base: str,
+                     image_formats: Optional[List[PlotFormat]] = None) -> None:
+    """Render the per-group trinucleotide mutation spectrum as a stacked bar plot.
+
+    Parameters
+    ----------
+    tri_df : pandas.DataFrame
+        Context-by-group counts.
+    out_base : str
+        Output path without extension.
+    image_formats : List[str], optional
+        Save formats. Default ``["png"]``.
+    """
+    if image_formats is None:
+        image_formats = ["png"]
+    bad = [f for f in image_formats if f not in VALID_FORMATS]
+    if bad:
+        raise ValueError(
+            f"Unsupported image format(s): {', '.join(bad)}; "
+            f"valid: {', '.join(VALID_FORMATS)}")
     import matplotlib
 
     matplotlib.use("Agg")
@@ -250,12 +276,34 @@ def plot_stacked_bar(tri_df, output_file: str) -> None:
     plt.xlabel("Trinucleotide context")
     plt.xticks(rotation=90)
     plt.tight_layout()
-    plt.savefig(output_file, dpi=300)
-    plt.close()
+    fig = plt.gcf()
+    for fmt in image_formats:
+        out_path = f"{out_base}.{fmt}"
+        fig.savefig(out_path, dpi=300, bbox_inches="tight")
+        logger.info(f"Saved {out_path}")
+    plt.close(fig)
 
 
-def plot_heatmap(tri_df, output_file: str) -> None:
-    """Render the context-by-group counts as a heatmap."""
+def plot_heatmap(tri_df, out_base: str,
+                 image_formats: Optional[List[PlotFormat]] = None) -> None:
+    """Render the context-by-group counts as a heatmap.
+
+    Parameters
+    ----------
+    tri_df : pandas.DataFrame
+        Context-by-group counts.
+    out_base : str
+        Output path without extension.
+    image_formats : List[str], optional
+        Save formats. Default ``["png"]``.
+    """
+    if image_formats is None:
+        image_formats = ["png"]
+    bad = [f for f in image_formats if f not in VALID_FORMATS]
+    if bad:
+        raise ValueError(
+            f"Unsupported image format(s): {', '.join(bad)}; "
+            f"valid: {', '.join(VALID_FORMATS)}")
     import matplotlib
 
     matplotlib.use("Agg")
@@ -267,8 +315,12 @@ def plot_heatmap(tri_df, output_file: str) -> None:
     plt.ylabel("Trinucleotide context")
     plt.xlabel("Group")
     plt.tight_layout()
-    plt.savefig(output_file, dpi=300)
-    plt.close()
+    fig = plt.gcf()
+    for fmt in image_formats:
+        out_path = f"{out_base}.{fmt}"
+        fig.savefig(out_path, dpi=300, bbox_inches="tight")
+        logger.info(f"Saved {out_path}")
+    plt.close(fig)
 
 
 def write_sample_stats(stats: Dict[str, Dict[str, object]], sample_groups: Dict[str, str],
@@ -293,8 +345,22 @@ def write_sample_stats(stats: Dict[str, Dict[str, object]], sample_groups: Dict[
 
 def mutation_spectrum_analysis(vcf_files: Dict[str, str], sample_groups: Dict[str, str],
                                ref_fasta: str, output_prefix: str,
-                               pass_only: bool = True) -> None:
-    """Run the full spectrum analysis and write per-sample + per-group outputs."""
+                               pass_only: bool = True,
+                               image_formats: Optional[List[PlotFormat]] = None) -> None:
+    """Run the full spectrum analysis and write per-sample + per-group outputs.
+
+    Parameters
+    ----------
+    image_formats : List[str], optional
+        Save formats for the two figures. Default ``["png"]``.
+    """
+    if image_formats is None:
+        image_formats = ["png"]
+    bad = [f for f in image_formats if f not in VALID_FORMATS]
+    if bad:
+        raise ValueError(
+            f"Unsupported image format(s): {', '.join(bad)}; "
+            f"valid: {', '.join(VALID_FORMATS)}")
     ref_seq = load_reference_genome(ref_fasta)
     sample_order = list(vcf_files.keys())
     all_counts: Dict[str, Counter] = {}
@@ -311,11 +377,13 @@ def mutation_spectrum_analysis(vcf_files: Dict[str, str], sample_groups: Dict[st
 
     tri_df = build_group_dataframe(per_sample_mat, sample_groups, sample_order)
     tri_df.to_csv(f"{output_prefix}.csv")
-    plot_stacked_bar(tri_df, f"{output_prefix}_stacked_bar.png")
-    plot_heatmap(tri_df, f"{output_prefix}_heatmap.png")
+    plot_stacked_bar(tri_df, f"{output_prefix}_stacked_bar", image_formats)
+    plot_heatmap(tri_df, f"{output_prefix}_heatmap", image_formats)
+    fig_files = [f"{output_prefix}_stacked_bar.{fmt}" for fmt in image_formats] + \
+                [f"{output_prefix}_heatmap.{fmt}" for fmt in image_formats]
     logger.info(
         f"Wrote {output_prefix}_per_sample.csv, {output_prefix}_sample_stats.csv, "
-        f"{output_prefix}.csv, {output_prefix}_stacked_bar.png, {output_prefix}_heatmap.png"
+        f"{output_prefix}.csv, " + ", ".join(fig_files)
     )
 
 
@@ -349,6 +417,8 @@ def parse_args():
                         help="FILTER scope: PASS counts only records passing "
                              "the VCF filters (PASS/'.'); all keeps every "
                              "record (default: PASS)")
+    parser.add_argument("-f", "--format", action="append", dest="formats", metavar="FMT",
+                        help="Image format (png/pdf/svg/...). Repeatable. Default: png.")
     parser.add_argument("-l", "--log", default=None,
                         help="Optional log file (in addition to stdout)")
     return parser.parse_args()
@@ -371,7 +441,8 @@ def main():
             f"every sample in {args.vcf_map} needs a row in {args.group_map}."
         )
     mutation_spectrum_analysis(vcf_files, sample_groups, args.ref_fasta,
-                               args.output_prefix, pass_only=(args.filter == "PASS"))
+                               args.output_prefix, pass_only=(args.filter == "PASS"),
+                               image_formats=args.formats if args.formats else ["png"])
 
 
 if __name__ == "__main__":

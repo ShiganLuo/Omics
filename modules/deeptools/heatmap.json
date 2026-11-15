@@ -34,7 +34,8 @@
             "colorMap": "YlOrRd",
             "heatmapHeight": 15,
             "heatmapWidth": 8,
-            "whatToShow": "heatmap and colorbar"
+            "whatToShow": "heatmap and colorbar",
+            "formats": ["png"]
         }
     }
 }

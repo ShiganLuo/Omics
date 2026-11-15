@@ -24,9 +24,10 @@ markdup、hs_metrics、MSI、sexcheck)的产物聚合成一张样本 × 指标�
 
 ```
 {outdir}/qc_summary.tsv        # 样本 × 指标主表(列序由 build_table() core_order 决定)
-{outdir}/qc_summary.html       # 可视化汇总
+{outdir}/qc_summary.html       # 可视化汇总(引用图的 png 变体)
 {outdir}/qc_summary.sh         # 回执
-(+ 逐指标柱状图 png,落 --outdir;--plot 可选 mapped_rate/duplication/total_sequences/target_coverage)
+{outdir}/qc_summary_<metric>.<fmt>   # 逐指标柱状图,按 formats 每种格式一个文件
+                             # (--plot 可选 mapped_rate/duplication/total_sequences/target_coverage;无数据的指标不出图)
 ```
 
 日志:`{logdir}/qc_summary/qc_summary.log`。`qc_summary_result` 为聚合
@@ -44,6 +45,7 @@ config 位于 `Params.qc_summary` 与顶层 `qc_dirs` / `qc_anchors` /
 | `qc_anchors` | —(规则 input 锚点) | {} | 见输入 |
 | `qc_anchor_samples` | — | {} | 见输入 |
 | `Params.qc_summary.title` | `--title` | `QC Summary` | HTML 标题 |
+| `Params.qc_summary.formats` | `-f` / `--format`(可重复) | `png` | 柱状图输出格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib 全集);图文件 `qc_summary_<metric>.<fmt>`,HTML 引用 png 变体;`[]` = 不出图 |
 | (`--plot`) | `--plot`(可重复) | `mapped_rate duplication total_sequences` | 出图指标(.smk 未暴露,脚本默认;choices 还含 `target_coverage`) |
 | (`--meta`) | `--meta` | null | 可选 run 元数据 JSON 表(.smk 未暴露) |
 | (threads) | — | 1 | `rule_res("qc_summary")` 可覆盖 |
@@ -58,6 +60,7 @@ python3 modules/qc_summary/bin/qc_summary.py \
     --sample sample1 --sample sample2 \
     --qc-dir flagstat=/path/to/flagstat_outdir \
     --qc-dir markdup=/path/to/markdup_outdir \
+    --format png --format pdf \
     --log log/qc_summary/qc_summary.log
 ```
 

@@ -12,5 +12,10 @@
       "gtf": "path/to/annotation.gtf"
     }
   },
-  "logdir_combine": "logs"
+  "logdir_combine": "logs",
+  "Params": {
+    "arriba": {
+      "formats": ["png"]
+    }
+  }
 }

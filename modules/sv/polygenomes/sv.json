@@ -11,7 +11,7 @@
         }
     ],
     "Params": {
-        "image_formats": [
+        "formats": [
             "png"
         ],
         "genes": [],

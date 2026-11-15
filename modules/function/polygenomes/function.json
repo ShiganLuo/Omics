@@ -24,13 +24,22 @@
           "lfc_cut": 1,
           "p_cut": 0.05,
           "top": 10,
-          "species": "mouse"
+          "species": "mouse",
+          "formats": [
+            "png"
+          ]
         },
         "gsea": {
-          "gmt": null
+          "gmt": null,
+          "formats": [
+            "jpeg"
+          ]
         },
         "gsva": {
-          "gmt": null
+          "gmt": null,
+          "formats": [
+            "png"
+          ]
         }
       },
       "GRCh38": {
@@ -40,13 +49,22 @@
           "lfc_cut": 1,
           "p_cut": 0.05,
           "top": 10,
-          "species": "human"
+          "species": "human",
+          "formats": [
+            "png"
+          ]
         },
         "gsea": {
-          "gmt": null
+          "gmt": null,
+          "formats": [
+            "jpeg"
+          ]
         },
         "gsva": {
-          "gmt": null
+          "gmt": null,
+          "formats": [
+            "png"
+          ]
         }
       }
     },

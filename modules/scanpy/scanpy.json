@@ -12,6 +12,7 @@
     },
     "Params": {
         "scanpy": {
+            "formats": ["png"],
             "qc": {
                 "min_genes": 200,
                 "max_genes": 6000,
@@ -19,7 +20,8 @@
                 "n_top_genes": 3000,
                 "use_mad": false,
                 "scrublet": true,
-                "doublet_rate": 0.06
+                "doublet_rate": 0.06,
+                "formats": ["png"]
             },
             "cluster": {
                 "n_pcs": 50,
@@ -41,7 +43,8 @@
                 "communication": false,
                 "cnv": false,
                 "gtf": "",
-                "cnv_reference": ""
+                "cnv_reference": "",
+                "formats": ["png"]
             },
             "auto": {
                 "max_iterations": 3,
@@ -63,7 +66,8 @@
                 "marker_supplement": {},
                 "marker_supplement_llm": true,
                 "exclude_genes": "",
-                "exclude_from_deg": false
+                "exclude_from_deg": false,
+                "formats": ["png"]
             },
             "pseudobulk": {
                 "enabled": false,
@@ -77,7 +81,8 @@
                 "highlight_genes": [],
                 "deg_mode": [
                     "all"
-                ]
+                ],
+                "formats": ["png"]
             }
         }
     }

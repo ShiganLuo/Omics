@@ -5,6 +5,14 @@ ROOT_DIR = config.get("ROOT_DIR", ".")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 
+# 图片格式:转发给 wrapper 的 -f/--format,经 MIMSEQ_PLOT_FORMATS 交给
+# vendored 绘图代码(ggsave/savefig)。figures 是 touch() 规则的副产物,不进
+# rule output(② 展开不适用);默认 ["pdf"] 保持上游行为。
+# ① parse 期读入 + 规范化（str 收成单元素 list；合法值由 schema 声明）
+_plot_formats = config.get("Params", {}).get("mimseq", {}).get("formats") or ["pdf"]
+if isinstance(_plot_formats, str):
+    _plot_formats = [_plot_formats]
+
 rule mimseq_deseq:
     """Run DESeq2 differential expression analysis."""
     input:
@@ -17,6 +25,7 @@ rule mimseq_deseq:
         script = os.path.join(ROOT_DIR, "modules", "mimseq", "bin", "deseq", "run.py"),
         control_cond = config.get("Params", {}).get("mimseq", {}).get("control_cond", ""),
         p_adj = config.get("Params", {}).get("mimseq", {}).get("p_adj", 0.05),
+        formats = _plot_formats,   # ③ 转发
         mito_trnas = lambda wildcards: config["genome"][wildcards.genome].get("mito_trnas", ""),
     threads: rule_res("mimseq_deseq").get("threads", 4)
     resources:
@@ -42,6 +51,8 @@ rule mimseq_deseq:
                 cmd += ["--control-cond", params.control_cond]
             if params.mito_trnas:
                 cmd += ["--mito-trnas", params.mito_trnas]
+            for fmt in params.formats:
+                cmd += ["--format", str(fmt)]
 
             with open(script_path, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")

@@ -7,13 +7,19 @@ logdir_combine = config.get("logdir_combine","logs")
 ROOT_DIR = config.get("ROOT_DIR", ".")
 genome_samples = config.get("genome_samples") or {}
 bam_substring = config.get("bam_substring") or ""
-FUSION_FIGS = [
-    "fig1_per_sample_counts.png",
-    "fig2_fusion_type_distribution.png",
-    "fig3_type_by_sample.png",
-    "fig4_reading_frame.png",
-    "fig5_recurrent_heatmap.png",
-    "fig6_inframe_support.png",
+# ① parse 期读入 + 规范化(str 收成单元素 list;合法值由 schema 声明)。
+# output 指令无法调用函数,格式列表必须是模块级变量。
+_formats = config.get("Params", {}).get("arriba", {}).get("formats") or ["png"]
+if isinstance(_formats, str):
+    _formats = [_formats]
+# figure base names (no extension) — expanded per format below
+FUSION_FIG_BASES = [
+    "fig1_per_sample_counts",
+    "fig2_fusion_type_distribution",
+    "fig3_type_by_sample",
+    "fig4_reading_frame",
+    "fig5_recurrent_heatmap",
+    "fig6_inframe_support",
 ]
 
 def get_input_for_arriba(wildcards):
@@ -120,13 +126,16 @@ rule arriba_report:
         recurrent_fusions = outdir + "/{genome}/arriba_report/recurrent_fusions.tsv",
         high_medium_fusions = outdir + "/{genome}/arriba_report/high_medium_confidence_fusions.tsv",
         inframe_fusions = outdir + "/{genome}/arriba_report/inframe_fusions.tsv",
-        fusion_figs = expand(outdir + "/{genome}/arriba_report/figures/{fig}", fig=FUSION_FIGS, genome="{genome}"),
+        # ② 按格式展开:每种格式一个输出文件(base 不带扩展名)
+        fusion_figs = expand(outdir + "/{genome}/arriba_report/figures/{base}.{fmt}",
+                             base=FUSION_FIG_BASES, fmt=_formats, genome="{genome}"),
     log:
         logdir_combine + "/arriba/{genome}/arriba_report.log"
     resources:
         mem_mb = rule_res("arriba_report").get("mem_mb", 8000),
     params:
-        summary_script = os.path.join(ROOT_DIR, "modules/arriba/bin/summarize_arriba_fusions.py")
+        summary_script = os.path.join(ROOT_DIR, "modules/arriba/bin/summarize_arriba_fusions.py"),
+        formats = _formats,   # ③ 转发
     conda:
         "../arriba.yaml"
     container:
@@ -146,6 +155,8 @@ rule arriba_report:
                 "-d", ",".join(input.discarded_fusions),
                 "-o", outdir + f"/{wildcards.genome}/arriba_report"
             ]
+            # script's -f/--format is nargs="+" — single occurrence, all values
+            cmd += ["--format"] + [str(fmt) for fmt in params.formats]
             with open(script, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
                 f.write(" ".join(cmd) + "\n")

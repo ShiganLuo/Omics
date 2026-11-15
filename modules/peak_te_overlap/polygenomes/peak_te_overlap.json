@@ -9,5 +9,10 @@
         "GRCh38": {
             "te_gtf": "path/to/TE.gtf"
         }
+    },
+    "Params": {
+        "peak_te_overlap": {
+            "formats": ["png"]
+        }
     }
 }

@@ -21,12 +21,13 @@ Outputs (<prefix> = --output-prefix):
   <prefix>_exposure_fractions.csv   row-normalized exposure fractions
   <prefix>_family_exposures.csv     samples x signature families, fractions
   <prefix>_summary.csv              per-sample fit statistics and flags
-  <prefix>_exposure_stacked_bar.png  family-fraction stacked bar per sample
-  <prefix>_exposure_heatmap.png     sample x signature fraction heatmap
-  <prefix>_signature_cosine.png     signature x signature cosine heatmap of
+  <prefix>_exposure_stacked_bar.<fmt>  family-fraction stacked bar per sample
+  <prefix>_exposure_heatmap.<fmt>     sample x signature fraction heatmap
+  <prefix>_signature_cosine.<fmt>     signature x signature cosine heatmap of
                                     the signatures used anywhere (degeneracy
                                     evidence: near-1 pairs make per-signature
                                     attribution non-unique)
+  (figures written once per requested --format, default png)
 
 Usage:
     python signature_refit.py \
@@ -91,6 +92,13 @@ def setup_logger(
 
 
 logger = setup_logger("SignatureRefit", stream=sys.stdout)
+
+PlotFormat = str
+
+# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
+# fails fast at parse time instead of dying inside savefig (modules.md #9)
+VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
+                 "jpeg", "pgf", "raw", "rgba")
 
 # Built-in signature families. Collinear family members (SBS2/13, SBS1/5/40)
 # are aggregated because single members are not separable at low mutation
@@ -236,8 +244,22 @@ def aggregate_families(exposure_dict: Dict[str, float],
     return agg
 
 
-def run_refit(counts, sig, args) -> None:
-    """Refit every sample and write the exposure/summary outputs and plots."""
+def run_refit(counts, sig, args,
+              image_formats: Optional[List[PlotFormat]] = None) -> None:
+    """Refit every sample and write the exposure/summary outputs and plots.
+
+    Parameters
+    ----------
+    image_formats : List[str], optional
+        Save formats for the figures. Default ``["png"]``.
+    """
+    if image_formats is None:
+        image_formats = ["png"]
+    bad = [f for f in image_formats if f not in VALID_FORMATS]
+    if bad:
+        raise ValueError(
+            f"Unsupported image format(s): {', '.join(bad)}; "
+            f"valid: {', '.join(VALID_FORMATS)}")
     import numpy as np
     import pandas as pd
     import matplotlib
@@ -293,8 +315,12 @@ def run_refit(counts, sig, args) -> None:
     ax.set_ylim(0, 1)
     ax.legend(bbox_to_anchor=(1.02, 1), loc="upper left", fontsize=8)
     plt.tight_layout()
-    plt.savefig(f"{args.output_prefix}_exposure_stacked_bar.png", dpi=300)
-    plt.close()
+    fig = plt.gcf()
+    for fmt in image_formats:
+        out_path = f"{args.output_prefix}_exposure_stacked_bar.{fmt}"
+        fig.savefig(out_path, dpi=300, bbox_inches="tight")
+        logger.info(f"Saved {out_path}")
+    plt.close(fig)
 
     # Sample x signature fraction heatmap (only signatures used somewhere).
     frac_df = pd.DataFrame(fractions).T.reindex(samples).fillna(0.0)
@@ -307,8 +333,12 @@ def run_refit(counts, sig, args) -> None:
         plt.ylabel("Sample")
         plt.xlabel("Signature")
         plt.tight_layout()
-        plt.savefig(f"{args.output_prefix}_exposure_heatmap.png", dpi=300)
-        plt.close()
+        fig = plt.gcf()
+        for fmt in image_formats:
+            out_path = f"{args.output_prefix}_exposure_heatmap.{fmt}"
+            fig.savefig(out_path, dpi=300, bbox_inches="tight")
+            logger.info(f"Saved {out_path}")
+        plt.close(fig)
 
     # Signature x signature cosine heatmap over the used signatures
     # (design doc §6 common outputs). The refit solution is only unique up
@@ -331,17 +361,21 @@ def run_refit(counts, sig, args) -> None:
         )
         plt.title("Signature-signature cosine (used signatures)")
         plt.tight_layout()
-        plt.savefig(f"{args.output_prefix}_signature_cosine.png", dpi=300)
-        plt.close()
+        fig = plt.gcf()
+        for fmt in image_formats:
+            out_path = f"{args.output_prefix}_signature_cosine.{fmt}"
+            fig.savefig(out_path, dpi=300, bbox_inches="tight")
+            logger.info(f"Saved {out_path}")
+        plt.close(fig)
 
     logger.info(
         f"Wrote {args.output_prefix}_exposures.csv, "
         f"{args.output_prefix}_exposure_fractions.csv, "
         f"{args.output_prefix}_family_exposures.csv, "
         f"{args.output_prefix}_summary.csv, "
-        f"{args.output_prefix}_exposure_stacked_bar.png, "
-        f"{args.output_prefix}_exposure_heatmap.png, "
-        f"{args.output_prefix}_signature_cosine.png"
+        f"{args.output_prefix}_exposure_stacked_bar / "
+        f"{args.output_prefix}_exposure_heatmap / "
+        f"{args.output_prefix}_signature_cosine (.{{{','.join(image_formats)}}})"
     )
 
 
@@ -366,6 +400,9 @@ def parse_args():
     parser.add_argument("-f", "--family-map", default=None,
                         help="Optional TSV 'family<TAB>SBS1,SBS2' overriding the "
                              "built-in family map")
+    parser.add_argument("--format", action="append", dest="formats", metavar="FMT",
+                        help="Image format (png/pdf/svg/...). Repeatable. "
+                             "Default: png. (-f is taken by --family-map)")
     parser.add_argument("-l", "--log", default=None,
                         help="Optional log file (in addition to stdout)")
     return parser.parse_args()
@@ -383,7 +420,8 @@ def main():
         logger.handlers = _lg.handlers
     counts = load_counts(args.counts)
     sig = load_signatures(args.signatures, counts.index)
-    run_refit(counts, sig, args)
+    run_refit(counts, sig, args,
+              image_formats=args.formats if args.formats else ["png"])
 
 
 if __name__ == "__main__":

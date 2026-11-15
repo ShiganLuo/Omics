@@ -21,7 +21,7 @@
 ```
 {outdir}/stats/{sample_id}/{sample_id}_stats.txt     # samtools stats 全量输出
 {outdir}/fragment/FragmentSize.txt                   # 插入长度 × 样本 计数表(TSV)
-{outdir}/fragment/FragmentSize.png                   # 分布曲线图
+{outdir}/fragment/FragmentSize.<fmt>                 # 分布曲线图(<fmt> 取自 formats,默认 png)
 ```
 
 回执:`{outdir}/stats/{sample_id}/samtools_stats.sh`、
@@ -34,6 +34,7 @@
 |---|---|---|---|
 | `bam_suffix` | — | "" | 见输入 |
 | `Procedure.samtools` | `samtools stats` | `samtools` | 统计引擎 |
+| `Params.fragment_size.formats` | `-f/--format`(可重复) | `["png"]` | 图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib 全集) |
 | (threads) | — | — | 未设线程参数 |
 | (mem_mb) | — | 8000 | 各规则 `rule_res` 可覆盖 |
 
@@ -44,7 +45,8 @@
 | `--input`(get,可多个) | 必填 | samtools stats 文件列表 |
 | `--out`(get) | 必填 | 直方表输出路径 |
 | `--input`(plot) | 必填 | 直方表路径 |
-| `--output`(plot) | 必填 | 图片输出路径 |
+| `--output`(plot) | 必填 | 图片输出 base 路径(不带扩展名;实际文件为 `<output>.<format>`) |
+| `-f/--format`(plot,可重复) | png | 输出格式(png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba) |
 | `--highlight` | 167 | 高亮竖线的片段长度(bp) |
 
 直接调用示例(引擎命令,与规则生成的回执一致):
@@ -58,7 +60,7 @@ python modules/fragment_size/bin/getFragmentSize.py \
 
 python modules/fragment_size/bin/plotFragmentSize.py \
     --input out/fragment/FragmentSize.txt \
-    --output out/fragment/FragmentSize.png --highlight 167
+    --output out/fragment/FragmentSize --highlight 167 -f png -f pdf
 ```
 
 ## 2. 算法原理与生物学意义

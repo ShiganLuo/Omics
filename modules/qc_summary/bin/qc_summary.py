@@ -16,6 +16,10 @@ are declared with --metric stage:column-name (repeatable).
 Outputs:
   <outdir>/qc_summary.tsv    sample x metric table (one row per sample)
   <outdir>/qc_summary.html   multi-section visual summary (optional)
+  <outdir>/qc_summary_<metric>.<fmt>
+                             per-metric bar charts, one file per requested
+                             --format (default png); the HTML references the
+                             png variant
 
 Usage:
     python qc_summary.py \
@@ -94,6 +98,17 @@ def setup_logger(
 
     return logger
 
+
+PlotFormat = str
+
+# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
+# fails fast at parse time instead of dying inside savefig (modules.md #9)
+VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
+                 "jpeg", "pgf", "raw", "rgba")
+
+# module-level logger for figure save messages (render functions run outside
+# main()'s scoped logger)
+logger = _logging.getLogger(__name__)
 
 # ============================================================
 # Per-stage parsers: stage dir + sample -> metric dict
@@ -555,48 +570,89 @@ def to_num(series: pd.Series) -> pd.Series:
 # Plots
 # ============================================================
 
-def render_plots(table: pd.DataFrame, outdir: str, plots: List[str]) -> List[str]:
-    """Render per-stage QC plots; each plot survives empty data by writing
-    a placeholder image so the report keeps its layout.
+def render_plots(table: pd.DataFrame, outdir: str, plots: List[str],
+                 image_formats: Optional[List[PlotFormat]] = None) -> List[str]:
+    """Render per-stage QC plots; each plot with empty data is skipped so
+    the report keeps its layout.
 
-    Returns the list of written PNG paths (only requested + non-empty ones).
+    Figures are written as ``qc_summary_<metric>.<fmt>`` for every requested
+    format (modules.md #9); ``image_formats`` default ``["png"]``, ``[]`` =
+    no figures.
+
+    Returns the figure paths referenced by the HTML report (one per rendered
+    plot, raster-first variant: png, else the first jpg/jpeg/tif/tiff, else
+    the first requested format — DAG 消费一致性, see subworkflow.md).
     """
+    if image_formats is None:
+        image_formats = ["png"]
+    bad = [f for f in image_formats if f not in VALID_FORMATS]
+    if bad:
+        raise ValueError(
+            f"Unsupported image format(s): {', '.join(bad)}; "
+            f"valid: {', '.join(VALID_FORMATS)}")
+    if not image_formats:
+        return []
     written: List[str] = []
     for name in plots:
-        path = os.path.join(outdir, f"qc_summary_{name}.png")
+        out_base = os.path.join(outdir, f"qc_summary_{name}")
         if name == "mapped_rate":
             vals = to_num(table["mapped_rate"]) if "mapped_rate" in table.columns else pd.Series(dtype=float)
             if vals.notna().any():
-                _bar_plot(vals.sort_index(), "Mapped reads (%)", "mapped rate", path)
-                written.append(path)
+                _bar_plot(vals.sort_index(), "Mapped reads (%)", "mapped rate", out_base, image_formats)
+                written.append(_embed_variant(out_base, image_formats))
         elif name == "duplication":
             vals = to_num(table["percent_duplication"]) if "percent_duplication" in table.columns else pd.Series(dtype=float)
             if vals.notna().any():
                 _bar_plot((vals * (100 if vals.max() <= 1.0 else 1.0)).sort_index(),
-                          "Duplication rate (%)", "duplication", path)
-                written.append(path)
+                          "Duplication rate (%)", "duplication", out_base, image_formats)
+                written.append(_embed_variant(out_base, image_formats))
         elif name == "total_sequences":
             vals = to_num(table["total_sequences"]) if "total_sequences" in table.columns else pd.Series(dtype=float)
             if vals.notna().any():
-                _bar_plot((vals / 1e6).sort_index(), "Raw reads (M)", "total sequences", path)
-                written.append(path)
+                _bar_plot((vals / 1e6).sort_index(), "Raw reads (M)", "total sequences", out_base, image_formats)
+                written.append(_embed_variant(out_base, image_formats))
         elif name == "target_coverage":
             vals = to_num(table["mean_target_coverage"]) if "mean_target_coverage" in table.columns else pd.Series(dtype=float)
             if vals.notna().any():
-                _bar_plot(vals.sort_index(), "Mean target coverage (X)", "mean target coverage", path)
-                written.append(path)
+                _bar_plot(vals.sort_index(), "Mean target coverage (X)", "mean target coverage", out_base, image_formats)
+                written.append(_embed_variant(out_base, image_formats))
     return written
 
 
-def _bar_plot(vals: pd.Series, ylabel: str, title: str, path: str) -> None:
-    """Render one horizontal bar chart of per-sample values."""
+def _embed_variant(out_base: str, image_formats: List[PlotFormat]) -> str:
+    """Path of the figure variant the HTML report references: png first,
+    else the first raster format (jpg/jpeg/tif/tiff), else the first
+    requested format (raster-first consumer resolution)."""
+    for fmt in ("png", "jpg", "jpeg", "tif", "tiff"):
+        if fmt in image_formats:
+            return f"{out_base}.{fmt}"
+    return f"{out_base}.{image_formats[0]}"
+
+
+def _bar_plot(vals: pd.Series, ylabel: str, title: str, out_base: str,
+              image_formats: Optional[List[PlotFormat]] = None) -> None:
+    """Render one horizontal bar chart of per-sample values.
+
+    out_base: 输出文件前缀(不含扩展名),每种格式输出 ``{out_base}.{fmt}``
+    image_formats: Save formats. Default ``["png"]``.
+    """
+    if image_formats is None:
+        image_formats = ["png"]
+    bad = [f for f in image_formats if f not in VALID_FORMATS]
+    if bad:
+        raise ValueError(
+            f"Unsupported image format(s): {', '.join(bad)}; "
+            f"valid: {', '.join(VALID_FORMATS)}")
     fig, ax = plt.subplots(figsize=(7, max(2.0, 0.45 * len(vals) + 1.0)))
     vals.plot.barh(ax=ax, color="#0094D8")
     ax.set_xlabel(ylabel)
     ax.set_title(f"QC summary — {title}")
     ax.invert_yaxis()
     fig.tight_layout()
-    fig.savefig(path, dpi=200)
+    for fmt in image_formats:
+        out_path = f"{out_base}.{fmt}"
+        fig.savefig(out_path, dpi=200)
+        logger.info(f"Saved {out_path}")
     plt.close(fig)
 
 
@@ -631,9 +687,13 @@ img {{ max-width: 900px; margin: 8px 0; display: block; border: 1px solid #e3e8e
 """
 
 
-def render_html(table: pd.DataFrame, pngs: List[str], out_path: str,
+def render_html(table: pd.DataFrame, figs: List[str], out_path: str,
                 title: str, meta: Optional[dict] = None) -> None:
-    """Write the visual summary: metric table + embedded PNG sections."""
+    """Write the visual summary: metric table + figure sections.
+
+    ``figs`` are figure paths beside the HTML; each is referenced by
+    basename (default formats 下即 png 变体 ``qc_summary_<metric>.png``).
+    """
     parts: List[str] = []
     if meta:
         rows = "".join(
@@ -642,10 +702,10 @@ def render_html(table: pd.DataFrame, pngs: List[str], out_path: str,
         parts.append(f"<h2>Run info</h2><table>{rows}</table>")
     html_table = table.to_html(escape=True)
     parts.append(f"<h2>Metric table</h2>{html_table}")
-    if pngs:
+    if figs:
         imgs = "".join(
             f'<h2>{html.escape(os.path.basename(p))}</h2><img src="{html.escape(os.path.basename(p))}">'
-            for p in pngs)
+            for p in figs)
         parts.append(imgs)
     with open(out_path, "w", encoding="utf-8") as fh:
         fh.write(_HTML_TEMPLATE.format(title=html.escape(title), body="\n".join(parts)))
@@ -672,6 +732,10 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
                    help="Report title shown in the HTML header")
     p.add_argument("-m", "--meta", default=None,
                    help="Optional JSON file with run metadata shown as a table")
+    p.add_argument("-f", "--format", action="append", dest="formats",
+                   metavar="FMT",
+                   help="Image format (png/pdf/svg/...). Repeatable. "
+                        "Default: png.")
     p.add_argument("-l", "--log", default=None,
                    help="Optional log file path (also logs to stdout)")
     return p.parse_args(argv)
@@ -708,10 +772,11 @@ def main(argv: Optional[List[str]] = None) -> int:
     table.to_csv(tsv_path, sep="\t")
     logger.info(f"wrote {tsv_path} ({table.shape[0]} samples x {table.shape[1]} metrics)")
 
-    pngs = render_plots(table, args.outdir, args.plot)
+    figs = render_plots(table, args.outdir, args.plot,
+                        image_formats=args.formats if args.formats else ["png"])
     html_path = os.path.join(args.outdir, "qc_summary.html")
     meta = json.load(open(args.meta)) if args.meta and os.path.isfile(args.meta) else None
-    render_html(table, pngs, html_path, args.title, meta)
+    render_html(table, figs, html_path, args.title, meta)
     logger.info(f"wrote {html_path}")
     return 0
 

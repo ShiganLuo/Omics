@@ -301,6 +301,10 @@ somatic_spectrum_config = {
         "signature_matrix": genome_ref.get("signature_matrix"),
     },
     "signature": config.get("Params", {}).get("somatic_spectrum", {}).get("signature", {}),
+    # spectrum.smk reads config.plot.formats / config.signature.formats at the
+    # module-config top level (see modules/spectrum/spectrum.json); forward the
+    # workflow-side Params.somatic_spectrum.plot the same way as signature
+    "plot": config.get("Params", {}).get("somatic_spectrum", {}).get("plot", {}),
 }
 module somatic_spectrum:
     snakefile: "../modules/spectrum/spectrum.smk"
@@ -582,7 +586,13 @@ Mutation_report_config = {
     # disabled stages stay best-effort 'not run' notes)
     "outfiles": outfiles,
     "Params": {
-        "report": config.get("Params", {}).get("report", {})
+        "report": config.get("Params", {}).get("report", {}),
+        # 生产者 formats 段直通(modules.md #9):report 脚本运行期对消费的
+        # 上游图做 raster-first 变体解析(spectrum/signature 图归
+        # somatic_spectrum、FragmentSize 归 fragment_size、msi_barplot 归 msi)
+        "somatic_spectrum": config.get("Params", {}).get("somatic_spectrum", {}),
+        "fragment_size": config.get("Params", {}).get("fragment_size", {}),
+        "msi": config.get("Params", {}).get("msi", {}),
     }
 }
 module Mutation_report:

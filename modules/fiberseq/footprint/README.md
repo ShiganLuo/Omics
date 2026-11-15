@@ -22,7 +22,7 @@ m6A 比例轮廓,并对位点足迹得分做 Kolmogorov-Smirnov 检验。C 形�
 {outdir}/{sample_id}/{sample_id}.footprint_categories.tsv   # 每纤维×位点 三类归属
 {outdir}/{sample_id}/{sample_id}.footprint_profiles.tsv     # 每类 m6A 比例轮廓
 {outdir}/{sample_id}/{sample_id}.footprint_scores.tsv       # 位点足迹得分 + KS 检验
-{outdir}/{sample_id}/{sample_id}.footprint_profile.pdf      # 轮廓图
+{outdir}/{sample_id}/{sample_id}.footprint_profile.<fmt>   # 轮廓图(formats 多格式,默认 pdf)
 ```
 
 日志:`{logdir}/{sample_id}/fiberseq_footprint_run.log`。
@@ -37,6 +37,7 @@ m6A 比例轮廓,并对位点足迹得分做 Kolmogorov-Smirnov 检验。C 形�
 | `motif_dir` | `-m` | `indir/motif` | motif 位点目录 |
 | `samples` | — | `[]` | 样本列表 |
 | `Params.fiberseq_footprint.flank` | `-f` | `1000` | motif 侧翼窗口(bp) |
+| `Params.fiberseq_footprint.formats` | `--format`(可重复) | ["pdf"] | 轮廓图输出格式(多种同时输出),合法值 png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba |
 | `ROOT_DIR` | — | `.` | 拼 `modules/fiberseq/bin/footprint_profile.py` |
 | 固定 | `--sample <id>`、`-l <log>` | — | 逐样本调用 |
 

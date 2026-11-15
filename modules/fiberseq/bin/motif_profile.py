@@ -56,6 +56,13 @@ from src.common.util.LogUtil import setup_logger  # noqa: E402
 from src.common.util.FiberlibUtil import stream_bed_records, write_tsv  # noqa: E402
 from _fiberprofile_core import ChromBlockStream, IdMapper  # noqa: E402
 
+PlotFormat = str
+
+# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
+# fails fast at parse time instead of dying inside savefig (modules.md #9)
+VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
+                 "jpeg", "pgf", "raw", "rgba")
+
 
 def _get_logger(log_file: Optional[Path] = None) -> logging.Logger:
     if log_file is not None:
@@ -298,13 +305,28 @@ def run(args: argparse.Namespace) -> int:
               ["position", "fiber_coverage", "m6a_frac", "accessibility_frac",
                "nuc_occupancy_frac"], rows)
 
-    _plot(args, rel, m6a_frac, acc_frac, occ_frac)
-    logger.info(f"Wrote {profile_tsv}, {scores_path} and profile PDF "
+    _plot(args, rel, m6a_frac, acc_frac, occ_frac,
+          image_formats=args.formats if args.formats else ["pdf"])
+    logger.info(f"Wrote {profile_tsv}, {scores_path} and profile figure "
                 f"(total {time.time() - t0:.0f}s)")
     return 0
 
 
-def _plot(args, rel, m6a_frac, acc_frac, occ_frac) -> None:
+def _plot(args, rel, m6a_frac, acc_frac, occ_frac,
+          image_formats: Optional[List[PlotFormat]] = None,
+          dpi: int = 300) -> None:
+    """Save the motif-centered aggregate profile figure.
+
+    image_formats : List[str], optional
+        Save formats. Default ``["pdf"]``.
+    """
+    if image_formats is None:
+        image_formats = ["pdf"]
+    bad = [f for f in image_formats if f not in VALID_FORMATS]
+    if bad:
+        raise ValueError(
+            f"Unsupported image format(s): {', '.join(bad)}; "
+            f"valid formats: {', '.join(VALID_FORMATS)}")
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -318,8 +340,11 @@ def _plot(args, rel, m6a_frac, acc_frac, occ_frac) -> None:
     ax.set_ylabel("fraction of fibers")
     ax.set_title(f"{args.sample} motif-centered profile")
     ax.legend(frameon=False, fontsize=8)
-    out = args.outdir / f"{args.sample}.motif_profile.pdf"
-    fig.savefig(out)
+    out_base = args.outdir / f"{args.sample}.motif_profile"
+    for fmt in image_formats:
+        out_path = f"{out_base}.{fmt}"
+        fig.savefig(out_path, dpi=dpi, bbox_inches="tight")
+        logger.info(f"Saved {out_path}")
     plt.close(fig)
 
 
@@ -342,6 +367,10 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
                    help="minimum fiber coverage per site to include")
     p.add_argument("--motif-filter", type=str, default=None,
                    help="comma-separated motif names to keep (part before '@')")
+    p.add_argument("--format", action="append", dest="formats",
+                   metavar="FMT",
+                   help="Image format (png/pdf/svg/...). Repeatable. "
+                        "Default: pdf.")
     p.add_argument("-l", "--log", type=Path, default=None,
                    help="log file path (default: log to stdout)")
     p.add_argument("-n", "--dry-run", action="store_true", help="only log the plan")

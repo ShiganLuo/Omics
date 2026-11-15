@@ -54,6 +54,7 @@ config 位于 `Params.arriba` 与 `Procedure` 下:
 | `Params.arriba.d` | `-d` | null | WGS 结构变异坐标 TSV(佐证弱表达融合、消低置信) |
 | `Params.arriba.E` | `-E` | 0.3 | `relative_support` 过滤器的 e-value 上限(支持读段数随机期望 > 阈值即弃;调高会显著增假阳性) |
 | `Params.arriba.p` | `-p` | null | 蛋白结构域 GFF3(输出 `retained_protein_domains` 列) |
+| `Params.arriba.formats` | `--format`(单次,空格分隔多值) | `["png"]` | 图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib 全集);`figures/<base>.<fmt>` 每种格式一个文件 |
 | `Procedure.arriba` | 引擎可执行 | `arriba` | — |
 | (threads) | — | 4 | `rule_res("arriba")` 可覆盖 |
 | (mem_mb) | — | 8000 | 资源声明 |
@@ -65,7 +66,7 @@ config 位于 `Params.arriba` 与 `Procedure` 下:
 | `-p` / `--passed` | 必填(与 --indir 互斥) | passed TSV 列表(规则按逗号拼接传入) |
 | `-d` / `--discarded` | null | discarded TSV 列表 |
 | `-o` / `--outdir` | 必填 | 报告输出目录 |
-| `-f` / `--format` | `png` | 出图格式 |
+| `-f` / `--format` | `png` | 出图格式(单次跟一个或多个值,如 `-f png pdf svg`;合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba) |
 | `--indir` | — | 直接扫目录取 tsv 的替代入口 |
 
 直接调用示例(引擎命令,与规则生成的回执一致):

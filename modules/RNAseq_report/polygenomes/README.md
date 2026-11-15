@@ -31,6 +31,8 @@ contrast 列表取 `Params.DESeq2.group_pairs.<genome>` 的键;脚本运行前�
 ```
 {outdir}/{genome}/RNAseq_report.pptx          # PPT 报告
 {outdir}/{genome}/RNAseq_report_files.xlsx    # 文件清单
+{outdir}/{genome}/figures/<name>.<fmt>        # 报告插图独立交付(chimeric_ratio、de_summary、venn_gene_up/down、venn_te_up/down)
+{outdir}/{genome}/figures/manifest.tsv        # 插图文件清单(name<TAB>filename)
 ```
 
 日志:`{logdir}/RNAseq_report/{genome}/RNAseq_report.log`。
@@ -47,6 +49,7 @@ contrast 列表取 `Params.DESeq2.group_pairs.<genome>` 的键;脚本运行前�
 | `Params.report.genome` | `--genome` | wildcard | 基因组名 |
 | `Params.report.date` | `--date` | `""` | 日期 |
 | `Params.report.lang` | `--lang` | `zh` | 报告语言(zh/en) |
+| `Params.report.formats` | `--format`(可重复) | `["png"]` | 图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba |
 | 固定 | `--analysis-dir`、`--file-inventory`、`--img-dir` | — | 见上 |
 
 环境:`conda: "../RNAseq_report.yaml"` / SIF。
@@ -59,7 +62,7 @@ python3 modules/RNAseq_report/bin/generate_report.py \
   --output out/GRCh38/RNAseq_report.pptx \
   --file-inventory out/GRCh38/RNAseq_report_files.xlsx \
   --title "RNA-seq Analysis Report" --genome GRCh38 --lang zh \
-  --img-dir out/GRCh38/ppt_results \
+  --img-dir out/GRCh38/figures \
   --samples s1 s2 --paired-samples s1 --single-samples s2 \
   --contrasts aged_vs_youth
 ```

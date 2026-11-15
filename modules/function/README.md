@@ -23,18 +23,19 @@
 ### 1.2 输出
 
 ```
-# function_go_kegg(每 contrast)
-{outdir}/{contrast}/go_back_to_back.png / kegg_back_to_back.png
+# function_go_kegg(每 contrast;图按 formats 每种格式一份,默认 png)
+{outdir}/{contrast}/go_back_to_back.<fmt> / kegg_back_to_back.<fmt>
 {outdir}/{contrast}/go_up.csv / go_down.csv / kegg_up.csv / kegg_down.csv
 {outdir}/{contrast}/up_genes.txt / down_genes.txt
 
-# function_gsea(每 contrast)
-{outdir}/{contrast}/GSEA/TEcount_Gene_GSEA.jpeg / TEcount_Gene_GSEA.csv
-(+ TEcount_Gene_GSEA.rnk 排序列表,脚本内产物)
+# function_gsea(每 contrast;图默认 jpeg)
+{outdir}/{contrast}/GSEA/TEcount_Gene_GSEA.<fmt> / TEcount_Gene_GSEA.csv
+(+ TEcount_Gene_GSEA.rnk 排序列表、GSEA/enrichment_plots/<通路>_enrichment.<fmt>,
+脚本内产物)
 
-# function_gsva(全队列)
+# function_gsva(全队列;热图默认 png)
 {outdir}/gsva/gsva_scores.tsv          # geneset × 样本富集评分
-{outdir}/gsva/gsva_heatmap.png         # 聚类热图
+{outdir}/gsva/gsva_heatmap.<fmt>       # 聚类热图
 {outdir}/gsva/expression_tpm.tsv       # 中间产物:TPM 标准化矩阵
 ```
 
@@ -51,25 +52,29 @@ config 位于 `Params.function` 下:
 | `Params.function.go_kegg.lfc_cut` | `--lfc-cut` | 1 | 上下调基因 log2FC 阈值 |
 | `Params.function.go_kegg.p_cut` | `--p-cut` | 0.05 | 显著性阈值 |
 | `Params.function.go_kegg.top` | `--top` | 10 | 每侧展示条目数 |
+| `Params.function.go_kegg.formats` | `--format`(可重复) | `[png]` | 输出图片格式(多种同时输出);合法值 png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib 全集;R 侧 ggsave 设备集)。go-kegg.r 是 R 脚本,仅受理 ggsave 设备集,pgf/raw/rgba 传入即报错 |
 | `Params.function.gsea.gmt` | `-g`(gsea) | — | 必需 |
+| `Params.function.gsea.formats` | `--format`(可重复) | `[jpeg]` | GSEA 图输出格式(同上;gsea.r 为 R 脚本,ggsave 设备集) |
 | `Params.function.gsva.gmt` | `-g`(gsva) | — | 必需 |
+| `Params.function.gsva.formats` | `-f`/`--format`(可重复) | `[png]` | GSVA 热图输出格式(matplotlib 全集) |
 | `genome.references.geneIDAnno` | `-a`(gsea) | — | 必需 |
 | `genome.gtf` | `normalization.py --gtf` | — | 必需 |
 | (threads) | — | 1 | 各规则 `rule_res` 可覆盖 |
 | (mem_mb) | — | 8000 | 资源声明 |
 
-直接调用示例(引擎命令,与规则生成的回执一致):
+直接调用示例(引擎命令,与规则生成的回执一致;`--format` 可重复传,
+R 侧脚本仅受理 png pdf svg ps eps tif tiff jpg jpeg):
 
 ```bash
 Rscript modules/function/bin/go-kegg.r \
     -i out/diff_expression/treat_vs_ctrl/TEcount/treat_vs_ctrl.TEcount_Gene.name.tsv \
     -o out/function/treat_vs_ctrl -s mouse \
-    --lfc-cut 1 --p-cut 0.05 --top 10
+    --lfc-cut 1 --p-cut 0.05 --top 10 --format png
 
 Rscript modules/function/bin/gsea.r -m Gene \
     -g geneset.gmt \
     -i out/diff_expression/treat_vs_ctrl/TEcount/treat_vs_ctrl.TEcount_Gene.tsv \
-    -o out/function/treat_vs_ctrl -a geneIDAnno -t treat_vs_ctrl
+    -o out/function/treat_vs_ctrl -a geneIDAnno -t treat_vs_ctrl --format jpeg
 
 python modules/function/bin/normalization.py \
     -i out/counts/all_paired_featureCounts.tsv \
@@ -77,7 +82,7 @@ python modules/function/bin/normalization.py \
     --method tpm --gtf annotation.gtf --convert-gene-name
 python modules/function/bin/gsva.py \
     -i out/function/gsva/expression_tpm.tsv -g geneset.gmt \
-    -o out/function/gsva --title "GSVA (mouse)"
+    -o out/function/gsva --title "GSVA (mouse)" --format png
 ```
 
 ## 2. 算法原理与生物学意义

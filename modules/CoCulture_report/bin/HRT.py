@@ -4,21 +4,42 @@ import matplotlib.pyplot as plt
 import argparse
 import logging
 import os
-from typing import List, Literal
+from typing import List, Literal, Optional
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S'
 )
 logger = logging.getLogger(__name__)
-def Double_bar(df: pd.DataFrame, outImage: str, fig_width: float = 12, fig_height: float = 7):
+
+PlotFormat = str
+
+# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
+# fails fast at parse time instead of dying inside savefig (modules.md #9)
+VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
+                 "jpeg", "pgf", "raw", "rgba")
+
+
+def Double_bar(df: pd.DataFrame, out_base: str,
+               image_formats: Optional[List[PlotFormat]] = None,
+               fig_width: float = 12, fig_height: float = 7):
     """
     Plot gene and TE counts as double bar plot
     df: columns = feature, count, group
+    out_base: 输出文件前缀(不含扩展名),每种格式输出 ``{out_base}.{fmt}``
+    image_formats: Save formats. Default ``["png"]``.
     fig_width, fig_height: 图像宽高，可控制
     """
     import matplotlib.pyplot as plt
     import numpy as np
+
+    if image_formats is None:
+        image_formats = ["png"]
+    bad = [f for f in image_formats if f not in VALID_FORMATS]
+    if bad:
+        raise ValueError(
+            f"Unsupported image format(s): {', '.join(bad)}; "
+            f"valid: {', '.join(VALID_FORMATS)}")
 
     groups = df["group"].unique()
     colors_map = {"gene": plt.cm.Dark2, "TE": plt.cm.Pastel1}
@@ -69,7 +90,10 @@ def Double_bar(df: pd.DataFrame, outImage: str, fig_width: float = 12, fig_heigh
     plt.subplots_adjust(bottom=bottom_margin)
 
     plt.tight_layout()
-    plt.savefig(outImage, dpi=300)
+    for fmt in image_formats:
+        out_path = f"{out_base}.{fmt}"
+        plt.savefig(out_path, dpi=300)
+        logger.info(f"Saved {out_path}")
     plt.close()
 
 def process_group(
@@ -128,7 +152,8 @@ def prepare_data(
         min_count:int=1, 
         top_n:int=10,
         mode:Literal["TEcount","TElocal"]="TEcount",
-        level:Literal["loci","subfamily","family","class"]="subfamily"
+        level:Literal["loci","subfamily","family","class"]="subfamily",
+        image_formats:Optional[List[PlotFormat]]=None
     ):
     """
     Function: prepare data for plotting, save intermediate files, call plotting function
@@ -140,12 +165,20 @@ def prepare_data(
      - min_count: minimum count threshold for filtering features
      - top_n: number of top features to select for plotting
      - mode: type of TEtranscripts output file, affects how TE feature names are processed
+     - image_formats: Save formats. Default ``["png"]``.
     Return: None (saves intermediate files and plots to outdir)
      - intermediate files: genome1_data.csv, genome2_data.csv
-     - plots: genome1.png, genome2.png
+     - plots: {genome1}_2_{genome2}.{fmt} / {genome2}_2_{genome1}.{fmt} (每种请求格式一个文件)
     Note:
      - mode determines how TE feature names are processed. TEcount files typically have format family:class:superfamily, while TElocal files have format family:class:superfamily:location. The extract_te_index parameter in process_group function is used to specify which part of the TE feature name to extract as the TE family name for plotting.
     """
+    if image_formats is None:
+        image_formats = ["png"]
+    bad = [f for f in image_formats if f not in VALID_FORMATS]
+    if bad:
+        raise ValueError(
+            f"Unsupported image format(s): {', '.join(bad)}; "
+            f"valid: {', '.join(VALID_FORMATS)}")
     df1 = pd.read_csv(infile1, sep="\t")
     df2 = pd.read_csv(infile2, sep="\t")
     genome1 = os.path.basename(os.path.dirname(infile1))
@@ -179,15 +212,15 @@ def prepare_data(
         df_plot1 = process_group(df2, genome1_samples, min_count, top_n, extract_te_index)
         outfile1 = os.path.join(outdir, f"{genome1}_2_{genome2}.data.csv")
         df_plot1.to_csv(outfile1, index=False)
-        outImage1 = os.path.join(outdir, f"{genome1}_2_{genome2}.png")
-        Double_bar(df_plot1, outImage1)
+        out_base1 = os.path.join(outdir, f"{genome1}_2_{genome2}")
+        Double_bar(df_plot1, out_base1, image_formats=image_formats)
 
     if genome2_samples:
         df_plot2 = process_group(df1, genome2_samples, min_count, top_n, extract_te_index)
         outfile2 = os.path.join(outdir, f"{genome2}_2_{genome1}.data.csv")
         df_plot2.to_csv(outfile2, index=False)
-        outImage2 = os.path.join(outdir, f"{genome2}_2_{genome1}.png")
-        Double_bar(df_plot2, outImage2)
+        out_base2 = os.path.join(outdir, f"{genome2}_2_{genome1}")
+        Double_bar(df_plot2, out_base2, image_formats=image_formats)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Plot gene and TE counts")
@@ -200,6 +233,11 @@ if __name__ == "__main__":
     parser.add_argument("--top", type=int, default=10, help="Number of top features to display")
     parser.add_argument("-m","--mode", choices=["TEcount","TElocal"], default="TEcount", help="Type of TEtranscripts output file")
     parser.add_argument("-l", "--level", choices=["loci","subfamily","family","class"], default="subfamily", help="TE classification level to extract for plotting")
+    parser.add_argument("-f", "--format", action="append", dest="formats",
+                        metavar="FMT",
+                        help="Image format (png/pdf/svg/...). Repeatable. "
+                             "Default: png.")
     args = parser.parse_args()
 
-    prepare_data(args.infile1, args.infile2, args.outdir, args.genome1_samples, args.genome2_samples, args.min_count, args.top)
+    prepare_data(args.infile1, args.infile2, args.outdir, args.genome1_samples, args.genome2_samples, args.min_count, args.top,
+                 image_formats=args.formats if args.formats else ["png"])

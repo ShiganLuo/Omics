@@ -270,7 +270,7 @@ FASTQ
   - 关闭：`Params.skip_eccdna=true`，或未配置 `genome.gtf`（自动跳过并写 warning 日志）
 - **eccDNA 可视化（集成于 decoil 模块）**：
   - `decoil_plot`（每样本）：尺寸分布直方图（log 轴）+ topology 组成 + ecDNA 区域表 → `{outdir}/eccdna/{sample_id}/visualization/decoil_stats.png` + `*_ecdna_regions.tsv`
-  - `decoil_compare`（跨样本聚合）：cycle/ecDNA 计数对比、尺寸分布叠加、topology 堆叠图 + 共有/特有 ecDNA 区域表 → `{outdir}/eccdna/visualization/decoil_compare.{png,_ecdna_regions.tsv,_shared_unique.tsv}`
+  - `decoil_compare`（跨样本聚合）：cycle/ecDNA 计数对比、尺寸分布叠加、topology 堆叠图 + 共有/特有 ecDNA 区域表 → `{outdir}/eccdna/compare/decoil_compare.<fmt>`(formats 可选)、`decoil_compare_ecdna_regions.tsv`、`decoil_compare_shared_unique.tsv`
   - `decoil_igv`（每样本）：复用 track 模块 igv.js 渲染交互式浏览器 HTML（coverage bigwig + ecDNA BED + GTF 基因注释），默认定位到最大 ecDNA 区域 → `{outdir}/eccdna/{sample_id}/visualization/igv_ecdna.html`
   - `decoil_ucsc`（每样本）：复用 track 模块 ucsc 模式生成 UCSC track 线文件（coverage bigwig + ecDNA BED），可加载进 UCSC Genome Browser / hub 兼容查看器 → `{outdir}/eccdna/{sample_id}/visualization/ucsc_track.txt`
   - 关键参数：`Params.visualization.{formats, igv_locus}`；IGV 参考配置（fasta/index/cytoband/GTF/publicPathMap）放在工作流 config 的 `igv` 段（见 `config/PacVar.json`）

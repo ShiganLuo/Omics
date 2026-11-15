@@ -5,6 +5,11 @@ from typing import List, Literal, Optional
 from utils.common import setup_logger, _run_cmd, PlotFormat
 logger = setup_logger(__name__)
 
+# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
+# fails fast at parse time instead of dying inside savefig (modules.md #9)
+VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
+                 "jpeg", "pgf", "raw", "rgba")
+
 def run_cricos_pipeline(
         vcf: str,
         fasta: str,
@@ -59,6 +64,11 @@ def run_cricos_pipeline(
     """
     if image_formats is None:
         image_formats = ["png"]
+    bad = [f for f in image_formats if f not in VALID_FORMATS]
+    if bad:
+        raise ValueError(
+            f"Unsupported image format(s): {', '.join(bad)}; "
+            f"valid: {', '.join(VALID_FORMATS)}")
     os.makedirs(outdir, exist_ok=True)
     prepare_script = os.path.join(os.path.dirname(__file__),"utils", prepare_script)
     circos_script = os.path.join(os.path.dirname(__file__), "utils",circos_script)

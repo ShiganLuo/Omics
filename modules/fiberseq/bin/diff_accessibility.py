@@ -37,6 +37,13 @@ from src.common.util.LogUtil import setup_logger  # noqa: E402
 
 from src.common.util.FiberlibUtil import bh_fdr, write_tsv  # noqa: E402
 
+PlotFormat = str
+
+# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
+# fails fast at parse time instead of dying inside savefig (modules.md #9)
+VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
+                 "jpeg", "pgf", "raw", "rgba")
+
 
 def _get_logger(log_file: Optional[Path] = None) -> logging.Logger:
     if log_file is not None:
@@ -170,7 +177,8 @@ def run(args: argparse.Namespace) -> int:
                   res_rows)
         logger.info(f"Wrote {out}")
         _gene_table(args, contrast, res_rows, gene_by_key)
-        _volcano(args, contrast, res_rows)
+        _volcano(args, contrast, res_rows,
+                 image_formats=args.formats if args.formats else ["pdf"])
         if args.annot is not None:
             _class_summary(args, contrast, res_rows)
     return 0
@@ -204,7 +212,21 @@ def _gene_table(args, contrast: str, res_rows, gene_by_key: Dict[str, str]) -> N
     logger.info(f"Wrote {out} ({len(rows)} genes)")
 
 
-def _volcano(args, contrast: str, res_rows) -> None:
+def _volcano(args, contrast: str, res_rows,
+             image_formats: Optional[List[PlotFormat]] = None,
+             dpi: int = 300) -> None:
+    """Save the volcano plot for one contrast.
+
+    image_formats : List[str], optional
+        Save formats. Default ``["pdf"]``.
+    """
+    if image_formats is None:
+        image_formats = ["pdf"]
+    bad = [f for f in image_formats if f not in VALID_FORMATS]
+    if bad:
+        raise ValueError(
+            f"Unsupported image format(s): {', '.join(bad)}; "
+            f"valid formats: {', '.join(VALID_FORMATS)}")
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -222,7 +244,11 @@ def _volcano(args, contrast: str, res_rows) -> None:
     ax.set_title(contrast)
     ax.legend(frameon=False, fontsize=8)
     fig.tight_layout()
-    fig.savefig(args.outdir / f"volcano_{contrast}.pdf")
+    out_base = args.outdir / f"volcano_{contrast}"
+    for fmt in image_formats:
+        out_path = f"{out_base}.{fmt}"
+        fig.savefig(out_path, dpi=dpi, bbox_inches="tight")
+        logger.info(f"Saved {out_path}")
     plt.close(fig)
 
 
@@ -259,6 +285,10 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     p.add_argument("--metric", type=str, default="percent_accessible",
                    help="metric name (for logging)")
     p.add_argument("-p", "--alpha", type=float, default=0.05, help="FDR threshold")
+    p.add_argument("-f", "--format", action="append", dest="formats",
+                   metavar="FMT",
+                   help="Image format (png/pdf/svg/...). Repeatable. "
+                        "Default: pdf.")
     p.add_argument("-l", "--log", type=Path, default=None, help="log file")
     p.add_argument("-n", "--dry-run", action="store_true", help="only log the plan")
     return p.parse_args(argv)

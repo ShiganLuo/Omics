@@ -13,7 +13,8 @@
             "pipeline": "FASTQ -> TrimGalore/Cutadapt -> STAR/HISAT2 -> TEcount/StringTie/Arriba -> DESeq2 -> RNAseq_report",
             "genome": "",
             "date": "",
-            "lang": "zh"
+            "lang": "zh",
+            "formats": ["png"]
         }
     },
     "env": {

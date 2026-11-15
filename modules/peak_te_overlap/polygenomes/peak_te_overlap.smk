@@ -10,6 +10,11 @@ sample_ip_input_map = config.get("sample_ip_input_map", {})
 MODULE_DIR = os.path.join(config.get("ROOT_DIR", "."), "modules", "peak_te_overlap")
 CHART_SCRIPT = os.path.join(MODULE_DIR, "bin", "plot_te_overlap.py")
 
+# ① parse 期读入 + 规范化（str 收成单元素 list；合法值由 schema 声明）
+_formats = config.get("Params", {}).get("peak_te_overlap", {}).get("formats") or ["png"]
+if isinstance(_formats, str):
+    _formats = [_formats]
+
 def get_input_bam(wildcards):
     """Get the matched Input BAM for an IP sample."""
     input_sample = sample_ip_input_map.get(wildcards.sample_id)
@@ -141,7 +146,8 @@ rule peak_te_overlap_fig:
     input:
         tsvs = expand(outdir + "/{genome}/{sid}/{sid}_te_subfamily_overlap.tsv", sid=samples, genome="{genome}"),
     output:
-        chart = outdir + "/{genome}/te_subfamily_overlap_combined.png",
+        # ② 按格式展开：每种格式一个输出文件（base 不带扩展名）
+        charts = [outdir + "/{genome}/te_subfamily_overlap_combined." + fmt for fmt in _formats],
         combined_tsv = outdir + "/{genome}/te_subfamily_overlap_combined.tsv",
         done = touch(outdir + "/{genome}/.peak_te_overlap_fig.done"),
     log:
@@ -159,6 +165,8 @@ rule peak_te_overlap_fig:
         sort_by = config.get("Params", {}).get("peak_te_overlap", {}).get("sort_by", "te_length"),
         top_n = config.get("Params", {}).get("peak_te_overlap", {}).get("top_n", 30),
         combine = config.get("Params", {}).get("peak_te_overlap", {}).get("combine", False),
+        formats = _formats,   # ③ 转发
+        chart_base = lambda wildcards: outdir + f"/{wildcards.genome}/te_subfamily_overlap_combined",
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -167,11 +175,11 @@ rule peak_te_overlap_fig:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start peak-TE overlap chart generation at {current_time}")
 
-            chart_dir = os.path.dirname(str(output.chart))
+            chart_dir = os.path.dirname(str(output.charts[0]))
             os.makedirs(chart_dir, exist_ok=True)
 
             if params.combine:
-                output_target = output.chart
+                output_target = params.chart_base
             else:
                 output_target = chart_dir
 
@@ -184,6 +192,8 @@ rule peak_te_overlap_fig:
                 "--sort-by", params.sort_by,
                 "--top-n", str(params.top_n),
             ]
+            for fmt in params.formats:
+                cmd += ["--format", str(fmt)]
             if params.combine:
                 cmd += ["--combine"]
             if params.sample_ip_input_map:
@@ -199,13 +209,15 @@ rule peak_te_overlap_fig:
             shutil.copyfile(script_path, plain_script)
             shell(f"bash {plain_script} >> {log_path} 2>&1")
 
-            # For separate mode: create the expected single chart as symlink to first pair
+            # For separate mode: create the expected combined chart per format
+            # as symlink to the first pair's figure
             if not params.combine and params.sample_ip_input_map:
                 first_ip = list(params.sample_ip_input_map.keys())[0]
                 first_inp = params.sample_ip_input_map[first_ip]
-                first_chart = os.path.join(chart_dir, f"{first_ip}_vs_{first_inp}_enrichment.png")
-                if os.path.exists(first_chart) and not os.path.exists(output.chart):
-                    os.symlink(first_chart, output.chart)
+                for fmt, chart_out in zip(params.formats, output.charts):
+                    first_chart = os.path.join(chart_dir, f"{first_ip}_vs_{first_inp}_enrichment.{fmt}")
+                    if os.path.exists(first_chart) and not os.path.exists(chart_out):
+                        os.symlink(first_chart, chart_out)
         except Exception as e:
             logger.error(f"Error during peak-TE overlap chart: {e}")
             raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
@@ -215,7 +227,7 @@ rule peak_te_overlap_result:
     Result aggregation rule for subworkflow use rule import.
     """
     input:
-        chart = outdir + "/{genome}/te_subfamily_overlap_combined.png",
+        charts = [outdir + "/{genome}/te_subfamily_overlap_combined." + fmt for fmt in _formats],
         peak_centric = expand(outdir + "/{genome}/{sid}/{sid}_peak_centric_te.tsv", sid=samples, genome="{genome}"),
     resources:
         mem_mb = rule_res("peak_te_overlap_result").get("mem_mb", 8000),

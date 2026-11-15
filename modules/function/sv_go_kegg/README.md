@@ -26,7 +26,7 @@ comparison and gates it behind `Params.function.sv_go`.
 | `species` | — (required) | `human` / `mouse` / `macaque` |
 | `impact` | `HIGH,MODERATE,LOW` | VEP IMPACT levels whose genes enter the list |
 | `top` | `10` | top N terms plotted |
-| `format` | `png` | plot format (`png`/`pdf`) |
+| `formats` | `["png"]` | plot formats, one file per format (png/pdf/svg/ps/eps/tif/tiff/jpg/jpeg — the ggsave device set; pgf/raw/rgba are rejected at runtime). Legacy single-value `format` key still accepted |
 
 ## Outputs (per comparison)
 
@@ -34,7 +34,7 @@ comparison and gates it behind `Params.function.sv_go`.
 
 - `sv_genes.txt` — the extracted gene list (always written, even when empty)
 - `go_enrichment.csv` / `kegg_enrichment.csv` — full clusterProfiler result tables
-- `go_enrichment.png` / `kegg_enrichment.png` — top-N bar plots (empty list → "No enriched terms" panel)
+- `go_enrichment.<fmt>` / `kegg_enrichment.<fmt>` — top-N bar plots, one file per requested format (default `png`; empty list → "No enriched terms" panel)
 - `sv_go_kegg.done` — sentinel
 - `sv_go_kegg.sh` — replayable receipt
 

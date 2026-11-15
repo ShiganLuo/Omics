@@ -36,6 +36,9 @@ WES 数据用同目录 `_exome.txt` 变体（外显子机会数归一化版本�
 ```json
 "Params": {
   "somatic_spectrum": {
+    "plot": {
+      "formats": ["png"]
+    },
     "signature": {
       "enabled": true,
       "mode": "both",
@@ -45,7 +48,8 @@ WES 数据用同目录 `_exome.txt` 变体（外显子机会数归一化版本�
       "max_rank": 8,
       "restarts": 20,
       "seed": 42,
-      "rank": null
+      "rank": null,
+      "formats": ["png"]
     }
   }
 },
@@ -58,6 +62,8 @@ WES 数据用同目录 `_exome.txt` 变体（外显子机会数归一化版本�
 
 | 键 | 默认 | 说明 |
 |---|---|---|
+| `plot.formats` | `["png"]` | `somatic_spectrum` 组级谱图(`_stacked_bar`/`_heatmap`)的输出格式,可多种同时输出;合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib 全集) |
+| `signature.formats` | `["png"]` | 签名图(refit 3 图 + NMF 3 图)的输出格式,同上;CLI 侧 refit 用 `--format`(可重复,`-f` 已被 `--family-map` 占用),nmf/spectrum 用 `-f/--format` |
 | `enabled` | false | 签名分析总开关；false 时 node.py 不注册 refit/NMF 产出，规则不进 DAG |
 | `mode` | `both` | `refit` / `nmf` / `both`，控制注册哪组产出 |
 | `min_mutations` | 200 | 低于此 SNV 数的样本标记 unreliable（采样噪声不可忽略） |
@@ -77,7 +83,7 @@ WES 数据用同目录 `_exome.txt` 变体（外显子机会数归一化版本�
 | `somatic_spectrum_per_sample.csv` | 96 通道 × 样本计数矩阵（refit/NMF 的输入契约） |
 | `somatic_spectrum_sample_stats.csv` | 每样本 SNV 计数与丢弃账目（非 SNV / 未知 contig / 无上下文） |
 | `somatic_spectrum.csv` | 96 通道 × 分组计数 |
-| `somatic_spectrum_stacked_bar.png` / `_heatmap.png` | 组级谱图 |
+| `somatic_spectrum_stacked_bar.<fmt>` / `_heatmap.<fmt>` | 组级谱图;`<fmt>` 取自 `plot.formats`(默认 png,可多格式同时输出) |
 
 `somatic_signature_refit`（P1，已知签名比较）：
 
@@ -87,8 +93,8 @@ WES 数据用同目录 `_exome.txt` 变体（外显子机会数归一化版本�
 | `signature_refit_exposure_fractions.csv` | 行归一化曝光比例 |
 | `signature_refit_family_exposures.csv` | 签名家族级聚合比例 |
 | `signature_refit_summary.csv` | 每样本拟合统计：n、reliable、用到的签名数、重构余弦、top 签名 |
-| `signature_refit_exposure_stacked_bar.png` / `_exposure_heatmap.png` | 曝光图 |
-| `signature_refit_signature_cosine.png` | 用到的签名两两余弦热图（简并证据：高余弦对之间的逐签名归属不可辨识，应读家族级） |
+| `signature_refit_exposure_stacked_bar.<fmt>` / `_exposure_heatmap.<fmt>` | 曝光图;`<fmt>` 取自 `signature.formats`(默认 png) |
+| `signature_refit_signature_cosine.<fmt>` | 用到的签名两两余弦热图（简并证据：高余弦对之间的逐签名归属不可辨识，应读家族级） |
 
 `somatic_signature_nmf`（P2，de novo 提取）：
 
@@ -96,29 +102,31 @@ WES 数据用同目录 `_exome.txt` 变体（外显子机会数归一化版本�
 |---|---|
 | `signature_nmf_signatures.csv` | 提取的签名（96 通道 × K） |
 | `signature_nmf_exposures.csv` | 样本 × K 曝光 |
-| `signature_nmf_rank_diagnostics.csv` / `.png` | 每秩 KL / cophenetic / 稳定性 + 选中的秩 |
+| `signature_nmf_rank_diagnostics.csv` / `.<fmt>` | 每秩 KL / cophenetic / 稳定性 + 选中的秩 |
 | `signature_nmf_cosmic_similarity.csv` / `_best_match.csv` | 与 COSMIC 的余弦矩阵 + 最佳匹配（跨物种时按"跨物种参考"解读） |
-| `signature_nmf_cosmic_match.png` | 匹配证据图：提取签名剖面 + top-3 COSMIC 剖面 + top-5 余弦条（提取剖面即首列，不再单独出图；匹配结论必须可目检，不只留 CSV 数字） |
+| `signature_nmf_cosmic_match.<fmt>` | 匹配证据图：提取签名剖面 + top-3 COSMIC 剖面 + top-5 余弦条（提取剖面即首列，不再单独出图；匹配结论必须可目检，不只留 CSV 数字） |
+
+图类产出的 `<fmt>` 均取自 `signature.formats`(默认 `["png"]`),可配多格式同时输出(如 `["png","pdf"]`)。
 
 ## CLI 等价命令
 
 ```bash
-# 1. 谱计数（somatic_spectrum 规则内部）
+# 1. 谱计数（somatic_spectrum 规则内部;每种 -f 格式各出一张 _stacked_bar 与 _heatmap）
 python modules/spectrum/bin/spectrum.py \
     -v experiment_vcf_map.tsv -g experiment_group_map.tsv \
-    -r GRCm39.primary_assembly.genome.fa -o somatic_spectrum
+    -r GRCm39.primary_assembly.genome.fa -o somatic_spectrum -f png -f pdf
 
-# 2. refit（somatic_signature_refit 规则内部）
+# 2. refit（somatic_signature_refit 规则内部;--format 可重复,-f 已被 --family-map 占用）
 python modules/spectrum/bin/signature_refit.py \
     -c somatic_spectrum_per_sample.csv \
     -s /data/16T/Database/cosmic_signatures/mm39/COSMIC_v3.6_SBS_mm39.txt \
-    -o signature_refit -m 200 -e 0.02
+    -o signature_refit -m 200 -e 0.02 --format png --format pdf
 
 # 3. de novo NMF（somatic_signature_nmf 规则内部）
 python modules/spectrum/bin/signature_nmf.py \
     -c somatic_spectrum_per_sample.csv \
     -s /data/16T/Database/cosmic_signatures/mm39/COSMIC_v3.6_SBS_mm39.txt \
-    -o signature_nmf -k 8 -n 20 -d 42
+    -o signature_nmf -k 8 -n 20 -d 42 -f png -f pdf
 ```
 
 ## 跨物种提示

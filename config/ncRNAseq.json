@@ -245,6 +245,11 @@
       "y_genes": null,
       "y_min_rpkm": null,
       "xist_min_rpkm": null
+    },
+    "report": {
+      "formats": [
+        "png"
+      ]
     }
   },
   "genome": {

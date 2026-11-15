@@ -39,6 +39,13 @@ import numpy as np
 from matplotlib.patches import Wedge
 import pandas as pd
 import pyBigWig
+
+PlotFormat = str
+
+# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
+# fails fast at parse time instead of dying inside savefig (modules.md #9)
+VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
+                 "jpeg", "pgf", "raw", "rgba")
 # ---------------------------------------------------------------------------
 # CGView-style circular renderer constants
 # ---------------------------------------------------------------------------
@@ -2274,6 +2281,11 @@ def main() -> None:
     args = parser.parse_args()
 
     image_formats = args.formats or ["png"]
+    bad = [f for f in image_formats if f not in VALID_FORMATS]
+    if bad:
+        raise ValueError(
+            f"Unsupported image format(s): {', '.join(bad)}; "
+            f"valid: {', '.join(VALID_FORMATS)}")
 
     bed = load_ecdna_bed(args.ecdna_bed)
     summary = load_summary(args.summary)

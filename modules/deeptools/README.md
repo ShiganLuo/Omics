@@ -91,10 +91,38 @@ TE 没有 intron/exon 结构，且不同 locus 分布在不同染色体，merge 
 
 | 模式 | 输出 | rule |
 |---|---|---|
-| TSS | `{sample}_tss_heatmap.png` | heatmap |
-| Peaks | `{sample}_peaks_heatmap.png` | heatmap |
-| Genes 合并 | `{sample}_genes_heatmap.png` | heatmap |
-| Per-gene | `{sample}_{gene_name}_heatmap.png` | heatmap_gene |
+| TSS | `{sample}_tss_heatmap.{fmt}` | heatmap |
+| Peaks | `{sample}_peaks_heatmap.{fmt}` | heatmap |
+| Genes 合并 | `{sample}_genes_heatmap.{fmt}` | heatmap |
+| Per-gene | `{sample}_{gene_name}_heatmap.{fmt}` | heatmap_gene |
+
+每种请求的图片格式一个文件(`{fmt}` 取自 `formats` 参数,默认 `png`,
+即默认文件名与旧版一致:`{sample}_tss_heatmap.png` 等)。
+
+---
+
+## 图片格式(formats)
+
+`Params.plotHeatmap.formats` 控制热图输出格式(列表,可多种同时输出):
+
+```json
+{
+    "Params": {
+        "plotHeatmap": {
+            "formats": ["png", "pdf", "svg"]
+        }
+    }
+}
+```
+
+- 合法值:`png` `eps` `pdf` `svg` `plotly` — 这是 **deeptools plotHeatmap
+  `--plotFileFormat` 的工具集**(在 deeptools SIF 中实测),不是 matplotlib
+  全集(无 jpg/tif/pgf 等);非法值在 rule 解析期即报错(fail fast)
+- 转发方式:`run_heatmap.py -f/--format`(可重复)→ `plotHeatmap
+  --plotFileFormat <fmt>`,输出文件为 `<base>.<fmt>`
+- 默认:`["png"]`(与历史行为一致)
+- `plotly` 为 deeptools 自带的交互格式,产物是 plotly HTML 内容、文件名
+  后缀为 `.plotly`
 
 ---
 

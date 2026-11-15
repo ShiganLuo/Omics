@@ -11,7 +11,11 @@
     "msi_dir": null,
     "fragment_dir": null,
     "Params": {
-        "report": {}
+        "report": {
+            "formats": [
+                "png"
+            ]
+        }
     },
     "env": {
         "Mutation_report": "/data/16T/Database/env/report/report.sif"

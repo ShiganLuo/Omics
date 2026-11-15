@@ -6,6 +6,10 @@
   "qc_anchors": {},
   "qc_anchor_samples": {},
   "Params": {
-    "qc_summary": {}
+    "qc_summary": {
+      "formats": [
+        "png"
+      ]
+    }
   }
 }

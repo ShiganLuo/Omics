@@ -43,6 +43,7 @@
 | `logdir_combine` | — | `log` | 汇总规则日志目录 |
 | `genome_samples` | — | `{}` | genome → 样本列表 |
 | `sample_groups` | — | `{}` | 分组 → 样本列表(绘图分组) |
+| `Params.StringTie.formats` | `TEChimericPlot.py --format`(可重复) | `["png"]` | TE 嵌合图输出格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib 全集);`TE_chimeric_<base>.<fmt>` 每种格式一个文件 |
 | `Procedure.stringtie` | `stringtie -o ... -G ... -p` / `stringtie --merge` | `stringtie` | StringTie 可执行路径 |
 | `ROOT_DIR` | — | `.` | 仓库根,用于拼 bin/ 脚本绝对路径 |
 | 线程/内存 | `-p` | stringTie: `threads=5, mem_mb=16000`;merge: `threads=1, mem_mb=32000` | `rule_res(...)` 可覆盖 |

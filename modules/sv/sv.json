@@ -9,7 +9,7 @@
   "Procedure": {},
   "Params": {
     "sv": {
-      "image_formats": [
+      "formats": [
         "png"
       ],
       "genes": [],

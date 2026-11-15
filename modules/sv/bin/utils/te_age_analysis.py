@@ -16,6 +16,7 @@ mu (per-lineage neutral substitution rate) is an ASSUMPTION: default
 Usage:
   python te_age_analysis.py --mei-dir <mei_outdir> [-o <te_age_outdir>]
                             [--families Alu,L1,LTR,SVA,DNA]
+                            [-f png] [-f pdf] ...
 
 Input (all under --mei-dir):
   mei_events.tsv          per-event table from mei_analysis.py
@@ -27,7 +28,7 @@ Output (in --outdir, default <mei-dir>/te_age):
   te_age_by_group.tsv        family x group stats + MWU/KS p-values
   te_age_subfamily.tsv       per-subfamily divergence table
   te_full_length_L1_age.tsv  full-length L1 (SVLEN>=6000) with ages
-  te_age figures (divergence_hist/landscape/divergence_box/full_length_L1)         figs (hist/landscape/box/full-length-L1)
+  te_age figures (divergence_hist/landscape/divergence_box/full_length_L1)         figs (hist/landscape/box/full-length-L1), one file per `-f/--format` (default png)
   te_age_report.md           digest report
 """
 import argparse
@@ -44,6 +45,13 @@ import matplotlib.pyplot as plt
 MU_LIST = [("mu0.8e-9", 0.8e-9), ("mu1.0e-9", 1.0e-9), ("mu1.5e-9", 1.5e-9)]
 GROUP_LABEL = {"ctrl_specific": "youth-specific", "exp_specific": "aged-specific",
                "shared": "shared"}
+
+PlotFormat = str
+
+# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
+# fails fast at parse time instead of dying inside savefig (modules.md #9)
+VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
+                 "jpeg", "pgf", "raw", "rgba")
 
 
 # ---------------- parse RepeatMasker .out (same right-anchored walk as
@@ -104,7 +112,18 @@ def main():
     ap.add_argument("--families", default="Alu,L1,LTR,SVA,DNA",
                     help="comma-separated families to analyze, in priority "
                          "order; fig1/fig2 panels take the first 3 with data")
+    ap.add_argument("-f", "--format", action="append", dest="formats",
+                    metavar="FMT",
+                    help="Image format (png/pdf/svg/...). Repeatable. "
+                         "Default: png.")
     args = ap.parse_args()
+
+    image_formats = args.formats if args.formats else ["png"]
+    bad = [f for f in image_formats if f not in VALID_FORMATS]
+    if bad:
+        raise ValueError(
+            f"Unsupported image format(s): {', '.join(bad)}; "
+            f"valid: {', '.join(VALID_FORMATS)}")
 
     mei = os.path.abspath(args.mei_dir)
     outdir = os.path.abspath(args.outdir or os.path.join(mei, "te_age"))
@@ -253,7 +272,9 @@ def main():
             axes[r_, c].set_ylabel("insertions")
         axes[0, c].legend(fontsize=7)
     fig.tight_layout()
-    fig.savefig(os.path.join(outdir, "te_age_divergence_hist.png"), dpi=150)
+    for fmt in image_formats:
+        fig.savefig(os.path.join(outdir, f"te_age_divergence_hist.{fmt}"),
+                    dpi=150)
     plt.close(fig)
 
     # fig2: age landscape: div bins x family, stacked by group, fraction
@@ -277,7 +298,8 @@ def main():
     axes[0, 0].legend()
     fig.suptitle("Divergence-bin landscape by group (rate-free relative age)")
     fig.tight_layout()
-    fig.savefig(os.path.join(outdir, "te_age_landscape.png"), dpi=150)
+    for fmt in image_formats:
+        fig.savefig(os.path.join(outdir, f"te_age_landscape.{fmt}"), dpi=150)
     plt.close(fig)
 
     # fig3: boxplots of divergence by group per family (all analyzed fams)
@@ -301,7 +323,9 @@ def main():
     ax.set_title("TE insertion age proxy by family and group")
     plt.xticks(rotation=60, fontsize=7)
     fig.tight_layout()
-    fig.savefig(os.path.join(outdir, "te_age_divergence_box.png"), dpi=150)
+    for fmt in image_formats:
+        fig.savefig(os.path.join(outdir, f"te_age_divergence_box.{fmt}"),
+                    dpi=150)
     plt.close(fig)
 
     # fig4: full-length L1 divergence
@@ -318,7 +342,9 @@ def main():
             patch.set_facecolor(list(colors.values())[i % 3])
         ax.set_ylabel("divergence (%)")
     fig.tight_layout()
-    fig.savefig(os.path.join(outdir, "te_age_full_length_L1.png"), dpi=150)
+    for fmt in image_formats:
+        fig.savefig(os.path.join(outdir, f"te_age_full_length_L1.{fmt}"),
+                    dpi=150)
     plt.close(fig)
 
     # ---- markdown digest report ----

@@ -31,6 +31,37 @@ log_msg <- function(level = c("INFO","WARN","ERROR"), ..., quit = FALSE) {
 }
 
 ## =========================
+## Multi-format figure output (modules.md #9)
+## =========================
+## ggsave derives the device from the file extension, so writing every
+## requested format is a plain loop over "{out_base}.{fmt}". pgf/raw/rgba
+## are matplotlib-only and fail fast here (R ggsave device set).
+VALID_FORMATS <- c("png", "pdf", "svg", "ps", "eps", "tif", "tiff",
+                   "jpg", "jpeg")
+
+## Fail fast on unsupported formats, listing what ggsave can write.
+validate_formats <- function(formats) {
+  bad <- setdiff(formats, VALID_FORMATS)
+  if (length(bad) > 0) {
+    stop(sprintf("Unsupported image format(s): %s; valid: %s",
+                 paste(bad, collapse = ", "),
+                 paste(VALID_FORMATS, collapse = ", ")))
+  }
+  invisible(formats)
+}
+
+## Save one ggplot per requested format as "{out_base}.{fmt}".
+save_ggsave_formats <- function(plot, out_base, formats, width, height,
+                                dpi = 300, ...) {
+  validate_formats(formats)
+  for (fmt in formats) {
+    out <- sprintf("%s.%s", out_base, fmt)
+    ggsave(out, plot = plot, width = width, height = height, dpi = dpi, ...)
+  }
+  invisible(out_base)
+}
+
+## =========================
 ## Define up/down regulated genes
 ## =========================
 define_up_down_genes <- function(
@@ -162,7 +193,8 @@ plot_back_to_back <- function(
   down_df,
   top = 10,
   title = "",
-  outfile
+  out_base,
+  formats = "png"
 ) {
   # Early return if no results
   if (nrow(up_df) == 0 && nrow(down_df) == 0) {
@@ -171,7 +203,7 @@ plot_back_to_back <- function(
       labs(title = title, x = NULL, y = NULL) +
       theme_void() +
       theme(plot.title = element_text(hjust = 0.5))
-    ggsave(outfile, p, width = 10, height = 4, dpi = 300, bg = "white")
+    save_ggsave_formats(p, out_base, formats, width = 10, height = 4, bg = "white")
     return(invisible(NULL))
   }
 
@@ -198,7 +230,7 @@ plot_back_to_back <- function(
       labs(title = title, x = NULL, y = NULL) +
       theme_void() +
       theme(plot.title = element_text(hjust = 0.5))
-    ggsave(outfile, p, width = 10, height = 4, dpi = 300, bg = "white")
+    save_ggsave_formats(p, out_base, formats, width = 10, height = 4, bg = "white")
     return(invisible(NULL))
   }
 
@@ -233,7 +265,8 @@ plot_back_to_back <- function(
     )
 
   # Keep enough width for the numeric panel after allocating space to labels.
-  ggsave(outfile, p, width = 12, height = plot_height, dpi = 300, bg = "white")
+  save_ggsave_formats(p, out_base, formats, width = 12, height = plot_height,
+                      bg = "white")
 }
 
 ## =========================
@@ -249,9 +282,11 @@ run_pipeline <- function(
   lfc_cut = 1,
   p_cut = 0.05,
   top = 10,
-  format = "png"
+  formats = "png"
 ) {
   dir.create(outdir, recursive = TRUE, showWarnings = FALSE)
+  # fail fast on bad formats before any enrichment work starts
+  validate_formats(formats)
 
   log_msg("INFO", "Defining Up / Down genes ...")
   genes <- define_up_down_genes(
@@ -290,7 +325,8 @@ run_pipeline <- function(
       down_res,
       top = top,
       title = paste(toupper(type), "enrichment"),
-      outfile = file.path(outdir, paste0(type, "_back_to_back.", format))
+      out_base = file.path(outdir, paste0(type, "_back_to_back")),
+      formats = formats
     )
   }
 }
@@ -319,9 +355,15 @@ parser$add_argument("--p-cut", type = "double", default = 0.05,
                     help = "Adjusted p-value cutoff (default: 0.05)")
 parser$add_argument("--top", type = "integer", default = 10,
                     help = "Top N pathways to plot (default: 10)")
-parser$add_argument("--format", type = "character", default = "png",
-                    choices = c("png", "pdf"), help = "Output image format (default: png)")
+parser$add_argument("--format", action = "append", dest = "formats", type = "character",
+                    default = NULL, metavar = "FMT",
+                    help = "Output image format (png/pdf/svg/ps/eps/tif/tiff/jpg/jpeg; repeatable). Default: png")
 args <- parser$parse_args()
+
+## One format per --format flag; default keeps the historical png output.
+## Fail fast on pgf/raw/rgba etc. before any heavy computation runs.
+formats <- if (is.null(args$formats)) "png" else unlist(args$formats)
+validate_formats(formats)
 
 ## =========================
 ## Main
@@ -340,7 +382,7 @@ run_pipeline(
   lfc_cut = args$lfc_cut,
   p_cut = args$p_cut,
   top = args$top,
-  format = args$format
+  formats = formats
 )
 
 log_msg("INFO", "GO/KEGG analysis completed.")

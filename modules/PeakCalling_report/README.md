@@ -34,6 +34,8 @@
 ```
 {outdir}/PeakCalling_report.pptx    # PPT 报告(QC 指标、图、分模块小结)
 {outdir}/PeakCalling_report.xlsx    # Excel 全量结果数据簿
+{outdir}/figures/<name>.<fmt>       # 报告插图独立交付(alignment、peak_frip、annotation、tss_distance、dup_rate、trim_stats、peak_centric_te)
+{outdir}/figures/manifest.tsv       # 插图文件清单(name<TAB>filename)
 ```
 
 日志:`{logdir}/PeakCalling_report.log`。
@@ -55,10 +57,12 @@
 | `Params.report.genome` | `--genome` | `""` | 基因组名 |
 | `Params.report.date` | `--date` | `""` | 日期 |
 | `Params.report.top_n` | `--top-n` | `5`(json 示例 `20`) | 峰/图取前 N |
+| `Params.report.formats` | `--format`(可重复) | `["png"]` | 图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba |
 | `ROOT_DIR` | — | — | 拼 `modules/PeakCalling_report/bin/generate_report.py` |
 
-脚本另支持 `--img-dir`、`--excel-output`、`--lang {zh,en}`(默认 `zh`;
-smk 不传 `--lang`,用默认中文)。环境:`PeakCalling_report.yaml` /
+脚本另支持 `--img-dir`(插图独立交付目录,smk 传 `{outdir}/figures`)、
+`--excel-output`、`--lang {zh,en}`(默认 `zh`;smk 不传 `--lang`,用默认中文)。
+PPT 嵌图始终用 png 副本(`formats` 不含 png 时用临时栅格副本)。环境:`PeakCalling_report.yaml` /
 SIF `report.sif`。
 
 直接调用示例(脱离流程):

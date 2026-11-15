@@ -12,7 +12,13 @@ comparisons = config.get("comparisons", [])
 comparison_names = [c["name"] for c in comparisons]
 
 # Global parameters
-image_formats = config.get("Params", {}).get("image_formats", ["png"])
+# 图片格式(modules.md #9):规范键名 "formats";旧键 "image_formats" 仅作
+# 兼容回退读取(2026-11 键名迁移)。两者同时配置时以 "formats" 为准。
+_sv_params = config.get("Params", {})
+image_formats = (_sv_params.get("formats") or _sv_params.get("image_formats")
+                 or ["png"])
+if isinstance(image_formats, str):  # str 收成单元素 list
+    image_formats = [image_formats]
 genes = config.get("Params", {}).get("genes", [])
 
 # ========================

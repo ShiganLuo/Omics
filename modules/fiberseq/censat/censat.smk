@@ -9,6 +9,10 @@ ROOT_DIR = config.get("ROOT_DIR", ".")
 env = config.get("env", {})
 genome_cfg = config.get("genome", {})
 p = config.get("Params", {}).get("fiberseq_censat", {})
+# ① parse 期读入 + 规范化（str 收成单元素 list；合法值由 schema 声明）
+_formats = p.get("formats") or ["pdf"]
+if isinstance(_formats, str):
+    _formats = [_formats]
 rule fiberseq_censat_run:
     """Region-class accessibility and methylation profiles (CDR/HOR/flank)."""
     input:
@@ -20,7 +24,9 @@ rule fiberseq_censat_run:
         regions_tsv = outdir + "/{sample_id}/{sample_id}.censat_regions.tsv",
         class_summary = outdir + "/{sample_id}/{sample_id}.censat_class_summary.tsv",
         profile = outdir + "/{sample_id}/{sample_id}.censat_profile.tsv",
-        pdf = outdir + "/{sample_id}/{sample_id}.censat_profile.pdf",
+        # ② 按格式展开：每种格式一个输出文件（base 不带扩展名）
+        plots = [outdir + "/{sample_id}/{sample_id}.censat_profile." + fmt
+                 for fmt in _formats],
     log:
         logdir + "/{sample_id}/fiberseq_censat_run.log"
     threads: rule_res("fiberseq_censat").get("threads", 4)
@@ -36,6 +42,7 @@ rule fiberseq_censat_run:
         msp_min_len = p.get("msp_min_len", 50),
         flank = p.get("flank", 10000),
         bin = p.get("bin", 500),
+        formats = _formats,   # ③ 转发
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -65,6 +72,8 @@ rule fiberseq_censat_run:
             ]
             if params.pileup:
                 cmd += ["-p", str(params.pileup)]
+            for fmt in params.formats:
+                cmd += ["--format", str(fmt)]
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write("set -euo pipefail\n")
@@ -80,5 +89,7 @@ rule fiberseq_censat_result:
     input:
         class_summary = expand(outdir + "/{sample_id}/{sample_id}.censat_class_summary.tsv",
                                sample_id=samples),
+        plots = expand(outdir + "/{sample_id}/{sample_id}.censat_profile.{fmt}",
+                       sample_id=samples, fmt=_formats),
     resources:
         mem_mb = rule_res("fiberseq_censat_result").get("mem_mb", 8000),

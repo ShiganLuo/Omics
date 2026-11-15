@@ -51,6 +51,7 @@ BAM 中调用融合转录本,再按基因组汇总为 HTML 报告 + 复发/高�
 | `Params.arriba.t` | `-t` | `None` | 非空才传 |
 | `Params.arriba.d` | `-d` | `None` | 非空才传 |
 | `Params.arriba.p` | `-p` | `None` | 非空才传 |
+| `Params.arriba.formats` | `--format`(单次,空格分隔多值) | `["png"]` | 图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib 全集);`figures/<base>.<fmt>` 每种格式一个文件 |
 | `ROOT_DIR` | — | `.` | 拼父目录汇总脚本 `modules/arriba/bin/summarize_arriba_fusions.py` |
 | 线程/内存 | — | `threads=4`,`mem_mb=8000` | `rule_res(...)` 可覆盖 |
 

@@ -17,6 +17,22 @@ HEATMAP_SCRIPT = os.path.join(MODULE_DIR, "bin", "run_heatmap.py")
 cm_params = config.get("Params", {}).get("computeMatrix", {})
 ph_params = config.get("Params", {}).get("plotHeatmap", {})
 
+# --- Image formats (forwarded to plotHeatmap --plotFileFormat) ---
+# The valid set is the TOOL's set (probed from the deeptools SIF:
+# --plotFileFormat accepts png/eps/pdf/plotly/svg), not matplotlib's —
+# fail fast at rule parse time (modules.md #9).
+PLOT_FORMATS = ("png", "eps", "pdf", "svg", "plotly")
+# ① parse 期读入 + 规范化（str 收成单元素 list；合法值由 schema 声明）
+_formats = ph_params.get("formats") or ["png"]
+if isinstance(_formats, str):
+    _formats = [_formats]
+_bad_fmts = [f for f in _formats if f not in PLOT_FORMATS]
+if _bad_fmts:
+    raise ValueError(
+        "Unsupported Params.plotHeatmap.formats value(s): "
+        + ", ".join(_bad_fmts)
+        + "; deeptools plotHeatmap accepts: " + ", ".join(PLOT_FORMATS))
+
 def _is_gene_regions():
     return isinstance(regions_cfg, dict) and "genes" in regions_cfg
 
@@ -58,7 +74,7 @@ HEATMAP_SUFFIX = _heatmap_suffix()
 # conditional outputs): heatmap serves the tss/peaks/genes-combined modes
 # and heatmap_gene serves the per-gene mode. Only one may expose outputs
 # per config — with both active they claim the same
-# {sample_id}_{suffix}_heatmap.png shapes (AmbiguousRuleException on e.g.
+# {sample_id}_{suffix}_heatmap.{fmt} shapes (AmbiguousRuleException on e.g.
 # {sample_id}_tss_heatmap.png).
 HEATMAP_GENE_MODE = (
     _is_gene_regions()
@@ -128,8 +144,13 @@ def get_ratio_bigwig(wildcards):
 # Heatmap (computeMatrix + plotHeatmap unified)
 # ============================================================
 
-def _build_heatmap_cmd(wildcards, input, output, threads, title, gene_names=None):
-    """Build run_heatmap.py command for a given sample."""
+def _build_heatmap_cmd(wildcards, input, out_base, threads, title, gene_names=None):
+    """Build run_heatmap.py command for a given sample.
+
+    ``out_base`` is the figure base path (no extension); run_heatmap.py writes
+    one ``<out_base>.<fmt>`` file per ``--format`` (forwarded to deeptools
+    plotHeatmap ``--plotFileFormat``).
+    """
     mode, ref_point = cm_params.get("mode", "reference-point"), cm_params.get("referencePoint", "center")
     if regions_cfg == "tss":
         mode, ref_point = "reference-point", "TSS"
@@ -142,7 +163,7 @@ def _build_heatmap_cmd(wildcards, input, output, threads, title, gene_names=None
     cmd = [
         "python3", HEATMAP_SCRIPT,
         "--ip-bigwig", input.ratio_bigwig,
-        "--output", output.heatmap,
+        "--output", out_base,
         "--mode", mode, "--reference-point", ref_point,
         "--before", str(cm_params.get("before", 3000)),
         "--after", str(cm_params.get("after", 3000)),
@@ -206,11 +227,15 @@ rule heatmap:
         gtf = _get_gtf_for_heatmap,
         regions = _get_regions_for_heatmap,
     output:
-        heatmap = (outdir + "/{sample_id}/{sample_id}_" + HEATMAP_SUFFIX + "_heatmap.png") if not HEATMAP_GENE_MODE else [],
+        # ② 按格式展开：每种格式一个输出文件（base 不带扩展名）
+        plots = ([outdir + "/{sample_id}/{sample_id}_" + HEATMAP_SUFFIX + "_heatmap." + fmt for fmt in _formats] if not HEATMAP_GENE_MODE else []),
     log: logdir + "/{sample_id}/heatmap.log"
     threads: rule_res("heatmap").get("threads", 4)
     resources:
         mem_mb = rule_res("heatmap").get("mem_mb", 16000),
+    params:
+        formats = _formats,   # ③ 转发
+        out_base = outdir + "/{sample_id}/{sample_id}_" + HEATMAP_SUFFIX + "_heatmap",
     conda: "deeptools.yaml"
     container: sif("deeptools.yaml", "heatmap")
     run:
@@ -220,11 +245,13 @@ rule heatmap:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start heatmap for sample {wildcards.sample_id} at {current_time}")
-            sample_outdir = os.path.dirname(str(output.heatmap))
+            sample_outdir = os.path.dirname(params.out_base)
             os.makedirs(sample_outdir, exist_ok=True)
             inp = sample_ip_input_map.get(wildcards.sample_id, "")
             title = f"{wildcards.sample_id} vs {inp}" if inp else wildcards.sample_id
-            cmd = _build_heatmap_cmd(wildcards, input, output, threads, title)
+            cmd = _build_heatmap_cmd(wildcards, input, params.out_base, threads, title)
+            for fmt in params.formats:
+                cmd += ["--format", str(fmt)]
             script = os.path.join(RECEIPT_DIR, f"heatmap_{wildcards.sample_id}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"heatmap_{wildcards.sample_id}.sh")
             with open(script, "w") as f:
@@ -243,11 +270,14 @@ rule heatmap_gene:
         ratio_bigwig = get_ratio_bigwig,
         gtf = _get_gene_gtf,
     output:
-        heatmap = (outdir + "/{sample_id}/{sample_id}_{gene_name}_heatmap.png") if HEATMAP_GENE_MODE else [],
+        plots = ([outdir + "/{sample_id}/{sample_id}_{gene_name}_heatmap." + fmt for fmt in _formats] if HEATMAP_GENE_MODE else []),
     log: logdir + "/{sample_id}/heatmap_{gene_name}.log"
     threads: rule_res("heatmap_gene").get("threads", 4)
     resources:
         mem_mb = rule_res("heatmap_gene").get("mem_mb", 16000),
+    params:
+        formats = _formats,   # ③ 转发
+        out_base = outdir + "/{sample_id}/{sample_id}_{gene_name}_heatmap",
     conda: "deeptools.yaml"
     container: sif("deeptools.yaml", "heatmap_gene")
     run:
@@ -256,14 +286,16 @@ rule heatmap_gene:
         rule_logger = setup_logger("heatmap_gene", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            rule_logger.info(f"Start heatmap_gene for {wildcards.sample_id} {wildcards.gene_name} at {current_time}")
-            sample_outdir = os.path.dirname(str(output.heatmap))
+            rule_logger.info(f"Start heatmap_gene for sample {wildcards.sample_id} {wildcards.gene_name} at {current_time}")
+            sample_outdir = os.path.dirname(params.out_base)
             os.makedirs(sample_outdir, exist_ok=True)
             inp = sample_ip_input_map.get(wildcards.sample_id, "")
             title = f"{wildcards.sample_id} {wildcards.gene_name}"
             if inp:
                 title += f" vs {inp}"
-            cmd = _build_heatmap_cmd(wildcards, input, output, threads, title, gene_names=[wildcards.gene_name])
+            cmd = _build_heatmap_cmd(wildcards, input, params.out_base, threads, title, gene_names=[wildcards.gene_name])
+            for fmt in params.formats:
+                cmd += ["--format", str(fmt)]
             script = os.path.join(RECEIPT_DIR, f"heatmap_gene_{wildcards.sample_id}_{wildcards.gene_name}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"heatmap_gene_{wildcards.sample_id}_{wildcards.gene_name}.sh")
             with open(script, "w") as f:
@@ -282,6 +314,9 @@ rule heatmap_gene:
 
 rule deeptools_heatmap_result:
     input:
-        heatmap = outdir + "/{sample_id}/{sample_id}_" + HEATMAP_SUFFIX + "_heatmap.png",
+        # {sample_id} stays a rule wildcard (per-sample rule, matching the
+        # original single-file input); only the extension is expanded over
+        # formats — plain comprehension, since expand() would demand sample_id
+        plots = [outdir + "/{sample_id}/{sample_id}_" + HEATMAP_SUFFIX + "_heatmap." + fmt for fmt in _formats],
     resources:
         mem_mb = rule_res("deeptools_heatmap_result").get("mem_mb", 8000),

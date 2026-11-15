@@ -13,8 +13,9 @@ GO 与 KEGG 过表达富集分析 + 柱状图(gseapy/Enrichr)。注意:`enrichme
 | 基因列表(gene symbols) | `enrich_go_kegg_analysis(gene_list, ...)`,来自差异基因/差异峰关联基因表(如 `gene_name` 列去重) |
 | `organism` | `'human'` / `'mouse'`(函数参数,默认 human) |
 
-config 骨架(`enrichment.json`)仅有 `indir`/`outdir`/`logdir`/`ROOT_DIR`
-与空的 `Params`/`Procedure` 段——规则未实现,暂无消费。
+config 骨架(`enrichment.json`)有 `indir`/`outdir`/`logdir`/`ROOT_DIR`
+与 `Params.enrichment.formats`(预留:规则实现后按 `formats` 逐个展开
+`--format` 转发)、空的 `Procedure` 段——规则未实现,暂无 DAG 消费。
 
 ### 1.2 输出
 
@@ -23,7 +24,7 @@ config 骨架(`enrichment.json`)仅有 `indir`/`outdir`/`logdir`/`ROOT_DIR`
 {outdir}/GO_Cellular_Component_2021_enrichment.csv   # GO CC 富集表
 {outdir}/GO_Molecular_Function_2021_enrichment.csv   # GO MF 富集表
 {outdir}/KEGG_enrichment.csv                          # KEGG 富集表
-{outdir}/{key}_top10.png                              # Top10 富集柱状图(每库一张)
+{outdir}/{key}_top10.<fmt>                            # Top10 富集柱状图(每库一张,每种格式一份)
 ```
 
 ### 1.3 参数
@@ -35,6 +36,8 @@ config 骨架(`enrichment.json`)仅有 `indir`/`outdir`/`logdir`/`ROOT_DIR`
 | `outdir` | `enrichment_results` | 输出目录 |
 | `top_n`(绘图) | 10 | 柱状图取 Adjusted P-value 最小前 N 条 |
 | `kind`(绘图) | — | `GO`/`KEGG` 决定配色与轴标签 |
+| `image_formats`(绘图)/ `--format`(go-kegg_back.r,可重复) | `["png"]` | 输出图片格式,多种同时输出,每种写一份 `{out_base}.{fmt}`。go-kegg.py 合法值为 matplotlib 全集(png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba);go-kegg_back.r 为 R ggsave 设备集(png pdf svg ps eps tif tiff jpg jpeg),pgf/raw/rgba 传入即报错 |
+| `Params.enrichment.formats`(config) | `["png"]` | 同上,规则实现后经 `--format` 逐个转发 |
 | 富集显著性截断 | 0.05 | `gseapy.enrichr(cutoff=0.05)` |
 
 直接调用示例(`bin/go-kegg.py`;当前 `__main__` 为硬编码示例路径,无 CLI
@@ -44,8 +47,9 @@ config 骨架(`enrichment.json`)仅有 `indir`/`outdir`/`logdir`/`ROOT_DIR`
 from go_kegg import enrich_go_kegg_analysis, plot_enrichment_bar  # bin/go-kegg.py
 results = enrich_go_kegg_analysis(gene_list, organism="mouse", outdir="out")
 for key, df in results.items():
-    plot_enrichment_bar(df, f"out/{key}_top10.png", top_n=10,
-                        kind="KEGG" if key == "KEGG" else "GO")
+    plot_enrichment_bar(df, f"out/{key}_top10", top_n=10,
+                        kind="KEGG" if key == "KEGG" else "GO",
+                        image_formats=["png"])  # out_base 不带扩展名
 ```
 
 ## 2. 算法原理与生物学意义

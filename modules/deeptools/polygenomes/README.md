@@ -22,15 +22,17 @@ plotHeatmap 统一封装)。
 
 ```
 {outdir}/{genome}/{sample_id}/{sample_id}_IP_over_Input.bigwig        # IP/Input 比值 bigWig
-{outdir}/{genome}/{sample_id}/{sample_id}_tss_heatmap.png             # tss 模式
-{outdir}/{genome}/{sample_id}/{sample_id}_peaks_heatmap.png           # peaks 模式
-{outdir}/{genome}/{sample_id}/{sample_id}_genes_heatmap.png           # genes 模式
-{outdir}/{genome}/{sample_id}/{sample_id}_{gene_name}_heatmap.png     # 单基因/TE 热图(heatmap_gene)
+{outdir}/{genome}/{sample_id}/{sample_id}_tss_heatmap.{fmt}           # tss 模式
+{outdir}/{genome}/{sample_id}/{sample_id}_peaks_heatmap.{fmt}         # peaks 模式
+{outdir}/{genome}/{sample_id}/{sample_id}_genes_heatmap.{fmt}         # genes 模式
+{outdir}/{genome}/{sample_id}/{sample_id}_{gene_name}_heatmap.{fmt}   # 单基因/TE 热图(heatmap_gene)
 ```
 
 文件名后缀由 `Params.computeMatrix.regions` 决定(`tss`/`peaks`/`genes`,
-未识别时 `_heatmap`)。日志:`{logdir}/{genome}/{sample_id}/bigwig_ratio.log`、
-`heatmap.log`、`heatmap_{gene_name}.log`。
+未识别时 `_heatmap`);`{fmt}` 取自 `Params.plotHeatmap.formats`(每种格式
+一个文件,默认 `png`,与旧版文件名一致)。日志:
+`{logdir}/{genome}/{sample_id}/bigwig_ratio.log`、`heatmap.log`、
+`heatmap_{gene_name}.log`。
 
 ### 1.3 参数
 
@@ -54,6 +56,7 @@ config 位于 `Params.computeMatrix`(矩阵)与 `Params.plotHeatmap`(出图):
 | `Params.plotHeatmap.colorMap` | `--color-map` | `YlOrRd` | 色图 |
 | `Params.plotHeatmap.heatmapHeight` / `heatmapWidth` | `--height` / `--width` | `15` / `8` | 图高宽(inch) |
 | `Params.plotHeatmap.whatToShow` | `--what-to-show` | `plot, heatmap and colorbar` | 显示元素 |
+| `Params.plotHeatmap.formats` | `-f/--format` → `--plotFileFormat` | `["png"]` | 图片格式列表,每种格式一个输出文件;合法值 `png` `eps` `pdf` `svg` `plotly`(deeptools plotHeatmap `--plotFileFormat` 工具集,解析期校验 fail fast) |
 | 固定 | `bigwigCompare --operation ratio --pseudocount 1 -p` | — | 比值 bigWig 一律 ratio + 伪计数 1 |
 
 `match_by`(genes 模式 `--match-by`,默认 `gene_name`)与 `gene-names`
@@ -67,7 +70,8 @@ config 位于 `Params.computeMatrix`(矩阵)与 `Params.plotHeatmap`(出图):
 bigwigCompare -b1 s1.bigwig -b2 input.bigwig --operation ratio --pseudocount 1 \
   -o s1_IP_over_Input.bigwig -p 4
 python3 modules/deeptools_heatmap/bin/run_heatmap.py \
-  --ip-bigwig s1_IP_over_Input.bigwig --output s1_tss_heatmap.png \
+  --ip-bigwig s1_IP_over_Input.bigwig --output s1_tss_heatmap \
+  -f png -f pdf \
   --mode reference-point --reference-point TSS \
   --before 3000 --after 3000 --bin-size 10 --sort-using mean \
   --regions tss.bed --threads 4 --title s1 \

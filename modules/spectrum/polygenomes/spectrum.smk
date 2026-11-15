@@ -7,6 +7,14 @@ logdir = config.get("logdir") or "log"
 ROOT_DIR = config.get("ROOT_DIR", ".")
 genomes = sorted((config.get("genome", {}) or {}).keys())
 
+# ① parse 期读入 + 规范化（str 收成单元素 list；合法值由 schema 声明）
+_spectrum_formats = (config.get("plot") or {}).get("formats") or ["png"]
+if isinstance(_spectrum_formats, str):
+    _spectrum_formats = [_spectrum_formats]
+_sig_formats = (config.get("signature") or {}).get("formats") or ["png"]
+if isinstance(_sig_formats, str):
+    _sig_formats = [_sig_formats]
+
 
 def _spectrum_cfg():
     """Normalized spectrum config block (single source for input fns + params).
@@ -74,8 +82,9 @@ rule somatic_spectrum:
     input:
         unpack(_spectrum_inputs)
     output:
-        spectrum_png = outdir + "/{genome}/somatic_spectrum_stacked_bar.png",
-        spectrum_heatmap = outdir + "/{genome}/somatic_spectrum_heatmap.png",
+        # ② 按格式展开：每种格式一个输出文件（base 不带扩展名）
+        stacked_bar = [outdir + "/{genome}/somatic_spectrum_stacked_bar." + fmt for fmt in _spectrum_formats],
+        heatmap = [outdir + "/{genome}/somatic_spectrum_heatmap." + fmt for fmt in _spectrum_formats],
         spectrum_csv = outdir + "/{genome}/somatic_spectrum.csv",
         per_sample = outdir + "/{genome}/somatic_spectrum_per_sample.csv",
         sample_stats = outdir + "/{genome}/somatic_spectrum_sample_stats.csv"
@@ -87,6 +96,7 @@ rule somatic_spectrum:
     params:
         spectrum_script = os.path.join(ROOT_DIR, "modules/spectrum/bin/spectrum.py"),
         outprefix = lambda wildcards: outdir + f"/{wildcards.genome}/somatic_spectrum",
+        formats = _spectrum_formats,   # ③ 转发
         cfg = _spectrum_cfg()
     conda:
         "../spectrum.yaml"
@@ -99,7 +109,7 @@ rule somatic_spectrum:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start somatic spectrum for genome {wildcards.genome} at {current_time}")
-            sample_outdir = os.path.dirname(str(output.spectrum_png))
+            sample_outdir = os.path.dirname(str(output.stacked_bar[0]))
             os.makedirs(sample_outdir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"somatic_spectrum_{wildcards.genome}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, "somatic_spectrum.sh")
@@ -119,6 +129,8 @@ rule somatic_spectrum:
                    "--ref-fasta", str(input.fasta),
                    "--output-prefix", params.outprefix
                    ]
+            for fmt in params.formats:
+                cmd += ["--format", str(fmt)]
             with open(script, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(f"export OMP_NUM_THREADS={threads}\n")
@@ -145,9 +157,10 @@ rule somatic_signature_refit:
         fractions = outdir + "/{genome}/signature_refit_exposure_fractions.csv",
         families = outdir + "/{genome}/signature_refit_family_exposures.csv",
         summary = outdir + "/{genome}/signature_refit_summary.csv",
-        stacked_bar = outdir + "/{genome}/signature_refit_exposure_stacked_bar.png",
-        heatmap = outdir + "/{genome}/signature_refit_exposure_heatmap.png",
-        sig_cosine = outdir + "/{genome}/signature_refit_signature_cosine.png"
+        # ② 按格式展开：每种格式一个输出文件（base 不带扩展名）
+        stacked_bar = [outdir + "/{genome}/signature_refit_exposure_stacked_bar." + fmt for fmt in _sig_formats],
+        heatmap = [outdir + "/{genome}/signature_refit_exposure_heatmap." + fmt for fmt in _sig_formats],
+        sig_cosine = [outdir + "/{genome}/signature_refit_signature_cosine." + fmt for fmt in _sig_formats]
     log:
         logdir + "/{genome}/spectrum/somatic_signature_refit.log"
     threads: rule_res("somatic_signature_refit").get("threads", 1)
@@ -156,6 +169,7 @@ rule somatic_signature_refit:
     params:
         refit_script = os.path.join(ROOT_DIR, "modules/spectrum/bin/signature_refit.py"),
         outprefix = lambda wildcards: outdir + f"/{wildcards.genome}/signature_refit",
+        formats = _sig_formats,   # ③ 转发
         cfg = _spectrum_cfg()
     conda:
         "../spectrum.yaml"
@@ -180,6 +194,8 @@ rule somatic_signature_refit:
                    "--min-mutations", str(sig["min_mutations"]),
                    "--min-exposure-frac", str(sig["min_exposure_frac"]),
                    ]
+            for fmt in params.formats:
+                cmd += ["--format", str(fmt)]
             if sig["family_map"]:
                 cmd += ["--family-map", sig["family_map"]]
             with open(script, "w") as f:
@@ -207,11 +223,12 @@ rule somatic_signature_nmf:
         signatures = outdir + "/{genome}/signature_nmf_signatures.csv",
         exposures = outdir + "/{genome}/signature_nmf_exposures.csv",
         rank_diagnostics = outdir + "/{genome}/signature_nmf_rank_diagnostics.csv",
-        rank_plot = outdir + "/{genome}/signature_nmf_rank_diagnostics.png",
-        stacked_bar = outdir + "/{genome}/signature_nmf_exposures_stacked_bar.png",
+        # ② 按格式展开：每种格式一个输出文件（base 不带扩展名）
+        rank_plot = [outdir + "/{genome}/signature_nmf_rank_diagnostics." + fmt for fmt in _sig_formats],
+        stacked_bar = [outdir + "/{genome}/signature_nmf_exposures_stacked_bar." + fmt for fmt in _sig_formats],
         cosmic_similarity = outdir + "/{genome}/signature_nmf_cosmic_similarity.csv",
         cosmic_best = outdir + "/{genome}/signature_nmf_cosmic_best_match.csv",
-        cosmic_match = outdir + "/{genome}/signature_nmf_cosmic_match.png"
+        cosmic_match = [outdir + "/{genome}/signature_nmf_cosmic_match." + fmt for fmt in _sig_formats]
     log:
         logdir + "/{genome}/spectrum/somatic_signature_nmf.log"
     threads: rule_res("somatic_signature_nmf").get("threads", 1)
@@ -220,6 +237,7 @@ rule somatic_signature_nmf:
     params:
         nmf_script = os.path.join(ROOT_DIR, "modules/spectrum/bin/signature_nmf.py"),
         outprefix = lambda wildcards: outdir + f"/{wildcards.genome}/signature_nmf",
+        formats = _sig_formats,   # ③ 转发
         cfg = _spectrum_cfg()
     conda:
         "../spectrum.yaml"
@@ -245,6 +263,8 @@ rule somatic_signature_nmf:
                    "--restarts", str(sig["restarts"]),
                    "--seed", str(sig["seed"]),
                    ]
+            for fmt in params.formats:
+                cmd += ["--format", str(fmt)]
             if sig["rank"]:
                 cmd += ["--rank", str(sig["rank"])]
             with open(script, "w") as f:
@@ -267,8 +287,8 @@ rule somatic_signature_nmf:
 
 rule spectrum_result:
     input:
-        spectrum_png = expand(outdir + "/{genome}/somatic_spectrum_stacked_bar.png", genome=genomes),
-        spectrum_heatmap = expand(outdir + "/{genome}/somatic_spectrum_heatmap.png", genome=genomes),
+        spectrum_stacked_bar = expand(outdir + "/{genome}/somatic_spectrum_stacked_bar.{fmt}", genome=genomes, fmt=_spectrum_formats),
+        spectrum_heatmap = expand(outdir + "/{genome}/somatic_spectrum_heatmap.{fmt}", genome=genomes, fmt=_spectrum_formats),
         spectrum_csv = expand(outdir + "/{genome}/somatic_spectrum.csv", genome=genomes),
         per_sample = expand(outdir + "/{genome}/somatic_spectrum_per_sample.csv", genome=genomes),
         sample_stats = expand(outdir + "/{genome}/somatic_spectrum_sample_stats.csv", genome=genomes),

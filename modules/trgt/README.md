@@ -22,10 +22,11 @@ reads BAM,并出单个重复位点的可视化图。两规则 `trgt_genotype` /
 ```
 {outdir}/genotype/{sample_id}/{sample_id}.trgt.vcf.gz                # TR 基因型 VCF
 {outdir}/genotype/{sample_id}/{sample_id}.trgt.spanning.sorted.bam   # 跨重复区 reads BAM
-{outdir}/plot/{sample_id}/{sample_id}.trgt.repeat.png                # 位点可视化图
+{outdir}/plot/{sample_id}/{sample_id}.trgt.repeat.{fmt}              # 位点可视化图(每种格式一个文件)
 ```
 
-收尾规则 `trgt_result` 聚合 vcf.gz + png。
+`{fmt}` 取自 `Params.trgt.formats`(默认 `["png"]`,与旧版文件名
+`{sample_id}.trgt.repeat.png` 一致)。收尾规则 `trgt_result` 聚合 vcf.gz + 全部格式的图。
 
 ### 1.3 参数
 
@@ -35,6 +36,7 @@ config 位于 `Params.trgt` 下,与 TRGT CLI 对应:
 |---|---|---|---|
 | `karyotype` | `--karyotype` | `XX` | 性染色体核型(XX/XY,影响性染色体位点的倍性判定) |
 | `repeat_id` | `--repeat-id` | `HTT` | 出图的重复位点 ID(如 HTT、FMR1) |
+| `formats` | `plot --image <base>.<fmt>` | `["png"]` | 图片格式列表,每种格式一个输出文件;合法值 `png` `svg` `pdf`(trgt 5.1.0 `--image` 扩展名工具集,解析期校验 fail fast) |
 | `Procedure.trgt` | — | `trgt` | TRGT 可执行路径 |
 | — | `genotype --num-threads` | threads | 分型线程(默认 4,`rule_res("trgt_genotype")` 配置) |
 | — | `genotype --genome --repeats --reads --output-prefix` | 固定 | 参考/目录/BAM/输出前缀 |
@@ -52,6 +54,8 @@ trgt genotype --num-threads 4 \
 trgt plot --genome genome.fa --repeats repeats.bed \
   --vcf out/S1.trgt.vcf.gz --spanning-reads out/S1.trgt.spanning.sorted.bam \
   --repeat-id HTT --image S1.trgt.repeat.png
+# 一次请求多格式:重复调用,--image 换扩展名(png/svg/pdf 由扩展名决定格式)
+#   trgt plot ... --image S1.trgt.repeat.svg
 ```
 
 ## 2. 算法原理与生物学意义

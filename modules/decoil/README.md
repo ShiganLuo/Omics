@@ -36,7 +36,7 @@
 {outdir}/{sid}/visualization/ucsc_track.txt
 
 # decoil_compare(全样本)
-{outdir}/compare/decoil_compare.png
+{outdir}/compare/decoil_compare.<fmt>
 {outdir}/compare/decoil_compare_shared_unique.tsv        # 共有/独有区段
 {outdir}/compare/decoil_compare_ecdna_regions.tsv
 ```
@@ -63,7 +63,7 @@ structure/igv)优先,回落到父级同名键(如 `formats`):
 | `...skip` | `--skip` | false | 跳过 FASTA 相关步骤 |
 | `Params.decoil.plot.formats` | `decoil_plot.py -f` | `[png]` | 统计图格式(可多) |
 | `Params.decoil.compare.formats` | `decoil_plot.py -f` | `[png]` | 比较图格式 |
-| `Params.decoil.structure.formats` | `decoil_structure.py -f` | `[png]` | 结构图格式;**decoil_plot 的 output 文件列表也取本键**(若与 plot.formats 不一致会与实际产物不符,建议保持一致) |
+| `Params.decoil.structure.formats` | `decoil_structure.py -f` | `[png]` | 结构图格式(decoil_plot 的 output 文件列表取 `plot.formats`,与转发一致) |
 | `Params.decoil.structure.max_per_fig` | `--max-per-fig` | 12 | 每图最多环数 |
 | `Params.decoil.structure.one_file_per_cycle` | `--one-file-per-cycle` | true | 每环单独出图 |
 | `Params.decoil.igv.locus` | `--locus` | "" | IGV 初始定位;缺省打开最大 ecDNA 区段 |

@@ -19,7 +19,7 @@
 {outdir}/msi_scan/msisensor_scan.tsv          # 全基因组微卫星位点表(每 genome 一次,共享)
 {outdir}/{sample_id}/{sample_id}_msi_pro.tsv  # 每肿瘤样本 MSI 结果(vs 配对正常)
 {outdir}/msi_input.txt                        # 汇总表(sample<TAB>score,每数据行取第 3 列)
-{outdir}/msi_barplot.jpg                      # 跨样本 MSI 柱状图
+{outdir}/msi_barplot.<fmt>                    # 跨样本 MSI 柱状图(每种 formats 一个文件;默认 msi_barplot.jpg)
 {outdir}/msi_scan.sh 等                       # 各规则回执
 logdir_combine/msi/msi_scan.log               # scan/plot 日志(默认 logdir_combine=logdir)
 logdir/{sample_id}/msi_call.log               # 每样本 call 日志
@@ -33,6 +33,7 @@ logdir/{sample_id}/msi_call.log               # 每样本 call 日志
 |---|---|---|---|
 | `Procedure.msisensorpro` | 可执行文件 | null(回退 `msisensorpro`) | msisensor-pro 路径 |
 | `Procedure.Rscript` | 可执行文件 | null(回退 `Rscript`) | Rscript 路径(msi_plot) |
+| `Params.msi.formats` | `bar_plot.r --format`(可重复) | `["jpg"]` | 柱状图输出格式,每种格式一个文件 `msi_barplot.<fmt>`;合法值 png pdf svg ps eps tif tiff jpg jpeg(R 设备集;pgf/raw/rgba 为 matplotlib 专属,传入即报错) |
 | `pairs` | — | {} | 肿瘤 → 配对正常样本字典 |
 | `bam_substring` | — | "" | 输入 BAM 名后缀 |
 | `genome.fasta` / `genome.fai` | `scan -d` | — | 参考基因组与 .fai |
@@ -47,14 +48,15 @@ msi_plot 1/4000。
 ```bash
 msisensorpro scan -d genome.fa -o msi_scan/msisensor_scan.tsv
 msisensorpro msi -d msi_scan/msisensor_scan.tsv -n {normal}.bam -t {tumor}.bam -o {s}_msi_pro.tsv
-Rscript modules/msi/bin/bar_plot.r -i msi_input.txt -o msi_barplot.jpg
+Rscript modules/msi/bin/bar_plot.r -i msi_input.txt -o msi_barplot --format jpg
 ```
 
 直接调用绘图脚本(更多可选项:`-s` 样本列名、`-c` 分数列名、`-t` 分隔符、
-`-x/-y` 轴标签):
+`-x/-y` 轴标签、`-f/--format` 可重复出多格式;`-o` 为不带扩展名的输出前缀,
+每种格式写 `<前缀>.<fmt>`,传入 `out.jpg` 这类旧式全名会自动去掉扩展名):
 
 ```bash
-Rscript bin/bar_plot.r -i msi_input.txt -o out.jpg -y MSI
+Rscript bin/bar_plot.r -i msi_input.txt -o out --format jpg --format pdf -y MSI
 ```
 
 ## 2. 算法原理与生物学意义

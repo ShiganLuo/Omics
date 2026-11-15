@@ -8,6 +8,11 @@ bam_suffix = config.get("bam_suffix", "")
 samples = config.get("samples", [])
 ROOT_DIR = config.get("ROOT_DIR", ".")
 
+# ① parse 期读入 + 规范化（str 收成单元素 list；合法值由 schema 声明）
+_formats = config.get("Params", {}).get("fragment_size", {}).get("formats") or ["png"]
+if isinstance(_formats, str):
+    _formats = [_formats]
+
 rule samtools_stats:
     """Get BAM statistics including fragment size distribution."""
     input:
@@ -88,13 +93,16 @@ rule plotFragmentSize:
     input:
         hist = outdir + "/fragment/FragmentSize.txt"
     output:
-        png = outdir + "/fragment/FragmentSize.png"
+        # ② 按格式展开：每种格式一个输出文件（base 不带扩展名）
+        plots = [outdir + "/fragment/FragmentSize." + fmt for fmt in _formats],
     log:
         logdir_combine + "/fragment/plotFragmentSize.log"
     resources:
         mem_mb = rule_res("plotFragmentSize").get("mem_mb", 8000),
     params:
-        script = os.path.join(ROOT_DIR, "modules/fragment_size/bin/plotFragmentSize.py")
+        script = os.path.join(ROOT_DIR, "modules/fragment_size/bin/plotFragmentSize.py"),
+        formats = _formats,   # ③ 转发
+        out_base = outdir + "/fragment/FragmentSize",
     conda:
         "fragment_size.yaml"
     container:
@@ -106,23 +114,24 @@ rule plotFragmentSize:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start plotFragmentSize at {current_time}")
-            outdir_fragment = os.path.dirname(str(output.png))
+            outdir_fragment = os.path.dirname(str(output.plots[0]))
             script = os.path.join(RECEIPT_DIR, f"plotFragmentSize_{current_time}.sh")
             plain_script = os.path.join(outdir_fragment, f"plotFragmentSize.sh")
+            fmt_args = " ".join(f"--format {fmt}" for fmt in params.formats)
             with open(script, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
-                f.write(f"python {params.script} --input {input.hist} --output {output.png}\n")
+                f.write(f"python {params.script} --input {input.hist} --output {params.out_base} {fmt_args}\n")
                 f.write(f'echo "script completed successfully"\n')
             shutil.copyfile(script, plain_script)
             shell(f"bash {plain_script} > {log_path} 2>&1")
         except Exception as e:
-            logger.error(f"Error occurred during plotFragmentSize: {e}")
-            raise RuntimeError(f"Error occurred: 2, you can check the log file for more details.")
+            logger.error(f"Error during plotFragmentSize: {e}")
+            raise RuntimeError(f"Error occurred during plotFragmentSize: {e}, you can check the log file {log_path} for more details.")
 
 rule fragment_size_result:
     """Result aggregation rule for subworkflow use rule import."""
     input:
         hist = outdir + "/fragment/FragmentSize.txt",
-        png = outdir + "/fragment/FragmentSize.png"
+        plots = [outdir + "/fragment/FragmentSize." + fmt for fmt in _formats]
     resources:
         mem_mb = rule_res("fragment_size_result").get("mem_mb", 8000),

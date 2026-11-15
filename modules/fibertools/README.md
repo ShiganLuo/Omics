@@ -9,7 +9,9 @@ fibertools-rs(`ft`)驱动的 Fiber-seq 分析,目录含两个 stem:
 
 共享资源:`fibertools.yaml`/`.def`(conda/容器)、`Params.fibertools`
 参数段、`fibertools.json`(公共 config 示例)、`bin/` 引擎脚本
-(`call_peaks.py`、`shuffle_bed.py`、`distributed_plot.py`)、
+(`call_peaks.py`、`shuffle_bed.py`、`distributed_plot.py`;distributed_plot
+出图 `-f/--imageFormat` 支持 matplotlib 全格式集 png pdf svg ps eps tif tiff
+jpg jpeg pgf raw rgba,默认 png,各面板按格式逐个落盘),
 `fibertools_build.sh`/`fibertools.post.sh`(容器构建)、`FIBERSEQ_ANALYSIS.md`
 (分析设计记录)。目录下 `polygenomes/` 子模块不在本文档范围。
 

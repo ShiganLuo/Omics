@@ -8,7 +8,9 @@
         "msisensorpro": null
     },
     "Params": {
-        "msi": {}
+        "msi": {
+            "formats": ["jpg"]
+        }
     },
     "genome": {
         "fasta": null,

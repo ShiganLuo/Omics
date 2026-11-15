@@ -8,8 +8,14 @@ green arc with counter-clockwise chevrons = inversion, dark/light red =
 duplicated copies, nested orange arcs = foldback.
 
 Usage:
-    python topology_legend.py [out.png]
+    python topology_legend.py [out_base] [-f png] [-f pdf] ...
+
+``out_base`` is the output path base WITHOUT extension; one
+``out_base.<fmt>`` is written per requested format (default: png). The
+legacy ``python topology_legend.py out.png`` form still works: a trailing
+known extension is stripped and used as the format.
 """
+import argparse
 import sys
 
 import matplotlib
@@ -18,6 +24,13 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib import font_manager
 from matplotlib.patches import Circle, Wedge
+
+PlotFormat = str
+
+# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
+# fails fast at parse time instead of dying inside savefig (modules.md #9)
+VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
+                 "jpeg", "pgf", "raw", "rgba")
 
 # Register a CJK font (the container ships only Latin fonts)
 _CJK_FONT = "/tmp/fonts/NotoSansCJK-Regular.ttc"
@@ -141,7 +154,33 @@ def style_axes(ax, title, desc):
 
 
 def main():
-    out = sys.argv[1] if len(sys.argv) > 1 else "topology_legend.png"
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap.add_argument("out_base", nargs="?", default="topology_legend",
+                    help="output path base without extension (a legacy "
+                         "<out.png> path is accepted: the extension is "
+                         "stripped and used as the format). "
+                         "Default: topology_legend")
+    ap.add_argument("-f", "--format", action="append", dest="formats",
+                    metavar="FMT",
+                    help="Image format (png/pdf/svg/...). Repeatable. "
+                         "Default: png.")
+    args = ap.parse_args()
+
+    image_formats = args.formats if args.formats else ["png"]
+    out_base = args.out_base
+    # legacy compat: positional carried a full file name (out.png) — strip a
+    # known extension and, absent explicit -f, honor it as the format
+    for fmt in VALID_FORMATS:
+        if out_base.endswith("." + fmt):
+            out_base = out_base[: -(len(fmt) + 1)]
+            if not args.formats:
+                image_formats = [fmt]
+            break
+    bad = [f for f in image_formats if f not in VALID_FORMATS]
+    if bad:
+        raise ValueError(
+            f"Unsupported image format(s): {', '.join(bad)}; "
+            f"valid: {', '.join(VALID_FORMATS)}")
     plt.rcParams["font.family"] = [_CJK_NAME, "DejaVu Sans"]
 
     fig, axes = plt.subplots(4, 2, figsize=(11.0, 14.2), dpi=300)
@@ -259,13 +298,15 @@ def main():
         a.text(0.5, 0.80 - i * 0.105, txt, ha="center", va="center",
                fontsize=9.2, color=col)
 
-    fig.savefig(
-        out,
-        facecolor="white",
-        edgecolor="white",
-        transparent=False,
-    )
-    print(f"Saved {out}")
+    for fmt in image_formats:
+        out = f"{out_base}.{fmt}"
+        fig.savefig(
+            out,
+            facecolor="white",
+            edgecolor="white",
+            transparent=False,
+        )
+        print(f"Saved {out}")
 
 
 if __name__ == "__main__":

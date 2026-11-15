@@ -18,8 +18,22 @@
             "lfc_cut": 1,
             "p_cut": 0.05,
             "top": 10,
+            "go_kegg": {
+                "formats": ["png"]
+            },
+            "gsea": {
+                "gmt": null,
+                "formats": ["jpeg"]
+            },
             "gsva": {
-                "gmt": null
+                "gmt": null,
+                "formats": ["png"]
+            },
+            "sv_go_kegg": {
+                "formats": ["png"]
+            },
+            "pseudobulk_go": {
+                "formats": ["png"]
             }
         }
     }

@@ -7,6 +7,22 @@ samples = config.get("samples", [])
 karyotype = config.get("Params", {}).get("trgt", {}).get("karyotype") or "XX"
 bam_substring = config.get("bam_substring") or ""
 
+# --- Image formats (trgt plot --image) ---
+# The valid set is the TOOL's set: probed from trgt 5.1.0 in the trgt SIF —
+# "error: invalid value 'x.bmp' for '--image <IMAGE>': Image must have an
+# extension of .svg, .png, or .pdf". Fail fast at rule parse time
+# (modules.md #9).
+TRGT_PLOT_FORMATS = ("png", "svg", "pdf")
+# ① parse 期读入 + 规范化（str 收成单元素 list；合法值由 schema 声明）
+_formats = config.get("Params", {}).get("trgt", {}).get("formats") or ["png"]
+if isinstance(_formats, str):
+    _formats = [_formats]
+_bad_fmts = [f for f in _formats if f not in TRGT_PLOT_FORMATS]
+if _bad_fmts:
+    raise ValueError(
+        "Unsupported Params.trgt.formats value(s): " + ", ".join(_bad_fmts)
+        + "; trgt plot --image accepts: " + ", ".join(TRGT_PLOT_FORMATS))
+
 def get_input_for_trgt_genotype(wildcards):
     logger.info(f"trgt_genotype called with {wildcards}")
     in_dict = {}
@@ -67,14 +83,17 @@ rule trgt_plot:
         fai = lambda wildcards: config["genome"][wildcards.genome]["fai"],
         bed = lambda wildcards: config["genome"][wildcards.genome]["repeat_bed"]
     output:
-        png = outdir + "/{genome}/plot/{sample_id}/{sample_id}.trgt.repeat.png"
+        # ② 按格式展开：每种格式一个输出文件（base 不带扩展名）
+        plots = [outdir + "/{genome}/plot/{sample_id}/{sample_id}.trgt.repeat." + fmt for fmt in _formats],
     log:
         logdir + "/{genome}/{sample_id}/trgt_plot.log"
     resources:
         mem_mb = rule_res("trgt_plot").get("mem_mb", 16000),
     params:
         trgt = config.get("Procedure", {}).get("trgt") or "trgt",
-        repeat_id = config.get("Params", {}).get("trgt", {}).get("repeat_id") or "HTT"
+        repeat_id = config.get("Params", {}).get("trgt", {}).get("repeat_id") or "HTT",
+        formats = _formats,   # ③ 转发
+        out_base = outdir + "/{genome}/plot/{sample_id}/{sample_id}.trgt.repeat",
     conda:
         "../trgt.yaml"
     container:
@@ -91,11 +110,11 @@ rule trgt_plot:
             "--vcf", input.vcf,
             "--spanning-reads", input.bam,
             "--repeat-id", params.repeat_id,
-            "--image", output.png
         ]
         with open(script, "w") as f:
             f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
-            f.write(" ".join(cmd) + "\n")
+            for fmt in params.formats:
+                f.write(" ".join(cmd + ["--image", params.out_base + "." + str(fmt)]) + "\n")
             f.write(f'echo "script completed successfully"\n')
         shutil.copyfile(script, plain_script)
         shell(f"bash {plain_script} > {log} 2>&1")
@@ -103,6 +122,6 @@ rule trgt_plot:
 rule trgt_result:
     input:
         vcf = outdir + "/{genome}/genotype/{sample_id}/{sample_id}.trgt.vcf.gz",
-        png = outdir + "/{genome}/plot/{sample_id}/{sample_id}.trgt.repeat.png"
+        plots = [outdir + "/{genome}/plot/{sample_id}/{sample_id}.trgt.repeat." + fmt for fmt in _formats],
     resources:
         mem_mb = rule_res("trgt_result").get("mem_mb", 8000),

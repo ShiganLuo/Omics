@@ -10,12 +10,88 @@ genome = config.get("genome", {})
 
 func_params = config.get("Params", {}).get("function", {})
 
+# Plotting formats per param section (modules.md #9): ① parse 期读入 +
+# 规范化(str 收成单元素 list;合法值由 schema 声明)。output: 不能是函数,
+# 格式列表必须是模块级变量(decoil.smk 同款注释)——因此 formats 必须跨
+# genome 一致:每个 genome 段各自声明,取值不一致时 parse 期直接报错,
+# 而不是悄悄少产声明的输出文件。
+def _uniform_formats(section, default):
+    """Formats for one plotting section, uniform across genome param blocks.
+
+    Sections without an explicit list inherit the one that is set; more than
+    one distinct explicit list is a config error (module-level output lists
+    cannot vary per genome wildcard).
+
+    Parameters
+    ----------
+    section : str
+        Param sub-key (go_kegg / gsea / gsva).
+    default : list
+        Fallback list (= the extension the rules emit today).
+
+    Returns
+    -------
+    list
+        The single formats list used for both output expansion and params.
+    """
+    found = {}
+    for genome, genome_params in func_params.items():
+        if not isinstance(genome_params, dict):
+            continue
+        fmts = (genome_params.get(section) or {}).get("formats")
+        if fmts is None:
+            continue
+        if isinstance(fmts, str):
+            fmts = [fmts]
+        found[genome] = list(fmts)
+    if not found:
+        return list(default)
+    distinct = {tuple(v) for v in found.values()}
+    if len(distinct) > 1:
+        raise ValueError(
+            f"Params.function.<genome>.{section}.formats must be identical "
+            f"across genomes (rule outputs are expanded at parse time): "
+            f"got {found}")
+    return list(next(iter(distinct)))
+
+_go_kegg_formats = _uniform_formats("go_kegg", ["png"])
+_gsea_formats = _uniform_formats("gsea", ["jpeg"])
+_gsva_formats = _uniform_formats("gsva", ["png"])
+
+
+def _raster_pick(formats):
+    """Report/consumer variant for a figure: png first, else first raster.
+
+    Cross-module consumers (report embedding) resolve one concrete file;
+    follow the raster-first convention from modules.md #9 so the consumer
+    never asks for a variant the producer did not write.
+
+    Parameters
+    ----------
+    formats : list
+        Producer formats list.
+
+    Returns
+    -------
+    str
+        The variant the consumer should reference.
+    """
+    if "png" in formats:
+        return "png"
+    for fmt in ("jpg", "jpeg", "tif", "tiff"):
+        if fmt in formats:
+            return fmt
+    return formats[0]
+
 rule function_go_kegg:
     input:
         deseq2_result = indir + "/{genome}/{contrast}/TEcount/{contrast}.TEcount_Gene.name.tsv",
     output:
-        func_go_plot = outdir + "/{genome}/{contrast}/go_back_to_back.png",
-        func_kegg_plot = outdir + "/{genome}/{contrast}/kegg_back_to_back.png",
+        # ② 按格式展开:每种格式一个输出文件(base 不带扩展名)
+        func_go_plot = [outdir + "/{genome}/{contrast}/go_back_to_back." + fmt
+                        for fmt in _go_kegg_formats],
+        func_kegg_plot = [outdir + "/{genome}/{contrast}/kegg_back_to_back." + fmt
+                          for fmt in _go_kegg_formats],
         func_go_up = outdir + "/{genome}/{contrast}/go_up.csv",
         func_go_down = outdir + "/{genome}/{contrast}/go_down.csv",
         func_kegg_up = outdir + "/{genome}/{contrast}/kegg_up.csv",
@@ -33,6 +109,7 @@ rule function_go_kegg:
         lfc_cut = lambda wildcards: config.get("Params", {}).get("function", {}).get(wildcards.genome, {}).get("go_kegg", {}).get("lfc_cut") or 1,
         p_cut = lambda wildcards: config.get("Params", {}).get("function", {}).get(wildcards.genome, {}).get("go_kegg", {}).get("p_cut") or 0.05,
         top = lambda wildcards: config.get("Params", {}).get("function", {}).get(wildcards.genome, {}).get("go_kegg", {}).get("top") or 10,
+        formats = _go_kegg_formats,   # ③ 转发(跨 genome 一致,见 _uniform_formats)
     conda:
         "../function.yaml"
     container:
@@ -49,7 +126,7 @@ rule function_go_kegg:
                 raise ValueError(f"Group pair {wildcards.contrast} not found in group_pairs configuration.")
             ctrl = group_pairs.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("control_group_name")
             exp = group_pairs.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("experimental_group_name")
-            sample_outdir = os.path.dirname(str(output.func_go_plot))
+            sample_outdir = os.path.dirname(str(output.func_go_plot[0]))
 
             if not os.path.exists(input.deseq2_result):
                 raise FileNotFoundError(
@@ -67,6 +144,8 @@ rule function_go_kegg:
                 "--p-cut", str(params.p_cut),
                 "--top", str(params.top),
             ]
+            for fmt in params.formats:
+                cmd += ["--format", str(fmt)]
 
             script = os.path.join(RECEIPT_DIR, f"go_kegg_{wildcards.genome}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"go_kegg.sh")
@@ -99,7 +178,9 @@ rule function_gsea:
     input:
         unpack(get_input_for_function_gsea)
     output:
-        func_gsea_plot = outdir + "/{genome}/{contrast}/GSEA/TEcount_Gene_GSEA.jpeg",
+        # ② 按格式展开:每种格式一个输出文件(base 不带扩展名)
+        func_gsea_plot = [outdir + "/{genome}/{contrast}/GSEA/TEcount_Gene_GSEA." + fmt
+                          for fmt in _gsea_formats],
         func_gsea_csv = outdir + "/{genome}/{contrast}/GSEA/TEcount_Gene_GSEA.csv"
     log:
         logdir + "/function/{genome}/{contrast}.gsea.log"
@@ -108,6 +189,7 @@ rule function_gsea:
         mem_mb=rule_res("function_gsea").get("mem_mb", 8000),
     params:
         gsea_script = ROOT_DIR + "/modules/function/bin/gsea.r",
+        formats = _gsea_formats,   # ③ 转发(跨 genome 一致,见 _uniform_formats)
     conda:
         "../function.yaml"
     container:
@@ -126,7 +208,7 @@ rule function_gsea:
 
             if wildcards.contrast not in group_pairs.get(wildcards.genome, {}):
                 raise ValueError(f"Group pair {wildcards.contrast} not found in group_pairs configuration.")
-            sample_outdir = os.path.dirname(str(output.func_gsea_plot))
+            sample_outdir = os.path.dirname(str(output.func_gsea_plot[0]))
             script = os.path.join(RECEIPT_DIR, f"gsea_{wildcards.contrast}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"gsea.sh")
             graph_title = wildcards.contrast
@@ -141,6 +223,8 @@ rule function_gsea:
                 "-a", input.annotation,
                 "-t", graph_title,
             ]
+            for fmt in params.formats:
+                cmd += ["--format", str(fmt)]
 
             with open(script, 'w') as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
@@ -193,7 +277,9 @@ rule function_gsva:
         unpack(get_input_for_function_gsva)
     output:
         gsva_scores = outdir + "/{genome}/gsva/gsva_scores.tsv",
-        gsva_heatmap = outdir + "/{genome}/gsva/gsva_heatmap.png",
+        # ② 按格式展开:每种格式一个输出文件(base 不带扩展名)
+        gsva_heatmap = [outdir + "/{genome}/gsva/gsva_heatmap." + fmt
+                        for fmt in _gsva_formats],
     log:
         logdir + "/function/{genome}/gsva.log"
     threads: rule_res("function_gsva").get("threads", 1)
@@ -203,6 +289,7 @@ rule function_gsva:
         norm_script = ROOT_DIR + "/modules/function/bin/normalization.py",
         gsva_script = ROOT_DIR + "/modules/function/bin/gsva.py",
         species = lambda wildcards: config.get("Params", {}).get("function", {}).get(wildcards.genome, {}).get("go_kegg", {}).get("species") or "mouse",
+        formats = _gsva_formats,   # ③ 转发(跨 genome 一致,见 _uniform_formats)
     conda:
         "../function.yaml"
     container:
@@ -237,6 +324,8 @@ rule function_gsva:
                 "-o", gsva_outdir,
                 "--title", f"GSVA ({species_name}) - {wildcards.genome}",
             ]
+            for fmt in params.formats:
+                gsva_cmd += ["--format", str(fmt)]
             script = os.path.join(RECEIPT_DIR, f"gsva_{wildcards.genome}_{current_time}.sh")
             plain_script = os.path.join(gsva_outdir, f"gsva.sh")
             with open(script, 'w') as f:
@@ -252,7 +341,9 @@ rule function_gsva:
 
 rule function_result:
     input:
-        go_kegg = outdir + "/{genome}/{contrast}/go_back_to_back.png",
-        gsea = outdir + "/{genome}/{contrast}/GSEA/TEcount_Gene_GSEA.jpeg"
+        # 消费端按 raster-first 约定解析同一变体(modules.md #9):
+        # png 优先,否则取第一个光栅格式,否则取第一个格式
+        go_kegg = outdir + "/{genome}/{contrast}/go_back_to_back." + _raster_pick(_go_kegg_formats),
+        gsea = outdir + "/{genome}/{contrast}/GSEA/TEcount_Gene_GSEA." + _raster_pick(_gsea_formats)
     resources:
         mem_mb = rule_res("function_result").get("mem_mb", 8000),

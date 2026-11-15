@@ -28,6 +28,37 @@ log_msg <- function(level = c("INFO","WARN","ERROR"), ..., quit = FALSE) {
 }
 
 ## =========================
+## Multi-format figure output (modules.md #9)
+## =========================
+## ggsave derives the device from the file extension, so writing every
+## requested format is a plain loop over "{out_base}.{fmt}". pgf/raw/rgba
+## are matplotlib-only and fail fast here (R ggsave device set).
+VALID_FORMATS <- c("png", "pdf", "svg", "ps", "eps", "tif", "tiff",
+                   "jpg", "jpeg")
+
+## Fail fast on unsupported formats, listing what ggsave can write.
+validate_formats <- function(formats) {
+  bad <- setdiff(formats, VALID_FORMATS)
+  if (length(bad) > 0) {
+    stop(sprintf("Unsupported image format(s): %s; valid: %s",
+                 paste(bad, collapse = ", "),
+                 paste(VALID_FORMATS, collapse = ", ")))
+  }
+  invisible(formats)
+}
+
+## Save one ggplot per requested format as "{out_base}.{fmt}".
+save_ggsave_formats <- function(plot, out_base, formats, width, height,
+                                dpi = 300, ...) {
+  validate_formats(formats)
+  for (fmt in formats) {
+    out <- sprintf("%s.%s", out_base, fmt)
+    ggsave(out, plot = plot, width = width, height = height, dpi = dpi, ...)
+  }
+  invisible(out_base)
+}
+
+## =========================
 ## Utility: adaptive plot height
 ## =========================
 calc_plot_height <- function(n,
@@ -183,10 +214,10 @@ plot_enrichment_gseapy_style <- function(pathway,
                                          geneset,
                                          ranked_list,
                                          fgsea_row,
-                                         outjpeg,
+                                         out_base,
+                                         formats = "jpeg",
                                          width = 7,
-                                         height = 5,
-                                         format = "jpeg") {
+                                         height = 5) {
 
   library(ggplot2)
   library(patchwork)
@@ -331,13 +362,7 @@ plot_enrichment_gseapy_style <- function(pathway,
       heights = c(2.2, 0.4, 0.25, 1)
     )
 
-  ggsave(
-    outjpeg,
-    plot = p,
-    width = width,
-    height = height,
-    dpi = 300
-  )
+  save_ggsave_formats(p, out_base, formats, width = width, height = height)
 
   invisible(p)
 }
@@ -350,10 +375,10 @@ plot_enrichment_gseapy_style <- function(pathway,
 ## =========================
 waterfall_plot <- function(rnk,
                            geneset,
-                           outjpeg,
+                           out_base,
                            graph_title,
                            outfile,
-                           format = "jpeg") {
+                           formats = "jpeg") {
 
   log_msg("INFO", "Running fgsea")
 
@@ -404,13 +429,7 @@ waterfall_plot <- function(rnk,
       legend.position = "none"
     )
 
-  ggsave(
-    outjpeg,
-    plot = p,
-    width = 8,
-    height = height,
-    dpi = 300
-  )
+  save_ggsave_formats(p, out_base, formats, width = 8, height = height)
   ## ===== gseapy-style enrichment plots =====
   top_pathways <- fgsea_res %>%
     arrange(desc(NES)) %>%
@@ -418,7 +437,7 @@ waterfall_plot <- function(rnk,
 
   geneset_list <- gmtPathways(geneset)
 
-  enrich_dir <- file.path(dirname(outjpeg), "enrichment_plots")
+  enrich_dir <- file.path(dirname(out_base), "enrichment_plots")
   dir.create(enrich_dir, showWarnings = FALSE)
 
   for (i in seq_len(nrow(top_pathways))) {
@@ -426,7 +445,7 @@ waterfall_plot <- function(rnk,
 
     outp <- file.path(
       enrich_dir,
-      paste0(pw, "_enrichment.", format)
+      paste0(pw, "_enrichment")
     )
 
     plot_enrichment_gseapy_style(
@@ -434,8 +453,8 @@ waterfall_plot <- function(rnk,
       geneset = geneset_list,
       ranked_list = rnk,
       fgsea_row = top_pathways[i, ],
-      outjpeg = outp,
-      format = format
+      out_base = outp,
+      formats = formats
     )
   }
   invisible(fgsea_res)
@@ -448,7 +467,7 @@ plot_enrichment <- function(geneset,
                             pathway,
                             ranked_list,
                             outdir,
-                            format = "jpeg") {
+                            formats = "jpeg") {
 
   p <- plotEnrichment(geneset[[pathway]], ranked_list) +
     labs(title = pathway) +
@@ -462,15 +481,9 @@ plot_enrichment <- function(geneset,
       )
     )
 
-  outjpeg <- file.path(outdir, paste0(pathway, ".", format))
+  out_base <- file.path(outdir, pathway)
 
-  ggsave(
-    outjpeg,
-    plot = p,
-    width = 8,
-    height = 4,
-    dpi = 300
-  )
+  save_ggsave_formats(p, out_base, formats, width = 8, height = 4)
 }
 
 ## =========================
@@ -486,9 +499,15 @@ parser$add_argument("-a", "--annotation", required = TRUE, type="character",
                     help = "Gene annotation file for Gene mode  (including gene_id, gene_type, gene_name columns)")
 parser$add_argument("-t", "--graphTitle",type = "character", default = "", help = "Title for the GSEA graph")
 parser$add_argument("-r", "--rewrite",action = "store_true", default = FALSE, help = "Whether to rewrite existing files")
-parser$add_argument("--format", type = "character", default = "jpeg",
-                    choices = c("jpeg", "png", "pdf"), help = "Output image format (default: jpeg)")
+parser$add_argument("--format", action = "append", dest = "formats", type = "character",
+                    default = NULL, metavar = "FMT",
+                    help = "Output image format (png/pdf/svg/ps/eps/tif/tiff/jpg/jpeg; repeatable). Default: jpeg")
 args <- parser$parse_args()
+
+## One format per --format flag; default keeps the historical jpeg output.
+## Fail fast on pgf/raw/rgba etc. before any heavy computation runs.
+formats <- if (is.null(args$formats)) "jpeg" else unlist(args$formats)
+validate_formats(formats)
 
 ## =========================
 ## Main
@@ -509,7 +528,7 @@ if (args$mode == "Gene") {
 
   out_rnk <- file.path(gsea_dir, "TEcount_Gene_GSEA.rnk")
   out_fgsea <- file.path(gsea_dir, "TEcount_Gene_GSEA.csv")
-  out_jpeg <- file.path(gsea_dir, paste0("TEcount_Gene_GSEA.", args$format))
+  out_base <- file.path(gsea_dir, "TEcount_Gene_GSEA")
 
   if (!file.exists(out_rnk) || args$rewrite) {
     rnk <- GSEA_prepare(
@@ -526,10 +545,10 @@ if (args$mode == "Gene") {
   waterfall_plot(
     rnk = rnk,
     geneset = args$gmt,
-    outjpeg = out_jpeg,
+    out_base = out_base,
     graph_title = args$graphTitle,
     outfile = out_fgsea,
-    format = args$format
+    formats = formats
   )
 
 } else {

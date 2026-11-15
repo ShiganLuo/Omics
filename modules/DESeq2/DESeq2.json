@@ -8,5 +8,10 @@
     "treatment_samples": [],
     "treatment_group_name": "treatment",
     "geneIDAnno": "path/to/geneIDAnno.txt",
-    "geneIDAnno_comment": "A tab-delimited file with at least two columns: gene_id and gene_name"
+    "geneIDAnno_comment": "A tab-delimited file with at least two columns: gene_id and gene_name",
+    "Params": {
+        "DESeq2": {
+            "formats": ["png"]
+        }
+    }
 }

@@ -81,19 +81,28 @@
       "colorMap": "YlOrRd",
       "heatmapHeight": 15,
       "heatmapWidth": 8,
-      "whatToShow": "plot, heatmap and colorbar"
+      "whatToShow": "plot, heatmap and colorbar",
+      "formats": [
+        "png"
+      ]
     },
     "macs3": {
       "bw": 200,
       "pvalue": "1e-5",
       "genome_size": "mm",
-      "broad_cutoff": "0.1"
+      "broad_cutoff": "0.1",
+      "formats": [
+        "png"
+      ]
     },
     "peak_te_overlap": {
       "method": "reads",
       "sort_by": "te_length",
       "top_n": 30,
-      "combine": false
+      "combine": false,
+      "formats": [
+        "png"
+      ]
     },
     "report": {
       "title": "RIP-seq Analysis Report",
@@ -102,7 +111,10 @@
       "genome": "GRCm39 (mm39)",
       "date": "2026-11-11",
       "top_n": 5,
-      "enabled": true
+      "enabled": true,
+      "formats": [
+        "png"
+      ]
     },
     "igv": {
       "js": "/home/luosg/Database/SoftWare/igv.min.js",

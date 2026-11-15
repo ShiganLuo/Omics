@@ -224,7 +224,9 @@
           "top_cell_types": [],
           "highlight_genes": [],
           "deg_mode": [
-            "gene", "te", "all"
+            "gene",
+            "te",
+            "all"
           ]
         }
       },
@@ -296,7 +298,10 @@
           ]
         }
       },
-      "tissue_samples": {}
+      "tissue_samples": {},
+      "formats": [
+        "png"
+      ]
     },
     "sccoda": {
       "scTE": {
@@ -317,17 +322,27 @@
         "num_samples": 2000,
         "num_warmup": 500
       },
-      "tissue_samples": {}
+      "tissue_samples": {},
+      "formats": [
+        "png"
+      ]
     },
     "function": {
       "pseudobulk_go": {
         "enabled": true,
-        "modes": ["all", "gene", "te"],
+        "modes": [
+          "all",
+          "gene",
+          "te"
+        ],
         "species": "macaque",
         "lfc_cut": 1,
         "p_cut": 0.05,
         "top": 10,
-        "format": "png"
+        "format": "png",
+        "formats": [
+          "png"
+        ]
       }
     }
   }

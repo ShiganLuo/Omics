@@ -23,7 +23,8 @@
             "crosstalks": false,
             "pretRNAs": false,
             "posttrans_mod_off": false,
-            "local_modomics": false
+            "local_modomics": false,
+            "formats": ["pdf"]
         }
     },
     "ROOT_DIR": ".",

@@ -29,6 +29,26 @@ import mimseq.mmQuant as mmQuant_module
 
 log = logging.getLogger(__name__)
 
+# Plot formats forwarded to the vendored mimseq plotting code through the
+# MIMSEQ_PLOT_FORMATS env var (read around ggsave()/savefig in mimseq/*.R and
+# mimseq/tRNAmap.py; default "pdf" preserves upstream behaviour). Valid set =
+# the R ggsave device set (every entry is also a matplotlib savefig format).
+PLOT_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg", "jpeg")
+
+
+def export_plot_formats(formats):
+    """Publish requested plot formats to the vendored plotting code.
+
+    Save formats. Default ``["pdf"]``.
+    """
+    fmts = list(formats) if formats else ["pdf"]
+    bad = [f for f in fmts if f not in PLOT_FORMATS]
+    if bad:
+        raise ValueError(
+            f"Unsupported image format(s): {', '.join(bad)}; "
+            f"valid: {', '.join(PLOT_FORMATS)}")
+    os.environ["MIMSEQ_PLOT_FORMATS"] = ",".join(fmts)
+
 
 def run_coverage(
     out: str,
@@ -128,7 +148,13 @@ def main():
     parser.add_argument("--mod-sites", default="", help="Modification sites")
     parser.add_argument("--cons-pos-list", default="", help="Conservation positions list")
 
+    parser.add_argument("-f", "--format", action="append", dest="formats",
+                        metavar="FMT",
+                        help="Image format (png/pdf/svg/...). Repeatable. "
+                             "Default: pdf.")
+
     args = parser.parse_args()
+    export_plot_formats(args.formats)
 
     run_coverage(
         out=args.out,

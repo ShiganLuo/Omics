@@ -993,14 +993,18 @@ def print_figure_conclusions(
 
 # ── Main ───────────────────────────────────────────────────────────────────────
 
-VALID_FORMATS = ("png", "pdf", "svg", "tiff", "eps", "jpg", "jpeg")
+# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
+# fails fast at parse time instead of dying inside savefig (modules.md #9)
+VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
+                 "jpeg", "pgf", "raw", "rgba")
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Summarize Arriba fusion results across samples.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="Supported figure formats: png, pdf, svg, tiff, eps, jpg",
+        epilog="Supported figure formats: png, pdf, svg, ps, eps, tif, tiff, "
+               "jpg, jpeg, pgf, raw, rgba (matplotlib savefig set)",
     )
 
     # ── Input: mutually exclusive (--indir  vs  -p/-d)
@@ -1026,7 +1030,8 @@ def main() -> None:
         "-f", "--format", nargs="+", default=["png"],
         metavar="FMT",
         help=(
-            "Output figure format(s). One or more of: png, pdf, svg, tiff, eps, jpg. "
+            "Output figure format(s). One or more of: png, pdf, svg, ps, eps, "
+            "tif, tiff, jpg, jpeg, pgf, raw, rgba. "
             "Default: png. Example: -f png pdf svg"
         ),
     )

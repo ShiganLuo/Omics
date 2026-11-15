@@ -10,6 +10,11 @@ bam_substring = config.get("bam_substring", "sorted_markdup.bam")
 MODULE_DIR = os.path.join(config.get("ROOT_DIR", "."), "modules", "macs3")
 CUTOFF_SCRIPT = os.path.join(MODULE_DIR, "bin", "plot_cutoff_analysis.py")
 
+# ① parse 期读入 + 规范化（str 收成单元素 list；合法值由 schema 声明）
+_formats = config.get("Params", {}).get("macs3", {}).get("formats") or ["png"]
+if isinstance(_formats, str):
+    _formats = [_formats]
+
 def get_macs3_input(wildcards):
     """
     Get treatment (IP) and optional control (Input) BAM files for MACS3.
@@ -118,7 +123,8 @@ rule macs3_cutoff_plot:
     input:
         cutoffs = expand(outdir + "/{genome}/{sample_id}/{sample_id}_cutoff_analysis.txt", sample_id=ip_samples, genome="{genome}"),
     output:
-        plot = outdir + "/{genome}/cutoff_analysis.png",
+        # ② 按格式展开：每种格式一个输出文件（base 不带扩展名）
+        plots = [outdir + "/{genome}/cutoff_analysis." + fmt for fmt in _formats],
     log:
         logdir + "/{genome}/../group/macs3/macs3_cutoff_plot.log"
     threads: rule_res("macs3_cutoff_plot").get("threads", 1)
@@ -128,6 +134,9 @@ rule macs3_cutoff_plot:
         "../macs3.yaml"
     container:
         sif("../macs3.yaml", "macs3_cutoff_plot")
+    params:
+        formats = _formats,   # ③ 转发
+        out_base = lambda wildcards: outdir + f"/{wildcards.genome}/cutoff_analysis",
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -139,9 +148,11 @@ rule macs3_cutoff_plot:
             cmd = ["python", CUTOFF_SCRIPT]
             for path, name in zip(input.cutoffs, ip_samples):
                 cmd += ["--input-files", path, "--sample-names", name]
-            cmd += ["--output", output.plot]
+            cmd += ["--output", params.out_base]
+            for fmt in params.formats:
+                cmd += ["--format", str(fmt)]
 
-            plot_dir = os.path.dirname(str(output.plot))
+            plot_dir = os.path.dirname(str(output.plots[0]))
             os.makedirs(plot_dir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"plot_cutoff_{current_time}.sh")
             plain_script = os.path.join(plot_dir, f"plot_cutoff.sh")
@@ -166,6 +177,6 @@ rule macs3_result:
         broad_peak = outdir + "/{genome}/{sample_id}/{sample_id}_broad_peaks.broadPeak",
         broad_xls = outdir + "/{genome}/{sample_id}/{sample_id}_broad_peaks.xls",
         broad_cutoff = outdir + "/{genome}/{sample_id}/{sample_id}_broad_cutoff_analysis.txt",
-        plot = outdir + "/{genome}/cutoff_analysis.png"
+        plots = [outdir + "/{genome}/cutoff_analysis." + fmt for fmt in _formats]
     resources:
         mem_mb = rule_res("macs3_result").get("mem_mb", 8000),

@@ -8,6 +8,13 @@ genome_samples = config.get("genome_samples") or {}
 sample_groups = config.get("sample_groups") or {}
 ROOT_DIR = config.get("ROOT_DIR", ".")
 
+# TEChimericPlot image formats (modules.md #9) — ① parse 期读入 + 规范化
+# (str 收成单元素 list;合法值由 schema 声明)。output 指令无法调用函数,
+# 格式列表必须是模块级变量。
+_formats = config.get("Params", {}).get("StringTie", {}).get("formats") or ["png"]
+if isinstance(_formats, str):
+    _formats = [_formats]
+
 def get_input_for_stringTie(wildcards):
     logger.debug(f"[get_input_for_stringTie] called with wildcards: {wildcards}")
     bam_path = indir + f"/{wildcards.genome}/{wildcards.sample_id}/{wildcards.sample_id}.bam"
@@ -127,16 +134,18 @@ rule TEChimericPlot:
     input:
         txts = get_input_for_TEChimericPlot
     output:
-        group_stack = outdir + "/{genome}/TE_chimeric/TE_chimeric_group_stacked.png",
-        type_top = outdir + "/{genome}/TE_chimeric/TE_chimeric_te_type_top.png",
-        type_by_group = outdir + "/{genome}/TE_chimeric/TE_chimeric_te_type_by_group.png",
+        # ② 按格式展开:每种格式一个输出文件(base 不带扩展名)
+        group_stack = [outdir + "/{genome}/TE_chimeric/TE_chimeric_group_stacked." + fmt for fmt in _formats],
+        type_top = [outdir + "/{genome}/TE_chimeric/TE_chimeric_te_type_top." + fmt for fmt in _formats],
+        type_by_group = [outdir + "/{genome}/TE_chimeric/TE_chimeric_te_type_by_group." + fmt for fmt in _formats],
         sample_summary = outdir + "/{genome}/TE_chimeric/TE_chimeric_sample_summary.tsv",
         group_summary = outdir + "/{genome}/TE_chimeric/TE_chimeric_group_summary.tsv",
         te_type_counts = outdir + "/{genome}/TE_chimeric/TE_chimeric_te_type_counts.tsv"
     log:
         logdir_combine + "/stringtie/{genome}/TEChimericPlot.log"
     params:
-        TEChimericPlot = ROOT_DIR + "/modules/StringTie/bin/TEChimericPlot.py"
+        TEChimericPlot = ROOT_DIR + "/modules/StringTie/bin/TEChimericPlot.py",
+        formats = _formats,   # ③ 转发
     threads: rule_res("TEChimericPlot").get("threads", 1)
     resources:
         mem_mb=rule_res("TEChimericPlot").get("mem_mb", 8000),
@@ -150,7 +159,7 @@ rule TEChimericPlot:
         rule_logger = setup_logger(logger_name="TEChimericPlot_run", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d.%H:%M:%S", time.localtime())
-            sample_outdir = os.path.dirname(output.group_stack)
+            sample_outdir = os.path.dirname(str(output.group_stack[0]))
             script = os.path.join(RECEIPT_DIR, f"TEChimericPlot_{wildcards.genome}_{current_time}.sh")
             plain_script = f"{sample_outdir}/TEChimericPlot.sh"
             rule_logger.info(f"Start TEChimericPlot run at {current_time}")
@@ -171,6 +180,8 @@ rule TEChimericPlot:
                 "-g", group_tsv,
                 "-o", f"{outdir}/{wildcards.genome}/TE_chimeric/TE_chimeric"
             ]
+            for fmt in params.formats:
+                cmd += ["--format", str(fmt)]
             with open(script, 'w') as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(' '.join(cmd) + "\n")

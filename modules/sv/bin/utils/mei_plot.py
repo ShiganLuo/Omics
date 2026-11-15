@@ -4,19 +4,25 @@
 Reads the mei/ outputs (mei_events.tsv etc.) and renders the publication-
 style figure set:
 
-  mei_family_by_group.png    family x group stacked bar + group totals
-  mei_insert_length_by_family.png      insertion length distribution per family
-  mei_genomic_context.png            genomic context (exon/intron/intergenic)
+  mei_family_by_group.<fmt>    family x group stacked bar + group totals
+  mei_insert_length_by_family.<fmt>      insertion length distribution per family
+  mei_genomic_context.<fmt>            genomic context (exon/intron/intergenic)
                                   per family x group (100% stacked)
-  mei_te_region_ratio.png          TE-into-TE vs unique-site insertion ratio
-  mei_full_length_L1.png     full-length L1 candidates: length hist +
+  mei_te_region_ratio.<fmt>          TE-into-TE vs unique-site insertion ratio
+  mei_full_length_L1.<fmt>     full-length L1 candidates: length hist +
                                   per-group counts
-  mei_polya_tsd_fingerprint.png          MEI fingerprint rates (polyA, TSD) per family
+  mei_polya_tsd_fingerprint.<fmt>          MEI fingerprint rates (polyA, TSD) per family
   mei_report.html                 self-contained summary report embedding
                                   all figures and key tables
 
+One file per figure per requested format (`-f/--format`, repeatable;
+default png). The HTML report always embeds a PNG raster copy of every
+figure (the produced .png variant when png is requested, else a temporary
+raster).
+
 Usage:
   python mei_plot.py --mei-dir <mei_outdir> [--title "youth vs aged"]
+                    [-f png] [-f pdf] ...
 
 Layout: every figure is composed first, then de-collided by the layout
 engine at the bottom of this file (_stack_labels + _fix_overlaps): all
@@ -31,6 +37,7 @@ import base64
 import json
 import logging
 import os
+import tempfile
 
 import matplotlib
 matplotlib.use("Agg")
@@ -40,6 +47,13 @@ import numpy as np
 import pandas as pd
 
 logger = logging.getLogger("mei_plot")
+
+PlotFormat = str
+
+# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
+# fails fast at parse time instead of dying inside savefig (modules.md #9)
+VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
+                 "jpeg", "pgf", "raw", "rgba")
 
 plt.rcParams.update({
     "figure.dpi": 150,
@@ -784,7 +798,18 @@ def main():
     ap.add_argument("--exp-name", default=None,
                     help="experimental group display name (from "
                          "Params.sv.comparisons.<key>.experimental_group_name)")
+    ap.add_argument("-f", "--format", action="append", dest="formats",
+                    metavar="FMT",
+                    help="Image format (png/pdf/svg/...). Repeatable. "
+                         "Default: png.")
     args = ap.parse_args()
+
+    image_formats = args.formats if args.formats else ["png"]
+    bad = [f for f in image_formats if f not in VALID_FORMATS]
+    if bad:
+        raise ValueError(
+            f"Unsupported image format(s): {', '.join(bad)}; "
+            f"valid: {', '.join(VALID_FORMATS)}")
 
     d = args.mei_dir
     df = pd.read_csv(os.path.join(d, "mei_events.tsv"), sep="\t",
@@ -816,29 +841,39 @@ def main():
 
     figs = []
     slots, fp_fams = bucket_vocab(summary, df)
+    # one out_base per figure; out_base + '.' + fmt per requested format
     jobs = [
-        ("mei_family_by_group.png",
+        ("mei_family_by_group",
          lambda f: fig1_family_by_group(df, f, fams=slots)),
-        ("mei_insert_length_by_family.png",
+        ("mei_insert_length_by_family",
          lambda f: fig2_length_family(df, f, fams=slots)),
-        ("mei_genomic_context.png",
+        ("mei_genomic_context",
          lambda f: fig3_context(df, f, fams=slots)),
-        ("mei_te_region_ratio.png",
+        ("mei_te_region_ratio",
          lambda f: fig4_te_region(df, f, fams=slots)),
-        ("mei_full_length_L1.png",
+        ("mei_full_length_L1",
          lambda f: fig5_full_length_l1(df, f,
                                        os.path.join(d, "mei_full_length_L1.tsv"))),
-        ("mei_polya_tsd_fingerprint.png",
+        ("mei_polya_tsd_fingerprint",
          lambda f: fig6_polya_tsd(df, f, fams=fp_fams)),
-        ("mei_diff_volcano.png",
+        ("mei_diff_volcano",
          lambda f: fig7_diff_volcano(os.path.join(d, "mei_diff.tsv"), f,
                                      ctrl, exp)),
     ]
+    # the HTML report embeds PNG rasters: use the produced .png variant when
+    # png is requested, else render temporary raster copies for embedding
+    if "png" in image_formats:
+        embed_dir = d
+    else:
+        embed_dir = tempfile.mkdtemp(prefix="mei_report_embed_")
     for name, fn in jobs:
-        out = os.path.join(d, name)
-        fn(out)
-        figs.append(out)
-        print(f"[MEI-plot] wrote {out}")
+        for fmt in image_formats:
+            out = os.path.join(d, f"{name}.{fmt}")
+            fn(out)
+            print(f"[MEI-plot] wrote {out}")
+        if embed_dir is not d:
+            fn(os.path.join(embed_dir, f"{name}.png"))
+        figs.append(os.path.join(embed_dir, f"{name}.png"))
 
     html_report(d, args.title, figs, df, summary,
                 os.path.join(d, "mei_report.html"))

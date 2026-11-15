@@ -11,6 +11,11 @@ from utils.VEP_SV import read_vep_tab
 from utils.SV_TYPE_plot import plot_group_type_comparison
 logger = setup_logger(__name__)
 
+# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
+# fails fast at parse time instead of dying inside savefig (modules.md #9)
+VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
+                 "jpeg", "pgf", "raw", "rgba")
+
 def tab_parser(
         table_file: str,
         cosmic_file:str,
@@ -376,6 +381,11 @@ def plot_oncoprint(
     """
     if image_formats is None:
         image_formats = ["png"]
+    bad = [f for f in image_formats if f not in VALID_FORMATS]
+    if bad:
+        raise ValueError(
+            f"Unsupported image format(s): {', '.join(bad)}; "
+            f"valid: {', '.join(VALID_FORMATS)}")
 
     if sv_colors is None:
         sv_colors = {
@@ -557,6 +567,8 @@ def main():
     args = parser_args()
     outdir = args.outdir
     os.makedirs(outdir, exist_ok=True)
+    # -f/--image_format is repeatable; absent = default ["png"]
+    image_formats = args.image_format if args.image_format else ["png"]
     # Parse group_files from "sample:path" format
     tab_files = {}
     for item in args.group:
@@ -582,7 +594,7 @@ def main():
     plot_oncoprint(
         matrix=oncoprint_matrix,
         out_prefix=os.path.join(outdir, "oncoprint"),
-        image_formats=args.image_format,
+        image_formats=image_formats,
     )
 
     # Parse deseq2_files from "condition=path" format
@@ -605,7 +617,7 @@ def main():
 
     # Plot
     result_df = result_df.dropna()
-    for fmt in args.image_format:
+    for fmt in image_formats:
         out_plot = os.path.join(outdir, f"deseq2_oncoprint_fold_change_all.{fmt}")
         logger.info(f"Plotting fold change comparison to: {out_plot}")
         plot_group_type_comparison(

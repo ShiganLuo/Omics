@@ -8,7 +8,10 @@ Collects QC statistics from:
   4. Per-gene alignment manifests and Tailer CSV outputs
   5. Small-RNA gene annotation BED
 
-Produces a multi-slide PPTX and an Excel file inventory.
+Produces a multi-slide PPTX and an Excel file inventory. Own figures are
+additionally exported standalone as `<report_dir>/figures/<name>.<fmt>`
+for each `--format` (default png) with a `figures/manifest.tsv` file
+list; the PPTX embeds the raster copy (png variant when produced).
 """
 
 from __future__ import annotations
@@ -74,6 +77,61 @@ C_MUTED = RGBColor(0x74, 0x74, 0x74)
 C_BG = RGBColor(0xF6, 0xF8, 0xFB)
 C_WHITE = RGBColor(0xFF, 0xFF, 0xFF)
 C_LIGHT = RGBColor(0xE2, 0xE8, 0xF0)
+
+# ── Report figure export (报告图导出, report modules 规范) ─────────────────
+PlotFormat = str
+
+# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
+# fails fast at parse time instead of dying inside savefig (modules.md #9)
+VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
+                 "jpeg", "pgf", "raw", "rgba")
+
+# 报告自有图除嵌入 PPTX 外,还作为独立交付物写到 <report_dir>/figures/
+# <name>.<fmt>(每种请求格式一个文件);manifest.tsv 逐行列出
+# name<TAB>filename,让 DAG 在不逐一声明条件图的情况下保持诚实。
+FIG_DIR = ""  # set in main(): <report_dir>/figures
+_FIG_MANIFEST: List[Tuple[str, str]] = []
+
+
+def save_fig(fig, name: str, image_formats: Optional[List[PlotFormat]] = None,
+             dpi: int = DPI) -> str:
+    """Save one report figure as ``figures/<name>.<fmt>`` for each requested
+    format (standalone deliverable) and return the raster copy embedded in
+    the PPTX (the png variant when produced, else a tempfile).
+
+    image_formats: Save formats. Default ``["png"]``.
+    """
+    if image_formats is None:
+        image_formats = ["png"]
+    bad = [f for f in image_formats if f not in VALID_FORMATS]
+    if bad:
+        raise ValueError(
+            f"Unsupported image format(s): {', '.join(bad)}; "
+            f"valid: {', '.join(VALID_FORMATS)}")
+    os.makedirs(FIG_DIR, exist_ok=True)
+    for fmt in image_formats:
+        p = os.path.join(FIG_DIR, f"{name}.{fmt}")
+        fig.savefig(p, dpi=dpi, bbox_inches="tight")
+        _FIG_MANIFEST.append((name, f"{name}.{fmt}"))
+    if "png" in image_formats:
+        return os.path.join(FIG_DIR, f"{name}.png")
+    fd, tmp = tempfile.mkstemp(prefix=f"{name}_", suffix=".png")
+    os.close(fd)
+    fig.savefig(tmp, dpi=dpi, bbox_inches="tight")
+    return tmp
+
+
+def write_fig_manifest() -> str:
+    """Write figures/manifest.tsv (one ``name<TAB>filename`` line per
+    exported figure file). Always written so the DAG stays honest even
+    when no figure was rendered."""
+    os.makedirs(FIG_DIR, exist_ok=True)
+    path = os.path.join(FIG_DIR, "manifest.tsv")
+    with open(path, "w", encoding="utf-8") as fh:
+        for name, filename in _FIG_MANIFEST:
+            fh.write(f"{name}\t{filename}\n")
+    return path
+
 
 # ── Plot colors (hex strings for matplotlib) ─────────────────────────────
 P_7SL = "#065A82"
@@ -454,25 +512,38 @@ def infer_group(sample: str) -> str:
 # ══════════════════════════════════════════════════════════════════════════
 
 class TempImageStore:
-    """Stores temporary plot images, copying to optional static dir if specified."""
-    def __init__(self, img_dir: str = ""):
+    """Stores temporary plot images, copying to optional static dir if specified.
+
+    ``image_formats`` are the export formats for the standalone
+    ``figures/<stem>.<fmt>`` deliverables (default ``["png"]``, ``[]`` =
+    不出图); the PPTX always embeds a raster copy.
+    """
+    def __init__(self, img_dir: str = "",
+                 image_formats: Optional[List[PlotFormat]] = None):
         self.img_dir = img_dir
+        self.image_formats = ["png"] if image_formats is None else image_formats
         self.paths: list[str] = []
         if self.img_dir:
             os.makedirs(self.img_dir, exist_ok=True)
 
     def save_fig(self, fig, stem: str) -> str:
-        """Saves a matplotlib figure and returns the path."""
-        fd, tmp_path = tempfile.mkstemp(prefix=f"{stem}_", suffix=".png")
-        os.close(fd)
-        fig.savefig(tmp_path, dpi=DPI, bbox_inches="tight")
+        """Save the figure as standalone figures/<stem>.<fmt> deliverables
+        (multi-format export) and return the raster path embedded in the
+        PPTX (the png variant when produced, else a tempfile). Empty
+        ``image_formats`` = 不出图: nothing saved, nothing embedded."""
+        if not self.image_formats:
+            plt.close(fig)
+            return ""
+        raster = save_fig(fig, stem, self.image_formats, dpi=DPI)
         plt.close(fig)
-        self.paths.append(tmp_path)
+        if "png" not in self.image_formats:
+            # tempfile fallback from save_fig — clean it up after embedding
+            self.paths.append(raster)
         if self.img_dir:
             dest = os.path.join(self.img_dir, f"{stem}.png")
-            shutil.copy2(tmp_path, dest)
+            shutil.copy2(raster, dest)
             return dest
-        return tmp_path
+        return raster
 
     def cleanup(self):
         """Cleans up temporal files."""
@@ -1291,6 +1362,9 @@ def main():
     ap.add_argument("--sample-groups", default="", help="JSON string mapping sample->group")
     ap.add_argument("--short-names", default="", help="JSON string mapping sample->display_name")
     ap.add_argument("--aligner", default="star_3pass_gene", help="Aligner type: hisat2, star, star_3pass, star_3pass_gene")
+    ap.add_argument("-f", "--format", action="append", dest="formats", metavar="FMT",
+                    help="Image format (png/pdf/svg/...). Repeatable. Default: png. "
+                         "Own figures are exported as <report_dir>/figures/<name>.<fmt>.")
     args = ap.parse_args()
 
     global _SAMPLE_GROUPS, _SHORT_NAMES
@@ -1337,7 +1411,10 @@ def main():
         subtitle_parts.append(args.genome)
     subtitle = " | ".join(subtitle_parts)
 
-    img_store = TempImageStore(args.img_dir)
+    global FIG_DIR
+    FIG_DIR = os.path.join(os.path.dirname(output), "figures")
+    img_store = TempImageStore(args.img_dir,
+                               image_formats=args.formats if args.formats else ["png"])
     prs = Presentation()
     prs.slide_width = Inches(SLIDE_W)
     prs.slide_height = Inches(SLIDE_H)
@@ -1358,7 +1435,9 @@ def main():
 
     prs.save(output)
     img_store.cleanup()
+    manifest_path = write_fig_manifest()
     print(f"Report saved to {output}", file=sys.stderr)
+    print(f"figure manifest written to {manifest_path}", file=sys.stderr)
     if args.file_inventory:
         inventory_path = os.path.abspath(args.file_inventory)
         os.makedirs(os.path.dirname(inventory_path), exist_ok=True)

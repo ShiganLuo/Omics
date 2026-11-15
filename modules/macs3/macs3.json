@@ -14,7 +14,8 @@
             "bw": 200,
             "pvalue": "1e-5",
             "genome_size": "mm",
-            "broad_cutoff": "0.1"
+            "broad_cutoff": "0.1",
+            "formats": ["png"]
         }
     },
     "genome": {

@@ -540,4 +540,4 @@ Conventions for adding functionality: [modules/modules.md](modules/modules.md)
 - [x] Dual shell logging for all pipelines: keep the final executed shell script in the results directory, and log every executed script under log/cmd; currently supported for scRNAseq, Fiberseq
 - [ ] Multi-genome parallel runs; supported: RNAseq
 - [ ] Balanced resource consumption (no host memory exhaustion or CPU saturation); initially supported: Fiberseq, RNAseq; next step is tying data volume to compute resources
-- [ ] Multiple selectable image output formats
+- [x] Multiple selectable image output formats

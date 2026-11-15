@@ -333,7 +333,10 @@
     },
     "StringTie": {
       "enabled": true,
-      "sample_groups": {}
+      "sample_groups": {},
+      "formats": [
+        "png"
+      ]
     },
     "gatk_RNAseq": {
       "enabled": true
@@ -344,7 +347,10 @@
       "known_fusions": "/data/16T/Database/SoftWare/arriba_v2.5.1/database/known_fusions_mm39_GRCm39_v2.5.1.tsv.gz",
       "t": null,
       "d": null,
-      "E": 0.3
+      "E": 0.3,
+      "formats": [
+        "png"
+      ]
     },
     "DESeq2": {
       "enabled": true,
@@ -384,7 +390,10 @@
         "highlight_families": {
           "GRCm39": {},
           "GRCh38": {}
-        }
+        },
+        "formats": [
+          "png"
+        ]
       },
       "locus_boxplot": {
         "match_field": "subfamily",
@@ -394,7 +403,10 @@
         "families": {
           "GRCm39": {},
           "GRCh38": {}
-        }
+        },
+        "formats": [
+          "png"
+        ]
       },
       "subfamily_bar": {
         "match_field": "subfamily",
@@ -406,8 +418,14 @@
         "families": {
           "GRCm39": {},
           "GRCh38": {}
-        }
-      }
+        },
+        "formats": [
+          "png"
+        ]
+      },
+      "formats": [
+        "png"
+      ]
     },
     "function": {
       "GRCh38": {
@@ -416,13 +434,22 @@
           "lfc_cut": 1,
           "p_cut": 0.05,
           "top": 10,
-          "species": "human"
+          "species": "human",
+          "formats": [
+            "png"
+          ]
         },
         "gsea": {
-          "gmt": "/data/16T/Database/Reference/geneset/8C_human.gmt"
+          "gmt": "/data/16T/Database/Reference/geneset/8C_human.gmt",
+          "formats": [
+            "jpeg"
+          ]
         },
         "gsva": {
-          "gmt": "/data/16T/Database/Reference/geneset/GSI_human.gmt"
+          "gmt": "/data/16T/Database/Reference/geneset/GSI_human.gmt",
+          "formats": [
+            "png"
+          ]
         }
       },
       "GRCm39": {
@@ -431,13 +458,22 @@
           "lfc_cut": 1,
           "p_cut": 0.05,
           "top": 10,
-          "species": "mouse"
+          "species": "mouse",
+          "formats": [
+            "png"
+          ]
         },
         "gsea": {
-          "gmt": "/data/16T/Database/Reference/geneset/2C_mouse.gmt"
+          "gmt": "/data/16T/Database/Reference/geneset/2C_mouse.gmt",
+          "formats": [
+            "jpeg"
+          ]
         },
         "gsva": {
-          "gmt": "/data/16T/Database/Reference/geneset/GSI_mouse.gmt"
+          "gmt": "/data/16T/Database/Reference/geneset/GSI_mouse.gmt",
+          "formats": [
+            "png"
+          ]
         }
       }
     },
@@ -448,7 +484,10 @@
       "pipeline": "FASTQ -> TrimGalore/Cutadapt -> STAR/HISAT2 -> TEcount/StringTie/Arriba -> DESeq2 -> RNAseq_report",
       "genome": "GRCm39",
       "date": "2026-07-27",
-      "lang": "zh"
+      "lang": "zh",
+      "formats": [
+        "png"
+      ]
     },
     "sexcheck": {
       "ratio_xy_threshold": null,

@@ -13,5 +13,10 @@
             "te_gtf": "path/to/TE.gtf",
             "tss_bed": "path/to/tss.bed"
         }
+    },
+    "Params": {
+        "plotHeatmap": {
+            "formats": ["png"]
+        }
     }
 }

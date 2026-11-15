@@ -9,6 +9,37 @@ suppressPackageStartupMessages({
   library(dplyr)
 })
 
+## =========================
+## Multi-format figure output (modules.md #9)
+## =========================
+## ggsave derives the device from the file extension, so writing every
+## requested format is a plain loop over "{out_base}.{fmt}". pgf/raw/rgba
+## are matplotlib-only and fail fast here (R ggsave device set).
+VALID_FORMATS <- c("png", "pdf", "svg", "ps", "eps", "tif", "tiff",
+                   "jpg", "jpeg")
+
+## Fail fast on unsupported formats, listing what ggsave can write.
+validate_formats <- function(formats) {
+  bad <- setdiff(formats, VALID_FORMATS)
+  if (length(bad) > 0) {
+    stop(sprintf("Unsupported image format(s): %s; valid: %s",
+                 paste(bad, collapse = ", "),
+                 paste(VALID_FORMATS, collapse = ", ")))
+  }
+  invisible(formats)
+}
+
+## Save one ggplot per requested format as "{out_base}.{fmt}".
+save_ggsave_formats <- function(plot, out_base, formats, width, height,
+                                dpi = 300, ...) {
+  validate_formats(formats)
+  for (fmt in formats) {
+    out <- sprintf("%s.%s", out_base, fmt)
+    ggsave(out, plot = plot, width = width, height = height, dpi = dpi, ...)
+  }
+  invisible(out_base)
+}
+
 define_up_down_genes <- function(
   infile,
   gene_col,
@@ -112,7 +143,8 @@ plot_back_to_back <- function(
   down_df,
   top = 10,
   title = "",
-  outfile
+  out_base,
+  formats = "png"
 ) {
   required_cols <- c("pvalue", "Description")
 
@@ -167,7 +199,7 @@ plot_back_to_back <- function(
       plot.title = element_text(hjust = 0.5)
     )
 
-  ggsave(outfile, p, width = 8, height = 6)
+  save_ggsave_formats(p, out_base, formats, width = 8, height = 6)
 }
 
 
@@ -180,9 +212,12 @@ run_pipeline <- function(
   p_col = "lg.p",
   up_cutoff = 1,
   p_cutoff = 0.05,
-  top = 10
+  top = 10,
+  formats = "png"
 ) {
   dir.create(outdir, recursive = TRUE, showWarnings = FALSE)
+  # fail fast on bad formats before any enrichment work starts
+  validate_formats(formats)
 
   message("Defining Up / Down genes ...")
   genes <- define_up_down_genes(
@@ -214,7 +249,8 @@ run_pipeline <- function(
       down_res,
       top = top,
       title = paste(toupper(type), "enrichment"),
-      outfile = file.path(outdir, paste0(type, "_back_to_back.png"))
+      out_base = file.path(outdir, paste0(type, "_back_to_back")),
+      formats = formats
     )
   }
 }
@@ -230,7 +266,8 @@ parse_args <- function() {
     p_col = "lg.p",
     up_cutoff = 1,
     p_cutoff = 0.05,
-    top = 10
+    top = 10,
+    formats = NULL
   )
   i <- 1
   while (i <= length(args)) {
@@ -262,6 +299,10 @@ parse_args <- function() {
     } else if (key == "--top") {
       i <- i + 1
       res$top <- as.integer(args[[i]])
+    } else if (key == "--format") {
+      # repeatable: one output image per --format flag
+      i <- i + 1
+      res$formats <- c(res$formats, args[[i]])
     }
     i <- i + 1
   }
@@ -271,8 +312,11 @@ parse_args <- function() {
 main <- function() {
   args <- parse_args()
   if (is.null(args$infile) || is.null(args$outdir)) {
-    stop("usage: go-kegg_back.r -i <infile> -o <outdir> [--species <human|mouse>] [--gene_col <col>] [--value_col <col>] [--p_col <col>] [--up_cutoff <num>] [--p_cutoff <num>] [--top <num>]")
+    stop("usage: go-kegg_back.r -i <infile> -o <outdir> [--species <human|mouse>] [--gene_col <col>] [--value_col <col>] [--p_col <col>] [--up_cutoff <num>] [--p_cutoff <num>] [--top <num>] [--format <png|pdf|svg|ps|eps|tif|tiff|jpg|jpeg>] (repeatable, default: png)")
   }
+  # default keeps the historical png output; fail fast on unsupported formats
+  formats <- if (is.null(args$formats)) "png" else args$formats
+  validate_formats(formats)
   run_pipeline(
     infile = args$infile,
     outdir = args$outdir,
@@ -282,7 +326,8 @@ main <- function() {
     p_col = args$p_col,
     up_cutoff = args$up_cutoff,
     p_cutoff = args$p_cutoff,
-    top = args$top
+    top = args$top,
+    formats = formats
   )
 }
 

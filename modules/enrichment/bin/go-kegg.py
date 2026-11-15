@@ -4,7 +4,14 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import os
 import numpy as np
-from typing import List, Dict, Literal
+from typing import List, Dict, Literal, Optional
+
+PlotFormat = str
+
+# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
+# fails fast at parse time instead of dying inside savefig (modules.md #9)
+VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
+                 "jpeg", "pgf", "raw", "rgba")
 
 
 def enrich_go_kegg_analysis(gene_list: List[str], organism: Literal['human', 'mouse'] = 'human', outdir='enrichment_results') -> Dict[str, pd.DataFrame]:
@@ -42,10 +49,33 @@ def enrich_go_kegg_analysis(gene_list: List[str], organism: Literal['human', 'mo
     print(f"富集分析完成，结果保存在文件夹: {outdir}")
     return results_dict
 
-def plot_enrichment_bar(df: pd.DataFrame, outpath: str, top_n=10, kind='GO', title=None):
+def plot_enrichment_bar(df: pd.DataFrame, out_base: str, top_n=10, kind='GO',
+                        title=None, image_formats: Optional[List[PlotFormat]] = None):
     """
-    只负责绘制GO/KEGG富集柱状图。
+    只负责绘制GO/KEGG富集柱状图,每种请求格式输出一份 "{out_base}.{fmt}"。
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        单个富集库的结果表(enrichr results)。
+    out_base : str
+        输出路径前缀(不含扩展名),每种格式写成 ``{out_base}.{fmt}``。
+    top_n : int
+        按 Adjusted P-value 取前 N 条绘图。
+    kind : str
+        ``'GO'``/``'KEGG'``,决定配色与轴标签。
+    title : str, optional
+        图标题;None 时用 ``{kind} Top {top_n} Enrichment``。
+    image_formats : List[str], optional
+        Save formats. Default ``["png"]``.
     """
+    if image_formats is None:
+        image_formats = ["png"]
+    bad = [f for f in image_formats if f not in VALID_FORMATS]
+    if bad:
+        raise ValueError(
+            f"Unsupported image format(s): {', '.join(bad)}; "
+            f"valid: {', '.join(VALID_FORMATS)}")
     if df.empty:
         print(f"{kind} enrichment result is empty, skip plot.")
         return
@@ -70,7 +100,10 @@ def plot_enrichment_bar(df: pd.DataFrame, outpath: str, top_n=10, kind='GO', tit
         title = f'{kind} Top {top_n} Enrichment'
     plt.title(title, fontsize=15, fontweight='bold')
     plt.tight_layout()
-    plt.savefig(outpath, dpi=150)
+    for fmt in image_formats:
+        out_path = f"{out_base}.{fmt}"
+        plt.savefig(out_path, dpi=150)
+        print(f"Saved {out_path}")
     plt.close()
 
 if __name__ == "__main__":
@@ -79,7 +112,8 @@ if __name__ == "__main__":
     gene_list = df["gene_name"].dropna().unique().tolist()
     outdir = "/data/pub/zhousha/20260411_MERIPseq/output/exomePeak/plot/py"
     results = enrich_go_kegg_analysis(gene_list, outdir=outdir, organism="mouse")
-    # 分别绘图
+    # 分别绘图(out_base 不带扩展名;每种格式一份)
     for key, df in results.items():
         kind = 'KEGG' if key == 'KEGG' else 'GO'
-        plot_enrichment_bar(df, os.path.join(outdir, f'{key}_top10.png'), top_n=10, kind=kind, title=None)
+        plot_enrichment_bar(df, os.path.join(outdir, f'{key}_top10'), top_n=10,
+                            kind=kind, title=None, image_formats=["png"])

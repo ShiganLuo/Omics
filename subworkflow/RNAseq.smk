@@ -356,6 +356,11 @@ StringTie_config = {
         "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
         "sample_groups": config.get("Params",{}).get("StringTie",{}).get('sample_groups'),
+        "Params": {
+            # wholesale section so formats (and future keys) reach the module;
+            # StringTie.smk reads Params.StringTie.formats
+            "StringTie": config.get("Params", {}).get("StringTie", {}),
+        },
         "genome": config.get('genome',{}),
         "Procedure": {
             "stringtie": config.get("Procedure", {}).get("stringtie") or "stringtie"
@@ -499,7 +504,9 @@ arriba_config = {
                 "t": config.get('Params',{}).get('arriba',{}).get('t'),
                 "d": config.get('Params',{}).get('arriba',{}).get('d'),
                 "E": config.get('Params',{}).get('arriba',{}).get('E'),
-                "p": config.get('Params',{}).get('arriba',{}).get('p')
+                "p": config.get('Params',{}).get('arriba',{}).get('p'),
+                # figure formats (arriba.smk reads Params.arriba.formats)
+                "formats": config.get('Params',{}).get('arriba',{}).get('formats')
             }
         },
         "Procedure": {
@@ -620,6 +627,11 @@ RNAseq_report_config = {
     "Params": {
         "report": config.get("Params", {}).get("report", {}),
         "DESeq2": config.get("Params", {}).get("DESeq2", {}),
+        # 生产者 formats 段直通(modules.md #9):report 模块 input 在 parse 期
+        # 按上游 formats 做 raster-first 变体解析
+        "StringTie": config.get("Params", {}).get("StringTie", {}),
+        "arriba": config.get("Params", {}).get("arriba", {}),
+        "function": config.get("Params", {}).get("function", {}),
     },
     "resources": config.get("resources", {}),
 }

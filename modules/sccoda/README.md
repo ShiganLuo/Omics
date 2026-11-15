@@ -31,6 +31,7 @@ pre-override label set.
 | `credible_threshold` | `0.9` | posterior cutoff for `is_credible` |
 | `num_samples` | `2000` | NUTS posterior samples |
 | `num_warmup` | `500` | NUTS warmup samples |
+| `formats` | `["png"]` | plot output formats written simultaneously (matplotlib savefig set: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba); each plot is written per format as `da/{prefix}_<name>.<fmt>`. CLI `--format` (repeatable; `-f` is taken by `--formula`) |
 
 A report target is registered per tissue only when the counter block is
 enabled AND at least one compare entry carries that tissue prefix.

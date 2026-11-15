@@ -18,6 +18,22 @@ tissues = sorted(tissue_samples.keys())
 python = procedure.get("python") or "python"
 script = os.path.join(ROOT_DIR, "modules", "scanpy", "bin", "scRNAseq.py")
 
+
+def _image_formats(wildcards, section: str = None) -> list:
+    """Resolve image formats for one rule's figures (modules.md #9).
+
+    Params.scanpy.<counter>.<section>.formats ->
+    Params.scanpy.<counter>.formats -> ["png"] (today's fixed output names).
+    Plot outputs are directory() (pre-existing shape, unchanged); the files
+    written inside carry the requested extensions via the script's
+    repeatable ``--format`` flag.
+    """
+    counter_cfg = params.get(wildcards.counter, {}) or {}
+    fmts = (counter_cfg.get(section) or {}).get("formats") if section else None
+    fmts = fmts or counter_cfg.get("formats") or ["png"]
+    return [fmts] if isinstance(fmts, str) else [str(f) for f in fmts]
+
+
 # Gene type annotation references
 te_bed = config.get("te_bed", "")
 gene_tsv = config.get("gene_tsv", "")
@@ -52,7 +68,8 @@ rule scanpy_qc:
         n_top_genes=lambda wildcards: params.get(wildcards.counter, {}).get("qc",{}).get("n_top_genes", 3000),
         use_mad=lambda wildcards: params.get(wildcards.counter, {}).get("qc",{}).get("use_mad", False),
         scrublet=lambda wildcards: params.get(wildcards.counter, {}).get("qc",{}).get("scrublet", True),
-        doublet_rate=lambda wildcards: params.get(wildcards.counter, {}).get("qc",{}).get("doublet_rate", 0.06)
+        doublet_rate=lambda wildcards: params.get(wildcards.counter, {}).get("qc",{}).get("doublet_rate", 0.06),
+        formats=lambda wildcards: _image_formats(wildcards, "qc")
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -73,6 +90,8 @@ rule scanpy_qc:
                    "-N", str(params.max_genes),
                    "-t", str(params.max_pct_mt)]
             cmd += ["-p", str(output.plot_dir)]
+            for fmt in params.formats:
+                cmd += ["--format", str(fmt)]
             if params.use_mad:
                 cmd += ["-M"]
             if params.scrublet:
@@ -125,7 +144,8 @@ rule scanpy_merge:
         python=python,
         script=script,
         te_bed=te_bed,
-        gene_tsv=gene_tsv
+        gene_tsv=gene_tsv,
+        formats=lambda wildcards: _image_formats(wildcards)
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -141,6 +161,8 @@ rule scanpy_merge:
             cmd = [params.python, params.script, "merge",
                    "-i"] + list(input.h5ad) + ["-o", output.h5ad]
             cmd += ["-p", str(output.plot_dir)]
+            for fmt in params.formats:
+                cmd += ["--format", str(fmt)]
             if params.te_bed and params.gene_tsv:
                 cmd += ["-b", params.te_bed, "-G", params.gene_tsv]
             with open(script, "w") as f:
@@ -205,6 +227,7 @@ rule scanpy_auto:
         marker_supplement_llm=lambda wildcards: bool(params.get(wildcards.counter, {}).get("auto", {}).get("marker_supplement_llm", True)),
         exclude_genes=lambda wildcards: params.get(wildcards.counter, {}).get("auto", {}).get("exclude_genes", "") or "",
         exclude_from_deg=lambda wildcards: bool(params.get(wildcards.counter, {}).get("auto", {}).get("exclude_from_deg", False)),
+        formats=lambda wildcards: _image_formats(wildcards, "auto"),
         species=species
     run:
         log_path = str(log)
@@ -231,6 +254,8 @@ rule scanpy_auto:
                    "-g", str(params.n_top_genes),
                    "-B", params.batch_method,
                    "-K", params.batch_key]
+            for fmt in params.formats:
+                cmd += ["--format", str(fmt)]
             if params.species:
                 cmd += ["-S", params.species]
             if params.llm_method:
@@ -323,6 +348,7 @@ rule scanpy_reannotate:
         python=python,
         script=script,
         marker_supplement=lambda wildcards: (params.get(wildcards.counter, {}).get("auto", {}).get("marker_supplement", {}) or {}).get(wildcards.tissue, ""),
+        formats=lambda wildcards: _image_formats(wildcards, "auto"),
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -338,6 +364,8 @@ rule scanpy_reannotate:
                    "-o", input.h5ad,
                    "-Y", input.overrides,
                    "-T", wildcards.tissue]
+            for fmt in params.formats:
+                cmd += ["--format", str(fmt)]
             if params.marker_supplement:
                 cmd += ["-X", str(params.marker_supplement)]
             with open(script, "w") as f:
@@ -383,7 +411,8 @@ rule scanpy_advanced:
         communication=lambda wildcards: params.get(wildcards.counter,{}).get("advanced",{}).get("communication", False),
         cnv=lambda wildcards: params.get(wildcards.counter,{}).get("advanced",{}).get("cnv", False),
         gtf=lambda wildcards: params.get(wildcards.counter,{}).get("advanced",{}).get("gtf", ""),
-        cnv_reference=lambda wildcards: params.get(wildcards.counter,{}).get("advanced",{}).get("cnv_reference", "")
+        cnv_reference=lambda wildcards: params.get(wildcards.counter,{}).get("advanced",{}).get("cnv_reference", ""),
+        formats=lambda wildcards: _image_formats(wildcards, "advanced")
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -414,6 +443,8 @@ rule scanpy_advanced:
             if params.cnv_reference:
                 cmd += ["-R", params.cnv_reference]
             cmd += ["-p", str(output.plot_dir)]
+            for fmt in params.formats:
+                cmd += ["--format", str(fmt)]
             with open(script, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 # Cap numeric-library threads to the rule's thread budget
@@ -466,6 +497,7 @@ rule scanpy_pseudobulk:
         sif("scanpy.yaml", "scanpy_pseudobulk")
     params:
         pb_cfg = lambda wildcards: params.get(wildcards.counter, {}).get("pseudobulk", {}),
+        formats = lambda wildcards: _image_formats(wildcards, "pseudobulk"),
         python = python,
         script = os.path.join(ROOT_DIR, "modules", "scanpy", "bin", "pseudobulk.py"),
     run:
@@ -517,6 +549,9 @@ rule scanpy_pseudobulk:
             # repeated flags overwrite each other in argparse and only the
             # last mode would run.
             cmd += ["--deg-mode"] + [str(m) for m in (pb.get("deg_mode") or ["all"])]
+            # --format is action='append': one flag per format (modules.md #9)
+            for fmt in params.formats:
+                cmd += ["--format", str(fmt)]
             with open(script, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(f"export OMP_NUM_THREADS={threads}\n")

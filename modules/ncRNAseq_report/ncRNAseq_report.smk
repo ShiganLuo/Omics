@@ -12,6 +12,14 @@ aligner = config.get("aligner", "star_3pass_gene")
 
 REPORT_SCRIPT = os.path.join(ROOT_DIR, "modules", "ncRNAseq_report", "bin", "generate_report.py")
 
+# formats(模块 md #9 / subworkflow.md formats 规范):报告自有图的导出格式;
+# str 收成单元素列表(格式合法性由 schema 声明)。报告图(read_flow/trimming/
+# star_mapping/gene_assignments/tail_summary/tail_length/end_position)为条件
+# 产出,不逐一声明 output——由 figures/manifest.tsv 兜底(报告模块规范)。
+_formats = (config.get("Params", {}).get("report", {}) or {}).get("formats") or ["png"]
+if isinstance(_formats, str):
+    _formats = [_formats]
+
 # ── Conditional inputs based on aligner ──────────────────────────────────
 has_per_gene = (aligner == "star_3pass_gene")
 has_3pass = aligner in ("star_3pass", "star_3pass_gene")
@@ -37,6 +45,9 @@ rule generate_report:
     output:
         report = outdir + "/ncRNAseq_report.pptx",
         file_inventory = outdir + "/ncRNAseq_report_files.xlsx",
+        # 报告自有图导出清单(报告模块规范:figures/<name>.<fmt> 为条件产出,
+        # 不逐一声明;manifest.tsv 让 DAG 与磁盘保持一致)
+        manifest = outdir + "/figures/manifest.tsv",
     log:
         logdir + "/ncRNAseq_report.log"
     threads: rule_res("generate_report").get("threads", 1)
@@ -60,6 +71,7 @@ rule generate_report:
         date = config.get("Params", {}).get("report", {}).get("date") or "",
         lang = config.get("Params", {}).get("report", {}).get("lang") or "zh",
         img_dir = outdir + "/ppt_results",
+        formats = _formats,   # ③ 转发
         script = REPORT_SCRIPT,
     run:
         log_path = str(log)
@@ -97,6 +109,8 @@ rule generate_report:
                 cmd.extend(["--sample-groups", _json.dumps(params.sample_groups)])
             if params.short_names:
                 cmd.extend(["--short-names", _json.dumps(params.short_names)])
+            for fmt in params.formats:
+                cmd += ["--format", str(fmt)]
             with open(script_path, "w") as fh:
                 fh.write("#!/bin/bash\n")
                 fh.write("set -euo pipefail\n")
@@ -112,5 +126,6 @@ rule report_result:
     input:
         report = outdir + "/ncRNAseq_report.pptx",
         file_inventory = outdir + "/ncRNAseq_report_files.xlsx",
+        manifest = outdir + "/figures/manifest.tsv",
     resources:
         mem_mb = rule_res("report_result").get("mem_mb", 8000),

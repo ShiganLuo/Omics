@@ -18,7 +18,7 @@ Usage (CLI-only, no config file needed):
 --h5ad   tissue=/path/to.h5ad         (repeatable)
 --compare tissue:ref:treat[=label]    (repeatable, label optional)
 """
-from typing import Optional
+from typing import List, Optional
 import logging
 import argparse, os, sys, warnings
 import numpy as np
@@ -587,16 +587,49 @@ import seaborn as sns
 plt.rcParams["font.family"] = "DejaVu Sans"
 plt.rcParams["axes.unicode_minus"] = False
 
+PlotFormat = str
 
-def pydeseq2_diagnostic_plots(results_df, output_prefix, treat_id, ref_id):
+# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
+# fails fast at parse time instead of dying inside savefig (modules.md #9)
+VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
+                 "jpeg", "pgf", "raw", "rgba")
+
+
+def save_fig(out_base: str, image_formats: Optional[List[PlotFormat]] = None,
+             dpi: int = 300) -> None:
+    """Save the current figure as ``<out_base>.<fmt>`` for every format.
+
+    Args:
+        out_base: Output path without extension.
+        image_formats: Save formats. Default ``["png"]``.
+        dpi: Output resolution (raster formats; vector formats ignore it).
+    """
+    if image_formats is None:
+        image_formats = ["png"]
+    bad = [f for f in image_formats if f not in VALID_FORMATS]
+    if bad:
+        raise ValueError(
+            f"Unsupported image format(s): {', '.join(bad)}; "
+            f"valid: {', '.join(VALID_FORMATS)}")
+    for fmt in image_formats:
+        out_path = f"{out_base}.{fmt}"
+        plt.savefig(out_path, dpi=dpi, bbox_inches="tight", facecolor="white")
+        logger.info(f"Saved {out_path}")
+    plt.close()
+
+
+def pydeseq2_diagnostic_plots(results_df, output_prefix, treat_id, ref_id,
+                              image_formats=None):
     """Generate p-value histogram and MA plot for PyDESeq2 results.
 
     Args:
         results_df: DataFrame from :func:`run_pydeseq2` with ``log2FC``,
             ``pval``, ``baseMean`` columns.
-        output_prefix: Path prefix for output PNGs (appended with suffix).
+        output_prefix: Path prefix for output figures (appended with suffix,
+            no extension).
         treat_id: Treatment sample ID (for plot titles).
         ref_id: Reference sample ID (for plot titles).
+        image_formats: Save formats. Default ``["png"]``.
 
     Returns:
         bool: True if plots were generated, False if too few genes.
@@ -634,9 +667,7 @@ def pydeseq2_diagnostic_plots(results_df, output_prefix, treat_id, ref_id):
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
     plt.tight_layout()
-    plt.savefig(f"{output_prefix}_pval_hist.png", dpi=300,
-                bbox_inches="tight", facecolor="white")
-    plt.close()
+    save_fig(f"{output_prefix}_pval_hist", image_formats)
 
     # ── MA plot (log2FC vs baseMean) ──
     fig, ax = plt.subplots(figsize=(8, 6))
@@ -671,9 +702,7 @@ def pydeseq2_diagnostic_plots(results_df, output_prefix, treat_id, ref_id):
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
     plt.tight_layout()
-    plt.savefig(f"{output_prefix}_ma_plot.png", dpi=300,
-                bbox_inches="tight", facecolor="white")
-    plt.close()
+    save_fig(f"{output_prefix}_ma_plot", image_formats)
     return True
 
 
@@ -681,8 +710,8 @@ def pydeseq2_diagnostic_plots(results_df, output_prefix, treat_id, ref_id):
 # 5. QC / Exploration plots (best practices)
 # ────────────────────────────────────────────────────────────
 
-def pca_exploration_plot(adata, output_path, sample_col="sample_id",
-                         condition_map=None):
+def pca_exploration_plot(adata, out_base, sample_col="sample_id",
+                         condition_map=None, image_formats=None):
     """PCA on pseudobulk samples to identify sources of variation.
 
     Aggregates counts per sample, normalizes, log-transforms, scales,
@@ -691,9 +720,10 @@ def pca_exploration_plot(adata, output_path, sample_col="sample_id",
 
     Args:
         adata: AnnData with raw counts in ``.raw``.
-        output_path: Path to save the PNG figure.
+        out_base: Output path without extension.
         sample_col: Column identifying biological samples.
         condition_map: Optional dict ``{sample_id: condition}`` for coloring.
+        image_formats: Save formats. Default ``["png"]``.
 
     Returns:
         bool: True if PCA was computed, False if too few samples.
@@ -785,14 +815,14 @@ def pca_exploration_plot(adata, output_path, sample_col="sample_id",
 
     plt.suptitle("Pseudobulk PCA exploration", fontsize=13, fontweight="bold", y=1.02)
     plt.tight_layout()
-    plt.savefig(output_path, dpi=300, bbox_inches="tight", facecolor="white")
-    plt.close()
-    logger.info(f"  PCA plot: {output_path}")
+    save_fig(out_base, image_formats)
+    logger.info(f"  PCA plot: {out_base}")
     return True
 
 
-def sample_filter_plot(adata, output_path, sample_col="sample_id",
-                       type_col="cell_type", min_cells=10, min_counts=1000):
+def sample_filter_plot(adata, out_base, sample_col="sample_id",
+                       type_col="cell_type", min_cells=10, min_counts=1000,
+                       image_formats=None):
     """Visualize pseudobulk sample quality: n_cells vs n_counts.
 
     Similar to decoupler.pl.filter_samples. Each dot is one
@@ -801,11 +831,12 @@ def sample_filter_plot(adata, output_path, sample_col="sample_id",
 
     Args:
         adata: AnnData with raw counts in ``.raw``.
-        output_path: Path to save the PNG figure.
+        out_base: Output path without extension.
         sample_col: Column identifying biological samples.
         type_col: Column identifying cell type annotations.
         min_cells: Minimum cells threshold (vertical line).
         min_counts: Minimum total counts threshold (horizontal line).
+        image_formats: Save formats. Default ``["png"]``.
 
     Returns:
         pd.DataFrame: Summary table with sample, cell_type, n_cells, n_counts, pass_qc.
@@ -860,19 +891,19 @@ def sample_filter_plot(adata, output_path, sample_col="sample_id",
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
     plt.tight_layout()
-    plt.savefig(output_path, dpi=300, bbox_inches="tight", facecolor="white")
-    plt.close()
-    logger.info(f"  Filter plot: {output_path}")
+    save_fig(out_base, image_formats)
+    logger.info(f"  Filter plot: {out_base}")
     return df
 
 
-def pseudobulk_summary_plot(written_records, output_path):
+def pseudobulk_summary_plot(written_records, out_base, image_formats=None):
     """Bar chart of pseudobulk samples retained per cell type.
 
     Args:
         written_records: List of dicts from :func:`prepare_counts` with
             ``cell_type``, ``n_samples`` keys.
-        output_path: Path to save the PNG figure.
+        out_base: Output path without extension.
+        image_formats: Save formats. Default ``["png"]``.
     """
     if not written_records:
         return
@@ -889,9 +920,8 @@ def pseudobulk_summary_plot(written_records, output_path):
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
     plt.tight_layout()
-    plt.savefig(output_path, dpi=300, bbox_inches="tight", facecolor="white")
-    plt.close()
-    logger.info(f"  Summary plot: {output_path}")
+    save_fig(out_base, image_formats)
+    logger.info(f"  Summary plot: {out_base}")
 
 
 # ────────────────────────────────────────────────────────────
@@ -922,7 +952,7 @@ def load_all_deg(deg_dir, label_prefix):
     return pd.concat(rows, ignore_index=True) if rows else pd.DataFrame()
 
 
-def deg_count_heatmap(deg_df, cmap, title, output_path):
+def deg_count_heatmap(deg_df, cmap, title, out_base, image_formats=None):
     """Heatmap of significant DEG counts per cell type × comparison.
 
     Pivots the DEG DataFrame to a cell-type × comparison matrix where
@@ -933,7 +963,8 @@ def deg_count_heatmap(deg_df, cmap, title, output_path):
             ``significant``.
         cmap: ``{comparison_key: short_label}`` mapping for axis labels.
         title: Plot title.
-        output_path: Path to save the PNG figure.
+        out_base: Output path without extension.
+        image_formats: Save formats. Default ``["png"]``.
     """
     if len(deg_df) == 0:
         return
@@ -952,12 +983,12 @@ def deg_count_heatmap(deg_df, cmap, title, output_path):
     ax.set_xticklabels(ax.get_xticklabels(), rotation=15, ha="right", fontsize=10)
     ax.set_yticklabels(ax.get_yticklabels(), fontsize=9)
     plt.tight_layout()
-    plt.savefig(output_path, dpi=300, bbox_inches="tight", facecolor="white")
-    plt.close()
+    save_fig(out_base, image_formats)
 
 
-def volcano_plot(deg_df, cell_type, comparison, output_path, title=None,
-                 nlogp_clip=18, highlight_genes=None, top_n=5):
+def volcano_plot(deg_df, cell_type, comparison, out_base, title=None,
+                 nlogp_clip=18, highlight_genes=None, top_n=5,
+                 image_formats=None):
     """Volcano plot for one cell type × comparison.
 
     Plots log2FC vs -log10(pvalue) with up/down-regulated genes colored.
@@ -972,7 +1003,7 @@ def volcano_plot(deg_df, cell_type, comparison, output_path, title=None,
             ``log2FC``, ``pval``, ``significant`` columns.
         cell_type: Cell type to plot.
         comparison: Comparison key (e.g. ``"ref_vs_treat"``).
-        output_path: Path to save the PNG figure.
+        out_base: Output path without extension.
         title: Optional plot title (auto-generated if None).
         nlogp_clip: Clip -log10(p) display range to this value.
         highlight_genes: List of gene names to label on the plot regardless
@@ -981,6 +1012,7 @@ def volcano_plot(deg_df, cell_type, comparison, output_path, title=None,
             with adjustText auto-repulsion).
         top_n: Number of top genes per direction to label (default 5).
             Ignored when *highlight_genes* is provided.
+        image_formats: Save formats. Default ``["png"]``.
 
     Returns:
         bool: True if the plot was generated, False if skipped.
@@ -1071,12 +1103,12 @@ def volcano_plot(deg_df, cell_type, comparison, output_path, title=None,
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
     plt.tight_layout()
-    plt.savefig(output_path, dpi=300, bbox_inches="tight", facecolor="white")
-    plt.close()
+    save_fig(out_base, image_formats)
     return True
 
 
-def top_deg_heatmap(adata, deg_df, cell_type, comparison, output_path, top_n=20):
+def top_deg_heatmap(adata, deg_df, cell_type, comparison, out_base, top_n=20,
+                    image_formats=None):
     """Z-score heatmap of top DEGs across samples for one cell type.
 
     Selects the top *top_n* significant genes by p-value, computes
@@ -1089,8 +1121,9 @@ def top_deg_heatmap(adata, deg_df, cell_type, comparison, output_path, top_n=20)
             ``pval``, ``significant`` columns.
         cell_type: Cell type to subset.
         comparison: Comparison key (e.g. ``"ref_vs_treat"``).
-        output_path: Path to save the PNG figure.
+        out_base: Output path without extension.
         top_n: Number of top DEGs to display.
+        image_formats: Save formats. Default ``["png"]``.
 
     Returns:
         bool: True if the plot was generated, False if too few genes or samples.
@@ -1134,12 +1167,11 @@ def top_deg_heatmap(adata, deg_df, cell_type, comparison, output_path, top_n=20)
     ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha="right", fontsize=7)
     ax.set_yticklabels(ax.get_yticklabels(), fontsize=9)
     plt.tight_layout()
-    plt.savefig(output_path, dpi=300, bbox_inches="tight", facecolor="white")
-    plt.close()
+    save_fig(out_base, image_formats)
     return True
 
 
-def go_dotplot(go_file, output_path, title, top_n=12):
+def go_dotplot(go_file, out_base, title, top_n=12, image_formats=None):
     """Dotplot of GO enrichment results from clusterProfiler.
 
     Each dot represents one GO term. Dot size encodes -log10(pvalue)
@@ -1149,9 +1181,10 @@ def go_dotplot(go_file, output_path, title, top_n=12):
     Args:
         go_file: Path to a clusterProfiler GO CSV with columns
             ``GeneRatio``, ``pvalue``, ``Description``, ``Count``.
-        output_path: Path to save the PNG figure.
+        out_base: Output path without extension.
         title: Plot title.
         top_n: Number of top GO terms (by p-value) to display.
+        image_formats: Save formats. Default ``["png"]``.
 
     Returns:
         bool: True if the plot was generated, False if file missing or empty.
@@ -1209,12 +1242,12 @@ def go_dotplot(go_file, output_path, title, top_n=12):
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
     plt.tight_layout()
-    plt.savefig(output_path, dpi=300, bbox_inches="tight", facecolor="white")
-    plt.close()
+    save_fig(out_base, image_formats)
     return True
 
 
-def deg_overlap_bar(deg_df, sets_to_compare, output_path, title):
+def deg_overlap_bar(deg_df, sets_to_compare, out_base, title,
+                    image_formats=None):
     """Horizontal bar plot of DEG set overlaps across comparisons.
 
     Computes Venn-diagram-style overlaps: genes unique to each comparison,
@@ -1223,8 +1256,9 @@ def deg_overlap_bar(deg_df, sets_to_compare, output_path, title):
     Args:
         deg_df: DataFrame with ``comparison``, ``significant``, ``gene`` columns.
         sets_to_compare: List of ``(label, comparison_key)`` tuples.
-        output_path: Path to save the PNG figure.
+        out_base: Output path without extension.
         title: Plot title.
+        image_formats: Save formats. Default ``["png"]``.
     """
     from itertools import combinations
 
@@ -1277,8 +1311,7 @@ def deg_overlap_bar(deg_df, sets_to_compare, output_path, title):
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
     plt.tight_layout()
-    plt.savefig(output_path, dpi=300, bbox_inches="tight", facecolor="white")
-    plt.close()
+    save_fig(out_base, image_formats)
 
 
 # ────────────────────────────────────────────────────────────
@@ -1286,7 +1319,7 @@ def deg_overlap_bar(deg_df, sets_to_compare, output_path, title):
 # ────────────────────────────────────────────────────────────
 
 def plot_all(config, out_dir, deg_dir, go_dir, fig_dir, top_cell_types=None,
-             highlight_genes=None):
+             highlight_genes=None, image_formats=None):
     """Generate all figures for all tissues defined in the config.
 
     For each tissue, produces:
@@ -1306,6 +1339,7 @@ def plot_all(config, out_dir, deg_dir, go_dir, fig_dir, top_cell_types=None,
         fig_dir: Directory for output figures.
         top_cell_types: Optional list of cell types to plot. If None,
             the top 3 by significant DEG count are used.
+        image_formats: Save formats. Default ``["png"]``.
     """
     import scanpy as sc
 
@@ -1329,7 +1363,8 @@ def plot_all(config, out_dir, deg_dir, go_dir, fig_dir, top_cell_types=None,
         deg_count_heatmap(
             t_deg, cmap,
             f"{tissue.title()}: Significant DEG count per cell type",
-            os.path.join(fig_dir, f"{tissue}_DEG_count_heatmap.png"),
+            os.path.join(fig_dir, f"{tissue}_DEG_count_heatmap"),
+            image_formats=image_formats,
         )
 
         # 2. Volcano + expression heatmap + GO dotplot (per comparison → comp_dir/ct_dir)
@@ -1360,14 +1395,16 @@ def plot_all(config, out_dir, deg_dir, go_dir, fig_dir, top_cell_types=None,
                 prefix = f"{tissue}_{key}_{ct_safe}"
 
                 ok = volcano_plot(t_deg, ct, key,
-                                  os.path.join(ct_dir, f"{prefix}_volcano.png"),
+                                  os.path.join(ct_dir, f"{prefix}_volcano"),
                                   title=title,
-                                  highlight_genes=highlight_genes)
+                                  highlight_genes=highlight_genes,
+                                  image_formats=image_formats)
                 if ok:
                     logger.info(f"    volcano: {tissue}/{ct}/{label}")
 
                 ok = top_deg_heatmap(adata, t_deg, ct, key,
-                                     os.path.join(ct_dir, f"{prefix}_heatmap.png"))
+                                     os.path.join(ct_dir, f"{prefix}_heatmap"),
+                                     image_formats=image_formats)
                 if ok:
                     logger.info(f"    heatmap: {tissue}/{ct}/{label}")
 
@@ -1393,8 +1430,9 @@ def plot_all(config, out_dir, deg_dir, go_dir, fig_dir, top_cell_types=None,
                     os.makedirs(ct_go_dir, exist_ok=True)
                     ct_clean = ct_name.replace("_", " ")
                     title = f"{tissue.title()} {ct_clean} GO {direction}"
-                    out = os.path.join(ct_go_dir, f"go_dotplot_{direction.lower()}.png")
-                    ok = go_dotplot(os.path.join(go_dir, go_file), out, title, top_n=12)
+                    out = os.path.join(ct_go_dir, f"go_dotplot_{direction.lower()}")
+                    ok = go_dotplot(os.path.join(go_dir, go_file), out, title,
+                                    top_n=12, image_formats=image_formats)
                     if ok:
                         logger.info(f"    GO: {base}")
 
@@ -1403,8 +1441,9 @@ def plot_all(config, out_dir, deg_dir, go_dir, fig_dir, top_cell_types=None,
             sets = [(c["label"], c["key"]) for c in cfg["comparisons"]]
             deg_overlap_bar(
                 t_deg, sets,
-                os.path.join(fig_dir, f"{tissue}_DEG_overlap.png"),
+                os.path.join(fig_dir, f"{tissue}_DEG_overlap"),
                 f"{tissue.title()}: DEG overlap across {len(sets)} comparisons",
+                image_formats=image_formats,
             )
 
     # Save combined DEG table across all tissues
@@ -1506,7 +1545,18 @@ Examples:
                         choices=["gene", "te", "all"],
                         help="Feature modes for DEG: gene (exclude TE), te (only TE), "
                              "all (default, genes+TE). Multiple modes run sequentially.")
+    parser.add_argument("-f", "--format", action="append", dest="formats",
+                        metavar="FMT",
+                        help="Image format (png/pdf/svg/...). Repeatable. Default: png.")
     args = parser.parse_args(argv)
+
+    # Image formats: fail fast at parse time (modules.md #9)
+    args.formats = list(args.formats) if args.formats else ["png"]
+    bad = [f for f in args.formats if f not in VALID_FORMATS]
+    if bad:
+        parser.error(
+            f"Unsupported image format(s): {', '.join(bad)}; "
+            f"valid: {', '.join(VALID_FORMATS)}")
 
     # Load config from YAML or CLI args
     if args.comp_config:
@@ -1553,6 +1603,31 @@ Examples:
     return args, config
 
 
+def _dedupe_figure_variants(rel_paths):
+    """Keep one file per figure base name for HTML embedding.
+
+    Multi-format output writes every figure once per format; the gallery
+    embeds one raster-first variant (png preferred, then jpg/jpeg/tif/tiff,
+    else the first requested format) so each figure appears exactly once.
+
+    Args:
+        rel_paths: Figure paths relative to the output root.
+
+    Returns:
+        list: Sorted single-variant figure paths.
+    """
+    preferred = ("png", "jpg", "jpeg", "tif", "tiff")
+    best = {}
+    for rel in rel_paths:
+        base, ext = os.path.splitext(rel)
+        fmt = ext.lstrip(".").lower()
+        rank = preferred.index(fmt) if fmt in preferred else len(preferred)
+        cur = best.get(base)
+        if cur is None or rank < cur[0]:
+            best[base] = (rank, rel)
+    return sorted(rel for _rank, rel in best.values())
+
+
 def _write_html_report(out_dir, config, run_params):
     """Write ``<out_dir>/pseudobulk_report.html``: the run's declared output.
 
@@ -1591,8 +1666,12 @@ def _write_html_report(out_dir, config, run_params):
                                 .strip().lower() in ("true", "1", "yes"):
                             n_sig += 1
                 deg_rows.append((rel, n_rows, n_sig if has_sig else None))
-            elif fn.lower().endswith((".png", ".pdf", ".svg")):
+            elif fn.lower().endswith(tuple(f".{f}" for f in VALID_FORMATS)):
                 figures.append(rel)
+
+    # Multi-format runs write every figure once per format — embed each
+    # figure exactly once (raster-first variant).
+    figures = _dedupe_figure_variants(figures)
 
     comp_rows = []
     for tissue, cfg in sorted(config.items()):
@@ -1702,7 +1781,8 @@ def main():
                     logger.info("\n--- QC / Exploration plots ---")
                     os.makedirs(fig_dir, exist_ok=True)
                     pseudobulk_summary_plot(all_written,
-                                            os.path.join(fig_dir, "pseudobulk_summary.png"))
+                                            os.path.join(fig_dir, "pseudobulk_summary"),
+                                            image_formats=args.formats)
                     for tissue, cfg in config.items():
                         if tissue not in tissue_adata:
                             continue
@@ -1713,13 +1793,15 @@ def main():
                             cond_map[comp["treat"]] = "treatment"
                         pca_exploration_plot(
                             adata,
-                            os.path.join(fig_dir, f"{tissue}_pca_exploration.png"),
+                            os.path.join(fig_dir, f"{tissue}_pca_exploration"),
                             condition_map=cond_map,
+                            image_formats=args.formats,
                         )
                         sample_filter_plot(
                             adata,
-                            os.path.join(fig_dir, f"{tissue}_sample_filter.png"),
+                            os.path.join(fig_dir, f"{tissue}_sample_filter"),
                             min_cells=args.min_cells, min_counts=args.min_counts,
+                            image_formats=args.formats,
                         )
         else:
             tissue_adata = {}
@@ -1774,6 +1856,7 @@ def main():
                         pydeseq2_diagnostic_plots(
                             deg_results, f"{output_prefix}_diag",
                             treat_id, ref_id,
+                            image_formats=args.formats,
                         )
 
         # ── Step 3: Plot ──
@@ -1782,7 +1865,8 @@ def main():
             logger.info("STEP 3: Generate figures")
             logger.info("=" * 60)
             plot_all(config, args.out_dir, deg_dir, go_dir, fig_dir,
-                     args.top_cell_types, args.highlight_genes)
+                     args.top_cell_types, args.highlight_genes,
+                     image_formats=args.formats)
 
     # The declared rule output must exist on EVERY path (including
     # zero-result and skip-flag runs), so the report is written
@@ -1794,6 +1878,7 @@ def main():
          "min_cells_per_rep": args.min_cells_per_rep,
          "cell_types": ", ".join(args.cell_types) if args.cell_types else "all",
          "deg_mode": ",".join(args.deg_mode),
+         "formats": ",".join(args.formats),
          "skip_deseq2": args.skip_deseq2, "skip_plot": args.skip_plot,
          "skip_prepare": args.skip_prepare, "skip_qc": args.skip_qc},
     )

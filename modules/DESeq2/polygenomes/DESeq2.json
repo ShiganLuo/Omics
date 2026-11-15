@@ -18,11 +18,13 @@
     },
     "Params": {
         "DESeq2": {
+            "formats": ["png"],
             "group_pairs": {
                 "GRCm39": {},
                 "GRCh38": {}
             },
             "manhattan": {
+                "formats": ["png"],
                 "label_top": 10,
                 "ylabel": "log2(1+|delta TPM|)",
                 "highlight_families": {
@@ -31,6 +33,7 @@
                 }
             },
             "locus_boxplot": {
+                "formats": ["png"],
                 "match_field": "subfamily",
                 "match_mode": "exact",
                 "normalize": "log2tpm",
@@ -41,6 +44,7 @@
                 }
             },
             "subfamily_bar": {
+                "formats": ["png"],
                 "match_field": "subfamily",
                 "match_mode": "exact",
                 "value": "total",

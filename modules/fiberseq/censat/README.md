@@ -1,7 +1,7 @@
 # fiberseq/censat — 着丝粒区域类别可及性/甲基化谱子模块
 
 按 CenSat 注释的着丝粒区域类别(CDR/HOR/侧翼)分层统计 Fiber-seq 的
-MSP 可及性与 CpG 甲基化谱,输出表格 + PDF 图。conda 环境共享父目录
+MSP 及性与 CpG 甲基化谱,输出表格 + 谱图(formats 可配,默认 PDF)。conda 环境共享父目录
 `../fiberseq.yaml`(容器同源);引擎脚本共享父目录
 `modules/fiberseq/bin/censat_profile.py`(经 `config["ROOT_DIR"]` 拼接)。
 
@@ -22,7 +22,7 @@ MSP 可及性与 CpG 甲基化谱,输出表格 + PDF 图。conda 环境共享父
 {outdir}/{sample_id}/{sample_id}.censat_regions.tsv        # 区域级统计
 {outdir}/{sample_id}/{sample_id}.censat_class_summary.tsv   # 类别汇总(CDR/HOR/flank)
 {outdir}/{sample_id}/{sample_id}.censat_profile.tsv          # 分箱谱数据
-{outdir}/{sample_id}/{sample_id}.censat_profile.pdf          # 谱图
+{outdir}/{sample_id}/{sample_id}.censat_profile.<fmt>       # 谱图(formats 多格式,默认 pdf)
 {logdir}/{sample_id}/fiberseq_censat_run.log
 ```
 
@@ -37,6 +37,7 @@ MSP 可及性与 CpG 甲基化谱,输出表格 + PDF 图。conda 环境共享父
 | `Params.fiberseq_censat.msp_min_len` | `-m` | 50 | 计入的长 MSP 最小长度(bp) |
 | `Params.fiberseq_censat.flank` | `-f` | 10000 | 区域侧翼延伸(bp) |
 | `Params.fiberseq_censat.bin` | `-b` | 500 | 谱图分箱宽度(bp) |
+| `Params.fiberseq_censat.formats` | `--format`(可重复) | ["pdf"] | 图片输出格式(多种同时输出),合法值 png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba |
 | `indir` / `outdir` / `logdir` | — | `common/4_elements` / `fiberseq_analysis/censat` / `log` | 输入/输出/日志根目录 |
 
 资源默认:`threads = 4`、`mem_mb = 8000`(经 `rule_res("fiberseq_censat")`

@@ -3,6 +3,10 @@
     "outdir": "output",
     "logdir": "logs",
     "ROOT_DIR": null,
-    "Params": {},
+    "Params": {
+        "enrichment": {
+            "formats": ["png"]
+        }
+    },
     "Procedure": {}
 }

@@ -123,6 +123,7 @@ mimseq.done (result)
 | `pretRNAs` | bool | false | 包含 pre-tRNA |
 | `posttrans_mod_off` | bool | false | 关闭转录后修饰 |
 | `local_modomics` | bool | false | 使用本地 Modomics 数据 |
+| `formats` | list | `["pdf"]` | 图片格式(多种同时输出),转发给 vendored 绘图代码;详见下文「图片格式(formats)」 |
 
 ### genome
 
@@ -132,6 +133,33 @@ mimseq.done (result)
 | `trnaout` | 自定义 tRNAscan-SE 输出（species 为空时必填） |
 | `mito_trnas` | 线粒体 tRNA FASTA（可选） |
 | `plastid_trnas` | 质体 tRNA FASTA（可选） |
+
+## 图片格式(formats)
+
+`Params.mimseq.formats`(列表,默认 `["pdf"]`)控制 vendored mimseq 绘图代码的
+输出格式:wrapper(`bin/align|mods|coverage|deseq/run.py`)接受 `-f/--format`
+(可重复),以环境变量 `MIMSEQ_PLOT_FORMATS` 转发给 R 脚本与 tRNAmap.py。
+
+- 合法值:`png` `pdf` `svg` `ps` `eps` `tif` `tiff` `jpg` `jpeg`(R 侧 ggsave
+  设备集;`pgf`/`raw`/`rgba` 为 matplotlib 专属,不支持);非法值在 wrapper
+  启动期与 R 脚本内均 fail fast。注意:`svg` 依赖 R 包 `svglite`(ggplot2 的
+  svg 设备),当前 mimseq 环境未安装,请求 svg 需先装 `svglite`;其余格式
+  png/pdf/ps/eps/tif/tiff/jpg/jpeg 均已实测可用
+- 默认 `["pdf"]`:文件名与上游完全一致(如 `misincProps.pdf`、
+  `alignstats.pdf`),零行为变化
+- 生效范围(所有经 ggsave/savefig 的图):
+  - `coveragePlot.R`:`coverage_byaa_norm*.pdf` 等覆盖度图(coverage 步骤)
+  - `ccaPlots.R`:`ccaPlot*.pdf` / `dinuc_plot.pdf`(coverage 步骤,需 CCA)
+  - `modPlot.R` 的 ggsave 图:`misincProps`、`misincSignatures_*Context` 等
+    (coverage 步骤中调用)
+  - `deseq.R` 的 ggsave 图:`qc-pca.pdf`、`*diffexpr-countplot.pdf`
+  - `tRNAmap.py`:`{Primary_,Remap_}alignstats.pdf`(align 步骤)
+- **已知限制(遵循 vendored 代码最小改动原则,未做深度修改)**:直接用
+  `pdf()`/`png()` 设备绘制的图不受 `formats` 影响、固定原格式——
+  `modPlot.R` 的 comb_heatmap / logOR ComplexHeatmap 图(固定 pdf)、
+  `deseq.R` 的 qc-dispersions(固定 png)与 DE 热图(固定 pdf)。这些图要
+  支持多格式需改造上游绘图流程,不在本次范围内
+- 图为 touch() 规则(`mods.done` 等)的副产物,不进入 rule output/DAG
 
 ## 注意事项
 

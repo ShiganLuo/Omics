@@ -53,6 +53,26 @@ bw_suffix = config.get("bw_suffix") or ".bigwig"
 # (e.g. formats). Rule-level keys fall back to the parent field.
 decoil_params = config.get("Params", {}).get("decoil", {})
 
+def _rule_formats(section: str):
+    """Resolve one rule section's image formats (modules.md #9).
+
+    Section key first, parent-level ``Params.decoil.formats`` fallback (the
+    documented rule above); str 收成单元素 list; default ["png"].
+    """
+    _formats = (decoil_params.get(section, {}).get("formats")
+                or decoil_params.get("formats") or ["png"])
+    if isinstance(_formats, str):
+        _formats = [_formats]
+    return _formats
+
+# 图片格式:每种格式一个输出文件。output 展开与 params 转发取同一份列表
+# (decoil_plot 曾用 structure.formats 展开 output 而用 plot.formats 转发,
+# 两键不一致时声明产物与实际不符;decoil_compare 曾硬编码 .png 输出 —
+# 2026-11 一致性修正)。
+_plot_formats = _rule_formats("plot")
+_compare_formats = _rule_formats("compare")
+_structure_formats = _rule_formats("structure")
+
 def reconstruct_param(key: str, default=None):
     """Resolve Params.decoil.reconstruct.<key> → Params.decoil.<key> → default.
 
@@ -239,7 +259,7 @@ rule decoil_plot:
     output:
         regions_tsv          = outdir + "/{sample_id}/visualization/decoil_stats_ecdna_regions.tsv",
         plot = [outdir + "/{sample_id}/visualization/decoil_stats." + fmt
-                for fmt in (decoil_params.get("structure", {}).get("formats") or ["png"])],
+                for fmt in _plot_formats],
     log:
         logdir + "/{sample_id}/decoil_plot.log"
     threads: rule_res("decoil_plot").get("threads", 4)
@@ -251,7 +271,7 @@ rule decoil_plot:
         sif("decoil.yaml", "decoil_plot")
     params:
         plot_script = os.path.join(ROOT_DIR, "modules", "decoil", "bin", "decoil_plot.py"),
-        formats     = decoil_params.get("plot", {}).get("formats") or ["png"],
+        formats     = _plot_formats,
     run:
         log_path = str(log)
         rule_logger = setup_logger(logger_name="decoil_plot", log_file=log_path)
@@ -293,7 +313,8 @@ rule decoil_compare:
         summaries = expand(outdir + "/{sample_id}/decoil/summary.txt", sample_id=samples),
         beds      = expand(outdir + "/{sample_id}/decoil/reconstruct.ecDNA.filtered.bed", sample_id=samples),
     output:
-        png            = outdir + "/compare/decoil_compare.png",
+        plots            = [outdir + "/compare/decoil_compare." + fmt
+                            for fmt in _compare_formats],
         shared_tsv     = outdir + "/compare/decoil_compare_shared_unique.tsv",
         regions_tsv    = outdir + "/compare/decoil_compare_ecdna_regions.tsv",
     log:
@@ -307,7 +328,7 @@ rule decoil_compare:
         sif("decoil.yaml", "decoil_compare")
     params:
         plot_script = os.path.join(ROOT_DIR, "modules", "decoil", "bin", "decoil_plot.py"),
-        formats     = decoil_params.get("compare", {}).get("formats") or ["png"],
+        formats     = _compare_formats,
     run:
         log_path = str(log)
         rule_logger = setup_logger(logger_name="decoil_compare", log_file=log_path)
@@ -315,7 +336,7 @@ rule decoil_compare:
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
             rule_logger.info(f"Start decoil_compare for samples {samples} at {current_time}")
-            compare_dir = os.path.dirname(str(output.png))
+            compare_dir = os.path.dirname(str(output.plots[0]))
             os.makedirs(compare_dir, exist_ok=True)
             script = os.path.join(RECEIPT_DIR, f"decoil_compare_{current_time}.sh")
             plain_script = os.path.join(compare_dir, f"decoil_compare.sh")
@@ -364,7 +385,7 @@ rule decoil_structure:
         # time, so expand the concrete file list here with plain string
         # concatenation that keeps {sample_id} for wildcard resolution.
         structure                 = [outdir + "/{sample_id}/visualization/decoil_structure." + fmt
-                                for fmt in (decoil_params.get("structure", {}).get("formats") or ["png"])]
+                                for fmt in _structure_formats]
     log:
         logdir + "/{sample_id}/decoil_structure.log"
     threads: rule_res("decoil_structure").get("threads", 4)
@@ -376,7 +397,7 @@ rule decoil_structure:
         sif("decoil.yaml", "decoil_structure")
     params:
         structure_script = os.path.join(ROOT_DIR, "modules", "decoil", "bin", "decoil_structure.py"),
-        formats          = decoil_params.get("structure", {}).get("formats") or ["png"],
+        formats          = _structure_formats,
         max_per_fig      = decoil_params.get("structure", {}).get("max_per_fig", 12),
         one_per_cycle    = decoil_params.get("structure", {}).get("one_file_per_cycle", True),
     run:

@@ -24,7 +24,14 @@ def _sample_vcfs(sample_ids):
     return [f"{vcf_dir}/{s}/{s}{vcf_suffix}" for s in sample_ids]
 
 # Global parameters
-image_formats = config.get("Params", {}).get("sv", {}).get("image_formats", ["png"])
+# 图片格式(modules.md #9):规范键名 "formats";旧键 "image_formats" 仅作
+# 兼容回退读取(2026-11 键名迁移;config/PacVar.json、config/Fiberseq.json
+# 等仍在用旧键)。两者同时配置时以 "formats" 为准。
+_sv_params = config.get("Params", {}).get("sv", {})
+image_formats = (_sv_params.get("formats") or _sv_params.get("image_formats")
+                 or ["png"])
+if isinstance(image_formats, str):  # str 收成单元素 list
+    image_formats = [image_formats]
 genes = config.get("Params", {}).get("sv", {}).get("genes", [])
 
 # ========================
@@ -421,6 +428,10 @@ rule sv_mei:
                               ("--te-bed", getattr(input, "te_bed", ""))):
                 if val:
                     cmd += [flag, shlex.quote(str(val))]
+            # image formats: one -f per requested format (mei figures +
+            # report are written per format by mei_analysis -> mei_plot)
+            for fmt in image_formats:
+                cmd += ["-f", str(fmt)]
             # figures run INSIDE the entry (utils/mei_plot.py chained)
             with open(script_path, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")

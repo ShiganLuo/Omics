@@ -10,5 +10,10 @@
   "genome": {
     "gtf": "path/to/annotation.gtf",
     "TE_gtf": "path/to/TE_annotation.gtf"
+  },
+  "Params": {
+    "StringTie": {
+      "formats": ["png"]
+    }
   }
 }

@@ -1,3 +1,9 @@
+# StringTie 模块参数说明
+
+| 参数 | CLI | 默认 | 说明 |
+|---|---|---|---|
+| `Params.StringTie.formats` | `TEChimericPlot.py --format`(可重复) | `["png"]` | TE 嵌合图(TE_chimeric_group_stacked / te_type_top / te_type_by_group)输出格式,多种同时输出;合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib 全集);`TE_chimeric_<base>.<fmt>` 每种格式一个文件 |
+
 1. StringTie's primary GTF output
 The primary output of StringTie is a Gene Transfer Format (GTF) file that contains details of the transcripts that StringTie assembles from RNA-Seq data. GTF is an extension of GFF (Gene Finding Format, also called General Feature Format), and is very similar to GFF2 and GFF3. The field definitions for the 9 columns of GTF output can be found at the Ensembl site here. The following is an example of a transcript assembled by StringTie as shown in a GTF file (scroll right within the box to see the full field contents):
 Description of each column's values:

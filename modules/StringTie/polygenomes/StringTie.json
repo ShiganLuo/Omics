@@ -16,5 +16,10 @@
     "stringtie": "stringtie"
   },
   "sample_groups": {},
-  "logdir_combine": "logs"
+  "logdir_combine": "logs",
+  "Params": {
+    "StringTie": {
+      "formats": ["png"]
+    }
+  }
 }

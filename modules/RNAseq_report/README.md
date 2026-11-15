@@ -33,7 +33,8 @@
 ```
 {outdir}/RNAseq_report.pptx          # 汇总报告
 {outdir}/RNAseq_report_files.xlsx    # 文件清单
-{outdir}/ppt_results/                # 报告用图片缓存(--img-dir)
+{outdir}/figures/<name>.<fmt>        # 报告插图独立交付(chimeric_ratio、de_summary、venn_gene_up/down、venn_te_up/down;--img-dir)
+{outdir}/figures/manifest.tsv        # 插图文件清单(name<TAB>filename)
 {outdir}/RNAseq_report.sh            # 回执
 ```
 
@@ -51,6 +52,7 @@ config 位于 `Params.report` 下:
 | `Params.report.genome` | `--genome` | "" | 基因组副标题 |
 | `Params.report.date` | `--date` | "" | 日期副标题 |
 | `Params.report.lang` | `--lang` | `zh` | 报告语言 |
+| `Params.report.formats` | `--format`(可重复) | `["png"]` | 图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba |
 | `samples` 等 4 个列表 | `--samples` / `--paired-samples` / `--single-samples` / `--contrasts` | [] | 非空才传 |
 | (outdir) | `--analysis-dir` | config `outdir` | 上游产物根 |
 | (threads) | — | 1 | `rule_res` 可覆盖 |
@@ -64,7 +66,7 @@ python3 modules/RNAseq_report/bin/generate_report.py \
     --output out/RNAseq_report.pptx \
     --file-inventory out/RNAseq_report_files.xlsx \
     --title "RNA-seq Analysis Report" --lang zh \
-    --img-dir out/ppt_results \
+    --img-dir out/figures \
     --samples s1 s2 --contrasts treat_vs_ctrl
 ```
 

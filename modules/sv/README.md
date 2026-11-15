@@ -52,7 +52,7 @@ config 位于 `Params.sv.<段>` 下(**注意**:`dist` 例外,读
 
 | 参数 | CLI | 默认 | 说明 |
 |---|---|---|---|
-| `Params.image_formats` | `-f`(可重复) | `[png]` | 全部出图格式 |
+| `Params.sv.formats` | `-f`(可重复) | `[png]` | 全部出图格式(matplotlib 全集;旧键 `Params.sv.image_formats` 兼容读取,以 `formats` 为准) |
 | `Params.genes` | `-g`(gene_model,可重复) | [] | 基因模型图的目标基因 |
 | `Params.sv.exp_specific.vep_cache` | `--vep_cache` | `~/.vep` | VEP 缓存目录 |
 | `Params.sv.exp_specific.species` / `.assembly` | `--species` / `--assembly` | `mus_musculus` / `GRCm39` | VEP 物种/组装 |
@@ -92,7 +92,7 @@ python modules/sv/bin/mei_analysis.py \
     --threads 4 --title young_vs_aged \
     --dfam-h5 /path/to/dfam_famdb.h5 --rm-species "Mus musculus" \
     --dfam-mode export --te-buckets '[...]' \
-    --ctrl-name young --exp-name aged
+    --ctrl-name young --exp-name aged -f png
 
 # 跨组差异 + OncoPrint
 python modules/sv/bin/pbsv_sv_diff_analysis.py -o out/sv_diff_analysis \

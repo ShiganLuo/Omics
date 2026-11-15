@@ -500,7 +500,10 @@
             }
           ]
         }
-      }
+      },
+      "formats": [
+        "png"
+      ]
     },
     "phase": {
       "enabled": false
@@ -517,7 +520,10 @@
     "trgt": {
       "enabled": false,
       "karyotype": "XX",
-      "repeat_id": "HTT"
+      "repeat_id": "HTT",
+      "formats": [
+        "png"
+      ]
     },
     "telogator2": {
       "threads": 16
@@ -593,7 +599,10 @@
         "species": null,
         "impact": "HIGH,MODERATE,LOW",
         "top": 10,
-        "format": "png"
+        "format": "png",
+        "formats": [
+          "png"
+        ]
       }
     },
     "regionplot": {

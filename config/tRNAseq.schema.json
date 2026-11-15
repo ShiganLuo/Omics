@@ -126,6 +126,14 @@
       "local_modomics": {
         "type": "bool",
         "required": true
+      },
+      "formats": {
+        "type": "list",
+        "required": false,
+        "default": [
+          "pdf"
+        ],
+        "description": "图片格式(多种同时输出);R 侧 ggsave 设备集: png pdf svg ps eps tif tiff jpg jpeg(pgf/raw/rgba 为 matplotlib 专属,R 规则上快速失败)"
       }
     },
     "cutadapt": {

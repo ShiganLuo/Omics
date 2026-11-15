@@ -15,7 +15,10 @@
             "pipeline": "FASTQ -> Demux/Dedup -> TrimGalore -> STAR 3-pass -> Gene-specific alignment + Tailer -> ncRNAseq_report",
             "genome": "",
             "date": "",
-            "lang": "zh"
+            "lang": "zh",
+            "formats": [
+                "png"
+            ]
         }
     },
     "env": {

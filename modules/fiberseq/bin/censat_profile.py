@@ -47,6 +47,13 @@ from src.common.util.FiberlibUtil import (  # noqa: E402
     write_tsv,
 )
 
+PlotFormat = str
+
+# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
+# fails fast at parse time instead of dying inside savefig (modules.md #9)
+VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
+                 "jpeg", "pgf", "raw", "rgba")
+
 
 def _get_logger(log_file: Optional[Path] = None) -> logging.Logger:
     if log_file is not None:
@@ -225,12 +232,27 @@ def run(args: argparse.Namespace) -> int:
     write_tsv(str(args.outdir / f"{args.sample}.censat_profile.tsv"),
               ["region_class", "region_start", "region_end", "position",
                "accessibility", "mcpg"], prof_rows)
-    _plot(args, prof_rows)
+    _plot(args, prof_rows,
+          image_formats=args.formats if args.formats else ["pdf"])
     logger.info(f"Wrote censat tables and plot to {args.outdir}")
     return 0
 
 
-def _plot(args, prof_rows) -> None:
+def _plot(args, prof_rows,
+          image_formats: Optional[List[PlotFormat]] = None,
+          dpi: int = 300) -> None:
+    """Save the region-class accessibility profile figure.
+
+    image_formats : List[str], optional
+        Save formats. Default ``["pdf"]``.
+    """
+    if image_formats is None:
+        image_formats = ["pdf"]
+    bad = [f for f in image_formats if f not in VALID_FORMATS]
+    if bad:
+        raise ValueError(
+            f"Unsupported image format(s): {', '.join(bad)}; "
+            f"valid formats: {', '.join(VALID_FORMATS)}")
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -249,7 +271,11 @@ def _plot(args, prof_rows) -> None:
     ax.set_title(f"{args.sample} region-class accessibility profile")
     ax.legend(frameon=False, fontsize=7)
     fig.tight_layout()
-    fig.savefig(args.outdir / f"{args.sample}.censat_profile.pdf")
+    out_base = args.outdir / f"{args.sample}.censat_profile"
+    for fmt in image_formats:
+        out_path = f"{out_base}.{fmt}"
+        fig.savefig(out_path, dpi=dpi, bbox_inches="tight")
+        logger.info(f"Saved {out_path}")
     plt.close(fig)
 
 
@@ -274,6 +300,10 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     p.add_argument("-f", "--flank", type=int, default=10000,
                    help="profile flank around region (bp)")
     p.add_argument("-b", "--bin", type=int, default=500, help="profile bin size (bp)")
+    p.add_argument("--format", action="append", dest="formats",
+                   metavar="FMT",
+                   help="Image format (png/pdf/svg/...). Repeatable. "
+                        "Default: pdf.")
     p.add_argument("-l", "--log", type=Path, default=None, help="log file")
     p.add_argument("-n", "--dry-run", action="store_true", help="only log the plan")
     return p.parse_args(argv)

@@ -7,5 +7,10 @@
     "GRCh38": {}
   },
   "ip_samples": [],
-  "input_samples": []
+  "input_samples": [],
+  "Params": {
+    "macs3": {
+      "formats": ["png"]
+    }
+  }
 }

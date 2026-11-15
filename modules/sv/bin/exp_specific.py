@@ -12,6 +12,11 @@ from utils.repeatmasker_analysis import run_te_annotation_pipeline,RepeatMaskerO
 from utils.repeatmasker_plot import plot_enrichment
 logger = setup_logger(__name__)
 
+# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
+# fails fast at parse time instead of dying inside savefig (modules.md #9)
+VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
+                 "jpeg", "pgf", "raw", "rgba")
+
 
 def run_exp_specific_annotation(
     ctrl_vcfs:List[str],
@@ -144,6 +149,11 @@ def run_vcf_analysis(
     """
     if image_formats is None:
         image_formats = ["png"]
+    bad = [f for f in image_formats if f not in VALID_FORMATS]
+    if bad:
+        raise ValueError(
+            f"Unsupported image format(s): {', '.join(bad)}; "
+            f"valid: {', '.join(VALID_FORMATS)}")
     outdir = Path(out_dir) / "statistics"
     outdir.mkdir(parents=True,exist_ok=True)
     logger.info("Starting VCF analysis and visualization...")
@@ -225,6 +235,11 @@ def run_exp_enricher(
     """
     if image_formats is None:
         image_formats = ["png"]
+    bad = [f for f in image_formats if f not in VALID_FORMATS]
+    if bad:
+        raise ValueError(
+            f"Unsupported image format(s): {', '.join(bad)}; "
+            f"valid: {', '.join(VALID_FORMATS)}")
     logger.info("Starting PlaB specific insertion enrichment analysis...")
     outdir = Path(out_dir)
     outdir.mkdir(parents=True,exist_ok=True)

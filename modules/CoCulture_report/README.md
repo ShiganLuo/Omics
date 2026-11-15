@@ -19,6 +19,8 @@
 
 ```
 {outdir}/CoCulture_report/CoCulture_report.html   # .smk 声明的报告输出
+{outdir}/CoCulture_report/{genome1}_2_{genome2}.{fmt}   # 双条形图(按 formats 每种格式一个文件)
+{outdir}/CoCulture_report/{genome2}_2_{genome1}.{fmt}   # 同上(另一方向;仅对应样本列表非空时产出)
 {outdir}/HRT.sh                                   # 回执
 ```
 
@@ -45,6 +47,7 @@
 | — | `--top` | 10 | 每组展示的 top 特征数 |
 | — | `-m` / `--mode` | `TEcount` | 输入格式:`TEcount`(family:class:superfamily)或 `TElocal`(多一段 location) |
 | — | `-l` / `--level` | `subfamily` | TE 分类层级(loci/subfamily/family/class) |
+| `formats` | `-f` / `--format`(可重复) | `png` | 输出图格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib 全集);非法值直接报错并列出合法值 |
 | (mem_mb) | — | 8000 | `rule_res("HRT")` 可覆盖 |
 
 直接调用示例(按脚本真实参数):
@@ -55,7 +58,8 @@ python modules/CoCulture_report/bin/HRT.py \
     -i2 input/genome2/all_TEcount_name.tsv \
     -g1 s1 s2 -g2 s3 s4 \
     -o out/CoCulture_report \
-    -mc 5 --top 10 -m TEcount -l subfamily
+    -mc 5 --top 10 -m TEcount -l subfamily \
+    -f png -f pdf
 ```
 
 ## 2. 算法原理与生物学意义

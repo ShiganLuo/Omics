@@ -8,15 +8,25 @@ group_pairs = config.get("group_pairs", [])
 geneIDAnno = config.get('genome',{}).get('geneIDAnno')
 gtf = config.get('genome',{}).get('gtf')
 gene_map = config.get('genome',{}).get('gene_map')
+
+# ① parse 期读入 + 规范化（str 收成单元素 list；合法值由 schema 声明）
+# R figure formats forwarded to DESeq2.r --format (repeatable). Valid set is
+# the R ggsave device set (png pdf svg ps eps tif tiff jpg jpeg); DESeq2.r
+# fails fast on anything else (pgf/raw/rgba are matplotlib-only).
+_formats = config.get("Params", {}).get("DESeq2", {}).get("formats") or ["png"]
+if isinstance(_formats, str):
+    _formats = [_formats]
+
 rule DESeq2_TEcount:
     input:
         count_matrix = indir + "/TEcount/all_TEcount.tsv",
     output:
         deseq2_results = outdir + "/{contrast}/DESeq2.done",
         contrast_group = outdir + "/{contrast}/group.tsv",
-        contrast_pca = outdir + "/{contrast}/PCA/{contrast}.cpmPCA.png",
-        contrast_gene_volcano = outdir + "/{contrast}/volcano/{contrast}.TEcount_Gene_volcano.png",
-        contrast_gene_heatmap = outdir + "/{contrast}/heatmap/{contrast}.TEcount_Gene_updown.png",
+        # ② 按格式展开：每种格式一个输出文件（base 不带扩展名）
+        contrast_pca = [outdir + "/{contrast}/PCA/{contrast}.cpmPCA." + fmt for fmt in _formats],
+        contrast_gene_volcano = [outdir + "/{contrast}/volcano/{contrast}.TEcount_Gene_volcano." + fmt for fmt in _formats],
+        contrast_gene_heatmap = [outdir + "/{contrast}/heatmap/{contrast}.TEcount_Gene_updown." + fmt for fmt in _formats],
         contrast_gene_updown = outdir + "/{contrast}/upDown/{contrast}.TEcount_Gene_updown.tsv",
         contrast_te_updown = outdir + "/{contrast}/upDown/{contrast}.TEcount_TE_updown.tsv",
         contrast_gene_te_updown = outdir + "/{contrast}/upDown/{contrast}.TEcount_Gene_TE_updown.tsv",
@@ -36,7 +46,8 @@ rule DESeq2_TEcount:
         geneIDAnno = geneIDAnno,
         outdir = outdir,
         gtf = gtf,
-        gene_map = gene_map
+        gene_map = gene_map,
+        formats = _formats,   # ③ 转发
 
     conda:
         "DESeq2.yaml"
@@ -83,6 +94,8 @@ rule DESeq2_TEcount:
                 "-Tcm", "all",
                 "-px", wildcards.contrast
             ]
+            for fmt in params.formats:
+                cmd2 += ["--format", str(fmt)]
             cmd3 = [
                 "python", params.annotation_script,
                 "-i", 

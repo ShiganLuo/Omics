@@ -38,6 +38,13 @@ if str(_ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(_ROOT_DIR))
 from src.common.util.LogUtil import setup_logger  # noqa: E402
 
+PlotFormat = str
+
+# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
+# fails fast at parse time instead of dying inside savefig (modules.md #9)
+VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
+                 "jpeg", "pgf", "raw", "rgba")
+
 METRICS = [
     ("m6a_per_fiber", "m6A per fiber"),
     ("percent_accessible", "accessibility (MSP fiber fraction)"),
@@ -231,14 +238,30 @@ def build_tables(g1: str, g2: str,
     return class_rows, keys, per_class_metric
 
 
-def savefig(fig, outbase: Path) -> None:
-    for ext in ("png", "svg"):
-        fig.savefig(outbase.with_suffix(f".{ext}"), dpi=300, facecolor="white",
+def savefig(fig, outbase: Path,
+            image_formats: Optional[List[PlotFormat]] = None) -> None:
+    """Save one figure under each requested format.
+
+    image_formats : List[str], optional
+        Save formats. Default ``["png", "svg"]``.
+    """
+    if image_formats is None:
+        image_formats = ["png", "svg"]
+    bad = [f for f in image_formats if f not in VALID_FORMATS]
+    if bad:
+        raise ValueError(
+            f"Unsupported image format(s): {', '.join(bad)}; "
+            f"valid formats: {', '.join(VALID_FORMATS)}")
+    for fmt in image_formats:
+        out_path = outbase.with_suffix(f".{fmt}")
+        fig.savefig(out_path, dpi=300, facecolor="white",
                     bbox_inches="tight", pad_inches=0.3)
+        logger.info(f"Saved {out_path}")
 
 
 def fig_class_metrics(per_class_metric: Dict, keys: List[Tuple], g1: str,
-                      g2: str, outdir: Path) -> None:
+                      g2: str, outdir: Path,
+                      image_formats: Optional[List[PlotFormat]] = None) -> None:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -277,12 +300,13 @@ def fig_class_metrics(per_class_metric: Dict, keys: List[Tuple], g1: str,
     fig.suptitle("Telomere/centromere region modifications by class\n"
                  f"({g1} vs {g2})", fontsize=12, y=1.02)
     fig.tight_layout()
-    savefig(fig, outdir / "fig_class_metrics")
+    savefig(fig, outdir / "fig_class_metrics", image_formats=image_formats)
     plt.close(fig)
 
 
 def fig_region_scatter(quant: Dict, censat: Dict, samples_by_group: Dict,
-                       keys: List[Tuple], g1: str, g2: str, outdir: Path) -> None:
+                       keys: List[Tuple], g1: str, g2: str, outdir: Path,
+                       image_formats: Optional[List[PlotFormat]] = None) -> None:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -327,12 +351,13 @@ def fig_region_scatter(quant: Dict, censat: Dict, samples_by_group: Dict,
     fig.suptitle(f"Per-region {g1} vs {g2} concordance by class", fontsize=12,
                  y=1.01)
     fig.tight_layout()
-    savefig(fig, outdir / "fig_region_scatter")
+    savefig(fig, outdir / "fig_region_scatter", image_formats=image_formats)
     plt.close(fig)
 
 
 def fig_profiles(profiles: Dict[str, Dict], samples_by_group: Dict, keys,
-                 g1: str, g2: str, outdir: Path) -> None:
+                 g1: str, g2: str, outdir: Path,
+                 image_formats: Optional[List[PlotFormat]] = None) -> None:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -372,7 +397,7 @@ def fig_profiles(profiles: Dict[str, Dict], samples_by_group: Dict, keys,
         fig.suptitle(f"Region-class {metric_name} profiles\n({g1} vs {g2})",
                      fontsize=12, y=1.02)
         fig.tight_layout()
-        savefig(fig, outdir / fname)
+        savefig(fig, outdir / fname, image_formats=image_formats)
         plt.close(fig)
 
 
@@ -391,6 +416,10 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
                    help="sample_id=censat_profile.tsv (repeatable)")
     p.add_argument("--g1", required=True, help="first group label")
     p.add_argument("--g2", required=True, help="second group label")
+    p.add_argument("-f", "--format", action="append", dest="formats",
+                   metavar="FMT",
+                   help="Image format (png/pdf/svg/...). Repeatable. "
+                        "Default: png,svg.")
     p.add_argument("-o", "--outdir", type=Path, required=True)
     p.add_argument("-l", "--log", type=Path, default=None)
     return p.parse_args(argv)
@@ -421,14 +450,16 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 for s, p in parse_pairs(args.profile_tsv).items()}
 
     args.outdir.mkdir(parents=True, exist_ok=True)
+    image_formats = args.formats if args.formats else ["png", "svg"]
     _, keys, per_class_metric = build_tables(
         args.g1, args.g2, samples_by_group, quant, censat, args.outdir)
-    fig_class_metrics(per_class_metric, keys, args.g1, args.g2, args.outdir)
+    fig_class_metrics(per_class_metric, keys, args.g1, args.g2, args.outdir,
+                      image_formats=image_formats)
     fig_region_scatter(quant, censat, samples_by_group, keys, args.g1,
-                       args.g2, args.outdir)
+                       args.g2, args.outdir, image_formats=image_formats)
     if profiles:
         fig_profiles(profiles, samples_by_group, keys, args.g1, args.g2,
-                     args.outdir)
+                     args.outdir, image_formats=image_formats)
     logger.info(f"All comparison outputs written to {args.outdir}")
     return 0
 

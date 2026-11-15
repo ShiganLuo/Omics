@@ -5,16 +5,34 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import argparse
+from typing import List, Optional
+
+PlotFormat = str
+
+# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
+# fails fast at parse time instead of dying inside savefig (modules.md #9)
+VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
+                 "jpeg", "pgf", "raw", "rgba")
 
 
-def plot_fragment_size(input_file: str, output_file: str, highlight_size: int = 167) -> None:
+def plot_fragment_size(input_file: str, out_base: str,
+                       image_formats: Optional[List[PlotFormat]] = None,
+                       highlight_size: int = 167) -> None:
     """Plot fragment size distribution.
     
     Args:
         input_file: Path to fragment size histogram table (from getFragmentSize.py)
-        output_file: Path to output plot file
+        out_base: Output path without extension (``<base>.<fmt>`` per format)
+        image_formats: Save formats. Default ``["png"]``.
         highlight_size: Fragment size to highlight with vertical line (default: 167)
     """
+    if image_formats is None:
+        image_formats = ["png"]
+    bad = [f for f in image_formats if f not in VALID_FORMATS]
+    if bad:
+        raise ValueError(
+            f"Unsupported image format(s): {', '.join(bad)}; "
+            f"valid: {', '.join(VALID_FORMATS)}")
     df = pd.read_table(input_file, index_col=0)
     
     fig, ax = plt.subplots(figsize=(25, 10), dpi=300)
@@ -38,14 +56,23 @@ def plot_fragment_size(input_file: str, output_file: str, highlight_size: int = 
     ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
     
     plt.tight_layout()
-    fig.savefig(output_file, bbox_inches='tight')
+    for fmt in image_formats:
+        out_path = f"{out_base}.{fmt}"
+        fig.savefig(out_path, dpi=300, bbox_inches="tight")
+        print(f"Saved: {out_path}")
     plt.close(fig)
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Plot fragment size distribution.")
     parser.add_argument('--input', type=str, required=True, help='Path to fragment size histogram table')
-    parser.add_argument('--output', type=str, required=True, help='Path to output plot file')
+    parser.add_argument('--output', type=str, required=True,
+                        help='Output path without extension (base name); '
+                             'files are written as <output>.<format>')
     parser.add_argument('--highlight', type=int, default=167, help='Fragment size to highlight (default: 167)')
+    parser.add_argument('-f', '--format', action='append', dest='formats', metavar='FMT',
+                        help='Image format (png/pdf/svg/...). Repeatable. Default: png.')
     args = parser.parse_args()
-    plot_fragment_size(args.input, args.output, args.highlight)
+    plot_fragment_size(args.input, args.output,
+                       image_formats=args.formats if args.formats else ["png"],
+                       highlight_size=args.highlight)

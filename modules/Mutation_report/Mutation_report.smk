@@ -26,6 +26,13 @@ fragment_dir = config.get("fragment_dir") or os.path.join(outdir, "results/fragm
 
 REPORT_SCRIPT = os.path.join(ROOT_DIR, "modules", "Mutation_report", "bin", "generate_report.py")
 
+# formats(模块 md #9 / subworkflow.md formats 规范):报告自有图(体细胞调用
+# 柱状图)的导出格式;str 收成单元素列表(格式合法性由 schema 声明)。报告图
+# 为条件产出,不逐一声明 output——由 figures/manifest.tsv 兜底(报告模块规范)。
+_formats = (config.get("Params", {}).get("report", {}) or {}).get("formats") or ["png"]
+if isinstance(_formats, str):
+    _formats = [_formats]
+
 
 def _report_anchors():
     """Registered outputs under the consumed dirs -> DAG anchor files.
@@ -58,6 +65,9 @@ rule generate_report:
     output:
         report = outdir + "/Mutation_report.pptx",
         excel = outdir + "/Mutation_report.xlsx",
+        # 报告自有图导出清单(报告模块规范:figures/<name>.<fmt> 为条件产出,
+        # 不逐一声明;manifest.tsv 让 DAG 与磁盘保持一致)
+        manifest = outdir + "/figures/manifest.tsv",
     log:
         logdir + "/Mutation_report/generate_report.log"
     threads: rule_res("generate_report").get("threads", 1)
@@ -74,6 +84,7 @@ rule generate_report:
         pipeline = config.get("Params", {}).get("report", {}).get("pipeline") or "Mutation",
         genome = config.get("Params", {}).get("report", {}).get("genome") or "",
         date = config.get("Params", {}).get("report", {}).get("date") or "",
+        formats = _formats,   # ③ 转发
         pairs = [
             (rec.get("experimental"), rec.get("control"))
             for rec in paired_design
@@ -110,6 +121,8 @@ rule generate_report:
                 cmd += ["--sample", s]
             for tumor, normal in params.pairs:
                 cmd += ["--pair", f"{tumor}:{normal}"]
+            for fmt in params.formats:
+                cmd += ["--format", str(fmt)]
 
             script = os.path.join(RECEIPT_DIR, f"generate_report_{current_time}.sh")
             plain_script = os.path.join(report_dir or ".", "generate_report.sh")
@@ -129,5 +142,6 @@ rule report_result:
     input:
         report = outdir + "/Mutation_report.pptx",
         excel = outdir + "/Mutation_report.xlsx",
+        manifest = outdir + "/figures/manifest.tsv",
     resources:
         mem_mb = rule_res("report_result").get("mem_mb", 8000),

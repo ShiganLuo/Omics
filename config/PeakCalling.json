@@ -121,19 +121,28 @@
       "colorMap": "YlOrRd",
       "heatmapHeight": 15,
       "heatmapWidth": 8,
-      "whatToShow": "plot, heatmap and colorbar"
+      "whatToShow": "plot, heatmap and colorbar",
+      "formats": [
+        "png"
+      ]
     },
     "macs3": {
       "bw": 200,
       "pvalue": "1e-5",
       "genome_size": "mm",
-      "broad_cutoff": "0.1"
+      "broad_cutoff": "0.1",
+      "formats": [
+        "png"
+      ]
     },
     "peak_te_overlap": {
       "method": "reads",
       "sort_by": "te_length",
       "top_n": 30,
-      "combine": false
+      "combine": false,
+      "formats": [
+        "png"
+      ]
     },
     "report": {
       "title": "ChIP-seq Peak Calling Report",
@@ -141,7 +150,10 @@
       "pipeline": "TrimGalore → Bowtie2 → GATK MarkDuplicates → MACS3 → HOMER → bamCoverage → FRiP",
       "genome": "GRCm39 (mm39)",
       "date": "2026-07-14",
-      "top_n": 5
+      "top_n": 5,
+      "formats": [
+        "png"
+      ]
     },
     "igv": {
       "js": "/home/luosg/Database/SoftWare/igv.min.js",

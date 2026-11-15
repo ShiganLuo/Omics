@@ -19,6 +19,13 @@ qc_anchors = config.get("qc_anchors", {}) or {}
 # anchors exist only for tumor samples in the design pairs
 qc_anchor_samples = config.get("qc_anchor_samples", {}) or {}
 report_title = config.get("Params", {}).get("qc_summary", {}).get("title") or "QC Summary"
+# formats(模块 md #9 / subworkflow.md formats 规范):QC 柱状图导出格式
+# (str 收成单元素列表;格式合法性由 schema 声明)。图文件
+# qc_summary_<metric>.<fmt> 为条件产出(无数据不出图),不在 output 逐一
+# 声明;qc_summary.html 固定引用 png 变体。
+_formats = (config.get("Params", {}).get("qc_summary", {}) or {}).get("formats") or ["png"]
+if isinstance(_formats, str):
+    _formats = [_formats]
 
 QC_SCRIPT = os.path.join(ROOT_DIR, "modules", "qc_summary", "bin", "qc_summary.py")
 
@@ -71,6 +78,7 @@ rule qc_summary:
     params:
         script = QC_SCRIPT,
         title = report_title,
+        formats = _formats,   # ③ 转发
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -90,6 +98,8 @@ rule qc_summary:
                 cmd += ["--sample", s]
             for stage, stage_dir in qc_dirs.items():
                 cmd += ["--qc-dir", f"{stage}={stage_dir}"]
+            for fmt in params.formats:
+                cmd += ["--format", str(fmt)]
             cmd += ["--log", log_path]
 
             script = os.path.join(RECEIPT_DIR, f"qc_summary_{current_time}.sh")

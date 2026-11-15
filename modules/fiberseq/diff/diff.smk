@@ -8,6 +8,10 @@ samples = config.get("samples", [])
 ROOT_DIR = config.get("ROOT_DIR", ".")
 env = config.get("env", {})
 p = config.get("Params", {}).get("fiberseq_diff", {})
+# ① parse 期读入 + 规范化（str 收成单元素 list；合法值由 schema 声明）
+_formats = p.get("formats") or ["pdf"]
+if isinstance(_formats, str):
+    _formats = [_formats]
 
 # upstream contract: matrices from fiberseq_analysis/quant, annotations from
 # fiberseq_analysis/annotate
@@ -22,7 +26,9 @@ rule fiberseq_diff_run:
         annot = ANNOT_DIR + "/" + ANNOT_SAMPLE + "/" + ANNOT_SAMPLE + ".peaks_annotated.tsv",
     output:
         diff = outdir + "/{contrast}/diff_{contrast}.tsv",
-        volcano = outdir + "/{contrast}/volcano_{contrast}.pdf",
+        # ② 按格式展开：每种格式一个输出文件（base 不带扩展名）
+        plots = [outdir + "/{contrast}/volcano_{contrast}." + fmt
+                 for fmt in _formats],
         class_summary = outdir + "/{contrast}/class_summary_{contrast}.tsv",
         gene_table = outdir + "/{contrast}/TEcount/{contrast}.TEcount_Gene.name.tsv",
     log:
@@ -38,6 +44,7 @@ rule fiberseq_diff_run:
         script = ROOT_DIR + "/modules/fiberseq/bin/diff_accessibility.py",
         alpha = p.get("alpha", 0.05),
         group_spec = p.get("group_spec") or "",
+        formats = _formats,   # ③ 转发
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -59,6 +66,8 @@ rule fiberseq_diff_run:
                 "-p", str(params.alpha),
                 "-l", log_path,
             ]
+            for fmt in params.formats:
+                cmd += ["--format", str(fmt)]
             with open(script, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write("set -euo pipefail\n")

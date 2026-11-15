@@ -24,9 +24,9 @@ IP/Input 富集)、峰视角(每峰含多少 TE、TE 覆盖比例),并出富集�
 {outdir}/{sample_id}/{sample_id}_peak_te_overlap.bed          # peak×TE 交集全表
 {outdir}/{sample_id}/{sample_id}_te_subfamily_overlap.tsv     # TE 位点级重叠 + IP/Input 读段计数
 {outdir}/{sample_id}/{sample_id}_peak_centric_te.tsv          # 峰级:TE 数/类型/覆盖比例
-{outdir}/te_subfamily_overlap_combined.png                    # 汇总图
+{outdir}/te_subfamily_overlap_combined.<fmt>                  # 汇总图(<fmt> 取自 formats,默认 png)
 {outdir}/te_subfamily_overlap_combined.tsv                    # 汇总表
-{outdir}/{ip}_vs_{input}_enrichment.png                       # 每 IP:Input 富集图(非 combine 模式)
+{outdir}/{ip}_vs_{input}_enrichment.<fmt>                     # 每 IP:Input 富集图(非 combine 模式)
 {outdir}/.peak_te_overlap_fig.done                            # 汇总完成标记(touch)
 ```
 
@@ -48,6 +48,7 @@ IP/Input 富集)、峰视角(每峰含多少 TE、TE 覆盖比例),并出富集�
 | `Params.peak_te_overlap.sort_by` | `--sort-by` | `te_length` | 排序(`enrichment`/`te_length`) |
 | `Params.peak_te_overlap.top_n` | `--top-n` | `30` | 图中展示的亚家族数 |
 | `Params.peak_te_overlap.combine` | `--combine` | `false` | true 时单张合并图(此时无 per-pair 富集图) |
+| `Params.peak_te_overlap.formats` | `-f/--format`(可重复) | `["png"]` | 图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib 全集);默认 png(与历史行为一致) |
 
 环境:`conda: "peak_te_overlap.yaml"`(模块目录内)。
 
@@ -65,8 +66,11 @@ python3 bin/plot_te_overlap.py \
   --tsvs s1_te_subfamily_overlap.tsv,s2_te_subfamily_overlap.tsv \
   --output outdir --combined-tsv outdir/te_subfamily_overlap_combined.tsv \
   --method count --sort-by te_length --top-n 30 \
-  --ip-input-pairs "s1:input1;s2:input2"
+  --ip-input-pairs "s1:input1;s2:input2" --format png --format pdf
 ```
+
+(`--output` 在 separate 模式为输出目录,combined 模式(`--combine`)为
+不带扩展名的输出 base 路径;每种 `--format` 各写一份 `<base>.<fmt>`。)
 
 ## 2. 算法原理与生物学意义
 

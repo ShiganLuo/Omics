@@ -11,12 +11,29 @@ paired_samples = config.get("paired_samples", [])
 single_samples = config.get("single_samples", [])
 species = config.get("Params", {}).get("function", {}).get("species", "mouse")
 
+# Plotting formats per param section (modules.md #9): ① parse 期读入 +
+# 规范化(str 收成单元素 list;合法值由 schema 声明)。output: 不能是函数,
+# 格式列表必须是模块级变量(decoil.smk 同款注释)。
+_func = config.get("Params", {}).get("function", {}) or {}
+_go_kegg_formats = (_func.get("go_kegg", {}) or {}).get("formats") or ["png"]
+if isinstance(_go_kegg_formats, str):
+    _go_kegg_formats = [_go_kegg_formats]
+_gsea_formats = (_func.get("gsea", {}) or {}).get("formats") or ["jpeg"]
+if isinstance(_gsea_formats, str):
+    _gsea_formats = [_gsea_formats]
+_gsva_formats = (_func.get("gsva", {}) or {}).get("formats") or ["png"]
+if isinstance(_gsva_formats, str):
+    _gsva_formats = [_gsva_formats]
+
 rule function_go_kegg:
     input:
         deseq2_result = indir + "/{contrast}/TEcount/{contrast}.TEcount_Gene.name.tsv",
     output:
-        func_go_plot = outdir + "/{contrast}/go_back_to_back.png",
-        func_kegg_plot = outdir + "/{contrast}/kegg_back_to_back.png",
+        # ② 按格式展开:每种格式一个输出文件(base 不带扩展名)
+        func_go_plot = [outdir + "/{contrast}/go_back_to_back." + fmt
+                        for fmt in _go_kegg_formats],
+        func_kegg_plot = [outdir + "/{contrast}/kegg_back_to_back." + fmt
+                          for fmt in _go_kegg_formats],
         func_go_up = outdir + "/{contrast}/go_up.csv",
         func_go_down = outdir + "/{contrast}/go_down.csv",
         func_kegg_up = outdir + "/{contrast}/kegg_up.csv",
@@ -34,6 +51,7 @@ rule function_go_kegg:
         lfc_cut = config.get("Params", {}).get("function", {}).get("go_kegg", {}).get("lfc_cut", 1),
         p_cut = config.get("Params", {}).get("function", {}).get("go_kegg", {}).get("p_cut", 0.05),
         top = config.get("Params", {}).get("function", {}).get("go_kegg", {}).get("top", 10),
+        formats = _go_kegg_formats,   # ③ 转发
     conda:
         "function.yaml"
     container:
@@ -69,6 +87,8 @@ rule function_go_kegg:
                 "--p-cut", str(params.p_cut),
                 "--top", str(params.top),
             ]
+            for fmt in params.formats:
+                cmd += ["--format", str(fmt)]
 
             script = os.path.join(RECEIPT_DIR, f"go_kegg_{wildcards.contrast}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"go_kegg.sh")
@@ -113,7 +133,9 @@ rule function_gsea:
     input:
         unpack(get_input_for_function_gsea)
     output:
-        func_gsea_plot = outdir + "/{contrast}/GSEA/TEcount_Gene_GSEA.jpeg",
+        # ② 按格式展开:每种格式一个输出文件(base 不带扩展名)
+        func_gsea_plot = [outdir + "/{contrast}/GSEA/TEcount_Gene_GSEA." + fmt
+                          for fmt in _gsea_formats],
         func_gsea_csv = outdir + "/{contrast}/GSEA/TEcount_Gene_GSEA.csv"
     log:
         logdir + "/../group/function/{contrast}.gsea.log"
@@ -122,6 +144,7 @@ rule function_gsea:
         mem_mb = rule_res("function_gsea").get("mem_mb", 8000),
     params:
         gsea_script = ROOT_DIR + "/modules/function/bin/gsea.r",
+        formats = _gsea_formats,   # ③ 转发
     conda:
         "function.yaml"
     container:
@@ -157,6 +180,8 @@ rule function_gsea:
                 "-a", input.annotation,
                 "-t", graph_title,
             ]
+            for fmt in params.formats:
+                cmd += ["--format", str(fmt)]
 
             script = os.path.join(RECEIPT_DIR, f"gsea_{wildcards.contrast}_{current_time}.sh")
             plain_script = os.path.join(sample_outdir, f"gsea.sh")
@@ -220,7 +245,9 @@ rule function_gsva:
         unpack(get_input_for_function_gsva)
     output:
         gsva_scores = outdir + "/gsva/gsva_scores.tsv",
-        gsva_heatmap = outdir + "/gsva/gsva_heatmap.png",
+        # ② 按格式展开:每种格式一个输出文件(base 不带扩展名)
+        gsva_heatmap = [outdir + "/gsva/gsva_heatmap." + fmt
+                        for fmt in _gsva_formats],
     log:
         logdir + "/function/gsva.log"
     threads: rule_res("function_gsva").get("threads", 1)
@@ -230,6 +257,7 @@ rule function_gsva:
         norm_script = ROOT_DIR + "/modules/function/bin/normalization.py",
         gsva_script = ROOT_DIR + "/modules/function/bin/gsva.py",
         species = species,
+        formats = _gsva_formats,   # ③ 转发
     conda:
         "function.yaml"
     container:
@@ -279,6 +307,8 @@ rule function_gsva:
                 "-o", gsva_outdir,
                 "--title", f"GSVA ({params.species})",
             ]
+            for fmt in params.formats:
+                gsva_cmd += ["--format", str(fmt)]
             script = os.path.join(RECEIPT_DIR, f"gsva_{current_time}.sh")
             plain_script = os.path.join(gsva_outdir, f"gsva.sh")
             with open(script, 'w') as f:

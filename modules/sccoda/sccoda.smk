@@ -19,6 +19,18 @@ counters = sorted(k for k, v in params.items()
 python = config.get("Procedure", {}).get("python") or "python"
 script = os.path.join(ROOT_DIR, "modules", "sccoda", "bin", "sccoda.py")
 
+
+def _image_formats(cfg: dict) -> list:
+    """Image formats for one counter's plots: Params.sccoda.<counter>.formats
+    -> ["png"] (today's fixed output names). The da/ deliverable is a
+    directory() (pre-existing shape, unchanged); the files written inside
+    carry the requested extensions via the script's repeatable ``--format``
+    flag (modules.md #9).
+    """
+    fmts = (cfg or {}).get("formats") or ["png"]
+    return [fmts] if isinstance(fmts, str) else [str(f) for f in fmts]
+
+
 def _sccoda_override(wildcards):
     """Path of the tissue's reannotate override JSON, [] when none."""
     entry = reannotate.get(wildcards.counter, {}) or {}
@@ -65,6 +77,7 @@ rule sccoda_run:
         python = python,
         script = script,
         sccoda_cfg = lambda wildcards: params.get(wildcards.counter, {}),
+        formats = lambda wildcards: _image_formats(params.get(wildcards.counter, {})),
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -103,6 +116,9 @@ rule sccoda_run:
                     f"treat_sample[=label]'")
             for cmp_ in tissue_compares:
                 cmd += ["--compare", cmp_]
+            # --format is action='append': one flag per format (modules.md #9)
+            for fmt in params.formats:
+                cmd += ["--format", str(fmt)]
             with open(script, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 # Cap numeric-library threads to the rule's thread budget

@@ -474,7 +474,14 @@ PeakCalling_report_config = {
     "log_sample_dir": f"{logdir}/sample",
     "markdup_dir": f"{outdir}/common/4_markdup_bam",
     "Params": {
-        "report": config.get("Params", {}).get("report", {})
+        "report": config.get("Params", {}).get("report", {}),
+        # 生产者 formats 段直通(modules.md #9):report 模块 input 在 parse 期
+        # 按上游 formats 做 raster-first 变体解析(te_enrichment 归
+        # peak_te_overlap、heatmap 归 plotHeatmap)
+        "peak_te_overlap": config.get("Params", {}).get("peak_te_overlap", {}),
+        "macs3": config.get("Params", {}).get("macs3", {}),
+        "plotHeatmap": config.get("Params", {}).get("plotHeatmap", {}),
+        "fragment_size": config.get("Params", {}).get("fragment_size", {}),
     }
 }
 module PeakCalling_report:

@@ -8,6 +8,9 @@
         "genome1",
         "genome2"
     ],
+    "formats": [
+        "png"
+    ],
     "ROOT_DIR": null,
     "env": {
         "CoCulture_report": "/data/16T/Database/env/report/report.sif"

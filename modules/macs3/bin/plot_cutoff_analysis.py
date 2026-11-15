@@ -4,9 +4,17 @@
 import argparse
 import sys
 from pathlib import Path
+from typing import List, Optional
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+
+PlotFormat = str
+
+# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
+# fails fast at parse time instead of dying inside savefig (modules.md #9)
+VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
+                 "jpeg", "pgf", "raw", "rgba")
 
 
 def load_cutoff_table(path: str) -> dict[str, list[float]]:
@@ -30,8 +38,20 @@ def main():
                         help="cutoff_analysis.txt paths (one per sample)")
     parser.add_argument("--sample-names", action="append", required=True,
                         help="Sample names corresponding to input files")
-    parser.add_argument("--output", required=True, help="Output figure path")
+    parser.add_argument("--output", required=True,
+                        help="Output figure path without extension (base name); "
+                             "files are written as <output>.<format>")
+    parser.add_argument("-f", "--format", action="append", dest="formats", metavar="FMT",
+                        help="Image format (png/pdf/svg/...). Repeatable. Default: png.")
     args = parser.parse_args()
+
+    image_formats: List[PlotFormat] = (
+        args.formats if args.formats else ["png"])
+    bad = [f for f in image_formats if f not in VALID_FORMATS]
+    if bad:
+        raise ValueError(
+            f"Unsupported image format(s): {', '.join(bad)}; "
+            f"valid: {', '.join(VALID_FORMATS)}")
 
     if len(args.input_files) != len(args.sample_names):
         print("ERROR: --input-files and --sample-names count mismatch", file=sys.stderr)
@@ -67,8 +87,10 @@ def main():
     axes[1].grid(True, alpha=0.3)
 
     fig.suptitle("MACS3 Peak Count Trends Across Score Cutoffs", fontsize=14, fontweight="bold")
-    fig.savefig(args.output, dpi=200)
-    print(f"Saved: {args.output}")
+    for fmt in image_formats:
+        out_path = f"{args.output}.{fmt}"
+        fig.savefig(out_path, dpi=200, bbox_inches="tight")
+        print(f"Saved: {out_path}")
 
 
 if __name__ == "__main__":

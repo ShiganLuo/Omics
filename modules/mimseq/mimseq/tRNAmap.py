@@ -77,7 +77,18 @@ def mainAlign(sampleData, experiment_name, genome_index_path, genome_index_name,
 		alignstats_version = "Primary_"
 	elif map_round == 2:
 		alignstats_version = "Remap_"
-	fig.savefig(out_dir + alignstats_version + "alignstats.pdf")
+	# multi-format figure output (repo formats sweep; minimal vendored hook):
+	# MIMSEQ_PLOT_FORMATS (comma-separated; default "pdf") selects the output
+	# format(s); the default keeps the upstream alignstats.pdf name unchanged.
+	_plot_formats = [f for f in re.split(r"[,;\s]+", os.environ.get("MIMSEQ_PLOT_FORMATS", "pdf")) if f]
+	if not _plot_formats:
+		_plot_formats = ["pdf"]
+	_plot_valid = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg", "jpeg")
+	_bad = [f for f in _plot_formats if f not in _plot_valid]
+	if _bad:
+		raise ValueError("Unsupported image format(s): {}; valid: {}".format(", ".join(_bad), " ".join(_plot_valid)))
+	for _fmt in _plot_formats:
+		fig.savefig(out_dir + alignstats_version + "alignstats." + _fmt)
 	plt.close(fig)
 
 	log.info('Alignment statistics and plot saved to {}align/mapping_stats.txt'.format(out_dir))

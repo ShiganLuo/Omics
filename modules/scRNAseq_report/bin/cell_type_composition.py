@@ -7,6 +7,7 @@
 
 import argparse
 from pathlib import Path
+from typing import List, Optional
 
 import anndata as ad
 import matplotlib
@@ -15,6 +16,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
+
+PlotFormat = str
+
+# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
+# fails fast at parse time instead of dying inside savefig (modules.md #9)
+VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
+                 "jpeg", "pgf", "raw", "rgba")
 
 PALETTE = [
     "#E64B35", "#4DBBD5", "#00A087", "#3C5488", "#F39B7F",
@@ -44,8 +52,19 @@ def compute_composition(obs: pd.DataFrame) -> tuple:
     return counts_df, pct_df
 
 
-def plot_stacked_bar(pct_df: pd.DataFrame, title: str, out_png: Path):
-    """每个 cell_type 一个 bar，stacked by sample。"""
+def plot_stacked_bar(pct_df: pd.DataFrame, title: str, out_base: Path,
+                     image_formats: Optional[List[PlotFormat]] = None):
+    """每个 cell_type 一个 bar，stacked by sample。
+
+    Save formats. Default ``["png"]``.
+    """
+    if image_formats is None:
+        image_formats = ["png"]
+    bad = [f for f in image_formats if f not in VALID_FORMATS]
+    if bad:
+        raise ValueError(
+            f"Unsupported image format(s): {', '.join(bad)}; "
+            f"valid: {', '.join(VALID_FORMATS)}")
     samples = pct_df.columns.tolist()
     cell_types = pct_df.index.tolist()
     colors = {s: PALETTE[i % len(PALETTE)] for i, s in enumerate(samples)}
@@ -72,12 +91,15 @@ def plot_stacked_bar(pct_df: pd.DataFrame, title: str, out_png: Path):
     ax.set_title(title, fontsize=11)
     ax.invert_yaxis()
     plt.tight_layout()
-    fig.savefig(str(out_png), dpi=300, bbox_inches="tight")
+    for fmt in image_formats:
+        out_path = f"{out_base}.{fmt}"
+        fig.savefig(out_path, dpi=300, bbox_inches="tight")
+        print(f"  -> {out_path}")
     plt.close(fig)
-    print(f"  -> {out_png}")
 
 
-def run_one(h5ad_path: str, out_dir: Path):
+def run_one(h5ad_path: str, out_dir: Path,
+            image_formats: Optional[List[PlotFormat]] = None):
     path = Path(h5ad_path)
     name = path.stem.replace("_annotated", "").replace("_v2", "").replace("_v3", "")
     label = path.stem  # e.g. Uterus_cellranger_v3_annotated
@@ -100,11 +122,11 @@ def run_one(h5ad_path: str, out_dir: Path):
     print(f"  -> {pct_tsv}")
 
     # 画图
-    png = out_dir / f"{label}_sample_composition.png"
+    out_base = out_dir / f"{label}_sample_composition"
     tissue = "Ovary" if "ovaries" in label.lower() else "Uterus"
     counter = "Cell Ranger" if "cellranger" in label.lower() else "scTE"
     title = f"{tissue} ({counter}) — Cell type sample composition"
-    plot_stacked_bar(pct_df, title, png)
+    plot_stacked_bar(pct_df, title, out_base, image_formats)
 
 
 def main():
@@ -114,13 +136,17 @@ def main():
                    help="Annotated h5ad files")
     p.add_argument("--output-dir", required=True,
                    help="Output directory for tables and plots")
+    p.add_argument("-f", "--format", action="append", dest="formats", metavar="FMT",
+                   help="Image format (png/pdf/svg/...). Repeatable. "
+                        "Default: png.")
     args = p.parse_args()
 
     out_dir = Path(args.output_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
+    image_formats = args.formats if args.formats else ["png"]
 
     for h5ad_path in args.input:
-        run_one(h5ad_path, out_dir)
+        run_one(h5ad_path, out_dir, image_formats)
 
     print(f"\nAll done. Results in: {out_dir}")
 

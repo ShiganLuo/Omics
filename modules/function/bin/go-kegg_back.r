@@ -10,6 +10,37 @@ suppressPackageStartupMessages({
   library(dplyr)
 })
 
+## =========================
+## Multi-format figure output (modules.md #9)
+## =========================
+## ggsave derives the device from the file extension, so writing every
+## requested format is a plain loop over "{out_base}.{fmt}". pgf/raw/rgba
+## are matplotlib-only and fail fast here (R ggsave device set).
+VALID_FORMATS <- c("png", "pdf", "svg", "ps", "eps", "tif", "tiff",
+                   "jpg", "jpeg")
+
+## Fail fast on unsupported formats, listing what ggsave can write.
+validate_formats <- function(formats) {
+  bad <- setdiff(formats, VALID_FORMATS)
+  if (length(bad) > 0) {
+    stop(sprintf("Unsupported image format(s): %s; valid: %s",
+                 paste(bad, collapse = ", "),
+                 paste(VALID_FORMATS, collapse = ", ")))
+  }
+  invisible(formats)
+}
+
+## Save one ggplot per requested format as "{out_base}.{fmt}".
+save_ggsave_formats <- function(plot, out_base, formats, width, height,
+                                dpi = 300, ...) {
+  validate_formats(formats)
+  for (fmt in formats) {
+    out <- sprintf("%s.%s", out_base, fmt)
+    ggsave(out, plot = plot, width = width, height = height, dpi = dpi, ...)
+  }
+  invisible(out_base)
+}
+
 define_up_down_genes <- function(
   infile,
   gene_col,
@@ -96,7 +127,8 @@ plot_back_to_back <- function(
   down_df,
   top = 10,
   title = "",
-  outfile
+  out_base,
+  formats = "png"
 ) {
   up <- up_df %>%
     arrange(pvalue) %>%
@@ -137,7 +169,7 @@ plot_back_to_back <- function(
       plot.title = element_text(hjust = 0.5)
     )
 
-  ggsave(outfile, p, width = 8, height = 6)
+  save_ggsave_formats(p, out_base, formats, width = 8, height = 6)
 }
 
 
@@ -150,9 +182,12 @@ run_pipeline <- function(
   p_col = "total_pvalue",
   up_cutoff = 1,
   p_cutoff = 0.05,
-  top = 10
+  top = 10,
+  formats = "png"
 ) {
   dir.create(outdir, recursive = TRUE, showWarnings = FALSE)
+  # fail fast on bad formats before any enrichment work starts
+  validate_formats(formats)
 
   message("Defining Up / Down genes ...")
   genes <- define_up_down_genes(
@@ -181,7 +216,8 @@ run_pipeline <- function(
       down_res,
       top = top,
       title = paste(toupper(type), "enrichment"),
-      outfile = file.path(outdir, paste0(type, "_back_to_back.png"))
+      out_base = file.path(outdir, paste0(type, "_back_to_back")),
+      formats = formats
     )
   }
 }

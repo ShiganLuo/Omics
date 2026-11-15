@@ -47,7 +47,7 @@ import os
 import re
 import warnings
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
 warnings.filterwarnings("ignore")
 os.environ.setdefault("PYTHONNOUSERSITE", "1")
@@ -106,6 +106,44 @@ def setup_logger(logger_name: str, level: int = logging.INFO,
 
 
 logger = setup_logger(__name__)
+
+PlotFormat = str
+
+# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
+# fails fast at parse time instead of dying inside savefig (modules.md #9)
+VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
+                 "jpeg", "pgf", "raw", "rgba")
+
+
+def save_fig(fig, out_base: Union[str, Path],
+             image_formats: Optional[List[PlotFormat]] = None,
+             dpi: int = 300) -> None:
+    """Save *fig* as ``<out_base>.<fmt>`` for every requested format.
+
+    Parameters
+    ----------
+    fig : matplotlib.figure.Figure
+        Figure to save (closed afterwards).
+    out_base : str or Path
+        Output path without extension.
+    image_formats : list of str, optional
+        Save formats. Default ``["png"]``.
+    dpi : int, default=300
+        Output resolution (raster formats; vector formats ignore it).
+    """
+    if image_formats is None:
+        image_formats = ["png"]
+    bad = [f for f in image_formats if f not in VALID_FORMATS]
+    if bad:
+        raise ValueError(
+            f"Unsupported image format(s): {', '.join(bad)}; "
+            f"valid: {', '.join(VALID_FORMATS)}")
+    for fmt in image_formats:
+        out_path = f"{out_base}.{fmt}"
+        fig.savefig(out_path, dpi=dpi, facecolor="white",
+                    bbox_inches="tight", pad_inches=0.3)
+        logger.info("Saved: %s", out_path)
+    plt.close(fig)
 
 
 # ---------------------------------------------------------------------------
@@ -166,8 +204,9 @@ def parse_compare_items(items: List[str],
 # scCODA per comparison
 # ---------------------------------------------------------------------------
 
-def _plot_stacked_ribbon(counts_df: pd.DataFrame, out_path: Path,
-                         title: str) -> None:
+def _plot_stacked_ribbon(counts_df: pd.DataFrame, out_base: Path,
+                         title: str,
+                         image_formats: Optional[List[PlotFormat]] = None) -> None:
     """Stacked proportion bars per sample with light same-color ribbons.
 
     Reference da_sccoda style with an alluvial touch: bars are stacked cell-
@@ -179,11 +218,13 @@ def _plot_stacked_ribbon(counts_df: pd.DataFrame, out_path: Path,
     ----------
     counts_df : DataFrame
         Samples x cell types raw counts (index = sample ids in plot order).
-    out_path : Path
-        Target PNG.
+    out_base : Path
+        Output path without extension.
     title : str
         Plot title; the `` (`` before the comparison is turned into a line
         break so long titles cannot clip at the canvas edge.
+    image_formats : list of str, optional
+        Save formats. Default ``["png"]``.
     """
     counts = counts_df.to_numpy(dtype=np.float64)
     samples = [str(s) for s in counts_df.index]
@@ -244,15 +285,15 @@ def _plot_stacked_ribbon(counts_df: pd.DataFrame, out_path: Path,
     # into the plot and overlaps the top y tick label.
     ax.set_title(title.replace(" (", "\n("), fontsize=14, pad=16)
     fig.subplots_adjust(top=0.88)
-    fig.savefig(out_path, dpi=300, facecolor="white",
-                bbox_inches="tight", pad_inches=0.3)
-    plt.close(fig)
+    save_fig(fig, out_base, image_formats)
 
 
 def run_sccoda(adata: sc.AnnData, comp: dict, formula: str,
                ref_celltype: str, credible_threshold: float,
                num_samples: int, num_warmup: int,
-               da_dir: Path) -> Tuple[pd.DataFrame, List[str]]:
+               da_dir: Path,
+               image_formats: Optional[List[PlotFormat]] = None
+               ) -> Tuple[pd.DataFrame, List[str]]:
     """Run scCODA for one ref-vs-treat comparison and write its artifacts.
 
     Parameters
@@ -273,6 +314,8 @@ def run_sccoda(adata: sc.AnnData, comp: dict, formula: str,
         NUTS sampler budgets.
     da_dir : Path
         Directory for the per-comparison CSV and plots (created if missing).
+    image_formats : list of str, optional
+        Plot save formats. Default ``["png"]``.
 
     Returns
     -------
@@ -284,7 +327,7 @@ def run_sccoda(adata: sc.AnnData, comp: dict, formula: str,
     tissue, label = comp["tissue"], comp["label"]
     notes: List[str] = []
     # Reference naming (analysis/results/da_sccoda convention):
-    # da_sccoda_<ref>_vs_<treat>_{da.csv,effects_barplot.png,stacked_barplot.png}
+    # da_sccoda_<ref>_vs_<treat>_{da.csv,effects_barplot.<fmt>,stacked_barplot.<fmt>}
     prefix = f"da_sccoda_{comp['ref']}_vs_{comp['treat']}"
     da_dir.mkdir(parents=True, exist_ok=True)
 
@@ -436,11 +479,8 @@ def run_sccoda(adata: sc.AnnData, comp: dict, formula: str,
             ax.spines["right"].set_visible(False)
             ax.tick_params(axis="x", labelsize=10)
             fig.subplots_adjust(left=0.25, right=0.98, top=0.88, bottom=0.10)
-            out = da_dir / f"{prefix}_effects_barplot.png"
-            fig.savefig(out, dpi=300, facecolor="white",
-                        bbox_inches="tight", pad_inches=0.3)
-            plt.close(fig)
-            logger.info("Saved: %s", out)
+            out = da_dir / f"{prefix}_effects_barplot"
+            save_fig(fig, out, image_formats)
         except Exception as e:
             plt.close("all")
             notes.append(f"effects_barplot skipped (plot error: {e})")
@@ -456,9 +496,8 @@ def run_sccoda(adata: sc.AnnData, comp: dict, formula: str,
         counts_df = pd.crosstab(sub.obs["sample_id"], sub.obs["cell_type"])
         counts_df = counts_df.reindex(
             index=[ref, treat], columns=mdata["coda"].var.index, fill_value=0)
-        out = da_dir / f"{prefix}_stacked_barplot.png"
-        _plot_stacked_ribbon(counts_df, out, title)
-        logger.info("Saved: %s", out)
+        out = da_dir / f"{prefix}_stacked_barplot"
+        _plot_stacked_ribbon(counts_df, out, title, image_formats=image_formats)
     except Exception as e:
         plt.close("all")
         notes.append(f"stacked_barplot skipped (plot error: {e})")
@@ -470,6 +509,40 @@ def run_sccoda(adata: sc.AnnData, comp: dict, formula: str,
 # ---------------------------------------------------------------------------
 # Report
 # ---------------------------------------------------------------------------
+
+def _figure_variants(out_dir: Path, comp: dict) -> List[Path]:
+    """One embeddable figure file per plot base (raster-first).
+
+    Multi-format runs write each da figure once per format; the report
+    gallery embeds one variant per base (png preferred, then jpg/jpeg/tif/
+    tiff, else the first produced) so every figure appears exactly once.
+
+    Parameters
+    ----------
+    out_dir : Path
+        Run output root (figures live in ``da/``).
+    comp : dict
+        Comparison dict with ``ref``/``treat`` keys.
+
+    Returns
+    -------
+    list of Path
+        Selected figure files, sorted by base name.
+    """
+    preferred = ("png", "jpg", "jpeg", "tif", "tiff")
+    best: Dict[Path, Tuple[int, Path]] = {}
+    for fname in sorted((out_dir / "da").glob(
+            f"da_sccoda_{comp['ref']}_vs_{comp['treat']}_*")):
+        fmt = fname.suffix.lstrip(".").lower()
+        if fmt not in VALID_FORMATS:
+            continue
+        rank = preferred.index(fmt) if fmt in preferred else len(preferred)
+        base = fname.with_suffix("")
+        cur = best.get(base)
+        if cur is None or rank < cur[0]:
+            best[base] = (rank, fname)
+    return [item[1] for item in sorted(best.values(), key=lambda x: str(x[1]))]
+
 
 def write_report(out_dir: Path, comparisons: List[dict],
                  results: Dict[str, dict], run_params: dict) -> None:
@@ -553,8 +626,7 @@ def write_report(out_dir: Path, comparisons: List[dict],
             parts.append("</table>")
         for note in res.get("notes", []):
             parts.append(f"<p>Note: {_escape(note)}</p>")
-        for fname in sorted((out_dir / "da").glob(
-                f"da_sccoda_{comp['ref']}_vs_{comp['treat']}_*.png")):
+        for fname in _figure_variants(out_dir, comp):
             rel = os.path.relpath(fname, out_dir)
             parts.append(f"<img src='{_escape(rel)}' "
                          f"alt='{_escape(fname.name)}'>")
@@ -627,7 +699,17 @@ Examples:
                    help="NUTS posterior samples (default: 2000)")
     p.add_argument("-w", "--num-warmup", type=int, default=500,
                    help="NUTS warmup samples (default: 500)")
-    return p.parse_args()
+    # long-only: -f is taken by --formula
+    p.add_argument("--format", action="append", dest="formats", metavar="FMT",
+                   help="Image format (png/pdf/svg/...). Repeatable. Default: png.")
+    args = p.parse_args()
+    # Image formats: fail fast at parse time (modules.md #9)
+    args.formats = list(args.formats) if args.formats else ["png"]
+    bad = [f for f in args.formats if f not in VALID_FORMATS]
+    if bad:
+        p.error(f"Unsupported image format(s): {', '.join(bad)}; "
+                f"valid: {', '.join(VALID_FORMATS)}")
+    return args
 
 
 def main():
@@ -649,6 +731,7 @@ def main():
         "credible_threshold": args.credible_threshold,
         "num_samples": args.num_samples,
         "num_warmup": args.num_warmup,
+        "formats": ",".join(args.formats),
     }
 
     results: Dict[str, dict] = {}
@@ -676,7 +759,8 @@ def main():
             credible_threshold=args.credible_threshold,
             num_samples=args.num_samples,
             num_warmup=args.num_warmup,
-            da_dir=out_dir / "da")
+            da_dir=out_dir / "da",
+            image_formats=args.formats)
         results[comp["key"]] = {"summary": summary, "notes": notes}
 
     write_report(out_dir, comparisons, results, run_params)

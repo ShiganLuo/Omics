@@ -27,7 +27,7 @@ m6A/可及性/核小体谱并计算 footprint 分数。共享父目录环境
 {outdir}/{sample_id}/{sample_id}.motif_sites.bed               # 基序命中位点 BED
 {outdir}/{sample_id}/{sample_id}.motif_profile.tsv              # 基序中心平均谱
 {outdir}/{sample_id}/{sample_id}.motif_footprint_scores.tsv     # 逐位点 footprint 分数
-{outdir}/{sample_id}/{sample_id}.motif_profile.pdf              # 谱图 PDF
+{outdir}/{sample_id}/{sample_id}.motif_profile.<fmt>           # 谱图(formats 多格式,默认 pdf)
 {outdir}/{sample_id}/fiberseq_motif_scan_{sample_id}.sh         # 回执(profile 同目录)
 logdir/{sample_id}/fiberseq_motif_scan.log                      # 运行日志(profile.log 同目录)
 ```
@@ -45,6 +45,7 @@ mean_m6a_frac`。
 | `Params.fiberseq_motif.pwm_threshold` | `-t` | 0.8 | 命中阈值 = 该比例 × PWM 满分 |
 | `Params.fiberseq_motif.flank` | `-f` | 250 | 基序中心两侧窗口半宽(bp) |
 | `Params.fiberseq_motif.min_fibers` | `-i` | 10 | 位点纳入的最少纤维覆盖 |
+| `Params.fiberseq_motif.formats` | `--format`(可重复) | ["pdf"] | 谱图输出格式(多种同时输出),合法值 png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(profile 规则) |
 | `genome.fasta` | `-f`(scan) | — | 参考 FASTA |
 | `genome.motif_file` | `-m`(scan) | — | MEME 基序文件 |
 | `samples` | — | [] | 样本列表(result 锚点 expand) |

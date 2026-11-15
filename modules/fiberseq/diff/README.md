@@ -23,7 +23,7 @@
 
 ```
 {outdir}/{contrast}/diff_{contrast}.tsv                          # 逐区域差异统计
-{outdir}/{contrast}/volcano_{contrast}.pdf                       # 火山图
+{outdir}/{contrast}/volcano_{contrast}.<fmt>                    # 火山图(formats 多格式,默认 pdf)
 {outdir}/{contrast}/class_summary_{contrast}.tsv                 # 区域类别分层汇总
 {outdir}/{contrast}/TEcount/{contrast}.TEcount_Gene.name.tsv     # 基因表(供 modules/function)
 ```
@@ -44,6 +44,7 @@ config 位于 `Params.fiberseq_diff` 下:
 | `Params.fiberseq_diff.annot_sample` | — | `samples[0]` | 注释表取样 |
 | `Params.fiberseq_diff.alpha` | `-p` | 0.05 | BH-FDR 阈值 |
 | (contrast) | `-C` | wildcard | 只跑指定对比(缺省脚本跑 design 里全部) |
+| `Params.fiberseq_diff.formats` | `-f/--format`(可重复) | ["pdf"] | 火山图输出格式(多种同时输出),合法值 png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba |
 | (threads) | — | 4 | `rule_res("fiberseq_diff_run")` 可覆盖 |
 | (mem_mb) | — | 8000 | 资源声明 |
 

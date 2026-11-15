@@ -26,6 +26,13 @@ logger = logging.getLogger("plot_te_overlap")
 
 DPI = 300
 
+PlotFormat = str
+
+# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
+# fails fast at parse time instead of dying inside savefig (modules.md #9)
+VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
+                 "jpeg", "pgf", "raw", "rgba")
+
 
 def load_tsvs(tsv_paths):
     """Load and concatenate per-sample subfamily overlap TSVs."""
@@ -137,9 +144,25 @@ def select_top_subfamilies(log2fc, df_pair, top_n):
     return log2fc.sort_values(ascending=False).index.tolist()[:top_n]
 
 
-def plot_single_pair(df_pair, pairs, ip_name, input_name, output_path,
+def plot_single_pair(df_pair, pairs, ip_name, input_name, out_base,
+                     image_formats=None,
                      method="count", sort_by="te_length", top_n=30):
-    """Plot enrichment for a single IP:Input pair."""
+    """Plot enrichment for a single IP:Input pair.
+
+    Parameters
+    ----------
+    out_base : str
+        Output path without extension (``<base>.<fmt>`` per format).
+    image_formats : list of str, optional
+        Save formats. Default ``["png"]``.
+    """
+    if image_formats is None:
+        image_formats = ["png"]
+    bad = [f for f in image_formats if f not in VALID_FORMATS]
+    if bad:
+        raise ValueError(
+            f"Unsupported image format(s): {', '.join(bad)}; "
+            f"valid: {', '.join(VALID_FORMATS)}")
     # Compute enrichment
     log2fc = compute_enrichment_single_pair(df_pair, method)
     if log2fc.empty:
@@ -198,13 +221,31 @@ def plot_single_pair(df_pair, pairs, ip_name, input_name, output_path,
 
     fig.suptitle(f"{ip_name} vs {input_name}", fontsize=13, fontweight="bold", y=0.98)
     plt.tight_layout()
-    fig.savefig(output_path, dpi=DPI, bbox_inches="tight")
+    for fmt in image_formats:
+        out_path = f"{out_base}.{fmt}"
+        fig.savefig(out_path, dpi=DPI, bbox_inches="tight")
+        logger.info(f"Chart saved: {out_path}")
     plt.close(fig)
-    logger.info(f"Chart saved: {output_path}")
 
 
-def plot_combined(df_all, pairs, output_path, method="count", sort_by="te_length", top_n=30):
-    """Plot enrichment for all pairs combined in one figure."""
+def plot_combined(df_all, pairs, out_base, image_formats=None,
+                  method="count", sort_by="te_length", top_n=30):
+    """Plot enrichment for all pairs combined in one figure.
+
+    Parameters
+    ----------
+    out_base : str
+        Output path without extension (``<base>.<fmt>`` per format).
+    image_formats : list of str, optional
+        Save formats. Default ``["png"]``.
+    """
+    if image_formats is None:
+        image_formats = ["png"]
+    bad = [f for f in image_formats if f not in VALID_FORMATS]
+    if bad:
+        raise ValueError(
+            f"Unsupported image format(s): {', '.join(bad)}; "
+            f"valid: {', '.join(VALID_FORMATS)}")
     n_pairs = len(pairs)
     if n_pairs == 0:
         logger.warning("No pairs to plot")
@@ -216,7 +257,10 @@ def plot_combined(df_all, pairs, output_path, method="count", sort_by="te_length
         gridspec_kw={"height_ratios": [1, 2] * n_pairs},
     )
     if n_pairs == 1:
-        axes = [axes]
+        # plt.subplots(2, 1) already returns both axes; unwrap them as a
+        # flat list so the per-pair indexing below works for any n_pairs
+        # (a bare [axes] wraps the array instead and breaks axes[1])
+        axes = list(axes)
 
     from matplotlib.patches import Patch
     legend_elements = [
@@ -272,15 +316,19 @@ def plot_combined(df_all, pairs, output_path, method="count", sort_by="te_length
             ax_bot.legend(handles=legend_elements, fontsize=8, loc="upper right")
 
     plt.tight_layout()
-    fig.savefig(output_path, dpi=DPI, bbox_inches="tight")
+    for fmt in image_formats:
+        out_path = f"{out_base}.{fmt}"
+        fig.savefig(out_path, dpi=DPI, bbox_inches="tight")
+        logger.info(f"Combined chart saved: {out_path}")
     plt.close(fig)
-    logger.info(f"Combined chart saved: {output_path}")
 
 
 def main():
     p = argparse.ArgumentParser("Plot TE subfamily enrichment chart")
     p.add_argument("--tsvs", required=True, help="Comma-separated per-sample TSV paths")
-    p.add_argument("--output", required=True, help="Output directory (for separate mode) or file (for combined mode)")
+    p.add_argument("--output", required=True,
+                   help="Output directory (separate mode) or output base path "
+                        "without extension (combined mode)")
     p.add_argument("--combined-tsv", required=True, help="Output combined TSV path")
     p.add_argument("--ip-input-pairs", default="", help="IP:Input pairs, semicolon-separated")
     p.add_argument("--method", default="reads", choices=["interval", "count", "reads"],
@@ -290,6 +338,8 @@ def main():
     p.add_argument("--top-n", type=int, default=30, help="Number of top subfamilies to show (default: 30)")
     p.add_argument("--combine", action="store_true",
                    help="Generate a single combined plot instead of separate per-pair plots")
+    p.add_argument("-f", "--format", action="append", dest="formats", metavar="FMT",
+                   help="Image format (png/pdf/svg/...). Repeatable. Default: png.")
     args = p.parse_args()
 
     tsv_paths = [p.strip() for p in args.tsvs.split(",") if p.strip()]
@@ -306,9 +356,10 @@ def main():
         pairs = make_pairs(args.ip_input_pairs)
     logger.info(f"IP:Input pairs: {pairs}")
 
+    image_formats = args.formats if args.formats else ["png"]
     if args.combine:
-        # Single combined plot
-        plot_combined(df, pairs, args.output,
+        # Single combined plot (--output is the base path without extension)
+        plot_combined(df, pairs, args.output, image_formats=image_formats,
                       method=args.method, sort_by=args.sort_by, top_n=args.top_n)
     else:
         # Separate plot per pair
@@ -320,8 +371,9 @@ def main():
             df_pair["condition"] = df_pair["sample_id"].apply(
                 lambda x: "IP" if x == ip_name else "Input"
             )
-            out_path = os.path.join(output_dir, f"{ip_name}_vs_{input_name}_enrichment.png")
-            plot_single_pair(df_pair, pairs, ip_name, input_name, out_path,
+            out_base = os.path.join(output_dir, f"{ip_name}_vs_{input_name}_enrichment")
+            plot_single_pair(df_pair, pairs, ip_name, input_name, out_base,
+                             image_formats=image_formats,
                              method=args.method, sort_by=args.sort_by, top_n=args.top_n)
 
 

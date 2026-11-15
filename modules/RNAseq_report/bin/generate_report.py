@@ -41,6 +41,49 @@ from pptx.enum.text import MSO_ANCHOR, PP_ALIGN
 from pptx.util import Inches, Pt
 from PIL import Image as PILImage
 
+PlotFormat = str
+
+# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
+# fails fast at parse time instead of dying inside savefig (modules.md #9)
+VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
+                 "jpeg", "pgf", "raw", "rgba")
+
+# ── 上游产出图 raster-first 变体解析(modules.md #9 formats 规范)──
+# 生产者按各自 Params.<producer>.formats 每格式写一个 `<base>.<fmt>`;报告
+# 消费这些图时按 raster-first(png → jpg → jpeg → tif → tiff,再按
+# VALID_FORMATS 余下顺序)找已存在的变体;都不存在时原样返回硬编码路径
+# (默认配置下行为与历史逐字节一致)。
+_PICK_EXTS = ("png", "jpg", "jpeg", "tif", "tiff",
+              "pdf", "svg", "ps", "eps", "pgf", "raw", "rgba")
+_RASTER_EXTS = ("png", "jpg", "jpeg", "tif", "tiff")
+
+
+def _pick_variant(base: str) -> str:
+    """Raster-first existing variant of a consumed producer figure.
+
+    *base* is the legacy hardcoded path (with extension); the scan probes
+    ``<stem>.<fmt>`` in raster-first order and returns the first existing
+    file, falling back to *base* when no variant exists.
+    """
+    stem, ext = os.path.splitext(base)
+    if ext.lstrip(".").lower() not in _PICK_EXTS:
+        stem = base
+    for fmt in _PICK_EXTS:
+        cand = "{}.{}".format(stem, fmt)
+        if os.path.isfile(cand):
+            return cand
+    return base
+
+
+def _embeddable(path: str) -> bool:
+    """True when *path* exists as a raster PPTX can embed.
+
+    Vector-only variants (svg/pdf/...) degrade like missing figures —
+    python-pptx embeds rasters only, so never hand them to add_picture.
+    """
+    return (bool(path) and os.path.isfile(path)
+            and os.path.splitext(path)[1].lower() in _RASTER_EXTS)
+
 SLIDE_W = 10.0
 SLIDE_H = 5.625
 HEADER_H = 0.65
@@ -160,23 +203,56 @@ def t(key: str, lang: str) -> str:
 
 
 class TempImageStore:
-    def __init__(self, img_dir: str = ""):
+    """Figure save layer for the report (report-module spec).
+
+    ``image_formats``: save formats. Default ``["png"]``. Every figure is
+    written as a standalone deliverable ``<img_dir>/<stem>.<fmt>`` for each
+    requested format; the returned path stays a raster copy for PPTX
+    embedding (the png variant when produced, else a temp png).
+    """
+
+    def __init__(self, img_dir: str = "",
+                 image_formats: Optional[List[PlotFormat]] = None):
         self.img_dir = img_dir
+        if image_formats is None:
+            image_formats = ["png"]
+        bad = [f for f in image_formats if f not in VALID_FORMATS]
+        if bad:
+            raise ValueError(
+                f"Unsupported image format(s): {', '.join(bad)}; "
+                f"valid: {', '.join(VALID_FORMATS)}")
+        self.image_formats = image_formats
         self.paths = []
+        self.manifest = []  # (name, filename) rows for manifest.tsv
         if self.img_dir:
             os.makedirs(self.img_dir, exist_ok=True)
 
     def save_fig(self, fig, stem: str) -> str:
+        """Save formats. Default ``["png"]`` (set at store construction)."""
+        if self.img_dir:
+            for fmt in self.image_formats:
+                out_path = os.path.join(self.img_dir, f"{stem}.{fmt}")
+                fig.savefig(out_path, dpi=DPI, bbox_inches="tight")
+                self.manifest.append((stem, f"{stem}.{fmt}"))
+            if "png" in self.image_formats:
+                plt.close(fig)
+                return os.path.join(self.img_dir, f"{stem}.png")
+        # no img_dir, or png not among the requested formats: embedding keeps
+        # using a raster copy (temp fallback)
         fd, tmp_path = tempfile.mkstemp(prefix=f"{stem}_", suffix=".png")
         os.close(fd)
         fig.savefig(tmp_path, dpi=DPI, bbox_inches="tight")
         plt.close(fig)
         self.paths.append(tmp_path)
-        if self.img_dir:
-            dest = os.path.join(self.img_dir, f"{stem}.png")
-            shutil.copy2(tmp_path, dest)
-            return dest
         return tmp_path
+
+    def write_manifest(self):
+        """Write <img_dir>/manifest.tsv (name<TAB>filename per delivered file)."""
+        if not self.img_dir:
+            return
+        with open(os.path.join(self.img_dir, "manifest.tsv"), "w") as fh:
+            for name, fname in self.manifest:
+                fh.write(f"{name}\t{fname}\n")
 
     def cleanup(self):
         for path in self.paths:
@@ -281,15 +357,15 @@ def load_function_summary(contrast_dir: str) -> dict:
     result: dict = {
         "contrast": name,
         "func_dir": contrast_dir,
-        "go_plot": os.path.join(contrast_dir, "go_back_to_back.png"),
-        "kegg_plot": os.path.join(contrast_dir, "kegg_back_to_back.png"),
+        "go_plot": _pick_variant(os.path.join(contrast_dir, "go_back_to_back.png")),
+        "kegg_plot": _pick_variant(os.path.join(contrast_dir, "kegg_back_to_back.png")),
         "go_up_path": os.path.join(contrast_dir, "go_up.csv"),
         "go_down_path": os.path.join(contrast_dir, "go_down.csv"),
         "kegg_up_path": os.path.join(contrast_dir, "kegg_up.csv"),
         "kegg_down_path": os.path.join(contrast_dir, "kegg_down.csv"),
         "up_genes_path": os.path.join(contrast_dir, "up_genes.txt"),
         "down_genes_path": os.path.join(contrast_dir, "down_genes.txt"),
-        "gsea_plot": os.path.join(contrast_dir, "GSEA", "TEcount_Gene_GSEA.jpeg"),
+        "gsea_plot": _pick_variant(os.path.join(contrast_dir, "GSEA", "TEcount_Gene_GSEA.jpeg")),
         "gsea_csv_path": os.path.join(contrast_dir, "GSEA", "TEcount_Gene_GSEA.csv"),
     }
     result["up_count"] = _count_lines(result["up_genes_path"])
@@ -315,9 +391,9 @@ def load_diff_summary(contrast_dir: str) -> dict:
     result = {
         "contrast": name,
         "group_path": os.path.join(contrast_dir, "group.tsv"),
-        "pca": os.path.join(contrast_dir, "PCA", "{}cpmPCA.png".format(prefix)),
-        "gene_volcano": os.path.join(contrast_dir, "volcano", "{}TEcount_Gene_volcano.png".format(prefix)),
-        "gene_heatmap": os.path.join(contrast_dir, "heatmap", "{}TEcount_Gene_updown.png".format(prefix)),
+        "pca": _pick_variant(os.path.join(contrast_dir, "PCA", "{}cpmPCA.png".format(prefix))),
+        "gene_volcano": _pick_variant(os.path.join(contrast_dir, "volcano", "{}TEcount_Gene_volcano.png".format(prefix))),
+        "gene_heatmap": _pick_variant(os.path.join(contrast_dir, "heatmap", "{}TEcount_Gene_updown.png".format(prefix))),
         "gene_updown_path": os.path.join(contrast_dir, "upDown", "{}TEcount_Gene_updown.tsv".format(prefix)),
         "te_updown_path": os.path.join(contrast_dir, "upDown", "{}TEcount_TE_updown.tsv".format(prefix)),
         "gene_te_updown_path": os.path.join(contrast_dir, "upDown", "{}TEcount_Gene_TE_updown.tsv".format(prefix)),
@@ -348,6 +424,9 @@ def load_diff_summary(contrast_dir: str) -> dict:
 
 def _add_picture(slide, path: str, left: float, top: float, max_w: float, max_h: float):
     if not path or not os.path.isfile(path):
+        return None
+    if os.path.splitext(path)[1].lower() not in _RASTER_EXTS:
+        # vector-only variant (svg/pdf/...) — 按缺图降级(不嵌入,不崩溃)
         return None
     img = PILImage.open(path)
     aspect = img.size[0] / max(img.size[1], 1)
@@ -685,8 +764,8 @@ def build_te_slide(prs: Presentation, analysis_dir: str, lang: str):
     slide.background.fill.solid()
     slide.background.fill.fore_color.rgb = C_BG
     _header(slide, t("te_summary", lang))
-    img1 = os.path.join(analysis_dir, "transcripts", "TE_chimeric", "TE_chimeric_group_stacked.png")
-    img2 = os.path.join(analysis_dir, "transcripts", "TE_chimeric", "TE_chimeric_te_type_top.png")
+    img1 = _pick_variant(os.path.join(analysis_dir, "transcripts", "TE_chimeric", "TE_chimeric_group_stacked.png"))
+    img2 = _pick_variant(os.path.join(analysis_dir, "transcripts", "TE_chimeric", "TE_chimeric_te_type_top.png"))
     _add_picture(slide, img1, 0.45, 0.95, 4.35, 3.2)
     _add_picture(slide, img2, 5.0, 0.95, 4.55, 3.2)
     bullets = [
@@ -701,7 +780,7 @@ def build_te_detail_slide(prs: Presentation, analysis_dir: str, te_group_df: pd.
     slide.background.fill.solid()
     slide.background.fill.fore_color.rgb = C_BG
     _header(slide, t("te_detail", lang))
-    img = os.path.join(analysis_dir, "transcripts", "TE_chimeric", "TE_chimeric_te_type_by_group.png")
+    img = _pick_variant(os.path.join(analysis_dir, "transcripts", "TE_chimeric", "TE_chimeric_te_type_by_group.png"))
     _add_picture(slide, img, 0.45, 0.95, 6.25, 3.45)
     group_rows = [[t("group", lang), "5'", "3'", "Internal"]]
     if not te_group_df.empty:
@@ -769,8 +848,8 @@ def build_fusion_slide(prs: Presentation, analysis_dir: str, fusion_df: pd.DataF
     slide.background.fill.solid()
     slide.background.fill.fore_color.rgb = C_BG
     _header(slide, t("fusion_summary", lang))
-    fig1 = os.path.join(analysis_dir, "fusion", "arriba_report", "figures", "fig1_per_sample_counts.png")
-    fig5 = os.path.join(analysis_dir, "fusion", "arriba_report", "figures", "fig5_recurrent_heatmap.png")
+    fig1 = _pick_variant(os.path.join(analysis_dir, "fusion", "arriba_report", "figures", "fig1_per_sample_counts.png"))
+    fig5 = _pick_variant(os.path.join(analysis_dir, "fusion", "arriba_report", "figures", "fig5_recurrent_heatmap.png"))
     _add_picture(slide, fig1, 0.45, 0.95, 4.35, 2.2)
     _add_picture(slide, fig5, 5.0, 0.95, 4.55, 2.2)
     rows = [[t("sample", lang), t("fusion_total", lang), t("fusion_high", lang), t("fusion_support", lang)]]
@@ -1208,6 +1287,9 @@ def main():
     ap.add_argument("--img-dir", default="")
     ap.add_argument("--file-inventory", default="",
                     help="If set, write all input file paths to this Excel file")
+    ap.add_argument("-f", "--format", action="append", dest="formats", metavar="FMT",
+                    help="Image format (png/pdf/svg/...). Repeatable. "
+                         "Default: png.")
     args = ap.parse_args()
 
     analysis_dir = os.path.abspath(args.analysis_dir)
@@ -1242,7 +1324,8 @@ def main():
         subtitle_parts.append(args.genome)
     subtitle = " | ".join(subtitle_parts)
 
-    img_store = TempImageStore(args.img_dir)
+    image_formats = args.formats if args.formats else ["png"]
+    img_store = TempImageStore(args.img_dir, image_formats=image_formats)
     prs = Presentation()
     prs.slide_width = Inches(SLIDE_W)
     prs.slide_height = Inches(SLIDE_H)
@@ -1261,9 +1344,9 @@ def main():
         ]
         build_sample_slide(prs, sample_df, chimeric_plot, sample_notes, args.lang)
 
-    if os.path.isfile(os.path.join(analysis_dir, "transcripts", "TE_chimeric", "TE_chimeric_group_stacked.png")):
+    if os.path.isfile(_pick_variant(os.path.join(analysis_dir, "transcripts", "TE_chimeric", "TE_chimeric_group_stacked.png"))):
         build_te_slide(prs, analysis_dir, args.lang)
-    if os.path.isfile(os.path.join(analysis_dir, "transcripts", "TE_chimeric", "TE_chimeric_te_type_by_group.png")):
+    if os.path.isfile(_pick_variant(os.path.join(analysis_dir, "transcripts", "TE_chimeric", "TE_chimeric_te_type_by_group.png"))):
         build_te_detail_slide(prs, analysis_dir, te_group_df, te_type_df, args.lang)
 
     if diff_summaries:
@@ -1285,7 +1368,7 @@ def main():
                 build_function_gsea_slide(prs, item, args.lang)
 
     # ── GSVA slide ────────────────────────────────────────────
-    gsva_heatmap = os.path.join(analysis_dir, "function", "gsva", "gsva_heatmap.png")
+    gsva_heatmap = _pick_variant(os.path.join(analysis_dir, "function", "gsva", "gsva_heatmap.png"))
     gsva_scores = os.path.join(analysis_dir, "function", "gsva", "gsva_scores.tsv")
     if os.path.isfile(gsva_heatmap):
         build_gsva_slide(prs, gsva_heatmap, gsva_scores, args.lang)
@@ -1298,6 +1381,7 @@ def main():
     }, args.lang)
 
     prs.save(output)
+    img_store.write_manifest()
     img_store.cleanup()
 
     if args.file_inventory:

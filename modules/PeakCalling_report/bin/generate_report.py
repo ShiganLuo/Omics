@@ -19,9 +19,11 @@ Usage:
 import argparse
 import csv
 import os
+import shutil
 import sys
 import tempfile
 from collections import Counter
+from typing import List, Optional
 
 import matplotlib
 matplotlib.use("Agg")
@@ -32,6 +34,49 @@ from pptx.util import Inches, Pt
 from pptx.dml.color import RGBColor
 from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
 from pptx.enum.shapes import MSO_SHAPE
+
+PlotFormat = str
+
+# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
+# fails fast at parse time instead of dying inside savefig (modules.md #9)
+VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
+                 "jpeg", "pgf", "raw", "rgba")
+
+# ── 上游产出图 raster-first 变体解析(modules.md #9 formats 规范)──
+# 生产者按各自 Params.<producer>.formats 每格式写一个 `<base>.<fmt>`;报告
+# 消费这些图时按 raster-first(png → jpg → jpeg → tif → tiff,再按
+# VALID_FORMATS 余下顺序)找已存在的变体;都不存在时原样返回硬编码路径
+# (默认配置下行为与历史逐字节一致)。
+_PICK_EXTS = ("png", "jpg", "jpeg", "tif", "tiff",
+              "pdf", "svg", "ps", "eps", "pgf", "raw", "rgba")
+_RASTER_EXTS = ("png", "jpg", "jpeg", "tif", "tiff")
+
+
+def _pick_variant(base: str) -> str:
+    """Raster-first existing variant of a consumed producer figure.
+
+    *base* is the legacy hardcoded path (with extension); the scan probes
+    ``<stem>.<fmt>`` in raster-first order and returns the first existing
+    file, falling back to *base* when no variant exists.
+    """
+    stem, ext = os.path.splitext(base)
+    if ext.lstrip(".").lower() not in _PICK_EXTS:
+        stem = base
+    for fmt in _PICK_EXTS:
+        cand = "{}.{}".format(stem, fmt)
+        if os.path.isfile(cand):
+            return cand
+    return base
+
+
+def _embeddable(path: str) -> bool:
+    """True when *path* exists as a raster PPTX can embed.
+
+    Vector-only variants (svg/pdf/...) degrade like missing figures —
+    python-pptx embeds rasters only, so never hand them to add_picture.
+    """
+    return (bool(path) and os.path.isfile(path)
+            and os.path.splitext(path)[1].lower() in _RASTER_EXTS)
 
 
 # ============================================================
@@ -160,7 +205,7 @@ def _table(slide, left, top, width, height, data, font_size=10):
 
 
 def _add_img(slide, path, left, top, max_w, max_h):
-    if path and os.path.exists(path):
+    if path and _embeddable(path):
         slide.shapes.add_picture(path, Inches(left), Inches(top), Inches(max_w), Inches(max_h))
 
 
@@ -539,9 +584,27 @@ def load_peak_centric_te(te_dir, sample):
 
 
 def get_te_enrichment_png(te_dir, sample, input_sample):
-    """Return path to TE enrichment figure if it exists."""
-    path = os.path.join(te_dir, f"{sample}_vs_{input_sample}_enrichment.png")
+    """Return path to TE enrichment figure if it exists (raster-first variant)."""
+    path = _pick_variant(os.path.join(te_dir, f"{sample}_vs_{input_sample}_enrichment.png"))
     return path if os.path.isfile(path) else None
+
+
+def list_heatmap_variants(sample_heatmap_dir):
+    """TE heatmap figures under one sample dir, one variant per base name.
+
+    Producers write ``*_heatmap.<fmt>`` per configured formats (modules.md
+    #9), so discover every known-format variant and keep the raster-first
+    one per base (the historical ``*_heatmap.png`` collection at default
+    configs yields the same sorted list).
+    """
+    suffixes = tuple("_heatmap." + fmt for fmt in _PICK_EXTS)
+    stems = sorted({
+        os.path.splitext(f)[0]
+        for f in os.listdir(sample_heatmap_dir)
+        if f.endswith(suffixes)
+    })
+    return [_pick_variant(os.path.join(sample_heatmap_dir, stem + ".png"))
+            for stem in stems]
 
 
 def load_fastqc_summary(qc_dir, sample, stage="raw"):
@@ -563,7 +626,42 @@ def load_fastqc_summary(qc_dir, sample, stage="raw"):
 # Plotting
 # ============================================================
 
-def plot_alignment(aligns):
+# Standalone figure deliverables (report-module spec): figures/<name>.<fmt>
+FIG_DIR = ""        # set in main(): --img-dir, else a temp dir
+FIG_MANIFEST = []   # (name, filename) rows for figures/manifest.tsv
+_TEMP_EMBEDS = []   # temp raster copies used for PPTX embedding
+
+
+def save_fig(fig, name, image_formats: Optional[List[PlotFormat]] = None,
+             dpi=DPI):
+    """Write every figure as ``<FIG_DIR>/<name>.<fmt>`` and return the raster
+    path used for PPTX embedding (the png variant when produced, else a
+    temporary png). Save formats. Default ``["png"]``."""
+    if image_formats is None:
+        image_formats = ["png"]
+    bad = [f for f in image_formats if f not in VALID_FORMATS]
+    if bad:
+        raise ValueError(
+            f"Unsupported image format(s): {', '.join(bad)}; "
+            f"valid: {', '.join(VALID_FORMATS)}")
+    os.makedirs(FIG_DIR, exist_ok=True)
+    for fmt in image_formats:
+        out_path = os.path.join(FIG_DIR, f"{name}.{fmt}")
+        fig.savefig(out_path, dpi=dpi, bbox_inches="tight")
+        FIG_MANIFEST.append((name, f"{name}.{fmt}"))
+    if "png" in image_formats:
+        embed = os.path.join(FIG_DIR, f"{name}.png")
+    else:
+        # embedding keeps using a raster copy (temp fallback)
+        embed = tempfile.mktemp(suffix=".png")
+        fig.savefig(embed, dpi=dpi, bbox_inches="tight")
+        _TEMP_EMBEDS.append(embed)
+    plt.close(fig)
+    return embed
+
+
+def plot_alignment(aligns, image_formats=None):
+    """Save formats. Default ``["png"]``."""
     fig, ax = plt.subplots(figsize=(8, 4))
     samples = list(aligns.keys())
     rates = [aligns[s]["overall_rate"] or 0 for s in samples]
@@ -574,11 +672,11 @@ def plot_alignment(aligns):
     for bar, rate in zip(bars, rates):
         ax.text(bar.get_width() + 1, bar.get_y() + bar.get_height()/2, f"{rate:.1f}%", va="center", fontsize=9)
     ax.legend(fontsize=8); plt.tight_layout()
-    path = tempfile.mktemp(suffix=".png"); fig.savefig(path, dpi=DPI, bbox_inches="tight"); plt.close(fig)
-    return path
+    return save_fig(fig, "alignment", image_formats)
 
 
-def plot_peak_and_frip(samples, peaks, frips):
+def plot_peak_and_frip(samples, peaks, frips, image_formats=None):
+    """Save formats. Default ``["png"]``."""
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
     peak_counts = [peaks[s]["narrow"] for s in samples]
     frip_vals = [(frips[s] or 0) * 100 for s in samples]
@@ -591,11 +689,11 @@ def plot_peak_and_frip(samples, peaks, frips):
     ax2.axhline(20, color="red", linestyle="--", alpha=0.5, label="20% threshold")
     for i, v in enumerate(frip_vals): ax2.text(i, v + max(frip_vals)*0.02, f"{v:.1f}%", ha="center", fontsize=9)
     ax2.legend(fontsize=8); plt.tight_layout()
-    path = tempfile.mktemp(suffix=".png"); fig.savefig(path, dpi=DPI, bbox_inches="tight"); plt.close(fig)
-    return path
+    return save_fig(fig, "peak_frip", image_formats)
 
 
-def plot_annotation(anns, lang="zh"):
+def plot_annotation(anns, lang="zh", image_formats=None):
+    """Save formats. Default ``["png"]``."""
     if not anns: return None
     labels = ["promoter", "exon", "intron", "intergenic", "tts", "other"]
     samples = list(anns.keys())
@@ -607,11 +705,11 @@ def plot_annotation(anns, lang="zh"):
     ax.set_xticks(x + width * 2.5); ax.set_xticklabels(samples)
     ax.set_ylabel("Peak Count"); ax.set_title("Peak Annotation — Genomic Region Distribution")
     ax.legend(fontsize=7, ncol=3); plt.tight_layout()
-    path = tempfile.mktemp(suffix=".png"); fig.savefig(path, dpi=DPI, bbox_inches="tight"); plt.close(fig)
-    return path
+    return save_fig(fig, "annotation", image_formats)
 
 
-def plot_tss_distance(tss_stats):
+def plot_tss_distance(tss_stats, image_formats=None):
+    """Save formats. Default ``["png"]``."""
     fig, ax = plt.subplots(figsize=(8, 4))
     for sample, ts in tss_stats.items():
         if ts and ts.get("distances"):
@@ -620,11 +718,11 @@ def plot_tss_distance(tss_stats):
     ax.set_xlabel("Distance to TSS (bp)"); ax.set_ylabel("Density")
     ax.set_title("TSS Distance Distribution"); ax.set_xlim(0, 10000); ax.legend(fontsize=8)
     plt.tight_layout()
-    path = tempfile.mktemp(suffix=".png"); fig.savefig(path, dpi=DPI, bbox_inches="tight"); plt.close(fig)
-    return path
+    return save_fig(fig, "tss_distance", image_formats)
 
 
-def plot_dup_rate(all_samples, markdups):
+def plot_dup_rate(all_samples, markdups, image_formats=None):
+    """Save formats. Default ``["png"]``."""
     fig, ax = plt.subplots(figsize=(8, 4))
     samples = [s for s in all_samples if s in markdups]
     rates = [markdups[s]["dup_rate"] for s in samples]
@@ -635,11 +733,11 @@ def plot_dup_rate(all_samples, markdups):
     for bar, rate in zip(bars, rates):
         ax.text(bar.get_width() + 0.5, bar.get_y() + bar.get_height()/2, f"{rate:.1f}%", va="center", fontsize=9)
     ax.legend(fontsize=8); plt.tight_layout()
-    path = tempfile.mktemp(suffix=".png"); fig.savefig(path, dpi=DPI, bbox_inches="tight"); plt.close(fig)
-    return path
+    return save_fig(fig, "dup_rate", image_formats)
 
 
-def plot_trim_stats(all_samples, trims):
+def plot_trim_stats(all_samples, trims, image_formats=None):
+    """Save formats. Default ``["png"]``."""
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
     samples = [s for s in all_samples if s in trims]
     # Adapter rate (R1)
@@ -660,12 +758,14 @@ def plot_trim_stats(all_samples, trims):
     ax2.tick_params(axis='x', rotation=30)
     for i, v in enumerate(passed): ax2.text(i, v + max(passed)*0.02, f"{v:.1f}M", ha="center", fontsize=8)
     plt.tight_layout()
-    path = tempfile.mktemp(suffix=".png"); fig.savefig(path, dpi=DPI, bbox_inches="tight"); plt.close(fig)
-    return path
+    return save_fig(fig, "trim_stats", image_formats)
 
 
-def plot_peak_centric_te(all_peak_centric_data):
-    """Plot TE coverage fraction distribution + TE count per peak."""
+def plot_peak_centric_te(all_peak_centric_data, image_formats=None):
+    """Plot TE coverage fraction distribution + TE count per peak.
+
+    Save formats. Default ``["png"]``.
+    """
     if not all_peak_centric_data:
         return None
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
@@ -688,8 +788,7 @@ def plot_peak_centric_te(all_peak_centric_data):
         ax2.set_title("TE Count Distribution")
         ax2.set_xticks(range(0, 21, 2))
     plt.tight_layout()
-    path = tempfile.mktemp(suffix=".png"); fig.savefig(path, dpi=DPI, bbox_inches="tight"); plt.close(fig)
-    return path
+    return save_fig(fig, "peak_centric_te", image_formats)
 
 
 # ============================================================
@@ -1238,6 +1337,9 @@ def main():
     ap.add_argument("--output", required=True)
     ap.add_argument("--excel-output", default="")
     ap.add_argument("--img-dir", default="")
+    ap.add_argument("-f", "--format", action="append", dest="formats", metavar="FMT",
+                    help="Image format (png/pdf/svg/...). Repeatable. "
+                         "Default: png.")
     ap.add_argument("--title", default="")
     ap.add_argument("--subtitle", default="")
     ap.add_argument("--pipeline", default="")
@@ -1246,6 +1348,13 @@ def main():
     ap.add_argument("--top-n", type=int, default=5)
     ap.add_argument("--lang", choices=["zh", "en"], default="zh")
     args = ap.parse_args()
+
+    image_formats = args.formats if args.formats else ["png"]
+    bad = [f for f in image_formats if f not in VALID_FORMATS]
+    if bad:
+        raise ValueError(
+            f"Unsupported image format(s): {', '.join(bad)}; "
+            f"valid: {', '.join(VALID_FORMATS)}")
 
     ip_samples = args.samples
     input_samples = args.input_samples
@@ -1292,7 +1401,7 @@ def main():
     for s in ip_samples:
         sample_heatmap_dir = os.path.join(heatmap_dir, s)
         if os.path.isdir(sample_heatmap_dir):
-            pngs = sorted([os.path.join(sample_heatmap_dir, f) for f in os.listdir(sample_heatmap_dir) if f.endswith("_heatmap.png")])
+            pngs = list_heatmap_variants(sample_heatmap_dir)
             if pngs:
                 heatmap_imgs[s] = pngs
     # Peak-centric TE data
@@ -1300,24 +1409,25 @@ def main():
     for s in ip_samples:
         all_peak_centric_data.extend(load_peak_centric_te(te_dir, s))
 
-    # Generate plots
-    if args.img_dir: os.makedirs(args.img_dir, exist_ok=True)
-    align_img = plot_alignment(aligns)
-    pf_img = plot_peak_and_frip(ip_samples, peaks, frips)
-    ann_img = plot_annotation(anns, lang) if anns else None
-    tss_img = plot_tss_distance(tss_stats) if tss_stats else None
-    dup_img = plot_dup_rate(all_samples, markdups)
-    trim_img = plot_trim_stats(all_samples, trims) if trims else None
-    peak_centric_img = plot_peak_centric_te(all_peak_centric_data) if all_peak_centric_data else None
+    # Generate plots (standalone deliverables: <FIG_DIR>/<name>.<fmt>)
+    global FIG_DIR
+    FIG_DIR = args.img_dir or tempfile.mkdtemp(prefix="report_figs_")
+    os.makedirs(FIG_DIR, exist_ok=True)
+    align_img = plot_alignment(aligns, image_formats)
+    pf_img = plot_peak_and_frip(ip_samples, peaks, frips, image_formats)
+    ann_img = plot_annotation(anns, lang, image_formats) if anns else None
+    tss_img = plot_tss_distance(tss_stats, image_formats) if tss_stats else None
+    dup_img = plot_dup_rate(all_samples, markdups, image_formats)
+    trim_img = plot_trim_stats(all_samples, trims, image_formats) if trims else None
+    peak_centric_img = plot_peak_centric_te(all_peak_centric_data, image_formats) if all_peak_centric_data else None
 
     all_imgs = {"alignment": align_img, "peak_frip": pf_img, "annotation": ann_img,
                 "tss_distance": tss_img, "dup_rate": dup_img, "trim_stats": trim_img,
                 "peak_centric_te": peak_centric_img}
-    if args.img_dir:
-        import shutil
-        for name, path in all_imgs.items():
-            if path and os.path.exists(path):
-                shutil.copy2(path, os.path.join(args.img_dir, f"{name}.png"))
+    # Standalone figure manifest (report-module spec): name<TAB>filename
+    with open(os.path.join(FIG_DIR, "manifest.tsv"), "w") as fh:
+        for name, fname in FIG_MANIFEST:
+            fh.write(f"{name}\t{fname}\n")
 
     # Build PPT
     prs = Presentation()
@@ -1350,9 +1460,10 @@ def main():
                         args.peaks_dir, args.annotation_dir, args.qc_dir,
                         args.log_dir, args.markdup_dir, te_dir, trim_dir, metrics_dir)
 
+    for img in _TEMP_EMBEDS:
+        if img and os.path.exists(img): os.unlink(img)
     if not args.img_dir:
-        for img in all_imgs.values():
-            if img and os.path.exists(img): os.unlink(img)
+        shutil.rmtree(FIG_DIR, ignore_errors=True)
 
 
 if __name__ == "__main__":

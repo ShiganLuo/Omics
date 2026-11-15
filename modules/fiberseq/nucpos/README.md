@@ -21,7 +21,7 @@ i 个核小体」分槽,统计每槽平均偏移(相位)与离散度衰减,出�
 ```
 {outdir}/{sample_id}/{sample_id}.nuc_offset_per_anchor.tsv   # 每锚点 × 槽位偏移
 {outdir}/{sample_id}/{sample_id}.nuc_offset_summary.tsv      # 槽位汇总(均值/离散度)
-{outdir}/{sample_id}/{sample_id}.nucpos.pdf                  # 相位图
+{outdir}/{sample_id}/{sample_id}.nucpos.<fmt>               # 相位图(formats 多格式,默认 pdf)
 ```
 
 回执:`{outdir}/{sample_id}/fiberseq_nucpos_run_{sample_id}.sh`(另有
@@ -41,6 +41,7 @@ config 位于 `Params.fiberseq_nucpos` 下:
 | `Params.fiberseq_nucpos.upstream_nucs` | `-5` | 5 | 上游核小体槽数 |
 | `Params.fiberseq_nucpos.downstream_nucs` | `-3` | 5 | 下游核小体槽数 |
 | `Params.fiberseq_nucpos.min_fibers` | `-i` | 10 | 每锚点最少纤维数,不足剔除 |
+| `Params.fiberseq_nucpos.formats` | `-f/--format`(可重复) | ["pdf"] | 相位图输出格式(多种同时输出),合法值 png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba |
 | (threads) | — | 4 | `rule_res("fiberseq_nucpos")` 可覆盖 |
 | (mem_mb) | — | 6000 | 资源声明 |
 

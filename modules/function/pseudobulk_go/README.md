@@ -23,7 +23,9 @@ pval_adj, significant`；映射 `--gene-col gene --value-col log2FC
 每单元 8 个文件（与 go-kegg.r 产物同构，零富集时也全部产出）：
 
 `go_up.csv` `go_down.csv` `kegg_up.csv` `kegg_down.csv`
-`go_back_to_back.<format>` `kegg_back_to_back.<format>` `up_genes.txt` `down_genes.txt`
+`go_back_to_back.<fmt>` `kegg_back_to_back.<fmt>` `up_genes.txt` `down_genes.txt`
+
+图按 `formats` 每种格式一份(默认 png)。
 
 ## 配置（Params.function.pseudobulk_go）
 
@@ -34,7 +36,7 @@ pval_adj, significant`；映射 `--gene-col gene --value-col log2FC
 | `species` | human / mouse / macaque（必填，不猜） | macaque |
 | `lfc_cut` / `p_cut` | 上下调基因阈值 | 1 / 0.05 |
 | `top` | 图中每方向条目数 | 10 |
-| `format` | 图格式 png/pdf/svg | png |
+| `formats` | 图格式,多种同时输出(合法值 png pdf svg ps eps tif tiff jpg jpeg;go-kegg.r 为 R 脚本,ggsave 设备集,pgf/raw/rgba 传入即报错)。旧单数键 `format` 仍受理 | `["png"]` |
 
 ## 运行
 

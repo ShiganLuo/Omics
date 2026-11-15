@@ -24,14 +24,15 @@ Outputs (<prefix> = --output-prefix):
   <prefix>_signatures.csv             96 x K extracted signatures (fractions)
   <prefix>_exposures.csv              samples x K exposures (counts)
   <prefix>_rank_diagnostics.csv       per-rank error / cophenetic / stability
-  <prefix>_rank_diagnostics.png       diagnostics curves
+  <prefix>_rank_diagnostics.<fmt>     diagnostics curves
   <prefix>_signatures.png             96-channel profiles of extracted signatures
-  <prefix>_exposures_stacked_bar.png  per-sample exposure stacked bar
+  <prefix>_exposures_stacked_bar.<fmt>  per-sample exposure stacked bar
   <prefix>_cosmic_similarity.csv      extracted x COSMIC cosine matrix (opt.)
   <prefix>_cosmic_best_match.csv      best COSMIC match per signature (opt.)
-  <prefix>_cosmic_match.png           match evidence figure: extracted vs
+  <prefix>_cosmic_match.<fmt>         match evidence figure: extracted vs
                                       top-3 COSMIC profiles + top-5 cosine
                                       bars (opt.)
+  (figures written once per requested -f/--format, default png)
 
 Usage:
     python signature_nmf.py \
@@ -98,6 +99,13 @@ def setup_logger(
 
 
 logger = setup_logger("SignatureNMF", stream=sys.stdout)
+
+PlotFormat = str
+
+# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
+# fails fast at parse time instead of dying inside savefig (modules.md #9)
+VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
+                 "jpeg", "pgf", "raw", "rgba")
 
 
 # ---------------------------------------------------------------------------
@@ -252,7 +260,8 @@ def _context_axis_labels(ax, contexts, fontsize: float = 8.0) -> None:
 
 
 def plot_cosmic_match(contexts, sig_df, sig_ref, sim_df, names: List[str],
-                      out_path: str) -> None:
+                      out_base: str,
+                      image_formats: Optional[List[PlotFormat]] = None) -> None:
     """Evidence figure for the extracted-vs-COSMIC match claim.
 
     One row per extracted signature: the extracted profile next to its
@@ -274,9 +283,18 @@ def plot_cosmic_match(contexts, sig_df, sig_ref, sim_df, names: List[str],
         Extracted x COSMIC cosine matrix (K x M).
     names : list of str
         Extracted signature names, row order of sim_df.
-    out_path : str
-        PNG destination.
+    out_base : str
+        Output path without extension.
+    image_formats : List[str], optional
+        Save formats. Default ``["png"]``.
     """
+    if image_formats is None:
+        image_formats = ["png"]
+    bad = [f for f in image_formats if f not in VALID_FORMATS]
+    if bad:
+        raise ValueError(
+            f"Unsupported image format(s): {', '.join(bad)}; "
+            f"valid: {', '.join(VALID_FORMATS)}")
     import pandas as pd  # noqa: F401  (DataFrame type use at call sites)
     import matplotlib
 
@@ -323,8 +341,12 @@ def plot_cosmic_match(contexts, sig_df, sig_ref, sim_df, names: List[str],
         ax.set_xlabel("Cosine")
         ax.set_title(f"{name}: top-5 COSMIC matches", fontsize=8)
     plt.tight_layout()
-    plt.savefig(out_path, dpi=300)
-    plt.close()
+    fig = plt.gcf()
+    for fmt in image_formats:
+        out_path = f"{out_base}.{fmt}"
+        fig.savefig(out_path, dpi=300, bbox_inches="tight")
+        logger.info(f"Saved {out_path}")
+    plt.close(fig)
 
 
 def cosine_matrix(a: np.ndarray, b: np.ndarray) -> np.ndarray:
@@ -340,8 +362,22 @@ def cosine_matrix(a: np.ndarray, b: np.ndarray) -> np.ndarray:
 # Analysis driver
 # ---------------------------------------------------------------------------
 
-def run_nmf(counts, args, sig_ref=None) -> None:
-    """Extract signatures across ranks, pick the best, and write outputs."""
+def run_nmf(counts, args, sig_ref=None,
+            image_formats: Optional[List[PlotFormat]] = None) -> None:
+    """Extract signatures across ranks, pick the best, and write outputs.
+
+    Parameters
+    ----------
+    image_formats : List[str], optional
+        Save formats for the figures. Default ``["png"]``.
+    """
+    if image_formats is None:
+        image_formats = ["png"]
+    bad = [f for f in image_formats if f not in VALID_FORMATS]
+    if bad:
+        raise ValueError(
+            f"Unsupported image format(s): {', '.join(bad)}; "
+            f"valid: {', '.join(VALID_FORMATS)}")
     import pandas as pd
     import matplotlib
 
@@ -428,8 +464,12 @@ def run_nmf(counts, args, sig_ref=None) -> None:
     ax1.legend(lines, [l.get_label() for l in lines], fontsize=8, loc="center right")
     plt.title("NMF rank diagnostics")
     plt.tight_layout()
-    plt.savefig(f"{args.output_prefix}_rank_diagnostics.png", dpi=300)
-    plt.close()
+    fig = plt.gcf()
+    for fmt in image_formats:
+        out_path = f"{args.output_prefix}_rank_diagnostics.{fmt}"
+        fig.savefig(out_path, dpi=300, bbox_inches="tight")
+        logger.info(f"Saved {out_path}")
+    plt.close(fig)
 
     # Exposure stacked bar per sample.
     ax = exp_df.plot(kind="bar", stacked=True, figsize=(max(6, 1.2 * len(samples)), 6))
@@ -437,8 +477,12 @@ def run_nmf(counts, args, sig_ref=None) -> None:
     ax.set_xlabel("Sample")
     ax.legend(bbox_to_anchor=(1.02, 1), loc="upper left", fontsize=8)
     plt.tight_layout()
-    plt.savefig(f"{args.output_prefix}_exposures_stacked_bar.png", dpi=300)
-    plt.close()
+    fig = plt.gcf()
+    for fmt in image_formats:
+        out_path = f"{args.output_prefix}_exposures_stacked_bar.{fmt}"
+        fig.savefig(out_path, dpi=300, bbox_inches="tight")
+        logger.info(f"Saved {out_path}")
+    plt.close(fig)
 
     # COSMIC annotation (optional).
     if sig_ref is not None:
@@ -467,20 +511,21 @@ def run_nmf(counts, args, sig_ref=None) -> None:
         # number: profile-vs-profile figure with cosine annotated.
         plot_cosmic_match(
             contexts, sig_df, sig_ref, sim_df, names,
-            f"{args.output_prefix}_cosmic_match.png",
+            f"{args.output_prefix}_cosmic_match",
+            image_formats,
         )
         logger.info(
             f"Wrote {args.output_prefix}_cosmic_similarity.csv, "
             f"{args.output_prefix}_cosmic_best_match.csv, "
-            f"{args.output_prefix}_cosmic_match.png"
+            f"{args.output_prefix}_cosmic_match.{{{','.join(image_formats)}}}"
         )
 
     logger.info(
         f"Wrote {args.output_prefix}_signatures.csv, "
         f"{args.output_prefix}_exposures.csv, "
         f"{args.output_prefix}_rank_diagnostics.csv, "
-        f"{args.output_prefix}_rank_diagnostics.png, "
-        f"{args.output_prefix}_exposures_stacked_bar.png"
+        f"{args.output_prefix}_rank_diagnostics / "
+        f"{args.output_prefix}_exposures_stacked_bar (.{{{','.join(image_formats)}}})"
     )
 
 
@@ -525,6 +570,8 @@ def parse_args():
                              "one (default: 0.25)")
     parser.add_argument("-s", "--signatures", default=None,
                         help="Optional COSMIC matrix TSV for cosine annotation")
+    parser.add_argument("-f", "--format", action="append", dest="formats", metavar="FMT",
+                        help="Image format (png/pdf/svg/...). Repeatable. Default: png.")
     parser.add_argument("-l", "--log", default=None,
                         help="Optional log file (in addition to stdout)")
     return parser.parse_args()
@@ -551,7 +598,8 @@ def main():
     if (counts.sum(axis=0) == 0).all():
         raise ValueError(f"{args.counts}: all samples have zero SNVs; nothing to decompose.")
     sig_ref = load_signatures(args.signatures, counts.index) if args.signatures else None
-    run_nmf(counts, args, sig_ref)
+    run_nmf(counts, args, sig_ref,
+            image_formats=args.formats if args.formats else ["png"])
 
 
 if __name__ == "__main__":

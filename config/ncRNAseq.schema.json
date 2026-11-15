@@ -88,7 +88,10 @@
       "formats": {
         "type": "list",
         "required": false,
-        "default": ["png", "svg"],
+        "default": [
+          "png",
+          "svg"
+        ],
         "description": "Output image formats (pyGenomeTracks --outFileName extensions)."
       },
       "gtf_track": {
@@ -153,7 +156,12 @@
       },
       "aligner": {
         "type": "enum",
-        "values": ["hisat2", "star", "star_3pass", "star_3pass_gene"],
+        "values": [
+          "hisat2",
+          "star",
+          "star_3pass",
+          "star_3pass_gene"
+        ],
         "required": true
       }
     },
@@ -219,7 +227,11 @@
       "pass1": {
         "alignEndsType": {
           "type": "enum",
-          "values": ["Local", "EndToEnd", "Extend5pOfRead1_Or_Unmapped"],
+          "values": [
+            "Local",
+            "EndToEnd",
+            "Extend5pOfRead1_Or_Unmapped"
+          ],
           "required": false
         },
         "outFilterMultimapNmax": {
@@ -274,7 +286,11 @@
         },
         "alignEndsType": {
           "type": "enum",
-          "values": ["Local", "EndToEnd", "Extend5pOfRead1_Or_Unmapped"],
+          "values": [
+            "Local",
+            "EndToEnd",
+            "Extend5pOfRead1_Or_Unmapped"
+          ],
           "required": true
         },
         "outReadsUnmapped": {
@@ -305,7 +321,11 @@
         },
         "alignEndsType": {
           "type": "enum",
-          "values": ["Local", "EndToEnd", "Extend5pOfRead1_Or_Unmapped"],
+          "values": [
+            "Local",
+            "EndToEnd",
+            "Extend5pOfRead1_Or_Unmapped"
+          ],
           "required": true
         }
       }
@@ -355,7 +375,11 @@
         "pass1": {
           "alignEndsType": {
             "type": "enum",
-            "values": ["Local", "EndToEnd", "Extend5pOfRead1_Or_Unmapped"],
+            "values": [
+              "Local",
+              "EndToEnd",
+              "Extend5pOfRead1_Or_Unmapped"
+            ],
             "required": true
           },
           "outFilterMultimapNmax": {
@@ -378,7 +402,11 @@
         "pass2": {
           "alignEndsType": {
             "type": "enum",
-            "values": ["Local", "EndToEnd", "Extend5pOfRead1_Or_Unmapped"],
+            "values": [
+              "Local",
+              "EndToEnd",
+              "Extend5pOfRead1_Or_Unmapped"
+            ],
             "required": true
           },
           "outFilterMultimapNmax": {
@@ -417,7 +445,11 @@
         "pass3": {
           "alignEndsType": {
             "type": "enum",
-            "values": ["Local", "EndToEnd", "Extend5pOfRead1_Or_Unmapped"],
+            "values": [
+              "Local",
+              "EndToEnd",
+              "Extend5pOfRead1_Or_Unmapped"
+            ],
             "required": true
           },
           "outFilterMultimapNmax": {
@@ -538,6 +570,21 @@
               "required": false
             }
           }
+        }
+      }
+    },
+    "report": {
+      "type": "dict",
+      "nullable": true,
+      "required": false,
+      "properties": {
+        "formats": {
+          "type": "list",
+          "required": false,
+          "default": [
+            "png"
+          ],
+          "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
         }
       }
     }

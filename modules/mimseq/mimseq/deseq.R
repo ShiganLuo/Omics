@@ -15,6 +15,31 @@ suppressMessages(library(grid))
 suppressMessages(library(dplyr))
 suppressMessages(library(circlize))
 
+# ---- multi-format figure output (repo formats sweep; minimal vendored hook) --
+# MIMSEQ_PLOT_FORMATS (comma-separated; default "pdf") selects the output
+# format(s) for every ggsave() figure. The default keeps upstream .pdf
+# filenames byte-identical. Figures drawn through pdf()/png() devices directly
+# (DE heatmaps, dispersion QC) are NOT affected and stay fixed-format.
+.plot_formats <- strsplit(Sys.getenv("MIMSEQ_PLOT_FORMATS", "pdf"), "[,;[:space:]]+")[[1]]
+.plot_formats <- .plot_formats[.plot_formats != ""]
+if (length(.plot_formats) == 0) .plot_formats <- "pdf"
+.plot_valid <- c("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg", "jpeg")
+if (!all(.plot_formats %in% .plot_valid)) {
+    stop(sprintf("Unsupported image format(s): %s; valid: %s",
+                 paste(setdiff(.plot_formats, .plot_valid), collapse = ", "),
+                 paste(.plot_valid, collapse = " ")))
+}
+ggsave <- function(filename, plot = ggplot2::last_plot(), ...) {
+    dots <- list(...)
+    for (fmt in .plot_formats) {
+        args <- dots
+        if (fmt != "pdf") args$useDingbats <- NULL
+        do.call(ggplot2::ggsave,
+                c(list(sub("\\.[A-Za-z0-9]+$", paste0(".", fmt), filename), plot),
+                  args))
+    }
+}
+
 # Function to order control/WT condition last in combinations so that contrasts for DE are always mutant/condition vs WT/control
 lastlevel = function(f, control) {
     if (!is.factor(f)) stop("input for contrast combinations not a factor")

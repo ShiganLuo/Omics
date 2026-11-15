@@ -59,6 +59,13 @@ from _fiberprofile_core import ChromBlockStream, IdMapper  # noqa: E402
 
 CATEGORIES = ("msp_footprint", "msp_no_footprint", "nucleosome")
 
+PlotFormat = str
+
+# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
+# fails fast at parse time instead of dying inside savefig (modules.md #9)
+VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
+                 "jpeg", "pgf", "raw", "rgba")
+
 
 def _get_logger(log_file: Optional[Path] = None) -> logging.Logger:
     if log_file is not None:
@@ -368,13 +375,28 @@ def run(args: argparse.Namespace) -> int:
     write_tsv(str(args.outdir / f"{args.sample}.footprint_scores.tsv"),
               ["group1", "group2", "n1", "n2", "ks_stat", "ks_pvalue"], score_rows)
 
-    _plot(args, rel, agg)
+    _plot(args, rel, agg,
+          image_formats=args.formats if args.formats else ["pdf"])
     logger.info(f"Wrote footprint tables and plot to {args.outdir} "
                 f"(total {time.time() - t0:.0f}s)")
     return 0
 
 
-def _plot(args, rel, agg) -> None:
+def _plot(args, rel, agg,
+          image_formats: Optional[List[PlotFormat]] = None,
+          dpi: int = 300) -> None:
+    """Save the TF footprint m6A-fraction profile figure.
+
+    image_formats : List[str], optional
+        Save formats. Default ``["pdf"]``.
+    """
+    if image_formats is None:
+        image_formats = ["pdf"]
+    bad = [f for f in image_formats if f not in VALID_FORMATS]
+    if bad:
+        raise ValueError(
+            f"Unsupported image format(s): {', '.join(bad)}; "
+            f"valid formats: {', '.join(VALID_FORMATS)}")
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -393,7 +415,11 @@ def _plot(args, rel, agg) -> None:
     ax.set_title(f"{args.sample} TF footprint")
     ax.legend(frameon=False, fontsize=8)
     fig.tight_layout()
-    fig.savefig(args.outdir / f"{args.sample}.footprint_profile.pdf")
+    out_base = args.outdir / f"{args.sample}.footprint_profile"
+    for fmt in image_formats:
+        out_path = f"{out_base}.{fmt}"
+        fig.savefig(out_path, dpi=dpi, bbox_inches="tight")
+        logger.info(f"Saved {out_path}")
     plt.close(fig)
 
 
@@ -413,6 +439,10 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
                    help="profile half-window around motif center (bp)")
     p.add_argument("--motif-filter", type=str, default=None,
                    help="comma-separated motif names to keep (part before '@')")
+    p.add_argument("--format", action="append", dest="formats",
+                   metavar="FMT",
+                   help="Image format (png/pdf/svg/...). Repeatable. "
+                        "Default: pdf.")
     p.add_argument("-l", "--log", type=Path, default=None, help="log file")
     p.add_argument("-n", "--dry-run", action="store_true", help="only log the plan")
     return p.parse_args(argv)

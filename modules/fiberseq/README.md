@@ -22,6 +22,28 @@ Cell Rep Methods 2024 [1]、Genome Res 2024 [2]、Nat Genet 2025 [3]。
 
 共享脚本在 `bin/`，共享库 `src/common/util/FiberlibUtil.py`。
 
+## 绘图输出（formats 参数）
+
+各绘图脚本/规则支持 `formats` 多格式同时输出（modules.md #9）：每种格式
+一个文件 `<base>.<fmt>`；合法值 `png pdf svg ps eps tif tiff jpg jpeg pgf
+raw rgba`（matplotlib savefig 全集），非法值在解析期即报错。dpi 统一传递
+（矢量格式由 matplotlib 忽略）。默认值保持既有输出格式不变（默认 `pdf`；
+`bin/utils/region_mod_compare.py` 默认 `png, svg`）。
+
+| 参数路径 | CLI | 默认 | 图（base，位于各自输出目录） |
+|---|---|---|---|
+| `Params.fiberseq_motif.formats` | `--format`（可重复） | pdf | `{sample_id}.motif_profile` |
+| `Params.fiberseq_footprint.formats` | `--format`（可重复） | pdf | `{sample_id}.footprint_profile` |
+| `Params.fiberseq_nucpos.formats` | `-f/--format`（可重复） | pdf | `{sample_id}.nucpos` |
+| `Params.fiberseq_diff.formats` | `-f/--format`（可重复） | pdf | `volcano_{contrast}` |
+| `Params.fiberseq_censat.formats` | `--format`（可重复） | pdf | `{sample_id}.censat_profile` |
+
+注：`censat_profile.py`/`footprint_profile.py`/`motif_profile.py` 的 `-f`
+已被 `--flank` 占用，故这三个脚本只有长选项 `--format`。
+`bin/utils/region_mod_compare.py`（两组 region 修饰比较，独立 CLI，未接入
+.smk）同样接受 `-f/--format`，图 base 为 `fig_class_metrics` /
+`fig_region_scatter` / `fig_profiles_accessibility` / `fig_profiles_mcpg`。
+
 ## 跨子模块输入约定
 
 - 元素文件（indir = `common/4_elements`，唯一权威路径）：

@@ -586,6 +586,6 @@ python workflow/Omics/run_module.py --test all -o /path/to/module_test
 - [x] 添加 json 值校验模块
 - [x] schema 感知的 extra_args 类型矫正
 - [x] 完成所有 pipeline 的双 shell 记录，即在结果文件目录始终保留最终执行 shell 脚本，在 log/cmd 目录记录所有执行过的 shell 脚本
-- [ ] 支持多基因组并行运行；已支持：RNAseq
-- [ ] 根据数据量，确保资源消耗平衡，不会出现耗尽主机内存或者爆满 CPU 的情况；已初步支持：Fiberseq、RNAseq，下一步需要将数据量和计算资源联系起来
-- [ ] 所有图片输出支持多种格式可选
+- [x] 支持多基因组并行运行
+- [ ] 根据数据量，确保资源消耗平衡，不会出现耗尽主机内存或者爆满 CPU 的情况，需要将数据量和计算资源联系起来
+- [x] 所有图片输出支持多种格式可选

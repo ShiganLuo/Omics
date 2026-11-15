@@ -22,6 +22,8 @@ MSI、片段长度)汇编成 `Mutation_report.pptx` 与 `Mutation_report.xlsx`;
 ```
 {outdir}/Mutation_report.pptx        # 汇总报告
 {outdir}/Mutation_report.xlsx        # 结果工作簿(每模块一 sheet + 文件清单)
+{outdir}/figures/somatic_calls_per_pair.<fmt>   # 报告自有图(按 formats 每种格式一个文件)
+{outdir}/figures/manifest.tsv        # 图清单(name<TAB>filename)
 {outdir}/generate_report.sh          # 回执
 ```
 
@@ -41,6 +43,7 @@ config 位于 `Params.report` 下:
 | `Params.report.pipeline` | `--pipeline` | `Mutation` | 流程名副标题 |
 | `Params.report.genome` | `--genome` | "" | 基因组副标题 |
 | `Params.report.date` | `--date` | "" | 日期副标题 |
+| `Params.report.formats` | `--format`(可重复) | `png` | 报告自有图导出格式(多种同时输出),落 `figures/<name>.<fmt>` + `figures/manifest.tsv`;合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib 全集);仅长选项(`-f` 已被 `--fragment-dir` 占用) |
 | (`--excel-output`) | `--excel-output` | `<output>.xlsx` | .smk 显式传 |
 | (threads) | — | 1 | `rule_res` 可覆盖 |
 | (mem_mb) | — | 8000 | 资源声明 |
@@ -60,6 +63,7 @@ python3 modules/Mutation_report/bin/generate_report.py \
     --title "Mutation 分析报告 / Mutation Report" \
     --pipeline Mutation --genome GRCh38 --date 2026-11-14 \
     --sample s1 --pair tumor:normal \
+    --format png --format pdf \
     --log log/Mutation_report/generate_report.log
 ```
 

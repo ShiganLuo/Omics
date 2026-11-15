@@ -23,7 +23,11 @@ pb_species = _pb.get("species") or ""
 pb_lfc_cut = _pb.get("lfc_cut", 1)
 pb_p_cut = _pb.get("p_cut", 0.05)
 pb_top = _pb.get("top", 10)
-pb_format = _pb.get("format") or "png"
+# ① parse 期读入 + 规范化(str 收成单元素 list;合法值由 schema 声明)。
+# 旧配置的单数键 "format" 仍然受理(向后兼容),优先读 "formats"。
+pb_formats = _pb.get("formats") or _pb.get("format") or ["png"]
+if isinstance(pb_formats, str):
+    pb_formats = [pb_formats]
 
 _MODE_DIRS = {
     "all": "deg_pseudobulk",
@@ -116,8 +120,9 @@ rule function_pseudobulk_go:
         go_down=_go_out("go_down.csv"),
         kegg_up=_go_out("kegg_up.csv"),
         kegg_down=_go_out("kegg_down.csv"),
-        go_plot=_go_out(f"go_back_to_back.{pb_format}"),
-        kegg_plot=_go_out(f"kegg_back_to_back.{pb_format}"),
+        # ② 按格式展开:每种格式一个输出文件(base 不带扩展名)
+        go_plot=[_go_out("go_back_to_back." + fmt) for fmt in pb_formats],
+        kegg_plot=[_go_out("kegg_back_to_back." + fmt) for fmt in pb_formats],
         up_genes=_go_out("up_genes.txt"),
         down_genes=_go_out("down_genes.txt"),
     log:
@@ -135,7 +140,7 @@ rule function_pseudobulk_go:
         lfc_cut=pb_lfc_cut,
         p_cut=pb_p_cut,
         top=pb_top,
-        format=pb_format,
+        formats=pb_formats,   # ③ 转发
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -170,8 +175,9 @@ rule function_pseudobulk_go:
                 "--lfc-cut", str(params.lfc_cut),
                 "--p-cut", str(params.p_cut),
                 "--top", str(params.top),
-                "--format", str(params.format),
             ]
+            for fmt in params.formats:
+                cmd += ["--format", str(fmt)]
             # dual-write receipts: timestamped copy in RECEIPT_DIR (flat pool),
             # plain copy beside the results
             script = os.path.join(

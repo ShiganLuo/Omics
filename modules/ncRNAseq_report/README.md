@@ -24,6 +24,8 @@ demux/修剪统计与 STAR 3-pass 比对日志(脚本内部按 `--analysis-dir` 
 {outdir}/ncRNAseq_report.pptx           # 多页 PPT 报告
 {outdir}/ncRNAseq_report_files.xlsx     # 文件清单(Excel)
 {outdir}/ppt_results/                   # 报告插图目录(--img-dir)
+{outdir}/figures/<name>.<fmt>           # 报告自有图(按 formats 每种格式一个文件)
+{outdir}/figures/manifest.tsv           # 图清单(name<TAB>filename)
 {outdir}/ncRNAseq_report.sh             # 回执
 logdir/ncRNAseq_report.log              # 运行日志
 ```
@@ -45,6 +47,7 @@ logdir/ncRNAseq_report.log              # 运行日志
 | `Params.report.genome` | `--genome` | "" | 物种/基因组 |
 | `Params.report.date` | `--date` | "" | 日期 |
 | `Params.report.lang` | `--lang` | `zh` | 报告语言 |
+| `Params.report.formats` | `-f` / `--format`(可重复) | `png` | 报告自有图导出格式(多种同时输出),落 `figures/<name>.<fmt>` + `figures/manifest.tsv`(图名: read_flow/trimming/star_mapping/gene_assignments/tail_summary/tail_length/end_position);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib 全集) |
 | `ROOT_DIR` / `outdir` / `logdir` | `--analysis-dir` 等 | `.` / `output` / `log` | 基础键 |
 
 线程/内存经 `rule_res("generate_report")` 配置:threads 1,mem_mb 8000。
@@ -56,7 +59,7 @@ python modules/ncRNAseq_report/bin/generate_report.py \
   --analysis-dir out --output out/ncRNAseq_report.pptx \
   --file-inventory out/ncRNAseq_report_files.xlsx \
   --title "ncRNAseq Analysis Report" --lang zh --img-dir out/ppt_results \
-  --aligner star_3pass_gene --samples s1 s2
+  --aligner star_3pass_gene --samples s1 s2 --format png --format pdf
 ```
 
 ## 2. 算法原理与生物学意义

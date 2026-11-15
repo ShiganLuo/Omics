@@ -10,7 +10,8 @@
             "control_cond": "",
             "misinc_thresh": 0.1,
             "no_cca": false,
-            "double_cca": false
+            "double_cca": false,
+            "formats": ["pdf"]
         }
     },
     "genome": {

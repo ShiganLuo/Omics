@@ -16,7 +16,8 @@
             "subtitle": "",
             "pipeline": "",
             "date": "",
-            "lang": "zh"
+            "lang": "zh",
+            "formats": ["png"]
         },
         "DESeq2": {
             "group_pairs": {

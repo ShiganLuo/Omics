@@ -13,6 +13,11 @@ Generates a PPTX summary report aggregating:
 Every section degrades gracefully: missing files leave a "not run" note
 instead of failing, because optional stages are gated by node.py outfiles.
 
+Own figures are additionally exported standalone as
+`<report_dir>/figures/<name>.<fmt>` for each `--format` (default png),
+with a `figures/manifest.tsv` file list; the PPTX embeds the raster copy
+(png variant when produced).
+
 Usage:
     python generate_report.py \
         --samples T1 --samples N1 \
@@ -30,6 +35,7 @@ import argparse
 import gzip
 import os
 import sys
+import tempfile
 from typing import Dict, List, Optional, Tuple
 
 import matplotlib
@@ -95,6 +101,50 @@ def setup_logger(
     logger.addHandler(stream_handler)
 
     return logger
+
+
+PlotFormat = str
+
+# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
+# fails fast at parse time instead of dying inside savefig (modules.md #9)
+VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
+                 "jpeg", "pgf", "raw", "rgba")
+
+# ── 上游产出图 raster-first 变体解析(modules.md #9 formats 规范)──
+# 生产者按各自 Params.<producer>.formats 每格式写一个 `<base>.<fmt>`;报告
+# 消费这些图(spectrum/signature/MSI/FragmentSize)时按 raster-first
+# (png → jpg → jpeg → tif → tiff,再按 VALID_FORMATS 余下顺序)找已存在的
+# 变体;都不存在时原样返回硬编码路径(默认配置下行为与历史逐字节一致)。
+_PICK_EXTS = ("png", "jpg", "jpeg", "tif", "tiff",
+              "pdf", "svg", "ps", "eps", "pgf", "raw", "rgba")
+_RASTER_EXTS = ("png", "jpg", "jpeg", "tif", "tiff")
+
+
+def _pick_variant(base: str) -> str:
+    """Raster-first existing variant of a consumed producer figure.
+
+    *base* is the legacy hardcoded path (with extension); the scan probes
+    ``<stem>.<fmt>`` in raster-first order and returns the first existing
+    file, falling back to *base* when no variant exists.
+    """
+    stem, ext = os.path.splitext(base)
+    if ext.lstrip(".").lower() not in _PICK_EXTS:
+        stem = base
+    for fmt in _PICK_EXTS:
+        cand = "{}.{}".format(stem, fmt)
+        if os.path.isfile(cand):
+            return cand
+    return base
+
+
+def _embeddable(path: str) -> bool:
+    """True when *path* exists as a raster PPTX can embed.
+
+    Vector-only variants (svg/pdf/...) degrade like missing figures —
+    python-pptx embeds rasters only, so never hand them to add_picture.
+    """
+    return (bool(path) and os.path.isfile(path)
+            and os.path.splitext(path)[1].lower() in _RASTER_EXTS)
 
 
 # ============================================================
@@ -182,7 +232,7 @@ def _table(slide, left, top, width, height, data: List[List[str]],
 def _picture_or_note(slide, path: Optional[str], caption: str,
                      left=MARGIN_L, top=CONTENT_TOP + 0.05, width=CONTENT_W) -> None:
     """Insert a picture full-width; when absent, write a muted 'not run' note."""
-    if path and os.path.isfile(path):
+    if path and _embeddable(path):
         slide.shapes.add_picture(path, Inches(left), Inches(top), width=Inches(width))
         _textbox(slide, left, top - 0.02, width, 0.3, caption, font_size=9, color=C_MUTED)
     else:
@@ -357,11 +407,92 @@ def collect_qc_rows(qc_dir: str) -> Tuple[List[List[str]], Dict[str, List[float]
 
 
 # ============================================================
-# Figure rendering (matplotlib, saved beside the pptx)
+# Figure rendering (matplotlib; embedded raster + figures/ 导出)
 # ============================================================
 
-def plot_somatic_counts(rows: List[List[str]], path: str) -> Optional[str]:
-    """Bar chart of filtered somatic calls per tumor/normal pair."""
+# 报告自有图除嵌入 PPTX 外,还作为独立交付物写到 <report_dir>/figures/
+# <name>.<fmt>(每种请求格式一个文件);manifest.tsv 逐行列出
+# name<TAB>filename,让 DAG 在不逐一声明条件图的情况下保持诚实。
+FIG_DIR = ""  # set in main(): <report_dir>/figures
+_FIG_MANIFEST: List[Tuple[str, str]] = []
+
+
+def save_fig(fig, name: str, image_formats: Optional[List[PlotFormat]] = None,
+             dpi: int = 200) -> str:
+    """Save one report figure as ``figures/<name>.<fmt>`` for each requested
+    format (standalone deliverable) and return the raster copy embedded in
+    the PPTX (the png variant when produced, else a tempfile).
+
+    image_formats: Save formats. Default ``["png"]``.
+    """
+    if image_formats is None:
+        image_formats = ["png"]
+    bad = [f for f in image_formats if f not in VALID_FORMATS]
+    if bad:
+        raise ValueError(
+            f"Unsupported image format(s): {', '.join(bad)}; "
+            f"valid: {', '.join(VALID_FORMATS)}")
+    os.makedirs(FIG_DIR, exist_ok=True)
+    for fmt in image_formats:
+        p = os.path.join(FIG_DIR, f"{name}.{fmt}")
+        fig.savefig(p, dpi=dpi, bbox_inches="tight")
+        _FIG_MANIFEST.append((name, f"{name}.{fmt}"))
+    if "png" in image_formats:
+        return os.path.join(FIG_DIR, f"{name}.png")
+    fd, tmp = tempfile.mkstemp(prefix=f"{name}_", suffix=".png")
+    os.close(fd)
+    fig.savefig(tmp, dpi=dpi, bbox_inches="tight")
+    return tmp
+
+
+def write_fig_manifest() -> str:
+    """Write figures/manifest.tsv (one ``name<TAB>filename`` line per
+    exported figure file). Always written so the DAG stays honest even
+    when no figure was rendered."""
+    os.makedirs(FIG_DIR, exist_ok=True)
+    path = os.path.join(FIG_DIR, "manifest.tsv")
+    with open(path, "w", encoding="utf-8") as fh:
+        for name, filename in _FIG_MANIFEST:
+            fh.write(f"{name}\t{filename}\n")
+    return path
+
+
+def _add_picture(slide, path: str, left: float, top: float,
+                 max_w: float, max_h: float) -> None:
+    """Insert a picture scaled to fit (max_w x max_h), keeping aspect ratio."""
+    from PIL import Image as PILImage  # python-pptx 依赖 Pillow,惰性导入
+    img = PILImage.open(path)
+    aspect = img.size[0] / max(img.size[1], 1)
+    width = max_w
+    height = width / aspect
+    if height > max_h:
+        height = max_h
+        width = height * aspect
+    slide.shapes.add_picture(path, Inches(left), Inches(top),
+                             Inches(width), Inches(height))
+
+
+def plot_somatic_counts(rows: List[List[str]],
+                        image_formats: Optional[List[PlotFormat]] = None,
+                        dpi: int = 200) -> Optional[str]:
+    """Bar chart of filtered somatic calls per tumor/normal pair.
+
+    Saved as ``figures/somatic_calls_per_pair.<fmt>`` for every requested
+    format; returns the raster copy embedded in the PPTX (png variant when
+    produced, else a tempfile), or None when there is nothing to plot (no
+    data rows, or ``image_formats`` empty = 不出图).
+
+    image_formats: Save formats. Default ``["png"]``.
+    """
+    if image_formats is None:
+        image_formats = ["png"]
+    bad = [f for f in image_formats if f not in VALID_FORMATS]
+    if bad:
+        raise ValueError(
+            f"Unsupported image format(s): {', '.join(bad)}; "
+            f"valid: {', '.join(VALID_FORMATS)}")
+    if not image_formats:
+        return None
     data = [(r[0], int(r[3])) for r in rows if r[3] != "NA"]
     if not data:
         return None
@@ -374,9 +505,9 @@ def plot_somatic_counts(rows: List[List[str]], path: str) -> Optional[str]:
     ax.set_xlabel("Filtered somatic SNV/InDel")
     ax.set_title("Somatic calls per pair (Mutect2)")
     fig.tight_layout()
-    fig.savefig(path, dpi=200)
+    raster = save_fig(fig, "somatic_calls_per_pair", image_formats, dpi=dpi)
     plt.close(fig)
-    return path
+    return raster
 
 
 # ============================================================
@@ -553,7 +684,7 @@ def write_results_excel(output_path: str, args: argparse.Namespace) -> None:
     ]
     inventory += [
         ("msi", os.path.join(args.msi_dir, "msi_input.txt")),
-        ("msi", os.path.join(args.msi_dir, "msi_barplot.jpg")),
+        ("msi", _pick_variant(os.path.join(args.msi_dir, "msi_barplot.jpg"))),
         ("burden", os.path.join(args.burden_dir, "burden_summary.tsv")),
     ]
     inventory += [
@@ -561,26 +692,26 @@ def write_results_excel(output_path: str, args: argparse.Namespace) -> None:
         for s in args.sample for kind in ("snv_indel", "sv", "cnv")
     ]
     inventory += [
-        ("spectrum", os.path.join(args.spectrum_dir, "somatic_spectrum_stacked_bar.png")),
-        ("spectrum", os.path.join(args.spectrum_dir, "somatic_spectrum_heatmap.png")),
+        ("spectrum", _pick_variant(os.path.join(args.spectrum_dir, "somatic_spectrum_stacked_bar.png"))),
+        ("spectrum", _pick_variant(os.path.join(args.spectrum_dir, "somatic_spectrum_heatmap.png"))),
         ("spectrum", os.path.join(args.spectrum_dir, "somatic_spectrum.csv")),
         ("spectrum", os.path.join(args.spectrum_dir, "somatic_spectrum_per_sample.csv")),
         ("spectrum", os.path.join(args.spectrum_dir, "somatic_spectrum_sample_stats.csv")),
         ("signature", os.path.join(args.spectrum_dir, "signature_refit_summary.csv")),
         ("signature", os.path.join(args.spectrum_dir, "signature_refit_exposures.csv")),
         ("signature", os.path.join(args.spectrum_dir, "signature_refit_family_exposures.csv")),
-        ("signature", os.path.join(args.spectrum_dir, "signature_refit_exposure_stacked_bar.png")),
-        ("signature", os.path.join(args.spectrum_dir, "signature_refit_exposure_heatmap.png")),
-        ("signature", os.path.join(args.spectrum_dir, "signature_refit_signature_cosine.png")),
+        ("signature", _pick_variant(os.path.join(args.spectrum_dir, "signature_refit_exposure_stacked_bar.png"))),
+        ("signature", _pick_variant(os.path.join(args.spectrum_dir, "signature_refit_exposure_heatmap.png"))),
+        ("signature", _pick_variant(os.path.join(args.spectrum_dir, "signature_refit_signature_cosine.png"))),
         ("signature", os.path.join(args.spectrum_dir, "signature_nmf_signatures.csv")),
         ("signature", os.path.join(args.spectrum_dir, "signature_nmf_exposures.csv")),
         ("signature", os.path.join(args.spectrum_dir, "signature_nmf_rank_diagnostics.csv")),
-        ("signature", os.path.join(args.spectrum_dir, "signature_nmf_rank_diagnostics.png")),
+        ("signature", _pick_variant(os.path.join(args.spectrum_dir, "signature_nmf_rank_diagnostics.png"))),
         ("signature", os.path.join(args.spectrum_dir, "signature_nmf_cosmic_similarity.csv")),
         ("signature", os.path.join(args.spectrum_dir, "signature_nmf_cosmic_best_match.csv")),
-        ("signature", os.path.join(args.spectrum_dir, "signature_nmf_cosmic_match.png")),
+        ("signature", _pick_variant(os.path.join(args.spectrum_dir, "signature_nmf_cosmic_match.png"))),
         ("fragment", os.path.join(args.fragment_dir, "FragmentSize.txt")),
-        ("fragment", os.path.join(args.fragment_dir, "FragmentSize.png")),
+        ("fragment", _pick_variant(os.path.join(args.fragment_dir, "FragmentSize.png"))),
     ]
     for module, path in inventory:
         exists = os.path.isfile(path)
@@ -643,9 +774,14 @@ def build_report(args: argparse.Namespace, logger) -> None:
     if somatic_rows:
         _table(slide, MARGIN_L, CONTENT_TOP, CONTENT_W, 0.3 + 0.32 * (len(somatic_rows) + 1),
                [["Pair", "Tumor", "Normal", "Filtered SNV/InDel"]] + somatic_rows, font_size=10)
-        fig_path = os.path.join(os.path.dirname(os.path.abspath(args.output)),
-                                "somatic_counts.png")
-        plot_somatic_counts(somatic_rows, fig_path)
+        fig_path = plot_somatic_counts(
+            somatic_rows,
+            image_formats=args.formats if args.formats else ["png"])
+        if fig_path and os.path.isfile(fig_path):
+            # 嵌入 raster 副本(png 变体);独立交付物在 figures/ 下
+            top = CONTENT_TOP + 0.35 + 0.32 * (len(somatic_rows) + 1)
+            _add_picture(slide, fig_path, MARGIN_L, top,
+                         CONTENT_W, max(0.5, SLIDE_H - top - 0.12))
     else:
         _bullets(slide, MARGIN_L, CONTENT_TOP, CONTENT_W, 2.0,
                  ["无 tumor/normal 配对设计 — 体细胞检测未运行"])
@@ -654,13 +790,13 @@ def build_report(args: argparse.Namespace, logger) -> None:
     slide = prs.slides.add_slide(blank); _bg(slide)
     _header(slide, "突变频谱 / Somatic Spectrum")
     _picture_or_note(slide,
-                     os.path.join(args.spectrum_dir, "somatic_spectrum_stacked_bar.png"),
+                     _pick_variant(os.path.join(args.spectrum_dir, "somatic_spectrum_stacked_bar.png")),
                      "Spectrum stacked bar (SBS)")
     # ---- Spectrum heatmap slide
     slide = prs.slides.add_slide(blank); _bg(slide)
     _header(slide, "突变频谱热图 / Somatic Spectrum Heatmap")
     _picture_or_note(slide,
-                     os.path.join(args.spectrum_dir, "somatic_spectrum_heatmap.png"),
+                     _pick_variant(os.path.join(args.spectrum_dir, "somatic_spectrum_heatmap.png")),
                      "Spectrum heatmap")
 
     # ---- Signature refit slide (COSMIC known signatures)
@@ -677,8 +813,8 @@ def build_report(args: argparse.Namespace, logger) -> None:
                              sig_summary[show].notna(), None).values.tolist()]
         _table(slide, MARGIN_L, CONTENT_TOP, CONTENT_W,
                0.3 + 0.3 * len(rows), rows, font_size=9)
-        bar = os.path.join(args.spectrum_dir, "signature_refit_exposure_stacked_bar.png")
-        if os.path.isfile(bar):
+        bar = _pick_variant(os.path.join(args.spectrum_dir, "signature_refit_exposure_stacked_bar.png"))
+        if _embeddable(bar):
             slide.shapes.add_picture(bar, Inches(MARGIN_L), Inches(CONTENT_TOP + 0.45 + 0.3 * len(rows)),
                                      width=Inches(CONTENT_W))
     else:
@@ -701,8 +837,8 @@ def build_report(args: argparse.Namespace, logger) -> None:
                                             df_to_rows(best3)]
             _table(slide, MARGIN_L + CONTENT_W * 0.5, CONTENT_TOP, CONTENT_W * 0.5,
                    0.3 + 0.3 * len(brow), brow, font_size=8)
-        prof = os.path.join(args.spectrum_dir, "signature_nmf_cosmic_match.png")
-        if os.path.isfile(prof):
+        prof = _pick_variant(os.path.join(args.spectrum_dir, "signature_nmf_cosmic_match.png"))
+        if _embeddable(prof):
             slide.shapes.add_picture(prof, Inches(MARGIN_L),
                                      Inches(CONTENT_TOP + 0.5 + 0.3 * len(rows)),
                                      width=Inches(CONTENT_W))
@@ -718,8 +854,8 @@ def build_report(args: argparse.Namespace, logger) -> None:
     if msi_rows:
         _table(slide, MARGIN_L, CONTENT_TOP, CONTENT_W, 0.3 + 0.32 * (len(msi_rows) + 1),
                [["Sample", "MSI score"]] + msi_rows, font_size=10)
-        barplot = os.path.join(args.msi_dir, "msi_barplot.jpg")
-        if os.path.isfile(barplot):
+        barplot = _pick_variant(os.path.join(args.msi_dir, "msi_barplot.jpg"))
+        if _embeddable(barplot):
             slide.shapes.add_picture(barplot, Inches(MARGIN_L), Inches(CONTENT_TOP + 1.2),
                                      width=Inches(CONTENT_W))
     else:
@@ -743,7 +879,7 @@ def build_report(args: argparse.Namespace, logger) -> None:
     slide = prs.slides.add_slide(blank); _bg(slide)
     _header(slide, "cfDNA 片段长度分布 / Fragment Size")
     _picture_or_note(slide,
-                     os.path.join(args.fragment_dir, "FragmentSize.png"),
+                     _pick_variant(os.path.join(args.fragment_dir, "FragmentSize.png")),
                      "Fragment size distribution")
 
     # ---- Summary slide
@@ -822,6 +958,10 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
                    help="Output PPTX path")
     p.add_argument("-e", "--excel-output", default="",
                    help="Output XLSX path (default: <output>.pptx -> <output>.xlsx)")
+    p.add_argument("--format", action="append", dest="formats", metavar="FMT",
+                   help="Image format (png/pdf/svg/...). Repeatable. Default: png. "
+                        "Own figures are exported as <report_dir>/figures/"
+                        "<name>.<fmt>. (long flag only: -f is --fragment-dir)")
     p.add_argument("-t", "--title", default="Mutation 分析报告 / Mutation Report",
                    help="Report title")
     p.add_argument("--pipeline", default="", help="Pipeline name subtitle")
@@ -845,7 +985,11 @@ def main(argv: Optional[List[str]] = None) -> int:
         tumor, normal = spec.split(":", 1)
         pairs.append((tumor, normal))
     args.pairs = pairs
+    global FIG_DIR
+    FIG_DIR = os.path.join(os.path.dirname(os.path.abspath(args.output)), "figures")
     build_report(args, logger)
+    manifest_path = write_fig_manifest()
+    logger.info(f"figure manifest written: {manifest_path}")
     excel_path = args.excel_output or os.path.splitext(args.output)[0] + ".xlsx"
     write_results_excel(excel_path, args)
     logger.info(f"results workbook written: {excel_path}")

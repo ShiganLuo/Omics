@@ -25,7 +25,7 @@ cutoff 分析曲线。C 形态子模块,共享父目录 `../macs3.yaml` 环境�
 {outdir}/{genome}/{sample_id}/{sample_id}_broad_peaks.broadPeak       # broad 峰
 {outdir}/{genome}/{sample_id}/{sample_id}_broad_peaks.xls             # broad 明细
 {outdir}/{genome}/{sample_id}/{sample_id}_broad_cutoff_analysis.txt   # broad cutoff 分析
-{outdir}/{genome}/cutoff_analysis.png                                 # 全 IP 样本 cutoff 曲线
+{outdir}/{genome}/cutoff_analysis.<fmt>                               # 全 IP 样本 cutoff 曲线(<fmt> 取自 formats,默认 png)
 ```
 
 日志:`{logdir}/{genome}/{sample_id}/macs3.log`、
@@ -44,6 +44,7 @@ cutoff 分析曲线。C 形态子模块,共享父目录 `../macs3.yaml` 环境�
 | `Params.macs3.pvalue` | `-p` | `1e-5` | 峰调用 p 值阈值 |
 | `Params.macs3.genome_size` | `-g` | `mm` | 有效基因组大小(可按 genome 给字典,取 `Params.macs3.genome_size.<genome>`) |
 | `Params.macs3.broad_cutoff` | `--broad-cutoff` | `0.1` | broad 峰 q 值阈值 |
+| `Params.macs3.formats` | `plot_cutoff_analysis.py -f/--format`(可重复) | `["png"]` | cutoff 汇总图图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib 全集) |
 | 固定 | `--seed 2346` / `--cutoff-analysis` | — | 随机种子固定,并输出 cutoff 分析 |
 | 线程/内存 | — | `threads=4`,`mem_mb=16000` | `rule_res("macs3_callpeak")` 可覆盖 |
 
@@ -58,8 +59,11 @@ macs3 callpeak --broad --broad-cutoff 0.1 --bw 200 -p 1e-5 -g mm \
   --outdir out --name s1_broad --seed 2346 -t s1.sorted_markdup.bam --cutoff-analysis
 python modules/macs3/bin/plot_cutoff_analysis.py \
   --input-files out/s1_cutoff_analysis.txt --sample-names s1 \
-  --output out/cutoff_analysis.png
+  --output out/cutoff_analysis -f png -f pdf
 ```
+
+(`--output` 为不带扩展名的输出 base 路径;每种 `-f` 格式各写一份
+`<output>.<fmt>`。)
 
 ## 2. 算法原理与生物学意义
 
@@ -68,7 +72,7 @@ Input 的读段富集判为峰,并做 FDR 校正;narrow 峰适合转录因子/�
 broad 峰(`--broad`,q ≤ `broad_cutoff`)适合组蛋白修饰等宽域信号;
 `--cutoff-analysis` 输出不同阈值下峰数/基因组覆盖曲线,是选阈值的实用诊断。
 结果怎么读:`.narrowPeak`/`.broadPeak` 为 BED6+3(score、-log10 pvalue、
--qvalue),按 score 排序取头部即高置信峰;`cutoff_analysis.png` 找曲线拐点
+-qvalue),按 score 排序取头部即高置信峰;`cutoff_analysis.<fmt>` 找曲线拐点
 权衡峰数与假阳性;narrow 峰可直接喂下游 deeptools peaks 热图与
 peak_te_overlap 等模块。
 

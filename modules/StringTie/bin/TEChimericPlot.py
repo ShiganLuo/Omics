@@ -2,12 +2,24 @@
 # -*- coding: utf-8 -*-
 import argparse
 import csv
+import logging
 import os
 from collections import OrderedDict, defaultdict
 from typing import Dict, List, Tuple, Optional, Any
 import json
 from matplotlib.patches import Polygon
 import matplotlib.pyplot as plt
+
+logging.basicConfig(level=logging.INFO,
+                    format="%(asctime)s | %(levelname)s | %(message)s")
+logger = logging.getLogger(__name__)
+
+PlotFormat = str
+
+# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
+# fails fast at parse time instead of dying inside savefig (modules.md #9)
+VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
+                 "jpeg", "pgf", "raw", "rgba")
 
 
 def detect_delimiter(path: str) -> str:
@@ -177,8 +189,9 @@ def build_count_ticks(values: List[int]) -> List[int]:
 
 
 def plot_group_proportions(
-	path: str,
+	out_base: str,
 	group_te_counts: Dict[str, Dict[str, int]],
+	image_formats: Optional[List[PlotFormat]] = None,
 	ordered_te: Optional[List[str]] = None,
 	group_colors: Optional[Dict[str, str]] = None,
 	fig_title:str = "",
@@ -198,9 +211,8 @@ def plot_group_proportions(
 
 	Parameters
 	----------
-	path
-		Output image path.
-
+	out_base
+		Output path without extension.
 	group_te_counts
 		Structure:
 
@@ -209,6 +221,8 @@ def plot_group_proportions(
 				te_name: count
 			}
 		}
+	image_formats
+		Save formats. Default ``["png"]``.
 
 	ordered_te
 		TE display order.
@@ -244,6 +258,14 @@ def plot_group_proportions(
 	Polygon filling connects the same TE component
 	between adjacent groups.
 	"""
+
+	if image_formats is None:
+		image_formats = ["png"]
+	bad = [f for f in image_formats if f not in VALID_FORMATS]
+	if bad:
+		raise ValueError(
+			f"Unsupported image format(s): {', '.join(bad)}; "
+			f"valid: {', '.join(VALID_FORMATS)}")
 
 	# ------------------------------------------------------------------
 	# infer ordered_te
@@ -474,20 +496,38 @@ def plot_group_proportions(
 
 	plt.tight_layout()
 
-	fig.savefig(
-		path,
-		dpi=dpi,
-		bbox_inches='tight',
-	)
-
+	for fmt in image_formats:
+		out_path = f"{out_base}.{fmt}"
+		fig.savefig(out_path, dpi=dpi, bbox_inches='tight')
+		logger.info(f"Saved {out_path}")
 	plt.close(fig)
 
-def plot_te_type_top(path: str, te_rows: List[Dict[str, str]], top_n: int) -> None:
-	"""Plot overall top TE types with 5'/3' counts."""
+def plot_te_type_top(out_base: str, te_rows: List[Dict[str, str]], top_n: int,
+					 image_formats: Optional[List[PlotFormat]] = None) -> None:
+	"""Plot overall top TE types with 5'/3' counts.
+
+	Parameters
+	----------
+	out_base
+		Output path without extension.
+	te_rows
+		Per-TE-type count rows (``te_type``/``five_count``/``three_count``).
+	top_n
+		Number of TE types to draw.
+	image_formats
+		Save formats. Default ``["png"]``.
+	"""
 	try:
 		import matplotlib.pyplot as plt
 	except ImportError as exc:
 		raise RuntimeError('matplotlib is required for plotting.') from exc
+	if image_formats is None:
+		image_formats = ["png"]
+	bad = [f for f in image_formats if f not in VALID_FORMATS]
+	if bad:
+		raise ValueError(
+			f"Unsupported image format(s): {', '.join(bad)}; "
+			f"valid: {', '.join(VALID_FORMATS)}")
 
 	rows = sorted(
 		te_rows,
@@ -516,19 +556,43 @@ def plot_te_type_top(path: str, te_rows: List[Dict[str, str]], top_n: int) -> No
 	ax.set_title("Top TE types by 5'/3' counts")
 	ax.legend(frameon=False)
 	plt.tight_layout()
-	fig.savefig(path, dpi=150)
+	for fmt in image_formats:
+		out_path = f"{out_base}.{fmt}"
+		fig.savefig(out_path, dpi=150)
+		logger.info(f"Saved {out_path}")
+	plt.close(fig)
 
 
 def plot_te_type_grouped(
-	path: str,
+	out_base: str,
 	group_te_counts: Dict[str, Dict[str, Dict[str, int]]],
 	ordered_te: List[str],
+	image_formats: Optional[List[PlotFormat]] = None,
 ) -> None:
-	"""Plot multi-group TE type 5'/3' counts with shared TE ordering."""
+	"""Plot multi-group TE type 5'/3' counts with shared TE ordering.
+
+	Parameters
+	----------
+	out_base
+		Output path without extension.
+	group_te_counts
+		Per-group TE type 5'/3' counts.
+	ordered_te
+		Shared TE display order.
+	image_formats
+		Save formats. Default ``["png"]``.
+	"""
 	try:
 		import matplotlib.pyplot as plt
 	except ImportError as exc:
 		raise RuntimeError('matplotlib is required for plotting.') from exc
+	if image_formats is None:
+		image_formats = ["png"]
+	bad = [f for f in image_formats if f not in VALID_FORMATS]
+	if bad:
+		raise ValueError(
+			f"Unsupported image format(s): {', '.join(bad)}; "
+			f"valid: {', '.join(VALID_FORMATS)}")
 
 	groups = list(group_te_counts.keys())
 	if not groups or not ordered_te:
@@ -561,7 +625,11 @@ def plot_te_type_grouped(
 	axes[0].legend(frameon=False, loc='lower right')
 	fig.suptitle("TE types: 5'/3' counts by group", y=0.98)
 	plt.tight_layout()
-	fig.savefig(path, dpi=150)
+	for fmt in image_formats:
+		out_path = f"{out_base}.{fmt}"
+		fig.savefig(out_path, dpi=150)
+		logger.info(f"Saved {out_path}")
+	plt.close(fig)
 
 
 def main() -> None:
@@ -576,6 +644,8 @@ def main() -> None:
 	parser.add_argument('--no-plot', action='store_true', help='Skip plot output')
 	parser.add_argument('--te-type-top', type=int, default=20, help='Top N TE types to plot (overall)')
 	parser.add_argument('--no-group-plot', action='store_true', help='Skip multi-group TE type plot')
+	parser.add_argument('-f', '--format', action='append', dest='formats', metavar='FMT',
+						help='Image format (png/pdf/svg/...). Repeatable. Default: png.')
 	args = parser.parse_args()
 
 	group_rows = read_group_table(args.group_table)
@@ -691,16 +761,20 @@ def main() -> None:
 	ordered_te = [row['te_type'] for row in overall_rows_sorted[: args.te_type_top]]
 
 	if not args.no_plot:
+		image_formats = args.formats if args.formats else ["png"]
 		plot_group_proportions(
-			f'{args.out_prefix}_group_stacked.png',
-			group_te_counts=group_rows_out,			
+			f'{args.out_prefix}_group_stacked',
+			group_te_counts=group_rows_out,
+			image_formats=image_formats,
 		)
-		plot_te_type_top(f'{args.out_prefix}_te_type_top.png', overall_rows, args.te_type_top)
+		plot_te_type_top(f'{args.out_prefix}_te_type_top', overall_rows,
+						 args.te_type_top, image_formats=image_formats)
 		if not args.no_group_plot:
 			plot_te_type_grouped(
-				f'{args.out_prefix}_te_type_by_group.png',
+				f'{args.out_prefix}_te_type_by_group',
 				group_te_counts,
 				ordered_te,
+				image_formats=image_formats,
 			)
 
 

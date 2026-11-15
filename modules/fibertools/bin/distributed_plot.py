@@ -39,6 +39,13 @@ from scipy import stats
 
 logger = logging.getLogger("te_5mc")
 
+PlotFormat = str
+
+# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
+# fails fast at parse time instead of dying inside savefig (modules.md #9)
+VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
+                 "jpeg", "pgf", "raw", "rgba")
+
 
 def open_text(path: str):
     """Open plain-text or gzip-compressed text files."""
@@ -79,7 +86,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("-r","--max-reads-per-locus", type=int, default=250,
                         help="Maximum read rows per sample in panel C (default: 250)")
     parser.add_argument("--dpi", type=int, default=300)
-    parser.add_argument("-f","--imageFormat", nargs="+",default=["png"], choices=["png", "pdf", "svg", "eps"], help="Output image format (default: png)")
+    parser.add_argument("-f","--imageFormat", nargs="+",default=["png"], choices=list(VALID_FORMATS), help="Output image format: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba (default: png)")
     parser.add_argument("--level", default="family", choices=["class", "family", "subfamily"],
                         help="TE annotation level for panels A/B (default: family)")
     parser.add_argument("--TEs", nargs="+", default=None,
@@ -983,7 +990,7 @@ def plot_a(
     )
 
 
-def plot_b(all_df: pd.DataFrame, labels: List[str], outdir: str, top_n: int, dpi: int) -> None:
+def plot_b(all_df: pd.DataFrame, labels: List[str], outdir: str, top_n: int, dpi: int, imageFormat: List[str] = ["png"]) -> None:
     """B: heatmap of top subfamilies; values are log2 call density, not methylation %."""
     valid = all_df[all_df["n_read_overlaps"] > 0].copy()
     if valid.empty:
@@ -1024,7 +1031,8 @@ def plot_b(all_df: pd.DataFrame, labels: List[str], outdir: str, top_n: int, dpi
     cb = fig.colorbar(im, ax=ax, fraction=0.04, pad=0.03)
     cb.set_label("log2(calls per kb read-overlap + 1e-9)")
     fig.tight_layout()
-    fig.savefig(os.path.join(outdir, "B_te_subfamily_heatmap.png"), dpi=dpi, bbox_inches="tight")
+    for fmt in imageFormat:
+        fig.savefig(os.path.join(outdir, f"B_te_subfamily_heatmap.{fmt}"), dpi=dpi, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -1046,7 +1054,7 @@ def collect_locus_reads(path: str, te: TE, max_reads: int) -> List[Tuple[str, Li
 
 def plot_c(
     all_df: pd.DataFrame, samples: List[Tuple[str, str]], tes: List[TE],
-    outdir: str, max_reads: int, dpi: int
+    outdir: str, max_reads: int, dpi: int, imageFormat: List[str] = ["png"]
 ) -> None:
     """C: read-level 5mC positions across the highest-call TE insertion."""
     agg = all_df.groupby("te_idx").agg(
@@ -1086,7 +1094,8 @@ def plot_c(
         f"({te.name}; {te.family}; {te.cls}; strand {te.strand})"
     )
     fig.tight_layout()
-    fig.savefig(os.path.join(outdir, "C_representative_TE_single_molecule.png"), dpi=dpi, bbox_inches="tight")
+    for fmt in imageFormat:
+        fig.savefig(os.path.join(outdir, f"C_representative_TE_single_molecule.{fmt}"), dpi=dpi, bbox_inches="tight")
     plt.close(fig)
     logger.info("Panel C locus: %s:%d-%d (%s)", te.chrom, te.start, te.end, te.name)
 
@@ -1133,8 +1142,8 @@ def main() -> None:
         plot_df = all_df.copy()
 
     plot_a(plot_df, labels, outdir, args.dpi, level = "subfamily", TEs = args.TEs, imageFormat = args.imageFormat)
-    # plot_b(plot_df, labels, outdir, args.top_subfamilies, args.dpi)
-    # plot_c(all_df, samples, tes, outdir, args.max_reads_per_locus, args.dpi)
+    # plot_b(plot_df, labels, outdir, args.top_subfamilies, args.dpi, imageFormat = args.imageFormat)
+    # plot_c(all_df, samples, tes, outdir, args.max_reads_per_locus, args.dpi, imageFormat = args.imageFormat)
 
     logger.info("Finished. Output directory: %s", outdir)
 

@@ -6,6 +6,10 @@
     "Procedure": {
         "samtools": null
     },
-    "Params": {},
+    "Params": {
+        "fragment_size": {
+            "formats": ["png"]
+        }
+    },
     "genome": {}
 }

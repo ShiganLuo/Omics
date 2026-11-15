@@ -10,6 +10,7 @@ Output: per-cell-type DEG TSV + volcano plots (TE highlighted).
 import argparse
 import warnings
 from pathlib import Path
+from typing import List, Optional
 
 import anndata as ad
 import matplotlib
@@ -21,6 +22,13 @@ from pydeseq2.dds import DeseqDataSet
 from pydeseq2.ds import DeseqStats
 
 warnings.filterwarnings("ignore")
+
+PlotFormat = str
+
+# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
+# fails fast at parse time instead of dying inside savefig (modules.md #9)
+VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
+                 "jpeg", "pgf", "raw", "rgba")
 
 
 
@@ -113,8 +121,20 @@ def run_deg(
     return res
 
 
-def plot_volcano(df: pd.DataFrame, title: str, out_png: Path, top_n: int = 5):
-    """Volcano plot with top N up/down gene labels."""
+def plot_volcano(df: pd.DataFrame, title: str, out_base: Path,
+                 top_n: int = 5,
+                 image_formats: Optional[List[PlotFormat]] = None):
+    """Volcano plot with top N up/down gene labels.
+
+    Save formats. Default ``["png"]``.
+    """
+    if image_formats is None:
+        image_formats = ["png"]
+    bad = [f for f in image_formats if f not in VALID_FORMATS]
+    if bad:
+        raise ValueError(
+            f"Unsupported image format(s): {', '.join(bad)}; "
+            f"valid: {', '.join(VALID_FORMATS)}")
     fig, ax = plt.subplots(figsize=(7, 5.5))
 
     df = df.copy()
@@ -198,7 +218,10 @@ def plot_volcano(df: pd.DataFrame, title: str, out_png: Path, top_n: int = 5):
     ax.spines["right"].set_visible(False)
     ax.tick_params(labelsize=8)
     plt.tight_layout()
-    fig.savefig(str(out_png), dpi=300, bbox_inches="tight")
+    for fmt in image_formats:
+        out_path = f"{out_base}.{fmt}"
+        fig.savefig(out_path, dpi=300, bbox_inches="tight")
+        print(f"    -> {out_path}")
     plt.close(fig)
 
 
@@ -215,11 +238,15 @@ def main():
                    help="Random seed for pseudo-replicate splitting")
     p.add_argument("--top-n", type=int, default=5,
                    help="Number of top up/down genes to label on volcano plot (default: 5)")
+    p.add_argument("-f", "--format", action="append", dest="formats", metavar="FMT",
+                   help="Image format (png/pdf/svg/...). Repeatable. "
+                        "Default: png.")
     args = p.parse_args()
 
     np.random.seed(args.seed)
     out_dir = Path(args.output_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
+    image_formats = args.formats if args.formats else ["png"]
 
     comparisons = {
         "ovaries": [
@@ -299,9 +326,9 @@ def main():
                 print(f"sig={len(sig)}")
 
                 # Volcano
-                png_path = comp_dir / f"{ct}_{comp_name}_volcano.png"
+                out_base = comp_dir / f"{ct}_{comp_name}_volcano"
                 title = f"{ct} — {comp_name} ({counter})"
-                plot_volcano(res, title, png_path, args.top_n)
+                plot_volcano(res, title, out_base, args.top_n, image_formats)
 
         adata.file.close()
 

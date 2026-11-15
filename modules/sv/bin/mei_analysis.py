@@ -51,6 +51,13 @@ import pandas as pd
 
 from utils.common import setup_logger
 
+PlotFormat = str
+
+# matplotlib savefig's full format set (LogUtil.PlotFormat); anything else
+# fails fast at parse time instead of dying inside savefig (modules.md #9)
+VALID_FORMATS = ("png", "pdf", "svg", "ps", "eps", "tif", "tiff", "jpg",
+                 "jpeg", "pgf", "raw", "rgba")
+
 if TYPE_CHECKING:
     import pysam  # pyright: ignore[reportMissingImports] — run env has pysam
 
@@ -879,6 +886,10 @@ def build_arg_parser() -> argparse.ArgumentParser:
                     help="debug: cap number of INS records (0 = all)")
     ap.add_argument("--title", default=None,
                     help="figure/report title (default: parent dir of --outdir)")
+    ap.add_argument("-f", "--format", action="append", dest="formats",
+                    metavar="FMT",
+                    help="Image format (png/pdf/svg/...). Repeatable. "
+                         "Default: png.")
     ap.add_argument("--skip-plot", action="store_true",
                     help="skip the figure stage (utils/mei_plot.py)")
     ap.add_argument("--force-rerun", action="store_true",
@@ -907,6 +918,7 @@ def _run_stamp(args: argparse.Namespace, buckets: List[Bucket]) -> Dict[str, Any
         "ctrl_name": args.ctrl_name,
         "exp_name": args.exp_name,
         "title": args.title,
+        "formats": args.formats,
         "te_buckets": buckets,
         "te_lib": args.te_lib,
         "dfam_h5": args.dfam_h5,
@@ -1244,12 +1256,22 @@ def run_figures(args: argparse.Namespace) -> None:
             plot_cmd += ["--ctrl-name", args.ctrl_name]
         if args.exp_name:
             plot_cmd += ["--exp-name", args.exp_name]
+        for fmt in (args.formats or ["png"]):
+            plot_cmd += ["--format", str(fmt)]
         logger.info("figures -> " + " ".join(plot_cmd))
         subprocess.run(plot_cmd, check=True)
 
 
 def main() -> None:
     args = build_arg_parser().parse_args()
+    # image formats: None (flag absent) = default ["png"]; fail fast on
+    # anything outside the matplotlib savefig set (modules.md #9)
+    args.formats = args.formats if args.formats else ["png"]
+    bad = [f for f in args.formats if f not in VALID_FORMATS]
+    if bad:
+        raise ValueError(
+            f"Unsupported image format(s): {', '.join(bad)}; "
+            f"valid: {', '.join(VALID_FORMATS)}")
     buckets = parse_te_buckets(args.te_buckets)
     logger.info(f"TE buckets ({len(buckets)}): "
         + ", ".join(b["name"] for b in buckets))

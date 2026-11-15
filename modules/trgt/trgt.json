@@ -9,7 +9,8 @@
     "Params": {
         "trgt": {
             "karyotype": "XX",
-            "repeat_id": "HTT"
+            "repeat_id": "HTT",
+            "formats": ["png"]
         }
     },
     "reference": {

@@ -77,6 +77,24 @@
             "required": false,
             "description": "Width of the zoomed region in bp (the light-blue box; the grey key shadow is 1/3 of it; the 150 bp scale bar sits at the fiber level)."
           },
+          "gtf": {
+            "type": "str",
+            "nullable": true,
+            "required": false,
+            "description": "Optional GTF/GTF.gz annotation path. When set, every figure gains a gene-structure track (exon boxes, strand arrows, gene names; one row per gene model overlapping the locus) below the sample blocks, and the zoom's grey key shadow extends across it."
+          },
+          "zoom_center": {
+            "type": "int",
+            "nullable": true,
+            "required": false,
+            "description": "Genomic coordinate the blue zoom box (and its grey key shadow) is centered on. Default: the best FIRE call of the representative fiber, or the locus midpoint when the locus has no FIRE. Out-of-locus values are clamped to the locus."
+          },
+          "sample_order": {
+            "type": "list",
+            "nullable": true,
+            "required": false,
+            "description": "Display order of samples top to bottom (list of sample_ids, e.g. youth first, aged second). Unlisted samples keep their input order below the listed ones."
+          },
           "formats": {
             "type": "list",
             "nullable": true,

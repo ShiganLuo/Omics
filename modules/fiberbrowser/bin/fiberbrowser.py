@@ -57,6 +57,7 @@ COV_NUC = "#B0B1B5"            # grey   = nucleosome coverage (stack top)
 COV_LNK = "#8A78B6"            # purple = linker coverage (stack middle)
 COV_FIRE = "#C0392B"           # red    = FIRE coverage (stack bottom)
 BANNER_BG = "#D2E8D2"          # pale green "Fiber-seq" banner
+GENE_EXON = "#2F4F6F"          # dark slate = gene-structure exon boxes
 LABEL_BOX = "#D8ECD8"          # pale green sample label box
 HILITE = "#C9E4F2"             # light blue highlight of the zoomed fiber
 HILITE_EC = "#7FB3D0"
@@ -400,10 +401,90 @@ def fire_score_track(fibers: List[dict], start: int, end: int
             out[i] = -(50.0 / cov[i]) * sum(math.log10(q) for q in lst)
     return out
 
+# ---------------- gene structure (optional GTF) ----------------
+
+def parse_gtf_genes(gtf_path: str, chrom: str, start: int, end: int
+                    ) -> List[dict]:
+    """Gene models overlapping [start, end) from a GTF/GTF.gz.
+
+    One pass over the annotation; keeps only `gene`/`exon` features of
+    `chrom` inside the locus.  Exons are merged per gene_id (union of all
+    transcripts) so the drawn model stays compact.  Returns models sorted by
+    start: {'name', 'strand', 'start', 'end', 'exons': [(a, b), ...]}.
+    """
+    import gzip
+    opener = gzip.open if gtf_path.endswith(".gz") else open
+    genes: Dict[str, dict] = {}
+    with opener(gtf_path, "rt") as fh:
+        for line in fh:
+            if not line or line[0] == "#":
+                continue
+            f = line.rstrip("\n").split("\t")
+            if len(f) < 9 or f[0] != chrom or f[2] not in ("gene", "exon"):
+                continue
+            a, b = int(f[3]), int(f[4])
+            if b <= start or a >= end:
+                continue
+            attrs = f[8]
+            m = re.search(r'gene_id "([^"]+)"', attrs)
+            gid = m.group(1) if m else f"{chrom}:{a}-{b}"
+            nm = re.search(r'gene_name "([^"]+)"', attrs)
+            g = genes.setdefault(gid, {"name": nm.group(1) if nm and
+                                       nm.group(1) else gid,
+                                       "strand": f[6],
+                                       "start": a, "end": b, "exons": []})
+            g["start"] = min(g["start"], a)
+            g["end"] = max(g["end"], b)
+            if f[2] == "exon":
+                g["exons"].append((a, b))
+    for g in genes.values():
+        merged: List[Tuple[int, int]] = []
+        for a, b in sorted(set(g["exons"])):
+            if merged and a <= merged[-1][1]:
+                merged[-1] = (merged[-1][0], max(merged[-1][1], b))
+            else:
+                merged.append((a, b))
+        g["exons"] = merged
+    return sorted(genes.values(), key=lambda g: (g["start"], g["end"]))
+
+def draw_gene_track(ax, genes: List[dict], start: int, end: int, span: int
+                    ) -> None:
+    """Gene-structure row(s): exon boxes on a strand-arrowed backbone line,
+    one stacked row per gene model, name above each model."""
+    ax.set_xlim(0, span)
+    ax.set_xticks([])
+    ax.set_yticks([])
+    for s in ax.spines.values():
+        s.set_visible(False)
+    n_rows = max(1, len(genes))
+    ax.set_ylim(-0.5, n_rows - 0.5)
+    for idx, g in enumerate(genes):
+        y = n_rows - 1 - idx                # first gene on top
+        gs, ge = max(g["start"], start), min(g["end"], end)
+        ax.plot([gs - start, ge - start], [y, y], lw=0.9, color=NUC_LINE,
+                solid_capstyle="butt", zorder=1)
+        for a, b in g["exons"]:
+            lo, hi = max(a, start), min(b, end)
+            if hi > lo:
+                ax.add_patch(Rectangle((lo - start, y - 0.17), hi - lo, 0.34,
+                                       facecolor=GENE_EXON, ec="none",
+                                       zorder=2))
+        step = max(span // 15, 200)         # strand chevrons along the line
+        marker = ">" if g["strand"] != "-" else "<"
+        x = gs + step // 2
+        while x < ge - step // 4:
+            ax.plot([x - start], [y], marker=marker, ms=2.6, color=NUC_LINE,
+                    zorder=3)
+            x += step
+        ax.text((gs + ge) / 2 - start, y + 0.22, g["name"], ha="center",
+                va="bottom", fontsize=6.5)
+    ax.set_ylabel("gene", fontsize=7, rotation=0, ha="right", va="center")
+
 # ---------------- plot ----------------
 
 def plot_locus(locus, samples, out_base, image_formats=None,
-               max_fibers=12, dpi=200, zoom=False, zoom_bp=2100):
+               max_fibers=12, dpi=200, zoom=False, zoom_bp=2100, gtf=None,
+               zoom_center=None):
     """Render the paper-style locus figure (Fig 2H scheme) to disk.
 
     locus: (chrom, start, end, name); samples: [(label, fibers)] in display
@@ -416,17 +497,24 @@ def plot_locus(locus, samples, out_base, image_formats=None,
     formats = image_formats or ["png"]     # spec: None -> ["png"]
     span = end - start
     n = len(samples)
+    genes = parse_gtf_genes(gtf, chrom, start, end) if gtf else []
+    n_gene_rows = max(1, len(genes))
+    gene_ratio = 0.5 + 0.35 * n_gene_rows
     # layout top to bottom: m5CpG tracks of all samples (stacked at the top),
-    # then per-sample (FIRE score, coverage, single fibers[, zoom of the
-    # highlighted representative fiber — optional, --zoom]).
+    # then per-sample (FIRE score, coverage, single fibers), then the optional
+    # gene-structure track (--gtf), then the optional zoom row (--zoom).
     if zoom:
-        n_rows = n + 3 * n + 1     # + one zoom row for the whole figure
-        ratios = [0.8] * n + [0.7, 0.7, 3.0] * n + [1.2]
+        n_rows = n + 3 * n + (1 if gtf else 0) + 1
+        ratios = ([0.8] * n + [0.7, 0.7, 3.0] * n
+                  + ([gene_ratio] if gtf else []) + [1.2])
     else:
-        n_rows = n + 3 * n
-        ratios = [0.8] * n + [0.7, 0.7, 3.2] * n
+        n_rows = n + 3 * n + (1 if gtf else 0)
+        ratios = ([0.8] * n + [0.7, 0.7, 3.2] * n
+                  + ([gene_ratio] if gtf else []))
     fig, axes = plt.subplots(
-        n_rows, 1, figsize=(11, 1.2 + n * 1.5 + 0.12 * min(max_fibers, 90)),
+        n_rows, 1,
+        figsize=(11, 1.2 + n * 1.5 + 0.12 * min(max_fibers, 90)
+                 + (0.35 * n_gene_rows if gtf else 0)),
         gridspec_kw={"hspace": 0.10, "height_ratios": ratios})
 
     data_axes = axes[:-1] if zoom else axes
@@ -551,6 +639,13 @@ def plot_locus(locus, samples, out_base, image_formats=None,
                 bbox=dict(boxstyle="round,pad=0.35", facecolor=LABEL_BOX,
                           edgecolor="#7A9A7A", lw=0.6))
 
+    # --- optional gene-structure track (--gtf): one stacked row per gene
+    # model overlapping the locus; the zoom's grey key shadow below extends
+    # across this track so the selection lines up with the gene features.
+    if gtf:
+        ax = axes[row]; row += 1
+        draw_gene_track(ax, genes, start, end, span)
+
     # --- optional zoom (--zoom): ONE selection for the whole figure, paper
     # style - a light-grey shadow (the key region, ~1/3 of the zoomed width)
     # crosses all tracks, the representative fiber row carries a light-blue
@@ -568,13 +663,16 @@ def plot_locus(locus, samples, out_base, image_formats=None,
                 if best is None or (nf, iw) > best[0]:
                     best = ((nf, iw), sname_s, axf, ridx, rec)
         _key, sname, axf, ridx, rec = best
-        fires_in = [(a, b, q) for a, b, q in rec["fire_q"]
-                    if a < end and b > start]
-        if fires_in:
-            a0, b0, _q0 = min(fires_in, key=lambda t: t[2])
-            zmid = (max(a0, start) + min(b0, end)) // 2
+        if zoom_center is not None:
+            zmid = min(max(int(zoom_center), start), end)
         else:
-            zmid = (start + end) // 2
+            fires_in = [(a, b, q) for a, b, q in rec["fire_q"]
+                        if a < end and b > start]
+            if fires_in:
+                a0, b0, _q0 = min(fires_in, key=lambda t: t[2])
+                zmid = (max(a0, start) + min(b0, end)) // 2
+            else:
+                zmid = (start + end) // 2
         zw = min(zoom_bp, span)          # zoomed region = the blue box
         z0 = max(start, min(zmid - zw // 2, end - zw))
         z1 = z0 + zw
@@ -582,9 +680,19 @@ def plot_locus(locus, samples, out_base, image_formats=None,
         s0 = max(z0, zmid - sw // 2)
         s1 = min(z1, s0 + sw)
 
-        for axd in data_axes:            # grey shadow across every track
-            axd.axvspan(s0 - start, s1 - start, facecolor="#E4E4E4",
-                        lw=0, zorder=0.3)
+        # grey key shadow: ONE continuous translucent band over the whole
+        # data-axes stack, in figure coordinates.  Per-track axvspan copies
+        # broke into row fragments (white hspace gaps) and hid behind the
+        # opaque element blocks, so the band read as dashes, not a band.
+        invf = fig.transFigure.inverted()
+        p_top = invf.transform(data_axes[0].transData.transform(
+            (s0 - start, data_axes[0].get_ylim()[1])))
+        p_bot = invf.transform(data_axes[-1].transData.transform(
+            (s1 - start, data_axes[-1].get_ylim()[0])))
+        fig.add_artist(Rectangle(
+            (p_top[0], p_bot[1]), p_bot[0] - p_top[0], p_top[1] - p_bot[1],
+            facecolor="#B9B9B9", alpha=0.30, lw=0, zorder=5,
+            clip_on=False))
         axf.add_patch(Rectangle(         # blue box = the zoom region
             (z0 - start, ridx - 0.55), z1 - z0, 1.1,
             facecolor=HILITE, ec=HILITE_EC, lw=0.7, zorder=0.4))
@@ -610,7 +718,9 @@ def plot_locus(locus, samples, out_base, image_formats=None,
         lane = max(zlen_w // 5, 200)     # gap between content and the bar
         ax.set_xlim(0, zlen_w + lane + 260)   # right lane for the 150 bp bar
         ax.set_ylim(-0.8, 1.5)
-        ax.axvspan(s0 - z0, s1 - z0, facecolor="#E4E4E4", lw=0, zorder=0.3)
+        ax.add_patch(Rectangle((s0 - z0, -0.8), s1 - s0, 2.3,
+                               facecolor="#B9B9B9", alpha=0.25, lw=0,
+                               zorder=5, clip_on=False))
         for a, b in rec["segs"]:
             lo, hi = max(a, z0), min(b, z1)
             if hi > lo:
@@ -618,6 +728,7 @@ def plot_locus(locus, samples, out_base, image_formats=None,
                         color=NUC_LINE, zorder=1, solid_capstyle="butt")
         linkers, fires = split_msp_by_fire(rec["msp"], rec["fire_q"])
         covered: List[Tuple[int, int]] = []
+        label_cands: List[Tuple[str, int, int]] = []   # type, lo, hi (abs)
         for a, b in linkers:               # purple rectangles = L
             lo, hi = max(a, z0), min(b, z1)
             if hi <= lo:
@@ -625,9 +736,7 @@ def plot_locus(locus, samples, out_base, image_formats=None,
             ax.add_patch(Rectangle((lo - zoff, -0.22), hi - lo, 0.44,
                                    facecolor=LINKER, ec="none", zorder=2))
             covered.append((lo, hi))
-            if hi - lo >= 30:
-                ax.text((lo + hi) / 2 - zoff, 0.42, "L", ha="center",
-                        va="bottom", fontsize=7.5)
+            label_cands.append(("L", lo, hi))
         for a, b, q in fires:              # FIRE MSPs = RE (tier color)
             lo, hi = max(a, z0), min(b, z1)
             if hi <= lo:
@@ -636,8 +745,7 @@ def plot_locus(locus, samples, out_base, image_formats=None,
                                    facecolor=fire_tier_color(q),
                                    ec="none", zorder=3))
             covered.append((lo, hi))
-            ax.text((lo + hi) / 2 - zoff, 0.42, "RE", ha="center",
-                    va="bottom", fontsize=7.5)
+            label_cands.append(("RE", lo, hi))
         for a, b in rec["segs"]:           # 'n' over nucleosome gaps
             lo, hi = max(a, z0), min(b, z1)
             if hi <= lo:
@@ -646,13 +754,36 @@ def plot_locus(locus, samples, out_base, image_formats=None,
             for ca, cb in sorted(covered):
                 if cb <= cur or ca >= hi:
                     continue
-                if ca - cur >= 60:
-                    ax.text((cur + ca) / 2 - zoff, 0.42, "n", ha="center",
-                            va="bottom", fontsize=7.5)
+                if ca > cur:
+                    label_cands.append(("n", cur, ca))
                 cur = max(cur, cb)
-            if hi - cur >= 60:
-                ax.text((cur + hi) / 2 - zoff, 0.42, "n", ha="center",
-                        va="bottom", fontsize=7.5)
+            if hi > cur:
+                label_cands.append(("n", cur, hi))
+        # one label per structure type, on its widest instance: repeating
+        # 'L'/'RE'/'n' over every segment cluttered the row and overprinted
+        # wherever structures sit close together.  Colliding labels are
+        # staggered vertically instead of overlapping.
+        inv_px = ax.transData.inverted()
+        x_per_px = inv_px.transform((1, 0))[0] - inv_px.transform((0, 0))[0]
+        placed: List[Tuple[float, float, int]] = []   # x0, x1, level
+        for typ in ("L", "RE", "n"):
+            lst = [c for c in label_cands if c[0] == typ]
+            if not lst:
+                continue
+            _, lo, hi = max(lst, key=lambda c: c[2] - c[1])
+            cx = (lo + hi) / 2 - zoff
+            w = (len(typ) * 0.62 * 7.5 * dpi / 72 + 4) * x_per_px
+            cx = min(max(cx, w / 2), zlen_w - w / 2)
+            x0, x1 = cx - w / 2, cx + w / 2
+            margin = 4 * x_per_px
+            level = 0
+            while any(lv == level and
+                      not (x1 + margin < p0 or x0 - margin > p1)
+                      for p0, p1, lv in placed):
+                level += 1
+            placed.append((x0, x1, level))
+            ax.text(cx, 0.42 + 0.34 * level, typ, ha="center", va="bottom",
+                    fontsize=7.5, zorder=6)
         # 150 bp scale bar on the SAME level as the fiber line, in its own
         # lane clearly separated from the zoom content
         ax.plot([zlen_w + lane + 20, zlen_w + lane + 170], [0, 0], lw=2,
@@ -735,6 +866,21 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     p.add_argument("--zoom-bp", type=int, default=2100,
                    help="width of the zoomed region in bp (the light-blue "
                         "box; the grey key shadow is 1/3 of it)")
+    p.add_argument("--gtf", default=None,
+                   help="optional GTF/GTF.gz: adds a gene-structure track "
+                        "(exon boxes, strand arrows, names) at the bottom of "
+                        "every figure; the zoom's grey key shadow extends "
+                        "across it")
+    p.add_argument("--zoom-center", type=int, default=None,
+                   help="genomic coordinate the blue zoom box (and its grey "
+                        "key shadow) is centered on; default: the best "
+                        "FIRE call of the representative fiber (locus "
+                        "midpoint when the locus has no FIRE); out-of-locus "
+                        "values are clamped to the locus")
+    p.add_argument("--sample-order", default=None,
+                   help="comma-separated sample_ids fixing the display order "
+                        "top to bottom (e.g. 's_youth,s_aged'); samples not "
+                        "listed keep their input order below the listed ones")
     p.add_argument("--dpi", type=int, default=200)
     args = p.parse_args(argv)
     m = re.match(r"(\S+):(\d+)-(\d+)\|(.+)", args.locus)
@@ -748,20 +894,28 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     setup_logging()
     sams = json.loads(args.sample_sams)
     groups = json.loads(args.sample_group_dict)
-    samples = []
+    samples_map: Dict[str, tuple] = {}
     for sid, sam_path in sams.items():
         label = f"{sid} ({groups[sid]})" if sid in groups else sid
         fibers = parse_sam(sam_path, *locus[:3])
         nfire = sum(len(r["fire_q"]) for r in fibers)
         logger.info(f"{label}: {len(fibers)} primary fibers, {nfire} FIRE calls")
-        samples.append((label, fibers))
+        samples_map[sid] = (label, fibers)
+    order = ([s.strip() for s in args.sample_order.split(",") if s.strip()]
+             if args.sample_order else [])
+    unknown = [s for s in order if s not in samples_map]
+    if unknown:
+        p.error(f"--sample-order ids not in --sample-sams: {unknown}")
+    ordered = order + [s for s in sams if s not in order]
+    samples = [samples_map[s] for s in ordered]
     variants = args.variant or ["plain"]
     out_dir = Path(args.out_dir)
     name = locus[3]
     for variant in variants:
         out_base = str(out_dir / (name if variant == "plain" else f"{name}_zoom"))
         plot_locus(locus, samples, out_base, formats, args.max_fibers, args.dpi,
-                   zoom=(variant == "zoom"), zoom_bp=args.zoom_bp)
+                   zoom=(variant == "zoom"), zoom_bp=args.zoom_bp,
+                   gtf=args.gtf, zoom_center=args.zoom_center)
     return 0
 
 if __name__ == "__main__":

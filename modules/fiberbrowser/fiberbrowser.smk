@@ -44,6 +44,9 @@ rule fiberbrowser:
         formats = formats,
         max_fibers = fiberbrowser_params.get("max_fibers", 12),
         zoom_bp = fiberbrowser_params.get("zoom_bp", 2100),
+        gtf = fiberbrowser_params.get("gtf"),
+        zoom_center = fiberbrowser_params.get("zoom_center"),
+        sample_order = fiberbrowser_params.get("sample_order"),
         dpi = fiberbrowser_params.get("dpi", 200),
     run:
         log_path = str(log)
@@ -69,6 +72,12 @@ rule fiberbrowser:
                 "--zoom-bp", str(params.zoom_bp),
                 "--dpi", str(params.dpi),
             ]
+            if params.gtf:
+                cmd += ["--gtf", str(params.gtf)]
+            if params.zoom_center is not None:
+                cmd += ["--zoom-center", str(params.zoom_center)]
+            if params.sample_order:
+                cmd += ["--sample-order", ",".join(params.sample_order)]
             for fmt in params.formats:
                 cmd += ["--format", fmt]
             for v in params.variants:

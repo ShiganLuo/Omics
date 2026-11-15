@@ -13,6 +13,9 @@
             "variants": ["plain", "zoom"],
             "max_fibers": 12,
             "zoom_bp": 2100,
+            "gtf": null,
+            "zoom_center": null,
+            "sample_order": null,
             "formats": ["png", "svg"],
             "dpi": 200
         }

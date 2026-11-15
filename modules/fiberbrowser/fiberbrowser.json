@@ -15,6 +15,7 @@
             "zoom_bp": 2100,
             "gtf": null,
             "zoom_center": null,
+            "zoom_center_mode": null,
             "sample_order": null,
             "formats": ["png", "svg"],
             "dpi": 200

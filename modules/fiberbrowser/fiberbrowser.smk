@@ -46,6 +46,7 @@ rule fiberbrowser:
         zoom_bp = fiberbrowser_params.get("zoom_bp", 2100),
         gtf = fiberbrowser_params.get("gtf"),
         zoom_center = fiberbrowser_params.get("zoom_center"),
+        zoom_center_mode = fiberbrowser_params.get("zoom_center_mode"),
         sample_order = fiberbrowser_params.get("sample_order"),
         dpi = fiberbrowser_params.get("dpi", 200),
     run:
@@ -76,6 +77,8 @@ rule fiberbrowser:
                 cmd += ["--gtf", str(params.gtf)]
             if params.zoom_center is not None:
                 cmd += ["--zoom-center", str(params.zoom_center)]
+            if params.zoom_center_mode:
+                cmd += ["--zoom-center-mode", str(params.zoom_center_mode)]
             if params.sample_order:
                 cmd += ["--sample-order", ",".join(params.sample_order)]
             for fmt in params.formats:

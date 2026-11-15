@@ -89,6 +89,12 @@
             "required": false,
             "description": "Genomic coordinate the blue zoom box (and its grey key shadow) is centered on. Default: the best FIRE call of the representative fiber, or the locus midpoint when the locus has no FIRE. Out-of-locus values are clamped to the locus."
           },
+          "zoom_center_mode": {
+            "type": "str",
+            "nullable": true,
+            "required": false,
+            "description": "Automatic zoom-centre rule when zoom_center is null: 'diff-fire' centres on the position of maximal absolute between-group FIRE-score difference, 'diff-cpg' on the maximal between-group m5CpG difference (exactly two groups in sample_group_dict required; positions without coverage in either group are ignored, the difference is smoothed over 200 bp). Default null keeps the legacy best-FIRE-of-representative-fiber rule."
+          },
           "sample_order": {
             "type": "list",
             "nullable": true,

@@ -341,6 +341,75 @@ def split_msp_by_fire(msp: List[Tuple[int, int]],
             linkers.append((cur, b))
     return linkers, fires
 
+# alignment gaps (CIGAR D/N) up to this many bp are bridged when drawing the
+# fiber line: the molecule is continuous DNA, and at zoom scale a ~40 bp
+# alignment gap renders as a visible break in the element chain.  Larger
+# gaps (real structural deletions, e.g. the validated 377-1868 bp SVs) stay
+# open.
+BRIDGE_MAX_GAP = 150
+
+def bridge_segs(segs: List[Tuple[int, int]],
+                max_gap: int = BRIDGE_MAX_GAP) -> List[Tuple[int, int]]:
+    """Merge alignment blocks separated by small deletions/skips (D/N).
+
+    Used for drawing the connecting line and the 'n' regions so the fiber
+    reads as one continuous chain; the raw segs remain untouched for
+    coverage accounting.
+    """
+    out: List[Tuple[int, int]] = []
+    for a, b in segs:
+        if out and a - out[-1][1] <= max_gap:
+            out[-1] = (out[-1][0], b)
+        else:
+            out.append((a, b))
+    return out
+
+# moving-average window for the between-group difference tracks used by
+# --zoom-center-mode
+DIFF_SMOOTH_BP = 200
+
+def diff_center(samples, group_labels, start: int, end: int, kind: str) -> int:
+    """Genomic position of the maximal absolute between-group difference.
+
+    kind: "diff-fire" (FIRE score tracks) or "diff-cpg" (m5CpG density).
+    Exactly two sample groups are required.  Positions without aligned
+    coverage in either group are ignored (a one-sided coverage gap must not
+    drive the choice); the per-base difference is smoothed over
+    DIFF_SMOOTH_BP before taking the maximum.
+    """
+    uniq = sorted(set(group_labels))
+    if len(uniq) != 2:
+        raise ValueError(
+            f"{kind} zoom-centre needs exactly two sample groups, "
+            f"got {uniq}")
+
+    def pooled(g: str) -> List[dict]:
+        return [f for (_lbl, fl), gr in zip(samples, group_labels)
+                if gr == g for f in fl]
+
+    fa, fb = pooled(uniq[0]), pooled(uniq[1])
+    if kind == "diff-fire":
+        sa = fire_score_track(fa, start, end)
+        sb = fire_score_track(fb, start, end)
+    else:
+        sa = per_base(fa, "cpg", start, end)
+        sb = per_base(fb, "cpg", start, end)
+    ca = per_base(fa, "cov", start, end)
+    cb = per_base(fb, "cov", start, end)
+    sm = smooth([abs(a - b) for a, b in zip(sa, sb)], DIFF_SMOOTH_BP)
+    best_i, best_v = None, -1.0
+    for i in range(end - start):
+        if ca[i] <= 0 or cb[i] <= 0:
+            continue
+        if sm[i] > best_v:
+            best_i, best_v = i, sm[i]
+    if best_i is None:
+        logger.warning(
+            f"{kind}: no position has coverage in both groups; "
+            "falling back to the locus midpoint")
+        return (start + end) // 2
+    return start + best_i
+
 def per_base(fibers: List[dict], kind: str, start: int, end: int
              ) -> List[float]:
     """Per-base signal of `kind` over [start, end).
@@ -484,7 +553,7 @@ def draw_gene_track(ax, genes: List[dict], start: int, end: int, span: int
 
 def plot_locus(locus, samples, out_base, image_formats=None,
                max_fibers=12, dpi=200, zoom=False, zoom_bp=2100, gtf=None,
-               zoom_center=None):
+               zoom_center=None, zoom_center_mode=None, group_labels=None):
     """Render the paper-style locus figure (Fig 2H scheme) to disk.
 
     locus: (chrom, start, end, name); samples: [(label, fibers)] in display
@@ -600,7 +669,7 @@ def plot_locus(locus, samples, out_base, image_formats=None,
         stacks.append((sname, ax, fib_list))
 
         for i, rec in enumerate(fib_list):
-            for a, b in rec["segs"]:
+            for a, b in bridge_segs(rec["segs"]):
                 lo, hi = max(a, start), min(b, end)
                 if hi <= lo:
                     continue
@@ -650,8 +719,9 @@ def plot_locus(locus, samples, out_base, image_formats=None,
     # style - a light-grey shadow (the key region, ~1/3 of the zoomed width)
     # crosses all tracks, the representative fiber row carries a light-blue
     # box exactly the size of the zoomed region, dashed lines run from the
-    # shadow's two endpoints to the zoom region's two ends, and the shadow
-    # continues inside the zoom row.
+    # shadow's two endpoints at the stack bottom to the shadow's two edges
+    # inside the zoom row (shadow -> shadow), and the shadow continues
+    # inside the zoom row.
     if zoom:
         best = None
         for sname_s, axf, flist in stacks:
@@ -672,6 +742,11 @@ def plot_locus(locus, samples, out_base, image_formats=None,
                     f"sample (deletion/assembly gap?); the zoom row will be "
                     f"empty — consider omitting --zoom-center for automatic "
                     f"FIRE-based selection")
+        elif zoom_center_mode:
+            zmid = diff_center(samples, group_labels or [], start, end,
+                               zoom_center_mode)
+            logger.info(f"zoom-centre ({zoom_center_mode}): "
+                        f"{chrom}:{zmid:,}")
         else:
             fires_in = [(a, b, q) for a, b, q in rec["fire_q"]
                         if a < end and b > start]
@@ -704,31 +779,34 @@ def plot_locus(locus, samples, out_base, image_formats=None,
             (z0 - start, ridx - 0.55), z1 - z0, 1.1,
             facecolor=HILITE, ec=HILITE_EC, lw=0.7, zorder=0.4))
 
-        # zoom axes: narrowed, placed WITHIN the data-axes span with the
-        # shadow ~1/3 from its left; keep a clear margin on both sides so
-        # the zoom never reaches the track area's edges
+        # zoom axes: span most of the data-axes width so the row reads as a
+        # true magnification (px/bp = track scale * span/zoom_bp; the old
+        # half-width inset ate the magnification, so shallow zooms looked
+        # unzoomed).  Placed so the shadow's magnified rect sits under the
+        # track shadow when the margins allow, keeping the callout short.
         pos = axes[-1].get_position()
         pos_d = data_axes[-1].get_position()
+        zoff, zlen_w = z0, z1 - z0
+        lane = max(zlen_w // 10, 120)    # narrow lane for the 150 bp bar
         inv0 = fig.transFigure.inverted()
         cs = inv0.transform(data_axes[-1].transData.transform(
             ((s0 + s1) / 2 - start, data_axes[-1].get_ylim()[0])))[0]
-        zwidth = 0.50 * pos_d.width
+        zwidth = 0.85 * pos_d.width
         lo = pos_d.x0 + 0.03 * pos_d.width
-        hi = pos_d.x0 + 0.96 * pos_d.width - zwidth
-        zx0 = min(max(cs - 0.31 * zwidth, lo), hi)
+        hi = pos_d.x0 + 0.97 * pos_d.width - zwidth
+        xc = (zlen_w / 2) / (zlen_w + lane + 260)   # shadow-rect centre frac
+        zx0 = min(max(cs - xc * zwidth, lo), hi)
         axes[-1].set_position([zx0, pos.y0, zwidth, pos.height])
         ax = axes[-1]
         ax.set_xticks([]); ax.set_yticks([])
         for s in ax.spines.values():
             s.set_visible(False)
-        zoff, zlen_w = z0, z1 - z0
-        lane = max(zlen_w // 5, 200)     # gap between content and the bar
         ax.set_xlim(0, zlen_w + lane + 260)   # right lane for the 150 bp bar
         ax.set_ylim(-0.8, 1.5)
         ax.add_patch(Rectangle((s0 - z0, -0.8), s1 - s0, 2.3,
                                facecolor="#B9B9B9", alpha=0.25, lw=0,
                                zorder=5, clip_on=False))
-        for a, b in rec["segs"]:
+        for a, b in bridge_segs(rec["segs"]):
             lo, hi = max(a, z0), min(b, z1)
             if hi > lo:
                 ax.plot([lo - zoff, hi - zoff], [0, 0], lw=1.4,
@@ -753,7 +831,7 @@ def plot_locus(locus, samples, out_base, image_formats=None,
                                    ec="none", zorder=3))
             covered.append((lo, hi))
             label_cands.append(("RE", lo, hi))
-        for a, b in rec["segs"]:           # 'n' over nucleosome gaps
+        for a, b in bridge_segs(rec["segs"]):   # 'n' over nucleosome gaps
             lo, hi = max(a, z0), min(b, z1)
             if hi <= lo:
                 continue
@@ -800,16 +878,18 @@ def plot_locus(locus, samples, out_base, image_formats=None,
         ax.set_ylabel(f"{sname}\nzoom", fontsize=7, rotation=0, ha="right",
                       va="center")
 
-        # dashed connectors: the shadow's two endpoints -> the zoom region's
-        # two ends (z0/z1 in zoom-row coordinates, not the axes edges)
+        # dashed connectors: the grey key shadow's two endpoints at the bottom
+        # of the data-track stack -> the same shadow's two edges inside the
+        # zoom row (its magnified continuation).  Both anchors sit on the
+        # shadow, so the callout never crosses the fiber rows.
         inv = fig.transFigure.inverted()
         axb = data_axes[-1]
         yb = axb.get_ylim()[0]
         pL = inv.transform(axb.transData.transform((s0 - start, yb)))
         pR = inv.transform(axb.transData.transform((s1 - start, yb)))
         ztop = ax.get_ylim()[1]
-        zL = inv.transform(ax.transData.transform((0, ztop)))
-        zR = inv.transform(ax.transData.transform((zlen_w, ztop)))
+        zL = inv.transform(ax.transData.transform((s0 - z0, ztop)))
+        zR = inv.transform(ax.transData.transform((s1 - z0, ztop)))
         for px, py, zx, zy in ((pL[0], pL[1], zL[0], zL[1]),
                                (pR[0], pR[1], zR[0], zR[1])):
             fig.add_artist(Line2D([px, zx], [py, zy], color="#9A9A9A",
@@ -884,6 +964,14 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                         "FIRE call of the representative fiber (locus "
                         "midpoint when the locus has no FIRE); out-of-locus "
                         "values are clamped to the locus")
+    p.add_argument("--zoom-center-mode", default=None,
+                   choices=["diff-fire", "diff-cpg"],
+                   help="automatic zoom-centre rule: 'diff-fire' centres on "
+                        "the position of maximal absolute between-group "
+                        "FIRE-score difference, 'diff-cpg' on the maximal "
+                        "m5CpG difference (exactly two groups in "
+                        "--sample-group-dict are required). An explicit "
+                        "--zoom-center takes precedence")
     p.add_argument("--sample-order", default=None,
                    help="comma-separated sample_ids fixing the display order "
                         "top to bottom (e.g. 's_youth,s_aged'); samples not "
@@ -915,6 +1003,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         p.error(f"--sample-order ids not in --sample-sams: {unknown}")
     ordered = order + [s for s in sams if s not in order]
     samples = [samples_map[s] for s in ordered]
+    group_labels = [groups.get(s, s) for s in ordered]
     variants = args.variant or ["plain"]
     out_dir = Path(args.out_dir)
     name = locus[3]
@@ -922,7 +1011,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         out_base = str(out_dir / (name if variant == "plain" else f"{name}_zoom"))
         plot_locus(locus, samples, out_base, formats, args.max_fibers, args.dpi,
                    zoom=(variant == "zoom"), zoom_bp=args.zoom_bp,
-                   gtf=args.gtf, zoom_center=args.zoom_center)
+                   gtf=args.gtf, zoom_center=args.zoom_center,
+                   zoom_center_mode=args.zoom_center_mode,
+                   group_labels=group_labels)
     return 0
 
 if __name__ == "__main__":

@@ -75,6 +75,57 @@
     "fumitools": "/home/luosg/Database/env/fumitools/fumitools.sif",
     "mimseq": "/home/luosg/Database/env/mimseq/mimseq.sif"
   },
+  "resources": {
+    "default": {
+      "threads": 2,
+      "mem_mb": 8000
+    },
+    "fumitools_copy_umi_single": {
+      "threads": 4,
+      "mem_mb": 8000
+    },
+    "mimseq_all": {
+      "mem_mb": 8000
+    },
+    "mimseq_prepare_sample_data": {
+      "mem_mb": 8000
+    },
+    "mimseq_result": {
+      "mem_mb": 8000
+    },
+    "trimming_Paired": {
+      "threads": 6,
+      "mem_mb": 8000
+    },
+    "trimming_Single": {
+      "threads": 6,
+      "mem_mb": 4000
+    },
+    "mimseq_align": {
+      "threads": 10,
+      "mem_mb": 32000
+    },
+    "mimseq_clusters": {
+      "threads": 4,
+      "mem_mb": 8000
+    },
+    "mimseq_coverage": {
+      "threads": 4,
+      "mem_mb": 16000
+    },
+    "mimseq_deseq": {
+      "threads": 4,
+      "mem_mb": 16000
+    },
+    "mimseq_mods": {
+      "threads": 4,
+      "mem_mb": 32000
+    },
+    "mimseq_tRNAtools": {
+      "threads": 4,
+      "mem_mb": 8000
+    }
+  },
   "Procedure": {},
   "Params": {
     "mimseq": {

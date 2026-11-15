@@ -172,6 +172,30 @@
     "vcf_filter": {
       "threads": 8,
       "mem_mb": 8000
+    },
+    "DESeq2_TElocal_locus_boxplot": {
+      "threads": 2,
+      "mem_mb": 8000
+    },
+    "DESeq2_TElocal_manhattan": {
+      "threads": 2,
+      "mem_mb": 8000
+    },
+    "DESeq2_TElocal_subfamily_bar": {
+      "threads": 2,
+      "mem_mb": 8000
+    },
+    "qc_summary": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "sexcheck": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "sexcheck_idxstats": {
+      "threads": 1,
+      "mem_mb": 8000
     }
   },
   "env": {

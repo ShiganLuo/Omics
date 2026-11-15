@@ -52,6 +52,87 @@
     "drclass_classify": {
       "threads": 1,
       "mem_mb": 8000
+    },
+    "HaplotypeCaller": {
+      "threads": 10,
+      "mem_mb": 32000
+    },
+    "addReadsGroup": {
+      "threads": 8,
+      "mem_mb": 16000
+    },
+    "bam_flagstat": {
+      "mem_mb": 8000
+    },
+    "bwaMem2_index": {
+      "threads": 15,
+      "mem_mb": 64000
+    },
+    "collectHsMetrics": {
+      "threads": 4,
+      "mem_mb": 16000
+    },
+    "derive_targets": {
+      "threads": 4,
+      "mem_mb": 16000
+    },
+    "drclass_anchors": {
+      "mem_mb": 2000
+    },
+    "drclass_summary": {
+      "mem_mb": 2000
+    },
+    "fastqc": {
+      "threads": 2,
+      "mem_mb": 8000
+    },
+    "filterHaplotypeCallerVcf": {
+      "threads": 10,
+      "mem_mb": 16000
+    },
+    "filterMutectCalls": {
+      "threads": 2,
+      "mem_mb": 8000
+    },
+    "gatk_haplotypeCaller_result": {
+      "mem_mb": 8000
+    },
+    "gatk_index": {
+      "threads": 4,
+      "mem_mb": 8000
+    },
+    "gatk_prepare_result": {
+      "mem_mb": 8000
+    },
+    "germline_resource_strain": {
+      "threads": 2,
+      "mem_mb": 16000
+    },
+    "star_index": {
+      "threads": 12,
+      "mem_mb": 64000
+    },
+    "trimming_Paired": {
+      "threads": 6,
+      "mem_mb": 8000
+    },
+    "trimming_Single": {
+      "threads": 6,
+      "mem_mb": 4000
+    },
+    "vcf_filter": {
+      "threads": 8,
+      "mem_mb": 8000
+    },
+    "ApplyBQSR": {
+      "mem_mb": 16000
+    },
+    "BaseRecalibrator": {
+      "threads": 8,
+      "mem_mb": 32000
+    },
+    "gatk_bqsr_result": {
+      "mem_mb": 8000
     }
   },
   "Procedure": {

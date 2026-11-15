@@ -11,6 +11,600 @@
     "type": "str",
     "required": true
   },
+  "resources": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+      "default": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "MarkDuplicates": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "addReadsGroup": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "assembly_telomere_scan": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "bamCoverage": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "centromere_extract": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "centromere_result": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "decoil_compare": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "decoil_igv": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "decoil_plot": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "decoil_reconstruct": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "decoil_result": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "decoil_structure": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "decoil_ucsc": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "deepvariant_run": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "gatk_index": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "genome_index": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "hifiasm_assemble": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "hiphase_phase": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "pbmm2_align": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "pbsv_call": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "pbsv_discover": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "qc_summary": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "read_density_telomere": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "regionplot": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "repeatmasker_init": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "repeatmasker_run": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "sexcheck": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "sexcheck_idxstats": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "sv_diff_analysis": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "sv_exp_circos": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "sv_exp_enrichment": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "sv_exp_specific": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "sv_gene_model": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "sv_go_kegg": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "sv_mei": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "sv_oncoprint": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "sv_result": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "telogator2_run": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "tidk_scan": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "trgt_genotype": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "trgt_plot": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      }
+    }
+  },
   "samples": {
     "type": "list",
     "required": true

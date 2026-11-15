@@ -13,6 +13,7 @@ rule all:
     input:
         outfiles
 fastqc_raw_config = {
+    "resources": config.get("resources", {}),
         "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
@@ -32,6 +33,7 @@ module fastqc_raw:
 logger.info(f"fastqc_raw_config: {fastqc_raw_config}")
 use rule fastqc from fastqc_raw as CLIP_fastqc
 UmiTools_extract_config = {
+    "resources": config.get("resources", {}),
         "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
@@ -56,6 +58,7 @@ logger.info(f"UmiTools_extract_config: {UmiTools_extract_config}")
 use rule UmiTools_extract_single from UmiTools_extract as CLIP_UmiTools_extract_single
 use rule UmiTools_extract_paired from UmiTools_extract as CLIP_UmiTools_extract_paired
 cutadapt_config = {
+    "resources": config.get("resources", {}),
         "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
@@ -80,6 +83,8 @@ use rule trimming_Paired from cutadapt as CLIP_trimming_Paired
 use rule trimming_Single from cutadapt as CLIP_trimming_Single
 
 fastqc_trimmed_config = {
+
+    "resources": config.get("resources", {}),
         "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
@@ -102,6 +107,7 @@ use rule fastqc from fastqc_trimmed as CLIP_fastqc_trimmed
 
 if aligner == 'hisat2':
     hisat2_config = {
+        "resources": config.get("resources", {}),
             "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
             "env": config.get("env", {}),
@@ -126,6 +132,7 @@ if aligner == 'hisat2':
     use rule hisat2_index from hisat2 as CLIP_hisat2_index
 elif aligner == 'star':
     star_config = {
+        "resources": config.get("resources", {}),
             "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
             "env": config.get("env", {}),
@@ -152,6 +159,7 @@ elif aligner == 'star':
 else:
     raise ValueError(f"Unsupported aligner: {aligner}")
 umi_tools_dedup_config = {
+    "resources": config.get("resources", {}),
         "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
@@ -182,6 +190,7 @@ use rule umi_tools_dedup_for_hisat2 from UmiTools_dedup as CLIP_umi_tools_dedup_
 # aligner-conditional BAM source (config dicts are both defined above)
 _sexcheck_bam_dir = star_config["outdir"] if aligner == "star" else hisat2_config["outdir"]
 sexcheck_config = {
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -224,6 +233,7 @@ use rule sexcheck from sexcheck as CLIP_sexcheck
 # subworkflow.md QC wiring spec). Only stages with qc_summary parsers are
 # declared; unregistered stages stay best-effort scans.
 qc_summary_config = {
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -321,6 +331,8 @@ use rule regionplot from regionplot as CLIP_regionplot
 use rule regionplot_result from regionplot as CLIP_regionplot_result
 
 PureCLIP_config = {
+
+    "resources": config.get("resources", {}),
         "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
@@ -341,6 +353,8 @@ logger.info(f"PureCLIP_config: {PureCLIP_config}")
 use rule pureclip from PureCLIP as CLIP_pureclip
 
 track_config = {
+
+    "resources": config.get("resources", {}),
         "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),

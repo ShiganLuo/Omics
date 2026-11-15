@@ -17,6 +17,127 @@
     "regionplot": "/data/16T/Database/env/regionplot/regionplot.sif",
     "sexcheck": "/data/16T/Database/env/fragment_size/fragment_size.sif"
   },
+  "resources": {
+    "default": {
+      "threads": 2,
+      "mem_mb": 8000
+    },
+    "MarkDuplicates": {
+      "threads": 8,
+      "mem_mb": 32000
+    },
+    "addReadsGroup": {
+      "threads": 8,
+      "mem_mb": 16000
+    },
+    "bigwig_ratio": {
+      "threads": 4,
+      "mem_mb": 8000
+    },
+    "bigwig_ratio_result": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "bowtie2_align_paired": {
+      "threads": 8,
+      "mem_mb": 16000
+    },
+    "bowtie2_align_single": {
+      "threads": 8,
+      "mem_mb": 16000
+    },
+    "bowtie2_index": {
+      "threads": 12,
+      "mem_mb": 8000
+    },
+    "fastqc": {
+      "threads": 2,
+      "mem_mb": 8000
+    },
+    "frip_score": {
+      "mem_mb": 16000
+    },
+    "generate_report": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "heatmap": {
+      "threads": 4,
+      "mem_mb": 16000
+    },
+    "heatmap_gene": {
+      "threads": 4,
+      "mem_mb": 16000
+    },
+    "homer_annotatepeaks": {
+      "threads": 1,
+      "mem_mb": 16000
+    },
+    "igv_track_iclip": {
+      "mem_mb": 8000
+    },
+    "igv_track_single": {
+      "mem_mb": 8000
+    },
+    "macs3_callpeak": {
+      "threads": 4,
+      "mem_mb": 16000
+    },
+    "macs3_cutoff_plot": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "peak_centric_overlap": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "peak_te_overlap": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "peak_te_overlap_fig": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "qc_summary": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "regionplot": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "samtools_dedup": {
+      "threads": 12,
+      "mem_mb": 16000
+    },
+    "sexcheck": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "sexcheck_idxstats": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "trimming_Paired": {
+      "threads": 6,
+      "mem_mb": 8000
+    },
+    "trimming_Single": {
+      "threads": 6,
+      "mem_mb": 4000
+    },
+    "ucsc_track_iclip": {
+      "mem_mb": 8000
+    },
+    "ucsc_track_single": {
+      "mem_mb": 8000
+    },
+    "wig": {
+      "threads": 12,
+      "mem_mb": 8000
+    }
+  },
   "indir": "",
   "outdir": "",
   "logdir": "",

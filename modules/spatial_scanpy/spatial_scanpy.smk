@@ -90,7 +90,7 @@ if advanced.get("spatial_autocorrelation", True):
         input: h5ad=cluster_h5ad
         output: h5ad=advanced_h5ad
         log: logdir + "/spatial/spatial_scanpy_advanced.log"
-        threads: 4
+        threads: rule_res("spatial_scanpy_advanced").get("threads", 4)
         conda: "spatial_scanpy.yaml"
         container:
             sif("spatial_scanpy.yaml", "spatial_scanpy_advanced")

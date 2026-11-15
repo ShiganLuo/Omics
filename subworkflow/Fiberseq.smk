@@ -42,6 +42,9 @@ rule all:
 
 
 genome_config = {
+
+
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -99,6 +102,8 @@ use rule ft_fire from fibertools_prepare as Fiberseq_ft_fire
 aligned_dir = f"{outdir}/common/3_align_bam"
 
 pbmm2_config = {
+
+    "resources": config.get("resources", {}),
     "indir": prepare_outdir,
     "outdir": aligned_dir,
     "bam_suffix": ".fiberseq.fire.bam",
@@ -128,6 +133,7 @@ use rule pbmm2_align from pbmm2 as Fiberseq_pbmm2_align
 # Wired unconditionally over the alignment BAMs; node.py registers the
 # sexcheck outputs (subworkflow.md QC wiring).
 sexcheck_config = {
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -166,6 +172,7 @@ use rule sexcheck from sexcheck as Fiberseq_sexcheck
 # subworkflow.md QC wiring spec). Only stages with qc_summary parsers are
 # declared; unregistered stages stay best-effort scans.
 qc_summary_config = {
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -196,6 +203,8 @@ use rule qc_summary from qc_summary as Fiberseq_qc_summary
 extract_outdir = f"{outdir}/common/4_elements"
 
 fibertools_analysis_config = {
+
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -540,6 +549,8 @@ use rule fiberseq_track_run from fiberseq_track as Fiberseq_track_run
 variation_outdir = f"{outdir}/variation"
 
 deepvariant_config = {
+
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -567,6 +578,8 @@ logger.debug(f"Fiber-seq deepvariant config: {deepvariant_config}")
 use rule deepvariant_run from deepvariant as Fiberseq_deepvariant_run
 
 pbsv_config = {
+
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -593,6 +606,8 @@ use rule pbsv_discover from pbsv as Fiberseq_pbsv_discover
 use rule pbsv_call from pbsv as Fiberseq_pbsv_call
 
 hiphase_config = {
+
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -620,6 +635,7 @@ use rule hiphase_phase from hiphase as Fiberseq_hiphase_phase
 
 # Per-hap element extraction from the phased BAM
 fibertools_hap_config = {
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -653,6 +669,7 @@ use rule ft_extract_hap from fibertools_hap as Fiberseq_ft_extract_hap
 #   are emitted by diff_accessibility in go-kegg.r format)
 # ============================================================
 function_config = {
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -683,6 +700,7 @@ use rule function_gsea from function as Fiberseq_function_gsea
 # Step 7: LDSC partitioned heritability (interface)
 # ============================================================
 ldsc_config = {
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -851,6 +869,8 @@ if isinstance(_mei.get("te_buckets"), dict):
 sv_outdir = f"{variation_outdir}/germline_sv_analysis"
 
 sv_config = {
+
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -891,6 +911,7 @@ use rule sv_result from sv as Fiberseq_sv_result
 #   route above only knows human/mouse). Gated by Params.function.sv_go.
 svgokegg_params = config.get("Params", {}).get("function", {}).get("sv_go_kegg", {})
 sv_go_kegg_config = {
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),

@@ -1,4 +1,136 @@
 {
+  "resources": {
+      "type": "dict",
+      "required": false,
+      "properties": {
+        "default": {
+          "type": "dict",
+          "required": false,
+          "properties": {
+            "threads": {
+              "type": "int",
+              "required": false
+            },
+            "mem_mb": {
+              "type": "int",
+              "required": false
+            }
+          }
+        },
+        "minimap2_align": {
+          "type": "dict",
+          "required": false,
+          "properties": {
+            "threads": {
+              "type": "int",
+              "required": false
+            },
+            "mem_mb": {
+              "type": "int",
+              "required": false
+            }
+          }
+        },
+        "qc_summary": {
+          "type": "dict",
+          "required": false,
+          "properties": {
+            "threads": {
+              "type": "int",
+              "required": false
+            },
+            "mem_mb": {
+              "type": "int",
+              "required": false
+            }
+          }
+        },
+        "sexcheck": {
+          "type": "dict",
+          "required": false,
+          "properties": {
+            "threads": {
+              "type": "int",
+              "required": false
+            },
+            "mem_mb": {
+              "type": "int",
+              "required": false
+            }
+          }
+        },
+        "sexcheck_idxstats": {
+          "type": "dict",
+          "required": false,
+          "properties": {
+            "threads": {
+              "type": "int",
+              "required": false
+            },
+            "mem_mb": {
+              "type": "int",
+              "required": false
+            }
+          }
+        },
+        "stringtie_lr_assemble": {
+          "type": "dict",
+          "required": false,
+          "properties": {
+            "threads": {
+              "type": "int",
+              "required": false
+            },
+            "mem_mb": {
+              "type": "int",
+              "required": false
+            }
+          }
+        },
+        "stringtie_lr_merge": {
+          "type": "dict",
+          "required": false,
+          "properties": {
+            "threads": {
+              "type": "int",
+              "required": false
+            },
+            "mem_mb": {
+              "type": "int",
+              "required": false
+            }
+          }
+        },
+        "stringtie_lr_quant": {
+          "type": "dict",
+          "required": false,
+          "properties": {
+            "threads": {
+              "type": "int",
+              "required": false
+            },
+            "mem_mb": {
+              "type": "int",
+              "required": false
+            }
+          }
+        },
+        "stringtie_lr_result": {
+          "type": "dict",
+          "required": false,
+          "properties": {
+            "threads": {
+              "type": "int",
+              "required": false
+            },
+            "mem_mb": {
+              "type": "int",
+              "required": false
+            }
+          }
+        }
+      }
+    },
     "ROOT_DIR": {"type": "str", "path": "dir", "required": true, "nullable": false},
     "indir": {"type": "str", "path": "dir", "required": true, "nullable": false},
     "outdir": {"type": "str", "path": "dir", "required": true, "nullable": false},

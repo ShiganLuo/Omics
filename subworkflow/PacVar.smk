@@ -17,6 +17,9 @@ rule all:
 
 
 genome_config = {
+
+
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -30,6 +33,8 @@ module genome:
 use rule genome_index from genome as PacVar_genome_index
 
 pbmm2_config = {
+
+    "resources": config.get("resources", {}),
     "indir": indir,
     "outdir": f"{outdir}/common/2_sorted_bam",
     "logdir": logdir,
@@ -54,6 +59,11 @@ use rule pbmm2_align from pbmm2 as PacVar_pbmm2_align
 
 
 gatk_prepare_config = {
+
+
+
+
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -98,6 +108,7 @@ use rule MarkDuplicates from gatk_prepare as PacVar_MarkDuplicates
 # Wired unconditionally over the alignment BAMs; node.py registers the
 # sexcheck outputs (subworkflow.md QC wiring).
 sexcheck_config = {
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -137,6 +148,7 @@ use rule sexcheck from sexcheck as PacVar_sexcheck
 # subworkflow.md QC wiring spec). Only stages with qc_summary parsers are
 # declared; unregistered stages stay best-effort scans.
 qc_summary_config = {
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -160,6 +172,7 @@ use rule qc_summary from qc_summary as PacVar_qc_summary
 
 if snv_caller == "deepvariant":
     deepvariant_config = {
+        "resources": config.get("resources", {}),
         "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
@@ -190,6 +203,8 @@ elif snv_caller == "gatk4":
     pass
 
 pbsv_config = {
+
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -213,6 +228,8 @@ use rule pbsv_discover from pbsv as PacVar_pbsv_discover
 use rule pbsv_call from pbsv as PacVar_pbsv_call
 
 hiphase_snp_config = {
+
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -239,6 +256,8 @@ logger.debug(f"hiphase_snp_config: {hiphase_snp_config}")
 use rule hiphase_phase from hiphase_snp as PacVar_hiphase_snp
 
 hiphase_sv_config = {
+
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -266,6 +285,9 @@ use rule hiphase_phase from hiphase_sv as PacVar_hiphase_sv
 
 
 trgt_config = {
+
+
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -300,6 +322,8 @@ use rule trgt_plot from trgt as PacVar_trgt_plot
 centromere_outdir = f"{outdir}/repeat/centromere"
 
 telomere_config = {
+
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -327,6 +351,8 @@ use rule read_density_telomere from telomere as PacVar_read_density_telomere
 use rule tidk_scan from telomere as PacVar_tidk_scan
 
 centromere_config = {
+
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -474,6 +500,8 @@ if isinstance(_mei.get("te_buckets"), dict):
 sv_outdir = f"{outdir}/variation/germline_sv_analysis"
 
 sv_config = {
+
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -511,6 +539,7 @@ use rule sv_result from sv as PacVar_sv_result
 
 svgokegg_params = config.get("Params", {}).get("function", {}).get("sv_go_kegg", {})
 sv_go_kegg_config = {
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),

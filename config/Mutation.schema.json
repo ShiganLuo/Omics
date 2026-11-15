@@ -1076,6 +1076,482 @@
             "required": false
           }
         }
+      },
+      "ApplyBQSR": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "BaseRecalibrator": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "HaplotypeCaller": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "bam_flagstat": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "bwaMem2_alignment": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "bwaMem2_index": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "cnvkit_batch": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "cnvkit_paired": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "cnvkit_reference": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "derive_targets": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "fastqc": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "filterHaplotypeCallerVcf": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "filterMutectCalls": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "gatk_haplotypeCaller_result": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "germline_resource_strain": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "getFragmentSize": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "manta_config": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "manta_config_somatic": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "manta_run": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "manta_run_germline": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "manta_run_somatic": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "msi_call": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "msi_plot": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "msi_scan": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "plotFragmentSize": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "qc_summary": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "samtools_stats": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "sexcheck": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "sexcheck_idxstats": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "somaticMutect2": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "somatic_signature_nmf": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "somatic_signature_refit": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "somatic_spectrum": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "gatk_bqsr_result": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
       }
     }
   }

@@ -23,6 +23,194 @@
     "type": "list",
     "required": true
   },
+  "resources": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+      "default": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "KARRseq_star_align": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "seqprep_merge": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "seqprep_result": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "karrseq_chimeric_to_pairs": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "karrseq_remove_duplicates": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "karrseq_ligation": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "karrseq_result": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "sexcheck_idxstats": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "sexcheck": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "sexcheck_result": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "qc_summary": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "qc_summary_result": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      }
+    }
+  },
   "Procedure": {
     "SeqPrep": {
       "type": "null",

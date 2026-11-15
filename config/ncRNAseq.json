@@ -20,6 +20,122 @@
     "regionplot": "/data/16T/Database/env/regionplot/regionplot.sif",
     "sexcheck": "/data/16T/Database/env/fragment_size/fragment_size.sif"
   },
+  "resources": {
+    "default": {
+      "threads": 2,
+      "mem_mb": 8000
+    },
+    "MarkDuplicates": {
+      "threads": 8,
+      "mem_mb": 32000
+    },
+    "addReadsGroup": {
+      "threads": 8,
+      "mem_mb": 16000
+    },
+    "chromosome_sizes": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "demultiplex_trim_dedup": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "extract_smallrna": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "fastqc": {
+      "threads": 2,
+      "mem_mb": 8000
+    },
+    "featureCounts_paired_noMultiple": {
+      "threads": 10,
+      "mem_mb": 8000
+    },
+    "featureCounts_result": {
+      "mem_mb": 8000
+    },
+    "featureCounts_single_noMultiple": {
+      "threads": 10,
+      "mem_mb": 8000
+    },
+    "generate_report": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "igv_track_iclip": {
+      "mem_mb": 8000
+    },
+    "igv_track_single": {
+      "mem_mb": 8000
+    },
+    "qc_summary": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "regionplot": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "report_result": {
+      "mem_mb": 8000
+    },
+    "samtools_dedup": {
+      "threads": 12,
+      "mem_mb": 16000
+    },
+    "sexcheck": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "sexcheck_idxstats": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "star_3p_align": {
+      "threads": 12,
+      "mem_mb": 32000
+    },
+    "star_3pg_gene_specific": {
+      "threads": 2,
+      "mem_mb": 8000
+    },
+    "star_align": {
+      "threads": 12,
+      "mem_mb": 32000
+    },
+    "star_index": {
+      "threads": 12,
+      "mem_mb": 64000
+    },
+    "subsample_fastq": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "tailer_global": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "trimming_Paired": {
+      "threads": 6,
+      "mem_mb": 8000
+    },
+    "trimming_Single": {
+      "threads": 6,
+      "mem_mb": 4000
+    },
+    "ucsc_track_iclip": {
+      "mem_mb": 8000
+    },
+    "ucsc_track_single": {
+      "mem_mb": 8000
+    },
+    "wig": {
+      "threads": 12,
+      "mem_mb": 8000
+    }
+  },
   "Procedure": {
     "trim_galore": null,
     "hisat2": null,

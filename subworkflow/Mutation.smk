@@ -15,6 +15,8 @@ rule all:
         outfiles
 
 fastqc_raw_config = {
+
+    "resources": config.get("resources", {}),
         "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
@@ -35,6 +37,8 @@ logger.info(f"fastqc_raw_config: {fastqc_raw_config}")
 use rule fastqc from fastqc_raw as Mutation_fastqc_raw
 
 cutadapt_config = {
+
+    "resources": config.get("resources", {}),
         "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
@@ -58,6 +62,8 @@ logger.info(f"Cutadapt parameters: {cutadapt_config}")
 use rule trimming_Paired from cutadapt as Mutation_trimming_Paired
 
 fastqc_trimmed_config = {
+
+    "resources": config.get("resources", {}),
         "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
@@ -78,6 +84,8 @@ logger.info(f"fastqc_trimmed_config: {fastqc_trimmed_config}")
 use rule fastqc from fastqc_trimmed as Mutation_fastqc_trimmed
 
 bwa_mem2_confg = {
+
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -104,6 +112,8 @@ use rule bwaMem2_index from bwa_mem2 as Mutation_bwaMem2_index
 use rule bwaMem2_alignment from bwa_mem2 as Mutation_bwaMem2_alignment
 
 samtools_config = {
+
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -175,6 +185,7 @@ use rule collectHsMetrics from gatk_prepare as Mutation_collectHsMetrics
 # node.py registers the output and fills the reference entry accordingly.
 # _targets_bed is resolved above (before gatk_prepare_config).
 targets_config = {
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -194,6 +205,8 @@ logger.info(f"targets parameters: {targets_config}")
 use rule derive_targets from targets as Mutation_derive_targets
 
 gatk_somatic_config = {
+
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "tmp_dir": config.get("tmp_dir"),
@@ -234,6 +247,7 @@ msi_pairs = {
     if rec.get("experimental") and rec.get("control")
 }
 msi_config = {
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -263,6 +277,8 @@ use rule msi_plot from msi as Mutation_msi_plot
 use rule msi_result from msi as Mutation_msi_result
 
 gatk_germline_config = {
+
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -288,6 +304,7 @@ use rule * from  gatk_germline as Mutation_*
 # Wired unconditionally; node.py registers the spectrum output only when
 # tumor/normal design pairs exist (outfiles drive the DAG).
 somatic_spectrum_config = {
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -321,6 +338,7 @@ use rule spectrum_result from somatic_spectrum as Mutation_spectrum_result
 # Wired unconditionally; node.py controls whether it runs by registering
 # (or omitting) the fragment-size outputs (Params.fragment_size.enabled).
 fragment_size_config = {
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -348,6 +366,7 @@ use rule plotFragmentSize from fragment_size as Mutation_plotFragmentSize
 # Wired unconditionally; node.py controls whether it runs by registering
 # (or omitting) the Manta outputs (Params.manta.enabled).
 manta_config = {
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -379,6 +398,7 @@ use rule manta_run_germline from manta as Mutation_manta_run_germline
 # somaticSV output only when matched-normal design pairs exist (mirroring the
 # somatic SNV / Mutect2 pair judgment), which drives the DAG.
 manta_somatic_config = {
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -413,6 +433,7 @@ use rule manta_run_somatic from manta_somatic as Mutation_manta_run_somatic
 # additionally registers the reference panel output).
 control_samples = config.get("Params", {}).get("workflow", {}).get("control_samples", [])
 cnvkit_config = {
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -453,6 +474,7 @@ use rule cnvkit_paired from cnvkit as Mutation_cnvkit_paired
 # sample -> file maps are filled by node.py from the somatic/cnv outputs
 # above; hand-filled config entries win.
 burden_config = {
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -485,6 +507,7 @@ use rule burden_aggregate from burden as Mutation_burden_aggregate
 # Wired unconditionally over the markdup BAMs; node.py registers the
 # sexcheck outputs (subworkflow.md QC wiring).
 sexcheck_config = {
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -522,6 +545,7 @@ use rule sexcheck from sexcheck as Mutation_sexcheck
 # aggregation always runs for the delivered output set (subworkflow.md
 # 「QC 汇总与 report 模块规范」).
 qc_summary_config = {
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -568,6 +592,7 @@ use rule qc_summary from qc_summary as Mutation_qc_summary
 # Wired unconditionally; node.py registers the pptx only when
 # Params.report.enabled is set (downstream enabled pulls the upstream DAG).
 Mutation_report_config = {
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),

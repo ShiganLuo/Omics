@@ -178,7 +178,7 @@ rule censatbuild_mcg_pileup:
         bedgraph = outdir + f"/{genome_name}.mcpg_pileup.bedGraph",
     log:
         logdir + "/censatbuild_mcg_pileup.log"
-    threads: p.get("threads", 32)
+    threads: rule_res("censatbuild_mcg_pileup").get("threads", 32)
     resources:
         mem_mb = rule_res("censatbuild_mcg_pileup").get("mem_mb", 32000),
     conda:

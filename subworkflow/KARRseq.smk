@@ -15,19 +15,13 @@ Usage:
 Reference: https://github.com/ouyang-lab/KARR-seq.git
 """
 shell.prefix("set -x; set -e;")
-from snakemake.logging import logger
-import os
-
-
-def rule_res(name):
-    """Resolve per-rule resources from config['resources'] (common.smk
-    semantics; KARRseq.smk does not include common.smk, so this is the
-    local copy). Missing keys fall back through 'default'; no section at
-    all yields the caller's .get() defaults."""
-    res_cfg = config.get("resources") or {}
-    merged = dict(res_cfg.get("default") or {})
-    merged.update(res_cfg.get(name) or {})
-    return merged
+# common.smk builds RECEIPT_DIR from config["OUTDIR_ROOT"]; a top-level
+# subworkflow's raw.json carries only "outdir", so align the two BEFORE
+# including (module configs below receive OUTDIR_ROOT explicitly).
+config.setdefault("OUTDIR_ROOT", config.get("outdir", "output"))
+# Canonical shared helpers (rule_res, sif, _require, logger, os, ...).
+# Per modules.md: subworkflow uses `include: "../modules/common/common.smk"`.
+include: "../modules/common/common.smk"
 
 indir = config.get("indir", "data/fastq")
 outdir = config.get("outdir", "output")
@@ -57,6 +51,7 @@ if paired_samples:
         "outdir": f"{outdir}/merge",
         "logdir": logdir,
         "samples": paired_samples,
+        "resources": config.get("resources", {}),
         "Procedure": {
             "SeqPrep": config.get("Procedure", {}).get("SeqPrep") or "SeqPrep",
             "seqkit": config.get("Procedure", {}).get("seqkit") or "seqkit"
@@ -123,6 +118,7 @@ sexcheck_config = {
     "Params": {
         "sexcheck": config.get("Params", {}).get("sexcheck", {})
     },
+    "resources": config.get("resources", {}),
 }
 module sexcheck:
     snakefile: "../modules/sexcheck/sexcheck.smk"
@@ -151,6 +147,7 @@ qc_summary_config = {
     "qc_anchors": {
         "sexcheck": "sexcheck.tsv",
     },
+    "resources": config.get("resources", {}),
 }
 module qc_summary:
     snakefile: "../modules/qc_summary/qc_summary.smk"
@@ -235,7 +232,8 @@ karrseq_config = {
     },
     "Params": {
         "karrseq": config.get("Params", {}).get("karrseq", {})
-    }
+    },
+    "resources": config.get("resources", {}),
 }
 module karrseq:
     snakefile: "../modules/karrseq/karrseq.smk"

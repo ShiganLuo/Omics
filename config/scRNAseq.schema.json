@@ -248,6 +248,76 @@
             "required": false
           }
         }
+      },
+      "function_pseudobulk_go": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "function_pseudobulk_go_index": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "scanpy_pseudobulk": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "scanpy_reannotate": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "star_result": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
       }
     }
   },

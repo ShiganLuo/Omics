@@ -26,6 +26,7 @@ rule all:
 # Step 1: Raw FastQC
 # ==============================================================================
 fastqc_raw_config = {
+    "resources": config.get("resources", {}),
         "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
@@ -49,6 +50,7 @@ use rule fastqc from fastqc_raw as PeakCalling_fastqc_raw
 # Step 2: Trim Galore
 # ==============================================================================
 trim_galore_config = {
+    "resources": config.get("resources", {}),
         "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
@@ -75,6 +77,7 @@ use rule trimming_Single from trim_galore as PeakCalling_trimming_Single
 # Step 3: Trimmed FastQC
 # ==============================================================================
 fastqc_trimmed_config = {
+    "resources": config.get("resources", {}),
         "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
@@ -98,6 +101,7 @@ use rule fastqc from fastqc_trimmed as PeakCalling_fastqc_trimmed
 # Step 4: Bowtie2 Alignment
 # ==============================================================================
 bowtie2_config = {
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -128,6 +132,7 @@ use rule bowtie2_align_single from bowtie2 as PeakCalling_bowtie2_align_single
 # handle duplicate filtering via --keep-dup.
 # =============================================================================
 gatk_prepare_config = {
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -159,6 +164,7 @@ use rule MarkDuplicates from gatk_prepare as PeakCalling_MarkDuplicates
 # Uses the existing igv module's dedup + wig rules.
 # ==============================================================================
 igv_config = {
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -216,6 +222,8 @@ use rule regionplot from regionplot as PeakCalling_regionplot
 use rule regionplot_result from regionplot as PeakCalling_regionplot_result
 
 track_config = {
+
+    "resources": config.get("resources", {}),
         "indir": igv_config["outdir"],
         "outdir":  igv_config["outdir"],
         "logdir": f"{logdir}/group",
@@ -235,6 +243,7 @@ use rule * from track as PeakCalling_*
 # Step 7: MACS3 Peak Calling
 # =============================================================================
 macs3_config = {
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -267,6 +276,7 @@ use rule macs3_cutoff_plot from macs3 as PeakCalling_macs3_cutoff_plot
 # FRiP = reads_in_peaks / total_mapped_reads (target >= 0.2 for good data)
 # =============================================================================
 frip_score_config = {
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -292,6 +302,7 @@ use rule frip_score from frip_score as PeakCalling_frip_score
 # (plotHeatmap) for visualizing ChIP-seq enrichment patterns.
 # ==============================================================================
 deeptools_config = {
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -330,6 +341,7 @@ use rule heatmap_gene from deeptools as PeakCalling_heatmap_gene
 # and nearest gene information.
 # ==============================================================================
 homer_config = {
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -358,6 +370,7 @@ use rule homer_annotatepeaks from homer as PeakCalling_homer_annotatepeaks
 # IP vs Input samples across TE families.
 # ==============================================================================
 peak_te_overlap_config = {
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -391,6 +404,7 @@ use rule peak_te_overlap_fig from peak_te_overlap as PeakCalling_peak_te_overlap
 # Wired unconditionally over the alignment BAMs; node.py registers the
 # sexcheck outputs (subworkflow.md QC wiring).
 sexcheck_config = {
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -429,6 +443,7 @@ use rule sexcheck from sexcheck as PeakCalling_sexcheck
 # subworkflow.md QC wiring spec). Only stages with qc_summary parsers are
 # declared; unregistered stages stay best-effort scans.
 qc_summary_config = {
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -460,6 +475,7 @@ use rule qc_summary from qc_summary as PeakCalling_qc_summary
 # Creates comprehensive PPT report with QC metrics, peak statistics, and annotation.
 # ==============================================================================
 PeakCalling_report_config = {
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),

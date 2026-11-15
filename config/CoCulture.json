@@ -8,6 +8,71 @@
     "hisat2": "/home/luosg/Database/env/hisat2/hisat2.sif",
     "sexcheck": "/data/16T/Database/env/fragment_size/fragment_size.sif"
   },
+  "resources": {
+    "default": {
+      "threads": 2,
+      "mem_mb": 8000
+    },
+    "TEcount": {
+      "threads": 2,
+      "mem_mb": 32000
+    },
+    "TElocal": {
+      "threads": 2,
+      "mem_mb": 32000
+    },
+    "TEtranscripts_result": {
+      "mem_mb": 8000
+    },
+    "combine_TEcount": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "combine_TElocal": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "disambiguate_report": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "disambiguate_sort_rename": {
+      "threads": 4,
+      "mem_mb": 16000
+    },
+    "hisat2_align": {
+      "threads": 12,
+      "mem_mb": 32000
+    },
+    "hisat2_index": {
+      "threads": 8,
+      "mem_mb": 8000
+    },
+    "ngs_disambiguate": {
+      "threads": 4,
+      "mem_mb": 16000
+    },
+    "qc_summary": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "sexcheck": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "sexcheck_idxstats": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "soapnuke_filter_paired": {
+      "threads": 8,
+      "mem_mb": 8000
+    },
+    "soapnuke_filter_single": {
+      "threads": 8,
+      "mem_mb": 8000
+    }
+  },
   "indir": null,
   "raw_files": [],
   "logdir": null,

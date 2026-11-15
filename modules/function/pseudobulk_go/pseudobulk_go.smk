@@ -74,7 +74,7 @@ checkpoint function_pseudobulk_go_index:
         units = outdir + "/function/go_kegg/units.txt"
     log:
         logdir + "/function/pseudobulk_go_index.log"
-    threads: 1
+    threads: rule_res("function_pseudobulk_go_index").get("threads", 1)
     resources:
         mem_mb=rule_res("function_pseudobulk_go").get("mem_mb", 8000),
     run:

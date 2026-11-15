@@ -20,6 +20,7 @@ rule all:
     input:
         outfiles
 fastqc_raw_config = {
+    "resources": config.get("resources", {}),
         "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
@@ -43,6 +44,7 @@ use rule fastqc from fastqc_raw as ncRNAseq_fastqc_raw
 # ── 0. Demultiplex: 3' adapter removal + PCR duplicate removal ───────────────
 if aligner in ["stat_3pass", "star_3pass_gene"]:
     demultiplexer_config = {
+        "resources": config.get("resources", {}),
             "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
             "env": config.get("env", {}),
@@ -62,6 +64,8 @@ if aligner in ["stat_3pass", "star_3pass_gene"]:
     use rule demultiplex_trim_dedup from demultiplexer as ncRNAseq_demultiplex_trim_dedup
 
 trim_galore_config = {
+
+    "resources": config.get("resources", {}),
         "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
@@ -91,6 +95,7 @@ if not config.get("Params", {}).get("ncRNAseq", {}).get("subsample", False):
 else:
     logger.info("Subsampling is enabled. Proceeding with subsample step.")
     subsample_config = {
+        "resources": config.get("resources", {}),
             "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
             "env": config.get("env", {}),
@@ -118,6 +123,9 @@ else:
 
 
 fastqc_trimmed_config = {
+
+
+    "resources": config.get("resources", {}),
         "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
@@ -146,6 +154,7 @@ star_index_dir = config.get("genome", {}).get("references", {}).get(genome, {}).
 
 if aligner == "hisat2":
     hisat2_config = {
+        "resources": config.get("resources", {}),
         "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
@@ -177,6 +186,7 @@ if aligner == "hisat2":
         config: hisat2_config
     use rule hisat2_align_ncRNAseq_single from hisat2 as ncRNAseq_hisat2_align
     gatk_prepare_config = {
+        "resources": config.get("resources", {}),
         "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
@@ -205,6 +215,7 @@ elif aligner == "star":
     # ── STAR index for genome (auto-build when star_index_dir is null) ──
     if not star_index_dir:
         star_genome_idx_config = {
+            "resources": config.get("resources", {}),
             "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
             "env": config.get("env", {}),
@@ -230,6 +241,8 @@ elif aligner == "star":
         star_index_dir = f"{outdir}/genome/whole_genome/index"
 
     star_config = {
+
+        "resources": config.get("resources", {}),
         "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
@@ -267,6 +280,7 @@ elif aligner == "star":
         config: star_config
     use rule star_align from star as ncRNAseq_star_align
     gatk_prepare_config = {
+        "resources": config.get("resources", {}),
         "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
@@ -313,6 +327,7 @@ elif aligner == "star_3pass":
     # ── STAR index for genome (auto-build when star_index_dir is null) ──
     if not star_index_dir or not os.path.exists(star_index_dir):
         star_genome_idx_config = {
+            "resources": config.get("resources", {}),
             "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
             "env": config.get("env", {}),
@@ -339,6 +354,7 @@ elif aligner == "star_3pass":
 
     # ── Import genome module (extract smallRNA BED/FASTA) ──────────────
     genome_sm_config = {
+        "resources": config.get("resources", {}),
         "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
@@ -370,6 +386,7 @@ elif aligner == "star_3pass":
     smallrna_star_index_dir = config.get("genome", {}).get("references", {}).get(genome, {}).get("smallrna_star_index_dir")
     if not smallrna_star_index_dir or not os.path.exists(smallrna_star_index_dir):
         star_smallrna_idx_config = {
+            "resources": config.get("resources", {}),
             "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
             "env": config.get("env", {}),
@@ -397,6 +414,7 @@ elif aligner == "star_3pass":
 
     # ── Canonical three-pass alignment in one execution rule ─────────────
     star_3pass_config = {
+        "resources": config.get("resources", {}),
         "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
@@ -422,6 +440,7 @@ elif aligner == "star_3pass":
         config: star_3pass_config
     use rule star_3p_align from star_3pass as ncRNAseq_star3p_align
     tailer_config = {
+        "resources": config.get("resources", {}),
         "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
@@ -468,6 +487,7 @@ elif aligner == "star_3pass_gene":
     # ── STAR index for genome (auto-build when star_index_dir is null) ──
     if not star_index_dir or not os.path.exists(star_index_dir):
         star_genome_idx_config = {
+            "resources": config.get("resources", {}),
             "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
             "env": config.get("env", {}),
@@ -494,6 +514,7 @@ elif aligner == "star_3pass_gene":
 
     # ── Import genome module (extract smallRNA BED/FASTA) ──────────────
     genome_sm_config = {
+        "resources": config.get("resources", {}),
         "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
@@ -529,6 +550,7 @@ elif aligner == "star_3pass_gene":
         smallrna_star_index_dir = configured_smallrna_index
     elif not os.path.exists(smallrna_star_index_dir):
         star_smallrna_idx_config = {
+            "resources": config.get("resources", {}),
             "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
             "env": config.get("env", {}),
@@ -554,6 +576,7 @@ elif aligner == "star_3pass_gene":
     # paper's end-to-end adaptation made explicit.
     p3g = config.get("Params", {}).get("star_3pass_gene", {})
     star_3pass_gene_upstream_config = {
+        "resources": config.get("resources", {}),
         "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
@@ -583,6 +606,7 @@ elif aligner == "star_3pass_gene":
 
     # ── Strict post-final-BAM gene-specific local alignment ──────────────
     star_3pass_gene_config = {
+        "resources": config.get("resources", {}),
         "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
@@ -626,6 +650,8 @@ else:
     align_bam_dir = f"{outdir}/common/4_markdup_bam"
 
 igv_config = {
+
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -684,6 +710,8 @@ use rule regionplot from regionplot as ncRNAseq_regionplot
 use rule regionplot_result from regionplot as ncRNAseq_regionplot_result
 
 track_config = {
+
+    "resources": config.get("resources", {}),
         "indir": igv_config["outdir"],
         "outdir":  igv_config["outdir"],
         "logdir": os.path.join(logdir,"group"),
@@ -703,6 +731,10 @@ use rule * from track as ncRNAseq_*
 
 
 featureCounts_config = {
+
+
+
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -731,6 +763,7 @@ use rule featureCounts_result from featureCounts as ncRNAseq_featureCounts_resul
 
 # ── ncRNAseq report (all branches) ───────────────────────────────────────
 ncRNAseq_report_config = {
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -758,6 +791,7 @@ use rule generate_report from ncRNAseq_report as ncRNAseq_generate_report
 # Wired unconditionally over the alignment BAMs; node.py registers the
 # sexcheck outputs (subworkflow.md QC wiring).
 sexcheck_config = {
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -800,6 +834,7 @@ use rule sexcheck from sexcheck as ncRNAseq_sexcheck
 # subworkflow.md QC wiring spec). Only stages with qc_summary parsers are
 # declared; unregistered stages stay best-effort scans.
 qc_summary_config = {
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),

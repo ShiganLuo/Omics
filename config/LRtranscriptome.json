@@ -6,7 +6,43 @@
     "sexcheck": "/data/16T/Database/env/fragment_size/fragment_size.sif",
     "qc_summary": "/data/16T/Database/env/report/report.sif"
   },
-  "indir": "input",
+  "resources": {
+    "default": {
+      "threads": 2,
+      "mem_mb": 8000
+    },
+    "minimap2_align": {
+      "threads": 16,
+      "mem_mb": 32000
+    },
+    "qc_summary": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "sexcheck": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "sexcheck_idxstats": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "stringtie_lr_assemble": {
+      "threads": 8,
+      "mem_mb": 32000
+    },
+    "stringtie_lr_merge": {
+      "mem_mb": 16000
+    },
+    "stringtie_lr_quant": {
+      "threads": 4,
+      "mem_mb": 16000
+    },
+    "stringtie_lr_result": {
+      "mem_mb": 8000
+    }
+  },
+"indir": "input",
   "outdir": "output",
   "logdir": "logs",
   "samples": [],

@@ -47,7 +47,307 @@
     "type": "list",
     "required": true
   },
-  "aligner": {
+  "resources": {
+    "type": "dict",
+    "required": false,
+    "properties": {
+      "default": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "UmiTools_extract_paired": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "UmiTools_extract_single": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "chromosome_sizes": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "fastqc": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "hisat2_align": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "hisat2_index": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "iCLIP_bedtools": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "igv_track_iclip": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "pureclip": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "qc_summary": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "regionplot": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "sexcheck": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "sexcheck_idxstats": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "star_align": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "star_index": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "trimming_Paired": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "trimming_Single": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "ucsc_track_iclip": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "umi_tools_dedup_for_hisat2": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "umi_tools_dedup_for_star": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "threads": {
+            "type": "int",
+            "required": false
+          },
+          "mem_mb": {
+            "type": "int",
+            "required": false
+          }
+        }
+      }
+    }
+  },
+"aligner": {
     "type": "str",
     "required": true
   },

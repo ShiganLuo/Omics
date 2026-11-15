@@ -134,6 +134,30 @@
     "sv_mei": {
       "threads": 4,
       "mem_mb": 16000
+    },
+    "deepvariant_run": {
+      "threads": 8,
+      "mem_mb": 32000
+    },
+    "qc_summary": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "regionplot": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "sexcheck": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "sexcheck_idxstats": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "sv_go_kegg": {
+      "threads": 1,
+      "mem_mb": 8000
     }
   },
   "ROOT_DIR": ".",

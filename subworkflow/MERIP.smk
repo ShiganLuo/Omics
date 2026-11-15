@@ -17,6 +17,7 @@ rule all:
     input:
         outfiles
 trim_galore_config = {
+    "resources": config.get("resources", {}),
         "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
@@ -35,6 +36,8 @@ use rule trimming_Paired from trim_galore as MERIP_trimming_Paired
 use rule trimming_Single from trim_galore as MERIP_trimming_Single
 
 hisat2_config = {
+
+    "resources": config.get("resources", {}),
         "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
@@ -60,6 +63,8 @@ use rule hisat2_align from hisat2 as MERIP_hisat2_align
 use rule hisat2_index from hisat2 as MERIP_hisat2_index
 
 igv_config = {
+
+    "resources": config.get("resources", {}),
         "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
@@ -91,6 +96,7 @@ use rule wig from igv as MERIP_wig
 # Wired unconditionally over the alignment BAMs; node.py registers the
 # sexcheck outputs (subworkflow.md QC wiring).
 sexcheck_config = {
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -133,6 +139,7 @@ use rule sexcheck from sexcheck as MERIP_sexcheck
 # subworkflow.md QC wiring spec). Only stages with qc_summary parsers are
 # declared; unregistered stages stay best-effort scans.
 qc_summary_config = {
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -185,6 +192,8 @@ use rule regionplot from regionplot as MERIP_regionplot
 use rule regionplot_result from regionplot as MERIP_regionplot_result
 
 exomePeak_config = {
+
+    "resources": config.get("resources", {}),
         "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),

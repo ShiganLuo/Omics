@@ -34,6 +34,8 @@ rule all:
 wes_raw_dir = os.path.join(outdir, "common", "1_raw_data")
 
 fastqc_raw_config = {
+
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -51,6 +53,8 @@ module fastqc_raw:
 use rule fastqc from fastqc_raw as DR_WES_fastqc_raw
 
 wes_cutadapt_config = {
+
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -69,6 +73,8 @@ use rule trimming_Paired from wes_cutadapt as DR_WES_trimming_Paired
 use rule trimming_Single from wes_cutadapt as DR_WES_trimming_Single
 
 fastqc_trimmed_config = {
+
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -86,6 +92,8 @@ module fastqc_trimmed:
 use rule fastqc from fastqc_trimmed as DR_WES_fastqc_trimmed
 
 bwa_mem2_confg = {
+
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -110,6 +118,8 @@ use rule bwaMem2_index from bwa_mem2 as DR_WES_bwaMem2_index
 use rule bwaMem2_alignment from bwa_mem2 as DR_WES_bwaMem2_alignment
 
 samtools_config = {
+
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -166,6 +176,8 @@ use rule MarkDuplicates from gatk_prepare as DR_WES_MarkDuplicates
 use rule collectHsMetrics from gatk_prepare as DR_WES_collectHsMetrics
 
 targets_config = {
+
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -182,6 +194,8 @@ module targets:
 use rule derive_targets from targets as DR_WES_derive_targets
 
 gatk_somatic_config = {
+
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "tmp_dir": config.get("tmp_dir"),
@@ -214,6 +228,8 @@ use rule germline_resource_strain from gatk_somatic as DR_WES_germline_resource_
 use rule filterMutectCalls from gatk_somatic as DR_WES_filterMutectCalls
 
 gatk_germline_config = {
+
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),

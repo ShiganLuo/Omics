@@ -20,6 +20,7 @@ rule all:
 # Step 1: Align with minimap2
 # ============================================================
 minimap2_config = {
+    "resources": config.get("resources", {}),
     "indir": indir,
     "outdir": f"{outdir}/alignment",
     "logdir": logdir,
@@ -50,6 +51,7 @@ use rule minimap2_align from minimap2 as LRtranscriptome_minimap2_align
 # Wired unconditionally over the alignment BAMs; node.py registers the
 # sexcheck outputs (subworkflow.md QC wiring).
 sexcheck_config = {
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -90,6 +92,7 @@ use rule sexcheck from sexcheck as LRtranscriptome_sexcheck
 # subworkflow.md QC wiring spec). Only stages with qc_summary parsers are
 # declared; unregistered stages stay best-effort scans.
 qc_summary_config = {
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -115,6 +118,7 @@ use rule qc_summary from qc_summary as LRtranscriptome_qc_summary
 # Step 2-4: StringTie long-read pipeline (assemble + merge + quant)
 # ============================================================
 longread_config = {
+    "resources": config.get("resources", {}),
     "indir": minimap2_config["outdir"],
     "upstream_indir": minimap2_config["outdir"],
     "outdir": f"{outdir}/stringtie",
@@ -141,6 +145,7 @@ use rule stringtie_lr_result from longread as LRtranscriptome_stringtie_result
 
 if not skip_quant:
     longread_quant_config = {
+        "resources": config.get("resources", {}),
         "indir": minimap2_config["outdir"],
         "upstream_indir": minimap2_config["outdir"],
         "outdir": f"{outdir}/quantification",

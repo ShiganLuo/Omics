@@ -149,7 +149,7 @@ rule fumitools_dedup:
         fumi_tools = config.get("Procedure", {}).get("fumitools") or "fumi_tools",
         memory = config.get("Params", {}).get("fumitools", {}).get("memory", "3G"),
         start_only = config.get("Params", {}).get("fumitools", {}).get("start_only", False),
-    threads: config.get("Params", {}).get("fumitools", {}).get("threads", 4)
+    threads: rule_res("fumitools_dedup").get("threads", 4)
     resources:
         mem_mb = rule_res("fumitools_dedup").get("mem_mb", 16000),
     conda:

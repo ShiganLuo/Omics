@@ -26,6 +26,7 @@ rule all:
 # Step 1: Raw FastQC
 # =============================================================================
 fastqc_raw_config = {
+    "resources": config.get("resources", {}),
         "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
@@ -49,6 +50,7 @@ use rule fastqc from fastqc_raw as RIPseq_fastqc_raw
 # Step 2: Trim Galore
 # =============================================================================
 trim_galore_config = {
+    "resources": config.get("resources", {}),
         "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
@@ -75,6 +77,7 @@ use rule trimming_Single from trim_galore as RIPseq_trimming_Single
 # Step 3: Trimmed FastQC
 # =============================================================================
 fastqc_trimmed_config = {
+    "resources": config.get("resources", {}),
         "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
@@ -98,6 +101,7 @@ use rule fastqc from fastqc_trimmed as RIPseq_fastqc_trimmed
 # Step 4: HISAT2 Alignment (splice-aware, RNA targets)
 # =============================================================================
 hisat2_config = {
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -133,6 +137,7 @@ use rule hisat2_align from hisat2 as RIPseq_hisat2_align
 # handle duplicate filtering via --keep-dup.
 # =============================================================================
 gatk_prepare_config = {
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -164,6 +169,7 @@ use rule MarkDuplicates from gatk_prepare as RIPseq_MarkDuplicates
 # Uses the existing igv module's dedup + wig rules.
 # =============================================================================
 igv_config = {
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -220,6 +226,8 @@ use rule regionplot from regionplot as RIPseq_regionplot
 use rule regionplot_result from regionplot as RIPseq_regionplot_result
 
 track_config = {
+
+    "resources": config.get("resources", {}),
         "indir": igv_config["outdir"],
         "outdir":  igv_config["outdir"],
         "logdir": f"{logdir}/group",
@@ -239,6 +247,7 @@ use rule * from track as RIPseq_*
 # Step 7: MACS3 Peak Calling
 # =============================================================================
 macs3_config = {
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -270,6 +279,7 @@ use rule macs3_cutoff_plot from macs3 as RIPseq_macs3_cutoff_plot
 # Key enrichment QC metric: FRiP = reads_in_peaks / total_mapped_reads
 # =============================================================================
 frip_score_config = {
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -295,6 +305,7 @@ use rule frip_score from frip_score as RIPseq_frip_score
 # (plotHeatmap) for visualizing RIP-seq enrichment patterns.
 # =============================================================================
 deeptools_config = {
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -333,6 +344,7 @@ use rule heatmap_gene from deeptools as RIPseq_heatmap_gene
 # and nearest gene information.
 # =============================================================================
 homer_config = {
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -361,6 +373,7 @@ use rule homer_annotatepeaks from homer as RIPseq_homer_annotatepeaks
 # IP vs Input samples across TE families.
 # =============================================================================
 peak_te_overlap_config = {
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -394,6 +407,7 @@ use rule peak_te_overlap_fig from peak_te_overlap as RIPseq_peak_te_overlap_fig
 # Wired unconditionally over the alignment BAMs; node.py registers the
 # sexcheck outputs (subworkflow.md QC wiring).
 sexcheck_config = {
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -436,6 +450,7 @@ use rule sexcheck from sexcheck as RIPseq_sexcheck
 # subworkflow.md QC wiring spec). Only stages with qc_summary parsers are
 # declared; unregistered stages stay best-effort scans.
 qc_summary_config = {
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -467,6 +482,7 @@ use rule qc_summary from qc_summary as RIPseq_qc_summary
 # and annotation.
 # =============================================================================
 RIPseq_report_config = {
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),

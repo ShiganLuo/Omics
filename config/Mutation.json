@@ -302,6 +302,70 @@
     "collectHsMetrics": {
       "threads": 4,
       "mem_mb": 16000
+    },
+    "bam_flagstat": {
+      "mem_mb": 8000
+    },
+    "gatk_haplotypeCaller_result": {
+      "mem_mb": 8000
+    },
+    "generate_report": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "getFragmentSize": {
+      "mem_mb": 8000
+    },
+    "manta_config_somatic": {
+      "mem_mb": 8000
+    },
+    "manta_run_germline": {
+      "mem_mb": 32000
+    },
+    "manta_run_somatic": {
+      "mem_mb": 32000
+    },
+    "msi_call": {
+      "threads": 4,
+      "mem_mb": 16000
+    },
+    "msi_plot": {
+      "threads": 1,
+      "mem_mb": 4000
+    },
+    "msi_scan": {
+      "threads": 1,
+      "mem_mb": 16000
+    },
+    "plotFragmentSize": {
+      "mem_mb": 8000
+    },
+    "qc_summary": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "sexcheck": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "sexcheck_idxstats": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "somatic_signature_nmf": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "somatic_signature_refit": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "somatic_spectrum": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "gatk_bqsr_result": {
+      "mem_mb": 8000
     }
   }
 }

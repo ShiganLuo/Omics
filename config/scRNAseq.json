@@ -78,6 +78,12 @@
     "star_index": {
       "threads": 12,
       "mem_mb": 64000
+    },
+    "function_pseudobulk_go_index": {
+      "threads": 1
+    },
+    "star_result": {
+      "mem_mb": 8000
     }
   },
   "genome": {

@@ -648,6 +648,7 @@ use rule generate_report from RNAseq_report as RNAseq_generate_report
 # sample/sample->BAM dict values reference the upstream config outdir
 # (path knowledge written once). node.py registers the sexcheck output.
 sexcheck_config = {
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -705,6 +706,7 @@ use rule sexcheck from sexcheck as RNAseq_sexcheck
 # subworkflow.md QC wiring spec). Only stages with qc_summary parsers are
 # declared; unregistered stages stay best-effort scans.
 qc_summary_config = {
+    "resources": config.get("resources", {}),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),

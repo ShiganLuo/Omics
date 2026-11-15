@@ -212,6 +212,42 @@
     "sv_mei": {
       "threads": 4,
       "mem_mb": 16000
+    },
+    "fiberbrowser": {
+      "threads": 1,
+      "mem_mb": 4000
+    },
+    "fiberseq_mods_split": {
+      "threads": 1,
+      "mem_mb": 4000
+    },
+    "fiberseq_mods_top_loci": {
+      "threads": 1,
+      "mem_mb": 4000
+    },
+    "qc_summary": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "regionplot": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "sexcheck": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "sexcheck_idxstats": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "sigtest_run": {
+      "threads": 1,
+      "mem_mb": 4000
+    },
+    "sv_go_kegg": {
+      "threads": 1,
+      "mem_mb": 8000
     }
   },
   "Procedure": {

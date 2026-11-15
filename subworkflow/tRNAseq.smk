@@ -15,6 +15,8 @@ rule all:
         outfiles
 
 fumitools_config = {
+
+    "resources": config.get("resources", {}),
     "indir": indir,
     "outdir": f"{outdir}/fastq/umi_fastq",
     "logdir": logdir,
@@ -38,6 +40,8 @@ use rule fumitools_copy_umi from fumitools as tRNAseq_fumitools_copy_umi
 use rule fumitools_copy_umi_single from fumitools as tRNAseq_fumitools_copy_umi_single
 
 cutadapt_config = {
+
+    "resources": config.get("resources", {}),
             "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
             "env": config.get("env", {}),
@@ -58,6 +62,7 @@ use rule trimming_Single from cutadapt as RNAseq_trimming_Single
 
 # Module config dict
 mimseq_config = {
+    "resources": config.get("resources", {}),
     "indir": cutadapt_config["outdir"],
     "outdir": f"{outdir}/mimseq",
     "logdir": logdir,

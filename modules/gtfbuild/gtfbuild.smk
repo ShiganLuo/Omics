@@ -36,7 +36,7 @@ rule gtfbuild_liftoff:
         gtf = GTF_OUT,
     log:
         logdir + "/gtfbuild_liftoff.log"
-    threads: p.get("threads", 32)
+    threads: rule_res("gtfbuild_liftoff").get("threads", 32)
     resources:
         mem_mb = rule_res("gtfbuild_liftoff").get("mem_mb", 32000),
     conda:
@@ -167,7 +167,7 @@ rule gtfbuild_wga:
         paf = PAF_OUT,
     log:
         logdir + "/gtfbuild_wga.log"
-    threads: p.get("threads", 32)
+    threads: rule_res("gtfbuild_wga").get("threads", 32)
     resources:
         mem_mb = rule_res("gtfbuild_wga").get("mem_mb", 64000),
     conda:

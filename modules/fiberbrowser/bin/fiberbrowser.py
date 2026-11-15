@@ -665,6 +665,13 @@ def plot_locus(locus, samples, out_base, image_formats=None,
         _key, sname, axf, ridx, rec = best
         if zoom_center is not None:
             zmid = min(max(int(zoom_center), start), end)
+            if not any(a <= zmid < b for _lbl, fl in samples for rec in fl
+                       for a, b in rec["segs"]):
+                logger.warning(
+                    f"--zoom-center {zoom_center} has no read coverage in any "
+                    f"sample (deletion/assembly gap?); the zoom row will be "
+                    f"empty — consider omitting --zoom-center for automatic "
+                    f"FIRE-based selection")
         else:
             fires_in = [(a, b, q) for a, b, q in rec["fire_q"]
                         if a < end and b > start]

@@ -1,230 +1,4 @@
 {
-  "outfiles": [],
-  "ROOT_DIR": "",
-  "tmp_dir": null,
-  "resources": {
-    "default": {
-      "threads": 2,
-      "mem_mb": 8000
-    },
-    "BaseRecalibrator": {
-      "threads": 8
-    },
-    "HaplotypeCaller": {
-      "threads": 10
-    },
-    "MarkDuplicates": {
-      "threads": 8,
-      "mem_mb": 32000
-    },
-    "SplitNCigarReads": {
-      "threads": 8,
-      "mem_mb": 16000
-    },
-    "VarientCalling": {
-      "threads": 8,
-      "mem_mb": 16000
-    },
-    "addReadsGroup": {
-      "threads": 8,
-      "mem_mb": 16000
-    },
-    "bamCoverage": {
-      "threads": 8
-    },
-    "bigwig_ratio": {
-      "threads": 4,
-      "mem_mb": 8000
-    },
-    "bigwig_ratio_result": {
-      "threads": 1,
-      "mem_mb": 8000
-    },
-    "bowtie2_align_paired": {
-      "threads": 8,
-      "mem_mb": 16000
-    },
-    "bowtie2_align_single": {
-      "threads": 8,
-      "mem_mb": 16000
-    },
-    "bowtie2_index": {
-      "threads": 12,
-      "mem_mb": 8000
-    },
-    "collectHsMetrics": {
-      "threads": 4
-    },
-    "fastqc": {
-      "threads": 2,
-      "mem_mb": 8000
-    },
-    "filterHaplotypeCallerVcf": {
-      "threads": 10
-    },
-    "filterMutectCalls": {
-      "threads": 2
-    },
-    "frip_score": {
-      "mem_mb": 16000
-    },
-    "gatk_index": {
-      "threads": 4,
-      "mem_mb": 8000
-    },
-    "gatk_population_haplotype_caller": {
-      "threads": 8
-    },
-    "gatk_population_joint_genotyping": {
-      "threads": 8
-    },
-    "generate_report": {
-      "threads": 1,
-      "mem_mb": 8000
-    },
-    "germline_resource_strain": {
-      "threads": 2
-    },
-    "heatmap": {
-      "threads": 4,
-      "mem_mb": 16000
-    },
-    "heatmap_gene": {
-      "threads": 4,
-      "mem_mb": 16000
-    },
-    "homer_annotatepeaks": {
-      "threads": 1,
-      "mem_mb": 16000
-    },
-    "igv_track_iclip": {
-      "mem_mb": 8000
-    },
-    "igv_track_single": {
-      "mem_mb": 8000
-    },
-    "macs3_callpeak": {
-      "threads": 4,
-      "mem_mb": 16000
-    },
-    "macs3_cutoff_plot": {
-      "threads": 1,
-      "mem_mb": 8000
-    },
-    "peak_centric_overlap": {
-      "threads": 1,
-      "mem_mb": 8000
-    },
-    "peak_te_overlap": {
-      "threads": 1,
-      "mem_mb": 8000
-    },
-    "peak_te_overlap_fig": {
-      "threads": 1,
-      "mem_mb": 8000
-    },
-    "qc_summary": {
-      "threads": 1,
-      "mem_mb": 8000
-    },
-    "regionplot": {
-      "threads": 1,
-      "mem_mb": 8000
-    },
-    "samtools_dedup": {
-      "threads": 12,
-      "mem_mb": 16000
-    },
-    "sexcheck": {
-      "threads": 1,
-      "mem_mb": 8000
-    },
-    "sexcheck_idxstats": {
-      "threads": 1,
-      "mem_mb": 8000
-    },
-    "somaticMutect2": {
-      "threads": 10
-    },
-    "trimming_Paired": {
-      "threads": 6,
-      "mem_mb": 8000
-    },
-    "trimming_Single": {
-      "threads": 6,
-      "mem_mb": 4000
-    },
-    "ucsc_track_iclip": {
-      "mem_mb": 8000
-    },
-    "ucsc_track_single": {
-      "mem_mb": 8000
-    },
-    "vcf_filter": {
-      "threads": 8,
-      "mem_mb": 8000
-    },
-    "wig": {
-      "threads": 12,
-      "mem_mb": 8000
-    }
-  },
-  "env": {
-    "env_dir": "/home/luosg/Database/env",
-    "PeakCalling_report": "/data/16T/Database/env/report/report.sif",
-    "bowtie2": "/home/luosg/Database/env/bowtie2/bowtie2.sif",
-    "fastqc": "/home/luosg/Database/env/fastqc/fastqc.sif",
-    "frip_score": "/home/luosg/Database/env/frip_score/frip_score.sif",
-    "gatk": "/home/luosg/Database/env/gatk/gatk4.sif",
-    "homer": "/home/luosg/Database/env/homer/homer.sif",
-    "igv": "/home/luosg/Database/env/igv/hisat2.sif",
-    "macs3": "/home/luosg/Database/env/macs3/macs3.sif",
-    "track": "/home/luosg/Database/env/track/track.sif",
-    "trim-galore": "/home/luosg/Database/env/trim-galore/trim-galore.sif",
-    "deeptool": "/data/pub/zhousha/Database/env/deeptools/deeptools.sif",
-    "peak_te_overlap": "/home/luosg/Database/env/peak_te_overlap/peak_te_overlap.sif",
-    "regionplot": "/data/16T/Database/env/regionplot/regionplot.sif",
-    "sexcheck": "/data/16T/Database/env/fragment_size/fragment_size.sif"
-  },
-  "Procedure": {
-    "trim_galore": null,
-    "bowtie2-build": null,
-    "bowtie2": null,
-    "samtools": null,
-    "gatk": null,
-    "bamCoverage": null,
-    "macs3": null,
-    "bedtools": null,
-    "annotatePeaks": null,
-    "computeMatrix": null,
-    "plotHeatmap": null
-  },
-  "genome": {
-    "default": "GRCm39",
-    "references": {
-      "GRCm39": {
-        "fasta": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
-        "gtf": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf",
-        "bowtie2_index_prefix": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/bowtie2/genome",
-        "te_gtf": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.gtf",
-        "tss_bed": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/tss_regions.bed"
-      },
-      "GRCh38": {
-        "fasta": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa",
-        "gtf": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/gencode.v49.primary_assembly.basic.annotation.gtf",
-        "bowtie2_index_prefix": null,
-        "te_gtf": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/GRCh38_GENCODE_rmsk_TE.gtf",
-        "tss_bed": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/tss_regions.bed"
-      },
-      "Mmul_10": {
-        "fasta": "/home/luosg/Database/Reference/mulatta/ENSEMBL/Mmul_10/Macaca_mulatta.Mmul_10.dna.toplevel.fa",
-        "gtf": "/home/luosg/Database/Reference/mulatta/ENSEMBL/Mmul_10/Macaca_mulatta.Mmul_10.116.gtf",
-        "bowtie2_index_prefix": null,
-        "te_gtf": "/home/luosg/Database/Reference/mulatta/ENSEMBL/Mmul_10/rheMac10_rmsk_TE.gtf",
-        "tss_bed": "/home/luosg/Database/Reference/mulatta/ENSEMBL/Mmul_10/tss_regions.bed"
-      }
-    }
-  },
   "Params": {
     "workflow": {
       "indir": "",
@@ -394,5 +168,237 @@
       "ratio_xy_threshold": null,
       "y_min_frac": null
     }
-  }
+  },
+  "genome": {
+    "default": "GRCm39",
+    "references": {
+      "GRCm39": {
+        "fasta": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
+        "gtf": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf",
+        "bowtie2_index_prefix": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/bowtie2/genome",
+        "te_gtf": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.gtf",
+        "tss_bed": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/tss_regions.bed",
+        "fai_index": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa.fai",
+        "dict_index": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.dict"
+      },
+      "GRCh38": {
+        "fasta": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa",
+        "gtf": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/gencode.v49.primary_assembly.basic.annotation.gtf",
+        "bowtie2_index_prefix": null,
+        "te_gtf": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/GRCh38_GENCODE_rmsk_TE.gtf",
+        "tss_bed": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/tss_regions.bed",
+        "fai_index": "/data/16T/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa.fai",
+        "dict_index": "/data/16T/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.dict"
+      },
+      "Mmul_10": {
+        "fasta": "/home/luosg/Database/Reference/mulatta/ENSEMBL/Mmul_10/Macaca_mulatta.Mmul_10.dna.toplevel.fa",
+        "gtf": "/home/luosg/Database/Reference/mulatta/ENSEMBL/Mmul_10/Macaca_mulatta.Mmul_10.116.gtf",
+        "bowtie2_index_prefix": null,
+        "te_gtf": "/home/luosg/Database/Reference/mulatta/ENSEMBL/Mmul_10/rheMac10_rmsk_TE.gtf",
+        "tss_bed": "/home/luosg/Database/Reference/mulatta/ENSEMBL/Mmul_10/tss_regions.bed",
+        "fai_index": "/data/16T/Database/Reference/mulatta/ENSEMBL/Mmul_10/Macaca_mulatta.Mmul_10.dna.toplevel.fa.fai",
+        "dict_index": "/data/16T/Database/Reference/mulatta/ENSEMBL/Mmul_10/Macaca_mulatta.Mmul_10.dna.toplevel.dict"
+      }
+    }
+  },
+  "env": {
+    "env_dir": "/home/luosg/Database/env",
+    "PeakCalling_report": "/data/16T/Database/env/report/report.sif",
+    "bowtie2": "/home/luosg/Database/env/bowtie2/bowtie2.sif",
+    "fastqc": "/home/luosg/Database/env/fastqc/fastqc.sif",
+    "frip_score": "/home/luosg/Database/env/frip_score/frip_score.sif",
+    "gatk": "/home/luosg/Database/env/gatk/gatk4.sif",
+    "homer": "/home/luosg/Database/env/homer/homer.sif",
+    "igv": "/home/luosg/Database/env/igv/hisat2.sif",
+    "macs3": "/home/luosg/Database/env/macs3/macs3.sif",
+    "track": "/home/luosg/Database/env/track/track.sif",
+    "trim-galore": "/home/luosg/Database/env/trim-galore/trim-galore.sif",
+    "deeptool": "/data/pub/zhousha/Database/env/deeptools/deeptools.sif",
+    "peak_te_overlap": "/home/luosg/Database/env/peak_te_overlap/peak_te_overlap.sif",
+    "regionplot": "/data/16T/Database/env/regionplot/regionplot.sif",
+    "sexcheck": "/data/16T/Database/env/fragment_size/fragment_size.sif"
+  },
+  "resources": {
+    "default": {
+      "threads": 2,
+      "mem_mb": 8000
+    },
+    "BaseRecalibrator": {
+      "threads": 8
+    },
+    "HaplotypeCaller": {
+      "threads": 10
+    },
+    "MarkDuplicates": {
+      "threads": 8,
+      "mem_mb": 32000
+    },
+    "SplitNCigarReads": {
+      "threads": 8,
+      "mem_mb": 16000
+    },
+    "VarientCalling": {
+      "threads": 8,
+      "mem_mb": 16000
+    },
+    "addReadsGroup": {
+      "threads": 8,
+      "mem_mb": 16000
+    },
+    "bamCoverage": {
+      "threads": 8
+    },
+    "bigwig_ratio": {
+      "threads": 4,
+      "mem_mb": 8000
+    },
+    "bigwig_ratio_result": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "bowtie2_align_paired": {
+      "threads": 8,
+      "mem_mb": 16000
+    },
+    "bowtie2_align_single": {
+      "threads": 8,
+      "mem_mb": 16000
+    },
+    "bowtie2_index": {
+      "threads": 12,
+      "mem_mb": 8000
+    },
+    "collectHsMetrics": {
+      "threads": 4
+    },
+    "fastqc": {
+      "threads": 2,
+      "mem_mb": 8000
+    },
+    "filterHaplotypeCallerVcf": {
+      "threads": 10
+    },
+    "filterMutectCalls": {
+      "threads": 2
+    },
+    "frip_score": {
+      "mem_mb": 16000
+    },
+    "gatk_index": {
+      "threads": 4,
+      "mem_mb": 8000
+    },
+    "gatk_population_haplotype_caller": {
+      "threads": 8
+    },
+    "gatk_population_joint_genotyping": {
+      "threads": 8
+    },
+    "generate_report": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "germline_resource_strain": {
+      "threads": 2
+    },
+    "heatmap": {
+      "threads": 4,
+      "mem_mb": 16000
+    },
+    "heatmap_gene": {
+      "threads": 4,
+      "mem_mb": 16000
+    },
+    "homer_annotatepeaks": {
+      "threads": 1,
+      "mem_mb": 16000
+    },
+    "igv_track_iclip": {
+      "mem_mb": 8000
+    },
+    "igv_track_single": {
+      "mem_mb": 8000
+    },
+    "macs3_callpeak": {
+      "threads": 4,
+      "mem_mb": 16000
+    },
+    "macs3_cutoff_plot": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "peak_centric_overlap": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "peak_te_overlap": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "peak_te_overlap_fig": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "qc_summary": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "regionplot": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "samtools_dedup": {
+      "threads": 12,
+      "mem_mb": 16000
+    },
+    "sexcheck": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "sexcheck_idxstats": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "somaticMutect2": {
+      "threads": 10
+    },
+    "trimming_Paired": {
+      "threads": 6,
+      "mem_mb": 8000
+    },
+    "trimming_Single": {
+      "threads": 6,
+      "mem_mb": 4000
+    },
+    "ucsc_track_iclip": {
+      "mem_mb": 8000
+    },
+    "ucsc_track_single": {
+      "mem_mb": 8000
+    },
+    "vcf_filter": {
+      "threads": 8,
+      "mem_mb": 8000
+    },
+    "wig": {
+      "threads": 12,
+      "mem_mb": 8000
+    }
+  },
+  "Procedure": {
+    "trim_galore": null,
+    "bowtie2-build": null,
+    "bowtie2": null,
+    "samtools": null,
+    "gatk": null,
+    "bamCoverage": null,
+    "macs3": null,
+    "bedtools": null,
+    "annotatePeaks": null,
+    "computeMatrix": null,
+    "plotHeatmap": null
+  },
+  "outfiles": [],
+  "ROOT_DIR": "",
+  "tmp_dir": null
 }

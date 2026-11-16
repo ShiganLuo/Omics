@@ -1,7 +1,71 @@
 {
-  "outfiles": [],
-  "ROOT_DIR": null,
-  "tmp_dir": null,
+  "Params": {
+    "workflow": {
+      "indir": "input",
+      "outdir": "output",
+      "logdir": "logs",
+      "raw_files": [],
+      "samples": [],
+      "sample_bams": {},
+      "populations": {}
+    },
+    "analysis": {
+      "pca": true,
+      "structure": true,
+      "diversity": true,
+      "fst": true,
+      "history": false,
+      "ld_decay": false,
+      "gwas": false,
+      "admixture_k": [
+        2,
+        3,
+        4,
+        5,
+        6
+      ]
+    },
+    "gatk": {
+      "javaOptions": "-Xmx30g",
+      "tmp-dir": null
+    },
+    "filtering": {}
+  },
+  "genome": {
+    "default": "GRCm39",
+    "references": {
+      "GRCm39": {
+        "fasta": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
+        "fai_index": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa.fai",
+        "dict_index": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.dict",
+        "interval": null,
+        "sex_chroms": [
+          "chrX",
+          "chrY"
+        ]
+      },
+      "GRCh38": {
+        "fasta": "/data/16T/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa",
+        "fai_index": "/data/16T/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa.fai",
+        "dict_index": "/data/16T/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.dict",
+        "interval": null,
+        "sex_chroms": [
+          "chrX",
+          "chrY"
+        ]
+      }
+    }
+  },
+  "env": {
+    "env_dir": "/data/16T/Database/env",
+    "gatk": "/data/16T/Database/env/gatk/gatk4.sif",
+    "bcftools": "/data/16T/Database/env/bcftools/bcftools.sif",
+    "plink2_population": "/data/16T/Database/env/plink2/plink2_population.sif",
+    "vcftools_population": "/data/16T/Database/env/vcftools/vcftools_population.sif",
+    "admixture_population": "/data/16T/Database/env/admixture/admixture_population.sif",
+    "easySFS_population": "/data/16T/Database/env/easySFS/easySFS_population.sif",
+    "PopLDdecay_population": "/data/16T/Database/env/PopLDdecay/PopLDdecay_population.sif"
+  },
   "resources": {
     "default": {
       "threads": 2,
@@ -80,16 +144,6 @@
       "mem_mb": 8000
     }
   },
-  "env": {
-    "env_dir": "/data/16T/Database/env",
-    "gatk": "/data/16T/Database/env/gatk/gatk4.sif",
-    "bcftools": "/data/16T/Database/env/bcftools/bcftools.sif",
-    "plink2_population": "/data/16T/Database/env/plink2/plink2_population.sif",
-    "vcftools_population": "/data/16T/Database/env/vcftools/vcftools_population.sif",
-    "admixture_population": "/data/16T/Database/env/admixture/admixture_population.sif",
-    "easySFS_population": "/data/16T/Database/env/easySFS/easySFS_population.sif",
-    "PopLDdecay_population": "/data/16T/Database/env/PopLDdecay/PopLDdecay_population.sif"
-  },
   "Procedure": {
     "gatk": null,
     "bcftools": null,
@@ -99,61 +153,7 @@
     "easySFS": null,
     "PopLDdecay": null
   },
-  "genome": {
-    "default": "GRCm39",
-    "references": {
-      "GRCm39": {
-        "fasta": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
-        "fai_index": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa.fai",
-        "dict_index": null,
-        "interval": null,
-        "sex_chroms": [
-          "chrX",
-          "chrY"
-        ]
-      },
-      "GRCh38": {
-        "fasta": "/data/16T/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa",
-        "fai_index": "/data/16T/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa.fai",
-        "dict_index": null,
-        "interval": null,
-        "sex_chroms": [
-          "chrX",
-          "chrY"
-        ]
-      }
-    }
-  },
-  "Params": {
-    "workflow": {
-      "indir": "input",
-      "outdir": "output",
-      "logdir": "logs",
-      "raw_files": [],
-      "samples": [],
-      "sample_bams": {},
-      "populations": {}
-    },
-    "analysis": {
-      "pca": true,
-      "structure": true,
-      "diversity": true,
-      "fst": true,
-      "history": false,
-      "ld_decay": false,
-      "gwas": false,
-      "admixture_k": [
-        2,
-        3,
-        4,
-        5,
-        6
-      ]
-    },
-    "gatk": {
-      "javaOptions": "-Xmx30g",
-      "tmp-dir": null
-    },
-    "filtering": {}
-  }
+  "outfiles": [],
+  "ROOT_DIR": null,
+  "tmp_dir": null
 }

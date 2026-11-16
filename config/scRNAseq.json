@@ -1,173 +1,4 @@
 {
-  "ROOT_DIR": null,
-  "tmp_dir": null,
-  "outfiles": [],
-  "env": {
-    "env_dir": "/home/luosg/Database/env",
-    "star": "/home/luosg/Database/env/star/star.sif",
-    "scTE": "/home/luosg/Database/env/scTE/scTE.sif",
-    "cellranger": "/home/luosg/Database/env/cellranger/cellranger.sif",
-    "scanpy": "/home/luosg/Database/env/scanpy/scanpy.sif",
-    "sccoda": "/data/16T/Database/env/sccoda/sccoda.sif"
-  },
-  "Procedure": {
-    "STAR": null,
-    "scTE": null
-  },
-  "resources": {
-    "default": {
-      "threads": 2,
-      "mem_mb": 8000
-    },
-    "cellranger_count": {
-      "threads": 8,
-      "mem_mb": 32000,
-      "scale": {
-        "size_metric": "fastq_mb",
-        "ref_input_size": 23800,
-        "fixed_frac": 0.9,
-        "min_mem_mb": 16000,
-        "max_mem_mb": 200000
-      }
-    },
-    "cellranger_ref": {
-      "threads": 16,
-      "mem_mb": 64000
-    },
-    "cellranger_to_h5ad": {
-      "threads": 1,
-      "mem_mb": 8000
-    },
-    "function_go_kegg": {
-      "threads": 1,
-      "mem_mb": 8000
-    },
-    "function_gsea": {
-      "threads": 1,
-      "mem_mb": 8000
-    },
-    "function_gsva": {
-      "threads": 1,
-      "mem_mb": 8000
-    },
-    "function_pseudobulk_go": {
-      "threads": 1,
-      "mem_mb": 8000
-    },
-    "function_pseudobulk_go_index": {
-      "threads": 1
-    },
-    "scTE_build_index": {
-      "threads": 1,
-      "mem_mb": 8000
-    },
-    "scTE_quantify": {
-      "threads": 8,
-      "mem_mb": 16000
-    },
-    "scanpy_advanced": {
-      "threads": 4,
-      "mem_mb": 64000,
-      "scale": {
-        "size_metric": "bam_mb",
-        "ref_input_size": 2000,
-        "fixed_frac": 0.2,
-        "min_mem_mb": 16000,
-        "max_mem_mb": 200000
-      }
-    },
-    "scanpy_auto": {
-      "threads": 12,
-      "mem_mb": 64000,
-      "scale": {
-        "size_metric": "bam_mb",
-        "ref_input_size": 2000,
-        "fixed_frac": 0.2,
-        "min_mem_mb": 16000,
-        "max_mem_mb": 200000
-      }
-    },
-    "scanpy_merge": {
-      "threads": 2,
-      "mem_mb": 32000
-    },
-    "scanpy_pseudobulk": {
-      "mem_mb": 32000,
-      "threads": 4,
-      "scale": {
-        "size_metric": "bam_mb",
-        "ref_input_size": 2000,
-        "fixed_frac": 0.2,
-        "min_mem_mb": 16000,
-        "max_mem_mb": 200000
-      }
-    },
-    "scanpy_qc": {
-      "threads": 4,
-      "mem_mb": 16000
-    },
-    "scanpy_reannotate": {
-      "mem_mb": 16000,
-      "threads": 2
-    },
-    "sccoda_run": {
-      "threads": 4,
-      "mem_mb": 32000
-    },
-    "star_3p_align": {
-      "threads": 12
-    },
-    "star_3pg_gene_specific": {
-      "threads": 2
-    },
-    "star_align": {
-      "threads": 12,
-      "mem_mb": 32000
-    },
-    "star_index": {
-      "threads": 12,
-      "mem_mb": 64000
-    },
-    "star_result": {
-      "mem_mb": 8000
-    },
-    "sv_go_kegg": {
-      "threads": 1,
-      "mem_mb": 8000
-    }
-  },
-  "genome": {
-    "default": "GRCm39",
-    "references": {
-      "GRCm39": {
-        "fasta": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
-        "gtf": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf",
-        "geneIDAnno": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/geneIDAnnotation.csv",
-        "te_bed": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.bed",
-        "scTE_index": null,
-        "cellranger_ref_dir": null,
-        "star_index_dir": null
-      },
-      "GRCh38": {
-        "fasta": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa",
-        "gtf": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/gencode.v49.primary_assembly.basic.annotation.gtf",
-        "geneIDAnno": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/geneIDAnnotation.csv",
-        "te_bed": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/GRCh38_GENCODE_rmsk_TE.bed",
-        "scTE_index": null,
-        "cellranger_ref_dir": null,
-        "star_index_dir": null
-      },
-      "Mmul_10": {
-        "fasta": "/home/luosg/Database/Reference/mulatta/ENSEMBL/Mmul_10/Macaca_mulatta.Mmul_10.dna.toplevel.fa",
-        "gtf": "/home/luosg/Database/Reference/mulatta/ENSEMBL/Mmul_10/Macaca_mulatta.Mmul_10.116.gtf",
-        "geneIDAnno": "/home/luosg/Database/Reference/mulatta/ENSEMBL/Mmul_10/geneIDAnnotation.csv",
-        "te_bed": "/home/luosg/Database/Reference/mulatta/ENSEMBL/Mmul_10/rheMac10_rmsk_TE.bed",
-        "scTE_index": "/home/luosg/Database/Reference/mulatta/ENSEMBL/Mmul_10/scTE_index/Mmul_10.exclusive.idx",
-        "cellranger_ref_dir": "/home/luosg/Database/Reference/mulatta/ENSEMBL/Mmul_10/Mmul_10",
-        "star_index_dir": null
-      }
-    }
-  },
   "Params": {
     "workflow": {
       "input_mode": "fastq",
@@ -401,5 +232,180 @@
         ]
       }
     }
-  }
+  },
+  "genome": {
+    "default": "GRCm39",
+    "references": {
+      "GRCm39": {
+        "fasta": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
+        "gtf": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf",
+        "geneIDAnno": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/geneIDAnnotation.csv",
+        "te_bed": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.bed",
+        "scTE_index": null,
+        "cellranger_ref_dir": null,
+        "star_index_dir": null,
+        "fai_index": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa.fai",
+        "dict_index": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.dict"
+      },
+      "GRCh38": {
+        "fasta": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa",
+        "gtf": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/gencode.v49.primary_assembly.basic.annotation.gtf",
+        "geneIDAnno": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/geneIDAnnotation.csv",
+        "te_bed": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/GRCh38_GENCODE_rmsk_TE.bed",
+        "scTE_index": null,
+        "cellranger_ref_dir": null,
+        "star_index_dir": null,
+        "fai_index": "/data/16T/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa.fai",
+        "dict_index": "/data/16T/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.dict"
+      },
+      "Mmul_10": {
+        "fasta": "/home/luosg/Database/Reference/mulatta/ENSEMBL/Mmul_10/Macaca_mulatta.Mmul_10.dna.toplevel.fa",
+        "gtf": "/home/luosg/Database/Reference/mulatta/ENSEMBL/Mmul_10/Macaca_mulatta.Mmul_10.116.gtf",
+        "geneIDAnno": "/home/luosg/Database/Reference/mulatta/ENSEMBL/Mmul_10/geneIDAnnotation.csv",
+        "te_bed": "/home/luosg/Database/Reference/mulatta/ENSEMBL/Mmul_10/rheMac10_rmsk_TE.bed",
+        "scTE_index": "/home/luosg/Database/Reference/mulatta/ENSEMBL/Mmul_10/scTE_index/Mmul_10.exclusive.idx",
+        "cellranger_ref_dir": "/home/luosg/Database/Reference/mulatta/ENSEMBL/Mmul_10/Mmul_10",
+        "star_index_dir": null,
+        "fai_index": "/data/16T/Database/Reference/mulatta/ENSEMBL/Mmul_10/Macaca_mulatta.Mmul_10.dna.toplevel.fa.fai",
+        "dict_index": "/data/16T/Database/Reference/mulatta/ENSEMBL/Mmul_10/Macaca_mulatta.Mmul_10.dna.toplevel.dict"
+      }
+    }
+  },
+  "env": {
+    "env_dir": "/home/luosg/Database/env",
+    "star": "/home/luosg/Database/env/star/star.sif",
+    "scTE": "/home/luosg/Database/env/scTE/scTE.sif",
+    "cellranger": "/home/luosg/Database/env/cellranger/cellranger.sif",
+    "scanpy": "/home/luosg/Database/env/scanpy/scanpy.sif",
+    "sccoda": "/data/16T/Database/env/sccoda/sccoda.sif"
+  },
+  "resources": {
+    "default": {
+      "threads": 2,
+      "mem_mb": 8000
+    },
+    "cellranger_count": {
+      "threads": 8,
+      "mem_mb": 32000,
+      "scale": {
+        "size_metric": "fastq_mb",
+        "ref_input_size": 23800,
+        "fixed_frac": 0.9,
+        "min_mem_mb": 16000,
+        "max_mem_mb": 200000
+      }
+    },
+    "cellranger_ref": {
+      "threads": 16,
+      "mem_mb": 64000
+    },
+    "cellranger_to_h5ad": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "function_go_kegg": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "function_gsea": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "function_gsva": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "function_pseudobulk_go": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "function_pseudobulk_go_index": {
+      "threads": 1
+    },
+    "scTE_build_index": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "scTE_quantify": {
+      "threads": 8,
+      "mem_mb": 16000
+    },
+    "scanpy_advanced": {
+      "threads": 4,
+      "mem_mb": 64000,
+      "scale": {
+        "size_metric": "bam_mb",
+        "ref_input_size": 2000,
+        "fixed_frac": 0.2,
+        "min_mem_mb": 16000,
+        "max_mem_mb": 200000
+      }
+    },
+    "scanpy_auto": {
+      "threads": 12,
+      "mem_mb": 64000,
+      "scale": {
+        "size_metric": "bam_mb",
+        "ref_input_size": 2000,
+        "fixed_frac": 0.2,
+        "min_mem_mb": 16000,
+        "max_mem_mb": 200000
+      }
+    },
+    "scanpy_merge": {
+      "threads": 2,
+      "mem_mb": 32000
+    },
+    "scanpy_pseudobulk": {
+      "mem_mb": 32000,
+      "threads": 4,
+      "scale": {
+        "size_metric": "bam_mb",
+        "ref_input_size": 2000,
+        "fixed_frac": 0.2,
+        "min_mem_mb": 16000,
+        "max_mem_mb": 200000
+      }
+    },
+    "scanpy_qc": {
+      "threads": 4,
+      "mem_mb": 16000
+    },
+    "scanpy_reannotate": {
+      "mem_mb": 16000,
+      "threads": 2
+    },
+    "sccoda_run": {
+      "threads": 4,
+      "mem_mb": 32000
+    },
+    "star_3p_align": {
+      "threads": 12
+    },
+    "star_3pg_gene_specific": {
+      "threads": 2
+    },
+    "star_align": {
+      "threads": 12,
+      "mem_mb": 32000
+    },
+    "star_index": {
+      "threads": 12,
+      "mem_mb": 64000
+    },
+    "star_result": {
+      "mem_mb": 8000
+    },
+    "sv_go_kegg": {
+      "threads": 1,
+      "mem_mb": 8000
+    }
+  },
+  "Procedure": {
+    "STAR": null,
+    "scTE": null
+  },
+  "outfiles": [],
+  "ROOT_DIR": null,
+  "tmp_dir": null
 }

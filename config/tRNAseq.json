@@ -1,88 +1,4 @@
 {
-  "outfiles": [
-    "/data/pub/zhousha/20260207_Exome/output/tRNAseq/mimseq/mimseq"
-  ],
-  "ROOT_DIR": "/data/pub/zhousha/20260207_Exome/workflow/Omics",
-  "tmp_dir": null,
-  "resources": {
-    "default": {
-      "threads": 2,
-      "mem_mb": 8000
-    },
-    "fumitools_copy_umi_paired": {
-      "threads": 4
-    },
-    "fumitools_copy_umi_single": {
-      "threads": 4,
-      "mem_mb": 8000
-    },
-    "fumitools_dedup": {
-      "threads": 4
-    },
-    "mimseq_align": {
-      "threads": 10,
-      "mem_mb": 32000
-    },
-    "mimseq_all": {
-      "mem_mb": 8000
-    },
-    "mimseq_clusters": {
-      "threads": 4,
-      "mem_mb": 8000
-    },
-    "mimseq_coverage": {
-      "threads": 4,
-      "mem_mb": 16000
-    },
-    "mimseq_deseq": {
-      "threads": 4,
-      "mem_mb": 16000
-    },
-    "mimseq_mods": {
-      "threads": 4,
-      "mem_mb": 32000
-    },
-    "mimseq_prepare_sample_data": {
-      "mem_mb": 8000
-    },
-    "mimseq_result": {
-      "mem_mb": 8000
-    },
-    "mimseq_tRNAtools": {
-      "threads": 4,
-      "mem_mb": 8000
-    },
-    "trimming_Paired": {
-      "threads": 6,
-      "mem_mb": 8000
-    },
-    "trimming_Single": {
-      "threads": 6,
-      "mem_mb": 4000
-    }
-  },
-  "env": {
-    "env_dir": "/home/luosg/Database/env",
-    "cutadapt": "/home/luosg/Database/env/cutadapt/cutadapt.sif",
-    "fumitools": "/home/luosg/Database/env/fumitools/fumitools.sif",
-    "mimseq": "/home/luosg/Database/env/mimseq/mimseq.sif"
-  },
-  "Procedure": {},
-  "genome": {
-    "default": "GRCm39",
-    "references": {
-      "GRCm39": {
-        "trnas": "",
-        "trnaout": "",
-        "mito_trnas": "",
-        "fasta": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
-        "sex_chroms": [
-          "chrX",
-          "chrY"
-        ]
-      }
-    }
-  },
   "Params": {
     "workflow": {
       "indir": "/data/pub/zhousha/20260207_Exome/output/tRNAseq/fastq/raw_fastq",
@@ -190,5 +106,91 @@
       "cut": 16,
       "trimmed_only": true
     }
-  }
+  },
+  "genome": {
+    "default": "GRCm39",
+    "references": {
+      "GRCm39": {
+        "trnas": "",
+        "trnaout": "",
+        "mito_trnas": "",
+        "fasta": "/data/pub/zhousha/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
+        "sex_chroms": [
+          "chrX",
+          "chrY"
+        ],
+        "fai_index": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa.fai",
+        "dict_index": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.dict"
+      }
+    }
+  },
+  "env": {
+    "env_dir": "/home/luosg/Database/env",
+    "cutadapt": "/home/luosg/Database/env/cutadapt/cutadapt.sif",
+    "fumitools": "/home/luosg/Database/env/fumitools/fumitools.sif",
+    "mimseq": "/home/luosg/Database/env/mimseq/mimseq.sif"
+  },
+  "resources": {
+    "default": {
+      "threads": 2,
+      "mem_mb": 8000
+    },
+    "fumitools_copy_umi_paired": {
+      "threads": 4
+    },
+    "fumitools_copy_umi_single": {
+      "threads": 4,
+      "mem_mb": 8000
+    },
+    "fumitools_dedup": {
+      "threads": 4
+    },
+    "mimseq_align": {
+      "threads": 10,
+      "mem_mb": 32000
+    },
+    "mimseq_all": {
+      "mem_mb": 8000
+    },
+    "mimseq_clusters": {
+      "threads": 4,
+      "mem_mb": 8000
+    },
+    "mimseq_coverage": {
+      "threads": 4,
+      "mem_mb": 16000
+    },
+    "mimseq_deseq": {
+      "threads": 4,
+      "mem_mb": 16000
+    },
+    "mimseq_mods": {
+      "threads": 4,
+      "mem_mb": 32000
+    },
+    "mimseq_prepare_sample_data": {
+      "mem_mb": 8000
+    },
+    "mimseq_result": {
+      "mem_mb": 8000
+    },
+    "mimseq_tRNAtools": {
+      "threads": 4,
+      "mem_mb": 8000
+    },
+    "trimming_Paired": {
+      "threads": 6,
+      "mem_mb": 8000
+    },
+    "trimming_Single": {
+      "threads": 6,
+      "mem_mb": 4000
+    }
+  },
+  "Procedure": {},
+  "outfiles": [
+    "/data/pub/zhousha/20260207_Exome/output/tRNAseq/mimseq/mimseq"
+  ],
+  "ROOT_DIR": "/data/pub/zhousha/20260207_Exome/workflow/Omics",
+  "tmp_dir": null
 }

@@ -1,7 +1,64 @@
 {
-  "outfiles": [],
-  "ROOT_DIR": null,
-  "tmp_dir": null,
+  "Params": {
+    "workflow": {
+      "indir": "input",
+      "raw_files": [],
+      "outdir": "output",
+      "logdir": "logs",
+      "trimmer": "cutadapt",
+      "somatic_normal": "",
+      "wes_paired_samples": [],
+      "wes_single_samples": [],
+      "paired_design": [],
+      "pair_strains": {},
+      "dr_pairs": {},
+      "drclass_samples": {},
+      "drclass_strain_vcfs": {}
+    },
+    "trim_galore": {
+      "quality": 25
+    },
+    "samtools": {
+      "onlykeep_properpair": false
+    },
+    "gatk": {
+      "addReadsGroup": {
+        "RGLB": "mRNA",
+        "RGPL": "Illumina",
+        "RGPU": "Illumina_NextSeq_500"
+      },
+      "Mutect2": {
+        "panel_of_normals": null
+      }
+    },
+    "cutadapt": {},
+    "drclass": {
+      "min_af": 0.02,
+      "min_ad": 4,
+      "min_dp": 20,
+      "germline_af": 0.2,
+      "germline_dp": 10,
+      "splice_window": 5,
+      "min_mq": 20,
+      "min_bq": 30,
+      "max_r4_fraction": 0.3
+    }
+  },
+  "genome": {
+    "default": "GRCm39",
+    "references": {
+      "GRCm39": {
+        "fasta": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
+        "fai_index": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa.fai",
+        "dict_index": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.dict",
+        "bwaMem2_index_prefix": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/bwa_mem2/GRCm39",
+        "gtf": null,
+        "targets": null,
+        "germline_resource": "/data/16T/Database/Reference/mouse/MGP/GRCm39/germline_resource.MGP52.GRCm39.vcf.gz",
+        "strain_resource": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/germline/129/mgp_REL2021_snps.vcf.gz"
+      }
+    }
+  },
   "env": {
     "env_dir": "/data/16T/Database/env",
     "fastqc": "/data/16T/Database/env/fastqc/fastqc.sif",
@@ -198,64 +255,7 @@
     "python3": "python3",
     "bcftools": "bcftools"
   },
-  "genome": {
-    "default": "GRCm39",
-    "references": {
-      "GRCm39": {
-        "fasta": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
-        "fai_index": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa.fai",
-        "dict_index": null,
-        "bwaMem2_index_prefix": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/bwa_mem2/GRCm39",
-        "gtf": null,
-        "targets": null,
-        "germline_resource": "/data/16T/Database/Reference/mouse/MGP/GRCm39/germline_resource.MGP52.GRCm39.vcf.gz",
-        "strain_resource": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/germline/129/mgp_REL2021_snps.vcf.gz"
-      }
-    }
-  },
-  "Params": {
-    "workflow": {
-      "indir": "input",
-      "raw_files": [],
-      "outdir": "output",
-      "logdir": "logs",
-      "trimmer": "cutadapt",
-      "somatic_normal": "",
-      "wes_paired_samples": [],
-      "wes_single_samples": [],
-      "paired_design": [],
-      "pair_strains": {},
-      "dr_pairs": {},
-      "drclass_samples": {},
-      "drclass_strain_vcfs": {}
-    },
-    "trim_galore": {
-      "quality": 25
-    },
-    "samtools": {
-      "onlykeep_properpair": false
-    },
-    "gatk": {
-      "addReadsGroup": {
-        "RGLB": "mRNA",
-        "RGPL": "Illumina",
-        "RGPU": "Illumina_NextSeq_500"
-      },
-      "Mutect2": {
-        "panel_of_normals": null
-      }
-    },
-    "cutadapt": {},
-    "drclass": {
-      "min_af": 0.02,
-      "min_ad": 4,
-      "min_dp": 20,
-      "germline_af": 0.2,
-      "germline_dp": 10,
-      "splice_window": 5,
-      "min_mq": 20,
-      "min_bq": 30,
-      "max_r4_fraction": 0.3
-    }
-  }
+  "outfiles": [],
+  "ROOT_DIR": null,
+  "tmp_dir": null
 }

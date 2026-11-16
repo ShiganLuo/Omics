@@ -1,17 +1,4 @@
 {
-  "outfiles": [],
-  "ROOT_DIR": null,
-  "tmp_dir": null,
-  "Procedure": {
-    "fastqc": null,
-    "bwaMem2": null,
-    "samtools": null,
-    "bgzip": null,
-    "gatk": null,
-    "manta": null,
-    "cnvkit": null,
-    "msisensorpro": "msisensor-pro"
-  },
   "Params": {
     "workflow": {
       "indir": "input",
@@ -132,7 +119,7 @@
       "GRCm39": {
         "fasta": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
         "fai_index": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa.fai",
-        "dict_index": null,
+        "dict_index": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.dict",
         "bwaMem2_index_prefix": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/bwa_mem2/GRCm39",
         "access": null,
         "targets": null,
@@ -144,7 +131,7 @@
       "GRCh38": {
         "fasta": "/home/luosg/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa",
         "fai_index": "/data/16T/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa.fai",
-        "dict_index": null,
+        "dict_index": "/data/16T/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.dict",
         "bwaMem2_index_prefix": "/data/16T/Database/Reference/human/GENCODE/GRCh38/bwa_mem2/genome",
         "access": null,
         "targets": null,
@@ -155,8 +142,8 @@
       },
       "Mmul_10": {
         "fasta": "/home/luosg/Database/Reference/mulatta/ENSEMBL/Mmul_10/Macaca_mulatta.Mmul_10.dna.toplevel.fa",
-        "fai_index": null,
-        "dict_index": null,
+        "fai_index": "/data/16T/Database/Reference/mulatta/ENSEMBL/Mmul_10/Macaca_mulatta.Mmul_10.dna.toplevel.fa.fai",
+        "dict_index": "/data/16T/Database/Reference/mulatta/ENSEMBL/Mmul_10/Macaca_mulatta.Mmul_10.dna.toplevel.dict",
         "bwaMem2_index_prefix": null,
         "access": null,
         "targets": null,
@@ -437,5 +424,18 @@
       "threads": 8,
       "mem_mb": 8000
     }
-  }
+  },
+  "Procedure": {
+    "fastqc": null,
+    "bwaMem2": null,
+    "samtools": null,
+    "bgzip": null,
+    "gatk": null,
+    "manta": null,
+    "cnvkit": null,
+    "msisensorpro": "msisensor-pro"
+  },
+  "outfiles": [],
+  "ROOT_DIR": null,
+  "tmp_dir": null
 }

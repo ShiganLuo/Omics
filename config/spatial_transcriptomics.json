@@ -1,53 +1,4 @@
 {
-  "outfiles": [],
-  "ROOT_DIR": null,
-  "tmp_dir": null,
-  "resources": {
-    "default": {
-      "threads": 2,
-      "mem_mb": 8000
-    },
-    "spatial_scanpy_qc": {
-      "threads": 4,
-      "mem_mb": 32000
-    },
-    "spatial_scanpy_cluster": {
-      "threads": 4,
-      "mem_mb": 32000
-    },
-    "spatial_scanpy_advanced": {
-      "threads": 4,
-      "mem_mb": 32000
-    }
-  },
-  "env": {
-    "env_dir": "/data/16T/Database/env",
-    "spatial_scanpy": "/data/16T/Database/env/spatial_scanpy/spatial_scanpy.sif"
-  },
-  "Procedure": {
-    "python": null
-  },
-  "genome": {
-    "default": "GRCm39",
-    "references": {
-      "GRCm39": {
-        "fasta": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
-        "gtf": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf",
-        "sex_chroms": [
-          "chrX",
-          "chrY"
-        ]
-      },
-      "GRCh38": {
-        "fasta": "/data/16T/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa",
-        "gtf": "/data/16T/Database/Reference/human/GENCODE/GRCh38/gencode.v49.primary_assembly.basic.annotation.gtf",
-        "sex_chroms": [
-          "chrX",
-          "chrY"
-        ]
-      }
-    }
-  },
   "Params": {
     "workflow": {
       "indir": "input",
@@ -69,5 +20,58 @@
         "spatial_autocorrelation": true
       }
     }
-  }
+  },
+  "genome": {
+    "default": "GRCm39",
+    "references": {
+      "GRCm39": {
+        "fasta": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
+        "gtf": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf",
+        "sex_chroms": [
+          "chrX",
+          "chrY"
+        ],
+        "fai_index": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa.fai",
+        "dict_index": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.dict"
+      },
+      "GRCh38": {
+        "fasta": "/data/16T/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa",
+        "gtf": "/data/16T/Database/Reference/human/GENCODE/GRCh38/gencode.v49.primary_assembly.basic.annotation.gtf",
+        "sex_chroms": [
+          "chrX",
+          "chrY"
+        ],
+        "fai_index": "/data/16T/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa.fai",
+        "dict_index": "/data/16T/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.dict"
+      }
+    }
+  },
+  "env": {
+    "env_dir": "/data/16T/Database/env",
+    "spatial_scanpy": "/data/16T/Database/env/spatial_scanpy/spatial_scanpy.sif"
+  },
+  "resources": {
+    "default": {
+      "threads": 2,
+      "mem_mb": 8000
+    },
+    "spatial_scanpy_qc": {
+      "threads": 4,
+      "mem_mb": 32000
+    },
+    "spatial_scanpy_cluster": {
+      "threads": 4,
+      "mem_mb": 32000
+    },
+    "spatial_scanpy_advanced": {
+      "threads": 4,
+      "mem_mb": 32000
+    }
+  },
+  "Procedure": {
+    "python": null
+  },
+  "outfiles": [],
+  "ROOT_DIR": null,
+  "tmp_dir": null
 }

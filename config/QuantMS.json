@@ -1,123 +1,4 @@
 {
-  "ROOT_DIR": null,
-  "tmp_dir": null,
-  "outfiles": [],
-  "env": {
-    "diann": "/data/16T/Database/env/diann/diann.sif",
-    "env_dir": "/home/luosg/Database/env",
-    "fragpipe": "/home/luosg/Database/env/fragpipe/fragpipe.sif",
-    "openms": "/home/luosg/Database/env/openms/openms.sif"
-  },
-  "resources": {
-    "default": {
-      "threads": 2,
-      "mem_mb": 8000
-    },
-    "decoy_database": {
-      "mem_mb": 8000
-    },
-    "diann_run": {
-      "threads": 16,
-      "mem_mb": 32000
-    },
-    "diann_summary": {
-      "threads": 1,
-      "mem_mb": 8000
-    },
-    "msfragger_idxml": {
-      "threads": 1,
-      "mem_mb": 8000
-    },
-    "msfragger_run": {
-      "threads": 16,
-      "mem_mb": 32000
-    },
-    "msstats": {
-      "threads": 1,
-      "mem_mb": 16000
-    },
-    "msstats_result": {
-      "mem_mb": 8000
-    },
-    "philosopher_database": {
-      "threads": 1
-    },
-    "philosopher_filter": {
-      "threads": 1
-    },
-    "protein_inference": {
-      "mem_mb": 32000
-    },
-    "protein_inference_result": {
-      "mem_mb": 8000
-    },
-    "psm_fdr": {
-      "mem_mb": 16000
-    },
-    "psm_fdr_result": {
-      "mem_mb": 8000
-    },
-    "psm_rescoring": {
-      "mem_mb": 32000
-    },
-    "psm_rescoring_result": {
-      "mem_mb": 8000
-    },
-    "quantification_dia": {
-      "threads": 8,
-      "mem_mb": 32000
-    },
-    "quantification_lfq": {
-      "threads": 8,
-      "mem_mb": 16000
-    },
-    "quantification_result": {
-      "mem_mb": 8000
-    },
-    "quantification_tmt": {
-      "threads": 8,
-      "mem_mb": 16000
-    },
-    "quantification_tmt_reporter": {
-      "threads": 2,
-      "mem_mb": 16000
-    },
-    "raw2mzml": {
-      "threads": 2,
-      "mem_mb": 8000
-    },
-    "raw2mzml_result": {
-      "mem_mb": 8000
-    },
-    "search_engine_comet": {
-      "threads": 4,
-      "mem_mb": 32000
-    },
-    "search_engine_msgf": {
-      "threads": 4,
-      "mem_mb": 32000
-    },
-    "search_engine_sage": {
-      "threads": 4,
-      "mem_mb": 32000
-    }
-  },
-  "Procedure": {
-    "diann": null,
-    "openms": null,
-    "thermorawfileparser": null,
-    "comet": null,
-    "msgf": null,
-    "sage": null,
-    "msfragger": null,
-    "id_converter": null,
-    "philosopher": null,
-    "percolator": null,
-    "epifany": null,
-    "proteomicslfq": null,
-    "proteinquantifier": null,
-    "msstats": null
-  },
   "Params": {
     "workflow": {
       "indir": "input",
@@ -264,5 +145,124 @@
         "decoy_fasta": null
       }
     }
-  }
+  },
+  "env": {
+    "diann": "/data/16T/Database/env/diann/diann.sif",
+    "env_dir": "/home/luosg/Database/env",
+    "fragpipe": "/home/luosg/Database/env/fragpipe/fragpipe.sif",
+    "openms": "/home/luosg/Database/env/openms/openms.sif"
+  },
+  "resources": {
+    "default": {
+      "threads": 2,
+      "mem_mb": 8000
+    },
+    "decoy_database": {
+      "mem_mb": 8000
+    },
+    "diann_run": {
+      "threads": 16,
+      "mem_mb": 32000
+    },
+    "diann_summary": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "msfragger_idxml": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "msfragger_run": {
+      "threads": 16,
+      "mem_mb": 32000
+    },
+    "msstats": {
+      "threads": 1,
+      "mem_mb": 16000
+    },
+    "msstats_result": {
+      "mem_mb": 8000
+    },
+    "philosopher_database": {
+      "threads": 1
+    },
+    "philosopher_filter": {
+      "threads": 1
+    },
+    "protein_inference": {
+      "mem_mb": 32000
+    },
+    "protein_inference_result": {
+      "mem_mb": 8000
+    },
+    "psm_fdr": {
+      "mem_mb": 16000
+    },
+    "psm_fdr_result": {
+      "mem_mb": 8000
+    },
+    "psm_rescoring": {
+      "mem_mb": 32000
+    },
+    "psm_rescoring_result": {
+      "mem_mb": 8000
+    },
+    "quantification_dia": {
+      "threads": 8,
+      "mem_mb": 32000
+    },
+    "quantification_lfq": {
+      "threads": 8,
+      "mem_mb": 16000
+    },
+    "quantification_result": {
+      "mem_mb": 8000
+    },
+    "quantification_tmt": {
+      "threads": 8,
+      "mem_mb": 16000
+    },
+    "quantification_tmt_reporter": {
+      "threads": 2,
+      "mem_mb": 16000
+    },
+    "raw2mzml": {
+      "threads": 2,
+      "mem_mb": 8000
+    },
+    "raw2mzml_result": {
+      "mem_mb": 8000
+    },
+    "search_engine_comet": {
+      "threads": 4,
+      "mem_mb": 32000
+    },
+    "search_engine_msgf": {
+      "threads": 4,
+      "mem_mb": 32000
+    },
+    "search_engine_sage": {
+      "threads": 4,
+      "mem_mb": 32000
+    }
+  },
+  "Procedure": {
+    "diann": null,
+    "openms": null,
+    "thermorawfileparser": null,
+    "comet": null,
+    "msgf": null,
+    "sage": null,
+    "msfragger": null,
+    "id_converter": null,
+    "philosopher": null,
+    "percolator": null,
+    "epifany": null,
+    "proteomicslfq": null,
+    "proteinquantifier": null,
+    "msstats": null
+  },
+  "outfiles": [],
+  "ROOT_DIR": null,
+  "tmp_dir": null
 }

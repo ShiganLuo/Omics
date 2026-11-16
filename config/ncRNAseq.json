@@ -1,208 +1,4 @@
 {
-  "outfiles": [],
-  "ROOT_DIR": ".",
-  "tmp_dir": null,
-  "env": {
-    "env_dir": "/home/luosg/Database/env",
-    "demultiplexer": "/home/luosg/Database/env/demultiplexer/demultiplexer.sif",
-    "fastqc": "/home/luosg/Database/env/fastqc/fastqc.sif",
-    "featureCounts": "/home/luosg/Database/env/featureCounts/featureCounts.sif",
-    "genome": "/home/luosg/Database/env/genome/genome.sif",
-    "hisat2": "/home/luosg/Database/env/hisat2/hisat2.sif",
-    "star": "/home/luosg/Database/env/star/star.sif",
-    "subsample": "/home/luosg/Database/env/subsample/subsample.sif",
-    "tailer": "/home/luosg/Database/env/tailer/tailer.sif",
-    "trim-galore": "/home/luosg/Database/env/trim-galore/trim-galore.sif",
-    "ncRNAseq_report": "/data/16T/Database/env/report/report.sif",
-    "igv": "/home/luosg/Database/env/igv/hisat2.sif",
-    "macs3": "/home/luosg/Database/env/macs3/macs3.sif",
-    "track": "/home/luosg/Database/env/track/track.sif",
-    "gatk": "/home/luosg/Database/env/gatk/gatk4.sif",
-    "regionplot": "/data/16T/Database/env/regionplot/regionplot.sif",
-    "sexcheck": "/data/16T/Database/env/fragment_size/fragment_size.sif"
-  },
-  "resources": {
-    "default": {
-      "threads": 2,
-      "mem_mb": 8000
-    },
-    "BaseRecalibrator": {
-      "threads": 8
-    },
-    "HaplotypeCaller": {
-      "threads": 10
-    },
-    "MarkDuplicates": {
-      "threads": 8,
-      "mem_mb": 32000
-    },
-    "SplitNCigarReads": {
-      "threads": 8,
-      "mem_mb": 16000
-    },
-    "VarientCalling": {
-      "threads": 8,
-      "mem_mb": 16000
-    },
-    "addReadsGroup": {
-      "threads": 8,
-      "mem_mb": 16000
-    },
-    "chromosome_sizes": {
-      "threads": 1,
-      "mem_mb": 8000
-    },
-    "collectHsMetrics": {
-      "threads": 4
-    },
-    "demultiplex_trim_dedup": {
-      "threads": 1,
-      "mem_mb": 8000
-    },
-    "extract_smallrna": {
-      "threads": 1,
-      "mem_mb": 8000
-    },
-    "fastqc": {
-      "threads": 2,
-      "mem_mb": 8000
-    },
-    "featureCounts_paired_noMultiple": {
-      "threads": 10,
-      "mem_mb": 8000
-    },
-    "featureCounts_result": {
-      "mem_mb": 8000
-    },
-    "featureCounts_single_noMultiple": {
-      "threads": 10,
-      "mem_mb": 8000
-    },
-    "filterHaplotypeCallerVcf": {
-      "threads": 10
-    },
-    "filterMutectCalls": {
-      "threads": 2
-    },
-    "gatk_index": {
-      "threads": 4,
-      "mem_mb": 8000
-    },
-    "gatk_population_haplotype_caller": {
-      "threads": 8
-    },
-    "gatk_population_joint_genotyping": {
-      "threads": 8
-    },
-    "generate_report": {
-      "threads": 1,
-      "mem_mb": 8000
-    },
-    "genome_index": {
-      "threads": 1
-    },
-    "germline_resource_strain": {
-      "threads": 2
-    },
-    "hisat2_align": {
-      "threads": 12,
-      "mem_mb": 32000
-    },
-    "hisat2_index": {
-      "threads": 8,
-      "mem_mb": 8000
-    },
-    "igv_track_iclip": {
-      "mem_mb": 8000
-    },
-    "igv_track_single": {
-      "mem_mb": 8000
-    },
-    "qc_summary": {
-      "threads": 1,
-      "mem_mb": 8000
-    },
-    "regionplot": {
-      "threads": 1,
-      "mem_mb": 8000
-    },
-    "report_result": {
-      "mem_mb": 8000
-    },
-    "samtools_dedup": {
-      "threads": 12,
-      "mem_mb": 16000
-    },
-    "sexcheck": {
-      "threads": 1,
-      "mem_mb": 8000
-    },
-    "sexcheck_idxstats": {
-      "threads": 1,
-      "mem_mb": 8000
-    },
-    "somaticMutect2": {
-      "threads": 10
-    },
-    "star_3p_align": {
-      "threads": 12,
-      "mem_mb": 32000
-    },
-    "star_3pg_gene_specific": {
-      "threads": 2,
-      "mem_mb": 8000
-    },
-    "star_align": {
-      "threads": 12,
-      "mem_mb": 32000
-    },
-    "star_index": {
-      "threads": 12,
-      "mem_mb": 64000
-    },
-    "subsample_fastq": {
-      "threads": 1,
-      "mem_mb": 8000
-    },
-    "tailer_global": {
-      "threads": 1,
-      "mem_mb": 8000
-    },
-    "trimming_Paired": {
-      "threads": 6,
-      "mem_mb": 8000
-    },
-    "trimming_Single": {
-      "threads": 6,
-      "mem_mb": 4000
-    },
-    "ucsc_track_iclip": {
-      "mem_mb": 8000
-    },
-    "ucsc_track_single": {
-      "mem_mb": 8000
-    },
-    "vcf_filter": {
-      "threads": 8,
-      "mem_mb": 8000
-    },
-    "wig": {
-      "threads": 12,
-      "mem_mb": 8000
-    }
-  },
-  "Procedure": {
-    "trim_galore": null,
-    "hisat2": null,
-    "hisat2-build": null,
-    "STAR": null,
-    "samtools": null,
-    "bedtools": null,
-    "seqtk": null,
-    "featureCounts": null,
-    "tailer": null,
-    "fastqc": null
-  },
   "Params": {
     "workflow": {
       "indir": "input",
@@ -433,7 +229,9 @@
         "star_index_dir": null,
         "smallrna_fasta": null,
         "smallrna_bed": null,
-        "smallrna_star_index_dir": null
+        "smallrna_star_index_dir": null,
+        "fai_index": "/data/16T/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa.fai",
+        "dict_index": "/data/16T/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.dict"
       },
       "GRCm39": {
         "fasta": "/home/luosg/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
@@ -442,8 +240,214 @@
         "star_index_dir": null,
         "smallrna_fasta": null,
         "smallrna_bed": null,
-        "smallrna_star_index_dir": null
+        "smallrna_star_index_dir": null,
+        "fai_index": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa.fai",
+        "dict_index": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.dict"
       }
     }
-  }
+  },
+  "env": {
+    "env_dir": "/home/luosg/Database/env",
+    "demultiplexer": "/home/luosg/Database/env/demultiplexer/demultiplexer.sif",
+    "fastqc": "/home/luosg/Database/env/fastqc/fastqc.sif",
+    "featureCounts": "/home/luosg/Database/env/featureCounts/featureCounts.sif",
+    "genome": "/home/luosg/Database/env/genome/genome.sif",
+    "hisat2": "/home/luosg/Database/env/hisat2/hisat2.sif",
+    "star": "/home/luosg/Database/env/star/star.sif",
+    "subsample": "/home/luosg/Database/env/subsample/subsample.sif",
+    "tailer": "/home/luosg/Database/env/tailer/tailer.sif",
+    "trim-galore": "/home/luosg/Database/env/trim-galore/trim-galore.sif",
+    "ncRNAseq_report": "/data/16T/Database/env/report/report.sif",
+    "igv": "/home/luosg/Database/env/igv/hisat2.sif",
+    "macs3": "/home/luosg/Database/env/macs3/macs3.sif",
+    "track": "/home/luosg/Database/env/track/track.sif",
+    "gatk": "/home/luosg/Database/env/gatk/gatk4.sif",
+    "regionplot": "/data/16T/Database/env/regionplot/regionplot.sif",
+    "sexcheck": "/data/16T/Database/env/fragment_size/fragment_size.sif"
+  },
+  "resources": {
+    "default": {
+      "threads": 2,
+      "mem_mb": 8000
+    },
+    "BaseRecalibrator": {
+      "threads": 8
+    },
+    "HaplotypeCaller": {
+      "threads": 10
+    },
+    "MarkDuplicates": {
+      "threads": 8,
+      "mem_mb": 32000
+    },
+    "SplitNCigarReads": {
+      "threads": 8,
+      "mem_mb": 16000
+    },
+    "VarientCalling": {
+      "threads": 8,
+      "mem_mb": 16000
+    },
+    "addReadsGroup": {
+      "threads": 8,
+      "mem_mb": 16000
+    },
+    "chromosome_sizes": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "collectHsMetrics": {
+      "threads": 4
+    },
+    "demultiplex_trim_dedup": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "extract_smallrna": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "fastqc": {
+      "threads": 2,
+      "mem_mb": 8000
+    },
+    "featureCounts_paired_noMultiple": {
+      "threads": 10,
+      "mem_mb": 8000
+    },
+    "featureCounts_result": {
+      "mem_mb": 8000
+    },
+    "featureCounts_single_noMultiple": {
+      "threads": 10,
+      "mem_mb": 8000
+    },
+    "filterHaplotypeCallerVcf": {
+      "threads": 10
+    },
+    "filterMutectCalls": {
+      "threads": 2
+    },
+    "gatk_index": {
+      "threads": 4,
+      "mem_mb": 8000
+    },
+    "gatk_population_haplotype_caller": {
+      "threads": 8
+    },
+    "gatk_population_joint_genotyping": {
+      "threads": 8
+    },
+    "generate_report": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "genome_index": {
+      "threads": 1
+    },
+    "germline_resource_strain": {
+      "threads": 2
+    },
+    "hisat2_align": {
+      "threads": 12,
+      "mem_mb": 32000
+    },
+    "hisat2_index": {
+      "threads": 8,
+      "mem_mb": 8000
+    },
+    "igv_track_iclip": {
+      "mem_mb": 8000
+    },
+    "igv_track_single": {
+      "mem_mb": 8000
+    },
+    "qc_summary": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "regionplot": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "report_result": {
+      "mem_mb": 8000
+    },
+    "samtools_dedup": {
+      "threads": 12,
+      "mem_mb": 16000
+    },
+    "sexcheck": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "sexcheck_idxstats": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "somaticMutect2": {
+      "threads": 10
+    },
+    "star_3p_align": {
+      "threads": 12,
+      "mem_mb": 32000
+    },
+    "star_3pg_gene_specific": {
+      "threads": 2,
+      "mem_mb": 8000
+    },
+    "star_align": {
+      "threads": 12,
+      "mem_mb": 32000
+    },
+    "star_index": {
+      "threads": 12,
+      "mem_mb": 64000
+    },
+    "subsample_fastq": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "tailer_global": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "trimming_Paired": {
+      "threads": 6,
+      "mem_mb": 8000
+    },
+    "trimming_Single": {
+      "threads": 6,
+      "mem_mb": 4000
+    },
+    "ucsc_track_iclip": {
+      "mem_mb": 8000
+    },
+    "ucsc_track_single": {
+      "mem_mb": 8000
+    },
+    "vcf_filter": {
+      "threads": 8,
+      "mem_mb": 8000
+    },
+    "wig": {
+      "threads": 12,
+      "mem_mb": 8000
+    }
+  },
+  "Procedure": {
+    "trim_galore": null,
+    "hisat2": null,
+    "hisat2-build": null,
+    "STAR": null,
+    "samtools": null,
+    "bedtools": null,
+    "seqtk": null,
+    "featureCounts": null,
+    "tailer": null,
+    "fastqc": null
+  },
+  "outfiles": [],
+  "ROOT_DIR": ".",
+  "tmp_dir": null
 }

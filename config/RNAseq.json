@@ -1,7 +1,318 @@
 {
-  "outfiles": [],
-  "ROOT_DIR": null,
-  "tmp_dir": null,
+  "Params": {
+    "workflow": {
+      "aligner_TEtranscripts": "star",
+      "trimmer": "trim_galore",
+      "genome_paired_samples": {
+        "GRCm39": [],
+        "GRCh38": []
+      },
+      "genome_single_samples": {
+        "GRCm39": [],
+        "GRCh38": []
+      },
+      "indir": null,
+      "raw_files": [],
+      "outdir": null,
+      "logdir": null
+    },
+    "trim_galore": {
+      "quality": 25
+    },
+    "trimmomatic": {
+      "adapter_pe": "/data/16T/Database/SoftWare/Trimmomatic-0.41/adapters/TruSeq3-PE-2.fa",
+      "adapter_se": "/data/16T/Database/SoftWare/Trimmomatic-0.41/adapters/TruSeq3-SE.fa"
+    },
+    "STAR_TEtranscripts": {
+      "alignEndsType": "Local",
+      "outFilterMismatchNoverReadLmax": 1.0,
+      "outFilterMismatchNmax": 10,
+      "outFilterMultimapNmax": 100,
+      "winAnchorMultimapNmax": 100
+    },
+    "STAR_fusion": {
+      "outFilterMultimapNmax": 1,
+      "outFilterMismatchNmax": 3,
+      "chimSegmentMin": 10,
+      "chimOutType": "Junctions WithinBAM SoftClip SeparateSAMold",
+      "chimJunctionOverhangMin": 10,
+      "outSAMstrandField": "intronMotif",
+      "chimScoreMin": 1,
+      "chimScoreDropMax": 30,
+      "chimScoreJunctionNonGTAG": 0,
+      "chimScoreSeparation": 1,
+      "alignSJstitchMismatchNmax": "5 -1 5 5",
+      "chimSegmentReadGapMax": 3
+    },
+    "STAR_SNP": {
+      "twopassMode": "Basic",
+      "outSAMattributes": "NM",
+      "outSAMtype": "BAM SortedByCoordinate"
+    },
+    "STAR_featureCounts": {},
+    "hisat2_TEtranscripts": {
+      "score_min": "L,0,-0.2",
+      "flag_params": "--no-mixed --no-discordant",
+      "k": 100
+    },
+    "hisat2_stringtie": {
+      "k": 1,
+      "flag_params": "-q --no-unal --dta"
+    },
+    "XenofilteR": {
+      "sample_contamination": {
+        "sample1": {
+          "host": "GRCm39",
+          "contaminant": "GRCh38"
+        }
+      },
+      "MM": 8
+    },
+    "TEcount": {
+      "enabled": true
+    },
+    "TElocal": {
+      "enabled": true
+    },
+    "StringTie": {
+      "enabled": true,
+      "sample_groups": {},
+      "formats": [
+        "png"
+      ]
+    },
+    "gatk_RNAseq": {
+      "enabled": true
+    },
+    "arriba": {
+      "enabled": true,
+      "blacklist": "/data/16T/Database/SoftWare/arriba_v2.5.1/database/blacklist_mm39_GRCm39_v2.5.1.tsv.gz",
+      "known_fusions": "/data/16T/Database/SoftWare/arriba_v2.5.1/database/known_fusions_mm39_GRCm39_v2.5.1.tsv.gz",
+      "t": null,
+      "d": null,
+      "E": 0.3,
+      "formats": [
+        "png"
+      ]
+    },
+    "DESeq2": {
+      "enabled": true,
+      "group_pairs": {
+        "GRCm39": {
+          "control_group_name_vs_experimental_group_name": {
+            "control_group_name": "control_group_name",
+            "experimental_group_name": "experimental_group_name",
+            "control_samples": [
+              "sample1",
+              "sample2"
+            ],
+            "experimental_samples": [
+              "sample3",
+              "sample4"
+            ]
+          }
+        },
+        "GRCh38": {
+          "control_group_name_vs_experimental_group_name": {
+            "control_group_name": "control_group_name",
+            "experimental_group_name": "experimental_group_name",
+            "control_samples": [
+              "sample1",
+              "sample2"
+            ],
+            "experimental_samples": [
+              "sample3",
+              "sample4"
+            ]
+          }
+        }
+      },
+      "manhattan": {
+        "label_top": 10,
+        "ylabel": "log2(1+|delta TPM|)",
+        "highlight_families": {
+          "GRCm39": {},
+          "GRCh38": {}
+        },
+        "formats": [
+          "png"
+        ]
+      },
+      "locus_boxplot": {
+        "match_field": "subfamily",
+        "match_mode": "exact",
+        "normalize": "log2tpm",
+        "kind": "box",
+        "families": {
+          "GRCm39": {},
+          "GRCh38": {}
+        },
+        "formats": [
+          "png"
+        ]
+      },
+      "subfamily_bar": {
+        "match_field": "subfamily",
+        "match_mode": "exact",
+        "value": "total",
+        "normalize": "tpm",
+        "yscale": "linear",
+        "ylabel": "TPM",
+        "families": {
+          "GRCm39": {},
+          "GRCh38": {}
+        },
+        "formats": [
+          "png"
+        ]
+      },
+      "formats": [
+        "png"
+      ]
+    },
+    "function": {
+      "GRCh38": {
+        "enabled": true,
+        "go_kegg": {
+          "lfc_cut": 1,
+          "p_cut": 0.05,
+          "top": 10,
+          "species": "human",
+          "formats": [
+            "png"
+          ]
+        },
+        "gsea": {
+          "gmt": "/data/16T/Database/Reference/geneset/8C_human.gmt",
+          "formats": [
+            "jpeg"
+          ]
+        },
+        "gsva": {
+          "gmt": "/data/16T/Database/Reference/geneset/GSI_human.gmt",
+          "formats": [
+            "png"
+          ]
+        }
+      },
+      "GRCm39": {
+        "enabled": true,
+        "go_kegg": {
+          "lfc_cut": 1,
+          "p_cut": 0.05,
+          "top": 10,
+          "species": "mouse",
+          "formats": [
+            "png"
+          ]
+        },
+        "gsea": {
+          "gmt": "/data/16T/Database/Reference/geneset/2C_mouse.gmt",
+          "formats": [
+            "jpeg"
+          ]
+        },
+        "gsva": {
+          "gmt": "/data/16T/Database/Reference/geneset/GSI_mouse.gmt",
+          "formats": [
+            "png"
+          ]
+        }
+      }
+    },
+    "report": {
+      "enabled": true,
+      "title": "RNA-seq Analysis Report",
+      "subtitle": "",
+      "pipeline": "FASTQ -> TrimGalore/Cutadapt -> STAR/HISAT2 -> TEcount/StringTie/Arriba -> DESeq2 -> RNAseq_report",
+      "genome": "GRCm39",
+      "date": "2026-07-27",
+      "lang": "zh",
+      "formats": [
+        "png"
+      ]
+    },
+    "sexcheck": {
+      "ratio_xy_threshold": null,
+      "y_min_frac": null,
+      "data_type": "RNA",
+      "xist_gene": null,
+      "y_genes": null,
+      "y_min_rpkm": null,
+      "xist_min_rpkm": null
+    }
+  },
+  "genome": {
+    "default": "GRCm39",
+    "references": {
+      "GRCm39": {
+        "fasta": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
+        "fai_index": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa.fai",
+        "dict_index": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.dict",
+        "gtf": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf",
+        "geneIDAnno": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/geneIDAnnotation.csv",
+        "gene_map": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/gene_map.pkl",
+        "TE_gtf": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.gtf",
+        "TEind": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.gtf.locInd",
+        "hisat2_index_prefix": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/hisat2/genome",
+        "star_index_dir": null,
+        "rRNA_fasta": null,
+        "bowtie2_index_prefix_for_rRNA": null
+      },
+      "GRCh38": {
+        "fasta": "/data/16T/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa",
+        "fai_index": "/data/16T/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa.fai",
+        "dict_index": "/data/16T/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.dict",
+        "gtf": "/data/16T/Database/Reference/human/GENCODE/GRCh38/gencode.v49.primary_assembly.basic.annotation.gtf",
+        "geneIDAnno": "/data/16T/Database/Reference/human/GENCODE/GRCh38/geneIDAnnotation.csv",
+        "gene_map": "/data/16T/Database/Reference/human/GENCODE/GRCh38/gene_map.pkl",
+        "TE_gtf": "/data/16T/Database/Reference/human/GENCODE/GRCh38/GRCh38_GENCODE_rmsk_TE.gtf",
+        "TEind": "/data/16T/Database/Reference/human/GENCODE/GRCh38/GRCh38_GENCODE_rmsk_TE.gtf.locInd",
+        "hisat2_index_prefix": "/data/16T/Database/Reference/human/GENCODE/GRCh38/hisat2/GRCh38",
+        "star_index_dir": null,
+        "rRNA_fasta": null,
+        "bowtie2_index_prefix_for_rRNA": null
+      },
+      "Mmul_10": {
+        "fasta": "/data/16T/Database/Reference/mulatta/ENSEMBL/Mmul_10/Macaca_mulatta.Mmul_10.dna.toplevel.fa",
+        "fai_index": "/data/16T/Database/Reference/mulatta/ENSEMBL/Mmul_10/Macaca_mulatta.Mmul_10.dna.toplevel.fa.fai",
+        "dict_index": "/data/16T/Database/Reference/mulatta/ENSEMBL/Mmul_10/Macaca_mulatta.Mmul_10.dna.toplevel.dict",
+        "gtf": "/data/16T/Database/Reference/mulatta/ENSEMBL/Mmul_10/Macaca_mulatta.Mmul_10.116.gtf",
+        "geneIDAnno": "/data/16T/Database/Reference/mulatta/ENSEMBL/Mmul_10/geneIDAnnotation.csv",
+        "gene_map": null,
+        "TE_gtf": "/data/16T/Database/Reference/mulatta/ENSEMBL/Mmul_10/rheMac10_rmsk_TE.gtf",
+        "TEind": "/data/16T/Database/Reference/mulatta/ENSEMBL/Mmul_10/rheMac10_rmsk_TE.gtf.locInd.locations",
+        "hisat2_index_prefix": null,
+        "rRNA_fasta": null,
+        "star_index_dir": null
+      }
+    }
+  },
+  "env": {
+    "env_dir": "/data/16T/Database/env",
+    "DESeq2": "/data/16T/Database/env/DESeq2/DESeq2.sif",
+    "RNAseq_report": "/data/16T/Database/env/report/report.sif",
+    "qc_summary": "/data/16T/Database/env/report/report.sif",
+    "RmrRNA": "/data/16T/Database/env/RmrRNA/RmrRNA.sif",
+    "StringTie": "/data/16T/Database/env/StringTie/StringTie.sif",
+    "TEtranscripts": "/data/16T/Database/env/TEtranscripts/TEtranscripts.sif",
+    "arriba": "/data/16T/Database/env/arriba/arriba.sif",
+    "bowtie2": "/data/16T/Database/env/bowtie2/bowtie2.sif",
+    "cutadapt": "/data/16T/Database/env/cutadapt/cutadapt.sif",
+    "function": "/data/16T/Database/env/function/function.sif",
+    "gatk": "/data/16T/Database/env/gatk/gatk4.sif",
+    "hisat2": "/data/16T/Database/env/hisat2/hisat2.sif",
+    "star": "/data/16T/Database/env/star/star.sif",
+    "trim-galore": "/data/16T/Database/env/trim-galore/trim-galore.sif",
+    "trimmomatic": "/data/16T/Database/env/trimmomatic/trimmomatic.sif",
+    "XenofilteR": "/data/16T/Database/env/XenofilteR/XenofilteR.sif",
+    "featureCounts": "/data/16T/Database/env/featureCounts/featureCounts.sif",
+    "DESeq2_TElocal_manhattan": "/data/16T/Database/env/DESeq2/tefig.sif",
+    "DESeq2_TElocal_locus_boxplot": "/data/16T/Database/env/DESeq2/tefig.sif",
+    "DESeq2_TElocal_subfamily_bar": "/data/16T/Database/env/DESeq2/tefig.sif",
+    "sexcheck": "/data/16T/Database/env/fragment_size/fragment_size.sif",
+    "tefig": "/data/16T/Database/env/DESeq2/tefig.sif"
+  },
   "resources": {
     "default": {
       "threads": 2,
@@ -290,31 +601,6 @@
       "mem_mb": 8000
     }
   },
-  "env": {
-    "env_dir": "/data/16T/Database/env",
-    "DESeq2": "/data/16T/Database/env/DESeq2/DESeq2.sif",
-    "RNAseq_report": "/data/16T/Database/env/report/report.sif",
-    "qc_summary": "/data/16T/Database/env/report/report.sif",
-    "RmrRNA": "/data/16T/Database/env/RmrRNA/RmrRNA.sif",
-    "StringTie": "/data/16T/Database/env/StringTie/StringTie.sif",
-    "TEtranscripts": "/data/16T/Database/env/TEtranscripts/TEtranscripts.sif",
-    "arriba": "/data/16T/Database/env/arriba/arriba.sif",
-    "bowtie2": "/data/16T/Database/env/bowtie2/bowtie2.sif",
-    "cutadapt": "/data/16T/Database/env/cutadapt/cutadapt.sif",
-    "function": "/data/16T/Database/env/function/function.sif",
-    "gatk": "/data/16T/Database/env/gatk/gatk4.sif",
-    "hisat2": "/data/16T/Database/env/hisat2/hisat2.sif",
-    "star": "/data/16T/Database/env/star/star.sif",
-    "trim-galore": "/data/16T/Database/env/trim-galore/trim-galore.sif",
-    "trimmomatic": "/data/16T/Database/env/trimmomatic/trimmomatic.sif",
-    "XenofilteR": "/data/16T/Database/env/XenofilteR/XenofilteR.sif",
-    "featureCounts": "/data/16T/Database/env/featureCounts/featureCounts.sif",
-    "DESeq2_TElocal_manhattan": "/data/16T/Database/env/DESeq2/tefig.sif",
-    "DESeq2_TElocal_locus_boxplot": "/data/16T/Database/env/DESeq2/tefig.sif",
-    "DESeq2_TElocal_subfamily_bar": "/data/16T/Database/env/DESeq2/tefig.sif",
-    "sexcheck": "/data/16T/Database/env/fragment_size/fragment_size.sif",
-    "tefig": "/data/16T/Database/env/DESeq2/tefig.sif"
-  },
   "Procedure": {
     "TEcount": null,
     "TElocal": null,
@@ -326,293 +612,7 @@
     "trimmomatic": null,
     "featureCounts": null
   },
-  "genome": {
-    "default": "GRCm39",
-    "references": {
-      "GRCm39": {
-        "fasta": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
-        "fai_index": null,
-        "dict_index": null,
-        "gtf": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/gencode.vM38.primary_assembly.basic.annotation.gtf",
-        "geneIDAnno": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/geneIDAnnotation.csv",
-        "gene_map": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/gene_map.pkl",
-        "TE_gtf": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.gtf",
-        "TEind": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39_GENCODE_rmsk_TE.gtf.locInd",
-        "hisat2_index_prefix": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/hisat2/genome",
-        "star_index_dir": null,
-        "rRNA_fasta": null,
-        "bowtie2_index_prefix_for_rRNA": null
-      },
-      "GRCh38": {
-        "fasta": "/data/16T/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa",
-        "fai_index": null,
-        "dict_index": null,
-        "gtf": "/data/16T/Database/Reference/human/GENCODE/GRCh38/gencode.v49.primary_assembly.basic.annotation.gtf",
-        "geneIDAnno": "/data/16T/Database/Reference/human/GENCODE/GRCh38/geneIDAnnotation.csv",
-        "gene_map": "/data/16T/Database/Reference/human/GENCODE/GRCh38/gene_map.pkl",
-        "TE_gtf": "/data/16T/Database/Reference/human/GENCODE/GRCh38/GRCh38_GENCODE_rmsk_TE.gtf",
-        "TEind": "/data/16T/Database/Reference/human/GENCODE/GRCh38/GRCh38_GENCODE_rmsk_TE.gtf.locInd",
-        "hisat2_index_prefix": "/data/16T/Database/Reference/human/GENCODE/GRCh38/hisat2/GRCh38",
-        "star_index_dir": null,
-        "rRNA_fasta": null,
-        "bowtie2_index_prefix_for_rRNA": null
-      },
-      "Mmul_10": {
-        "fasta": "/data/16T/Database/Reference/mulatta/ENSEMBL/Mmul_10/Macaca_mulatta.Mmul_10.dna.toplevel.fa",
-        "fai_index": null,
-        "dict_index": null,
-        "gtf": "/data/16T/Database/Reference/mulatta/ENSEMBL/Mmul_10/Macaca_mulatta.Mmul_10.116.gtf",
-        "geneIDAnno": "/data/16T/Database/Reference/mulatta/ENSEMBL/Mmul_10/geneIDAnnotation.csv",
-        "gene_map": null,
-        "TE_gtf": "/data/16T/Database/Reference/mulatta/ENSEMBL/Mmul_10/rheMac10_rmsk_TE.gtf",
-        "TEind": "/data/16T/Database/Reference/mulatta/ENSEMBL/Mmul_10/rheMac10_rmsk_TE.gtf.locInd.locations",
-        "hisat2_index_prefix": null,
-        "rRNA_fasta": null,
-        "star_index_dir": null
-      }
-    }
-  },
-  "Params": {
-    "workflow": {
-      "aligner_TEtranscripts": "star",
-      "trimmer": "trim_galore",
-      "genome_paired_samples": {
-        "GRCm39": [],
-        "GRCh38": []
-      },
-      "genome_single_samples": {
-        "GRCm39": [],
-        "GRCh38": []
-      },
-      "indir": null,
-      "raw_files": [],
-      "outdir": null,
-      "logdir": null
-    },
-    "trim_galore": {
-      "quality": 25
-    },
-    "trimmomatic": {
-      "adapter_pe": "/data/16T/Database/SoftWare/Trimmomatic-0.41/adapters/TruSeq3-PE-2.fa",
-      "adapter_se": "/data/16T/Database/SoftWare/Trimmomatic-0.41/adapters/TruSeq3-SE.fa"
-    },
-    "STAR_TEtranscripts": {
-      "alignEndsType": "Local",
-      "outFilterMismatchNoverReadLmax": 1.0,
-      "outFilterMismatchNmax": 10,
-      "outFilterMultimapNmax": 100,
-      "winAnchorMultimapNmax": 100
-    },
-    "STAR_fusion": {
-      "outFilterMultimapNmax": 1,
-      "outFilterMismatchNmax": 3,
-      "chimSegmentMin": 10,
-      "chimOutType": "Junctions WithinBAM SoftClip SeparateSAMold",
-      "chimJunctionOverhangMin": 10,
-      "outSAMstrandField": "intronMotif",
-      "chimScoreMin": 1,
-      "chimScoreDropMax": 30,
-      "chimScoreJunctionNonGTAG": 0,
-      "chimScoreSeparation": 1,
-      "alignSJstitchMismatchNmax": "5 -1 5 5",
-      "chimSegmentReadGapMax": 3
-    },
-    "STAR_SNP": {
-      "twopassMode": "Basic",
-      "outSAMattributes": "NM",
-      "outSAMtype": "BAM SortedByCoordinate"
-    },
-    "STAR_featureCounts": {},
-    "hisat2_TEtranscripts": {
-      "score_min": "L,0,-0.2",
-      "flag_params": "--no-mixed --no-discordant",
-      "k": 100
-    },
-    "hisat2_stringtie": {
-      "k": 1,
-      "flag_params": "-q --no-unal --dta"
-    },
-    "XenofilteR": {
-      "sample_contamination": {
-        "sample1": {
-          "host": "GRCm39",
-          "contaminant": "GRCh38"
-        }
-      },
-      "MM": 8
-    },
-    "TEcount": {
-      "enabled": true
-    },
-    "TElocal": {
-      "enabled": true
-    },
-    "StringTie": {
-      "enabled": true,
-      "sample_groups": {},
-      "formats": [
-        "png"
-      ]
-    },
-    "gatk_RNAseq": {
-      "enabled": true
-    },
-    "arriba": {
-      "enabled": true,
-      "blacklist": "/data/16T/Database/SoftWare/arriba_v2.5.1/database/blacklist_mm39_GRCm39_v2.5.1.tsv.gz",
-      "known_fusions": "/data/16T/Database/SoftWare/arriba_v2.5.1/database/known_fusions_mm39_GRCm39_v2.5.1.tsv.gz",
-      "t": null,
-      "d": null,
-      "E": 0.3,
-      "formats": [
-        "png"
-      ]
-    },
-    "DESeq2": {
-      "enabled": true,
-      "group_pairs": {
-        "GRCm39": {
-          "control_group_name_vs_experimental_group_name": {
-            "control_group_name": "control_group_name",
-            "experimental_group_name": "experimental_group_name",
-            "control_samples": [
-              "sample1",
-              "sample2"
-            ],
-            "experimental_samples": [
-              "sample3",
-              "sample4"
-            ]
-          }
-        },
-        "GRCh38": {
-          "control_group_name_vs_experimental_group_name": {
-            "control_group_name": "control_group_name",
-            "experimental_group_name": "experimental_group_name",
-            "control_samples": [
-              "sample1",
-              "sample2"
-            ],
-            "experimental_samples": [
-              "sample3",
-              "sample4"
-            ]
-          }
-        }
-      },
-      "manhattan": {
-        "label_top": 10,
-        "ylabel": "log2(1+|delta TPM|)",
-        "highlight_families": {
-          "GRCm39": {},
-          "GRCh38": {}
-        },
-        "formats": [
-          "png"
-        ]
-      },
-      "locus_boxplot": {
-        "match_field": "subfamily",
-        "match_mode": "exact",
-        "normalize": "log2tpm",
-        "kind": "box",
-        "families": {
-          "GRCm39": {},
-          "GRCh38": {}
-        },
-        "formats": [
-          "png"
-        ]
-      },
-      "subfamily_bar": {
-        "match_field": "subfamily",
-        "match_mode": "exact",
-        "value": "total",
-        "normalize": "tpm",
-        "yscale": "linear",
-        "ylabel": "TPM",
-        "families": {
-          "GRCm39": {},
-          "GRCh38": {}
-        },
-        "formats": [
-          "png"
-        ]
-      },
-      "formats": [
-        "png"
-      ]
-    },
-    "function": {
-      "GRCh38": {
-        "enabled": true,
-        "go_kegg": {
-          "lfc_cut": 1,
-          "p_cut": 0.05,
-          "top": 10,
-          "species": "human",
-          "formats": [
-            "png"
-          ]
-        },
-        "gsea": {
-          "gmt": "/data/16T/Database/Reference/geneset/8C_human.gmt",
-          "formats": [
-            "jpeg"
-          ]
-        },
-        "gsva": {
-          "gmt": "/data/16T/Database/Reference/geneset/GSI_human.gmt",
-          "formats": [
-            "png"
-          ]
-        }
-      },
-      "GRCm39": {
-        "enabled": true,
-        "go_kegg": {
-          "lfc_cut": 1,
-          "p_cut": 0.05,
-          "top": 10,
-          "species": "mouse",
-          "formats": [
-            "png"
-          ]
-        },
-        "gsea": {
-          "gmt": "/data/16T/Database/Reference/geneset/2C_mouse.gmt",
-          "formats": [
-            "jpeg"
-          ]
-        },
-        "gsva": {
-          "gmt": "/data/16T/Database/Reference/geneset/GSI_mouse.gmt",
-          "formats": [
-            "png"
-          ]
-        }
-      }
-    },
-    "report": {
-      "enabled": true,
-      "title": "RNA-seq Analysis Report",
-      "subtitle": "",
-      "pipeline": "FASTQ -> TrimGalore/Cutadapt -> STAR/HISAT2 -> TEcount/StringTie/Arriba -> DESeq2 -> RNAseq_report",
-      "genome": "GRCm39",
-      "date": "2026-07-27",
-      "lang": "zh",
-      "formats": [
-        "png"
-      ]
-    },
-    "sexcheck": {
-      "ratio_xy_threshold": null,
-      "y_min_frac": null,
-      "data_type": "RNA",
-      "xist_gene": null,
-      "y_genes": null,
-      "y_min_rpkm": null,
-      "xist_min_rpkm": null
-    }
-  }
+  "outfiles": [],
+  "ROOT_DIR": null,
+  "tmp_dir": null
 }

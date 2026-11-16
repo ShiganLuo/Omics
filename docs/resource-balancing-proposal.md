@@ -23,6 +23,10 @@
 > 顺带发现:9 处 `use rule X` 指向模块中不存在的规则(Snakemake 静默忽略,
 > 属休眠死接线),待讨论是否修复。
 
+> 进展 3(2026-11-16):方案 A 原第 5 点"per-host 覆盖层"否决删除——
+> 不做按主机枚举的 `host_profiles` 覆盖层(维护成本高,且无法枚举所有服务器);
+> 异构主机差异一律由第 4 点的 clamp 截断兜底。
+
 ---
 
 ## 1. 现状梳理(代码事实)
@@ -97,8 +101,6 @@
 4. **clamp 防死锁(P3)**:`rule_res` 返回前统一
    `mem_mb = min(declared, budget × 0.8)`,`threads = min(declared, cpus)`,
    截断时打 warning。任何主机上都不会出现"单作业永远装不下"。
-5. **per-host 覆盖层**(可选):`config["resources"]["host_profiles"][hostname]`
-   作为第三层合并,个别主机需要特殊值时不用改全局。
 
 改动点:run.py、common.smk(+KARRseq.smk 拷贝)。不改任何 .smk 规则调用。
 

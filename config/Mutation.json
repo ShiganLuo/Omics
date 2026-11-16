@@ -191,23 +191,12 @@
       "threads": 2,
       "mem_mb": 8000
     },
-    "bwaMem2_index": {
-      "threads": 15,
-      "mem_mb": 64000
+    "ApplyBQSR": {
+      "threads": 8,
+      "mem_mb": 16000
     },
-    "bwaMem2_alignment": {
-      "threads": 15,
-      "mem_mb": 32000,
-      "scale": {
-        "size_metric": "fastq_mb",
-        "ref_input_size": 5400,
-        "fixed_frac": 0.9,
-        "min_mem_mb": 16000,
-        "max_mem_mb": 200000
-      }
-    },
-    "somaticMutect2": {
-      "threads": 10,
+    "BaseRecalibrator": {
+      "threads": 8,
       "mem_mb": 32000,
       "scale": {
         "size_metric": "bam_mb",
@@ -228,10 +217,6 @@
         "max_mem_mb": 200000
       }
     },
-    "filterHaplotypeCallerVcf": {
-      "threads": 10,
-      "mem_mb": 16000
-    },
     "MarkDuplicates": {
       "threads": 8,
       "mem_mb": 32000,
@@ -243,47 +228,58 @@
         "max_mem_mb": 200000
       }
     },
+    "SplitNCigarReads": {
+      "threads": 8,
+      "mem_mb": 16000
+    },
+    "VarientCalling": {
+      "threads": 8,
+      "mem_mb": 16000
+    },
     "addReadsGroup": {
       "threads": 8,
       "mem_mb": 16000
     },
-    "gatk_index": {
-      "threads": 4,
+    "bam_flagstat": {
       "mem_mb": 8000
     },
-    "BaseRecalibrator": {
-      "threads": 8,
-      "mem_mb": 32000,
-      "scale": {
-        "size_metric": "bam_mb",
-        "ref_input_size": 3500,
-        "fixed_frac": 0.2,
-        "min_mem_mb": 8000,
-        "max_mem_mb": 200000
-      }
+    "bam_sort": {
+      "threads": 8
     },
-    "ApplyBQSR": {
-      "threads": 8,
-      "mem_mb": 16000
-    },
-    "vcf_filter": {
-      "threads": 8,
-      "mem_mb": 8000
-    },
-    "manta_run": {
-      "threads": 8,
-      "mem_mb": 32000,
-      "scale": {
-        "size_metric": "bam_mb",
-        "ref_input_size": 3500,
-        "fixed_frac": 0.2,
-        "min_mem_mb": 8000,
-        "max_mem_mb": 200000
-      }
-    },
-    "manta_config": {
+    "burden_aggregate": {
       "threads": 1,
       "mem_mb": 8000
+    },
+    "burden_cnv": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "burden_result": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "burden_snv_indel": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "burden_sv": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "bwaMem2_alignment": {
+      "threads": 15,
+      "mem_mb": 32000,
+      "scale": {
+        "size_metric": "fastq_mb",
+        "ref_input_size": 5400,
+        "fixed_frac": 0.9,
+        "min_mem_mb": 16000,
+        "max_mem_mb": 200000
+      }
+    },
+    "bwaMem2_index": {
+      "threads": 15,
+      "mem_mb": 64000
     },
     "cnvkit_batch": {
       "threads": 8,
@@ -304,69 +300,70 @@
       "threads": 8,
       "mem_mb": 16000
     },
-    "samtools_stats": {
-      "threads": 1,
-      "mem_mb": 8000
+    "collectHsMetrics": {
+      "threads": 4,
+      "mem_mb": 16000
     },
-    "trimming_Paired": {
-      "threads": 6,
-      "mem_mb": 8000
+    "derive_targets": {
+      "threads": 4,
+      "mem_mb": 16000
     },
     "fastqc": {
       "threads": 2,
       "mem_mb": 8000
     },
-    "derive_targets": {
-      "threads": 4,
+    "filterHaplotypeCallerVcf": {
+      "threads": 10,
       "mem_mb": 16000
     },
     "filterMutectCalls": {
       "threads": 2,
       "mem_mb": 8000
     },
-    "germline_resource_strain": {
-      "threads": 2,
-      "mem_mb": 16000
-    },
-    "burden_snv_indel": {
-      "threads": 1,
-      "mem_mb": 8000
-    },
-    "burden_sv": {
-      "threads": 1,
-      "mem_mb": 8000
-    },
-    "burden_cnv": {
-      "threads": 1,
-      "mem_mb": 8000
-    },
-    "burden_aggregate": {
-      "threads": 1,
-      "mem_mb": 8000
-    },
-    "burden_result": {
-      "threads": 1,
-      "mem_mb": 8000
-    },
-    "collectHsMetrics": {
-      "threads": 4,
-      "mem_mb": 16000
-    },
-    "bam_flagstat": {
+    "gatk_bqsr_result": {
       "mem_mb": 8000
     },
     "gatk_haplotypeCaller_result": {
       "mem_mb": 8000
     },
+    "gatk_index": {
+      "threads": 4,
+      "mem_mb": 8000
+    },
+    "gatk_population_haplotype_caller": {
+      "threads": 8
+    },
+    "gatk_population_joint_genotyping": {
+      "threads": 8
+    },
     "generate_report": {
       "threads": 1,
       "mem_mb": 8000
     },
+    "germline_resource_strain": {
+      "threads": 2,
+      "mem_mb": 16000
+    },
     "getFragmentSize": {
+      "mem_mb": 8000
+    },
+    "manta_config": {
+      "threads": 1,
       "mem_mb": 8000
     },
     "manta_config_somatic": {
       "mem_mb": 8000
+    },
+    "manta_run": {
+      "threads": 8,
+      "mem_mb": 32000,
+      "scale": {
+        "size_metric": "bam_mb",
+        "ref_input_size": 3500,
+        "fixed_frac": 0.2,
+        "min_mem_mb": 8000,
+        "max_mem_mb": 200000
+      }
     },
     "manta_run_germline": {
       "mem_mb": 32000
@@ -393,6 +390,10 @@
       "threads": 1,
       "mem_mb": 8000
     },
+    "samtools_stats": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
     "sexcheck": {
       "threads": 1,
       "mem_mb": 8000
@@ -400,6 +401,17 @@
     "sexcheck_idxstats": {
       "threads": 1,
       "mem_mb": 8000
+    },
+    "somaticMutect2": {
+      "threads": 10,
+      "mem_mb": 32000,
+      "scale": {
+        "size_metric": "bam_mb",
+        "ref_input_size": 3500,
+        "fixed_frac": 0.2,
+        "min_mem_mb": 8000,
+        "max_mem_mb": 200000
+      }
     },
     "somatic_signature_nmf": {
       "threads": 1,
@@ -413,7 +425,16 @@
       "threads": 1,
       "mem_mb": 8000
     },
-    "gatk_bqsr_result": {
+    "trimming_Paired": {
+      "threads": 6,
+      "mem_mb": 8000
+    },
+    "trimming_Single": {
+      "threads": 6,
+      "mem_mb": 4000
+    },
+    "vcf_filter": {
+      "threads": 8,
       "mem_mb": 8000
     }
   }

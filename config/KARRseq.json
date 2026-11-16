@@ -11,35 +11,21 @@
       "threads": 15,
       "mem_mb": 8000
     },
-    "seqprep_merge": {
-      "mem_mb": 8000
-    },
-    "seqprep_result": {
-      "mem_mb": 8000
+    "fiberseq_track": {
+      "threads": 4
     },
     "karrseq_chimeric_to_pairs": {
       "threads": 4,
-      "mem_mb": 8000
-    },
-    "karrseq_remove_duplicates": {
       "mem_mb": 8000
     },
     "karrseq_ligation": {
       "threads": 4,
       "mem_mb": 8000
     },
+    "karrseq_remove_duplicates": {
+      "mem_mb": 8000
+    },
     "karrseq_result": {
-      "mem_mb": 8000
-    },
-    "sexcheck_idxstats": {
-      "threads": 1,
-      "mem_mb": 8000
-    },
-    "sexcheck": {
-      "threads": 1,
-      "mem_mb": 8000
-    },
-    "sexcheck_result": {
       "mem_mb": 8000
     },
     "qc_summary": {
@@ -47,6 +33,23 @@
       "mem_mb": 8000
     },
     "qc_summary_result": {
+      "mem_mb": 8000
+    },
+    "seqprep_merge": {
+      "mem_mb": 8000
+    },
+    "seqprep_result": {
+      "mem_mb": 8000
+    },
+    "sexcheck": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "sexcheck_idxstats": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "sexcheck_result": {
       "mem_mb": 8000
     }
   },

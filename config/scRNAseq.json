@@ -38,6 +38,25 @@
       "threads": 1,
       "mem_mb": 8000
     },
+    "function_go_kegg": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "function_gsea": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "function_gsva": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "function_pseudobulk_go": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "function_pseudobulk_go_index": {
+      "threads": 1
+    },
     "scTE_build_index": {
       "threads": 1,
       "mem_mb": 8000
@@ -95,9 +114,11 @@
       "threads": 4,
       "mem_mb": 32000
     },
-    "function_pseudobulk_go": {
-      "threads": 1,
-      "mem_mb": 8000
+    "star_3p_align": {
+      "threads": 12
+    },
+    "star_3pg_gene_specific": {
+      "threads": 2
     },
     "star_align": {
       "threads": 12,
@@ -107,10 +128,11 @@
       "threads": 12,
       "mem_mb": 64000
     },
-    "function_pseudobulk_go_index": {
-      "threads": 1
-    },
     "star_result": {
+      "mem_mb": 8000
+    },
+    "sv_go_kegg": {
+      "threads": 1,
       "mem_mb": 8000
     }
   },

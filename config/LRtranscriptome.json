@@ -7,6 +7,14 @@
       "threads": 2,
       "mem_mb": 8000
     },
+    "TEChimericPlot": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "TEChimericTranscripts": {
+      "threads": 5,
+      "mem_mb": 8000
+    },
     "minimap2_align": {
       "threads": 16,
       "mem_mb": 32000,
@@ -29,6 +37,14 @@
     "sexcheck_idxstats": {
       "threads": 1,
       "mem_mb": 8000
+    },
+    "stringTie": {
+      "threads": 5,
+      "mem_mb": 16000
+    },
+    "stringTieMerge": {
+      "threads": 1,
+      "mem_mb": 32000
     },
     "stringtie_lr_assemble": {
       "threads": 8,

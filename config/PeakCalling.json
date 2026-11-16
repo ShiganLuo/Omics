@@ -7,13 +7,30 @@
       "threads": 2,
       "mem_mb": 8000
     },
+    "BaseRecalibrator": {
+      "threads": 8
+    },
+    "HaplotypeCaller": {
+      "threads": 10
+    },
     "MarkDuplicates": {
       "threads": 8,
       "mem_mb": 32000
     },
+    "SplitNCigarReads": {
+      "threads": 8,
+      "mem_mb": 16000
+    },
+    "VarientCalling": {
+      "threads": 8,
+      "mem_mb": 16000
+    },
     "addReadsGroup": {
       "threads": 8,
       "mem_mb": 16000
+    },
+    "bamCoverage": {
+      "threads": 8
     },
     "bigwig_ratio": {
       "threads": 4,
@@ -35,16 +52,38 @@
       "threads": 12,
       "mem_mb": 8000
     },
+    "collectHsMetrics": {
+      "threads": 4
+    },
     "fastqc": {
       "threads": 2,
       "mem_mb": 8000
     },
+    "filterHaplotypeCallerVcf": {
+      "threads": 10
+    },
+    "filterMutectCalls": {
+      "threads": 2
+    },
     "frip_score": {
       "mem_mb": 16000
+    },
+    "gatk_index": {
+      "threads": 4,
+      "mem_mb": 8000
+    },
+    "gatk_population_haplotype_caller": {
+      "threads": 8
+    },
+    "gatk_population_joint_genotyping": {
+      "threads": 8
     },
     "generate_report": {
       "threads": 1,
       "mem_mb": 8000
+    },
+    "germline_resource_strain": {
+      "threads": 2
     },
     "heatmap": {
       "threads": 4,
@@ -104,6 +143,9 @@
       "threads": 1,
       "mem_mb": 8000
     },
+    "somaticMutect2": {
+      "threads": 10
+    },
     "trimming_Paired": {
       "threads": 6,
       "mem_mb": 8000
@@ -116,6 +158,10 @@
       "mem_mb": 8000
     },
     "ucsc_track_single": {
+      "mem_mb": 8000
+    },
+    "vcf_filter": {
+      "threads": 8,
       "mem_mb": 8000
     },
     "wig": {

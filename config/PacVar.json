@@ -5,9 +5,23 @@
       "threads": 2,
       "mem_mb": 8000
     },
+    "BaseRecalibrator": {
+      "threads": 8
+    },
+    "HaplotypeCaller": {
+      "threads": 10
+    },
     "MarkDuplicates": {
       "threads": 8,
       "mem_mb": 32000
+    },
+    "SplitNCigarReads": {
+      "threads": 8,
+      "mem_mb": 16000
+    },
+    "VarientCalling": {
+      "threads": 8,
+      "mem_mb": 16000
     },
     "addReadsGroup": {
       "threads": 8,
@@ -21,12 +35,24 @@
       "threads": 8,
       "mem_mb": 16000
     },
+    "bigwig_ratio": {
+      "threads": 4
+    },
+    "bigwig_ratio_result": {
+      "threads": 1
+    },
     "centromere_extract": {
       "threads": 1,
       "mem_mb": 8000
     },
     "centromere_result": {
       "mem_mb": 8000
+    },
+    "chromosome_sizes": {
+      "threads": 1
+    },
+    "collectHsMetrics": {
+      "threads": 4
     },
     "decoil_compare": {
       "threads": 2,
@@ -55,13 +81,60 @@
       "threads": 1,
       "mem_mb": 4000
     },
+    "deepvariant_run": {
+      "threads": 8,
+      "mem_mb": 32000
+    },
+    "extract_smallrna": {
+      "threads": 1
+    },
+    "filterHaplotypeCallerVcf": {
+      "threads": 10
+    },
+    "filterMutectCalls": {
+      "threads": 2
+    },
+    "function_go_kegg": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "function_gsea": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "function_gsva": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "function_pseudobulk_go": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "function_pseudobulk_go_index": {
+      "threads": 1
+    },
     "gatk_index": {
       "threads": 4,
       "mem_mb": 8000
     },
+    "gatk_population_haplotype_caller": {
+      "threads": 8
+    },
+    "gatk_population_joint_genotyping": {
+      "threads": 8
+    },
     "genome_index": {
       "threads": 1,
       "mem_mb": 8000
+    },
+    "germline_resource_strain": {
+      "threads": 2
+    },
+    "heatmap": {
+      "threads": 4
+    },
+    "heatmap_gene": {
+      "threads": 4
     },
     "hifiasm_assemble": {
       "threads": 12,
@@ -83,7 +156,15 @@
       "threads": 4,
       "mem_mb": 16000
     },
+    "qc_summary": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
     "read_density_telomere": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "regionplot": {
       "threads": 1,
       "mem_mb": 8000
     },
@@ -94,6 +175,17 @@
     "repeatmasker_run": {
       "threads": 12,
       "mem_mb": 32000
+    },
+    "sexcheck": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "sexcheck_idxstats": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "somaticMutect2": {
+      "threads": 10
     },
     "sv_diff_analysis": {
       "mem_mb": 8000
@@ -110,6 +202,14 @@
     "sv_gene_model": {
       "mem_mb": 8000
     },
+    "sv_go_kegg": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "sv_mei": {
+      "threads": 4,
+      "mem_mb": 16000
+    },
     "sv_oncoprint": {
       "mem_mb": 8000
     },
@@ -119,6 +219,9 @@
     "telogator2_run": {
       "threads": 16,
       "mem_mb": 16000
+    },
+    "tidk_init": {
+      "threads": 1
     },
     "tidk_scan": {
       "threads": 1,
@@ -131,32 +234,8 @@
     "trgt_plot": {
       "mem_mb": 16000
     },
-    "sv_mei": {
-      "threads": 4,
-      "mem_mb": 16000
-    },
-    "deepvariant_run": {
+    "vcf_filter": {
       "threads": 8,
-      "mem_mb": 32000
-    },
-    "qc_summary": {
-      "threads": 1,
-      "mem_mb": 8000
-    },
-    "regionplot": {
-      "threads": 1,
-      "mem_mb": 8000
-    },
-    "sexcheck": {
-      "threads": 1,
-      "mem_mb": 8000
-    },
-    "sexcheck_idxstats": {
-      "threads": 1,
-      "mem_mb": 8000
-    },
-    "sv_go_kegg": {
-      "threads": 1,
       "mem_mb": 8000
     }
   },

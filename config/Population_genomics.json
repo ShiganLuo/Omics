@@ -7,9 +7,47 @@
       "threads": 2,
       "mem_mb": 8000
     },
-    "population_metadata": {
-      "threads": 1,
-      "mem_mb": 2000
+    "BaseRecalibrator": {
+      "threads": 8
+    },
+    "HaplotypeCaller": {
+      "threads": 10
+    },
+    "MarkDuplicates": {
+      "threads": 8
+    },
+    "SplitNCigarReads": {
+      "threads": 8,
+      "mem_mb": 16000
+    },
+    "VarientCalling": {
+      "threads": 8,
+      "mem_mb": 16000
+    },
+    "addReadsGroup": {
+      "threads": 8,
+      "mem_mb": 16000
+    },
+    "admixture_population": {
+      "threads": 8,
+      "mem_mb": 32000
+    },
+    "bcftools_population_filter": {
+      "threads": 2,
+      "mem_mb": 8000
+    },
+    "collectHsMetrics": {
+      "threads": 4
+    },
+    "filterHaplotypeCallerVcf": {
+      "threads": 10
+    },
+    "filterMutectCalls": {
+      "threads": 2
+    },
+    "gatk_index": {
+      "threads": 4,
+      "mem_mb": 8000
     },
     "gatk_population_haplotype_caller": {
       "threads": 8,
@@ -19,21 +57,27 @@
       "threads": 8,
       "mem_mb": 32000
     },
-    "bcftools_population_filter": {
-      "threads": 2,
-      "mem_mb": 8000
-    },
-    "plink2_population_pgen": {
-      "threads": 4,
-      "mem_mb": 16000
+    "germline_resource_strain": {
+      "threads": 2
     },
     "plink2_population_bed": {
       "threads": 4,
       "mem_mb": 16000
     },
-    "admixture_population": {
+    "plink2_population_pgen": {
+      "threads": 4,
+      "mem_mb": 16000
+    },
+    "population_metadata": {
+      "threads": 1,
+      "mem_mb": 2000
+    },
+    "somaticMutect2": {
+      "threads": 10
+    },
+    "vcf_filter": {
       "threads": 8,
-      "mem_mb": 32000
+      "mem_mb": 8000
     }
   },
   "env": {

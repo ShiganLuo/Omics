@@ -39,6 +39,12 @@
     "msstats_result": {
       "mem_mb": 8000
     },
+    "philosopher_database": {
+      "threads": 1
+    },
+    "philosopher_filter": {
+      "threads": 1
+    },
     "protein_inference": {
       "mem_mb": 32000
     },

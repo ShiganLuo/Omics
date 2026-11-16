@@ -21,6 +21,31 @@
       "threads": 2,
       "mem_mb": 8000
     },
+    "ApplyBQSR": {
+      "mem_mb": 16000
+    },
+    "BaseRecalibrator": {
+      "threads": 8,
+      "mem_mb": 32000,
+      "scale": {
+        "size_metric": "bam_mb",
+        "ref_input_size": 3000,
+        "fixed_frac": 0.2,
+        "min_mem_mb": 8000,
+        "max_mem_mb": 200000
+      }
+    },
+    "HaplotypeCaller": {
+      "threads": 10,
+      "mem_mb": 32000,
+      "scale": {
+        "size_metric": "bam_mb",
+        "ref_input_size": 3000,
+        "fixed_frac": 0.2,
+        "min_mem_mb": 8000,
+        "max_mem_mb": 200000
+      }
+    },
     "MarkDuplicates": {
       "threads": 8,
       "mem_mb": 32000,
@@ -40,57 +65,19 @@
       "threads": 8,
       "mem_mb": 16000
     },
-    "somaticMutect2": {
-      "threads": 8,
-      "mem_mb": 32000,
-      "scale": {
-        "size_metric": "bam_mb",
-        "ref_input_size": 3000,
-        "fixed_frac": 0.2,
-        "min_mem_mb": 8000,
-        "max_mem_mb": 200000
-      }
-    },
-    "star_align": {
-      "threads": 12,
-      "mem_mb": 64000,
-      "scale": {
-        "size_metric": "fastq_mb",
-        "ref_input_size": 4600,
-        "fixed_frac": 0.9,
-        "min_mem_mb": 32000,
-        "max_mem_mb": 200000
-      }
-    },
-    "bwaMem2_alignment": {
-      "threads": 12,
-      "mem_mb": 32000
-    },
-    "drclass_pileup": {
-      "threads": 4,
-      "mem_mb": 8000
-    },
-    "drclass_classify": {
-      "threads": 1,
-      "mem_mb": 8000
-    },
-    "HaplotypeCaller": {
-      "threads": 10,
-      "mem_mb": 32000,
-      "scale": {
-        "size_metric": "bam_mb",
-        "ref_input_size": 3000,
-        "fixed_frac": 0.2,
-        "min_mem_mb": 8000,
-        "max_mem_mb": 200000
-      }
-    },
     "addReadsGroup": {
       "threads": 8,
       "mem_mb": 16000
     },
     "bam_flagstat": {
       "mem_mb": 8000
+    },
+    "bam_sort": {
+      "threads": 8
+    },
+    "bwaMem2_alignment": {
+      "threads": 12,
+      "mem_mb": 32000
     },
     "bwaMem2_index": {
       "threads": 15,
@@ -107,6 +94,14 @@
     "drclass_anchors": {
       "mem_mb": 2000
     },
+    "drclass_classify": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "drclass_pileup": {
+      "threads": 4,
+      "mem_mb": 8000
+    },
     "drclass_summary": {
       "mem_mb": 2000
     },
@@ -122,6 +117,9 @@
       "threads": 2,
       "mem_mb": 8000
     },
+    "gatk_bqsr_result": {
+      "mem_mb": 8000
+    },
     "gatk_haplotypeCaller_result": {
       "mem_mb": 8000
     },
@@ -129,12 +127,46 @@
       "threads": 4,
       "mem_mb": 8000
     },
+    "gatk_population_haplotype_caller": {
+      "threads": 8
+    },
+    "gatk_population_joint_genotyping": {
+      "threads": 8
+    },
     "gatk_prepare_result": {
       "mem_mb": 8000
     },
     "germline_resource_strain": {
       "threads": 2,
       "mem_mb": 16000
+    },
+    "somaticMutect2": {
+      "threads": 8,
+      "mem_mb": 32000,
+      "scale": {
+        "size_metric": "bam_mb",
+        "ref_input_size": 3000,
+        "fixed_frac": 0.2,
+        "min_mem_mb": 8000,
+        "max_mem_mb": 200000
+      }
+    },
+    "star_3p_align": {
+      "threads": 12
+    },
+    "star_3pg_gene_specific": {
+      "threads": 2
+    },
+    "star_align": {
+      "threads": 12,
+      "mem_mb": 64000,
+      "scale": {
+        "size_metric": "fastq_mb",
+        "ref_input_size": 4600,
+        "fixed_frac": 0.9,
+        "min_mem_mb": 32000,
+        "max_mem_mb": 200000
+      }
     },
     "star_index": {
       "threads": 12,
@@ -150,23 +182,6 @@
     },
     "vcf_filter": {
       "threads": 8,
-      "mem_mb": 8000
-    },
-    "ApplyBQSR": {
-      "mem_mb": 16000
-    },
-    "BaseRecalibrator": {
-      "threads": 8,
-      "mem_mb": 32000,
-      "scale": {
-        "size_metric": "bam_mb",
-        "ref_input_size": 3000,
-        "fixed_frac": 0.2,
-        "min_mem_mb": 8000,
-        "max_mem_mb": 200000
-      }
-    },
-    "gatk_bqsr_result": {
       "mem_mb": 8000
     }
   },

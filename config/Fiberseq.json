@@ -33,6 +33,15 @@
       "threads": 8,
       "mem_mb": 16000
     },
+    "bigwig_ratio": {
+      "threads": 4
+    },
+    "bigwig_ratio_result": {
+      "threads": 1
+    },
+    "chromosome_sizes": {
+      "threads": 1
+    },
     "decoil_compare": {
       "threads": 2,
       "mem_mb": 8000
@@ -78,6 +87,13 @@
         "max_mem_mb": 200000
       }
     },
+    "extract_smallrna": {
+      "threads": 1
+    },
+    "fiberbrowser": {
+      "threads": 1,
+      "mem_mb": 4000
+    },
     "fiberseq_annotate": {
       "threads": 4,
       "mem_mb": 8000
@@ -101,6 +117,22 @@
     "fiberseq_haplotype_diff": {
       "threads": 4,
       "mem_mb": 8000
+    },
+    "fiberseq_mods_longtable": {
+      "threads": 2,
+      "mem_mb": 8000
+    },
+    "fiberseq_mods_split": {
+      "threads": 1,
+      "mem_mb": 4000
+    },
+    "fiberseq_mods_te_longtable": {
+      "threads": 2,
+      "mem_mb": 8000
+    },
+    "fiberseq_mods_top_loci": {
+      "threads": 1,
+      "mem_mb": 4000
     },
     "fiberseq_motif": {
       "threads": 4,
@@ -184,9 +216,26 @@
       "threads": 1,
       "mem_mb": 8000
     },
+    "function_gsva": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "function_pseudobulk_go": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "function_pseudobulk_go_index": {
+      "threads": 1
+    },
     "genome_index": {
       "threads": 1,
       "mem_mb": 8000
+    },
+    "heatmap": {
+      "threads": 4
+    },
+    "heatmap_gene": {
+      "threads": 4
     },
     "hiphase_phase": {
       "threads": 8,
@@ -223,43 +272,6 @@
       "threads": 4,
       "mem_mb": 16000
     },
-    "sv_diff_analysis": {
-      "mem_mb": 8000
-    },
-    "sv_exp_circos": {
-      "mem_mb": 8000
-    },
-    "sv_exp_enrichment": {
-      "mem_mb": 8000
-    },
-    "sv_exp_specific": {
-      "mem_mb": 8000
-    },
-    "sv_gene_model": {
-      "mem_mb": 8000
-    },
-    "sv_oncoprint": {
-      "mem_mb": 8000
-    },
-    "sv_result": {
-      "mem_mb": 8000
-    },
-    "sv_mei": {
-      "threads": 4,
-      "mem_mb": 16000
-    },
-    "fiberbrowser": {
-      "threads": 1,
-      "mem_mb": 4000
-    },
-    "fiberseq_mods_split": {
-      "threads": 1,
-      "mem_mb": 4000
-    },
-    "fiberseq_mods_top_loci": {
-      "threads": 1,
-      "mem_mb": 4000
-    },
     "qc_summary": {
       "threads": 1,
       "mem_mb": 8000
@@ -280,8 +292,33 @@
       "threads": 1,
       "mem_mb": 4000
     },
+    "sv_diff_analysis": {
+      "mem_mb": 8000
+    },
+    "sv_exp_circos": {
+      "mem_mb": 8000
+    },
+    "sv_exp_enrichment": {
+      "mem_mb": 8000
+    },
+    "sv_exp_specific": {
+      "mem_mb": 8000
+    },
+    "sv_gene_model": {
+      "mem_mb": 8000
+    },
     "sv_go_kegg": {
       "threads": 1,
+      "mem_mb": 8000
+    },
+    "sv_mei": {
+      "threads": 4,
+      "mem_mb": 16000
+    },
+    "sv_oncoprint": {
+      "mem_mb": 8000
+    },
+    "sv_result": {
       "mem_mb": 8000
     }
   },

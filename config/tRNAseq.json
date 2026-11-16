@@ -9,30 +9,22 @@
       "threads": 2,
       "mem_mb": 8000
     },
+    "fumitools_copy_umi_paired": {
+      "threads": 4
+    },
     "fumitools_copy_umi_single": {
       "threads": 4,
       "mem_mb": 8000
     },
-    "mimseq_all": {
-      "mem_mb": 8000
-    },
-    "mimseq_prepare_sample_data": {
-      "mem_mb": 8000
-    },
-    "mimseq_result": {
-      "mem_mb": 8000
-    },
-    "trimming_Paired": {
-      "threads": 6,
-      "mem_mb": 8000
-    },
-    "trimming_Single": {
-      "threads": 6,
-      "mem_mb": 4000
+    "fumitools_dedup": {
+      "threads": 4
     },
     "mimseq_align": {
       "threads": 10,
       "mem_mb": 32000
+    },
+    "mimseq_all": {
+      "mem_mb": 8000
     },
     "mimseq_clusters": {
       "threads": 4,
@@ -50,9 +42,23 @@
       "threads": 4,
       "mem_mb": 32000
     },
+    "mimseq_prepare_sample_data": {
+      "mem_mb": 8000
+    },
+    "mimseq_result": {
+      "mem_mb": 8000
+    },
     "mimseq_tRNAtools": {
       "threads": 4,
       "mem_mb": 8000
+    },
+    "trimming_Paired": {
+      "threads": 6,
+      "mem_mb": 8000
+    },
+    "trimming_Single": {
+      "threads": 6,
+      "mem_mb": 4000
     }
   },
   "env": {

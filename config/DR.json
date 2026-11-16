@@ -23,7 +23,14 @@
     },
     "MarkDuplicates": {
       "threads": 8,
-      "mem_mb": 32000
+      "mem_mb": 32000,
+      "scale": {
+        "size_metric": "bam_mb",
+        "ref_input_size": 3000,
+        "fixed_frac": 0.2,
+        "min_mem_mb": 8000,
+        "max_mem_mb": 200000
+      }
     },
     "SplitNCigarReads": {
       "threads": 8,
@@ -35,11 +42,25 @@
     },
     "somaticMutect2": {
       "threads": 8,
-      "mem_mb": 32000
+      "mem_mb": 32000,
+      "scale": {
+        "size_metric": "bam_mb",
+        "ref_input_size": 3000,
+        "fixed_frac": 0.2,
+        "min_mem_mb": 8000,
+        "max_mem_mb": 200000
+      }
     },
     "star_align": {
       "threads": 12,
-      "mem_mb": 64000
+      "mem_mb": 64000,
+      "scale": {
+        "size_metric": "fastq_mb",
+        "ref_input_size": 4600,
+        "fixed_frac": 0.9,
+        "min_mem_mb": 32000,
+        "max_mem_mb": 200000
+      }
     },
     "bwaMem2_alignment": {
       "threads": 12,
@@ -55,7 +76,14 @@
     },
     "HaplotypeCaller": {
       "threads": 10,
-      "mem_mb": 32000
+      "mem_mb": 32000,
+      "scale": {
+        "size_metric": "bam_mb",
+        "ref_input_size": 3000,
+        "fixed_frac": 0.2,
+        "min_mem_mb": 8000,
+        "max_mem_mb": 200000
+      }
     },
     "addReadsGroup": {
       "threads": 8,
@@ -129,7 +157,14 @@
     },
     "BaseRecalibrator": {
       "threads": 8,
-      "mem_mb": 32000
+      "mem_mb": 32000,
+      "scale": {
+        "size_metric": "bam_mb",
+        "ref_input_size": 3000,
+        "fixed_frac": 0.2,
+        "min_mem_mb": 8000,
+        "max_mem_mb": 200000
+      }
     },
     "gatk_bqsr_result": {
       "mem_mb": 8000

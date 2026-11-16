@@ -9,7 +9,14 @@
     },
     "minimap2_align": {
       "threads": 16,
-      "mem_mb": 32000
+      "mem_mb": 32000,
+      "scale": {
+        "size_metric": "fastq_mb",
+        "ref_input_size": 770,
+        "fixed_frac": 0.9,
+        "min_mem_mb": 8000,
+        "max_mem_mb": 200000
+      }
     },
     "qc_summary": {
       "threads": 1,
@@ -25,14 +32,28 @@
     },
     "stringtie_lr_assemble": {
       "threads": 8,
-      "mem_mb": 32000
+      "mem_mb": 32000,
+      "scale": {
+        "size_metric": "bam_mb",
+        "ref_input_size": 500,
+        "fixed_frac": 0.2,
+        "min_mem_mb": 8000,
+        "max_mem_mb": 200000
+      }
     },
     "stringtie_lr_merge": {
       "mem_mb": 16000
     },
     "stringtie_lr_quant": {
       "threads": 4,
-      "mem_mb": 16000
+      "mem_mb": 16000,
+      "scale": {
+        "size_metric": "bam_mb",
+        "ref_input_size": 500,
+        "fixed_frac": 0.2,
+        "min_mem_mb": 8000,
+        "max_mem_mb": 200000
+      }
     },
     "stringtie_lr_result": {
       "mem_mb": 8000

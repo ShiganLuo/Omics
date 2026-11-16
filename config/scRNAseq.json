@@ -21,7 +21,14 @@
     },
     "cellranger_count": {
       "threads": 8,
-      "mem_mb": 32000
+      "mem_mb": 32000,
+      "scale": {
+        "size_metric": "fastq_mb",
+        "ref_input_size": 23800,
+        "fixed_frac": 0.9,
+        "min_mem_mb": 16000,
+        "max_mem_mb": 200000
+      }
     },
     "cellranger_ref": {
       "threads": 16,
@@ -41,11 +48,25 @@
     },
     "scanpy_advanced": {
       "threads": 4,
-      "mem_mb": 64000
+      "mem_mb": 64000,
+      "scale": {
+        "size_metric": "bam_mb",
+        "ref_input_size": 2000,
+        "fixed_frac": 0.2,
+        "min_mem_mb": 16000,
+        "max_mem_mb": 200000
+      }
     },
     "scanpy_auto": {
       "threads": 12,
-      "mem_mb": 64000
+      "mem_mb": 64000,
+      "scale": {
+        "size_metric": "bam_mb",
+        "ref_input_size": 2000,
+        "fixed_frac": 0.2,
+        "min_mem_mb": 16000,
+        "max_mem_mb": 200000
+      }
     },
     "scanpy_merge": {
       "threads": 2,
@@ -53,7 +74,14 @@
     },
     "scanpy_pseudobulk": {
       "mem_mb": 32000,
-      "threads": 4
+      "threads": 4,
+      "scale": {
+        "size_metric": "bam_mb",
+        "ref_input_size": 2000,
+        "fixed_frac": 0.2,
+        "min_mem_mb": 16000,
+        "max_mem_mb": 200000
+      }
     },
     "scanpy_qc": {
       "threads": 4,

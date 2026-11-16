@@ -34,7 +34,7 @@
       "mem_mb": 32000,
       "scale": {
         "size_metric": "bam_mb",
-        "ref_input_size": 1500,
+        "ref_input_size": 1900,
         "fixed_frac": 0.2,
         "min_mem_mb": 8000,
         "max_mem_mb": 200000
@@ -57,7 +57,7 @@
       "mem_mb": 32000,
       "scale": {
         "size_metric": "bam_mb",
-        "ref_input_size": 1500,
+        "ref_input_size": 1900,
         "fixed_frac": 0.2,
         "min_mem_mb": 8000,
         "max_mem_mb": 64000
@@ -68,7 +68,7 @@
       "mem_mb": 32000,
       "scale": {
         "size_metric": "bam_mb",
-        "ref_input_size": 1500,
+        "ref_input_size": 1900,
         "fixed_frac": 0.2,
         "min_mem_mb": 8000,
         "max_mem_mb": 64000

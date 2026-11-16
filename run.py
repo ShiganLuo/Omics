@@ -5,7 +5,9 @@ import json
 import os
 import re
 import signal
+import socket
 import sys
+import time
 from src.common.util.MetaUtil import MetadataUtils
 from src.common.util.LogUtil import setup_logger
 from src.common.util.CmdUtil import _run_cmd, _run_cmds_parallel
@@ -86,6 +88,113 @@ def _detect_total_mem_mb(default_mb: int = 470000) -> int:
     return default_mb
 
 
+# ---------------------------------------------------------------------------
+# Host awareness / budget splitting (方案 A: resource-balancing-proposal.md)
+# ---------------------------------------------------------------------------
+AUTO_CORES_CAP = 256      # safety ceiling for cores auto (方案 A 第 2 点)
+MIN_MEM_SHARE_MB = 8000   # floor for a per-workflow budget share (方案 A 第 3 点)
+
+
+def detect_host_profile() -> Dict[str, Any]:
+    """Detect {hostname, cpus, mem_mb} of the current host (方案 A 第 1 点).
+
+    cpus: sched affinity first (containers/taskset bind below os.cpu_count),
+    then cgroup v2 cpu.max quota, then os.cpu_count(). mem_mb reuses
+    _detect_total_mem_mb() (cgroup memory.max -> /proc/meminfo, 94% of total).
+    """
+    hostname = socket.gethostname()
+    try:
+        cpus = len(os.sched_getaffinity(0))
+    except AttributeError:
+        cpus = os.cpu_count() or 4
+    try:
+        with open("/sys/fs/cgroup/cpu.max") as fh:
+            quota_s, period_s = fh.read().split()
+        if quota_s != "max":
+            cpus = min(cpus, max(1, int(quota_s) // int(period_s)))
+    except (OSError, ValueError):
+        pass
+    return {"hostname": hostname, "cpus": cpus, "mem_mb": _detect_total_mem_mb()}
+
+
+def _workflow_input_bytes(input_json: str) -> Optional[int]:
+    """Total bytes of existing files referenced by a workflow config JSON.
+
+    Workload weight for the multi-workflow memory split (方案 A 第 3 点).
+    Returns None when no referenced file exists yet so callers fall back to
+    an equal split.
+    """
+    try:
+        with open(input_json, "r", encoding="utf-8") as f:
+            cfg = json.load(f)
+    except (OSError, ValueError):
+        return None
+    total = 0
+    seen: Set[str] = set()
+
+    def _walk(obj: Any) -> None:
+        nonlocal total
+        if isinstance(obj, str):
+            if is_path_like(obj) and obj not in seen:
+                seen.add(obj)
+                try:
+                    total += os.path.getsize(obj)
+                except OSError:
+                    pass
+        elif isinstance(obj, dict):
+            for v in obj.values():
+                _walk(v)
+        elif isinstance(obj, list):
+            for v in obj:
+                _walk(v)
+
+    _walk(cfg)
+    return total if total > 0 else None
+
+
+def _split_mem_budget(total_mb: int, weights: List[Optional[int]]) -> List[int]:
+    """Split the memory budget across workflows (方案 A 第 3 点,已定:加权).
+
+    Weighted by input bytes; equal split when weights are unavailable.
+    Every share keeps at least min(total//n, MIN_MEM_SHARE_MB) so a tiny
+    workflow cannot starve below usability.
+    """
+    n = len(weights)
+    if n <= 1:
+        return [total_mb]
+    w = [x or 0 for x in weights]
+    if sum(w) <= 0:
+        return [total_mb // n] * n
+    shares = [int(total_mb * x / sum(w)) for x in w]
+    floor = min(total_mb // n, MIN_MEM_SHARE_MB)
+    return [max(s, floor) for s in shares]
+
+
+def _inject_resource_caps(input_json: str, mem_mb: int, cpus: int) -> None:
+    """Add config["resource_caps"] to a generated workflow config JSON.
+
+    common.smk's rule_res clamps declared mem_mb/threads against these caps
+    so no job can declare more than the process budget (P3). The value MUST
+    equal the --resources mem_mb passed on the same snakemake command line.
+    """
+    with open(input_json, "r", encoding="utf-8") as f:
+        cfg = json.load(f)
+    cfg["resource_caps"] = {"mem_mb": int(mem_mb), "cpus": int(cpus)}
+    with open(input_json, "w", encoding="utf-8") as f:
+        json.dump(cfg, f, indent=2, ensure_ascii=False)
+
+
+def _write_run_summary(outdir: str, payload: Dict[str, Any]) -> None:
+    """Write run_summary.json (效果评判数据来源, proposal §7.4). Best effort."""
+    try:
+        path = os.path.join(outdir, "run_summary.json")
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(payload, f, indent=2, ensure_ascii=False)
+        logger.info("run summary written: %s", path)
+    except OSError as e:
+        logger.warning("run summary not written: %s", e)
+
+
 def parse_args() -> argparse.Namespace:
     """Parse CLI arguments and collect extra dot-notation overrides.
 
@@ -104,7 +213,9 @@ def parse_args() -> argparse.Namespace:
         choices=["CoCulture", "MERIP", "RNAseq", "ncRNAseq", "scRNAseq", "tRNAseq", "CLIP", "Mutation", "PacVar", "KARRseq", "PeakCalling", "QuantMS", "Fiberseq", "LRtranscriptome", "DR"],
         default=['CoCulture'], help='workflow name(s), multiple for parallel execution')
     parser.add_argument('-o','--output_dir','--output-dir', dest='output_dir', type=str, default=None, help='output dir')
-    parser.add_argument('-t','--threads', type=int, default=10, help='threads')
+    parser.add_argument('-t','--threads', type=int, default=None,
+        help='total threads passed to snakemake --cores (split across workflows); '
+             'default: auto = host CPUs - 2 (capped at %d)' % AUTO_CORES_CAP)
     parser.add_argument('--dry-run', action='store_true', help='dry run')
     parser.add_argument('--touch', action='store_true', help='touch output files to update timestamps without re-running (cannot combine with --dry-run)')
     parser.add_argument('--test', type=str, nargs='?', const='all', metavar='WORKFLOW',
@@ -147,6 +258,9 @@ def parse_args() -> argparse.Namespace:
              'the named rules), format: RULE, RULE:wildcard=value, or /path/to/file, '
              'e.g. --forcerun-downstream somatic_spectrum')
     parser.add_argument('--unlock', action='store_true', help='unlock snakemake working directory')
+    parser.add_argument('--restart-times', dest='restart_times', type=int, default=2,
+        help='snakemake --restart-times: retry failed jobs up to N times (方案 C; '
+             'resources mem_mb attempt-escalation x2**(attempt-1) in rule_res)')
     parser.add_argument('--no-schema-validate', dest='schema_validate', action='store_false',
         default=True, help='disable schema-based type casting for extra args')
     parser.add_argument('--list-target-rules', dest='list_target_rules', action='store_true', help='list all target rules in the workflow and exit, no wildcard expansion')
@@ -315,7 +429,8 @@ def build_snakemake_cmd(root_dir: str, smk: str, input_json: str, threads: int,
                         touch: bool = False, list_target_rules: bool = False,
                         list_rules: bool = False,
                         forcerun_downstream: Optional[List[str]] = None,
-                        mem_mb: Optional[int] = None) -> List[str]:
+                        mem_mb: Optional[int] = None,
+                        restart_times: Optional[int] = None) -> List[str]:
     """Build the snakemake CLI command list for a given subworkflow.
 
     Configures conda or apptainer container backend, collects bind paths
@@ -363,6 +478,8 @@ def build_snakemake_cmd(root_dir: str, smk: str, input_json: str, threads: int,
     ]
     if mem_mb:
         cmd += ["--resources", f"mem_mb={mem_mb}"]
+    if restart_times:
+        cmd += ["--restart-times", str(restart_times)]
     if not use_singularity:
         cmd += [
             "--conda-prefix",
@@ -833,6 +950,7 @@ def execute_workflows(args: argparse.Namespace, root_dir: str, logger: logging.L
     # Prepare each workflow
     test_results: Dict[str, Tuple[bool, str]] = {}  # wf_name -> (passed: bool, error: str)
     smk_cmds: list[tuple[list[str], str]] = []  # (cmd, cwd) pairs
+    pending: List[Dict[str, Any]] = []  # per-workflow build records (cmd built after budget split)
     for wf_name in workflow_names:
         abs_outdir = os.path.abspath(os.path.join(args.output_dir, wf_name))
         os.makedirs(abs_outdir, exist_ok=True)
@@ -992,19 +1110,15 @@ def execute_workflows(args: argparse.Namespace, root_dir: str, logger: logging.L
                     _prefix_forcerun_targets(args.forcerun_downstream, wf_name),
                     wf_name, workflow_config, input_json, logger,
                 )
-            cmd = build_snakemake_cmd(
-                root_dir, smk, input_json, threads_per_workflow,
-                args.conda_prefix, args.rerun_trigger, args.dry_run,
-                args.conda_frontend, args.snakemake_args,
-                sdm=args.sdm, singularity_args=args.singularity_args,
-                forcerun=forcerun_targets, unlock=args.unlock,
-                touch=args.touch, list_target_rules=args.list_target_rules,
-                list_rules=args.list_rules,
-                forcerun_downstream=forcerun_downstream_targets,
-                mem_mb=args.mem_mb
-            )
-            logger.info(f"[{wf_name}] {cmd}")
-            smk_cmds.append((cmd, abs_outdir))
+            pending.append({
+                "wf": wf_name,
+                "smk": smk,
+                "input_json": input_json,
+                "outdir": abs_outdir,
+                "forcerun": forcerun_targets,
+                "forcerun_downstream": forcerun_downstream_targets,
+                "input_bytes": _workflow_input_bytes(input_json),
+            })
 
         except Exception as e:
             if args._test_meta_map:
@@ -1013,17 +1127,65 @@ def execute_workflows(args: argparse.Namespace, root_dir: str, logger: logging.L
             else:
                 raise
 
+    # ---- 资源预算切分(方案 A 第 3 点)------------------------------------
+    # 每个 snakemake 进程只拿自己那份预算(此前每进程都拿全量,N 个工作流并发
+    # 时内存超卖,P7);份额按各工作流输入字节加权,取不到输入大小时均分。
+    # resource_caps 与命令行 --resources mem_mb 必须是同一个数:common.smk 的
+    # rule_res clamp 据此保证单作业声明值永远 <= 进程预算(P3)。
+    run_started = time.time()
+    weights = [p["input_bytes"] for p in pending]
+    mem_shares = _split_mem_budget(args.mem_mb, weights)
+    for p, share in zip(pending, mem_shares):
+        _inject_resource_caps(p["input_json"], mem_mb=share, cpus=threads_per_workflow)
+        cmd = build_snakemake_cmd(
+            root_dir, p["smk"], p["input_json"], threads_per_workflow,
+            args.conda_prefix, args.rerun_trigger, args.dry_run,
+            args.conda_frontend, args.snakemake_args,
+            sdm=args.sdm, singularity_args=args.singularity_args,
+            forcerun=p["forcerun"], unlock=args.unlock,
+            touch=args.touch, list_target_rules=args.list_target_rules,
+            list_rules=args.list_rules,
+            forcerun_downstream=p["forcerun_downstream"],
+            mem_mb=share,
+            restart_times=args.restart_times,
+        )
+        logger.info("[%s] mem_mb share=%d (input_bytes=%s)",
+                    p["wf"], share, p["input_bytes"])
+        logger.info(f"[{p['wf']}] {cmd}")
+        smk_cmds.append((cmd, p["outdir"]))
+
+    def _summary_payload(status: Dict[str, str]) -> Dict[str, Any]:
+        """run_summary.json payload(效果评判 §7.4)。"""
+        return {
+            "finished_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+            "makespan_s": round(time.time() - run_started, 1),
+            "host": getattr(args, "host_profile", {}) or {},
+            "dry_run": bool(args.dry_run),
+            "threads_total": args.threads,
+            "threads_per_workflow": threads_per_workflow,
+            "mem_budget_mb": args.mem_mb,
+            "workflows": [
+                {"name": p["wf"], "input_bytes": p["input_bytes"],
+                 "mem_mb_share": s, "status": status.get(p["wf"], "unknown")}
+                for p, s in zip(pending, mem_shares)
+            ],
+        }
+
     # Execute snakemake commands
     if args._test_meta_map:
         # Test mode: run each workflow, catch errors
+        exec_status: Dict[str, str] = {}
         for cmd, cwd in smk_cmds:
             wf = os.path.basename(cwd)
             try:
                 _run_cmd(cmd, cwd=cwd)
                 test_results[wf] = (True, "")
+                exec_status[wf] = "ok"
             except Exception as e:
                 test_results[wf] = (False, str(e)[:200])
+                exec_status[wf] = "failed"
 
+        _write_run_summary(args.output_dir, _summary_payload(exec_status))
         print_test_summary(test_results)
 
         # Module-scope tests: run_module.py --test sweeps every standalone
@@ -1052,12 +1214,23 @@ def execute_workflows(args: argparse.Namespace, root_dir: str, logger: logging.L
                 logger.error("[test] FAILED: workflows: %s", ", ".join(wf_failed))
                 raise SystemExit(1)
     else:
-        if n_workflows == 1:
-            _run_cmd(smk_cmds[0][0], cwd=smk_cmds[0][1])
-        else:
-            logger.info(f"Launching {n_workflows} snakemake processes in parallel...")
-            _run_cmds_parallel(smk_cmds)
-            logger.info("All workflows completed.")
+        exec_status = {p["wf"]: "not-run" for p in pending}
+        try:
+            if n_workflows == 1:
+                _run_cmd(smk_cmds[0][0], cwd=smk_cmds[0][1])
+            else:
+                logger.info(f"Launching {n_workflows} snakemake processes in parallel...")
+                _run_cmds_parallel(smk_cmds)
+                logger.info("All workflows completed.")
+            for wf in exec_status:
+                exec_status[wf] = "ok"
+        except BaseException:
+            for wf in exec_status:
+                if exec_status[wf] == "not-run":
+                    exec_status[wf] = "failed"
+            _write_run_summary(args.output_dir, _summary_payload(exec_status))
+            raise
+        _write_run_summary(args.output_dir, _summary_payload(exec_status))
 
 
 def _build_execution_callback(args: argparse.Namespace,
@@ -1119,8 +1292,14 @@ if __name__ == "__main__":
     signal.signal(signal.SIGTERM, _on_terminate)
 
     try:
+        host_profile = detect_host_profile()
+        args.host_profile = host_profile
+        if args.threads is None:
+            args.threads = max(1, min(host_profile["cpus"] - 2, AUTO_CORES_CAP))
+            logger.info("cores auto: %d (host %s, cpus=%d)",
+                        args.threads, host_profile["hostname"], host_profile["cpus"])
         if args.mem_mb is None:
-            args.mem_mb = _detect_total_mem_mb()
+            args.mem_mb = host_profile["mem_mb"]
         ROOT_DIR = os.path.dirname(__file__)
 
         # Warn if --touch and --dry-run are both specified

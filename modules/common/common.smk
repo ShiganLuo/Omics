@@ -74,26 +74,195 @@ def _require(value, key, tool=""):
 # Per-rule resource helper (config["resources"])
 # ---------------------------------------------------------------------------
 
-def rule_res(name):
+def _clamp_res_value(key, value, caps):
+    """Clamp one resource value against the host budget (方案 A clamp).
+
+    Only ``mem_mb`` and ``threads`` are clamped; every other key, and every
+    value that fits the budget, passes through unchanged — rule semantics
+    are preserved. ``caps`` comes from ``config["resource_caps"]`` injected
+    by run.py (the per-process budget share); empty caps disable clamping
+    (standalone run_module.py runs keep today's behaviour).
+    """
+    if not caps or isinstance(value, bool) or not isinstance(value, (int, float)):
+        return value
+    if key == "mem_mb" and caps.get("mem_mb"):
+        cap = int(caps["mem_mb"] * 0.8)
+    elif key == "threads" and caps.get("cpus"):
+        cap = int(caps["cpus"])
+    else:
+        return value
+    if value > cap:
+        logger.warning(
+            f"rule_res: {key}={value} exceeds host budget "
+            f"(resource_caps={caps}), clamped to {cap}")
+        return cap
+    return value
+
+
+def _resource_caps_from_env():
+    """resource_caps fallback from the OMICS_RESOURCE_CAPS environment var.
+
+    Snakemake module configs are hand-assembled per module and carry no
+    resource_caps; run.py's CmdUtil exports OMICS_RESOURCE_CAPS from the
+    workflow configfile so module rules clamp against the same per-process
+    budget. Absent or invalid -> no clamping (run_module.py behaviour).
+    """
+    raw = os.environ.get("OMICS_RESOURCE_CAPS")
+    if not raw:
+        return {}
+    try:
+        import json
+        caps = json.loads(raw)
+        return caps if isinstance(caps, dict) else {}
+    except ValueError:
+        return {}
+
+
+def input_size_mb(input_files):
+    """Sum of input file sizes in MB (方案 B 规模度量,已定:字节数).
+
+    ``input_files`` is a snakemake InputFiles instance (or any iterable of
+    paths). Returns None when no file exists / total is 0 so callers fall
+    back to the static value — never 0 (0 would crush mem_mb to min).
+    """
+    total = 0
+    try:
+        for f in input_files or []:
+            try:
+                total += os.path.getsize(str(f))
+            except (OSError, TypeError):
+                pass
+    except TypeError:
+        return None
+    return total / 1e6 if total > 0 else None
+
+
+def input_size_named(input_files, key):
+    """Size in MB of the named input *key* when present, else of all inputs.
+
+    Rules whose input block is positional (no named keys) would raise
+    AttributeError on input.<key>; fall back to the whole input list so the
+    byte-sum metric still applies.
+    """
+    try:
+        sub = getattr(input_files, key)
+    except AttributeError:
+        sub = input_files
+    return input_size_mb(sub)
+
+
+_VALID_METRICS = ("fastq_mb", "bam_mb", "sample_count")
+
+
+def sample_count():
+    """Number of samples in the run (B.2 sample_count metric, for aggregate rules).
+
+    Counts distinct sample ids across the metadata forms set by run.py
+    (genome_paired_samples / genome_single_samples / samples). Returns None
+    when no sample metadata is present so callers fall back to static values.
+    """
+    ids = set()
+    for key in ("genome_paired_samples", "genome_single_samples"):
+        for _, entries in (config.get(key) or {}).items():
+            try:
+                for pair in entries:
+                    for s in (pair if isinstance(pair, (list, tuple)) else [pair]):
+                        if s:
+                            ids.add(str(s))
+            except TypeError:
+                pass
+    for s in config.get("samples") or []:
+        ids.add(str(s))
+    return len(ids) if ids else None
+
+
+def _validate_scale(name, scale):
+    """Reject invalid scale blocks early (dry-run parse time, B.6)."""
+    if not isinstance(scale, dict):
+        raise ValueError(f"resources.{name}.scale must be a dict, got {type(scale).__name__}")
+    missing = [k for k in ("size_metric", "ref_input_size", "fixed_frac",
+                           "min_mem_mb", "max_mem_mb") if k not in scale]
+    if missing:
+        raise ValueError(f"resources.{name}.scale missing required keys: {missing}")
+    if scale["size_metric"] not in _VALID_METRICS:
+        raise ValueError(f"resources.{name}.scale.size_metric must be one of {_VALID_METRICS}")
+    if not (0 <= float(scale["fixed_frac"]) <= 1):
+        raise ValueError(f"resources.{name}.scale.fixed_frac must be in [0,1], got {scale['fixed_frac']}")
+    if not (int(scale["min_mem_mb"]) <= int(scale["max_mem_mb"])):
+        raise ValueError(f"resources.{name}.scale: min_mem_mb > max_mem_mb")
+    if float(scale["ref_input_size"]) <= 0:
+        raise ValueError(f"resources.{name}.scale.ref_input_size must be > 0")
+
+
+def _scaled_mem_mb(name, merged, input_size):
+    """方案 B 两段式缩放:固定开销 + 数据相关(B.3)。
+
+    mem = base × (fixed_frac + (1 − fixed_frac) × input_size / ref_input_size)
+    """
+    scale = merged.get("scale")
+    if not scale or input_size is None:
+        return None  # caller keeps the static value
+    _validate_scale(name, scale)
+    base = float(merged.get("mem_mb", 0))
+    if base <= 0:
+        return None
+    ref = float(scale["ref_input_size"])
+    frac = float(scale["fixed_frac"])
+    val = base * (frac + (1.0 - frac) * float(input_size) / ref)
+    return int(min(max(val, int(scale["min_mem_mb"])), int(scale["max_mem_mb"])))
+
+
+class _RuleRes(dict):
+    """dict with host-clamped mem_mb/threads on access.
+
+    Clamping happens in get()/__getitem__ rather than only at merge time so
+    call-site fallbacks — rule_res(x).get("mem_mb", 32000) — cannot bypass
+    the clamp and revive the P3 "job larger than budget" deadlock.
+    """
+
+    def __init__(self, caps):
+        super().__init__()
+        self._caps = caps
+
+    def get(self, key, default=None):
+        return _clamp_res_value(key, super().get(key, default), self._caps)
+
+    def __getitem__(self, key):
+        return _clamp_res_value(key, super().__getitem__(key), self._caps)
+
+
+def rule_res(name, input_size=None, attempt=1):
     """Resolve resources for rule *name* from config["resources"].
 
-    Merge order: resources.default < resources[name]. Missing keys fall
-    back through default; rules with no entry inherit default entirely.
-    Expected shape in the workflow config JSON:
+    Four steps, order fixed (方案 B; clamp MUST be last so scaled/attempt
+    values cannot bypass the host budget):
+      1) static merge: resources.default < resources[name];
+      2) scale: when a ``scale`` block is configured AND input_size is given,
+         mem_mb follows the fixed-cost + data term formula (B.3);
+      3) attempt escalation: attempt>1 doubles mem_mb (方案 C, 2**(attempt-1));
+      4) host clamp via config["resource_caps"] / OMICS_RESOURCE_CAPS.
 
-        "resources": {
-            "default": {"threads": 2, "mem_mb": 8000},
-            "fiberseq_track": {"threads": 4, "mem_mb": 65000}
-        }
+    Callers that pass no input_size skip step 2 and behave exactly like
+    today — the 279 existing call sites need no change.
 
     Usage in a rule:
         threads: rule_res("fiberseq_track").get("threads", 4)
         resources:
-            mem_mb = rule_res("fiberseq_track").get("mem_mb", 65000)
+            mem_mb = lambda wildcards, input, attempt: rule_res(
+                "fiberseq_track", input_size=input_size_mb(input),
+                attempt=attempt).get("mem_mb", 65000),
+        # scaled pilot rules additionally pass input_size=input_size_mb(input)
     """
     res_cfg = config.get("resources") or {}
-    merged = dict(res_cfg.get("default") or {})
+    merged = _RuleRes(config.get("resource_caps") or _resource_caps_from_env())
+    merged.update(res_cfg.get("default") or {})
     merged.update(res_cfg.get(name) or {})
+
+    scaled = _scaled_mem_mb(name, merged, input_size)
+    if scaled is not None:
+        merged["mem_mb"] = scaled
+    if attempt and int(attempt) > 1 and merged.get("mem_mb"):
+        merged["mem_mb"] = int(merged["mem_mb"]) * (2 ** (int(attempt) - 1))
     return merged
 
 

@@ -12,8 +12,11 @@ rule TEcount:
     output:
         project = outdir + "/TEcount/{sample_id}.TEcount.cntTable"
     threads: rule_res("TEcount").get("threads", 2)
+    benchmark: logdir + "/{sample_id}/TEcount.benchmark.tsv",
     resources:
-        mem_mb = rule_res("TEcount").get("mem_mb", 32000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "TEcount", input_size=input_size_named(input, 'bam'),
+            attempt=attempt).get("mem_mb", 32000),
     params:
         project = "{sample_id}.TEcount",
         outdir = outdir + "/TEcount",
@@ -63,8 +66,11 @@ rule combine_TEcount:
     output:
         outfile = outdir + "/TEcount/all_TEcount.tsv"
     threads: rule_res("combine_TEcount").get("threads", 1)
+    benchmark: logdir + "/TEtranscripts/combine_TEcount.benchmark.tsv",
     resources:
-        mem_mb = rule_res("combine_TEcount").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "combine_TEcount", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     conda:
         "TEtranscripts.yaml"
     container:
@@ -106,8 +112,11 @@ rule TElocal:
         GTF = lambda wildcards: config['genome']['gtf'],
         TElocal = config.get('Procedure',{}).get('TElocal') or 'TElocal'
     threads: rule_res("TElocal").get("threads", 2)
+    benchmark: logdir + "/{sample_id}/TElocal.benchmark.tsv",
     resources:
-        mem_mb = rule_res("TElocal").get("mem_mb", 32000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "TElocal", input_size=input_size_named(input, 'bam'),
+            attempt=attempt).get("mem_mb", 32000),
     conda:
         "TEtranscripts.yaml"
     container:
@@ -151,8 +160,11 @@ rule combine_TElocal:
     output:
         outfile = outdir + "/TElocal/all_TElocal.tsv"
     threads: rule_res("combine_TElocal").get("threads", 1)
+    benchmark: logdir + "/TEtranscripts/combine_TElocal.benchmark.tsv",
     resources:
-        mem_mb = rule_res("combine_TElocal").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "combine_TElocal", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     conda:
         "TEtranscripts.yaml"
     container:
@@ -185,5 +197,8 @@ rule TEtranscripts_result:
     input:
         TEcount = outdir + "/TEcount/all_TEcount.tsv",
         TElocal = outdir + "/TElocal/all_TElocal.tsv"
+
     resources:
-        mem_mb = rule_res("TEtranscripts_result").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "TEtranscripts_result", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),

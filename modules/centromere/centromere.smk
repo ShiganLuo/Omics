@@ -40,8 +40,11 @@ rule hifiasm_assemble:
     container:
         sif("centromere.yaml", "hifiasm_assemble")
     threads: rule_res("hifiasm_assemble").get("threads", 12)
+    benchmark: logdir + "/{sample_id}/hifiasm.benchmark.tsv",
     resources:
-        mem_mb = rule_res("hifiasm_assemble").get("mem_mb", 64000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "hifiasm_assemble", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 64000),
     params:
         prefix = outdir + "/{sample_id}/assembly/asm"
     run:
@@ -90,8 +93,11 @@ rule repeatmasker_init:
         species = config.get("Params", {}).get("RepeatMasker", {}).get("species", "Mus musculus"),
         RepeatMasker = config.get("Procedure", {}).get("RepeatMasker") or "RepeatMasker"
     threads: rule_res("repeatmasker_init").get("threads", 1)
+    benchmark: logdir + "/all/RepeatMasker/repeatmasker_init.benchmark.tsv",
     resources:
-        mem_mb = rule_res("repeatmasker_init").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "repeatmasker_init", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     run:
         try:
             open(log[0], "w").close()
@@ -172,8 +178,11 @@ rule repeatmasker_run:
     container:
         sif("centromere.yaml", "repeatmasker_run")
     threads: rule_res("repeatmasker_run").get("threads", 12)
+    benchmark: logdir + "/{sample_id}/repeatmasker.benchmark.tsv",
     resources:
-        mem_mb = rule_res("repeatmasker_run").get("mem_mb", 32000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "repeatmasker_run", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 32000),
     params:
         species = config.get("Params", {}).get("RepeatMasker", {}).get("species", "Mus musculus"),
         rm_dir = outdir + "/{sample_id}/RepeatMasker",
@@ -216,8 +225,11 @@ rule centromere_extract:
         script = os.path.join(ROOT_DIR, "modules/centromere/bin/extract_centromere_stats.py"),
         python = config.get("Procedure", {}).get("python") or "python"
     threads: rule_res("centromere_extract").get("threads", 1)
+    benchmark: logdir + "/{sample_id}/centromere_extract.benchmark.tsv",
     resources:
-        mem_mb = rule_res("centromere_extract").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "centromere_extract", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     conda: "centromere.yaml"
     container:
         sif("centromere.yaml", "centromere_extract")
@@ -247,5 +259,8 @@ rule centromere_result:
     """Result aggregation rule for subworkflow use rule import."""
     input:
         stats = outdir + "/{sample_id}/{sample_id}.centromere_stats.txt"
+
     resources:
-        mem_mb = rule_res("centromere_result").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "centromere_result", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),

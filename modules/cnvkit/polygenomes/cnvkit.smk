@@ -25,8 +25,11 @@ rule cnvkit_reference:
     log:
         logdir + "/{genome}/cnvkit_reference.log"
     threads: rule_res("cnvkit_reference").get("threads", 8)
+    benchmark: logdir + "/{genome}/cnvkit_reference.benchmark.tsv",
     resources:
-        mem_mb = rule_res("cnvkit_reference").get("mem_mb", 16000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "cnvkit_reference", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 16000),
     conda:
         "../cnvkit.yaml"
     container:
@@ -76,8 +79,11 @@ rule cnvkit_batch:
     log:
         logdir + "/{genome}/cnvkit_batch.log"
     threads: rule_res("cnvkit_batch").get("threads", 8)
+    benchmark: logdir + "/{genome}/cnvkit_batch.benchmark.tsv",
     resources:
-        mem_mb = rule_res("cnvkit_batch").get("mem_mb", 32000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "cnvkit_batch", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 32000),
     conda:
         "../cnvkit.yaml"
     container:
@@ -130,5 +136,8 @@ rule cnvkit_result:
     input:
         cnr = expand(outdir + "/{{genome}}/cnv/{sample_id}.cnr", sample_id=samples),
         cns = expand(outdir + "/{{genome}}/cnv/{sample_id}.cns", sample_id=samples)
+
     resources:
-        mem_mb = rule_res("cnvkit_result").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "cnvkit_result", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),

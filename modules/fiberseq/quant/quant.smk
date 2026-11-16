@@ -28,8 +28,11 @@ rule fiberseq_quant_run:
     log:
         logdir + "/{sample_id}/fiberseq_quant_run.log"
     threads: rule_res("fiberseq_quant").get("threads", 4)
+    benchmark: logdir + "/{sample_id}/fiberseq_quant_run.benchmark.tsv",
     resources:
-        mem_mb = rule_res("fiberseq_quant").get("mem_mb", 12000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "fiberseq_quant", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 12000),
     conda:
         "../fiberseq.yaml"
     container:
@@ -84,8 +87,11 @@ rule fiberseq_quant_hap:
     log:
         logdir + "/{sample_id}/fiberseq_quant_hap_{hap}.log"
     threads: rule_res("fiberseq_quant_hap").get("threads", 1)
+    benchmark: logdir + "/{sample_id}/fiberseq_quant_hap_{hap}.benchmark.tsv",
     resources:
-        mem_mb = rule_res("fiberseq_quant_hap").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "fiberseq_quant_hap", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     conda:
         "../fiberseq.yaml"
     container:
@@ -140,8 +146,11 @@ rule fiberseq_quant_merge:
     log:
         logdir + "/group/fiberseq_quant_merge.log"
     threads: rule_res("fiberseq_quant_merge").get("threads", 1)
+    benchmark: logdir + "/group/fiberseq_quant_merge.benchmark.tsv",
     resources:
-        mem_mb = rule_res("fiberseq_quant_merge").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "fiberseq_quant_merge", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     conda:
         "../fiberseq.yaml"
     container:
@@ -181,5 +190,8 @@ rule fiberseq_quant_result:
         quants = expand(outdir + "/{sample_id}/{sample_id}.region_quant.tsv",
                         sample_id=samples),
         matrix = outdir + "/matrix/percent_accessible_matrix.tsv",
+
     resources:
-        mem_mb = rule_res("fiberseq_quant_result").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "fiberseq_quant_result", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),

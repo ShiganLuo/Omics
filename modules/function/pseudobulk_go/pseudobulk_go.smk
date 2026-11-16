@@ -128,6 +128,7 @@ rule function_pseudobulk_go:
     log:
         logdir + "/function/{counter}/{mode}/{tissue}/{contrast}/{cell_type}.go_kegg.log"
     threads: rule_res("function_pseudobulk_go").get("threads", 1)
+    benchmark: logdir + "/function/{counter}/{mode}/{tissue}/{contrast}/{cell_type}.go_kegg.benchmark.tsv",
     resources:
         mem_mb=rule_res("function_pseudobulk_go").get("mem_mb", 8000),
     conda:
@@ -221,6 +222,7 @@ rule function_pseudobulk_go_result:
         _go_targets
     output:
         outdir + "/function/go_kegg/enrichment.done"
+    benchmark: logdir + "/function/function_pseudobulk_go_result.benchmark.tsv",
     log:
         logdir + "/function/function_pseudobulk_go_result.log"
     run:

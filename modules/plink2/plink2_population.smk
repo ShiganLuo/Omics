@@ -24,8 +24,11 @@ rule plink2_population_pgen:
     output:
         pgen=prefix+".pgen", pvar=prefix+".pvar", psam=prefix+".psam"
     log: logdir+"/analysis/plink2_population_pgen.log"
+    benchmark: logdir+"/analysis/plink2_population_pgen.benchmark.tsv",
     resources:
-        mem_mb = rule_res("plink2_population_pgen").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "plink2_population_pgen", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     conda: "plink2_population.yaml"
     container:
         sif("plink2_population.yaml", "plink2_population_pgen")
@@ -37,8 +40,11 @@ rule plink2_population_bed:
     input: pgen=prefix+".pgen", pvar=prefix+".pvar", psam=prefix+".psam"
     output: bed=prefix+".bed", bim=prefix+".bim", fam=prefix+".fam"
     log: logdir+"/analysis/plink2_population_bed.log"
+    benchmark: logdir+"/analysis/plink2_population_bed.benchmark.tsv",
     resources:
-        mem_mb = rule_res("plink2_population_bed").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "plink2_population_bed", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     conda: "plink2_population.yaml"
     container:
         sif("plink2_population.yaml", "plink2_population_bed")

@@ -37,8 +37,11 @@ rule diann_run:
     log:
         logdir + "/group/diann_run.log"
     threads: rule_res("diann_run").get("threads", 16)
+    benchmark: logdir + "/group/diann_run.benchmark.tsv",
     resources:
-        mem_mb = rule_res("diann_run").get("mem_mb", 32000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "diann_run", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 32000),
     conda:
         "diann.yaml"
     container:
@@ -120,8 +123,11 @@ rule diann_summary:
     log:
         logdir + "/group/diann_summary.log"
     threads: rule_res("diann_summary").get("threads", 1)
+    benchmark: logdir + "/group/diann_summary.benchmark.tsv",
     resources:
-        mem_mb = rule_res("diann_summary").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "diann_summary", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     conda:
         "diann.yaml"
     container:
@@ -161,5 +167,8 @@ rule diann_result:
         stats = outdir + "/diann.report.stats.tsv",
         qc = outdir + "/diann_qc.tsv",
         matrix = outdir + "/diann_protein_matrix.tsv",
+
     resources:
-        mem_mb = rule_res("diann_result").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "diann_result", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),

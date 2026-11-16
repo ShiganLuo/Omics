@@ -27,8 +27,11 @@ rule soapnuke_filter_paired:
     container:
         sif("SOAPnuke.yaml", "soapnuke_filter_paired")
     threads: rule_res("soapnuke_filter_paired").get("threads", 8)
+    benchmark: logdir + "/{sample_id}/soapnuke_filter_paired.benchmark.tsv",
     resources:
-        mem_mb = rule_res("soapnuke_filter_paired").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "soapnuke_filter_paired", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -89,8 +92,11 @@ rule soapnuke_filter_single:
     container:
         sif("SOAPnuke.yaml", "soapnuke_filter_single")
     threads: rule_res("soapnuke_filter_single").get("threads", 8)
+    benchmark: logdir + "/{sample_id}/soapnuke_filter_single.benchmark.tsv",
     resources:
-        mem_mb = rule_res("soapnuke_filter_single").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "soapnuke_filter_single", input_size=input_size_named(input, 'fastq'),
+            attempt=attempt).get("mem_mb", 8000),
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -132,11 +138,17 @@ rule soapnuke_filter_paired_result:
     input:
         clean_fastq1 = outdir + "/{sample_id}/{sample_id}_1.fq.gz",
         clean_fastq2 = outdir + "/{sample_id}/{sample_id}_2.fq.gz",
+
     resources:
-        mem_mb = rule_res("soapnuke_filter_paired_result").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "soapnuke_filter_paired_result", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
 
 rule soapnuke_filter_single_result:
     input:
         clean_fastq = outdir + "/{sample_id}/{sample_id}.single.fq.gz",
+
     resources:
-        mem_mb = rule_res("soapnuke_filter_single_result").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "soapnuke_filter_single_result", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),

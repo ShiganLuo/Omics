@@ -28,8 +28,11 @@ rule mimseq_mods:
         misinc_thresh = config.get("Params", {}).get("mimseq", {}).get("misinc_thresh", 0.1),
         formats = _plot_formats,   # ③ 转发
     threads: rule_res("mimseq_mods").get("threads", 4)
+    benchmark: logdir + "/mimseq_mods.benchmark.tsv",
     resources:
-        mem_mb = rule_res("mimseq_mods").get("mem_mb", 32000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "mimseq_mods", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 32000),
     conda:
         "../mimseq.yaml"
     container:
@@ -72,5 +75,8 @@ rule mimseq_mods_result:
     """Result rule for mods module."""
     input:
         mods_done = outdir + "/mods.done",
+
     resources:
-        mem_mb = rule_res("mimseq_mods_result").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "mimseq_mods_result", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),

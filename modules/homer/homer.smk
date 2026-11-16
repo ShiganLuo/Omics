@@ -31,8 +31,11 @@ rule homer_annotatepeaks:
     log:
         logdir + "/{sample_id}/homer_annotatepeaks.log"
     threads: rule_res("homer_annotatepeaks").get("threads", 1)
+    benchmark: logdir + "/{sample_id}/homer_annotatepeaks.benchmark.tsv",
     resources:
-        mem_mb = rule_res("homer_annotatepeaks").get("mem_mb", 16000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "homer_annotatepeaks", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 16000),
     conda:
         "homer.yaml"
     container:
@@ -74,5 +77,8 @@ rule homer_annotatepeaks_result:
     """
     input:
         annotation = outdir + "/{sample_id}/{sample_id}_peaks.annotatePeaks.txt"
+
     resources:
-        mem_mb = rule_res("homer_annotatepeaks_result").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "homer_annotatepeaks_result", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),

@@ -35,8 +35,11 @@ rule ngs_disambiguate:
         ngs_disambiguate = config.get("Procedure", {}).get("ngs_disambiguate") or "ngs_disambiguate",
         samtools = config.get("Procedure", {}).get("samtools") or "samtools"
     threads: rule_res("ngs_disambiguate").get("threads", 4)
+    benchmark: logdir + "/{sample_id}/ngs_disambiguate.benchmark.tsv",
     resources:
-        mem_mb = rule_res("ngs_disambiguate").get("mem_mb", 16000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "ngs_disambiguate", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 16000),
     conda:
         "disambiguate.yaml"
     container:
@@ -89,8 +92,11 @@ rule disambiguate_sort_rename:
         speciesA = genome_pairs[0],
         speciesB = genome_pairs[1]
     threads: rule_res("disambiguate_sort_rename").get("threads", 4)
+    benchmark: logdir + "/{sample_id}/sort_rename.benchmark.tsv",
     resources:
-        mem_mb = rule_res("disambiguate_sort_rename").get("mem_mb", 16000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "disambiguate_sort_rename", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 16000),
     conda:
         "disambiguate.yaml"
     container:
@@ -141,8 +147,11 @@ rule disambiguate_report:
     container:
         sif("disambiguate.yaml", "disambiguate_report")
     threads: rule_res("disambiguate_report").get("threads", 1)
+    benchmark: logdir + "/disambiguate_report.benchmark.tsv",
     resources:
-        mem_mb = rule_res("disambiguate_report").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "disambiguate_report", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     run:
         log_path = str(log)
         open(log_path, 'w').close()
@@ -170,5 +179,8 @@ rule ngs_disambiguate_result:
     input:
         bamA = lambda wc: f"{outdir}/{wc.sample_id}/{wc.sample_id}.disambiguatedSpecies_{genome_pairs[0]}.bam",
         bamB = lambda wc: f"{outdir}/{wc.sample_id}/{wc.sample_id}.disambiguatedSpecies_{genome_pairs[1]}.bam"
+
     resources:
-        mem_mb = rule_res("ngs_disambiguate_result").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "ngs_disambiguate_result", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),

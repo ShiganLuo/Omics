@@ -19,8 +19,11 @@ rule tailer_global:
     log:
         logdir + "/{genome}/{sample_id}/tailer.log"
     threads: rule_res("tailer_global").get("threads", 1)
+    benchmark: logdir + "/{genome}/{sample_id}/tailer.benchmark.tsv",
     resources:
-        mem_mb = rule_res("tailer_global").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "tailer_global", input_size=input_size_named(input, 'bam'),
+            attempt=attempt).get("mem_mb", 8000),
     conda:
         "../tailer.yaml"
     container:

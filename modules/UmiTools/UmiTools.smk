@@ -15,8 +15,11 @@ rule umi_tools_dedup_for_hisat2:
         method = config.get('Params',{}).get('umi_tools',{}).get('method') or 'unique',
         samtools = config.get('Procedure',{}).get('samtools') or 'samtools'
     threads: rule_res("umi_tools_dedup_for_hisat2").get("threads", 2)
+    benchmark: logdir + "/{sample_id}/umi_tools_dedup_run.benchmark.txt",
     resources:
-        mem_mb = rule_res("umi_tools_dedup_for_hisat2").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "umi_tools_dedup_for_hisat2", input_size=input_size_named(input, 'bam'),
+            attempt=attempt).get("mem_mb", 8000),
     conda:
         "UmiTools.yaml"
     container:
@@ -60,8 +63,11 @@ rule umi_tools_dedup_for_star:
         method = config.get('Params',{}).get('umi_tools',{}).get('method') or 'unique',
         samtools = config.get('Procedure',{}).get('samtools') or 'samtools'
     threads: rule_res("umi_tools_dedup_for_star").get("threads", 2)
+    benchmark: logdir + "/{sample_id}/umi_tools_dedup_run.benchmark.txt",
     resources:
-        mem_mb = rule_res("umi_tools_dedup_for_star").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "umi_tools_dedup_for_star", input_size=input_size_named(input, 'bam'),
+            attempt=attempt).get("mem_mb", 8000),
     conda:
         "UmiTools.yaml"
     container:

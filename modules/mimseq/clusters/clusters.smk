@@ -19,8 +19,11 @@ rule mimseq_clusters:
         cluster_id = config.get("Params", {}).get("mimseq", {}).get("cluster_id", 0.97),
         cov_diff = config.get("Params", {}).get("mimseq", {}).get("cov_diff", 0.5),
     threads: rule_res("mimseq_clusters").get("threads", 4)
+    benchmark: logdir + "/mimseq_clusters.benchmark.tsv",
     resources:
-        mem_mb = rule_res("mimseq_clusters").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "mimseq_clusters", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     conda:
         "../mimseq.yaml"
     container:
@@ -57,5 +60,8 @@ rule mimseq_clusters_result:
     """Result rule for clusters module."""
     input:
         clusters_done = outdir + "/clusters.done",
+
     resources:
-        mem_mb = rule_res("mimseq_clusters_result").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "mimseq_clusters_result", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),

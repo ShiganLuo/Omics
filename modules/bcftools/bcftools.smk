@@ -11,8 +11,11 @@ rule bcftools_sort:
         vcf = outdir + "/sort/{sample_id}/{sample_id}.sorted.vcf.gz"
     log:
         logdir + "/{sample_id}/bcftools_sort.log"
+    benchmark: logdir + "/{sample_id}/bcftools_sort.benchmark.tsv",
     resources:
-        mem_mb = rule_res("bcftools_sort").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "bcftools_sort", input_size=input_size_named(input, 'vcf'),
+            attempt=attempt).get("mem_mb", 8000),
     conda:
         "bcftools.yaml"
     container:
@@ -52,8 +55,11 @@ rule bcftools_index_csi:
         csi = outdir + "/{sample_id}/{sample_id}.vcf.gz.csi"
     log:
         logdir + "/{sample_id}/bcftools_index.log"
+    benchmark: logdir + "/{sample_id}/bcftools_index.benchmark.tsv",
     resources:
-        mem_mb = rule_res("bcftools_index_csi").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "bcftools_index_csi", input_size=input_size_named(input, 'vcf'),
+            attempt=attempt).get("mem_mb", 8000),
     conda:
         "bcftools.yaml"
     container:
@@ -85,5 +91,8 @@ rule bcftools_result:
     input:
         vcf = outdir + "/sort/{sample_id}/{sample_id}.sorted.vcf.gz",
         csi = outdir + "/{sample_id}/{sample_id}.vcf.gz.csi"
+
     resources:
-        mem_mb = rule_res("bcftools_result").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "bcftools_result", input_size=input_size_named(input, 'vcf'),
+            attempt=attempt).get("mem_mb", 8000),

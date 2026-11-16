@@ -17,8 +17,11 @@ rule fastx_quality_filter_single:
         Q = config.get('Params',{}).get("fastx_toolkit", {}).get('Q') or 33,
         outdir = outdir
     threads: rule_res("fastx_quality_filter_single").get("threads", 2)
+    benchmark: logdir + "/{sample_id}/fastx_quality_filter_single.benchmark.tsv",
     resources:
-        mem_mb = rule_res("fastx_quality_filter_single").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "fastx_quality_filter_single", input_size=input_size_named(input, 'fastq'),
+            attempt=attempt).get("mem_mb", 8000),
     conda:
         "FASTX.yaml"
     container:

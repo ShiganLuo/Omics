@@ -23,8 +23,11 @@ rule fiberseq_track_run:
     log:
         logdir + "/{sample_id}/fiberseq_track_run.log"
     threads: rule_res("fiberseq_track").get("threads", 4)
+    benchmark: logdir + "/{sample_id}/fiberseq_track_run.benchmark.tsv",
     resources:
-        mem_mb = rule_res("fiberseq_track").get("mem_mb", 65000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "fiberseq_track", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 65000),
     conda:
         "../fiberseq.yaml"
     container:
@@ -72,5 +75,8 @@ rule fiberseq_track_result:
     input:
         tracks = expand(outdir + "/{sample_id}/{sample_id}.accessibility.bw",
                         sample_id=samples),
+
     resources:
-        mem_mb = rule_res("fiberseq_track_result").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "fiberseq_track_result", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),

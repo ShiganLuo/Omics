@@ -19,8 +19,11 @@ rule ucsc_track_single:
         track = outdir + "/ucsc_track.txt"
     log:
         logdir + "/track/ucsc_track_single.log"
+    benchmark: logdir + "/track/ucsc_track_single.benchmark.tsv",
     resources:
-        mem_mb = rule_res("ucsc_track_single").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "ucsc_track_single", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     conda: "track.yaml"
     container:
         sif("track.yaml", "ucsc_track_single")
@@ -64,8 +67,11 @@ rule ucsc_track_iclip:
         track = outdir + "/ucsc_track_iclip.txt"
     log:
         logdir + "/track/ucsc_track_iclip.log"
+    benchmark: logdir + "/track/ucsc_track_iclip.benchmark.tsv",
     resources:
-        mem_mb = rule_res("ucsc_track_iclip").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "ucsc_track_iclip", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     conda: "track.yaml"
     container:
         sif("track.yaml", "ucsc_track_iclip")
@@ -109,8 +115,11 @@ rule igv_track_single:
         html = outdir + "/igv_track.html"
     log:
         logdir + "/track/igv_track_single.log"
+    benchmark: logdir + "/track/igv_track_single.benchmark.tsv",
     resources:
-        mem_mb = rule_res("igv_track_single").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "igv_track_single", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     conda: "track.yaml"
     container:
         sif("track.yaml", "igv_track_single")
@@ -168,8 +177,11 @@ rule igv_track_iclip:
         html = outdir + "/igv_track_iclip.html"
     log:
         logdir + "/track/igv_track_iclip.log"
+    benchmark: logdir + "/track/igv_track_iclip.benchmark.tsv",
     resources:
-        mem_mb = rule_res("igv_track_iclip").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "igv_track_iclip", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     conda: "track.yaml"
     container:
         sif("track.yaml", "igv_track_iclip")

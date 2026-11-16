@@ -37,6 +37,7 @@ rule stringTie:
     params:
         stringtie = config.get("Procedure", {}).get("stringtie") or "stringtie"
     threads: rule_res("stringTie").get("threads", 5)
+    benchmark: logdir + "/{sample_id}/{genome}/stringTie.benchmark.tsv",
     resources:
         mem_mb=rule_res("stringTie").get("mem_mb", 16000),
     conda:
@@ -86,6 +87,7 @@ rule TEChimericTranscripts:
     params:
         TEChimericTranscripts = ROOT_DIR + "/modules/StringTie/bin/TEChimericTranscripts.py"
     threads: rule_res("TEChimericTranscripts").get("threads", 5)
+    benchmark: logdir + "/{sample_id}/{genome}/TEChimericTranscripts.benchmark.tsv",
     resources:
         mem_mb=rule_res("TEChimericTranscripts").get("mem_mb", 8000),
     conda:
@@ -147,6 +149,7 @@ rule TEChimericPlot:
         TEChimericPlot = ROOT_DIR + "/modules/StringTie/bin/TEChimericPlot.py",
         formats = _formats,   # ③ 转发
     threads: rule_res("TEChimericPlot").get("threads", 1)
+    benchmark: logdir_combine + "/stringtie/{genome}/TEChimericPlot.benchmark.tsv",
     resources:
         mem_mb=rule_res("TEChimericPlot").get("mem_mb", 8000),
     conda:
@@ -214,6 +217,7 @@ rule stringTieMerge:
     output:
         gtf = outdir + "/{genome}/stringtie_merged.gtf"
     threads: rule_res("stringTieMerge").get("threads", 1)
+    benchmark: logdir_combine + "/stringtie/{genome}/stringTieMerge.benchmark.tsv",
     resources:
         mem_mb=rule_res("stringTieMerge").get("mem_mb", 32000),
     log:

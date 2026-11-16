@@ -31,6 +31,7 @@ rule XenofilteR:
     log:
         logdir + "/{sample_id}/{genome}/XenofilteR.log"
     threads: rule_res("XenofilteR").get("threads", 8)
+    benchmark: logdir + "/{sample_id}/{genome}/XenofilteR.benchmark.tsv",
     resources:
         mem_mb=rule_res("XenofilteR").get("mem_mb", 16000),
     params:

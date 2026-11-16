@@ -16,8 +16,11 @@ rule chromosome_sizes:
     log:
         logdir + "/{genome}/chromosome_sizes.log"
     threads: rule_res("chromosome_sizes").get("threads", 1)
+    benchmark: logdir + "/{genome}/chromosome_sizes.benchmark.tsv",
     resources:
-        mem_mb = rule_res("chromosome_sizes").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "chromosome_sizes", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     conda:
         "../genome.yaml"
     container:
@@ -57,8 +60,11 @@ rule extract_smallrna:
     log:
         logdir + "/genome/extract_smallrna.log"
     threads: rule_res("extract_smallrna").get("threads", 1)
+    benchmark: logdir + "/genome/extract_smallrna.benchmark.tsv",
     resources:
-        mem_mb = rule_res("extract_smallrna").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "extract_smallrna", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     conda:
         "../genome.yaml"
     container:

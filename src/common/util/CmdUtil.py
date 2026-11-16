@@ -94,8 +94,9 @@ def _sanitized_env(cmd: List[str]) -> dict:
     """
     env = dict(os.environ)
     cfg_tmp = None
+    _cfg = None
+    import json as _json
     if "--configfile" in cmd:
-        import json as _json
         idx = cmd.index("--configfile")
         if idx + 1 < len(cmd):
             cfg_path = cmd[idx + 1]
@@ -110,6 +111,12 @@ def _sanitized_env(cmd: List[str]) -> dict:
     if cfg_tmp:
         os.makedirs(cfg_tmp, exist_ok=True)
         env["TMPDIR"] = cfg_tmp
+    # Per-process resource caps (方案 A clamp): common.smk's rule_res clamps
+    # declared mem_mb/threads against these. Snakemake module configs are
+    # hand-assembled per module and carry no resource_caps, so the caps also
+    # travel via env; both channels hold the same value from this configfile.
+    if isinstance(_cfg, dict) and _cfg.get("resource_caps"):
+        env["OMICS_RESOURCE_CAPS"] = _json.dumps(_cfg["resource_caps"])
     return env
 
 def _run_cmd(cmd:List, cwd: Optional[str] = None) -> str:

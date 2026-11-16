@@ -20,8 +20,11 @@ rule demultiplex_trim_dedup:
     log:
         logdir + "/{sample_id}/demultiplexer.log"
     threads: rule_res("demultiplex_trim_dedup").get("threads", 1)
+    benchmark: logdir + "/{sample_id}/demultiplexer.benchmark.tsv",
     resources:
-        mem_mb = rule_res("demultiplex_trim_dedup").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "demultiplex_trim_dedup", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     conda:
         "demultiplexer.yaml"
     container:

@@ -37,8 +37,11 @@ rule msi_scan:
     log:
         logdir_combine + "/msi/msi_scan.log"
     threads: rule_res("msi_scan").get("threads", 1)
+    benchmark: logdir_combine + "/msi/msi_scan.benchmark.tsv",
     resources:
-        mem_mb = rule_res("msi_scan").get("mem_mb", 16000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "msi_scan", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 16000),
     params:
         msisensorpro = msisensorpro,
     conda:
@@ -86,8 +89,11 @@ rule msi_call:
     log:
         logdir + "/{sample_id}/msi_call.log"
     threads: rule_res("msi_call").get("threads", 4)
+    benchmark: logdir + "/{sample_id}/msi_call.benchmark.tsv",
     resources:
-        mem_mb = rule_res("msi_call").get("mem_mb", 16000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "msi_call", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 16000),
     params:
         msisensorpro = msisensorpro,
     conda:
@@ -136,8 +142,11 @@ rule msi_plot:
     log:
         logdir_combine + "/msi/msi_plot.log"
     threads: rule_res("msi_plot").get("threads", 1)
+    benchmark: logdir_combine + "/msi/msi_plot.benchmark.tsv",
     resources:
-        mem_mb = rule_res("msi_plot").get("mem_mb", 4000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "msi_plot", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 4000),
     params:
         rscript = config.get("Procedure", {}).get("Rscript") or "Rscript",
         bar_plot = BAR_PLOT,

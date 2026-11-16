@@ -36,8 +36,11 @@ rule raw2mzml:
     log:
         logdir + "/{sample_id}/raw2mzml.log"
     threads: rule_res("raw2mzml").get("threads", 2)
+    benchmark: logdir + "/{sample_id}/raw2mzml.benchmark.tsv",
     resources:
-        mem_mb = rule_res("raw2mzml").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "raw2mzml", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     conda:
         "../openms.yaml"
     container:
@@ -97,5 +100,8 @@ rule raw2mzml:
 rule raw2mzml_result:
     input:
         expand(outdir + "/{sample_id}/{sample_id}.mzML", sample_id=samples)
+
     resources:
-        mem_mb = rule_res("raw2mzml_result").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "raw2mzml_result", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),

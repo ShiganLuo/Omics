@@ -35,8 +35,11 @@ rule SplitNCigarReads:
     container:
         sif("../gatk.yaml", "SplitNCigarReads")
     threads: rule_res("SplitNCigarReads").get("threads", 8)
+    benchmark: logdir + "/{sample_id}/SplitNCigarReads.benchmark.tsv",
     resources:
-        mem_mb = rule_res("SplitNCigarReads").get("mem_mb", 16000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "SplitNCigarReads", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 16000),
     log:
         logdir + "/{sample_id}/SplitNCigarReads.log"
     run:
@@ -91,8 +94,11 @@ rule VarientCalling:
         fasta = config.get("genome", {}).get("fasta"),
         fai_index = config.get("genome", {}).get("fai_index")
     threads: rule_res("VarientCalling").get("threads", 8)
+    benchmark: logdir + "/{sample_id}/VarientCalling.benchmark.tsv",
     resources:
-        mem_mb = rule_res("VarientCalling").get("mem_mb", 16000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "VarientCalling", input_size=input_size_named(input, 'bam'),
+            attempt=attempt).get("mem_mb", 16000),
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -139,8 +145,11 @@ rule vcf_filter:
     container:
         sif("../gatk.yaml", "vcf_filter")
     threads: rule_res("vcf_filter").get("threads", 8)
+    benchmark: logdir + "/{sample_id}/vcf_filter.benchmark.tsv",
     resources:
-        mem_mb = rule_res("vcf_filter").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "vcf_filter", input_size=input_size_named(input, 'vcf'),
+            attempt=attempt).get("mem_mb", 8000),
     params:
         javaOptions =  config.get("Params", {}).get("gatk", {}).get("javaOptions") or "-Xmx30g",
         tmp_dir = config.get("Params", {}).get("gatk", {}).get("tmp-dir") or None,

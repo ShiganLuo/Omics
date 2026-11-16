@@ -31,8 +31,11 @@ rule deepvariant_run:
     log:
         logdir + "/{genome}/{sample_id}/deepvariant.log"
     threads: rule_res("deepvariant_run").get("threads", 8)
+    benchmark: logdir + "/{genome}/{sample_id}/deepvariant.benchmark.tsv",
     resources:
-        mem_mb = rule_res("deepvariant_run").get("mem_mb", 32000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "deepvariant_run", input_size=input_size_named(input, 'bam'),
+            attempt=attempt).get("mem_mb", 32000),
     container:
         config.get("container", {}).get("deepvariant") or "docker://google/deepvariant:1.10.0"
     params:
@@ -78,5 +81,8 @@ rule deepvariant_result:
     input:
         vcf = outdir + "/{genome}/{sample_id}/{sample_id}.vcf.gz",
         tbi = outdir + "/{genome}/{sample_id}/{sample_id}.vcf.gz.csi"
+
     resources:
-        mem_mb = rule_res("deepvariant_result").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "deepvariant_result", input_size=input_size_named(input, 'vcf'),
+            attempt=attempt).get("mem_mb", 8000),

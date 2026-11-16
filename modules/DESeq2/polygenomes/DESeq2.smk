@@ -54,8 +54,11 @@ rule DESeq2_TEcount:
         contrast_te = outdir + "/{genome}/{contrast}/TEcount/{contrast}.TEcount_TE.tsv",
         contrast_gene_te = outdir + "/{genome}/{contrast}/TEcount/{contrast}.TEcount_Gene_TE.tsv",
     threads: rule_res("DESeq2_TEcount").get("threads", 4)
+    benchmark: logdir + "/DESeq2/{genome}/{contrast}.benchmark.tsv",
     resources:
-        mem_mb=rule_res("DESeq2_TEcount").get("mem_mb", 16000),
+        mem_mb=lambda wildcards, input, attempt: rule_res(
+            "DESeq2_TEcount", input_size=sample_count(),
+            attempt=attempt).get("mem_mb", 16000),
     params:
         DESeq2_script = ROOT_DIR + "/modules/DESeq2/bin/DESeq2.r",
         write_group_script = ROOT_DIR + "/modules/DESeq2/bin/write_group_tsv.py",
@@ -175,8 +178,11 @@ rule DESeq2_TElocal:
         contrast_te = outdir + "/{genome}/{contrast}/TElocal/{contrast}.TElocal_TE.tsv",
         contrast_gene_te = outdir + "/{genome}/{contrast}/TElocal/{contrast}.TElocal_Gene_TE.tsv",
     threads: rule_res("DESeq2_TElocal").get("threads", 4)
+    benchmark: logdir + "/DESeq2/{genome}/{contrast}.benchmark.tsv",
     resources:
-        mem_mb=rule_res("DESeq2_TElocal").get("mem_mb", 16000),
+        mem_mb=lambda wildcards, input, attempt: rule_res(
+            "DESeq2_TElocal", input_size=sample_count(),
+            attempt=attempt).get("mem_mb", 16000),
     params:
         DESeq2_script = ROOT_DIR + "/modules/DESeq2/bin/DESeq2.r",
         write_group_script = ROOT_DIR + "/modules/DESeq2/bin/write_group_tsv.py",
@@ -346,6 +352,7 @@ rule DESeq2_TElocal_manhattan:
         # ② 按格式展开：每种格式一个输出文件（base 不带扩展名）
         manhattan = [outdir + "/{genome}/{contrast}/TElocal/manhattan/{contrast}.manhattan." + fmt for fmt in _manhattan_formats],
     threads: rule_res("DESeq2_TElocal_manhattan").get("threads", 2),
+    benchmark: logdir + "/DESeq2/{genome}/{contrast}.manhattan.benchmark.tsv",
     resources:
         mem_mb=rule_res("DESeq2_TElocal_manhattan").get("mem_mb", 8000),
     params:
@@ -416,6 +423,7 @@ rule DESeq2_TElocal_locus_boxplot:
         # ② 按格式展开：每种格式一个输出文件（base 不带扩展名）
         locus_box = [outdir + "/{genome}/{contrast}/TElocal/locus_box/{contrast}.locus_box." + fmt for fmt in _locus_box_formats],
     threads: rule_res("DESeq2_TElocal_locus_boxplot").get("threads", 2),
+    benchmark: logdir + "/DESeq2/{genome}/{contrast}.locus_box.benchmark.tsv",
     resources:
         mem_mb=rule_res("DESeq2_TElocal_locus_boxplot").get("mem_mb", 8000),
     params:
@@ -490,6 +498,7 @@ rule DESeq2_TElocal_subfamily_bar:
         # ② 按格式展开：每种格式一个输出文件（base 不带扩展名）
         subfamily_bar = [outdir + "/{genome}/{contrast}/TElocal/subfamily_bar/{contrast}.subfamily_bar." + fmt for fmt in _subfamily_bar_formats],
     threads: rule_res("DESeq2_TElocal_subfamily_bar").get("threads", 2),
+    benchmark: logdir + "/DESeq2/{genome}/{contrast}.subfamily_bar.benchmark.tsv",
     resources:
         mem_mb=rule_res("DESeq2_TElocal_subfamily_bar").get("mem_mb", 8000),
     params:

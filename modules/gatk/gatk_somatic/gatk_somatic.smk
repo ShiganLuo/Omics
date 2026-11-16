@@ -74,8 +74,11 @@ rule somaticMutect2:
         gatk = config.get("Procedure", {}).get("gatk") or "gatk",
         tmp_dir = config.get("tmp_dir") or None
     threads: rule_res("somaticMutect2").get("threads", 10)
+    benchmark: logdir + "/gatk/{normal_sample_id}_{experimental_sample_id}/{normal_sample_id}_{experimental_sample_id}_mutect2.benchmark.tsv",
     resources:
-        mem_mb = rule_res("somaticMutect2").get("mem_mb", 32000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "somaticMutect2", input_size=input_size_named(input, 'vcf'),
+            attempt=attempt).get("mem_mb", 32000),
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -145,8 +148,11 @@ rule germline_resource_strain:
     log:
         logdir + "/gatk/germline_strain_{strain}.log",
     threads: rule_res("germline_resource_strain").get("threads", 2)
+    benchmark: logdir + "/gatk/germline_strain_{strain}.benchmark.tsv",
     resources:
-        mem_mb = rule_res("germline_resource_strain").get("mem_mb", 16000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "germline_resource_strain", input_size=input_size_named(input, 'vcf'),
+            attempt=attempt).get("mem_mb", 16000),
     conda:
         "../gatk.yaml"
     container:
@@ -213,8 +219,11 @@ rule filterMutectCalls:
     log:
         logdir + "/gatk/{normal_sample_id}_{experimental_sample_id}/{normal_sample_id}_{experimental_sample_id}_filterMutectCalls.log",
     threads: rule_res("filterMutectCalls").get("threads", 2)
+    benchmark: logdir + "/gatk/{normal_sample_id}_{experimental_sample_id}/{normal_sample_id}_{experimental_sample_id}_filterMutectCalls.benchmark.tsv",
     resources:
-        mem_mb = rule_res("filterMutectCalls").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "filterMutectCalls", input_size=input_size_named(input, 'vcf'),
+            attempt=attempt).get("mem_mb", 8000),
     conda:
         "../gatk.yaml"
     container:
@@ -256,6 +265,7 @@ rule filterMutectCalls:
 _design_pairs = config.get("design_pairs") or []
 rule gatk_somatic_result:
     """Result aggregation rule for subworkflow use rule import."""
+
     input:
         filtered = [
             f"{outdir}/{p['control']}_vs_{p['experimental']}/{p['control']}_vs_{p['experimental']}.filtered.vcf.gz"

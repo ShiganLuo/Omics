@@ -19,8 +19,11 @@ rule UmiTools_extract_single:
     container:
         sif("../UmiTools.yaml", "UmiTools_extract_single")
     threads: rule_res("UmiTools_extract_single").get("threads", 2)
+    benchmark: logdir + "/{sample_id}/umi_tools_extract_single_run.benchmark.txt",
     resources:
-        mem_mb = rule_res("UmiTools_extract_single").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "UmiTools_extract_single", input_size=input_size_named(input, 'fastq'),
+            attempt=attempt).get("mem_mb", 8000),
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -62,8 +65,11 @@ rule UmiTools_extract_paired:
     log:
         logdir + "/{sample_id}/umi_tools_extract_paired_run.txt"
     threads: rule_res("UmiTools_extract_paired").get("threads", 2)
+    benchmark: logdir + "/{sample_id}/umi_tools_extract_paired_run.benchmark.txt",
     resources:
-        mem_mb = rule_res("UmiTools_extract_paired").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "UmiTools_extract_paired", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     conda:
         "../UmiTools.yaml"
     container:

@@ -21,8 +21,11 @@ rule samtools_stats:
         stats = outdir + "/stats/{sample_id}/{sample_id}_stats.txt"
     log:
         logdir + "/{sample_id}/samtools_stats.log"
+    benchmark: logdir + "/{sample_id}/samtools_stats.benchmark.tsv",
     resources:
-        mem_mb = rule_res("samtools_stats").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "samtools_stats", input_size=input_size_named(input, 'bam'),
+            attempt=attempt).get("mem_mb", 8000),
     conda:
         "fragment_size.yaml"
     container:
@@ -58,8 +61,11 @@ rule getFragmentSize:
         hist = outdir + "/fragment/FragmentSize.txt"
     log:
         logdir_combine + "/fragment/getFragmentSize.log"
+    benchmark: logdir_combine + "/fragment/getFragmentSize.benchmark.tsv",
     resources:
-        mem_mb = rule_res("getFragmentSize").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "getFragmentSize", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     params:
         script = os.path.join(ROOT_DIR, "modules/fragment_size/bin/getFragmentSize.py")
     conda:
@@ -97,8 +103,11 @@ rule plotFragmentSize:
         plots = [outdir + "/fragment/FragmentSize." + fmt for fmt in _formats],
     log:
         logdir_combine + "/fragment/plotFragmentSize.log"
+    benchmark: logdir_combine + "/fragment/plotFragmentSize.benchmark.tsv",
     resources:
-        mem_mb = rule_res("plotFragmentSize").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "plotFragmentSize", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     params:
         script = os.path.join(ROOT_DIR, "modules/fragment_size/bin/plotFragmentSize.py"),
         formats = _formats,   # ③ 转发
@@ -133,5 +142,8 @@ rule fragment_size_result:
     input:
         hist = outdir + "/fragment/FragmentSize.txt",
         plots = [outdir + "/fragment/FragmentSize." + fmt for fmt in _formats]
+
     resources:
-        mem_mb = rule_res("fragment_size_result").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "fragment_size_result", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),

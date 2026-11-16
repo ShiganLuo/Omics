@@ -18,8 +18,11 @@ rule BaseRecalibrator:
     log:
         logdir + "/{sample_id}/gatk_bqsr.log"
     threads: rule_res("BaseRecalibrator").get("threads", 8)
+    benchmark: logdir + "/{sample_id}/gatk_bqsr.benchmark.tsv",
     resources:
-        mem_mb = rule_res("BaseRecalibrator").get("mem_mb", 32000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "BaseRecalibrator", input_size=input_size_named(input, 'bam'),
+            attempt=attempt).get("mem_mb", 32000),
     conda:
         "../gatk.yaml"
     container:
@@ -79,8 +82,11 @@ rule ApplyBQSR:
         sif("../gatk.yaml", "ApplyBQSR")
     threads:
         8
+    benchmark: logdir + "/{sample_id}/ApplyBQSR.benchmark.tsv",
     resources:
-        mem_mb = rule_res("ApplyBQSR").get("mem_mb", 16000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "ApplyBQSR", input_size=input_size_named(input, 'bam'),
+            attempt=attempt).get("mem_mb", 16000),
     params:
         javaOptions =  config.get("Params", {}).get("gatk", {}).get("javaOptions") or "-Xmx30g",
         gatk = config.get("Procedure", {}).get("gatk") or "gatk",
@@ -123,5 +129,8 @@ rule gatk_bqsr_result:
     input:
         bam = outdir + "/{sample_id}/{sample_id}.sorted_markdup.bqsr.bam",
         bai = outdir + "/{sample_id}/{sample_id}.sorted_markdup.bqsr.bam.bai"
+
     resources:
-        mem_mb = rule_res("gatk_bqsr_result").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "gatk_bqsr_result", input_size=input_size_named(input, 'bam'),
+            attempt=attempt).get("mem_mb", 8000),

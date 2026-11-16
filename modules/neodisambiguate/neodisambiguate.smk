@@ -23,8 +23,11 @@ rule neodisambiguate:
         prefix = lambda wildcards: f"{outdir}/{wildcards.sample_id}.neodisambiguated",
         neodisambiguate = config.get("Procedure", {}).get("neodisambiguate") or "neodisambiguate"
     threads: rule_res("neodisambiguate").get("threads", 8)
+    benchmark: logdir + "/{sample_id}/neodisambiguate.benchmark.tsv",
     resources:
-        mem_mb = rule_res("neodisambiguate").get("mem_mb", 16000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "neodisambiguate", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 16000),
     log:
         logdir + "/{sample_id}/neodisambiguate.log"
     conda:

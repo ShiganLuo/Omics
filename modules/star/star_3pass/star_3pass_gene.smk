@@ -44,8 +44,11 @@ rule star_3pg_gene_specific:
     log:
         logdir + "/{sample_id}/star3p_gene_specific.log"
     threads: rule_res("star_3pg_gene_specific").get("threads", 2)
+    benchmark: logdir + "/{sample_id}/star3p_gene_specific.benchmark.tsv",
     resources:
-        mem_mb = rule_res("star_3pg_gene_specific").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "star_3pg_gene_specific", input_size=input_size_named(input, 'bam'),
+            attempt=attempt).get("mem_mb", 8000),
     conda:
         "../star.yaml"
     container:

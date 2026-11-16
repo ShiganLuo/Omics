@@ -26,8 +26,11 @@ rule fumitools_copy_umi_paired:
         umi_length = config.get("Params", {}).get("fumitools", {}).get("umi_length") or None,
         tag_umi = config.get("Params", {}).get("fumitools", {}).get("tag_umi") or False,
     threads: rule_res("fumitools_copy_umi_paired").get("threads", 4)
+    benchmark: logdir + "/{sample_id}/fumitools_copy_umi.benchmark.tsv",
     resources:
-        mem_mb = rule_res("fumitools_copy_umi_paired").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "fumitools_copy_umi_paired", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     conda:
         "fumitools.yaml"
     container:
@@ -88,8 +91,11 @@ rule fumitools_copy_umi_single:
         umi_length = config.get("Params", {}).get("fumitools", {}).get("umi_length") or None,
         tag_umi = config.get("Params", {}).get("fumitools", {}).get("tag_umi") or False,
     threads: rule_res("fumitools_copy_umi_single").get("threads", 4)
+    benchmark: logdir + "/{sample_id}/fumitools_copy_umi.benchmark.tsv",
     resources:
-        mem_mb = rule_res("fumitools_copy_umi_single").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "fumitools_copy_umi_single", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     conda:
         "fumitools.yaml"
     container:
@@ -150,8 +156,11 @@ rule fumitools_dedup:
         memory = config.get("Params", {}).get("fumitools", {}).get("memory", "3G"),
         start_only = config.get("Params", {}).get("fumitools", {}).get("start_only", False),
     threads: rule_res("fumitools_dedup").get("threads", 4)
+    benchmark: logdir + "/{sample_id}/fumitools_dedup.benchmark.tsv",
     resources:
-        mem_mb = rule_res("fumitools_dedup").get("mem_mb", 16000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "fumitools_dedup", input_size=input_size_named(input, 'bam'),
+            attempt=attempt).get("mem_mb", 16000),
     conda:
         "fumitools.yaml"
     container:
@@ -192,11 +201,17 @@ rule fumitools_dedup:
 rule fumitools_copy_umi_result:
     input:
         r1 = outdir + "/{sample_id}/{sample_id}_1.umi.fq.gz",
+
     resources:
-        mem_mb = rule_res("fumitools_copy_umi_result").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "fumitools_copy_umi_result", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
 
 rule fumitools_dedup_result:
     input:
         bam = outdir + "/{sample_id}/{sample_id}.dedup.bam",
+
     resources:
-        mem_mb = rule_res("fumitools_dedup_result").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "fumitools_dedup_result", input_size=input_size_named(input, 'bam'),
+            attempt=attempt).get("mem_mb", 8000),

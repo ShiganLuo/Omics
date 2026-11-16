@@ -17,8 +17,11 @@ rule TEcoutCPM:
         outfile = outdir + "/counts/humanTEcountCPM.cntTable"
     log:
         log = outdir + "/log/human/TEcoutCPM.log"
+    benchmark: outdir + "/log/human/TEcoutCPM.benchmark.tsv",
     resources:
-        mem_mb = rule_res("TEcoutCPM").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "TEcoutCPM", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     params:
         script = MODULE_DIR + "/scripts/SNP/run-NormCountMat.R",
         Rscript = config["Procedure"]["Rscript"]
@@ -57,8 +60,11 @@ rule commonExpression:
         outfile = outdir + "/counts/humanTEcountCommon.cntTable"
     log:
         log = outdir + "/log/human/commonExpression.log"
+    benchmark: outdir + "/log/human/commonExpression.benchmark.tsv",
     resources:
-        mem_mb = rule_res("commonExpression").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "commonExpression", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     conda:
         config.get('conda', {}).get('RNA-SNP') or 'annovar.yaml'
     params:
@@ -97,8 +103,11 @@ rule getBed:
         outfile = outdir + "/counts/humanTEcountCommon.bed"
     log:
         log = outdir + "/log/human/getBed.log"
+    benchmark: outdir + "/log/human/getBed.benchmark.tsv",
     resources:
-        mem_mb = rule_res("getBed").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "getBed", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     conda:
         config.get('conda', {}).get('RNA-SNP') or 'annovar.yaml'
     params:
@@ -144,8 +153,11 @@ rule vcfIntersectBed:
     conda:
         config.get('conda', {}).get('RNA-SNP') or 'annovar.yaml'
     threads: rule_res("vcfIntersectBed").get("threads", 4)  #防止同时执行太多，爆内存
+    benchmark: outdir + "/log/human/{sample_id}/vcfIntersectBed.benchmark.tsv",
     resources:
-        mem_mb = rule_res("vcfIntersectBed").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "vcfIntersectBed", input_size=input_size_named(input, 'vcf'),
+            attempt=attempt).get("mem_mb", 8000),
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -184,8 +196,11 @@ rule annovar_convert:
         convert = "/opt/annovar/convert2annovar.pl",
         perl = config["Procedure"]["perl"]
     threads: rule_res("annovar_convert").get("threads", 4)  #防止同时执行太多，爆内存
+    benchmark: outdir + "/log/human/{sample_id}/annovar_convert.benchmark.tsv",
     resources:
-        mem_mb = rule_res("annovar_convert").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "annovar_convert", input_size=input_size_named(input, 'vcf'),
+            attempt=attempt).get("mem_mb", 8000),
     conda:
         "annovar.yaml"
     container:
@@ -228,8 +243,11 @@ rule annovar_table:
         table = config.get("Procedure", {}).get("table_annovar") or "table_annovar.pl",
         out = outdir + "/annovar/human/{sample_id}/{sample_id}"
     threads: rule_res("annovar_table").get("threads", 4)  #防止同时执行太多，爆内存
+    benchmark: outdir + "/log/human/{sample_id}/annovar_table.benchmark.tsv",
     resources:
-        mem_mb = rule_res("annovar_table").get("mem_mb", 16000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "annovar_table", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 16000),
     conda:
         "annovar.yaml"
     container:

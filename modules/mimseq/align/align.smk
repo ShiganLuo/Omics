@@ -31,8 +31,11 @@ rule mimseq_align:
         keep_temp = config.get("Params", {}).get("mimseq", {}).get("keep_temp", False),
         formats = _plot_formats,   # ③ 转发
     threads: rule_res("mimseq_align").get("threads", 10)
+    benchmark: logdir + "/mimseq_align.benchmark.tsv",
     resources:
-        mem_mb = rule_res("mimseq_align").get("mem_mb", 32000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "mimseq_align", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 32000),
     conda:
         "../mimseq.yaml"
     container:
@@ -73,5 +76,8 @@ rule mimseq_align_result:
     """Result rule for align module."""
     input:
         align_done = outdir + "/align.done",
+
     resources:
-        mem_mb = rule_res("mimseq_align_result").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "mimseq_align_result", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),

@@ -37,8 +37,11 @@ rule DESeq2_TEcount:
         contrast_te = outdir + "/{contrast}/TEcount/{contrast}.TEcount_TE.tsv",
         contrast_gene_te = outdir + "/{contrast}/TEcount/{contrast}.TEcount_Gene_TE.tsv",
     threads: rule_res("DESeq2_TEcount").get("threads", 4)
+    benchmark: logdir + "/DESeq2/{contrast}.benchmark.tsv",
     resources:
-        mem_mb = rule_res("DESeq2_TEcount").get("mem_mb", 16000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "DESeq2_TEcount", input_size=sample_count(),
+            attempt=attempt).get("mem_mb", 16000),
     params:
         DESeq2_script = ROOT_DIR + "/modules/DESeq2/bin/DESeq2.r",
         write_group_script = ROOT_DIR + "/modules/DESeq2/bin/write_group_tsv.py",

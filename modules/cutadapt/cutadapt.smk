@@ -35,6 +35,7 @@ rule trimming_Paired:
     log:
         logdir + "/{sample_id}/cutadapt_paired.log"
     threads: rule_res("trimming_Paired").get("threads", 6)
+    benchmark: logdir + "/{sample_id}/cutadapt_paired.benchmark.tsv",
     resources:
         mem_mb=rule_res("trimming_Paired").get("mem_mb", 8000),
     params:
@@ -107,6 +108,7 @@ rule trimming_Single:
     log:
         logdir + "/{sample_id}/cutadapt_single.log"
     threads: rule_res("trimming_Single").get("threads", 6)
+    benchmark: logdir + "/{sample_id}/cutadapt_single.benchmark.tsv",
     resources:
         mem_mb=rule_res("trimming_Single").get("mem_mb", 4000),
     params:

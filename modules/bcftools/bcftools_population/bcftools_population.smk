@@ -18,8 +18,11 @@ rule bcftools_population_filter:
     log:
         logdir + "/variants/bcftools_population_filter.log"
     threads: rule_res("bcftools_population_filter").get("threads", 4)
+    benchmark: logdir + "/variants/bcftools_population_filter.benchmark.tsv",
     resources:
-        mem_mb = rule_res("bcftools_population_filter").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "bcftools_population_filter", input_size=input_size_named(input, 'vcf'),
+            attempt=attempt).get("mem_mb", 8000),
     conda:
         "../bcftools.yaml"
     container:

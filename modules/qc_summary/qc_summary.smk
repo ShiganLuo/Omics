@@ -69,8 +69,11 @@ rule qc_summary:
     log:
         logdir + "/qc_summary/qc_summary.log"
     threads: rule_res("qc_summary").get("threads", 1)
+    benchmark: logdir + "/qc_summary/qc_summary.benchmark.tsv",
     resources:
-        mem_mb = rule_res("qc_summary").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "qc_summary", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     conda:
         "qc_summary.yaml"
     container:
@@ -121,5 +124,8 @@ rule qc_summary_result:
     input:
         tsv = outdir + "/qc_summary.tsv",
         html = outdir + "/qc_summary.html",
+
     resources:
-        mem_mb = rule_res("qc_summary_result").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "qc_summary_result", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),

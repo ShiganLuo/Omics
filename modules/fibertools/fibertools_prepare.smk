@@ -66,8 +66,11 @@ rule ft_predict_m6a:
     log:
         logdir + "/{sample_id}/ft_predict_m6a.log"
     threads: rule_res("ft_predict_m6a").get("threads", 16)
+    benchmark: logdir + "/{sample_id}/ft_predict_m6a.benchmark.tsv",
     resources:
-        mem_mb = rule_res("ft_predict_m6a").get("mem_mb", 32000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "ft_predict_m6a", input_size=input_size_named(input, 'bam'),
+            attempt=attempt).get("mem_mb", 32000),
     conda:
         "fibertools.yaml"
     container:
@@ -134,8 +137,11 @@ rule ft_add_nucleosomes:
     log:
         logdir + "/{sample_id}/ft_add_nucleosomes.log"
     threads: rule_res("ft_add_nucleosomes").get("threads", 16)
+    benchmark: logdir + "/{sample_id}/ft_add_nucleosomes.benchmark.tsv",
     resources:
-        mem_mb = rule_res("ft_add_nucleosomes").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "ft_add_nucleosomes", input_size=input_size_named(input, 'bam'),
+            attempt=attempt).get("mem_mb", 8000),
     conda:
         "fibertools.yaml"
     container:
@@ -182,8 +188,11 @@ rule ft_fire:
     log:
         logdir + "/{sample_id}/ft_fire.log"
     threads: rule_res("ft_fire").get("threads", 8)
+    benchmark: logdir + "/{sample_id}/ft_fire.benchmark.tsv",
     resources:
-        mem_mb = rule_res("ft_fire").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "ft_fire", input_size=input_size_named(input, 'bam'),
+            attempt=attempt).get("mem_mb", 8000),
     conda:
         "fibertools.yaml"
     container:

@@ -19,8 +19,11 @@ rule psm_fdr:
         filtered_idxml = outdir + "/{sample_id}/{sample_id}_filtered.idXML"
     log:
         logdir + "/{sample_id}/psm_fdr.log"
+    benchmark: logdir + "/{sample_id}/psm_fdr.benchmark.tsv",
     resources:
-        mem_mb = rule_res("psm_fdr").get("mem_mb", 16000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "psm_fdr", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 16000),
     conda:
         "../openms.yaml"
     container:
@@ -74,5 +77,8 @@ rule psm_fdr:
 rule psm_fdr_result:
     input:
         filtered_idxml = outdir + "/{sample_id}/{sample_id}_filtered.idXML"
+
     resources:
-        mem_mb = rule_res("psm_fdr_result").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "psm_fdr_result", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),

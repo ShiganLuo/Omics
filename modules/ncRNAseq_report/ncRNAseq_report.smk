@@ -51,8 +51,11 @@ rule generate_report:
     log:
         logdir + "/ncRNAseq_report.log"
     threads: rule_res("generate_report").get("threads", 1)
+    benchmark: logdir + "/ncRNAseq_report.benchmark.tsv",
     resources:
-        mem_mb = rule_res("generate_report").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "generate_report", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     conda:
         "ncRNAseq_report.yaml"
     container:
@@ -127,5 +130,8 @@ rule report_result:
         report = outdir + "/ncRNAseq_report.pptx",
         file_inventory = outdir + "/ncRNAseq_report_files.xlsx",
         manifest = outdir + "/figures/manifest.tsv",
+
     resources:
-        mem_mb = rule_res("report_result").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "report_result", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),

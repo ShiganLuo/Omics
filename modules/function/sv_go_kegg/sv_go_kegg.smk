@@ -50,6 +50,7 @@ rule sv_go_kegg:
     log:
         logdir + "/{comparison}/sv_go_kegg.log"
     threads: rule_res("sv_go_kegg").get("threads", 1)
+    benchmark: logdir + "/{comparison}/sv_go_kegg.benchmark.tsv",
     resources:
         mem_mb=rule_res("sv_go_kegg").get("mem_mb", 8000),
     conda:

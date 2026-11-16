@@ -48,8 +48,11 @@ rule trgt_genotype:
     log:
         logdir + "/{sample_id}/trgt_genotype.log"
     threads: rule_res("trgt_genotype").get("threads", 4)
+    benchmark: logdir + "/{sample_id}/trgt_genotype.benchmark.tsv",
     resources:
-        mem_mb = rule_res("trgt_genotype").get("mem_mb", 32000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "trgt_genotype", input_size=input_size_named(input, 'bam'),
+            attempt=attempt).get("mem_mb", 32000),
     params:
         trgt = config.get("Procedure", {}).get("trgt") or "trgt",
         karyotype = karyotype,
@@ -102,8 +105,11 @@ rule trgt_plot:
         plots = [outdir + "/plot/{sample_id}/{sample_id}.trgt.repeat." + fmt for fmt in _formats],
     log:
         logdir + "/{sample_id}/trgt_plot.log"
+    benchmark: logdir + "/{sample_id}/trgt_plot.benchmark.tsv",
     resources:
-        mem_mb = rule_res("trgt_plot").get("mem_mb", 16000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "trgt_plot", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 16000),
     params:
         trgt = config.get("Procedure", {}).get("trgt") or "trgt",
         repeat_id = config.get("Params", {}).get("trgt", {}).get("repeat_id") or "HTT",
@@ -140,5 +146,8 @@ rule trgt_result:
         # {sample_id} stays a rule wildcard (paired with vcf above); only the
         # extension expands over formats — comprehension, not expand()
         plots = [outdir + "/plot/{sample_id}/{sample_id}.trgt.repeat." + fmt for fmt in _formats],
+
     resources:
-        mem_mb = rule_res("trgt_result").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "trgt_result", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),

@@ -24,6 +24,7 @@ rule star_index:
     log:
         logdir_index + "/star/" + log_index_substring + ".log"
     threads: rule_res("star_index").get("threads", 12)
+    benchmark: logdir_index + "/star/" + log_index_substring + ".benchmark.tsv",
     resources:
         mem_mb=rule_res("star_index").get("mem_mb", 64000),
     conda:
@@ -161,8 +162,11 @@ rule star_align:
     log:
         logdir + "/{sample_id}/star_align.log"
     threads: rule_res("star_align").get("threads", 12)
+    benchmark: logdir + "/{sample_id}/star_align.benchmark.tsv",
     resources:
-        mem_mb=rule_res("star_align").get("mem_mb", 32000),
+        mem_mb=lambda wildcards, input, attempt: rule_res(
+            "star_align", input_size=input_size_named(input, 'fastq'),
+            attempt=attempt).get("mem_mb", 32000),
     params:
         outPrefix = outdir + "/{sample_id}/{sample_id}.",
         input_params = lambda wildcards, input: \
@@ -279,5 +283,8 @@ rule star_align:
 rule star_result:
     input:
         star_align = outdir + "/{sample_id}/{sample_id}.bam"
+
     resources:
-        mem_mb = rule_res("star_result").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "star_result", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),

@@ -35,8 +35,11 @@ rule msfragger_run:
     log:
         logdir + "/{sample_id}/msfragger.log"
     threads: rule_res("msfragger_run").get("threads", 16)
+    benchmark: logdir + "/{sample_id}/msfragger.benchmark.tsv",
     resources:
-        mem_mb = rule_res("msfragger_run").get("mem_mb", 32000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "msfragger_run", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 32000),
     conda:
         "../fragpipe.yaml"
     container:
@@ -118,8 +121,11 @@ rule msfragger_idxml:
     log:
         logdir + "/{sample_id}/msfragger_idxml.log"
     threads: rule_res("msfragger_idxml").get("threads", 1)
+    benchmark: logdir + "/{sample_id}/msfragger_idxml.benchmark.tsv",
     resources:
-        mem_mb = rule_res("msfragger_idxml").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "msfragger_idxml", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     conda:
         "../../openms/openms.yaml"
     container:
@@ -213,5 +219,8 @@ rule msfragger_result:
     input:
         expand(outdir + "/{sample_id}/{sample_id}.pepXML", sample_id=samples),
         expand(outdir + "/{sample_id}/{sample_id}_msfragger.idXML", sample_id=samples),
+
     resources:
-        mem_mb = rule_res("msfragger_result").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "msfragger_result", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),

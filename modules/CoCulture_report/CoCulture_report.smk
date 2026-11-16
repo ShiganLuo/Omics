@@ -32,8 +32,11 @@ rule HRT:
                  for base in _plot_bases for fmt in _formats],
     log:
         logdir + "/CoCulture_report/CoCulture_report.log"
+    benchmark: logdir + "/CoCulture_report/CoCulture_report.benchmark.tsv",
     resources:
-        mem_mb = rule_res("HRT").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "HRT", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     params:
         genome1 = genome1,
         genome2 = genome2,

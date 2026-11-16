@@ -37,6 +37,7 @@ rule sexcheck_idxstats:
     log:
         logdir + "/{sample_id}/sexcheck_idxstats.log"
     threads: rule_res("sexcheck_idxstats").get("threads", 1)
+    benchmark: logdir + "/{sample_id}/sexcheck_idxstats.benchmark.tsv",
     resources:
         mem_mb=rule_res("sexcheck_idxstats").get("mem_mb", 8000),
     conda:
@@ -91,6 +92,7 @@ rule sexcheck:
     log:
         logdir_combine + "/sexcheck/sexcheck.log"
     threads: rule_res("sexcheck").get("threads", 1)
+    benchmark: logdir_combine + "/sexcheck/sexcheck.benchmark.tsv",
     resources:
         mem_mb=rule_res("sexcheck").get("mem_mb", 8000),
     conda:
@@ -198,5 +200,8 @@ rule sexcheck_result:
     input:
         tsv=outdir + "/sexcheck.tsv",
         done=outdir + "/sexcheck.done",
+
     resources:
-        mem_mb = rule_res("sexcheck_result").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "sexcheck_result", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),

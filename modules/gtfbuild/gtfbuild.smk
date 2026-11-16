@@ -15,8 +15,11 @@ rule gtfbuild_run:
     input:
         gtf = GTF_OUT,
         qc = outdir + f"/{genome_name}.gtf_qc.tsv",
+
     resources:
-        mem_mb = rule_res("gtfbuild_run").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "gtfbuild_run", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
 
 rule gtfbuild_liftoff:
     """Project a source GTF (e.g. GENCODE) onto a target assembly with LiftOff.
@@ -37,8 +40,11 @@ rule gtfbuild_liftoff:
     log:
         logdir + "/gtfbuild_liftoff.log"
     threads: rule_res("gtfbuild_liftoff").get("threads", 32)
+    benchmark: logdir + "/gtfbuild_liftoff.benchmark.tsv",
     resources:
-        mem_mb = rule_res("gtfbuild_liftoff").get("mem_mb", 32000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "gtfbuild_liftoff", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 32000),
     conda:
         "gtfbuild.yaml"
     container:
@@ -101,8 +107,11 @@ rule gtfbuild_qc:
     log:
         logdir + "/gtfbuild_qc.log"
     threads: rule_res("gtfbuild_qc").get("threads", 1)
+    benchmark: logdir + "/gtfbuild_qc.benchmark.tsv",
     resources:
-        mem_mb = rule_res("gtfbuild_qc").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "gtfbuild_qc", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     conda:
         "gtfbuild.yaml"
     container:
@@ -155,8 +164,11 @@ rule gtfbuild_bed_run:
     input:
         bed = outdir + f"/{BED_STEM}.lifted.bed",
         stats = outdir + f"/{BED_STEM}.lifted.stats.tsv",
+
     resources:
-        mem_mb = rule_res("gtfbuild_bed_run").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "gtfbuild_bed_run", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
 
 rule gtfbuild_wga:
     """Whole-genome alignment (PAF) between target and source assembly."""
@@ -168,8 +180,11 @@ rule gtfbuild_wga:
     log:
         logdir + "/gtfbuild_wga.log"
     threads: rule_res("gtfbuild_wga").get("threads", 32)
+    benchmark: logdir + "/gtfbuild_wga.benchmark.tsv",
     resources:
-        mem_mb = rule_res("gtfbuild_wga").get("mem_mb", 64000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "gtfbuild_wga", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 64000),
     conda:
         "gtfbuild.yaml"
     container:
@@ -218,8 +233,11 @@ rule gtfbuild_liftover_bed:
     log:
         logdir + "/gtfbuild_liftover_bed.log"
     threads: rule_res("gtfbuild_liftover_bed").get("threads", 1)
+    benchmark: logdir + "/gtfbuild_liftover_bed.benchmark.tsv",
     resources:
-        mem_mb = rule_res("gtfbuild_liftover_bed").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "gtfbuild_liftover_bed", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     conda:
         "gtfbuild.yaml"
     container:

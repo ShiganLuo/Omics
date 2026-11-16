@@ -31,8 +31,11 @@ rule gatk_population_haplotype_caller:
     log:
         logdir + "/variants/{sample}/gatk_population_haplotype_caller.log"
     threads: rule_res("gatk_population_haplotype_caller").get("threads", 8)
+    benchmark: logdir + "/variants/{sample}/gatk_population_haplotype_caller.benchmark.tsv",
     resources:
-        mem_mb = rule_res("gatk_population_haplotype_caller").get("mem_mb", 32000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "gatk_population_haplotype_caller", input_size=input_size_named(input, 'bam'),
+            attempt=attempt).get("mem_mb", 32000),
     conda:
         "../gatk.yaml"
     container:
@@ -81,8 +84,11 @@ rule gatk_population_joint_genotyping:
     log:
         logdir + "/variants/gatk_population_joint_genotyping.log"
     threads: rule_res("gatk_population_joint_genotyping").get("threads", 8)
+    benchmark: logdir + "/variants/gatk_population_joint_genotyping.benchmark.tsv",
     resources:
-        mem_mb = rule_res("gatk_population_joint_genotyping").get("mem_mb", 32000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "gatk_population_joint_genotyping", input_size=input_size_named(input, 'vcf'),
+            attempt=attempt).get("mem_mb", 32000),
     conda:
         "../gatk.yaml"
     container:

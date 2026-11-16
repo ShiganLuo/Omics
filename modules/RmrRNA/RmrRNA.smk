@@ -13,8 +13,11 @@ rule extract_rRNA:
     log:
         logdir + "/../group/RmrRNA/extract_rRNA.log"
     threads: rule_res("extract_rRNA").get("threads", 2)
+    benchmark: logdir + "/../group/RmrRNA/extract_rRNA.benchmark.tsv",
     resources:
-        mem_mb = rule_res("extract_rRNA").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "extract_rRNA", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     params:
         extract_rRNA_script = os.path.join(ROOT_DIR, "modules/RmrRNA/bin/extract_rRNA.py")
     conda:

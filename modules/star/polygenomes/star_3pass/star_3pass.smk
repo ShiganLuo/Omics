@@ -45,8 +45,11 @@ rule star_3p_align:
     log:
         logdir + "/{sample_id}/{genome}/star3p.log"
     threads: rule_res("star_3p_align").get("threads", 12)
+    benchmark: logdir + "/{sample_id}/{genome}/star3p.benchmark.tsv",
     resources:
-        mem_mb = rule_res("star_3p_align").get("mem_mb", 32000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "star_3p_align", input_size=input_size_named(input, 'bam'),
+            attempt=attempt).get("mem_mb", 32000),
     conda:
         "../../star.yaml"
     container:

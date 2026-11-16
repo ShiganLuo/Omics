@@ -99,8 +99,11 @@ rule quantification_lfq:
     log:
         logdir + "/quantification/quantification_lfq.log"
     threads: rule_res("quantification_lfq").get("threads", 8)
+    benchmark: logdir + "/quantification/quantification_lfq.benchmark.tsv",
     resources:
-        mem_mb = rule_res("quantification_lfq").get("mem_mb", 16000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "quantification_lfq", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 16000),
     conda:
         "../openms.yaml"
     container:
@@ -152,8 +155,11 @@ rule quantification_tmt_reporter:
     log:
         logdir + "/{sample_id}/quantification_tmt_reporter.log"
     threads: rule_res("quantification_tmt_reporter").get("threads", 2)
+    benchmark: logdir + "/{sample_id}/quantification_tmt_reporter.benchmark.tsv",
     resources:
-        mem_mb = rule_res("quantification_tmt_reporter").get("mem_mb", 16000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "quantification_tmt_reporter", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 16000),
     conda:
         "../openms.yaml"
     container:
@@ -229,8 +235,11 @@ rule quantification_tmt:
     log:
         logdir + "/quantification/quantification_tmt.log"
     threads: rule_res("quantification_tmt").get("threads", 8)
+    benchmark: logdir + "/quantification/quantification_tmt.benchmark.tsv",
     resources:
-        mem_mb = rule_res("quantification_tmt").get("mem_mb", 16000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "quantification_tmt", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 16000),
     conda:
         "../openms.yaml"
     container:
@@ -352,8 +361,11 @@ rule quantification_dia:
     log:
         logdir + "/quantification/quantification_dia.log"
     threads: rule_res("quantification_dia").get("threads", 8)
+    benchmark: logdir + "/quantification/quantification_dia.benchmark.tsv",
     resources:
-        mem_mb = rule_res("quantification_dia").get("mem_mb", 32000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "quantification_dia", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 32000),
     conda:
         "../openms.yaml"
     container:
@@ -410,5 +422,8 @@ _RESULT_MZTAB = {
 rule quantification_result:
     input:
         mztab = _RESULT_MZTAB.get(quantification_method, outdir + "/lfq_quantification.mzTab")
+
     resources:
-        mem_mb = rule_res("quantification_result").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "quantification_result", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),

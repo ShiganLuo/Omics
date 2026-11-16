@@ -30,8 +30,11 @@ rule cellranger_ref:
     log:
         logdir_ref + "/cellranger_ref/{genome}/cellranger_ref.log"
     threads: rule_res("cellranger_ref").get("threads", 16)
+    benchmark: logdir_ref + "/cellranger_ref/{genome}/cellranger_ref.benchmark.tsv",
     resources:
-        mem_mb = rule_res("cellranger_ref").get("mem_mb", 64000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "cellranger_ref", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 64000),
     conda:
         "../cellranger.yaml"
     container:
@@ -106,8 +109,11 @@ rule cellranger_count:
     log:
         logdir + "/{sample_id}/{genome}/cellranger_count.log"
     threads: rule_res("cellranger_count").get("threads", 8)
+    benchmark: logdir + "/{sample_id}/{genome}/cellranger_count.benchmark.tsv",
     resources:
-        mem_mb = rule_res("cellranger_count").get("mem_mb", 32000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "cellranger_count", input_size=input_size_named(input, 'bam'),
+            attempt=attempt).get("mem_mb", 32000),
     conda:
         "../cellranger.yaml"
     container:
@@ -171,8 +177,11 @@ rule cellranger_to_h5ad:
     log:
         logdir + "/{sample_id}/{genome}/cellranger_to_h5ad.log"
     threads: rule_res("cellranger_to_h5ad").get("threads", 1)
+    benchmark: logdir + "/{sample_id}/{genome}/cellranger_to_h5ad.benchmark.tsv",
     resources:
-        mem_mb = rule_res("cellranger_to_h5ad").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "cellranger_to_h5ad", input_size=input_size_named(input, 'bam'),
+            attempt=attempt).get("mem_mb", 8000),
     conda:
         "../cellranger.yaml"
     container:

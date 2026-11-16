@@ -45,8 +45,11 @@ rule peak_te_overlap:
     log:
         logdir + "/{sample_id}/peak_te_overlap.log"
     threads: rule_res("peak_te_overlap").get("threads", 1)
+    benchmark: logdir + "/{sample_id}/peak_te_overlap.benchmark.tsv",
     resources:
-        mem_mb = rule_res("peak_te_overlap").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "peak_te_overlap", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     conda:
         "peak_te_overlap.yaml"
     container:
@@ -103,8 +106,11 @@ rule peak_centric_overlap:
     log:
         logdir + "/{sample_id}/peak_centric_overlap.log"
     threads: rule_res("peak_centric_overlap").get("threads", 1)
+    benchmark: logdir + "/{sample_id}/peak_centric_overlap.benchmark.tsv",
     resources:
-        mem_mb = rule_res("peak_centric_overlap").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "peak_centric_overlap", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     conda:
         "peak_te_overlap.yaml"
     container:
@@ -167,8 +173,11 @@ rule peak_te_overlap_fig:
     log:
         logdir + "/../group/peak_te_overlap/peak_te_overlap.log"
     threads: rule_res("peak_te_overlap_fig").get("threads", 1)
+    benchmark: logdir + "/../group/peak_te_overlap/peak_te_overlap.benchmark.tsv",
     resources:
-        mem_mb = rule_res("peak_te_overlap_fig").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "peak_te_overlap_fig", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     conda:
         "peak_te_overlap.yaml"
     container:
@@ -243,5 +252,8 @@ rule peak_te_overlap_result:
     input:
         charts = [outdir + "/te_subfamily_overlap_combined." + fmt for fmt in _formats],
         peak_centric = expand(outdir + "/{sid}/{sid}_peak_centric_te.tsv", sid=samples),
+
     resources:
-        mem_mb = rule_res("peak_te_overlap_result").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "peak_te_overlap_result", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),

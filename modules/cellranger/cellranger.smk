@@ -36,6 +36,7 @@ rule cellranger_ref:
     log:
         logdir_ref + "/cellranger_ref/cellranger_ref.log"
     threads: rule_res("cellranger_ref").get("threads", 16)
+    benchmark: logdir_ref + "/cellranger_ref/cellranger_ref.benchmark.tsv",
     resources:
         mem_mb=rule_res("cellranger_ref").get("mem_mb", 64000),
     conda:
@@ -107,6 +108,7 @@ rule cellranger_count:
     log:
         logdir + "/{sample_id}/cellranger_count.log"
     threads: rule_res("cellranger_count").get("threads", 8)
+    benchmark: logdir + "/{sample_id}/cellranger_count.benchmark.tsv",
     resources:
         mem_mb=rule_res("cellranger_count").get("mem_mb", 32000),
     conda:
@@ -183,6 +185,7 @@ rule cellranger_to_h5ad:
     log:
         logdir + "/{sample_id}/cellranger_to_h5ad.log"
     threads: rule_res("cellranger_to_h5ad").get("threads", 1)
+    benchmark: logdir + "/{sample_id}/cellranger_to_h5ad.benchmark.tsv",
     resources:
         mem_mb=rule_res("cellranger_to_h5ad").get("mem_mb", 8000),
     conda:

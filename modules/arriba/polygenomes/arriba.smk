@@ -54,6 +54,7 @@ rule arriba:
     log:
         logdir + "/{sample_id}/{genome}/arriba.log"
     threads: rule_res("arriba").get("threads", 4)
+    benchmark: logdir + "/{sample_id}/{genome}/arriba.benchmark.tsv",
     resources:
         mem_mb=rule_res("arriba").get("mem_mb", 8000),
     params:
@@ -131,8 +132,11 @@ rule arriba_report:
                              base=FUSION_FIG_BASES, fmt=_formats, genome="{genome}"),
     log:
         logdir_combine + "/arriba/{genome}/arriba_report.log"
+    benchmark: logdir_combine + "/arriba/{genome}/arriba_report.benchmark.tsv",
     resources:
-        mem_mb = rule_res("arriba_report").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "arriba_report", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     params:
         summary_script = os.path.join(ROOT_DIR, "modules/arriba/bin/summarize_arriba_fusions.py"),
         formats = _formats,   # ③ 转发
@@ -170,5 +174,8 @@ rule arriba_result:
     input:
         passed_fusion_tsv = outdir + "/{genome}/{sample_id}/{sample_id}_passed_fusions.tsv",
         discarded_fusion_tsv = outdir + "/{genome}/{sample_id}/{sample_id}_discarded_fusions.tsv"
+
     resources:
-        mem_mb = rule_res("arriba_result").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "arriba_result", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),

@@ -107,8 +107,11 @@ rule generate_report:
     log:
         logdir + "/RNAseq_report.log"
     threads: rule_res("generate_report").get("threads", 1)
+    benchmark: logdir + "/RNAseq_report.benchmark.tsv",
     resources:
-        mem_mb = rule_res("generate_report").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "generate_report", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     conda:
         "RNAseq_report.yaml"
     container:
@@ -177,5 +180,8 @@ rule report_result:
         report = outdir + "/RNAseq_report.pptx",
         file_inventory = outdir + "/RNAseq_report_files.xlsx",
         figures_manifest = outdir + "/figures/manifest.tsv",
+
     resources:
-        mem_mb = rule_res("report_result").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "report_result", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),

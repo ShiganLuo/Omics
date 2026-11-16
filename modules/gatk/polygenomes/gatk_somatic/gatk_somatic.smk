@@ -56,8 +56,11 @@ rule somaticMutect2:
         tmp_dir = config.get("Params", {}).get("gatk", {}).get("tmp-dir") or None,
         parameters = config.get("mutect2_parameters") or ""
     threads: rule_res("somaticMutect2").get("threads", 10)
+    benchmark: logdir + "/{genome}/all/gatk/{normal_sample_id}_{experimental_sample_id}/mutect2.benchmark.tsv",
     resources:
-        mem_mb = rule_res("somaticMutect2").get("mem_mb", 32000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "somaticMutect2", input_size=input_size_named(input, 'vcf'),
+            attempt=attempt).get("mem_mb", 32000),
     run:
         log_path = str(log)
         open(log_path, "w").close()

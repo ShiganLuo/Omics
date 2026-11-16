@@ -30,6 +30,7 @@ rule bowtie2_index:
     log:
         logdir + "/index/{genome}/bowtie2_index.log"
     threads: rule_res("bowtie2_index").get("threads", 12)
+    benchmark: logdir + "/index/{genome}/bowtie2_index.benchmark.tsv",
     resources:
         mem_mb=rule_res("bowtie2_index").get("mem_mb", 8000),
     params:
@@ -121,6 +122,7 @@ rule bowtie2_align_paired:
     log:
         logdir + "/{sample_id}/{genome}/bowtie2_align.log"
     threads: rule_res("bowtie2_align_paired").get("threads", 8)
+    benchmark: logdir + "/{sample_id}/{genome}/bowtie2_align.benchmark.tsv",
     resources:
         mem_mb=rule_res("bowtie2_align_paired").get("mem_mb", 16000),
     params:
@@ -177,6 +179,7 @@ rule bowtie2_align_single:
     log:
         logdir + "/{sample_id}/{genome}/bowtie2_align.log"
     threads: rule_res("bowtie2_align_single").get("threads", 8)
+    benchmark: logdir + "/{sample_id}/{genome}/bowtie2_align.benchmark.tsv",
     resources:
         mem_mb=rule_res("bowtie2_align_single").get("mem_mb", 16000),
     params:

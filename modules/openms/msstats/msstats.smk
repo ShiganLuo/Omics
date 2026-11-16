@@ -34,8 +34,11 @@ rule msstats:
     log:
         logdir + "/msstats/msstats.log"
     threads: rule_res("msstats").get("threads", 1)
+    benchmark: logdir + "/msstats/msstats.benchmark.tsv",
     resources:
-        mem_mb = rule_res("msstats").get("mem_mb", 16000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "msstats", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 16000),
     conda:
         "../openms.yaml"
     container:
@@ -97,5 +100,8 @@ rule msstats:
 rule msstats_result:
     input:
         outdir + "/msstats_input.csv"
+
     resources:
-        mem_mb = rule_res("msstats_result").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "msstats_result", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),

@@ -37,8 +37,11 @@ rule minimap2_align:
     log:
         logdir + "/{sample_id}/minimap2_align.log"
     threads: rule_res("minimap2_align").get("threads", 16)
+    benchmark: logdir + "/{sample_id}/minimap2_align.benchmark.tsv",
     resources:
-        mem_mb = rule_res("minimap2_align").get("mem_mb", 32000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "minimap2_align", input_size=input_size_named(input, 'bam'),
+            attempt=attempt).get("mem_mb", 32000),
     conda:
         "minimap2.yaml"
     container:
@@ -92,5 +95,8 @@ rule minimap2_result:
     input:
         bam = outdir + "/{sample_id}/{sample_id}.sorted.bam",
         bai = outdir + "/{sample_id}/{sample_id}.sorted.bam.bai"
+
     resources:
-        mem_mb = rule_res("minimap2_result").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "minimap2_result", input_size=input_size_named(input, 'bam'),
+            attempt=attempt).get("mem_mb", 8000),

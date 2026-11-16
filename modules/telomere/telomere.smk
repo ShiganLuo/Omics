@@ -100,8 +100,11 @@ rule telogator2_run:
         telogator2 = config.get("Procedure", {}).get("telogator2") or "telogator2",
         ref = get_telogator2_ref()
     threads: rule_res("telogator2_run").get("threads", 16)
+    benchmark: logdir + "/{sample_id}/telogator2.benchmark.tsv",
     resources:
-        mem_mb = rule_res("telogator2_run").get("mem_mb", 16000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "telogator2_run", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 16000),
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -153,8 +156,11 @@ rule assembly_telomere_scan:
         output_dir = os.path.join(outdir, "{sample_id}/assembly_scan"),
         scan_length = config.get("Params", {}).get("telogator2", {}).get("assembly_scan_length", 50000)
     threads: rule_res("assembly_telomere_scan").get("threads", 1)
+    benchmark: logdir + "/{sample_id}/assembly_telomere_scan.benchmark.tsv",
     resources:
-        mem_mb = rule_res("assembly_telomere_scan").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "assembly_telomere_scan", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -201,8 +207,11 @@ rule read_density_telomere:
         output_dir = os.path.join(outdir, "{sample_id}/read_density"),
         n_chrom_arms = config.get("Params", {}).get("telogator2", {}).get("n_chrom_arms", 40)
     threads: rule_res("read_density_telomere").get("threads", 1)
+    benchmark: logdir + "/{sample_id}/read_density_telomere.benchmark.tsv",
     resources:
-        mem_mb = rule_res("read_density_telomere").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "read_density_telomere", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     conda: "telomere.yaml"
     container:
         sif("telomere.yaml", "read_density_telomere")
@@ -243,8 +252,11 @@ rule tidk_init:
     params:
         tidk = config.get("Procedure", {}).get("tidk") or "tidk"
     threads: rule_res("tidk_init").get("threads", 1)
+    benchmark: logdir + "/all/tidk_init.benchmark.tsv",
     resources:
-        mem_mb = rule_res("tidk_init").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "tidk_init", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     conda: "telomere.yaml"
     container:
         sif("telomere.yaml", "tidk_init")
@@ -284,8 +296,11 @@ rule tidk_scan:
         tidk = config.get("Procedure", {}).get("tidk") or "tidk",
         motif = "TTAGGG"
     threads: rule_res("tidk_scan").get("threads", 1)
+    benchmark: logdir + "/{sample_id}/tidk_scan.benchmark.tsv",
     resources:
-        mem_mb = rule_res("tidk_scan").get("mem_mb", 16000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "tidk_scan", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 16000),
     conda: "telomere.yaml"
     container:
         sif("telomere.yaml", "tidk_scan")
@@ -335,26 +350,38 @@ rule telogator2_result:
     """Result aggregation for telogator2."""
     input:
         tsv = outdir + "/{sample_id}/telogator2/tlens_by_allele.tsv"
+
     resources:
-        mem_mb = rule_res("telogator2_result").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "telogator2_result", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
 
 rule assembly_telomere_result:
     """Result aggregation for assembly-based telomere scan."""
     input:
         stats = outdir + "/{sample_id}/assembly_scan/{sample_id}_assembly_telomere_stats.txt"
+
     resources:
-        mem_mb = rule_res("assembly_telomere_result").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "assembly_telomere_result", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
 
 rule read_density_telomere_result:
     """Result aggregation for read-density telomere estimation."""
     input:
         stats = outdir + "/{sample_id}/read_density/{sample_id}_read_telomere_stats.txt"
+
     resources:
-        mem_mb = rule_res("read_density_telomere_result").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "read_density_telomere_result", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
 
 rule tidk_result:
     """Result aggregation for tidk scan."""
     input:
         tsv = outdir + "/{sample_id}/tidk/{sample_id}_tidk_telomeres.tsv"
+
     resources:
-        mem_mb = rule_res("tidk_result").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "tidk_result", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),

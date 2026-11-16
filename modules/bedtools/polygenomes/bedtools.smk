@@ -16,8 +16,11 @@ rule iCLIP_bedtools:
     log:
         log = logdir + "/{genome}/{sample_id}/bedtools.log"
     threads: rule_res("iCLIP_bedtools").get("threads", 4)
+    benchmark: logdir + "/{genome}/{sample_id}/bedtools.benchmark.tsv",
     resources:
-        mem_mb = rule_res("iCLIP_bedtools").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "iCLIP_bedtools", input_size=input_size_named(input, 'bam'),
+            attempt=attempt).get("mem_mb", 8000),
     conda:
         "../bedtools.yaml"
     container:

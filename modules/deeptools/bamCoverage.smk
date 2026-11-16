@@ -28,8 +28,11 @@ rule bamCoverage:
     log:
         logdir + "/{sample_id}/bamCoverage.log"
     threads: rule_res("bamCoverage").get("threads", 8)
+    benchmark: logdir + "/{sample_id}/bamCoverage.benchmark.tsv",
     resources:
-        mem_mb = rule_res("bamCoverage").get("mem_mb", 16000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "bamCoverage", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 16000),
     conda:
         "deeptools.yaml"
     container:
@@ -86,5 +89,8 @@ rule bamCoverage_result:
     """Result aggregation rule."""
     input:
         bw = outdir + "/{sample_id}/{sample_id}" + bw_suffix
+
     resources:
-        mem_mb = rule_res("bamCoverage_result").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "bamCoverage_result", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),

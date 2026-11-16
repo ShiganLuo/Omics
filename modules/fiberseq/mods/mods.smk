@@ -83,8 +83,12 @@ rule fiberseq_mods_longtable:
         logdir + (f"/mods/fiberseq_mods_longtable_te_{mod_type}_long.tsv.log" if te_axis
                  else f"/mods/fiberseq_mods_longtable_{region_axis['options']['fire_peaks'].get('metric', f'{mod_type}_per_fiber')}_long.tsv.log")
     threads: rule_res("fiberseq_mods_te_longtable" if te_axis else "fiberseq_mods_longtable").get("threads", 1)
+    benchmark: (logdir + (f"/mods/fiberseq_mods_longtable_te_{mod_type}_long.benchmark.tsv" if te_axis else f"/mods/fiberseq_mods_longtable_{region_axis['options']['fire_peaks'].get('metric', f'{mod_type}_per_fiber')}_long.benchmark.tsv")),
     resources:
-        mem_mb = rule_res("fiberseq_mods_te_longtable" if te_axis else "fiberseq_mods_longtable").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "fiberseq_mods_te_longtable" if te_axis else "fiberseq_mods_longtable",
+            input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     conda:
         "../fiberseq.yaml"
     container:
@@ -177,8 +181,11 @@ rule fiberseq_mods_split:
     log:
         logdir + "/mods/split_{contrast}.log"
     threads: rule_res("fiberseq_mods_split").get("threads", 1)
+    benchmark: logdir + "/mods/split_{contrast}.benchmark.tsv",
     resources:
-        mem_mb = rule_res("fiberseq_mods_split").get("mem_mb", 4000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "fiberseq_mods_split", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 4000),
     conda:
         "../fiberseq.yaml"
     container:
@@ -235,8 +242,11 @@ rule fiberseq_mods_top_loci:
     log:
         logdir + "/mods/top_loci_{contrast}.log"
     threads: rule_res("fiberseq_mods_top_loci").get("threads", 1)
+    benchmark: logdir + "/mods/top_loci_{contrast}.benchmark.tsv",
     resources:
-        mem_mb = rule_res("fiberseq_mods_top_loci").get("mem_mb", 4000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "fiberseq_mods_top_loci", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 4000),
     conda:
         "../fiberseq.yaml"
     container:
@@ -304,6 +314,7 @@ rule fiberseq_mods_result:
     significance_test.tsv itself belongs to the sigtest module (its own
     result panel aggregates it); this panel covers the mods-owned outputs.
     """
+
     input:
         longtable = (outdir + f"/te_{mod_type}_long.tsv" if te_axis
                      else outdir + f"/{region_axis['options']['fire_peaks'].get('metric', f'{mod_type}_per_fiber')}_long.tsv"),

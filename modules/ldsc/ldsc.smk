@@ -24,8 +24,11 @@ rule ldsc_annot:
     log:
         logdir + "/ldsc_annot.log"
     threads: rule_res("ldsc_annot").get("threads", 1)
+    benchmark: logdir + "/ldsc_annot.benchmark.tsv",
     resources:
-        mem_mb = rule_res("ldsc_annot").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "ldsc_annot", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     conda:
         "ldsc.yaml"
     container:
@@ -74,8 +77,11 @@ rule ldsc_munge:
     log:
         logdir + "/ldsc_munge_{trait}.log"
     threads: rule_res("ldsc_munge").get("threads", 1)
+    benchmark: logdir + "/ldsc_munge_{trait}.benchmark.tsv",
     resources:
-        mem_mb = rule_res("ldsc_munge").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "ldsc_munge", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     conda:
         "ldsc.yaml"
     container:
@@ -124,8 +130,11 @@ rule ldsc_h2_cts:
     log:
         logdir + "/ldsc_h2_cts_{trait}.log"
     threads: rule_res("ldsc_h2_cts").get("threads", 1)
+    benchmark: logdir + "/ldsc_h2_cts_{trait}.benchmark.tsv",
     resources:
-        mem_mb = rule_res("ldsc_h2_cts").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "ldsc_h2_cts", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     conda:
         "ldsc.yaml"
     container:
@@ -167,5 +176,8 @@ rule ldsc_result:
     """Panel of per-trait LDSC results."""
     input:
         results = expand(outdir + "/{trait}/{trait}.cts.results", trait=traits),
+
     resources:
-        mem_mb = rule_res("ldsc_result").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "ldsc_result", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),

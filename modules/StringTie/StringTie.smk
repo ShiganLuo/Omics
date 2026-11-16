@@ -25,8 +25,11 @@ rule stringTie:
         gtf = config.get('genome', {}).get('gtf'), #最好使用完整的gtf文件，更有利于准确判断是否是新转录本
         stringtie = config.get("Procedure", {}).get("stringtie") or "stringtie"
     threads: rule_res("stringTie").get("threads", 5)
+    benchmark: logdir + "/{sample_id}/stringTie.benchmark.tsv",
     resources:
-        mem_mb = rule_res("stringTie").get("mem_mb", 16000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "stringTie", input_size=input_size_named(input, 'bam'),
+            attempt=attempt).get("mem_mb", 16000),
     conda:
         "StringTie.yaml"
     container:
@@ -62,8 +65,11 @@ rule TEChimericTranscripts:
         te_gtf = config.get('genome', {}).get('TE_gtf'),
         TEChimericTranscripts = ROOT_DIR + "/modules/StringTie/bin/TEChimericTranscripts.py"
     threads: rule_res("TEChimericTranscripts").get("threads", 5)
+    benchmark: logdir + "/{sample_id}/TEChimericTranscripts.benchmark.tsv",
     resources:
-        mem_mb = rule_res("TEChimericTranscripts").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "TEChimericTranscripts", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     conda:
         "StringTie.yaml"
     container:
@@ -105,8 +111,11 @@ rule TEChimericPlot:
         TEChimericPlot = ROOT_DIR + "/modules/StringTie/bin/TEChimericPlot.py",
         formats = _formats,   # ③ 转发
     threads: rule_res("TEChimericPlot").get("threads", 1)
+    benchmark: logdir + "/../group/stringtie/TEChimericPlot.benchmark.tsv",
     resources:
-        mem_mb = rule_res("TEChimericPlot").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "TEChimericPlot", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     conda:
         "StringTie.yaml"
     container:
@@ -151,8 +160,11 @@ rule stringTieMerge:
     log:
         logdir + "/../group/stringtie/stringTieMerge.log"
     threads: rule_res("stringTieMerge").get("threads", 1)
+    benchmark: logdir + "/../group/stringtie/stringTieMerge.benchmark.tsv",
     resources:
-        mem_mb = rule_res("stringTieMerge").get("mem_mb", 32000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "stringTieMerge", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 32000),
     params:
         gtf = config.get('genome', {}).get('gtf'), #最好使用完整的gtf文件，更有利于准确判断是否是新转录本
         stringtie = config.get("Procedure", {}).get("stringtie") or "stringtie"

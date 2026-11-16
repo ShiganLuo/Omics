@@ -101,6 +101,7 @@ rule function_go_kegg:
     log:
         logdir + "/function/{genome}/{contrast}.go_kegg.log"
     threads: rule_res("function_go_kegg").get("threads", 1)
+    benchmark: logdir + "/function/{genome}/{contrast}.go_kegg.benchmark.tsv",
     resources:
         mem_mb=rule_res("function_go_kegg").get("mem_mb", 8000),
     params:
@@ -185,6 +186,7 @@ rule function_gsea:
     log:
         logdir + "/function/{genome}/{contrast}.gsea.log"
     threads: rule_res("function_gsea").get("threads", 1)
+    benchmark: logdir + "/function/{genome}/{contrast}.gsea.benchmark.tsv",
     resources:
         mem_mb=rule_res("function_gsea").get("mem_mb", 8000),
     params:
@@ -283,6 +285,7 @@ rule function_gsva:
     log:
         logdir + "/function/{genome}/gsva.log"
     threads: rule_res("function_gsva").get("threads", 1)
+    benchmark: logdir + "/function/{genome}/gsva.benchmark.tsv",
     resources:
         mem_mb=rule_res("function_gsva").get("mem_mb", 8000),
     params:
@@ -345,5 +348,8 @@ rule function_result:
         # png 优先,否则取第一个光栅格式,否则取第一个格式
         go_kegg = outdir + "/{genome}/{contrast}/go_back_to_back." + _raster_pick(_go_kegg_formats),
         gsea = outdir + "/{genome}/{contrast}/GSEA/TEcount_Gene_GSEA." + _raster_pick(_gsea_formats)
+
     resources:
-        mem_mb = rule_res("function_result").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "function_result", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),

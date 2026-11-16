@@ -37,8 +37,11 @@ rule hiphase_phase:
     log:
         logdir + "/{genome}/{sample_id}/hiphase.log"
     threads: rule_res("hiphase_phase").get("threads", 8)
+    benchmark: logdir + "/{genome}/{sample_id}/hiphase.benchmark.tsv",
     resources:
-        mem_mb = rule_res("hiphase_phase").get("mem_mb", 16000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "hiphase_phase", input_size=input_size_named(input, 'bam'),
+            attempt=attempt).get("mem_mb", 16000),
     params:
         hiphase = config.get("Procedure", {}).get("hiphase") or "hiphase",
     conda:
@@ -70,5 +73,8 @@ rule hiphase_result:
     input:
         vcf = outdir + "/{genome}/{sample_id}/{sample_id}.phased.vcf.gz" if output_substring == "" else outdir + "/{genome}/{sample_id}/{sample_id}." + output_substring + ".phased.vcf.gz",
         bam = outdir + "/{genome}/{sample_id}/{sample_id}.phased.bam" if output_substring == "" else outdir + "/{genome}/{sample_id}/{sample_id}." + output_substring + ".phased.bam"
+
     resources:
-        mem_mb = rule_res("hiphase_result").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "hiphase_result", input_size=input_size_named(input, 'bam'),
+            attempt=attempt).get("mem_mb", 8000),

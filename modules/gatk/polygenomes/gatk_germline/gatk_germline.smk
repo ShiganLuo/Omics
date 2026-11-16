@@ -52,8 +52,11 @@ rule HaplotypeCaller:
         gatk = config.get("Procedure", {}).get("gatk") or "gatk",
         tmp_dir = config.get("Params", {}).get("gatk", {}).get("tmp-dir") or None
     threads: rule_res("HaplotypeCaller").get("threads", 10)
+    benchmark: logdir + "/{genome}/{sample_id}/haplotypeCaller.benchmark.tsv",
     resources:
-        mem_mb = rule_res("HaplotypeCaller").get("mem_mb", 32000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "HaplotypeCaller", input_size=input_size_named(input, 'vcf'),
+            attempt=attempt).get("mem_mb", 32000),
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -112,8 +115,11 @@ rule filterHaplotypeCallerVcf:
     container:
         sif("../../gatk.yaml", "filterHaplotypeCallerVcf")
     threads: rule_res("filterHaplotypeCallerVcf").get("threads", 10)
+    benchmark: logdir + "/{genome}/{sample_id}/haplotypeCaller-filtered.benchmark.tsv",
     resources:
-        mem_mb = rule_res("filterHaplotypeCallerVcf").get("mem_mb", 16000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "filterHaplotypeCallerVcf", input_size=input_size_named(input, 'vcf'),
+            attempt=attempt).get("mem_mb", 16000),
     params:
         gatk = config.get("Procedure", {}).get("gatk") or "gatk",
         bcftools = config.get("Procedure", {}).get("bcftools") or "bcftools",
@@ -164,5 +170,8 @@ rule gatk_haplotypeCaller_result:
     input:
         vcf = outdir + "/{genome}/{sample_id}/{sample_id}.filtered.vcf.gz",
         csi = outdir + "/{genome}/{sample_id}/{sample_id}.filtered.vcf.gz.csi"
+
     resources:
-        mem_mb = rule_res("gatk_haplotypeCaller_result").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "gatk_haplotypeCaller_result", input_size=input_size_named(input, 'vcf'),
+            attempt=attempt).get("mem_mb", 8000),

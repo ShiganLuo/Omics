@@ -27,6 +27,7 @@ rule hisat2_index:
         ix7 = outdir + "/index/{genome}/{genome}.7.ht2",
         ix8 = outdir + "/index/{genome}/{genome}.8.ht2"
     threads: rule_res("hisat2_index").get("threads", 8)
+    benchmark: logdir_combine + "/index/{genome}/hisat2_build.benchmark.tsv",
     resources:
         mem_mb=rule_res("hisat2_index").get("mem_mb", 8000),
     conda:
@@ -104,6 +105,7 @@ rule hisat2_align:
     log:
         logdir + "/{sample_id}/{genome}/hisat2_align.log"
     threads: rule_res("hisat2_align").get("threads", 12)
+    benchmark: logdir + "/{sample_id}/{genome}/hisat2_align.benchmark.tsv",
     resources:
         mem_mb=rule_res("hisat2_align").get("mem_mb", 32000),
     conda:
@@ -162,5 +164,8 @@ rule hisat2_align:
 rule hisat2_result:
     input:
         bam = outdir + "/{genome}/{sample_id}/{sample_id}.bam"
+
     resources:
-        mem_mb = rule_res("hisat2_result").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "hisat2_result", input_size=input_size_named(input, 'bam'),
+            attempt=attempt).get("mem_mb", 8000),

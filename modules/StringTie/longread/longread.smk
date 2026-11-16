@@ -15,8 +15,11 @@ rule stringtie_lr_assemble:
     log:
         logdir + "/{sample_id}/stringtie_lr_assemble.log"
     threads: rule_res("stringtie_lr_assemble").get("threads", 8)
+    benchmark: logdir + "/{sample_id}/stringtie_lr_assemble.benchmark.tsv",
     resources:
-        mem_mb = rule_res("stringtie_lr_assemble").get("mem_mb", 32000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "stringtie_lr_assemble", input_size=input_size_named(input, 'bam'),
+            attempt=attempt).get("mem_mb", 32000),
     conda:
         "../StringTie.yaml"
     container:
@@ -58,8 +61,11 @@ rule stringtie_lr_merge:
         gtf = outdir + "/stringtie_merged.gtf"
     log:
         logdir + "/stringtie_lr_merge.log"
+    benchmark: logdir + "/stringtie_lr_merge.benchmark.tsv",
     resources:
-        mem_mb = rule_res("stringtie_lr_merge").get("mem_mb", 16000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "stringtie_lr_merge", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 16000),
     conda:
         "../StringTie.yaml"
     container:
@@ -98,8 +104,11 @@ rule stringtie_lr_quant:
     log:
         logdir + "/{sample_id}/stringtie_lr_quant.log"
     threads: rule_res("stringtie_lr_quant").get("threads", 4)
+    benchmark: logdir + "/{sample_id}/stringtie_lr_quant.benchmark.tsv",
     resources:
-        mem_mb = rule_res("stringtie_lr_quant").get("mem_mb", 16000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "stringtie_lr_quant", input_size=input_size_named(input, 'bam'),
+            attempt=attempt).get("mem_mb", 16000),
     conda:
         "../StringTie.yaml"
     container:
@@ -140,5 +149,8 @@ rule stringtie_lr_result:
         merged_gtf = outdir + "/stringtie_merged.gtf",
         abund = expand(outdir + "/{sid}/{sid}.gene_abund.tab", sid=samples),
         quant_gtf = expand(outdir + "/{sid}/{sid}.quant.gtf", sid=samples)
+
     resources:
-        mem_mb = rule_res("stringtie_lr_result").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "stringtie_lr_result", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),

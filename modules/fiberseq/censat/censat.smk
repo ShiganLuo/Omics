@@ -30,8 +30,11 @@ rule fiberseq_censat_run:
     log:
         logdir + "/{sample_id}/fiberseq_censat_run.log"
     threads: rule_res("fiberseq_censat").get("threads", 4)
+    benchmark: logdir + "/{sample_id}/fiberseq_censat_run.benchmark.tsv",
     resources:
-        mem_mb = rule_res("fiberseq_censat").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "fiberseq_censat", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     conda:
         "../fiberseq.yaml"
     container:
@@ -91,5 +94,8 @@ rule fiberseq_censat_result:
                                sample_id=samples),
         plots = expand(outdir + "/{sample_id}/{sample_id}.censat_profile.{fmt}",
                        sample_id=samples, fmt=_formats),
+
     resources:
-        mem_mb = rule_res("fiberseq_censat_result").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "fiberseq_censat_result", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),

@@ -34,6 +34,7 @@ rule featureCounts_single_noMultiple:
     container:
         sif("../featureCounts.yaml", "featureCounts_single_noMultiple")
     threads: rule_res("featureCounts_single_noMultiple").get("threads", 10)
+    benchmark: logdir + "/{genome}/featureCounts_single_noMultiple.benchmark.tsv",
     resources:
         mem_mb=rule_res("featureCounts_single_noMultiple").get("mem_mb", 8000),
     params:
@@ -96,6 +97,7 @@ rule featureCounts_paired_noMultiple:
     container:
         sif("../featureCounts.yaml", "featureCounts_paired_noMultiple")
     threads: rule_res("featureCounts_paired_noMultiple").get("threads", 10)
+    benchmark: logdir + "/{genome}/featureCounts_paired_noMultiple.benchmark.tsv",
     resources:
         mem_mb=rule_res("featureCounts_paired_noMultiple").get("mem_mb", 8000),
     params:
@@ -166,8 +168,11 @@ rule featureCounts_merge:
         merged = outdir + "/{genome}/{genome}_featureCounts.tsv"
     log:
         logdir + "/{genome}/featureCounts_merge.log"
+    benchmark: logdir + "/{genome}/featureCounts_merge.benchmark.tsv",
     resources:
-        mem_mb = rule_res("featureCounts_merge").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "featureCounts_merge", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -203,5 +208,8 @@ rule featureCounts_merge:
 rule featureCounts_results:
     input:
         merged = outdir + "/{genome}/{genome}_featureCounts.tsv"
+
     resources:
-        mem_mb = rule_res("featureCounts_results").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "featureCounts_results", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),

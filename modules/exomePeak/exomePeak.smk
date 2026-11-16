@@ -40,8 +40,11 @@ rule diff_exomePeak:
     container:
         sif("exomePeak.yaml", "diff_exomePeak")
     threads: rule_res("diff_exomePeak").get("threads", 1)
+    benchmark: logdir + "/endpoint/exomePeak.benchmark.tsv",
     resources:
-        mem_mb = rule_res("diff_exomePeak").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "diff_exomePeak", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     params:
         gtf = config.get("gtf",""),
         exomePeak_script = ROOT_DIR + "/modules/exomePeak/bin/exomePeak.r",
@@ -125,8 +128,11 @@ rule call_exomePeak:
     container:
         sif("exomePeak.yaml", "call_exomePeak")
     threads: rule_res("call_exomePeak").get("threads", 12)
+    benchmark: logdir + "/endpoint/call_exomePeak.benchmark.tsv",
     resources:
-        mem_mb = rule_res("call_exomePeak").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "call_exomePeak", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     params:
         exomePeak_script = ROOT_DIR + "/modules/exomePeak/bin/exomePeak.r",
         geneId2name_script = ROOT_DIR + "/modules/exomePeak/bin/geneId2name.r",
@@ -180,6 +186,9 @@ rule exomePeak_result:
     input:
         call_exomePeak = rules.call_exomePeak.output,
         diff_exomePeak = rules.diff_exomePeak.output
+
     resources:
-        mem_mb = rule_res("exomePeak_result").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "exomePeak_result", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
 

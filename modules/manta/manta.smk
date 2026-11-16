@@ -17,8 +17,11 @@ rule manta_config_germline:
         script = outdir + "/{sample_id}/runWorkflow.py"
     log:
         logdir + "/{sample_id}/manta_config.log"
+    benchmark: logdir + "/{sample_id}/manta_config.benchmark.tsv",
     resources:
-        mem_mb = rule_res("manta_config").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "manta_config", input_size=input_size_named(input, 'bam'),
+            attempt=attempt).get("mem_mb", 8000),
     params:
         manta_outdir = outdir + "/{sample_id}"
     conda:
@@ -62,8 +65,11 @@ rule manta_run_germline:
         logdir + "/{sample_id}/manta_run.log"
     threads:
         config.get("Params", {}).get("manta", {}).get("threads") or 8
+    benchmark: logdir + "/{sample_id}/manta_run.benchmark.tsv",
     resources:
-        mem_mb = rule_res("manta_run_germline").get("mem_mb", 32000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "manta_run_germline", input_size=input_size_named(input, 'vcf'),
+            attempt=attempt).get("mem_mb", 32000),
     conda:
         "manta.yaml"
     container:
@@ -102,8 +108,11 @@ rule manta_config_somatic:
         script = outdir + "/{normal_sample_id}_vs_{experimental_sample_id}/runWorkflow.py"
     log:
         logdir + "/{normal_sample_id}_vs_{experimental_sample_id}/manta_config_somatic.log"
+    benchmark: logdir + "/{normal_sample_id}_vs_{experimental_sample_id}/manta_config_somatic.benchmark.tsv",
     resources:
-        mem_mb = rule_res("manta_config_somatic").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "manta_config_somatic", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     params:
         manta_outdir = outdir + "/{normal_sample_id}_vs_{experimental_sample_id}"
     conda:
@@ -149,8 +158,11 @@ rule manta_run_somatic:
         logdir + "/manta/{normal_sample_id}_vs_{experimental_sample_id}/manta_run_somatic.log"
     threads:
         config.get("Params", {}).get("manta", {}).get("threads") or 8
+    benchmark: logdir + "/manta/{normal_sample_id}_vs_{experimental_sample_id}/manta_run_somatic.benchmark.tsv",
     resources:
-        mem_mb = rule_res("manta_run_somatic").get("mem_mb", 32000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "manta_run_somatic", input_size=input_size_named(input, 'vcf'),
+            attempt=attempt).get("mem_mb", 32000),
     conda:
         "manta.yaml"
     container:
@@ -183,5 +195,8 @@ rule manta_result:
     input:
         vcf = outdir + "/{sample_id}/results/variants/candidateSV.vcf.gz",
         tbi = outdir + "/{sample_id}/results/variants/candidateSV.vcf.gz.tbi"
+
     resources:
-        mem_mb = rule_res("manta_result").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "manta_result", input_size=input_size_named(input, 'vcf'),
+            attempt=attempt).get("mem_mb", 8000),

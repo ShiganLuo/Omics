@@ -22,6 +22,7 @@ rule scTE_build_index:
     log:
         logdir_index + "/scTE/scTE_build_index.log"
     threads: rule_res("scTE_build_index").get("threads", 1)
+    benchmark: logdir_index + "/scTE/scTE_build_index.benchmark.tsv",
     resources:
         mem_mb=rule_res("scTE_build_index").get("mem_mb", 8000),
     conda:
@@ -100,6 +101,7 @@ rule scTE_quantify:
     log:
         logdir + "/{genome}/{sample_id}/scTE_quantify.log"
     threads: rule_res("scTE_quantify").get("threads", 8)
+    benchmark: logdir + "/{genome}/{sample_id}/scTE_quantify.benchmark.tsv",
     resources:
         mem_mb=rule_res("scTE_quantify").get("mem_mb", 16000),
     conda:

@@ -54,8 +54,11 @@ rule sigtest_run:
     log:
         logdir + "/sigtest/{contrast}.log"
     threads: rule_res("sigtest_run").get("threads", 1)
+    benchmark: logdir + "/sigtest/{contrast}.benchmark.tsv",
     resources:
-        mem_mb = rule_res("sigtest_run").get("mem_mb", 4000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "sigtest_run", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 4000),
     params:
         sigtest_script = os.path.join(ROOT_DIR, "modules", "sigtest", "bin", "sigtest.py"),
         p = sigtest_params,

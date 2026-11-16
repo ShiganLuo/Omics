@@ -27,6 +27,7 @@ rule extract_rRNA:
     log:
         logdir + "/RmrRNA/{genome}/extract_rRNA.log"
     threads: rule_res("extract_rRNA").get("threads", 2)
+    benchmark: logdir + "/RmrRNA/{genome}/extract_rRNA.benchmark.tsv",
     resources:
         mem_mb=rule_res("extract_rRNA").get("mem_mb", 8000),
     params:

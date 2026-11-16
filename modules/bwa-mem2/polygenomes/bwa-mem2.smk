@@ -20,8 +20,11 @@ rule bwaMem2_index:
     log:
         logdir + "/index/{genome}/bwa_mem2-index.log"
     threads: rule_res("bwaMem2_index").get("threads", 15)
+    benchmark: logdir + "/index/{genome}/bwa_mem2-index.benchmark.tsv",
     resources:
-        mem_mb = rule_res("bwaMem2_index").get("mem_mb", 64000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "bwaMem2_index", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 64000),
     conda:
         "../bwa-mem2.yaml"
     container:
@@ -111,8 +114,11 @@ rule bwaMem2_alignment:
     log:
         logdir + "/{sample_id}/{genome}/bwa_mem2-alignment.txt"
     threads: rule_res("bwaMem2_alignment").get("threads", 15)
+    benchmark: logdir + "/{sample_id}/{genome}/bwa_mem2-alignment.benchmark.txt",
     resources:
-        mem_mb = rule_res("bwaMem2_alignment").get("mem_mb", 32000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "bwaMem2_alignment", input_size=input_size_named(input, 'bam'),
+            attempt=attempt).get("mem_mb", 32000),
     conda:
         "../bwa-mem2.yaml"
     container:
@@ -169,5 +175,8 @@ rule bwaMem2_alignment:
 rule bwaMemm2_result:
     input:
         bam = outdir + "/{genome}/{sample_id}/{sample_id}.bam"
+
     resources:
-        mem_mb = rule_res("bwaMemm2_result").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "bwaMemm2_result", input_size=input_size_named(input, 'bam'),
+            attempt=attempt).get("mem_mb", 8000),

@@ -53,6 +53,7 @@ rule scanpy_qc:
     log:
         logdir + "/{sample_id}/scanpy_qc_{counter}.log"
     threads: rule_res("scanpy_qc").get("threads", 4)
+    benchmark: logdir + "/{sample_id}/scanpy_qc_{counter}.benchmark.tsv",
     resources:
         mem_mb=rule_res("scanpy_qc").get("mem_mb", 16000),
     conda:
@@ -134,6 +135,7 @@ rule scanpy_merge:
     log:
         logdir_combine + "/scanpy/{tissue}/scanpy_merge_{counter}.log"
     threads: rule_res("scanpy_merge").get("threads", 2)
+    benchmark: logdir_combine + "/scanpy/{tissue}/scanpy_merge_{counter}.benchmark.tsv",
     resources:
         mem_mb=rule_res("scanpy_merge").get("mem_mb", 32000),
     conda:
@@ -195,6 +197,7 @@ rule scanpy_auto:
     log:
         logdir_combine + "/scanpy/{tissue}/scanpy_auto_{counter}.log"
     threads: rule_res("scanpy_auto").get("threads", 4)
+    benchmark: logdir_combine + "/scanpy/{tissue}/scanpy_auto_{counter}.benchmark.tsv",
     resources:
         mem_mb=rule_res("scanpy_auto").get("mem_mb", 64000),
     conda:
@@ -338,6 +341,7 @@ rule scanpy_reannotate:
     log:
         logdir_combine + "/scanpy/{tissue}/scanpy_reannotate_{counter}.log"
     threads: rule_res("scanpy_reannotate").get("threads", 2)
+    benchmark: logdir_combine + "/scanpy/{tissue}/scanpy_reannotate_{counter}.benchmark.tsv",
     resources:
         mem_mb=rule_res("scanpy_reannotate").get("mem_mb", 16000),
     conda:
@@ -395,6 +399,7 @@ rule scanpy_advanced:
     log:
         logdir_combine + "/scanpy/{tissue}/scanpy_advanced_{counter}.log"
     threads: rule_res("scanpy_advanced").get("threads", 4)
+    benchmark: logdir_combine + "/scanpy/{tissue}/scanpy_advanced_{counter}.benchmark.tsv",
     resources:
         mem_mb=rule_res("scanpy_advanced").get("mem_mb", 64000),
     conda:
@@ -489,6 +494,7 @@ rule scanpy_pseudobulk:
     log:
         logdir_combine + "/scanpy/{tissue}/scanpy_pseudobulk_{counter}.log"
     threads: rule_res("scanpy_pseudobulk").get("threads", 4)
+    benchmark: logdir_combine + "/scanpy/{tissue}/scanpy_pseudobulk_{counter}.benchmark.tsv",
     resources:
         mem_mb=rule_res("scanpy_pseudobulk").get("mem_mb", 32000),
     conda:

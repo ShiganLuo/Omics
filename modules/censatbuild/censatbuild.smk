@@ -41,8 +41,11 @@ module centromere:
     config: centromere_config
 
 use rule repeatmasker_run from centromere as censatbuild_repeatmasker_run
+
     resources:
-        mem_mb = rule_res("censatbuild_run").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "censatbuild_run", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
 
 rule censatbuild_link_genome:
     """Place the target genome at the layout expected by repeatmasker_run."""
@@ -53,8 +56,11 @@ rule censatbuild_link_genome:
     log:
         logdir + "/censatbuild_link_genome.log"
     threads: rule_res("censatbuild_link_genome").get("threads", 1)
+    benchmark: logdir + "/censatbuild_link_genome.benchmark.tsv",
     resources:
-        mem_mb = rule_res("censatbuild_link_genome").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "censatbuild_link_genome", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -77,8 +83,11 @@ rule censatbuild_arrays:
     log:
         logdir + "/censatbuild_arrays.log"
     threads: rule_res("censatbuild_arrays").get("threads", 1)
+    benchmark: logdir + "/censatbuild_arrays.benchmark.tsv",
     resources:
-        mem_mb = rule_res("censatbuild_arrays").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "censatbuild_arrays", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     conda:
         "censatbuild.yaml"
     container:
@@ -131,8 +140,11 @@ rule censatbuild_flank:
     log:
         logdir + "/censatbuild_flank.log"
     threads: rule_res("censatbuild_flank").get("threads", 1)
+    benchmark: logdir + "/censatbuild_flank.benchmark.tsv",
     resources:
-        mem_mb = rule_res("censatbuild_flank").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "censatbuild_flank", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     conda:
         "censatbuild.yaml"
     container:
@@ -179,8 +191,11 @@ rule censatbuild_mcg_pileup:
     log:
         logdir + "/censatbuild_mcg_pileup.log"
     threads: rule_res("censatbuild_mcg_pileup").get("threads", 32)
+    benchmark: logdir + "/censatbuild_mcg_pileup.benchmark.tsv",
     resources:
-        mem_mb = rule_res("censatbuild_mcg_pileup").get("mem_mb", 32000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "censatbuild_mcg_pileup", input_size=input_size_named(input, 'bam'),
+            attempt=attempt).get("mem_mb", 32000),
     conda:
         "censatbuild.yaml"
     container:

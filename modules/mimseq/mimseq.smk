@@ -22,8 +22,11 @@ rule mimseq_prepare_sample_data:
         sample_data = outdir + "/sample_data.tsv",
     log:
         logdir + "/mimseq_prepare_sample_data.log"
+    benchmark: logdir + "/mimseq_prepare_sample_data.benchmark.tsv",
     resources:
-        mem_mb = rule_res("mimseq_prepare_sample_data").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "mimseq_prepare_sample_data", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     conda:
         "mimseq.yaml"
     container:
@@ -57,8 +60,11 @@ rule mimseq_all:
     """Run all mimseq modules in sequence."""
     input:
         deseq_done = outdir + "/deseq.done",
+
     resources:
-        mem_mb = rule_res("mimseq_all").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "mimseq_all", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
 
 rule mimseq_result:
     """Aggregate mimseq outputs as dependency endpoint."""
@@ -66,5 +72,8 @@ rule mimseq_result:
         outdir = outdir + "/deseq.done",
     output:
         touch(outdir + "/mimseq.done"),
+
     resources:
-        mem_mb = rule_res("mimseq_result").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "mimseq_result", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),

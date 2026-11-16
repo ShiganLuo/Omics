@@ -91,8 +91,11 @@ rule somatic_spectrum:
     log:
         logdir + "/{genome}/spectrum/somatic_spectrum.log"
     threads: rule_res("somatic_spectrum").get("threads", 1)
+    benchmark: logdir + "/{genome}/spectrum/somatic_spectrum.benchmark.tsv",
     resources:
-        mem_mb = rule_res("somatic_spectrum").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "somatic_spectrum", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     params:
         spectrum_script = os.path.join(ROOT_DIR, "modules/spectrum/bin/spectrum.py"),
         outprefix = lambda wildcards: outdir + f"/{wildcards.genome}/somatic_spectrum",
@@ -164,8 +167,11 @@ rule somatic_signature_refit:
     log:
         logdir + "/{genome}/spectrum/somatic_signature_refit.log"
     threads: rule_res("somatic_signature_refit").get("threads", 1)
+    benchmark: logdir + "/{genome}/spectrum/somatic_signature_refit.benchmark.tsv",
     resources:
-        mem_mb = rule_res("somatic_signature_refit").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "somatic_signature_refit", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     params:
         refit_script = os.path.join(ROOT_DIR, "modules/spectrum/bin/signature_refit.py"),
         outprefix = lambda wildcards: outdir + f"/{wildcards.genome}/signature_refit",
@@ -232,8 +238,11 @@ rule somatic_signature_nmf:
     log:
         logdir + "/{genome}/spectrum/somatic_signature_nmf.log"
     threads: rule_res("somatic_signature_nmf").get("threads", 1)
+    benchmark: logdir + "/{genome}/spectrum/somatic_signature_nmf.benchmark.tsv",
     resources:
-        mem_mb = rule_res("somatic_signature_nmf").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "somatic_signature_nmf", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     params:
         nmf_script = os.path.join(ROOT_DIR, "modules/spectrum/bin/signature_nmf.py"),
         outprefix = lambda wildcards: outdir + f"/{wildcards.genome}/signature_nmf",

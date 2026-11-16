@@ -67,6 +67,7 @@ rule sccoda_run:
     log:
         logdir + "/sccoda/{tissue}/sccoda_run_{counter}.log"
     threads: rule_res("sccoda_run").get("threads", 4)
+    benchmark: logdir + "/sccoda/{tissue}/sccoda_run_{counter}.benchmark.tsv",
     resources:
         mem_mb=rule_res("sccoda_run").get("mem_mb", 32000),
     conda:
@@ -141,6 +142,7 @@ rule sccoda_run:
 
 rule sccoda_result:
     """Panel rule aggregating the module's main outputs."""
+
     input:
         expand(outdir + "/{tissue}/{counter}/sccoda_report.html",
                tissue=tissues, counter=counters)

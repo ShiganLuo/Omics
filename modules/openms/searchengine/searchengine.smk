@@ -120,8 +120,11 @@ rule search_engine_comet:
     log:
         logdir + "/{sample_id}/search_engine_comet.log"
     threads: rule_res("search_engine_comet").get("threads", 4)
+    benchmark: logdir + "/{sample_id}/search_engine_comet.benchmark.tsv",
     resources:
-        mem_mb = rule_res("search_engine_comet").get("mem_mb", 32000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "search_engine_comet", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 32000),
     conda:
         "../openms.yaml"
     container:
@@ -183,8 +186,11 @@ rule search_engine_msgf:
     log:
         logdir + "/{sample_id}/search_engine_msgf.log"
     threads: rule_res("search_engine_msgf").get("threads", 4)
+    benchmark: logdir + "/{sample_id}/search_engine_msgf.benchmark.tsv",
     resources:
-        mem_mb = rule_res("search_engine_msgf").get("mem_mb", 32000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "search_engine_msgf", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 32000),
     conda:
         "../openms.yaml"
     container:
@@ -232,8 +238,11 @@ rule search_engine_sage:
     log:
         logdir + "/{sample_id}/search_engine_sage.log"
     threads: rule_res("search_engine_sage").get("threads", 4)
+    benchmark: logdir + "/{sample_id}/search_engine_sage.benchmark.tsv",
     resources:
-        mem_mb = rule_res("search_engine_sage").get("mem_mb", 32000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "search_engine_sage", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 32000),
     conda:
         "../openms.yaml"
     container:

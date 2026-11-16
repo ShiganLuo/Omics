@@ -106,8 +106,11 @@ rule regionplot:
     log:
         logdir + "/regionplot/regionplot_{panel}.log"
     threads: rule_res("regionplot").get("threads", 1)
+    benchmark: logdir + "/regionplot/regionplot_{panel}.benchmark.tsv",
     resources:
-        mem_mb = rule_res("regionplot").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "regionplot", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     conda:
         "regionplot.yaml"
     container:

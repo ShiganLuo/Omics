@@ -18,8 +18,11 @@ rule samtools_dedup:
     log:
         logdir + "/{sample_id}/samtools_dedup.log"
     threads: rule_res("samtools_dedup").get("threads", 12)
+    benchmark: logdir + "/{sample_id}/samtools_dedup.benchmark.tsv",
     resources:
-        mem_mb = rule_res("samtools_dedup").get("mem_mb", 16000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "samtools_dedup", input_size=input_size_named(input, 'bam'),
+            attempt=attempt).get("mem_mb", 16000),
     conda:
         "igv.yaml"
     container:
@@ -80,8 +83,11 @@ rule wig:
     container:
         sif("igv.yaml", "wig")
     threads: rule_res("wig").get("threads", 12)
+    benchmark: logdir + "/{sample_id}/wig.benchmark.tsv",
     resources:
-        mem_mb = rule_res("wig").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "wig", input_size=input_size_named(input, 'bam'),
+            attempt=attempt).get("mem_mb", 8000),
     params:
         binSize= config.get('Params',{}).get('bamCoverage',{}).get('binSize') or 50,
         bamCoverage = config.get('Procedure',{}).get('bamCoverage') or 'bamCoverage',
@@ -126,5 +132,8 @@ rule wig:
 rule igv_result:
     input:
         bigwig = outdir + "/{sample_id}/{sample_id}.bigwig"
+
     resources:
-        mem_mb = rule_res("igv_result").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "igv_result", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),

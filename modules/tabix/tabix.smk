@@ -12,8 +12,11 @@ rule tabix_bgzip:
         tbi = outdir + "/{sample_id}/{sample_id}.vcf.gz.tbi"
     log:
         logdir + "/{sample_id}/bgzip.log"
+    benchmark: logdir + "/{sample_id}/bgzip.benchmark.tsv",
     resources:
-        mem_mb = rule_res("tabix_bgzip").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "tabix_bgzip", input_size=input_size_named(input, 'vcf'),
+            attempt=attempt).get("mem_mb", 8000),
     params:
         bgzip = config.get("Procedure", {}).get("bgzip") or "bgzip"
     conda:
@@ -44,5 +47,8 @@ rule tabix_result:
     input:
         vcf_gz = outdir + "/{sample_id}/{sample_id}.vcf.gz",
         tbi = outdir + "/{sample_id}/{sample_id}.vcf.gz.tbi"
+
     resources:
-        mem_mb = rule_res("tabix_result").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "tabix_result", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),

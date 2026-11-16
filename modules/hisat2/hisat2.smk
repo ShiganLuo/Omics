@@ -15,8 +15,11 @@ rule hisat2_index:
             idx = [1, 2, 3, 4, 5, 6, 7, 8]
         )
     threads: rule_res("hisat2_index").get("threads", 8)
+    benchmark: logdir + "/index/hisat2_build.benchmark.tsv",
     resources:
-        mem_mb = rule_res("hisat2_index").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "hisat2_index", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     params:
         prefix = outdir + "/index/genome",
         HISAT2_BUILD = config.get('Procedure',{}).get('hisat2-build') or 'hisat2-build'
@@ -107,8 +110,11 @@ rule hisat2_align:
     log:
         logdir + "/{sample_id}/hisat2_align.log"
     threads: rule_res("hisat2_align").get("threads", 12)
+    benchmark: logdir + "/{sample_id}/hisat2_align.benchmark.tsv",
     resources:
-        mem_mb = rule_res("hisat2_align").get("mem_mb", 32000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "hisat2_align", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 32000),
     params:
         hisat2 = config.get('Procedure',{}).get('hisat2') or 'hisat2',
         samtools = config.get('Procedure',{}).get('samtools') or 'samtools',
@@ -163,5 +169,8 @@ rule hisat2_align:
 rule hisat2_result:
     input:
         bam = outdir + "/{sample_id}/{sample_id}.bam"
+
     resources:
-        mem_mb = rule_res("hisat2_result").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "hisat2_result", input_size=input_size_named(input, 'bam'),
+            attempt=attempt).get("mem_mb", 8000),

@@ -35,8 +35,11 @@ rule burden_snv_indel:
     log:
         logdir + "/{sample_id}/burden_snv_indel.log"
     threads: rule_res("burden_snv_indel").get("threads", 1)
+    benchmark: logdir + "/{sample_id}/burden_snv_indel.benchmark.tsv",
     resources:
-        mem_mb = rule_res("burden_snv_indel").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "burden_snv_indel", input_size=input_size_named(input, 'vcf'),
+            attempt=attempt).get("mem_mb", 8000),
     params:
         script = os.path.join(ROOT_DIR, "modules/burden/bin/burden.py"),
         min_vaf = burden_params.get("min_vaf", 0.05),
@@ -113,8 +116,11 @@ rule burden_sv:
     log:
         logdir + "/{sample_id}/burden_sv.log"
     threads: rule_res("burden_sv").get("threads", 1)
+    benchmark: logdir + "/{sample_id}/burden_sv.benchmark.tsv",
     resources:
-        mem_mb = rule_res("burden_sv").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "burden_sv", input_size=input_size_named(input, 'vcf'),
+            attempt=attempt).get("mem_mb", 8000),
     params:
         script = os.path.join(ROOT_DIR, "modules/burden/bin/burden.py"),
     conda:
@@ -167,8 +173,11 @@ rule burden_cnv:
     log:
         logdir + "/{sample_id}/burden_cnv.log"
     threads: rule_res("burden_cnv").get("threads", 1)
+    benchmark: logdir + "/{sample_id}/burden_cnv.benchmark.tsv",
     resources:
-        mem_mb = rule_res("burden_cnv").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "burden_cnv", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     params:
         script = os.path.join(ROOT_DIR, "modules/burden/bin/burden.py"),
         min_abs_log2 = burden_params.get("min_abs_log2", 0.3),
@@ -223,8 +232,11 @@ rule burden_aggregate:
     log:
         logdir_combine + "/burden/burden_aggregate.log"
     threads: rule_res("burden_aggregate").get("threads", 1)
+    benchmark: logdir_combine + "/burden/burden_aggregate.benchmark.tsv",
     resources:
-        mem_mb = rule_res("burden_aggregate").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "burden_aggregate", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     params:
         script = os.path.join(ROOT_DIR, "modules/burden/bin/burden.py"),
     conda:
@@ -273,5 +285,8 @@ rule burden_result:
         sv = [SV_TSV.format(sample_id=s) for s in sample_sv_vcf_dict],
         cnv = [CNV_TSV.format(sample_id=s) for s in sample_cnv_dict],
         summary = SUMMARY_TSV
+
     resources:
-        mem_mb = rule_res("burden_result").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "burden_result", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),

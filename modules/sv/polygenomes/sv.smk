@@ -37,8 +37,11 @@ rule sv_exp_specific:
         annotated_tab = outdir + "/{genome}/{comparison}/{comparison}_annotated.tab",
     log:
         logdir + "/{genome}/{comparison}/sv_exp_specific.log"
+    benchmark: logdir + "/{genome}/{comparison}/sv_exp_specific.benchmark.tsv",
     resources:
-        mem_mb = rule_res("sv_exp_specific").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "sv_exp_specific", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     params:
         script = os.path.join(ROOT_DIR, "modules/sv/bin/exp_specific.py"),
         vep_cache = config.get("Params", {}).get("exp_specific", {}).get("vep_cache", "~/.vep"),
@@ -90,8 +93,11 @@ rule sv_exp_enrichment:
         enrichment_dir = directory(outdir + "/{genome}/{comparison}/enrichment"),
     log:
         logdir + "/{genome}/{comparison}/sv_exp_enrichment.log"
+    benchmark: logdir + "/{genome}/{comparison}/sv_exp_enrichment.benchmark.tsv",
     resources:
-        mem_mb = rule_res("sv_exp_enrichment").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "sv_exp_enrichment", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     params:
         script = os.path.join(ROOT_DIR, "modules/sv/bin/run_enrichment.py"),
     conda:
@@ -134,8 +140,11 @@ rule sv_exp_circos:
         circos_dir = directory(outdir + "/{genome}/{comparison}/circos"),
     log:
         logdir + "/{genome}/{comparison}/sv_exp_circos.log"
+    benchmark: logdir + "/{genome}/{comparison}/sv_exp_circos.benchmark.tsv",
     resources:
-        mem_mb = rule_res("sv_exp_circos").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "sv_exp_circos", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     params:
         script = os.path.join(ROOT_DIR, "modules/sv/bin/run_circos.py"),
         genome = config.get("Params", {}).get("circos", {}).get("genome", "mm39"),
@@ -185,8 +194,11 @@ rule sv_gene_model:
         gene_dir = directory(outdir + "/{genome}/{comparison}/gene_model"),
     log:
         logdir + "/{genome}/{comparison}/sv_gene_model.log"
+    benchmark: logdir + "/{genome}/{comparison}/sv_gene_model.benchmark.tsv",
     resources:
-        mem_mb = rule_res("sv_gene_model").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "sv_gene_model", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     params:
         script = os.path.join(ROOT_DIR, "modules/sv/bin/utils/gene_model.py"),
         threads = config.get("Params", {}).get("gene_model", {}).get("threads", 1),
@@ -237,8 +249,11 @@ rule sv_diff_analysis:
         diff_dir = directory(outdir + "/{genome}/sv_diff_analysis"),
     log:
         logdir + "/{genome}/all/sv_diff_analysis.log"
+    benchmark: logdir + "/{genome}/all/sv_diff_analysis.benchmark.tsv",
     resources:
-        mem_mb = rule_res("sv_diff_analysis").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "sv_diff_analysis", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     params:
         script = os.path.join(ROOT_DIR, "modules/sv/bin/pbsv_sv_diff_analysis.py"),
         large_sv_threshold = config.get("Params", {}).get("diff_analysis", {}).get("large_sv_threshold", 10000),
@@ -285,8 +300,11 @@ rule sv_oncoprint:
         oncoprint_dir = directory(outdir + "/{genome}/sv_oncoprint"),
     log:
         logdir + "/{genome}/all/sv_oncoprint.log"
+    benchmark: logdir + "/{genome}/all/sv_oncoprint.benchmark.tsv",
     resources:
-        mem_mb = rule_res("sv_oncoprint").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "sv_oncoprint", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     params:
         script = os.path.join(ROOT_DIR, "modules/sv/bin/run_OncoPrint.py"),
         deseq2_files = config.get("Params", {}).get("oncoprint", {}).get("deseq2_files", {}),
@@ -339,5 +357,8 @@ rule sv_result:
         gene_model_dirs = expand(outdir + "/{{genome}}/{comp}/gene_model", comp=comparison_names),
         diff_dir = outdir + "/{genome}/sv_diff_analysis",
         oncoprint_dir = outdir + "/{genome}/sv_oncoprint",
+
     resources:
-        mem_mb = rule_res("sv_result").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "sv_result", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),

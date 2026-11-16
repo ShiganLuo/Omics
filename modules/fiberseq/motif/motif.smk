@@ -24,8 +24,11 @@ rule fiberseq_motif_scan:
     log:
         logdir + "/{sample_id}/fiberseq_motif_scan.log"
     threads: rule_res("fiberseq_motif").get("threads", 4)
+    benchmark: logdir + "/{sample_id}/fiberseq_motif_scan.benchmark.tsv",
     resources:
-        mem_mb = rule_res("fiberseq_motif").get("mem_mb", 4000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "fiberseq_motif", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 4000),
     conda:
         "../fiberseq.yaml"
     container:
@@ -85,8 +88,11 @@ rule fiberseq_motif_profile:
     log:
         logdir + "/{sample_id}/fiberseq_motif_profile.log"
     threads: rule_res("fiberseq_motif").get("threads", 1)
+    benchmark: logdir + "/{sample_id}/fiberseq_motif_profile.benchmark.tsv",
     resources:
-        mem_mb = rule_res("fiberseq_motif").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "fiberseq_motif", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     conda:
         "../fiberseq.yaml"
     container:
@@ -143,5 +149,8 @@ rule fiberseq_motif_result:
                          sample_id=samples),
         plots = expand(outdir + "/{sample_id}/{sample_id}.motif_profile.{fmt}",
                        sample_id=samples, fmt=_formats),
+
     resources:
-        mem_mb = rule_res("fiberseq_motif_result").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "fiberseq_motif_result", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),

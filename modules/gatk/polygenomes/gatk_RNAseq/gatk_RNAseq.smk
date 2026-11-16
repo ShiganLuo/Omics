@@ -40,6 +40,7 @@ rule SplitNCigarReads:
     container:
         sif("../../gatk.yaml", "SplitNCigarReads")
     threads: rule_res("SplitNCigarReads").get("threads", 8)
+    benchmark: logdir + "/{sample_id}/{genome}/SplitNCigarReads.benchmark.tsv",
     resources:
         mem_mb=rule_res("SplitNCigarReads").get("mem_mb", 16000),
     log:
@@ -111,6 +112,7 @@ rule VarientCalling:
         tmp_dir = config.get("Params", {}).get("gatk", {}).get("tmp-dir") or None,
         gatk = config.get("Procedure", {}).get("gatk") or "gatk",
     threads: rule_res("VarientCalling").get("threads", 8)
+    benchmark: logdir + "/{sample_id}/{genome}/VarientCalling.benchmark.tsv",
     resources:
         mem_mb=rule_res("VarientCalling").get("mem_mb", 16000),
     run:
@@ -176,6 +178,7 @@ rule vcf_filter:
     container:
         sif("../../gatk.yaml", "vcf_filter")
     threads: rule_res("vcf_filter").get("threads", 8)
+    benchmark: logdir + "/{sample_id}/{genome}/vcf_filter.benchmark.tsv",
     resources:
         mem_mb=rule_res("vcf_filter").get("mem_mb", 8000),
     params:

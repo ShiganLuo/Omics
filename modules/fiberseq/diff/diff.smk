@@ -34,8 +34,11 @@ rule fiberseq_diff_run:
     log:
         logdir + "/group/fiberseq_diff_run_{contrast}.log"
     threads: rule_res("fiberseq_diff_run").get("threads", 4)
+    benchmark: logdir + "/group/fiberseq_diff_run_{contrast}.benchmark.tsv",
     resources:
-        mem_mb = rule_res("fiberseq_diff_run").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "fiberseq_diff_run", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     conda:
         "../fiberseq.yaml"
     container:
@@ -82,5 +85,8 @@ rule fiberseq_diff_run:
 rule fiberseq_diff_result:
     input:
         matrix = QUANT_DIR + "/matrix/percent_accessible_matrix.tsv",
+
     resources:
-        mem_mb = rule_res("fiberseq_diff_result").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "fiberseq_diff_result", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),

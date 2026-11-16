@@ -16,8 +16,11 @@ rule pbmm2_align:
     log:
         logdir + "/{sample_id}/{genome}/pbmm2_align.log"
     threads: rule_res("pbmm2_align").get("threads", 16)
+    benchmark: logdir + "/{sample_id}/{genome}/pbmm2_align.benchmark.tsv",
     resources:
-        mem_mb = rule_res("pbmm2_align").get("mem_mb", 32000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "pbmm2_align", input_size=input_size_named(input, 'bam'),
+            attempt=attempt).get("mem_mb", 32000),
     conda: "../pbmm2.yaml"
     container:
         sif("../pbmm2.yaml", "pbmm2_align")
@@ -74,5 +77,8 @@ rule pbmm2_result:
     input:
         bam = outdir + "/{genome}/{sample_id}/{sample_id}.sorted.bam",
         bai = outdir + "/{genome}/{sample_id}/{sample_id}.sorted.bai"
+
     resources:
-        mem_mb = rule_res("pbmm2_result").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "pbmm2_result", input_size=input_size_named(input, 'bam'),
+            attempt=attempt).get("mem_mb", 8000),

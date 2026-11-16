@@ -27,8 +27,11 @@ rule fiberseq_nucpos_run:
     log:
         logdir + "/{sample_id}/fiberseq_nucpos_run.log"
     threads: rule_res("fiberseq_nucpos").get("threads", 4)
+    benchmark: logdir + "/{sample_id}/fiberseq_nucpos_run.benchmark.tsv",
     resources:
-        mem_mb = rule_res("fiberseq_nucpos").get("mem_mb", 6000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "fiberseq_nucpos", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 6000),
     conda:
         "../fiberseq.yaml"
     container:
@@ -84,5 +87,8 @@ rule fiberseq_nucpos_result:
                          sample_id=samples),
         plots = expand(outdir + "/{sample_id}/{sample_id}.nucpos.{fmt}",
                        sample_id=samples, fmt=_formats),
+
     resources:
-        mem_mb = rule_res("fiberseq_nucpos_result").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "fiberseq_nucpos_result", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),

@@ -50,8 +50,11 @@ rule macs3_callpeak:
     log:
         logdir + "/{genome}/{sample_id}/macs3.log"
     threads: rule_res("macs3_callpeak").get("threads", 4)
+    benchmark: logdir + "/{genome}/{sample_id}/macs3.benchmark.tsv",
     resources:
-        mem_mb = rule_res("macs3_callpeak").get("mem_mb", 16000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "macs3_callpeak", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 16000),
     conda:
         "../macs3.yaml"
     container:
@@ -128,8 +131,11 @@ rule macs3_cutoff_plot:
     log:
         logdir + "/{genome}/../group/macs3/macs3_cutoff_plot.log"
     threads: rule_res("macs3_cutoff_plot").get("threads", 1)
+    benchmark: logdir + "/{genome}/../group/macs3/macs3_cutoff_plot.benchmark.tsv",
     resources:
-        mem_mb = rule_res("macs3_cutoff_plot").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "macs3_cutoff_plot", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     conda:
         "../macs3.yaml"
     container:
@@ -178,5 +184,8 @@ rule macs3_result:
         broad_xls = outdir + "/{genome}/{sample_id}/{sample_id}_broad_peaks.xls",
         broad_cutoff = outdir + "/{genome}/{sample_id}/{sample_id}_broad_cutoff_analysis.txt",
         plots = [outdir + "/{genome}/cutoff_analysis." + fmt for fmt in _formats]
+
     resources:
-        mem_mb = rule_res("macs3_result").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "macs3_result", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),

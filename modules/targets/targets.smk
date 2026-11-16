@@ -24,8 +24,11 @@ rule derive_targets:
     log:
         logdir + "/targets/derive_targets.log",
     threads: rule_res("derive_targets").get("threads", 4),
+    benchmark: logdir + "/targets/derive_targets.benchmark.tsv",
     resources:
-        mem_mb = rule_res("derive_targets").get("mem_mb", 16000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "derive_targets", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 16000),
     conda:
         "../samtools/samtools.yaml"
     container:

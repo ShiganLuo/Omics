@@ -51,8 +51,11 @@ rule fastqc:
     params:
         fastqc = config.get("Procedure", {}).get("fastqc") or "fastqc"
     threads: rule_res("fastqc").get("threads", 2)
+    benchmark: logdir + "/{sample_id}/fastqc.benchmark." + log_suffix,
     resources:
-        mem_mb = rule_res("fastqc").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "fastqc", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     log:
         log = logdir + "/{sample_id}/fastqc." + log_suffix
     conda:

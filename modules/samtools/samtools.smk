@@ -12,8 +12,11 @@ rule bam_flagstat:
         flagstat = outdir + "/{sample_id}/{sample_id}_flagstat.txt"
     log:
         logdir + "/{sample_id}/flagstat.log"
+    benchmark: logdir + "/{sample_id}/flagstat.benchmark.tsv",
     resources:
-        mem_mb = rule_res("bam_flagstat").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "bam_flagstat", input_size=input_size_named(input, 'bam'),
+            attempt=attempt).get("mem_mb", 8000),
     conda:
         "samtools.yaml"
     container:
@@ -44,6 +47,9 @@ rule bam_flagstat:
 rule samtools_result:
     input:
         flagstat = outdir + "/{sample_id}/{sample_id}_flagstat.txt"
+
     resources:
-        mem_mb = rule_res("samtools_result").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "samtools_result", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
 

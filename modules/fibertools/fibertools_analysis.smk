@@ -35,8 +35,11 @@ rule ft_extract:
     log:
         logdir + "/{sample_id}/ft_extract.log"
     threads: rule_res("ft_extract").get("threads", 8)
+    benchmark: logdir + "/{sample_id}/ft_extract.benchmark.tsv",
     resources:
-        mem_mb = rule_res("ft_extract").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "ft_extract", input_size=input_size_named(input, 'bam'),
+            attempt=attempt).get("mem_mb", 8000),
     conda:
         "fibertools.yaml"
     container:
@@ -155,8 +158,11 @@ rule ft_call_peaks:
     log:
         logdir + "/{sample_id}/ft_call_peaks.log"
     threads: rule_res("ft_call_peaks").get("threads", 8)
+    benchmark: logdir + "/{sample_id}/ft_call_peaks.benchmark.tsv",
     resources:
-        mem_mb = rule_res("ft_call_peaks").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "ft_call_peaks", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     conda:
         "fibertools.yaml"
     container:
@@ -222,8 +228,11 @@ rule ft_qc:
     log:
         logdir + "/{sample_id}/ft_qc.log"
     threads: rule_res("ft_qc").get("threads", 8)
+    benchmark: logdir + "/{sample_id}/ft_qc.benchmark.tsv",
     resources:
-        mem_mb = rule_res("ft_qc").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "ft_qc", input_size=input_size_named(input, 'bam'),
+            attempt=attempt).get("mem_mb", 8000),
     conda:
         "fibertools.yaml"
     container:
@@ -277,8 +286,11 @@ rule ft_extract_fire:
     log:
         logdir + "/{sample_id}/ft_extract_fire.log"
     threads: rule_res("ft_extract_fire").get("threads", 8)
+    benchmark: logdir + "/{sample_id}/ft_extract_fire.benchmark.tsv",
     resources:
-        mem_mb = rule_res("ft_extract_fire").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "ft_extract_fire", input_size=input_size_named(input, 'bam'),
+            attempt=attempt).get("mem_mb", 8000),
     conda:
         "fibertools.yaml"
     container:
@@ -333,8 +345,11 @@ rule ft_split_hap:
     log:
         logdir + "/{sample_id}/ft_split_hap_{hap}.log"
     threads: rule_res("ft_split_hap").get("threads", 4)
+    benchmark: logdir + "/{sample_id}/ft_split_hap_{hap}.benchmark.tsv",
     resources:
-        mem_mb = rule_res("ft_split_hap").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "ft_split_hap", input_size=input_size_named(input, 'bam'),
+            attempt=attempt).get("mem_mb", 8000),
     conda:
         "fibertools.yaml"
     container:
@@ -377,8 +392,11 @@ rule ft_extract_hap:
     log:
         logdir + "/{sample_id}/ft_extract_{hap}.log"
     threads: rule_res("ft_extract_hap").get("threads", 8)
+    benchmark: logdir + "/{sample_id}/ft_extract_{hap}.benchmark.tsv",
     resources:
-        mem_mb = rule_res("ft_extract_hap").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "ft_extract_hap", input_size=input_size_named(input, 'bam'),
+            attempt=attempt).get("mem_mb", 8000),
     conda:
         "fibertools.yaml"
     container:
@@ -420,6 +438,7 @@ rule ft_extract_hap:
 rule fibertools_analysis_result:
     """Panel rule: aggregate this module's main outputs as a dependency
     point for subworkflow `use rule` (modules.md 收尾规则)."""
+
     input:
         m6a = expand(outdir + "/{sample_id}/{sample_id}.m6a.bed.gz", sample_id=samples),
         nuc = expand(outdir + "/{sample_id}/{sample_id}.nuc.bed.gz", sample_id=samples),

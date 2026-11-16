@@ -80,8 +80,11 @@ rule bigwig_ratio:
         ratio_bigwig = outdir + "/{genome}/{sample_id}/{sample_id}_IP_over_Input.bigwig",
     log: logdir + "/{genome}/{sample_id}/bigwig_ratio.log"
     threads: rule_res("bigwig_ratio").get("threads", 4)
+    benchmark: logdir + "/{genome}/{sample_id}/bigwig_ratio.benchmark.tsv",
     resources:
-        mem_mb = rule_res("bigwig_ratio").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "bigwig_ratio", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     conda: "../deeptools_heatmap.yaml"
     container: sif("../deeptools_heatmap.yaml", "bigwig_ratio")
     run:
@@ -119,8 +122,11 @@ rule bigwig_ratio_result:
     input:
         ratio_bigwig = outdir + "/{genome}/{sample_id}/{sample_id}_IP_over_Input.bigwig",
     threads: rule_res("bigwig_ratio_result").get("threads", 1)
+
     resources:
-        mem_mb = rule_res("bigwig_ratio_result").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "bigwig_ratio_result", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
 
 def get_ratio_bigwig(wildcards):
     return os.path.join(outdir, wildcards.genome, wildcards.sample_id, wildcards.sample_id + "_IP_over_Input.bigwig")
@@ -219,8 +225,11 @@ rule heatmap:
         plots = [outdir + "/{genome}/{sample_id}/{sample_id}_" + HEATMAP_SUFFIX + "_heatmap." + fmt for fmt in _formats],
     log: logdir + "/{genome}/{sample_id}/heatmap.log"
     threads: rule_res("heatmap").get("threads", 4)
+    benchmark: logdir + "/{genome}/{sample_id}/heatmap.benchmark.tsv",
     resources:
-        mem_mb = rule_res("heatmap").get("mem_mb", 16000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "heatmap", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 16000),
     params:
         formats = _formats,   # ③ 转发
         out_base = outdir + "/{genome}/{sample_id}/{sample_id}_" + HEATMAP_SUFFIX + "_heatmap",
@@ -261,8 +270,11 @@ rule heatmap_gene:
         plots = [outdir + "/{genome}/{sample_id}/{sample_id}_{gene_name}_heatmap." + fmt for fmt in _formats],
     log: logdir + "/{genome}/{sample_id}/heatmap_{gene_name}.log"
     threads: rule_res("heatmap_gene").get("threads", 4)
+    benchmark: logdir + "/{genome}/{sample_id}/heatmap_{gene_name}.benchmark.tsv",
     resources:
-        mem_mb = rule_res("heatmap_gene").get("mem_mb", 16000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "heatmap_gene", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 16000),
     params:
         formats = _formats,   # ③ 转发
         out_base = outdir + "/{genome}/{sample_id}/{sample_id}_{gene_name}_heatmap",
@@ -305,5 +317,8 @@ rule deeptools_heatmap_result:
         # {genome}/{sample_id} stay rule wildcards; only the extension is
         # expanded over formats — comprehension, not expand()
         plots = [outdir + "/{genome}/{sample_id}/{sample_id}_" + HEATMAP_SUFFIX + "_heatmap." + fmt for fmt in _formats],
+
     resources:
-        mem_mb = rule_res("deeptools_heatmap_result").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "deeptools_heatmap_result", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),

@@ -23,8 +23,11 @@ rule frip_score:
         frip = outdir + "/{sample_id}/{sample_id}.FRiP.txt"
     log:
         logdir + "/{sample_id}/frip_score.log"
+    benchmark: logdir + "/{sample_id}/frip_score.benchmark.tsv",
     resources:
-        mem_mb = rule_res("frip_score").get("mem_mb", 16000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "frip_score", input_size=input_size_named(input, 'bam'),
+            attempt=attempt).get("mem_mb", 16000),
     params:
         bedtools = config.get("Procedure", {}).get("bedtools") or "bedtools",
         samtools = config.get("Procedure", {}).get("samtools") or "samtools"
@@ -96,5 +99,8 @@ rule frip_score_result:
     """
     input:
         frip = outdir + "/{sample_id}/{sample_id}.FRiP.txt"
+
     resources:
-        mem_mb = rule_res("frip_score_result").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "frip_score_result", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),

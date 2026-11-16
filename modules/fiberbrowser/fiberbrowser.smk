@@ -29,8 +29,11 @@ rule fiberbrowser:
     log:
         logdir + "/fiberbrowser/fiberbrowser_{locus}.log"
     threads: rule_res("fiberbrowser").get("threads", 1)
+    benchmark: logdir + "/fiberbrowser/fiberbrowser_{locus}.benchmark.tsv",
     resources:
-        mem_mb = rule_res("fiberbrowser").get("mem_mb", 4000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "fiberbrowser", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 4000),
     conda:
         "fiberbrowser.yaml"
     container:
@@ -109,6 +112,7 @@ rule fiberbrowser:
 
 rule fiberbrowser_result:
     """Aggregate rule: every locus x variant x format figure."""
+
     input:
         plots = expand(
             outdir + "/{locus}/{locus}{suffix}.{fmt}",

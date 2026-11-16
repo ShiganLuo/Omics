@@ -142,8 +142,11 @@ rule decoil_reconstruct:
     log:
         logdir + "/{sample_id}/decoil_reconstruct.log"
     threads: rule_res("decoil_reconstruct").get("threads", 16)
+    benchmark: logdir + "/{sample_id}/decoil_reconstruct.benchmark.tsv",
     resources:
-        mem_mb = rule_res("decoil_reconstruct").get("mem_mb", 32000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "decoil_reconstruct", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 32000),
     conda:
         "decoil.yaml"
     container:
@@ -244,8 +247,11 @@ rule decoil_result:
         reconstruct_ecdna    = outdir + "/{sample_id}/decoil/reconstruct.ecDNA.bed",
         reconstruct_filtered = outdir + "/{sample_id}/decoil/reconstruct.ecDNA.filtered.bed",
         summary              = outdir + "/{sample_id}/decoil/summary.txt",
+
     resources:
-        mem_mb = rule_res("decoil_result").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "decoil_result", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
 
 rule decoil_plot:
     """Per-sample ecDNA statistics: size distribution, topology, region table.
@@ -263,8 +269,11 @@ rule decoil_plot:
     log:
         logdir + "/{sample_id}/decoil_plot.log"
     threads: rule_res("decoil_plot").get("threads", 4)
+    benchmark: logdir + "/{sample_id}/decoil_plot.benchmark.tsv",
     resources:
-        mem_mb = rule_res("decoil_plot").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "decoil_plot", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     conda:
         "decoil.yaml"
     container:
@@ -320,8 +329,11 @@ rule decoil_compare:
     log:
         logdir + "/decoil_compare.log"
     threads: rule_res("decoil_compare").get("threads", 2)
+    benchmark: logdir + "/decoil_compare.benchmark.tsv",
     resources:
-        mem_mb = rule_res("decoil_compare").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "decoil_compare", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     conda:
         "decoil.yaml"
     container:
@@ -389,8 +401,11 @@ rule decoil_structure:
     log:
         logdir + "/{sample_id}/decoil_structure.log"
     threads: rule_res("decoil_structure").get("threads", 4)
+    benchmark: logdir + "/{sample_id}/decoil_structure.benchmark.tsv",
     resources:
-        mem_mb = rule_res("decoil_structure").get("mem_mb", 12000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "decoil_structure", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 12000),
     conda:
         "decoil.yaml"
     container:
@@ -451,8 +466,11 @@ rule decoil_igv:
     log:
         logdir + "/{sample_id}/decoil_igv.log"
     threads: rule_res("decoil_igv").get("threads", 1)
+    benchmark: logdir + "/{sample_id}/decoil_igv.benchmark.tsv",
     resources:
-        mem_mb = rule_res("decoil_igv").get("mem_mb", 4000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "decoil_igv", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 4000),
     conda:
         "decoil.yaml"
     container:
@@ -534,8 +552,11 @@ rule decoil_ucsc:
     log:
         logdir + "/{sample_id}/decoil_ucsc.log"
     threads: rule_res("decoil_ucsc").get("threads", 1)
+    benchmark: logdir + "/{sample_id}/decoil_ucsc.benchmark.tsv",
     resources:
-        mem_mb = rule_res("decoil_ucsc").get("mem_mb", 4000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "decoil_ucsc", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 4000),
     conda:
         "decoil.yaml"
     container:

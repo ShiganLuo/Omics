@@ -31,8 +31,11 @@ rule featureCounts_single_noMultiple:
     container:
         sif("featureCounts.yaml", "featureCounts_single_noMultiple")
     threads: rule_res("featureCounts_single_noMultiple").get("threads", 10)
+    benchmark: logdir + "/all/featureCounts/featureCounts_single_noMultiple.benchmark.tsv",
     resources:
-        mem_mb = rule_res("featureCounts_single_noMultiple").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "featureCounts_single_noMultiple", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     params:
         featureCounts = config.get('Procedure',{}).get('featureCounts') or 'featureCounts',
         gtf = config["genome"]["gtf"]
@@ -81,8 +84,11 @@ rule featureCounts_paired_noMultiple:
     container:
         sif("featureCounts.yaml", "featureCounts_paired_noMultiple")
     threads: rule_res("featureCounts_paired_noMultiple").get("threads", 10)
+    benchmark: logdir + "/all/featureCounts/featureCounts_paired_noMultiple.benchmark.tsv",
     resources:
-        mem_mb = rule_res("featureCounts_paired_noMultiple").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "featureCounts_paired_noMultiple", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     params:
         featureCounts = config.get('Procedure',{}).get('featureCounts') or 'featureCounts',
         gtf = config["genome"]["gtf"]
@@ -116,5 +122,8 @@ rule featureCounts_result:
         single = outdir + "/all_single_featureCounts.tsv"
     output:
         touch(outdir + "/featureCounts.done")
+
     resources:
-        mem_mb = rule_res("featureCounts_result").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "featureCounts_result", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),

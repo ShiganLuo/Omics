@@ -23,6 +23,7 @@ rule gatk_index:
     log:
         logdir_combine + "/index/{genome}/gatk_index.log"
     threads: rule_res("gatk_index").get("threads", 4)
+    benchmark: logdir_combine + "/index/{genome}/gatk_index.benchmark.tsv",
     resources:
         mem_mb=rule_res("gatk_index").get("mem_mb", 8000),
     conda: "../gatk.yaml"
@@ -90,6 +91,7 @@ rule addReadsGroup:
     container:
         sif("../gatk.yaml", "addReadsGroup")
     threads: rule_res("addReadsGroup").get("threads", 8)
+    benchmark: logdir + "/{sample_id}/{genome}/addReadsGroup.benchmark.tsv",
     resources:
         mem_mb=rule_res("addReadsGroup").get("mem_mb", 16000),
     params:
@@ -156,8 +158,11 @@ rule MarkDuplicates:
     container:
         sif("../gatk.yaml", "MarkDuplicates")
     threads: rule_res("MarkDuplicates").get("threads", 8)
+    benchmark: logdir + "/{sample_id}/{genome}/MarkDuplicates.benchmark.tsv",
     resources:
-        mem_mb=rule_res("MarkDuplicates").get("mem_mb", 32000),
+        mem_mb=lambda wildcards, input, attempt: rule_res(
+            "MarkDuplicates", input_size=input_size_named(input, 'bam'),
+            attempt=attempt).get("mem_mb", 32000),
     params:
         javaOptions = config.get("Params", {}).get("gatk", {}).get("javaOptions") or "-Xmx30g",
         gatk = config.get("Procedure", {}).get("gatk") or "gatk",
@@ -199,5 +204,8 @@ rule gatk_prepare_result:
         bam = outdir + "/{genome}/{sample_id}/{sample_id}.sorted_markdup.bam",
         bai = outdir + "/{genome}/{sample_id}/{sample_id}.sorted_markdup.bai",
         metrics = outdir + "/{genome}/{sample_id}/{sample_id}.Markdup-metrics.txt"
+
     resources:
-        mem_mb = rule_res("gatk_prepare_result").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "gatk_prepare_result", input_size=input_size_named(input, 'bam'),
+            attempt=attempt).get("mem_mb", 8000),

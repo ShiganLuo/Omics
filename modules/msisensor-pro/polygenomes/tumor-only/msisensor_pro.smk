@@ -37,8 +37,11 @@ rule scan:
         outdir + "reference/{genome_version}.msisensor.scan.list"
     log:
         outdir + "reference/{genome_version}.msisensor.scan.log"
+    benchmark: outdir + "reference/{genome_version}.msisensor.scan.benchmark.tsv",
     resources:
-        mem_mb = rule_res("scan").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "scan", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     conda:
         "../../msisensor-pro.yaml"
     container:
@@ -56,8 +59,11 @@ rule pro_pre:
     log:
         outdir + "baselines/details/{sample}.{genome_version}.baseline.out.log"
     threads: rule_res("pro_pre").get("threads", 2)
+    benchmark: outdir + "baselines/details/{sample}.{genome_version}.baseline.out.benchmark.tsv",
     resources:
-        mem_mb = rule_res("pro_pre").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "pro_pre", input_size=input_size_named(input, 'bam'),
+            attempt=attempt).get("mem_mb", 8000),
     conda:
         "../../msisensor-pro.yaml"
     container:
@@ -72,8 +78,11 @@ rule merge:
         outdir + "baselines/{genome_version}.baseline.samples.list"
     log:
         outdir + "baselines/{genome_version}.baseline.samples.list.log"
+    benchmark: outdir + "baselines/{genome_version}.baseline.samples.list.benchmark.tsv",
     resources:
-        mem_mb = rule_res("merge").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "merge", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     conda:
         "../../msisensor-pro.yaml"
     container:
@@ -91,8 +100,11 @@ rule baseline:
         outdir + "baselines/{genome_version}.baseline.tsv"
     log:
         outdir + "baselines/{genome_version}.baseline.tsv.log"
+    benchmark: outdir + "baselines/{genome_version}.baseline.tsv.benchmark.tsv",
     resources:
-        mem_mb = rule_res("baseline").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "baseline", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     conda:
         "../../msisensor-pro.yaml"
     container:
@@ -108,8 +120,11 @@ rule run_pro:
         outdir + "tumor_only_output/{case}/{case}.{genome_version}.msisensor-pro"
     log:
         outdir + "tumor_only_output/{case}/{case}.{genome_version}.msisensor-pro.log"
+    benchmark: outdir + "tumor_only_output/{case}/{case}.{genome_version}.msisensor-pro.benchmark.tsv",
     resources:
-        mem_mb = rule_res("run_pro").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "run_pro", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     conda:
         "../../msisensor-pro.yaml"
     container:
@@ -124,8 +139,11 @@ rule merge_msi_result:
         outdir + "tumor_only_output.{genome_version}.merge.tsv"
     log:
         outdir + "tumor_only_output.{genome_version}.merge.tsv.log"
+    benchmark: outdir + "tumor_only_output.{genome_version}.merge.tsv.benchmark.tsv",
     resources:
-        mem_mb = rule_res("merge_msi_result").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "merge_msi_result", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     run:
         output_info = pd.DataFrame(columns=["Total_number_of_sites", "Number_of_unstable_sites", "MSI_score"])
         output_info.index.name="case_name"

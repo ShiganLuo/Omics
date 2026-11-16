@@ -25,8 +25,11 @@ rule bowtie2_index:
     log:
         logdir_combine + "/bowtie2/bowtie2_index.log"
     threads: rule_res("bowtie2_index").get("threads", 12)
+    benchmark: logdir_combine + "/bowtie2/bowtie2_index.benchmark.tsv",
     resources:
-        mem_mb = rule_res("bowtie2_index").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "bowtie2_index", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     params:
         bowtie2_build = config.get('Procedure',{}).get('bowtie2-build') or 'bowtie2-build',
         index_prefix = outdir + "/index/genome"
@@ -115,8 +118,11 @@ rule bowtie2_align_paired:
     log:
         logdir + "/{sample_id}/bowtie2_align.log"
     threads: rule_res("bowtie2_align_paired").get("threads", 8)
+    benchmark: logdir + "/{sample_id}/bowtie2_align.benchmark.tsv",
     resources:
-        mem_mb = rule_res("bowtie2_align_paired").get("mem_mb", 16000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "bowtie2_align_paired", input_size=input_size_named(input, 'bam'),
+            attempt=attempt).get("mem_mb", 16000),
     params:
         bowtie2 = config.get('Procedure',{}).get('bowtie2') or 'bowtie2',
         index_prefix = lambda wildcards, input: input.index[0].split(".1.bt2")[0],
@@ -171,8 +177,11 @@ rule bowtie2_align_single:
     log:
         logdir + "/{sample_id}/bowtie2_align.log"
     threads: rule_res("bowtie2_align_single").get("threads", 8)
+    benchmark: logdir + "/{sample_id}/bowtie2_align.benchmark.tsv",
     resources:
-        mem_mb = rule_res("bowtie2_align_single").get("mem_mb", 16000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "bowtie2_align_single", input_size=input_size_named(input, 'fastq'),
+            attempt=attempt).get("mem_mb", 16000),
     params:
         bowtie2 = config.get('Procedure',{}).get('bowtie2') or 'bowtie2',
         unmapped_prefix = outdir + "/{sample_id}/{sample_id}_unmapped",

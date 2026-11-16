@@ -24,8 +24,11 @@ rule philosopher_database:
     log:
         logdir + "/philosopher_database/philosopher_database.log"
     threads: rule_res("philosopher_database").get("threads", 1)
+    benchmark: logdir + "/philosopher_database/philosopher_database.benchmark.tsv",
     resources:
-        mem_mb = rule_res("philosopher_database").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "philosopher_database", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     conda:
         "../fragpipe.yaml"
     container:
@@ -71,8 +74,11 @@ rule philosopher_filter:
     log:
         logdir + "/{sample_id}/philosopher_filter.log"
     threads: rule_res("philosopher_filter").get("threads", 1)
+    benchmark: logdir + "/{sample_id}/philosopher_filter.benchmark.tsv",
     resources:
-        mem_mb = rule_res("philosopher_filter").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "philosopher_filter", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     conda:
         "../fragpipe.yaml"
     container:
@@ -132,5 +138,8 @@ rule philosopher_result:
     input:
         expand(outdir + "/{sample_id}/psm.tsv", sample_id=samples),
         outdir + "/database/fragpipe_db.fasta",
+
     resources:
-        mem_mb = rule_res("philosopher_result").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "philosopher_result", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),

@@ -25,8 +25,11 @@ rule decoy_database:
         decoy_fasta = outdir + "/genome_decoy.fasta"
     log:
         logdir + "/decoy_database/decoy_database.log"
+    benchmark: logdir + "/decoy_database/decoy_database.benchmark.tsv",
     resources:
-        mem_mb = rule_res("decoy_database").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "decoy_database", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     conda:
         "../openms.yaml"
     container:
@@ -88,5 +91,8 @@ rule decoy_database:
 rule decoy_database_result:
     input:
         decoy_fasta = outdir + "/genome_decoy.fasta"
+
     resources:
-        mem_mb = rule_res("decoy_database_result").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "decoy_database_result", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),

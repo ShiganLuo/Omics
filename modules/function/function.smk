@@ -43,8 +43,11 @@ rule function_go_kegg:
     log:
         logdir + "/../group/function/{contrast}.go_kegg.log"
     threads: rule_res("function_go_kegg").get("threads", 1)
+    benchmark: logdir + "/../group/function/{contrast}.go_kegg.benchmark.tsv",
     resources:
-        mem_mb = rule_res("function_go_kegg").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "function_go_kegg", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     params:
         go_kegg_script = ROOT_DIR + "/modules/function/bin/go-kegg.r",
         species = species,
@@ -140,8 +143,11 @@ rule function_gsea:
     log:
         logdir + "/../group/function/{contrast}.gsea.log"
     threads: rule_res("function_gsea").get("threads", 1)
+    benchmark: logdir + "/../group/function/{contrast}.gsea.benchmark.tsv",
     resources:
-        mem_mb = rule_res("function_gsea").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "function_gsea", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     params:
         gsea_script = ROOT_DIR + "/modules/function/bin/gsea.r",
         formats = _gsea_formats,   # ③ 转发
@@ -251,8 +257,11 @@ rule function_gsva:
     log:
         logdir + "/function/gsva.log"
     threads: rule_res("function_gsva").get("threads", 1)
+    benchmark: logdir + "/function/gsva.benchmark.tsv",
     resources:
-        mem_mb = rule_res("function_gsva").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "function_gsva", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     params:
         norm_script = ROOT_DIR + "/modules/function/bin/normalization.py",
         gsva_script = ROOT_DIR + "/modules/function/bin/gsva.py",

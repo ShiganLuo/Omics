@@ -31,8 +31,11 @@ rule subsample_fastq:
     log:
         logdir + "/{sample_id}/subsample.log"
     threads: rule_res("subsample_fastq").get("threads", 1)
+    benchmark: logdir + "/{sample_id}/subsample.benchmark.tsv",
     resources:
-        mem_mb = rule_res("subsample_fastq").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "subsample_fastq", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),
     conda:
         "subsample.yaml"
     container:

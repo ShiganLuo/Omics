@@ -28,8 +28,11 @@ rule mimseq_deseq:
         formats = _plot_formats,   # ③ 转发
         mito_trnas = lambda wildcards: config["genome"][wildcards.genome].get("mito_trnas", ""),
     threads: rule_res("mimseq_deseq").get("threads", 4)
+    benchmark: logdir + "/{genome}/mimseq_deseq.benchmark.tsv",
     resources:
-        mem_mb = rule_res("mimseq_deseq").get("mem_mb", 16000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "mimseq_deseq", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 16000),
     conda:
         "../../mimseq.yaml"
     container:
@@ -67,5 +70,8 @@ rule mimseq_deseq_result:
     """Result rule for deseq module."""
     input:
         deseq_done = outdir + "/{genome}/deseq.done",
+
     resources:
-        mem_mb = rule_res("mimseq_deseq_result").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "mimseq_deseq_result", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 8000),

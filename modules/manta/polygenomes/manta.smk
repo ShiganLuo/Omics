@@ -16,8 +16,11 @@ rule manta_config:
         script = outdir + "/{genome}/{sample_id}/runWorkflow.py"
     log:
         logdir + "/{genome}/{sample_id}/manta_config.log"
+    benchmark: logdir + "/{genome}/{sample_id}/manta_config.benchmark.tsv",
     resources:
-        mem_mb = rule_res("manta_config").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "manta_config", input_size=input_size_named(input, 'bam'),
+            attempt=attempt).get("mem_mb", 8000),
     params:
         manta_outdir = lambda wildcards: outdir + f"/{wildcards.genome}/{wildcards.sample_id}"
     conda:
@@ -65,8 +68,11 @@ rule manta_run:
         logdir + "/{genome}/{sample_id}/manta_run.log"
     threads:
         config.get("Params", {}).get("manta", {}).get("threads") or 8
+    benchmark: logdir + "/{genome}/{sample_id}/manta_run.benchmark.tsv",
     resources:
-        mem_mb = rule_res("manta_run").get("mem_mb", 32000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "manta_run", input_size=input_size_named(input, 'vcf'),
+            attempt=attempt).get("mem_mb", 32000),
     conda:
         "../manta.yaml"
     container:
@@ -103,5 +109,8 @@ rule manta_result:
     input:
         vcf = outdir + "/{genome}/{sample_id}/results/variants/candidateSV.vcf.gz",
         tbi = outdir + "/{genome}/{sample_id}/results/variants/candidateSV.vcf.gz.tbi"
+
     resources:
-        mem_mb = rule_res("manta_result").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "manta_result", input_size=input_size_named(input, 'vcf'),
+            attempt=attempt).get("mem_mb", 8000),

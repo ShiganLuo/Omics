@@ -25,8 +25,11 @@ rule pbsv_discover:
     log:
         logdir + "/{sample_id}/pbsv_discover.log"
     threads: rule_res("pbsv_discover").get("threads", 4)
+    benchmark: logdir + "/{sample_id}/pbsv_discover.benchmark.tsv",
     resources:
-        mem_mb = rule_res("pbsv_discover").get("mem_mb", 16000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "pbsv_discover", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 16000),
     params:
         pbsv = config.get("Procedure", {}).get("pbsv") or "pbsv"
     conda:
@@ -67,8 +70,11 @@ rule pbsv_call:
     log:
         logdir + "/{sample_id}/pbsv_call.log"
     threads: rule_res("pbsv_call").get("threads", 8)
+    benchmark: logdir + "/{sample_id}/pbsv_call.benchmark.tsv",
     resources:
-        mem_mb = rule_res("pbsv_call").get("mem_mb", 16000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "pbsv_call", input_size=input_size_mb(input),
+            attempt=attempt).get("mem_mb", 16000),
     params:
         pbsv = config.get("Procedure", {}).get("pbsv") or "pbsv",
         bgzip = config.get("Procedure", {}).get("bgzip") or "bgzip",
@@ -121,6 +127,9 @@ rule pbsv_result:
     input:
         vcf = outdir + "/{sample_id}/{sample_id}.sv.vcf.gz",
         tbi = outdir + "/{sample_id}/{sample_id}.sv.vcf.gz.csi"
+
     resources:
-        mem_mb = rule_res("pbsv_result").get("mem_mb", 8000),
+        mem_mb = lambda wildcards, input, attempt: rule_res(
+            "pbsv_result", input_size=input_size_named(input, 'vcf'),
+            attempt=attempt).get("mem_mb", 8000),
 

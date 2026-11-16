@@ -37,20 +37,6 @@
       "required": false,
       "description": "Gene annotation GTF file (Per-reference fields, placed under genome.references.<name> entries (genome.default selects the active one))"
     },
-    "fai": {
-      "type": "string",
-      "path": "file",
-      "nullable": true,
-      "required": false,
-      "description": "FASTA index file (.fai) (Per-reference fields, placed under genome.references.<name> entries (genome.default selects the active one))"
-    },
-    "dict": {
-      "type": "string",
-      "path": "file",
-      "nullable": true,
-      "required": false,
-      "description": "Sequence dictionary file (.dict) (Per-reference fields, placed under genome.references.<name> entries (genome.default selects the active one))"
-    },
     "hisat2_index_prefix": {
       "type": "string",
       "path": "prefix",

@@ -221,7 +221,7 @@ fibertools_analysis_config = {
     },
     "genome": {
         "fasta": fasta,
-        "fai": genome_ref.get("fai"),
+        "fai": genome_ref.get("fai_index"),
     },
     "tmp_dir": config.get("tmp_dir") or f"{outdir}/tmp",
 }
@@ -531,7 +531,7 @@ fiberseq_track_config = {
     },
     "genome": {
         "fasta": fasta,
-        "fai": genome_ref.get("fai"),
+        "fai": genome_ref.get("fai_index"),
     },
     "resources": config.get("resources", {}),
 }
@@ -567,7 +567,7 @@ deepvariant_config = {
     },
     "genome": {
         "fasta": fasta,
-        "fai": genome_ref.get("fai"),
+        "fai": genome_ref.get("fai_index"),
     },
     "tmp_dir": config.get("tmp_dir") or f"{outdir}/tmp",
 }
@@ -886,7 +886,7 @@ sv_config = {
     "genome": {
         "fasta": genome_ref.get("fasta"),
         "gtf": genome_ref.get("gtf"),
-        "fai": genome_ref.get("fai"),
+        "fai": genome_ref.get("fai_index"),
         "custom_gtf": genome_ref.get("custom_gtf"),
         "custom_fasta": genome_ref.get("custom_fasta"),
         "te_lib": genome_ref.get("te_lib"),

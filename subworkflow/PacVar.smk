@@ -189,7 +189,7 @@ if snv_caller == "deepvariant":
         },
         "genome": {
             "fasta": genome_ref.get("fasta"),
-            "fai": genome_ref.get("fai")
+            "fai": genome_ref.get("fai_index")
         }
     }
     module deepvariant:
@@ -304,7 +304,7 @@ trgt_config = {
     },
     "genome": {
         "fasta": genome_ref.get("fasta"),
-        "fai": genome_ref.get("fai"),
+        "fai": genome_ref.get("fai_index"),
         "repeat_bed": genome_ref.get("repeat_bed")
     }
 }
@@ -517,7 +517,7 @@ sv_config = {
     "genome": {
         "fasta": genome_ref.get("fasta"),
         "gtf": genome_ref.get("gtf"),
-        "fai": genome_ref.get("fai"),
+        "fai": genome_ref.get("fai_index"),
         "custom_gtf": genome_ref.get("custom_gtf"),
         "custom_fasta": genome_ref.get("custom_fasta"),
         "te_lib": genome_ref.get("te_lib"),

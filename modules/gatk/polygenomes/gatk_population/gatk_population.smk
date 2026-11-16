@@ -18,7 +18,7 @@ def get_genome_fasta(wildcards):
     return config["genome"][wildcards.genome]["fasta"]
 
 def get_genome_fai(wildcards):
-    return config["genome"][wildcards.genome].get("fai_index") or config["genome"][wildcards.genome].get("fai")
+    return config["genome"][wildcards.genome].get("fai_index")
 
 def get_genome_dict(wildcards):
     return config["genome"][wildcards.genome].get("dict_index") or config["genome"][wildcards.genome].get("dict")

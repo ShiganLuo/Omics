@@ -510,16 +510,17 @@ def _resolve_genome_ref(
             f"known entries: {sorted(references)}"
         )
 
-    # Auto-fill derived reference resources: a null fai next to an existing
+    # Auto-fill derived reference resources: a null fai_index next to an existing
     # FASTA is filled with <fasta>.fai so the subworkflow's genome_index rule
     # (samtools faidx) is scheduled when the index is missing. An explicit
     # template/config value always wins; the fill only happens when the key
-    # is absent or null.
+    # is absent or null. (Legacy key 'fai' is no longer read: configs and
+    # subworkflows are unified on fai_index/dict_index.)
     fasta_path = ref.get("fasta")
-    if fasta_path and not ref.get("fai"):
-        ref["fai"] = f"{fasta_path}.fai"
+    if fasta_path and not ref.get("fai_index"):
+        ref["fai_index"] = f"{fasta_path}.fai"
         logger.info(
-            f"{workflow}: genome.fai not set; auto-filled '{ref['fai']}' "
+            f"{workflow}: genome.fai_index not set; auto-filled '{ref['fai_index']}' "
             f"(genome_index rule builds it if missing)"
         )
 

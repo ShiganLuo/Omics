@@ -638,7 +638,6 @@
     "references": {
       "Mmul_10": {
         "fasta": "/data/16T/Database/Reference/mulatta/ENSEMBL/Mmul_10/Macaca_mulatta.Mmul_10.dna.toplevel.fa",
-        "fai": null,
         "pbmm2_index": null,
         "gtf": "/data/16T/Database/Reference/mulatta/ENSEMBL/Mmul_10/Macaca_mulatta.Mmul_10.116.gtf",
         "repeat_bed": null,
@@ -652,7 +651,6 @@
       },
       "Mmul_T2T": {
         "fasta": "/data/16T/Database/Reference/mulatta/NCBI/Mmul_T2T/GCF_049350105.2_T2T-MMU8v2.0_genomic.fa",
-        "fai": "/data/16T/Database/Reference/mulatta/NCBI/Mmul_T2T/GCF_049350105.2_T2T-MMU8v2.0_genomic.fa.fai",
         "pbmm2_index": null,
         "gtf": "/data/16T/Database/Reference/mulatta/NCBI/Mmul_T2T/GCF_049350105.2_T2T-MMU8v2.0_genomic.gtf",
         "repeat_bed": "/data/16T/Database/Reference/mulatta/NCBI/Mmul_T2T/rheMac10_rmsk_TE.lifted.bed",
@@ -668,7 +666,6 @@
       },
       "GRCm39": {
         "fasta": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa",
-        "fai": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/GRCm39.primary_assembly.genome.fa.fai",
         "pbmm2_index": null,
         "gtf": null,
         "repeat_bed": null,
@@ -682,7 +679,6 @@
       },
       "T2T_mhaESC_v1.5": {
         "fasta": "/data/16T/Database/Reference/mouse/NCBI/T2T_mhaESC_v1.5/GCA_056825265.1_T2T_mhaESC_v1.5_genomic.fa",
-        "fai": "/data/16T/Database/Reference/mouse/NCBI/T2T_mhaESC_v1.5/GCA_056825265.1_T2T_mhaESC_v1.5_genomic.fa.fai",
         "pbmm2_index": "/data/16T/Database/Reference/mouse/NCBI/T2T_mhaESC_v1.5/GCA_056825265.1_T2T_mhaESC_v1.5_genomic.fa.mmi",
         "gtf": "/data/16T/Database/Reference/mouse/NCBI/T2T_mhaESC_v1.5/GCA_056825265.1_T2T_mhaESC_v1.5_vM38_liftoff.gtf",
         "repeat_bed": "/data/16T/Database/Reference/mouse/NCBI/T2T_mhaESC_v1.5/GRCm39_GENCODE_rmsk_TE.lifted.bed",
@@ -698,7 +694,6 @@
       },
       "GRCh38": {
         "fasta": "/data/16T/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa",
-        "fai": "/data/16T/Database/Reference/human/GENCODE/GRCh38/GRCh38.primary_assembly.genome.fa.fai",
         "pbmm2_index": null,
         "gtf": null,
         "repeat_bed": null,

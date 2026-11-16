@@ -5,21 +5,21 @@
       "path": null,
       "nullable": true,
       "required": true,
-      "description": "Input directory for raw data"
+      "description": "Input directory for raw data (Workflow-level fields, placed under Params.workflow in the config JSON)"
     },
     "outdir": {
       "type": "string",
       "path": null,
       "nullable": true,
       "required": true,
-      "description": "Output directory for results"
+      "description": "Output directory for results (Workflow-level fields, placed under Params.workflow in the config JSON)"
     },
     "logdir": {
       "type": "string",
       "path": null,
       "nullable": true,
       "required": true,
-      "description": "Log directory"
+      "description": "Log directory (Workflow-level fields, placed under Params.workflow in the config JSON)"
     }
   },
   "genome": {
@@ -28,175 +28,175 @@
       "path": "file",
       "nullable": true,
       "required": true,
-      "description": "Reference genome FASTA file"
+      "description": "Reference genome FASTA file (Per-reference fields, placed under genome.references.<name> entries (genome.default selects the active one))"
     },
     "gtf": {
       "type": "string",
       "path": "file",
       "nullable": true,
       "required": false,
-      "description": "Gene annotation GTF file"
+      "description": "Gene annotation GTF file (Per-reference fields, placed under genome.references.<name> entries (genome.default selects the active one))"
     },
     "fai": {
       "type": "string",
       "path": "file",
       "nullable": true,
       "required": false,
-      "description": "FASTA index file (.fai)"
+      "description": "FASTA index file (.fai) (Per-reference fields, placed under genome.references.<name> entries (genome.default selects the active one))"
     },
     "dict": {
       "type": "string",
       "path": "file",
       "nullable": true,
       "required": false,
-      "description": "Sequence dictionary file (.dict)"
+      "description": "Sequence dictionary file (.dict) (Per-reference fields, placed under genome.references.<name> entries (genome.default selects the active one))"
     },
     "hisat2_index_prefix": {
       "type": "string",
       "path": "prefix",
       "nullable": true,
       "required": false,
-      "description": "HISAT2 index prefix path"
+      "description": "HISAT2 index prefix path (Per-reference fields, placed under genome.references.<name> entries (genome.default selects the active one))"
     },
     "star_index_dir": {
       "type": "string",
       "path": "dir",
       "nullable": true,
       "required": false,
-      "description": "STAR index directory"
+      "description": "STAR index directory (Per-reference fields, placed under genome.references.<name> entries (genome.default selects the active one))"
     },
     "bowtie2_index_prefix": {
       "type": "string",
       "path": "prefix",
       "nullable": true,
       "required": false,
-      "description": "Bowtie2 index prefix path"
+      "description": "Bowtie2 index prefix path (Per-reference fields, placed under genome.references.<name> entries (genome.default selects the active one))"
     },
     "index_prefix": {
       "type": "string",
       "path": "prefix",
       "nullable": true,
       "required": false,
-      "description": "Generic index prefix path"
+      "description": "Generic index prefix path (Per-reference fields, placed under genome.references.<name> entries (genome.default selects the active one))"
     },
     "index_dir": {
       "type": "string",
       "path": "dir",
       "nullable": true,
       "required": false,
-      "description": "Generic index directory"
+      "description": "Generic index directory (Per-reference fields, placed under genome.references.<name> entries (genome.default selects the active one))"
     },
     "bwaMem2_index_prefix": {
       "type": "string",
       "path": "prefix",
       "nullable": true,
       "required": false,
-      "description": "BWA-MEM2 index prefix path"
+      "description": "BWA-MEM2 index prefix path (Per-reference fields, placed under genome.references.<name> entries (genome.default selects the active one))"
     },
     "known_sites": {
       "type": "string",
       "path": "file",
       "nullable": true,
       "required": false,
-      "description": "Known variant sites VCF file"
+      "description": "Known variant sites VCF file (Per-reference fields, placed under genome.references.<name> entries (genome.default selects the active one))"
     },
     "interval": {
       "type": "string",
       "path": "file",
       "nullable": true,
       "required": false,
-      "description": "Interval list file"
+      "description": "Interval list file (Per-reference fields, placed under genome.references.<name> entries (genome.default selects the active one))"
     },
     "access": {
       "type": "string",
       "path": "file",
       "nullable": true,
       "required": false,
-      "description": "Accessibility BED file"
+      "description": "Accessibility BED file (Per-reference fields, placed under genome.references.<name> entries (genome.default selects the active one))"
     },
     "repeat_bed": {
       "type": "string",
       "path": "file",
       "nullable": true,
       "required": false,
-      "description": "Repeat annotation BED file"
+      "description": "Repeat annotation BED file (Per-reference fields, placed under genome.references.<name> entries (genome.default selects the active one))"
     },
     "geneIDAnno": {
       "type": "string",
       "path": "file",
       "nullable": true,
       "required": false,
-      "description": "Gene ID annotation file"
+      "description": "Gene ID annotation file (Per-reference fields, placed under genome.references.<name> entries (genome.default selects the active one))"
     },
     "TE_gtf": {
       "type": "string",
       "path": "file",
       "nullable": true,
       "required": false,
-      "description": "Transposable element GTF file"
+      "description": "Transposable element GTF file (Per-reference fields, placed under genome.references.<name> entries (genome.default selects the active one))"
     },
     "TEind": {
       "type": "string",
       "path": "file",
       "nullable": true,
       "required": false,
-      "description": "Transposable element index file"
+      "description": "Transposable element index file (Per-reference fields, placed under genome.references.<name> entries (genome.default selects the active one))"
     },
     "rRNA_fasta": {
       "type": "string",
       "path": "file",
       "nullable": true,
       "required": false,
-      "description": "rRNA FASTA file"
+      "description": "rRNA FASTA file (Per-reference fields, placed under genome.references.<name> entries (genome.default selects the active one))"
     },
     "bowtie2_index_prefix_for_rRNA": {
       "type": "string",
       "path": "prefix",
       "nullable": true,
       "required": false,
-      "description": "Bowtie2 index prefix for rRNA"
+      "description": "Bowtie2 index prefix for rRNA (Per-reference fields, placed under genome.references.<name> entries (genome.default selects the active one))"
     },
     "chrom_sizes": {
       "type": "string",
       "path": "file",
       "nullable": true,
       "required": false,
-      "description": "Chromosome sizes file"
+      "description": "Chromosome sizes file (Per-reference fields, placed under genome.references.<name> entries (genome.default selects the active one))"
     },
     "dict_index": {
       "type": "string",
       "path": "file",
       "nullable": true,
       "required": false,
-      "description": "Dictionary index file"
+      "description": "Dictionary index file (Per-reference fields, placed under genome.references.<name> entries (genome.default selects the active one))"
     },
     "fai_index": {
       "type": "string",
       "path": "file",
       "nullable": true,
       "required": false,
-      "description": "FAI index file"
+      "description": "FAI index file (Per-reference fields, placed under genome.references.<name> entries (genome.default selects the active one))"
     },
     "smallrna_fasta": {
       "type": "string",
       "path": "file",
       "nullable": true,
       "required": false,
-      "description": "Small RNA FASTA file"
+      "description": "Small RNA FASTA file (Per-reference fields, placed under genome.references.<name> entries (genome.default selects the active one))"
     },
     "smallrna_bed": {
       "type": "string",
       "path": "file",
       "nullable": true,
       "required": false,
-      "description": "Small RNA BED file"
+      "description": "Small RNA BED file (Per-reference fields, placed under genome.references.<name> entries (genome.default selects the active one))"
     },
     "smallrna_star_index": {
       "type": "string",
       "path": "dir",
       "nullable": true,
       "required": false,
-      "description": "Small RNA STAR index directory"
+      "description": "Small RNA STAR index directory (Per-reference fields, placed under genome.references.<name> entries (genome.default selects the active one))"
     }
   },
   "workflows": {
@@ -261,7 +261,6 @@
     "tRNAseq": {},
     "KARRseq": {},
     "CoCulture": {},
-
     "QuantMS": {}
   }
 }

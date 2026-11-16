@@ -3,18 +3,6 @@
     "type": "str",
     "required": false
   },
-  "indir": {
-    "type": "str",
-    "required": false
-  },
-  "outdir": {
-    "type": "str",
-    "required": false
-  },
-  "logdir": {
-    "type": "str",
-    "required": false
-  },
   "resources": {
     "type": "dict",
     "required": false,
@@ -455,27 +443,6 @@
       }
     }
   },
-  "samples": {
-    "type": "list",
-    "required": true
-  },
-  "paired_samples": {
-    "type": "list",
-    "required": true
-  },
-  "single_samples": {
-    "type": "list",
-    "required": true
-  },
-  "ip_samples": {
-    "type": "list",
-    "required": true
-  },
-  "input_samples": {
-    "type": "list",
-    "required": true
-  },
-  "sample_ip_input_map": {},
   "outfiles": {
     "type": "list",
     "required": true
@@ -972,6 +939,49 @@
         "type": "list",
         "required": true
       }
+    },
+    "workflow": {
+      "type": "dict",
+      "required": true,
+      "properties": {
+        "indir": {
+          "type": "str",
+          "required": false
+        },
+        "outdir": {
+          "type": "str",
+          "required": false
+        },
+        "logdir": {
+          "type": "str",
+          "required": false
+        },
+        "raw_files": {
+          "type": "list",
+          "required": false
+        },
+        "samples": {
+          "type": "list",
+          "required": true
+        },
+        "paired_samples": {
+          "type": "list",
+          "required": true
+        },
+        "single_samples": {
+          "type": "list",
+          "required": true
+        },
+        "ip_samples": {
+          "type": "list",
+          "required": true
+        },
+        "input_samples": {
+          "type": "list",
+          "required": true
+        },
+        "sample_ip_input_map": {}
+      }
     }
   },
   "genome": {
@@ -988,8 +998,9 @@
     "type": "dict",
     "required": false
   },
-  "raw_files": {
-    "type": "list",
+  "tmp_dir": {
+    "type": "str",
+    "nullable": true,
     "required": false
   }
 }

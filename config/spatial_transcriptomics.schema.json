@@ -1,0 +1,150 @@
+{
+  "outfiles": {
+    "type": "list",
+    "nullable": true,
+    "required": false
+  },
+  "ROOT_DIR": {
+    "type": "null",
+    "nullable": true,
+    "required": false
+  },
+  "tmp_dir": {
+    "type": "str",
+    "nullable": true,
+    "required": false
+  },
+  "resources": {
+    "type": "dict",
+    "nullable": true,
+    "required": false
+  },
+  "env": {
+    "type": "dict",
+    "nullable": true,
+    "required": false
+  },
+  "Procedure": {
+    "type": "dict",
+    "nullable": true,
+    "required": false
+  },
+  "genome": {
+    "type": "dict",
+    "required": true,
+    "properties": {
+      "default": {
+        "type": "str",
+        "required": true
+      },
+      "references": {
+        "type": "dict",
+        "required": true,
+        "additionalProperties": {
+          "type": "dict",
+          "properties": {
+            "fasta": {
+              "type": "str",
+              "nullable": true,
+              "required": false,
+              "path": "file"
+            },
+            "gtf": {
+              "type": "str",
+              "nullable": true,
+              "required": false,
+              "path": "file"
+            },
+            "sex_chroms": {
+              "type": "list",
+              "nullable": true,
+              "required": false
+            }
+          }
+        }
+      }
+    }
+  },
+  "Params": {
+    "workflow": {
+      "type": "dict",
+      "required": true,
+      "properties": {
+        "indir": {
+          "type": "str",
+          "required": false
+        },
+        "outdir": {
+          "type": "str",
+          "required": false
+        },
+        "logdir": {
+          "type": "str",
+          "required": false
+        },
+        "raw_files": {
+          "type": "list",
+          "required": false
+        },
+        "input_h5ad": {
+          "type": "str",
+          "nullable": true,
+          "required": false,
+          "path": "file"
+        },
+        "visium_h5": {
+          "type": "str",
+          "nullable": true,
+          "required": false,
+          "path": "file"
+        },
+        "spatial_dir": {
+          "type": "str",
+          "nullable": true,
+          "required": false,
+          "path": "dir"
+        }
+      }
+    },
+    "spatial": {
+      "type": "dict",
+      "required": false,
+      "properties": {
+        "min_genes": {
+          "type": "int",
+          "required": false
+        },
+        "max_pct_mt": {
+          "type": "float",
+          "required": false
+        },
+        "n_top_genes": {
+          "type": "int",
+          "required": false
+        },
+        "n_pcs": {
+          "type": "int",
+          "required": false
+        },
+        "n_neighbors": {
+          "type": "int",
+          "required": false
+        },
+        "resolution": {
+          "type": "float",
+          "required": false
+        },
+        "advanced": {
+          "type": "dict",
+          "required": false,
+          "properties": {
+            "spatial_autocorrelation": {
+              "type": "bool",
+              "required": false
+            }
+          }
+        }
+      }
+    }
+  }
+}

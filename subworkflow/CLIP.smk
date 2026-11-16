@@ -1,13 +1,17 @@
 shell.prefix("set -x; set -e;")
 from snakemake.logging import logger
-indir = config.get("indir","data/fastq")
-outdir = config.get("outdir","output")
-logdir = config.get("logdir","logs")
+indir = config.get("Params", {}).get("workflow", {}).get("indir", "data/fastq")
+outdir = config.get("Params", {}).get("workflow", {}).get("outdir", "output")
+logdir = config.get("Params", {}).get("workflow", {}).get("logdir", "logs")
 ROOT_DIR = config.get("ROOT_DIR","")
 outfiles = config.get("outfiles", [])
-paired_samples = config.get("paired_samples", [])
-single_samples = config.get("single_samples", [])
-aligner = config.get('aligner', 'star')
+paired_samples = config.get("Params", {}).get("workflow", {}).get("paired_samples", [])
+single_samples = config.get("Params", {}).get("workflow", {}).get("single_samples", [])
+aligner = config.get("Params", {}).get("workflow", {}).get("aligner") or "star"
+
+# Genome reference resolution — nested default + references pattern
+genome = config.get("genome", {}).get("default")
+genome_ref = config.get("genome", {}).get("references", {}).get(genome, {}) if genome else {}
 
 rule all:
     input:
@@ -120,8 +124,8 @@ if aligner == 'hisat2':
                 "hisat2": config.get('Procedure',{}).get('hisat2')
             },
             "genome": {
-                "fasta": config.get('genome',{}).get('fasta'),
-                "index_dir": config.get('genome',{}).get('hisat2_index_dir')
+                "fasta": genome_ref.get("fasta"),
+                "index_dir": genome_ref.get("hisat2_index_dir")
             }
         }
     module hisat2:
@@ -145,9 +149,9 @@ elif aligner == 'star':
                 "STAR": config.get('Procedure',{}).get('STAR')
             },
             "genome": {
-                "fasta": config.get('genome',{}).get('fasta'),
-                "gtf": config.get('genome',{}).get('gtf'),
-                "index_dir": config.get('genome',{}).get('star_index_dir')
+                "fasta": genome_ref.get("fasta"),
+                "gtf": genome_ref.get("gtf"),
+                "index_dir": genome_ref.get("star_index_dir")
             }
         }
     module star:
@@ -264,8 +268,8 @@ genome_config = {
     "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
         "genome": {
-            "fasta": config.get('genome',{}).get('fasta'),
-            "gtf": config.get('genome',{}).get('gtf')
+            "fasta": genome_ref.get("fasta"),
+            "gtf": genome_ref.get("gtf")
         },
         "outdir": outdir,
         "logdir": logdir,
@@ -290,7 +294,7 @@ bedtools_config = {
             "bedtools": config.get('Procedure',{}).get('bedtools')
         },
         "genome": {
-            "chrom_sizes": config.get('genome',{}).get('chrom_sizes') or f"{outdir}/genome/chrom.sizes"
+            "chrom_sizes": genome_ref.get("chrom_sizes") or f"{outdir}/genome/chrom.sizes"
         }
     }
 module bedtools:
@@ -319,7 +323,7 @@ regionplot_config = {
         "regionplot": regionplot_params
     },
     "genome": {
-        "gtf": config.get("genome", {}).get("gtf"),
+        "gtf": genome_ref.get("gtf"),
     },
     "resources": config.get("resources", {}),
 }
@@ -343,7 +347,7 @@ PureCLIP_config = {
             "PureCLIP": config.get('Procedure',{}).get('PureCLIP')
         },
         "genome": {
-            "fasta": config.get('genome',{}).get('fasta')
+            "fasta": genome_ref.get("fasta")
         }
     }
 module PureCLIP:

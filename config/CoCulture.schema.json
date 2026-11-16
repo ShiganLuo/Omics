@@ -4,29 +4,6 @@
     "nullable": true,
     "required": false
   },
-  "indir": {
-    "type": "null",
-    "nullable": true,
-    "required": false
-  },
-  "logdir": {
-    "type": "null",
-    "nullable": true,
-    "required": false
-  },
-  "outdir": {
-    "type": "null",
-    "nullable": true,
-    "required": false
-  },
-  "paired_samples": {
-    "type": "list",
-    "required": true
-  },
-  "single_samples": {
-    "type": "list",
-    "required": true
-  },
   "outfiles": {
     "type": "list",
     "required": true
@@ -262,74 +239,53 @@
     }
   },
   "genome": {
-    "GRCm39": {
-      "fasta": {
+    "type": "dict",
+    "required": true,
+    "properties": {
+      "default": {
         "type": "str",
+        "required": true
+      },
+      "references": {
+        "type": "dict",
         "required": true,
-        "path": "file"
-      },
-      "gtf": {
-        "type": "str",
-        "required": true,
-        "path": "file"
-      },
-      "TE_gtf": {
-        "type": "str",
-        "required": true,
-        "path": "file"
-      },
-      "TEind": {
-        "type": "str",
-        "required": true,
-        "path": "file"
-      },
-      "hisat2_index_prefix": {
-        "type": "null",
-        "nullable": true,
-        "required": false
-      },
-      "star_index_dir": {
-        "type": "null",
-        "nullable": true,
-        "required": false
-      }
-    },
-    "GRCh38": {
-      "fasta": {
-        "type": "str",
-        "required": true,
-        "path": "file"
-      },
-      "gtf": {
-        "type": "str",
-        "required": true,
-        "path": "file"
-      },
-      "TE_gtf": {
-        "type": "str",
-        "required": true,
-        "path": "file"
-      },
-      "TEind": {
-        "type": "str",
-        "required": true,
-        "path": "file"
-      },
-      "hisat2_index_prefix": {
-        "type": "null",
-        "nullable": true,
-        "required": false
-      },
-      "star_index_dir": {
-        "type": "null",
-        "nullable": true,
-        "required": false
+        "additionalProperties": {
+          "type": "dict",
+          "properties": {
+            "fasta": {
+              "type": "str",
+              "required": true,
+              "path": "file"
+            },
+            "gtf": {
+              "type": "str",
+              "required": true,
+              "path": "file"
+            },
+            "TE_gtf": {
+              "type": "str",
+              "required": true,
+              "path": "file"
+            },
+            "TEind": {
+              "type": "str",
+              "required": true,
+              "path": "file"
+            },
+            "hisat2_index_prefix": {
+              "type": "null",
+              "nullable": true,
+              "required": false
+            },
+            "star_index_dir": {
+              "type": "null",
+              "nullable": true,
+              "required": false
+            }
+          }
+        }
       }
     }
-  },
-  "genome_pairs": {
-    "type": "list",
-    "required": true
   },
   "Procedure": {
     "trim_galore": {
@@ -384,14 +340,52 @@
         "type": "int",
         "required": true
       }
+    },
+    "workflow": {
+      "type": "dict",
+      "required": true,
+      "properties": {
+        "indir": {
+          "type": "null",
+          "nullable": true,
+          "required": false
+        },
+        "outdir": {
+          "type": "null",
+          "nullable": true,
+          "required": false
+        },
+        "logdir": {
+          "type": "null",
+          "nullable": true,
+          "required": false
+        },
+        "raw_files": {
+          "type": "list",
+          "required": false
+        },
+        "paired_samples": {
+          "type": "list",
+          "required": true
+        },
+        "single_samples": {
+          "type": "list",
+          "required": true
+        },
+        "genome_pairs": {
+          "type": "list",
+          "required": true
+        }
+      }
     }
   },
   "env": {
     "type": "dict",
     "required": false
   },
-  "raw_files": {
-    "type": "list",
+  "tmp_dir": {
+    "type": "str",
+    "nullable": true,
     "required": false
   }
 }

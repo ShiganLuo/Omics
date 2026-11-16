@@ -102,7 +102,7 @@ elif aligner == "cellranger":
             "logdir": f"{logdir}/sample",
             "logdir_ref": f"{logdir}/group",
             "h5ad_outdir": h5ad_outdir,
-            "cellranger_input_dict": config.get("cellranger_input_dict", {}),
+            "cellranger_input_dict": config.get("Params", {}).get("workflow", {}).get("cellranger_input_dict", {}),
             "Params": {
                 "cellranger": config.get("Params", {}).get("cellranger", {}),
             },
@@ -162,7 +162,7 @@ elif aligner == "cellranger":
             "logdir_ref": f"{logdir}/group",
             "ctd_input_mode": "cellranger_dir",
             "h5ad_outdir": h5ad_outdir,
-            "cellranger_input_dict": config.get("cellranger_input_dict", {}),
+            "cellranger_input_dict": config.get("Params", {}).get("workflow", {}).get("cellranger_input_dict", {}),
             "Params": {
                 "cellranger": config.get("Params", {}).get("cellranger", {}),
             },

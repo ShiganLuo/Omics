@@ -1,19 +1,4 @@
 {
-  "indir": {
-    "type": "str",
-    "required": true,
-    "path": "file"
-  },
-  "outdir": {
-    "type": "str",
-    "required": true,
-    "path": "file"
-  },
-  "logdir": {
-    "type": "str",
-    "required": true,
-    "path": "file"
-  },
   "resources": {
     "type": "dict",
     "required": false,
@@ -202,17 +187,9 @@
       }
     }
   },
-  "samples": {
-    "type": "list",
-    "required": true
-  },
   "outfiles": {
     "type": "list",
     "required": true
-  },
-  "sample_data": {
-    "type": "str",
-    "required": false
   },
   "ROOT_DIR": {
     "type": "str",
@@ -358,33 +335,84 @@
         "type": "bool",
         "required": true
       }
+    },
+    "workflow": {
+      "type": "dict",
+      "required": true,
+      "properties": {
+        "indir": {
+          "type": "str",
+          "required": true,
+          "path": "file"
+        },
+        "outdir": {
+          "type": "str",
+          "required": true,
+          "path": "file"
+        },
+        "logdir": {
+          "type": "str",
+          "required": true,
+          "path": "file"
+        },
+        "raw_files": {
+          "type": "list",
+          "required": false
+        },
+        "samples": {
+          "type": "list",
+          "required": true
+        },
+        "sample_data": {
+          "type": "str",
+          "required": false
+        }
+      }
     }
   },
   "genome": {
-    "trnas": {
-      "type": "str",
-      "required": false
-    },
-    "trnaout": {
-      "type": "str",
-      "required": false
-    },
-    "mito_trnas": {
-      "type": "str",
-      "required": false
-    },
-    "fasta": {
-      "type": "str",
-      "required": true,
-      "path": "file"
+    "type": "dict",
+    "required": true,
+    "properties": {
+      "default": {
+        "type": "str",
+        "required": true
+      },
+      "references": {
+        "type": "dict",
+        "required": true,
+        "additionalProperties": {
+          "type": "dict",
+          "properties": {
+            "trnas": {
+              "type": "str",
+              "required": false
+            },
+            "trnaout": {
+              "type": "str",
+              "required": false
+            },
+            "mito_trnas": {
+              "type": "str",
+              "required": false
+            },
+            "fasta": {
+              "type": "str",
+              "required": true,
+              "path": "file"
+            }
+          }
+        }
+      }
     }
   },
   "env": {
     "type": "dict",
     "required": false
   },
-  "raw_files": {
-    "type": "list",
+  "tmp_dir": {
+    "type": "str",
+    "nullable": true,
     "required": false
   }
 }

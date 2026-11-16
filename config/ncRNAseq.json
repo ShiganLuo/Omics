@@ -1,6 +1,7 @@
 {
   "outfiles": [],
   "ROOT_DIR": ".",
+  "tmp_dir": null,
   "env": {
     "env_dir": "/home/luosg/Database/env",
     "demultiplexer": "/home/luosg/Database/env/demultiplexer/demultiplexer.sif",

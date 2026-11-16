@@ -2,11 +2,11 @@ shell.prefix("set -x; set -e;")
 from snakemake.logging import logger
 
 ROOT_DIR = config.get("ROOT_DIR", ".")
-indir = config.get("indir", "data/fastq")
-outdir = config.get("outdir", "output")
-logdir = config.get("logdir", "logs")
+indir = config.get("Params", {}).get("workflow", {}).get("indir", "data/fastq")
+outdir = config.get("Params", {}).get("workflow", {}).get("outdir", "output")
+logdir = config.get("Params", {}).get("workflow", {}).get("logdir", "logs")
 outfiles = config.get("outfiles", [])
-samples = config.get("samples", [])
+samples = config.get("Params", {}).get("workflow", {}).get("samples", [])
 skip_quant = config.get("Params", {}).get("skip_quant", False)
 
 genome = config.get("genome", {}).get("default")

@@ -3,14 +3,19 @@
 from itertools import combinations
 
 ROOT_DIR = config.get("ROOT_DIR", ".")
-indir = config.get("indir", "input")
-outdir = config.get("outdir", "output")
-logdir = config.get("logdir", "logs")
-samples = config.get("samples", [])
-sample_bams = config.get("sample_bams", {})
-populations = config.get("populations", {})
+_wf = config.get("Params", {}).get("workflow", {})
+indir = _wf.get("indir") or "input"
+outdir = _wf.get("outdir") or "output"
+logdir = _wf.get("logdir") or "logs"
+samples = _wf.get("samples") or []
+sample_bams = _wf.get("sample_bams") or {}
+populations = _wf.get("populations") or {}
 analysis = config.get("Params", {}).get("analysis", {})
 pop_names = sorted(populations)
+
+# Genome reference resolution — nested default + references pattern
+genome = config.get("genome", {}).get("default")
+genome_ref = config.get("genome", {}).get("references", {}).get(genome, {}) if genome else {}
 
 filtered_vcf = f"{outdir}/variants/filtered/population_snps.vcf.gz"
 filtered_tbi = f"{filtered_vcf}.tbi"
@@ -37,7 +42,10 @@ if not outfiles:
 
 base_config = dict(config)
 base_config.update({"ROOT_DIR": ROOT_DIR,
-    "OUTDIR_ROOT": outdir, "indir": indir, "outdir": outdir, "logdir": logdir, "samples": samples, "sample_bams": sample_bams, "populations": populations, "outfiles": outfiles})
+    "OUTDIR_ROOT": outdir, "indir": indir, "outdir": outdir, "logdir": logdir, "samples": samples, "sample_bams": sample_bams, "populations": populations, "outfiles": outfiles,
+    # gatk_population resolves refs via genome.<field> (flat), while the
+    # workflow config keeps them under genome.references.<genome>
+    "genome": genome_ref})
 
 metadata_config = {"ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir, "outdir": outdir, "logdir": logdir, "populations": populations}

@@ -4,45 +4,6 @@
     "nullable": true,
     "required": false
   },
-  "indir": {
-    "type": "null",
-    "nullable": true,
-    "required": false
-  },
-  "logdir": {
-    "type": "null",
-    "nullable": true,
-    "required": false
-  },
-  "outdir": {
-    "type": "null",
-    "nullable": true,
-    "required": false
-  },
-  "paired_samples": {
-    "type": "list",
-    "required": true
-  },
-  "single_samples": {
-    "type": "list",
-    "required": true
-  },
-  "ip_samples": {
-    "type": "list",
-    "required": true
-  },
-  "input_samples": {
-    "type": "list",
-    "required": true
-  },
-  "treated_ip_samples": {
-    "type": "list",
-    "required": true
-  },
-  "treated_input_samples": {
-    "type": "list",
-    "required": true
-  },
   "outfiles": {
     "type": "list",
     "required": true
@@ -347,35 +308,48 @@
       }
     }
   },
-"aligner": {
-    "type": "str",
-    "required": true
-  },
   "genome": {
-    "fasta": {
-      "type": "str",
-      "required": true,
-      "path": "file"
-    },
-    "gtf": {
-      "type": "str",
-      "required": true,
-      "path": "file"
-    },
-    "hisat2_index_prefix": {
-      "type": "str",
-      "required": true,
-      "path": "prefix"
-    },
-    "star_index_dir": {
-      "type": "str",
-      "required": true,
-      "path": "dir"
-    },
-    "chrom_sizes": {
-      "type": "str",
-      "required": true,
-      "path": "file"
+    "type": "dict",
+    "required": true,
+    "properties": {
+      "default": {
+        "type": "str",
+        "required": true
+      },
+      "references": {
+        "type": "dict",
+        "required": true,
+        "additionalProperties": {
+          "type": "dict",
+          "properties": {
+            "fasta": {
+              "type": "str",
+              "required": true,
+              "path": "file"
+            },
+            "gtf": {
+              "type": "str",
+              "required": true,
+              "path": "file"
+            },
+            "hisat2_index_prefix": {
+              "type": "str",
+              "required": true,
+              "path": "prefix"
+            },
+            "star_index_dir": {
+              "type": "str",
+              "required": true,
+              "path": "dir"
+            },
+            "chrom_sizes": {
+              "type": "str",
+              "required": true,
+              "path": "file"
+            }
+          }
+        }
+      }
     }
   },
   "Procedure": {
@@ -444,7 +418,10 @@
       "formats": {
         "type": "list",
         "required": false,
-        "default": ["png", "svg"],
+        "default": [
+          "png",
+          "svg"
+        ],
         "description": "Output image formats (pyGenomeTracks --outFileName extensions)."
       },
       "gtf_track": {
@@ -552,14 +529,68 @@
         "type": "list",
         "required": true
       }
+    },
+    "workflow": {
+      "type": "dict",
+      "required": true,
+      "properties": {
+        "indir": {
+          "type": "null",
+          "nullable": true,
+          "required": false
+        },
+        "outdir": {
+          "type": "null",
+          "nullable": true,
+          "required": false
+        },
+        "logdir": {
+          "type": "null",
+          "nullable": true,
+          "required": false
+        },
+        "raw_files": {
+          "type": "list",
+          "required": false
+        },
+        "paired_samples": {
+          "type": "list",
+          "required": true
+        },
+        "single_samples": {
+          "type": "list",
+          "required": true
+        },
+        "ip_samples": {
+          "type": "list",
+          "required": true
+        },
+        "input_samples": {
+          "type": "list",
+          "required": true
+        },
+        "treated_input_samples": {
+          "type": "list",
+          "required": true
+        },
+        "treated_ip_samples": {
+          "type": "list",
+          "required": true
+        },
+        "aligner": {
+          "type": "str",
+          "required": true
+        }
+      }
     }
   },
   "env": {
     "type": "dict",
     "required": false
   },
-  "raw_files": {
-    "type": "list",
+  "tmp_dir": {
+    "type": "str",
+    "nullable": true,
     "required": false
   }
 }

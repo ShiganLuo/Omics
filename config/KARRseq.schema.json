@@ -1,24 +1,4 @@
 {
-  "indir": {
-    "type": "str",
-    "required": true
-  },
-  "outdir": {
-    "type": "str",
-    "required": true
-  },
-  "logdir": {
-    "type": "str",
-    "required": true
-  },
-  "paired_samples": {
-    "type": "list",
-    "required": true
-  },
-  "single_samples": {
-    "type": "list",
-    "required": true
-  },
   "outfiles": {
     "type": "list",
     "required": true
@@ -275,21 +255,74 @@
         "type": "int",
         "required": true
       }
+    },
+    "workflow": {
+      "type": "dict",
+      "required": true,
+      "properties": {
+        "indir": {
+          "type": "str",
+          "required": true
+        },
+        "outdir": {
+          "type": "str",
+          "required": true
+        },
+        "logdir": {
+          "type": "str",
+          "required": true
+        },
+        "raw_files": {
+          "type": "list",
+          "required": false
+        },
+        "paired_samples": {
+          "type": "list",
+          "required": true
+        },
+        "single_samples": {
+          "type": "list",
+          "required": true
+        }
+      }
     }
   },
   "genome": {
-    "star_index_dir": {
-      "type": "null",
-      "nullable": true,
-      "required": false
+    "type": "dict",
+    "required": true,
+    "properties": {
+      "default": {
+        "type": "str",
+        "required": true
+      },
+      "references": {
+        "type": "dict",
+        "required": true,
+        "additionalProperties": {
+          "type": "dict",
+          "properties": {
+            "star_index_dir": {
+              "type": "null",
+              "nullable": true,
+              "required": false
+            }
+          }
+        }
+      }
     }
   },
   "env": {
     "type": "dict",
     "required": false
   },
-  "raw_files": {
-    "type": "list",
+  "tmp_dir": {
+    "type": "str",
+    "nullable": true,
+    "required": false
+  },
+  "ROOT_DIR": {
+    "type": "null",
+    "nullable": true,
     "required": false
   }
 }

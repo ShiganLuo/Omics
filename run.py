@@ -12,7 +12,7 @@ from src.common.util.CmdUtil import _run_cmd, _run_cmds_parallel
 from src.common.util.SchemaValidatorUtil import SchemaValidator, smart_cast
 from src.common.util.EnvUtil import is_path_like
 from src.common.util.CallbackUtil import ExecutionCallback, DEFAULT_CALLBACK_URL
-from node import runCoCulture, runMERIP, runRNAseq, runncRNAseq, runCLIP, runMutation, runPacVar, runKARRseq, runPeakCalling, runRIPseq, runQuantMS, runtRNAseq, runscRNAseq, runFiberseq, runLRtranscriptome, runDR
+from node import runCoCulture, runMERIP, runRNAseq, runncRNAseq, runCLIP, runMutation, runPacVar, runKARRseq, runPeakCalling, runRIPseq, runQuantMS, runtRNAseq, runscRNAseq, runFiberseq, runLRtranscriptome, runDR, runPopulation_genomics, runspatial_transcriptomics
 import logging
 from typing import Dict, Any, List, Optional, Tuple, Set, Union
 logger = setup_logger(__name__, level=logging.DEBUG)
@@ -645,6 +645,8 @@ WORKFLOW_DISPATCH = {
     "Fiberseq":   lambda cfg, sid, sp, gp, indir, outdir, meta, rf, ci: ("Fiberseq.smk",  runFiberseq(cfg, sid, gp, indir, outdir, rf)),
     "LRtranscriptome": lambda cfg, sid, sp, gp, indir, outdir, meta, rf, ci: ("LRtranscriptome.smk", runLRtranscriptome(cfg, sid, indir, outdir, rf)),
     "DR":         lambda cfg, sid, sp, gp, indir, outdir, meta, rf, ci: ("DR.smk",         runDR(cfg, sid, sp, indir, outdir, rf)),
+    "Population_genomics": lambda cfg, sid, sp, gp, indir, outdir, meta, rf, ci: ("Population_genomics.smk", runPopulation_genomics(cfg, sid, indir, outdir, rf)),
+    "spatial_transcriptomics": lambda cfg, sid, sp, gp, indir, outdir, meta, rf, ci: ("spatial_transcriptomics.smk", runspatial_transcriptomics(cfg, sid, indir, outdir, rf)),
 }
 
 
@@ -955,12 +957,12 @@ def execute_workflows(args: argparse.Namespace, root_dir: str, logger: logging.L
                     dict_set_by_path(workflow_config, list(key_tuple), v)
 
             # --test mode defaults for scRNAseq required CLI axes (counters /
-            # aligner live at config top level, not in the template): normal
-            # runs get them from explicit CLI flags, test runs must not fail
-            # on their absence.
+            # aligner live in Params.workflow, not filled by CLI in test
+            # runs): test runs must not fail on their absence.
             if getattr(args, '_test_meta_map', None) and wf_name == "scRNAseq":
-                workflow_config.setdefault("counters", ["scTE", "cellranger"])
-                workflow_config.setdefault("aligner", "cellranger")
+                _wf = workflow_config.setdefault("Params", {}).setdefault("workflow", {})
+                _wf.setdefault("counters", ["scTE", "cellranger"])
+                _wf.setdefault("aligner", "cellranger")
 
             if wf_name not in WORKFLOW_DISPATCH:
                 raise ValueError(f"Unknown workflow name: {wf_name}")

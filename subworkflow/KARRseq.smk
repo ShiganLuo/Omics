@@ -16,21 +16,25 @@ Reference: https://github.com/ouyang-lab/KARR-seq.git
 """
 shell.prefix("set -x; set -e;")
 # common.smk builds RECEIPT_DIR from config["OUTDIR_ROOT"]; a top-level
-# subworkflow's raw.json carries only "outdir", so align the two BEFORE
-# including (module configs below receive OUTDIR_ROOT explicitly).
-config.setdefault("OUTDIR_ROOT", config.get("outdir", "output"))
+# subworkflow's raw.json carries only Params.workflow.outdir, so align the
+# two BEFORE including (module configs below receive OUTDIR_ROOT explicitly).
+config.setdefault("OUTDIR_ROOT", config.get("Params", {}).get("workflow", {}).get("outdir", "output"))
 # Canonical shared helpers (rule_res, sif, _require, logger, os, ...).
 # Per modules.md: subworkflow uses `include: "../modules/common/common.smk"`.
 include: "../modules/common/common.smk"
 
-indir = config.get("indir", "data/fastq")
-outdir = config.get("outdir", "output")
-logdir = config.get("logdir", "log")
+indir = config.get("Params", {}).get("workflow", {}).get("indir", "data/fastq")
+outdir = config.get("Params", {}).get("workflow", {}).get("outdir", "output")
+logdir = config.get("Params", {}).get("workflow", {}).get("logdir", "log")
 outfiles = config.get("outfiles", [])
-paired_samples = config.get("paired_samples", [])
-single_samples = config.get("single_samples", [])
+paired_samples = config.get("Params", {}).get("workflow", {}).get("paired_samples", [])
+single_samples = config.get("Params", {}).get("workflow", {}).get("single_samples", [])
 samples = paired_samples + single_samples
 ROOT_DIR = config.get("ROOT_DIR", os.path.dirname(os.path.dirname(__file__)))
+
+# Genome reference resolution — nested default + references pattern
+genome = config.get("genome", {}).get("default")
+genome_ref = config.get("genome", {}).get("references", {}).get(genome, {}) if genome else {}
 
 
 rule all:
@@ -69,7 +73,7 @@ if paired_samples:
 # =================
 
 # STAR alignment with KARRseq-specific parameters
-star_index_dir = config.get("genome", {}).get("star_index_dir")
+star_index_dir = genome_ref.get("star_index_dir")
 star_params = config.get("Params", {}).get("star", {})
 
 

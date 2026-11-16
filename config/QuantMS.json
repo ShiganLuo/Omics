@@ -1,263 +1,262 @@
 {
-    "ROOT_DIR": null,
-    "outfiles": [],
-    "env": {
-        "diann": "/data/16T/Database/env/diann/diann.sif",
-        "env_dir": "/home/luosg/Database/env",
-        "fragpipe": "/home/luosg/Database/env/fragpipe/fragpipe.sif",
-        "openms": "/home/luosg/Database/env/openms/openms.sif"
+  "ROOT_DIR": null,
+  "tmp_dir": null,
+  "outfiles": [],
+  "env": {
+    "diann": "/data/16T/Database/env/diann/diann.sif",
+    "env_dir": "/home/luosg/Database/env",
+    "fragpipe": "/home/luosg/Database/env/fragpipe/fragpipe.sif",
+    "openms": "/home/luosg/Database/env/openms/openms.sif"
+  },
+  "resources": {
+    "default": {
+      "threads": 2,
+      "mem_mb": 8000
     },
-      "resources": {
-      "default": {
-        "threads": 2,
-        "mem_mb": 8000
-      },
-      "decoy_database": {
-        "mem_mb": 8000
-      },
-      "diann_run": {
-        "threads": 16,
-        "mem_mb": 32000
-      },
-      "diann_summary": {
-        "threads": 1,
-        "mem_mb": 8000
-      },
-      "msfragger_idxml": {
-        "threads": 1,
-        "mem_mb": 8000
-      },
-      "msfragger_run": {
-        "threads": 16,
-        "mem_mb": 32000
-      },
-      "msstats": {
-        "threads": 1,
-        "mem_mb": 16000
-      },
-      "msstats_result": {
-        "mem_mb": 8000
-      },
-      "protein_inference": {
-        "mem_mb": 32000
-      },
-      "protein_inference_result": {
-        "mem_mb": 8000
-      },
-      "psm_fdr": {
-        "mem_mb": 16000
-      },
-      "psm_fdr_result": {
-        "mem_mb": 8000
-      },
-      "psm_rescoring": {
-        "mem_mb": 32000
-      },
-      "psm_rescoring_result": {
-        "mem_mb": 8000
-      },
-      "quantification_dia": {
-        "threads": 8,
-        "mem_mb": 32000
-      },
-      "quantification_lfq": {
-        "threads": 8,
-        "mem_mb": 16000
-      },
-      "quantification_result": {
-        "mem_mb": 8000
-      },
-      "quantification_tmt": {
-        "threads": 8,
-        "mem_mb": 16000
-      },
-      "quantification_tmt_reporter": {
-        "threads": 2,
-        "mem_mb": 16000
-      },
-      "raw2mzml": {
-        "threads": 2,
-        "mem_mb": 8000
-      },
-      "raw2mzml_result": {
-        "mem_mb": 8000
-      },
-      "search_engine_comet": {
+    "decoy_database": {
+      "mem_mb": 8000
+    },
+    "diann_run": {
+      "threads": 16,
+      "mem_mb": 32000
+    },
+    "diann_summary": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "msfragger_idxml": {
+      "threads": 1,
+      "mem_mb": 8000
+    },
+    "msfragger_run": {
+      "threads": 16,
+      "mem_mb": 32000
+    },
+    "msstats": {
+      "threads": 1,
+      "mem_mb": 16000
+    },
+    "msstats_result": {
+      "mem_mb": 8000
+    },
+    "protein_inference": {
+      "mem_mb": 32000
+    },
+    "protein_inference_result": {
+      "mem_mb": 8000
+    },
+    "psm_fdr": {
+      "mem_mb": 16000
+    },
+    "psm_fdr_result": {
+      "mem_mb": 8000
+    },
+    "psm_rescoring": {
+      "mem_mb": 32000
+    },
+    "psm_rescoring_result": {
+      "mem_mb": 8000
+    },
+    "quantification_dia": {
+      "threads": 8,
+      "mem_mb": 32000
+    },
+    "quantification_lfq": {
+      "threads": 8,
+      "mem_mb": 16000
+    },
+    "quantification_result": {
+      "mem_mb": 8000
+    },
+    "quantification_tmt": {
+      "threads": 8,
+      "mem_mb": 16000
+    },
+    "quantification_tmt_reporter": {
+      "threads": 2,
+      "mem_mb": 16000
+    },
+    "raw2mzml": {
+      "threads": 2,
+      "mem_mb": 8000
+    },
+    "raw2mzml_result": {
+      "mem_mb": 8000
+    },
+    "search_engine_comet": {
+      "threads": 4,
+      "mem_mb": 32000
+    },
+    "search_engine_msgf": {
+      "threads": 4,
+      "mem_mb": 32000
+    },
+    "search_engine_sage": {
+      "threads": 4,
+      "mem_mb": 32000
+    }
+  },
+  "Procedure": {
+    "diann": null,
+    "openms": null,
+    "thermorawfileparser": null,
+    "comet": null,
+    "msgf": null,
+    "sage": null,
+    "msfragger": null,
+    "id_converter": null,
+    "philosopher": null,
+    "percolator": null,
+    "epifany": null,
+    "proteomicslfq": null,
+    "proteinquantifier": null,
+    "msstats": null
+  },
+  "Params": {
+    "workflow": {
+      "indir": "input",
+      "outdir": "output",
+      "logdir": "logs",
+      "samples": [],
+      "raw_files": [],
+      "expdesign": "",
+      "quantification_method": "lfq"
+    },
+    "diann": {
+      "enabled": true,
+      "threads": 16,
+      "qvalue": 0.01,
+      "matrix_qvalue": 0.01,
+      "mass_acc_ms1": 20,
+      "mass_acc": 20,
+      "min_fr_mz": 200,
+      "max_fr_mz": 1800,
+      "min_pept_len": 7,
+      "max_pept_len": 30,
+      "fixed_mod": "Carbamidomethyl (C),57.0215",
+      "var_mods": "Oxidation (M),15.9949",
+      "library": null,
+      "gen_spec_lib": true,
+      "predictor": true,
+      "verbose": true,
+      "extra": ""
+    },
+    "raw_to_mzml": {
+      "manifest": "",
+      "mode": "thermorawfileparser",
+      "converter": "ThermoRawFileParser",
+      "args": "",
+      "peak_picking": true
+    },
+    "decoy_database": {
+      "decoy_string": "DECOY_",
+      "decoy_string_position": "prefix",
+      "method": "shuffle",
+      "shuffle_max_attempts": 30,
+      "shuffle_sequence_identity_threshold": 0.5
+    },
+    "search_engine": {
+      "engine": "comet",
+      "comet": {
         "threads": 4,
-        "mem_mb": 32000
+        "precursor_mass_tolerance": 20,
+        "fragment_mass_tolerance": 0.02,
+        "fragment_bin_offset": 0,
+        "unmatched_action": "remove",
+        "fixed_modifications": [],
+        "variable_modifications": []
       },
-      "search_engine_msgf": {
+      "msgf": {
         "threads": 4,
-        "mem_mb": 32000
+        "precursor_mass_tolerance": 20,
+        "fragment_mass_tolerance": 0.02,
+        "isotope_error_range": "0,1"
       },
-      "search_engine_sage": {
+      "sage": {
         "threads": 4,
-        "mem_mb": 32000
+        "precursor_mass_tolerance": 20,
+        "fragment_mass_tolerance": 0.02
       }
     },
-"Procedure": {
-        "diann": null,
-        "openms": null,
-        "thermorawfileparser": null,
-        "comet": null,
-        "msgf": null,
-        "sage": null,
-        "msfragger": null,
-        "id_converter": null,
-        "philosopher": null,
-        "percolator": null,
-        "epifany": null,
-        "proteomicslfq": null,
-        "proteinquantifier": null,
-        "msstats": null
+    "psm_rescoring": {
+      "psm_feature_extractor": {
+        "extra": ""
+      },
+      "percolator": {
+        "train_FDR": 0.05,
+        "test_FDR": 0.05
+      }
     },
-    "Params": {
-        "workflow": {
-            "indir": "input",
-            "outdir": "output",
-            "logdir": "logs",
-            "samples": [],
-            "raw_files": [],
-            "expdesign": "",
-            "quantification_method": "lfq"
-        },
-        "diann": {
-            "enabled": true,
-            "threads": 16,
-            "qvalue": 0.01,
-            "matrix_qvalue": 0.01,
-            "mass_acc_ms1": 20,
-            "mass_acc": 20,
-            "min_fr_mz": 200,
-            "max_fr_mz": 1800,
-            "min_pept_len": 7,
-            "max_pept_len": 30,
-            "fixed_mod": "Carbamidomethyl (C),57.0215",
-            "var_mods": "Oxidation (M),15.9949",
-            "library": null,
-            "gen_spec_lib": true,
-            "predictor": true,
-            "verbose": true,
-            "extra": ""
-        },
-        "raw_to_mzml": {
-            "manifest": "",
-            "mode": "thermorawfileparser",
-            "converter": "ThermoRawFileParser",
-            "args": "",
-            "peak_picking": true
-        },
-        "decoy_database": {
-            "decoy_string": "DECOY_",
-            "decoy_string_position": "prefix",
-            "method": "shuffle",
-            "shuffle_max_attempts": 30,
-            "shuffle_sequence_identity_threshold": 0.5
-        },
-        "search_engine": {
-            "engine": "comet",
-            "comet": {
-                "threads": 4,
-                "precursor_mass_tolerance": 20,
-                "fragment_mass_tolerance": 0.02,
-                "fragment_bin_offset": 0,
-                "unmatched_action": "remove",
-                "fixed_modifications": [],
-                "variable_modifications": []
-            },
-            "msgf": {
-                "threads": 4,
-                "precursor_mass_tolerance": 20,
-                "fragment_mass_tolerance": 0.02,
-                "isotope_error_range": "0,1"
-            },
-            "sage": {
-                "threads": 4,
-                "precursor_mass_tolerance": 20,
-                "fragment_mass_tolerance": 0.02
-            }
-
-        },
-        "psm_rescoring": {
-            "psm_feature_extractor": {
-                "extra": ""
-            },
-            "percolator": {
-                "train_FDR": 0.05,
-                "test_FDR": 0.05
-            }
-        },
-        "msfragger": {
-            "threads": 16,
-            "label": "tmt16",
-            "license_key": "7f52bb4a-06becf30-24751170-62287b3e",
-            "jar": null,
-            "java_xmx": "32G"
-        },
-        "philosopher": {
-            "pep_fdr": 0.01,
-            "prot_fdr": 0.01,
-            "ion_fdr": 0.01,
-            "picked": true
-        },
-        "psm_fdr_control": {
-            "fdr": 0.01,
-            "method": "BH"
-        },
-        "protein_inference": {
-            "method": "epifany",
-            "greedy_group_resolution": "none"
-        },
-        "protein_quant": {
-            "quantification_method": "feature_intensity",
-            "protein_inference": "aggregation",
-            "top": 3,
-            "average": "median",
-            "best_charge_and_fraction": true
-        },
-        "protein_fdr": {
-            "fdr": 0.01,
-            "picked": true
-        },
-        "tmt": {
-            "type": "tmt16plex",
-            "reporter_mass_shift": 0.003,
-            "isotope_correction": true,
-            "normalization": false,
-            "reference_channel": "",
-            "correction_matrix": [],
-            "channel_descriptions": {}
-        },
-        "dia": {},
-        "msstats": {},
-        "skip_post_msstats": false,
-        "add_triqler_output": false,
-        "quantify_decoys": false
+    "msfragger": {
+      "threads": 16,
+      "label": "tmt16",
+      "license_key": "7f52bb4a-06becf30-24751170-62287b3e",
+      "jar": null,
+      "java_xmx": "32G"
     },
-    "genome": {
-        "default": "GRCm39",
-        "references": {
-            "GRCm39": {
-                "protein_fasta": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/gencode.vM38.pc_translations.fa",
-                "decoy_fasta": null
-            },
-            "T2T_mhaESC_v1.5": {
-                "protein_fasta": null,
-                "decoy_fasta": null
-            },
-            "GRCh38": {
-                "protein_fasta": "/data/16T/Database/Reference/human/GENCODE/GRCh38/gencode.v49.pc_translations.fa",
-                "decoy_fasta": null
-            },
-            "Mmul_10": {
-                "protein_fasta": null,
-                "decoy_fasta": null
-            },
-            "Mmul_T2T": {
-                "protein_fasta": null,
-                "decoy_fasta": null
-            }
-        }
-
+    "philosopher": {
+      "pep_fdr": 0.01,
+      "prot_fdr": 0.01,
+      "ion_fdr": 0.01,
+      "picked": true
+    },
+    "psm_fdr_control": {
+      "fdr": 0.01,
+      "method": "BH"
+    },
+    "protein_inference": {
+      "method": "epifany",
+      "greedy_group_resolution": "none"
+    },
+    "protein_quant": {
+      "quantification_method": "feature_intensity",
+      "protein_inference": "aggregation",
+      "top": 3,
+      "average": "median",
+      "best_charge_and_fraction": true
+    },
+    "protein_fdr": {
+      "fdr": 0.01,
+      "picked": true
+    },
+    "tmt": {
+      "type": "tmt16plex",
+      "reporter_mass_shift": 0.003,
+      "isotope_correction": true,
+      "normalization": false,
+      "reference_channel": "",
+      "correction_matrix": [],
+      "channel_descriptions": {}
+    },
+    "dia": {},
+    "msstats": {},
+    "skip_post_msstats": false,
+    "add_triqler_output": false,
+    "quantify_decoys": false
+  },
+  "genome": {
+    "default": "GRCm39",
+    "references": {
+      "GRCm39": {
+        "protein_fasta": "/data/16T/Database/Reference/mouse/GENCODE/GRCm39/gencode.vM38.pc_translations.fa",
+        "decoy_fasta": null
+      },
+      "T2T_mhaESC_v1.5": {
+        "protein_fasta": null,
+        "decoy_fasta": null
+      },
+      "GRCh38": {
+        "protein_fasta": "/data/16T/Database/Reference/human/GENCODE/GRCh38/gencode.v49.pc_translations.fa",
+        "decoy_fasta": null
+      },
+      "Mmul_10": {
+        "protein_fasta": null,
+        "decoy_fasta": null
+      },
+      "Mmul_T2T": {
+        "protein_fasta": null,
+        "decoy_fasta": null
+      }
     }
+  }
 }

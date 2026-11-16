@@ -26,7 +26,7 @@ raw2mzml_config = {
     "outdir": f"{outdir}/common/2_raw2mzml",
     "logdir": os.path.join(logdir,"sample"),
     "samples": samples,
-    "raw_files": config.get("raw_files", []),
+    "raw_files": config.get("Params", {}).get("workflow", {}).get("raw_files", []),
     "Procedure": {
         "msconvert": config.get("Procedure", {}).get("msconvert")
     },

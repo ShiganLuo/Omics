@@ -1,17 +1,17 @@
 shell.prefix("set -x; set -e;")
 from snakemake.logging import logger
 
-indir = config.get("indir", "data/fastq")
-outdir = config.get("outdir", "output")
-logdir = config.get("logdir", "logs")
+indir = config.get("Params", {}).get("workflow", {}).get("indir", "data/fastq")
+outdir = config.get("Params", {}).get("workflow", {}).get("outdir", "output")
+logdir = config.get("Params", {}).get("workflow", {}).get("logdir", "logs")
 ROOT_DIR = config.get("ROOT_DIR", ".")
 outfiles = config.get("outfiles", [])
-paired_samples = config.get("paired_samples", [])
-single_samples = config.get("single_samples", [])
-samples = config.get("samples", [])
-ip_samples = config.get("ip_samples", [])
-input_samples = config.get("input_samples", [])
-sample_ip_input_map = config.get("sample_ip_input_map", {})
+paired_samples = config.get("Params", {}).get("workflow", {}).get("paired_samples", [])
+single_samples = config.get("Params", {}).get("workflow", {}).get("single_samples", [])
+samples = config.get("Params", {}).get("workflow", {}).get("samples", [])
+ip_samples = config.get("Params", {}).get("workflow", {}).get("ip_samples", [])
+input_samples = config.get("Params", {}).get("workflow", {}).get("input_samples", [])
+sample_ip_input_map = config.get("Params", {}).get("workflow", {}).get("sample_ip_input_map", {})
 
 # Genome reference resolution — RNAseq pattern
 genome = config.get("genome", {}).get("default")

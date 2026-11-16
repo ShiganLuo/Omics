@@ -1,14 +1,18 @@
 shell.prefix("set -x; set -e;")
 from snakemake.logging import logger
 
-indir = config.get("indir", "data/fastq")
-outdir = config.get("outdir", "output")
-logdir = config.get("logdir", "log")
+indir = config.get("Params", {}).get("workflow", {}).get("indir", "data/fastq")
+outdir = config.get("Params", {}).get("workflow", {}).get("outdir", "output")
+logdir = config.get("Params", {}).get("workflow", {}).get("logdir", "log")
 outfiles = config.get("outfiles", [])
-samples = config.get("samples", [])
+samples = config.get("Params", {}).get("workflow", {}).get("samples", [])
 ROOT_DIR = config.get("ROOT_DIR", ".")
 
-sample_data = config.get("sample_data", "")
+sample_data = config.get("Params", {}).get("workflow", {}).get("sample_data", "")
+
+# Genome reference resolution — nested default + references pattern
+genome = config.get("genome", {}).get("default")
+genome_ref = config.get("genome", {}).get("references", {}).get(genome, {}) if genome else {}
 
 rule all:
     input:
@@ -20,7 +24,7 @@ fumitools_config = {
     "indir": indir,
     "outdir": f"{outdir}/fastq/umi_fastq",
     "logdir": logdir,
-    "paired_samples": config.get("paired_samples", []),
+    "paired_samples": config.get("Params", {}).get("workflow", {}).get("paired_samples", []),
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
@@ -66,7 +70,7 @@ mimseq_config = {
     "indir": cutadapt_config["outdir"],
     "outdir": f"{outdir}/mimseq",
     "logdir": logdir,
-    "meta": config.get("meta", ""),
+    "meta": config.get("Params", {}).get("workflow", {}).get("meta", ""),
     "samples": samples,
     "sample_data": sample_data,
     "ROOT_DIR": ROOT_DIR,
@@ -79,9 +83,9 @@ mimseq_config = {
         "mimseq": config.get("Params", {}).get("mimseq", {})
     },
     "genome": {
-        "trnas": config.get("genome", {}).get("trnas", ""),
-        "trnaout": config.get("genome", {}).get("trnaout", ""),
-        "mito_trnas": config.get("genome", {}).get("mito_trnas", ""),
+        "trnas": genome_ref.get("trnas", ""),
+        "trnaout": genome_ref.get("trnaout", ""),
+        "mito_trnas": genome_ref.get("mito_trnas", ""),
     }
 }
 logger.info(f"mimseq_config: {mimseq_config}")

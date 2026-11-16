@@ -1,17 +1,21 @@
 shell.prefix("set -x; set -e;")
 from snakemake.logging import logger
-indir = config.get("indir","data/fastq")
-outdir = config.get("outdir","output")
-logdir = config.get("logdir","logs")
+indir = config.get("Params", {}).get("workflow", {}).get("indir", "data/fastq")
+outdir = config.get("Params", {}).get("workflow", {}).get("outdir", "output")
+logdir = config.get("Params", {}).get("workflow", {}).get("logdir", "logs")
 outfiles = config.get("outfiles", [])
 ROOT_DIR = config.get("ROOT_DIR","")
-paired_samples = config.get("paired_samples", [])
-single_samples = config.get("single_samples", [])
+paired_samples = config.get("Params", {}).get("workflow", {}).get("paired_samples", [])
+single_samples = config.get("Params", {}).get("workflow", {}).get("single_samples", [])
 #exomePeak
-ip_samples = config.get("ip_samples", [])
-input_samples = config.get("input_samples", [])
-treated_ip_samples = config.get("treated_ip_samples", [])
-treated_input_samples = config.get("treated_input_samples", [])
+ip_samples = config.get("Params", {}).get("workflow", {}).get("ip_samples", [])
+input_samples = config.get("Params", {}).get("workflow", {}).get("input_samples", [])
+treated_ip_samples = config.get("Params", {}).get("workflow", {}).get("treated_ip_samples", [])
+treated_input_samples = config.get("Params", {}).get("workflow", {}).get("treated_input_samples", [])
+
+# Genome reference resolution — nested default + references pattern
+genome = config.get("genome", {}).get("default")
+genome_ref = config.get("genome", {}).get("references", {}).get(genome, {}) if genome else {}
 
 rule all:
     input:
@@ -50,8 +54,8 @@ hisat2_config = {
             "hisat2": config.get('Procedure',{}).get('hisat2')
         },
         "genome": {
-            "fasta": config.get('genome',{}).get('fasta'),
-            "index_prefix": config.get('genome',{}).get('hisat2_index_prefix'),
+            "fasta": genome_ref.get("fasta"),
+            "index_prefix": genome_ref.get("hisat2_index_prefix"),
         }
     }
 module hisat2:
@@ -180,7 +184,7 @@ regionplot_config = {
         "regionplot": regionplot_params
     },
     "genome": {
-        "gtf": config.get("genome", {}).get("gtf"),
+        "gtf": genome_ref.get("gtf"),
     },
     "resources": config.get("resources", {}),
 }
@@ -200,7 +204,7 @@ exomePeak_config = {
         "indir": igv_config["outdir"],
         "outdir": f"{outdir}/exomePeak",
         "logdir": logdir,
-        "gtf": config.get("genome",{}).get("gtf"),
+        "gtf": genome_ref.get("gtf"),
         "ip_samples": ip_samples,
         "input_samples": input_samples,
         "treated_ip_samples": treated_ip_samples,

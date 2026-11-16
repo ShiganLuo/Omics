@@ -1,15 +1,15 @@
 shell.prefix("set -x; set -e;")
 from snakemake.logging import logger
 ROOT_DIR = config.get("ROOT_DIR", ".")
-indir = config.get("indir","data/fastq")
-outdir = config.get("outdir","output")
-logdir = config.get("logdir","logs")
 _wf = config.get("Params", {}).get("workflow", {})
-paired_samples = _wf.get("paired_samples") or config.get("paired_samples", [])
-single_samples = _wf.get("single_samples") or config.get("single_samples", [])
-genome_paired_samples = _wf.get("genome_paired_samples") or config.get("genome_paired_samples", {})
-genome_single_samples = _wf.get("genome_single_samples") or config.get("genome_single_samples", {})
-genome_pairs = config.get("genome_pairs", [])
+indir = _wf.get("indir") or "data/fastq"
+outdir = _wf.get("outdir") or "output"
+logdir = _wf.get("logdir") or "logs"
+paired_samples = _wf.get("paired_samples") or []
+single_samples = _wf.get("single_samples") or []
+genome_paired_samples = _wf.get("genome_paired_samples") or {}
+genome_single_samples = _wf.get("genome_single_samples") or {}
+genome_pairs = _wf.get("genome_pairs") or []
 genome = config.get("genome", {})
 outfiles = config.get("outfiles", [])
 rule all:
@@ -52,8 +52,7 @@ hisat2_config = {
             "hisat2": config.get('Procedure',{}).get('hisat2')
         },
         # polygenomes modules resolve refs via genome.references.<genome>.fasta
-        # while CoCulture's config keeps them flat (genome.<genome>.fasta)
-        "genome": {"references": config.get("genome", {})}
+        "genome": {"references": genome.get("references", {})}
     }
 
 module hisat2:
@@ -73,7 +72,7 @@ disambiguate_config = {
         "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
         "env": config.get("env", {}),
-        "genome_pairs": config.get("genome_pairs", []),
+        "genome_pairs": genome_pairs,
         "single_samples": single_samples,
         "paired_samples": paired_samples,
         "bam": {
@@ -191,7 +190,10 @@ TEtranscripts_config = {
         "env": config.get("env", {}),
         "genome_pairs": disambiguate_config["genome_pairs"],
         "samples": single_samples + paired_samples,
-        "genome": config.get("genome", {}),
+        # disambiguate TEtranscripts resolves refs via genome.<genome>.<field>
+        # (flat map), while the workflow config keeps them under
+        # genome.references.<genome>
+        "genome": genome.get("references", {}),
         "Procedure": {
             "TEcount": config.get('Procedure',{}).get('TEcount') or 'TEcount',
             "TElocal": config.get('Procedure',{}).get('TElocal') or 'TElocal'

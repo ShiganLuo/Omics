@@ -1,5 +1,6 @@
 import copy
 import glob
+from itertools import combinations
 import os
 import re
 import time
@@ -588,20 +589,17 @@ def _init_raw_json(
     tmp_dir = datajson.get("tmp_dir") or os.path.join(outdir, "tmp")
     if not datajson.get("tmp_dir"):
         os.makedirs(tmp_dir, exist_ok=True)
-    if workflow in ["PacVar", "ncRNAseq", "RNAseq", "QuantMS", "Fiberseq", "scRNAseq", "Mutation", "DR"]:
-        datajson["ROOT_DIR"] = root_dir
-        datajson["Params"]["workflow"]["indir"] = indir
-        datajson["Params"]["workflow"]["outdir"] = outdir
-        datajson["Params"]["workflow"]["logdir"] = logdir
-        datajson["Params"]["workflow"]["raw_files"] = raw_files
-        datajson["tmp_dir"] = tmp_dir
-    else:
-        datajson["ROOT_DIR"] = root_dir
-        datajson["indir"] = indir
-        datajson["outdir"] = outdir
-        datajson["logdir"] = logdir
-        datajson["raw_files"] = raw_files
-        datajson["tmp_dir"] = tmp_dir
+    # Common fields for raw.json: ROOT_DIR, Params.workflow.{indir,outdir,
+    # logdir,raw_files}, tmp_dir. Workflow-level fields live under
+    # Params.workflow; top level carries only outfiles/ROOT_DIR/tmp_dir/
+    # resources/env/Procedure/genome/Params.
+    datajson["ROOT_DIR"] = root_dir
+    wf = datajson.setdefault("Params", {}).setdefault("workflow", {})
+    wf["indir"] = indir
+    wf["outdir"] = outdir
+    wf["logdir"] = logdir
+    wf["raw_files"] = raw_files
+    datajson["tmp_dir"] = tmp_dir
 
     # --- server database path migration ---
     current_db = _detect_current_server_db()
@@ -684,8 +682,9 @@ def runCoCulture(
     outfiles.append(f"{outdir}/QC/qc_summary/qc_summary.tsv")
     outfiles.append(f"{outdir}/QC/qc_summary/qc_summary.html")
     datajson["outfiles"] = outfiles
-    datajson["paired_samples"] = paired_samples
-    datajson["single_samples"] = single_samples
+    wf = datajson.setdefault("Params", {}).setdefault("workflow", {})
+    wf["paired_samples"] = paired_samples
+    wf["single_samples"] = single_samples
     return _write_raw_json(datajson, outdir)
 
 def runMERIP(
@@ -753,12 +752,13 @@ def runMERIP(
     outfiles.append(f"{outdir}/QC/qc_summary/qc_summary.tsv")
     outfiles.append(f"{outdir}/QC/qc_summary/qc_summary.html")
     datajson["outfiles"] = outfiles
-    datajson["paired_samples"] = paired_samples
-    datajson["single_samples"] = single_samples
-    datajson["ip_samples"] = ip_samples
-    datajson["input_samples"] = input_samples
-    datajson["treated_ip_samples"] = treated_ip_samples
-    datajson["treated_input_samples"] = treated_input_samples
+    wf = datajson.setdefault("Params", {}).setdefault("workflow", {})
+    wf["paired_samples"] = paired_samples
+    wf["single_samples"] = single_samples
+    wf["ip_samples"] = ip_samples
+    wf["input_samples"] = input_samples
+    wf["treated_ip_samples"] = treated_ip_samples
+    wf["treated_input_samples"] = treated_input_samples
     return _write_raw_json(datajson, outdir)
 
 
@@ -773,14 +773,19 @@ def runCLIP(
     outfiles = []
     paired_samples = []
     single_samples = []
+    wf = datajson.setdefault("Params", {}).setdefault("workflow", {})
+    # CLI --extra-args aligner=... lands at config top level and wins over
+    # Params.workflow.aligner; normalize into Params.workflow for raw.json.
+    aligner = datajson.pop("aligner", None) or wf.get("aligner") or "star"
+    wf["aligner"] = aligner
     for sample_id, sample_info in samples_info_dict.items():
         if sample_info.layout == "PE":
             paired_samples.append(sample_id)
             outfiles.append(f"{outdir}/cutadapt/{sample_id}/{sample_id}_1.fq.gz")
             outfiles.append(f"{outdir}/cutadapt/{sample_id}/{sample_id}_2.fq.gz")
-            if datajson["aligner"] == "star":
+            if aligner == "star":
                 outfiles.append(f"{outdir}/star/{sample_id}/{sample_id}.bam")
-            elif datajson["aligner"] == "hisat2":
+            elif aligner == "hisat2":
                 outfiles.append(f"{outdir}/hisat2/{sample_id}.bam")
             outfiles.append(f"{outdir}/fastqc/raw/{sample_id}/{sample_id}.fastqc.raw.txt")
             outfiles.append(f"{outdir}/fastqc/trimmed/{sample_id}/{sample_id}.fastqc.trimmed.txt")
@@ -791,9 +796,9 @@ def runCLIP(
         elif sample_info.layout == "SE":
             single_samples.append(sample_id)
             outfiles.append(f"{outdir}/cutadapt/{sample_id}/{sample_id}.single.fq.gz")
-            if datajson["aligner"] == "star":
+            if aligner == "star":
                 outfiles.append(f"{outdir}/star/{sample_id}/{sample_id}.bam")
-            elif datajson["aligner"] == "hisat2":
+            elif aligner == "hisat2":
                 outfiles.append(f"{outdir}/hisat2/{sample_id}.bam")
             outfiles.append(f"{outdir}/fastqc/raw/{sample_id}/{sample_id}.fastqc.raw.txt")
             outfiles.append(f"{outdir}/fastqc/trimmed/{sample_id}/{sample_id}.fastqc.trimmed.txt")
@@ -816,8 +821,8 @@ def runCLIP(
     outfiles.append(f"{outdir}/QC/qc_summary/qc_summary.tsv")
     outfiles.append(f"{outdir}/QC/qc_summary/qc_summary.html")
     datajson["outfiles"] = outfiles
-    datajson["paired_samples"] = paired_samples
-    datajson["single_samples"] = single_samples
+    wf["paired_samples"] = paired_samples
+    wf["single_samples"] = single_samples
     # parameters suggest by https://doi.org/10.1016/j.ymeth.2019.11.008
     datajson["Params"]["bamCoverage"]["offset"] = "-1"
     datajson["Params"]["bamCoverage"]["binSize"] = 1
@@ -1372,8 +1377,9 @@ def runKARRseq(
         else:
             logger.error(f"Unknown layout type for sample {sample_id}: {sample_info.layout}")
 
-    datajson["paired_samples"] = paired_samples
-    datajson["single_samples"] = single_samples
+    wf = datajson.setdefault("Params", {}).setdefault("workflow", {})
+    wf["paired_samples"] = paired_samples
+    wf["single_samples"] = single_samples
     # Sex check (modules/sexcheck): per-sample sex call from sex-chromosome
     # coverage over the alignment BAMs; registered for every sample BAM.
     outfiles.append(f"{outdir}/QC/sexcheck/sexcheck.tsv")
@@ -1523,12 +1529,13 @@ def runPeakCalling(
     outfiles.append(f"{outdir}/PeakCalling_report.pptx")
     outfiles.append(f"{outdir}/PeakCalling_report.xlsx")
     outfiles.append(f"{outdir}/figures/manifest.tsv")
-    datajson["paired_samples"] = paired_samples
-    datajson["single_samples"] = single_samples
-    datajson["samples"] = paired_samples + single_samples
-    datajson["ip_samples"] = ip_samples
-    datajson["input_samples"] = input_samples
-    datajson["sample_ip_input_map"] = sample_ip_input_map
+    wf = datajson.setdefault("Params", {}).setdefault("workflow", {})
+    wf["paired_samples"] = paired_samples
+    wf["single_samples"] = single_samples
+    wf["samples"] = paired_samples + single_samples
+    wf["ip_samples"] = ip_samples
+    wf["input_samples"] = input_samples
+    wf["sample_ip_input_map"] = sample_ip_input_map
     outfiles += _register_regionplot(datajson, samples_info_dict,
                                      ip_samples + input_samples,
                                      outdir, "PeakCalling")
@@ -1686,12 +1693,13 @@ def runRIPseq(
         outfiles.append(f"{outdir}/RIPseq_report.pptx")
         outfiles.append(f"{outdir}/RIPseq_report.xlsx")
         outfiles.append(f"{outdir}/figures/manifest.tsv")
-    datajson["paired_samples"] = paired_samples
-    datajson["single_samples"] = single_samples
-    datajson["samples"] = paired_samples + single_samples
-    datajson["ip_samples"] = ip_samples
-    datajson["input_samples"] = input_samples
-    datajson["sample_ip_input_map"] = sample_ip_input_map
+    wf = datajson.setdefault("Params", {}).setdefault("workflow", {})
+    wf["paired_samples"] = paired_samples
+    wf["single_samples"] = single_samples
+    wf["samples"] = paired_samples + single_samples
+    wf["ip_samples"] = ip_samples
+    wf["input_samples"] = input_samples
+    wf["sample_ip_input_map"] = sample_ip_input_map
     outfiles += _register_regionplot(datajson, samples_info_dict,
                                      ip_samples + input_samples,
                                      outdir, "RIPseq")
@@ -1998,14 +2006,14 @@ def runtRNAseq(
     root_dir = _init_raw_json(datajson, indir, outdir, raw_files)
     if not datajson.get("Params", {}).get("mimseq", {}).get("data_dir"):
         datajson.setdefault("Params", {}).setdefault("mimseq", {})["data_dir"] = os.path.join(root_dir, "modules", "mimseq", "mimseq", "data")
-    datajson["meta"] = meta
+    datajson.setdefault("Params", {}).setdefault("workflow", {})["meta"] = meta
     samples = []
     for sample_id in samples_info_dict:
         samples.append(sample_id)
 
     outfiles = [f"{outdir}/mimseq/mimseq.done"]
 
-    datajson["samples"] = samples
+    datajson["Params"]["workflow"]["samples"] = samples
     datajson["outfiles"] = outfiles
 
     return _write_raw_json(datajson, outdir)
@@ -2103,10 +2111,14 @@ def runscRNAseq(
         cellranger_input_dict: Dict[str, CellrangerInput]
     ):
     root_dir = _init_raw_json(datajson, indir, outdir, raw_files, "scRNAseq")
-    datajson["cellranger_input_dict"] = {k: v.__dict__ for k, v in cellranger_input_dict.items()}
+    datajson["Params"]["workflow"]["cellranger_input_dict"] = {k: v.__dict__ for k, v in cellranger_input_dict.items()}
     outfiles = []
     organisms = set()
-    counters = datajson["counters"]
+    # CLI --extra-args counters=/aligner= land at config top level and win
+    # over Params.workflow; normalize into Params.workflow for raw.json.
+    _wf = datajson["Params"]["workflow"]
+    counters = datajson.pop("counters", None) or _wf.get("counters") or ["scTE", "cellranger"]
+    _wf["counters"] = counters
     paired_samples = []
     single_samples = []
     cellranger_dirs = []
@@ -2173,8 +2185,9 @@ def runscRNAseq(
     datajson["Params"]["scTE"]["genome"] = organism
     datajson["Params"]["cellranger"]["mkref"]["genome_name"] = organism
     datajson["Params"]["cellranger"]["mkref"]["version"] = time.strftime("%Y-%m-%d", time.localtime())
-    counters = datajson["counters"]
-    aligner = datajson["aligner"]
+    counters = _wf["counters"]
+    aligner = datajson.pop("aligner", None) or _wf.get("aligner") or "cellranger"
+    _wf["aligner"] = aligner
     if "scTE" in counters:
         datajson["Params"]["scanpy"]["scTE"]["qc"]["min_genes"] = 200
         datajson["Params"]["scanpy"]["scTE"]["qc"]["max_genes"] = 6000
@@ -2750,11 +2763,16 @@ def runLRtranscriptome(
     Supports both PacBio (map-hifi) and ONT (map-ont) sequencing data.
     """
     datajson["ROOT_DIR"] = os.path.dirname(__file__)
-    datajson["indir"] = indir
-    datajson["outdir"] = outdir
+    wf = datajson.setdefault("Params", {}).setdefault("workflow", {})
+    wf["indir"] = indir
+    wf["outdir"] = outdir
     logdir = os.path.join(outdir, "log")
     os.makedirs(logdir, exist_ok=True)
-    datajson["logdir"] = logdir
+    wf["logdir"] = logdir
+    tmp_dir = datajson.get("tmp_dir") or os.path.join(outdir, "tmp")
+    if not datajson.get("tmp_dir"):
+        os.makedirs(tmp_dir, exist_ok=True)
+    datajson["tmp_dir"] = tmp_dir
 
     outfiles = []
     samples = []
@@ -2777,7 +2795,7 @@ def runLRtranscriptome(
             outfiles.append(f"{outdir}/quantification/{sample_id}/{sample_id}.gene_abund.tab")
             outfiles.append(f"{outdir}/quantification/{sample_id}/{sample_id}.quant.gtf")
 
-    datajson["samples"] = samples
+    wf["samples"] = samples
     # Sex check (modules/sexcheck): per-sample sex call from sex-chromosome
     # coverage over the alignment BAMs; registered for every sample BAM.
     outfiles.append(f"{outdir}/QC/sexcheck/sexcheck.tsv")
@@ -2953,5 +2971,120 @@ def runDR(
     datajson["Params"]["workflow"]["wes_single_samples"] = wes_single_samples
     datajson["Params"]["workflow"]["paired_design"] = paired_design
     datajson["Params"]["workflow"]["pair_strains"] = pair_strains
+    datajson["outfiles"] = outfiles
+    return _write_raw_json(datajson, outdir)
+
+def runPopulation_genomics(
+        datajson: Dict[str, Any],
+        samples_info_dict: Dict[str, SampleInfo],
+        indir: str,
+        outdir: str,
+        raw_files: List[str],
+    ) -> str:
+    """Prepare input JSON for the Population_genomics workflow.
+
+    Population-level variant analysis chain: gatk HaplotypeCaller (per-sample
+    gVCF) -> joint genotyping -> bcftools filtering -> plink2 / vcftools /
+    admixture / easySFS / PopLDdecay analyses gated by Params.analysis.
+
+    Params.workflow.sample_bams and Params.workflow.populations are
+    user-supplied maps; empty ones fall back to the meta (per-sample ``bam``
+    column for sample_bams, ``group`` column for populations).
+    """
+    root_dir = _init_raw_json(datajson, indir, outdir, raw_files)
+    wf = datajson.setdefault("Params", {}).setdefault("workflow", {})
+    analysis = datajson.get("Params", {}).get("analysis", {}) or {}
+
+    wf["samples"] = list(samples_info_dict) or sorted(wf.get("sample_bams") or {})
+    # sample_bams: explicit config entries win; empty slots fall back to the
+    # meta's per-sample BAM column.
+    sample_bams = dict(wf.get("sample_bams") or {})
+    for sid, info in samples_info_dict.items():
+        bam = getattr(info, "bam", None)
+        if bam and not sample_bams.get(sid):
+            sample_bams[sid] = bam
+    wf["sample_bams"] = sample_bams
+    missing = [sid for sid in wf["samples"] if sid not in sample_bams]
+    if missing:
+        raise ValueError(
+            f"Population_genomics: no BAM for sample(s) {missing}; fill "
+            f"Params.workflow.sample_bams or record the meta 'bam' column"
+        )
+    # populations: explicit config map wins; otherwise group samples by the
+    # meta's ``group`` column.
+    populations = wf.get("populations") or {}
+    if not populations:
+        by_group: Dict[str, List[str]] = {}
+        for sid, info in samples_info_dict.items():
+            group = getattr(info, "group", None)
+            if group:
+                by_group.setdefault(group, []).append(sid)
+        populations = by_group
+    wf["populations"] = populations
+
+    # outfiles mirror the fallback list in subworkflow/Population_genomics.smk
+    pop_names = sorted(populations)
+    pop_pairs = list(combinations(pop_names, 2))
+    filtered_vcf = f"{outdir}/variants/filtered/population_snps.vcf.gz"
+    plink_prefix = f"{outdir}/analysis/plink/population_snps"
+    outfiles = [filtered_vcf, f"{filtered_vcf}.tbi"]
+    if analysis.get("pca", True):
+        outfiles += [f"{plink_prefix}.eigenvec", f"{plink_prefix}.eigenval"]
+    if analysis.get("structure", True):
+        outfiles += [f"{outdir}/analysis/structure/admixture.K{int(k)}.Q"
+                     for k in analysis.get("admixture_k", [2, 3, 4, 5, 6])]
+    if analysis.get("diversity", True):
+        for population in pop_names:
+            outfiles += [f"{outdir}/analysis/diversity/{population}.windowed.pi",
+                         f"{outdir}/analysis/diversity/{population}.Tajima.D"]
+    if analysis.get("fst", True):
+        outfiles += [f"{outdir}/analysis/fst/{a}_vs_{b}.weir.fst"
+                     for a, b in pop_pairs]
+    if analysis.get("history", False):
+        outfiles.append(f"{outdir}/analysis/history/easySFS.done")
+    if analysis.get("ld_decay", False):
+        outfiles += [f"{outdir}/analysis/ld_decay/{population}.stat.gz"
+                     for population in pop_names]
+    if analysis.get("gwas", False):
+        outfiles.append(f"{outdir}/analysis/gwas/gwas.done")
+    datajson["outfiles"] = outfiles
+    return _write_raw_json(datajson, outdir)
+
+def runspatial_transcriptomics(
+        datajson: Dict[str, Any],
+        samples_info_dict: Dict[str, SampleInfo],
+        indir: str,
+        outdir: str,
+        raw_files: List[str],
+    ) -> str:
+    """Prepare input JSON for the spatial_transcriptomics workflow.
+
+    Scanpy-based Visium analysis: QC -> clustering -> spatial
+    autocorrelation (advanced, gated by
+    Params.spatial.advanced.spatial_autocorrelation) over one h5ad input
+    (Params.workflow.input_h5ad or Params.workflow.visium_h5).
+    """
+    root_dir = _init_raw_json(datajson, indir, outdir, raw_files)
+    wf = datajson.setdefault("Params", {}).setdefault("workflow", {})
+    if not wf.get("input_h5ad") and not wf.get("visium_h5"):
+        raise ValueError(
+            "spatial_transcriptomics: Params.workflow.input_h5ad or "
+            "Params.workflow.visium_h5 is required"
+        )
+    spatial_cfg = datajson.get("Params", {}).get("spatial", {}) or {}
+    advanced_enabled = (spatial_cfg.get("advanced") or {}).get(
+        "spatial_autocorrelation", True)
+
+    # outfiles mirror the fallback list in
+    # subworkflow/spatial_transcriptomics.smk
+    outfiles = [
+        f"{outdir}/spatial/qc/filtered.h5ad",
+        f"{outdir}/spatial/qc/qc_metrics.tsv",
+        f"{outdir}/spatial/cluster/clustered.h5ad",
+        f"{outdir}/spatial/cluster/spatial_markers.tsv",
+    ]
+    if advanced_enabled:
+        outfiles.append(
+            f"{outdir}/spatial/advanced/spatial_autocorrelation.h5ad")
     datajson["outfiles"] = outfiles
     return _write_raw_json(datajson, outdir)

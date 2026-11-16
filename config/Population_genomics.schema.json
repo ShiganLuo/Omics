@@ -1,0 +1,162 @@
+{
+  "outfiles": {
+    "type": "list",
+    "nullable": true,
+    "required": false
+  },
+  "ROOT_DIR": {
+    "type": "null",
+    "nullable": true,
+    "required": false
+  },
+  "tmp_dir": {
+    "type": "str",
+    "nullable": true,
+    "required": false
+  },
+  "resources": {
+    "type": "dict",
+    "nullable": true,
+    "required": false
+  },
+  "env": {
+    "type": "dict",
+    "nullable": true,
+    "required": false
+  },
+  "Procedure": {
+    "type": "dict",
+    "nullable": true,
+    "required": false
+  },
+  "genome": {
+    "type": "dict",
+    "required": true,
+    "properties": {
+      "default": {
+        "type": "str",
+        "required": true
+      },
+      "references": {
+        "type": "dict",
+        "required": true,
+        "additionalProperties": {
+          "type": "dict",
+          "properties": {
+            "fasta": {
+              "type": "str",
+              "nullable": true,
+              "required": true,
+              "path": "file"
+            },
+            "fai_index": {
+              "type": "str",
+              "nullable": true,
+              "required": false,
+              "path": "file"
+            },
+            "dict_index": {
+              "type": "str",
+              "nullable": true,
+              "required": false,
+              "path": "file"
+            },
+            "interval": {
+              "type": "str",
+              "nullable": true,
+              "required": false,
+              "path": "file"
+            },
+            "sex_chroms": {
+              "type": "list",
+              "nullable": true,
+              "required": false
+            }
+          }
+        }
+      }
+    }
+  },
+  "Params": {
+    "workflow": {
+      "type": "dict",
+      "required": true,
+      "properties": {
+        "indir": {
+          "type": "str",
+          "required": false
+        },
+        "outdir": {
+          "type": "str",
+          "required": false
+        },
+        "logdir": {
+          "type": "str",
+          "required": false
+        },
+        "raw_files": {
+          "type": "list",
+          "required": false
+        },
+        "samples": {
+          "type": "list",
+          "required": false
+        },
+        "sample_bams": {
+          "type": "dict",
+          "required": false
+        },
+        "populations": {
+          "type": "dict",
+          "required": false
+        }
+      }
+    },
+    "analysis": {
+      "type": "dict",
+      "required": false,
+      "properties": {
+        "pca": {
+          "type": "bool",
+          "required": false
+        },
+        "structure": {
+          "type": "bool",
+          "required": false
+        },
+        "diversity": {
+          "type": "bool",
+          "required": false
+        },
+        "fst": {
+          "type": "bool",
+          "required": false
+        },
+        "history": {
+          "type": "bool",
+          "required": false
+        },
+        "ld_decay": {
+          "type": "bool",
+          "required": false
+        },
+        "gwas": {
+          "type": "bool",
+          "required": false
+        },
+        "admixture_k": {
+          "type": "list",
+          "required": false
+        }
+      }
+    },
+    "gatk": {
+      "type": "dict",
+      "required": false
+    },
+    "filtering": {
+      "type": "dict",
+      "required": false
+    }
+  }
+}

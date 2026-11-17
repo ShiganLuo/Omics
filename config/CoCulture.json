@@ -12,9 +12,6 @@
         "GRCh38"
       ]
     },
-    "trim_galore": {
-      "quality": 25
-    },
     "sexcheck": {
       "ratio_xy_threshold": null,
       "y_min_frac": null,

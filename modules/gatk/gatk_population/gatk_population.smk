@@ -11,9 +11,9 @@ fai = config.get("genome", {}).get("fai_index")
 dict_index = config.get("genome", {}).get("dict_index") or config.get("genome", {}).get("dict")
 interval = config.get("genome", {}).get("interval")
 gatk = config.get("Procedure", {}).get("gatk") or "gatk"
+# 参数精确到 rule:javaOptions/tmp-dir 按 rule 独立配置(Params.gatk.<rule_name>
+# .javaOptions/.tmp-dir),无 module 级共享;rule_param 见 common.smk。
 gatk_params = config.get("Params", {}).get("gatk", {})
-java_options = gatk_params.get("javaOptions") or "-Xmx30g"
-tmp_dir = gatk_params.get("tmp-dir")
 
 if not samples or not sample_bams or not fasta or not fai or not dict_index:
     raise ValueError("gatk_population requires samples, sample_bams, genome.fasta, genome.fai_index, and genome.dict_index")
@@ -42,8 +42,8 @@ rule gatk_population_haplotype_caller:
         sif("../gatk.yaml", "gatk_population_haplotype_caller")
     params:
         gatk=gatk,
-        java_options=java_options,
-        tmp_dir=tmp_dir,
+        java_options=rule_param(gatk_params, "gatk_population_haplotype_caller", "javaOptions", "-Xmx30g"),
+        tmp_dir=rule_param(gatk_params, "gatk_population_haplotype_caller", "tmp-dir", None),
         interval=interval
     run:
         log_path = str(log)
@@ -95,8 +95,8 @@ rule gatk_population_joint_genotyping:
         sif("../gatk.yaml", "gatk_population_joint_genotyping")
     params:
         gatk=gatk,
-        java_options=java_options,
-        tmp_dir=tmp_dir,
+        java_options=rule_param(gatk_params, "gatk_population_joint_genotyping", "javaOptions", "-Xmx30g"),
+        tmp_dir=rule_param(gatk_params, "gatk_population_joint_genotyping", "tmp-dir", None),
         interval=interval,
         workspace=outdir + "/variants/joint/genomicsdb"
     run:

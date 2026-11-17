@@ -7,7 +7,7 @@ logdir = _wf.get("logdir") or "logs"
 input_h5ad = _wf.get("input_h5ad") or ""
 visium_h5 = _wf.get("visium_h5") or ""
 spatial_dir = _wf.get("spatial_dir") or ""
-advanced = config.get("Params", {}).get("spatial", {}).get("advanced", {})
+advanced = config.get("Params", {}).get("spatial", {}).get("spatial_scanpy_advanced", {})
 if not input_h5ad and not visium_h5:
     raise ValueError("spatial transcriptomics requires input_h5ad or visium_h5")
 advanced_enabled = advanced.get("spatial_autocorrelation", True)

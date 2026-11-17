@@ -6,13 +6,16 @@ indir = config.get("indir", "input")
 bam_suffix = config.get("bam_suffix", "")
 samples = config.get("samples", [])
 control_samples = config.get("control_samples", [])
-# CNVkit calling mode (Params.cnvkit.mode, resolved by node.py for "auto"):
+# CNVkit calling mode (Params.cnvkit.<rule_name>.mode, resolved by node.py
+# for "auto"):
 #   paired - per tumor/normal pair, each tumor called against its own matched
 #            normal (rule cnvkit_paired)
 #   pooled - shared reference built from control_samples (rule cnvkit_reference
 #            + cnvkit_batch --reference)
 #   flat   - no reference at all (bare -n; uniform expected coverage)
-_mode_cfg = config.get("Params", {}).get("cnvkit", {}).get("mode") or "auto"
+# 参数精确到 rule:method/mode 按 rule 独立配置(Params.cnvkit.<rule_name>.method
+# /.mode),无 module 级共享回退;rule_param 见 common.smk。
+_cnvkit_params = config.get("Params", {}).get("cnvkit", {})
 _paired_design_raw = config.get("paired_design") or []
 if isinstance(_paired_design_raw, list):
     paired_design = {
@@ -22,22 +25,42 @@ if isinstance(_paired_design_raw, list):
     }
 else:
     paired_design = dict(_paired_design_raw)
-if _mode_cfg not in ("auto", "paired", "pooled", "flat"):
-    raise ValueError(
-        f"cnvkit: unknown Params.cnvkit.mode '{_mode_cfg}'; "
-        "expected one of: auto, paired, pooled, flat."
-    )
-if _mode_cfg == "paired" and not paired_design:
-    raise ValueError(
-        "cnvkit: Params.cnvkit.mode 'paired' but paired_design is empty; "
-        "fill it (or let node.py derive it from the meta design)."
-    )
-use_paired = (_mode_cfg == "paired")
 access = config.get("genome", {}).get("access")
 targets_bed = config.get("genome", {}).get("targets")
-_method = config.get("Params", {}).get("cnvkit", {}).get("method") or "wgs"
 paired_tumors = list(paired_design.keys())
-cnv_samples = paired_tumors if use_paired else list(samples)
+
+
+def _cnvkit_method(rule_name):
+    """Per-rule CNVkit calling method (wgs/hybrid; parse 期解析)。"""
+    return rule_param(_cnvkit_params, rule_name, "method", "wgs")
+
+
+def _cnvkit_use_paired(rule_name):
+    """Per-rule calling mode; "paired" = per-pair runs (parse 期解析)。"""
+    mode = rule_param(_cnvkit_params, rule_name, "mode", "auto")
+    if mode not in ("auto", "paired", "pooled", "flat"):
+        raise ValueError(
+            f"cnvkit: unknown Params.cnvkit.{rule_name}.mode '{mode}'; "
+            "expected one of: auto, paired, pooled, flat."
+        )
+    if mode == "paired" and not paired_design:
+        raise ValueError(
+            f"cnvkit: Params.cnvkit.{rule_name}.mode 'paired' but paired_design "
+            "is empty; fill it (or let node.py derive it from the meta design)."
+        )
+    return mode == "paired"
+
+
+# 每 rule 一个 parse 期变量(module 级共享读取已删除)。
+_cnvkit_reference_method = _cnvkit_method("cnvkit_reference")
+_cnvkit_reference_use_paired = _cnvkit_use_paired("cnvkit_reference")
+_cnvkit_batch_method = _cnvkit_method("cnvkit_batch")
+_cnvkit_batch_use_paired = _cnvkit_use_paired("cnvkit_batch")
+_cnvkit_paired_method = _cnvkit_method("cnvkit_paired")
+_cnvkit_paired_use_paired = _cnvkit_use_paired("cnvkit_paired")
+
+# 结果聚合粒度跟随 cnvkit_paired(paired 模式按 tumor 聚合)。
+cnv_samples = paired_tumors if _cnvkit_paired_use_paired else list(samples)
 
 
 
@@ -47,9 +70,9 @@ rule cnvkit_reference:
         control_bams = expand(indir + "/{sid}/{sid}" + bam_suffix + ".bam", sid=control_samples),
         fasta = lambda wildcards: _require(config.get("genome", {}).get("fasta"), "genome.fasta", "cnvkit"),
         access = lambda wildcards: [access] if access else [],
-        targets = lambda wildcards: [targets_bed] if (_method == "hybrid" and targets_bed) else [],
+        targets = lambda wildcards: [targets_bed] if (_cnvkit_reference_method == "hybrid" and targets_bed) else [],
     output:
-        ref = [outdir + "/reference/reference.cnn"] if (control_samples and not use_paired) else []
+        ref = [outdir + "/reference/reference.cnn"] if (control_samples and not _cnvkit_reference_use_paired) else []
     log:
         logdir + "/cnvkit/cnvkit_reference.log"
     threads: rule_res("cnvkit_reference").get("threads", 8)
@@ -64,7 +87,7 @@ rule cnvkit_reference:
         sif("cnvkit.yaml", "cnvkit_reference")
     params:
         cnvkit = config.get("Procedure", {}).get("cnvkit") or "cnvkit.py",
-        method = config.get("Params", {}).get("cnvkit", {}).get("method") or "wgs",
+        method = _cnvkit_reference_method,
     run:
         log_path = str(log)
         open(log_path, 'w').close()
@@ -101,10 +124,10 @@ rule cnvkit_batch:
         ref = outdir + "/reference/reference.cnn" if control_samples else "",
         fasta =  _require(config.get("genome", {}).get("fasta"), "genome.fasta", "cnvkit"),
         access = access if access else "",
-        targets = targets_bed if (_method == "hybrid" and targets_bed) else "",
+        targets = targets_bed if (_cnvkit_batch_method == "hybrid" and targets_bed) else "",
     output:
-        cnr = expand(outdir + "/{sample_id}/{sample_id}.cnr", sample_id=samples) if not use_paired else [],
-        cns = expand(outdir + "/{sample_id}/{sample_id}.cns", sample_id=samples) if not use_paired else []
+        cnr = expand(outdir + "/{sample_id}/{sample_id}.cnr", sample_id=samples) if not _cnvkit_batch_use_paired else [],
+        cns = expand(outdir + "/{sample_id}/{sample_id}.cns", sample_id=samples) if not _cnvkit_batch_use_paired else []
     log:
         logdir + "/cnvkit/cnvkit_batch.log"
     threads: rule_res("cnvkit_batch").get("threads", 8)
@@ -119,7 +142,7 @@ rule cnvkit_batch:
         sif("cnvkit.yaml", "cnvkit_batch")
     params:
         cnvkit = config.get("Procedure", {}).get("cnvkit") or "cnvkit.py",
-        method = config.get("Params", {}).get("cnvkit", {}).get("method") or "wgs",
+        method = _cnvkit_batch_method,
         staging = outdir + "/batch",
     run:
         log_path = str(log)
@@ -202,11 +225,11 @@ rule cnvkit_paired:
         normal_bam = get_paired_normal_bam,
         fasta = lambda wildcards: _require(config.get("genome", {}).get("fasta"), "genome.fasta", "cnvkit"),
         access = lambda wildcards: [access] if access else [],
-        targets = lambda wildcards: [targets_bed] if (_method == "hybrid" and targets_bed) else [],
+        targets = lambda wildcards: [targets_bed] if (_cnvkit_paired_method == "hybrid" and targets_bed) else [],
     output:
         # [] when disabled (pooled/flat mode) — empty STRING is job-build-fatal.
-        cnr = [outdir + "/{sample_id}/{sample_id}.cnr"] if use_paired else [],
-        cns = [outdir + "/{sample_id}/{sample_id}.cns"] if use_paired else [],
+        cnr = [outdir + "/{sample_id}/{sample_id}.cnr"] if _cnvkit_paired_use_paired else [],
+        cns = [outdir + "/{sample_id}/{sample_id}.cns"] if _cnvkit_paired_use_paired else [],
     log:
         logdir + "/{sample_id}/cnvkit_paired.log"
     threads: rule_res("cnvkit_paired").get("threads", 8)
@@ -221,7 +244,7 @@ rule cnvkit_paired:
         sif("cnvkit.yaml", "cnvkit_paired")
     params:
         cnvkit = config.get("Procedure", {}).get("cnvkit") or "cnvkit.py",
-        method = config.get("Params", {}).get("cnvkit", {}).get("method") or "wgs",
+        method = _cnvkit_paired_method,
         staging = outdir + "/batch_paired/{sample_id}",
     run:
         log_path = str(log)

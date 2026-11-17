@@ -7,6 +7,11 @@ logdir = config.get("Params", {}).get("workflow", {}).get("logdir") or "log"
 paired_samples = config.get("Params", {}).get("workflow", {}).get("paired_samples") or []
 single_samples = config.get("Params", {}).get("workflow", {}).get("single_samples") or []
 aligner = config.get("Params", {}).get("workflow", {}).get("aligner") or "cellranger"
+def _rule_get(section, rule_name, key, default=None):
+    """参数精确到 rule:读取 <section>.<rule_name>.<key>(rule 子键优先,旧扁平
+    键兼容回退,再回退 default;键形同 common.smk rule_param,无 module 级共享)。"""
+    return ((section.get(rule_name) or {}).get(key) or section.get(key) or default)
+
 counters = config.get("Params", {}).get("workflow", {}).get("counters") or ["scTE", "cellranger"]
 input_mode = config.get("Params", {}).get("workflow", {}).get("input_mode") or "fastq"
 rule all:
@@ -32,16 +37,20 @@ if aligner == "star":
         "omics_type": "scRNAseq",
         "Params": {
             "star": {
-                "outSAMattributes": config.get('Params', {}).get('star', {}).get('outSAMattributes'),
-                "outFilterMultimapNmax": config.get('Params', {}).get('star', {}).get('outFilterMultimapNmax'),
-                "winAnchorMultimapNmax": config.get('Params', {}).get('star', {}).get('winAnchorMultimapNmax'),
-                "outMultimapperOrder": config.get('Params', {}).get('star', {}).get('outMultimapperOrder'),
-                "runRNGseed": config.get('Params', {}).get('star', {}).get('runRNGseed'),
-                "outSAMmultNmax": config.get('Params', {}).get('star', {}).get('outSAMmultNmax'),
-                "soloType": config.get('Params', {}).get('star', {}).get('soloType'),
-                "soloCBwhitelist": config.get('Params', {}).get('star', {}).get('soloCBwhitelist'),
-                "soloBarcodeReadLength": config.get('Params', {}).get('star', {}).get('soloBarcodeReadLength'),
-                "limitSjdbInsertNsj": config.get('Params', {}).get('star', {}).get('limitSjdbInsertNsj')
+            # 参数精确到 rule:Params.star.star_align.<key>(消费 rule star_align;
+            # 旧扁平键兼容回退)
+            "star_align": {
+            "outSAMattributes": _rule_get(config.get('Params', {}).get('star', {}), 'star_align', 'outSAMattributes'),
+            "outFilterMultimapNmax": _rule_get(config.get('Params', {}).get('star', {}), 'star_align', 'outFilterMultimapNmax'),
+            "winAnchorMultimapNmax": _rule_get(config.get('Params', {}).get('star', {}), 'star_align', 'winAnchorMultimapNmax'),
+            "outMultimapperOrder": _rule_get(config.get('Params', {}).get('star', {}), 'star_align', 'outMultimapperOrder'),
+            "runRNGseed": _rule_get(config.get('Params', {}).get('star', {}), 'star_align', 'runRNGseed'),
+            "outSAMmultNmax": _rule_get(config.get('Params', {}).get('star', {}), 'star_align', 'outSAMmultNmax'),
+            "soloType": _rule_get(config.get('Params', {}).get('star', {}), 'star_align', 'soloType'),
+            "soloCBwhitelist": _rule_get(config.get('Params', {}).get('star', {}), 'star_align', 'soloCBwhitelist'),
+            "soloBarcodeReadLength": _rule_get(config.get('Params', {}).get('star', {}), 'star_align', 'soloBarcodeReadLength'),
+            "limitSjdbInsertNsj": _rule_get(config.get('Params', {}).get('star', {}), 'star_align', 'limitSjdbInsertNsj')
+            }
             }
         },
         "genome": {
@@ -262,7 +271,7 @@ def _scanpy_cluster_annotations(counter):
 
     Test-path injection can leave a placeholder STRING here; anything that
     is not a tissue-keyed dict forwards as an empty map."""
-    ca = ((scanpy_params_all.get(counter, {}) or {}).get("auto", {})
+    ca = ((scanpy_params_all.get(counter, {}) or {}).get("scanpy_reannotate", {})
           or {}).get("cluster_annotations", {}) or {}
     return ca if isinstance(ca, dict) else {}
 
@@ -308,7 +317,7 @@ def _pbgo_prerequisites():
     for tissue in (config.get("Params", {}).get("scanpy", {}).get("tissue_samples", {}) or {}):
         for counter in counters:
             pb = ((config.get("Params", {}).get("scanpy", {}).get(counter, {}) or {})
-                  .get("pseudobulk", {}) or {})
+                  .get("scanpy_pseudobulk", {}) or {})
             if pb.get("enabled") and any(
                     str(c).split(":", 1)[0] == tissue
                     for c in (pb.get("compare") or [])):

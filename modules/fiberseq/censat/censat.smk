@@ -8,11 +8,20 @@ samples = config.get("samples", [])
 ROOT_DIR = config.get("ROOT_DIR", ".")
 env = config.get("env", {})
 genome_cfg = config.get("genome", {})
-p = config.get("Params", {}).get("fiberseq_censat", {})
-# ① parse 期读入 + 规范化（str 收成单元素 list；合法值由 schema 声明）
-_formats = p.get("formats") or ["pdf"]
-if isinstance(_formats, str):
-    _formats = [_formats]
+_censat_params = config.get("Params", {}).get("fiberseq_censat", {})
+# 参数精确到 rule:formats 按 rule 独立配置(Params.fiberseq_censat.<rule_name>.formats,
+# 无 module 级共享回退;rule_param 见 common.smk),每 rule 一个 parse 期变量。
+
+
+def _rule_formats(rule_name):
+    """Per-rule figure formats (parse 期解析,output 展开与 CLI 转发共用)。"""
+    fmts = rule_param(_censat_params, rule_name, "formats", ["pdf"])
+    return [fmts] if isinstance(fmts, str) else (fmts or ["pdf"])
+
+
+_formats_run = _rule_formats("fiberseq_censat_run")
+_formats_result = _rule_formats("fiberseq_censat_result")
+
 rule fiberseq_censat_run:
     """Region-class accessibility and methylation profiles (CDR/HOR/flank)."""
     input:
@@ -26,7 +35,7 @@ rule fiberseq_censat_run:
         profile = outdir + "/{sample_id}/{sample_id}.censat_profile.tsv",
         # ② 按格式展开：每种格式一个输出文件（base 不带扩展名）
         plots = [outdir + "/{sample_id}/{sample_id}.censat_profile." + fmt
-                 for fmt in _formats],
+                 for fmt in _formats_run],
     log:
         logdir + "/{sample_id}/fiberseq_censat_run.log"
     threads: rule_res("fiberseq_censat").get("threads", 4)
@@ -42,10 +51,10 @@ rule fiberseq_censat_run:
     params:
         script = ROOT_DIR + "/modules/fiberseq/bin/censat_profile.py",
         pileup = genome_cfg.get("mcpg_pileup"),
-        msp_min_len = p.get("msp_min_len", 50),
-        flank = p.get("flank", 10000),
-        bin = p.get("bin", 500),
-        formats = _formats,   # ③ 转发
+        msp_min_len = rule_param(_censat_params, "fiberseq_censat_run", "msp_min_len", 50),
+        flank = rule_param(_censat_params, "fiberseq_censat_run", "flank", 10000),
+        bin = rule_param(_censat_params, "fiberseq_censat_run", "bin", 500),
+        formats = _formats_run,   # ③ 转发
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -93,7 +102,7 @@ rule fiberseq_censat_result:
         class_summary = expand(outdir + "/{sample_id}/{sample_id}.censat_class_summary.tsv",
                                sample_id=samples),
         plots = expand(outdir + "/{sample_id}/{sample_id}.censat_profile.{fmt}",
-                       sample_id=samples, fmt=_formats),
+                       sample_id=samples, fmt=_formats_result),
 
     resources:
         mem_mb = lambda wildcards, input, attempt: rule_res(

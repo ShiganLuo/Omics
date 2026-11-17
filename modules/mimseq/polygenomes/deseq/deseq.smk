@@ -9,9 +9,12 @@ logdir = config.get("logdir", "log")
 # vendored 绘图代码(ggsave/savefig)。figures 是 touch() 规则的副产物,不进
 # rule output(② 展开不适用);默认 ["pdf"] 保持上游行为。
 # ① parse 期读入 + 规范化（str 收成单元素 list；合法值由 schema 声明）
-_plot_formats = config.get("Params", {}).get("mimseq", {}).get("formats") or ["pdf"]
-if isinstance(_plot_formats, str):
-    _plot_formats = [_plot_formats]
+# 参数精确到 rule:Params.mimseq.mimseq_deseq.formats(rule_param 见 common.smk;
+# 无 module 级共享回退)。
+_mimseq_params = config.get("Params", {}).get("mimseq", {})
+_plot_formats_mimseq_deseq = rule_param(_mimseq_params, "mimseq_deseq", "formats", ["pdf"])
+if isinstance(_plot_formats_mimseq_deseq, str):
+    _plot_formats_mimseq_deseq = [_plot_formats_mimseq_deseq]
 
 rule mimseq_deseq:
     """Run DESeq2 differential expression analysis."""
@@ -23,9 +26,9 @@ rule mimseq_deseq:
         logdir + "/{genome}/mimseq_deseq.log"
     params:
         script = os.path.join(ROOT_DIR, "modules", "mimseq", "bin", "deseq", "run.py"),
-        control_cond = config.get("Params", {}).get("mimseq", {}).get("control_cond", ""),
-        p_adj = config.get("Params", {}).get("mimseq", {}).get("p_adj", 0.05),
-        formats = _plot_formats,   # ③ 转发
+        control_cond = rule_param(_mimseq_params, "mimseq_deseq", "control_cond", ""),
+        p_adj = rule_param(_mimseq_params, "mimseq_deseq", "p_adj", 0.05),
+        formats = _plot_formats_mimseq_deseq,   # ③ 转发
         mito_trnas = lambda wildcards: config["genome"][wildcards.genome].get("mito_trnas", ""),
     threads: rule_res("mimseq_deseq").get("threads", 4)
     benchmark: logdir + "/{genome}/mimseq_deseq.benchmark.tsv",

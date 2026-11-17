@@ -35,20 +35,27 @@
         "nullable": true,
         "required": false,
         "properties": {
-          "msp_min_len": {
-            "type": "int",
+          "fiberseq_censat_run": {
+            "type": "dict",
             "nullable": true,
-            "required": false
-          },
-          "flank": {
-            "type": "int",
-            "nullable": true,
-            "required": false
-          },
-          "bin": {
-            "type": "int",
-            "nullable": true,
-            "required": false
+            "required": false,
+            "properties": {
+              "msp_min_len": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "flank": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "bin": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              }
+            }
           }
         }
       }

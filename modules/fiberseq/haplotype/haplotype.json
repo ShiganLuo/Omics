@@ -1,15 +1,17 @@
 {
-    "indir": "common/4_elements",
-    "outdir": "fiberseq_analysis/haplotype",
-    "logdir": "log",
-    "samples": [],
-    "Procedure": {},
-    "Params": {
-        "fiberseq_haplotype": {
-            "min_fibers": 10,
-            "alpha": 0.05
-        }
-    },
-    "genome": {},
-    "env": {}
+  "indir": "common/4_elements",
+  "outdir": "fiberseq_analysis/haplotype",
+  "logdir": "log",
+  "samples": [],
+  "Procedure": {},
+  "Params": {
+    "fiberseq_haplotype": {
+      "fiberseq_haplotype_diff": {
+        "min_fibers": 10,
+        "alpha": 0.05
+      }
+    }
+  },
+  "genome": {},
+  "env": {}
 }

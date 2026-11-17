@@ -8,6 +8,8 @@ samples = config.get("samples", [])
 ROOT_DIR = config.get("ROOT_DIR", ".")
 env = config.get("env", {})
 genome_cfg = config.get("genome", {})
+# 参数精确到 rule(2026-11 规范;rule_param 见 common.smk):
+# Params.diann.diann_run.<key>,无 module 级共享回退。
 p = config.get("Params", {}).get("diann", {})
 
 def _require(value, key):
@@ -48,21 +50,21 @@ rule diann_run:
         sif("diann.yaml", "diann_run")
     params:
         diann = config.get("Procedure", {}).get("diann") or "diann",
-        qvalue = p.get("qvalue", 0.01),
-        matrix_qvalue = p.get("matrix_qvalue", 0.01),
-        mass_acc_ms1 = p.get("mass_acc_ms1", 20),
-        mass_acc = p.get("mass_acc", 20),
-        min_fr_mz = p.get("min_fr_mz", 200),
-        max_fr_mz = p.get("max_fr_mz", 1800),
-        min_pept_len = p.get("min_pept_len", 7),
-        max_pept_len = p.get("max_pept_len", 30),
-        fixed_mod = p.get("fixed_mod") or "Carbamidomethyl (C),57.0215",
-        var_mods = p.get("var_mods") or "Oxidation (M),15.9949",
-        library = p.get("library"),
-        gen_spec_lib = p.get("gen_spec_lib", True),
-        predictor = p.get("predictor", True),
-        verbose = p.get("verbose", True),
-        extra = p.get("extra") or "",
+        qvalue = rule_param(p, "diann_run", "qvalue", 0.01),
+        matrix_qvalue = rule_param(p, "diann_run", "matrix_qvalue", 0.01),
+        mass_acc_ms1 = rule_param(p, "diann_run", "mass_acc_ms1", 20),
+        mass_acc = rule_param(p, "diann_run", "mass_acc", 20),
+        min_fr_mz = rule_param(p, "diann_run", "min_fr_mz", 200),
+        max_fr_mz = rule_param(p, "diann_run", "max_fr_mz", 1800),
+        min_pept_len = rule_param(p, "diann_run", "min_pept_len", 7),
+        max_pept_len = rule_param(p, "diann_run", "max_pept_len", 30),
+        fixed_mod = rule_param(p, "diann_run", "fixed_mod", "Carbamidomethyl (C),57.0215"),
+        var_mods = rule_param(p, "diann_run", "var_mods", "Oxidation (M),15.9949"),
+        library = rule_param(p, "diann_run", "library", None),
+        gen_spec_lib = rule_param(p, "diann_run", "gen_spec_lib", True),
+        predictor = rule_param(p, "diann_run", "predictor", True),
+        verbose = rule_param(p, "diann_run", "verbose", True),
+        extra = rule_param(p, "diann_run", "extra", ""),
     run:
         log_path = str(log)
         open(log_path, "w").close()

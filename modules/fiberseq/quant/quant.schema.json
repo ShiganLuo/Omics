@@ -34,13 +34,7 @@
         "type": "dict",
         "nullable": true,
         "required": false,
-        "properties": {
-          "min_fibers": {
-            "type": "int",
-            "nullable": true,
-            "required": false
-          }
-        }
+        "properties": {}
       }
     }
   },

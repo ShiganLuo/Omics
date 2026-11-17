@@ -5,6 +5,9 @@ outdir = config.get("outdir") or "output"
 logdir = config.get("logdir") or "log"
 logdir_combine = config.get("logdir_combine") or "log"
 input_bam_substring = config.get("input_bam_substring") or ""
+# 参数精确到 rule:javaOptions/tmp-dir 按 rule 独立配置(Params.gatk.<rule_name>
+# .javaOptions/.tmp-dir),无 module 级共享;rule_param 见 common.smk。
+_gatk_params = config.get("Params", {}).get("gatk", {})
 
 def get_input_for_gatk_index(wildcards):
     logger.debug(f"gatk_index called with {wildcards}")
@@ -31,8 +34,8 @@ rule gatk_index:
         sif("../gatk.yaml", "gatk_index")
     params:
         gatk = config.get("Procedure", {}).get("gatk") or "gatk",
-        javaOptions = config.get("Params", {}).get("gatk", {}).get("javaOptions") or "-Xmx30g",
-        tmp_dir = config.get("Params", {}).get("gatk", {}).get("tmp-dir") or None
+        javaOptions = rule_param(_gatk_params, "gatk_index", "javaOptions", "-Xmx30g"),
+        tmp_dir = rule_param(_gatk_params, "gatk_index", "tmp-dir", None)
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -96,8 +99,8 @@ rule addReadsGroup:
         mem_mb=rule_res("addReadsGroup").get("mem_mb", 16000),
     params:
         id = "{sample_id}",
-        javaOptions = config.get("Params", {}).get("gatk", {}).get("javaOptions") or "-Xmx30g",
-        tmp_dir = config.get("Params", {}).get("gatk", {}).get("tmp-dir") or None,
+        javaOptions = rule_param(_gatk_params, "addReadsGroup", "javaOptions", "-Xmx30g"),
+        tmp_dir = rule_param(_gatk_params, "addReadsGroup", "tmp-dir", None),
         RGLB = config.get("Params", {}).get("gatk", {}).get("addReadsGroup", {}).get("RGLB") or "lib1",
         RGPL = config.get("Params", {}).get("gatk", {}).get("addReadsGroup", {}).get("RGPL") or "illumina",
         RGPU = config.get("Params", {}).get("gatk", {}).get("addReadsGroup", {}).get("RGPU") or "unit1",
@@ -164,9 +167,9 @@ rule MarkDuplicates:
             "MarkDuplicates", input_size=input_size_named(input, 'bam'),
             attempt=attempt).get("mem_mb", 32000),
     params:
-        javaOptions = config.get("Params", {}).get("gatk", {}).get("javaOptions") or "-Xmx30g",
+        javaOptions = rule_param(_gatk_params, "MarkDuplicates", "javaOptions", "-Xmx30g"),
         gatk = config.get("Procedure", {}).get("gatk") or "gatk",
-        tmp_dir = config.get("Params", {}).get("gatk", {}).get("tmp-dir") or None
+        tmp_dir = rule_param(_gatk_params, "MarkDuplicates", "tmp-dir", None)
     run:
         log_path = str(log)
         open(log_path, "w").close()

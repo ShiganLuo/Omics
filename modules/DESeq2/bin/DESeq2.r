@@ -715,7 +715,7 @@ parser$add_argument('-Tcm', '--TEcountMode', type = 'character', nargs = "+",
                     choices = c("all","Gene_TE","TE","Gene"), default = "all")
 # repeatable --format (action="append"); no short flag because -f is taken by
 # --figure. Valid set is the R ggsave device set; fail fast before any analysis.
-parser$add_argument('--format', type = 'character', action = 'append', default = NULL,
+parser$add_argument('--format', type = 'character', action = 'append',
                     help = 'output image format, repeatable (default: png); valid: png pdf svg ps eps tif tiff jpg jpeg')
 args <- parser$parse_args()
 fmts <- check_formats(if (is.null(args$format)) "png" else as.character(unlist(args$format)))

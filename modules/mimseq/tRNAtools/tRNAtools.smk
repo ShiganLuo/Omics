@@ -2,7 +2,12 @@ include: "../../common/common.smk"
 
 
 ROOT_DIR = config.get("ROOT_DIR", ".")
-data_dir = config.get("Params", {}).get("mimseq", {}).get("data_dir", "") or os.path.join(ROOT_DIR, "modules", "mimseq", "mimseq", "data")
+
+# 参数精确到 rule:Params.mimseq.mimseq_tRNAtools.<key>(rule_param 见 common.smk;
+# 无 module 级共享回退;data_dir 归 mimseq_tRNAtools 所有)。
+_mimseq_params = config.get("Params", {}).get("mimseq", {})
+_data_dir_mimseq_tRNAtools = rule_param(_mimseq_params, "mimseq_tRNAtools", "data_dir", "") or os.path.join(
+    ROOT_DIR, "modules", "mimseq", "mimseq", "data")
 indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
@@ -15,7 +20,7 @@ from serialize import load_tRNA_state
 
 def get_tRNAtools_input(wildcards):
     """Return input files for tRNAtools based on species configuration."""
-    species = config.get("Params", {}).get("mimseq", {}).get("species", "")
+    species = rule_param(_mimseq_params, "mimseq_tRNAtools", "species", "")
     if species:
         # Using built-in species, no external files needed
         return {}
@@ -37,17 +42,17 @@ rule mimseq_tRNAtools:
     params:
         script = os.path.join(ROOT_DIR, "modules", "mimseq", "bin", "tRNAtools", "run.py"),
         mimseq = config.get("Procedure", {}).get("mimseq") or "mimseq",
-        species = config.get("Params", {}).get("mimseq", {}).get("species", ""),
-        name = config.get("Params", {}).get("mimseq", {}).get("name", "tRNAseq"),
-        cluster_id = config.get("Params", {}).get("mimseq", {}).get("cluster_id", 0.97),
-        double_cca = config.get("Params", {}).get("mimseq", {}).get("double_cca", False),
-        posttrans = config.get("Params", {}).get("mimseq", {}).get("posttrans_mod_off", False),
-        pretrnas = config.get("Params", {}).get("mimseq", {}).get("pretRNAs", False),
-        local_mod = config.get("Params", {}).get("mimseq", {}).get("local_modomics", False),
+        species = rule_param(_mimseq_params, "mimseq_tRNAtools", "species", ""),
+        name = rule_param(_mimseq_params, "mimseq_tRNAtools", "name", "tRNAseq"),
+        cluster_id = rule_param(_mimseq_params, "mimseq_tRNAtools", "cluster_id", 0.97),
+        double_cca = rule_param(_mimseq_params, "mimseq_tRNAtools", "double_cca", False),
+        posttrans = rule_param(_mimseq_params, "mimseq_tRNAtools", "posttrans_mod_off", False),
+        pretrnas = rule_param(_mimseq_params, "mimseq_tRNAtools", "pretRNAs", False),
+        local_mod = rule_param(_mimseq_params, "mimseq_tRNAtools", "local_modomics", False),
         mito_trnas = config.get("genome", {}).get("mito_trnas", ""),
         plastid_trnas = config.get("genome", {}).get("plastid_trnas", ""),
         modifications = os.path.join(ROOT_DIR, "modules", "mimseq", "mimseq", "modifications"),
-        data_dir = data_dir,
+        data_dir = _data_dir_mimseq_tRNAtools,
     threads: rule_res("mimseq_tRNAtools").get("threads", 4)
     benchmark: logdir + "/mimseq_tRNAtools.benchmark.tsv",
     resources:
@@ -93,9 +98,9 @@ rule mimseq_tRNAtools:
                 cmd += ["--pretrnas"]
             if params.local_mod:
                 cmd += ["--local-mod"]
-            if config.get("Params", {}).get("mimseq", {}).get("snp_tolerance", True):
+            if rule_param(_mimseq_params, "mimseq_tRNAtools", "snp_tolerance", True):
                 cmd += ["--snp-tolerance"]
-            if config.get("Params", {}).get("mimseq", {}).get("cluster", True):
+            if rule_param(_mimseq_params, "mimseq_tRNAtools", "cluster", True):
                 cmd += ["--cluster"]
 
             with open(script_path, "w") as f:

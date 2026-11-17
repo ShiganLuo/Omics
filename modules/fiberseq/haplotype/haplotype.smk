@@ -7,7 +7,7 @@ logdir = config.get("logdir", "log")
 samples = config.get("samples", [])
 ROOT_DIR = config.get("ROOT_DIR", ".")
 env = config.get("env", {})
-p = config.get("Params", {}).get("fiberseq_haplotype", {})
+_haplotype_params = config.get("Params", {}).get("fiberseq_haplotype", {})
 
 # upstream contract: per-hap quant tables from fiberseq_analysis/quant
 QUANT_DIR = config.get("quant_dir") or indir + "/quant"
@@ -34,8 +34,9 @@ rule fiberseq_haplotype_diff:
         sif("../fiberseq.yaml", "fiberseq_haplotype_diff")
     params:
         script = ROOT_DIR + "/modules/fiberseq/bin/haplotype_diff.py",
-        min_fibers = p.get("min_fibers", 10),
-        alpha = p.get("alpha", 0.05),
+        # 参数精确到 rule:Params.fiberseq_haplotype.fiberseq_haplotype_diff.<key>
+        min_fibers = rule_param(_haplotype_params, "fiberseq_haplotype_diff", "min_fibers", 10),
+        alpha = rule_param(_haplotype_params, "fiberseq_haplotype_diff", "alpha", 0.05),
     run:
         log_path = str(log)
         open(log_path, "w").close()

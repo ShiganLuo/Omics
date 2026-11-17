@@ -12,14 +12,27 @@ comparisons = config.get("comparisons", [])
 comparison_names = [c["name"] for c in comparisons]
 
 # Global parameters
-# 图片格式(modules.md #9):规范键名 "formats";旧键 "image_formats" 仅作
-# 兼容回退读取(2026-11 键名迁移)。两者同时配置时以 "formats" 为准。
+# 图片格式(modules.md #9):键名 "formats"。参数精确到 rule:formats 按 rule
+# 独立配置(Params.<rule_name>.formats,无 module 级共享回退;rule_param 见
+# common.smk),每 rule 一个 parse 期变量。
 _sv_params = config.get("Params", {})
-image_formats = (_sv_params.get("formats") or _sv_params.get("image_formats")
-                 or ["png"])
-if isinstance(image_formats, str):  # str 收成单元素 list
-    image_formats = [image_formats]
-genes = config.get("Params", {}).get("genes", [])
+
+
+def _rule_formats(rule_name):
+    """Per-rule figure formats (parse 期解析,CLI -f 转发共用)。"""
+    fmts = rule_param(_sv_params, rule_name, "formats", ["png"])
+    return [fmts] if isinstance(fmts, str) else fmts
+
+
+_formats_sv_exp_specific = _rule_formats("sv_exp_specific")
+_formats_sv_exp_enrichment = _rule_formats("sv_exp_enrichment")
+_formats_sv_exp_circos = _rule_formats("sv_exp_circos")
+_formats_sv_gene_model = _rule_formats("sv_gene_model")
+_formats_sv_diff_analysis = _rule_formats("sv_diff_analysis")
+_formats_sv_oncoprint = _rule_formats("sv_oncoprint")
+
+# genes 同样 rule 级(Params.sv_gene_model.genes),仅 sv_gene_model 消费。
+_genes_sv_gene_model = rule_param(_sv_params, "sv_gene_model", "genes", [])
 
 # ========================
 # Per-comparison rules
@@ -61,7 +74,7 @@ rule sv_exp_specific:
             script_path = os.path.join(RECEIPT_DIR, f"sv_exp_specific_{wildcards.genome}_{current_time}.sh")
             plain_script = os.path.join(outdir, f"{wildcards.genome}/{wildcards.comparison}/sv_exp_specific.sh")
             fmt_args = []
-            for fmt in image_formats:
+            for fmt in _formats_sv_exp_specific:
                 fmt_args += ["-f", fmt]
             cmd = [
                 "python", params.script,
@@ -113,7 +126,7 @@ rule sv_exp_enrichment:
             script_path = os.path.join(RECEIPT_DIR, f"sv_exp_enrichment_{wildcards.genome}_{current_time}.sh")
             plain_script = os.path.join(outdir, f"{wildcards.genome}/{wildcards.comparison}/sv_exp_enrichment.sh")
             fmt_args = []
-            for fmt in image_formats:
+            for fmt in _formats_sv_exp_enrichment:
                 fmt_args += ["-f", fmt]
             cmd = [
                 "python", params.script,
@@ -163,7 +176,7 @@ rule sv_exp_circos:
             script_path = os.path.join(RECEIPT_DIR, f"sv_exp_circos_{wildcards.genome}_{current_time}.sh")
             plain_script = os.path.join(outdir, f"{wildcards.genome}/{wildcards.comparison}/sv_exp_circos.sh")
             fmt_args = []
-            for fmt in image_formats:
+            for fmt in _formats_sv_exp_circos:
                 fmt_args += ["-f", fmt]
             cmd = [
                 "python", params.script,
@@ -215,10 +228,10 @@ rule sv_gene_model:
             script_path = os.path.join(RECEIPT_DIR, f"sv_gene_model_{wildcards.genome}_{current_time}.sh")
             plain_script = os.path.join(outdir, f"{wildcards.genome}/{wildcards.comparison}/sv_gene_model.sh")
             gene_args = []
-            for g in genes:
+            for g in _genes_sv_gene_model:
                 gene_args += ["-g", g]
             fmt_args = []
-            for fmt in image_formats:
+            for fmt in _formats_sv_gene_model:
                 fmt_args += ["-f", fmt]
             cmd = [
                 "python", params.script,
@@ -274,7 +287,7 @@ rule sv_diff_analysis:
                 vcf_path = f"{outdir}/{wildcards.genome}/{c['name']}/{c['name']}_only.vcf"
                 group_args += ["-g", f"{c['name']}:{vcf_path}"]
             fmt_args = []
-            for fmt in image_formats:
+            for fmt in _formats_sv_diff_analysis:
                 fmt_args += ["-f", fmt]
             cmd = [
                 "python", params.script,
@@ -328,7 +341,7 @@ rule sv_oncoprint:
             for cond, path in params.deseq2_files.items():
                 deseq2_args += ["-d", f"{cond}:{path}"]
             fmt_args = []
-            for fmt in image_formats:
+            for fmt in _formats_sv_oncoprint:
                 fmt_args += ["-f", fmt]
             cmd = [
                 "python", params.script,

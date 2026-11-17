@@ -61,9 +61,8 @@ trim_galore_config = {
             "trim_galore": config.get('Procedure',{}).get('trim_galore')
         },
         "Params": {
-            "trim_galore": {
-                "quality": config.get('Params',{}).get("trim_galore", {}).get('quality')
-            }
+            # 参数精确到 rule:整段透传,模块读 Params.trim_galore.<rule>.<key>
+            "trim_galore": config.get('Params',{}).get("trim_galore", {})
         },
     }
 module trim_galore:
@@ -181,12 +180,9 @@ igv_config = {
         "bamCoverage": config.get("Procedure", {}).get("bamCoverage") or "bamCoverage"
     },
     "Params": {
-        "bamCoverage": {
-            "binSize": config.get("Params", {}).get("bamCoverage", {}).get("binSize") or 50,
-            "normalizeUsing": config.get("Params", {}).get("bamCoverage", {}).get("normalizeUsing") or "CPM",
-            "offset": config.get("Params", {}).get("bamCoverage", {}).get("offset"),
-            "extendReads": config.get("Params", {}).get("bamCoverage", {}).get("extendReads") or False
-        }
+        # 参数精确到 rule:整段透传,igv 模块读 Params.bamCoverage.<rule>.<key>
+        # (wig.normalizeUsing)及未迁移的模块级 binSize/offset/extendReads
+        "bamCoverage": config.get("Params", {}).get("bamCoverage", {})
     }
 }
 module igv:

@@ -1,22 +1,32 @@
 {
-    "indir": "input",
-    "outdir": "output",
-    "logdir": "logs",
-    "samples": [],
-    "control_samples": [],
-    "paired_design": {},
-    "Procedure": {
-        "cnvkit": null,
-        "samtools": null
-    },
-    "Params": {
-        "cnvkit": {
-            "method": "wgs",
-            "mode": "auto"
-        }
-    },
-    "genome": {
-        "fasta": null,
-        "access": null
+  "indir": "input",
+  "outdir": "output",
+  "logdir": "logs",
+  "samples": [],
+  "control_samples": [],
+  "paired_design": {},
+  "Procedure": {
+    "cnvkit": null,
+    "samtools": null
+  },
+  "Params": {
+    "cnvkit": {
+      "cnvkit_reference": {
+        "method": "wgs",
+        "mode": "auto"
+      },
+      "cnvkit_batch": {
+        "method": "wgs",
+        "mode": "auto"
+      },
+      "cnvkit_paired": {
+        "method": "wgs",
+        "mode": "auto"
+      }
     }
+  },
+  "genome": {
+    "fasta": null,
+    "access": null
+  }
 }

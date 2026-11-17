@@ -5,6 +5,10 @@ ROOT_DIR = config.get("ROOT_DIR", ".")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 
+# 参数精确到 rule:Params.mimseq.mimseq_clusters.<key>(rule_param 见 common.smk;
+# 无 module 级共享回退)。
+_mimseq_params = config.get("Params", {}).get("mimseq", {})
+
 rule mimseq_clusters:
     """Split isodecoders and perform cluster deconvolution."""
     input:
@@ -15,9 +19,9 @@ rule mimseq_clusters:
         logdir + "/mimseq_clusters.log"
     params:
         script = os.path.join(ROOT_DIR, "modules", "mimseq", "bin", "clusters", "run.py"),
-        name = config.get("Params", {}).get("mimseq", {}).get("name", "tRNAseq"),
-        cluster_id = config.get("Params", {}).get("mimseq", {}).get("cluster_id", 0.97),
-        cov_diff = config.get("Params", {}).get("mimseq", {}).get("cov_diff", 0.5),
+        name = rule_param(_mimseq_params, "mimseq_clusters", "name", "tRNAseq"),
+        cluster_id = rule_param(_mimseq_params, "mimseq_clusters", "cluster_id", 0.97),
+        cov_diff = rule_param(_mimseq_params, "mimseq_clusters", "cov_diff", 0.5),
     threads: rule_res("mimseq_clusters").get("threads", 4)
     benchmark: logdir + "/mimseq_clusters.benchmark.tsv",
     resources:
@@ -44,7 +48,7 @@ rule mimseq_clusters:
                 "--cluster-id", str(params.cluster_id),
                 "--cov-diff", str(params.cov_diff),
             ]
-            if config.get("Params", {}).get("mimseq", {}).get("cluster", True):
+            if rule_param(_mimseq_params, "mimseq_clusters", "cluster", True):
                 cmd += ["--cluster"]
 
             with open(script_path, "w") as f:

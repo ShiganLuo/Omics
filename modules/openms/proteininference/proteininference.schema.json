@@ -41,15 +41,22 @@
         "nullable": true,
         "required": false,
         "properties": {
-          "method": {
-            "type": "str",
+          "protein_inference": {
+            "type": "dict",
             "nullable": true,
-            "required": false
-          },
-          "greedy_group_resolution": {
-            "type": "str",
-            "nullable": true,
-            "required": false
+            "required": false,
+            "properties": {
+              "method": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "greedy_group_resolution": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              }
+            }
           }
         }
       }

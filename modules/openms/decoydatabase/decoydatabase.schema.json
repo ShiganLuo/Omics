@@ -36,30 +36,37 @@
         "nullable": true,
         "required": false,
         "properties": {
-          "decoy_string": {
-            "type": "str",
+          "decoy_database": {
+            "type": "dict",
             "nullable": true,
-            "required": false
-          },
-          "decoy_string_position": {
-            "type": "str",
-            "nullable": true,
-            "required": false
-          },
-          "method": {
-            "type": "str",
-            "nullable": true,
-            "required": false
-          },
-          "shuffle_max_attempts": {
-            "type": "int",
-            "nullable": true,
-            "required": false
-          },
-          "shuffle_sequence_identity_threshold": {
-            "type": "float",
-            "nullable": true,
-            "required": false
+            "required": false,
+            "properties": {
+              "decoy_string": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "decoy_string_position": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "method": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "shuffle_max_attempts": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "shuffle_sequence_identity_threshold": {
+                "type": "float",
+                "nullable": true,
+                "required": false
+              }
+            }
           }
         }
       }

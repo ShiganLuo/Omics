@@ -16,6 +16,11 @@ if not is_fasta_intermediate and (not fasta or not os.path.exists(fasta)):
     raise ValueError(f"FASTA file not found: {fasta}. Please provide a valid genome FASTA file in the config.")
 gtf = config.get('genome',{}).get('gtf')
 fastq_sample_suffix = config.get('fastq_sample_suffix') or None
+
+# 参数精确到 rule:Params.star.<rule_name>.<key>(rule_param 见 common.smk;
+# 无 module 级共享回退,star_align 独立键;index 子段仍为 Params.star.index)。
+_star_params = config.get("Params", {}).get("star", {})
+
 rule star_index:
     input:
         fasta = fasta,
@@ -173,37 +178,37 @@ rule star_align:
             f"{input.fastq[0]} {input.fastq[1]}" if len(input.fastq) == 2 else f"{input.fastq[0]}",
         STAR = config.get('Procedure',{}).get('STAR') or 'STAR',
         SAMTOOLS = config.get('Procedure',{}).get('samtools') or 'samtools',
-        twopassMode = config.get('Params',{}).get('star', {}).get('twopassMode') or None,
-        alignEndsType = config.get('Params',{}).get('star', {}).get('alignEndsType') or "Local",
-        outFilterMismatchNoverReadLmax = config.get('Params',{}).get('star', {}).get('outFilterMismatchNoverReadLmax') or 1.0,
-        outFilterMismatchNmax = config.get('Params',{}).get('star', {}).get('outFilterMismatchNmax') or 10,
-        outFilterMultimapNmax = config.get('Params',{}).get('star',{}).get('outFilterMultimapNmax') or 10,
-        winAnchorMultimapNmax = config.get('Params',{}).get('star', {}).get('winAnchorMultimapNmax') or 50,
-        genomeLoad = config.get('Params',{}).get('star', {}).get('genomeLoad') or 'NoSharedMemory',
-        limitBAMsortRAM = config.get('Params',{}).get('star', {}).get('limitBAMsortRAM') or 0,
-        outReadsUnmapped = config.get('Params',{}).get('star', {}).get('outReadsUnmapped') or None,
-        outFilterMismatchNoverLmax = config.get('Params',{}).get('star', {}).get('outFilterMismatchNoverLmax') or 0.3,
-        outFilterMatchNminOverLread = config.get('Params',{}).get('star', {}).get('outFilterMatchNminOverLread') or 0.66,
-        alignSJoverhangMin = config.get('Params',{}).get('star', {}).get('alignSJoverhangMin') or 5,
-        alignSJDBoverhangMin = config.get('Params',{}).get('star', {}).get('alignSJDBoverhangMin') or 3,
-        chimSegmentMin = config.get('Params',{}).get('star', {}).get('chimSegmentMin') or 0,
-        chimOutType = config.get('Params',{}).get('star', {}).get('chimOutType') or "Junctions",
-        chimJunctionOverhangMin = config.get('Params',{}).get('star', {}).get('chimJunctionOverhangMin') or 20,
-        outSAMstrandField = config.get('Params',{}).get('star', {}).get('outSAMstrandField') or None,
-        chimScoreMin = config.get('Params',{}).get('star', {}).get('chimScoreMin') or 0,
-        chimScoreDropMax = config.get('Params',{}).get('star', {}).get('chimScoreDropMax') or 20,
-        chimScoreJunctionNonGTAG = config.get('Params',{}).get('star', {}).get('chimScoreJunctionNonGTAG') or -1,
-        chimScoreSeparation = config.get('Params',{}).get('star', {}).get('chimScoreSeparation') or 10,
-        alignSJstitchMismatchNmax = config.get('Params',{}).get('star', {}).get('alignSJstitchMismatchNmax') or "0 -1 0 0",
-        chimSegmentReadGapMax = config.get('Params',{}).get('star', {}).get('chimSegmentReadGapMax') or 0,
-        outSAMattributes = config.get('Params',{}).get('star', {}).get('outSAMattributes') or "NM",
-        outMultimapperOrder = config.get('Params',{}).get('star', {}).get('outMultimapperOrder') or "Old_2.4",
-        runRNGseed = config.get('Params',{}).get('star', {}).get('runRNGseed') or 777,
-        outSAMmultNmax = config.get('Params',{}).get('star', {}).get('outSAMmultNmax') or -1,
-        soloType = config.get('Params',{}).get('star', {}).get('soloType') or None,
-        soloCBwhitelist = config.get('Params',{}).get('star', {}).get('soloCBwhitelist') or None,
-        soloBarcodeReadLength = config.get('Params',{}).get('star', {}).get('soloBarcodeReadLength', 1), # may be 0
-        limitSjdbInsertNsj = config.get('Params',{}).get('star', {}).get('limitSjdbInsertNsj') or 1000000,
+        twopassMode = rule_param(_star_params, "star_align", "twopassMode", None),
+        alignEndsType = rule_param(_star_params, "star_align", "alignEndsType", "Local"),
+        outFilterMismatchNoverReadLmax = rule_param(_star_params, "star_align", "outFilterMismatchNoverReadLmax", 1.0),
+        outFilterMismatchNmax = rule_param(_star_params, "star_align", "outFilterMismatchNmax", 10),
+        outFilterMultimapNmax = rule_param(_star_params, "star_align", "outFilterMultimapNmax", 10),
+        winAnchorMultimapNmax = rule_param(_star_params, "star_align", "winAnchorMultimapNmax", 50),
+        genomeLoad = rule_param(_star_params, "star_align", "genomeLoad", 'NoSharedMemory'),
+        limitBAMsortRAM = rule_param(_star_params, "star_align", "limitBAMsortRAM", 0),
+        outReadsUnmapped = rule_param(_star_params, "star_align", "outReadsUnmapped", None),
+        outFilterMismatchNoverLmax = rule_param(_star_params, "star_align", "outFilterMismatchNoverLmax", 0.3),
+        outFilterMatchNminOverLread = rule_param(_star_params, "star_align", "outFilterMatchNminOverLread", 0.66),
+        alignSJoverhangMin = rule_param(_star_params, "star_align", "alignSJoverhangMin", 5),
+        alignSJDBoverhangMin = rule_param(_star_params, "star_align", "alignSJDBoverhangMin", 3),
+        chimSegmentMin = rule_param(_star_params, "star_align", "chimSegmentMin", 0),
+        chimOutType = rule_param(_star_params, "star_align", "chimOutType", "Junctions"),
+        chimJunctionOverhangMin = rule_param(_star_params, "star_align", "chimJunctionOverhangMin", 20),
+        outSAMstrandField = rule_param(_star_params, "star_align", "outSAMstrandField", None),
+        chimScoreMin = rule_param(_star_params, "star_align", "chimScoreMin", 0),
+        chimScoreDropMax = rule_param(_star_params, "star_align", "chimScoreDropMax", 20),
+        chimScoreJunctionNonGTAG = rule_param(_star_params, "star_align", "chimScoreJunctionNonGTAG", -1),
+        chimScoreSeparation = rule_param(_star_params, "star_align", "chimScoreSeparation", 10),
+        alignSJstitchMismatchNmax = rule_param(_star_params, "star_align", "alignSJstitchMismatchNmax", "0 -1 0 0"),
+        chimSegmentReadGapMax = rule_param(_star_params, "star_align", "chimSegmentReadGapMax", 0),
+        outSAMattributes = rule_param(_star_params, "star_align", "outSAMattributes", "NM"),
+        outMultimapperOrder = rule_param(_star_params, "star_align", "outMultimapperOrder", "Old_2.4"),
+        runRNGseed = rule_param(_star_params, "star_align", "runRNGseed", 777),
+        outSAMmultNmax = rule_param(_star_params, "star_align", "outSAMmultNmax", -1),
+        soloType = rule_param(_star_params, "star_align", "soloType", None),
+        soloCBwhitelist = rule_param(_star_params, "star_align", "soloCBwhitelist", None),
+        soloBarcodeReadLength = rule_param(_star_params, "star_align", "soloBarcodeReadLength", 1), # may be 0
+        limitSjdbInsertNsj = rule_param(_star_params, "star_align", "limitSjdbInsertNsj", 1000000),
         outTmpDir = outdir + "/{sample_id}/tmp_star"
     conda:
         "star.yaml"

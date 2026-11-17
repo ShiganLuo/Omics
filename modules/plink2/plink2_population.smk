@@ -17,7 +17,7 @@ def run_plink(rule_name, log_path, output_path, commands):
         handle.write("#!/usr/bin/env bash\nset -euo pipefail\n")
         for command in commands: handle.write(" ".join(str(x) for x in command)+"\n")
     shutil.copyfile(script, plain_script)
-            shell(f"bash {plain_script} >> {log_path} 2>&1")
+    shell(f"bash {plain_script} >> {log_path} 2>&1")
 
 rule plink2_population_pgen:
     input: vcf=vcf, tbi=vcf+".tbi"

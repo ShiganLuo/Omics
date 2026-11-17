@@ -41,10 +41,16 @@
             "nullable": true,
             "required": false
           },
-          "normalizeUsing": {
-            "type": "str",
-            "nullable": true,
-            "required": false
+          "wig": {
+            "type": "dict",
+            "required": false,
+            "properties": {
+              "normalizeUsing": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              }
+            }
           },
           "offset": {
             "type": "null",

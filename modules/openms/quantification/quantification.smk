@@ -22,11 +22,19 @@ search_fasta = config.get("genome", {}).get("search_fasta", "")
 expdesign = config.get("expdesign", "")
 
 # Get parameters
+# 参数精确到 rule(2026-11 规范;rule_param 见 common.smk):共享读点拆成
+# 每 rule 一个 parse 期变量,键挂在消费 rule 名下,无 module 级共享回退:
+#   Params.tmt.<rule_name>.<key>            # IsobaricAnalyzer 提取/通道映射
+#   Params.protein_quant.<rule_name>.<key>  # 汇总参数(lfq/dia/tmt 各自独立)
+#   Params.protein_fdr.<rule_name>.<key>    # protein FDR(lfq/dia)
+#   Params.<rule_name>.add_triqler_output   # triqler 输出开关(lfq/dia)
+#   Params.<rule_name>.quantify_decoys      # decoy 定量(lfq/dia)
+# 旧键 method/average/best_charge_and_score/channel_mass_tolerance/
+# channel_annotation 为兼容回退键,随 module 级共享读取一并删除。
 tmt_params = config.get("Params", {}).get("tmt", {})
 protein_quant_params = config.get("Params", {}).get("protein_quant", {})
-add_triqler_output = config.get("Params", {}).get("add_triqler_output", False)
-quantify_decoys = config.get("Params", {}).get("quantify_decoys", False)
 protein_fdr_params = config.get("Params", {}).get("protein_fdr", {})
+_params_root = config.get("Params", {})
 
 # Get executables
 proteomicslfq = config.get("Procedure", {}).get("proteomicslfq") or "ProteomicsLFQ"
@@ -35,57 +43,89 @@ isobaric_analyzer = config.get("Procedure", {}).get("isobaric_analyzer") or "Iso
 id_mapper = config.get("Procedure", {}).get("id_mapper") or "IDMapper"
 file_merger = config.get("Procedure", {}).get("file_merger") or "FileMerger"
 
-# ProteomicsLFQ protein summarization options. The legacy config keys
-# top/average/best_charge_and_score map onto the ProteinQuantification
-# subsection of ProteomicsLFQ / the top-N options of ProteinQuantifier.
-_pq = protein_quant_params
-quant_method_opt = _pq.get("quantification_method") or _pq.get("method") or "feature_intensity"
-protein_inference_opt = _pq.get("protein_inference") or "aggregation"
-top_n = _pq.get("top", 3)
-top_aggregate = _pq.get("average") or _pq.get("top_aggregate") or "median"
-best_charge_and_fraction = _pq.get("best_charge_and_fraction",
-                                   _pq.get("best_charge_and_score", True))
-if protein_inference_opt not in ("aggregation", "bayesian"):
-    raise ValueError(
-        f"Params.protein_quant.protein_inference={protein_inference_opt!r} is not "
-        "supported: use 'aggregation' or 'bayesian'"
-    )
+# add_triqler_output(Params.<rule_name>.add_triqler_output)、quantify_decoys
+# (Params.<rule_name>.quantify_decoys):lfq/dia 两 rule 共享 → 每 rule 独立键,
+# output 展开与 CLI 转发共用 parse 期变量。
+_add_triqler_lfq = rule_param(_params_root, "quantification_lfq", "add_triqler_output", False)
+_add_triqler_dia = rule_param(_params_root, "quantification_dia", "add_triqler_output", False)
+_quantify_decoys_lfq = rule_param(_params_root, "quantification_lfq", "quantify_decoys", False)
+_quantify_decoys_dia = rule_param(_params_root, "quantification_dia", "quantify_decoys", False)
 
-# TMT / isobaric extraction options (IsobaricAnalyzer). The legacy
-# channel_mass_tolerance/channel_annotation keys map onto
-# extraction:reporter_mass_shift and the per-channel description options.
-tmt_type = tmt_params.get("type") or "tmt16plex"
-reporter_mass_shift = tmt_params.get("reporter_mass_shift",
-                                     tmt_params.get("channel_mass_tolerance", 0.003))
-isotope_correction = tmt_params.get("isotope_correction", True)
-tmt_normalization = tmt_params.get("normalization", False)
-reference_channel = tmt_params.get("reference_channel", "")
-correction_matrix = tmt_params.get("correction_matrix", []) or []
-channel_descriptions = tmt_params.get("channel_descriptions", {}) or {}
-if not channel_descriptions and tmt_params.get("channel_annotation"):
-    # legacy flat string form: "126:S1,127N:S2"
-    for pair in str(tmt_params["channel_annotation"]).split(","):
-        if ":" in pair:
-            ch, desc = pair.split(":", 1)
-            channel_descriptions[ch.strip()] = desc.strip()
+# ProteomicsLFQ protein summarization options (ProteinQuantification subsection
+# of ProteomicsLFQ / top-N options of ProteinQuantifier):
+# Params.protein_quant.<rule_name>.<key>,每 rule 一个 parse 期变量。lfq/dia 经
+# _plfq_summarization_cmd 转发;tmt 只消费 top/top_aggregate/best_charge_and_fraction。
+_quant_method_lfq = rule_param(protein_quant_params, "quantification_lfq", "quantification_method", "feature_intensity")
+_inference_lfq = rule_param(protein_quant_params, "quantification_lfq", "protein_inference", "aggregation")
+_top_n_lfq = rule_param(protein_quant_params, "quantification_lfq", "top", 3)
+_top_aggregate_lfq = rule_param(protein_quant_params, "quantification_lfq", "top_aggregate", "median")
+_best_caf_lfq = rule_param(protein_quant_params, "quantification_lfq", "best_charge_and_fraction", True)
+_quant_method_dia = rule_param(protein_quant_params, "quantification_dia", "quantification_method", "feature_intensity")
+_inference_dia = rule_param(protein_quant_params, "quantification_dia", "protein_inference", "aggregation")
+_top_n_dia = rule_param(protein_quant_params, "quantification_dia", "top", 3)
+_top_aggregate_dia = rule_param(protein_quant_params, "quantification_dia", "top_aggregate", "median")
+_best_caf_dia = rule_param(protein_quant_params, "quantification_dia", "best_charge_and_fraction", True)
+_top_n_tmt = rule_param(protein_quant_params, "quantification_tmt", "top", 3)
+_top_aggregate_tmt = rule_param(protein_quant_params, "quantification_tmt", "top_aggregate", "median")
+_best_caf_tmt = rule_param(protein_quant_params, "quantification_tmt", "best_charge_and_fraction", True)
+for _inf_rule, _inf_val in (("quantification_lfq", _inference_lfq),
+                           ("quantification_dia", _inference_dia)):
+    if _inf_val not in ("aggregation", "bayesian"):
+        raise ValueError(
+            f"Params.protein_quant.{_inf_rule}.protein_inference={_inf_val!r} is not "
+            "supported: use 'aggregation' or 'bayesian'"
+        )
 
-def _plfq_summarization_cmd():
-    """ProteomicsLFQ arguments shared by the LFQ and DIA group rules."""
+# Protein FDR options (ProteomicsLFQ -proteinFDR/-picked_proteinFDR):
+# Params.protein_fdr.<rule_name>.fdr/picked,lfq/dia 两 rule 共享 → 每 rule 独立。
+_protein_fdr_lfq = rule_param(protein_fdr_params, "quantification_lfq", "fdr", None)
+_protein_fdr_picked_lfq = rule_param(protein_fdr_params, "quantification_lfq", "picked", False)
+_protein_fdr_dia = rule_param(protein_fdr_params, "quantification_dia", "fdr", None)
+_protein_fdr_picked_dia = rule_param(protein_fdr_params, "quantification_dia", "picked", False)
+
+# TMT / isobaric extraction options (IsobaricAnalyzer):
+# Params.tmt.<rule_name>.<key>。type 被 quantification_tmt_reporter、
+# quantification_tmt 两 rule 共享 → 每 rule 独立键;其余仅
+# quantification_tmt_reporter 消费,同样挂 rule 名下。旧键
+# channel_mass_tolerance/channel_annotation 为兼容回退键,已删除。
+_tmt_type_reporter = rule_param(tmt_params, "quantification_tmt_reporter", "type", "tmt16plex")
+_reporter_mass_shift = rule_param(tmt_params, "quantification_tmt_reporter", "reporter_mass_shift", 0.003)
+_isotope_correction = rule_param(tmt_params, "quantification_tmt_reporter", "isotope_correction", True)
+_tmt_normalization = rule_param(tmt_params, "quantification_tmt_reporter", "normalization", False)
+_reference_channel = rule_param(tmt_params, "quantification_tmt_reporter", "reference_channel", "")
+_correction_matrix = rule_param(tmt_params, "quantification_tmt_reporter", "correction_matrix", [])
+_channel_descriptions = rule_param(tmt_params, "quantification_tmt_reporter", "channel_descriptions", {})
+_tmt_type_tmt = rule_param(tmt_params, "quantification_tmt", "type", "tmt16plex")
+
+def _plfq_summarization_cmd(quant_method, protein_inference, top_n, top_aggregate,
+                            best_charge_and_fraction, fdr, picked, quantify_decoys):
+    """ProteomicsLFQ arguments shared by the LFQ and DIA group rules.
+
+    参数已按 rule 独立解析后逐 key 传入(无共享回退)。
+    """
     cmd = [
-        "-quantification_method", str(quant_method_opt),
-        "-protein_inference", str(protein_inference_opt),
+        "-quantification_method", str(quant_method),
+        "-protein_inference", str(protein_inference),
         "-ProteinQuantification:top:N", str(top_n),
         "-ProteinQuantification:top:aggregate", str(top_aggregate),
     ]
     if best_charge_and_fraction:
         cmd.append("-ProteinQuantification:best_charge_and_fraction")
-    if protein_fdr_params.get("fdr") is not None:
-        cmd += ["-proteinFDR", str(protein_fdr_params["fdr"])]
-    if protein_fdr_params.get("picked"):
+    if fdr is not None:
+        cmd += ["-proteinFDR", str(fdr)]
+    if picked:
         cmd += ["-picked_proteinFDR", "true"]
     if quantify_decoys:
         cmd.append("-PeptideQuantification:quantify_decoys")
     return cmd
+
+# 每 rule 一个 parse 期变量(lfq/dia 共享构造拆分)
+_plfq_cmd_lfq = _plfq_summarization_cmd(
+    _quant_method_lfq, _inference_lfq, _top_n_lfq, _top_aggregate_lfq,
+    _best_caf_lfq, _protein_fdr_lfq, _protein_fdr_picked_lfq, _quantify_decoys_lfq)
+_plfq_cmd_dia = _plfq_summarization_cmd(
+    _quant_method_dia, _inference_dia, _top_n_dia, _top_aggregate_dia,
+    _best_caf_dia, _protein_fdr_dia, _protein_fdr_picked_dia, _quantify_decoys_dia)
 
 rule quantification_lfq:
     input:
@@ -95,7 +135,7 @@ rule quantification_lfq:
     output:
         mztab = outdir + "/lfq_quantification.mzTab",
         msstats_csv = outdir + "/lfq_msstats.csv",
-        **({"triqler": outdir + "/lfq_quantification.triqler.tsv"} if add_triqler_output else {})
+        **({"triqler": outdir + "/lfq_quantification.triqler.tsv"} if _add_triqler_lfq else {})
     log:
         logdir + "/quantification/quantification_lfq.log"
     threads: rule_res("quantification_lfq").get("threads", 8)
@@ -129,12 +169,12 @@ rule quantification_lfq:
                 "-out_msstats", output.msstats_csv,
                 "-fasta", str(input.fasta),
             ]
-            if add_triqler_output:
+            if _add_triqler_lfq:
                 cmd += ["-out_triqler", output.triqler]
             if params.expdesign:
                 cmd += ["-design", str(params.expdesign)]
             cmd += ["-threads", str(threads)]
-            cmd += _plfq_summarization_cmd()
+            cmd += _plfq_cmd_lfq
             with open(script, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")
@@ -182,20 +222,20 @@ rule quantification_tmt_reporter:
                 params.isobaric_analyzer,
                 "-in", str(input.mzml),
                 "-out", output.reporter,
-                "-type", str(tmt_type),
-                "-extraction:reporter_mass_shift", str(reporter_mass_shift),
+                "-type", str(_tmt_type_reporter),
+                "-extraction:reporter_mass_shift", str(_reporter_mass_shift),
                 "-quantification:isotope_correction",
-                "true" if isotope_correction else "false",
+                "true" if _isotope_correction else "false",
             ]
-            if tmt_normalization:
+            if _tmt_normalization:
                 extract_cmd.append("-quantification:normalization")
-            if reference_channel:
-                extract_cmd += [f"-{tmt_type}:reference_channel", str(reference_channel)]
-            if correction_matrix:
-                extract_cmd += [f"-{tmt_type}:correction_matrix",
-                                *[str(x) for x in correction_matrix]]
-            for channel, description in channel_descriptions.items():
-                extract_cmd += [f"-{tmt_type}:channel_{channel}_description", str(description)]
+            if _reference_channel:
+                extract_cmd += [f"-{_tmt_type_reporter}:reference_channel", str(_reference_channel)]
+            if _correction_matrix:
+                extract_cmd += [f"-{_tmt_type_reporter}:correction_matrix",
+                                *[str(x) for x in _correction_matrix]]
+            for channel, description in _channel_descriptions.items():
+                extract_cmd += [f"-{_tmt_type_reporter}:channel_{channel}_description", str(description)]
             map_cmd = [
                 params.id_mapper,
                 "-in", output.reporter,
@@ -267,10 +307,10 @@ rule quantification_tmt:
                     "-in", str(mapped_cxml),
                     "-protein_groups", str(protein_idxml),
                     "-out", per_csv,
-                    "-top:N", str(top_n),
-                    "-top:aggregate", str(top_aggregate),
+                    "-top:N", str(_top_n_tmt),
+                    "-top:aggregate", str(_top_aggregate_tmt),
                 ]
-                if best_charge_and_fraction:
+                if _best_caf_tmt:
                     cmd.append("-best_charge_and_fraction")
                 if params.expdesign:
                     per_mztab = str(outdir) + f"/{sample_id}/{sample_id}_quant.mzTab"
@@ -288,7 +328,7 @@ rule quantification_tmt:
                 "tmt10plex": ["126", "127N", "127C", "128N", "128C", "129N",
                               "129C", "130N", "131N"],
                 "tmt6plex": ["126", "127N", "127C", "128N", "128C", "131N"],
-            }.get(str(tmt_type), [str(i + 1) for i in range(16)])
+            }.get(str(_tmt_type_tmt), [str(i + 1) for i in range(16)])
             stack_py = (
                 "import csv, sys, glob, os\n"
                 "out_path, channels_arg = sys.argv[1], sys.argv[2]\n"
@@ -357,7 +397,7 @@ rule quantification_dia:
     output:
         mztab = outdir + "/dia_quantification.mzTab",
         msstats_csv = outdir + "/dia_msstats.csv",
-        **({"triqler": outdir + "/dia_quantification.triqler.tsv"} if add_triqler_output else {})
+        **({"triqler": outdir + "/dia_quantification.triqler.tsv"} if _add_triqler_dia else {})
     log:
         logdir + "/quantification/quantification_dia.log"
     threads: rule_res("quantification_dia").get("threads", 8)
@@ -391,12 +431,12 @@ rule quantification_dia:
                 "-out_msstats", output.msstats_csv,
                 "-fasta", str(input.fasta),
             ]
-            if add_triqler_output:
+            if _add_triqler_dia:
                 cmd += ["-out_triqler", output.triqler]
             if params.expdesign:
                 cmd += ["-design", str(params.expdesign)]
             cmd += ["-threads", str(threads)]
-            cmd += _plfq_summarization_cmd()
+            cmd += _plfq_cmd_dia
             with open(script, "w") as f:
                 f.write("#!/bin/bash\nset -euo pipefail\n")
                 f.write(" ".join(shlex.quote(str(x)) for x in cmd) + "\n")

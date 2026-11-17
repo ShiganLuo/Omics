@@ -1,23 +1,27 @@
 {
-    "indir": "input",
-    "outdir": "output",
-    "logdir": "logs",
-    "samples": [],
-    "Procedure": {
-        "trgt": null
-    },
-    "Params": {
-        "trgt": {
-            "karyotype": "XX",
-            "repeat_id": "HTT",
-            "formats": ["png"]
-        }
-    },
-    "reference": {
-        "repeat_bed": null
-    },
-    "genome": {
-        "fasta": null,
-        "fai": null
+  "indir": "input",
+  "outdir": "output",
+  "logdir": "logs",
+  "samples": [],
+  "Procedure": {
+    "trgt": null
+  },
+  "Params": {
+    "trgt": {
+      "karyotype": "XX",
+      "repeat_id": "HTT",
+      "trgt_plot": {
+        "formats": [
+          "png"
+        ]
+      }
     }
+  },
+  "reference": {
+    "repeat_bed": null
+  },
+  "genome": {
+    "fasta": null,
+    "fai": null
+  }
 }

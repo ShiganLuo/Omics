@@ -397,32 +397,38 @@
         "default": false,
         "description": "Gate for the regionplot module (multi-sample track stacking plots over user regions, consumes this workflow's bigwigs)."
       },
-      "regions": {
-        "type": "str",
-        "required": false,
-        "default": null,
-        "description": "Regions file, required when enabled. Auto-detected per row: BED rows (chrom<TAB>start<TAB>end[<TAB>name], col4 names the panel) or list lines ([NAME=]chrom:start-end, the same string pyGenomeTracks --region consumes; NAME= names the panel, else chrom_start_end). Formats may be mixed; #/track/browser lines skipped."
-      },
-      "sample_group_dict": {
+      "regionplot": {
         "type": "dict",
         "required": false,
-        "default": {},
-        "description": "sample_id -> biological group for track coloring; auto-filled from the meta group column by node.py, hand-filled values win."
-      },
-      "sample_order": {
-        "type": "list",
-        "required": false,
-        "default": [],
-        "description": "Plotting order of samples; empty = meta order."
-      },
-      "formats": {
-        "type": "list",
-        "required": false,
-        "default": [
-          "png",
-          "svg"
-        ],
-        "description": "Output image formats (pyGenomeTracks --outFileName extensions)."
+        "properties": {
+          "regions": {
+            "type": "str",
+            "required": false,
+            "default": null,
+            "description": "Regions file, required when enabled. Auto-detected per row: BED rows (chrom<TAB>start<TAB>end[<TAB>name], col4 names the panel) or list lines ([NAME=]chrom:start-end, the same string pyGenomeTracks --region consumes; NAME= names the panel, else chrom_start_end). Formats may be mixed; #/track/browser lines skipped."
+          },
+          "sample_group_dict": {
+            "type": "dict",
+            "required": false,
+            "default": {},
+            "description": "sample_id -> biological group for track coloring; auto-filled from the meta group column by node.py, hand-filled values win."
+          },
+          "sample_order": {
+            "type": "list",
+            "required": false,
+            "default": [],
+            "description": "Plotting order of samples; empty = meta order."
+          },
+          "formats": {
+            "type": "list",
+            "required": false,
+            "default": [
+              "png",
+              "svg"
+            ],
+            "description": "Output image formats (pyGenomeTracks --outFileName extensions)."
+          }
+        }
       },
       "gtf_track": {
         "type": "bool",
@@ -444,18 +450,50 @@
       }
     },
     "trim_galore": {
-      "quality": {
-        "type": "int",
-        "required": true
+      "trimming_Paired": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "quality": {
+            "type": "int",
+            "required": true
+          }
+        }
+      },
+      "trimming_Single": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "quality": {
+            "type": "int",
+            "required": true
+          }
+        }
       }
     },
     "bamCoverage": {
+      "bamCoverage": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "normalizeUsing": {
+            "type": "str",
+            "required": true
+          }
+        }
+      },
+      "wig": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "normalizeUsing": {
+            "type": "str",
+            "required": true
+          }
+        }
+      },
       "binSize": {
         "type": "int",
-        "required": true
-      },
-      "normalizeUsing": {
-        "type": "str",
         "required": true
       },
       "offset": {
@@ -464,23 +502,41 @@
       }
     },
     "star": {
-      "alignEndsType": {
-        "type": "str",
-        "required": true
+      "star_align": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "alignEndsType": {
+            "type": "str",
+            "required": true
+          }
+        }
       }
     },
     "umi_tools": {
-      "extract_method": {
-        "type": "str",
-        "required": true
+      "UmiTools_extract_single": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "bc_pattern": {
+            "type": "str",
+            "required": true
+          }
+        }
       },
-      "bc_pattern": {
-        "type": "str",
-        "required": true
-      },
-      "bc_pattern2": {
-        "type": "str",
-        "required": true
+      "UmiTools_extract_paired": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "bc_pattern": {
+            "type": "str",
+            "required": true
+          },
+          "bc_pattern2": {
+            "type": "str",
+            "required": true
+          }
+        }
       }
     },
     "igv": {

@@ -80,11 +80,9 @@ igv_config = {
             "bamCoverage": config.get('Procedure',{}).get('bamCoverage')
         },
         "Params": {
-            "bamCoverage": {
-                "binSize": config.get('Params',{}).get('bamCoverage',{}).get('binSize'),
-                "normalizeUsing": config.get('Params',{}).get('bamCoverage',{}).get('normalizeUsing'),
-                "offset": config.get('Params',{}).get('bamCoverage',{}).get('offset')
-            }
+            # 参数精确到 rule:整段透传(normalizeUsing 在 bamCoverage/wig 各自
+            # rule 子键;未迁移的 binSize/offset 仍是模块级扁平键)
+            "bamCoverage": config.get('Params',{}).get('bamCoverage', {}),
         }
     }
 module igv:

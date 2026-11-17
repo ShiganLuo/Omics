@@ -48,38 +48,29 @@
     },
     "scanpy": {
       "scTE": {
-        "qc": {
+        "scanpy_qc": {
           "min_genes": 200,
           "max_genes": 6000,
           "max_pct_mt": 20,
           "n_top_genes": 3000,
           "use_mad": false,
           "scrublet": true,
-          "doublet_rate": 0.06
+          "doublet_rate": 0.06,
+          "formats": [
+            "png"
+          ]
         },
-        "cluster": {
-          "n_pcs": 50,
-          "n_neighbors": 50,
+        "scanpy_merge": {
+          "formats": [
+            "png"
+          ]
+        },
+        "scanpy_auto": {
+          "llm_method": null,
+          "llm_model": null,
+          "llm_api_key": null,
+          "llm_base_url": null,
           "resolution": 0.8,
-          "n_top_genes": 3000,
-          "batch_method": "harmony",
-          "batch_key": "sample_id",
-          "auto_n_pcs": true
-        },
-        "annotate": {
-          "marker_file": "",
-          "celltypist_model": "",
-          "annotate_group": "leiden"
-        },
-        "advanced": {
-          "trajectory": false,
-          "velocity": false,
-          "communication": false,
-          "cnv": false,
-          "gtf": "",
-          "cnv_reference": ""
-        },
-        "auto": {
           "max_iterations": 3,
           "min_genes": 800,
           "min_counts": 3000,
@@ -92,64 +83,81 @@
           "auto_n_pcs": true,
           "skip_te": true,
           "regress_cell_cycle": false,
-          "llm_method": null,
-          "llm_model": null,
-          "llm_api_key": null,
-          "llm_base_url": null,
-          "cluster_annotations": null,
           "marker_supplement": null,
           "marker_supplement_llm": true,
           "exclude_genes": "",
-          "exclude_from_deg": false
+          "exclude_from_deg": false,
+          "formats": [
+            "png"
+          ],
+          "save_iteration_h5ad": false
         },
-        "pseudobulk": {
+        "scanpy_reannotate": {
+          "cluster_annotations": null,
+          "marker_supplement": null,
+          "formats": [
+            "png"
+          ]
+        },
+        "scanpy_advanced": {
+          "n_pcs": 50,
+          "n_neighbors": 50,
+          "trajectory": false,
+          "velocity": false,
+          "communication": false,
+          "cnv": false,
+          "gtf": "",
+          "cnv_reference": "",
+          "cluster_annotations": null,
+          "formats": [
+            "png"
+          ]
+        },
+        "scanpy_pseudobulk": {
           "enabled": true,
           "compare": [],
           "min_cells": 30,
           "min_counts": 1000,
           "n_pseudo_reps": 3,
+          "min_cells_per_rep": 10,
+          "cell_types": [],
           "top_cell_types": [],
           "highlight_genes": [],
           "deg_mode": [
             "gene",
             "te",
             "all"
+          ],
+          "cluster_annotations": null,
+          "formats": [
+            "png"
           ]
         }
       },
       "cellranger": {
-        "qc": {
+        "scanpy_qc": {
           "min_genes": 200,
           "max_genes": 6000,
           "max_pct_mt": 20,
           "n_top_genes": 3000,
           "use_mad": false,
           "scrublet": true,
-          "doublet_rate": 0.06
+          "doublet_rate": 0.06,
+          "formats": [
+            "png"
+          ]
         },
-        "cluster": {
-          "n_pcs": 50,
-          "n_neighbors": 50,
+        "scanpy_merge": {
+          "formats": [
+            "png"
+          ]
+        },
+        "scanpy_auto": {
+          "llm_method": null,
+          "llm_model": null,
+          "llm_api_key": null,
+          "llm_base_url": null,
           "resolution": 0.8,
-          "n_top_genes": 3000,
-          "batch_method": "harmony",
-          "batch_key": "sample_id",
-          "auto_n_pcs": true
-        },
-        "annotate": {
-          "marker_file": "",
-          "celltypist_model": "",
-          "annotate_group": "leiden"
-        },
-        "advanced": {
-          "trajectory": false,
-          "velocity": false,
-          "communication": false,
-          "cnv": false,
-          "gtf": "",
-          "cnv_reference": ""
-        },
-        "auto": {
           "max_iterations": 3,
           "min_genes": 800,
           "min_counts": 3000,
@@ -162,57 +170,87 @@
           "auto_n_pcs": true,
           "skip_te": true,
           "regress_cell_cycle": false,
-          "llm_method": null,
-          "llm_model": null,
-          "llm_api_key": null,
-          "llm_base_url": null,
-          "cluster_annotations": null,
           "marker_supplement": null,
           "marker_supplement_llm": true,
           "exclude_genes": "",
-          "exclude_from_deg": false
+          "exclude_from_deg": false,
+          "formats": [
+            "png"
+          ],
+          "save_iteration_h5ad": false
         },
-        "pseudobulk": {
+        "scanpy_reannotate": {
+          "cluster_annotations": null,
+          "marker_supplement": null,
+          "formats": [
+            "png"
+          ]
+        },
+        "scanpy_advanced": {
+          "n_pcs": 50,
+          "n_neighbors": 50,
+          "trajectory": false,
+          "velocity": false,
+          "communication": false,
+          "cnv": false,
+          "gtf": "",
+          "cnv_reference": "",
+          "cluster_annotations": null,
+          "formats": [
+            "png"
+          ]
+        },
+        "scanpy_pseudobulk": {
           "enabled": true,
           "compare": [],
           "min_cells": 30,
           "min_counts": 1000,
           "n_pseudo_reps": 3,
+          "min_cells_per_rep": 10,
+          "cell_types": [],
           "top_cell_types": [],
           "highlight_genes": [],
           "deg_mode": [
             "all"
+          ],
+          "cluster_annotations": null,
+          "formats": [
+            "png"
           ]
         }
       },
-      "tissue_samples": {},
-      "formats": [
-        "png"
-      ]
+      "tissue_samples": {}
     },
     "sccoda": {
       "scTE": {
-        "enabled": true,
-        "compare": [],
-        "ref_celltype": "automatic",
-        "formula": "condition",
-        "credible_threshold": 0.9,
-        "num_samples": 2000,
-        "num_warmup": 500
+        "sccoda_run": {
+          "enabled": true,
+          "compare": [],
+          "ref_celltype": "automatic",
+          "formula": "condition",
+          "credible_threshold": 0.9,
+          "num_samples": 2000,
+          "num_warmup": 500,
+          "formats": [
+            "png"
+          ]
+        }
       },
       "cellranger": {
-        "enabled": true,
-        "compare": [],
-        "ref_celltype": "automatic",
-        "formula": "condition",
-        "credible_threshold": 0.9,
-        "num_samples": 2000,
-        "num_warmup": 500
+        "sccoda_run": {
+          "enabled": true,
+          "compare": [],
+          "ref_celltype": "automatic",
+          "formula": "condition",
+          "credible_threshold": 0.9,
+          "num_samples": 2000,
+          "num_warmup": 500,
+          "formats": [
+            "png"
+          ]
+        }
       },
-      "tissue_samples": {},
-      "formats": [
-        "png"
-      ]
+      "tissue_samples": {}
     },
     "function": {
       "pseudobulk_go": {

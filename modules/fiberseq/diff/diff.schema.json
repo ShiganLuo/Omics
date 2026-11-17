@@ -35,20 +35,22 @@
         "nullable": true,
         "required": false,
         "properties": {
-          "alpha": {
-            "type": "float",
+          "fiberseq_diff_run": {
+            "type": "dict",
             "nullable": true,
-            "required": false
-          },
-          "design_tsv": {
-            "type": "null",
-            "nullable": true,
-            "required": false
-          },
-          "annot_sample": {
-            "type": "null",
-            "nullable": true,
-            "required": false
+            "required": false,
+            "properties": {
+              "alpha": {
+                "type": "float",
+                "nullable": true,
+                "required": false
+              },
+              "annot_sample": {
+                "type": "null",
+                "nullable": true,
+                "required": false
+              }
+            }
           }
         }
       }

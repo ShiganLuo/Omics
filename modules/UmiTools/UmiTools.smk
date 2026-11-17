@@ -4,6 +4,10 @@ outdir = config.get("outdir", "output")
 indir = config.get("indir", "output")
 logdir = config.get("logdir", "log")
 
+# 参数精确到 rule:Params.umi_tools.<rule_name>.<key>(rule_param 见 common.smk;
+# 无 module 级共享回退,每 rule 各自独立键)。
+_umi_tools_params = config.get("Params", {}).get("umi_tools", {})
+
 rule umi_tools_dedup_for_hisat2:
     input:
         bam = indir + "/{sample_id}.bam"
@@ -12,7 +16,7 @@ rule umi_tools_dedup_for_hisat2:
         bai = temp(outdir + "/{sample_id}.dedup.bam.bai"),
     params:
         umi_tools = config.get('Procedure',{}).get('umi_tools') or 'umi_tools',
-        method = config.get('Params',{}).get('umi_tools',{}).get('method') or 'unique',
+        method = rule_param(_umi_tools_params, "umi_tools_dedup_for_hisat2", "method", 'unique'),
         samtools = config.get('Procedure',{}).get('samtools') or 'samtools'
     threads: rule_res("umi_tools_dedup_for_hisat2").get("threads", 2)
     benchmark: logdir + "/{sample_id}/umi_tools_dedup_run.benchmark.txt",
@@ -60,7 +64,7 @@ rule umi_tools_dedup_for_star:
         bai = temp(outdir + "/{sample_id}.dedup.bam.bai")
     params:
         umi_tools = config.get('Procedure',{}).get('umi_tools') or 'umi_tools',
-        method = config.get('Params',{}).get('umi_tools',{}).get('method') or 'unique',
+        method = rule_param(_umi_tools_params, "umi_tools_dedup_for_star", "method", 'unique'),
         samtools = config.get('Procedure',{}).get('samtools') or 'samtools'
     threads: rule_res("umi_tools_dedup_for_star").get("threads", 2)
     benchmark: logdir + "/{sample_id}/umi_tools_dedup_run.benchmark.txt",

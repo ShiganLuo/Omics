@@ -90,7 +90,8 @@ rule repeatmasker_init:
     container:
         sif("centromere.yaml", "repeatmasker_init")
     params:
-        species = config.get("Params", {}).get("RepeatMasker", {}).get("species", "Mus musculus"),
+        species = rule_param(config.get("Params", {}).get("RepeatMasker", {}),
+                             "repeatmasker_init", "species", "Mus musculus"),   # Params.RepeatMasker.repeatmasker_init.species(与 repeatmasker_run 各自;rule_param 见 common.smk)
         RepeatMasker = config.get("Procedure", {}).get("RepeatMasker") or "RepeatMasker"
     threads: rule_res("repeatmasker_init").get("threads", 1)
     benchmark: logdir + "/all/RepeatMasker/repeatmasker_init.benchmark.tsv",
@@ -184,7 +185,8 @@ rule repeatmasker_run:
             "repeatmasker_run", input_size=input_size_mb(input),
             attempt=attempt).get("mem_mb", 32000),
     params:
-        species = config.get("Params", {}).get("RepeatMasker", {}).get("species", "Mus musculus"),
+        species = rule_param(config.get("Params", {}).get("RepeatMasker", {}),
+                             "repeatmasker_run", "species", "Mus musculus"),   # Params.RepeatMasker.repeatmasker_run.species(与 repeatmasker_init 各自;rule_param 见 common.smk)
         rm_dir = outdir + "/{sample_id}/RepeatMasker",
         RepeatMasker = config.get("Procedure", {}).get("RepeatMasker") or "RepeatMasker",
     run:

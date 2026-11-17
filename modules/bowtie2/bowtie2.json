@@ -1,21 +1,32 @@
 {
-    "indir": "input",
-    "outdir": "output",
-    "logdir": "log",
-    "genome": {
-        "index_prefix": "/path/to/bowtie2_index/genome",
-        "fasta": "/path/to/genome.fa"
-    },
-    "Procedure": {
-        "bowtie2-build": "path/to/bowtie2-build",
-        "bowtie2": "path/to/bowtie2",
-        "samtools": "path/to/samtools"
-    },
-    "Params": {
-        "bowtie2": {
-            "sam-append-comment": true
-        }
-    },
-    "paired_samples": ["sample1", "sample2"],
-    "single_samples": ["sample3", "sample4"]
+  "indir": "input",
+  "outdir": "output",
+  "logdir": "log",
+  "genome": {
+    "index_prefix": "/path/to/bowtie2_index/genome",
+    "fasta": "/path/to/genome.fa"
+  },
+  "Procedure": {
+    "bowtie2-build": "path/to/bowtie2-build",
+    "bowtie2": "path/to/bowtie2",
+    "samtools": "path/to/samtools"
+  },
+  "Params": {
+    "bowtie2": {
+      "bowtie2_align_paired": {
+        "sam-append-comment": true
+      },
+      "bowtie2_align_single": {
+        "sam-append-comment": true
+      }
+    }
+  },
+  "paired_samples": [
+    "sample1",
+    "sample2"
+  ],
+  "single_samples": [
+    "sample3",
+    "sample4"
+  ]
 }

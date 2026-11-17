@@ -53,10 +53,29 @@
         "nullable": true,
         "required": false,
         "properties": {
-          "javaOptions": {
-            "type": "str",
+          "gatk_population_haplotype_caller": {
+            "type": "dict",
             "nullable": true,
-            "required": false
+            "required": false,
+            "properties": {
+              "javaOptions": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              }
+            }
+          },
+          "gatk_population_joint_genotyping": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "javaOptions": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              }
+            }
           }
         }
       }

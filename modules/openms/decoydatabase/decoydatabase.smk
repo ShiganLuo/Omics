@@ -9,11 +9,9 @@ protein_fasta = config.get("genome", {}).get("protein_fasta")
 # this rule and must not crash at parse.
 
 # Get parameters
-decoy_string = config.get("Params", {}).get("decoy_database", {}).get("decoy_string", "DECOY_")
-decoy_string_position = config.get("Params", {}).get("decoy_database", {}).get("decoy_string_position", "prefix")
-method = config.get("Params", {}).get("decoy_database", {}).get("method", "shuffle")
-shuffle_max_attempts = config.get("Params", {}).get("decoy_database", {}).get("shuffle_max_attempts", 30)
-shuffle_sequence_identity_threshold = config.get("Params", {}).get("decoy_database", {}).get("shuffle_sequence_identity_threshold", 0.5)
+# 参数精确到 rule(2026-11 规范;rule_param 见 common.smk):
+# Params.decoy_database.decoy_database.<key>,无 module 级共享回退。
+decoy_params = config.get("Params", {}).get("decoy_database", {})
 
 # Get OpenMS executable
 openms = config.get("Procedure", {}).get("openms") or "DecoyDatabase"
@@ -36,11 +34,11 @@ rule decoy_database:
         sif("../openms.yaml", "decoy_database")
     params:
         openms = openms,
-        decoy_string = decoy_string,
-        decoy_string_position = decoy_string_position,
-        method = method,
-        shuffle_max_attempts = shuffle_max_attempts,
-        shuffle_sequence_identity_threshold = shuffle_sequence_identity_threshold
+        decoy_string = rule_param(decoy_params, "decoy_database", "decoy_string", "DECOY_"),
+        decoy_string_position = rule_param(decoy_params, "decoy_database", "decoy_string_position", "prefix"),
+        method = rule_param(decoy_params, "decoy_database", "method", "shuffle"),
+        shuffle_max_attempts = rule_param(decoy_params, "decoy_database", "shuffle_max_attempts", 30),
+        shuffle_sequence_identity_threshold = rule_param(decoy_params, "decoy_database", "shuffle_sequence_identity_threshold", 0.5)
     run:
         log_path = str(log)
         open(log_path, 'w').close()

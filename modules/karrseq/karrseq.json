@@ -1,16 +1,21 @@
 {
-    "indir": "input",
-    "outdir": "output",
-    "logdir": "log",
-    "samples": [],
-    "ROOT_DIR": ".",
-    "Procedure": {
-        "samtools": "samtools"
-    },
-    "Params": {
-        "karrseq": {
-            "mapq": 1,
-            "span": 0
-        }
+  "indir": "input",
+  "outdir": "output",
+  "logdir": "log",
+  "samples": [],
+  "ROOT_DIR": ".",
+  "Procedure": {
+    "samtools": "samtools"
+  },
+  "Params": {
+    "karrseq": {
+      "karrseq_chimeric_to_pairs": {
+        "mapq": 1,
+        "span": 0
+      },
+      "karrseq_remove_duplicates": {
+        "mapq": 1
+      }
     }
+  }
 }

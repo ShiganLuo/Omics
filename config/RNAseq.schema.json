@@ -856,9 +856,25 @@
         "type": "dict",
         "required": false,
         "properties": {
-          "quality": {
-            "type": "int",
-            "required": true
+          "trimming_Paired": {
+            "type": "dict",
+            "required": false,
+            "properties": {
+              "quality": {
+                "type": "int",
+                "required": true
+              }
+            }
+          },
+          "trimming_Single": {
+            "type": "dict",
+            "required": false,
+            "properties": {
+              "quality": {
+                "type": "int",
+                "required": true
+              }
+            }
           }
         }
       },
@@ -866,15 +882,27 @@
         "type": "dict",
         "required": false,
         "properties": {
-          "adapter_pe": {
-            "type": "str",
-            "required": true,
-            "path": "file"
+          "trimmomatic_Paired": {
+            "type": "dict",
+            "required": false,
+            "properties": {
+              "adapter_pe": {
+                "type": "str",
+                "required": true,
+                "path": "file"
+              }
+            }
           },
-          "adapter_se": {
-            "type": "str",
-            "required": true,
-            "path": "file"
+          "trimmomatic_Single": {
+            "type": "dict",
+            "required": false,
+            "properties": {
+              "adapter_se": {
+                "type": "str",
+                "required": true,
+                "path": "file"
+              }
+            }
           }
         }
       },
@@ -959,6 +987,18 @@
           "E": {
             "type": "float",
             "required": false
+          },
+          "generate_report": {
+            "type": "dict",
+            "required": false,
+            "formats": {
+              "type": "list",
+              "required": false,
+              "default": [
+                "png"
+              ],
+              "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
+            }
           }
         },
         "formats": {
@@ -1008,7 +1048,7 @@
               }
             }
           },
-          "manhattan": {
+          "DESeq2_TElocal_manhattan": {
             "type": "dict",
             "required": false,
             "properties": {
@@ -1034,7 +1074,7 @@
               "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
             }
           },
-          "locus_boxplot": {
+          "DESeq2_TElocal_locus_boxplot": {
             "type": "dict",
             "required": false,
             "properties": {
@@ -1068,7 +1108,7 @@
               "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
             }
           },
-          "subfamily_bar": {
+          "DESeq2_TElocal_subfamily_bar": {
             "type": "dict",
             "required": false,
             "properties": {
@@ -1111,13 +1151,33 @@
             }
           }
         },
-        "formats": {
-          "type": "list",
+        "DESeq2_TEcount": {
+          "type": "dict",
           "required": false,
-          "default": [
-            "png"
-          ],
-          "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
+          "properties": {
+            "formats": {
+              "type": "list",
+              "required": false,
+              "default": [
+                "png"
+              ],
+              "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
+            }
+          }
+        },
+        "DESeq2_TElocal": {
+          "type": "dict",
+          "required": false,
+          "properties": {
+            "formats": {
+              "type": "list",
+              "required": false,
+              "default": [
+                "png"
+              ],
+              "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
+            }
+          }
         }
       },
       "TEcount": {
@@ -1150,32 +1210,27 @@
               "type": "bool",
               "required": true
             },
-            "species": {
-              "type": "str",
-              "required": true
-            },
-            "gmt": {
-              "type": "str",
-              "nullable": true,
-              "required": false
-            },
-            "lfc_cut": {
-              "type": "float",
-              "required": false
-            },
-            "p_cut": {
-              "type": "float",
-              "required": false
-            },
-            "top": {
-              "type": "int",
-              "required": false
-            },
-            "go_kegg": {
+            "function_go_kegg": {
               "type": "dict",
               "nullable": true,
               "required": false,
               "properties": {
+                "species": {
+                  "type": "str",
+                  "required": true
+                },
+                "lfc_cut": {
+                  "type": "float",
+                  "required": false
+                },
+                "p_cut": {
+                  "type": "float",
+                  "required": false
+                },
+                "top": {
+                  "type": "int",
+                  "required": false
+                },
                 "formats": {
                   "type": "list",
                   "required": false,
@@ -1186,11 +1241,16 @@
                 }
               }
             },
-            "gsea": {
+            "function_gsea": {
               "type": "dict",
               "nullable": true,
               "required": false,
               "properties": {
+                "gmt": {
+                  "type": "str",
+                  "nullable": true,
+                  "required": false
+                },
                 "formats": {
                   "type": "list",
                   "required": false,
@@ -1201,12 +1261,75 @@
                 }
               }
             },
-            "gsva": {
+            "function_gsva": {
               "type": "dict",
               "nullable": true,
               "required": false,
               "properties": {
+                "gmt": {
+                  "type": "str",
+                  "nullable": true,
+                  "required": false
+                },
+                "species": {
+                  "type": "str",
+                  "required": false
+                },
                 "formats": {
+                  "type": "list",
+                  "required": false,
+                  "default": [
+                    "png"
+                  ],
+                  "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
+                }
+              }
+            },
+            "function_result": {
+              "type": "dict",
+              "nullable": true,
+              "required": false,
+              "properties": {
+                "go_kegg_formats": {
+                  "type": "list",
+                  "required": false,
+                  "default": [
+                    "png"
+                  ],
+                  "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
+                },
+                "gsea_formats": {
+                  "type": "list",
+                  "required": false,
+                  "default": [
+                    "jpeg"
+                  ],
+                  "description": "图片格式(多种同时输出);R 侧 ggsave 设备集: png pdf svg ps eps tif tiff jpg jpeg(pgf/raw/rgba 为 matplotlib 专属,R 规则上快速失败)"
+                }
+              }
+            },
+            "generate_report": {
+              "type": "dict",
+              "nullable": true,
+              "required": false,
+              "properties": {
+                "go_kegg_formats": {
+                  "type": "list",
+                  "required": false,
+                  "default": [
+                    "png"
+                  ],
+                  "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
+                },
+                "gsea_formats": {
+                  "type": "list",
+                  "required": false,
+                  "default": [
+                    "jpeg"
+                  ],
+                  "description": "图片格式(多种同时输出);R 侧 ggsave 设备集: png pdf svg ps eps tif tiff jpg jpeg(pgf/raw/rgba 为 matplotlib 专属,R 规则上快速失败)"
+                },
+                "gsva_formats": {
                   "type": "list",
                   "required": false,
                   "default": [
@@ -1223,38 +1346,44 @@
         "type": "dict",
         "required": false,
         "properties": {
-          "title": {
-            "type": "str",
-            "required": false
-          },
-          "subtitle": {
-            "type": "str",
-            "required": false
-          },
-          "pipeline": {
-            "type": "str",
-            "required": false
-          },
-          "genome": {
-            "type": "str",
-            "required": false
-          },
-          "date": {
-            "type": "str",
-            "required": false
-          },
-          "lang": {
-            "type": "str",
-            "required": false
+          "generate_report": {
+            "type": "dict",
+            "required": false,
+            "properties": {
+              "title": {
+                "type": "str",
+                "required": false
+              },
+              "subtitle": {
+                "type": "str",
+                "required": false
+              },
+              "pipeline": {
+                "type": "str",
+                "required": false
+              },
+              "genome": {
+                "type": "str",
+                "required": false
+              },
+              "date": {
+                "type": "str",
+                "required": false
+              },
+              "lang": {
+                "type": "str",
+                "required": false
+              }
+            },
+            "formats": {
+              "type": "list",
+              "required": false,
+              "default": [
+                "png"
+              ],
+              "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
+            }
           }
-        },
-        "formats": {
-          "type": "list",
-          "required": false,
-          "default": [
-            "png"
-          ],
-          "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
         }
       },
       "StringTie": {
@@ -1264,6 +1393,18 @@
           "sample_groups": {
             "type": "dict",
             "required": false
+          },
+          "generate_report": {
+            "type": "dict",
+            "required": false,
+            "formats": {
+              "type": "list",
+              "required": false,
+              "default": [
+                "png"
+              ],
+              "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
+            }
           }
         },
         "formats": {

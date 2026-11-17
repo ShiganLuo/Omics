@@ -6,8 +6,9 @@ logdir = config.get("logdir", "logs")
 samples = config.get("samples", [])
 
 # Get parameters
-fdr = config.get("Params", {}).get("psm_fdr_control", {}).get("fdr", 0.01)
-method = config.get("Params", {}).get("psm_fdr_control", {}).get("method", "BH")
+# 参数精确到 rule(2026-11 规范;rule_param 见 common.smk):
+# Params.psm_fdr_control.psm_fdr.<key>,无 module 级共享回退。
+fdr_params = config.get("Params", {}).get("psm_fdr_control", {})
 
 # Get executables
 openms = config.get("Procedure", {}).get("openms") or "FalseDiscoveryRate"
@@ -30,8 +31,8 @@ rule psm_fdr:
         sif("../openms.yaml", "psm_fdr")
     params:
         openms = openms,
-        fdr = fdr,
-        method = method
+        fdr = rule_param(fdr_params, "psm_fdr", "fdr", 0.01),
+        method = rule_param(fdr_params, "psm_fdr", "method", "BH")
     run:
         log_path = str(log)
         open(log_path, 'w').close()
@@ -60,7 +61,7 @@ rule psm_fdr:
                 cmd.append("-algorithm:no_qvalues")
             else:
                 raise ValueError(
-                    f"Params.psm_fdr_control.method={params.method!r} is not "
+                    f"Params.psm_fdr_control.psm_fdr.method={params.method!r} is not "
                     "supported: use 'BH' (q-values) or 'strict'"
                 )
             with open(script, "w") as f:

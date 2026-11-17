@@ -1,40 +1,61 @@
 {
-    "indir": "output/diff_expression",
-    "counts_dir": "output/counts",
-    "outdir": "output/function",
-    "logdir": "logs",
-    "ROOT_DIR": "/path/to/workflow/directory",
-    "group_pairs": {},
-    "paired_samples": [],
-    "single_samples": [],
-    "genome": {
-        "geneIDAnno": null,
-        "gtf": null
-    },
-    "Params": {
-        "function": {
-            "species": "mouse",
-            "gmt": null,
-            "lfc_cut": 1,
-            "p_cut": 0.05,
-            "top": 10,
-            "go_kegg": {
-                "formats": ["png"]
-            },
-            "gsea": {
-                "gmt": null,
-                "formats": ["jpeg"]
-            },
-            "gsva": {
-                "gmt": null,
-                "formats": ["png"]
-            },
-            "sv_go_kegg": {
-                "formats": ["png"]
-            },
-            "pseudobulk_go": {
-                "formats": ["png"]
-            }
-        }
+  "indir": "output/diff_expression",
+  "counts_dir": "output/counts",
+  "outdir": "output/function",
+  "logdir": "logs",
+  "ROOT_DIR": "/path/to/workflow/directory",
+  "group_pairs": {},
+  "paired_samples": [],
+  "single_samples": [],
+  "genome": {
+    "geneIDAnno": null,
+    "gtf": null
+  },
+  "Params": {
+    "function": {
+      "function_go_kegg": {
+        "species": "mouse",
+        "lfc_cut": 1,
+        "p_cut": 0.05,
+        "top": 10,
+        "formats": [
+          "png"
+        ]
+      },
+      "function_gsea": {
+        "gmt": null,
+        "formats": [
+          "jpeg"
+        ]
+      },
+      "function_gsva": {
+        "gmt": null,
+        "species": "mouse",
+        "formats": [
+          "png"
+        ]
+      },
+      "generate_report": {
+        "go_kegg_formats": [
+          "png"
+        ],
+        "gsea_formats": [
+          "jpeg"
+        ],
+        "gsva_formats": [
+          "png"
+        ]
+      },
+      "sv_go_kegg": {
+        "formats": [
+          "png"
+        ]
+      },
+      "function_pseudobulk_go": {
+        "formats": [
+          "png"
+        ]
+      }
     }
+  }
 }

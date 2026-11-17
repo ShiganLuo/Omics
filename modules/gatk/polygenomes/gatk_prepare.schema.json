@@ -47,11 +47,6 @@
         "nullable": true,
         "required": false,
         "properties": {
-          "javaOptions": {
-            "type": "str",
-            "nullable": true,
-            "required": false
-          },
           "addReadsGroup": {
             "type": "dict",
             "nullable": true,
@@ -68,6 +63,35 @@
                 "required": false
               },
               "RGPU": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "javaOptions": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              }
+            }
+          },
+          "gatk_index": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "javaOptions": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              }
+            }
+          },
+          "MarkDuplicates": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "javaOptions": {
                 "type": "str",
                 "nullable": true,
                 "required": false

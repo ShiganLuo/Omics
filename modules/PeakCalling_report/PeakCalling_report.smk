@@ -18,9 +18,20 @@ metrics_dir = outdir + "/common/3_raw_bam"
 te_dir = outdir + "/results/te_overlap"
 heatmap_dir = outdir + "/results/heatmap"
 
+# 参数精确到 rule:generate_report 自己的参数挂 Params.report.generate_report.<key>
+# (原 Params.report.<key> 读点挂到消费 rule 名下;无 module 级共享回退,
+# rule_param 见 common.smk)。每 rule 一个 parse 期变量。
+_report = config.get("Params", {}).get("report", {}) or {}
+
+
+def _report_param(key, default):
+    """generate_report rule 参数(Params.report.generate_report.<key>)。"""
+    return rule_param(_report, "generate_report", key, default) or default
+
+
 # 图片格式（report 模块 figures/<name>.<fmt> 多格式输出）① parse 期读入 +
 # 规范化（str 收成单元素 list；合法值由 schema 声明）
-_formats = config.get("Params", {}).get("report", {}).get("formats") or ["png"]
+_formats = _report_param("formats", ["png"])
 if isinstance(_formats, str):
     _formats = [_formats]
 
@@ -47,8 +58,10 @@ def _producer_fmt(formats):
     return fmts[0]
 
 
-_pto_formats = (config.get("Params", {}).get("peak_te_overlap") or {}).get("formats") or ["png"]
-_ph_formats = (config.get("Params", {}).get("plotHeatmap") or {}).get("formats") or ["png"]
+# ── 上游产出图变体键:跨模块消费,变体期望挂在消费 rule 名下
+# (Params.<producer>.generate_report.<key>;默认 ["png"])。
+_pto_formats = rule_param(config.get("Params", {}).get("peak_te_overlap") or {}, "generate_report", "formats", ["png"])
+_ph_formats = rule_param(config.get("Params", {}).get("plotHeatmap") or {}, "generate_report", "formats", ["png"])
 
 REPORT_SCRIPT = os.path.join(ROOT_DIR, "modules", "PeakCalling_report", "bin", "generate_report.py")
 
@@ -109,12 +122,12 @@ rule generate_report:
         sif("PeakCalling_report.yaml", "generate_report")
     params:
         script = REPORT_SCRIPT,
-        title = config.get("Params", {}).get("report", {}).get("title") or "ChIP-seq Peak Calling Report",
-        subtitle = config.get("Params", {}).get("report", {}).get("subtitle") or "",
-        pipeline = config.get("Params", {}).get("report", {}).get("pipeline") or "",
-        genome = config.get("Params", {}).get("report", {}).get("genome") or "",
-        date = config.get("Params", {}).get("report", {}).get("date") or "",
-        top_n = config.get("Params", {}).get("report", {}).get("top_n") or 5,
+        title = _report_param("title", "ChIP-seq Peak Calling Report"),
+        subtitle = _report_param("subtitle", ""),
+        pipeline = _report_param("pipeline", ""),
+        genome = _report_param("genome", ""),
+        date = _report_param("date", ""),
+        top_n = _report_param("top_n", 5),
         sample_ip_input_map = sample_ip_input_map,
         formats = _formats,   # ③ 转发
         img_dir = outdir + "/figures",

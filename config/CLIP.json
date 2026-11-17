@@ -14,20 +14,36 @@
       "aligner": "star"
     },
     "trim_galore": {
-      "quality": 25
+      "trimming_Paired": {
+        "quality": 25
+      },
+      "trimming_Single": {
+        "quality": 25
+      }
     },
     "bamCoverage": {
+      "bamCoverage": {
+        "normalizeUsing": "CPM"
+      },
+      "wig": {
+        "normalizeUsing": "CPM"
+      },
       "binSize": 50,
-      "normalizeUsing": "CPM",
       "offset": "0"
     },
     "star": {
-      "alignEndsType": "Extend5pOfRead1"
+      "star_align": {
+        "alignEndsType": "Extend5pOfRead1"
+      }
     },
     "umi_tools": {
-      "extract_method": "string",
-      "bc_pattern": "NNNXXXXNN",
-      "bc_pattern2": "NNNXXXXNN"
+      "UmiTools_extract_single": {
+        "bc_pattern": "NNNXXXXNN"
+      },
+      "UmiTools_extract_paired": {
+        "bc_pattern": "NNNXXXXNN",
+        "bc_pattern2": "NNNXXXXNN"
+      }
     },
     "igv": {
       "js": "/data/pub/zhousha/Reference/igv.min.js",
@@ -57,15 +73,17 @@
     },
     "regionplot": {
       "enabled": false,
-      "regions": null,
-      "sample_group_dict": {},
-      "sample_order": [],
+      "regionplot": {
+        "regions": null,
+        "sample_group_dict": {},
+        "sample_order": [],
+        "formats": [
+          "png",
+          "svg"
+        ]
+      },
       "plot_height_per_track": 1.5,
       "plot_width": 12,
-      "formats": [
-        "png",
-        "svg"
-      ],
       "gtf_track": true
     },
     "sexcheck": {

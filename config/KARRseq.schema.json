@@ -209,51 +209,61 @@
   },
   "Params": {
     "star": {
-      "outFilterMultimapNmax": {
-        "type": "int",
-        "required": true
-      },
-      "outSAMattributes": {
-        "type": "str",
-        "required": true
-      },
-      "alignIntronMin": {
-        "type": "int",
-        "required": true
-      },
-      "scoreGapNoncan": {
-        "type": "int",
-        "required": true
-      },
-      "scoreGapATAC": {
-        "type": "int",
-        "required": true
-      },
-      "chimSegmentMin": {
-        "type": "int",
-        "required": true
-      },
-      "chimJunctionOverhangMin": {
-        "type": "int",
-        "required": true
-      },
-      "limitOutSJcollapsed": {
-        "type": "int",
-        "required": true
-      },
-      "limitIObufferSize": {
-        "type": "int",
-        "required": true
+      "KARRseq_star_align": {
+        "outFilterMultimapNmax": {
+          "type": "int",
+          "required": true
+        },
+        "outSAMattributes": {
+          "type": "str",
+          "required": true
+        },
+        "alignIntronMin": {
+          "type": "int",
+          "required": true
+        },
+        "scoreGapNoncan": {
+          "type": "int",
+          "required": true
+        },
+        "scoreGapATAC": {
+          "type": "int",
+          "required": true
+        },
+        "chimSegmentMin": {
+          "type": "int",
+          "required": true
+        },
+        "chimJunctionOverhangMin": {
+          "type": "int",
+          "required": true
+        },
+        "limitOutSJcollapsed": {
+          "type": "int",
+          "required": true
+        },
+        "limitIObufferSize": {
+          "type": "int",
+          "required": true
+        }
       }
     },
     "karrseq": {
-      "mapq": {
-        "type": "int",
-        "required": true
+      "karrseq_chimeric_to_pairs": {
+        "mapq": {
+          "type": "int",
+          "required": true
+        },
+        "span": {
+          "type": "int",
+          "required": true
+        }
       },
-      "span": {
-        "type": "int",
-        "required": true
+      "karrseq_remove_duplicates": {
+        "mapq": {
+          "type": "int",
+          "required": true
+        }
       }
     },
     "workflow": {

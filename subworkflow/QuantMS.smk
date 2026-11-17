@@ -152,8 +152,14 @@ psm_rescoring_config = {
         "percolator": config.get("Procedure", {}).get("percolator")
     },
     "Params": {
-        "psm_rescoring": config.get("Params", {}).get("psm_rescoring", {}),
-        "search_engine": config.get("Params", {}).get("search_engine", {}).get("engine")
+        # 参数精确到 rule:引擎选择是 psm_rescoring 的 rule 键
+        # (Params.psm_rescoring.search_engine),用 node.py 解析后的
+        # Params.search_engine.engine 覆盖
+        "psm_rescoring": {
+            **(config.get("Params", {}).get("psm_rescoring", {}) or {}),
+            "search_engine": (config.get("Params", {}).get("search_engine", {}).get("engine")
+                              or config.get("Params", {}).get("psm_rescoring", {}).get("search_engine")),
+        },
     }
 }
 
@@ -239,13 +245,14 @@ quantification_config = {
         "file_merger": config.get("Procedure", {}).get("file_merger"),
     },
     "Params": {
+        # 参数精确到 rule:整段透传(rule 子段在段内透明传递);triqler/decoy
+        # 开关按 rule 独立键挂根级 rule 子段
+        # (Params.quantification_lfq/dia.<key>),旧扁平开关仅留作 node.py 门控
         "protein_quant": config.get("Params", {}).get("protein_quant", {}),
         "tmt": config.get("Params", {}).get("tmt", {}),
-        "lfq": config.get("Params", {}).get("lfq", {}),
-        "dia": config.get("Params", {}).get("dia", {}),
-        "add_triqler_output": config.get("Params", {}).get("add_triqler_output", False),
-        "quantify_decoys": config.get("Params", {}).get("quantify_decoys", False),
         "protein_fdr": config.get("Params", {}).get("protein_fdr", {}),
+        "quantification_lfq": config.get("Params", {}).get("quantification_lfq", {}),
+        "quantification_dia": config.get("Params", {}).get("quantification_dia", {}),
     }
 }
 

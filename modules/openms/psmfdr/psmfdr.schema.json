@@ -41,15 +41,22 @@
         "nullable": true,
         "required": false,
         "properties": {
-          "fdr": {
-            "type": "float",
+          "psm_fdr": {
+            "type": "dict",
             "nullable": true,
-            "required": false
-          },
-          "method": {
-            "type": "str",
-            "nullable": true,
-            "required": false
+            "required": false,
+            "properties": {
+              "fdr": {
+                "type": "float",
+                "nullable": true,
+                "required": false
+              },
+              "method": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              }
+            }
           }
         }
       }

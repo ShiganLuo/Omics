@@ -500,7 +500,7 @@ parser$add_argument("-a", "--annotation", required = TRUE, type="character",
 parser$add_argument("-t", "--graphTitle",type = "character", default = "", help = "Title for the GSEA graph")
 parser$add_argument("-r", "--rewrite",action = "store_true", default = FALSE, help = "Whether to rewrite existing files")
 parser$add_argument("--format", action = "append", dest = "formats", type = "character",
-                    default = NULL, metavar = "FMT",
+                    metavar = "FMT",
                     help = "Output image format (png/pdf/svg/ps/eps/tif/tiff/jpg/jpeg; repeatable). Default: jpeg")
 args <- parser$parse_args()
 

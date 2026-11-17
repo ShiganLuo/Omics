@@ -19,15 +19,17 @@
       "score-min": "L,0,-0.6"
     },
     "star": {
-      "twopassMode": null,
-      "genomeLoad": "LoadAndRemove",
-      "limitBAMsortRAM": 20000000000,
-      "outReadsUnmapped": "Fastx",
-      "outFilterMultimapNmax": 99999,
-      "outFilterMismatchNoverLmax": 0.1,
-      "outFilterMatchNminOverLread": 0.66,
-      "alignSJoverhangMin": 999,
-      "alignSJDBoverhangMin": 999,
+      "star_align": {
+        "twopassMode": null,
+        "genomeLoad": "LoadAndRemove",
+        "limitBAMsortRAM": 20000000000,
+        "outReadsUnmapped": "Fastx",
+        "outFilterMultimapNmax": 99999,
+        "outFilterMismatchNoverLmax": 0.1,
+        "outFilterMatchNminOverLread": 0.66,
+        "alignSJoverhangMin": 999,
+        "alignSJDBoverhangMin": 999
+      },
       "index": {
         "sjdbOverhang": 100
       }
@@ -70,8 +72,10 @@
       }
     },
     "star_3pass_gene": {
-      "ambiguous": "exclude",
-      "flank": 50,
+      "star_3pg_gene_specific": {
+        "ambiguous": "exclude",
+        "flank": 50
+      },
       "index": {
         "genomeSAindexNbases": 3
       },
@@ -105,9 +109,15 @@
       }
     },
     "tailer": {
-      "read": 2,
-      "threshold": 50,
-      "rev_comp": false
+      "tailer_global": {
+        "read": 2,
+        "threshold": 50,
+        "rev_comp": false
+      },
+      "star_3pg_gene_specific": {
+        "threshold": 50,
+        "rev_comp": false
+      }
     },
     "ncRNAseq": {
       "subsample": false,
@@ -129,8 +139,7 @@
         "scaRNA",
         "ribozyme",
         "TERC"
-      ],
-      "seed": 42
+      ]
     },
     "track": {
       "igv": {
@@ -193,15 +202,17 @@
     },
     "regionplot": {
       "enabled": false,
-      "regions": null,
-      "sample_group_dict": {},
-      "sample_order": [],
+      "regionplot": {
+        "regions": null,
+        "sample_group_dict": {},
+        "sample_order": [],
+        "formats": [
+          "png",
+          "svg"
+        ]
+      },
       "plot_height_per_track": 1.5,
       "plot_width": 12,
-      "formats": [
-        "png",
-        "svg"
-      ],
       "gtf_track": true
     },
     "sexcheck": {

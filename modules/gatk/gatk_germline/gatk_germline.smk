@@ -10,6 +10,9 @@ dict_index = config.get("genome", {}).get("dict_index")
 interval = config.get("reference", {}).get("interval")
 targets = config.get("genome", {}).get("targets")
 known_sites = config.get("reference", {}).get("known_sites", [])
+# 参数精确到 rule:javaOptions/tmp-dir 按 rule 独立配置(Params.gatk.<rule_name>
+# .javaOptions/.tmp-dir),无 module 级共享;rule_param 见 common.smk。
+_gatk_params = config.get("Params", {}).get("gatk", {})
 
 def get_input_HaplotypeCaller(wildcards):
     """
@@ -52,9 +55,9 @@ rule HaplotypeCaller:
     container:
         sif("../gatk.yaml", "HaplotypeCaller")
     params:
-        javaOptions =  config.get("Params", {}).get("gatk", {}).get("javaOptions") or "-Xmx30g",
+        javaOptions = rule_param(_gatk_params, "HaplotypeCaller", "javaOptions", "-Xmx30g"),
         gatk = config.get("Procedure", {}).get("gatk") or "gatk",
-        tmp_dir = config.get("Params", {}).get("gatk", {}).get("tmp-dir") or None
+        tmp_dir = rule_param(_gatk_params, "HaplotypeCaller", "tmp-dir", None)
     threads: rule_res("HaplotypeCaller").get("threads", 10)
     benchmark: logdir + "/{sample_id}/haplotypeCaller.benchmark.tsv",
     resources:
@@ -126,8 +129,8 @@ rule filterHaplotypeCallerVcf:
     params:
         gatk = config.get("Procedure", {}).get("gatk") or "gatk",
         bcftools = config.get("Procedure", {}).get("bcftools") or "bcftools",
-        javaOptions =  config.get("Params", {}).get("gatk", {}).get("javaOptions") or "-Xmx30g",
-        tmp_dir = config.get("Params", {}).get("gatk", {}).get("tmp-dir") or None,
+        javaOptions = rule_param(_gatk_params, "filterHaplotypeCallerVcf", "javaOptions", "-Xmx30g"),
+        tmp_dir = rule_param(_gatk_params, "filterHaplotypeCallerVcf", "tmp-dir", None),
         FS_threshold = config.get("Params", {}).get("gatk", {}).get("FS_threshold") or 20.0,
         QD_threshold = config.get("Params", {}).get("gatk", {}).get("QD_threshold") or 2.0,
         DP_threshold = config.get("Params", {}).get("gatk", {}).get("DP_threshold") or 10.0,

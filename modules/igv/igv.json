@@ -1,17 +1,18 @@
 {
-    "indir": "output/hisat2",
-    "outdir": "output",
-    "logdir": "logs",
-    "Procedure": {
-        "deepTools": "path/to/bamCoverage"
-    },
-    "Params":{
-        "bamCoverage": {
-            "binSize": 50,
-            "normalizeUsing": "CPM",
-            "offset": null,
-            "extendReads": false
-        }
+  "indir": "output/hisat2",
+  "outdir": "output",
+  "logdir": "logs",
+  "Procedure": {
+    "deepTools": "path/to/bamCoverage"
+  },
+  "Params": {
+    "bamCoverage": {
+      "binSize": 50,
+      "wig": {
+        "normalizeUsing": "CPM"
+      },
+      "offset": null,
+      "extendReads": false
     }
-
+  }
 }

@@ -1,18 +1,22 @@
 {
-    "outdir": "output",
-    "logdir": "logs",
-    "peaks_indir": "peaks",
-    "samples": [],
-    "sample_ip_input_map": {},
-    "Procedure": {
-        "bedtools": null
-    },
-    "Params": {
-        "peak_te_overlap": {
-            "formats": ["png"]
-        }
-    },
-    "genome": {
-        "te_gtf": null
+  "outdir": "output",
+  "logdir": "logs",
+  "peaks_indir": "peaks",
+  "samples": [],
+  "sample_ip_input_map": {},
+  "Procedure": {
+    "bedtools": null
+  },
+  "Params": {
+    "peak_te_overlap": {
+      "peak_te_overlap_fig": {
+        "formats": [
+          "png"
+        ]
+      }
     }
+  },
+  "genome": {
+    "te_gtf": null
+  }
 }

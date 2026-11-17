@@ -21,14 +21,13 @@ indir = config.get("indir") or "input"
 outdir = config.get("outdir") or "output"
 logdir = config.get("logdir") or "log"
 
-_sg = (config.get("Params", {}).get("function", {}) or {}).get("sv_go_kegg", {}) or {}
+# 参数精确到 rule:参数挂在消费它的 rule 名下(Params.function.sv_go_kegg.<key>,
+# rule 名 = 原组名;无 module 级共享回退,rule_param 见 common.smk)。
+_func = config.get("Params", {}).get("function", {}) or {}
 comparisons = config.get("comparisons") or {}
-sg_species = _sg.get("species") or ""
-sg_impact = _sg.get("impact") or "HIGH,MODERATE,LOW"
-sg_top = _sg.get("top", 10)
 # ① parse 期读入 + 规范化(str 收成单元素 list;合法值由 schema 声明)。
-# 旧配置的单数键 "format" 仍然受理(向后兼容),优先读 "formats"。
-sg_formats = _sg.get("formats") or _sg.get("format") or ["png"]
+# formats 为 parse 期变量(output 不能是函数,格式列表必须是模块级变量)。
+sg_formats = rule_param(_func, "sv_go_kegg", "formats", ["png"]) or ["png"]
 if isinstance(sg_formats, str):
     sg_formats = [sg_formats]
 
@@ -59,9 +58,9 @@ rule sv_go_kegg:
         sif("../function.yaml", "sv_go_kegg")
     params:
         script=ROOT_DIR + "/modules/function/sv_go_kegg/bin/sv_go-kegg.r",
-        species=sg_species,
-        impact=sg_impact,
-        top=sg_top,
+        species=rule_param(_func, "sv_go_kegg", "species", "") or "",
+        impact=rule_param(_func, "sv_go_kegg", "impact", "HIGH,MODERATE,LOW") or "HIGH,MODERATE,LOW",
+        top=rule_param(_func, "sv_go_kegg", "top", 10),
         formats=sg_formats,   # ③ 转发
     run:
         log_path = str(log)
@@ -76,7 +75,7 @@ rule sv_go_kegg:
             # silently produces plausible-looking nonsense).
             if params.species not in ("human", "mouse", "macaque"):
                 raise RuntimeError(
-                    "Params.function.sv_go.species must be one of "
+                    "Params.function.sv_go_kegg.species must be one of "
                     "human/mouse/macaque; set it in the module config JSON.")
             if not os.path.isfile(input.annotated_tab):
                 raise FileNotFoundError(

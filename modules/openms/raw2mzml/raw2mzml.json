@@ -10,11 +10,12 @@
     },
     "Params": {
         "raw_to_mzml": {
-            "manifest": "",
-            "mode": "thermorawfileparser",
-            "converter": "ThermoRawFileParser",
-            "args": "",
-            "peak_picking": true
+            "raw2mzml": {
+                "mode": "thermorawfileparser",
+                "converter": "ThermoRawFileParser",
+                "args": "",
+                "peak_picking": true
+            }
         }
     }
 }

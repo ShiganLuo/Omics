@@ -6,7 +6,7 @@ workflow.log
 **/.cache
 **/.config
 
-test/
+/test/
 test.log
 **/*.resolved
 **/module_test

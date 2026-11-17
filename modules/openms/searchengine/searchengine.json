@@ -13,23 +13,34 @@
     },
     "Params": {
         "search_engine": {
-            "engine": "comet",
+            "search_engine_comet": {
+                "engine": "comet"
+            },
+            "search_engine_msgf": {
+                "engine": "msgf"
+            },
+            "search_engine_sage": {
+                "engine": "sage"
+            },
             "comet": {
-                "threads": 4,
-                "precursor_mass_tolerance": 20,
-                "fragment_mass_tolerance": 0.02,
-                "fragment_bin_offset": 0
+                "search_engine_comet": {
+                    "precursor_mass_tolerance": 20,
+                    "fragment_mass_tolerance": 0.02,
+                    "fragment_bin_offset": 0
+                }
             },
             "msgf": {
-                "threads": 4,
-                "precursor_mass_tolerance": 20,
-                "fragment_mass_tolerance": 0.02,
-                "isotope_error_range": "0,1"
+                "search_engine_msgf": {
+                    "precursor_mass_tolerance": 20,
+                    "fragment_mass_tolerance": 0.02,
+                    "isotope_error_range": "0,1"
+                }
             },
             "sage": {
-                "threads": 4,
-                "precursor_mass_tolerance": 20,
-                "fragment_mass_tolerance": 0.02
+                "search_engine_sage": {
+                    "precursor_mass_tolerance": 20,
+                    "fragment_mass_tolerance": 0.02
+                }
             }
         }
     },

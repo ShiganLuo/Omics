@@ -74,6 +74,9 @@ if paired_samples:
 
 # STAR alignment with KARRseq-specific parameters
 star_index_dir = genome_ref.get("star_index_dir")
+# KARRseq_star_align 参数段:Params.star(本 subworkflow 转发入 rule)。
+# 参数精确到 rule:Params.star.KARRseq_star_align.<key>(rule_param 见 common.smk;
+# 无 module 级共享回退,KARRseq_star_align 与 star_align 各自独立键)。
 star_params = config.get("Params", {}).get("star", {})
 
 
@@ -175,15 +178,15 @@ rule KARRseq_star_align:
         STAR = config.get("Procedure", {}).get("STAR") or "STAR",
         index = star_index_dir,
         prefix = outdir + "/bam/{sample_id}/{sample_id}",
-        outFilterMultimapNmax = star_params.get("outFilterMultimapNmax", 100),
-        outSAMattributes = star_params.get("outSAMattributes", "All"),
-        alignIntronMin = star_params.get("alignIntronMin", 1),
-        scoreGapNoncan = star_params.get("scoreGapNoncan", -4),
-        scoreGapATAC = star_params.get("scoreGapATAC", -4),
-        chimSegmentMin = star_params.get("chimSegmentMin", 15),
-        chimJunctionOverhangMin = star_params.get("chimJunctionOverhangMin", 15),
-        limitOutSJcollapsed = star_params.get("limitOutSJcollapsed", 10000000),
-        limitIObufferSize = star_params.get("limitIObufferSize", 1500000000),
+        outFilterMultimapNmax = rule_param(star_params, "KARRseq_star_align", "outFilterMultimapNmax", 100),
+        outSAMattributes = rule_param(star_params, "KARRseq_star_align", "outSAMattributes", "All"),
+        alignIntronMin = rule_param(star_params, "KARRseq_star_align", "alignIntronMin", 1),
+        scoreGapNoncan = rule_param(star_params, "KARRseq_star_align", "scoreGapNoncan", -4),
+        scoreGapATAC = rule_param(star_params, "KARRseq_star_align", "scoreGapATAC", -4),
+        chimSegmentMin = rule_param(star_params, "KARRseq_star_align", "chimSegmentMin", 15),
+        chimJunctionOverhangMin = rule_param(star_params, "KARRseq_star_align", "chimJunctionOverhangMin", 15),
+        limitOutSJcollapsed = rule_param(star_params, "KARRseq_star_align", "limitOutSJcollapsed", 10000000),
+        limitIObufferSize = rule_param(star_params, "KARRseq_star_align", "limitIObufferSize", 1500000000),
         samtools = config.get("Procedure", {}).get("samtools") or "samtools"
     run:
         import time

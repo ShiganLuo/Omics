@@ -10,11 +10,19 @@ ROOT_DIR = config.get("ROOT_DIR", ".")
 # 指令派生名(变量名 = config 原名)。loci_map / sample_group_dict 由
 # node.py 解析 Params.fiberbrowser.loci 后写回 config;配置形状校验归
 # schema 与 node.py,模块对配置只取值。
+# 参数精确到 rule:loci_map/variants/formats/sample_group_dict 挂 fiberbrowser
+# 名下(Params.fiberbrowser.fiberbrowser.*,单 plot rule 消费;无 module 级
+# 共享回退,rule_param 见 common.smk)。fiberbrowser_result 聚合 fiberbrowser
+# 输出文件名,locus/variant/format 展开同一 rule 键。
 fiberbrowser_params = config.get("Params", {}).get("fiberbrowser", {})
-loci_map = fiberbrowser_params.get("loci_map") or {}
-sample_group_dict = fiberbrowser_params.get("sample_group_dict") or {}
-variants = fiberbrowser_params.get("variants") or ["plain", "zoom"]
-formats = fiberbrowser_params.get("formats") or ["png"]
+# 每 rule 一个 parse 期变量
+loci_map = rule_param(fiberbrowser_params, "fiberbrowser", "loci_map", {}) or {}
+sample_group_dict = rule_param(fiberbrowser_params, "fiberbrowser", "sample_group_dict", {}) or {}
+variants = rule_param(fiberbrowser_params, "fiberbrowser", "variants", None) or ["plain", "zoom"]
+formats = rule_param(fiberbrowser_params, "fiberbrowser", "formats", None) or ["png"]
+loci_map_result = rule_param(fiberbrowser_params, "fiberbrowser", "loci_map", {}) or {}
+variants_result = rule_param(fiberbrowser_params, "fiberbrowser", "variants", None) or ["plain", "zoom"]
+formats_result = rule_param(fiberbrowser_params, "fiberbrowser", "formats", None) or ["png"]
 
 
 rule fiberbrowser:
@@ -116,6 +124,6 @@ rule fiberbrowser_result:
     input:
         plots = expand(
             outdir + "/{locus}/{locus}{suffix}.{fmt}",
-            locus=list(loci_map),
-            suffix=["" if v == "plain" else "_zoom" for v in variants],
-            fmt=formats),
+            locus=list(loci_map_result),
+            suffix=["" if v == "plain" else "_zoom" for v in variants_result],
+            fmt=formats_result),

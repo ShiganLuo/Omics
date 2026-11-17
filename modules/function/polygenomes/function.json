@@ -19,8 +19,7 @@
     "function": {
       "GRCm39": {
         "enabled": true,
-        "species": "mouse",
-        "go_kegg": {
+        "function_go_kegg": {
           "lfc_cut": 1,
           "p_cut": 0.05,
           "top": 10,
@@ -29,23 +28,42 @@
             "png"
           ]
         },
-        "gsea": {
+        "function_gsea": {
           "gmt": null,
           "formats": [
             "jpeg"
           ]
         },
-        "gsva": {
+        "function_gsva": {
           "gmt": null,
           "formats": [
+            "png"
+          ],
+          "species": "mouse"
+        },
+        "function_result": {
+          "go_kegg_formats": [
+            "png"
+          ],
+          "gsea_formats": [
+            "jpeg"
+          ]
+        },
+        "generate_report": {
+          "go_kegg_formats": [
+            "png"
+          ],
+          "gsea_formats": [
+            "jpeg"
+          ],
+          "gsva_formats": [
             "png"
           ]
         }
       },
       "GRCh38": {
         "enabled": true,
-        "species": "human",
-        "go_kegg": {
+        "function_go_kegg": {
           "lfc_cut": 1,
           "p_cut": 0.05,
           "top": 10,
@@ -54,15 +72,35 @@
             "png"
           ]
         },
-        "gsea": {
+        "function_gsea": {
           "gmt": null,
           "formats": [
             "jpeg"
           ]
         },
-        "gsva": {
+        "function_gsva": {
           "gmt": null,
           "formats": [
+            "png"
+          ],
+          "species": "human"
+        },
+        "function_result": {
+          "go_kegg_formats": [
+            "png"
+          ],
+          "gsea_formats": [
+            "jpeg"
+          ]
+        },
+        "generate_report": {
+          "go_kegg_formats": [
+            "png"
+          ],
+          "gsea_formats": [
+            "jpeg"
+          ],
+          "gsva_formats": [
             "png"
           ]
         }

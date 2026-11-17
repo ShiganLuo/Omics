@@ -1,20 +1,24 @@
 {
-    "indir": "input",
-    "outdir": "output",
-    "logdir": "logs",
-    "samples": [],
-    "Procedure": {
-        "fibertools": null
-    },
-    "Params": {
-        "fibertools": {
-            "ont": false,
-            "call_peaks_mode": "fdr"
-        }
-    },
-    "genome": {
-        "fasta": null,
-        "fai": null
-    },
-    "bam_suffix": ".sorted.bam"
+  "indir": "input",
+  "outdir": "output",
+  "logdir": "logs",
+  "samples": [],
+  "Procedure": {
+    "fibertools": null
+  },
+  "Params": {
+    "fibertools": {
+      "ft_extract_fire": {
+        "ont": false
+      },
+      "ft_call_peaks": {
+        "call_peaks_mode": "fdr"
+      }
+    }
+  },
+  "genome": {
+    "fasta": null,
+    "fai": null
+  },
+  "bam_suffix": ".sorted.bam"
 }

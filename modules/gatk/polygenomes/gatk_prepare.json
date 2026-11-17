@@ -9,11 +9,17 @@
   },
   "Params": {
     "gatk": {
-      "javaOptions": "-Xmx30g",
       "addReadsGroup": {
         "RGLB": "lib1",
         "RGPL": "illumina",
-        "RGPU": "unit1"
+        "RGPU": "unit1",
+        "javaOptions": "-Xmx30g"
+      },
+      "gatk_index": {
+        "javaOptions": "-Xmx30g"
+      },
+      "MarkDuplicates": {
+        "javaOptions": "-Xmx30g"
       }
     }
   },

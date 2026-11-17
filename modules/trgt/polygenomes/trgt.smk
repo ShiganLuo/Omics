@@ -14,14 +14,27 @@ bam_substring = config.get("bam_substring") or ""
 # (modules.md #9).
 TRGT_PLOT_FORMATS = ("png", "svg", "pdf")
 # ① parse 期读入 + 规范化（str 收成单元素 list；合法值由 schema 声明）
-_formats = config.get("Params", {}).get("trgt", {}).get("formats") or ["png"]
-if isinstance(_formats, str):
-    _formats = [_formats]
-_bad_fmts = [f for f in _formats if f not in TRGT_PLOT_FORMATS]
-if _bad_fmts:
-    raise ValueError(
-        "Unsupported Params.trgt.formats value(s): " + ", ".join(_bad_fmts)
-        + "; trgt plot --image accepts: " + ", ".join(TRGT_PLOT_FORMATS))
+# 参数精确到 rule:formats 挂 trgt_plot 名下(Params.trgt.trgt_plot.formats,
+# 单 plot rule 消费;无 module 级共享回退,rule_param 见 common.smk)。
+_trgt_params = config.get("Params", {}).get("trgt", {})
+
+
+def _rule_formats(rule_name):
+    """Per-rule figure formats (parse 期解析,output 展开与 CLI 转发共用)。"""
+    fmts = rule_param(_trgt_params, rule_name, "formats", ["png"])
+    fmts = [fmts] if isinstance(fmts, str) else fmts
+    bad = [f for f in fmts if f not in TRGT_PLOT_FORMATS]
+    if bad:
+        raise ValueError(
+            "Unsupported Params.trgt." + rule_name + ".formats value(s): "
+            + ", ".join(bad) + "; trgt plot --image accepts: "
+            + ", ".join(TRGT_PLOT_FORMATS))
+    return fmts
+
+
+# 每 rule 一个 parse 期变量;trgt_result 聚合 trgt_plot 输出,展开同一 rule 键。
+_formats_trgt_plot = _rule_formats("trgt_plot")
+_formats_trgt_result = _rule_formats("trgt_plot")
 
 def get_input_for_trgt_genotype(wildcards):
     logger.info(f"trgt_genotype called with {wildcards}")
@@ -87,7 +100,7 @@ rule trgt_plot:
         bed = lambda wildcards: config["genome"][wildcards.genome]["repeat_bed"]
     output:
         # ② 按格式展开：每种格式一个输出文件（base 不带扩展名）
-        plots = [outdir + "/{genome}/plot/{sample_id}/{sample_id}.trgt.repeat." + fmt for fmt in _formats],
+        plots = [outdir + "/{genome}/plot/{sample_id}/{sample_id}.trgt.repeat." + fmt for fmt in _formats_trgt_plot],
     log:
         logdir + "/{genome}/{sample_id}/trgt_plot.log"
     benchmark: logdir + "/{genome}/{sample_id}/trgt_plot.benchmark.tsv",
@@ -98,7 +111,7 @@ rule trgt_plot:
     params:
         trgt = config.get("Procedure", {}).get("trgt") or "trgt",
         repeat_id = config.get("Params", {}).get("trgt", {}).get("repeat_id") or "HTT",
-        formats = _formats,   # ③ 转发
+        formats = _formats_trgt_plot,   # ③ 转发
         out_base = outdir + "/{genome}/plot/{sample_id}/{sample_id}.trgt.repeat",
     conda:
         "../trgt.yaml"
@@ -128,7 +141,7 @@ rule trgt_plot:
 rule trgt_result:
     input:
         vcf = outdir + "/{genome}/genotype/{sample_id}/{sample_id}.trgt.vcf.gz",
-        plots = [outdir + "/{genome}/plot/{sample_id}/{sample_id}.trgt.repeat." + fmt for fmt in _formats],
+        plots = [outdir + "/{genome}/plot/{sample_id}/{sample_id}.trgt.repeat." + fmt for fmt in _formats_trgt_result],
 
     resources:
         mem_mb = lambda wildcards, input, attempt: rule_res(

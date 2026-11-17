@@ -52,48 +52,62 @@
         "type": "dict",
         "required": false,
         "properties": {
-          "min_vaf": {
-            "type": "float",
-            "required": false
-          },
-          "size_mb": {
-            "type": "float",
-            "required": false
-          },
-          "gtf_feature": {
-            "type": "enum",
-            "values": [
-              "exon",
-              "CDS"
-            ],
-            "required": false
-          },
-          "include_sex_chroms": {
-            "type": "bool",
-            "required": false
-          },
-          "min_abs_log2": {
-            "type": "float",
-            "required": false
-          },
-          "annotate": {
-            "type": "bool",
-            "required": false
-          },
-          "vep_cache": {
-            "type": "str",
+          "burden_snv_indel": {
+            "type": "dict",
             "nullable": true,
-            "required": false
+            "required": false,
+            "properties": {
+              "min_vaf": {
+                "type": "float",
+                "required": false
+              },
+              "size_mb": {
+                "type": "float",
+                "required": false
+              },
+              "gtf_feature": {
+                "type": "enum",
+                "values": [
+                  "exon",
+                  "CDS"
+                ],
+                "required": false
+              },
+              "include_sex_chroms": {
+                "type": "bool",
+                "required": false
+              },
+              "annotate": {
+                "type": "bool",
+                "required": false
+              },
+              "vep_cache": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "vep_species": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "vep_assembly": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              }
+            }
           },
-          "vep_species": {
-            "type": "str",
+          "burden_cnv": {
+            "type": "dict",
             "nullable": true,
-            "required": false
-          },
-          "vep_assembly": {
-            "type": "str",
-            "nullable": true,
-            "required": false
+            "required": false,
+            "properties": {
+              "min_abs_log2": {
+                "type": "float",
+                "required": false
+              }
+            }
           }
         }
       }

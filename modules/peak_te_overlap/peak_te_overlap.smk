@@ -12,9 +12,22 @@ MODULE_DIR = os.path.join(config.get("ROOT_DIR", "."), "modules", "peak_te_overl
 CHART_SCRIPT = os.path.join(MODULE_DIR, "bin", "plot_te_overlap.py")
 
 # ① parse 期读入 + 规范化（str 收成单元素 list；合法值由 schema 声明）
-_formats = config.get("Params", {}).get("peak_te_overlap", {}).get("formats") or ["png"]
-if isinstance(_formats, str):
-    _formats = [_formats]
+# 参数精确到 rule:formats 挂 peak_te_overlap_fig 名下
+# (Params.peak_te_overlap.peak_te_overlap_fig.formats,单 plot rule 消费;
+# 无 module 级共享回退,rule_param 见 common.smk)。
+_peak_te_overlap_params = config.get("Params", {}).get("peak_te_overlap", {})
+
+
+def _rule_formats(rule_name):
+    """Per-rule figure formats (parse 期解析,output 展开与 CLI 转发共用)。"""
+    fmts = rule_param(_peak_te_overlap_params, rule_name, "formats", ["png"])
+    return [fmts] if isinstance(fmts, str) else fmts
+
+
+# 每 rule 一个 parse 期变量;peak_te_overlap_result 聚合 peak_te_overlap_fig
+# 输出,展开同一 rule 键。
+_formats_peak_te_overlap_fig = _rule_formats("peak_te_overlap_fig")
+_formats_peak_te_overlap_result = _rule_formats("peak_te_overlap_fig")
 
 if not te_gtf:
     raise ValueError(
@@ -160,7 +173,7 @@ rule peak_te_overlap_fig:
         tsvs = expand(outdir + "/{sid}/{sid}_te_subfamily_overlap.tsv", sid=samples),
     output:
         # ② 按格式展开：每种格式一个输出文件（base 不带扩展名）
-        charts = [outdir + "/te_subfamily_overlap_combined." + fmt for fmt in _formats],
+        charts = [outdir + "/te_subfamily_overlap_combined." + fmt for fmt in _formats_peak_te_overlap_fig],
         combined_tsv = outdir + "/te_subfamily_overlap_combined.tsv",
         # per-IP:input enrichment figures written by the chart script
         # (default mode); empty when combine=True or no map
@@ -168,7 +181,7 @@ rule peak_te_overlap_fig:
                              or not config.get("sample_ip_input_map"))
                        else [outdir + f"/{ip}_vs_{inp}_enrichment." + fmt
                              for ip, inp in config.get("sample_ip_input_map", {}).items()
-                             for fmt in _formats]),
+                             for fmt in _formats_peak_te_overlap_fig]),
         done = touch(outdir + "/.peak_te_overlap_fig.done"),
     log:
         logdir + "/../group/peak_te_overlap/peak_te_overlap.log"
@@ -188,7 +201,7 @@ rule peak_te_overlap_fig:
         sort_by = config.get("Params", {}).get("peak_te_overlap", {}).get("sort_by", "te_length"),
         top_n = config.get("Params", {}).get("peak_te_overlap", {}).get("top_n", 30),
         combine = config.get("Params", {}).get("peak_te_overlap", {}).get("combine", False),
-        formats = _formats,   # ③ 转发
+        formats = _formats_peak_te_overlap_fig,   # ③ 转发
         chart_base = outdir + "/te_subfamily_overlap_combined",
     run:
         log_path = str(log)
@@ -250,7 +263,7 @@ rule peak_te_overlap_result:
     Result aggregation rule for subworkflow use rule import.
     """
     input:
-        charts = [outdir + "/te_subfamily_overlap_combined." + fmt for fmt in _formats],
+        charts = [outdir + "/te_subfamily_overlap_combined." + fmt for fmt in _formats_peak_te_overlap_result],
         peak_centric = expand(outdir + "/{sid}/{sid}_peak_centric_te.tsv", sid=samples),
 
     resources:

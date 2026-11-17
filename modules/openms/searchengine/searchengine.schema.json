@@ -68,35 +68,83 @@
         "nullable": true,
         "required": false,
         "properties": {
-          "engine": {
-            "type": "str",
+          "search_engine_comet": {
+            "type": "dict",
             "nullable": true,
-            "required": false
+            "required": false,
+            "properties": {
+              "engine": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              }
+            }
+          },
+          "search_engine_msgf": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "engine": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              }
+            }
+          },
+          "search_engine_sage": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "engine": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              }
+            }
           },
           "comet": {
             "type": "dict",
             "nullable": true,
             "required": false,
             "properties": {
-              "threads": {
-                "type": "int",
+              "search_engine_comet": {
+                "type": "dict",
                 "nullable": true,
-                "required": false
-              },
-              "precursor_mass_tolerance": {
-                "type": "int",
-                "nullable": true,
-                "required": false
-              },
-              "fragment_mass_tolerance": {
-                "type": "float",
-                "nullable": true,
-                "required": false
-              },
-              "fragment_bin_offset": {
-                "type": "int",
-                "nullable": true,
-                "required": false
+                "required": false,
+                "properties": {
+                  "precursor_mass_tolerance": {
+                    "type": "int",
+                    "nullable": true,
+                    "required": false
+                  },
+                  "fragment_mass_tolerance": {
+                    "type": "float",
+                    "nullable": true,
+                    "required": false
+                  },
+                  "fragment_bin_offset": {
+                    "type": "int",
+                    "nullable": true,
+                    "required": false
+                  },
+                  "unmatched_action": {
+                    "type": "str",
+                    "nullable": true,
+                    "required": false
+                  },
+                  "fixed_modifications": {
+                    "type": "list",
+                    "nullable": true,
+                    "required": false
+                  },
+                  "variable_modifications": {
+                    "type": "list",
+                    "nullable": true,
+                    "required": false
+                  }
+                }
               }
             }
           },
@@ -105,25 +153,37 @@
             "nullable": true,
             "required": false,
             "properties": {
-              "threads": {
-                "type": "int",
+              "search_engine_msgf": {
+                "type": "dict",
                 "nullable": true,
-                "required": false
-              },
-              "precursor_mass_tolerance": {
-                "type": "int",
-                "nullable": true,
-                "required": false
-              },
-              "fragment_mass_tolerance": {
-                "type": "float",
-                "nullable": true,
-                "required": false
-              },
-              "isotope_error_range": {
-                "type": "str",
-                "nullable": true,
-                "required": false
+                "required": false,
+                "properties": {
+                  "precursor_mass_tolerance": {
+                    "type": "int",
+                    "nullable": true,
+                    "required": false
+                  },
+                  "fragment_mass_tolerance": {
+                    "type": "float",
+                    "nullable": true,
+                    "required": false
+                  },
+                  "isotope_error_range": {
+                    "type": "str",
+                    "nullable": true,
+                    "required": false
+                  },
+                  "fixed_modifications": {
+                    "type": "list",
+                    "nullable": true,
+                    "required": false
+                  },
+                  "variable_modifications": {
+                    "type": "list",
+                    "nullable": true,
+                    "required": false
+                  }
+                }
               }
             }
           },
@@ -132,20 +192,32 @@
             "nullable": true,
             "required": false,
             "properties": {
-              "threads": {
-                "type": "int",
+              "search_engine_sage": {
+                "type": "dict",
                 "nullable": true,
-                "required": false
-              },
-              "precursor_mass_tolerance": {
-                "type": "int",
-                "nullable": true,
-                "required": false
-              },
-              "fragment_mass_tolerance": {
-                "type": "float",
-                "nullable": true,
-                "required": false
+                "required": false,
+                "properties": {
+                  "precursor_mass_tolerance": {
+                    "type": "int",
+                    "nullable": true,
+                    "required": false
+                  },
+                  "fragment_mass_tolerance": {
+                    "type": "float",
+                    "nullable": true,
+                    "required": false
+                  },
+                  "fixed_modifications": {
+                    "type": "list",
+                    "nullable": true,
+                    "required": false
+                  },
+                  "variable_modifications": {
+                    "type": "list",
+                    "nullable": true,
+                    "required": false
+                  }
+                }
               }
             }
           }

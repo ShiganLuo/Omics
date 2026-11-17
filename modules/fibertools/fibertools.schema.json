@@ -41,10 +41,29 @@
         "nullable": true,
         "required": false,
         "properties": {
-          "ont": {
-            "type": "bool",
+          "ft_fire": {
+            "type": "dict",
             "nullable": true,
-            "required": false
+            "required": false,
+            "properties": {
+              "ont": {
+                "type": "bool",
+                "nullable": true,
+                "required": false
+              }
+            }
+          },
+          "ft_extract_fire": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "ont": {
+                "type": "bool",
+                "nullable": true,
+                "required": false
+              }
+            }
           }
         }
       }

@@ -64,10 +64,27 @@
         "nullable": true,
         "required": false,
         "properties": {
-          "sam-append-comment": {
-            "type": "bool",
-            "nullable": true,
-            "required": false
+          "bowtie2_align_paired": {
+            "type": "dict",
+            "required": false,
+            "properties": {
+              "sam-append-comment": {
+                "type": "bool",
+                "nullable": true,
+                "required": false
+              }
+            }
+          },
+          "bowtie2_align_single": {
+            "type": "dict",
+            "required": false,
+            "properties": {
+              "sam-append-comment": {
+                "type": "bool",
+                "nullable": true,
+                "required": false
+              }
+            }
           }
         }
       }

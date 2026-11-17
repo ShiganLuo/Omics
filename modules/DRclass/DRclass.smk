@@ -62,8 +62,8 @@ rule drclass_pileup:
         logdir + "/{sample_id}/drclass_pileup.log"
     params:
         bcftools=PROC.get("bcftools") or "bcftools",
-        min_mq=PARAMS.get("min_mq", 20),
-        min_bq=PARAMS.get("min_bq", 30),
+        min_mq=rule_param(PARAMS, "drclass_pileup", "min_mq", 20),
+        min_bq=rule_param(PARAMS, "drclass_pileup", "min_bq", 30),
     benchmark: logdir + "/{sample_id}/drclass_pileup.benchmark.tsv",
     resources:
         mem_mb=rule_res("drclass_pileup").get("mem_mb", 8000),
@@ -97,12 +97,12 @@ rule drclass_classify:
     params:
         py=os.path.join(ROOT_DIR, "modules", "DRclass", "bin", "drclass.py"),
         py_proc=PROC.get("python3") or "python3",
-        min_af=PARAMS.get("min_af", 0.02),
-        min_ad=PARAMS.get("min_ad", 4),
-        min_dp=PARAMS.get("min_dp", 20),
-        germline_af=PARAMS.get("germline_af", 0.20),
-        germline_dp=PARAMS.get("germline_dp", 10),
-        splice_window=PARAMS.get("splice_window", 5),
+        min_af=rule_param(PARAMS, "drclass_classify", "min_af", 0.02),
+        min_ad=rule_param(PARAMS, "drclass_classify", "min_ad", 4),
+        min_dp=rule_param(PARAMS, "drclass_classify", "min_dp", 20),
+        germline_af=rule_param(PARAMS, "drclass_classify", "germline_af", 0.20),
+        germline_dp=rule_param(PARAMS, "drclass_classify", "germline_dp", 10),
+        splice_window=rule_param(PARAMS, "drclass_classify", "splice_window", 5),
     benchmark: logdir + "/{sample_id}/drclass_classify.benchmark.tsv",
     resources:
         mem_mb=rule_res("drclass_classify").get("mem_mb", 4000),
@@ -137,7 +137,7 @@ rule drclass_summary:
     params:
         py=os.path.join(ROOT_DIR, "modules", "DRclass", "bin", "drclass.py"),
         py_proc=PROC.get("python3") or "python3",
-        max_r4=PARAMS.get("max_r4_fraction", 0.30),
+        max_r4=rule_param(PARAMS, "drclass_summary", "max_r4_fraction", 0.30),
     benchmark: logdir + "/drclass_summary.benchmark.tsv",
     resources:
         mem_mb=rule_res("drclass_summary").get("mem_mb", 2000),

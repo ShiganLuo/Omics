@@ -35,15 +35,22 @@
         "nullable": true,
         "required": false,
         "properties": {
-          "tss_flank": {
-            "type": "int",
+          "fiberseq_annotate_run": {
+            "type": "dict",
             "nullable": true,
-            "required": false
-          },
-          "repeat_frac": {
-            "type": "float",
-            "nullable": true,
-            "required": false
+            "required": false,
+            "properties": {
+              "tss_flank": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "repeat_frac": {
+                "type": "float",
+                "nullable": true,
+                "required": false
+              }
+            }
           }
         }
       }

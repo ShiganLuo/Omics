@@ -429,48 +429,117 @@
     }
   },
   "Params": {
-    "raw_to_mzml": {
-      "manifest": {
-        "type": "str",
-        "required": false
-      },
-      "mode": {
-        "type": "str",
-        "required": true
-      },
-      "converter": {
-        "type": "str",
-        "required": true
-      },
-      "args": {
-        "type": "str",
-        "required": false
-      },
-      "peak_picking": {
+    "diann": {
+      "enabled": {
         "type": "bool",
-        "required": true
+        "required": false
+      },
+      "diann_run": {
+        "qvalue": {
+          "type": "float",
+          "required": false
+        },
+        "matrix_qvalue": {
+          "type": "float",
+          "required": false
+        },
+        "mass_acc_ms1": {
+          "type": "int",
+          "required": false
+        },
+        "mass_acc": {
+          "type": "int",
+          "required": false
+        },
+        "min_fr_mz": {
+          "type": "int",
+          "required": false
+        },
+        "max_fr_mz": {
+          "type": "int",
+          "required": false
+        },
+        "min_pept_len": {
+          "type": "int",
+          "required": false
+        },
+        "max_pept_len": {
+          "type": "int",
+          "required": false
+        },
+        "fixed_mod": {
+          "type": "str",
+          "required": false
+        },
+        "var_mods": {
+          "type": "str",
+          "required": false
+        },
+        "library": {
+          "type": "str",
+          "nullable": true,
+          "required": false
+        },
+        "gen_spec_lib": {
+          "type": "bool",
+          "required": false
+        },
+        "predictor": {
+          "type": "bool",
+          "required": false
+        },
+        "verbose": {
+          "type": "bool",
+          "required": false
+        },
+        "extra": {
+          "type": "str",
+          "required": false
+        }
+      }
+    },
+    "raw_to_mzml": {
+      "raw2mzml": {
+        "mode": {
+          "type": "str",
+          "required": true
+        },
+        "converter": {
+          "type": "str",
+          "required": true
+        },
+        "args": {
+          "type": "str",
+          "required": false
+        },
+        "peak_picking": {
+          "type": "bool",
+          "required": true
+        }
       }
     },
     "decoy_database": {
-      "decoy_string": {
-        "type": "str",
-        "required": true
-      },
-      "decoy_string_position": {
-        "type": "str",
-        "required": true
-      },
-      "method": {
-        "type": "str",
-        "required": true
-      },
-      "shuffle_max_attempts": {
-        "type": "int",
-        "required": true
-      },
-      "shuffle_sequence_identity_threshold": {
-        "type": "float",
-        "required": true
+      "decoy_database": {
+        "decoy_string": {
+          "type": "str",
+          "required": true
+        },
+        "decoy_string_position": {
+          "type": "str",
+          "required": true
+        },
+        "method": {
+          "type": "str",
+          "required": true
+        },
+        "shuffle_max_attempts": {
+          "type": "int",
+          "required": true
+        },
+        "shuffle_sequence_identity_threshold": {
+          "type": "float",
+          "required": true
+        }
       }
     },
     "search_engine": {
@@ -478,76 +547,104 @@
         "type": "str",
         "required": true
       },
-      "comet": {
-        "threads": {
-          "type": "int",
-          "required": true
-        },
-        "precursor_mass_tolerance": {
-          "type": "int",
-          "required": true
-        },
-        "fragment_mass_tolerance": {
-          "type": "float",
-          "required": true
-        },
-        "fragment_bin_offset": {
-          "type": "int",
-          "required": true
-        }
-      },
-      "msgf": {
-        "threads": {
-          "type": "int",
-          "required": true
-        },
-        "precursor_mass_tolerance": {
-          "type": "int",
-          "required": true
-        },
-        "fragment_mass_tolerance": {
-          "type": "float",
-          "required": true
-        },
-        "isotope_error_range": {
-          "type": "str",
-          "required": true
-        }
-      },
-      "sage": {
-        "threads": {
-          "type": "int",
-          "required": true
-        },
-        "precursor_mass_tolerance": {
-          "type": "int",
-          "required": true
-        },
-        "fragment_mass_tolerance": {
-          "type": "float",
-          "required": true
-        }
-      }
-    },
-    "psm_rescoring": {
-      "psm_feature_extractor": {
-        "extra": {
+      "search_engine_comet": {
+        "engine": {
           "type": "str",
           "required": false
         }
       },
-      "percolator": {
-        "train_FDR": {
-          "type": "float",
-          "required": true
-        },
-        "test_FDR": {
-          "type": "float",
-          "required": true
-        },
-        "feature": {
+      "search_engine_msgf": {
+        "engine": {
           "type": "str",
-          "required": true
+          "required": false
+        }
+      },
+      "search_engine_sage": {
+        "engine": {
+          "type": "str",
+          "required": false
+        }
+      },
+      "comet": {
+        "search_engine_comet": {
+          "precursor_mass_tolerance": {
+            "type": "int",
+            "required": true
+          },
+          "fragment_mass_tolerance": {
+            "type": "float",
+            "required": true
+          },
+          "fragment_bin_offset": {
+            "type": "int",
+            "required": true
+          },
+          "unmatched_action": {
+            "type": "str",
+            "required": false
+          },
+          "fixed_modifications": {
+            "type": "list",
+            "required": false
+          },
+          "variable_modifications": {
+            "type": "list",
+            "required": false
+          }
+        }
+      },
+      "msgf": {
+        "search_engine_msgf": {
+          "precursor_mass_tolerance": {
+            "type": "int",
+            "required": true
+          },
+          "fragment_mass_tolerance": {
+            "type": "float",
+            "required": true
+          },
+          "isotope_error_range": {
+            "type": "str",
+            "required": true
+          }
+        }
+      },
+      "sage": {
+        "search_engine_sage": {
+          "precursor_mass_tolerance": {
+            "type": "int",
+            "required": true
+          },
+          "fragment_mass_tolerance": {
+            "type": "float",
+            "required": true
+          }
+        }
+      }
+    },
+    "psm_rescoring": {
+      "search_engine": {
+        "type": "str",
+        "required": false
+      },
+      "psm_feature_extractor": {
+        "psm_rescoring": {
+          "extra": {
+            "type": "str",
+            "required": false
+          }
+        }
+      },
+      "percolator": {
+        "psm_rescoring": {
+          "train_FDR": {
+            "type": "float",
+            "required": true
+          },
+          "test_FDR": {
+            "type": "float",
+            "required": true
+          }
         }
       }
     },
@@ -592,100 +689,168 @@
       }
     },
     "psm_fdr_control": {
-      "fdr": {
-        "type": "float",
-        "required": true
-      },
-      "method": {
-        "type": "str",
-        "required": true
+      "psm_fdr": {
+        "fdr": {
+          "type": "float",
+          "required": true
+        },
+        "method": {
+          "type": "str",
+          "required": true
+        }
       }
     },
     "protein_inference": {
-      "method": {
-        "type": "str",
-        "required": true
-      },
-      "greedy_group_resolution": {
-        "type": "str",
-        "required": true
+      "protein_inference": {
+        "method": {
+          "type": "str",
+          "required": true
+        },
+        "greedy_group_resolution": {
+          "type": "str",
+          "required": true
+        }
       }
     },
     "protein_quant": {
-      "quantification_method": {
-        "type": "str",
-        "required": false
+      "quantification_lfq": {
+        "quantification_method": {
+          "type": "str",
+          "required": false
+        },
+        "protein_inference": {
+          "type": "str",
+          "required": false
+        },
+        "top": {
+          "type": "int",
+          "required": true
+        },
+        "top_aggregate": {
+          "type": "str",
+          "required": true
+        },
+        "best_charge_and_fraction": {
+          "type": "bool",
+          "required": true
+        }
       },
-      "protein_inference": {
-        "type": "str",
-        "required": false
+      "quantification_dia": {
+        "quantification_method": {
+          "type": "str",
+          "required": false
+        },
+        "protein_inference": {
+          "type": "str",
+          "required": false
+        },
+        "top": {
+          "type": "int",
+          "required": true
+        },
+        "top_aggregate": {
+          "type": "str",
+          "required": true
+        },
+        "best_charge_and_fraction": {
+          "type": "bool",
+          "required": true
+        }
       },
-      "top": {
-        "type": "int",
-        "required": true
-      },
-      "average": {
-        "type": "str",
-        "required": true
-      },
-      "best_charge_and_fraction": {
-        "type": "bool",
-        "required": true
+      "quantification_tmt": {
+        "top": {
+          "type": "int",
+          "required": true
+        },
+        "top_aggregate": {
+          "type": "str",
+          "required": true
+        },
+        "best_charge_and_fraction": {
+          "type": "bool",
+          "required": true
+        }
       }
     },
     "protein_fdr": {
-      "fdr": {
-        "type": "float",
-        "required": true
+      "quantification_lfq": {
+        "fdr": {
+          "type": "float",
+          "required": true
+        },
+        "picked": {
+          "type": "bool",
+          "required": true
+        }
       },
-      "picked": {
-        "type": "bool",
-        "required": true
+      "quantification_dia": {
+        "fdr": {
+          "type": "float",
+          "required": true
+        },
+        "picked": {
+          "type": "bool",
+          "required": true
+        }
       }
     },
     "tmt": {
-      "type": {
-        "type": "str",
-        "required": true
+      "quantification_tmt_reporter": {
+        "type": {
+          "type": "str",
+          "required": true
+        },
+        "reporter_mass_shift": {
+          "type": "float",
+          "required": true
+        },
+        "isotope_correction": {
+          "type": "bool",
+          "required": true
+        },
+        "normalization": {
+          "type": "bool",
+          "required": false
+        },
+        "reference_channel": {
+          "type": "str",
+          "required": false
+        },
+        "correction_matrix": {
+          "type": "list",
+          "required": false
+        },
+        "channel_descriptions": {
+          "type": "dict",
+          "required": false
+        }
       },
-      "reporter_mass_shift": {
-        "type": "float",
-        "required": true
-      },
-      "isotope_correction": {
+      "quantification_tmt": {
+        "type": {
+          "type": "str",
+          "required": true
+        }
+      }
+    },
+    "quantification_lfq": {
+      "add_triqler_output": {
         "type": "bool",
-        "required": true
+        "required": false
       },
-      "normalization": {
+      "quantify_decoys": {
         "type": "bool",
-        "required": false
-      },
-      "reference_channel": {
-        "type": "str",
-        "required": false
-      },
-      "correction_matrix": {
-        "type": "list",
-        "required": false
-      },
-      "channel_descriptions": {
-        "type": "dict",
         "required": false
       }
     },
-    "dia": {
-      "library": {
-        "type": "str",
+    "quantification_dia": {
+      "add_triqler_output": {
+        "type": "bool",
         "required": false
       },
-      "dia_window": {
-        "type": "str",
+      "quantify_decoys": {
+        "type": "bool",
         "required": false
       }
-    },
-    "msstats": {
-      "type": "dict",
-      "required": false
     },
     "skip_post_msstats": {
       "type": "bool",

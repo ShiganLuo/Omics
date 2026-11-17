@@ -7,7 +7,7 @@ logdir = config.get("logdir", "log")
 samples = config.get("samples", [])
 ROOT_DIR = config.get("ROOT_DIR", ".")
 env = config.get("env", {})
-p = config.get("Params", {}).get("fiberseq_coactuation", {})
+_coactuation_params = config.get("Params", {}).get("fiberseq_coactuation", {})
 rule fiberseq_coactuation_run:
     """Same-fiber co-actuation of region pairs (Fisher + actual vs expected)."""
     input:
@@ -32,10 +32,11 @@ rule fiberseq_coactuation_run:
         sif("../fiberseq.yaml", "fiberseq_coactuation_run")
     params:
         script = ROOT_DIR + "/modules/fiberseq/bin/coactuation.py",
-        max_distance = p.get("max_distance", 50000),
-        min_fibers = p.get("min_fibers", 10),
-        max_pairs = p.get("max_pairs", 200000),
-        alpha = p.get("alpha", 0.05),
+        # 参数精确到 rule:Params.fiberseq_coactuation.fiberseq_coactuation_run.<key>
+        max_distance = rule_param(_coactuation_params, "fiberseq_coactuation_run", "max_distance", 50000),
+        min_fibers = rule_param(_coactuation_params, "fiberseq_coactuation_run", "min_fibers", 10),
+        max_pairs = rule_param(_coactuation_params, "fiberseq_coactuation_run", "max_pairs", 200000),
+        alpha = rule_param(_coactuation_params, "fiberseq_coactuation_run", "alpha", 0.05),
     run:
         log_path = str(log)
         open(log_path, "w").close()

@@ -35,25 +35,32 @@
         "nullable": true,
         "required": false,
         "properties": {
-          "max_distance": {
-            "type": "int",
+          "fiberseq_coactuation_run": {
+            "type": "dict",
             "nullable": true,
-            "required": false
-          },
-          "min_fibers": {
-            "type": "int",
-            "nullable": true,
-            "required": false
-          },
-          "max_pairs": {
-            "type": "int",
-            "nullable": true,
-            "required": false
-          },
-          "alpha": {
-            "type": "float",
-            "nullable": true,
-            "required": false
+            "required": false,
+            "properties": {
+              "max_distance": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "min_fibers": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "max_pairs": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "alpha": {
+                "type": "float",
+                "nullable": true,
+                "required": false
+              }
+            }
           }
         }
       }

@@ -85,155 +85,162 @@
               }
             }
           },
-          "alignEndsType": {
-            "type": "str",
+          "star_align": {
+            "type": "dict",
             "nullable": true,
-            "required": false
-          },
-          "outFilterMismatchNoverReadLmax": {
-            "type": "float",
-            "nullable": true,
-            "required": false
-          },
-          "outFilterMismatchNmax": {
-            "type": "int",
-            "nullable": true,
-            "required": false
-          },
-          "outFilterMultimapNmax": {
-            "type": "int",
-            "nullable": true,
-            "required": false
-          },
-          "winAnchorMultimapNmax": {
-            "type": "int",
-            "nullable": true,
-            "required": false
-          },
-          "genomeLoad": {
-            "type": "str",
-            "nullable": true,
-            "required": false
-          },
-          "limitBAMsortRAM": {
-            "type": "int",
-            "nullable": true,
-            "required": false
-          },
-          "outReadsUnmapped": {
-            "type": "null",
-            "nullable": true,
-            "required": false
-          },
-          "outFilterMismatchNoverLmax": {
-            "type": "float",
-            "nullable": true,
-            "required": false
-          },
-          "outFilterMatchNminOverLread": {
-            "type": "float",
-            "nullable": true,
-            "required": false
-          },
-          "alignSJoverhangMin": {
-            "type": "int",
-            "nullable": true,
-            "required": false
-          },
-          "alignSJDBoverhangMin": {
-            "type": "int",
-            "nullable": true,
-            "required": false
-          },
-          "chimSegmentMin": {
-            "type": "int",
-            "nullable": true,
-            "required": false
-          },
-          "chimOutType": {
-            "type": "str",
-            "nullable": true,
-            "required": false
-          },
-          "chimJunctionOverhangMin": {
-            "type": "int",
-            "nullable": true,
-            "required": false
-          },
-          "outSAMstrandField": {
-            "type": "null",
-            "nullable": true,
-            "required": false
-          },
-          "chimScoreMin": {
-            "type": "int",
-            "nullable": true,
-            "required": false
-          },
-          "chimScoreDropMax": {
-            "type": "int",
-            "nullable": true,
-            "required": false
-          },
-          "chimScoreJunctionNonGTAG": {
-            "type": "int",
-            "nullable": true,
-            "required": false
-          },
-          "chimScoreSeparation": {
-            "type": "int",
-            "nullable": true,
-            "required": false
-          },
-          "alignSJstitchMismatchNmax": {
-            "type": "str",
-            "nullable": true,
-            "required": false
-          },
-          "chimSegmentReadGapMax": {
-            "type": "int",
-            "nullable": true,
-            "required": false
-          },
-          "outSAMattributes": {
-            "type": "str",
-            "nullable": true,
-            "required": false
-          },
-          "outMultimapperOrder": {
-            "type": "str",
-            "nullable": true,
-            "required": false
-          },
-          "runRNGseed": {
-            "type": "int",
-            "nullable": true,
-            "required": false
-          },
-          "outSAMmultNmax": {
-            "type": "int",
-            "nullable": true,
-            "required": false
-          },
-          "soloType": {
-            "type": "str",
-            "nullable": true,
-            "required": false
-          },
-          "soloCBwhitelist": {
-            "type": "null",
-            "nullable": true,
-            "required": false
-          },
-          "soloBarcodeReadLength": {
-            "type": "int",
-            "nullable": true,
-            "required": false
-          },
-          "limitSjdbInsertNsj": {
-            "type": "int",
-            "nullable": true,
-            "required": false
+            "required": false,
+            "properties": {
+              "alignEndsType": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "outFilterMismatchNoverReadLmax": {
+                "type": "float",
+                "nullable": true,
+                "required": false
+              },
+              "outFilterMismatchNmax": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "outFilterMultimapNmax": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "winAnchorMultimapNmax": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "genomeLoad": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "limitBAMsortRAM": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "outReadsUnmapped": {
+                "type": "null",
+                "nullable": true,
+                "required": false
+              },
+              "outFilterMismatchNoverLmax": {
+                "type": "float",
+                "nullable": true,
+                "required": false
+              },
+              "outFilterMatchNminOverLread": {
+                "type": "float",
+                "nullable": true,
+                "required": false
+              },
+              "alignSJoverhangMin": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "alignSJDBoverhangMin": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "chimSegmentMin": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "chimOutType": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "chimJunctionOverhangMin": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "outSAMstrandField": {
+                "type": "null",
+                "nullable": true,
+                "required": false
+              },
+              "chimScoreMin": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "chimScoreDropMax": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "chimScoreJunctionNonGTAG": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "chimScoreSeparation": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "alignSJstitchMismatchNmax": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "chimSegmentReadGapMax": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "outSAMattributes": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "outMultimapperOrder": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "runRNGseed": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "outSAMmultNmax": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "soloType": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "soloCBwhitelist": {
+                "type": "null",
+                "nullable": true,
+                "required": false
+              },
+              "soloBarcodeReadLength": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "limitSjdbInsertNsj": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              }
+            }
           }
         }
       }

@@ -63,7 +63,8 @@ wes_cutadapt_config = {
     "logdir": f"{logdir}/sample",
     "Procedure": {"trim_galore": config.get('Procedure', {}).get('trim_galore')},
     "Params": {
-        "trim_galore": {"quality": config.get('Params', {}).get("trim_galore", {}).get('quality')}
+        # 参数精确到 rule:整段透传(Params.trim_galore.<rule>.<key>)
+        "trim_galore": config.get('Params', {}).get("trim_galore", {}),
     },
 }
 module wes_cutadapt:

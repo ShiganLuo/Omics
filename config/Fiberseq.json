@@ -8,67 +8,103 @@
       "raw_files": []
     },
     "fibertools": {
-      "add_nucleosomes_manual": null,
-      "ont": false,
-      "call_peaks_mode": "fdr",
-      "max_fdr": 0.05,
-      "min_fire_frac": 0.1,
-      "sd_cov": 5.0,
-      "haps": false,
-      "acf": false
+      "ft_fire": {
+        "add_nucleosomes_manual": null,
+        "ont": false
+      },
+      "ft_call_peaks": {
+        "call_peaks_mode": "fdr",
+        "max_fdr": 0.05,
+        "min_fire_frac": 0.1,
+        "sd_cov": 5.0,
+        "haps": false
+      },
+      "ft_qc": {
+        "acf": false
+      },
+      "ft_extract_fire": {
+        "ont": false
+      }
     },
     "pbmm2": {},
     "annotate": {
       "enabled": true,
-      "tss_flank": 1000,
-      "repeat_frac": 0.25
+      "fiberseq_annotate_run": {
+        "tss_flank": 1000,
+        "repeat_frac": 0.25
+      }
     },
     "motif": {
       "enabled": false,
-      "flank": 250,
-      "min_fibers": 10,
-      "pwm_threshold": 0.8,
-      "formats": [
-        "pdf"
-      ]
+      "fiberseq_motif_profile": {
+        "formats": [
+          "pdf"
+        ],
+        "flank": 250,
+        "min_fibers": 10
+      },
+      "fiberseq_motif_result": {
+        "formats": [
+          "pdf"
+        ]
+      },
+      "fiberseq_motif_scan": {
+        "pwm_threshold": 0.8
+      }
     },
     "footprint": {
       "enabled": false,
-      "flank": 1000,
-      "formats": [
-        "pdf"
-      ]
+      "fiberseq_footprint_run": {
+        "formats": [
+          "pdf"
+        ],
+        "flank": 1000
+      },
+      "fiberseq_footprint_result": {
+        "formats": [
+          "pdf"
+        ]
+      }
     },
     "nucpos": {
       "enabled": true,
-      "upstream_nucs": 5,
-      "downstream_nucs": 5,
-      "min_fibers": 10,
-      "formats": [
-        "pdf"
-      ]
+      "fiberseq_nucpos_run": {
+        "formats": [
+          "pdf"
+        ],
+        "upstream_nucs": 5,
+        "downstream_nucs": 5,
+        "min_fibers": 10
+      },
+      "fiberseq_nucpos_result": {
+        "formats": [
+          "pdf"
+        ]
+      }
     },
     "track": {
       "enabled": true,
-      "bin": 10
+      "fiberseq_track_run": {
+        "bin": 10
+      }
     },
     "quant": {
-      "enabled": true,
-      "min_fibers": 10
+      "enabled": true
     },
     "diff": {
       "enabled": false,
-      "alpha": 0.05,
-      "annot_sample": null,
-      "group_spec": null,
-      "formats": [
-        "pdf"
-      ]
+      "fiberseq_diff_run": {
+        "formats": [
+          "pdf"
+        ],
+        "alpha": 0.05,
+        "annot_sample": null,
+        "group_spec": null
+      }
     },
     "fiberseq_mods": {
       "enabled": true,
       "mod_type": "cpg",
-      "groups": [],
       "region_axis": {
         "default": "te",
         "options": {
@@ -79,6 +115,70 @@
           "fire_peaks": {
             "metric": "cpg_per_fiber",
             "top_n": 0
+          }
+        }
+      },
+      "fiberseq_mods_longtable": {
+        "mod_type": "cpg",
+        "region_axis": {
+          "default": "te",
+          "options": {
+            "te": {
+              "min_fibers": 3,
+              "loci_top_n": 5
+            },
+            "fire_peaks": {
+              "metric": "cpg_per_fiber",
+              "top_n": 0
+            }
+          }
+        }
+      },
+      "fiberseq_mods_split": {
+        "region_axis": {
+          "default": "te",
+          "options": {
+            "te": {
+              "min_fibers": 3,
+              "loci_top_n": 5
+            },
+            "fire_peaks": {
+              "metric": "cpg_per_fiber",
+              "top_n": 0
+            }
+          }
+        }
+      },
+      "fiberseq_mods_top_loci": {
+        "mod_type": "cpg",
+        "region_axis": {
+          "default": "te",
+          "options": {
+            "te": {
+              "min_fibers": 3,
+              "loci_top_n": 5
+            },
+            "fire_peaks": {
+              "metric": "cpg_per_fiber",
+              "top_n": 0
+            }
+          }
+        },
+        "groups": []
+      },
+      "fiberseq_mods_result": {
+        "mod_type": "cpg",
+        "region_axis": {
+          "default": "te",
+          "options": {
+            "te": {
+              "min_fibers": 3,
+              "loci_top_n": 5
+            },
+            "fire_peaks": {
+              "metric": "cpg_per_fiber",
+              "top_n": 0
+            }
           }
         }
       }
@@ -102,10 +202,12 @@
     },
     "coactuation": {
       "enabled": true,
-      "max_distance": 50000,
-      "min_fibers": 10,
-      "max_pairs": 200000,
-      "alpha": 0.05
+      "fiberseq_coactuation_run": {
+        "max_distance": 50000,
+        "min_fibers": 10,
+        "max_pairs": 200000,
+        "alpha": 0.05
+      }
     },
     "pbsv": {
       "enabled": true,
@@ -115,16 +217,14 @@
     },
     "haplotype": {
       "enabled": true,
-      "min_fibers": 10,
-      "alpha": 0.05
+      "fiberseq_haplotype_diff": {
+        "min_fibers": 10,
+        "alpha": 0.05
+      }
     },
     "sv": {
       "enabled": true,
       "comparisons": {},
-      "image_formats": [
-        "png"
-      ],
-      "genes": [],
       "exp_specific": {
         "vep_cache": "/data/16T/Database/.vep",
         "species": "T2T_mhaESC_v1.5",
@@ -504,18 +604,53 @@
           ]
         }
       },
-      "formats": [
-        "png"
-      ]
+      "sv_exp_specific": {
+        "formats": [
+          "png"
+        ]
+      },
+      "sv_exp_circos": {
+        "formats": [
+          "png"
+        ]
+      },
+      "sv_gene_model": {
+        "formats": [
+          "png"
+        ],
+        "genes": []
+      },
+      "sv_diff_analysis": {
+        "formats": [
+          "png"
+        ]
+      },
+      "sv_oncoprint": {
+        "formats": [
+          "png"
+        ]
+      },
+      "sv_mei": {
+        "formats": [
+          "png"
+        ]
+      }
     },
     "censat": {
       "enabled": false,
-      "msp_min_len": 50,
-      "flank": 10000,
-      "bin": 500,
-      "formats": [
-        "pdf"
-      ]
+      "fiberseq_censat_run": {
+        "formats": [
+          "pdf"
+        ],
+        "msp_min_len": 50,
+        "flank": 10000,
+        "bin": 500
+      },
+      "fiberseq_censat_result": {
+        "formats": [
+          "pdf"
+        ]
+      }
     },
     "function": {
       "enabled": false,

@@ -1,0 +1,6 @@
+sample_id	organism	group	data_id	design	fastq_1	fastq_2	contaminated_organism	strain
+WES-N1	GRCm39	Normal	WES-N1	ctr_normal	/data/16T/luosg/workflow/Omics/assests/test/data/fastq/dr_wes/WES-N1/WES-N1_R1.fq.gz	/data/16T/luosg/workflow/Omics/assests/test/data/fastq/dr_wes/WES-N1/WES-N1_R2.fq.gz		129P2_OlaHsd
+WES-T1	GRCm39	Tumor	WES-T1	ctr_T1	/data/16T/luosg/workflow/Omics/assests/test/data/fastq/dr_wes/WES-T1/WES-T1_R1.fq.gz	/data/16T/luosg/workflow/Omics/assests/test/data/fastq/dr_wes/WES-T1/WES-T1_R2.fq.gz		129P2_OlaHsd
+WES-T2	GRCm39	Tumor	WES-T2	ctr_T2	/data/16T/luosg/workflow/Omics/assests/test/data/fastq/dr_wes/WES-T2/WES-T2_R1.fq.gz	/data/16T/luosg/workflow/Omics/assests/test/data/fastq/dr_wes/WES-T2/WES-T2_R2.fq.gz		129P2_OlaHsd
+RNA-T1	GRCm39	Tumor	RNA-T1	exp_T1	/data/16T/luosg/workflow/Omics/assests/test/data/fastq/dr_rna/RNA-T1/RNA-T1_R1.fq.gz	/data/16T/luosg/workflow/Omics/assests/test/data/fastq/dr_rna/RNA-T1/RNA-T1_R2.fq.gz		129P2_OlaHsd
+RNA-T2	GRCm39	Tumor	RNA-T2	exp_T2	/data/16T/luosg/workflow/Omics/assests/test/data/fastq/dr_rna/RNA-T2/RNA-T2_R1.fq.gz	/data/16T/luosg/workflow/Omics/assests/test/data/fastq/dr_rna/RNA-T2/RNA-T2_R2.fq.gz		129P2_OlaHsd

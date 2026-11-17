@@ -35,15 +35,22 @@
         "nullable": true,
         "required": false,
         "properties": {
-          "min_fibers": {
-            "type": "int",
+          "fiberseq_haplotype_diff": {
+            "type": "dict",
             "nullable": true,
-            "required": false
-          },
-          "alpha": {
-            "type": "float",
-            "nullable": true,
-            "required": false
+            "required": false,
+            "properties": {
+              "min_fibers": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "alpha": {
+                "type": "float",
+                "nullable": true,
+                "required": false
+              }
+            }
           }
         }
       }

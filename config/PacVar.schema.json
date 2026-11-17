@@ -735,15 +735,6 @@
         "type": "dict",
         "required": false
       },
-      "image_formats": {
-        "type": "list",
-        "required": false,
-        "description": " (已废弃:请改用 formats;保留仅为旧配置兼容)"
-      },
-      "genes": {
-        "type": "list",
-        "required": false
-      },
       "exp_specific": {
         "vep_cache": {
           "type": "str",
@@ -1148,13 +1139,99 @@
           }
         }
       },
-      "formats": {
-        "type": "list",
+      "sv_exp_specific": {
+        "type": "dict",
+        "nullable": true,
         "required": false,
-        "default": [
-          "png"
-        ],
-        "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
+        "properties": {
+          "formats": {
+            "type": "list",
+            "required": false,
+            "default": [
+              "png"
+            ],
+            "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
+          }
+        }
+      },
+      "sv_exp_circos": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "formats": {
+            "type": "list",
+            "required": false,
+            "default": [
+              "png"
+            ],
+            "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
+          }
+        }
+      },
+      "sv_gene_model": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "genes": {
+            "type": "list",
+            "required": false
+          },
+          "formats": {
+            "type": "list",
+            "required": false,
+            "default": [
+              "png"
+            ],
+            "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
+          }
+        }
+      },
+      "sv_diff_analysis": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "formats": {
+            "type": "list",
+            "required": false,
+            "default": [
+              "png"
+            ],
+            "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
+          }
+        }
+      },
+      "sv_oncoprint": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "formats": {
+            "type": "list",
+            "required": false,
+            "default": [
+              "png"
+            ],
+            "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
+          }
+        }
+      },
+      "sv_mei": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "formats": {
+            "type": "list",
+            "required": false,
+            "default": [
+              "png"
+            ],
+            "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
+          }
+        }
       }
     },
     "phase": {
@@ -1194,17 +1271,20 @@
         "type": "str",
         "required": true
       },
-      "enabled": {
-        "type": "bool",
-        "required": false
-      },
-      "formats": {
-        "type": "list",
+      "trgt_plot": {
+        "type": "dict",
+        "nullable": true,
         "required": false,
-        "default": [
-          "png"
-        ],
-        "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
+        "properties": {
+          "formats": {
+            "type": "list",
+            "required": false,
+            "default": [
+              "png"
+            ],
+            "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
+          }
+        }
       }
     },
     "telogator2": {

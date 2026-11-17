@@ -11,6 +11,12 @@ gwas = ldsc_cfg.get("gwas", {}) or {}
 traits = sorted(gwas.keys())
 BIN = ROOT_DIR + "/modules/ldsc/bin"
 
+# 参数精确到 rule:annot_prefix 按 rule 各自配置
+# (Params.ldsc.ldsc_annot.annot_prefix / Params.ldsc.ldsc_h2_cts.annot_prefix;
+# 无 module 级共享回退,rule_param 见 common.smk)。
+_annot_prefix_ldsc_annot = rule_param(ldsc_cfg, "ldsc_annot", "annot_prefix", "peaks") or "peaks"
+_annot_prefix_ldsc_h2_cts = rule_param(ldsc_cfg, "ldsc_h2_cts", "annot_prefix", "peaks") or "peaks"
+
 wildcard_constraints:
     trait = ".+",
 
@@ -20,7 +26,7 @@ rule ldsc_annot:
         peaks = lambda wildcards: _require(ldsc_cfg.get("annot_bed"),
                                            "Params.ldsc.annot_bed", "LDSC"),
     output:
-        manifest = outdir + "/annot/" + (ldsc_cfg.get("annot_prefix") or "peaks") + ".annot_manifest.tsv",
+        manifest = outdir + "/annot/" + _annot_prefix_ldsc_annot + ".annot_manifest.tsv",
     log:
         logdir + "/ldsc_annot.log"
     threads: rule_res("ldsc_annot").get("threads", 1)
@@ -35,7 +41,7 @@ rule ldsc_annot:
         sif("ldsc.yaml", "ldsc_annot")
     params:
         script = BIN + "/ldsc_annot.py",
-        prefix = ldsc_cfg.get("annot_prefix") or "peaks",
+        prefix = _annot_prefix_ldsc_annot,
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -124,7 +130,7 @@ rule ldsc_h2_cts:
     """Partitioned heritability (ldsc.py --h2-cts) for one GWAS trait."""
     input:
         munged = outdir + "/{trait}/{trait}.sumstats.gz",
-        manifest = outdir + "/annot/" + (ldsc_cfg.get("annot_prefix") or "peaks") + ".annot_manifest.tsv",
+        manifest = outdir + "/annot/" + _annot_prefix_ldsc_h2_cts + ".annot_manifest.tsv",
     output:
         results = outdir + "/{trait}/{trait}.cts.results",
     log:

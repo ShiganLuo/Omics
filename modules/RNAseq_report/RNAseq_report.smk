@@ -6,13 +6,24 @@ samples = config.get("samples", [])
 paired_samples = config.get("paired_samples", [])
 single_samples = config.get("single_samples", [])
 contrasts = config.get("contrasts", [])
+# 参数精确到 rule:generate_report 自己的参数挂 Params.report.generate_report.<key>
+# (原 Params.report.<key> 读点挂到消费 rule 名下;无 module 级共享回退,
+# rule_param 见 common.smk)。每 rule 一个 parse 期变量。
+_report = config.get("Params", {}).get("report", {}) or {}
+
+
+def _report_param(key, default):
+    """generate_report rule 参数(Params.report.generate_report.<key>)。"""
+    return rule_param(_report, "generate_report", key, default) or default
+
+
 # counts 矩阵文件名的 genome 前缀(单基因组变体:产物按 config 的
-# Params.report.genome 标签命名,规则本身不带 {genome} 通配符)
-genome_label = config.get("Params", {}).get("report", {}).get("genome") or "all"
+# Params.report.generate_report.genome 标签命名,规则本身不带 {genome} 通配符)
+genome_label = _report_param("genome", "all")
 
 # 图片格式（report 模块 figures/<name>.<fmt> 多格式输出）① parse 期读入 +
 # 规范化（str 收成单元素 list；合法值由 schema 声明）
-_formats = config.get("Params", {}).get("report", {}).get("formats") or ["png"]
+_formats = _report_param("formats", ["png"])
 if isinstance(_formats, str):
     _formats = [_formats]
 
@@ -39,17 +50,21 @@ def _producer_fmt(formats):
     return fmts[0]
 
 
-_st_formats = (config.get("Params", {}).get("StringTie") or {}).get("formats") or ["png"]
-_deseq2_formats = (config.get("Params", {}).get("DESeq2") or {}).get("formats") or ["png"]
-_arriba_formats = (config.get("Params", {}).get("arriba") or {}).get("formats") or ["png"]
+# ── 上游产出图变体键:跨模块消费,变体期望挂在消费 rule 名下
+# (Params.<producer>.generate_report.<key>;原 function 的 go_kegg/gsea/gsva
+# 嵌套组名拍平进 key 名,叶子名 formats 作 key 尾缀以区分三个生产 rule)。
+# 默认配置下解析结果与历史硬编码扩展名逐字节一致。
+_st_formats = rule_param(config.get("Params", {}).get("StringTie") or {}, "generate_report", "formats", ["png"])
+_deseq2_formats = rule_param(config.get("Params", {}).get("DESeq2") or {}, "generate_report", "formats", ["png"])
+_arriba_formats = rule_param(config.get("Params", {}).get("arriba") or {}, "generate_report", "formats", ["png"])
 _function_params = config.get("Params", {}).get("function") or {}
-_go_kegg_formats = (_function_params.get("go_kegg") or {}).get("formats") or ["png"]
-_gsea_formats = (_function_params.get("gsea") or {}).get("formats") or ["jpeg"]
-_gsva_formats = (_function_params.get("gsva") or {}).get("formats") or ["png"]
+_go_kegg_formats = rule_param(_function_params, "generate_report", "go_kegg_formats", ["png"])
+_gsea_formats = rule_param(_function_params, "generate_report", "gsea_formats", ["jpeg"])
+_gsva_formats = rule_param(_function_params, "generate_report", "gsva_formats", ["png"])
 
 REPORT_SCRIPT = os.path.join(ROOT_DIR, "modules", "RNAseq_report", "bin", "generate_report.py")
 # arriba fusion figure base names (no extension) — 变体扩展名由
-# Params.arriba.formats raster-first 解析(见 _producer_fmt)
+# Params.arriba.generate_report.formats raster-first 解析(见 _producer_fmt)
 FUSION_FIG_BASES = [
     "fig1_per_sample_counts",
     "fig2_fusion_type_distribution",
@@ -121,12 +136,12 @@ rule generate_report:
         paired_samples = paired_samples,
         single_samples = single_samples,
         contrasts = contrasts,
-        title = config.get("Params", {}).get("report", {}).get("title") or "RNA-seq Analysis Report",
-        subtitle = config.get("Params", {}).get("report", {}).get("subtitle") or "",
-        pipeline = config.get("Params", {}).get("report", {}).get("pipeline") or "",
-        genome = config.get("Params", {}).get("report", {}).get("genome") or "",
-        date = config.get("Params", {}).get("report", {}).get("date") or "",
-        lang = config.get("Params", {}).get("report", {}).get("lang") or "zh",
+        title = _report_param("title", "RNA-seq Analysis Report"),
+        subtitle = _report_param("subtitle", ""),
+        pipeline = _report_param("pipeline", ""),
+        genome = _report_param("genome", ""),
+        date = _report_param("date", ""),
+        lang = _report_param("lang", "zh"),
         formats = _formats,   # ③ 转发
         img_dir = outdir + "/figures",
         script = REPORT_SCRIPT,

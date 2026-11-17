@@ -11,24 +11,30 @@
     },
     "Params": {
         "protein_quant": {
-            "method": "feature_intensity",
-            "top": 3,
-            "average": "median",
-            "best_charge_and_score": true
+            "quantification_lfq": {
+                "quantification_method": "feature_intensity",
+                "top": 3,
+                "top_aggregate": "median",
+                "best_charge_and_fraction": true
+            },
+            "quantification_dia": {
+                "quantification_method": "feature_intensity",
+                "top": 3,
+                "top_aggregate": "median",
+                "best_charge_and_fraction": true
+            },
+            "quantification_tmt": {
+                "top": 3,
+                "top_aggregate": "median",
+                "best_charge_and_fraction": true
+            }
         },
         "tmt": {
-            "channel_mass_tolerance": 0.003,
-            "channel_annotation": "",
-            "isotope_correction": true
-        },
-        "lfq": {
-            "intensity_threshold": 0,
-            "mass_recalibration": true,
-            "alignment_order": "star"
-        },
-        "dia": {
-            "library": "",
-            "dia_window": ""
+            "quantification_tmt_reporter": {
+                "reporter_mass_shift": 0.003,
+                "isotope_correction": true,
+                "channel_descriptions": {}
+            }
         }
     }
 }

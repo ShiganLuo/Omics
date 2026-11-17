@@ -335,12 +335,6 @@
     }
   },
   "Params": {
-    "trim_galore": {
-      "quality": {
-        "type": "int",
-        "required": true
-      }
-    },
     "workflow": {
       "type": "dict",
       "required": true,

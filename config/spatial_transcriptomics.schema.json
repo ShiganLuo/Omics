@@ -110,31 +110,43 @@
       "type": "dict",
       "required": false,
       "properties": {
-        "min_genes": {
-          "type": "int",
-          "required": false
+        "spatial_scanpy_qc": {
+          "type": "dict",
+          "required": false,
+          "properties": {
+            "min_genes": {
+              "type": "int",
+              "required": false
+            },
+            "max_pct_mt": {
+              "type": "float",
+              "required": false
+            },
+            "n_top_genes": {
+              "type": "int",
+              "required": false
+            }
+          }
         },
-        "max_pct_mt": {
-          "type": "float",
-          "required": false
+        "spatial_scanpy_cluster": {
+          "type": "dict",
+          "required": false,
+          "properties": {
+            "n_pcs": {
+              "type": "int",
+              "required": false
+            },
+            "n_neighbors": {
+              "type": "int",
+              "required": false
+            },
+            "resolution": {
+              "type": "float",
+              "required": false
+            }
+          }
         },
-        "n_top_genes": {
-          "type": "int",
-          "required": false
-        },
-        "n_pcs": {
-          "type": "int",
-          "required": false
-        },
-        "n_neighbors": {
-          "type": "int",
-          "required": false
-        },
-        "resolution": {
-          "type": "float",
-          "required": false
-        },
-        "advanced": {
+        "spatial_scanpy_advanced": {
           "type": "dict",
           "required": false,
           "properties": {

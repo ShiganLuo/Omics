@@ -15,11 +15,15 @@ passes = params.get("passes", {})
 p1 = passes.get("pass1", {})
 p2 = passes.get("pass2", {})
 p3 = passes.get("pass3", {})
-ambiguous = params.get("ambiguous", "exclude")
-flank = int(params.get("flank", 50))
+ambiguous = rule_param(params, "star_3pg_gene_specific", "ambiguous", "exclude")
+flank = int(rule_param(params, "star_3pg_gene_specific", "flank", 50))
 index_params = params.get("index", {})
 genome_sa_index_nbases = int(index_params.get("genomeSAindexNbases", 3))
+# tailer 参数(整段 tailer_params 转发展开逐 key):Params.tailer.star_3pg_gene_specific.<key>
+# (与 tailer_global 各自独立键;rule_param 见 common.smk,无共享回退)。
 tailer_params = config.get("Params", {}).get("tailer", {})
+_tailer_threshold_star_3pg = rule_param(tailer_params, "star_3pg_gene_specific", "threshold", None)
+_tailer_rev_comp_star_3pg = rule_param(tailer_params, "star_3pg_gene_specific", "rev_comp", False)
 HELPER = os.path.join(config["ROOT_DIR"], "modules/star/star_3pass/bin/gene_specific_align.py")
 PREPARE_HELPER = os.path.join(config["ROOT_DIR"], "modules/star/star_3pass/bin/prepare_gene_inputs.py")
 
@@ -126,10 +130,10 @@ rule star_3pg_gene_specific:
                 cmd += ["--pass3-alignMatesGapMax", str(p3["alignMatesGapMax"])]
             if "alignEndsType" in p3:
                 cmd += ["--pass3-alignEndsType", str(p3["alignEndsType"])]
-            # Tailer parameters
-            if "threshold" in tailer_params:
-                cmd += ["--tailer-threshold", str(int(tailer_params["threshold"]))]
-            if tailer_params.get("rev_comp", False):
+            # Tailer parameters (rule 级键,与 tailer_global 各自独立)
+            if _tailer_threshold_star_3pg is not None:
+                cmd += ["--tailer-threshold", str(int(_tailer_threshold_star_3pg))]
+            if _tailer_rev_comp_star_3pg:
                 cmd.append("--tailer-rev-comp")
 
             with open(script, "w") as f:

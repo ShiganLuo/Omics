@@ -4,6 +4,10 @@ outdir = config.get("outdir", "output")
 indir = config.get("indir", "output/raw_fastq")
 logdir = config.get("logdir", "log")
 mode = config.get("mode") or None
+
+# 参数精确到 rule:Params.trim_galore.<rule_name>.<key>(rule_param 见 common.smk;
+# 无 module 级共享回退,trimming_Paired / trimming_Single 各自独立键)。
+_trim_galore_params = config.get("Params", {}).get("trim_galore", {})
 def get_input_for_trimming_Paired(wildcards):
     logger.debug(f"Getting input for trimming_Paired with mode: {mode}")
     if mode == "UMI":
@@ -27,9 +31,9 @@ rule trimming_Paired:
         report2 = outdir + "/{sample_id}/trimming_statistics_2.txt"
     params:
         outdir = outdir + "/{sample_id}",
-        quality = config.get('Params',{}).get("trim_galore", {}).get('quality') or 25,
+        quality = rule_param(_trim_galore_params, "trimming_Paired", "quality", 25),
         trim_galore = config.get('Procedure',{}).get('trim_galore') or 'trim_galore',
-        adapters = config.get('Params',{}).get("trim_galore", {}).get('adapters') or None
+        adapters = rule_param(_trim_galore_params, "trimming_Paired", "adapters", None)
     threads: rule_res("trimming_Paired").get("threads", 6)
     benchmark: logdir + "/{sample_id}/trimming.benchmark.txt",
     resources:
@@ -103,9 +107,9 @@ rule trimming_Single:
         report = outdir + "/{sample_id}/trimming_statistics.txt"
     params:
         outdir = outdir + "/{sample_id}",
-        quality = config.get('Params',{}).get("trim_galore", {}).get('quality') or 25,
+        quality = rule_param(_trim_galore_params, "trimming_Single", "quality", 25),
         trim_galore = config.get('Procedure',{}).get('trim_galore') or 'trim_galore',
-        adapters = config.get('Params',{}).get("trim_galore", {}).get('adapters') or None
+        adapters = rule_param(_trim_galore_params, "trimming_Single", "adapters", None)
     threads: rule_res("trimming_Single").get("threads", 6)
     benchmark: logdir + "/{sample_id}/trimming.benchmark.txt",
     resources:

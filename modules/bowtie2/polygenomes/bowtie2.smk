@@ -4,6 +4,10 @@ indir= config.get("indir", "input")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 logdir_combine = config.get("logdir_combine", "log/group")
+
+# 参数精确到 rule:Params.bowtie2.<rule_name>.<key>(rule_param 见 common.smk;
+# 无 module 级共享回退,bowtie2_align_paired / bowtie2_align_single 各自独立键)。
+_bowtie2_params = config.get("Params", {}).get("bowtie2", {})
 genome_paired_samples = config.get("genome_paired_samples") or {}
 genome_single_samples = config.get("genome_single_samples") or {}
 
@@ -129,7 +133,7 @@ rule bowtie2_align_paired:
         bowtie2 = config.get('Procedure',{}).get('bowtie2') or 'bowtie2',
         index_prefix = lambda wildcards, input: input.index[0].split(".1.bt2")[0],
         unmapped_prefix = outdir + "/{genome}/{sample_id}/{sample_id}_unmapped",
-        sam_append_comment = config.get('Params',{}).get('bowtie2', {}).get('sam-append-comment') or False
+        sam_append_comment = rule_param(_bowtie2_params, "bowtie2_align_paired", "sam-append-comment", False)
     conda:
         "../bowtie2.yaml"
     container:
@@ -186,7 +190,7 @@ rule bowtie2_align_single:
         bowtie2 = config.get('Procedure',{}).get('bowtie2') or 'bowtie2',
         unmapped_prefix = outdir + "/{genome}/{sample_id}/{sample_id}_unmapped",
         index_prefix = lambda wildcards, input: input.index[0].split(".")[0],
-        sam_append_comment = config.get('Params',{}).get('bowtie2', {}).get('sam-append-comment') or False
+        sam_append_comment = rule_param(_bowtie2_params, "bowtie2_align_single", "sam-append-comment", False)
     conda:
         "../bowtie2.yaml"
     container:

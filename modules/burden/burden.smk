@@ -9,9 +9,11 @@ sample_snv_vcf_dict = config.get("sample_snv_vcf_dict") or {}
 sample_sv_vcf_dict = config.get("sample_sv_vcf_dict") or {}
 sample_cnv_dict = config.get("sample_cnv_dict") or {}
 burden_params = config.get("Params", {}).get("burden", {}) or {}
+# 参数精确到 rule:Params.burden.<rule_name>.<key> — burden_snv_indel /
+# burden_cnv 各自配置(无 module 级共享回退,rule_param 见 common.smk)。
+_annotate_burden_snv_indel = rule_param(burden_params, "burden_snv_indel", "annotate", True)
 targets_bed = config.get("genome", {}).get("targets") or None
 gtf = config.get("genome", {}).get("gtf") or None
-annotate = burden_params.get("annotate", True)
 SNV_TSV = outdir + "/{sample_id}/{sample_id}.snv_indel_burden.tsv"
 VEP_VCF = outdir + "/{sample_id}/{sample_id}.vep.vcf"
 SV_TSV = outdir + "/{sample_id}/{sample_id}.sv_burden.tsv"
@@ -23,7 +25,8 @@ rule burden_snv_indel:
     """Per-sample TMB and indel burden from a filtered somatic VCF.
 
     VEP annotation + meaningful-variant filtering on by default (see
-    Params.burden.annotate); the annotated VCF is kept beside the TSV.
+    Params.burden.burden_snv_indel.annotate); the annotated VCF is kept
+    beside the TSV.
     """
     input:
         vcf = lambda wildcards: _require(
@@ -31,7 +34,7 @@ rule burden_snv_indel:
             "sample_snv_vcf_dict", "burden")
     output:
         tsv = SNV_TSV,
-        vep_vcf = [VEP_VCF] if annotate else []
+        vep_vcf = [VEP_VCF] if _annotate_burden_snv_indel else []
     log:
         logdir + "/{sample_id}/burden_snv_indel.log"
     threads: rule_res("burden_snv_indel").get("threads", 1)
@@ -42,14 +45,14 @@ rule burden_snv_indel:
             attempt=attempt).get("mem_mb", 8000),
     params:
         script = os.path.join(ROOT_DIR, "modules/burden/bin/burden.py"),
-        min_vaf = burden_params.get("min_vaf", 0.05),
-        size_mb = burden_params.get("size_mb", 34.0),
-        gtf_feature = burden_params.get("gtf_feature", "exon"),
-        include_sex = burden_params.get("include_sex_chroms", False),
-        annotate = annotate,
-        vep_cache = burden_params.get("vep_cache") or "~/.vep",
-        vep_species = burden_params.get("vep_species") or "mus_musculus",
-        vep_assembly = burden_params.get("vep_assembly") or "GRCm39",
+        min_vaf = rule_param(burden_params, "burden_snv_indel", "min_vaf", 0.05),
+        size_mb = rule_param(burden_params, "burden_snv_indel", "size_mb", 34.0),
+        gtf_feature = rule_param(burden_params, "burden_snv_indel", "gtf_feature", "exon"),
+        include_sex = rule_param(burden_params, "burden_snv_indel", "include_sex_chroms", False),
+        annotate = _annotate_burden_snv_indel,
+        vep_cache = rule_param(burden_params, "burden_snv_indel", "vep_cache", "~/.vep") or "~/.vep",
+        vep_species = rule_param(burden_params, "burden_snv_indel", "vep_species", "mus_musculus") or "mus_musculus",
+        vep_assembly = rule_param(burden_params, "burden_snv_indel", "vep_assembly", "GRCm39") or "GRCm39",
         targets_bed = targets_bed,
         gtf = gtf,
     conda:
@@ -180,7 +183,7 @@ rule burden_cnv:
             attempt=attempt).get("mem_mb", 8000),
     params:
         script = os.path.join(ROOT_DIR, "modules/burden/bin/burden.py"),
-        min_abs_log2 = burden_params.get("min_abs_log2", 0.3),
+        min_abs_log2 = rule_param(burden_params, "burden_cnv", "min_abs_log2", 0.3),
     conda:
         "burden.yaml"
     container:

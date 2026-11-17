@@ -6,6 +6,9 @@ logdir = config.get("logdir") or "log"
 fasta = config.get("reference", {}).get("fasta")
 interval = config.get("reference", {}).get("interval")
 known_sites = config.get("reference", {}).get("known_sites", [])
+# 参数精确到 rule:javaOptions/tmp-dir 按 rule 独立配置(Params.gatk.<rule_name>
+# .javaOptions/.tmp-dir),无 module 级共享;rule_param 见 common.smk。
+_gatk_params = config.get("Params", {}).get("gatk", {})
 
 rule BaseRecalibrator:
     input:
@@ -28,8 +31,8 @@ rule BaseRecalibrator:
     container:
         sif("../gatk.yaml", "BaseRecalibrator")
     params:
-        javaOptions =  config.get("Params", {}).get("gatk", {}).get("javaOptions") or "-Xmx30g",
-        tmp_dir = config.get("Params", {}).get("gatk", {}).get("tmp-dir") or None,
+        javaOptions = rule_param(_gatk_params, "BaseRecalibrator", "javaOptions", "-Xmx30g"),
+        tmp_dir = rule_param(_gatk_params, "BaseRecalibrator", "tmp-dir", None),
         gatk = config.get("Procedure", {}).get("gatk") or "gatk",
         known_sites = " ".join([f"--known-sites {ks}" for ks in known_sites])
     run:
@@ -88,9 +91,9 @@ rule ApplyBQSR:
             "ApplyBQSR", input_size=input_size_named(input, 'bam'),
             attempt=attempt).get("mem_mb", 16000),
     params:
-        javaOptions =  config.get("Params", {}).get("gatk", {}).get("javaOptions") or "-Xmx30g",
+        javaOptions = rule_param(_gatk_params, "ApplyBQSR", "javaOptions", "-Xmx30g"),
         gatk = config.get("Procedure", {}).get("gatk") or "gatk",
-        tmp_dir = config.get("Params", {}).get("gatk", {}).get("tmp-dir") or None,
+        tmp_dir = rule_param(_gatk_params, "ApplyBQSR", "tmp-dir", None),
         interval = interval
     run:
         log_path = str(log)

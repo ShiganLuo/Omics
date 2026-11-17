@@ -1,0 +1,2 @@
+sample_id	organism	group	data_id	design	fastq_1	fastq_2
+TestSpatial1	GRCm39	g1	TestSpatial1	design1	/data/16T/luosg/workflow/Omics/assests/test/data/fastq/TestSpatial1/TestSpatial1_R1.fq.gz	

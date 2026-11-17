@@ -9,9 +9,22 @@ samples = config.get("samples", [])
 ROOT_DIR = config.get("ROOT_DIR", ".")
 
 # ① parse 期读入 + 规范化（str 收成单元素 list；合法值由 schema 声明）
-_formats = config.get("Params", {}).get("fragment_size", {}).get("formats") or ["png"]
-if isinstance(_formats, str):
-    _formats = [_formats]
+# 参数精确到 rule:formats 挂 plotFragmentSize 名下
+# (Params.fragment_size.plotFragmentSize.formats,单 plot rule 消费;
+# 无 module 级共享回退,rule_param 见 common.smk)。
+_fragment_size_params = config.get("Params", {}).get("fragment_size", {})
+
+
+def _rule_formats(rule_name):
+    """Per-rule figure formats (parse 期解析,output 展开与 CLI 转发共用)。"""
+    fmts = rule_param(_fragment_size_params, rule_name, "formats", ["png"])
+    return [fmts] if isinstance(fmts, str) else fmts
+
+
+# 每 rule 一个 parse 期变量;fragment_size_result 聚合 plotFragmentSize
+# 输出文件名,展开同一 rule 键。
+_formats_plotFragmentSize = _rule_formats("plotFragmentSize")
+_formats_fragment_size_result = _rule_formats("plotFragmentSize")
 
 rule samtools_stats:
     """Get BAM statistics including fragment size distribution."""
@@ -100,7 +113,7 @@ rule plotFragmentSize:
         hist = outdir + "/fragment/FragmentSize.txt"
     output:
         # ② 按格式展开：每种格式一个输出文件（base 不带扩展名）
-        plots = [outdir + "/fragment/FragmentSize." + fmt for fmt in _formats],
+        plots = [outdir + "/fragment/FragmentSize." + fmt for fmt in _formats_plotFragmentSize],
     log:
         logdir_combine + "/fragment/plotFragmentSize.log"
     benchmark: logdir_combine + "/fragment/plotFragmentSize.benchmark.tsv",
@@ -110,7 +123,7 @@ rule plotFragmentSize:
             attempt=attempt).get("mem_mb", 8000),
     params:
         script = os.path.join(ROOT_DIR, "modules/fragment_size/bin/plotFragmentSize.py"),
-        formats = _formats,   # ③ 转发
+        formats = _formats_plotFragmentSize,   # ③ 转发
         out_base = outdir + "/fragment/FragmentSize",
     conda:
         "fragment_size.yaml"
@@ -141,7 +154,7 @@ rule fragment_size_result:
     """Result aggregation rule for subworkflow use rule import."""
     input:
         hist = outdir + "/fragment/FragmentSize.txt",
-        plots = [outdir + "/fragment/FragmentSize." + fmt for fmt in _formats]
+        plots = [outdir + "/fragment/FragmentSize." + fmt for fmt in _formats_fragment_size_result]
 
     resources:
         mem_mb = lambda wildcards, input, attempt: rule_res(

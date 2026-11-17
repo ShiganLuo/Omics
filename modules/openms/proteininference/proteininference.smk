@@ -6,8 +6,9 @@ logdir = config.get("logdir", "logs")
 samples = config.get("samples", [])
 
 # Get parameters
-method = config.get("Params", {}).get("protein_inference", {}).get("method", "epifany")
-greedy_group_resolution = config.get("Params", {}).get("protein_inference", {}).get("greedy_group_resolution", "none")
+# 参数精确到 rule(2026-11 规范;rule_param 见 common.smk):
+# Params.protein_inference.protein_inference.<key>,无 module 级共享回退。
+pi_params = config.get("Params", {}).get("protein_inference", {})
 
 # Get executables
 epifany = config.get("Procedure", {}).get("epifany") or "Epifany"
@@ -30,8 +31,8 @@ rule protein_inference:
         sif("../openms.yaml", "protein_inference")
     params:
         epifany = epifany,
-        method = method,
-        greedy_group_resolution = greedy_group_resolution
+        method = rule_param(pi_params, "protein_inference", "method", "epifany"),
+        greedy_group_resolution = rule_param(pi_params, "protein_inference", "greedy_group_resolution", "none")
     run:
         log_path = str(log)
         open(log_path, 'w').close()
@@ -60,7 +61,7 @@ rule protein_inference:
             # option (-greedy_group_resolution), not an algorithm subsection one.
             if params.method not in ("", "epifany"):
                 raise ValueError(
-                    f"Params.protein_inference.method={params.method!r} is not supported: "
+                    f"Params.protein_inference.protein_inference.method={params.method!r} is not supported: "
                     "this Epifany build only provides Bayesian 'epifany' inference"
                 )
             cmd = [

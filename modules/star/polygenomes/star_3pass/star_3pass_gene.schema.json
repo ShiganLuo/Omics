@@ -58,16 +58,6 @@
         "nullable": true,
         "required": false,
         "properties": {
-          "ambiguous": {
-            "type": "str",
-            "nullable": true,
-            "required": false
-          },
-          "flank": {
-            "type": "int",
-            "nullable": true,
-            "required": false
-          },
           "index": {
             "type": "dict",
             "nullable": true,
@@ -102,6 +92,23 @@
                 "nullable": true,
                 "required": false,
                 "properties": {}
+              }
+            }
+          },
+          "star_3pg_gene_specific": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "ambiguous": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "flank": {
+                "type": "int",
+                "nullable": true,
+                "required": false
               }
             }
           }

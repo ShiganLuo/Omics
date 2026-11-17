@@ -7,6 +7,11 @@ logdir = config.get("logdir", "log")
 samples = config.get("samples", [])
 ROOT_DIR = config.get("ROOT_DIR", ".")
 
+# 参数精确到 rule:Params.karrseq.<rule_name>.<key>(rule_param 见 common.smk;
+# 无 module 级共享回退,karrseq_chimeric_to_pairs / karrseq_remove_duplicates
+# 各自独立键)。
+_karrseq_params = config.get("Params", {}).get("karrseq", {})
+
 rule karrseq_chimeric_to_pairs:
     input:
         aligned = indir + "/{sample_id}/{sample_id}_Aligned.sortedByCoord.out.bam",
@@ -16,8 +21,8 @@ rule karrseq_chimeric_to_pairs:
     log:
         logdir + "/{sample_id}/karrseq_chimeric_to_pairs.log"
     params:
-        mapq = config.get("Params", {}).get("karrseq", {}).get("mapq") or 1,
-        span = config.get("Params", {}).get("karrseq", {}).get("span") or 0,
+        mapq = rule_param(_karrseq_params, "karrseq_chimeric_to_pairs", "mapq", 1),
+        span = rule_param(_karrseq_params, "karrseq_chimeric_to_pairs", "span", 0),
         script = os.path.join(ROOT_DIR, "modules/karrseq/bin/get_STAR_reads.py"),
         tmp1 = outdir + "/{sample_id}/{sample_id}.tmp1",
         tmp2 = outdir + "/{sample_id}/{sample_id}.tmp2"
@@ -77,7 +82,7 @@ rule karrseq_remove_duplicates:
             "karrseq_remove_duplicates", input_size=input_size_mb(input),
             attempt=attempt).get("mem_mb", 8000),
     params:
-        mapq = config.get("Params", {}).get("karrseq", {}).get("mapq") or 1,
+        mapq = rule_param(_karrseq_params, "karrseq_remove_duplicates", "mapq", 1),
         dedup_script = os.path.join(ROOT_DIR, "modules/karrseq/bin/remove_duplicates.py"),
         bed_script = os.path.join(ROOT_DIR, "modules/karrseq/bin/pairs_to_bed.py"),
         todedup = "dedup"

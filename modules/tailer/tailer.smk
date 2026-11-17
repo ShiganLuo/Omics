@@ -6,9 +6,13 @@ logdir = config.get("logdir", "log")
 paired_samples = config.get("paired_samples", [])
 single_samples = config.get("single_samples", [])
 gtf = config.get("genome", {}).get("gtf")
-read_num = config.get("Params", {}).get("tailer", {}).get("read", 2)
-threshold = config.get("Params", {}).get("tailer", {}).get("threshold", 100)
-rev_comp = config.get("Params", {}).get("tailer", {}).get("rev_comp", False)
+# 参数精确到 rule:Params.tailer.<rule_name>.<key>(rule_param 见 common.smk;
+# 无 module 级共享回退,tailer_global 独立键;rev_comp/threshold 与
+# star_3pg_gene_specific 共享,各 rule 各自独立键)。
+_tailer_params = config.get("Params", {}).get("tailer", {})
+_read_num_tailer_global = rule_param(_tailer_params, "tailer_global", "read", 2)
+_threshold_tailer_global = rule_param(_tailer_params, "tailer_global", "threshold", 100)
+_rev_comp_tailer_global = rule_param(_tailer_params, "tailer_global", "rev_comp", False)
 
 rule tailer_global:
     input:
@@ -30,9 +34,9 @@ rule tailer_global:
         sif("tailer.yaml", "tailer_global")
     params:
         gtf = gtf,
-        read_num = read_num,
-        threshold = threshold,
-        rev_comp = "--rev_comp" if rev_comp else "",
+        read_num = _read_num_tailer_global,
+        threshold = _threshold_tailer_global,
+        rev_comp = "--rev_comp" if _rev_comp_tailer_global else "",
         Tailer = config.get("Procedure", {}).get("tailer") or config.get("Procedure", {}).get("Tailer") or "Tailer"
     run:
         log_path = str(log)

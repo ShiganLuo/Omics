@@ -209,7 +209,7 @@
               }
             }
           },
-          "tailer": {
+          "star_3pg_gene_specific": {
             "type": "dict",
             "nullable": true,
             "required": false,
@@ -219,12 +219,26 @@
                 "nullable": true,
                 "required": false
               },
-              "rev_comp": {
+              "ambiguous": {
                 "type": "null",
                 "nullable": true,
                 "required": false
-              },
-              "ambiguous": {
+              }
+            }
+          }
+        }
+      },
+      "tailer": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "star_3pg_gene_specific": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "rev_comp": {
                 "type": "null",
                 "nullable": true,
                 "required": false

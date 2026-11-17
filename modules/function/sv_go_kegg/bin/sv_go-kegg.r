@@ -211,7 +211,7 @@ parser$add_argument("--impact", type = "character", default = "HIGH,MODERATE,LOW
 parser$add_argument("--top", type = "integer", default = 10,
                     help = "Top N pathways to plot (default: 10)")
 parser$add_argument("--format", action = "append", dest = "formats", type = "character",
-                    default = NULL, metavar = "FMT",
+                    metavar = "FMT",
                     help = "Output image format (png/pdf/svg/ps/eps/tif/tiff/jpg/jpeg; repeatable). Default: png")
 args <- parser$parse_args()
 

@@ -14,12 +14,23 @@ msisensorpro = config.get("Procedure", {}).get("msisensorpro") or "msisensorpro"
 BAR_PLOT = os.path.join(ROOT_DIR, "modules", "msi", "bin", "bar_plot.r")
 
 # ① parse 期读入 + 规范化（str 收成单元素 list；合法值由 schema 声明）
-# bar_plot.r output formats (Params.msi.formats); valid set is the R
+# bar_plot.r output formats (Params.msi.msi_plot.formats); valid set is the R
 # base-graphics device set (png pdf svg ps eps tif tiff jpg jpeg). Default
 # ["jpg"] keeps the historical single msi_barplot.jpg output.
-_formats = config.get("Params", {}).get("msi", {}).get("formats") or ["jpg"]
-if isinstance(_formats, str):
-    _formats = [_formats]
+# 参数精确到 rule:formats 挂 msi_plot 名下(单 plot rule 消费;
+# 无 module 级共享回退,rule_param 见 common.smk)。
+_msi_params = config.get("Params", {}).get("msi", {})
+
+
+def _rule_formats(rule_name):
+    """Per-rule figure formats (parse 期解析,output 展开与 CLI 转发共用)。"""
+    fmts = rule_param(_msi_params, rule_name, "formats", ["jpg"])
+    return [fmts] if isinstance(fmts, str) else fmts
+
+
+# 每 rule 一个 parse 期变量;msi_result 聚合 msi_plot 输出,展开同一 rule 键。
+_formats_msi_plot = _rule_formats("msi_plot")
+_formats_msi_result = _rule_formats("msi_plot")
 
 def _bam(sample_id):
     if bam_substring != "":
@@ -138,7 +149,7 @@ rule msi_plot:
     output:
         bar_input = outdir + "/msi_input.txt",
         # ② 按格式展开：每种格式一个输出文件（base 不带扩展名）
-        barplot = [outdir + "/msi_barplot." + fmt for fmt in _formats],
+        barplot = [outdir + "/msi_barplot." + fmt for fmt in _formats_msi_plot],
     log:
         logdir_combine + "/msi/msi_plot.log"
     threads: rule_res("msi_plot").get("threads", 1)
@@ -150,7 +161,7 @@ rule msi_plot:
     params:
         rscript = config.get("Procedure", {}).get("Rscript") or "Rscript",
         bar_plot = BAR_PLOT,
-        formats = _formats,   # ③ 转发
+        formats = _formats_msi_plot,   # ③ 转发
     conda:
         "msi.yaml"
     container:
@@ -197,4 +208,4 @@ rule msi_result:
         msi = expand(outdir + "/{sample_id}/{sample_id}_msi_pro.tsv",
                      sample_id=samples),
         bar_input = outdir + "/msi_input.txt",
-        barplot = expand(outdir + "/msi_barplot.{fmt}", fmt=_formats),
+        barplot = expand(outdir + "/msi_barplot.{fmt}", fmt=_formats_msi_result),

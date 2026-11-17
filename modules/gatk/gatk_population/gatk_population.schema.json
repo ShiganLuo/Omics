@@ -32,15 +32,39 @@
         "nullable": true,
         "required": false,
         "properties": {
-          "javaOptions": {
-            "type": "str",
+          "gatk_population_haplotype_caller": {
+            "type": "dict",
+            "required": false,
             "nullable": true,
-            "required": false
+            "properties": {
+              "javaOptions": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "tmp-dir": {
+                "type": "null",
+                "nullable": true,
+                "required": false
+              }
+            }
           },
-          "tmp-dir": {
-            "type": "null",
+          "gatk_population_joint_genotyping": {
+            "type": "dict",
+            "required": false,
             "nullable": true,
-            "required": false
+            "properties": {
+              "javaOptions": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "tmp-dir": {
+                "type": "null",
+                "nullable": true,
+                "required": false
+              }
+            }
           }
         }
       }

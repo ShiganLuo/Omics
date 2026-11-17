@@ -13,16 +13,28 @@ genome_cfg = config.get("genome", {})
 # subworkflow from its own bw-producing rules; not a user-facing key.
 _track_defs = config.get("tracks", []) or []
 # regions: BED rows or a [NAME=]chrom:start-end list (auto-detected per row)
-_regions = p.get("regions")
-_formats = p.get("formats") or ["png", "svg"]
-if isinstance(_formats, str):
-    _formats = [_formats]
-if not isinstance(_formats, list) or not all(isinstance(f, str) for f in _formats):
-    raise ValueError("Params.regionplot.formats must be a list of strings")
-_sample_order = p.get("sample_order") or list(samples)
+# 参数精确到 rule:regions/formats/sample_order/sample_group_dict 挂 regionplot
+# 名下(Params.regionplot.regionplot.*,单 plot rule 消费;无 module 级共享回退,
+# rule_param 见 common.smk)。regionplot_result 聚合 regionplot 输出文件名,
+# 面板名与格式展开同一 rule 键。
+def _rule_formats(rule_name):
+    """Per-rule figure formats (parse 期解析,output 展开与 CLI 转发共用)。"""
+    fmts = rule_param(p, rule_name, "formats", ["png", "svg"])
+    fmts = [fmts] if isinstance(fmts, str) else fmts
+    if not isinstance(fmts, list) or not all(isinstance(f, str) for f in fmts):
+        raise ValueError(f"Params.regionplot.{rule_name}.formats must be a list of strings")
+    return fmts
+
+
+# 每 rule 一个 parse 期变量
+_regions = rule_param(p, "regionplot", "regions", None)
+_sample_order = rule_param(p, "regionplot", "sample_order", None) or list(samples)
 if isinstance(_sample_order, str):
     _sample_order = [_sample_order]
-_group_dict = p.get("sample_group_dict", {}) or {}
+_group_dict = rule_param(p, "regionplot", "sample_group_dict", {}) or {}
+_formats_regionplot = _rule_formats("regionplot")
+_regions_regionplot_result = rule_param(p, "regionplot", "regions", None)
+_formats_regionplot_result = _rule_formats("regionplot")
 
 
 def _regionplot_inputs(wildcards):
@@ -34,9 +46,9 @@ def _regionplot_inputs(wildcards):
     """
     if not _regions:
         raise ValueError(
-            "Params.regionplot.regions is empty: set it in the workflow "
-            "config JSON (a BED of chrom/start/end[/name] rows or a list "
-            "of [NAME=]chrom:start-end lines), then rerun.")
+            "Params.regionplot.regionplot.regions is empty: set it in the "
+            "workflow config JSON (a BED of chrom/start/end[/name] rows or a "
+            "list of [NAME=]chrom:start-end lines), then rerun.")
     files = {
         "bws": [f"{t['dir']}/{s}/{s}{t['suffix']}"
                 for t in _track_defs for s in _sample_order],
@@ -97,7 +109,7 @@ rule regionplot:
     input:
         unpack(_regionplot_inputs)
     output:
-        plots = [outdir + "/{panel}/{panel}." + fmt for fmt in _formats],
+        plots = [outdir + "/{panel}/{panel}." + fmt for fmt in _formats_regionplot],
         inis = outdir + "/{panel}/tracks.ini",
         tsvs = outdir + "/{panel}/track_sources.tsv",
         bed = outdir + "/{panel}/regions.bed",
@@ -120,7 +132,7 @@ rule regionplot:
         track_defs = _track_defs,
         sample_order = _sample_order,
         group_dict = _group_dict,
-        formats = _formats,
+        formats = _formats_regionplot,
         gtf_track = p.get("gtf_track", True),
         track_height = p.get("plot_height_per_track", 1.5),
         width = p.get("plot_width", 12),
@@ -188,10 +200,10 @@ rule regionplot:
             raise RuntimeError(f"Error occurred during regionplot for {wildcards.panel}: {e}\n")
 
 
-_panels = _panel_names(_regions) if _regions else []
+_panels = _panel_names(_regions_regionplot_result) if _regions_regionplot_result else []
 
 rule regionplot_result:
     input:
         plots = expand(outdir + "/{panel}/{panel}.{fmt}",
-                       panel=_panels, fmt=_formats),
+                       panel=_panels, fmt=_formats_regionplot_result),
         tsvs = expand(outdir + "/{panel}/track_sources.tsv", panel=_panels),

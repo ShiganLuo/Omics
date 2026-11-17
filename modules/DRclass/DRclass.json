@@ -11,15 +11,21 @@
   },
   "Params": {
     "drclass": {
-      "min_af": 0.02,
-      "min_ad": 4,
-      "min_dp": 20,
-      "germline_af": 0.2,
-      "germline_dp": 10,
-      "splice_window": 5,
-      "min_mq": 20,
-      "min_bq": 30,
-      "max_r4_fraction": 0.3
+      "drclass_pileup": {
+        "min_mq": 20,
+        "min_bq": 30
+      },
+      "drclass_classify": {
+        "min_af": 0.02,
+        "min_ad": 4,
+        "min_dp": 20,
+        "germline_af": 0.2,
+        "germline_dp": 10,
+        "splice_window": 5
+      },
+      "drclass_summary": {
+        "max_r4_fraction": 0.3
+      }
     }
   },
   "samples": {

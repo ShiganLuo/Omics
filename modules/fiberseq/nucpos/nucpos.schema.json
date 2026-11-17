@@ -35,20 +35,27 @@
         "nullable": true,
         "required": false,
         "properties": {
-          "upstream_nucs": {
-            "type": "int",
+          "fiberseq_nucpos_run": {
+            "type": "dict",
             "nullable": true,
-            "required": false
-          },
-          "downstream_nucs": {
-            "type": "int",
-            "nullable": true,
-            "required": false
-          },
-          "min_fibers": {
-            "type": "int",
-            "nullable": true,
-            "required": false
+            "required": false,
+            "properties": {
+              "upstream_nucs": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "downstream_nucs": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "min_fibers": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              }
+            }
           }
         }
       }

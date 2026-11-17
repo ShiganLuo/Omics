@@ -11,11 +11,18 @@
     },
     "Params": {
         "fumitools": {
-            "umi_length": 12,
-            "tag_umi": false,
-            "start_only": false,
-            "memory": "3G",
-            "threads": 4
+            "fumitools_copy_umi_paired": {
+                "umi_length": 12,
+                "tag_umi": false
+            },
+            "fumitools_copy_umi_single": {
+                "umi_length": 12,
+                "tag_umi": false
+            },
+            "fumitools_dedup": {
+                "memory": "3G",
+                "start_only": false
+            }
         }
     }
 }

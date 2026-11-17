@@ -97,7 +97,7 @@ if (sys.nframe() == 0) {
     parser$add_argument("-t","--sep", default = "\t", help = "Field separator, default tab")
     parser$add_argument("-x","--xlab", default = "sample", help = "X-axis label")
     parser$add_argument("-y","--ylab", default = "MSI", help = "Y-axis label")
-    parser$add_argument("-f","--format", action = "append", dest = "formats", default = NULL,
+    parser$add_argument("-f","--format", action = "append", dest = "formats",
                         help = "Output image format, repeatable (default: jpg); valid: png pdf svg ps eps tif tiff jpg jpeg")
 
     args <- parser$parse_args()

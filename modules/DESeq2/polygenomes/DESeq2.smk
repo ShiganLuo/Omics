@@ -10,9 +10,19 @@ group_pairs = config.get("group_pairs", {})
 # R figure formats forwarded to DESeq2.r --format (repeatable). Valid set is
 # the R ggsave device set (png pdf svg ps eps tif tiff jpg jpeg); DESeq2.r
 # fails fast on anything else (pgf/raw/rgba are matplotlib-only).
-_formats = config.get("Params", {}).get("DESeq2", {}).get("formats") or ["png"]
-if isinstance(_formats, str):
-    _formats = [_formats]
+# 参数精确到 rule:formats 按 rule 独立配置(Params.DESeq2.<rule_name>.formats,
+# 无 module 级共享;rule_param 见 common.smk)。
+_DESeq2_params = config.get("Params", {}).get("DESeq2", {})
+
+
+def _rule_formats(rule_name):
+    """Per-rule figure formats (parse 期解析,output 展开与 CLI 转发共用)。"""
+    fmts = rule_param(_DESeq2_params, rule_name, "formats", ["png"])
+    return [fmts] if isinstance(fmts, str) else fmts
+
+
+_formats_TEcount = _rule_formats("DESeq2_TEcount")
+_formats_TElocal = _rule_formats("DESeq2_TElocal")
 
 def get_input_for_DESeq2_TEcount(wildcards):
     """Dynamically determines the input count matrix for DESeq2 TEcount based on the contrast."""
@@ -41,9 +51,9 @@ rule DESeq2_TEcount:
         deseq2_results = outdir + "/{genome}/{contrast}/TEcount/DESeq2.done",
         contrast_group = outdir + "/{genome}/{contrast}/TEcount/group.tsv",
         # ② 按格式展开：每种格式一个输出文件（base 不带扩展名）
-        contrast_pca = [outdir + "/{genome}/{contrast}/TEcount/PCA/{contrast}.cpmPCA." + fmt for fmt in _formats],
-        contrast_gene_volcano = [outdir + "/{genome}/{contrast}/TEcount/volcano/{contrast}.TEcount_Gene_volcano." + fmt for fmt in _formats],
-        contrast_gene_heatmap = [outdir + "/{genome}/{contrast}/TEcount/heatmap/{contrast}.TEcount_Gene_updown." + fmt for fmt in _formats],
+        contrast_pca = [outdir + "/{genome}/{contrast}/TEcount/PCA/{contrast}.cpmPCA." + fmt for fmt in _formats_TEcount],
+        contrast_gene_volcano = [outdir + "/{genome}/{contrast}/TEcount/volcano/{contrast}.TEcount_Gene_volcano." + fmt for fmt in _formats_TEcount],
+        contrast_gene_heatmap = [outdir + "/{genome}/{contrast}/TEcount/heatmap/{contrast}.TEcount_Gene_updown." + fmt for fmt in _formats_TEcount],
         contrast_gene_updown = outdir + "/{genome}/{contrast}/TEcount/upDown/{contrast}.TEcount_Gene_updown.tsv",
         contrast_te_updown = outdir + "/{genome}/{contrast}/TEcount/upDown/{contrast}.TEcount_TE_updown.tsv",
         contrast_gene_te_updown = outdir + "/{genome}/{contrast}/TEcount/upDown/{contrast}.TEcount_Gene_TE_updown.tsv",
@@ -63,7 +73,7 @@ rule DESeq2_TEcount:
         DESeq2_script = ROOT_DIR + "/modules/DESeq2/bin/DESeq2.r",
         write_group_script = ROOT_DIR + "/modules/DESeq2/bin/write_group_tsv.py",
         annotation_script = ROOT_DIR + "/modules/DESeq2/bin/gene_id2name.py",
-        formats = _formats,   # ③ 转发
+        formats = _formats_TEcount,   # ③ 转发
     conda:
         "../DESeq2.yaml"
     container:
@@ -165,9 +175,9 @@ rule DESeq2_TElocal:
         deseq2_results = outdir + "/{genome}/{contrast}/TElocal/DESeq2.done",
         contrast_group = outdir + "/{genome}/{contrast}/TElocal/group.tsv",
         # ② 按格式展开：每种格式一个输出文件（base 不带扩展名）
-        contrast_pca = [outdir + "/{genome}/{contrast}/TElocal/PCA/{contrast}.cpmPCA." + fmt for fmt in _formats],
-        contrast_gene_volcano = [outdir + "/{genome}/{contrast}/TElocal/volcano/{contrast}.TElocal_Gene_volcano." + fmt for fmt in _formats],
-        contrast_gene_heatmap = [outdir + "/{genome}/{contrast}/TElocal/heatmap/{contrast}.TElocal_Gene_updown." + fmt for fmt in _formats],
+        contrast_pca = [outdir + "/{genome}/{contrast}/TElocal/PCA/{contrast}.cpmPCA." + fmt for fmt in _formats_TElocal],
+        contrast_gene_volcano = [outdir + "/{genome}/{contrast}/TElocal/volcano/{contrast}.TElocal_Gene_volcano." + fmt for fmt in _formats_TElocal],
+        contrast_gene_heatmap = [outdir + "/{genome}/{contrast}/TElocal/heatmap/{contrast}.TElocal_Gene_updown." + fmt for fmt in _formats_TElocal],
         contrast_gene_updown = outdir + "/{genome}/{contrast}/TElocal/upDown/{contrast}.TElocal_Gene_updown.tsv",
         contrast_te_updown = outdir + "/{genome}/{contrast}/TElocal/upDown/{contrast}.TElocal_TE_updown.tsv",
         contrast_gene_te_updown = outdir + "/{genome}/{contrast}/TElocal/upDown/{contrast}.TElocal_Gene_TE_updown.tsv",
@@ -187,7 +197,7 @@ rule DESeq2_TElocal:
         DESeq2_script = ROOT_DIR + "/modules/DESeq2/bin/DESeq2.r",
         write_group_script = ROOT_DIR + "/modules/DESeq2/bin/write_group_tsv.py",
         annotation_script = ROOT_DIR + "/modules/DESeq2/bin/gene_id2name.py",
-        formats = _formats,   # ③ 转发
+        formats = _formats_TElocal,   # ③ 转发
     conda:
         "../DESeq2.yaml"
     container:
@@ -265,36 +275,34 @@ rule DESeq2_TElocal:
 
 # ---------------------------------------------------------------------------
 # TE locus figures over TElocal results (Manhattan / locus box / subfamily bar).
-# Figure params resolve from Params.DESeq2.<rule>.<key> with fallback to
-# Params.DESeq2.<key> and finally the rule's built-in default.
-# Per-contrast family patterns live in Params.DESeq2.<rule>.<key>[genome][contrast].
+# Figure params resolve from Params.DESeq2.<rule_name>.<key> only
+# (参数精确到 rule,无 module 级共享回退;rule_param 见 common.smk).
+# Per-contrast family patterns live in Params.DESeq2.<rule_name>.<key>[genome][contrast].
 # ---------------------------------------------------------------------------
 params_deseq2 = config.get("Params", {}).get("DESeq2", {})
 
 
 def fig_param(rule_key: str, key: str, default=None):
-    """Resolve a TE figure param: rule subfield -> parent field -> default.
+    """Resolve a TE figure param from the rule's own sub-section.
+
+    Rule-scoped only (Params.DESeq2.<rule_name>.<key>); delegates to
+    rule_param (common.smk) — 参数精确到 rule, no shared fallback.
 
     Parameters
     ----------
     rule_key : str
-        Rule-level key under Params.DESeq2 (e.g. ``manhattan``).
+        The consuming rule's name (e.g. ``DESeq2_TElocal_manhattan``).
     key : str
         Parameter name (e.g. ``label_top``).
     default : Any, optional
-        Fallback when the key exists in neither scope.
+        Built-in default when the rule sub-section lacks the key.
 
     Returns
     -------
     Any
         The resolved parameter value.
     """
-    sub = params_deseq2.get(rule_key, {})
-    if isinstance(sub, dict) and key in sub:
-        return sub[key]
-    if key in params_deseq2:
-        return params_deseq2[key]
-    return default
+    return rule_param(params_deseq2, rule_key, key, default)
 
 
 def fig_families(rule_key: str, key: str, wildcards):
@@ -303,7 +311,7 @@ def fig_families(rule_key: str, key: str, wildcards):
     Parameters
     ----------
     rule_key : str
-        Rule-level key under Params.DESeq2 (e.g. ``locus_boxplot``).
+        The consuming rule's name (e.g. ``DESeq2_TElocal_locus_boxplot``).
     key : str
         Parameter name holding the per-contrast mapping (e.g. ``families``).
     wildcards : snakemake.io.Wildcards
@@ -321,14 +329,14 @@ def fig_families(rule_key: str, key: str, wildcards):
 # ① parse 期读入 + 规范化（str 收成单元素 list；合法值由 schema 声明）
 # Output formats for the TE locus figures (matplotlib full set; the te_*.py
 # scripts fail fast on anything else). Resolution follows fig_param:
-# Params.DESeq2.<rule>.formats -> Params.DESeq2.formats -> ["png"].
-_manhattan_formats = fig_param("manhattan", "formats", ["png"]) or ["png"]
+# Params.DESeq2.<rule_name>.formats only (rule-scoped; built-in ["png"]).
+_manhattan_formats = fig_param("DESeq2_TElocal_manhattan", "formats", ["png"]) or ["png"]
 if isinstance(_manhattan_formats, str):
     _manhattan_formats = [_manhattan_formats]
-_locus_box_formats = fig_param("locus_boxplot", "formats", ["png"]) or ["png"]
+_locus_box_formats = fig_param("DESeq2_TElocal_locus_boxplot", "formats", ["png"]) or ["png"]
 if isinstance(_locus_box_formats, str):
     _locus_box_formats = [_locus_box_formats]
-_subfamily_bar_formats = fig_param("subfamily_bar", "formats", ["png"]) or ["png"]
+_subfamily_bar_formats = fig_param("DESeq2_TElocal_subfamily_bar", "formats", ["png"]) or ["png"]
 if isinstance(_subfamily_bar_formats, str):
     _subfamily_bar_formats = [_subfamily_bar_formats]
 
@@ -359,9 +367,9 @@ rule DESeq2_TElocal_manhattan:
         figure_script = ROOT_DIR + "/modules/DESeq2/bin/te_manhattan.py",
         control_group_name = lambda wildcards: group_pairs.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("control_group_name"),
         experimental_group_name = lambda wildcards: group_pairs.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("experimental_group_name"),
-        highlight_families = lambda wildcards: fig_families("manhattan", "highlight_families", wildcards),
-        label_top = fig_param("manhattan", "label_top", 10),
-        ylabel = fig_param("manhattan", "ylabel", "log2(1+|delta TPM|)"),
+        highlight_families = lambda wildcards: fig_families("DESeq2_TElocal_manhattan", "highlight_families", wildcards),
+        label_top = fig_param("DESeq2_TElocal_manhattan", "label_top", 10),
+        ylabel = fig_param("DESeq2_TElocal_manhattan", "ylabel", "log2(1+|delta TPM|)"),
         formats = _manhattan_formats,   # ③ 转发
     conda:
         "../tefig.yaml"
@@ -430,11 +438,11 @@ rule DESeq2_TElocal_locus_boxplot:
         figure_script = ROOT_DIR + "/modules/DESeq2/bin/te_locus_boxplot.py",
         control_group_name = lambda wildcards: group_pairs.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("control_group_name"),
         experimental_group_name = lambda wildcards: group_pairs.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("experimental_group_name"),
-        families = lambda wildcards: fig_families("locus_boxplot", "families", wildcards),
-        match_field = fig_param("locus_boxplot", "match_field", "subfamily"),
-        match_mode = fig_param("locus_boxplot", "match_mode", "exact"),
-        normalize = fig_param("locus_boxplot", "normalize", "log2tpm"),
-        kind = fig_param("locus_boxplot", "kind", "box"),
+        families = lambda wildcards: fig_families("DESeq2_TElocal_locus_boxplot", "families", wildcards),
+        match_field = fig_param("DESeq2_TElocal_locus_boxplot", "match_field", "subfamily"),
+        match_mode = fig_param("DESeq2_TElocal_locus_boxplot", "match_mode", "exact"),
+        normalize = fig_param("DESeq2_TElocal_locus_boxplot", "normalize", "log2tpm"),
+        kind = fig_param("DESeq2_TElocal_locus_boxplot", "kind", "box"),
         formats = _locus_box_formats,   # ③ 转发
     conda:
         "../tefig.yaml"
@@ -505,13 +513,13 @@ rule DESeq2_TElocal_subfamily_bar:
         figure_script = ROOT_DIR + "/modules/DESeq2/bin/te_subfamily_bar.py",
         control_group_name = lambda wildcards: group_pairs.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("control_group_name"),
         experimental_group_name = lambda wildcards: group_pairs.get(wildcards.genome, {}).get(wildcards.contrast, {}).get("experimental_group_name"),
-        families = lambda wildcards: fig_families("subfamily_bar", "families", wildcards),
-        match_field = fig_param("subfamily_bar", "match_field", "subfamily"),
-        match_mode = fig_param("subfamily_bar", "match_mode", "exact"),
-        value = fig_param("subfamily_bar", "value", "total"),
-        normalize = fig_param("subfamily_bar", "normalize", "tpm"),
-        yscale = fig_param("subfamily_bar", "yscale", "linear"),
-        ylabel = fig_param("subfamily_bar", "ylabel", "TPM"),
+        families = lambda wildcards: fig_families("DESeq2_TElocal_subfamily_bar", "families", wildcards),
+        match_field = fig_param("DESeq2_TElocal_subfamily_bar", "match_field", "subfamily"),
+        match_mode = fig_param("DESeq2_TElocal_subfamily_bar", "match_mode", "exact"),
+        value = fig_param("DESeq2_TElocal_subfamily_bar", "value", "total"),
+        normalize = fig_param("DESeq2_TElocal_subfamily_bar", "normalize", "tpm"),
+        yscale = fig_param("DESeq2_TElocal_subfamily_bar", "yscale", "linear"),
+        ylabel = fig_param("DESeq2_TElocal_subfamily_bar", "ylabel", "TPM"),
         formats = _subfamily_bar_formats,   # ③ 转发
     conda:
         "../tefig.yaml"

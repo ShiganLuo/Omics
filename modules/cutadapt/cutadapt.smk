@@ -7,6 +7,10 @@ paired_samples = config.get("paired_samples", [])
 single_samples = config.get("single_samples", [])
 mode = config.get("mode") or None
 
+# 参数精确到 rule:Params.cutadapt.<rule_name>.<key>(rule_param 见 common.smk;
+# 无 module 级共享回退,trimming_Paired / trimming_Single 各自独立键)。
+_cutadapt_params = config.get("Params", {}).get("cutadapt", {})
+
 def get_cutadapt_input_paired(wildcards):
     """Return paired-end FASTQ inputs, with optional UMI suffix."""
     if mode == "UMI":
@@ -40,15 +44,15 @@ rule trimming_Paired:
         mem_mb=rule_res("trimming_Paired").get("mem_mb", 8000),
     params:
         cutadapt     = config.get("Procedure", {}).get("cutadapt") or "cutadapt",
-        quality      = config.get("Params", {}).get("cutadapt", {}).get("quality") or 20,
-        adapter_r1   = config.get("Params", {}).get("cutadapt", {}).get("adapter_r1") or None,
-        adapter_r2   = config.get("Params", {}).get("cutadapt", {}).get("adapter_r2") or None,
-        minimum_length = config.get("Params", {}).get("cutadapt", {}).get("minimum_length") or None,
-        maximum_length = config.get("Params", {}).get("cutadapt", {}).get("maximum_length") or None,
-        match_read_wildcards = config.get("Params", {}).get("cutadapt", {}).get("match_read_wildcards") or False,
-        cut = config.get("Params", {}).get("cutadapt", {}).get("cut") or None,
-        trimmed_only = config.get("Params", {}).get("cutadapt", {}).get("trimmed_only") or False,
-        report = config.get("Params", {}).get("cutadapt", {}).get("report") or "full"
+        quality      = rule_param(_cutadapt_params, "trimming_Paired", "quality", 20),
+        adapter_r1   = rule_param(_cutadapt_params, "trimming_Paired", "adapter_r1", None),
+        adapter_r2   = rule_param(_cutadapt_params, "trimming_Paired", "adapter_r2", None),
+        minimum_length = rule_param(_cutadapt_params, "trimming_Paired", "minimum_length", None),
+        maximum_length = rule_param(_cutadapt_params, "trimming_Paired", "maximum_length", None),
+        match_read_wildcards = rule_param(_cutadapt_params, "trimming_Paired", "match_read_wildcards", False),
+        cut = rule_param(_cutadapt_params, "trimming_Paired", "cut", None),
+        trimmed_only = rule_param(_cutadapt_params, "trimming_Paired", "trimmed_only", False),
+        report = rule_param(_cutadapt_params, "trimming_Paired", "report", "full")
     conda:
         "cutadapt.yaml"
     container:
@@ -113,14 +117,14 @@ rule trimming_Single:
         mem_mb=rule_res("trimming_Single").get("mem_mb", 4000),
     params:
         cutadapt       = config.get("Procedure", {}).get("cutadapt") or "cutadapt",
-        quality        = config.get("Params", {}).get("cutadapt", {}).get("quality") or 20,
-        adapter_r1     = config.get("Params", {}).get("cutadapt", {}).get("adapter_r1") or None,
-        minimum_length = config.get("Params", {}).get("cutadapt", {}).get("minimum_length") or None,
-        maximum_length = config.get("Params", {}).get("cutadapt", {}).get("maximum_length") or None,
-        match_read_wildcards = config.get("Params", {}).get("cutadapt", {}).get("match_read_wildcards") or False,
-        cut = config.get("Params", {}).get("cutadapt", {}).get("cut") or None,
-        trimmed_only = config.get("Params", {}).get("cutadapt", {}).get("trimmed_only") or False,
-        report = config.get("Params", {}).get("cutadapt", {}).get("report") or "full" 
+        quality        = rule_param(_cutadapt_params, "trimming_Single", "quality", 20),
+        adapter_r1     = rule_param(_cutadapt_params, "trimming_Single", "adapter_r1", None),
+        minimum_length = rule_param(_cutadapt_params, "trimming_Single", "minimum_length", None),
+        maximum_length = rule_param(_cutadapt_params, "trimming_Single", "maximum_length", None),
+        match_read_wildcards = rule_param(_cutadapt_params, "trimming_Single", "match_read_wildcards", False),
+        cut = rule_param(_cutadapt_params, "trimming_Single", "cut", None),
+        trimmed_only = rule_param(_cutadapt_params, "trimming_Single", "trimmed_only", False),
+        report = rule_param(_cutadapt_params, "trimming_Single", "report", "full")
     conda:
         "cutadapt.yaml"
     container:

@@ -13,23 +13,46 @@
       "sample_ip_input_map": {}
     },
     "trim_galore": {
-      "quality": 25
+      "trimming_Paired": {
+        "quality": 25
+      },
+      "trimming_Single": {
+        "quality": 25
+      }
     },
     "hisat2": {},
     "gatk": {
-      "javaOptions": "-Xmx30g",
-      "tmp-dir": null,
+      "gatk_index": {
+        "javaOptions": "-Xmx30g",
+        "tmp-dir": null
+      },
       "addReadsGroup": {
+        "javaOptions": "-Xmx30g",
+        "tmp-dir": null,
         "RGLB": "lib1",
         "RGPL": "ILLUMINA",
         "RGPU": "unit1"
+      },
+      "MarkDuplicates": {
+        "javaOptions": "-Xmx30g",
+        "tmp-dir": null
+      },
+      "collectHsMetrics": {
+        "javaOptions": "-Xmx30g",
+        "tmp-dir": null
       }
     },
     "bamCoverage": {
       "binSize": 50,
-      "normalizeUsing": "CPM",
+      "bin_size": 50,
       "offset": null,
-      "extendReads": false
+      "extendReads": false,
+      "bamCoverage": {
+        "normalizeUsing": "CPM"
+      },
+      "wig": {
+        "normalizeUsing": "CPM"
+      }
     },
     "computeMatrix": {
       "regions": "tss",
@@ -52,39 +75,62 @@
       "heatmapHeight": 15,
       "heatmapWidth": 8,
       "whatToShow": "plot, heatmap and colorbar",
-      "formats": [
-        "png"
-      ]
+      "heatmap": {
+        "formats": [
+          "png"
+        ]
+      },
+      "heatmap_gene": {
+        "formats": [
+          "png"
+        ]
+      },
+      "generate_report": {
+        "formats": [
+          "png"
+        ]
+      }
     },
     "macs3": {
       "bw": 200,
       "pvalue": "1e-5",
       "genome_size": "mm",
       "broad_cutoff": "0.1",
-      "formats": [
-        "png"
-      ]
+      "macs3_cutoff_plot": {
+        "formats": [
+          "png"
+        ]
+      }
     },
     "peak_te_overlap": {
       "method": "reads",
       "sort_by": "te_length",
       "top_n": 30,
       "combine": false,
-      "formats": [
-        "png"
-      ]
+      "peak_te_overlap_fig": {
+        "formats": [
+          "png"
+        ]
+      },
+      "generate_report": {
+        "formats": [
+          "png"
+        ]
+      }
     },
     "report": {
-      "title": "RIP-seq Analysis Report",
-      "subtitle": "RIP-seq IP/Input",
-      "pipeline": "TrimGalore -> HISAT2 -> GATK MarkDuplicates -> MACS3 -> HOMER -> bamCoverage -> FRiP",
-      "genome": "GRCm39 (mm39)",
-      "date": "2026-11-11",
-      "top_n": 5,
-      "enabled": true,
-      "formats": [
-        "png"
-      ]
+      "generate_report": {
+        "title": "RIP-seq Analysis Report",
+        "subtitle": "RIP-seq IP/Input",
+        "pipeline": "TrimGalore -> HISAT2 -> GATK MarkDuplicates -> MACS3 -> HOMER -> bamCoverage -> FRiP",
+        "genome": "GRCm39 (mm39)",
+        "date": "2026-11-11",
+        "top_n": 5,
+        "formats": [
+          "png"
+        ]
+      },
+      "enabled": true
     },
     "igv": {
       "js": "/home/luosg/Database/SoftWare/igv.min.js",
@@ -114,15 +160,17 @@
     },
     "regionplot": {
       "enabled": false,
-      "regions": null,
-      "sample_group_dict": {},
-      "sample_order": [],
+      "regionplot": {
+        "regions": null,
+        "sample_group_dict": {},
+        "sample_order": [],
+        "formats": [
+          "png",
+          "svg"
+        ]
+      },
       "plot_height_per_track": 1.5,
       "plot_width": 12,
-      "formats": [
-        "png",
-        "svg"
-      ],
       "gtf_track": true
     },
     "sexcheck": {

@@ -589,3 +589,4 @@ python workflow/Omics/run_module.py --test all -o /path/to/module_test
 - [x] 支持多基因组并行运行
 - [x] 根据数据量，确保资源消耗平衡，不会出现耗尽主机内存或者爆满 CPU 的情况，需要将数据量和计算资源联系起来
 - [x] 所有图片输出支持多种格式可选
+- [ ] 测试模式生成shell脚本，方便检查

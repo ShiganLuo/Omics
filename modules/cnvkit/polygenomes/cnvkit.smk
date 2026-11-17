@@ -7,6 +7,9 @@ indir = config.get("indir", "input")
 samples = config.get("samples", [])
 control_samples = config.get("control_samples", [])
 ROOT_DIR = config.get("ROOT_DIR", ".")
+# 参数精确到 rule:method 按 rule 独立配置(Params.cnvkit.<rule_name>.method),
+# 无 module 级共享;rule_param 见 common.smk。
+_cnvkit_params = config.get("Params", {}).get("cnvkit", {})
 
 def get_cnvkit_bams(wildcards):
     """Get BAM files for CNVkit batch analysis."""
@@ -17,7 +20,7 @@ def get_cnvkit_bams(wildcards):
 rule cnvkit_reference:
     """Build CNVkit reference from control samples."""
     input:
-        control_bams = expand(f"{indir}/{sid}/{sid}.bam", sid=control_samples),
+        control_bams = expand(indir + "/{sid}/{sid}.bam", sid=control_samples),
         fasta = lambda wildcards: config["genome"][wildcards.genome]["fasta"],
         access = lambda wildcards: config["genome"][wildcards.genome]["access"]
     output:
@@ -36,7 +39,7 @@ rule cnvkit_reference:
         sif("../cnvkit.yaml", "cnvkit_reference")
     params:
         cnvkit = config.get("Procedure", {}).get("cnvkit") or "cnvkit.py",
-        method = config.get("Params", {}).get("cnvkit", {}).get("method") or "wgs",
+        method = rule_param(_cnvkit_params, "cnvkit_reference", "method", "wgs"),
         control_bams = lambda wildcards: " ".join([f"{indir}/{sid}/{sid}.bam" for sid in control_samples])
     run:
         log_path = str(log)
@@ -69,7 +72,7 @@ rule cnvkit_reference:
 rule cnvkit_batch:
     """Run CNVkit batch analysis on all samples."""
     input:
-        treat_bams = expand(f"{indir}/{sid}/{sid}.bam", sid=samples),
+        treat_bams = expand(indir + "/{sid}/{sid}.bam", sid=samples),
         ref = outdir + "/{genome}/reference/reference.cnn" if control_samples else [],
         fasta = lambda wildcards: config["genome"][wildcards.genome]["fasta"],
         access = lambda wildcards: config["genome"][wildcards.genome]["access"]
@@ -90,7 +93,7 @@ rule cnvkit_batch:
         sif("../cnvkit.yaml", "cnvkit_batch")
     params:
         cnvkit = config.get("Procedure", {}).get("cnvkit") or "cnvkit.py",
-        method = config.get("Params", {}).get("cnvkit", {}).get("method") or "wgs",
+        method = rule_param(_cnvkit_params, "cnvkit_batch", "method", "wgs"),
         treat_bams = lambda wildcards: " ".join([f"{indir}/{sid}/{sid}.bam" for sid in samples]),
         batch_outdir = lambda wildcards: outdir + f"/{wildcards.genome}/cnv"
     run:

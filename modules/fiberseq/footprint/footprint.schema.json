@@ -35,10 +35,17 @@
         "nullable": true,
         "required": false,
         "properties": {
-          "flank": {
-            "type": "int",
+          "fiberseq_footprint_run": {
+            "type": "dict",
             "nullable": true,
-            "required": false
+            "required": false,
+            "properties": {
+              "flank": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              }
+            }
           }
         }
       }

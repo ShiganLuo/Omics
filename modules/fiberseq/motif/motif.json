@@ -1,19 +1,23 @@
 {
-    "indir": "common/4_elements",
-    "outdir": "fiberseq_analysis/motif",
-    "logdir": "log",
-    "samples": [],
-    "Procedure": {},
-    "Params": {
-        "fiberseq_motif": {
-            "flank": 250,
-            "min_fibers": 10,
-            "pwm_threshold": 0.8
-        }
-    },
-    "genome": {
-        "fasta": null,
-        "motif_file": null
-    },
-    "env": {}
+  "indir": "common/4_elements",
+  "outdir": "fiberseq_analysis/motif",
+  "logdir": "log",
+  "samples": [],
+  "Procedure": {},
+  "Params": {
+    "fiberseq_motif": {
+      "fiberseq_motif_scan": {
+        "pwm_threshold": 0.8
+      },
+      "fiberseq_motif_profile": {
+        "flank": 250,
+        "min_fibers": 10
+      }
+    }
+  },
+  "genome": {
+    "fasta": null,
+    "motif_file": null
+  },
+  "env": {}
 }

@@ -9,6 +9,9 @@ fasta = config.get("genome", {}).get("fasta")
 targets = config.get("genome", {}).get("targets")
 known_sites = config.get("genome", {}).get("known_sites")
 interval = config.get("genome", {}).get("interval")
+# 参数精确到 rule:javaOptions 按 rule 独立配置(Params.gatk.<rule_name>
+# .javaOptions),无 module 级共享;rule_param 见 common.smk。
+_gatk_params = config.get("Params", {}).get("gatk", {})
 # Germline suppression resources for Mutect2/FilterMutectCalls (both optional):
 #   genome.germline_resource - population allele-frequency VCF (e.g. gnomAD),
 #                       assembly-tied so it lives in genome.references.<name>
@@ -70,7 +73,7 @@ rule somaticMutect2:
     container:
         sif("../gatk.yaml", "somaticMutect2")
     params:
-        javaOptions =  config.get("Params", {}).get("gatk", {}).get("javaOptions") or "-Xmx30g",
+        javaOptions = rule_param(_gatk_params, "somaticMutect2", "javaOptions", "-Xmx30g"),
         gatk = config.get("Procedure", {}).get("gatk") or "gatk",
         tmp_dir = config.get("tmp_dir") or None
     threads: rule_res("somaticMutect2").get("threads", 10)
@@ -230,7 +233,7 @@ rule filterMutectCalls:
         sif("../gatk.yaml", "filterMutectCalls")
     params:
         gatk = config.get("Procedure", {}).get("gatk") or "gatk",
-        javaOptions = config.get("Params", {}).get("gatk", {}).get("javaOptions") or "-Xmx8g",
+        javaOptions = rule_param(_gatk_params, "filterMutectCalls", "javaOptions", "-Xmx8g"),
         tmp_dir = config.get("tmp_dir") or None,
     run:
         log_path = str(log)

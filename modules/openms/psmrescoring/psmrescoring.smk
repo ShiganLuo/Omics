@@ -9,20 +9,28 @@ logdir = config.get("logdir", "logs")
 samples = config.get("samples", [])
 
 # Get parameters
+# 参数精确到 rule(2026-11 规范;rule_param 见 common.smk),无 module 级共享回退:
+#   Params.psm_rescoring.search_engine                    # 引擎选择,每 rule 独立键
+#   Params.psm_rescoring.percolator.psm_rescoring.<key>   # 参数组单消费,挂 rule 名下
+#   Params.psm_rescoring.psm_feature_extractor.psm_rescoring.<key>
 percolator_params = config.get("Params", {}).get("psm_rescoring", {}).get("percolator", {})
+_psm_feature_params = config.get("Params", {}).get("psm_rescoring", {}).get("psm_feature_extractor", {})
+_params_root = config.get("Params", {})
 
-search_engine = config.get("Params", {}).get("search_engine")
+# search engine selector:原 module 级共享读取 Params.search_engine →
+# rule 级键 Params.psm_rescoring.search_engine(parse 期变量)。
+_search_engine_psm_rescoring = rule_param(_params_root, "psm_rescoring", "search_engine", None)
 # Get executables
 percolator = config.get("Procedure", {}).get("percolator") or "PercolatorAdapter"
 def get_input_for_psm_rescoring(wildcards):
     """Get input files for PSM rescoring."""
-    if search_engine == "comet":
+    if _search_engine_psm_rescoring == "comet":
         return {"idxml": indir + f"/{wildcards.sample_id}/{wildcards.sample_id}_comet.idXML"}
-    elif search_engine == "msgf":
+    elif _search_engine_psm_rescoring == "msgf":
         return {"idxml": indir + f"/{wildcards.sample_id}/{wildcards.sample_id}_msgf.idXML"}
-    elif search_engine == "sage":
+    elif _search_engine_psm_rescoring == "sage":
         return {"idxml": indir + f"/{wildcards.sample_id}/{wildcards.sample_id}_sage.idXML"}
-    elif search_engine == "msfragger":
+    elif _search_engine_psm_rescoring == "msfragger":
         return {"idxml": indir + f"/{wildcards.sample_id}/{wildcards.sample_id}_msfragger.idXML"}
     else:
         raise ValueError("No search engine specified in the configuration.")
@@ -46,9 +54,9 @@ rule psm_rescoring:
     params:
         percolator = percolator,
         feature_extractor = config.get("Procedure", {}).get("psm_feature_extractor") or "PSMFeatureExtractor",
-        extra = config.get("Params", {}).get("psm_rescoring", {}).get("psm_feature_extractor", {}).get("extra", ""),
-        train_FDR = percolator_params.get("train_FDR", 0.05),
-        test_FDR = percolator_params.get("test_FDR", 0.05),
+        extra = rule_param(_psm_feature_params, "psm_rescoring", "extra", ""),
+        train_FDR = rule_param(percolator_params, "psm_rescoring", "train_FDR", 0.05),
+        test_FDR = rule_param(percolator_params, "psm_rescoring", "test_FDR", 0.05),
     run:
         log_path = str(log)
         open(log_path, 'w').close()

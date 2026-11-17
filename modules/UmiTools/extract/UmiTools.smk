@@ -3,6 +3,11 @@ include: "../../common/common.smk"
 outdir = config.get("outdir", "output")
 indir = config.get("indir", "output")
 logdir = config.get("logdir", "log")
+
+# 参数精确到 rule:Params.umi_tools.<rule_name>.<key>(rule_param 见 common.smk;
+# 无 module 级共享回退,UmiTools_extract_single / UmiTools_extract_paired 各自独立键)。
+_umi_tools_params = config.get("Params", {}).get("umi_tools", {})
+
 rule UmiTools_extract_single:
     input:
         fastq = indir + "/{sample_id}.single.fq.gz"
@@ -11,7 +16,7 @@ rule UmiTools_extract_single:
     params:
         umi_tools = config.get('Procedure',{}).get('umi_tools') or 'umi_tools',
         extract_method = config.get('Procedure',{}).get('extract_method') or 'string',
-        bc_pattern = config.get('Params',{}).get('umi_tools',{}).get('bc_pattern') or 'NNNXXXXNN'
+        bc_pattern = rule_param(_umi_tools_params, "UmiTools_extract_single", "bc_pattern", 'NNNXXXXNN')
     log:
         logdir + "/{sample_id}/umi_tools_extract_single_run.txt"
     conda:
@@ -60,8 +65,8 @@ rule UmiTools_extract_paired:
     params:
         umi_tools = config.get('Procedure',{}).get('umi_tools') or 'umi_tools',
         extract_method = config.get('Procedure',{}).get('extract_method') or 'string',
-        bc_pattern = config.get('Params',{}).get('umi_tools',{}).get('bc_pattern') or 'NNNXXXXNN',
-        bc_pattern2 = config.get('Params',{}).get('umi_tools',{}).get('bc_pattern2') or 'NNNXXXXNN'
+        bc_pattern = rule_param(_umi_tools_params, "UmiTools_extract_paired", "bc_pattern", 'NNNXXXXNN'),
+        bc_pattern2 = rule_param(_umi_tools_params, "UmiTools_extract_paired", "bc_pattern2", 'NNNXXXXNN')
     log:
         logdir + "/{sample_id}/umi_tools_extract_paired_run.txt"
     threads: rule_res("UmiTools_extract_paired").get("threads", 2)

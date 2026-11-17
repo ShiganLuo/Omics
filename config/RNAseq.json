@@ -17,11 +17,20 @@
       "logdir": null
     },
     "trim_galore": {
-      "quality": 25
+      "trimming_Paired": {
+        "quality": 25
+      },
+      "trimming_Single": {
+        "quality": 25
+      }
     },
     "trimmomatic": {
-      "adapter_pe": "/data/16T/Database/SoftWare/Trimmomatic-0.41/adapters/TruSeq3-PE-2.fa",
-      "adapter_se": "/data/16T/Database/SoftWare/Trimmomatic-0.41/adapters/TruSeq3-SE.fa"
+      "trimmomatic_Paired": {
+        "adapter_pe": "/data/16T/Database/SoftWare/Trimmomatic-0.41/adapters/TruSeq3-PE-2.fa"
+      },
+      "trimmomatic_Single": {
+        "adapter_se": "/data/16T/Database/SoftWare/Trimmomatic-0.41/adapters/TruSeq3-SE.fa"
+      }
     },
     "STAR_TEtranscripts": {
       "alignEndsType": "Local",
@@ -79,7 +88,12 @@
       "sample_groups": {},
       "formats": [
         "png"
-      ]
+      ],
+      "generate_report": {
+        "formats": [
+          "png"
+        ]
+      }
     },
     "gatk_RNAseq": {
       "enabled": true
@@ -93,7 +107,12 @@
       "E": 0.3,
       "formats": [
         "png"
-      ]
+      ],
+      "generate_report": {
+        "formats": [
+          "png"
+        ]
+      }
     },
     "DESeq2": {
       "enabled": true,
@@ -127,7 +146,7 @@
           }
         }
       },
-      "manhattan": {
+      "DESeq2_TElocal_manhattan": {
         "label_top": 10,
         "ylabel": "log2(1+|delta TPM|)",
         "highlight_families": {
@@ -138,7 +157,7 @@
           "png"
         ]
       },
-      "locus_boxplot": {
+      "DESeq2_TElocal_locus_boxplot": {
         "match_field": "subfamily",
         "match_mode": "exact",
         "normalize": "log2tpm",
@@ -151,7 +170,7 @@
           "png"
         ]
       },
-      "subfamily_bar": {
+      "DESeq2_TElocal_subfamily_bar": {
         "match_field": "subfamily",
         "match_mode": "exact",
         "value": "total",
@@ -166,14 +185,21 @@
           "png"
         ]
       },
-      "formats": [
-        "png"
-      ]
+      "DESeq2_TEcount": {
+        "formats": [
+          "png"
+        ]
+      },
+      "DESeq2_TElocal": {
+        "formats": [
+          "png"
+        ]
+      }
     },
     "function": {
       "GRCh38": {
         "enabled": true,
-        "go_kegg": {
+        "function_go_kegg": {
           "lfc_cut": 1,
           "p_cut": 0.05,
           "top": 10,
@@ -182,22 +208,42 @@
             "png"
           ]
         },
-        "gsea": {
+        "function_gsea": {
           "gmt": "/data/16T/Database/Reference/geneset/8C_human.gmt",
           "formats": [
             "jpeg"
           ]
         },
-        "gsva": {
+        "function_gsva": {
           "gmt": "/data/16T/Database/Reference/geneset/GSI_human.gmt",
           "formats": [
+            "png"
+          ],
+          "species": "human"
+        },
+        "function_result": {
+          "go_kegg_formats": [
+            "png"
+          ],
+          "gsea_formats": [
+            "jpeg"
+          ]
+        },
+        "generate_report": {
+          "go_kegg_formats": [
+            "png"
+          ],
+          "gsea_formats": [
+            "jpeg"
+          ],
+          "gsva_formats": [
             "png"
           ]
         }
       },
       "GRCm39": {
         "enabled": true,
-        "go_kegg": {
+        "function_go_kegg": {
           "lfc_cut": 1,
           "p_cut": 0.05,
           "top": 10,
@@ -206,15 +252,35 @@
             "png"
           ]
         },
-        "gsea": {
+        "function_gsea": {
           "gmt": "/data/16T/Database/Reference/geneset/2C_mouse.gmt",
           "formats": [
             "jpeg"
           ]
         },
-        "gsva": {
+        "function_gsva": {
           "gmt": "/data/16T/Database/Reference/geneset/GSI_mouse.gmt",
           "formats": [
+            "png"
+          ],
+          "species": "mouse"
+        },
+        "function_result": {
+          "go_kegg_formats": [
+            "png"
+          ],
+          "gsea_formats": [
+            "jpeg"
+          ]
+        },
+        "generate_report": {
+          "go_kegg_formats": [
+            "png"
+          ],
+          "gsea_formats": [
+            "jpeg"
+          ],
+          "gsva_formats": [
             "png"
           ]
         }
@@ -222,15 +288,17 @@
     },
     "report": {
       "enabled": true,
-      "title": "RNA-seq Analysis Report",
-      "subtitle": "",
-      "pipeline": "FASTQ -> TrimGalore/Cutadapt -> STAR/HISAT2 -> TEcount/StringTie/Arriba -> DESeq2 -> RNAseq_report",
-      "genome": "GRCm39",
-      "date": "2026-07-27",
-      "lang": "zh",
-      "formats": [
-        "png"
-      ]
+      "generate_report": {
+        "title": "RNA-seq Analysis Report",
+        "subtitle": "",
+        "pipeline": "FASTQ -> TrimGalore/Cutadapt -> STAR/HISAT2 -> TEcount/StringTie/Arriba -> DESeq2 -> RNAseq_report",
+        "genome": "GRCm39",
+        "date": "2026-07-27",
+        "lang": "zh",
+        "formats": [
+          "png"
+        ]
+      }
     },
     "sexcheck": {
       "ratio_xy_threshold": null,

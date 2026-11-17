@@ -11,6 +11,11 @@ paired_samples = config.get("Params", {}).get("workflow").get("paired_samples", 
 single_samples = config.get("Params", {}).get("workflow").get("single_samples", [])
 all_samples = config.get("Params", {}).get("workflow").get("samples", [])
 aligner = config.get("Params", {}).get("workflow").get("aligner") or "star"
+def _rule_get(section, rule_name, key, default=None):
+    """参数精确到 rule:读取 <section>.<rule_name>.<key>(rule 子键优先,旧扁平
+    键兼容回退,再回退 default;键形同 common.smk rule_param,无 module 级共享)。"""
+    return ((section.get(rule_name) or {}).get(key) or section.get(key) or default)
+
 ip_samples = config.get("Params", {}).get("workflow").get("ip_samples", [])
 input_samples = config.get("Params", {}).get("workflow").get("input_samples", [])
 sample_ip_input_map = config.get("Params", {}).get("workflow").get("sample_ip_input_map", {})
@@ -76,9 +81,8 @@ trim_galore_config = {
             "trim_galore": config.get('Procedure',{}).get('trim_galore')
         },
         "Params": {
-            "trim_galore": {
-                "quality": config.get('Params',{}).get("trim_galore", {}).get('quality')
-            }
+            # 参数精确到 rule:整段透传(Params.trim_galore.<rule>.<key>)
+            "trim_galore": config.get('Params',{}).get("trim_galore", {})
         },
     }
 module trim_galore:
@@ -256,16 +260,20 @@ elif aligner == "star":
             "STAR": STAR
         },
         "Params": {
+            # 参数精确到 rule:Params.star.star_align.<key>(消费 rule star_align;
+            # 旧扁平键兼容回退),缺省值保持原转发默认
             "star": {
-                "twopassMode": config.get("Params", {}).get("star", {}).get("twopassMode") or None,
-                "genomeLoad": config.get("Params", {}).get("star", {}).get("genomeLoad") or "LoadAndRemove",
-                "limitBAMsortRAM": config.get("Params", {}).get("star", {}).get("limitBAMsortRAM") or 20000000000,
-                "outReadsUnmapped": config.get("Params", {}).get("star", {}).get("outReadsUnmapped") or "Fastx",
-                "outFilterMultimapNmax": config.get("Params", {}).get("star", {}).get("outFilterMultimapNmax") or 99999,
-                "outFilterMismatchNoverLmax": config.get("Params", {}).get("star", {}).get("outFilterMismatchNoverLmax") or 0.1,
-                "outFilterMatchNminOverLread": config.get("Params", {}).get("star", {}).get("outFilterMatchNminOverLread") or 0.66,
-                "alignSJoverhangMin": config.get("Params", {}).get("star", {}).get("alignSJoverhangMin") or 999,
-                "alignSJDBoverhangMin": config.get("Params", {}).get("star", {}).get("alignSJDBoverhangMin") or 999
+                "star_align": {
+                    "twopassMode": _rule_get(config.get("Params", {}).get("star", {}), "star_align", "twopassMode"),
+                    "genomeLoad": _rule_get(config.get("Params", {}).get("star", {}), "star_align", "genomeLoad", "LoadAndRemove"),
+                    "limitBAMsortRAM": _rule_get(config.get("Params", {}).get("star", {}), "star_align", "limitBAMsortRAM", 20000000000),
+                    "outReadsUnmapped": _rule_get(config.get("Params", {}).get("star", {}), "star_align", "outReadsUnmapped", "Fastx"),
+                    "outFilterMultimapNmax": _rule_get(config.get("Params", {}).get("star", {}), "star_align", "outFilterMultimapNmax", 99999),
+                    "outFilterMismatchNoverLmax": _rule_get(config.get("Params", {}).get("star", {}), "star_align", "outFilterMismatchNoverLmax", 0.1),
+                    "outFilterMatchNminOverLread": _rule_get(config.get("Params", {}).get("star", {}), "star_align", "outFilterMatchNminOverLread", 0.66),
+                    "alignSJoverhangMin": _rule_get(config.get("Params", {}).get("star", {}), "star_align", "alignSJoverhangMin", 999),
+                    "alignSJDBoverhangMin": _rule_get(config.get("Params", {}).get("star", {}), "star_align", "alignSJDBoverhangMin", 999),
+                }
             }
         },
         "genome": {
@@ -664,12 +672,9 @@ igv_config = {
         "bamCoverage": config.get("Procedure", {}).get("bamCoverage") or "bamCoverage"
     },
     "Params": {
-        "bamCoverage": {
-            "binSize": config.get("Params", {}).get("bamCoverage", {}).get("binSize") or 50,
-            "normalizeUsing": config.get("Params", {}).get("bamCoverage", {}).get("normalizeUsing") or "CPM",
-            "offset": config.get("Params", {}).get("bamCoverage", {}).get("offset"),
-            "extendReads": config.get("Params", {}).get("bamCoverage", {}).get("extendReads") or False
-        }
+        # 参数精确到 rule:整段透传(normalizeUsing 在 bamCoverage/wig 各自
+        # rule 子键;未迁移的 binSize/offset/extendReads 仍是模块级扁平键)
+        "bamCoverage": config.get("Params", {}).get("bamCoverage", {}),
     }
 }
 module igv:

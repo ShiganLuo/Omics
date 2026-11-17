@@ -91,7 +91,8 @@ rule wig:
     params:
         binSize= config.get('Params',{}).get('bamCoverage',{}).get('binSize') or 50,
         bamCoverage = config.get('Procedure',{}).get('bamCoverage') or 'bamCoverage',
-        normalizeUsing = config.get('Params', {}).get('bamCoverage',{}).get('normalizeUsing') or "CPM",
+        normalizeUsing = rule_param(config.get("Params", {}).get("bamCoverage", {}),
+                                    "wig", "normalizeUsing", "CPM") or "CPM",   # Params.bamCoverage.wig.normalizeUsing(与 bamCoverage 各自;rule_param 见 common.smk)
         offset = config.get('Params', {}).get('bamCoverage',{}).get('offset') or None,
         extendReads = config.get('Params', {}).get('bamCoverage',{}).get('extendReads') or False
     run:

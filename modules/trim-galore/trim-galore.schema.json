@@ -21,15 +21,39 @@
         "nullable": true,
         "required": false,
         "properties": {
-          "quality": {
-            "type": "int",
+          "trimming_Paired": {
+            "type": "dict",
             "nullable": true,
-            "required": false
+            "required": false,
+            "properties": {
+              "quality": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "adapters": {
+                "type": "null",
+                "nullable": true,
+                "required": false
+              }
+            }
           },
-          "adapters": {
-            "type": "null",
+          "trimming_Single": {
+            "type": "dict",
             "nullable": true,
-            "required": false
+            "required": false,
+            "properties": {
+              "quality": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "adapters": {
+                "type": "null",
+                "nullable": true,
+                "required": false
+              }
+            }
           }
         }
       }

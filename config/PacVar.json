@@ -33,10 +33,6 @@
     "sv": {
       "enabled": true,
       "comparisons": {},
-      "image_formats": [
-        "png"
-      ],
-      "genes": [],
       "exp_specific": {
         "vep_cache": "/data/16T/Database/.vep",
         "species": "mus_musculus",
@@ -332,9 +328,37 @@
           ]
         }
       },
-      "formats": [
-        "png"
-      ]
+      "sv_exp_specific": {
+        "formats": [
+          "png"
+        ]
+      },
+      "sv_exp_circos": {
+        "formats": [
+          "png"
+        ]
+      },
+      "sv_gene_model": {
+        "formats": [
+          "png"
+        ],
+        "genes": []
+      },
+      "sv_diff_analysis": {
+        "formats": [
+          "png"
+        ]
+      },
+      "sv_oncoprint": {
+        "formats": [
+          "png"
+        ]
+      },
+      "sv_mei": {
+        "formats": [
+          "png"
+        ]
+      }
     },
     "phase": {
       "enabled": false
@@ -349,12 +373,13 @@
       "model_type": "PACBIO"
     },
     "trgt": {
-      "enabled": false,
       "karyotype": "XX",
       "repeat_id": "HTT",
-      "formats": [
-        "png"
-      ]
+      "trgt_plot": {
+        "formats": [
+          "png"
+        ]
+      }
     },
     "telogator2": {
       "threads": 16

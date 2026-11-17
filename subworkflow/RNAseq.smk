@@ -9,6 +9,11 @@ genome_paired_samples = config.get("Params", {}).get("workflow", {}).get("genome
 genome_single_samples = config.get("Params", {}).get("workflow", {}).get("genome_single_samples", {})
 aligner_TEtranscripts = config.get('Params',{}).get('workflow', {}).get('aligner_TEtranscripts') or "star"
 trimmer = config.get('Params',{}).get('workflow', {}).get('trimmer') or "cutadapt"
+def _rule_get(section, rule_name, key, default=None):
+    """参数精确到 rule:读取 <section>.<rule_name>.<key>(rule 子键优先,旧扁平
+    键兼容回退,再回退 default;键形同 common.smk rule_param,无 module 级共享)。"""
+    return ((section.get(rule_name) or {}).get(key) or section.get(key) or default)
+
 outfiles = config.get("outfiles", [])
 genomes = set(genome_paired_samples.keys()).union(set(genome_single_samples.keys()))
 logger.info(f"indir: {indir}, outdir: {outdir}, logdir: {logdir}, genomes: {genomes}, aligner_TEtranscripts: {aligner_TEtranscripts}, trimmer: {trimmer}")
@@ -86,10 +91,9 @@ elif trimmer == "trimmomatic":
                 "trimmomatic": config.get('Procedure',{}).get('trimmomatic')
             },
             "Params": {
-                "trimmomatic": {
-                    "adapter_pe": config.get('Params',{}).get("trimmomatic", {}).get('adapter_pe'),
-                    "adapter_se": config.get('Params',{}).get("trimmomatic", {}).get('adapter_se')
-                }
+                # 参数精确到 rule:整段透传(adapter_pe 挂 trimmomatic_Paired,
+                # adapter_se 挂 trimmomatic_Single 各自 rule 子键)
+                "trimmomatic": config.get('Params',{}).get("trimmomatic", {}),
             },
         "resources": config.get("resources", {}),
         }
@@ -169,10 +173,15 @@ elif aligner_TEtranscripts == 'star':
                 "star": config.get('Procedure',{}).get('star')
             },
             "Params": {
+                # 参数精确到 rule:Params.star.star_align.<key>(源读
+                # STAR_TEtranscripts.star_align 新键,旧扁平键兼容回退),
+                # 缺省值保持原转发默认
                 "star": {
-                    "alignEndsType": config.get('Params',{}).get('STAR_TEtranscripts', {}).get('alignEndsType') or "Local",
-                    "outFilterMultimapNmax": config.get('Params',{}).get('STAR_TEtranscripts', {}).get('outFilterMultimapNmax') or 100,
-                    "winAnchorMultimapNmax": config.get('Params',{}).get('STAR_TEtranscripts', {}).get('winAnchorMultimapNmax') or 100
+                    "star_align": {
+                        "alignEndsType": _rule_get(config.get('Params',{}).get('STAR_TEtranscripts', {}), 'star_align', 'alignEndsType', "Local"),
+                        "outFilterMultimapNmax": _rule_get(config.get('Params',{}).get('STAR_TEtranscripts', {}), 'star_align', 'outFilterMultimapNmax', 100),
+                        "winAnchorMultimapNmax": _rule_get(config.get('Params',{}).get('STAR_TEtranscripts', {}), 'star_align', 'winAnchorMultimapNmax', 100),
+                    }
                 }
             },
             "genome": config.get('genome',{}),
@@ -440,19 +449,23 @@ star_config_for_fusion = {
         "STAR": config.get('Procedure',{}).get('STAR')
     },
     "Params": {
+        # 参数精确到 rule:Params.star.star_align.<key>(源读 STAR_fusion.star_align
+        # 新键,旧扁平键兼容回退),缺省值保持原转发默认
         "star": {
-            "outFilterMultimapNmax": config.get('Params',{}).get('STAR_fusion', {}).get('outFilterMultimapNmax') or 1,
-            "outFilterMismatchNmax": config.get('Params',{}).get('STAR_fusion', {}).get('outFilterMismatchNmax') or 3,
-            "chimSegmentMin": config.get('Params',{}).get('STAR_fusion', {}).get('chimSegmentMin') or 10,
-            "chimOutType": config.get('Params',{}).get('STAR_fusion', {}).get('chimOutType') or "Junctions WithinBAM SoftClip SeparateSAMold",
-            "chimJunctionOverhangMin": config.get('Params',{}).get('STAR_fusion', {}).get('chimJunctionOverhangMin') or 10,
-            "outSAMstrandField": config.get('Params',{}).get('STAR_fusion', {}).get('outSAMstrandField') or "intronMotif",
-            "chimScoreMin": config.get('Params',{}).get('STAR_fusion', {}).get('chimScoreMin') or 1,
-            "chimScoreDropMax": config.get('Params',{}).get('STAR_fusion', {}).get('chimScoreDropMax') or 30,
-            "chimScoreJunctionNonGTAG": config.get('Params',{}).get('STAR_fusion', {}).get('chimScoreJunctionNonGTAG') or 0,
-            "chimScoreSeparation": config.get('Params',{}).get('STAR_fusion', {}).get('chimScoreSeparation') or 1,
-            "alignSJstitchMismatchNmax": config.get('Params',{}).get('STAR_fusion', {}).get('alignSJstitchMismatchNmax') or "5 -1 5 5",
-            "chimSegmentReadGapMax": config.get('Params',{}).get('STAR_fusion', {}).get('chimSegmentReadGapMax') or 3,
+            "star_align": {
+                "outFilterMultimapNmax": _rule_get(config.get('Params',{}).get('STAR_fusion', {}), 'star_align', 'outFilterMultimapNmax', 1),
+                "outFilterMismatchNmax": _rule_get(config.get('Params',{}).get('STAR_fusion', {}), 'star_align', 'outFilterMismatchNmax', 3),
+                "chimSegmentMin": _rule_get(config.get('Params',{}).get('STAR_fusion', {}), 'star_align', 'chimSegmentMin', 10),
+                "chimOutType": _rule_get(config.get('Params',{}).get('STAR_fusion', {}), 'star_align', 'chimOutType', "Junctions WithinBAM SoftClip SeparateSAMold"),
+                "chimJunctionOverhangMin": _rule_get(config.get('Params',{}).get('STAR_fusion', {}), 'star_align', 'chimJunctionOverhangMin', 10),
+                "outSAMstrandField": _rule_get(config.get('Params',{}).get('STAR_fusion', {}), 'star_align', 'outSAMstrandField', "intronMotif"),
+                "chimScoreMin": _rule_get(config.get('Params',{}).get('STAR_fusion', {}), 'star_align', 'chimScoreMin', 1),
+                "chimScoreDropMax": _rule_get(config.get('Params',{}).get('STAR_fusion', {}), 'star_align', 'chimScoreDropMax', 30),
+                "chimScoreJunctionNonGTAG": _rule_get(config.get('Params',{}).get('STAR_fusion', {}), 'star_align', 'chimScoreJunctionNonGTAG', 0),
+                "chimScoreSeparation": _rule_get(config.get('Params',{}).get('STAR_fusion', {}), 'star_align', 'chimScoreSeparation', 1),
+                "alignSJstitchMismatchNmax": _rule_get(config.get('Params',{}).get('STAR_fusion', {}), 'star_align', 'alignSJstitchMismatchNmax', "5 -1 5 5"),
+                "chimSegmentReadGapMax": _rule_get(config.get('Params',{}).get('STAR_fusion', {}), 'star_align', 'chimSegmentReadGapMax', 3),
+            }
         }
     },
     "genome": config.get('genome',{}),

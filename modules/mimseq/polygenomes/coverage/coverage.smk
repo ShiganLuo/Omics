@@ -9,9 +9,12 @@ logdir = config.get("logdir", "log")
 # vendored 绘图代码(ggsave/savefig)。figures 是 touch() 规则的副产物,不进
 # rule output(② 展开不适用);默认 ["pdf"] 保持上游行为。
 # ① parse 期读入 + 规范化（str 收成单元素 list；合法值由 schema 声明）
-_plot_formats = config.get("Params", {}).get("mimseq", {}).get("formats") or ["pdf"]
-if isinstance(_plot_formats, str):
-    _plot_formats = [_plot_formats]
+# 参数精确到 rule:Params.mimseq.mimseq_coverage.formats(rule_param 见 common.smk;
+# 无 module 级共享回退)。
+_mimseq_params = config.get("Params", {}).get("mimseq", {})
+_plot_formats_mimseq_coverage = rule_param(_mimseq_params, "mimseq_coverage", "formats", ["pdf"])
+if isinstance(_plot_formats_mimseq_coverage, str):
+    _plot_formats_mimseq_coverage = [_plot_formats_mimseq_coverage]
 
 rule mimseq_coverage:
     """Calculate coverage and generate plots."""
@@ -23,10 +26,10 @@ rule mimseq_coverage:
         logdir + "/{genome}/mimseq_coverage.log"
     params:
         script = os.path.join(ROOT_DIR, "modules", "mimseq", "bin", "coverage", "run.py"),
-        control_cond = config.get("Params", {}).get("mimseq", {}).get("control_cond", ""),
+        control_cond = rule_param(_mimseq_params, "mimseq_coverage", "control_cond", ""),
         mito_trnas = lambda wildcards: config["genome"][wildcards.genome].get("mito_trnas", ""),
-        misinc_thresh = config.get("Params", {}).get("mimseq", {}).get("misinc_thresh", 0.1),
-        formats = _plot_formats,   # ③ 转发
+        misinc_thresh = rule_param(_mimseq_params, "mimseq_coverage", "misinc_thresh", 0.1),
+        formats = _plot_formats_mimseq_coverage,   # ③ 转发
     threads: rule_res("mimseq_coverage").get("threads", 4)
     benchmark: logdir + "/{genome}/mimseq_coverage.benchmark.tsv",
     resources:
@@ -54,9 +57,9 @@ rule mimseq_coverage:
                 cmd += ["--control-cond", params.control_cond]
             if params.mito_trnas:
                 cmd += ["--mito-trnas", params.mito_trnas]
-            if not config.get("Params", {}).get("mimseq", {}).get("no_cca", False):
+            if not rule_param(_mimseq_params, "mimseq_coverage", "no_cca", False):
                 cmd += ["--cca"]
-            if config.get("Params", {}).get("mimseq", {}).get("double_cca", False):
+            if rule_param(_mimseq_params, "mimseq_coverage", "double_cca", False):
                 cmd += ["--double-cca"]
             for fmt in params.formats:
                 cmd += ["--format", str(fmt)]

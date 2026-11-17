@@ -8,7 +8,7 @@ samples = config.get("samples", [])
 ROOT_DIR = config.get("ROOT_DIR", ".")
 env = config.get("env", {})
 genome_cfg = config.get("genome", {})
-p = config.get("Params", {}).get("fiberseq_annotate", {})
+_annotate_params = config.get("Params", {}).get("fiberseq_annotate", {})
 
 def get_input_for_fiberseq_annotate_run(wildcards):
     """Get input files for fiberseq_annotate_run rule."""
@@ -46,8 +46,9 @@ rule fiberseq_annotate_run:
         sif("../fiberseq.yaml", "fiberseq_annotate_run")
     params:
         script = ROOT_DIR + "/modules/fiberseq/bin/fire_annotate.py",
-        tss_flank = p.get("tss_flank", 1000),
-        repeat_frac = p.get("repeat_frac", 0.25),
+        # 参数精确到 rule:Params.fiberseq_annotate.fiberseq_annotate_run.<key>
+        tss_flank = rule_param(_annotate_params, "fiberseq_annotate_run", "tss_flank", 1000),
+        repeat_frac = rule_param(_annotate_params, "fiberseq_annotate_run", "repeat_frac", 0.25),
     run:
         log_path = str(log)
         open(log_path, "w").close()

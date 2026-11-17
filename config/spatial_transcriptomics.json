@@ -5,18 +5,22 @@
       "outdir": "output",
       "logdir": "logs",
       "raw_files": [],
-      "input_h5ad": "",
+      "input_h5ad": "/data/16T/luosg/workflow/Omics/assests/test/data/spatial/TestSpatial1_filtered.h5ad",
       "visium_h5": "",
       "spatial_dir": ""
     },
     "spatial": {
-      "min_genes": 100,
-      "max_pct_mt": 25,
-      "n_top_genes": 3000,
-      "n_pcs": 50,
-      "n_neighbors": 15,
-      "resolution": 0.8,
-      "advanced": {
+      "spatial_scanpy_qc": {
+        "min_genes": 100,
+        "max_pct_mt": 25,
+        "n_top_genes": 3000
+      },
+      "spatial_scanpy_cluster": {
+        "n_pcs": 50,
+        "n_neighbors": 15,
+        "resolution": 0.8
+      },
+      "spatial_scanpy_advanced": {
         "spatial_autocorrelation": true
       }
     }

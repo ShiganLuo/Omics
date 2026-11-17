@@ -1,18 +1,23 @@
 {
-    "indir": "input",
-    "outdir": "output",
-    "logdir": "logs",
-    "samples": [],
-    "Procedure": {
-        "manta": null,
-        "samtools": null
-    },
-    "Params": {
-        "manta": {
-            "threads": 8
-        }
-    },
-    "genome": {
-        "fasta": null
+  "indir": "input",
+  "outdir": "output",
+  "logdir": "logs",
+  "samples": [],
+  "Procedure": {
+    "manta": null,
+    "samtools": null
+  },
+  "Params": {
+    "manta": {
+      "manta_run_germline": {
+        "threads": 8
+      },
+      "manta_run_somatic": {
+        "threads": 8
+      }
     }
+  },
+  "genome": {
+    "fasta": null
+  }
 }

@@ -1,25 +1,30 @@
 {
-    "ROOT_DIR": ".",
-    "indir": "",
-    "outdir": "results/censatbuild",
-    "logdir": "log",
-    "samples": [],
-    "genome_name": "my_genome",
-    "Procedure": {},
-    "Params": {
-        "censatbuild": {
-            "threads": 32,
-            "gap": 10000,
-            "flank": 10000,
-            "major_pattern": "major",
-            "minor_pattern": "minor",
-            "bam": null
-        }
-    },
-    "genome": {
-        "fasta": null,
-        "fai": null,
-        "sat_fasta": null
-    },
-    "env": {}
+  "ROOT_DIR": ".",
+  "indir": "",
+  "outdir": "results/censatbuild",
+  "logdir": "log",
+  "samples": [],
+  "genome_name": "my_genome",
+  "Procedure": {},
+  "Params": {
+    "censatbuild": {
+      "censatbuild_arrays": {
+        "gap": 10000,
+        "major_pattern": "major",
+        "minor_pattern": "minor"
+      },
+      "censatbuild_flank": {
+        "flank": 10000
+      },
+      "censatbuild_mcg_pileup": {
+        "bam": null
+      }
+    }
+  },
+  "genome": {
+    "fasta": null,
+    "fai": null,
+    "sat_fasta": null
+  },
+  "env": {}
 }

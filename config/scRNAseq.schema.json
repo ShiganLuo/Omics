@@ -570,162 +570,321 @@
         "nullable": true,
         "required": false
       },
-      "qc": {
-        "min_genes": {
-          "type": "int",
-          "required": false
+      "scTE": {
+        "scanpy_qc": {
+          "type": "dict",
+          "required": false,
+          "min_genes": {
+            "type": "int",
+            "required": false
+          },
+          "max_genes": {
+            "type": "int",
+            "required": false
+          },
+          "max_pct_mt": {
+            "type": "int",
+            "required": false
+          },
+          "n_top_genes": {
+            "type": "int",
+            "required": false
+          },
+          "scrublet": {
+            "type": "bool",
+            "required": false
+          },
+          "doublet_rate": {
+            "type": "float",
+            "required": false
+          },
+          "use_mad": {
+            "type": "bool",
+            "required": false
+          },
+          "formats": {
+            "type": "list",
+            "required": false,
+            "default": [
+              "png"
+            ],
+            "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
+          }
         },
-        "max_genes": {
-          "type": "int",
-          "required": false
+        "scanpy_merge": {
+          "type": "dict",
+          "required": false,
+          "formats": {
+            "type": "list",
+            "required": false,
+            "default": [
+              "png"
+            ],
+            "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
+          }
         },
-        "max_pct_mt": {
-          "type": "float",
-          "required": false
+        "scanpy_auto": {
+          "type": "dict",
+          "required": false,
+          "max_iterations": {
+            "type": "int",
+            "required": false
+          },
+          "min_genes": {
+            "type": "int",
+            "required": false
+          },
+          "min_counts": {
+            "type": "int",
+            "required": false
+          },
+          "max_pct_mt": {
+            "type": "float",
+            "required": false
+          },
+          "n_pcs": {
+            "type": "int",
+            "required": false
+          },
+          "n_neighbors": {
+            "type": "int",
+            "required": false
+          },
+          "n_top_genes": {
+            "type": "int",
+            "required": false
+          },
+          "batch_method": {
+            "type": "str",
+            "required": false,
+            "enum": [
+              "",
+              "harmony",
+              "bbknn"
+            ]
+          },
+          "batch_key": {
+            "type": "str",
+            "required": false
+          },
+          "auto_n_pcs": {
+            "type": "bool",
+            "required": false
+          },
+          "skip_te": {
+            "type": "bool",
+            "required": false
+          },
+          "regress_cell_cycle": {
+            "type": "bool",
+            "required": false
+          },
+          "llm_method": {
+            "type": "str",
+            "required": false,
+            "enum": [
+              "",
+              "openai",
+              "anthropic",
+              "ollama",
+              "file"
+            ]
+          },
+          "llm_model": {
+            "type": "str",
+            "required": false
+          },
+          "llm_api_key": {
+            "type": "str",
+            "required": false
+          },
+          "llm_base_url": {
+            "type": "str",
+            "required": false
+          },
+          "marker_supplement_llm": {
+            "type": "bool",
+            "required": false,
+            "description": "Auto-generate a discriminating-marker supplement via one LLM call after annotation (default true); written to marker_supplement.auto.json and merged into the marker panels, display-level only, human marker_supplement entries win per cell type"
+          },
+          "exclude_genes": {
+            "type": "str",
+            "required": false,
+            "description": "Path to a gene-symbol list excluded from the clustering feature space (HVG/PCA; kept in raw and in the DEG space unless exclude_from_deg), e.g. cell-cycle genes"
+          },
+          "exclude_from_deg": {
+            "type": "bool",
+            "required": false,
+            "description": "Also mask the exclude_genes list from the DEG space the annotator sees (default false: list affects clustering only)"
+          },
+          "resolution": {
+            "type": "float",
+            "required": false
+          },
+          "save_iteration_h5ad": {
+            "type": "bool",
+            "required": false
+          },
+          "marker_supplement": {
+            "type": "dict",
+            "required": false,
+            "description": "Per-tissue discriminating marker supplement JSON paths {tissue: path} ({cell_type: {positive, negative}}); human-curated review aid, appended to marker panels, display-level only (example: modules/scanpy/examples/marker_supplement.example.json)"
+          },
+          "formats": {
+            "type": "list",
+            "required": false,
+            "default": [
+              "png"
+            ],
+            "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
+          }
         },
-        "n_top_genes": {
-          "type": "int",
-          "required": false
+        "scanpy_reannotate": {
+          "type": "dict",
+          "required": false,
+          "cluster_annotations": {
+            "type": "dict",
+            "required": false,
+            "description": "Per-tissue cluster annotation override JSON paths {tissue: path}; human-supplied corrections applied after LLM annotation (example: modules/scanpy/examples/cluster_annotations.example.json) (configure the same map under scanpy_reannotate / scanpy_advanced / scanpy_pseudobulk so the reannotate DAG ordering stays consistent)"
+          },
+          "marker_supplement": {
+            "type": "dict",
+            "required": false,
+            "description": "Per-tissue discriminating marker supplement JSON paths {tissue: path} ({cell_type: {positive, negative}}); human-curated review aid, appended to marker panels, display-level only (example: modules/scanpy/examples/marker_supplement.example.json)"
+          },
+          "formats": {
+            "type": "list",
+            "required": false,
+            "default": [
+              "png"
+            ],
+            "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
+          }
         },
-        "scrublet": {
-          "type": "bool",
-          "required": false
+        "scanpy_advanced": {
+          "type": "dict",
+          "required": false,
+          "trajectory": {
+            "type": "bool",
+            "required": false
+          },
+          "velocity": {
+            "type": "bool",
+            "required": false
+          },
+          "communication": {
+            "type": "bool",
+            "required": false
+          },
+          "cnv": {
+            "type": "bool",
+            "required": false
+          },
+          "gtf": {
+            "type": "str",
+            "required": false
+          },
+          "cnv_reference": {
+            "type": "str",
+            "required": false
+          },
+          "n_pcs": {
+            "type": "int",
+            "required": false
+          },
+          "n_neighbors": {
+            "type": "int",
+            "required": false
+          },
+          "cluster_annotations": {
+            "type": "dict",
+            "required": false,
+            "description": "Per-tissue cluster annotation override JSON paths {tissue: path}; human-supplied corrections applied after LLM annotation (example: modules/scanpy/examples/cluster_annotations.example.json) (configure the same map under scanpy_reannotate / scanpy_advanced / scanpy_pseudobulk so the reannotate DAG ordering stays consistent)"
+          },
+          "formats": {
+            "type": "list",
+            "required": false,
+            "default": [
+              "png"
+            ],
+            "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
+          }
         },
-        "doublet_rate": {
-          "type": "float",
-          "required": false
-        },
-        "use_mad": {
-          "type": "bool",
-          "required": false
-        }
-      },
-      "cluster": {
-        "n_pcs": {
-          "type": "int",
-          "required": false
-        },
-        "n_neighbors": {
-          "type": "int",
-          "required": false
-        },
-        "resolution": {
-          "type": "float",
-          "required": false
-        },
-        "n_top_genes": {
-          "type": "int",
-          "required": false
-        },
-        "batch_method": {
-          "type": "str",
-          "required": false
-        },
-        "batch_key": {
-          "type": "str",
-          "required": false
-        },
-        "auto_n_pcs": {
-          "type": "bool",
-          "required": false
-        }
-      },
-      "annotate": {
-        "marker_file": {
-          "type": "str",
-          "required": false
-        },
-        "celltypist_model": {
-          "type": "str",
-          "required": false
-        },
-        "annotate_group": {
-          "type": "str",
-          "required": false
-        }
-      },
-      "advanced": {
-        "trajectory": {
-          "type": "bool",
-          "required": false
-        },
-        "velocity": {
-          "type": "bool",
-          "required": false
-        },
-        "communication": {
-          "type": "bool",
-          "required": false
-        },
-        "cnv": {
-          "type": "bool",
-          "required": false
-        },
-        "gtf": {
-          "type": "str",
-          "required": false
-        },
-        "cnv_reference": {
-          "type": "str",
-          "required": false
+        "scanpy_pseudobulk": {
+          "type": "dict",
+          "required": false,
+          "properties": {
+            "enabled": {
+              "type": "bool",
+              "required": false
+            },
+            "compare": {
+              "type": "list",
+              "required": false,
+              "description": "tissue:ref_sample:treat_sample[=label] entries"
+            },
+            "min_cells": {
+              "type": "int",
+              "required": false
+            },
+            "min_counts": {
+              "type": "int",
+              "required": false
+            },
+            "n_pseudo_reps": {
+              "type": "int",
+              "required": false
+            },
+            "top_cell_types": {
+              "type": "list",
+              "required": false
+            },
+            "highlight_genes": {
+              "type": "list",
+              "required": false
+            },
+            "deg_mode": {
+              "type": "enum",
+              "values": [
+                "gene",
+                "te",
+                "all"
+              ],
+              "required": false,
+              "description": "DEG feature modes: gene (exclude TE), te (TE only), all (genes+TE); one or more, run sequentially"
+            },
+            "min_cells_per_rep": {
+              "type": "int",
+              "required": false,
+              "description": "Min cells per pseudo-replicate when splitting single-sample conditions (lower for rare cell types)"
+            },
+            "cell_types": {
+              "type": "list",
+              "required": false,
+              "description": "Restrict pseudobulk to these cell types (exact obs['cell_type'] values); empty = all"
+            },
+            "cluster_annotations": {
+              "type": "dict",
+              "required": false,
+              "description": "Per-tissue cluster annotation override JSON paths {tissue: path}; human-supplied corrections applied after LLM annotation (example: modules/scanpy/examples/cluster_annotations.example.json) (configure the same map under scanpy_reannotate / scanpy_advanced / scanpy_pseudobulk so the reannotate DAG ordering stays consistent)"
+            },
+            "formats": {
+              "type": "list",
+              "required": false,
+              "default": [
+                "png"
+              ],
+              "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
+            }
+          }
         }
       },
       "cellranger": {
-        "type": "dict",
-        "required": false,
-        "annotate": {
+        "scanpy_qc": {
           "type": "dict",
           "required": false,
-          "annotate_group": {
-            "type": "str",
-            "required": false
-          },
-          "celltypist_model": {
-            "type": "str",
-            "required": false
-          },
-          "marker_file": {
-            "type": "str",
-            "required": false
-          }
-        },
-        "cluster": {
-          "type": "dict",
-          "required": false,
-          "n_neighbors": {
+          "min_genes": {
             "type": "int",
-            "required": false
-          },
-          "n_pcs": {
-            "type": "int",
-            "required": false
-          },
-          "resolution": {
-            "type": "float",
-            "required": false
-          },
-          "n_top_genes": {
-            "type": "int",
-            "required": false
-          },
-          "batch_method": {
-            "type": "str",
-            "required": false
-          },
-          "batch_key": {
-            "type": "str",
-            "required": false
-          },
-          "auto_n_pcs": {
-            "type": "bool",
-            "required": false
-          }
-        },
-        "qc": {
-          "type": "dict",
-          "required": false,
-          "doublet_rate": {
-            "type": "float",
             "required": false
           },
           "max_genes": {
@@ -733,10 +892,6 @@
             "required": false
           },
           "max_pct_mt": {
-            "type": "int",
-            "required": false
-          },
-          "min_genes": {
             "type": "int",
             "required": false
           },
@@ -748,40 +903,36 @@
             "type": "bool",
             "required": false
           },
+          "doublet_rate": {
+            "type": "float",
+            "required": false
+          },
           "use_mad": {
             "type": "bool",
             "required": false
+          },
+          "formats": {
+            "type": "list",
+            "required": false,
+            "default": [
+              "png"
+            ],
+            "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
           }
         },
-        "advanced": {
+        "scanpy_merge": {
           "type": "dict",
           "required": false,
-          "cnv": {
-            "type": "bool",
-            "required": false
-          },
-          "cnv_reference": {
-            "type": "str",
-            "required": false
-          },
-          "communication": {
-            "type": "bool",
-            "required": false
-          },
-          "gtf": {
-            "type": "str",
-            "required": false
-          },
-          "trajectory": {
-            "type": "bool",
-            "required": false
-          },
-          "velocity": {
-            "type": "bool",
-            "required": false
+          "formats": {
+            "type": "list",
+            "required": false,
+            "default": [
+              "png"
+            ],
+            "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
           }
         },
-        "auto": {
+        "scanpy_auto": {
           "type": "dict",
           "required": false,
           "max_iterations": {
@@ -860,16 +1011,6 @@
             "type": "str",
             "required": false
           },
-          "cluster_annotations": {
-            "type": "dict",
-            "required": false,
-            "description": "Per-tissue cluster annotation override JSON paths {tissue: path}; human-supplied corrections applied after LLM annotation (example: modules/scanpy/examples/cluster_annotations.example.json)"
-          },
-          "marker_supplement": {
-            "type": "dict",
-            "required": false,
-            "description": "Per-tissue discriminating marker supplement JSON paths {tissue: path} ({cell_type: {positive, negative}}); human-curated review aid, appended to marker panels, display-level only (example: modules/scanpy/examples/marker_supplement.example.json)"
-          },
           "marker_supplement_llm": {
             "type": "bool",
             "required": false,
@@ -884,156 +1025,54 @@
             "type": "bool",
             "required": false,
             "description": "Also mask the exclude_genes list from the DEG space the annotator sees (default false: list affects clustering only)"
-          }
-        },
-        "pseudobulk": {
-          "type": "dict",
-          "required": false,
-          "properties": {
-            "enabled": {
-              "type": "bool",
-              "required": false
-            },
-            "compare": {
-              "type": "list",
-              "required": false,
-              "description": "tissue:ref_sample:treat_sample[=label] entries"
-            },
-            "min_cells": {
-              "type": "int",
-              "required": false
-            },
-            "min_counts": {
-              "type": "int",
-              "required": false
-            },
-            "n_pseudo_reps": {
-              "type": "int",
-              "required": false
-            },
-            "top_cell_types": {
-              "type": "list",
-              "required": false
-            },
-            "highlight_genes": {
-              "type": "list",
-              "required": false
-            },
-            "deg_mode": {
-              "type": "enum",
-              "values": [
-                "gene",
-                "te",
-                "all"
-              ],
-              "required": false,
-              "description": "DEG feature modes: gene (exclude TE), te (TE only), all (genes+TE); one or more, run sequentially"
-            }
-          }
-        }
-      },
-      "scTE": {
-        "type": "dict",
-        "required": false,
-        "annotate": {
-          "type": "dict",
-          "required": false,
-          "annotate_group": {
-            "type": "str",
-            "required": false
-          },
-          "celltypist_model": {
-            "type": "str",
-            "required": false
-          },
-          "marker_file": {
-            "type": "str",
-            "required": false
-          }
-        },
-        "cluster": {
-          "type": "dict",
-          "required": false,
-          "n_neighbors": {
-            "type": "int",
-            "required": false
-          },
-          "n_pcs": {
-            "type": "int",
-            "required": false
           },
           "resolution": {
             "type": "float",
             "required": false
           },
-          "n_top_genes": {
-            "type": "int",
-            "required": false
-          },
-          "batch_method": {
-            "type": "str",
-            "required": false
-          },
-          "batch_key": {
-            "type": "str",
-            "required": false
-          },
-          "auto_n_pcs": {
+          "save_iteration_h5ad": {
             "type": "bool",
             "required": false
+          },
+          "marker_supplement": {
+            "type": "dict",
+            "required": false,
+            "description": "Per-tissue discriminating marker supplement JSON paths {tissue: path} ({cell_type: {positive, negative}}); human-curated review aid, appended to marker panels, display-level only (example: modules/scanpy/examples/marker_supplement.example.json)"
+          },
+          "formats": {
+            "type": "list",
+            "required": false,
+            "default": [
+              "png"
+            ],
+            "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
           }
         },
-        "qc": {
+        "scanpy_reannotate": {
           "type": "dict",
           "required": false,
-          "doublet_rate": {
-            "type": "float",
-            "required": false
+          "cluster_annotations": {
+            "type": "dict",
+            "required": false,
+            "description": "Per-tissue cluster annotation override JSON paths {tissue: path}; human-supplied corrections applied after LLM annotation (example: modules/scanpy/examples/cluster_annotations.example.json) (configure the same map under scanpy_reannotate / scanpy_advanced / scanpy_pseudobulk so the reannotate DAG ordering stays consistent)"
           },
-          "max_genes": {
-            "type": "int",
-            "required": false
+          "marker_supplement": {
+            "type": "dict",
+            "required": false,
+            "description": "Per-tissue discriminating marker supplement JSON paths {tissue: path} ({cell_type: {positive, negative}}); human-curated review aid, appended to marker panels, display-level only (example: modules/scanpy/examples/marker_supplement.example.json)"
           },
-          "max_pct_mt": {
-            "type": "int",
-            "required": false
-          },
-          "min_genes": {
-            "type": "int",
-            "required": false
-          },
-          "n_top_genes": {
-            "type": "int",
-            "required": false
-          },
-          "scrublet": {
-            "type": "bool",
-            "required": false
-          },
-          "use_mad": {
-            "type": "bool",
-            "required": false
+          "formats": {
+            "type": "list",
+            "required": false,
+            "default": [
+              "png"
+            ],
+            "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
           }
         },
-        "advanced": {
+        "scanpy_advanced": {
           "type": "dict",
           "required": false,
-          "cnv": {
-            "type": "bool",
-            "required": false
-          },
-          "cnv_reference": {
-            "type": "str",
-            "required": false
-          },
-          "communication": {
-            "type": "bool",
-            "required": false
-          },
-          "gtf": {
-            "type": "str",
-            "required": false
-          },
           "trajectory": {
             "type": "bool",
             "required": false
@@ -1041,25 +1080,21 @@
           "velocity": {
             "type": "bool",
             "required": false
-          }
-        },
-        "auto": {
-          "type": "dict",
-          "required": false,
-          "max_iterations": {
-            "type": "int",
+          },
+          "communication": {
+            "type": "bool",
             "required": false
           },
-          "min_genes": {
-            "type": "int",
+          "cnv": {
+            "type": "bool",
             "required": false
           },
-          "min_counts": {
-            "type": "int",
+          "gtf": {
+            "type": "str",
             "required": false
           },
-          "max_pct_mt": {
-            "type": "float",
+          "cnv_reference": {
+            "type": "str",
             "required": false
           },
           "n_pcs": {
@@ -1070,85 +1105,21 @@
             "type": "int",
             "required": false
           },
-          "n_top_genes": {
-            "type": "int",
-            "required": false
-          },
-          "batch_method": {
-            "type": "str",
-            "required": false,
-            "enum": [
-              "",
-              "harmony",
-              "bbknn"
-            ]
-          },
-          "batch_key": {
-            "type": "str",
-            "required": false
-          },
-          "auto_n_pcs": {
-            "type": "bool",
-            "required": false
-          },
-          "skip_te": {
-            "type": "bool",
-            "required": false
-          },
-          "regress_cell_cycle": {
-            "type": "bool",
-            "required": false
-          },
-          "llm_method": {
-            "type": "str",
-            "required": false,
-            "enum": [
-              "",
-              "openai",
-              "anthropic",
-              "ollama",
-              "file"
-            ]
-          },
-          "llm_model": {
-            "type": "str",
-            "required": false
-          },
-          "llm_api_key": {
-            "type": "str",
-            "required": false
-          },
-          "llm_base_url": {
-            "type": "str",
-            "required": false
-          },
           "cluster_annotations": {
             "type": "dict",
             "required": false,
-            "description": "Per-tissue cluster annotation override JSON paths {tissue: path}; human-supplied corrections applied after LLM annotation (example: modules/scanpy/examples/cluster_annotations.example.json)"
+            "description": "Per-tissue cluster annotation override JSON paths {tissue: path}; human-supplied corrections applied after LLM annotation (example: modules/scanpy/examples/cluster_annotations.example.json) (configure the same map under scanpy_reannotate / scanpy_advanced / scanpy_pseudobulk so the reannotate DAG ordering stays consistent)"
           },
-          "marker_supplement": {
-            "type": "dict",
+          "formats": {
+            "type": "list",
             "required": false,
-            "description": "Per-tissue discriminating marker supplement JSON paths {tissue: path} ({cell_type: {positive, negative}}); human-curated review aid, appended to marker panels, display-level only (example: modules/scanpy/examples/marker_supplement.example.json)"
-          },
-          "marker_supplement_llm": {
-            "type": "bool",
-            "required": false,
-            "description": "Auto-generate a discriminating-marker supplement via one LLM call after annotation (default true); written to marker_supplement.auto.json and merged into the marker panels, display-level only, human marker_supplement entries win per cell type"
-          },
-          "exclude_genes": {
-            "type": "str",
-            "required": false,
-            "description": "Path to a gene-symbol list excluded from the clustering feature space (HVG/PCA; kept in raw and in the DEG space unless exclude_from_deg), e.g. cell-cycle genes"
-          },
-          "exclude_from_deg": {
-            "type": "bool",
-            "required": false,
-            "description": "Also mask the exclude_genes list from the DEG space the annotator sees (default false: list affects clustering only)"
+            "default": [
+              "png"
+            ],
+            "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
           }
         },
-        "pseudobulk": {
+        "scanpy_pseudobulk": {
           "type": "dict",
           "required": false,
           "properties": {
@@ -1190,17 +1161,32 @@
               ],
               "required": false,
               "description": "DEG feature modes: gene (exclude TE), te (TE only), all (genes+TE); one or more, run sequentially"
+            },
+            "min_cells_per_rep": {
+              "type": "int",
+              "required": false,
+              "description": "Min cells per pseudo-replicate when splitting single-sample conditions (lower for rare cell types)"
+            },
+            "cell_types": {
+              "type": "list",
+              "required": false,
+              "description": "Restrict pseudobulk to these cell types (exact obs['cell_type'] values); empty = all"
+            },
+            "cluster_annotations": {
+              "type": "dict",
+              "required": false,
+              "description": "Per-tissue cluster annotation override JSON paths {tissue: path}; human-supplied corrections applied after LLM annotation (example: modules/scanpy/examples/cluster_annotations.example.json) (configure the same map under scanpy_reannotate / scanpy_advanced / scanpy_pseudobulk so the reannotate DAG ordering stays consistent)"
+            },
+            "formats": {
+              "type": "list",
+              "required": false,
+              "default": [
+                "png"
+              ],
+              "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
             }
           }
         }
-      },
-      "formats": {
-        "type": "list",
-        "required": false,
-        "default": [
-          "png"
-        ],
-        "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
       }
     },
     "function": {
@@ -1264,86 +1250,96 @@
       }
     },
     "sccoda": {
-      "type": "dict",
-      "required": false,
       "tissue_samples": {
         "type": "dict",
         "nullable": true,
         "required": false
       },
       "scTE": {
-        "type": "dict",
-        "required": false,
-        "enabled": {
-          "type": "bool",
-          "required": false
-        },
-        "compare": {
-          "type": "list",
+        "sccoda_run": {
+          "type": "dict",
           "required": false,
-          "description": "tissue:ref_sample:treat_sample[=label] entries; empty = shared from Params.scanpy.<counter>.pseudobulk.compare"
-        },
-        "ref_celltype": {
-          "type": "str",
-          "required": false
-        },
-        "formula": {
-          "type": "str",
-          "required": false
-        },
-        "credible_threshold": {
-          "type": "float",
-          "required": false
-        },
-        "num_samples": {
-          "type": "int",
-          "required": false
-        },
-        "num_warmup": {
-          "type": "int",
-          "required": false
+          "enabled": {
+            "type": "bool",
+            "required": false
+          },
+          "ref_celltype": {
+            "type": "str",
+            "required": false
+          },
+          "formula": {
+            "type": "str",
+            "required": false
+          },
+          "credible_threshold": {
+            "type": "float",
+            "required": false
+          },
+          "num_samples": {
+            "type": "int",
+            "required": false
+          },
+          "num_warmup": {
+            "type": "int",
+            "required": false
+          },
+          "compare": {
+            "type": "list",
+            "required": false,
+            "description": "tissue:ref_sample:treat_sample[=label] entries; empty = shared from Params.scanpy.<counter>.scanpy_pseudobulk.compare"
+          },
+          "formats": {
+            "type": "list",
+            "required": false,
+            "default": [
+              "png"
+            ],
+            "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
+          }
         }
       },
       "cellranger": {
-        "type": "dict",
-        "required": false,
-        "enabled": {
-          "type": "bool",
-          "required": false
-        },
-        "compare": {
-          "type": "list",
+        "sccoda_run": {
+          "type": "dict",
           "required": false,
-          "description": "tissue:ref_sample:treat_sample[=label] entries; empty = shared from Params.scanpy.<counter>.pseudobulk.compare"
-        },
-        "ref_celltype": {
-          "type": "str",
-          "required": false
-        },
-        "formula": {
-          "type": "str",
-          "required": false
-        },
-        "credible_threshold": {
-          "type": "float",
-          "required": false
-        },
-        "num_samples": {
-          "type": "int",
-          "required": false
-        },
-        "num_warmup": {
-          "type": "int",
-          "required": false
+          "enabled": {
+            "type": "bool",
+            "required": false
+          },
+          "ref_celltype": {
+            "type": "str",
+            "required": false
+          },
+          "formula": {
+            "type": "str",
+            "required": false
+          },
+          "credible_threshold": {
+            "type": "float",
+            "required": false
+          },
+          "num_samples": {
+            "type": "int",
+            "required": false
+          },
+          "num_warmup": {
+            "type": "int",
+            "required": false
+          },
+          "compare": {
+            "type": "list",
+            "required": false,
+            "description": "tissue:ref_sample:treat_sample[=label] entries; empty = shared from Params.scanpy.<counter>.scanpy_pseudobulk.compare"
+          },
+          "formats": {
+            "type": "list",
+            "required": false,
+            "default": [
+              "png"
+            ],
+            "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
+          }
         }
-      },
-      "formats": {
-        "type": "list",
-        "required": false,
-        "default": [
-          "png"
-        ],
-        "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
       }
     }
   }

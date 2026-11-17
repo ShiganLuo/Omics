@@ -7,17 +7,27 @@ logdir = config.get("logdir", "log")
 samples = config.get("samples", [])
 ROOT_DIR = config.get("ROOT_DIR", ".")
 env = config.get("env", {})
-p = config.get("Params", {}).get("fiberseq_diff", {})
-# ① parse 期读入 + 规范化（str 收成单元素 list；合法值由 schema 声明）
-_formats = p.get("formats") or ["pdf"]
-if isinstance(_formats, str):
-    _formats = [_formats]
+_diff_params = config.get("Params", {}).get("fiberseq_diff", {})
+# 参数精确到 rule:formats 按 rule 独立配置(Params.fiberseq_diff.<rule_name>.formats,
+# 无 module 级共享回退;rule_param 见 common.smk),每 rule 一个 parse 期变量。
+
+
+def _rule_formats(rule_name):
+    """Per-rule figure formats (parse 期解析,output 展开与 CLI 转发共用)。"""
+    fmts = rule_param(_diff_params, rule_name, "formats", ["pdf"])
+    return [fmts] if isinstance(fmts, str) else (fmts or ["pdf"])
+
+
+_formats_run = _rule_formats("fiberseq_diff_run")
 
 # upstream contract: matrices from fiberseq_analysis/quant, annotations from
 # fiberseq_analysis/annotate
 QUANT_DIR = config.get("quant_dir") or indir + "/quant"
 ANNOT_DIR = config.get("annot_dir") or indir + "/annotate"
-ANNOT_SAMPLE = p.get("annot_sample") or (samples[0] if samples else "")
+# <- Params.fiberseq_diff.fiberseq_diff_run.annot_sample(input 指令无法调用
+# 函数,每 rule 一个 parse 期变量;默认取首个 sample)
+ANNOT_SAMPLE = (rule_param(_diff_params, "fiberseq_diff_run", "annot_sample", None)
+                or (samples[0] if samples else ""))
 
 rule fiberseq_diff_run:
     """Per-region differential accessibility for one contrast."""
@@ -28,7 +38,7 @@ rule fiberseq_diff_run:
         diff = outdir + "/{contrast}/diff_{contrast}.tsv",
         # ② 按格式展开：每种格式一个输出文件（base 不带扩展名）
         plots = [outdir + "/{contrast}/volcano_{contrast}." + fmt
-                 for fmt in _formats],
+                 for fmt in _formats_run],
         class_summary = outdir + "/{contrast}/class_summary_{contrast}.tsv",
         gene_table = outdir + "/{contrast}/TEcount/{contrast}.TEcount_Gene.name.tsv",
     log:
@@ -45,9 +55,9 @@ rule fiberseq_diff_run:
         sif("../fiberseq.yaml", "fiberseq_diff_run")
     params:
         script = ROOT_DIR + "/modules/fiberseq/bin/diff_accessibility.py",
-        alpha = p.get("alpha", 0.05),
-        group_spec = p.get("group_spec") or "",
-        formats = _formats,   # ③ 转发
+        alpha = rule_param(_diff_params, "fiberseq_diff_run", "alpha", 0.05),
+        group_spec = rule_param(_diff_params, "fiberseq_diff_run", "group_spec", "") or "",
+        formats = _formats_run,   # ③ 转发
     run:
         log_path = str(log)
         open(log_path, "w").close()

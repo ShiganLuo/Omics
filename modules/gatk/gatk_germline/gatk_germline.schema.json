@@ -68,10 +68,29 @@
               }
             }
           },
-          "javaOptions": {
-            "type": "str",
+          "HaplotypeCaller": {
+            "type": "dict",
             "nullable": true,
-            "required": false
+            "required": false,
+            "properties": {
+              "javaOptions": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              }
+            }
+          },
+          "filterHaplotypeCallerVcf": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "javaOptions": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              }
+            }
           }
         }
       }

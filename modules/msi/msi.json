@@ -1,19 +1,23 @@
 {
-    "indir": "input",
-    "outdir": "output",
-    "logdir": "logs",
-    "pairs": {},
-    "bam_substring": "",
-    "Procedure": {
-        "msisensorpro": null
-    },
-    "Params": {
-        "msi": {
-            "formats": ["jpg"]
-        }
-    },
-    "genome": {
-        "fasta": null,
-        "fai": null
+  "indir": "input",
+  "outdir": "output",
+  "logdir": "logs",
+  "pairs": {},
+  "bam_substring": "",
+  "Procedure": {
+    "msisensorpro": null
+  },
+  "Params": {
+    "msi": {
+      "msi_plot": {
+        "formats": [
+          "jpg"
+        ]
+      }
     }
+  },
+  "genome": {
+    "fasta": null,
+    "fai": null
+  }
 }

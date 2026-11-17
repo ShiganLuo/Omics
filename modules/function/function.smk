@@ -9,21 +9,23 @@ ROOT_DIR = config.get("ROOT_DIR", ".")
 group_pairs = config.get("group_pairs", {})
 paired_samples = config.get("paired_samples", [])
 single_samples = config.get("single_samples", [])
-species = config.get("Params", {}).get("function", {}).get("species", "mouse")
-
-# Plotting formats per param section (modules.md #9): ① parse 期读入 +
-# 规范化(str 收成单元素 list;合法值由 schema 声明)。output: 不能是函数,
-# 格式列表必须是模块级变量(decoil.smk 同款注释)。
+# 参数精确到 rule:参数挂在消费它的 rule 名下(Params.function.<rule_name>.<key>;
+# 原 go_kegg/gsea/gsva 嵌套组名拍平为 rule 名,叶子名作 key;无 module 级共享,
+# rule_param 见 common.smk)。formats 为每 rule 一个 parse 期变量——output 不能
+# 是函数,格式列表必须是模块级变量(decoil.smk 同款注释),各 rule 独立展开
+# output;① parse 期读入 + 规范化(str 收成单元素 list;合法值由 schema 声明)。
 _func = config.get("Params", {}).get("function", {}) or {}
-_go_kegg_formats = (_func.get("go_kegg", {}) or {}).get("formats") or ["png"]
-if isinstance(_go_kegg_formats, str):
-    _go_kegg_formats = [_go_kegg_formats]
-_gsea_formats = (_func.get("gsea", {}) or {}).get("formats") or ["jpeg"]
-if isinstance(_gsea_formats, str):
-    _gsea_formats = [_gsea_formats]
-_gsva_formats = (_func.get("gsva", {}) or {}).get("formats") or ["png"]
-if isinstance(_gsva_formats, str):
-    _gsva_formats = [_gsva_formats]
+
+
+def _rule_formats(rule_name, default):
+    """Per-rule figure formats (parse 期解析,output 展开与 CLI 转发共用)。"""
+    fmts = rule_param(_func, rule_name, "formats", default) or default
+    return [fmts] if isinstance(fmts, str) else fmts
+
+
+_go_kegg_formats = _rule_formats("function_go_kegg", ["png"])
+_gsea_formats = _rule_formats("function_gsea", ["jpeg"])
+_gsva_formats = _rule_formats("function_gsva", ["png"])
 
 rule function_go_kegg:
     input:
@@ -50,10 +52,10 @@ rule function_go_kegg:
             attempt=attempt).get("mem_mb", 8000),
     params:
         go_kegg_script = ROOT_DIR + "/modules/function/bin/go-kegg.r",
-        species = species,
-        lfc_cut = config.get("Params", {}).get("function", {}).get("go_kegg", {}).get("lfc_cut", 1),
-        p_cut = config.get("Params", {}).get("function", {}).get("go_kegg", {}).get("p_cut", 0.05),
-        top = config.get("Params", {}).get("function", {}).get("go_kegg", {}).get("top", 10),
+        species = rule_param(_func, "function_go_kegg", "species", "mouse"),
+        lfc_cut = rule_param(_func, "function_go_kegg", "lfc_cut", 1),
+        p_cut = rule_param(_func, "function_go_kegg", "p_cut", 0.05),
+        top = rule_param(_func, "function_go_kegg", "top", 10),
         formats = _go_kegg_formats,   # ③ 转发
     conda:
         "function.yaml"
@@ -120,10 +122,10 @@ def get_input_for_function_gsea(wildcards):
             f"Ensure DESeq2_TEcount has completed for {wildcards.contrast}."
         )
     in_dict['deseq2_result'] = deseq2_result
-    gmt = config.get("Params", {}).get("function", {}).get("gsea", {}).get("gmt")
+    gmt = rule_param(_func, "function_gsea", "gmt", None)
     if not gmt or not os.path.exists(gmt):
         raise ValueError(
-            f"GSEA requires a GMT file. {gmt} is not exists, please set Params.function.gsea.gmt in config."
+            f"GSEA requires a GMT file. {gmt} is not exists, please set Params.function.function_gsea.gmt in config."
         )
     in_dict['gmt'] = gmt
     geneIDAnno = config.get("genome",{}).get("references",{}).get("geneIDAnno")
@@ -218,10 +220,10 @@ def get_input_for_function_gsva(wildcards):
         )
     in_dict['counts'] = counts
     # GMT gene set file
-    gsva_gmt = config.get("Params", {}).get("function", {}).get("gsva", {}).get("gmt")
+    gsva_gmt = rule_param(_func, "function_gsva", "gmt", None)
     if not gsva_gmt or not os.path.exists(gsva_gmt):
         raise ValueError(
-            f"GSVA requires a GMT file. {gsva_gmt} is not exists, please set Params.function.gsva.gmt in config."
+            f"GSVA requires a GMT file. {gsva_gmt} is not exists, please set Params.function.function_gsva.gmt in config."
         )
     in_dict['gmt'] = gsva_gmt
     # GTF for gene ID → gene name conversion
@@ -265,7 +267,7 @@ rule function_gsva:
     params:
         norm_script = ROOT_DIR + "/modules/function/bin/normalization.py",
         gsva_script = ROOT_DIR + "/modules/function/bin/gsva.py",
-        species = species,
+        species = rule_param(_func, "function_gsva", "species", "mouse"),
         formats = _gsva_formats,   # ③ 转发
     conda:
         "function.yaml"

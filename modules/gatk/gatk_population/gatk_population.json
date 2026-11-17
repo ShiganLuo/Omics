@@ -6,8 +6,14 @@
   },
   "Params": {
     "gatk": {
-      "javaOptions": "-Xmx30g",
-      "tmp-dir": null
+      "gatk_population_haplotype_caller": {
+        "javaOptions": "-Xmx30g",
+        "tmp-dir": null
+      },
+      "gatk_population_joint_genotyping": {
+        "javaOptions": "-Xmx30g",
+        "tmp-dir": null
+      }
     }
   },
   "genome": {

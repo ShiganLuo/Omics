@@ -52,30 +52,32 @@
         "nullable": true,
         "required": false,
         "properties": {
-          "manifest": {
-            "type": "str",
+          "raw2mzml": {
+            "type": "dict",
             "nullable": true,
-            "required": false
-          },
-          "mode": {
-            "type": "str",
-            "nullable": true,
-            "required": false
-          },
-          "converter": {
-            "type": "str",
-            "nullable": true,
-            "required": false
-          },
-          "args": {
-            "type": "str",
-            "nullable": true,
-            "required": false
-          },
-          "peak_picking": {
-            "type": "bool",
-            "nullable": true,
-            "required": false
+            "required": false,
+            "properties": {
+              "mode": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "converter": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "args": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "peak_picking": {
+                "type": "bool",
+                "nullable": true,
+                "required": false
+              }
+            }
           }
         }
       }

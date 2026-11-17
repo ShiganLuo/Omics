@@ -493,32 +493,38 @@
         "default": false,
         "description": "Gate for the regionplot module (multi-sample track stacking plots over user regions, consumes this workflow's bigwigs)."
       },
-      "regions": {
-        "type": "str",
-        "required": false,
-        "default": null,
-        "description": "Regions file, required when enabled. Auto-detected per row: BED rows (chrom<TAB>start<TAB>end[<TAB>name], col4 names the panel) or list lines ([NAME=]chrom:start-end, the same string pyGenomeTracks --region consumes; NAME= names the panel, else chrom_start_end). Formats may be mixed; #/track/browser lines skipped."
-      },
-      "sample_group_dict": {
+      "regionplot": {
         "type": "dict",
         "required": false,
-        "default": {},
-        "description": "sample_id -> biological group for track coloring; auto-filled from the meta group column by node.py, hand-filled values win."
-      },
-      "sample_order": {
-        "type": "list",
-        "required": false,
-        "default": [],
-        "description": "Plotting order of samples; empty = meta order."
-      },
-      "formats": {
-        "type": "list",
-        "required": false,
-        "default": [
-          "png",
-          "svg"
-        ],
-        "description": "Output image formats (pyGenomeTracks --outFileName extensions)."
+        "properties": {
+          "regions": {
+            "type": "str",
+            "required": false,
+            "default": null,
+            "description": "Regions file, required when enabled. Auto-detected per row: BED rows (chrom<TAB>start<TAB>end[<TAB>name], col4 names the panel) or list lines ([NAME=]chrom:start-end, the same string pyGenomeTracks --region consumes; NAME= names the panel, else chrom_start_end). Formats may be mixed; #/track/browser lines skipped."
+          },
+          "sample_group_dict": {
+            "type": "dict",
+            "required": false,
+            "default": {},
+            "description": "sample_id -> biological group for track coloring; auto-filled from the meta group column by node.py, hand-filled values win."
+          },
+          "sample_order": {
+            "type": "list",
+            "required": false,
+            "default": [],
+            "description": "Plotting order of samples; empty = meta order."
+          },
+          "formats": {
+            "type": "list",
+            "required": false,
+            "default": [
+              "png",
+              "svg"
+            ],
+            "description": "Output image formats (pyGenomeTracks --outFileName extensions)."
+          }
+        }
       },
       "gtf_track": {
         "type": "bool",
@@ -592,47 +598,53 @@
       }
     },
     "star": {
+      "star_align": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "genomeLoad": {
+            "type": "str",
+            "required": false
+          },
+          "limitBAMsortRAM": {
+            "type": "int",
+            "required": false
+          },
+          "outReadsUnmapped": {
+            "type": "str",
+            "required": false
+          },
+          "outFilterMultimapNmax": {
+            "type": "int",
+            "required": false
+          },
+          "outFilterMismatchNoverLmax": {
+            "type": "float",
+            "required": false
+          },
+          "outFilterMatchNminOverLread": {
+            "type": "float",
+            "required": false
+          },
+          "alignSJoverhangMin": {
+            "type": "int",
+            "required": false
+          },
+          "alignSJDBoverhangMin": {
+            "type": "int",
+            "required": false
+          },
+          "twopassMode": {
+            "type": "str",
+            "required": false
+          }
+        }
+      },
       "index": {
         "sjdbOverhang": {
           "type": "int",
           "required": false
         }
-      },
-      "genomeLoad": {
-        "type": "str",
-        "required": false
-      },
-      "limitBAMsortRAM": {
-        "type": "int",
-        "required": false
-      },
-      "outReadsUnmapped": {
-        "type": "str",
-        "required": false
-      },
-      "outFilterMultimapNmax": {
-        "type": "int",
-        "required": false
-      },
-      "outFilterMismatchNoverLmax": {
-        "type": "float",
-        "required": false
-      },
-      "outFilterMatchNminOverLread": {
-        "type": "float",
-        "required": false
-      },
-      "alignSJoverhangMin": {
-        "type": "int",
-        "required": false
-      },
-      "alignSJDBoverhangMin": {
-        "type": "int",
-        "required": false
-      },
-      "twopassMode": {
-        "type": "str",
-        "required": false
       }
     },
     "star_3pass": {
@@ -776,20 +788,22 @@
       "smallrna_types": {
         "type": "list",
         "required": false
-      },
-      "seed": {
-        "type": "int",
-        "required": false
       }
     },
     "star_3pass_gene": {
-      "ambiguous": {
-        "type": "str",
-        "required": true
-      },
-      "flank": {
-        "type": "int",
-        "required": true
+      "star_3pg_gene_specific": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "ambiguous": {
+            "type": "str",
+            "required": true
+          },
+          "flank": {
+            "type": "int",
+            "required": true
+          }
+        }
       },
       "index": {
         "genomeSAindexNbases": {
@@ -902,17 +916,37 @@
       }
     },
     "tailer": {
-      "read": {
-        "type": "int",
-        "required": false
+      "tailer_global": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "read": {
+            "type": "int",
+            "required": false
+          },
+          "rev_comp": {
+            "type": "bool",
+            "required": false
+          },
+          "threshold": {
+            "type": "int",
+            "required": false
+          }
+        }
       },
-      "rev_comp": {
-        "type": "bool",
-        "required": false
-      },
-      "threshold": {
-        "type": "int",
-        "required": false
+      "star_3pg_gene_specific": {
+        "type": "dict",
+        "required": false,
+        "properties": {
+          "rev_comp": {
+            "type": "bool",
+            "required": false
+          },
+          "threshold": {
+            "type": "int",
+            "required": false
+          }
+        }
       }
     },
     "track": {

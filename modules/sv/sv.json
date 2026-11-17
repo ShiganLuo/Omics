@@ -9,10 +9,6 @@
   "Procedure": {},
   "Params": {
     "sv": {
-      "formats": [
-        "png"
-      ],
-      "genes": [],
       "exp_specific": {
         "vep_cache": "~/.vep",
         "species": "mus_musculus",
@@ -88,6 +84,37 @@
             "name": "unclassified",
             "catch_all": "unclassified"
           }
+        ]
+      },
+      "sv_exp_specific": {
+        "formats": [
+          "png"
+        ]
+      },
+      "sv_exp_circos": {
+        "formats": [
+          "png"
+        ]
+      },
+      "sv_gene_model": {
+        "formats": [
+          "png"
+        ],
+        "genes": []
+      },
+      "sv_diff_analysis": {
+        "formats": [
+          "png"
+        ]
+      },
+      "sv_oncoprint": {
+        "formats": [
+          "png"
+        ]
+      },
+      "sv_mei": {
+        "formats": [
+          "png"
         ]
       }
     }

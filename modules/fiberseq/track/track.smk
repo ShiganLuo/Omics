@@ -7,7 +7,7 @@ logdir = config.get("logdir", "log")
 samples = config.get("samples", [])
 ROOT_DIR = config.get("ROOT_DIR", ".")
 env = config.get("env", {})
-p = config.get("Params", {}).get("fiberseq_track", {})
+_track_params = config.get("Params", {}).get("fiberseq_track", {})
 
 rule fiberseq_track_run:
     """bedGraph/bigWig accessibility and m6A density tracks + trackDb."""
@@ -34,7 +34,8 @@ rule fiberseq_track_run:
         sif("../fiberseq.yaml", "fiberseq_track_run")
     params:
         script = ROOT_DIR + "/modules/fiberseq/bin/fiberseq_track.py",
-        bin = p.get("bin", 10),
+        # 参数精确到 rule:Params.fiberseq_track.fiberseq_track_run.<key>
+        bin = rule_param(_track_params, "fiberseq_track_run", "bin", 10),
     run:
         log_path = str(log)
         open(log_path, "w").close()

@@ -18,6 +18,9 @@ outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 samples = config.get("samples", [])
 _bam_suffix = config.get("bam_suffix", ".fiberseq.fire.aligned.bam")
+# 参数精确到 rule(2026-11 规范):Params.fibertools.<rule_name>.<key>,无
+# module 级共享回退(rule_param 见 common.smk)。
+_ft_params = config.get("Params", {}).get("fibertools", {})
 
 rule ft_extract:
     """Extract Fiber-seq data to BED format.
@@ -78,43 +81,13 @@ rule ft_extract:
             raise RuntimeError(f"ft_extract failed: {e}\n")
 
 def _call_peaks_mode():
-    """Normalize Params.fibertools.call_peaks_mode ('fdr' | 'fire_frac').
+    """ft_call_peaks 的 mode(Params.fibertools.ft_call_peaks.call_peaks_mode,
+    'fdr' | 'fire_frac')。
 
     Single source shared by the input function (DAG-time gating) and the
-    run block (command construction), per modules.md run 块禁止模块级全局变量.
+    run block (command construction), per modules.md run 块禁止模块级全局变量。
     """
-    return config.get("Params", {}).get("fibertools", {}).get("call_peaks_mode", "fdr")
-
-
-def _ft_call_peaks_inputs(wildcards):
-    """Declare every file ft_call_peaks consumes; missing ones fail at DAG
-    build time instead of mid-job (modules.md: 消费的文件必须声明为 input).
-
-    Returns a dict for ``unpack``: the aligned BAM plus, in fdr mode, the
-    null-model references (chrom sizes + shuffle script) — optional-file
-    pattern #1 from modules.md 可选文件的两种合规写法.
-    """
-    files = {
-        "bam": indir + "/{sample_id}/{sample_id}" + _bam_suffix,
-        "shuffle_script": ROOT_DIR + "/modules/fibertools/bin/shuffle_bed.py",
-    }
-    if _call_peaks_mode() == "fdr":
-        # fdr mode shuffles fibers genome-wide; without chrom sizes the
-        # null cannot be built — fail at DAG time naming the JSON key.
-        files["fai"] = _require(
-            config.get("genome", {}).get("fai"),
-            "genome.fai", "ft_call_peaks",
-        )
-    return files
-
-
-def _call_peaks_mode():
-    """Normalize Params.fibertools.call_peaks_mode ('fdr' | 'fire_frac').
-
-    Single source shared by the input function (DAG-time gating) and the
-    run block (command construction), per modules.md run 块禁止模块级全局变量.
-    """
-    return config.get("Params", {}).get("fibertools", {}).get("call_peaks_mode", "fdr")
+    return rule_param(_ft_params, "ft_call_peaks", "call_peaks_mode", "fdr")
 
 
 def _ft_call_peaks_inputs(wildcards):
@@ -169,7 +142,12 @@ rule ft_call_peaks:
         sif("fibertools.yaml", "ft_call_peaks")
     params:
         ft = config.get("Procedure", {}).get("fibertools") or "ft",
-        cfg = config.get("Params", {}).get("fibertools", {}),
+        # 整段 dict 转发已展开逐 key(Params.fibertools.ft_call_peaks.<key>)
+        call_peaks_mode = _call_peaks_mode(),
+        sd_cov = rule_param(_ft_params, "ft_call_peaks", "sd_cov", 5.0),
+        max_fdr = rule_param(_ft_params, "ft_call_peaks", "max_fdr", 0.05),
+        min_fire_frac = rule_param(_ft_params, "ft_call_peaks", "min_fire_frac", 0.1),
+        haps = rule_param(_ft_params, "ft_call_peaks", "haps", False),
         tmp_dir = config.get("tmp_dir") or os.path.join(outdir, "tmp"),
     run:
         log_path = str(log)
@@ -187,22 +165,22 @@ rule ft_call_peaks:
                 "--bam", str(input.bam),
                 "--out-peaks", str(output.peaks),
                 "--fdr-table", str(output.fdr_table),
-                "--mode", params.cfg.get("call_peaks_mode", "fdr"),
+                "--mode", params.call_peaks_mode,
                 "--threads", str(threads),
                 "--ft", params.ft,
                 "--tmp-dir", params.tmp_dir,
                 "--sample-id", wildcards.sample_id,
             ]
-            if params.cfg.get("call_peaks_mode", "fdr") == "fdr":
+            if params.call_peaks_mode == "fdr":
                 cmd += [
                     "--fai", str(input.fai),
                     "--shuffle-script", str(input.shuffle_script),
-                    "--sd-cov", str(params.cfg.get("sd_cov", 5.0)),
-                    "--max-fdr", str(params.cfg.get("max_fdr", 0.05)),
+                    "--sd-cov", str(params.sd_cov),
+                    "--max-fdr", str(params.max_fdr),
                 ]
             else:
-                cmd += ["--min-fire-frac", str(params.cfg.get("min_fire_frac", 0.1))]
-            if params.cfg.get("haps", False):
+                cmd += ["--min-fire-frac", str(params.min_fire_frac)]
+            if params.haps:
                 cmd.append("--haps")
             with open(command_script, "w") as f:
                 f.write("#!/usr/bin/env bash\nset -euo pipefail\n")
@@ -239,7 +217,7 @@ rule ft_qc:
         sif("fibertools.yaml", "ft_qc")
     params:
         ft = config.get("Procedure", {}).get("fibertools") or "ft",
-        use_acf = config.get("Params", {}).get("fibertools", {}).get("acf", False),
+        use_acf = rule_param(_ft_params, "ft_qc", "acf", False),
     run:
         log_path = str(log)
         open(log_path, 'w').close()
@@ -297,7 +275,7 @@ rule ft_extract_fire:
         sif("fibertools.yaml", "ft_extract_fire")
     params:
         ft = config.get("Procedure", {}).get("fibertools") or "ft",
-        is_ont = config.get("Params", {}).get("fibertools", {}).get("ont", False),
+        is_ont = rule_param(_ft_params, "ft_extract_fire", "ont", False),
     run:
         log_path = str(log)
         open(log_path, 'w').close()

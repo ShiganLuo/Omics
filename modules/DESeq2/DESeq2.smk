@@ -13,7 +13,9 @@ gene_map = config.get('genome',{}).get('gene_map')
 # R figure formats forwarded to DESeq2.r --format (repeatable). Valid set is
 # the R ggsave device set (png pdf svg ps eps tif tiff jpg jpeg); DESeq2.r
 # fails fast on anything else (pgf/raw/rgba are matplotlib-only).
-_formats = config.get("Params", {}).get("DESeq2", {}).get("formats") or ["png"]
+# 参数精确到 rule:Params.DESeq2.DESeq2_TEcount.formats(rule_param 见 common.smk)。
+_formats = rule_param(config.get("Params", {}).get("DESeq2", {}),
+                      "DESeq2_TEcount", "formats", ["png"])
 if isinstance(_formats, str):
     _formats = [_formats]
 

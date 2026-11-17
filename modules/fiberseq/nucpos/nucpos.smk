@@ -8,11 +8,20 @@ samples = config.get("samples", [])
 ROOT_DIR = config.get("ROOT_DIR", ".")
 env = config.get("env", {})
 genome_cfg = config.get("genome", {})
-p = config.get("Params", {}).get("fiberseq_nucpos", {})
-# ① parse 期读入 + 规范化（str 收成单元素 list；合法值由 schema 声明）
-_formats = p.get("formats") or ["pdf"]
-if isinstance(_formats, str):
-    _formats = [_formats]
+_nucpos_params = config.get("Params", {}).get("fiberseq_nucpos", {})
+# 参数精确到 rule:formats 按 rule 独立配置(Params.fiberseq_nucpos.<rule_name>.formats,
+# 无 module 级共享回退;rule_param 见 common.smk),每 rule 一个 parse 期变量。
+
+
+def _rule_formats(rule_name):
+    """Per-rule figure formats (parse 期解析,output 展开与 CLI 转发共用)。"""
+    fmts = rule_param(_nucpos_params, rule_name, "formats", ["pdf"])
+    return [fmts] if isinstance(fmts, str) else (fmts or ["pdf"])
+
+
+_formats_run = _rule_formats("fiberseq_nucpos_run")
+_formats_result = _rule_formats("fiberseq_nucpos_result")
+
 rule fiberseq_nucpos_run:
     """Nucleosome positioning/phasing around TSS anchors."""
     input:
@@ -23,7 +32,7 @@ rule fiberseq_nucpos_run:
         summary = outdir + "/{sample_id}/{sample_id}.nuc_offset_summary.tsv",
         # ② 按格式展开：每种格式一个输出文件（base 不带扩展名）
         plots = [outdir + "/{sample_id}/{sample_id}.nucpos." + fmt
-                 for fmt in _formats],
+                 for fmt in _formats_run],
     log:
         logdir + "/{sample_id}/fiberseq_nucpos_run.log"
     threads: rule_res("fiberseq_nucpos").get("threads", 4)
@@ -38,10 +47,10 @@ rule fiberseq_nucpos_run:
         sif("../fiberseq.yaml", "fiberseq_nucpos_run")
     params:
         script = ROOT_DIR + "/modules/fiberseq/bin/nucpos.py",
-        upstream = p.get("upstream_nucs", 5),
-        downstream = p.get("downstream_nucs", 5),
-        min_fibers = p.get("min_fibers", 10),
-        formats = _formats,   # ③ 转发
+        upstream = rule_param(_nucpos_params, "fiberseq_nucpos_run", "upstream_nucs", 5),
+        downstream = rule_param(_nucpos_params, "fiberseq_nucpos_run", "downstream_nucs", 5),
+        min_fibers = rule_param(_nucpos_params, "fiberseq_nucpos_run", "min_fibers", 10),
+        formats = _formats_run,   # ③ 转发
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -86,7 +95,7 @@ rule fiberseq_nucpos_result:
         summary = expand(outdir + "/{sample_id}/{sample_id}.nuc_offset_summary.tsv",
                          sample_id=samples),
         plots = expand(outdir + "/{sample_id}/{sample_id}.nucpos.{fmt}",
-                       sample_id=samples, fmt=_formats),
+                       sample_id=samples, fmt=_formats_result),
 
     resources:
         mem_mb = lambda wildcards, input, attempt: rule_res(

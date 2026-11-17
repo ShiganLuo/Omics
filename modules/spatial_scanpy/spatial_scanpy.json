@@ -2,16 +2,24 @@
   "input_h5ad": "",
   "visium_h5": "",
   "spatial_dir": "",
-  "Procedure": {"python": "python"},
+  "Procedure": {
+    "python": "python"
+  },
   "Params": {
     "spatial": {
-      "min_genes": 100,
-      "max_pct_mt": 25,
-      "n_top_genes": 3000,
-      "n_pcs": 50,
-      "n_neighbors": 15,
-      "resolution": 0.8,
-      "advanced": {"spatial_autocorrelation": true, "deconvolution": false}
+      "spatial_scanpy_qc": {
+        "min_genes": 100,
+        "max_pct_mt": 25,
+        "n_top_genes": 3000
+      },
+      "spatial_scanpy_cluster": {
+        "n_pcs": 50,
+        "n_neighbors": 15,
+        "resolution": 0.8
+      },
+      "spatial_scanpy_advanced": {
+        "spatial_autocorrelation": true
+      }
     }
   }
 }

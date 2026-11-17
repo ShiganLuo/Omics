@@ -35,20 +35,34 @@
         "nullable": true,
         "required": false,
         "properties": {
-          "flank": {
-            "type": "int",
+          "fiberseq_motif_scan": {
+            "type": "dict",
             "nullable": true,
-            "required": false
+            "required": false,
+            "properties": {
+              "pwm_threshold": {
+                "type": "float",
+                "nullable": true,
+                "required": false
+              }
+            }
           },
-          "min_fibers": {
-            "type": "int",
+          "fiberseq_motif_profile": {
+            "type": "dict",
             "nullable": true,
-            "required": false
-          },
-          "pwm_threshold": {
-            "type": "float",
-            "nullable": true,
-            "required": false
+            "required": false,
+            "properties": {
+              "flank": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "min_fibers": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              }
+            }
           }
         }
       }

@@ -1,55 +1,55 @@
 {
-    "indir": null,
-    "outdir": null,
-    "logdir": null,
-    "paired_samples": [],
-    "single_samples": [],
-    "Procedure": {
-        "STAR": null
-    },
-    "genome": {
-        "fasta": null,
-        "gtf": null,
-        "index_dir": null
-    },
-    "Params": {
-        "star": {
-            "index": {
-                "sjdbOverhang": 100,
-                "genomeSAindexNbases": null
-            },
-            "alignEndsType": "Local",
-            "outFilterMismatchNoverReadLmax": 1.0,
-            "outFilterMismatchNmax": 10,
-            "outFilterMultimapNmax": 10,
-            "winAnchorMultimapNmax": 50,
-            "genomeLoad": "NoSharedMemory",
-            "limitBAMsortRAM": 0,
-            "outReadsUnmapped": null,
-            "outFilterMismatchNoverLmax": 0.3,
-            "outFilterMatchNminOverLread": 0.66,
-            "alignSJoverhangMin": 5,
-            "alignSJDBoverhangMin": 3,
-            "chimSegmentMin": 0,
-            "chimOutType": "Junctions",
-            "chimJunctionOverhangMin": 20,
-            "outSAMstrandField": null,
-            "chimScoreMin": 0,
-            "chimScoreDropMax": 20,
-            "chimScoreJunctionNonGTAG": -1,
-            "chimScoreSeparation": 10,
-            "alignSJstitchMismatchNmax": "0 -1 0 0",
-            "chimSegmentReadGapMax": 0,
-            "outSAMattributes": "NH HI AS nM CR CY UR UY",
-            "outMultimapperOrder": "random",
-            "runRNGseed": 777,
-            "outSAMmultNmax": 1,
-            "soloType": "CB_UMI_Simple",
-            "soloCBwhitelist": null,
-            "soloBarcodeReadLength": 98,
-            "limitSjdbInsertNsj": 3000000
-        }
+  "indir": null,
+  "outdir": null,
+  "logdir": null,
+  "paired_samples": [],
+  "single_samples": [],
+  "Procedure": {
+    "STAR": null
+  },
+  "genome": {
+    "fasta": null,
+    "gtf": null,
+    "index_dir": null
+  },
+  "Params": {
+    "star": {
+      "index": {
+        "sjdbOverhang": 100,
+        "genomeSAindexNbases": null
+      },
+      "star_align": {
+        "alignEndsType": "Local",
+        "outFilterMismatchNoverReadLmax": 1.0,
+        "outFilterMismatchNmax": 10,
+        "outFilterMultimapNmax": 10,
+        "winAnchorMultimapNmax": 50,
+        "genomeLoad": "NoSharedMemory",
+        "limitBAMsortRAM": 0,
+        "outReadsUnmapped": null,
+        "outFilterMismatchNoverLmax": 0.3,
+        "outFilterMatchNminOverLread": 0.66,
+        "alignSJoverhangMin": 5,
+        "alignSJDBoverhangMin": 3,
+        "chimSegmentMin": 0,
+        "chimOutType": "Junctions",
+        "chimJunctionOverhangMin": 20,
+        "outSAMstrandField": null,
+        "chimScoreMin": 0,
+        "chimScoreDropMax": 20,
+        "chimScoreJunctionNonGTAG": -1,
+        "chimScoreSeparation": 10,
+        "alignSJstitchMismatchNmax": "0 -1 0 0",
+        "chimSegmentReadGapMax": 0,
+        "outSAMattributes": "NH HI AS nM CR CY UR UY",
+        "outMultimapperOrder": "random",
+        "runRNGseed": 777,
+        "outSAMmultNmax": 1,
+        "soloType": "CB_UMI_Simple",
+        "soloCBwhitelist": null,
+        "soloBarcodeReadLength": 98,
+        "limitSjdbInsertNsj": 3000000
+      }
     }
-
-
+  }
 }

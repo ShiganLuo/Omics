@@ -9,19 +9,26 @@
       "single_samples": []
     },
     "star": {
-      "outFilterMultimapNmax": 100,
-      "outSAMattributes": "All",
-      "alignIntronMin": 1,
-      "scoreGapNoncan": -4,
-      "scoreGapATAC": -4,
-      "chimSegmentMin": 15,
-      "chimJunctionOverhangMin": 15,
-      "limitOutSJcollapsed": 10000000,
-      "limitIObufferSize": 1500000000
+      "KARRseq_star_align": {
+        "outFilterMultimapNmax": 100,
+        "outSAMattributes": "All",
+        "alignIntronMin": 1,
+        "scoreGapNoncan": -4,
+        "scoreGapATAC": -4,
+        "chimSegmentMin": 15,
+        "chimJunctionOverhangMin": 15,
+        "limitOutSJcollapsed": 10000000,
+        "limitIObufferSize": 1500000000
+      }
     },
     "karrseq": {
-      "mapq": 1,
-      "span": 0
+      "karrseq_chimeric_to_pairs": {
+        "mapq": 1,
+        "span": 0
+      },
+      "karrseq_remove_duplicates": {
+        "mapq": 1
+      }
     },
     "sexcheck": {
       "ratio_xy_threshold": null,

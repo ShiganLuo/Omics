@@ -13,24 +13,36 @@
       "treated_input_samples": []
     },
     "trim_galore": {
-      "quality": 25
+      "trimming_Paired": {
+        "quality": 25
+      },
+      "trimming_Single": {
+        "quality": 25
+      }
     },
     "bamCoverage": {
+      "bamCoverage": {
+        "normalizeUsing": "CPM"
+      },
+      "wig": {
+        "normalizeUsing": "CPM"
+      },
       "binSize": 50,
-      "normalizeUsing": "CPM",
       "offset": "0"
     },
     "regionplot": {
       "enabled": false,
-      "regions": null,
-      "sample_group_dict": {},
-      "sample_order": [],
+      "regionplot": {
+        "regions": null,
+        "sample_group_dict": {},
+        "sample_order": [],
+        "formats": [
+          "png",
+          "svg"
+        ]
+      },
       "plot_height_per_track": 1.5,
       "plot_width": 12,
-      "formats": [
-        "png",
-        "svg"
-      ],
       "gtf_track": true
     },
     "sexcheck": {

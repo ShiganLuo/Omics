@@ -24,15 +24,27 @@ def _sample_vcfs(sample_ids):
     return [f"{vcf_dir}/{s}/{s}{vcf_suffix}" for s in sample_ids]
 
 # Global parameters
-# 图片格式(modules.md #9):规范键名 "formats";旧键 "image_formats" 仅作
-# 兼容回退读取(2026-11 键名迁移;config/PacVar.json、config/Fiberseq.json
-# 等仍在用旧键)。两者同时配置时以 "formats" 为准。
+# 图片格式(modules.md #9):键名 "formats"。参数精确到 rule:formats 按 rule
+# 独立配置(Params.sv.<rule_name>.formats,无 module 级共享回退;rule_param
+# 见 common.smk),每 rule 一个 parse 期变量。
 _sv_params = config.get("Params", {}).get("sv", {})
-image_formats = (_sv_params.get("formats") or _sv_params.get("image_formats")
-                 or ["png"])
-if isinstance(image_formats, str):  # str 收成单元素 list
-    image_formats = [image_formats]
-genes = config.get("Params", {}).get("sv", {}).get("genes", [])
+
+
+def _rule_formats(rule_name):
+    """Per-rule figure formats (parse 期解析,CLI -f 转发共用)。"""
+    fmts = rule_param(_sv_params, rule_name, "formats", ["png"])
+    return [fmts] if isinstance(fmts, str) else fmts
+
+
+_formats_sv_exp_specific = _rule_formats("sv_exp_specific")
+_formats_sv_exp_circos = _rule_formats("sv_exp_circos")
+_formats_sv_gene_model = _rule_formats("sv_gene_model")
+_formats_sv_diff_analysis = _rule_formats("sv_diff_analysis")
+_formats_sv_oncoprint = _rule_formats("sv_oncoprint")
+_formats_sv_mei = _rule_formats("sv_mei")
+
+# genes 同样 rule 级(Params.sv.sv_gene_model.genes),仅 sv_gene_model 消费。
+_genes_sv_gene_model = rule_param(_sv_params, "sv_gene_model", "genes", [])
 
 # ========================
 # Per-comparison rules
@@ -81,7 +93,7 @@ rule sv_exp_specific:
             plain_script = os.path.join(outdir, f"{wildcards.comparison}/sv_exp_specific.sh")
             rule_logger.info(f"Running sv_exp_specific for comparison: {wildcards.comparison}")
             fmt_args = []
-            for fmt in image_formats:
+            for fmt in _formats_sv_exp_specific:
                 fmt_args += ["-f", fmt]
             cmd = [
                 "python", params.script,
@@ -143,7 +155,7 @@ rule sv_exp_circos:
             plain_script = os.path.join(outdir, f"{wildcards.comparison}/sv_exp_circos.sh")
             rule_logger.info(f"Running sv_exp_circos for comparison: {wildcards.comparison}")
             fmt_args = []
-            for fmt in image_formats:
+            for fmt in _formats_sv_exp_circos:
                 fmt_args += ["-f", fmt]
             cmd = [
                 "python", params.script,
@@ -198,10 +210,10 @@ rule sv_gene_model:
             plain_script = os.path.join(outdir, f"{wildcards.comparison}/sv_gene_model.sh")
             rule_logger.info(f"Running sv_gene_model for comparison: {wildcards.comparison}")
             gene_args = []
-            for g in genes:
+            for g in _genes_sv_gene_model:
                 gene_args += ["-g", g]
             fmt_args = []
-            for fmt in image_formats:
+            for fmt in _formats_sv_gene_model:
                 fmt_args += ["-f", fmt]
             cmd = [
                 "python", params.script,
@@ -259,7 +271,7 @@ rule sv_diff_analysis:
                 vcf_path = f"{outdir}/{name}/{name}_only.vcf"
                 group_args += ["-g", f"{name}:{vcf_path}"]
             fmt_args = []
-            for fmt in image_formats:
+            for fmt in _formats_sv_diff_analysis:
                 fmt_args += ["-f", fmt]
             cmd = [
                 "python", params.script,
@@ -316,7 +328,7 @@ rule sv_oncoprint:
             for cond, path in params.deseq2_files.items():
                 deseq2_args += ["-d", f"{cond}:{path}"]
             fmt_args = []
-            for fmt in image_formats:
+            for fmt in _formats_sv_oncoprint:
                 fmt_args += ["-f", fmt]
             cmd = [
                 "python", params.script,
@@ -448,7 +460,7 @@ rule sv_mei:
                     cmd += [flag, shlex.quote(str(val))]
             # image formats: one -f per requested format (mei figures +
             # report are written per format by mei_analysis -> mei_plot)
-            for fmt in image_formats:
+            for fmt in _formats_sv_mei:
                 cmd += ["-f", str(fmt)]
             # figures run INSIDE the entry (utils/mei_plot.py chained)
             with open(script_path, "w") as f:

@@ -76,15 +76,10 @@ gatk_prepare_config = {
         "samtools": config.get("Procedure", {}).get("samtools"),
     },
     "Params": {
-        "gatk": {
-            "addReadsGroup": {
-                "RGLB": config.get("Params", {}).get("gatk", {}).get("addReadsGroup", {}).get("RGLB"),
-                "RGPL": config.get("Params", {}).get("gatk", {}).get("addReadsGroup", {}).get("RGPL"),
-                "RGPU": config.get("Params", {}).get("gatk", {}).get("addReadsGroup", {}).get("RGPU")
-            },
-            "javaOptions": config.get("Params", {}).get("gatk", {}).get("javaOptions"),
-            "tmp-dir": config.get("Params", {}).get("gatk", {}).get("tmp-dir")
-        }
+        # 参数精确到 rule:整段透传——javaOptions/tmp-dir 与 addReadsGroup 的
+        # RGLB/RGPL/RGPU 都挂在各自 rule 子段(Params.gatk.<rule>.<key>,
+        # rule 子段在段内透明传递),旧扁平键不再转发
+        "gatk": config.get("Params", {}).get("gatk", {}),
     },
     "genome": {
         "fasta": genome_ref.get("fasta"),

@@ -16,16 +16,17 @@ indir = config.get("indir") or "input"
 outdir = config.get("outdir") or "output"
 logdir = config.get("logdir") or "log"
 
-_pb = (config.get("Params", {}).get("function", {}) or {}).get("pseudobulk_go", {}) or {}
-pb_root = _pb.get("root") or indir
-pb_modes = _pb.get("modes") or ["gene"]
-pb_species = _pb.get("species") or ""
-pb_lfc_cut = _pb.get("lfc_cut", 1)
-pb_p_cut = _pb.get("p_cut", 0.05)
-pb_top = _pb.get("top", 10)
+# 参数精确到 rule:参数挂在消费它的 rule 名下(原 pseudobulk_go 嵌套组名拍平
+# 为 rule 名,叶子名作 key;无 module 级共享回退,rule_param 见 common.smk)。
+# root 喂 function_pseudobulk_go_index(unit 发现)与 function_pseudobulk_go
+# (DEG 输入)两个 rule → 每 rule 一个读点;modes 只喂发现 rule。
+_func = config.get("Params", {}).get("function", {}) or {}
+pb_index_root = rule_param(_func, "function_pseudobulk_go_index", "root", indir) or indir
+pb_modes = rule_param(_func, "function_pseudobulk_go_index", "modes", ["gene"]) or ["gene"]
+pb_root = rule_param(_func, "function_pseudobulk_go", "root", indir) or indir
 # ① parse 期读入 + 规范化(str 收成单元素 list;合法值由 schema 声明)。
-# 旧配置的单数键 "format" 仍然受理(向后兼容),优先读 "formats"。
-pb_formats = _pb.get("formats") or _pb.get("format") or ["png"]
+# formats 为 parse 期变量(output 不能是函数,格式列表必须是模块级变量)。
+pb_formats = rule_param(_func, "function_pseudobulk_go", "formats", ["png"]) or ["png"]
 if isinstance(pb_formats, str):
     pb_formats = [pb_formats]
 
@@ -44,14 +45,14 @@ prerequisites = config.get("prerequisites") or []
 import glob as _glob  # noqa: E402
 
 
-def scan_unit_lines():
-    """List 'counter/mode/tissue/contrast/cell_type' units under pb_root."""
+def scan_unit_lines(root, modes):
+    """List 'counter/mode/tissue/contrast/cell_type' units under root."""
     mode_of = {v: k for k, v in _MODE_DIRS.items()}
-    pat = os.path.join(pb_root, "*", "*", "deg_pseudobulk*",
+    pat = os.path.join(root, "*", "*", "deg_pseudobulk*",
                        "deg_*", "*", "*", "*_DEG.csv")
     units = set()
     for path in _glob.glob(pat):
-        rel = os.path.relpath(path, pb_root).split(os.sep)
+        rel = os.path.relpath(path, root).split(os.sep)
         if len(rel) != 7:
             continue
         tissue, counter, mode_dir, deg_tissue, contrast, cell_type, fname = rel
@@ -60,7 +61,7 @@ def scan_unit_lines():
         if fname != f"{contrast}_{cell_type}_DEG.csv":
             continue
         mode = mode_of.get(mode_dir)
-        if mode is None or mode not in pb_modes:
+        if mode is None or mode not in modes:
             continue
         units.add(f"{counter}/{mode}/{tissue}/{contrast}/{cell_type}")
     return sorted(units)
@@ -83,7 +84,7 @@ checkpoint function_pseudobulk_go_index:
         rule_logger = setup_logger("function_pseudobulk_go_index", log_file=log_path)
         try:
             current_time = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-            units = scan_unit_lines()
+            units = scan_unit_lines(pb_index_root, pb_modes)
             os.makedirs(os.path.dirname(str(output.units)), exist_ok=True)
             with open(str(output.units), "w") as fh:
                 fh.write("\n".join(units) + ("\n" if units else ""))
@@ -137,10 +138,10 @@ rule function_pseudobulk_go:
         sif("../function.yaml", "function_pseudobulk_go")
     params:
         go_kegg_script=ROOT_DIR + "/modules/function/bin/go-kegg.r",
-        species=pb_species,
-        lfc_cut=pb_lfc_cut,
-        p_cut=pb_p_cut,
-        top=pb_top,
+        species=rule_param(_func, "function_pseudobulk_go", "species", "") or "",
+        lfc_cut=rule_param(_func, "function_pseudobulk_go", "lfc_cut", 1),
+        p_cut=rule_param(_func, "function_pseudobulk_go", "p_cut", 0.05),
+        top=rule_param(_func, "function_pseudobulk_go", "top", 10),
         formats=pb_formats,   # ③ 转发
     run:
         log_path = str(log)
@@ -155,7 +156,7 @@ rule function_pseudobulk_go:
             # produces plausible-looking nonsense).
             if params.species not in ("human", "mouse", "macaque"):
                 raise RuntimeError(
-                    "Params.function.pseudobulk_go.species must be one of "
+                    "Params.function.function_pseudobulk_go.species must be one of "
                     "human/mouse/macaque; set it in the module config JSON.")
             if not os.path.isfile(input.deg):
                 raise FileNotFoundError(

@@ -1,14 +1,16 @@
 {
-    "indir": "common/4_elements",
-    "outdir": "fiberseq_analysis/footprint",
-    "logdir": "log",
-    "samples": [],
-    "Procedure": {},
-    "Params": {
-        "fiberseq_footprint": {
-            "flank": 1000
-        }
-    },
-    "genome": {},
-    "env": {}
+  "indir": "common/4_elements",
+  "outdir": "fiberseq_analysis/footprint",
+  "logdir": "log",
+  "samples": [],
+  "Procedure": {},
+  "Params": {
+    "fiberseq_footprint": {
+      "fiberseq_footprint_run": {
+        "flank": 1000
+      }
+    }
+  },
+  "genome": {},
+  "env": {}
 }

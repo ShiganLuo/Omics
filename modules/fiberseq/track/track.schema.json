@@ -35,10 +35,17 @@
         "nullable": true,
         "required": false,
         "properties": {
-          "bin": {
-            "type": "int",
+          "fiberseq_track_run": {
+            "type": "dict",
             "nullable": true,
-            "required": false
+            "required": false,
+            "properties": {
+              "bin": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              }
+            }
           }
         }
       }

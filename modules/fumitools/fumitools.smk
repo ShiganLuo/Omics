@@ -11,6 +11,10 @@ outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 paired_samples = config.get("paired_samples", [])
 
+# 参数精确到 rule:Params.fumitools.<rule_name>.<key>(rule_param 见 common.smk;
+# 无 module 级共享回退,每 rule 各自独立键)。
+_fumitools_params = config.get("Params", {}).get("fumitools", {})
+
 rule fumitools_copy_umi_paired:
     """Copy UMI from read sequence into FASTQ header."""
     input:
@@ -23,8 +27,8 @@ rule fumitools_copy_umi_paired:
         logdir + "/{sample_id}/fumitools_copy_umi.log"
     params:
         fumi_tools = config.get("Procedure", {}).get("fumitools") or "fumi_tools",
-        umi_length = config.get("Params", {}).get("fumitools", {}).get("umi_length") or None,
-        tag_umi = config.get("Params", {}).get("fumitools", {}).get("tag_umi") or False,
+        umi_length = rule_param(_fumitools_params, "fumitools_copy_umi_paired", "umi_length", None),
+        tag_umi = rule_param(_fumitools_params, "fumitools_copy_umi_paired", "tag_umi", False),
     threads: rule_res("fumitools_copy_umi_paired").get("threads", 4)
     benchmark: logdir + "/{sample_id}/fumitools_copy_umi.benchmark.tsv",
     resources:
@@ -88,8 +92,8 @@ rule fumitools_copy_umi_single:
         logdir + "/{sample_id}/fumitools_copy_umi.log"
     params:
         fumi_tools = config.get("Procedure", {}).get("fumitools") or "fumi_tools",
-        umi_length = config.get("Params", {}).get("fumitools", {}).get("umi_length") or None,
-        tag_umi = config.get("Params", {}).get("fumitools", {}).get("tag_umi") or False,
+        umi_length = rule_param(_fumitools_params, "fumitools_copy_umi_single", "umi_length", None),
+        tag_umi = rule_param(_fumitools_params, "fumitools_copy_umi_single", "tag_umi", False),
     threads: rule_res("fumitools_copy_umi_single").get("threads", 4)
     benchmark: logdir + "/{sample_id}/fumitools_copy_umi.benchmark.tsv",
     resources:
@@ -153,8 +157,8 @@ rule fumitools_dedup:
         logdir + "/{sample_id}/fumitools_dedup.log"
     params:
         fumi_tools = config.get("Procedure", {}).get("fumitools") or "fumi_tools",
-        memory = config.get("Params", {}).get("fumitools", {}).get("memory", "3G"),
-        start_only = config.get("Params", {}).get("fumitools", {}).get("start_only", False),
+        memory = rule_param(_fumitools_params, "fumitools_dedup", "memory", "3G"),
+        start_only = rule_param(_fumitools_params, "fumitools_dedup", "start_only", False),
     threads: rule_res("fumitools_dedup").get("threads", 4)
     benchmark: logdir + "/{sample_id}/fumitools_dedup.benchmark.tsv",
     resources:

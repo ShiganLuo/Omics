@@ -37,47 +37,56 @@
         "nullable": true,
         "required": false,
         "properties": {
-          "min_genes": {
-            "type": "int",
+          "spatial_scanpy_qc": {
+            "type": "dict",
             "nullable": true,
-            "required": false
+            "required": false,
+            "properties": {
+              "min_genes": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "max_pct_mt": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "n_top_genes": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              }
+            }
           },
-          "max_pct_mt": {
-            "type": "int",
+          "spatial_scanpy_cluster": {
+            "type": "dict",
             "nullable": true,
-            "required": false
+            "required": false,
+            "properties": {
+              "n_pcs": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "n_neighbors": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "resolution": {
+                "type": "float",
+                "nullable": true,
+                "required": false
+              }
+            }
           },
-          "n_top_genes": {
-            "type": "int",
-            "nullable": true,
-            "required": false
-          },
-          "n_pcs": {
-            "type": "int",
-            "nullable": true,
-            "required": false
-          },
-          "n_neighbors": {
-            "type": "int",
-            "nullable": true,
-            "required": false
-          },
-          "resolution": {
-            "type": "float",
-            "nullable": true,
-            "required": false
-          },
-          "advanced": {
+          "spatial_scanpy_advanced": {
             "type": "dict",
             "nullable": true,
             "required": false,
             "properties": {
               "spatial_autocorrelation": {
-                "type": "bool",
-                "nullable": true,
-                "required": false
-              },
-              "deconvolution": {
                 "type": "bool",
                 "nullable": true,
                 "required": false

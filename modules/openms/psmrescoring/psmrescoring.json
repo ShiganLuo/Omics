@@ -8,13 +8,17 @@
     },
     "Params": {
         "psm_rescoring": {
+            "search_engine": "comet",
             "psm_feature_extractor": {
-                "extra": ""
+                "psm_rescoring": {
+                    "extra": ""
+                }
             },
             "percolator": {
-                "train_FDR": 0.05,
-                "test_FDR": 0.05,
-                "feature": "top_psm"
+                "psm_rescoring": {
+                    "train_FDR": 0.05,
+                    "test_FDR": 0.05
+                }
             }
         }
     }

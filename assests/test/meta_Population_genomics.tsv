@@ -1,0 +1,4 @@
+sample_id	organism	group	data_id	design	bam	bai
+PopB1	GRCm39	A	PopB1	design1	/data/16T/luosg/workflow/Omics/assests/test/data/bam_dir/PopB1/PopB1.bam	/data/16T/luosg/workflow/Omics/assests/test/data/bam_dir/PopB1/PopB1.bam.bai
+PopB2	GRCm39	A	PopB2	design1	/data/16T/luosg/workflow/Omics/assests/test/data/bam_dir/PopB2/PopB2.bam	/data/16T/luosg/workflow/Omics/assests/test/data/bam_dir/PopB2/PopB2.bam.bai
+PopB3	GRCm39	B	PopB3	design2	/data/16T/luosg/workflow/Omics/assests/test/data/bam_dir/PopB3/PopB3.bam	/data/16T/luosg/workflow/Omics/assests/test/data/bam_dir/PopB3/PopB3.bam.bai

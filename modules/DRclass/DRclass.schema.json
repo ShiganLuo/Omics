@@ -53,50 +53,68 @@
         "nullable": true,
         "required": false,
         "properties": {
-          "min_af": {
-            "type": "float",
-            "nullable": false,
-            "required": false
+          "drclass_pileup": {
+            "type": "dict",
+            "required": false,
+            "properties": {
+              "min_mq": {
+                "type": "int",
+                "nullable": false,
+                "required": false
+              },
+              "min_bq": {
+                "type": "int",
+                "nullable": false,
+                "required": false
+              }
+            }
           },
-          "min_ad": {
-            "type": "int",
-            "nullable": false,
-            "required": false
+          "drclass_classify": {
+            "type": "dict",
+            "required": false,
+            "properties": {
+              "min_af": {
+                "type": "float",
+                "nullable": false,
+                "required": false
+              },
+              "min_ad": {
+                "type": "int",
+                "nullable": false,
+                "required": false
+              },
+              "min_dp": {
+                "type": "int",
+                "nullable": false,
+                "required": false
+              },
+              "germline_af": {
+                "type": "float",
+                "nullable": false,
+                "required": false
+              },
+              "germline_dp": {
+                "type": "int",
+                "nullable": false,
+                "required": false
+              },
+              "splice_window": {
+                "type": "int",
+                "nullable": false,
+                "required": false
+              }
+            }
           },
-          "min_dp": {
-            "type": "int",
-            "nullable": false,
-            "required": false
-          },
-          "germline_af": {
-            "type": "float",
-            "nullable": false,
-            "required": false
-          },
-          "germline_dp": {
-            "type": "int",
-            "nullable": false,
-            "required": false
-          },
-          "splice_window": {
-            "type": "int",
-            "nullable": false,
-            "required": false
-          },
-          "min_mq": {
-            "type": "int",
-            "nullable": false,
-            "required": false
-          },
-          "min_bq": {
-            "type": "int",
-            "nullable": false,
-            "required": false
-          },
-          "max_r4_fraction": {
-            "type": "float",
-            "nullable": false,
-            "required": false
+          "drclass_summary": {
+            "type": "dict",
+            "required": false,
+            "properties": {
+              "max_r4_fraction": {
+                "type": "float",
+                "nullable": false,
+                "required": false
+              }
+            }
           }
         }
       }

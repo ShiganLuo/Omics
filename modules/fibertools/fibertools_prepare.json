@@ -1,17 +1,19 @@
 {
-    "indir": "input",
-    "outdir": "output",
-    "logdir": "logs",
-    "samples": [],
-    "Procedure": {
-        "fibertools": null
-    },
-    "Params": {
-        "fibertools": {
-            "ont": false
-        }
-    },
-    "genome": {
-        "fasta": null
+  "indir": "input",
+  "outdir": "output",
+  "logdir": "logs",
+  "samples": [],
+  "Procedure": {
+    "fibertools": null
+  },
+  "Params": {
+    "fibertools": {
+      "ft_fire": {
+        "ont": false
+      }
     }
+  },
+  "genome": {
+    "fasta": null
+  }
 }

@@ -11,9 +11,22 @@ MODULE_DIR = os.path.join(config.get("ROOT_DIR", "."), "modules", "macs3")
 CUTOFF_SCRIPT = os.path.join(MODULE_DIR, "bin", "plot_cutoff_analysis.py")
 
 # ① parse 期读入 + 规范化（str 收成单元素 list；合法值由 schema 声明）
-_formats = config.get("Params", {}).get("macs3", {}).get("formats") or ["png"]
-if isinstance(_formats, str):
-    _formats = [_formats]
+# 参数精确到 rule:formats 挂 macs3_cutoff_plot 名下
+# (Params.macs3.macs3_cutoff_plot.formats,单 plot rule 消费;
+# 无 module 级共享回退,rule_param 见 common.smk)。
+_macs3_params = config.get("Params", {}).get("macs3", {})
+
+
+def _rule_formats(rule_name):
+    """Per-rule figure formats (parse 期解析,output 展开与 CLI 转发共用)。"""
+    fmts = rule_param(_macs3_params, rule_name, "formats", ["png"])
+    return [fmts] if isinstance(fmts, str) else fmts
+
+
+# 每 rule 一个 parse 期变量;macs3_result 聚合 macs3_cutoff_plot 输出,
+# 展开同一 rule 键。
+_formats_macs3_cutoff_plot = _rule_formats("macs3_cutoff_plot")
+_formats_macs3_result = _rule_formats("macs3_cutoff_plot")
 
 def get_macs3_input(wildcards):
     """
@@ -127,7 +140,7 @@ rule macs3_cutoff_plot:
         cutoffs = expand(outdir + "/{genome}/{sample_id}/{sample_id}_cutoff_analysis.txt", sample_id=ip_samples, genome="{genome}"),
     output:
         # ② 按格式展开：每种格式一个输出文件（base 不带扩展名）
-        plots = [outdir + "/{genome}/cutoff_analysis." + fmt for fmt in _formats],
+        plots = [outdir + "/{genome}/cutoff_analysis." + fmt for fmt in _formats_macs3_cutoff_plot],
     log:
         logdir + "/{genome}/../group/macs3/macs3_cutoff_plot.log"
     threads: rule_res("macs3_cutoff_plot").get("threads", 1)
@@ -141,7 +154,7 @@ rule macs3_cutoff_plot:
     container:
         sif("../macs3.yaml", "macs3_cutoff_plot")
     params:
-        formats = _formats,   # ③ 转发
+        formats = _formats_macs3_cutoff_plot,   # ③ 转发
         out_base = lambda wildcards: outdir + f"/{wildcards.genome}/cutoff_analysis",
     run:
         log_path = str(log)
@@ -183,7 +196,7 @@ rule macs3_result:
         broad_peak = outdir + "/{genome}/{sample_id}/{sample_id}_broad_peaks.broadPeak",
         broad_xls = outdir + "/{genome}/{sample_id}/{sample_id}_broad_peaks.xls",
         broad_cutoff = outdir + "/{genome}/{sample_id}/{sample_id}_broad_cutoff_analysis.txt",
-        plots = [outdir + "/{genome}/cutoff_analysis." + fmt for fmt in _formats]
+        plots = [outdir + "/{genome}/cutoff_analysis." + fmt for fmt in _formats_macs3_result]
 
     resources:
         mem_mb = lambda wildcards, input, attempt: rule_res(

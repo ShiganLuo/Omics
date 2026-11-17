@@ -179,33 +179,70 @@
       }
     },
     "fibertools": {
-      "ont": {
-        "type": "bool",
-        "required": false
+      "ft_fire": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "add_nucleosomes_manual": {
+            "type": "null",
+            "nullable": true,
+            "required": false
+          },
+          "ont": {
+            "type": "bool",
+            "required": false
+          }
+        }
       },
-      "call_peaks_mode": {
-        "type": "str",
-        "required": false
+      "ft_call_peaks": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "call_peaks_mode": {
+            "type": "str",
+            "required": false
+          },
+          "max_fdr": {
+            "type": "float",
+            "required": false
+          },
+          "min_fire_frac": {
+            "type": "float",
+            "required": false
+          },
+          "sd_cov": {
+            "type": "float",
+            "required": false
+          },
+          "haps": {
+            "type": "bool",
+            "required": false
+          }
+        }
       },
-      "max_fdr": {
-        "type": "float",
-        "required": false
+      "ft_qc": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "acf": {
+            "type": "bool",
+            "required": false
+          }
+        }
       },
-      "min_fire_frac": {
-        "type": "float",
-        "required": false
-      },
-      "sd_cov": {
-        "type": "float",
-        "required": false
-      },
-      "haps": {
-        "type": "bool",
-        "required": false
-      },
-      "acf": {
-        "type": "bool",
-        "required": false
+      "ft_extract_fire": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "ont": {
+            "type": "bool",
+            "required": false
+          }
+        }
       }
     },
     "pbmm2": {
@@ -231,13 +268,20 @@
         "type": "bool",
         "required": false
       },
-      "tss_flank": {
-        "type": "int",
-        "required": false
-      },
-      "repeat_frac": {
-        "type": "float",
-        "required": false
+      "fiberseq_annotate_run": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "tss_flank": {
+            "type": "int",
+            "required": false
+          },
+          "repeat_frac": {
+            "type": "float",
+            "required": false
+          }
+        }
       }
     },
     "motif": {
@@ -245,25 +289,54 @@
         "type": "bool",
         "required": false
       },
-      "flank": {
-        "type": "int",
-        "required": false
-      },
-      "min_fibers": {
-        "type": "int",
-        "required": false
-      },
-      "pwm_threshold": {
-        "type": "float",
-        "required": false
-      },
-      "formats": {
-        "type": "list",
+      "fiberseq_motif_profile": {
+        "type": "dict",
+        "nullable": true,
         "required": false,
-        "default": [
-          "pdf"
-        ],
-        "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
+        "properties": {
+          "formats": {
+            "type": "list",
+            "required": false,
+            "default": [
+              "pdf"
+            ],
+            "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
+          },
+          "flank": {
+            "type": "int",
+            "required": false
+          },
+          "min_fibers": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "fiberseq_motif_result": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "formats": {
+            "type": "list",
+            "required": false,
+            "default": [
+              "pdf"
+            ],
+            "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
+          }
+        }
+      },
+      "fiberseq_motif_scan": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "pwm_threshold": {
+            "type": "float",
+            "required": false
+          }
+        }
       }
     },
     "footprint": {
@@ -271,17 +344,39 @@
         "type": "bool",
         "required": false
       },
-      "flank": {
-        "type": "int",
-        "required": false
-      },
-      "formats": {
-        "type": "list",
+      "fiberseq_footprint_run": {
+        "type": "dict",
+        "nullable": true,
         "required": false,
-        "default": [
-          "pdf"
-        ],
-        "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
+        "properties": {
+          "formats": {
+            "type": "list",
+            "required": false,
+            "default": [
+              "pdf"
+            ],
+            "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
+          },
+          "flank": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "fiberseq_footprint_result": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "formats": {
+            "type": "list",
+            "required": false,
+            "default": [
+              "pdf"
+            ],
+            "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
+          }
+        }
       }
     },
     "nucpos": {
@@ -289,25 +384,47 @@
         "type": "bool",
         "required": false
       },
-      "upstream_nucs": {
-        "type": "int",
-        "required": false
-      },
-      "downstream_nucs": {
-        "type": "int",
-        "required": false
-      },
-      "min_fibers": {
-        "type": "int",
-        "required": false
-      },
-      "formats": {
-        "type": "list",
+      "fiberseq_nucpos_run": {
+        "type": "dict",
+        "nullable": true,
         "required": false,
-        "default": [
-          "pdf"
-        ],
-        "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
+        "properties": {
+          "formats": {
+            "type": "list",
+            "required": false,
+            "default": [
+              "pdf"
+            ],
+            "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
+          },
+          "upstream_nucs": {
+            "type": "int",
+            "required": false
+          },
+          "downstream_nucs": {
+            "type": "int",
+            "required": false
+          },
+          "min_fibers": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "fiberseq_nucpos_result": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "formats": {
+            "type": "list",
+            "required": false,
+            "default": [
+              "pdf"
+            ],
+            "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
+          }
+        }
       }
     },
     "track": {
@@ -315,18 +432,21 @@
         "type": "bool",
         "required": false
       },
-      "bin": {
-        "type": "int",
-        "required": false
+      "fiberseq_track_run": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "bin": {
+            "type": "int",
+            "required": false
+          }
+        }
       }
     },
     "quant": {
       "enabled": {
         "type": "bool",
-        "required": false
-      },
-      "min_fibers": {
-        "type": "int",
         "required": false
       }
     },
@@ -335,27 +455,34 @@
         "type": "bool",
         "required": false
       },
-      "alpha": {
-        "type": "float",
-        "required": false
-      },
-      "annot_sample": {
-        "type": "str",
+      "fiberseq_diff_run": {
+        "type": "dict",
         "nullable": true,
-        "required": false
-      },
-      "group_spec": {
-        "type": "str",
-        "nullable": true,
-        "required": false
-      },
-      "formats": {
-        "type": "list",
         "required": false,
-        "default": [
-          "pdf"
-        ],
-        "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
+        "properties": {
+          "formats": {
+            "type": "list",
+            "required": false,
+            "default": [
+              "pdf"
+            ],
+            "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
+          },
+          "alpha": {
+            "type": "float",
+            "required": false
+          },
+          "annot_sample": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          },
+          "group_spec": {
+            "type": "str",
+            "nullable": true,
+            "required": false
+          }
+        }
       }
     },
     "fiberseq_mods": {
@@ -370,12 +497,6 @@
         "nullable": true,
         "required": false,
         "description": "修饰信号类型: cpg=5mC(读 cpg.bed.gz) / m6a=6mA(读 m6a.bed.gz);决定输入文件与输出文件名"
-      },
-      "groups": {
-        "type": "list",
-        "nullable": true,
-        "required": false,
-        "description": "手工覆盖两组合名(如 [aged,youth]);留空时由 node.py 从 meta 设计自动推导——正常情况下留空"
       },
       "region_axis": {
         "type": "dict",
@@ -420,6 +541,250 @@
                 "type": "int",
                 "nullable": true,
                 "description": "significant_objects.bed 按 p 值升序只留前 N 个 peak(0=全保留;TSV 永远全量);TE 轴下 BED 恒为空,此键无效"
+              }
+            }
+          }
+        }
+      },
+      "fiberseq_mods_longtable": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "mod_type": {
+            "type": "str",
+            "nullable": true,
+            "required": false,
+            "description": "修饰信号类型: cpg=5mC(读 cpg.bed.gz) / m6a=6mA(读 m6a.bed.gz);决定输入文件与输出文件名"
+          },
+          "region_axis": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "description": "区域轴判别式对象(genome 同构 {default, options}):取值决定引擎/长表 schema/下游规则;轴专属参数在对应 options 条目内",
+            "default": {
+              "type": "str",
+              "required": true,
+              "description": "当前生效的轴: te=RepeatMasker TE locus(检验 subfamily/family 层级) / fire_peaks=各样本 FIRE peak(检验 peak)"
+            },
+            "options": {
+              "type": "dict",
+              "required": true,
+              "description": "轴枚举到属性集的闭合映射;default 必须是它的键",
+              "te": {
+                "type": "dict",
+                "nullable": true,
+                "properties": {
+                  "min_fibers": {
+                    "type": "int",
+                    "nullable": true,
+                    "description": "覆盖门控: locus 在某样本的覆盖 fiber 数 < N 时该样本的这个 locus 不进长表(不填零)"
+                  },
+                  "loci_top_n": {
+                    "type": "int",
+                    "nullable": true,
+                    "description": "每个显著 TE 组内按|组间均值差|排序,top_loci.bed 只留前 N 个 locus(regionplot 浏览短名单)"
+                  }
+                }
+              },
+              "fire_peaks": {
+                "type": "dict",
+                "nullable": true,
+                "properties": {
+                  "metric": {
+                    "type": "str",
+                    "nullable": true,
+                    "description": "fire_peaks 轴指标名,仅用于长表文件名({metric}_long.tsv);默认 {mod_type}_per_fiber 派生"
+                  },
+                  "top_n": {
+                    "type": "int",
+                    "nullable": true,
+                    "description": "significant_objects.bed 按 p 值升序只留前 N 个 peak(0=全保留;TSV 永远全量);TE 轴下 BED 恒为空,此键无效"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "fiberseq_mods_split": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "region_axis": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "description": "区域轴判别式对象(genome 同构 {default, options}):取值决定引擎/长表 schema/下游规则;轴专属参数在对应 options 条目内",
+            "default": {
+              "type": "str",
+              "required": true,
+              "description": "当前生效的轴: te=RepeatMasker TE locus(检验 subfamily/family 层级) / fire_peaks=各样本 FIRE peak(检验 peak)"
+            },
+            "options": {
+              "type": "dict",
+              "required": true,
+              "description": "轴枚举到属性集的闭合映射;default 必须是它的键",
+              "te": {
+                "type": "dict",
+                "nullable": true,
+                "properties": {
+                  "min_fibers": {
+                    "type": "int",
+                    "nullable": true,
+                    "description": "覆盖门控: locus 在某样本的覆盖 fiber 数 < N 时该样本的这个 locus 不进长表(不填零)"
+                  },
+                  "loci_top_n": {
+                    "type": "int",
+                    "nullable": true,
+                    "description": "每个显著 TE 组内按|组间均值差|排序,top_loci.bed 只留前 N 个 locus(regionplot 浏览短名单)"
+                  }
+                }
+              },
+              "fire_peaks": {
+                "type": "dict",
+                "nullable": true,
+                "properties": {
+                  "metric": {
+                    "type": "str",
+                    "nullable": true,
+                    "description": "fire_peaks 轴指标名,仅用于长表文件名({metric}_long.tsv);默认 {mod_type}_per_fiber 派生"
+                  },
+                  "top_n": {
+                    "type": "int",
+                    "nullable": true,
+                    "description": "significant_objects.bed 按 p 值升序只留前 N 个 peak(0=全保留;TSV 永远全量);TE 轴下 BED 恒为空,此键无效"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "fiberseq_mods_top_loci": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "mod_type": {
+            "type": "str",
+            "nullable": true,
+            "required": false,
+            "description": "修饰信号类型: cpg=5mC(读 cpg.bed.gz) / m6a=6mA(读 m6a.bed.gz);决定输入文件与输出文件名"
+          },
+          "region_axis": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "description": "区域轴判别式对象(genome 同构 {default, options}):取值决定引擎/长表 schema/下游规则;轴专属参数在对应 options 条目内",
+            "default": {
+              "type": "str",
+              "required": true,
+              "description": "当前生效的轴: te=RepeatMasker TE locus(检验 subfamily/family 层级) / fire_peaks=各样本 FIRE peak(检验 peak)"
+            },
+            "options": {
+              "type": "dict",
+              "required": true,
+              "description": "轴枚举到属性集的闭合映射;default 必须是它的键",
+              "te": {
+                "type": "dict",
+                "nullable": true,
+                "properties": {
+                  "min_fibers": {
+                    "type": "int",
+                    "nullable": true,
+                    "description": "覆盖门控: locus 在某样本的覆盖 fiber 数 < N 时该样本的这个 locus 不进长表(不填零)"
+                  },
+                  "loci_top_n": {
+                    "type": "int",
+                    "nullable": true,
+                    "description": "每个显著 TE 组内按|组间均值差|排序,top_loci.bed 只留前 N 个 locus(regionplot 浏览短名单)"
+                  }
+                }
+              },
+              "fire_peaks": {
+                "type": "dict",
+                "nullable": true,
+                "properties": {
+                  "metric": {
+                    "type": "str",
+                    "nullable": true,
+                    "description": "fire_peaks 轴指标名,仅用于长表文件名({metric}_long.tsv);默认 {mod_type}_per_fiber 派生"
+                  },
+                  "top_n": {
+                    "type": "int",
+                    "nullable": true,
+                    "description": "significant_objects.bed 按 p 值升序只留前 N 个 peak(0=全保留;TSV 永远全量);TE 轴下 BED 恒为空,此键无效"
+                  }
+                }
+              }
+            }
+          },
+          "groups": {
+            "type": "list",
+            "nullable": true,
+            "required": false,
+            "description": "手工覆盖两组合名(如 [aged,youth]);留空时由 node.py 从 meta 设计自动推导——正常情况下留空"
+          }
+        }
+      },
+      "fiberseq_mods_result": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "mod_type": {
+            "type": "str",
+            "nullable": true,
+            "required": false,
+            "description": "修饰信号类型: cpg=5mC(读 cpg.bed.gz) / m6a=6mA(读 m6a.bed.gz);决定输入文件与输出文件名"
+          },
+          "region_axis": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "description": "区域轴判别式对象(genome 同构 {default, options}):取值决定引擎/长表 schema/下游规则;轴专属参数在对应 options 条目内",
+            "default": {
+              "type": "str",
+              "required": true,
+              "description": "当前生效的轴: te=RepeatMasker TE locus(检验 subfamily/family 层级) / fire_peaks=各样本 FIRE peak(检验 peak)"
+            },
+            "options": {
+              "type": "dict",
+              "required": true,
+              "description": "轴枚举到属性集的闭合映射;default 必须是它的键",
+              "te": {
+                "type": "dict",
+                "nullable": true,
+                "properties": {
+                  "min_fibers": {
+                    "type": "int",
+                    "nullable": true,
+                    "description": "覆盖门控: locus 在某样本的覆盖 fiber 数 < N 时该样本的这个 locus 不进长表(不填零)"
+                  },
+                  "loci_top_n": {
+                    "type": "int",
+                    "nullable": true,
+                    "description": "每个显著 TE 组内按|组间均值差|排序,top_loci.bed 只留前 N 个 locus(regionplot 浏览短名单)"
+                  }
+                }
+              },
+              "fire_peaks": {
+                "type": "dict",
+                "nullable": true,
+                "properties": {
+                  "metric": {
+                    "type": "str",
+                    "nullable": true,
+                    "description": "fire_peaks 轴指标名,仅用于长表文件名({metric}_long.tsv);默认 {mod_type}_per_fiber 派生"
+                  },
+                  "top_n": {
+                    "type": "int",
+                    "nullable": true,
+                    "description": "significant_objects.bed 按 p 值升序只留前 N 个 peak(0=全保留;TSV 永远全量);TE 轴下 BED 恒为空,此键无效"
+                  }
+                }
               }
             }
           }
@@ -487,21 +852,28 @@
         "type": "bool",
         "required": false
       },
-      "max_distance": {
-        "type": "int",
-        "required": false
-      },
-      "min_fibers": {
-        "type": "int",
-        "required": false
-      },
-      "max_pairs": {
-        "type": "int",
-        "required": false
-      },
-      "alpha": {
-        "type": "float",
-        "required": false
+      "fiberseq_coactuation_run": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "max_distance": {
+            "type": "int",
+            "required": false
+          },
+          "min_fibers": {
+            "type": "int",
+            "required": false
+          },
+          "max_pairs": {
+            "type": "int",
+            "required": false
+          },
+          "alpha": {
+            "type": "float",
+            "required": false
+          }
+        }
       }
     },
     "haplotype": {
@@ -509,13 +881,20 @@
         "type": "bool",
         "required": false
       },
-      "min_fibers": {
-        "type": "int",
-        "required": false
-      },
-      "alpha": {
-        "type": "float",
-        "required": false
+      "fiberseq_haplotype_diff": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "min_fibers": {
+            "type": "int",
+            "required": false
+          },
+          "alpha": {
+            "type": "float",
+            "required": false
+          }
+        }
       }
     },
     "sv": {
@@ -525,15 +904,6 @@
       },
       "comparisons": {
         "type": "dict",
-        "required": false
-      },
-      "image_formats": {
-        "type": "list",
-        "required": false,
-        "description": " (已废弃:请改用 formats;保留仅为旧配置兼容)"
-      },
-      "genes": {
-        "type": "list",
         "required": false
       },
       "exp_specific": {
@@ -940,13 +1310,99 @@
           }
         }
       },
-      "formats": {
-        "type": "list",
+      "sv_exp_specific": {
+        "type": "dict",
+        "nullable": true,
         "required": false,
-        "default": [
-          "png"
-        ],
-        "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
+        "properties": {
+          "formats": {
+            "type": "list",
+            "required": false,
+            "default": [
+              "png"
+            ],
+            "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
+          }
+        }
+      },
+      "sv_exp_circos": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "formats": {
+            "type": "list",
+            "required": false,
+            "default": [
+              "png"
+            ],
+            "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
+          }
+        }
+      },
+      "sv_gene_model": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "genes": {
+            "type": "list",
+            "required": false
+          },
+          "formats": {
+            "type": "list",
+            "required": false,
+            "default": [
+              "png"
+            ],
+            "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
+          }
+        }
+      },
+      "sv_diff_analysis": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "formats": {
+            "type": "list",
+            "required": false,
+            "default": [
+              "png"
+            ],
+            "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
+          }
+        }
+      },
+      "sv_oncoprint": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "formats": {
+            "type": "list",
+            "required": false,
+            "default": [
+              "png"
+            ],
+            "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
+          }
+        }
+      },
+      "sv_mei": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "formats": {
+            "type": "list",
+            "required": false,
+            "default": [
+              "png"
+            ],
+            "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
+          }
+        }
       }
     },
     "censat": {
@@ -954,25 +1410,47 @@
         "type": "bool",
         "required": false
       },
-      "msp_min_len": {
-        "type": "int",
-        "required": false
-      },
-      "flank": {
-        "type": "int",
-        "required": false
-      },
-      "bin": {
-        "type": "int",
-        "required": false
-      },
-      "formats": {
-        "type": "list",
+      "fiberseq_censat_run": {
+        "type": "dict",
+        "nullable": true,
         "required": false,
-        "default": [
-          "pdf"
-        ],
-        "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
+        "properties": {
+          "formats": {
+            "type": "list",
+            "required": false,
+            "default": [
+              "pdf"
+            ],
+            "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
+          },
+          "msp_min_len": {
+            "type": "int",
+            "required": false
+          },
+          "flank": {
+            "type": "int",
+            "required": false
+          },
+          "bin": {
+            "type": "int",
+            "required": false
+          }
+        }
+      },
+      "fiberseq_censat_result": {
+        "type": "dict",
+        "nullable": true,
+        "required": false,
+        "properties": {
+          "formats": {
+            "type": "list",
+            "required": false,
+            "default": [
+              "pdf"
+            ],
+            "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg pgf raw rgba(matplotlib savefig 全集;R 侧 ggsave 设备集)"
+          }
+        }
       }
     },
     "function": {

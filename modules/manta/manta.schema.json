@@ -46,10 +46,29 @@
         "nullable": true,
         "required": false,
         "properties": {
-          "threads": {
-            "type": "int",
+          "manta_run_germline": {
+            "type": "dict",
             "nullable": true,
-            "required": false
+            "required": false,
+            "properties": {
+              "threads": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              }
+            }
+          },
+          "manta_run_somatic": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "threads": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              }
+            }
           }
         }
       }

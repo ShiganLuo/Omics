@@ -52,127 +52,222 @@
         "nullable": true,
         "required": false,
         "properties": {
-          "species": {
-            "type": "str",
-            "nullable": true,
-            "required": false
-          },
-          "name": {
-            "type": "str",
-            "nullable": true,
-            "required": false
-          },
-          "data_dir": {
-            "type": "str",
-            "path": "dir",
-            "nullable": true,
-            "required": false
-          },
-          "control_condition": {
-            "type": "str",
-            "nullable": true,
-            "required": false
-          },
-          "cluster_id": {
-            "type": "float",
-            "nullable": true,
-            "required": false
-          },
-          "threads": {
-            "type": "int",
-            "nullable": true,
-            "required": false
-          },
-          "min_cov": {
-            "type": "float",
-            "nullable": true,
-            "required": false
-          },
-          "max_mismatches": {
-            "type": "float",
-            "nullable": true,
-            "required": false
-          },
-          "max_multi": {
-            "type": "int",
-            "nullable": true,
-            "required": false
-          },
-          "misinc_thresh": {
-            "type": "float",
-            "nullable": true,
-            "required": false
-          },
-          "remap_mismatches": {
-            "type": "float",
-            "nullable": true,
-            "required": false
-          },
-          "p_adj": {
-            "type": "float",
-            "nullable": true,
-            "required": false
-          },
-          "cov_diff": {
-            "type": "float",
-            "nullable": true,
-            "required": false
-          },
-          "no_cluster": {
-            "type": "bool",
-            "nullable": true,
-            "required": false
-          },
-          "no_cca": {
-            "type": "bool",
-            "nullable": true,
-            "required": false
-          },
-          "double_cca": {
-            "type": "bool",
-            "nullable": true,
-            "required": false
-          },
-          "remap": {
-            "type": "bool",
-            "nullable": true,
-            "required": false
-          },
-          "snp_tolerance": {
-            "type": "bool",
-            "nullable": true,
-            "required": false
-          },
-          "keep_temp": {
-            "type": "bool",
-            "nullable": true,
-            "required": false
-          },
-          "crosstalks": {
-            "type": "bool",
-            "nullable": true,
-            "required": false
-          },
-          "pretRNAs": {
-            "type": "bool",
-            "nullable": true,
-            "required": false
-          },
-          "posttrans_mod_off": {
-            "type": "bool",
-            "nullable": true,
-            "required": false
-          },
-          "local_modomics": {
-            "type": "bool",
-            "nullable": true,
-            "required": false
-          },
-          "formats": {
-            "type": "list",
-            "nullable": true,
+          "mimseq_tRNAtools": {
+            "type": "dict",
             "required": false,
-            "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg(ggsave 设备集;pgf/raw/rgba 为 matplotlib 专属,不支持);默认 pdf(保持上游行为);仅作用于 ggsave/savefig 图,base 设备图(pdf()/png())固定原格式"
+            "nullable": true,
+            "properties": {
+              "data_dir": {
+                "type": "str",
+                "path": "dir",
+                "nullable": true,
+                "required": false
+              },
+              "species": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "name": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "cluster_id": {
+                "type": "float",
+                "nullable": true,
+                "required": false
+              },
+              "double_cca": {
+                "type": "bool",
+                "nullable": true,
+                "required": false
+              },
+              "posttrans_mod_off": {
+                "type": "bool",
+                "nullable": true,
+                "required": false
+              },
+              "pretRNAs": {
+                "type": "bool",
+                "nullable": true,
+                "required": false
+              },
+              "local_modomics": {
+                "type": "bool",
+                "nullable": true,
+                "required": false
+              },
+              "snp_tolerance": {
+                "type": "bool",
+                "nullable": true,
+                "required": false
+              },
+              "cluster": {
+                "type": "bool",
+                "nullable": true,
+                "required": false
+              }
+            }
+          },
+          "mimseq_align": {
+            "type": "dict",
+            "required": false,
+            "nullable": true,
+            "properties": {
+              "formats": {
+                "type": "list",
+                "nullable": true,
+                "required": false,
+                "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg(ggsave 设备集;pgf/raw/rgba 为 matplotlib 专属,不支持);默认 pdf(保持上游行为);仅作用于 ggsave/savefig 图,base 设备图(pdf()/png())固定原格式"
+              },
+              "name": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "max_mismatches": {
+                "type": "float",
+                "nullable": true,
+                "required": false
+              },
+              "remap": {
+                "type": "bool",
+                "nullable": true,
+                "required": false
+              },
+              "keep_temp": {
+                "type": "bool",
+                "nullable": true,
+                "required": false
+              }
+            }
+          },
+          "mimseq_clusters": {
+            "type": "dict",
+            "required": false,
+            "nullable": true,
+            "properties": {
+              "name": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "cluster_id": {
+                "type": "float",
+                "nullable": true,
+                "required": false
+              },
+              "cov_diff": {
+                "type": "float",
+                "nullable": true,
+                "required": false
+              },
+              "cluster": {
+                "type": "bool",
+                "nullable": true,
+                "required": false
+              }
+            }
+          },
+          "mimseq_mods": {
+            "type": "dict",
+            "required": false,
+            "nullable": true,
+            "properties": {
+              "formats": {
+                "type": "list",
+                "nullable": true,
+                "required": false,
+                "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg(ggsave 设备集;pgf/raw/rgba 为 matplotlib 专属,不支持);默认 pdf(保持上游行为);仅作用于 ggsave/savefig 图,base 设备图(pdf()/png())固定原格式"
+              },
+              "name": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "min_cov": {
+                "type": "float",
+                "nullable": true,
+                "required": false
+              },
+              "misinc_thresh": {
+                "type": "float",
+                "nullable": true,
+                "required": false
+              },
+              "no_cca": {
+                "type": "bool",
+                "nullable": true,
+                "required": false
+              },
+              "remap": {
+                "type": "bool",
+                "nullable": true,
+                "required": false
+              },
+              "crosstalks": {
+                "type": "bool",
+                "nullable": true,
+                "required": false
+              }
+            }
+          },
+          "mimseq_coverage": {
+            "type": "dict",
+            "required": false,
+            "nullable": true,
+            "properties": {
+              "formats": {
+                "type": "list",
+                "nullable": true,
+                "required": false,
+                "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg(ggsave 设备集;pgf/raw/rgba 为 matplotlib 专属,不支持);默认 pdf(保持上游行为);仅作用于 ggsave/savefig 图,base 设备图(pdf()/png())固定原格式"
+              },
+              "control_cond": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "misinc_thresh": {
+                "type": "float",
+                "nullable": true,
+                "required": false
+              },
+              "no_cca": {
+                "type": "bool",
+                "nullable": true,
+                "required": false
+              },
+              "double_cca": {
+                "type": "bool",
+                "nullable": true,
+                "required": false
+              }
+            }
+          },
+          "mimseq_deseq": {
+            "type": "dict",
+            "required": false,
+            "nullable": true,
+            "properties": {
+              "formats": {
+                "type": "list",
+                "nullable": true,
+                "required": false,
+                "description": "图片格式(多种同时输出);合法值: png pdf svg ps eps tif tiff jpg jpeg(ggsave 设备集;pgf/raw/rgba 为 matplotlib 专属,不支持);默认 pdf(保持上游行为);仅作用于 ggsave/savefig 图,base 设备图(pdf()/png())固定原格式"
+              },
+              "control_cond": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "p_adj": {
+                "type": "float",
+                "nullable": true,
+                "required": false
+              }
+            }
           }
         }
       }

@@ -40,7 +40,8 @@ rule bamCoverage:
     params:
         bamCoverage = config.get("Procedure", {}).get("bamCoverage") or "bamCoverage",
         bin_size    = config.get("Params", {}).get("bamCoverage", {}).get("bin_size") or 50,
-        normalizeUsing  = config.get("Params", {}).get("bamCoverage", {}).get("normalizeUsing") or "CPM",
+        normalizeUsing  = rule_param(config.get("Params", {}).get("bamCoverage", {}),
+                                     "bamCoverage", "normalizeUsing", "CPM") or "CPM",   # Params.bamCoverage.bamCoverage.normalizeUsing(与 wig 各自;rule_param 见 common.smk)
         outdir_sample = outdir + "/{sample_id}"
     run:
         log_path = str(log)

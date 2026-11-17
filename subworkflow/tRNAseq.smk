@@ -32,8 +32,9 @@ fumitools_config = {
         "fumitools": config.get("Procedure", {}).get("fumitools")
     },
     "Params": {
-        "umi_length": config.get("Params", {}).get("fumitools", {}).get("umi_length", 12),
-        "tag_umi": config.get("Params", {}).get("fumitools", {}).get("tag_umi", False),
+        # 参数精确到 rule:整段透传(Params.fumitools.<rule>.<key>,rule 子段
+        # 透明传递;模块内置默认同原转发默认)
+        "fumitools": config.get("Params", {}).get("fumitools", {}),
     }
 }
 logger.info(f"fumitools_config: {fumitools_config}")
@@ -76,7 +77,10 @@ mimseq_config = {
     "ROOT_DIR": ROOT_DIR,
     "OUTDIR_ROOT": outdir,
     "env": config.get("env", {}),
-    "data_dir": config.get("Params", {}).get("mimseq", {}).get("data_dir", ""),
+    # data_dir 精确到 rule:Params.mimseq.mimseq_tRNAtools.data_dir
+    # (旧扁平键兼容回退;顶层 data_dir 仍是接线键,透传给模块顶层)
+    "data_dir": ((config.get("Params", {}).get("mimseq", {}) or {}).get("mimseq_tRNAtools", {}) or {}).get("data_dir")
+                or config.get("Params", {}).get("mimseq", {}).get("data_dir", ""),
     "Procedure": {
     },
     "Params": {

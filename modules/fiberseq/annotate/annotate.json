@@ -1,18 +1,20 @@
 {
-    "indir": "common/4_elements",
-    "outdir": "fiberseq_analysis/annotate",
-    "logdir": "log",
-    "samples": [],
-    "Procedure": {},
-    "Params": {
-        "fiberseq_annotate": {
-            "tss_flank": 1000,
-            "repeat_frac": 0.25
-        }
-    },
-    "genome": {
-        "gtf": null,
-        "repeat_bed": null
-    },
-    "env": {}
+  "indir": "common/4_elements",
+  "outdir": "fiberseq_analysis/annotate",
+  "logdir": "log",
+  "samples": [],
+  "Procedure": {},
+  "Params": {
+    "fiberseq_annotate": {
+      "fiberseq_annotate_run": {
+        "tss_flank": 1000,
+        "repeat_frac": 0.25
+      }
+    }
+  },
+  "genome": {
+    "gtf": null,
+    "repeat_bed": null
+  },
+  "env": {}
 }

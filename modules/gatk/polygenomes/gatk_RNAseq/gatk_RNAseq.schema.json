@@ -41,10 +41,41 @@
         "nullable": true,
         "required": false,
         "properties": {
-          "javaOptions": {
-            "type": "str",
+          "SplitNCigarReads": {
+            "type": "dict",
             "nullable": true,
-            "required": false
+            "required": false,
+            "properties": {
+              "javaOptions": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              }
+            }
+          },
+          "VarientCalling": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "javaOptions": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              }
+            }
+          },
+          "vcf_filter": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "javaOptions": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              }
+            }
           }
         }
       }

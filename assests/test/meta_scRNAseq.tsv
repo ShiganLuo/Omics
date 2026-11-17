@@ -1,0 +1,8 @@
+sample_id	design	group	fastq_dir	sample_prefix	organism	tissue
+luanchao-11238-10XSC3	exp_age	middle age	/home/luosg/Data/genomeStability/data/20260820_scRNAseq/Rawdata/luanchao-11238-10XSC3	luanchao-11238-10XSC3	mulatta	ovaries
+luanchao-21310-10XSC3	ctr_age	youth	/home/luosg/Data/genomeStability/data/20260820_scRNAseq/Rawdata/luanchao-21310-10XSC3	luanchao-21310-10XSC3	mulatta	ovaries
+zigong-21310-10XSC3	ctr_POI	Normal	/home/luosg/Data/genomeStability/data/20260820_scRNAseq/Rawdata/zigong-21310-10XSC3	zigong-21310-10XSC3	mulatta	Uterus
+zigong-11238-10XSC3	ctr_ovariectomy	Normal	/home/luosg/Data/genomeStability/data/20260820_scRNAseq/Rawdata/zigong-11238-10XSC3	zigong-11238-10XSC3	mulatta	Uterus
+ZIGONG-21224-10XSC3	exp_POI	ovariectomy POI	/home/luosg/Data/genomeStability/data/20260820_scRNAseq/Rawdata/ZIGONG-21224-10XSC3	ZIGONG-21224-10XSC3	mulatta	Uterus
+zigong-1411200-10XSC3	exp_ovariectomy	middle age ovariectomy	/home/luosg/Data/genomeStability/data/20260820_scRNAseq/Rawdata/zigong-1411200-10XSC3	zigong-1411200-10XSC3	mulatta	Uterus
+zigong-2200671-10XSC3	exp_ovariectomy	TRA	/home/luosg/Data/genomeStability/data/20260820_scRNAseq/Rawdata/zigong-2200671-10XSC3	zigong-2200671-10XSC3	mulatta	Uterus

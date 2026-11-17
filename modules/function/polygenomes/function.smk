@@ -10,22 +10,26 @@ genome = config.get("genome", {})
 
 func_params = config.get("Params", {}).get("function", {})
 
-# Plotting formats per param section (modules.md #9): ① parse 期读入 +
-# 规范化(str 收成单元素 list;合法值由 schema 声明)。output: 不能是函数,
-# 格式列表必须是模块级变量(decoil.smk 同款注释)——因此 formats 必须跨
+# 参数精确到 rule:参数挂在消费它的 rule 名下
+# (Params.function.<genome>.<rule_name>.<key>;原 go_kegg/gsea/gsva 嵌套组名
+# 拍平为 rule 名,叶子名作 key;无 module 级共享,rule_param 见 common.smk)。
+# formats 为每 rule 一个 parse 期变量——output 不能是函数,格式列表必须是
+# 模块级变量(decoil.smk 同款注释),各 rule 独立展开 output,因此必须跨
 # genome 一致:每个 genome 段各自声明,取值不一致时 parse 期直接报错,
 # 而不是悄悄少产声明的输出文件。
-def _uniform_formats(section, default):
-    """Formats for one plotting section, uniform across genome param blocks.
+def _uniform_rule_formats(rule_name, key, default):
+    """Formats for one rule's key, uniform across genome param blocks.
 
-    Sections without an explicit list inherit the one that is set; more than
-    one distinct explicit list is a config error (module-level output lists
-    cannot vary per genome wildcard).
+    A rule sub-section without an explicit list inherits the one that is
+    set; more than one distinct explicit list is a config error (rule
+    output lists cannot vary per genome wildcard).
 
     Parameters
     ----------
-    section : str
-        Param sub-key (go_kegg / gsea / gsva).
+    rule_name : str
+        The consuming rule's name (e.g. function_go_kegg / function_result).
+    key : str
+        Parameter name inside the rule's sub-section (e.g. formats).
     default : list
         Fallback list (= the extension the rules emit today).
 
@@ -38,7 +42,7 @@ def _uniform_formats(section, default):
     for genome, genome_params in func_params.items():
         if not isinstance(genome_params, dict):
             continue
-        fmts = (genome_params.get(section) or {}).get("formats")
+        fmts = rule_param(genome_params, rule_name, key, None)
         if fmts is None:
             continue
         if isinstance(fmts, str):
@@ -49,14 +53,18 @@ def _uniform_formats(section, default):
     distinct = {tuple(v) for v in found.values()}
     if len(distinct) > 1:
         raise ValueError(
-            f"Params.function.<genome>.{section}.formats must be identical "
+            f"Params.function.<genome>.{rule_name}.{key} must be identical "
             f"across genomes (rule outputs are expanded at parse time): "
             f"got {found}")
     return list(next(iter(distinct)))
 
-_go_kegg_formats = _uniform_formats("go_kegg", ["png"])
-_gsea_formats = _uniform_formats("gsea", ["jpeg"])
-_gsva_formats = _uniform_formats("gsva", ["png"])
+_go_kegg_formats = _uniform_rule_formats("function_go_kegg", "formats", ["png"])
+_gsea_formats = _uniform_rule_formats("function_gsea", "formats", ["jpeg"])
+_gsva_formats = _uniform_rule_formats("function_gsva", "formats", ["png"])
+# function_result 消费 function_go_kegg/function_gsea 的图(跨 rule 消费,
+# 变体期望挂在消费 rule 名下;每 rule 一个 parse 期变量)
+_result_go_fmts = _uniform_rule_formats("function_result", "go_kegg_formats", ["png"])
+_result_gsea_fmts = _uniform_rule_formats("function_result", "gsea_formats", ["jpeg"])
 
 
 def _raster_pick(formats):
@@ -106,11 +114,11 @@ rule function_go_kegg:
         mem_mb=rule_res("function_go_kegg").get("mem_mb", 8000),
     params:
         go_kegg_script = ROOT_DIR + "/modules/function/bin/go-kegg.r",
-        species = lambda wildcards: config.get("Params", {}).get("function", {}).get(wildcards.genome, {}).get("go_kegg", {}).get("species") or "mouse",
-        lfc_cut = lambda wildcards: config.get("Params", {}).get("function", {}).get(wildcards.genome, {}).get("go_kegg", {}).get("lfc_cut") or 1,
-        p_cut = lambda wildcards: config.get("Params", {}).get("function", {}).get(wildcards.genome, {}).get("go_kegg", {}).get("p_cut") or 0.05,
-        top = lambda wildcards: config.get("Params", {}).get("function", {}).get(wildcards.genome, {}).get("go_kegg", {}).get("top") or 10,
-        formats = _go_kegg_formats,   # ③ 转发(跨 genome 一致,见 _uniform_formats)
+        species = lambda wildcards: rule_param(func_params.get(wildcards.genome, {}), "function_go_kegg", "species", "mouse") or "mouse",
+        lfc_cut = lambda wildcards: rule_param(func_params.get(wildcards.genome, {}), "function_go_kegg", "lfc_cut", 1) or 1,
+        p_cut = lambda wildcards: rule_param(func_params.get(wildcards.genome, {}), "function_go_kegg", "p_cut", 0.05) or 0.05,
+        top = lambda wildcards: rule_param(func_params.get(wildcards.genome, {}), "function_go_kegg", "top", 10) or 10,
+        formats = _go_kegg_formats,   # ③ 转发(跨 genome 一致,见 _uniform_rule_formats)
     conda:
         "../function.yaml"
     container:
@@ -167,9 +175,9 @@ def get_input_for_function_gsea(wildcards):
     annotation = config.get('genome',{}).get('references', {}).get(wildcards.genome, {}).get('geneIDAnno')
     if not annotation or not os.path.exists(annotation):
         raise FileNotFoundError(f"Gene ID annotation not found for genome {wildcards.genome}.")
-    gmt = config.get("Params", {}).get("function", {}).get(wildcards.genome, {}).get("gsea", {}).get("gmt")
+    gmt = rule_param(func_params.get(wildcards.genome, {}), "function_gsea", "gmt", None)
     if not gmt or not os.path.exists(gmt):
-        raise ValueError(f"GSEA requires a GMT file. Please set Params.function.{wildcards.genome}.gsea.gmt in config.")
+        raise ValueError(f"GSEA requires a GMT file. Please set Params.function.{wildcards.genome}.function_gsea.gmt in config.")
     in_dict['deseq2_result'] = deseq2_result
     in_dict['annotation'] = annotation
     in_dict['gmt'] = gmt
@@ -191,7 +199,7 @@ rule function_gsea:
         mem_mb=rule_res("function_gsea").get("mem_mb", 8000),
     params:
         gsea_script = ROOT_DIR + "/modules/function/bin/gsea.r",
-        formats = _gsea_formats,   # ③ 转发(跨 genome 一致,见 _uniform_formats)
+        formats = _gsea_formats,   # ③ 转发(跨 genome 一致,见 _uniform_rule_formats)
     conda:
         "../function.yaml"
     container:
@@ -246,10 +254,10 @@ def get_input_for_function_gsva(wildcards):
     counts_file = counts_dir + f"/{wildcards.genome}/{wildcards.genome}_featureCounts.tsv"
     in_dict['counts'] = counts_file
     # GMT gene set file
-    gmt = config.get("Params", {}).get("function", {}).get(wildcards.genome, {}).get("gsva", {}).get("gmt")
+    gmt = rule_param(func_params.get(wildcards.genome, {}), "function_gsva", "gmt", None)
     if not gmt or not os.path.exists(gmt):
         raise ValueError(
-            f"GSVA requires a GMT file. {gmt} is not exists, please set Params.function.{wildcards.genome}.gsva.gmt in config."
+            f"GSVA requires a GMT file. {gmt} is not exists, please set Params.function.{wildcards.genome}.function_gsva.gmt in config."
         )
     in_dict['gmt'] = gmt
     # GTF for gene ID → gene name conversion
@@ -291,8 +299,8 @@ rule function_gsva:
     params:
         norm_script = ROOT_DIR + "/modules/function/bin/normalization.py",
         gsva_script = ROOT_DIR + "/modules/function/bin/gsva.py",
-        species = lambda wildcards: config.get("Params", {}).get("function", {}).get(wildcards.genome, {}).get("go_kegg", {}).get("species") or "mouse",
-        formats = _gsva_formats,   # ③ 转发(跨 genome 一致,见 _uniform_formats)
+        species = lambda wildcards: rule_param(func_params.get(wildcards.genome, {}), "function_gsva", "species", "mouse") or "mouse",
+        formats = _gsva_formats,   # ③ 转发(跨 genome 一致,见 _uniform_rule_formats)
     conda:
         "../function.yaml"
     container:
@@ -346,8 +354,8 @@ rule function_result:
     input:
         # 消费端按 raster-first 约定解析同一变体(modules.md #9):
         # png 优先,否则取第一个光栅格式,否则取第一个格式
-        go_kegg = outdir + "/{genome}/{contrast}/go_back_to_back." + _raster_pick(_go_kegg_formats),
-        gsea = outdir + "/{genome}/{contrast}/GSEA/TEcount_Gene_GSEA." + _raster_pick(_gsea_formats)
+        go_kegg = outdir + "/{genome}/{contrast}/go_back_to_back." + _raster_pick(_result_go_fmts),
+        gsea = outdir + "/{genome}/{contrast}/GSEA/TEcount_Gene_GSEA." + _raster_pick(_result_gsea_fmts)
 
     resources:
         mem_mb = lambda wildcards, input, attempt: rule_res(

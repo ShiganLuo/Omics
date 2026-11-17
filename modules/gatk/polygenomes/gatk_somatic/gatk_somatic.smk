@@ -3,6 +3,9 @@ include: "../../../common/common.smk"
 indir = config.get("indir") or "input"
 outdir = config.get("outdir") or "output"
 logdir = config.get("logdir") or "log"
+# 参数精确到 rule:javaOptions/tmp-dir 按 rule 独立配置(Params.gatk.<rule_name>
+# .javaOptions/.tmp-dir),无 module 级共享;rule_param 见 common.smk。
+_gatk_params = config.get("Params", {}).get("gatk", {})
 
 def get_input_somaticMutect2(wildcards):
     """
@@ -51,9 +54,9 @@ rule somaticMutect2:
     container:
         sif("../../gatk.yaml", "somaticMutect2")
     params:
-        javaOptions = config.get("Params", {}).get("gatk", {}).get("javaOptions") or "-Xmx30g",
+        javaOptions = rule_param(_gatk_params, "somaticMutect2", "javaOptions", "-Xmx30g"),
         gatk = config.get("Procedure", {}).get("gatk") or "gatk",
-        tmp_dir = config.get("Params", {}).get("gatk", {}).get("tmp-dir") or None,
+        tmp_dir = rule_param(_gatk_params, "somaticMutect2", "tmp-dir", None),
         parameters = config.get("mutect2_parameters") or ""
     threads: rule_res("somaticMutect2").get("threads", 10)
     benchmark: logdir + "/{genome}/all/gatk/{normal_sample_id}_{experimental_sample_id}/mutect2.benchmark.tsv",

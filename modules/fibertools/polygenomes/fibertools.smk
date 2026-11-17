@@ -16,6 +16,9 @@ indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "log")
 samples = config.get("samples", [])
+# 参数精确到 rule(2026-11 规范):Params.fibertools.<rule_name>.<key>,无
+# module 级共享回退(rule_param 见 common.smk)。
+_ft_params = config.get("Params", {}).get("fibertools", {})
 # fasta resolved per-genome in rules
 
 rule ft_predict_m6a:
@@ -144,7 +147,7 @@ rule ft_fire:
         sif("../fibertools.yaml", "ft_fire")
     params:
         ft = config.get("Procedure", {}).get("fibertools") or "ft",
-        is_ont = config.get("Params", {}).get("fibertools", {}).get("ont", False)
+        is_ont = rule_param(_ft_params, "ft_fire", "ont", False)
     run:
         log_path = str(log)
         open(log_path, 'w').close()

@@ -8,8 +8,10 @@
     },
     "Params": {
         "protein_inference": {
-            "method": "epifany",
-            "greedy_group_resolution": "none"
+            "protein_inference": {
+                "method": "epifany",
+                "greedy_group_resolution": "none"
+            }
         }
     }
 }

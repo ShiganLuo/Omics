@@ -4,7 +4,7 @@ from itertools import combinations
 import os
 import re
 import time
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict, List, Optional, Sequence
 import logging
 import json
 from src.common.util.type import DesignPair, CompareGroupPair, SampleInfo, CellrangerInput
@@ -203,6 +203,21 @@ def _plot_formats(
     return [str(f) for f in fmts]
 
 
+def _rule_first(
+        section: Dict[str, Any], rules: Sequence[str], key: str,
+        default: Any = None) -> Any:
+    """参数精确到 rule 读取:``<section>.<rule_name>.<key>`` 各 rule 独立键,
+    取首个配置值;未配置时回退旧扁平键(兼容),再回退 ``default``。
+    与 common.smk rule_param 的键形状一致,供 config 组装层(node.py)使用。
+    """
+    for rule in rules:
+        value = (section.get(rule) or {}).get(key)
+        if value is not None:
+            return value
+    flat = section.get(key)
+    return default if flat is None else flat
+
+
 def _figs(base: str, fmts) -> List[str]:
     """Per-format figure files for one extension-less figure base."""
     return [f"{base}.{fmt}" for fmt in fmts]
@@ -241,29 +256,32 @@ def _register_regionplot(
     params = datajson.get("Params", {}).get("regionplot", {})
     if not _enabled(datajson, "regionplot"):
         return []
+    # 参数精确到 rule:Params.regionplot.regionplot.<key>(消费 rule regionplot;
+    # 旧扁平键兼容回退)。
     # regions: BED rows or a [NAME=]chrom:start-end list
-    regions_file = params.get("regions")
+    regions_file = _rule_first(params, ("regionplot",), "regions")
     if not regions_file:
         raise ValueError(
             f"{workflow}: Params.regionplot.enabled=true requires "
-            "Params.regionplot.regions (a BED of chrom/start/end[/name] "
+            "Params.regionplot.regionplot.regions (a BED of chrom/start/end[/name] "
             "rows or a list of [NAME=]chrom:start-end lines); set it in "
             "the workflow config JSON, then rerun.")
     # group map: hand-filled config wins, else derive from meta group column
-    group_dict = dict(params.get("sample_group_dict") or {})
+    group_dict = dict(_rule_first(params, ("regionplot",), "sample_group_dict", {}) or {})
     for sid in samples:
         if sid not in group_dict:
             group = getattr(samples_info_dict.get(sid), "group", None)
             if group:
                 group_dict[sid] = group
-    datajson.setdefault("Params", {}).setdefault("regionplot", {})[
-        "sample_group_dict"] = group_dict
+    # 写回精确到 rule:Params.regionplot.regionplot.sample_group_dict
+    datajson.setdefault("Params", {}).setdefault("regionplot", {}).setdefault(
+        "regionplot", {})["sample_group_dict"] = group_dict
     # formats normalize (same expression as the module smk)
-    formats = params.get("formats") or ["png", "svg"]
+    formats = _rule_first(params, ("regionplot",), "formats") or ["png", "svg"]
     if isinstance(formats, str):
         formats = [formats]
     if not isinstance(formats, list) or not all(isinstance(f, str) for f in formats):
-        raise ValueError(f"{workflow}: Params.regionplot.formats must be a list of strings")
+        raise ValueError(f"{workflow}: Params.regionplot.regionplot.formats must be a list of strings")
     # panel names mirror the module's regions parsing (BED col4 or
     # chrom_start_end; list NAME= prefix or the sanitized chr:start-end)
     panels: List[str] = []
@@ -300,7 +318,7 @@ def _register_regionplot(
             panels.append(name)
     if not panels:
         raise ValueError(
-            f"{workflow}: Params.regionplot.regions has no rows: {regions_file}")
+            f"{workflow}: Params.regionplot.regionplot.regions has no rows: {regions_file}")
     out = []
     for panel in panels:
         for fmt in formats:
@@ -356,25 +374,26 @@ def _register_fiberbrowser(
             "or a list of [NAME=]chrom:start-end lines); set it in the "
             "workflow config JSON, then rerun.")
     # group map: hand-filled config wins, else derive from meta group column
-    group_dict = dict(params.get("sample_group_dict") or {})
+    # (参数精确到 rule:Params.fiberbrowser.fiberbrowser.<key>;旧扁平键兼容回退)
+    group_dict = dict(_rule_first(params, ("fiberbrowser",), "sample_group_dict", {}) or {})
     for sid in samples:
         if sid not in group_dict:
             group = getattr(samples_info_dict.get(sid), "group", None)
             if group:
                 group_dict[sid] = group
-    formats = params.get("formats") or ["png"]
+    formats = _rule_first(params, ("fiberbrowser",), "formats") or ["png"]
     if isinstance(formats, str):
         formats = [formats]
     if not isinstance(formats, list) or not all(isinstance(f, str) for f in formats):
-        raise ValueError(f"{workflow}: Params.fiberbrowser.formats must be a list of strings")
-    variants = params.get("variants") or ["plain", "zoom"]
+        raise ValueError(f"{workflow}: Params.fiberbrowser.fiberbrowser.formats must be a list of strings")
+    variants = _rule_first(params, ("fiberbrowser",), "variants") or ["plain", "zoom"]
     if isinstance(variants, str):
         variants = [variants]
     variant_suffix = {"plain": "", "zoom": "_zoom"}
     bad = [v for v in variants if v not in variant_suffix]
     if bad:
         raise ValueError(
-            f"{workflow}: Params.fiberbrowser.variants entries must be "
+            f"{workflow}: Params.fiberbrowser.fiberbrowser.variants entries must be "
             f"'plain' or 'zoom', got {bad}")
     # loci parse; names become output path components AND receipt arguments,
     # so sanitize to a shell-safe charset and dedupe
@@ -419,7 +438,10 @@ def _register_fiberbrowser(
     if not loci_map:
         raise ValueError(
             f"{workflow}: Params.fiberbrowser.loci has no rows: {loci_file}")
-    fiberbrowser = datajson.setdefault("Params", {}).setdefault("fiberbrowser", {})
+    # 写回精确到 rule:Params.fiberbrowser.fiberbrowser.<key>(模块 rule fiberbrowser
+    # 经 rule_param 读取,无 module 级共享回退)
+    fiberbrowser = (datajson.setdefault("Params", {}).setdefault("fiberbrowser", {})
+                    .setdefault("fiberbrowser", {}))
     fiberbrowser["loci_map"] = loci_map
     fiberbrowser["sample_group_dict"] = group_dict
     out = []
@@ -827,12 +849,20 @@ def runCLIP(
     # parameters suggest by https://doi.org/10.1016/j.ymeth.2019.11.008
     datajson["Params"]["bamCoverage"]["offset"] = "-1"
     datajson["Params"]["bamCoverage"]["binSize"] = 1
-    datajson["Params"]["bamCoverage"]["normalizeUsing"] = "CPM"
+    # normalizeUsing 精确到 rule:bamCoverage/wig 各自子键
+    # (Params.bamCoverage.<rule>.normalizeUsing;未迁移的 binSize/offset/
+    # extendReads 仍是模块级扁平键)
+    _bc = datajson["Params"].setdefault("bamCoverage", {})
+    _bc.setdefault("bamCoverage", {})["normalizeUsing"] = "CPM"
+    _bc.setdefault("wig", {})["normalizeUsing"] = "CPM"
     datajson["Params"]["bamCoverage"]["extendReads"] = 1
-    datajson["Params"]["star"]["alignEndsType"] = "Extend5pOfRead1"
-    datajson["Params"]["star"]["outFilterMismatchNoverReadLmax"] = 0.04
-    datajson["Params"]["star"]["outFilterMismatchNmax"] = 999
-    datajson["Params"]["star"]["outFilterMultimapNmax"] = 999
+    # star 参数精确到 rule:写入 star_align 子段(Params.star.star_align.<key>,
+    # 消费 rule star_align 经 rule_param 读取,无 module 级共享回退)
+    _star_align = datajson["Params"].setdefault("star", {}).setdefault("star_align", {})
+    _star_align["alignEndsType"] = "Extend5pOfRead1"
+    _star_align["outFilterMismatchNoverReadLmax"] = 0.04
+    _star_align["outFilterMismatchNmax"] = 999
+    _star_align["outFilterMultimapNmax"] = 999
     datajson["Params"]["igv"]["js"] = "/data/pub/zhousha/Reference/igv.min.js"
     datajson["Params"]["igv"]["publicPathMap"] = {
         "/data/pub/zhousha/": "/data/",
@@ -901,7 +931,8 @@ def runPacVar(
             outfiles.append(f"{outdir}/repeat/trgt/genotype/{sample_id}/{sample_id}.trgt.vcf.gz")
             outfiles += _figs(
                 f"{outdir}/repeat/trgt/plot/{sample_id}/{sample_id}.trgt.repeat",
-                _plot_formats(datajson, "trgt", default=("png",)))
+                _plot_formats(datajson, "trgt", "trgt_plot", default=None)
+                or _plot_formats(datajson, "trgt", default=("png",)))
 
     # eccDNA / ecDNA reconstruction via Decoil
     # Decoil is reconstruction-only: SV VCF comes from pbsv upstream and the
@@ -983,7 +1014,7 @@ def runPacVar(
         )
     if enable_sv and comparisons:
         sv_outdir = f"{outdir}/variation/germline_sv_analysis"
-        sv_genes = sv_params.get("genes") or []
+        sv_genes = _rule_first(sv_params, ("sv_gene_model",), "genes") or []
         sv_oncoprint = sv_params.get("oncoprint") or {}
         known_samples = set(samples_info_dict)
         for name, c in comparisons.items():
@@ -1030,7 +1061,17 @@ def runPacVar(
 
     gatk_tmp_dir = os.path.join(outdir, "tmp")
     os.makedirs(gatk_tmp_dir, exist_ok=True)
-    datajson["Params"]["gatk"]["tmp-dir"] = gatk_tmp_dir
+    # tmp-dir 精确到 rule:镜像写入全部消费 rule 的子段
+    # (Params.gatk.<rule>.tmp-dir;无 module 级共享回退)
+    _gatk = datajson["Params"].setdefault("gatk", {})
+    for _grule in ("gatk_index", "addReadsGroup", "MarkDuplicates",
+                   "collectHsMetrics", "BaseRecalibrator", "ApplyBQSR",
+                   "HaplotypeCaller", "filterHaplotypeCallerVcf",
+                   "SplitNCigarReads", "VarientCalling", "vcf_filter",
+                   "somaticMutect2", "filterMutectCalls",
+                   "gatk_population_haplotype_caller",
+                   "gatk_population_joint_genotyping"):
+        _gatk.setdefault(_grule, {})["tmp-dir"] = gatk_tmp_dir
     datajson["Params"]["workflow"]["samples"] = samples
     outfiles += _register_regionplot(datajson, samples_info_dict, samples, outdir, "PacVar")
     # Sex check (modules/sexcheck): per-sample sex call from sex-chromosome
@@ -1154,6 +1195,14 @@ def runMutation(
         # Paired mode must not also build a pooled reference alongside the
         # per-pair references (conflicting reference semantics).
         datajson["Params"]["workflow"]["control_samples"] = []
+    # 参数精确到 rule:resolve 结果(以及 meta assay 推导的 method)镜像写入
+    # rule 子段——modules/cnvkit 只读 Params.cnvkit.<rule>.mode/.method
+    # (rule_param,无 module 级回退),扁平键仅留作 node.py 自身门控/兼容。
+    for _cnv_rule in ("cnvkit_reference", "cnvkit_batch", "cnvkit_paired"):
+        _cnv_sub = _cnv_cfg.setdefault(_cnv_rule, {})
+        _cnv_sub["mode"] = _cnv_mode
+        if _cnv_cfg.get("method"):
+            _cnv_sub["method"] = _cnv_cfg["method"]
     for sample_id, sample_info in samples_info_dict.items():
 
         if sample_info.layout == "PE":
@@ -1230,8 +1279,10 @@ def runMutation(
     if _enabled(datajson, "fragment_size"):
         outfiles.append(f"{outdir}/results/fragment_size/fragment/FragmentSize.txt")
         outfiles += _figs(f"{outdir}/results/fragment_size/fragment/FragmentSize",
-                          _plot_formats(datajson, "fragment_size",
-                                        default=("png",)))
+                          _plot_formats(datajson, "fragment_size", "plotFragmentSize",
+                                        default=None)
+                          or _plot_formats(datajson, "fragment_size",
+                                           default=("png",)))
 
     if _enabled(datajson, "manta"):
         # Matched-normal design pairs -> Manta somatic mode (somaticSV.vcf.gz),
@@ -1251,8 +1302,10 @@ def runMutation(
                 f"{outdir}/stability/msi/{designPair.exp_sample_id}/"
                 f"{designPair.exp_sample_id}_msi_pro.tsv")
         outfiles.append(f"{outdir}/stability/msi/msi_input.txt")
+        # formats 精确到 rule:Params.msi.msi_plot.formats(旧扁平键兼容回退)。
         outfiles += _figs(f"{outdir}/stability/msi/msi_barplot",
-                          _plot_formats(datajson, "msi", default=("jpg",)))
+                          _plot_formats(datajson, "msi", "msi_plot", default=None)
+                          or _plot_formats(datajson, "msi", default=("jpg",)))
 
     if _enabled(datajson, "cnvkit"):
         # Mode-aware registration: paired -> per-pair tumors only (no pooled
@@ -1294,23 +1347,28 @@ def runMutation(
                              ("sample_cnv_dict", cnv_dict)):
             if not burden_cfg.get(key):
                 burden_cfg[key] = derived
-        # VEP annotation settings (Params.burden.annotate, default on):
+        # VEP annotation settings (Params.burden.burden_snv_indel.annotate,
+        # default on; 扁平 Params.burden.annotate 为旧键兼容回退):
         # species/assembly are derived from the genome; an explicit config
         # value wins and an unmapped genome hard-errors instead of guessing.
-        if burden_cfg.get("annotate", True):
-            if not burden_cfg.get("vep_species") or not burden_cfg.get("vep_assembly"):
+        _burden_snvi = burden_cfg.setdefault("burden_snv_indel", {})
+        if _burden_snvi.get("annotate", burden_cfg.get("annotate", True)):
+            if not (_burden_snvi.get("vep_species") or burden_cfg.get("vep_species")) \
+                    or not (_burden_snvi.get("vep_assembly") or burden_cfg.get("vep_assembly")):
                 _genome_key = str(datajson["genome"]["default"])
                 mapped = GENOME_VEP_SPECIES.get(_genome_key)
                 if not mapped:
                     raise ValueError(
                         f"Mutation: genome '{_genome_key}' has no known VEP "
                         f"species/assembly for the burden annotation; set "
-                        f"'Params.burden.vep_species' and "
-                        f"'Params.burden.vep_assembly' in the config JSON, or "
-                        f"disable annotation with Params.burden.annotate=false."
+                        f"'Params.burden.burden_snv_indel.vep_species' and "
+                        f"'Params.burden.burden_snv_indel.vep_assembly' in the config JSON, or "
+                        f"disable annotation with Params.burden.burden_snv_indel.annotate=false."
                     )
                 burden_cfg.setdefault("vep_species", mapped[0])
                 burden_cfg.setdefault("vep_assembly", mapped[1])
+                _burden_snvi.setdefault("vep_species", mapped[0])
+                _burden_snvi.setdefault("vep_assembly", mapped[1])
                 logger.info(
                     f"Mutation: burden VEP settings auto-filled for genome "
                     f"'{_genome_key}': species={mapped[0]} assembly={mapped[1]}"
@@ -1441,10 +1499,10 @@ def runPeakCalling(
             logger.error(f"Failed to resolve genome for organism {next(iter(organisms))}: {e}")
             raise ValueError(f"Failed to resolve genome for organism {next(iter(organisms))}: {e}")
         datajson["genome"]["default"] = organism
-        datajson["Params"]["report"]["genome"] = organism
+        datajson["Params"].setdefault("report", {}).setdefault("generate_report", {})["genome"] = organism
     elif len(organisms) > 1:
         logger.warning(f"Multiple organisms detected: {organisms}, using config default genome")
-    datajson["Params"]["report"]["date"] = time.strftime("%Y-%m-%d", time.localtime())
+    datajson["Params"].setdefault("report", {}).setdefault("generate_report", {})["date"] = time.strftime("%Y-%m-%d", time.localtime())
 
     # Heatmap samples: from computeMatrix.samples, fallback to all ip_samples
     cm_params = datajson.get("Params", {}).get("computeMatrix", {})
@@ -1481,20 +1539,24 @@ def runPeakCalling(
                     for gene_name in cm_gene_names:
                         outfiles += _figs(
                             f"{outdir}/results/heatmap/{ip_sample}/{ip_sample}_{gene_name}_heatmap",
-                            _plot_formats(datajson, "plotHeatmap", default=("png",)))
+                            _plot_formats(datajson, "plotHeatmap", "heatmap_gene", default=None)
+                            or _plot_formats(datajson, "plotHeatmap", default=("png",)))
                 else:
                     outfiles += _figs(
                         f"{outdir}/results/heatmap/{ip_sample}/{ip_sample}_{hm_suffix}_heatmap",
-                        _plot_formats(datajson, "plotHeatmap", default=("png",)))
+                        _plot_formats(datajson, "plotHeatmap", "heatmap", default=None)
+                        or _plot_formats(datajson, "plotHeatmap", default=("png",)))
             # Step 10: HOMER annotation
             outfiles.append(f"{outdir}/results/annotation/{ip_sample}/{ip_sample}_peaks.annotatePeaks.txt")
             # Step 11: Peak-TE overlap
             outfiles.append(f"{outdir}/results/te_overlap/{ip_sample}/{ip_sample}_te_subfamily_overlap.tsv")
             outfiles.append(f"{outdir}/results/te_overlap/{ip_sample}/{ip_sample}_peak_centric_te.tsv")
         outfiles += _figs(f"{outdir}/results/peaks/cutoff_analysis",
-                          _plot_formats(datajson, "macs3", default=("png",)))
+                          _plot_formats(datajson, "macs3", "macs3_cutoff_plot", default=None)
+                          or _plot_formats(datajson, "macs3", default=("png",)))
         outfiles += _figs(f"{outdir}/results/te_overlap/te_subfamily_overlap_combined",
-                          _plot_formats(datajson, "peak_te_overlap", default=("png",)))
+                          _plot_formats(datajson, "peak_te_overlap", "peak_te_overlap_fig", default=None)
+                      or _plot_formats(datajson, "peak_te_overlap", default=("png",)))
         for input_sample in input_samples:
             outfiles.append(f"{outdir}/common/4_markdup_bam/{input_sample}/{input_sample}.sorted_markdup.bam")
             outfiles.append(f"{outdir}/results/tracks/{input_sample}/{input_sample}.bigwig")
@@ -1513,18 +1575,21 @@ def runPeakCalling(
                     for gene_name in cm_gene_names:
                         outfiles += _figs(
                             f"{outdir}/results/heatmap/{ip_sample}/{ip_sample}_{gene_name}_heatmap",
-                            _plot_formats(datajson, "plotHeatmap", default=("png",)))
+                            _plot_formats(datajson, "plotHeatmap", "heatmap_gene", default=None)
+                            or _plot_formats(datajson, "plotHeatmap", default=("png",)))
                 else:
                     outfiles += _figs(
                         f"{outdir}/results/heatmap/{ip_sample}/{ip_sample}_{hm_suffix}_heatmap",
-                        _plot_formats(datajson, "plotHeatmap", default=("png",)))
+                        _plot_formats(datajson, "plotHeatmap", "heatmap", default=None)
+                        or _plot_formats(datajson, "plotHeatmap", default=("png",)))
             # Step 10: HOMER annotation
             outfiles.append(f"{outdir}/results/annotation/{ip_sample}/{ip_sample}_peaks.annotatePeaks.txt")
             # Step 11: Peak-TE overlap
             outfiles.append(f"{outdir}/results/te_overlap/{ip_sample}/{ip_sample}_te_subfamily_overlap.tsv")
             outfiles.append(f"{outdir}/results/te_overlap/{ip_sample}/{ip_sample}_peak_centric_te.tsv")
     outfiles += _figs(f"{outdir}/results/te_overlap/te_subfamily_overlap_combined",
-                      _plot_formats(datajson, "peak_te_overlap", default=("png",)))
+                      _plot_formats(datajson, "peak_te_overlap", "peak_te_overlap_fig", default=None)
+                      or _plot_formats(datajson, "peak_te_overlap", default=("png",)))
     outfiles.append(f"{outdir}/results/tracks/ucsc_track.txt")
     outfiles.append(f"{outdir}/results/tracks/igv_track.html")
     outfiles.append(f"{outdir}/PeakCalling_report.pptx")
@@ -1600,10 +1665,10 @@ def runRIPseq(
             logger.error(f"Failed to resolve genome for organism {next(iter(organisms))}: {e}")
             raise ValueError(f"Failed to resolve genome for organism {next(iter(organisms))}: {e}")
         datajson["genome"]["default"] = organism
-        datajson["Params"]["report"]["genome"] = organism
+        datajson["Params"].setdefault("report", {}).setdefault("generate_report", {})["genome"] = organism
     elif len(organisms) > 1:
         logger.warning(f"Multiple organisms detected: {organisms}, using config default genome")
-    datajson["Params"]["report"]["date"] = time.strftime("%Y-%m-%d", time.localtime())
+    datajson["Params"].setdefault("report", {}).setdefault("generate_report", {})["date"] = time.strftime("%Y-%m-%d", time.localtime())
 
     # Heatmap samples: from computeMatrix.samples, fallback to all ip_samples
     cm_params = datajson.get("Params", {}).get("computeMatrix", {})
@@ -1643,20 +1708,24 @@ def runRIPseq(
                     for gene_name in cm_gene_names:
                         outfiles += _figs(
                             f"{outdir}/results/heatmap/{ip_sample}/{ip_sample}_{gene_name}_heatmap",
-                            _plot_formats(datajson, "plotHeatmap", default=("png",)))
+                            _plot_formats(datajson, "plotHeatmap", "heatmap_gene", default=None)
+                            or _plot_formats(datajson, "plotHeatmap", default=("png",)))
                 else:
                     outfiles += _figs(
                         f"{outdir}/results/heatmap/{ip_sample}/{ip_sample}_{hm_suffix}_heatmap",
-                        _plot_formats(datajson, "plotHeatmap", default=("png",)))
+                        _plot_formats(datajson, "plotHeatmap", "heatmap", default=None)
+                        or _plot_formats(datajson, "plotHeatmap", default=("png",)))
             # Step 10: HOMER annotation
             outfiles.append(f"{outdir}/results/annotation/{ip_sample}/{ip_sample}_peaks.annotatePeaks.txt")
             # Step 11: Peak-TE overlap
             outfiles.append(f"{outdir}/results/te_overlap/{ip_sample}/{ip_sample}_te_subfamily_overlap.tsv")
             outfiles.append(f"{outdir}/results/te_overlap/{ip_sample}/{ip_sample}_peak_centric_te.tsv")
         outfiles += _figs(f"{outdir}/results/peaks/cutoff_analysis",
-                          _plot_formats(datajson, "macs3", default=("png",)))
+                          _plot_formats(datajson, "macs3", "macs3_cutoff_plot", default=None)
+                          or _plot_formats(datajson, "macs3", default=("png",)))
         outfiles += _figs(f"{outdir}/results/te_overlap/te_subfamily_overlap_combined",
-                          _plot_formats(datajson, "peak_te_overlap", default=("png",)))
+                          _plot_formats(datajson, "peak_te_overlap", "peak_te_overlap_fig", default=None)
+                      or _plot_formats(datajson, "peak_te_overlap", default=("png",)))
         for input_sample in input_samples:
             outfiles.append(f"{outdir}/common/4_markdup_bam/{input_sample}/{input_sample}.sorted_markdup.bam")
             outfiles.append(f"{outdir}/results/tracks/{input_sample}/{input_sample}.bigwig")
@@ -1675,18 +1744,21 @@ def runRIPseq(
                     for gene_name in cm_gene_names:
                         outfiles += _figs(
                             f"{outdir}/results/heatmap/{ip_sample}/{ip_sample}_{gene_name}_heatmap",
-                            _plot_formats(datajson, "plotHeatmap", default=("png",)))
+                            _plot_formats(datajson, "plotHeatmap", "heatmap_gene", default=None)
+                            or _plot_formats(datajson, "plotHeatmap", default=("png",)))
                 else:
                     outfiles += _figs(
                         f"{outdir}/results/heatmap/{ip_sample}/{ip_sample}_{hm_suffix}_heatmap",
-                        _plot_formats(datajson, "plotHeatmap", default=("png",)))
+                        _plot_formats(datajson, "plotHeatmap", "heatmap", default=None)
+                        or _plot_formats(datajson, "plotHeatmap", default=("png",)))
             # Step 10: HOMER annotation
             outfiles.append(f"{outdir}/results/annotation/{ip_sample}/{ip_sample}_peaks.annotatePeaks.txt")
             # Step 11: Peak-TE overlap
             outfiles.append(f"{outdir}/results/te_overlap/{ip_sample}/{ip_sample}_te_subfamily_overlap.tsv")
             outfiles.append(f"{outdir}/results/te_overlap/{ip_sample}/{ip_sample}_peak_centric_te.tsv")
     outfiles += _figs(f"{outdir}/results/te_overlap/te_subfamily_overlap_combined",
-                      _plot_formats(datajson, "peak_te_overlap", default=("png",)))
+                      _plot_formats(datajson, "peak_te_overlap", "peak_te_overlap_fig", default=None)
+                      or _plot_formats(datajson, "peak_te_overlap", default=("png",)))
     outfiles.append(f"{outdir}/results/tracks/ucsc_track.txt")
     outfiles.append(f"{outdir}/results/tracks/igv_track.html")
     # Report (subworkflow.md: pptx + xlsx pair, gated by Params.report.enabled)
@@ -1882,16 +1954,25 @@ def runRNAseq(
             pair_dir = f"{outdir}/function/{group_pair.organism}/{group_pair.ctr_group_name}_vs_{group_pair.exp_group_name}"
             outfiles += _figs(f"{pair_dir}/go_back_to_back",
                               _plot_formats(datajson, "function",
-                                            group_pair.organism, "go_kegg",
-                                            default=("png",)))
+                                            group_pair.organism, "function_go_kegg",
+                                            default=None)
+                              or _plot_formats(datajson, "function",
+                                               group_pair.organism, "go_kegg",
+                                               default=("png",)))
             outfiles += _figs(f"{pair_dir}/kegg_back_to_back",
                               _plot_formats(datajson, "function",
-                                            group_pair.organism, "go_kegg",
-                                            default=("png",)))
+                                            group_pair.organism, "function_go_kegg",
+                                            default=None)
+                              or _plot_formats(datajson, "function",
+                                               group_pair.organism, "go_kegg",
+                                               default=("png",)))
             outfiles += _figs(f"{pair_dir}/GSEA/TEcount_Gene_GSEA",
                               _plot_formats(datajson, "function",
-                                            group_pair.organism, "gsea",
-                                            default=("jpeg",)))
+                                            group_pair.organism, "function_gsea",
+                                            default=None)
+                              or _plot_formats(datajson, "function",
+                                               group_pair.organism, "gsea",
+                                               default=("jpeg",)))
             outfiles.append(f"{pair_dir}/go_up.csv")
             outfiles.append(f"{pair_dir}/go_down.csv")
             outfiles.append(f"{pair_dir}/kegg_up.csv")
@@ -1926,7 +2007,7 @@ def runRNAseq(
             logger.error(f"Unknown layout type for sample {sample_id}: {sample_info.layout}")
     datajson["Params"]["XenofilteR"]["sample_contamination"] = sample_contamination
     datajson["genome"]["default"] = ""
-    datajson["Params"]["report"]["genome"] = ""
+    datajson["Params"].setdefault("report", {}).setdefault("generate_report", {})["genome"] = ""
     for organism in Organisms:
         try:
             organism = resolve_genome(organism)
@@ -1934,14 +2015,18 @@ def runRNAseq(
             logger.error(f"Failed to resolve organism {organism}: {e}")
             raise ValueError(f"Failed to resolve organism {organism}: {e}")
         datajson["genome"]["default"] += organism
-        datajson["Params"]["report"]["genome"] += organism
+        datajson["Params"].setdefault("report", {}).setdefault("generate_report", {})["genome"] += organism
+        # species 精确到 rule:镜像写入 function_go_kegg/function_gsva 子键
         if organism in ["Homo sapiens", "human", "GRCh38"]:
-            datajson["Params"]["function"][organism]["species"] = "human"
+            _fn_species = "human"
         elif organism in ["Mus musculus", "mouse", "GRCm39"]:
-            datajson["Params"]["function"][organism]["species"] = "mouse"
+            _fn_species = "mouse"
         else:
             raise ValueError(f"function module don't support {organism}, only support human or mouse(Homo sapiens or Mus musculus)")
-    datajson["Params"]["report"]["date"] = time.strftime("%Y-%m-%d", time.localtime())
+        _fn_org = datajson["Params"].setdefault("function", {}).setdefault(organism, {})
+        for _fn_rule in ("function_go_kegg", "function_gsva"):
+            _fn_org.setdefault(_fn_rule, {})["species"] = _fn_species
+    datajson["Params"].setdefault("report", {}).setdefault("generate_report", {})["date"] = time.strftime("%Y-%m-%d", time.localtime())
     for organism in Organisms:
         if enable_fusion:
             outfiles.append(f"{outdir}/fusion/{organism}/arriba_report/arriba_fusion_report.html")
@@ -1972,7 +2057,9 @@ def runRNAseq(
             outfiles.append(f"{outdir}/function/{organism}/gsva/gsva_scores.tsv")
             outfiles += _figs(f"{outdir}/function/{organism}/gsva/gsva_heatmap",
                               _plot_formats(datajson, "function", organism,
-                                            "gsva", default=("png",)))
+                                            "function_gsva", default=None)
+                              or _plot_formats(datajson, "function", organism,
+                                               "gsva", default=("png",)))
         if enable_report:
             outfiles.append(f"{outdir}/results/{organism}/RNAseq_report.pptx")
             outfiles.append(f"{outdir}/results/{organism}/figures/manifest.tsv")
@@ -2005,8 +2092,11 @@ def runtRNAseq(
     The pipeline processes all samples together via a sample data sheet.
     """
     root_dir = _init_raw_json(datajson, indir, outdir, raw_files)
-    if not datajson.get("Params", {}).get("mimseq", {}).get("data_dir"):
-        datajson.setdefault("Params", {}).setdefault("mimseq", {})["data_dir"] = os.path.join(root_dir, "modules", "mimseq", "mimseq", "data")
+    # data_dir 精确到 rule:Params.mimseq.mimseq_tRNAtools.data_dir(旧扁平键
+    # 兼容回退;写回同样落到 rule 子段)
+    _mimseq = datajson.setdefault("Params", {}).setdefault("mimseq", {})
+    if not _rule_first(_mimseq, ("mimseq_tRNAtools",), "data_dir"):
+        _mimseq.setdefault("mimseq_tRNAtools", {})["data_dir"] = os.path.join(root_dir, "modules", "mimseq", "mimseq", "data")
     datajson.setdefault("Params", {}).setdefault("workflow", {})["meta"] = meta
     samples = []
     for sample_id in samples_info_dict:
@@ -2157,22 +2247,23 @@ def runscRNAseq(
     datajson["Params"]["workflow"]["single_samples"] = single_samples
     datajson["Params"]["workflow"]["cellranger_dirs"] = cellranger_dirs
 
-    # scCODA compare sharing: Params.sccoda.<counter>.compare defaults to the
-    # pseudobulk comparison design (identical tissue:ref:treat[=label] entry
-    # shape) — one --Params.scanpy.<counter>.pseudobulk.compare serves both
+    # scCODA compare sharing: Params.sccoda.<counter>.sccoda_run.compare
+    # defaults to the pseudobulk comparison design (identical
+    # tissue:ref:treat[=label] entry shape) — one
+    # --Params.scanpy.<counter>.scanpy_pseudobulk.compare serves both
     # analyses. A hand-filled sccoda compare wins over the shared one.
     for counter in counters:
-        sccoda_counter = (datajson["Params"].setdefault("sccoda", {})
-                          .setdefault(counter, {}))
-        if not sccoda_counter.get("compare"):
+        sccoda_run = (datajson["Params"].setdefault("sccoda", {})
+                      .setdefault(counter, {}).setdefault("sccoda_run", {}))
+        if not sccoda_run.get("compare"):
             pb = ((datajson["Params"].get("scanpy", {}).get(counter, {}) or {})
-                  .get("pseudobulk", {}) or {})
+                  .get("scanpy_pseudobulk", {}) or {})
             shared = pb.get("compare") or []
             if shared:
-                sccoda_counter["compare"] = list(shared)
+                sccoda_run["compare"] = list(shared)
                 logger.info(
-                    f"[sccoda] Params.sccoda.{counter}.compare is empty — "
-                    f"sharing the pseudobulk design ({len(shared)} entries)")
+                    f"[sccoda] Params.sccoda.{counter}.sccoda_run.compare is "
+                    f"empty — sharing the pseudobulk design ({len(shared)} entries)")
 
     if len(organisms) != 1:
         raise ValueError(f"meta don't support multiple organsim temporarily, please check your meta file, found: {organisms}")
@@ -2190,9 +2281,9 @@ def runscRNAseq(
     aligner = datajson.pop("aligner", None) or _wf.get("aligner") or "cellranger"
     _wf["aligner"] = aligner
     if "scTE" in counters:
-        datajson["Params"]["scanpy"]["scTE"]["qc"]["min_genes"] = 200
-        datajson["Params"]["scanpy"]["scTE"]["qc"]["max_genes"] = 6000
-        datajson["Params"]["scanpy"]["scTE"]["qc"]["scrublet"] = True
+        datajson["Params"]["scanpy"]["scTE"]["scanpy_qc"]["min_genes"] = 200
+        datajson["Params"]["scanpy"]["scTE"]["scanpy_qc"]["max_genes"] = 6000
+        datajson["Params"]["scanpy"]["scTE"]["scanpy_qc"]["scrublet"] = True
         if aligner == "star":
             datajson["Params"]["scTE"]["cb_tag"] = "CR"
             datajson["Params"]["scTE"]["umi_tag"] = "UR"
@@ -2203,9 +2294,9 @@ def runscRNAseq(
             raise ValueError(f"Unsupported aligner for scTE counter: {aligner}, must be star or cellranger")
     elif "cellranger" in counters:
         # cellranger: keep defaults (min_genes=200, max_genes=6000, scrublet=True)
-        datajson["Params"]["scanpy"]["cellranger"]["qc"]["min_genes"] = 200
-        datajson["Params"]["scanpy"]["cellranger"]["qc"]["max_genes"] = 6000
-        datajson["Params"]["scanpy"]["cellranger"]["qc"]["scrublet"] = True
+        datajson["Params"]["scanpy"]["cellranger"]["scanpy_qc"]["min_genes"] = 200
+        datajson["Params"]["scanpy"]["cellranger"]["scanpy_qc"]["max_genes"] = 6000
+        datajson["Params"]["scanpy"]["cellranger"]["scanpy_qc"]["scrublet"] = True
     else:
         raise ValueError(f"Unsupported counter type: {counters}, must be scTE or cellranger")
     # Inject LLM config from environment variables (config takes priority over env)
@@ -2225,10 +2316,11 @@ def runscRNAseq(
             else:
                 outfiles.append(f"{outdir}/common/5_combine_h5ad/{tissue}/{tissue}_{counter}_merged.h5ad")
             # Pseudo-bulk DEG (PyDESeq2) — gated per counter by
-            # Params.scanpy.<counter>.pseudobulk.enabled; consumes the
+            # Params.scanpy.<counter>.scanpy_pseudobulk.enabled; consumes the
             # scanpy_auto h5ad, so registering the report target pulls the
             # qc→merge→auto chain into the DAG
-            pb_cfg = (datajson["Params"].get("scanpy", {}).get(counter, {}) or {}).get("pseudobulk", {})
+            pb_cfg = ((datajson["Params"].get("scanpy", {}).get(counter, {}) or {})
+                      .get("scanpy_pseudobulk", {}) or {})
             # Register the report only for tissues owning at least one
             # compare entry: entries are tissue-scoped
             # "tissue:ref:treat[=label]" strings and the per-tissue rule
@@ -2238,12 +2330,13 @@ def runscRNAseq(
                     str(c).split(":", 1)[0] == tissue for c in pb_compare):
                 outfiles.append(f"{outdir}/diff/pseudobulk/{tissue}/{counter}/pseudobulk_report.html")
             # scCODA differential abundance (modules/sccoda) — gated per
-            # counter by Params.sccoda.<counter>.enabled; consumes the
-            # scanpy_auto h5ad (obs: sample_id + cell_type), so registering
-            # the report target pulls the qc->merge->auto chain into the
-            # DAG. Same tissue-prefix gate expression as the rule's compare
-            # filter.
-            sc_cfg = (datajson["Params"].get("sccoda", {}) or {}).get(counter, {}) or {}
+            # counter by Params.sccoda.<counter>.sccoda_run.enabled; consumes
+            # the scanpy_auto h5ad (obs: sample_id + cell_type), so
+            # registering the report target pulls the qc->merge->auto chain
+            # into the DAG. Same tissue-prefix gate expression as the rule's
+            # compare filter.
+            sc_cfg = ((datajson["Params"].get("sccoda", {}) or {}).get(counter, {})
+                      or {}).get("sccoda_run", {}) or {}
             sc_compare = sc_cfg.get("compare") or []
             if sc_cfg.get("enabled") and any(
                     str(c).split(":", 1)[0] == tissue for c in sc_compare):
@@ -2251,8 +2344,10 @@ def runscRNAseq(
             # Manual cluster-annotation overrides (scanpy_reannotate): an
             # in-place label fix over the auto h5ad (auto.h5ad.bak keeps
             # one generation). Register the marker file only for tissues
-            # with an override JSON configured.
-            ca = (datajson["Params"].get("scanpy", {}).get(counter, {}) or {}).get("auto", {}).get("cluster_annotations", {}) or {}
+            # with an override JSON configured (producer rule
+            # scanpy_reannotate's own cluster_annotations key).
+            ca = ((datajson["Params"].get("scanpy", {}).get(counter, {}) or {})
+                  .get("scanpy_reannotate", {}) or {}).get("cluster_annotations", {}) or {}
             if tissue in ca:
                 outfiles.append(f"{outdir}/common/5_combine_h5ad/{tissue}/{tissue}_{counter}_auto.h5ad.reannotated")
     datajson["Params"]["scanpy"]["tissue_samples"] = tissue_samples
@@ -2361,20 +2456,23 @@ def runFiberseq(
             outfiles.append(f"{outdir}/fiberseq_analysis/motif/{sample_id}/{sample_id}.motif_footprint_scores.tsv")
             outfiles += _figs(
                 f"{outdir}/fiberseq_analysis/motif/{sample_id}/{sample_id}.motif_profile",
-                _plot_formats(datajson, "motif", default=("pdf",)))
+                _plot_formats(datajson, "motif", "fiberseq_motif_profile", default=None)
+                or _plot_formats(datajson, "motif", default=("pdf",)))
         if enable_footprint:
             outfiles.append(f"{outdir}/fiberseq_analysis/footprint/{sample_id}/{sample_id}.footprint_categories.tsv")
             outfiles.append(f"{outdir}/fiberseq_analysis/footprint/{sample_id}/{sample_id}.footprint_profiles.tsv")
             outfiles.append(f"{outdir}/fiberseq_analysis/footprint/{sample_id}/{sample_id}.footprint_scores.tsv")
             outfiles += _figs(
                 f"{outdir}/fiberseq_analysis/footprint/{sample_id}/{sample_id}.footprint_profile",
-                _plot_formats(datajson, "footprint", default=("pdf",)))
+                _plot_formats(datajson, "footprint", "fiberseq_footprint_run", default=None)
+                or _plot_formats(datajson, "footprint", default=("pdf",)))
         if enable_nucpos:
             outfiles.append(f"{outdir}/fiberseq_analysis/nucpos/{sample_id}/{sample_id}.nuc_offset_per_anchor.tsv")
             outfiles.append(f"{outdir}/fiberseq_analysis/nucpos/{sample_id}/{sample_id}.nuc_offset_summary.tsv")
             outfiles += _figs(
                 f"{outdir}/fiberseq_analysis/nucpos/{sample_id}/{sample_id}.nucpos",
-                _plot_formats(datajson, "nucpos", default=("pdf",)))
+                _plot_formats(datajson, "nucpos", "fiberseq_nucpos_run", default=None)
+                or _plot_formats(datajson, "nucpos", default=("pdf",)))
         if enable_track:
             outfiles.append(f"{outdir}/fiberseq_analysis/track/{sample_id}/{sample_id}.accessibility.bw")
             outfiles.append(f"{outdir}/fiberseq_analysis/track/{sample_id}/{sample_id}.m6a_density.bw")
@@ -2390,7 +2488,8 @@ def runFiberseq(
             outfiles.append(f"{outdir}/fiberseq_analysis/censat/{sample_id}/{sample_id}.censat_profile.tsv")
             outfiles += _figs(
                 f"{outdir}/fiberseq_analysis/censat/{sample_id}/{sample_id}.censat_profile",
-                _plot_formats(datajson, "censat", default=("pdf",)))
+                _plot_formats(datajson, "censat", "fiberseq_censat_run", default=None)
+                or _plot_formats(datajson, "censat", default=("pdf",)))
 
         # Step 5: haplotype chain
         if enable_haplotype:
@@ -2491,7 +2590,7 @@ def runFiberseq(
         )
     if enable_sv and comparisons:
         sv_outdir = f"{outdir}/variation/germline_sv_analysis"
-        sv_genes = sv_params.get("genes") or []
+        sv_genes = _rule_first(sv_params, ("sv_gene_model",), "genes") or []
         sv_oncoprint = sv_params.get("oncoprint") or {}
         known_samples = set(samples_info_dict)
         for name, c in comparisons.items():
@@ -2550,22 +2649,27 @@ def runFiberseq(
     if enable_mods:
         mods_params = (datajson.setdefault("Params", {}).get("fiberseq_mods")
                        or datajson["Params"].setdefault("fiberseq_mods", {}))
-        mod_type = mods_params.get("mod_type", "m6a")
+        # 参数精确到 rule:mod_type/region_axis 是各 rule 独立键
+        # (Params.fiberseq_mods.<rule>.<key>;长表文件名由
+        # fiberseq_mods_longtable 产出,以其子键为锚;旧扁平键兼容回退)
+        _mod_rules = ("fiberseq_mods_longtable", "fiberseq_mods_split",
+                      "fiberseq_mods_top_loci", "fiberseq_mods_result")
+        mod_type = _rule_first(mods_params, _mod_rules, "mod_type", "m6a")
         # region_axis is a discriminant object ({default, options}); the
         # axis id selects the engine, the long-table schema, and which
         # axis-specific params (min_fibers/loci_top_n vs metric/top_n)
         # apply. Flat strings are NOT accepted (closed-set parse error).
-        _ra = mods_params.get("region_axis") or {}
+        _ra = _rule_first(mods_params, _mod_rules, "region_axis") or {}
         if not isinstance(_ra, dict):
             raise ValueError(
-                "Params.fiberseq_mods.region_axis must be a discriminant "
+                "Params.fiberseq_mods.<rule>.region_axis must be a discriminant "
                 'object {default, options} (genome-shaped); flat strings '
                 "are not accepted")
         region_axis = _ra.get("default") or "fire_peaks"
         axis_opts = (_ra.get("options", {}) or {}).get(region_axis) or {}
         if region_axis not in (_ra.get("options") or {}):
             raise ValueError(
-                f"Params.fiberseq_mods.region_axis.default must name a key "
+                f"Params.fiberseq_mods.<rule>.region_axis.default must name a key "
                 f"of its options (got {region_axis!r}, "
                 f"options={sorted(_ra.get('options') or {})})")
         metric = axis_opts.get("metric", f"{mod_type}_per_fiber")
@@ -2600,18 +2704,22 @@ def runFiberseq(
         )
         # group -> sample lists for the module (long-table group column +
         # top-loci group specs); parse-time expand needs the contrast list
+        # contrasts 是接线键(subworkflow 转发为模块顶层 contrasts),非 rule 参数
         mods_params["contrasts"] = contrast_names
-        mods_params["group_samples"] = {
+        # 写回精确到 rule:group_samples 消费于 fiberseq_mods_longtable 与
+        # fiberseq_mods_top_loci;groups_by_contrast 仅 top_loci 消费(其规则
+        # 只读自己的子键——多组设计否则每个 contrast 都回退"前两组")
+        _group_samples = {
             g: samples for ctr in mods_contrasts.values() for g, samples in ctr.items()
         }
-        # group pair per contrast ALSO into mods params: its top_loci rule
-        # reads groups_by_contrast from ITS OWN config (multi-group designs
-        # would otherwise fall back to "first two groups" for every contrast)
-        mods_params["groups_by_contrast"] = {
+        _groups_by_contrast = {
             f"{c}.{lv}" if lv else c: sorted(groups)
             for c, groups in mods_contrasts.items()
             for lv in (te_levels or [None])
         }
+        for _mr in ("fiberseq_mods_longtable", "fiberseq_mods_top_loci"):
+            mods_params.setdefault(_mr, {})["group_samples"] = _group_samples
+        mods_params.setdefault("fiberseq_mods_top_loci", {})["groups_by_contrast"] = _groups_by_contrast
         mods_base = f"{outdir}/fiberseq_analysis/mods"
         # sigtest module wiring (subworkflow use rule): its input table is
         # our long table; group pair per contrast comes from the same map,
@@ -2669,7 +2777,10 @@ def runFiberseq(
             )
         contrast_groups = _contrasts_from_group_pairs(group_pairs)
         # contrast spec string for the engine (diff_accessibility --group-spec)
-        datajson["Params"].setdefault("diff", {})["group_spec"] = ",".join(
+        # group_spec 精确到 rule:写回 fiberseq_diff_run 子键(消费 rule 经
+        # rule_param 读取)
+        datajson["Params"].setdefault("diff", {}).setdefault(
+            "fiberseq_diff_run", {})["group_spec"] = ",".join(
             f"{c}:" + "|".join(f"{g}:{'+'.join(ss)}" for g, ss in gs.items())
             for c, gs in contrast_groups.items()
         )
@@ -2677,7 +2788,8 @@ def runFiberseq(
             base = f"{outdir}/fiberseq_analysis/diff/{contrast}"
             outfiles.append(f"{base}/diff_{contrast}.tsv")
             outfiles += _figs(f"{base}/volcano_{contrast}",
-                              _plot_formats(datajson, "diff", default=("pdf",)))
+                              _plot_formats(datajson, "diff", "fiberseq_diff_run", default=None)
+                              or _plot_formats(datajson, "diff", default=("pdf",)))
             outfiles.append(f"{base}/class_summary_{contrast}.tsv")
             outfiles.append(f"{base}/TEcount/{contrast}.TEcount_Gene.name.tsv")
 
@@ -2702,26 +2814,34 @@ def runFiberseq(
                 base = f"{outdir}/function/{contrast}"
                 outfiles += _figs(f"{base}/go_back_to_back",
                                   _plot_formats(datajson, "function",
-                                                "go_kegg", default=("png",)))
+                                                "function_go_kegg", default=None)
+                                  or _plot_formats(datajson, "function",
+                                                   "go_kegg", default=("png",)))
                 outfiles += _figs(f"{base}/kegg_back_to_back",
                                   _plot_formats(datajson, "function",
-                                                "go_kegg", default=("png",)))
+                                                "function_go_kegg", default=None)
+                                  or _plot_formats(datajson, "function",
+                                                   "go_kegg", default=("png",)))
                 outfiles.append(f"{base}/go_up.csv")
                 outfiles.append(f"{base}/go_down.csv")
                 outfiles.append(f"{base}/kegg_up.csv")
                 outfiles.append(f"{base}/kegg_down.csv")
                 outfiles.append(f"{base}/up_genes.txt")
                 outfiles.append(f"{base}/down_genes.txt")
-            if datajson.get("Params", {}).get("function", {}).get("gmt") and default_ref.get("geneIDAnno"):
+            if _rule_first((datajson.get("Params", {}).get("function", {}) or {}),
+                           ("function_gsea", "function_gsva"), "gmt") and default_ref.get("geneIDAnno"):
                 for contrast in sorted(contrast_groups):
                     base = f"{outdir}/function/{contrast}/GSEA"
                     outfiles += _figs(f"{base}/TEcount_Gene_GSEA",
                                       _plot_formats(datajson, "function",
-                                                    "gsea", default=("jpeg",)))
+                                                    "function_gsea", default=None)
+                                      or _plot_formats(datajson, "function",
+                                                       "gsea", default=("jpeg",)))
                     outfiles.append(f"{base}/TEcount_Gene_GSEA.csv")
 
     if enable_lsdc:
-        prefix = datajson.get("Params", {}).get("ldsc", {}).get("annot_prefix") or "peaks"
+        prefix = _rule_first((datajson.get("Params", {}).get("ldsc", {}) or {}),
+                             ("ldsc_annot", "ldsc_h2_cts"), "annot_prefix") or "peaks"
         outfiles.append(f"{outdir}/ldsc/annot/{prefix}.annot_manifest.tsv")
         for trait in sorted((datajson.get("Params", {}).get("ldsc", {}).get("gwas") or {}).keys()):
             outfiles.append(f"{outdir}/ldsc/{trait}/{trait}.sumstats.gz")
@@ -3062,8 +3182,8 @@ def runspatial_transcriptomics(
 
     Scanpy-based Visium analysis: QC -> clustering -> spatial
     autocorrelation (advanced, gated by
-    Params.spatial.advanced.spatial_autocorrelation) over one h5ad input
-    (Params.workflow.input_h5ad or Params.workflow.visium_h5).
+    Params.spatial.spatial_scanpy_advanced.spatial_autocorrelation) over one
+    h5ad input (Params.workflow.input_h5ad or Params.workflow.visium_h5).
     """
     root_dir = _init_raw_json(datajson, indir, outdir, raw_files)
     wf = datajson.setdefault("Params", {}).setdefault("workflow", {})
@@ -3073,7 +3193,7 @@ def runspatial_transcriptomics(
             "Params.workflow.visium_h5 is required"
         )
     spatial_cfg = datajson.get("Params", {}).get("spatial", {}) or {}
-    advanced_enabled = (spatial_cfg.get("advanced") or {}).get(
+    advanced_enabled = (spatial_cfg.get("spatial_scanpy_advanced") or {}).get(
         "spatial_autocorrelation", True)
 
     # outfiles mirror the fallback list in

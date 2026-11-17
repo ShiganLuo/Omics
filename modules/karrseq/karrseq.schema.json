@@ -47,15 +47,34 @@
         "nullable": true,
         "required": false,
         "properties": {
-          "mapq": {
-            "type": "int",
+          "karrseq_chimeric_to_pairs": {
+            "type": "dict",
             "nullable": true,
-            "required": false
+            "required": false,
+            "properties": {
+              "mapq": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "span": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              }
+            }
           },
-          "span": {
-            "type": "int",
+          "karrseq_remove_duplicates": {
+            "type": "dict",
             "nullable": true,
-            "required": false
+            "required": false,
+            "properties": {
+              "mapq": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              }
+            }
           }
         }
       }

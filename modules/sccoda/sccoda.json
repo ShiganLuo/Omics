@@ -9,15 +9,35 @@
     },
     "Params": {
         "sccoda": {
-            "enabled": false,
-            "compare": [],
-            "ref_celltype": "automatic",
-            "formula": "condition",
-            "credible_threshold": 0.9,
-            "num_samples": 2000,
-            "num_warmup": 500,
-            "formats": ["png"],
-            "tissue_samples": {}
+            "tissue_samples": {},
+            "scTE": {
+                "sccoda_run": {
+                    "enabled": false,
+                    "compare": [],
+                    "ref_celltype": "automatic",
+                    "formula": "condition",
+                    "credible_threshold": 0.9,
+                    "num_samples": 2000,
+                    "num_warmup": 500,
+                    "formats": [
+                        "png"
+                    ]
+                }
+            },
+            "cellranger": {
+                "sccoda_run": {
+                    "enabled": false,
+                    "compare": [],
+                    "ref_celltype": "automatic",
+                    "formula": "condition",
+                    "credible_threshold": 0.9,
+                    "num_samples": 2000,
+                    "num_warmup": 500,
+                    "formats": [
+                        "png"
+                    ]
+                }
+            }
         }
     }
 }

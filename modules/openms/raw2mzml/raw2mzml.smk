@@ -6,10 +6,10 @@ logdir = config.get("logdir", "logs")
 samples = config.get("samples", [])
 raw_files = config.get("raw_files", [])
 
-converter = config.get("Params", {}).get("raw_to_mzml", {}).get("converter") or "thermorawfileparser"
-converter_mode = (config.get("Params", {}).get("raw_to_mzml", {}).get("mode") or "thermorawfileparser").lower()
-converter_args = config.get("Params", {}).get("raw_to_mzml", {}).get("args") or ""
-extra_filter = config.get("Params", {}).get("raw_to_mzml", {}).get("peak_picking", True)
+# Get parameters
+# 参数精确到 rule(2026-11 规范;rule_param 见 common.smk):
+# Params.raw_to_mzml.raw2mzml.<key>,无 module 级共享回退。
+raw_to_mzml_params = config.get("Params", {}).get("raw_to_mzml", {})
 
 def get_raw_input(wildcards):
     if raw_files and wildcards.sample_id in samples:
@@ -46,10 +46,10 @@ rule raw2mzml:
     container:
         sif("../openms.yaml", "raw2mzml")
     params:
-        converter = converter,
-        converter_mode = converter_mode,
-        converter_args = converter_args,
-        peak_picking = extra_filter
+        converter = rule_param(raw_to_mzml_params, "raw2mzml", "converter", "thermorawfileparser"),
+        converter_mode = rule_param(raw_to_mzml_params, "raw2mzml", "mode", "thermorawfileparser").lower(),
+        converter_args = rule_param(raw_to_mzml_params, "raw2mzml", "args", ""),
+        peak_picking = rule_param(raw_to_mzml_params, "raw2mzml", "peak_picking", True)
     run:
         log_path = str(log)
         open(log_path, 'w').close()

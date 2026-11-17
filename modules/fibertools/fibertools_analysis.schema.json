@@ -41,15 +41,29 @@
         "nullable": true,
         "required": false,
         "properties": {
-          "ont": {
-            "type": "bool",
+          "ft_extract_fire": {
+            "type": "dict",
             "nullable": true,
-            "required": false
+            "required": false,
+            "properties": {
+              "ont": {
+                "type": "bool",
+                "nullable": true,
+                "required": false
+              }
+            }
           },
-          "call_peaks_mode": {
-            "type": "str",
+          "ft_call_peaks": {
+            "type": "dict",
             "nullable": true,
-            "required": false
+            "required": false,
+            "properties": {
+              "call_peaks_mode": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              }
+            }
           }
         }
       }

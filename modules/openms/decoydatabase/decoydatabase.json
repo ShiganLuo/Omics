@@ -7,11 +7,13 @@
     },
     "Params": {
         "decoy_database": {
-            "decoy_string": "DECOY_",
-            "decoy_string_position": "prefix",
-            "method": "shuffle",
-            "shuffle_max_attempts": 30,
-            "shuffle_sequence_identity_threshold": 0.5
+            "decoy_database": {
+                "decoy_string": "DECOY_",
+                "decoy_string_position": "prefix",
+                "method": "shuffle",
+                "shuffle_max_attempts": 30,
+                "shuffle_sequence_identity_threshold": 0.5
+            }
         }
     },
     "genome": {

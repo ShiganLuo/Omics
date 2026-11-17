@@ -103,43 +103,90 @@
       }
     },
     "manta": {
-      "threads": {
-        "type": "int",
-        "required": true
-      },
       "enabled": {
         "type": "bool",
         "required": false
+      },
+      "manta_run_germline": {
+        "threads": {
+          "type": "int",
+          "required": true
+        }
+      },
+      "manta_run_somatic": {
+        "threads": {
+          "type": "int",
+          "required": true
+        }
       }
     },
     "cnvkit": {
-      "method": {
-        "type": "enum",
-        "values": [
-          "hybrid",
-          "amplicon",
-          "wgs"
-        ],
-        "required": true
-      },
       "enabled": {
         "type": "bool",
         "required": false
       },
-      "mode": {
-        "type": "enum",
-        "values": [
-          "auto",
-          "paired",
-          "pooled",
-          "flat"
-        ],
-        "required": false
+      "cnvkit_reference": {
+        "method": {
+          "type": "enum",
+          "values": [
+            "hybrid",
+            "amplicon",
+            "wgs"
+          ],
+          "required": true
+        },
+        "mode": {
+          "type": "enum",
+          "values": [
+            "auto",
+            "paired",
+            "pooled",
+            "flat"
+          ],
+          "required": false
+        }
       },
-      "control_samples": {
-        "type": "list",
-        "nullable": true,
-        "required": false
+      "cnvkit_batch": {
+        "method": {
+          "type": "enum",
+          "values": [
+            "hybrid",
+            "amplicon",
+            "wgs"
+          ],
+          "required": true
+        },
+        "mode": {
+          "type": "enum",
+          "values": [
+            "auto",
+            "paired",
+            "pooled",
+            "flat"
+          ],
+          "required": false
+        }
+      },
+      "cnvkit_paired": {
+        "method": {
+          "type": "enum",
+          "values": [
+            "hybrid",
+            "amplicon",
+            "wgs"
+          ],
+          "required": true
+        },
+        "mode": {
+          "type": "enum",
+          "values": [
+            "auto",
+            "paired",
+            "pooled",
+            "flat"
+          ],
+          "required": false
+        }
       }
     },
     "burden": {
@@ -150,52 +197,66 @@
           "type": "bool",
           "required": false
         },
-        "min_vaf": {
-          "type": "float",
-          "required": false
-        },
-        "size_mb": {
-          "type": "float",
-          "required": false
-        },
-        "gtf_feature": {
-          "type": "enum",
-          "values": [
-            "exon",
-            "CDS"
-          ],
-          "required": false
-        },
-        "include_sex_chroms": {
-          "type": "bool",
-          "required": false
-        },
-        "min_abs_log2": {
-          "type": "float",
-          "required": false
-        },
-        "annotate": {
-          "type": "bool",
-          "required": false
-        },
-        "vep_cache": {
-          "type": "str",
-          "nullable": true,
-          "required": false
-        },
-        "vep_species": {
-          "type": "str",
-          "nullable": true,
-          "required": false
-        },
-        "vep_assembly": {
-          "type": "str",
-          "nullable": true,
-          "required": false
-        },
         "sample_snv_vcf_dict": {},
         "sample_sv_vcf_dict": {},
-        "sample_cnv_dict": {}
+        "sample_cnv_dict": {},
+        "burden_snv_indel": {
+          "type": "dict",
+          "nullable": true,
+          "required": false,
+          "properties": {
+            "min_vaf": {
+              "type": "float",
+              "required": false
+            },
+            "size_mb": {
+              "type": "float",
+              "required": false
+            },
+            "gtf_feature": {
+              "type": "enum",
+              "values": [
+                "exon",
+                "CDS"
+              ],
+              "required": false
+            },
+            "include_sex_chroms": {
+              "type": "bool",
+              "required": false
+            },
+            "annotate": {
+              "type": "bool",
+              "required": false
+            },
+            "vep_cache": {
+              "type": "str",
+              "nullable": true,
+              "required": false
+            },
+            "vep_species": {
+              "type": "str",
+              "nullable": true,
+              "required": false
+            },
+            "vep_assembly": {
+              "type": "str",
+              "nullable": true,
+              "required": false
+            }
+          }
+        },
+        "burden_cnv": {
+          "type": "dict",
+          "nullable": true,
+          "required": false,
+          "properties": {
+            "min_abs_log2": {
+              "type": "float",
+              "required": false
+            }
+          }
+        }
       }
     },
     "somatic_spectrum": {
@@ -367,13 +428,20 @@
       "nullable": true,
       "required": false,
       "properties": {
-        "formats": {
-          "type": "list",
+        "msi_plot": {
+          "type": "dict",
+          "nullable": true,
           "required": false,
-          "default": [
-            "jpg"
-          ],
-          "description": "图片格式(多种同时输出);R 侧 ggsave 设备集: png pdf svg ps eps tif tiff jpg jpeg(pgf/raw/rgba 为 matplotlib 专属,R 规则上快速失败)"
+          "properties": {
+            "formats": {
+              "type": "list",
+              "required": false,
+              "default": [
+                "jpg"
+              ],
+              "description": "图片格式(多种同时输出);R 侧 ggsave 设备集: png pdf svg ps eps tif tiff jpg jpeg(pgf/raw/rgba 为 matplotlib 专属,R 规则上快速失败)"
+            }
+          }
         }
       }
     },

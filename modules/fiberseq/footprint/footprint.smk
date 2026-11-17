@@ -7,11 +7,19 @@ logdir = config.get("logdir", "log")
 samples = config.get("samples", [])
 ROOT_DIR = config.get("ROOT_DIR", ".")
 env = config.get("env", {})
-p = config.get("Params", {}).get("fiberseq_footprint", {})
-# ① parse 期读入 + 规范化（str 收成单元素 list；合法值由 schema 声明）
-_formats = p.get("formats") or ["pdf"]
-if isinstance(_formats, str):
-    _formats = [_formats]
+_footprint_params = config.get("Params", {}).get("fiberseq_footprint", {})
+# 参数精确到 rule:formats 按 rule 独立配置(Params.fiberseq_footprint.<rule_name>.formats,
+# 无 module 级共享回退;rule_param 见 common.smk),每 rule 一个 parse 期变量。
+
+
+def _rule_formats(rule_name):
+    """Per-rule figure formats (parse 期解析,output 展开与 CLI 转发共用)。"""
+    fmts = rule_param(_footprint_params, rule_name, "formats", ["pdf"])
+    return [fmts] if isinstance(fmts, str) else (fmts or ["pdf"])
+
+
+_formats_run = _rule_formats("fiberseq_footprint_run")
+_formats_result = _rule_formats("fiberseq_footprint_result")
 
 # upstream contract: motif sites come from fiberseq_analysis/motif
 MOTIF_DIR = config.get("motif_dir") or indir + "/motif"
@@ -29,7 +37,7 @@ rule fiberseq_footprint_run:
         scores = outdir + "/{sample_id}/{sample_id}.footprint_scores.tsv",
         # ② 按格式展开：每种格式一个输出文件（base 不带扩展名）
         plots = [outdir + "/{sample_id}/{sample_id}.footprint_profile." + fmt
-                 for fmt in _formats],
+                 for fmt in _formats_run],
     log:
         logdir + "/{sample_id}/fiberseq_footprint_run.log"
     threads: rule_res("fiberseq_footprint").get("threads", 4)
@@ -44,8 +52,8 @@ rule fiberseq_footprint_run:
         sif("../fiberseq.yaml", "fiberseq_footprint_run")
     params:
         script = ROOT_DIR + "/modules/fiberseq/bin/footprint_profile.py",
-        flank = p.get("flank", 1000),
-        formats = _formats,   # ③ 转发
+        flank = rule_param(_footprint_params, "fiberseq_footprint_run", "flank", 1000),
+        formats = _formats_run,   # ③ 转发
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -91,7 +99,7 @@ rule fiberseq_footprint_result:
         scores = expand(outdir + "/{sample_id}/{sample_id}.footprint_scores.tsv",
                         sample_id=samples),
         plots = expand(outdir + "/{sample_id}/{sample_id}.footprint_profile.{fmt}",
-                       sample_id=samples, fmt=_formats),
+                       sample_id=samples, fmt=_formats_result),
 
     resources:
         mem_mb = lambda wildcards, input, attempt: rule_res(

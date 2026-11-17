@@ -58,11 +58,6 @@
         "nullable": true,
         "required": false,
         "properties": {
-          "javaOptions": {
-            "type": "str",
-            "nullable": true,
-            "required": false
-          },
           "FS_threshold": {
             "type": "float",
             "nullable": true,
@@ -82,6 +77,30 @@
             "type": "float",
             "nullable": true,
             "required": false
+          },
+          "HaplotypeCaller": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "javaOptions": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              }
+            }
+          },
+          "filterHaplotypeCallerVcf": {
+            "type": "dict",
+            "nullable": true,
+            "required": false,
+            "properties": {
+              "javaOptions": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              }
+            }
           }
         }
       }

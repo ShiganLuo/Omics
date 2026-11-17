@@ -3,6 +3,11 @@ include: "../common/common.smk"
 outdir = config.get("outdir", "output")
 indir = config.get("indir", "output/raw_fastq")
 logdir = config.get("logdir", "log")
+
+# 参数精确到 rule:Params.trimmomatic.<rule_name>.<key>(rule_param 见 common.smk;
+# 无 module 级共享回退,trimmomatic_Paired / trimmomatic_Single 各自独立键)。
+_trimmomatic_params = config.get("Params", {}).get("trimmomatic", {})
+
 # neet for test
 rule trimmomatic_Paired:
     input:
@@ -15,7 +20,7 @@ rule trimmomatic_Paired:
     params:
         outdir = outdir,
         trimmomatic = config.get('Procedure',{}).get('trimmomatic') or 'trimmomatic',
-        adapter = config.get('Params',{}).get("trimmomatic", {}).get('adapter_pe'),
+        adapter = rule_param(_trimmomatic_params, "trimmomatic_Paired", "adapter_pe", None),
         cmd = lambda wildcards: (
             f"java -jar {config.get('Procedure',{}).get('trimmomatic')}"
             if str(config.get('Procedure',{}).get('trimmomatic')).endswith(".jar")
@@ -70,7 +75,7 @@ rule trimmomatic_Single:
     params:
         outdir = outdir,
         trimmomatic = config.get('Procedure',{}).get('trimmomatic') or 'trimmomatic',
-        adapter = config.get('Params',{}).get("trimmomatic", {}).get('adapter_se'),
+        adapter = rule_param(_trimmomatic_params, "trimmomatic_Single", "adapter_se", None),
         cmd = lambda wildcards: (
             f"java -jar {config.get('Procedure',{}).get('trimmomatic')}"
             if str(config.get('Procedure',{}).get('trimmomatic')).endswith(".jar")

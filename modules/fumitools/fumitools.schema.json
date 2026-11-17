@@ -57,30 +57,56 @@
         "nullable": true,
         "required": false,
         "properties": {
-          "umi_length": {
-            "type": "int",
+          "fumitools_copy_umi_paired": {
+            "type": "dict",
+            "required": false,
             "nullable": true,
-            "required": false
+            "properties": {
+              "umi_length": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "tag_umi": {
+                "type": "bool",
+                "nullable": true,
+                "required": false
+              }
+            }
           },
-          "tag_umi": {
-            "type": "bool",
+          "fumitools_copy_umi_single": {
+            "type": "dict",
+            "required": false,
             "nullable": true,
-            "required": false
+            "properties": {
+              "umi_length": {
+                "type": "int",
+                "nullable": true,
+                "required": false
+              },
+              "tag_umi": {
+                "type": "bool",
+                "nullable": true,
+                "required": false
+              }
+            }
           },
-          "start_only": {
-            "type": "bool",
+          "fumitools_dedup": {
+            "type": "dict",
+            "required": false,
             "nullable": true,
-            "required": false
-          },
-          "memory": {
-            "type": "str",
-            "nullable": true,
-            "required": false
-          },
-          "threads": {
-            "type": "int",
-            "nullable": true,
-            "required": false
+            "properties": {
+              "memory": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              },
+              "start_only": {
+                "type": "bool",
+                "nullable": true,
+                "required": false
+              }
+            }
           }
         }
       }

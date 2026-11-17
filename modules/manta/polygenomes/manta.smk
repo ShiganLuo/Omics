@@ -5,6 +5,9 @@ logdir = config.get("logdir", "log")
 indir = config.get("indir", "input")
 samples = config.get("samples", [])
 ROOT_DIR = config.get("ROOT_DIR", ".")
+# 参数精确到 rule:threads 按 rule 独立配置(Params.manta.<rule_name>.threads),
+# 无 module 级共享;rule_param 见 common.smk。
+_manta_params = config.get("Params", {}).get("manta", {})
 
 rule manta_config:
     """Configure Manta SV caller."""
@@ -67,7 +70,7 @@ rule manta_run:
     log:
         logdir + "/{genome}/{sample_id}/manta_run.log"
     threads:
-        config.get("Params", {}).get("manta", {}).get("threads") or 8
+        rule_param(_manta_params, "manta_run", "threads", 8)
     benchmark: logdir + "/{genome}/{sample_id}/manta_run.benchmark.tsv",
     resources:
         mem_mb = lambda wildcards, input, attempt: rule_res(

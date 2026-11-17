@@ -6,8 +6,9 @@ indir = config.get("indir", "input")
 outdir = config.get("outdir", "output")
 logdir = config.get("logdir", "logs")
 # reannotate: {counter: {tissue: override_json}} — forwarded by the
-# subworkflow from scanpy's auto.cluster_annotations. Cross-module
-# ordering guard only; see _reannotate_marker below.
+# subworkflow (node.py) from scanpy's cluster_annotations config. Cross-module
+# ordering guard only; see _reannotate_marker below. (top-level wiring key,
+# not a Params read point — sccoda's own params are rule-scoped below.)
 reannotate = config.get("reannotate", {}) or {}
 
 params = config.get("Params", {}).get("sccoda", {})
@@ -19,15 +20,20 @@ counters = sorted(k for k, v in params.items()
 python = config.get("Procedure", {}).get("python") or "python"
 script = os.path.join(ROOT_DIR, "modules", "sccoda", "bin", "sccoda.py")
 
+# 参数精确到 rule:Params.sccoda.<counter>.sccoda_run.<key>(rule_param 见
+# common.smk;无 counter 级共享回退,原整段 cfg 转发已展开逐 key)。
 
-def _image_formats(cfg: dict) -> list:
-    """Image formats for one counter's plots: Params.sccoda.<counter>.formats
-    -> ["png"] (today's fixed output names). The da/ deliverable is a
+
+def _image_formats(wildcards, rule_name: str) -> list:
+    """Image formats for one rule's plots:
+    Params.sccoda.<counter>.<rule_name>.formats -> ["png"] (today's fixed
+    output names). 参数精确到 rule — no counter-level shared ``formats``
+    fallback (rule_param, common.smk). The da/ deliverable is a
     directory() (pre-existing shape, unchanged); the files written inside
     carry the requested extensions via the script's repeatable ``--format``
     flag (modules.md #9).
     """
-    fmts = (cfg or {}).get("formats") or ["png"]
+    fmts = rule_param(params.get(wildcards.counter), rule_name, "formats", ["png"])
     return [fmts] if isinstance(fmts, str) else [str(f) for f in fmts]
 
 
@@ -54,7 +60,8 @@ def _reannotate_marker(wildcards):
 # ---------------------------------------------------------------------------
 rule sccoda_run:
     """scCODA differential abundance (pertpy): one job per tissue x counter,
-    running every Params.sccoda.<counter>.compare entry scoped to its tissue.
+    running every Params.sccoda.<counter>.sccoda_run.compare entry scoped to
+    its tissue.
     Consumes the scanpy_auto h5ad (obs: sample_id + cell_type); when cluster
     annotation overrides are configured for the tissue, the reannotate marker
     orders this rule after the in-place label fix."""
@@ -77,8 +84,15 @@ rule sccoda_run:
     params:
         python = python,
         script = script,
-        sccoda_cfg = lambda wildcards: params.get(wildcards.counter, {}),
-        formats = lambda wildcards: _image_formats(params.get(wildcards.counter, {})),
+        # 参数精确到 rule:Params.sccoda.<counter>.sccoda_run.<key>
+        # (原 sccoda_cfg 整段 dict 转发已展开逐 key,rule_param 见 common.smk)
+        ref_celltype=lambda wildcards: rule_param(params.get(wildcards.counter), "sccoda_run", "ref_celltype", "automatic"),
+        formula=lambda wildcards: rule_param(params.get(wildcards.counter), "sccoda_run", "formula", "condition"),
+        credible_threshold=lambda wildcards: rule_param(params.get(wildcards.counter), "sccoda_run", "credible_threshold", 0.90),
+        num_samples=lambda wildcards: rule_param(params.get(wildcards.counter), "sccoda_run", "num_samples", 2000),
+        num_warmup=lambda wildcards: rule_param(params.get(wildcards.counter), "sccoda_run", "num_warmup", 500),
+        compare=lambda wildcards: rule_param(params.get(wildcards.counter), "sccoda_run", "compare", []) or [],
+        formats = lambda wildcards: _image_formats(wildcards, "sccoda_run"),
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -91,27 +105,26 @@ rule sccoda_run:
             # dual-write receipts: timestamped copy in log/cmd, plain copy in outdir
             script = os.path.join(RECEIPT_DIR, f"sccoda_run_{wildcards.counter}_{wildcards.tissue}_{current_time}.sh")
             plain_script = os.path.join(out_root, f"sccoda_run_{wildcards.counter}_{wildcards.tissue}.sh")
-            cfg = params.sccoda_cfg
             cmd = [params.python, params.script,
                    "--h5ad", f"{wildcards.tissue}={input.h5ad}",
                    "--out-dir", out_root,
-                   "--ref-celltype", str(cfg.get("ref_celltype") or "automatic"),
-                   "--formula", str(cfg.get("formula") or "condition"),
-                   "--credible-threshold", str(cfg.get("credible_threshold", 0.90)),
-                   "--num-samples", str(cfg.get("num_samples", 2000)),
-                   "--num-warmup", str(cfg.get("num_warmup", 500))]
+                   "--ref-celltype", str(params.ref_celltype or "automatic"),
+                   "--formula", str(params.formula or "condition"),
+                   "--credible-threshold", str(params.credible_threshold),
+                   "--num-samples", str(params.num_samples),
+                   "--num-warmup", str(params.num_warmup)]
             # entries: tissue:ref_sample:treat_sample[=label] — every entry
             # is scoped to ONE tissue (sccoda.py rejects a compare whose
             # tissue has no --h5ad definition), so this per-tissue job only
             # takes the entries prefixed with its own wildcard. SAME filter
             # expression as node.py's registration gate.
             tissue_compares = [
-                str(c) for c in (cfg.get("compare") or [])
+                str(c) for c in (params.compare or [])
                 if str(c).split(":", 1)[0] == wildcards.tissue
             ]
             if not tissue_compares:
                 raise RuntimeError(
-                    f"Params.sccoda.{wildcards.counter}.compare "
+                    f"Params.sccoda.{wildcards.counter}.sccoda_run.compare "
                     f"has no entry for tissue '{wildcards.tissue}' — expected "
                     f"entries like '{wildcards.tissue}:ref_sample:"
                     f"treat_sample[=label]'")

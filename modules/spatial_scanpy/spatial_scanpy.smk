@@ -9,12 +9,16 @@ input_h5ad = config.get("input_h5ad", "")
 visium_h5 = config.get("visium_h5", "")
 spatial_dir = config.get("spatial_dir", "")
 params = config.get("Params", {}).get("spatial", {})
-advanced = params.get("advanced", {})
 python = config.get("Procedure", {}).get("python") or "python"
 script = os.path.join(ROOT_DIR, "modules", "spatial_scanpy", "bin", "spatial_transcriptomics.py")
 qc_h5ad = outdir + "/spatial/qc/filtered.h5ad"
 cluster_h5ad = outdir + "/spatial/cluster/clustered.h5ad"
 advanced_h5ad = outdir + "/spatial/advanced/spatial_autocorrelation.h5ad"
+
+# 参数精确到 rule:Params.spatial.<rule_name>.<key>(rule_param 见 common.smk;
+# 原 Params.spatial 平铺 key 与 advanced 子段均挂到消费 rule 名下,无共享回退:
+# min_genes 等 → spatial_scanpy_qc;n_pcs/resolution 等 → spatial_scanpy_cluster;
+# spatial_autocorrelation 开关 → spatial_scanpy_advanced)。
 
 if not input_h5ad and not visium_h5:
     raise ValueError("spatial transcriptomics requires input_h5ad or visium_h5")
@@ -51,7 +55,8 @@ rule spatial_scanpy_qc:
     container:
         sif("spatial_scanpy.yaml", "spatial_scanpy_qc")
     params:
-        command=lambda wc: _common_command("qc", qc_h5ad, ["--metrics", outdir + "/spatial/qc/qc_metrics.tsv", "--min-genes", str(params.get("min_genes", 100)), "--max-pct-mt", str(params.get("max_pct_mt", 25)), "--n-top-genes", str(params.get("n_top_genes", 3000))])
+        # 参数精确到 rule:Params.spatial.spatial_scanpy_qc.<key>
+        command=lambda wc: _common_command("qc", qc_h5ad, ["--metrics", outdir + "/spatial/qc/qc_metrics.tsv", "--min-genes", str(rule_param(params, "spatial_scanpy_qc", "min_genes", 100)), "--max-pct-mt", str(rule_param(params, "spatial_scanpy_qc", "max_pct_mt", 25)), "--n-top-genes", str(rule_param(params, "spatial_scanpy_qc", "n_top_genes", 3000))])
     run:
         log_path=str(log)
         try:
@@ -79,7 +84,8 @@ rule spatial_scanpy_cluster:
     container:
         sif("spatial_scanpy.yaml", "spatial_scanpy_cluster")
     params:
-        command=lambda wc: _common_command("cluster", cluster_h5ad, ["--genes", outdir + "/spatial/cluster/spatial_markers.tsv", "--n-pcs", str(params.get("n_pcs", 50)), "--n-neighbors", str(params.get("n_neighbors", 15)), "--resolution", str(params.get("resolution", 0.8))])
+        # 参数精确到 rule:Params.spatial.spatial_scanpy_cluster.<key>
+        command=lambda wc: _common_command("cluster", cluster_h5ad, ["--genes", outdir + "/spatial/cluster/spatial_markers.tsv", "--n-pcs", str(rule_param(params, "spatial_scanpy_cluster", "n_pcs", 50)), "--n-neighbors", str(rule_param(params, "spatial_scanpy_cluster", "n_neighbors", 15)), "--resolution", str(rule_param(params, "spatial_scanpy_cluster", "resolution", 0.8))])
     run:
         log_path=str(log)
         try:
@@ -91,7 +97,9 @@ rule spatial_scanpy_cluster:
             rule_logger.error(f"spatial clustering failed: {exc}")
             raise RuntimeError(f"spatial clustering failed: {exc}, see {log_path} for details.")
 
-if advanced.get("spatial_autocorrelation", True):
+# 参数精确到 rule:开关挂在 spatial_scanpy_advanced 名下(原 advanced 子段),
+# parse 期决定该 rule 是否定义。
+if rule_param(params, "spatial_scanpy_advanced", "spatial_autocorrelation", True):
     rule spatial_scanpy_advanced:
         input: h5ad=cluster_h5ad
         output: h5ad=advanced_h5ad

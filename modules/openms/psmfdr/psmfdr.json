@@ -8,8 +8,10 @@
     },
     "Params": {
         "psm_fdr_control": {
-            "fdr": 0.01,
-            "method": "BH"
+            "psm_fdr": {
+                "fdr": 0.01,
+                "method": "BH"
+            }
         }
     }
 }

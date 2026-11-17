@@ -7,7 +7,12 @@ ROOT_DIR = config.get("ROOT_DIR", ".")
 env = config.get("env", {})
 genome_cfg = config.get("genome", {})
 genome_name = config.get("genome_name") or "genome"
-p = config.get("Params", {}).get("censatbuild", {})
+_censatbuild_params = config.get("Params", {}).get("censatbuild", {})
+# 参数精确到 rule(2026-11 规范):整段 p 已按 key 拆到消费 rule 名下
+# (Params.censatbuild.<rule_name>.<key>,无 module 级共享回退;rule_param 见
+# common.smk):species → censatbuild_repeatmasker_run,gap/major_pattern/
+# minor_pattern/class_pattern → censatbuild_arrays,flank → censatbuild_flank,
+# bam → censatbuild_mcg_pileup。
 
 ARRAYS_OUT = outdir + f"/{genome_name}.sat_arrays.bed"
 CENSAT_OUT = outdir + f"/{genome_name}.censat.bed"
@@ -33,7 +38,9 @@ centromere_config = {
     "logdir": logdir,
     "samples": [genome_name],
     "Procedure": {},
-    "Params": {"RepeatMasker": {"species": p.get("species", "Mus musculus")}},
+    "Params": {"RepeatMasker": {
+        "species": rule_param(_censatbuild_params, "censatbuild_repeatmasker_run",
+                              "species", "Mus musculus")}},
 }
 
 module centromere:
@@ -94,10 +101,10 @@ rule censatbuild_arrays:
         sif("censatbuild.yaml", "censatbuild_arrays")
     params:
         script = ROOT_DIR + "/modules/censatbuild/bin/censatbuild_rm2bed.py",
-        gap = p.get("gap", 10000),
-        major_pattern = p.get("major_pattern", "major"),
-        minor_pattern = p.get("minor_pattern", "minor"),
-        class_pattern = p.get("class_pattern", "Satellite"),
+        gap = rule_param(_censatbuild_params, "censatbuild_arrays", "gap", 10000),
+        major_pattern = rule_param(_censatbuild_params, "censatbuild_arrays", "major_pattern", "major"),
+        minor_pattern = rule_param(_censatbuild_params, "censatbuild_arrays", "minor_pattern", "minor"),
+        class_pattern = rule_param(_censatbuild_params, "censatbuild_arrays", "class_pattern", "Satellite"),
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -129,6 +136,9 @@ rule censatbuild_arrays:
             rule_logger.error(f"Error occurred during censatbuild_arrays for {genome_name}: {e}\n")
             raise RuntimeError(f"Error occurred during censatbuild_arrays for {genome_name}: {e}\n")
 
+# censatbuild_flank 的 flank 与派生 flank_name 共用一个 parse 期读点
+_flank_censatbuild_flank = rule_param(_censatbuild_params, "censatbuild_flank", "flank", 10000)
+
 rule censatbuild_flank:
     """Add flanking regions and write the final censat region-class BED."""
     input:
@@ -150,8 +160,8 @@ rule censatbuild_flank:
     container:
         sif("censatbuild.yaml", "censatbuild_flank")
     params:
-        flank = p.get("flank", 10000),
-        flank_name = f"flank_{p.get('flank', 10000) // 1000}kb",
+        flank = _flank_censatbuild_flank,
+        flank_name = f"flank_{_flank_censatbuild_flank // 1000}kb",
     run:
         log_path = str(log)
         open(log_path, "w").close()
@@ -182,10 +192,12 @@ rule censatbuild_mcg_pileup:
     """Optional: CpG methylation pileup (bedGraph) from an aligned BAM.
 
     Consumed by modules/fiberseq/censat as genome.mcpg_pileup. Needs
-    Params.censatbuild.bam (e.g. a fiberseq aligned BAM).
+    Params.censatbuild.censatbuild_mcg_pileup.bam (e.g. a fiberseq aligned BAM).
     """
     input:
-        bam = lambda wildcards: _require(p.get("bam"), "Params.censatbuild.bam", "censatbuild"),
+        bam = lambda wildcards: _require(
+            rule_param(_censatbuild_params, "censatbuild_mcg_pileup", "bam"),
+            "Params.censatbuild.censatbuild_mcg_pileup.bam", "censatbuild"),
     output:
         bedgraph = outdir + f"/{genome_name}.mcpg_pileup.bedGraph",
     log:

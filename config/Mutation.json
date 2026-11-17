@@ -34,34 +34,54 @@
     },
     "msi": {
       "enabled": true,
-      "formats": [
-        "jpg"
-      ]
+      "msi_plot": {
+        "formats": [
+          "jpg"
+        ]
+      }
     },
     "manta": {
-      "threads": 8,
-      "enabled": true
+      "enabled": true,
+      "manta_run_germline": {
+        "threads": 8
+      },
+      "manta_run_somatic": {
+        "threads": 8
+      }
     },
     "cnvkit": {
       "enabled": true,
-      "method": "wgs",
-      "mode": "auto",
-      "control_samples": []
+      "cnvkit_reference": {
+        "method": "wgs",
+        "mode": "auto"
+      },
+      "cnvkit_batch": {
+        "method": "wgs",
+        "mode": "auto"
+      },
+      "cnvkit_paired": {
+        "method": "wgs",
+        "mode": "auto"
+      }
     },
     "burden": {
       "enabled": true,
-      "min_vaf": 0.05,
-      "size_mb": 34.0,
-      "gtf_feature": "exon",
-      "include_sex_chroms": false,
-      "min_abs_log2": 0.3,
-      "annotate": true,
-      "vep_cache": "~/.vep",
-      "vep_species": null,
-      "vep_assembly": null,
       "sample_snv_vcf_dict": {},
       "sample_sv_vcf_dict": {},
-      "sample_cnv_dict": {}
+      "sample_cnv_dict": {},
+      "burden_snv_indel": {
+        "min_vaf": 0.05,
+        "size_mb": 34.0,
+        "gtf_feature": "exon",
+        "include_sex_chroms": false,
+        "annotate": true,
+        "vep_cache": "~/.vep",
+        "vep_species": null,
+        "vep_assembly": null
+      },
+      "burden_cnv": {
+        "min_abs_log2": 0.3
+      }
     },
     "somatic_spectrum": {
       "sample_somatic_vcf_dict": {},

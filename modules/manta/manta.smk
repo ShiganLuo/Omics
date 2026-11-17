@@ -6,6 +6,9 @@ indir = config.get("indir", "input")
 bam_suffix = config.get("bam_suffix", "")
 samples = config.get("samples", [])
 ROOT_DIR = config.get("ROOT_DIR", ".")
+# 参数精确到 rule:threads 按 rule 独立配置(Params.manta.<rule_name>.threads),
+# 无 module 级共享;rule_param 见 common.smk。
+_manta_params = config.get("Params", {}).get("manta", {})
 
 rule manta_config_germline:
     """Configure Manta SV caller."""
@@ -64,7 +67,7 @@ rule manta_run_germline:
     log:
         logdir + "/{sample_id}/manta_run.log"
     threads:
-        config.get("Params", {}).get("manta", {}).get("threads") or 8
+        rule_param(_manta_params, "manta_run_germline", "threads", 8)
     benchmark: logdir + "/{sample_id}/manta_run.benchmark.tsv",
     resources:
         mem_mb = lambda wildcards, input, attempt: rule_res(
@@ -157,7 +160,7 @@ rule manta_run_somatic:
     log:
         logdir + "/manta/{normal_sample_id}_vs_{experimental_sample_id}/manta_run_somatic.log"
     threads:
-        config.get("Params", {}).get("manta", {}).get("threads") or 8
+        rule_param(_manta_params, "manta_run_somatic", "threads", 8)
     benchmark: logdir + "/manta/{normal_sample_id}_vs_{experimental_sample_id}/manta_run_somatic.benchmark.tsv",
     resources:
         mem_mb = lambda wildcards, input, attempt: rule_res(

@@ -69,10 +69,16 @@
             "nullable": true,
             "required": false
           },
-          "normalize": {
-            "type": "str",
-            "nullable": true,
-            "required": false
+          "bamCoverage": {
+            "type": "dict",
+            "required": false,
+            "properties": {
+              "normalizeUsing": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              }
+            }
           }
         }
       }

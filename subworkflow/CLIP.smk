@@ -49,10 +49,9 @@ UmiTools_extract_config = {
             "extract_method": config.get('Procedure',{}).get('extract_method') or 'string'
         },
         "Params": {
-            "umi_tools": {
-                "bc_pattern": config.get('Params',{}).get('umi_tools',{}).get('bc_pattern') or 'NNNXXXXNN',
-                "bc_pattern2": config.get('Params',{}).get('umi_tools',{}).get('bc_pattern2') or 'NNNXXXXNN',
-            }
+            # 参数精确到 rule:整段透传(Params.umi_tools.<rule>.<key>,rule 子段
+            # 透明传递;模块内置默认同原转发默认)
+            "umi_tools": config.get('Params',{}).get('umi_tools', {}),
         }
     }
 module UmiTools_extract:
@@ -74,9 +73,8 @@ cutadapt_config = {
             "trim_galore": config.get('Procedure',{}).get('trim_galore')
         },
         "Params": {
-            "trim_galore": {
-                "quality": config.get('Params',{}).get("trim_galore", {}).get('quality')
-            }
+            # 参数精确到 rule:整段透传(Params.trim_galore.<rule>.<key>)
+            "trim_galore": config.get('Params',{}).get("trim_galore", {}),
         }
     }
 module cutadapt:
@@ -174,9 +172,8 @@ umi_tools_dedup_config = {
             "umi_tools": config.get('Procedure',{}).get('umi_tools')
         },
         "Params": {
-            "umi_tools": {
-                "method": config.get('Params',{}).get('umi_tools',{}).get('method') or 'unique'
-            }
+            # 参数精确到 rule:整段透传(Params.umi_tools.<rule>.<key>)
+            "umi_tools": config.get('Params',{}).get('umi_tools', {}),
         }
     }
 module UmiTools_dedup:

@@ -24,15 +24,29 @@
         "nullable": true,
         "required": false,
         "properties": {
-          "adapter_pe": {
-            "type": "str",
+          "trimmomatic_Paired": {
+            "type": "dict",
             "nullable": true,
-            "required": false
+            "required": false,
+            "properties": {
+              "adapter_pe": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              }
+            }
           },
-          "adapter_se": {
-            "type": "str",
+          "trimmomatic_Single": {
+            "type": "dict",
             "nullable": true,
-            "required": false
+            "required": false,
+            "properties": {
+              "adapter_se": {
+                "type": "str",
+                "nullable": true,
+                "required": false
+              }
+            }
           }
         }
       }

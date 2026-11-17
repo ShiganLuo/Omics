@@ -10,7 +10,9 @@ logdir = config.get("logdir", "log")
 samples = config.get("samples", [])
 ROOT_DIR = config.get("ROOT_DIR", ".")
 env = config.get("env", {})
-p = config.get("Params", {}).get("fiberseq_quant", {})
+# 参数精确到 rule:Params.fiberseq_quant.<rule_name>.<key> 由消费 rule 自己读
+# (rule_param 见 common.smk);本模块当前无 Params 消费点(quant_matrix.py
+# CLI 无参数化选项),故无 module 级共享读取——不要加回。
 
 wildcard_constraints:
     hap = "hap[12]",

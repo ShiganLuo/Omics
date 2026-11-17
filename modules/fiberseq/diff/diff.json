@@ -1,16 +1,17 @@
 {
-    "indir": "common/4_elements",
-    "outdir": "fiberseq_analysis/diff",
-    "logdir": "log",
-    "samples": [],
-    "Procedure": {},
-    "Params": {
-        "fiberseq_diff": {
-            "alpha": 0.05,
-            "design_tsv": null,
-            "annot_sample": null
-        }
-    },
-    "genome": {},
-    "env": {}
+  "indir": "common/4_elements",
+  "outdir": "fiberseq_analysis/diff",
+  "logdir": "log",
+  "samples": [],
+  "Procedure": {},
+  "Params": {
+    "fiberseq_diff": {
+      "fiberseq_diff_run": {
+        "alpha": 0.05,
+        "annot_sample": null
+      }
+    }
+  },
+  "genome": {},
+  "env": {}
 }
